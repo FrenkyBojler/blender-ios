@@ -623,6 +623,7 @@ void Film::init_pass(PassSimple &pass, gpu::Shader *sh)
   pass.specialize_constant(sh, "normal_id", &data_.normal_id);
   pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
   pass.shader_set(sh);
+  pass.push_constant("panoramic_view_id", &panoramic_view_id_);
   /* For viewport, only previous motion is supported.
    * Still bind previous step to avoid undefined behavior. */
   eVelocityStep step_next = inst_.is_viewport() ? STEP_PREVIOUS : STEP_NEXT;
@@ -632,7 +633,7 @@ void Film::init_pass(PassSimple &pass, gpu::Shader *sh)
   pass.bind_ubo("camera_curr", &(*velocity.camera_steps[STEP_CURRENT]));
   pass.bind_ubo("camera_next", &(*velocity.camera_steps[step_next]));
   pass.bind_texture("depth_tx", &rbuffers.depth_tx);
-  pass.bind_texture("combined_tx", &combined_final_tx_);
+  pass.bind_texture("combined_tx", &combined_final_tx_, filter);
   pass.bind_texture("vector_tx", &rbuffers.vector_tx);
   pass.bind_texture("rp_color_tx", &rbuffers.rp_color_tx);
   pass.bind_texture("rp_value_tx", &rbuffers.rp_value_tx);
@@ -750,7 +751,13 @@ void Film::update_sample_table()
   }
 
   data_.samples_len = 0;
-  if (data_.scaling_factor > 1) {
+  if (inst_.camera.is_panoramic()) {
+    data_.samples[0].texel = int2(0, 0);
+    data_.samples[0].weight = 1.0f;
+    data_.samples_weight_total = 1.0f;
+    data_.samples_len = 1;
+  }
+  else if (data_.scaling_factor > 1) {
     /* For this case there might be no valid samples for some pixels.
      * Still visit all four neighbors to have the best weight available.
      * Note that weight is computed on the GPU as it is different for each sample. */
@@ -857,7 +864,7 @@ void Film::update_sample_table()
   }
 }
 
-void Film::accumulate(View &view, gpu::Texture *combined_final_tx)
+void Film::accumulate(View &view, gpu::Texture *combined_final_tx, int panoramic_view_id)
 {
   if (inst_.is_viewport()) {
     DefaultFramebufferList *dfbl = inst_.draw_ctx->viewport_framebuffer_list_get();
@@ -871,6 +878,7 @@ void Film::accumulate(View &view, gpu::Texture *combined_final_tx)
   }
 
   combined_final_tx_ = combined_final_tx;
+  panoramic_view_id_ = panoramic_view_id;
 
   display_only_ = false;
   inst_.manager->submit(accumulate_ps_, view);
@@ -897,6 +905,7 @@ void Film::display()
   GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(data_.offset), UNPACK2(data_.extent));
 
   combined_final_tx_ = inst_.render_buffers.combined_tx;
+  panoramic_view_id_ = -1;
 
   draw::View &drw_view = draw::View::default_get();
 

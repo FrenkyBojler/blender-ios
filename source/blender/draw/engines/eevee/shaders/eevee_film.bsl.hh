@@ -22,13 +22,181 @@
 namespace eevee::film {
 
 /* Return scene linear Z depth from the camera or radial depth for panoramic cameras. */
-float depth_convert_to_scene(const ViewMatrices view, float depth)
+float depth_convert_to_scene(const ViewMatrices view,
+                             float depth,
+                             float2 uv,
+                             bool is_panoramic_camera)
 {
-  if (false /* Panoramic. */) {
-    /* TODO */
-    return 1.0f;
+  if (is_panoramic_camera) {
+    return length(view.point_screen_to_view(float3(uv, depth)));
   }
   return -view.depth_screen_to_view(depth);
+}
+
+float3 panoramic_equirectangular_to_direction(CameraData cam, float2 uv)
+{
+  uv = uv * cam.equirect_scale + cam.equirect_bias;
+  float phi = uv.x;
+  float theta = uv.y;
+  float sin_theta = sin(theta);
+  return float3(sin_theta * cos(phi), cos(theta), -sin_theta * sin(phi));
+}
+
+float3 panoramic_equiangular_cubemap_face_to_direction(CameraData cam, float2 uv)
+{
+  uv = uv * cam.uv_scale + cam.uv_bias;
+  float u = tan((0.5f - uv.x) * M_PI_2);
+  float v = tan((uv.y - 0.5f) * M_PI_2);
+  return normalize(float3(-u, v, -1.0f));
+}
+
+float3 panoramic_central_cylindrical_to_direction(CameraData cam, float2 uv)
+{
+  uv = uv * cam.uv_scale + cam.uv_bias;
+  const float theta = mix(cam.central_cylindrical_range.x, cam.central_cylindrical_range.y, uv.x);
+  const float cylinder_height = mix(
+      cam.central_cylindrical_range.z, cam.central_cylindrical_range.w, uv.y);
+  return normalize(float3(-sin(theta), cylinder_height, -cos(theta)));
+}
+
+float3 panoramic_fisheye_to_direction(CameraData cam, float2 uv)
+{
+  uv = uv * cam.uv_scale + cam.uv_bias;
+  uv = (uv - 0.5f) * 2.0f;
+  float r = length(uv);
+  if (r > 1.0f) {
+    return float3(0.0f);
+  }
+  float phi = safe_acos(uv.x * safe_rcp(r));
+  float theta = r * cam.fisheye_fov * 0.5f;
+  if (uv.y < 0.0f) {
+    phi = -phi;
+  }
+  return float3(cos(phi) * sin(theta), sin(phi) * sin(theta), -cos(theta));
+}
+
+float3 panoramic_fisheye_equisolid_to_direction(CameraData cam, float2 uv)
+{
+  uv = uv * cam.uv_scale + cam.uv_bias;
+  uv = (uv - 0.5f) * cam.fisheye_sensor;
+
+  float r = length(uv);
+  float rmax = 2.0f * cam.fisheye_lens * sin(cam.fisheye_fov * 0.25f);
+  if (r > rmax) {
+    return float3(0.0f);
+  }
+
+  float theta = 2.0f * asin(r / (2.0f * cam.fisheye_lens));
+  float phi = safe_acos(uv.x * safe_rcp(r));
+  if (uv.y < 0.0f) {
+    phi = -phi;
+  }
+  return float3(cos(phi) * sin(theta), sin(phi) * sin(theta), -cos(theta));
+}
+
+float3 panoramic_fisheye_lens_polynomial_to_direction(CameraData cam, float2 uv)
+{
+  uv = uv * cam.uv_scale + cam.uv_bias;
+  uv = (uv - 0.5f) * cam.fisheye_sensor;
+
+  const float r = length(uv);
+  const float r2 = r * r;
+  const float4 rr = float4(r, r2, r2 * r, r2 * r2);
+  const float theta = -(cam.fisheye_polynomial_bias +
+                        dot(cam.fisheye_polynomial_coefficients, rr));
+
+  if (abs(theta) > 0.5f * cam.fisheye_fov) {
+    return float3(0.0f);
+  }
+
+  float phi = safe_acos(uv.x * safe_rcp(r));
+  if (uv.y < 0.0f) {
+    phi = -phi;
+  }
+  return float3(cos(phi) * sin(theta), sin(phi) * sin(theta), -cos(theta));
+}
+
+float3 panoramic_mirror_ball_to_direction(CameraData cam, float2 uv)
+{
+  uv = uv * cam.uv_scale + cam.uv_bias;
+  float3 dir;
+  dir.xy = uv * 2.0f - 1.0f;
+  if (length_squared(dir.xy) > 1.0f) {
+    return float3(0.0f);
+  }
+  dir.z = -safe_sqrt(1.0f - square(dir.x) - square(dir.y));
+  constexpr float3 I = float3(0.0f, 0.0f, 1.0f);
+  return reflect(I, dir);
+}
+
+float3 panoramic_direction_from_uv(CameraData cam, float2 uv)
+{
+  switch (cam.type) {
+    default:
+      return float3(0.0f);
+    case CAMERA_PANO_EQUIRECT:
+      return panoramic_equirectangular_to_direction(cam, uv);
+    case CAMERA_PANO_EQUIANGULAR_CUBEMAP_FACE:
+      return panoramic_equiangular_cubemap_face_to_direction(cam, uv);
+    case CAMERA_PANO_EQUIDISTANT:
+      return panoramic_fisheye_to_direction(cam, uv);
+    case CAMERA_PANO_EQUISOLID:
+      return panoramic_fisheye_equisolid_to_direction(cam, uv);
+    case CAMERA_PANO_FISHEYE_LENS_POLYNOMIAL:
+      return panoramic_fisheye_lens_polynomial_to_direction(cam, uv);
+    case CAMERA_PANO_CENTRAL_CYLINDRICAL:
+      return panoramic_central_cylindrical_to_direction(cam, uv);
+    case CAMERA_PANO_MIRROR:
+      return panoramic_mirror_ball_to_direction(cam, uv);
+  }
+}
+
+int panoramic_face_index(float3 direction)
+{
+  float3 abs_direction = abs(direction);
+  if (abs_direction.x >= abs_direction.y && abs_direction.x >= abs_direction.z) {
+    return (direction.x >= 0.0f) ? 0 : 1;
+  }
+  if (abs_direction.y >= abs_direction.z) {
+    return (direction.y >= 0.0f) ? 2 : 3;
+  }
+  return (direction.z >= 0.0f) ? 4 : 5;
+}
+
+float2 panoramic_face_uv_from_direction(float3 direction, int face_id)
+{
+  float2 uv;
+  switch (face_id) {
+    default:
+    case 0:
+      uv = float2(-direction.z, -direction.y) * safe_rcp(direction.x);
+      break;
+    case 1:
+      uv = float2(-direction.z, direction.y) * safe_rcp(direction.x);
+      break;
+    case 2:
+      uv = float2(direction.x, direction.z) * safe_rcp(direction.y);
+      break;
+    case 3:
+      uv = float2(-direction.x, direction.z) * safe_rcp(direction.y);
+      break;
+    case 4:
+      uv = float2(direction.x, -direction.y) * safe_rcp(direction.z);
+      break;
+    case 5:
+      uv = float2(direction.x, direction.y) * safe_rcp(direction.z);
+      break;
+  }
+  return uv * 0.5f + 0.5f;
+}
+
+float4 film_cryptomatte_false_color(float hash)
+{
+  uint m3hash = floatBitsToUint(hash);
+  return float4(hash,
+                float(m3hash << 8) / float(0xFFFFFFFFu),
+                float(m3hash << 16) / float(0xFFFFFFFFu),
+                1.0f);
 }
 
 float display_depth_amend(float depth)
@@ -47,6 +215,16 @@ float display_depth_amend(float depth)
 float4 texelfetch_as_YCoCg_opacity(sampler2D tx, int2 texel)
 {
   float4 color = texelFetch(tx, texel, 0);
+  /* Convert transmittance to opacity. */
+  color.a = saturate(1.0f - color.a);
+  /* Transform to YCoCg for accumulation. */
+  color.rgb = colorspace::YCoCg_from_scene_linear(color.rgb);
+  return color;
+}
+
+float4 texture_as_YCoCg_opacity(sampler2D tx, float2 uv)
+{
+  float4 color = textureLod(tx, uv, 0.0f);
   /* Convert transmittance to opacity. */
   color.a = saturate(1.0f - color.a);
   /* Transform to YCoCg for accumulation. */
@@ -122,6 +300,8 @@ struct Film {
   [[specialization_constant(-1)]] int display_id;
   [[specialization_constant(-1)]] int normal_id;
 
+  [[push_constant]] int panoramic_view_id;
+
   /* Sample inputs. Data freshly rendered. */
   [[sampler(0)]] sampler2DDepth depth_tx;
   [[sampler(1)]] sampler2D combined_tx;
@@ -149,15 +329,62 @@ struct Film {
   /** \name Filter
    * \{ */
 
+  float2 panoramic_render_uv_get(int2 texel_film)
+  {
+    [[resource_table]] const Uniform &uni = this->uniforms;
+
+    const CameraData cam = uni.uniform_buf.camera;
+    const float2 film_uv = (float2(texel_film) + 0.5f) * uni.uniform_buf.film.extent_inv;
+    const float3 camera_direction = panoramic_direction_from_uv(cam, film_uv);
+    if (length_squared(camera_direction) == 0.0f) {
+      return float2(-1.0f);
+    }
+
+    if (panoramic_face_index(camera_direction) != panoramic_view_id) {
+      return float2(-1.0f);
+    }
+
+    const float2 render_uv = panoramic_face_uv_from_direction(camera_direction, panoramic_view_id);
+    if (any(lessThan(render_uv, float2(0.0f))) || any(greaterThanEqual(render_uv, float2(1.0f)))) {
+      return float2(-1.0f);
+    }
+
+    return render_uv;
+  }
+
+  FilmSample panoramic_sample_get(int2 texel_film)
+  {
+    FilmSample film_sample;
+    film_sample.texel = int2(0);
+    film_sample.weight = 0.0f;
+    film_sample.weight_sum_inv = 0.0f;
+
+    const float2 render_uv = panoramic_render_uv_get(texel_film);
+    if (any(lessThan(render_uv, float2(0.0f)))) {
+      return film_sample;
+    }
+
+    film_sample.texel = int2(render_uv * float2(textureSize(depth_tx, 0).xy));
+    film_sample.weight = 1.0f;
+    return film_sample;
+  }
+
+  bool panoramic_texel_has_valid_projection(int2 texel_film)
+  {
+    [[resource_table]] const Uniform &uni = this->uniforms;
+
+    const CameraData cam = uni.uniform_buf.camera;
+    const float2 film_uv = (float2(texel_film) + 0.5f) * uni.uniform_buf.film.extent_inv;
+    return length_squared(panoramic_direction_from_uv(cam, film_uv)) != 0.0f;
+  }
+
   FilmSample sample_get(int sample_n, int2 texel_film)
   {
     [[resource_table]] const Uniform &uni = this->uniforms;
 
-#ifdef PANORAMIC
-    /* TODO(fclem): Panoramic projection will be more complex. The samples will have to be retrieve
-     * at runtime, maybe by scanning a whole region. Offset and weight will have to be computed by
-     * reprojecting the incoming pixel data into film pixel space. */
-#else
+    if (is_panoramic(uni.uniform_buf.camera.type)) {
+      return panoramic_sample_get(texel_film);
+    }
 
     FilmSample film_sample = uni.uniform_buf.film.samples[sample_n];
 
@@ -182,8 +409,6 @@ struct Film {
     }
 
     film_sample.texel += (texel_film / scaling_factor) + uni.uniform_buf.film.overscan;
-
-#endif /* PANORAMIC */
 
     /* Use extend on borders. */
     film_sample.texel = clamp(
@@ -244,13 +469,23 @@ struct Film {
     accum += mist * samp.weight;
   }
 
-  void sample_accum_combined(FilmSample samp, float4 &accum, float &weight_accum)
+  void sample_accum_combined(FilmSample samp, int2 texel_film, float4 &accum, float &weight_accum)
   {
     [[resource_table]] const Uniform &uni = this->uniforms;
     if (combined_id == -1) {
       return;
     }
-    float4 color = texelfetch_as_YCoCg_opacity(combined_tx, samp.texel);
+    float4 color;
+    if (is_panoramic(uni.uniform_buf.camera.type)) {
+      const float2 render_uv = panoramic_render_uv_get(texel_film);
+      if (any(lessThan(render_uv, float2(0.0f)))) {
+        return;
+      }
+      color = texture_as_YCoCg_opacity(combined_tx, render_uv);
+    }
+    else {
+      color = texelfetch_as_YCoCg_opacity(combined_tx, samp.texel);
+    }
 
     /* Weight by luma to remove fireflies. */
     float weight = luma_weight(uni, color.x) * samp.weight;
@@ -341,6 +576,41 @@ struct Film {
       return 0.0f;
     }
     return imageLoadFast(in_weight_img, int3(texel, FILM_WEIGHT_LAYER_ACCUMULATION)).x;
+  }
+
+  float4 display_color_load(int2 texel_film)
+  {
+    [[resource_table]] const Uniform &uni = this->uniforms;
+    [[resource_table]] Cryptomatte &crypto = this->cryptomatte;
+
+    if (display_id == -1) {
+      return texelFetch(in_combined_tx, texel_film, 0);
+    }
+    if (uni.uniform_buf.film.display_storage_type == PASS_STORAGE_VALUE) {
+      return float4(imageLoadFast(value_accum_img, int3(texel_film, display_id)).rrr, 1.0f);
+    }
+    if (uni.uniform_buf.film.display_storage_type == PASS_STORAGE_COLOR) {
+      return imageLoadFast(color_accum_img, int3(texel_film, display_id));
+    }
+    return film_cryptomatte_false_color(
+        imageLoadFast(crypto.cryptomatte_img, int3(texel_film, display_id)).r);
+  }
+
+  void copy_history(int2 texel_film, float4 &out_color, float &out_depth)
+  {
+    float weight = weight_load(texel_film);
+    float distance = distance_load(texel_film);
+    imageStoreFast(
+        out_weight_img, int3(texel_film, FILM_WEIGHT_LAYER_ACCUMULATION), float4(weight));
+    imageStoreFast(out_weight_img, int3(texel_film, FILM_WEIGHT_LAYER_DISTANCE), float4(distance));
+
+    if (combined_id != -1) {
+      float4 color = texelFetch(in_combined_tx, texel_film, 0);
+      imageStoreFast(out_combined_img, texel_film, color);
+    }
+
+    out_color = display_color_load(texel_film);
+    out_depth = imageLoadFast(depth_img, texel_film).r;
   }
 
   /* Returns motion in pixel space to retrieve the pixel history. */
@@ -767,7 +1037,7 @@ struct Film {
     imageStoreFast(color_accum_img, int3(texel_film, pass_id), data_sample);
   }
 
-  void store_depth(int2 texel_film, float value, float &out_depth)
+  void store_depth(int2 texel_film, int2 texel_sample, float value, float &out_depth)
   {
     [[resource_table]] const Uniform &uni = this->uniforms;
     [[resource_table]] const draw::View &views = this->views_;
@@ -776,7 +1046,9 @@ struct Film {
       return;
     }
 
-    float depth_value = depth_convert_to_scene(views.get(0), value);
+    float2 uv = (float2(texel_sample) + 0.5f) / float2(textureSize(depth_tx, 0).xy);
+    float depth_value = depth_convert_to_scene(
+        views.get(0), value, uv, is_panoramic(uni.uniform_buf.camera.type));
     out_depth = depth_value;
 
     if (value == 1.0f) {
@@ -806,6 +1078,14 @@ struct Film {
     out_color = float4(0.0f);
     out_depth = 0.0f;
 
+    if (is_panoramic(uni.uniform_buf.camera.type)) {
+      FilmSample film_sample = sample_get(0, texel_film);
+      if (film_sample.weight == 0.0f) {
+        copy_history(texel_film, out_color, out_depth);
+        return;
+      }
+    }
+
     float weight_accum = weight_accumulation(texel_film);
     float film_weight = weight_load(texel_film);
     float weight_sum = film_weight + weight_accum;
@@ -827,7 +1107,7 @@ struct Film {
       FilmSample src;
       for (int i = samples_len - 1; i >= 0; i--) {
         src = sample_get(i, texel_film);
-        sample_accum_combined(src, combined_accum, weight_accum);
+        sample_accum_combined(src, texel_film, combined_accum, weight_accum);
       }
       /* NOTE: src.texel is center texel in incoming data buffer. */
       store_combined(dst, src.texel, combined_accum, weight_accum, out_color);
@@ -849,7 +1129,7 @@ struct Film {
         vector *= float4(float2(uni.uniform_buf.film.render_extent),
                          float2(uni.uniform_buf.film.render_extent));
 
-        store_depth(texel_film, depth, out_depth);
+        store_depth(texel_film, film_sample.texel, depth, out_depth);
         if (normal_id != -1) {
           float4 normal = texelFetch(
               rp_color_tx, int3(film_sample.texel, uni.uniform_buf.render_pass.normal_id), 0);
@@ -1061,7 +1341,16 @@ void accumulate_or_display_frag([[resource_table]] const FilmDisplay &srt,
 
   int2 texel_film = int2(frag_co.xy) - uni.uniform_buf.film.offset;
 
-  if (srt.display_only) {
+  if (is_panoramic(uni.uniform_buf.camera.type) &&
+      !film.panoramic_texel_has_valid_projection(texel_film))
+  {
+    /* A zero direction means panoramic sampling, e.g. outside the fisheye lens.
+     * Display as black with background depth so overlay can draw over them. */
+    frag_out.color = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    out_depth = 1.0f;
+    return;
+  }
+  else if (srt.display_only) {
     out_depth = imageLoadFast(film.depth_img, texel_film).r;
 
     if (film.display_id == -1) {
