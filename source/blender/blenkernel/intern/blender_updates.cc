@@ -55,29 +55,6 @@ std::string VersionUpdate::date() const
   return date_string::date(local_time, BLT_lang_get(), date_string::DateFormat(U.date_format));
 }
 
-static IgnoredBlenderVersions &ignored_blender_updates()
-{
-  /* Ignore any update prior the current version. */
-  static IgnoredBlenderVersions ignored_blender_updates{
-      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
-      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
-      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
-  };
-  return ignored_blender_updates;
-}
-
-static BlenderUpdates &available_blender_updates()
-{
-  static BlenderUpdates available_blender_updates;
-  return available_blender_updates;
-}
-
-static std::chrono::sys_seconds &last_time_version_update_check()
-{
-  static std::chrono::sys_seconds last_time_version_update_check;
-  return last_time_version_update_check;
-}
-
 /** Parses `%Y-%m-%dT%H:%M:%SZ` formatted timestamps strings as #std::chrono::sys_seconds. */
 static std::optional<std::chrono::sys_seconds> parse_timestamp_to_sys_seconds(
     StringRefNull timestamp)
@@ -129,54 +106,7 @@ static std::optional<BlenderVersion> blender_version_from_version_str(std::strin
   return BlenderVersion{major * 100 + minor, patch};
 }
 
-/**
- * Registers a new blender update notification.
- */
-static void register_blender_update(VersionUpdate &&update)
-{
-  BLI_assert(blender_version_from_version_str(update.version_str) &&
-             update.version == blender_version_from_version_str(update.version_str));
-
-  IgnoredBlenderVersions &ignored_updates = ignored_blender_updates();
-  BlenderUpdates &updates = available_blender_updates();
-
-  /* If the update version matches current version add as current release notification. */
-  if (update.version.version == BLENDER_VERSION) {
-    if (ignored_updates.current_release.patch < update.version.patch &&
-        (!updates.current_release || updates.current_release->version < update.version))
-    {
-      updates.current_release = std::move(update);
-    }
-    return;
-  }
-  /* If the update version is an LTS version add as #BlenderUpdates::latest_lst notification. */
-  if (update.is_lts) {
-    if (ignored_updates.latest_lts < update.version) {
-      if (!updates.latest_lts || updates.latest_lts->version < update.version) {
-        updates.latest_lts = std::move(update);
-      }
-      /* Discard #BlenderUpdates::latest when the latest LTS release is newer. */
-      if (updates.latest && updates.latest->version < update.version) {
-        updates.latest = std::nullopt;
-      }
-    }
-    return;
-  }
-  /* Add the version as #BlenderUpdates::latest release. */
-  if (ignored_updates.latest < update.version) {
-    /* Ignore Latest releases prior to Latest LTS releases.  */
-    if ((updates.latest_lts && updates.latest_lts->version >= update.version) ||
-        ignored_updates.latest_lts >= update.version)
-    {
-      return;
-    }
-    if (!updates.latest || updates.latest->version < update.version) {
-      updates.latest = std::move(update);
-    }
-  }
-}
-
-static std::optional<VersionUpdate> read_version_update(io::serialize::Value *entry)
+static std::optional<VersionUpdate> version_update_deserialize(io::serialize::Value *entry)
 {
   using namespace io::serialize;
   if (!entry || entry->type() != eValueType::Dictionary) {
@@ -241,6 +171,95 @@ static std::optional<VersionUpdate> read_version_update(io::serialize::Value *en
       .time = std::chrono::system_clock::to_time_t(*time),
       .version = *version,
   };
+}
+
+static std::shared_ptr<io::serialize::DictionaryValue> version_update_serialize(
+    const VersionUpdate &update)
+{
+  std::shared_ptr<io::serialize::DictionaryValue> dict =
+      std::make_unique<io::serialize::DictionaryValue>();
+  dict->append_int("build_size", update.build_size);
+  dict->append_str("checksum_hash", update.checksum_hash);
+  dict->append_str("commit_hash", update.commit_hash);
+  dict->append_str("description", update.description);
+  dict->append_str("download_url", update.download_url);
+  dict->append_str("cycle", update.cycle);
+  dict->append_bool("is_lts", update.is_lts);
+  dict->append_str("platform", update.platform);
+  dict->append_str("release_notes_url", update.release_notes_url);
+  dict->append_str("timestamp", update.timestamp);
+  dict->append_str("version", update.version_str);
+  return dict;
+}
+
+static IgnoredBlenderVersions &ignored_blender_updates()
+{
+  /* Ignore any update prior the current version. */
+  static IgnoredBlenderVersions ignored_blender_updates{
+      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+  };
+  return ignored_blender_updates;
+}
+
+static BlenderUpdates &available_blender_updates()
+{
+  static BlenderUpdates available_blender_updates;
+  return available_blender_updates;
+}
+
+static std::chrono::sys_seconds &last_time_version_update_check()
+{
+  static std::chrono::sys_seconds last_time_version_update_check;
+  return last_time_version_update_check;
+}
+
+/**
+ * Registers a new blender update notification.
+ */
+static void register_blender_update(VersionUpdate &&update)
+{
+  BLI_assert(blender_version_from_version_str(update.version_str) &&
+             update.version == blender_version_from_version_str(update.version_str));
+
+  IgnoredBlenderVersions &ignored_updates = ignored_blender_updates();
+  BlenderUpdates &updates = available_blender_updates();
+
+  /* If the update version matches current version add as current release notification. */
+  if (update.version.version == BLENDER_VERSION) {
+    if (ignored_updates.current_release.patch < update.version.patch &&
+        (!updates.current_release || updates.current_release->version < update.version))
+    {
+      updates.current_release = std::move(update);
+    }
+    return;
+  }
+  /* If the update version is an LTS version add as #BlenderUpdates::latest_lst notification. */
+  if (update.is_lts) {
+    if (ignored_updates.latest_lts < update.version) {
+      if (!updates.latest_lts || updates.latest_lts->version < update.version) {
+        updates.latest_lts = std::move(update);
+      }
+      /* Discard #BlenderUpdates::latest when the latest LTS release is newer. */
+      if (updates.latest && updates.latest->version < update.version) {
+        updates.latest = std::nullopt;
+      }
+    }
+    return;
+  }
+  /* Add the version as #BlenderUpdates::latest release. */
+  if (ignored_updates.latest < update.version) {
+    /* Ignore Latest releases prior to Latest LTS releases.  */
+    if ((updates.latest_lts && updates.latest_lts->version >= update.version) ||
+        ignored_updates.latest_lts >= update.version)
+    {
+      return;
+    }
+    if (!updates.latest || updates.latest->version < update.version) {
+      updates.latest = std::move(update);
+    }
+  }
 }
 
 enum class CheckForUpdatesState {
@@ -345,7 +364,7 @@ if result:
   available_blender_updates() = {};
 
   for (const std::shared_ptr<Value> &entry : updates_json->as_array_value()->elements()) {
-    std::optional<VersionUpdate> update = read_version_update(entry.get());
+    std::optional<VersionUpdate> update = version_update_deserialize(entry.get());
     if (!update) {
       continue;
     }
@@ -452,7 +471,7 @@ static void load_available_updates_cache_file_impl()
     return;
   }
   for (const std::shared_ptr<Value> &entry : updates->as_array_value()->elements()) {
-    std::optional<VersionUpdate> update = read_version_update(entry.get());
+    std::optional<VersionUpdate> update = version_update_deserialize(entry.get());
     if (!update) {
       continue;
     }
@@ -504,19 +523,7 @@ void write_blender_updates_cache_file()
   std::shared_ptr<ArrayValue> updates_array = dict->append_array("blender_updates");
   Vector<const VersionUpdate *> updates = available_updates();
   for (const VersionUpdate *update : updates) {
-    std::shared_ptr<DictionaryValue> entry = std::make_unique<DictionaryValue>();
-    entry->append_int("build_size", update->build_size);
-    entry->append_str("checksum_hash", update->checksum_hash);
-    entry->append_str("commit_hash", update->commit_hash);
-    entry->append_str("description", update->description);
-    entry->append_str("download_url", update->download_url);
-    entry->append_str("cycle", update->cycle);
-    entry->append_bool("is_lts", update->is_lts);
-    entry->append_str("platform", update->platform);
-    entry->append_str("release_notes_url", update->release_notes_url);
-    entry->append_str("timestamp", update->timestamp);
-    entry->append_str("version", update->version_str);
-    updates_array->append(entry);
+    updates_array->append(version_update_serialize(*update));
   }
   std::chrono::time_point time_seconds = std::chrono::time_point_cast<std::chrono::seconds>(
       last_time_version_update_check());
