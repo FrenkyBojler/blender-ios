@@ -184,6 +184,9 @@ static void store_starting_transform(SlideSubject &slide_subject,
   slide_subject.old_scale = transformable.get_property(ed::AnimTransformable::PropertyType::SCALE);
 }
 
+/**
+ * `id_properties` and `system_properties` can be a nullptr and are skipped if they are.
+ */
 static void store_id_properties(SlideSubject &slide_subject,
                                 PointerRNA &ptr,
                                 IDProperty *id_properties,
