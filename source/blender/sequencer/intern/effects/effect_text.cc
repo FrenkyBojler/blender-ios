@@ -35,6 +35,8 @@
 
 #include "IMB_imbuf_types.hh"
 
+#include "PRF_profile.hh"
+
 #include "SEQ_effects.hh"
 #include "SEQ_proxy.hh"
 #include "SEQ_render.hh"
@@ -1076,6 +1078,7 @@ static SeqResult do_text_effect(const RenderData *context,
                                 const SeqResult & /*ibuf1*/,
                                 const SeqResult & /*ibuf2*/)
 {
+  PRF_scope_with_name("SeqFxText", ProfileCategory::Draw);
   /* NOTE: text rasterization only fills in part of output image,
    * need to clear it. */
   SeqResult out = prepare_effect_imbufs(context, {}, {}, false);
