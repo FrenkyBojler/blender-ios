@@ -140,20 +140,21 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
         scene = context.scene
 
         row = layout.row()
-        row.template_list("VIEW3D_UL_vr_captures", "", scene, "vr_captures", scene, "vr_captures_selected", rows=3)
+        row.template_list("VIEW3D_UL_vr_captures", "", scene, "vr_captures", scene, "vr_captures_selected", rows=5)
 
         col = row.column(align=True)
-        col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_UP', text="").backward = True
-        col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_DOWN', text="").backward = False
-
-        col.separator()
 
         col.operator("view3d.vr_location_scouting_remove_capture", icon='REMOVE', text="")
 
-        row = layout.row(align=True)
-        row.operator("view3d.vr_location_scouting_add_camera_from_capture",
-                     icon='OUTLINER_OB_CAMERA', text="Add Camera")
-        row.operator("view3d.vr_location_scouting_add_marker_from_capture", icon='MARKER', text="Add Marker")
+        col.separator()
+
+        col.operator("view3d.vr_location_scouting_add_camera_from_capture", icon='OUTLINER_OB_CAMERA', text="")
+        col.operator("view3d.vr_location_scouting_add_marker_from_capture", icon='MARKER', text="")
+
+        col.separator()
+
+        col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_UP', text="").backward = True
+        col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_DOWN', text="").backward = False
 
         is_reviewing = context.window_manager.vr_capture_review_running
         capture_review_text = "Review VR Captures" if not is_reviewing else "Exit Review"
