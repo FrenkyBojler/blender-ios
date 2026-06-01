@@ -609,12 +609,9 @@ void USDStageReader::process_armature_modifiers() const
                   "%s: Couldn't find armature object corresponding to USD skeleton %s",
                   __func__,
                   skel_path.GetAsString().c_str());
-    }
-    amd->object = object;
-
-    if (object == nullptr) {
       continue;
     }
+    amd->object = object;
 
     /* Per the UsdSkel spec, a skinned mesh's own and ancestor xformOps below the SkelRoot do not
      * position the skinned result: the geometry is placed by the bound Skeleton's world transform,

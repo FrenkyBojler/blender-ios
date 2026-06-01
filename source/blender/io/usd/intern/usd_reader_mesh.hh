@@ -72,9 +72,6 @@ class USDMeshReader : public USDGeomReader {
                 const ImportSettings &settings)
       : USDGeomReader(prim, import_params, settings), mesh_prim_(prim)
   {
-    /* #is_root_xform_prim() depends on whether this mesh is skinned, which the base
-     * constructor cannot resolve through the virtual override, so recompute it here. */
-    update_is_root_xform();
   }
 
   bool valid() const override
