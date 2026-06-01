@@ -193,31 +193,16 @@ Curves *BKE_curves_copy_for_eval(const Curves *curves_src)
 
 static void store_surface(const Curves &curves_id, bke::GeometrySet &geometry_set)
 {
-  const Object *surface_object = curves_id.surface;
-  if (!surface_object) {
+  if (!curves_id.surface) {
     return;
   }
   if (!curves_id.surface_uv_map) {
     return;
   }
-  const StringRef uv_map = curves_id.surface_uv_map;
-  auto uvs = fn::Field<float3>(bke::AttributeFieldInput::from<float3>(uv_map));
-
-  bke::GeometrySet surface = bke::object_get_evaluated_geometry_set(*surface_object);
-
   nodes::Bundle &bundle = geometry_set.bundle_for_write();
-
-  if (const nodes::Bundle *surface_bundle = surface.bundle()) {
-    const nodes::BundleKey key = *nodes::BundleKey::from_ustr("rest_geometry"_ustr);
-    if (const auto *rest_surface = surface_bundle->lookup_ptr<bke::GeometrySet>(key)) {
-      bundle.add_new(*nodes::BundleKey::from_ustr("surface_geometry_rest"_ustr), *rest_surface);
-      bundle.add_new(*nodes::BundleKey::from_ustr("surface_uv_map_rest"_ustr), uvs);
-    }
-  }
-
-  bundle.add_new(*nodes::BundleKey::from_ustr("surface_geometry_animated"_ustr),
-                 std::move(surface));
-  bundle.add_new(*nodes::BundleKey::from_ustr("surface_uv_map_animated"_ustr), std::move(uvs));
+  bundle.add(*nodes::BundleKey::from_ustr("surface_object"_ustr), curves_id.surface);
+  bundle.add(*nodes::BundleKey::from_ustr("surface_uv_map_name"_ustr),
+             std::string(curves_id.surface_uv_map));
 }
 
 static void curves_evaluate_modifiers(Depsgraph *depsgraph,
