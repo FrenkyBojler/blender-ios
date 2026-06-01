@@ -289,6 +289,9 @@ class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel)
         col.prop(view, "use_translate_reports", text="Reports")
         col.prop(view, "use_translate_new_dataname", text="New Data")
 
+        layout.prop(view, "date_format")
+        layout.prop(view, "time_format", text="Time")
+
 
 class USERPREF_PT_interface_accessibility(InterfacePanel, CenterAlignMixIn, Panel):
     bl_label = "Accessibility"
@@ -616,11 +619,8 @@ class USERPREF_PT_animation_timeline(AnimationPanel, CenterAlignMixIn, Panel):
     def draw_centered(self, context, layout):
         prefs = context.preferences
         view = prefs.view
-        edit = prefs.edit
 
         col = layout.column()
-        col.prop(edit, "use_negative_frames")
-
         col.prop(view, "view2d_grid_spacing_min", text="Minimum Grid Spacing")
         col.prop(view, "timecode_style")
         col.prop(view, "view_frame_type")
@@ -671,6 +671,22 @@ class USERPREF_PT_animation_fcurves(AnimationPanel, CenterAlignMixIn, Panel):
         flow.prop(edit, "use_fcurve_high_quality_drawing")
 
 
+class USERPREF_PT_animation_timeline_advanced(AnimationPanel, CenterAlignMixIn, Panel):
+    bl_label = "Advanced"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = 'USERPREF_PT_animation_timeline'
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        edit = prefs.edit
+
+        layout.prop(edit, "use_negative_frames")
+        row = layout.row(align=False)
+        row.active = edit.use_negative_frames
+        row.alignment = 'RIGHT'
+        row.label(icon="ERROR", text="Negative frames can cause issues with audio playback and exporters.")
+
+
 # -----------------------------------------------------------------------------
 # System Panels
 
@@ -690,8 +706,8 @@ class USERPREF_PT_system_sound(SystemPanel, CenterAlignMixIn, Panel):
 
         layout.prop(system, "audio_device", expand=False)
 
-        sub = layout.grid_flow(row_major=False, columns=0, even_columns=False, even_rows=False, align=False)
-        sub.active = system.audio_device not in {'NONE', 'None'}
+        sub = layout.column()
+        sub.active = system.audio_device not in {'SOUND_NONE', 'NONE', 'None', ''}
         sub.prop(system, "audio_channels", text="Channels")
         sub.prop(system, "audio_mixing_buffer", text="Mixing Buffer")
         sub.prop(system, "audio_sample_rate", text="Sample Rate")
@@ -953,7 +969,6 @@ class USERPREF_PT_viewport_textures(ViewportPanel, CenterAlignMixIn, Panel):
         col.prop(system, "gl_texture_limit", text="Limit Size")
         col.prop(system, "anisotropic_filter")
         col.prop(system, "gl_clip_alpha", slider=True)
-        col.prop(system, "image_draw_method", text="Image Display Method")
 
 
 class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
@@ -1081,11 +1096,6 @@ class USERPREF_PT_theme(ThemePanel, Panel):
 class USERPREF_PT_theme_user_interface(ThemePanel, CenterAlignMixIn, Panel):
     bl_label = "User Interface"
     bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, _context):
-        layout = self.layout
-
-        layout.label(icon='WORKSPACE')
 
     def draw(self, context):
         pass
@@ -1222,7 +1232,7 @@ class USERPREF_PT_theme_interface_state(ThemePanel, CenterAlignMixIn, Panel):
 
 
 class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
-    bl_label = "Styles"
+    bl_label = "Editor & Widgets"
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "USERPREF_PT_theme_user_interface"
 
@@ -1237,27 +1247,21 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "editor_outline")
         col.prop(ui, "editor_outline_active")
 
-        col = flow.column()
-        col.prop(ui, "widget_text_cursor")
-
         col = flow.column(align=True)
-        col.prop(ui, "icon_alpha")
-        col.prop(ui, "icon_saturation", text="Saturation")
-
-        flow.separator()
+        col.prop(ui, "menu_shadow_fac", text="Panel/Menu Shadow")
+        col.prop(ui, "menu_shadow_width", text="Shadow Width")
 
         col = flow.column()
         col.prop(ui, "widget_emboss")
 
-        col = flow.column(align=True)
-        col.prop(ui, "menu_shadow_fac")
-        col.prop(ui, "menu_shadow_width", text="Shadow Width")
+        col = flow.column()
+        col.prop(ui, "widget_text_cursor")
 
 
 class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMixIn, Panel):
     bl_label = "Transparent Checkerboard"
     bl_options = {'DEFAULT_CLOSED'}
-    bl_parent_id = "USERPREF_PT_theme_user_interface"
+    bl_parent_id = "USERPREF_PT_theme_interface_styles"
 
     def draw_centered(self, context, layout):
         theme = context.preferences.themes[0]
@@ -1274,7 +1278,7 @@ class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMix
 
 
 class USERPREF_PT_theme_interface_gizmos(ThemePanel, CenterAlignMixIn, Panel):
-    bl_label = "Axis & Gizmo Colors"
+    bl_label = "Axes & Gizmos"
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "USERPREF_PT_theme_user_interface"
 
@@ -1282,7 +1286,7 @@ class USERPREF_PT_theme_interface_gizmos(ThemePanel, CenterAlignMixIn, Panel):
         theme = context.preferences.themes[0]
         ui = theme.user_interface
 
-        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=True, align=False)
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column(align=True)
         col.prop(ui, "axis_x", text="Axis X")
@@ -1290,18 +1294,20 @@ class USERPREF_PT_theme_interface_gizmos(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "axis_z", text="Z")
         col.prop(ui, "axis_w", text="W")
 
-        col = flow.column()
+        col = flow.column(align=True)
         col.prop(ui, "gizmo_primary")
         col.prop(ui, "gizmo_secondary", text="Secondary")
-        col.prop(ui, "gizmo_view_align", text="View Align")
 
-        col = flow.column()
+        col = flow.column(align=True)
         col.prop(ui, "gizmo_a")
         col.prop(ui, "gizmo_b", text="B")
 
+        col = flow.column()
+        col.prop(ui, "gizmo_view_align", text="View Align")
+
 
 class USERPREF_PT_theme_interface_icons(ThemePanel, CenterAlignMixIn, Panel):
-    bl_label = "Icon Colors"
+    bl_label = "Icons"
     bl_options = {'DEFAULT_CLOSED'}
     bl_parent_id = "USERPREF_PT_theme_user_interface"
 
@@ -1320,11 +1326,14 @@ class USERPREF_PT_theme_interface_icons(ThemePanel, CenterAlignMixIn, Panel):
         flow.prop(ui, "icon_folder")
         flow.prop(ui, "icon_autokey")
         flow.prop(ui, "icon_border_intensity")
+        flow.prop(ui, "icon_alpha")
+        flow.prop(ui, "icon_saturation", text="Toolbar Saturation")
 
 
 class USERPREF_PT_theme_text_style(ThemePanel, CenterAlignMixIn, Panel):
     bl_label = "Text Style"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "USERPREF_PT_theme_user_interface"
 
     @staticmethod
     def _ui_font_style(layout, font_style):
@@ -1344,11 +1353,6 @@ class USERPREF_PT_theme_text_style(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(font_style, "shadow_alpha", text="Alpha")
         col.prop(font_style, "shadow_value", text="Brightness")
 
-    def draw_header(self, _context):
-        layout = self.layout
-
-        layout.label(icon='FONTPREVIEW')
-
     def draw_centered(self, context, layout):
         style = context.preferences.ui_styles[0]
 
@@ -1366,14 +1370,18 @@ class USERPREF_PT_theme_text_style(ThemePanel, CenterAlignMixIn, Panel):
         self._ui_font_style(layout, style.tooltip)
 
 
+class USERPREF_PT_theme_color_sets(ThemePanel, Panel):
+    bl_label = "Color Sets"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, _context):
+        pass
+
+
 class USERPREF_PT_theme_bone_color_sets(ThemePanel, CenterAlignMixIn, Panel):
     bl_label = "Bone Color Sets"
     bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, _context):
-        layout = self.layout
-
-        layout.label(icon='COLOR')
+    bl_parent_id = "USERPREF_PT_theme_color_sets"
 
     def draw_centered(self, context, layout):
         theme = context.preferences.themes[0]
@@ -1394,11 +1402,7 @@ class USERPREF_PT_theme_bone_color_sets(ThemePanel, CenterAlignMixIn, Panel):
 class USERPREF_PT_theme_collection_colors(ThemePanel, CenterAlignMixIn, Panel):
     bl_label = "Collection Colors"
     bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, _context):
-        layout = self.layout
-
-        layout.label(icon='GROUP')
+    bl_parent_id = "USERPREF_PT_theme_color_sets"
 
     def draw_centered(self, context, layout):
         theme = context.preferences.themes[0]
@@ -1411,13 +1415,9 @@ class USERPREF_PT_theme_collection_colors(ThemePanel, CenterAlignMixIn, Panel):
 
 
 class USERPREF_PT_theme_strip_colors(ThemePanel, CenterAlignMixIn, Panel):
-    bl_label = "Strip Color Tags"
+    bl_label = "Sequencer Strip Color Tags"
     bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, _context):
-        layout = self.layout
-
-        layout.label(icon='SEQ_STRIP_DUPLICATE')
+    bl_parent_id = "USERPREF_PT_theme_color_sets"
 
     def draw_centered(self, context, layout):
         theme = context.preferences.themes[0]
@@ -2807,7 +2807,11 @@ class USERPREF_PT_file_paths_asset_libraries(AssetsPanel, Panel):
         if active_library.use_remote_url:
             use_remote_libraries = context.preferences.experimental.use_remote_asset_libraries
             if use_remote_libraries:
-                layout.prop(active_library, "remote_url")
+                row = layout.row()
+                row.alert = active_library.remote_url == ""
+                row.prop(active_library, "remote_url", text="", icon='INTERNET', placeholder="Repository URL")
+
+            layout.prop(active_library, "import_method", text="Import Method")
         else:
             layout.prop(active_library, "path")
             layout.prop(active_library, "import_method", text="Import Method")
@@ -2822,6 +2826,11 @@ class USERPREF_UL_asset_libraries(UIList):
         icon = 'INTERNET' if asset_library.use_remote_url else 'DISK_DRIVE'
         row = layout.row(align=True)
         row.prop(asset_library, "name", text="", icon=icon, emboss=False)
+
+        if asset_library.enabled:
+            if asset_library.use_remote_url and asset_library.remote_url == "":
+                row.label(text="", icon='ERROR')
+
         row.prop(asset_library, "enabled", text="", emboss=False,
                  icon='CHECKBOX_HLT' if asset_library.enabled else 'CHECKBOX_DEHLT')
 
@@ -3073,10 +3082,8 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                 ({"property": "use_extended_asset_browser"},
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
-                ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
-                ({"property": "use_geometry_bundle"}, ("blender/blender/issues/150574", "#150574")),
-                ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
                 ({"property": "use_collection_importer"}, ("blender/blender/issues/132171", "#132171")),
+                ({"property": "use_geometry_nodes_hair_dynamics"}, ("blender/blender/issues/141609", "#141609")),
             ),
         )
 
@@ -3157,6 +3164,7 @@ classes = (
     USERPREF_PT_animation_timeline,
     USERPREF_PT_animation_keyframes,
     USERPREF_PT_animation_fcurves,
+    USERPREF_PT_animation_timeline_advanced,
 
     USERPREF_PT_system_cycles_devices,
     USERPREF_PT_system_display_graphics,
@@ -3169,12 +3177,13 @@ classes = (
     USERPREF_MT_interface_theme_presets,
     USERPREF_PT_theme,
     USERPREF_PT_theme_interface_panel,
-    USERPREF_PT_theme_interface_gizmos,
-    USERPREF_PT_theme_interface_icons,
     USERPREF_PT_theme_interface_state,
+    USERPREF_PT_theme_interface_icons,
+    USERPREF_PT_theme_text_style,
+    USERPREF_PT_theme_interface_gizmos,
     USERPREF_PT_theme_interface_styles,
     USERPREF_PT_theme_interface_transparent_checker,
-    USERPREF_PT_theme_text_style,
+    USERPREF_PT_theme_color_sets,
     USERPREF_PT_theme_bone_color_sets,
     USERPREF_PT_theme_collection_colors,
     USERPREF_PT_theme_strip_colors,

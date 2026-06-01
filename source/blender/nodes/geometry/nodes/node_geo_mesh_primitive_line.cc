@@ -100,31 +100,29 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     search_link_ops_for_declarations(params, declaration.outputs);
     return;
   }
-  if (params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
-                                                 SOCK_FLOAT))
-  {
+  if (params.node_tree().typeinfo->validate_link(params.other_socket().type, SOCK_FLOAT)) {
     params.add_item(IFACE_("Count"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeMeshLine");
+      bNode &node = params.add_node("GeometryNodeMeshLine"_ustr);
       node_storage(node).mode = GEO_NODE_MESH_LINE_MODE_OFFSET;
       params.connect_available_socket(node, "Count"_ustr);
     });
     params.add_item(IFACE_("Resolution"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeMeshLine");
+      bNode &node = params.add_node("GeometryNodeMeshLine"_ustr);
       node_storage(node).mode = GEO_NODE_MESH_LINE_MODE_OFFSET;
       node_storage(node).count_mode = GEO_NODE_MESH_LINE_COUNT_RESOLUTION;
       params.connect_available_socket(node, "Resolution"_ustr);
     });
     params.add_item(IFACE_("Start Location"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeMeshLine");
+      bNode &node = params.add_node("GeometryNodeMeshLine"_ustr);
       params.connect_available_socket(node, "Start Location"_ustr);
     });
     params.add_item(IFACE_("Offset"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeMeshLine");
+      bNode &node = params.add_node("GeometryNodeMeshLine"_ustr);
       params.connect_available_socket(node, "Offset"_ustr);
     });
     /* The last socket is reused in end points mode. */
     params.add_item(IFACE_("End Location"), [](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeMeshLine");
+      bNode &node = params.add_node("GeometryNodeMeshLine"_ustr);
       node_storage(node).mode = GEO_NODE_MESH_LINE_MODE_END_POINTS;
       params.connect_available_socket(node, "Offset"_ustr);
     });
@@ -227,7 +225,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMeshLine", GEO_NODE_MESH_PRIMITIVE_LINE);
+  geo_node_type_base(&ntype, "GeometryNodeMeshLine"_ustr, GEO_NODE_MESH_PRIMITIVE_LINE);
   ntype.ui_name = "Mesh Line";
   ntype.ui_description = "Generate vertices in a line and connect them with edges";
   ntype.enum_name_legacy = "MESH_PRIMITIVE_LINE";

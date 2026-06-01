@@ -7,6 +7,7 @@
  */
 
 #include "BLI_math_color.h"
+#include "BLI_profile.hh"
 
 #include "BKE_colortools.hh"
 
@@ -106,12 +107,11 @@ struct HueCorrectApplyOp {
   }
 };
 
-static void hue_correct_apply(ModifierApplyContext &context,
-                              StripModifierData *smd,
-                              int timeline_frame)
+static void hue_correct_apply(ModifierApplyContext &context, StripModifierData *smd)
 {
+  BLI_profile_scope_with_name("SeqModHueCorrect", ProfileCategory::Draw);
   ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
-  ImBuf *mask = modifier_render_mask_input(context, *smd, timeline_frame);
+  ImBuf *mask = modifier_render_mask_input(context, *smd);
 
   HueCorrectModifierData *hcmd = reinterpret_cast<HueCorrectModifierData *>(smd);
 
