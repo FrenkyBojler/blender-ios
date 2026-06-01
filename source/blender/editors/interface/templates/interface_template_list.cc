@@ -124,8 +124,7 @@ class PyTreeViewItem : public ui::AbstractTreeViewItem {
   PyTreeViewItem(TreeViewData *ui_data, _uilist_item &item, int index)
       : ui_data_(ui_data), item_(item), index_(index)
   {
-    label_ = RNA_struct_name_get_alloc(&item_.item, nullptr, 0, nullptr);
-    printf("label : %s\n", label_.c_str());
+    label_ = RNA_property_string_get(&item_.item, RNA_struct_name_property(item_.item.type));
   }
 
   std::optional<bool> should_be_active() const override
@@ -149,12 +148,8 @@ class PyTreeViewItem : public ui::AbstractTreeViewItem {
 
   bool rename(const bContext &C, StringRefNull new_name) override
   {
-    // PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
-    //     &shape_key_.key->id, RNA_ShapeKey, shape_key_.kb);
-    // PropertyRNA *prop = RNA_struct_find_property(&shapekey_ptr, "name");
-    // RNA_property_string_set(&shapekey_ptr, prop, new_name.c_str());
-    // RNA_property_update(&const_cast<bContext &>(C), &shapekey_ptr, prop);
-    // ED_undo_push(const_cast<bContext *>(&C), "Rename shape key");
+    PropertyRNA *nameprop = RNA_struct_name_property(item_.item.type);
+    RNA_property_string_set(&item_.item, nameprop, new_name.c_str());
     return true;
   }
 
