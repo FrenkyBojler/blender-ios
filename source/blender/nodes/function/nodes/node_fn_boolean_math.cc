@@ -140,46 +140,45 @@ static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
   }
 }
 
+static const char *gpu_shader_get_name(const NodeBooleanMathOperation operation)
+{
+  switch (operation) {
+    case NODE_BOOLEAN_MATH_AND:
+      return "boolean_math_and";
+    case NODE_BOOLEAN_MATH_OR:
+      return "boolean_math_or";
+    case NODE_BOOLEAN_MATH_NOT:
+      return "boolean_math_not";
+    case NODE_BOOLEAN_MATH_NAND:
+      return "boolean_math_nand";
+    case NODE_BOOLEAN_MATH_NOR:
+      return "boolean_math_nor";
+    case NODE_BOOLEAN_MATH_XNOR:
+      return "boolean_math_xnor";
+    case NODE_BOOLEAN_MATH_XOR:
+      return "boolean_math_xor";
+    case NODE_BOOLEAN_MATH_IMPLY:
+      return "boolean_math_imply";
+    case NODE_BOOLEAN_MATH_NIMPLY:
+      return "boolean_math_nimply";
+  }
+
+  return nullptr;
+}
+
 static int node_gpu_material(GPUMaterial *mat,
                              bNode *node,
                              bNodeExecData * /*execdata*/,
                              GPUNodeStack *in,
                              GPUNodeStack *out)
 {
-  const char *name = nullptr;
-  switch (NodeBooleanMathOperation(node->custom1)) {
-    case NODE_BOOLEAN_MATH_AND:
-      name = "boolean_math_and";
-      break;
-    case NODE_BOOLEAN_MATH_OR:
-      name = "boolean_math_or";
-      break;
-    case NODE_BOOLEAN_MATH_NOT:
-      name = "boolean_math_not";
-      break;
-    case NODE_BOOLEAN_MATH_NAND:
-      name = "boolean_math_nand";
-      break;
-    case NODE_BOOLEAN_MATH_NOR:
-      name = "boolean_math_nor";
-      break;
-    case NODE_BOOLEAN_MATH_XNOR:
-      name = "boolean_math_xnor";
-      break;
-    case NODE_BOOLEAN_MATH_XOR:
-      name = "boolean_math_xor";
-      break;
-    case NODE_BOOLEAN_MATH_IMPLY:
-      name = "boolean_math_imply";
-      break;
-    case NODE_BOOLEAN_MATH_NIMPLY:
-      name = "boolean_math_nimply";
-      break;
+  const char *name = gpu_shader_get_name(NodeBooleanMathOperation(node->custom1));
+
+  if (name == nullptr) {
+    return 0;
   }
-  if (name != nullptr) {
-    return GPU_stack_link(mat, node, name, in, out);
-  }
-  return 0;
+
+  return GPU_stack_link(mat, node, name, in, out);
 }
 
 static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
