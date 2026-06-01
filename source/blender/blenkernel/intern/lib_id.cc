@@ -2153,6 +2153,7 @@ void BKE_main_id_indirect_linked_update(Main &bmain, std::optional<Span<ID *>> l
   const LibraryForeachIDFlag foreach_id_flag = IDWALK_READONLY | IDWALK_INCLUDE_UI;
   if (local_ids.has_value()) {
     for (ID *id : *local_ids) {
+      BLI_assert(!ID_IS_LINKED(id));
       BKE_library_foreach_ID_link(
           &bmain, id, id_indirect_linked_update_fn, nullptr, foreach_id_flag);
     }
