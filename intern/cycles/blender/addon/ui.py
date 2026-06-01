@@ -2422,8 +2422,8 @@ class CYCLES_RENDER_PT_simplify_culling(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "distance_cull_margin", text="")
 
 
-class CYCLES_RENDER_PT_simplify_diagnostics(CyclesButtonsPanel, Panel):
-    bl_label = "Diagnostics"
+class CYCLES_RENDER_PT_simplify_features(CyclesButtonsPanel, Panel):
+    bl_label = "Features"
     bl_context = "render"
     bl_parent_id = "CYCLES_RENDER_PT_simplify"
     bl_options = {'DEFAULT_CLOSED'}
@@ -2698,7 +2698,7 @@ classes = (
     CYCLES_RENDER_PT_bake_selected_to_active,
     CYCLES_RENDER_PT_bake_output,
     CYCLES_RENDER_PT_bake_output_margin,
-    CYCLES_RENDER_PT_simplify_diagnostics,
+    CYCLES_RENDER_PT_simplify_features,
     CYCLES_RENDER_PT_debug,
     node_panel(CYCLES_MATERIAL_PT_settings),
     node_panel(CYCLES_MATERIAL_PT_settings_surface),
