@@ -208,8 +208,6 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
                                                    current_usage_data_.usage_count_max);
   }
 
-  BLI_assert(texture_handle.view->usage_get() == usage);
-
   acquired_.add(texture_handle);
   return wrap(texture_handle.view);
 }

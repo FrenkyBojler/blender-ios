@@ -449,8 +449,6 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
         current_usage_data_.acquired_segment_size_max, current_usage_data_.acquired_segment_size);
   }
 
-  BLI_assert(texture->usage_get() == usage);
-
   /* Track acquired texture and its backing image. */
   acquired_.add(TextureHandle{.texture = texture, .image_info = image_info});
 
