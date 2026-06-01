@@ -2695,7 +2695,7 @@ def radial_control_properties(paint, prop, secondary_prop, secondary_rotation=Fa
             ("color_path", brush_path + ".cursor_color_add"),
             ("fill_color_path", brush_path + ".color" if color else ""),
             ("fill_color_override_path", unified_path + ".color" if color else ""),
-            ("fill_color_override_test_path", unified_path + ".use_unified_color" if color else ""),
+            ("fill_color_override_test_path", brush_path + ".use_unified_color" if color else ""),
             ("zoom_path", "space_data.zoom" if zoom else ""),
             ("image_id", brush_path + ""),
             ("secondary_tex", secondary_rotation),

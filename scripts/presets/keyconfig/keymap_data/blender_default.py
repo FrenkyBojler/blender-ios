@@ -4787,7 +4787,7 @@ def radial_control_properties(
             ("color_path", "{:s}.cursor_color_add".format(brush_path)),
             ("fill_color_path", "{:s}.color".format(brush_path) if color else ""),
             ("fill_color_override_path", "{:s}.color".format(unified_path) if color else ""),
-            ("fill_color_override_test_path", "{:s}.use_unified_color".format(unified_path) if color else ""),
+            ("fill_color_override_test_path", "{:s}.use_unified_color".format(brush_path) if color else ""),
             ("zoom_path", "space_data.zoom" if zoom else ""),
             ("image_id", brush_path),
             ("secondary_tex", secondary_rotation),
