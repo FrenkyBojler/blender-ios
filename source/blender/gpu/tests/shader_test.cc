@@ -591,10 +591,8 @@ static void test_eevee_lib()
   // gpu_shader_lib_test("eevee_shadow_test.bsl.hh");
   gpu_shader_lib_test("eevee_test_occupancy");
   gpu_shader_lib_test("eevee_test_fast_gi");
-#if 0 /* TODO Fix */
   gpu_shader_lib_test("eevee_test_gbuffer_normal");
   gpu_shader_lib_test("eevee_test_gbuffer_closure");
-#endif
 }
 GPU_TEST(eevee_lib)
 
