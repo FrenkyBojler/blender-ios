@@ -451,9 +451,11 @@ void MultiFunctionProcedureOperation::assign_output_variables(const bNode &node,
     /* If any of the nodes linked to the output are not part of the multi-function procedure
      * operation but are part of the execution schedule, then an output result needs to be
      * populated for it. */
-    const bool is_operation_output = is_output_linked_to_node_conditioned(
-        *output, [&](const bNode &node) {
-          return schedule_.nodes.contains(&node) && !compile_unit_.contains(&node);
+    const bool is_operation_output = is_output_linked_to_input_conditioned(
+        *output, [&](const bNodeSocket &input) {
+          return schedule_.nodes.contains(&input.owner_node()) &&
+                 !schedule_.unneeded_inputs.contains(&input) &&
+                 !compile_unit_.contains(&input.owner_node());
         });
 
     /* If the output is used as the node preview, then an output result needs to be populated for
@@ -482,14 +484,13 @@ void MultiFunctionProcedureOperation::populate_operation_result(const bNodeSocke
   const std::string output_identifier = "output" + std::to_string(output_id);
 
   const ResultType result_type = get_node_socket_result_type(&output_socket);
-  const Result result = context().create_result(result_type);
-  populate_result(output_identifier, result);
+  populate_result(output_identifier, result_type);
 
   /* Map the output socket to the identifier of the newly populated result. */
   output_sockets_to_output_identifiers_map_.add_new(&output_socket, output_identifier);
 
   /* Implicitly convert the variable type to the expected result type if needed. */
-  const mf::DataType expected_type = mf::DataType::ForSingle(result.get_cpp_type());
+  const mf::DataType expected_type = mf::DataType::ForSingle(Result::cpp_type(result_type));
   mf::Variable *converted_variable = this->convert_variable(variable, expected_type);
 
   procedure_builder_.add_output_parameter(*converted_variable);
