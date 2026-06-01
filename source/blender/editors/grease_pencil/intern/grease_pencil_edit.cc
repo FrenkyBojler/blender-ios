@@ -3944,7 +3944,16 @@ static wmOperatorStatus grease_pencil_texture_gradient_exec(bContext *C, wmOpera
   ARegion *region = CTX_wm_region(C);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
-  std::atomic<bool> changed = false;
+  bool inserted_keyframe = false;
+  const bool use_duplicate_previous_key = true;
+  for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+    if (layer->is_editable()) {
+      ed::greasepencil::ensure_active_keyframe(
+          *scene, grease_pencil, *layer, use_duplicate_previous_key, inserted_keyframe);
+    }
+  }
+
+  std::atomic<bool> changed = inserted_keyframe;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
@@ -4562,6 +4571,8 @@ static void GREASE_PENCIL_OT_remove_fill_guides(wmOperatorType *ot)
       ot->srna, "mode", rna_mode_items, int(RemoveFillGuidesMode::AllFrames), "Mode", "");
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Outline Operator
  * \{ */
@@ -4956,7 +4967,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     miter_angle = GP_STROKE_MITER_ANGLE_BEVEL;
   }
   else if (corner_type == CornerType::Miter) {
-    /* Prevent the angle from being set to zero, and becoming the `Round` type.*/
+    /* Prevent the angle from being set to zero, and becoming the `Round` type. */
     if (miter_angle == 0.0f) {
       miter_angle = DEG2RADF(1.0f);
     }
@@ -5117,8 +5128,8 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     fill_ids.finish();
 
     if (type == StrokeType::Stroke) {
-      if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t i) {
-            return fill_ids.span[i] == 0;
+      if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t fill_id) {
+            return fill_id == 0;
           }))
       {
         /* Remove #fill_id attribute if there are no fills left. */

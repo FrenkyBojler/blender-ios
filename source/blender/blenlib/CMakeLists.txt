@@ -350,6 +350,7 @@ set(SRC
   BLI_polyfill_2d_beautify.h
   BLI_pool.hh
   BLI_probing_strategies.hh
+  BLI_profile.hh
   BLI_quadric.h
   BLI_radial_tiling.hh
   BLI_rand.h
@@ -409,6 +410,7 @@ set(SRC
   BLI_vector_set_slots.hh
   BLI_virtual_array.hh
   BLI_virtual_array_fwd.hh
+  BLI_virtual_array_range_spans.hh
   BLI_virtual_vector_array.hh
   BLI_voxel.h
   BLI_winstuff.h
@@ -434,6 +436,7 @@ set(LIB
   PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::dependencies::optional::fftw3
   PUBLIC bf::dependencies::openimageio
+  PUBLIC bf::dependencies::optional::tracy_client
 )
 
 if(NOT WITH_PYTHON_MODULE)

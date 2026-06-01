@@ -260,6 +260,11 @@ class Device {
     return false;
   }
 
+  virtual bool has_unified_image_memory() const
+  {
+    return false;
+  }
+
   virtual bool is_shared(const void * /*shared_pointer*/,
                          const device_ptr /*device_pointer*/,
                          Device * /*sub_device*/)
@@ -387,7 +392,7 @@ class GPUDevice : public Device {
   size_t device_image_headroom = 0;
   size_t device_working_headroom = 0;
   using texMemObject = unsigned long long;
-  using arrayMemObject = unsigned long long;
+  using arrayMemObject = uintptr_t;
   struct Mem {
     Mem() = default;
 

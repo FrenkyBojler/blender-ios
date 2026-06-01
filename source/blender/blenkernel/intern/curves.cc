@@ -136,7 +136,7 @@ static void curves_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_string(reader, &curves->surface_uv_map);
 
   /* Materials */
-  BLO_read_pointer_array(reader, curves->totcol, reinterpret_cast<void **>(&curves->mat));
+  BLO_read_pointer_array_and_validate_size(reader, &curves->mat, &curves->totcol);
 }
 
 IDTypeInfo IDType_ID_CV = {
@@ -211,7 +211,7 @@ static void curves_evaluate_modifiers(Depsgraph *depsgraph,
 
   /* Evaluate modifiers. */
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(static_cast<ModifierType>(md->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
 
     if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;
@@ -383,8 +383,7 @@ void curves_normals_point_domain_calc(const CurvesGeometry &curves, MutableSpan<
 {
   const bke::CurvesFieldContext context(curves, AttrDomain::Point);
   fn::FieldEvaluator evaluator(context, curves.points_num());
-  fn::Field<float3> field = fn::Field<float3>::from_input<bke::NormalFieldInput>();
-  evaluator.add_with_destination(std::move(field), normals);
+  evaluator.add_with_destination(bke::NormalFieldInput::get_field(), normals);
   evaluator.evaluate();
 }
 

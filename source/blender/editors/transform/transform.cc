@@ -1037,8 +1037,7 @@ static void tool_settings_update_snap_toggle(TransInfo *t)
 {
   bool is_snap_enabled = (t->modifiers & MOD_SNAP) != 0;
 
-  /* Type is #eSnapFlag, but type must match various snap attributes in #ToolSettings. */
-  short *snap_flag_ptr;
+  eSnapFlag *snap_flag_ptr;
 
   wmMsgParams_RNA msg_key_params = {{}};
   msg_key_params.ptr = RNA_pointer_create_discrete(&t->scene->id, RNA_ToolSettings, t->settings);
@@ -1052,8 +1051,8 @@ static void tool_settings_update_snap_toggle(TransInfo *t)
 
 wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event)
 {
-  bool is_navigating = t->vod ? (static_cast<RegionView3D *>(t->region->regiondata))->rflag &
-                                    RV3D_NAVIGATING :
+  bool is_navigating = t->vod ? ((static_cast<RegionView3D *>(t->region->regiondata))->rflag &
+                                 RV3D_NAVIGATING) != 0 :
                                 false;
 
   /* Handle modal numinput events first, if already activated. */
@@ -1757,7 +1756,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
       {
         BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
         const Object *obact = BKE_view_layer_active_object_get(t->view_layer);
-        const eObjectMode object_mode = eObjectMode(obact ? obact->mode : OB_MODE_OBJECT);
+        const eObjectMode object_mode = obact ? obact->mode : OB_MODE_OBJECT;
 
         if (t->spacetype == SPACE_GRAPH) {
           ts->proportional_fcurve = use_prop_edit;

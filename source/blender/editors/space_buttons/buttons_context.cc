@@ -300,6 +300,7 @@ static bool buttons_context_path_modifier(ButsContextPath *path)
     Object *ob = static_cast<Object *>(path->ptr[path->len - 1].data);
 
     if (ELEM(ob->type,
+             OB_EMPTY,
              OB_MESH,
              OB_CURVES_LEGACY,
              OB_FONT,
@@ -741,7 +742,7 @@ static bool buttons_shading_context(const bContext *C, int mainb)
   return false;
 }
 
-static int buttons_shading_new_context(const bContext *C, int flag)
+static eSpaceButtons_Context buttons_shading_new_context(const bContext *C, int flag)
 {
   wmWindow *window = CTX_wm_window(C);
   const Main *bmain = CTX_data_main(C);
@@ -821,7 +822,7 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
     else {
       for (int i = 0; i < BCONTEXT_TOT; i++) {
         if (flag & (1 << i)) {
-          sbuts->mainb = i;
+          sbuts->mainb = eSpaceButtons_Context(i);
           break;
         }
       }
@@ -872,7 +873,7 @@ bool ED_buttons_should_sync_with_outliner(const bContext *C,
 void ED_buttons_set_context(const bContext *C,
                             SpaceProperties *sbuts,
                             PointerRNA *ptr,
-                            const int context)
+                            const eSpaceButtons_Context context)
 {
   ButsContextPath path;
   if (buttons_context_path(C, sbuts, &path, context, 0) && is_pointer_in_path(&path, ptr)) {

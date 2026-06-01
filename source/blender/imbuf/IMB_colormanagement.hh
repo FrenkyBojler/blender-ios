@@ -77,7 +77,6 @@ void IMB_colormanagement_validate_settings(const ColorManagedDisplaySettings *di
 
 const char *IMB_colormanagement_role_colorspace_name_get(int role);
 const char *IMB_colormanagement_srgb_colorspace_name_get();
-void IMB_colormanagement_check_is_data(ImBuf *ibuf, const char *name);
 void IMB_colormanagement_copy_settings(ImBuf *ibuf_src, ImBuf *ibuf_dst);
 void IMB_colormanagement_assign_float_colorspace(ImBuf *ibuf, const char *name);
 void IMB_colormanagement_assign_byte_colorspace(ImBuf *ibuf, const char *name);
@@ -373,7 +372,8 @@ int IMB_colormanagement_view_max_nits(const char *display_name, const char *view
 
 /** Get scope display info for waveform/parade/vector-scope. */
 ocio::ScopeInfo IMB_colormanagement_get_scope_info(
-    const ColorManagedDisplaySettings *display_settings, const char *view_name);
+    const ColorManagedDisplaySettings *display_settings,
+    const ColorManagedViewSettings *view_settings);
 
 /** \} */
 

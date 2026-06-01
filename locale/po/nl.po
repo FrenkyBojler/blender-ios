@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'8bc0d293b105')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-28 08:59+0000\n"
+"POT-Creation-Date: 2026-05-25 07:25+0000\n"
 "PO-Revision-Date: 2026-02-14 01:12+0000\n"
 "Last-Translator: Timo Hoetmer <timo@timohoetmer.nl>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -1451,6 +1451,18 @@ msgid "The type of license this asset is distributed under. An empty license nam
 msgstr "Het type licentie waaronder deze asset gedistribueerd wordt. Een lege licentie-naam betekent niet gelijk dat deze vrij van licentievoorwaarden is. Neem contact op met de maker als er verduidelijking nodig is."
 
 
+msgid "Link"
+msgstr "Koppel"
+
+
+msgid "Append"
+msgstr "Bijvoegen"
+
+
+msgid "Append (Reuse Data)"
+msgstr "Bijvoegen (Hergebruik Data)"
+
+
 msgid "Tags"
 msgstr "Tags"
 
@@ -1501,10 +1513,6 @@ msgstr "Toon de assets momenteel beschikbaar in deze Blender sessie"
 
 msgid "Essentials"
 msgstr "Essenties"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "Toon de basis-bouwblokken en utilities die met Blender komen"
 
 
 msgid "Custom"
@@ -4548,18 +4556,6 @@ msgid "Title"
 msgstr "Titel"
 
 
-msgid "Link"
-msgstr "Koppel"
-
-
-msgid "Append"
-msgstr "Bijvoegen"
-
-
-msgid "Append (Reuse Data)"
-msgstr "Bijvoegen (Hergebruik Data)"
-
-
 msgid "Additional"
 msgstr "Aanvullende"
 
@@ -5751,22 +5747,6 @@ msgid "Dots"
 msgstr "Stippen"
 
 
-msgid "Clear Transform"
-msgstr "Maak Transformatie Leeg"
-
-
-msgid "Names"
-msgstr "Namen"
-
-
-msgid "Show/Hide"
-msgstr "Toon/Verberg"
-
-
-msgid "Import"
-msgstr "Importeren"
-
-
 msgid "Mirror"
 msgstr "Spiegel"
 
@@ -5785,10 +5765,6 @@ msgstr "Selecteer Vergelijkbaar"
 
 msgid "Select Linked"
 msgstr "Selecteer Aaneengesloten"
-
-
-msgid "Layout"
-msgstr "Indeling"
 
 
 msgid "Light"
@@ -5811,12 +5787,32 @@ msgid "Quick Effects"
 msgstr "Snelle Effecten"
 
 
+msgid "Import"
+msgstr "Importeren"
+
+
+msgid "Show/Hide"
+msgstr "Toon/Verberg"
+
+
 msgid "Convert"
 msgstr "Converteer"
 
 
 msgid "Hooks"
 msgstr "Haken"
+
+
+msgid "Clear Transform"
+msgstr "Maak Transformatie Leeg"
+
+
+msgid "Names"
+msgstr "Namen"
+
+
+msgid "Layout"
+msgstr "Indeling"
 
 
 msgctxt "MovieClip"
@@ -6692,6 +6688,10 @@ msgid "Add Bone"
 msgstr "Voeg Bot Toe"
 
 
+msgid "Search"
+msgstr "Zoeken"
+
+
 msgctxt "Operator"
 msgid "Extrude"
 msgstr "Uitrekken"
@@ -7324,6 +7324,11 @@ msgstr "Verberg Curves"
 
 msgid "Next Keyframe"
 msgstr "Volgende Sleutelframe"
+
+
+msgctxt "Operator"
+msgid "Local View"
+msgstr "Lokale Scherm"
 
 
 msgctxt "Operator"
@@ -9158,11 +9163,6 @@ msgid "Fly Navigation"
 msgstr "Vlieg Navigatie"
 
 
-msgctxt "Operator"
-msgid "Local View"
-msgstr "Lokale Scherm"
-
-
 msgid "Move the view"
 msgstr "Verplaats de weergave"
 
@@ -10329,10 +10329,6 @@ msgstr "Foutmelding"
 msgctxt "Color"
 msgid "Light"
 msgstr "Licht"
-
-
-msgid "Search"
-msgstr "Zoeken"
 
 
 msgctxt "WindowManager"
@@ -11767,6 +11763,11 @@ msgid "LineStyle"
 msgstr "LijnStijl"
 
 
+msgctxt "Key"
+msgid "Key"
+msgstr "Sleutel"
+
+
 msgid "lattices"
 msgstr "Roosters"
 
@@ -12133,6 +12134,10 @@ msgid "No vertex selected"
 msgstr "Geen punten geselecteerd"
 
 
+msgid "No edges selected"
+msgstr "Geen randen geselecteerd"
+
+
 msgid "Use mouse"
 msgstr "Gebruik muis"
 
@@ -12143,10 +12148,6 @@ msgstr "Gebruik draaipunt"
 
 msgid "Set and use 3D cursor"
 msgstr "Plaats en gebruik 3D cursor"
-
-
-msgid "No edges selected"
-msgstr "Geen randen geselecteerd"
 
 
 msgid "No faces filled"
@@ -12363,11 +12364,6 @@ msgstr "Pak Bestand Uit"
 
 msgid "Flame"
 msgstr "Vlam"
-
-
-msgctxt "Key"
-msgid "Key"
-msgstr "Sleutel"
 
 
 msgid "Point is not found in given spline"
