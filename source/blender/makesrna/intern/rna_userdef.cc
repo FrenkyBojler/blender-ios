@@ -7688,11 +7688,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       prop, "Shader Node Previews", "Enables previews in the shader node editor");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
 
-  prop = RNA_def_property(srna, "use_geometry_bundle", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop,
-                           "Bundle in Geometry",
-                           "Support storing custom bundles in a geometry in Geometry Nodes");
-
   prop = RNA_def_property(srna, "use_remote_asset_libraries", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
@@ -7708,9 +7703,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       prop, "Geometry Nodes Hair Dynamics", "Enable hair dynamics simulation in geometry nodes");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_use_geometry_nodes_hair_dynamics_update");
-
-  prop = RNA_def_property(srna, "use_blender_projects", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Blender Projects", "Enable blender project awareness and UI");
 
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(

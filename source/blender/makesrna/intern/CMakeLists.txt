@@ -111,7 +111,6 @@ endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
-  add_definitions(-DWITH_BLENDER_PROJECTS)
 endif()
 
 set(APISRC
@@ -413,6 +412,7 @@ target_link_libraries(makesrna PRIVATE bf::intern::atomic)
 target_link_libraries(makesrna PRIVATE bf::intern::guardedalloc)
 target_link_libraries(makesrna PRIVATE bf_dna_blenlib)
 target_link_libraries(makesrna PRIVATE bf_dna_defaults)
+target_link_libraries(makesrna PRIVATE bf::dependencies::optional::openvdb)
 target_link_libraries(makesrna PRIVATE bf::dependencies::optional::tbb)
 target_link_libraries(makesrna PRIVATE bf::dependencies::pthreads)
 target_link_libraries(makesrna PRIVATE bf::dependencies::fmt)

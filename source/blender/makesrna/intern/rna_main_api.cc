@@ -193,7 +193,6 @@ static ID *rna_Main_pack_linked_ids_hierarchy(struct BlendData *blenddata,
   return packed_root_id;
 }
 
-#  ifdef WITH_BLENDER_PROJECTS
 static void rna_Main_blender_project_init(struct BlendData * /* blenddata */,
                                           ReportList *reports,
                                           const char *name,
@@ -218,7 +217,6 @@ static void rna_Main_blender_project_clear(struct BlendData * /* blenddata */,
   /* Force full redraw of all windows. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
 }
-#  endif
 
 static Camera *rna_Main_cameras_new(Main *bmain, const char *name)
 {
@@ -950,7 +948,6 @@ void RNA_api_main(StructRNA *srna)
   parm = RNA_def_pointer(func, "packed_id", "ID", "", "The packed ID matching the given root ID");
   RNA_def_function_return(func, parm);
 
-#  ifdef WITH_BLENDER_PROJECTS
   func = RNA_def_function(srna, "project_init", "rna_Main_blender_project_init");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "name", nullptr, 0, nullptr, "The project's name");
@@ -961,7 +958,6 @@ void RNA_api_main(StructRNA *srna)
 
   func = RNA_def_function(srna, "project_clear", "rna_Main_blender_project_clear");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
-#  endif
 }
 
 void RNA_def_main_cameras(BlenderRNA *brna, PropertyRNA *cprop)

@@ -15,6 +15,7 @@
 
 #include "BLI_math_geom.h"
 #include "BLI_stack.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_virtual_array_range_spans.hh"
 
 #include "DNA_curves_types.h"
@@ -94,6 +95,11 @@ static NestedBundleTypePtr make_world_type()
   types.append(PinRotationBundle::get_bundle_type());
   types.append(EdgeLengthConstraintBundle::get_bundle_type());
   types.append(CrossEdgeLengthConstraintBundle::get_bundle_type());
+
+  /* Not actually used by the node but only registered here. */
+  ForceBundle::get_bundle_type();
+  CustomGeometryEffector::get_bundle_type();
+  CustomWorldEffector::get_bundle_type();
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XPBDSolverWorld", std::move(types));
@@ -275,7 +281,6 @@ struct CrossEdgeLengthConstraintUsage {
   xpbd::ConstraintColoring coloring;
 };
 
-float error_threshold;
 struct StaticMeshInfo {
   const Mesh *mesh;
   bke::BVHTreeFromMesh corner_tris_bvh;
@@ -559,10 +564,9 @@ class XpbdSolverStep {
  private:
   struct TLS {
     ResourceScope scope;
-    IndexMaskMemory &mask_memory;
     LinearAllocator<> &allocator;
 
-    TLS() : mask_memory(scope.construct<IndexMaskMemory>()), allocator(mask_memory) {}
+    TLS() : scope(1024), allocator(scope.allocator()) {}
   };
 
   threading::EnumerableThreadSpecific<TLS> tls_;
@@ -1868,7 +1872,7 @@ class XpbdSolverStep {
             constraint_usage.compliances,
             error_scale_from_threshold(constraint.error_threshold),
             constraint_usage.lambdas);
-        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
+        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.allocator);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
       }
     }
@@ -1942,7 +1946,7 @@ class XpbdSolverStep {
             cross_edge_compliances,
             error_scale_from_threshold(constraint.error_threshold),
             constraint_usage.lambdas);
-        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
+        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.allocator);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
       }
     }
@@ -2142,10 +2146,16 @@ class XpbdSolverStep {
             this->prop_attr_name(constraint.path, "compliance"),
             geo_data.domain,
             0.0f);
-        const VArray<bool> prev_selection_attr = this->lookup_attribute_optional<bool>(
-            data_key_i, this->prev_prop_attr_name(constraint.path, "selection"), geo_data.domain);
-        const VArray<float3> prev_positions_attr = this->lookup_attribute_optional<float3>(
-            data_key_i, this->prev_prop_attr_name(constraint.path, "position"), geo_data.domain);
+        VArray<bool> prev_selection_attr;
+        VArray<float3> prev_positions_attr;
+        if (sub_delta_time_ > 0.0f) {
+          prev_selection_attr = this->lookup_attribute_optional<bool>(
+              data_key_i,
+              this->prev_prop_attr_name(constraint.path, "selection"),
+              geo_data.domain);
+          prev_positions_attr = this->lookup_attribute_optional<float3>(
+              data_key_i, this->prev_prop_attr_name(constraint.path, "position"), geo_data.domain);
+        }
 
         const int pin_num = pin_selection.size();
         MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
@@ -2302,13 +2312,16 @@ class XpbdSolverStep {
             this->prop_attr_name(constraint.path, "compliance"),
             geo_data.domain,
             0.0f);
-        const VArray<bool> prev_selection_attr = this->lookup_attribute_optional<bool>(
-            data_key_i, this->prev_prop_attr_name(constraint.path, "selection"), geo_data.domain);
-        const VArray<math::Quaternion> prev_rotations_attr =
-            this->lookup_attribute_optional<math::Quaternion>(
-                data_key_i,
-                this->prev_prop_attr_name(constraint.path, "rotation"),
-                geo_data.domain);
+        VArray<bool> prev_selection_attr;
+        VArray<math::Quaternion> prev_rotations_attr;
+        if (sub_delta_time_ > 0.0f) {
+          prev_selection_attr = this->lookup_attribute_optional<bool>(
+              data_key_i,
+              this->prev_prop_attr_name(constraint.path, "selection"),
+              geo_data.domain);
+          prev_rotations_attr = this->lookup_attribute_optional<math::Quaternion>(
+              data_key_i, this->prev_prop_attr_name(constraint.path, "rotation"), geo_data.domain);
+        }
 
         const int pin_num = pin_selection.size();
         MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
@@ -2954,28 +2967,13 @@ class XpbdSolverStep {
     return &**previous_bundle_ptr;
   }
 
-  bool effector_applies_to_geometry(const StringRef effector_path,
+  bool effector_applies_to_geometry([[maybe_unused]] const StringRef effector_path,
                                     const Bundle &effector,
                                     const int data_key_i) const
   {
     const DataKey &data_key = geometries_.data_keys[data_key_i];
     const GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
-    const StringRef geo_bundle_path = geo_set_data.path;
 
-    const bool filter_local =
-        effector.lookup<bool>(*BundleKey::from_str("filter_local")).value_or(false);
-    if (filter_local) {
-      const int pos = effector_path.rfind('/');
-      if (pos == StringRef::not_found) {
-        /* The effector is at the root level, so a local filter applies to everything. */
-        return true;
-      }
-      const StringRef effector_parent_path = effector_path.substr(0, pos + 1);
-      if (geo_bundle_path.startswith(effector_parent_path)) {
-        return true;
-      }
-      return false;
-    }
     const std::string filter =
         effector.lookup<std::string>(*BundleKey::from_str("filter")).value_or("");
     const bool match = tag_filter_matches(filter, geo_set_data.tags);
@@ -3353,6 +3351,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("World"_ustr, std::move(world_ptr));
 }
 
+static void node_label(const bNodeTree * /*ntree*/,
+                       const bNode * /*node*/,
+                       char *label,
+                       const int label_maxncpy)
+{
+  BLI_strncpy_utf8(
+      label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "XPBD Solver (Experimental)"), label_maxncpy);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -3363,7 +3370,8 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  ntype.default_width = bke::NodeWidth::_160;
+  ntype.default_width = bke::NodeWidth::_200;
+  ntype.labelfunc = node_label;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
