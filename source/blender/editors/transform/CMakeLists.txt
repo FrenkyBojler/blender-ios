@@ -62,7 +62,7 @@ set(SRC
   transform_mode_curveshrinkfatten.cc
   transform_mode_customdata.cc
   transform_mode_edge_rotate_normal.cc
-  transform_mode_edge_seq_slide.cc
+  transform_mode_strip_move.cc
   transform_mode_edge_slide.cc
   transform_mode_gpopacity.cc
   transform_mode_maskshrinkfatten.cc

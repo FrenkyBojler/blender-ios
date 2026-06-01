@@ -3218,13 +3218,13 @@ def km_sequencer(params):
         ("sequencer.slip", {"type": 'S', "value": 'PRESS'}, {"properties": [("use_cursor_position", False)]}),
         ("wm.context_set_int", {"type": 'O', "value": 'PRESS'},
          {"properties": [("data_path", "scene.sequence_editor.overlay_frame"), ("value", 0)]}),
-        ("transform.seq_slide", {"type": 'G', "value": 'PRESS'},
+        ("transform.strip_move", {"type": 'G', "value": 'PRESS'},
          {"properties": [("view2d_edge_pan", True)]}),
-        ("transform.seq_slide", {"type": params.select_mouse, "value": 'CLICK_DRAG'},
+        ("transform.strip_move", {"type": params.select_mouse, "value": 'CLICK_DRAG'},
          {"properties": [("view2d_edge_pan", True), ("use_restore_handle_selection", True)]}),
-        ("transform.seq_slide", {"type": params.select_mouse, "value": 'CLICK_DRAG', "alt": True},
+        ("transform.strip_move", {"type": params.select_mouse, "value": 'CLICK_DRAG', "alt": True},
          {"properties": [("view2d_edge_pan", True), ("use_restore_handle_selection", True)]}),
-        ("transform.seq_slide", {"type": params.select_mouse, "value": 'CLICK_DRAG', "ctrl": True},
+        ("transform.strip_move", {"type": params.select_mouse, "value": 'CLICK_DRAG', "ctrl": True},
          {"properties": [("view2d_edge_pan", True), ("use_restore_handle_selection", True)]}),
         ("transform.transform", {"type": 'E', "value": 'PRESS'},
          {"properties": [("mode", 'TIME_EXTEND')]}),
@@ -8671,10 +8671,10 @@ def km_sequencer_tool_generic_select_rcs(params):
          {"properties": [("pass_through_on_strip_handles", True)]}),
         ("anim.change_frame", {"type": params.action_mouse, "value": 'PRESS', "shift": True},
          {"properties": [("seq_solo_preview", True)]}),
-        # Change frame takes precedence over the sequence slide operator. If a
-        # mouse press happens on a strip handle, it is canceled, and the sequence
-        # slide below activates instead.
-        ("transform.seq_slide", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
+        # Change frame takes precedence over the strip move operator. If a
+        # mouse press happens on a strip handle, it is canceled, and the strip
+        # move below activates instead.
+        ("transform.strip_move", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
          {"properties": [("view2d_edge_pan", True), ("use_restore_handle_selection", True)]}),
     ]
 

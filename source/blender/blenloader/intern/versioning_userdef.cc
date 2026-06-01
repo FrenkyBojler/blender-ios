@@ -1772,6 +1772,20 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->experimental.use_remote_asset_libraries = true;
   }
 
+  if (!USER_VERSION_ATLEAST(502, 40)) {
+    const wmKeyConfigFilterItemParams params = WM_KEY_CONFIG_FILTER_ITEM_ALL;
+    BKE_keyconfig_pref_filter_items(
+        userdef,
+        &params,
+        [](wmKeyMapItem *kmi, void * /*user_data*/) -> bool {
+          if (STREQ(kmi->idname, "TRANSFORM_OT_seq_slide")) {
+            STRNCPY(kmi->idname, "TRANSFORM_OT_strip_move");
+          }
+          return false;
+        },
+        nullptr);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

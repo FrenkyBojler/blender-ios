@@ -641,7 +641,7 @@ void snap_sequencer_draw_drag_drop(Scene *scene, ARegion *region, const float2 s
   TransInfo t = {nullptr};
   t.scene = scene;
   t.region = region;
-  t.mode = TFM_SEQ_SLIDE;
+  t.mode = TFM_STRIP_MOVE;
   t.modifiers = MOD_SNAP;
   t.spacetype = SPACE_SEQ;
   t.tsnap.flag = SCE_SNAP;

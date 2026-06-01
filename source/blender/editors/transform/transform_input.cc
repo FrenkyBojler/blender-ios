@@ -292,7 +292,7 @@ static void calcSpringFactor(MouseInput *mi)
   }
 }
 
-static int transform_seq_slide_strip_cursor_get(const Strip *strip)
+static int transform_strip_move_strip_cursor_get(const Strip *strip)
 {
   if ((strip->flag & SEQ_LEFTSEL) != 0) {
     return WM_CURSOR_LEFT_HANDLE;
@@ -303,13 +303,13 @@ static int transform_seq_slide_strip_cursor_get(const Strip *strip)
   return WM_CURSOR_NSEW_SCROLL;
 }
 
-static int transform_seq_slide_cursor_get(TransInfo *t)
+static int transform_strip_move_cursor_get(TransInfo *t)
 {
   const Scene *scene = t->scene;
   VectorSet<Strip *> strips = vse::selected_strips_from_context(t->context);
 
   if (strips.size() == 1) {
-    return transform_seq_slide_strip_cursor_get(strips[0]);
+    return transform_strip_move_strip_cursor_get(strips[0]);
   }
   if (strips.size() == 2) {
     Strip *strip1 = strips[0];
@@ -327,8 +327,8 @@ static int transform_seq_slide_cursor_get(TransInfo *t)
       return WM_CURSOR_NSEW_SCROLL;
     }
 
-    const int cursor1 = transform_seq_slide_strip_cursor_get(strip1);
-    const int cursor2 = transform_seq_slide_strip_cursor_get(strip2);
+    const int cursor1 = transform_strip_move_strip_cursor_get(strip1);
+    const int cursor2 = transform_strip_move_strip_cursor_get(strip2);
 
     if (cursor1 == WM_CURSOR_RIGHT_HANDLE && cursor2 == WM_CURSOR_LEFT_HANDLE) {
       return WM_CURSOR_BOTH_HANDLES;
@@ -441,9 +441,9 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
         WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
       }
       /* Only use special cursor, when tweaking strips with mouse. */
-      if (t->mode == TFM_SEQ_SLIDE) {
-        if ((t->flag & T_MODAL) && transform_mode_edge_seq_slide_use_restore_handle_selection(t)) {
-          WM_cursor_modal_set(win, transform_seq_slide_cursor_get(t));
+      if (t->mode == TFM_STRIP_MOVE) {
+        if ((t->flag & T_MODAL) && transform_mode_strip_move_use_restore_handle_selection(t)) {
+          WM_cursor_modal_set(win, transform_strip_move_cursor_get(t));
         }
         else {
           SpaceSeq *sseq = CTX_wm_space_seq(t->context);

@@ -856,7 +856,7 @@ class SEQUENCER_MT_strip_transform(Menu):
             col.operator("transform.rotate", text="Rotate")
             col.operator("transform.resize", text="Scale")
         else:
-            col.operator("transform.seq_slide", text="Move").view2d_edge_pan = True
+            col.operator("transform.strip_move", text="Move").view2d_edge_pan = True
             col.operator("transform.transform", text="Move/Extend from Current Frame").mode = 'TIME_EXTEND'
             col.operator("sequencer.slip", text="Slip Strip Contents")
 

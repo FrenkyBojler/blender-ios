@@ -180,7 +180,7 @@ bool transformModeUseSnap(const TransInfo *t)
   if (ELEM(t->mode,
            TFM_VERT_SLIDE,
            TFM_EDGE_SLIDE,
-           TFM_SEQ_SLIDE,
+           TFM_STRIP_MOVE,
            TFM_TIME_TRANSLATE,
            TFM_TIME_EXTEND))
   {

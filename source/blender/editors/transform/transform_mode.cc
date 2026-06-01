@@ -1192,7 +1192,7 @@ static TransModeInfo *mode_info_get(TransInfo *t, const int mode)
       return &TransMode_bevelweight;
     case TFM_ALIGN:
       return &TransMode_align;
-    case TFM_SEQ_SLIDE:
+    case TFM_STRIP_MOVE:
       return &TransMode_seqslide;
     case TFM_NORMAL_ROTATION:
       return &TransMode_rotatenormal;

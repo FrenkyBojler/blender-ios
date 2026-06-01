@@ -494,7 +494,7 @@ static void move_strips(bContext *C, wmOperator *op)
     return;
   }
 
-  wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_seq_slide", true);
+  wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_strip_move", true);
   PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   RNA_boolean_set(&ptr, "remove_on_cancel", true);
   RNA_boolean_set(&ptr, "view2d_edge_pan", true);

@@ -360,4 +360,15 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
                     if index_to_fix != -1:
                         item_prop["properties"][index_to_fix] = ("brush_toggle", value_to_copy)
 
+    if keyconfig_version < (5, 2, 40):
+        if not has_copy:
+            keyconfig_data = copy.deepcopy(keyconfig_data)
+            has_copy = True
+
+        for km_index, (_km_name, _km_parms, km_items_data) in enumerate(keyconfig_data):
+            for kmi_index, (item_op, item_event, item_prop) in enumerate(km_items_data["items"]):
+                if item_op == "transform.seq_slide":
+                    keyconfig_data[km_index][2]["items"][kmi_index] = (
+                        "transform.strip_move", item_event, item_prop)
+
     return keyconfig_data

@@ -815,7 +815,7 @@ static void special_aftertrans_update__sequencer(bContext *C, TransInfo *t)
   Scene *scene = CTX_data_sequencer_scene(C);
   SpaceSeq *sseq = static_cast<SpaceSeq *>(t->area->spacedata.first);
   if ((sseq->flag & SPACE_SEQ_DESELECT_STRIP_HANDLE) != 0 &&
-      transform_mode_edge_seq_slide_use_restore_handle_selection(t))
+      transform_mode_strip_move_use_restore_handle_selection(t))
   {
     TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
     VectorSet<Strip *> strips = seq_transform_collection_from_transdata(tc);
@@ -838,7 +838,7 @@ static void special_aftertrans_update__sequencer(bContext *C, TransInfo *t)
     /* Can't use #TFM_TIME_EXTEND
      * for some reason EXTEND is changed into TRANSLATE, so use frame_side instead. */
 
-    if (t->mode == TFM_SEQ_SLIDE) {
+    if (t->mode == TFM_STRIP_MOVE) {
       if (t->frame_side == 'B') {
         ED_markers_post_apply_transform(
             &scene->markers, scene, TFM_TIME_TRANSLATE, t->values_final[0], t->frame_side);

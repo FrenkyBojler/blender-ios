@@ -74,7 +74,7 @@ static const char OP_VERT_SLIDE[] = "TRANSFORM_OT_vert_slide";
 static const char OP_EDGE_CREASE[] = "TRANSFORM_OT_edge_crease";
 static const char OP_VERT_CREASE[] = "TRANSFORM_OT_vert_crease";
 static const char OP_EDGE_BWEIGHT[] = "TRANSFORM_OT_edge_bevelweight";
-static const char OP_SEQ_SLIDE[] = "TRANSFORM_OT_seq_slide";
+static const char OP_STRIP_MOVE[] = "TRANSFORM_OT_strip_move";
 static const char OP_NORMAL_ROTATION[] = "TRANSFORM_OT_rotate_normal";
 
 static void TRANSFORM_OT_translate(wmOperatorType *ot);
@@ -95,7 +95,7 @@ static void TRANSFORM_OT_vert_slide(wmOperatorType *ot);
 static void TRANSFORM_OT_edge_crease(wmOperatorType *ot);
 static void TRANSFORM_OT_vert_crease(wmOperatorType *ot);
 static void TRANSFORM_OT_edge_bevelweight(wmOperatorType *ot);
-static void TRANSFORM_OT_seq_slide(wmOperatorType *ot);
+static void TRANSFORM_OT_strip_move(wmOperatorType *ot);
 static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot);
 
 static TransformModeItem transform_modes[] = {
@@ -117,7 +117,7 @@ static TransformModeItem transform_modes[] = {
     {OP_EDGE_CREASE, TFM_EDGE_CREASE, TRANSFORM_OT_edge_crease},
     {OP_VERT_CREASE, TFM_VERT_CREASE, TRANSFORM_OT_vert_crease},
     {OP_EDGE_BWEIGHT, TFM_BWEIGHT, TRANSFORM_OT_edge_bevelweight},
-    {OP_SEQ_SLIDE, TFM_SEQ_SLIDE, TRANSFORM_OT_seq_slide},
+    {OP_STRIP_MOVE, TFM_STRIP_MOVE, TRANSFORM_OT_strip_move},
     {OP_NORMAL_ROTATION, TFM_NORMAL_ROTATION, TRANSFORM_OT_rotate_normal},
     {nullptr, 0},
 };
@@ -155,7 +155,7 @@ const EnumPropertyItem rna_enum_transform_mode_type_items[] = {
     {ed::transform::TFM_BWEIGHT, "BWEIGHT", 0, "Bevel Weight", ""},
     {ed::transform::TFM_ALIGN, "ALIGN", 0, "Align", ""},
     {ed::transform::TFM_EDGE_SLIDE, "EDGESLIDE", 0, "Edge Slide", ""},
-    {ed::transform::TFM_SEQ_SLIDE, "SEQSLIDE", 0, "Sequence Slide", ""},
+    {ed::transform::TFM_STRIP_MOVE, "STRIP_MOVE", 0, "Move Strips", ""},
     {ed::transform::TFM_GPENCIL_OPACITY, "GPENCIL_OPACITY", 0, "Grease Pencil Opacity", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -1368,12 +1368,12 @@ static void TRANSFORM_OT_edge_bevelweight(wmOperatorType *ot)
   properties_register(ot, P_SNAP);
 }
 
-static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
+static void TRANSFORM_OT_strip_move(wmOperatorType *ot)
 {
   /* Identifiers. */
-  ot->name = "Sequence Slide";
-  ot->description = "Slide a sequence strip in time";
-  ot->idname = OP_SEQ_SLIDE;
+  ot->name = "Move Strips";
+  ot->description = "Move strips in time and between channels";
+  ot->idname = OP_STRIP_MOVE;
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
   /* API callbacks. */

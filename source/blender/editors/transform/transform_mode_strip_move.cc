@@ -54,7 +54,7 @@ static void headerSeqSlide(TransInfo *t, const float val[2], char str[UI_MAX_DRA
   }
 
   ofs += BLI_snprintf_utf8_rlen(
-      str + ofs, UI_MAX_DRAW_STR - ofs, IFACE_("Sequence Slide: %s%s"), &tvec[0], t->con.text);
+      str + ofs, UI_MAX_DRAW_STR - ofs, IFACE_("Move Strips: %s%s"), &tvec[0], t->con.text);
 }
 
 static void applySeqSlideValue(TransInfo *t, const float val[2])
@@ -145,7 +145,7 @@ static void initSeqSlide(TransInfo *t, wmOperator *op)
   t->num.unit_type[1] = B_UNIT_NONE;
 }
 
-bool transform_mode_edge_seq_slide_use_restore_handle_selection(const TransInfo *t)
+bool transform_mode_strip_move_use_restore_handle_selection(const TransInfo *t)
 {
   SeqSlideParams *ssp = static_cast<SeqSlideParams *>(t->custom.mode.data);
   if (ssp == nullptr) {
