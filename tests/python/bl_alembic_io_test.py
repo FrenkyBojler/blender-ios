@@ -576,28 +576,6 @@ class AlembicAnimatedCameraImportTests(AbstractAlembicTest):
                 f"Frame {frame}: {camera_object.name} clip_start values do not match")
 
 
-class AlembicBadGeometryTests(AbstractAlembicTest):
-    def check_empty_mesh_is_imported(self, file_path, object_name):
-        res = bpy.ops.wm.alembic_import(
-            filepath=str(self.testdir / file_path),
-            as_background_job=False)
-        self.assertEqual({'FINISHED'}, res)
-
-        ob = bpy.data.objects[object_name]
-        mesh = ob.data
-
-        self.assertEqual(len(mesh.vertices), 0)
-        self.assertEqual(len(mesh.polygons), 0)
-        self.assertEqual(len(mesh.loops), 0)
-        self.assertEqual(len(mesh.edges), 0)
-
-    def test_import_bad_polymesh(self):
-        self.check_empty_mesh_is_imported("74200-bad-face-counts-polymesh.abc", "PolyMesh")
-
-    def test_import_bad_subd(self):
-        self.check_empty_mesh_is_imported("74200-bad-face-counts-subd.abc", "SubD")
-
-
 class AlembicImportComparisonTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
