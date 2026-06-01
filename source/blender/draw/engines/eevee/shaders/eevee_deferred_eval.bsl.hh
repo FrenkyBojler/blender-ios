@@ -476,7 +476,7 @@ void planar_eval_frag([[resource_table]] PlanarProbeEval & /*srt*/,
   }
   {
     if (refract_weight > 0.0f) {
-      float inv_weight = refract_weight;
+      float inv_weight = 1.0f / refract_weight;
       cl_refract.N *= inv_weight;
       cl_refract.data *= inv_weight;
     }
