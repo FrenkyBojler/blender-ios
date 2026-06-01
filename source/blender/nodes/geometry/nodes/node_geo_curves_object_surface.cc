@@ -9,9 +9,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_curve_object_surface_cc {
-
-NODE_STORAGE_FUNCS(NodeGeometryObjectInfo)
+namespace blender::nodes::node_geo_curves_object_surface_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -42,9 +40,9 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_cmp_node_type_base(&ntype, "GeometryNodeCurveObjectSurface"_ustr);
-  ntype.ui_name = "Curve Object Surface";
-  ntype.ui_description = "Retrieve surface information from a curve object";
+  geo_cmp_node_type_base(&ntype, "GeometryNodeCurvesObjectSurface"_ustr);
+  ntype.ui_name = "Curves Object Surface";
+  ntype.ui_description = "Retrieve surface information from a curves object";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
@@ -53,4 +51,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_curve_object_surface_cc
+}  // namespace blender::nodes::node_geo_curves_object_surface_cc

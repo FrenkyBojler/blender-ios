@@ -10642,7 +10642,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeCurveEndpointSelection");
   define("GeometryNode", "GeometryNodeCurveHandleTypeSelection", def_geo_curve_handle_type_selection);
   define("GeometryNode", "GeometryNodeCurveLength");
-  define("GeometryNode", "GeometryNodeCurveObjectSurface");
+  define("GeometryNode", "GeometryNodeCurvesObjectSurface");
   define("GeometryNode", "GeometryNodeCurveOfPoint");
   define("GeometryNode", "GeometryNodeCurvePrimitiveBezierSegment");
   define("GeometryNode", "GeometryNodeCurvePrimitiveCircle");
