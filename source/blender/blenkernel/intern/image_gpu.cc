@@ -487,11 +487,16 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
   }
   else {
     /* Single image texture. */
-    const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
-    const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima, ibuf);
+    GPUTextureCreateFlags flags = GPUTextureCreateFlags::EnableMipmaps |
+                                  GPUTextureCreateFlags::LimitSize;
+    if (ima->flag & IMA_HIGH_BITDEPTH) {
+      flags |= GPUTextureCreateFlags::HighBitDepth;
+    }
+    if (BKE_image_has_gpu_texture_premultiplied_alpha(ima, ibuf)) {
+      flags |= GPUTextureCreateFlags::Premultiplied;
+    }
 
-    *result.texture = IMB_create_gpu_texture(
-        ima->id.name + 2, ibuf, use_high_bitdepth, store_premultiplied, true, false);
+    *result.texture = IMB_create_gpu_texture(ima->id.name + 2, ibuf, flags);
 
     if (*result.texture) {
       GPU_texture_extend_mode(*result.texture, GPU_SAMPLER_EXTEND_MODE_REPEAT);
