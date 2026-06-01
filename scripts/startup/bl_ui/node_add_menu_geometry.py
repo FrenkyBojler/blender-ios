@@ -386,7 +386,8 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeBoneInfo")
         self.node_operator(layout, "GeometryNodeCollectionChildren")
         self.node_operator(layout, "GeometryNodeCollectionInfo")
-        self.node_operator(layout, "GeometryNodeCurvesObjectSurface")
+        if context.preferences.experimental.use_geometry_nodes_hair_dynamics:
+            self.node_operator(layout, "GeometryNodeCurvesObjectSurface")
         self.node_operator(layout, "GeometryNodeImageInfo")
         self.node_operator(layout, "GeometryNodeIsViewport")
         if context.space_data.node_tree_sub_type == 'TOOL':
