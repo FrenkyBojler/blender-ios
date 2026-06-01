@@ -867,7 +867,8 @@ ccl_device
         /* Metallic component */
         if (base_metalness > CLOSURE_WEIGHT_CUTOFF) {
           if (reflective_caustics) {
-            /* In OpenPBR v1.1 Eq. 32 the Fresnel_82 term is multiplied with the specular_weight. We can achieve the same effect by mutl*/
+            /* In OpenPBR v1.1 Eq. 32 the Fresnel_82 term is multiplied with the specular_weight.
+             * We can achieve the same effect by mutl*/
             ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)bsdf_alloc(
                 sd, sizeof(MicrofacetBsdf), specular_weight * base_metalness * weight);
             ccl_private FresnelF82Tint *fresnel =
@@ -889,6 +890,7 @@ ccl_device
               const Spectrum f82 = min(specular_color * specular_weight, one_spectrum());
 #endif
               fresnel->thin_film.thickness = thin_film_thickness;
+              /* TODO(OpenPBR): check if thin film_ior needs to be adjusted at backface. */
               fresnel->thin_film.ior = thin_film_ior;
 
               /* setup bsdf */
@@ -923,6 +925,10 @@ ccl_device
             fresnel->transmission_tint = transmission_color;
             fresnel->thin_film.thickness = thin_film_thickness;
             fresnel->thin_film.ior = thin_film_ior;
+            if (backfacing) {
+              /* TODO(OpenPBR): do we need to modulate thin film IOR too? */
+              adjust_thin_film_ior_at_backface(fresnel->thin_film.ior, modulated_specular_ior);
+            }
 
             /* setup bsdf */
             sd->flag |= bsdf_microfacet_ggx_glass_setup(bsdf);
@@ -1027,6 +1033,9 @@ ccl_device
             fresnel->transmission_tint = transmission_color;
             fresnel->thin_film.thickness = thin_film_thickness;
             fresnel->thin_film.ior = thin_film_ior;
+            if (backfacing) {
+              adjust_thin_film_ior_at_backface(fresnel->thin_film.ior, modulated_specular_ior);
+            }
 
             /* setup bsdf */
             sd->flag |= bsdf_microfacet_ggx_glass_setup(bsdf);
