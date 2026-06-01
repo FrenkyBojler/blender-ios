@@ -6,6 +6,7 @@
  * \ingroup edinterface
  */
 
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 
@@ -108,10 +109,12 @@ void draw_roundbox_4fv_ex(const rctf *rect,
   widget_params.color_outline[3] = outline ? outline[3] : inner1 ? inner1[3] : 0.0f;
   widget_params.shade_dir = shade_dir;
   widget_params.alpha_discard = 1.0f;
+  widget_params._pad[0] = -FLT_MAX;
+  widget_params._pad[1] = FLT_MAX;
 
   gpu::Batch *batch = batch_roundbox_widget_get();
   GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
-  GPU_batch_uniform_4fv_array(batch, "parameters", 11, (const float (*)[4]) & widget_params);
+  GPU_batch_uniform_4fv_array(batch, "parameters", 12, (const float (*)[4]) & widget_params);
   const GPUBlend old_blend = GPU_blend_get();
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_batch_draw(batch);

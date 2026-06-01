@@ -7,6 +7,7 @@
  */
 
 #include <algorithm>
+#include <cfloat>
 #include <climits>
 #include <cstdlib>
 #include <cstring>
@@ -591,6 +592,14 @@ static void draw_anti_tria_rect(const rctf *rect, char dir, const float color[4]
   }
 }
 
+struct WidgetAlignOverpaintClip {
+  float xmin;
+  float ymax;
+};
+
+static constexpr WidgetAlignOverpaintClip widget_align_overpaint_clip_none = {-FLT_MAX, FLT_MAX};
+static WidgetAlignOverpaintClip g_widget_align_overpaint_clip = widget_align_overpaint_clip_none;
+
 static void widget_init(WidgetBase *wtb)
 {
   wtb->totvert = wtb->halfwayvert = 0;
@@ -606,6 +615,9 @@ static void widget_init(WidgetBase *wtb)
 
   wtb->uniform_params.shade_dir = 1.0f;
   wtb->uniform_params.alpha_discard = 1.0f;
+  /* Reuse shader padding for optional absolute clip boundaries in aligned overpaint fixes. */
+  wtb->uniform_params._pad[0] = g_widget_align_overpaint_clip.xmin;
+  wtb->uniform_params._pad[1] = g_widget_align_overpaint_clip.ymax;
 }
 
 /** \} */
@@ -5724,6 +5736,14 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
 
   // rcti disablerect = *rect; /* rect gets clipped smaller for text */
 
+  /* Most buttons do not need this path; gate the extra overpaint work up front. */
+  const int align_overpaint_flags = but->drawflag &
+                                    (BUT_ALIGN_NO_TOP_OVERPAINT | BUT_ALIGN_NO_LEFT_OVERPAINT);
+  rcti rect_before_align;
+  if (align_overpaint_flags) {
+    /* Keep the unexpanded rect. widget_roundbox_set() mutates `rect` for aligned overlap. */
+    rect_before_align = *rect;
+  }
   const int roundboxalign = widget_roundbox_set(but, rect);
 
   WidgetStateInfo state = {0};
@@ -5771,11 +5791,24 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
 
   const float zoom = 1.0f / but->block->aspect;
   wt->state(wt, &state, but->emboss);
+
+  if (align_overpaint_flags) {
+    /* Store optional clip boundaries for this button draw only (consumed in shader via _pad). */
+    g_widget_align_overpaint_clip.xmin = (align_overpaint_flags & BUT_ALIGN_NO_LEFT_OVERPAINT) ?
+                                             float(rect_before_align.xmin) :
+                                             widget_align_overpaint_clip_none.xmin;
+    g_widget_align_overpaint_clip.ymax = (align_overpaint_flags & BUT_ALIGN_NO_TOP_OVERPAINT) ?
+                                             float(rect_before_align.ymax) :
+                                             widget_align_overpaint_clip_none.ymax;
+  }
   if (wt->custom) {
     wt->custom(but, &wt->wcol, rect, &state, roundboxalign, zoom);
   }
   else if (wt->draw) {
     wt->draw(&wt->wcol, rect, &state, roundboxalign, zoom);
+  }
+  if (align_overpaint_flags) {
+    g_widget_align_overpaint_clip = widget_align_overpaint_clip_none;
   }
 
   if (wt->text) {

@@ -21,6 +21,12 @@
 
 namespace blender::ui {
 
+enum class AlignOverlapPriority {
+  None = 0,
+  Selected = 1,
+  Hovered = 2,
+};
+
 /**
  * This struct stores a (simplified) 2D representation of all buttons of a same align group,
  * with their immediate neighbors (if found),
@@ -44,6 +50,9 @@ namespace blender::ui {
  */
 struct ButAlign {
   Button *but;
+
+  /* Draw priority used to keep highlighted shared borders visible. */
+  AlignOverlapPriority overlap_priority;
 
   /* Neighbor buttons */
   ButAlign *neighbors[4];
@@ -104,6 +113,17 @@ bool button_can_align(const Button *but)
                                      ButtonType::SeprLine,
                                      ButtonType::SeprSpacer);
   return (btype_can_align && !BLI_rctf_is_empty(&but->rect));
+}
+
+static AlignOverlapPriority button_align_overlap_priority(const Button *but)
+{
+  if (but->flag & UI_HOVER) {
+    return AlignOverlapPriority::Hovered;
+  }
+  if (!(but->drawflag & BUT_INDETERMINATE) && (but->flag & (UI_SELECT | UI_SELECT_DRAW))) {
+    return AlignOverlapPriority::Selected;
+  }
+  return AlignOverlapPriority::None;
 }
 
 /**
@@ -380,6 +400,7 @@ void block_align_calc(Block *block, const ARegion *region)
     ButAlign &butal = butal_array[n++];
     butal = {};
     butal.but = &but;
+    butal.overlap_priority = button_align_overlap_priority(&but);
     butal.borders[LEFT] = &but.rect.xmin;
     butal.borders[RIGHT] = &but.rect.xmax;
     butal.borders[DOWN] = &but.rect.ymin;
@@ -428,7 +449,7 @@ void block_align_calc(Block *block, const ARegion *region)
 
   /* Third loop: we have all our 'aligned' buttons as a 'map' in butal_array. We need to:
    *     - update their relevant coordinates to stitch them.
-   *     - assign them valid flags.
+   *     - assign them valid align and overpaint flags.
    */
   for (ButAlign &butal : butal_array) {
 
@@ -436,6 +457,11 @@ void block_align_calc(Block *block, const ARegion *region)
       ButAlign *butal_other = butal.neighbors[side];
 
       if (butal_other) {
+        if (ELEM(side, LEFT, TOP) && butal.overlap_priority < butal_other->overlap_priority) {
+          butal.but->drawflag |= (side == TOP) ? BUT_ALIGN_NO_TOP_OVERPAINT :
+                                                 BUT_ALIGN_NO_LEFT_OVERPAINT;
+        }
+
         const int side_opp = OPPOSITE(side);
         const int side_s1 = SIDE1(side);
         const int side_s2 = SIDE2(side);

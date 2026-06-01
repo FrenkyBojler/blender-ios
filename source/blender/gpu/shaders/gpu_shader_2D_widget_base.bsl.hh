@@ -99,6 +99,10 @@ struct [[host_shared]] Widget {
       }
     }
 
+    /* Optional absolute clip boundaries for aligned-widget overpaint suppression. */
+    pos.x = max(pos.x, _pad0);
+    pos.y = min(pos.y, _pad1);
+
     v_out.uv_interp = pos - rect.xz;
     v_out.out_rect_size = rect.yw - rect.xz;
     v_out.out_round_corners = rads * round_corners;

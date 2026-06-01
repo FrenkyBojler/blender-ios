@@ -494,7 +494,11 @@ enum {
    */
   BUT_ALIGN_STITCH_TOP = 1 << 18,
   BUT_ALIGN_STITCH_LEFT = 1 << 19,
-  BUT_ALIGN_ALL = BUT_ALIGN | BUT_ALIGN_STITCH_TOP | BUT_ALIGN_STITCH_LEFT,
+  /** Do not paint the top/left overlap over a higher priority aligned neighbor. */
+  BUT_ALIGN_NO_TOP_OVERPAINT = 1 << 28,
+  BUT_ALIGN_NO_LEFT_OVERPAINT = 1 << 29,
+  BUT_ALIGN_ALL = BUT_ALIGN | BUT_ALIGN_STITCH_TOP | BUT_ALIGN_STITCH_LEFT |
+                  BUT_ALIGN_NO_TOP_OVERPAINT | BUT_ALIGN_NO_LEFT_OVERPAINT,
 
   /** This but is "inside" a box item (currently used to change theme colors). */
   BUT_BOX_ITEM = 1 << 20,
