@@ -2429,6 +2429,12 @@ class CYCLES_RENDER_PT_simplify_features(CyclesButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {'CYCLES'}
 
+    def draw_header(self, context):
+        scene = context.scene
+        cscene = scene.cycles
+
+        self.layout.prop(cscene, "simplify_features", text="")
+
     def draw(self, context):
         layout = self.layout
 
@@ -2441,6 +2447,7 @@ class CYCLES_RENDER_PT_simplify_features(CyclesButtonsPanel, Panel):
         layout.active = rd.use_simplify
 
         col = layout.column()
+        col.enabled = cscene.simplify_features
         col.prop(cscene, "ignore_lights")
         col.prop(cscene, "ignore_shadows")
         col.prop(cscene, "ignore_shaders")

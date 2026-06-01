@@ -583,7 +583,7 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
   }
 
-  if ((b_scene->r.mode & blender::R_SIMPLIFY) != 0) {
+  if ((b_scene->r.mode & blender::R_SIMPLIFY) != 0 && get_boolean(cscene, "simplify_features")) {
     integrator->set_ignore_shaders(get_boolean(cscene, "ignore_shaders"));
     integrator->set_ignore_volumes(get_boolean(cscene, "ignore_volumes"));
     integrator->set_ignore_lights(get_boolean(cscene, "ignore_lights"));

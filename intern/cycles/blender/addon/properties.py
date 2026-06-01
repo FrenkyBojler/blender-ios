@@ -1089,54 +1089,59 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         max=8192,
     )
 
+    simplify_features: BoolProperty(
+        name="Simply Features",
+        default=False,
+        description="Simplify Cycles render features",
+    )
     ignore_shaders: BoolProperty(
         name="Shaders",
-        default=False,
+        default=True,
         description="Replace all shaders with a simple diffuse gray shader"
     )
     ignore_images: BoolProperty(
         name="Images",
-        default=False,
+        default=True,
         description="Do not load images, use a neutral gray instead"
     )
     ignore_volumes: BoolProperty(
         name="Volumes",
-        default=False,
+        default=True,
         description="Disable volume shaders"
     )
     ignore_subsurface_scattering: BoolProperty(
         name="Subsurface Scattering",
-        default=False,
+        default=True,
         description="Disable subsurface scattering"
     )
     ignore_lights: BoolProperty(
         name="Lights",
-        default=False,
+        default=True,
         description="Disable all light objects"
     )
     ignore_shadows: BoolProperty(
         name="Shadows",
-        default=False,
+        default=True,
         description="Disable cast shadows from all lights"
     )
     ignore_displacement: BoolProperty(
         name="Displacement",
-        default=False,
+        default=True,
         description="Disable displacement from all shaders"
     )
     ignore_bump: BoolProperty(
         name="Bump",
-        default=False,
+        default=True,
         description="Disable bump mapping from all shaders"
     )
     ignore_polygon_smoothing: BoolProperty(
         name="Polygon Smoothing",
-        default=False,
+        default=True,
         description="Disable smoothed normals, render with geometry normals instead"
     )
     ignore_depth_of_field: BoolProperty(
         name="Depth of Field",
-        default=False,
+        default=True,
         description="Disable all Depth of Field"
     )
 
