@@ -118,10 +118,10 @@ static SerializableObject::Retainer<ImageSequenceReference> create_image_sequenc
     const char *target_url_base,
     const char *name_prefix,
     const char *name_suffix,
-    int start_frame_nr,
-    int frame_step,
-    int fps,
-    int num_digits)
+    const int start_frame_nr,
+    const int frame_step,
+    const float fps,
+    const int num_digits)
 {
   TimeRange media_available_range = get_media_available_range(strip, scene, fps);
   auto img_seq_ref = SerializableObject::Retainer<ImageSequenceReference>(
@@ -154,7 +154,7 @@ static bool img_seq_need_fallback(StripElem *se, size_t img_count)
   /* Get sequence number of the second image. */
   int frame_nr_2 = 0;
   int num_digits_2 = 0;
-  if (!BLI_path_frame_get(se->filename, &frame_nr_2, &num_digits_2)) {
+  if (!BLI_path_frame_get((++se)->filename, &frame_nr_2, &num_digits_2)) {
     return true;
   }
   if (frame_nr_2 - frame_nr < 1) {
@@ -321,7 +321,7 @@ void ImageStripExporter::export_strip(const OTIOExportParams *export_params)
                                         name_suffix,
                                         start_frame_nr,
                                         frame_step,
-                                        _scene->frames_per_second(),
+                                        media_fps,
                                         num_digits);
     TimeRange source_range = get_strip_source_range(_strip, _scene, _scene->frames_per_second());
 
