@@ -650,15 +650,6 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_swap_hands(Operator):
 
         return {'FINISHED'}
 
-    def invoke(self, context, event):
-        xr_event = event.xr
-        xr_settings = context.window_manager.xr_session_settings
-
-        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
-            return {'CANCELLED'}
-
-        return self.execute(context)
-
 
 # Location Scouting Captures
 def capture_camera_name(capture):
