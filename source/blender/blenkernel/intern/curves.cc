@@ -244,7 +244,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
     edit_component.curves_edit_hints_ = std::make_unique<CurvesEditHints>(
         *id_cast<const Curves *>(DEG_get_original(object)->data));
   }
-  bke::curves_store_surface_in_geometry_bundle(*curves, geometry_set);
+  bke::curves_store_surface_in_geometry_bundle(*depsgraph, *curves, geometry_set);
   curves_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
   /* Assign evaluated object. */
@@ -323,7 +323,9 @@ void curves_copy_parameters(const Curves &src, Curves &dst)
   dst.surface_collision_distance = src.surface_collision_distance;
 }
 
-void curves_store_surface_in_geometry_bundle(const Curves &curves_id, GeometrySet &geometry_set)
+void curves_store_surface_in_geometry_bundle(const Depsgraph &depsgraph,
+                                             const Curves &curves_id,
+                                             GeometrySet &geometry_set)
 {
   if (!curves_id.surface) {
     return;
@@ -332,7 +334,8 @@ void curves_store_surface_in_geometry_bundle(const Curves &curves_id, GeometrySe
     return;
   }
   nodes::Bundle &bundle = geometry_set.bundle_for_write();
-  bundle.add(*nodes::BundleKey::from_ustr("surface_object"_ustr), curves_id.surface);
+  bundle.add(*nodes::BundleKey::from_ustr("surface_object"_ustr),
+             DEG_get_evaluated(&depsgraph, curves_id.surface));
   bundle.add(*nodes::BundleKey::from_ustr("surface_uv_map_name"_ustr),
              std::string(curves_id.surface_uv_map));
 }

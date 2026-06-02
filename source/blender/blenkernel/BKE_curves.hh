@@ -978,7 +978,9 @@ Curves *curves_new_nomain_single(int points_num, CurveType type);
  */
 void curves_copy_parameters(const Curves &src, Curves &dst);
 
-void curves_store_surface_in_geometry_bundle(const Curves &curves, GeometrySet &geometry);
+void curves_store_surface_in_geometry_bundle(const Depsgraph &depsgraph,
+                                             const Curves &curves,
+                                             GeometrySet &geometry);
 
 CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
                                            const IndexMask &points_to_copy,
