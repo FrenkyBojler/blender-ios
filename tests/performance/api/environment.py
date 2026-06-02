@@ -53,6 +53,9 @@ class TestEnvironment:
         self._init_default_blender_executable()
         self.set_default_blender_executable()
 
+    def add_cmake_option(self, option: str) -> None:
+        self.cmake_options.append(option)
+
     def get_machine(self, need_gpus: bool = True) -> None:
         if not self.machine or (need_gpus and not self.machine.has_gpus):
             self.machine = TestMachine(self, need_gpus)

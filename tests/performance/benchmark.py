@@ -394,6 +394,8 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
         sys.stderr.write('Error: benchmark build not initialized. Run "benchmark.py init --build" first.\n')
         sys.exit(1)
 
+    env.add_cmake_option('-DWITH_COMPILER_CCACHE=YES')
+
     try:
         start_str, end_str = args.range.split('-')
         start_dt = datetime.datetime.strptime(start_str, '%Y%m%d').replace(tzinfo=datetime.timezone.utc)
