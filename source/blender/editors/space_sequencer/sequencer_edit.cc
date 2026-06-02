@@ -4117,8 +4117,8 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
       int src_w, src_h;
       if (strip.type == STRIP_TYPE_COLOR) {
         const SolidColorVars *cv = static_cast<const SolidColorVars *>(strip.effectdata);
-        src_w = std::max(1, cv->width);
-        src_h = std::max(1, cv->height);
+        src_w = cv->width;
+        src_h = cv->height;
       }
       else {
         const int timeline_frame = scene->r.cfra;

@@ -8,13 +8,12 @@
 
 #include "BLI_task.hh"
 
-#include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+
+#include "IMB_imbuf.hh"
 
 #include "PRF_profile.hh"
 
-#include "IMB_imbuf.hh"
-#include "SEQ_render.hh"
 #include "effects.hh"
 
 namespace blender::seq {
@@ -24,8 +23,7 @@ static void init_solid_color(Strip *strip)
   SolidColorVars *data = MEM_new<SolidColorVars>("solidcolor");
   strip->effectdata = data;
   data->col[0] = data->col[1] = data->col[2] = 0.5;
-  data->width = 0;
-  data->height = 0;
+  data->width = data->height = 1;
 }
 
 static void free_solid_color(Strip *strip, const bool /*do_id_user*/)
@@ -42,7 +40,7 @@ static StripEarlyOut early_out_color(const Strip * /*strip*/, float /*fac*/)
   return StripEarlyOut::NoInput;
 }
 
-static SeqResult do_solid_color(const RenderData *context,
+static SeqResult do_solid_color(const RenderData * /*context*/,
                                 SeqRenderState * /*state*/,
                                 Strip *strip,
                                 float /*timeline_frame*/,
@@ -51,12 +49,10 @@ static SeqResult do_solid_color(const RenderData *context,
                                 const SeqResult & /*ibuf2*/)
 {
   PRF_scope_with_name("SeqFxColor", ProfileCategory::Draw);
-  const SolidColorVars *cv = static_cast<const SolidColorVars *>(strip->effectdata);
-
-  const int width = std::max(0, cv->width);
-  const int height = std::max(0, cv->height);
   SeqResult out;
-  out.image = IMB_allocImBuf(width, height, ImBufFlags::ByteData);
+
+  const SolidColorVars *cv = static_cast<const SolidColorVars *>(strip->effectdata);
+  out.image = IMB_allocImBuf(cv->width, cv->height, ImBufFlags::ByteData);
 
   uchar color[4];
   rgb_float_to_uchar(color, cv->col);
