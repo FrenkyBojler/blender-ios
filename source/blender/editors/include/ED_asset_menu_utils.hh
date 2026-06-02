@@ -48,7 +48,10 @@ bool operator_asset_reference_props_is_set(PointerRNA &ptr);
 void operator_asset_reference_props_register(StructRNA &srna);
 
 const asset_system::AssetRepresentation *find_asset_from_weak_ref(
-    const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports);
+    const bContext &C,
+    const AssetWeakReference &weak_ref,
+    ReportList *reports,
+    bool check_context_asset = true);
 
 /**
  * Load all asset libraries to find an asset from the #operator_asset_reference_props_register
@@ -58,7 +61,7 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
  * \note Does not check asset type or meta data.
  */
 const asset_system::AssetRepresentation *operator_asset_reference_props_get_asset_from_all_library(
-    const bContext &C, PointerRNA &ptr, ReportList *reports);
+    const bContext &C, PointerRNA &ptr, ReportList *reports, bool check_context_asset = true);
 
 }  // namespace ed::asset
 }  // namespace blender

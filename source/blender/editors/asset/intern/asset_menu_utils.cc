@@ -12,6 +12,7 @@
 
 #include "DNA_screen_types.h"
 
+#include "BKE_context.hh"
 #include "BKE_report.hh"
 
 #include "BLT_translation.hh"
@@ -68,7 +69,10 @@ bool operator_asset_reference_props_is_set(PointerRNA &ptr)
  * assets.
  */
 static const asset_system::AssetRepresentation *get_local_asset_from_weak_ref(
-    const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports)
+    const bContext &C,
+    const AssetWeakReference &weak_ref,
+    ReportList *reports,
+    const bool check_context_asset)
 {
   AssetLibraryReference library_ref{};
   library_ref.type = ASSET_LIBRARY_LOCAL;
@@ -83,6 +87,14 @@ static const asset_system::AssetRepresentation *get_local_asset_from_weak_ref(
     return true;
   });
 
+  const asset_system::AssetRepresentation *context_asset = CTX_wm_asset(&C);
+  if (check_context_asset && context_asset != matching_asset) {
+    if (reports) {
+      BKE_reportf(reports, RPT_ERROR, "Context asset does not match operator asset reference");
+    }
+    return nullptr;
+  }
+
   if (reports && !matching_asset) {
     if (list::is_loaded(&library_ref)) {
       BKE_reportf(
@@ -96,10 +108,13 @@ static const asset_system::AssetRepresentation *get_local_asset_from_weak_ref(
 }
 
 const asset_system::AssetRepresentation *find_asset_from_weak_ref(
-    const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports)
+    const bContext &C,
+    const AssetWeakReference &weak_ref,
+    ReportList *reports,
+    const bool check_context_asset)
 {
   if (weak_ref.asset_library_type == ASSET_LIBRARY_LOCAL) {
-    return get_local_asset_from_weak_ref(C, weak_ref, reports);
+    return get_local_asset_from_weak_ref(C, weak_ref, reports, check_context_asset);
   }
 
   const AssetLibraryReference library_ref = asset_system::all_library_reference();
@@ -120,6 +135,13 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
     return true;
   });
 
+  const asset_system::AssetRepresentation *context_asset = CTX_wm_asset(&C);
+  if (check_context_asset && context_asset != matching_asset) {
+    if (reports) {
+      BKE_reportf(reports, RPT_ERROR, "Context asset does not match operator asset reference");
+    }
+    return nullptr;
+  }
   if (reports && !matching_asset) {
     if (list::is_loaded(&library_ref)) {
       const std::string full_path = all_library->resolve_asset_weak_reference_to_full_path(
@@ -131,7 +153,7 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
 }
 
 const asset_system::AssetRepresentation *operator_asset_reference_props_get_asset_from_all_library(
-    const bContext &C, PointerRNA &ptr, ReportList *reports)
+    const bContext &C, PointerRNA &ptr, ReportList *reports, const bool check_context_asset)
 {
   AssetWeakReference weak_ref{};
   weak_ref.asset_library_type = eAssetLibraryType(RNA_enum_get(&ptr, "asset_library_type"));
@@ -139,7 +161,7 @@ const asset_system::AssetRepresentation *operator_asset_reference_props_get_asse
       &ptr, "asset_library_identifier", nullptr, 0, nullptr);
   weak_ref.relative_asset_identifier = RNA_string_get_alloc(
       &ptr, "relative_asset_identifier", nullptr, 0, nullptr);
-  return find_asset_from_weak_ref(C, weak_ref, reports);
+  return find_asset_from_weak_ref(C, weak_ref, reports, check_context_asset);
 }
 
 void draw_menu_for_catalog(const asset_system::AssetCatalogTreeItem &item,
