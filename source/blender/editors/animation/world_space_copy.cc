@@ -99,18 +99,18 @@ static Vector<ID *> get_unique_ids(const Span<AnimTransformable> transformables)
 
 struct GraphNode {
   AnimTransformable *transformable = nullptr;
-  bool applied = false;
+  bool inserted = false;
   /* Other nodes that need to be applied before this. */
   Vector<GraphNode *> ancestors;
 
-  bool can_apply_transform()
+  bool can_insert()
   {
-    if (applied) {
+    if (inserted) {
       /* Already applied. Don't apply twice. */
       return false;
     }
     for (GraphNode *node : ancestors) {
-      if (!node->applied) {
+      if (!node->inserted) {
         /* All ancestors must be applied before this node. */
         return false;
       }
@@ -159,7 +159,6 @@ static Array<GraphNode> build_transformable_ancestry(
           if (!dependent_node) {
             return true;
           }
-          std::cout << "ID " << other_id->name << " - " << component_name << std::endl;
           dependent_node->ancestors.append(&graph_node);
           visited_components.add(cid);
           return true;
@@ -167,6 +166,38 @@ static Array<GraphNode> build_transformable_ancestry(
   }
   return nodes;
 }
+
+static Vector<AnimTransformable *> depsgraph_sorted_transformables(
+    const Depsgraph *depsgraph, const MutableSpan<AnimTransformable> transformables)
+{
+  Array<GraphNode> nodes = build_transformable_ancestry(depsgraph, transformables);
+  Vector<AnimTransformable *> sorted_transformables;
+
+  while (true) {
+    bool inserted_any = false;
+    for (GraphNode &graph_node : nodes) {
+      if (!graph_node.can_insert()) {
+        continue;
+      }
+      std::cout << "insert " << graph_node.transformable->name() << std::endl;
+      sorted_transformables.append(graph_node.transformable);
+      inserted_any = true;
+      graph_node.inserted = true;
+    }
+    if (!inserted_any) {
+      /* There are 2 cases in which this can happen. Either we applied all transforms, or there
+       * is a dependency cycle where 2 nodes have each other in their ancestors. In the latter case
+       * the returned Vector will not contain those transformables with a cycle.*/
+      break;
+    }
+  }
+
+  return sorted_transformables;
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Main Functions
+ * \{ */
 
 /**
  * \param range inclusive/exclusive
@@ -188,6 +219,9 @@ static void copy_world_space(Main &bmain,
                            {(bf::PartialWriteContext::IDAddOperations::SET_FAKE_USER |
                              bf::PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
+  /* Using the frame start and end of the action to store the range of the copied keys. */
+  dna_action->frame_start = range.min;
+  dna_action->frame_end = range.max;
   ar::Action &action = dna_action->wrap();
   action.layer_keystrip_ensure();
   ar::StripKeyframeData &strip_data = action.layer(0)->strip(0)->data<ar::StripKeyframeData>(
@@ -240,7 +274,9 @@ static void copy_world_space(Main &bmain,
   copybuffer.write_as_copypaste_buffer(filepath, reports);
 }
 
-static void paste_world_space(Depsgraph *depsgraph,
+static void paste_world_space(Main &bmain,
+                              Scene &scene,
+                              ViewLayer &view_layer,
                               ReportList &reports,
                               const MutableSpan<AnimTransformable> transformables)
 {
@@ -281,60 +317,41 @@ static void paste_world_space(Depsgraph *depsgraph,
     fcurves[fcurve->array_index] = fcurve;
   }
 
+  /* Build a minimal depsgraph because we need to evaluate the scene on every frame to correctly
+   * invert world to local space. */
+  Depsgraph *depsgraph = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
+  Vector<ID *> ids = get_unique_ids(transformables);
+  DEG_graph_build_from_ids(depsgraph, ids);
+
   /* We need to first apply the transformation to those entities that are not affected by any other
    * transformables. This is why we need to sort using the depsgraph. */
-  Array<AnimTransformable *> sorted_transformables(transformables.size());
-  for (const int i : transformables.index_range()) {
-    sorted_transformables[i] = &transformables[i];
+  Vector<AnimTransformable *> sorted_transformables = depsgraph_sorted_transformables(
+      depsgraph, transformables);
+
+  if (sorted_transformables.size() != transformables.size()) {
+    BKE_report(&reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
   }
 
-  Array<GraphNode> nodes = build_transformable_ancestry(depsgraph, transformables);
+  /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
+  const Bounds<int> range = {int(dna_action->frame_start), int(dna_action->frame_end)};
 
-  while (true) {
-    bool applied_transforms = false;
-    for (GraphNode &graph_node : nodes) {
-      if (!graph_node.can_apply_transform()) {
-        continue;
-      }
-      std::cout << "apply " << graph_node.transformable->name() << std::endl;
-      AnimTransformable *transformable = graph_node.transformable;
+  for (int frame = range.min; frame < range.max; frame++) {
+    DEG_evaluate_on_framechange(depsgraph, frame);
+    const int key_index = frame - range.min;
+    for (AnimTransformable *transformable : sorted_transformables) {
       const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
       if (!fcurves || fcurves->is_empty()) {
         continue;
       }
-      /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
-      FCurve *first_fcurve = (*fcurves)[0];
-      BLI_assert(first_fcurve);
-      if (!first_fcurve || first_fcurve->totvert == 0) {
-        continue;
-      }
-      const Bounds<int> range = {int(first_fcurve->fpt[0].vec[0] + 0.5f),
-                                 int(first_fcurve->fpt[first_fcurve->totvert - 1].vec[0] + 0.5f)};
-      for (int frame = range.min; frame < range.max; frame++) {
-        const int key_index = frame - range.min;
-        const float4x4 matrix = fcurves_to_matrix(*fcurves, key_index);
-      }
-
-      applied_transforms = true;
-      graph_node.applied = true;
-    }
-    if (!applied_transforms) {
-      /* There are 2 cases in which this can happen. Either we applied all transforms, or there are
-       * is a dependency cycle where 2 nodes have each other in their ancestors. */
-      break;
+      const float4x4 matrix = fcurves_to_matrix(*fcurves, key_index);
     }
   }
 
-  for (GraphNode &graph_node : nodes) {
-    if (!graph_node.applied) {
-      BKE_report(
-          &reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
-      break;
-    }
-  }
-
+  DEG_graph_free(depsgraph);
   BKE_main_free(clipboard_bmain);
 }
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Operators
@@ -406,7 +423,11 @@ void ANIM_OT_world_space_copy(wmOperatorType *ot)
 static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
 {
   Vector<AnimTransformable> transformables = selected_transformables_from_context(C);
-  paste_world_space(CTX_data_depsgraph_pointer(C), *op->reports, transformables);
+  paste_world_space(*CTX_data_main(C),
+                    *CTX_data_scene(C),
+                    *CTX_data_view_layer(C),
+                    *op->reports,
+                    transformables);
   return OPERATOR_FINISHED;
 }
 

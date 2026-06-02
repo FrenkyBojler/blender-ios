@@ -516,4 +516,6 @@ float4x4 AnimTransformable::get_world_matrix() const
   return {};
 }
 
+void apply_local_matrix() {}
+
 }  // namespace blender::ed
