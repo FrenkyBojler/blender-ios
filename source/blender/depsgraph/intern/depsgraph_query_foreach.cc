@@ -174,7 +174,7 @@ bool deg_foreach_named_dependent_component_callback(OperationNode *op_node, void
       user_data_v);
   ComponentNode *comp_node = op_node->owner;
   if (comp_node->type == NodeType::VISIBILITY) {
-    return;
+    return true;
   }
   IDNode *id_node = comp_node->owner;
   if (user_data->visited.contains(comp_node)) {

@@ -170,12 +170,25 @@ static void copy_world_space(Main &bmain,
 }
 
 struct GraphNode {
-  /* Not even sure it is possible to have multiple inputs and outputs on both ends. */
-  Vector<GraphNode *> inputs;
-  Vector<GraphNode *> outputs;
-
-  AnimTransformable *transformable;
+  AnimTransformable *transformable = nullptr;
   bool applied = false;
+  /* Other nodes that need to be applied before this. */
+  Vector<GraphNode *> ancestors;
+
+  bool can_apply_transform()
+  {
+    if (applied) {
+      /* Already applied. Don't apply twice. */
+      return false;
+    }
+    for (GraphNode *node : ancestors) {
+      if (!node->applied) {
+        /* All ancestors must be applied before this node. */
+        return false;
+      }
+    }
+    return true;
+  }
 };
 
 static void paste_world_space(Depsgraph *depsgraph,
@@ -228,16 +241,18 @@ static void paste_world_space(Depsgraph *depsgraph,
 
   using DegComponentIdentifier = std::pair<ID *, StringRef>;
   Array<GraphNode> nodes(transformables.size());
+  Map<DegComponentIdentifier, GraphNode *> component_map;
+  Set<DegComponentIdentifier> visited_components;
 
   for (const int i : transformables.index_range()) {
-    AnimTransformable &t = transformables[0];
+    AnimTransformable &t = transformables[i];
     nodes[i].transformable = &t;
     /* TODO handle objects which wouldn't have a component name. */
-    // component_map.add({t.owner_id(), t.name()}, &nodes[i]);
+    component_map.add({t.owner_id(), t.name()}, &nodes[i]);
   }
 
-  for (GraphNode &foo_link : nodes) {
-    AnimTransformable *transformable = foo_link.transformable;
+  for (GraphNode &graph_node : nodes) {
+    AnimTransformable *transformable = graph_node.transformable;
 
     DEG_foreach_dependent_component(
         depsgraph,
@@ -248,12 +263,53 @@ static void paste_world_space(Depsgraph *depsgraph,
           if (!ELEM(component, DEG_OB_COMP_TRANSFORM, DEG_OB_COMP_BONE)) {
             return true;
           }
-          std::cout << "ID " << other_id->name << " - " << component_name << std::endl;
+          if (component_name == transformable->name()) {
+            /* Skip self. */
+            return true;
+          }
           DegComponentIdentifier cid(other_id, component_name);
+          if (visited_components.contains(cid)) {
+            return false;
+          }
+          GraphNode *dependent_node = component_map.lookup_default(cid, nullptr);
+          if (!dependent_node) {
+            return true;
+          }
+          std::cout << "ID " << other_id->name << " - " << component_name << std::endl;
+          dependent_node->ancestors.append(&graph_node);
+          visited_components.add(cid);
+          return true;
         });
   }
 
+  while (true) {
+    bool applied_transforms = false;
+    for (GraphNode &graph_node : nodes) {
+      if (!graph_node.can_apply_transform()) {
+        continue;
+      }
+      std::cout << "apply " << graph_node.transformable->name() << std::endl;
+      /* TODO apply matrix here. */
+      applied_transforms = true;
+      graph_node.applied = true;
+    }
+    if (!applied_transforms) {
+      /* There are 2 cases in which this can happen. Either we applied all transforms, or there are
+       * is a dependency cycle where 2 nodes have each other in their ancestors. */
+      break;
+    }
+  }
+
+  for (GraphNode &graph_node : nodes) {
+    if (!graph_node.applied) {
+      BKE_report(
+          &reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
+      break;
+    }
+  }
+
   for (AnimTransformable *transformable : sorted_transformables) {
+    break;
     const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
     if (!fcurves || fcurves->is_empty()) {
       continue;
