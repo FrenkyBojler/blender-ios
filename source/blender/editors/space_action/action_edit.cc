@@ -625,7 +625,7 @@ static wmOperatorStatus actkeys_copy_exec(bContext *C, wmOperator *op)
   }
   else if (ac.datatype == ANIMCONT_MASK) {
     /* FIXME: support this case. */
-    BKE_report(op->reports, RPT_WARNING, "Keyframe pasting is not available for mask mode");
+    BKE_report(op->reports, RPT_ERROR, "Keyframe pasting is not available for mask mode");
     return OPERATOR_CANCELLED;
   }
   else {
