@@ -359,13 +359,9 @@ static void rule_read_data(BlendDataReader &reader, DynamicOverrideRule &dynover
       rule.runtime = MEM_new<RuleIDDataRuntime>(__func__);
 
       BLO_read_struct(&reader, IDProperty, &rule.override_values);
-      if (rule.override_values) {
-        IDP_DirectLinkProperty(&reader, rule.override_values);
-      }
+      IDP_BlendDataRead(&reader, &rule.override_values);
       BLO_read_struct(&reader, IDProperty, &rule.original_values);
-      if (rule.original_values) {
-        IDP_DirectLinkProperty(&reader, rule.original_values);
-      }
+      IDP_BlendDataRead(&reader, &rule.original_values);
 
       BLO_read_struct_list(&reader, DynamicOverrideRuleProperty, &rule.properties);
       for (DynamicOverrideRuleProperty &property : rule.properties) {

@@ -1538,6 +1538,8 @@ void IDP_BlendWrite(BlendWriter *writer, const IDProperty *prop)
   IDP_WriteProperty_OnlyData(prop, writer);
 }
 
+static void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader);
+
 static void read_ui_data(IDProperty *prop, BlendDataReader *reader)
 {
   /* NOTE: null UI data can happen when opening more recent files with unknown types of
@@ -1635,7 +1637,7 @@ static void IDP_DirectLinkIDPArray(IDProperty *prop, BlendDataReader *reader)
   }
 
   for (int i = 0; i < prop->len; i++) {
-    IDP_DirectLinkProperty(reader, &array[i]);
+    IDP_DirectLinkProperty(&array[i], reader);
   }
 }
 
@@ -1649,7 +1651,7 @@ static void IDP_DirectLinkArray(IDProperty *prop, BlendDataReader *reader)
       BLO_read_pointer_array_and_validate_size(reader, &prop->data.pointer, &prop->len);
       IDProperty **array = static_cast<IDProperty **>(prop->data.pointer);
       for (int i = 0; i < prop->len; i++) {
-        IDP_DirectLinkProperty(reader, array[i]);
+        IDP_DirectLinkProperty(array[i], reader);
       }
       break;
     }
@@ -1704,14 +1706,14 @@ static void IDP_DirectLinkGroup(IDProperty *prop, BlendDataReader *reader)
 
   /* Link child id properties now. */
   for (IDProperty &loop : prop->data.group) {
-    IDP_DirectLinkProperty(reader, &loop);
+    IDP_DirectLinkProperty(&loop, reader);
     if (!prop->data.children_map->children.add(&loop)) {
       CLOG_WARN(&LOG, "duplicate ID property '%s' in group", loop.name);
     }
   }
 }
 
-void IDP_DirectLinkProperty(BlendDataReader *reader, IDProperty *prop)
+void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader)
 {
   switch (prop->type) {
     case IDP_GROUP:
