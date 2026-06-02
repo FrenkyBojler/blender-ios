@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_attribute_math.hh"
-
 #include "BLI_index_mask.hh"
 
 #include "GEO_reorder.hh"
@@ -29,7 +27,6 @@ namespace blender::nodes::node_geo_sort_list_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-
   if (!node) {
     return;
   }
@@ -98,13 +95,10 @@ static std::optional<Array<int>> sorted_indices_for_list(const int size,
                                                          const VArray<int> &group_id,
                                                          const VArray<float> &weight)
 {
-  if (size == 0) {
-    return std::nullopt;
-  }
   IndexMaskMemory memory;
   IndexMask mask;
-  if (selection.is_single()) {
-    if (!selection.get_internal_single()) {
+  if (const std::optional<bool> single = selection.get_if_single()) {
+    if (!single.value()) {
       return std::nullopt;
     }
     mask = IndexRange(size);
@@ -142,29 +136,20 @@ static VArray<T> resolve_variant_to_varray(bke::SocketValueVariant &variant,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GListPtr list = params.extract_input<GListPtr>("List"_ustr);
-
   if (!list) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  if (!params.output_is_required("List"_ustr)) {
-    return;
-  }
-
   const int list_size = list->size();
-
   if (list_size <= 1) {
     params.set_output("List"_ustr, std::move(list));
     return;
   }
 
-  bke::SocketValueVariant selection_variant = params.extract_input<bke::SocketValueVariant>(
-      "Selection"_ustr);
-  bke::SocketValueVariant group_id_variant = params.extract_input<bke::SocketValueVariant>(
-      "Group ID"_ustr);
-  bke::SocketValueVariant weights_variant = params.extract_input<bke::SocketValueVariant>(
-      "Sort Weight"_ustr);
+  auto selection_variant = params.extract_input<bke::SocketValueVariant>("Selection"_ustr);
+  auto group_id_variant = params.extract_input<bke::SocketValueVariant>("Group ID"_ustr);
+  auto weights_variant = params.extract_input<bke::SocketValueVariant>("Sort Weight"_ustr);
 
   GListPtr selection_list, group_id_list, weights_list;
   const VArray<bool> selection = resolve_variant_to_varray<bool>(
@@ -176,7 +161,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const std::optional<Array<int>> sorted = sorted_indices_for_list(
       list_size, selection, group_id, weights);
-
   if (!sorted) {
     params.set_output("List"_ustr, std::move(list));
     return;
@@ -194,7 +178,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     GList::ArrayData sorted_array_data = GList::ArrayData::ForUninitialized(type, list_size);
     const GSpan src_span(type, array_data->data, list_size);
     GMutableSpan dst_span = sorted_array_data.span_for_write(type, list_size);
-
     type.to_static_type<float,
                         float2,
                         float3,
