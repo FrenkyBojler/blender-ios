@@ -193,7 +193,7 @@ namespace bke::dynoverride {
 
 static void rule_property_copy(DynamicOverrideRuleProperty &dynoverride_rule_property_dst,
                                DynamicOverrideRuleProperty &dynoverride_rule_property_src,
-                               const int flag)
+                               const int /*flag*/)
 {
   /* NOTE: A flat copy is assumed to have already happened before calling this function (e.g. by
    * using `BLI_duplicatelist`). */

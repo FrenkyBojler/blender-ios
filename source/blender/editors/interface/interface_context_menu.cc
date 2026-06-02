@@ -589,9 +589,10 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       PointerRNA *ptr = &but->rnapoin;
       PropertyRNA *prop = but->rnaprop;
 
-      const uint override_status = RNA_property_override_status(CTX_data_main(C), ptr, prop, -1);
-      const bool is_dynamic_overridable = (override_status & RNA_DYNOVERRIDE_STATUS_OVERRIDABLE) !=
-                                          0;
+      const eRNAOverrideStatus override_status = RNA_property_override_status(
+          CTX_data_main(C), ptr, prop, -1);
+      const bool is_dynamic_overridable = flag_is_set(override_status,
+                                                      eRNAOverrideStatus::DynOverridable);
 
       if (is_dynamic_overridable) {
         wmOperatorType *ot;
@@ -640,10 +641,11 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     const bool is_array_component = (is_array && but->rnaindex != -1);
     const bool is_whole_array = (is_array && but->rnaindex == -1);
 
-    const uint override_status = RNA_property_override_status(CTX_data_main(C), ptr, prop, -1);
-    const bool is_overridable = (override_status & RNA_LIBOVERRIDE_STATUS_OVERRIDABLE) != 0;
-    const bool is_dynamic_overridable = (override_status & RNA_DYNOVERRIDE_STATUS_OVERRIDABLE) !=
-                                        0;
+    const eRNAOverrideStatus override_status = RNA_property_override_status(
+        CTX_data_main(C), ptr, prop, -1);
+    const bool is_overridable = flag_is_set(override_status, eRNAOverrideStatus::LibOverridable);
+    const bool is_dynamic_overridable = flag_is_set(override_status,
+                                                    eRNAOverrideStatus::DynOverridable);
 
     /* Set the (button_pointer, button_prop)
      * and pointer data for Python access to the hovered UI element. */

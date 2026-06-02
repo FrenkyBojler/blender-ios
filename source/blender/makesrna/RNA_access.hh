@@ -1045,20 +1045,20 @@ enum eRNAOverrideMatchResult {
 };
 ENUM_OPERATORS(eRNAOverrideMatchResult)
 
-enum eRNAOverrideStatus {
+enum class eRNAOverrideStatus {
   /** The property is library overridable. */
-  RNA_LIBOVERRIDE_STATUS_OVERRIDABLE = 1 << 0,
+  LibOverridable = 1 << 0,
   /** The property is library overridden. */
-  RNA_LIBOVERRIDE_STATUS_OVERRIDDEN = 1 << 1,
+  LibOverridden = 1 << 1,
   /** Overriding this property is mandatory when creating a library override. */
-  RNA_LIBOVERRIDE_STATUS_MANDATORY = 1 << 2,
+  LibOverrideMandatory = 1 << 2,
   /** The library override status of this property is locked. */
-  RNA_LIBOVERRIDE_STATUS_LOCKED = 1 << 3,
+  LibOverrideLocked = 1 << 3,
 
   /** The property is dynamic overridable. */
-  RNA_DYNOVERRIDE_STATUS_OVERRIDABLE = 1 << 8,
+  DynOverridable = 1 << 8,
   /** The property is dynamic overridden. */
-  RNA_DYNOVERRIDE_STATUS_OVERRIDDEN = 1 << 9,
+  DynOverridden = 1 << 9,
 };
 ENUM_OPERATORS(eRNAOverrideStatus)
 
