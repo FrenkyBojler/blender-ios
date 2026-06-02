@@ -501,9 +501,9 @@ ReshapeConstGridElement multires_reshape_orig_grid_element_for_grid_coord(
 
   const MDisps *mdisps = reshape_context->orig.mdisps;
   if (mdisps != nullptr) {
+    const int grid_size = reshape_context->orig.grid_size;
     const MDisps *displacement_grid = &mdisps[grid_coord->grid_index];
     if (displacement_grid->disps != nullptr) {
-      const int grid_size = math::sqrt(displacement_grid->totdisp);
       const int grid_x = lround(grid_coord->u * (grid_size - 1));
       const int grid_y = lround(grid_coord->v * (grid_size - 1));
       const int grid_element_index = grid_y * grid_size + grid_x;
@@ -656,6 +656,7 @@ void multires_reshape_store_original_grids(MultiresReshapeContext *reshape_conte
 
   reshape_context->orig.mdisps = orig_mdisps;
   reshape_context->orig.grid_paint_masks = orig_grid_paint_masks;
+  reshape_context->orig.grid_size = math::sqrt(mdisps->totdisp);
 }
 
 using ForeachGridCoordinateCallback = void (*)(const MultiresReshapeContext *reshape_context,
