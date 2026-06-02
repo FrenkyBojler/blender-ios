@@ -335,6 +335,7 @@ void drawSnapping(TransInfo *t)
     imm_draw_circle_wire_2d(pos, x, y, radius, 8);
     immUnbindProgram();
 
+    GPU_blend(GPU_BLEND_NONE);
     GPU_matrix_pop_projection();
   }
   else if (t->spacetype == SPACE_SEQ) {
