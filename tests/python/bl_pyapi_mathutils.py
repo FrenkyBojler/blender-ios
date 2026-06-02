@@ -1051,21 +1051,6 @@ class KDTreeTesting(unittest.TestCase):
         self.assertEqual(index_found, 1)
         self.assertAlmostEqual(dist_found, 1.7320508, delta=1e-6)
 
-        # Create 2D tree from 3D coordinates.
-        k = kdtree.KDTree.from_coords(coords, 2)
-
-        co_found, index_found, dist_found = k.find((1, 1))
-
-        self.assertEqual(tuple(co_found), (1, 1))
-        self.assertEqual(index_found, 1)
-        self.assertAlmostEqual(dist_found, 0)
-
-        co_found, index_found, dist_found = k.find((2, 2))
-
-        self.assertEqual(tuple(co_found), (1, 1))
-        self.assertEqual(index_found, 1)
-        self.assertAlmostEqual(dist_found, 1.41421356, delta=1e-6)
-
         # Pure 2D coordinates.
         coords_2d = (
             (0, 0),
