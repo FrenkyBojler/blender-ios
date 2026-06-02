@@ -5,27 +5,69 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
-#include "infos/eevee_uniform_infos.hh"
-
-SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
-SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
+#include "infos/eevee_geom_infos.hh"
 
 #include "draw_intersect_lib.glsl"
-#include "draw_model_lib.glsl"
-#include "draw_object_infos_lib.glsl"
-#include "draw_view_lib.glsl"
+#include "draw_model.bsl.hh"
+#include "draw_view.bsl.hh"
 #include "eevee_bxdf_lut_lib.bsl.hh"
 #include "eevee_hiz.bsl.hh"
 #include "eevee_nodetree_closures_lib.glsl"
+#include "eevee_pipeline.bsl.hh"
 #include "eevee_ray_trace_screen_lib.bsl.hh"
 #include "eevee_renderpass.bsl.hh"
 #include "eevee_sampling_lib.bsl.hh"
+#include "eevee_uniform.bsl.hh"
 #include "eevee_utility_tx.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
 #include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
+
+uint resource_id_get()
+{
+  /* clang-format off */ /* Multiline macro mess the shader log line. */
+  [[resource_table]] const eevee::PipelineConstants &pipe = resource_table_get(eevee::PipelineConstants);
+  /* clang-format on */
+  auto &interp_flat = interface_get(eevee_geom_iface_info, interp_flat);
+  draw::ID id{interp_flat.resource_id_raw};
+  if (pipe.is_shadow_pipe) {
+    return id.resource_id<64>();
+  }
+  return id.resource_id<1>();
+}
+
+uint view_id_get()
+{
+  /* clang-format off */ /* Multiline macro mess the shader log line. */
+  [[resource_table]] const eevee::PipelineConstants &pipe = resource_table_get(eevee::PipelineConstants);
+  /* clang-format on */
+  auto &interp_flat = interface_get(eevee_geom_iface_info, interp_flat);
+  draw::ID id{interp_flat.resource_id_raw};
+  if (pipe.is_shadow_pipe) {
+    return id.view_id<64>();
+  }
+  return id.view_id<1>();
+}
+
+ObjectMatrices object_matrices_get()
+{
+  [[resource_table]] const draw::Model &models = resource_table_get(draw::Model);
+  return models.get(resource_id_get());
+}
+
+ObjectInfos object_infos_get()
+{
+  [[resource_table]] const draw::Infos &infos = resource_table_get(draw::Infos);
+  return infos.get(resource_id_get());
+}
+
+ViewMatrices view_matrices_get()
+{
+  [[resource_table]] const draw::View &views = resource_table_get(draw::View);
+  return views.get(view_id_get());
+}
 
 #define closure_base_copy(cl, in_cl) \
   cl.weight = in_cl.weight; \
@@ -245,33 +287,39 @@ float ambient_occlusion_eval([[maybe_unused]] float3 normal,
 {
   FRAGMENT_SHADER_CREATE_INFO(draw_view);
 
-  [[resource_table]] const eevee::Sampling &samp = resource_table_get(eevee::Sampling);
-  [[resource_table]] const eevee::HiZ &hiz = resource_table_get(eevee::HiZ);
-  [[maybe_unused]] const auto &hiz_tx = hiz.hiz_tx;
-  [[maybe_unused]] const auto &raytrace_buf = buffer_get(eevee_global_ubo, raytrace_buf);
-  [[maybe_unused]] const auto &uniform_buf = buffer_get(eevee_global_ubo, uniform_buf);
+  /* clang-format off */ /* Multiline macros would break line count. */
+  [[resource_table]] [[maybe_unused]] const eevee::Sampling &samp = resource_table_get(eevee::Sampling);
+  [[resource_table]] [[maybe_unused]] const UtilityTexture &util_tx = resource_table_get(UtilityTexture);
+  [[resource_table]] [[maybe_unused]] const eevee::HiZ &hiz = resource_table_get(eevee::HiZ);
+  [[resource_table]] [[maybe_unused]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+  [[resource_table]] [[maybe_unused]] const draw::View &views = resource_table_get(draw::View);
+  /* clang-format on */
 
   {
 #if defined(GPU_FRAGMENT_SHADER) && defined(MAT_AMBIENT_OCCLUSION) && !defined(MAT_DEPTH) && \
     !defined(MAT_SHADOW)
 
-    float3 vP = drw_point_world_to_view(g_data.P);
-    float3 vN = drw_normal_world_to_view(normal);
+    const ViewMatrices view = views.get(0);
+
+    float3 vP = view.point_world_to_view(g_data.P);
+    float3 vN = view.normal_world_to_view(normal);
 
     int2 texel = int2(gl_FragCoord.xy);
-    float4 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER);
+    float4 noise = util_tx.fetch(float2(texel), UTIL_BLUE_NOISE_LAYER);
     noise = fract(noise + samp.rng_3D_get(SAMPLING_AO_U).xyzx);
 
-    float result = eevee::fast_gi::eval<float>(raytrace_buf.fast_gi_thickness,
-                                               hiz_tx,
-                                               hiz_tx /* Dummy. */,
-                                               hiz_tx /* Dummy. */,
+    float result = eevee::fast_gi::eval<float>(uni,
+                                               view,
+                                               uni.raytrace_buf.fast_gi_thickness,
+                                               hiz.hiz_tx,
+                                               hiz.hiz_tx /* Dummy. */,
+                                               hiz.hiz_tx /* Dummy. */,
                                                vP,
                                                vN,
                                                noise,
-                                               uniform_buf.ao.pixel_size,
+                                               uni.uniform_buf.ao.pixel_size,
                                                max_distance,
-                                               uniform_buf.ao.angle_bias,
+                                               uni.uniform_buf.ao.angle_bias,
                                                2,
                                                int(sample_count / 2.0f),
                                                inverted != 0.0f,
@@ -294,6 +342,8 @@ void raycast_eval([[maybe_unused]] float3 position,
                   float3 &hit_position,
                   float3 &hit_normal)
 {
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+
   is_hit = false;
   self_hit = false;
   hit_distance = max_distance;
@@ -303,7 +353,7 @@ void raycast_eval([[maybe_unused]] float3 position,
   direction = normalize(direction);
 
 #if defined(MAT_RAYCAST)
-  if (!pipeline_buf.can_raycast) {
+  if (!uni.pipeline_buf.can_raycast) {
     /* We can't raycast on prepass for raycast visibile objects.
      * We use a UBO property to avoid compiling more shader variants. */
     return;
@@ -318,33 +368,37 @@ void raycast_eval([[maybe_unused]] float3 position,
   }
 
   {
-    /* Offset the start to prevent wrong intersection due to depth precision. */
-    float3 vs_start = drw_point_world_to_view(ws_start);
-    float start_depth = drw_depth_view_to_screen(vs_start.z);
-    float offset_depth = uintBitsToFloat(floatBitsToUint(start_depth) + 2);
-    float offset_delta = abs(drw_depth_screen_to_view(offset_depth) - vs_start.z);
-    ws_start += direction * offset_delta;
-  }
-
-  {
     FRAGMENT_SHADER_CREATE_INFO(draw_view);
 
+    [[resource_table]] const draw::View &views = resource_table_get(draw::View);
     [[resource_table]] const eevee::Sampling &samp = resource_table_get(eevee::Sampling);
     const auto &raycast_depth_tx = sampler_get(eevee_raycast, raycast_depth_tx);
     const auto &prepass_normal_tx = sampler_get(eevee_raycast, prepass_normal_tx);
     const auto &object_id_tx = sampler_get(eevee_raycast, object_id_tx);
 
+    const ViewMatrices view = views.get(0);
+
+    {
+      /* Offset the start to prevent wrong intersection due to depth precision. */
+      float3 vs_start = view.point_world_to_view(ws_start);
+      float start_depth = view.depth_view_to_screen(vs_start.z);
+      float offset_depth = uintBitsToFloat(floatBitsToUint(start_depth) + 2);
+      float offset_delta = abs(view.depth_screen_to_view(offset_depth) - vs_start.z);
+      ws_start += direction * offset_delta;
+    }
+
     float noise_offset = samp.rng_1D_get(SAMPLING_RAYTRACE_W);
     float jitter = interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, noise_offset);
 
     float2 hit_uv = float2(0.0f);
-    uint self_id = drw_resource_id() & uint(0xFFFF);
+    uint self_id = resource_id_get() & uint(0xFFFF);
 
-    float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
-                                     drw_point_world_to_view(ws_end),
-                                     drw_normal_world_to_view(direction),
+    float result = raytrace_screen_2(views.get(0),
+                                     view.point_world_to_view(ws_start),
+                                     view.point_world_to_view(ws_end),
+                                     view.normal_world_to_view(direction),
                                      raycast_depth_tx,
-                                     raytrace_buf,
+                                     uni.raytrace_buf,
                                      64,
                                      jitter,
                                      object_id_tx,
@@ -443,9 +497,9 @@ void brdf_f82_tint_lut(float3 F0,
                        bool do_multiscatter,
                        float3 &reflectance)
 {
-  auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
+  [[resource_table]] const UtilityTexture util_tx = resource_table_get(UtilityTexture);
   eevee::lut::GGXBrdfData lut = eevee::lut::GGXBrdfData::sample_utility_tx(
-      utility_tx, cos_theta, roughness);
+      util_tx, cos_theta, roughness);
 
   reflectance = do_multiscatter ? F_brdf_multi_scatter(F0, float3(1.0f), lut) :
                                   F_brdf_single_scatter(F0, float3(1.0f), lut);
@@ -477,7 +531,7 @@ void bsdf_lut(float3 F0,
               float3 &reflectance,
               float3 &transmittance)
 {
-  auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
+  [[resource_table]] const UtilityTexture util_tx = resource_table_get(UtilityTexture);
   if (ior == 1.0f) {
     reflectance = float3(0.0f);
     transmittance = transmission_tint;
@@ -497,16 +551,16 @@ void bsdf_lut(float3 F0,
     }
 
     eevee::lut::GGXBrdfData brdf_lut = eevee::lut::GGXBrdfData::sample_utility_tx(
-        utility_tx, cos_theta, roughness);
+        util_tx, cos_theta, roughness);
     eevee::lut::GGXBtdfGt1Data btdf_lut = eevee::lut::GGXBtdfGt1Data::sample_utility_tx(
-        utility_tx, cos_theta, roughness, f0);
+        util_tx, cos_theta, roughness, f0);
 
     lut.scale = brdf_lut.scale;
     lut.bias = brdf_lut.bias;
     lut.transmission_factor = btdf_lut.transmission_factor;
   }
   else {
-    lut = eevee::lut::GGXBsdfData::sample_utility_tx(utility_tx, cos_theta, roughness, ior);
+    lut = eevee::lut::GGXBsdfData::sample_utility_tx(util_tx, cos_theta, roughness, ior);
   }
 
   reflectance = F_brdf_single_scatter(F0, F90, lut);
@@ -613,10 +667,11 @@ float3 coordinate_camera(float3 P)
     vP = P;
   }
   else {
+    const ViewMatrices view = view_matrices_get();
 #ifdef MAT_GEOM_WORLD
-    vP = drw_normal_world_to_view(P);
+    vP = view.normal_world_to_view(P);
 #else
-    vP = drw_point_world_to_view(P);
+    vP = view.point_world_to_view(P);
 #endif
   }
   vP.z = -vP.z;
@@ -625,19 +680,21 @@ float3 coordinate_camera(float3 P)
 
 float3 coordinate_screen(float3 P)
 {
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
   float3 window = float3(0.0f);
   if (false /* Probe. */) {
     /* Unsupported. It would make the probe camera-dependent. */
     window.xy = float2(0.5f);
   }
   else {
+    const ViewMatrices view = view_matrices_get();
 #ifdef MAT_GEOM_WORLD
-    window.xy = drw_point_view_to_screen(interp.P).xy;
+    window.xy = view.point_view_to_screen(interp.P).xy;
 #else
     /* TODO(fclem): Actual camera transform. */
-    window.xy = drw_point_world_to_screen(P).xy;
+    window.xy = view.point_world_to_screen(P).xy;
 #endif
-    window.xy = window.xy * uniform_buf.camera.uv_scale + uniform_buf.camera.uv_bias;
+    window.xy = window.xy * uni.uniform_buf.camera.uv_scale + uni.uniform_buf.camera.uv_bias;
   }
   return window;
 }
@@ -647,7 +704,8 @@ float3 coordinate_reflect(float3 P, float3 N)
 #ifdef MAT_GEOM_WORLD
   return N;
 #else
-  return -reflect(drw_world_incident_vector(P), N);
+  const ViewMatrices view = view_matrices_get();
+  return -reflect(view.world_incident_vector(P), N);
 #endif
 }
 
@@ -656,7 +714,8 @@ float3 coordinate_incoming(float3 P)
 #ifdef MAT_GEOM_WORLD
   return -P;
 #else
-  return drw_world_incident_vector(P);
+  const ViewMatrices view = view_matrices_get();
+  return view.world_incident_vector(P);
 #endif
 }
 
@@ -671,7 +730,8 @@ float3 coordinate_incoming(float3 P)
 
 float texture_lod_bias_get()
 {
-  return uniform_buf.film.texture_lod_bias;
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+  return uni.uniform_buf.film.texture_lod_bias;
 }
 
 /**
@@ -682,7 +742,8 @@ float texture_lod_bias_get()
  */
 float derivative_scale_get()
 {
-  return 1.0f / float(uniform_buf.film.scaling_factor);
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+  return 1.0f / float(uni.uniform_buf.film.scaling_factor);
 }
 
 /** \} */
@@ -737,13 +798,25 @@ float4 attr_load_color_post(float4 attr)
 
 float4 attr_load_uniform(float4 /*attr*/, const uint attr_hash)
 {
-  return drw_object_attribute(attr_hash);
+  const auto &attrs_buf = buffer_get(draw_object_attributes, drw_attrs);
+
+  ObjectInfos infos = object_infos_get();
+  uint index = infos.object_attrs_offset;
+  for (uint i = 0; i < infos.object_attrs_len; i++, index++) {
+    ObjectAttribute attr = attrs_buf[index];
+    if (attr.hash_code == attr_hash) {
+      return float4(attr.data_x, attr.data_y, attr.data_z, attr.data_w);
+    }
+  }
+  return float4(0.0f);
 }
 
 void scene_time_uniforms(float &seconds, float &frame)
 {
-  seconds = uniform_buf.scene.time;
-  frame = uniform_buf.scene.frame;
+  [[resource_table]] const eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+
+  seconds = uni.uniform_buf.scene.time;
+  frame = uni.uniform_buf.scene.frame;
 }
 
 /** \} */
