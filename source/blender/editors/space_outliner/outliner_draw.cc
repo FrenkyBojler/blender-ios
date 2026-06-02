@@ -2813,6 +2813,8 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
             break;
           case STRIP_TYPE_MOVIECLIP:
             data.icon = ICON_TRACKER;
+          case STRIP_TYPE_IMAGE_ID:
+            data.icon = ICON_FILE_IMAGE;
             break;
           case STRIP_TYPE_MASK:
             data.icon = ICON_MOD_MASK;

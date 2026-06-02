@@ -43,6 +43,17 @@ namespace blender::seq {
 
 bool transform_single_image_check(const Strip *strip)
 {
+  if (strip->type == STRIP_TYPE_IMAGE_ID) {
+    if (strip->image_id == nullptr) {
+      return true;
+    }
+
+    if (ELEM(strip->image_id->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+      return false;
+    }
+    return true;
+  }
+
   return (strip->flag & SEQ_SINGLE_FRAME_CONTENT) != 0;
 }
 

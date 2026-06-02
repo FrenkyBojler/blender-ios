@@ -3605,8 +3605,6 @@ static void rna_def_image_id(BlenderRNA *brna)
 
   rna_def_filter_video(srna);
   rna_def_input(srna);
-
-  // TODO: GD;; Maybe add rna_def_color_management
 }
 
 static void rna_def_mask(BlenderRNA *brna)

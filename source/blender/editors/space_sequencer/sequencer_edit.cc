@@ -2315,6 +2315,7 @@ static void sequencer_report_duplicates(wmOperator *op, ListBaseT<Strip> *duplic
 {
   Set<Scene *> scenes;
   Set<MovieClip *> movieclips;
+  Set<Image *> images;
   Set<Mask *> masks;
 
   for (Strip &strip : *duplicated_strips) {
@@ -2329,6 +2330,11 @@ static void sequencer_report_duplicates(wmOperator *op, ListBaseT<Strip> *duplic
           movieclips.add(strip.clip);
         }
         break;
+      case STRIP_TYPE_IMAGE_ID:
+        if (strip.image_id) {
+          images.add(strip.image_id);
+        }
+        break;
       case STRIP_TYPE_MASK:
         if (strip.mask) {
           masks.add(strip.mask);
@@ -2341,9 +2347,10 @@ static void sequencer_report_duplicates(wmOperator *op, ListBaseT<Strip> *duplic
 
   const int num_scenes = scenes.size();
   const int num_movieclips = movieclips.size();
+  const int num_images = images.size();
   const int num_masks = masks.size();
 
-  if (num_scenes == 0 && num_movieclips == 0 && num_masks == 0) {
+  if (num_scenes == 0 && num_movieclips == 0 && num_images == 0 && num_masks == 0) {
     return;
   }
 
@@ -2363,6 +2370,14 @@ static void sequencer_report_duplicates(wmOperator *op, ListBaseT<Strip> *duplic
                           num_movieclips,
                           (num_movieclips > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_MC)) :
                                                  RPT_(BKE_idtype_idcode_to_name(ID_MC)));
+    sep = ", ";
+  }
+  if (num_images) {
+    report += fmt::format("{}{} {}",
+                          sep,
+                          num_images,
+                          (num_images > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_MC)) :
+                                             RPT_(BKE_idtype_idcode_to_name(ID_MC)));
     sep = ", ";
   }
   if (num_masks) {

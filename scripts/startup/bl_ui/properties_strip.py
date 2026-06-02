@@ -1022,7 +1022,7 @@ class STRIP_PT_adjust_video(StripButtonsPanel, Panel):
             return False
 
         return strip.type in {
-            'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'MASK',
+            'MOVIE', 'IMAGE', 'SCENE', 'MOVIECLIP', 'IMAGE_ID', 'MASK',
             'META', 'ADD', 'SUBTRACT', 'ALPHA_OVER',
             'ALPHA_UNDER', 'CROSS', 'GAMMA_CROSS', 'MULTIPLY', 'COMPOSITOR',
             'WIPE', 'GLOW', 'COLOR', 'MULTICAM', 'SPEED', 'ADJUSTMENT', 'COLORMIX',

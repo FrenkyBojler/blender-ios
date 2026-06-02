@@ -2668,7 +2668,11 @@ static const EnumPropertyItem sequencer_prop_select_grouped_types[] = {
 #define STRIP_IS_SOUND(_strip) (_strip->type == STRIP_TYPE_SOUND)
 
 #define STRIP_USE_DATA(_strip) \
-  (ELEM(_strip->type, STRIP_TYPE_SCENE, STRIP_TYPE_MOVIECLIP, STRIP_TYPE_MASK) || \
+  (ELEM(_strip->type, \
+        STRIP_TYPE_SCENE, \
+        STRIP_TYPE_MOVIECLIP, \
+        STRIP_TYPE_IMAGE_ID, \
+        STRIP_TYPE_MASK) || \
    STRIP_HAS_PATH(_strip))
 
 #define STRIP_CHANNEL_CHECK(_strip, _chan) ELEM((_chan), 0, (_strip)->channel)
@@ -2768,6 +2772,17 @@ static bool select_grouped_data(Span<Strip *> strips,
     for (Strip *strip : strips) {
       if (STRIP_CHANNEL_CHECK(strip, channel) && strip->type == STRIP_TYPE_MOVIECLIP &&
           strip->clip == clip)
+      {
+        strip->flag |= SEQ_SELECT;
+        changed = true;
+      }
+    }
+  }
+  else if (act_strip->type == STRIP_TYPE_IMAGE_ID) {
+    Image *img = act_strip->image_id;
+    for (Strip *strip : strips) {
+      if (STRIP_CHANNEL_CHECK(strip, channel) && strip->type == STRIP_TYPE_IMAGE_ID &&
+          strip->image_id == img)
       {
         strip->flag |= SEQ_SELECT;
         changed = true;

@@ -95,7 +95,8 @@ static void strip_add_set_name(Scene *scene, Strip *strip, LoadData *load_data)
     }
     else if (strip->type == STRIP_TYPE_MOVIECLIP) {
       edit_strip_name_set(scene, strip, load_data->clip->id.name + 2);
-    } else if(strip->type == STRIP_TYPE_IMAGE_ID){
+    }
+    else if (strip->type == STRIP_TYPE_IMAGE_ID) {
       edit_strip_name_set(scene, strip, load_data->image_id->id.name + 2);
     }
     else if (strip->type == STRIP_TYPE_MASK) {
@@ -153,14 +154,34 @@ Strip *add_movieclip_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *lo
   return strip;
 }
 
+float get_image_id_len(Image *ima)
+{
+  /* Try getting the length of the strip according to sequence/movie source */
+  if (!BKE_image_has_anim(ima)) {
+    /* Ensure image has been loaded into memory and frame duration is known. */
+    void *lock;
+    ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
+    BKE_image_release_ibuf(ima, ibuf, lock);
+  }
+
+  if (BKE_image_has_anim(ima)) {
+    MovieReader *anim = (static_cast<ImageAnim *>(ima->anims.first))->anim;
+    if (anim) {
+      return MOV_get_duration_frames(anim);
+    }
+  }
+
+  /* It's a static image, return default */
+  return 25;  // TODO: GD;; Find a better way to do that instead of hardcoded magic number (like
+              // DEFAULT_IMG_STRIP_LENGTH)
+}
+
 Strip *add_image_id_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_data)
 {
   Strip *strip = strip_alloc(
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_IMAGE_ID);
   strip->image_id = load_data->image_id;
-  strip->len = 25; // TODO: GD;; Find a better way to do that instead of hardcoded magic number (like DEFAULT_IMG_STRIP_LENGTH)
-  // TODO: GD;; ?Maybe necessary for render:
-  ///strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
+  strip->len = get_image_id_len(load_data->image_id);
   id_us_ensure_real(id_cast<ID *>(load_data->image_id));
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
@@ -550,6 +571,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
            STRIP_TYPE_SCENE,
            STRIP_TYPE_META,
            STRIP_TYPE_MOVIECLIP,
+           STRIP_TYPE_IMAGE_ID,
            STRIP_TYPE_MASK) == 0)
   {
     return;

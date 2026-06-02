@@ -119,6 +119,8 @@ const char *get_default_stripname_by_type(int type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Movie");
     case STRIP_TYPE_MOVIECLIP:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Clip");
+    case STRIP_TYPE_IMAGE_ID:
+      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Image");
     case STRIP_TYPE_MASK:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Mask");
     case STRIP_TYPE_SOUND:
@@ -440,6 +442,8 @@ bool strip_has_valid_data(const Strip *strip)
       return (strip->mask != nullptr);
     case STRIP_TYPE_MOVIECLIP:
       return (strip->clip != nullptr);
+    case STRIP_TYPE_IMAGE_ID:
+      return (strip->image_id != nullptr);
     case STRIP_TYPE_SCENE:
       return (strip->scene != nullptr);
     case STRIP_TYPE_SOUND:
@@ -456,6 +460,7 @@ bool sequencer_strip_generates_image(Strip *strip)
     case STRIP_TYPE_SCENE:
     case STRIP_TYPE_MOVIE:
     case STRIP_TYPE_MOVIECLIP:
+    case STRIP_TYPE_IMAGE_ID:
     case STRIP_TYPE_MASK:
     case STRIP_TYPE_COLOR:
     case STRIP_TYPE_TEXT:
