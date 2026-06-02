@@ -6709,7 +6709,7 @@ def km_view3d_dolly_modal(_params):
     return keymap
 
 
-def km_view3d_capture_review_modal(_params):
+def km_view3d_location_scouting_capture_review_modal(_params):
     items = []
     keymap = (
         "View3D VR Location Scouting Capture Review Modal",
@@ -9086,7 +9086,7 @@ def generate_keymaps(params=None):
         km_view3d_move_modal(params),
         km_view3d_zoom_modal(params),
         km_view3d_dolly_modal(params),
-        km_view3d_capture_review_modal(params),
+        km_view3d_location_scouting_capture_review_modal(params),
         km_paint_stroke_modal(params),
         km_sculpt_expand_modal(params),
         km_sculpt_mesh_filter_modal_map(params),
