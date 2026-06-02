@@ -618,8 +618,8 @@ static void refresh_node_sockets_and_panels(Main *bmain,
   }
 
   /* Clear and reinsert sockets in the new order. */
-  BLI_listbase_clear(&node.inputs);
-  BLI_listbase_clear(&node.outputs);
+  node.inputs.clear_no_delete();
+  node.outputs.clear_no_delete();
   for (bNodeSocket *socket : new_inputs) {
     BLI_addtail(&node.inputs, socket);
   }
@@ -1081,10 +1081,9 @@ static void standard_node_socket_interface_init_socket(
   /* initialize the type value */
   sock->type = sock->typeinfo->type;
 
-  node_socket_init_default_value_data(
-      eNodeSocketDatatype(sock->type), sock->typeinfo->subtype, &sock->default_value);
+  node_socket_init_default_value_data(sock->type, sock->typeinfo->subtype, &sock->default_value);
   node_socket_copy_default_value_data(
-      eNodeSocketDatatype(sock->type), sock->default_value, interface_socket->socket_data);
+      sock->type, sock->default_value, interface_socket->socket_data);
 }
 
 static void standard_node_socket_interface_from_socket(ID * /*id*/,
@@ -1187,7 +1186,8 @@ static void make_common_type_prop(StructRNA &srna,
       "type",
       items,
       int(default_type),
-      r_generated.scope.add_value(fmt::format("{} {}", TIP_("Type for"), socket.name)).c_str(),
+      r_generated.scope.add_value(fmt::format(fmt::runtime(TIP_("Type for {}")), socket.name))
+          .c_str(),
       "");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
@@ -1252,7 +1252,7 @@ static void make_common_attribute_name_prop(StructRNA &srna,
       "attribute_name",
       socket.default_attribute_name,
       0,
-      r_generated.scope.add_value(fmt::format("{} {}", TIP_("Attribute for"), socket.name))
+      r_generated.scope.add_value(fmt::format(fmt::runtime(TIP_("Attribute for {}")), socket.name))
           .c_str(),
       socket.description);
   RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
@@ -1330,7 +1330,8 @@ static bke::bNodeSocketType *make_socket_type_bool()
         "layer_name",
         nullptr,
         0,
-        r_generated.scope.add_value(fmt::format("{} {}", TIP_("Layer for"), socket.name)).c_str(),
+        r_generated.scope.add_value(fmt::format(fmt::runtime(TIP_("Layer for {}")), socket.name))
+            .c_str(),
         socket.description);
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);

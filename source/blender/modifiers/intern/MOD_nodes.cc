@@ -182,13 +182,6 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   /* Create dependencies to data-blocks referenced by the settings in the modifier. */
   find_dependencies_from_settings(*nmd, eval_deps);
 
-  if (ctx->object->type == OB_CURVES) {
-    Curves *curves_id = id_cast<Curves *>(ctx->object->data);
-    if (curves_id->surface != nullptr) {
-      eval_deps.add_object(curves_id->surface);
-    }
-  }
-
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
     for (const NodesModifierDataBlock &data_block : Span(bake.data_blocks, bake.data_blocks_num)) {
       if (data_block.id) {
@@ -403,7 +396,7 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
   if (nmd.node_group && !ID_MISSING(nmd.node_group)) {
     nmd.node_group->ensure_interface_cache();
     nmd.node_group->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-      if (item.item_type != NODE_INTERFACE_PANEL) {
+      if (item.item_type != NodeTreeInterfaceItemType::Panel) {
         return true;
       }
       interface_panels.append(reinterpret_cast<const bNodeTreeInterfacePanel *>(&item));
