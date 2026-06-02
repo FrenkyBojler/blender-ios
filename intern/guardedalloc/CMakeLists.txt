@@ -10,10 +10,6 @@ if(WITH_MEM_VALGRIND)
   add_definitions(-DWITH_MEM_VALGRIND)
 endif()
 
-if(WITH_TRACY)
-  add_definitions(-DWITH_TRACY)
-endif()
-
 set(INC
   PUBLIC .
 )
