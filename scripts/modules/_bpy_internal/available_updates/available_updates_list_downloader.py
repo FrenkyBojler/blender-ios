@@ -20,6 +20,7 @@ import bpy
 
 
 from _bpy_internal.http import downloader as http_dl
+from _bpy_internal.available_updates import blender_releases_openapi as api_models
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +44,27 @@ def download_available_updates_list() -> None:
         _blender_updates_listing.updates_str = None
 
 
+import cattrs
+_converter: cattrs.preconf.json.JsonConverter | None = None
+
+
 def read_available_updates_list() -> str | None:
+    global _converter
     result = _blender_updates_listing.updates_str
     _blender_updates_listing.updates_str = None
-    return result
+    from datetime import datetime
+    import json
+    json_doc = json.loads(result)
+
+    if _converter is None:
+        _converter = cattrs.preconf.json.JsonConverter()
+        _converter.register_structure_hook_func(
+            lambda t: t is api_models.TimeStamp, lambda v, _: v if datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ") else None
+        )
+    # Validate data models
+    if (_converter.structure(json_doc, list[api_models.VersionUpdate])):
+        return result
+    return None
 
 
 def on_download_done_callback(

@@ -124,38 +124,19 @@ static std::optional<VersionUpdate> version_update_deserialize(io::serialize::Va
   std::optional<StringRefNull> release_notes_url = dict.lookup_str("release_notes_url");
   std::optional<StringRefNull> timestamp = dict.lookup_str("timestamp");
   std::optional<StringRefNull> version_str = dict.lookup_str("version");
-
-#  define VALIDATE_JSON_ENTRY(value, name) \
-    if (!value) { \
-      CLOG_WARN(&LOG, "missing or corrupt version update entry: `" #name "`"); \
-      return std::nullopt; \
-    }
-
-  VALIDATE_JSON_ENTRY(build_size, build_size);
-  VALIDATE_JSON_ENTRY(checksum_hash, checksum_hash);
-  VALIDATE_JSON_ENTRY(commit_hash, commit_hash);
-  VALIDATE_JSON_ENTRY(description, description);
-  VALIDATE_JSON_ENTRY(download_url, download_url);
-  VALIDATE_JSON_ENTRY(cycle, cycle);
-  VALIDATE_JSON_ENTRY(is_lts, is_lts);
-  VALIDATE_JSON_ENTRY(platform, platform);
-  VALIDATE_JSON_ENTRY(release_notes_url, release_notes_url);
-  VALIDATE_JSON_ENTRY(timestamp, timestamp);
-  VALIDATE_JSON_ENTRY(version_str, version);
-#  undef VALIDATE_JSON_ENTRY
-
+  if (!(build_size && checksum_hash && commit_hash && description && download_url && cycle &&
+        is_lts && platform && release_notes_url && timestamp && version_str))
+  {
+    return std::nullopt;
+  }
   std::optional<BlenderVersion> version = blender_version_from_version_str(*version_str);
   if (!version) {
-    CLOG_WARN(&LOG, "wrong blender version format");
     return std::nullopt;
   }
-
   std::optional<std::chrono::sys_seconds> time = parse_timestamp_to_sys_seconds(*timestamp);
   if (!time) {
-    CLOG_WARN(&LOG, "corrupt version update entry: `time`");
     return std::nullopt;
   }
-
   return VersionUpdate{
       .build_size = *build_size,
       .checksum_hash = *checksum_hash,

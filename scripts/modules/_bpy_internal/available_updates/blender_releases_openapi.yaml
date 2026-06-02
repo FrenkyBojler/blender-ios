@@ -1,0 +1,127 @@
+# SPDX-FileCopyrightText: 2026 Blender Authors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# This is the OpenAPI specification for Blender's Notification Releases.
+#
+# At this moment, the `paths` section is not used by the Blender code, and is
+# here just for referencing by humans. It is also still being designed, so don't
+# take it as set in stone.
+#
+# The Python code generator just uses the data structures specified by the
+# `components` section.
+#
+# --------------------------------------------------------------------------
+# Run `ninja generate_datamodels` from the build directory to regenerate the
+# Python code in blender_releases.py. Replace `ninja` with your
+# build tool of choice.
+# --------------------------------------------------------------------------
+
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Blender Releases API
+  description: Blender's API for releases listing.
+  contact:
+    name: Blender
+    url: https://www.blender.org/
+  license:
+    name: GPLv3
+    url: https://www.gnu.org/licenses/gpl-3.0.en.html
+servers:
+  - url: /
+paths:
+  /api/releases/v1/:
+    summary: .
+    get:
+      parameters:
+      - in: query
+        name: platform
+        schema:
+          type: string
+        required: true
+        description: The platform to list releases
+      - in: query
+        name: blender_version
+        schema:
+          type: string
+        description: The current blender version installed
+      - in: query
+        name: cycle
+        schema: { $ref: "#/components/schemas/CycleType" }
+        description: The release cycle of current blender version installed
+
+      summary: Retrieve the list of the latest blender releases.
+      operationId: getBlenderReleases
+      responses:
+        "200":
+          description: normal response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VersionUpdate"
+
+
+components:
+  schemas:
+    VersionUpdate:
+      description: Available Blender Release for download.
+      type: object
+      properties:
+        "build_size":
+          type: integer
+          description: Size in bytes of the download files.
+        "checksum_hash":
+          type: string
+          description: SHA256 hash value of the download files.
+        "commit_hash":
+          type: string
+          description: Identifier of the commit used to build this version.
+        "description":
+          type: string
+          description: Short description of new features in this version.
+        "download_url":
+          type: string
+          description: URL where this version can can be downloaded.
+        "cycle": 
+          $ref: "#/components/schemas/CycleType"
+          description: Release cycle.
+        "is_lts":
+          type: boolean
+          description: Checks if this version have Long-Term Support.
+        "platform":
+          type: string
+          description: Target platform for this version.
+        "release_notes_url":
+          type: string
+          description: URL to a more detailed release notes page.
+        "timestamp":
+          $ref: "#/components/schemas/TimeStamp"
+          description: Time when this version became available.
+        "version":
+          type: string
+          pattern: "^(\\d*)\\.(\\d\\d?)\\.(\\d*)$"
+          description: Version identifier of this release.
+      required: [build_size, checksum_hash, commit_hash, description, download_url, cycle, is_lts, platform, release_notes_url, timestamp, version]
+      example:
+        "build_size": 234567
+        "checksum_hash": "cfed7c6ecab"
+        "commit_hash": "11ce210be01cdbeab"
+        "description": "100 bug fixes, highly recommended to update"
+        "download_url": "https://www.blender.org/download/release/Blender5.0/blender-5.0.1-macos-arm64.dmg/"
+        "cycle": "release"
+        "is_lts": false
+        "platform": "macos-arm64"
+        "release_notes_url": "https://www.blender.org/download/releases/5-0/"
+        "timestamp": "2026-02-04T12:00:25Z"
+        "version": "5.0.1"
+    CycleType:
+      description: Release Cycle
+      type: string
+      enum: [release, alpha, beta, rc]
+    TimeStamp:
+      description: \"%Y-%m-%dT%H:%M:%SZ\" formatted date string.
+      type: string
+      format: date-time

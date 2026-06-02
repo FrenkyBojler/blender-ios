@@ -38,6 +38,7 @@ import time
 # `.gitattributes`.
 YAML_PATHS = [
     "scripts/modules/_bpy_internal/assets/remote_library/blender_asset_library_openapi.yaml",
+    "scripts/modules/_bpy_internal//available_updates/blender_releases_openapi.yaml",
 ]
 
 # Packages to install in the virtualenv. These are only necessary to run this
