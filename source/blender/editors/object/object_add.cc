@@ -2371,6 +2371,23 @@ static NodesModifierData *add_essential_asset_modifier(bContext &C,
   return nmd;
 }
 
+static bool has_capture_rest_geometry_modifier(const Object *object)
+{
+  for (const ModifierData &md : object->modifiers) {
+    if (md.type != eModifierType_Nodes) {
+      continue;
+    }
+    const auto &nmd = reinterpret_cast<const NodesModifierData &>(md);
+    if (!nmd.node_group) {
+      continue;
+    }
+    if (StringRef(BKE_id_name(nmd.node_group->id)) == "Capture Rest Geometry") {
+      return true;
+    }
+  }
+  return false;
+}
+
 static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
@@ -2399,30 +2416,33 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperato
   }
 
   if (U.experimental.use_geometry_nodes_hair_dynamics) {
-    if (!add_essential_asset_modifier(
-            *C,
-            *surface_ob,
-            "nodes/geometry_nodes_essentials.blend/NodeTree/Capture Rest Geometry",
-            op->reports))
-    {
-      if (ID_IS_LINKED(surface_ob)) {
-        BKE_reportf(op->reports,
-                    RPT_ERROR,
-                    "Can't add \"Capture Rest Geometry\" modifier to linked \"%s\" object",
-                    BKE_id_name(surface_ob->id));
-      }
-      else {
-        BKE_reportf(op->reports,
-                    RPT_ERROR,
-                    "Can't add \"Capture Rest Geometry\" modifier to \"%s\" object",
-                    BKE_id_name(surface_ob->id));
+    if (!has_capture_rest_geometry_modifier(surface_ob)) {
+      if (!add_essential_asset_modifier(
+              *C,
+              *surface_ob,
+              "nodes/geometry_nodes_essentials.blend/NodeTree/Capture Rest Geometry",
+              op->reports))
+      {
+        if (ID_IS_LINKED(surface_ob)) {
+          BKE_reportf(op->reports,
+                      RPT_ERROR,
+                      "Can't add \"Capture Rest Geometry\" modifier to linked \"%s\" object",
+                      BKE_id_name(surface_ob->id));
+        }
+        else {
+          BKE_reportf(op->reports,
+                      RPT_ERROR,
+                      "Can't add \"Capture Rest Geometry\" modifier to \"%s\" object",
+                      BKE_id_name(surface_ob->id));
+        }
       }
     }
-    add_essential_asset_modifier(
+    NodesModifierData *dynamics_modifier = add_essential_asset_modifier(
         *C,
         *curves_ob,
-        "nodes/geometry_nodes_dynamics_assets.blend/NodeTree/Hair Dynamics (Experimental)",
+        "nodes/geometry_nodes_dynamics_assets.blend/NodeTree/Hair Dynamics",
         op->reports);
+    dynamics_modifier->modifier.flag |= eModifierFlag_PinLast;
   }
   else {
     ed::curves::ensure_surface_deformation_node_exists(*C, *curves_ob);
