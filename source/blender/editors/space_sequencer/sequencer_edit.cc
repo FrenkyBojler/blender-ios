@@ -4160,37 +4160,6 @@ void SEQUENCER_OT_strip_transform_fit(wmOperatorType *ot)
                           "Mode for fitting the image to the canvas");
 }
 
-static wmOperatorStatus sequencer_strip_color_set_render_size_exec(bContext *C,
-                                                                   wmOperator * /*op*/)
-{
-  Scene *scene = CTX_data_sequencer_scene(C);
-  const Editing *ed = seq::editing_get(scene);
-
-  for (Strip &strip : *ed->current_strips()) {
-    if ((strip.flag & SEQ_SELECT) && strip.type == STRIP_TYPE_COLOR) {
-      SolidColorVars *cv = static_cast<SolidColorVars *>(strip.effectdata);
-      cv->width = scene->r.xsch;
-      cv->height = scene->r.ysch;
-      seq::relations_invalidate_cache_raw(scene, &strip);
-    }
-  }
-
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
-  return OPERATOR_FINISHED;
-}
-
-void SEQUENCER_OT_strip_color_set_render_size(wmOperatorType *ot)
-{
-  ot->name = "Set Dimensions to Render Size";
-  ot->idname = "SEQUENCER_OT_strip_color_set_render_size";
-  ot->description = "Set color strip dimensions to the scene render size";
-
-  ot->exec = sequencer_strip_color_set_render_size_exec;
-  ot->poll = sequencer_edit_poll;
-
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
 static wmOperatorStatus sequencer_strip_color_tag_set_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_sequencer_scene(C);

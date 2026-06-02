@@ -2042,8 +2042,11 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   if (strip->type == STRIP_TYPE_COLOR) {
     SolidColorVars *colvars = static_cast<SolidColorVars *>(strip->effectdata);
     RNA_float_get_array(op->ptr, "color", colvars->col);
-    colvars->width = RNA_int_get(op->ptr, "width");
-    colvars->height = RNA_int_get(op->ptr, "height");
+    colvars->width = RNA_struct_property_is_set(op->ptr, "width") ? RNA_int_get(op->ptr, "width") :
+                                                                    scene->r.xsch;
+    colvars->height = RNA_struct_property_is_set(op->ptr, "height") ?
+                          RNA_int_get(op->ptr, "height") :
+                          scene->r.ysch;
   }
   else if (strip->type == STRIP_TYPE_TEXT) {
     TextVars *textvars = static_cast<TextVars *>(strip->effectdata);
@@ -2096,16 +2099,6 @@ static wmOperatorStatus sequencer_add_effect_strip_invoke(bContext *C,
   }
 
   sequencer_generic_invoke_xy__internal(C, op, prop_flag, type, event);
-
-  if (type == STRIP_TYPE_COLOR) {
-    const Scene *scene = CTX_data_sequencer_scene(C);
-    if (!RNA_struct_property_is_set(op->ptr, "width")) {
-      RNA_int_set(op->ptr, "width", scene->r.xsch);
-    }
-    if (!RNA_struct_property_is_set(op->ptr, "height")) {
-      RNA_int_set(op->ptr, "height", scene->r.ysch);
-    }
-  }
 
   return sequencer_add_effect_strip_exec(C, op);
 }
@@ -2212,7 +2205,19 @@ void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot)
                       "Sequencer effect type");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_SEQUENCE);
   sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME | SEQPROP_LENGTH | SEQPROP_MOVE);
-  /* Only used when strip is of the Color type. */
+
+  /* The following properties are only used when strip is of the Color type. */
+  RNA_def_int(
+      ot->srna, "width", 0, 1, INT_MAX, "Width", "Width of the color strip in pixels", 1, INT_MAX);
+  RNA_def_int(ot->srna,
+              "height",
+              0,
+              1,
+              SHRT_MAX,
+              "Height",
+              "Height of the color strip in pixels",
+              1,
+              SHRT_MAX);
   prop = RNA_def_float_color(ot->srna,
                              "color",
                              3,
@@ -2224,25 +2229,6 @@ void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot)
                              0.0f,
                              1.0f);
   RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
-  /* Only used when strip is of the Color type. */
-  RNA_def_int(ot->srna,
-              "width",
-              0,
-              1,
-              SHRT_MAX,
-              "Width",
-              "Width of the color strip in pixels",
-              1,
-              SHRT_MAX);
-  RNA_def_int(ot->srna,
-              "height",
-              0,
-              1,
-              SHRT_MAX,
-              "Height",
-              "Height of the color strip in pixels",
-              1,
-              SHRT_MAX);
 }
 
 /** \} */
