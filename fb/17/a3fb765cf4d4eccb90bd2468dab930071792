@@ -1,2 +1,3 @@
 Referenced by issue #47846, Multi-view stereo output type setting is not persisted
 Referenced by issue #159459, Stereoscopic viewport mode is not saved to file
+Referenced by pull request #159485, Fix #159459: Stereoscopic viewport mode reset after file load
