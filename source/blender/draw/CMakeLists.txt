@@ -325,9 +325,6 @@ set(GLSL_SRC
   engines/eevee/shaders/infos/eevee_common_infos.hh
   engines/eevee/shaders/infos/eevee_geom_infos.hh
   engines/eevee/shaders/infos/eevee_nodetree_infos.hh
-  engines/eevee/shaders/infos/eevee_sampling_infos.hh
-  engines/eevee/shaders/infos/eevee_uniform_infos.hh
-  engines/eevee/shaders/infos/eevee_velocity_infos.hh
 
   engines/image/shaders/infos/engine_image_infos.hh
 
@@ -404,6 +401,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_geom_types_lib.bsl.hh
   engines/eevee/shaders/eevee_geom_volume.bsl.hh
   engines/eevee/shaders/eevee_geom_world.bsl.hh
+  engines/eevee/shaders/eevee_hiz.bsl.hh
   engines/eevee/shaders/eevee_hiz_update.bsl.hh
   engines/eevee/shaders/eevee_fast_gi.bsl.hh
   engines/eevee/shaders/eevee_light_culling.bsl.hh
@@ -430,12 +428,13 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_motion_blur.bsl.hh
   engines/eevee/shaders/eevee_nodetree_closures_lib.glsl
   engines/eevee/shaders/eevee_nodetree_frag_lib.glsl
-  engines/eevee/shaders/eevee_nodetree_lib.glsl
+  engines/eevee/shaders/eevee_nodetree_lib.bsl.hh
   engines/eevee/shaders/eevee_nodetree_type_lib.glsl
   engines/eevee/shaders/eevee_nodetree_vert_lib.glsl
   engines/eevee/shaders/eevee_occupancy_convert.bsl.hh
   engines/eevee/shaders/eevee_occupancy_lib.bsl.hh
   engines/eevee/shaders/eevee_octahedron_lib.bsl.hh
+  engines/eevee/shaders/eevee_pipeline.bsl.hh
   engines/eevee/shaders/eevee_ray_denoise.bsl.hh
   engines/eevee/shaders/eevee_ray_generate.bsl.hh
   engines/eevee/shaders/eevee_ray_tile.bsl.hh
@@ -483,6 +482,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_surfel_ray.bsl.hh
   engines/eevee/shaders/eevee_thickness_lib.bsl.hh
   engines/eevee/shaders/eevee_transparency.bsl.hh
+  engines/eevee/shaders/eevee_uniform.bsl.hh
   engines/eevee/shaders/eevee_utility_tx.bsl.hh
   engines/eevee/shaders/eevee_velocity.bsl.hh
   engines/eevee/shaders/eevee_volume.bsl.hh
