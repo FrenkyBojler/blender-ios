@@ -11,6 +11,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "PRF_profile.hh"
+
 #include "effects.hh"
 
 namespace blender::seq {
@@ -44,6 +46,7 @@ static SeqResult do_solid_color(const RenderData *context,
                                 const SeqResult & /*ibuf1*/,
                                 const SeqResult & /*ibuf2*/)
 {
+  PRF_scope_with_name("SeqFxColor", ProfileCategory::Draw);
   SeqResult out = prepare_effect_imbufs(context, {}, {});
 
   SolidColorVars *cv = static_cast<SolidColorVars *>(strip->effectdata);
