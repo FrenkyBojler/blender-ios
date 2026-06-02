@@ -149,22 +149,28 @@ static bool cycles_precompute(std::string name)
 {
   std::map<string, PrecomputeTerm> precompute_terms;
   /* Overall albedo of the GGX microfacet BRDF, depending on cosI and roughness. */
-  precompute_terms["ggx_E"] = {
-      1 << 23, 32, 32, 1, [](const float rough, const float mu, float, const float3 rand) {
-        return precompute_ggx_E(rough, mu, rand);
-      }};
+  precompute_terms["ggx_E"] = {1 << 23,
+                               GGX_E_RES_ROUGH,
+                               GGX_E_RES_MU,
+                               1,
+                               [](const float rough, const float mu, float, const float3 rand) {
+                                 return precompute_ggx_E(rough, mu, rand);
+                               }};
   /* Overall albedo of the GGX microfacet BRDF, averaged over cosI */
-  precompute_terms["ggx_Eavg"] = {
-      1 << 26, 32, 1, 1, [](const float rough, const float mu, float, const float3 rand) {
-        return 2.0f * mu * precompute_ggx_E(rough, mu, rand);
-      }};
+  precompute_terms["ggx_Eavg"] = {1 << 26,
+                                  GGX_E_RES_ROUGH,
+                                  1,
+                                  1,
+                                  [](const float rough, const float mu, float, const float3 rand) {
+                                    return 2.0f * mu * precompute_ggx_E(rough, mu, rand);
+                                  }};
   /* Overall albedo of the GGX microfacet BSDF with dielectric Fresnel,
    * depending on cosI and roughness, for IOR>1. */
   precompute_terms["ggx_glass_E"] = {
       1 << 23,
-      16,
-      16,
-      16,
+      GGX_GLASS_E_RES_ROUGH,
+      GGX_GLASS_E_RES_MU,
+      GGX_GLASS_E_RES_IOR,
       [](const float rough, const float mu, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
         return precompute_ggx_glass_E(rough, mu, ior, rand);
@@ -172,7 +178,11 @@ static bool cycles_precompute(std::string name)
   /* Overall albedo of the GGX microfacet BSDF with dielectric Fresnel,
    * averaged over cosI, for IOR>1. */
   precompute_terms["ggx_glass_Eavg"] = {
-      1 << 26, 16, 1, 16, [](const float rough, const float mu, const float z, const float3 rand) {
+      1 << 26,
+      GGX_GLASS_E_RES_ROUGH,
+      1,
+      GGX_GLASS_E_RES_IOR,
+      [](const float rough, const float mu, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
         return 2.0f * mu * precompute_ggx_glass_E(rough, mu, ior, rand);
       }};
@@ -180,9 +190,9 @@ static bool cycles_precompute(std::string name)
    * depending on cosI and roughness, for IOR<1. */
   precompute_terms["ggx_glass_inv_E"] = {
       1 << 23,
-      16,
-      16,
-      16,
+      GGX_GLASS_E_RES_ROUGH,
+      GGX_GLASS_E_RES_MU,
+      GGX_GLASS_E_RES_IOR,
       [](const float rough, const float mu, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
         return precompute_ggx_glass_E(rough, mu, 1.0f / ior, rand);
@@ -190,7 +200,11 @@ static bool cycles_precompute(std::string name)
   /* Overall albedo of the GGX microfacet BSDF with dielectric Fresnel,
    * averaged over cosI, for IOR<1. */
   precompute_terms["ggx_glass_inv_Eavg"] = {
-      1 << 26, 16, 1, 16, [](const float rough, const float mu, const float z, const float3 rand) {
+      1 << 26,
+      GGX_GLASS_E_RES_ROUGH,
+      1,
+      GGX_GLASS_E_RES_IOR,
+      [](const float rough, const float mu, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
         return 2.0f * mu * precompute_ggx_glass_E(rough, mu, 1.0f / ior, rand);
       }};
@@ -199,9 +213,9 @@ static bool cycles_precompute(std::string name)
    * depending on cosI and roughness, for IOR>1, using dielectric Fresnel mode. */
   precompute_terms["ggx_gen_schlick_ior_s"] = {
       1 << 20,
-      16,
-      16,
-      16,
+      GGX_GEN_SCHLICK_S_IOR_RES_ROUGH,
+      GGX_GEN_SCHLICK_S_IOR_RES_MU,
+      GGX_GEN_SCHLICK_S_IOR_RES_IOR,
       [](const float rough, const float mu, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
         return precompute_ggx_gen_schlick_s(rough, mu, ior, -1.0f, rand);
@@ -211,9 +225,9 @@ static bool cycles_precompute(std::string name)
    * depending on cosI and roughness, for IOR>1. */
   precompute_terms["ggx_gen_schlick_s"] = {
       1 << 20,
-      16,
-      16,
-      16,
+      GGX_GEN_SCHLICK_S_RES_ROUGH,
+      GGX_GEN_SCHLICK_S_RES_MU,
+      GGX_GEN_SCHLICK_S_RES_IOR,
       [](const float rough, const float mu, const float z, const float3 rand) {
         /* Remap 0..1 to 0..inf, with 0.5 mapping to 5 (the default value). */
         const float exponent = 5.0f * ((1.0f - z) / z);

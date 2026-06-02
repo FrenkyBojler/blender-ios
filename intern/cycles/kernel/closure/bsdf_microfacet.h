@@ -14,6 +14,21 @@
 
 #include "util/math_fast.h"
 
+#define GGX_E_RES_ROUGH 32
+#define GGX_E_RES_MU 32
+
+#define GGX_GLASS_E_RES_ROUGH 16
+#define GGX_GLASS_E_RES_MU 16
+#define GGX_GLASS_E_RES_IOR 16
+
+#define GGX_GEN_SCHLICK_S_RES_ROUGH 16
+#define GGX_GEN_SCHLICK_S_RES_MU 16
+#define GGX_GEN_SCHLICK_S_RES_IOR 16
+
+#define GGX_GEN_SCHLICK_S_IOR_RES_ROUGH 16
+#define GGX_GEN_SCHLICK_S_IOR_RES_MU 16
+#define GGX_GEN_SCHLICK_S_IOR_RES_IOR 16
+
 CCL_NAMESPACE_BEGIN
 
 enum MicrofacetType {
@@ -442,8 +457,9 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
   if (bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_ID ||
       bsdf->type == CLOSURE_BSDF_THIN_GLASS_TRANSMISSION_ID)
   {
-    E = lookup_table_read_2D(kg, rough, mu, kernel_data.tables.ggx_E, 32, 32);
-    E_avg = lookup_table_read(kg, rough, kernel_data.tables.ggx_Eavg, 32);
+    E = lookup_table_read_2D(
+        kg, rough, mu, kernel_data.tables.ggx_E, GGX_E_RES_ROUGH, GGX_E_RES_MU);
+    E_avg = lookup_table_read(kg, rough, kernel_data.tables.ggx_Eavg, GGX_E_RES_ROUGH);
   }
   else if (bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID) {
     int ofs = kernel_data.tables.ggx_glass_E;
@@ -456,8 +472,10 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
     }
     /* TODO: Bias mu towards more precision for low values. */
     const float z = sqrtf(fabsf((ior - 1.0f) / (ior + 1.0f)));
-    E = lookup_table_read_3D(kg, rough, mu, z, ofs, 16, 16, 16);
-    E_avg = lookup_table_read_2D(kg, rough, z, avg_ofs, 16, 16);
+    E = lookup_table_read_3D(
+        kg, rough, mu, z, ofs, GGX_GLASS_E_RES_ROUGH, GGX_GLASS_E_RES_MU, GGX_GLASS_E_RES_IOR);
+    E_avg = lookup_table_read_2D(
+        kg, rough, z, avg_ofs, GGX_GLASS_E_RES_ROUGH, GGX_GLASS_E_RES_IOR);
   }
   else {
     kernel_assert(false);
@@ -519,13 +537,25 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
       float s;
       if (fresnel->exponent < 0.0f) {
         const float z = sqrtf(fabsf((bsdf->ior - 1.0f) / (bsdf->ior + 1.0f)));
-        s = lookup_table_read_3D(
-            kg, rough, cos_NI, z, kernel_data.tables.ggx_gen_schlick_ior_s, 16, 16, 16);
+        s = lookup_table_read_3D(kg,
+                                 rough,
+                                 cos_NI,
+                                 z,
+                                 kernel_data.tables.ggx_gen_schlick_ior_s,
+                                 GGX_GEN_SCHLICK_S_IOR_RES_ROUGH,
+                                 GGX_GEN_SCHLICK_S_IOR_RES_MU,
+                                 GGX_GEN_SCHLICK_S_IOR_RES_IOR);
       }
       else {
         const float z = 1.0f / (0.2f * fresnel->exponent + 1.0f);
-        s = lookup_table_read_3D(
-            kg, rough, cos_NI, z, kernel_data.tables.ggx_gen_schlick_s, 16, 16, 16);
+        s = lookup_table_read_3D(kg,
+                                 rough,
+                                 cos_NI,
+                                 z,
+                                 kernel_data.tables.ggx_gen_schlick_s,
+                                 GGX_GEN_SCHLICK_S_RES_ROUGH,
+                                 GGX_GEN_SCHLICK_S_RES_MU,
+                                 GGX_GEN_SCHLICK_S_RES_IOR);
       }
       const Spectrum F = mix(fresnel->f0, fresnel->f90, s);
       const Spectrum reflectance = F * fresnel->reflection_tint * float(eval_reflection);
@@ -543,8 +573,14 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
     }
     else {
       const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
-      const float s = lookup_table_read_3D(
-          kg, rough, cos_NI, 0.5f, kernel_data.tables.ggx_gen_schlick_s, 16, 16, 16);
+      const float s = lookup_table_read_3D(kg,
+                                           rough,
+                                           cos_NI,
+                                           0.5f,
+                                           kernel_data.tables.ggx_gen_schlick_s,
+                                           GGX_GEN_SCHLICK_S_RES_ROUGH,
+                                           GGX_GEN_SCHLICK_S_RES_MU,
+                                           GGX_GEN_SCHLICK_S_RES_IOR);
       /* TODO: Precompute B factor term and account for it here. */
       const Spectrum reflectance = mix(fresnel->f0, one_spectrum(), s) * float(eval_reflection);
       return reflectance;
@@ -558,8 +594,14 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
      * exponent<0 corner case where we use the real dielectric Fresnel. */
     const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
     const float z = sqrtf(fabsf((bsdf->ior - 1.0f) / (bsdf->ior + 1.0f)));
-    const float s = lookup_table_read_3D(
-        kg, rough, cos_NI, z, kernel_data.tables.ggx_gen_schlick_ior_s, 16, 16, 16);
+    const float s = lookup_table_read_3D(kg,
+                                         rough,
+                                         cos_NI,
+                                         z,
+                                         kernel_data.tables.ggx_gen_schlick_ior_s,
+                                         GGX_GEN_SCHLICK_S_IOR_RES_ROUGH,
+                                         GGX_GEN_SCHLICK_S_IOR_RES_MU,
+                                         GGX_GEN_SCHLICK_S_IOR_RES_IOR);
     const float F = mix(F0_from_ior(bsdf->ior), 1.0f, s);
     Spectrum reflectance = make_spectrum(F) * float(eval_reflection);
     /* Tinted dielectric. */
