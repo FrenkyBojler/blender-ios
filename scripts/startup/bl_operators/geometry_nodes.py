@@ -119,7 +119,6 @@ def socket_idname_to_attribute_type(idname):
     raise ValueError("Unsupported socket type")
 
 
-
 def get_socket_with_identifier(sockets, identifier):
     for socket in sockets:
         if socket.identifier == identifier:
