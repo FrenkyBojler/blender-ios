@@ -13,25 +13,20 @@
  * magnitudes of a and b are vastly different. The latter variant is called
  * "endvalue_preserving_mix" in our code ensures that result == b when t == 1. This comes at the
  * cost of an additional multiplication step compared to the former version and the fact that
- * result may not change monotonically when t increases monotonically, which however isn't
- * noticeable in most cases as long as monotony isn't explicitly required. In general,
- * "endvalue_preserving_mix" should be preferred over "mix" when it is important that result == b
- * when t == 1 or when a and b may have vastly different magnitudes.*/
-template<typename VecT> VecT endvalue_preserving_mix(VecT a, VecT b, float t)
+ * result may not change monotonically when a and b have different signs and t increases
+ * monotonically, which however isn't noticeable in most cases as long as monotony isn't explicitly
+ * required. In general, "endvalue_preserving_mix" should be preferred over "mix" when it is
+ * important that result == b when t == 1 or when a and b may have vastly different magnitudes.*/
+template<typename VecT, typename FacT> VecT endvalue_preserving_mix(VecT a, VecT b, FacT t)
 {
-  return VecT(1.0f - t) * a + t * b;
+  return (FacT(1.0f) - t) * a + t * b;
 }
-template float2 endvalue_preserving_mix<float2>(float2, float2, float);
-template float3 endvalue_preserving_mix<float3>(float3, float3, float);
-template float4 endvalue_preserving_mix<float4>(float4, float4, float);
-
-template<typename VecT> VecT endvalue_preserving_mix(VecT a, VecT b, VecT t)
-{
-  return (VecT(1.0f) - t) * a + t * b;
-}
-template float2 endvalue_preserving_mix<float2>(float2, float2, float2);
-template float3 endvalue_preserving_mix<float3>(float3, float3, float3);
-template float4 endvalue_preserving_mix<float4>(float4, float4, float4);
+template float2 endvalue_preserving_mix<float2, float>(float2, float2, float);
+template float3 endvalue_preserving_mix<float3, float>(float3, float3, float);
+template float4 endvalue_preserving_mix<float4, float>(float4, float4, float);
+template float2 endvalue_preserving_mix<float2, float2>(float2, float2, float2);
+template float3 endvalue_preserving_mix<float3, float3>(float3, float3, float3);
+template float4 endvalue_preserving_mix<float4, float4>(float4, float4, float4);
 
 /**
  * Returns \a a if it is a multiple of \a b or the next multiple or \a b after \b a .

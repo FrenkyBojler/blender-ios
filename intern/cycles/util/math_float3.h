@@ -455,10 +455,10 @@ ccl_device_inline float3 ceil(const float3 a)
  * magnitudes of a and b are vastly different. The latter variant is called
  * "endvalue_preserving_mix" in our code ensures that result == b when t == 1. This comes at the
  * cost of an additional multiplication step compared to the former version and the fact that
- * result may not change monotonically when t increases monotonically, which however isn't
- * noticeable in most cases as long as monotony isn't explicitly required. In general,
- * "endvalue_preserving_mix" should be preferred over "mix" when it is important that result == b
- * when t == 1 or when a and b may have vastly different magnitudes.*/
+ * result may not change monotonically when a and b have different signs and t increases
+ * monotonically, which however isn't noticeable in most cases as long as monotony isn't explicitly
+ * required. In general, "endvalue_preserving_mix" should be preferred over "mix" when it is
+ * important that result == b when t == 1 or when a and b may have vastly different magnitudes.*/
 ccl_device_inline float3 mix(const float3 a, const float3 b, const float t)
 {
   return a + t * (b - a);
@@ -473,7 +473,7 @@ ccl_device_inline float3 mix(const float3 a, const float3 b, const float3 t)
  * function for more information. */
 ccl_device_inline float3 endvalue_preserving_mix(const float3 a, const float3 b, float t)
 {
-  return make_float3(1.0f - t) * a + t * b;
+  return (1.0f - t) * a + t * b;
 }
 
 /* Same as the "mix" function but with different numerical behavior. See comment above the "mix"
