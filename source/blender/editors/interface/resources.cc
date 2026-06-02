@@ -401,7 +401,7 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
             cp = btheme->space_view3d.transform;
           }
           else {
-            cp = ts->select;
+            cp = ts->transform;
           }
           break;
         case TH_VERTEX:
