@@ -159,6 +159,12 @@ class OperatorSpec:
         return "Mode: " + self.mode + " Operator: " + self.operator_name + \
             " with parameters: " + str(self.operator_parameters)
 
+class SelectObjectSpec:
+    def __init__(self, object_name: str):
+        self.object_name = object_name
+
+    def __str__(self):
+        return "Selecting: " + self.object_name
 
 class DeformModifierSpec:
     """
@@ -539,6 +545,9 @@ class SpecMeshTest(MeshTest):
             elif isinstance(operation, OperatorSpec):
                 self._apply_operator(operation)
 
+            elif isinstance(operation, SelectObjectSpec):
+                self._select_other_object(operation)
+
             elif isinstance(operation, DeformModifierSpec):
                 self._apply_deform_modifier(evaluated_test_object, operation)
 
@@ -770,6 +779,9 @@ class SpecMeshTest(MeshTest):
 
         if operator.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
+
+    def _select_other_object(self, operator: SelectObjectSpec):
+        bpy.data.objects[operator.object_name].select_set(True)
 
     def _apply_deform_modifier(self, test_object, operation: DeformModifierSpec):
         """
