@@ -17,6 +17,8 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 
+#include "PRF_profile.hh"
+
 #include "SEQ_sequencer.hh"
 
 #include "cache/compositor_cache.hh"
@@ -126,6 +128,7 @@ static SeqResult do_compositor_effect(const RenderData *context,
                                       const SeqResult &src1,
                                       const SeqResult &src2)
 {
+  PRF_scope_with_name("SeqFxCompositor", ProfileCategory::Draw);
   const int x = context->rectx;
   const int y = context->recty;
   SeqResult out;
