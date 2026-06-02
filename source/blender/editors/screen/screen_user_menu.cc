@@ -399,6 +399,7 @@ void ED_screen_user_menu_register()
   STRNCPY_UTF8(mt->label, N_("Quick Favorites"));
   STRNCPY_UTF8(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = screen_user_menu_draw;
+  mt->listener = ed::asset::list::asset_reading_region_listen_fn;
   WM_menutype_add(mt);
 }
 
