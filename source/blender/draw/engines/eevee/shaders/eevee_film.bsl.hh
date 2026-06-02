@@ -329,18 +329,38 @@ struct Film {
   /** \name Filter
    * \{ */
 
-  float2 panoramic_render_uv_get(int2 texel_film)
+  float3 panoramic_direction_get(int2 texel_film)
   {
     [[resource_table]] const Uniform &uni = this->uniforms;
 
     const CameraData cam = uni.uniform_buf.camera;
     const float2 film_uv = (float2(texel_film) + 0.5f) * uni.uniform_buf.film.extent_inv;
-    const float3 camera_direction = panoramic_direction_from_uv(cam, film_uv);
-    if (length_squared(camera_direction) == 0.0f) {
-      return float2(-1.0f);
-    }
+    return panoramic_direction_from_uv(cam, film_uv);
+  }
 
-    if (panoramic_face_index(camera_direction) != panoramic_view_id) {
+  bool panoramic_texel_has_valid_projection(int2 texel_film)
+  {
+    return length_squared(panoramic_direction_get(texel_film)) != 0.0f;
+  }
+
+  int panoramic_texel_owner_view_id(float3 camera_direction)
+  {
+    if (length_squared(camera_direction) == 0.0f) {
+      return -1;
+    }
+    return panoramic_face_index(camera_direction);
+  }
+
+  bool panoramic_texel_is_owned_by_view(float3 camera_direction)
+  {
+    return panoramic_texel_owner_view_id(camera_direction) == panoramic_view_id;
+  }
+
+  float2 panoramic_render_uv_get(int2 texel_film)
+  {
+    const float3 camera_direction = panoramic_direction_get(texel_film);
+
+    if (!panoramic_texel_is_owned_by_view(camera_direction)) {
       return float2(-1.0f);
     }
 
@@ -367,15 +387,6 @@ struct Film {
     film_sample.texel = int2(render_uv * float2(textureSize(depth_tx, 0).xy));
     film_sample.weight = 1.0f;
     return film_sample;
-  }
-
-  bool panoramic_texel_has_valid_projection(int2 texel_film)
-  {
-    [[resource_table]] const Uniform &uni = this->uniforms;
-
-    const CameraData cam = uni.uniform_buf.camera;
-    const float2 film_uv = (float2(texel_film) + 0.5f) * uni.uniform_buf.film.extent_inv;
-    return length_squared(panoramic_direction_from_uv(cam, film_uv)) != 0.0f;
   }
 
   FilmSample sample_get(int sample_n, int2 texel_film)
@@ -1344,7 +1355,7 @@ void accumulate_or_display_frag([[resource_table]] const FilmDisplay &srt,
   if (is_panoramic(uni.uniform_buf.camera.type) &&
       !film.panoramic_texel_has_valid_projection(texel_film))
   {
-    /* A zero direction means panoramic sampling, e.g. outside the fisheye lens.
+    /* A zero direction means failed panoramic sampling, e.g. outside the fisheye lens.
      * Display as black with background depth so overlay can draw over them. */
     frag_out.color = float4(0.0f, 0.0f, 0.0f, 1.0f);
     out_depth = 1.0f;
