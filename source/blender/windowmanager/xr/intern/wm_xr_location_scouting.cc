@@ -778,8 +778,8 @@ static void wm_xr_viewfinder_ui_draw_widgets(const bContext *C,
   draw_block(wm_xr_viewfinder_ui_action_label_block, action_label_x, action_label_y);
   draw_block(wm_xr_viewfinder_ui_action_enum_block, action_enum_x, action_enum_y);
 
-  const float missing_label_x = -1.1f;
-  const float missing_label_y = 0.1f;
+  constexpr float missing_label_x = -1.1f;
+  constexpr float missing_label_y = 0.1f;
 
   draw_block(wm_xr_viewfinder_ui_missing_captures_label_block, missing_label_x, missing_label_y);
 }
@@ -830,7 +830,7 @@ static void wm_xr_viewfinder_gizmo_draw_capture_camera(const bContext *C, wmXrSe
       {-aspect[0], aspect[1], -focal},
   };
 
-  const float color[4] = {0.25f, 0.81f, 1.0f, 1.0f};
+  constexpr float color[4] = {0.25f, 0.81f, 1.0f, 1.0f};
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
@@ -957,8 +957,8 @@ static void wm_xr_viewfinder_ui_draw_view_texture(const bContext *C,
   /* Obtain the Viewfinder view texture we computed in #wm_xr_draw_view. */
   gpu::Texture *view_tex = GPU_offscreen_color_texture(state->viewfinder.framebuffer);
 
-  const rctf tex_uv = {0.0f, 1.0f, 0.0f, 1.0f};
-  const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  constexpr rctf tex_uv = {0.0f, 1.0f, 0.0f, 1.0f};
+  constexpr float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
   wm_xr_viewfinder_ui_draw_texture(view_tex, viewfinder_rect, tex_uv, tex_color);
 }
