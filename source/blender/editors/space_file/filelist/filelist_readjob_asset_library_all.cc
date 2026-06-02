@@ -23,7 +23,7 @@ static void filelist_readjob_all_asset_library(FileListReadJob *job_params,
                                                float *progress)
 {
   FileList *filelist = job_params->tmp_filelist; /* Use the thread-safe filelist queue. */
-  BLI_assert(BLI_listbase_is_empty(&filelist->filelist.entries) &&
+  BLI_assert(filelist->filelist.entries.is_empty() &&
              (filelist->filelist.entries_num == FILEDIR_NBR_ENTRIES_UNSET));
 
   filelist_readjob_load_asset_library_data(job_params, do_update);
@@ -116,6 +116,10 @@ static void filelist_start_job_all_asset_library(FileListReadJob *job_params)
   }
 
   asset_system::foreach_registered_user_remote_library([&](bUserAssetLibrary &library) {
+    if (!library.is_enabled()) {
+      return;
+    }
+
     if (!requested_urls.contains(library.remote_url)) {
       requested_urls.add(library.remote_url);
 

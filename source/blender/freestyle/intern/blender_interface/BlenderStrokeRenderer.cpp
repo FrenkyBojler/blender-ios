@@ -45,7 +45,6 @@
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
@@ -178,7 +177,7 @@ BlenderStrokeRenderer::~BlenderStrokeRenderer()
   /* detach the window manager from freestyle bmain (see comments
    * in add_freestyle() for more detail)
    */
-  BLI_listbase_clear(&freestyle_bmain->wm);
+  freestyle_bmain->wm.clear_no_delete();
 
   BKE_main_free(freestyle_bmain);
 }

@@ -51,8 +51,6 @@ static const char *STUDIOLIGHT_MATCAP_FOLDER = "studiolights" SEP_STR "matcap" S
 static const char *STUDIOLIGHT_WORLD_DEFAULT = "forest.exr";
 static const char *STUDIOLIGHT_MATCAP_DEFAULT = "basic_1.exr";
 
-static CLG_LogRef LOG = {"bke.studiolight"};
-
 /* ITER MACRO */
 
 /**
@@ -319,16 +317,7 @@ static float *studiolight_multilayer_convert_pass(const ImBuf *ibuf,
 
   float *new_rect = MEM_new_array_zeroed<float>(4 * size_t(ibuf->x) * size_t(ibuf->y), __func__);
 
-  IMB_buffer_float_from_float(new_rect,
-                              rect,
-                              channels,
-                              IB_PROFILE_LINEAR_RGB,
-                              IB_PROFILE_LINEAR_RGB,
-                              false,
-                              ibuf->x,
-                              ibuf->y,
-                              ibuf->x,
-                              ibuf->x);
+  IMB_buffer_float_rgba_from_float(new_rect, rect, channels, ibuf->x, ibuf->y);
 
   MEM_delete(rect);
   return new_rect;

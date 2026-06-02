@@ -318,7 +318,8 @@ void SnapData::register_result(SnapObjectContext *sctx,
 
   /* Global space. */
   sctx->ret.loc = math::transform_point(obmat, sctx->ret.loc);
-  sctx->ret.no = math::normalize(math::transform_direction(obmat, sctx->ret.no));
+  const float3x3 normal_transform = math::transpose(math::invert(float3x3(obmat)));
+  sctx->ret.no = math::normalize(math::transform_direction(normal_transform, sctx->ret.no));
 
 #ifndef NDEBUG
   /* Make sure this is only called once. */
@@ -341,7 +342,8 @@ void SnapData::register_result_raycast(SnapObjectContext *sctx,
   const float depth_max = is_in_front ? sctx->ret.ray_depth_max_in_front : sctx->ret.ray_depth_max;
   if (hit->dist <= depth_max) {
     float3 co = math::transform_point(obmat, float3(hit->co));
-    float3 no = math::normalize(math::transform_direction(obmat, float3(hit->no)));
+    const float3x3 normal_transform = math::transpose(math::invert(float3x3(obmat)));
+    float3 no = math::normalize(math::transform_direction(normal_transform, float3(hit->no)));
 
     sctx->ret.loc = co;
     sctx->ret.no = no;
@@ -937,8 +939,7 @@ eSnapMode snap_object_center(SnapObjectContext *sctx,
 {
 
   eSnapMode retval = SCE_SNAP_TO_NONE;
-  const bool is_entity = ob_eval ? ELEM(ob_eval->type, OB_EMPTY, OB_LAMP, OB_CAMERA) : false;
-  if (((snap_to_flag & SCE_SNAP_TO_POINT) != 0) & is_entity) {
+  if ((snap_to_flag & SCE_SNAP_TO_POINT) && ELEM(ob_eval->type, OB_EMPTY, OB_LAMP, OB_CAMERA)) {
     retval = SCE_SNAP_TO_POINT;
   }
   else if (snap_to_flag & SCE_SNAP_TO_ORIGIN) {
@@ -1020,7 +1021,7 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
     case OB_CAMERA:
       retval = snapCamera(sctx, ob_eval, obmat);
       break;
-    /* TODO: Add remaining specific handling of objects (lattice, grease pencil, ...) */
+    /* TODO: Add remaining specific handling of objects (grease pencil, metaball, ...) */
     default:
       break;
   }
