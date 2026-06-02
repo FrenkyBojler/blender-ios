@@ -299,8 +299,6 @@ void MEM_use_guarded_allocator(void);
 #  include <type_traits>
 #  include <utility>
 
-#  include "PRF_profile.hh"
-
 #  include "intern/mallocn_intern_function_pointers.hh"
 
 /**
@@ -353,7 +351,6 @@ constexpr bool is_trivial_after_construction = std::is_trivially_copyable_v<T> &
 template<typename T, typename... Args>
 inline T *MEM_new(const char *allocation_name, Args &&...args)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   void *buffer = mem_guarded::internal::mem_mallocN_aligned_ex(
       sizeof(T),
       alignof(T),
@@ -374,7 +371,6 @@ inline T *MEM_new(const char *allocation_name, Args &&...args)
  */
 template<typename T> inline T *MEM_new_array(const size_t length, const char *allocation_name)
 {
-  PRF_scope(blender::ProfileCategory::Core);
 #  ifdef _MSC_VER
   static_assert(
       std::is_trivially_destructible_v<T>,
@@ -403,7 +399,6 @@ template<typename T> inline T *MEM_new_array(const size_t length, const char *al
  */
 template<typename T> inline void MEM_delete(const T *ptr)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   static_assert(
       !std::is_void_v<T>,
       "MEM_delete on a void pointer is not possible, `static_cast` it to the correct type");
@@ -554,7 +549,6 @@ template<typename T> struct MEM_smart_ptr_deleter {
  */
 template<typename T> inline T *MEM_new_zeroed(const char *allocation_name)
 {
-  PRF_scope(blender::ProfileCategory::Core);
 #  ifdef _MSC_VER
   static_assert(std::is_trivially_constructible_v<T>,
                 "For non-trivial types, MEM_new must be used.");
@@ -572,7 +566,6 @@ template<typename T> inline T *MEM_new_zeroed(const char *allocation_name)
 template<typename T>
 inline T *MEM_new_array_zeroed(const size_t length, const char *allocation_name)
 {
-  PRF_scope(blender::ProfileCategory::Core);
 #  ifdef _MSC_VER
   static_assert(std::is_trivially_constructible_v<T>,
                 "For non-trivial types, MEM_new must be used.");
@@ -596,7 +589,6 @@ inline T *MEM_new_array_zeroed(const size_t length, const char *allocation_name)
  */
 template<typename T> inline T *MEM_new_uninitialized(const char *allocation_name)
 {
-  PRF_scope(blender::ProfileCategory::Core);
 #  ifdef _MSC_VER
   static_assert(std::is_trivially_constructible_v<T>,
                 "For non-trivial types, MEM_new must be used.");
@@ -616,7 +608,6 @@ template<typename T> inline T *MEM_new_uninitialized(const char *allocation_name
 template<typename T>
 inline T *MEM_new_array_uninitialized(const size_t length, const char *allocation_name)
 {
-  PRF_scope(blender::ProfileCategory::Core);
 #  ifdef _MSC_VER
   static_assert(std::is_trivially_constructible_v<T>,
                 "For non-trivial types, MEM_new must be used.");
@@ -635,7 +626,6 @@ inline T *MEM_new_array_uninitialized(const size_t length, const char *allocatio
  * */
 template<typename T> inline T *MEM_dupalloc(const T *other)
 {
-  PRF_scope(blender::ProfileCategory::Core);
 #  ifdef _MSC_VER
   /* TODO: Add back is_trivially_copyable_v condition, temporarily disabled
    * because of build error on MSVC. */
@@ -656,7 +646,6 @@ template<typename T> inline T *MEM_dupalloc(const T *other)
 
 template<typename T> inline void MEM_delete_void(T *ptr)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   static_assert(std::is_void_v<T>,
                 "MEM_delete_void only supported for void pointer, use MEM_delete instead");
   mem_guarded::internal::mem_freeN_ex(const_cast<void *>(static_cast<const void *>(ptr)),

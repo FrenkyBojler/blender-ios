@@ -69,7 +69,6 @@ set(LIB
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
-  PRIVATE bf::intern::profile
 )
 
 if(WITH_INPUT_IME)

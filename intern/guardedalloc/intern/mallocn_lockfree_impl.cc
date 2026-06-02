@@ -148,6 +148,7 @@ size_t MEM_lockfree_allocN_len(const void *vmemh)
 
 void MEM_lockfree_freeN(void *vmemh, DestructorType destructor_type)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   if (UNLIKELY(leak_detector_has_run)) {
     print_error("%s\n", free_after_leak_detection_message);
   }
@@ -403,6 +404,7 @@ void *MEM_lockfree_mallocN_aligned(size_t len,
                                    const char *str,
                                    const DestructorType destructor_type)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   /* Huge alignment values doesn't make sense and they wouldn't fit into 'short' used in the
    * MemHead. */
   assert(alignment < 1024);
@@ -498,6 +500,7 @@ void *MEM_lockfree_malloc_arrayN_aligned(const size_t len,
                                          const size_t alignment,
                                          const char *str)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   size_t bytes_num;
   return mem_lockfree_malloc_arrayN_aligned(len, size, alignment, str, bytes_num);
 }
@@ -507,6 +510,7 @@ void *MEM_lockfree_calloc_arrayN_aligned(const size_t len,
                                          const size_t alignment,
                                          const char *str)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   /* There is no lower level #calloc with an alignment parameter, so unless the alignment is less
    * than or equal to what we'd get by default, we have to fall back to #memset unfortunately. */
   if (alignment <= MEM_MIN_CPP_ALIGNMENT) {
