@@ -619,13 +619,13 @@ static wmOperatorStatus actkeys_copy_exec(bContext *C, wmOperator *op)
             &ac, get_grease_pencil_keyframe_clipboard()) == false)
     {
       /* check if anything ended up in the buffer */
-      BKE_report(op->reports, RPT_WARNING, "No keyframes copied to the internal clipboard");
+      BKE_report(op->reports, RPT_INFO, "No keyframes copied to the internal clipboard");
       return OPERATOR_CANCELLED;
     }
   }
   else if (ac.datatype == ANIMCONT_MASK) {
     /* FIXME: support this case. */
-    BKE_report(op->reports, RPT_ERROR, "Keyframe pasting is not available for mask mode");
+    BKE_report(op->reports, RPT_WARNING, "Keyframe pasting is not available for mask mode");
     return OPERATOR_CANCELLED;
   }
   else {
@@ -636,7 +636,7 @@ static wmOperatorStatus actkeys_copy_exec(bContext *C, wmOperator *op)
                             &ac, get_grease_pencil_keyframe_clipboard());
 
     if (!kf_ok && !gpf_ok) {
-      BKE_report(op->reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
+      BKE_report(op->reports, RPT_INFO, "No keyframes copied to the internal clipboard");
       return OPERATOR_CANCELLED;
     }
   }
@@ -683,7 +683,7 @@ static wmOperatorStatus actkeys_paste_exec(bContext *C, wmOperator *op)
         ed::greasepencil::grease_pencil_paste_keyframes(
             &ac, offset_mode, merge_mode, get_grease_pencil_keyframe_clipboard()) == false)
     {
-      BKE_report(op->reports, RPT_ERROR, "No data in the internal clipboard to paste");
+      BKE_report(op->reports, RPT_INFO, "No data in the internal clipboard to paste");
       return OPERATOR_CANCELLED;
     }
   }
@@ -710,11 +710,11 @@ static wmOperatorStatus actkeys_paste_exec(bContext *C, wmOperator *op)
           break;
 
         case KEYFRAME_PASTE_NOWHERE_TO_PASTE:
-          BKE_report(op->reports, RPT_ERROR, "No selected F-Curves to paste into");
+          BKE_report(op->reports, RPT_WARNING, "No selected F-Curves to paste into");
           return OPERATOR_CANCELLED;
 
         case KEYFRAME_PASTE_NOTHING_TO_PASTE:
-          BKE_report(op->reports, RPT_ERROR, "No data in the internal clipboard to paste");
+          BKE_report(op->reports, RPT_INFO, "No data in the internal clipboard to paste");
           return OPERATOR_CANCELLED;
       }
     }

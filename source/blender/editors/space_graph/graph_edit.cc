@@ -138,14 +138,14 @@ static void insert_graph_keys(bAnimContext *ac, eGraphKeys_InsertKey_Types mode)
   if (num_items == 0) {
     if (mode & GRAPHKEYS_INSERTKEY_ACTIVE) {
       BKE_report(reports,
-                 RPT_ERROR,
+                 RPT_WARNING,
                  "No active F-Curve to add a keyframe to. Select an editable F-Curve first");
     }
     else if (mode & GRAPHKEYS_INSERTKEY_SEL) {
-      BKE_report(reports, RPT_ERROR, "No selected F-Curves to add keyframes to");
+      BKE_report(reports, RPT_WARNING, "No selected F-Curves to add keyframes to");
     }
     else {
-      BKE_report(reports, RPT_ERROR, "No channels to add keyframes to");
+      BKE_report(reports, RPT_WARNING, "No channels to add keyframes to");
     }
 
     return;
@@ -551,7 +551,7 @@ static wmOperatorStatus graphkeys_copy_exec(bContext *C, wmOperator *op)
 
   /* Copy keyframes. */
   if (!copy_graph_keys(&ac)) {
-    BKE_report(op->reports, RPT_WARNING, "No keyframes copied to the internal clipboard");
+    BKE_report(op->reports, RPT_INFO, "No keyframes copied to the internal clipboard");
     return OPERATOR_CANCELLED;
   }
 
@@ -599,11 +599,11 @@ static wmOperatorStatus graphkeys_paste_exec(bContext *C, wmOperator *op)
       break;
 
     case KEYFRAME_PASTE_NOWHERE_TO_PASTE:
-      BKE_report(op->reports, RPT_ERROR, "No selected F-Curves to paste into");
+      BKE_report(op->reports, RPT_WARNING, "No selected F-Curves to paste into");
       return OPERATOR_CANCELLED;
 
     case KEYFRAME_PASTE_NOTHING_TO_PASTE:
-      BKE_report(op->reports, RPT_ERROR, "No data in the internal clipboard to paste");
+      BKE_report(op->reports, RPT_INFO, "No data in the internal clipboard to paste");
       return OPERATOR_CANCELLED;
   }
 
@@ -2480,7 +2480,7 @@ static wmOperatorStatus graphkeys_selected_control_points_invoke(bContext *C,
                                                                  const wmEvent *event)
 {
   if (!graph_has_selected_control_points(C)) {
-    BKE_report(op->reports, RPT_ERROR, "No control points are selected");
+    BKE_report(op->reports, RPT_WARNING, "No control points are selected");
     return OPERATOR_CANCELLED;
   }
 
@@ -3134,7 +3134,7 @@ static wmOperatorStatus graph_fmodifier_copy_exec(bContext *C, wmOperator *op)
 
   /* Successful or not? */
   if (ok == 0) {
-    BKE_report(op->reports, RPT_ERROR, "No F-Modifiers available to be copied");
+    BKE_report(op->reports, RPT_INFO, "No F-Modifiers available to be copied");
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;
@@ -3227,7 +3227,7 @@ static wmOperatorStatus graph_fmodifier_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  BKE_report(op->reports, RPT_ERROR, "No F-Modifiers to paste");
+  BKE_report(op->reports, RPT_INFO, "No F-Modifiers to paste");
   return OPERATOR_CANCELLED;
 }
 
