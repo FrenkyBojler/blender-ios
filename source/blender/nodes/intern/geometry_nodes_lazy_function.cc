@@ -3646,6 +3646,10 @@ struct GeometryNodesLazyFunctionBuilder {
   void build_menu_switch_node(const bNode &bnode, BuildGraphParams &graph_params)
   {
     const NodeMenuSwitch &storage = *static_cast<NodeMenuSwitch *>(bnode.storage);
+
+    /* The menu-switch node uses separate lazy-functions for the main output and all the boolean
+     * outputs. This leads to better lazy evaluation in some cases because the boolean outputs more
+     * obviously only depend on the menu input (and not on all the value inputs). */
     std::unique_ptr<LazyFunction> value_fn = get_menu_switch_node_lazy_function(bnode,
                                                                                 *lf_graph_info_);
     std::unique_ptr<LazyFunction> bools_fn = get_menu_switch_node_boolean_outputs_lazy_function(
