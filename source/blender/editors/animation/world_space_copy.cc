@@ -1,8 +1,10 @@
 /* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+#include <iostream>
 
 #include "BLI_bounds.hh"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -81,7 +83,19 @@ static float4x4 get_evaluated_world_space(Depsgraph &dg, const AnimTransformable
   return float4x4::identity();
 }
 
-static void foo() {}
+static Vector<ID *> get_unique_ids(const Span<AnimTransformable> transformables)
+{
+  /* We need the ID pointers to build the depsgraph, but every ID in the Vector
+   * should be unique. */
+  Vector<ID *> ids;
+  Set<ID *> added_ids;
+  for (const AnimTransformable &transformable : transformables) {
+    if (added_ids.add(transformable.owner_id())) {
+      ids.append(transformable.owner_id());
+    }
+  }
+  return ids;
+}
 
 /**
  * \param range inclusive/exclusive
@@ -110,18 +124,11 @@ static void copy_world_space(Main &bmain,
   ar::Slot &slot = action.slot_add();
   ar::Channelbag &channelbag = strip_data.channelbag_for_slot_ensure(slot);
 
-  /* We need the ID pointers to build the depsgraph, but every ID in the Vector
-   * should be unique. */
-  Vector<ID *> ids;
-  Set<ID *> added_ids;
   /* We are storing the world space matrix in separate FCurves so the data can be stored in a
    * blend file. */
   Array<Array<FCurve *>> world_space_data(transformables.size());
   for (const int transformable_index : transformables.index_range()) {
     const AnimTransformable &transformable = transformables[transformable_index];
-    if (added_ids.add(transformable.owner_id())) {
-      ids.append(transformable.owner_id());
-    }
     Array<FCurve *> fcurves(12);
     for (const int i : fcurves.index_range()) {
       FCurve *fcurve = BKE_fcurve_create();
@@ -141,6 +148,7 @@ static void copy_world_space(Main &bmain,
   }
 
   Depsgraph *depsgraph = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
+  Vector<ID *> ids = get_unique_ids(transformables);
   DEG_graph_build_from_ids(depsgraph, ids);
 
   for (int frame = range.min; frame < range.max; frame++) {
@@ -161,7 +169,17 @@ static void copy_world_space(Main &bmain,
   copybuffer.write_as_copypaste_buffer(filepath, reports);
 }
 
-static void paste_world_space(ReportList &reports,
+struct GraphNode {
+  /* Not even sure it is possible to have multiple inputs and outputs on both ends. */
+  Vector<GraphNode *> inputs;
+  Vector<GraphNode *> outputs;
+
+  AnimTransformable *transformable;
+  bool applied = false;
+};
+
+static void paste_world_space(Depsgraph *depsgraph,
+                              ReportList &reports,
                               const MutableSpan<AnimTransformable> transformables)
 {
   namespace ar = blender::animrig;
@@ -195,6 +213,7 @@ static void paste_world_space(ReportList &reports,
   ar::Channelbag &channelbag = *action.strip_keyframe_data()[0]->channelbags()[0];
   Map<StringRefNull, Array<FCurve *>> world_space_data;
   for (FCurve *fcurve : channelbag.fcurves()) {
+    BLI_assert(fcurve != nullptr);
     Array<FCurve *> fcurves = world_space_data.lookup_or_add(fcurve->rna_path,
                                                              Array<FCurve *>(12));
     fcurves[fcurve->array_index] = fcurve;
@@ -207,9 +226,36 @@ static void paste_world_space(ReportList &reports,
     sorted_transformables[i] = &transformables[i];
   }
 
+  using DegComponentIdentifier = std::pair<ID *, StringRef>;
+  Array<GraphNode> nodes(transformables.size());
+
+  for (const int i : transformables.index_range()) {
+    AnimTransformable &t = transformables[0];
+    nodes[i].transformable = &t;
+    /* TODO handle objects which wouldn't have a component name. */
+    // component_map.add({t.owner_id(), t.name()}, &nodes[i]);
+  }
+
+  for (GraphNode &foo_link : nodes) {
+    AnimTransformable *transformable = foo_link.transformable;
+
+    DEG_foreach_dependent_component(
+        depsgraph,
+        transformable->owner_id(),
+        DEG_OB_COMP_BONE,
+        transformable->name(),
+        [&](ID *other_id, eDepsObjectComponentType component, StringRef component_name) {
+          if (!ELEM(component, DEG_OB_COMP_TRANSFORM, DEG_OB_COMP_BONE)) {
+            return true;
+          }
+          std::cout << "ID " << other_id->name << " - " << component_name << std::endl;
+          DegComponentIdentifier cid(other_id, component_name);
+        });
+  }
+
   for (AnimTransformable *transformable : sorted_transformables) {
     const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
-    if (!fcurves) {
+    if (!fcurves || fcurves->is_empty()) {
       continue;
     }
     /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
@@ -217,8 +263,8 @@ static void paste_world_space(ReportList &reports,
     if (first_fcurve->totvert == 0) {
       continue;
     }
-    const Bounds<int> range = {first_fcurve->fpt[0].vec[0],
-                               first_fcurve->fpt[first_fcurve->totvert - 1].vec[0]};
+    const Bounds<int> range = {int(first_fcurve->fpt[0].vec[0] + 0.5f),
+                               int(first_fcurve->fpt[first_fcurve->totvert - 1].vec[0] + 0.5f)};
     for (int frame = range.min; frame < range.max; frame++) {
       const int key_index = frame - range.min;
       const float4x4 matrix = fcurves_to_matrix(*fcurves, key_index);
@@ -298,7 +344,7 @@ void ANIM_OT_world_space_copy(wmOperatorType *ot)
 static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
 {
   Vector<AnimTransformable> transformables = selected_transformables_from_context(C);
-  paste_world_space(*op->reports, transformables);
+  paste_world_space(CTX_data_depsgraph_pointer(C), *op->reports, transformables);
   return OPERATOR_FINISHED;
 }
 

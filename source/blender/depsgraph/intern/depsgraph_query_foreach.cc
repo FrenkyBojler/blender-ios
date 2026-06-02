@@ -29,7 +29,7 @@ namespace {
 
 using TraversalQueue = std::deque<OperationNode *>;
 
-using DEGForeachOperation = void (*)(OperationNode *, void *);
+using DEGForeachOperation = bool (*)(OperationNode *, void *);
 
 bool deg_foreach_needs_visit(const OperationNode *op_node, const int flags)
 {
@@ -108,13 +108,55 @@ void deg_foreach_dependent_operation(const Depsgraph * /*graph*/,
   }
 }
 
+/* Starting at the given component, iterate all outgoing links and call `callback` on them. Each
+ * OperationNode is only visited once. */
+void deg_foreach_dependent_operation(const ComponentNode *start_component,
+                                     DEGForeachOperation callback,
+                                     void *user_data)
+{
+  if (start_component == nullptr) {
+    return;
+  }
+
+  TraversalQueue queue;
+  Set<OperationNode *> visited;
+  /* Since the OperationNodes are what holds the connections it is the level we need to traverse
+   * on. To hide that fact to the caller, we store which  */
+  for (OperationNode *op_node : start_component->operations) {
+    queue.push_back(op_node);
+    visited.add(op_node);
+  }
+
+  /* Traverse the graph. */
+  while (!queue.empty()) {
+    OperationNode *op_node = queue.front();
+    queue.pop_front();
+    if (!callback(op_node, user_data)) {
+      /* Don't visit outgoing links when the callback returns false. */
+      break;
+    }
+    for (const Relation *rel : op_node->outlinks) {
+      OperationNode *to_node = static_cast<OperationNode *>(rel->to);
+      if (!visited.contains(to_node)) {
+        queue.push_back(to_node);
+        visited.add_new(to_node);
+      }
+    }
+  }
+}
+
 struct ForeachIDComponentData {
   DEGForeachIDComponentCallback callback;
   IDNode *target_id_node;
   Set<ComponentNode *> visited;
 };
 
-void deg_foreach_dependent_component_callback(OperationNode *op_node, void *user_data_v)
+struct ForeachNamedComponentData {
+  DEGForeachNamedIDComponentCallback callback;
+  Set<ComponentNode *> visited;
+};
+
+bool deg_foreach_dependent_component_callback(OperationNode *op_node, void *user_data_v)
 {
   ForeachIDComponentData *user_data = reinterpret_cast<ForeachIDComponentData *>(user_data_v);
   ComponentNode *comp_node = op_node->owner;
@@ -123,6 +165,24 @@ void deg_foreach_dependent_component_callback(OperationNode *op_node, void *user
     user_data->callback(id_node->id_orig, nodeTypeToObjectComponent(comp_node->type));
     user_data->visited.add_new(comp_node);
   }
+  return true;
+}
+
+bool deg_foreach_named_dependent_component_callback(OperationNode *op_node, void *user_data_v)
+{
+  ForeachNamedComponentData *user_data = reinterpret_cast<ForeachNamedComponentData *>(
+      user_data_v);
+  ComponentNode *comp_node = op_node->owner;
+  if (comp_node->type == NodeType::VISIBILITY) {
+    return;
+  }
+  IDNode *id_node = comp_node->owner;
+  if (user_data->visited.contains(comp_node)) {
+    return true;
+  }
+  user_data->visited.add_new(comp_node);
+  return user_data->callback(
+      id_node->id_orig, nodeTypeToObjectComponent(comp_node->type), comp_node->name);
 }
 
 void deg_foreach_dependent_ID_component(const Depsgraph *graph,
@@ -142,13 +202,37 @@ void deg_foreach_dependent_ID_component(const Depsgraph *graph,
                                   &data);
 }
 
+void deg_foreach_dependent_component(const Depsgraph *graph,
+                                     const ID *start_id,
+                                     const eDepsObjectComponentType start_component_type,
+                                     const StringRef component_name,
+                                     DEGForeachNamedIDComponentCallback callback)
+{
+  ForeachNamedComponentData data;
+  data.callback = callback;
+  IDNode *id_node = graph->find_id_node(start_id);
+  if (!id_node) {
+    return;
+  }
+
+  const ComponentNode *start_component = id_node->find_component(
+      nodeTypeFromObjectComponent(start_component_type), component_name);
+
+  if (!start_component) {
+    return;
+  }
+
+  deg_foreach_dependent_operation(
+      start_component, deg_foreach_named_dependent_component_callback, &data);
+}
+
 struct ForeachIDData {
   DEGForeachIDCallback callback;
   IDNode *target_id_node;
   Set<IDNode *> visited;
 };
 
-void deg_foreach_dependent_ID_callback(OperationNode *op_node, void *user_data_v)
+bool deg_foreach_dependent_ID_callback(OperationNode *op_node, void *user_data_v)
 {
   ForeachIDData *user_data = reinterpret_cast<ForeachIDData *>(user_data_v);
   ComponentNode *comp_node = op_node->owner;
@@ -157,6 +241,7 @@ void deg_foreach_dependent_ID_callback(OperationNode *op_node, void *user_data_v
     user_data->callback(id_node->id_orig);
     user_data->visited.add_new(id_node);
   }
+  return true;
 }
 
 void deg_foreach_dependent_ID(const Depsgraph *graph, const ID *id, DEGForeachIDCallback callback)
@@ -266,6 +351,17 @@ void DEG_foreach_ancestor_ID(const Depsgraph *depsgraph,
                              DEGForeachIDCallback callback)
 {
   deg::deg_foreach_ancestor_ID(reinterpret_cast<const deg::Depsgraph *>(depsgraph), id, callback);
+}
+
+void DEG_foreach_dependent_component(const Depsgraph *depsgraph,
+                                     const ID *start_id,
+                                     const eDepsObjectComponentType start_component_type,
+                                     const StringRef start_component_name,
+                                     DEGForeachNamedIDComponentCallback callback)
+{
+  const deg::Depsgraph *deg = reinterpret_cast<const deg::Depsgraph *>(depsgraph);
+  deg::deg_foreach_dependent_component(
+      deg, start_id, start_component_type, start_component_name, callback);
 }
 
 void DEG_foreach_ID(const Depsgraph *depsgraph, DEGForeachIDCallback callback)
