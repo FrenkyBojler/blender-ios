@@ -13,7 +13,6 @@
 #include "rna_internal.hh"
 
 #include "BKE_blender_project.hh"
-#include "BKE_global.hh"
 #include "BLI_string_ref.hh"
 
 #include "BLT_translation.hh"

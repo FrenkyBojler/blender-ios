@@ -95,18 +95,6 @@ void with_blender_project_write_lock(FunctionRef<void()> lambda)
   lambda();
 }
 
-void blender_project_read_callback_impl(const Main *bmain,
-                                        FunctionRef<void(const bke::BlenderProject *)> lambda)
-{
-  with_blender_project_read_lock([&] { lambda(BKE_blender_project_get(bmain)); });
-}
-
-void blender_project_write_callback_impl(const Main *bmain,
-                                         FunctionRef<void(bke::BlenderProject *)> lambda)
-{
-  with_blender_project_write_lock([&] { lambda(BKE_blender_project_get(bmain)); });
-}
-
 }  // namespace bke
 
 bke::BlenderProject *BKE_blender_project_get(const Main *bmain)

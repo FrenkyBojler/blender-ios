@@ -32,7 +32,6 @@ PROJECT_DEFAULT_NAME = "Untitled Project"
 #
 # Types that define the schema for reading/writing project config TOML files.
 
-
 @dataclass
 class ProjectConfig:
     name: str
@@ -160,6 +159,8 @@ def save_project(project, report=None):
 def find_and_load_project_for_blend_path(context, blend_path, report=None):
     """
     Load the project the blend file is in, or clears the project if none is found.
+
+    `blend_path` should be an absolute path.
 
     Throws a ProjectLoadException if a project is found but is invalid
     (missing config file, config validation error, etc.).
