@@ -2335,6 +2335,10 @@ static NodesModifierData *add_essential_asset_modifier(bContext &C,
   Scene &scene = *CTX_data_scene(&C);
   Main &bmain = *CTX_data_main(&C);
 
+  if (ID_IS_LINKED(&object)) {
+    return nullptr;
+  }
+
   AssetWeakReference asset_weak_ref{};
   asset_weak_ref.asset_library_type = ASSET_LIBRARY_ESSENTIALS;
   asset_weak_ref.relative_asset_identifier = BLI_strdup(path.c_str());
@@ -2357,7 +2361,7 @@ static NodesModifierData *add_essential_asset_modifier(bContext &C,
   }
   bNodeTree *node_group = id_cast<bNodeTree *>(asset_id);
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(
-      modifier_add(reports, &bmain, &scene, &object, nullptr, eModifierType_Nodes));
+      modifier_add(reports, &bmain, &scene, &object, BKE_id_name(*asset_id), eModifierType_Nodes));
   nmd->node_group = node_group;
   id_us_plus(&node_group->id);
   nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR;
@@ -2395,11 +2399,25 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperato
   }
 
   if (U.experimental.use_geometry_nodes_hair_dynamics) {
-    add_essential_asset_modifier(
-        *C,
-        *surface_ob,
-        "nodes/geometry_nodes_essentials.blend/NodeTree/Capture Rest Geometry",
-        op->reports);
+    if (!add_essential_asset_modifier(
+            *C,
+            *surface_ob,
+            "nodes/geometry_nodes_essentials.blend/NodeTree/Capture Rest Geometry",
+            op->reports))
+    {
+      if (ID_IS_LINKED(surface_ob)) {
+        BKE_reportf(op->reports,
+                    RPT_ERROR,
+                    "Can't add \"Capture Rest Geometry\" modifier to linked \"%s\" object",
+                    BKE_id_name(surface_ob->id));
+      }
+      else {
+        BKE_reportf(op->reports,
+                    RPT_ERROR,
+                    "Can't add \"Capture Rest Geometry\" modifier to \"%s\" object",
+                    BKE_id_name(surface_ob->id));
+      }
+    }
     add_essential_asset_modifier(
         *C,
         *curves_ob,
