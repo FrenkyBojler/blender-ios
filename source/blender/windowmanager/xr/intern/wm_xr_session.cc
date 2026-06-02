@@ -111,9 +111,7 @@ void wm_xr_session_data_free(wmXrSessionState *state)
 {
   wm_xr_session_controller_data_free(state);
   BKE_id_free(nullptr, id_cast<ID *>(state->viewfinder.render_cam_data_id));
-  if (state->viewfinder.backside_logo_texture != nullptr) {
-    GPU_texture_free(state->viewfinder.backside_logo_texture);
-  }
+  GPU_TEXTURE_FREE_SAFE(state->viewfinder.backside_logo_texture);
 }
 
 static void wm_xr_session_exit_cb(void *customdata)
