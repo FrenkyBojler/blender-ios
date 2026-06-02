@@ -108,43 +108,36 @@ void aligned_free(void *ptr)
 
 void MEM_delete_void(void *vmemh)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   mem_freeN_ex(vmemh, DestructorType::Trivial);
 }
 
 void *MEM_new_zeroed(size_t len, const char *str)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   return mem_callocN(len, str);
 }
 
 void *MEM_new_array_zeroed(size_t len, size_t size, const char *str)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   return mem_calloc_arrayN(len, size, str);
 }
 
 void *MEM_new_uninitialized(size_t len, const char *str)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   return mem_mallocN(len, str);
 }
 
 void *MEM_new_array_uninitialized(size_t len, size_t size, const char *str)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   return mem_malloc_arrayN(len, size, str);
 }
 
 void *MEM_new_uninitialized_aligned(size_t len, size_t alignment, const char *str)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   return mem_mallocN_aligned_ex(len, alignment, str, DestructorType::Trivial);
 }
 
 void *MEM_dupalloc_void(const void *vmemh)
 {
-  PRF_scope(blender::ProfileCategory::Core);
   return mem_dupallocN(vmemh);
 }
 

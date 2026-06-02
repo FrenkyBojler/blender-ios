@@ -184,6 +184,7 @@ void MEM_lockfree_freeN(void *vmemh, DestructorType destructor_type)
 
 void *MEM_lockfree_dupallocN(const void *vmemh)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   void *newp = nullptr;
   if (vmemh) {
     const MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
@@ -210,6 +211,7 @@ void *MEM_lockfree_dupallocN(const void *vmemh)
 
 void *MEM_lockfree_reallocN_id(void *vmemh, size_t len, const char *str)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   void *newp = nullptr;
 
   if (vmemh) {
@@ -254,6 +256,7 @@ void *MEM_lockfree_reallocN_id(void *vmemh, size_t len, const char *str)
 
 void *MEM_lockfree_recallocN_id(void *vmemh, size_t len, const char *str)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   void *newp = nullptr;
 
   if (vmemh) {
@@ -303,6 +306,7 @@ void *MEM_lockfree_recallocN_id(void *vmemh, size_t len, const char *str)
 
 void *MEM_lockfree_callocN(size_t len, const char *str)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   MemHead *memh;
 
   len = SIZET_ALIGN_4(len);
@@ -325,6 +329,7 @@ void *MEM_lockfree_callocN(size_t len, const char *str)
 
 void *MEM_lockfree_calloc_arrayN(size_t len, size_t size, const char *str)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   size_t total_size;
   if (UNLIKELY(!MEM_size_safe_multiply(len, size, &total_size))) {
     print_error(
@@ -343,6 +348,7 @@ void *MEM_lockfree_calloc_arrayN(size_t len, size_t size, const char *str)
 
 void *MEM_lockfree_mallocN(size_t len, const char *str)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   MemHead *memh;
 
 #ifdef WITH_MEM_VALGRIND
@@ -383,6 +389,7 @@ void *MEM_lockfree_mallocN(size_t len, const char *str)
 
 void *MEM_lockfree_malloc_arrayN(size_t len, size_t size, const char *str)
 {
+  PRF_scope(blender::ProfileCategory::Core);
   size_t total_size;
   if (UNLIKELY(!MEM_size_safe_multiply(len, size, &total_size))) {
     print_error(
