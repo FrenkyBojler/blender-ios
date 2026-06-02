@@ -460,7 +460,9 @@ class LazyFunctionMenuSwitchBooleanOutputs : public LazyFunction {
       /* Is set to default value already. */
     }
     for (const int i : IndexRange(enum_def_.items_num)) {
-      params.output_set(i);
+      if (output_values[i]) {
+        params.output_set(i);
+      }
     }
   }
 
