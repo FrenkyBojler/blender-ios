@@ -111,7 +111,7 @@ struct AssetLibraryListItem : public ui::AbstractTreeViewItem {
       ui::Layout &sub = row.row(true);
       sub.alignment_set(ui::LayoutAlign::Left);
       sub.active_set(false);
-      sub.label(IFACE_("Builtin:"), ICON_NONE);
+      sub.label(IFACE_("Built-in:"), ICON_NONE);
       row.label(label_, ICON_NONE);
     }
 
