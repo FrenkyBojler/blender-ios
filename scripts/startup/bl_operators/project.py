@@ -209,7 +209,7 @@ def find_project_root_from_blend_file_path(blend_path):
     return None
 
 
-def read_project_toml_config(root_path, report=None) -> ProjectConfig:
+def read_project_toml_config(root_path, report=None):
     """
     Read the project config for the given project root path.
 
