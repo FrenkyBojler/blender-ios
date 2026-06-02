@@ -1100,6 +1100,75 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
       }
     }
 
+    /* At chain endpoints, we need to replace the edge connecting the endpoint and neighbor to the adjacent face. */
+    for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
+      BMVert *v_orig = nd.v;
+      BMVert *v_sep = orig_to_sep.lookup_default(v_orig, nullptr);
+      if (!v_sep) {
+        continue;
+      }
+
+      BMFace *f;
+      BMIter f_iter;
+      Vector<BMFace *> faces_to_fix;
+      BM_ITER_ELEM (f, &f_iter, v_orig, BM_FACES_OF_VERT) {
+        for (BMVert *nb : nd.neighbors[keep_side]) {
+          if (BM_vert_in_face(nb, f)) {
+            faces_to_fix.append(f);
+            break;
+          }
+        }
+      }
+
+      for (BMFace *face : faces_to_fix) {
+        /* Find which keep-side neighbor is adjacent to v_orig in this face's loop. */
+        BMVert *nb_keep = nullptr;
+        BMLoop *l;
+        BMIter l_iter;
+        BM_ITER_ELEM (l, &l_iter, face, BM_LOOPS_OF_FACE) {
+          if (l->v != v_orig) {
+            continue;
+          }
+          for (BMVert *nb : nd.neighbors[keep_side]) {
+            if ((l->next->v == nb || l->prev->v == nb) && BM_edge_exists(nb, v_sep)) {
+              nb_keep = nb;
+              break;
+            }
+          }
+          break;
+        }
+        if (!nb_keep) {
+          continue;
+        }
+
+        /* Rebuild face with v_sep inserted between nb_keep and v_orig. */
+        Vector<BMVert *> new_verts;
+        new_verts.reserve(face->len + 1);
+        BMLoop *start = BM_FACE_FIRST_LOOP(face);
+        for (int i = 0; i < face->len; i++, start = start->next) {
+          new_verts.append(start->v);
+          /* Insert v_sep on whichever side of v_orig nb_keep is adjacent. */
+          if ((start->v == nb_keep && start->next->v == v_orig) ||
+              (start->v == v_orig && start->next->v == nb_keep))
+          {
+            new_verts.append(v_sep);
+          }
+        }
+
+        if (int(new_verts.size()) == face->len + 1) {
+          BMFace *new_face = BM_face_create_verts(
+              bm, new_verts.data(), new_verts.size(), face, BM_CREATE_NOP, true);
+          if (new_face) {
+            BM_face_kill(bm, face);
+            BMEdge *stale_edge = BM_edge_exists(v_orig, nb_keep);
+            if (stale_edge && BM_edge_is_wire(stale_edge)) {
+              BM_edge_kill(bm, stale_edge);
+            }
+          }
+        }
+      }
+    }
+
     BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
     EDBM_selectmode_flush(em);
 
