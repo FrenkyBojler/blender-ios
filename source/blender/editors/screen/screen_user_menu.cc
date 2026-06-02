@@ -215,6 +215,11 @@ static bool all_loading_finished()
   return ed::asset::list::is_loaded(&all_library_ref);
 }
 
+/**
+ * When adding operators that reference an asset (see
+ * `ed::asset::operator_asset_reference_props_is_set`) make sure the asset libraries are loaded and
+ * the context "asset" is set.
+ */
 static void handle_operator_asset_reference_props(const bContext &C,
                                                   bUserMenuItem_Op &umi_op,
                                                   ui::Layout &row,
@@ -258,26 +263,6 @@ static void handle_operator_asset_reference_props(const bContext &C,
   WM_operator_properties_free(&opptr);
 }
 
-static void draw_operator_menu_item(const bContext &C,
-                                    bUserMenuItem_Op &umi_op,
-                                    ui::Layout &layout,
-                                    wmOperatorType *ot,
-                                    std::optional<StringRefNull> ui_name)
-{
-  ui::Layout &row = layout.row(true);
-  int icon = ICON_NONE;
-  bool add_operator = true;
-
-  handle_operator_asset_reference_props(C, umi_op, row, ot, icon, add_operator);
-
-  if (add_operator) {
-    PointerRNA ptr = row.op(ot, ui_name, icon, wm::OpCallContext(umi_op.opcontext), UI_ITEM_NONE);
-    if (umi_op.prop) {
-      IDP_CopyPropertyContent(ptr.data_as<IDProperty>(), umi_op.prop);
-    }
-  }
-}
-
 static void screen_user_menu_draw(const bContext *C, Menu *menu)
 {
   /* Enable when we have the ability to edit menus. */
@@ -303,7 +288,17 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
             ui_name = CTX_IFACE_(ot->translation_context, ui_name->c_str());
           }
           if (umi_op->op_prop_enum[0] == '\0') {
-            draw_operator_menu_item(*C, *umi_op, *menu->layout, ot, ui_name);
+            ui::Layout &row = menu->layout->row(true);
+            int icon = ICON_NONE;
+            bool add_operator = true;
+            handle_operator_asset_reference_props(*C, *umi_op, row, ot, icon, add_operator);
+            if (add_operator) {
+              PointerRNA ptr = row.op(
+                  ot, ui_name, icon, wm::OpCallContext(umi_op->opcontext), UI_ITEM_NONE);
+              if (umi_op->prop) {
+                IDP_CopyPropertyContent(ptr.data_as<IDProperty>(), umi_op->prop);
+              }
+            }
           }
           else {
             /* umi_op->prop could be used to set other properties but it's currently unsupported.
