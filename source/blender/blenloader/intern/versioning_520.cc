@@ -12,6 +12,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -22,6 +23,7 @@
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_sys_types.h"
 
@@ -39,6 +41,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_report.hh"
 
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
@@ -217,7 +220,7 @@ static void sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree
   node_tree.ensure_interface_cache();
   Set<StringRef> all_identifiers;
   for (bNodeTreeInterfaceItem *item : node_tree.interface_items()) {
-    if (item->item_type == NODE_INTERFACE_PANEL) {
+    if (item->item_type == NodeTreeInterfaceItemType::Panel) {
       continue;
     }
     auto &socket = *bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
@@ -290,6 +293,43 @@ static void version_text_strip_space_line(Main &bmain)
   }
 }
 
+static void version_compositor_effect_initialized(Main &bmain)
+{
+  /* A file with compositor effects that was saved, opened in
+   * previous version and saved there, would have lost the
+   * compositor effect data since ealier versions would not
+   * write it. Ensure the effect data is not null. */
+  for (Scene &scene : bmain.scenes) {
+    if (scene.ed) {
+      seq::foreach_strip(&scene.ed->seqbase, [&](Strip *strip) {
+        if (strip->type == STRIP_TYPE_COMPOSITOR) {
+          seq::effect_ensure_initialized(strip);
+        }
+        return true;
+      });
+    }
+  }
+}
+
+static void version_text_strip_abs_space_line(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+        TextVars *data = static_cast<TextVars *>(strip->effectdata);
+        data->abs_space_line = 60.0f;
+        data->flag &= ~SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING;
+      }
+      return true;
+    });
+  }
+}
+
 static void fix_single_point_curves_custom_knots(Main *bmain)
 {
   /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
@@ -355,7 +395,7 @@ static void enable_compositor_nodes_is_strip_modifier(Main &bmain)
     bool has_image_input = false;
     bool has_image_output = false;
     group.tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-      if (item.item_type != NODE_INTERFACE_SOCKET) {
+      if (item.item_type != NodeTreeInterfaceItemType::Socket) {
         /* Continue. */
         return true;
       }
@@ -380,6 +420,23 @@ static void enable_compositor_nodes_is_strip_modifier(Main &bmain)
       }
       group.compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_STRIP_MODIFIER;
       bke::node_update_asset_metadata(group);
+    }
+  }
+}
+
+static void versioning_replace_legacy_compositor_switch_node(bNodeTree *node_tree)
+{
+  version_node_input_socket_name(node_tree, CMP_NODE_SWITCH, "On", "True");
+  version_node_input_socket_name(node_tree, CMP_NODE_SWITCH, "Off", "False");
+  version_node_output_socket_name(node_tree, CMP_NODE_SWITCH, "Image", "Output");
+
+  for (bNode &node : node_tree->nodes) {
+    if (node.type_legacy == CMP_NODE_SWITCH) {
+      node.type_legacy = GEO_NODE_SWITCH;
+      NodeSwitch *storage = MEM_new<NodeSwitch>(__func__);
+      storage->input_type = SOCK_RGBA;
+      STRNCPY_UTF8(node.idname, "GeometryNodeSwitch");
+      node.storage = storage;
     }
   }
 }
@@ -409,6 +466,11 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 27)) {
     version_scene_strip_view_layer_name(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 36)) {
+    /* Shift animation data to accommodate the new thin wall input. */
+    version_node_socket_index_animdata(bmain, NTREE_SHADER, SH_NODE_BSDF_PRINCIPLED, 5, 1, 31);
   }
 
   /**
@@ -665,6 +727,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 28)) {
     version_text_strip_space_line(*bmain);
+    version_compositor_effect_initialized(*bmain);
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {
@@ -698,6 +761,50 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 34)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        versioning_replace_legacy_compositor_switch_node(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 35)) {
+    for (Object &object : bmain->objects) {
+      object.parent_bone_head_tail_factor = 1.0;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 37)) {
+    version_text_strip_abs_space_line(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 38)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.gpencil_settings != nullptr) {
+        brush.gpencil_settings->fill_gap_factor = 0.4f;
+        brush.gpencil_settings->flag |= GP_BRUSH_FILL_INTERNAL_GAPS;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 39)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype == SPACE_SEQ) {
+            SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
+            sseq->preview_overlay.flag |= SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES;
+            float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
+            copy_v4_v4(sseq->preview_overlay.composition_guide_color, default_col);
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
