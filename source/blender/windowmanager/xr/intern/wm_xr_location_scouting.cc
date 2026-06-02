@@ -461,7 +461,7 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
  *       UI in XR, and long-term should be replaced with a proper XR UI Toolkit.
  * \{ */
 
-static ui::Block *wm_xr_viewfinder_ui_block(const bContext *C, ui::EmbossType emboss)
+static ui::Block *wm_xr_viewfinder_ui_block_begin(const bContext *C, ui::EmbossType emboss)
 {
   ui::Block *block = ui::block_begin(C, nullptr, __func__, emboss);
 
@@ -528,7 +528,7 @@ static ui::Layout &wm_xr_viewfinder_ui_layout(ui::Block *block)
 static ui::Block *wm_xr_viewfinder_ui_mode_tabs_block(const bContext *C,
                                                       const wmXrSessionState *state)
 {
-  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block_begin(C, ui::EmbossType::Emboss);
 
   const float tab_width = UI_UNIT_X * 10.5f;
 
@@ -571,7 +571,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_left_label_block(const bContext *
                                                                 const wmXrSessionState *state)
 {
 
-  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block_begin(C, ui::EmbossType::Emboss);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
 
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
@@ -593,7 +593,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
                                                                  const wmXrSessionState *state)
 {
 
-  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block_begin(C, ui::EmbossType::Emboss);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
 
   Scene *scene = CTX_data_scene(C);
@@ -645,7 +645,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
 static ui::Block *wm_xr_viewfinder_ui_action_label_block(const bContext *C,
                                                          const wmXrSessionState *state)
 {
-  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::None);
+  ui::Block *block = wm_xr_viewfinder_ui_block_begin(C, ui::EmbossType::None);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
 
   const StringRefNull active_action_prop = wm_xr_viewfinder_get_active_mode_str(state);
@@ -667,7 +667,7 @@ static ui::Block *wm_xr_viewfinder_ui_action_label_block(const bContext *C,
 static ui::Block *wm_xr_viewfinder_ui_action_enum_block(const bContext *C,
                                                         const wmXrSessionState *state)
 {
-  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block_begin(C, ui::EmbossType::Emboss);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
   ui::Layout &row = layout.row(true);
 
@@ -711,7 +711,7 @@ static ui::Block *wm_xr_viewfinder_ui_missing_captures_label_block(const bContex
 {
   const bool empty_captures = wm_xr_location_scouting_is_captures_empty(CTX_data_scene(C));
 
-  ui::Block *block = wm_xr_viewfinder_ui_block(C, ui::EmbossType::Emboss);
+  ui::Block *block = wm_xr_viewfinder_ui_block_begin(C, ui::EmbossType::Emboss);
   ui::Layout &layout = wm_xr_viewfinder_ui_layout(block);
 
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK && empty_captures) {
