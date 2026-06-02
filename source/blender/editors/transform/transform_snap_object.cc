@@ -922,8 +922,7 @@ eSnapMode snap_object_center(SnapObjectContext *sctx,
 {
 
   eSnapMode retval = SCE_SNAP_TO_NONE;
-  const bool is_entity = ELEM(ob_eval->type, OB_EMPTY, OB_LAMP, OB_CAMERA);
-  if (((snap_to_flag & SCE_SNAP_TO_POINT) != 0) & is_entity) {
+  if ((snap_to_flag & SCE_SNAP_TO_POINT) && ELEM(ob_eval->type, OB_EMPTY, OB_LAMP, OB_CAMERA)) {
     retval = SCE_SNAP_TO_POINT;
   }
   else if (snap_to_flag & SCE_SNAP_TO_ORIGIN) {
@@ -1004,7 +1003,7 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
     case OB_CAMERA:
       retval = snapCamera(sctx, ob_eval, obmat);
       break;
-    /* TODO: Add remaining specific handling of objects (lattice, grease pencil, ...) */
+    /* TODO: Add remaining specific handling of objects (grease pencil, metaball, ...) */
     default:
       break;
   }
