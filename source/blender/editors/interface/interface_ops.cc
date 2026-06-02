@@ -3000,6 +3000,14 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 }
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UI View Item Navigate Operator
+ *
+ * Operator for navigating in view with arrow keys.
+ *
+ * \{ */
 
 enum class Direction {
   UP,
@@ -3163,6 +3171,31 @@ static void UI_OT_view_item_page_scroll(wmOperatorType *ot)
                "Scroll Direction",
                "Scroll to next/previous page in the list.");
 }
+static wmOperatorStatus ui_view_item_focus_invoke(bContext *C,
+                                                  wmOperator * /*op*/,
+                                                  const wmEvent * /*event*/)
+{
+  ARegion *region = CTX_wm_region(C);
+  AbstractView *view = get_view_focused(C);
+
+  view->scroll_active_into_view(C, true);
+  ED_region_tag_redraw(region);
+
+  return OPERATOR_FINISHED;
+}
+
+static void UI_OT_view_item_focus(wmOperatorType *ot)
+{
+  ot->name = "Focus Active Item";
+  ot->idname = "UI_OT_view_item_focus";
+  ot->description = "Bring active item into focus by scrolling the view";
+
+  ot->invoke = ui_view_item_focus_invoke;
+  ot->poll = view_focused_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -3268,6 +3301,7 @@ void operatortypes_ui()
   WM_operatortype_append(UI_OT_view_item_select);
   WM_operatortype_append(UI_OT_view_item_delete);
   WM_operatortype_append(UI_OT_view_item_navigate);
+  WM_operatortype_append(UI_OT_view_item_focus);
   WM_operatortype_append(UI_OT_view_item_page_scroll);
 
   WM_operatortype_append(UI_OT_override_add_button);
