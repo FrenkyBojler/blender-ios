@@ -224,10 +224,10 @@ void drawSnapping(TransInfo *t)
     col[3] = 128;
   }
   else {
-    ui::theme::get_color_type_3ubv(TH_TRANSFORM, SPACE_VIEW3D, col);
+    ui::theme::get_color_3ubv(TH_TRANSFORM, col);
     col[3] = 128;
 
-    ui::theme::get_color_type_3ubv(TH_SELECT, SPACE_VIEW3D, selectedCol);
+    ui::theme::get_color_3ubv(TH_SELECT, selectedCol);
     selectedCol[3] = 128;
 
     ui::theme::get_color_3ubv(TH_ACTIVE, activeCol);
@@ -306,7 +306,7 @@ void drawSnapping(TransInfo *t)
     float radius = 2.5f * ui::theme::get_value_f(TH_VERTEX_SIZE) * U.pixelsize;
     GPU_blend(GPU_BLEND_ALPHA);
 
-    if (!BLI_listbase_is_empty(&t->tsnap.points)) {
+    if (!t->tsnap.points.is_empty()) {
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       for (TransSnapPoint &p : t->tsnap.points) {
         if (&p == t->tsnap.selectedPoint) {
@@ -1210,6 +1210,10 @@ eRedrawFlag updateSelectedSnapPoint(TransInfo *t)
         ui::view2d_view_to_region_fl(&t->region->v2d, snap_point.x, snap_point.y, &x, &y);
         screen_loc[0] = x;
         screen_loc[1] = y;
+      }
+      else {
+        BLI_assert_unreachable();
+        continue;
       }
 
       dist_sq = len_squared_v2v2(t->mval, screen_loc);
