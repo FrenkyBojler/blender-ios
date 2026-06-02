@@ -891,9 +891,9 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
     state->viewfinder.render_cam_data_id = BKE_id_new_nomain<Camera>("ViewfinderCamera");
   }
 
-  /* Create a Blender logo texture to draw on the backside of the viewfinder. */
+  /* Create a Camera logo texture to draw on the backside of the viewfinder. */
   if (state->viewfinder.backside_logo_texture == nullptr) {
-    ImBuf *ibuf = ui::svg_icon_bitmap(ICON_BLENDER, 256.0f, false);
+    ImBuf *ibuf = ui::svg_icon_bitmap(ICON_RESTRICT_RENDER_OFF, 256.0f, false);
     if (ibuf) {
       state->viewfinder.backside_logo_texture = IMB_create_gpu_texture(
           "viewfinder_backside_logo", ibuf, false, true, true);
