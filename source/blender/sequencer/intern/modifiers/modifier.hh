@@ -252,7 +252,7 @@ struct MaskSamplerTransformedByte {
     float2 uv = this->cur_uv_row + this->cur_x * this->add_x - 0.5f;
     uchar4 m = math::interpolate_bilinear_border_byte(
         this->mask->byte_data(), this->mask->x, this->mask->y, uv.x, uv.y);
-    float r = float(std::max({m.x, m.y, m.z})) * (1.0f / 255.0f);
+    float r = float(std::min({m.x, m.y, m.z})) * (1.0f / 255.0f);
     this->cur_x++;
     return r;
   }
