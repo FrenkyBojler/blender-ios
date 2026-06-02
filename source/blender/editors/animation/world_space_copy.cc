@@ -64,7 +64,8 @@ static float4x4 fcurves_to_matrix(const Span<const FCurve *> fcurves, const int 
 }
 
 /* TODO move this to the AnimTransformable class. */
-static float4x4 get_evaluated_world_space(Depsgraph &dg, const AnimTransformable &transformable)
+static float4x4 get_evaluated_world_space(const Depsgraph &dg,
+                                          const AnimTransformable &transformable)
 {
   ID *eval_id = DEG_get_evaluated_id(&dg, transformable.owner_id());
   BLI_assert(eval_id);
@@ -78,6 +79,28 @@ static float4x4 get_evaluated_world_space(Depsgraph &dg, const AnimTransformable
         break;
       }
       return ob_eval->object_to_world() * float4x4(pose_bone_eval->pose_mat);
+    }
+  }
+  return float4x4::identity();
+}
+
+static float4x4 world_to_local(const Depsgraph &dg,
+                               const AnimTransformable &transformable,
+                               const float4x4 &world_matrix)
+{
+  ID *eval_id = DEG_get_evaluated_id(&dg, transformable.owner_id());
+  BLI_assert(eval_id);
+  switch (transformable.type()) {
+    case AnimTransformable::Type::POSE_BONE: {
+      Object *ob_eval = id_cast<Object *>(eval_id);
+      bPoseChannel *pose_bone_eval = BKE_pose_channel_find_name(ob_eval->pose,
+                                                                transformable.name().data());
+      if (!pose_bone_eval) {
+        BLI_assert_unreachable();
+        break;
+      }
+      float4x4 pose_mat_inv = math::invert(float4x4(pose_bone_eval->pose_mat));
+      return ob_eval->world_to_object() * pose_mat_inv * world_matrix;
     }
   }
   return float4x4::identity();
@@ -312,8 +335,8 @@ static void paste_world_space(Main &bmain,
   Map<StringRefNull, Array<FCurve *>> world_space_data;
   for (FCurve *fcurve : channelbag.fcurves()) {
     BLI_assert(fcurve != nullptr);
-    Array<FCurve *> fcurves = world_space_data.lookup_or_add(fcurve->rna_path,
-                                                             Array<FCurve *>(12));
+    Array<FCurve *> &fcurves = world_space_data.lookup_or_add(fcurve->rna_path,
+                                                              Array<FCurve *>(12));
     fcurves[fcurve->array_index] = fcurve;
   }
 
@@ -341,18 +364,29 @@ static void paste_world_space(Main &bmain,
     BKE_report(&reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
   }
 
+  /* We need to write local transform values to an intermediate buffer because inserting keys while
+   * iterating would change the interpolation to the next frame and thus the result. */
   const Bounds<int> range = {int(dna_action->frame_start), int(dna_action->frame_end)};
-
+  Array<Array<float4x4>> local_matrix_buffer(sorted_transformables.size());
+  for (const int i : sorted_transformables.index_range()) {
+    local_matrix_buffer[i].reinitialize(range.size());
+  }
   for (int frame = range.min; frame < range.max; frame++) {
     DEG_evaluate_on_framechange(depsgraph, frame);
     /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
     const int key_index = frame - range.min;
-    for (AnimTransformable *transformable : sorted_transformables) {
+    for (const int i : sorted_transformables.index_range()) {
+      AnimTransformable *transformable = sorted_transformables[i];
       const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
       if (!fcurves) {
         continue;
       }
-      const float4x4 matrix = fcurves_to_matrix(*fcurves, key_index);
+      const float4x4 world_matrix = fcurves_to_matrix(*fcurves, key_index);
+      const float4x4 local_matrix = world_to_local(*depsgraph, *transformable, world_matrix);
+      /* It is still important to apply the matrix here because otherwise the world to local
+       * calculations of dependent transformables won't be correct. */
+      transformable->set_local_matrix(local_matrix);
+      local_matrix_buffer[i][key_index] = std::move(local_matrix);
     }
   }
 
@@ -366,7 +400,7 @@ static void paste_world_space(Main &bmain,
 /** \name Operators
  * \{ */
 
-/* TODO: copied from another PR. Refactor once that lands. */
+/* TODO: copied from rotation conversion PR. Refactor once that lands. */
 static Vector<AnimTransformable> selected_transformables_from_context(bContext *C)
 {
   Vector<AnimTransformable> transformables;

@@ -7,6 +7,7 @@
  */
 
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 
@@ -513,21 +514,19 @@ void AnimTransformable::blend_rotation_to(const Rotation &target,
   }
 }
 
-float4x4 AnimTransformable::get_world_matrix() const
+void AnimTransformable::set_local_matrix(const float4x4 &matrix)
 {
-  switch (type_) {
-    case Type::POSE_BONE: {
-      Object *object = id_cast<Object *>(owner_id_);
-      const bPoseChannel *pose_bone = reinterpret_cast<bPoseChannel *>(data_);
-      float4x4 mat = object->object_to_world() * float4x4(pose_bone->pose_mat);
-      return mat;
-    }
-  }
+  const float3 location = matrix.location();
+  const float3 scale = math::to_scale(matrix);
+  Rotation rotation;
+  rotation.mode = ROT_MODE_QUAT;
+  const float4 quat = float4(math::to_quaternion(matrix));
+  rotation.values.reinitialize(4);
+  copy_qt_qt(rotation.values.data(), quat);
 
-  BLI_assert_unreachable();
-  return {};
+  set_property(PropertyType::LOCATION, Span<float>(location, 3), AXIS_MUTABLE_ALL);
+  set_rotation(rotation);
+  set_property(PropertyType::SCALE, Span<float>(scale, 3), AXIS_MUTABLE_ALL);
 }
-
-void apply_local_matrix() {}
 
 }  // namespace blender::ed

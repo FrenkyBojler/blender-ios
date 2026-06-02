@@ -187,13 +187,14 @@ class AnimTransformable {
                          float factor,
                          AxisMutable axis_flag);
 
-  /* matrices iare returned as 4x4. In case 2D data support is added, we'd need to make that more
+  /* matrices are returned as 4x4. In case 2D data support is added, we'd need to make that more
    * dynamic. */
 
   /**
-   * \note assumes that the depsgraph has been evaluated.
+   * Sets the transform values to the data in the matrix.
+   * Shear may not be preserved.
    */
-  float4x4 get_world_matrix() const;
+  void set_local_matrix(const float4x4 &matrix);
 };
 
 /**
