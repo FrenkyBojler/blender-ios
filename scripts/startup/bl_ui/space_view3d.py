@@ -2851,7 +2851,6 @@ class VIEW3D_MT_object(Menu):
 
         layout.menu("VIEW3D_MT_object_animation")
         layout.menu("VIEW3D_MT_object_rigid_body")
-        layout.menu("VIEW3D_MT_pose_slide")
 
         layout.separator()
 
@@ -2880,6 +2879,10 @@ class VIEW3D_MT_object_animation(Menu):
 
     def draw(self, _context):
         layout = self.layout
+
+        layout.menu("VIEW3D_MT_pose_slide")
+
+        layout.separator()
 
         layout.operator("anim.keyframe_insert", text="Insert Keyframe")
         layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set...").always_prompt = True
@@ -4226,10 +4229,6 @@ class VIEW3D_MT_pose(Menu):
         layout.separator()
 
         layout.menu("VIEW3D_MT_object_animation")
-
-        layout.separator()
-
-        layout.menu("VIEW3D_MT_pose_slide")
         layout.menu("VIEW3D_MT_pose_propagate")
 
         layout.separator()
