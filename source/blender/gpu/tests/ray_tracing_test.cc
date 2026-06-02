@@ -51,8 +51,7 @@ static IndexBufPtr build_indices()
       0, 1, 2, 2, 1, 3, 4, 6, 5, 5, 6, 7, 0, 2, 4, 4, 2, 6,
       1, 5, 3, 3, 5, 7, 2, 3, 6, 6, 3, 7, 0, 4, 1, 1, 4, 5,
   });
-  uint32_t *indices = static_cast<uint32_t *>(
-      MEM_callocN(indices_src.size() * sizeof(uint32_t), __func__));
+  uint32_t *indices = MEM_new_array<uint32_t>(indices_src.size(), __func__);
   memcpy(indices, indices_src.data(), indices_src.size() * sizeof(uint32_t));
   index_buf->init(indices_src.size(), indices, 0, 7, GPU_PRIM_TRIS, false);
   GPU_indexbuf_use(index_buf.get());
