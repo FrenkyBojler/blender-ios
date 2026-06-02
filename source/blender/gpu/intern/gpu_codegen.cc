@@ -76,7 +76,7 @@ static std::ostream &operator<<(std::ostream &stream, const GPUOutput *output)
 /* Print data constructor (i.e: vec2(1.0f, 1.0f)). */
 static std::ostream &operator<<(std::ostream &stream, const Span<float> &span)
 {
-  stream << gpu_type_from_element_count(span.size()) << "(";
+  stream << gpu_float_type_from_element_count(span.size()) << "(";
   /* Use uint representation to allow exact same bit pattern even if NaN. This is
    * because we can pass UINTs as floats for constants. */
   const Span<uint32_t> uint_span = span.cast<uint32_t>();
