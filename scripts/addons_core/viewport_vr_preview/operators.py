@@ -278,7 +278,7 @@ class VIEW3D_OT_vr_landmark_activate(Operator):
 # Location Scouting Viewfinder
 def viewfinder_camera_gizmo_view3d_redraw_workaround():
     # Workaround: After capturing or deleting a shot from the VR viewfinder, tag all View3D areas in the current context
-    #             window (parent XR window) for redraw to display the newly created/deleted capture.
+    #             window (parent XR window) for redraw to display the newly created/deleted captures.
     #             The alternative to this is to give the capture camera Gizmo (VIEW3D_GGT_vr_captures) the VR_REDRAWS
     #             option, however this makes it constantly redraw, causing performances to drop.
 
@@ -1077,7 +1077,7 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
         aspect_x = render_x / render_y if render_x < render_y else 1
         aspect_y = render_y / render_x if render_x > render_y else 1
 
-        # Base aspect to match native Blender Camera Gizmo (using Auto Sensor Fit)
+        # Base aspect to match native Blender Camera Gizmo (using Auto Sensor Fit).
         base_aspect = 1 / 4
         return aspect_x * base_aspect, aspect_y * base_aspect
 
@@ -1085,7 +1085,7 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
     def get_selection_color(context, is_active_capture) -> tuple[float, float, float]:
         selection_color = Color((0.25, 0.81, 1.0))
 
-        # Shift the hue of the base theme selection color, decrease its saturation/value further for inactive captures
+        # Shift the hue of the base theme selection color, decrease its saturation/value further for inactive captures.
         if not is_active_capture:
             selection_color.s += 0.2
             selection_color.v -= 0.5
@@ -1118,7 +1118,7 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
         for idx, capture in enumerate(scene.vr_captures):
             gizmo = self.gizmos.new(VIEW3D_GT_vr_camera_cone.bl_idname)
             gizmo.aspect = self.compute_aspect(scene.render)
-            sensor_fit_fac = 36 * 2  # Twice the Blender default Camera sensor fit value (36mm)
+            sensor_fit_fac = 36 * 2  # Twice the Blender default Camera sensor fit value (36mm).
             gizmo.focal = capture.lens_focal / sensor_fit_fac
 
             is_active_capture = (idx == scene.vr_captures_selected)

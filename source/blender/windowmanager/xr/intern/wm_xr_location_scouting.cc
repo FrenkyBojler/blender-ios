@@ -354,7 +354,8 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
         return;
       }
 
-      /* Build final smoothed capture matrix for rendering. */
+      /* Build final capture camera matrix for rendering, apply movement smoothing over time to
+       * stabilize the Viewfinder Live capture view. */
       float viewfinder_capture_mat[4][4];
       wm_xr_viewfinder_transform_update_smoothed(state, raw_capture_mat, viewfinder_capture_mat);
 

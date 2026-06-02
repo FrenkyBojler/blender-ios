@@ -94,6 +94,7 @@ void vr_location_scouting_capture_review_modal_keymap(wmKeyConfig *keyconf)
 }
 
 #ifdef WITH_XR_OPENXR
+
 struct CaptureReviewData {
   /* Context. */
   ScrArea *area;
@@ -367,7 +368,8 @@ void VIEW3D_OT_vr_location_scouting_capture_review(wmOperatorType *ot)
   ot->modal = vr_location_scouting_capture_review_modal;
   ot->poll = vr_location_scouting_capture_review_poll;
 }
-#endif
+
+#endif /* WITH_XR_OPENXR */
 
 /** \} */
 
