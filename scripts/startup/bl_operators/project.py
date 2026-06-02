@@ -316,8 +316,23 @@ def read_project_toml_config(root_path, report=None):
         if report:
             report({'ERROR'}, "Invalid project: project name is empty.")
         raise ProjectLoadException
+    if project_config.variables is not None:
+        for var in project_config.variables:
+            value_matches_type = True
+            match var.type:
+                case VariableType.INTEGER:
+                    value_matches_type = type(var.value) is int
+                case VariableType.FLOAT:
+                    value_matches_type = type(var.value) is float
+                case VariableType.STRING:
+                    value_matches_type = type(var.value) is str
+                case VariableType.FILEPATH:
+                    value_matches_type = type(var.value) is str
 
-    # TODO: make sure variable values match the variable type.
+            if not value_matches_type:
+                if report:
+                    report({'ERROR'}, "Invalid project: variable '{:s}' has mismatched type and value.".format(var.name))
+                raise ProjectLoadException
 
     return project_config
 
