@@ -215,6 +215,49 @@ static bool all_loading_finished()
   return ed::asset::list::is_loaded(&all_library_ref);
 }
 
+static void handle_operator_asset_reference_props(const bContext &C,
+                                                  bUserMenuItem_Op &umi_op,
+                                                  ui::Layout &row,
+                                                  wmOperatorType *ot,
+                                                  int &r_icon,
+                                                  bool &r_add_operator)
+{
+  if (!umi_op.prop) {
+    return;
+  }
+  PointerRNA opptr = WM_operator_properties_create_ptr(ot);
+  opptr.data = bke::idprop::create_group("wmOperatorProperties").release();
+  IDP_CopyPropertyContent(opptr.data_as<IDProperty>(), umi_op.prop);
+  if (ed::asset::operator_asset_reference_props_is_set(opptr)) {
+    const bool loading_finished = all_loading_finished();
+    if (!loading_finished) {
+      row.label(IFACE_("Loading Asset Libraries"), ICON_INFO);
+      r_add_operator = false;
+    }
+    else {
+      /* Set `check_context_asset` to false because we're setting the context pointer after getting
+       * the asset from the operator properties. */
+      const asset_system::AssetRepresentation *asset =
+          ed::asset::operator_asset_reference_props_get_asset_from_all_library(
+              C, opptr, CTX_wm_reports(&C));
+      if (asset) {
+        if (asset->is_online_only()) {
+          r_icon = ICON_INTERNET;
+        }
+        PointerRNA asset_ptr = RNA_pointer_create_discrete(
+            nullptr,
+            RNA_AssetRepresentation,
+            const_cast<asset_system::AssetRepresentation *>(asset));
+        row.context_ptr_set("asset", &asset_ptr);
+      }
+      else {
+        r_add_operator = false;
+      }
+    }
+  }
+  WM_operator_properties_free(&opptr);
+}
+
 static void draw_operator_menu_item(const bContext &C,
                                     bUserMenuItem_Op &umi_op,
                                     ui::Layout &layout,
@@ -225,38 +268,7 @@ static void draw_operator_menu_item(const bContext &C,
   int icon = ICON_NONE;
   bool add_operator = true;
 
-  PointerRNA opptr = WM_operator_properties_create_ptr(ot);
-  if (umi_op.prop) {
-    opptr.data = bke::idprop::create_group("wmOperatorProperties").release();
-    IDP_CopyPropertyContent(opptr.data_as<IDProperty>(), umi_op.prop);
-    if (ed::asset::operator_asset_reference_props_is_set(opptr)) {
-      const bool loading_finished = all_loading_finished();
-      if (!loading_finished) {
-        row.label(IFACE_("Loading Asset Libraries"), ICON_INFO);
-        add_operator = false;
-      }
-      else {
-        const asset_system::AssetRepresentation *asset =
-            ed::asset::operator_asset_reference_props_get_asset_from_all_library(
-                C, opptr, CTX_wm_reports(&C));
-        if (asset) {
-          if (asset->is_online_only()) {
-            icon = ICON_INTERNET;
-          }
-          PointerRNA asset_ptr = RNA_pointer_create_discrete(
-              nullptr,
-              RNA_AssetRepresentation,
-              const_cast<asset_system::AssetRepresentation *>(asset));
-          row.context_ptr_set("asset", &asset_ptr);
-        }
-        else {
-          add_operator = false;
-        }
-      }
-    }
-
-    WM_operator_properties_free(&opptr);
-  }
+  handle_operator_asset_reference_props(C, umi_op, row, ot, icon, add_operator);
 
   if (add_operator) {
     PointerRNA ptr = row.op(ot, ui_name, icon, wm::OpCallContext(umi_op.opcontext), UI_ITEM_NONE);
