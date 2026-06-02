@@ -471,14 +471,14 @@ ccl_device_inline float3 mix(const float3 a, const float3 b, const float3 t)
 
 /* Same as the "mix" function but with different numerical behavior. See comment above the "mix"
  * function for more information. */
-ccl_device_inline float endvalue_preserving_mix(const float3 a, const float3 b, float t)
+ccl_device_inline float3 endvalue_preserving_mix(const float3 a, const float3 b, float t)
 {
   return make_float3(1.0f - t) * a + t * b;
 }
 
 /* Same as the "mix" function but with different numerical behavior. See comment above the "mix"
  * function for more information. */
-ccl_device_inline float endvalue_preserving_mix(const float3 a, const float3 b, float3 t)
+ccl_device_inline float3 endvalue_preserving_mix(const float3 a, const float3 b, float3 t)
 {
   return (one_float3() - t) * a + t * b;
 }

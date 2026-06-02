@@ -52,32 +52,32 @@ float endvalue_preserving_mix(float a, float b, float t)
 
 vector2 endvalue_preserving_mix(vector2 a, vector2 b, float t)
 {
-  return vector2(1.0 - t) * a + t * b;
+  return vector2(1.0 - t, 1.0 - t) * a + t * b;
 }
 
 vector2 endvalue_preserving_mix(vector2 a, vector2 b, vector2 t)
 {
-  return (vector2(1.0) - t) * a + t * b;
+  return (vector2(1.0, 1.0) - t) * a + t * b;
 }
 
 vector3 endvalue_preserving_mix(vector3 a, vector3 b, float t)
 {
-  return vector3(1.0 - t) * a + t * b;
+  return vector3(1.0 - t, 1.0 - t, 1.0 - t) * a + t * b;
 }
 
 vector3 endvalue_preserving_mix(vector3 a, vector3 b, vector3 t)
 {
-  return (vector3(1.0) - t) * a + t * b;
+  return (vector3(1.0, 1.0, 1.0) - t) * a + t * b;
 }
 
 vector4 endvalue_preserving_mix(vector4 a, vector4 b, float t)
 {
-  return vector4(1.0 - t) * a + t * b;
+  return vector4(1.0 - t, 1.0 - t, 1.0 - t, 1.0 - t) * a + t * b;
 }
 
 vector4 endvalue_preserving_mix(vector4 a, vector4 b, vector4 t)
 {
-  return (vector4(1.0) - t) * a + t * b;
+  return (vector4(1.0, 1.0, 1.0, 1.0) - t) * a + t * b;
 }
 
 /* The float and vector3 overloads are already defined in stdosl.h.

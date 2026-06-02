@@ -21,17 +21,17 @@ template<typename VecT> VecT endvalue_preserving_mix(VecT a, VecT b, float t)
 {
   return VecT(1.0f - t) * a + t * b;
 }
-template float2 endvalue_preserving_mix<int2>(float2, float2, float);
-template float3 endvalue_preserving_mix<int3>(float3, float3, float);
-template float4 endvalue_preserving_mix<int4>(float4, float4, float);
+template float2 endvalue_preserving_mix<float2>(float2, float2, float);
+template float3 endvalue_preserving_mix<float3>(float3, float3, float);
+template float4 endvalue_preserving_mix<float4>(float4, float4, float);
 
 template<typename VecT> VecT endvalue_preserving_mix(VecT a, VecT b, VecT t)
 {
   return (VecT(1.0f) - t) * a + t * b;
 }
-template float2 endvalue_preserving_mix<int2>(float2, float2, float2);
-template float3 endvalue_preserving_mix<int3>(float3, float3, float3);
-template float4 endvalue_preserving_mix<int4>(float4, float4, float4);
+template float2 endvalue_preserving_mix<float2>(float2, float2, float2);
+template float3 endvalue_preserving_mix<float3>(float3, float3, float3);
+template float4 endvalue_preserving_mix<float4>(float4, float4, float4);
 
 /**
  * Returns \a a if it is a multiple of \a b or the next multiple or \a b after \b a .
