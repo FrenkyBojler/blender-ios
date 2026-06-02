@@ -1029,35 +1029,17 @@ class KDTreeTesting(unittest.TestCase):
         self.assertAlmostEqual(first[1], second[1], places=places, msg=msg, delta=delta)
         self.assertAlmostEqual(first[2], second[2], places=places, msg=msg, delta=delta)
 
-    def test_kdtree_from_coords(self):
-        co = (1, ) * 3
-        coords = (
-            (0,) * 3,
-            co,
-        )
-
-        # Regular 3D case.
-        k = kdtree.KDTree.from_coords(coords)
-
-        co_found, index_found, dist_found = k.find(co)
-
-        self.assertEqual(tuple(co_found), co)
-        self.assertEqual(index_found, 1)
-        self.assertAlmostEqual(dist_found, 0.0)
-
-        co_found, index_found, dist_found = k.find((2, ) * 3)
-
-        self.assertEqual(tuple(co_found), co)
-        self.assertEqual(index_found, 1)
-        self.assertAlmostEqual(dist_found, 1.7320508, delta=1e-6)
-
+    def test_kdtree_2d(self):
         # Pure 2D coordinates.
         coords_2d = (
             (0, 0),
             (1, 1),
         )
 
-        k = kdtree.KDTree.from_coords(coords_2d, 2)
+        k = kdtree.KDTree(2, 2)
+        for i, co in enumerate(coords_2d):
+            k.insert(co, i)
+        k.balance()
 
         co_found, index_found, dist_found = k.find((1, 1))
 
@@ -1066,29 +1048,16 @@ class KDTreeTesting(unittest.TestCase):
         self.assertAlmostEqual(dist_found, 0)
 
         # Single element.
-        k = kdtree.KDTree.from_coords(((5, 6),), 2)
+        co = (5, 6)
+        k = kdtree.KDTree(1, 2)
+        k.insert(co, 0)
+        k.balance()
 
-        co_found, index_found, dist_found = k.find((5, 6))
+        co_found, index_found, dist_found = k.find(co)
 
-        self.assertEqual(tuple(co_found), (5, 6))
+        self.assertEqual(tuple(co_found), co)
         self.assertEqual(index_found, 0)
         self.assertAlmostEqual(dist_found, 0)
-
-        # Empty tree.
-        k = kdtree.KDTree.from_coords((), 2)
-
-        self.assertEqual(k.find((0, 0)), (None, None, None))
-
-        # Invalid dimension.
-        with self.assertRaises(RuntimeError):
-            kdtree.KDTree.from_coords(coords, 1)
-
-        with self.assertRaises(RuntimeError):
-            kdtree.KDTree.from_coords(coords, 4)
-
-        # 2D coords with 3D dimension should fail.
-        with self.assertRaises(ValueError):
-            kdtree.KDTree.from_coords(coords_2d)
 
     def test_kdtree_single(self):
         co = (0,) * 3

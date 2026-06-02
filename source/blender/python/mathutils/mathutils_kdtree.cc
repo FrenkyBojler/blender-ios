@@ -28,11 +28,12 @@ namespace blender {
 
 struct PyKDTree {
   PyObject_HEAD
+  /* Used for 2- or 3-dimensional KDTrees. */
   void *obj;
   uint maxsize;
   uint count;
   uint count_balance; /* size when we last balanced */
-  int ndims;
+  int dimensions;
 };
 
 /* -------------------------------------------------------------------- */
@@ -89,11 +90,11 @@ static PyObject *kdtree_nearest_to_py_and_check(const KDTreeNearest<CoordT> *nea
 static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
 {
   uint maxsize;
-  int ndims = 3;
+  int dimensions = 3;
   const char *keywords[] = {"size", "dimensions", nullptr};
 
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwargs, "I|i:KDTree", const_cast<char **>(keywords), &maxsize, &ndims))
+          args, kwargs, "I|i:KDTree", const_cast<char **>(keywords), &maxsize, &dimensions))
   {
     return -1;
   }
@@ -103,12 +104,12 @@ static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
     return -1;
   }
 
-  if (!ELEM(ndims, 2, 3)) {
+  if (!ELEM(dimensions, 2, 3)) {
     PyErr_SetString(PyExc_RuntimeError, "dimensions must be 2 or 3");
     return -1;
   }
 
-  if (ndims == 2) {
+  if (dimensions == 2) {
     self->obj = (void *)kdtree_new<float2>(maxsize);
   }
   else {
@@ -119,14 +120,14 @@ static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
   self->count = 0;
   /* Initialize `uint-max` to avoid crashes on unbalanced trees. */
   self->count_balance = uint(-1);
-  self->ndims = ndims;
+  self->dimensions = dimensions;
 
   return 0;
 }
 
 static void PyKDTree__tp_dealloc(PyKDTree *self)
 {
-  if (self->ndims == 2) {
+  if (self->dimensions == 2) {
     kdtree_free<float2>(reinterpret_cast<KDTree<float2> *>(self->obj));
   }
   else {
@@ -134,84 +135,6 @@ static void PyKDTree__tp_dealloc(PyKDTree *self)
   }
 
   Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name KDTree Class Methods
- * \{ */
-
-/** From_coords constructor: `mathutils.kdtree.KDTree.from_coords()`. */
-PyDoc_STRVAR(
-    /* Wrap. */
-    C_KDTree_from_coords_doc,
-    ".. classmethod:: from_coords(coords, dimensions=3, /)\n"
-    "\n"
-    "   Create a balanced KDTree from sequence.\n"
-    "\n"
-    "   :param coords: Sequence of 2D or 3D coords.\n"
-    "   :type coords: Sequence[Sequence[float]]\n"
-    "   :param dimensions: The dimensions of the tree (2 or 3).\n"
-    "   :type dimensions: int\n"
-    "   :return: A new balanced KDTree.\n"
-    "   :rtype: :class:`KDTree`\n");
-static PyObject *C_KDTree_from_coords(PyObject *cls, PyObject *args)
-{
-  PyObject *py_seq;
-  int ndims = 3;
-
-  if (!PyArg_ParseTuple(args, "O|i:KDTree.from_coords", &py_seq, &ndims)) {
-    return nullptr;
-  }
-
-  if (!ELEM(ndims, 2, 3)) {
-    PyErr_SetString(PyExc_RuntimeError, "dimensions must be 2 or 3");
-    return nullptr;
-  }
-
-  float *coords;
-  int coords_len;
-
-  if ((coords_len = mathutils_array_parse_alloc_v(&coords, ndims, py_seq, "from_coords")) == -1) {
-    return nullptr;
-  }
-
-  void *tree;
-
-  if (ndims == 2) {
-    KDTree<float2> *kdtree_2d = kdtree_new<float2>(coords_len);
-    float2 *coords_2d = reinterpret_cast<float2 *>(coords);
-
-    for (int i = 0; i < coords_len; i++) {
-      kdtree_insert<float2>(kdtree_2d, i, coords_2d[i]);
-    }
-    kdtree_balance<float2>(kdtree_2d);
-    tree = (void *)kdtree_2d;
-  }
-  else {
-    KDTree<float3> *kdtree_3d = kdtree_new<float3>(coords_len);
-    float3 *coords_3d = reinterpret_cast<float3 *>(coords);
-
-    for (int i = 0; i < coords_len; i++) {
-      kdtree_insert<float3>(kdtree_3d, i, coords_3d[i]);
-    }
-    kdtree_balance<float3>(kdtree_3d);
-    tree = (void *)kdtree_3d;
-  }
-
-  if (coords_len) {
-    PyMem_Free(coords);
-  }
-
-  PyKDTree *py_kdtree = PyObject_New(PyKDTree, &PyKDTree_Type);
-  py_kdtree->obj = tree;
-  py_kdtree->maxsize = coords_len;
-  py_kdtree->count = coords_len;
-  py_kdtree->count_balance = coords_len;
-  py_kdtree->ndims = ndims;
-
-  return reinterpret_cast<PyObject *>(py_kdtree);
 }
 
 /** \} */
@@ -244,7 +167,8 @@ static PyObject *py_kdtree_insert(PyKDTree *self, PyObject *args, PyObject *kwar
     return nullptr;
   }
 
-  if (mathutils_array_parse(co, self->ndims, self->ndims, py_co, "insert: invalid 'co' arg") == -1)
+  if (mathutils_array_parse(
+          co, self->dimensions, self->dimensions, py_co, "insert: invalid 'co' arg") == -1)
   {
     return nullptr;
   }
@@ -259,7 +183,7 @@ static PyObject *py_kdtree_insert(PyKDTree *self, PyObject *args, PyObject *kwar
     return nullptr;
   }
 
-  if (self->ndims == 2) {
+  if (self->dimensions == 2) {
     kdtree_insert<float2>(reinterpret_cast<KDTree<float2> *>(self->obj), index, co);
   }
   else {
@@ -287,7 +211,7 @@ PyDoc_STRVAR(
     "      This builds the entire tree, avoid calling after each insertion.\n");
 static PyObject *py_kdtree_balance(PyKDTree *self)
 {
-  if (self->ndims == 2) {
+  if (self->dimensions == 2) {
     kdtree_balance<float2>(reinterpret_cast<KDTree<float2> *>(self->obj));
   }
   else {
@@ -358,7 +282,9 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
     return nullptr;
   }
 
-  if (mathutils_array_parse(co, self->ndims, self->ndims, py_co, "find: invalid 'co' arg") == -1) {
+  if (mathutils_array_parse(
+          co, self->dimensions, self->dimensions, py_co, "find: invalid 'co' arg") == -1)
+  {
     return nullptr;
   }
 
@@ -367,7 +293,7 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
     return nullptr;
   }
 
-  if (self->ndims == 2) {
+  if (self->dimensions == 2) {
     KDTree<float2> *kdtree2d = reinterpret_cast<KDTree<float2> *>(self->obj);
 
     KDTreeNearest<float2> nearest;
@@ -449,7 +375,8 @@ static PyObject *py_kdtree_find_n(PyKDTree *self, PyObject *args, PyObject *kwar
     return nullptr;
   }
 
-  if (mathutils_array_parse(co, self->ndims, self->ndims, py_co, "find_n: invalid 'co' arg") == -1)
+  if (mathutils_array_parse(
+          co, self->dimensions, self->dimensions, py_co, "find_n: invalid 'co' arg") == -1)
   {
     return nullptr;
   }
@@ -465,7 +392,7 @@ static PyObject *py_kdtree_find_n(PyKDTree *self, PyObject *args, PyObject *kwar
   }
 
   PyObject *ret_coords;
-  if (self->ndims == 2) {
+  if (self->dimensions == 2) {
     KDTreeNearest<float2> *nearest = MEM_new_array_uninitialized<KDTreeNearest<float2>>(n,
                                                                                         __func__);
 
@@ -531,8 +458,8 @@ static PyObject *py_kdtree_find_range(PyKDTree *self, PyObject *args, PyObject *
     return nullptr;
   }
 
-  if (mathutils_array_parse(co, self->ndims, self->ndims, py_co, "find_range: invalid 'co' arg") ==
-      -1)
+  if (mathutils_array_parse(
+          co, self->dimensions, self->dimensions, py_co, "find_range: invalid 'co' arg") == -1)
   {
     return nullptr;
   }
@@ -548,7 +475,7 @@ static PyObject *py_kdtree_find_range(PyKDTree *self, PyObject *args, PyObject *
   }
 
   PyObject *ret_coords;
-  if (self->ndims == 2) {
+  if (self->dimensions == 2) {
     KDTreeNearest<float2> *nearest = nullptr;
     int found = kdtree_range_search<float2>(
         reinterpret_cast<KDTree<float2> *>(self->obj), co, &nearest, radius);
@@ -615,12 +542,6 @@ static PyMethodDef PyKDTree_methods[] = {
      reinterpret_cast<PyCFunction>(py_kdtree_find_range),
      METH_VARARGS | METH_KEYWORDS,
      py_kdtree_find_range_doc},
-
-    /* Class methods. */
-    {"from_coords",
-     static_cast<PyCFunction>(C_KDTree_from_coords),
-     METH_VARARGS | METH_CLASS,
-     C_KDTree_from_coords_doc},
 
     {nullptr, nullptr, 0, nullptr},
 };
