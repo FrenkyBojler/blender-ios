@@ -482,7 +482,7 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
   BKE_main_ensure_invariants(bmain, dynamic_override.id);
 
   PointerRNA override_data_ptr = RNA_pointer_create_id_subdata(
-      dynamic_override.id, RNA_DynamicOverrideRuleIDDataInterface, &rule_iddata);
+      dynamic_override.id, RNA_DynamicOverrideRuleIDDataOverrideValues, &rule_iddata);
   PropertyRNA *override_rna_prop = RNA_struct_find_property(
       &override_data_ptr, rule_property_rna_identifier(*rule_property).c_str());
 
@@ -491,7 +491,18 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
     return nullptr;
   }
 
+  PointerRNA original_data_ptr = RNA_pointer_create_id_subdata(
+      dynamic_override.id, RNA_DynamicOverrideRuleIDDataOriginalValues, &rule_iddata);
+  PropertyRNA *original_rna_prop = RNA_struct_find_property(
+      &original_data_ptr, rule_property_rna_identifier(*rule_property).c_str());
+
+  if (!original_data_ptr.data || !original_rna_prop) {
+    BLI_assert_unreachable();
+    return nullptr;
+  }
+
   RNA_property_copy(nullptr, override_data_ptr, target_data_ptr, override_rna_prop, target_prop);
+  RNA_property_copy(nullptr, original_data_ptr, target_data_ptr, original_rna_prop, target_prop);
 
   return rule_property;
 }
@@ -528,8 +539,15 @@ std::string rule_property_rna_identifier(DynamicOverrideRuleProperty &rule_prope
  */
 struct GeneratedRuleSrnaData {
   ResourceScope scope;
-  StructRNA *override_values_struct;
   BlenderRNA *generated_rna;
+  /** SRNA for the properties for override values. */
+  StructRNA *override_values_struct;
+  /**
+   * SRNA for the properties for original values (values from target property at the time the
+   * override was created).
+   */
+  StructRNA *original_values_struct;
+
   GeneratedRuleSrnaData()
   {
     generated_rna = RNA_create_runtime();
@@ -540,6 +558,148 @@ struct GeneratedRuleSrnaData {
   }
 };
 
+static PropertyRNA *dynamic_override_copy_rna_property_definition(
+    std::unique_ptr<GeneratedRuleSrnaData> &generated,
+    StructRNA *srna,
+    PointerRNA &ptr_orig,
+    PropertyRNA *prop_orig,
+    const StringRefNull property_identifier)
+{
+  const PropertyType prop_type = RNA_property_type(prop_orig);
+  StructRNA *prop_ptr_type = RNA_property_pointer_type(&ptr_orig, prop_orig);
+
+  const bool is_array = RNA_property_array_check(prop_orig);
+  int array_dimension = 0;
+  int array_tot_length = 0;
+  int array_lengths[RNA_MAX_ARRAY_DIMENSION] = {0};
+
+  PropertyRNA *prop = RNA_def_property(
+      srna, property_identifier.c_str(), prop_type, RNA_property_subtype(prop_orig));
+
+  /* TODO: Likely need more care here (clear some flags, etc.). */
+  PropertyFlag prop_flag = PropertyFlag(RNA_property_flag(prop_orig));
+  /* TODO: 'context update' properties will not work well with generic liboverrides Main-based
+   * update callback. Not clear currently if:
+   *   - These type of properties should be supported at all by dynoverride?
+   *   - DynOverride should be able to generate a context update callback for these?
+   *   - Something else?
+   */
+  prop_flag &= ~PropertyFlag(PROP_CONTEXT_UPDATE | PROP_CONTEXT_PROPERTY_UPDATE);
+  RNA_def_property_flag(prop, prop_flag);
+  RNA_def_property_override_flag(prop,
+                                 PropertyOverrideFlag(RNA_property_override_flag(prop_orig)));
+  if (prop_ptr_type != RNA_UnknownType) {
+    RNA_def_property_struct_runtime(srna, prop, prop_ptr_type);
+  }
+
+  if (is_array) {
+    array_tot_length = RNA_property_array_length(&ptr_orig, prop_orig);
+    array_dimension = RNA_property_array_dimension(&ptr_orig, prop_orig, array_lengths);
+    BLI_assert(array_dimension <= RNA_MAX_ARRAY_DIMENSION);
+    RNA_def_property_multi_array(prop, array_dimension, array_lengths);
+  }
+
+  switch (prop_type) {
+    case PROP_BOOLEAN: {
+      if (is_array) {
+        MutableSpan<bool> array_default = generated->scope.allocator().allocate_array<bool>(
+            array_tot_length);
+        RNA_property_boolean_get_default_array(&ptr_orig, prop_orig, array_default.data());
+        RNA_def_property_boolean_array_default(prop, array_default.data());
+      }
+      else {
+        RNA_def_property_boolean_default(prop,
+                                         RNA_property_boolean_get_default(&ptr_orig, prop_orig));
+      }
+      break;
+    }
+    case PROP_INT: {
+      int min, max;
+      RNA_property_int_range(&ptr_orig, prop_orig, &min, &max);
+      RNA_def_property_range(prop, double(min), double(max));
+
+      int softmin, softmax, step;
+      RNA_property_int_ui_range(&ptr_orig, prop_orig, &softmin, &softmax, &step);
+      RNA_def_property_ui_range(prop, double(softmin), double(softmax), double(step), -1);
+
+      if (is_array) {
+        MutableSpan<int> array_default = generated->scope.allocator().allocate_array<int>(
+            array_tot_length);
+        RNA_property_int_get_default_array(&ptr_orig, prop_orig, array_default.data());
+        RNA_def_property_int_array_default(prop, array_default.data());
+      }
+      else {
+        RNA_def_property_int_default(prop, RNA_property_int_get_default(&ptr_orig, prop_orig));
+      }
+      break;
+    }
+    case PROP_FLOAT: {
+      float min, max;
+      RNA_property_float_range(&ptr_orig, prop_orig, &min, &max);
+      RNA_def_property_range(prop, double(min), double(max));
+
+      float softmin, softmax, step, precision;
+      RNA_property_float_ui_range(&ptr_orig, prop_orig, &softmin, &softmax, &step, &precision);
+      RNA_def_property_ui_range(
+          prop, double(softmin), double(softmax), double(step), int(precision));
+
+      if (is_array) {
+        MutableSpan<float> array_default = generated->scope.allocator().allocate_array<float>(
+            array_tot_length);
+        RNA_property_float_get_default_array(&ptr_orig, prop_orig, array_default.data());
+        RNA_def_property_float_array_default(prop, array_default.data());
+      }
+      else {
+        RNA_def_property_float_default(prop, RNA_property_float_get_default(&ptr_orig, prop_orig));
+      }
+      break;
+    }
+    case PROP_ENUM: {
+      const EnumPropertyItem *items;
+      int tot_items;
+      bool items_free;
+      RNA_property_enum_items(nullptr, &ptr_orig, prop_orig, &items, &tot_items, &items_free);
+
+      const EnumPropertyItem *items_iter = items;
+      MutableSpan<EnumPropertyItem> array_items =
+          generated->scope.allocator().allocate_array<EnumPropertyItem>(tot_items + 1);
+      for (EnumPropertyItem &item : array_items) {
+        item = *items_iter;
+        items_iter++;
+      }
+      if (items_free) {
+        MEM_delete(items);
+      }
+
+      RNA_def_property_enum_items(prop, array_items.data());
+
+      RNA_def_property_enum_default(prop, RNA_property_enum_get_default(&ptr_orig, prop_orig));
+      break;
+    }
+    case PROP_STRING:
+    case PROP_POINTER:
+    case PROP_COLLECTION:
+      break;
+  }
+
+  const StringRefNull ui_name = generated->scope.allocator().copy_string(
+      RNA_property_ui_name_raw(prop_orig, &ptr_orig));
+  const StringRefNull ui_description = generated->scope.allocator().copy_string(
+      RNA_property_ui_description_raw(prop_orig, &ptr_orig));
+  RNA_def_property_ui_text(prop, ui_name.c_str(), ui_description.c_str());
+
+  /* TODO generic update function may not work well in all cases. */
+  RNA_def_property_update_runtime(prop, [](Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr) {
+    DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
+    BLI_assert(rule->type == DynamicOverrideRuleType::IDData);
+
+    DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
+  });
+  RNA_def_property_update_notifier(prop, NC_ID | NA_EDITED);
+
+  return prop;
+}
+
 static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride &dynamic_override)
 {
   for (DynamicOverrideRule &rule : dynamic_override.rules) {
@@ -549,14 +709,18 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
 
     DynamicOverrideRuleIDData &iddata_rule = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
     auto generated = std::make_unique<GeneratedRuleSrnaData>();
-    StructRNA *srna = RNA_def_struct_ptr(generated->generated_rna,
-                                         "DynamicOverrideRuleIDDataInterfaceRT",
-                                         RNA_DynamicOverrideRuleIDDataInterface);
-    generated->override_values_struct = srna;
+    generated->override_values_struct = RNA_def_struct_ptr(
+        generated->generated_rna,
+        "DynamicOverrideRuleIDDataOverrideValuesRT",
+        RNA_DynamicOverrideRuleIDDataOverrideValues);
+    generated->original_values_struct = RNA_def_struct_ptr(
+        generated->generated_rna,
+        "DynamicOverrideRuleIDDataOriginalValuesRT",
+        RNA_DynamicOverrideRuleIDDataOriginalValues);
 
     for (DynamicOverrideRuleProperty &rule_property : iddata_rule.properties) {
       PointerRNA owner_id_ptr, ptr;
-      PropertyRNA *prop_orig, *prop;
+      PropertyRNA *prop_orig;
 
       owner_id_ptr = RNA_id_pointer_create(rule.target_filter.target_id);
       RNA_path_resolve(&owner_id_ptr, rule_property.rna_path, &ptr, &prop_orig);
@@ -567,138 +731,11 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
 
       const StringRefNull property_identifier = generated->scope.allocator().copy_string(
           rule_property_rna_identifier(rule_property));
-      const PropertyType prop_type = RNA_property_type(prop_orig);
-      StructRNA *prop_ptr_type = RNA_property_pointer_type(&ptr, prop_orig);
-
-      const bool is_array = RNA_property_array_check(prop_orig);
-      int array_dimension = 0;
-      int array_tot_length = 0;
-      int array_lengths[RNA_MAX_ARRAY_DIMENSION] = {0};
-
-      prop = RNA_def_property(
-          srna, property_identifier.c_str(), prop_type, RNA_property_subtype(prop_orig));
-
-      /* TODO: Likely need more care here (clear some flags, etc.). */
-      PropertyFlag prop_flag = PropertyFlag(RNA_property_flag(prop_orig));
-      /* TODO: 'context update' properties will not work well with generic liboverrides Main-based
-       * update callback. Not clear currently if:
-       *   - These type of properties should be supported at all by dynoverride?
-       *   - DynOverride should be able to generate a context update callback for these?
-       *   - Something else?
-       */
-      prop_flag &= ~PropertyFlag(PROP_CONTEXT_UPDATE | PROP_CONTEXT_PROPERTY_UPDATE);
-      RNA_def_property_flag(prop, prop_flag);
-      RNA_def_property_override_flag(prop,
-                                     PropertyOverrideFlag(RNA_property_override_flag(prop_orig)));
-      if (prop_ptr_type != RNA_UnknownType) {
-        RNA_def_property_struct_runtime(srna, prop, prop_ptr_type);
-      }
-
-      if (is_array) {
-        array_tot_length = RNA_property_array_length(&ptr, prop_orig);
-        array_dimension = RNA_property_array_dimension(&ptr, prop_orig, array_lengths);
-        BLI_assert(array_dimension <= RNA_MAX_ARRAY_DIMENSION);
-        RNA_def_property_multi_array(prop, array_dimension, array_lengths);
-      }
-
-      switch (prop_type) {
-        case PROP_BOOLEAN: {
-          if (is_array) {
-            MutableSpan<bool> array_default = generated->scope.allocator().allocate_array<bool>(
-                array_tot_length);
-            RNA_property_boolean_get_default_array(&ptr, prop_orig, array_default.data());
-            RNA_def_property_boolean_array_default(prop, array_default.data());
-          }
-          else {
-            RNA_def_property_boolean_default(prop,
-                                             RNA_property_boolean_get_default(&ptr, prop_orig));
-          }
-          break;
-        }
-        case PROP_INT: {
-          int min, max;
-          RNA_property_int_range(&ptr, prop_orig, &min, &max);
-          RNA_def_property_range(prop, double(min), double(max));
-
-          int softmin, softmax, step;
-          RNA_property_int_ui_range(&ptr, prop_orig, &softmin, &softmax, &step);
-          RNA_def_property_ui_range(prop, double(softmin), double(softmax), double(step), -1);
-
-          if (is_array) {
-            MutableSpan<int> array_default = generated->scope.allocator().allocate_array<int>(
-                array_tot_length);
-            RNA_property_int_get_default_array(&ptr, prop_orig, array_default.data());
-            RNA_def_property_int_array_default(prop, array_default.data());
-          }
-          else {
-            RNA_def_property_int_default(prop, RNA_property_int_get_default(&ptr, prop_orig));
-          }
-          break;
-        }
-        case PROP_FLOAT: {
-          float min, max;
-          RNA_property_float_range(&ptr, prop_orig, &min, &max);
-          RNA_def_property_range(prop, double(min), double(max));
-
-          float softmin, softmax, step, precision;
-          RNA_property_float_ui_range(&ptr, prop_orig, &softmin, &softmax, &step, &precision);
-          RNA_def_property_ui_range(
-              prop, double(softmin), double(softmax), double(step), int(precision));
-
-          if (is_array) {
-            MutableSpan<float> array_default = generated->scope.allocator().allocate_array<float>(
-                array_tot_length);
-            RNA_property_float_get_default_array(&ptr, prop_orig, array_default.data());
-            RNA_def_property_float_array_default(prop, array_default.data());
-          }
-          else {
-            RNA_def_property_float_default(prop, RNA_property_float_get_default(&ptr, prop_orig));
-          }
-          break;
-        }
-        case PROP_ENUM: {
-          const EnumPropertyItem *items;
-          int tot_items;
-          bool items_free;
-          RNA_property_enum_items(nullptr, &ptr, prop_orig, &items, &tot_items, &items_free);
-
-          const EnumPropertyItem *items_iter = items;
-          MutableSpan<EnumPropertyItem> array_items =
-              generated->scope.allocator().allocate_array<EnumPropertyItem>(tot_items + 1);
-          for (EnumPropertyItem &item : array_items) {
-            item = *items_iter;
-            items_iter++;
-          }
-          if (items_free) {
-            MEM_delete(items);
-          }
-
-          RNA_def_property_enum_items(prop, array_items.data());
-
-          RNA_def_property_enum_default(prop, RNA_property_enum_get_default(&ptr, prop_orig));
-          break;
-        }
-        case PROP_STRING:
-        case PROP_POINTER:
-        case PROP_COLLECTION:
-          break;
-      }
-
-      const StringRefNull ui_name = generated->scope.allocator().copy_string(
-          RNA_property_ui_name_raw(prop_orig, &ptr));
-      const StringRefNull ui_description = generated->scope.allocator().copy_string(
-          RNA_property_ui_description_raw(prop_orig, &ptr));
-      RNA_def_property_ui_text(prop, ui_name.c_str(), ui_description.c_str());
-
-      /* TODO generic update function may not work well in all cases. */
-      RNA_def_property_update_runtime(
-          prop, [](Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr) {
-            DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
-            BLI_assert(rule->type == DynamicOverrideRuleType::IDData);
-
-            DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
-          });
-      RNA_def_property_update_notifier(prop, NC_ID | NA_EDITED);
+      dynamic_override_copy_rna_property_definition(
+          generated, generated->override_values_struct, ptr, prop_orig, property_identifier);
+      /* The original values are read-only. */
+      dynamic_override_copy_rna_property_definition(
+          generated, generated->original_values_struct, ptr, prop_orig, property_identifier);
     }
 
     iddata_rule.runtime->rule_srna_data = std::move(generated);
@@ -742,14 +779,24 @@ void update(Main &bmain, std::optional<Span<DynamicOverride *>> modified_dynamic
   }
 }
 
-StructRNA *rule_get_runtime_properties_rna_struct(DynamicOverrideRuleIDData &iddata_rule)
+StructRNA *rule_get_runtime_override_values_rna_struct(DynamicOverrideRuleIDData &iddata_rule)
 {
   if (iddata_rule.runtime->rule_srna_data &&
       iddata_rule.runtime->rule_srna_data->override_values_struct)
   {
     return iddata_rule.runtime->rule_srna_data->override_values_struct;
   }
-  return RNA_DynamicOverrideRuleIDDataInterface;
+  return RNA_DynamicOverrideRuleIDDataOverrideValues;
+}
+
+StructRNA *rule_get_runtime_original_values_rna_struct(DynamicOverrideRuleIDData &iddata_rule)
+{
+  if (iddata_rule.runtime->rule_srna_data &&
+      iddata_rule.runtime->rule_srna_data->original_values_struct)
+  {
+    return iddata_rule.runtime->rule_srna_data->original_values_struct;
+  }
+  return RNA_DynamicOverrideRuleIDDataOriginalValues;
 }
 
 /** \} */
@@ -861,7 +908,7 @@ void eval_for_id(Depsgraph &depsgraph, DepsgraphCtx &eval_context, ID &id_cow)
       }
 
       PointerRNA override_data_ptr = RNA_pointer_create_id_subdata(
-          dynamic_override->id, RNA_DynamicOverrideRuleIDDataInterface, &rule_iddata);
+          dynamic_override->id, RNA_DynamicOverrideRuleIDDataOverrideValues, &rule_iddata);
       PropertyRNA *override_rna_prop = RNA_struct_find_property(
           &override_data_ptr, rule_property_rna_identifier(rule_prop).c_str());
 

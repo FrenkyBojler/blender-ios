@@ -60,8 +60,10 @@ std::string rule_property_rna_identifier(DynamicOverrideRuleProperty &rule_prope
 
 void update(Main &bmain, std::optional<Span<DynamicOverride *>> modified_dynamic_overrides);
 
-/** Return the runtime RNA struct for the given rule. */
-StructRNA *rule_get_runtime_properties_rna_struct(DynamicOverrideRuleIDData &iddata_rule);
+/** Return the runtime RNA struct for the override value storage for the given rule. */
+StructRNA *rule_get_runtime_override_values_rna_struct(DynamicOverrideRuleIDData &iddata_rule);
+/** Return the runtime RNA struct for the original value storage for the given rule. */
+StructRNA *rule_get_runtime_original_values_rna_struct(DynamicOverrideRuleIDData &iddata_rule);
 
 /** \} */
 

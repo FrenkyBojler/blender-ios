@@ -114,7 +114,7 @@ static StructRNA *rna_DynamicOverrideRule_override_values_refine(PointerRNA *ptr
 {
   auto iddata_rule = ptr->data_as<DynamicOverrideRuleIDData>();
   BLI_assert(iddata_rule->base.type == DynamicOverrideRuleType::IDData);
-  return bke::dynoverride::rule_get_runtime_properties_rna_struct(*iddata_rule);
+  return bke::dynoverride::rule_get_runtime_override_values_rna_struct(*iddata_rule);
 }
 
 static IDProperty **rna_DynamicOverrideRule_override_values_system_idprops(PointerRNA *ptr)
@@ -128,7 +128,30 @@ static PointerRNA rna_DynamicOverrideRule_override_values_get(PointerRNA *ptr)
 {
   auto iddata_rule = ptr->data_as<DynamicOverrideRuleIDData>();
   BLI_assert(iddata_rule->base.type == DynamicOverrideRuleType::IDData);
-  return RNA_pointer_create_with_parent(*ptr, RNA_DynamicOverrideRuleIDDataInterface, iddata_rule);
+  return RNA_pointer_create_with_parent(
+      *ptr, RNA_DynamicOverrideRuleIDDataOverrideValues, iddata_rule);
+}
+
+static StructRNA *rna_DynamicOverrideRule_original_values_refine(PointerRNA *ptr)
+{
+  auto iddata_rule = ptr->data_as<DynamicOverrideRuleIDData>();
+  BLI_assert(iddata_rule->base.type == DynamicOverrideRuleType::IDData);
+  return bke::dynoverride::rule_get_runtime_original_values_rna_struct(*iddata_rule);
+}
+
+static IDProperty **rna_DynamicOverrideRule_original_values_system_idprops(PointerRNA *ptr)
+{
+  auto iddata_rule = ptr->data_as<DynamicOverrideRuleIDData>();
+  BLI_assert(iddata_rule->base.type == DynamicOverrideRuleType::IDData);
+  return &iddata_rule->original_values;
+}
+
+static PointerRNA rna_DynamicOverrideRule_original_values_get(PointerRNA *ptr)
+{
+  auto iddata_rule = ptr->data_as<DynamicOverrideRuleIDData>();
+  BLI_assert(iddata_rule->base.type == DynamicOverrideRuleType::IDData);
+  return RNA_pointer_create_with_parent(
+      *ptr, RNA_DynamicOverrideRuleIDDataOriginalValues, iddata_rule);
 }
 
 static StructRNA *rna_DynamicOverrideRule_refine(PointerRNA *ptr)
@@ -290,15 +313,25 @@ static void rna_def_dynamic_override_rule_iddata_override_value_storage(BlenderR
 {
   StructRNA *srna;
 
-  srna = RNA_def_struct(brna, "DynamicOverrideRuleIDDataInterface", nullptr);
+  srna = RNA_def_struct(brna, "DynamicOverrideRuleIDDataOverrideValues", nullptr);
   RNA_def_struct_ui_text(
       srna,
-      "Dynamic Override IDData Rule Property Values",
+      "Dynamic Override IDData Rule Property Override Values",
       "Dynamically-defined struct representing the overridden properties and their value storage");
   RNA_def_struct_sdna(srna, "DynamicOverrideRuleIDData");
   RNA_def_struct_refine_func(srna, "rna_DynamicOverrideRule_override_values_refine");
   RNA_def_struct_system_idprops_func(srna,
                                      "rna_DynamicOverrideRule_override_values_system_idprops");
+
+  srna = RNA_def_struct(brna, "DynamicOverrideRuleIDDataOriginalValues", nullptr);
+  RNA_def_struct_ui_text(srna,
+                         "Dynamic Override IDData Rule Property Original Values",
+                         "Dynamically-defined struct representing the overridden properties and "
+                         "their original value storage");
+  RNA_def_struct_sdna(srna, "DynamicOverrideRuleIDData");
+  RNA_def_struct_refine_func(srna, "rna_DynamicOverrideRule_original_values_refine");
+  RNA_def_struct_system_idprops_func(srna,
+                                     "rna_DynamicOverrideRule_original_values_system_idprops");
 }
 
 static void rna_def_dynamic_override_rule_iddata(BlenderRNA *brna)
@@ -317,11 +350,21 @@ static void rna_def_dynamic_override_rule_iddata(BlenderRNA *brna)
   prop = RNA_def_pointer(
       srna,
       "override_values",
-      "DynamicOverrideRuleIDDataInterface",
+      "DynamicOverrideRuleIDDataOverrideValues",
       "Override Values",
       "Dynamically generated container for all override values, matching the override properties");
   RNA_def_property_pointer_funcs(
       prop, "rna_DynamicOverrideRule_override_values_get", nullptr, nullptr, nullptr);
+
+  prop = RNA_def_pointer(
+      srna,
+      "original_values",
+      "DynamicOverrideRuleIDDataOriginalValues",
+      "Original Values",
+      "Dynamically generated container for all original values (values of the target properties "
+      "at the time the overrides were created), matching the override properties");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_DynamicOverrideRule_original_values_get", nullptr, nullptr, nullptr);
 
   RNA_define_verify_sdna(true);
 
