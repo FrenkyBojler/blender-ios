@@ -76,7 +76,7 @@ BLI_NOINLINE static void filter_plane_side_factors(const Span<float3> positions,
                                                    const std::array<float4, 2> &scrape_planes,
                                                    const MutableSpan<float> factors)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(positions.size() == local_positions.size());
   BLI_assert(positions.size() == factors.size());
 
@@ -91,7 +91,7 @@ BLI_NOINLINE static void filter_plane_side_factors(const Span<float3> positions,
 BLI_NOINLINE static void calc_distances(const Span<float3> local_positions,
                                         const MutableSpan<float> distances)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(local_positions.size() == distances.size());
 
   for (const int i : local_positions.index_range()) {
@@ -108,7 +108,7 @@ BLI_NOINLINE static void calc_translations(const Span<float3> positions,
                                            const std::array<float4, 2> &scrape_planes,
                                            const MutableSpan<float3> translations)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   for (const int i : positions.index_range()) {
     const bool plane_index = local_positions[i][0] <= 0.0f;
     float3 closest;
@@ -123,7 +123,7 @@ BLI_NOINLINE static void accumulate_samples(const Span<float3> positions,
                                             const Span<float> factors,
                                             ScrapeSampleData &sample)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   for (const int i : positions.index_range()) {
     if (factors[i] <= 0.0f) {
       continue;
@@ -146,7 +146,7 @@ static void sample_node_surface_mesh(const Depsgraph &depsgraph,
                                      ScrapeSampleData &sample,
                                      LocalData &tls)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
 
@@ -293,7 +293,7 @@ static std::optional<ScrapeSampleData> sample_surface(const Depsgraph &depsgraph
                                                       const float4x4 &mat,
                                                       const IndexMask &node_mask)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   ScrapeSampleData result = {};
@@ -556,7 +556,7 @@ void do_multiplane_scrape_brush(const Depsgraph &depsgraph,
                                 Object &object,
                                 const IndexMask &node_mask)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);

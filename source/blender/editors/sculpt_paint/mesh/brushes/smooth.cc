@@ -65,7 +65,7 @@ BLI_NOINLINE static void apply_positions_faces(const Sculpt &sd,
                                                const Span<float3> new_positions,
                                                const PositionDeformData &position_data)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
 
   const Span<int> verts = node.verts();
@@ -242,7 +242,7 @@ void do_smooth_brush(const Depsgraph &depsgraph,
                      const IndexMask &node_mask,
                      const float brush_strength)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);

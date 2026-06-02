@@ -21,7 +21,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
-#include "BLI_profile.hh"
 #include "BLI_rand.h"
 
 #include "BLT_translation.hh"
@@ -47,6 +46,8 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+
+#include "PRF_profile.hh"
 
 #include "RE_texture.h" /* RE_texture_evaluate */
 
@@ -1480,7 +1481,7 @@ void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
                                   const float brush_radius,
                                   const MutableSpan<float> factors)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(factors.size() == distances.size());
 
   const float radius_rcp = math::rcp(brush_radius);

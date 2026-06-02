@@ -13,13 +13,14 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_memarena.h"
-#include "BLI_profile.hh"
 #include "BLI_span.hh"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_global.hh"
 #include "BKE_paint_bvh.hh"
+
+#include "PRF_profile.hh"
 
 #include "bmesh.hh"
 #include "pbvh_intern.hh"
@@ -2106,7 +2107,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
 
 Tree Tree::from_bmesh(BMesh &bm)
 {
-  BLI_profile_scope(ProfileCategory::Core);
+  PRF_scope(ProfileCategory::Core);
   Tree pbvh(Type::BMesh);
   if (bm.totface == 0) {
     return pbvh;

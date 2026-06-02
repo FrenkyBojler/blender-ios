@@ -16,7 +16,6 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
-#include "BLI_profile.hh"
 #include "BLI_rand.hh"
 #include "BLI_utildefines.h"
 
@@ -24,6 +23,8 @@
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+
+#include "PRF_profile.hh"
 
 #include "RNA_access.hh"
 
@@ -232,7 +233,7 @@ bool PaintStroke::update(bContext *C,
                          float r_location[3],
                          bool *r_location_is_set)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, mode);
   bke::PaintRuntime &paint_runtime = *paint->runtime;
@@ -471,7 +472,7 @@ float2 paint_stroke_jitter_pos(Paint *paint,
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
 void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float pressure)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(this->paint);
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
@@ -756,7 +757,7 @@ int PaintStroke::space_stroke(bContext *C,
                               const float2 final_mouse,
                               const float final_pressure)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const ARegion *region = CTX_wm_region(C);
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
   const Paint &paint = *BKE_paint_get_active_from_context(C);
@@ -926,7 +927,7 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
 
 void PaintStroke::done(bContext *C, const bool is_cancel)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   if (print_pressure_status_enabled()) {
     ED_workspace_status_text(C, nullptr);
   }
@@ -1122,7 +1123,7 @@ void PaintStroke::add_sample(const int input_samples,
                              const float y,
                              const float pressure)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   PaintSample *sample = &samples_[cur_sample_];
   const int max_samples = std::clamp(input_samples, 1, PAINT_MAX_INPUT_SAMPLES);
 
@@ -1165,7 +1166,7 @@ void PaintStroke::lines_spacing(bContext *C,
                                 const float2 old_pos,
                                 const float2 new_pos)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   Paint *paint = BKE_paint_get_active_from_context(C);
   bke::PaintRuntime *paint_runtime = paint->runtime;
   const Brush &brush = *BKE_paint_brush(paint);
@@ -1252,7 +1253,7 @@ void PaintStroke::lines_spacing(bContext *C,
 
 void PaintStroke::line_end(bContext *C, wmOperator *op, const float2 mouse)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   Brush *br = this->brush;
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
   if (stroke_started_ && br->stroke_method == BRUSH_STROKE_LINE) {
@@ -1265,7 +1266,7 @@ void PaintStroke::line_end(bContext *C, wmOperator *op, const float2 mouse)
 
 bool PaintStroke::curve_end(bContext *C, wmOperator *op)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const Brush &br = *this->brush;
   if (br.stroke_method != BRUSH_STROKE_CURVE) {
     return false;
@@ -1382,7 +1383,7 @@ static void paint_stroke_line_constrain(float2 last_mouse_position,
 
 wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   /* TODO: Temporary, used to facilitate removing bContext usage in subclasses */
   this->evil_C = C;
 
@@ -1627,7 +1628,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
 
 wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   /* TODO: Temporary, used to facilitate removing bContext usage in subclasses */
   this->evil_C = C;
 
@@ -1681,13 +1682,13 @@ wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
 
 void PaintStroke::finish(bContext *C)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   this->done(C, false);
 }
 
 void PaintStroke::cancel(bContext *C)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   this->done(C, true);
 }
 

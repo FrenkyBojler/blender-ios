@@ -134,7 +134,7 @@ BLI_NOINLINE static void calc_segment_translations(const Span<float3> positions,
                                                    const IKChainSegment &segment,
                                                    const MutableSpan<float3> translations)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(positions.size() == translations.size());
   for (const int i : positions.index_range()) {
     float3 position = positions[i];
@@ -148,7 +148,7 @@ BLI_NOINLINE static void calc_segment_translations(const Span<float3> positions,
 
 BLI_NOINLINE static void add_arrays(const MutableSpan<float3> a, const Span<float3> b)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(a.size() == b.size());
   for (const int i : a.index_range()) {
     a[i] += b[i];
@@ -337,7 +337,7 @@ BLI_NOINLINE static void add_fake_neighbors(const Span<int> fake_neighbors,
                                             MutableSpan<int> neighbor_offsets,
                                             Vector<int> &neighbor_data_with_fake)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const OffsetIndices<int> offsets(neighbor_offsets);
   for (const int i : verts.index_range()) {
     const Span<int> orig_neighbors = orig_neighbor_data.slice(offsets[i]);
@@ -507,7 +507,7 @@ static void grow_pose_factor(const Depsgraph &depsgraph,
                              float *r_pose_origin,
                              MutableSpan<float> pose_factor)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   const ePaintSymmetryFlags symm = mesh_symmetry_xyz_get(ob);
 
@@ -836,7 +836,7 @@ static void calc_pose_data(const Depsgraph &depsgraph,
                            float3 &r_pose_origin,
                            MutableSpan<float> r_pose_factor)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(!r_pose_factor.is_empty());
 
   float3 pose_origin;
@@ -1547,7 +1547,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets(const Depsgraph &depsgra
                                                         const Brush &brush,
                                                         const float radius)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh:
       return ik_chain_init_face_sets_mesh(depsgraph, object, ss, brush, radius);
@@ -1567,7 +1567,7 @@ static std::optional<float3> calc_average_face_set_center(const Depsgraph &depsg
                                                           const int active_face_set,
                                                           const int target_face_set)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   int count = 0;
   float3 sum(0.0f);
 
@@ -1914,7 +1914,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk(const Depsgraph &deps
                                                            const float radius,
                                                            const float3 &initial_location)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh:
       return ik_chain_init_face_sets_fk_mesh(depsgraph, object, ss, radius, initial_location);
@@ -2128,7 +2128,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
                    Object &ob,
                    const IndexMask &node_mask)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *ob.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);

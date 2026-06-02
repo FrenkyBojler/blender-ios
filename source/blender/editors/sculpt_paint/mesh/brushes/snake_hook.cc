@@ -91,7 +91,7 @@ BLI_NOINLINE static void calc_pinch_influence(const Brush &brush,
                                               const Span<float> factors,
                                               const MutableSpan<float3> translations)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   if (brush.crease_pinch_factor == 0.5f) {
     return;
   }
@@ -133,7 +133,7 @@ BLI_NOINLINE static void calc_rake_rotation_influence(const StrokeCache &cache,
                                                       const Span<float> factors,
                                                       const MutableSpan<float3> translations)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   if (!cache.rake_rotation_symm) {
     return;
   }
@@ -147,7 +147,7 @@ BLI_NOINLINE static void calc_kelvinet_translation(const StrokeCache &cache,
                                                    const Span<float> factors,
                                                    const MutableSpan<float3> translations)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   KelvinletParams params;
   BKE_kelvinlet_init_params(&params, cache.radius, cache.bstrength, 1.0f, 0.4f);
   for (const int i : positions.index_range()) {
@@ -356,7 +356,7 @@ void do_snake_hook_brush(const Depsgraph &depsgraph,
                          Object &object,
                          const IndexMask &node_mask)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);

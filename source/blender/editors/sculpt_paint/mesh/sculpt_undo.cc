@@ -301,7 +301,7 @@ void filter_compress(const Span<T> src,
                      Vector<std::byte> &filter_buffer,
                      Vector<std::byte> &compress_buffer)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   filter_buffer.resize(src.size_in_bytes());
   filter_transpose_delta(reinterpret_cast<const uint8_t *>(src.data()),
                          reinterpret_cast<uint8_t *>(filter_buffer.data()),
@@ -328,7 +328,7 @@ void filter_compress(const Span<T> src,
 template<typename T>
 void filter_decompress(const Span<std::byte> src, Vector<std::byte> &buffer, Vector<T> &dst)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const unsigned long long dst_size_in_bytes = ZSTD_getFrameContentSize(src.data(), src.size());
   if (ELEM(dst_size_in_bytes, ZSTD_CONTENTSIZE_ERROR, ZSTD_CONTENTSIZE_UNKNOWN)) {
     dst.clear();
@@ -549,7 +549,7 @@ static bool restore_active_shape_key(bContext &C,
 template<typename T>
 static void swap_indexed_data(MutableSpan<T> full, const Span<int> indices, MutableSpan<T> indexed)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(full.size() == indices.size());
   for (const int i : indices.index_range()) {
     std::swap(full[i], indexed[indices[i]]);
@@ -560,7 +560,7 @@ static void restore_position_mesh(Object &object,
                                   PositionUndoStorage &undo_data,
                                   const MutableSpan<bool> modified_verts)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
@@ -636,7 +636,7 @@ static void restore_position_grids(const MutableSpan<float3> positions,
                                    PositionUndoStorage &undo_data,
                                    const MutableSpan<bool> modified_grids)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const int nodes_num = undo_data.compressed_indices.size();
 
   struct LocalData {
@@ -677,7 +677,7 @@ static void restore_vert_visibility_mesh(Object &object,
                                          Node &unode,
                                          const MutableSpan<bool> modified_verts)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_vert = attributes.lookup_or_add_for_write_span<bool>(
@@ -697,7 +697,7 @@ static void restore_vert_visibility_grids(SubdivCCG &subdiv_ccg,
                                           Node &unode,
                                           const MutableSpan<bool> modified_grids)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   if (unode.grid_hidden.is_empty()) {
     BKE_subdiv_ccg_grid_hidden_free(subdiv_ccg);
     return;
@@ -724,7 +724,7 @@ static void restore_hidden_face(Object &object,
                                 Node &unode,
                                 const MutableSpan<bool> modified_faces)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter hide_poly = attributes.lookup_or_add_for_write_span<bool>(
@@ -747,7 +747,7 @@ static void restore_color(Object &object,
                           StepData &step_data,
                           const MutableSpan<bool> modified_verts)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::GSpanAttributeWriter color_attribute = color::active_color_attribute_for_write(mesh);
 
@@ -770,7 +770,7 @@ static void restore_color(Object &object,
 
 static void restore_mask_mesh(Object &object, Node &unode, const MutableSpan<bool> modified_verts)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   Mesh *mesh = BKE_object_get_original_mesh(&object);
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
@@ -792,7 +792,7 @@ static void restore_mask_mesh(Object &object, Node &unode, const MutableSpan<boo
 
 static void restore_mask_grids(Object &object, Node &unode, const MutableSpan<bool> modified_grids)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   SubdivCCG *subdiv_ccg = ss.subdiv_ccg;
   MutableSpan<float> masks = subdiv_ccg->masks;
@@ -817,7 +817,7 @@ static bool restore_face_sets(Object &object,
                               Node &unode,
                               const MutableSpan<bool> modified_face_set_faces)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const Span<int> face_indices = unode.face_indices;
 
   bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(
@@ -838,7 +838,7 @@ static bool restore_face_sets(Object &object,
 
 static void bmesh_restore_generic(StepData &step_data, Object &object)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   if (step_data.needs_undo()) {
     BM_log_undo(ss.bm, ss.bm_log);
@@ -922,7 +922,7 @@ static void bmesh_handle_dyntopo_end(bContext *C, StepData &step_data, Object &o
 
 static void store_geometry_data(NodeGeometry *geometry, const Object &object)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const Mesh *mesh = id_cast<const Mesh *>(object.data);
 
   BLI_assert(!geometry->is_initialized);
@@ -950,7 +950,7 @@ static void store_geometry_data(NodeGeometry *geometry, const Object &object)
 
 static void restore_geometry_data(const NodeGeometry *geometry, Mesh *mesh)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(geometry->is_initialized);
 
   BKE_mesh_clear_geometry(mesh);
@@ -978,7 +978,7 @@ static void restore_geometry_data(const NodeGeometry *geometry, Mesh *mesh)
 
 static void geometry_free_data(NodeGeometry *geometry)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   CustomData_free(&geometry->vert_data);
   CustomData_free(&geometry->edge_data);
   CustomData_free(&geometry->corner_data);
@@ -989,7 +989,7 @@ static void geometry_free_data(NodeGeometry *geometry)
 
 static void restore_geometry(StepData &step_data, Object &object)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BKE_sculptsession_free_pbvh(object);
   DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
 
@@ -1070,7 +1070,7 @@ static void refine_subdiv(Depsgraph *depsgraph,
 
 static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1438,7 +1438,7 @@ static void store_vert_visibility_grids(const SubdivCCG &subdiv_ccg,
                                         const bke::pbvh::GridsNode &node,
                                         Node &unode)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
   if (grid_hidden.is_empty()) {
     return;
@@ -1453,7 +1453,7 @@ static void store_vert_visibility_grids(const SubdivCCG &subdiv_ccg,
 
 static void store_positions_mesh(const Depsgraph &depsgraph, const Object &object, Node &unode)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
   gather_data_mesh(bke::pbvh::vert_positions_eval(depsgraph, object),
                    unode.vert_indices.as_span(),
@@ -1476,7 +1476,7 @@ static void store_positions_mesh(const Depsgraph &depsgraph, const Object &objec
 
 static void store_positions_grids(const SubdivCCG &subdiv_ccg, Node &unode)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   gather_data_grids(
       subdiv_ccg, subdiv_ccg.positions.as_span(), unode.grids, unode.position.as_mutable_span());
   gather_data_grids(
@@ -1485,7 +1485,7 @@ static void store_positions_grids(const SubdivCCG &subdiv_ccg, Node &unode)
 
 static void store_vert_visibility_mesh(const Mesh &mesh, const bke::pbvh::Node &node, Node &unode)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert",
                                                               bke::AttrDomain::Point);
@@ -1501,7 +1501,7 @@ static void store_vert_visibility_mesh(const Mesh &mesh, const bke::pbvh::Node &
 
 static void store_face_visibility(const Mesh &mesh, Node &unode)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
   if (hide_poly.is_empty()) {
@@ -1516,7 +1516,7 @@ static void store_face_visibility(const Mesh &mesh, Node &unode)
 
 static void store_mask_mesh(const Mesh &mesh, Node &unode)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
   if (mask.is_empty()) {
@@ -1529,7 +1529,7 @@ static void store_mask_mesh(const Mesh &mesh, Node &unode)
 
 static void store_mask_grids(const SubdivCCG &subdiv_ccg, Node &unode)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   if (!subdiv_ccg.masks.is_empty()) {
     gather_data_grids(
         subdiv_ccg, subdiv_ccg.masks.as_span(), unode.grids, unode.mask.as_mutable_span());
@@ -1541,7 +1541,7 @@ static void store_mask_grids(const SubdivCCG &subdiv_ccg, Node &unode)
 
 static void store_color(const Mesh &mesh, const bke::pbvh::MeshNode &node, Node &unode)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
@@ -1589,7 +1589,7 @@ static void geometry_push(const Object &object)
 
 static void store_face_sets(const Mesh &mesh, Node &unode)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
   if (face_sets.is_empty()) {
@@ -1883,7 +1883,7 @@ void push_nodes(const Depsgraph &depsgraph,
                 const IndexMask &node_mask,
                 const Type type)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
 
   ss.needs_flush_to_id = true;

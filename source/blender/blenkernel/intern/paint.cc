@@ -35,7 +35,6 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_noise.hh"
-#include "BLI_profile.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -72,6 +71,8 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "PRF_profile.hh"
 
 #include "RNA_enum_types.hh"
 
@@ -2536,7 +2537,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
 
 void BKE_sculpt_update_object_for_edit(Depsgraph *depsgraph, Object *ob_orig, bool is_paint_tool)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(ob_orig == DEG_get_original(ob_orig));
 
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);

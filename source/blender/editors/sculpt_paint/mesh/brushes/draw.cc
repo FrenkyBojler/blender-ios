@@ -187,7 +187,7 @@ void do_draw_brush(const Depsgraph &depsgraph,
                    Object &object,
                    const IndexMask &node_mask)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
@@ -204,7 +204,7 @@ void do_nudge_brush(const Depsgraph &depsgraph,
                     Object &object,
                     const IndexMask &node_mask)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
 
   const float3 offset = math::cross(
@@ -219,7 +219,7 @@ void do_gravity_brush(const Depsgraph &depsgraph,
                       Object &object,
                       const IndexMask &node_mask)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const SculptSession &ss = *object.runtime->sculpt_session;
 
   const float3 offset = ss.cache->gravity_direction_symm * -ss.cache->radius_squared *

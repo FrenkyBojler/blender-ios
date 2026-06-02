@@ -10,7 +10,6 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_profile.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
@@ -19,6 +18,8 @@
 #include "BKE_subdiv_ccg.hh"
 
 #include "DNA_brush_enums.h"
+
+#include "PRF_profile.hh"
 
 #include "sculpt_intern.hh"
 
@@ -88,7 +89,7 @@ void translations_from_new_positions(Span<float3> new_positions,
 /** Gather data from an array aligned with all geometry vertices. */
 template<typename T> void gather_data_mesh(Span<T> src, Span<int> indices, MutableSpan<T> dst)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   /* #exec_mode::serial because this is called from tasks with TLS that don't use isolation. */
   array_utils::gather(src, indices, dst, exec_mode::serial);
 }
@@ -129,7 +130,7 @@ MutableSpan<T> gather_data_bmesh(const Span<T> src, const Set<BMVert *, 0> &vert
 /** Scatter data from an array of the node's data to the referenced geometry vertices. */
 template<typename T> void scatter_data_mesh(Span<T> src, Span<int> indices, MutableSpan<T> dst)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   /* #exec_mode::serial because this is called from tasks with TLS that don't use isolation. */
   array_utils::scatter(src, indices, dst, exec_mode::serial);
 }
@@ -146,7 +147,7 @@ inline MutableSpan<float3> gather_grids_positions(const SubdivCCG &subdiv_ccg,
                                                   const Span<int> grids,
                                                   Vector<float3> &positions)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   positions.resize(key.grid_area * grids.size());
   gather_data_grids(subdiv_ccg, subdiv_ccg.positions.as_span(), grids, positions);

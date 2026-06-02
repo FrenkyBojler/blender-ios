@@ -43,7 +43,7 @@ struct LocalData {
 
 BLI_NOINLINE static void clamp_factors(const MutableSpan<float> factors)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   for (float &factor : factors) {
     factor = std::clamp(factor, 0.0f, 1.0f);
   }
@@ -412,7 +412,7 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
                              Object &object,
                              const IndexMask &node_mask)
 {
-  BLI_profile_scope(ProfileCategory::Editor);
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
