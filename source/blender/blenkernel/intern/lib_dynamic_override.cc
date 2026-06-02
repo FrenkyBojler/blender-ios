@@ -579,7 +579,15 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
           srna, property_identifier.c_str(), prop_type, RNA_property_subtype(prop_orig));
 
       /* TODO: Likely need more care here (clear some flags, etc.). */
-      RNA_def_property_flag(prop, PropertyFlag(RNA_property_flag(prop_orig)));
+      PropertyFlag prop_flag = PropertyFlag(RNA_property_flag(prop_orig));
+      /* TODO: 'context update' properties will not work well with generic liboverrides Main-based
+       * update callback. Not clear currently if:
+       *   - These type of properties should be supported at all by dynoverride?
+       *   - DynOverride should be able to generate a context update callback for these?
+       *   - Something else?
+       */
+      prop_flag &= ~PropertyFlag(PROP_CONTEXT_UPDATE | PROP_CONTEXT_PROPERTY_UPDATE);
+      RNA_def_property_flag(prop, prop_flag);
       RNA_def_property_override_flag(prop,
                                      PropertyOverrideFlag(RNA_property_override_flag(prop_orig)));
       if (prop_ptr_type != RNA_UnknownType) {
@@ -682,6 +690,7 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
           RNA_property_ui_description_raw(prop_orig, &ptr));
       RNA_def_property_ui_text(prop, ui_name.c_str(), ui_description.c_str());
 
+      /* TODO generic update function may not work well in all cases. */
       RNA_def_property_update_runtime(
           prop, [](Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr) {
             DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
