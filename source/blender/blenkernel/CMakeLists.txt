@@ -107,6 +107,7 @@ set(SRC
   intern/deform.cc
   intern/displist.cc
   intern/dynamicpaint.cc
+  intern/dynamic_override.cc
   intern/editlattice.cc
   intern/editmesh.cc
   intern/editmesh_bvh.cc
@@ -167,7 +168,6 @@ set(SRC
   intern/lib_id_eval.cc
   intern/lib_id_remapper.cc
   intern/lib_override.cc
-  intern/lib_dynamic_override.cc
   intern/lib_override_proxy_conversion.cc
   intern/lib_query.cc
   intern/lib_remap.cc
@@ -390,6 +390,7 @@ set(SRC
   BKE_displist.h
   BKE_duplilist.hh
   BKE_dynamicpaint.h
+  BKE_dynamic_override.hh
   BKE_editlattice.h
   BKE_editmesh.hh
   BKE_editmesh_bvh.hh
@@ -436,7 +437,6 @@ set(SRC
   BKE_layer.hh
   BKE_lib_id.hh
   BKE_lib_override.hh
-  BKE_lib_dynamic_override.hh
   BKE_lib_query.hh
   BKE_lib_remap.hh
   BKE_library.hh

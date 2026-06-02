@@ -19,7 +19,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_lib_dynamic_override.hh"
+#include "BKE_dynamic_override.hh"
 
 #include "DNA_ID.h" /* for ID_Type and INDEX_ID_MAX */
 

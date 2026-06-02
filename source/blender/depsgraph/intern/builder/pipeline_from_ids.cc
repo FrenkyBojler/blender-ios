@@ -32,12 +32,11 @@ class DepsgraphFromIDsFilter {
 
 class DepsgraphFromIDsNodeBuilder : public DepsgraphNodeBuilder {
  public:
-  DepsgraphFromIDsNodeBuilder(
-      Main *bmain,
-      Depsgraph *graph,
-      DepsgraphBuilderCache *cache,
-      std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx,
-      Span<ID *> ids)
+  DepsgraphFromIDsNodeBuilder(Main *bmain,
+                              Depsgraph *graph,
+                              DepsgraphBuilderCache *cache,
+                              std::shared_ptr<bke::dynoverride::DepsgraphCtx> dynamic_override_ctx,
+                              Span<ID *> ids)
       : DepsgraphNodeBuilder(bmain, graph, cache, dynamic_override_ctx), filter_(ids)
   {
   }

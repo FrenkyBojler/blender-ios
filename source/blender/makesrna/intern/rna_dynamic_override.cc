@@ -21,8 +21,8 @@
 #  include "DNA_ID.h"
 #  include "DNA_dynamic_override_types.h"
 
+#  include "BKE_dynamic_override.hh"
 #  include "BKE_idprop.hh"
-#  include "BKE_lib_dynamic_override.hh"
 #  include "BKE_main_invariants.hh"
 
 #  include "DEG_depsgraph.hh"

@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_lib_dynamic_override.hh"
+#include "BKE_dynamic_override.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_update.hh"
 
