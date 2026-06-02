@@ -542,7 +542,7 @@ struct bNodeTreeType {
    * "Nodes/Geometry Nodes" to treat assets and catalogs under "Nodes/Geometry Nodes" as root
    * level.
    */
-  const char *asset_catalog_path_prefix;
+  std::optional<std::string> asset_catalog_path_prefix;
 
   /* callbacks */
   /* Iteration over all node classes. */
