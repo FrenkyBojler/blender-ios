@@ -91,16 +91,39 @@ static int inputs_cmp(const void *a, const void *b)
   return gpu_type_element_count(input_a->type) < gpu_type_element_count(input_b->type) ? 1 : 0;
 }
 
+/* First link of each type in the sorted list. */
+struct UBOFirstLinks {
+  LinkData *link_mat4;
+  LinkData *link_vec4;
+  LinkData *link_vec3;
+  LinkData *link_vec2;
+  LinkData *link_float;
+};
+
+static LinkData **ubo_first_link_ptr(UBOFirstLinks &first_links, const GPUType type)
+{
+  switch (type) {
+    case GPU_MAT4:
+      return &first_links.link_mat4;
+    case GPU_VEC4:
+      return &first_links.link_vec4;
+    case GPU_VEC3:
+      return &first_links.link_vec3;
+    case GPU_VEC2:
+      return &first_links.link_vec2;
+    case GPU_FLOAT:
+      return &first_links.link_float;
+  }
+
+  return nullptr;
+}
+
 /**
  * Make sure we respect the expected alignment of UBOs.
  * mat4, vec4, pad vec3 as vec4, then vec2, then floats.
  */
 static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
 {
-/* Only support up to this type, if you want to extend it, make sure static void
- * inputs_sobuffer_size_compute(*inputs) padding logic is correct for the new types. */
-#define MAX_UBO_GPU_TYPE gpu_type_element_count(GPU_MAT4)
-
   /* Order them as mat4, vec4, vec3, vec2, float. */
   BLI_listbase_sort(inputs, inputs_cmp);
 
@@ -109,42 +132,38 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
     return;
   }
 
-  /* Creates a lookup table for the different types. */
-  LinkData *inputs_lookup[MAX_UBO_GPU_TYPE + 1] = {nullptr};
-  int cur_type = MAX_UBO_GPU_TYPE + 1;
+  UBOFirstLinks first_links{};
+  GPUType cur_type = GPU_NONE;
 
   for (LinkData &link : *inputs) {
     GPUInput *input = static_cast<GPUInput *>(link.data);
 
-    switch (input->type) {
-      case GPU_FLOAT:
-      case GPU_VEC2:
-      case GPU_VEC3:
-      case GPU_VEC4:
-      case GPU_MAT4:
-        break;
-      default:
-        /* Alignment for mat3 is not handled currently, so not supported.
-         * Integer and boolean GPU types are not supported. */
-        BLI_assert_msg(0, "GPU type not supported in UBO");
-        continue;
-    }
-    const int type = gpu_type_element_count(input->type);
-
-    if (type == cur_type) {
+    if (input->type == GPU_MAT3) {
+      /* Alignment for mat3 is not handled currently, so not supported */
+      BLI_assert_msg(0, "mat3 not supported in UBO");
       continue;
     }
 
-    inputs_lookup[type] = &link;
-    cur_type = type;
+    LinkData **first_link_ptr = ubo_first_link_ptr(first_links, input->type);
+    if (first_link_ptr == nullptr) {
+      BLI_assert_msg(0, "GPU type not supported in UBO");
+      continue;
+    }
+
+    if (input->type == cur_type) {
+      continue;
+    }
+
+    *first_link_ptr = &link;
+    cur_type = input->type;
   }
 
   /* If there is no GPU_VEC3 there is no need for alignment. */
-  if (inputs_lookup[gpu_type_element_count(GPU_VEC3)] == nullptr) {
+  if (first_links.link_vec3 == nullptr) {
     return;
   }
 
-  LinkData *link = inputs_lookup[gpu_type_element_count(GPU_VEC3)];
+  LinkData *link = first_links.link_vec3;
   while (link != nullptr && (static_cast<GPUInput *>(link->data))->type == GPU_VEC3) {
     LinkData *link_next = link->next;
 
@@ -154,9 +173,9 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
     }
 
     /* If there is a float, move it next to current vec3. */
-    if (inputs_lookup[gpu_type_element_count(GPU_FLOAT)] != nullptr) {
-      LinkData *float_input = inputs_lookup[gpu_type_element_count(GPU_FLOAT)];
-      inputs_lookup[gpu_type_element_count(GPU_FLOAT)] = float_input->next;
+    if (first_links.link_float != nullptr) {
+      LinkData *float_input = first_links.link_float;
+      first_links.link_float = float_input->next;
 
       BLI_remlink(inputs, float_input);
       BLI_insertlinkafter(inputs, link, float_input);
@@ -164,7 +183,6 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
 
     link = link_next;
   }
-#undef MAX_UBO_GPU_TYPE
 }
 
 static inline size_t buffer_size_from_list(ListBaseT<LinkData> *inputs)
