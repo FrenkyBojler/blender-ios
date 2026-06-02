@@ -4,12 +4,10 @@
 
 #include "BKE_type_conversions.hh"
 
-#include "BLI_cpp_type.hh"
-#include "BLI_memory_utils.hh"
-#include "BLI_unique_sorted_indices.hh"
 #include "FN_multi_function_builder.hh"
 
 #include "BLI_color.hh"
+#include "BLI_cpp_type.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.hh"
