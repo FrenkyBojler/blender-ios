@@ -328,8 +328,7 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
                                                          viewfinder_resolution,
                                                          true,
                                                          gpu::TextureFormat::UNORM_8_8_8_8,
-                                                         GPU_TEXTURE_USAGE_SHADER_READ |
-                                                             GPU_TEXTURE_USAGE_MEMORY_EXPORT,
+                                                         GPU_TEXTURE_USAGE_SHADER_READ,
                                                          false,
                                                          err_out);
   }
