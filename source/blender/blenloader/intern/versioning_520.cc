@@ -12,6 +12,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
@@ -19,6 +20,8 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_windowmanager_types.h"
+#include "DNA_xr_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_string.h"
@@ -786,6 +789,34 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         brush.gpencil_settings->fill_gap_factor = 0.4f;
         brush.gpencil_settings->flag |= GP_BRUSH_FILL_INTERNAL_GAPS;
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 39)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype == SPACE_SEQ) {
+            SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
+            sseq->preview_overlay.flag |= SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES;
+            float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
+            copy_v4_v4(sseq->preview_overlay.composition_guide_color, default_col);
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 40)) {
+    for (wmWindowManager &wm : bmain->wm) {
+      wm.xr.session_settings.viewfinder_enabled = false;
+      wm.xr.session_settings.viewfinder_crosshair_enabled = true;
+
+      wm.xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_RIGHT;
+      wm.xr.session_settings.viewfinder_scale = 1.0f;
+
+      wm.xr.session_settings.viewfinder_passepartout_overscan = 0.5f;
+      wm.xr.session_settings.viewfinder_passepartout_opacity = 0.5f;
     }
   }
 

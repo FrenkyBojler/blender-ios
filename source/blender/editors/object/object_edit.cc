@@ -1281,10 +1281,10 @@ static bool has_pose_motion_paths(Object *ob)
   return ob->pose && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
 }
 
-static void motion_paths_recalc(bContext *C,
-                                Scene *scene,
-                                const eAnimvizCalcRange range,
-                                const Span<Object *> objects)
+void motion_paths_recalc(bContext *C,
+                         Scene *scene,
+                         const eAnimvizCalcRange range,
+                         const Span<Object *> objects)
 {
   BLI_assert(C != nullptr);
   Main *bmain = CTX_data_main(C);
@@ -2085,7 +2085,7 @@ static wmOperatorStatus object_mode_set_exec(bContext *C, wmOperator *op)
     }
   }
   else {
-    const eObjectMode mode_prev = eObjectMode(ob->mode);
+    const eObjectMode mode_prev = ob->mode;
     /* When toggling object mode, we always use the restore mode,
      * otherwise there is nothing to do. */
     if (mode == OB_MODE_OBJECT) {
@@ -2097,7 +2097,7 @@ static wmOperatorStatus object_mode_set_exec(bContext *C, wmOperator *op)
       }
       else {
         if (ob->restore_mode != OB_MODE_OBJECT) {
-          mode_set_ex(C, eObjectMode(ob->restore_mode), true, op->reports);
+          mode_set_ex(C, ob->restore_mode, true, op->reports);
         }
       }
     }
@@ -2112,7 +2112,7 @@ static wmOperatorStatus object_mode_set_exec(bContext *C, wmOperator *op)
       }
       else {
         if (ob->restore_mode != OB_MODE_OBJECT) {
-          mode_set_ex(C, eObjectMode(ob->restore_mode), true, op->reports);
+          mode_set_ex(C, ob->restore_mode, true, op->reports);
         }
         else {
           mode_set_ex(C, OB_MODE_OBJECT, true, op->reports);

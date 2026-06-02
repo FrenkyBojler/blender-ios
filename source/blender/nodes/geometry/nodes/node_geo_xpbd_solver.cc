@@ -564,10 +564,9 @@ class XpbdSolverStep {
  private:
   struct TLS {
     ResourceScope scope;
-    IndexMaskMemory &mask_memory;
     LinearAllocator<> &allocator;
 
-    TLS() : mask_memory(scope.construct<IndexMaskMemory>()), allocator(mask_memory) {}
+    TLS() : scope(1024), allocator(scope.allocator()) {}
   };
 
   threading::EnumerableThreadSpecific<TLS> tls_;
@@ -1379,11 +1378,12 @@ class XpbdSolverStep {
         if (prev_instances) {
           const Span<float4x4> prev_instance_transforms = prev_instances->transforms();
           const Span<int> prev_instance_ids = prev_instances->unique_ids();
+          const Span<int> prev_handles = prev_instances->reference_handles();
           const Span<bke::InstanceReference> prev_references = prev_instances->references();
           for (const int i : prev_instance_transforms.index_range()) {
             const int prev_instance_id = prev_instance_ids[i];
             const float4x4 &prev_instance_transform = prev_instance_transforms[i];
-            const bke::InstanceReference &prev_reference = prev_references[i];
+            const bke::InstanceReference &prev_reference = prev_references[prev_handles[i]];
             prev_instance_by_id.add(prev_instance_id, {&prev_instance_transform, &prev_reference});
           }
         }
@@ -1873,7 +1873,7 @@ class XpbdSolverStep {
             constraint_usage.compliances,
             error_scale_from_threshold(constraint.error_threshold),
             constraint_usage.lambdas);
-        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
+        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.allocator);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
       }
     }
@@ -1947,7 +1947,7 @@ class XpbdSolverStep {
             cross_edge_compliances,
             error_scale_from_threshold(constraint.error_threshold),
             constraint_usage.lambdas);
-        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
+        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.allocator);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
       }
     }

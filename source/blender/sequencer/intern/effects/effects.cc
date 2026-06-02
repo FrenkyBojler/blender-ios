@@ -19,6 +19,8 @@
 #include "IMB_imbuf.hh"
 #include "IMB_metadata.hh"
 
+#include "PRF_profile.hh"
+
 #include "RNA_prototypes.hh"
 
 #include "SEQ_render.hh"
@@ -33,6 +35,7 @@ SeqResult prepare_effect_imbufs(const RenderData *context,
                                 const SeqResult &ibuf2,
                                 bool uninitialized_pixels)
 {
+  PRF_scope_with_name("SeqFxPrepareImbufs", ProfileCategory::Draw);
   SeqResult out;
   Scene *scene = context->scene;
   int x = context->rectx;
