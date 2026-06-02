@@ -208,7 +208,6 @@ const ListBaseT<GPULayerAttr> *GPU_material_layer_attributes(const GPUMaterial *
 /* Requested Material Attributes and Textures */
 
 enum GPUType {
-  /* Keep in sync with GPU_DATATYPE_STR */
   /* Float types */
   GPU_NONE,
   GPU_FLOAT,
@@ -218,14 +217,6 @@ enum GPUType {
   GPU_MAT3,
   GPU_MAT4,
 
-  /* Integer types */
-  GPU_INT,
-  GPU_IVEC2,
-  GPU_IVEC3,
-  GPU_IVEC4,
-  GPU_BOOL,
-
-  /* Values not in GPU_DATATYPE_STR */
   GPU_TEX1D_ARRAY,
   GPU_TEX2D,
   GPU_TEX2D_ARRAY,
@@ -244,34 +235,34 @@ constexpr int GPU_MAX_CONSTANT_DATA = 16;
 constexpr int gpu_type_element_count(const GPUType type)
 {
   switch (type) {
-    case GPU_NONE:
-      return 0;
     case GPU_FLOAT:
-    case GPU_INT:
-    case GPU_BOOL:
       return 1;
     case GPU_VEC2:
-    case GPU_IVEC2:
       return 2;
     case GPU_VEC3:
-    case GPU_IVEC3:
       return 3;
     case GPU_VEC4:
-    case GPU_IVEC4:
       return 4;
     case GPU_MAT3:
       return 9;
     case GPU_MAT4:
       return 16;
-    default:
-      BLI_assert_unreachable();
-      return 0;
+    case GPU_NONE:
+    case GPU_TEX1D_ARRAY:
+    case GPU_TEX2D:
+    case GPU_TEX2D_ARRAY:
+    case GPU_TEX3D:
+    case GPU_CLOSURE:
+    case GPU_ATTR:
+      break;
   }
+  BLI_assert_unreachable();
+  return 0;
 }
 
 /* Integers, integer vectors, and booleans are intentionally excluded
- * until they are are wired through codegen. */
-constexpr GPUType gpu_type_from_element_count(const int count)
+ * until they are wired through codegen. */
+constexpr GPUType gpu_float_type_from_element_count(const int count)
 {
   switch (count) {
     case 1:
