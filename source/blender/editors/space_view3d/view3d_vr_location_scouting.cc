@@ -27,28 +27,21 @@
 
 #include "WM_api.hh"
 
-#include "wm_xr.hh"
+#ifdef WITH_XR_OPENXR
+#  include "wm_xr.hh"
+#endif
 
 namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Location Scouting Capture Review Operator
+ *
+ *  \note This operator relies on the WM XR submodule, and is thus conditionally compiled
+ *        if WITH_XR_OPENXR is defined. However, to ensure keymap files continuity, the
+ *        operator modal keymap is always defined, and is conditionally assigned to the
+ *        operator if WITH_XR_OPENXR is defined.
+ *
  * \{ */
-
-struct CaptureReviewData {
-  /* Context. */
-  ScrArea *area;
-  RegionView3D *rv3d;
-  View3D *v3d;
-
-  /* Previous camera to restore on exit. */
-  Object *prev_view3d_cam_ob;
-  eRegionView3D_Persp prev_view3d_persp;
-
-  /* Fake camera object to set the View3D. */
-  Object *cam_ob;
-  Camera *cam_data;
-};
 
 /* NOTE: these defines are saved in keymap files, do not change values but just add new ones */
 enum {
@@ -95,8 +88,26 @@ void vr_location_scouting_capture_review_modal_keymap(wmKeyConfig *keyconf)
       keyconf, "View3D VR Location Scouting Capture Review Modal", modal_items);
 
   /* Assign map to operators. */
+#ifdef WITH_XR_OPENXR
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_vr_location_scouting_capture_review");
+#endif
 }
+
+#ifdef WITH_XR_OPENXR
+struct CaptureReviewData {
+  /* Context. */
+  ScrArea *area;
+  RegionView3D *rv3d;
+  View3D *v3d;
+
+  /* Previous camera to restore on exit. */
+  Object *prev_view3d_cam_ob;
+  eRegionView3D_Persp prev_view3d_persp;
+
+  /* Fake camera object to set the View3D. */
+  Object *cam_ob;
+  Camera *cam_data;
+};
 
 static void location_scouting_review_draw_status(bContext *C, wmOperator *op)
 {
@@ -356,6 +367,7 @@ void VIEW3D_OT_vr_location_scouting_capture_review(wmOperatorType *ot)
   ot->modal = vr_location_scouting_capture_review_modal;
   ot->poll = vr_location_scouting_capture_review_poll;
 }
+#endif
 
 /** \} */
 

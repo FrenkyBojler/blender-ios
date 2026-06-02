@@ -279,10 +279,7 @@ void view3d_keymap(wmKeyConfig *keyconf)
   viewzoom_modal_keymap(keyconf);
   viewdolly_modal_keymap(keyconf);
   viewplace_modal_keymap(keyconf);
-
-#ifdef WITH_XR_OPENXR
   vr_location_scouting_capture_review_modal_keymap(keyconf);
-#endif
 }
 
 /** \} */
