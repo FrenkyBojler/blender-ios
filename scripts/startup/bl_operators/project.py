@@ -215,6 +215,8 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
     """
     Load the project the blend file is in, or clears the project if none is found.
 
+    `blend_path` should be an absolute path.
+
     Throws a ProjectLoadException if a project is found but is invalid
     (missing config file, config validation error, etc.).
 
@@ -263,7 +265,7 @@ def find_project_root_from_blend_file_path(blend_path):
     return None
 
 
-def read_project_toml_config(root_path, report=None) -> ProjectConfig:
+def read_project_toml_config(root_path, report=None):
     """
     Read the project config for the given project root path.
 

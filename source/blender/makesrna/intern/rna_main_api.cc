@@ -949,6 +949,7 @@ void RNA_api_main(StructRNA *srna)
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "project_init", "rna_Main_blender_project_init");
+  RNA_def_function_ui_description(func, "Initialize a new active project");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "name", nullptr, 0, nullptr, "The project's name");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
@@ -957,6 +958,7 @@ void RNA_api_main(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "project_clear", "rna_Main_blender_project_clear");
+  RNA_def_function_ui_description(func, "Clear the currently active project");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
 }
 

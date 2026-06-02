@@ -57,10 +57,11 @@ class BlenderProject {
   /**
    * The project root path. Should never be empty.
    *
-   * This should generally be a directory that exists, is accessible, and
-   * contains a ".blender_project" directory with the project's config in it.
-   * This is not, however, guaranteed because via Python a project can be
-   * initialized with an arbitrary path.
+   * This should generally be an absolute path to a directory that exists, is
+   * accessible, and contains a ".blender_project" directory with the project's
+   * config in it. This is not, however, guaranteed because via Python a project
+   * can be initialized with an arbitrary path, or the filesystem could have
+   * been modified since the project was loaded, etc.
    */
   std::string root_path_;
 
@@ -134,24 +135,6 @@ void with_blender_project_read_lock(FunctionRef<void()> lambda);
  */
 void with_blender_project_write_lock(FunctionRef<void()> lambda);
 
-/**
- * Underlying impl for `BKE_blender_project_read_callback()`.
- *
- * Please see the documentation for and use `BKE_blender_project_read_callback()` instead
- * of this.
- */
-void blender_project_read_callback_impl(const Main *bmain,
-                                        FunctionRef<void(const bke::BlenderProject *)> lambda);
-
-/**
- * Underlying impl for `BKE_blender_project_write_callback()`.
- *
- * Please see the documentation for and use `BKE_blender_project_write_callback()`
- * instead of this.
- */
-void blender_project_write_callback_impl(const Main *bmain,
-                                         FunctionRef<void(bke::BlenderProject *)> lambda);
-
 }  // namespace bke
 
 /**
@@ -200,12 +183,17 @@ inline auto BKE_blender_project_read_callback(const Main *bmain, Fn lambda)
 {
   using T = std::invoke_result_t<Fn, const bke::BlenderProject *>;
   if constexpr (std::is_void_v<T>) {
-    bke::blender_project_read_callback_impl(bmain, lambda);
+    bke::with_blender_project_read_lock([&] {
+      const bke::BlenderProject *project = BKE_blender_project_get(bmain);
+      lambda(project);
+    });
   }
   else {
     std::optional<T> result;
-    bke::blender_project_read_callback_impl(
-        bmain, [&](const bke::BlenderProject *project) { result = lambda(project); });
+    bke::with_blender_project_read_lock([&] {
+      const bke::BlenderProject *project = BKE_blender_project_get(bmain);
+      result = lambda(project);
+    });
     BLI_assert(result.has_value());
     return std::move(*result);
   }
@@ -230,12 +218,17 @@ inline auto BKE_blender_project_write_callback(const Main *bmain, Fn lambda)
 {
   using T = std::invoke_result_t<Fn, bke::BlenderProject *>;
   if constexpr (std::is_void_v<T>) {
-    bke::blender_project_write_callback_impl(bmain, lambda);
+    bke::with_blender_project_write_lock([&] {
+      bke::BlenderProject *project = BKE_blender_project_get(bmain);
+      lambda(project);
+    });
   }
   else {
     std::optional<T> result;
-    bke::blender_project_write_callback_impl(
-        bmain, [&](bke::BlenderProject *project) { result = lambda(project); });
+    bke::with_blender_project_write_lock([&] {
+      bke::BlenderProject *project = BKE_blender_project_get(bmain);
+      result = lambda(project);
+    });
     BLI_assert(result.has_value());
     return std::move(*result);
   }
@@ -248,11 +241,15 @@ inline auto BKE_blender_project_write_callback(const Main *bmain, Fn lambda)
  * project (if any) will remain as-is and false is returned.  Otherwise the
  * existing project (if any) is cleared, the project is initialized with the
  * given values, and true is returned.
+ *
+ * This handles thread synchronization internally.
  */
 bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path);
 
 /**
  * Clears and unloads the current active project, if any.
+ *
+ * This handles thread synchronization internally.
  */
 void BKE_blender_project_clear();
 

@@ -23,7 +23,6 @@
 
 #include "BKE_context.hh"
 #include "BKE_cryptomatte.hh"
-#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_main.hh"
