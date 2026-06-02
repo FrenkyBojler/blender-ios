@@ -473,10 +473,8 @@ void MetalDispatchPipeline::free_intersection_function_tables()
 {
   for (int table = 0; table < METALRT_TABLE_NUM; table++) {
     if (intersection_func_table[table]) {
-      if (metal_device) {
-        metal_device->metal_mem_free(intersection_func_table[table]);
-      }
-      [intersection_func_table[table] release];
+      /* Add the table to the delayed free list of the device that created it. */
+      metal_device->metal_mem_free(intersection_func_table[table]);
       intersection_func_table[table] = nil;
     }
   }

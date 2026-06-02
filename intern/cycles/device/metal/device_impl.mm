@@ -163,16 +163,6 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
                  kernel_type_as_string(
                      (MetalPipelineType)min((int)kernel_specialization_level, (int)PSO_NUM - 1)));
 
-    image_bindings = [mtlDevice newBufferWithLength:8192 options:MTLResourceStorageModeShared];
-    metal_mem_alloc(image_bindings);
-
-    launch_params_buffer = [mtlDevice newBufferWithLength:sizeof(KernelParamsMetal)
-                                                  options:MTLResourceStorageModeShared];
-    metal_mem_alloc(launch_params_buffer);
-
-    /* Cache unified pointer so we can write kernel params directly in place. */
-    launch_params = (KernelParamsMetal *)launch_params_buffer.contents;
-
     /* Command queue for path-tracing work on the GPU. In a situation where multiple
      * MetalDeviceQueues are spawned from one MetalDevice, they share the same MTLCommandQueue.
      * This is thread safe and just as performant as each having their own instance. It also
@@ -208,6 +198,16 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
       }
     }
 #  endif
+
+    image_bindings = [mtlDevice newBufferWithLength:8192 options:MTLResourceStorageModeShared];
+    metal_mem_alloc(image_bindings);
+
+    launch_params_buffer = [mtlDevice newBufferWithLength:sizeof(KernelParamsMetal)
+                                                  options:MTLResourceStorageModeShared];
+    metal_mem_alloc(launch_params_buffer);
+
+    /* Cache unified pointer so we can write kernel params directly in place. */
+    launch_params = (KernelParamsMetal *)launch_params_buffer.contents;
   }
 }
 
@@ -222,20 +222,16 @@ MetalDevice::~MetalDevice()
 
   /* Release textures that weren't already freed by tex_free. */
   for (int res = 0; res < image_info.size(); res++) {
-    [image_info_id_map[res] release];
+    metal_mem_free(image_info_id_map[res]);
     image_info_id_map[res] = nil;
   }
 
+  /* Queue resources for release, then run flush_delayed_free_list(). */
   free_bvh();
-  flush_delayed_free_list();
-
   metal_mem_free(launch_params_buffer);
-  [launch_params_buffer release];
-
   metal_mem_free(image_bindings);
-  [image_bindings release];
-
   image_info.free();
+  flush_delayed_free_list();
 
 #  if defined(MAC_OS_VERSION_15_0)
   if (@available(macos 15.0, *)) {
@@ -261,6 +257,7 @@ void MetalDevice::metal_mem_alloc(id<MTLResource> allocation)
 #  if defined(MAC_OS_VERSION_15_0)
     if (@available(macos 15.0, *)) {
       if (mtlResidencySet) {
+        std::lock_guard<std::mutex> residency_lock(mtlResidencySet_mutex);
         [mtlResidencySet addAllocation:allocation];
         mtlResidencySet_dirty = true;
       }
@@ -274,10 +271,23 @@ void MetalDevice::metal_mem_free(id<MTLResource> allocation)
   if (allocation) {
     stats.mem_free(allocation.allocatedSize);
 
-    /* Note: the residency set removal is deliberately not done here. It is deferred to
-     * flush_delayed_free_list(), alongside the actual [release], so that a resource which may
-     * still be referenced by an in-flight command buffer remains resident until that command
-     * buffer has completed. */
+    std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
+#  if defined(MAC_OS_VERSION_15_0)
+    /* Remove from the residency set immediately, but don't commit until next enqueue. A resource
+     * can be repurposed (e.g. a BVH refit) so a deferred removal can spuriously swap the
+     * remove-then-add to be an add-then-remove. */
+    if (@available(macos 15.0, *)) {
+      if (mtlResidencySet) {
+        std::lock_guard<std::mutex> residency_lock(mtlResidencySet_mutex);
+        [mtlResidencySet removeAllocation:allocation];
+        mtlResidencySet_dirty = true;
+      }
+    }
+#  endif
+
+    /* Defer the actual [release] until flush_delayed_free_list(), so the object stays alive for
+     * any command buffer still referencing it. */
+    delayed_free_list.push_back(allocation);
   }
 }
 
@@ -285,9 +295,12 @@ void MetalDevice::prepare_residency()
 {
 #  if defined(MAC_OS_VERSION_15_0)
   if (@available(macos 15.0, *)) {
-    if (mtlResidencySet_dirty) {
-      mtlResidencySet_dirty = false;
-      [mtlResidencySet commit];
+    if (mtlResidencySet) {
+      std::lock_guard<std::mutex> residency_lock(mtlResidencySet_mutex);
+      if (mtlResidencySet_dirty) {
+        mtlResidencySet_dirty = false;
+        [mtlResidencySet commit];
+      }
     }
   }
 #  endif
@@ -773,7 +786,6 @@ void MetalDevice::generic_free(device_memory &mem)
 
     /* Free device memory. */
     metal_mem_free(mmem.mtlBuffer);
-    delayed_free_list.push_back(mmem.mtlBuffer);
     mmem.mtlBuffer = nil;
   }
 
@@ -1214,7 +1226,6 @@ void MetalDevice::image_alloc(device_image &mem)
       ssize_t min_buffer_length = sizeof(void *) * image_info.size();
       if (!image_bindings || (image_bindings.length < min_buffer_length)) {
         if (image_bindings) {
-          delayed_free_list.push_back(image_bindings);
           metal_mem_free(image_bindings);
         }
         image_bindings = [mtlDevice newBufferWithLength:min_buffer_length
@@ -1269,7 +1280,6 @@ void MetalDevice::image_free(device_image &mem)
 
     /* Free bindless texture. */
     metal_mem_free(mmem.mtlTexture);
-    delayed_free_list.push_back(mmem.mtlTexture);
     mmem.mtlTexture = nil;
     erase_allocation(mem);
   }
@@ -1305,16 +1315,6 @@ void MetalDevice::flush_delayed_free_list()
    * completion of a command buffer */
   std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
   for (auto &it : delayed_free_list) {
-#  if defined(MAC_OS_VERSION_15_0)
-    /* Now that the command buffer referencing this resource has completed, it is safe to drop it
-     * from the residency set (paired with the [release] below). */
-    if (@available(macos 15.0, *)) {
-      if (mtlResidencySet && it) {
-        [mtlResidencySet removeAllocation:it];
-        mtlResidencySet_dirty = true;
-      }
-    }
-#  endif
     [it release];
   }
   delayed_free_list.clear();
@@ -1347,24 +1347,21 @@ void MetalDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
 void MetalDevice::free_bvh()
 {
-  /* Defer the actual release (and residency set removal) via delayed_free_list, since the old BVH
-   * may still be referenced by an in-flight command buffer. */
+  /* metal_mem_free defers the actual release via delayed_free_list,
+   * since the old BVH may still be referenced by an in-flight command buffer. */
   for (id<MTLAccelerationStructure> &blas : unique_blas_array) {
     metal_mem_free(blas);
-    delayed_free_list.push_back(blas);
   }
   unique_blas_array.clear();
   blas_array.clear();
 
   if (blas_buffer) {
     metal_mem_free(blas_buffer);
-    delayed_free_list.push_back(blas_buffer);
     blas_buffer = nil;
   }
 
   if (accel_struct) {
     metal_mem_free(accel_struct);
-    delayed_free_list.push_back(accel_struct);
     accel_struct = nil;
   }
 }

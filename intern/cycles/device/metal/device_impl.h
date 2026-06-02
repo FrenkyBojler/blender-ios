@@ -64,6 +64,8 @@ class MetalDevice : public Device {
   API_AVAILABLE(macos(15.0), ios(18.0))
   id<MTLResidencySet> mtlResidencySet = nil;
   bool mtlResidencySet_dirty = false;
+  /* Guards mtlResidencySet mutations (may be reached from multiple threads). */
+  std::mutex mtlResidencySet_mutex;
 #  endif
 
   uint kernel_features = 0;
