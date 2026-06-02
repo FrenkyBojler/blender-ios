@@ -551,7 +551,7 @@ static wmOperatorStatus graphkeys_copy_exec(bContext *C, wmOperator *op)
 
   /* Copy keyframes. */
   if (!copy_graph_keys(&ac)) {
-    BKE_report(op->reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
+    BKE_report(op->reports, RPT_WARNING, "No keyframes copied to the internal clipboard");
     return OPERATOR_CANCELLED;
   }
 

@@ -619,7 +619,7 @@ static wmOperatorStatus actkeys_copy_exec(bContext *C, wmOperator *op)
             &ac, get_grease_pencil_keyframe_clipboard()) == false)
     {
       /* check if anything ended up in the buffer */
-      BKE_report(op->reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
+      BKE_report(op->reports, RPT_WARNING, "No keyframes copied to the internal clipboard");
       return OPERATOR_CANCELLED;
     }
   }

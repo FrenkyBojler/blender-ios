@@ -809,7 +809,7 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   /* Cancel if no keyframes found. */
   ED_keylist_prepare_for_direct_access(pso->keylist);
   if (ED_keylist_is_empty(pso->keylist)) {
-    BKE_report(op->reports, RPT_ERROR, "No keyframes to slide between");
+    BKE_report(op->reports, RPT_WARNING, "No keyframes to slide between");
     pose_slide_exit(C, op);
     return OPERATOR_CANCELLED;
   }
@@ -1643,7 +1643,7 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
     /* There is a change the reason the list is empty is
      * that there is no valid object to propagate poses for.
      * This is very unlikely though, so we focus on the most likely issue. */
-    BKE_report(op->reports, RPT_ERROR, "No keyframed poses to propagate to");
+    BKE_report(op->reports, RPT_WARNING, "No keyframed poses to propagate to");
     return OPERATOR_CANCELLED;
   }
 

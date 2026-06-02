@@ -1202,7 +1202,7 @@ static wmOperatorStatus delete_key_v3d_without_keying_set(bContext *C, wmOperato
     }
     else {
       BKE_reportf(
-          op->reports, RPT_ERROR, "No keyframes removed from %d object(s)", selected_objects_len);
+          op->reports, RPT_WARNING, "No keyframes removed from %d object(s)", selected_objects_len);
     }
   }
   return OPERATOR_FINISHED;
