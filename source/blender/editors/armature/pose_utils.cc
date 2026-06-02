@@ -194,7 +194,7 @@ static void store_id_properties(SlideSubject &slide_subject,
 {
   if (id_properties) {
     for (const IDProperty &id_prop : id_properties->data.group) {
-      if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
+      if (!ELEM(id_prop.type, IDP_INT, IDP_FLOAT, IDP_ARRAY)) {
         continue;
       }
       char name_escaped[MAX_IDPROP_NAME * 2];
@@ -205,7 +205,7 @@ static void store_id_properties(SlideSubject &slide_subject,
   }
   if (system_properties) {
     for (const IDProperty &id_prop : system_properties->data.group) {
-      if (ELEM(id_prop.type, IDP_STRING, IDP_ID, IDP_IDPARRAY)) {
+      if (!ELEM(id_prop.type, IDP_INT, IDP_FLOAT, IDP_ARRAY)) {
         continue;
       }
       store_property_snapshot(ptr, id_prop.name, slide_subject.system_properties);
