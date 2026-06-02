@@ -97,6 +97,77 @@ static Vector<ID *> get_unique_ids(const Span<AnimTransformable> transformables)
   return ids;
 }
 
+struct GraphNode {
+  AnimTransformable *transformable = nullptr;
+  bool applied = false;
+  /* Other nodes that need to be applied before this. */
+  Vector<GraphNode *> ancestors;
+
+  bool can_apply_transform()
+  {
+    if (applied) {
+      /* Already applied. Don't apply twice. */
+      return false;
+    }
+    for (GraphNode *node : ancestors) {
+      if (!node->applied) {
+        /* All ancestors must be applied before this node. */
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+static Array<GraphNode> build_transformable_ancestry(
+    const Depsgraph *depsgraph, const MutableSpan<AnimTransformable> transformables)
+{
+  using DegComponentIdentifier = std::pair<ID *, StringRef>;
+
+  Array<GraphNode> nodes(transformables.size());
+  Map<DegComponentIdentifier, GraphNode *> component_map;
+  Set<DegComponentIdentifier> visited_components;
+
+  for (const int i : transformables.index_range()) {
+    AnimTransformable &t = transformables[i];
+    nodes[i].transformable = &t;
+    /* TODO handle objects which wouldn't have a component name. */
+    component_map.add({t.owner_id(), t.name()}, &nodes[i]);
+  }
+
+  for (GraphNode &graph_node : nodes) {
+    AnimTransformable *transformable = graph_node.transformable;
+
+    DEG_foreach_dependent_component(
+        depsgraph,
+        transformable->owner_id(),
+        DEG_OB_COMP_BONE,
+        transformable->name(),
+        [&](ID *other_id, eDepsObjectComponentType component, StringRef component_name) {
+          if (!ELEM(component, DEG_OB_COMP_TRANSFORM, DEG_OB_COMP_BONE)) {
+            return true;
+          }
+          if (component_name == transformable->name()) {
+            /* Skip self. */
+            return true;
+          }
+          DegComponentIdentifier cid(other_id, component_name);
+          if (visited_components.contains(cid)) {
+            return false;
+          }
+          GraphNode *dependent_node = component_map.lookup_default(cid, nullptr);
+          if (!dependent_node) {
+            return true;
+          }
+          std::cout << "ID " << other_id->name << " - " << component_name << std::endl;
+          dependent_node->ancestors.append(&graph_node);
+          visited_components.add(cid);
+          return true;
+        });
+  }
+  return nodes;
+}
+
 /**
  * \param range inclusive/exclusive
  */
@@ -169,28 +240,6 @@ static void copy_world_space(Main &bmain,
   copybuffer.write_as_copypaste_buffer(filepath, reports);
 }
 
-struct GraphNode {
-  AnimTransformable *transformable = nullptr;
-  bool applied = false;
-  /* Other nodes that need to be applied before this. */
-  Vector<GraphNode *> ancestors;
-
-  bool can_apply_transform()
-  {
-    if (applied) {
-      /* Already applied. Don't apply twice. */
-      return false;
-    }
-    for (GraphNode *node : ancestors) {
-      if (!node->applied) {
-        /* All ancestors must be applied before this node. */
-        return false;
-      }
-    }
-    return true;
-  }
-};
-
 static void paste_world_space(Depsgraph *depsgraph,
                               ReportList &reports,
                               const MutableSpan<AnimTransformable> transformables)
@@ -239,48 +288,7 @@ static void paste_world_space(Depsgraph *depsgraph,
     sorted_transformables[i] = &transformables[i];
   }
 
-  using DegComponentIdentifier = std::pair<ID *, StringRef>;
-  Array<GraphNode> nodes(transformables.size());
-  Map<DegComponentIdentifier, GraphNode *> component_map;
-  Set<DegComponentIdentifier> visited_components;
-
-  for (const int i : transformables.index_range()) {
-    AnimTransformable &t = transformables[i];
-    nodes[i].transformable = &t;
-    /* TODO handle objects which wouldn't have a component name. */
-    component_map.add({t.owner_id(), t.name()}, &nodes[i]);
-  }
-
-  for (GraphNode &graph_node : nodes) {
-    AnimTransformable *transformable = graph_node.transformable;
-
-    DEG_foreach_dependent_component(
-        depsgraph,
-        transformable->owner_id(),
-        DEG_OB_COMP_BONE,
-        transformable->name(),
-        [&](ID *other_id, eDepsObjectComponentType component, StringRef component_name) {
-          if (!ELEM(component, DEG_OB_COMP_TRANSFORM, DEG_OB_COMP_BONE)) {
-            return true;
-          }
-          if (component_name == transformable->name()) {
-            /* Skip self. */
-            return true;
-          }
-          DegComponentIdentifier cid(other_id, component_name);
-          if (visited_components.contains(cid)) {
-            return false;
-          }
-          GraphNode *dependent_node = component_map.lookup_default(cid, nullptr);
-          if (!dependent_node) {
-            return true;
-          }
-          std::cout << "ID " << other_id->name << " - " << component_name << std::endl;
-          dependent_node->ancestors.append(&graph_node);
-          visited_components.add(cid);
-          return true;
-        });
-  }
+  Array<GraphNode> nodes = build_transformable_ancestry(depsgraph, transformables);
 
   while (true) {
     bool applied_transforms = false;
@@ -289,7 +297,24 @@ static void paste_world_space(Depsgraph *depsgraph,
         continue;
       }
       std::cout << "apply " << graph_node.transformable->name() << std::endl;
-      /* TODO apply matrix here. */
+      AnimTransformable *transformable = graph_node.transformable;
+      const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
+      if (!fcurves || fcurves->is_empty()) {
+        continue;
+      }
+      /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
+      FCurve *first_fcurve = (*fcurves)[0];
+      BLI_assert(first_fcurve);
+      if (!first_fcurve || first_fcurve->totvert == 0) {
+        continue;
+      }
+      const Bounds<int> range = {int(first_fcurve->fpt[0].vec[0] + 0.5f),
+                                 int(first_fcurve->fpt[first_fcurve->totvert - 1].vec[0] + 0.5f)};
+      for (int frame = range.min; frame < range.max; frame++) {
+        const int key_index = frame - range.min;
+        const float4x4 matrix = fcurves_to_matrix(*fcurves, key_index);
+      }
+
       applied_transforms = true;
       graph_node.applied = true;
     }
@@ -305,25 +330,6 @@ static void paste_world_space(Depsgraph *depsgraph,
       BKE_report(
           &reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
       break;
-    }
-  }
-
-  for (AnimTransformable *transformable : sorted_transformables) {
-    break;
-    const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
-    if (!fcurves || fcurves->is_empty()) {
-      continue;
-    }
-    /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
-    FCurve *first_fcurve = (*fcurves)[0];
-    if (first_fcurve->totvert == 0) {
-      continue;
-    }
-    const Bounds<int> range = {int(first_fcurve->fpt[0].vec[0] + 0.5f),
-                               int(first_fcurve->fpt[first_fcurve->totvert - 1].vec[0] + 0.5f)};
-    for (int frame = range.min; frame < range.max; frame++) {
-      const int key_index = frame - range.min;
-      const float4x4 matrix = fcurves_to_matrix(*fcurves, key_index);
     }
   }
 
