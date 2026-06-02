@@ -85,6 +85,7 @@ void BKE_bpath_foreach_path_id(BPathForeachPathData *bpath_data, ID *id)
   bpath_data->is_path_modified = false;
   bpath_data->is_expanded = false;
   bpath_data->is_cache = false;
+  bpath_data->is_readonly = false;
 
   if ((flag & BKE_BPATH_FOREACH_PATH_SKIP_LINKED) && ID_IS_LINKED(id)) {
     return;
@@ -169,7 +170,12 @@ void BKE_bpath_foreach_path_readonly_process(BPathForeachPathData *bpath_data, c
   /* Any modification to path_dst will be discarded. */
   STRNCPY(path_dst, path_src);
 
-  bpath_data->callback_function(bpath_data, path_dst, sizeof(path_dst), path_src);
+  bpath_data->is_readonly = true;
+  const bool changed = bpath_data->callback_function(
+      bpath_data, path_dst, sizeof(path_dst), path_src);
+  bpath_data->is_readonly = false;
+
+  BLI_assert_msg(!changed, "Read-only path edited in bpath foreach");
 }
 
 void BKE_bpath_sequence_filepaths_foreach(const char *abs_filepath,

@@ -574,7 +574,7 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
     {BKE_BPATH_FOREACH_PATH_RESOLVE_TOKEN,
      "RESOLVE_TOKEN",
      0,
-     "Resolve Token",
+     "Resolve Tokens",
      "Resolve tokens within a virtual filepath to a single, concrete, filepath. Currently only "
      "used for UDIM tiles"},
     {BKE_BPATH_FOREACH_PATH_EXPAND_TOKENS,
@@ -607,6 +607,7 @@ struct BPy_FilePathMeta {
   PyObject_HEAD
   bool is_expanded;
   bool is_cache;
+  bool is_readonly;
 };
 
 PyDoc_STRVAR(
@@ -633,6 +634,17 @@ static PyObject *bpy_file_path_meta_get_is_cache(BPy_FilePathMeta *self, void * 
   return PyBool_FromLong(self->is_cache);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_file_path_meta_is_readonly_doc,
+    "True when the path is read-only and can not be edited.\n"
+    "\n"
+    ":type: bool\n");
+static PyObject *bpy_file_path_meta_get_is_readonly(BPy_FilePathMeta *self, void * /*closure*/)
+{
+  return PyBool_FromLong(self->is_readonly);
+}
+
 static PyGetSetDef bpy_file_path_meta_getset[] = {
     {"is_expanded",
      reinterpret_cast<getter>(bpy_file_path_meta_get_is_expanded),
@@ -643,6 +655,11 @@ static PyGetSetDef bpy_file_path_meta_getset[] = {
      reinterpret_cast<getter>(bpy_file_path_meta_get_is_cache),
      nullptr,
      bpy_file_path_meta_is_cache_doc,
+     nullptr},
+    {"is_readonly",
+     reinterpret_cast<getter>(bpy_file_path_meta_get_is_readonly),
+     nullptr,
+     bpy_file_path_meta_is_readonly_doc,
      nullptr},
     {nullptr},
 };
@@ -715,6 +732,7 @@ static PyObject *bpy_file_path_meta_CreatePyObject(const BPathForeachPathData *b
   }
   self->is_expanded = bpath_data->is_expanded;
   self->is_cache = bpath_data->is_cache;
+  self->is_readonly = bpath_data->is_readonly;
   return reinterpret_cast<PyObject *>(self);
 }
 
@@ -776,13 +794,31 @@ static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_da
     return false;
   }
 
-  /* Copy the returned string back into the path. */
   Py_ssize_t replacement_path_length = 0;
   PyObject *value_coerce = nullptr;
   const char *replacement_path = PyC_UnicodeAsBytesAndSize(
       result, &replacement_path_length, &value_coerce);
 
-  /* BLI_strncpy wants buffer size, but PyC_UnicodeAsBytesAndSize reports string
+  /* Path was unchanged, treat as not edited. */
+  if (STREQ(replacement_path, path_src)) {
+    Py_XDECREF(value_coerce);
+    Py_DECREF(result);
+    return false;
+  }
+
+  if (bpath_data->is_readonly) {
+    PyErr_Format(PyExc_RuntimeError,
+                 "visit_path_fn() changed a read-only path \"%s\" for owner_id=\"%s\"",
+                 path_src,
+                 bpath_data->owner_id->name);
+    data.seen_error = true;
+    Py_XDECREF(value_coerce);
+    Py_DECREF(result);
+    return false;
+  }
+
+  /* Copy the returned string back into the path.
+   * BLI_strncpy wants buffer size, but PyC_UnicodeAsBytesAndSize reports string
    * length, hence the +1. */
   BLI_strncpy(
       path_dst, replacement_path, std::min(path_dst_maxncpy, size_t(replacement_path_length + 1)));

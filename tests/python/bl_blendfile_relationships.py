@@ -255,6 +255,7 @@ class TestBlendFilePathForeach(TestHelper):
         def visit_path_fn(_owner_id: bpy.types.ID, _path: str, meta) -> str | None:
             self.assertFalse(meta.is_expanded)
             self.assertFalse(meta.is_cache)
+            self.assertFalse(meta.is_readonly)
 
         bpy.data.file_path_foreach(visit_path_fn)
 

@@ -151,6 +151,10 @@ struct BPathForeachPathData {
    * These paths can not be edited.
    */
   bool is_cache;
+  /**
+   * Set while visiting a read-only path that callbacks can not edit.
+   */
+  bool is_readonly;
 };
 
 /** Run `bpath_data.callback_function` on all paths contained in `id`. */
