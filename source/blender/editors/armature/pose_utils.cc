@@ -452,7 +452,6 @@ void slide_subjects_autokey(bContext *C,
 {
   bool anything_to_key = false;
   for (SlideSubject &slide_subject : *slide_subjects) {
-    PointerRNA &ptr = slide_subject.ptr;
     if (!animrig::autokeyframe_cfra_can_key(scene, slide_subject.ptr.owner_id)) {
       continue;
     }
