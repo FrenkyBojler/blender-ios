@@ -1010,6 +1010,11 @@ bool GPU_texture_is_cube(const gpu::Texture *texture)
   return (texture->type_get() & GPU_TEXTURE_CUBE) != 0;
 }
 
+bool GPU_texture_is_view(const gpu::Texture *texture)
+{
+  return texture->is_texture_view();
+}
+
 bool GPU_texture_is_array(const gpu::Texture *texture)
 {
   return (texture->type_get() & GPU_TEXTURE_ARRAY) != 0;
