@@ -125,7 +125,7 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     /* Create a global counter sampling buffer when kernel profiling is enabled.
      * There's a limit to the number of concurrent counter sampling buffers per device, so we
      * create one that can be reused by successive device queues. */
-    if (auto str = getenv("CYCLES_METAL_PROFILING")) {
+    if (auto *str = getenv("CYCLES_METAL_PROFILING")) {
       if (atoi(str) && [mtlDevice supportsCounterSampling:MTLCounterSamplingPointAtStageBoundary])
       {
         NSArray<id<MTLCounterSet>> *counterSets = [mtlDevice counterSets];
@@ -423,6 +423,10 @@ void MetalDevice::refresh_source_and_kernels_md5(MetalPipelineType pso_type)
   md5.append(source[pso_type]);
   if (use_metalrt) {
     md5.append(string_printf("metalrt_features=%d", kernel_features & METALRT_FEATURE_MASK));
+  }
+  if (pso_type != PSO_GENERIC) {
+    /* Include kernel_features since it's specialized but missed by the constant_values loop. */
+    md5.append(string_printf("kernel_features=%u", launch_params->data.kernel_features));
   }
   kernels_md5[pso_type] = md5.get_hex();
 }
@@ -757,6 +761,11 @@ void MetalDevice::mem_copy_from(
   /* No need to copy - Apple Silicon has Unified Memory Architecture. */
 }
 
+void MetalDevice::mem_or_from_device(device_memory & /*mem*/)
+{
+  /* No need to copy - Apple Silicon has Unified Memory Architecture. */
+}
+
 void MetalDevice::mem_zero(device_memory &mem)
 {
   if (!mem.device_pointer) {
@@ -976,13 +985,15 @@ void MetalDevice::image_alloc_as_buffer(device_image &mem)
   MetalDevice::MetalMem *mmem = generic_alloc(mem);
   generic_copy_to(mem);
 
+  std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
+
   /* Resize once */
   const uint image_info_id = mem.image_info_id;
   if (image_info_id >= image_info.size()) {
-    /* Allocate some image_info_ids in advance, to reduce amount
-     * of re-allocations. */
-    image_info.resize(round_up(image_info_id + 1, 128));
-    image_info_id_map.resize(round_up(image_info_id + 1, 128));
+    /* Geometric growth to amortize reallocation cost. */
+    const size_t new_size = max(size_t(image_info_id) + 128, image_info.size() * 2);
+    image_info.resize(new_size);
+    image_info_id_map.resize(new_size);
   }
 
   image_info[image_info_id] = mem.info;
@@ -1124,10 +1135,10 @@ void MetalDevice::image_alloc(device_image &mem)
     /* Resize once */
     const uint image_info_id = mem.image_info_id;
     if (image_info_id >= image_info.size()) {
-      /* Allocate some image_info_ids in advance, to reduce amount
-       * of re-allocations. */
-      image_info.resize(image_info_id + 128);
-      image_info_id_map.resize(image_info_id + 128);
+      /* Geometric growth to amortize reallocation cost. */
+      const size_t new_size = max(size_t(image_info_id) + 128, image_info.size() * 2);
+      image_info.resize(new_size);
+      image_info_id_map.resize(new_size);
 
       ssize_t min_buffer_length = sizeof(void *) * image_info.size();
       if (!image_bindings || (image_bindings.length < min_buffer_length)) {
@@ -1181,7 +1192,7 @@ void MetalDevice::image_free(device_image &mem)
   if (mem.data_height == 0) {
     generic_free(mem);
   }
-  else if (metal_mem_map.count(&mem)) {
+  else if (metal_mem_map.contains(&mem)) {
     std::lock_guard<std::recursive_mutex> lock(metal_mem_map_mutex);
     MetalMem &mmem = *metal_mem_map.at(&mem);
 
@@ -1191,6 +1202,11 @@ void MetalDevice::image_free(device_image &mem)
     erase_allocation(mem);
   }
   image_info_id_map[image_info_id] = nil;
+}
+
+bool MetalDevice::has_unified_memory() const
+{
+  return true;
 }
 
 unique_ptr<DeviceQueue> MetalDevice::gpu_queue_create()

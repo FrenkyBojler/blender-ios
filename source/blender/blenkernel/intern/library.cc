@@ -152,7 +152,7 @@ static void library_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   /* FIXME: Find if we should respect #BKE_BPATH_FOREACH_PATH_SKIP_PACKED here, and if not, explain
    * why. */
   if (lib->packedfile !=
-      nullptr /*&& (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0 */)
+      nullptr /* `&& (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0` */)
   {
     return;
   }
@@ -657,7 +657,7 @@ static void pack_linked_id(Main &bmain,
                                    std::nullopt,
                                    nullptr,
                                    LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
-                                       LIB_ID_COPY_NO_ANIMDATA | LIB_ID_COPY_ASSET_METADATA);
+                                       LIB_ID_COPY_ASSET_METADATA);
     id_us_min(packed_id);
     copied_id_process(linked_id, packed_id);
 

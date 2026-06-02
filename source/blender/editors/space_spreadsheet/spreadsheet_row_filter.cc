@@ -405,7 +405,7 @@ static IndexMask apply_row_filter(const SpreadsheetRowFilter &row_filter,
               return value == (reinterpret_cast<ID &>(cell.collection()).name + 2);
             }
             case bke::InstanceReference::Type::GeometrySet: {
-              return value == cell.geometry_set().name;
+              return value == cell.geometry_set().name();
             }
             case bke::InstanceReference::Type::None: {
               return false;
@@ -425,7 +425,7 @@ static bool use_row_filters(const SpaceSpreadsheet &sspreadsheet)
   if (!(sspreadsheet.filter_flag & SPREADSHEET_FILTER_ENABLE)) {
     return false;
   }
-  if (BLI_listbase_is_empty(&sspreadsheet.row_filters)) {
+  if (sspreadsheet.row_filters.is_empty()) {
     return false;
   }
   return true;

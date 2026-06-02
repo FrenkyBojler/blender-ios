@@ -105,6 +105,7 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::profile
   PRIVATE bf::animrig
   PRIVATE bf::nodes
   PRIVATE bf::render
@@ -123,6 +124,22 @@ else()
     PRIVATE bf::extern::nanosvg
     PRIVATE bf::editor::datafiles
   )
+endif()
+
+if(WITH_GHOST_WAYLAND)
+  list(APPEND SRC
+    intern/wm_window_icon.cc
+    intern/wm_window_icon.hh
+  )
+  # Full-color application icon for the Wayland window icon.
+  data_to_c(
+    "${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg"
+    "${CMAKE_CURRENT_BINARY_DIR}/blender_app_icon.svg.c"
+    SRC
+    # Name override to avoid conflicting with the UI icon `datatoc_blender_svg`.
+    "blender_app_icon_svg"
+  )
+  add_definitions(-DWITH_GHOST_WAYLAND)
 endif()
 
 if(WITH_GHOST_CSD)

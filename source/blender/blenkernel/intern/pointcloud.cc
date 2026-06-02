@@ -115,7 +115,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   PointCloud *pointcloud = id_cast<PointCloud *>(id);
 
   ResourceScope scope;
-  bke::AttributeStorage::BlendWriteData attribute_data{scope};
+  bke::AttributeStorage::BlendWriteData attribute_data{writer, scope};
   attribute_storage_blend_write_prepare(
       pointcloud->attribute_storage.wrap(),
       !BLO_write_is_undo(writer),
@@ -130,6 +130,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
     pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
     pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
   }
+  BLO_write_generated_pointer_tag(writer, pointcloud->attribute_storage.dna_attributes);
 
   CustomData_reset(&pointcloud->pdata_legacy);
 
@@ -140,7 +141,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   /* Direct data */
   pointcloud->attribute_storage.wrap().blend_write(*writer, attribute_data);
 
-  BLO_write_pointer_array(writer, pointcloud->totcol, pointcloud->mat);
+  writer->write_pointer_array(pointcloud->totcol, pointcloud->mat);
 }
 
 static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
@@ -152,7 +153,7 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
   pointcloud->attribute_storage.wrap().blend_read(*reader);
 
   /* Materials */
-  BLO_read_pointer_array(reader, pointcloud->totcol, reinterpret_cast<void **>(&pointcloud->mat));
+  BLO_read_pointer_array_and_validate_size(reader, &pointcloud->mat, &pointcloud->totcol);
 
   pointcloud->runtime = new bke::PointCloudRuntime();
 }
@@ -371,7 +372,7 @@ static void pointcloud_evaluate_modifiers(Depsgraph *depsgraph,
 
   /* Evaluate modifiers. */
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
 
     if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;

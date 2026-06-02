@@ -53,9 +53,7 @@ static void node_declare(nodes::NodeDeclarationBuilder &b)
     return;
   }
   const NodeMenuSwitch &storage = node_storage(*node);
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
-  const bool supports_fields = socket_type_supports_fields(data_type) &&
-                               ntree->type == NTREE_GEOMETRY;
+  const eNodeSocketDatatype data_type = storage.data_type;
 
   StructureType value_structure_type = StructureType::Dynamic;
   StructureType menu_structure_type = value_structure_type;
@@ -69,37 +67,28 @@ static void node_declare(nodes::NodeDeclarationBuilder &b)
     menu_structure_type = StructureType::Single;
   }
 
-  auto &output = b.add_output(data_type, "Output");
-  if (supports_fields) {
-    output.dependent_field().reference_pass_all();
-  }
-  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
-    output.propagate_all();
-  }
-  if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
-    output.reference_pass_all();
-  }
-  output.structure_type(value_structure_type);
+  b.add_output(data_type, "Output"_ustr)
+      .propagate_all()
+      .inferred_structure_type()
+      .structure_type(value_structure_type);
 
   b.add_default_layout();
 
-  auto &menu = b.add_input<decl::Menu>("Menu");
-  if (supports_fields) {
-    menu.supports_field();
-  }
+  auto &menu = b.add_input<decl::Menu>("Menu"_ustr);
+  menu.default_value(MenuValue(storage.enum_definition.items().is_empty() ?
+                                   0 :
+                                   storage.enum_definition.items().first().identifier));
   menu.structure_type(menu_structure_type);
   menu.optional_label();
 
   for (const NodeEnumItem &enum_item : storage.enum_definition.items()) {
-    const std::string identifier = MenuSwitchItemsAccessor::socket_identifier_for_item(enum_item);
-    auto &input = b.add_input(data_type, enum_item.name, identifier)
+    const UString name(enum_item.name);
+    const UString identifier(MenuSwitchItemsAccessor::socket_identifier_for_item(enum_item));
+    auto &input = b.add_input(data_type, name, identifier)
                       .socket_name_ptr(
                           &ntree->id, *MenuSwitchItemsAccessor::item_srna, &enum_item, "name")
                       .compositor_realization_mode(CompositorInputRealizationMode::None)
                       .description("Becomes the output value if it is chosen by the menu input");
-    if (supports_fields) {
-      input.supports_field();
-    }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
     input.optional_label(ELEM(data_type,
                               SOCK_OBJECT,
@@ -112,23 +101,16 @@ static void node_declare(nodes::NodeDeclarationBuilder &b)
                               SOCK_MASK,
                               SOCK_SOUND));
     input.structure_type(value_structure_type);
-    auto &item_output = b.add_output<decl::Bool>(enum_item.name, std::move(identifier))
-                            .align_with_previous()
-                            .description("True if this item is chosen by the menu input");
-    if (supports_fields) {
-      item_output.dependent_field({menu.index()});
-      item_output.structure_type(menu_structure_type);
-    }
+    b.add_output<decl::Bool>(name, identifier)
+        .align_with_previous()
+        .description("True if this item is chosen by the menu input")
+        .inferred_structure_type({menu.index()})
+        .propagate_references({menu.index()});
   }
 
-  b.add_input<decl::Extend>("", "__extend__")
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
-      .custom_draw([](CustomSocketDrawParams &params) {
-        ui::Layout &layout = params.layout;
-        layout.emboss_set(ui::EmbossType::None);
-        PointerRNA op_ptr = layout.op("node.enum_definition_item_add", "", ICON_ADD);
-        RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
-      });
+      .custom_draw(socket_items::ui::draw_extend_socket_fn<MenuSwitchItemsAccessor>());
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -166,21 +148,21 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.other_socket().type);
+  const eNodeSocketDatatype data_type = params.other_socket().type;
   if (params.in_out() == SOCK_IN) {
     if (data_type == SOCK_MENU) {
       params.add_item(IFACE_("Menu"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeMenuSwitch");
-        params.update_and_connect_available_socket(node, "Menu");
+        bNode &node = params.add_node("GeometryNodeMenuSwitch"_ustr);
+        params.update_and_connect_available_socket(node, "Menu"_ustr);
       });
     }
   }
   else {
     if (data_type != SOCK_MENU) {
       params.add_item(IFACE_("Output"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeMenuSwitch");
+        bNode &node = params.add_node("GeometryNodeMenuSwitch"_ustr);
         node_storage(node).data_type = params.socket.type;
-        params.update_and_connect_available_socket(node, "Output");
+        params.update_and_connect_available_socket(node, "Output"_ustr);
       });
     }
   }
@@ -291,6 +273,14 @@ class MenuSwitchFn : public mf::MultiFunction {
 
     type_.fill_construct_indices(type_.default_value(), value_output.data(), masks[invalid_index]);
   }
+
+  void hash_unique(UniqueHashBytes &hash) const override
+  {
+    static constexpr int8_t id = 0;
+    hash.add(&id);
+    hash.add(&type_);
+    hash.add(&enum_def_);
+  }
 };
 
 class LazyFunctionForMenuSwitchNode : public LazyFunction {
@@ -306,7 +296,7 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
       : node_(node), enum_def_(node_storage(node).enum_definition)
   {
     const NodeMenuSwitch &storage = node_storage(node);
-    const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
+    const eNodeSocketDatatype data_type = storage.data_type;
     can_be_field_ = socket_type_supports_fields(data_type);
     const bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(data_type);
     BLI_assert(socket_type != nullptr);
@@ -384,15 +374,16 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
       return;
     }
 
-    Vector<GField> item_fields(enum_def_.items_num + 1);
-    item_fields[0] = std::move(condition);
+    Vector<GField> item_fields;
+    item_fields.reserve(enum_def_.items_num + 1);
+    item_fields.append(std::move(condition));
     for (const int i : IndexRange(enum_def_.items_num)) {
-      item_fields[i + 1] = input_values[i]->extract<GField>();
+      item_fields.append(input_values[i]->extract<GField>());
     }
     std::unique_ptr<MultiFunction> multi_function = std::make_unique<MenuSwitchFn>(
         enum_def_, *field_base_type_);
-    std::shared_ptr<fn::FieldOperation> operation = FieldOperation::from(std::move(multi_function),
-                                                                         std::move(item_fields));
+    fn::FieldOperationPtr operation = FieldOperation::from(std::move(multi_function),
+                                                           std::move(item_fields));
 
     params.set_output(0, SocketValueVariant::From(GField(operation, 0)));
     for (const int item_i : IndexRange(enum_def_.items_num)) {
@@ -568,7 +559,7 @@ static void register_node()
 {
   static bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "GeometryNodeMenuSwitch", GEO_NODE_MENU_SWITCH);
+  common_node_type_base(&ntype, "GeometryNodeMenuSwitch"_ustr, GEO_NODE_MENU_SWITCH);
   ntype.ui_name = "Menu Switch";
   ntype.ui_description = "Select from multiple inputs by name";
   ntype.enum_name_legacy = "MENU_SWITCH";
@@ -615,8 +606,8 @@ StructRNA **MenuSwitchItemsAccessor::item_srna = &RNA_NodeEnumItem;
 
 void MenuSwitchItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
-  BLO_write_string(writer, item.description);
+  writer->write_string(item.name);
+  writer->write_string(item.description);
 }
 
 void MenuSwitchItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

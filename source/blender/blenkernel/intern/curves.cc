@@ -43,6 +43,8 @@
 
 #include "BLO_read_write.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 namespace blender {
 
 static const char *ATTR_POSITION = "position";
@@ -111,11 +113,8 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   curves->attributes_active_index_legacy = curves->geometry.attributes_active_index;
 
   ResourceScope scope;
-  bke::CurvesGeometry::BlendWriteData write_data(scope);
+  bke::CurvesGeometry::BlendWriteData write_data(writer, scope);
   curves->geometry.wrap().blend_write_prepare(write_data, !BLO_write_is_undo(writer));
-
-  BLO_write_shared_tag(writer, curves->geometry.curve_offsets);
-  BLO_write_shared_tag(writer, curves->geometry.custom_knots);
 
   /* Write LibData */
   writer->write_id_struct(id_address, curves);
@@ -124,9 +123,9 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   /* Direct data */
   curves->geometry.wrap().blend_write(*writer, curves->id, write_data);
 
-  BLO_write_string(writer, curves->surface_uv_map);
+  writer->write_string(curves->surface_uv_map);
 
-  BLO_write_pointer_array(writer, curves->totcol, curves->mat);
+  writer->write_pointer_array(curves->totcol, curves->mat);
 }
 
 static void curves_blend_read_data(BlendDataReader *reader, ID *id)
@@ -139,7 +138,7 @@ static void curves_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_string(reader, &curves->surface_uv_map);
 
   /* Materials */
-  BLO_read_pointer_array(reader, curves->totcol, reinterpret_cast<void **>(&curves->mat));
+  BLO_read_pointer_array_and_validate_size(reader, &curves->mat, &curves->totcol);
 }
 
 IDTypeInfo IDType_ID_CV = {
@@ -191,6 +190,20 @@ Curves *BKE_curves_copy_for_eval(const Curves *curves_src)
       BKE_id_copy_ex(nullptr, &curves_src->id, nullptr, LIB_ID_COPY_LOCALIZE));
 }
 
+static void store_surface(const Curves &curves_id, bke::GeometrySet &geometry_set)
+{
+  if (!curves_id.surface) {
+    return;
+  }
+  if (!curves_id.surface_uv_map) {
+    return;
+  }
+  nodes::Bundle &bundle = geometry_set.bundle_for_write();
+  bundle.add(*nodes::BundleKey::from_ustr("surface_object"_ustr), curves_id.surface);
+  bundle.add(*nodes::BundleKey::from_ustr("surface_uv_map_name"_ustr),
+             std::string(curves_id.surface_uv_map));
+}
+
 static void curves_evaluate_modifiers(Depsgraph *depsgraph,
                                       Scene *scene,
                                       Object *object,
@@ -214,7 +227,7 @@ static void curves_evaluate_modifiers(Depsgraph *depsgraph,
 
   /* Evaluate modifiers. */
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(static_cast<ModifierType>(md->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
 
     if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;
@@ -245,6 +258,7 @@ void BKE_curves_data_update(Depsgraph *depsgraph, Scene *scene, Object *object)
     edit_component.curves_edit_hints_ = std::make_unique<CurvesEditHints>(
         *id_cast<const Curves *>(DEG_get_original(object)->data));
   }
+  store_surface(*curves, geometry_set);
   curves_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
   /* Assign evaluated object. */
@@ -386,8 +400,7 @@ void curves_normals_point_domain_calc(const CurvesGeometry &curves, MutableSpan<
 {
   const bke::CurvesFieldContext context(curves, AttrDomain::Point);
   fn::FieldEvaluator evaluator(context, curves.points_num());
-  fn::Field<float3> field(std::make_shared<bke::NormalFieldInput>());
-  evaluator.add_with_destination(std::move(field), normals);
+  evaluator.add_with_destination(bke::NormalFieldInput::get_field(), normals);
   evaluator.evaluate();
 }
 

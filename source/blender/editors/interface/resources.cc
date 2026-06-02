@@ -66,7 +66,7 @@ void resources_free()
 
 void style_init_default()
 {
-  BLI_freelistN(&U.uistyles);
+  U.uistyles.free_no_destruct();
   /* gets automatically re-allocated */
   style_init();
 }
@@ -119,6 +119,9 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_SUCCESS:
           cp = btheme->tui.wcol_state.success;
+          break;
+        case TH_LINK:
+          cp = btheme->tui.link;
           break;
       }
     }
@@ -1132,7 +1135,7 @@ void init_default()
     BLI_addhead(&U.themes, btheme);
   }
 
-  /* Must be first, see `U.themes` doc-string. */
+  /* Must be first, see `U.themes` docstring. */
   BLI_listbase_rotate_first(&U.themes, btheme);
 
   theme_set(0, 0); /* make sure the global used in this file is set */
