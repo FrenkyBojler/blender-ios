@@ -1194,7 +1194,8 @@ static void rna_def_sculpt(BlenderRNA *brna)
        "PIVOT",
        0,
        "Pivot",
-       "Moves the sculpt pivot without transforming the geometry"},
+       "Applies the transformation to only the sculpt pivot without affecting the geometry of the "
+       "mesh"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
