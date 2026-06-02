@@ -155,7 +155,7 @@ def amb_args_as_data(amb, type):
         s.append(f"\"threshold\": '{amb.threshold}'")
         if type == 'FLOAT':
             s.append(f"\"axis_region\": '{amb.axis0_region}'")
-        else:  # type == 'VECTOR2D':
+        else: # type == 'VECTOR2D':
             s.append(f"\"axis0_region\": '{amb.axis0_region}'")
             s.append(f"\"axis1_region\": '{amb.axis1_region}'")
     elif type == 'POSE':
@@ -175,7 +175,7 @@ def amb_data_from_args(amb, args, type):
         amb.threshold = float(args["threshold"])
         if type == 'FLOAT':
             amb.axis0_region = args["axis_region"]
-        else:  # type == 'VECTOR2D':
+        else: # type == 'VECTOR2D':
             amb.axis0_region = args["axis0_region"]
             amb.axis1_region = args["axis1_region"]
     elif type == 'POSE':

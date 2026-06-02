@@ -21,7 +21,7 @@ from math import radians
 from mathutils import Euler, Matrix, Quaternion, Vector
 
 
-# Landmarks.
+### Landmarks.
 class VIEW3D_OT_vr_landmark_add(Operator):
     bl_idname = "view3d.vr_landmark_add"
     bl_label = "Add VR Landmark"
@@ -275,7 +275,7 @@ class VIEW3D_OT_vr_landmark_activate(Operator):
         return {'FINISHED'}
 
 
-# Gizmos.
+### Gizmos.
 class VIEW3D_GT_vr_camera_cone(Gizmo):
     bl_idname = "VIEW_3D_GT_vr_camera_cone"
 

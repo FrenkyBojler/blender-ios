@@ -16,13 +16,12 @@ from bpy.types import (
     UIList,
 )
 # Add space_view3d.py to module search path for VIEW3D_PT_object_type_visibility import.
-import os.path
-import sys
+import os.path, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../startup/bl_ui')))
 from space_view3d import VIEW3D_PT_object_type_visibility
 
 
-# Session.
+### Session.
 class VIEW3D_PT_vr_session(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -56,7 +55,7 @@ class VIEW3D_PT_vr_session(Panel):
         col.prop(scene, "vr_actions_enable")
 
 
-# View.
+### View.
 class VIEW3D_PT_vr_session_view(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -98,10 +97,10 @@ class VIEW3D_PT_vr_session_view(Panel):
 class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_visibility):
     def draw(self, context):
         session_settings = context.window_manager.xr_session_settings
-        self.draw_ex(context, session_settings, False)  # Pass session settings instead of 3D view.
+        self.draw_ex(context, session_settings, False) # Pass session settings instead of 3D view.
 
 
-# Landmarks.
+### Landmarks.
 class VIEW3D_MT_vr_landmark_menu(Menu):
     bl_label = "Landmark Controls"
 
@@ -177,13 +176,12 @@ class VIEW3D_PT_vr_landmarks(Panel):
                             "base_scale", text="Scale")
 
 
-# Actions.
+### Actions.
 class VIEW3D_PT_vr_actionmaps(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "VR"
     bl_label = "Action Maps"
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
@@ -194,6 +192,7 @@ class VIEW3D_PT_vr_actionmaps(Panel):
 
         col = layout.column(align=True)
         col.prop(scene, "vr_actions_use_gamepad", text="Gamepad")
+        col.prop(scene, "vr_actions_use_nextlab", text="Grease Pencil XR")
 
         col = layout.column(align=True, heading="Extensions")
         col.prop(scene, "vr_actions_enable_reverb_g2", text="HP Reverb G2")
@@ -202,7 +201,7 @@ class VIEW3D_PT_vr_actionmaps(Panel):
         col.prop(scene, "vr_actions_enable_huawei", text="Huawei")
 
 
-# Viewport feedback.
+### Viewport feedback.
 class VIEW3D_PT_vr_viewport_feedback(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -229,7 +228,7 @@ class VIEW3D_PT_vr_viewport_feedback(Panel):
         layout.prop(view3d, "mirror_xr_session")
 
 
-# Info.
+### Info.
 class VIEW3D_PT_vr_info(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'

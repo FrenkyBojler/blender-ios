@@ -22,15 +22,19 @@ def vr_actionset_active_update(context):
 
     scene = context.scene
 
-    if scene.vr_actions_use_gamepad and session_state.actionmaps.find(
-            session_state, defaults.VRDefaultActionmaps.GAMEPAD.value):
+    if scene.vr_actions_use_gamepad and session_state.actionmaps.find(session_state, defaults.VRDefaultActionmaps.GAMEPAD.value):
         session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.GAMEPAD.value)
+    if scene.vr_actions_use_nextlab and session_state.actionmaps.find(session_state, defaults.VRDefaultActionmaps.NEXTLAB.value):
+        session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.NEXTLAB.value)
     else:
         # Use first action map.
         session_state.active_action_set_set(context, session_state.actionmaps[0].name)
 
 
 def vr_actions_use_gamepad_update(self, context):
+    vr_actionset_active_update(context)
+
+def vr_actions_use_nextlab_update(self, context):
     vr_actionset_active_update(context)
 
 
@@ -78,17 +82,17 @@ def vr_create_actions(context: bpy.context):
             for amb in ami.bindings:
                 # Check for bindings that require OpenXR extensions.
                 if amb.name == defaults.VRDefaultActionbindings.REVERB_G2.value:
-                    if not scene.vr_actions_enable_reverb_g2:
-                        continue
+                   if not scene.vr_actions_enable_reverb_g2:
+                       continue
                 elif amb.name == defaults.VRDefaultActionbindings.VIVE_COSMOS.value:
-                    if not scene.vr_actions_enable_vive_cosmos:
-                        continue
+                   if not scene.vr_actions_enable_vive_cosmos:
+                       continue
                 elif amb.name == defaults.VRDefaultActionbindings.VIVE_FOCUS.value:
-                    if not scene.vr_actions_enable_vive_focus:
-                        continue
+                   if not scene.vr_actions_enable_vive_focus:
+                       continue
                 elif amb.name == defaults.VRDefaultActionbindings.HUAWEI.value:
-                    if not scene.vr_actions_enable_huawei:
-                        continue
+                   if not scene.vr_actions_enable_huawei:
+                       continue
 
                 ok = session_state.action_binding_create(context, am, ami, amb)
                 if not ok:
@@ -134,6 +138,11 @@ def register():
         default=False,
         update=vr_actions_use_gamepad_update,
     )
+    bpy.types.Scene.vr_actions_use_nextlab = bpy.props.BoolProperty(
+        description="Use input from NextLab custom build for GreasePencil XR",
+        default=False,
+        update=vr_actions_use_nextlab_update,
+    )
     bpy.types.Scene.vr_actions_enable_huawei = bpy.props.BoolProperty(
         description="Enable bindings for the Huawei controllers. Note that this may not be supported by all OpenXR runtimes",
         default=False,
@@ -157,6 +166,7 @@ def register():
 def unregister():
     del bpy.types.Scene.vr_actions_enable
     del bpy.types.Scene.vr_actions_use_gamepad
+    del bpy.types.Scene.vr_actions_use_nextlab
     del bpy.types.Scene.vr_actions_enable_huawei
     del bpy.types.Scene.vr_actions_enable_reverb_g2
     del bpy.types.Scene.vr_actions_enable_vive_cosmos

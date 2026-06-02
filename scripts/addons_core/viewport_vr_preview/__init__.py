@@ -3,14 +3,17 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 bl_info = {
-    "name": "VR Scene Inspection",
+    "name": "VR Scene Inspection NextLab Ed.",
     "author": "Julian Eisel (Severin), Sebastian Koenig, Peter Kim (muxed-reality)",
     "version": (0, 11, 2),
     "blender": (3, 2, 0),
     "location": "3D View > Sidebar > VR",
     "description": ("View the viewport with virtual reality glasses "
-                    "(head-mounted displays)"),
+                    "(head-mounted displays)"
+                    "and in this exciting version, paint in XR with GreasePencil"),
     "support": "OFFICIAL",
+    "warning": "This is an early, limited preview of in development "
+               "VR support for Blender.",
     "doc_url": "{BLENDER_MANUAL_URL}/addons/3d_view/vr_scene_inspection.html",
     "category": "3D View",
 }
