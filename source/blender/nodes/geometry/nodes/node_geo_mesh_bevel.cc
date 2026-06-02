@@ -108,17 +108,22 @@ static void node_declare(NodeDeclarationBuilder &b)
           " The curve should be in the XY plane, going from (0,1,0) to (1,0,0)");
 
   PanelDeclarationBuilder &selections_panel = b.add_panel("Selections"_ustr);
+  selections_panel.default_closed(true);
   selections_panel.add_output<decl::Bool>("Vertex Face"_ustr)
       .anonymous_attribute_output()
+      .no_muted_links()
       .description("Identifies output faces that are in the new mesh parts for vertices");
   selections_panel.add_output<decl::Bool>("Edge Face"_ustr)
       .anonymous_attribute_output()
+      .no_muted_links()
       .description("Identifies output faces that are in the new mesh parts for edges");
   selections_panel.add_output<decl::Bool>("Outer Edge"_ustr)
       .anonymous_attribute_output()
+      .no_muted_links()
       .description("Identifies output edges that are on the outsides of new mesh parts for edges");
   selections_panel.add_output<decl::Bool>("Mid Edge"_ustr)
       .anonymous_attribute_output()
+      .no_muted_links()
       .description(
           "Identifies output edges that are in the middle of new mesh parts of edges "
           " and continued through vertices (round down if odd number of segments)");
