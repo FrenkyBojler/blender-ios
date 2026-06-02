@@ -45,9 +45,9 @@
 
 namespace blender::seq {
 
-static Mutex text_runtime_mutex;
+static std::recursive_mutex text_runtime_mutex;
 
-Mutex &text_runtime_mutex_get()
+std::recursive_mutex &text_runtime_mutex_get()
 {
   return text_runtime_mutex;
 }

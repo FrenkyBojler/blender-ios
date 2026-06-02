@@ -8,8 +8,9 @@
 #include "DNA_vec_types.h"
 
 #include "BLI_math_vector_types.hh"
-#include "BLI_mutex.hh"
 #include "BLI_vector.hh"
+
+#include <mutex>
 
 namespace blender {
 
@@ -37,7 +38,7 @@ bool effect_is_transition(StripType type);
 void effect_text_font_set(Strip *strip, VFont *font);
 bool effects_can_render_text(const Strip *strip);
 void text_effect_update_runtime(const RenderData *context, TextVars &text, const int2 image_size);
-Mutex &text_runtime_mutex_get();
+std::recursive_mutex &text_runtime_mutex_get();
 
 struct CharInfo {
   /** Character offset within text buffer. */

@@ -147,6 +147,13 @@ static bool text_has_selection(const TextVars *data)
   return !strip_text_selection_range_get(data).is_empty();
 }
 
+static void text_runtime_update(TextVars &text)
+{
+  std::scoped_lock runtime_lock(seq::text_runtime_mutex_get());
+  seq::text_effect_update_runtime(nullptr, text, text.runtime->image_size);
+  BLF_disable(text.runtime->font, BLF_BOLD | BLF_ITALIC);
+}
+
 static void delete_selected_text(TextVars *data)
 {
   if (!text_has_selection(data)) {
@@ -172,6 +179,8 @@ static void delete_selected_text(TextVars *data)
   const int2 sel_start = strip_text_cursor_offset_to_position(runtime, sel_range.first());
   data->cursor_offset = cursor_position_to_offset(runtime, sel_start);
   text_selection_cancel(data);
+
+  text_runtime_update(*data);
 }
 
 static void text_editing_update(const bContext *C)
@@ -250,7 +259,7 @@ void SEQUENCER_OT_text_deselect_all(wmOperatorType *ot)
 /** \name Copy Text
  * \{ */
 
-static void text_edit_copy(const TextVars *data)
+static void text_edit_copy(TextVars *data)
 {
   const seq::TextVarsRuntime *runtime = data->runtime;
   const IndexRange selection_range = strip_text_selection_range_get(data);
@@ -269,12 +278,14 @@ static void text_edit_copy(const TextVars *data)
   buf[len] = 0;
   WM_clipboard_text_set(buf, false);
   MEM_delete(buf);
+
+  text_runtime_update(*data);
 }
 
 static wmOperatorStatus sequencer_text_edit_copy_exec(bContext *C, wmOperator * /*op*/)
 {
   const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
-  const TextVars *data = static_cast<TextVars *>(strip->effectdata);
+  TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
   if (!text_has_selection(data)) {
     return OPERATOR_CANCELLED;
@@ -374,6 +385,8 @@ static wmOperatorStatus sequencer_text_edit_paste_exec(bContext *C, wmOperator *
   data->cursor_offset += BLI_strlen_utf8(buf);
 
   MEM_delete(buf);
+
+  text_runtime_update(*data);
   text_editing_update(C);
   return OPERATOR_FINISHED;
 }
@@ -676,6 +689,7 @@ static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
     data->cursor_offset -= 1;
   }
 
+  text_runtime_update(*data);
   text_editing_update(C);
   return OPERATOR_FINISHED;
 }
@@ -732,9 +746,7 @@ static bool text_insert(TextVars *data, const char *buf, const size_t buf_len)
 
   data->cursor_offset += 1;
 
-  std::unique_lock<Mutex> runtime_lock(seq::text_runtime_mutex_get());
-  seq::text_effect_update_runtime(nullptr, *data, data->runtime->image_size);
-  BLF_disable(data->runtime->font, BLF_BOLD | BLF_ITALIC);
+  text_runtime_update(*data);
   return true;
 }
 

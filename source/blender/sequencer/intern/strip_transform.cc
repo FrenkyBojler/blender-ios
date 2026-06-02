@@ -623,7 +623,7 @@ float2 image_transform_raw_size_get(const Scene *scene, const Strip *strip)
 
   if (strip->type == STRIP_TYPE_TEXT) {
     TextVars *data = static_cast<TextVars *>(strip->effectdata);
-    std::unique_lock<Mutex> runtime_lock(text_runtime_mutex_get());
+    std::scoped_lock runtime_lock(text_runtime_mutex_get());
     text_effect_update_runtime(nullptr, *data, int2(scene_render_size));
     BLF_disable(data->runtime->font, BLF_BOLD | BLF_ITALIC);
     const float2 text_size(float(BLI_rcti_size_x(&data->runtime->text_boundbox)),
