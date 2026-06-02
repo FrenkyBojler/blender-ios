@@ -473,10 +473,21 @@ void slide_subjects_autokey(bContext *C,
     }
 
     Vector<RNAPath> paths;
-    paths.append({"location"});
-    paths.append(
-        {animrig::get_rotation_mode_path(slide_subject.transformable->get_rotation_mode())});
-    paths.append({"scale"});
+    /* The transform flags tell us which properties have keys. Properties without keys cannot pose
+     * slide, so should not be auto keyed. */
+    if (slide_subject.transform_flag & ACT_TRANS_LOC) {
+      paths.append({"location"});
+    }
+    if (slide_subject.transform_flag & ACT_TRANS_ROT) {
+      paths.append(
+          {animrig::get_rotation_mode_path(slide_subject.transformable->get_rotation_mode())});
+    }
+    if (slide_subject.transform_flag & ACT_TRANS_SCALE) {
+      paths.append({"scale"});
+    }
+
+    /* No need to check the transform_flag here, because those vectors are only filled if the flag
+     * was set in the first place.*/
     for (const PropertySnapshot &snapshot : slide_subject.additional_properties) {
       paths.append({RNA_property_identifier(snapshot.property)});
     }
