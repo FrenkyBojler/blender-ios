@@ -2,9 +2,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "node_math.h"
+
 color node_mix_blend(float t, color col1, color col2)
 {
-  return (1.0 - t) * col1 + t * col2;
+  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly col2
+   * when t == 1. */
+  return endvalue_preserving_mix(col1, col2, t);
 }
 
 color node_mix_add(float t, color col1, color col2)
