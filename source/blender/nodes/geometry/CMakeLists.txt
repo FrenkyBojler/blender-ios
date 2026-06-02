@@ -222,7 +222,6 @@ set(SRC
   nodes/node_geo_remove_attribute.cc
   nodes/node_geo_rename_attribute.cc
   nodes/node_geo_repeat.cc
-  nodes/node_geo_reverse_list.cc
   nodes/node_geo_rotate_instances.cc
   nodes/node_geo_sample_grid.cc
   nodes/node_geo_sample_grid_index.cc
