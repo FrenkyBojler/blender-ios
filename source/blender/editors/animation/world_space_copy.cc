@@ -293,7 +293,7 @@ static void paste_world_space(Main &bmain,
   }
 
   if (clipboard_bmain->actions.is_empty()) {
-    BKE_report(&reports, RPT_ERROR, "Clipboard data has no animation data");
+    BKE_report(&reports, RPT_ERROR, "Clipboard data has no animation");
     BKE_main_free(clipboard_bmain);
     return;
   }
@@ -303,7 +303,7 @@ static void paste_world_space(Main &bmain,
   if (action.strip_keyframe_data().is_empty() ||
       action.strip_keyframe_data()[0]->channelbags().is_empty())
   {
-    BKE_report(&reports, RPT_ERROR, "Clipboard data has no animation data");
+    BKE_report(&reports, RPT_ERROR, "Clipboard data has no animation");
     BKE_main_free(clipboard_bmain);
     return;
   }
@@ -315,6 +315,15 @@ static void paste_world_space(Main &bmain,
     Array<FCurve *> fcurves = world_space_data.lookup_or_add(fcurve->rna_path,
                                                              Array<FCurve *>(12));
     fcurves[fcurve->array_index] = fcurve;
+  }
+
+  for (Array<FCurve *> &fcurves : world_space_data.values()) {
+    for (FCurve *fcurve : fcurves) {
+      if (fcurve == nullptr) {
+        BKE_report(&reports, RPT_ERROR, "Clipboard contains incomplete animation data");
+        return;
+      }
+    }
   }
 
   /* Build a minimal depsgraph because we need to evaluate the scene on every frame to correctly
@@ -332,15 +341,15 @@ static void paste_world_space(Main &bmain,
     BKE_report(&reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
   }
 
-  /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
   const Bounds<int> range = {int(dna_action->frame_start), int(dna_action->frame_end)};
 
   for (int frame = range.min; frame < range.max; frame++) {
     DEG_evaluate_on_framechange(depsgraph, frame);
+    /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
     const int key_index = frame - range.min;
     for (AnimTransformable *transformable : sorted_transformables) {
       const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
-      if (!fcurves || fcurves->is_empty()) {
+      if (!fcurves) {
         continue;
       }
       const float4x4 matrix = fcurves_to_matrix(*fcurves, key_index);
