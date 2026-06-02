@@ -48,8 +48,6 @@ ccl_device_noinline void svm_node_mix_float(ccl_private float *ccl_restrict stac
   }
   const float a = stack_load(stack, node.a);
   const float b = stack_load(stack, node.b);
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly b when t == 1.
-   */
   const float result = endvalue_preserving_mix(a, b, t);
 
   stack_store_float(stack, node.result_offset, result);
@@ -64,8 +62,6 @@ ccl_device_noinline void svm_node_mix_vector(ccl_private float *ccl_restrict sta
   }
   const float3 a = stack_load(stack, node.a);
   const float3 b = stack_load(stack, node.b);
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly b when t == 1.
-   */
   const float3 result = endvalue_preserving_mix(a, b, t);
   stack_store_float3(stack, node.result_offset, result);
 }
@@ -80,8 +76,6 @@ ccl_device_noinline void svm_node_mix_vector_non_uniform(
   }
   const float3 a = stack_load(stack, node.a);
   const float3 b = stack_load(stack, node.b);
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly b when t == 1.
-   */
   const float3 result = endvalue_preserving_mix(a, b, t);
   stack_store_float3(stack, node.result_offset, result);
 }

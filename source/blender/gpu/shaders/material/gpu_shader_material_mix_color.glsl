@@ -23,8 +23,6 @@ void node_mix_blend(float fac,
                     float4 &outcol,
                     float4 &outrot)
 {
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly col2
-   * when fac == 1. */
   outcol = endvalue_preserving_mix(col1, col2, fac);
 }
 
@@ -583,8 +581,6 @@ void node_mix_float(float fac,
                     float4 &outcol,
                     float4 &outrot)
 {
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly f2
-   * when fac == 1. */
   outfloat = endvalue_preserving_mix(f1, f2, fac);
 }
 
@@ -604,8 +600,6 @@ void node_mix_vector(float fac,
                      float4 &outcol,
                      float4 &outrot)
 {
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly v2
-   * when fac == 1. */
   outvec = endvalue_preserving_mix(v1, v2, fac);
 }
 
@@ -625,8 +619,6 @@ void node_mix_vector_non_uniform(float fac,
                                  float4 &outcol,
                                  float4 &outrot)
 {
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly v2
-   * when fac == 1. */
   outvec = endvalue_preserving_mix(v1, v2, fac);
 }
 

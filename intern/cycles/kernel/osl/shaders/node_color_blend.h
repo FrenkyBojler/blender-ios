@@ -6,8 +6,6 @@
 
 color node_mix_blend(float t, color col1, color col2)
 {
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly col2
-   * when t == 1. */
   return endvalue_preserving_mix(col1, col2, t);
 }
 

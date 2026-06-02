@@ -12,8 +12,6 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device float3 svm_mix_blend(const float t, const float3 col1, const float3 col2)
 {
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly col2
-   * when t == 1. */
   return endvalue_preserving_mix(col1, col2, t);
 }
 

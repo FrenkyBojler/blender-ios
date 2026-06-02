@@ -11,7 +11,5 @@ shader node_mix_vector_non_uniform(int use_clamp = 0,
                                    output vector Result = 0.0)
 {
   vector t = (use_clamp) ? clamp(Factor, 0.0, 1.0) : Factor;
-  /* Use "endvalue_preserving_mix" instead of "mix" as the result should be exactly B when t == 1.
-   */
   Result = endvalue_preserving_mix(A, B, t);
 }
