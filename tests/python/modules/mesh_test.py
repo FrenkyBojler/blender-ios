@@ -159,12 +159,14 @@ class OperatorSpec:
         return "Mode: " + self.mode + " Operator: " + self.operator_name + \
             " with parameters: " + str(self.operator_parameters)
 
+
 class SelectObjectSpec:
     def __init__(self, object_name: str):
         self.object_name = object_name
 
     def __str__(self):
         return "Selecting: " + self.object_name
+
 
 class DeformModifierSpec:
     """
