@@ -153,7 +153,7 @@ UniqueHash FieldHashDeep::ensure(const GFieldRef &field)
       const XXH128_hash_t xxhash = XXH3_128bits(bytes.data(), bytes.size());
       static_assert(sizeof(UniqueHash) == sizeof(xxhash));
       memcpy(static_cast<void *>(&hash), &xxhash, sizeof(xxhash));
-this->cache.add_new(current, hash);
+      this->cache.add_new(current, hash);
       continue;
     }
     visited.add(current);
