@@ -108,11 +108,13 @@ struct AssetLibraryListItem : public ui::AbstractTreeViewItem {
       row.label(label_, is_remote_library ? ICON_INTERNET : ICON_DISK_DRIVE);
     }
     else {
-      ui::Layout &sub = row.row(true);
-      sub.alignment_set(ui::LayoutAlign::Left);
-      sub.active_set(false);
-      sub.label(IFACE_("Built-in:"), ICON_NONE);
       row.label(label_, ICON_NONE);
+
+      ui::Layout &sub = row.row(true);
+      /* Draw text grayed out. */
+      sub.active_set(false);
+      sub.alignment_set(ui::LayoutAlign::Right);
+      sub.label(IFACE_("Built-In"), ICON_NONE);
     }
 
     if (library.user_library && library.user_library->is_enabled() && is_remote_library &&
