@@ -98,10 +98,10 @@ void *aligned_malloc(size_t size, size_t alignment)
 
 void aligned_free(void *ptr)
 {
+  PRF_memory_free(ptr);
 #ifdef _WIN32
   _aligned_free(ptr);
 #else
-  PRF_memory_free(ptr);
   free(ptr);
 #endif
 }
