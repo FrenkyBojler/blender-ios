@@ -1755,62 +1755,6 @@ class USERPREF_PT_saveload_autorun(FilePathsPanel, Panel):
             row.operator("preferences.autoexec_path_remove", text="", icon='X', emboss=False).index = i
 
 
-class USERPREF_PT_file_paths_asset_libraries(FilePathsPanel, Panel):
-    bl_label = "Asset Libraries"
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = False
-        layout.use_property_decorate = False
-
-        paths = context.preferences.filepaths
-        active_library_index = paths.active_asset_library
-
-        row = layout.row()
-
-        row.template_list(
-            "USERPREF_UL_asset_libraries", "user_asset_libraries",
-            paths, "asset_libraries",
-            paths, "active_asset_library",
-        )
-
-        col = row.column(align=True)
-        col.operator("preferences.asset_library_add", text="", icon='ADD')
-        col = col.column(align=True)
-        props = col.operator("preferences.asset_library_remove", text="", icon='REMOVE')
-        props.index = active_library_index
-
-        try:
-            active_library = None if active_library_index < 0 else paths.asset_libraries[active_library_index]
-        except IndexError:
-            active_library = None
-
-        if active_library is None:
-            return
-
-        # Disable the remove button if the active library is project defined
-        col.enabled = not active_library.is_project_defined
-
-        layout.separator()
-
-        col = layout.column(align=False)
-        col.prop(active_library, "path")
-        col.prop(active_library, "import_method", text="Import Method")
-        col.prop(active_library, "use_relative_path")
-        # Disable the abililty to edit properties if the active library is project defined
-        col.enabled = not active_library.is_project_defined
-
-
-class USERPREF_UL_asset_libraries(UIList):
-    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
-        asset_library = item
-
-        row = layout.row(align=True)
-        row.prop(asset_library, "enabled", text="")
-        row.prop(asset_library, "name", text="", emboss=False)
-        row.enabled = not asset_library.is_project_defined
-
-
 class USERPREF_UL_extension_repos(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         repo = item
