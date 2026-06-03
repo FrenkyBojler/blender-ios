@@ -276,7 +276,7 @@ void MovieStripExporter::export_strip(const OTIOExportParams * /*export_params*/
       _strip, _scene, media_fps);
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
-      new Clip(_strip->name, external_reference, strip_source_range));
+      new Clip(_strip->name + 2, external_reference, strip_source_range));
 
   _track->append_child(clip);
 }
@@ -292,7 +292,7 @@ void SoundStripExporter::export_strip(const OTIOExportParams * /*export_params*/
       _strip, _scene, media_fps);
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
-      new Clip(_strip->name, external_reference, strip_source_range));
+      new Clip(_strip->name + 2, external_reference, strip_source_range));
 
   _track->append_child(clip);
 }
@@ -309,7 +309,7 @@ void ImageStripExporter::export_strip(const OTIOExportParams *export_params)
         _strip, _scene, media_fps);
 
     auto clip = otio::SerializableObject::Retainer<otio::Clip>(
-        new Clip(_strip->name, external_reference, strip_source_range));
+        new Clip(_strip->name + 2, external_reference, strip_source_range));
 
     _track->append_child(clip);
   }
@@ -395,7 +395,7 @@ void ImageStripExporter::export_strip(const OTIOExportParams *export_params)
     TimeRange source_range = get_strip_source_range(_strip, _scene, _scene->frames_per_second());
 
     auto clip = SerializableObject::Retainer<Clip>(
-        new Clip(_strip->name, img_seq_ref, source_range));
+        new Clip(_strip->name + 2, img_seq_ref, source_range));
 
     _track->append_child(clip);
   }

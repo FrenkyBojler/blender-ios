@@ -11,7 +11,7 @@
 
 #include "BKE_context.hh"
 
-#include "WM_api.hh";
+#include "WM_api.hh"
 
 #include "IO_otio.hh"
 #include "otio_export.hh"
