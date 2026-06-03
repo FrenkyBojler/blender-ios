@@ -1,1 +1,2 @@
 Referenced by issue #159503, Crash trying to start VR while no VR headset/runtime is setup
+Referenced by pull request #159535, Fix: XR: Location Scouting: Only render Viewfinder when enabled
