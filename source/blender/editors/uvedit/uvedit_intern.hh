@@ -51,6 +51,8 @@ struct UnwrapOptions {
   bool use_abf;
   bool use_subsurf;
   bool use_weights;
+  bool use_original_bounds;
+
   blender::geometry::ParamSlimOptions slim;
   char weight_group[MAX_VGROUP_NAME];
 };
