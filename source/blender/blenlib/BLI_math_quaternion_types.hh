@@ -171,7 +171,7 @@ template<typename T> struct QuaternionBase {
 
   friend bool operator==(const QuaternionBase &a, const QuaternionBase &b) = default;
 
-  uint64_t hash() const
+  constexpr uint64_t hash() const
   {
     return VecBase<T, 4>(*this).hash();
   }

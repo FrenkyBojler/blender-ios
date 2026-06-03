@@ -207,10 +207,7 @@ TEST(math_vector, square)
   EXPECT_NEAR(result.z, 9.0f, 1e-6f);
 }
 
-TEST(math_vector, ZeroHash)
-{
-  EXPECT_EQ(get_default_hash(float3(0.0f, 0.0f, 0.0f)),
-            get_default_hash(float3(-0.0f, -0.0f, -0.0f)));
-}
+static_assert(get_default_hash(float3(0.0f, 0.0f, 0.0f)) ==
+              get_default_hash(float3(-0.0f, -0.0f, -0.0f)));
 
 }  // namespace blender::tests

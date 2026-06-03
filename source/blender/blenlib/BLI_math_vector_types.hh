@@ -175,20 +175,20 @@ template<typename T> struct vec_struct_base<T, 4, true> {
 
 namespace math {
 
-template<typename T> inline uint64_t vector_hash(const T &vec)
+template<typename T> constexpr uint64_t vector_hash(const T &vec)
 {
   BLI_STATIC_ASSERT(T::type_length <= 4, "Longer types need to implement vector_hash themself.");
   if constexpr (T::type_length == 1) {
-    return get_default_hash(vec[0]);
+    return get_default_hash(vec.x);
   }
   else if constexpr (T::type_length == 2) {
-    return get_default_hash(vec[0], vec[1]);
+    return get_default_hash(vec.x, vec.y);
   }
   else if constexpr (T::type_length == 3) {
-    return get_default_hash(vec[0], vec[1], vec[2]);
+    return get_default_hash(vec.x, vec.y, vec.z);
   }
   else if constexpr (T::type_length == 4) {
-    return get_default_hash(vec[0], vec[1], vec[2], vec[3]);
+    return get_default_hash(vec.x, vec.y, vec.z, vec.w);
   }
   else {
     BLI_assert_unreachable_static();
@@ -720,7 +720,7 @@ struct VecBase : public vec_struct_base<T, Size, std::is_trivial_v<T>> {
 
   /** Misc. */
 
-  uint64_t hash() const
+  constexpr uint64_t hash() const
   {
     return math::vector_hash(*this);
   }

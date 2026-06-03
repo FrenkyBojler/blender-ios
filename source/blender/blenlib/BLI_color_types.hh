@@ -116,7 +116,7 @@ template<typename ChannelStorageType, eSpace Space, eAlpha Alpha> class ColorRGB
 
   friend bool operator==(const ColorRGBA &a, const ColorRGBA &b) = default;
 
-  uint64_t hash() const
+  constexpr uint64_t hash() const
   {
     return get_default_hash(r, g, b, a);
   }
