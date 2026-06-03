@@ -782,7 +782,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
                                   scene->frames_per_second(),
                                   U.timecode_style);
     const std::string scnene_duration = fmt::format(
-        fmt::runtime(IFACE_("Duration: {0} (Frame {1}/{2})")),
+        fmt::runtime(IFACE_("Duration: {} (Frame {}/{})")),
         timecode,
         relative_current_frame,
         frame_count);
