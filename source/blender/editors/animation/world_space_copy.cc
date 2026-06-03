@@ -5,11 +5,13 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BKE_action.hh"
 #include "BKE_appdir.hh"
+#include "BKE_armature.hh"
 #include "BKE_blender_copybuffer.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
@@ -22,6 +24,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "ED_anim_transformable.hh"
@@ -101,8 +104,13 @@ static float4x4 world_to_local(const Depsgraph &dg,
         BLI_assert_unreachable();
         break;
       }
-      float4x4 pose_mat_inv = math::invert(float4x4(pose_bone_eval->pose_mat));
-      return ob_eval->world_to_object() * pose_mat_inv * world_matrix;
+      Bone *bone = pose_bone_eval->bone_get(*ob_eval);
+      float4x4 channel_mat_inv = math::invert(float4x4(pose_bone_eval->chan_mat));
+      float4x4 foo = ob_eval->world_to_object() * world_matrix;
+      float asd[4][4];
+      BKE_armature_mat_pose_to_bone(
+          {pose_bone_eval, bone}, reinterpret_cast<const float(*)[4]>(foo.base_ptr()), asd);
+      return float4x4(asd);
     }
   }
   return float4x4::identity();
@@ -218,7 +226,7 @@ static Vector<AnimTransformable *> depsgraph_sorted_transformables(
       if (!graph_node.can_insert()) {
         continue;
       }
-      std::cout << "insert " << graph_node.transformable->name() << std::endl;
+      // std::cout << "insert " << graph_node.transformable->name() << std::endl;
       sorted_transformables.append(graph_node.transformable);
       inserted_any = true;
       graph_node.inserted = true;
@@ -277,6 +285,36 @@ static void ensure_baked_fcurves(Main &bmain,
     paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
         paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
     BLI_assert(has_key_on_frame);
+  }
+}
+
+static void set_keys_to_transform(TransformableFCurves &t_fcus,
+                                  const float4x4 &matrix,
+                                  const int paste_index)
+{
+  const float3 location = matrix.location();
+  const float3 scale = math::to_scale(matrix);
+  Rotation rotation;
+  rotation.mode = ROT_MODE_QUAT;
+  const float4 quat = float4(math::to_quaternion(matrix));
+  rotation.values.reinitialize(4);
+  copy_qt_qt(rotation.values.data(), quat);
+
+  for (const int i : IndexRange(3)) {
+    PasteFCurve &pfcu = t_fcus.loc[i];
+    BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
+    const int bezt_index = pfcu.paste_start_index + paste_index;
+    BezTriple &key = pfcu.fcurve->bezt[bezt_index];
+    /* TODO move with handles. */
+    key.vec[1][1] = location[i];
+  }
+
+  for (const int i : IndexRange(3)) {
+    PasteFCurve &pfcu = t_fcus.scale[i];
+    BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
+    const int bezt_index = pfcu.paste_start_index + paste_index;
+    BezTriple &key = pfcu.fcurve->bezt[bezt_index];
+    key.vec[1][1] = scale[i];
   }
 }
 
@@ -422,6 +460,7 @@ static void paste_world_space(Main &bmain,
     for (FCurve *fcurve : fcurves) {
       if (fcurve == nullptr) {
         BKE_report(&reports, RPT_ERROR, "Clipboard contains incomplete animation data");
+        BKE_main_free(clipboard_bmain);
         return;
       }
     }
@@ -429,6 +468,11 @@ static void paste_world_space(Main &bmain,
 
   Vector<AnimTransformable *> pasteables = pasteable_transformables(transformables,
                                                                     world_space_data);
+  if (pasteables.size() == 0) {
+    BKE_report(&reports, RPT_ERROR, "Cannot match selection to clipboard data");
+    BKE_main_free(clipboard_bmain);
+    return;
+  }
 
   /* Build a minimal depsgraph because we need to evaluate the scene on every frame to correctly
    * invert world to local space. */
@@ -502,12 +546,6 @@ static void paste_world_space(Main &bmain,
   /* Since we potentially added FCurves, we have to rebuild the depsgraph. */
   DEG_graph_build_from_ids(depsgraph, ids);
 
-  // Ensure FCurves on all transform channels -> which layer? -> insert_key_visual function that
-  // inserts keys to layers based on their contribution.
-  //
-  // Buffer those FCurves in a struct
-  // Store start index per FCurve
-  //
   for (int frame = range.min; frame < range.max; frame++) {
     /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
     const int key_index = frame - range.min;
@@ -521,9 +559,8 @@ static void paste_world_space(Main &bmain,
        * updated. This is potentially very slow. */
       DEG_evaluate_on_framechange(depsgraph, frame);
       const float4x4 local_matrix = world_to_local(*depsgraph, *transformable, world_matrix);
-      /* It is still important to apply the matrix here because otherwise the world to local
-       * calculations of dependent transformables won't be correct. */
-      // transformable->set_local_matrix(local_matrix);
+      TransformableFCurves &t_fcus = fcurve_buffer[i];
+      set_keys_to_transform(t_fcus, local_matrix, key_index);
     }
   }
 
@@ -608,6 +645,11 @@ static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
                     *CTX_data_view_layer(C),
                     *op->reports,
                     transformables);
+  for (AnimTransformable &t : transformables) {
+    DEG_id_tag_update(t.owner_id(), ID_RECALC_ANIMATION);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, t.owner_id());
+  }
+
   return OPERATOR_FINISHED;
 }
 
