@@ -707,8 +707,13 @@ bool RNA_property_collection_move(PointerRNA *ptr, PropertyRNA *prop, int key, i
  *
  * \return True if copy was successful, false otherwise.
  */
-bool RNA_property_copy(
-    Main *bmain, PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, int index);
+bool RNA_property_copy(Main *bmain,
+                       PointerRNA *ptr,
+                       PointerRNA *fromptr,
+                       PropertyRNA *prop,
+                       int index,
+                       IDOverrideLibraryProperty *removed_oprop = nullptr,
+                       IDOverrideLibraryPropertyOperation *removed_opop = nullptr);
 /**
  * Same as above, but with higher level of control on source and destination, allowing e.g. to copy
  * data between different properties, even from different data pointer types.
@@ -719,7 +724,9 @@ bool RNA_property_copy(Main *bmain,
                        PropertyRNA *to_prop,
                        PropertyRNA *from_prop,
                        int to_index = -1,
-                       int from_index = -1);
+                       int from_index = -1,
+                       IDOverrideLibraryProperty *removed_oprop = nullptr,
+                       IDOverrideLibraryPropertyOperation *removed_opop = nullptr);
 /**
  * Reset the given `ptr` data `prop` property to its RNA (or DNA) defined default value.
  */
