@@ -8,6 +8,7 @@
 #include "FN_field.hh"
 #include "FN_multi_function_registry.hh"
 
+#include <cstring>
 #include <xxhash.h>
 
 namespace blender::fn {
@@ -28,6 +29,25 @@ GField GField::from_constant(const CPPType &type, const void *value)
   void *new_value = MEM_new_uninitialized_aligned(type.size, type.alignment, __func__);
   type.copy_construct(value, new_value);
   return GField(OwnedConstant{&type, new_value});
+}
+
+/**
+ * Equality of constant fields must be consistent with their hash (see #GField::hash and
+ * #GFieldRef::hash), which is derived from the raw bytes of the value. Using the type's equality
+ * operator (via #CPPType::is_equal_or_false) isn't consistent. For example, +0 and -0 compare
+ * equal but have different hashes. The shallow comparison using this equality test is not meant to
+ * be complete anyway, it's just meant to be a fast, trivial test, and it's more convienent for Map
+ * usage when the equality and hashing correspond.
+ */
+static bool bytes_equal(const CPPType &type_a,
+                        const void *value_a,
+                        const CPPType &type_b,
+                        const void *value_b)
+{
+  if (&type_a != &type_b) {
+    return false;
+  }
+  return memcmp(value_a, value_b, type_a.size) == 0;
 }
 
 bool operator==(const GField &a, const GField &b)
@@ -60,12 +80,7 @@ bool operator==(const GField &a, const GField &b)
           return std::visit(
               [&]<typename U>(const U &v_b) -> bool {
                 if constexpr (GField::is_constant_value_v<U>) {
-                  const CPPType &type_b = *v_b.type;
-                  if (type_a != type_b) {
-                    return false;
-                  }
-                  const void *constant_b = v_b.value;
-                  return type_a.is_equal_or_false(constant_a, constant_b);
+                  return bytes_equal(type_a, constant_a, *v_b.type, v_b.value);
                 }
                 else {
                   return false;
@@ -418,10 +433,7 @@ bool operator==(const GFieldRef &a, const GFieldRef &b)
       [&]<typename T>(const T &v_a) -> bool {
         if constexpr (std::is_same_v<T, GFieldRef::Value>) {
           if (const auto *v_b = std::get_if<GFieldRef::Value>(&b.variant())) {
-            if (v_a.type != v_b->type) {
-              return false;
-            }
-            return v_a.type->is_equal_or_false(v_a.value, v_b->value);
+            return bytes_equal(*v_a.type, v_a.value, *v_b->type, v_b->value);
           }
           return false;
         }
