@@ -156,18 +156,126 @@ float3x3 tangent_basis(float3 N, float3 V)
   return float3x3(T1, T2, N);
 }
 
+/* Simple disk with origin, normal, and radius. */
+struct ClippingDisk {
+  float3 O;
+  float3 N;
+  float radius; /* TODO: Potentially use squared radius instead. */
+};
+
+// struct Frame {
+//   float3 n;
+//   float3 s;
+//   float3 t;
+
+//   float3 to_local(float3 v) const
+//   {
+//     // T * v
+//     return float3(dot(s, v), dot(t, v), dot(n, v));
+//   }
+
+//   float3 to_global(float3 v) const
+//   {
+//     // T.T * v
+//     return v.x * s + v.y * t + v.z * n;
+//   }
+// };
+
+float clipped_form_factor_planar(float form_factor, float3x3 Minv, float3 L, ClippingDisk disk)
+{
+  /* Dominant BxDF lobe direction. */
+  /* TODO: let's avoid using inverse. */
+  float3 D = inverse(Minv)[2];
+
+  /* Project dominant direction on to disk plane. */
+  float t = abs(dot(disk.N, disk.O) / dot(disk.N, D));
+  float3 P = D * t;
+
+  /* Map to disk boundary. */
+  float radius;
+  float3 T = normalize_and_get_length(P - disk.O, radius);
+  P = disk.O + T * disk.radius;
+
+  /* Project disk point into LTC space. */
+  return radius > disk.radius ? normalize(Minv * P).z : 1.0;
+}
+
+float clipped_form_factor_2d(float form_factor, float3x3 Minv, float3 L, ClippingDisk disk)
+{
+  /* Dominant BxDF lobe direction. */
+  /* TODO: let's avoid using inverse. */
+  float3 D = inverse(Minv)[2];
+
+  /* Create a 2D problem on an arc. */
+
+  /* Construct orthonormal basis around L. */
+  float3 T1 = normalize(D - L * dot(L, D));
+  float3 T2 = cross(L, T1);
+  float3x3 T = transpose(float3x3(T1, T2, L));
+
+  // float2 D_local = normalize((T * D).xz);
+  // float2 L_local = normalize((T * L).xz);
+
+  /* Compute disk tangent in basis. */
+  float2 T_local = normalize((T * disk.N).xz).yx;
+  float3 T_disk = normalize(transpose(T) * float3(T_local.x, 0.0, T_local.y));
+
+  return dot(T_disk, disk.N);
+  // float3 P = normalize(transpose(T) * float3(T_local.x, 0.0, T_local.y)) * 0.5 * disk.radius +
+  //            disk.O;
+  // return normalize(Minv * normalize(P)).z;
+}
+
+float clipped_form_factor_spherical(float form_factor, float3x3 Minv, float3 L, ClippingDisk disk)
+{
+  /* Dominant BxDF lobe direction. */
+  float3 D = normalize(inverse(Minv)[2]);
+
+  /* Vector on the disk plane, coplanar with D and L. */
+  /* TODO: degenerate when D == L. */
+  float3 T = -normalize(L * dot(disk.N, D) - D * dot(disk.N, L));
+
+  /* Compute near and far points on the disk, along the line formed by T. */
+  float3 P0 = normalize(disk.O + T * disk.radius);
+  float3 P1 = normalize(disk.O - T * disk.radius);
+
+  /* Determine if D lies inside the arc formed by P0, P1.
+   * In this case we do not attenuate at all. */
+  float P0P1 = dot(P0, P1);
+  if (dot(P0, D) >= P0P1 && dot(P1, D) >= P0P1) {
+    // return form_factor;
+    return 1.0;
+  }
+
+  /* Project disk point into LTC space, then use fitting for attenuation. */
+  float attenuation = normalize(Minv * P0).z;
+  // attenuation = saturate((attenuation + 0.15f) * 2.5f);
+
+  return abs(attenuation);
+  // return form_factor * attenuation;
+}
+
 }  // namespace detail
 
 /**
  * Evaluate contribution of rectangle light.
  */
-float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 N, float3 V, float3x3 Minv)
+float evaluate_quad(
+    sampler2DArray util_tx, float3 corners[4], float3 N, float3 V, float3 L, float3x3 Minv)
 {
   /* Construct orthonormal basis around N. */
   float3x3 T = detail::tangent_basis(N, V);
 
   /* Rotate area light into basis. */
   Minv = Minv * transpose(T);
+
+  /* Define disk encapsulating the quad for form factor clipping. */
+  float3 edge_a = normalize(corners[1] - corners[0]);
+  float3 edge_b = normalize(corners[3] - corners[0]);
+  detail::ClippingDisk disk = {
+      .O = 0.25f * (corners[0] + corners[1] + corners[2] + corners[3]), /* == lv.L * lv.dist */
+      .N = cross(edge_a, edge_b),
+      .radius = 0.5f * distance(corners[2], corners[0])};
 
   /* Apply LTC inverse matrix. */
   corners[0] = normalize(Minv * corners[0]);
@@ -189,6 +297,8 @@ float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 N, float3 
   float form_factor = saturate(1.0f / form_factor_inv);
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
+
+  /* form_factor = */ return detail::clipped_form_factor_spherical(form_factor, Minv, L, disk);
 
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
 }
