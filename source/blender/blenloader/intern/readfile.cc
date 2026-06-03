@@ -3761,6 +3761,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   if (!main->is_read_invalid) {
     blo_do_versions_520(fd, lib, main);
   }
+  if (!main->is_read_invalid) {
+    blo_do_versions_530(fd, lib, main);
+  }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
   /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
@@ -4526,6 +4529,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 
       /* Update invariants after re-generating overrides. */
       BKE_main_ensure_invariants(*bfd->main);
+
+      BKE_main_id_indirect_linked_update(*bfd->main);
 
       fd->reports->duration.lib_overrides = BLI_time_now_seconds() -
                                             fd->reports->duration.lib_overrides;
