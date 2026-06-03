@@ -232,14 +232,15 @@ float clipped_form_factor_spherical(float form_factor, float3x3 Minv, float3 L, 
   float3 D = normalize(inverse(Minv)[2]);
 
   /* Vector on the disk plane, coplanar with D and L. */
-  /* TODO: degenerate when D == L. */
+  /* TODO: degenerate when D == L for obvious reasons. */
   float3 T = -normalize(L * dot(disk.N, D) - D * dot(disk.N, L));
 
-  /* Compute near and far points on the disk, along the line formed by T. */
+  /* Compute near and far points on the disk, along the line formed by T. Project
+   * these points onto the unit sphere. */
   float3 P0 = normalize(disk.O + T * disk.radius);
   float3 P1 = normalize(disk.O - T * disk.radius);
 
-  /* Determine if D lies inside the arc formed by P0, P1.
+  /* Determine if D lies inside the arc formed by P0, P1 along the unit sphere..
    * In this case we do not attenuate at all. */
   float P0P1 = dot(P0, P1);
   if (dot(P0, D) >= P0P1 && dot(P1, D) >= P0P1) {
