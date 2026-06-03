@@ -4,6 +4,9 @@
 
 #include "BLI_index_mask.hh"
 
+#include "BLI_resource_scope.hh"
+#include "FN_field.hh"
+#include "FN_field_evaluation.hh"
 #include "GEO_reorder.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
@@ -90,47 +93,29 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
-static std::optional<Array<int>> sorted_indices_for_list(const int size,
-                                                         const VArray<bool> &selection,
-                                                         const VArray<int> &group_id,
-                                                         const VArray<float> &weight)
+template<typename T>
+static void get_varray_or_evaluate(const int list_size,
+                                   bke::SocketValueVariant &value,
+                                   ResourceScope &scope,
+                                   fn::FieldEvaluator &field_evaluator,
+                                   const T &default_value,
+                                   VArray<T> &r_varray)
 {
-  IndexMaskMemory memory;
-  IndexMask mask;
-  if (const std::optional<bool> single = selection.get_if_single()) {
-    if (!single.value()) {
-      return std::nullopt;
+  if (value.is_context_dependent_field()) {
+    field_evaluator.add(value.extract<fn::Field<T>>(), &r_varray);
+  }
+  else if (value.is_list()) {
+    auto list = value.extract<GListPtr>();
+    if (list && list->size() == list_size) {
+      r_varray = scope.add_value(std::move(list))->varray().typed<T>();
     }
-    mask = IndexRange(size);
+    else {
+      r_varray = VArray<T>::from_single(default_value, list_size);
+    }
   }
   else {
-    mask = IndexMask::from_bools(selection, memory);
+    r_varray = VArray<T>::from_single(value.extract<T>(), list_size);
   }
-  return geometry::sort_indices_by_weights(size, mask, group_id, weight);
-}
-
-template<typename T>
-static VArray<T> resolve_variant_to_varray(bke::SocketValueVariant &variant,
-                                           const int size,
-                                           const T default_val,
-                                           GListPtr &r_list)
-{
-  if (variant.is_context_dependent_field()) {
-    fn::GField field = variant.extract<fn::GField>();
-    r_list = evaluate_field_to_list(std::move(field), size);
-    if (r_list) {
-      return r_list->varray().typed<T>();
-    }
-    return VArray<T>::from_single(default_val, size);
-  }
-  if (variant.is_list()) {
-    r_list = variant.extract<GListPtr>();
-    if (r_list && int(r_list->size()) == size) {
-      return r_list->varray().typed<T>();
-    }
-    return VArray<T>::from_single(default_val, size);
-  }
-  return VArray<T>::from_single(variant.get<T>(), size);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -151,15 +136,34 @@ static void node_geo_exec(GeoNodeExecParams params)
   auto group_id_variant = params.extract_input<bke::SocketValueVariant>("Group ID"_ustr);
   auto weights_variant = params.extract_input<bke::SocketValueVariant>("Sort Weight"_ustr);
 
-  GListPtr selection_list, group_id_list, weights_list;
-  const VArray<bool> selection = resolve_variant_to_varray<bool>(
-      selection_variant, list_size, true, selection_list);
-  const VArray<int> group_id = resolve_variant_to_varray<int>(
-      group_id_variant, list_size, 0, group_id_list);
-  const VArray<float> weights = resolve_variant_to_varray<float>(
-      weights_variant, list_size, 0.0f, weights_list);
+  ResourceScope scope;
 
-  const std::optional<Array<int>> sorted = sorted_indices_for_list(
+  ListFieldContext field_context;
+  fn::FieldEvaluator field_evaluator(field_context, list_size);
+
+  if (selection_variant.is_context_dependent_field()) {
+    field_evaluator.set_selection(selection_variant.extract<fn::Field<bool>>());
+  }
+  else if (selection_variant.is_list()) {
+    auto fn = fn::FieldOperation::from(
+        std::make_shared<SampleIndexFunction>(weights_variant.extract<GListPtr>()),
+        {fn::IndexFieldInput::get_field()});
+    field_evaluator.set_selection(fn::Field<bool>(std::move(fn)));
+  }
+  else {
+    field_evaluator.set_selection(fn::Field<bool>(selection_variant.extract<bool>()));
+  }
+
+  VArray<int> group_id;
+  get_varray_or_evaluate(list_size, group_id_variant, scope, field_evaluator, 0, group_id);
+
+  VArray<float> weights;
+  get_varray_or_evaluate(list_size, weights_variant, scope, field_evaluator, 0.0f, weights);
+
+  field_evaluator.evaluate();
+  const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
+
+  const std::optional<Array<int>> sorted = geometry::sort_indices_by_weights(
       list_size, selection, group_id, weights);
   if (!sorted) {
     params.set_output("List"_ustr, std::move(list));
