@@ -28,6 +28,8 @@
 #include "ED_screen.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_animdata.hh"
+#include "ANIM_rna.hh"
 
 #include "anim_intern.hh"
 
@@ -297,6 +299,27 @@ static void copy_world_space(Main &bmain,
   copybuffer.write_as_copypaste_buffer(filepath, reports);
 }
 
+struct PasteFCurve {
+  FCurve *fcurve = nullptr;
+  /* Store info if that FCurve was created by this code. If yes, we can potentially remove it if
+   * the keys are all on the same value after pasting. */
+  bool created_on_paste = false;
+  int paste_start_index = 0;
+};
+
+struct TransformableFCurves {
+  Array<PasteFCurve, 3> loc;
+  Array<PasteFCurve, 4> rot;
+  Array<PasteFCurve, 3> scale;
+
+  TransformableFCurves()
+  {
+    loc.reinitialize(3);
+    rot.reinitialize(4);
+    scale.reinitialize(3);
+  }
+};
+
 static void paste_world_space(Main &bmain,
                               Scene &scene,
                               ViewLayer &view_layer,
@@ -364,15 +387,106 @@ static void paste_world_space(Main &bmain,
     BKE_report(&reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
   }
 
-  /* We need to write local transform values to an intermediate buffer because inserting keys while
-   * iterating would change the interpolation to the next frame and thus the result. */
   const Bounds<int> range = {int(dna_action->frame_start), int(dna_action->frame_end)};
-  Array<Array<float4x4>> local_matrix_buffer(sorted_transformables.size());
+  /* We have to ensure every frame of the affected range has a key. Otherwise inserting keys will
+   * modify the interpolation of the following frames. */
+  Array<TransformableFCurves> fcurve_buffer(sorted_transformables.size());
   for (const int i : sorted_transformables.index_range()) {
-    local_matrix_buffer[i].reinitialize(range.size());
+    AnimTransformable *transformable = sorted_transformables[i];
+    ID *owner_id = transformable->owner_id();
+    bAction *dna_action = ar::id_action_ensure(&bmain, owner_id);
+    /* When adding layers this becomes a lot more complicated. We'll have to answer where keys go
+     * in this case. Multiple things to consider:
+     * - The active layer may have no effect on the final pose
+     * - Not every layer may have a channelbag for this transformable.
+     * - When inserting keys into a layer that is additive, we need to adjust the inserted values.
+     * - When inserting keys into a layer with an influence < 1 we'll also have to adjust the
+     * values.
+     * - In all cases, the result has to be that the final world space of the transformable ends up
+     * where it was copied from.
+     */
+    ar::assert_baklava_phase_1_invariants(action);
+    ar::Channelbag &channelbag = ar::action_channelbag_ensure(*dna_action, *owner_id);
+    TransformableFCurves &fcus = fcurve_buffer[i];
+    if (transformable->get_rotation_mode() >= ROT_MODE_EUL) {
+      fcus.rot.reinitialize(3);
+    }
+    else {
+      fcus.rot.reinitialize(3);
+    }
+    const std::string loc_path = transformable->rna_path_to_property(
+        AnimTransformable::PropertyType::LOCATION);
+    /* This will fail if the rotation mode is animated to jump from e.g. euler to quaternion. */
+    const std::string rot_path = transformable->rna_path_to_property(
+        AnimTransformable::PropertyType::ROTATION);
+    const std::string scale_path = transformable->rna_path_to_property(
+        AnimTransformable::PropertyType::SCALE);
+
+    for (FCurve *fcurve : channelbag.fcurves()) {
+      StringRefNull fcurve_path(fcurve->rna_path);
+      if (fcurve_path == loc_path) {
+        fcus.loc[fcurve->array_index].fcurve = fcurve;
+      }
+      else if (fcurve_path == rot_path) {
+        fcus.rot[fcurve->array_index].fcurve = fcurve;
+      }
+      else if (fcurve_path == scale_path) {
+        fcus.scale[fcurve->array_index].fcurve = fcurve;
+      }
+    }
+    bool has_key_on_frame = false;
+    /* Ensuring all FCurves exist. */
+    for (const int i : fcus.loc.index_range()) {
+      PasteFCurve &paste_fcu = fcus.loc[i];
+      if (!paste_fcu.fcurve) {
+        /* TODO pass group name. */
+        FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {loc_path, i, PROP_FLOAT, PROP_NONE});
+        paste_fcu.fcurve = &fcurve;
+        paste_fcu.created_on_paste = true;
+      }
+      ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
+      paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
+          paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
+      BLI_assert(has_key_on_frame);
+    }
+
+    for (const int i : fcus.rot.index_range()) {
+      PasteFCurve &paste_fcu = fcus.rot[i];
+      if (!paste_fcu.fcurve) {
+        /* TODO pass group name and correct subtype. */
+        FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {rot_path, i, PROP_FLOAT, PROP_NONE});
+        paste_fcu.fcurve = &fcurve;
+        paste_fcu.created_on_paste = true;
+      }
+      ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
+      paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
+          paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
+      BLI_assert(has_key_on_frame);
+    }
+
+    for (const int i : fcus.scale.index_range()) {
+      PasteFCurve &paste_fcu = fcus.scale[i];
+      if (!paste_fcu.fcurve) {
+        /* TODO pass group name. */
+        FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {scale_path, i, PROP_FLOAT, PROP_NONE});
+        paste_fcu.fcurve = &fcurve;
+        paste_fcu.created_on_paste = true;
+      }
+      ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
+
+      paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
+          paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
+      BLI_assert(has_key_on_frame);
+    }
   }
+
+  // Ensure FCurves on all transform channels -> which layer? -> insert_key_visual function that
+  // inserts keys to layers based on their contribution.
+  //
+  // Buffer those FCurves in a struct
+  // Store start index per FCurve
+  //
   for (int frame = range.min; frame < range.max; frame++) {
-    DEG_evaluate_on_framechange(depsgraph, frame);
     /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
     const int key_index = frame - range.min;
     for (const int i : sorted_transformables.index_range()) {
@@ -382,11 +496,13 @@ static void paste_world_space(Main &bmain,
         continue;
       }
       const float4x4 world_matrix = fcurves_to_matrix(*fcurves, key_index);
+      /* We need the depsgraph evaluation in the inner loop so the position of dependents is
+       * updated. This is potentially very slow. */
+      DEG_evaluate_on_framechange(depsgraph, frame);
       const float4x4 local_matrix = world_to_local(*depsgraph, *transformable, world_matrix);
       /* It is still important to apply the matrix here because otherwise the world to local
        * calculations of dependent transformables won't be correct. */
       transformable->set_local_matrix(local_matrix);
-      local_matrix_buffer[i][key_index] = std::move(local_matrix);
     }
   }
 
