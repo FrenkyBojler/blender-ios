@@ -1,1 +1,2 @@
 Referenced by pull request #153337, Fix: Geometry Nodes List Get Item missing return
+Referenced by issue #159518, Switch node in Geometry Nodes no longer sets the boolean input shape to single value when it's set to Geometry
