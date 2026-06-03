@@ -145,6 +145,7 @@ TRIVIAL_DEFAULT_INT_HASH(uint64_t);
 template<> struct DefaultHash<float> {
   constexpr uint64_t operator()(const float value) const
   {
+    /* Make sure +0 and -0 hash to the same value. */
     if (value == 0.0f) {
       return 0;
     }
@@ -156,6 +157,7 @@ template<> struct DefaultHash<float> {
 template<> struct DefaultHash<double> {
   constexpr uint64_t operator()(const double value) const
   {
+    /* Make sure +0 and -0 hash to the same value. */
     if (value == 0.0) {
       return 0;
     }

@@ -13,6 +13,7 @@
 #include <type_traits>
 
 #include "BLI_build_config.h"
+#include "BLI_hash.hh"
 #include "BLI_math_vector_swizzle.hh"
 #include "BLI_math_vector_unroll.hh"
 #include "BLI_unique_hash.hh"
@@ -174,7 +175,7 @@ template<typename T> struct vec_struct_base<T, 4, true> {
 
 namespace math {
 
-template<typename T> uint64_t vector_hash(const T &vec)
+template<typename T> inline uint64_t vector_hash(const T &vec)
 {
   BLI_STATIC_ASSERT(T::type_length <= 4, "Longer types need to implement vector_hash themself.");
   if constexpr (T::type_length == 1) {
