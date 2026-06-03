@@ -40,6 +40,7 @@ BLI_NOINLINE static void apply_factors(const float strength,
                                        const Span<float> factors,
                                        const MutableSpan<float> masks)
 {
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(current_masks.size() == masks.size());
   BLI_assert(factors.size() == masks.size());
   for (const int i : masks.index_range()) {
@@ -49,6 +50,7 @@ BLI_NOINLINE static void apply_factors(const float strength,
 
 BLI_NOINLINE static void clamp_mask(const MutableSpan<float> masks)
 {
+  PRF_scope(ProfileCategory::Editor);
   for (float &mask : masks) {
     mask = std::clamp(mask, 0.0f, 1.0f);
   }
@@ -213,7 +215,7 @@ void do_mask_brush(const Depsgraph &depsgraph,
     SCULPT_do_paint_brush_image(depsgraph, sd, object, texnode_mask);
     return;
   }
-
+  PRF_scope(ProfileCategory::Editor);
   SculptSession &ss = *object.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
