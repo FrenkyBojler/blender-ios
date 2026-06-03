@@ -501,7 +501,7 @@ static int openexr_header_get_compression(const Header &header)
   return R_IMF_EXR_CODEC_NONE;
 }
 
-static void openexr_header_metadata_global(Header *header, IDProperty *metadata)
+static void openexr_header_metadata_global(Header *header, const IDProperty *metadata)
 {
   header->insert(
       "Software",
@@ -646,7 +646,7 @@ static void save_setup_header(const ImBuf *ibuf,
 {
   const int compression = ibuf->foptions.flag & OPENEXR_CODEC_MASK;
   openexr_header_compression(&header, compression, ibuf->foptions.quality);
-  openexr_header_metadata_global(&header, ibuf->metadata);
+  openexr_header_metadata_global(&header, ibuf->metadata());
   openexr_header_metadata_pixelinfo(&header, ibuf->ppm);
   openexr_header_metadata_colorspace(&header, ibuf);
 

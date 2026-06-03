@@ -434,7 +434,7 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   ibuf2->index = ibuf1->index;
   ibuf2->userflags = ibuf1->userflags;
   ibuf2->userflags = ibuf1->userflags;
-  ibuf2->metadata = ibuf1->metadata;
+  ibuf2->metadata_ptr = ibuf1->metadata_ptr;
   ibuf2->metadata_sharing_info = ibuf1->metadata_sharing_info;
   ibuf2->exrhandle = ibuf1->exrhandle;
   ibuf2->ftype = ibuf1->ftype;

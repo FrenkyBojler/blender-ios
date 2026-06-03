@@ -208,8 +208,8 @@ struct ImBuf {
   int userflags = 0;
 
   /** Image Metadata */
-  IDProperty *metadata = nullptr;
-  /** Implicit-sharing owner for #metadata/. */
+  IDProperty *metadata_ptr = nullptr;
+  /** Implicit-sharing owner for #metadata_ptr/. */
   ImplicitSharingPtr<> metadata_sharing_info;
 
   /** OpenEXR handle. */
@@ -243,7 +243,7 @@ struct ImBuf {
   void assign_float_data(const float *data, ImplicitSharingPtr<> sharing_ptr);
 
   /** Metadata access, should go through these methods instead of direct access. */
-  const IDProperty *metadata_for_read() const;
+  const IDProperty *metadata() const;
   IDProperty *metadata_for_write();
   void assign_metadata(const IDProperty *metadata, ImplicitSharingPtr<> sharing_info);
 

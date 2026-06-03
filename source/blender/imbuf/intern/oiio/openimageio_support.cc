@@ -480,8 +480,8 @@ ImageSpec imb_create_write_spec(const WriteContext &ctx, int file_channels, Type
    *   the current format being written (e.g. metadata for tiff being written to a `PNG`)
    */
 
-  if (ctx.ibuf->metadata) {
-    for (IDProperty &prop : ctx.ibuf->metadata->data.group) {
+  if (ctx.ibuf->metadata()) {
+    for (IDProperty &prop : ctx.ibuf->metadata()->data.group) {
       if (prop.type == IDP_STRING) {
         /* If this property has a prefixed name (oiio:, tiff:, etc.) and it belongs to
          * oiio or a different format, then skip. */

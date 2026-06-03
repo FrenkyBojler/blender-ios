@@ -621,12 +621,12 @@ static void write_jpeg(jpeg_compress_struct *cinfo, ImBuf *ibuf)
   memset(neogeo_word, 0, sizeof(*neogeo_word));
   neogeo_word->quality = ibuf->foptions.quality;
   jpeg_write_marker(cinfo, 0xe1, reinterpret_cast<JOCTET *>(neogeo), 10);
-  if (ibuf->metadata) {
+  if (ibuf->metadata()) {
 
     /* Static storage array for the short metadata. */
     char static_text[1024];
     const size_t static_text_size = ARRAY_SIZE(static_text);
-    for (IDProperty &prop : ibuf->metadata->data.group) {
+    for (IDProperty &prop : ibuf->metadata()->data.group) {
       if (prop.type == IDP_STRING) {
         size_t text_len;
         if (STREQ(prop.name, "None")) {

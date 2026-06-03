@@ -212,10 +212,8 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
       }
       if (thumb) {
         /* Look for version in existing thumbnail if available. */
-        IMB_metadata_get_field(thumb->metadata_for_read(),
-                               "Thumb::Blender::Version",
-                               version_str,
-                               sizeof(version_str));
+        IMB_metadata_get_field(
+            thumb->metadata(), "Thumb::Blender::Version", version_str, sizeof(version_str));
       }
 
       if (!version_str[0] && !(file->attributes & FILE_ATTR_OFFLINE)) {
@@ -244,9 +242,9 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
         char value1[128];
         char value2[128];
         if (IMB_metadata_get_field(
-                thumb->metadata_for_read(), "Thumb::Image::Width", value1, sizeof(value1)) &&
+                thumb->metadata(), "Thumb::Image::Width", value1, sizeof(value1)) &&
             IMB_metadata_get_field(
-                thumb->metadata_for_read(), "Thumb::Image::Height", value2, sizeof(value2)))
+                thumb->metadata(), "Thumb::Image::Height", value2, sizeof(value2)))
         {
           tooltip_text_field_add(tip,
                                  fmt::format("{} \u00D7 {}", value1, value2),
@@ -267,9 +265,9 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
         char value2[128];
         char value3[128];
         if (IMB_metadata_get_field(
-                thumb->metadata_for_read(), "Thumb::Video::Width", value1, sizeof(value1)) &&
+                thumb->metadata(), "Thumb::Video::Width", value1, sizeof(value1)) &&
             IMB_metadata_get_field(
-                thumb->metadata_for_read(), "Thumb::Video::Height", value2, sizeof(value2)))
+                thumb->metadata(), "Thumb::Video::Height", value2, sizeof(value2)))
         {
           tooltip_text_field_add(tip,
                                  fmt::format("{} \u00D7 {}", value1, value2),
@@ -278,11 +276,11 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
                                  ui::TIP_LC_NORMAL);
         }
         if (IMB_metadata_get_field(
-                thumb->metadata_for_read(), "Thumb::Video::Frames", value1, sizeof(value1)) &&
+                thumb->metadata(), "Thumb::Video::Frames", value1, sizeof(value1)) &&
             IMB_metadata_get_field(
-                thumb->metadata_for_read(), "Thumb::Video::FPS", value2, sizeof(value2)) &&
+                thumb->metadata(), "Thumb::Video::FPS", value2, sizeof(value2)) &&
             IMB_metadata_get_field(
-                thumb->metadata_for_read(), "Thumb::Video::Duration", value3, sizeof(value3)))
+                thumb->metadata(), "Thumb::Video::Duration", value3, sizeof(value3)))
         {
           tooltip_text_field_add(
               tip,

@@ -2652,7 +2652,7 @@ static void metadata_get_field(void *data,
 {
   /* We know it is an `ImBuf *` because that's what we pass to #BKE_stamp_info_callback. */
   ImBuf *imbuf = static_cast<ImBuf *>(data);
-  IMB_metadata_get_field(imbuf->metadata_for_read(), propname, propvalue, propvalue_maxncpy);
+  IMB_metadata_get_field(imbuf->metadata(), propname, propvalue, propvalue_maxncpy);
 }
 
 void BKE_imbuf_stamp_info(const RenderResult *rr, ImBuf *ibuf)

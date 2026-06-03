@@ -52,29 +52,29 @@ void IMB_metadata_ensure(IDProperty **metadata)
   *metadata = bke::idprop::create_group("metadata").release();
 }
 
-const IDProperty *ImBuf::metadata_for_read() const
+const IDProperty *ImBuf::metadata() const
 {
-  return this->metadata;
+  return this->metadata_ptr;
 }
 
 IDProperty *ImBuf::metadata_for_write()
 {
-  BLI_assert((this->metadata == nullptr) == (this->metadata_sharing_info == nullptr));
+  BLI_assert((this->metadata_ptr == nullptr) == (this->metadata_sharing_info == nullptr));
 
-  if (this->metadata == nullptr) {
+  if (this->metadata_ptr == nullptr) {
     /* Allocate on demand. */
-    this->metadata = bke::idprop::create_group("metadata").release();
+    this->metadata_ptr = bke::idprop::create_group("metadata").release();
     this->metadata_sharing_info = ImplicitSharingPtr<>(
-        MEM_new<MetaDataImplicitSharing>(__func__, this->metadata));
+        MEM_new<MetaDataImplicitSharing>(__func__, this->metadata_ptr));
   }
   else if (!this->metadata_sharing_info->is_mutable()) {
     /* Copy on write. */
-    this->metadata = IDP_CopyProperty(this->metadata);
+    this->metadata_ptr = IDP_CopyProperty(this->metadata_ptr);
     this->metadata_sharing_info = ImplicitSharingPtr<>(
-        MEM_new<MetaDataImplicitSharing>(__func__, this->metadata));
+        MEM_new<MetaDataImplicitSharing>(__func__, this->metadata_ptr));
   }
 
-  return this->metadata;
+  return this->metadata_ptr;
 }
 
 void ImBuf::assign_metadata(const IDProperty *metadata, ImplicitSharingPtr<> sharing_info)
@@ -82,7 +82,7 @@ void ImBuf::assign_metadata(const IDProperty *metadata, ImplicitSharingPtr<> sha
   BLI_assert(metadata != nullptr);
   BLI_assert(sharing_info.get() != nullptr);
 
-  this->metadata = const_cast<IDProperty *>(metadata);
+  this->metadata_ptr = const_cast<IDProperty *>(metadata);
   this->metadata_sharing_info = std::move(sharing_info);
 }
 
@@ -116,7 +116,7 @@ bool IMB_metadata_get_field(const IDProperty *metadata,
 void IMB_metadata_copy(ImBuf *ibuf_dst, const ImBuf *ibuf_src)
 {
   BLI_assert(ibuf_dst != ibuf_src);
-  ibuf_dst->metadata = ibuf_src->metadata;
+  ibuf_dst->metadata_ptr = ibuf_src->metadata_ptr;
   ibuf_dst->metadata_sharing_info = ibuf_src->metadata_sharing_info;
 }
 
@@ -141,7 +141,7 @@ void IMB_metadata_set_field(IDProperty *metadata, const char *key, const char *v
 
 void IMB_metadata_foreach(const ImBuf *ibuf, IMBMetadataForeachCb callback, void *userdata)
 {
-  const IDProperty *metadata = ibuf->metadata_for_read();
+  const IDProperty *metadata = ibuf->metadata();
   if (metadata == nullptr) {
     return;
   }

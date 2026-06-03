@@ -663,8 +663,7 @@ ImBuf *IMB_thumb_manage(const char *file_or_lib_path, ThumbSize size, ThumbSourc
 
         const bool use_hash = thumbhash_from_path(file_path, source, thumb_hash);
 
-        if (IMB_metadata_get_field(img->metadata_for_read(), "Thumb::MTime", mtime, sizeof(mtime)))
-        {
+        if (IMB_metadata_get_field(img->metadata(), "Thumb::MTime", mtime, sizeof(mtime))) {
           regenerate = (st.st_mtime != atol(mtime));
         }
         else {
@@ -673,10 +672,8 @@ ImBuf *IMB_thumb_manage(const char *file_or_lib_path, ThumbSize size, ThumbSourc
         }
 
         if (use_hash && !regenerate) {
-          if (IMB_metadata_get_field(img->metadata_for_read(),
-                                     "X-Blender::Hash",
-                                     thumb_hash_curr,
-                                     sizeof(thumb_hash_curr)))
+          if (IMB_metadata_get_field(
+                  img->metadata(), "X-Blender::Hash", thumb_hash_curr, sizeof(thumb_hash_curr)))
           {
             regenerate = !STREQ(thumb_hash, thumb_hash_curr);
           }
