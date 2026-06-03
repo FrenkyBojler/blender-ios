@@ -21,8 +21,11 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
+#include "CLG_log.h"
+
 #include "DNA_listBase.h"
 
+#include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_interp.hh"
 #include "IMB_openexr.hh"
@@ -104,6 +107,15 @@ static void studiolight_free_image_buffers(StudioLight *sl)
   IMB_SAFE_FREE(sl->equirect_radiance_buffer);
 }
 
+static void studiolight_free_gpu_textures(StudioLight *sl)
+{
+  GPU_TEXTURE_SAFE_FREE(sl->equirect_radiance_gputexture);
+  GPU_TEXTURE_SAFE_FREE(sl->matcap_diffuse.gputexture);
+  GPU_TEXTURE_SAFE_FREE(sl->matcap_specular.gputexture);
+  sl->flag &= ~(STUDIOLIGHT_EQUIRECT_RADIANCE_GPUTEXTURE | STUDIOLIGHT_MATCAP_DIFFUSE_GPUTEXTURE |
+                STUDIOLIGHT_MATCAP_SPECULAR_GPUTEXTURE);
+}
+
 static void studiolight_free(StudioLight *sl)
 {
 #define STUDIOLIGHT_DELETE_ICON(s) \
@@ -124,10 +136,8 @@ static void studiolight_free(StudioLight *sl)
 #undef STUDIOLIGHT_DELETE_ICON
 
   studiolight_free_image_buffers(sl);
+  studiolight_free_gpu_textures(sl);
 
-  GPU_TEXTURE_SAFE_FREE(sl->equirect_radiance_gputexture);
-  GPU_TEXTURE_SAFE_FREE(sl->matcap_diffuse.gputexture);
-  GPU_TEXTURE_SAFE_FREE(sl->matcap_specular.gputexture);
   MEM_SAFE_DELETE(sl);
 }
 
@@ -307,16 +317,7 @@ static float *studiolight_multilayer_convert_pass(const ImBuf *ibuf,
 
   float *new_rect = MEM_new_array_zeroed<float>(4 * size_t(ibuf->x) * size_t(ibuf->y), __func__);
 
-  IMB_buffer_float_from_float(new_rect,
-                              rect,
-                              channels,
-                              IB_PROFILE_LINEAR_RGB,
-                              IB_PROFILE_LINEAR_RGB,
-                              false,
-                              ibuf->x,
-                              ibuf->y,
-                              ibuf->x,
-                              ibuf->x);
+  IMB_buffer_float_rgba_from_float(new_rect, rect, channels, ibuf->x, ibuf->y);
 
   MEM_delete(rect);
   return new_rect;
@@ -350,7 +351,8 @@ static void studiolight_multilayer_addpass(void *base,
 static void studiolight_load_equirect_image(StudioLight *sl)
 {
   if (sl->flag & STUDIOLIGHT_EXTERNAL_FILE) {
-    ImBuf *ibuf = IMB_load_image_from_filepath(sl->filepath, IB_multilayer | IB_alphamode_ignore);
+    ImBuf *ibuf = IMB_load_image_from_filepath(sl->filepath,
+                                               ImBufFlags::MultiLayer | ImBufFlags::AlphaIgnore);
     ImBuf *specular_ibuf = nullptr;
     ImBuf *diffuse_ibuf = nullptr;
     const bool failed = (ibuf == nullptr);
@@ -442,7 +444,7 @@ static void studiolight_create_equirect_radiance_gputexture(StudioLight *sl)
         1,
         gpu::TextureFormat::SFLOAT_16_16_16_16,
         GPU_TEXTURE_USAGE_SHADER_READ,
-        ibuf->float_buffer.data);
+        ibuf->float_data());
     gpu::Texture *tex = sl->equirect_radiance_gputexture;
     GPU_texture_filter_mode(tex, true);
     GPU_texture_extend_mode(tex, GPU_SAMPLER_EXTEND_MODE_REPEAT);
@@ -457,7 +459,7 @@ static void studiolight_create_matcap_gputexture(StudioLightImage *sli)
   const size_t ibuf_pixel_count = IMB_get_pixel_count(ibuf);
   float *gpu_matcap_3components = MEM_new_array_zeroed<float>(3 * ibuf_pixel_count, __func__);
 
-  const float (*offset4)[4] = reinterpret_cast<const float (*)[4]>(ibuf->float_buffer.data);
+  const float (*offset4)[4] = reinterpret_cast<const float (*)[4]>(ibuf->float_data());
   float (*offset3)[3] = reinterpret_cast<float (*)[3]>(gpu_matcap_3components);
   for (size_t i = 0; i < ibuf_pixel_count; i++, offset4++, offset3++) {
     copy_v3_v3(*offset3, *offset4);
@@ -965,6 +967,13 @@ void BKE_studiolight_preview(uint *icon_buffer, StudioLight *sl, int icon_id_typ
 
 void BKE_studiolight_ensure_flag(StudioLight *sl, int flag)
 {
+  if (sl->equirect_working_space != IMB_colormanagement_working_space_get()) {
+    /* Refresh in case the working space changed. */
+    studiolight_free_image_buffers(sl);
+    studiolight_free_gpu_textures(sl);
+    sl->equirect_working_space = IMB_colormanagement_working_space_get();
+  }
+
   if ((sl->flag & flag) == flag) {
     return;
   }

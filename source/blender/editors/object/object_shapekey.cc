@@ -29,6 +29,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_context.hh"
+#include "BKE_curve.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_library.hh"
@@ -542,7 +543,7 @@ static wmOperatorStatus shape_key_clear_exec(bContext *C, wmOperator * /*op*/)
   Object *ob = context_object(C);
   Key *key = BKE_key_from_object(ob);
 
-  if (!key || BLI_listbase_is_empty(&key->block)) {
+  if (!key || key->block.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
@@ -579,7 +580,7 @@ static wmOperatorStatus shape_key_retime_exec(bContext *C, wmOperator * /*op*/)
   Key *key = BKE_key_from_object(ob);
   float cfra = 0.0f;
 
-  if (!key || BLI_listbase_is_empty(&key->block)) {
+  if (!key || key->block.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
@@ -784,7 +785,7 @@ static wmOperatorStatus shape_key_lock_exec(bContext *C, wmOperator *op)
   const int action = RNA_enum_get(op->ptr, "action");
   const Key *keys = BKE_key_from_object(ob);
 
-  if (!keys || BLI_listbase_is_empty(&keys->block)) {
+  if (!keys || keys->block.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
@@ -872,7 +873,7 @@ static bool shape_key_make_basis_poll(bContext *C)
 
 static wmOperatorStatus shape_key_make_basis_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = context_object(C);
   Key *key = BKE_key_from_object(ob);
   KeyBlock *old_basis_key = static_cast<KeyBlock *>(key->block.first);
 
@@ -895,6 +896,27 @@ static wmOperatorStatus shape_key_make_basis_exec(bContext *C, wmOperator * /*op
   KeyBlock *new_basis_key = static_cast<KeyBlock *>(key->block.first);
   new_basis_key->relative = 0;
   old_basis_key->relative = 0;
+
+  /* Apply new basis key on original data. This is needed so that creating new shape-keys will
+   * start from the new basis shape. */
+  switch (ob->type) {
+    case OB_MESH: {
+      Mesh *mesh = id_cast<Mesh *>(ob->data);
+      BKE_keyblock_convert_to_mesh(new_basis_key, mesh->vert_positions_for_write());
+      break;
+    }
+    case OB_CURVES_LEGACY:
+    case OB_SURF:
+      BKE_keyblock_convert_to_curve(new_basis_key,
+                                    id_cast<Curve *>(ob->data),
+                                    BKE_curve_nurbs_get(id_cast<Curve *>(ob->data)));
+      break;
+    case OB_LATTICE:
+      BKE_keyblock_convert_to_lattice(new_basis_key, id_cast<Lattice *>(ob->data));
+      break;
+    default:
+      break;
+  }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -952,7 +974,7 @@ static void add_arrays(const MutableSpan<float3> a, const Span<float3> b)
 static wmOperatorStatus shape_key_apply_to_basis_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = context_object(C);
   Key *key = BKE_key_from_object(ob);
   KeyBlock *basis_key = static_cast<KeyBlock *>(key->block.first);
   MutableSpan<float3> basis_data(static_cast<float3 *>(basis_key->data), basis_key->totelem);
@@ -961,7 +983,7 @@ static wmOperatorStatus shape_key_apply_to_basis_exec(bContext *C, wmOperator *o
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
 
   int locked_count = 0;
-  Array<bool> keys_to_process(BLI_listbase_count(&key->block), false);
+  Array<bool> keys_to_process(key->block.count(), false);
   for (const auto [i, kb] : key->block.enumerate()) {
     if (!shape_key_is_selected(*ob, kb, i)) {
       continue;
@@ -1032,7 +1054,7 @@ void OBJECT_OT_shape_key_apply_to_basis(wmOperatorType *ot)
 {
   ot->name = "Apply to Basis Key";
   ot->idname = "OBJECT_OT_shape_key_apply_to_basis";
-  ot->description = "Appply deformations of selected shape keys to the basis key, removing them";
+  ot->description = "Apply deformations of selected shape keys to the basis key, removing them";
 
   ot->poll = shape_key_apply_to_basis_poll;
   ot->exec = shape_key_apply_to_basis_exec;

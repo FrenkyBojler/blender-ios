@@ -4,26 +4,24 @@
 
 #include "libocio_config.hh"
 
-#if defined(WITH_OPENCOLORIO)
+#include <algorithm>
+#include <numeric>
 
-#  include <algorithm>
-#  include <numeric>
+#include <fmt/format.h>
 
-#  include <fmt/format.h>
+#include "BLI_array.hh"
+#include "BLI_assert.h"
+#include "BLI_index_range.hh"
+#include "BLI_math_matrix.hh"
 
-#  include "BLI_array.hh"
-#  include "BLI_assert.h"
-#  include "BLI_index_range.hh"
-#  include "BLI_math_matrix.hh"
+#include "OCIO_matrix.hh"
+#include "OCIO_role_names.hh"
 
-#  include "OCIO_matrix.hh"
-#  include "OCIO_role_names.hh"
-
-#  include "error_handling.hh"
-#  include "libocio_colorspace.hh"
-#  include "libocio_cpu_processor.hh"
-#  include "libocio_display_processor.hh"
-#  include "libocio_processor.hh"
+#include "error_handling.hh"
+#include "libocio_colorspace.hh"
+#include "libocio_cpu_processor.hh"
+#include "libocio_display_processor.hh"
+#include "libocio_processor.hh"
 
 namespace blender::ocio {
 
@@ -48,23 +46,8 @@ std::unique_ptr<Config> LibOCIOConfig::create_from_environment()
   return nullptr;
 }
 
-std::unique_ptr<Config> LibOCIOConfig::create_from_file(const StringRefNull filename)
-{
-  try {
-    OCIO_NAMESPACE::ConstConfigRcPtr ocio_config = OCIO_NAMESPACE::Config::CreateFromFile(
-        filename.c_str());
-    if (!ocio_config) {
-      return nullptr;
-    }
-
-    return std::unique_ptr<LibOCIOConfig>(new LibOCIOConfig(ocio_config));
-  }
-  catch (OCIO_NAMESPACE::Exception &exception) {
-    report_exception(exception);
-  }
-
-  return nullptr;
-}
+/* Note there is no CreateFromFile based method here, as it has issues with paths
+ * containing "$" due to the variable expansion feature. */
 
 LibOCIOConfig::LibOCIOConfig(const OCIO_NAMESPACE::ConstConfigRcPtr &ocio_config)
 {
@@ -85,7 +68,7 @@ LibOCIOConfig::LibOCIOConfig(const OCIO_NAMESPACE::ConstConfigRcPtr &ocio_config
   initialize_displays();
 }
 
-LibOCIOConfig::~LibOCIOConfig() {}
+LibOCIOConfig::~LibOCIOConfig() = default;
 
 void LibOCIOConfig::initialize_active_color_spaces()
 {
@@ -467,7 +450,7 @@ const Display *LibOCIOConfig::get_default_display() const
   }
   /* Matches the behavior of OpenColorIO, but avoids using API which potentially throws exception
    * and requires string lookups. */
-  return &displays_[0];
+  return &displays_[0];  // NOLINT(readability-container-data-pointer)
 }
 
 const Display *LibOCIOConfig::get_display_by_name(const StringRefNull name) const
@@ -593,5 +576,3 @@ const GPUShaderBinder &LibOCIOConfig::get_gpu_shader_binder() const
 /** \} */
 
 }  // namespace blender::ocio
-
-#endif

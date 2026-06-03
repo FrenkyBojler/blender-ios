@@ -201,7 +201,7 @@ void activate_geometry_node(Main &bmain,
 
 Object *parse_object_only(const ViewerPath &viewer_path)
 {
-  if (BLI_listbase_count(&viewer_path.path) != 1) {
+  if (viewer_path.path.count() != 1) {
     return nullptr;
   }
   const ViewerPathElem *elem = static_cast<ViewerPathElem *>(viewer_path.path.first);
@@ -290,7 +290,7 @@ bool exists_geometry_nodes_viewer(const ViewerPathForGeometryNodesViewer &parsed
   if (modifier == nullptr) {
     return false;
   }
-  if (modifier->node_group == nullptr) {
+  if (modifier->node_group == nullptr || ID_MISSING(modifier->node_group)) {
     return false;
   }
   const bNodeTree *ngroup = modifier->node_group;
@@ -408,7 +408,7 @@ bool exists_geometry_nodes_viewer(const ViewerPathForGeometryNodesViewer &parsed
 UpdateActiveGeometryNodesViewerResult update_active_geometry_nodes_viewer(const bContext &C,
                                                                           ViewerPath &viewer_path)
 {
-  if (BLI_listbase_is_empty(&viewer_path.path)) {
+  if (viewer_path.path.is_empty()) {
     return UpdateActiveGeometryNodesViewerResult::NotActive;
   }
   const ViewerPathElem *last_elem = static_cast<ViewerPathElem *>(viewer_path.path.last);

@@ -1201,7 +1201,7 @@ static void TRANSFORM_OT_bbone_resize(wmOperatorType *ot)
   ot->exec = transform_exec;
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
-  ot->poll = ED_operator_object_active;
+  ot->poll = ED_operator_object_active_only_from_view_layer;
   ot->poll_property = transform_poll_property;
 
   RNA_def_float_translation(
@@ -1388,7 +1388,7 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 
   prop = RNA_def_float_vector(
       ot->srna, "value", 2, nullptr, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
-  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 0);
+  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, 0);
 
   prop = RNA_def_boolean(ot->srna,
                          "use_restore_handle_selection",

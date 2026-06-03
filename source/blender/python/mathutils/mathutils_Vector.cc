@@ -167,7 +167,7 @@ static PyObject *Vector_vectorcall(PyObject *type,
         return nullptr;
       }
 
-      copy_vn_fl(vec, vec_num, 0.0f);
+      std::fill_n(vec, vec_num, 0.0f);
       break;
     }
     case 1: {
@@ -244,7 +244,7 @@ static PyObject *C_Vector_Fill(PyObject *cls, PyObject *args)
     return nullptr;
   }
 
-  copy_vn_fl(vec, vec_num, fill);
+  std::fill_n(vec, vec_num, fill);
 
   return Vector_CreatePyObject_alloc(vec, vec_num, reinterpret_cast<PyTypeObject *>(cls));
 }
@@ -256,7 +256,7 @@ PyDoc_STRVAR(
     "\n"
     "   Create a vector filled with a range of values.\n"
     "\n"
-    "    This method can also be called with a single argument, "
+    "   This method can also be called with a single argument, "
     "in which case the argument is interpreted as ``stop`` and ``start`` defaults to 0.\n"
     "\n"
     "   :param start: The start of the range used to fill the vector.\n"
@@ -389,7 +389,7 @@ PyDoc_STRVAR(
     "   Create a vector by repeating the values in vector until the required size is reached.\n"
     "\n"
     "   :param vector: The vector to draw values from.\n"
-    "   :type vector: :class:`mathutils.Vector`\n"
+    "   :type vector: :class:`Vector`\n"
     "   :param size: The size of the vector to be created.\n"
     "   :type size: int\n"
     "   :return: A new vector.\n"
@@ -462,7 +462,7 @@ static PyObject *Vector_zero(VectorObject *self)
     return nullptr;
   }
 
-  copy_vn_fl(self->vec, self->vec_num, 0.0f);
+  std::fill_n(self->vec, self->vec_num, 0.0f);
 
   if (BaseMath_WriteCallback(self) == -1) {
     return nullptr;
@@ -486,8 +486,9 @@ PyDoc_STRVAR(
     "\n"
     "   .. warning:: Normalizing a vector where all values are zero has no effect.\n"
     "\n"
-    "   .. note:: Normalize works for vectors of all sizes,\n"
-    "      however 4D Vectors w axis is left untouched.\n");
+    "   .. note:: For 4D vectors, only the x, y, z components are normalized;\n"
+    "      the w component is left untouched.\n"
+    "      The resulting 4D vector may not have unit length.\n");
 static PyObject *Vector_normalize(VectorObject *self)
 {
   const int vec_num = (self->vec_num == 4 ? 3 : self->vec_num);
@@ -506,6 +507,10 @@ PyDoc_STRVAR(
     ".. method:: normalized()\n"
     "\n"
     "   Return a new, normalized vector.\n"
+    "\n"
+    "   .. note:: For 4D vectors, only the x, y, z components are normalized;\n"
+    "      the w component is left untouched.\n"
+    "      The resulting 4D vector may not have unit length.\n"
     "\n"
     "   :return: a normalized copy of the vector\n"
     "   :rtype: :class:`Vector`\n");
@@ -561,7 +566,7 @@ static PyObject *Vector_resize(VectorObject *self, PyObject *value)
 
   /* If the vector has increased in length, set all new elements to 0.0f */
   if (vec_num > self->vec_num) {
-    copy_vn_fl(self->vec + self->vec_num, vec_num - self->vec_num, 0.0f);
+    std::fill_n(self->vec + self->vec_num, vec_num - self->vec_num, 0.0f);
   }
 
   self->vec_num = vec_num;
@@ -602,7 +607,7 @@ static PyObject *Vector_resized(VectorObject *self, PyObject *value)
     return nullptr;
   }
 
-  copy_vn_fl(vec, vec_num, 0.0f);
+  std::fill_n(vec, vec_num, 0.0f);
   memcpy(vec, self->vec, self->vec_num * sizeof(float));
 
   return Vector_CreatePyObject_alloc(vec, vec_num, nullptr);
@@ -811,7 +816,7 @@ PyDoc_STRVAR(
     "   Return a quaternion rotation from the vector and the track and up axis.\n"
     "\n"
     "   :param track: Track axis string.\n"
-    "   :type track: Literal['-', 'X', 'Y', 'Z', '-X', '-Y', '-Z']\n"
+    "   :type track: Literal['X', 'Y', 'Z', '-X', '-Y', '-Z']\n"
     "   :param up: Up axis string.\n"
     "   :type up: Literal['X', 'Y', 'Z']\n"
     "   :return: rotation from the vector and the track and up axis.\n"
@@ -1134,6 +1139,8 @@ PyDoc_STRVAR(
     ".. method:: angle(other, fallback=None, /)\n"
     "\n"
     "   Return the angle between two vectors.\n"
+    "\n"
+    "   .. note:: For 4D vectors, only the x, y, z components are used.\n"
     "\n"
     "   :param other: another vector to compare the angle with\n"
     "   :type other: :class:`Vector`\n"
@@ -1824,10 +1831,6 @@ static Py_ssize_t Vector_len(VectorObject *self)
 
 static PyObject *vector_item_internal(VectorObject *self, int i, const bool is_attr)
 {
-  if (i < 0) {
-    i = self->vec_num - i;
-  }
-
   if (i < 0 || i >= self->vec_num) {
     if (is_attr) {
       PyErr_Format(PyExc_AttributeError,
@@ -1870,10 +1873,6 @@ static int vector_ass_item_internal(VectorObject *self, int i, PyObject *value, 
     return -1;
   }
 
-  if (i < 0) {
-    i = self->vec_num - i;
-  }
-
   if (i < 0 || i >= self->vec_num) {
     if (is_attr) {
       PyErr_Format(PyExc_AttributeError,
@@ -1902,59 +1901,71 @@ static int Vector_ass_item(VectorObject *self, Py_ssize_t i, PyObject *value)
   return vector_ass_item_internal(self, i, value, false);
 }
 
-/** Sequence slice accessor (get): `x = object[i:j]`. */
-static PyObject *Vector_slice(VectorObject *self, int begin, int end)
+/** Sequence slice accessor (get): `x = object[i:j]` / `object[i:j:step]`. */
+static PyObject *Vector_slice(VectorObject *self,
+                              Py_ssize_t start,
+                              Py_ssize_t step,
+                              Py_ssize_t slice_length)
 {
-  PyObject *tuple;
-  int count;
-
   if (BaseMath_ReadCallback(self) == -1) {
     return nullptr;
   }
 
-  CLAMP(begin, 0, self->vec_num);
-  if (end < 0) {
-    end = self->vec_num + end + 1;
+  PyObject *tuple = PyTuple_New(slice_length);
+  Py_ssize_t index = start;
+  for (Py_ssize_t i = 0; i < slice_length; i++, index += step) {
+    BLI_assert(index >= 0 && index < self->vec_num);
+    PyTuple_SET_ITEM(tuple, i, PyFloat_FromDouble(self->vec[index]));
   }
-  CLAMP(end, 0, self->vec_num);
-  begin = std::min(begin, end);
-
-  tuple = PyTuple_New(end - begin);
-  for (count = begin; count < end; count++) {
-    PyTuple_SET_ITEM(tuple, count - begin, PyFloat_FromDouble(self->vec[count]));
-  }
-
   return tuple;
 }
 
-/** Sequence slice accessor (set): `object[i:j] = x`. */
-static int Vector_ass_slice(VectorObject *self, int begin, int end, PyObject *seq)
+/**
+ * Sequence slice accessor (set): `object[i:j] = x` / `object[i:j:step] = x`.
+ * Length of `seq` must equal `slice_length`
+ * (Python list semantics: extended slice assignment cannot resize).
+ */
+static int Vector_ass_slice(
+    VectorObject *self, Py_ssize_t start, Py_ssize_t step, Py_ssize_t slice_length, PyObject *seq)
 {
-  int vec_num = 0;
   float *vec = nullptr;
 
-  if (BaseMath_ReadCallback_ForWrite(self) == -1) {
+  /* Subset writes merge into existing values, so sync the source first. */
+  if (mathutils_slice_is_subset(start, step, slice_length, self->vec_num)) {
+    if (BaseMath_ReadCallback_ForWrite(self) == -1) {
+      return -1;
+    }
+  }
+  else {
+    if (BaseMath_Prepare_ForWrite(self) == -1) {
+      return -1;
+    }
+  }
+
+  const int parsed_size = mathutils_array_parse_alloc(
+      &vec, int(slice_length), seq, "vector[slice] = seq");
+  if (parsed_size == -1) {
     return -1;
   }
 
-  CLAMP(begin, 0, self->vec_num);
-  CLAMP(end, 0, self->vec_num);
-  begin = std::min(begin, end);
-
-  vec_num = (end - begin);
-  if (mathutils_array_parse_alloc(&vec, vec_num, seq, "vector[begin:end] = [...]") == -1) {
+  /* The vector could be resized in this case.
+   * Rely on explicit use of the `.resize()` method because (unlike lists),
+   * these are more typically fixed size collections.
+   * Resizing is more likely to be a mistake as it isn't a common operation. */
+  if (parsed_size != slice_length) {
+    PyMem_Free(vec);
+    PyErr_Format(PyExc_ValueError,
+                 "vector[slice] = seq: sequence size is %d, expected %d",
+                 parsed_size,
+                 int(slice_length));
     return -1;
   }
 
-  if (vec == nullptr) {
-    PyErr_SetString(PyExc_MemoryError,
-                    "vec[:] = seq: "
-                    "problem allocating pointer space");
-    return -1;
+  Py_ssize_t index = start;
+  for (Py_ssize_t i = 0; i < slice_length; i++, index += step) {
+    BLI_assert(index >= 0 && index < self->vec_num);
+    self->vec[index] = vec[i];
   }
-
-  /* Parsed well - now set in vector. */
-  memcpy(self->vec + begin, vec, vec_num * sizeof(float));
 
   PyMem_Free(vec);
 
@@ -1980,21 +1991,13 @@ static PyObject *Vector_subscript(VectorObject *self, PyObject *item)
     return Vector_item(self, i);
   }
   if (PySlice_Check(item)) {
-    Py_ssize_t start, stop, step, slicelength;
+    Py_ssize_t start, stop, step, slice_length;
 
-    if (PySlice_GetIndicesEx(item, self->vec_num, &start, &stop, &step, &slicelength) < 0) {
+    if (PySlice_GetIndicesEx(item, self->vec_num, &start, &stop, &step, &slice_length) < 0) {
       return nullptr;
     }
 
-    if (slicelength <= 0) {
-      return PyTuple_New(0);
-    }
-    if (step == 1) {
-      return Vector_slice(self, start, stop);
-    }
-
-    PyErr_SetString(PyExc_IndexError, "slice steps not supported with vectors");
-    return nullptr;
+    return Vector_slice(self, start, step, slice_length);
   }
 
   PyErr_Format(
@@ -2016,18 +2019,13 @@ static int Vector_ass_subscript(VectorObject *self, PyObject *item, PyObject *va
     return Vector_ass_item(self, i, value);
   }
   if (PySlice_Check(item)) {
-    Py_ssize_t start, stop, step, slicelength;
+    Py_ssize_t start, stop, step, slice_length;
 
-    if (PySlice_GetIndicesEx(item, self->vec_num, &start, &stop, &step, &slicelength) < 0) {
+    if (PySlice_GetIndicesEx(item, self->vec_num, &start, &stop, &step, &slice_length) < 0) {
       return -1;
     }
 
-    if (step == 1) {
-      return Vector_ass_slice(self, start, stop, value);
-    }
-
-    PyErr_SetString(PyExc_IndexError, "slice steps not supported with vectors");
-    return -1;
+    return Vector_ass_slice(self, start, step, slice_length, value);
   }
 
   PyErr_Format(
@@ -2672,7 +2670,7 @@ static int Vector_length_set(VectorObject *self, PyObject *value)
     return -1;
   }
   if (param == 0.0) {
-    copy_vn_fl(self->vec, self->vec_num, 0.0f);
+    std::fill_n(self->vec, self->vec_num, 0.0f);
     return 0;
   }
 
@@ -3656,7 +3654,7 @@ PyObject *Vector_CreatePyObject(const float *vec, const int vec_num, PyTypeObjec
       memcpy(self->vec, vec, vec_num * sizeof(float));
     }
     else { /* new empty */
-      copy_vn_fl(self->vec, vec_num, 0.0f);
+      std::fill_n(self->vec, vec_num, 0.0f);
       if (vec_num == 4) { /* do the homogeneous thing */
         self->vec[3] = 1.0f;
       }
