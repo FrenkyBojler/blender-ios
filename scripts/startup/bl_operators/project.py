@@ -41,8 +41,8 @@ class ProjectConfig:
     def new_from_project(project):
         """Create a ProjectConfig object from an existing real project."""
         asset_dict = {}
-        if project.data.asset_libraries is not None:
-            for asset in project.data.asset_libraries:
+        if project.asset_libraries is not None:
+            for asset in project.asset_libraries:
                 asset_data = {}
                 asset_data["path"] = asset.path
                 asset_data["use_relative_path"] = asset.use_relative_path
@@ -55,7 +55,7 @@ class ProjectConfig:
 
         # Populate the project asset libraries (if any)
         for asset_name, asset_data in self.asset_libraries.items():
-            lib = project.data.asset_libraries.new(name=asset_name, directory=asset_data["path"])
+            lib = project.asset_libraries.new(name=asset_name, directory=asset_data["path"])
             if "import_method" in asset_data:
                 lib.import_method = asset_data["import_method"]
             if "use_relative_path" in asset_data:
@@ -463,7 +463,7 @@ class PROJECT_OT_AssetLibraryAdd(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.project.data is not None
+        return bpy.data.project is not None
 
     def execute(self, context):
         if not bpy.context.preferences.experimental.use_blender_projects:
@@ -474,13 +474,13 @@ class PROJECT_OT_AssetLibraryAdd(Operator):
             self.report({'ERROR'}, "Cannot create a project with an empty directory path.")
             return {'CANCELLED'}
 
-        if not bpy.path.is_subdir(path=self.directory, directory=context.project.data.root_path):
+        if not bpy.path.is_subdir(path=self.directory, directory=bpy.data.project.root_path):
             self.report({'ERROR'}, "New project directory must be a parent of the currently open blend file.")
             return {'CANCELLED'}
 
         # Create an initial names from the folder name
         asset_name = os.path.basename(os.path.normpath(self.directory)).title()
-        context.project.data.asset_libraries.new(name=asset_name, directory=self.directory)
+        bpy.data.project.asset_libraries.new(name=asset_name, directory=self.directory)
 
         return {'FINISHED'}
 
@@ -502,20 +502,20 @@ class PROJECT_OT_AssetLibraryRemove(Operator):
 
     @classmethod
     def poll(cls, context):
-        if context.project.data is None:
+        if bpy.data.project is None:
             return False
-        return len(context.project.data.asset_libraries) != 0
+        return len(bpy.data.project.asset_libraries) != 0
 
     def execute(self, context):
         if not bpy.context.preferences.experimental.use_blender_projects:
             self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
             return {'CANCELLED'}
 
-        if self.index >= len(context.project.data.asset_libraries):
+        if self.index >= len(bpy.data.project.asset_libraries):
             return {'CANCELLED'}
 
-        library = context.project.data.asset_libraries[self.index]
-        context.project.data.asset_libraries.remove(library)
+        library = bpy.data.project.asset_libraries[self.index]
+        bpy.data.project.asset_libraries.remove(library)
 
         return {'FINISHED'}
 

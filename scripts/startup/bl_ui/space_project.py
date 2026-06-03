@@ -217,14 +217,14 @@ class PROJECT_PT_asset_libraries(Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.project.data is not None
+        return PROJECT_PT_main.poll(context)
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = False
         layout.use_property_decorate = False
 
-        data = context.project.data
+        data = bpy.data.project
         active_library_index = data.active_asset_library
 
         row = layout.row()
