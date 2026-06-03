@@ -235,6 +235,8 @@ constexpr int GPU_MAX_CONSTANT_DATA = 16;
 constexpr int gpu_type_element_count(const GPUType type)
 {
   switch (type) {
+    case GPU_NONE:
+      break;
     case GPU_FLOAT:
       return 1;
     case GPU_VEC2:
@@ -247,7 +249,6 @@ constexpr int gpu_type_element_count(const GPUType type)
       return 9;
     case GPU_MAT4:
       return 16;
-    case GPU_NONE:
     case GPU_TEX1D_ARRAY:
     case GPU_TEX2D:
     case GPU_TEX2D_ARRAY:
@@ -256,12 +257,11 @@ constexpr int gpu_type_element_count(const GPUType type)
     case GPU_ATTR:
       break;
   }
+
   BLI_assert_unreachable();
   return 0;
 }
 
-/* Integers, integer vectors, and booleans are intentionally excluded
- * until they are wired through codegen. */
 constexpr GPUType gpu_float_type_from_element_count(const int count)
 {
   switch (count) {
@@ -277,10 +277,10 @@ constexpr GPUType gpu_float_type_from_element_count(const int count)
       return GPU_MAT3;
     case 16:
       return GPU_MAT4;
-    default:
-      BLI_assert_unreachable();
-      return GPU_NONE;
   }
+
+  BLI_assert_unreachable();
+  return GPU_NONE;
 }
 
 enum GPUDefaultValue {
