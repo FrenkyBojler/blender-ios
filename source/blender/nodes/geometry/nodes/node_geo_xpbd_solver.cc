@@ -15,6 +15,7 @@
 
 #include "BLI_math_geom.h"
 #include "BLI_stack.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_virtual_array_range_spans.hh"
 
 #include "DNA_curves_types.h"
@@ -563,10 +564,9 @@ class XpbdSolverStep {
  private:
   struct TLS {
     ResourceScope scope;
-    IndexMaskMemory &mask_memory;
     LinearAllocator<> &allocator;
 
-    TLS() : mask_memory(scope.construct<IndexMaskMemory>()), allocator(mask_memory) {}
+    TLS() : scope(1024), allocator(scope.allocator()) {}
   };
 
   threading::EnumerableThreadSpecific<TLS> tls_;
@@ -1378,11 +1378,12 @@ class XpbdSolverStep {
         if (prev_instances) {
           const Span<float4x4> prev_instance_transforms = prev_instances->transforms();
           const Span<int> prev_instance_ids = prev_instances->unique_ids();
+          const Span<int> prev_handles = prev_instances->reference_handles();
           const Span<bke::InstanceReference> prev_references = prev_instances->references();
           for (const int i : prev_instance_transforms.index_range()) {
             const int prev_instance_id = prev_instance_ids[i];
             const float4x4 &prev_instance_transform = prev_instance_transforms[i];
-            const bke::InstanceReference &prev_reference = prev_references[i];
+            const bke::InstanceReference &prev_reference = prev_references[prev_handles[i]];
             prev_instance_by_id.add(prev_instance_id, {&prev_instance_transform, &prev_reference});
           }
         }
@@ -1872,7 +1873,7 @@ class XpbdSolverStep {
             constraint_usage.compliances,
             error_scale_from_threshold(constraint.error_threshold),
             constraint_usage.lambdas);
-        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
+        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.allocator);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
       }
     }
@@ -1946,7 +1947,7 @@ class XpbdSolverStep {
             cross_edge_compliances,
             error_scale_from_threshold(constraint.error_threshold),
             constraint_usage.lambdas);
-        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
+        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.allocator);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
       }
     }
@@ -2973,7 +2974,6 @@ class XpbdSolverStep {
   {
     const DataKey &data_key = geometries_.data_keys[data_key_i];
     const GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
-    const StringRef geo_bundle_path = geo_set_data.path;
 
     const std::string filter =
         effector.lookup<std::string>(*BundleKey::from_str("filter")).value_or("");
@@ -3352,6 +3352,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("World"_ustr, std::move(world_ptr));
 }
 
+static void node_label(const bNodeTree * /*ntree*/,
+                       const bNode * /*node*/,
+                       char *label,
+                       const int label_maxncpy)
+{
+  BLI_strncpy_utf8(
+      label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "XPBD Solver (Experimental)"), label_maxncpy);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -3362,7 +3371,8 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  ntype.default_width = bke::NodeWidth::_160;
+  ntype.default_width = bke::NodeWidth::_200;
+  ntype.labelfunc = node_label;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
