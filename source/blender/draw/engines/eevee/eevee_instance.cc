@@ -86,7 +86,7 @@ void Instance::init()
 
     if (camera) {
       if (scene->r.mode & R_BORDER) {
-        if (draw_ctx->is_viewport_image_render()) {
+        if (draw_ctx->is_viewport_image_render() || draw_ctx->is_viewport_xr()) {
           rect.xmin = scene->r.border.xmin * size[0];
           rect.ymin = scene->r.border.ymin * size[1];
           rect.xmax = scene->r.border.xmax * size[0];
