@@ -372,10 +372,13 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
         });
 
     Array<bool> row_bounds_test(tile_data.pixel_rows.size(), false);
-    valid_uv_rows.foreach_index([&](const int i) {
-          row_bounds_test[i] = brush_bounds.intersects_segment(
-              tile_data.pixel_row_positions[i].start, tile_data.pixel_row_positions[i].end);
-    }, exec_mode::grain_size(256));
+    {
+      PRF_scope_with_name("intersects_segment", ProfileCategory::Editor);
+      valid_uv_rows.foreach_index([&](const int i) {
+            row_bounds_test[i] = brush_bounds.intersects_segment(
+                tile_data.pixel_row_positions[i].start, tile_data.pixel_row_positions[i].end);
+      }, exec_mode::grain_size(256));
+    }
 
     const IndexMask valid_rows = IndexMask::from_bools(valid_uv_rows, row_bounds_test, memory);
 
