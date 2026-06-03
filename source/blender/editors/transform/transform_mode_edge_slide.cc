@@ -406,9 +406,7 @@ static EdgeSlideData *createEdgeSlideVerts(TransInfo *t,
   return sld;
 }
 
-static void freeEdgeSlideVerts(TransInfo *t,
-                               TransDataContainer *tc,
-                               TransCustomData *custom_data)
+static void freeEdgeSlideVerts(TransInfo *t, TransDataContainer *tc, TransCustomData *custom_data)
 {
   EdgeSlideData *sld = static_cast<EdgeSlideData *>(custom_data->data);
 
@@ -1026,7 +1024,8 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
       BMFace *f;
       BMIter f_iter;
       BM_ITER_ELEM (f, &f_iter, v_orig, BM_FACES_OF_VERT) {
-        /* Accept faces that contain at least one tagged keep-side neighbor and no endpoint neighbors to prevent degenerate faces. */
+        /* Accept faces that contain at least one tagged keep-side neighbor and no endpoint
+         * neighbors to prevent degenerate faces. */
         bool has_tagged_keep_nb = false;
         bool has_endpoint_keep_nb = false;
         BMLoop *l;
@@ -1100,7 +1099,8 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
       }
     }
 
-    /* At chain endpoints, we need to replace the edge connecting the endpoint and neighbor to the adjacent face. */
+    /* At chain endpoints, we need to replace the edge connecting the endpoint and neighbor to the
+     * adjacent face. */
     for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
       BMVert *v_orig = nd.v;
       BMVert *v_sep = orig_to_sep.lookup_default(v_orig, nullptr);
@@ -1223,7 +1223,7 @@ static void initEdgeSlide_ex(TransInfo *t,
     }
   }
 
-  /* Cloning flag for edge slide. */ 
+  /* Cloning flag for edge slide. */
   if (use_clone && ok) {
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       EdgeSlideData *sld = static_cast<EdgeSlideData *>(tc->custom.mode.data);
@@ -1236,12 +1236,15 @@ static void initEdgeSlide_ex(TransInfo *t,
           BMVert *v = static_cast<BMVert *>(sv.td->extra);
           BMVert *v_clone = BM_vert_create(bm, v->co, v, BM_CREATE_NOP);
 
-          /* Find neighbor vertices for each side of cloned vertex to create face topology in the correct direction at edge slide confirmation. */
+          /* Find neighbor vertices for each side of cloned vertex to create face topology in the
+           * correct direction at edge slide confirmation. */
           EdgeSlideData::CloneNeighborData neighbor_data;
           neighbor_data.v = v;
-          
-          const float3 dir0 = !math::is_zero(sv.dir_side[0]) ? math::normalize(sv.dir_side[0]) : float3(0);
-          const float3 dir1 = !math::is_zero(sv.dir_side[1]) ? math::normalize(sv.dir_side[1]) : float3(0);
+
+          const float3 dir0 = !math::is_zero(sv.dir_side[0]) ? math::normalize(sv.dir_side[0]) :
+                                                               float3(0);
+          const float3 dir1 = !math::is_zero(sv.dir_side[1]) ? math::normalize(sv.dir_side[1]) :
+                                                               float3(0);
           BMEdge *ne;
           BMIter ne_iter;
 
@@ -1254,7 +1257,7 @@ static void initEdgeSlide_ex(TransInfo *t,
             const float3 edge_dir = math::normalize(float3(other->co) - float3(v->co));
             const float dot0 = math::dot(edge_dir, dir0);
             const float dot1 = math::dot(edge_dir, dir1);
-            
+
             if (dot0 > 0.0f && dot0 >= dot1) {
               neighbor_data.neighbors[0].append(other);
             }
@@ -1262,7 +1265,7 @@ static void initEdgeSlide_ex(TransInfo *t,
               neighbor_data.neighbors[1].append(other);
             }
           }
-          
+
           sld->clone_neighbor_data.append(neighbor_data);
 
           /* transform clones, not originals */
@@ -1330,7 +1333,7 @@ static void initEdgeSlide(TransInfo *t, wmOperator *op)
   bool use_even = false;
   bool flipped = false;
   bool use_clamp = true;
-  bool use_clone = true; // need to set to false later on
+  bool use_clone = true;  // need to set to false later on
   if (op) {
     PropertyRNA *prop;
     /* The following properties could be unset when transitioning from this
@@ -1345,7 +1348,8 @@ static void initEdgeSlide(TransInfo *t, wmOperator *op)
     prop = RNA_struct_find_property(op->ptr, "use_clamp");
     use_clamp = (prop) ? RNA_property_boolean_get(op->ptr, prop) : true;
     prop = RNA_struct_find_property(op->ptr, "use_clone");
-    use_clone = (prop) ? RNA_property_boolean_get(op->ptr, prop) : true; // need to set to false later on
+    use_clone = (prop) ? RNA_property_boolean_get(op->ptr, prop) :
+                         true;  // need to set to false later on
   }
   initEdgeSlide_ex(t, op, use_double_side, use_even, flipped, use_clamp, use_clone);
 }
