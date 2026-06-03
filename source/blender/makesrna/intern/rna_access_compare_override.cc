@@ -308,7 +308,7 @@ bool RNA_struct_equals(Main *bmain, PointerRNA *ptr_a, PointerRNA *ptr_b, eRNACo
  * Generic RNA property diff function.
  *
  * Return value follows comparison functions convention (`0` is equal, `-1` if `prop_a` value is
- * lesser than `prop_b` one, and `1` otherwise.
+ * lesser than `prop_b` one, and `1` otherwise).
  *
  * \note When there is no equality, but no order can be determined (greater than/lesser than),
  *       1 is returned.
@@ -1760,18 +1760,18 @@ eRNAOverrideStatus RNA_property_override_library_status(Main *bmain,
   }
 
   if (RNA_property_overridable_get(ptr, prop) && RNA_property_editable_flag(ptr, prop)) {
-    override_status |= RNA_OVERRIDE_STATUS_OVERRIDABLE;
+    override_status |= eRNAOverrideStatus::LibOverridable;
   }
 
   IDOverrideLibraryPropertyOperation *opop = RNA_property_override_property_operation_find(
       bmain, ptr, prop, index, false, nullptr);
   if (opop != nullptr) {
-    override_status |= RNA_OVERRIDE_STATUS_OVERRIDDEN;
+    override_status |= eRNAOverrideStatus::LibOverridden;
     if (opop->flag & LIBOVERRIDE_OP_FLAG_MANDATORY) {
-      override_status |= RNA_OVERRIDE_STATUS_MANDATORY;
+      override_status |= eRNAOverrideStatus::LibOverrideMandatory;
     }
     if (opop->flag & LIBOVERRIDE_OP_FLAG_LOCKED) {
-      override_status |= RNA_OVERRIDE_STATUS_LOCKED;
+      override_status |= eRNAOverrideStatus::LibOverrideLocked;
     }
   }
 

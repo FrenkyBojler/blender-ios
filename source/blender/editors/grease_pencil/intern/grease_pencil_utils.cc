@@ -520,11 +520,15 @@ static int get_active_frame_for_falloff(const bke::greasepencil::Layer &layer,
                                         const std::optional<Bounds<int>> frame_bounds,
                                         const int current_frame)
 {
-  std::optional<int> current_start_frame = layer.start_frame_at(current_frame);
-  if (!current_start_frame && frame_bounds) {
+  const std::optional<int> current_start_frame = layer.start_frame_at(current_frame);
+  if (current_start_frame) {
+    return *current_start_frame;
+  }
+  if (frame_bounds) {
     return math::clamp(current_frame, frame_bounds->min, frame_bounds->max);
   }
-  return *current_start_frame;
+  /* Unused by get_frame_falloff() when there are no frame bounds. */
+  return current_frame;
 }
 
 static std::optional<int> get_frame_id(const bke::greasepencil::Layer &layer,
@@ -1519,7 +1523,7 @@ Array<PointTransferData> compute_topology_change(
   const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
 
   /* Vertex group names. */
-  BLI_assert(BLI_listbase_count(&dst.vertex_group_names) == 0);
+  BLI_assert(dst.vertex_group_names.count() == 0);
   BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
 
   /* Attributes. */

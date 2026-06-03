@@ -38,6 +38,7 @@ set(SRC
   nodes/node_geo_boolean.cc
   nodes/node_geo_bounding_box.cc
   nodes/node_geo_camera_info.cc
+  nodes/node_geo_closure_to_list.cc
   nodes/node_geo_closure.cc
   nodes/node_geo_cluster_by_connected.cc
   nodes/node_geo_cluster_by_distance.cc
@@ -93,6 +94,7 @@ set(SRC
   nodes/node_geo_field_min_and_max.cc
   nodes/node_geo_field_to_grid.cc
   nodes/node_geo_field_to_list.cc
+  nodes/node_geo_filter_list.cc
   nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
@@ -100,6 +102,7 @@ set(SRC
   nodes/node_geo_get_attribute_names.cc
   nodes/node_geo_get_bundle_item.cc
   nodes/node_geo_get_geometry_bundle.cc
+  nodes/node_geo_get_geometry_component.cc
   nodes/node_geo_get_named_grid.cc
   nodes/node_geo_get_nested_bundle_paths.cc
   nodes/node_geo_gizmo_dial.cc
@@ -182,6 +185,7 @@ set(SRC
   nodes/node_geo_merge_by_distance.cc
   nodes/node_geo_merge_layers.cc
   nodes/node_geo_merge_points.cc
+  nodes/node_geo_mesh_bevel.cc
   nodes/node_geo_mesh_face_group_boundaries.cc
   nodes/node_geo_mesh_primitive_circle.cc
   nodes/node_geo_mesh_primitive_cone.cc
@@ -298,6 +302,7 @@ set(SRC
   include/NOD_geo_bundle.hh
   include/NOD_geo_capture_attribute.hh
   include/NOD_geo_closure.hh
+  include/NOD_geo_closure_to_list.hh
   include/NOD_geo_field_to_grid.hh
   include/NOD_geo_field_to_list.hh
   include/NOD_geo_foreach_geometry_element.hh

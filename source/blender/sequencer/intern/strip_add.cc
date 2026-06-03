@@ -222,8 +222,7 @@ void add_image_init_alpha_mode(Main *bmain, Scene *scene, Strip *strip)
                                           strip->data->colorspace_settings.name);
 
       /* Byte images are default to straight alpha, however sequencer
-       * works in premul space, so mark strip to be premultiplied first.
-       */
+       * works in pre-multiply space, so mark strip to be pre-multiplied first. */
       strip->alpha_mode = SEQ_ALPHA_STRAIGHT;
       if (ibuf) {
         if (flag_is_set(ibuf->flags, ImBufFlags::AlphaPremul)) {
@@ -483,7 +482,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
   });
 
   if (anim_arr[0] != nullptr) {
-    strip->len = MOV_get_duration_frames(anim_arr[0], IMB_TC_RECORD_RUN);
+    strip->len = MOV_get_duration_frames(anim_arr[0]);
 
     MOV_load_metadata(anim_arr[0]);
 
@@ -622,10 +621,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
 
       MOV_load_metadata(reader);
 
-      strip->len = MOV_get_duration_frames(
-          reader,
-          IMB_Timecode_Type(strip->data->proxy ? IMB_Timecode_Type(strip->data->proxy->tc) :
-                                                 IMB_TC_RECORD_RUN));
+      strip->len = MOV_get_duration_frames(reader);
 
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
