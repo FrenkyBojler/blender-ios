@@ -507,17 +507,19 @@ void imm_draw_circle_fill_aspect_3d(
 void imm_draw_rounded_box_wire_2d(
     uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments)
 {
+  BLI_assert(corner_radius >= 0.0f && corner_radius <= radius);
+
   const float x_min = x - radius * x_scale;
   const float x_max = x + radius * x_scale;
   const float x_corner_min = x + (-radius + corner_radius) * x_scale;
   const float x_corner_max = x + (radius - corner_radius) * x_scale;
 
-  if (corner_radius <= 0.0f) {
+  if (corner_radius == 0.0f) {
     imm_draw_box_wire_2d(pos, x_min, y - radius, x_max, y + radius);
     return;
   }
 
-  if (corner_radius >= radius) {
+  if (corner_radius == radius) {
     imm_draw_circle_wire_aspect_2d(pos, x, y, radius * x_scale, radius, nsegments);
     return;
   }
@@ -575,6 +577,8 @@ void imm_draw_rounded_box_wire_2d(
 void imm_draw_rounded_box_wire_3d(
     uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments)
 {
+  BLI_assert(corner_radius >= 0.0f && corner_radius <= radius);
+
   /* Min and max values of x-coordinate of the rounded box. */
   const float x_min = x - radius * x_scale;
   const float x_max = x + radius * x_scale;
@@ -582,12 +586,12 @@ void imm_draw_rounded_box_wire_3d(
   const float x_corner_min = x + (-radius + corner_radius) * x_scale;
   const float x_corner_max = x + (radius - corner_radius) * x_scale;
 
-  if (corner_radius <= 0.0f) {
+  if (corner_radius == 0.0f) {
     imm_draw_box_wire_3d(pos, x_min, y - radius, x_max, y + radius);
     return;
   }
 
-  if (corner_radius >= radius) {
+  if (corner_radius == radius) {
     imm_draw_circle_wire_aspect_3d(pos, x, y, radius * x_scale, radius, nsegments);
     return;
   }
