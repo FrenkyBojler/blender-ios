@@ -105,9 +105,10 @@ static float4x4 world_to_local(const Depsgraph &dg,
         break;
       }
       Bone *bone = pose_bone_eval->bone_get(*ob_eval);
-      float4x4 channel_mat_inv = math::invert(float4x4(pose_bone_eval->chan_mat));
       float4x4 foo = ob_eval->world_to_object() * world_matrix;
       float asd[4][4];
+      /* The function docstring tells me I cannot use this function the way I am using it here. But
+       * it works. Either I am missing an edge case, or the description is wrong. */
       BKE_armature_mat_pose_to_bone(
           {pose_bone_eval, bone}, reinterpret_cast<const float(*)[4]>(foo.base_ptr()), asd);
       return float4x4(asd);
