@@ -320,6 +320,31 @@ struct TransformableFCurves {
   }
 };
 
+static void ensure_baked_fcurves(Main &bmain,
+                                 MutableSpan<PasteFCurve> fcus,
+                                 blender::animrig::Channelbag &channelbag,
+                                 const StringRefNull rna_path,
+                                 const Bounds<int> range)
+{
+  namespace ar = blender::animrig;
+
+  bool has_key_on_frame = false;
+  /* Ensuring all FCurves exist. */
+  for (const int i : fcus.index_range()) {
+    PasteFCurve &paste_fcu = fcus[i];
+    if (!paste_fcu.fcurve) {
+      /* TODO pass group name. */
+      FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {rna_path, i, PROP_FLOAT, PROP_NONE});
+      paste_fcu.fcurve = &fcurve;
+      paste_fcu.created_on_paste = true;
+    }
+    ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
+    paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
+        paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
+    BLI_assert(has_key_on_frame);
+  }
+}
+
 static void paste_world_space(Main &bmain,
                               Scene &scene,
                               ViewLayer &view_layer,
@@ -434,50 +459,11 @@ static void paste_world_space(Main &bmain,
         fcus.scale[fcurve->array_index].fcurve = fcurve;
       }
     }
-    bool has_key_on_frame = false;
+
     /* Ensuring all FCurves exist. */
-    for (const int i : fcus.loc.index_range()) {
-      PasteFCurve &paste_fcu = fcus.loc[i];
-      if (!paste_fcu.fcurve) {
-        /* TODO pass group name. */
-        FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {loc_path, i, PROP_FLOAT, PROP_NONE});
-        paste_fcu.fcurve = &fcurve;
-        paste_fcu.created_on_paste = true;
-      }
-      ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
-      paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
-          paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
-      BLI_assert(has_key_on_frame);
-    }
-
-    for (const int i : fcus.rot.index_range()) {
-      PasteFCurve &paste_fcu = fcus.rot[i];
-      if (!paste_fcu.fcurve) {
-        /* TODO pass group name and correct subtype. */
-        FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {rot_path, i, PROP_FLOAT, PROP_NONE});
-        paste_fcu.fcurve = &fcurve;
-        paste_fcu.created_on_paste = true;
-      }
-      ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
-      paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
-          paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
-      BLI_assert(has_key_on_frame);
-    }
-
-    for (const int i : fcus.scale.index_range()) {
-      PasteFCurve &paste_fcu = fcus.scale[i];
-      if (!paste_fcu.fcurve) {
-        /* TODO pass group name. */
-        FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {scale_path, i, PROP_FLOAT, PROP_NONE});
-        paste_fcu.fcurve = &fcurve;
-        paste_fcu.created_on_paste = true;
-      }
-      ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
-
-      paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
-          paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
-      BLI_assert(has_key_on_frame);
-    }
+    ensure_baked_fcurves(bmain, fcus.loc, channelbag, loc_path, range);
+    ensure_baked_fcurves(bmain, fcus.rot, channelbag, rot_path, range);
+    ensure_baked_fcurves(bmain, fcus.scale, channelbag, scale_path, range);
   }
 
   // Ensure FCurves on all transform channels -> which layer? -> insert_key_visual function that
