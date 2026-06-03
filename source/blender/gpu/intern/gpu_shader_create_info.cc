@@ -215,6 +215,10 @@ void ShaderCreateInfo::finalize(const bool recursive)
       depth_write_ = info.depth_write_;
     }
 
+    if (info.requires_raytracing_) {
+      requires_raytracing_ = true;
+    }
+
     /* Inherit builtin bits from additional info. */
     builtins_ |= info.builtins_;
 
@@ -808,6 +812,10 @@ bool gpu_shader_create_info_compile_all(const char *name_starts_with_filter)
       if ((info->metal_backend_only_ && GPU_backend_get_type() != GPU_BACKEND_METAL) ||
           (GPU_geometry_shader_support() == false && info->geometry_source_ != nullptr))
       {
+        skipped++;
+        continue;
+      }
+      if (info->requires_raytracing_ && !GPU_ray_query_support()) {
         skipped++;
         continue;
       }
