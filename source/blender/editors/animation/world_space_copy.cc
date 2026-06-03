@@ -108,6 +108,20 @@ static float4x4 world_to_local(const Depsgraph &dg,
   return float4x4::identity();
 }
 
+static Vector<ID *> get_unique_ids(const Span<AnimTransformable *> transformables)
+{
+  /* We need the ID pointers to build the depsgraph, but every ID in the Vector
+   * should be unique. */
+  Vector<ID *> ids;
+  Set<ID *> added_ids;
+  for (const AnimTransformable *transformable : transformables) {
+    if (added_ids.add(transformable->owner_id())) {
+      ids.append(transformable->owner_id());
+    }
+  }
+  return ids;
+}
+
 static Vector<ID *> get_unique_ids(const Span<AnimTransformable> transformables)
 {
   /* We need the ID pointers to build the depsgraph, but every ID in the Vector
@@ -145,7 +159,7 @@ struct GraphNode {
 };
 
 static Array<GraphNode> build_transformable_ancestry(
-    const Depsgraph *depsgraph, const MutableSpan<AnimTransformable> transformables)
+    const Depsgraph *depsgraph, const MutableSpan<AnimTransformable *> transformables)
 {
   using DegComponentIdentifier = std::pair<ID *, StringRef>;
 
@@ -154,7 +168,7 @@ static Array<GraphNode> build_transformable_ancestry(
   Set<DegComponentIdentifier> visited_components;
 
   for (const int i : transformables.index_range()) {
-    AnimTransformable &t = transformables[i];
+    AnimTransformable &t = *transformables[i];
     nodes[i].transformable = &t;
     /* TODO handle objects which wouldn't have a component name. */
     component_map.add({t.owner_id(), t.name()}, &nodes[i]);
@@ -193,7 +207,7 @@ static Array<GraphNode> build_transformable_ancestry(
 }
 
 static Vector<AnimTransformable *> depsgraph_sorted_transformables(
-    const Depsgraph *depsgraph, const MutableSpan<AnimTransformable> transformables)
+    const Depsgraph *depsgraph, const MutableSpan<AnimTransformable *> transformables)
 {
   Array<GraphNode> nodes = build_transformable_ancestry(depsgraph, transformables);
   Vector<AnimTransformable *> sorted_transformables;
@@ -218,6 +232,52 @@ static Vector<AnimTransformable *> depsgraph_sorted_transformables(
   }
 
   return sorted_transformables;
+}
+
+struct PasteFCurve {
+  FCurve *fcurve = nullptr;
+  /* Store info if that FCurve was created by this code. If yes, we can potentially remove it if
+   * the keys are all on the same value after pasting. */
+  bool created_on_paste = false;
+  int paste_start_index = 0;
+};
+
+struct TransformableFCurves {
+  Array<PasteFCurve, 3> loc;
+  Array<PasteFCurve, 4> rot;
+  Array<PasteFCurve, 3> scale;
+
+  TransformableFCurves()
+  {
+    loc.reinitialize(3);
+    rot.reinitialize(4);
+    scale.reinitialize(3);
+  }
+};
+
+static void ensure_baked_fcurves(Main &bmain,
+                                 MutableSpan<PasteFCurve> fcus,
+                                 blender::animrig::Channelbag &channelbag,
+                                 const StringRefNull rna_path,
+                                 const Bounds<int> range)
+{
+  namespace ar = blender::animrig;
+
+  bool has_key_on_frame = false;
+  /* Ensuring all FCurves exist. */
+  for (const int i : fcus.index_range()) {
+    PasteFCurve &paste_fcu = fcus[i];
+    if (!paste_fcu.fcurve) {
+      /* TODO pass group name. */
+      FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {rna_path, i, PROP_FLOAT, PROP_NONE});
+      paste_fcu.fcurve = &fcurve;
+      paste_fcu.created_on_paste = true;
+    }
+    ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
+    paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
+        paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
+    BLI_assert(has_key_on_frame);
+  }
 }
 
 /* -------------------------------------------------------------------- */
@@ -299,50 +359,20 @@ static void copy_world_space(Main &bmain,
   copybuffer.write_as_copypaste_buffer(filepath, reports);
 }
 
-struct PasteFCurve {
-  FCurve *fcurve = nullptr;
-  /* Store info if that FCurve was created by this code. If yes, we can potentially remove it if
-   * the keys are all on the same value after pasting. */
-  bool created_on_paste = false;
-  int paste_start_index = 0;
-};
-
-struct TransformableFCurves {
-  Array<PasteFCurve, 3> loc;
-  Array<PasteFCurve, 4> rot;
-  Array<PasteFCurve, 3> scale;
-
-  TransformableFCurves()
-  {
-    loc.reinitialize(3);
-    rot.reinitialize(4);
-    scale.reinitialize(3);
-  }
-};
-
-static void ensure_baked_fcurves(Main &bmain,
-                                 MutableSpan<PasteFCurve> fcus,
-                                 blender::animrig::Channelbag &channelbag,
-                                 const StringRefNull rna_path,
-                                 const Bounds<int> range)
+static Vector<AnimTransformable *> pasteable_transformables(
+    const MutableSpan<AnimTransformable> transformables,
+    const Map<StringRefNull, Array<FCurve *>> &world_space_data)
 {
-  namespace ar = blender::animrig;
-
-  bool has_key_on_frame = false;
-  /* Ensuring all FCurves exist. */
-  for (const int i : fcus.index_range()) {
-    PasteFCurve &paste_fcu = fcus[i];
-    if (!paste_fcu.fcurve) {
-      /* TODO pass group name. */
-      FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {rna_path, i, PROP_FLOAT, PROP_NONE});
-      paste_fcu.fcurve = &fcurve;
-      paste_fcu.created_on_paste = true;
+  Vector<AnimTransformable *> pasteables;
+  /* TODO: more sophisticated logic matching data in the world space buffer with transformables to
+   * paste on. */
+  for (AnimTransformable &transformable : transformables) {
+    const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable.name());
+    if (fcurves) {
+      pasteables.append(&transformable);
     }
-    ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
-    paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
-        paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
-    BLI_assert(has_key_on_frame);
   }
+  return pasteables;
 }
 
 static void paste_world_space(Main &bmain,
@@ -397,18 +427,21 @@ static void paste_world_space(Main &bmain,
     }
   }
 
+  Vector<AnimTransformable *> pasteables = pasteable_transformables(transformables,
+                                                                    world_space_data);
+
   /* Build a minimal depsgraph because we need to evaluate the scene on every frame to correctly
    * invert world to local space. */
   Depsgraph *depsgraph = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
-  Vector<ID *> ids = get_unique_ids(transformables);
+  Vector<ID *> ids = get_unique_ids(pasteables);
   DEG_graph_build_from_ids(depsgraph, ids);
 
   /* We need to first apply the transformation to those entities that are not affected by any other
    * transformables. This is why we need to sort using the depsgraph. */
-  Vector<AnimTransformable *> sorted_transformables = depsgraph_sorted_transformables(
-      depsgraph, transformables);
+  Vector<AnimTransformable *> sorted_transformables = depsgraph_sorted_transformables(depsgraph,
+                                                                                      pasteables);
 
-  if (sorted_transformables.size() != transformables.size()) {
+  if (sorted_transformables.size() != pasteables.size()) {
     BKE_report(&reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
   }
 
@@ -437,7 +470,7 @@ static void paste_world_space(Main &bmain,
       fcus.rot.reinitialize(3);
     }
     else {
-      fcus.rot.reinitialize(3);
+      fcus.rot.reinitialize(4);
     }
     const std::string loc_path = transformable->rna_path_to_property(
         AnimTransformable::PropertyType::LOCATION);
@@ -466,6 +499,9 @@ static void paste_world_space(Main &bmain,
     ensure_baked_fcurves(bmain, fcus.scale, channelbag, scale_path, range);
   }
 
+  /* Since we potentially added FCurves, we have to rebuild the depsgraph. */
+  DEG_graph_build_from_ids(depsgraph, ids);
+
   // Ensure FCurves on all transform channels -> which layer? -> insert_key_visual function that
   // inserts keys to layers based on their contribution.
   //
@@ -478,9 +514,8 @@ static void paste_world_space(Main &bmain,
     for (const int i : sorted_transformables.index_range()) {
       AnimTransformable *transformable = sorted_transformables[i];
       const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
-      if (!fcurves) {
-        continue;
-      }
+      BLI_assert_msg(fcurves != nullptr,
+                     "Only transformables with matching matrix data should iterated here");
       const float4x4 world_matrix = fcurves_to_matrix(*fcurves, key_index);
       /* We need the depsgraph evaluation in the inner loop so the position of dependents is
        * updated. This is potentially very slow. */
@@ -488,7 +523,7 @@ static void paste_world_space(Main &bmain,
       const float4x4 local_matrix = world_to_local(*depsgraph, *transformable, world_matrix);
       /* It is still important to apply the matrix here because otherwise the world to local
        * calculations of dependent transformables won't be correct. */
-      transformable->set_local_matrix(local_matrix);
+      // transformable->set_local_matrix(local_matrix);
     }
   }
 
