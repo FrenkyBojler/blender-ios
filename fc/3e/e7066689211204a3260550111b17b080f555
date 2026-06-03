@@ -2,3 +2,4 @@ Referenced by pull request #155783, Fix: Assert/UB when downloading online asset
 Referenced by commit fc5943bf75232a016b86365eccac1b82bd993a2e, Fix: Assert/UB when downloading online asset library
 Referenced by pull request #156003, Benchmark: Bisecting performance regressions
 Referenced by issue #159503, Crash trying to start VR while no VR headset/runtime is setup
+Referenced by pull request #159515, Fix #159503: XR: Crash on WM error report when no OpenXR runtime is setup
