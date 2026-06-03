@@ -292,7 +292,6 @@ PassMain::Sub *&ShadowPass::get_pass_ptr(PassType type, bool manifold, bool cap 
 void ShadowPass::init(const SceneState &scene_state, SceneResources &resources)
 {
   enabled_ = scene_state.draw_shadows;
-  BLI_assert(GPU_ray_query_support());
   use_raytracing_ = enabled_ /*&& U.experimental.use_workbench_raytraced_shadows*/ &&
                     GPU_ray_query_support();
   needs_rt_update_ = use_raytracing_ && (!shadow_as_ || scene_state.updated);
