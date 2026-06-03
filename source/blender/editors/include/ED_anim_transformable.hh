@@ -186,15 +186,6 @@ class AnimTransformable {
                          float target,
                          float factor,
                          AxisMutable axis_flag);
-
-  /* matrices are returned as 4x4. In case 2D data support is added, we'd need to make that more
-   * dynamic. */
-
-  /**
-   * Sets the transform values to the data in the matrix.
-   * Shear may not be preserved.
-   */
-  void set_local_matrix(const float4x4 &matrix);
 };
 
 /**

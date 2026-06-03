@@ -514,19 +514,4 @@ void AnimTransformable::blend_rotation_to(const Rotation &target,
   }
 }
 
-void AnimTransformable::set_local_matrix(const float4x4 &matrix)
-{
-  const float3 location = matrix.location();
-  const float3 scale = math::to_scale(matrix);
-  Rotation rotation;
-  rotation.mode = ROT_MODE_QUAT;
-  const float4 quat = float4(math::to_quaternion(matrix));
-  rotation.values.reinitialize(4);
-  copy_qt_qt(rotation.values.data(), quat);
-
-  set_property(PropertyType::LOCATION, Span<float>(location, 3), AXIS_MUTABLE_ALL);
-  set_rotation(rotation);
-  set_property(PropertyType::SCALE, Span<float>(scale, 3), AXIS_MUTABLE_ALL);
-}
-
 }  // namespace blender::ed
