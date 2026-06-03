@@ -605,6 +605,10 @@ class _defs_view3d_add:
     def cube_add():
         def draw_settings(context, layout, tool, *, extra=False):
             show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
+
+            props = tool.operator_properties("mesh.primitive_cube_add")
+            layout.prop(props, "subdivisions")
+
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
@@ -630,6 +634,7 @@ class _defs_view3d_add:
                 return
 
             props = tool.operator_properties("mesh.primitive_cone_add")
+            layout.prop(props, "rings")
             layout.prop(props, "vertices")
             layout.prop(props, "end_fill_type")
 
@@ -658,6 +663,7 @@ class _defs_view3d_add:
                 return
 
             props = tool.operator_properties("mesh.primitive_cylinder_add")
+            layout.prop(props, "rings")
             layout.prop(props, "vertices")
             layout.prop(props, "end_fill_type")
 

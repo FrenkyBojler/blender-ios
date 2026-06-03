@@ -343,7 +343,11 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     const float size = RNA_float_get(op->ptr, "size");
 
-    Mesh *primitive = geometry::create_cuboid_mesh(float3(size, size, size), 2, 2, 2);
+    /* vertice count is subdivisions plus two for the corners */
+    const int vertices = RNA_int_get(op->ptr, "subdivisions") + 2;
+
+    Mesh *primitive = geometry::create_cuboid_mesh(
+        float3(size, size, size), vertices, vertices, vertices);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
@@ -389,6 +393,8 @@ void MESH_OT_primitive_cube_add(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_int(ot->srna, "subdivisions", 0, 0, 10, "Subdivisions", "", 1, 8);
 
   ed::object::add_unit_props_size(ot);
   ed::object::add_mesh_props(ot);
@@ -501,7 +507,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
     geometry::ConeAttributeOutputs attributes{};
 
     const int fill_segments = 1;
-    const int side_segments = 1;
+    const int side_segments = RNA_int_get(op->ptr, "rings");
     Mesh *primitive = geometry::create_cylinder_or_cone_mesh(radius,
                                                              radius,
                                                              RNA_float_get(op->ptr, "depth"),
@@ -568,6 +574,9 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
       ot->srna, "depth", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.001, 100.00);
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Cap Fill Type", "");
 
+  /* confirm upper limits of ring count */
+  RNA_def_int(ot->srna, "rings", 1, 1, INT_MAX, "Rings", "", 1, 8);
+
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
 }
@@ -600,7 +609,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
     geometry::ConeAttributeOutputs attributes{};
 
     const int fill_segments = 1;
-    const int side_segments = 1;
+    const int side_segments = RNA_int_get(op->ptr, "rings");
     Mesh *primitive = geometry::create_cylinder_or_cone_mesh(RNA_float_get(op->ptr, "radius2"),
                                                              RNA_float_get(op->ptr, "radius1"),
                                                              RNA_float_get(op->ptr, "depth"),
@@ -669,6 +678,9 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
   RNA_def_float_distance(
       ot->srna, "depth", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.001, 100.00);
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Base Fill Type", "");
+
+  /* confirm upper limits of ring count */
+  RNA_def_int(ot->srna, "rings", 1, 1, INT_MAX, "Rings", "", 1, 8);
 
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
