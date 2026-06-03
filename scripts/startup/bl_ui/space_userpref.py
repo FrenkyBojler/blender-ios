@@ -2818,6 +2818,17 @@ class USERPREF_PT_file_paths_asset_libraries(AssetsPanel, Panel):
             layout.prop(active_library, "use_relative_path")
 
 
+class USERPREF_PT_asset_libraries_builtin(AssetsPanel, Panel):
+    bl_label = "Built-in Asset Libraries"
+
+    def draw(self, context):
+        layout = self.layout
+
+        asset_libraries = context.preferences.asset_libraries
+
+        layout.prop(asset_libraries, "use_online_essentials")
+
+
 class USERPREF_UL_asset_libraries(UIList):
     def draw_item(self, context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         del context
@@ -3219,6 +3230,7 @@ classes = (
 
     USERPREF_PT_assets,
     USERPREF_PT_file_paths_asset_libraries,
+    USERPREF_PT_asset_libraries_builtin,
 
     USERPREF_MT_extensions_active_repo,
     USERPREF_MT_extensions_active_repo_remove,
