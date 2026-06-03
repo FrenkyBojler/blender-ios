@@ -636,6 +636,7 @@ class _defs_view3d_add:
             props = tool.operator_properties("mesh.primitive_cone_add")
             layout.prop(props, "rings")
             layout.prop(props, "vertices")
+            layout.prop(props, "fill_segments")
             layout.prop(props, "end_fill_type")
 
             if show_extra:
@@ -665,6 +666,7 @@ class _defs_view3d_add:
             props = tool.operator_properties("mesh.primitive_cylinder_add")
             layout.prop(props, "rings")
             layout.prop(props, "vertices")
+            layout.prop(props, "fill_segments")
             layout.prop(props, "end_fill_type")
 
             if show_extra:

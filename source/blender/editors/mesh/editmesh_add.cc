@@ -506,8 +506,8 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
     const float radius = RNA_float_get(op->ptr, "radius");
     geometry::ConeAttributeOutputs attributes{};
 
-    const int fill_segments = 1;
     const int side_segments = RNA_int_get(op->ptr, "rings");
+    const int fill_segments = RNA_int_get(op->ptr, "fill_segments");
     Mesh *primitive = geometry::create_cylinder_or_cone_mesh(radius,
                                                              radius,
                                                              RNA_float_get(op->ptr, "depth"),
@@ -574,8 +574,9 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
       ot->srna, "depth", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.001, 100.00);
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Cap Fill Type", "");
 
-  /* confirm upper limits of ring count */
+  /* confirm upper limits */
   RNA_def_int(ot->srna, "rings", 1, 1, INT_MAX, "Rings", "", 1, 8);
+  RNA_def_int(ot->srna, "fill_segments", 1, 1, INT_MAX, "Fill Segments", "", 1, 8);
 
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
@@ -608,8 +609,8 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     geometry::ConeAttributeOutputs attributes{};
 
-    const int fill_segments = 1;
     const int side_segments = RNA_int_get(op->ptr, "rings");
+    const int fill_segments = RNA_int_get(op->ptr, "fill_segments");
     Mesh *primitive = geometry::create_cylinder_or_cone_mesh(RNA_float_get(op->ptr, "radius2"),
                                                              RNA_float_get(op->ptr, "radius1"),
                                                              RNA_float_get(op->ptr, "depth"),
@@ -679,8 +680,9 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
       ot->srna, "depth", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.001, 100.00);
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Base Fill Type", "");
 
-  /* confirm upper limits of ring count */
+  /* confirm upper limits */
   RNA_def_int(ot->srna, "rings", 1, 1, INT_MAX, "Rings", "", 1, 8);
+  RNA_def_int(ot->srna, "fill_segments", 1, 1, INT_MAX, "Fill Segments", "", 1, 8);
 
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
