@@ -183,12 +183,12 @@ bUserAssetLibrary *ED_userpref_asset_library_new(const bContext *C,
 {
   bUserAssetLibrary *new_library;
 
-  char final_name[sizeof(name)];
+  char final_name[FILE_MAX];
   STRNCPY(final_name, name);
 
   switch (library_type) {
     case bUserAssetLibraryAddType::Local: {
-      char final_dirpath[sizeof(dirpath)];
+      char final_dirpath[FILE_MAX];
       STRNCPY(final_dirpath, dirpath);
       BLI_path_slash_rstrip(final_dirpath);
       if (!final_name[0]) {
