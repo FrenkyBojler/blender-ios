@@ -20,7 +20,8 @@ void HiZBuffer::sync()
   /* Padding to avoid complexity during down-sampling and screen tracing. */
   int2 hiz_extent = math::ceil_to_multiple(math::max(render_extent, probe_extent),
                                            int2(1u << (HIZ_MIP_COUNT - 1)));
-  int2 dispatch_size = math::divide_ceil(hiz_extent, int2(HIZ_GROUP_SIZE));
+  /* Each thread update 4 LOD0 pixels. So the actual extent of each group is double of it size. */
+  int2 dispatch_size = math::divide_ceil(hiz_extent, int2(HIZ_GROUP_SIZE) * 2);
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
   for ([[maybe_unused]] const int i : IndexRange(hiz_tx_.size())) {
@@ -91,6 +92,9 @@ void HiZBuffer::update()
   if (!is_dirty_) {
     return;
   }
+
+  /* After this, the front buffer become valid. */
+  front.ref_tx_ = hiz_tx_.current();
 
   src_tx_ = *src_tx_ptr_;
   for (const int i : IndexRange(HIZ_MIP_COUNT)) {

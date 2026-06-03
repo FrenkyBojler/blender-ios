@@ -66,6 +66,8 @@ static const int NAN_INT = 0x7FC00000;
 #  pragma GCC diagnostic ignored "-Wredundant-decls"
 #endif
 
+namespace blender {
+
 /******************************* Float ******************************/
 
 /* `powf` is really slow for raising to integer powers. */
@@ -101,21 +103,12 @@ MINLINE float cube_f(float a);
 
 MINLINE float min_ff(float a, float b);
 MINLINE float max_ff(float a, float b);
-MINLINE float min_fff(float a, float b, float c);
-MINLINE float max_fff(float a, float b, float c);
-MINLINE float min_ffff(float a, float b, float c, float d);
-MINLINE float max_ffff(float a, float b, float c, float d);
 
 MINLINE double min_dd(double a, double b);
 MINLINE double max_dd(double a, double b);
-MINLINE double max_ddd(double a, double b, double c);
 
 MINLINE int min_ii(int a, int b);
 MINLINE int max_ii(int a, int b);
-MINLINE int min_iii(int a, int b, int c);
-MINLINE int max_iii(int a, int b, int c);
-MINLINE int min_iiii(int a, int b, int c, int d);
-MINLINE int max_iiii(int a, int b, int c, int d);
 
 MINLINE uint min_uu(uint a, uint b);
 MINLINE uint max_uu(uint a, uint b);
@@ -369,3 +362,5 @@ float ceil_power_of_10(float f);
 #  define BLI_ASSERT_ZERO_M4(m) (void)(m)
 #  define BLI_ASSERT_UNIT_M3(m) (void)(m)
 #endif
+
+}  // namespace blender

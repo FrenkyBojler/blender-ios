@@ -102,6 +102,7 @@ class VIEW3D_PT_tools_object_options_transform(View3DPanel, Panel):
     bl_context = ".objectmode"  # dot on purpose (access from topbar)
     bl_label = "Transform"
     bl_parent_id = "VIEW3D_PT_tools_object_options"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         layout = self.layout
@@ -240,7 +241,7 @@ class TEXTURE_UL_texpaintslots(UIList):
 
         # Hint that painting on linked images is prohibited
         ima = _data.texture_paint_images.get(item.name)
-        if ima is not None and ima.is_editable:
+        if ima is not None and not ima.is_editable:
             layout.enabled = False
 
         layout.label(text=item.name, icon_value=item.icon_value)
@@ -260,7 +261,6 @@ class View3DPaintBrushPanel(View3DPaintPanel):
 class VIEW3D_PT_tools_particlemode(Panel, View3DPaintPanel):
     bl_context = ".paint_common"  # dot on purpose (access from topbar)
     bl_label = "Particle Tool"
-    bl_options = {'HIDE_HEADER'}
 
     @classmethod
     def poll(cls, context):
@@ -488,7 +488,7 @@ class SelectPaintSlotHelper:
                     layout.operator("paint.add_simple_uvs", icon='ADD', text="Add UVs")
                 else:
                     layout.menu("VIEW3D_MT_tools_projectpaint_uvlayer", text=uv_text, translate=False)
-                have_image = getattr(settings, self.canvas_image_attr_name) is not None
+                have_image = getattr(mode_settings, self.canvas_image_attr_name) is not None
 
                 self.draw_image_interpolation(layout=layout, mode_settings=mode_settings)
 
@@ -868,8 +868,12 @@ class VIEW3D_PT_tools_weight_gradient(Panel, View3DPaintPanel):
         col.prop(brush, "curve_distance_falloff_preset", expand=True)
 
         if brush.curve_distance_falloff_preset == 'CUSTOM':
-            layout.template_curve_mapping(brush, "curve_distance_falloff", brush=True,
-                                          use_negative_slope=True, show_presets=True)
+            layout.template_curve_mapping(
+                brush, "curve_distance_falloff",
+                brush=True,
+                use_negative_slope=True,
+                show_presets=True,
+            )
 
 
 class VIEW3D_PT_tools_brush_falloff(Panel, View3DPaintPanel, FalloffPanel):
@@ -1730,7 +1734,7 @@ class VIEW3D_PT_tools_grease_pencil_brush_vertex_palette(View3DPanel, Panel):
         row = col.row(align=True)
         row.template_ID(settings, "palette", new="palette.new")
         if settings.palette:
-            col.template_palette(settings, "palette", color=True)
+            col.template_palette(settings, "palette")
 
 
 class VIEW3D_PT_tools_grease_pencil_paint_appearance(GreasePencilDisplayPanel, Panel, View3DPanel):
@@ -1920,6 +1924,14 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
         if brush is None:
             return
 
+        col.prop(gp_settings, "fill_solver")
+        col.separator()
+
+        if gp_settings.fill_solver == 'DELAUNAY':
+            row = col.row(align=True)
+            row.prop(brush, "use_locked_size", expand=True)
+            col.separator()
+
         row = col.row(align=True)
         row.prop(gp_settings, "fill_draw_mode", text="Boundary", text_ctxt=i18n_contexts.id_gpencil)
         row.prop(
@@ -1933,8 +1945,9 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
         row = col.row(align=True)
         row.prop(gp_settings, "fill_layer_mode", text="Layers")
 
-        col.separator()
-        col.prop(gp_settings, "fill_simplify_level", text="Simplify")
+        if gp_settings.fill_solver == 'PIXEL':
+            col.separator()
+            col.prop(gp_settings, "fill_simplify_level", text="Simplify")
         if gp_settings.fill_draw_mode != 'STROKE':
             col = layout.column(align=False, heading="Ignore Transparent")
             col.use_property_decorate = False
@@ -1946,8 +1959,9 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
             sub.prop(gp_settings, "fill_threshold", text="")
 
         col.separator()
-        row = col.row(align=True)
-        row.prop(gp_settings, "use_fill_limit")
+        if gp_settings.fill_solver == 'PIXEL':
+            row = col.row(align=True)
+            row.prop(gp_settings, "use_fill_limit")
         row = col.row(align=True)
         row.prop(gp_settings, "use_auto_remove_fill_guides")
 
@@ -2012,6 +2026,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_post_processing(View3DPanel, Panel)
 
         col1 = col.column(align=True)
         col1.prop(gp_settings, "pen_subdivision_steps", text="Subdivisions")
+        col1.active = gp_settings.simplify_pixel_threshold == 0
 
         col1 = col.column(align=True)
         col1.prop(gp_settings, "simplify_pixel_threshold", slider=True)
@@ -2030,6 +2045,15 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_post_processing(View3DPanel, Panel)
         row2 = col.row(align=True)
         row2.enabled = gp_settings.use_settings_outline
         row2.prop(gp_settings, "outline_thickness_factor")
+
+        col.separator()
+
+        col1 = col.column(align=True)
+        col1.prop(gp_settings, "curve_type")
+
+        col1 = col.row(align=True)
+        col1.prop(gp_settings, "conversion_threshold")
+        col1.enabled = gp_settings.curve_type != "POLY"
 
 
 class VIEW3D_PT_tools_grease_pencil_v3_brush_random(View3DPanel, Panel):
@@ -2124,7 +2148,8 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_random(View3DPanel, Panel):
                 "show_jitter_curve",
                 text="",
                 icon='DOWNARROW_HLT' if paint.show_jitter_curve else 'RIGHTARROW',
-                emboss=False)
+                emboss=False,
+            )
             if paint.show_jitter_curve:
                 col.active = gp_settings.use_jitter_pressure
                 col.template_curve_mapping(gp_settings, "curve_jitter", brush=True, show_presets=True)
@@ -2227,7 +2252,6 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_mixcolor(View3DPanel, Panel):
         sub_row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
 
         if brush.gpencil_brush_type in {'DRAW', 'FILL'}:
-            col.prop(gp_settings, "vertex_mode", text="Mode")
             col.prop(gp_settings, "vertex_color_factor", slider=True, text="Mix Factor")
 
 
@@ -2273,34 +2297,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_mix_palette(View3DPanel, Panel):
         row = col.row(align=True)
         row.template_ID(settings, "palette", new="palette.new")
         if settings.palette:
-            col.template_palette(settings, "palette", color=True)
-
-
-class VIEW3D_PT_tools_grease_pencil_v3_brush_eraser(View3DPanel, Panel):
-    bl_context = ".grease_pencil_paint"
-    bl_label = "Eraser"
-    bl_category = "Tool"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    @classmethod
-    def poll(cls, context):
-        if context.region.type == 'TOOL_HEADER':
-            return False
-
-        from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
-        tool = ToolSelectPanelHelper.tool_active_from_context(context)
-        return (tool and tool.idname == "builtin.brush")
-
-    def draw(self, context):
-        layout = self.layout
-        tool_settings = context.tool_settings
-        settings = tool_settings.gpencil_paint
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        col = layout.column()
-        col.prop_search(settings, "eraser_brush", bpy.data, "brushes")
+            col.template_palette(settings, "palette")
 
 
 class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
@@ -2325,15 +2322,20 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
 
         col = layout.column()
 
-        col.prop(gp_settings, "extend_stroke_factor", text="Size")
-        row = col.row(align=True)
-        row.prop(gp_settings, "fill_extend_mode", text="Mode")
-        row = col.row(align=True)
-        row.prop(gp_settings, "show_fill_extend", text="Visual Aids")
-
-        if gp_settings.fill_extend_mode == 'EXTEND':
+        if brush.gpencil_settings.fill_solver == 'PIXEL':
+            col.prop(gp_settings, "extend_stroke_factor", text="Size")
             row = col.row(align=True)
-            row.prop(gp_settings, "use_collide_strokes")
+            row.prop(gp_settings, "fill_extend_mode", text="Mode")
+            row = col.row(align=True)
+            row.prop(gp_settings, "show_fill_extend", text="Visual Aids")
+
+            if gp_settings.fill_extend_mode == 'EXTEND':
+                row = col.row(align=True)
+                row.prop(gp_settings, "use_collide_strokes")
+        else:
+            col.prop(gp_settings, "fill_internal_gaps")
+            if gp_settings.fill_internal_gaps:
+                col.prop(gp_settings, "fill_gap_factor", text="Detection Factor")
 
 
 classes = (
@@ -2413,7 +2415,6 @@ classes = (
 
     VIEW3D_PT_tools_grease_pencil_v3_brush_select,
     VIEW3D_PT_tools_grease_pencil_v3_brush_settings,
-    VIEW3D_PT_tools_grease_pencil_v3_brush_eraser,
     VIEW3D_PT_tools_grease_pencil_v3_brush_advanced,
     VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced,
     VIEW3D_PT_tools_grease_pencil_v3_brush_stroke,

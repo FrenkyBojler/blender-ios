@@ -17,6 +17,7 @@
 #  include "scene/pointcloud.h"
 #  include "scene/scene.h"
 
+#  include "util/algorithm.h"
 #  include "util/debug.h"
 #  include "util/log.h"
 #  include "util/path.h"
@@ -63,7 +64,6 @@ OptiXDevice::OptiXDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
 
   /* Create OptiX context for this device. */
   OptixDeviceContextOptions options = {};
-#  ifdef WITH_CYCLES_LOGGING
   options.logCallbackLevel = 4; /* Fatal = 1, Error = 2, Warning = 3, Print = 4. */
   options.logCallbackFunction = [](unsigned int level, const char *, const char *message, void *) {
     switch (level) {
@@ -77,22 +77,19 @@ OptiXDevice::OptiXDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
         LOG_WARNING << message;
         break;
       case 4:
-        LOG_INFO << message;
+        LOG_DEBUG << message;
         break;
       default:
         break;
     }
   };
-#  endif
   if (DebugFlags().optix.use_debug) {
     LOG_INFO << "Using OptiX debug mode.";
     options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
   }
   optix_assert(optixDeviceContextCreate(cuContext, &options, &context));
-#  ifdef WITH_CYCLES_LOGGING
   optix_assert(optixDeviceContextSetLogCallback(
       context, options.logCallbackFunction, options.logCallbackData, options.logCallbackLevel));
-#  endif
 
   /* Fix weird compiler bug that assigns wrong size. */
   launch_params.data_elements = sizeof(KernelParamsOptiX);
@@ -109,7 +106,7 @@ OptiXDevice::~OptiXDevice()
   free_bvh_memory_delayed();
 
   sbt_data.free();
-  texture_info.free();
+  image_info.free();
   launch_params.free();
 
   /* Unload modules. */
@@ -371,7 +368,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     string ptx_data;
     if (use_adaptive_compilation() || path_file_size(ptx_filename) == -1) {
       string cflags = compile_kernel_get_common_cflags(kernel_features);
-      ptx_filename = compile_kernel(cflags, ("kernel" + suffix).c_str(), "optix", true);
+      ptx_filename = compile_kernel(cflags, ("kernel" + suffix).c_str(), true);
     }
     if (ptx_filename.empty() || !path_read_compressed_text(ptx_filename, ptx_data)) {
       set_error(string_printf("Failed to load OptiX kernel from '%s'", ptx_filename.c_str()));
@@ -550,10 +547,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   }
 
   if (kernel_features & KERNEL_FEATURE_MNEE) {
-    group_descs[PG_RGEN_SHADE_SURFACE_MNEE].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-    group_descs[PG_RGEN_SHADE_SURFACE_MNEE].raygen.module = optix_module;
-    group_descs[PG_RGEN_SHADE_SURFACE_MNEE].raygen.entryFunctionName =
-        "__raygen__kernel_optix_integrator_shade_surface_mnee";
+    group_descs[PG_RGEN_INTERSECT_MNEE].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_INTERSECT_MNEE].raygen.module = optix_module;
+    group_descs[PG_RGEN_INTERSECT_MNEE].raygen.entryFunctionName =
+        "__raygen__kernel_optix_integrator_intersect_mnee";
   }
 
   /* OSL uses direct callables to execute, so shading needs to be done in OptiX if OSL is used. */
@@ -562,10 +559,14 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_SHADE_BACKGROUND].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_BACKGROUND].raygen.entryFunctionName =
         "__raygen__kernel_optix_integrator_shade_background";
-    group_descs[PG_RGEN_SHADE_LIGHT].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-    group_descs[PG_RGEN_SHADE_LIGHT].raygen.module = optix_module;
-    group_descs[PG_RGEN_SHADE_LIGHT].raygen.entryFunctionName =
-        "__raygen__kernel_optix_integrator_shade_light";
+    group_descs[PG_RGEN_SHADE_LIGHT_NEE].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_SHADE_LIGHT_NEE].raygen.module = optix_module;
+    group_descs[PG_RGEN_SHADE_LIGHT_NEE].raygen.entryFunctionName =
+        "__raygen__kernel_optix_integrator_shade_light_nee";
+    group_descs[PG_RGEN_SHADE_LIGHT_FORWARD].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_SHADE_LIGHT_FORWARD].raygen.module = optix_module;
+    group_descs[PG_RGEN_SHADE_LIGHT_FORWARD].raygen.entryFunctionName =
+        "__raygen__kernel_optix_integrator_shade_light_forward";
     group_descs[PG_RGEN_SHADE_SURFACE].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
     group_descs[PG_RGEN_SHADE_SURFACE].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_SURFACE].raygen.entryFunctionName =
@@ -637,45 +638,56 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
       context, group_descs, NUM_PROGRAM_GROUPS, &group_options, nullptr, nullptr, groups));
 
   /* Get program stack sizes. */
-  OptixStackSizes stack_size[NUM_PROGRAM_GROUPS] = {};
+  auto get_pipeline_stack_size = [&](OptixPipeline pipeline, unsigned int &trace_css) {
+    vector<OptixStackSizes> stack_size(NUM_PROGRAM_GROUPS);
+    for (int i = 0; i < NUM_PROGRAM_GROUPS; ++i) {
+      optix_assert(optixProgramGroupGetStackSize(groups[i], &stack_size[i], pipeline));
+    }
+
+    /* Calculate maximum trace continuation stack size. */
+    trace_css = stack_size[PG_HITD].cssCH;
+    /* This is based on the maximum of closest-hit and any-hit/intersection programs. */
+    trace_css = std::max(trace_css, stack_size[PG_HITD].cssIS + stack_size[PG_HITD].cssAH);
+    trace_css = std::max(trace_css, stack_size[PG_HITS].cssIS + stack_size[PG_HITS].cssAH);
+    trace_css = std::max(trace_css, stack_size[PG_HITL].cssIS + stack_size[PG_HITL].cssAH);
+    trace_css = std::max(trace_css, stack_size[PG_HITV].cssIS + stack_size[PG_HITV].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITD_MOTION].cssIS + stack_size[PG_HITD_MOTION].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITS_MOTION].cssIS + stack_size[PG_HITS_MOTION].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITD_CURVE_LINEAR].cssIS +
+                             stack_size[PG_HITD_CURVE_LINEAR].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITS_CURVE_LINEAR].cssIS +
+                             stack_size[PG_HITS_CURVE_LINEAR].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssIS +
+                             stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssIS +
+                             stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITD_CURVE_RIBBON].cssIS +
+                             stack_size[PG_HITD_CURVE_RIBBON].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITS_CURVE_RIBBON].cssIS +
+                             stack_size[PG_HITS_CURVE_RIBBON].cssAH);
+    trace_css = std::max(
+        trace_css, stack_size[PG_HITD_POINTCLOUD].cssIS + stack_size[PG_HITD_POINTCLOUD].cssAH);
+    trace_css = std::max(
+        trace_css, stack_size[PG_HITS_POINTCLOUD].cssIS + stack_size[PG_HITS_POINTCLOUD].cssAH);
+
+    return stack_size;
+  };
+
   /* Set up SBT, which in this case is used only to select between different programs. */
   sbt_data.alloc(NUM_PROGRAM_GROUPS);
   memset(sbt_data.host_pointer, 0, sizeof(SbtRecord) * NUM_PROGRAM_GROUPS);
   for (int i = 0; i < NUM_PROGRAM_GROUPS; ++i) {
     optix_assert(optixSbtRecordPackHeader(groups[i], &sbt_data[i]));
-    optix_assert(optixProgramGroupGetStackSize(groups[i], &stack_size[i], nullptr));
   }
   sbt_data.copy_to_device(); /* Upload SBT to device. */
-
-  /* Calculate maximum trace continuation stack size. */
-  unsigned int trace_css = stack_size[PG_HITD].cssCH;
-  /* This is based on the maximum of closest-hit and any-hit/intersection programs. */
-  trace_css = std::max(trace_css, stack_size[PG_HITD].cssIS + stack_size[PG_HITD].cssAH);
-  trace_css = std::max(trace_css, stack_size[PG_HITS].cssIS + stack_size[PG_HITS].cssAH);
-  trace_css = std::max(trace_css, stack_size[PG_HITL].cssIS + stack_size[PG_HITL].cssAH);
-  trace_css = std::max(trace_css, stack_size[PG_HITV].cssIS + stack_size[PG_HITV].cssAH);
-  trace_css = std::max(trace_css,
-                       stack_size[PG_HITD_MOTION].cssIS + stack_size[PG_HITD_MOTION].cssAH);
-  trace_css = std::max(trace_css,
-                       stack_size[PG_HITS_MOTION].cssIS + stack_size[PG_HITS_MOTION].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITD_CURVE_LINEAR].cssIS + stack_size[PG_HITD_CURVE_LINEAR].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITS_CURVE_LINEAR].cssIS + stack_size[PG_HITS_CURVE_LINEAR].cssAH);
-  trace_css = std::max(trace_css,
-                       stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssIS +
-                           stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssAH);
-  trace_css = std::max(trace_css,
-                       stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssIS +
-                           stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITD_CURVE_RIBBON].cssIS + stack_size[PG_HITD_CURVE_RIBBON].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITS_CURVE_RIBBON].cssIS + stack_size[PG_HITS_CURVE_RIBBON].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITD_POINTCLOUD].cssIS + stack_size[PG_HITD_POINTCLOUD].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITS_POINTCLOUD].cssIS + stack_size[PG_HITS_POINTCLOUD].cssAH);
 
   OptixPipelineLinkOptions link_options = {};
   link_options.maxTraceDepth = 1;
@@ -693,7 +705,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
       pipeline_groups.push_back(groups[PG_CALL_SVM_BEVEL]);
     }
     if (kernel_features & KERNEL_FEATURE_MNEE) {
-      pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE_MNEE]);
+      pipeline_groups.push_back(groups[PG_RGEN_INTERSECT_MNEE]);
     }
     pipeline_groups.push_back(groups[PG_MISS]);
     pipeline_groups.push_back(groups[PG_HITD]);
@@ -740,9 +752,12 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
                                      nullptr,
                                      &pipelines[PIP_SHADE]));
 
+    unsigned int trace_css;
+    vector<OptixStackSizes> stack_size = get_pipeline_stack_size(pipelines[PIP_SHADE], trace_css);
+
     /* Combine ray generation and trace continuation stack size. */
     const unsigned int css = std::max(stack_size[PG_RGEN_SHADE_SURFACE_RAYTRACE].cssRG,
-                                      stack_size[PG_RGEN_SHADE_SURFACE_MNEE].cssRG) +
+                                      stack_size[PG_RGEN_INTERSECT_MNEE].cssRG) +
                              link_options.maxTraceDepth * trace_css;
     const unsigned int dss = std::max(stack_size[PG_CALL_SVM_AO].dssDC,
                                       stack_size[PG_CALL_SVM_BEVEL].dssDC);
@@ -795,6 +810,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
                                      nullptr,
                                      &pipelines[PIP_INTERSECT]));
 
+    unsigned int trace_css;
+    vector<OptixStackSizes> stack_size = get_pipeline_stack_size(pipelines[PIP_INTERSECT],
+                                                                 trace_css);
+
     /* Calculate continuation stack size based on the maximum of all ray generation stack sizes. */
     const unsigned int css =
         std::max(stack_size[PG_RGEN_INTERSECT_CLOSEST].cssRG,
@@ -819,14 +838,23 @@ bool OptiXDevice::load_osl_kernels()
 
   struct OSLKernel {
     string ptx;
-    string fused_entry;
+    ustring fused_entry;
   };
 
   auto get_osl_kernel = [&](const OSL::ShaderGroupRef &group) {
     if (!group) {
       return OSLKernel{};
     }
-    string osl_ptx, fused_name;
+    /* Other attribute access crashes when there are no layers. */
+    int num_layers = 0;
+    osl_globals.ss->getattribute(group.get(), "num_layers", num_layers);
+    if (num_layers == 0) {
+      return OSLKernel{};
+    }
+
+    string osl_ptx;
+    ustring fused_name;
+
     osl_globals.ss->getattribute(group.get(), "group_fused_name", fused_name);
     osl_globals.ss->getattribute(
         group.get(), "ptx_compiled_version", OSL::TypeDesc::PTR, &osl_ptx);
@@ -1029,12 +1057,13 @@ bool OptiXDevice::load_osl_kernels()
     vector<OptixProgramGroup> pipeline_groups;
     pipeline_groups.reserve(NUM_PROGRAM_GROUPS);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_BACKGROUND]);
-    pipeline_groups.push_back(groups[PG_RGEN_SHADE_LIGHT]);
+    pipeline_groups.push_back(groups[PG_RGEN_SHADE_LIGHT_NEE]);
+    pipeline_groups.push_back(groups[PG_RGEN_SHADE_LIGHT_FORWARD]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE_RAYTRACE]);
     pipeline_groups.push_back(groups[PG_CALL_SVM_AO]);
     pipeline_groups.push_back(groups[PG_CALL_SVM_BEVEL]);
-    pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE_MNEE]);
+    pipeline_groups.push_back(groups[PG_RGEN_INTERSECT_MNEE]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_VOLUME]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SHADOW]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_DEDICATED_LIGHT]);
@@ -1064,7 +1093,7 @@ bool OptiXDevice::load_osl_kernels()
     vector<OptixStackSizes> osl_stack_size(osl_groups.size());
 
     for (int i = 0; i < NUM_PROGRAM_GROUPS; ++i) {
-      optix_assert(optixProgramGroupGetStackSize(groups[i], &stack_size[i], nullptr));
+      optix_assert(optixProgramGroupGetStackSize(groups[i], &stack_size[i], pipelines[PIP_SHADE]));
     }
     for (size_t i = 0; i < osl_groups.size(); ++i) {
       if (osl_groups[i] != nullptr) {
@@ -1074,7 +1103,7 @@ bool OptiXDevice::load_osl_kernels()
     }
 
     const unsigned int css = std::max(stack_size[PG_RGEN_SHADE_SURFACE_RAYTRACE].cssRG,
-                                      stack_size[PG_RGEN_SHADE_SURFACE_MNEE].cssRG);
+                                      stack_size[PG_RGEN_INTERSECT_MNEE].cssRG);
     unsigned int dss = std::max(stack_size[PG_CALL_SVM_AO].dssDC,
                                 stack_size[PG_CALL_SVM_BEVEL].dssDC);
     for (unsigned int i = 0; i < osl_stack_size.size(); ++i) {
@@ -1305,8 +1334,9 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       const size_t num_segments = hair->num_segments();
 
       size_t num_motion_steps = 1;
-      Attribute *motion_keys = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-      if (pipeline_options.usesMotionBlur && hair->get_use_motion_blur() && motion_keys) {
+      const Attribute *attr_P = hair->attributes.find(ATTR_STD_POSITION);
+      const Attribute *attr_R = hair->attributes.find(ATTR_STD_RADIUS);
+      if (pipeline_options.usesMotionBlur && hair->get_use_motion_blur() && attr_P->has_motion()) {
         num_motion_steps = hair->get_motion_steps();
       }
 
@@ -1331,14 +1361,9 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
       /* Get AABBs for each motion step. */
       for (size_t step = 0; step < num_motion_steps; ++step) {
-        /* The center step for motion vertices is not stored in the attribute. */
-        const float3 *keys = hair->get_curve_keys().data();
-        size_t center_step = (num_motion_steps - 1) / 2;
-        if (step != center_step) {
-          size_t attr_offset = (step > center_step) ? step - 1 : step;
-          /* Technically this is a float4 array, but sizeof(float3) == sizeof(float4). */
-          keys = motion_keys->data_float3() + attr_offset * hair->get_curve_keys().size();
-        }
+        const packed_float3 *keys = attr_P->data_at_time_step<packed_float3>(step,
+                                                                             num_motion_steps);
+        const float *curve_radius_step = attr_R->data_at_time_step<float>(step, num_motion_steps);
 
         if (hair->curve_shape == CURVE_THICK || hair->curve_shape == CURVE_THICK_LINEAR) {
           for (size_t curve_index = 0, segment_index = 0, vertex_index = step * num_vertices;
@@ -1346,7 +1371,6 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
                ++curve_index)
           {
             const Hair::Curve curve = hair->get_curve(curve_index);
-            const array<float> &curve_radius = hair->get_curve_radius();
 
             if (hair->curve_shape == CURVE_THICK_LINEAR) {
               const int first_key_index = curve.first_key;
@@ -1355,50 +1379,32 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
                 if (step == 0) {
                   index_data[segment_index++] = vertex_index;
                 }
-                vertex_data[vertex_index++] = make_float4(keys[first_key_index + k].x,
-                                                          keys[first_key_index + k].y,
-                                                          keys[first_key_index + k].z,
-                                                          curve_radius[first_key_index + k]);
+                vertex_data[vertex_index++] = make_float4(float3(keys[first_key_index + k]),
+                                                          curve_radius_step[first_key_index + k]);
               }
 
               const int last_key_index = first_key_index + curve.num_keys - 1;
-              {
-                vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
-                                                          keys[last_key_index].y,
-                                                          keys[last_key_index].z,
-                                                          curve_radius[last_key_index]);
-              }
+              vertex_data[vertex_index++] = make_float4(float3(keys[last_key_index]),
+                                                        curve_radius_step[last_key_index]);
             }
             else {
               const int first_key_index = curve.first_key;
-              {
-                vertex_data[vertex_index++] = make_float4(keys[first_key_index].x,
-                                                          keys[first_key_index].y,
-                                                          keys[first_key_index].z,
-                                                          curve_radius[first_key_index]);
-              }
+              vertex_data[vertex_index++] = make_float4(float3(keys[first_key_index]),
+                                                        curve_radius_step[first_key_index]);
 
               for (int k = 0; k < curve.num_segments(); ++k) {
                 if (step == 0) {
                   index_data[segment_index++] = vertex_index - 1;
                 }
-                vertex_data[vertex_index++] = make_float4(keys[first_key_index + k].x,
-                                                          keys[first_key_index + k].y,
-                                                          keys[first_key_index + k].z,
-                                                          curve_radius[first_key_index + k]);
+                vertex_data[vertex_index++] = make_float4(float3(keys[first_key_index + k]),
+                                                          curve_radius_step[first_key_index + k]);
               }
 
               const int last_key_index = first_key_index + curve.num_keys - 1;
-              {
-                vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
-                                                          keys[last_key_index].y,
-                                                          keys[last_key_index].z,
-                                                          curve_radius[last_key_index]);
-                vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
-                                                          keys[last_key_index].y,
-                                                          keys[last_key_index].z,
-                                                          curve_radius[last_key_index]);
-              }
+              vertex_data[vertex_index++] = make_float4(float3(keys[last_key_index]),
+                                                        curve_radius_step[last_key_index]);
+              vertex_data[vertex_index++] = make_float4(float3(keys[last_key_index]),
+                                                        curve_radius_step[last_key_index]);
             }
           }
         }
@@ -1408,7 +1414,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
             for (int segment = 0; segment < curve.num_segments(); ++segment, ++i) {
               BoundBox bounds = BoundBox::empty;
-              curve.bounds_grow(segment, keys, hair->get_curve_radius().data(), bounds);
+              curve.bounds_grow(segment, keys, curve_radius_step, bounds);
 
               const size_t index = step * num_segments + i;
               aabb_data[index].minX = bounds.min.x;
@@ -1488,11 +1494,11 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
         return;
       }
 
-      const size_t num_verts = mesh->get_verts().size();
+      const size_t num_verts = mesh->num_verts();
 
       size_t num_motion_steps = 1;
-      Attribute *motion_keys = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-      if (pipeline_options.usesMotionBlur && mesh->get_use_motion_blur() && motion_keys) {
+      const Attribute *attr_P = mesh->attributes.find(ATTR_STD_POSITION);
+      if (pipeline_options.usesMotionBlur && mesh->get_use_motion_blur() && attr_P->has_motion()) {
         num_motion_steps = mesh->get_motion_steps();
       }
 
@@ -1501,19 +1507,13 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       memcpy(index_data.data(),
              mesh->get_triangles().data(),
              mesh->get_triangles().size() * sizeof(int));
-      device_vector<float4> vertex_data(this, "optix temp vertex data", MEM_READ_ONLY);
+      device_vector<packed_float3> vertex_data(this, "optix temp vertex data", MEM_READ_ONLY);
       vertex_data.alloc(num_verts * num_motion_steps);
 
       for (size_t step = 0; step < num_motion_steps; ++step) {
-        const float3 *verts = mesh->get_verts().data();
-
-        size_t center_step = (num_motion_steps - 1) / 2;
-        /* The center step for motion vertices is not stored in the attribute. */
-        if (step != center_step) {
-          verts = motion_keys->data_float3() + (step > center_step ? step - 1 : step) * num_verts;
-        }
-
-        memcpy(vertex_data.data() + num_verts * step, verts, num_verts * sizeof(float3));
+        const packed_float3 *verts = attr_P->data_at_time_step<packed_float3>(step,
+                                                                              num_motion_steps);
+        std::copy_n(verts, num_verts, vertex_data.data() + num_verts * step);
       }
 
       /* Upload triangle data to GPU. */
@@ -1523,7 +1523,8 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       vector<device_ptr> vertex_ptrs;
       vertex_ptrs.reserve(num_motion_steps);
       for (size_t step = 0; step < num_motion_steps; ++step) {
-        vertex_ptrs.push_back(vertex_data.device_pointer + num_verts * step * sizeof(float3));
+        vertex_ptrs.push_back(vertex_data.device_pointer +
+                              num_verts * step * sizeof(packed_float3));
       }
 
       /* Force a single any-hit call, so shadow record-all behavior works correctly. */
@@ -1533,7 +1534,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       build_input.triangleArray.vertexBuffers = (CUdeviceptr *)vertex_ptrs.data();
       build_input.triangleArray.numVertices = num_verts;
       build_input.triangleArray.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
-      build_input.triangleArray.vertexStrideInBytes = sizeof(float4);
+      build_input.triangleArray.vertexStrideInBytes = sizeof(packed_float3);
       build_input.triangleArray.indexBuffer = index_data.device_pointer;
       build_input.triangleArray.numIndexTriplets = mesh->num_triangles();
       build_input.triangleArray.indexFormat = OPTIX_INDICES_FORMAT_UNSIGNED_INT3;
@@ -1558,8 +1559,11 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       }
 
       size_t num_motion_steps = 1;
-      Attribute *motion_points = pointcloud->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-      if (pipeline_options.usesMotionBlur && pointcloud->get_use_motion_blur() && motion_points) {
+      Attribute *attr_P = pointcloud->attributes.find(ATTR_STD_POSITION);
+      Attribute *attr_R = pointcloud->attributes.find(ATTR_STD_RADIUS);
+      if (pipeline_options.usesMotionBlur && pointcloud->get_use_motion_blur() &&
+          attr_P->has_motion())
+      {
         num_motion_steps = pointcloud->get_motion_steps();
       }
 
@@ -1568,44 +1572,22 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
       /* Get AABBs for each motion step. */
       for (size_t step = 0; step < num_motion_steps; ++step) {
-        /* The center step for motion vertices is not stored in the attribute. */
-        size_t center_step = (num_motion_steps - 1) / 2;
+        const packed_float3 *points = attr_P->data_at_time_step<packed_float3>(step,
+                                                                               num_motion_steps);
+        const float *radius = attr_R->data_at_time_step<float>(step, num_motion_steps);
 
-        if (step == center_step) {
-          const float3 *points = pointcloud->get_points().data();
-          const float *radius = pointcloud->get_radius().data();
+        for (size_t i = 0; i < num_points; ++i) {
+          const PointCloud::Point point = pointcloud->get_point(i);
+          BoundBox bounds = BoundBox::empty;
+          point.bounds_grow(points, radius, bounds);
 
-          for (size_t i = 0; i < num_points; ++i) {
-            const PointCloud::Point point = pointcloud->get_point(i);
-            BoundBox bounds = BoundBox::empty;
-            point.bounds_grow(points, radius, bounds);
-
-            const size_t index = step * num_points + i;
-            aabb_data[index].minX = bounds.min.x;
-            aabb_data[index].minY = bounds.min.y;
-            aabb_data[index].minZ = bounds.min.z;
-            aabb_data[index].maxX = bounds.max.x;
-            aabb_data[index].maxY = bounds.max.y;
-            aabb_data[index].maxZ = bounds.max.z;
-          }
-        }
-        else {
-          size_t attr_offset = (step > center_step) ? step - 1 : step;
-          const float4 *points = motion_points->data_float4() + attr_offset * num_points;
-
-          for (size_t i = 0; i < num_points; ++i) {
-            const PointCloud::Point point = pointcloud->get_point(i);
-            BoundBox bounds = BoundBox::empty;
-            point.bounds_grow(points[i], bounds);
-
-            const size_t index = step * num_points + i;
-            aabb_data[index].minX = bounds.min.x;
-            aabb_data[index].minY = bounds.min.y;
-            aabb_data[index].minZ = bounds.min.z;
-            aabb_data[index].maxX = bounds.max.x;
-            aabb_data[index].maxY = bounds.max.y;
-            aabb_data[index].maxZ = bounds.max.z;
-          }
+          const size_t index = step * num_points + i;
+          aabb_data[index].minX = bounds.min.x;
+          aabb_data[index].minY = bounds.min.y;
+          aabb_data[index].minZ = bounds.min.z;
+          aabb_data[index].maxX = bounds.max.x;
+          aabb_data[index].maxY = bounds.max.y;
+          aabb_data[index].maxZ = bounds.max.z;
         }
       }
 
