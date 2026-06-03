@@ -466,10 +466,6 @@ class PROJECT_OT_AssetLibraryAdd(Operator):
         return bpy.data.project is not None
 
     def execute(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
-            self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
-            return {'CANCELLED'}
-
         if self.directory == "":
             self.report({'ERROR'}, "Cannot create a project with an empty directory path.")
             return {'CANCELLED'}
@@ -479,8 +475,14 @@ class PROJECT_OT_AssetLibraryAdd(Operator):
             return {'CANCELLED'}
 
         # Create an initial names from the folder name
-        asset_name = os.path.basename(os.path.normpath(self.directory)).title()
-        bpy.data.project.asset_libraries.new(name=asset_name, directory=self.directory)
+        asset_library_path = os.path.normpath(self.directory)
+        asset_name = os.path.basename(asset_library_path).title()
+
+        # Replace base path with {project_root} if it is within the project folder.
+        root_path = bpy.data.project.root_path
+        if asset_library_path.startswith(root_path):
+            asset_library_path = "{project_root}" + asset_library_path[len(root_path):]
+        bpy.data.project.asset_libraries.new(name=asset_name, directory=asset_library_path)
 
         return {'FINISHED'}
 
@@ -507,10 +509,6 @@ class PROJECT_OT_AssetLibraryRemove(Operator):
         return len(bpy.data.project.asset_libraries) != 0
 
     def execute(self, context):
-        if not bpy.context.preferences.experimental.use_blender_projects:
-            self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
-            return {'CANCELLED'}
-
         if self.index >= len(bpy.data.project.asset_libraries):
             return {'CANCELLED'}
 
