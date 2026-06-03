@@ -15,17 +15,10 @@
 #include "BLI_build_config.h"
 #include "BLI_math_vector_swizzle.hh"
 #include "BLI_math_vector_unroll.hh"
+#include "BLI_unique_hash.hh"
 #include "BLI_utildefines.h"
 
 namespace blender {
-
-/* clang-format off */
-template<typename T>
-using as_uint_type = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
-                     std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t,
-                     std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t,
-                     std::conditional_t<sizeof(T) == sizeof(uint64_t), uint64_t, void>>>>;
-/* clang-format on */
 
 template<typename T, int Size, bool is_trivial_type> struct vec_struct_base {
   std::array<T, Size> values;
@@ -184,19 +177,21 @@ namespace math {
 template<typename T> uint64_t vector_hash(const T &vec)
 {
   BLI_STATIC_ASSERT(T::type_length <= 4, "Longer types need to implement vector_hash themself.");
-  const typename T::uint_type &uvec = *reinterpret_cast<const typename T::uint_type *>(&vec);
-  uint64_t result;
-  result = uvec[0] * uint64_t(435109);
-  if constexpr (T::type_length > 1) {
-    result ^= uvec[1] * uint64_t(380867);
+  if constexpr (T::type_length == 1) {
+    return get_default_hash(vec[0]);
   }
-  if constexpr (T::type_length > 2) {
-    result ^= uvec[2] * uint64_t(1059217);
+  else if constexpr (T::type_length == 2) {
+    return get_default_hash(vec[0], vec[1]);
   }
-  if constexpr (T::type_length > 3) {
-    result ^= uvec[3] * uint64_t(2002613);
+  else if constexpr (T::type_length == 3) {
+    return get_default_hash(vec[0], vec[1], vec[2]);
   }
-  return result;
+  else if constexpr (T::type_length == 4) {
+    return get_default_hash(vec[0], vec[1], vec[2], vec[3]);
+  }
+  else {
+    BLI_assert_unreachable_static();
+  }
 }
 
 }  // namespace math
@@ -210,7 +205,6 @@ struct VecBase : public vec_struct_base<T, Size, std::is_trivial_v<T>> {
   static constexpr int type_length = Size;
 
   using base_type = T;
-  using uint_type = VecBase<as_uint_type<T>, Size>;
 
   VecBase() = default;
 
@@ -728,6 +722,14 @@ struct VecBase : public vec_struct_base<T, Size, std::is_trivial_v<T>> {
   uint64_t hash() const
   {
     return math::vector_hash(*this);
+  }
+
+  void hash_unique(UniqueHashBytes &hash) const
+  {
+    unroll<Size>([&](auto i) {
+      const T &value = (*this)[i];
+      hash_unique_default(value, hash);
+    });
   }
 
   friend std::ostream &operator<<(std::ostream &stream, const VecBase &v)

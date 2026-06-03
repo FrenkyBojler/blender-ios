@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "BLI_unique_hash.hh"
 #include "BLI_utildefines.h"
 
 namespace blender {
@@ -117,11 +118,15 @@ template<typename ChannelStorageType, eSpace Space, eAlpha Alpha> class ColorRGB
 
   uint64_t hash() const
   {
-    uint64_t x1 = *reinterpret_cast<const uint32_t *>(&r);
-    uint64_t x2 = *reinterpret_cast<const uint32_t *>(&g);
-    uint64_t x3 = *reinterpret_cast<const uint32_t *>(&b);
-    uint64_t x4 = *reinterpret_cast<const uint32_t *>(&a);
-    return (x1 * 1283591) ^ (x2 * 850177) ^ (x3 * 735391) ^ (x4 * 442319);
+    return get_default_hash(r, g, b, a);
+  }
+
+  void hash_unique(UniqueHashBytes &hash) const
+  {
+    hash_unique_default(r, hash);
+    hash_unique_default(g, hash);
+    hash_unique_default(b, hash);
+    hash_unique_default(a, hash);
   }
 };
 
