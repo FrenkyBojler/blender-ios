@@ -185,18 +185,18 @@ static void test_ray_tracing_instance_mask()
   EXPECT_TRUE(blas->build());
 
   TopLevelASPtr tlas(GPU_ray_tracing_tlas_alloc(__func__));
-  float4x4 mat_x_min = math::from_location<float4x4>(float3(-2.0f, 0.0f, 0.0f));
-  float4x4 mat_x_max = math::from_location<float4x4>(float3(2.0f, 0.0f, 0.0f));
-  float4x4 mat_y_min = math::from_location<float4x4>(float3(0.0f, -2.0f, 0.0f));
-  float4x4 mat_y_max = math::from_location<float4x4>(float3(0.0f, 2.0f, 0.0f));
-  float4x4 mat_z_min = math::from_location<float4x4>(float3(0.0f, 0.0f, -2.0f));
-  float4x4 mat_z_max = math::from_location<float4x4>(float3(0.0f, 0.0f, 2.0f));
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_x_min, 0x01).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_x_max, 0x02).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_y_min, 0x04).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_y_max, 0x08).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_z_min, 0x10).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_z_max, 0x20).has_value());
+  float4x4 mat_x_neg = math::from_location<float4x4>(float3(-2.0f, 0.0f, 0.0f));
+  float4x4 mat_x_pos = math::from_location<float4x4>(float3(2.0f, 0.0f, 0.0f));
+  float4x4 mat_y_neg = math::from_location<float4x4>(float3(0.0f, -2.0f, 0.0f));
+  float4x4 mat_y_pos = math::from_location<float4x4>(float3(0.0f, 2.0f, 0.0f));
+  float4x4 mat_z_neg = math::from_location<float4x4>(float3(0.0f, 0.0f, -2.0f));
+  float4x4 mat_z_pos = math::from_location<float4x4>(float3(0.0f, 0.0f, 2.0f));
+  EXPECT_TRUE(tlas->add_instance(*blas, mat_x_neg, 0x01).has_value());
+  EXPECT_TRUE(tlas->add_instance(*blas, mat_x_pos, 0x02).has_value());
+  EXPECT_TRUE(tlas->add_instance(*blas, mat_y_neg, 0x04).has_value());
+  EXPECT_TRUE(tlas->add_instance(*blas, mat_y_pos, 0x08).has_value());
+  EXPECT_TRUE(tlas->add_instance(*blas, mat_z_neg, 0x10).has_value());
+  EXPECT_TRUE(tlas->add_instance(*blas, mat_z_pos, 0x20).has_value());
   EXPECT_TRUE(tlas->build());
 
   Vector<Ray> rays;
@@ -285,13 +285,13 @@ static void test_ray_tracing_instance_update()
   EXPECT_TRUE(blas->build());
 
   TopLevelASPtr tlas(GPU_ray_tracing_tlas_alloc(__func__));
-  float4x4 mat_x_min = math::from_location<float4x4>(float3(-2.0f, 0.0f, 0.0f));
-  float4x4 mat_x_max = math::from_location<float4x4>(float3(2.0f, 0.0f, 0.0f));
-  float4x4 mat_y_min = math::from_location<float4x4>(float3(0.0f, -2.0f, 0.0f));
-  float4x4 mat_y_max = math::from_location<float4x4>(float3(0.0f, 2.0f, 0.0f));
-  float4x4 mat_z_min = math::from_location<float4x4>(float3(0.0f, 0.0f, -2.0f));
-  float4x4 mat_z_max = math::from_location<float4x4>(float3(0.0f, 0.0f, 2.0f));
-  InstanceID instance_id = tlas->add_instance(*blas, mat_x_min).value();
+  float4x4 mat_x_neg = math::from_location<float4x4>(float3(-2.0f, 0.0f, 0.0f));
+  float4x4 mat_x_pos = math::from_location<float4x4>(float3(2.0f, 0.0f, 0.0f));
+  float4x4 mat_y_neg = math::from_location<float4x4>(float3(0.0f, -2.0f, 0.0f));
+  float4x4 mat_y_pos = math::from_location<float4x4>(float3(0.0f, 2.0f, 0.0f));
+  float4x4 mat_z_neg = math::from_location<float4x4>(float3(0.0f, 0.0f, -2.0f));
+  float4x4 mat_z_pos = math::from_location<float4x4>(float3(0.0f, 0.0f, 2.0f));
+  InstanceID instance_id = tlas->add_instance(*blas, mat_x_neg).value();
   EXPECT_TRUE(tlas->build());
 
   Vector<Ray> rays;
@@ -303,7 +303,7 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_x_max));
+  ASSERT_TRUE(tlas->update_instance(instance_id, mat_x_pos));
   EXPECT_TRUE(tlas->build());
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
@@ -314,7 +314,7 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_y_min));
+  ASSERT_TRUE(tlas->update_instance(instance_id, mat_y_neg));
   EXPECT_TRUE(tlas->build());
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
@@ -325,7 +325,7 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_y_max));
+  ASSERT_TRUE(tlas->update_instance(instance_id, mat_y_pos));
   EXPECT_TRUE(tlas->build());
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
@@ -336,7 +336,7 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_z_min));
+  ASSERT_TRUE(tlas->update_instance(instance_id, mat_z_neg));
   EXPECT_TRUE(tlas->build());
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
@@ -347,7 +347,7 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_z_max));
+  ASSERT_TRUE(tlas->update_instance(instance_id, mat_z_pos));
   EXPECT_TRUE(tlas->build());
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
