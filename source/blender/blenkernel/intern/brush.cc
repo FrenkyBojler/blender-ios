@@ -47,6 +47,8 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
+#include "PRF_profile.hh"
+
 #include "RE_texture.h" /* RE_texture_evaluate */
 
 #include "BLO_read_write.hh"
@@ -1294,8 +1296,8 @@ bool BKE_brush_use_locked_size(const Paint *paint, const Brush *brush)
 {
   const short us_flag = paint->unified_paint_settings.flag;
 
-  return (us_flag & UNIFIED_PAINT_SIZE) ? (us_flag & UNIFIED_PAINT_BRUSH_LOCK_SIZE) :
-                                          (brush->flag & BRUSH_LOCK_SIZE);
+  return (us_flag & UNIFIED_PAINT_SIZE) ? (us_flag & UNIFIED_PAINT_BRUSH_LOCK_SIZE) != 0 :
+                                          (brush->flag & BRUSH_LOCK_SIZE) != 0;
 }
 
 bool BKE_brush_use_size_pressure(const Brush *brush)
@@ -1479,6 +1481,7 @@ void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
                                   const float brush_radius,
                                   const MutableSpan<float> factors)
 {
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(factors.size() == distances.size());
 
   const float radius_rcp = math::rcp(brush_radius);
@@ -1709,7 +1712,7 @@ ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool displa
 
   BKE_curvemapping_init(br->curve_distance_falloff);
 
-  ImBuf *im = IMB_allocImBuf(side, side, 32, IB_float_data);
+  ImBuf *im = IMB_allocImBuf(side, side, ImBufFlags::FloatData);
 
   const bool have_texture = brush_gen_texture(br, side, secondary, im->float_data_for_write());
 

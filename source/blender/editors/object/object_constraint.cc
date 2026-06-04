@@ -171,7 +171,7 @@ static void set_constraint_nth_target(bConstraint *con,
   int targets_num, i;
 
   if (BKE_constraint_targets_get(con, &targets)) {
-    targets_num = BLI_listbase_count(&targets);
+    targets_num = targets.count();
 
     if (index < 0) {
       if (abs(index) < targets_num) {
@@ -1299,7 +1299,7 @@ void constraint_active_set(Object *ob, bConstraint *con)
 void constraint_update(Main *bmain, Object *ob)
 {
   if (ob->pose) {
-    BKE_pose_update_constraint_flags(ob->pose);
+    BKE_pose_update_constraint_flags(*ob);
   }
 
   object_test_constraints(bmain, ob);
@@ -2419,7 +2419,7 @@ static wmOperatorStatus constraint_add_exec(bContext *C,
   object_test_constraints(bmain, ob);
 
   if (pchan) {
-    BKE_pose_update_constraint_flags(ob->pose);
+    BKE_pose_update_constraint_flags(*ob);
   }
 
   /* force depsgraph to get recalculated since new relationships added */

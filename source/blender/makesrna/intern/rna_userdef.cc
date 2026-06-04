@@ -81,7 +81,7 @@ static const EnumPropertyItem rna_enum_date_format_items[] = {
      "DEFAULT",
      0,
      "Default",
-     "Default date formating based on output language"},
+     "Default date formatting based on output language"},
     {int(date_string::DateFormat::LE_Slash),
      "LE_SLASH",
      0,
@@ -228,30 +228,6 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static const EnumPropertyItem rna_enum_preferences_asset_import_method_items[] = {
-    {ASSET_IMPORT_LINK, "LINK", ICON_LINK_BLEND, "Link", "Import the assets as linked data-block"},
-    {ASSET_IMPORT_APPEND,
-     "APPEND",
-     ICON_APPEND_BLEND,
-     "Append",
-     "Import the assets as copied data-block, with no link to the original asset data-block"},
-    {ASSET_IMPORT_APPEND_REUSE,
-     "APPEND_REUSE",
-     ICON_APPEND_BLEND,
-     "Append (Reuse Data)",
-     "Import the assets as copied data-block while avoiding multiple copies of nested, "
-     "typically heavy data. For example the textures of a material asset, or the mesh of an "
-     "object asset, don't have to be copied every time this asset is imported. The instances of "
-     "the asset share the data instead."},
-    {ASSET_IMPORT_PACK,
-     "PACK",
-     ICON_PACKAGE,
-     "Pack",
-     "Import the asset as linked data-block, and pack it in the current file (ensures that it "
-     "remains unchanged in case the library data is modified, is not available anymore, etc.)"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -382,7 +358,6 @@ static void rna_userdef_gpu_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
   WM_main_add_notifier(NC_WINDOW, nullptr);             /* full redraw */
   WM_main_add_notifier(NC_SCREEN | NA_EDITED, nullptr); /* refresh region sizes */
-  WM_main_add_notifier(NC_UI | ND_UI_FONT, nullptr);
   USERDEF_TAG_DIRTY;
 }
 
@@ -430,7 +405,7 @@ static void rna_userdef_language_update(Main *bmain, Scene * /*scene*/, PointerR
   }
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_TRANSLATION_UPDATE_POST);
-  WM_main_add_notifier(NC_UI, nullptr);
+  WM_main_add_notifier(NC_UI | ND_UI_LANG, nullptr);
   USERDEF_TAG_DIRTY;
 }
 
@@ -474,7 +449,13 @@ static void rna_userdef_asset_libraries_refresh(bContext *C, PointerRNA *ptr)
   rna_userdef_update(CTX_data_main(C), CTX_data_scene(C), ptr);
 }
 
-static void rna_userdef_asset_library_remote_sync_update(bContext *C, PointerRNA *ptr)
+static void rna_userdef_asset_library_remote_url_set(PointerRNA *ptr, const char *value)
+{
+  bUserAssetLibrary *library = (bUserAssetLibrary *)ptr->data;
+  BKE_preferences_remote_asset_library_url_set(library, value);
+}
+
+static void rna_userdef_asset_library_remote_url_update(bContext *C, PointerRNA *ptr)
 {
   bUserAssetLibrary *library = (bUserAssetLibrary *)ptr->data;
   AssetLibraryReference library_ref = blender::ed::asset::user_library_to_library_ref(*library);
@@ -725,7 +706,7 @@ static void rna_userdef_asset_library_remove(bContext *C, ReportList *reports, P
   ed::asset::list::clear_all_library(C);
 
   /* Update active library index to be in range. */
-  const int count_remaining = BLI_listbase_count(&U.asset_libraries);
+  const int count_remaining = U.asset_libraries.count();
   CLAMP(U.active_asset_library, 0, count_remaining - 1);
 
   /* Trigger refresh for the Asset Browser. */
@@ -1514,7 +1495,7 @@ static const EnumPropertyItem *rna_userdef_date_format_itemf(bContext * /*C*/,
     constexpr std::tm test = {59, 59, 11, 20, 2, 60, 5, 139, 0}; /* March 20, 1960 11:59:59 */
     BLI_assert(i <= ARRAY_SIZE(date_format_names) - 1);
     date_format_names[i] = date_string::date(
-        &test, (i == 0) ? lang : nullptr, date_string::DateFormat(item->value));
+        test, (i == 0) ? lang : nullptr, date_string::DateFormat(item->value));
     EnumPropertyItem new_item = {
         item->value, item->identifier, 0, date_format_names[i].c_str(), item->description};
     RNA_enum_item_add(&result, &totitem, &new_item);
@@ -1633,9 +1614,7 @@ static const EnumPropertyItem *rna_preference_asset_libray_import_method_itemf(
 
   EnumPropertyItem *items = nullptr;
   int items_num = 0;
-  for (const EnumPropertyItem *item = rna_enum_preferences_asset_import_method_items;
-       item->identifier;
-       item++)
+  for (const EnumPropertyItem *item = rna_enum_asset_import_method_items; item->identifier; item++)
   {
     if ((library->flag & ASSET_LIBRARY_USE_REMOTE_URL) != 0) {
       if (item->value == ASSET_IMPORT_LINK) {
@@ -2968,6 +2947,13 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Major Grid Lines", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "grid_axis_brightness", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "grid_axis_brightness");
+  RNA_def_property_float_default(prop, 0.46);
+  RNA_def_property_ui_text(prop, "Grid Axis Brightness", "Brightness of the grid axis lines");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "clipping_border_3d", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Clipping Border", "");
@@ -4076,19 +4062,19 @@ static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
       prop, "Linear Interpolation", "Color of lines showing linear interpolation mode");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "anim_interpolation_constant", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
       prop, "Constant Interpolation", "Color of lines showing constant interpolation mode");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "anim_interpolation_other", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(
       prop, "Other Interpolation", "Color of lines showing easings & dynamic interpolation mode");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   prop = RNA_def_property(srna, "simulated_frames", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "simulated_frames");
@@ -5329,12 +5315,10 @@ static void rna_def_userdef_view(BlenderRNA *brna)
                            "manually if Auto-Save Preferences is disabled");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-  prop = RNA_def_property(srna, "show_online_assets", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag2", USER_UIFLAG2_SHOW_ONLINE_ASSETS);
+  prop = RNA_def_property(srna, "asset_access", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_asset_access_items);
   RNA_def_property_ui_text(
-      prop,
-      "Show Online Assets",
-      "When internet access is enabled, load and display online assets in asset shelves");
+      prop, "Asset Access", "Choose the visibility of online and offline assets");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   static const EnumPropertyItem header_align_items[] = {
@@ -6994,12 +6978,14 @@ static void rna_def_userdef_filepaths_asset_library(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "remote_url", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "remote_url");
+  RNA_def_property_string_funcs(
+      prop, nullptr, nullptr, "rna_userdef_asset_library_remote_url_set");
   RNA_def_property_ui_text(prop, "URL", "Remote URL to the asset library");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_update(prop, 0, "rna_userdef_asset_library_remote_sync_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_asset_library_remote_url_update");
 
   prop = RNA_def_property(srna, "import_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_preferences_asset_import_method_items);
+  RNA_def_property_enum_items(prop, rna_enum_asset_import_method_items);
   RNA_def_property_enum_funcs(
       prop, nullptr, nullptr, "rna_preference_asset_libray_import_method_itemf");
   RNA_def_property_enum_default_func(prop, "rna_preference_asset_libray_import_method_default");
@@ -7693,12 +7679,8 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       prop, "Shader Node Previews", "Enables previews in the shader node editor");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
 
-  prop = RNA_def_property(srna, "use_geometry_bundle", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop,
-                           "Bundle in Geometry",
-                           "Support storing custom bundles in a geometry in Geometry Nodes");
-
   prop = RNA_def_property(srna, "use_remote_asset_libraries", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop, "Remote Asset Libraries", "Enable asset libraries served over HTTP/HTTPS");
 
@@ -7706,10 +7688,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Collection Import", "Enables a file importer to be configured on a Collection");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
-
-  prop = RNA_def_property(srna, "use_geometry_nodes_hair_dynamics", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop, "Geometry Nodes Hair Dynamics", "Enable hair dynamics simulation in geometry nodes");
 
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(

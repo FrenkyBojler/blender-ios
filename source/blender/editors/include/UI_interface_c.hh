@@ -95,7 +95,7 @@ struct Block;
 /**
  * Character used for splitting labels (right align text after this character).
  * Users should never see this character.
- * Only applied when #BUT_HAS_SEP_CHAR flag is enabled, see it's doc-string for details.
+ * Only applied when #BUT_HAS_SEP_CHAR flag is enabled, see it's docstring for details.
  */
 #define UI_SEP_CHAR '|'
 #define UI_SEP_CHAR_S "|"
@@ -350,6 +350,8 @@ enum ButtonFlag {
   BUT_NODE_LINK = 1 << 10,
   BUT_NODE_ACTIVE = 1 << 11,
   BUT_DRAG_LOCK = 1 << 12,
+  BUT_DRAG_LOCK_X = BUT_DRAG_LOCK | 1 << 21,
+
   /** Grayed out and un-editable. */
   BUT_DISABLED = 1 << 13,
 
@@ -361,7 +363,6 @@ enum ButtonFlag {
   BUT_INACTIVE = 1 << 18,
   BUT_LAST_ACTIVE = 1 << 19,
   BUT_UNDO = 1 << 20,
-  /* UNUSED = 1 << 21, */
   BUT_NO_UTF8 = 1 << 22,
 
   /** For popups, pressing return activates this button, overriding the highlighted button.
@@ -770,7 +771,6 @@ Vector<StringRef> text_clip_multiline_middle(const uiFontStyle *fstyle,
 struct SearchItems;
 
 using ButtonHandleFunc = void (*)(bContext *C, void *arg1, void *arg2);
-using ButtonHandleRenameFunc = void (*)(bContext *C, void *arg, char *origstr);
 using ButtonHandleNFunc = void (*)(bContext *C, void *argN, void *arg2);
 using ButtonHandleHoldFunc = void (*)(bContext *C, ARegion *butregion, Button *but);
 using ButtonCompleteFunc = int (*)(bContext *C, char *str, void *arg);
@@ -1572,6 +1572,7 @@ Button *uiDefIconTextButO_ptr(Block *block,
                               short height,
                               std::optional<StringRef> tip);
 
+void button_enum_prop_value_set(Button *but, int retval);
 void button_retval_set(Button *but, int retval);
 
 void button_operator_set(Button *but,
@@ -1770,7 +1771,8 @@ enum AutoPropButsReturn {
 ENUM_OPERATORS(AutoPropButsReturn);
 
 /**
- * \param button_type_override \parblock
+ * \param button_type_override:
+ * \parblock
  * Overrides the default button type defined for some properties:
  * - Int/Float properties allows #ButtonType::Num or #ButtonType::NumSlider.
  * - Enum properties allows #ButtonType::Menu or #ButtonType::SearchMenu.
@@ -1933,9 +1935,10 @@ void block_funcN_set(Block *block,
                      ButtonArgNFree func_argN_free_fn = MEM_delete_void,
                      ButtonArgNCopy func_argN_copy_fn = MEM_dupalloc_void);
 
-void button_func_rename_set(Button *but, ButtonHandleRenameFunc func, void *arg1);
-void button_func_rename_full_set(Button *but,
-                                 std::function<void(std::string &new_name)> rename_full_func);
+void text_button_func_rename_set(
+    Button *but, std::function<void(bContext &C, StringRefNull oldname)> rename_func);
+void text_button_func_rename_full_set(
+    Button *but, std::function<void(StringRefNull new_name)> rename_full_func);
 void button_func_set(Button *but, ButtonHandleFunc func, void *arg1, void *arg2);
 void button_funcN_set(Button *but,
                       ButtonHandleNFunc funcN,
@@ -2035,8 +2038,7 @@ void tooltip_text_field_add(TooltipData &data,
                             const bool is_pad = false);
 
 /**
- * \param image: Image buffer (duplicated, ownership is *not* transferred to `data`).
- * \param image_size: Display size for the image (pixels without UI scale applied).
+ * \param image_data: Image buffer (duplicated, ownership is *not* transferred to `data`).
  */
 void tooltip_image_field_add(TooltipData &data, const TooltipImage &image_data);
 
@@ -2232,7 +2234,9 @@ void panel_category_clear_all(ARegion *region);
 /**
  * Draw vertical tabs on the left side of the region, one tab per category.
  */
-void panel_category_tabs_draw_all(ARegion *region, const char *category_id_active);
+void panel_category_tabs_draw_all(const bContext *C,
+                                  ARegion *region,
+                                  const char *category_id_active);
 
 void panel_stop_animation(const bContext *C, Panel *panel);
 
@@ -2562,7 +2566,7 @@ void template_color_picker(Layout *layout,
                            bool lock,
                            bool lock_luminosity,
                            bool cubic);
-void template_palette(Layout *layout, PointerRNA *ptr, StringRefNull propname, bool colors);
+void template_palette(Layout *layout, PointerRNA *ptr, StringRefNull propname);
 void template_crypto_picker(Layout *layout, PointerRNA *ptr, StringRefNull propname, int icon);
 /**
  * TODO: for now, grouping of layers is determined by dividing up the length of
@@ -3015,10 +3019,6 @@ ARegion *tooltip_create_from_button_or_extra_icon(bContext *C,
                                                   ButtonExtraOpIcon *extra_icon,
                                                   bool is_quick_tip);
 ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz);
-ARegion *tooltip_create_from_panel_category(bContext *C,
-                                            const std::string &category_name,
-                                            const int x,
-                                            const int y);
 
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 

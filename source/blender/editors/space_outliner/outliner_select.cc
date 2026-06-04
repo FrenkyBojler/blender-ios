@@ -163,7 +163,7 @@ static void do_outliner_item_mode_toggle_generic(bContext *C,
                                                  const TreeViewContext &tvc,
                                                  Base *base)
 {
-  const eObjectMode active_mode = eObjectMode(tvc.obact->mode);
+  const eObjectMode active_mode = tvc.obact->mode;
   ED_undo_group_begin(C);
 
   if (object::mode_set(C, OB_MODE_OBJECT)) {
@@ -333,7 +333,7 @@ static void tree_element_object_activate(bContext *C,
   if (scene->toolsettings->object_flag & SCE_OBJECT_MODE_LOCK) {
     if (base != nullptr) {
       Object *obact = BKE_view_layer_active_object_get(view_layer);
-      const eObjectMode object_mode = obact ? eObjectMode(obact->mode) : OB_MODE_OBJECT;
+      const eObjectMode object_mode = obact ? obact->mode : OB_MODE_OBJECT;
       if (base && !BKE_object_is_mode_compat(base->object, object_mode)) {
         if (object_mode == OB_MODE_OBJECT) {
           Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -578,19 +578,20 @@ static void tree_element_posechannel_activate(bContext *C,
     }
   }
 
+  Bone *bone = pchan->bone_get(*ob);
   if ((set == OL_SETSEL_EXTEND) && (pchan->flag & POSE_SELECTED)) {
     animrig::bone_deselect(pchan);
   }
   else {
-    if (animrig::bone_is_visible(arm, pchan)) {
+    if (animrig::bone_is_visible(arm, {pchan, bone})) {
       animrig::bone_select(pchan);
     }
-    arm->act_bone = pchan->bone;
+    arm->act_bone = bone;
   }
 
   if (recursive) {
     /* Recursive select/deselect */
-    do_outliner_bone_select_recursive(arm, pchan->bone, (pchan->flag & POSE_SELECTED) != 0);
+    do_outliner_bone_select_recursive(arm, bone, (pchan->flag & POSE_SELECTED) != 0);
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, ob);
@@ -854,6 +855,11 @@ void tree_element_activate(bContext *C,
   }
 }
 
+static void tree_elemment_shapekey_active_set(Object &ob, TreeElement &te)
+{
+  ob.shapenr = te.index + 1;
+}
+
 void tree_element_type_active_set(bContext *C,
                                   const TreeViewContext &tvc,
                                   TreeElement *te,
@@ -915,6 +921,8 @@ void tree_element_type_active_set(bContext *C,
     case TSE_LAYER_COLLECTION:
       tree_element_layer_collection_activate(C, te);
       break;
+    case TSE_SHAPE_KEY_BLOCK:
+      tree_elemment_shapekey_active_set(*tvc.obact, *te);
     default:
       break;
   }
@@ -1189,6 +1197,14 @@ eOLDrawState tree_element_active_state_get(const TreeViewContext &tvc,
   return OL_DRAWSEL_NONE;
 }
 
+static eOLDrawState tree_element_shapekey_state_get(const Object &ob, const TreeElement *te)
+{
+  if (ob.shapenr == te->index + 1) {
+    return OL_DRAWSEL_NORMAL;
+  }
+  return OL_DRAWSEL_NONE;
+}
+
 eOLDrawState tree_element_type_active_state_get(const TreeViewContext &tvc,
                                                 const TreeElement *te,
                                                 const TreeStoreElem *tselem)
@@ -1231,6 +1247,8 @@ eOLDrawState tree_element_type_active_state_get(const TreeViewContext &tvc,
       return tree_element_layer_collection_state_get(tvc.layer_collection, te);
     case TSE_BONE_COLLECTION:
       return tree_element_bone_collection_state_get(te, tselem);
+    case TSE_SHAPE_KEY_BLOCK:
+      return tree_element_shapekey_state_get(*tvc.obact, te);
     default:
       break;
   }
@@ -1352,7 +1370,7 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
         if (tselem->type != TSE_MODIFIER_BASE) {
           ModifierData *md = static_cast<ModifierData *>(te->directdata);
 
-          switch (ModifierType(md->type)) {
+          switch (md->type) {
             case eModifierType_ParticleSystem:
               context = BCONTEXT_PARTICLE;
               break;
@@ -2176,7 +2194,7 @@ static TreeElement *outliner_walk_right(SpaceOutliner *space_outliner,
   TreeStoreElem *tselem = TREESTORE(te);
 
   /* Only walk down a level if the element is open and not toggling expand */
-  if (!toggle_all && TSELEM_OPEN(tselem, space_outliner) && !BLI_listbase_is_empty(&te->subtree)) {
+  if (!toggle_all && TSELEM_OPEN(tselem, space_outliner) && !te->subtree.is_empty()) {
     te = static_cast<TreeElement *>(te->subtree.first);
   }
   else {

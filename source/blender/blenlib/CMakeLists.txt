@@ -409,6 +409,7 @@ set(SRC
   BLI_vector_set_slots.hh
   BLI_virtual_array.hh
   BLI_virtual_array_fwd.hh
+  BLI_virtual_array_range_spans.hh
   BLI_virtual_vector_array.hh
   BLI_voxel.h
   BLI_winstuff.h
@@ -426,6 +427,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::wcwidth
   PRIVATE bf::intern::atomic
+  PUBLIC bf::intern::profile
   PUBLIC bf::dependencies::fmt
   PRIVATE bf::dependencies::eigen
   PUBLIC bf::dependencies::optional::tbb

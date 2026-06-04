@@ -685,16 +685,16 @@ static bool parent_set_with_depsgraph(ReportList *reports,
       break;
     case PAR_BONE:
       ob->partype = PARBONE; /* NOTE: DNA define, not operator property. */
-      if (pchan->bone) {
-        pchan->bone->flag &= ~BONE_RELATIVE_PARENTING;
-        pchan_eval->bone->flag &= ~BONE_RELATIVE_PARENTING;
+      if (Bone *bone = pchan->bone_get(*par)) {
+        bone->flag &= ~BONE_RELATIVE_PARENTING;
+        pchan_eval->bone_get(*parent_eval)->flag &= ~BONE_RELATIVE_PARENTING;
       }
       break;
     case PAR_BONE_RELATIVE:
       ob->partype = PARBONE; /* NOTE: DNA define, not operator property. */
-      if (pchan->bone) {
-        pchan->bone->flag |= BONE_RELATIVE_PARENTING;
-        pchan_eval->bone->flag |= BONE_RELATIVE_PARENTING;
+      if (Bone *bone = pchan->bone_get(*par)) {
+        bone->flag |= BONE_RELATIVE_PARENTING;
+        pchan_eval->bone_get(*parent_eval)->flag |= BONE_RELATIVE_PARENTING;
       }
       break;
     case PAR_VERTEX:
@@ -807,14 +807,14 @@ bool parent_set(ReportList *reports,
                                    vert_par);
 }
 
-static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3], bool is_tri)
+static void parent_set_vert_find(KDTree<float3> *tree, Object *child, int vert_par[3], bool is_tri)
 {
   const float *co_find = child->object_to_world().location();
   if (is_tri) {
-    KDTreeNearest_3d nearest[3];
+    KDTreeNearest<float3> nearest[3];
     int tot;
 
-    tot = kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
+    tot = kdtree_find_nearest_n<float3>(tree, co_find, nearest, 3);
     BLI_assert(tot == 3);
     UNUSED_VARS(tot);
 
@@ -822,10 +822,10 @@ static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3]
     vert_par[1] = nearest[1].index;
     vert_par[2] = nearest[2].index;
 
-    BLI_assert(min_iii(UNPACK3(vert_par)) >= 0);
+    BLI_assert(std::min({UNPACK3(vert_par)}) >= 0);
   }
   else {
-    vert_par[0] = kdtree_3d_find_nearest(tree, co_find, nullptr);
+    vert_par[0] = kdtree_find_nearest<float3>(tree, co_find, nullptr);
     BLI_assert(vert_par[0] >= 0);
     vert_par[1] = 0;
     vert_par[2] = 0;
@@ -876,7 +876,7 @@ static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting
 
 static bool parent_set_vertex_parent_with_kdtree(bContext *C,
                                                  ParentingContext *parenting_context,
-                                                 KDTree_3d *tree)
+                                                 KDTree<float3> *tree)
 {
   int vert_par[3] = {0, 0, 0};
 
@@ -907,23 +907,24 @@ static bool parent_set_vertex_parent_with_kdtree(bContext *C,
 
 static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_context)
 {
-  KDTree_3d *tree = nullptr;
+  KDTree<float3> *tree = nullptr;
   int tree_tot;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *par_eval = DEG_get_evaluated(depsgraph, parenting_context->par);
 
   tree = BKE_object_as_kdtree(par_eval, &tree_tot);
-  BLI_assert(tree != nullptr);
+  /* Zero & null for unsupported object types. */
+  BLI_assert((tree != nullptr) || (tree_tot == 0));
 
   if (tree_tot < (parenting_context->is_vertex_tri ? 3 : 1)) {
     BKE_report(parenting_context->reports, RPT_ERROR, "Not enough vertices for vertex-parent");
-    kdtree_3d_free(tree);
+    kdtree_free<float3>(tree);
     return false;
   }
 
   const bool ok = parent_set_vertex_parent_with_kdtree(C, parenting_context, tree);
-  kdtree_3d_free(tree);
+  kdtree_free<float3>(tree);
   return ok;
 }
 
@@ -2728,7 +2729,7 @@ static bool make_override_library_poll(bContext *C)
 {
   Base *base_act = CTX_data_active_base(C);
   /* If the active object is not selected, do nothing (operators rely on selection too, they will
-   * misbehave if the active object is not also selected, see e.g. #120701. */
+   * misbehave if the active object is not also selected, see e.g. #120701). */
   if ((base_act == nullptr) || ((base_act->flag & BASE_SELECTED) == 0)) {
     return false;
   }
@@ -2785,7 +2786,7 @@ static bool reset_clear_override_library_poll(bContext *C)
 {
   Base *base_act = CTX_data_active_base(C);
   /* If the active object is not selected, do nothing (operators rely on selection too, they will
-   * misbehave if the active object is not also selected, see e.g. #120701. */
+   * misbehave if the active object is not also selected, see e.g. #120701). */
   if ((base_act == nullptr) || ((base_act->flag & BASE_SELECTED) == 0)) {
     return false;
   }
