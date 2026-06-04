@@ -209,7 +209,7 @@ struct ImBuf {
 
   /** Image Metadata */
   IDProperty *metadata_ptr = nullptr;
-  /** Implicit-sharing owner for #metadata_ptr/. */
+  /** Implicit-sharing owner for #metadata_ptr. */
   ImplicitSharingPtr<> metadata_sharing_info;
 
   /** OpenEXR handle. */
