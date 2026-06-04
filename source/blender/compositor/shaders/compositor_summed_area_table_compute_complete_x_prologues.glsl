@@ -8,8 +8,9 @@ COMPUTE_SHADER_CREATE_INFO(compositor_summed_area_table_compute_complete_x_prolo
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
-/* Shared memory for initializing the reduction data. */
-shared float4 reduction_data[gl_WorkGroupSize.x];
+/* A shared memory to sum the prologues using parallel reduction. See the parallel reduction shader
+ * `compositor_parallel_reduction.glsl` for more information. */
+shared float4 complete_prologue[gl_WorkGroupSize.x];
 
 /* See the compute_complete_x_prologues function for a description of this shader. */
 void main()
@@ -32,23 +33,36 @@ void main()
       imageStore(complete_x_prologues_sum_img, int2(y, 0), float4(0.0f));
     }
 
-    /* Load initial values into shared memory. */
-    if (gl_LocalInvocationIndex < gl_WorkGroupSize.x) {
-      reduction_data[gl_LocalInvocationIndex] = accumulated_color;
-    }
+    /* Synchronize between iterations: ensure the read of complete_prologue[0] from the previous
+     * iteration is visible before any invocation writes to the shared array for the next
+     * iteration. */
     barrier();
 
-    /* Only thread 0 accumulates all shared values into a single local variable.
-     * Only reads from shared memory (no writes), so there is no store-load data race. */
-    if (gl_LocalInvocationIndex == 0) {
-      float4 reduced_sum = reduction_data[0];
-      for (int i = 1; i < int(gl_WorkGroupSize.x); i++) {
-        reduced_sum += reduction_data[i];
+    /* A parallel reduction loop to sum the prologues. This is exactly the same as the parallel
+     * reduction loop in the shader `compositor_parallel_reduction.glsl`, see that shader for
+     * more information. */
+    complete_prologue[gl_LocalInvocationIndex] = accumulated_color;
+    for (uint stride = gl_WorkGroupSize.x / 2; stride > 0; stride /= 2) {
+      barrier();
+      float4 my_value = complete_prologue[gl_LocalInvocationIndex];
+      float4 neighbor_value = float4(0.0f);
+      if (gl_LocalInvocationIndex + stride < gl_WorkGroupSize.x) {
+        neighbor_value = complete_prologue[gl_LocalInvocationIndex + stride];
       }
+      barrier();
+
+      if (gl_LocalInvocationIndex < stride) {
+        complete_prologue[gl_LocalInvocationIndex] = my_value + neighbor_value;
+      }
+    }
+
+    barrier();
+    if (gl_LocalInvocationIndex == 0) {
       /* Note that we store using a transposed texel, but that is only to undo the transposition
        * mentioned above. Also note that we start from the second row because the first row is
        * set to zero as mentioned above. */
-      imageStore(complete_x_prologues_sum_img, int2(y, gl_WorkGroupID.x + 1), reduced_sum);
+      float4 sum = complete_prologue[0];
+      imageStore(complete_x_prologues_sum_img, int2(y, gl_WorkGroupID.x + 1), sum);
     }
   }
 }
