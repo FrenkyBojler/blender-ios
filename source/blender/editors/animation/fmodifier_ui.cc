@@ -215,9 +215,6 @@ static PanelType *fmodifier_subpanel_register(ARegionType *region_type,
 /** \name General UI Callbacks and Drawing
  * \{ */
 
-#define B_REDR 1
-#define B_FMODIFIER_REDRAW 20
-
 /* Callback to remove the given modifier. */
 struct FModifierDeleteContext {
   ID *owner_id;
@@ -328,7 +325,6 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
                                  0.0,
                                  0.0,
                                  TIP_("Delete Modifier"));
-  button_retval_set(but, B_REDR);
   FModifierDeleteContext *ctx = MEM_new_uninitialized<FModifierDeleteContext>(__func__);
   ctx->owner_id = owner_id;
   ctx->modifiers = fmodifier_list_space_specific(C);
@@ -690,8 +686,8 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
                              0,
                              0,
                              TIP_("Add a new control-point to the envelope on the current frame"));
-  button_retval_set(but, B_FMODIFIER_REDRAW);
   button_func_set(but, fmod_envelope_addpoint_cb, env, nullptr);
+  button_func_set(but, [](bContext &C) { WM_event_add_notifier(&C, NC_ANIMATION, nullptr); });
 
   col = &layout.column(false);
   col->use_property_split_set(false);
@@ -720,8 +716,8 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
                        0.0,
                        0.0,
                        TIP_("Delete envelope control point"));
-    button_retval_set(but, B_FMODIFIER_REDRAW);
     button_func_set(but, fmod_envelope_deletepoint_cb, env, POINTER_FROM_INT(i));
+    button_func_set(but, [](bContext &C) { WM_event_add_notifier(&C, NC_ANIMATION, nullptr); });
     block_align_begin(block);
   }
 
