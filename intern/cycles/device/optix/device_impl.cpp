@@ -728,10 +728,9 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
       context, group_descs, NUM_PROGRAM_GROUPS, &group_options, nullptr, nullptr, groups));
 
   /* Get program stack sizes. */
-  *into every pipeline.*/
-      auto get_pipeline_stack_size = [&](OptixPipeline pipeline,
-                                         const vector<OptixProgramGroup> &pipeline_groups,
-                                         unsigned int &trace_css) {
+  auto get_pipeline_stack_size = [&](OptixPipeline pipeline,
+                                     const vector<OptixProgramGroup> &pipeline_groups,
+                                     unsigned int &trace_css) {
     vector<OptixStackSizes> stack_size(NUM_PROGRAM_GROUPS);
     for (int i = 0; i < NUM_PROGRAM_GROUPS; ++i) {
       /* Only groups that are part of the pipeline, otherwise this is an error. */
