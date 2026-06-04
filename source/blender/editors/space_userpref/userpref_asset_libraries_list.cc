@@ -6,6 +6,8 @@
  * \ingroup spuserpref
  */
 
+#include "BKE_global.hh"
+
 #include "BLI_listbase.h"
 #include "BLT_translation.hh"
 
@@ -187,11 +189,14 @@ static void draw_active_library_settings(ui::Layout &layout,
 {
   if (library.type == ASSET_LIBRARY_ESSENTIALS) {
     PointerRNA prefs_ptr = RNA_pointer_create_discrete(nullptr, RNA_PreferencesAssetLibraries, &U);
-    layout.prop(&prefs_ptr,
-                "use_online_essentials",
-                UI_ITEM_NONE,
-                IFACE_("Include Online Essentials"),
-                ICON_NONE);
+
+    ui::Layout &row = layout.row(false);
+    row.active_set((G.f & G_FLAG_INTERNET_ALLOW) != 0);
+    row.prop(&prefs_ptr,
+             "use_online_essentials",
+             UI_ITEM_NONE,
+             IFACE_("Include Online Essentials"),
+             ICON_NONE);
   }
 
   if (library.user_library) {
