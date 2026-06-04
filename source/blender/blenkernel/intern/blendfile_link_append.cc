@@ -1739,7 +1739,9 @@ void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
     BlendfileLinkAppendContextItem *item = BKE_blendfile_link_append_context_item_add(
         &lapp_context, BKE_id_name(id), GS(id.name), nullptr);
 
+    /* Consider these new IDs as linked and packed. */
     item->new_id = &id;
+    item->new_id->flag |= ID_FLAG_LINKED_AND_PACKED;
     item->tag |= LINK_APPEND_TAG_INDIRECT;
     item->action = LINK_APPEND_ACT_COPY_LOCAL;
   }
