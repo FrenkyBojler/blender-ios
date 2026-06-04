@@ -2275,10 +2275,11 @@ static std::optional<Array<float>> read_sound_sample_window(AUD_Sound sound,
 
   Array<float> read_buffer_extra((samples_num + warmup_samples) * channels_num);
   bool is_end_of_stream = false;
-  int read_count = samples_num + warmup_samples;
+  int frames_read = samples_num + warmup_samples;
   reader->seek(std::max(start_sample - warmup_samples, 0));
-  reader->read(read_count, is_end_of_stream, read_buffer_extra.data());
-  const int valid_frames_after_warmup = std::max(0, read_count - warmup_samples);
+  /* read() updates frames_read to the number of frames actually read. */
+  reader->read(frames_read, is_end_of_stream, read_buffer_extra.data());
+  const int valid_frames_after_warmup = std::max(0, frames_read - warmup_samples);
   const int read_length = std::min(valid_frames_after_warmup, samples_num);
   const Span<float> read_buffer = read_buffer_extra.as_span().drop_front(warmup_samples *
                                                                          channels_num);
@@ -2328,7 +2329,8 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   Array<float> &buffer = *buffer_opt;
   const int samples_num = buffer.size();
 
-  /* Apply window function which avoids spectral leakage (depending on the function). */
+  /* Apply the window to the full zero-padded buffer. Samples that were not read remain zero, so
+   * this keeps the previous behavior while avoiding a separate read length here. */
   for (const int i : IndexRange(samples_num)) {
     buffer[i] *= window_weights_.weights[i];
   }
@@ -2566,6 +2568,8 @@ static int max_dwt_level_for_window_size(const int window_size)
   return std::max(levels, 1);
 }
 
+/* Named bands are relative wavelet detail bands, not fixed frequency ranges. Full Range is handled
+ * by the caller because it averages multiple detail levels. */
 static int band_to_level(const WaveletBand band, const int max_level)
 {
   switch (band) {
@@ -2580,7 +2584,8 @@ static int band_to_level(const WaveletBand band, const int max_level)
     case WaveletBand::Low:
       return max_level;
     case WaveletBand::FullRange:
-      return 0;
+      BLI_assert_unreachable();
+      return 1;
   }
   return 1;
 }
@@ -2760,6 +2765,9 @@ std::optional<float> bSoundWaveletEnergySampler::compute_wavelet_energy(
     signal = low;
   }
 
+  if (levels_added == 0) {
+    return 0.0f;
+  }
   return energy / float(levels_added);
 #else
   UNUSED_VARS(start_sample);
