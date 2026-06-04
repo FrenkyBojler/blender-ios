@@ -1238,6 +1238,7 @@ if(TEST_SRC_DIR_EXISTS)
     curve_primitives
     curves
     curves/interpolate_curves
+    empty_object
     essentials
     foreach_geometry_element_zone
     geometry
@@ -1248,6 +1249,7 @@ if(TEST_SRC_DIR_EXISTS)
     repeat_zone
     mesh_primitives
     mesh
+    mesh/bevel
     mesh/extrude
     mesh/split_edges
     mesh/triangulate
