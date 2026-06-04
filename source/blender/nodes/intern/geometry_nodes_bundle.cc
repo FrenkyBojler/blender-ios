@@ -76,6 +76,10 @@ std::optional<Vector<BundleKey>> Bundle::split_path(const StringRef path)
       return std::nullopt;
     }
   }
+  /* Happens when all path elements are invalid. */
+  if (path_elems.is_empty()) {
+    return std::nullopt;
+  }
   return path_elems;
 }
 
