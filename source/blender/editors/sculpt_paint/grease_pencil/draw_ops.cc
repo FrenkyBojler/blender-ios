@@ -290,7 +290,7 @@ static wmOperatorStatus grease_pencil_brush_stroke_exec(bContext *C,
   if (retval != OPERATOR_FINISHED) {
     return retval;
   }
-  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, 0); //! 0 == event->type ... what to use
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, EVENT_NONE);
   op->customdata = stroke;
 
   retval = stroke->exec(C, op);
