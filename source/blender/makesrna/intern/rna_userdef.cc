@@ -7540,7 +7540,8 @@ static void rna_def_userdef_asset_libraries(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Online Essentials",
-      "Include the assets that need downloading in the Essentials asset library");
+      "Include remote assets in the Essentials asset library. Downloading requires Online Access "
+      "to be enabled under System > Network in the Preferences");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_userdef_asset_libraries_use_online_essentials_update");
 }
