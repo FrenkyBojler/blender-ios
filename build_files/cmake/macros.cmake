@@ -424,6 +424,23 @@ function(blender_link_libraries
   target_link_libraries(${target} ${dependency_libraries})
 endfunction()
 
+function(is_c_or_cxx_source file variable)
+  get_filename_component(_ext "${file}" LAST_EXT)
+  # Files without an extension are not sources.
+  if(NOT _ext)
+    set(${variable} FALSE PARENT_SCOPE)
+    return()
+  endif()
+  # Strip the leading dot.
+  string(REGEX REPLACE "^\\." "" _ext "${_ext}")
+  if(("${_ext}" IN_LIST CMAKE_C_SOURCE_FILE_EXTENSIONS) OR
+     ("${_ext}" IN_LIST CMAKE_CXX_SOURCE_FILE_EXTENSIONS))
+    set(${variable} TRUE PARENT_SCOPE)
+  else()
+    set(${variable} FALSE PARENT_SCOPE)
+  endif()
+endfunction()
+
 function(blender_add_lib__impl
   name
   sources
@@ -434,17 +451,17 @@ function(blender_add_lib__impl
 
   # message(STATUS "Configuring library ${name}")
 
-  # Check if all sources are header-only (.h or .hh files).
+  # Check if all sources are header-only (not C/C++ sources).
   set(_all_headers TRUE)
   foreach(_src ${sources})
-    get_filename_component(_src_ext "${_src}" EXT)
-    if(NOT (("${_src_ext}" STREQUAL ".h") OR ("${_src_ext}" STREQUAL ".hh")))
+    is_c_or_cxx_source("${_src}" _is_source)
+    if(_is_source)
       set(_all_headers FALSE)
       break()
     endif()
   endforeach()
   unset(_src)
-  unset(_src_ext)
+  unset(_is_source)
 
   if(_all_headers)
     add_library(${name} INTERFACE)
