@@ -781,9 +781,6 @@ struct ShaderCreateInfo {
   /** GPU Backend compatibility flag. Temporary requirement until Metal enablement is fully
    * complete. */
   bool metal_backend_only_ = false;
-  /** True if the shader has acceleration structures. Needed for skipping compilation in
-   * gpu_shader_create_info_compile_all if the backend does not support them. */
-  bool requires_raytracing_ = false;
   /**
    * Maximum length of all the resource names including each null terminator.
    * Only for names used by #gpu::ShaderInterface.
@@ -1383,7 +1380,7 @@ struct ShaderCreateInfo {
     res.acceleration_structure.name = name;
     resources_get_(freq).append(res);
     interface_names_size_ += name.size() + 1;
-    requires_raytracing_ = true;
+    builtins_ |= BuiltinBits::RAY_QUERY;
     return *(Self *)this;
   }
 
