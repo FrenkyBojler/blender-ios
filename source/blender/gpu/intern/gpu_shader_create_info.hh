@@ -277,8 +277,8 @@ namespace blender {
 #  define STORAGE_BUF_FREQ(slot, qualifiers, type_name, name, freq) \
     extern _##qualifiers type_name name;
 
-#  define ACCELERATION_STRUCTURE(slot, name) extern const void *name;
-#  define ACCELERATION_STRUCTURE_FREQ(slot, name, freq) extern const void *name;
+#  define ACCELERATION_STRUCTURE(slot, name) accelerationStructureEXT name;
+#  define ACCELERATION_STRUCTURE_FREQ(slot, name, freq) accelerationStructureEXT name;
 
 #  define SAMPLER(slot, type, name) type name;
 #  define SAMPLER_FREQ(slot, type, name, freq) type name;
