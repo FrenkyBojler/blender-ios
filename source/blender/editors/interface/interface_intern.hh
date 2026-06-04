@@ -1154,6 +1154,17 @@ PopupBlockHandle *popup_block_create(bContext *C,
                                      void *arg,
                                      FreeArgFunc arg_free,
                                      bool can_refresh);
+/**
+ * \param can_refresh: Allow menus to re-run their layout definitions using
+ *    `ED_region_tag_refresh_ui()`. This can be used to update the grayed out state of items or the
+ *    icon for example, but doesn't have many use-cases.
+ *
+ *    Changes that mess with user input or make popups jump around under the cursor should be
+ *    avoided. For example, avoid:
+ *    - Adding/removing menu items.
+ *    - Changing menu item names.
+ *    - Changes that interfere with keyboard navigation.
+ */
 PopupBlockHandle *popup_menu_create(bContext *C,
                                     ARegion *butregion,
                                     Button *but,
