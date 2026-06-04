@@ -12,19 +12,25 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_windowmanager_types.h"
+#include "DNA_xr_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_sys_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_attribute.hh"
 #include "BKE_colortools.hh"
 #include "BKE_curves.hh"
 #include "BKE_idprop.hh"
@@ -35,10 +41,9 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_paint.hh"
-#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
@@ -217,7 +222,7 @@ static void sanitize_node_tree_interface_socket_identifiers(bNodeTree &node_tree
   node_tree.ensure_interface_cache();
   Set<StringRef> all_identifiers;
   for (bNodeTreeInterfaceItem *item : node_tree.interface_items()) {
-    if (item->item_type == NODE_INTERFACE_PANEL) {
+    if (item->item_type == NodeTreeInterfaceItemType::Panel) {
       continue;
     }
     auto &socket = *bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
@@ -290,6 +295,43 @@ static void version_text_strip_space_line(Main &bmain)
   }
 }
 
+static void version_compositor_effect_initialized(Main &bmain)
+{
+  /* A file with compositor effects that was saved, opened in
+   * previous version and saved there, would have lost the
+   * compositor effect data since ealier versions would not
+   * write it. Ensure the effect data is not null. */
+  for (Scene &scene : bmain.scenes) {
+    if (scene.ed) {
+      seq::foreach_strip(&scene.ed->seqbase, [&](Strip *strip) {
+        if (strip->type == STRIP_TYPE_COMPOSITOR) {
+          seq::effect_ensure_initialized(strip);
+        }
+        return true;
+      });
+    }
+  }
+}
+
+static void version_text_strip_abs_space_line(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+        TextVars *data = static_cast<TextVars *>(strip->effectdata);
+        data->abs_space_line = 60.0f;
+        data->flag &= ~SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING;
+      }
+      return true;
+    });
+  }
+}
+
 static void fix_single_point_curves_custom_knots(Main *bmain)
 {
   /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
@@ -344,6 +386,63 @@ static void version_scene_strip_view_layer_name(Main &bmain)
   }
 }
 
+/* Compositor node trees with an image input and an image output can likely be used as strip
+ * modifiers. */
+static void enable_compositor_nodes_is_strip_modifier(Main &bmain)
+{
+  for (bNodeTree &group : bmain.nodetrees) {
+    if (group.type != NTREE_COMPOSIT) {
+      continue;
+    }
+    bool has_image_input = false;
+    bool has_image_output = false;
+    group.tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
+      if (item.item_type != NodeTreeInterfaceItemType::Socket) {
+        /* Continue. */
+        return true;
+      }
+      const auto &socket = reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
+      if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
+        has_image_input = has_image_input || STREQ(socket.socket_type, "NodeSocketColor");
+        /* Continue. */
+        return true;
+      }
+      if (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
+        has_image_output = has_image_output || STREQ(socket.socket_type, "NodeSocketColor");
+        /* Continue. */
+        return true;
+      }
+      /* Break. */
+      return false;
+    });
+
+    if (has_image_input && has_image_output) {
+      if (!group.compositor_node_asset_traits) {
+        group.compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
+      }
+      group.compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_STRIP_MODIFIER;
+      bke::node_update_asset_metadata(group);
+    }
+  }
+}
+
+static void versioning_replace_legacy_compositor_switch_node(bNodeTree *node_tree)
+{
+  version_node_input_socket_name(node_tree, CMP_NODE_SWITCH, "On", "True");
+  version_node_input_socket_name(node_tree, CMP_NODE_SWITCH, "Off", "False");
+  version_node_output_socket_name(node_tree, CMP_NODE_SWITCH, "Image", "Output");
+
+  for (bNode &node : node_tree->nodes) {
+    if (node.type_legacy == CMP_NODE_SWITCH) {
+      node.type_legacy = GEO_NODE_SWITCH;
+      NodeSwitch *storage = MEM_new<NodeSwitch>(__func__);
+      storage->input_type = SOCK_RGBA;
+      STRNCPY_UTF8(node.idname, "GeometryNodeSwitch");
+      node.storage = storage;
+    }
+  }
+}
+
 void do_versions_after_linking_520(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
@@ -371,12 +470,35 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
     version_scene_strip_view_layer_name(*bmain);
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 36)) {
+    /* Shift animation data to accommodate the new thin wall input. */
+    version_node_socket_index_animdata(bmain, NTREE_SHADER, SH_NODE_BSDF_PRINCIPLED, 5, 1, 31);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
    *
    * \note Keep this message at the bottom of the function.
    */
+}
+
+static void version_solid_color_width_height_defaults(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_COLOR && strip->effectdata != nullptr) {
+        SolidColorVars *data = static_cast<SolidColorVars *>(strip->effectdata);
+        data->width = scene.r.xsch;
+        data->height = scene.r.ysch;
+      }
+      return true;
+    });
+  }
 }
 
 void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
@@ -625,6 +747,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 28)) {
     version_text_strip_space_line(*bmain);
+    version_compositor_effect_initialized(*bmain);
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 29)) {
@@ -648,24 +771,77 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 30)) {
-    for (Scene &scene : bmain->scenes) {
-      VPaint *wpaint = scene.toolsettings->wpaint;
-      if (wpaint) {
-        const StringRefNull old_asset_id =
-            wpaint->paint.brush_asset_reference->relative_asset_identifier;
-        if (wpaint->paint.brush == nullptr && old_asset_id.endswith("Paint")) {
-          /* The "Paint" brush asset was renamed to "Add Weight", find it via the default instead
-           * of hardcoding the new name. */
-          if (std::optional<AssetWeakReference> paint_brush_asset_reference =
-                  BKE_paint_brush_type_default_reference(PaintMode::Weight,
-                                                         WPAINT_BRUSH_TYPE_DRAW))
-          {
-            BKE_paint_brush_set(bmain, &wpaint->paint, *paint_brush_asset_reference);
+    enable_compositor_nodes_is_strip_modifier(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 31)) {
+    for (Mesh &mesh : bmain->meshes) {
+      if (mesh.attributes().contains(".uv_seam")) {
+        mesh.attributes_for_write().rename(".uv_seam", "uv_seam");
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 34)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        versioning_replace_legacy_compositor_switch_node(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 35)) {
+    for (Object &object : bmain->objects) {
+      object.parent_bone_head_tail_factor = 1.0;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 37)) {
+    version_text_strip_abs_space_line(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 38)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.gpencil_settings != nullptr) {
+        brush.gpencil_settings->fill_gap_factor = 0.4f;
+        brush.gpencil_settings->flag |= GP_BRUSH_FILL_INTERNAL_GAPS;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 39)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype == SPACE_SEQ) {
+            SpaceSeq *sseq = reinterpret_cast<SpaceSeq *>(&sl);
+            sseq->preview_overlay.flag |= SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES;
+            float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
+            copy_v4_v4(sseq->preview_overlay.composition_guide_color, default_col);
           }
         }
       }
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 40)) {
+    for (wmWindowManager &wm : bmain->wm) {
+      wm.xr.session_settings.viewfinder_enabled = false;
+      wm.xr.session_settings.viewfinder_crosshair_enabled = true;
+
+      wm.xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_RIGHT;
+      wm.xr.session_settings.viewfinder_scale = 1.0f;
+
+      wm.xr.session_settings.viewfinder_passepartout_overscan = 0.5f;
+      wm.xr.session_settings.viewfinder_passepartout_opacity = 0.5f;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 41)) {
+    version_solid_color_width_height_defaults(*bmain);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

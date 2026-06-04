@@ -501,7 +501,7 @@ static int openexr_header_get_compression(const Header &header)
   return R_IMF_EXR_CODEC_NONE;
 }
 
-static void openexr_header_metadata_global(Header *header, IDProperty *metadata)
+static void openexr_header_metadata_global(Header *header, const IDProperty *metadata)
 {
   header->insert(
       "Software",
@@ -570,7 +570,7 @@ static void openexr_header_metadata_colorspace(Header *header, const ImBuf *ibuf
 
 static void openexr_header_metadata_callback(void *data,
                                              const char *propname,
-                                             char *prop,
+                                             char *prop,  // NOLINT
                                              int /*len*/)
 {
   Header *header = (Header *)data;
@@ -646,7 +646,7 @@ static void save_setup_header(const ImBuf *ibuf,
 {
   const int compression = ibuf->foptions.flag & OPENEXR_CODEC_MASK;
   openexr_header_compression(&header, compression, ibuf->foptions.quality);
-  openexr_header_metadata_global(&header, ibuf->metadata);
+  openexr_header_metadata_global(&header, ibuf->metadata());
   openexr_header_metadata_pixelinfo(&header, ibuf->ppm);
   openexr_header_metadata_colorspace(&header, ibuf);
 
@@ -920,7 +920,7 @@ void IMB_exr_add_channels(ExrHandle *handle,
                           StringRefNull colorspace,
                           size_t xstride,
                           size_t ystride,
-                          float *rect,
+                          const float *rect,
                           bool use_half_float)
 {
   /* For multipart, part name includes view since part names must be unique. */
@@ -971,7 +971,8 @@ void IMB_exr_add_channels(ExrHandle *handle,
 
     echan.xstride = xstride;
     echan.ystride = ystride;
-    echan.rect = rect + channel;
+    /* This is used for writing, the data should not be modified. ????????? */
+    echan.rect = const_cast<float *>(rect + channel);
     echan.use_half_float = use_half_float;
   }
 
@@ -1205,7 +1206,7 @@ void IMB_exr_write_channels(ExrHandle *handle)
 
       if (echan.use_half_float) {
         const float *src_float = echan.rect;
-        /* Convert & clamp input floats to halfs. */
+        /* Convert & clamp input floats to half-floats. */
         threading::parallel_for(IndexRange(num_pixels), 16 * 1024, [&](IndexRange range) {
           Array<float> gathered_floats(range.size());
           int64_t i = 0;
@@ -2167,14 +2168,14 @@ ImBuf *imb_load_openexr(const uchar *mem,
         if (flag_is_set(flags, ImBufFlags::Metadata)) {
           Header::ConstIterator iter;
 
-          IMB_metadata_ensure(&ibuf->metadata);
+          IDProperty *metadata = ibuf->metadata_for_write();
           for (iter = file_header.begin(); iter != file_header.end(); iter++) {
             const StringAttribute *attr = file_header.findTypedAttribute<StringAttribute>(
                 iter.name());
 
             /* not all attributes are string attributes so we might get some NULLs here */
             if (attr) {
-              IMB_metadata_set_field(ibuf->metadata, iter.name(), attr->value().c_str());
+              IMB_metadata_set_field(metadata, iter.name(), attr->value().c_str());
               ibuf->flags |= ImBufFlags::Metadata;
             }
           }
