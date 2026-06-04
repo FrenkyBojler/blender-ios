@@ -101,10 +101,23 @@ def protect_format_seq(msg):
         # \", \' or \\
         if idx < (ln - 1) and msg[idx] == '\\' and msg[idx + 1] in "\"\'\\":
             dlt = 2
-        # {}
+        # {}, {2}
         # TODO: suport more of the 'format' mini-language (and check how much fmt::format matches with Python's).
-        elif idx < (ln - 1) and msg[idx] == '{' and msg[idx + 1] == '}':
-            dlt = 2
+        elif idx < (ln - 1) and msg[idx] == '{':
+            # The whole 'format' syntax...
+            # Coverage of this one is still _very_ limited and basic currently.
+            orig_dlt = dlt
+            valid_format = False
+
+            # {3} (positional indicator)
+            while (idx + dlt) < ln and msg[idx + dlt] in format_widthprec:
+                dlt += 1
+            if (idx + dlt) < ln and msg[idx + dlt] == "}":
+                dlt += 1
+                valid_format = True
+
+            if not valid_format:
+                dlt = orig_dlt
         # %%
         elif idx < (ln - 1) and msg[idx] == '%' and msg[idx + 1] == '%':
             dlt = 2
