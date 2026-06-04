@@ -125,6 +125,8 @@ bool VKTopLevelAS::build()
     return true;
   }
 
+  build_acceleration_structure_info_.src_buffers.clear_and_keep_capacity();
+
   for (int64_t blas_index : instances_.index_range()) {
     VkAccelerationStructureInstanceKHR &instance = instances_[blas_index];
     const VKBottomLevelAS &blas = unwrap(*blas_per_instance_[blas_index]);
@@ -164,6 +166,8 @@ bool VKTopLevelAS::build()
     memcpy(copy_of_data, instances_.data(), instances_buffer_size);
     instances_buffer_.update_render_graph(context, copy_of_data);
   }
+
+  build_acceleration_structure_info_.src_buffers.add(instances_buffer_.vk_handle());
 
   render_graph::VKBuildAccelerationStructureNode::Data &node_data =
       build_acceleration_structure_info_.node_data;
