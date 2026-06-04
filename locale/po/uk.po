@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8764d33c658b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
+"POT-Creation-Date: 2026-06-01 07:36+0000\n"
 "PO-Revision-Date: 2025-07-23 15:08+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -1329,6 +1329,18 @@ msgstr "Опис"
 
 msgid "A description of the asset to be displayed for the user"
 msgstr "Опис активу, що буде показуватися для користувача"
+
+
+msgid "Link"
+msgstr "Зв'язок"
+
+
+msgid "Append"
+msgstr "Прилучення"
+
+
+msgid "Pack"
+msgstr "Упакування"
 
 
 msgid "Tags"
@@ -3985,6 +3997,10 @@ msgstr "Спрощення"
 
 msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Кількість кроків спрощення (більші значення зменшують точність заповнення)"
+
+
+msgid "Pixel"
+msgstr "Піксель"
 
 
 msgid "Threshold to consider color transparent for filling"
@@ -11575,18 +11591,6 @@ msgid "Settings for the file selection in Asset Browser mode"
 msgstr "Устави для вибрання файлу у режимі Браузера Активів"
 
 
-msgid "Link"
-msgstr "Зв'язок"
-
-
-msgid "Append"
-msgstr "Прилучення"
-
-
-msgid "Pack"
-msgstr "Упакування"
-
-
 msgid "Float2 Attribute Value"
 msgstr "Дійсночислове2 Значення Атрибута"
 
@@ -13755,6 +13759,14 @@ msgid "Use curve to define primitive stroke thickness"
 msgstr "Використати криву для визначення товщини штриха примітива"
 
 
+msgid "Dynamic"
+msgstr "Динамічно"
+
+
+msgid "Single"
+msgstr "Один"
+
+
 msgid "Items"
 msgstr "Елементи"
 
@@ -14692,10 +14704,6 @@ msgstr "Глобально"
 
 msgid "Simulates the entire mesh"
 msgstr "Симулює всю сіть"
-
-
-msgid "Dynamic"
-msgstr "Динамічно"
 
 
 msgid "The active simulation area moves with the brush"
@@ -18207,6 +18215,10 @@ msgid "Visibility Collection"
 msgstr "Колекція Видимості"
 
 
+msgid "Parallax Radius"
+msgstr "Радіус Паралакса"
+
+
 msgid "Probe clip end, beyond which objects will not appear in reflections"
 msgstr "Кінець відсікання проби, поза яким об'єкти не будуть показуватися у віддзеркаленнях"
 
@@ -18217,10 +18229,6 @@ msgstr "Керування тим, як швидко буде зменшуват
 
 msgid "Type of influence volume"
 msgstr "Тип об'єму впливу"
-
-
-msgid "Parallax Radius"
-msgstr "Радіус Паралакса"
 
 
 msgid "Lowest corner of the parallax bounding box"
@@ -18841,14 +18849,6 @@ msgstr "Звідки походить відеокліп"
 
 msgid "Movie File"
 msgstr "Файл фільму"
-
-
-msgid "Use Proxy / Timecode"
-msgstr "Вжити замісник / часкод"
-
-
-msgid "Use a preview proxy and/or timecode index for this clip"
-msgstr "Використати для цього кліпу замісник перегляду та/або індекс час-коду"
 
 
 msgid "Proxy Custom Directory"
@@ -19779,10 +19779,6 @@ msgstr "Градуси"
 
 msgid "How many degrees path has to curve to make another render segment"
 msgstr "Величина викривлення у градусах, потрібна для створення ще одного сегменту рендера"
-
-
-msgid "Pixel"
-msgstr "Піксель"
 
 
 msgid "How many pixels path has to cover to make another render segment"
@@ -26291,84 +26287,12 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
-msgid "Clean Up"
-msgstr "Вичищення"
-
-
-msgid "Show/Hide"
-msgstr "Показати/приховати"
-
-
-msgid "Special Characters"
-msgstr "Спеціальні символи"
-
-
-msgid "Kerning"
-msgstr "Кернінг"
-
-
-msgid "Metaball"
-msgstr "Метакуля"
-
-
-msgid "Names"
-msgstr "Назви"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Bone Roll"
-msgstr "Прокручення Кістки"
-
-
-msgid "Utilities"
-msgstr "Утиліти"
-
-
-msgid "Pivot Point"
-msgstr "Точка Опертя"
+msgid "Mirror"
+msgstr "Дзеркалення"
 
 
 msgid "Snap"
 msgstr "Підхоп"
-
-
-msgid "Sample"
-msgstr "Вибірка"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Спад Пропорційного Редагування"
-
-
-msgid "Mask Edit"
-msgstr "Редагування Маски"
-
-
-msgid "Automasking"
-msgstr "Автомаскування"
-
-
-msgid "Primitives"
-msgstr "Примітиви"
-
-
-msgid "Face Sets Edit"
-msgstr "Редагування Наборів Граней"
-
-
-msgid "Vertex Group Locks"
-msgstr "Блокування Груп Вершин"
-
-
-msgid "Import"
-msgstr "Імпортувати"
-
-
-msgid "Mirror"
-msgstr "Дзеркалення"
 
 
 msgid "UV Mapping"
@@ -26399,12 +26323,16 @@ msgid "View Regions"
 msgstr "Регіони Огляду"
 
 
+msgid "Math"
+msgstr "Математика"
+
+
 msgid "Select More/Less"
 msgstr "Вибрати більше/менше"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Utilities"
+msgstr "Утиліти"
 
 
 msgid "Select Similar"
@@ -26427,6 +26355,18 @@ msgid "Assign Material"
 msgstr "Призначити Матеріал"
 
 
+msgid "Sample"
+msgstr "Вибірка"
+
+
+msgid "Primitives"
+msgstr "Примітиви"
+
+
+msgid "Metaball"
+msgstr "Метакуля"
+
+
 msgid "Light"
 msgstr "Слабко"
 
@@ -26447,6 +26387,10 @@ msgid "Rigid Body"
 msgstr "Тверде тіло"
 
 
+msgid "Import"
+msgstr "Імпортувати"
+
+
 msgid "Apply"
 msgstr "Застосувати"
 
@@ -26457,6 +26401,14 @@ msgstr "Стеження"
 
 msgid "Quick Effects"
 msgstr "Швидкі ефекти"
+
+
+msgid "Show/Hide"
+msgstr "Показати/приховати"
+
+
+msgid "Clean Up"
+msgstr "Вичищення"
 
 
 msgid "Asset"
@@ -26479,8 +26431,12 @@ msgid "Hooks"
 msgstr "Гачки"
 
 
-msgid "Layout"
-msgstr "Розстановка"
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Vertex Group Locks"
+msgstr "Блокування Груп Вершин"
 
 
 msgid "Sculpt Set Pivot"
@@ -26499,16 +26455,12 @@ msgid "In-Betweens"
 msgstr "У проміжках"
 
 
-msgid "Keying"
-msgstr "Ключування"
-
-
 msgid "Propagate"
 msgstr "Поширити"
 
 
-msgid "Tracking"
-msgstr "Стеження"
+msgid "Names"
+msgstr "Назви"
 
 
 msgid "Toggle Bone Options"
@@ -26541,6 +26493,54 @@ msgstr "Задати Силу Грані"
 
 msgid "Merge"
 msgstr "Об'єднання"
+
+
+msgid "Linked"
+msgstr "Пов'язане"
+
+
+msgid "Layout"
+msgstr "Розстановка"
+
+
+msgid "Special Characters"
+msgstr "Спеціальні символи"
+
+
+msgid "Kerning"
+msgstr "Кернінг"
+
+
+msgid "Bone Roll"
+msgstr "Прокручення Кістки"
+
+
+msgid "Keying"
+msgstr "Ключування"
+
+
+msgid "Tracking"
+msgstr "Стеження"
+
+
+msgid "Pivot Point"
+msgstr "Точка Опертя"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Спад Пропорційного Редагування"
+
+
+msgid "Mask Edit"
+msgstr "Редагування Маски"
+
+
+msgid "Automasking"
+msgstr "Автомаскування"
+
+
+msgid "Face Sets Edit"
+msgstr "Редагування Наборів Граней"
 
 
 msgid "Basic"
@@ -32393,14 +32393,6 @@ msgid "Build proxy resolution 75% of the original footage dimension"
 msgstr "Побудувати замісник з роздільністю 75% від початкового розміру відео"
 
 
-msgid "Rec Run"
-msgstr "Почати запис"
-
-
-msgid "Build record run time code index"
-msgstr "Побудувати індекс коду часу ходу запису"
-
-
 msgid "Build proxy resolution 100% of the original undistorted footage dimension"
 msgstr "Побудувати замісник з роздільністю 100% від початкового неспотвореного розміру відео"
 
@@ -32423,18 +32415,6 @@ msgstr "Місце для зберігання файлів замісника"
 
 msgid "JPEG quality of proxy images"
 msgstr "JPEG якість зображень замісника"
-
-
-msgid "Timecode"
-msgstr "Часовий код"
-
-
-msgid "Record Run"
-msgstr "Хід запису"
-
-
-msgid "Record Run No Gaps"
-msgstr "Хід запису без пропусків"
 
 
 msgid "Scopes for statistical view of a movie clip"
@@ -34409,10 +34389,6 @@ msgid "Join Geometry"
 msgstr "Сполучення Геометрії"
 
 
-msgid "Single"
-msgstr "Один"
-
-
 msgid "Fill Type"
 msgstr "Тип заповнення"
 
@@ -35750,14 +35726,6 @@ msgid "Collection of Node Sockets"
 msgstr "Колекція ввідних роз'ємів вузлів"
 
 
-msgid "Node Instance Hash"
-msgstr "Хеш примірника вузла"
-
-
-msgid "Hash table containing node instance data"
-msgstr "Хеш-таблиця, що містить дані примірника вузла"
-
-
 msgid "Socket Template"
 msgstr "Шаблон роз'єму"
 
@@ -35868,10 +35836,6 @@ msgstr "Сховати ввідне значення роз'єму"
 
 msgid "Unique identifier for mapping sockets"
 msgstr "Унікальний ідентифікатор для розкладки роз'ємів"
-
-
-msgid "Linked"
-msgstr "Пов'язане"
 
 
 msgid "True if the socket is connected"
@@ -37873,20 +37837,20 @@ msgid "Flip times of selected keyframes using the current frame as the mirror li
 msgstr "Відобразити час вибраних ключових кадрів відносно поточного кадру"
 
 
-msgid "By Values Over Zero Value"
-msgstr "За Значеннями Вище Значення Нуля"
-
-
-msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
-msgstr "Змінити знак вибраних ключових кадрів (тобто, від'ємні значення зробити додатними, і навпаки)"
-
-
 msgid "By Times Over First Selected Marker"
 msgstr "За часом відносно першої вибраної мітки"
 
 
 msgid "Flip times of selected keyframes using the first selected marker as the reference point"
 msgstr "Відобразити час вибраних ключових кадрів відносно першої вибраної мітки"
+
+
+msgid "By Values Over Zero Value"
+msgstr "За Значеннями Вище Значення Нуля"
+
+
+msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
+msgstr "Змінити знак вибраних ключових кадрів (тобто, від'ємні значення зробити додатними, і навпаки)"
 
 
 msgctxt "Operator"
@@ -38771,6 +38735,10 @@ msgid "Add a new bone located at the 3D cursor"
 msgstr "Додати нову кістку у позиції 3D курсора"
 
 
+msgid "Axes"
+msgstr "Осі"
+
+
 msgid "Name of the newly created bone"
 msgstr "Назва новоствореної кістки"
 
@@ -38902,6 +38870,10 @@ msgstr "Перемістити"
 
 msgid "Move selected items"
 msgstr "Перемістити вибрані елементи"
+
+
+msgid "Search"
+msgstr "Пошук"
 
 
 msgctxt "Operator"
@@ -40030,15 +40002,6 @@ msgstr "Заготовлення Кадрів"
 
 msgid "Prefetch frames from disk for faster playback/tracking"
 msgstr "Заготовити в пам'яті кадри з диска наперед, щоб прискорити відтворення/стеження"
-
-
-msgctxt "Operator"
-msgid "Rebuild Proxy and Timecode Indices"
-msgstr "Перебудувати замісник та індекси час-коду"
-
-
-msgid "Rebuild all selected proxies and timecode indices in the background"
-msgstr "Перебудувати всі вибрані проксі та індекси часових кодів у фоновому режимі"
 
 
 msgctxt "Operator"
@@ -43465,12 +43428,9 @@ msgid "Next Keyframe"
 msgstr "Наступний ключкадр"
 
 
-msgid "By Values Over Cursor Value"
-msgstr "За Значеннями через Значення Курсора"
-
-
-msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
-msgstr "Відобразити значення вибраних ключових кадрів відносно значення курсора (Y/горизонтальна складова)"
+msgctxt "Operator"
+msgid "Local View"
+msgstr "Огляд Локально"
 
 
 msgid "By Times Over Zero Time"
@@ -43479,6 +43439,14 @@ msgstr "За Часом Вище Часу Нуль"
 
 msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
 msgstr "Відобразити час вибраних ключових кадрів, змінивши порядок їх появи"
+
+
+msgid "By Values Over Cursor Value"
+msgstr "За Значеннями через Значення Курсора"
+
+
+msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
+msgstr "Відобразити значення вибраних ключових кадрів відносно значення курсора (Y/горизонтальна складова)"
 
 
 msgctxt "Operator"
@@ -58311,11 +58279,6 @@ msgid "ICO Sphere"
 msgstr "Сфера ICO"
 
 
-msgctxt "Operator"
-msgid "Local View"
-msgstr "Огляд Локально"
-
-
 msgid "Toggle display of selected object(s) separately and centered in view"
 msgstr "Перемкнути показ вибраного об'єкту(ів) окремо і в центрі огляду"
 
@@ -60786,10 +60749,6 @@ msgid "Mask Display"
 msgstr "Показ Маски"
 
 
-msgid "Proxy/Timecode"
-msgstr "Замісник/Часкод"
-
-
 msgid "Stabilization"
 msgstr "Стабілізація"
 
@@ -61423,10 +61382,6 @@ msgid "Sequencer Overlays"
 msgstr "Накладки Секвенсера"
 
 
-msgid "Strip Proxy & Timecode"
-msgstr "Замісник і часкод смужки"
-
-
 msgctxt "Operator"
 msgid "Blade"
 msgstr "Лезо"
@@ -61584,20 +61539,8 @@ msgid "Collection Colors"
 msgstr "Кольори Колекцій"
 
 
-msgid "Axis & Gizmo Colors"
-msgstr "Кольори Осей і Гізмо"
-
-
-msgid "Icon Colors"
-msgstr "Кольори Іконок"
-
-
 msgid "Shaded"
 msgstr "Відтінено"
-
-
-msgid "Styles"
-msgstr "Стилі"
 
 
 msgid "Transparent Checkerboard"
@@ -63096,6 +63039,10 @@ msgstr "Система та OpenGL"
 
 msgid "Graphics driver and operating system settings"
 msgstr "Параметри графічного драйвера та операційної системи"
+
+
+msgid "Styles"
+msgstr "Стилі"
 
 
 msgid "Save on Exit"
@@ -70945,10 +70892,6 @@ msgid "Convert input to float data"
 msgstr "Перетворити ввідні дані на значення з рухомою комою"
 
 
-msgid "Use a preview proxy and/or time-code index for this strip"
-msgstr "Використати замісник перегляду та/або індекс час-коду для цієї смужки"
-
-
 msgid "Reverse Frames"
 msgstr "Розвернути кадри"
 
@@ -71123,6 +71066,10 @@ msgstr "Колір контуру"
 
 msgid "Outline Width"
 msgstr "Ширина обведення"
+
+
+msgid "Line Spacing"
+msgstr "Інтервал між Рядками"
 
 
 msgid "Text that will be displayed"
@@ -71584,10 +71531,6 @@ msgstr "Будувати замісник з 75%-роздільністю"
 
 msgid "Location of custom proxy file"
 msgstr "Розміщення власного файлу замісника"
-
-
-msgid "Method for reading the inputs timecode"
-msgstr "Метод читання вхідних час-кодів"
 
 
 msgid "Overwrite existing proxy files when building"
@@ -75479,10 +75422,6 @@ msgid "WorkSpace UI Tags"
 msgstr "Значники Інтерфейсу Користувача Робочого Простору"
 
 
-msgid "Search"
-msgstr "Пошук"
-
-
 msgid "Navigate"
 msgstr "Навігація"
 
@@ -76077,12 +76016,13 @@ msgid "Roughness Threshold"
 msgstr "Поріг Шорсткості"
 
 
+msgctxt "Operator"
+msgid "Clear"
+msgstr "Зчищення"
+
+
 msgid "Surfaces"
 msgstr "Поверхні"
-
-
-msgid "Denoising Data"
-msgstr "Дані Знешумлювання"
 
 
 msgid "Indexes"
@@ -76139,6 +76079,10 @@ msgstr "Мін Вибірок"
 
 msgid "Curve Subdivisions"
 msgstr "Підподілення Кривої"
+
+
+msgid "Denoising Data"
+msgstr "Дані Знешумлювання"
 
 
 msgid "Incompatible output node"
@@ -76755,10 +76699,6 @@ msgid "Shapes"
 msgstr "Форми"
 
 
-msgid "Axes"
-msgstr "Осі"
-
-
 msgid "Damping Max"
 msgstr "Згасання Макс"
 
@@ -76898,10 +76838,6 @@ msgstr "Інтервал між Символами"
 
 msgid "Word Spacing"
 msgstr "Інтервал між Словами"
-
-
-msgid "Line Spacing"
-msgstr "Інтервал між Рядками"
 
 
 msgid "Offset X"
@@ -77184,11 +77120,6 @@ msgstr "Сплайн:"
 
 msgid "Parenting:"
 msgstr "Приріднювання:"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "Зчищення"
 
 
 msgid "Animation:"
@@ -78217,11 +78148,6 @@ msgstr "Побудувати на Знеспотвореному:"
 
 
 msgctxt "Operator"
-msgid "Build Proxy / Timecode"
-msgstr "Побудувати Замісник / Часкод"
-
-
-msgctxt "Operator"
 msgid "Build Proxy"
 msgstr "Побудувати Замісник"
 
@@ -78345,10 +78271,6 @@ msgstr "Відстеження для Стабілізації"
 
 msgid "Tracks for Location"
 msgstr "Відстеження для Локації"
-
-
-msgid "Timecode Index"
-msgstr "Індекс Часкоду"
 
 
 msgctxt "Operator"
@@ -81851,6 +81773,11 @@ msgid "Key %d"
 msgstr "Ключ %d"
 
 
+msgctxt "Key"
+msgid "Key"
+msgstr "Ключ"
+
+
 msgid "AOV"
 msgstr "ДВЗ"
 
@@ -82190,6 +82117,10 @@ msgstr "Пара кілець ребер не з'єднана"
 
 msgid "Edge-rings are not connected"
 msgstr "Кільця ребер не з'єднані"
+
+
+msgid "Anisotropic"
+msgstr "Анізотропія"
 
 
 msgid "NLA Strip Controls"
@@ -83229,10 +83160,6 @@ msgid "Browse Workspace to be linked"
 msgstr "Переглянути Робпростори для пов'язання"
 
 
-msgid "Browse LightProbe to be linked"
-msgstr "Переглянути Проби Освітлення для пов'язання"
-
-
 msgid "Browse Point Cloud Data to be linked"
 msgstr "Переглянути Дані Хмари Точок для пов'язання"
 
@@ -83607,6 +83534,10 @@ msgid "No vertex group among the selected vertices"
 msgstr "Немає жодної групи вершин серед вибраних вершин"
 
 
+msgid "No edges selected"
+msgstr "Не вибрані ребра"
+
+
 msgid "Invalid selection order"
 msgstr "Неправильний порядок вибору"
 
@@ -83629,10 +83560,6 @@ msgstr "Активна сіть не має ключів форм"
 
 msgid "Selection not supported in object mode"
 msgstr "Вибір не підтримується в об'єктному режимі"
-
-
-msgid "No edges selected"
-msgstr "Не вибрані ребра"
 
 
 msgid "No faces filled"
@@ -87049,11 +86976,6 @@ msgid "Failed to load image texture '%s'"
 msgstr "Не вдалося завантажити текстуру зображення '%s'"
 
 
-msgctxt "Key"
-msgid "Key"
-msgstr "Ключ"
-
-
 msgid "ViewLayer '%s' does not contain object '%s'"
 msgstr "Шар Огляду '%s' не містить об'єкт '%s'"
 
@@ -87188,10 +87110,6 @@ msgstr "Реєстрація класу роз'єму вузла: назва '%s
 
 msgid "Unable to create socket"
 msgstr "Неможливо створити роз'єм"
-
-
-msgid "Anisotropic"
-msgstr "Анізотропія"
 
 
 msgid "Same input/output direction of sockets"
@@ -87836,6 +87754,10 @@ msgid "Point Index"
 msgstr "Індекс Точки"
 
 
+msgid "Inverted"
+msgstr "Інвертовано"
+
+
 msgid "Planar"
 msgstr "Планарно"
 
@@ -87850,10 +87772,6 @@ msgstr "Як визначається розмір вокселя"
 
 msgid "Ray Length"
 msgstr "Довжина променя"
-
-
-msgid "Inverted"
-msgstr "Інвертовано"
 
 
 msgid "Edge Crease"

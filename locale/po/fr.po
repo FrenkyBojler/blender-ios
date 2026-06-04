@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'396b6a98e9f6')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8764d33c658b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-04 07:43+0000\n"
-"PO-Revision-Date: 2026-05-01 01:12+0000\n"
+"POT-Creation-Date: 2026-06-01 07:36+0000\n"
+"PO-Revision-Date: 2026-05-30 18:12+0000\n"
 "Last-Translator: Damien Picard <dam.pic@free.fr>\n"
 "Language-Team: French <https://translate.blender.org/projects/blender-ui/ui/fr/>\n"
 "Language: fr\n"
@@ -1924,12 +1924,52 @@ msgid "The type of license this asset is distributed under. An empty license nam
 msgstr "Le type de licence selon laquelle cet asset est distribué. Un champ vide ne signifie pas forcément que l’asset n’est soumis à aucune condition. Contacter l’auteur pour obtenir toute clarification nécessaire."
 
 
+msgid "Default Import Method"
+msgstr "Méthode d’importation par défaut"
+
+
+msgid "Link"
+msgstr "Lier"
+
+
+msgid "Import the assets as linked data-block"
+msgstr "Importer les assets en tant que blocs liés"
+
+
+msgid "Append"
+msgstr "Ajouter"
+
+
+msgid "Import the assets as copied data-block, with no link to the original asset data-block"
+msgstr "Importer les assets en tant que blocs de données copiés, sans aucun lien avec les blocs de données de l’asset d’origine"
+
+
+msgid "Append (Reuse Data)"
+msgstr "Ajouter (réutiliser les données)"
+
+
+msgid "Import the assets as copied data-block while avoiding multiple copies of nested, typically heavy data. For example the textures of a material asset, or the mesh of an object asset, don't have to be copied every time this asset is imported. The instances of the asset share the data instead."
+msgstr "Importer les assets en tant que blocs de données copiés, tout en évitant d’avoir plusieurs copies de données imbriquées et typiquement lourdes. Par exemple, les textures d’un asset matériau, ou le maillage d’un asset objet, n’ont pas besoin d’être copiés à chaque fois que cet asset est importé. Au lieu de ça, les instances de l’asset partagent leurs données."
+
+
+msgid "Pack"
+msgstr "Empaqueter"
+
+
+msgid "Import the asset as linked data-block, and pack it in the current file (ensures that it remains unchanged in case the library data is modified, is not available anymore, etc.)"
+msgstr "Importer l’asset en tant que bloc de données lié, et l’empaqueter dans le fichier actuel (permet de s’assurer qu’il ne soit pas modifié dans le cas où les données de bibliothèque soient modifiées, n’existent plus, etc.)"
+
+
 msgid "Tags"
 msgstr "Étiquettes"
 
 
 msgid "Custom tags (name tokens) for the asset, used for filtering and general asset management"
 msgstr "Étiquettes personnalisées pour l’asset, utilisées pour filtrer et pour la gestion d’asset en général"
+
+
+msgid "Use Preferred Import Method"
+msgstr "Utiliser la méthode d’import préférée"
 
 
 msgid "Asset Representation"
@@ -2021,8 +2061,16 @@ msgid "Essentials"
 msgstr "Essentiels"
 
 
-msgid "Show the basic building blocks and utilities coming with Blender"
+msgid "Show basic building blocks and utilities coming with Blender"
 msgstr "Afficher les éléments et utilitaires de base fournis avec Blender"
+
+
+msgid "Online Essentials"
+msgstr "Essentiels en ligne"
+
+
+msgid "Show additional building blocks and utilities available online"
+msgstr "Afficher les éléments et utilitaires supplémentaires disponibles en ligne"
 
 
 msgid "Custom"
@@ -6011,6 +6059,18 @@ msgstr "Simplifier"
 
 msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Nombre d’étapes de simplification (de hautes valeurs réduisent la précision de remplissage)"
+
+
+msgid "Fill Solver"
+msgstr "Solveur de remplissage"
+
+
+msgid "Delaunay"
+msgstr "Delaunay"
+
+
+msgid "Pixel"
+msgstr "Pixel"
 
 
 msgid "Threshold to consider color transparent for filling"
@@ -11909,7 +11969,7 @@ msgid "Display Light Probe"
 msgstr "Afficher les sondes d’éclairage"
 
 
-msgid "Include visualization of lightprobe related animation data"
+msgid "Include visualization of light probe related animation data"
 msgstr "Inclure la visualisation des données d’animation relatives aux sondes d’éclairage"
 
 
@@ -15491,6 +15551,38 @@ msgid "Settings for the file selection in Asset Browser mode"
 msgstr "Réglages pour la sélection de fichiers en mode explorateur d’assets"
 
 
+msgid "Asset Access"
+msgstr "Accès aux assets"
+
+
+msgid "Choose the visibility of online and offline assets"
+msgstr "Choisir la visibilité des assets en ligne et hors ligne"
+
+
+msgid "Online and Offline"
+msgstr "En ligne et hors ligne"
+
+
+msgid "Show assets that are both hosted online (need downloading) and available on disk already"
+msgstr "Afficher les assets qui sont à la fois hébergés en ligne (doivent être téléchargés), et déjà disponibles sur le disque"
+
+
+msgid "Online Only"
+msgstr "En ligne seulement"
+
+
+msgid "Show only assets that need downloading (requires internet access)"
+msgstr "Afficher seulement les assets qui doivent être téléchargés (nécessite un accès à Internet)"
+
+
+msgid "Offline Only"
+msgstr "Hors ligne seulement"
+
+
+msgid "Show only assets that are available on disk already (no internet access needed)"
+msgstr "Afficher seulement les assets qui sont déjà disponibles sur le disque (ne nécessite pas d’accès à Internet)"
+
+
 msgid "The UUID of the catalog shown in the browser"
 msgstr "L’UUID du catalogue affiché dans l’explorateur"
 
@@ -15507,44 +15599,20 @@ msgid "Determine how the asset will be imported"
 msgstr "Détermine comment les assets seront importés"
 
 
-msgid "Follow Preferences"
-msgstr "Selon les préférences"
+msgid "Follow Asset or Preferences"
+msgstr "Selon l’asset ou les préférences"
 
 
 msgid "Use the import method set in the Preferences for this asset library, don't override it for this Asset Browser"
 msgstr "Utiliser la méthode d’importation définie dans les préférences pour cette bibliothèque d’assets, et ne pas la redéfinir pour cet explorateur d’assets"
 
 
-msgid "Link"
-msgstr "Lier"
-
-
-msgid "Import the assets as linked data-block"
-msgstr "Importer les assets en tant que blocs liés"
-
-
-msgid "Append"
-msgstr "Ajouter"
-
-
 msgid "Import the asset as copied data-block, with no link to the original asset data-block"
 msgstr "Importer l’asset en tant que bloc de données copié, sans aucun lien avec le bloc de données de l’asset d’origine"
 
 
-msgid "Append (Reuse Data)"
-msgstr "Ajouter (réutiliser les données)"
-
-
 msgid "Import the asset as copied data-block while avoiding multiple copies of nested, typically heavy data. For example the textures of a material asset, or the mesh of an object asset, don't have to be copied every time this asset is imported. The instances of the asset share the data instead"
 msgstr "Importer l’asset en tant que bloc de données copié, tout en évitant d’avoir plusieurs copies de données imbriquées et typiquement lourdes. Par exemple, les textures d’un asset matériau, ou le maillage d’un asset objet, n’ont pas besoin d’être copiés à chaque fois que cet asset est importé. Au lieu de ça, les instances de l’asset partagent leurs données"
-
-
-msgid "Pack"
-msgstr "Empaqueter"
-
-
-msgid "Import the asset as linked data-block, and pack it in the current file (ensures that it remains unchanged in case the library data is modified, is not available anymore, etc.)"
-msgstr "Importer l’asset en tant que bloc de données lié, et l’empaqueter dans le fichier actuel (permet de s’assurer qu’il ne soit pas modifié dans le cas où les données de bibliothèque soient modifiées, n’existent plus, etc.)"
 
 
 msgid "Instance Collections on Appending"
@@ -15561,14 +15629,6 @@ msgstr "Instancier les collections lors du liage"
 
 msgid "Create instances for collections when linking, rather than adding them directly to the scene"
 msgstr "Créer des instances pour les collections lors d’un lien, plutôt que de les ajouter directement dans la scène"
-
-
-msgid "Show Online Assets"
-msgstr "Afficher les assets en ligne"
-
-
-msgid "When internet access is enabled, load and display online assets"
-msgstr "Lorsque l’accès à Internet est activé, charger et afficher les assets en ligne"
 
 
 msgid "Float2 Attribute Value"
@@ -17963,12 +18023,48 @@ msgid "Use curve to define primitive stroke thickness"
 msgstr "Utiliser la courbe pour définir l’épaisseur des primitives de traits"
 
 
-msgid "Field to Grid Item"
-msgstr "Élément de champ vers grille"
+msgid "Automatically detect a good structure type based on how the socket is used"
+msgstr "Détecter automatiquement un bon type de structure d’après l’usage de la prise"
+
+
+msgid "Dynamic"
+msgstr "Dynamique"
+
+
+msgid "Socket can work with different kinds of structures"
+msgstr "La prise peut marcher avec différentes sortes de structures"
+
+
+msgid "Socket expects a field"
+msgstr "La prise attend un champ"
+
+
+msgid "Socket expects a grid"
+msgstr "La prise attend une grille"
+
+
+msgid "List"
+msgstr "Liste"
+
+
+msgid "Socket expects a list"
+msgstr "La prise attend une liste"
+
+
+msgid "Single"
+msgstr "Unique"
+
+
+msgid "Socket expects a single value"
+msgstr "La prise attend une seule valeur"
 
 
 msgid "Items"
 msgstr "Éléments"
+
+
+msgid "Field to Grid Item"
+msgstr "Élément de champ vers grille"
 
 
 msgid "Collection of field to grid items"
@@ -19819,10 +19915,6 @@ msgstr "Global"
 
 msgid "Simulates the entire mesh"
 msgstr "Simuler tout le maillage"
-
-
-msgid "Dynamic"
-msgstr "Dynamique"
 
 
 msgid "The active simulation area moves with the brush"
@@ -22534,10 +22626,6 @@ msgid "Overlapping curves with the same winding direction are filled as a union"
 msgstr "Les courbes qui se chevauchent dans la même direction d’enroulement sont remplies comme une union"
 
 
-msgid "Fill Solver"
-msgstr "Solveur de remplissage"
-
-
 msgid "Triangulation solver for filling 2D curves"
 msgstr "Solveur de triangulation pour le remplissage des courbes 2D"
 
@@ -22548,10 +22636,6 @@ msgstr "Ligne de balayage"
 
 msgid "Fast without support for self-intersection"
 msgstr "Rapide, sans prise en charge des auto-intersections"
-
-
-msgid "Delaunay"
-msgstr "Delaunay"
 
 
 msgid "Constrained Delaunay Triangulation (CDT), robust with support for self-intersections"
@@ -24912,6 +24996,14 @@ msgid "Planar Probe"
 msgstr "Sonde planaire"
 
 
+msgid "Parallax Radius"
+msgstr "Rayon de parallaxe"
+
+
+msgid "Amount of parallax to use for reflections on Blended materials or Shader To RGB evaluation"
+msgstr "Quantité de parallaxe à utiliser pour les réflexions sur les matériaux « Mélangé » ou les évaluations Shader vers RVB"
+
+
 msgid "Spherical Probe"
 msgstr "Sonde sphérique"
 
@@ -24926,10 +25018,6 @@ msgstr "Contrôle à quelle vitesse l’influence de la sonde diminue"
 
 msgid "Type of influence volume"
 msgstr "Type de volume d’influence"
-
-
-msgid "Parallax Radius"
-msgstr "Rayon de parallaxe"
 
 
 msgid "Lowest corner of the parallax bounding box"
@@ -25522,7 +25610,7 @@ msgstr "Utiliser l’arrière-plan du monde actuel pour éclairer le rendu de pr
 
 
 msgid "Raytrace Transmission"
-msgstr "Transmission par lancer de rendu"
+msgstr "Transmission par lancer de rayon"
 
 
 msgid "Use raytracing to determine transmitted color instead of using only light probes. This prevents the surface from contributing to the lighting of surfaces not using this setting."
@@ -25993,12 +26081,12 @@ msgid "Movie File"
 msgstr "Fichier vidéo"
 
 
-msgid "Use Proxy / Timecode"
-msgstr "Utiliser proxy / timecode"
+msgid "Use Proxy"
+msgstr "Utiliser le proxy"
 
 
-msgid "Use a preview proxy and/or timecode index for this clip"
-msgstr "Utiliser un proxy de prévisualisation et/ou un index de timecode, pour ce clip"
+msgid "Use a preview proxy for this clip"
+msgstr "Utiliser un proxy de prévisualisation pour ce clip"
 
 
 msgid "Proxy Custom Directory"
@@ -26143,6 +26231,14 @@ msgstr "Arborescence de nœuds de compositing"
 
 msgid "Node tree consisting of linked nodes used for compositing"
 msgstr "Arborescence de nœuds faite de nœuds liés, utilisée pour le compositing"
+
+
+msgid "Strip Modifier"
+msgstr "Modificateur de bande"
+
+
+msgid "The node group is used as a sequencer strip modifier"
+msgstr "Le groupe de nœuds est utilisé comme modificateur de bande du séquenceur"
 
 
 msgid "Viewer Region"
@@ -26837,6 +26933,14 @@ msgid "Name of parent bone in case of a bone parenting relation"
 msgstr "Nom de l’os parent, en cas de relation de parentage à un os"
 
 
+msgid "Parent Bone Head/Tail"
+msgstr "Tête / queue de l’os parent"
+
+
+msgid "Position along the length of bone"
+msgstr "Position dans la longueur de l’os"
+
+
 msgid "Parent Type"
 msgstr "Type de parentage"
 
@@ -27268,6 +27372,14 @@ msgid "Object visibility to glossy rays"
 msgstr "Visibilité de l’objet pour les rayons de brillance"
 
 
+msgid "Raycast Visibility"
+msgstr "Visibilité de lancer de rayon"
+
+
+msgid "Object visibility to raycast rays. Implicitly false for Blended materials."
+msgstr "Visibilité de l’objet pour les rayons de lancer de rayon. Implicitement faux pour les matériaux « Mélangé »."
+
+
 msgid "Shadow Visibility"
 msgstr "Visibilité d’ombre"
 
@@ -27314,10 +27426,6 @@ msgstr "Degrés"
 
 msgid "How many degrees path has to curve to make another render segment"
 msgstr "De combien de degrés le chemin doit se courber pour créer un autre segment de rendu"
-
-
-msgid "Pixel"
-msgstr "Pixel"
 
 
 msgid "How many pixels path has to cover to make another render segment"
@@ -35640,7 +35748,7 @@ msgid "Randomization"
 msgstr "Randomisation"
 
 
-msgid "Use materiel randomization"
+msgid "Use material randomization"
 msgstr "Utiliser la randomisation de matériau"
 
 
@@ -35688,100 +35796,16 @@ msgid "Editor menu containing buttons"
 msgstr "Menu d’éditeur contenant des boutons"
 
 
-msgid "Clean Up"
-msgstr "Nettoyer"
-
-
-msgid "Show/Hide"
-msgstr "Afficher/cacher"
-
-
-msgid "Special Characters"
-msgstr "Caractères spéciaux"
-
-
-msgid "Kerning"
-msgstr "Approche"
-
-
-msgid "Metaball"
-msgstr "Métaballe"
-
-
-msgid "Names"
-msgstr "Noms"
-
-
-msgid "Math"
-msgstr "Maths"
-
-
-msgid "Bone Roll"
-msgstr "Roulis de l’os"
-
-
-msgid "Utilities"
-msgstr "Utilitaires"
-
-
-msgid "Pivot Point"
-msgstr "Point de pivot"
-
-
-msgid "Read"
-msgstr "Lecture"
-
-
-msgid "Snap"
-msgstr "Aimanter"
-
-
-msgid "Sample"
-msgstr "Échantillonner"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Atténuation de l’édition proportionnelle"
-
-
-msgid "Write"
-msgstr "Écriture"
-
-
-msgid "Mask Edit"
-msgstr "Édition du masque"
-
-
-msgid "Automasking"
-msgstr "Masquage auto"
-
-
-msgid "Primitives"
-msgstr "Primitives"
-
-
-msgid "Face Sets Edit"
-msgstr "Édition des ensembles de faces"
-
-
-msgid "Vertex Group Locks"
-msgstr "Verrouillages des groupes de sommets"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Instances"
-
-
-msgid "Import"
-msgstr "Importer"
+msgid "Render Preview"
+msgstr "Rendu de prévisualisation"
 
 
 msgid "Mirror"
 msgstr "Miroir"
+
+
+msgid "Snap"
+msgstr "Aimanter"
 
 
 msgid "UV Mapping"
@@ -35794,10 +35818,6 @@ msgstr "Vue locale"
 
 msgid "Viewpoint"
 msgstr "Point de vue"
-
-
-msgid "Deprecated"
-msgstr "Obsolète"
 
 
 msgid "Navigation"
@@ -35816,16 +35836,16 @@ msgid "View Regions"
 msgstr "Régions dans la vue"
 
 
+msgid "Math"
+msgstr "Maths"
+
+
 msgid "Select More/Less"
 msgstr "Sélectionner plus ou moins"
 
 
-msgid "List"
-msgstr "Liste"
-
-
-msgid "UV"
-msgstr "UV"
+msgid "Utilities"
+msgstr "Utilitaires"
 
 
 msgid "Select Similar"
@@ -35848,12 +35868,40 @@ msgid "Assign Material"
 msgstr "Assigner un matériau"
 
 
+msgid "Read"
+msgstr "Lecture"
+
+
+msgid "Sample"
+msgstr "Échantillonner"
+
+
+msgid "Write"
+msgstr "Écriture"
+
+
+msgid "Primitives"
+msgstr "Primitives"
+
+
+msgid "Metaball"
+msgstr "Métaballe"
+
+
 msgid "Light"
 msgstr "Éclairage"
 
 
 msgid "Light Probe"
 msgstr "Sonde d’éclairage"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Instances"
 
 
 msgid "Add Image"
@@ -35868,6 +35916,10 @@ msgid "Rigid Body"
 msgstr "Corps rigide"
 
 
+msgid "Import"
+msgstr "Importer"
+
+
 msgid "Apply"
 msgstr "Appliquer"
 
@@ -35878,6 +35930,18 @@ msgstr "Suivi"
 
 msgid "Quick Effects"
 msgstr "Effets rapides"
+
+
+msgid "Show/Hide"
+msgstr "Afficher/cacher"
+
+
+msgid "Deprecated"
+msgstr "Obsolète"
+
+
+msgid "Clean Up"
+msgstr "Nettoyer"
 
 
 msgid "Asset"
@@ -35900,8 +35964,12 @@ msgid "Hooks"
 msgstr "Crochets"
 
 
-msgid "Layout"
-msgstr "Disposition"
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Vertex Group Locks"
+msgstr "Verrouillages des groupes de sommets"
 
 
 msgid "Trim/Add"
@@ -35924,10 +35992,6 @@ msgid "Random Mask"
 msgstr "Masque aléatoire"
 
 
-msgid "Adjust"
-msgstr "Ajuster"
-
-
 msgid "Clear Transform"
 msgstr "Réinitialiser la transformation"
 
@@ -35936,28 +36000,20 @@ msgid "In-Betweens"
 msgstr "Intervalles"
 
 
-msgid "Keying"
-msgstr "Incrustation"
-
-
 msgid "Propagate"
 msgstr "Propager"
-
-
-msgid "Tracking"
-msgstr "Suivi"
 
 
 msgid "Bone Collections"
 msgstr "Collections d’os"
 
 
+msgid "Names"
+msgstr "Noms"
+
+
 msgid "Toggle Bone Options"
 msgstr "(Dés)activer des options d’os"
-
-
-msgid "Creative"
-msgstr "Créatif"
 
 
 msgid "Enable Bone Options"
@@ -35966,10 +36022,6 @@ msgstr "Activer des options d’os"
 
 msgid "Disable Bone Options"
 msgstr "Désactiver des options d’os"
-
-
-msgid "Render Preview"
-msgstr "Rendu de prévisualisation"
 
 
 msgid "Mesh Select Mode"
@@ -35990,6 +36042,62 @@ msgstr "Définir la force de face"
 
 msgid "Merge"
 msgstr "Fusionner"
+
+
+msgid "Linked"
+msgstr "Liés"
+
+
+msgid "Layout"
+msgstr "Disposition"
+
+
+msgid "Special Characters"
+msgstr "Caractères spéciaux"
+
+
+msgid "Kerning"
+msgstr "Approche"
+
+
+msgid "Bone Roll"
+msgstr "Roulis de l’os"
+
+
+msgid "Adjust"
+msgstr "Ajuster"
+
+
+msgid "Keying"
+msgstr "Incrustation"
+
+
+msgid "Tracking"
+msgstr "Suivi"
+
+
+msgid "Creative"
+msgstr "Créatif"
+
+
+msgid "Pivot Point"
+msgstr "Point de pivot"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Atténuation de l’édition proportionnelle"
+
+
+msgid "Mask Edit"
+msgstr "Édition du masque"
+
+
+msgid "Automasking"
+msgstr "Masquage auto"
+
+
+msgid "Face Sets Edit"
+msgstr "Édition des ensembles de faces"
 
 
 msgid "Keyframe Insert Pie"
@@ -44219,14 +44327,6 @@ msgid "Build proxy resolution 75% of the original footage dimension"
 msgstr "Construire le proxy à 75% de la résolution du métrage original"
 
 
-msgid "Rec Run"
-msgstr "Enregistrement en cours"
-
-
-msgid "Build record run time code index"
-msgstr "Créer des indices de timecode enregistré"
-
-
 msgid "Build proxy resolution 100% of the original undistorted footage dimension"
 msgstr "Construire le proxy à 100% de la résolution du métrage original non-distordu"
 
@@ -44249,30 +44349,6 @@ msgstr "Emplacement où stocker les fichiers de proxy"
 
 msgid "JPEG quality of proxy images"
 msgstr "Qualité JPEG des images proxies"
-
-
-msgid "Timecode"
-msgstr "Timecode"
-
-
-msgid "Ignore generated timecodes, seek in movie stream based on calculated timestamp"
-msgstr "Ignorer les timecodes générés, accéder dans le flux vidéo d’après l’horodatage calculé"
-
-
-msgid "Record Run"
-msgstr "Timing enregistré"
-
-
-msgid "Seek based on timestamps read from movie stream, giving the best match between scene and movie times"
-msgstr "Accéder d’après les horodatages lus dans le flux vidéo, pour obtenir la meilleur correspondance entre les temps de la scène et de la vidéo"
-
-
-msgid "Record Run No Gaps"
-msgstr "Timing enregistré, sans trous"
-
-
-msgid "Effectively convert movie to an image sequence, ignoring incomplete or dropped frames, and changes in frame rate"
-msgstr "Convertir en pratique la vidéo en séquence d’images, et ignorer les frames incomplètes ou abandonnées, et les changements de fréquence d’images"
 
 
 msgid "Scopes for statistical view of a movie clip"
@@ -47639,6 +47715,14 @@ msgid "Replace a given string segment with another"
 msgstr "Remplacer le segment de texte donné par un autre"
 
 
+msgid "Reverse String"
+msgstr "Inverser le texte"
+
+
+msgid "Reverse the order of the characters in a string"
+msgstr "Inverser l’ordre des caractères dans un texte"
+
+
 msgid "Rotate Euler"
 msgstr "Rotation Euler"
 
@@ -47875,6 +47959,10 @@ msgid "Grease Pencil component containing layers and curves data"
 msgstr "Composant de Grease Pencil contenant des données de calques et de courbes"
 
 
+msgid "Volume component containing volume grids"
+msgstr "Composant de volume contenant des grilles de volume"
+
+
 msgid "Attribute Statistic"
 msgstr "Statistiques d’attribut"
 
@@ -47953,6 +48041,18 @@ msgstr "Stocker le résultat d’un champ sur une géométrie et produire les do
 
 msgid "Which domain to store the data in"
 msgstr "Domaine dans lequel stocker la donnée"
+
+
+msgid "Create a list of values"
+msgstr "Créer une liste de valeurs"
+
+
+msgid "Group mesh vertices connected by edges when they are within a specified distance"
+msgstr "Regrouper les sommets de maillage connectés par des arêtes, quand ils sont plus proches qu’une distance donnée"
+
+
+msgid "Group elements into integer IDs based on proximity of vector values"
+msgstr "Regrouper les éléments en ID entiers selon la proximité de valeurs vectorielles"
 
 
 msgid "Retrieve a collection's object and collection children, in a name-based order"
@@ -48515,10 +48615,6 @@ msgid "Field to List"
 msgstr "Champ vers liste"
 
 
-msgid "Create a list of values"
-msgstr "Créer une liste de valeurs"
-
-
 msgid "Field Variance"
 msgstr "Variance du champ"
 
@@ -48541,6 +48637,14 @@ msgstr "Congé de courbe"
 
 msgid "Round corners by generating circular arcs on each control point"
 msgstr "Arrondir les coins en générant des arcs circulaires sur chaque point de contrôle"
+
+
+msgid "Filter List"
+msgstr "Filtrer la liste"
+
+
+msgid "Remove items from a list"
+msgstr "Enlever des éléments d’une liste"
 
 
 msgid "Flip Faces"
@@ -48591,12 +48695,28 @@ msgid "Convert each input geometry into an instance, which can be much faster th
 msgstr "Convertir chaque géométrie d’entrée en instance, ce qui peut être bien plus rapide que le nœud Fusionner géométrie quand les entrées sont lourdes"
 
 
+msgid "Get Attribute Names"
+msgstr "Obtenir les noms d’attributs"
+
+
+msgid "Retrieves attribute names as a list of strings"
+msgstr "Obtenir les noms d’attributs, sous la forme d’une liste de textes"
+
+
 msgid "Get Geometry Bundle"
 msgstr "Obtenir le paquet de géométrie"
 
 
 msgid "Get the bundle of a geometry"
 msgstr "Obtenir le paquet d’une géométrie"
+
+
+msgid "Get Geometry Component"
+msgstr "Obtenir un composant de géométrie"
+
+
+msgid "Get a single component of a geometry"
+msgstr "Obtenir un unique composant d’une géométrie"
 
 
 msgid "Get Named Grid"
@@ -49232,34 +49352,6 @@ msgid "What kind of higher order types are expected to flow through this socket"
 msgstr "Quelle sorte de types de haut niveau sont censés circuler dans cette prise"
 
 
-msgid "Automatically detect a good structure type based on how the socket is used"
-msgstr "Détecter automatiquement un bon type de structure d’après l’usage de la prise"
-
-
-msgid "Socket can work with different kinds of structures"
-msgstr "La prise peut marcher avec différentes sortes de structures"
-
-
-msgid "Socket expects a field"
-msgstr "La prise attend un champ"
-
-
-msgid "Socket expects a grid"
-msgstr "La prise attend une grille"
-
-
-msgid "Socket expects a list"
-msgstr "La prise attend une liste"
-
-
-msgid "Single"
-msgstr "Unique"
-
-
-msgid "Socket expects a single value"
-msgstr "La prise attend une seule valeur"
-
-
 msgid "List Length"
 msgstr "Longueur de liste"
 
@@ -49330,6 +49422,14 @@ msgstr "Par ID de groupe"
 
 msgid "Provide a custom group ID for each layer and all layers with the same ID will be merged into one"
 msgstr "Fournir un ID de groupe personnalisé pour chaque calque, et tous les calques ayant le même ID seront fusionnés ensemble"
+
+
+msgid "Merge Points"
+msgstr "Fusionner les points"
+
+
+msgid "Merge points of a point cloud or mesh based on group ID and selection."
+msgstr "Fusionner les points d’un nuage de points ou maillage, en fonction d’un identifiant de groupe et d’une sélection."
 
 
 msgid "Mesh Boolean"
@@ -50284,6 +50384,14 @@ msgid "Switch between two inputs"
 msgstr "Basculer entre deux entrées"
 
 
+msgid "Tag Filter"
+msgstr "Filtrer étiquette"
+
+
+msgid "Check if a filter string matches a list of tags"
+msgstr "Vérifier si un texte de filtrage correspond à une liste d’étiquettes"
+
+
 msgid "The scene's 3D cursor location and rotation"
 msgstr "La position et la rotation du curseur 3D de la scène"
 
@@ -50342,6 +50450,14 @@ msgstr "Stocker des valeurs de sélection (vrai ou faux) en mode édition"
 
 msgid "Store floating point selection values. For mesh geometry, stored inverted as the sculpt mode mask"
 msgstr "Stocker des valeurs de sélection en virgule flottante. Pour les géométries maillages, les stocker inversées en tant que masque du mode sculpture"
+
+
+msgid "Transfer Attributes"
+msgstr "Transférer les attributs"
+
+
+msgid "Copy attributes from one geometry to another"
+msgstr "Copier les attributs d’une géométrie à l’autre"
 
 
 msgid "Transform Geometry"
@@ -50460,6 +50576,14 @@ msgid "Warning Type"
 msgstr "Type d’avertissement"
 
 
+msgid "XPBD Solver"
+msgstr "Solveur XPBD"
+
+
+msgid "Simulate physics using the XPBD framework"
+msgstr "Simuler la physique en utilisant le framework XPBD"
+
+
 msgid "Closure Input"
 msgstr "Entrée fermeture"
 
@@ -50543,6 +50667,14 @@ msgstr "Obtenir l’élément de paquet"
 
 msgid "Retrieve a bundle item by path."
 msgstr "Obtenir un élément de paquet par son chemin."
+
+
+msgid "Get Nested Bundle Paths"
+msgstr "Obtenir les chemins du paquet imbriqué"
+
+
+msgid "Get paths to items in a nested bundle with a filter"
+msgstr "Obtenir les chemins vers des éléments dans un paquet imbriqué, avec un filtre"
 
 
 msgid "Group Input"
@@ -53077,8 +53209,8 @@ msgid "Attribute Domain"
 msgstr "Domaine d’attribut"
 
 
-msgid "Attribute domain where the attribute is stored in the baked data"
-msgstr "Domaine d’attribut, où l’attribut est stocké dans les données précalculées"
+msgid "Domain where the field is captured if it is not already an attribute-field"
+msgstr "Domaine dans lequel le champ est capturé s’il n’est pas déjà un champ-attribut"
 
 
 msgid "Is Attribute"
@@ -53155,14 +53287,6 @@ msgstr "Entrées de nœud"
 
 msgid "Collection of Node Sockets"
 msgstr "Collection de prises de nœud"
-
-
-msgid "Node Instance Hash"
-msgstr "Empreinte d’instance de nœud"
-
-
-msgid "Hash table containing node instance data"
-msgstr "Table de hachage contenant les données des instances de nœud"
 
 
 msgid "Socket Template"
@@ -53267,6 +53391,10 @@ msgstr "Est replié"
 
 msgid "Whether the panel is collapsed"
 msgstr "Est-ce que le panneau est replié"
+
+
+msgid "Raycast Sample Attribute Item"
+msgstr "Élément d’attribut d’un échantillon de lancer de rayon"
 
 
 msgid "Separate Bundle Item"
@@ -53375,10 +53503,6 @@ msgstr "Inactive"
 
 msgid "Socket is grayed out because it has been detected to not have any effect on the output"
 msgstr "La prise est grisée car il a été détecté qu’elle n’a aucun effet sur la sortie"
-
-
-msgid "Linked"
-msgstr "Liés"
 
 
 msgid "True if the socket is connected"
@@ -53809,6 +53933,14 @@ msgid "The right Bézier control point handle from the context"
 msgstr "Poignée du point de contrôle Bézier de droite, depuis le contexte"
 
 
+msgid "Scene Frame"
+msgstr "Frame de scène"
+
+
+msgid "The current frame in the scene"
+msgstr "La frame actuelle dans la scène"
+
+
 msgid "Socket description"
 msgstr "Description de la prise"
 
@@ -53862,7 +53994,7 @@ msgstr "Sortir le lien du groupe de nœuds pour le connecter au nœud de sortie 
 
 
 msgid "Is Panel Toggle"
-msgstr "Est case à cocher du panneau"
+msgstr "Est case à cocher de panneau"
 
 
 msgid "This socket is meant to be used as the toggle in its panel header"
@@ -54555,6 +54687,11 @@ msgstr "Valider les références de collection"
 msgctxt "Operator"
 msgid "Assign Action"
 msgstr "Assigner l’action"
+
+
+msgctxt "Operator"
+msgid "Open File Location"
+msgstr "Ouvrir l’emplacement du fichier"
 
 
 msgid "Open the blend file that contains the active asset"
@@ -55250,6 +55387,11 @@ msgstr "Ajouter à l’arborescence active des nœuds d’entrée et sortie dans
 msgctxt "Operator"
 msgid "Add Simulation Zone"
 msgstr "Ajouter une zone de simulation"
+
+
+msgctxt "Operator"
+msgid "Add Typed Bundle"
+msgstr "Ajouter un paquet typé"
 
 
 msgctxt "Operator"
@@ -57534,20 +57676,20 @@ msgid "Flip times of selected keyframes using the current frame as the mirror li
 msgstr "Inverser les temps des images clés sélectionnées en utilisant la frame actuelle comme ligne de miroir"
 
 
-msgid "By Values Over Zero Value"
-msgstr "Par valeurs autour de zéro"
-
-
-msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
-msgstr "Inverser les valeurs des images clés sélectionnées (c’est-à-dire que les valeurs négatives deviennent positives, et vice-versa)"
-
-
 msgid "By Times Over First Selected Marker"
 msgstr "Par temps autour du premier marqueur sélectionné"
 
 
 msgid "Flip times of selected keyframes using the first selected marker as the reference point"
 msgstr "Inverser les temps des images clés sélectionnées en utilisant le premier marqueur sélectionné comme point de référence"
+
+
+msgid "By Values Over Zero Value"
+msgstr "Par valeurs autour de zéro"
+
+
+msgid "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"
+msgstr "Inverser les valeurs des images clés sélectionnées (c’est-à-dire que les valeurs négatives deviennent positives, et vice-versa)"
 
 
 msgctxt "Operator"
@@ -58610,7 +58752,7 @@ msgstr "UID de session de l’ancienne action à remplacer"
 
 
 msgctxt "Operator"
-msgid "Replace with new Action"
+msgid "Replace with New Action"
 msgstr "Remplacer par une nouvelle action"
 
 
@@ -58781,6 +58923,14 @@ msgstr "Ajouter un os"
 
 msgid "Add a new bone located at the 3D cursor"
 msgstr "Ajouter un nouvel os à l’emplacement du curseur 3D"
+
+
+msgid "Initial orientation of the new bone"
+msgstr "Orientation initiale du nouvel os"
+
+
+msgid "Axes"
+msgstr "Axes"
 
 
 msgid "Name of the newly created bone"
@@ -59027,6 +59177,23 @@ msgstr "Déplacer"
 
 msgid "Move selected items"
 msgstr "Déplacer les éléments sélectionnés"
+
+
+msgctxt "Operator"
+msgid "Duplicate and Rename"
+msgstr "Dupliquer et renommer"
+
+
+msgid "Make copies of the selected bones within the same armature and replace a part of their name"
+msgstr "Créer des copies des os sélectionnés dans la même armature, et remplacer une partie de leur nom"
+
+
+msgid "Search"
+msgstr "Recherche"
+
+
+msgid "A part of the current bone name that will be replaced"
+msgstr "Partie du nom actuel de l’os qui sera remplacée"
 
 
 msgctxt "Operator"
@@ -60560,12 +60727,12 @@ msgstr "Précharger des frames depuis le disque pour une lecture et un suivi plu
 
 
 msgctxt "Operator"
-msgid "Rebuild Proxy and Timecode Indices"
-msgstr "Reconstruire le proxy et les indices de timecode"
+msgid "Rebuild Proxy"
+msgstr "Reconstruire le proxy"
 
 
-msgid "Rebuild all selected proxies and timecode indices in the background"
-msgstr "Reconstruire tous les proxies et les indices de timecode sélectionnés, en tâche de fond"
+msgid "Rebuild all selected proxies in the background"
+msgstr "Reconstruire tous les proxies sélectionnés en tâche de fond"
 
 
 msgctxt "Operator"
@@ -65867,6 +66034,43 @@ msgstr "Copier les F-modificateurs de la F-courbe active"
 
 
 msgctxt "Operator"
+msgid "Delete F-Curve Modifiers"
+msgstr "Supprimer les modificateurs de F-courbe"
+
+
+msgid "Remove Modifier(s) from the selected F-Curves"
+msgstr "Supprimer les modificateurs de la F-courbe sélectionnée"
+
+
+msgid "Decide what the operator will remove"
+msgstr "Choisit ce que l’opérateur supprime"
+
+
+msgid "Remove All"
+msgstr "Supprimer tout"
+
+
+msgid "Remove all modifiers from the selected F-Curves"
+msgstr "Supprimer tous les modificateurs des F-courbes sélectionnées"
+
+
+msgid "Remove First"
+msgstr "Supprimer le premier"
+
+
+msgid "Only remove the first modifier from each F-Curve regardless of type"
+msgstr "Supprimer seulement le premier modificateur de chaque F-courbe, indépendamment de son type"
+
+
+msgid "Remove Type"
+msgstr "Supprimer par type"
+
+
+msgid "Only remove the specified type of F-Curve modifier"
+msgstr "Supprimer seulement le type choisi de modificateur de F-courbe"
+
+
+msgctxt "Operator"
 msgid "Paste F-Modifiers"
 msgstr "Coller les F-modificateurs"
 
@@ -65990,6 +66194,23 @@ msgstr "Convertir les canaux sélectionnés en un ensemble d’échantillons non
 
 
 msgctxt "Operator"
+msgid "Local View"
+msgstr "Vue locale"
+
+
+msgid "Isolate selected F-Curves in Graph Editor view"
+msgstr "Isoler les courbes sélectionnées dans la vue éditeur de graphes"
+
+
+msgid "Frame selected"
+msgstr "Voir la sélection"
+
+
+msgid "Zoom current view to draw selected fcurves in visible range"
+msgstr "Zoomer la vue de façon à afficher les F-courbes sélectionnées dans l’intervalle visible"
+
+
+msgctxt "Operator"
 msgid "Match Slope"
 msgstr "Faire correspondre la pente"
 
@@ -66002,20 +66223,20 @@ msgid "Defines which keys to use as slope and how much to blend towards them"
 msgstr "Définir quelles clés utiliser comme pentes et de combien fondre vers elle"
 
 
-msgid "By Values Over Cursor Value"
-msgstr "Par valeurs autour de la valeur du curseur"
-
-
-msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
-msgstr "Inverser les valeurs des images clés sélectionnées en utilisant la valeur du curseur (Y, partie horizontale) comme ligne de miroir"
-
-
 msgid "By Times Over Zero Time"
 msgstr "Par temps autour du temps zéro"
 
 
 msgid "Flip times of selected keyframes, effectively reversing the order they appear in"
 msgstr "Inverser les temps des images clés sélectionnées, et inverser l’ordre dans lequel elles apparaissent"
+
+
+msgid "By Values Over Cursor Value"
+msgstr "Par valeurs autour de la valeur du curseur"
+
+
+msgid "Flip values of selected keyframes using the cursor value (Y/Horizontal component) as the mirror line"
+msgstr "Inverser les valeurs des images clés sélectionnées en utilisant la valeur du curseur (Y, partie horizontale) comme ligne de miroir"
 
 
 msgid "Paste keys with a value offset"
@@ -68718,18 +68939,6 @@ msgstr "Détecter les UDIM"
 
 msgid "Detect selected UDIM files and load all matching tiles"
 msgstr "Détecter les fichiers UDIM sélectionnés et charger toutes les tuiles correspondantes"
-
-
-msgid "Use relative path"
-msgstr "Utiliser un chemin relatif"
-
-
-msgid "Use sequence detection"
-msgstr "Utiliser la détection de séquence"
-
-
-msgid "Use UDIM detection"
-msgstr "Utiliser la détection d’UDIM"
 
 
 msgctxt "Operator"
@@ -73621,6 +73830,22 @@ msgid "Add a Group Input node with selected sockets to the current node editor"
 msgstr "Ajouter un nœud Entrée de groupe avec les prises sélectionnées à l’éditeur de nœuds actuel"
 
 
+msgid "All Panel Contents"
+msgstr "Tout le contenu du panneau"
+
+
+msgid "Include sockets in all selected panels, even if they have a panel toggle"
+msgstr "Inclure les prises dans tous les panneaux sélectionnés, même s’ils ont une case à cocher de panneau"
+
+
+msgid "Only Selected Sockets"
+msgstr "Seulement les prises sélectionnées"
+
+
+msgid "Include only selected sockets/panels in the added group input node"
+msgstr "Inclure seulement les prises et panneaux sélectionnés dans le nœud d’entrée de groupe ajouté"
+
+
 msgctxt "Operator"
 msgid "Add Image as Node"
 msgstr "Ajouter une image comme nœud"
@@ -73685,6 +73910,10 @@ msgstr "Ajouter un reroutage"
 
 msgid "Add a reroute node"
 msgstr "Ajouter un nœud de reroutage"
+
+
+msgid "Add a Combine Bundle node with a type input"
+msgstr "Ajouter un nœud Combiner le paquet avec une entrée Type"
 
 
 msgid "Add Geometry Link"
@@ -74064,18 +74293,6 @@ msgstr "Collapser"
 
 msgid "Toggle collapsing of selected nodes"
 msgstr "(Dés)activer le collapsage des nœuds sélectionnés"
-
-
-msgid "Add an item to the index switch"
-msgstr "Ajouter un élément à la bascule par indice"
-
-
-msgid "Remove an item from the index switch"
-msgstr "Supprimer un élément de la bascule par indice"
-
-
-msgid "Index to remove"
-msgstr "Indice à supprimer"
 
 
 msgctxt "Operator"
@@ -84381,14 +84598,6 @@ msgid "Deselect previously selected strips after add operation completes"
 msgstr "Désélectionner les bandes après la fin de l’opération"
 
 
-msgid "Skip Locked or Muted Channels"
-msgstr "Sauter les canaux verrouillés ou suspendus"
-
-
-msgid "Add strips to muted or locked channels when adding movie strips"
-msgstr "Ajouter les bandes à des canaux suspendus ou verrouillés lors de l’ajout de bandes vidéo"
-
-
 msgctxt "Operator"
 msgid "Box Blade"
 msgstr "Lame rectangulaire"
@@ -85032,10 +85241,6 @@ msgid "Reassign the inputs for the effect strip"
 msgstr "Réassigner les entrées pour la bande d’effet"
 
 
-msgid "Rebuild all selected proxies and timecode indices"
-msgstr "Reconstruire tous les proxies et les indices de timecode sélectionnés"
-
-
 msgctxt "Operator"
 msgid "Refresh Sequencer"
 msgstr "Rafraîchir le séquenceur"
@@ -85487,10 +85692,6 @@ msgid "Snap Strips to the Current Frame"
 msgstr "Aimanter les bandes à la frame actuelle"
 
 
-msgid "Snap strips to the current frame, using the active strip as the anchor, and the mouse cursor relative to the playhead to determine the side of the playhead to snap to"
-msgstr "Aimanter les bandes à la frame actuelle, en utilisant la bande active comme ancre, et le curseur de la souris par rapport à la tête lecture pour déterminer de quel côté de la tête de lecture aimanter"
-
-
 msgid "Frame where selected strips will be snapped"
 msgstr "Frame à laquelle les bandes sélectionnées seront aimantées"
 
@@ -85559,10 +85760,6 @@ msgstr "Couleur 09"
 msgctxt "Operator"
 msgid "Jump to Strip"
 msgstr "Aller à la bande"
-
-
-msgid "Move frame to next or previous edit point"
-msgstr "Déplacer la frame vers le point de montage suivant ou précédent"
 
 
 msgid "Use Strip Center"
@@ -89187,11 +89384,6 @@ msgid "ICO Sphere"
 msgstr "Icosphère"
 
 
-msgctxt "Operator"
-msgid "Local View"
-msgstr "Vue locale"
-
-
 msgid "Toggle display of selected object(s) separately and centered in view"
 msgstr "N’afficher que les objets sélectionnés et les centrer dans la vue"
 
@@ -91495,6 +91687,15 @@ msgstr "Afficher une boîte de dialogue pour enregistrer les images modifiées a
 
 
 msgctxt "Operator"
+msgid "Save Autosave"
+msgstr "Enregistrer sauvegarde auto"
+
+
+msgid "Create an autosave in the temp directory for the current file"
+msgstr "Créer une sauvegarde automatique dans le dossier temporaire pour le fichier actuel"
+
+
+msgctxt "Operator"
 msgid "Save Startup File"
 msgstr "Enregistrer le fichier de démarrage"
 
@@ -92053,6 +92254,10 @@ msgstr "Réseau USD Preview Surface"
 
 msgid "Generate an approximate USD Preview Surface shader representation of a Principled BSDF node network"
 msgstr "Générer une représentation de shader approximative « USD Preview Surface » d’une arborescence de nœuds avec BSDF guidée"
+
+
+msgid "Incremental Save"
+msgstr "Sauvegarde incrémentale"
 
 
 msgid "Merge parent Xform"
@@ -93485,28 +93690,12 @@ msgid "Panel containing UI elements"
 msgstr "Panneau contenant des éléments d’interface"
 
 
-msgid "glTF Variants"
-msgstr "Variantes glTF"
-
-
-msgid "glTF Material Variants"
-msgstr "Variantes de matériaux glTF"
-
-
 msgid "Active Tool"
 msgstr "Outil actif"
 
 
 msgid "View Lock"
 msgstr "Verrouillage de la vue"
-
-
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "Animations glTF"
 
 
 msgid "Selectability & Visibility"
@@ -93617,12 +93806,28 @@ msgid "Viewport Debug"
 msgstr "Débugage vue 3D"
 
 
+msgid "glTF Variants"
+msgstr "Variantes glTF"
+
+
+msgid "glTF Material Variants"
+msgstr "Variantes de matériaux glTF"
+
+
 msgid "VR"
 msgstr "VR"
 
 
 msgid "VR Info"
 msgstr "Infos VR"
+
+
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "Animations glTF"
 
 
 msgid "Import Settings"
@@ -93696,10 +93901,6 @@ msgstr "Affichage des marqueurs"
 
 msgid "Mask Display"
 msgstr "Affichage du masque"
-
-
-msgid "Proxy/Timecode"
-msgstr "Proxy/Timecode"
 
 
 msgid "Stabilization"
@@ -94562,8 +94763,8 @@ msgid "Sequencer Snapping"
 msgstr "Aimantation du séquenceur"
 
 
-msgid "Strip Proxy & Timecode"
-msgstr "Proxy et timecode de la bande"
+msgid "Strip Proxy"
+msgstr "Proxy de la bande"
 
 
 msgctxt "Operator"
@@ -94838,20 +95039,8 @@ msgid "Image/UV Editor"
 msgstr "Éditeur d’images / d’UV"
 
 
-msgid "Axis & Gizmo Colors"
-msgstr "Couleurs d’axe et de gizmo"
-
-
-msgid "Icon Colors"
-msgstr "Couleurs d’icônes"
-
-
 msgid "Shaded"
 msgstr "Ombré"
-
-
-msgid "Styles"
-msgstr "Styles"
 
 
 msgid "Transparent Checkerboard"
@@ -94908,10 +95097,6 @@ msgstr "Balayage / marqueurs"
 
 msgid "Toolbar / Sidebar"
 msgstr "Barre d’outil / barre latérale"
-
-
-msgid "Strip Color Tags"
-msgstr "Étiquettes de couleur de bandes"
 
 
 msgid "Text Style"
@@ -96635,6 +96820,10 @@ msgid "Graphics driver and operating system settings"
 msgstr "Réglages du pilote graphique et du système d’exploitation"
 
 
+msgid "Styles"
+msgstr "Styles"
+
+
 msgid "Save on Exit"
 msgstr "Enregistrer à la fermeture"
 
@@ -97216,12 +97405,12 @@ msgid "Extra debugging information & developer support utilities for extensions"
 msgstr "Informations de débug supplémentaires et utilitaires de support de développement pour les extensions"
 
 
-msgid "Bundle in Geometry"
-msgstr "Paquets dans la géométrie"
+msgid "Geometry Nodes Hair Dynamics"
+msgstr "Dynamique de poils des nœuds de géométrie"
 
 
-msgid "Support storing custom bundles in a geometry in Geometry Nodes"
-msgstr "Prendre en charge le stockage de paquets personnalisés dans une géométrie, dans les nœuds de géométrie"
+msgid "Enable hair dynamics simulation in geometry nodes"
+msgstr "Activer la simulation dynamique de poils dans les nœuds de géométrie"
 
 
 msgid "New Curves Tools"
@@ -98734,6 +98923,74 @@ msgid "A square showing Hue/Value, with Saturation slider"
 msgstr "Un carré montrant les Teinte/Valeur, avec un curseur Saturation"
 
 
+msgid "Date Format"
+msgstr "Format de date"
+
+
+msgid "Format for displaying date strings"
+msgstr "Format pour afficher les textes avec dates"
+
+
+msgid "Default date formatting based on output language"
+msgstr "Format de date par défaut, selon la langue"
+
+
+msgid "dd/mm/yyyy"
+msgstr "jj/mm/aaaa"
+
+
+msgid "Date format: dd/mm/yyyy, eg: 27/02/2019"
+msgstr "Format de date : jj/mm/aaaa, ex. 27/02/2019"
+
+
+msgid "dd.mm.yyyy"
+msgstr "jj.mm.aaaa"
+
+
+msgid "Date format: dd.mm.yyyy, eg: 27.02.2019"
+msgstr "Format de date : jj.mm.aaaa, ex. 27.02.2019"
+
+
+msgid "dd-mm-yyyy"
+msgstr "jj-mm-aaaa"
+
+
+msgid "Date format: dd-mm-yyyy, eg: 27-02-2019"
+msgstr "Format de date : jj-mm-aaaa, ex. 27-02-2019"
+
+
+msgid "mm/dd/yyyy"
+msgstr "mm/jj/aaaa"
+
+
+msgid "Date format: mm/dd/yyyy, eg: 02/27/2019"
+msgstr "Format de date : mm/jj/aaaa, ex. 02/27/2019"
+
+
+msgid "yyyy/mm/dd"
+msgstr "aaaa/mm/jj"
+
+
+msgid "Date format: yyyy/mm/dd, eg: 2019/02/27"
+msgstr "Format de date : aaaa/mm/jj, ex. 2019/02/27"
+
+
+msgid "yyyy.mm.dd"
+msgstr "aaaa.mm.jj"
+
+
+msgid "Date format: yyyy.mm.dd, eg: 2019.02.27"
+msgstr "Format de date : aaaa.mm.jj, ex. 2019.02.27"
+
+
+msgid "yyyy-mm-dd"
+msgstr "aaaa-mm-jj"
+
+
+msgid "Date format: yyyy-mm-dd, eg: 2019-02-27"
+msgstr "Format de date : aaaa-mm-jj, ex. 2019-02-27"
+
+
 msgid "Factor Display Type"
 msgstr "Type d’affichage des facteurs"
 
@@ -98898,12 +99155,16 @@ msgid "Chinese (Simplified) - 简体中文"
 msgstr "Chinois (Simplifié) - 简体中文"
 
 
+msgid "Locale code: zh_HANS. Translation progress: 99%"
+msgstr "Identificateur de culture : zh_HANS. Progrès de la traduction : 99%"
+
+
 msgid "Chinese (Traditional) - 繁體中文"
 msgstr "Chinois (Traditionnel) - 繁體中文"
 
 
-msgid "Locale code: zh_HANT. Translation progress: 62%"
-msgstr "Identificateur de culture : zh_HANT. Progrès de la traduction : 62%"
+msgid "Locale code: zh_HANT. Translation progress: 61%"
+msgstr "Identificateur de culture : zh_HANT. Progrès de la traduction : 61%"
 
 
 msgid "Croatian - Hrvatski"
@@ -98918,8 +99179,8 @@ msgid "Czech - Čeština"
 msgstr "Tchèque - Čeština"
 
 
-msgid "Locale code: cs_CZ. Translation progress: 27%"
-msgstr "Identificateur de culture : cs_CZ. Progrès de la traduction : 27%"
+msgid "Locale code: cs_CZ. Translation progress: 26%"
+msgstr "Identificateur de culture : cs_CZ. Progrès de la traduction : 26%"
 
 
 msgid "Danish - Dansk"
@@ -98942,8 +99203,8 @@ msgid "English (UK)"
 msgstr "Anglais (UK) - English (UK)"
 
 
-msgid "Locale code: en_GB. Translation progress: 98%"
-msgstr "Identificateur de culture : en_GB. Progrès de la traduction : 98%"
+msgid "Locale code: en_GB. Translation progress: 97%"
+msgstr "Identificateur de culture : en_GB. Progrès de la traduction : 97%"
 
 
 msgid "English (US)"
@@ -98974,8 +99235,8 @@ msgid "French - Français"
 msgstr "Français"
 
 
-msgid "Locale code: fr_FR. Translation progress: 100%"
-msgstr "Identificateur de culture : fr_FR. Progrès de la traduction : 100%"
+msgid "Locale code: fr_FR. Translation progress: 99%"
+msgstr "Identificateur de culture : fr_FR. Progrès de la traduction : 99%"
 
 
 msgid "Georgian - ქართული"
@@ -99046,16 +99307,16 @@ msgid "Japanese - 日本語"
 msgstr "Japonais - 日本語"
 
 
-msgid "Locale code: ja_JP. Translation progress: 99%"
-msgstr "Identificateur de culture : ja_JP. Progrès de la traduction : 99%"
+msgid "Locale code: ja_JP. Translation progress: 98%"
+msgstr "Identificateur de culture : ja_JP. Progrès de la traduction : 98%"
 
 
 msgid "Korean - 한국어"
 msgstr "Coréen - 한국어"
 
 
-msgid "Locale code: ko_KR. Translation progress: 96%"
-msgstr "Identificateur de culture : ko_KR. Progrès de la traduction : 96%"
+msgid "Locale code: ko_KR. Translation progress: 95%"
+msgstr "Identificateur de culture : ko_KR. Progrès de la traduction : 95%"
 
 
 msgid "Kyrgyz - Кыргыз тили"
@@ -99134,8 +99395,8 @@ msgid "Russian - Русский"
 msgstr "Russe - Русский"
 
 
-msgid "Locale code: ru_RU. Translation progress: 100%"
-msgstr "Identificateur de culture : ru_RU. Progrès de la traduction : 100%"
+msgid "Locale code: ru_RU. Translation progress: 99%"
+msgstr "Identificateur de culture : ru_RU. Progrès de la traduction : 99%"
 
 
 msgid "Serbian (Cyrillic) - Српски"
@@ -99182,16 +99443,24 @@ msgid "Swahili - Kiswahili"
 msgstr "Swahili - Kiswahili"
 
 
-msgid "Locale code: sw. Translation progress: 71%"
-msgstr "Identificateur de culture : sw. Progrès de la traduction : 71%"
+msgid "Locale code: sw. Translation progress: 70%"
+msgstr "Identificateur de culture : sw. Progrès de la traduction : 70%"
 
 
 msgid "Swedish - Svenska"
 msgstr "Suédois - Svenska"
 
 
+msgid "Locale code: sv_SE. Translation progress: 97%"
+msgstr "Identificateur de culture : sv_SE. Progrès de la traduction : 97%"
+
+
 msgid "Tamil - தமிழ்"
 msgstr "Tamoul - தமிழ்"
+
+
+msgid "Locale code: ta. Translation progress: 97%"
+msgstr "Identificateur de culture : ta. Progrès de la traduction : 97%"
 
 
 msgid "Thai - ภาษาไทย"
@@ -99206,28 +99475,32 @@ msgid "Turkish - Türkçe"
 msgstr "Turc - Türkçe"
 
 
-msgid "Locale code: tr_TR. Translation progress: 77%"
-msgstr "Identificateur de culture : tr_TR. Progrès de la traduction : 77%"
+msgid "Locale code: tr_TR. Translation progress: 76%"
+msgstr "Identificateur de culture : tr_TR. Progrès de la traduction : 76%"
 
 
 msgid "Ukrainian - Українська"
 msgstr "Ukrainien - Українська"
 
 
-msgid "Locale code: uk_UA. Translation progress: 56%"
-msgstr "Identificateur de culture : uk_UA. Progrès de la traduction : 56%"
+msgid "Locale code: uk_UA. Translation progress: 55%"
+msgstr "Identificateur de culture : uk_UA. Progrès de la traduction : 55%"
 
 
 msgid "Urdu - وُدرُا"
 msgstr "Ourdou - وُدرُا"
 
 
-msgid "Locale code: ur. Translation progress: 85%"
-msgstr "Identificateur de culture : ur. Progrès de la traduction : 85%"
+msgid "Locale code: ur. Translation progress: 84%"
+msgstr "Identificateur de culture : ur. Progrès de la traduction : 84%"
 
 
 msgid "Vietnamese - Tiếng Việt"
 msgstr "Vietnamien - Tiếng Việt"
+
+
+msgid "Locale code: vi_VN. Translation progress: 98%"
+msgstr "Identificateur de culture : vi_VN. Progrès de la traduction : 98%"
 
 
 msgid "Reference Sphere Size"
@@ -99446,10 +99719,6 @@ msgid "Include the name of the active object and the current frame number in the
 msgstr "Inclure le nom de l’objet actif et le numéro de la frame actuelle dans le texte d’information en surimpression"
 
 
-msgid "When internet access is enabled, load and display online assets in asset shelves"
-msgstr "Lorsque l’accès à Internet est activé, charger et afficher les assets en ligne sur les étagères d’assets"
-
-
 msgid "Display Playback Frame Rate (FPS)"
 msgstr "Afficher la fréquence d’images durant la lecture (FPS)"
 
@@ -99548,6 +99817,30 @@ msgstr "Méthode utilisée pour rendre le texte de l’interface plus net"
 
 msgid "Slight"
 msgstr "Légère"
+
+
+msgid "Time Format"
+msgstr "Format d’heure"
+
+
+msgid "Format for displaying time strings"
+msgstr "Format pour afficher les textes avec heure"
+
+
+msgid "24-Hour (23:59)"
+msgstr "24 heures (23:59)"
+
+
+msgid "Time format: 24-hour clock with colon, eg: 23:59"
+msgstr "Format d’heure : horloge 24 heures avec « : », ex. 23:59"
+
+
+msgid "12-Hour (11:59 PM)"
+msgstr "12 heures (11:59 PM)"
+
+
+msgid "Time format: 12-hour clock, eg: 11:59 PM"
+msgstr "Format d’heure : horloge 12 heures, ex. 11:59 PM"
 
 
 msgid "Timecode Style"
@@ -101857,6 +102150,14 @@ msgid "Roughness pass used by denoiser"
 msgstr "Passe de rugosité utilisée pour le débruitage"
 
 
+msgid "Denoising Backward Motion"
+msgstr "Mouvement inverse débruitage"
+
+
+msgid "Backward motion pass used by denoiser"
+msgstr "Passe de mouvement inverse (vers l’arrière) utilisée pour le débruitage"
+
+
 msgid "Sample Count"
 msgstr "Nombre d’échantillons"
 
@@ -103327,6 +103628,10 @@ msgstr "Matrice de fenêtre"
 
 msgid "Current window matrix"
 msgstr "Matrice de fenêtre actuelle"
+
+
+msgid "Hydra Cycles"
+msgstr "Hydra Cycles"
 
 
 msgid "Hydra Render Engine"
@@ -105346,18 +105651,6 @@ msgid "Amount of screen sample per GI ray"
 msgstr "Nombre d’échantillons écran par rayon de GI"
 
 
-msgid "Far Thickness"
-msgstr "Épaisseur loin"
-
-
-msgid "Angular thickness of the surfaces when computing fast GI and ambient occlusion. Reduces energy loss and missing occlusion of far geometry."
-msgstr "Épaisseur angulaire des surfaces lors du calcul de GI rapide et d’occlusion ambiante. Réduit les pertes énergétiques et les occlusions manquantes sur de la géométrie éloignée."
-
-
-msgid "Near Thickness"
-msgstr "Épaisseur proche"
-
-
 msgid "Geometric thickness of the surfaces when computing fast GI and ambient occlusion. Reduces light leaking and missing contact occlusion."
 msgstr "Épaisseur géométrique des surfaces lors du calcul de GI rapide et d’occlusion ambiante. Réduit les fuites de lumière et les occlusions de contact manquantes."
 
@@ -106744,10 +107037,6 @@ msgstr "Valeur d’attribut de vecteur 2D d’entiers 16 bits"
 
 msgid "Simulation Item"
 msgstr "Élément de simulation"
-
-
-msgid "Attribute domain where the attribute is stored in the simulation state"
-msgstr "Domaine d’attribut, où l’attribut est stocké dans l’état de la simulation"
 
 
 msgid "Soft body simulation settings for an object"
@@ -110480,10 +110769,6 @@ msgid "Convert input to float data"
 msgstr "Convertir l’entrée en données flottantes"
 
 
-msgid "Use a preview proxy and/or time-code index for this strip"
-msgstr "Utiliser un proxy de prévisualisation et/ou un indice de timecode pour cette bande"
-
-
 msgid "Reverse Frames"
 msgstr "Inverser les frames"
 
@@ -110814,6 +111099,10 @@ msgstr "Flou d’ombre"
 
 msgid "Shadow Offset"
 msgstr "Décalage de l’ombre"
+
+
+msgid "Line Spacing"
+msgstr "Espacement des lignes"
 
 
 msgid "Text that will be displayed"
@@ -111271,10 +111560,6 @@ msgid "Collection of StripElement"
 msgstr "Collection de StripElement"
 
 
-msgid "Strip Modifier"
-msgstr "Modificateur de bande"
-
-
 msgid "Modifier for sequence strip"
 msgstr "Modificateur pour la bande de séquence"
 
@@ -111325,6 +111610,10 @@ msgstr "Suspendre ce modificateur"
 
 msgid "Mute expanded settings for the modifier"
 msgstr "Suspendre les réglages dépliés pour le modificateur"
+
+
+msgid "Display modifier in preview"
+msgstr "Afficher le modificateur en prévisualisation"
 
 
 msgctxt "Sequence"
@@ -111564,10 +111853,6 @@ msgid "The active strip modifier in the list"
 msgstr "Le modificateur de bande actif dans la liste"
 
 
-msgid "Strip Proxy"
-msgstr "Proxy de la bande"
-
-
 msgid "Proxy parameters for a sequence strip"
 msgstr "Réglages de proxy pour une bande de séquence"
 
@@ -111594,10 +111879,6 @@ msgstr "Emplacement du fichier de proxy personnalisé"
 
 msgid "Quality of proxies to build"
 msgstr "Qualité des proxies à créer"
-
-
-msgid "Method for reading the inputs timecode"
-msgstr "Méthode de lecture du timecode d’entrée"
 
 
 msgid "Overwrite existing proxy files when building"
@@ -115329,20 +115610,8 @@ msgid "Enable the asset library"
 msgstr "Activer la bibliothèque d’assets"
 
 
-msgid "Default Import Method"
-msgstr "Méthode d’importation par défaut"
-
-
 msgid "Determine how the asset will be imported, unless overridden by the Asset Browser"
 msgstr "Détermine comment l’asset est importé, sauf si la méthode est redéfinie dans l’explorateur d’assets"
-
-
-msgid "Import the assets as copied data-block, with no link to the original asset data-block"
-msgstr "Importer les assets en tant que blocs de données copiés, sans aucun lien avec les blocs de données de l’asset d’origine"
-
-
-msgid "Import the assets as copied data-block while avoiding multiple copies of nested, typically heavy data. For example the textures of a material asset, or the mesh of an object asset, don't have to be copied every time this asset is imported. The instances of the asset share the data instead."
-msgstr "Importer les assets en tant que blocs de données copiés, tout en évitant d’avoir plusieurs copies de données imbriquées et typiquement lourdes. Par exemple, les textures d’un asset matériau, ou le maillage d’un asset objet, n’ont pas besoin d’être copiés à chaque fois que cet asset est importé. Au lieu de ça, les instances de l’asset partagent leurs données."
 
 
 msgid "Path to a directory with .blend files to use as an asset library"
@@ -118080,10 +118349,6 @@ msgstr ""
 "• Appuyer sur la touche correspondant à un outil pour l’activer immédiatement.\n"
 "• Glisser le curseur sur un outil et relâcher le bouton pour l’activer (comme un menu circulaire).\n"
 "Utiliser shift + barre d’espace pour la lecture"
-
-
-msgid "Search"
-msgstr "Recherche"
 
 
 msgid "Open the operator search popup"
@@ -121790,16 +122055,12 @@ msgstr "Génération auto"
 
 
 msgctxt "Operator"
-msgid "Generate All"
-msgstr "Générer tout"
+msgid "Clear"
+msgstr "Effacer"
 
 
 msgid "Surfaces"
 msgstr "Surfaces"
-
-
-msgid "Denoising Data"
-msgstr "Données de débruitage"
 
 
 msgid "Indexes"
@@ -121850,12 +122111,12 @@ msgid "Max Subdivision"
 msgstr "Subdivisions max"
 
 
-msgid "Texture Resolution"
-msgstr "Résolution des textures"
-
-
 msgid "Volume Resolution"
 msgstr "Résolution des volumes"
+
+
+msgid "Texture Resolution"
+msgstr "Résolution des textures"
 
 
 msgid "Camera Culling"
@@ -121904,6 +122165,10 @@ msgstr "Rebonds vue 3D"
 
 msgid "Render Bounces"
 msgstr "Rebonds au rendu"
+
+
+msgid "Denoising Data"
+msgstr "Données de débruitage"
 
 
 msgid "Scatter"
@@ -124861,10 +125126,6 @@ msgid "Rotation"
 msgstr "Rotation"
 
 
-msgid "Online Assets"
-msgstr "Assets en ligne"
-
-
 msgid "New Group"
 msgstr "Nouveau groupe"
 
@@ -125060,10 +125321,6 @@ msgstr "Poids de position"
 
 msgid "Shapes"
 msgstr "Formes"
-
-
-msgid "Axes"
-msgstr "Axes"
 
 
 msgctxt "Operator"
@@ -125277,10 +125534,6 @@ msgstr "Espacement des caractères"
 
 msgid "Word Spacing"
 msgstr "Espacement des mots"
-
-
-msgid "Line Spacing"
-msgstr "Espacement des lignes"
 
 
 msgid "Offset X"
@@ -125764,11 +126017,6 @@ msgid "Parenting:"
 msgstr "Parentage :"
 
 
-msgctxt "Operator"
-msgid "Clear"
-msgstr "Effacer"
-
-
 msgid "Animation:"
 msgstr "Animation :"
 
@@ -125835,7 +126083,7 @@ msgstr "Occlusion personnalisée"
 
 
 msgid "Raytraced Transmission"
-msgstr "Transmission par lancer de rendu"
+msgstr "Transmission par lancer de rayon"
 
 
 msgctxt "Operator"
@@ -126006,10 +126254,6 @@ msgstr "Limites d’ensembles de faces"
 
 msgid "Cavity (inverted)"
 msgstr "Cavité (inversée)"
-
-
-msgid "Sculpt Curves"
-msgstr "Sculpture de courbes"
 
 
 msgid "Sample Bias"
@@ -126815,10 +127059,6 @@ msgid "Rays"
 msgstr "Rayons"
 
 
-msgid "Thickness Near"
-msgstr "Épaisseur proche"
-
-
 msgid "Tracing"
 msgstr "Lancer de rayon"
 
@@ -127168,11 +127408,6 @@ msgstr "Construire non-distordu :"
 
 
 msgctxt "Operator"
-msgid "Build Proxy / Timecode"
-msgstr "Construire le proxy / timecode"
-
-
-msgctxt "Operator"
 msgid "Build Proxy"
 msgstr "Construire le proxy"
 
@@ -127314,10 +127549,6 @@ msgstr "Pistes pour stabilisation"
 
 msgid "Tracks for Location"
 msgstr "Pistes pour position"
-
-
-msgid "Timecode Index"
-msgstr "Indice de timecode"
 
 
 msgid "No active movie clip"
@@ -128508,11 +128739,6 @@ msgid "Backdrop Zoom Out"
 msgstr "Dézoomer fond"
 
 
-msgctxt "Operator"
-msgid "Exit Group"
-msgstr "Sortir du groupe"
-
-
 msgid "Slot {:d}"
 msgstr "Emplacement {:d}"
 
@@ -128520,6 +128746,11 @@ msgstr "Emplacement {:d}"
 msgctxt "Operator"
 msgid "Clear Viewer"
 msgstr "Effacer le visualiseur"
+
+
+msgctxt "Operator"
+msgid "Exit Group"
+msgstr "Sortir du groupe"
 
 
 msgid "Types"
@@ -129899,12 +130130,12 @@ msgid "Axis X"
 msgstr "Axe X"
 
 
-msgid "View Align"
-msgstr "Vue alignée"
-
-
 msgid "B"
 msgstr "B"
+
+
+msgid "View Align"
+msgstr "Vue alignée"
 
 
 msgctxt "Text"
@@ -132722,10 +132953,6 @@ msgid "Internet access is disabled"
 msgstr "L’accès à Internet est désactivé"
 
 
-msgid "This is not an online asset and thus cannot be downloaded"
-msgstr "Ceci n’est pas un asset en ligne, et ne peut donc pas être téléchargé"
-
-
 msgid "Downloading assets requires Python, and this Blender is built without"
 msgstr "Le téléchargement d’assets nécessite Python, et ce Blender a été compilé sans"
 
@@ -133309,6 +133536,11 @@ msgid "shape_keys"
 msgstr "clés de forme"
 
 
+msgctxt "Key"
+msgid "Key"
+msgstr "Clé"
+
+
 msgid "lattices"
 msgstr "lattices"
 
@@ -133423,6 +133655,10 @@ msgstr "Perte de données possible lors de l’enregistrement de ce fichier ! 
 
 msgid "movieclips"
 msgstr "clips vidéo"
+
+
+msgid "%d grid(s) with unexpected topology found, multi-res data will be incomplete"
+msgstr "%d grille(s) trouvée(s) avec topologie inattendue, les données multirésolutions seront incomplètes"
 
 
 msgid "NlaTrack"
@@ -134330,6 +134566,76 @@ msgid "Cannot open file %s for writing: %s"
 msgstr "Impossible d’ouvrir le fichier « %s » en écriture : %s"
 
 
+msgctxt "Time"
+msgid "AM"
+msgstr "AM"
+
+
+msgctxt "Time"
+msgid "PM"
+msgstr "PM"
+
+
+msgctxt "Time"
+msgid "Jan"
+msgstr "Jan"
+
+
+msgctxt "Time"
+msgid "Feb"
+msgstr "Fév"
+
+
+msgctxt "Time"
+msgid "Mar"
+msgstr "Mar"
+
+
+msgctxt "Time"
+msgid "Apr"
+msgstr "Avr"
+
+
+msgctxt "Time"
+msgid "May"
+msgstr "Mai"
+
+
+msgctxt "Time"
+msgid "Jun"
+msgstr "Jun"
+
+
+msgctxt "Time"
+msgid "Jul"
+msgstr "Jul"
+
+
+msgctxt "Time"
+msgid "Aug"
+msgstr "Aou"
+
+
+msgctxt "Time"
+msgid "Sep"
+msgstr "Sep"
+
+
+msgctxt "Time"
+msgid "Oct"
+msgstr "Oct"
+
+
+msgctxt "Time"
+msgid "Nov"
+msgstr "Nov"
+
+
+msgctxt "Time"
+msgid "Dec"
+msgstr "Déc"
+
+
 msgid "Zero normal given"
 msgstr "Normale nulle donnée"
 
@@ -134384,6 +134690,10 @@ msgstr "Les anneaux d’arêtes ne sont pas connectés"
 
 msgid "color_index is invalid"
 msgstr "Indice de couleur invalide"
+
+
+msgid "Anisotropic"
+msgstr "Anisotrope"
 
 
 msgid "Compositor node group has cyclic links."
@@ -134854,10 +135164,6 @@ msgid "B"
 msgstr "B"
 
 
-msgid "Modifier requires original data"
-msgstr "Le modificateur a besoin des données originales"
-
-
 msgctxt "Operator"
 msgid "Reorder F-Curve Modifier"
 msgstr "Réordonner les modificateurs de F-courbe"
@@ -135273,6 +135579,10 @@ msgid "Asset ('%s') is not an action data-block"
 msgstr "L’asset (« %s ») n’est pas un bloc de données d’action"
 
 
+msgid "Pose '%s' needs downloading before it can be applied (check context menu)"
+msgstr "La pose « %s » doit être téléchargée avant de pouvoir être appliquée (voir dans le menu contextuel)"
+
+
 msgid "No active Keying Set to use"
 msgstr "Aucun ensemble de clés actif utilisable"
 
@@ -135303,14 +135613,6 @@ msgstr "Outil glisser"
 
 msgid "Cancel"
 msgstr "Annuler"
-
-
-msgid "Axis Constraint"
-msgstr "Contrainte d’axe"
-
-
-msgid "Axis Only"
-msgstr "Axe seulement"
 
 
 msgid "Bone Visibility"
@@ -135419,10 +135721,6 @@ msgstr "Impossible de lire la liste des assets pour « %s », voir l’éditeu
 
 msgid "could not read asset name, 'name' field not set"
 msgstr "impossible de lire le nom de l’esset, le champ « nom » n’est pas défini"
-
-
-msgid "could not read type of asset '{:s}': 'id_type' field is not a valid type"
-msgstr "Impossible de lire le type de l’asset « {:s} » : le champ « id_type » n’est pas un type valide"
 
 
 msgid "could not read type of asset '{:s}', 'type' field not set"
@@ -135926,10 +136224,6 @@ msgid "Duplicates: {}"
 msgstr "Copies : {}"
 
 
-msgid "Missing node tool identifier ({})"
-msgstr "Identifiant d’outil nodal manquant ({})"
-
-
 msgid "Unassigned Node Tools"
 msgstr "Outils nodaux non-assignés"
 
@@ -136194,7 +136488,7 @@ msgid "Data-block renamed to '%s', try again to force renaming it to '%s'"
 msgstr "Bloc de données renommé en « %s », réessayer pour forcer le renommage en « %s »"
 
 
-msgid "Name in use. The other data-block was renamed to ‘%s’"
+msgid "Name in use. The other data-block was renamed to '%s'"
 msgstr "Nom déjà utilisé. L’autre bloc de données a été renommé en « %s »"
 
 
@@ -136483,11 +136777,6 @@ msgstr "Copier une seule vers la sélection"
 msgctxt "Operator"
 msgid "Copy Full Data Path"
 msgstr "Copier le chemin de données complet"
-
-
-msgctxt "Operator"
-msgid "Open File Location"
-msgstr "Ouvrir l’emplacement du fichier"
 
 
 msgctxt "Operator"
@@ -137312,7 +137601,7 @@ msgid "Browse Workspace to be linked"
 msgstr "Parcourir l’espace de travail à lier"
 
 
-msgid "Browse LightProbe to be linked"
+msgid "Browse Light Probe to be linked"
 msgstr "Parcourir la sonde d’éclairage à lier"
 
 
@@ -137339,11 +137628,6 @@ msgstr "Le matériau est assigné aux données d’objet, qui sont liées ou emp
 msgctxt "Operator"
 msgid "Rename Data-Block"
 msgstr "Renommer le bloc de données"
-
-
-msgctxt "Operator"
-msgid "Fake User"
-msgstr "Utilisateur factice"
 
 
 msgid "The data-block %s is not overridable"
@@ -137602,6 +137886,10 @@ msgstr "Aujourd’hui"
 
 msgid "Yesterday"
 msgstr "Hier"
+
+
+msgid "Modified: {}"
+msgstr "Modifié : {}"
 
 
 msgid "Size: {}"
@@ -138110,6 +138398,10 @@ msgid "No vertex group among the selected vertices"
 msgstr "Aucun groupe de sommets parmi les sommets sélectionnées"
 
 
+msgid "No edges selected"
+msgstr "Aucune arête sélectionnée"
+
+
 msgid "Use mouse"
 msgstr "Utiliser la souris"
 
@@ -138170,16 +138462,20 @@ msgid "Selection not supported in object mode"
 msgstr "La sélection n’est pas prise en charge en mode objet"
 
 
-msgid "No edges selected"
-msgstr "Aucune arête sélectionnée"
-
-
 msgid "No faces filled"
 msgstr "Aucune face remplie"
 
 
 msgid "No active vertex group"
 msgstr "Aucun groupe de sommets actif"
+
+
+msgid "No edges dissolved"
+msgstr "Aucune arête dissoute"
+
+
+msgid "No degenerate geometry found"
+msgstr "Aucune géométrie dégénérée trouvée"
 
 
 msgid "View not found, cannot sort by view axis"
@@ -140670,6 +140966,14 @@ msgid "Unable to activate just-saved brush asset"
 msgstr "Impossible d’activer l’asset de brosse enregistré juste avant"
 
 
+msgid "Asset '%s' is not a brush"
+msgstr "L’asset « %s » n’est pas une brosse"
+
+
+msgid "Brush '%s' needs downloading before it can be used (check context menu)"
+msgstr "La brosse « %s » doit être téléchargée avant de pouvoir être utilisée (voir dans le menu contextuel)"
+
+
 msgid "File not found '%s'"
 msgstr "Le fichier « %s » est introuvable"
 
@@ -141151,14 +141455,6 @@ msgstr "Pas implémenté pour les masques"
 
 msgid "Cannot activate a file selector dialog, one already open"
 msgstr "Impossible d’activer une fenêtre de sélection de fichier, une fenêtre est déjà ouverte"
-
-
-msgid "Property is not editable"
-msgstr "La propriété n’est pas éditable"
-
-
-msgid "Property is not editable: %s"
-msgstr "La propriété n’est pas éditable : %s"
 
 
 msgid "Texture Field"
@@ -142539,6 +142835,10 @@ msgid "Adding node groups isn't supported for custom (Python defined) node trees
 msgstr "L’ajout de groupes de nœuds n’est pas pris en charge pour les arborescences de nœuds personnalisées (définies via Python)"
 
 
+msgid "No selected input sockets or panels"
+msgstr "Aucune prise ou panneau sélectionné"
+
+
 msgid "Render size too large for GPU, use CPU compositor instead"
 msgstr "Taille de rendu trop grande pour le GPU, utiliser plutôt le compositeur CPU"
 
@@ -142810,6 +143110,14 @@ msgid "Type: List"
 msgstr "Type : liste"
 
 
+msgid "Extension X"
+msgstr "Extension X"
+
+
+msgid "Extension Y"
+msgstr "Extension Y"
+
+
 msgid "Index Field"
 msgstr "Champ Indice"
 
@@ -142836,6 +143144,10 @@ msgstr "Champ Poignée de gauche"
 
 msgid "Right Handle Field"
 msgstr "Champ Poignée de droite"
+
+
+msgid "Bundle Type:"
+msgstr "Type de paquet :"
 
 
 msgid "Disconnect"
@@ -142877,6 +143189,14 @@ msgstr "Case à cocher de panneau"
 
 msgid "Group Sockets"
 msgstr "Prises du groupe"
+
+
+msgid "Add Group Input (hold Ctrl to include sockets under panel toggle)"
+msgstr "Ajouter une entrée de groupe (maintenir Ctrl pour inclure les prises sous la case à cocher de panneau)"
+
+
+msgid "Add Group Input"
+msgstr "Ajouter une entrée de groupe"
 
 
 msgid "More than one collection is selected"
@@ -145255,6 +145575,14 @@ msgid "%d duplicates found in %d mesh(es), mirror may be incomplete"
 msgstr "%d doublons trouvés dans %d maillage(s), la copie en miroir n’est peut-être pas complète"
 
 
+msgid "Edge must have connected edges"
+msgstr "L’arête doit avoir des arêtes connectées"
+
+
+msgid "Vertex must have connected vertices"
+msgstr "Le sommet doit avoir des sommets connectés"
+
+
 msgid "Rip is not compatible with vertex sticky selection"
 msgstr "Le déchirement n’est pas compatible avec la sélection collante de sommets"
 
@@ -145277,10 +145605,6 @@ msgstr "Changer d’îlot"
 
 msgid "Midpoints"
 msgstr "Points milieux"
-
-
-msgid "Could not initialize stitching on any selected object"
-msgstr "Impossible d’initialiser la couture sur les objets sélectionnés"
 
 
 msgid "Stitching only works with less than %i objects selected (%i selected)"
@@ -146829,11 +147153,6 @@ msgid "Failed to load image texture '%s'"
 msgstr "Impossible de charger la texture image « %s »"
 
 
-msgctxt "Key"
-msgid "Key"
-msgstr "Clé"
-
-
 msgid "ViewLayer '%s' does not contain object '%s'"
 msgstr "Le calque de vue « %s » ne contient pas l’objet « %s »"
 
@@ -147054,10 +147373,6 @@ msgid "Use Cubic B-Spline interpolation"
 msgstr "Utiliser l’interpolation B-spline cubique"
 
 
-msgid "Anisotropic"
-msgstr "Anisotrope"
-
-
 msgid "Use Anisotropic interpolation"
 msgstr "Utiliser l’interpolation anisotrope"
 
@@ -147201,10 +147516,6 @@ msgstr "Les données évaluées ne peuvent être assignées qu’aux objets éva
 
 msgid "Only empty objects support collection instances"
 msgstr "Seuls les objets vides prennent en charge les instances de collection"
-
-
-msgid "Cannot set instance-collection as object belongs in collection being instanced, thus causing a cycle"
-msgstr "Impossible de définir la collection d’instance, car l’objet appartient à la collection en cours d’instanciation, ce qui crée un cycle"
 
 
 msgid "VertexGroup.add(): cannot be called while object is in edit mode"
@@ -148835,6 +149146,10 @@ msgid "Crease Edges"
 msgstr "Plis d’arêtes"
 
 
+msgid "Add Item"
+msgstr "Ajouter un élément"
+
+
 msgid "Not a compositor node tree"
 msgstr "Pas une arborescence de nœuds de compositing"
 
@@ -149325,14 +149640,6 @@ msgstr "Bas gauche"
 
 msgid "Lower Right"
 msgstr "Bas droite"
-
-
-msgid "Extension X"
-msgstr "Extension X"
-
-
-msgid "Extension Y"
-msgstr "Extension Y"
 
 
 msgid "The extension mode applied to the X axis"
@@ -150683,8 +150990,8 @@ msgid "Cannot access object's transforms because it's not evaluated yet. This ca
 msgstr "Impossible d’accéder aux transformations de l’objet car il n’est pas encore évalué. Peut se produire en cas de cycle de dépendances"
 
 
-msgid "Bone not found"
-msgstr "Os introuvable"
+msgid "Bone \"{}\" not found"
+msgstr "Os « {} » introuvable"
 
 
 msgid "Armature object to retrieve the bone information from"
@@ -150802,6 +151109,10 @@ msgstr "Échelle de la caméra orthogonale (similaire à un zoom)"
 msgctxt "NodeTree"
 msgid "Closure"
 msgstr "Fermeture"
+
+
+msgid "The number of elements in the list"
+msgstr "Nombre d’éléments dans la liste"
 
 
 msgid "Recursive"
@@ -151622,10 +151933,6 @@ msgid "Output grid with evaluated field values"
 msgstr "Fournir une grille avec les valeurs évaluées des champs"
 
 
-msgid "The number of elements in the list"
-msgstr "Nombre d’éléments dans la liste"
-
-
 msgid "Output list with evaluated field values"
 msgstr "Fournir une liste avec les valeurs évaluées des champs"
 
@@ -151640,6 +151947,10 @@ msgstr "Racine carrée de la variance pour chaque groupe"
 
 msgid "The expected squared deviation from the mean for each group"
 msgstr "Déviation au carré depuis la moyenne attendue pour chaque groupe"
+
+
+msgid "Inverted"
+msgstr "Inversé"
 
 
 msgid "Mesh to flip faces of"
@@ -151747,10 +152058,6 @@ msgid "Cannot get internal value from bundle"
 msgstr "Impossible d’obtenir la valeur interne depuis le paquet"
 
 
-msgid "The experimental option for this node is disabled"
-msgstr "L’option expérimentale pour ce nœud est désactivée"
-
-
 msgid "Geometry to get the bundle of"
 msgstr "Géométrie de laquelle obtenir le paquet"
 
@@ -151761,6 +152068,14 @@ msgstr "Supprimer le paquet de la géométrie peut être bénéfique pour évite
 
 msgid "Volume to take a named grid out of"
 msgstr "Volume d’où extraire une grille nommée"
+
+
+msgid "Pattern Mode"
+msgstr "Mode de motif"
+
+
+msgid "Bundle Type"
+msgstr "Type de paquet"
 
 
 msgid "If true, the gizmo is displayed in screen space. Otherwise it's in object space"
@@ -152077,10 +152392,6 @@ msgstr "A un voisin"
 
 msgid "Index of nearest element"
 msgstr "Indice du plus proche élément"
-
-
-msgid "Add Item"
-msgstr "Ajouter un élément"
 
 
 msgid "The camera used for rendering the scene"
@@ -152468,6 +152779,14 @@ msgstr "Nuage de points ou maillage duquel fusionner les points"
 
 msgid "Grease Pencil data to merge layers of"
 msgstr "Données de Grease Pencil desquelles fusionner les calques"
+
+
+msgid "Merge ID"
+msgstr "ID à fusionner"
+
+
+msgid "ID of group of the points to merge"
+msgstr "ID du groupe de points à fusionner"
 
 
 msgid "An identifier for the group of each face. All contiguous faces with the same value are in the same region"
@@ -153093,32 +153412,12 @@ msgid "Number of levels of nested instances to realize for each top-level instan
 msgstr "Nombre de niveaux d’instances imbriquées à rendre réels pour chaque instance de plus haut niveau"
 
 
-msgid "Only one * is supported in the pattern"
-msgstr "Une seule * est possible dans le motif"
-
-
 msgid "Cannot remove built-in attributes: {}"
 msgstr "Impossible de supprimer l’attribut prédéfini : « {} »"
 
 
 msgid "Attribute does not exist: \"{}\""
 msgstr "L’attribut n’existe pas : « {} »"
-
-
-msgid "Remove the one attribute with the given name"
-msgstr "Supprimer l’attribut ayant le nom donné"
-
-
-msgid "Wildcard"
-msgstr "Joker"
-
-
-msgid "Remove all attributes that match the pattern which is allowed to contain a single wildcard (*)"
-msgstr "Supprimer tous les attributs correspondants au motif, qui peut contenir un seul joker (*)"
-
-
-msgid "Pattern Mode"
-msgstr "Mode de motif"
 
 
 msgid "Geometry to remove attributes from"
@@ -153324,10 +153623,6 @@ msgstr "Conversion non prise en charge à la séparation du paquet"
 
 msgid "Geometry to split into separate components"
 msgstr "Géométrie à séparer en différents composants"
-
-
-msgid "Inverted"
-msgstr "Inversé"
 
 
 msgid "Geometry to split into two parts"
@@ -153776,6 +154071,10 @@ msgid "UV Unwrap Field"
 msgstr "Champ Dépliage UV"
 
 
+msgid "(None)"
+msgstr "(Aucun)"
+
+
 msgid "Modifier disabled"
 msgstr "Modificateur désactivé"
 
@@ -153839,6 +154138,10 @@ msgstr "Grille"
 
 msgid "Volume to convert to a mesh"
 msgstr "Volume à convertir en maillage"
+
+
+msgid "Substeps"
+msgstr "Sous-étapes"
 
 
 msgid "Mask Input"
@@ -154028,6 +154331,22 @@ msgstr "La valeur de menu doit avoir une valeur constante"
 
 msgid " (Deprecated)"
 msgstr " (obsolète)"
+
+
+msgid "Only one * is supported in the pattern"
+msgstr "Une seule * est possible dans le motif"
+
+
+msgid "Remove the one attribute with the given name"
+msgstr "Supprimer l’attribut ayant le nom donné"
+
+
+msgid "Wildcard"
+msgstr "Joker"
+
+
+msgid "Remove all attributes that match the pattern which is allowed to contain a single wildcard (*)"
+msgstr "Supprimer tous les attributs correspondants au motif, qui peut contenir un seul joker (*)"
 
 
 msgid "Update based on linked bundle signature"
@@ -154863,6 +155182,18 @@ msgstr "Nombre de segments angulaires pour le tuilage. Une valeur non-entière d
 
 msgid "Roundness of the segment coordinates systems"
 msgstr "Arrondi des systèmes de coordonnées des segments"
+
+
+msgid "Sample Attributes"
+msgstr "Échantillonner les attributs"
+
+
+msgid "Accessing attributes is not supported by EEVEE renderer"
+msgstr "L’accès aux attributs n’est pas pris en charge par le moteur EEVEE"
+
+
+msgid "Attributes Not Supported"
+msgstr "Attributs non pris en charge"
 
 
 msgid "Self Hit"
@@ -156650,6 +156981,14 @@ msgid "Import-Export as glTF 2.0"
 msgstr "Importer et exporter en glTF 2.0"
 
 
+msgid "Hydra Cycles render engine"
+msgstr "Moteur de rendu Hydra Cycles"
+
+
+msgid "Cycles path tracing renderer using the Hydra render delegate"
+msgstr "Moteur de rendu par lancer de rayon Cycles, en utilisant le délégué de rendu Hydra"
+
+
 msgid "Hydra Storm render engine"
 msgstr "Moteur de rendu Hydra Storm"
 
@@ -157325,6 +157664,78 @@ msgid "Zenith - Angle from the ground plane"
 msgstr "Zénith"
 
 
+msgid "Film Grain"
+msgstr "Grain de pellicule"
+
+
+msgid "Simulates the noise and behavior of analog film"
+msgstr "Simuler le bruit et le comportement de la pellicule argentique"
+
+
+msgid "Sharpens large details and adds a halo around objects"
+msgstr "Accentuer les larges détails et ajouter un halo autour des objets"
+
+
+msgid "Animated "
+msgstr "Animé "
+
+
+msgid "should the noise change frame to frame"
+msgstr "Le bruit doit-il changer d’une frame à l’autre"
+
+
+msgid "Custom Controls"
+msgstr "Contrôles personnalisés"
+
+
+msgid "ISO"
+msgstr "ISO"
+
+
+msgid "Luma bias"
+msgstr "Biais luma"
+
+
+msgid "Saturation "
+msgstr "Saturation "
+
+
+msgid "Texture Scale "
+msgstr "Échelle de texture "
+
+
+msgid "16mm"
+msgstr "16 mm"
+
+
+msgid "16mm Indie Cinema"
+msgstr "16mm art et essai"
+
+
+msgid "35mm"
+msgstr "35mm"
+
+
+msgid "35mm Portra 400"
+msgstr "35 mm Portra 400"
+
+
+msgid "8mm"
+msgstr "8 mm"
+
+
+msgid "8mm Caffenol"
+msgstr "8 mm caffenol"
+
+
+msgid "DIY developed Film, very grainy, high contrast and uneven."
+msgstr "Développement argentique maison, très grainé, contrasté et irrégulier."
+
+
+msgid "8mm Home Movie"
+msgstr "8 mm film amateur"
+
+
 msgid "Retime"
 msgstr "Reminuter"
 
@@ -157595,6 +158006,14 @@ msgstr "Exclure le dernier"
 
 msgid "Exclude the last copy from randomization"
 msgstr "Exclure la dernière copie de la randomisation"
+
+
+msgid "Local Rotation"
+msgstr "Rotation locale"
+
+
+msgid "Local rotation of the instances to tune the rotation alignment"
+msgstr "Rotation locale des instances pour affiner l’alignement de la rotation"
 
 
 msgid "Merge overlapping points by their distance. (Realize Instances must be enabled)"
@@ -158023,10 +158442,6 @@ msgstr "Sélection de points à déplacer"
 
 msgid "Factor that the displacement is multiplied with"
 msgstr "Facteur de multiplication du déplacement"
-
-
-msgid "Substeps"
-msgstr "Sous-étapes"
 
 
 msgid "Number of steps to divide the full displacement into. Fields, including normal and position, are re-evaluated before each step."
@@ -158569,346 +158984,6 @@ msgid "Selection of elements within a sphere"
 msgstr "Sélection d’éléments à l’intérieur d’une sphère"
 
 
-msgid "Attach Hair Curves to Surface"
-msgstr "Attacher les courbes de poils à la surface"
-
-
-msgid "Attaches hair curves to a surface mesh"
-msgstr "Attacher les courbes de poils à la surface d’un maillage"
-
-
-msgid "Align to Surface Normal"
-msgstr "Aligner à la normale de surface"
-
-
-msgid "Align the curve to the surface normal (needs a guide as reference)"
-msgstr "Aligner la courbe à la normale de surface (nécessite un guide comme référence)"
-
-
-msgid "Blend along Curve"
-msgstr "Adoucir le long de la courbe"
-
-
-msgid "Blend deformation along each curve from the root"
-msgstr "Adoucir le long de chaque courbe, depuis la racine"
-
-
-msgid "Sample Attachment UV"
-msgstr "Échantillonner UV d’attache"
-
-
-msgid "Sample the surface UV map at the attachment point"
-msgstr "Échantillonner la carte UV de la surface au point d’attache"
-
-
-msgid "Snap to Surface"
-msgstr "Aimanter à la surface"
-
-
-msgid "Snap the root of each curve to the closest surface point"
-msgstr "Aimanter la racine de chaque courbe au point le plus proche de la surface"
-
-
-msgid "Surface Object to attach to (needs to have matching transforms)"
-msgstr "Objet surface auquel attacher (doit avoir des transformations correspondantes)"
-
-
-msgid "Surface geometry to attach hair curves to"
-msgstr "Géométrie de surface à laquelle attacher les courbes de poils"
-
-
-msgid "Surface Input Type"
-msgstr "Type d’entrée surface"
-
-
-msgid "Select the input type for the surface geometry."
-msgstr "Sélectionner le type d’entrée pour la géométrie de surface."
-
-
-msgid "Surface Normal"
-msgstr "Normale de la surface"
-
-
-msgid "Surface normal at the attachment point"
-msgstr "Normale de la surface au point d’attache"
-
-
-msgid "Surface Rest Position"
-msgstr "Position de repos de la surface"
-
-
-msgid "Set the surface mesh into its rest position before attachment"
-msgstr "Mettre le maillage dans sa position de repos avant l’attachement"
-
-
-msgid "Surface UV Coordinate"
-msgstr "Coordonnées UV de la surface"
-
-
-msgid "Surface UV coordinates at the attachment point"
-msgstr "Coordonnées UV de la surface au point d’attache"
-
-
-msgid "Surface UV map used for attachment"
-msgstr "Carte UV de surface à utiliser pour l’attache"
-
-
-msgid "Blend Hair Curves"
-msgstr "Uniformiser les courbes de poils"
-
-
-msgid "Blends shape between multiple hair curves in a certain radius"
-msgstr "Uniformiser la forme entre plusieurs courbes de poils, dans un certain rayon"
-
-
-msgid "Blend Neighbors"
-msgstr "Voisins uniformisation"
-
-
-msgid "Amount of neighbors used for blending"
-msgstr "Nombre de voisins à utiliser pour l’uniformisation"
-
-
-msgid "Blend Radius"
-msgstr "Rayon d’uniformisation"
-
-
-msgid "Radius to select neighbors for blending"
-msgstr "Rayon auquel sélectionner les voisins pour l’uniformisation"
-
-
-msgid "Factor to blend overall effect"
-msgstr "Facteur avec lequel lisser l’effet général"
-
-
-msgid "Preserve Length"
-msgstr "Conserver la longueur"
-
-
-msgid "Preserve each curve's length during deformation"
-msgstr "Conserver la longueur de chaque courbe pendant la déformation"
-
-
-msgid "Braid Hair Curves"
-msgstr "Tresser les courbes de poils"
-
-
-msgid "Deforms existing hair curves into braids using guide curves"
-msgstr "Déformer les courbes de poils existantes pour les tresser, en utilisant des courbes guides"
-
-
-msgid "Braid Start"
-msgstr "Début de la tresse"
-
-
-msgid "Percentage along each curve to blend deformation from the root"
-msgstr "Pourcentage le long de chaque courbe pour adoucir la déformation depuis la racine"
-
-
-msgid "Existing Guide Map"
-msgstr "Correspondance de guides existante"
-
-
-msgid "Use the existing guide map attribute if available"
-msgstr "Utiliser l’attribut de correspondance de guides existant si disponible"
-
-
-msgid "Factor Max"
-msgstr "Facteur max"
-
-
-msgid "Factor of the maximum radius of the braids"
-msgstr "Facteur du rayon maximum des tresses"
-
-
-msgid "Factor Min"
-msgstr "Facteur min"
-
-
-msgid "Factor of the minimum radius of the braids"
-msgstr "Facteur du rayon minimum des tresses"
-
-
-msgid "Flare Length"
-msgstr "Longueur de l’évasement"
-
-
-msgid "Length of the flare at the end of the braid"
-msgstr "Longueur de l’évasement au bout de la tresse"
-
-
-msgid "Flare Opening"
-msgstr "Ouverture de l’évasement"
-
-
-msgid "Opening radius of the flare at the tip of the braid"
-msgstr "Rayon d’ouverture de l’évasement au bout de la tresse"
-
-
-msgid "Flare Parameter"
-msgstr "Paramètre d’évasement"
-
-
-msgid "Parameter from 0 to 1 along the flare"
-msgstr "Paramètre entre 0 et 1 le long de l’évasement"
-
-
-msgid "Frequency factor of the braids"
-msgstr "Facteur de fréquence des tresses"
-
-
-msgid "Guide Distance"
-msgstr "Distance de guides"
-
-
-msgid "Minimum distance between two guides for new guide map"
-msgstr "Distance minimale entre deux guides pour la nouvelle correspondance d’indices"
-
-
-msgid "Guide Index"
-msgstr "Indice de guide"
-
-
-msgid "Guide index map that was used for the operation"
-msgstr "Correspondance d’indices de guides qui a été utilisée pour l’opération"
-
-
-msgid "Guide index map to be used. This input has priority"
-msgstr "Correspondance d’indices de guides à utiliser. Cette entrée a la priorité"
-
-
-msgid "Guide Map"
-msgstr "Correspondance de guides"
-
-
-msgid "Guide Mask"
-msgstr "Masque de guides"
-
-
-msgid "Mask for which curves are eligible to be selected as guides"
-msgstr "Masque pour quelles courbes sont susceptibles d’être sélectionnées comme guides"
-
-
-msgid "Hair Tie"
-msgstr "Élastique"
-
-
-msgid "Geometry used for the hair tie instance (priority)"
-msgstr "Géométrie à utiliser pour l’instance d’élastique à cheveux (priorité)"
-
-
-msgid "Object used for the hair tie instance"
-msgstr "Objet à utiliser pour l’instance d’élastique à cheveux"
-
-
-msgid "Hair Tie Input Type"
-msgstr "Type d’entrée élastique"
-
-
-msgid "Select the input type for the hair tie geometry."
-msgstr "Sélectionner le type d’entrée pour l’élastique."
-
-
-msgid "Hair Tie Scale"
-msgstr "Échelle de l’élastique"
-
-
-msgid "Scale of the hair tie instance"
-msgstr "Échelle de l’instance d’élastique à cheveux"
-
-
-msgid "Overall radius of the braids"
-msgstr "Rayon global des tresses"
-
-
-msgid "Shape of the braid radius along each curve"
-msgstr "Forme du rayon de la tresse le long de chaque courbe"
-
-
-msgid "Shape Asymmetry"
-msgstr "Asymétrie de forme"
-
-
-msgid "Asymmetry of the shape adjustment of the strand thickness"
-msgstr "Asymétrie de l’ajustement de forme de l’épaisseur des brins"
-
-
-msgid "Shape Parameters"
-msgstr "Paramètres de forme"
-
-
-msgid "Strand Index"
-msgstr "Indice du brin"
-
-
-msgid "Index of the strand within a braid that each curve belongs to"
-msgstr "Indice du brin auquel chaque courbe appartient dans sa tresse"
-
-
-msgid "Subdivision level applied before deformation"
-msgstr "Niveau de subdivision à appliquer avant la déformation"
-
-
-msgid "Thickness of each strand of hair"
-msgstr "Épaisseur de chaque brin de cheveux"
-
-
-msgid "Thickness Shape"
-msgstr "Forme d’épaisseur"
-
-
-msgid "Shape adjustment of the strand thickness for the braids"
-msgstr "Ajustement de la forme de l’épaisseur des brins pour les tresses"
-
-
-msgid "Clump Hair Curves"
-msgstr "Agglutiner les courbes de poils"
-
-
-msgid "Clumps together existing hair curves using guide curves"
-msgstr "Agglutiner les courbes de poils existantes en utilisant des courbes guides"
-
-
-msgid "Clump Offset"
-msgstr "Décalage d’agglutination"
-
-
-msgid "Offset of each clump in a random direction"
-msgstr "Décalage de chaque brin dans une direction aléatoire"
-
-
-msgid "Distance Falloff"
-msgstr "Atténuation de distance"
-
-
-msgid "Falloff distance for the clumping effect (0 means no falloff)"
-msgstr "Atténuation de distance pour l’effet d’agglutination (0 = pas d’atténuation)"
-
-
-msgid "Distance Threshold"
-msgstr "Seuil de distance"
-
-
-msgid "Distance threshold for the falloff around the guide"
-msgstr "Seuil de distance pour l’atténuation autour du guide"
-
-
-msgid "Random seed for the operation"
-msgstr "Graine aléatoire pour l’opération"
-
-
-msgid "Shape of the influence along curves (0=constant, 0.5=linear)"
-msgstr "Forme de l’influence le long des courbes (0=constant, 0.5=linéaire)"
-
-
-msgid "Tip Spread"
-msgstr "Dispersion des pointes"
-
-
-msgid "Distance of random spread at the curve tips"
-msgstr "Distance de dispersion aléatoire aux extrémités des courbes"
-
-
 msgid "Create Guide Index Map"
 msgstr "Créer une correspondance des guides"
 
@@ -158921,8 +158996,24 @@ msgid "ID to group curves together for guide map creation"
 msgstr "ID pour regrouper des courbes lors de la création de la correspondance des guides"
 
 
+msgid "Guide Distance"
+msgstr "Distance de guides"
+
+
 msgid "Minimum distance between two guides"
 msgstr "Distance minimum entre deux guides"
+
+
+msgid "Guide Index"
+msgstr "Indice de guide"
+
+
+msgid "Guide Mask"
+msgstr "Masque de guides"
+
+
+msgid "Mask for which curves are eligible to be selected as guides"
+msgstr "Masque pour quelles courbes sont susceptibles d’être sélectionnées comme guides"
 
 
 msgid "Guide Selection"
@@ -158945,6 +159036,22 @@ msgid "Curl Start"
 msgstr "Début du bouclage"
 
 
+msgid "Percentage along each curve to blend deformation from the root"
+msgstr "Pourcentage le long de chaque courbe pour adoucir la déformation depuis la racine"
+
+
+msgid "Existing Guide Map"
+msgstr "Correspondance de guides existante"
+
+
+msgid "Use the existing guide map attribute if available"
+msgstr "Utiliser l’attribut de correspondance de guides existant si disponible"
+
+
+msgid "Factor to blend overall effect"
+msgstr "Facteur avec lequel lisser l’effet général"
+
+
 msgid "Factor End"
 msgstr "Facteur de fin"
 
@@ -158961,6 +159068,22 @@ msgid "Frequency factor of the curls"
 msgstr "Facteur de fréquence des boucles"
 
 
+msgid "Minimum distance between two guides for new guide map"
+msgstr "Distance minimale entre deux guides pour la nouvelle correspondance d’indices"
+
+
+msgid "Guide index map that was used for the operation"
+msgstr "Correspondance d’indices de guides qui a été utilisée pour l’opération"
+
+
+msgid "Guide index map to be used. This input has priority"
+msgstr "Correspondance d’indices de guides à utiliser. Cette entrée a la priorité"
+
+
+msgid "Guide Map"
+msgstr "Correspondance de guides"
+
+
 msgid "Overall radius of the curls"
 msgstr "Rayon global des boucles"
 
@@ -158971,6 +159094,10 @@ msgstr "Quantité de décalage aléatoire par courbe"
 
 msgid "Random Seed for the operation"
 msgstr "Graine aléatoire pour l’opération"
+
+
+msgid "Subdivision level applied before deformation"
+msgstr "Niveau de subdivision à appliquer avant la déformation"
 
 
 msgid "Curve Info"
@@ -159125,6 +159252,358 @@ msgid "Boolean selection of curve tip points"
 msgstr "Sélection booléenne de pointes de courbes"
 
 
+msgid "Generate Hair Curves"
+msgstr "Générer des courbes de poils"
+
+
+msgid "Generates new hair curves on a surface mesh"
+msgstr "Générer de nouvelles courbes de poils à la surface d’un maillage"
+
+
+msgid "Amount of control points of the generated hair curves"
+msgstr "Nombre de points de contrôle des courbes de poils générées"
+
+
+msgid "Surface density of generated hair curves"
+msgstr "Densité de surface des courbes de poils générées"
+
+
+msgid "Density Mask"
+msgstr "Masque de densité"
+
+
+msgid "Factor applied on the density for curve distribution"
+msgstr "Facteur à appliquer à la densité pour la distribution des courbes"
+
+
+msgid "Use Poisson disk distribution method to keep a minimum distance"
+msgstr "Utiliser une méthode de distribution par disques de Poisson pour garder une distance minimale"
+
+
+msgid "Length of the generated hair curves"
+msgstr "Longueur des courbes de poils générées"
+
+
+msgid "Hair Material"
+msgstr "Matériau des poils"
+
+
+msgid "Material of the generated hair curves"
+msgstr "Matériau des courbes de poils générées"
+
+
+msgid "Discard points based on a mask texture after distribution"
+msgstr "Éliminer des points selon une texture de masque, après la distribution"
+
+
+msgid "Random seed for the operation"
+msgstr "Graine aléatoire pour l’opération"
+
+
+msgid "Surface geometry for generation"
+msgstr "Géométrie de surface pour la génération"
+
+
+msgid "Surface object for generation (needs matching transforms)"
+msgstr "Objet de surface pour la génération (nécessite une correspondance des transformations)"
+
+
+msgid "Surface Normal"
+msgstr "Normale de la surface"
+
+
+msgid "Normal direction of the surface mesh at the attachment point"
+msgstr "Direction normale du maillage de surface au point d’attache"
+
+
+msgid "Surface Rest Position"
+msgstr "Position de repos de la surface"
+
+
+msgid "Set the surface mesh into its rest position before attachment"
+msgstr "Mettre le maillage dans sa position de repos avant l’attachement"
+
+
+msgid "Surface UV map used for attachment"
+msgstr "Carte UV de surface à utiliser pour l’attache"
+
+
+msgid "Viewport Amount"
+msgstr "Quantité vue 3D"
+
+
+msgid "Factor applied on the density for the viewport"
+msgstr "Facteur à appliquer à la densité pour la vue 3D"
+
+
+msgid "Attach Hair Curves to Surface"
+msgstr "Attacher les courbes de poils à la surface"
+
+
+msgid "Attaches hair curves to a surface mesh"
+msgstr "Attacher les courbes de poils à la surface d’un maillage"
+
+
+msgid "Align to Surface Normal"
+msgstr "Aligner à la normale de surface"
+
+
+msgid "Align the curve to the surface normal (needs a guide as reference)"
+msgstr "Aligner la courbe à la normale de surface (nécessite un guide comme référence)"
+
+
+msgid "Blend along Curve"
+msgstr "Adoucir le long de la courbe"
+
+
+msgid "Blend deformation along each curve from the root"
+msgstr "Adoucir le long de chaque courbe, depuis la racine"
+
+
+msgid "Sample Attachment UV"
+msgstr "Échantillonner UV d’attache"
+
+
+msgid "Sample the surface UV map at the attachment point"
+msgstr "Échantillonner la carte UV de la surface au point d’attache"
+
+
+msgid "Snap to Surface"
+msgstr "Aimanter à la surface"
+
+
+msgid "Snap the root of each curve to the closest surface point"
+msgstr "Aimanter la racine de chaque courbe au point le plus proche de la surface"
+
+
+msgid "Surface Object to attach to (needs to have matching transforms)"
+msgstr "Objet surface auquel attacher (doit avoir des transformations correspondantes)"
+
+
+msgid "Surface geometry to attach hair curves to"
+msgstr "Géométrie de surface à laquelle attacher les courbes de poils"
+
+
+msgid "Surface Input Type"
+msgstr "Type d’entrée surface"
+
+
+msgid "Select the input type for the surface geometry."
+msgstr "Sélectionner le type d’entrée pour la géométrie de surface."
+
+
+msgid "Surface normal at the attachment point"
+msgstr "Normale de la surface au point d’attache"
+
+
+msgid "Surface UV Coordinate"
+msgstr "Coordonnées UV de la surface"
+
+
+msgid "Surface UV coordinates at the attachment point"
+msgstr "Coordonnées UV de la surface au point d’attache"
+
+
+msgid "Blend Hair Curves"
+msgstr "Uniformiser les courbes de poils"
+
+
+msgid "Blends shape between multiple hair curves in a certain radius"
+msgstr "Uniformiser la forme entre plusieurs courbes de poils, dans un certain rayon"
+
+
+msgid "Blend Neighbors"
+msgstr "Voisins uniformisation"
+
+
+msgid "Amount of neighbors used for blending"
+msgstr "Nombre de voisins à utiliser pour l’uniformisation"
+
+
+msgid "Blend Radius"
+msgstr "Rayon d’uniformisation"
+
+
+msgid "Radius to select neighbors for blending"
+msgstr "Rayon auquel sélectionner les voisins pour l’uniformisation"
+
+
+msgid "Preserve Length"
+msgstr "Conserver la longueur"
+
+
+msgid "Preserve each curve's length during deformation"
+msgstr "Conserver la longueur de chaque courbe pendant la déformation"
+
+
+msgid "Braid Hair Curves"
+msgstr "Tresser les courbes de poils"
+
+
+msgid "Deforms existing hair curves into braids using guide curves"
+msgstr "Déformer les courbes de poils existantes pour les tresser, en utilisant des courbes guides"
+
+
+msgid "Braid Start"
+msgstr "Début de la tresse"
+
+
+msgid "Factor Max"
+msgstr "Facteur max"
+
+
+msgid "Factor of the maximum radius of the braids"
+msgstr "Facteur du rayon maximum des tresses"
+
+
+msgid "Factor Min"
+msgstr "Facteur min"
+
+
+msgid "Factor of the minimum radius of the braids"
+msgstr "Facteur du rayon minimum des tresses"
+
+
+msgid "Flare Length"
+msgstr "Longueur de l’évasement"
+
+
+msgid "Length of the flare at the end of the braid"
+msgstr "Longueur de l’évasement au bout de la tresse"
+
+
+msgid "Flare Opening"
+msgstr "Ouverture de l’évasement"
+
+
+msgid "Opening radius of the flare at the tip of the braid"
+msgstr "Rayon d’ouverture de l’évasement au bout de la tresse"
+
+
+msgid "Flare Parameter"
+msgstr "Paramètre d’évasement"
+
+
+msgid "Parameter from 0 to 1 along the flare"
+msgstr "Paramètre entre 0 et 1 le long de l’évasement"
+
+
+msgid "Frequency factor of the braids"
+msgstr "Facteur de fréquence des tresses"
+
+
+msgid "Hair Tie"
+msgstr "Élastique"
+
+
+msgid "Geometry used for the hair tie instance (priority)"
+msgstr "Géométrie à utiliser pour l’instance d’élastique à cheveux (priorité)"
+
+
+msgid "Object used for the hair tie instance"
+msgstr "Objet à utiliser pour l’instance d’élastique à cheveux"
+
+
+msgid "Hair Tie Input Type"
+msgstr "Type d’entrée élastique"
+
+
+msgid "Select the input type for the hair tie geometry."
+msgstr "Sélectionner le type d’entrée pour l’élastique."
+
+
+msgid "Hair Tie Scale"
+msgstr "Échelle de l’élastique"
+
+
+msgid "Scale of the hair tie instance"
+msgstr "Échelle de l’instance d’élastique à cheveux"
+
+
+msgid "Overall radius of the braids"
+msgstr "Rayon global des tresses"
+
+
+msgid "Shape of the braid radius along each curve"
+msgstr "Forme du rayon de la tresse le long de chaque courbe"
+
+
+msgid "Shape Asymmetry"
+msgstr "Asymétrie de forme"
+
+
+msgid "Asymmetry of the shape adjustment of the strand thickness"
+msgstr "Asymétrie de l’ajustement de forme de l’épaisseur des brins"
+
+
+msgid "Shape Parameters"
+msgstr "Paramètres de forme"
+
+
+msgid "Strand Index"
+msgstr "Indice du brin"
+
+
+msgid "Index of the strand within a braid that each curve belongs to"
+msgstr "Indice du brin auquel chaque courbe appartient dans sa tresse"
+
+
+msgid "Thickness of each strand of hair"
+msgstr "Épaisseur de chaque brin de cheveux"
+
+
+msgid "Thickness Shape"
+msgstr "Forme d’épaisseur"
+
+
+msgid "Shape adjustment of the strand thickness for the braids"
+msgstr "Ajustement de la forme de l’épaisseur des brins pour les tresses"
+
+
+msgid "Clump Hair Curves"
+msgstr "Agglutiner les courbes de poils"
+
+
+msgid "Clumps together existing hair curves using guide curves"
+msgstr "Agglutiner les courbes de poils existantes en utilisant des courbes guides"
+
+
+msgid "Clump Offset"
+msgstr "Décalage d’agglutination"
+
+
+msgid "Offset of each clump in a random direction"
+msgstr "Décalage de chaque brin dans une direction aléatoire"
+
+
+msgid "Distance Falloff"
+msgstr "Atténuation de distance"
+
+
+msgid "Falloff distance for the clumping effect (0 means no falloff)"
+msgstr "Atténuation de distance pour l’effet d’agglutination (0 = pas d’atténuation)"
+
+
+msgid "Distance Threshold"
+msgstr "Seuil de distance"
+
+
+msgid "Distance threshold for the falloff around the guide"
+msgstr "Seuil de distance pour l’atténuation autour du guide"
+
+
+msgid "Shape of the influence along curves (0=constant, 0.5=linear)"
+msgstr "Forme de l’influence le long des courbes (0=constant, 0.5=linéaire)"
+
+
+msgid "Tip Spread"
+msgstr "Dispersion des pointes"
+
+
+msgid "Distance of random spread at the curve tips"
+msgstr "Distance de dispersion aléatoire aux extrémités des courbes"
+
+
 msgid "Displace Hair Curves"
 msgstr "Déplacer les courbes de poils"
 
@@ -159201,10 +159680,6 @@ msgid "Offset of the curves to round the tip"
 msgstr "Décalage des courbes pour arrondir la pointe"
 
 
-msgid "Viewport Amount"
-msgstr "Quantité vue 3D"
-
-
 msgid "Percentage of amount used for the viewport"
 msgstr "Pourcentage de la quantité à utiliser pour la vue 3D"
 
@@ -159227,66 +159702,6 @@ msgstr "Facteur général de distance pour la déformation"
 
 msgid "Vector by which each point was offset during deformation"
 msgstr "Vecteur duquel chaque point a été décalé pendant la déformation"
-
-
-msgid "Generate Hair Curves"
-msgstr "Générer des courbes de poils"
-
-
-msgid "Generates new hair curves on a surface mesh"
-msgstr "Générer de nouvelles courbes de poils à la surface d’un maillage"
-
-
-msgid "Amount of control points of the generated hair curves"
-msgstr "Nombre de points de contrôle des courbes de poils générées"
-
-
-msgid "Surface density of generated hair curves"
-msgstr "Densité de surface des courbes de poils générées"
-
-
-msgid "Density Mask"
-msgstr "Masque de densité"
-
-
-msgid "Factor applied on the density for curve distribution"
-msgstr "Facteur à appliquer à la densité pour la distribution des courbes"
-
-
-msgid "Use Poisson disk distribution method to keep a minimum distance"
-msgstr "Utiliser une méthode de distribution par disques de Poisson pour garder une distance minimale"
-
-
-msgid "Length of the generated hair curves"
-msgstr "Longueur des courbes de poils générées"
-
-
-msgid "Hair Material"
-msgstr "Matériau des poils"
-
-
-msgid "Material of the generated hair curves"
-msgstr "Matériau des courbes de poils générées"
-
-
-msgid "Discard points based on a mask texture after distribution"
-msgstr "Éliminer des points selon une texture de masque, après la distribution"
-
-
-msgid "Surface geometry for generation"
-msgstr "Géométrie de surface pour la génération"
-
-
-msgid "Surface object for generation (needs matching transforms)"
-msgstr "Objet de surface pour la génération (nécessite une correspondance des transformations)"
-
-
-msgid "Normal direction of the surface mesh at the attachment point"
-msgstr "Direction normale du maillage de surface au point d’attache"
-
-
-msgid "Factor applied on the density for the viewport"
-msgstr "Facteur à appliquer à la densité pour la vue 3D"
 
 
 msgid "Hair Attachment Info"

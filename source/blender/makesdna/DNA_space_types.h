@@ -261,8 +261,11 @@ struct SpaceGraph {
   float cursorVal = 0;
   /** Pivot point for transforms. */
   int around = 0;
-  char _pad[4] = {};
-
+  /* Only one bit is set per graph editor instance. */
+  uint16_t local_view_bit = 0;
+  char _pad1[2] = {};
+  /* Store visible region size before entering the local view. */
+  rctf local_view_visible_region_before = {};
   SpaceGraph_Runtime runtime;
 };
 
@@ -300,9 +303,14 @@ struct SpaceNla {
 /** \name Sequence Editor
  * \{ */
 
+enum eCompositionGuideFlags : short;
 struct SequencerPreviewOverlay {
   eSpaceSeq_SequencerPreviewOverlay_Flag flag = {};
-  char _pad0[4] = {};
+  eCompositionGuideFlags composition_guide_flags = {};
+  char _pad[2] = {};
+
+  /* Compositional guide overlay color */
+  float composition_guide_color[4] = {0.5f, 0.5f, 0.5f, 1.0f};
 };
 
 struct SequencerTimelineOverlay {
@@ -452,8 +460,9 @@ struct FileAssetSelectParams {
   FileSelectParams base_params;
 
   AssetLibraryReference asset_library_ref;
+  char _pad[5] = {};
+  AssetAccess asset_access = AssetAccess::OnlineAndOffline;
   eFileSel_Params_AssetCatalogVisibility asset_catalog_visibility = FILE_SHOW_ASSETS_ALL_CATALOGS;
-  char _pad[6] = {};
   /** If #asset_catalog_visibility is #FILE_SHOW_ASSETS_FROM_CATALOG, this sets the ID of the
    * catalog to show. */
   bUUID catalog_id;
