@@ -48696,7 +48696,7 @@ msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﺕﺍﺮﺛﺍ ﺰﯿﭼ"
 
 
 msgid "Mark actions with no F-Curves for deletion after save and reload of file preserving \"action libraries\""
-msgstr "\\ﮞﻮﯾﺮﯾﺮﺒﺋﻻ﻿ ﻡﺍﺪﻗﺍ  ﮟﯾﺮﮐ ﺩﺯ ﻥﺎﺸﻧ ﻮﮐ ﻝﺎﻤﻋﺍ ﮯﮐ ﮟﯿﻤﺧ-ﻑ ﺮﯿﻐﺑ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻑﺬﺣ ﺪﻌﺑ ﮯﮐ ﮯﻧﺮﮐ ﮈﻮﻟ ﮦﺭﺎﺑﻭﺩ ﺭﻭﺍ ﮯﻧﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﻞﺋﺎﻓ"
+msgstr "‬\\‪ﮞﻮﯾﺮﯾﺮﺒﺋﻻ﻿ ﻡﺍﺪﻗﺍ  ﮟﯾﺮﮐ ﺩﺯ ﻥﺎﺸﻧ ﻮﮐ ﻝﺎﻤﻋﺍ ﮯﮐ ﮟﯿﻤﺧ-ﻑ ﺮﯿﻐﺑ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻑﺬﺣ ﺪﻌﺑ ﮯﮐ ﮯﻧﺮﮐ ﮈﻮﻟ ﮦﺭﺎﺑﻭﺩ ﺭﻭﺍ ﮯﻧﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﻞﺋﺎﻓ"
 
 
 msgctxt "Operator"
@@ -81572,7 +81572,7 @@ msgstr "ﮟﯾﺮﮐ ﮈﻮﻟ ﺕﺎﺤﯿﺟﺮﺗ ﯽﮐ ﯼﺮﭩﮑﯿﻓ"
 
 
 msgid "Load factory default preferences. To make changes to preferences permanent, use \"Save Preferences\""
-msgstr "\\ﺲﺴﻧﺮﯿﻔﯾﺮﭘ ﻮﯿﺳ ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ،ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮞﺎﯿﻠﯾﺪﺒﺗ ﻞﻘﺘﺴﻣ ﮟﯿﻣ ﺕﺎﺤﯿﺟﺮﺗ ﮟﯾﺮﮐ ﮈﻮﻟ ﺕﺎﺤﯿﺟﺮﺗ ﭧﻟﺎﻔﯾﮈ ﯼﺮﭩﮑﯿﻓ"
+msgstr "‬\\‪ﺲﺴﻧﺮﯿﻔﯾﺮﭘ ﻮﯿﺳ ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ،ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮞﺎﯿﻠﯾﺪﺒﺗ ﻞﻘﺘﺴﻣ ﮟﯿﻣ ﺕﺎﺤﯿﺟﺮﺗ ﮟﯾﺮﮐ ﮈﻮﻟ ﺕﺎﺤﯿﺟﺮﺗ ﭧﻟﺎﻔﯾﮈ ﯼﺮﭩﮑﯿﻓ"
 
 
 msgctxt "Operator"
@@ -83782,7 +83782,7 @@ msgstr "UI ﭦﺅﺁ ﮯﻟ"
 
 
 msgid "Color Sets"
-msgstr "Sets ﮓﻧﺭ) ({} ،{} ،{} ،"
+msgstr "Sets ﮓﻧﺭ) ({}‬، ‪{}‬، ‪{}‬‪ ،"
 
 
 msgid "Effects"
@@ -108132,11 +108132,11 @@ msgstr "ﯽﺌﮔ ﯽﮐ ﮟﯿﮩﻧ ﺐﺨﺘﻨﻣ ﻞﺋﺎﻓ ﯽﺋﻮﮐ"
 
 
 msgid "{} does not exist"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺩﻮﺟﻮﻣ {}"
+msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺩﻮﺟﻮﻣ {}‬‪"
 
 
 msgid "{} does not seem to be part of a sequence"
-msgstr "ﺎﺘﮕﻟ ﮟﯿﮩﻧ ﮧﺼﺣ ﺎﮐ ﺐﯿﺗﺮﺗ ﯽﺴﮐ {}"
+msgstr "ﺎﺘﮕﻟ ﮟﯿﮩﻧ ﮧﺼﺣ ﺎﮐ ﺐﯿﺗﺮﺗ ﯽﺴﮐ {}‬‪"
 
 
 msgid "Unsupported node tree type"
@@ -108156,23 +108156,23 @@ msgstr "ﮟﯿﻠﻣ ﮟﯿﮩﻧ ﺮﯾﻭﺎﺼﺗ ﻞﺛﺎﻤﻣ ﯽﺋﻮ�
 
 
 msgid "No free inputs for node {}"
-msgstr "ﮟﯿﮩﻧ ﭧﭘ ﻥﺍ ﺖﻔﻣ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ {} ﮈﻮﻧ"
+msgstr "ﮟﯿﮩﻧ ﭧﭘ ﻥﺍ ﺖﻔﻣ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ {}‬‪ ﮈﻮﻧ"
 
 
 msgid "Selected nodes are not of the same type as {}"
-msgstr "{} ﮯﺴﯿﺟ ﮟﯿﮨ ﮟﯿﮩﻧ ﮯﮐ ﻢﺴﻗ ﯽﮨ ﮏﯾﺍ ﺱﮈﻮﻧ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ"
+msgstr "‬{}‪ ﮯﺴﯿﺟ ﮟﯿﮨ ﮟﯿﮩﻧ ﮯﮐ ﻢﺴﻗ ﯽﮨ ﮏﯾﺍ ﺱﮈﻮﻧ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ"
 
 
 msgid "Successfully copied attributes from {} to {}"
-msgstr "ﮯﺌﮔ ﻮﮨ ﯽﭘﺎﮐ ﻑﺎﺻﻭﺍ ﮫﺗﺎﺳ ﮯﮐ ﯽﺑﺎﯿﻣﺎﮐ ﮟﯿﻣ {} ﮯﺳ {}"
+msgstr "ﮯﺌﮔ ﻮﮨ ﯽﭘﺎﮐ ﻑﺎﺻﻭﺍ ﮫﺗﺎﺳ ﮯﮐ ﯽﺑﺎﯿﻣﺎﮐ ﮟﯿﻣ {}‬‪ ﮯﺳ {}‬‪"
 
 
 msgid "Ignored {} (not of the same type as {})"
-msgstr "({} ﮧﮐ ﺎﺴﯿﺟ ﮟﯿﮩﻧ ﺎﮐ ﻢﺴﻗ ﯽﺳﺍ) {} ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
+msgstr "({}‬‪ ﮧﮐ ﺎﺴﯿﺟ ﮟﯿﮩﻧ ﺎﮐ ﻢﺴﻗ ﯽﺳﺍ) {}‬‪ ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
 
 
 msgid "Node {} deleted"
-msgstr "ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻑﺬﺣ {} ﮈﻮﻧ"
+msgstr "ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻑﺬﺣ {}‬‪ ﮈﻮﻧ"
 
 
 msgid "Nothing to delete"
@@ -108180,7 +108180,7 @@ msgstr "ﮟﯿﮩﻧ ﮫﭽﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻑﺬﺣ"
 
 
 msgid "Deleted {} nodes"
-msgstr "ﺱﮈﻮﻧ {} ﮦﺪﺷ ﻑﺬﺣ"
+msgstr "ﺱﮈﻮﻧ {}‬‪ ﮦﺪﺷ ﻑﺬﺣ"
 
 
 msgid "Deleted 1 node"
@@ -108200,11 +108200,11 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮈﻮﻧ ﺖﺳﺭﺩ ﯽﺋﻮﮐ ﮟﯿﻣ ﺏﺎ
 
 
 msgid "Successfully reset {}"
-msgstr "{} ﮟﯾﺮﮐ ﭧﯿﺳ ﯼﺭ ﮯﺳ ﯽﺑﺎﯿﻣﺎﮐ"
+msgstr "‬{}‪ ﮟﯾﺮﮐ ﭧﯿﺳ ﯼﺭ ﮯﺳ ﯽﺑﺎﯿﻣﺎﮐ"
 
 
 msgid "Ignored {}"
-msgstr "{} ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
+msgstr "‬{}‪ ﺎﯿﮔ ﺎﯿﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ"
 
 
 msgid "One of the nodes has no outputs"
@@ -108588,11 +108588,11 @@ msgstr "Z ﮟﯾﺮﮐ ﯼﻭﺮﯿﭘ"
 
 
 msgid "Eyelids Follow{}"
-msgstr "{}ﮟﯾﺮﮐ ﻮﻟﺎﻓ ﮟﯿﮑﻠﭘ"
+msgstr "‬{}‪ﮟﯾﺮﮐ ﻮﻟﺎﻓ ﮟﯿﮑﻠﭘ"
 
 
 msgid "Eyelids Attached{}"
-msgstr "{}ﮏﻠﺴﻨﻣ ﮟﯿﮑﻠﭘ"
+msgstr "‬{}‪ﮏﻠﺴﻨﻣ ﮟﯿﮑﻠﭘ"
 
 
 msgid "This monolithic face rig is deprecated."
@@ -108936,7 +108936,7 @@ msgstr "!ﺎﯿﮔ ﺎﯾﺩ ﮟﯿﮩﻧ ﮧﻧﻮﻤﻧ ﻥﺁ ﮉﯾﺍ ﯽ�
 
 
 msgid "Add-on '{}' not found!"
-msgstr "!ﻼ﻿ﻣ ﮟﯿﮩﻧ '{}' ﻥﺁ ﮉﯾﺍ"
+msgstr "!ﻼ﻿ﻣ ﮟﯿﮩﻧ '{}‬‪' ﻥﺁ ﮉﯾﺍ"
 
 
 msgid "Info written to %s text datablock!"
@@ -116907,7 +116907,7 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺏﺎﯿﺘﺳﺩ ﺮﭩﻨﺋﺍﻮﭘ RNA ﯽﺋ�
 
 
 msgid "Could not insert %i keyframe(s) due to zero NLA influence, base value, or value remapping failed: %s.%s for indices [%s]"
-msgstr "ﮯﯿﻟ ﮯﮐ [%s‬‪] ﺖﺳﺮﮩﻓ %s‬. ‪%s‬‪ :ﻡﺎﮐﺎﻧ ﮓﻨﭙﯿﻣ ﯼﺭ ﻮﯿﻠﯾﻭ ﺎﯾ ،ﺭﺪﻗ ﯼﺩﺎﯿﻨﺑ ،ﺎﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﺧﺍﺩ (s) ﻢﯾﺮﻓ ﯽﮐ i% ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺥﻮﺳﺭ ﻭ ﺮﺛﺍ NLA ﺮﻔﺻ"
+msgstr "ﮯﯿﻟ ﮯﮐ [%s‬‪] ﺖﺳﺮﮩﻓ %s‬. ‪%s‬‪ :ﻡﺎﮐﺎﻧ ﮓﻨﭙﯿﻣ ﯼﺭ ﻮﯿﻠﯾﻭ ﺎﯾ ،ﺭﺪﻗ ﯼﺩﺎﯿﻨﺑ ،ﺎﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﺧﺍﺩ (s) ﻢﯾﺮﻓ ﯽﮐ %i‬‪ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺥﻮﺳﺭ ﻭ ﺮﺛﺍ NLA ﺮﻔﺻ"
 
 
 msgid "Could not insert keyframe, as RNA path is invalid for the given ID (ID = %s, path = %s)"
@@ -117289,7 +117289,7 @@ msgstr "ﻞﺋﺎﭩﺳﺍ ﻦﺋﻻ﻿"
 
 
 msgid "LineSet %i"
-msgstr "i% ﭧﯿﺳ ﻦﺋﻻ﻿"
+msgstr "‬%i‪ ﭧﯿﺳ ﻦﺋﻻ﻿"
 
 
 msgid "LineSet"
@@ -117301,7 +117301,7 @@ msgstr "ﮈﻮﻧ ﮫﺘﻨﯿﻟ ﻦﺋﻼ﻿ﭙﺳ"
 
 
 msgid "\"{}\" attribute from geometry"
-msgstr "ﯼﺮﭩﯿﻣﻮﯿﺟ ﮯﺳ ﻒﺻﻭ \"{}\""
+msgstr "ﯼﺮﭩﯿﻣﻮﯿﺟ ﮯﺳ ﻒﺻﻭ \"{}‬‪\""
 
 
 msgid "ID / Index"
@@ -117630,11 +117630,11 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺎﭩﯾﮈ VCol ﯽﺋﻮﮐ ﺱﺎﭘ ﮯﮐ ﺶ�
 
 
 msgid "%i frames found!"
-msgstr "%i ﮯﻠﻣ ﺰﻤﯾﺮﻓ!"
+msgstr "‪%i‬ ﮯﻠﻣ ﺰﻤﯾﺮﻓ!"
 
 
 msgid "%i points found!"
-msgstr "%i ﮯﻠﻣ ﺲﭩﻨﺋﺍﻮﭘ!"
+msgstr "‪%i‬ ﮯﻠﻣ ﺲﭩﻨﺋﺍﻮﭘ!"
 
 
 msgid "No valid data to read!"
@@ -117642,15 +117642,15 @@ msgstr "!ﮯﮨ ﮟﯿﮩﻧ ﺎﭩﯾﮈ ﺖﺳﺭﺩ ﯽﺋﻮﮐ ﮯﯿﻟ �
 
 
 msgid "%i cells + High Resolution cached"
-msgstr "%i ﮉﺸﯿﮐ ﻦﺷﻮﻟﻭﺰﯾﺭ ﯽﺋﺎﮨ + ﺰﻠﯿﺳ"
+msgstr "‪%i‬ ﮉﺸﯿﮐ ﻦﺷﻮﻟﻭﺰﯾﺭ ﯽﺋﺎﮨ + ﺰﻠﯿﺳ"
 
 
 msgid "%i cells cached"
-msgstr "%i ﮯﺌﮔ ﮯﯿﮐ ﺶﯿﮐ ﺰﻠﯿﺳ"
+msgstr "‪%i‬ ﮯﺌﮔ ﮯﯿﮐ ﺶﯿﮐ ﺰﻠﯿﺳ"
 
 
 msgid "%i frames on disk"
-msgstr "ﺰﻤﯾﺮﻓ i% ﺮﭘ ﮏﺳﮈ"
+msgstr "ﺰﻤﯾﺮﻓ %i‬‪ ﺮﭘ ﮏﺳﮈ"
 
 
 msgid "%s frames in memory (%s)"
@@ -117662,7 +117662,7 @@ msgstr "‪%s‬، ﮯﮨ ﺎﻧﺍﺮﭘ ﮯﺸﯿﮐ!"
 
 
 msgid "%s, not exact since frame %i"
-msgstr "‪%s‬، ﻢﯾﺮﻓ %i ﮟﯿﮩﻧ ﺖﺳﺭﺩ ﻞﮑﻟﺎﺑ ﮯﺳ"
+msgstr "‪%s‬، ﻢﯾﺮﻓ ‪%i‬ ﮟﯿﮩﻧ ﺖﺳﺭﺩ ﻞﮑﻟﺎﺑ ﮯﺳ"
 
 
 msgid "pointclouds"
@@ -118099,7 +118099,7 @@ msgstr "ID ‪%s‬ ﯼﺮﯾﺮﺒﺋﻻ﻿ ﺏﺍ ‪%s‬ ﯽﻠﻣ ﮟﯿﮩ
 
 
 msgid "ID %s uses shapekey %s, but its 'from' pointer is invalid (%p), fixing..."
-msgstr "ID ‪%s‬ ﯽﮐ ﭗﯿﺷ ‪%s‬ ﺎﮐ ﺱﺍ ﻦﮑﯿﻟ ،ﮯﮨ ﯽﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ 'from' ﮯﮨ ﻂﻠﻏ ﺮﭩﻨﺋﺍﻮﭘ (%p)، ﮓﻨﺴﮑﻓ..."
+msgstr "ID ‪%s‬ ﯽﮐ ﭗﯿﺷ ‪%s‬ ﺎﮐ ﺱﺍ ﻦﮑﯿﻟ ،ﮯﮨ ﯽﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ 'from' ﮯﮨ ﻂﻠﻏ ﺮﭩﻨﺋﺍﻮﭘ (‪%p‬)، ﮓﻨﺴﮑﻓ..."
 
 
 msgid "unknown error reading file"
@@ -118315,19 +118315,19 @@ msgstr "۔ﮯﮨ ﺎﮨﺭ ﮮﺩ ﯽﺋﺎﮭﮐﺩ ﮈﺮﮔ ﮦﺩﺎﯾﺯ �
 
 
 msgid "Error: Not enough memory to bake {}."
-msgstr "۔{} ﮯﮨ ﮟﯿﮩﻧ ﯼﺭﻮﻤﯿﻣ ﯽﻓﺎﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮏﯿﺑ :ﯽﺑﺍﺮﺧ"
+msgstr "۔{}‬‪ ﮯﮨ ﮟﯿﮩﻧ ﯼﺭﻮﻤﯿﻣ ﯽﻓﺎﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮏﯿﺑ :ﯽﺑﺍﺮﺧ"
 
 
 msgid ""
 "Not enough available video memory to bake \"{}\" ({} / {} MBytes).\n"
 "Try reducing surfel resolution or capture distance to lower the size of the allocation."
 msgstr ""
-"\"{}\" ({} / {} MBytes) ۔ﮯﮨ ﮟﯿﮩﻧ ﯼﺭﻮﻤﯿﻣ ﻮﯾﮉﯾﻭ ﺏﺎﯿﺘﺳﺩ ﯽﻓﺎﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮏﯿﺑ ﻮﮐ\n"
+"\"‪{}‬\" (‪{}‬ / ‪{}‬ MBytes) ۔ﮯﮨ ﮟﯿﮩﻧ ﯼﺭﻮﻤﯿﻣ ﻮﯾﮉﯾﻭ ﺏﺎﯿﺘﺳﺩ ﯽﻓﺎﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﮏﯿﺑ ﻮﮐ\n"
 "۔ﮟﯾﺮﮐ ﺮﭽﭙﯿﮐ ﮧﻠﺻﺎﻓ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻢﮐ ﺰﺋﺎﺳ ﺎﮐ ﺺﺘﺨﻣ ﺎﯾ ﮟﯾﺮﮐ ﺶﺷﻮﮐ ﯽﮐ ﮯﻧﺮﮐ ﻢﮐ ﻮﮐ ﻦﺷﻮﻟﻭﺰﯾﺭ ﻞﯿﻓﺮﺳ"
 
 
 msgid "Error: Shadow buffer full, may result in missing shadows and lower performance. ({} / {})"
-msgstr "({} / {}) ۔ﮯﮨ ﯽﺘﮑﺳ ﻮﮨ ﻢﮐ ﯽﮔﺩﺮﮐﺭﺎﮐ ﺭﻭﺍ ﮟﯿﮨ ﮯﺘﮑﺳ ﻮﮨ ﺐﺋﺎﻏ ﮯﺋﺎﺳ ﮟﯿﻣ ﮯﺠﯿﺘﻧ ﮯﮐ ﺱﺍ ،ﺍﻮﮨ ﺍﺮﮭﺑ ﺮﻔﺑ ﻭﮉﯿﺷ :ﯽﺑﺍﺮﺧ"
+msgstr "({}‬ / ‪{}‬‪) ۔ﮯﮨ ﯽﺘﮑﺳ ﻮﮨ ﻢﮐ ﯽﮔﺩﺮﮐﺭﺎﮐ ﺭﻭﺍ ﮟﯿﮨ ﮯﺘﮑﺳ ﻮﮨ ﺐﺋﺎﻏ ﮯﺋﺎﺳ ﮟﯿﻣ ﮯﺠﯿﺘﻧ ﮯﮐ ﺱﺍ ،ﺍﻮﮨ ﺍﺮﮭﺑ ﺮﻔﺑ ﻭﮉﯿﺷ :ﯽﺑﺍﺮﺧ"
 
 
 msgid "Create"
@@ -118937,7 +118937,7 @@ msgstr "ﮯﮨ ﮧﺛﺎﺛﺍ ﮏﯾﺍ ﺏﺍ '%s‬‪' ﮎﻼ﻿ﺑ ﺎﭩ�
 
 
 msgid "%i data-blocks are now assets"
-msgstr "%i ﮟﯿﮨ ﮯﺛﺎﺛﺍ ﺏﺍ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ"
+msgstr "‪%i‬ ﮟﯿﮨ ﮯﺛﺎﺛﺍ ﺏﺍ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ"
 
 
 msgid "Data-block '%s' is not an asset anymore"
@@ -118945,7 +118945,7 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮧﺛﺎﺛﺍ ﯽﺋﻮﮐ ﺏﺍ '%s‬‪' ﮎ�
 
 
 msgid "%i data-blocks are not assets anymore"
-msgstr "%i ﮟﯿﮨ ﮟﯿﮩﻧ ﮯﺛﺎﺛﺍ ﺏﺍ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ"
+msgstr "‪%i‬ ﮟﯿﮨ ﮟﯿﮩﻧ ﮯﺛﺎﺛﺍ ﺏﺍ ﺲﮐﻼ﻿ﺑ ﺎﭩﯾﮈ"
 
 
 msgid "Selected path is outside of the selected asset library"
@@ -118953,11 +118953,11 @@ msgstr "ﮯﮨ ﺮﮨﺎﺑ ﮯﺳ ﯼﺮﯾﺮﺒﺋﻻ﻿ ﮧﺛﺎﺛﺍ ﺐ�
 
 
 msgid "Unable to copy bundle due to external dependency: \"%s\""
-msgstr "\\%s‬‪ :ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﻝﮉﻨﺑ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺭﺎﺼﺤﻧﺍ ﯽﻧﻭﺮﯿﺑ"
+msgstr "‬%s‬‪\\‪ :ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﻝﮉﻨﺑ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺭﺎﺼﺤﻧﺍ ﯽﻧﻭﺮﯿﺑ"
 
 
 msgid "Unable to copy bundle due to %zu external dependencies; more details on the console"
-msgstr "%zu ﺕﻼ﻿ﯿﺼﻔﺗ ﺪﯾﺰﻣ ﺮﭘ ﻝﻮﺴﻨﮐ ؛ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﻝﮉﻨﺑ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺭﺎﺼﺤﻧﺍ ﯽﻧﻭﺮﯿﺑ"
+msgstr "‪%zu‬ ﺕﻼ﻿ﯿﺼﻔﺗ ﺪﯾﺰﻣ ﺮﭘ ﻝﻮﺴﻨﮐ ؛ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﯽﭘﺎﮐ ﻝﮉﻨﺑ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺭﺎﺼﺤﻧﺍ ﯽﻧﻭﺮﯿﺑ"
 
 
 msgid "Asset catalogs cannot be edited in this asset library"
@@ -119622,15 +119622,15 @@ msgstr "ﮧﻟﺍﻮﺣ ﺎﮐPython ﻦﺋﻻ﻿ ﻥﺁ"
 
 
 msgid "Drop {} on slot {} (replacing {}) of {}"
-msgstr "(ﮧﮕﺟ ﯽﮐ {}) ﮟﯿﺋﺍﺮﮔ ﺮﭘ {} ﭦﻼ﻿ﺳ ﯽﮐ {} ﻮﮐ {}"
+msgstr "(ﮧﮕﺟ ﯽﮐ {}‬‪) ﮟﯿﺋﺍﺮﮔ ﺮﭘ {}‬‪ ﭦﻼ﻿ﺳ ﯽﮐ {}‬‪ ﻮﮐ {}‬‪"
 
 
 msgid "Drop {} on slot {} (active slot) of {}"
-msgstr "Drop {} on ﭦﻼ﻿ﺳ ﻝﺎﻌﻓ) {} ﭦﻼ﻿ﺳ) of {}"
+msgstr "Drop ‪{}‬ on ﭦﻼ﻿ﺳ ‪{}‬ (ﭦﻼ﻿ﺳ ﻝﺎﻌﻓ) of ‪{}‬"
 
 
 msgid "Drop {} on slot {} of {}"
-msgstr "ﮟﯿﺋﺍﺮﮔ {} ﺮﭘ ﭦﻼ﻿ﺳ {} ﮯﮐ {}"
+msgstr "ﮟﯿﺋﺍﺮﮔ {}‬‪ ﺮﭘ ﭦﻼ﻿ﺳ {}‬‪ ﮯﮐ {}‬‪"
 
 
 msgid "OS"
@@ -119747,11 +119747,11 @@ msgstr "ﻕﺎﺒﺳ ﻭ ﻕﺎﯿﺳ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ ﺮﯿﻏ"
 
 
 msgid "Shortcut: {}"
-msgstr "{} :ﭧﮐ ﭦﺭﺎﺷ"
+msgstr "‬{}‪ :ﭧﮐ ﭦﺭﺎﺷ"
 
 
 msgid "Python: {}"
-msgstr "{} :ﺮﮔﺯﺍ"
+msgstr "‬{}‪ :ﺮﮔﺯﺍ"
 
 
 msgid "Internal error!"
@@ -119759,7 +119759,7 @@ msgstr "!ﯽﺑﺍﺮﺧ ﯽﻧﻭﺭﺪﻧﺍ"
 
 
 msgid "Shortcut Cycle: {}"
-msgstr "{} :ﻞﮑﯿﺋﺎﺳ ﭧﮐ ﭦﺭﺎﺷ"
+msgstr "‬{}‪ :ﻞﮑﯿﺋﺎﺳ ﭧﮐ ﭦﺭﺎﺷ"
 
 
 msgid "Tool Keymap:"
@@ -119767,7 +119767,7 @@ msgstr ":ﮧﺸﻘﻧ ﯼﺪﯿﻠﮐ ﻝﻮﭨ"
 
 
 msgid "Python: {}.{}"
-msgstr "{}.{} :ﺮﮔﺯﺍ"
+msgstr "‬{}‬.‪{}‪ :ﺮﮔﺯﺍ"
 
 
 msgid "(Shift-Click/Drag to select multiple)"
@@ -119775,19 +119775,19 @@ msgstr "(ﮟﯾﺮﮐ ﮓﯾﺭﮈ/ﮏﻠﮐ ﭧﻔﺷ ﮯﯿﻟ ﮯﮐ ﮯﻧ�
 
 
 msgid "Value: {}"
-msgstr "{} :ﺭﺪﻗ"
+msgstr "‬{}‪ :ﺭﺪﻗ"
 
 
 msgid "Radians: {}"
-msgstr "{} :ﺰﻨﯾﮉﯾﺭ"
+msgstr "‬{}‪ :ﺰﻨﯾﮉﯾﺭ"
 
 
 msgid "Expression: {}"
-msgstr "{} :ﺭﺎﮩﻇﺍ"
+msgstr "‬{}‪ :ﺭﺎﮩﻇﺍ"
 
 
 msgid "Disabled: {}"
-msgstr "{} :ﻝﺎﻌﻓ ﺮﯿﻏ"
+msgstr "‬{}‪ :ﻝﺎﻌﻓ ﺮﯿﻏ"
 
 
 msgid "Movie"
@@ -119795,7 +119795,7 @@ msgstr "ﻢﻠﻓ"
 
 
 msgid "Users: {}"
-msgstr "{} :ﻦﯿﻓﺭﺎﺻ"
+msgstr "‬{}‪ :ﻦﯿﻓﺭﺎﺻ"
 
 
 msgid "File not found"
@@ -119803,7 +119803,7 @@ msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ ﻞﺋﺎﻓ"
 
 
 msgid "Choose {} data-block to be assigned to this user"
-msgstr "ﮟﯾﺮﮐ ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ {} ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺾﯾﻮﻔﺗ ﻮﮐ ﻑﺭﺎﺻ ﺱﺍ"
+msgstr "ﮟﯾﺮﮐ ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ {}‬‪ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺾﯾﻮﻔﺗ ﻮﮐ ﻑﺭﺎﺻ ﺱﺍ"
 
 
 msgid ""
@@ -119811,7 +119811,7 @@ msgid ""
 "{}"
 msgstr ""
 "\n"
-"{} :ﯼﺮﯾﺮﺒﺋﻻ﻿ ﺬﺧﺎﻣ{}"
+"‬{}‪ :ﯼﺮﯾﺮﺒﺋﻻ﻿ ﺬﺧﺎﻣ‪{}‬"
 
 
 msgctxt "Operator"
@@ -119829,15 +119829,15 @@ msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ ﻢﺴﻗ ﯽﮐ ﻞﻨﯿﭘ ﺭﻭﻭﺍ ﭖﺎ
 
 
 msgid "Move {} into {}"
-msgstr "{} into {} ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
+msgstr "‬{}‬ into ‪{}‪ ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
 
 
 msgid "Move {} above {}"
-msgstr "{} ﺮﭘﻭﺍ {} ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
+msgstr "‬{}‪ ﺮﭘﻭﺍ {}‬‪ ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
 
 
 msgid "Move {} below {}"
-msgstr "{} ﮯﭽﯿﻧ {} ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
+msgstr "‬{}‪ ﮯﭽﯿﻧ {}‬‪ ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
 
 
 msgid "Manual Scale"
@@ -119998,15 +119998,15 @@ msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﮓﻨﭙﻠﮐ ﻞﺋﺎﻓﻭﺮﭘ"
 
 
 msgid "Move {} {} into {}"
-msgstr "{} into {} {} ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
+msgstr "‬{}‬ ‪{}‬ into ‪{}‪ ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
 
 
 msgid "Move {} {} above {}"
-msgstr "{} ﺮﭘﻭﺍ {} {} ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
+msgstr "‬{}‪ ﺮﭘﻭﺍ {}‬ ‪{}‬‪ ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
 
 
 msgid "Move {} {} below {}"
-msgstr "{} ﮯﭽﯿﻧ {} {} ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
+msgstr "‬{}‪ ﮯﭽﯿﻧ {}‬ ‪{}‬‪ ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ"
 
 
 msgid "Layer is locked or not visible"
@@ -120327,11 +120327,11 @@ msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮟﯿﻣ ﮧﻋﻮﻤﺠﻣ ﮯﻟﺍﻭ ﮯ�
 
 
 msgid "Add to linking collection before {}"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮟﯿﻣ ﮧﻋﻮﻤﺠﻣ ﮯﻟﺍﻭ ﮯﻧﺮﮐ ﮏﻨﻟ ﮯﻠﮩﭘ ﮯﺳ {}"
+msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮟﯿﻣ ﮧﻋﻮﻤﺠﻣ ﮯﻟﺍﻭ ﮯﻧﺮﮐ ﮏﻨﻟ ﮯﻠﮩﭘ ﮯﺳ {}‬‪"
 
 
 msgid "Add to linking collection after {}"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮟﯿﻣ ﮧﻋﻮﻤﺠﻣ ﮯﻟﺍﻭ ﮯﻧﺮﮐ ﮏﻨﻟ ﺪﻌﺑ ﮯﮐ {}"
+msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮟﯿﻣ ﮧﻋﻮﻤﺠﻣ ﮯﻟﺍﻭ ﮯﻧﺮﮐ ﮏﻨﻟ ﺪﻌﺑ ﮯﮐ {}‬‪"
 
 
 msgid "Select List Item (Double click to rename)"
@@ -120547,7 +120547,7 @@ msgstr "ﮓﻨﺴﻨﯿﭩﺴﻧﺍ ﺭﻭﺍ ﺕﺍﺭﺫ"
 
 
 msgid "Import {} files"
-msgstr "ﮟﯿﻠﺋﺎﻓ {} ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ"
+msgstr "ﮟﯿﻠﺋﺎﻓ {}‬‪ ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ"
 
 
 msgid "No weights/vertex groups on object(s)"
@@ -120888,7 +120888,7 @@ msgstr "ﺎﺘﮑﺳ ﺎﺟ ﮟﯿﮩﻧ ﺎﯾﺎﭩﮨ ﻮﮐ ﺲﻟﻮﭘ ﮦ
 
 
 msgid "Cannot add more than %i UV maps"
-msgstr "%i ﮯﺘﮑﺳ ﺮﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﮯﺸﻘﻨﯾﻭ ﻮﯿﮨﺩﺎﯾﺯ ﮯﺳ"
+msgstr "‪%i‬ ﮯﺘﮑﺳ ﺮﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﮯﺸﻘﻨﯾﻭ ﻮﯿﮨﺩﺎﯾﺯ ﮯﺳ"
 
 
 msgid "%d %s mirrored, %d failed"
@@ -120912,7 +120912,7 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺎﭩﯾﮈ ﻝﺎﺟ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ
 
 
 msgid "Joining results in %d vertices, limit is %ld"
-msgstr "‪%d‬ ﺪﺣ ،ﺞﺋﺎﺘﻧ ﮯﮐ ﮯﻧﻮﮨ ﻞﻣﺎﺷ ﮟﯿﻣ ﯼﺩﻮﻤﻋ ‪%l‬d ﮯﮨ"
+msgstr "‪%d‬ ﺪﺣ ،ﺞﺋﺎﺘﻧ ﮯﮐ ﮯﻧﻮﮨ ﻞﻣﺎﺷ ﮟﯿﻣ ﯼﺩﻮﻤﻋ ‪%ld‬ ﮯﮨ"
 
 
 msgid "No additional selected meshes with equal vertex count to join"
@@ -121089,7 +121089,7 @@ msgstr "ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﻑﺭﺎﺻ ﮏﯾﺍ ﻢﮐ ﺯﺍ ﻢ�
 
 
 msgid "Deleted %u object(s)"
-msgstr "ﭧﮑﯿﺠﺑﺁ u% ﮦﺪﺷ ﻑﺬﺣ"
+msgstr "ﭧﮑﯿﺠﺑﺁ %u‬‪ ﮦﺪﺷ ﻑﺬﺣ"
 
 
 msgid "Object '%s' has no evaluated mesh or curves data"
@@ -121185,11 +121185,11 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻝﺎﻌﻓ ﮯﯿﻟ ﮯﮐ ﮓﻧﺭﮉﻨﯾﺭ 
 
 
 msgid "No faces found in the object \"%s\""
-msgstr "\\%s‬‪ ﮯﻠﻣ ﮟﯿﮩﻧ ﮟﯿﻠﮑﺷ ﯽﺋﻮﮐ ﮟﯿﻣ ﺰﯿﭼ"
+msgstr "‬%s‬‪\\‪ ﮯﻠﻣ ﮟﯿﮩﻧ ﮟﯿﻠﮑﺷ ﯽﺋﻮﮐ ﮟﯿﻣ ﺰﯿﭼ"
 
 
 msgid "Mesh does not have an active color attribute \"%s\""
-msgstr "\\%s‬‪ ﮯﮨ ﮟﯿﮩﻧ ﻒﺻﻭ ﮓﻧﺭ ﻝﺎﻌﻓ ﮏﯾﺍ ﮟﯿﻣ ﻝﺎﺟ"
+msgstr "‬%s‬‪\\‪ ﮯﮨ ﮟﯿﮩﻧ ﻒﺻﻭ ﮓﻧﺭ ﻝﺎﻌﻓ ﮏﯾﺍ ﮟﯿﻣ ﻝﺎﺟ"
 
 
 msgid "No active UV layer found in the object \"%s\""
@@ -121229,7 +121229,7 @@ msgstr "ﯽﺑﺍﺮﺧ ﮟﯿﻣ ﮓﻨﮑﯿﺑ ﮯﺳ %s‬‪ ﺰﯿﭼ"
 
 
 msgid "Problem baking object \"%s\""
-msgstr "\\%s‬‪ ﮧﻠﺌﺴﻣ ﮟﯿﻣ ﮯﻧﺎﮑﭘ ﻮﮐ ﺰﯿﭼ"
+msgstr "‬%s‬‪\\‪ ﮧﻠﺌﺴﻣ ﮟﯿﻣ ﮯﻧﺎﮑﭘ ﻮﮐ ﺰﯿﭼ"
 
 
 msgid "Overwrite existing bake data?"
@@ -121709,15 +121709,15 @@ msgstr "ﻞﮕﻨﺳ ﮟﯿﺋﺎﻨﺑ"
 
 
 msgid "Drop {} on {} (slot {}, replacing {})"
-msgstr "(ﮧﮕﺟ ﯽﮐ {} ،{} ﭦﻼ﻿ﺳ) ﮟﯿﺋﺍﺮﮔ ﺮﭘ {} ﻮﮐ {}"
+msgstr "(ﮧﮕﺟ ﯽﮐ {}‬، ‪{}‬‪ ﭦﻼ﻿ﺳ) ﮟﯿﺋﺍﺮﮔ ﺮﭘ {}‬‪ ﻮﮐ {}‬‪"
 
 
 msgid "Drop {} on {} (slot {})"
-msgstr "({} ﭦﻼ﻿ﺳ) ﮟﯾﺩ ﺍﺮﮔ ﺮﭘ {} ﻮﮐ {}"
+msgstr "({}‬‪ ﭦﻼ﻿ﺳ) ﮟﯾﺩ ﺍﺮﮔ ﺮﭘ {}‬‪ ﻮﮐ {}‬‪"
 
 
 msgid "Add modifier with node group \"{}\" on object \"{}\""
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮦﺪﻨﻨﮐ ﻢﯿﻣﺮﺗ ﮫﺗﺎﺳ ﮯﮐ \"{}\"ﮦﻭﺮﮔ ﮈﻮﻧ ﺮﭘ ﮯﺷ \"{}\""
+msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮦﺪﻨﻨﮐ ﻢﯿﻣﺮﺗ ﮫﺗﺎﺳ ﮯﮐ \"{}‬‪\"ﮦﻭﺮﮔ ﮈﻮﻧ ﺮﭘ ﮯﺷ \"{}‬‪\""
 
 
 msgid "Select either 1 or 3 vertices to parent to"
@@ -121941,23 +121941,23 @@ msgstr "ﮯﮨ ﺎﺗﺮﮐ ﮟﯿﮩﻧ ﭦﺭﻮﭙﺳ ﻮﮐ ﻦﺸﯾﺮﭘ�
 
 
 msgid "Text objects can only have their scale applied: \"%s\""
-msgstr "\\%s‬‪ :ﮯﮨ ﺎﺘﮑﺳ ﻮﮨ ﻮﮔﻻ﻿ ﮧﻧﺎﻤﯿﭘ ﺎﮐ ﻥﺍ ﻑﺮﺻ ﺮﭘ ءﺎﯿﺷﺍ ﯽﻨﺘﻣ"
+msgstr "‬%s‬‪\\‪ :ﮯﮨ ﺎﺘﮑﺳ ﻮﮨ ﻮﮔﻻ﻿ ﮧﻧﺎﻤﯿﭘ ﺎﮐ ﻥﺍ ﻑﺮﺻ ﺮﭘ ءﺎﯿﺷﺍ ﯽﻨﺘﻣ"
 
 
 msgid "Area Lights can only have scale applied: \"%s\""
-msgstr "\\%s‬‪ :ﮯﮨ ﺎﺘﮑﺳﻮﮨ ﻮﮔﻻ﻿ ﮧﻧﺎﻤﯿﭘ  ﻑﺮﺻ ﮟﯿﻣ ﺲﭩﺋﻻ﻿ ﺎﯾﺮﯾﺍ"
+msgstr "‬%s‬‪\\‪ :ﮯﮨ ﺎﺘﮑﺳﻮﮨ ﻮﮔﻻ﻿ ﮧﻧﺎﻤﯿﭘ  ﻑﺮﺻ ﮟﯿﻣ ﺲﭩﺋﻻ﻿ ﺎﯾﺮﯾﺍ"
 
 
 msgid "%i object(s) not centered, %i changed:"
-msgstr "%i ﮟﯿﮩﻧ ﮟﯿﻣ ﺰﮐﺮﻣ (ﮟﯿﻧﺎﺑﺯ) ﮯﺷ، %i ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ:"
+msgstr "‪%i‬ ﮟﯿﮩﻧ ﮟﯿﻣ ﺰﮐﺮﻣ (ﮟﯿﻧﺎﺑﺯ) ﮯﺷ، ‪%i‬ ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ:"
 
 
 msgid "|%i linked library object(s)"
-msgstr "|%i ﺯ)ﭧﮑﯿﺠﺑﺁ ﯼﺮﯾﺮﺒﺋﻻ﻿ ﮏﻠﺴﻨﻣ)"
+msgstr "|‪%i‬ ﺯ)ﭧﮑﯿﺠﺑﺁ ﯼﺮﯾﺮﺒﺋﻻ﻿ ﮏﻠﺴﻨﻣ)"
 
 
 msgid "|%i multiuser armature object(s)"
-msgstr "|%i ﭧﮑﯿﺠﺑﺁ ﺮﭽﯿﻣﺭﺁ ﺭﺯﻮﯾ ﯽﭩﻠﻣ"
+msgstr "|‪%i‬ ﭧﮑﯿﺠﺑﺁ ﺮﭽﯿﻣﺭﺁ ﺭﺯﻮﯾ ﯽﭩﻠﻣ"
 
 
 msgid "Lock all vertex groups of the active object"
@@ -122405,7 +122405,7 @@ msgstr "ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻅﻮﻔﺤﻣ ﻮﮐ %s‬�
 
 
 msgid "Skipping existing frame \"%s\""
-msgstr "\\%s‬‪ ﺎﻧﮌﻮﮭﭼ ﻮﮐ ﻢﯾﺮﻓ ﮦﺩﻮﺟﻮﻣ"
+msgstr "‬%s‬‪\\‪ ﺎﻧﮌﻮﮭﭼ ﻮﮐ ﻢﯾﺮﻓ ﮦﺩﻮﺟﻮﻣ"
 
 
 msgid "Node groups do not support automatic previews"
@@ -122581,7 +122581,7 @@ msgstr "ﮒﻻ﻿ ﻦﺸﯿﻣﺭﺎﻔﻧﺍ ﺭﮉﻨﯿﻠﺑ"
 
 
 msgid "Show {} preferences"
-msgstr "ﺕﺎﺤﯿﺟﺮﺗ {} ﮟﯿﺋﺎﮭﮐﺩ"
+msgstr "ﺕﺎﺤﯿﺟﺮﺗ {}‬‪ ﮟﯿﺋﺎﮭﮐﺩ"
 
 
 msgid "Area not found in the active screen"
@@ -123321,7 +123321,7 @@ msgstr "ﮒﻼ﻿ﭩﯿﮐ ﮟﯾﺮﮐ ﻑﺬﺣ"
 
 
 msgid "Move catalog {} into {}"
-msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﮟﯿﻣ {} ﻮﮐ {} ﮒﻼ﻿ﭩﯿﮐ"
+msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﮟﯿﻣ {}‬‪ ﻮﮐ {}‬‪ ﮒﻼ﻿ﭩﯿﮐ"
 
 
 msgid "Move assets to catalog"
@@ -123333,7 +123333,7 @@ msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﮟﯿﻣ ﮒﻼ﻿ﭩﯿﮐ ﻮﮐ ﮧﺛ�
 
 
 msgid "Move catalog {} to the top level of the tree"
-msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﺮﭘ ﺢﻄﺳ ﯼﺮﭘﻭﺍ ﯽﮐ ﺖﺧﺭﺩ ﻮﮐ {} ﮒﻼ﻿ﭩﯿﮐ"
+msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ ﺮﭘ ﺢﻄﺳ ﯼﺮﭘﻭﺍ ﯽﮐ ﺖﺧﺭﺩ ﻮﮐ {}‬‪ ﮒﻼ﻿ﭩﯿﮐ"
 
 
 msgid "Move assets out of any catalog"
@@ -123421,7 +123421,7 @@ msgstr "ﺎﮑﺳ ﺎﺟ ﺎﯾﺎﻨﺑ ﮟﯿﮩﻧ ﻡﺎﻧ ﺎﮐ ﺭﮉﻟ
 
 
 msgid "Unable to open or write bookmark file \"%s\""
-msgstr "\\%s‬‪ ﺮﺻﺎﻗ ﮯﺳ ﮯﻨﮭﮑﻟ ﺎﯾ ﮯﻨﻟﻮﮭﮐ ﻮﮐ ﻞﺋﺎﻓ ﮎﺭﺎﻣ ﮏﺑُ"
+msgstr "‬%s‬‪\\‪ ﺮﺻﺎﻗ ﮯﺳ ﮯﻨﮭﮑﻟ ﺎﯾ ﮯﻨﻟﻮﮭﮐ ﻮﮐ ﻞﺋﺎﻓ ﮎﺭﺎﻣ ﮏﺑُ"
 
 
 msgid "Failure to perform external file operation on \"%s\""
@@ -123882,7 +123882,7 @@ msgstr "ﮯﮭﺗ ﮯﺌﮔ ﮯﺋﺎﻨﺑ ﮟﯿﮩﻧ ﻞﺋﺎﭨ UDIM ﯽ�
 
 
 msgid "Packed to memory image \"%s\""
-msgstr "\\%s‬‪ ﮏﯿﭘ ﮟﯿﻣ ﺞﯿﻣﺍ ﯼﺭﻮﻤﯿﻣ"
+msgstr "‬%s‬‪\\‪ ﮏﯿﭘ ﮟﯿﻣ ﺞﯿﻣﺍ ﯼﺭﻮﻤﯿﻣ"
 
 
 msgid "Cannot save image, path \"%s\" is not writable"
@@ -123926,7 +123926,7 @@ msgstr "ﯽﮔ ﮟﯿﺋﺎﺟ ﻮﮨ ﻢﺘﺧ ﮞﺎﯿﻠﯾﺪﺒﺗ ﮧﯾ 
 
 
 msgid "Unpack - Files: {}, Bakes: {}"
-msgstr "{} :ﺲﮑﯿﺑ ،{} :ﮟﯿﻠﺋﺎﻓ - ﮟﯿﻟﻮﮭﮐ ﮏﯿﭘ"
+msgstr "‬{}‪ :ﺲﮑﯿﺑ ،{}‬‪ :ﮟﯿﻠﺋﺎﻓ - ﮟﯿﻟﻮﮭﮐ ﮏﯿﭘ"
 
 
 msgid "No packed files to unpack"
@@ -123986,7 +123986,7 @@ msgstr "‬%s‬/‪%s‪:ﭧﮑﯿﺠﺑﺁ | "
 
 
 msgid "Duration: %s (Frame %i/%i)"
-msgstr "(i/%i% ﻢﯾﺮﻓ) %s‬‪ :ﮧﯿﻧﺍﺭﻭﺩ"
+msgstr "(%i‬/‪%i‬‪ ﻢﯾﺮﻓ) %s‬‪ :ﮧﯿﻧﺍﺭﻭﺩ"
 
 
 msgid "Memory: %s"
@@ -124962,7 +124962,7 @@ msgid ""
 "{}  {}  {}  {}"
 msgstr ""
 "\n"
-":(sRGB encoded) ﺮﻠﮐ ﭧﺋﺎﺑ{}  {}  {}  {}"
+":(sRGB encoded) ﺮﻠﮐ ﭧﺋﺎﺑ‪{}‬  ‪{}‬  ‪{}‬  ‪{}‬"
 
 
 msgid "Data Set"
@@ -125434,7 +125434,7 @@ msgstr "fps: ‪%.2f‬"
 
 
 msgid "fps: %i"
-msgstr "fps: %i"
+msgstr "fps: ‪%i‬"
 
 
 msgid "Create object instance from object-data"
@@ -125694,7 +125694,7 @@ msgstr "‬%s‪ :ﮧﻓﺎﻔﻟ"
 
 
 msgid "Envelope: %3f"
-msgstr "3f% :ﮧﻓﺎﻔﻟ"
+msgstr "‬%3f‪ :ﮧﻓﺎﻔﻟ"
 
 
 msgid "Roll: %s"
@@ -125710,7 +125710,7 @@ msgstr "‬%s‪ :ﮟﯾﺮﮐ ﺎﭨﻮﻣ/ﮟﯾﮍﮑﺳ"
 
 
 msgid "Shrink/Fatten: %3f"
-msgstr "3f% :ﺎﭨﻮﻣ / ﮍﮑﺳ"
+msgstr "‬%3f‪ :ﺎﭨﻮﻣ / ﮍﮑﺳ"
 
 
 msgid "Sequence Slide: %s%s"
@@ -125734,7 +125734,7 @@ msgstr "‬%s‪ :ﻦﭘﻻ﻿ﺪﻨﮬﺩ"
 
 
 msgid "Opacity: %3f"
-msgstr "3f% :ﻦﭘﻻ﻿ﺪﻨﮬﺩ"
+msgstr "‬%3f‪ :ﻦﭘﻻ﻿ﺪﻨﮬﺩ"
 
 
 msgid "Feather Shrink/Fatten: %s"
@@ -125742,7 +125742,7 @@ msgstr "‬%s‪ :ﺎﭨﻮﻣ/ﺎﻧﮍﮑﺳ ﮫﮑﻨﭘ"
 
 
 msgid "Feather Shrink/Fatten: %3f"
-msgstr "3f% :ﺎﭨﻮﻣ/ﺎﻧﮍﮑﺳ ﮫﮑﻨﭘ"
+msgstr "‬%3f‪ :ﺎﭨﻮﻣ/ﺎﻧﮍﮑﺳ ﮫﮑﻨﭘ"
 
 
 msgid "Mirror%s"
@@ -126005,7 +126005,7 @@ msgstr "ﮯﮨ ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﺐﺨﺘﻨﻣ ﮟﯿﻣ ﮈﻮﻣ
 
 
 msgid "Stitching only works with less than %i objects selected (%i selected)"
-msgstr "(ﺐﺨﺘﻨﻣ i%) ﮯﮨ ﯽﺗﺮﮐ ﻡﺎﮐ ﮫﺗﺎﺳ ﮯﮐ ءﺎﯿﺷﺍ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ ﻢﮐ ﮯﺳ i% ﻑﺮﺻ ﯽﺋﻼ﻿ﺳ"
+msgstr "(ﺐﺨﺘﻨﻣ %i‬‪) ﮯﮨ ﯽﺗﺮﮐ ﻡﺎﮐ ﮫﺗﺎﺳ ﮯﮐ ءﺎﯿﺷﺍ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ ﻢﮐ ﮯﺳ %i‬‪ ﻑﺮﺻ ﯽﺋﻼ﻿ﺳ"
 
 
 msgid "Minimize Stretch. Blend %.2f"
@@ -128092,7 +128092,7 @@ msgstr "ﮯﮨ ﺭﺎﮐﺭﺩ ﺎﭩﯾﮈ ﮉﻨﺋﺎﺑ"
 
 
 msgid "Bind vertex count mismatch: %u to %u"
-msgstr "u% ﮯﺳ u% :ﮯﮨ ﮟﯿﮩﻧ ﺖﻠﺛﺎﻤﻣ ﯽﮐ ﯽﺘﻨﮔ ﮯﻧﻮﮐ ﮉﻨﺋﺎﺑ"
+msgstr "‬%u‪ ﮯﺳ %u‬‪ :ﮯﮨ ﮟﯿﮩﻧ ﺖﻠﺛﺎﻤﻣ ﯽﮐ ﯽﺘﻨﮔ ﮯﻧﻮﮐ ﮉﻨﺋﺎﺑ"
 
 
 msgid "Object is not a mesh"
@@ -128100,7 +128100,7 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻝﺎﺟ ﺰﯿﭼ"
 
 
 msgid "Original vertex count mismatch: %u to %u"
-msgstr "u% ﮯﺳ u% :ﮯﮨ ﮟﯿﮩﻧ ﻞﺛﺎﻤﻣ ﯽﺘﻨﮔ ﯼﺩﻮﻤﻋ ﻞﺻﺍ"
+msgstr "‬%u‪ ﮯﺳ %u‬‪ :ﮯﮨ ﮟﯿﮩﻧ ﻞﺛﺎﻤﻣ ﯽﺘﻨﮔ ﯼﺩﻮﻤﻋ ﻞﺻﺍ"
 
 
 msgid "Curve Object"
@@ -128617,15 +128617,15 @@ msgstr "ﮦﻭﺮﮔ ﮯﻧﻮﮐ ﭧﭘ ﭦﺅﺁ"
 
 
 msgid "Internal Error: edges array wrong size: %u instead of %u"
-msgstr "u% ﮯﺋﺎﺠﺑ ﯽﮐ u% :ﺰﺋﺎﺳ ﻂﻠﻏ ﻒﺻ ﯽﮐ ﮞﻭﺭﺎﻨﮐ :ﯽﺑﺍﺮﺧ ﯽﻧﻭﺭﺪﻧﺍ"
+msgstr "‬%u‪ ﮯﺋﺎﺠﺑ ﯽﮐ %u‬‪ :ﺰﺋﺎﺳ ﻂﻠﻏ ﻒﺻ ﯽﮐ ﮞﻭﺭﺎﻨﮐ :ﯽﺑﺍﺮﺧ ﯽﻧﻭﺭﺪﻧﺍ"
 
 
 msgid "Internal Error: faces array wrong size: %u instead of %u"
-msgstr "u% ﮯﺋﺎﺠﺑ ﯽﮐ u% :ﺰﺋﺎﺳ ﻂﻠﻏ ﻒﺻ ﯽﮐ ﮮﺮﮩﭼ :ﯽﺑﺍﺮﺧ ﯽﻧﻭﺭﺪﻧﺍ"
+msgstr "‬%u‪ ﮯﺋﺎﺠﺑ ﯽﮐ %u‬‪ :ﺰﺋﺎﺳ ﻂﻠﻏ ﻒﺻ ﯽﮐ ﮮﺮﮩﭼ :ﯽﺑﺍﺮﺧ ﯽﻧﻭﺭﺪﻧﺍ"
 
 
 msgid "Internal Error: loops array wrong size: %u instead of %u"
-msgstr "u% ﮯﺋﺎﺠﺑ ﯽﮐ u% :ﺰﺋﺎﺳ ﻂﻠﻏ loops array :ﯽﺑﺍﺮﺧ ﯽﻧﻭﺭﺪﻧﺍ"
+msgstr "‬%u‪ ﮯﺋﺎﺠﺑ ﯽﮐ %u‬‪ :ﺰﺋﺎﺳ ﻂﻠﻏ loops array :ﯽﺑﺍﺮﺧ ﯽﻧﻭﺭﺪﻧﺍ"
 
 
 msgid "Adaptive Subdivision"
@@ -128677,15 +128677,15 @@ msgstr "ﮟﯾﺮﮐ ﺶﺷﻮﮐ ﯽﮐ ﮯﻧﺮﮐ ﺪﻨﺑ ﮯﺳ ﻑﺍﺮ
 
 
 msgid "Vertices changed from %u to %u"
-msgstr "ﮯﺌﮔ ﻮﮨ ﻞﯾﺪﺒﺗ ﮟﯿﻣ u% ﮯﺳ u% ﯼﺩﻮﻤﻋ"
+msgstr "ﮯﺌﮔ ﻮﮨ ﻞﯾﺪﺒﺗ ﮟﯿﻣ %u‬‪ ﮯﺳ %u‬‪ ﯼﺩﻮﻤﻋ"
 
 
 msgid "Target polygons changed from %u to %u"
-msgstr "ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ u% ﮯﺳ u% ﻮﮐ ﻢﺴﺠﻣ ﮯﻟﺍﻭ ﻑﺪﮨ"
+msgstr "ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ %u‬‪ ﮯﺳ %u‬‪ ﻮﮐ ﻢﺴﺠﻣ ﮯﻟﺍﻭ ﻑﺪﮨ"
 
 
 msgid "Target vertices changed from %u to %u"
-msgstr "ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ u% ﮯﺳ u% ﻮﮐ ﮞﻮﯿﭨﻮﭼ ﯽﮐ ﻑﺪﮨ"
+msgstr "ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻞﯾﺪﺒﺗ ﮟﯿﻣ %u‬‪ ﮯﺳ %u‬‪ ﻮﮐ ﮞﻮﯿﭨﻮﭼ ﯽﮐ ﻑﺪﮨ"
 
 
 msgid "External library data"
@@ -129299,19 +129299,19 @@ msgstr "ﺕﺎﺟ ﮧﻟﺍﻮﺣ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ"
 
 
 msgid "Baked Frame {}"
-msgstr "{} ﻢﯾﺮﻓ ﺍﻮﮨ ﺎﮑﻨﯿﺳ"
+msgstr "‬{}‪ ﻢﯾﺮﻓ ﺍﻮﮨ ﺎﮑﻨﯿﺳ"
 
 
 msgid "Baked {} - {}"
-msgstr "{} - {} ﺍﻮﮨ ﺎﮑﻨﯿﺳ"
+msgstr "‬{}‬ - ‪{}‪ ﺍﻮﮨ ﺎﮑﻨﯿﺳ"
 
 
 msgid "{} ({} on disk)"
-msgstr "(ﺮﭘ ﮏﺳﮈ {}) {}"
+msgstr "(ﺮﭘ ﮏﺳﮈ {}‬ (‪{}‬‪"
 
 
 msgid "Frames {} - {}"
-msgstr "{} - {} ﻢﯾﺮﻓ"
+msgstr "‬{}‬ - ‪{}‪ ﻢﯾﺮﻓ"
 
 
 msgid "How many times to blur the values for all elements"
@@ -129820,15 +129820,15 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﻝﺎﺟ ﯽﺋﻮﮐ ﺮﭘ ﺢﻄﺳ"
 
 
 msgid "Evaluated surface missing UV map: \"{}\""
-msgstr "\\{} :ﮧﺸﻘﻧ ﯼﻭ ﻮﯾ ﺐﺋﺎﻏ ﺎﮐ ﺢﻄﺳ ﮦﺪﺷ ﺺﯿﺨﺸﺗ"
+msgstr "‬{}‬‪\\‪ :ﮧﺸﻘﻧ ﯼﻭ ﻮﯾ ﺐﺋﺎﻏ ﺎﮐ ﺢﻄﺳ ﮦﺪﺷ ﺺﯿﺨﺸﺗ"
 
 
 msgid "Original surface missing UV map: \"{}\""
-msgstr "\\{} :ﮧﺸﻘﻧ ﯼﻭ ﻮﯾ ﺐﺋﺎﻏ ﺢﻄﺳ ﻞﺻﺍ"
+msgstr "‬{}‬‪\\‪ :ﮧﺸﻘﻧ ﯼﻭ ﻮﯾ ﺐﺋﺎﻏ ﺢﻄﺳ ﻞﺻﺍ"
 
 
 msgid "Evaluated surface missing attribute: \"rest_position\""
-msgstr "\\ ﻡﺎﻘﻣ _ﻡﺍﺭﺁ :ﺖﻔﺻ ﮦﺪﺸﻤﮔ ﯽﮐ ﺢﻄﺳ ﮦﺪﺷ ﺺﯿﺨﺸﺗ"
+msgstr "‬\\‪ ﻡﺎﻘﻣ _ﻡﺍﺭﺁ :ﺖﻔﺻ ﮦﺪﺸﻤﮔ ﯽﮐ ﺢﻄﺳ ﮦﺪﺷ ﺺﯿﺨﺸﺗ"
 
 
 msgid "Curves are not attached to any UV map"
@@ -129836,7 +129836,7 @@ msgstr "ﮟﯿﮨ ﮟﯿﮩﻧ ﮏﻠﺴﻨﻣ ﮯﺳ ﮯﺸﻘﻨﯾﻭ ﻮﯿ�
 
 
 msgid "Invalid surface UVs on {} curves"
-msgstr "ﺰﯾﻭﻮﯾ  ﺢﻄﺳ ﻂﻠﻏ ﺮﭘ  ﮟﯿﻤﺧ {}"
+msgstr "ﺰﯾﻭﻮﯾ  ﺢﻄﺳ ﻂﻠﻏ ﺮﭘ  ﮟﯿﻤﺧ {}‬‪"
 
 
 msgid "The parts of the geometry to be deleted"
@@ -130848,11 +130848,11 @@ msgstr "ﺩﺍﺪﻌﺗ ﯽﮐ ﮞﻮﺤﻄﺳ ﯽﮐ ﮞﻮﻟﺎﺜﻣ ﮉﭩ�
 
 
 msgid "Cannot remove built-in attributes: {}"
-msgstr "{} :ﺎﺘﮑﺳ ﺎﺟ ﮟﯿﮩﻧ ﺎﯾﺎﭩﮨ ﻮﮐ ﻑﺎﺻﻭﺍ ﺩﻮﺟﻮﻣ ﮯﺳ ﮯﻠﮩﭘ"
+msgstr "‬{}‪ :ﺎﺘﮑﺳ ﺎﺟ ﮟﯿﮩﻧ ﺎﯾﺎﭩﮨ ﻮﮐ ﻑﺎﺻﻭﺍ ﺩﻮﺟﻮﻣ ﮯﺳ ﮯﻠﮩﭘ"
 
 
 msgid "Attribute does not exist: \"{}\""
-msgstr "\\{} :ﮯﮨ ﮟﯿﮩﻧ ﺩﻮﺟﻮﻣ ﻒﺻﻭ"
+msgstr "‬{}‬‪\\‪ :ﮯﮨ ﮟﯿﮩﻧ ﺩﻮﺟﻮﻣ ﻒﺻﻭ"
 
 
 msgid "How the attributes to remove are chosen"
@@ -130984,11 +130984,11 @@ msgstr "ﺮﭘ ﺭﻮﻃ ﮯﮐ ﻝﺎﺜﻣ ﮓﻟﺍ ﻮﮐ ﺲﭘﻭﺮﮔ �
 
 
 msgid "The group ID of each group instance"
-msgstr "The ﯼﮈ ﯽﺋﺁ ﮦﻭﺮﮔ of each ﻝﺎﺜﻣ ({}) '{}' ﮦﻭﺮﮔ"
+msgstr "The ﯼﮈ ﯽﺋﺁ ﮦﻭﺮﮔ of each ﮦﻭﺮﮔ '‪{}‬' (‪{}‬) ﻝﺎﺜﻣ"
 
 
 msgid "Failed to write to attribute \"{}\" with domain \"{}\" and type \"{}\""
-msgstr "\\{} ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻧﺮﮐ ﭗﺋﺎﭨ ﺭﻭﺍ {} ﮫﺗﺎﺳ ﮯﮐ ﻦﯿﻣﻭﮈ {} ﺏﺎﺴﺘﻧﺍ"
+msgstr "‬{}‬‪\\‪ ﻡﺎﮐﺎﻧ ﮟﯿﻣ ﮯﻧﺮﮐ ﭗﺋﺎﭨ ﺭﻭﺍ {}‬‪ ﮫﺗﺎﺳ ﮯﮐ ﻦﯿﻣﻭﮈ {}‬‪ ﺏﺎﺴﺘﻧﺍ"
 
 
 msgid "Strings"
@@ -131128,7 +131128,7 @@ msgstr "ﮯﺳ ﻮﭩﮑﯾﺍ"
 
 
 msgid "Group '{}' ({})"
-msgstr "({}) '{}' ﮦﻭﺮﮔ"
+msgstr "({}‬' (‪{}‬‪' ﮦﻭﺮﮔ"
 
 
 msgid "Inspection index is out of range"
@@ -131483,7 +131483,7 @@ msgstr "(ﮯﮨ ﺮﺼﺤﻨﻣ ﺮﭘ IOR ﭦﻮﮐ) ﮯﮨ ﯽﺗﺎﺟ ﺭﻭ
 
 
 msgid "Color of light emission from the surface"
-msgstr "ﺢﻄﺳ the ﮯﺳ ﺝﺍﺮﺧﺍ ﯽﻨﺷﻭﺭ of ﮓﻧﺭ) ({} ،{} ،{} ،"
+msgstr "ﺢﻄﺳ the ﮯﺳ ﺝﺍﺮﺧﺍ ﯽﻨﺷﻭﺭ of ﮓﻧﺭ) ({}‬، ‪{}‬، ‪{}‬‪ ،"
 
 
 msgid "Strength of the emitted light. A value of 1.0 ensures that the object in the image has the exact same color as the Emission Color"
@@ -132237,7 +132237,7 @@ msgstr "ﺯﺮﺠﯿﻨﯿﻤـﻭﮉﻧﻭ"
 
 
 msgid "Dragging {} files"
-msgstr "ﺎﻨﭩﯿﺴﮭﮔ ﻮﮐ ﮞﻮﻠﺋﺎﻓ {}"
+msgstr "ﺎﻨﭩﯿﺴﮭﮔ ﻮﮐ ﮞﻮﻠﺋﺎﻓ {}‬‪"
 
 
 msgid "Blender File View"
@@ -132253,7 +132253,7 @@ msgstr "ﮟﯾﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ ﻞﺋﺎﻓ ﭖﺍ ﭦﺭ
 
 
 msgid "Load Factory \"{}\" Preferences."
-msgstr ".ﺕﺎﺤﯿﺟﺮﺗ \"{}\" Factory ﮈﻮﻟ"
+msgstr ".ﺕﺎﺤﯿﺟﺮﺗ \"Factory \"‪{}‬ ﮈﻮﻟ"
 
 
 msgid "Load Factory Blender Preferences"
@@ -132269,7 +132269,7 @@ msgstr "ﮈﻮﻟ"
 
 
 msgid "Load Factory \"{}\" Startup File and Preferences"
-msgstr "ﺕﺎﺤﯿﺟﺮﺗ ﺭﻭﺍ ﻞﺋﺎﻓ ﭖﺍ ﭦﺭﺎﭩﺳﺍ \"{}\" ﯼﺮﭩﮑﯿﻓ ﮈﻮﻟ"
+msgstr "ﺕﺎﺤﯿﺟﺮﺗ ﺭﻭﺍ ﻞﺋﺎﻓ ﭖﺍ ﭦﺭﺎﭩﺳﺍ \"{}‬‪\" ﯼﺮﭩﮑﯿﻓ ﮈﻮﻟ"
 
 
 msgid "Load Factory Default Startup File and Preferences"
@@ -132433,7 +132433,7 @@ msgstr "ﻂﻠﻏ \"%s‬‪\" ﮧﺘﺳﺍﺭ ﺎﮐ ﻞﺋﺎﻓ"
 
 
 msgid "Unknown error loading \"%s\""
-msgstr "\\%s‬‪ ﯽﺑﺍﺮﺧ ﻡﻮﻠﻌﻣﺎﻧ ﮟﯿﻣ ﮯﻧﺮﮐ ﮈﻮﻟ"
+msgstr "‬%s‬‪\\‪ ﯽﺑﺍﺮﺧ ﻡﻮﻠﻌﻣﺎﻧ ﮟﯿﻣ ﮯﻧﺮﮐ ﮈﻮﻟ"
 
 
 msgid "Application Template \"%s\" not found"
@@ -132441,7 +132441,7 @@ msgstr "ﻼ﻿ﻣ ﮟﯿﮩﻧ %s‬‪\" ﮧﭽﻧﺎﺳ ﺎﮐ ﺖﺳﺍﻮﺧ
 
 
 msgid "Could not read \"%s\""
-msgstr "\\%s‬‪ ﺎﮑﺳ ﺎﺟ ﮟﯿﮩﻧ ﺎﮬﮍﭘ"
+msgstr "‬%s‬‪\\‪ ﺎﮑﺳ ﺎﺟ ﮟﯿﮩﻧ ﺎﮬﮍﭘ"
 
 
 msgid "Cannot overwrite used library '%.240s'"
