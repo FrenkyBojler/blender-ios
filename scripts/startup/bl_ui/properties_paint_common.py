@@ -1476,7 +1476,7 @@ def draw_mesh_automasking_settings(layout, settings, *, topbar=False, use_face_s
             props.settings_source = 'BRUSH'
             props.boundary_mode = 'FACE_SETS'
 
-    if settings.use_automasking_boundary_edges or automasking.use_automasking_boundary_face_sets:
+    if settings.use_automasking_boundary_edges or settings.use_automasking_boundary_face_sets:
         col = parent.column()
         col.use_property_split = False
         split = col.split(factor=0.4)
@@ -1489,7 +1489,7 @@ def draw_mesh_automasking_settings(layout, settings, *, topbar=False, use_face_s
     row = col.row()
     row.prop(settings, "use_automasking_cavity", text="Cavity")
 
-    is_cavity_active = settings.use_automasking_cavity or automasking.use_automasking_cavity_inverted
+    is_cavity_active = settings.use_automasking_cavity or settings.use_automasking_cavity_inverted
 
     if use_operators and is_cavity_active:
         props = row.operator("sculpt.mask_from_cavity", text="Create Mask")
