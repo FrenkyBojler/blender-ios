@@ -11,8 +11,8 @@
 #include "DNA_ID.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_sys_types.h"
 #include "BLI_listbase_iterator.hh"
+#include "BLI_sys_types.h"
 
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
