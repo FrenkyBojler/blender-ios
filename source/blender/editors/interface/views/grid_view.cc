@@ -276,7 +276,6 @@ void AbstractGridView::scroll_active_into_view(bContext *C, bool scroll_active_t
         view2d_region_to_view_rctf(&v2d, &region_rect, &rect);
       }
 
-
       const IndexRange &visible_range = this->get_visible_range(v2d, nullptr);
       int first_idx_in_view = visible_range.first();
       int last_idx_in_view = visible_range.last();
