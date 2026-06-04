@@ -619,11 +619,12 @@ static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void * /*arg*/)
 
     env->totvert = 1;
   }
+  WM_event_add_notifier(C, NC_ANIMATION, nullptr);
 }
 
 /* callback to remove envelope data point */
 /* TODO: should we have a separate file for things like this? */
-static void fmod_envelope_deletepoint_cb(bContext * /*C*/, void *fcm_dv, void *ind_v)
+static void fmod_envelope_deletepoint_cb(bContext * C, void *fcm_dv, void *ind_v)
 {
   FMod_Envelope *env = static_cast<FMod_Envelope *>(fcm_dv);
   FCM_EnvelopeData *fedn;
@@ -649,6 +650,7 @@ static void fmod_envelope_deletepoint_cb(bContext * /*C*/, void *fcm_dv, void *i
     MEM_SAFE_DELETE(env->data);
     env->totvert = 0;
   }
+  WM_event_add_notifier(C, NC_ANIMATION, nullptr);
 }
 
 /* draw settings for envelope modifier */
@@ -687,7 +689,6 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
                              0,
                              TIP_("Add a new control-point to the envelope on the current frame"));
   button_func_set(but, fmod_envelope_addpoint_cb, env, nullptr);
-  button_func_set(but, [](bContext &C) { WM_event_add_notifier(&C, NC_ANIMATION, nullptr); });
 
   col = &layout.column(false);
   col->use_property_split_set(false);
@@ -717,7 +718,6 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
                        0.0,
                        TIP_("Delete envelope control point"));
     button_func_set(but, fmod_envelope_deletepoint_cb, env, POINTER_FROM_INT(i));
-    button_func_set(but, [](bContext &C) { WM_event_add_notifier(&C, NC_ANIMATION, nullptr); });
     block_align_begin(block);
   }
 
