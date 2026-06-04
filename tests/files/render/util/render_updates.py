@@ -7,6 +7,7 @@
 
 import bpy
 
+
 def render_persistent_data_animation(context):
     scene = context.scene
 
