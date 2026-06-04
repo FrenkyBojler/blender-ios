@@ -71,6 +71,8 @@ enum NodeTreeInterfaceSocketFlag : int {
   NODE_INTERFACE_SOCKET_OPTIONAL_LABEL = 1 << 10,
   /* Whether the socket is selected in the node group interface tree view. */
   NODE_INTERFACE_SOCKET_SELECT = 1 << 11,
+  /* String socket stores a Grease Pencil layer name. */
+  NODE_INTERFACE_SOCKET_LAYER_NAME = 1 << 12,
 };
 ENUM_OPERATORS(NodeTreeInterfaceSocketFlag);
 

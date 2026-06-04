@@ -70,6 +70,7 @@ struct SocketSearchData {
   std::variant<ModifierSearchData, OperatorSearchData> search_data;
   char socket_identifier[MAX_NAME];
   bool is_output;
+  const char *prop_name = "layer_name";
 
   SearchInfo info(const bContext &C) const;
 };
@@ -226,17 +227,18 @@ static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
     return;
   }
 
-  RNA_string_set(&*info.socket_props_ptr, "layer_name", item->c_str());
+  RNA_string_set(&*info.socket_props_ptr, data.prop_name, item->c_str());
   ED_undo_push(C, "Assign Layer Name");
 }
 
 static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                          ui::Layout &layout,
                                          const bNodeTreeInterfaceSocket &socket,
-                                         PointerRNA *socket_props_ptr)
+                                         PointerRNA *socket_props_ptr,
+                                         const char *prop_name = "layer_name")
 {
   if (!ctx.tree_log) {
-    layout.prop(socket_props_ptr, "layer_name", UI_ITEM_NONE, "", ICON_NONE);
+    layout.prop(socket_props_ptr, prop_name, UI_ITEM_NONE, "", ICON_NONE);
     return;
   }
 
@@ -259,7 +261,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                       10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
                                       UI_UNIT_Y,
                                       socket_props_ptr,
-                                      "layer_name",
+                                      prop_name,
                                       0,
                                       StringRef(socket.description));
   button_placeholder_set(but, IFACE_("Layer"));
@@ -276,6 +278,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
   SocketSearchData *data = static_cast<SocketSearchData *>(
       MEM_new_uninitialized(sizeof(SocketSearchData), __func__));
   *data = ctx.socket_search_data_fn(socket);
+  data->prop_name = prop_name;
   button_func_search_set_results_are_suggestions(but, true);
   button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
   button_func_search_set(but,
@@ -600,6 +603,14 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
         row.prop(socket_props_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
       }
       break;
+    }
+    case SOCK_STRING: {
+      if (socket.flag & NODE_INTERFACE_SOCKET_LAYER_NAME) {
+        add_layer_name_search_button(ctx, row, socket, socket_props_ptr, "value");
+        row.label("", ICON_BLANK1);
+        break;
+      }
+      ATTR_FALLTHROUGH;
     }
     case SOCK_BOOLEAN: {
       if (is_layer_selection_field(socket)) {

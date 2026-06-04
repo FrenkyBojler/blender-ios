@@ -1337,6 +1337,13 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
       prop, "Layer Selection", "Take Grease Pencil Layer or Layer Group as selection field");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
+  prop = RNA_def_property(srna, "layer_name_field", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_LAYER_NAME);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Layer Name", "String socket stores a Grease Pencil layer or layer group name");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
+
   prop = RNA_def_property(srna, "menu_expanded", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_MENU_EXPANDED);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);

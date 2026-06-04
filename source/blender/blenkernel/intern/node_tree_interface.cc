@@ -1441,6 +1441,7 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(
         description = decl->description;
       }
       SET_FLAG_FROM_TEST(flag, decl->optional_label, NODE_INTERFACE_SOCKET_OPTIONAL_LABEL);
+      SET_FLAG_FROM_TEST(flag, decl->is_layer_name, NODE_INTERFACE_SOCKET_LAYER_NAME);
       if (from_sock.type == SOCK_MENU) {
         if (const auto *menu_decl = dynamic_cast<const nodes::decl::Menu *>(decl)) {
           SET_FLAG_FROM_TEST(flag, menu_decl->is_expanded, NODE_INTERFACE_SOCKET_MENU_EXPANDED);
