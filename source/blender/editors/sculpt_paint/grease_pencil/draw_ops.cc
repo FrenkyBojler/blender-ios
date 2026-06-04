@@ -257,43 +257,40 @@ static bool grease_pencil_brush_stroke_poll(bContext *C)
 
 static bool use_duplicate_previous_key(bContext *C, wmOperator *op)
 {
-    const Paint *paint = BKE_paint_get_active_from_context(C);
-    const Brush &brush = *BKE_paint_brush_for_read(paint);
-    const PaintMode mode = BKE_paintmode_get_active_from_context(C);
-    const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
+  const Paint *paint = BKE_paint_get_active_from_context(C);
+  const Brush &brush = *BKE_paint_brush_for_read(paint);
+  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
 
-    if (mode == PaintMode::GPencil) {
-      /* For the eraser and tint tool, we don't want auto-key to create an empty keyframe, so we
-       * duplicate the previous frame. */
-      if (ELEM(eBrushGPaintType(brush.gpencil_brush_type),
-               GPAINT_BRUSH_TYPE_ERASE,
-               GPAINT_BRUSH_TYPE_TINT))
-      {
-        return true;
-      }
-      /* Same for the temporary eraser when using the draw tool. */
-      if (eBrushGPaintType(brush.gpencil_brush_type) == GPAINT_BRUSH_TYPE_DRAW &&
-          brush_switch_mode == BrushSwitchMode::Erase)
-      {
-        return true;
-      }
+  if (mode == PaintMode::GPencil) {
+    /* For the eraser and tint tool, we don't want auto-key to create an empty keyframe, so we
+     * duplicate the previous frame. */
+    if (ELEM(eBrushGPaintType(brush.gpencil_brush_type),
+             GPAINT_BRUSH_TYPE_ERASE,
+             GPAINT_BRUSH_TYPE_TINT))
+    {
+      return true;
     }
-    return false;
+    /* Same for the temporary eraser when using the draw tool. */
+    if (eBrushGPaintType(brush.gpencil_brush_type) == GPAINT_BRUSH_TYPE_DRAW &&
+        brush_switch_mode == BrushSwitchMode::Erase)
+    {
+      return true;
+    }
+  }
+  return false;
 }
 
-static wmOperatorStatus grease_pencil_brush_stroke_exec(bContext *C,
-                                                          wmOperator *op)
+static wmOperatorStatus grease_pencil_brush_stroke_exec(bContext *C, wmOperator *op)
 {
-  wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
-      C, op, use_duplicate_previous_key(C, op), false);
-
-  if (retval != OPERATOR_FINISHED) {
-    return retval;
+  if (!ed::greasepencil::grease_pencil_draw_operator_run(C, op, use_duplicate_previous_key(C, op)))
+  {
+    return OPERATOR_CANCELLED;
   }
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, EVENT_NONE);
   op->customdata = stroke;
 
-  retval = stroke->exec(C, op);
+  const wmOperatorStatus retval = stroke->exec(C, op);
   OPERATOR_RETVAL_CHECK(retval);
 
   MEM_delete(stroke);
@@ -309,16 +306,15 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
     RNA_enum_set(op->ptr, "brush_toggle", int(BrushSwitchMode::Erase));
   }
 
-  wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
-      C, op, use_duplicate_previous_key(C, op), true);
-  if (retval != OPERATOR_RUNNING_MODAL) {
-    return retval;
+  if (!ed::greasepencil::grease_pencil_draw_operator_run(C, op, use_duplicate_previous_key(C, op)))
+  {
+    return OPERATOR_CANCELLED;
   }
 
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 
-  retval = op->type->modal(C, op, event);
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
