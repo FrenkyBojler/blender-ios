@@ -1164,6 +1164,8 @@ PopupBlockHandle *popup_block_create(bContext *C,
  *    - Adding/removing menu items.
  *    - Changing menu item names.
  *    - Changes that interfere with keyboard navigation.
+ *
+ *    Note that this property is inherited to submenus.
  */
 PopupBlockHandle *popup_menu_create(bContext *C,
                                     ARegion *butregion,
