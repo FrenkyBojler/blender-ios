@@ -148,7 +148,7 @@ void BKE_blender_project_clear()
   bke::with_blender_project_write_lock([&] {
     std::optional<bke::BlenderProject> &project = get_project();
 
-    for (auto user_library : U.asset_libraries) {
+    for (auto &user_library : U.asset_libraries.items_mutable()) {
       if ((user_library.flag & ASSET_LIBRARY_PROJECT_DEFINED)) {
         // TODO: Look at the "ED" variant of this function as we need to update and poke gui
         // variables to refersh editor and asset library active index
