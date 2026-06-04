@@ -117,7 +117,7 @@ void Instance::init()
       rect.ymax = v3d->render_border.ymax * size[1];
     }
 
-    if (draw_ctx->is_viewport_image_render()) {
+    if (draw_ctx->is_viewport_image_render() || draw_ctx->is_viewport_xr()) {
       const float2 vp_size = draw_ctx->viewport_size_get();
       visible_rect.xmax = vp_size[0];
       visible_rect.ymax = vp_size[1];
