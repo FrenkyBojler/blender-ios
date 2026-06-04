@@ -1701,9 +1701,9 @@ static StrokeVisibilityStatus get_visibility_status_for_draw_operator(Object *ob
   return StrokeVisibilityStatus::Visible;
 }
 
-bool grease_pencil_draw_operator_run(bContext *C,
-                                     wmOperator *op,
-                                     const bool use_duplicate_previous_key)
+bool grease_pencil_draw_operator_begin(bContext *C,
+                                       wmOperator *op,
+                                       const bool use_duplicate_previous_key)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);

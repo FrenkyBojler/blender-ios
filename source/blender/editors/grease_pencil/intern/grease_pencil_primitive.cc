@@ -733,7 +733,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
                                                        wmOperator *op,
                                                        const wmEvent *event)
 {
-  if (!ed::greasepencil::grease_pencil_draw_operator_run(C, op, false)) {
+  if (!ed::greasepencil::grease_pencil_draw_operator_begin(C, op, false)) {
     return OPERATOR_CANCELLED;
   }
 

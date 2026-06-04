@@ -283,7 +283,8 @@ static bool use_duplicate_previous_key(bContext *C, wmOperator *op)
 
 static wmOperatorStatus grease_pencil_brush_stroke_exec(bContext *C, wmOperator *op)
 {
-  if (!ed::greasepencil::grease_pencil_draw_operator_run(C, op, use_duplicate_previous_key(C, op)))
+  if (!ed::greasepencil::grease_pencil_draw_operator_begin(
+          C, op, use_duplicate_previous_key(C, op)))
   {
     return OPERATOR_CANCELLED;
   }
@@ -306,7 +307,8 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
     RNA_enum_set(op->ptr, "brush_toggle", int(BrushSwitchMode::Erase));
   }
 
-  if (!ed::greasepencil::grease_pencil_draw_operator_run(C, op, use_duplicate_previous_key(C, op)))
+  if (!ed::greasepencil::grease_pencil_draw_operator_begin(
+          C, op, use_duplicate_previous_key(C, op)))
   {
     return OPERATOR_CANCELLED;
   }
