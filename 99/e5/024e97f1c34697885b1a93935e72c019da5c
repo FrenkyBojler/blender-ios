@@ -8,3 +8,4 @@ Referenced by issue #107422, Regression: Mesh edit context menus do not open wit
 Referenced by issue #102333, Regression: Context based keyboard shortcuts missing in enum menus
 Referenced by issue #102242, Regression: Underline shortcut keys not working/appearing in sub-menu
 Referenced by pull request #159303, UI: Support refreshing sub-menus
+Referenced by commit 3f1a36263f32a9ed15957eda76e72c2ef0bbfff8, UI: Support refreshing sub-menus
