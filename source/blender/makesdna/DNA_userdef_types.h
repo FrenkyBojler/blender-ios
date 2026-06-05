@@ -62,6 +62,12 @@ enum eUserPref_Flag : int {
 };
 ENUM_OPERATORS(eUserPref_Flag)
 
+/** #UserDef.asset_flag */
+enum eUserPref_AssetFlag : char {
+  USER_ASSETS_USE_ONLINE_ESSENTIALS = 1 << 0,
+};
+ENUM_OPERATORS(eUserPref_AssetFlag)
+
 /** #UserDef.extension_flag */
 enum eUserPref_ExtensionFlag : char {
   USER_EXTENSION_FLAG_ONLINE_ACCESS_HANDLED = 1 << 0,
@@ -857,8 +863,7 @@ struct UserDef_Experimental {
    * actually remove this flag is tracked in #158903. */
   char use_remote_asset_libraries = 1;
   char use_collection_importer = 0;
-  char use_geometry_nodes_hair_dynamics = 0;
-  char _pad[3] = {};
+  char _pad[4] = {};
 };
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -1059,9 +1064,6 @@ struct UserDef {
 
   char keyconfigstr[64] = "Blender";
 
-  /** Index of the asset library being edited in the Preferences UI. */
-  short active_asset_library = 0;
-
   /** Index of the extension repo in the Preferences UI. */
   short active_extension_repo = 0;
   /** Flag for all extensions. */
@@ -1074,7 +1076,13 @@ struct UserDef {
   /** Maximum number of simulations connection limit for online operations. */
   uint8_t network_connection_limit = 5;
 
-  char _pad14[3] = {};
+  char _pad2[1] = {};
+
+  /** Index of the asset library being edited in the Preferences UI. */
+  short active_asset_library = 0;
+  eUserPref_AssetFlag asset_flag = USER_ASSETS_USE_ONLINE_ESSENTIALS;
+
+  char _pad14[1] = {};
 
   short undosteps = 32;
   int undomemory = 0;

@@ -439,6 +439,10 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->space_view3d.grid_axis_brightness = U_theme_default.space_view3d.grid_axis_brightness;
   }
 
+  if (!USER_VERSION_ATLEAST(502, 42)) {
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_state.error);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -1772,10 +1776,16 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->experimental.use_remote_asset_libraries = true;
   }
 
-  if (!USER_VERSION_ATLEAST(502, 40)) {
-    userdef->pref_flag |= USER_PREF_FLAG_PROJECT_SAVE;
+  if (!USER_VERSION_ATLEAST(502, 42)) {
+    /* Instead of removing the flag entirely, it is forced to be on. Once it is 100% certain the
+     * Remote Asset Libraries feature will be shipped with 5.2 (which depends on other factors than
+     * just code), the flag can be removed. */
+    userdef->asset_flag |= USER_ASSETS_USE_ONLINE_ESSENTIALS;
   }
 
+  if (!USER_VERSION_ATLEAST(503, 1)) {
+    userdef->pref_flag |= USER_PREF_FLAG_PROJECT_SAVE;
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
