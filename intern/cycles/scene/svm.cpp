@@ -582,35 +582,98 @@ void SVMCompiler::generate_node(ShaderNode *node, ShaderNodeSet &done)
   }
 }
 
+int SVMCompiler::node_stack_allocates(const ShaderNode *node)
+{
+  /* Compute stack size that will be allocated by this node. */
+  int size = 0;
+  for (const ShaderOutput *output : node->outputs) {
+    if (!output->links.empty() && output->stack_offset == SVM_STACK_INVALID) {
+      size += stack_size(output);
+    }
+  }
+  return size;
+}
+
+int SVMCompiler::node_stack_frees(const ShaderNode *node, const ShaderNodeSet &done)
+{
+  /* Compute stack size that will be freed by this node. */
+  int size = 0;
+  for (const ShaderInput *input : node->inputs) {
+    ShaderOutput *output = input->link;
+    if (output == nullptr || output->stack_offset == SVM_STACK_INVALID) {
+      continue;
+    }
+    bool all_done = true;
+    for (const ShaderInput *in : output->links) {
+      if (in->parent != node && !done.contains(in->parent)) {
+        all_done = false;
+        break;
+      }
+    }
+    if (all_done) {
+      size += stack_size(output);
+    }
+  }
+  return size;
+}
+
 void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *state)
 {
   ShaderNodeSet &done = state->nodes_done;
   vector<bool> &done_flag = state->nodes_done_flag;
 
-  bool nodes_done;
-  do {
-    nodes_done = true;
+  /* Use a heuristic for scheduling the nodes to reduce SVM stack size. When
+   * schedulig the next node, pick the one that increases the stack usage the
+   * least, preferring nodes that free more slots than they allocate. This way
+   * short lived intermediate values are released more quickly, before going
+   * into other parts of the graph. */
+  size_t num_remaining = 0;
+  for (ShaderNode *node : nodes) {
+    if (!done_flag[node->id]) {
+      num_remaining++;
+    }
+  }
+
+  while (num_remaining > 0) {
+    ShaderNode *best_node = nullptr;
+    int best_delta = 0;
+    int best_freed = 0;
 
     for (ShaderNode *node : nodes) {
-      if (!done_flag[node->id]) {
-        bool inputs_done = true;
+      if (done_flag[node->id]) {
+        continue;
+      }
 
-        for (ShaderInput *input : node->inputs) {
-          if (input->link && !done_flag[input->link->parent->id]) {
-            inputs_done = false;
-          }
-        }
-        if (inputs_done) {
-          generate_node(node, done);
-          done.insert(node);
-          done_flag[node->id] = true;
-        }
-        else {
-          nodes_done = false;
+      bool inputs_done = true;
+      for (const ShaderInput *input : node->inputs) {
+        if (input->link && !done_flag[input->link->parent->id]) {
+          inputs_done = false;
+          break;
         }
       }
+      if (!inputs_done) {
+        continue;
+      }
+
+      /* Prefer lowest added - freed, and use highest freed as a tie break. */
+      const int freed = node_stack_frees(node, done);
+      const int delta = node_stack_allocates(node) - freed;
+
+      if (best_node == nullptr || delta < best_delta ||
+          (delta == best_delta && freed > best_freed))
+      {
+        best_node = node;
+        best_delta = delta;
+        best_freed = freed;
+      }
     }
-  } while (!nodes_done);
+
+    assert(best_node != nullptr);
+    generate_node(best_node, done);
+    done.insert(best_node);
+    done_flag[best_node->id] = true;
+    num_remaining--;
+  }
 }
 
 void SVMCompiler::generate_closure_node(ShaderNode *node, CompilerState *state)
