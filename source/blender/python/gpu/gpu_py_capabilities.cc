@@ -496,7 +496,7 @@ static PyMethodDef pygpu_capabilities__tp_methods[] = {
     {"ray_query_support_get",
      reinterpret_cast<PyCFunction>(pygpu_ray_query_support_get),
      METH_NOARGS,
-     pygpu_hdr_support_get_doc},
+     pygpu_ray_query_support_get_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
