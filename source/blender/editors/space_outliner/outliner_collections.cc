@@ -710,17 +710,25 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+std::string collection_duplicate_get_description(bContext */*C*/, wmOperatorType */*ot*/, PointerRNA *ptr)
+{
+  const bool linked = RNA_boolean_get(ptr, "linked");
+  if (linked) {
+    return "Recursively duplicate the collection, all its children and objects, with linked object data";
+  }
+  return "Recursively duplicate the collection, all its children, objects and object data";
+}
+
 void OUTLINER_OT_collection_duplicate(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Duplicate Collection";
   ot->idname = "OUTLINER_OT_collection_duplicate";
-  ot->description =
-      "Recursively duplicate the collection, all its children, objects and object data";
 
   /* API callbacks. */
   ot->exec = collection_duplicate_exec;
   ot->poll = ED_outliner_collections_editor_poll;
+  ot->get_description = collection_duplicate_get_description;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
