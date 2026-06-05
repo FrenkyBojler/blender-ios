@@ -10,8 +10,8 @@ namespace blender::nodes::node_geo_grease_pencil_color__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>("Point"_ustr).field_source();
-  b.add_output<decl::Color>("Fill"_ustr).field_source();
+  b.add_output<decl::Color>("Point"_ustr).structure_type(StructureType::Field);
+  b.add_output<decl::Color>("Fill"_ustr).structure_type(StructureType::Field);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -28,7 +28,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGreasePencilColor");
+  geo_node_type_base(&ntype, "GeometryNodeGreasePencilColor"_ustr);
   ntype.ui_name = "Grease Pencil Color";
   ntype.ui_description = "Retrieve the color of Grease Pencil curves";
   ntype.nclass = NODE_CLASS_INPUT;

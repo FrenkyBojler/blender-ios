@@ -10,7 +10,7 @@ namespace blender::nodes::node_geo_grease_pencil_softness__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>("Softness"_ustr).field_source();
+  b.add_output<decl::Float>("Softness"_ustr).structure_type(StructureType::Field);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -23,7 +23,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGreasePencilSoftness");
+  geo_node_type_base(&ntype, "GeometryNodeGreasePencilSoftness"_ustr);
   ntype.ui_name = "Grease Pencil Softness";
   ntype.ui_description = "Retrieve the softness of Grease Pencil strokes";
   ntype.nclass = NODE_CLASS_INPUT;

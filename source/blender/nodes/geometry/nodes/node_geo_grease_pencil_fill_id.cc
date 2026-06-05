@@ -10,7 +10,7 @@ namespace blender::nodes::node_geo_grease_pencil_fill_id__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Fill ID"_ustr).field_source();
+  b.add_output<decl::Int>("Fill ID"_ustr).structure_type(StructureType::Field);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -23,7 +23,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGreasePencilFillID");
+  geo_node_type_base(&ntype, "GeometryNodeGreasePencilFillID"_ustr);
   ntype.ui_name = "Grease Pencil Fill ID";
   ntype.ui_description = "Retrieve information about the grouping of Grease Pencil fills";
   ntype.nclass = NODE_CLASS_INPUT;

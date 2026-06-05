@@ -10,7 +10,7 @@ namespace blender::nodes::node_geo_grease_pencil_stroke_visibility__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Bool>("Is Hidden"_ustr).field_source();
+  b.add_output<decl::Bool>("Is Hidden"_ustr).structure_type(StructureType::Field);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -23,7 +23,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGreasePencilStrokeVisibility");
+  geo_node_type_base(&ntype, "GeometryNodeGreasePencilStrokeVisibility"_ustr);
   ntype.ui_name = "Grease Pencil Stroke Visibility";
   ntype.ui_description = "Retrieve the visibility of Grease Pencil strokes";
   ntype.nclass = NODE_CLASS_INPUT;

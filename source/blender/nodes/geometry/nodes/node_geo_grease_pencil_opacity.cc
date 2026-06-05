@@ -9,9 +9,9 @@
 namespace blender::nodes::node_geo_grease_pencil_opacity__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
-{  
-  b.add_output<decl::Float>("Point"_ustr).field_source();
-  b.add_output<decl::Float>("Fill"_ustr).field_source();
+{
+  b.add_output<decl::Float>("Point"_ustr).structure_type(StructureType::Field);
+  b.add_output<decl::Float>("Fill"_ustr).structure_type(StructureType::Field);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -27,7 +27,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGreasePencilOpacity");
+  geo_node_type_base(&ntype, "GeometryNodeGreasePencilOpacity"_ustr);
   ntype.ui_name = "Grease Pencil Opacity";
   ntype.ui_description = "Retrieve the opacity of Grease Pencil curves";
   ntype.nclass = NODE_CLASS_INPUT;

@@ -10,8 +10,8 @@ namespace blender::nodes::node_geo_grease_pencil_draw_time__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>("Creation Time"_ustr).field_source();
-  b.add_output<decl::Float>("Delta Time"_ustr).field_source();
+  b.add_output<decl::Float>("Creation Time"_ustr).structure_type(StructureType::Field);
+  b.add_output<decl::Float>("Delta Time"_ustr).structure_type(StructureType::Field);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -27,7 +27,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGreasePencilDrawTime");
+  geo_node_type_base(&ntype, "GeometryNodeGreasePencilDrawTime"_ustr);
   ntype.ui_name = "Grease Pencil Draw Time";
   ntype.ui_description = "Retrieve the information as to when a Grease Pencil curve is drawn";
   ntype.nclass = NODE_CLASS_INPUT;
