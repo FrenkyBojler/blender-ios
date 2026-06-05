@@ -27,8 +27,6 @@
 
 namespace blender::gpu::tests {
 
-#ifdef WITH_OPENGL_BACKEND
-
 /* Test operates on a 4x4 texture patch. */
 constexpr uint texture_size_x = 4;
 constexpr uint texture_size_y = 4;
@@ -238,5 +236,4 @@ static void test_texture_view_UINT_8()
   texture_view_create_test<TextureFormat::UINT_8, TextureFormat::UNORM_8>();
 }
 GPU_OPENGL_TEST(texture_view_UINT_8);
-#endif
 }  // namespace blender::gpu::tests
