@@ -101,9 +101,9 @@ set(SRC
   nodes/node_geo_gizmo_dial.cc
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
-  nodes/node_geo_grease_pencil_fill_info.cc
   nodes/node_geo_grease_pencil_color.cc
   nodes/node_geo_grease_pencil_draw_time.cc
+  nodes/node_geo_grease_pencil_fill_id.cc
   nodes/node_geo_grease_pencil_opacity.cc
   nodes/node_geo_grease_pencil_stroke_info.cc
   nodes/node_geo_grease_pencil_to_curves.cc

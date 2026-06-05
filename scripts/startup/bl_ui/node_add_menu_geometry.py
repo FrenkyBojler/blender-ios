@@ -169,9 +169,9 @@ class NODE_MT_gn_grease_pencil_read_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
-        self.node_operator(layout, "GeometryNodeGreasePencilFillInfo")
         self.node_operator(layout, "GeometryNodeGreasePencilColor")
         self.node_operator(layout, "GeometryNodeGreasePencilDrawTime")
+        self.node_operator(layout, "GeometryNodeGreasePencilFillID")
         self.node_operator(layout, "GeometryNodeGreasePencilOpacity")
         self.node_operator(layout, "GeometryNodeInputNamedLayerSelection")
         self.node_operator(layout, "GeometryNodeGreasePencilStrokeInfo")
