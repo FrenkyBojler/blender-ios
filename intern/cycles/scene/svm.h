@@ -239,11 +239,8 @@ class SVMCompiler {
   void stack_clear_users(ShaderNode *node, ShaderNodeSet &done);
   void stack_zero_incomplete_derivatives(const ShaderNode *node);
 
-  /* Stack slots newly allocated when this node is compiled (its used outputs). */
-  int node_stack_allocates(const ShaderNode *node);
-  /* Stack slots freed when this node is compiled, i.e. inputs whose source
-   * output has no other pending consumer. */
-  int node_stack_frees(const ShaderNode *node, const ShaderNodeSet &done);
+  /* Stack size that will be allocated for the outputs of this node. */
+  int stack_node_output_size(const ShaderNode *node);
 
   /* single closure */
   void find_dependencies(ShaderNodeSet &dependencies,

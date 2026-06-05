@@ -19,6 +19,7 @@
 #include "kernel/svm/node_types.h"
 
 #include "util/log.h"
+#include "util/map.h"
 #include "util/math_float3.h"
 #include "util/progress.h"
 #include "util/queue.h"
@@ -582,35 +583,12 @@ void SVMCompiler::generate_node(ShaderNode *node, ShaderNodeSet &done)
   }
 }
 
-int SVMCompiler::node_stack_allocates(const ShaderNode *node)
+int SVMCompiler::stack_node_output_size(const ShaderNode *node)
 {
   /* Compute stack size that will be allocated by this node. */
   int size = 0;
   for (const ShaderOutput *output : node->outputs) {
     if (!output->links.empty() && output->stack_offset == SVM_STACK_INVALID) {
-      size += stack_size(output);
-    }
-  }
-  return size;
-}
-
-int SVMCompiler::node_stack_frees(const ShaderNode *node, const ShaderNodeSet &done)
-{
-  /* Compute stack size that will be freed by this node. */
-  int size = 0;
-  for (const ShaderInput *input : node->inputs) {
-    ShaderOutput *output = input->link;
-    if (output == nullptr || output->stack_offset == SVM_STACK_INVALID) {
-      continue;
-    }
-    bool all_done = true;
-    for (const ShaderInput *in : output->links) {
-      if (in->parent != node && !done.contains(in->parent)) {
-        all_done = false;
-        break;
-      }
-    }
-    if (all_done) {
       size += stack_size(output);
     }
   }
@@ -627,52 +605,105 @@ void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *
    * least, preferring nodes that free more slots than they allocate. This way
    * short lived intermediate values are released more quickly, before going
    * into other parts of the graph. */
-  size_t num_remaining = 0;
+
+  /* Number of inputs still waiting on each node .*/
+  unordered_map<ShaderNode *, int> num_waiting_inputs;
+  /* Number of nodes waiting on each output, before its socket can be freed. */
+  unordered_map<const ShaderOutput *, int> num_remaining_users;
+  /* Nodes ready to be scheduled. */
+  vector<ShaderNode *> ready;
+
+  /* Compute waiting inputs and ready nodes. */
   for (ShaderNode *node : nodes) {
-    if (!done_flag[node->id]) {
-      num_remaining++;
+    if (done_flag[node->id]) {
+      continue;
+    }
+    int num_waiting = 0;
+    for (const ShaderInput *input : node->inputs) {
+      if (input->link && !done_flag[input->link->parent->id]) {
+        num_waiting++;
+      }
+    }
+    num_waiting_inputs[node] = num_waiting;
+    if (num_waiting == 0) {
+      ready.push_back(node);
     }
   }
 
-  while (num_remaining > 0) {
-    ShaderNode *best_node = nullptr;
-    int best_delta = 0;
-    int best_freed = 0;
-
-    for (ShaderNode *node : nodes) {
-      if (done_flag[node->id]) {
-        continue;
-      }
-
-      bool inputs_done = true;
-      for (const ShaderInput *input : node->inputs) {
-        if (input->link && !done_flag[input->link->parent->id]) {
-          inputs_done = false;
-          break;
+  /* Compute number of users of an output sockets. */
+  auto num_remaining_output_users = [&](const ShaderOutput *output) -> int & {
+    auto it = num_remaining_users.find(output);
+    if (it == num_remaining_users.end()) {
+      int num = 0;
+      for (const ShaderInput *in : output->links) {
+        if (!done.contains(in->parent)) {
+          num++;
         }
       }
-      if (!inputs_done) {
-        continue;
-      }
+      it = num_remaining_users.emplace(output, num).first;
+    }
+    return it->second;
+  };
 
-      /* Prefer lowest added - freed, and use highest freed as a tie break. */
-      const int freed = node_stack_frees(node, done);
-      const int delta = node_stack_allocates(node) - freed;
-
-      if (best_node == nullptr || delta < best_delta ||
-          (delta == best_delta && freed > best_freed))
+  /* Compute stack size that will be freed by scheduling this node. */
+  auto node_free_size = [&](const ShaderNode *node) {
+    int size = 0;
+    for (const ShaderInput *input : node->inputs) {
+      ShaderOutput *output = input->link;
+      if (output && output->stack_offset != SVM_STACK_INVALID &&
+          num_remaining_output_users(output) == 1)
       {
-        best_node = node;
+        size += stack_size(output);
+      }
+    }
+    return size;
+  };
+
+  while (!ready.empty()) {
+    /* Pick the node with lowest added - freed, and use highest freed as a tie break. */
+    size_t best_i = 0;
+    int best_delta = 0;
+    int best_freed = 0;
+    for (size_t i = 0; i < ready.size(); i++) {
+      const int freed = node_free_size(ready[i]);
+      const int delta = stack_node_output_size(ready[i]) - freed;
+      if (i == 0 || delta < best_delta || (delta == best_delta && freed > best_freed) ||
+          (delta == best_delta && freed == best_freed && ready[i]->id < ready[best_i]->id))
+      {
+        best_i = i;
         best_delta = delta;
         best_freed = freed;
       }
     }
 
-    assert(best_node != nullptr);
-    generate_node(best_node, done);
-    done.insert(best_node);
-    done_flag[best_node->id] = true;
-    num_remaining--;
+    /* Schedule the chosen node .*/
+    ShaderNode *node = ready[best_i];
+    ready[best_i] = ready.back();
+    ready.pop_back();
+
+    generate_node(node, done);
+    done.insert(node);
+    done_flag[node->id] = true;
+
+    /* Update remaining output users. */
+    for (const ShaderInput *input : node->inputs) {
+      if (input->link) {
+        num_remaining_output_users(input->link)--;
+      }
+    }
+
+    /* Update ready nodes when their inputs are ready. */
+    for (const ShaderOutput *output : node->outputs) {
+      for (ShaderInput *in : output->links) {
+        auto it = num_waiting_inputs.find(in->parent);
+        if (it != num_waiting_inputs.end() && it->second > 0) {
+          it->second--;
+          if (it->second == 0) {
+            ready.push_back(in->parent);
+          }
+        }
+      }
+    }
   }
 }
 
