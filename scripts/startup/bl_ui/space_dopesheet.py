@@ -674,7 +674,7 @@ class DOPESHEET_MT_key(Menu):
         layout.operator("action.copy")
         layout.operator("action.paste")
         layout.operator("action.paste", text="Paste Flipped").flipped = True
-        layout.operator("action.duplicate_move")
+        layout.operator("action.duplicate_move", icon='DUPLICATE')
         layout.operator("action.delete")
         if ob and ob.type == 'GREASEPENCIL':
             layout.operator("grease_pencil.delete_breakdown")
@@ -859,7 +859,7 @@ class DOPESHEET_MT_context_menu(Menu):
         layout.separator()
 
         layout.operator("action.keyframe_insert").type = 'SEL'
-        layout.operator("action.duplicate_move")
+        layout.operator("action.duplicate_move", icon='DUPLICATE')
 
         if st.mode == 'GPENCIL':
             layout.separator()
