@@ -20,6 +20,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
@@ -693,6 +694,164 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
+static const char *gpu_shader_get_name(const eNodeSocketDatatype data_type,
+                                       const NodeCompareOperation operation,
+                                       const NodeCompareMode mode)
+{
+  switch (data_type) {
+    case SOCK_FLOAT:
+      switch (operation) {
+        case NODE_COMPARE_LESS_THAN:
+          return "compare_float_less_than";
+        case NODE_COMPARE_LESS_EQUAL:
+          return "compare_float_less_equal";
+        case NODE_COMPARE_GREATER_THAN:
+          return "compare_float_greater_than";
+        case NODE_COMPARE_GREATER_EQUAL:
+          return "compare_float_greater_equal";
+        case NODE_COMPARE_EQUAL:
+          return "compare_float_equal";
+        case NODE_COMPARE_NOT_EQUAL:
+          return "compare_float_not_equal";
+      }
+      break;
+    case SOCK_INT:
+      switch (operation) {
+        case NODE_COMPARE_LESS_THAN:
+          return "compare_int_less_than";
+        case NODE_COMPARE_LESS_EQUAL:
+          return "compare_int_less_equal";
+        case NODE_COMPARE_GREATER_THAN:
+          return "compare_int_greater_than";
+        case NODE_COMPARE_GREATER_EQUAL:
+          return "compare_int_greater_equal";
+        case NODE_COMPARE_EQUAL:
+          return "compare_int_equal";
+        case NODE_COMPARE_NOT_EQUAL:
+          return "compare_int_not_equal";
+      }
+      break;
+    case SOCK_VECTOR:
+      switch (mode) {
+        case NODE_COMPARE_MODE_ELEMENT:
+          switch (operation) {
+            case NODE_COMPARE_LESS_THAN:
+              return "compare_vector_element_less_than";
+            case NODE_COMPARE_LESS_EQUAL:
+              return "compare_vector_element_less_equal";
+            case NODE_COMPARE_GREATER_THAN:
+              return "compare_vector_element_greater_than";
+            case NODE_COMPARE_GREATER_EQUAL:
+              return "compare_vector_element_greater_equal";
+            case NODE_COMPARE_EQUAL:
+              return "compare_vector_element_equal";
+            case NODE_COMPARE_NOT_EQUAL:
+              return "compare_vector_element_not_equal";
+          }
+          break;
+        case NODE_COMPARE_MODE_LENGTH:
+          switch (operation) {
+            case NODE_COMPARE_LESS_THAN:
+              return "compare_vector_length_less_than";
+            case NODE_COMPARE_LESS_EQUAL:
+              return "compare_vector_length_less_equal";
+            case NODE_COMPARE_GREATER_THAN:
+              return "compare_vector_length_greater_than";
+            case NODE_COMPARE_GREATER_EQUAL:
+              return "compare_vector_length_greater_equal";
+            case NODE_COMPARE_EQUAL:
+              return "compare_vector_length_equal";
+            case NODE_COMPARE_NOT_EQUAL:
+              return "compare_vector_length_not_equal";
+          }
+          break;
+        case NODE_COMPARE_MODE_AVERAGE:
+          switch (operation) {
+            case NODE_COMPARE_LESS_THAN:
+              return "compare_vector_average_less_than";
+            case NODE_COMPARE_LESS_EQUAL:
+              return "compare_vector_average_less_equal";
+            case NODE_COMPARE_GREATER_THAN:
+              return "compare_vector_average_greater_than";
+            case NODE_COMPARE_GREATER_EQUAL:
+              return "compare_vector_average_greater_equal";
+            case NODE_COMPARE_EQUAL:
+              return "compare_vector_average_equal";
+            case NODE_COMPARE_NOT_EQUAL:
+              return "compare_vector_average_not_equal";
+          }
+          break;
+        case NODE_COMPARE_MODE_DOT_PRODUCT:
+          switch (operation) {
+            case NODE_COMPARE_LESS_THAN:
+              return "compare_vector_dot_less_than";
+            case NODE_COMPARE_LESS_EQUAL:
+              return "compare_vector_dot_less_equal";
+            case NODE_COMPARE_GREATER_THAN:
+              return "compare_vector_dot_greater_than";
+            case NODE_COMPARE_GREATER_EQUAL:
+              return "compare_vector_dot_greater_equal";
+            case NODE_COMPARE_EQUAL:
+              return "compare_vector_dot_equal";
+            case NODE_COMPARE_NOT_EQUAL:
+              return "compare_vector_dot_not_equal";
+          }
+          break;
+        case NODE_COMPARE_MODE_DIRECTION:
+          switch (operation) {
+            case NODE_COMPARE_LESS_THAN:
+              return "compare_vector_direction_less_than";
+            case NODE_COMPARE_LESS_EQUAL:
+              return "compare_vector_direction_less_equal";
+            case NODE_COMPARE_GREATER_THAN:
+              return "compare_vector_direction_greater_than";
+            case NODE_COMPARE_GREATER_EQUAL:
+              return "compare_vector_direction_greater_equal";
+            case NODE_COMPARE_EQUAL:
+              return "compare_vector_direction_equal";
+            case NODE_COMPARE_NOT_EQUAL:
+              return "compare_vector_direction_not_equal";
+          }
+          break;
+      }
+      break;
+    case SOCK_RGBA:
+      switch (operation) {
+        case NODE_COMPARE_EQUAL:
+          return "compare_color_equal";
+        case NODE_COMPARE_NOT_EQUAL:
+          return "compare_color_not_equal";
+        case NODE_COMPARE_COLOR_BRIGHTER:
+          return "compare_color_brighter";
+        case NODE_COMPARE_COLOR_DARKER:
+          return "compare_color_darker";
+      }
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
+{
+  const NodeFunctionCompare &storage = node_storage(*node);
+  const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
+  const NodeCompareOperation operation = NodeCompareOperation(storage.operation);
+  const NodeCompareMode mode = NodeCompareMode(storage.mode);
+
+  const char *name = gpu_shader_get_name(data_type, operation, mode);
+
+  if (name == nullptr) {
+    return 0;
+  }
+
+  return GPU_stack_link(mat, node, name, in, out);
+}
+
 static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
@@ -825,7 +984,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeCompare"_ustr, FN_NODE_COMPARE);
+  fn_cmp_node_type_base(&ntype, "FunctionNodeCompare"_ustr, FN_NODE_COMPARE);
   ntype.ui_name = "Compare";
   ntype.ui_description = "Perform a comparison operation on the two given inputs";
   ntype.enum_name_legacy = "COMPARE";
@@ -835,6 +994,7 @@ static void node_register()
   ntype.initfunc = node_init;
   bke::node_type_storage(
       ntype, "NodeFunctionCompare", node_free_standard_storage, node_copy_standard_storage);
+  ntype.gpu_fn = node_gpu_material;
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
