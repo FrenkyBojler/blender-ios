@@ -114,7 +114,7 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
   const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
 
   if (mode == PaintMode::GPencil) {
-    if (eBrushGPaintType(brush.gpencil_brush_type) == GPAINT_BRUSH_TYPE_DRAW &&
+    if (brush.gpencil_brush_type == GPAINT_BRUSH_TYPE_DRAW &&
         brush_switch_mode == BrushSwitchMode::Erase)
     {
       /* Special case: We're using the draw tool but with the eraser mode, so create an erase
@@ -122,7 +122,7 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
       return greasepencil::new_erase_operation(true);
     }
     /* FIXME: Somehow store the unique_ptr in the PaintStroke. */
-    switch (eBrushGPaintType(brush.gpencil_brush_type)) {
+    switch (brush.gpencil_brush_type) {
       case GPAINT_BRUSH_TYPE_DRAW:
         return greasepencil::new_paint_operation();
       case GPAINT_BRUSH_TYPE_ERASE:
@@ -265,14 +265,14 @@ static bool use_duplicate_previous_key(bContext *C, wmOperator *op)
   if (mode == PaintMode::GPencil) {
     /* For the eraser and tint tool, we don't want auto-key to create an empty keyframe, so we
      * duplicate the previous frame. */
-    if (ELEM(eBrushGPaintType(brush.gpencil_brush_type),
+    if (ELEM(brush.gpencil_brush_type,
              GPAINT_BRUSH_TYPE_ERASE,
              GPAINT_BRUSH_TYPE_TINT))
     {
       return true;
     }
     /* Same for the temporary eraser when using the draw tool. */
-    if (eBrushGPaintType(brush.gpencil_brush_type) == GPAINT_BRUSH_TYPE_DRAW &&
+    if (brush.gpencil_brush_type == GPAINT_BRUSH_TYPE_DRAW &&
         brush_switch_mode == BrushSwitchMode::Erase)
     {
       return true;
