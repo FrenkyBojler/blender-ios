@@ -48,6 +48,24 @@ void rule_property_remove(Main &bmain,
                           DynamicOverrideRule &rule,
                           DynamicOverrideRuleProperty *existing_property);
 
+/** Reset override value to the original one. */
+void rule_rna_property_reset(DynamicOverride &dynamic_override,
+                             DynamicOverrideRule &rule,
+                             DynamicOverrideRuleProperty &rule_property);
+/** Reset override value to the original one. */
+void rule_rna_property_reset(DynamicOverride &dynamic_override,
+                             DynamicOverrideRule &rule,
+                             RNAPath &rna_path);
+
+/** Apply override value to the target data. */
+void rule_rna_property_apply(DynamicOverride &dynamic_override,
+                             DynamicOverrideRule &rule,
+                             DynamicOverrideRuleProperty &rule_property);
+/** Apply override value to the target data. */
+void rule_rna_property_apply(DynamicOverride &dynamic_override,
+                             DynamicOverrideRule &rule,
+                             RNAPath &rna_path);
+
 /**
  * Return an identifier representing the RNA path of the property, that is usable as a RNA
  * property identifier.

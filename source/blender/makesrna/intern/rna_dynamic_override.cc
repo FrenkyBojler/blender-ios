@@ -53,8 +53,8 @@ void rna_DynamicOverrideRuleProperty_update(Main * /*bmain*/, Scene * /*scene*/,
   if (!ancestor) {
     return;
   }
-
   const DynamicOverrideRule *rule = static_cast<DynamicOverrideRule *>(ancestor->data);
+
   DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
 }
 
@@ -84,6 +84,38 @@ static int rna_DynamicOverride_rule_property_propidentifier_length(PointerRNA *p
   std::string safe_property_identifier = bke::dynoverride::rule_property_rna_identifier(
       *rule_prop);
   return safe_property_identifier.size() + 1;
+}
+
+static void rna_DynamicOverride_rule_property_reset(ID *self_id,
+                                                    PointerRNA self_ptr,
+                                                    Main *bmain,
+                                                    ReportList *reports)
+{
+  auto ancestor = RNA_struct_search_closest_ancestor_by_type(&self_ptr, RNA_DynamicOverrideRule);
+  if (!ancestor) {
+    return;
+  }
+  DynamicOverrideRule *rule = static_cast<DynamicOverrideRule *>(ancestor->data);
+  DynamicOverrideRuleProperty *rule_prop = self_ptr.data_as<DynamicOverrideRuleProperty>();
+
+  bke::dynoverride::rule_rna_property_reset(
+      *id_cast<DynamicOverride *>(self_id), *rule, *rule_prop);
+}
+
+static void rna_DynamicOverride_rule_property_apply(ID *self_id,
+                                                    PointerRNA self_ptr,
+                                                    Main *bmain,
+                                                    ReportList *reports)
+{
+  auto ancestor = RNA_struct_search_closest_ancestor_by_type(&self_ptr, RNA_DynamicOverrideRule);
+  if (!ancestor) {
+    return;
+  }
+  DynamicOverrideRule *rule = static_cast<DynamicOverrideRule *>(ancestor->data);
+  DynamicOverrideRuleProperty *rule_prop = self_ptr.data_as<DynamicOverrideRuleProperty>();
+
+  bke::dynoverride::rule_rna_property_apply(
+      *id_cast<DynamicOverride *>(self_id), *rule, *rule_prop);
 }
 
 static DynamicOverrideRuleProperty *rna_DynamicOverride_rule_property_add(
@@ -293,6 +325,20 @@ static void rna_def_dynamic_override_rule_property(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   RNA_define_verify_sdna(true);
+
+  FunctionRNA *func;
+
+  func = RNA_def_function(srna, "reset", "rna_DynamicOverride_rule_property_reset");
+  RNA_def_function_ui_description(
+      func,
+      "Reset the override value to the original value (at the time the override was created)");
+  RNA_def_function_flag(func,
+                        FUNC_USE_MAIN | FUNC_USE_SELF_ID | FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
+
+  func = RNA_def_function(srna, "apply", "rna_DynamicOverride_rule_property_apply");
+  RNA_def_function_ui_description(func, "Apply the override value to the target overridden data");
+  RNA_def_function_flag(func,
+                        FUNC_USE_MAIN | FUNC_USE_SELF_ID | FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
 }
 
 static void rna_def_dynamic_override_rule_properties(BlenderRNA *brna, PropertyRNA *cprop)

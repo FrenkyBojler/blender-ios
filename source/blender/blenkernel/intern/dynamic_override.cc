@@ -481,10 +481,12 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
 
   BKE_main_ensure_invariants(bmain, dynamic_override.id);
 
+  std::string prop_identifier = rule_property_rna_identifier(*rule_property);
+
   PointerRNA override_data_ptr = RNA_pointer_create_id_subdata(
       dynamic_override.id, RNA_DynamicOverrideRuleIDDataOverrideValues, &rule_iddata);
-  PropertyRNA *override_rna_prop = RNA_struct_find_property(
-      &override_data_ptr, rule_property_rna_identifier(*rule_property).c_str());
+  PropertyRNA *override_rna_prop = RNA_struct_find_property(&override_data_ptr,
+                                                            prop_identifier.c_str());
 
   if (!override_data_ptr.data || !override_rna_prop) {
     BLI_assert_unreachable();
@@ -493,8 +495,8 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
 
   PointerRNA original_data_ptr = RNA_pointer_create_id_subdata(
       dynamic_override.id, RNA_DynamicOverrideRuleIDDataOriginalValues, &rule_iddata);
-  PropertyRNA *original_rna_prop = RNA_struct_find_property(
-      &original_data_ptr, rule_property_rna_identifier(*rule_property).c_str());
+  PropertyRNA *original_rna_prop = RNA_struct_find_property(&original_data_ptr,
+                                                            prop_identifier.c_str());
 
   if (!original_data_ptr.data || !original_rna_prop) {
     BLI_assert_unreachable();
@@ -503,6 +505,22 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
 
   RNA_property_copy(nullptr, override_data_ptr, target_data_ptr, override_rna_prop, target_prop);
   RNA_property_copy(nullptr, original_data_ptr, target_data_ptr, original_rna_prop, target_prop);
+
+  return rule_property;
+}
+
+DynamicOverrideRuleProperty *rule_rna_property_lookup(DynamicOverrideRule &rule, RNAPath &rna_path)
+{
+  if (rule.type != DynamicOverrideRuleType::IDData) {
+    return nullptr;
+  }
+
+  DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
+
+  DynamicOverrideRuleProperty *rule_property = static_cast<DynamicOverrideRuleProperty *>(
+      BLI_findstring_ptr(&rule_iddata.properties,
+                         rna_path.path.c_str(),
+                         offsetof(DynamicOverrideRuleProperty, rna_path)));
 
   return rule_property;
 }
@@ -521,6 +539,96 @@ void rule_property_remove(Main &bmain,
   MEM_delete(existing_property);
 
   BKE_main_ensure_invariants(bmain, dynamic_override.id);
+}
+
+void rule_rna_property_reset(DynamicOverride &dynamic_override,
+                             DynamicOverrideRule &rule,
+                             DynamicOverrideRuleProperty &rule_property)
+{
+  if (rule.type != DynamicOverrideRuleType::IDData) {
+    return;
+  }
+
+  DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
+
+  std::string prop_identifier = rule_property_rna_identifier(rule_property);
+
+  PointerRNA override_data_ptr = RNA_pointer_create_id_subdata(
+      dynamic_override.id, RNA_DynamicOverrideRuleIDDataOverrideValues, &rule_iddata);
+  PropertyRNA *override_rna_prop = RNA_struct_find_property(&override_data_ptr,
+                                                            prop_identifier.c_str());
+
+  if (!override_data_ptr.data || !override_rna_prop) {
+    BLI_assert_unreachable();
+    return;
+  }
+
+  PointerRNA original_data_ptr = RNA_pointer_create_id_subdata(
+      dynamic_override.id, RNA_DynamicOverrideRuleIDDataOriginalValues, &rule_iddata);
+  PropertyRNA *original_rna_prop = RNA_struct_find_property(&original_data_ptr,
+                                                            prop_identifier.c_str());
+
+  if (!original_data_ptr.data || !original_rna_prop) {
+    BLI_assert_unreachable();
+    return;
+  }
+
+  RNA_property_copy(
+      nullptr, override_data_ptr, original_data_ptr, override_rna_prop, original_rna_prop);
+}
+
+void rule_rna_property_reset(DynamicOverride &dynamic_override,
+                             DynamicOverrideRule &rule,
+                             RNAPath &rna_path)
+{
+  DynamicOverrideRuleProperty *rule_property = rule_rna_property_lookup(rule, rna_path);
+  if (rule_property) {
+    rule_rna_property_reset(dynamic_override, rule, *rule_property);
+  }
+}
+
+void rule_rna_property_apply(DynamicOverride &dynamic_override,
+                             DynamicOverrideRule &rule,
+                             DynamicOverrideRuleProperty &rule_property)
+{
+  if (rule.type != DynamicOverrideRuleType::IDData) {
+    return;
+  }
+
+  DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
+  PointerRNA target_id_ptr, target_data_ptr;
+  PropertyRNA *target_prop;
+
+  target_id_ptr = RNA_id_pointer_create(rule_iddata.base.target_filter.target_id);
+  RNA_path_resolve(&target_id_ptr, rule_property.rna_path, &target_data_ptr, &target_prop);
+
+  if (!target_data_ptr.data || !target_prop) {
+    return;
+  }
+
+  std::string prop_identifier = rule_property_rna_identifier(rule_property);
+
+  PointerRNA override_data_ptr = RNA_pointer_create_id_subdata(
+      dynamic_override.id, RNA_DynamicOverrideRuleIDDataOverrideValues, &rule_iddata);
+  PropertyRNA *override_rna_prop = RNA_struct_find_property(&override_data_ptr,
+                                                            prop_identifier.c_str());
+
+  if (!override_data_ptr.data || !override_rna_prop) {
+    BLI_assert_unreachable();
+    return;
+  }
+
+  RNA_property_copy(nullptr, target_data_ptr, override_data_ptr, target_prop, override_rna_prop);
+}
+
+void rule_rna_property_apply(DynamicOverride &dynamic_override,
+                             DynamicOverrideRule &rule,
+                             RNAPath &rna_path)
+{
+  DynamicOverrideRuleProperty *rule_property = rule_rna_property_lookup(rule, rna_path);
+  if (rule_property) {
+    rule_rna_property_apply(dynamic_override, rule, *rule_property);
+  }
 }
 
 std::string rule_property_rna_identifier(DynamicOverrideRuleProperty &rule_property)

@@ -57,7 +57,7 @@ class TestDynamicOverrides(TestHelper):
         self.assertEqual(len(obj_dynoverride_rule.original_values.bl_rna.properties), 1)
 
         # This will generate a dedicated runtime RNA type (struct definition).
-        obj_dynoverride_rule.properties.add_for_rnapath("location")
+        obj_dynoverride_prop = obj_dynoverride_rule.properties.add_for_rnapath("location")
 
         self.assertEqual(obj_dynoverride_rule.override_values.bl_rna.identifier,
                          'DynamicOverrideRuleIDDataOverrideValuesRT')
@@ -81,7 +81,38 @@ class TestDynamicOverrides(TestHelper):
         self.assertEqual(tuple(obj_dynoverride_rule.original_values.location), obj_location)
 
         obj_eval = bpy.context.view_layer.depsgraph.id_eval_get(obj)
-        self.assertEqual(tuple(obj_dynoverride_rule.override_values.location), tuple(obj_eval.location))
+        self.assertEqual(tuple(obj_eval.location), tuple(obj_dynoverride_rule.override_values.location))
+
+        # Mute the rule and/or the property must undo evaluated changes.
+        obj_dynoverride_rule.is_muted = True
+        bpy.context.view_layer.update()
+        obj_eval = bpy.context.view_layer.depsgraph.id_eval_get(obj)
+        self.assertEqual(tuple(obj_eval.location), obj_location)
+
+        obj_dynoverride_rule.is_muted = False
+        bpy.context.view_layer.update()
+        obj_eval = bpy.context.view_layer.depsgraph.id_eval_get(obj)
+        self.assertEqual(tuple(obj_eval.location), tuple(obj_dynoverride_rule.override_values.location))
+
+        # FIXME: Does not work???
+        # ~ obj_dynoverride_prop.is_muted = True
+        # ~ bpy.context.view_layer.update()
+        # ~ obj_eval = bpy.context.view_layer.depsgraph.id_eval_get(obj)
+        # ~ self.assertEqual(tuple(obj_eval.location), obj_location)
+
+        # ~ obj_dynoverride_prop.is_muted = False
+        # ~ bpy.context.view_layer.update()
+        # ~ obj_eval = bpy.context.view_layer.depsgraph.id_eval_get(obj)
+        # ~ self.assertEqual(tuple(obj_eval.location), tuple(obj_dynoverride_rule.override_values.location))
+
+        # Reset replace current override value by the original one.
+        obj_dynoverride_prop.reset()
+        self.assertEqual(tuple(obj_dynoverride_rule.override_values.location), obj_location)
+
+        # Apply applies the current override value to the target overridden data.
+        obj_dynoverride_rule.override_values.location = (1, 2, 3)
+        obj_dynoverride_prop.apply()
+        self.assertEqual(tuple(obj.location), tuple(obj_dynoverride_rule.override_values.location))
 
 
 TESTS = (
