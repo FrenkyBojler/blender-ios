@@ -258,21 +258,21 @@ static bool grease_pencil_brush_stroke_poll(bContext *C)
 static bool use_duplicate_previous_key(bContext *C, wmOperator *op)
 {
   const Paint *paint = BKE_paint_get_active_from_context(C);
-  const Brush &brush = *BKE_paint_brush_for_read(paint);
+  const Brush *brush = BKE_paint_brush_for_read(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
 
-  if (mode == PaintMode::GPencil) {
+  if (brush && mode == PaintMode::GPencil) {
     /* For the eraser and tint tool, we don't want auto-key to create an empty keyframe, so we
      * duplicate the previous frame. */
-    if (ELEM(brush.gpencil_brush_type,
+    if (ELEM(brush->gpencil_brush_type,
              GPAINT_BRUSH_TYPE_ERASE,
              GPAINT_BRUSH_TYPE_TINT))
     {
       return true;
     }
     /* Same for the temporary eraser when using the draw tool. */
-    if (brush.gpencil_brush_type == GPAINT_BRUSH_TYPE_DRAW &&
+    if (brush->gpencil_brush_type == GPAINT_BRUSH_TYPE_DRAW &&
         brush_switch_mode == BrushSwitchMode::Erase)
     {
       return true;
