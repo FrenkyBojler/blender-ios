@@ -450,7 +450,7 @@ class FILEBROWSER_PT_directory_path(Panel):
 
         subsubrow = subrow.row()
         subsubrow.operator_context = 'EXEC_DEFAULT'
-        subsubrow.operator("file.directory_new", icon='NEWFOLDER', text="")
+        subsubrow.operator("file.directory_new", icon='NEWFOLDER', text="").confirm = False
 
         subrow.template_file_select_path(params)
 
