@@ -79,8 +79,11 @@ class Instance : public DrawEngine {
           this->state.image, space_->get_image_user(), &lock);
       BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(this->state.image, buffer, lock); });
 
-      /* The image buffer already has a GPU texture, so use image space drawing. */
-      if (buffer && buffer->gpu.texture) {
+      /* The image buffer already has a GPU texture, so use image space drawing. Check
+       * dimensions match in case the texture limit affected this textured. */
+      if (buffer && buffer->gpu.texture && GPU_texture_width(buffer->gpu.texture) == buffer->x &&
+          GPU_texture_height(buffer->gpu.texture) == buffer->y)
+      {
         return std::make_unique<ImageSpaceDrawingMode>(*this, buffer->gpu.texture);
       }
 
