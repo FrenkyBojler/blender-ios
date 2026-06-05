@@ -27,6 +27,7 @@ static void node_register()
   ntype.ui_name = "Grease Pencil Stroke Visibility";
   ntype.ui_description = "Retrieve the visibility of Grease Pencil strokes";
   ntype.nclass = NODE_CLASS_INPUT;
+  ntype.default_width = bke::NodeWidth::_200;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   bke::node_register_type(ntype);

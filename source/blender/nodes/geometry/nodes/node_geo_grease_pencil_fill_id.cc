@@ -27,6 +27,7 @@ static void node_register()
   ntype.ui_name = "Grease Pencil Fill ID";
   ntype.ui_description = "Retrieve information about the grouping of Grease Pencil fills";
   ntype.nclass = NODE_CLASS_INPUT;
+  ntype.default_width = bke::NodeWidth::_160;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   bke::node_register_type(ntype);
