@@ -10414,7 +10414,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGizmoLinear");
   define("GeometryNode", "GeometryNodeGizmoTransform", rna_def_geo_gizmo_transform);
   define("GeometryNode", "GeometryNodeGreasePencilFillInfo");
-  define("GeometryNode", "GeometryNodeGreasePencilPointColor");
+  define("GeometryNode", "GeometryNodeGreasePencilColor");
   define("GeometryNode", "GeometryNodeGreasePencilPointOpacity");
   define("GeometryNode", "GeometryNodeGreasePencilPointDeltaTime");
   define("GeometryNode", "GeometryNodeGreasePencilStrokeInfo");
