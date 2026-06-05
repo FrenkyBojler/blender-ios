@@ -630,34 +630,27 @@ static void do_graph_dependency_change_cb(bContext *C, ID *id)
 }
 
 /* callback to add a target variable to the active driver */
-static void driver_add_var_cb(bContext *C, void *driver_v, void * /*arg*/)
+static void driver_add_var_cb(bContext *C, ChannelDriver *driver)
 {
-  ChannelDriver *driver = static_cast<ChannelDriver *>(driver_v);
-
   /* add a new variable */
   driver_add_new_variable(driver);
   ED_undo_push(C, "Add Driver Variable");
 }
 
 /* callback to remove target variable from active driver */
-static void driver_delete_var_cb(bContext *C, void *driver_v, void *dvar_v)
+static void driver_delete_var_cb(bContext *C, ChannelDriver *driver, DriverVar *dvar)
 {
-  ChannelDriver *driver = static_cast<ChannelDriver *>(driver_v);
-  DriverVar *dvar = static_cast<DriverVar *>(dvar_v);
-
   /* remove the active variable */
   driver_free_variable_ex(driver, dvar);
   ED_undo_push(C, "Delete Driver Variable");
 }
 
 /* callback to report why a driver variable is invalid */
-static void driver_dvar_invalid_name_query_cb(bContext *C, void *dvar_v, void * /*arg*/)
+static void driver_dvar_invalid_name_query_cb(bContext *C, DriverVar *dvar)
 {
   ui::PopupMenu *pup = ui::popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Invalid Variable Name"), ICON_NONE);
   ui::Layout &layout = *popup_menu_layout(pup);
-
-  DriverVar *dvar = static_cast<DriverVar *>(dvar_v);
 
   if (dvar->flag & DVAR_FLAG_INVALID_EMPTY) {
     layout.label(RPT_("It cannot be left blank"), ICON_ERROR);
@@ -688,9 +681,8 @@ static void driver_dvar_invalid_name_query_cb(bContext *C, void *dvar_v, void * 
 }
 
 /* callback to reset the driver's flags */
-static void driver_update_flags_cb(bContext * /*C*/, void *fcu_v, void * /*arg*/)
+static void driver_update_flags_cb(FCurve *fcu)
 {
-  FCurve *fcu = static_cast<FCurve *>(fcu_v);
   ChannelDriver *driver = fcu->driver;
 
   /* clear invalid flags */
@@ -1056,8 +1048,10 @@ static void graph_draw_driver_settings_panel(ui::Layout &layout,
         UI_UNIT_Y,
         nullptr,
         TIP_("Add a Driver Variable to keep track of an input used by the driver"));
-    button_func_set(but, driver_add_var_cb, driver, nullptr);
-    button_func_set(but, [id](bContext &C) { do_graph_dependency_change_cb(&C, id); });
+    button_func_set(but, [id, driver](bContext &C) {
+      driver_add_var_cb(&C, driver);
+      do_graph_dependency_change_cb(&C, id);
+    });
 
     if (is_popover) {
       /* add driver variable - add using eyedropper */
@@ -1122,8 +1116,8 @@ static void graph_draw_driver_settings_panel(ui::Layout &layout,
                          0.0,
                          0.0,
                          TIP_("Invalid variable name, click here for details"));
-      button_func_set(but, [id](bContext &C) { do_graph_dependency_change_cb(&C, id); });
-      button_func_set(but, driver_dvar_invalid_name_query_cb, &dvar, nullptr); /* XXX: reports? */
+      button_func_set(
+          but, [dvar = &dvar](bContext &C) { driver_dvar_invalid_name_query_cb(&C, dvar); });
     }
 
     /* 1.3) remove button */
@@ -1138,8 +1132,10 @@ static void graph_draw_driver_settings_panel(ui::Layout &layout,
                        0.0,
                        0.0,
                        TIP_("Delete target variable"));
-    button_func_set(but, driver_delete_var_cb, driver, &dvar);
-    button_func_set(but, [id](bContext &C) { do_graph_dependency_change_cb(&C, id); });
+    button_func_set(but, [id, driver, dvar = &dvar](bContext &C) {
+      driver_delete_var_cb(&C, driver, dvar);
+      do_graph_dependency_change_cb(&C, id);
+    });
     block_emboss_set(block, ui::EmbossType::Emboss);
 
     /* 2) variable type settings */
@@ -1211,8 +1207,10 @@ static void graph_draw_driver_settings_panel(ui::Layout &layout,
                          nullptr,
                          TIP_("Force updates of dependencies - Only use this if drivers are not "
                               "updating correctly"));
-  button_func_set(but, driver_update_flags_cb, fcu, nullptr);
-  button_func_set(but, [id](bContext &C) { do_graph_dependency_change_cb(&C, id); });
+  button_func_set(but, [id, fcu](bContext &C) {
+    driver_update_flags_cb(fcu);
+    do_graph_dependency_change_cb(&C, id);
+  });
 }
 
 /* ----------------------------------------------------------------- */
