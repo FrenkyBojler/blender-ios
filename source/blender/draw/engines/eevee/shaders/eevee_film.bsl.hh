@@ -358,17 +358,21 @@ struct Film {
 
   float2 panoramic_render_uv_get(int2 texel_film)
   {
+    [[resource_table]] const Uniform &uni = this->uniforms;
+
     const float3 camera_direction = panoramic_direction_get(texel_film);
 
     if (!panoramic_texel_is_owned_by_view(camera_direction)) {
       return float2(-1.0f);
     }
 
-    const float2 render_uv = panoramic_face_uv_from_direction(camera_direction, panoramic_view_id);
-    if (any(lessThan(render_uv, float2(0.0f))) || any(greaterThanEqual(render_uv, float2(1.0f)))) {
+    const float2 face_uv = panoramic_face_uv_from_direction(camera_direction, panoramic_view_id);
+    if (any(lessThan(face_uv, float2(0.0f))) || any(greaterThanEqual(face_uv, float2(1.0f)))) {
       return float2(-1.0f);
     }
 
+    const float overscan = max(uni.uniform_buf.camera.panoramic_view_overscan, 1.0f);
+    const float2 render_uv = (face_uv - 0.5f) / overscan + 0.5f;
     return render_uv;
   }
 

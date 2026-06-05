@@ -52,6 +52,7 @@ struct [[host_shared]] CameraData {
   float4 central_cylindrical_range;
   float2 fisheye_sensor;
   float fisheye_polynomial_bias;
+  float panoramic_view_overscan;
   /** Clipping distances. */
   float clip_near;
   float clip_far;
@@ -61,7 +62,6 @@ struct [[host_shared]] CameraData {
   float _pad0;
   float _pad1;
   float _pad2;
-  float _pad3;
 
   bool32_t initialized;
 

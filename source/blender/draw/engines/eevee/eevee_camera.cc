@@ -245,6 +245,7 @@ void Camera::sync()
     data.equirect_scale_inv = float2(0.0f);
   }
 
+  data.panoramic_view_overscan = this->is_panoramic() ? 1.05f : 1.0f;
   data_.initialized = true;
 
   update_bounds();

@@ -60,7 +60,7 @@ void ShadingView::sync()
   if (inst_.camera.is_panoramic()) {
     /* TODO(@fclem) Over-scans. */
     /* For now a mandatory 5% over-scan for DoF. */
-    float side = cam.clip_near * 1.05f;
+    float side = cam.clip_near * cam.panoramic_view_overscan;
     float near = cam.clip_near;
     float far = cam.clip_far;
     winmat = math::projection::perspective(-side, side, -side, side, near, far);
