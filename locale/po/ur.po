@@ -107067,7 +107067,7 @@ msgstr "Checking for ﺲﭩﯾﮉﭘﺍ ﻊﯿﺳﻮﺗ"
 
 
 msgid "Repository \"{:s}\": {:s}{:s}"
-msgstr "{s}\": {:s}{:s:}\" ﮦﺮﯿﺧﺫ"
+msgstr "‬{:s}‬\": ‪{:s}‬‪{:s}‪\" ﮦﺮﯿﺧﺫ"
 
 
 msgid "No repositories available"
@@ -107075,7 +107075,7 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺏﺎﯿﺘﺳﺩ ﮦﺮﯿﺧﺫ ﯽﺋﻮﮐ"
 
 
 msgid "{:s}: {:s}"
-msgstr "{:s}: {:s}"
+msgstr "‪{:s}‬: ‪{:s}‬"
 
 
 msgid "The dropped extension comes from a disabled repository."
@@ -107087,7 +107087,7 @@ msgstr "ﮟﯾﺮﮐ ﺶﺷﻮﮐ ﮦﺭﺎﺑﻭﺩ ﺭﻭﺍ ﮟﯾﺮﮐ ﻝ�
 
 
 msgid "Unlocked: {:s}"
-msgstr "{s:} :ﻞﻔﻘﻣ ﺮﯿﻏ"
+msgstr "‬{:s}‪ :ﻞﻔﻘﻣ ﺮﯿﻏ"
 
 
 msgid "Warning! Before unlocking, ensure another instance of Blender is not running."
@@ -107140,7 +107140,7 @@ msgstr "ﮟﯾﺮﮐ ﺶﯾﺮﻔﯾﺭ ﻮﮐ ﺖﺳﺮﮩﻓ ﯽﮐ ﺰﻨﺸ�
 
 
 msgid "Force unlock failed: {:s}"
-msgstr "{s:} :ﺎﯿﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﺎﻧﺮﮐ ﻞﻔﻘﻣ ﺮﯿﻏ ﯽﺘﺳﺩﺮﺑﺯ"
+msgstr "‬{:s}‪ :ﺎﯿﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﺎﻧﺮﮐ ﻞﻔﻘﻣ ﺮﯿﻏ ﯽﺘﺳﺩﺮﺑﺯ"
 
 
 msgid "Upgrade all the extensions to their latest version for the active repository"
@@ -107204,7 +107204,7 @@ msgstr "ﮟﯾﺮﮐ ﻝﺎﻌﻓ ﻮﮐ ﯽﺋﺎﺳﺭ ﻦﺋﻻ﻿ ﻥﺁ ﮟ
 
 
 msgid "Add-on \"{:s}\" is already installed!"
-msgstr "!ﮯﮨ ﻝﺎﭩﺴﻧﺍ ﮯﺳ ﮯﻠﮩﭘ \"{s:}\" ﻥﺁ ﮉﯾﺍ"
+msgstr "!ﮯﮨ ﻝﺎﭩﺴﻧﺍ ﮯﺳ ﮯﻠﮩﭘ \"{:s}‬‪\" ﻥﺁ ﮉﯾﺍ"
 
 
 msgid "Blender was launched in offline mode, which cannot be changed at runtime"
@@ -107240,19 +107240,19 @@ msgstr "ﯽﺌﮔ ﯽﮐ ﮟﯿﮩﻧ ﺖﺣﺎﺿﻭ ﯽﮐ ﮯﺘﺳﺍﺭ ﯽ
 
 
 msgid "Theme \"{:s}\" is already installed!"
-msgstr "!ﮯﮨ ﻝﺎﭩﺴﻧﺍ ﯽﮨ ﮯﻠﮩﭘ \"{s:}\" ﻢﯿﮭﺗ"
+msgstr "!ﮯﮨ ﻝﺎﭩﺴﻧﺍ ﯽﮨ ﮯﻠﮩﭘ \"{:s}‬‪\" ﻢﯿﮭﺗ"
 
 
 msgid "Name: {:s}"
-msgstr "{s:} :ﻡﺎﻧ"
+msgstr "‬{:s}‪ :ﻡﺎﻧ"
 
 
 msgid "URL: {:s}"
-msgstr "URL: {:s}"
+msgstr "URL: ‪{:s}‬"
 
 
 msgid "Path: {:s}"
-msgstr "{s:} :ﮧﺘﺳﺍﺭ"
+msgstr "‬{:s}‪ :ﮧﺘﺳﺍﺭ"
 
 
 msgid "Unable to install from relative path"
@@ -107264,23 +107264,23 @@ msgstr "ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﻝﺎﭩﺴﻧﺍ ﯼﺮﭩﮑﯾﺮ�
 
 
 msgid "Do you want to install the following {:s}?"
-msgstr "؟ﮟﯿﮨ ﮯﺘﮨﺎﭼ ﺎﻧﺮﮐ ﻝﺎﭩﺴﻧﺍ ﻮﮐ {s:} ﻞﯾﺫ ﺝﺭﺩ ﭖﺁ ﺎﯿﮐ"
+msgstr "؟ﮟﯿﮨ ﮯﺘﮨﺎﭼ ﺎﻧﺮﮐ ﻝﺎﭩﺴﻧﺍ ﻮﮐ {:s}‬‪ ﻞﯾﺫ ﺝﺭﺩ ﭖﺁ ﺎﯿﮐ"
 
 
 msgid "Repository: {:s}"
-msgstr "{s:} :ﮦﺮﯿﺧﺫ"
+msgstr "‬{:s}‪ :ﮦﺮﯿﺧﺫ"
 
 
 msgid "Size: {:s}"
-msgstr "{s:} :ﺰﺋﺎﺳ"
+msgstr "‬{:s}‪ :ﺰﺋﺎﺳ"
 
 
 msgid "Age: {:s}"
-msgstr "{s:} :ﺮﻤﻋ"
+msgstr "‬{:s}‪ :ﺮﻤﻋ"
 
 
 msgid "Error: {:s}"
-msgstr "{s:} :ﯽﺑﺍﺮﺧ"
+msgstr "‬{:s}‪ :ﯽﺑﺍﺮﺧ"
 
 
 msgid "Missing Built-in Add-ons"
@@ -107491,7 +107491,7 @@ msgstr "ﮟﯾﺮﮐ ﭧﯿﺳ ﻢﯿﮭﺗ"
 
 
 msgid "{:s} ({:s} available)"
-msgstr "{:s} ({:s} ﮯﮨ ﺏﺎﯿﺘﺳﺩ)"
+msgstr "‪{:s}‬ (‪{:s}‬ ﮯﮨ ﺏﺎﯿﺘﺳﺩ)"
 
 
 msgctxt "Operator"
@@ -107508,7 +107508,7 @@ msgstr "...ﮯﮨ ﺎﮨﺭ ﻮﮨ ﮈﻮﻟ ﻥﺅﺍﮈ"
 
 
 msgid "Downloading \"{:s}\""
-msgstr "\"{s:}\" ﮯﮨ ﺎﮨﺭ ﻮﮨ ﮈﻮﻟ ﻥﺅﺍﮈ"
+msgstr "\"{:s}‬‪\" ﮯﮨ ﺎﮨﺭ ﻮﮨ ﮈﻮﻟ ﻥﺅﺍﮈ"
 
 
 msgid "OSL support disabled in this build"
@@ -108279,11 +108279,11 @@ msgstr "ﮯﮨ ﯼﺭﻭﺮﺿ ﺎﻧﺮﮐ ﺐﺨﺘﻨﻣ ﮈﻮﻧ ﮏﯾﺍ 
 
 
 msgid "Active node should not be of type {:s}."
-msgstr "ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﮟﯿﮩﻧ ﺎﮐ ﻢﺴﻗ {s:} ﮈﻮﻧ ﻝﺎﻌﻓ"
+msgstr "ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﮟﯿﮩﻧ ﺎﮐ ﻢﺴﻗ {:s}‬‪ ﮈﻮﻧ ﻝﺎﻌﻓ"
 
 
 msgid "Active node should be of type {:s}."
-msgstr "ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﺎﮐ ﻢﺴﻗ {s:} ﮈﻮﻧ ﻮﭩﮑﯾﺍ"
+msgstr "ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﺎﮐ ﻢﺴﻗ {:s}‬‪ ﮈﻮﻧ ﻮﭩﮑﯾﺍ"
 
 
 msgctxt "Operator"
@@ -108437,7 +108437,7 @@ msgstr ":ﮯﮨ ﺮﺼﺤﻨﻣ ﺮﭘ ﭧﯿﺳ ﺮﭽﯿﻓ ﻞﯾﺫ ﺝﺭ�
 
 
 msgid "This feature set requires Blender {:s} or newer to work properly."
-msgstr "ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﺮﺗ ﺪﯾﺪﺟ ﮯﺳ ﺱﺍ ﺎﯾ {Blender {:s ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻡﺎﮐ ﮯﺳ ﮯﻘﯾﺮﻃ ﺢﯿﺤﺻ ﻮﮐ ﭧﯿﺳ ﺮﭽﯿﻓ ﺱﺍ"
+msgstr "ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﺮﺗ ﺪﯾﺪﺟ ﮯﺳ ﺱﺍ ﺎﯾ Blender ‪{:s}‬ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻡﺎﮐ ﮯﺳ ﮯﻘﯾﺮﻃ ﺢﯿﺤﺻ ﻮﮐ ﭧﯿﺳ ﺮﭽﯿﻓ ﺱﺍ"
 
 
 msgid "The feature set archive must contain one base directory"
@@ -108449,15 +108449,15 @@ msgstr "ﮯﮨ ﺐﺋﺎﻏ init__.py__ ﺎﯾ ،ﮯﮨ ﮟﯿﮩﻧ ﮓﯾﺮ�
 
 
 msgid "The feature set archive base directory name is not a valid identifier: '{:s}'"
-msgstr "'{s:}' :ﮯﮨ ﮟﯿﮩﻧ ﮦﺪﻨﻨﮐ ﺖﺧﺎﻨﺷ ﺖﺳﺭﺩ ﻡﺎﻧ ﺎﮐ ﯼﺮﭩﮐﺮﺋﺍﮈ ﺲﯿﺑ ﻮﯿﺋﺎﮐﺭﺁ ﭧﯿﺳ ﺮﭽﯿﻓ"
+msgstr "'{:s}‬‪' :ﮯﮨ ﮟﯿﮩﻧ ﮦﺪﻨﻨﮐ ﺖﺧﺎﻨﺷ ﺖﺳﺭﺩ ﻡﺎﻧ ﺎﮐ ﯼﺮﭩﮐﺮﺋﺍﮈ ﺲﯿﺑ ﻮﯿﺋﺎﮐﺭﺁ ﭧﯿﺳ ﺮﭽﯿﻓ"
 
 
 msgid "The name '{:s}' is not allowed for feature sets"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺕﺯﺎﺟﺍ ﯽﮐ ﻡﺎﻧ '{s:}' ﮯﯿﻟ ﮯﮐ ﭧﯿﺳ ﺮﭽﯿﻓ"
+msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺕﺯﺎﺟﺍ ﯽﮐ ﻡﺎﻧ '{:s}‬‪' ﮯﯿﻟ ﮯﮐ ﭧﯿﺳ ﺮﭽﯿﻓ"
 
 
 msgid "Feature set directory already exists: '{:s}'"
-msgstr "'{s:}' :ﮯﮨ ﺩﻮﺟﻮﻣ ﮯﺳ ﮯﻠﮩﭘ ﯼﺮﭩﮐﺮﺋﺍﮈ ﭧﯿﺳ ﺮﭽﯿﻓ"
+msgstr "'{:s}‬‪' :ﮯﮨ ﺩﻮﺟﻮﻣ ﮯﺳ ﮯﻠﮩﭘ ﯼﺮﭩﮐﺮﺋﺍﮈ ﭧﯿﺳ ﺮﭽﯿﻓ"
 
 
 msgid "Status:"
@@ -108481,23 +108481,23 @@ msgstr "!ﺎﺘﮑﺳ ﻮﮨ ﮟﯿﮩﻧ ﺎﺴﯿﺟ ﮏﯾﺍ ﻢﯾﺮﻓ �
 
 
 msgid "Symmetrical ({:s})"
-msgstr "({s:}) ﻝﻭﮉﺳ"
+msgstr "({:s}‬‪) ﻝﻭﮉﺳ"
 
 
 msgid "Will be stuck reading frame {:d}!"
-msgstr "!{d:} ﮯﮔ ﮟﯿﺋﺎﺟ ﺲﻨﮭﭘ ﮟﯿﻣ ﻢﯾﺮﻓ ﮯﮐ ﮯﻨﮬﮍﭘ"
+msgstr "!{:d}‬‪ ﮯﮔ ﮟﯿﺋﺎﺟ ﺲﻨﮭﭘ ﮟﯿﻣ ﻢﯾﺮﻓ ﮯﮐ ﮯﻨﮬﮍﭘ"
 
 
 msgid "Default Frame: {:.0f}"
-msgstr "{0f.:} :ﻢﯾﺮﻓ ﭧﻟﺎﻔﯾﮈ"
+msgstr "‬{:.0f}‪ :ﻢﯾﺮﻓ ﭧﻟﺎﻔﯾﮈ"
 
 
 msgid "Default Frame: {:.02f} (Should be a whole number!)"
-msgstr "(!ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﺮﺒﻤﻧ ﺍﺭﻮﭘ) {02f.:} :ﻢﯾﺮﻓ ﭧﻟﺎﻔﯾﮈ"
+msgstr "(!ﮯﯿﮨﺎﭼ ﺎﻧﻮﮨ ﺮﺒﻤﻧ ﺍﺭﻮﭘ) {:.02f}‬‪ :ﻢﯾﺮﻓ ﭧﻟﺎﻔﯾﮈ"
 
 
 msgid "Bone not found: {:s}"
-msgstr "{s:} :ﯽﻠﻣ ﮟﯿﮩﻧ ﯼﮉﮨ"
+msgstr "‬{:s}‪ :ﯽﻠﻣ ﮟﯿﮩﻧ ﯼﮉﮨ"
 
 
 msgctxt "Operator"
@@ -108520,23 +108520,23 @@ msgstr "ﮟﯿﮩﻧ ﮞﺎﯾﮉﮨ ﺐﺨﺘﻨﻣ ﮞﻭﺯﻮﻣ ﯽﺋﻮ�
 
 
 msgid "Mirrored parameters of {:d} bones"
-msgstr "{:d} ﺯﺮﭩﯿﻣﺍﺮﯿﭘ ﺭﺍﺩ ﮧﻨﯿﺋﺁ ﮯﮐ ﮞﻮﯾﮉﮨ"
+msgstr "‪{:d}‬ ﺯﺮﭩﯿﻣﺍﺮﯿﭘ ﺭﺍﺩ ﮧﻨﯿﺋﺁ ﮯﮐ ﮞﻮﯾﮉﮨ"
 
 
 msgid "Copied {:s} parameters to {:d} bones"
-msgstr "{:s} ﻮﮐ ﺯﺮﭩﯿﻣﺍﺮﯿﭘ {:d} ﺎﯿﮔ ﺎﯿﮐ ﯽﭘﺎﮐ ﮟﯿﻣ ﮞﻮﯾﮉﮨ"
+msgstr "‪{:s}‬ ﻮﮐ ﺯﺮﭩﯿﻣﺍﺮﯿﭘ ‪{:d}‬ ﺎﯿﮔ ﺎﯿﮐ ﯽﭘﺎﮐ ﮟﯿﻣ ﮞﻮﯾﮉﮨ"
 
 
 msgid "Copied the value to {:d} bones"
-msgstr "ﺎﯿﮐ ﯽﭘﺎﮐ ﮟﯿﻣ ﮞﻮﯾﮉﮨ {d:} ﻮﮐ ﺭﺪﻗ"
+msgstr "ﺎﯿﮐ ﯽﭘﺎﮐ ﮟﯿﻣ ﮞﻮﯾﮉﮨ {:d}‬‪ ﻮﮐ ﺭﺪﻗ"
 
 
 msgid "Cannot find class {:s} in {:s}"
-msgstr "{:s} ﺱﻼ﻿ﮐ ﮟﯿﻣ {:s} ﯽﺘﮑﺳ ﻞﻣ ﮟﯿﮩﻧ"
+msgstr "‪{:s}‬ ﺱﻼ﻿ﮐ ﮟﯿﻣ ‪{:s}‬ ﯽﺘﮑﺳ ﻞﻣ ﮟﯿﮩﻧ"
 
 
 msgid "Bone {:s} selected on both sides, mirroring would be ambiguous, aborting. Only select the left or right side, not both"
-msgstr "ﮟﯿﮩﻧ ﻮﮐ ﮞﻮﻧﻭﺩ ،ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﻑﺮﻃ ﮟﯿﺋﺍﺩ ﺎﯾ ﮟﯿﺋﺎﺑ ﻑﺮﺻ ﺎﮔﻮﮨ ﻁﺎﻘﺳﺍ ،ﺎﮔﻮﮨ ﻢﮩﺒﻣ ﮧﻨﯿﺋﺁ ،ﮯﮨ ﺎﯿﮔ ﺎﯿﮐ ﺐﺨﺘﻨﻣ ﮯﺳ ﻑﺮﻃ ﮞﻮﻧﻭﺩ ﻮﮐ {s:} ﯼﮉﮨ"
+msgstr "ﮟﯿﮩﻧ ﻮﮐ ﮞﻮﻧﻭﺩ ،ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﻮﮐ ﻑﺮﻃ ﮟﯿﺋﺍﺩ ﺎﯾ ﮟﯿﺋﺎﺑ ﻑﺮﺻ ﺎﮔﻮﮨ ﻁﺎﻘﺳﺍ ،ﺎﮔﻮﮨ ﻢﮩﺒﻣ ﮧﻨﯿﺋﺁ ،ﮯﮨ ﺎﯿﮔ ﺎﯿﮐ ﺐﺨﺘﻨﻣ ﮯﺳ ﻑﺮﻃ ﮞﻮﻧﻭﺩ ﻮﮐ {:s}‬‪ ﯼﮉﮨ"
 
 
 msgid "Master Control"
@@ -108608,7 +108608,7 @@ msgstr "ﮟﯾﺮﮐ ﮪﺪﯿﺳ ﻮﮐ ﻡﺎﺘﺘﺧﺍ ﻮﭨﺁ"
 
 
 msgid "Auto Align {:s}"
-msgstr "{s:} ﺎﻧﻻ﻿ ﮟﯿﻣ ﮪﺪﯿﺳ ﻮﭨﺁ"
+msgstr "‬{:s}‪ ﺎﻧﻻ﻿ ﮟﯿﻣ ﮪﺪﯿﺳ ﻮﭨﺁ"
 
 
 msgid "A straight line rest shape works best."
@@ -108616,7 +108616,7 @@ msgstr "A ﮯﮨ ﯽﺗﺮﮐ ﻡﺎﮐ ﻦﯾﺮﺘﮩﺑ ﻞﮑﺷ ﯽﮐ ﻡ�
 
 
 msgid "IK->FK ({:s})"
-msgstr "IK->FK ({:s})"
+msgstr "IK->FK (‪{:s}‬)"
 
 
 msgid "Bend rotation axis:"
@@ -108852,15 +108852,15 @@ msgstr "ﮟﯾﺮﮐ ﻑﺎﺻ ﻮﮐ ﻦﺸﮑﯾﺍ ﮯﮐ ﻒﯾﺍ"
 
 
 msgid "Metarig written to text datablock {:s}"
-msgstr "{s:} ﺎﯿﮔ ﺎﮭﮑﻟ ﺮﭘ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﺴﮑﯿﭨ ﻮﮐ ﮓﯾﺭﺎﭩﯿﻣ"
+msgstr "‬{:s}‪ ﺎﯿﮔ ﺎﮭﮑﻟ ﺮﭘ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﺴﮑﯿﭨ ﻮﮐ ﮓﯾﺭﺎﭩﯿﻣ"
 
 
 msgid "Metarig Sample written to text datablock {:s}"
-msgstr "{s:} ﺎﯿﮔ ﺎﮭﮑﻟ ﺮﭘ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﺴﮑﯿﭨ ﮧﻧﻮﻤﻧ ﺎﮐ ﮓﯾﺮﯿﭩﯿﻣ"
+msgstr "‬{:s}‪ ﺎﯿﮔ ﺎﮭﮑﻟ ﺮﭘ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ ﭧﺴﮑﯿﭨ ﮧﻧﻮﻤﻧ ﺎﮐ ﮓﯾﺮﯿﭩﯿﻣ"
 
 
 msgid "({:s} on bone {:s})"
-msgstr "({:s} ﺮﭘ ﯼﮉﮨ {:s})"
+msgstr "(‪{:s}‬ ﺮﭘ ﯼﮉﮨ ‪{:s}‬)"
 
 
 msgid "This metarig uses the old face rig."
@@ -108868,7 +108868,7 @@ msgstr "ﮯﮨ ﯽﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﮒﺭ ﯽﮐ ﮮﺮﮩ
 
 
 msgid "The '{:s}' collection will be added upon generation"
-msgstr "{:s}' ﺎﮔ ﮯﺋﺎﺟ ﺎﯿﮐ ﻞﻣﺎﺷ ﺪﻌﺑ ﮯﮐ ﻞﺴﻧ ﮧﻋﻮﻤﺠﻣ"
+msgstr "‪{:s}‬' ﺎﮔ ﮯﺋﺎﺟ ﺎﯿﮐ ﻞﻣﺎﺷ ﺪﻌﺑ ﮯﮐ ﻞﺴﻧ ﮧﻋﻮﻤﺠﻣ"
 
 
 msgid "No options"
@@ -108880,7 +108880,7 @@ msgstr ":ﺕﺍﺭﺎﯿﺘﺧﺍ"
 
 
 msgid "Incorrect armature for type '{:s}'"
-msgstr "ﺮﭽﻣﺭﺁ ﻂﻠﻏ ﮯﯿﻟ ﮯﮐ '{s:}' ﻢﺴﻗ"
+msgstr "ﺮﭽﻣﺭﺁ ﻂﻠﻏ ﮯﯿﻟ ﮯﮐ '{:s}‬‪' ﻢﺴﻗ"
 
 
 msgid "Generation has thrown an exception: "
@@ -108888,11 +108888,11 @@ msgstr " :ﮯﮨ ﺎﯾﺩ ءﺎﻨﺜﺘﺳﺍ ﮏﯾﺍ ﮯﻧ ﻦﺸﯾﺮﻨ
 
 
 msgid "Successfully generated: \"{:s}\""
-msgstr "\"{s:}\" :ﺎﯿﮔ ﺎﯿﮐ ﺭﺎﯿﺗ ﮫﺗﺎﺳ ﮯﮐ ﯽﺑﺎﯿﻣﺎﮐ"
+msgstr "\"{:s}‬‪\" :ﺎﯿﮔ ﺎﯿﮐ ﺭﺎﯿﺗ ﮫﺗﺎﺳ ﮯﮐ ﯽﺑﺎﯿﻣﺎﮐ"
 
 
 msgid "ERROR: type \"{:s}\" does not exist!"
-msgstr "!ﮯﮨ ﮟﯿﮩﻧ ﺩﻮﺟﻮﻣ \"{s:}\" ﻢﺴﻗ :ﯽﺑﺍﺮﺧ"
+msgstr "!ﮯﮨ ﮟﯿﮩﻧ ﺩﻮﺟﻮﻣ \"{:s}‬‪\" ﻢﺴﻗ :ﯽﺑﺍﺮﺧ"
 
 
 msgctxt "Operator"
@@ -108905,11 +108905,11 @@ msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﻦﭩﺑ ﺲﻠﭘ ﮯﯿﻟ 
 
 
 msgid "Collection {:s} has the same uid {:d} as {:s}"
-msgstr "{s:} ﮧﮐ ﺎﺴﯿﺟ ﮯﮨ {uid {:d ﯽﮨﻭ ﮟﯿﻣ {s:} ﮧﻋﻮﻤﺠﻣ"
+msgstr "‬{:s}‪ ﮧﮐ ﺎﺴﯿﺟ ﮯﮨ uid ‪{:d}‬ ﯽﮨﻭ ﮟﯿﻣ {:s}‬‪ ﮧﻋﻮﻤﺠﻣ"
 
 
 msgid "Bone {:s} has a broken reference to {:s} collection '{:s}'"
-msgstr "ﮯﮨ ﮧﻟﺍﻮﺣ ﺍﻮﮨ ﺎﭨﻮﭨ ﺎﮐ '{s:}' ﮧﻋﻮﻤﺠﻣ {s:} ﮟﯿﻣ {s:} ﯼﮉﮨ"
+msgstr "ﮯﮨ ﮧﻟﺍﻮﺣ ﺍﻮﮨ ﺎﭨﻮﭨ ﺎﮐ '{:s}‬‪' ﮧﻋﻮﻤﺠﻣ {:s}‬‪ ﮟﯿﻣ {:s}‬‪ ﯼﮉﮨ"
 
 
 msgid "WARNING: preferences are lost when add-on is disabled, be sure to use \"Save Persistent\" if you want to keep your settings!"
@@ -109106,7 +109106,7 @@ msgstr "ﺪﻨﺑﺎﭘ ﯼﺪﯿﻠﮐ by ﮟﯾﺮﮐ ﺵﻼ﻿ﺗ"
 
 
 msgid "{:s} (Global)"
-msgstr "{:s} (ﯽﻤﻟﺎﻋ)"
+msgstr "‪{:s}‬ (ﯽﻤﻟﺎﻋ)"
 
 
 msgctxt "Operator"
@@ -109147,11 +109147,11 @@ msgstr "ﺱﺭﻮﭨ"
 
 
 msgid "Removed {:d} empty and/or fake-user only Actions"
-msgstr "ﻦﺸﮑﯾﺍ ﻑﺮﺻ ﻑﺭﺎﺻ ﯽﻠﻌﺟ ﺎﯾ/ﺭﻭﺍ ﯽﻟﺎﺧ {d:} ﺎﯿﮔ ﺎﯾﺩ ﺎﭩﮨ"
+msgstr "ﻦﺸﮑﯾﺍ ﻑﺮﺻ ﻑﺭﺎﺻ ﯽﻠﻌﺟ ﺎﯾ/ﺭﻭﺍ ﯽﻟﺎﺧ {:d}‬‪ ﺎﯿﮔ ﺎﯾﺩ ﺎﭩﮨ"
 
 
 msgid "Removed {:d} of {:d} bone collections"
-msgstr "{:d} ﮯﺳ ﮟﯿﻣ ﮞﻮﻋﻮﻤﺠﻣ ﮯﮐ ﮞﻮﯾﮉﮨ {:d} ﺎﯿﮔ ﺎﯾﺩ ﺎﭩﮨ ﻮﮐ"
+msgstr "‪{:d}‬ ﮯﺳ ﮟﯿﻣ ﮞﻮﻋﻮﻤﺠﻣ ﮯﮐ ﮞﻮﯾﮉﮨ ‪{:d}‬ ﺎﯿﮔ ﺎﯾﺩ ﺎﭩﮨ ﻮﮐ"
 
 
 msgid "Nothing to bake"
@@ -109167,7 +109167,7 @@ msgstr "ﮟﯿﮩﻧ ﮞﺎﯾﮉﮨ ﺐﺨﺘﻨﻣ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯ�
 
 
 msgid "Bone colors were synced; for {:d} bones this will not be visible due to pose bone color overrides"
-msgstr "ﺎﮔ ﮯﺋﺁ ﮟﯿﮩﻧ ﺮﻈﻧ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺯﮉﯿﺋﺍﺭ ﺭﻭﻭﺍ ﺮﻠﮐ ﻥﻮﺑ ﺯﻮﭘ ﮧﯾ ﮯﯿﻟ ﮯﮐ ﮞﻮﯾﮉﮨ {d:} ﮯﮭﺗ ﺮﯾﺬﭘ ﺖﻘﺑﺎﻄﻣ ﮓﻧﺭ ﮯﮐ ﮞﻮﯾﮉﮨ"
+msgstr "ﺎﮔ ﮯﺋﺁ ﮟﯿﮩﻧ ﺮﻈﻧ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺯﮉﯿﺋﺍﺭ ﺭﻭﻭﺍ ﺮﻠﮐ ﻥﻮﺑ ﺯﻮﭘ ﮧﯾ ﮯﯿﻟ ﮯﮐ ﮞﻮﯾﮉﮨ {:d}‬‪ ﮯﮭﺗ ﺮﯾﺬﭘ ﺖﻘﺑﺎﻄﻣ ﮓﻧﺭ ﮯﮐ ﮞﻮﯾﮉﮨ"
 
 
 msgid "None of the bone collections is marked 'solo'"
@@ -109195,11 +109195,11 @@ msgstr "{r!} ﺎﺘﮑﺳ ﺮﮐ ﮟﯿﮩﻧ ﮫﭽﮐ ﮟﯿﻣ ﮈﻮﻣ"
 
 
 msgid "Could not find material or light using Shader Node Tree - {:s}"
-msgstr "{s:} - ﯽﮑﺳ ﻞﻣ ﮟﯿﮩﻧ ﯽﻨﺷﻭﺭ ﺎﯾ ﺩﺍﻮﻣ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﯼﺮﭨ ﮈﻮﻧ ﺭﮉﯿﺷ"
+msgstr "‬{:s}‪ - ﯽﮑﺳ ﻞﻣ ﮟﯿﮩﻧ ﯽﻨﺷﻭﺭ ﺎﯾ ﺩﺍﻮﻣ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﯼﺮﭨ ﮈﻮﻧ ﺭﮉﯿﺷ"
 
 
 msgid "Could not find scene using Compositor Node Tree - {:s}"
-msgstr "{s:} - ﺎﮑﺳ ﻞﻣ ﮟﯿﮩﻧ ﺮﻈﻨﻣ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﯼﺮﭨ ﮈﻮﻧ ﺮﭩﯾﺯﻮﭙﻤﮐ"
+msgstr "‬{:s}‪ - ﺎﮑﺳ ﻞﻣ ﮟﯿﮩﻧ ﺮﻈﻨﻣ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﯼﺮﭨ ﮈﻮﻧ ﺮﭩﯾﺯﻮﭙﻤﮐ"
 
 
 msgid "No asset selected"
@@ -109223,7 +109223,7 @@ msgstr "ﮯﮨ ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﺵﻼ﻿ﺗ ﻞﻤﻋ ﻻ﻿ﺍ
 
 
 msgid "Blender sub-process exited with error code {:d}"
-msgstr "ﺎﯿﮔ ﻮﮨ ﻢﺘﺧ ﮫﺗﺎﺳ ﮯﮐ {d:} ﮈﻮﮐ ﯽﻄﻠﻏ ﻞﻤﻋ ﯽﻠﯾﺫ ﺭﮉﻨﯿﻠﺑ"
+msgstr "ﺎﯿﮔ ﻮﮨ ﻢﺘﺧ ﮫﺗﺎﺳ ﮯﮐ {:d}‬‪ ﮈﻮﮐ ﯽﻄﻠﻏ ﻞﻤﻋ ﯽﻠﯾﺫ ﺭﮉﻨﯿﻠﺑ"
 
 
 msgid "Selection pair not found"
@@ -109251,7 +109251,7 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﭧﯿﺳ ﻦﺸﮑﯿﻠﺳ ﮟﯿﻣ ﮈﺭﻮﺑ 
 
 
 msgid "Identified {:d} problematic tracks"
-msgstr "ﮏﯾﺮﭨ ﮯﻟﺍﻭ ﯽﻧﺎﺸﯾﺮﭘ {d:} ﮦﺪﺷ ﺖﺧﺎﻨﺷ"
+msgstr "ﮏﯾﺮﭨ ﮯﻟﺍﻭ ﯽﻧﺎﺸﯾﺮﭘ {:d}‬‪ ﮦﺪﺷ ﺖﺧﺎﻨﺷ"
 
 
 msgid "No usable tracks selected"
@@ -109311,11 +109311,11 @@ msgstr "ﮟﯿﻟﻮﮭﺑ ﮧﻧ ﺎﻧﺮﮐ ﻅﻮﻔﺤﻣ ﻮﮐ ﻞﺋﺎ�
 
 
 msgid "Previews generation process failed for file '{:s}'!"
-msgstr "!ﺎﯿﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﻞﻤﻋ ﺎﮐ ﮯﻧﺮﮐ ﺭﺎﯿﺗ ﮦﺭﺎﻈﻧ ﺶﯿﭘ ﮯﯿﻟ ﮯﮐ '{s:}' ﻞﺋﺎﻓ"
+msgstr "!ﺎﯿﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﻞﻤﻋ ﺎﮐ ﮯﻧﺮﮐ ﺭﺎﯿﺗ ﮦﺭﺎﻈﻧ ﺶﯿﭘ ﮯﯿﻟ ﮯﮐ '{:s}‬‪' ﻞﺋﺎﻓ"
 
 
 msgid "Previews clear process failed for file '{:s}'!"
-msgstr "!ﺎﯿﮔﻮﮨ ﻡﺎﮐﺎﻧ ﻞﻤﻋ ﻑﺎﺻ ﮦﺭﺎﻈﻧ ﺶﯿﭘ ﮯﯿﻟ ﮯﮐ '{s:}' ﻞﺋﺎﻓ"
+msgstr "!ﺎﯿﮔﻮﮨ ﻡﺎﮐﺎﻧ ﻞﻤﻋ ﻑﺎﺻ ﮦﺭﺎﻈﻧ ﺶﯿﭘ ﮯﯿﻟ ﮯﮐ '{:s}‬‪' ﻞﺋﺎﻓ"
 
 
 msgid "No active camera in the scene"
@@ -109351,7 +109351,7 @@ msgstr "ﯽﮑﺳ ﻦﺑ ﮟﯿﮩﻧ ﺮﯾﻮﺼﺗ ﯽﺌﻧ"
 
 
 msgid "Could not find image '{:s}'"
-msgstr "ﯽﮑﺳ ﻞﻣ ﮟﯿﮩﻧ '{s:}' ﺮﯾﻮﺼﺗ"
+msgstr "ﯽﮑﺳ ﻞﻣ ﮟﯿﮩﻧ '{:s}‬‪' ﺮﯾﻮﺼﺗ"
 
 
 msgid "Image editor could not be launched, ensure that the path in User Preferences > File is valid, and Blender has rights to launch it"
@@ -109363,19 +109363,19 @@ msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ ﺮﯾﻮﺼﺗ ،ﻂﻠﻏ ﻕﺎﺒﺳ ﻭ ﻕ�
 
 
 msgid "Added {:d} Image Plane(s)"
-msgstr "ﮦﺭﺎﯿﻃ ﯼﺮﯾﻮﺼﺗ {d:} ﺎﯿﮔ ﺎﯿﮐ ﻞﻣﺎﺷ"
+msgstr "ﮦﺭﺎﯿﻃ ﯼﺮﯾﻮﺼﺗ {:d}‬‪ ﺎﯿﮔ ﺎﯿﮐ ﻞﻣﺎﺷ"
 
 
 msgid "{:d} image(s) converted to mesh plane(s)"
-msgstr "{:d} ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﺯﺎﮩﺟ ﯽﺋﺍﻮﮨ ﺶﯿﻣ (ﺮﯾﻭﺎﺼﺗ)ﺮﯾﻮﺼﺗ"
+msgstr "‪{:d}‬ ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﺯﺎﮩﺟ ﯽﺋﺍﻮﮨ ﺶﯿﻣ (ﺮﯾﻭﺎﺼﺗ)ﺮﯾﻮﺼﺗ"
 
 
 msgid "Cannot generate materials for unknown {:s} render engine"
-msgstr "ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﺭﺎﯿﺗ ﺩﺍﻮﻣ ﮯﯿﻟ ﮯﮐ ﻦﺠﻧﺍ ﺭﮉﻨﯾﺭ {s:} ﻡﻮﻠﻌﻣﺎﻧ"
+msgstr "ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﺭﺎﯿﺗ ﺩﺍﻮﻣ ﮯﯿﻟ ﮯﮐ ﻦﺠﻧﺍ ﺭﮉﻨﯾﺭ {:s}‬‪ ﻡﻮﻠﻌﻣﺎﻧ"
 
 
 msgid "Generating Cycles/EEVEE compatible material, but won't be visible with {:s} engine"
-msgstr "ﺎﮔ ﮯﺋﺁ ﮟﯿﮩﻧ ﺮﻈﻧ ﮫﺗﺎﺳ ﮯﮐ ﻦﺠﻧﺍ {s:} ﻦﮑﯿﻟ ،ﺎﻧﺮﮐ ﺭﺎﯿﺗ ﺩﺍﻮﻣ ﺮﯾﺬﭘ ﺖﻘﺑﺎﻄﻣ EEVEE/ﺰﻠﮑﯿﺋﺎﺳ"
+msgstr "ﺎﮔ ﮯﺋﺁ ﮟﯿﮩﻧ ﺮﻈﻧ ﮫﺗﺎﺳ ﮯﮐ ﻦﺠﻧﺍ {:s}‬‪ ﻦﮑﯿﻟ ،ﺎﻧﺮﮐ ﺭﺎﯿﺗ ﺩﺍﻮﻣ ﺮﯾﺬﭘ ﺖﻘﺑﺎﻄﻣ EEVEE/ﺰﻠﮑﯿﺋﺎﺳ"
 
 
 msgid "Please select at least one image"
@@ -109387,11 +109387,11 @@ msgstr "ﮟﯿﺋﻮﮨ ﮟﯿﮩﻧ ﻞﯾﺪﺒﺗ ﺮﯾﻭﺎﺼﺗ ﯽﺋ�
 
 
 msgid "{:s} is not supported"
-msgstr "{:s} ﮯﮨ ﮟﯿﮩﻧ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ"
+msgstr "‪{:s}‬ ﮯﮨ ﮟﯿﮩﻧ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ"
 
 
 msgid "Node has no attribute {:s}"
-msgstr "{s:} ﮯﮨ ﮟﯿﮩﻧ ﻒﺻﻭ ﯽﺋﻮﮐ ﺎﮐ ﮈﻮﻧ"
+msgstr "‬{:s}‪ ﮯﮨ ﮟﯿﮩﻧ ﻒﺻﻭ ﯽﺋﻮﮐ ﺎﮐ ﮈﻮﻧ"
 
 
 msgid "Active editor is not a node editor."
@@ -109423,7 +109423,7 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺪﯿﻠﮐ ﻞﮑﺷ ﯽﺋﻮﮐ ﯽﮐ ﮯﺷ �
 
 
 msgid "Object: {:s}, Mesh: '{:s}' has no UVs"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ UVs ﯽﺋﻮﮐ ﮟﯿﻣ '{s:}' :ﺶﯿﻣ ،{s:} :ﭧﮑﯿﺠﺑﺁ"
+msgstr "ﮯﮨ ﮟﯿﮩﻧ UVs ﯽﺋﻮﮐ ﮟﯿﻣ '{:s}‬‪' :ﺶﯿﻣ ،{:s}‬‪ :ﭧﮑﯿﺠﺑﺁ"
 
 
 msgid "Active camera is not in this scene"
@@ -109431,11 +109431,11 @@ msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮟﯿﻣ ﺮﻈﻨﻣ ﺱﺍ ﮦﺮﻤﯿﮐ ﻮﭩ
 
 
 msgid "Skipping '{:s}', not a mesh"
-msgstr "{:s}' ﮟﯿﮩﻧ ﺶﯿﻣ ،ﺎﻧﮌﻮﮭﭼ ﻮﮐ"
+msgstr "‪{:s}‬' ﮟﯿﮩﻧ ﺶﯿﻣ ،ﺎﻧﮌﻮﮭﭼ ﻮﮐ"
 
 
 msgid "Skipping '{:s}', vertex count differs"
-msgstr "{:s}' ﮯﮨ ﯽﺗﻮﮨ ﻒﻠﺘﺨﻣ ﯽﺘﻨﮔ ﯽﮐ ﺲﮑﯿﭨﺭﻭ ،ﺎﻧﮌﻮﮭﭼ ﻮﮐ"
+msgstr "‪{:s}‬' ﮯﮨ ﯽﺗﻮﮨ ﻒﻠﺘﺨﻣ ﯽﺘﻨﮔ ﯽﮐ ﺲﮑﯿﭨﺭﻭ ،ﺎﻧﮌﻮﮭﭼ ﻮﮐ"
 
 
 msgid "No animation data to convert on object: {!r}"
@@ -109443,7 +109443,7 @@ msgstr "{r!} :ﮟﯿﮩﻧ ﺎﭩﯾﮈ ﺕﺎﯿﮐﺮﺣ  ﯽﺋﻮﮐ ﮯﯿ�
 
 
 msgid "Object: {:s}, Mesh: '{:s}' has {:d} loops (for {:d} faces), expected {:d}"
-msgstr "{d:} ﻊﻗﻮﺘﻣ ،(ﮯﯿﻟ ﮯﮐ ﮞﻭﺮﮩﭼ {d:}) ﮟﯿﮨ ﺲﭘﻮﻟ {d:} ﮟﯿﻣ '{s:}' :ﺶﯿﻣ ،{s:} :ﭧﮑﯿﺠﺑﺁ"
+msgstr "‬{:d}‪ ﻊﻗﻮﺘﻣ ،(ﮯﯿﻟ ﮯﮐ ﮞﻭﺮﮩﭼ {:d}‬‪) ﮟﯿﮨ ﺲﭘﻮﻟ {:d}‬‪ ﮟﯿﻣ '{:s}‬‪' :ﺶﯿﻣ ،{:s}‬‪ :ﭧﮑﯿﺠﺑﺁ"
 
 
 msgid "Object {!r} already has {!r} F-Curve(s). Remove these before trying again"
@@ -109451,7 +109451,7 @@ msgstr "ﮟﯾﺩ ﺎﭩﮨ ﻮﮐ ﻥﺍ ﮯﻠﮩﭘ ﮯﺳ ﮯﻧﺮﮐ ﺶ�
 
 
 msgid "Could not add a new UV map to object '{:s}' (Mesh '{:s}')"
-msgstr "('{s:}' ﺶﯿﻣ) ﺎﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﮧﺸﻘﻧ UV ﺎﯿﻧ ﮟﯿﻣ '{s:}' ﭧﮑﯿﺠﺑﺁ"
+msgstr "('{:s}‬‪' ﺶﯿﻣ) ﺎﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﮧﺸﻘﻧ UV ﺎﯿﻧ ﮟﯿﻣ '{:s}‬‪' ﭧﮑﯿﺠﺑﺁ"
 
 
 msgid "No objects with bound-box selected"
@@ -109535,7 +109535,7 @@ msgstr "ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺎﭩﮨ ﻮﮐ ﮞﻮﭩﯿﺳ ﺶﯿﭘ ﮦ
 
 
 msgid "Unable to overwrite preset: {:s}"
-msgstr "{s:} :ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ ﭧﯿﺳ ﺶﯿﭘ"
+msgstr "‬{:s}‪ :ﺮﺻﺎﻗ ﮯﺳ ﮯﻧﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ ﭧﯿﺳ ﺶﯿﭘ"
 
 
 msgid "Unable to remove preset: {!r}"
@@ -109555,7 +109555,7 @@ msgstr "ﮟﯿﮨ ﯽﺗﻮﮨ ﮟﯿﮩﻧ ﭗﯿﻟﺭﻭﻭﺍ ﺲﭘﺮﭩ�
 
 
 msgid "Added fade animation to {:d} {:s}"
-msgstr "ﺎﯿﮔ ﺎﯿﮐ ﻞﻣﺎﺷ ﮟﯿﻣ {d} {:s:} ﻮﮐ ﺕﺎﯿﮐﺮﺣ  ﯽﻟﺪﻨﮬﺩ"
+msgstr "ﺎﯿﮔ ﺎﯿﮐ ﻞﻣﺎﺷ ﮟﯿﻣ {:d}‬ ‪{:s}‬‪ ﻮﮐ ﺕﺎﯿﮐﺮﺣ  ﯽﻟﺪﻨﮬﺩ"
 
 
 msgid "Select 2 sound strips"
@@ -109603,7 +109603,7 @@ msgstr "؟ﮟﯾﺮﮐ ﭧﺋﺍﺭ ﺭﻭﻭﺍ ﻮﮐ ﻞﺋﺎﻓ ﮦﺩﻮ�
 
 
 msgid "Installing keymap failed: {:s}"
-msgstr "{s:} :ﺎﯿﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﺎﻧﺮﮐ ﻝﺎﭩﺴﻧﺍ ﻮﮐ ﭗﯿﻣ ﯽﮐ"
+msgstr "‬{:s}‪ :ﺎﯿﮔ ﻮﮨ ﻡﺎﮐﺎﻧ ﺎﻧﺮﮐ ﻝﺎﭩﺴﻧﺍ ﻮﮐ ﭗﯿﻣ ﯽﮐ"
 
 
 msgid "File already installed to {!r}"
@@ -109619,11 +109619,11 @@ msgstr "ﮟﯿﮩﻧ ﺮﭘ ﺢﻄﺳ ﯽﻠﻋﺍ ،ﮯﺌﮨﺎﭼ ﺎﻧﻮ�
 
 
 msgid "Modules Installed ({:s}) from {!r} into {!r}"
-msgstr "{!r} ﮯﺳ {!r} ﺰﻟﻮﯾﮈﺎﻣ ﮦﺩﺮﮐ ﻝﺎﭩﺴﻧﺍ ﮟﯿﻣ ({:s})"
+msgstr "{!r} ﮯﺳ {!r} ﺰﻟﻮﯾﮈﺎﻣ ﮦﺩﺮﮐ ﻝﺎﭩﺴﻧﺍ ﮟﯿﻣ (‪{:s}‬)"
 
 
 msgid "Template Installed ({:s}) from {!r} into {!r}"
-msgstr "ﮟﯿﻣ {r!} ﮯﺳ {s}) {!r:}) ﺍﻮﮨ ﻝﺎﭩﺴﻧﺍ ﮧﭽﻧﺎﺳ"
+msgstr "ﮟﯿﻣ {r!} ﮯﺳ {{:s}‬) {!r‪) ﺍﻮﮨ ﻝﺎﭩﺴﻧﺍ ﮧﭽﻧﺎﺳ"
 
 
 msgid "StudioLight Installed {!r} into {!r}"
@@ -109683,7 +109683,7 @@ msgstr "OperatorList.txt ﮟﯿﮭﮑﯾﺩ ﮎﻼ﻿ﺑ ﭧﺴﮑﯿﭨ"
 
 
 msgid "Renamed {:d} of {:d} {:s}"
-msgstr "{:d} ﺎﮐ {:d} {:s} ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻞﯾﺪﺒﺗ ﻡﺎﻧ ﺎﮐ"
+msgstr "‪{:d}‬ ﺎﮐ ‪{:d}‬ ‪{:s}‬ ﺎﯿﮔ ﺎﯾﺩ ﺮﮐ ﻞﯾﺪﺒﺗ ﻡﺎﻧ ﺎﮐ"
 
 
 msgctxt "Operator"
@@ -109700,7 +109700,7 @@ msgstr "GNU ﮧﺘﻓﺎﯾ ﺲﻨﺴﺋﻻ﻿ ﺖﺤﺗ ﮯﮐ ﺲﻨﺴﺋﻻ�
 
 
 msgid "Nothing to operate on: {:s}[ ].{:s}"
-msgstr "{s}[ ].{:s:} :ﮟﯿﮩﻧ ﮫﭽﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻡﺎﮐ"
+msgstr "‬{:s}‬[ ].‪{:s}‪ :ﮟﯿﮩﻧ ﮫﭽﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻡﺎﮐ"
 
 
 msgid "File path was not set"
@@ -109708,7 +109708,7 @@ msgstr "ﺎﮭﺗ ﺎﯿﮔ ﺎﯿﮐ ﮟﯿﮩﻧ ﭧﯿﺳ ﮧﺘﺳﺍﺭ ﺎ
 
 
 msgid "File '{:s}' not found"
-msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ '{s:}' ﻞﺋﺎﻓ"
+msgstr "ﯽﻠﻣ ﮟﯿﮩﻧ '{:s}‬‪' ﻞﺋﺎﻓ"
 
 
 msgid "Direct execution not supported"
@@ -109814,7 +109814,7 @@ msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ"
 
 
 msgid "Operator not found: bpy.ops.{:s}"
-msgstr "{bpy.ops{:s :ﻼ﻿ﻣ ﮟﯿﮩﻧ ﺮﭩﯾﺮﭘﺁ"
+msgstr "‬bpy.ops‪{:s} :ﻼ﻿ﻣ ﮟﯿﮩﻧ ﺮﭩﯾﺮﭘﺁ"
 
 
 msgid "Bug"
@@ -109941,7 +109941,7 @@ msgstr "ﺰﯿﭩﻧﻮﯿﻤﮐ ﻑﺭﺎﺻ"
 
 
 msgid "Non boolean value found: {:s}[ ].{:s}"
-msgstr "{s}[ ].{:s:} :ﯽﻠﻣ ﮟﯿﮩﻧ ﺭﺪﻗ ﻦﯿﻟﻮﺑ ﺮﯿﻏ"
+msgstr "‬{:s}‬[ ].‪{:s}‪ :ﯽﻠﻣ ﮟﯿﮩﻧ ﺭﺪﻗ ﻦﯿﻟﻮﺑ ﺮﯿﻏ"
 
 
 msgid "Python evaluation failed: "
@@ -109977,27 +109977,27 @@ msgstr "ﮧﻋﻮﻤﺠﻣ"
 
 
 msgid "Rename {:d} {:s}"
-msgstr "{d} {:s:} ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻡﺎﻧ"
+msgstr "‬{:d}‬ ‪{:s}‪ ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻡﺎﻧ"
 
 
 msgid "Version: {:s}"
-msgstr "{s:} :ﻥﮊﺭﻭ"
+msgstr "‬{:s}‪ :ﻥﮊﺭﻭ"
 
 
 msgid "Date: {:s} {:s}"
-msgstr "{s} {:s:} :ﺦﯾﺭﺎﺗ"
+msgstr "‬{:s}‬ ‪{:s}‪ :ﺦﯾﺭﺎﺗ"
 
 
 msgid "Hash: {:s}"
-msgstr "{s:} :ﺶﯿﮨ"
+msgstr "‬{:s}‪ :ﺶﯿﮨ"
 
 
 msgid "Branch: {:s}"
-msgstr "{s:} :ﭻﻧﺍﺮﺑ"
+msgstr "‬{:s}‪ :ﭻﻧﺍﺮﺑ"
 
 
 msgid "Type \"{:s}\" cannot be found"
-msgstr "ﯽﺘﮑﺳ ﻞﻣ ﮟﯿﮩﻧ \"{s:}\" ﻢﺴﻗ"
+msgstr "ﯽﺘﮑﺳ ﻞﻣ ﮟﯿﮩﻧ \"{:s}‬‪\" ﻢﺴﻗ"
 
 
 msgid "Material(s)"
@@ -110006,11 +110006,11 @@ msgstr "ﺩﺍﻮﻣ"
 
 msgctxt "Operator"
 msgid "Import Blender {:d}.{:d} Preferences"
-msgstr "ﺕﺎﺤﯿﺟﺮﺗ {d}.{:d:} ﺭﮉﻨﯿﻠﺑ ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ"
+msgstr "ﺕﺎﺤﯿﺟﺮﺗ {:d}‬.‪{:d}‬‪ ﺭﮉﻨﯿﻠﺑ ﮟﯾﺮﮐ ﺪﻣﺁﺭﺩ"
 
 
 msgid "Windowing Environment: {:s}"
-msgstr "Windowing ﺕﺎﯿﻟﻮﺣﺎﻣ: {:s}"
+msgstr "Windowing ﺕﺎﯿﻟﻮﺣﺎﻣ: ‪{:s}‬"
 
 
 msgid "Bone(s)"
@@ -110760,7 +110760,7 @@ msgstr "ﮓﻧﺭ ﺎﮐ ﮎﻭﺮﭩﺳﺍ"
 
 
 msgid "Frame: {:d} ({:s})"
-msgstr "({d} ({:s:} :ﻢﯾﺮﻓ"
+msgstr "({:d}‬ (‪{:s}‬‪ :ﻢﯾﺮﻓ"
 
 
 msgctxt "Operator"
@@ -110948,11 +110948,11 @@ msgstr "ﺮﻔﺑ"
 
 
 msgid "Custom ({:.4g} fps)"
-msgstr "(4g} fps.:}) ﻖﺑﺎﻄﻣ ﮯﮐ ﯽﺿﺮﻣ ﯽﻨﭘﺍ"
+msgstr "({:.4g}‬ fps‪) ﻖﺑﺎﻄﻣ ﮯﮐ ﯽﺿﺮﻣ ﯽﻨﭘﺍ"
 
 
 msgid "{:.4g} fps"
-msgstr "{:.4g} fps"
+msgstr "‪{:.4g}‬ fps"
 
 
 msgid "Mask Mapping"
@@ -111223,19 +111223,19 @@ msgstr "ﮟﯾﺮﮐ ﻊﻄﻘﻨﻣ ﻮﮐ ﯽﮭﺒﺳ"
 
 
 msgid "Iterations: {:d} .. {:d} (avg. {:d})"
-msgstr "({d} .. {:d} (avg. {:d:} :ﺭﺍﺮﮑﺗ"
+msgstr "({:d}‬ .. ‪{:d}‬ (avg. ‪{:d}‬‪ :ﺭﺍﺮﮑﺗ"
 
 
 msgid "Error: {:.5f} .. {:.5f} (avg. {:.5f})"
-msgstr "({5f} .. {:.5f} (avg. {:.5f.:} :ﯽﺑﺍﺮﺧ"
+msgstr "({:.5f}‬ .. ‪{:.5f}‬ (avg. ‪{:.5f}‬‪ :ﯽﺑﺍﺮﺧ"
 
 
 msgid "Spacing: {:g}"
-msgstr "{g:} :ﯼﺭﺎﮐ ﮧﻔﻗﻭ"
+msgstr "‬{:g}‪ :ﯼﺭﺎﮐ ﮧﻔﻗﻭ"
 
 
 msgid "{:d} fluid particles for this frame"
-msgstr "ﺕﺍﺭﺫ ﻝﺎﯿﺳ {d:} ﮯﯿﻟ ﮯﮐ ﻢﯾﺮﻓ ﺱﺍ"
+msgstr "ﺕﺍﺭﺫ ﻝﺎﯿﺳ {:d}‬‪ ﮯﯿﻟ ﮯﮐ ﻢﯾﺮﻓ ﺱﺍ"
 
 
 msgid "Speed Multiplier"
@@ -111884,7 +111884,7 @@ msgstr "ﻞﻨﯿﭼ ﺬﺧﺎﻣ"
 
 
 msgid "Original frame range: {:d}-{:d} ({:d})"
-msgstr "({d}-{:d} ({:d:} :ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﻞﺻﺍ"
+msgstr "({:d}‬-‪{:d}‬ (‪{:d}‬‪ :ﺞﻨﯾﺭ ﻢﯾﺮﻓ ﻞﺻﺍ"
 
 
 msgid "Cut To"
@@ -112264,11 +112264,11 @@ msgstr "ﭧﻓ ﻝﺁ ﻢﯾﺮﻓ"
 
 
 msgid "Average Error: {:.2f} px"
-msgstr "2f} px.:} :ﯽﺑﺍﺮﺧ ﻂﺳﻭﺍ"
+msgstr "{:.2f}‬ px‪ :ﯽﺑﺍﺮﺧ ﻂﺳﻭﺍ"
 
 
 msgid "Solve error: {:.2f} px"
-msgstr "2f} px.:} :ﯽﺑﺍﺮﺧ ﮟﯾﺮﮐ ﻞﺣ"
+msgstr "{:.2f}‬ px‪ :ﯽﺑﺍﺮﺧ ﮟﯾﺮﮐ ﻞﺣ"
 
 
 msgctxt "Operator"
@@ -113243,7 +113243,7 @@ msgstr "ﭦﺅﺁ ﻡﻭﺯ ﭖﺍﺭﮈ ﮏﯿﺑ"
 
 
 msgid "Slot {:d}"
-msgstr "{d:} ﭦﻼ﻿ﺳ"
+msgstr "‬{:d}‪ ﭦﻼ﻿ﺳ"
 
 
 msgctxt "Operator"
@@ -113812,11 +113812,11 @@ msgstr "ﯽﻧﻭﺭﺪﻧﺍ :ﻦﺘﻣ"
 
 
 msgid "File: *{:s} (unsaved)"
-msgstr "(ﻅﻮﻔﺤﻣ ﺮﯿﻏ) {s:}* :ﻞﺋﺎﻓ"
+msgstr "(ﻅﻮﻔﺤﻣ ﺮﯿﻏ) {:s}‬‪* :ﻞﺋﺎﻓ"
 
 
 msgid "File: {:s}"
-msgstr "{s:} :ﻞﺋﺎﻓ"
+msgstr "‬{:s}‪ :ﻞﺋﺎﻓ"
 
 
 msgctxt "Operator"
@@ -113939,7 +113939,7 @@ msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﮦﺮﺋﺍﺩ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ 
 
 
 msgid "Weight: {:.3f}"
-msgstr "{3f.:} :ﻥﺯﻭ"
+msgstr "‬{:.3f}‪ :ﻥﺯﻭ"
 
 
 msgctxt "Operator"
@@ -114182,7 +114182,7 @@ msgstr "NLA ﻡﺎﻧ ﺎﮐ ﯽﭩﭘ"
 
 msgctxt "Operator"
 msgid "Load Factory {:s} Settings"
-msgstr "ﺕﺎﺒﯿﺗﺮﺗ {s:} ﯼﺮﭩﮑﯿﻓ ﮈﻮﻟ"
+msgstr "ﺕﺎﺒﯿﺗﺮﺗ {:s}‬‪ ﯼﺮﭩﮑﯿﻓ ﮈﻮﻟ"
 
 
 msgid "Auto-Save Preferences"
@@ -114616,7 +114616,7 @@ msgstr "ﮟﯿﮨ ﺐﺋﺎﻏ ﮟﯿﻠﺋﺎﻓ ﭧﭘﺮﮑﺳﺍ"
 
 
 msgid "No custom {:s} configured"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺮﮕﯿﻔﻨﮐ {s:} ﺕﺭﻭﺮﺿ ﺐﺴﺣ ﯽﺋﻮﮐ"
+msgstr "ﮯﮨ ﮟﯿﮩﻧ ﺮﮕﯿﻔﻨﮐ {:s}‬‪ ﺕﺭﻭﺮﺿ ﺐﺴﺣ ﯽﺋﻮﮐ"
 
 
 msgid "Location:"
@@ -114628,15 +114628,15 @@ msgstr ":ﻑﺭﺎﺻ"
 
 
 msgid "Load Factory {:s} Preferences"
-msgstr "ﺕﺎﺤﯿﺟﺮﺗ {s:} ﯼﺮﭩﮑﯿﻓ ﮈﻮﻟ"
+msgstr "ﺕﺎﺤﯿﺟﺮﺗ {:s}‬‪ ﯼﺮﭩﮑﯿﻓ ﮈﻮﻟ"
 
 
 msgid "Color Set {:d}"
-msgstr "{d:} ﭧﯿﺳ ﮓﻧﺭ"
+msgstr "‬{:d}‪ ﭧﯿﺳ ﮓﻧﺭ"
 
 
 msgid "Color {:d}"
-msgstr "{d:} ﮓﻧﺭ"
+msgstr "‬{:d}‪ ﮓﻧﺭ"
 
 
 msgctxt "Operator"
@@ -116819,47 +116819,47 @@ msgstr "‪%s‬ ﻦﺸﮑﯾﺍ"
 
 
 msgid "There were {:d} keying failures for unknown reasons."
-msgstr "ﮟﯿﮭﺗ ﮞﺎﯿﻣﺎﮐﺎﻧ ﯼﺪﯿﻠﮐ {d:} ﺮﭘ ءﺎﻨﺑ ﯽﮐ ﺕﺎﮨﻮﺟﻭ ﻡﻮﻠﻌﻣﺎﻧ"
+msgstr "ﮟﯿﮭﺗ ﮞﺎﯿﻣﺎﮐﺎﻧ ﯼﺪﯿﻠﮐ {:d}‬‪ ﺮﭘ ءﺎﻨﺑ ﯽﮐ ﺕﺎﮨﻮﺟﻭ ﻡﻮﻠﻌﻣﺎﻧ"
 
 
 msgid "Could not create {:d} F-Curve(s). This can happen when only inserting to available F-Curves."
-msgstr "ﮯﺋﺎﺟ ﺎﯿﮐ ﻞﺧﺍﺩ ﮟﯿﻣ F-Curves ﺏﺎﯿﺘﺳﺩ ﻑﺮﺻ ﺐﺟ ﮯﮨ ﺎﺘﮑﺳ ﻮﮨ ﺖﻗﻭ ﺱﺍ ﮧﯾ (d} F-Curve(s:} ﺎﮑﺳ ﺎﺟ ﺎﯾﺎﻨﺑ ﮟﯿﮩﻧ"
+msgstr "ﮯﺋﺎﺟ ﺎﯿﮐ ﻞﺧﺍﺩ ﮟﯿﻣ F-Curves ﺏﺎﯿﺘﺳﺩ ﻑﺮﺻ ﺐﺟ ﮯﮨ ﺎﺘﮑﺳ ﻮﮨ ﺖﻗﻭ ﺱﺍ ﮧﯾ ({:d}‬ F-Curve(s‪ ﺎﮑﺳ ﺎﺟ ﺎﯾﺎﻨﺑ ﮟﯿﮩﻧ"
 
 
 msgid "{:d} F-Curve(s) are not keyframeable. They might be locked or sampled."
-msgstr "{:d} F-Curve(s) ﮟﯿﮨ ﮯﺘﮑﺳ ﺎﺟ ﮯﯿﻟ ﮯﻧﻮﻤﻧ ﺎﯾ ﮟﯿﮨ ﮯﺘﮑﺳ ﻮﮨ ﻞﻔﻘﻣ ﮦﻭ ﮟﯿﮨ ﮟﯿﮩﻧ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ"
+msgstr "‪{:d}‬ F-Curve(s) ﮟﯿﮨ ﮯﺘﮑﺳ ﺎﺟ ﮯﯿﻟ ﮯﻧﻮﻤﻧ ﺎﯾ ﮟﯿﮨ ﮯﺘﮑﺳ ﻮﮨ ﻞﻔﻘﻣ ﮦﻭ ﮟﯿﮨ ﮟﯿﮩﻧ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ"
 
 
 msgid "Due to the setting 'Only Insert Needed', {:d} keyframe(s) have not been inserted."
-msgstr "ﮟﯿﮨ ﮯﺌﮔ ﮯﯿﮐ ﮟﯿﮩﻧ ﻞﺧﺍﺩ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ {d:} ،ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺐﯿﺗﺮﺗ ﯽﮐ 'ﺕﺭﻭﺮﺿ ﯽﮐ ﮯﻧﺮﮐ ﻞﺧﺍﺩ ﻑﺮﺻ"
+msgstr "ﮟﯿﮨ ﮯﺌﮔ ﮯﯿﮐ ﮟﯿﮩﻧ ﻞﺧﺍﺩ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ {:d}‬‪ ،ﮯﺳ ﮧﺟﻭ ﯽﮐ ﺐﯿﺗﺮﺗ ﯽﮐ 'ﺕﺭﻭﺮﺿ ﯽﮐ ﮯﻧﺮﮐ ﻞﺧﺍﺩ ﻑﺮﺻ"
 
 
 msgid "Due to the NLA stack setup, {:d} keyframe(s) have not been inserted."
-msgstr "NLA ﮯﺳ ﮧﺟﻭ ﯽﮐ ﭖﺍ ﭧﯿﺳ ﮏﯿﭩﺳﺍ، {:d} ﮟﯿﮨ ﮯﺌﮔ ﮯﯿﮐ ﮟﯿﮩﻧ ﻞﺧﺍﺩ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ"
+msgstr "NLA ﮯﺳ ﮧﺟﻭ ﯽﮐ ﭖﺍ ﭧﯿﺳ ﮏﯿﭩﺳﺍ، ‪{:d}‬ ﮟﯿﮨ ﮯﺌﮔ ﮯﯿﮐ ﮟﯿﮩﻧ ﻞﺧﺍﺩ ﻢﯾﺮﻓ ﯼﺪﯿﻠﮐ"
 
 
 msgid "Inserting keys on {:d} data-block(s) has been skipped because they are not editable."
-msgstr "{:d} ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ(s) ﮟﯿﮨ ﮟﯿﮩﻧ ﻦﯾﻭﺪﺗ ﻞﺑﺎﻗ ﮦﻭ ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻨﻟﺍﮈ ﮞﺎﯿﺑﺎﭼ ﺮﭘ"
+msgstr "‪{:d}‬ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ(s) ﮟﯿﮨ ﮟﯿﮩﻧ ﻦﯾﻭﺪﺗ ﻞﺑﺎﻗ ﮦﻭ ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻨﻟﺍﮈ ﮞﺎﯿﺑﺎﭼ ﺮﭘ"
 
 
 msgid "Inserting keys on {:d} data-block(s) has been skipped because they cannot be animated."
-msgstr "{:d} ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﮎﺮﺤﺘﻣ ﻮﮐ ﻥﺍ ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻨﻟﺍﮈ ﮞﺎﯿﺑﺎﭼ ﺮﭘ (ﮟﯿﻧﺎﺑﺯ) ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ"
+msgstr "‪{:d}‬ ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﮎﺮﺤﺘﻣ ﻮﮐ ﻥﺍ ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻨﻟﺍﮈ ﮞﺎﯿﺑﺎﭼ ﺮﭘ (ﮟﯿﻧﺎﺑﺯ) ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ"
 
 
 msgid "Inserting keys on {:d} data-block(s) has been skipped because the RNA path wasn't valid for them."
-msgstr "{:d} ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ(s) ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻨﻟﺍﮈ ﺰﯿﮐ ﺮﭘ RNAﺎﮭﺗ ﮟﯿﮩﻧ ﺖﺳﺭﺩ ﮯﯿﻟ ﮯﮐ ﻥﺎﮩﺘﺳﺍﺭ"
+msgstr "‪{:d}‬ ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ(s) ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻨﻟﺍﮈ ﺰﯿﮐ ﺮﭘ RNAﺎﮭﺗ ﮟﯿﮩﻧ ﺖﺳﺭﺩ ﮯﯿﻟ ﮯﮐ ﻥﺎﮩﺘﺳﺍﺭ"
 
 
 msgid "Inserting keys on {:d} data-block(s) has been skipped because there were no layers that could accept the keys."
-msgstr "{:d} ﮟﯿﮑﺳ ﺮﮐ ﻝﻮﺒﻗ ﮞﺎﯿﺑﺎﭼ ﻮﺟ ﮟﯿﮭﺗ ﮟﯿﮩﻧ ﮟﯿﺗﺮﭘ ﯽﺋﻮﮐ ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻧﺮﮐ ﻞﺧﺍﺩ ﮞﺎﯿﺑﺎﭼ ﺮﭘ (ﺯ)ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ"
+msgstr "‪{:d}‬ ﮟﯿﮑﺳ ﺮﮐ ﻝﻮﺒﻗ ﮞﺎﯿﺑﺎﭼ ﻮﺟ ﮟﯿﮭﺗ ﮟﯿﮩﻧ ﮟﯿﺗﺮﭘ ﯽﺋﻮﮐ ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻧﺮﮐ ﻞﺧﺍﺩ ﮞﺎﯿﺑﺎﭼ ﺮﭘ (ﺯ)ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ"
 
 
 msgid "Inserting keys on {:d} data-block(s) has been skipped because there were no strips that could accept the keys."
-msgstr "{:d} ﮟﯿﮑﺳ ﺮﮐ ﻝﻮﺒﻗ ﮞﺎﯿﺑﺎﭼ ﻮﺟ ﮟﯿﮭﺗ ﮟﯿﮩﻧ ﺲﭘﺮﭩﺳ ﯽﺋﻮﮐ ﮞﺎﮨﻭ ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻧﺮﮐ ﻞﺧﺍﺩ ﮞﺎﯿﺑﺎﭼ ﺮﭘ (ﮟﯿﻧﺎﺑﺯ) ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ"
+msgstr "‪{:d}‬ ﮟﯿﮑﺳ ﺮﮐ ﻝﻮﺒﻗ ﮞﺎﯿﺑﺎﭼ ﻮﺟ ﮟﯿﮭﺗ ﮟﯿﮩﻧ ﺲﭘﺮﭩﺳ ﯽﺋﻮﮐ ﮞﺎﮨﻭ ﮧﮑﻧﻮﯿﮐ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﺎﻧﺮﮐ ﻞﺧﺍﺩ ﮞﺎﯿﺑﺎﭼ ﺮﭘ (ﮟﯿﻧﺎﺑﺯ) ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ"
 
 
 msgid "Inserting keys on {:d} data-block(s) has been skipped because of missing action slots."
-msgstr "{:d} ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﮯﻧﻮﮨ ﺐﺋﺎﻏ ﺲﭨﻼ﻿ﺳ ﻦﺸﮑﯾﺍ ﺎﻧﺮﮐ ﻞﺧﺍﺩ ﮞﺎﯿﺑﺎﭼ ﺮﭘ (ﮞﻮﻧﺎﺑﺯ) ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ"
+msgstr "‪{:d}‬ ﮯﮨ ﺎﯿﮔ ﺎﯾﺩ ﮌﻮﮭﭼ ﮯﺳ ﮧﺟﻭ ﯽﮐ ﮯﻧﻮﮨ ﺐﺋﺎﻏ ﺲﭨﻼ﻿ﺳ ﻦﺸﮑﯾﺍ ﺎﻧﺮﮐ ﻞﺧﺍﺩ ﮞﺎﯿﺑﺎﭼ ﺮﭘ (ﮞﻮﻧﺎﺑﺯ) ﮎﻼ﻿ﺑ ﺎﭩﯾﮈ"
 
 
 msgid "Inserting keyframes failed:"
