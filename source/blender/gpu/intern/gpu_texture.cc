@@ -142,7 +142,6 @@ bool Texture::init_view(Texture *src,
                         bool cube_as_array,
                         bool use_stencil)
 {
-  BLI_assert(!src->is_texture_view());
   BLI_assert(source_texture_ == nullptr);
   source_texture_ = src;
   gpu_image_usage_flags_ = src->gpu_image_usage_flags_;
