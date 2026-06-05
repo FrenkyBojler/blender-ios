@@ -43,6 +43,7 @@
 
 #include "ED_gizmo_library.hh"
 #include "ED_screen.hh"
+#include "ED_transform.hh"
 #include "ED_view3d.hh"
 
 /* own includes */
@@ -407,6 +408,10 @@ static wmOperatorStatus gizmo_arrow_modal(bContext *C,
     float value = gizmo_value_from_offset(
         data, inter, ofs_new, constrained, inverted, use_precision);
 
+    if (tweak_flag & WM_GIZMO_TWEAK_SNAP) {
+      const float incremental_offset = RNA_float_get(gz->ptr, "incremental_offset");
+      value = roundf(value / incremental_offset) * incremental_offset;
+    }
     WM_gizmo_target_property_float_set(C, gz, gz_prop, value);
     /* get clamped value */
     value = WM_gizmo_target_property_float_get(gz, gz_prop);
@@ -588,7 +593,15 @@ static void GIZMO_GT_arrow_3d(wmGizmoType *gzt)
       gzt->srna, "length", 1.0f, -FLT_MAX, FLT_MAX, "Arrow Line Length", "", -FLT_MAX, FLT_MAX);
   RNA_def_float_vector(
       gzt->srna, "aspect", 2, nullptr, 0, FLT_MAX, "Aspect", "Cone/box style only", 0.0f, FLT_MAX);
-
+  RNA_def_float(gzt->srna,
+                "incremental_offset",
+                SNAP_INCREMENTAL_OFFSET,
+                0.0f,
+                FLT_MAX,
+                "Incremental Offset",
+                "Offset to snap in steps",
+                0.0f,
+                FLT_MAX);
   WM_gizmotype_target_property_def(gzt, "offset", PROP_FLOAT, 1);
 }
 
