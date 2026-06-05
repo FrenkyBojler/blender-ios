@@ -1,2 +1,3 @@
 Referenced by pull request #159458, Fix: Silent compiler warning
 Referenced by commit 18a7ad9fad591f993813497089f06a32ebcc405b, Fix: Silent compiler warning
+Referenced by pull request #159662, Revert "Fix: Remove hardcoded rake for cube tip brushes"
