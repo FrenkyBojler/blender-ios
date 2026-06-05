@@ -271,6 +271,9 @@ enum PathRayFlag : uint32_t {
   /* Volume scattering probability guiding. This flag is added to path where the primary ray passed
    * through the volume without scattering. */
   PATH_RAY_VOLUME_PRIMARY_TRANSMIT = (1U << 24U),
+
+  /* Path and shader is being evaluated for volume extinction. */
+  PATH_RAY_EXTINCTION = (1U << 25U),
 };
 
 // 8bit enum, just in case we need to move more variables in it
