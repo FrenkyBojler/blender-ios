@@ -221,6 +221,9 @@ ccl_device_inline TransparentShadowEvalResult integrate_transparent_shadow(
 #  endif
     }
 
+    /* TODO(weizhen): probably we can process the surface first to avoid evaluating volume when
+     * unnecessary. */
+
     /* Surface shaders. */
     if (hit < num_recorded_hits) {
       ShaderEvalResult result = SHADER_EVAL_EMPTY;
