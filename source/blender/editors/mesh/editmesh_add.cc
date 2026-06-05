@@ -7,16 +7,14 @@
  */
 
 #include <cstdarg>
+#include <optional>
 
-<<<<<<< HEAD
-#include "BLI_math_matrix_c.hh"
-#include "BLI_sys_types.hh"
-=======
+#include "BKE_customdata.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
->>>>>>> 400f66cfe9f (Migrate sculpt to geoemetry functions)
 
 #include "BLT_translation.hh"
 
@@ -55,6 +53,9 @@
 namespace blender {
 
 #define MESH_ADD_VERTS_MAXI 10000000
+
+#define MESH_CUBE_SUBDIVISIONS_MAXI 1000
+#define MESH_CYLINDER_CONE_LOOP_MAXI 512
 
 /* ********* add primitive operators ************* */
 
@@ -163,6 +164,12 @@ static void make_prim_finish_sculpt(bContext *C, Object *ob, BMesh *bm)
   BKE_sculptsession_free_pbvh(*ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, object_mesh);
+}
+
+static StringRefNull make_prim_get_uv_map(Object *ob)
+{
+  Mesh *object_mesh = id_cast<Mesh *>(ob->data);
+  return object_mesh->active_uv_map_name();
 }
 
 static void make_prim_finish_geometry(bContext *C, Object *ob, Mesh *primitive_mesh)
@@ -345,9 +352,14 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
 
     /* vertice count is subdivisions plus two for the corners */
     const int vertices = RNA_int_get(op->ptr, "subdivisions") + 2;
+    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
 
-    Mesh *primitive = geometry::create_cuboid_mesh(
-        float3(size, size, size), vertices, vertices, vertices);
+    Mesh *primitive = geometry::create_cuboid_mesh(float3(size, size, size),
+                                                   vertices,
+                                                   vertices,
+                                                   vertices,
+                                                   calc_uvs ? std::make_optional(uv_map) :
+                                                              std::nullopt);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
@@ -394,7 +406,7 @@ void MESH_OT_primitive_cube_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_int(ot->srna, "subdivisions", 0, 0, 10, "Subdivisions", "", 1, 8);
+  RNA_def_int(ot->srna, "subdivisions", 0, 0, MESH_CUBE_SUBDIVISIONS_MAXI, "Subdivisions", "", 1, 64);
 
   ed::object::add_unit_props_size(ot);
   ed::object::add_mesh_props(ot);
@@ -506,6 +518,9 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
     const float radius = RNA_float_get(op->ptr, "radius");
     geometry::ConeAttributeOutputs attributes{};
 
+    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
+    attributes.uv_map_id = calc_uvs ? std::make_optional(uv_map) : std::nullopt;
+
     const int side_segments = RNA_int_get(op->ptr, "rings");
     const int fill_segments = RNA_int_get(op->ptr, "fill_segments");
     Mesh *primitive = geometry::create_cylinder_or_cone_mesh(radius,
@@ -575,8 +590,8 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Cap Fill Type", "");
 
   /* confirm upper limits */
-  RNA_def_int(ot->srna, "rings", 1, 1, INT_MAX, "Rings", "", 1, 8);
-  RNA_def_int(ot->srna, "fill_segments", 1, 1, INT_MAX, "Fill Segments", "", 1, 8);
+  RNA_def_int(ot->srna, "rings", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Rings", "", 1, 64);
+  RNA_def_int(ot->srna, "fill_segments", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Fill Segments", "", 1, 64);
 
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
@@ -608,6 +623,9 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     geometry::ConeAttributeOutputs attributes{};
+
+    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
+    attributes.uv_map_id = calc_uvs ? std::make_optional(uv_map) : std::nullopt;
 
     const int side_segments = RNA_int_get(op->ptr, "rings");
     const int fill_segments = RNA_int_get(op->ptr, "fill_segments");
@@ -681,8 +699,8 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Base Fill Type", "");
 
   /* confirm upper limits */
-  RNA_def_int(ot->srna, "rings", 1, 1, INT_MAX, "Rings", "", 1, 8);
-  RNA_def_int(ot->srna, "fill_segments", 1, 1, INT_MAX, "Fill Segments", "", 1, 8);
+  RNA_def_int(ot->srna, "rings", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Rings", "", 1, 64);
+  RNA_def_int(ot->srna, "fill_segments", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Fill Segments", "", 1, 64);
 
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
@@ -841,10 +859,13 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
                           &creation_data);
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
+    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
+
     Mesh *primitive = geometry::create_uv_sphere_mesh(RNA_float_get(op->ptr, "radius"),
                                                       RNA_int_get(op->ptr, "segments"),
                                                       RNA_int_get(op->ptr, "ring_count"),
-                                                      {});
+                                                      calc_uvs ? std::make_optional(uv_map) :
+                                                                 std::nullopt);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
@@ -926,8 +947,12 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
                           &creation_data);
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
-    Mesh *primitive = geometry::create_ico_sphere_mesh(
-        RNA_int_get(op->ptr, "subdivisions"), RNA_float_get(op->ptr, "radius"), {});
+    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
+
+    Mesh *primitive = geometry::create_ico_sphere_mesh(RNA_int_get(op->ptr, "subdivisions"),
+                                                       RNA_float_get(op->ptr, "radius"),
+                                                       calc_uvs ? std::make_optional(uv_map) :
+                                                                  std::nullopt);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
