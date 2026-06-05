@@ -42,6 +42,8 @@ void imm_draw_rounded_box_wire_3d(
 
 struct rctf;
 
+/* TODO: update the arguments of the methods below to use float2, then move into gpu namespace. */
+
 /* Draw 2D rectangles (replaces glRect functions) */
 /* caller is responsible for vertex format & shader */
 void immRectf(uint pos, float x1, float y1, float x2, float y2);

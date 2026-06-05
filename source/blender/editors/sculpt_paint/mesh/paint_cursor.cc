@@ -711,7 +711,7 @@ static void main_inactive_cursor_draw(const PaintCursorContext &pcontext)
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha);
   GPU_line_width(2.0f);
 
-  imm_draw_rounded_box_wire_3d(
+  gpu::imm_draw_rounded_box_wire_3d(
       pcontext.pos,
       0,
       0,
@@ -721,7 +721,7 @@ static void main_inactive_cursor_draw(const PaintCursorContext &pcontext)
 
   GPU_line_width(1.0f);
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha * 0.5f);
-  imm_draw_rounded_box_wire_3d(
+  gpu::imm_draw_rounded_box_wire_3d(
       pcontext.pos,
       0,
       0,
