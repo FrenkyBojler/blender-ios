@@ -169,16 +169,14 @@ float spherical_attenuation(float3x3 Minv, float3 L, ClippingDisk disk)
   float3 D = normalize(inverse(Minv)[2]);
 
   /* Vector on the disk plane, coplanar with D and L. */
-  /* TODO: degenerate when D == L for obvious reasons. */
+  /* TODO: degenerate when D == L for obvious reasons. Probably just return 1. */
   float3 T = -normalize(L * dot(disk.N, D) - D * dot(disk.N, L));
-  // T *= sign(dot(T, D));
 
   /* For line O + tT, find t where it intersects line sD; O + tT = sD. */
   float TD = dot(T, D);
   float t = (dot(disk.O, D) * TD - dot(disk.O, T)) / (1.0f - TD * TD);
   if (t >= 0.0 && t < disk.radius) {
     /* If t lies within the disk radius, we do not need to attenuate. */
-    // return form_factor;
     return 1.0;
   }
 
@@ -209,7 +207,7 @@ float evaluate_quad(
   /* Define disk encapsulating the quad for form factor clipping. */
   float3 edge_a = normalize(corners[1] - corners[0]);
   float3 edge_b = normalize(corners[3] - corners[0]);
-  detail::ClippingDisk disk = {
+  detail::ClippingDisk clipping_disk = {
       .O = 0.25f * (corners[0] + corners[1] + corners[2] + corners[3]), /* == lv.L * lv.dist */
       .N = cross(edge_a, edge_b),
       .radius = 0.5f * distance(corners[2], corners[0])};
@@ -229,11 +227,16 @@ float evaluate_quad(
   avg_dir += detail::edge_integral_vec(corners[3], corners[0]);
 
   float form_factor_inv = inversesqrt(dot(avg_dir, avg_dir));
-  float avg_dir_z = (avg_dir / form_factor_inv).z;
+  float avg_dir_z = (avg_dir * form_factor_inv).z;
   float form_factor = saturate(1.0f / form_factor_inv);
-  form_factor *= detail::spherical_attenuation(Minv, L, disk);
+
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
+
+  /* Attenuate form_factor leakage, in cases where a sphere lies above the horizon,
+   * but a polygon would be entirely clipped. This is a rough fit based on. */
+  form_factor *= detail::spherical_attenuation(Minv, L, clipping_disk);
+
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
 }
 
