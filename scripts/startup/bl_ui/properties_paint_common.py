@@ -1361,7 +1361,11 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
                 col.prop(brush, "use_original_normal", text="Normal")
                 col.prop(brush, "use_original_plane", text="Plane")
 
-        draw_mesh_automasking_settings(container, brush.mesh_automasking_settings, use_face_set=True, use_operators=True)
+        draw_mesh_automasking_settings(
+            container,
+            brush.mesh_automasking_settings,
+            use_face_set=True,
+            use_operators=True)
 
         if capabilities.has_color:
             draw_color_jitter_panel(container, context, brush)
