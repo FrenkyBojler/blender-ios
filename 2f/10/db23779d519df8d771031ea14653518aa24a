@@ -1,3 +1,4 @@
 Referenced by issue #149542, VSE text strip can't have bold/italic removed once applied
 Referenced by issue #149569, Bounding box for cropped text in VSE is incorrect
 Referenced by issue #150246, VSE is crashing upon editing a text strip's text.
+Referenced by issue #159636, Video Editor - Cannot apply Cropping to Text Strips
