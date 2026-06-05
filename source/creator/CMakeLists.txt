@@ -1895,12 +1895,9 @@ unset(TARGETDIR_TEXT)
 
 # Geometry icons.
 get_property(_icon_names GLOBAL PROPERTY ICON_GEOM_NAMES)
-set(_icon_files "")
-foreach(_f ${_icon_names})
-  list(APPEND _icon_files
-    "${CMAKE_SOURCE_DIR}/release/datafiles/icons/${_f}.dat"
-  )
-endforeach()
+set(_icon_files ${_icon_names})
+list(TRANSFORM _icon_files PREPEND "${CMAKE_SOURCE_DIR}/release/datafiles/icons/")
+list(TRANSFORM _icon_files APPEND ".dat")
 install(
   FILES ${_icon_files}
   DESTINATION ${TARGETDIR_VER}/datafiles/icons
@@ -1908,7 +1905,6 @@ install(
 
 unset(_icon_names)
 unset(_icon_files)
-unset(_f)
 
 
 # -----------------------------------------------------------------------------
