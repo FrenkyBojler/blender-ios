@@ -563,7 +563,7 @@ class FILEBROWSER_MT_context_menu(FileBrowserMenu, Menu):
 
         sub = layout.row()
         sub.operator_context = 'EXEC_DEFAULT'
-        sub.operator("file.directory_new", text="New Folder")
+        sub.operator("file.directory_new", text="New Folder").confirm = False
         layout.operator("file.bookmark_add", text="Add Bookmark")
 
         layout.separator()
