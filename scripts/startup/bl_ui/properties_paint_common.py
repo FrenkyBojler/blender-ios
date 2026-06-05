@@ -1422,7 +1422,7 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
             container.prop(brush, "use_accumulate")
 
         container.prop(brush, "use_frontface", text="Front Faces Only")
-        draw_mesh_automasking_settings(layout, brush.mesh_automasking_settings)
+        draw_mesh_automasking_settings(container, brush.mesh_automasking_settings)
         draw_color_jitter_panel(container, context, brush)
 
     # Weight Paint
@@ -1434,7 +1434,7 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
             container.prop(brush, "use_accumulate")
 
         container.prop(brush, "use_frontface", text="Front Faces Only")
-        draw_mesh_automasking_settings(layout, brush.mesh_automasking_settings)
+        draw_mesh_automasking_settings(container, brush.mesh_automasking_settings)
 
     # Sculpt Curves
     elif mode == 'SCULPT_CURVES':
@@ -1466,7 +1466,7 @@ def draw_mesh_automasking_settings(layout, settings, *, topbar=False, use_face_s
     row = col.row()
     row.prop(settings, "use_automasking_boundary_edges", text="Mesh Boundary")
 
-    if settings.use_automasking_boundary_edges:
+    if use_operators and settings.use_automasking_boundary_edges:
         props = row.operator("sculpt.mask_from_boundary", text="Create Mask")
         props.settings_source = 'BRUSH'
         props.boundary_mode = 'MESH'
@@ -1481,11 +1481,17 @@ def draw_mesh_automasking_settings(layout, settings, *, topbar=False, use_face_s
             props.boundary_mode = 'FACE_SETS'
 
     if settings.use_automasking_boundary_edges or settings.use_automasking_boundary_face_sets:
-        col = parent.column()
-        col.use_property_split = False
-        split = col.split(factor=0.4)
-        col = split.column()
-        split.prop(settings, "boundary_edges_propagation_steps")
+        # Odd hack needed to get this to display consistently...
+        if topbar:
+            col = parent.column()
+            col.use_property_split = False
+            col.prop(settings, "boundary_edges_propagation_steps")
+        else:
+            col = parent.column()
+            col.use_property_split = False
+            split = col.split(factor=0.4)
+            col = split.column()
+            split.prop(settings, "boundary_edges_propagation_steps")
 
     col.separator()
 
