@@ -105,7 +105,7 @@ set(SRC
   nodes/node_geo_grease_pencil_draw_time.cc
   nodes/node_geo_grease_pencil_fill_id.cc
   nodes/node_geo_grease_pencil_opacity.cc
-  nodes/node_geo_grease_pencil_stroke_info.cc
+  nodes/node_geo_grease_pencil_stroke_visibility.cc
   nodes/node_geo_grease_pencil_to_curves.cc
   nodes/node_geo_grid_advect.cc
   nodes/node_geo_grid_clip.cc
