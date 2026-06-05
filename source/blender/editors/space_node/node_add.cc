@@ -400,16 +400,6 @@ static bool node_add_group_poll(bContext *C)
         C, "Adding node groups isn't supported for custom (Python defined) node trees");
     return false;
   }
-
-  const asset_system::AssetRepresentation *active_asset = CTX_wm_asset(C);
-  if (!active_asset) {
-    return true;
-  }
-  if (active_asset->is_online_only()) {
-    CTX_wm_operator_poll_msg_set(C, "Asset is online. Right-click to download.");
-    return false;
-  }
-
   return true;
 }
 

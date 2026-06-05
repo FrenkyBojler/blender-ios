@@ -120,7 +120,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     }
     ensure_separator();
 
-    asset::draw_online_asset_menu_item(asset, "OBJECT_OT_modifier_add_node_group", layout);
+    asset::draw_asset_menu_item(asset, "OBJECT_OT_modifier_add_node_group", layout);
   }
 
   catalog_item->foreach_child([&](const asset_system::AssetCatalogTreeItem &item) {
@@ -153,7 +153,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
   ui::Layout &layout = *menu->layout;
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
-    asset::draw_online_asset_menu_item(asset, ot->idname, layout);
+    asset::draw_asset_menu_item(asset, ot->idname, layout);
   }
 
   bool first = true;
@@ -354,23 +354,6 @@ static std::string modifier_add_asset_get_description(bContext *C,
   return TIP_(asset->get_metadata().description);
 }
 
-static bool modifier_add_asset_poll(bContext *C)
-{
-  if (!ED_operator_object_active_editable(C)) {
-    return false;
-  }
-
-  const asset_system::AssetRepresentation *active_asset = CTX_wm_asset(C);
-  if (!active_asset) {
-    return true;
-  }
-  if (active_asset->is_online_only()) {
-    CTX_wm_operator_poll_msg_set(C, "Asset is online. Right-click to download.");
-    return false;
-  }
-  return true;
-}
-
 static void OBJECT_OT_modifier_add_node_group(wmOperatorType *ot)
 {
   ot->name = "Add Modifier";
@@ -379,7 +362,7 @@ static void OBJECT_OT_modifier_add_node_group(wmOperatorType *ot)
 
   ot->invoke = modifier_add_asset_invoke;
   ot->exec = modifier_add_asset_exec;
-  ot->poll = modifier_add_asset_poll;
+  ot->poll = ED_operator_object_active_editable;
   ot->get_description = modifier_add_asset_get_description;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

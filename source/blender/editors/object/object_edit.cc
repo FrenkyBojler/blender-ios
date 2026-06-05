@@ -1868,7 +1868,7 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
     }
 
     const asset_system::AssetRepresentation *asset_representation =
-        asset::find_asset_from_weak_ref(*C, asset_weak_ref, op->reports, false);
+        asset::find_asset_from_weak_ref(*C, asset_weak_ref, op->reports);
     if (!asset_representation) {
       return OPERATOR_CANCELLED;
     }

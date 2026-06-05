@@ -104,7 +104,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   wmOperatorType *ot = WM_operatortype_find("SEQUENCER_OT_strip_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : assets) {
     ensure_separator();
-    asset::draw_online_asset_menu_item(asset, ot->idname, layout);
+    asset::draw_asset_menu_item(asset, ot->idname, layout);
   }
 
   catalog_item->foreach_child([&](const asset_system::AssetCatalogTreeItem &item) {
@@ -137,7 +137,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
   ui::Layout &layout = *menu->layout;
   wmOperatorType *ot = WM_operatortype_find("SEQUENCER_OT_strip_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
-    asset::draw_online_asset_menu_item(asset, ot->idname, layout);
+    asset::draw_asset_menu_item(asset, ot->idname, layout);
   }
 
   bool first = true;
@@ -287,22 +287,6 @@ static std::string strip_modifier_add_asset_get_description(bContext *C,
   return TIP_(asset->get_metadata().description);
 }
 
-static bool strip_modifier_add_asset_poll(bContext *C)
-{
-  if (!sequencer_strip_editable_poll(C)) {
-    return false;
-  }
-  const asset_system::AssetRepresentation *active_asset = CTX_wm_asset(C);
-  if (!active_asset) {
-    return true;
-  }
-  if (active_asset->is_online_only()) {
-    CTX_wm_operator_poll_msg_set(C, "Asset is online. Right-click to download.");
-    return false;
-  }
-  return true;
-}
-
 static void SEQUENCER_OT_strip_modifier_add_node_group(wmOperatorType *ot)
 {
   ot->name = "Add Strip Modifier";
@@ -310,7 +294,7 @@ static void SEQUENCER_OT_strip_modifier_add_node_group(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_strip_modifier_add_node_group";
 
   ot->exec = strip_modifier_add_asset_exec;
-  ot->poll = strip_modifier_add_asset_poll;
+  ot->poll = sequencer_strip_editable_poll;
   ot->get_description = strip_modifier_add_asset_get_description;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

@@ -65,8 +65,7 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
     asset::list::storage_fetch_blocking(asset_system::all_library_reference(), *C);
   }
   const asset_system::AssetRepresentation *asset =
-      asset::operator_asset_reference_props_get_asset_from_all_library(
-          *C, *op->ptr, op->reports, false);
+      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *op->ptr, op->reports);
   if (!asset) {
     return OPERATOR_CANCELLED;
   }

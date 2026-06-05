@@ -244,7 +244,7 @@ static void handle_operator_asset_reference_props(const bContext &C,
        * the asset from the operator properties. */
       const asset_system::AssetRepresentation *asset =
           ed::asset::operator_asset_reference_props_get_asset_from_all_library(
-              C, opptr, CTX_wm_reports(&C), false);
+              C, opptr, CTX_wm_reports(&C));
       if (asset) {
         if (asset->is_online_only()) {
           r_icon = ICON_INTERNET;
