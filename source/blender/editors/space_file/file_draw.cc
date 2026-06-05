@@ -1772,7 +1772,8 @@ void file_draw_banner(const bContext *C, const SpaceFile *sfile, ARegion *region
 static void file_draw_invalid_asset_library_hint(const bContext *C,
                                                  const SpaceFile *sfile,
                                                  ARegion *region,
-                                                 FileAssetSelectParams *asset_params)
+                                                 FileAssetSelectParams *asset_params,
+                                                 bool is_project_library)
 {
   char library_ui_path[FILE_MAX_LIBEXTRA];
   file_path_to_ui_path(asset_params->base_params.dir, library_ui_path, sizeof(library_ui_path));
@@ -1801,7 +1802,6 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
   sy -= line_height * 2.2f;
 
   {
-    // TODO: handle this for project asset libraries.
     ui::icon_draw(sx, sy - UI_UNIT_Y, ICON_INFO);
 
     const char *suggestion = RPT_(
@@ -1811,7 +1811,13 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
         sx + UI_UNIT_X, sy, suggestion, width - UI_UNIT_X, line_height, text_col, nullptr, &sy);
 
     ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
-    wmOperatorType *ot = WM_operatortype_find("SCREEN_OT_userpref_show", false);
+    wmOperatorType *ot;
+    if (is_project_library) {
+      ot = WM_operatortype_find("SCREEN_OT_project_setup_show", false);
+    }
+    else {
+      ot = WM_operatortype_find("SCREEN_OT_userpref_show", false);
+    }
     ui::Button *but = uiDefIconTextButO_ptr(block,
                                             ui::ButtonType::But,
                                             ot,
@@ -1824,7 +1830,12 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
                                             UI_UNIT_Y,
                                             std::nullopt);
     PointerRNA *but_opptr = button_operator_ptr_ensure(but);
-    RNA_enum_set(but_opptr, "section", USER_SECTION_ASSETS);
+    if (is_project_library) {
+      RNA_string_set(but_opptr, "section", "Asset Libraries");
+    }
+    else {
+      RNA_enum_set(but_opptr, "section", USER_SECTION_ASSETS);
+    }
 
     block_end(C, block);
     block_draw(C, block);
@@ -2075,7 +2086,7 @@ static void file_draw_invalid_library_hint(const bContext * /*C*/,
   }
 }
 
-static const bUserAssetLibrary *assetlib_as_remote_library(
+static const bUserAssetLibrary *assetlib_ref_as_library(
     const AssetLibraryReference &asset_library_ref)
 {
   if (asset_library_ref.type != ASSET_LIBRARY_CUSTOM) {
@@ -2085,11 +2096,6 @@ static const bUserAssetLibrary *assetlib_as_remote_library(
   const bUserAssetLibrary *library = BKE_preferences_asset_library_find_index(
       &U, asset_library_ref.custom_library_index);
   if (!library) {
-    return nullptr;
-  }
-
-  const bool is_remote_lib = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
-  if (!is_remote_lib) {
     return nullptr;
   }
 
@@ -2111,9 +2117,9 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
   if (is_asset_browser) {
     FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
 
-    const bUserAssetLibrary *remote_library = assetlib_as_remote_library(
-        asset_params->asset_library_ref);
-    const bool is_remote_library = remote_library != nullptr;
+    const bUserAssetLibrary *library = assetlib_ref_as_library(asset_params->asset_library_ref);
+    const bool is_remote_library = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
+    const bool is_project_library = library->flag & ASSET_LIBRARY_PROJECT_DEFINED;
 
     if (is_remote_library) {
       /* With remote libraries, there may be already-downloaded assets available that should be
@@ -2130,11 +2136,11 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
         file_draw_asset_library_internet_access_required_hint(C, sfile, region);
         return true;
       }
-      if (RemoteLibraryLoadingStatus::status(remote_library->remote_url) ==
+      if (RemoteLibraryLoadingStatus::status(library->remote_url) ==
           RemoteLibraryLoadingStatus::Failure)
       {
         setup_view();
-        file_draw_asset_library_remote_loading_failed_hint(C, sfile, region, remote_library);
+        file_draw_asset_library_remote_loading_failed_hint(C, sfile, region, library);
         return true;
       }
     }
@@ -2147,7 +2153,7 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
     /* Check if the asset library exists. */
     if (is_on_disk_library && !filelist_is_dir(sfile->files, asset_params->base_params.dir)) {
       setup_view();
-      file_draw_invalid_asset_library_hint(C, sfile, region, asset_params);
+      file_draw_invalid_asset_library_hint(C, sfile, region, asset_params, is_project_library);
       return true;
     }
   }
