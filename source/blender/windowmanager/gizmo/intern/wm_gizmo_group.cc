@@ -611,6 +611,31 @@ static wmOperatorStatus gizmo_tweak_invoke(bContext *C, wmOperator *op, const wm
   mtweak->flag = 0;
 
   op->customdata = mtweak;
+  wmKeyMap *keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
+  for (const wmKeyMapItem &kmi : keymap->items) {
+    if (kmi.flag & KMI_INACTIVE) {
+      continue;
+    }
+
+    if (kmi.propvalue == TWEAK_MODAL_SNAP_ON && kmi.val == KM_PRESS) {
+      if ((ELEM(kmi.type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event->modifier & KM_CTRL)) ||
+          (ELEM(kmi.type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && (event->modifier & KM_SHIFT)) ||
+          (ELEM(kmi.type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event->modifier & KM_ALT)) ||
+          ((kmi.type == EVT_OSKEY) && (event->modifier & KM_OSKEY)))
+      {
+        mtweak->flag |= WM_GIZMO_TWEAK_SNAP;
+      }
+    }
+    else if (kmi.propvalue == TWEAK_MODAL_PRECISION_ON && kmi.val == KM_PRESS) {
+      if ((ELEM(kmi.type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event->modifier & KM_CTRL)) ||
+          (ELEM(kmi.type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && (event->modifier & KM_SHIFT)) ||
+          (ELEM(kmi.type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event->modifier & KM_ALT)) ||
+          ((kmi.type == EVT_OSKEY) && (event->modifier & KM_OSKEY)))
+      {
+        mtweak->flag |= WM_GIZMO_TWEAK_PRECISE;
+      }
+    }
+  }
 
   WM_event_add_modal_handler(C, op);
 
