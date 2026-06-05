@@ -624,7 +624,7 @@ static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void * /*arg*/)
 
 /* callback to remove envelope data point */
 /* TODO: should we have a separate file for things like this? */
-static void fmod_envelope_deletepoint_cb(bContext * C, void *fcm_dv, void *ind_v)
+static void fmod_envelope_deletepoint_cb(bContext *C, void *fcm_dv, void *ind_v)
 {
   FMod_Envelope *env = static_cast<FMod_Envelope *>(fcm_dv);
   FCM_EnvelopeData *fedn;
