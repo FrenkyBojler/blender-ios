@@ -58,6 +58,8 @@
 #include "BKE_wm_runtime.hh"
 #include "BKE_workspace.hh"
 
+#include "PRF_profile.hh"
+
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
 
@@ -480,6 +482,9 @@ static rctf *stored_window_bounds(eSpace_Type space_type)
   }
   if (space_type == SPACE_FILE) {
     return &U.stored_bounds.file;
+  }
+  if (space_type == SPACE_PROJECT) {
+    return &U.stored_bounds.project;
   }
 
   return nullptr;
@@ -1007,9 +1012,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
 
   GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
-  gpu_settings.preferred_device.index = U.gpu_preferred_index;
-  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  gpu_settings.preferred_device = GPU_backend_preferred_device_get();
   if (GPU_backend_vsync_is_overridden()) {
     gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
     gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
@@ -1091,7 +1094,9 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     GPU_render_end();
   }
   else {
-    wm_window_set_drawable(wm, prev_windrawable, false);
+    if (prev_windrawable != nullptr) {
+      wm_window_set_drawable(wm, prev_windrawable, false);
+    }
   }
 }
 
@@ -2195,6 +2200,7 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 
 void wm_window_events_process(const bContext *C)
 {
+  PRF_scope(ProfileCategory::Core);
   BLI_assert(BLI_thread_is_main());
   GPU_render_begin();
 
@@ -2713,7 +2719,7 @@ static char *wm_clipboard_text_get_ex(bool selection,
   }
 
   /* Always convert from `\r\n` to `\n`. */
-  char *newbuf = MEM_new_array_uninitialized<char>(size_t(buf_len + 1), __func__);
+  char *newbuf = MEM_new_array_uninitialized<char>(size_t(buf_len) + 1, __func__);
   char *p2 = newbuf;
 
   if (firstline) {
@@ -3071,8 +3077,18 @@ void WM_cursor_warp(wmWindow *win, int x, int y)
   win->runtime->eventstate->xy[1] = oldy;
 }
 
-uint WM_cursor_preferred_logical_size()
+uint WM_cursor_preferred_logical_size(const bool hardware_cursor)
 {
+  if (OS_MAC) {
+    if (hardware_cursor) {
+      /* On macOS 21 logical pixels is the expected "default", so follow this here.
+       *
+       * NOTE(@ideasman42): visually Blender's cursors do look bigger then the systems
+       * when set to #WM_CURSOR_DEFAULT_LOGICAL_SIZE, so use macOS's default size. */
+      return 21;
+    }
+  }
+
   return g_system->getCursorPreferredLogicalSize();
 }
 
@@ -3476,9 +3492,7 @@ GHOST_IContext *WM_system_gpu_context_create()
   if (G.debug & G_DEBUG_GPU) {
     gpu_settings.flags |= GHOST_gpuDebugContext;
   }
-  gpu_settings.preferred_device.index = U.gpu_preferred_index;
-  gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
-  gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
+  gpu_settings.preferred_device = GPU_backend_preferred_device_get();
   if (GPU_backend_vsync_is_overridden()) {
     gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
     gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());

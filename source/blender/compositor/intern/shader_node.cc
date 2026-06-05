@@ -41,7 +41,7 @@ GPUNodeStack &ShaderNode::get_output(const StringRef identifier)
 
 static GPUType gpu_type_from_socket(const bNodeSocket &socket)
 {
-  switch (eNodeSocketDatatype(socket.type)) {
+  switch (socket.type) {
     case SOCK_FLOAT:
       return GPU_FLOAT;
     case SOCK_INT:
@@ -74,6 +74,7 @@ static GPUType gpu_type_from_socket(const bNodeSocket &socket)
           return GPU_NONE;
       }
     case SOCK_RGBA:
+    case SOCK_ROTATION:
       return GPU_VEC4;
     case SOCK_MATRIX:
       return GPU_MAT4;

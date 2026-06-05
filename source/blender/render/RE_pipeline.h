@@ -20,6 +20,10 @@ namespace gpu {
 class Texture;
 }
 
+namespace bke {
+class BlenderProject;
+}
+
 struct ExrHandle;
 struct ImBuf;
 struct Image;
@@ -265,10 +269,9 @@ void RE_ClearResult(struct Render *re);
 struct RenderStats *RE_GetStats(struct Render *re);
 
 /**
- * Caller is responsible for allocating `rect` in correct size!
+ * Caller is responsible for allocating `dst` in correct size!
  */
-void RE_ResultGet32(struct Render *re, unsigned int *rect);
-void RE_ResultGetFloat(struct Render *re, float *rect);
+void RE_ResultGet32(Render *re, uint8_t *dst);
 
 bool RE_ResultIsMultiView(struct RenderResult *rr);
 
@@ -350,6 +353,7 @@ void RE_init_threadcount(Render *re);
 
 bool RE_WriteRenderViewsMovie(struct ReportList *reports,
                               struct RenderResult *rr,
+                              const bke::BlenderProject *project,
                               struct Scene *scene,
                               struct RenderData *rd,
                               struct MovieWriter **movie_writers,

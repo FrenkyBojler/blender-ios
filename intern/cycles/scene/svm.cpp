@@ -295,6 +295,16 @@ SVMStackOffset SVMCompiler::stack_assign(ShaderOutput *output)
   return output->stack_offset;
 }
 
+SVMInputInt SVMCompiler::input_int(const char *name)
+{
+  ShaderInput *input = current_node->input(name);
+  SVMInputInt result = {input->parent->get_int(input->socket_type), SVM_STACK_INVALID};
+  if (input->link) {
+    result.offset = stack_assign(input);
+  }
+  return result;
+}
+
 SVMInputFloat SVMCompiler::input_float(const char *name)
 {
   ShaderInput *input = current_node->input(name);
@@ -344,8 +354,13 @@ SVMStackOffset SVMCompiler::input_link(const char *name)
 
 SVMStackOffset SVMCompiler::output(const char *name)
 {
-  ShaderOutput *output = current_node->output(name);
-  return (!output->links.empty()) ? stack_assign(output) : SVM_STACK_INVALID;
+  ShaderOutput *shader_output = current_node->output(name);
+  return output(shader_output);
+}
+
+SVMStackOffset SVMCompiler::output(ShaderOutput *shader_output)
+{
+  return (!shader_output->links.empty()) ? stack_assign(shader_output) : SVM_STACK_INVALID;
 }
 
 void SVMCompiler::stack_link(ShaderInput *input, ShaderOutput *output)

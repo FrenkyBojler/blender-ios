@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <variant>
 
 #include "MEM_guardedalloc.h"
@@ -56,6 +57,7 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "ED_numinput.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
@@ -65,6 +67,8 @@
 #include "UI_string_search.hh"
 
 #include "BLF_api.hh"
+
+#include "BPY_extern_run.hh"
 
 #include "buttons/interface_textbox.hh"
 #include "interface_intern.hh"
@@ -304,7 +308,7 @@ static void selectcontext_apply(bContext *C,
  * Ideally we would only respond to events which are expected to be used for multi button editing
  * (additionally checking if this is a mouse[wheel] or return-key event to avoid the ALT conflict
  * with button array pasting, see #108096, but unfortunately wheel events are not part of
- * `win->runtime->eventstate` with modifiers held down. Instead, the conflict is avoided by
+ * `win->runtime->eventstate` with modifiers held down). Instead, the conflict is avoided by
  * specifically filtering out CTRL ALT V in #apply_but(). */
 #  define IS_ALLSELECT_EVENT(event) (((event)->modifier & KM_ALT) != 0)
 
@@ -431,6 +435,9 @@ struct HandleButtonData {
   wmTimer *flashtimer = nullptr;
 
   TextEdit text_edit;
+  /** Unit hint drawn faded after the edit string, empty when there is none. */
+  std::string text_edit_unit_hint;
+
   wmTimer *text_select_auto_scroll = nullptr;
 
   double value = 0.0f;
@@ -527,11 +534,10 @@ struct AfterFunc {
   ButtonArgNFree func_argN_free_fn;
   /* uiButArgNCopy func_argN_copy_fn is not needed currently. */
 
-  ButtonHandleRenameFunc rename_func;
-  void *rename_arg1;
+  std::function<void(bContext &, StringRefNull)> rename_func;
   char *rename_orig;
 
-  std::function<void(std::string &new_name)> rename_full_func = nullptr;
+  std::function<void(StringRefNull)> rename_full_func;
   std::string rename_full_new;
 
   BlockHandleFunc handle_func;
@@ -920,8 +926,11 @@ static void popup_check(bContext *C, wmOperator *op)
  */
 static bool afterfunc_check(const Block *block, const Button *but)
 {
-  return (but->func || but->apply_func || but->funcN || but->rename_func ||
-          but->rename_full_func || but->optype || but->rnaprop || block->handle_func ||
+  auto *text_button = but->type == ButtonType::Text ? static_cast<const ButtonText *>(but) :
+                                                      nullptr;
+  return (but->func || but->apply_func || but->funcN ||
+          (text_button && (text_button->rename_func || text_button->rename_full_func)) ||
+          but->optype || but->rnaprop || block->handle_func ||
           (block->handle && block->handle->popup_op));
 }
 
@@ -957,13 +966,16 @@ static void apply_but_func(bContext *C, Button *but)
   after->func_argN_free_fn = but->func_argN_free_fn;
   /* but->func_argN_copy_fn is not needed for #uiAfterFunc. */
 
-  after->rename_func = but->rename_func;
-  after->rename_arg1 = but->rename_arg1;
-  after->rename_orig = but->rename_orig; /* needs free! */
+  if (but->type == ButtonType::Text) {
+    auto *text_button = static_cast<ButtonText *>(but);
 
-  after->rename_full_func = but->rename_full_func;
-  after->rename_full_new = std::move(but->rename_full_new);
-  but->rename_full_new = "";
+    after->rename_func = std::move(text_button->rename_func);
+    after->rename_orig = text_button->rename_orig; /* needs free! */
+
+    after->rename_full_func = std::move(text_button->rename_full_func);
+    after->rename_full_new = std::move(text_button->rename_full_new);
+    text_button->rename_full_new = "";
+  }
 
   after->handle_func = block->handle_func;
   after->handle_func_arg = block->handle_func_arg;
@@ -1129,7 +1141,7 @@ static void apply_but_funcs_after(bContext *C)
 {
   /* Copy to avoid recursive calls. */
   ListBaseT<AfterFunc> funcs = UIAfterFuncs;
-  BLI_listbase_clear(&UIAfterFuncs);
+  UIAfterFuncs.clear_no_delete();
 
   for (AfterFunc &afterf : funcs.items_mutable()) {
     AfterFunc after = afterf; /* Copy to avoid memory leak on exit(). */
@@ -1195,7 +1207,7 @@ static void apply_but_funcs_after(bContext *C)
     }
 
     if (after.rename_func) {
-      after.rename_func(C, after.rename_arg1, after.rename_orig);
+      after.rename_func(*C, after.rename_orig);
     }
     if (after.rename_orig) {
       MEM_delete(after.rename_orig);
@@ -1243,7 +1255,7 @@ static void apply_but_BUT(bContext *C, Button *but, HandleButtonData *data)
 
 static void apply_but_BUTM(bContext *C, Button *but, HandleButtonData *data)
 {
-  button_value_set(but, but->hardmin);
+  button_value_set(but, double(but->retval));
   apply_but_func(C, but);
 
   data->retval = but->retval;
@@ -1321,18 +1333,20 @@ static void apply_but_TEX(bContext *C, Button *but, HandleButtonData *data)
   button_string_set(C, but, data->text_edit.edit_string);
   button_update_edited(but);
 
+  ButtonText *text_button = but->type == ButtonType::Text ? static_cast<ButtonText *>(but) :
+                                                            nullptr;
   /* only if there are afterfuncs, otherwise 'renam_orig' isn't freed */
-  if (afterfunc_check(but->block, but)) {
+  if (text_button && afterfunc_check(but->block, but)) {
     /* give butfunc a copy of the original text too.
      * feature used for bone renaming, channels, etc.
      * afterfunc frees rename_orig */
     if (data->text_edit.original_string && (but->flag & BUT_TEXTEDIT_UPDATE)) {
       /* In this case, we need to keep `original_string` available,
        * to restore real org string in case we cancel after having typed something already. */
-      but->rename_orig = BLI_strdup(data->text_edit.original_string);
+      text_button->rename_orig = BLI_strdup(data->text_edit.original_string);
     }
     else {
-      but->rename_orig = data->text_edit.original_string;
+      text_button->rename_orig = data->text_edit.original_string;
       data->text_edit.original_string = nullptr;
     }
   }
@@ -1729,8 +1743,12 @@ struct uiDragToggleHandle {
   int xy_last[2];
 };
 
-static bool drag_toggle_set_xy_xy(
-    bContext *C, ARegion *region, const int pushed_state, const int xy_src[2], const int xy_dst[2])
+static bool drag_toggle_set_xy_xy(bContext *C,
+                                  ARegion *region,
+                                  const int pushed_state,
+                                  const int xy_src[2],
+                                  const int xy_dst[2],
+                                  const bool drag_lock[2])
 {
   /* popups such as layers won't re-evaluate on redraw */
   const bool do_check = (region->regiontype == RGN_TYPE_TEMPORARY);
@@ -1748,6 +1766,10 @@ static bool drag_toggle_set_xy_xy(
        * we always want to consider text control in this case, even when not embossed. */
 
       if (!button_is_interactive(&but, true)) {
+        continue;
+      }
+      /* Needs to match fixed lock direction. */
+      if (((but.flag & BUT_DRAG_LOCK_X) == BUT_DRAG_LOCK_X) && !drag_lock[0]) {
         continue;
       }
       if (!BLI_rctf_isect_segment(&but.rect, xy_a_block, xy_b_block)) {
@@ -1830,7 +1852,8 @@ static void drag_toggle_set(bContext *C, uiDragToggleHandle *drag_info, const in
   xy[1] = (drag_info->xy_lock[1] == false) ? xy_input[1] : drag_info->xy_last[1];
 
   /* touch all buttons between last mouse coord and this one */
-  do_draw = drag_toggle_set_xy_xy(C, region, drag_info->pushed_state, drag_info->xy_last, xy);
+  do_draw = drag_toggle_set_xy_xy(
+      C, region, drag_info->pushed_state, drag_info->xy_last, xy, drag_info->xy_lock);
 
   if (do_draw) {
     ED_region_tag_redraw(region);
@@ -2174,6 +2197,9 @@ static bool but_drag_init(bContext *C, Button *but, HandleButtonData *data, cons
       drag_info->pushed_state = drag_toggle_but_pushed_state(but);
       drag_info->but_cent_start[0] = BLI_rctf_cent_x(&but->rect);
       drag_info->but_cent_start[1] = BLI_rctf_cent_y(&but->rect);
+      if ((but->flag & BUT_DRAG_LOCK_X) == BUT_DRAG_LOCK_X) {
+        drag_info->xy_lock[0] = true;
+      }
       copy_v2_v2_int(drag_info->xy_init, event->xy);
       copy_v2_v2_int(drag_info->xy_last, event->xy);
 
@@ -3247,7 +3273,7 @@ static bool textedit_delete_selection(Button *but, TextEdit &text_edit)
 }
 
 /**
- * \param x: Screen space cursor location - #wmEvent.x
+ * \param xy: Screen space cursor location - #wmEvent.x
  *
  * \note `but->block->aspect` is used here, so drawing button style is getting scaled too.
  */
@@ -3262,11 +3288,44 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
   const float aspect = but->block->aspect;
 
   float startx = but->rect.xmin;
+  float endx = but->rect.xmax;
   float starty_dummy = 0.0f;
   std::string password_str;
   /* treat 'str_last' as null terminator for str, no need to modify in-place */
   const char *str = but->editstr, *str_last;
 
+  /* Compute padding in block space. */
+  bool right_aligned = !(but->drawflag & BUT_TEXT_LEFT) && but->drawflag & BUT_TEXT_RIGHT;
+
+  if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
+    if (but->flag & UI_HAS_ICON) {
+      startx += UI_ICON_SIZE / aspect;
+    }
+  }
+  if (!(but->drawflag & BUT_NO_TEXT_PADDING)) {
+    if (right_aligned) {
+      startx += U.pixelsize / aspect;
+      endx -= UI_TEXT_MARGIN_X * U.widget_unit / aspect;
+    }
+    else {
+      startx += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
+      endx -= U.pixelsize / aspect;
+    }
+  }
+  else if (right_aligned) {
+    endx -= U.pixelsize / aspect;
+  }
+  else {
+    startx += U.pixelsize / aspect;
+  }
+
+  if (right_aligned) {
+    int width = BLF_width(fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs));
+    const float align_x_ofs = endx - startx - width;
+    startx += max_ff(0.0f, align_x_ofs);
+  }
+
+  /* Transform startx to screen space. */
   block_to_window_fl(region, but->block, &startx, &starty_dummy);
 
   fontscale(&fstyle.points, aspect);
@@ -3274,16 +3333,6 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
   fontstyle_set(&fstyle);
 
   button_text_password_hide(password_str, but, false);
-
-  if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
-    if (but->flag & UI_HAS_ICON) {
-      startx += UI_ICON_SIZE / aspect;
-    }
-  }
-  startx -= U.pixelsize / aspect;
-  if (!(but->drawflag & BUT_NO_TEXT_PADDING)) {
-    startx += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
-  }
 
   /* mouse dragged outside the widget to the left */
   if (xy.x < startx) {
@@ -3618,6 +3667,96 @@ const wmIMEData *button_ime_data_get(Button *but)
 }
 #endif /* WITH_INPUT_IME */
 
+std::optional<StringRef> button_edit_unit_hint_get(const Button &but)
+{
+  const HandleButtonData *data = but.semi_modal_state ? but.semi_modal_state : but.active;
+  if (data == nullptr || data->text_edit_unit_hint.empty()) {
+    return std::nullopt;
+  }
+  return data->text_edit_unit_hint;
+}
+
+/* Currently there are property subtypes that are not considered "units", so handle them
+ * separately here. */
+static std::optional<StringRef> button_edit_unit_hint_get_from_prop_subtype(
+    const PropertySubType subtype)
+{
+  switch (subtype) {
+    case PROP_PIXEL:
+      return "px";
+    case PROP_PERCENTAGE:
+      return "%";
+    default:
+      return {};
+  }
+  return {};
+}
+
+static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButtonData *data)
+{
+  /* Unit completion (hint) is only done for buttons with a unit or with a property such as
+   * percentage or pixel for e.g. For everything else, we reset the completion to an empty string.
+   */
+  const PropertySubType subtype = but->rnaprop ? RNA_property_subtype(but->rnaprop) : PROP_NONE;
+  const std::optional<StringRef> subtype_hint = button_edit_unit_hint_get_from_prop_subtype(
+      subtype);
+  if (!button_is_unit(but) && !subtype_hint.has_value()) {
+    data->text_edit_unit_hint.clear();
+    return;
+  }
+
+  /* Set the completion text (hint) to the unit that is used by this value. */
+  std::string name_short;
+  const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(but));
+  if (unit_type != PROP_NONE) {
+    /* If the string contains the unit already, don't add it as a hint. */
+    if (BKE_unit_string_contains_unit(data->text_edit.edit_string, unit_type)) {
+      data->text_edit_unit_hint.clear();
+      return;
+    }
+
+    /* If the expression we're entering is not valid, don't show the hint. */
+    if (!BPY_string_compile_check(data->text_edit.edit_string)) {
+      data->text_edit_unit_hint.clear();
+      return;
+    }
+
+    const void *usys;
+    int len;
+    UnitSettings &unit_settings = CTX_data_scene(C)->unit;
+    BKE_unit_system_get(unit_settings.system, unit_type, &usys, &len);
+    const int unit_index = BKE_preffered_unit_of_type_or_base_get(unit_settings, unit_type);
+    name_short = BKE_unit_display_name_short_get(usys, unit_index);
+    BLI_assert(!name_short.empty());
+  }
+  else if (subtype_hint) {
+    /* Special handling for some subtypes. */
+    name_short = *subtype_hint;
+    /* If the string contains the unit already, don't add it as a hint.
+     * Note: This is a simple sub-string check and may fail at times. */
+    const StringRefNull str(data->text_edit.edit_string);
+    BLI_assert(!name_short.empty());
+    if (str.find(name_short) != StringRef::not_found) {
+      data->text_edit_unit_hint.clear();
+      return;
+    }
+
+    /* If the expression we're entering is not valid, don't show the hint. */
+    if (!BPY_string_compile_check(data->text_edit.edit_string)) {
+      data->text_edit_unit_hint.clear();
+      return;
+    }
+  }
+
+  if (name_short.empty()) {
+    data->text_edit_unit_hint.clear();
+    return;
+  }
+
+  /* Add a space before the short unit name. */
+  data->text_edit_unit_hint = " " + name_short;
+}
+
 static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
 {
   TextEdit &text_edit = data->text_edit;
@@ -3739,6 +3878,9 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   but->flag &= ~BUT_REDALERT;
 
   button_update(but);
+
+  /* Set the edit unit hint if needed. */
+  button_edit_unit_hint_refresh(C, but, data);
 
   /* Make sure the edited button is in view. */
   if (data->searchbox) {
@@ -4036,9 +4178,16 @@ static int do_but_textedit(
        * (selects all text, no cursor pos) */
       if (ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
         if (is_press_in_button) {
-          textedit_set_cursor_pos(but, data->region, float2(event->xy));
-          but->selsta = but->selend = but->pos;
-          text_edit.sel_pos_init = but->pos;
+          /* Extend text selection when holding shift. */
+          if (event->modifier & KM_SHIFT) {
+            text_edit.sel_pos_init = but->pos == but->selsta ? but->selend : but->selsta;
+            textedit_set_cursor_select(but, data, float2(event->xy));
+          }
+          else {
+            textedit_set_cursor_pos(but, data->region, float2(event->xy));
+            but->selsta = but->selend = but->pos;
+            text_edit.sel_pos_init = but->pos;
+          }
 
           button_activate_state(C, but, BUTTON_STATE_TEXT_SELECTING);
           retval = WM_UI_HANDLER_BREAK;
@@ -4049,7 +4198,8 @@ static int do_but_textedit(
             data->cancel = data->escapecancel = true;
           }
 #ifdef WITH_INPUT_IME
-          else if (is_ime_composing && ime_data->composite.size() && but->type == ButtonType::Text)
+          else if (is_ime_composing && !ime_data->composite.empty() &&
+                   but->type == ButtonType::Text)
           {
             textedit_insert_buf(
                 but, text_edit, ime_data->composite.c_str(), ime_data->composite.size());
@@ -4334,7 +4484,7 @@ static int do_but_textedit(
   }
   else if (event->type == WM_IME_COMPOSITE_EVENT) {
     changed = true;
-    if (ime_data->result.size()) {
+    if (!ime_data->result.empty()) {
       if (ELEM(but->type, ButtonType::Num, ButtonType::NumSlider) &&
           STREQ(ime_data->result.c_str(), "\xE3\x80\x82"))
       {
@@ -4362,6 +4512,8 @@ static int do_but_textedit(
     if ((skip_undo_push == false) && (text_edit.undo_stack_text != nullptr)) {
       textedit_undo_push(text_edit.undo_stack_text, text_edit.edit_string, but->pos);
     }
+
+    button_edit_unit_hint_refresh(C, but, data);
 
     /* only do live update when but flag request it (BUT_TEXTEDIT_UPDATE). */
     if (update && data->interactive) {
@@ -4405,8 +4557,8 @@ static int do_but_textedit_select(
       rctf rect;
       block_to_window_rctf(data->region, block, &rect, &but->rect);
 
-      rect.ymax -= textbox_padding_top() / block->aspect;
-      rect.ymin += textbox_padding_bottom() / block->aspect;
+      rect.ymax -= textbox_vertical_padding() / block->aspect;
+      rect.ymin += textbox_vertical_padding() / block->aspect;
 
       if (BLI_rctf_isect_y(&rect, event->xy[1])) {
         break;
@@ -4734,7 +4886,14 @@ static void block_open_begin(bContext *C, Button *but, HandleButtonData *data)
     }
   }
   else if (menufunc) {
-    data->menu = popup_menu_create(C, data->region, but, menufunc, arg);
+    data->menu = popup_menu_create(
+        C,
+        data->region,
+        but,
+        menufunc,
+        arg,
+        /* Inherit the `can_refresh` flag from the parent menu, if any. */
+        but->block->handle ? but->block->handle->can_refresh : false);
     if (MenuType *mt = button_menutype_get(but)) {
       STRNCPY_UTF8(data->menu->menu_idname, mt->idname);
     }
@@ -4831,7 +4990,7 @@ static ButtonExtraOpIcon *but_extra_operator_icon_mouse_over_get(Button *but,
                                                                  ARegion *region,
                                                                  const wmEvent *event)
 {
-  if (BLI_listbase_is_empty(&but->extra_op_icons)) {
+  if (but->extra_op_icons.is_empty()) {
     return nullptr;
   }
 
@@ -5286,9 +5445,10 @@ static int do_but_TEXTBOX(bContext *C,
 
       rctf scroll_rect = rect;
       scroll_rect.xmin = rect.xmax - button_text_padding(textbox);
-      scroll_rect.ymin += textbox_padding_bottom() / block->aspect;
+      scroll_rect.ymin += textbox_grip_height() / block->aspect;
 
       rctf grip_rect = rect;
+      grip_rect.xmin = grip_rect.xmax - button_text_padding(textbox) - (2.0f / block->aspect);
       grip_rect.ymax = grip_rect.ymin + textbox_grip_height() / block->aspect;
 
       /* Update mouse cursor on mouse move. */
@@ -5347,11 +5507,11 @@ static int do_but_TEXTBOX(bContext *C,
             C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (event->type == MOUSEMOVE) {
+      if (event->type == MOUSEMOVE) {
         int mx = event->xy[0];
         int my = event->xy[1];
         window_to_block(data->region, block, &mx, &my);
-        const float ymin = textbox->rect.ymin + textbox_padding_bottom() / block->aspect;
+        const float ymin = textbox->rect.ymin + textbox_grip_height();
         const float range = textbox->rect.ymax - ymin;
         const int scroll = round_fl_to_int(
             (range - (my - ymin)) / range *
@@ -5371,7 +5531,7 @@ static int do_but_TEXTBOX(bContext *C,
             C, textbox, textbox->editstr ? BUTTON_STATE_TEXT_EDITING : BUTTON_STATE_HIGHLIGHT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (event->type == MOUSEMOVE) {
+      if (event->type == MOUSEMOVE) {
         int visible_lines = data->origvalue +
                             ((data->dragstarty - event->xy[1]) /
                              (fontstyle_height_max(UI_FSTYLE_WIDGET) / block->aspect));
@@ -5455,7 +5615,7 @@ static int do_but_TOG(bContext *C, Button *but, HandleButtonData *data, const wm
         button_activate_state(C, but, BUTTON_STATE_EXIT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (but->type == ButtonType::Row) {
+      if (but->type == ButtonType::Row) {
         /* Support Ctrl-Wheel to cycle values on expanded enum rows. */
         int type = event->type;
         int val = event->val;
@@ -7194,7 +7354,7 @@ static int do_but_UNITVEC(
  * (could become BLI_math func) */
 static void clamp_axis_max_v3(float v[3], const float max)
 {
-  const float v_max = max_fff(v[0], v[1], v[2]);
+  const float v_max = std::max({v[0], v[1], v[2]});
   if (v_max > max) {
     mul_v3_fl(v, max / v_max);
     v[0] = std::min(v[0], max);
@@ -8353,14 +8513,14 @@ static bool point_draw_handles(CurveProfilePoint *point)
          point->flag & PROF_H1_SELECT || point->flag & PROF_H2_SELECT;
 }
 
-static short profile_select_to_active(short selection_type)
+static eCurveProfilePoint_Flag profile_select_to_active(eCurveProfilePoint_Flag selection_type)
 {
   /* Active flags are the select flags multiplied by #PROF_ACTIVE.
    * Static asserts ensure this relationship holds if flag values change. */
   static_assert(PROF_ACTIVE == PROF_SELECT * 8);
   static_assert(PROF_H1_ACTIVE == PROF_H1_SELECT * 8);
   static_assert(PROF_H2_ACTIVE == PROF_H2_SELECT * 8);
-  return selection_type * PROF_ACTIVE;
+  return eCurveProfilePoint_Flag(int(selection_type) * int(PROF_ACTIVE));
 }
 
 /**
@@ -8412,7 +8572,7 @@ static int do_but_CURVEPROFILE(
       /* 14 pixels radius for selecting points. */
       float dist_min_sq = square_f(UI_SCALE_FAC * 14.0f);
       int i_selected = -1;
-      short selection_type = 0; /* For handle selection. */
+      eCurveProfilePoint_Flag selection_type = {}; /* For handle selection. */
       for (int i = 0; i < profile->path_len; i++) {
         float f_xy[2];
         BLI_rctf_transform_pt_v(&but->rect, &profile->view_rect, f_xy, &pts[i].x);
@@ -8477,7 +8637,7 @@ static int do_but_CURVEPROFILE(
 
       /* Change the flag for the point(s) if one was selected or added. */
       /* Offset the selection type to get the active type. */
-      const short active_type = profile_select_to_active(selection_type);
+      const eCurveProfilePoint_Flag active_type = profile_select_to_active(selection_type);
       pts = profile->path;
       if (i_selected != -1) {
         /* Deselect all if this one is deselected, except if we hold shift. */
@@ -9583,7 +9743,6 @@ static void button_activate_exit(
       PopupBlockHandle *menu;
 
       menu = block->handle;
-      menu->butretval = data->retval;
       menu->menuretval = (data->cancel) ? RETURN_CANCEL : RETURN_OK;
     }
   }
@@ -10670,10 +10829,10 @@ static int handle_uilist_event(bContext *C, const wmEvent *event, ARegion *regio
 /* Handle mouse hover for Views and UiList rows. */
 static int handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
 {
-  const bool has_list = !BLI_listbase_is_empty(&region->ui_lists);
+  const bool has_list = !region->ui_lists.is_empty();
   const bool has_view = [&]() {
     for (Block &block : region->runtime->uiblocks) {
-      if (!BLI_listbase_is_empty(&block.views)) {
+      if (!block.views.is_empty()) {
         return true;
       }
     }
@@ -11216,6 +11375,24 @@ float block_calc_pie_segment(Block *block, const float event_xy[2])
   return len;
 }
 
+static void set_initial_search_query_from_event(const wmEvent *event,
+                                                PointerRNA *props,
+                                                const StringRefNull prop_name)
+{
+  if (event->type == EVT_SPACEKEY) {
+    return;
+  }
+  /* Forward all keys except space-bar to the search. */
+  const int num_bytes = BLI_str_utf8_size_or_error(event->utf8_buf);
+  if (num_bytes == -1) {
+    return;
+  }
+  char buf[sizeof(event->utf8_buf) + 1];
+  memcpy(buf, event->utf8_buf, num_bytes);
+  buf[num_bytes] = '\0';
+  RNA_string_set(props, prop_name.c_str(), buf);
+}
+
 static int handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEvent *event)
 {
   /* Start menu search if the menu has a name. */
@@ -11226,16 +11403,7 @@ static int handle_menu_letter_press_search(PopupBlockHandle *menu, const wmEvent
     after->opcontext = wm::OpCallContext::InvokeDefault;
     after->opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
     RNA_string_set(after->opptr, "menu_idname", menu->menu_idname);
-    if (event->type != EVT_SPACEKEY) {
-      /* Forward all keys except space-bar to the search. */
-      const int num_bytes = BLI_str_utf8_size_or_error(event->utf8_buf);
-      if (num_bytes != -1) {
-        char buf[sizeof(event->utf8_buf) + 1];
-        memcpy(buf, event->utf8_buf, num_bytes);
-        buf[num_bytes] = '\0';
-        RNA_string_set(after->opptr, "initial_query", buf);
-      }
-    }
+    set_initial_search_query_from_event(event, after->opptr, "initial_query");
     menu->menuretval = RETURN_OK;
     return WM_UI_HANDLER_BREAK;
   }
@@ -11813,7 +11981,6 @@ static int handle_menu_event(bContext *C,
                * activating an item when the key is held. */
               (event->flag & WM_EVENT_IS_REPEAT) == 0)
           {
-
             /* Menu search if space-bar or #MenuTypeFlag::SearchOnKeyPress. */
             MenuType *mt = WM_menutype_find(menu->menu_idname, true);
             if ((mt && flag_is_set(mt->flag, MenuTypeFlag::SearchOnKeyPress)) ||
@@ -12068,7 +12235,6 @@ static int handle_menu_return_submenu(bContext *C, const wmEvent *event, PopupBl
     if ((submenu->menuretval & RETURN_OK) || (submenu->menuretval & RETURN_CANCEL)) {
       if (!(block->flag & BLOCK_KEEP_OPEN)) {
         menu->menuretval = submenu->menuretval;
-        menu->butretval = data->retval;
       }
     }
 
@@ -12585,7 +12751,7 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
   ARegion *region = CTX_wm_region(C);
   int retval = WM_UI_HANDLER_CONTINUE;
 
-  if (region == nullptr || BLI_listbase_is_empty(&region->runtime->uiblocks)) {
+  if (region == nullptr || region->runtime->uiblocks.is_empty()) {
     return retval;
   }
 
