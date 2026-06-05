@@ -79,11 +79,13 @@ class SVMCompiler {
   void compile(Shader *shader, array<int> &svm_nodes, const int index, Summary *summary = nullptr);
 
   /* Create input and output node parameters for struct T passed to add_node. */
+  SVMInputInt input_int(const char *name);
   SVMInputFloat input_float(const char *name);
   SVMInputFloat3 input_float3(const char *name);
   SVMInputFloat3 input_float3_from_offset(SVMStackOffset offset);
   SVMStackOffset input_link(const char *name);
   SVMStackOffset output(const char *name);
+  SVMStackOffset output(ShaderOutput *shader_output);
 
   /* Add simple SVM node without parameters. */
   void add_node(ShaderNodeType type);

@@ -982,7 +982,8 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
        */
 
       if (apply_scale) {
-        float max_scale = max_fff(fabsf(ob->scale[0]), fabsf(ob->scale[1]), fabsf(ob->scale[2]));
+        float max_scale = std::max(
+            {fabsf(ob->scale[0]), fabsf(ob->scale[1]), fabsf(ob->scale[2])});
         ob->empty_drawsize *= max_scale;
       }
     }
@@ -2155,7 +2156,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   }
 
 #ifdef USE_RENDER_OVERRIDE
-  int flag2_prev = vc.v3d->flag2;
+  eView3D_Flag2 flag2_prev = vc.v3d->flag2;
   vc.v3d->flag2 |= V3D_HIDE_OVERLAYS;
 #endif
 
