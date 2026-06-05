@@ -619,6 +619,9 @@ static void rna_userdef_use_online_access_set(PointerRNA *ptr, bool value)
   else {
     userdef->flag &= ~USER_INTERNET_ALLOW;
     G.f &= ~G_FLAG_INTERNET_ALLOW;
+    /* Also clear the "User pressed 'Continue Offline' once"-flag when disabling internet access.
+     * Otherwise users are forever stuck with the 'Continue Offline' choice. */
+    userdef->extension_flag &= ~USER_EXTENSION_FLAG_ONLINE_ACCESS_HANDLED;
   }
 
   /* Once the user edits this option (even to set it to the value it was)
