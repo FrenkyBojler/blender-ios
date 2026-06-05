@@ -358,7 +358,6 @@ static void rna_userdef_gpu_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
   WM_main_add_notifier(NC_WINDOW, nullptr);             /* full redraw */
   WM_main_add_notifier(NC_SCREEN | NA_EDITED, nullptr); /* refresh region sizes */
-  WM_main_add_notifier(NC_UI | ND_UI_FONT, nullptr);
   USERDEF_TAG_DIRTY;
 }
 
@@ -406,7 +405,7 @@ static void rna_userdef_language_update(Main *bmain, Scene * /*scene*/, PointerR
   }
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_TRANSLATION_UPDATE_POST);
-  WM_main_add_notifier(NC_UI, nullptr);
+  WM_main_add_notifier(NC_UI | ND_UI_LANG, nullptr);
   USERDEF_TAG_DIRTY;
 }
 
@@ -464,6 +463,13 @@ static void rna_userdef_asset_library_remote_url_update(bContext *C, PointerRNA 
   blender::ed::asset::list::clear(&library_ref, C);
   blender::asset_system::remote_library_request_download(*library);
   rna_userdef_asset_libraries_refresh(C, ptr);
+}
+
+static void rna_userdef_asset_libraries_use_online_essentials_update(bContext *C, PointerRNA *ptr)
+{
+  const AssetLibraryReference essentials = asset_system::essentials_library_reference();
+  ed::asset::list::clear(&essentials, C);
+  rna_userdef_update(CTX_data_main(C), CTX_data_scene(C), ptr);
 }
 
 /**
@@ -965,6 +971,11 @@ static PointerRNA rna_UserDef_keymap_get(PointerRNA *ptr)
 static PointerRNA rna_UserDef_filepaths_get(PointerRNA *ptr)
 {
   return RNA_pointer_create_with_parent(*ptr, RNA_PreferencesFilePaths, ptr->data);
+}
+
+static PointerRNA rna_UserDef_asset_libraries_get(PointerRNA *ptr)
+{
+  return RNA_pointer_create_with_parent(*ptr, RNA_PreferencesAssetLibraries, ptr->data);
 }
 
 static PointerRNA rna_UserDef_extensions_get(PointerRNA *ptr)
@@ -1660,14 +1671,6 @@ static void rna_experimental_no_data_block_packing_update(bContext *C, PointerRN
   rna_userdef_update(bmain, scene, ptr);
   AS_asset_library_import_method_ensure_valid(*bmain);
   rna_userdef_asset_libraries_refresh(C, ptr);
-}
-
-static void rna_userdef_use_geometry_nodes_hair_dynamics_update(bContext *C, PointerRNA * /*ptr*/)
-{
-  const AssetLibraryReference essentials_ref = asset_system::essentials_library_reference();
-  ed::asset::list::clear(&essentials_ref, C);
-  WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST, nullptr);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 }
 
 }  // namespace blender
@@ -7523,6 +7526,26 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
                            "Index of the asset library being edited in the Preferences UI");
 }
 
+static void rna_def_userdef_asset_libraries(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "PreferencesAssetLibraries", nullptr);
+  RNA_def_struct_sdna(srna, "UserDef");
+  RNA_def_struct_nested(brna, srna, "Preferences");
+  RNA_def_struct_ui_text(srna, "Asset Libraries", "");
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "use_online_essentials", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "asset_flag", USER_ASSETS_USE_ONLINE_ESSENTIALS);
+  RNA_def_property_ui_text(
+      prop,
+      "Online Essentials",
+      "Include remote assets in the Essentials asset library. Downloading requires Online Access "
+      "to be enabled under System > Network in the Preferences");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_userdef_asset_libraries_use_online_essentials_update");
+}
+
 static void rna_def_userdef_extensions(BlenderRNA *brna)
 {
   PropertyRNA *prop;
@@ -7698,12 +7721,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       prop, "Collection Import", "Enables a file importer to be configured on a Collection");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
 
-  prop = RNA_def_property(srna, "use_geometry_nodes_hair_dynamics", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(
-      prop, "Geometry Nodes Hair Dynamics", "Enable hair dynamics simulation in geometry nodes");
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_update(prop, 0, "rna_userdef_use_geometry_nodes_hair_dynamics_update");
-
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,
@@ -7866,6 +7883,14 @@ void RNA_def_userdef(BlenderRNA *brna)
   RNA_def_property_pointer_funcs(prop, "rna_UserDef_filepaths_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(prop, "File Paths", "Default paths for external files");
 
+  prop = RNA_def_property(srna, "asset_libraries", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_struct_type(prop, "PreferencesAssetLibraries");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_UserDef_asset_libraries_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(
+      prop, "Asset Libraries", "Setup for custom and builtin asset libraries");
+
   prop = RNA_def_property(srna, "extensions", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_struct_type(prop, "PreferencesExtensions");
@@ -7930,6 +7955,14 @@ void RNA_def_userdef(BlenderRNA *brna)
                            "Save preferences on exit when modified "
                            "(unless factory settings have been loaded)");
 
+  prop = RNA_def_property(srna, "use_project_auto_save", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "pref_flag", USER_PREF_FLAG_PROJECT_SAVE);
+  RNA_def_property_ui_text(
+      prop,
+      "Auto-save Project",
+      "Save projects automatically on exit and when saving or switching blend files");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
   prop = RNA_def_property(srna, "is_dirty", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "runtime.is_dirty", 0);
   RNA_def_property_ui_text(prop, "Dirty", "Preferences have changed");
@@ -7940,6 +7973,7 @@ void RNA_def_userdef(BlenderRNA *brna)
   rna_def_userdef_input(brna);
   rna_def_userdef_keymap(brna);
   rna_def_userdef_filepaths(brna);
+  rna_def_userdef_asset_libraries(brna);
   rna_def_userdef_extensions(brna);
   rna_def_userdef_system(brna);
   rna_def_userdef_addon(brna);

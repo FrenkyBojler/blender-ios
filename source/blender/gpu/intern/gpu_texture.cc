@@ -93,7 +93,7 @@ bool Texture::init_3D(int w, int h, int d, int mip_len, TextureFormat format)
   w_ = w;
   h_ = h;
   d_ = d;
-  int mip_len_max = 1 + floorf(log2f(max_iii(w, h, d)));
+  int mip_len_max = 1 + floorf(log2f(std::max({w, h, d})));
   mipmaps_ = min_ii(mip_len, mip_len_max);
   format_ = format;
   format_flag_ = to_format_flag(format);
@@ -145,6 +145,8 @@ bool Texture::init_view(Texture *src,
   BLI_assert(!src->is_texture_view());
   BLI_assert(source_texture_ == nullptr);
   source_texture_ = src;
+  gpu_image_usage_flags_ = src->gpu_image_usage_flags_;
+  sampler_state = src->sampler_state;
 
   int view_extent[3]{0, 0, 0};
   src->mip_size_get(mip_start, view_extent);
@@ -174,7 +176,7 @@ bool Texture::init_view(Texture *src,
   mip_max_ = mip_min_ + mipmaps_ - 1;
   format_ = format;
   format_flag_ = to_format_flag(format);
-  sampler_state = src->sampler_state;
+
   return this->init_internal(src, use_stencil);
 }
 
