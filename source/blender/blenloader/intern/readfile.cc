@@ -2016,6 +2016,8 @@ static void direct_link_id_override_property(BlendDataReader *reader,
   for (IDOverrideLibraryPropertyOperation &opop : op->operations) {
     BLO_read_string(reader, &opop.subitem_reference_name);
     BLO_read_string(reader, &opop.subitem_local_name);
+    BLO_read_string(reader, &opop.label);
+    BLO_read_string(reader, &opop.tooltip);
 
     opop.tag = {}; /* Runtime only. */
   }
@@ -4526,6 +4528,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 
       /* Update invariants after re-generating overrides. */
       BKE_main_ensure_invariants(*bfd->main);
+
+      BKE_main_id_indirect_linked_update(*bfd->main);
 
       fd->reports->duration.lib_overrides = BLI_time_now_seconds() -
                                             fd->reports->duration.lib_overrides;
