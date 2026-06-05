@@ -19,6 +19,7 @@
 #include "DNA_sequence_types.h"
 
 #include "SEQ_sequencer.hh"
+#include "SEQ_utils.hh"
 
 #include "WM_types.hh"
 
@@ -139,7 +140,8 @@ static void otio_export_recursive(Scene *scene,
               strip, scene, inside_meta ? meta_video_track : track, last_strip_end);
           break;
 
-        case STRIP_TYPE_META: {
+        case STRIP_TYPE_META:
+        case STRIP_TYPE_SCENE: {
           if (inside_meta) {
             StripExporter::add_gap_if_necessary(meta_video_track,
                                                 last_strip_end + 1,
@@ -156,6 +158,14 @@ static void otio_export_recursive(Scene *scene,
                 track, last_strip_end + 1, strip->left_handle() - 1, scene->frames_per_second());
           }
 
+          int r_offset;
+          ListBaseT<SeqTimelineChannel> *r_channels;
+          ListBaseT<Strip> *seqbase = seq::get_seqbase_from_strip(strip, &r_channels, &r_offset);
+
+          if (!seqbase) {
+            break;
+          }
+
           auto primary_meta_stack = SerializableObject::Retainer<Stack>(new Stack());
           auto secondary_meta_stack = SerializableObject::Retainer<Stack>(new Stack());
 
@@ -163,7 +173,7 @@ static void otio_export_recursive(Scene *scene,
                                 export_params,
                                 &primary_meta_stack,
                                 &secondary_meta_stack,
-                                &strip->seqbase,
+                                seqbase,
                                 strip->left_handle() - 1,
                                 strip->right_handle(scene));
 
@@ -189,16 +199,23 @@ static void otio_export_recursive(Scene *scene,
         delete strip_exporter;
       }
     }
-    StripExporter::add_gap_if_necessary(
-        track, last_strip_end + 1, stack_end, scene->frames_per_second());
 
     if (!track->children().empty()) {
+      StripExporter::add_gap_if_necessary(
+          track, last_strip_end + 1, stack_end, scene->frames_per_second());
+
       (*primary_stack)->append_child(track);
     }
     if (!meta_video_track->children().empty()) {
+      StripExporter::add_gap_if_necessary(
+          meta_video_track, last_strip_end + 1, stack_end, scene->frames_per_second());
+
       (*primary_stack)->append_child(meta_video_track);
     }
     if (!meta_audio_track->children().empty()) {
+      StripExporter::add_gap_if_necessary(
+          meta_audio_track, last_strip_end + 1, stack_end, scene->frames_per_second());
+
       if (inside_meta) {
         (*secondary_stack)->append_child(meta_audio_track);
       }
@@ -235,7 +252,7 @@ void otio_export_job_start(void *custom_data, wmJobWorkerStatus *worker_status)
   worker_status->do_update = true;
 
   auto timeline = SerializableObject::Retainer<Timeline>(
-      new Timeline(scene->id.name, RationalTime(0, scene->frames_per_second())));
+      new Timeline(scene->id.name + 2, RationalTime(0, scene->frames_per_second())));
 
   auto main_stack = SerializableObject::Retainer<Stack>(new Stack());
   otio_export_recursive(scene, export_params, &main_stack, nullptr, seqbase, 0, scene->r.efra);
