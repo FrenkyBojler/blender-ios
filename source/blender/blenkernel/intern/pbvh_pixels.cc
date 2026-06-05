@@ -341,10 +341,8 @@ static void do_calculate_3d_positions(const uv_islands::MeshData &mesh_data,
           pixel_row.start_barycentric_coord +
               pixel_node.uv_primitives.delta_barycentric_coords[pixel_row.uv_primitive_index]);
       const float3 delta = next - start;
-      const float3 end = start + delta * (pixel_row.num_pixels - 1);
 
       tile_data.pixel_row_positions[i].start = start;
-      tile_data.pixel_row_positions[i].end = end;
       tile_data.pixel_row_positions[i].delta = delta;
     }
   }
