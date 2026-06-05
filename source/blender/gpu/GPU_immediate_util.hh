@@ -10,9 +10,35 @@
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
 
 namespace blender {
+
+namespace gpu {
+
+void imm_draw_circle_partial_wire_aspect_2d(uint pos,
+                                            float x,
+                                            float y,
+                                            float2 radius,
+                                            int nsegments,
+                                            float start,
+                                            float sweep);
+void imm_draw_circle_partial_wire_aspect_3d(uint pos,
+                                            float x,
+                                            float y,
+                                            float z,
+                                            float2 radius,
+                                            int nsegments,
+                                            float start,
+                                            float sweep);
+
+void imm_draw_rounded_box_wire_2d(
+    uint pos, float x, float y, float2 radius, float2 corner_radius, int nsegments);
+void imm_draw_rounded_box_wire_3d(
+    uint pos, float x, float y, float2 radius, float2 corner_radius, int nsegments);
+
+}  // namespace gpu
 
 struct rctf;
 
@@ -91,23 +117,6 @@ void imm_draw_circle_partial_wire_2d(
     uint pos, float x, float y, float radius, int nsegments, float start, float sweep);
 void imm_draw_circle_partial_wire_3d(
     uint pos, float x, float y, float z, float radius, int nsegments, float start, float sweep);
-void imm_draw_circle_partial_wire_aspect_2d(uint pos,
-                                            float x,
-                                            float y,
-                                            float radius_x,
-                                            float radius_y,
-                                            int nsegments,
-                                            float start,
-                                            float sweep);
-void imm_draw_circle_partial_wire_aspect_3d(uint pos,
-                                            float x,
-                                            float y,
-                                            float z,
-                                            float radius_x,
-                                            float radius_y,
-                                            int nsegments,
-                                            float start,
-                                            float sweep);
 
 /**
  * Draw a filled arc with the given inner and outer radius.
@@ -141,11 +150,6 @@ void imm_draw_disk_partial_fill_3d(uint pos,
                                    int nsegments,
                                    float start,
                                    float sweep);
-
-void imm_draw_rounded_box_wire_2d(
-    uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments);
-void imm_draw_rounded_box_wire_3d(
-    uint pos, float x, float y, float x_scale, float radius, float corner_radius, int nsegments);
 
 /**
  * Draw a lined box.

@@ -451,21 +451,22 @@ static void inactive_cursor_draw(PaintCursorContext &pcontext)
   GPU_line_width(1.0f);
   /* Reduce alpha to increase the contrast when the cursor is over the mesh. */
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha * 0.8);
-  imm_draw_rounded_box_wire_3d(pcontext.pos,
-                               pcontext.translation[0],
-                               pcontext.translation[1],
-                               tip_scale_x,
-                               pcontext.final_radius,
-                               pcontext.final_radius * roundness,
-                               80);
+  gpu::imm_draw_rounded_box_wire_3d(
+      pcontext.pos,
+      pcontext.translation[0],
+      pcontext.translation[1],
+      float2(pcontext.final_radius * tip_scale_x, pcontext.final_radius),
+      float2(pcontext.final_radius * roundness * tip_scale_x, pcontext.final_radius * roundness),
+      80);
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha * 0.35f);
-  imm_draw_rounded_box_wire_3d(pcontext.pos,
-                               pcontext.translation[0],
-                               pcontext.translation[1],
-                               tip_scale_x,
-                               pcontext.final_radius * alpha,
-                               pcontext.final_radius * alpha * roundness,
-                               80);
+  gpu::imm_draw_rounded_box_wire_3d(
+      pcontext.pos,
+      pcontext.translation[0],
+      pcontext.translation[1],
+      float2(pcontext.final_radius * alpha * tip_scale_x, pcontext.final_radius * alpha),
+      float2(pcontext.final_radius * alpha * roundness * tip_scale_x,
+             pcontext.final_radius * alpha * roundness),
+      80);
 }
 
 static void object_space_radius_update(PaintCursorContext &pcontext)
@@ -711,17 +712,23 @@ static void main_inactive_cursor_draw(const PaintCursorContext &pcontext)
   GPU_line_width(2.0f);
 
   imm_draw_rounded_box_wire_3d(
-      pcontext.pos, 0, 0, tip_scale_x, pcontext.radius, pcontext.radius * roundness, 80);
+      pcontext.pos,
+      0,
+      0,
+      float2(pcontext.radius * tip_scale_x, pcontext.radius),
+      float2(pcontext.radius * roundness * tip_scale_x, pcontext.radius * roundness),
+      80);
 
   GPU_line_width(1.0f);
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha * 0.5f);
-  imm_draw_rounded_box_wire_3d(pcontext.pos,
-                               0,
-                               0,
-                               tip_scale_x,
-                               pcontext.radius * alpha,
-                               pcontext.radius * alpha * roundness,
-                               80);
+  imm_draw_rounded_box_wire_3d(
+      pcontext.pos,
+      0,
+      0,
+      float2(pcontext.radius * alpha * tip_scale_x, pcontext.radius * alpha),
+      float2(pcontext.radius * alpha * roundness * tip_scale_x,
+             pcontext.radius * alpha * roundness),
+      80);
 }
 
 static void layer_brush_height_preview_draw(const uint gpuattr,

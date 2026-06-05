@@ -2923,7 +2923,12 @@ static void radial_control_paint_cursor(bContext *C,
   GPU_line_width(2.0f);
   immUniformColor3fvAlpha(col, 0.8f);
   if (draw_rounded_box) {
-    imm_draw_rounded_box_wire_2d(pos, 0, 0, tip_scale_x, r1, r1 * roundness, 80);
+    gpu::imm_draw_rounded_box_wire_2d(pos,
+                                      0,
+                                      0,
+                                      float2(r1 * tip_scale_x, r1),
+                                      float2(r1 * roundness * tip_scale_x, r1 * roundness),
+                                      80);
   }
   else {
     imm_draw_circle_wire_2d(pos, 0.0f, 0.0f, r1, 80);
@@ -2932,7 +2937,12 @@ static void radial_control_paint_cursor(bContext *C,
   GPU_line_width(1.0f);
   immUniformColor3fvAlpha(col, 0.5f);
   if (draw_rounded_box) {
-    imm_draw_rounded_box_wire_2d(pos, 0, 0, tip_scale_x, r2, r2 * roundness, 80);
+    gpu::imm_draw_rounded_box_wire_2d(pos,
+                                      0,
+                                      0,
+                                      float2(r2 * tip_scale_x, r2),
+                                      float2(r2 * roundness * tip_scale_x, r2 * roundness),
+                                      80);
   }
   else {
     imm_draw_circle_wire_2d(pos, 0.0f, 0.0f, r2, 80);
