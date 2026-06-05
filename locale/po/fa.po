@@ -4966,7 +4966,7 @@ msgstr "ﺪﯿﯾﺄﺗ"
 
 
 msgid "Value: {}"
-msgstr "‬{}‪ :ﺭﺍﺪﻘﻣ"
+msgstr "{} :ﺭﺍﺪﻘﻣ"
 
 
 msgid "Delete the active position"
@@ -5122,7 +5122,7 @@ msgstr "ﺩﺮﮐ ﻑﺬﺣ ﺍﺭ ﺩﺭﺍﺩ ﻢﺴﺟ ﻪﭽﻧﺁ ﺯﺍ �
 
 
 msgid "Cannot add more than %i UV maps"
-msgstr "ﺩﺮﮐ ﻪﻓﺎﺿﺍ UV ﻪﺸﻘﻧ %i‬‪ ﺯﺍ ﺶﯿﺑ ﻥﺍﻮﺗ‌ﯽﻤﻧ"
+msgstr "ﺩﺮﮐ ﻪﻓﺎﺿﺍ UV ﻪﺸﻘﻧ i% ﺯﺍ ﺶﯿﺑ ﻥﺍﻮﺗ‌ﯽﻤﻧ"
 
 
 msgid "%d %s mirrored, %d failed"
