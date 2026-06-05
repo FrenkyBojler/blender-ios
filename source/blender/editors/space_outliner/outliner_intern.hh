@@ -572,7 +572,6 @@ void outliner_collection_delete(
     bContext *C, Main *bmain, Scene *scene, ReportList *reports, bool do_hierarchy);
 
 void OUTLINER_OT_collection_new(wmOperatorType *ot);
-void OUTLINER_OT_collection_duplicate_linked(wmOperatorType *ot);
 void OUTLINER_OT_collection_duplicate(wmOperatorType *ot);
 void OUTLINER_OT_collection_hierarchy_delete(wmOperatorType *ot);
 void OUTLINER_OT_collection_objects_select(wmOperatorType *ot);

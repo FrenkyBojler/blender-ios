@@ -634,7 +634,7 @@ static TreeElement *outliner_active_collection(bContext *C)
 static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  const bool linked = strstr(op->idname, "linked") != nullptr;
+  const bool linked = RNA_boolean_get(op->ptr, "linked");
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   IDsSelectedData selected_collections{};
@@ -710,23 +710,6 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void OUTLINER_OT_collection_duplicate_linked(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Duplicate Linked Collection";
-  ot->idname = "OUTLINER_OT_collection_duplicate_linked";
-  ot->description =
-      "Recursively duplicate the collection, all its children and objects, with linked object "
-      "data";
-
-  /* API callbacks. */
-  ot->exec = collection_duplicate_exec;
-  ot->poll = ED_outliner_collections_editor_poll;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
 void OUTLINER_OT_collection_duplicate(wmOperatorType *ot)
 {
   /* identifiers */
@@ -741,6 +724,12 @@ void OUTLINER_OT_collection_duplicate(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->prop = RNA_def_boolean(ot->srna,
+                         "linked",
+                         false,
+                         "Linked",
+                         "Duplicate with linked object data");
+  RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
