@@ -2512,7 +2512,12 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             GEO_NODE_REPEAT_OUTPUT,
             GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
             NODE_EVALUATE_CLOSURE) ||
-       StringRef(node.idname).startswith("GeometryNodeImport")))
+       StringRef(node.idname).startswith("GeometryNodeImport") ||
+       node.is_type("GeometryNodeClosureToList"_ustr) ||
+       node.is_type("GeometryNodeFilterList"_ustr) ||
+       node.is_type("GeometryNodeListGetItem"_ustr) ||
+       node.is_type("GeometryNodeFieldToList"_ustr) ||
+       node.is_type("GeometryNodeListLength"_ustr)))
   {
     std::optional<NodeExtraInfoRow> row = node_get_execution_time_label_row(
         tree_draw_ctx, snode, node);
@@ -2818,7 +2823,8 @@ static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node
         const std::string description = node.typeinfo->ui_description_fn ?
                                             TIP_(node.typeinfo->ui_description_fn(node)) :
                                             TIP_(node.typeinfo->ui_description);
-        if (!description.empty()) {
+        const bool have_description = !description.empty();
+        if (have_description) {
           tooltip_text_field_add(
               data, std::move(description), "", ui::TIP_STYLE_NORMAL, ui::TIP_LC_NORMAL);
         }
@@ -2832,7 +2838,7 @@ static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node
                                  "",
                                  ui::TIP_STYLE_MONO,
                                  ui::TIP_LC_DIMMED,
-                                 !description.empty());
+                                 have_description);
         }
       });
 }

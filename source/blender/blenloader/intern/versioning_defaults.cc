@@ -125,7 +125,7 @@ static void blo_update_defaults_screen(bScreen *screen,
       /* Remove all stored panels, we want to use defaults
        * (order, open/closed) as defined by UI code here! */
       BKE_area_region_panels_free(&region.panels);
-      BLI_freelistN(&region.panels_category_active);
+      region.panels_category_active.free_no_destruct();
 
       /* Reset size so it uses consistent defaults from the region types. */
       region.sizex = 0;
@@ -331,7 +331,7 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
 
   if (blo_is_builtin_template(app_template)) {
     /* Clear all tools to use default options instead, ignore the tool saved in the file. */
-    while (!BLI_listbase_is_empty(&workspace->tools)) {
+    while (!workspace->tools.is_empty()) {
       BKE_workspace_tool_remove(workspace, static_cast<bToolRef *>(workspace->tools.first));
     }
 
@@ -820,6 +820,9 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
           bNodeSocket *ior = bke::node_find_socket(*node, SOCK_IN, "IOR"_ustr);
           *version_cycles_node_socket_float_value(ior) = 1.5f;
+          bNodeSocket *subsurface_scale = bke::node_find_socket(
+              *node, SOCK_IN, "Subsurface Scale"_ustr);
+          *version_cycles_node_socket_float_value(subsurface_scale) = 0.005f;
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;
           node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;

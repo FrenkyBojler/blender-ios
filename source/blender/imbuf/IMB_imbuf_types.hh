@@ -145,14 +145,14 @@ struct ImBuf {
 
   /**
    * Stores the Data and Display Window information. Those are only initialized if the image buffer
-   * has the ImBufFlags::HasDisplayWindow flag active, otherwise, they should be ignored as the
+   * has the #ImBufFlags::HasDisplayWindow flag active, otherwise, they should be ignored as the
    * image has no display window.
    *
    * The data size is already stored in the x and y members. The data_offset member stores the
    * offset from the display window to the data window, if positive, then only part of the display
    * window has data, while if negative, it means the image has over-scan.
    * The display_offset member is the offset from the origin,
-   * can can be interpreted as a global translation.
+   * can be interpreted as a global translation.
    */
   int display_size[2];
   int data_offset[2];
@@ -206,8 +206,12 @@ struct ImBuf {
   int index = 0;
   /** used to set imbuf to dirty and other stuff */
   int userflags = 0;
-  /** image metadata */
-  IDProperty *metadata = nullptr;
+
+  /** Image Metadata */
+  IDProperty *metadata_ptr = nullptr;
+  /** Implicit-sharing owner for #metadata_ptr. */
+  ImplicitSharingPtr<> metadata_sharing_info;
+
   /** OpenEXR handle. */
   ExrHandle *exrhandle = nullptr;
 
@@ -237,6 +241,11 @@ struct ImBuf {
   /** Share ownership with the implicit sharing referenced by the pointer. */
   void assign_byte_data(const uint8_t *data, ImplicitSharingPtr<> sharing_ptr);
   void assign_float_data(const float *data, ImplicitSharingPtr<> sharing_ptr);
+
+  /** Metadata access, should go through these methods instead of direct access. */
+  const IDProperty *metadata() const;
+  IDProperty *metadata_for_write();
+  void assign_metadata(const IDProperty *metadata, ImplicitSharingPtr<> sharing_info);
 
   [[nodiscard]] bool colorspace_is_data() const;
 
