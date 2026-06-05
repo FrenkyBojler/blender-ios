@@ -183,11 +183,19 @@ class CPPType : NonCopyable, NonMovable {
   void (*copy_assign_n_)(const void *src, void *dst, int64_t n) = nullptr;
   void (*copy_assign_indices_)(const void *src, void *dst, const IndexMask &mask) = nullptr;
   void (*copy_assign_compressed_)(const void *src, void *dst, const IndexMask &mask) = nullptr;
+  void (*copy_assign_indices_compressed_)(const void *src,
+                                          void *dst,
+                                          Span<int> indices,
+                                          const IndexMask &mask) = nullptr;
 
   void (*copy_construct_)(const void *src, void *dst) = nullptr;
   void (*copy_construct_n_)(const void *src, void *dst, int64_t n) = nullptr;
   void (*copy_construct_indices_)(const void *src, void *dst, const IndexMask &mask) = nullptr;
   void (*copy_construct_compressed_)(const void *src, void *dst, const IndexMask &mask) = nullptr;
+  void (*copy_construct_indices_compressed_)(const void *src,
+                                             void *dst,
+                                             Span<int> indices,
+                                             const IndexMask &mask) = nullptr;
 
   void (*move_assign_)(void *src, void *dst) = nullptr;
   void (*move_assign_n_)(void *src, void *dst, int64_t n) = nullptr;
@@ -295,6 +303,14 @@ class CPPType : NonCopyable, NonMovable {
    * Similar to #copy_assign_indices, but does not leave gaps in the #dst array.
    */
   void copy_assign_compressed(const void *src, void *dst, const IndexMask &mask) const;
+  /**
+   * For every index in the mask, copy the source element at the corresponding index, equivalent to
+   * `dst[i] = src[indices[i]]`
+   */
+  void copy_assign_compressed(const void *src,
+                              void *dst,
+                              Span<int> indices,
+                              const IndexMask &mask) const;
 
   /**
    * Copy an instance of this type from src to dst.
@@ -312,6 +328,14 @@ class CPPType : NonCopyable, NonMovable {
    * Similar to #copy_construct_indices, but does not leave gaps in the #dst array.
    */
   void copy_construct_compressed(const void *src, void *dst, const IndexMask &mask) const;
+  /**
+   * For every index in the mask, copy the source element at the corresponding index, equivalent to
+   * `new (&dst[i]) = T(src[indices[i]])`
+   */
+  void copy_construct_compressed(const void *src,
+                                 void *dst,
+                                 Span<int> indices,
+                                 const IndexMask &mask) const;
 
   /**
    * Move an instance of this type from src to dst.
@@ -574,6 +598,14 @@ inline void CPPType::copy_assign_compressed(const void *src,
   copy_assign_compressed_(src, dst, mask);
 }
 
+inline void CPPType::copy_assign_compressed(const void *src,
+                                            void *dst,
+                                            Span<int> indices,
+                                            const IndexMask &mask) const
+{
+  copy_assign_indices_compressed_(src, dst, indices, mask);
+}
+
 inline void CPPType::copy_construct(const void *src, void *dst) const
 {
   copy_construct_(src, dst);
@@ -596,6 +628,14 @@ inline void CPPType::copy_construct_compressed(const void *src,
                                                const IndexMask &mask) const
 {
   copy_construct_compressed_(src, dst, mask);
+}
+
+inline void CPPType::copy_construct_compressed(const void *src,
+                                               void *dst,
+                                               Span<int> indices,
+                                               const IndexMask &mask) const
+{
+  copy_construct_indices_compressed_(src, dst, indices, mask);
 }
 
 inline void CPPType::move_assign(void *src, void *dst) const

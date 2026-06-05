@@ -5,10 +5,14 @@
 #include <algorithm>
 
 #include "BLI_array_utils.hh"
+#include "BLI_cpp_type.hh"
+#include "BLI_execution_mode.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion.hh"
 
+#include "BLI_task.hh"
+#include "BLI_virtual_array.hh"
 #include "PRF_profile.hh"
 
 #include "BKE_attribute_math.hh"
@@ -400,7 +404,7 @@ void shift_right(GMutableSpan data, int src_begin, int src_end, int dst_begin)
 
 void gather(const GSpan src, const Span<int> map, GMutableSpan dst)
 {
-  gather(GVArray::from_span(src), map, IndexRange(dst.size()), dst);
+  gather(src, map, IndexRange(dst.size()), dst);
 }
 
 void gather(const GVArray &src, const Span<int> map, GMutableSpan dst)
@@ -410,14 +414,24 @@ void gather(const GVArray &src, const Span<int> map, GMutableSpan dst)
 
 void gather(const GSpan src, const Span<int> map, const IndexMask &dst_mask, GMutableSpan dst)
 {
-  gather(GVArray::from_span(src), map, dst_mask, dst);
+  const CPPType &type = src.type();
+  const int64_t grain_size = array_utils::calc_copy_grain_size(exec_mode::parallel, type.size);
+  threading::parallel_for(dst_mask.index_range(), grain_size, [&](const IndexRange range) {
+    type.copy_assign_compressed(src.data(), dst.data(), map, dst_mask.slice(range));
+  });
 }
 
 void gather(const GVArray &src, const Span<int> map, const IndexMask &dst_mask, GMutableSpan dst)
 {
-  to_static_type(src.type(), [&]<typename T>() {
-    array_utils::gather(src.typed<T>(), map, dst_mask, dst.typed<T>());
-  });
+  const CommonVArrayInfo info = src.common_info();
+  if (info.type == CommonVArrayInfo::Type::Span) {
+    gather(GSpan(src.type(), info.data, src.size()), map, dst_mask, dst);
+  }
+  else {
+    to_static_type(src.type(), [&]<typename T>() {
+      array_utils::gather(src.typed<T>(), map, dst_mask, dst.typed<T>());
+    });
+  }
 }
 
 void gather_group_to_group(const OffsetIndices<int> src_offsets,

@@ -180,35 +180,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (const auto *array_data = std::get_if<GList::ArrayData>(&list_data)) {
     GList::ArrayData sorted_array_data = GList::ArrayData::ForUninitialized(type, list_size);
-    const GSpan src_span(type, array_data->data, list_size);
-    GMutableSpan dst_span = sorted_array_data.span_for_write(type, list_size);
-    type.to_static_type<float,
-                        float2,
-                        float3,
-                        float4,
-                        int,
-                        int2,
-                        bool,
-                        int8_t,
-                        short2,
-                        ColorGeometry4f,
-                        ColorGeometry4b,
-                        math::Quaternion,
-                        float4x4,
-                        nodes::MenuValue,
-                        std::string,
-                        nodes::BundlePtr,
-                        nodes::ClosurePtr,
-                        GeometrySet,
-                        Material *,
-                        Object *,
-                        Image *,
-                        VFont *,
-                        Scene *,
-                        bSound *>([&]<typename T>() {
-      array_utils::gather(src_span.typed<T>(), sorted->as_span(), dst_span.typed<T>());
-    });
-
+    type.copy_construct_compressed(array_data,
+                                   const_cast<void *>(sorted_array_data.data),
+                                   sorted->as_span(),
+                                   sorted->index_range());
     GListPtr sorted_list = GList::create(type, std::move(sorted_array_data), list_size);
     params.set_output("List"_ustr, std::move(sorted_list));
     return;

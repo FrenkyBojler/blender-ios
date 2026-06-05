@@ -203,6 +203,24 @@ inline void gather(const VArray<T> &src,
   }
 }
 
+namespace detail {
+
+template<typename T, typename IndexT>
+inline void gather(const T *__restrict src,
+                   const IndexT *__restrict indices,
+                   const IndexMask &dst_mask,
+                   T *__restrict dst)
+{
+  if constexpr (std::is_trivially_copy_assignable_v<T>) {
+    dst_mask.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = src[indices[i]]; });
+  }
+  else {
+    dst_mask.foreach_index([&](const int64_t i) { dst[i] = src[indices[i]]; });
+  }
+}
+
+}  // namespace detail
+
 /**
  * Fill the destination span by gathering indexed values from the `src` array.
  */
@@ -215,8 +233,15 @@ inline void gather(const Span<T> src,
 {
   PRF_scope_with_name("array_utils::gather", ProfileCategory::Default);
   BLI_assert(indices.size() >= dst.size());
-  dst_mask.foreach_index_optimized<int64_t>([&](const int64_t i) { dst[i] = src[indices[i]]; },
-                                            exec_mode_tag_for_copy(mode, sizeof(T)));
+  if constexpr (!mode.is_parallel) {
+    detail::gather(src.data(), indices.data(), dst_mask, dst.data());
+  }
+  else {
+    const int64_t grain_size = calc_copy_grain_size(mode, sizeof(T));
+    threading::parallel_for(dst_mask.index_range(), grain_size, [&](const IndexRange range) {
+      detail::gather(src.data(), indices.data(), dst_mask.slice(range), dst.data());
+    });
+  }
 }
 
 /**

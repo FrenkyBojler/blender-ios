@@ -10,6 +10,7 @@
 
 #include <sstream>
 
+#include "BLI_array_utils.hh"
 #include "BLI_cpp_type.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_unique_hash.hh"
@@ -121,6 +122,19 @@ void copy_assign_compressed_cb(const void *src, void *dst, const IndexMask &mask
   }
 }
 
+template<typename T>
+void copy_assign_indices_compressed_cb(const void *src,
+                                       void *dst,
+                                       const Span<int> indices,
+                                       const IndexMask &mask)
+{
+  BLI_assert(mask.size() == 0 || src != dst);
+  BLI_assert(mask.size() == 0 || pointer_can_point_to_instance<T>(src));
+  BLI_assert(mask.size() == 0 || pointer_can_point_to_instance<T>(dst));
+  array_utils::detail::gather(
+      static_cast<const T *>(src), indices.data(), mask, static_cast<T *>(dst));
+}
+
 template<typename T> void copy_construct_cb(const void *src, void *dst)
 {
   BLI_assert(src != dst || std::is_trivially_copy_constructible_v<T>);
@@ -154,6 +168,20 @@ void copy_construct_compressed_cb(const void *src, void *dst, const IndexMask &m
 
   mask.foreach_index_optimized<int64_t>(
       [&](const int64_t i, const int64_t pos) { new (dst_ + pos) T(src_[i]); });
+}
+
+template<typename T>
+void copy_construct_indices_compressed_cb(const void *src,
+                                          void *dst,
+                                          const Span<int> indices,
+                                          const IndexMask &mask)
+{
+  BLI_assert(mask.size() == 0 || src != dst);
+  BLI_assert(mask.size() == 0 || pointer_can_point_to_instance<T>(src));
+  BLI_assert(mask.size() == 0 || pointer_can_point_to_instance<T>(dst));
+  const T *src_ = static_cast<const T *>(src);
+  T *dst_ = static_cast<T *>(dst);
+  mask.foreach_index([&](const int64_t i) { new (dst_ + i) T(src_[indices[i]]); });
 }
 
 template<typename T> void move_assign_cb(void *src, void *dst)
@@ -371,6 +399,7 @@ CPPType::CPPType(TypeTag<T> /*type*/,
     copy_assign_n_ = copy_assign_n_cb<T>;
     copy_assign_indices_ = copy_assign_indices_cb<T>;
     copy_assign_compressed_ = copy_assign_compressed_cb<T>;
+    copy_assign_indices_compressed_ = copy_assign_indices_compressed_cb<T>;
   }
   if constexpr (std::is_copy_constructible_v<T>) {
     if constexpr (std::is_trivially_copy_constructible_v<T>) {
@@ -378,12 +407,14 @@ CPPType::CPPType(TypeTag<T> /*type*/,
       copy_construct_n_ = copy_assign_n_;
       copy_construct_indices_ = copy_assign_indices_;
       copy_construct_compressed_ = copy_assign_compressed_;
+      copy_construct_indices_compressed_ = copy_assign_indices_compressed_;
     }
     else {
       copy_construct_ = copy_construct_cb<T>;
       copy_construct_n_ = copy_construct_n_cb<T>;
       copy_construct_indices_ = copy_construct_indices_cb<T>;
       copy_construct_compressed_ = copy_construct_compressed_cb<T>;
+      copy_construct_indices_compressed_ = copy_construct_indices_compressed_cb<T>;
     }
   }
   if constexpr (std::is_move_assignable_v<T>) {

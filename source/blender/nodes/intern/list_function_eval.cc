@@ -51,6 +51,7 @@ void SampleIndexFunction::call(const IndexMask &mask,
                                mf::Params params,
                                mf::Context /*context*/) const
 {
+  const CPPType &cpp_type = list_->cpp_type();
   const VArraySpan<int> indices = params.readonly_single_input<int>(0, "Index");
   GMutableSpan dst = params.uninitialized_single_output(1, "Value");
 
@@ -60,18 +61,15 @@ void SampleIndexFunction::call(const IndexMask &mask,
 
   if (valid_indices.size() != mask.size()) {
     const IndexMask invalid_indices = valid_indices.complement(mask, memory);
-    list_->cpp_type().fill_construct_indices(
-        list_->cpp_type().default_value(), dst.data(), invalid_indices);
+    cpp_type.fill_construct_indices(cpp_type.default_value(), dst.data(), invalid_indices);
   }
 
   const GList::DataVariant &data = list_->data();
   if (const auto *array_data = std::get_if<nodes::GList::ArrayData>(&data)) {
-    const GSpan src(list_->cpp_type(), array_data->data, list_->size());
-    valid_indices.foreach_index(
-        [&](const int i) { list_->cpp_type().copy_construct(src[indices[i]], dst[i]); });
+    cpp_type.copy_assign_compressed(array_data->data, dst.data(), indices, valid_indices);
   }
   else if (const auto *single_data = std::get_if<nodes::GList::SingleData>(&data)) {
-    list_->cpp_type().fill_construct_indices(single_data->value, dst.data(), valid_indices);
+    cpp_type.fill_construct_indices(single_data->value, dst.data(), valid_indices);
   }
 }
 
