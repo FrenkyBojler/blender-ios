@@ -72,6 +72,8 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "PRF_profile.hh"
+
 #include "RNA_enum_types.hh"
 
 #include "BLO_read_write.hh"
@@ -110,7 +112,7 @@ static void palette_free_data(ID *id)
 {
   Palette *palette = id_cast<Palette *>(id);
 
-  BLI_freelistN(&palette->colors);
+  palette->colors.free_no_destruct();
 }
 
 static void palette_foreach_working_space_color(ID *id,
@@ -218,7 +220,7 @@ static void paint_curve_blend_write(BlendWriter *writer, ID *id, const void *id_
 static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
 {
   PaintCurve *pc = id_cast<PaintCurve *>(id);
-  BLO_read_struct_array(reader, PaintCurvePoint, pc->tot_points, &pc->points);
+  BLO_read_array_and_validate_size(reader, &pc->points, &pc->tot_points);
 }
 
 IDTypeInfo IDType_ID_PC = {
@@ -252,7 +254,7 @@ IDTypeInfo IDType_ID_PC = {
     .lib_override_apply_post = nullptr,
 };
 
-static ePaintOverlayControlFlags overlay_flags = ePaintOverlayControlFlags(0);
+static ePaintOverlayControlFlags overlay_flags = ePaintOverlayControlFlags{};
 
 void BKE_paint_invalidate_overlay_tex(const Main &bmain,
                                       Scene *scene,
@@ -1303,7 +1305,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 
   BLI_remlink(&palette->colors, color);
 
-  if (palette->active_color < 0 && !BLI_listbase_is_empty(&palette->colors)) {
+  if (palette->active_color < 0 && !palette->colors.is_empty()) {
     palette->active_color = 0;
   }
 
@@ -1312,7 +1314,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 
 void BKE_palette_clear(Palette *palette)
 {
-  BLI_freelistN(&palette->colors);
+  palette->colors.free_no_destruct();
   palette->active_color = 0;
 }
 
@@ -1342,202 +1344,7 @@ PaletteColor *BKE_palette_color_add(Palette *palette)
 
 bool BKE_palette_is_empty(const Palette *palette)
 {
-  return BLI_listbase_is_empty(&palette->colors);
-}
-
-static int palettecolor_compare_hsv(const void *a1, const void *a2)
-{
-  const tPaletteColorHSV *ps1 = static_cast<const tPaletteColorHSV *>(a1);
-  const tPaletteColorHSV *ps2 = static_cast<const tPaletteColorHSV *>(a2);
-
-  /* Hue */
-  if (ps1->h > ps2->h) {
-    return 1;
-  }
-  if (ps1->h < ps2->h) {
-    return -1;
-  }
-
-  /* Saturation. */
-  if (ps1->s > ps2->s) {
-    return 1;
-  }
-  if (ps1->s < ps2->s) {
-    return -1;
-  }
-
-  /* Value. */
-  if (1.0f - ps1->v > 1.0f - ps2->v) {
-    return 1;
-  }
-  if (1.0f - ps1->v < 1.0f - ps2->v) {
-    return -1;
-  }
-
-  return 0;
-}
-
-void BKE_palette_sort_hsv(tPaletteColorHSV *color_array, const int totcol)
-{
-  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_hsv);
-}
-
-static int palettecolor_compare_svh(const void *a1, const void *a2)
-{
-  const tPaletteColorHSV *ps1 = static_cast<const tPaletteColorHSV *>(a1);
-  const tPaletteColorHSV *ps2 = static_cast<const tPaletteColorHSV *>(a2);
-
-  /* Saturation. */
-  if (ps1->s > ps2->s) {
-    return 1;
-  }
-  if (ps1->s < ps2->s) {
-    return -1;
-  }
-
-  /* Value. */
-  if (1.0f - ps1->v > 1.0f - ps2->v) {
-    return 1;
-  }
-  if (1.0f - ps1->v < 1.0f - ps2->v) {
-    return -1;
-  }
-
-  /* Hue */
-  if (ps1->h > ps2->h) {
-    return 1;
-  }
-  if (ps1->h < ps2->h) {
-    return -1;
-  }
-
-  return 0;
-}
-
-void BKE_palette_sort_svh(tPaletteColorHSV *color_array, const int totcol)
-{
-  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_svh);
-}
-
-static int palettecolor_compare_vhs(const void *a1, const void *a2)
-{
-  const tPaletteColorHSV *ps1 = static_cast<const tPaletteColorHSV *>(a1);
-  const tPaletteColorHSV *ps2 = static_cast<const tPaletteColorHSV *>(a2);
-
-  /* Value. */
-  if (1.0f - ps1->v > 1.0f - ps2->v) {
-    return 1;
-  }
-  if (1.0f - ps1->v < 1.0f - ps2->v) {
-    return -1;
-  }
-
-  /* Hue */
-  if (ps1->h > ps2->h) {
-    return 1;
-  }
-  if (ps1->h < ps2->h) {
-    return -1;
-  }
-
-  /* Saturation. */
-  if (ps1->s > ps2->s) {
-    return 1;
-  }
-  if (ps1->s < ps2->s) {
-    return -1;
-  }
-
-  return 0;
-}
-
-void BKE_palette_sort_vhs(tPaletteColorHSV *color_array, const int totcol)
-{
-  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_vhs);
-}
-
-static int palettecolor_compare_luminance(const void *a1, const void *a2)
-{
-  const tPaletteColorHSV *ps1 = static_cast<const tPaletteColorHSV *>(a1);
-  const tPaletteColorHSV *ps2 = static_cast<const tPaletteColorHSV *>(a2);
-
-  float lumi1 = (ps1->rgb[0] + ps1->rgb[1] + ps1->rgb[2]) / 3.0f;
-  float lumi2 = (ps2->rgb[0] + ps2->rgb[1] + ps2->rgb[2]) / 3.0f;
-
-  if (lumi1 > lumi2) {
-    return -1;
-  }
-  if (lumi1 < lumi2) {
-    return 1;
-  }
-
-  return 0;
-}
-
-void BKE_palette_sort_luminance(tPaletteColorHSV *color_array, const int totcol)
-{
-  /* Sort by Luminance (calculated with the average, enough for sorting). */
-  qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_luminance);
-}
-
-bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
-{
-  tPaletteColorHSV *color_array = nullptr;
-  tPaletteColorHSV *col_elm = nullptr;
-  bool done = false;
-
-  const int totpal = BLI_ghash_len(color_table);
-
-  if (totpal > 0) {
-    color_array = MEM_new_array<tPaletteColorHSV>(totpal, __func__);
-    /* Put all colors in an array. */
-    GHashIterator gh_iter;
-    int t = 0;
-    GHASH_ITER (gh_iter, color_table) {
-      const uint col = POINTER_AS_INT(BLI_ghashIterator_getValue(&gh_iter));
-      float r, g, b;
-      float h, s, v;
-      cpack_to_rgb(col, &r, &g, &b);
-      rgb_to_hsv(r, g, b, &h, &s, &v);
-
-      col_elm = &color_array[t];
-      col_elm->rgb[0] = r;
-      col_elm->rgb[1] = g;
-      col_elm->rgb[2] = b;
-      col_elm->h = h;
-      col_elm->s = s;
-      col_elm->v = v;
-      t++;
-    }
-  }
-
-  /* Create the Palette. */
-  if (totpal > 0) {
-    /* Sort by Hue and saturation. */
-    BKE_palette_sort_hsv(color_array, totpal);
-
-    Palette *palette = BKE_palette_add(bmain, name);
-    if (palette) {
-      for (int i = 0; i < totpal; i++) {
-        col_elm = &color_array[i];
-        PaletteColor *palcol = BKE_palette_color_add(palette);
-        if (palcol) {
-          /* Hex was stored as sRGB. */
-          IMB_colormanagement_srgb_to_scene_linear_v3(palcol->color, col_elm->rgb);
-        }
-      }
-      done = true;
-    }
-  }
-  else {
-    done = false;
-  }
-
-  if (totpal > 0) {
-    MEM_SAFE_DELETE(color_array);
-  }
-
-  return done;
+  return palette->colors.is_empty();
 }
 
 bool BKE_paint_select_face_test(const Object *ob)
@@ -1587,7 +1394,7 @@ void BKE_paint_cavity_curve_preset(Paint *paint, int preset)
   }
   cumap = paint->cavity_curve;
   cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
-  cumap->preset = preset;
+  cumap->preset = eCurveMappingPreset(preset);
 
   cuma = cumap->cm;
   BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::Positive);
@@ -2174,22 +1981,21 @@ static bool paint_rake_rotation_active(const MTex &mtex)
   return mtex.tex && mtex.brush_angle_mode & MTEX_ANGLE_RAKE;
 }
 
-static bool paint_rake_rotation_active(const Brush &brush, PaintMode paint_mode)
+static bool paint_rake_rotation_active(const Brush &brush)
 {
-  return paint_rake_rotation_active(brush.mtex) || paint_rake_rotation_active(brush.mask_mtex) ||
-         BKE_brush_has_cube_tip(&brush, paint_mode);
+  return paint_rake_rotation_active(brush.mtex) || paint_rake_rotation_active(brush.mask_mtex);
 }
 
 bool paint_calculate_rake_rotation(Paint &paint,
                                    const Brush &brush,
                                    const float mouse_pos[2],
-                                   const PaintMode paint_mode,
+                                   const PaintMode /*paint_mode*/,
                                    bool stroke_has_started)
 {
   bke::PaintRuntime &paint_runtime = *paint.runtime;
 
   bool ok = false;
-  if (paint_rake_rotation_active(brush, paint_mode)) {
+  if (paint_rake_rotation_active(brush)) {
     float r = paint_rake_rotation_spacing(paint, brush);
     float rotation;
 
@@ -2522,7 +2328,7 @@ static bool sculpt_modifiers_active(const Scene *scene, const Sculpt *sd, Object
   for (ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data); md;
        md = md->next)
   {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(static_cast<ModifierType>(md->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
     if (!BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) {
       continue;
     }
@@ -2731,6 +2537,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
 
 void BKE_sculpt_update_object_for_edit(Depsgraph *depsgraph, Object *ob_orig, bool is_paint_tool)
 {
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(ob_orig == DEG_get_original(ob_orig));
 
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);

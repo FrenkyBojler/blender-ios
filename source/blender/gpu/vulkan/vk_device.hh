@@ -102,7 +102,7 @@ struct VKExtensions {
   bool vertex_input_dynamic_state = false;
 
   /**
-   *Does the device support VK_EXT_host_image_copy
+   * Does the device support VK_EXT_host_image_copy
    */
   bool host_image_copy = false;
 
@@ -118,11 +118,6 @@ struct VKWorkarounds {
    * If set to true we should work around this issue by using a different texture format.
    */
   bool not_aligned_pixel_formats = false;
-
-  /**
-   * Intel 7th to 10th Gen GPUs show visual artifacts with texture pool usage.
-   */
-  bool no_texture_pool = false;
 
   /** Log enabled workarounds. */
   void log() const;

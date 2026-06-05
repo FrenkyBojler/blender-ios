@@ -267,10 +267,9 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
 
 /*********************** Attribute Operators ************************/
 
-static bool geometry_attributes_poll(bContext *C)
+static bool geometry_attributes_poll_ex(bContext *C, const Object *ob)
 {
   using namespace blender::bke;
-  const Object *ob = object::context_object(C);
   const Main *bmain = CTX_data_main(C);
   if (!ob || !BKE_id_is_editable(bmain, &ob->id)) {
     return false;
@@ -280,6 +279,32 @@ static bool geometry_attributes_poll(bContext *C)
     return false;
   }
   return AttributeAccessor::from_id(*data).has_value();
+}
+
+static bool geometry_attributes_with_id_type_poll_ex(bContext *C,
+                                                     const Object *ob,
+                                                     const ID_Type obdata_type)
+{
+  if (!geometry_attributes_poll_ex(C, ob)) {
+    return false;
+  }
+  const ID *id = ob->data;
+  if (GS(id->name) != obdata_type) {
+    return false;
+  }
+
+  return true;
+}
+
+static bool geometry_attributes_poll(bContext *C)
+{
+  return geometry_attributes_poll_ex(C, object::context_object(C));
+}
+
+static bool geometry_attributes_for_mesh_poll(bContext *C)
+{
+  const Object *ob = object::context_object(C);
+  return geometry_attributes_with_id_type_poll_ex(C, ob, ID_ME);
 }
 
 static bool geometry_attributes_remove_poll(bContext *C)
@@ -534,7 +559,7 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
       {
         BKE_id_attributes_default_color_set(id, unique_name);
       }
-      sculpt_paint::object_active_color_fill(*ob, color, false);
+      sculpt_paint::object_active_color_init(*ob, color);
       DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
       WM_main_add_notifier(NC_GEOM | ND_DATA, id);
       return OPERATOR_FINISHED;
@@ -551,7 +576,7 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
   if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or(""))) {
     BKE_id_attributes_default_color_set(id, unique_name);
   }
-  sculpt_paint::object_active_color_fill(*ob, color, false);
+  sculpt_paint::object_active_color_init(*ob, color);
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
 
@@ -801,7 +826,7 @@ void GEOMETRY_OT_color_attribute_render_set(wmOperatorType *ot)
   ot->idname = "GEOMETRY_OT_color_attribute_render_set";
 
   /* API callbacks. */
-  ot->poll = geometry_attributes_poll;
+  ot->poll = geometry_attributes_for_mesh_poll;
   ot->exec = geometry_color_attribute_set_render_exec;
 
   /* flags */

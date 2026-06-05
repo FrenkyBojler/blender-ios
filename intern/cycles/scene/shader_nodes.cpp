@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "shader_nodes.h"
+
 #include "kernel/svm/node_types.h"
 #include "kernel/svm/types.h"
 #include "kernel/types.h"
@@ -33,6 +35,8 @@
 #include "kernel/svm/math_util.h"
 #include "kernel/svm/ramp_util.h"
 
+#include <cassert>
+#include <limits>
 #include <mutex>
 
 CCL_NAMESPACE_BEGIN
@@ -2627,6 +2631,7 @@ NODE_DEFINE(PrincipledBsdfNode)
   subsurface_method_enum.insert("burley", CLOSURE_BSSRDF_BURLEY_ID);
   subsurface_method_enum.insert("random_walk", CLOSURE_BSSRDF_RANDOM_WALK_ID);
   subsurface_method_enum.insert("random_walk_skin", CLOSURE_BSSRDF_RANDOM_WALK_SKIN_ID);
+  subsurface_method_enum.insert("random_walk_legacy", CLOSURE_BSSRDF_RANDOM_WALK_LEGACY_ID);
   SOCKET_ENUM(subsurface_method,
               "Subsurface Method",
               subsurface_method_enum,
@@ -2637,13 +2642,15 @@ NODE_DEFINE(PrincipledBsdfNode)
   SOCKET_IN_FLOAT(roughness, "Roughness", 0.5f);
   SOCKET_IN_FLOAT(ior, "IOR", 1.5f);
   SOCKET_IN_FLOAT(alpha, "Alpha", 1.0f);
+  /* FIXME: `SOCKET_IN_BOOLEAN()` doesn't pass the value correctly, need investigation. */
+  SOCKET_IN_INT(thin_wall, "Thin Wall", int(false));
   SOCKET_IN_NORMAL(normal, "Normal", zero_float3(), SocketType::LINK_NORMAL);
 
   SOCKET_IN_FLOAT(diffuse_roughness, "Diffuse Roughness", 0.0f);
 
   SOCKET_IN_FLOAT(subsurface_weight, "Subsurface Weight", 0.0f);
-  SOCKET_IN_FLOAT(subsurface_scale, "Subsurface Scale", 0.1f);
-  SOCKET_IN_VECTOR(subsurface_radius, "Subsurface Radius", make_float3(0.1f, 0.1f, 0.1f));
+  SOCKET_IN_FLOAT(subsurface_scale, "Subsurface Scale", 0.005f);
+  SOCKET_IN_VECTOR(subsurface_radius, "Subsurface Radius", make_float3(1.0f, 0.2f, 0.1f));
   SOCKET_IN_FLOAT(subsurface_ior, "Subsurface IOR", 1.4f);
   SOCKET_IN_FLOAT(subsurface_anisotropy, "Subsurface Anisotropy", 0.0f);
 
@@ -2669,7 +2676,7 @@ NODE_DEFINE(PrincipledBsdfNode)
   SOCKET_IN_FLOAT(emission_strength, "Emission Strength", 0.0f);
 
   SOCKET_IN_FLOAT(thin_film_thickness, "Thin Film Thickness", 0.0f);
-  SOCKET_IN_FLOAT(thin_film_ior, "Thin Film IOR", 1.3f);
+  SOCKET_IN_FLOAT(thin_film_ior, "Thin Film IOR", 1.33f);
 
   SOCKET_IN_FLOAT(surface_mix_weight, "SurfaceMixWeight", 0.0f, SocketType::SVM_INTERNAL);
 
@@ -2692,7 +2699,12 @@ void PrincipledBsdfNode::simplify_settings(Scene * /* scene */)
     disconnect_unused_input("Emission Strength");
   }
 
-  if (!has_surface_bssrdf()) {
+  if (is_thin_wall()) {
+    disconnect_unused_input("Subsurface Radius");
+    disconnect_unused_input("Subsurface Scale");
+    disconnect_unused_input("Subsurface IOR");
+  }
+  else if (!has_surface_bssrdf()) {
     disconnect_unused_input("Subsurface Weight");
     disconnect_unused_input("Subsurface Radius");
     disconnect_unused_input("Subsurface Scale");
@@ -2730,6 +2742,11 @@ bool PrincipledBsdfNode::has_surface_transparent()
   return (input("Alpha")->link != nullptr || alpha < (1.0f - CLOSURE_WEIGHT_CUTOFF));
 }
 
+bool PrincipledBsdfNode::is_thin_wall()
+{
+  return (input("Thin Wall")->link == nullptr) && thin_wall;
+}
+
 bool PrincipledBsdfNode::has_surface_emission()
 {
   return (input("Emission Color")->link != nullptr ||
@@ -2738,11 +2755,22 @@ bool PrincipledBsdfNode::has_surface_emission()
           emission_strength > CLOSURE_WEIGHT_CUTOFF);
 }
 
-bool PrincipledBsdfNode::has_surface_bssrdf()
+bool PrincipledBsdfNode::subsurface_has_positive_weight()
 {
   return (input("Subsurface Weight")->link != nullptr ||
           subsurface_weight > CLOSURE_WEIGHT_CUTOFF) &&
          (input("Subsurface Scale")->link != nullptr || subsurface_scale != 0.0f);
+}
+
+bool PrincipledBsdfNode::has_surface_bssrdf()
+{
+  if (is_thin_wall()) {
+    /* Subsurface in thin-walled mode is approximated via diffuse lobes, it doesn't contain real
+     * subsurface. */
+    return false;
+  }
+
+  return subsurface_has_positive_weight();
 }
 
 bool PrincipledBsdfNode::has_nonzero_weight(const char *name)
@@ -2827,6 +2855,8 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler)
       /* Thin film. */
       .thin_film_thickness = compiler.input_float("Thin Film Thickness"),
       .thin_film_ior = compiler.input_float("Thin Film IOR"),
+      /* Thin wall. */
+      .thin_wall = compiler.input_int("Thin Wall"),
   });
 }
 
@@ -2955,10 +2985,11 @@ NODE_DEFINE(SubsurfaceScatteringNode)
   method_enum.insert("burley", CLOSURE_BSSRDF_BURLEY_ID);
   method_enum.insert("random_walk", CLOSURE_BSSRDF_RANDOM_WALK_ID);
   method_enum.insert("random_walk_skin", CLOSURE_BSSRDF_RANDOM_WALK_SKIN_ID);
+  method_enum.insert("random_walk_legacy", CLOSURE_BSSRDF_RANDOM_WALK_LEGACY_ID);
   SOCKET_ENUM(method, "Method", method_enum, CLOSURE_BSSRDF_RANDOM_WALK_ID);
 
-  SOCKET_IN_FLOAT(scale, "Scale", 0.01f);
-  SOCKET_IN_VECTOR(radius, "Radius", make_float3(0.1f, 0.1f, 0.1f));
+  SOCKET_IN_FLOAT(scale, "Scale", 0.005f);
+  SOCKET_IN_VECTOR(radius, "Radius", make_float3(1.0f, 0.2f, 0.1f));
 
   SOCKET_IN_FLOAT(subsurface_ior, "IOR", 1.4f);
   SOCKET_IN_FLOAT(subsurface_roughness, "Roughness", 1.0f);
@@ -6137,25 +6168,7 @@ void AttributeNode::attributes(Shader *shader, AttributeRequestSet *attributes)
   if (!output("Color")->links.empty() || !output("Vector")->links.empty() ||
       !output("Fac")->links.empty() || !output("Alpha")->links.empty())
   {
-    attributes->add_standard(attribute);
-
-    /* Request UV if we asked for one of the attributes computed from it.
-     * Ideally this would be handled at a more generic level. */
-    const AttributeStandard std = Attribute::name_standard(attribute.c_str());
-    if (std == ATTR_STD_UV_TANGENT || std == ATTR_STD_UV_TANGENT_SIGN ||
-        std == ATTR_STD_UV_TANGENT_UNDISPLACED || std == ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED)
-    {
-      attributes->add(ATTR_STD_UV);
-    }
-    else {
-      const char *suffixes[] = {
-          ".tangent_sign", ".tangent", ".undisplaced_tangent", ".undisplaced_tangent_sign"};
-      for (const char *suffix : suffixes) {
-        if (string_endswith(attribute, suffix)) {
-          attributes->add(attribute.substr(0, attribute.size() - strlen(suffix)));
-        }
-      }
-    }
+    add_named_attribute_request(attributes, attribute);
   }
 
   if (shader->has_volume) {
@@ -6163,6 +6176,30 @@ void AttributeNode::attributes(Shader *shader, AttributeRequestSet *attributes)
   }
 
   ShaderNode::attributes(shader, attributes);
+}
+
+void AttributeNode::add_named_attribute_request(AttributeRequestSet *attributes,
+                                                const ustring attribute)
+{
+  attributes->add_standard(attribute);
+
+  /* Request UV if we asked for one of the attributes computed from it.
+   * Ideally, this would be handled at a more generic level. */
+  const AttributeStandard std = Attribute::name_standard(attribute.c_str());
+  if (std == ATTR_STD_UV_TANGENT || std == ATTR_STD_UV_TANGENT_SIGN ||
+      std == ATTR_STD_UV_TANGENT_UNDISPLACED || std == ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED)
+  {
+    attributes->add(ATTR_STD_UV);
+  }
+  else {
+    const char *suffixes[] = {
+        ".tangent_sign", ".tangent", ".undisplaced_tangent", ".undisplaced_tangent_sign"};
+    for (const char *suffix : suffixes) {
+      if (string_endswith(attribute, suffix)) {
+        attributes->add(attribute.substr(0, attribute.size() - strlen(suffix)));
+      }
+    }
+  }
 }
 
 ShaderNodeType AttributeNode::shader_node_type() const
@@ -7298,7 +7335,7 @@ NODE_DEFINE(RGBCurvesNode)
 {
   NodeType *type = NodeType::add("rgb_curves", create, NodeType::SHADER);
 
-  SOCKET_COLOR_ARRAY(curves, "Curves", array<float3>());
+  SOCKET_COLOR_ARRAY(curves, "Curves", array<packed_float3>());
   SOCKET_FLOAT(min_x, "Min X", 0.0f);
   SOCKET_FLOAT(max_x, "Max X", 1.0f);
   SOCKET_BOOLEAN(extrapolate, "Extrapolate", true);
@@ -7334,7 +7371,7 @@ NODE_DEFINE(VectorCurvesNode)
 {
   NodeType *type = NodeType::add("vector_curves", create, NodeType::SHADER);
 
-  SOCKET_VECTOR_ARRAY(curves, "Curves", array<float3>());
+  SOCKET_VECTOR_ARRAY(curves, "Curves", array<packed_float3>());
   SOCKET_FLOAT(min_x, "Min X", 0.0f);
   SOCKET_FLOAT(max_x, "Max X", 1.0f);
   SOCKET_BOOLEAN(extrapolate, "Extrapolate", true);
@@ -7447,7 +7484,7 @@ NODE_DEFINE(RGBRampNode)
 {
   NodeType *type = NodeType::add("rgb_ramp", create, NodeType::SHADER);
 
-  SOCKET_COLOR_ARRAY(ramp, "Ramp", array<float3>());
+  SOCKET_COLOR_ARRAY(ramp, "Ramp", array<packed_float3>());
   SOCKET_FLOAT_ARRAY(ramp_alpha, "Ramp Alpha", array<float>());
   SOCKET_BOOLEAN(interpolate, "Interpolate", true);
 
@@ -8118,6 +8155,36 @@ void VectorDisplacementNode::compile(OSLCompiler &compiler)
 
 /* Raycast */
 
+static SocketType::Type get_socket_type(
+    const RaycastNode::AttributeOutputType attribute_output_type)
+{
+  switch (attribute_output_type) {
+    case RaycastNode::ATTR_OUTPUT_FLOAT3:
+      return SocketType::VECTOR;
+    case RaycastNode::ATTR_OUTPUT_FLOAT:
+      return SocketType::FLOAT;
+    case RaycastNode::ATTR_OUTPUT_FLOAT_ALPHA:
+      return SocketType::FLOAT;
+  }
+  LOG_DFATAL << "Invalid attribute output type " << int(attribute_output_type);
+  return SocketType::UNDEFINED;
+}
+
+static NodeAttributeOutputType get_node_attribute_output_type(
+    const RaycastNode::AttributeOutputType attribute_output_type)
+{
+  switch (attribute_output_type) {
+    case RaycastNode::ATTR_OUTPUT_FLOAT3:
+      return NODE_ATTR_OUTPUT_FLOAT3;
+    case RaycastNode::ATTR_OUTPUT_FLOAT:
+      return NODE_ATTR_OUTPUT_FLOAT;
+    case RaycastNode::ATTR_OUTPUT_FLOAT_ALPHA:
+      return NODE_ATTR_OUTPUT_FLOAT_ALPHA;
+  }
+  LOG_DFATAL << "Invalid attribute output type " << int(attribute_output_type);
+  return NODE_ATTR_OUTPUT_FLOAT;
+}
+
 NODE_DEFINE(RaycastNode)
 {
   NodeType *type = NodeType::add("raycast", create, NodeType::SHADER);
@@ -8139,8 +8206,70 @@ NODE_DEFINE(RaycastNode)
 
 RaycastNode::RaycastNode() : ShaderNode(get_node_type()) {}
 
+RaycastNode::RaycastNode(const RaycastNode &other)
+    : ShaderNode(other),
+      position(other.position),
+      direction(other.direction),
+      length(other.length),
+      only_local(other.only_local)
+{
+  for (const AttributeOutput &other_attribute_output : other.attribute_outputs_) {
+    /* The ShaderNode() is expected to only take care of sockets that are part of the node type. */
+    assert(output(other_attribute_output.socket_id) == nullptr);
+
+    add_output_attribute_socket(other_attribute_output.attribute_name,
+                                other_attribute_output.attribute_output_type,
+                                other_attribute_output.socket_id);
+  }
+}
+
+void RaycastNode::global_attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+  for (const AttributeOutput &attribute_output : attribute_outputs_) {
+    AttributeNode::add_named_attribute_request(attributes, attribute_output.attribute_name);
+  }
+
+  ShaderNode::global_attributes(shader, attributes);
+}
+
+void RaycastNode::add_output_attribute_socket(const ustring attribute_name,
+                                              const AttributeOutputType attribute_output_type,
+                                              const ustring socket_id)
+{
+  const SocketType::Type type = get_socket_type(attribute_output_type);
+  if (type == SocketType::UNDEFINED) {
+    return;
+  }
+
+  const AttributeOutput attribute_output = {
+      .attribute_name = attribute_name,
+      .attribute_output_type = attribute_output_type,
+      .socket_id = socket_id,
+  };
+  attribute_outputs_.push_back(attribute_output);
+
+  auto socket_type = std::make_unique<SocketType>();
+  socket_type->name = socket_id;
+  socket_type->type = type;
+  socket_type->flags = SocketType::LINKABLE;
+  socket_type->ui_name = socket_id;
+
+  auto shader_output = std::make_unique<ShaderOutput>(*socket_type.get(), this);
+  outputs.push_back(std::move(shader_output));
+
+  socket_types_.push_back(std::move(socket_type));
+}
+
 void RaycastNode::compile(SVMCompiler &compiler)
 {
+  uint num_linked_attributes = 0;
+  for (const auto &attribute_output : attribute_outputs_) {
+    assert(num_linked_attributes < std::numeric_limits<uint16_t>::max() - 1);
+    if (!output(attribute_output.socket_id)->links.empty()) {
+      ++num_linked_attributes;
+    }
+  }
+
   compiler.add_node(
       this,
       NODE_RAYCAST,
@@ -8150,19 +8279,128 @@ void RaycastNode::compile(SVMCompiler &compiler)
           .distance = compiler.input_float("Length"),
           .bump_filter_width = (bump == SHADER_BUMP_CENTER) ? 0.0f : bump_filter_width,
           .only_local = only_local,
+          .num_attributes = uint16_t(num_linked_attributes),
           .is_hit_offset = compiler.output("Is Hit"),
           .is_self_hit_offset = compiler.output("Self Hit"),
           .hit_distance_offset = compiler.output("Hit Distance"),
           .hit_position_offset = compiler.output("Hit Position"),
           .hit_normal_offset = compiler.output("Hit Normal"),
       });
+
+  for (const auto &attribute_output : attribute_outputs_) {
+    ShaderOutput *shader_output = output(attribute_output.socket_id);
+    if (shader_output->links.empty()) {
+      continue;
+    }
+
+    compiler.add_node(
+        this,
+        NODE_ATTR,
+        SVMNodeAttr{
+            .attr = int(compiler.attribute_standard(attribute_output.attribute_name)),
+            .out_offset = compiler.output(shader_output),
+            .output_type = get_node_attribute_output_type(attribute_output.attribute_output_type),
+            .bump_offset = NODE_BUMP_OFFSET_CENTER,
+            .store_derivatives = false,
+            .bump_filter_width = 0.0f,
+        });
+  }
 }
 
 void RaycastNode::compile(OSLCompiler &compiler)
 {
+  /* Collect and pass the names of per-output-type attributes. */
+  array<ustring> float_attribute_names;
+  array<ustring> alpha_attribute_names;
+  array<ustring> vector_attribute_names;
+  for (const auto &attribute_output : attribute_outputs_) {
+    switch (attribute_output.attribute_output_type) {
+      case ATTR_OUTPUT_FLOAT:
+        float_attribute_names.push_back_slow(attribute_output.attribute_name);
+        break;
+      case ATTR_OUTPUT_FLOAT_ALPHA:
+        alpha_attribute_names.push_back_slow(attribute_output.attribute_name);
+        break;
+      case ATTR_OUTPUT_FLOAT3:
+        vector_attribute_names.push_back_slow(attribute_output.attribute_name);
+        break;
+    }
+  }
+  compiler.parameter_string_array("float_attribute_names", float_attribute_names);
+  compiler.parameter_string_array("alpha_attribute_names", alpha_attribute_names);
+  compiler.parameter_string_array("vector_attribute_names", vector_attribute_names);
+
   compiler.parameter(this, "only_local");
   compiler.parameter("bump_filter_width", (bump == SHADER_BUMP_CENTER) ? 0.0f : bump_filter_width);
   compiler.add(this, "node_raycast");
+
+  int float_attr_index = 0;
+  int alpha_attr_index = 0;
+  int vector_attr_index = 0;
+  for (const auto &attribute_output : attribute_outputs_) {
+    switch (attribute_output.attribute_output_type) {
+      case ATTR_OUTPUT_FLOAT:
+        compiler.parameter("attribute_index", float_attr_index);
+        compiler.add_output_converter(this,
+                                      "node_raycast_attr_float",
+                                      "float_attributes",
+                                      "float_attributes",
+                                      "value",
+                                      attribute_output.socket_id);
+        ++float_attr_index;
+        break;
+      case ATTR_OUTPUT_FLOAT_ALPHA:
+        compiler.parameter("attribute_index", alpha_attr_index);
+        compiler.add_output_converter(this,
+                                      "node_raycast_attr_float",
+                                      "alpha_attributes",
+                                      "float_attributes",
+                                      "value",
+                                      attribute_output.socket_id);
+        ++alpha_attr_index;
+        break;
+      case ATTR_OUTPUT_FLOAT3:
+        compiler.parameter("attribute_index", vector_attr_index);
+        compiler.add_output_converter(this,
+                                      "node_raycast_attr_vector",
+                                      "vector_attributes",
+                                      "vector_attributes",
+                                      "value",
+                                      attribute_output.socket_id);
+        ++vector_attr_index;
+        break;
+    }
+  }
+}
+
+/* Scene Time */
+
+NODE_DEFINE(SceneTimeNode)
+{
+  NodeType *type = NodeType::add("scene_time", create, NodeType::SHADER);
+
+  SOCKET_OUT_FLOAT(seconds, "Seconds");
+  SOCKET_OUT_FLOAT(frame, "Frame");
+
+  return type;
+}
+
+SceneTimeNode::SceneTimeNode() : ShaderNode(get_node_type())
+{
+  special_type = SHADER_SPECIAL_TYPE_SCENE_TIME;
+}
+
+void SceneTimeNode::compile(SVMCompiler &compiler)
+{
+  compiler.add_node(this,
+                    NODE_SCENE_TIME,
+                    SVMNodeSceneTime{.seconds_out = compiler.output("Seconds"),
+                                     .frame_out = compiler.output("Frame")});
+}
+
+void SceneTimeNode::compile(OSLCompiler &compiler)
+{
+  compiler.add(this, "node_scene_time");
 }
 
 CCL_NAMESPACE_END
