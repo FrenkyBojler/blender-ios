@@ -2197,7 +2197,7 @@ static bool but_drag_init(bContext *C, Button *but, HandleButtonData *data, cons
       drag_info->pushed_state = drag_toggle_but_pushed_state(but);
       drag_info->but_cent_start[0] = BLI_rctf_cent_x(&but->rect);
       drag_info->but_cent_start[1] = BLI_rctf_cent_y(&but->rect);
-      if (but->flag & BUT_DRAG_LOCK_X) {
+      if ((but->flag & BUT_DRAG_LOCK_X) == BUT_DRAG_LOCK_X) {
         drag_info->xy_lock[0] = true;
       }
       copy_v2_v2_int(drag_info->xy_init, event->xy);
@@ -7346,7 +7346,7 @@ static int do_but_UNITVEC(
  * (could become BLI_math func) */
 static void clamp_axis_max_v3(float v[3], const float max)
 {
-  const float v_max = max_fff(v[0], v[1], v[2]);
+  const float v_max = std::max({v[0], v[1], v[2]});
   if (v_max > max) {
     mul_v3_fl(v, max / v_max);
     v[0] = std::min(v[0], max);
