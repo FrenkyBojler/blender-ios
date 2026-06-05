@@ -40,6 +40,12 @@ enum class DynamicOverrideRuleType : int8_t {
   IDData = 1,
 };
 
+enum class DynamicOverrideRuleFlag : int16_t {
+  /** The override rule is muted, it has no effect on evaluation results. */
+  IsMuted = 1 << 0,
+};
+ENUM_OPERATORS(DynamicOverrideRuleFlag);
+
 /**
  * Override rule, gathering a set of changes to apply to a same set of target IDs.
  */
@@ -48,17 +54,20 @@ struct DynamicOverrideRule {
 
   /** Type of rule, also defines the type of `rule_data`. */
   DynamicOverrideRuleType type = {};
-  int8_t _pad[7] = {};
+
+  int8_t _pad[5] = {};
+
+  DynamicOverrideRuleFlag flag = {};
 
   /** Define which ID(s) is/are affected by this rule. */
   DynamicOverrideRuleTargetFilter target_filter = {};
-
-  /**
-   * Type-specific override data (e.g. source and target IDs for remapping, or affected RNA
-   * properties and their values).
-   */
-  void *rule_data = nullptr;
 };
+
+enum class DynamicOverrideRulePropertyFlag : int16_t {
+  /** The override property is muted, it has no effect on evaluation results. */
+  IsMuted = 1 << 0,
+};
+ENUM_OPERATORS(DynamicOverrideRulePropertyFlag);
 
 struct DynamicOverrideRuleProperty {
   struct DynamicOverrideRuleProperty *next = nullptr, *prev = nullptr;
@@ -70,7 +79,9 @@ struct DynamicOverrideRuleProperty {
   char *rna_path = nullptr;
   char *sub_item_name = nullptr;
   int sub_item_index = -1;
-  int _pad = 0;
+
+  DynamicOverrideRulePropertyFlag flag = {};
+  int16_t _pad = 0;
 };
 
 struct DynamicOverrideRuleIDData {

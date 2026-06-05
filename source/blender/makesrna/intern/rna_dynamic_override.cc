@@ -8,6 +8,8 @@
 
 #include <cstdlib>
 
+#include "DNA_dynamic_override_types.h"
+
 #include "BKE_icons.hh"
 
 #include "WM_api.hh"
@@ -19,7 +21,6 @@
 #ifdef RNA_RUNTIME
 
 #  include "DNA_ID.h"
-#  include "DNA_dynamic_override_types.h"
 
 #  include "BKE_dynamic_override.hh"
 #  include "BKE_idprop.hh"
@@ -44,6 +45,17 @@ static StructRNA *rna_DynamicOverrideRuleTargetFilter_refine(PointerRNA *ptr)
       break;
   }
   return RNA_DynamicOverrideRuleTargetFilter;
+}
+
+void rna_DynamicOverrideRuleProperty_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+{
+  auto ancestor = RNA_struct_search_closest_ancestor_by_type(ptr, RNA_DynamicOverrideRule);
+  if (!ancestor) {
+    return;
+  }
+
+  const DynamicOverrideRule *rule = static_cast<DynamicOverrideRule *>(ancestor->data);
+  DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
 }
 
 static void rna_DynamicOverride_rule_property_rna_path_get(PointerRNA *ptr, char *value)
@@ -89,7 +101,9 @@ static DynamicOverrideRuleProperty *rna_DynamicOverride_rule_property_add(
   return result;
 }
 
-static void rna_DynamicOverride_rule_property_remove(DynamicOverrideRule *dynamic_override_rule,
+static void rna_DynamicOverride_rule_property_remove(ID *self_id,
+                                                     DynamicOverrideRule *dynamic_override_rule,
+                                                     Main *bmain,
                                                      ReportList *reports,
                                                      DynamicOverrideRuleProperty *property)
 {
@@ -105,7 +119,8 @@ static void rna_DynamicOverride_rule_property_remove(DynamicOverrideRule *dynami
     return;
   }
 
-  bke::dynoverride::rule_property_remove(*dynamic_override_rule, property);
+  bke::dynoverride::rule_property_remove(
+      *bmain, *id_cast<DynamicOverride *>(self_id), *dynamic_override_rule, property);
 
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
 }
@@ -152,6 +167,13 @@ static PointerRNA rna_DynamicOverrideRule_original_values_get(PointerRNA *ptr)
   BLI_assert(iddata_rule->base.type == DynamicOverrideRuleType::IDData);
   return RNA_pointer_create_with_parent(
       *ptr, RNA_DynamicOverrideRuleIDDataOriginalValues, iddata_rule);
+}
+
+void rna_DynamicOverrideRule_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+{
+  DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
+
+  DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
 }
 
 static StructRNA *rna_DynamicOverrideRule_refine(PointerRNA *ptr)
@@ -248,6 +270,12 @@ static void rna_def_dynamic_override_rule_property(BlenderRNA *brna)
                                 nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
+  prop = RNA_def_boolean(
+      srna, "is_muted", false, "Muted", "Whether this override property is muted or not");
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "flag", int64_t(DynamicOverrideRulePropertyFlag::IsMuted));
+  RNA_def_property_update(prop, NC_ID | NA_EDITED, "rna_DynamicOverrideRuleProperty_update");
+
   RNA_define_verify_sdna(false);
 
   prop = RNA_def_string(
@@ -300,7 +328,7 @@ static void rna_def_dynamic_override_rule_properties(BlenderRNA *brna, PropertyR
 
   func = RNA_def_function(srna, "remove", "rna_DynamicOverride_rule_property_remove");
   RNA_def_function_ui_description(func, "Remove and delete a rule property");
-  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
   parm = RNA_def_pointer(func,
                          "property",
                          "DynamicOverrideRuleProperty",
@@ -309,7 +337,7 @@ static void rna_def_dynamic_override_rule_properties(BlenderRNA *brna, PropertyR
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
-static void rna_def_dynamic_override_rule_iddata_override_value_storage(BlenderRNA *brna)
+static void rna_def_dynamic_override_rule_iddata_value_storage(BlenderRNA *brna)
 {
   StructRNA *srna;
 
@@ -376,19 +404,24 @@ static void rna_def_dynamic_override_rule_iddata(BlenderRNA *brna)
   // RNA_def_property_update(prop, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
   rna_def_dynamic_override_rule_properties(brna, prop);
 
-  rna_def_dynamic_override_rule_iddata_override_value_storage(brna);
+  rna_def_dynamic_override_rule_iddata_value_storage(brna);
 }
 
 static void rna_def_dynamic_override_rule(BlenderRNA *brna)
 {
   StructRNA *srna;
-  // PropertyRNA *prop;
+  PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "DynamicOverrideRule", nullptr);
   RNA_def_struct_ui_text(
       srna, "Dynamic Override Rule", "Base type for all types of dynamic override rules");
   RNA_def_struct_sdna(srna, "DynamicOverrideRule");
   RNA_def_struct_refine_func(srna, "rna_DynamicOverrideRule_refine");
+
+  prop = RNA_def_boolean(
+      srna, "is_muted", false, "Muted", "Whether this override rule is muted or not");
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", int64_t(DynamicOverrideRuleFlag::IsMuted));
+  RNA_def_property_update(prop, NC_ID | NA_EDITED, "rna_DynamicOverrideRule_update");
 
   RNA_def_pointer(srna,
                   "target_filter",

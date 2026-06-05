@@ -43,7 +43,9 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
                                                    DynamicOverrideRule &rule,
                                                    RNAPath &rna_path);
 
-void rule_property_remove(DynamicOverrideRule &rule,
+void rule_property_remove(Main &bmain,
+                          DynamicOverride &dynamic_override,
+                          DynamicOverrideRule &rule,
                           DynamicOverrideRuleProperty *existing_property);
 
 /**

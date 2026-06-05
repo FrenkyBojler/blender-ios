@@ -80,12 +80,22 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
         for rule in dynoverride.rules:
             if not rule.target_filter.target_id:
                 continue
-            layout.label(text=f"Properties for {rule.target_filter.target_id.name}...")
+            row = layout.row()
+            row.label(text="Properties for {target_name} {idtype_name}...".format(
+                           target_name=rule.target_filter.target_id.name,
+                           idtype_name=rule.target_filter.target_id.rna_type.name.tolower())
+                     )
+            row.prop(rule, "is_muted", icon='MUTE_IPO_OFF' if rule.is_muted else 'MUTE_IPO_ON', icon_only=True)
+            col = layout.column()
+            col.active = not rule.is_muted
             if isinstance(rule, bpy.types.DynamicOverrideRuleIDData):
                 for prop in rule.properties:
-                    layout.label(text=f"\t\t{prop.rna_path}:")
-                    # layout.prop(prop, "original_value")
-                    layout.prop(rule.override_values, prop.property_identifier)
+                    row = col.row()
+                    row.label(text=f"\t\t{prop.rna_path}:")
+                    row.prop(prop, "is_muted", icon='MUTE_IPO_OFF' if prop.is_muted else 'MUTE_IPO_ON', icon_only=True)
+                    sub = col.column()
+                    sub.active = not prop.is_muted
+                    sub.prop(rule.override_values, prop.property_identifier)
 
 
 class SCENE_PT_unit(SceneButtonsPanel, Panel):

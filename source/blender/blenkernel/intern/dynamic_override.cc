@@ -507,7 +507,9 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
   return rule_property;
 }
 
-void rule_property_remove(DynamicOverrideRule &rule,
+void rule_property_remove(Main &bmain,
+                          DynamicOverride &dynamic_override,
+                          DynamicOverrideRule &rule,
                           DynamicOverrideRuleProperty *existing_property)
 {
   BLI_assert(rule.type == DynamicOverrideRuleType::IDData);
@@ -517,6 +519,8 @@ void rule_property_remove(DynamicOverrideRule &rule,
   BLI_remlink(&rule_iddata.properties, existing_property);
   rule_property_free(*existing_property);
   MEM_delete(existing_property);
+
+  BKE_main_ensure_invariants(bmain, dynamic_override.id);
 }
 
 std::string rule_property_rna_identifier(DynamicOverrideRuleProperty &rule_property)
@@ -835,6 +839,9 @@ void DepsgraphCtx::gather_id_targets(const bool force_reset)
   gather_dynamic_overrides(force_reset);
   for (const DynamicOverride *dynoverride_iter : dynamic_overrides_) {
     for (const DynamicOverrideRule &rule_iter : dynoverride_iter->rules) {
+      if (flag_is_set(rule_iter.flag, DynamicOverrideRuleFlag::IsMuted)) {
+        continue;
+      }
       if (rule_iter.type == DynamicOverrideRuleType::IDData) {
         const DynamicOverrideRuleIDData &id_rule =
             reinterpret_cast<const DynamicOverrideRuleIDData &>(rule_iter);
@@ -894,11 +901,17 @@ void eval_for_id(Depsgraph &depsgraph, DepsgraphCtx &eval_context, ID &id_cow)
     if (rule.type != DynamicOverrideRuleType::IDData) {
       continue;
     }
+    if (flag_is_set(rule.flag, DynamicOverrideRuleFlag::IsMuted)) {
+      continue;
+    }
     DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
     if (rule_iddata.base.target_filter.target_id != &id_cow) {
       continue;
     }
     for (DynamicOverrideRuleProperty &rule_prop : rule_iddata.properties) {
+      if (flag_is_set(rule_prop.flag, DynamicOverrideRulePropertyFlag::IsMuted)) {
+        continue;
+      }
       PointerRNA data_cow_ptr;
       PropertyRNA *data_cow_rna_prop;
       RNA_path_resolve(&id_cow_ptr, rule_prop.rna_path, &data_cow_ptr, &data_cow_rna_prop);
