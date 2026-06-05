@@ -957,8 +957,10 @@ class USERPREF_PT_viewport_quality(ViewportPanel, CenterAlignMixIn, Panel):
         col.prop(system, "use_overlay_smooth_wire", text="Overlay")
         col.prop(system, "use_edit_mode_smooth_wire", text="Edit Mode")
 
+        import gpu
+
         col = layout.column(heading="Shadows")
-        col.active = system.gpu_backend == 'VULKAN'
+        col.active = gpu.capabilities.ray_query_support_get()
         col.prop(system, "use_rt_shadows", text="Hardware Raytracing")
 
 
