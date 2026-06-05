@@ -753,6 +753,9 @@ void SVMCompiler::generate_closure_node(ShaderNode *node, CompilerState *state)
     if (node->has_bump()) {
       current_shader->has_bump_from_surface = true;
     }
+    if (node->has_medium()) {
+      current_shader->has_medium = true;
+    }
   }
 }
 

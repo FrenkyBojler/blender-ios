@@ -105,6 +105,7 @@ Shader::Shader() : Node(get_node_type())
   has_light_path_node = false;
   has_aov_output_node = false;
   has_time_dependency = false;
+  has_medium = false;
 
   emission_estimate = zero_float3();
   emission_sampling = EMISSION_SAMPLING_NONE;
@@ -645,11 +646,10 @@ void ShaderManager::device_update_common(Device * /*device*/,
     if (shader->has_surface_raytrace) {
       flag |= SD_HAS_RAYTRACE;
     }
-    if (shader->has_volume) {
+    if (shader->has_volume || shader->has_medium) {
       flag |= SD_HAS_VOLUME;
-      /* todo: this could check more fine grained, to skip useless volumes
-       * enclosed inside an opaque bsdf.
-       */
+      /* TODO: this could check more fine grained, to skip useless volumes enclosed inside an
+       * opaque bsdf. */
       flag |= SD_HAS_TRANSPARENT_SHADOW;
     }
     /* in this case we can assume transparent surface */
@@ -853,6 +853,9 @@ uint ShaderManager::get_graph_kernel_features(ShaderGraph *graph)
     }
     if (node->has_surface_transparent()) {
       kernel_features |= KERNEL_FEATURE_TRANSPARENT;
+    }
+    if (node->has_medium()) {
+      kernel_features |= KERNEL_FEATURE_VOLUME;
     }
   }
 

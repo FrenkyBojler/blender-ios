@@ -25,6 +25,7 @@ enum MicrofacetFresnel {
   NONE = 0,
   DIELECTRIC,
   DIELECTRIC_TINT, /* used by the OSL MaterialX closures */
+  DIELECTRIC_VOLUMETRIC,
   CONDUCTOR,
   GENERALIZED_SCHLICK,
   F82_TINT,
@@ -51,6 +52,15 @@ struct FresnelGeneralizedSchlick {
   Spectrum f0, f90;
   /* Negative exponent signals a special case where the real Fresnel is remapped to F0...F90. */
   float exponent;
+};
+
+struct FresnelDielectricVolumetric {
+  FresnelThinFilm thin_film;
+
+  Spectrum reflection_tint;
+  Spectrum sigma_a;
+  PackedSpectrum sigma_s;
+  float anisotropy;
 };
 
 struct FresnelF82Tint {
@@ -355,6 +365,13 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
     *r_reflectance = F * fresnel->reflection_tint;
     *r_transmittance = (1.0f - F) * fresnel->transmission_tint;
   }
+  else if (bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC_VOLUMETRIC) {
+    ccl_private FresnelDielectricVolumetric *fresnel = (ccl_private FresnelDielectricVolumetric *)
+                                                           bsdf->fresnel;
+    const float F = fresnel_dielectric(cos_theta_i, bsdf->ior, r_cos_theta_t);
+    *r_reflectance = F * fresnel->reflection_tint;
+    *r_transmittance = make_spectrum(1.0f - F);
+  }
   else if (bsdf->fresnel_type == MicrofacetFresnel::CONDUCTOR) {
     ccl_private FresnelConductor *fresnel = (ccl_private FresnelConductor *)bsdf->fresnel;
 
@@ -445,7 +462,9 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
     E = lookup_table_read_2D(kg, rough, mu, kernel_data.tables.ggx_E, 32, 32);
     E_avg = lookup_table_read(kg, rough, kernel_data.tables.ggx_Eavg, 32);
   }
-  else if (bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID) {
+  else if (bsdf->type == CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID ||
+           bsdf->type == CLOSURE_BSDF_DIELECTRIC_VOLUMETRIC_ID)
+  {
     int ofs = kernel_data.tables.ggx_glass_E;
     int avg_ofs = kernel_data.tables.ggx_glass_Eavg;
     float ior = bsdf->ior;
@@ -552,7 +571,8 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
     }
   }
   else if ((bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC ||
-            bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC_TINT) &&
+            bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC_TINT ||
+            bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC_VOLUMETRIC) &&
            bsdf->ior > 1.0f)
   {
     /* We can re-use the ggx_gen_schlick_ior_s table here, since it's already precomputed for our
@@ -572,6 +592,15 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
                                      float(eval_transmission);
       return reflectance + transmittance;
     }
+    if (bsdf->fresnel_type == MicrofacetFresnel::DIELECTRIC_VOLUMETRIC) {
+      const ccl_private FresnelDielectricVolumetric *fresnel =
+          (const ccl_private FresnelDielectricVolumetric *)bsdf->fresnel;
+      reflectance *= fresnel->reflection_tint;
+      /* TODO(weizhen): have a better approximation of #transmission_tint. */
+      const Spectrum transmittance = (1.0f - F) * fresnel->sigma_s * float(eval_transmission);
+      return reflectance + transmittance;
+    }
+
     /* Untinted dielectric. */
     if (CLOSURE_IS_GLASS(bsdf->type)) {
       const Spectrum transmittance = make_spectrum(1.0f - F) * float(eval_transmission);
@@ -1401,5 +1430,36 @@ ccl_device void bsdf_thin_glass_setup(KernelGlobals kg,
 }
 
 /** \} */
+
+ccl_device int bsdf_volumetric_setup(KernelGlobals kg,
+                                     ccl_private MicrofacetBsdf *bsdf,
+                                     const float3 wi,
+                                     ccl_private FresnelDielectricVolumetric *fresnel,
+                                     const Spectrum scatter,
+                                     const Spectrum transmission,
+                                     const float depth)
+{
+  fresnel->sigma_s = scatter / depth;
+  /* TODO(weizhen): FLT_MAX or INF or a very large number? */
+  const Spectrum sigma_t = select(
+      transmission > zero_float3(), -log(transmission) / depth, make_spectrum(FLT_MAX));
+  fresnel->sigma_a = sigma_t - fresnel->sigma_s;
+  const float sigma_a_min = reduce_min(fresnel->sigma_a);
+  if (sigma_a_min < 0.0f) {
+    fresnel->sigma_a = fresnel->sigma_a - sigma_a_min;
+  }
+
+  int flag = bsdf_microfacet_ggx_glass_setup(bsdf);
+
+  bsdf->fresnel_type = MicrofacetFresnel::DIELECTRIC_VOLUMETRIC;
+  bsdf->fresnel = fresnel;
+  bsdf->sample_weight *= average(bsdf_microfacet_estimate_albedo(kg, wi, bsdf, true, true));
+
+  microfacet_ggx_preserve_energy(kg, bsdf, wi, one_spectrum());
+
+  bsdf->type = CLOSURE_BSDF_DIELECTRIC_VOLUMETRIC_ID;
+
+  return SD_HAS_VOLUME | flag;
+}
 
 CCL_NAMESPACE_END
