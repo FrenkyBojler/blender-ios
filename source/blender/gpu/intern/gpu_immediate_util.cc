@@ -25,22 +25,21 @@ namespace blender {
 
 namespace gpu {
 
-static void imm_draw_circle_partial_aspect(GPUPrimType prim_type,
-                                           uint pos,
-                                           float x,
-                                           float y,
-                                           float2 radius,
-                                           int nsegments,
-                                           float start,
-                                           float sweep)
+static void imm_draw_circle_partial_aspect(const GPUPrimType prim_type,
+                                           const uint pos,
+                                           const float x,
+                                           const float y,
+                                           const float2 radius,
+                                           const int nsegments,
+                                           const float start,
+                                           const float sweep)
 {
   /* shift & reverse angle, increase 'nsegments' to match gluPartialDisk */
   const float angle_start = -DEG2RADF(start) + float(M_PI_2);
   const float angle_end = -(DEG2RADF(sweep) - angle_start);
-  nsegments += 1;
-  immBegin(prim_type, nsegments);
-  for (int i = 0; i < nsegments; i++) {
-    const float angle = interpf(angle_start, angle_end, (float(i) / float(nsegments - 1)));
+  immBegin(prim_type, nsegments + 1);
+  for (int i = 0; i < nsegments + 1; i++) {
+    const float angle = interpf(angle_start, angle_end, (float(i) / float(nsegments)));
     const float angle_sin = sinf(angle);
     const float angle_cos = cosf(angle);
     immVertex2f(pos, x + radius.x * angle_cos, y + radius.y * angle_sin);
@@ -48,23 +47,22 @@ static void imm_draw_circle_partial_aspect(GPUPrimType prim_type,
   immEnd();
 }
 
-static void imm_draw_circle_partial_aspect_3d(GPUPrimType prim_type,
-                                              uint pos,
-                                              float x,
-                                              float y,
-                                              float z,
-                                              float2 radius,
-                                              int nsegments,
-                                              float start,
-                                              float sweep)
+static void imm_draw_circle_partial_aspect_3d(const GPUPrimType prim_type,
+                                              const uint pos,
+                                              const float x,
+                                              const float y,
+                                              const float z,
+                                              const float2 radius,
+                                              const int nsegments,
+                                              const float start,
+                                              const float sweep)
 {
   /* shift & reverse angle, increase 'nsegments' to match gluPartialDisk */
   const float angle_start = -DEG2RADF(start) + float(M_PI / 2);
   const float angle_end = -(DEG2RADF(sweep) - angle_start);
-  nsegments += 1;
-  immBegin(prim_type, nsegments);
-  for (int i = 0; i < nsegments; i++) {
-    const float angle = interpf(angle_start, angle_end, (float(i) / float(nsegments - 1)));
+  immBegin(prim_type, nsegments + 1);
+  for (int i = 0; i < nsegments + 1; i++) {
+    const float angle = interpf(angle_start, angle_end, (float(i) / float(nsegments)));
     const float angle_sin = sinf(angle);
     const float angle_cos = cosf(angle);
     immVertex3f(pos, x + radius.x * angle_cos, y + radius.y * angle_sin, z);
@@ -72,21 +70,36 @@ static void imm_draw_circle_partial_aspect_3d(GPUPrimType prim_type,
   immEnd();
 }
 
-void imm_draw_circle_partial_wire_aspect_2d(
-    uint pos, float x, float y, float2 radius, int nsegments, float start, float sweep)
+void imm_draw_circle_partial_wire_aspect_2d(const uint pos,
+                                            const float x,
+                                            const float y,
+                                            const float2 radius,
+                                            const int nsegments,
+                                            const float start,
+                                            const float sweep)
 {
   imm_draw_circle_partial_aspect(GPU_PRIM_LINE_STRIP, pos, x, y, radius, nsegments, start, sweep);
 }
 
-void imm_draw_circle_partial_wire_aspect_3d(
-    uint pos, float x, float y, float z, float2 radius, int nsegments, float start, float sweep)
+void imm_draw_circle_partial_wire_aspect_3d(const uint pos,
+                                            const float x,
+                                            const float y,
+                                            const float z,
+                                            const float2 radius,
+                                            const int nsegments,
+                                            const float start,
+                                            const float sweep)
 {
   imm_draw_circle_partial_aspect_3d(
       GPU_PRIM_LINE_STRIP, pos, x, y, z, radius, nsegments, start, sweep);
 }
 
-void imm_draw_rounded_box_wire_2d(
-    uint pos, float x, float y, float2 radius, float2 corner_radius, int nsegments)
+void imm_draw_rounded_box_wire_2d(const uint pos,
+                                  const float x,
+                                  const float y,
+                                  const float2 radius,
+                                  const float2 corner_radius,
+                                  const int nsegments)
 {
   BLI_assert(corner_radius.x >= 0.0f && corner_radius.x <= radius.x);
   BLI_assert(corner_radius.y >= 0.0f && corner_radius.y <= radius.y);
@@ -136,8 +149,12 @@ void imm_draw_rounded_box_wire_2d(
   immEnd();
 }
 
-void imm_draw_rounded_box_wire_3d(
-    uint pos, float x, float y, float2 radius, float2 corner_radius, int nsegments)
+void imm_draw_rounded_box_wire_3d(const uint pos,
+                                  const float x,
+                                  const float y,
+                                  const float2 radius,
+                                  const float2 corner_radius,
+                                  const int nsegments)
 {
   BLI_assert(corner_radius.x >= 0.0f && corner_radius.x <= radius.x);
   BLI_assert(corner_radius.y >= 0.0f && corner_radius.y <= radius.y);
@@ -208,6 +225,7 @@ void imm_draw_rounded_box_wire_3d(
   immVertex3f(pos, x_corner_min, y + radius.y, 0.0f);
   immEnd();
 }
+
 }  // namespace gpu
 
 static const float cube_coords[8][3] = {
