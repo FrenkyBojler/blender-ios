@@ -223,6 +223,14 @@ float evaluate_disk(
   float d11 = dot(V1, V1);
   float d22 = dot(V2, V2);
   float d12 = dot(V1, V2);
+  /* The epsilon below was determined as the maximum of the values encountered for
+   * "raycast_visiblity.blend" resulting in NaN on an Intel Arc B580 + Mesa 26.2.0-devel plus some
+   * safety margin. */
+  const float epsilon = 2e-5f;
+  if (d11 < epsilon || d22 < epsilon) {
+    return 0.0;
+  }
+
   float a, inv_b;                      /* Eigenvalues */
   constexpr float threshold = 0.0007f; /* Can be adjusted. Fix artifacts. */
   if (abs(d12) / sqrt(d11 * d22) > threshold) {
@@ -304,8 +312,27 @@ float evaluate_disk(
   float L1 = sqrt(-e2 / e3);
   float L2 = sqrt(-e2 / e1);
 
+  float val_final = L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2));
+  if (isnan(val_final) || isinf(val_final)) {
+    printf("rf2: %f; %f %f; %f %f %f; %f %f %f; %f %f %f\n",
+           val_final,
+           d11 / epsilon,
+           d22 / epsilon,
+           T[0][0],
+           T[1][1],
+           T[2][2],
+           N.x,
+           N.y,
+           N.z,
+           V.x,
+           V.y,
+           V.z);
+  }
+
   /* Find the sphere and compute lighting. */
-  float form_factor = max(0.0f, L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2)));
+  float form_factor = L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2));
+  assert(!isnan(form_factor) && !isinf(form_factor));
+  form_factor = max(0.0f, form_factor);
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
 }
 
