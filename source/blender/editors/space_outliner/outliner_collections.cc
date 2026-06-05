@@ -710,11 +710,14 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-std::string collection_duplicate_get_description(bContext */*C*/, wmOperatorType */*ot*/, PointerRNA *ptr)
+std::string collection_duplicate_get_description(bContext * /*C*/,
+                                                 wmOperatorType * /*ot*/,
+                                                 PointerRNA *ptr)
 {
   const bool linked = RNA_boolean_get(ptr, "linked");
   if (linked) {
-    return "Recursively duplicate the collection, all its children and objects, with linked object data";
+    return "Recursively duplicate the collection, all its children and objects, with linked "
+           "object data";
   }
   return "Recursively duplicate the collection, all its children, objects and object data";
 }
@@ -732,11 +735,8 @@ void OUTLINER_OT_collection_duplicate(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-  ot->prop = RNA_def_boolean(ot->srna,
-                         "linked",
-                         false,
-                         "Linked",
-                         "Duplicate with linked object data");
+  ot->prop = RNA_def_boolean(
+      ot->srna, "linked", false, "Linked", "Duplicate with linked object data");
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 }
 
