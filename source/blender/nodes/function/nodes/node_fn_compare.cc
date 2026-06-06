@@ -544,7 +544,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
               static auto fn = mf::build::SI4_SO<float3, float3, float, float, bool>(
                   "Not Equal - Dot Product",
                   [](float3 a, float3 b, float comp, float epsilon) {
-                    return abs(math::dot(a, b) - comp) >= epsilon;
+                    return abs(math::dot(a, b) - comp) > epsilon;
                   },
                   exec_preset_first_two);
               return &fn;
@@ -732,87 +732,90 @@ static const char *gpu_shader_get_name(const eNodeSocketDatatype data_type,
       }
       break;
     case SOCK_VECTOR:
-      switch (mode) {
-        case NODE_COMPARE_MODE_ELEMENT:
-          switch (operation) {
-            case NODE_COMPARE_LESS_THAN:
+      switch (operation) {
+        case NODE_COMPARE_LESS_THAN:
+          switch (mode) {
+            case NODE_COMPARE_MODE_AVERAGE:
+              return "compare_vector_average_less_than";
+            case NODE_COMPARE_MODE_DOT_PRODUCT:
+              return "compare_vector_dot_less_than";
+            case NODE_COMPARE_MODE_DIRECTION:
+              return "compare_vector_direction_less_than";
+            case NODE_COMPARE_MODE_ELEMENT:
               return "compare_vector_element_less_than";
-            case NODE_COMPARE_LESS_EQUAL:
-              return "compare_vector_element_less_equal";
-            case NODE_COMPARE_GREATER_THAN:
-              return "compare_vector_element_greater_than";
-            case NODE_COMPARE_GREATER_EQUAL:
-              return "compare_vector_element_greater_equal";
-            case NODE_COMPARE_EQUAL:
-              return "compare_vector_element_equal";
-            case NODE_COMPARE_NOT_EQUAL:
-              return "compare_vector_element_not_equal";
+            case NODE_COMPARE_MODE_LENGTH:
+              return "compare_vector_length_less_than";
           }
           break;
-        case NODE_COMPARE_MODE_LENGTH:
-          switch (operation) {
-            case NODE_COMPARE_LESS_THAN:
-              return "compare_vector_length_less_than";
-            case NODE_COMPARE_LESS_EQUAL:
+        case NODE_COMPARE_LESS_EQUAL:
+          switch (mode) {
+            case NODE_COMPARE_MODE_AVERAGE:
+              return "compare_vector_average_less_equal";
+            case NODE_COMPARE_MODE_DOT_PRODUCT:
+              return "compare_vector_dot_less_equal";
+            case NODE_COMPARE_MODE_DIRECTION:
+              return "compare_vector_direction_less_equal";
+            case NODE_COMPARE_MODE_ELEMENT:
+              return "compare_vector_element_less_equal";
+            case NODE_COMPARE_MODE_LENGTH:
               return "compare_vector_length_less_equal";
-            case NODE_COMPARE_GREATER_THAN:
+          }
+          break;
+        case NODE_COMPARE_GREATER_THAN:
+          switch (mode) {
+            case NODE_COMPARE_MODE_AVERAGE:
+              return "compare_vector_average_greater_than";
+            case NODE_COMPARE_MODE_DOT_PRODUCT:
+              return "compare_vector_dot_greater_than";
+            case NODE_COMPARE_MODE_DIRECTION:
+              return "compare_vector_direction_greater_than";
+            case NODE_COMPARE_MODE_ELEMENT:
+              return "compare_vector_element_greater_than";
+            case NODE_COMPARE_MODE_LENGTH:
               return "compare_vector_length_greater_than";
-            case NODE_COMPARE_GREATER_EQUAL:
+          }
+          break;
+        case NODE_COMPARE_GREATER_EQUAL:
+          switch (mode) {
+            case NODE_COMPARE_MODE_AVERAGE:
+              return "compare_vector_average_greater_equal";
+            case NODE_COMPARE_MODE_DOT_PRODUCT:
+              return "compare_vector_dot_greater_equal";
+            case NODE_COMPARE_MODE_DIRECTION:
+              return "compare_vector_direction_greater_equal";
+            case NODE_COMPARE_MODE_ELEMENT:
+              return "compare_vector_element_greater_equal";
+            case NODE_COMPARE_MODE_LENGTH:
               return "compare_vector_length_greater_equal";
-            case NODE_COMPARE_EQUAL:
+          }
+          break;
+        case NODE_COMPARE_EQUAL:
+          switch (mode) {
+            case NODE_COMPARE_MODE_AVERAGE:
+              return "compare_vector_average_equal";
+            case NODE_COMPARE_MODE_DOT_PRODUCT:
+              return "compare_vector_dot_equal";
+            case NODE_COMPARE_MODE_DIRECTION:
+              return "compare_vector_direction_equal";
+            case NODE_COMPARE_MODE_ELEMENT:
+              return "compare_vector_element_equal";
+            case NODE_COMPARE_MODE_LENGTH:
               return "compare_vector_length_equal";
-            case NODE_COMPARE_NOT_EQUAL:
+          }
+          break;
+        case NODE_COMPARE_NOT_EQUAL:
+          switch (mode) {
+            case NODE_COMPARE_MODE_AVERAGE:
+              return "compare_vector_average_not_equal";
+            case NODE_COMPARE_MODE_DOT_PRODUCT:
+              return "compare_vector_dot_not_equal";
+            case NODE_COMPARE_MODE_DIRECTION:
+              return "compare_vector_direction_not_equal";
+            case NODE_COMPARE_MODE_ELEMENT:
+              return "compare_vector_element_not_equal";
+            case NODE_COMPARE_MODE_LENGTH:
               return "compare_vector_length_not_equal";
           }
-          break;
-        case NODE_COMPARE_MODE_AVERAGE:
-          switch (operation) {
-            case NODE_COMPARE_LESS_THAN:
-              return "compare_vector_average_less_than";
-            case NODE_COMPARE_LESS_EQUAL:
-              return "compare_vector_average_less_equal";
-            case NODE_COMPARE_GREATER_THAN:
-              return "compare_vector_average_greater_than";
-            case NODE_COMPARE_GREATER_EQUAL:
-              return "compare_vector_average_greater_equal";
-            case NODE_COMPARE_EQUAL:
-              return "compare_vector_average_equal";
-            case NODE_COMPARE_NOT_EQUAL:
-              return "compare_vector_average_not_equal";
-          }
-          break;
-        case NODE_COMPARE_MODE_DOT_PRODUCT:
-          switch (operation) {
-            case NODE_COMPARE_LESS_THAN:
-              return "compare_vector_dot_less_than";
-            case NODE_COMPARE_LESS_EQUAL:
-              return "compare_vector_dot_less_equal";
-            case NODE_COMPARE_GREATER_THAN:
-              return "compare_vector_dot_greater_than";
-            case NODE_COMPARE_GREATER_EQUAL:
-              return "compare_vector_dot_greater_equal";
-            case NODE_COMPARE_EQUAL:
-              return "compare_vector_dot_equal";
-            case NODE_COMPARE_NOT_EQUAL:
-              return "compare_vector_dot_not_equal";
-          }
-          break;
-        case NODE_COMPARE_MODE_DIRECTION:
-          switch (operation) {
-            case NODE_COMPARE_LESS_THAN:
-              return "compare_vector_direction_less_than";
-            case NODE_COMPARE_LESS_EQUAL:
-              return "compare_vector_direction_less_equal";
-            case NODE_COMPARE_GREATER_THAN:
-              return "compare_vector_direction_greater_than";
-            case NODE_COMPARE_GREATER_EQUAL:
-              return "compare_vector_direction_greater_equal";
-            case NODE_COMPARE_EQUAL:
-              return "compare_vector_direction_equal";
-            case NODE_COMPARE_NOT_EQUAL:
-              return "compare_vector_direction_not_equal";
-          }
-          break;
       }
       break;
     case SOCK_RGBA:
