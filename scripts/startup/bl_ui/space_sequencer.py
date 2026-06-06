@@ -2144,8 +2144,8 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
         
         col2 = split.column(align=True)
         text_col = col2.column(align=True)
-        text_col.scale_y = 2
-        text_col.prop(strip, "text", text="")
+        text_col.scale_y = 0.75
+        text_col.textbox(strip, "text")
         
         if(draw_ops):
             ops_row = cell.row(align=True)
