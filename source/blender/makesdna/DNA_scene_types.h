@@ -1115,8 +1115,7 @@ struct UnifiedPaintSettings {
   /** Unified brush stroke input samples. */
   int input_samples = 1;
 
-  /** Deprecated user preferences for sculpt and paint. */
-  DNA_DEPRECATED eUnifiedPaintSettingsFlags flag;
+  eUnifiedPaintSettingsFlags flag;
 };
 
 /** \} */
