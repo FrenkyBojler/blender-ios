@@ -657,8 +657,8 @@ static std::string shape_key_mirror_get_description(bContext * /*C*/,
                                                     wmOperatorType * /*ot*/,
                                                     PointerRNA *ptr)
 {
-  const bool do_apply_mix = RNA_boolean_get(ptr, "use_topology");
-  if (do_apply_mix) {
+  const bool do_use_topology = RNA_boolean_get(ptr, "use_topology");
+  if (do_use_topology) {
     return TIP_(
         "Mirror the active shape key along the local X axis using topology based mirroring\n"
         "(for when both sides of mesh have matching, unique topology)");
