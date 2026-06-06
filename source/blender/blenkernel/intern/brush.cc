@@ -1272,7 +1272,6 @@ void BKE_brush_size_set(Paint *paint, Brush *brush, int size)
     ups->size = size;
   }
   else {
-    printf("Setting brush size %d\n", size);
     brush->size = size;
     BKE_brush_tag_unsaved_changes(brush);
   }
