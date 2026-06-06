@@ -50,6 +50,8 @@
 
 #include "DRW_engine.hh"
 
+#include "ED_util.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -786,6 +788,10 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     return false;
   }
 
+  /* Flush data from sculpt mode, fixes #129203 */
+  Main *bmain = CTX_data_main(C);
+  ED_editors_flush_edits(bmain);
+
   /* allocate opengl render */
   oglrender = MEM_new<OGLRender>("OGLRender");
   op->customdata = oglrender;
@@ -794,7 +800,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->sizex = sizex;
   oglrender->sizey = sizey;
   oglrender->viewport = GPU_viewport_create();
-  oglrender->bmain = CTX_data_main(C);
+  oglrender->bmain = bmain;
   oglrender->scene = scene;
   oglrender->current_scene = scene;
   oglrender->workspace = workspace;
