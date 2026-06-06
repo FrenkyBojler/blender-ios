@@ -284,6 +284,7 @@ void MESH_OT_set_sharpness_by_angle(wmOperatorType *ot);
 }
 void MESH_OT_split(wmOperatorType *ot);
 void MESH_OT_edge_rotate(wmOperatorType *ot);
+void MESH_OT_edge_flow(wmOperatorType *ot);
 void MESH_OT_hide(wmOperatorType *ot);
 void MESH_OT_reveal(wmOperatorType *ot);
 void MESH_OT_mark_seam(wmOperatorType *ot);

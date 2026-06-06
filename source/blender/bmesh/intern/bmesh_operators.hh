@@ -151,6 +151,14 @@ enum SpaceInterpolationMethod {
 };
 
 /**
+ * Mode for edge flow redistribution.
+ */
+enum EdgeFlowMode {
+  EDGE_FLOW_LINEAR = 0,
+  EDGE_FLOW_FLOW = 1,
+};
+
+/**
  * Methods for determining the orientation of flattening the plane.
  */
 enum FlattenMethod {

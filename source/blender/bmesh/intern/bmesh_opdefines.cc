@@ -545,6 +545,33 @@ static BMOpDefine bmo_circularize_def = {
 };
 
 /*
+ * Edge Flow.
+ *
+ * Redistribute interior vertices of selected edge loops linearly between endpoints.
+ */
+static BMOpDefine bmo_edge_flow_def = {
+    /*opname*/ "edge_flow",
+    /*slot_types_in*/
+    {
+        /* Input edges. */
+        {"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
+        /* Redistribution mode: 0 = linear, 1 = flow (deferred). */
+        {"mode", BMO_OP_SLOT_INT},
+        /* Blend factor between original and computed position (0.0–1.0). */
+        {"mix", BMO_OP_SLOT_FLT},
+        /* Space vertices at equal distances when true; project onto axis when false. */
+        {"space_evenly", BMO_OP_SLOT_BOOL},
+        {{'\0'}},
+    },
+    /*slot_types_out*/
+    {{{'\0'}}},
+    /*init*/ nullptr,
+    /*exec*/ bmo_edge_flow_exec,
+    /*type_flag*/
+    (BMO_OPTYPE_FLAG_NORMALS_CALC),
+};
+
+/*
  * Flatten.
  *
  * Flatten vertices on a best-fitting plane.
@@ -2916,6 +2943,7 @@ const BMOpDefine *bmo_opdefines[] = {
     &bmo_bmesh_to_mesh_def,
     &bmo_bridge_loops_def,
     &bmo_circularize_def,
+    &bmo_edge_flow_def,
     &bmo_flatten_def,
     &bmo_collapse_def,
     &bmo_collapse_uvs_def,
