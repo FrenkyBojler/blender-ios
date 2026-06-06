@@ -1000,6 +1000,30 @@ struct BevelState {
   void uv_init();
 };
 
+/* Helper functions to see if offsets are all the same. */
+static std::optional<float> all_same_value(Span<float> values)
+{
+  if (values.size() == 0) {
+    return {};
+  }
+  float v0 = values[0];
+  for (const float v : values) {
+    if (v != v0) {
+      return {};
+    }
+  }
+  return v0;
+}
+
+static bool all_offsets_same(const BevelParameters &params)
+{
+  std::optional<float> v0 = all_same_value(params.offsets[0]);
+  std::optional<float> v1 = all_same_value(params.offsets[1]);
+  std::optional<float> v2 = all_same_value(params.offsets[2]);
+  std::optional<float> v3 = all_same_value(params.offsets[3]);
+  return v0.has_value() && v0 == v1 && v0 == v2 && v0 == v3;
+}
+
 BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const IndexMask &selection)
     : params(params), selection(selection), emesh(mesh)
 {
@@ -1041,7 +1065,10 @@ BevelState::BevelState(const Mesh &mesh, const BevelParameters &params, const In
       exec_mode::grain_size(1024));
 
   this->affect_vertices_odd = false;
-  this->loop_slide = true;
+
+  /* If the user has set the offsets differently, we should not try
+   * to override those values with loop slide. */
+  this->loop_slide = all_offsets_same(params);
   this->limit_offset = false;
   this->offset_adjust = (params.affect_type != BevelAffect::Vertices);
   this->mark_seam = false;
