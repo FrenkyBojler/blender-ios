@@ -26,7 +26,6 @@
 #include "BKE_context.hh"
 
 namespace blender {
-
 namespace bke::id {
 class IDRemapper;
 }
@@ -38,7 +37,6 @@ class AssetRepresentation;
 namespace ui {
 struct Layout;
 struct Block;
-enum class PopupAttachDirection : int8_t;
 }  // namespace ui
 
 struct ARegion;
@@ -96,6 +94,7 @@ struct wmSpaceTypeListenerParams {
   ScrArea *area;
   const wmNotifier *notifier;
   const Scene *scene;
+  const Main *bmain;
 };
 
 struct SpaceType {
@@ -230,6 +229,12 @@ enum class ARegionTypeFlag {
    * region.
    */
   UsePanelCategoryTabs = (1 << 1),
+
+  /**
+   * When using panel categories, this hides the sidebar tab where there is only one category
+   * active.
+   */
+  HideSinglePanelCategories = (1 << 2),
 };
 ENUM_OPERATORS(ARegionTypeFlag)
 
@@ -323,7 +328,7 @@ struct ARegionType {
 
   /** Hardcoded constraints, smaller than these values region is not visible. */
   int minsizex, minsizey;
-  /** When new region opens (region prefsizex/y are zero then. */
+  /** When new region opens (region prefsizex/y are zero then). */
   int prefsizex, prefsizey;
   /** Default keymaps to add. */
   int keymapflag;
@@ -350,6 +355,7 @@ struct PanelType {
   char label[BKE_ST_MAXNAME];
   /** For panel tooltip. */
   const char *description;
+  int icon;
   char translation_context[BKE_ST_MAXNAME];
   /** For buttons window. */
   char context[BKE_ST_MAXNAME];
@@ -411,7 +417,6 @@ struct PanelType {
   /** Sub panels. */
   PanelType *parent;
   ListBaseT<LinkData> children;
-  ui::PopupAttachDirection popup_draw_direction;
   /** RNA integration. */
   ExtensionRNA rna_ext;
 };
@@ -880,6 +885,7 @@ ARegion *BKE_screen_find_region_in_space(const bScreen *screen,
  * \note used to get proper RNA paths for spaces (editors).
  */
 std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA *ptr);
+std::optional<std::string> BKE_screen_path_from_screen_to_area(const PointerRNA *ptr);
 /**
  * \note Using this function is generally a last resort, you really want to be
  * using the context when you can - campbell

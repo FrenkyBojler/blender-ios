@@ -18,6 +18,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 
@@ -69,7 +70,7 @@ static Span<float3> face_normals_if_worthwhile(const Mesh &src_mesh, const int s
 static void copy_loose_vert_hint(const Mesh &src, Mesh &dst)
 {
   const auto &src_cache = src.runtime->loose_verts_cache;
-  if (src_cache.is_cached() && src_cache.data().count == 0) {
+  if (src_cache.is_cached() && src_cache.data().mask.is_empty()) {
     dst.tag_loose_verts_none();
   }
 }
@@ -309,7 +310,7 @@ static void calc_corner_tris(const Span<float3> positions,
 
         if (ngon_mode == TriangulateNGonMode::Beauty) {
           if (!data.arena) {
-            data.arena = BLI_memarena_new(BLI_POLYFILL_ARENA_SIZE, __func__);
+            data.arena = BLI_memarena_new(BLI_POLYFILL_ARENA_SIZE, "calc_corner_tris data.arena");
           }
           if (!data.heap) {
             data.heap = BLI_heap_new_ex(BLI_POLYFILL_ALLOC_NGON_RESERVE);

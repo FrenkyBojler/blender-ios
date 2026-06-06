@@ -57,7 +57,7 @@ float4 to_storage_value(float4 value)
 /* Group Shard Data Loading Utilities.
  *
  * Utility functions to load the element with the given index from the group shared data. */
-template<typename T> T load_shared_data(uint index)
+template<typename T> T load_shared_data(uint /*index*/)
 {
   return T(0);
 }
@@ -363,17 +363,19 @@ void reduction()
   for (uint stride = reduction_size / 2; stride > 0; stride /= 2) {
     barrier();
 
-    /* Only the threads up to the current stride should be active as can be seen in the diagram
-     * above. */
-    if (gl_LocalInvocationIndex >= stride) {
-      continue;
-    }
+    /* All invocations read shared memory into local variables. No writes allowed between these
+     * barriers. */
+    T my_value = load_shared_data<T>(gl_LocalInvocationIndex);
+    T neighbor_value = load_shared_data<T>(gl_LocalInvocationIndex + stride);
 
-    /* Reduce each two elements that are stride apart, writing the result to the element with the
-     * lower index, as can be seen in the diagram above.  */
-    T result = reduce<T, ReduceFunction>(load_shared_data<T>(gl_LocalInvocationIndex),
-                                         load_shared_data<T>(gl_LocalInvocationIndex + stride));
-    store_shared_data(gl_LocalInvocationIndex, result);
+    /* Barrier ensures all reads complete before any writes begin. */
+    barrier();
+
+    /* Only active invocations write reduced values back. Reads happen from the local variables. */
+    if (gl_LocalInvocationIndex < stride) {
+      T result = reduce<T, ReduceFunction>(my_value, neighbor_value);
+      store_shared_data(gl_LocalInvocationIndex, result);
+    }
   }
 
   /* Finally, the result of the reduction is available as the first element in the reduction data,
