@@ -1091,7 +1091,8 @@ static void recalcData_edit_armature(TransInfo *t)
     for (EditBone &ebo : *edbo) {
       ebo_parent = (ebo.flag & BONE_CONNECTED) ? ebo.parent : nullptr;
 
-      if (ebo_parent) {
+      /* BYPASS if moving along Bone Slide vector manually. */
+      if (ebo_parent && t->mode != TFM_BONE_SLIDE) {
         /* If this bone has a parent tip that has been moved. */
         if (animrig::bone_is_visible(arm, ebo_parent) && (ebo_parent->flag & BONE_TIPSEL)) {
           copy_v3_v3(ebo.head, ebo_parent->tail);

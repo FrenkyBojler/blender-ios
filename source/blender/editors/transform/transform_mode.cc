@@ -80,6 +80,7 @@ bool transform_mode_is_changeable(const int mode)
               TFM_TRANSLATION,
               TFM_EDGE_SLIDE,
               TFM_VERT_SLIDE,
+              TFM_BONE_SLIDE,
               TFM_NORMAL_ROTATION);
 }
 
@@ -1200,6 +1201,8 @@ static TransModeInfo *mode_info_get(TransInfo *t, const int mode)
       return &TransMode_rotatenormal;
     case TFM_GPENCIL_OPACITY:
       return &TransMode_gpopacity;
+    case TFM_BONE_SLIDE:
+      return &TransMode_boneslide;
   }
   return nullptr;
 }

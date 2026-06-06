@@ -94,6 +94,22 @@ struct TransDataVertSlideVert {
 };
 
 /**
+ * Structure used for Bone Slide operation.
+ * The data is filled based on the 'transform_convert_' type.
+ */
+struct TransDataBoneSlideVert {
+  TransData *td;
+  float3 dir_side[2]; /* Directional vectors on the sides. */
+  float bone_len;     /* Distance between vectors. */
+  int loop_nr;        /* Number that identifies the group of connected bones. */
+
+  const float *loc_orig() const
+  {
+    return this->td->iloc;
+  }
+};
+
+/**
  * Structure used for curves transform operation.
  * Used for both curves and grease pencil objects.
  */
