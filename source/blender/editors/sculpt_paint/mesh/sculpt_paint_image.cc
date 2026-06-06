@@ -170,18 +170,20 @@ static BitVector<> init_uv_primitives_brush_test(SculptSession &ss,
   const float radius = ss.cache ? ss.cache->radius : ss.cursor_radius;
   const Bounds<float3> brush_bounds(location - radius, location + radius);
 
-  BitVector<> brush_test(tri_indices.size());
-  for (const int i : tri_indices.index_range()) {
-    const int3 verts = vert_tris[tri_indices[i]];
+  Array<bool> brush_test(tri_indices.size());
+  threading::parallel_for(brush_test.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      const int3 verts = vert_tris[tri_indices[i]];
 
-    Bounds<float3> tri_bounds(positions[verts[0]]);
-    math::min_max(positions[verts[1]], tri_bounds.min, tri_bounds.max);
-    math::min_max(positions[verts[2]], tri_bounds.min, tri_bounds.max);
+      Bounds<float3> tri_bounds(positions[verts[0]]);
+      math::min_max(positions[verts[1]], tri_bounds.min, tri_bounds.max);
+      math::min_max(positions[verts[2]], tri_bounds.min, tri_bounds.max);
 
-    brush_test[i].set(
-        isect_aabb_aabb_v3(brush_bounds.min, brush_bounds.max, tri_bounds.min, tri_bounds.max));
-  }
-  return brush_test;
+      brush_test[i] = isect_aabb_aabb_v3(
+          brush_bounds.min, brush_bounds.max, tri_bounds.min, tri_bounds.max);
+    }
+  });
+  return BitVector(brush_test.as_span());
 }
 
 /** Apply the per-pixel factor to the initial brush color. */
