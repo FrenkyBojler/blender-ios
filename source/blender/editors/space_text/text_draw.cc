@@ -1482,8 +1482,7 @@ static void draw_brackets(const SpaceText *st, const TextDrawContext *tdc, ARegi
           fc = space_text_get_format_index(st, linep->line, c);
         }
         else {
-          BLI_assert(fc == 0);
-          fc = -1;
+          BLI_assert(fc == -1);
         }
       }
     }
