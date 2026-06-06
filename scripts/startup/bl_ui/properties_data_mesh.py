@@ -86,13 +86,19 @@ class MESH_MT_shape_key_context_menu(Menu):
 
 
 class MESH_MT_shape_key_tree_context_menu(Menu):
-    bl_label = "Shape Key context menu"
+    bl_label = "Shape Key Context Menu"
 
     def draw(self, _context):
         layout = self.layout
+        layout.operator("object.shape_key_copy", icon='DUPLICATE', text="Duplicate")
+        layout.separator()
+        layout.operator("ui.view_item_rename", text="Rename Active Key...")
+        layout.separator()
+        layout.operator("object.shape_key_mirror", icon='ARROW_LEFTRIGHT', text="Flip").use_topology = False
+        layout.operator("object.shape_key_mirror", text="Flip (Topology)").use_topology = True
+        layout.separator()
         layout.operator("object.shape_key_make_basis", text="Make Basis")
         layout.operator("object.shape_key_apply_to_basis", text="Apply to Basis")
-        layout.operator("object.shape_key_copy", icon='DUPLICATE', text="Duplicate")
         layout.separator()
         layout.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="Move After Basis").type = 'TOP'
         layout.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="Move to Last").type = 'BOTTOM'
