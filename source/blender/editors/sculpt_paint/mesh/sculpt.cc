@@ -62,6 +62,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_bvh_pixels.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -5373,6 +5374,14 @@ void flush_update_done(ViewContext &vc,
 
     /* Coordinates were modified, so fake neighbors are not longer valid. */
     fake_neighbors_free(ob);
+
+    /* We free the entirety of the pixel data when the positions change as the cached pixel row
+     * positions need to be updated. Less data could be cleared here, but this is done for
+     * simplicity as in the future in a dedicated mode, mode switching would handle this
+     * invalidation. */
+    if (USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
+      bke::pbvh::pixels_free(&pbvh);
+    }
   }
 
   if (update_type == UpdateType::Position) {
