@@ -5,8 +5,8 @@
 /** \file
  * \ingroup bmesh
  *
- * Redistributes interior vertices of selected edge loops along a linear
- * or (future) Hermite spline path between the loop endpoints.
+ * Redistributes interior vertices of selected edge loops along linear
+ * or Hermite spline interpolation path between loop endpoints.
  */
 
 #include "BLI_array.hh"
@@ -25,7 +25,6 @@ struct EdgeFlowLoop {
 
 static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
 {
-  /* Edges are already tagged by the caller via BMO_slot_buffer_hflag_enable. */
   BMIter eiter;
   BMEdge *e;
 
@@ -129,7 +128,8 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
           copy_v3_v3(loop.verts[i]->co, blended);
         }
       }
-      else {
+      else { 
+        /* space_evenly off flag */
         float dir[3], dir_norm[3];
         sub_v3_v3v3(dir, p2->co, p1->co);
         normalize_v3_v3(dir_norm, dir);
@@ -137,10 +137,10 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
         for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
           float co[3];
           sub_v3_v3v3(co, orig_cos[i], p1->co);
-          float scalar = dot_v3v3(co, dir_norm);
+          float dir_scalar = dot_v3v3(co, dir_norm);
 
           float new_co[3];
-          madd_v3_v3v3fl(new_co, p1->co, dir_norm, scalar);
+          madd_v3_v3v3fl(new_co, p1->co, dir_norm, dir_scalar);
 
           float blended[3];
           interp_v3_v3v3(blended, orig_cos[i], new_co, mix);
