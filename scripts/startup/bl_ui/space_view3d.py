@@ -5290,6 +5290,8 @@ class VIEW3D_MT_edit_curve_ctrlpoints(Menu):
 
         if edit_object.type in {'CURVE', 'SURFACE'}:
             layout.operator("curve.extrude_move")
+            if edit_object.type == 'CURVE':
+                layout.operator("curve.rip_edge_move", text="Rip Vertices and Extend")
             layout.operator("curve.vertex_add")
 
             layout.separator()
@@ -5346,7 +5348,7 @@ class VIEW3D_MT_edit_curve_clean(Menu):
 class VIEW3D_MT_edit_curve_context_menu(Menu):
     bl_label = "Curve"
 
-    def draw(self, _context):
+    def draw(self, context):
         # TODO(campbell): match mesh vertex menu.
 
         layout = self.layout
@@ -5356,6 +5358,8 @@ class VIEW3D_MT_edit_curve_context_menu(Menu):
         # Add
         layout.operator("curve.subdivide")
         layout.operator("curve.extrude_move")
+        if context.edit_object.type == 'CURVE':
+            layout.operator("curve.rip_edge_move", text="Rip Vertices and Extend")
         layout.operator("curve.make_segment")
         layout.operator("curve.duplicate_move")
 

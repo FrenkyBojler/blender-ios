@@ -148,6 +148,7 @@ void CURVE_OT_make_segment(wmOperatorType *ot);
 void CURVE_OT_spin(wmOperatorType *ot);
 void CURVE_OT_vertex_add(wmOperatorType *ot);
 void CURVE_OT_extrude(wmOperatorType *ot);
+void CURVE_OT_rip_edge(wmOperatorType *ot);
 void CURVE_OT_cyclic_toggle(wmOperatorType *ot);
 
 void CURVE_OT_match_texture_space(wmOperatorType *ot);

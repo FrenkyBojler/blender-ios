@@ -116,6 +116,7 @@ void ED_operatortypes_curve()
   WM_operatortype_append(CURVE_OT_draw);
   WM_operatortype_append(CURVE_OT_pen);
   WM_operatortype_append(CURVE_OT_extrude);
+  WM_operatortype_append(CURVE_OT_rip_edge);
   WM_operatortype_append(CURVE_OT_cyclic_toggle);
 
   WM_operatortype_append(CURVE_OT_match_texture_space);
@@ -140,6 +141,15 @@ void ED_operatormacros_curve()
                                     "Extrude curve and move result",
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "CURVE_OT_extrude");
+  otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+  RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
+  RNA_boolean_set(otmacro->ptr, "mirror", false);
+
+  ot = WM_operatortype_append_macro("CURVE_OT_rip_edge_move",
+                                    "Extend Vertices",
+                                    "Extend vertices and move the result",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  WM_operatortype_macro_define(ot, "CURVE_OT_rip_edge");
   otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
   RNA_boolean_set(otmacro->ptr, "use_proportional_edit", false);
   RNA_boolean_set(otmacro->ptr, "mirror", false);

@@ -6006,6 +6006,7 @@ def km_edit_curve_legacy(params):
         op_tool_optional(
             ("curve.extrude_move", {"type": 'E', "value": 'PRESS'}, None),
             (op_tool_cycle, "builtin.extrude"), params),
+        ("curve.rip_edge_move", {"type": 'D', "value": 'PRESS', "alt": True}, None),
         ("curve.duplicate_move", {"type": 'D', "value": 'PRESS', "shift": True}, None),
         ("curve.make_segment", {"type": 'F', "value": 'PRESS'}, None),
         ("curve.cyclic_toggle", {"type": 'C', "value": 'PRESS', "alt": True}, None),

@@ -5257,6 +5257,429 @@ void CURVE_OT_spin(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Rip Edge Operator
+ * \{ */
+
+static int curve_rip_edge_neighbor_index_get(const Nurb &nu, const int index, const int direction)
+{
+  if (direction < 0) {
+    if (index > 0) {
+      return index - 1;
+    }
+    if (nu.flagu & CU_NURB_CYCLIC) {
+      return nu.pntsu - 1;
+    }
+  }
+  else {
+    if (index + 1 < nu.pntsu) {
+      return index + 1;
+    }
+    if (nu.flagu & CU_NURB_CYCLIC) {
+      return 0;
+    }
+  }
+
+  return -1;
+}
+
+static bool curve_rip_edge_coords_to_screen(const ARegion *region,
+                                            const float co[3],
+                                            float r_co[2])
+{
+  return ED_view3d_project_float_object(
+             region, co, r_co, V3D_PROJ_TEST_CLIP_BB | V3D_PROJ_TEST_CLIP_WIN) ==
+         V3D_PROJ_RET_OK;
+}
+
+/**
+ * Return the closest screen-space distance from the cursor to one straight BPoint segment.
+ */
+static float curve_rip_edge_poly_segment_dist_sq(const ARegion *region,
+                                               const Nurb &nu,
+                                               const int seg_index,
+                                               const float mval_fl[2])
+{
+  const int seg_index_next = (seg_index + 1 < nu.pntsu) ?
+                                 seg_index + 1 :
+                                 ((nu.flagu & CU_NURB_CYCLIC) ? 0 : -1);
+  if (seg_index_next < 0) {
+    return FLT_MAX;
+  }
+
+  float point1[2], point2[2];
+  if (!curve_rip_edge_coords_to_screen(region, nu.bp[seg_index].vec, point1)) {
+    return FLT_MAX;
+  }
+  if (!curve_rip_edge_coords_to_screen(region, nu.bp[seg_index_next].vec, point2)) {
+    return FLT_MAX;
+  }
+  return dist_squared_to_line_segment_v2(mval_fl, point1, point2);
+}
+
+/**
+ * Return the closest screen-space distance from the cursor to one evaluated Bézier segment.
+ */
+static float curve_rip_edge_bezier_segment_dist_sq(const ARegion *region,
+                                                   const Nurb &nu,
+                                                   const int seg_index,
+                                                   const float mval_fl[2])
+{
+  /* Resolve the segment endpoint, wrapping for cyclic splines. */
+  const int seg_index_next = (seg_index + 1 < nu.pntsu) ?
+                                 seg_index + 1 :
+                                 ((nu.flagu & CU_NURB_CYCLIC) ? 0 : -1);
+  if (seg_index_next < 0) {
+    return FLT_MAX;
+  }
+
+  const int resolu = max_ii(nu.resolu, 2);
+  const BezTriple *bezt1 = &nu.bezt[seg_index];
+  const BezTriple *bezt2 = &nu.bezt[seg_index_next];
+
+  if (bezt1->hide && bezt2->hide) {
+    return FLT_MAX;
+  }
+
+  /* Evaluate the Bézier segment into object-space 3D points at spline resolution.
+   * Consecutive samples are compared as screen-space line segments. 
+   * points is hold points positions as [x0,y0,z0, x1,y1,z1, x2,y2,z2, ...] */
+  float *points = MEM_new_array_uninitialized<float>(3 * (resolu + 1), __func__);
+  for (int j = 0; j < 3; j++) {
+    BKE_curve_forward_diff_bezier(bezt1->vec[1][j],
+                                  bezt1->vec[2][j],
+                                  bezt2->vec[0][j],
+                                  bezt2->vec[1][j],
+                                  points + j,
+                                  resolu,
+                                  sizeof(float[3]));
+  }
+
+  /* Track the closest distance from the cursor to the sampled curve.
+   * `point1` is the previous visible sample in screen space; `point2` is the next one. */
+  float min_dist_sq = FLT_MAX;
+  float point1[2], point2[2];
+
+  /* Seed the walk with the first sample, which is also a valid closest point by itself. */
+  bool has_point1 = curve_rip_edge_coords_to_screen(region, points, point1);
+  if (has_point1) {
+    min_dist_sq = min_ff(min_dist_sq, len_squared_v2v2(mval_fl, point1));
+  }
+
+  /* Project each later sample and measure the cursor against the screen-space line from the
+   * previous visible sample to the current one. If the previous sample was clipped, skip the
+   * span distance until a new visible starting point has been stored. */
+  for (int j = 0; j < resolu; j++) {
+    if (!curve_rip_edge_coords_to_screen(region, points + 3 * (j + 1), point2)) {
+      continue;
+    }
+    if (has_point1) {
+      min_dist_sq = min_ff(min_dist_sq, dist_squared_to_line_segment_v2(mval_fl, point1, point2));
+    }
+    copy_v2_v2(point1, point2);
+    has_point1 = true;
+  }
+
+  MEM_delete(points);
+  return min_dist_sq;
+}
+
+/**
+ * Return the closest screen-space distance from the cursor to one spline segment.
+ */
+static float curve_rip_edge_segment_dist_sq(const ARegion *region,
+                                            const Nurb &nu,
+                                            const int seg_index,
+                                            const float mval_fl[2])
+{
+  if (seg_index < 0) {
+    return FLT_MAX;
+  }
+  if (nu.type == CU_BEZIER) {
+    return curve_rip_edge_bezier_segment_dist_sq(region, nu, seg_index, mval_fl);
+  }
+  return curve_rip_edge_poly_segment_dist_sq(region, nu, seg_index, mval_fl);
+}
+
+/**
+ * Determine whether the previous or next curve segment is closer to the cursor.
+ * Uses screen-space distance to the evaluated curve (or polyline for poly/NURBS).
+ * Returns -1 for the previous side, 1 for the next side, or 0 if no segment exists.
+ */
+static int curve_rip_edge_side_get(const ARegion *region,
+                                   const Nurb &nu,
+                                   const int index,
+                                   const float mval_fl[2])
+{
+  const int prev_index = curve_rip_edge_neighbor_index_get(nu, index, -1);
+  const int next_index = curve_rip_edge_neighbor_index_get(nu, index, 1);
+
+  if (prev_index == -1 && next_index == -1) {
+    return 0;
+  }
+  if (prev_index == -1) {
+    return 1;
+  }
+  if (next_index == -1) {
+    return -1;
+  }
+  if (prev_index == next_index) {
+    return 1;
+  }
+
+  const float dist_prev = curve_rip_edge_segment_dist_sq(region, nu, prev_index, mval_fl);
+  const float dist_next = curve_rip_edge_segment_dist_sq(region, nu, index, mval_fl);
+  return (dist_prev < dist_next) ? -1 : 1;
+}
+
+/**
+ * For one spline, duplicate each selected point on the side closest to the cursor.
+ * Updates active point index when the active vertex is duplicated.
+ * Returns false for surfaces or splines with no applicable selection.
+ */
+static bool curve_rip_edge_nurb(Curve &cu,
+                                EditNurb &editnurb,
+                                View3D &v3d,
+                                const ARegion &region,
+                                Nurb &nu,
+                                Nurb *active_nu,
+                                const void *active_vert,
+                                const float mval_fl[2])
+{
+  /* Skip if the spline has no points or is not a 1D curve.
+   * Bézier splines use only `pntsu`; `pntsv` is not meaningful for them. */
+  if (nu.pntsu <= 1 || (nu.type != CU_BEZIER && nu.pntsv != 1)) {
+    return false;
+  }
+
+  Array<int8_t> insert_side(nu.pntsu, 0);
+  int new_points = 0;
+
+  for (int i = 0; i < nu.pntsu; i++) {
+    const bool is_selected = (nu.type == CU_BEZIER) ?
+                                 BEZT_ISSEL_ANY_HIDDENHANDLES(&v3d, &nu.bezt[i]) :
+                                 ((nu.bp[i].f1 & SELECT) != 0);
+    if (!is_selected) {
+      continue;
+    }
+
+    const int side = curve_rip_edge_side_get(&region, nu, i, mval_fl);
+    if (side != 0) {
+      insert_side[i] = side;
+      new_points++;
+    }
+  }
+
+  if (new_points == 0) {
+    return false;
+  }
+
+  const int old_points = nu.pntsu;
+  const int new_points_total = old_points + new_points;
+  int active_offset = 0;
+  int inserted_before = 0;
+
+  if (nu.type == CU_BEZIER) {
+    /* Build a replacement Bézier array with room for the duplicated control points. */
+    BezTriple *new_bezt = MEM_new_array_uninitialized<BezTriple>(new_points_total, __func__);
+    BezTriple *bezt_dst = new_bezt;
+
+    for (int i = 0; i < old_points; i++) {
+      BezTriple *bezt_src = &nu.bezt[i];
+
+      /* Keep the active vertex index pointing at the original control point after insertions. */
+      if (&nu == active_nu && bezt_src == active_vert) {
+        active_offset = inserted_before + ((insert_side[i] == 1) ? 1 : 0);
+      }
+
+      /* Insert the selected duplicate before the original when ripping toward the previous side. */
+      if (insert_side[i] == -1) {
+        ED_curve_beztcpy(&editnurb, bezt_dst, bezt_src, 1);
+        select_beztriple(bezt_dst, true, BEZT_FLAG_SELECT, HIDDEN);
+        bezt_dst++;
+        inserted_before++;
+      }
+
+      /* Copy the original point, deselecting it when a duplicate becomes the moved selection. */
+      ED_curve_beztcpy(&editnurb, bezt_dst, bezt_src, 1);
+      if (insert_side[i] != 0) {
+        select_beztriple(bezt_dst, false, BEZT_FLAG_SELECT, HIDDEN);
+      }
+      bezt_dst++;
+
+      /* Insert the selected duplicate after the original when ripping toward the next side. */
+      if (insert_side[i] == 1) {
+        ED_curve_beztcpy(&editnurb, bezt_dst, bezt_src, 1);
+        select_beztriple(bezt_dst, true, BEZT_FLAG_SELECT, HIDDEN);
+        bezt_dst++;
+        inserted_before++;
+      }
+    }
+
+    MEM_delete(nu.bezt);
+    nu.bezt = new_bezt;
+    nu.pntsu = new_points_total;
+    /* Recalculate handles because duplicating points changes neighboring handle relationships. */
+    BKE_nurb_handles_calc(&nu);
+  }
+  else {
+    BPoint *new_bp = MEM_new_array_uninitialized<BPoint>(new_points_total, __func__);
+    BPoint *bp_dst = new_bp;
+
+    for (int i = 0; i < old_points; i++) {
+      BPoint *bp_src = &nu.bp[i];
+
+      if (&nu == active_nu && bp_src == active_vert) {
+        active_offset = inserted_before + ((insert_side[i] == 1) ? 1 : 0);
+      }
+
+      if (insert_side[i] == -1) {
+        ED_curve_bpcpy(&editnurb, bp_dst, bp_src, 1);
+        select_bpoint(bp_dst, true, BEZT_FLAG_SELECT, HIDDEN);
+        bp_dst++;
+        inserted_before++;
+      }
+
+      ED_curve_bpcpy(&editnurb, bp_dst, bp_src, 1);
+      if (insert_side[i] != 0) {
+        select_bpoint(bp_dst, false, BEZT_FLAG_SELECT, HIDDEN);
+      }
+      bp_dst++;
+
+      if (insert_side[i] == 1) {
+        ED_curve_bpcpy(&editnurb, bp_dst, bp_src, 1);
+        select_bpoint(bp_dst, true, BEZT_FLAG_SELECT, HIDDEN);
+        bp_dst++;
+        inserted_before++;
+      }
+    }
+
+    MEM_delete(nu.bp);
+    nu.bp = new_bp;
+    nu.pntsu = new_points_total;
+    BKE_nurb_order_clamp_u(&nu);
+    BKE_nurb_knot_calc_u(&nu);
+  }
+
+  if (&nu == active_nu) {
+    cu.actvert += active_offset;
+  }
+
+  return true;
+}
+
+static wmOperatorStatus curve_rip_edge_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+  float mval_fl[2];
+  RNA_float_get_array(op->ptr, "mouse", mval_fl);
+
+  /* Apply the operation to every editable curve object sharing edit data. */
+  bool any_changed = false;
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      *bmain, scene, view_layer, v3d);
+
+  for (Object *obedit : objects) {
+    if (obedit->type != OB_CURVES_LEGACY) {
+      continue;
+    }
+
+    ED_view3d_init_mats_rv3d(obedit, rv3d);
+
+    Curve *cu = id_cast<Curve *>(obedit->data);
+    EditNurb *editnurb = cu->editnurb;
+    if (editnurb == nullptr || !ED_curve_select_check(v3d, editnurb)) {
+      /* Skip if the curve is not editable or no points are selected. */
+      continue;
+    }
+
+    /* Preserve the active point by shifting its index when duplicates are inserted. */
+    Nurb *active_nu;
+    union {
+      BezTriple *bezt;
+      BPoint *bp;
+      void *p;
+    } active_vert;
+    BKE_curve_nurb_vert_active_get(cu, &active_nu, &active_vert.p);
+
+    /* Duplicate selected points on the side closest to the cursor. */
+    bool changed = false;
+    for (Nurb &nu : editnurb->nurbs) {
+      changed |= curve_rip_edge_nurb(
+          *cu, *editnurb, *v3d, *region, nu, active_nu, active_vert.p, mval_fl);
+    }
+
+    if (changed) {
+      /* Notify animation paths and geometry users that curve topology changed. */
+      if (ED_curve_updateAnimPaths(bmain, cu)) {
+        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+      }
+
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      DEG_id_tag_update(obedit->data, 0);
+      any_changed = true;
+    }
+  }
+
+  return any_changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+}
+
+static wmOperatorStatus curve_rip_edge_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
+  RNA_float_set_array(op->ptr, "mouse", mval_fl);
+  return curve_rip_edge_exec(C, op);
+}
+
+static bool curve_rip_edge_poll(bContext *C)
+{
+  if (ED_operator_editcurve(C) && CTX_wm_region_view3d(C)) {
+    return true;
+  }
+
+  CTX_wm_operator_poll_msg_set(C, "Expected a view3d region & editcurve");
+  return false;
+}
+
+void CURVE_OT_rip_edge(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Extend Vertices";
+  ot->idname = "CURVE_OT_rip_edge";
+  ot->description = "Extend vertices along the curve segment closest to the cursor";
+
+  /* API callbacks. */
+  ot->invoke = curve_rip_edge_invoke;
+  ot->exec = curve_rip_edge_exec;
+  ot->poll = curve_rip_edge_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
+
+  PropertyRNA *prop;
+
+  /* Hidden property stores the cursor position calculated in invoke for use by exec. */
+  prop = RNA_def_float_vector(ot->srna,
+                              "mouse",
+                              2,
+                              nullptr,
+                              -FLT_MAX,
+                              FLT_MAX,
+                              "Mouse",
+                              "Screen-space cursor position for choosing the extend side",
+                              -1.0f,
+                              1.0f);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Extrude Vertex Operator
  * \{ */
 
