@@ -931,11 +931,11 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Secondary Color", "");
   RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_color_update");
 
-  // prop = RNA_def_property(srna, "use_color_jitter", PROP_BOOLEAN, PROP_NONE);
-  // RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  // RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_COLOR_JITTER);
-  // RNA_def_property_ui_text(prop, "Use Color Jitter", "Jitter brush color");
-  // RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
+  prop = RNA_def_property(srna, "use_color_jitter", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", UNIFIED_PAINT_COLOR_JITTER);
+  RNA_def_property_ui_text(prop, "Use Color Jitter", "Jitter brush color");
+  RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
 
   prop = RNA_def_property(srna, "hue_jitter", PROP_FLOAT, PROP_NONE);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);

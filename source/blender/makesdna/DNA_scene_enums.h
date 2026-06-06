@@ -73,7 +73,6 @@ enum eUnifiedPaintSettingsFlags : int {
   UNIFIED_PAINT_COLOR = (1 << 6),
   /* DEPRECATED: migrated to per-brush flag BRUSH_USE_UNIFIED_PAINT_INPUT_SAMPLES */
   UNIFIED_PAINT_INPUT_SAMPLES = (1 << 7),
-  /* DEPRECATED: migrated to per-brush flag BRUSH_USE_UNIFIED_PAINT_COLOR_JITTER */
   UNIFIED_PAINT_COLOR_JITTER = (1 << 8),
 };
 ENUM_OPERATORS(eUnifiedPaintSettingsFlags)
