@@ -205,6 +205,7 @@ static void add_orco_mesh(Object &ob,
  */
 static void modifier_modify_mesh_and_geometry_set(ModifierData *md,
                                                   const ModifierEvalContext &mectx,
+                                                  const Mesh &input_mesh,
                                                   GeometrySet &geometry_set)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
@@ -230,7 +231,9 @@ static void modifier_modify_mesh_and_geometry_set(ModifierData *md,
   }
 
   if (!geometry_set.has_mesh()) {
-    geometry_set.replace_mesh(BKE_mesh_new_nomain(0, 0, 0, 0));
+    Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+    BKE_mesh_copy_parameters_for_eval(mesh, &input_mesh);
+    geometry_set.replace_mesh(mesh);
   }
 }
 
@@ -514,7 +517,7 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
         }
       }
 
-      modifier_modify_mesh_and_geometry_set(md, mectx, geometry_set);
+      modifier_modify_mesh_and_geometry_set(md, mectx, mesh_input, geometry_set);
 
       /* create an orco mesh in parallel */
       if (nextmask.vmask & CD_MASK_ORCO) {
@@ -822,7 +825,7 @@ static GeometrySet editbmesh_calc_modifiers(Depsgraph &depsgraph,
         mesh->runtime->deformed_only = false;
       }
 
-      modifier_modify_mesh_and_geometry_set(md, mectx, geometry_set);
+      modifier_modify_mesh_and_geometry_set(md, mectx, mesh_input, geometry_set);
     }
 
     if (i == cageIndex) {
