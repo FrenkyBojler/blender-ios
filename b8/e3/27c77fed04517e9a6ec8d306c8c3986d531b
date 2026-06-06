@@ -1,1 +1,2 @@
 Referenced by issue #159642, Export mesh with 'Apply Modifiers' enabled not working on Geonodes modifier using grease pencil to curves
+Referenced by issue #159687, Adding a primitive in sculpt mode with a geometry-node modifier asserts
