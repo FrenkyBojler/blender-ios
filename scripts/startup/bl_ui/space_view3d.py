@@ -8639,11 +8639,11 @@ class VIEW3D_PT_greasepencil_sculpt_context_menu(Panel):
         row = layout.row(align=True)
         row.prop(size_owner, "size", text="")
         row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
-        row.prop(ups, "use_unified_size", text="", icon='BRUSHES_ALL')
+        row.prop(brush, "use_unified_size", text="", icon='BRUSHES_ALL')
         row = layout.row(align=True)
         row.prop(strength_owner, "strength", text="")
         row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
-        row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
+        row.prop(brush, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
         layer = context.object.data.layers.active
 

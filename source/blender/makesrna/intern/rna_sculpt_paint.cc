@@ -832,7 +832,7 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
 
   static const EnumPropertyItem brush_size_unit_items[] = {
       {0, "VIEW", 0, "View", "Measure brush size relative to the view"},
-      {BRUSH_USE_UNIFIED_PAINT_BRUSH_LOCK_SIZE,
+      {UNIFIED_PAINT_BRUSH_LOCK_SIZE,
        "SCENE",
        0,
        "Scene",

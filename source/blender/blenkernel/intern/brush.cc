@@ -1187,7 +1187,7 @@ std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(cons
                                                                             const Brush *brush)
 {
   if (BKE_paint_use_unified_color(paint, brush)) {
-    if ((brush->flag2 & BRUSH_USE_UNIFIED_PAINT_COLOR_JITTER) == 0) {
+    if ((paint->unified_paint_settings.flag & UNIFIED_PAINT_COLOR_JITTER) == 0) {
       return std::nullopt;
     }
 
@@ -1294,9 +1294,10 @@ float BKE_brush_radius_get(const Paint *paint, const Brush *brush)
 
 bool BKE_brush_use_locked_size(const Paint *paint, const Brush *brush)
 {
-  return (brush->flag2 & BRUSH_USE_UNIFIED_PAINT_SIZE) ?
-             (brush->flag2 & BRUSH_USE_UNIFIED_PAINT_BRUSH_LOCK_SIZE) != 0 :
-             (brush->flag & BRUSH_LOCK_SIZE) != 0;
+  const short us_flag = paint->unified_paint_settings.flag;
+
+  return (us_flag & UNIFIED_PAINT_SIZE) ? (us_flag & UNIFIED_PAINT_BRUSH_LOCK_SIZE) != 0 :
+                                          (brush->flag & BRUSH_LOCK_SIZE) != 0;
 }
 
 bool BKE_brush_use_size_pressure(const Brush *brush)
