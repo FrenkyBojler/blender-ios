@@ -50,7 +50,8 @@ void DepthOfField::init()
                                           camera_object_eval->data) :
                                       nullptr;
 
-  enabled_ = camera && (camera->dof.flag & CAM_DOF_ENABLED) != 0;
+  /* TODO: Support depth of field for panoramic camera. */
+  enabled_ = camera && (camera->dof.flag & CAM_DOF_ENABLED) != 0 && camera->type != CAM_PANO;
 
   if (enabled_ == false) {
     /* Set to invalid value for update detection */
@@ -111,11 +112,6 @@ void DepthOfField::sync()
   if (camera.is_orthographic()) {
     /* FIXME: Why is this needed? Some kind of implicit unit conversion? */
     aperture *= 0.04f;
-  }
-
-  if (camera.is_panoramic()) {
-    /* FIXME: Eyeballed. */
-    aperture *= 0.185f;
   }
 
   if (camera_data->dof.aperture_ratio < 1.0) {
