@@ -19,7 +19,9 @@ namespace blender::nodes::node_geo_index_of_id_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>("ID"_ustr).default_input_type(NODE_DEFAULT_INPUT_ID_INDEX_FIELD);
+  b.add_input<decl::Int>("ID"_ustr)
+      .default_input_type(NODE_DEFAULT_INPUT_ID_INDEX_FIELD)
+      .structure_type(StructureType::Field);
   b.add_input<decl::Int>("Sample ID"_ustr).structure_type(StructureType::Field);
 
   b.add_output<decl::Int>("Index"_ustr)
