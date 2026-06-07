@@ -4089,10 +4089,11 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
       }
       if (geometries.size() > 0) {
         bke::GeometrySet joined_curves = geometry::join_geometries(geometries, {});
-
-        new_curves->geometry.wrap() = joined_curves.get_curves()->geometry.wrap();
-        new_curves->geometry.wrap().tag_topology_changed();
-        BKE_object_material_from_eval_data(info.bmain, newob, &joined_curves.get_curves()->id);
+        if (const Curves *joined_curves_data = joined_curves.get_curves()) {
+          new_curves->geometry.wrap() = joined_curves_data->geometry.wrap();
+          new_curves->geometry.wrap().tag_topology_changed();
+          BKE_object_material_from_eval_data(info.bmain, newob, &joined_curves_data->id);
+        }
       }
     }
 
@@ -4413,7 +4414,7 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
   Object *ob = base.object;
   ob->flag |= OB_DONE;
   Object *newob = get_object_for_conversion(base, info, r_new_base);
-  BLI_assert(newob->type == OB_CURVES_LEGACY);
+  BLI_assert(ELEM(newob->type, OB_CURVES_LEGACY, OB_SURF));
 
   Curve *legacy_curve_id = id_cast<Curve *>(newob->data);
   Curves *curves_nomain = bke::curve_legacy_to_curves(*legacy_curve_id);

@@ -377,7 +377,7 @@ static bool seq_input_have_to_preprocess(const Strip *strip)
 }
 
 /**
- * Effect, mask and scene in strip input strips are rendered in preview resolution.
+ * Effect (except color), mask and scene in strip input strips are rendered in preview resolution.
  * They are already down-scaled. #input_preprocess() does not expect this to happen.
  * Other strip types are rendered with original media resolution, unless proxies are
  * enabled for them. With proxies `is_proxy_image` will be set correctly to true.
@@ -387,7 +387,8 @@ static bool seq_need_scale_to_render_size(const Strip *strip, bool is_proxy_imag
   if (is_proxy_image) {
     return false;
   }
-  if (strip->is_effect() || strip->type == STRIP_TYPE_MASK || strip->type == STRIP_TYPE_META ||
+  if ((strip->is_effect() && strip->type != STRIP_TYPE_COLOR) || strip->type == STRIP_TYPE_MASK ||
+      strip->type == STRIP_TYPE_META ||
       (strip->type == STRIP_TYPE_SCENE && ((strip->flag & SEQ_SCENE_STRIPS) != 0)))
   {
     return false;
@@ -664,7 +665,7 @@ static SeqResult input_preprocess(const RenderData *context,
 
   if (sequencer_use_crop(strip) || sequencer_use_transform(strip) ||
       context->rectx != result.image->x || context->recty != result.image->y ||
-      modifier_translation != float2(0, 0))
+      (strip->is_effect() && image_scale_factor != 1.0f) || modifier_translation != float2(0, 0))
   {
     PRF_scope_with_name("SeqStripTransform", ProfileCategory::Draw);
 
@@ -831,10 +832,11 @@ static SeqResult seq_render_effect_strip_impl(const RenderData *context,
 /** \name Individual strip rendering functions
  * \{ */
 
-void convert_multilayer_ibuf(ImBuf *ibuf)
+void ensure_ibuf_is_rgba(ImBuf *ibuf)
 {
-  /* Load the combined/RGB layer, if this is a multi-layer image. */
-  BKE_movieclip_convert_multilayer_ibuf(ibuf);
+  if (ibuf == nullptr) {
+    return;
+  }
 
   /* Combined layer might be non-4 channels, however the rest
    * of sequencer assumes RGBA everywhere. Convert to 4 channel if needed. */
@@ -859,7 +861,7 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
 {
   ImBuf *ibuf = nullptr;
 
-  ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::Metadata | ImBufFlags::MultiLayer;
+  ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::Metadata;
   if (strip->alpha_mode == SEQ_ALPHA_PREMUL) {
     flag |= ImBufFlags::AlphaPremul;
   }
@@ -878,7 +880,7 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
   if (ibuf == nullptr) {
     return nullptr;
   }
-  convert_multilayer_ibuf(ibuf);
+  ensure_ibuf_is_rgba(ibuf);
 
   /* We don't need both (speed reasons)! */
   if (ibuf->float_data() != nullptr && ibuf->byte_data() != nullptr) {
@@ -971,7 +973,10 @@ static ImBuf *seq_render_image_strip(const RenderData *context,
     }
 
     if (strip->views_format == R_IMF_VIEWS_STEREO_3D) {
-      IMB_ImBufFromStereo3d(strip->stereo3d_format, ibufs_arr[0], &ibufs_arr[0], &ibufs_arr[1]);
+      IMB_ImBufFromStereo3d(strip->stereo3d_format,
+                            ibufs_arr[0],
+                            &ibufs_arr[0],  // NOLINT(readability-container-data-pointer)
+                            &ibufs_arr[1]);
     }
 
     /* Return the requested image; release the others. */
@@ -1103,7 +1108,10 @@ static ImBuf *seq_render_movie_strip(const RenderData *context,
         return nullptr;
       }
 
-      IMB_ImBufFromStereo3d(strip->stereo3d_format, ibuf_arr[0], &ibuf_arr[0], &ibuf_arr[1]);
+      IMB_ImBufFromStereo3d(strip->stereo3d_format,
+                            ibuf_arr[0],
+                            &ibuf_arr[0],  // NOLINT(readability-container-data-pointer)
+                            &ibuf_arr[1]);
     }
 
     /* Return the requested image; release the others. */
