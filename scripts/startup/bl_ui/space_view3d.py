@@ -2816,7 +2816,7 @@ class VIEW3D_MT_object(Menu):
 
         layout.separator()
 
-        layout.operator("object.duplicate_move")
+        layout.operator("object.duplicate_move", icon='DUPLICATE')
         layout.operator("object.duplicate_move_linked")
         layout.operator("object.join")
 
@@ -2868,7 +2868,7 @@ class VIEW3D_MT_object(Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_REGION_WIN'
-        layout.operator("object.delete", text="Delete").use_global = False
+        layout.operator("object.delete", text="Delete", icon='X').use_global = False
         layout.operator("object.delete", text="Delete Global").use_global = True
 
         layout.template_node_operator_asset_menu_items(catalog_path="Object")
@@ -2879,6 +2879,10 @@ class VIEW3D_MT_object_animation(Menu):
 
     def draw(self, _context):
         layout = self.layout
+
+        layout.menu("VIEW3D_MT_pose_slide")
+
+        layout.separator()
 
         layout.operator("anim.keyframe_insert", text="Insert Keyframe")
         layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set...").always_prompt = True
@@ -3170,7 +3174,7 @@ class VIEW3D_MT_object_context_menu(Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_REGION_WIN'
-        layout.operator("object.delete", text="Delete").use_global = False
+        layout.operator("object.delete", text="Delete", icon='X').use_global = False
 
         layout.template_node_operator_asset_menu_items(catalog_path="Object")
 
@@ -4225,10 +4229,6 @@ class VIEW3D_MT_pose(Menu):
         layout.separator()
 
         layout.menu("VIEW3D_MT_object_animation")
-
-        layout.separator()
-
-        layout.menu("VIEW3D_MT_pose_slide")
         layout.menu("VIEW3D_MT_pose_propagate")
 
         layout.separator()
@@ -9214,7 +9214,7 @@ class VIEW3D_AST_brush_vertex_paint(View3DAssetShelf, bpy.types.AssetShelf):
     brush_type_prop = "vertex_brush_type"
 
 
-class VIEW3D_AST_brush_weight_paint(AssetShelfHiddenByDefault, View3DAssetShelf, bpy.types.AssetShelf):
+class VIEW3D_AST_brush_weight_paint(View3DAssetShelf, bpy.types.AssetShelf):
     mode = 'WEIGHT_PAINT'
     mode_prop = "use_paint_weight"
     brush_type_prop = "weight_brush_type"
