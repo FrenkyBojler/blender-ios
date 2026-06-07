@@ -24,3 +24,4 @@ Referenced by issue #158830, Regression: Importing Geometry Nodes causes loss of
 Referenced by issue #158955, Geometry Nodes: "Move to Nodes" operator throws TypeError
 Referenced by issue #159257, Store Named Attribute 2D Vector input freeze
 Referenced by issue #159710, Opening/closing panels reevaluates geometry nodes modifier
+Referenced by issue #159712, Blender 5.2.0 beta freezes when open old version huge files (Lots of collections)
