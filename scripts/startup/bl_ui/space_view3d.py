@@ -1328,7 +1328,6 @@ class VIEW3D_MT_transform_object(VIEW3D_MT_transform_base, Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_REGION_WIN'
-        # XXX: see `alignmenu()` in `edit.c` of b2.4x to get this working.
         layout.operator("transform.transform", text="Align to Transform Orientation").mode = 'ALIGN'
 
         layout.separator()
@@ -1354,6 +1353,10 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
         # armature specific extensions follow...
         obj = context.object
         if obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'}:
+            layout.operator_context = 'EXEC_REGION_WIN'
+            layout.operator("transform.transform", text="Align to Transform Orientation").mode = 'ALIGN'
+
+            layout.operator_context = 'INVOKE_REGION_WIN'
             if obj.data.display_type == 'BBONE':
                 layout.separator()
 
