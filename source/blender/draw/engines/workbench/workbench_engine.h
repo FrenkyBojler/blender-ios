@@ -8,6 +8,21 @@
 
 #pragma once
 
+#include "DRW_render.hh"
+
+namespace blender {
+
 struct RenderEngineType;
 
 extern RenderEngineType DRW_engine_viewport_workbench_type;
+
+namespace workbench {
+
+struct Engine : public DrawEngine::Pointer {
+  DrawEngine *create_instance() final;
+
+  static void free_static();
+};
+
+}  // namespace workbench
+}  // namespace blender

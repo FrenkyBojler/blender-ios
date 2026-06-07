@@ -10,6 +10,7 @@
 
 #include "intern/eval/deg_eval_flush.h"
 
+#include <algorithm>
 #include <deque>
 
 #include "BLI_listbase.h"
@@ -71,7 +72,7 @@ void flush_init_id_node_func(void *__restrict data_v,
                              const int i,
                              const TaskParallelTLS *__restrict /*tls*/)
 {
-  Depsgraph *graph = (Depsgraph *)data_v;
+  Depsgraph *graph = static_cast<Depsgraph *>(data_v);
   IDNode *id_node = graph->id_nodes[i];
   id_node->custom_flags = ID_STATE_NONE;
   for (ComponentNode *comp_node : id_node->components.values()) {
@@ -99,7 +100,7 @@ inline void flush_schedule_entrypoints(Depsgraph *graph, FlushQueue *queue)
   for (OperationNode *op_node : graph->entry_tags) {
     queue->push_back(op_node);
     op_node->scheduled = true;
-    DEG_DEBUG_PRINTF((::Depsgraph *)graph,
+    DEG_DEBUG_PRINTF((::blender::Depsgraph *)graph,
                      EVAL,
                      "Operation is entry point for update: %s\n",
                      op_node->identifier().c_str());
@@ -155,7 +156,7 @@ inline void flush_handle_component_node(IDNode *id_node,
 
 /* Schedule children of the given operation node for traversal.
  *
- * One of the children will by-pass the queue and will be returned as a function
+ * One of the children will bypass the queue and will be returned as a function
  * return value, so it can start being handled right away, without building too
  * much of a queue.
  */
@@ -179,7 +180,7 @@ inline OperationNode *flush_schedule_children(OperationNode *op_node, FlushQueue
     {
       continue;
     }
-    OperationNode *to_node = (OperationNode *)rel->to;
+    OperationNode *to_node = static_cast<OperationNode *>(rel->to);
     /* Always flush flushable flags, so children always know what happened
      * to their parents. */
     to_node->flag |= (op_node->flag & DEPSOP_FLAG_FLUSH);
@@ -198,17 +199,6 @@ inline OperationNode *flush_schedule_children(OperationNode *op_node, FlushQueue
   return result;
 }
 
-void flush_engine_data_update(ID *id)
-{
-  DrawDataList *draw_data_list = DRW_drawdatalist_from_id(id);
-  if (draw_data_list == nullptr) {
-    return;
-  }
-  LISTBASE_FOREACH (DrawData *, draw_data, draw_data_list) {
-    draw_data->recalc |= id->recalc;
-  }
-}
-
 /* NOTE: It will also accumulate flags from changed components. */
 void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *update_ctx)
 {
@@ -216,7 +206,8 @@ void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *upd
     if (id_node->custom_flags != ID_STATE_MODIFIED) {
       continue;
     }
-    DEG_graph_id_type_tag(reinterpret_cast<::Depsgraph *>(graph), GS(id_node->id_orig->name));
+    DEG_graph_id_type_tag(reinterpret_cast<::blender::Depsgraph *>(graph),
+                          GS(id_node->id_orig->name));
     /* TODO(sergey): Do we need to pass original or evaluated ID here? */
     ID *id_orig = id_node->id_orig;
     ID *id_cow = id_node->id_cow;
@@ -229,7 +220,7 @@ void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *upd
       BLI_assert(factory != nullptr);
       id_cow->recalc |= factory->id_recalc_tag();
     }
-    DEG_DEBUG_PRINTF((::Depsgraph *)graph,
+    DEG_DEBUG_PRINTF((blender::Depsgraph *)graph,
                      EVAL,
                      "Accumulated recalc bits for %s: %u\n",
                      id_orig->name,
@@ -245,8 +236,6 @@ void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *upd
       if (graph->is_active && id_node->is_user_modified) {
         deg_editors_id_update(update_ctx, id_orig);
       }
-      /* Inform draw engines that something was changed. */
-      flush_engine_data_update(id_cow);
     }
   }
 }
@@ -258,7 +247,7 @@ void invalidate_tagged_evaluated_transform(ID *id)
   switch (id_type) {
     case ID_OB: {
       Object *object = (Object *)id;
-      copy_vn_fl((float *)object->object_to_world().ptr(), 16, NAN);
+      std::fill_n((float *)object->object_to_world().ptr(), 16, NAN);
       break;
     }
     default:
@@ -335,7 +324,7 @@ void deg_graph_flush_updates(Depsgraph *graph)
   /* Prepare update context for editors. */
   DEGEditorUpdateContext update_ctx;
   update_ctx.bmain = bmain;
-  update_ctx.depsgraph = (::Depsgraph *)graph;
+  update_ctx.depsgraph = reinterpret_cast<::blender::Depsgraph *>(graph);
   update_ctx.scene = graph->scene;
   update_ctx.view_layer = graph->view_layer;
   /* Do actual flush. */

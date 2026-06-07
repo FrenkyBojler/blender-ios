@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #include "BLI_csv_parse.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_task.hh"
@@ -315,5 +319,4 @@ std::optional<int64_t> find_end_of_quoted_field(const Span<char> buffer,
 }
 
 }  // namespace detail
-
 }  // namespace blender::csv_parse

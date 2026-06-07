@@ -31,6 +31,7 @@ def get_arguments(filepath, output_filepath, gpu_backend):
         "0", "0", "128", "128",
         "-noaudio",
         "--factory-startup",
+        "--no-native-pixels",
         "--enable-autoexec",
         "--debug-memory",
         "--debug-exit-on-error"]
@@ -64,7 +65,6 @@ def create_argparse():
     parser.add_argument("--outdir", required=True)
     parser.add_argument("--oiiotool", required=True)
     parser.add_argument('--batch', default=False, action='store_true')
-    parser.add_argument('--fail-silently', default=False, action='store_true')
     parser.add_argument('--gpu-backend')
     return parser
 
@@ -82,10 +82,17 @@ def main():
     report.set_reference_dir("overlay_renders")
 
     test_dir_name = Path(args.testdir).name
-    if test_dir_name.startswith('hair') and platform.system() == "Darwin":
-        report.set_fail_threshold(0.050)
+    gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
 
-    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch, fail_silently=args.fail_silently)
+    if gpu_vendor == 'INTEL':
+        # Intel shows larger differences in Point Primitive coordinates,
+        # affecting the coverage of FaceDots and similar overlays.
+        # This means reference images should not be rendered on Intel.
+        report.set_fail_threshold(0.05)
+    else:
+        report.set_fail_threshold(0.02)
+
+    ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 
     sys.exit(not ok)
 

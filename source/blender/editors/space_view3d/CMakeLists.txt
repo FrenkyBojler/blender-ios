@@ -24,6 +24,7 @@ set(SRC
   view3d_context.cc
   view3d_cursor_snap.cc
   view3d_draw.cc
+  view3d_dropboxes.cc
   view3d_edit.cc
   view3d_gizmo_armature.cc
   view3d_gizmo_camera.cc
@@ -64,6 +65,7 @@ set(SRC
   view3d_snap.cc
   view3d_utils.cc
   view3d_view.cc
+  view3d_vr_location_scouting.cc
 
   view3d_intern.hh
   view3d_navigate.hh
@@ -84,7 +86,6 @@ set(LIB
   bf_editor_curves
   bf_editor_lattice
   bf_editor_mesh
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
@@ -105,6 +106,10 @@ endif()
 
 if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
+
+  list(APPEND INC
+    ../../windowmanager/xr/
+  )
 endif()
 
 blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

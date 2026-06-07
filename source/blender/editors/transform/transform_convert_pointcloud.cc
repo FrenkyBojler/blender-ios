@@ -9,6 +9,7 @@
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_span.hh"
 
 #include "DNA_pointcloud_types.h"
@@ -23,6 +24,7 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
+#include "transform_snap.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Curve/Surfaces Transform Creation
@@ -53,22 +55,29 @@ static PointCloudTransformData *create_transform_custom_data(TransCustomData &cu
 static void createTransPointCloudVerts(bContext * /*C*/, TransInfo *t)
 {
   MutableSpan<TransDataContainer> trans_data_contrainers(t->data_container, t->data_container_len);
+  const bool use_proportional_edit = (t->flag & T_PROP_EDIT_ALL) != 0;
 
   for (const int i : trans_data_contrainers.index_range()) {
     TransDataContainer &tc = trans_data_contrainers[i];
-    PointCloud &pointcloud = *static_cast<PointCloud *>(tc.obedit->data);
+    PointCloud &pointcloud = *id_cast<PointCloud *>(tc.obedit->data);
     bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
     PointCloudTransformData &transform_data = *create_transform_custom_data(tc.custom.type);
     const VArray selection_attr = *attributes.lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
-    transform_data.selection = IndexMask::from_bools(selection_attr, transform_data.memory);
-    tc.data_len = transform_data.selection.size();
+    if (use_proportional_edit) {
+      transform_data.selection = IndexMask(pointcloud.totpoint);
+      tc.data_len = transform_data.selection.size();
+    }
+    else {
+      transform_data.selection = IndexMask::from_bools(selection_attr, transform_data.memory);
+      tc.data_len = transform_data.selection.size();
+    }
     if (tc.data_len == 0) {
       tc.custom.type.free_cb(t, &tc, &tc.custom.type);
       continue;
     }
 
-    tc.data = MEM_cnew_array<TransData>(tc.data_len, __func__);
+    tc.data = MEM_new_array_zeroed<TransData>(tc.data_len, __func__);
     MutableSpan<TransData> tc_data = MutableSpan(tc.data, tc.data_len);
 
     transform_data.positions.reinitialize(tc.data_len);
@@ -95,14 +104,20 @@ static void createTransPointCloudVerts(bContext * /*C*/, TransInfo *t)
         td.loc = *elem;
 
         td.flag = 0;
-        td.flag = TD_SELECTED;
+        if (use_proportional_edit) {
+          if (selection_attr[i]) {
+            td.flag = TD_SELECTED;
+          }
+        }
+        else {
+          td.flag = TD_SELECTED;
+        }
 
         if (t->mode == TFM_CURVE_SHRINKFATTEN) {
           float *value = &transform_data.radii[i];
           td.val = value;
           td.ival = *value;
         }
-        td.ext = nullptr;
 
         copy_m3_m3(td.smtx, smtx_base.ptr());
         copy_m3_m3(td.mtx, mtx_base.ptr());
@@ -113,11 +128,15 @@ static void createTransPointCloudVerts(bContext * /*C*/, TransInfo *t)
 
 static void recalcData_pointcloud(TransInfo *t)
 {
+  if (t->state != TRANS_CANCEL) {
+    transform_snap_project_individual_apply(t);
+  }
+
   const Span<TransDataContainer> trans_data_contrainers(t->data_container, t->data_container_len);
   for (const TransDataContainer &tc : trans_data_contrainers) {
     const PointCloudTransformData &transform_data = *static_cast<PointCloudTransformData *>(
         tc.custom.type.data);
-    PointCloud &pointcloud = *static_cast<PointCloud *>(tc.obedit->data);
+    PointCloud &pointcloud = *id_cast<PointCloud *>(tc.obedit->data);
     if (t->mode == TFM_CURVE_SHRINKFATTEN) {
       array_utils::scatter(
           transform_data.radii.as_span(), transform_data.selection, pointcloud.radius_for_write());

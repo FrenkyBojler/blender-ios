@@ -2,14 +2,20 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include "BLI_array_state.hh"
 #include "BLI_math_vector_types.hh"
 
+namespace blender {
+
 struct Mesh;
 
-namespace blender::bke {
+namespace bke {
 
 /**
  * Simplifies checking if the topology of a mesh before and after an operation is the same.
@@ -34,4 +40,5 @@ class MeshTopologyState {
   bool same_topology_as(const Mesh &mesh) const;
 };
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

@@ -8,18 +8,20 @@
 
 #pragma once
 
+namespace blender {
+
 struct bContext;
 struct ImBuf;
 struct rctf;
 struct Strip;
 struct Scene;
 
-namespace blender::seq {
+namespace seq {
 
-static constexpr int SEQ_THUMB_SIZE = 256;
+static constexpr int THUMB_SIZE = 256;
 
 /**
- * Get a thumbnail image for given strip `seq` at `timeline_frame`.
+ * Get a thumbnail image for given `strip` at `timeline_frame`.
  *
  * The function can return null if a strip type does not have a thumbnail, a source media file is
  * not found, or the thumbnail has not been loaded yet.
@@ -53,4 +55,5 @@ void thumbnail_cache_destroy(Scene *scene);
 
 bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip);
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

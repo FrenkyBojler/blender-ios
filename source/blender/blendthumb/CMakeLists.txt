@@ -7,6 +7,7 @@
 
 include_directories(
   ../blenlib
+  ../blenloader_core
   ../makesdna
   ../../../intern/guardedalloc
 )
@@ -22,6 +23,12 @@ set(SRC
   src/blendthumb_png.cc
 )
 
+if(WITH_BUILDINFO)
+  list(APPEND SRC
+    "$<TARGET_OBJECTS:buildinfoobj>"
+  )
+endif()
+
 if(WIN32)
   # -----------------------------------------------------------------------------
   # Build `BlendThumb.dll`
@@ -33,11 +40,17 @@ if(WIN32)
     src/blendthumb_win32_dll.cc
   )
 
-  add_definitions(-DNOMINMAX)
-
   add_library(BlendThumb SHARED ${SRC} ${SRC_WIN32})
 
-  target_link_libraries(BlendThumb bf_blenlib dbghelp.lib Version.lib)
+  setup_platform_linker_flags(BlendThumb)
+  setup_platform_linker_libs(BlendThumb)
+
+  target_link_libraries(BlendThumb PRIVATE bf_blenlib bf_blenloader_core dbghelp.lib Version.lib Comctl32.lib)
+  # `blenlib` drags in a whole bunch of dependencies on shared libraries, none of which are used
+  # by `blenthumb`, but will cause load issues since the debug linker will not eliminate them.
+  # Link with /OPT:ref to force elimination of those unused dependencies this is already
+  # enabled by default on the release mode flags.
+  set_target_properties(BlendThumb PROPERTIES LINK_FLAGS "/OPT:ref")
   set_target_properties(BlendThumb PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt")
   set_target_properties(BlendThumb PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
 
@@ -54,6 +67,7 @@ elseif(APPLE)
   setup_platform_linker_libs(blender-thumbnailer)
   target_link_libraries(blender-thumbnailer
     bf_blenlib
+    bf_blenloader_core
     # Avoid linker error about undefined _main symbol.
     "-e _NSExtensionMain"
     "-framework QuickLookThumbnailing"
@@ -71,8 +85,9 @@ elseif(APPLE)
   # Command taken from XCode build process.
   add_custom_command(
     TARGET blender-thumbnailer POST_BUILD
-    COMMAND codesign --deep --force --sign - --entitlements "${CMAKE_SOURCE_DIR}/release/darwin/thumbnailer_entitlements.plist"
-    --timestamp=none $<TARGET_BUNDLE_DIR:blender-thumbnailer>
+    COMMAND codesign --deep --force --sign -
+      --entitlements "${CMAKE_SOURCE_DIR}/release/darwin/thumbnailer_entitlements.plist"
+      --timestamp=none $<TARGET_BUNDLE_DIR:blender-thumbnailer>
   )
 elseif(UNIX)
   # -----------------------------------------------------------------------------
@@ -84,8 +99,7 @@ elseif(UNIX)
 
   add_executable(blender-thumbnailer ${SRC} ${SRC_CMD})
   setup_platform_linker_flags(blender-thumbnailer)
-  target_link_libraries(blender-thumbnailer bf_blenlib)
-  if(DEFINED PTHREADS_LIBRARIES)
-    target_link_libraries(blender-thumbnailer ${PTHREADS_LIBRARIES})
-  endif()
+  setup_platform_linker_libs(blender-thumbnailer)
+  target_link_libraries(blender-thumbnailer PRIVATE bf_blenlib bf_blenloader_core)
+  target_link_libraries(blender-thumbnailer PRIVATE bf::dependencies::pthreads)
 endif()

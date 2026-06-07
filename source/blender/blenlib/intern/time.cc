@@ -9,10 +9,18 @@
 #include "BLI_time.h"
 
 #ifdef WIN32
-#  define WIN32_LEAN_AND_MEAN
+
+#  include <cmath>
+#  include <cstdio>
+
 #  include <windows.h>
 
-double BLI_time_now_seconds(void)
+/* timeapi.h needs to be included after windows.h. */
+#  include <timeapi.h>
+
+namespace blender {
+
+double BLI_time_now_seconds()
 {
   static int hasperfcounter = -1; /* (-1 == unknown) */
   static double perffreq;
@@ -20,7 +28,7 @@ double BLI_time_now_seconds(void)
   if (hasperfcounter == -1) {
     __int64 ifreq;
     hasperfcounter = QueryPerformanceFrequency((LARGE_INTEGER *)&ifreq);
-    perffreq = (double)ifreq;
+    perffreq = double(ifreq);
   }
 
   if (hasperfcounter) {
@@ -47,7 +55,7 @@ double BLI_time_now_seconds(void)
   }
 }
 
-long int BLI_time_now_seconds_i(void)
+long int BLI_time_now_seconds_i()
 {
   return (long int)BLI_time_now_seconds();
 }
@@ -57,29 +65,69 @@ void BLI_time_sleep_ms(int ms)
   Sleep(ms);
 }
 
+void BLI_time_sleep_precise_us(int us)
+{
+  /* Prefer thread-safety over caching the timer with a static variable. According to
+   * https://github.com/rust-lang/rust/pull/116461/files, this costs only approximately 2000ns. */
+  HANDLE timerHandle = CreateWaitableTimerExW(
+      nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+  if (!timerHandle) {
+    if (GetLastError() == ERROR_INVALID_PARAMETER) {
+      /* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION is only supported since Windows 10, version 1803. */
+      DWORD duration_ms = DWORD(std::ceil(double(us) / 1000.0));
+      Sleep(duration_ms);
+    }
+    else {
+      fprintf(stderr,
+              "BLI_time_sleep_precise_us: CreateWaitableTimerExW failed: %lx\n",
+              GetLastError());
+    }
+    return;
+  }
+
+  /* Wait time is specified in 100 nanosecond intervals. */
+  LARGE_INTEGER wait_time;
+  wait_time.QuadPart = -us * 10;
+  if (!SetWaitableTimer(timerHandle, &wait_time, 0, nullptr, nullptr, 0)) {
+    fprintf(stderr, "BLI_time_sleep_precise_us: SetWaitableTimer failed: %lx\n", GetLastError());
+    CloseHandle(timerHandle);
+    return;
+  }
+
+  if (WaitForSingleObject(timerHandle, INFINITE) != WAIT_OBJECT_0) {
+    fprintf(
+        stderr, "BLI_time_sleep_precise_us: WaitForSingleObject failed: %lx\n", GetLastError());
+    CloseHandle(timerHandle);
+    return;
+  }
+
+  CloseHandle(timerHandle);
+}
+
+}  // namespace blender
+
 #else
 
-#  include <sys/time.h>
+#  include <chrono>
+#  include <thread>
+
 #  include <unistd.h>
+
+namespace blender {
 
 double BLI_time_now_seconds()
 {
-  timeval tv;
-  struct timezone tz;
-
-  gettimeofday(&tv, &tz);
-
-  return (double(tv.tv_sec) + tv.tv_usec / 1000000.0);
+  timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return double(ts.tv_sec) + (ts.tv_nsec / 1000000000.0);
 }
 
 long int BLI_time_now_seconds_i()
 {
-  timeval tv;
-  struct timezone tz;
-
-  gettimeofday(&tv, &tz);
-
-  return tv.tv_sec;
+  timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  /* `tv_nsec` is in [0, 999999999], always less than one second, so it never carries. */
+  return ts.tv_sec;
 }
 
 void BLI_time_sleep_ms(int ms)
@@ -91,5 +139,12 @@ void BLI_time_sleep_ms(int ms)
 
   usleep(ms * 1000);
 }
+
+void BLI_time_sleep_precise_us(int us)
+{
+  std::this_thread::sleep_for(std::chrono::microseconds(us));
+}
+
+}  // namespace blender
 
 #endif

@@ -9,7 +9,6 @@ set(INC
 )
 
 set(INC_SYS
-
 )
 
 set(SRC
@@ -33,6 +32,7 @@ set(LIB
   bf_editor_space_nla
   bf_editor_space_node
   bf_editor_space_outliner
+  bf_editor_space_project
   bf_editor_space_script
   bf_editor_space_sequencer
   bf_editor_space_spreadsheet
@@ -43,6 +43,7 @@ set(LIB
   bf_editor_space_view3d
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
   PRIVATE bf::windowmanager
 )
 

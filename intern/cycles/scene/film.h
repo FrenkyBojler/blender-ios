@@ -50,6 +50,11 @@ class Film : public Node {
    * shadows can be alpha-overed onto a backdrop. */
   NODE_SOCKET_API(bool, use_approximate_shadow_catcher)
 
+  NODE_SOCKET_API(bool, use_sample_count)
+
+  NODE_SOCKET_API(bool, denoising_pass_follow_reflections);
+  NODE_SOCKET_API(bool, denoising_pass_use_albedo_roughness_weighting);
+
  private:
   size_t filter_table_offset_;
   bool prev_have_uv_pass = false;
@@ -70,10 +75,8 @@ class Film : public Node {
 
   bool update_lightgroups(Scene *scene);
 
-  /* Update passes so that they contain all passes required for the configured functionality.
-   *
-   * If `add_sample_count_pass` is true then the SAMPLE_COUNT pass is ensured to be added. */
-  void update_passes(Scene *scene, bool add_sample_count_pass);
+  /* Update passes so that they contain all passes required for the configured functionality. */
+  void update_passes(Scene *scene);
 
   uint get_kernel_features(const Scene *scene) const;
 

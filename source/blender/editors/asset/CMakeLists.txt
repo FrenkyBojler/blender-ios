@@ -5,6 +5,8 @@
 set(INC
   .
   ../include
+  ../../gpu
+  ../../imbuf
   ../../makesrna
   # dna_type_offsets.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
@@ -18,9 +20,11 @@ set(INC_SYS
 set(SRC
   intern/asset_catalog.cc
   intern/asset_filter.cc
-  intern/asset_handle.cc
   intern/asset_import.cc
   intern/asset_indexer.cc
+  intern/asset_indexer_remote_file_status.cc
+  intern/asset_indexer_remote_listing.cc
+  intern/asset_indexer_remote_listing_v1.cc
   intern/asset_library_reference_enum.cc
   intern/asset_library_utils.cc
   intern/asset_list.cc
@@ -39,7 +43,6 @@ set(SRC
 
   ED_asset_catalog.hh
   ED_asset_filter.hh
-  ED_asset_handle.hh
   ED_asset_import.hh
   ED_asset_indexer.hh
   ED_asset_library.hh
@@ -48,6 +51,9 @@ set(SRC
   ED_asset_shelf.hh
   ED_asset_temp_id_consumer.hh
   ED_asset_type.hh
+  intern/asset_index.hh
+  intern/asset_indexer_remote_file_status.hh
+  intern/asset_indexer_remote_listing.hh
   intern/asset_library_reference.hh
   intern/asset_shelf.hh
 )
@@ -63,6 +69,13 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::windowmanager
 )
+
+if(WITH_PYTHON)
+  list(APPEND INC
+    ../../python
+  )
+  add_definitions(-DWITH_PYTHON)
+endif()
 
 blender_add_lib(bf_editor_asset "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 

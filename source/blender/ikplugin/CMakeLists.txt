@@ -9,7 +9,6 @@ set(INC
 )
 
 set(INC_SYS
-
 )
 
 set(SRC
@@ -46,9 +45,6 @@ if(WITH_IK_ITASC)
   )
   list(APPEND INC
     ../../../intern/itasc
-  )
-  list(APPEND INC_SYS
-    ${EIGEN3_INCLUDE_DIRS}
   )
   list(APPEND SRC
     intern/itasc_plugin.cc

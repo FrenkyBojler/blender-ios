@@ -24,21 +24,21 @@
 
 #include "intern/depsgraph.hh"
 
-namespace deg = blender::deg;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Public C++ API
  * \{ */
 
-namespace blender::deg::light_linking {
+namespace deg::light_linking {
 
-void eval_runtime_data(const ::Depsgraph *depsgraph, Object &object_eval)
+void eval_runtime_data(const ::blender::Depsgraph *depsgraph, Object &object_eval)
 {
   const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(depsgraph);
   deg_graph->light_linking_cache.eval_runtime_data(object_eval);
 }
 
-}  // namespace blender::deg::light_linking
+}  // namespace deg::light_linking
 
 /** \} */
 
@@ -48,27 +48,18 @@ void eval_runtime_data(const ::Depsgraph *depsgraph, Object &object_eval)
 
 namespace {
 
-/* TODO(sergey): Move to a public API, solving the const-correctness. */
-template<class T> inline const T *get_original(const T *id)
-{
-  if (!id) {
-    return nullptr;
-  }
-  return reinterpret_cast<T *>(DEG_get_original_id(const_cast<ID *>(&id->id)));
-}
-
 /* Check whether the ID is suitable to be an input of the dependency graph. */
 /* TODO(sergey): Move the function and check to a more generic place. */
 #ifndef NDEBUG
 bool is_valid_input_id(const ID &id)
 {
-  return (id.tag & ID_TAG_LOCALIZED) || DEG_is_original_id(&id);
+  return (id.tag & ID_TAG_LOCALIZED) || DEG_is_original(&id);
 }
 #endif
 
 }  // namespace
 
-namespace blender::deg::light_linking {
+namespace deg::light_linking {
 
 using LightSet = internal::LightSet;
 using EmitterData = internal::EmitterData;
@@ -207,7 +198,7 @@ const EmitterData *EmitterDataMap::get_data(const Object &emitter) const
     return nullptr;
   }
 
-  const Collection *collection_orig = get_original(collection_eval);
+  const Collection *collection_orig = DEG_get_original(collection_eval);
 
   return emitter_data_map_.lookup_ptr(collection_orig);
 }
@@ -305,7 +296,7 @@ void LinkingData::update_emitters_membership(EmitterDataMap &emitter_data_map,
 
 uint64_t LinkingData::get_light_set_for(const Object &object) const
 {
-  const Object *object_orig = get_original(&object);
+  const Object *object_orig = DEG_get_original(&object);
   return object_light_sets_.lookup_default(object_orig, LightSet::DEFAULT_ID);
 }
 
@@ -323,13 +314,13 @@ void foreach_light_collection_object_inner(const CollectionLightLinking &collect
                                            const Collection &collection,
                                            Proc &&callback)
 {
-  LISTBASE_FOREACH (const CollectionChild *, collection_child, &collection.children) {
+  for (const CollectionChild &collection_child : collection.children) {
     foreach_light_collection_object_inner(
-        collection_light_linking, *collection_child->collection, callback);
+        collection_light_linking, *collection_child.collection, callback);
   }
 
-  LISTBASE_FOREACH (const CollectionObject *, collection_object, &collection.gobject) {
-    callback(collection_light_linking, *collection_object->ob);
+  for (const CollectionObject &collection_object : collection.gobject) {
+    callback(collection_light_linking, *collection_object.ob);
   }
 }
 
@@ -344,13 +335,13 @@ void foreach_light_collection_object_inner(const CollectionLightLinking &collect
 template<class Proc>
 void foreach_light_collection_object(const Collection &collection, Proc &&callback)
 {
-  LISTBASE_FOREACH (const CollectionChild *, collection_child, &collection.children) {
+  for (const CollectionChild &collection_child : collection.children) {
     foreach_light_collection_object_inner(
-        collection_child->light_linking, *collection_child->collection, callback);
+        collection_child.light_linking, *collection_child.collection, callback);
   }
 
-  LISTBASE_FOREACH (const CollectionObject *, collection_object, &collection.gobject) {
-    callback(collection_object->light_linking, *collection_object->ob);
+  for (const CollectionObject &collection_object : collection.gobject) {
+    callback(collection_object.light_linking, *collection_object.ob);
   }
 }
 
@@ -490,11 +481,13 @@ void Cache::eval_runtime_data(Object &object_eval) const
     }
   }
   else if (need_runtime) {
-    object_eval.light_linking = MEM_cnew<LightLinking>(__func__);
+    BKE_light_linking_ensure(&object_eval);
     object_eval.light_linking->runtime = runtime;
   }
 }
 
-}  // namespace blender::deg::light_linking
+}  // namespace deg::light_linking
 
 /** \} */
+
+}  // namespace blender

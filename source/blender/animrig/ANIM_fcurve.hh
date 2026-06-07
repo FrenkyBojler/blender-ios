@@ -16,20 +16,28 @@
 
 #include "DNA_anim_types.h"
 
+namespace blender {
+
 struct AnimData;
 struct FCurve;
 
-namespace blender::animrig {
+namespace animrig {
 
-/* All the information needed to look up or create an FCurve. */
+/**
+ * All the information needed to look up or create an FCurve.
+ *
+ * The `std::optional<>` fields are only used for creation. The mandatory fields
+ * are used for both creation and lookup.
+ */
 struct FCurveDescriptor {
   StringRefNull rna_path;
   int array_index;
+  std::optional<PropertyType> prop_type;
   std::optional<PropertySubType> prop_subtype;
-  std::optional<blender::StringRefNull> channel_group;
+  std::optional<StringRefNull> channel_group;
 };
 
-/* This is used to pass in the settings for a keyframe into a function. */
+/** This is used to pass in the settings for a keyframe into a function. */
 struct KeyframeSettings {
   eBezTriple_KeyframeType keyframe_type;
   eBezTriple_Handle handle;
@@ -60,6 +68,11 @@ FCurve *fcurve_find(Span<FCurve *> fcurves, const FCurveDescriptor &fcurve_descr
  * the correct color mode based on user preferences.
  */
 FCurve *create_fcurve_for_channel(const FCurveDescriptor &fcurve_descriptor);
+
+/**
+ * Determine the F-Curve flags suitable for animating an RNA property of the given type.
+ */
+eFCurve_Flags fcurve_flags_for_property_type(PropertyType prop_type);
 
 /** Initialize the given BezTriple with default values. */
 void initialize_bezt(BezTriple *beztr,
@@ -119,7 +132,6 @@ int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, eInsertKeyFlags flag)
  *
  * \returns Either success or an indicator of why keying failed.
  *
- * \param keyframe_type: The type of keyframe (#eBezTriple_KeyframeType).
  * \param flag: Optional flags (#eInsertKeyFlags) for controlling how keys get added
  * and/or whether updates get done.
  */
@@ -130,7 +142,7 @@ SingleKeyingResult insert_vert_fcurve(FCurve *fcu,
 
 /**
  * \param sample_rate: indicates how many samples per frame should be generated.
- * \param r_samples: Is expected to be an array large enough to hold `sample_count`.
+ * \param samples: Is expected to be an array large enough to hold `sample_count`.
  */
 void sample_fcurve_segment(
     const FCurve *fcu, float start_frame, float sample_rate, float *samples, int sample_count);
@@ -147,7 +159,7 @@ enum class BakeCurveRemove {
  * \param range: start and end frame to bake. Is inclusive on both ends.
  * \param remove_existing: choice which keys to remove in relation to the given range.
  */
-void bake_fcurve(FCurve *fcu, blender::int2 range, float step, BakeCurveRemove remove_existing);
+void bake_fcurve(FCurve *fcu, int2 range, float step, BakeCurveRemove remove_existing);
 
 /**
  * Fill the space between selected keyframes with keyframes on full frames.
@@ -164,4 +176,5 @@ void bake_fcurve_segments(FCurve *fcu);
  */
 bool fcurve_frame_has_keyframe(const FCurve *fcu, float frame);
 
-}  // namespace blender::animrig
+}  // namespace animrig
+}  // namespace blender

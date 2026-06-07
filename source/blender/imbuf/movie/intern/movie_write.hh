@@ -25,18 +25,24 @@ extern "C" {
 #  include <libavutil/buffer.h>
 #  include <libavutil/channel_layout.h>
 #  include <libavutil/imgutils.h>
+#  include <libavutil/mastering_display_metadata.h>
 #  include <libavutil/opt.h>
 #  include <libavutil/rational.h>
 #  include <libavutil/samplefmt.h>
+#  include <libavutil/spherical.h>
+#  include <libavutil/stereo3d.h>
 
 #  include "ffmpeg_compat.h"
 }
 
 #  ifdef WITH_AUDASPACE
-#    include <AUD_Types.h>
+#    include "BKE_sound_types.hh"
 #  endif
 
+namespace blender {
+
 struct Scene;
+struct ReportList;
 struct StampData;
 
 struct MovieWriter {
@@ -52,7 +58,9 @@ struct MovieWriter {
   bool ffmpeg_preview = false;
 
   int ffmpeg_crf = 0; /* set to 0 to not use CRF mode; we have another flag for lossless anyway. */
+  bool custom_crf = false;
   int ffmpeg_preset = 0; /* see eFFMpegPreset */
+  int ffmpeg_profile = 0;
 
   AVFormatContext *outfile = nullptr;
   AVCodecContext *video_codec = nullptr;
@@ -77,12 +85,16 @@ struct MovieWriter {
   StampData *stamp_data = nullptr;
 
 #  ifdef WITH_AUDASPACE
-  AUD_Device *audio_mixdown_device = nullptr;
+  AUD_Device audio_mixdown_device;
 #  endif
 };
 
-bool movie_audio_open(
-    MovieWriter *context, const Scene *scene, int start_frame, int mixrate, float volume);
+bool movie_audio_open(MovieWriter *context,
+                      const Scene *scene,
+                      int start_frame,
+                      int mixrate,
+                      float volume,
+                      ReportList *reports);
 void movie_audio_close(MovieWriter *context, bool is_autosplit);
 
 AVStream *alloc_audio_stream(MovieWriter *context,
@@ -91,7 +103,10 @@ AVStream *alloc_audio_stream(MovieWriter *context,
                              AVCodecID codec_id,
                              AVFormatContext *of,
                              char *error,
-                             int error_size);
+                             int error_size,
+                             ReportList *reports);
 void write_audio_frames(MovieWriter *context, double to_pts);
+
+}  // namespace blender
 
 #endif /* WITH_FFMPEG */

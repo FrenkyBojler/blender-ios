@@ -97,16 +97,15 @@ static void copy_materials_to_new_geometry_object(const Object &src_ob_eval,
   *BKE_id_material_len_p(&dst_data_orig) = materials_num;
   dst_ob_orig.totcol = materials_num;
 
-  dst_ob_orig.matbits = MEM_cnew_array<char>(materials_num, __func__);
-  dst_ob_orig.mat = MEM_cnew_array<Material *>(materials_num, __func__);
+  dst_ob_orig.matbits = MEM_new_array_zeroed<char>(materials_num, __func__);
+  dst_ob_orig.mat = MEM_new_array_zeroed<Material *>(materials_num, __func__);
   Material ***dst_materials = BKE_id_material_array_p(&dst_data_orig);
-  *dst_materials = MEM_cnew_array<Material *>(materials_num, __func__);
+  *dst_materials = MEM_new_array_zeroed<Material *>(materials_num, __func__);
 
   for (int i = 0; i < materials_num; i++) {
     const Material *material_eval = BKE_object_material_get_eval(
         src_ob_eval, src_data_eval, i + 1);
-    Material *material_orig = reinterpret_cast<Material *>(
-        DEG_get_original_id(const_cast<ID *>(&material_eval->id)));
+    Material *material_orig = const_cast<Material *>(DEG_get_original(material_eval));
     if (material_orig) {
       (*dst_materials)[i] = material_orig;
       id_us_plus(&material_orig->id);
@@ -136,14 +135,18 @@ class GeometryToObjectsBuilder {
                                             const bke::GeometrySet &geometry)
   {
     ComponentObjects component_objects = this->get_objects_for_geometry(src_ob_eval, geometry);
-    return this->collection_from_component_objects(
-        component_objects, geometry.name.empty() ? BKE_id_name(src_ob_eval.id) : geometry.name);
+    const StringRefNull name = geometry.name().is_empty() ?
+                                   StringRefNull(BKE_id_name(src_ob_eval.id)) :
+                                   StringRefNull(geometry.name());
+    return this->collection_from_component_objects(component_objects, name);
   }
 
   ComponentObjects get_objects_for_geometry(const Object &src_ob_eval,
                                             const bke::GeometrySet &geometry)
   {
-    const StringRefNull name = geometry.name.empty() ? BKE_id_name(src_ob_eval.id) : geometry.name;
+    const StringRefNull name = geometry.name().is_empty() ?
+                                   StringRefNull(BKE_id_name(src_ob_eval.id)) :
+                                   StringRefNull(geometry.name());
     ComponentObjects objects;
     if (const Mesh *mesh = geometry.get_mesh()) {
       if (mesh->verts_num > 0) {
@@ -193,9 +196,9 @@ class GeometryToObjectsBuilder {
                                  const StringRefNull name)
   {
     return new_object_by_generated_geometry_.lookup_or_add_cb(&src_mesh.id, [&]() {
-      Mesh *new_mesh = reinterpret_cast<Mesh *>(BKE_id_new(&bmain_, ID_ME, name.c_str()));
+      Mesh *new_mesh = BKE_id_new<Mesh>(&bmain_, name.c_str());
       Object *new_ob = BKE_object_add_only_object(&bmain_, OB_MESH, name.c_str());
-      new_ob->data = new_mesh;
+      new_ob->data = id_cast<ID *>(new_mesh);
 
       BKE_mesh_nomain_to_mesh(BKE_mesh_copy_for_eval(src_mesh), new_mesh, new_ob);
       new_mesh->attributes_for_write().remove_anonymous();
@@ -211,9 +214,9 @@ class GeometryToObjectsBuilder {
                                    const StringRefNull name)
   {
     return new_object_by_generated_geometry_.lookup_or_add_cb(&src_curves.id, [&]() {
-      Curves *new_curves = reinterpret_cast<Curves *>(BKE_id_new(&bmain_, ID_CV, name.c_str()));
+      Curves *new_curves = BKE_id_new<Curves>(&bmain_, name.c_str());
       Object *new_ob = BKE_object_add_only_object(&bmain_, OB_CURVES, name.c_str());
-      new_ob->data = new_curves;
+      new_ob->data = id_cast<ID *>(new_curves);
 
       new_curves->geometry.wrap() = src_curves.geometry.wrap();
       new_curves->geometry.wrap().attributes_for_write().remove_anonymous();
@@ -227,10 +230,9 @@ class GeometryToObjectsBuilder {
                                        const StringRefNull name)
   {
     return new_object_by_generated_geometry_.lookup_or_add_cb(&src_pointcloud.id, [&]() {
-      PointCloud *new_pointcloud = reinterpret_cast<PointCloud *>(
-          BKE_id_new(&bmain_, ID_PT, name.c_str()));
+      PointCloud *new_pointcloud = BKE_id_new<PointCloud>(&bmain_, name.c_str());
       Object *new_ob = BKE_object_add_only_object(&bmain_, OB_POINTCLOUD, name.c_str());
-      new_ob->data = new_pointcloud;
+      new_ob->data = id_cast<ID *>(new_pointcloud);
 
       BKE_pointcloud_nomain_to_pointcloud(BKE_pointcloud_copy_for_eval(&src_pointcloud),
                                           new_pointcloud);
@@ -246,10 +248,9 @@ class GeometryToObjectsBuilder {
                                           const StringRefNull name)
   {
     return new_object_by_generated_geometry_.lookup_or_add_cb(&src_grease_pencil.id, [&]() {
-      GreasePencil *new_grease_pencil = reinterpret_cast<GreasePencil *>(
-          BKE_id_new(&bmain_, ID_GP, name.c_str()));
+      GreasePencil *new_grease_pencil = BKE_id_new<GreasePencil>(&bmain_, name.c_str());
       Object *new_ob = BKE_object_add_only_object(&bmain_, OB_GREASE_PENCIL, name.c_str());
-      new_ob->data = new_grease_pencil;
+      new_ob->data = id_cast<ID *>(new_grease_pencil);
 
       GreasePencil *greasepencil_to_move_from = BKE_grease_pencil_copy_for_eval(
           &src_grease_pencil);
@@ -346,7 +347,7 @@ class GeometryToObjectsBuilder {
         }
         case bke::InstanceReference::Type::Object: {
           Object &object_eval = reference.object();
-          Object *object_orig = DEG_get_original_object(&object_eval);
+          Object *object_orig = DEG_get_original(&object_eval);
           if (ELEM(object_orig, &src_ob_eval, nullptr)) {
             return std::nullopt;
           }
@@ -382,7 +383,7 @@ class GeometryToObjectsBuilder {
       case bke::InstanceReference::Type::Object: {
         /* Create a collection for the object because we can't instance objects directly. */
         Object &object_eval = reference.object();
-        Object *object_orig = DEG_get_original_object(&object_eval);
+        Object *object_orig = DEG_get_original(&object_eval);
 
         if (object_orig->type == OB_EMPTY && object_orig->instance_collection) {
           instance.collection = object_orig->instance_collection;
@@ -406,8 +407,7 @@ class GeometryToObjectsBuilder {
         /* For collections, we don't need to create a new wrapper collection, we can just create
          * objects that instance the existing collection. */
         Collection &collection_eval = reference.collection();
-        Collection *collection_orig = reinterpret_cast<Collection *>(
-            DEG_get_original_id(&collection_eval.id));
+        Collection *collection_orig = DEG_get_original(&collection_eval);
         instance.collection = collection_orig;
         break;
       }
@@ -437,7 +437,7 @@ static Vector<Collection *> find_collections_containing_object(Main &bmain,
   return collections.extract_vector();
 }
 
-static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
 {
   Main &bmain = *CTX_data_main(C);
   Scene &scene = *CTX_data_scene(C);
@@ -455,7 +455,7 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
   GeometryToObjectsBuilder op(bmain);
   Vector<Object *> all_new_top_level_objects;
   for (Object *src_ob_orig : selected_objects_orig) {
-    Object *src_ob_eval = DEG_get_evaluated_object(&depsgraph, src_ob_orig);
+    Object *src_ob_eval = DEG_get_evaluated(&depsgraph, src_ob_orig);
     bke::GeometrySet geometry_eval = bke::object_get_evaluated_geometry_set(*src_ob_eval);
     const ComponentObjects new_component_objects = op.get_objects_for_geometry(*src_ob_eval,
                                                                                geometry_eval);
@@ -490,10 +490,10 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
     BKE_collection_child_add(&bmain, scene.master_collection, new_collection);
   }
   /* Ensure that the #Base for objects and #LayerCollection for collections are created. */
-  BKE_scene_view_layers_synced_ensure(&scene);
+  BKE_scene_view_layers_synced_ensure(bmain, &scene);
 
   /* Deselect everything so that we can select the new objects. */
-  BKE_view_layer_base_deselect_all(&scene, &active_view_layer);
+  BKE_view_layer_base_deselect_all(bmain, &scene, &active_view_layer);
   /* Select the new objects. */
   for (Object *object : all_new_top_level_objects) {
     Base *base = BKE_view_layer_base_find(&active_view_layer, object);
@@ -507,10 +507,10 @@ static int visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
   }
   /* Exclude the new collections. This is done because they are only instanced by other objects but
    * should not be visible by themselves. */
-  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene.view_layers) {
+  for (ViewLayer &view_layer : scene.view_layers) {
     for (Collection *new_collection : new_instance_collections) {
       LayerCollection *new_layer_collection = BKE_layer_collection_first_from_scene_collection(
-          view_layer, new_collection);
+          &view_layer, new_collection);
       BKE_layer_collection_set_flag(new_layer_collection, LAYER_COLLECTION_EXCLUDE, true);
     }
   }

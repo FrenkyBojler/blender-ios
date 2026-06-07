@@ -6,7 +6,13 @@
  *
  * SPDX-License-Identifier: MIT */
 
+/** \file
+ * \ingroup bli
+ */
+
 #include "BLI_smaa_textures.h"
+
+namespace blender {
 
 /* Don't re-wrap large data definitions. */
 /* clang-format off */
@@ -15038,3 +15044,5 @@ const unsigned char searchTexBytes[] = {
 };
 
 /* clang-format on */
+
+}  // namespace blender

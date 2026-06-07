@@ -28,7 +28,7 @@ PyDoc_STRVAR(
     "\n"
     "   Builds a GetXF1D object.\n"
     "\n"
-    "   :arg integration_type: The integration method used to compute a single value\n"
+    "   :param integration_type: The integration method used to compute a single value\n"
     "      from a set of values.\n"
     "   :type integration_type: :class:`freestyle.types.IntegrationType`\n"
     "\n"
@@ -36,11 +36,10 @@ PyDoc_STRVAR(
     "\n"
     "   Returns the X 3D coordinate of an Interface1D.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The X 3D coordinate of the Interface1D.\n"
     "   :rtype: float\n");
-
 static int GetXF1D___init__(BPy_GetXF1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"integration_type", nullptr};

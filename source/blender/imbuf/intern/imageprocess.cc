@@ -13,40 +13,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-void IMB_convert_rgba_to_abgr(ImBuf *ibuf)
-{
-  size_t size;
-  uchar rt, *cp = ibuf->byte_buffer.data;
-  float rtf, *cpf = ibuf->float_buffer.data;
-
-  if (ibuf->byte_buffer.data) {
-    size = ibuf->x * ibuf->y;
-
-    while (size-- > 0) {
-      rt = cp[0];
-      cp[0] = cp[3];
-      cp[3] = rt;
-      rt = cp[1];
-      cp[1] = cp[2];
-      cp[2] = rt;
-      cp += 4;
-    }
-  }
-
-  if (ibuf->float_buffer.data) {
-    size = ibuf->x * ibuf->y;
-
-    while (size-- > 0) {
-      rtf = cpf[0];
-      cpf[0] = cpf[3];
-      cpf[3] = rtf;
-      rtf = cpf[1];
-      cpf[1] = cpf[2];
-      cpf[2] = rtf;
-      cpf += 4;
-    }
-  }
-}
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Alpha-under
@@ -54,7 +21,6 @@ void IMB_convert_rgba_to_abgr(ImBuf *ibuf)
 
 void IMB_alpha_under_color_float(float *rect_float, int x, int y, float backcol[3])
 {
-  using namespace blender;
   threading::parallel_for(IndexRange(int64_t(x) * y), 32 * 1024, [&](const IndexRange i_range) {
     float *pix = rect_float + i_range.first() * 4;
     for ([[maybe_unused]] const int i : i_range) {
@@ -68,7 +34,6 @@ void IMB_alpha_under_color_float(float *rect_float, int x, int y, float backcol[
 
 void IMB_alpha_under_color_byte(uchar *rect, int x, int y, const float backcol[3])
 {
-  using namespace blender;
   threading::parallel_for(IndexRange(int64_t(x) * y), 32 * 1024, [&](const IndexRange i_range) {
     uchar *pix = rect + i_range.first() * 4;
     for ([[maybe_unused]] const int i : i_range) {
@@ -95,3 +60,5 @@ void IMB_alpha_under_color_byte(uchar *rect, int x, int y, const float backcol[3
 }
 
 /** \} */
+
+}  // namespace blender

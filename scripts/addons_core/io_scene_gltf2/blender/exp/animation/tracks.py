@@ -51,6 +51,16 @@ def gather_tracks_animations(export_settings):
     animations = []
     merged_tracks = {}
 
+    # Disable viewport updates for faster export. (Will be re-enabled at the end of export)
+    # This is needed to avoid refreshing the viewport at each track
+    # muting/unmuting, which can be very long when many tracks.
+    if export_settings['gltf_optimize_disable_viewport']:
+
+        # Before baking, disabling from viewport all meshes
+        for obj in [n.blender_object for n in export_settings['vtree'].nodes.values() if n.blender_type in
+                    [VExportNode.OBJECT, VExportNode.ARMATURE, VExportNode.COLLECTION]]:
+            obj.hide_viewport = True
+
     vtree = export_settings['vtree']
     for obj_uuid in vtree.get_all_objects():
 
@@ -66,8 +76,16 @@ def gather_tracks_animations(export_settings):
         if export_settings['vtree'].nodes[obj_uuid].blender_type == VExportNode.COLLECTION:
             continue
 
+        # Enable only this object for faster export, as we export per object. Will be re-enabled at the end of export
+        if export_settings['gltf_optimize_disable_viewport']:
+            vtree.nodes[obj_uuid].blender_object.hide_viewport = False
+
         animations_, merged_tracks = gather_track_animations(obj_uuid, merged_tracks, len(animations), export_settings)
         animations += animations_
+
+        # After baking, re-enabling for this object
+        if export_settings['gltf_optimize_disable_viewport']:
+            vtree.nodes[obj_uuid].blender_object.hide_viewport = False
 
     if export_settings['gltf_export_anim_pointer'] is True:
         # Manage Material tracks (for KHR_animation_pointer)
@@ -88,6 +106,14 @@ def gather_tracks_animations(export_settings):
                 'lights', light, merged_tracks, len(animations), export_settings)
             animations += animations_
 
+    # We can now re-enable viewport updates, as we are done with muting/unmuting tracks
+    if export_settings['gltf_optimize_disable_viewport']:
+
+        # After baking, re-enabling for all meshes
+        for n in [n for n in export_settings['vtree'].nodes.values() if n.blender_type in
+                  [VExportNode.OBJECT, VExportNode.ARMATURE, VExportNode.COLLECTION]]:
+            n.blender_object.hide_viewport = n.default_hide_viewport
+
     new_animations = merge_tracks_perform(merged_tracks, animations, export_settings)
 
     return new_animations
@@ -107,6 +133,11 @@ def gather_track_animations(obj_uuid: int,
     # Access to fcurve and action data
 
     blender_object = export_settings['vtree'].nodes[obj_uuid].blender_object
+
+    # Before exporting, make sure the nla is not in edit mode
+    if bpy.context.scene.is_nla_tweakmode is True and blender_object.animation_data:
+        blender_object.animation_data.use_tweak_mode = False
+
     # Collect all tracks affecting this object.
     blender_tracks = __get_blender_tracks(obj_uuid, export_settings)
 
@@ -239,15 +270,14 @@ def gather_track_animations(obj_uuid: int,
                 if not (track_data.name.startswith("NlaTrack") or track_data.name.startswith("[Action Stash]")):
                     if track_data.name not in tracks.keys():
                         tracks[track_data.name] = []
-                    tracks[track_data.name].append(offset + len(animations) - 1)  # Store index of animation in animations
+                    # Store index of animation in animations
+                    tracks[track_data.name].append(offset + len(animations) - 1)
             elif export_settings['gltf_merge_animation'] == "ACTION":
-                if blender_action.name not in tracks.keys():
-                    tracks[blender_action.name] = []
-                tracks[blender_action.name].append(offset + len(animations) - 1)  # Store index of animation in animations
+                pass  # This can't happen here, as we bake per NLA track
             elif export_settings['gltf_merge_animation'] == "NONE":
-                pass  # Nothing to store, we are not going to merge animations
+                pass  # This can't happen here, as we bake per NLA track
             else:
-                pass  # This should not happen (or the developer added a new option, and forget to take it into account here)
+                pass  # This can't happen here, as we bake per NLA track
 
         # Restoring muting
         if track_data.on_type == "OBJECT":
@@ -326,8 +356,6 @@ def __get_nla_tracks_obj(obj_uuid: str, export_settings):
     if len(obj.animation_data.nla_tracks) == 0:
         return TracksData()
 
-    exported_tracks = []
-
     current_exported_tracks = []
 
     tracks_data = TracksData()
@@ -351,15 +379,14 @@ def __get_nla_tracks_obj(obj_uuid: str, export_settings):
         else:
             # The previous one(s) can go to the list, if any (not for first track)
             if len(current_exported_tracks) != 0:
-                exported_tracks.append(current_exported_tracks)
-                current_exported_tracks = []
 
                 # Store data
                 track_data = TrackData(
                     current_exported_tracks,
-                    obj.animation_data.nla_tracks[exported_tracks[-1][0].idx].name,
+                    obj.animation_data.nla_tracks[current_exported_tracks[0].idx].name,
                     "OBJECT"
                 )
+                current_exported_tracks = []
 
                 tracks_data.add(track_data)
 
@@ -368,13 +395,11 @@ def __get_nla_tracks_obj(obj_uuid: str, export_settings):
 
     # End of loop. Keep the last one(s), if any
     if len(current_exported_tracks) != 0:
-        exported_tracks.append(current_exported_tracks)
 
-    if len(exported_tracks) != 0:
         # Store data for the last one
         track_data = TrackData(
             current_exported_tracks,
-            obj.animation_data.nla_tracks[exported_tracks[-1][0].idx].name,
+            obj.animation_data.nla_tracks[current_exported_tracks[0].idx].name,
             "OBJECT"
         )
         tracks_data.add(track_data)
@@ -396,8 +421,6 @@ def __get_nla_tracks_sk(obj_uuid: str, export_settings):
         return TracksData()
     if len(obj.data.shape_keys.animation_data.nla_tracks) == 0:
         return TracksData()
-
-    exported_tracks = []
 
     current_exported_tracks = []
 
@@ -422,31 +445,31 @@ def __get_nla_tracks_sk(obj_uuid: str, export_settings):
         else:
             # The previous one(s) can go to the list, if any (not for first track)
             if len(current_exported_tracks) != 0:
-                exported_tracks.append(current_exported_tracks)
-                current_exported_tracks = []
 
                 # Store data
                 track_data = TrackData(
                     current_exported_tracks,
-                    obj.data.shape_keys.animation_data.nla_tracks[exported_tracks[-1][0].idx].name,
+                    obj.data.shape_keys.animation_data.nla_tracks[current_exported_tracks[0].idx].name,
                     "KEY"
                 )
+                current_exported_tracks = []
 
                 tracks_data.add(track_data)
 
         # Start a new stack
         current_exported_tracks.append(stored_track)
 
-    # End of loop. Keep the last one(s)
-    exported_tracks.append(current_exported_tracks)
-    # Store data for the last one
-    track_data = TrackData(
-        current_exported_tracks,
-        obj.data.shape_keys.animation_data.nla_tracks[exported_tracks[-1][0].idx].name,
-        "KEY"
-    )
+    # End of loop. Keep the last one(s), if any
+    if len(current_exported_tracks) != 0:
 
-    tracks_data.add(track_data)
+        # Store data for the last one
+        track_data = TrackData(
+            current_exported_tracks,
+            obj.data.shape_keys.animation_data.nla_tracks[current_exported_tracks[0].idx].name,
+            "KEY"
+        )
+
+        tracks_data.add(track_data)
 
     return tracks_data
 
@@ -457,6 +480,10 @@ def prepare_tracks_range(obj_uuid, track_data, export_settings, with_driver=True
     track_name = track_data.name
 
     track_slide = {}
+
+    # initialize (avoid lint error)
+    frame_start = 0
+    frame_end = 0
 
     for idx, btrack in enumerate(tracks):
         frame_start = btrack.frame_start if idx == 0 else min(frame_start, btrack.frame_start)
@@ -527,7 +554,10 @@ def gather_data_track_animations(
     blender_tracks = __get_data_blender_tracks(blender_type_data, blender_id, export_settings)
 
     if blender_type_data == "materials":
-        blender_data_object = [mat for mat in bpy.data.materials if id(mat) == blender_id][0]
+        if export_settings['gltf_animation_mode'] == "NLA_TRACKS" and export_settings['gltf_apply'] is True:
+            blender_data_object = export_settings['material_identifiers'][blender_id]
+        else:
+            blender_data_object = [mat for mat in bpy.data.materials if id(mat) == blender_id][0]
     elif blender_type_data == "cameras":
         blender_data_object = [cam for cam in bpy.data.cameras if id(cam) == blender_id][0]
     elif blender_type_data == "lights":
@@ -627,7 +657,8 @@ def gather_data_track_animations(
                 blender_data_object.node_tree.animation_data.nla_tracks[track.idx].mute = False
 
         # Export animation
-        animation = bake_data_animation(blender_type_data, blender_id, track_data.name, None, track_data.on_type, export_settings)
+        animation = bake_data_animation(blender_type_data, blender_id, track_data.name,
+                                        None, track_data.on_type, export_settings)
         get_cache_data.reset_cache()
         if animation is not None:
             animations.append(animation)
@@ -687,7 +718,7 @@ def gather_data_track_animations(
 
 
 def __get_data_blender_tracks(blender_type_data, blender_id, export_settings):
-    tracks_data = __get_nla_tracks_material(blender_type_data, blender_id, export_settings)
+    tracks_data = __get_nla_tracks_data(blender_type_data, blender_id, export_settings)
     if blender_type_data in ["materials", "lights"]:
         tracks_data_tree = __get_nla_tracks_material_node_tree(
             blender_type_data, blender_id, export_settings)
@@ -699,9 +730,13 @@ def __get_data_blender_tracks(blender_type_data, blender_id, export_settings):
     return tracks_data
 
 
-def __get_nla_tracks_material(blender_type_data, blender_id, export_settings):
+def __get_nla_tracks_data(blender_type_data, blender_id, export_settings):
     if blender_type_data == "materials":
-        blender_data_object = [mat for mat in bpy.data.materials if id(mat) == blender_id][0]
+        # Special cases for materials, where, when apply modifiers, the original material changed
+        if export_settings['gltf_animation_mode'] == "NLA_TRACKS" and export_settings['gltf_apply'] is True:
+            blender_data_object = export_settings['material_identifiers'][blender_id]
+        else:
+            blender_data_object = [mat for mat in bpy.data.materials if id(mat) == blender_id][0]
         on_type = "MATERIAL"
     elif blender_type_data == "cameras":
         blender_data_object = [cam for cam in bpy.data.cameras if id(cam) == blender_id][0]
@@ -716,8 +751,6 @@ def __get_nla_tracks_material(blender_type_data, blender_id, export_settings):
         return TracksData()
     if len(blender_data_object.animation_data.nla_tracks) == 0:
         return TracksData()
-
-    exported_tracks = []
 
     current_exported_tracks = []
 
@@ -742,32 +775,32 @@ def __get_nla_tracks_material(blender_type_data, blender_id, export_settings):
         else:
             # The previous one(s) can go to the list, if any (not for first track)
             if len(current_exported_tracks) != 0:
-                exported_tracks.append(current_exported_tracks)
-                current_exported_tracks = []
 
                 # Store data
                 track_data = TrackData(
                     current_exported_tracks,
-                    blender_data_object.animation_data.nla_tracks[exported_tracks[-1][0].idx].name,
+                    blender_data_object.animation_data.nla_tracks[current_exported_tracks[0].idx].name,
                     on_type
                 )
+                current_exported_tracks = []
 
                 tracks_data.add(track_data)
 
         # Start a new stack
         current_exported_tracks.append(stored_track)
 
-    # End of loop. Keep the last one(s)
-    exported_tracks.append(current_exported_tracks)
+    # End of loop. Keep the last one(s), if any
+    # End of loop. Keep the last one(s), if any
+    if len(current_exported_tracks) != 0:
 
-    # Store data for the last one
-    track_data = TrackData(
-        current_exported_tracks,
-        blender_data_object.animation_data.nla_tracks[exported_tracks[-1][0].idx].name,
-        on_type
-    )
+        # Store data for the last one
+        track_data = TrackData(
+            current_exported_tracks,
+            blender_data_object.animation_data.nla_tracks[current_exported_tracks[0].idx].name,
+            on_type
+        )
 
-    tracks_data.add(track_data)
+        tracks_data.add(track_data)
 
     return tracks_data
 
@@ -775,7 +808,10 @@ def __get_nla_tracks_material(blender_type_data, blender_id, export_settings):
 def __get_nla_tracks_material_node_tree(blender_type_data, blender_id, export_settings):
     on_type = "NODETREE"
     if blender_type_data == "materials":
-        blender_object_data = [mat for mat in bpy.data.materials if id(mat) == blender_id][0]
+        if export_settings['gltf_animation_mode'] == "NLA_TRACKS" and export_settings['gltf_apply'] is True:
+            blender_object_data = export_settings['material_identifiers'][blender_id]
+        else:
+            blender_object_data = [mat for mat in bpy.data.materials if id(mat) == blender_id][0]
     elif blender_type_data == "lights":
         blender_object_data = [light for light in bpy.data.lights if id(light) == blender_id][0]
 
@@ -785,8 +821,6 @@ def __get_nla_tracks_material_node_tree(blender_type_data, blender_id, export_se
         return TracksData()
     if len(blender_object_data.node_tree.animation_data.nla_tracks) == 0:
         return TracksData()
-
-    exported_tracks = []
 
     current_exported_tracks = []
 
@@ -811,31 +845,32 @@ def __get_nla_tracks_material_node_tree(blender_type_data, blender_id, export_se
         else:
             # The previous one(s) can go to the list, if any (not for first track)
             if len(current_exported_tracks) != 0:
-                exported_tracks.append(current_exported_tracks)
-                current_exported_tracks = []
 
                 # Store data
                 track_data = TrackData(
                     current_exported_tracks,
-                    blender_object_data.node_tree.animation_data.nla_tracks[exported_tracks[-1][0].idx].name,
+                    blender_object_data.node_tree.animation_data.nla_tracks[current_exported_tracks[0].idx].name,
                     on_type
                 )
+                current_exported_tracks = []
 
                 tracks_data.add(track_data)
 
         # Start a new stack
         current_exported_tracks.append(stored_track)
 
-    # End of loop. Keep the last one(s)
-    exported_tracks.append(current_exported_tracks)
+    # End of loop. Keep the last one(s), if any
 
-    # Store data for the last one
-    track_data = TrackData(
-        current_exported_tracks,
-        blender_object_data.node_tree.animation_data.nla_tracks[exported_tracks[-1][0].idx].name,
-        on_type
-    )
+    # End of loop. Keep the last one(s), if any
+    if len(current_exported_tracks) != 0:
 
-    tracks_data.add(track_data)
+        # Store data for the last one
+        track_data = TrackData(
+            current_exported_tracks,
+            blender_object_data.node_tree.animation_data.nla_tracks[current_exported_tracks[0].idx].name,
+            on_type
+        )
+
+        tracks_data.add(track_data)
 
     return tracks_data

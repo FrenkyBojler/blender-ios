@@ -11,10 +11,8 @@
 #include "kernel/integrator/state.h"
 #include "kernel/util/profiler.h"  // IWYU pragma: export
 
-#include "util/color.h"    // IWYU pragma: export
-#include "util/texture.h"  // IWYU pragma: export
-
-#define HIPRT_SHARED_STACK
+#include "util/color.h"        // IWYU pragma: export
+#include "util/types_image.h"  // IWYU pragma: export
 
 /* The size of global stack  available to each thread (memory reserved for each thread in
  * global_stack_buffer). */
@@ -36,33 +34,25 @@ CCL_NAMESPACE_BEGIN
 
 struct KernelGlobalsGPU {
   hiprtGlobalStackBuffer global_stack_buffer;
-#ifdef HIPRT_SHARED_STACK
   hiprtSharedStackBuffer shared_stack;
-#endif
 };
 
 using KernelGlobals = ccl_global KernelGlobalsGPU *ccl_restrict;
 
-#if defined(HIPRT_SHARED_STACK)
-
 /* This macro allocates shared memory and to pass the shared memory down to intersection functions
  * KernelGlobals is used. */
-#  define HIPRT_INIT_KERNEL_GLOBAL() \
-    ccl_gpu_shared int shared_stack[HIPRT_SHARED_STACK_SIZE * HIPRT_THREAD_GROUP_SIZE]; \
-    ccl_global KernelGlobalsGPU kg_gpu; \
-    KernelGlobals kg = &kg_gpu; \
-    kg->shared_stack.stackData = &shared_stack[0]; \
-    kg->shared_stack.stackSize = HIPRT_SHARED_STACK_SIZE; \
-    kg->global_stack_buffer = stack_buffer;
-#else
-#  define HIPRT_INIT_KERNEL_GLOBAL() \
-    KernelGlobals kg = nullptr; \
-    kg->global_stack_buffer = stack_buffer;
-#endif
+#define HIPRT_INIT_KERNEL_GLOBAL() \
+  ccl_gpu_shared int shared_stack[HIPRT_SHARED_STACK_SIZE * HIPRT_THREAD_GROUP_SIZE]; \
+  ccl_global KernelGlobalsGPU kg_gpu; \
+  KernelGlobals kg = &kg_gpu; \
+  kg->shared_stack.stackData = &shared_stack[0]; \
+  kg->shared_stack.stackSize = HIPRT_SHARED_STACK_SIZE; \
+  kg->global_stack_buffer = stack_buffer;
 
 struct KernelParamsHIPRT {
   KernelData data;
 #define KERNEL_DATA_ARRAY(type, name) const type *name;
+#define KERNEL_DATA_ARRAY_WRITABLE(type, name) type *name;
   KERNEL_DATA_ARRAY(int, user_instance_id)
   KERNEL_DATA_ARRAY(uint64_t, blas_ptr)
   KERNEL_DATA_ARRAY(int2, custom_prim_info)
@@ -149,16 +139,14 @@ enum Filter_Function_Table_Index {
 #ifdef __KERNEL_GPU__
 __constant__ KernelParamsHIPRT kernel_params;
 
-#  ifdef HIPRT_SHARED_STACK
 typedef hiprtGlobalStack Stack;
 typedef hiprtEmptyInstanceStack Instance_Stack;
-#  endif
-
 #endif
 
 /* Abstraction macros */
 #define kernel_data kernel_params.data
 #define kernel_data_fetch(name, index) kernel_params.name[(index)]
+#define kernel_data_write(name, index, value) kernel_params.name[(index)] = (value)
 #define kernel_data_array(name) (kernel_params.name)
 #define kernel_integrator_state kernel_params.integrator_state
 

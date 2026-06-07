@@ -15,7 +15,7 @@ void DupliParentFinder::insert(const DupliObject *dupli_ob)
   dupli_set_.add(dupli_ob->ob);
 
   PersistentID dupli_pid(dupli_ob);
-  pid_to_dupli_.add_new(dupli_pid, dupli_ob);
+  pid_to_dupli_.add(dupli_pid, dupli_ob);
   instancer_pid_to_duplis_.lookup_or_add(dupli_pid.instancer_pid(), {}).add(dupli_ob);
 }
 
@@ -45,7 +45,7 @@ const DupliObject *DupliParentFinder::find_duplicated_parent(const DupliObject *
   const Object *parent_ob = dupli_ob->ob->parent;
   BLI_assert(parent_ob != nullptr);
 
-  const blender::Set<const DupliObject *> *found = instancer_pid_to_duplis_.lookup_ptr(parent_pid);
+  const Set<const DupliObject *> *found = instancer_pid_to_duplis_.lookup_ptr(parent_pid);
   if (!found) {
     /* Unexpected, as there should be at least one entry here, for the dupli_ob itself. */
     return nullptr;
