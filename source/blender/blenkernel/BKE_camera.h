@@ -46,6 +46,7 @@ struct CameraParams {
   /* lens */
   bool is_ortho = false;
   float lens = 0.0f;
+  float fisheye_fov = 0.0f; /* Added by Julius Hilker for Camera Info Node FOV */
   float ortho_scale = 1.0f;
   float zoom = 1.0f;
 

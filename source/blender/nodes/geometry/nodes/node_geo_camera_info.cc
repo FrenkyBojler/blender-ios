@@ -21,6 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Matrix>("Projection Matrix"_ustr).description("Camera projection matrix");
   b.add_output<decl::Float>("Focal Length"_ustr).description("Perspective camera focal length");
+  b.add_output<decl::Float>("Field of View"_ustr).description("Panoramic camera field of view"); /* Added by Julius Hilker for Camera Info Node FOV */
   b.add_output<decl::Vector>("Sensor"_ustr).dimensions(2).description("Size of the camera sensor");
   b.add_output<decl::Vector>("Shift"_ustr).dimensions(2).description("Camera shift");
   b.add_output<decl::Float>("Clip Start"_ustr).description("Camera near clipping distance");
@@ -120,6 +121,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   params.set_output("Projection Matrix"_ustr, projection_matrix);
   params.set_output("Focal Length"_ustr, camera_params.lens);
+  params.set_output("Field of View"_ustr, camera_params.fisheye_fov); /* Added by Julius Hilker for Camera Info Node FOV */
   params.set_output("Sensor"_ustr, float3{sensor_size, 0.0f});
   params.set_output("Shift"_ustr, float3{lens_shift, 0.0f});
   params.set_output("Clip Start"_ustr, camera_params.clip_start);

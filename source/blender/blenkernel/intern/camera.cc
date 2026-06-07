@@ -380,6 +380,7 @@ void BKE_camera_params_from_object(CameraParams *params, const Object *cam_ob)
       params->is_ortho = true;
     }
     params->lens = cam->lens;
+    params->fisheye_fov = cam->fisheye_fov;  /* Added by Julius Hilker for Camera Info Node FOV */
     params->ortho_scale = cam->ortho_scale;
 
     params->shiftx = cam->shiftx;
