@@ -15,16 +15,12 @@
 
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Utility functions. */
 
 void _BLI_assert_print_pos(const char *file, int line, const char *function, const char *id);
 void _BLI_assert_print_extra(const char *str);
-void _BLI_assert_print_backtrace(void);
-void _BLI_assert_abort(void);
+void _BLI_assert_print_backtrace();
+void _BLI_assert_abort();
 void _BLI_assert_unreachable_print(const char *file, int line, const char *function);
 
 #ifdef _MSC_VER
@@ -34,7 +30,9 @@ void _BLI_assert_unreachable_print(const char *file, int line, const char *funct
 #ifndef NDEBUG
 /* _BLI_ASSERT_PRINT_POS */
 #  if defined(__GNUC__)
-#    define _BLI_ASSERT_PRINT_POS(a) _BLI_assert_print_pos(__FILE__, __LINE__, __func__, #a)
+#    define _BLI_ASSERT_PRINT_POS(a) \
+      _BLI_assert_print_pos( \
+          __FILE__, __LINE__, __func__, #a)  // NOLINT(bugprone-lambda-function-name)
 #  elif defined(_MSC_VER)
 #    define _BLI_ASSERT_PRINT_POS(a) _BLI_assert_print_pos(__FILE__, __LINE__, __func__, #a)
 #  else
@@ -102,5 +100,23 @@ void _BLI_assert_unreachable_print(const char *file, int line, const char *funct
   ((void)0)
 
 #ifdef __cplusplus
-}
+
+/**
+ * Indicates that this line should never be reached, even at compile-time. Just doing
+ * `static_assert(false)` doesn't work in C++20 for this use-case. BLI_assert_unreachable is
+ * similar but does not catch issues at compile-time.
+ */
+#  define BLI_assert_unreachable_static() \
+    static_assert([]<bool flag = false>() { return flag; }(), \
+                  "Unreachable code path reached at compile-time!")
+
+template<class T> inline constexpr bool _bli_always_false = false;
+
+/**
+ * Like #BLI_assert_unreachable_static but allows passing in a type. This results in a more useful
+ * error message containing the type name.
+ */
+#  define BLI_assert_unreachable_static_t(T) \
+    static_assert(_bli_always_false<T>, "Unreachable code path reached at compile-time!")
+
 #endif

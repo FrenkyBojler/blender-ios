@@ -6,13 +6,18 @@
  * \ingroup bli
  */
 
+#include <algorithm>
+
+#include "BLI_math_base.h"
 #include "BLI_math_vector.h"
 
 #include "BLI_math_base_safe.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_rotation.h"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Interpolation
@@ -71,27 +76,6 @@ bool interp_v3_v3v3_slerp(float target[3], const float a[3], const float b[3], c
   target[0] = w[0] * a[0] + w[1] * b[0];
   target[1] = w[0] * a[1] + w[1] * b[1];
   target[2] = w[0] * a[2] + w[1] * b[2];
-
-  return true;
-}
-bool interp_v2_v2v2_slerp(float target[2], const float a[2], const float b[2], const float t)
-{
-  float cosom, w[2];
-
-  BLI_ASSERT_UNIT_V2(a);
-  BLI_ASSERT_UNIT_V2(b);
-
-  cosom = dot_v2v2(a, b);
-
-  /* direct opposites */
-  if (UNLIKELY(cosom < (1.0f + FLT_EPSILON))) {
-    return false;
-  }
-
-  interp_dot_slerp(t, cosom, w);
-
-  target[0] = w[0] * a[0] + w[1] * b[0];
-  target[1] = w[0] * a[1] + w[1] * b[1];
 
   return true;
 }
@@ -718,71 +702,35 @@ void print_vn(const char *str, const float v[], const int n)
 
 void minmax_v4v4_v4(float min[4], float max[4], const float vec[4])
 {
-  if (min[0] > vec[0]) {
-    min[0] = vec[0];
-  }
-  if (min[1] > vec[1]) {
-    min[1] = vec[1];
-  }
-  if (min[2] > vec[2]) {
-    min[2] = vec[2];
-  }
-  if (min[3] > vec[3]) {
-    min[3] = vec[3];
-  }
+  min[0] = std::min(min[0], vec[0]);
+  min[1] = std::min(min[1], vec[1]);
+  min[2] = std::min(min[2], vec[2]);
+  min[3] = std::min(min[3], vec[3]);
 
-  if (max[0] < vec[0]) {
-    max[0] = vec[0];
-  }
-  if (max[1] < vec[1]) {
-    max[1] = vec[1];
-  }
-  if (max[2] < vec[2]) {
-    max[2] = vec[2];
-  }
-  if (max[3] < vec[3]) {
-    max[3] = vec[3];
-  }
+  max[0] = std::max(max[0], vec[0]);
+  max[1] = std::max(max[1], vec[1]);
+  max[2] = std::max(max[2], vec[2]);
+  max[3] = std::max(max[3], vec[3]);
 }
 
 void minmax_v3v3_v3(float min[3], float max[3], const float vec[3])
 {
-  if (min[0] > vec[0]) {
-    min[0] = vec[0];
-  }
-  if (min[1] > vec[1]) {
-    min[1] = vec[1];
-  }
-  if (min[2] > vec[2]) {
-    min[2] = vec[2];
-  }
+  min[0] = std::min(min[0], vec[0]);
+  min[1] = std::min(min[1], vec[1]);
+  min[2] = std::min(min[2], vec[2]);
 
-  if (max[0] < vec[0]) {
-    max[0] = vec[0];
-  }
-  if (max[1] < vec[1]) {
-    max[1] = vec[1];
-  }
-  if (max[2] < vec[2]) {
-    max[2] = vec[2];
-  }
+  max[0] = std::max(max[0], vec[0]);
+  max[1] = std::max(max[1], vec[1]);
+  max[2] = std::max(max[2], vec[2]);
 }
 
 void minmax_v2v2_v2(float min[2], float max[2], const float vec[2])
 {
-  if (min[0] > vec[0]) {
-    min[0] = vec[0];
-  }
-  if (min[1] > vec[1]) {
-    min[1] = vec[1];
-  }
+  min[0] = std::min(min[0], vec[0]);
+  min[1] = std::min(min[1], vec[1]);
 
-  if (max[0] < vec[0]) {
-    max[0] = vec[0];
-  }
-  if (max[1] < vec[1]) {
-    max[1] = vec[1];
-  }
+  max[0] = std::max(max[0], vec[0]);
+  max[1] = std::max(max[1], vec[1]);
 }
 
 void dist_ensure_v3_v3fl(float v1[3], const float v2[3], const float dist)
@@ -882,7 +830,7 @@ float normalize_vn_vn(float *array_tar, const float *array_src, const int size)
     mul_vn_vn_fl(array_tar, array_src, size, 1.0f / d_sqrt);
   }
   else {
-    copy_vn_fl(array_tar, size, 0.0f);
+    std::fill_n(array_tar, size, 0.0f);
     d_sqrt = 0.0f;
   }
   return d_sqrt;
@@ -1045,33 +993,6 @@ void interp_vn_vn(float *array_tar, const float *array_src, const float t, const
   }
 }
 
-void copy_vn_i(int *array_tar, const int size, const int val)
-{
-  int *tar = array_tar + (size - 1);
-  int i = size;
-  while (i--) {
-    *(tar--) = val;
-  }
-}
-
-void copy_vn_short(short *array_tar, const int size, const short val)
-{
-  short *tar = array_tar + (size - 1);
-  int i = size;
-  while (i--) {
-    *(tar--) = val;
-  }
-}
-
-void copy_vn_fl(float *array_tar, const int size, const float val)
-{
-  float *tar = array_tar + (size - 1);
-  int i = size;
-  while (i--) {
-    *(tar--) = val;
-  }
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1129,3 +1050,5 @@ void interp_v2_v2v2_db(double target[2], const double a[2], const double b[2], c
 }
 
 /** \} */
+
+}  // namespace blender

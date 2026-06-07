@@ -8,9 +8,9 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_sys_types.h"
+
+namespace blender {
 
 extern const uchar BLI_noise_hash_uchar_512[512]; /* Quiet warning. */
 
@@ -135,6 +135,4 @@ float BLI_noise_cell(float x, float y, float z);
  */
 void BLI_noise_cell_v3(float x, float y, float z, float r_ca[3]);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

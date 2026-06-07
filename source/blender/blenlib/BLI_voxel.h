@@ -8,9 +8,7 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 /** Calculate the index number of a voxel, given x/y/z integer coords and resolution vector. */
 #define BLI_VOXEL_INDEX(x, y, z, res) \
@@ -21,6 +19,4 @@ extern "C" {
 
 float BLI_voxel_sample_trilinear(const float *data, const int res[3], const float co[3]);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

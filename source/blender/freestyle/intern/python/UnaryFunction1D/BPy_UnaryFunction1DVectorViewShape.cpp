@@ -18,10 +18,6 @@
 
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -69,15 +65,18 @@ PyDoc_STRVAR(
     ":class:`Interface1D` and return a list of :class:`ViewShape`\n"
     "objects.\n"
     "\n"
-    ".. method:: __init__()\n"
-    "            __init__(integration_type)\n"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(integration_type)``\n"
     "\n"
     "   Builds a unary 1D function using the default constructor\n"
     "   or the integration method given as an argument.\n"
     "\n"
-    "   :arg integration_type: An integration method.\n"
+    "   :param integration_type: An integration method.\n"
     "   :type integration_type: :class:`IntegrationType`\n");
-
 static int UnaryFunction1DVectorViewShape___init__(BPy_UnaryFunction1DVectorViewShape *self,
                                                    PyObject *args,
                                                    PyObject *kwds)
@@ -156,8 +155,7 @@ PyDoc_STRVAR(
     integration_type_doc,
     "The integration method.\n"
     "\n"
-    ":type: :class:`IntegrationType`");
-
+    ":type: :class:`IntegrationType`\n");
 static PyObject *integration_type_get(BPy_UnaryFunction1DVectorViewShape *self, void * /*closure*/)
 {
   return BPy_IntegrationType_from_IntegrationType(
@@ -229,7 +227,3 @@ PyTypeObject UnaryFunction1DVectorViewShape_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

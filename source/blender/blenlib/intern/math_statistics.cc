@@ -11,11 +11,14 @@
 #include "BLI_math_vector.h"
 
 #include "BLI_task.h"
-#include "BLI_utildefines.h"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
-/********************************** Covariance Matrices *********************************/
+namespace blender {
+
+/* -------------------------------------------------------------------- */
+/** \name Covariance Matrices
+ * \{ */
 
 struct CovarianceData {
   const float *cos_vn;
@@ -85,7 +88,7 @@ void BLI_covariance_m_vn_ex(const int n,
    */
   const float covfac = 1.0f / float(use_sample_correction ? cos_vn_num - 1 : cos_vn_num);
 
-  memset(r_covmat, 0, sizeof(*r_covmat) * (size_t)(n * n));
+  memset(r_covmat, 0, sizeof(*r_covmat) * size_t(n * n));
 
   CovarianceData data{};
   data.cos_vn = cos_vn;
@@ -121,6 +124,14 @@ void BLI_covariance_m3_v3n(const float (*cos_v3)[3],
     copy_v3_v3(r_center, center);
   }
 
-  BLI_covariance_m_vn_ex(
-      3, (const float *)cos_v3, cos_v3_num, center, use_sample_correction, (float *)r_covmat);
+  BLI_covariance_m_vn_ex(3,
+                         reinterpret_cast<const float *>(cos_v3),
+                         cos_v3_num,
+                         center,
+                         use_sample_correction,
+                         reinterpret_cast<float *>(r_covmat));
 }
+
+/** \} */
+
+}  // namespace blender

@@ -2,11 +2,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __UTIL_SYSTEM_H__
-#define __UTIL_SYSTEM_H__
+#pragma once
 
-#include <stdint.h>
-#include <stdlib.h>
+#include <cstdint>
+#include <cstdlib>
 
 #include <string>
 
@@ -25,6 +24,6 @@ size_t system_physical_ram();
 /* Get identifier of the currently running process. */
 uint64_t system_self_process_id();
 
-CCL_NAMESPACE_END
+size_t system_max_open_files();
 
-#endif /* __UTIL_SYSTEM_H__ */
+CCL_NAMESPACE_END

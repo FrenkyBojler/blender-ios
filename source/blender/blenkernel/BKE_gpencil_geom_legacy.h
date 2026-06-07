@@ -8,10 +8,7 @@
  * \ingroup bke
  */
 
-#include <optional>
-
-#include "BLI_bounds_types.hh"
-#include "BLI_math_vector_types.hh"
+namespace blender {
 
 struct Object;
 struct bGPDframe;
@@ -63,3 +60,5 @@ struct bGPDstroke *BKE_gpencil_stroke_delete_tagged_points(struct bGPdata *gpd,
                                                            bool select,
                                                            bool flat_cap,
                                                            int limit);
+
+}  // namespace blender
