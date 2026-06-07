@@ -131,7 +131,6 @@ def test_open_editor_types():
 
     # Build a grid with at least `count` areas, yielding after each split
     yield from ui.build_grid(screen, count)
-    yield
 
     areas = sorted_grid_areas(screen)
 
