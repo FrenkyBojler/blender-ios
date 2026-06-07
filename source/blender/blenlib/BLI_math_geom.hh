@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -338,8 +338,8 @@ template<typename T>
  */
 [[nodiscard]] inline bool isect_point_poly(const float2 &pt, Span<float2> verts)
 {
-  return isect_point_poly_v2(pt, reinterpret_cast<const float (*)[2]>(verts.data()),
-                             uint(verts.size()));
+  return isect_point_poly_v2(
+      pt, reinterpret_cast<const float (*)[2]>(verts.data()), uint(verts.size()));
 }
 
 /** \} */
@@ -400,18 +400,16 @@ template<typename T>
  * \param verts: Polygon vertices, in order.
  * \param co: The query point.
  */
-inline void interp_weights_poly(MutableSpan<float> r_weights,
-                                Span<float2> verts,
-                                const float2 &co)
+inline void interp_weights_poly(MutableSpan<float> r_weights, Span<float2> verts, const float2 &co)
 {
   BLI_assert(r_weights.size() == verts.size());
-  interp_weights_poly_v2(r_weights.data(),
-                         /* Cast needed because the C API takes a non-const pointer
-                          * to a 2D float array; the values are read-only here. */
-                         const_cast<float (*)[2]>(
-                             reinterpret_cast<const float (*)[2]>(verts.data())),
-                         int(verts.size()),
-                         co);
+  interp_weights_poly_v2(
+      r_weights.data(),
+      /* Cast needed because the C API takes a non-const pointer
+       * to a 2D float array; the values are read-only here. */
+      const_cast<float (*)[2]>(reinterpret_cast<const float (*)[2]>(verts.data())),
+      int(verts.size()),
+      co);
 }
 
 /** \} */

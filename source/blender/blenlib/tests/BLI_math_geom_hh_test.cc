@@ -55,9 +55,8 @@ TEST(math_geom_hh, CotangentTriWeight)
   /* Equilateral triangle: all cotangent weights are equal (cot 60° ≈ 0.5774). */
   const float sq3 = std::sqrt(3.0f);
   const float3 v1(0, 0, 0), v2(1, 0, 0), v3(0.5f, sq3 * 0.5f, 0);
-  EXPECT_NEAR(cotangent_tri_weight_v3(&v1.x, &v2.x, &v3.x),
-              cotangent_tri_weight(v1, v2, v3),
-              1e-5f);
+  EXPECT_NEAR(
+      cotangent_tri_weight_v3(&v1.x, &v2.x, &v3.x), cotangent_tri_weight(v1, v2, v3), 1e-5f);
 
   /* Degenerate (all on same point): returns 0. */
   const float3 degen(1, 0, 0);
@@ -312,9 +311,8 @@ TEST(math_geom_hh, IsectPointPoly)
 
   /* Cross-check with C API. */
   const float2 pt_in(0.5f, 0.5f);
-  EXPECT_EQ(isect_point_poly_v2(&pt_in.x,
-                                reinterpret_cast<const float (*)[2]>(verts.data()),
-                                uint(verts.size())),
+  EXPECT_EQ(isect_point_poly_v2(
+                &pt_in.x, reinterpret_cast<const float (*)[2]>(verts.data()), uint(verts.size())),
             isect_point_poly(pt_in, verts));
 }
 
@@ -364,10 +362,9 @@ TEST(math_geom_hh, AreaPoly)
   EXPECT_NEAR(1.0f, area_poly(verts), 1e-6f);
 
   /* Cross-check with C API. */
-  EXPECT_NEAR(
-      area_poly_v2(reinterpret_cast<const float (*)[2]>(verts.data()), uint(verts.size())),
-      area_poly(verts),
-      1e-6f);
+  EXPECT_NEAR(area_poly_v2(reinterpret_cast<const float (*)[2]>(verts.data()), uint(verts.size())),
+              area_poly(verts),
+              1e-6f);
 
   /* Triangle with base 2, height 1: area = 1. */
   Vector<float2> tri = {{0, 0}, {2, 0}, {1, 1}};
@@ -386,10 +383,8 @@ TEST(math_geom_hh, InterpWeightsPoly)
 
   /* Cross-check with C API. */
   float c_w[4];
-  interp_weights_poly_v2(c_w,
-                         reinterpret_cast<float (*)[2]>(verts.data()),
-                         int(verts.size()),
-                         float2(0.5f, 0.5f));
+  interp_weights_poly_v2(
+      c_w, reinterpret_cast<float (*)[2]>(verts.data()), int(verts.size()), float2(0.5f, 0.5f));
   for (int i = 0; i < 4; i++) {
     EXPECT_NEAR(c_w[i], w[i], 1e-6f);
   }
@@ -417,10 +412,8 @@ TEST(math_geom_hh, InterpBilinearQuad)
   EXPECT_NEAR(0.0f, center.z, 1e-6f);
 
   /* Cross-check with C API at (u=0.25, v=0.75). */
-  float quad[4][3] = {{v0.x, v0.y, v0.z},
-                      {v1.x, v1.y, v1.z},
-                      {v2.x, v2.y, v2.z},
-                      {v3.x, v3.y, v3.z}};
+  float quad[4][3] = {
+      {v0.x, v0.y, v0.z}, {v1.x, v1.y, v1.z}, {v2.x, v2.y, v2.z}, {v3.x, v3.y, v3.z}};
   float c_res[3];
   interp_bilinear_quad_v3(quad, 0.25f, 0.75f, c_res);
   const float3 res = interp_bilinear_quad(v0, v1, v2, v3, 0.25f, 0.75f);
