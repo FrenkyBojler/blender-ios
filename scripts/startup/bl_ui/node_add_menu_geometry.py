@@ -765,10 +765,11 @@ class NODE_MT_gn_utilities_field_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeAccumulateField")
         self.node_operator(layout, "GeometryNodeClusterByDistance")
         self.node_operator(layout, "GeometryNodeFieldAtIndex")
-        self.node_operator(layout, "GeometryNodeFieldOnDomain")
         self.node_operator(layout, "GeometryNodeFieldAverage")
         self.node_operator(layout, "GeometryNodeFieldMinAndMax")
+        self.node_operator(layout, "GeometryNodeFieldOnDomain")
         self.node_operator(layout, "GeometryNodeFieldVariance")
+        self.node_operator(layout, "GeometryNodeIndexOfID")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
