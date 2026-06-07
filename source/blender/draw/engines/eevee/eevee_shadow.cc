@@ -224,7 +224,7 @@ void ShadowTileMapPool::end_sync(ShadowModule &module)
 
 void ShadowPunctual::release_excess_tilemaps(const Light &light)
 {
-  int tilemaps_needed = light_local_tilemap_count(light);
+  int tilemaps_needed = light.local_tilemap_count();
   if (tilemaps_.size() <= tilemaps_needed) {
     return;
   }
@@ -240,7 +240,7 @@ void ShadowPunctual::end_sync(Light &light)
   float4x4 object_to_world = light.object_to_world;
 
   /* Acquire missing tile-maps. */
-  int tilemaps_needed = light_local_tilemap_count(light);
+  int tilemaps_needed = light.local_tilemap_count();
   while (tilemaps_.size() < tilemaps_needed) {
     tilemaps_.append(tilemap_pool.acquire());
   }
@@ -745,12 +745,15 @@ void ShadowModule::begin_sync()
 
 void ShadowModule::sync_object(const ObjectHandle &ob_handle,
                                bool is_alpha_blend,
-                               bool has_transparent_shadows)
+                               bool has_transparent_shadows,
+                               bool has_time_dependent_shadows)
 {
   bool is_shadow_caster = !(ob_handle.object->visibility_flag & OB_HIDE_SHADOW);
   if (!is_shadow_caster && !is_alpha_blend) {
     return;
   }
+
+  const bool shape_changed = has_time_dependent_shadows && inst_.materials.material_time_changed;
 
   for (int i : IndexRange(ob_handle.instances_count())) {
     ShadowObject &shadow_ob = objects_.lookup_or_add_default(ObjectKey(ob_handle, i));
@@ -758,7 +761,9 @@ void ShadowModule::sync_object(const ObjectHandle &ob_handle,
     const bool is_initialized = shadow_ob.resource_handle.is_valid();
     const bool has_jittered_transparency = has_transparent_shadows && data_.use_jitter;
     ResourceHandle instance_handle = ob_handle.res_handle.sub_handle(i);
-    if (is_shadow_caster && (ob_handle.recalc || !is_initialized || has_jittered_transparency)) {
+    if (is_shadow_caster &&
+        (ob_handle.recalc || !is_initialized || has_jittered_transparency || shape_changed))
+    {
       if (ob_handle.recalc && is_initialized) {
         past_casters_updated_.append(shadow_ob.resource_handle.raw());
       }
@@ -1272,8 +1277,6 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
     gpu::Shader *shader = inst_.shaders.static_shader_get(SHADOW_VIEW_VISIBILITY);
     GPU_shader_bind(shader);
     GPU_shader_uniform_1i(shader, "resource_len", resource_len);
-    GPU_shader_uniform_1i(shader, "view_len", view_len_);
-    GPU_shader_uniform_1i(shader, "visibility_word_per_draw", word_per_draw);
     GPU_storagebuf_bind(bounds, GPU_shader_get_ssbo_binding(shader, "bounds_buf"));
     GPU_storagebuf_bind(visibility_buf_, GPU_shader_get_ssbo_binding(shader, "visibility_buf"));
     GPU_storagebuf_bind(render_view_buf_, GPU_shader_get_ssbo_binding(shader, "render_view_buf"));

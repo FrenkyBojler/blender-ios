@@ -26,7 +26,7 @@ static void filelist_readjob_essentials_asset_library(FileListReadJob *job_param
                                                       float *progress)
 {
   FileList *filelist = job_params->tmp_filelist; /* Use the thread-safe filelist queue. */
-  BLI_assert(BLI_listbase_is_empty(&filelist->filelist.entries) &&
+  BLI_assert(filelist->filelist.entries.is_empty() &&
              (filelist->filelist.entries_num == FILEDIR_NBR_ENTRIES_UNSET));
 
   filelist_readjob_load_asset_library_data(job_params, do_update);
@@ -46,10 +46,17 @@ static void filelist_readjob_essentials_asset_library(FileListReadJob *job_param
     BLI_assert(job_params->filelist->asset_library_ref->type == ASSET_LIBRARY_ONLINE_ESSENTIALS);
   }
 
+  /* The rest of the function handles online essentials. Can exit early if these are disabled. */
+  if (!(U.asset_flag & USER_ASSETS_USE_ONLINE_ESSENTIALS)) {
+    return;
+  }
+
   /* Override library info to read online essentials. */
   job_params->load_asset_library = AS_asset_library_load(
       job_params->current_main, asset_system::online_essentials_library_reference());
+
   STRNCPY(filelist->filelist.root, asset_system::online_essentials_cache_directory_path().c_str());
+  BLI_path_slash_ensure(filelist->filelist.root, sizeof(filelist->filelist.root));
 
   BLI_assert_msg(job_params->remote_library_requests.size() <= 1,
                  "reading callback for a single remote library should only have a single remote "
