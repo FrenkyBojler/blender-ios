@@ -104,6 +104,26 @@ void PixelOperation::log_data()
         continue;
       }
 
+      /* The input has an implicit value. Get the input that corresponds to it, if it is a single
+       * value, log that single value, if not, we log the operation domain. */
+      const InputDescriptor input_descriptor = input_descriptor_from_input_socket(input_socket);
+      if (!input_socket->is_logically_linked() && input_descriptor.implicit_input.has_value()) {
+        const std::string &input_identifier = implicit_inputs_to_input_identifiers_map_.lookup(
+            input_descriptor.implicit_input.value());
+        const Result &input = this->get_input(input_identifier);
+        if (input.is_single_value()) {
+          tree_logger.log_value(*node, *input_socket, input.single_value());
+          continue;
+        }
+
+        tree_logger.input_socket_values.append(
+            *tree_logger.allocator,
+            {node->identifier,
+             input_socket->index(),
+             get_image_info_log(tree_logger.allocator, domain, this->context().get_precision())});
+        continue;
+      }
+
       if (!input_socket->is_logically_linked()) {
         continue;
       }
@@ -155,7 +175,7 @@ Map<std::string, const bNodeSocket *> &PixelOperation::get_inputs_to_linked_outp
   return inputs_to_linked_outputs_map_;
 }
 
-Map<ImplicitInput, std::string> &PixelOperation::get_implicit_inputs_to_input_identifiers_map()
+Map<ImplicitInputType, std::string> &PixelOperation::get_implicit_inputs_to_input_identifiers_map()
 {
   return implicit_inputs_to_input_identifiers_map_;
 }
