@@ -22,6 +22,8 @@
 
 #include "BLF_api.hh"
 
+#include "BKE_image.hh"
+
 #include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
 #include "SEQ_edit.hh"
@@ -629,6 +631,18 @@ float2 image_transform_raw_size_get(const Scene *scene, const Strip *strip)
     const MovieClip *clip = strip->clip;
     if (clip != nullptr && clip->lastsize[0] != 0 && clip->lastsize[1] != 0) {
       return {float(clip->lastsize[0]), float(clip->lastsize[1])};
+    }
+  }
+
+  if (strip->type == STRIP_TYPE_IMAGE_ID) {
+    if (strip->image_id != nullptr) {
+      void *lock;
+      ImBuf *ibuf = BKE_image_acquire_ibuf(strip->image_id, nullptr, &lock);
+      if (ibuf) {
+        return {float(ibuf->x), float(ibuf->y)};
+      }
+
+      BKE_image_release_ibuf(strip->image_id, ibuf, lock);
     }
   }
 
