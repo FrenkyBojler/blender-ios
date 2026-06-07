@@ -4203,7 +4203,7 @@ class VIEW3D_MT_particle_context_menu(Menu):
             layout.separator()
 
             layout.operator("particle.select_linked", text="Select Linked")
-        
+
         layout.separator()
 
         layout.operator("particle.delete", icon='X')
@@ -6044,10 +6044,6 @@ class VIEW3D_MT_edit_curves_context_menu(Menu):
         layout.separator()
 
         layout.operator("curves.split")
-
-        layout.separator()
-
-        # Removal Operators
         layout.operator("curves.separate")
         layout.operator("curves.delete", icon='X')
 
@@ -6059,9 +6055,10 @@ class VIEW3D_MT_edit_pointcloud(Menu):
         layout = self.layout
         layout.menu("VIEW3D_MT_transform")
         layout.separator()
-        layout.operator("pointcloud.duplicate_move")
+        layout.operator("pointcloud.duplicate_move", icon='DUPLICATE')
         layout.separator()
-        layout.operator("pointcloud.attribute_set")
+        layout.operator("pointcloud.attribute_set", text="Set Attribute...")
+        layout.separator()
         layout.operator("pointcloud.separate")
         layout.operator("pointcloud.delete", icon='X')
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
