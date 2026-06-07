@@ -25,15 +25,18 @@ static void node_declare(NodeDeclarationBuilder &b)
                        GeometryComponent::Type::Curve,
                        GeometryComponent::Type::Instance});
 
-  b.add_input<decl::Int>("ID"_ustr).default_input_type(NODE_DEFAULT_INPUT_ID_INDEX_FIELD).evaluated_geometry_field();
-  const int id_input_index = b.add_input<decl::Int>("Sample ID"_ustr).structure_type(StructureType::Dynamic).index();
+  b.add_input<decl::Int>("ID"_ustr)
+      .default_input_type(NODE_DEFAULT_INPUT_ID_INDEX_FIELD)
+      .evaluated_geometry_field();
+  const int id_input_index =
+      b.add_input<decl::Int>("Sample ID"_ustr).structure_type(StructureType::Dynamic).index();
 
   b.add_output<decl::Int>("Index"_ustr)
-.inferred_structure_type({id_input_index})
+      .inferred_structure_type({id_input_index})
       .propagate_references({id_input_index})
       .description("First index of sample ID in sampled geometry");
   b.add_output<decl::Bool>("Is Valid"_ustr)
-.inferred_structure_type({id_input_index})
+      .inferred_structure_type({id_input_index})
       .propagate_references({id_input_index})
       .description("Sample ID is exists in sempled geometry at least once");
 }
@@ -102,7 +105,6 @@ class SampleIDFunction : public mf::MultiFunction {
   Map<int, int> id_map_;
 
  public:
-
   SampleIDFunction(const VArray<int> &source_ids)
   {
     static auto signature = []() -> mf::Signature {
@@ -122,7 +124,8 @@ class SampleIDFunction : public mf::MultiFunction {
   {
     const VArray<int> &ids = params.readonly_single_input<int>(0, "Sample ID");
     MutableSpan<int> indices = params.uninitialized_single_output_if_required<int>(1, "Index");
-    MutableSpan<bool> is_valid = params.uninitialized_single_output_if_required<bool>(2, "Is Valid");
+    MutableSpan<bool> is_valid = params.uninitialized_single_output_if_required<bool>(2,
+                                                                                      "Is Valid");
 
     if (!indices.is_empty() && !is_valid.is_empty()) {
       devirtualize_varray(ids, [&](auto ids) {
@@ -132,14 +135,17 @@ class SampleIDFunction : public mf::MultiFunction {
           indices[i] = index ? *index : 0;
         });
       });
-    } else if (!indices.is_empty()) {
+    }
+    else if (!indices.is_empty()) {
       devirtualize_varray(ids, [&](auto ids) {
         mask.foreach_index_optimized<int>(
             [&](const int i) { indices[i] = id_map_.lookup_default(ids[i], 0); });
       });
-    } else if (!is_valid.is_empty()) {
+    }
+    else if (!is_valid.is_empty()) {
       devirtualize_varray(ids, [&](auto ids) {
-        mask.foreach_index_optimized<int>([&](const int i) { is_valid[i] = id_map_.contains(ids[i]); });
+        mask.foreach_index_optimized<int>(
+            [&](const int i) { is_valid[i] = id_map_.contains(ids[i]); });
       });
     }
   }
@@ -149,7 +155,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const GeometrySet geometry = params.extract_input<GeometrySet>("Geometry"_ustr);
   const AttrDomain domain = AttrDomain(params.node().custom1);
-  
+
   const GeometryComponent *component = find_source_component(geometry, domain);
   if (component == nullptr) {
     params.set_default_remaining_outputs();
@@ -163,7 +169,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const VArray<int> ids_varray = evaluator.get_evaluated<int>(0);
 
-  SocketValueVariant sample_id_variant = params.extract_input<SocketValueVariant>("Sample ID"_ustr);
+  SocketValueVariant sample_id_variant = params.extract_input<SocketValueVariant>(
+      "Sample ID"_ustr);
   if (sample_id_variant.is_single()) {
     const int sample_id = sample_id_variant.get<int>();
     if (ids_varray.is_single()) {
@@ -171,25 +178,24 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.set_output("Valid"_ustr, ids_varray.get_internal_single() == sample_id);
       return;
     }
-    
+
     VArraySpan<int> ids_span(ids_varray);
     const int index = ids_span.first_index_try(sample_id);
     params.set_output("Index"_ustr, std::max(0, index));
     params.set_output("Valid"_ustr, index != -1);
     return;
   }
-  
+
   auto sampling_fn = std::make_shared<SampleIDFunction>(ids_varray);
 
   bke::SocketValueVariant index_output_value;
   bke::SocketValueVariant valid_output_value;
   std::string error_message;
-  if (!execute_multi_function_on_value_variant(
-          sampling_fn,
-          {&sample_id_variant},
-          {&index_output_value, &valid_output_value},
-          params.user_data(),
-          error_message))
+  if (!execute_multi_function_on_value_variant(sampling_fn,
+                                               {&sample_id_variant},
+                                               {&index_output_value, &valid_output_value},
+                                               params.user_data(),
+                                               error_message))
   {
     params.set_default_remaining_outputs();
     params.error_message_add(NodeWarningType::Error, std::move(error_message));
