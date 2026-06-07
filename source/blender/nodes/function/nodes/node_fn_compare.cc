@@ -36,9 +36,16 @@ namespace blender::nodes::node_fn_compare_cc {
 
 NODE_STORAGE_FUNCS(NodeFunctionCompare)
 
-static bool is_supported_data_block_type(const eNodeSocketDatatype data_type)
+static bool is_supported_data_block_type(const bNodeTree *ntree,
+                                         const eNodeSocketDatatype data_type)
 {
-  return ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_FONT, SOCK_SOUND);
+  if (!ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_FONT, SOCK_SOUND)) {
+    return false;
+  }
+  if (ntree != nullptr && ntree->type == NTREE_COMPOSIT) {
+    return data_type == SOCK_FONT;
+  }
+  return true;
 }
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -46,6 +53,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
 
   const bNode *node = b.node_or_null();
+  const bNodeTree *ntree = b.tree_or_null();
   if (node != nullptr) {
     const NodeFunctionCompare &storage = node_storage(*node);
     const NodeCompareOperation operation = NodeCompareOperation(storage.operation);
@@ -54,7 +62,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     const bool type_is_float = ELEM(data_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
     const bool is_vector = data_type == SOCK_VECTOR;
-    const bool is_data_block = is_supported_data_block_type(data_type);
+    const bool is_data_block = is_supported_data_block_type(ntree, data_type);
 
     auto &a_input =
         b.add_input(data_type, "A"_ustr).translation_context(BLT_I18NCONTEXT_ID_NODETREE);
@@ -118,7 +126,7 @@ class SocketSearchOp {
 };
 
 static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
-    const eNodeSocketDatatype type, const NodeCompareOperation operation)
+    const bNodeTree &ntree, const eNodeSocketDatatype type, const NodeCompareOperation operation)
 {
   switch (type) {
     case SOCK_BOOLEAN:
@@ -149,7 +157,7 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
       }
       return type;
     default:
-      if (is_supported_data_block_type(type)) {
+      if (is_supported_data_block_type(&ntree, type)) {
         if (!ELEM(operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL)) {
           return std::nullopt;
         }
@@ -161,9 +169,10 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
+  const bNodeTree &ntree = params.node_tree();
   const eNodeSocketDatatype type = params.other_socket().type;
   if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING) &&
-      !is_supported_data_block_type(type))
+      !is_supported_data_block_type(&ntree, type))
   {
     return;
   }
@@ -175,14 +184,16 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     if (item->name != nullptr && item->identifier[0] != '\0') {
       const NodeCompareOperation operation = NodeCompareOperation(item->value);
       if (const std::optional<eNodeSocketDatatype> fixed_type = get_compare_type_for_operation(
-              type, operation))
+              ntree, type, operation))
       {
         params.add_item(IFACE_(item->name), SocketSearchOp{socket_name, *fixed_type, operation});
       }
     }
   }
 
-  if (params.in_out() == SOCK_IN && (type != SOCK_STRING || is_supported_data_block_type(type))) {
+  if (params.in_out() == SOCK_IN &&
+      (type != SOCK_STRING || is_supported_data_block_type(&ntree, type)))
+  {
     params.add_item(
         IFACE_("Angle"),
         SocketSearchOp{
@@ -238,6 +249,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
 {
   const NodeFunctionCompare *data = (NodeFunctionCompare *)node.storage;
   const eNodeSocketDatatype data_type = data->data_type;
+  const bNodeTree &ntree = node.owner_tree();
 
   static auto exec_preset_all = mf::build::exec_presets::AllSpanOrSingle();
   static auto exec_preset_first_two = mf::build::exec_presets::SomeSpanOrSingle<0, 1>();
@@ -653,7 +665,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       }
       break;
     default: {
-      if (is_supported_data_block_type(data_type)) {
+      if (is_supported_data_block_type(&ntree, data_type)) {
         return to_static_data_block_type(
             data_type, [&]<typename T>() -> const mf::MultiFunction * {
               switch (data->operation) {
@@ -845,6 +857,8 @@ static const char *gpu_shader_get_name(const eNodeSocketDatatype data_type,
           break;
       }
       break;
+    default:
+      break;
   }
 
   BLI_assert_unreachable();
@@ -868,8 +882,7 @@ static int node_gpu_material(GPUMaterial *mat,
     return 0;
   }
 
-  if (ELEM(operation, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER))
-  {
+  if (ELEM(operation, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER)) {
     float luminance_coefficients[3];
     IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
     return GPU_stack_link(mat, node, name, in, out, GPU_constant(luminance_coefficients));
@@ -882,6 +895,7 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
   NodeFunctionCompare *node_storage = static_cast<NodeFunctionCompare *>(node->storage);
+  const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
 
   if (node_storage->data_type == SOCK_RGBA && !ELEM(node_storage->operation,
                                                     NODE_COMPARE_EQUAL,
@@ -892,7 +906,7 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
   else if ((node_storage->data_type == SOCK_STRING ||
-            is_supported_data_block_type(node_storage->data_type)) &&
+            is_supported_data_block_type(ntree, node_storage->data_type)) &&
            !ELEM(node_storage->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
@@ -947,6 +961,7 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         bNode *node = static_cast<bNode *>(ptr->data);
         NodeFunctionCompare *data = static_cast<NodeFunctionCompare *>(node->storage);
+        const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
 
         if (ELEM(data->data_type, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR)) {
           return enum_items_filter(
@@ -970,7 +985,7 @@ static void node_rna(StructRNA *srna)
                                                  NODE_COMPARE_COLOR_DARKER);
                                    });
         }
-        if (is_supported_data_block_type(data->data_type)) {
+        if (is_supported_data_block_type(ntree, data->data_type)) {
           return enum_items_filter(
               rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
                 return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);
@@ -988,12 +1003,13 @@ static void node_rna(StructRNA *srna)
       rna_enum_node_socket_data_type_items,
       NOD_storage_enum_accessors(data_type),
       std::nullopt,
-      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+      [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
+        const bNodeTree *ntree = reinterpret_cast<const bNodeTree *>(ptr->owner_id);
         return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) {
+            rna_enum_node_socket_data_type_items, [&](const EnumPropertyItem &item) {
               return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_STRING, SOCK_RGBA) ||
-                     is_supported_data_block_type(eNodeSocketDatatype(item.value));
+                     is_supported_data_block_type(ntree, eNodeSocketDatatype(item.value));
             });
       });
   RNA_def_property_update_runtime(prop, data_type_update);
