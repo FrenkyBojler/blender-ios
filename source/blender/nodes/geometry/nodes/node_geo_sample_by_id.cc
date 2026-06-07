@@ -175,14 +175,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     const int sample_id = sample_id_variant.get<int>();
     if (ids_varray.is_single()) {
       params.set_output("Index"_ustr, 0);
-      params.set_output("Valid"_ustr, ids_varray.get_internal_single() == sample_id);
+      params.set_output("Is Valid"_ustr, ids_varray.get_internal_single() == sample_id);
       return;
     }
 
     VArraySpan<int> ids_span(ids_varray);
     const int index = ids_span.first_index_try(sample_id);
     params.set_output("Index"_ustr, std::max(0, index));
-    params.set_output("Valid"_ustr, index != -1);
+    params.set_output("Is Valid"_ustr, index != -1);
     return;
   }
 
