@@ -17,21 +17,10 @@ namespace blender {
 
 namespace gpu {
 
-void imm_draw_circle_partial_wire_aspect_2d(uint pos,
-                                            float x,
-                                            float y,
-                                            float2 radius,
-                                            int nsegments,
-                                            float start,
-                                            float sweep);
-void imm_draw_circle_partial_wire_aspect_3d(uint pos,
-                                            float x,
-                                            float y,
-                                            float z,
-                                            float2 radius,
-                                            int nsegments,
-                                            float start,
-                                            float sweep);
+void imm_draw_circle_partial_wire_aspect_2d(
+    uint pos, float x, float y, float2 radius, int nsegments, float start, float sweep);
+void imm_draw_circle_partial_wire_aspect_3d(
+    uint pos, float x, float y, float z, float2 radius, int nsegments, float start, float sweep);
 
 void imm_draw_rounded_box_wire_2d(
     uint pos, float x, float y, float2 radius, float2 corner_radius, int nsegments);
