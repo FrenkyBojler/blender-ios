@@ -58,7 +58,7 @@ class IndexOfIDFieldInput final : public bke::GeometryFieldInput {
                                  const IndexMask &mask) const final
   {
     const AttributeAccessor attributes = *context.attributes();
-    const int64_t domain_size = attributes.domain_size(context.domains());
+    const int64_t domain_size = attributes.domain_size(context.domain());
     fn::FieldEvaluator evaluator{context, domain_size};
     evaluator.add(id_field_);
     evaluator.add(sample_id_field_);
@@ -67,10 +67,10 @@ class IndexOfIDFieldInput final : public bke::GeometryFieldInput {
     const VArray<int> sample_id_varray = evaluator.get_evaluated<int>(1);
     
     if (id_varray.is_single()) {
-      const int id_value = id_value.get_internal_single();
+      const int id_value = id_varray.get_internal_single();
       if (sample_id_varray.is_single()) {
         const int sample_id_value = sample_id_varray.get_internal_single();
-        return VArray::from_single<int>(id_value == sample_id_value ? 0 : -1, domain_size);
+        return VArray<int>::from_single(id_value == sample_id_value ? 0 : -1, domain_size);
       }
       
       const VArraySpan sample_id_span(sample_id_varray);
@@ -80,27 +80,27 @@ class IndexOfIDFieldInput final : public bke::GeometryFieldInput {
       }, exec_mode::parallel);
       
       if (invalid_indices.is_empty()) {
-        return VArray::from_single<int>(0, domain_size);
+        return VArray<int>::from_single(0, domain_size);
       }
       
       if (invalid_indices.size() == mask.size()) {
-        return VArray::from_single<int>(-1, domain_size);
+        return VArray<int>::from_single(-1, domain_size);
       }
       
       Array<int> indices(mask.min_array_size(), 0);
-      index_mask::masked_fill(index.as_mutable_span(), -1, invalid_indices);
+      index_mask::masked_fill(indices.as_mutable_span(), -1, invalid_indices);
       return VArray<int>::from_container(std::move(indices));
     }
     
-    if (sample_id_value.is_single()) {
+    if (sample_id_varray.is_single()) {
       const int sample_id_value = sample_id_varray.get_internal_single();
 
       const VArraySpan id_span(id_varray);
       const int index = id_span.first_index_try(sample_id_value);
-      return VArray<int>::from_single<int>(index, domain_size);
+      return VArray<int>::from_single(index, domain_size);
     }
 
-    Map<int> id_map;
+    Map<int, int> id_map;
     const VArraySpan<int> id_span(id_varray);
     for (const int i : IndexRange(domain_size)) {
       id_map.add(id_span[i], i);
@@ -109,7 +109,7 @@ class IndexOfIDFieldInput final : public bke::GeometryFieldInput {
     Array<int> indices(mask.min_array_size());
     const VArraySpan<int> sample_id_span(sample_id_varray);
     mask.foreach_index([&](const int i) {
-      indices[i] = id_map.lookup_or_default(sample_id_span[i], -1);
+      indices[i] = id_map.lookup_default(sample_id_span[i], -1);
     }, exec_mode::parallel);
 
     return VArray<int>::from_container(std::move(indices));
@@ -132,17 +132,17 @@ class IndexOfIDFieldInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const Field<int> id_field = params.extract_input<Field<int>>("ID"_ustr);
-  const Field<int> sample_id_field = params.extract_input<Field<int>>("Sample ID"_ustr);
-  const Field<int> index_field = GField::from_input<IndexOfIDFieldInput>(id_field, sample_id_field);
-  
+  Field<int> id_field = params.extract_input<Field<int>>("ID"_ustr);
+  Field<int> sample_id_field = params.extract_input<Field<int>>("Sample ID"_ustr);
+  const Field<int> index_field = Field<int>::from_input<IndexOfIDFieldInput>(std::move(id_field), std::move(sample_id_field));
+
   static auto is_valid_fn = mf::build::SI1_SO<int, bool>(
       "Is Valid Index",
       [](const int index) { return index != -1; },
       mf::build::exec_presets::SomeSpanOrSingle<1>());
-  
+
   auto is_valid_op = FieldOperation::from(is_valid_fn, {index_field});
-  const Field<bool> is_valid_field = GField(is_valid_op, 0);
+  const Field<bool> is_valid_field = Field<bool>(std::move(is_valid_op), 0);
   
   params.set_output("Index"_ustr, index_field);
   params.set_output("Is Valid"_ustr, is_valid_field);
@@ -154,7 +154,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeIndexOfID"_ustr);
   ntype.ui_name = "Index of ID";
-  ntype.nclass = NODE_CLASS_CONVERT;
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(ntype);
