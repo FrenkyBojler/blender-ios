@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_common_color_utils.glsl"
 #include "gpu_shader_math_constants_lib.glsl"
 
 float angle_normalized_v3v3(float3 v1, float3 v2)
@@ -289,4 +290,35 @@ void compare_vector_element_not_equal(float3 a, float3 b, float epsilon, out flo
 void compare_vector_length_not_equal(float3 a, float3 b, float epsilon, out float result)
 {
   result = float(abs(length(a) - length(b)) > epsilon);
+}
+
+/* Color. */
+
+[[node]]
+void compare_color_equal(float4 a, float4 b, float epsilon, out float result)
+{
+  result = float(abs(a.x - b.x) <= epsilon && abs(a.y - b.y) <= epsilon &&
+                 abs(a.z - b.z) <= epsilon);
+}
+
+[[node]]
+void compare_color_not_equal(float4 a, float4 b, float epsilon, out float result)
+{
+  result = float(abs(a.x - b.x) > epsilon || abs(a.y - b.y) > epsilon || abs(a.z - b.z) > epsilon);
+}
+
+[[node]]
+void compare_color_brighter(float4 a, float4 b, float3 luminance_coefficients, out float result)
+{
+  float luminance_a = get_luminance(a.rgb, luminance_coefficients);
+  float luminance_b = get_luminance(b.rgb, luminance_coefficients);
+  result = float(luminance_a > luminance_b);
+}
+
+[[node]]
+void compare_color_darker(float4 a, float4 b, float3 luminance_coefficients, out float result)
+{
+  float luminance_a = get_luminance(a.rgb, luminance_coefficients);
+  float luminance_b = get_luminance(b.rgb, luminance_coefficients);
+  result = float(luminance_a < luminance_b);
 }

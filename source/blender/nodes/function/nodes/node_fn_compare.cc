@@ -852,6 +852,13 @@ static int node_gpu_material(GPUMaterial *mat,
     return 0;
   }
 
+  if (ELEM(operation, NODE_COMPARE_COLOR_BRIGHTER, NODE_COMPARE_COLOR_DARKER))
+  {
+    float luminance_coefficients[3];
+    IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
+    return GPU_stack_link(mat, node, name, in, out, GPU_constant(luminance_coefficients));
+  }
+
   return GPU_stack_link(mat, node, name, in, out);
 }
 
