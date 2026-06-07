@@ -713,6 +713,9 @@ static const char *gpu_shader_get_name(const eNodeSocketDatatype data_type,
           return "compare_float_equal";
         case NODE_COMPARE_NOT_EQUAL:
           return "compare_float_not_equal";
+        case NODE_COMPARE_COLOR_BRIGHTER:
+        case NODE_COMPARE_COLOR_DARKER:
+          break;
       }
       break;
     case SOCK_INT:
@@ -729,6 +732,9 @@ static const char *gpu_shader_get_name(const eNodeSocketDatatype data_type,
           return "compare_int_equal";
         case NODE_COMPARE_NOT_EQUAL:
           return "compare_int_not_equal";
+        case NODE_COMPARE_COLOR_BRIGHTER:
+        case NODE_COMPARE_COLOR_DARKER:
+          break;
       }
       break;
     case SOCK_VECTOR:
@@ -816,6 +822,10 @@ static const char *gpu_shader_get_name(const eNodeSocketDatatype data_type,
             case NODE_COMPARE_MODE_LENGTH:
               return "compare_vector_length_not_equal";
           }
+          break;
+        case NODE_COMPARE_COLOR_BRIGHTER:
+        case NODE_COMPARE_COLOR_DARKER:
+          break;
       }
       break;
     case SOCK_RGBA:
@@ -828,7 +838,13 @@ static const char *gpu_shader_get_name(const eNodeSocketDatatype data_type,
           return "compare_color_brighter";
         case NODE_COMPARE_COLOR_DARKER:
           return "compare_color_darker";
+        case NODE_COMPARE_LESS_THAN:
+        case NODE_COMPARE_LESS_EQUAL:
+        case NODE_COMPARE_GREATER_THAN:
+        case NODE_COMPARE_GREATER_EQUAL:
+          break;
       }
+      break;
   }
 
   BLI_assert_unreachable();
