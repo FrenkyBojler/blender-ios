@@ -26,9 +26,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Int>("Index"_ustr)
       .propagate_references()
+      .structure_type(StructureType::Field)
       .description("First index of sample ID");
   b.add_output<decl::Bool>("Is Valid"_ustr)
       .propagate_references()
+      .structure_type(StructureType::Field)
       .description("Sample ID is exists");
 }
 
