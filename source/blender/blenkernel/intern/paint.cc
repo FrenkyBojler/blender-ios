@@ -1431,7 +1431,7 @@ static void paint_init_data(Paint &paint)
   paint.unified_paint_settings.unprojected_size = default_ups.unprojected_size;
   paint.unified_paint_settings.alpha = default_ups.alpha;
   paint.unified_paint_settings.weight = default_ups.weight;
-  // paint.unified_paint_settings.flag = default_ups.flag;
+  paint.unified_paint_settings.flag = default_ups.flag;
   if (!paint.unified_paint_settings.curve_rand_hue) {
     paint.unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
   }
