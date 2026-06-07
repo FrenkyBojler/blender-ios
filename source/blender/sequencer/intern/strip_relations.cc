@@ -261,6 +261,33 @@ void relations_invalidate_movieclip_strips(Main *bmain, MovieClip *clip_target)
   }
 }
 
+static void invalidate_image_id_strips(Scene *scene,
+                                       Image *image_target,
+                                       ListBaseT<Strip> *seqbase)
+{
+  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next)
+  {
+    if (strip->image_id == image_target) {
+      relations_invalidate_cache_raw(scene, strip);
+    }
+
+    if (strip->seqbase.first != nullptr) {
+      invalidate_image_id_strips(scene, image_target, &strip->seqbase);
+    }
+  }
+}
+
+void relations_invalidate_image_id_strips(Main *bmain, Image *image_target)
+{
+  for (Scene *scene = static_cast<Scene *>(bmain->scenes.first); scene != nullptr;
+       scene = static_cast<Scene *>(scene->id.next))
+  {
+    if (scene->ed != nullptr) {
+      invalidate_image_id_strips(scene, image_target, &scene->ed->seqbase);
+    }
+  }
+}
+
 void relations_free_imbuf(Scene *scene, ListBaseT<Strip> *seqbase, bool for_render)
 {
   if (scene->ed == nullptr) {

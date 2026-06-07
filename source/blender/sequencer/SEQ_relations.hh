@@ -79,6 +79,8 @@ void relations_update_view_layer_scene_strips(Main *bmain,
 void relations_invalidate_compositor_users(const Main *bmain, const bNodeTree *node_tree);
 
 void relations_invalidate_movieclip_strips(Main *bmain, MovieClip *clip_target);
+
+void relations_invalidate_image_id_strips(Main *bmain, Image *image_target);
 /**
  * Release FFmpeg handles of strips that are not currently displayed to minimize memory usage.
  */
