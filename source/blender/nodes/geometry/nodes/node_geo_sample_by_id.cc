@@ -203,7 +203,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   params.set_output("Index"_ustr, std::move(index_output_value));
-  params.set_output("Valid"_ustr, std::move(valid_output_value));
+  params.set_output("Is Valid"_ustr, std::move(valid_output_value));
 }
 
 static void node_rna(StructRNA *srna)
