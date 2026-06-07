@@ -267,7 +267,7 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app.py
 )
 
-if (WITH_GPU_BACKEND_TESTS)
+if(WITH_GPU_BACKEND_TESTS)
   if(WITH_OPENGL_BACKEND)
     add_blender_test(
       script_pyapi_gpu_opengl
@@ -373,6 +373,43 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_annotations.py
 )
 
+add_blender_test(
+  script_pyapi_blf_buffer
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf.py
+  --
+  --mode=BUFFER
+)
+
+# TODO: investigate if this can be supported, as the GPU can be used for rendering.
+# Requires `gpu.init()`, not available for the build-bots for the default environment.
+if(FALSE)
+  add_blender_test(
+    script_pyapi_blf_gpu
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf.py
+    --
+    --mode=GPU
+  )
+endif()
+
+add_blender_test(
+  script_pyapi_blf_vfont
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_blf.py
+  --
+  --mode=VFONT
+  # Use Workbench render instead of simple GPU rasterization.
+  # Most build-bots systems fail with `gpu.init()` otherwise this could be avoided.
+  # Ideally it could be removed eventually as it's slower.
+  --use-vfont-render
+)
+
+
+# Build RST documentation & PYI stubs (without building the full HTML docs).
+# See the `bl_pyapi_doc_gen.py` doc-string for details.
+add_blender_test(
+  script_pyapi_doc_gen
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_doc_gen.py --
+)
+
 # ------------------------------------------------------------------------------
 # DATA MANAGEMENT TESTS
 # ------------------------------------------------------------------------------
@@ -400,6 +437,13 @@ add_blender_test(
   blendfile_io
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_io.py --
   --output-dir ${TEST_OUT_DIR}/blendfile_io/
+)
+
+add_blender_test(
+  blendfile_autosave
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_autosave.py --
+  --src-test-dir ${TEST_SRC_DIR}/io_tests/blend_autosave/
+  --output-dir ${TEST_OUT_DIR}/blendfile_autosave/
 )
 
 # This test can be extremely long, especially in debug builds.
@@ -537,6 +581,11 @@ if(TEST_SRC_DIR_EXISTS)
     object_api
     --python ${TEST_PYTHON_DIR}/bl_object.py
   )
+
+  add_blender_test(
+    node_tools
+    --python ${TEST_PYTHON_DIR}/bl_node_tool.py
+  )
 endif()
 
 add_blender_test(
@@ -545,10 +594,10 @@ add_blender_test(
 )
 
 add_blender_test(
-  geonode_file_reporting
-  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geonode_file_reporting.py
+  geo_node_file_reporting
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_geo_node_file_reporting.py
   --
-  --testdir "${TEST_SRC_DIR}/io_tests"
+  --testdir "${TEST_SRC_DIR}"
 )
 
 # ------------------------------------------------------------------------------
@@ -667,6 +716,8 @@ endif()
 add_blender_test(
   bl_animation_armature
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_armature.py
+  --
+  --testdir "${TEST_SRC_DIR}/animation"
 )
 
 add_blender_test(
@@ -722,6 +773,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_animation_keyframing
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_keyframing.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
+
+  add_blender_test(
+    bl_animation_motion_path
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_motion_path.py
     --
     --testdir "${TEST_SRC_DIR}/animation"
   )
@@ -841,6 +899,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     light
     light_group
     light_linking
+    lightprobe
     mesh
     node_inlining
     pointcloud
@@ -851,6 +910,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     shadow_catcher
     sss
     texture
+    transparency
   )
 
   set(workbench_tests
@@ -874,14 +934,14 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
   if(WITH_FREESTYLE)
     list(APPEND render_tests render_layer)
     list(APPEND workbench_tests render_layer)
-    endif()
-    
-    if(WITH_MOD_FLUID)
+  endif()
+
+  if(WITH_MOD_FLUID)
     list(APPEND render_tests motion_blur reports volume)
     list(APPEND workbench_tests volume)
-    endif()
-    
-    if(WITH_OPENVDB AND WITH_MOD_FLUID)
+  endif()
+
+  if(WITH_OPENVDB AND WITH_MOD_FLUID)
     # Some tests in the OpenVDB folder make use of fluid simulations to generate smoke
     list(APPEND render_tests openvdb)
     list(APPEND workbench_tests openvdb)
@@ -917,7 +977,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
             "Supported devices are: ${_cycles_all_test_devices}")
       endif()
       string(TOLOWER "${_cycles_device}" _cycles_device_lower)
-      set(_cycles_render_tests bake;${render_tests};osl;image_mipmap)
+      set(_cycles_render_tests bake;bake_raytrace;${render_tests};osl;image_mipmap;updates)
 
       set(_cycles_osl_test_type none)
       if(WITH_CYCLES_OSL)
@@ -1178,6 +1238,8 @@ if(TEST_SRC_DIR_EXISTS)
     curve_primitives
     curves
     curves/interpolate_curves
+    empty_object
+    essentials
     foreach_geometry_element_zone
     geometry
     grease_pencil
@@ -1187,6 +1249,7 @@ if(TEST_SRC_DIR_EXISTS)
     repeat_zone
     mesh_primitives
     mesh
+    mesh/bevel
     mesh/extrude
     mesh/split_edges
     mesh/triangulate
@@ -1387,9 +1450,6 @@ if(TEST_SRC_DIR_EXISTS AND TEST_OPENIMAGEIO_TOOL_EXISTS)
   if(WITH_IMAGE_CINEON)
     set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} CINEON")
   endif()
-  if(WITH_IMAGE_OPENEXR)
-    set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} OPENEXR")
-  endif()
   if(WITH_IMAGE_OPENJPEG)
     set(OPTIONAL_FORMATS "${OPTIONAL_FORMATS} OPENJPEG")
   endif()
@@ -1577,6 +1637,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_weight_paint_brushes
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/weight_paint_brushes_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/mesh_paint"
+  )
+
+  add_blender_test(
+    bl_texture_paint_brushes
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/texture_paint_brushes_test.py
     --
     --testdir "${TEST_SRC_DIR}/mesh_paint"
   )

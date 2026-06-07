@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'a0888131c6dd')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'8764d33c658b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-06 09:15+0000\n"
+"POT-Creation-Date: 2026-06-01 07:36+0000\n"
 "PO-Revision-Date: 2026-03-19 19:12+0000\n"
 "Last-Translator: Tamás Máté <royalpython132@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -669,6 +669,10 @@ msgstr "Copyright"
 
 msgid "Description"
 msgstr "Leírás"
+
+
+msgid "Link"
+msgstr "Linkelés"
 
 
 msgid "Full Path"
@@ -3514,10 +3518,6 @@ msgid "Show text files"
 msgstr "Szövegfájlok mutatása"
 
 
-msgid "Link"
-msgstr "Linkelés"
-
-
 msgid "Matrix"
 msgstr "Mátrix"
 
@@ -3998,6 +3998,10 @@ msgid "General properties for Grease Pencil stroke sculpting tools"
 msgstr "A zsírkréta vonású szobrászeszközök általános tulajdonságai"
 
 
+msgid "Dynamic"
+msgstr "Dinamikus"
+
+
 msgid "Window"
 msgstr "Ablak"
 
@@ -4112,10 +4116,6 @@ msgstr "Lokális"
 
 msgid "Global"
 msgstr "Globális"
-
-
-msgid "Dynamic"
-msgstr "Dinamikus"
 
 
 msgid "Falloff Curve"
@@ -6630,10 +6630,6 @@ msgid "Metaball"
 msgstr "Meta test"
 
 
-msgid "Import"
-msgstr "Importálás"
-
-
 msgid "Light"
 msgstr "Fényforrás"
 
@@ -6646,8 +6642,8 @@ msgid "Rigid Body"
 msgstr "Szilárd test"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Import"
+msgstr "Importálás"
 
 
 msgid "Apply"
@@ -6664,6 +6660,10 @@ msgstr "Mutat/Rejt"
 
 msgid "Clean Up"
 msgstr "Tisztítás"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Merge"
@@ -9450,11 +9450,6 @@ msgid "Load a SVG file"
 msgstr "Egy SVG fájl megnyitása"
 
 
-msgctxt "Operator"
-msgid "Import SVG"
-msgstr "SVG importálása"
-
-
 msgid "Load a FBX file"
 msgstr "FBX fájl betöltése"
 
@@ -9628,6 +9623,11 @@ msgstr "Generált"
 msgctxt "Operator"
 msgid "Select All"
 msgstr "Minden kijelölése"
+
+
+msgctxt "Operator"
+msgid "Select by Type"
+msgstr "Kijelölés típus alapján"
 
 
 msgctxt "Operator"
@@ -10446,6 +10446,11 @@ msgstr "Ugrás az előző/következő kulcskockára"
 
 
 msgctxt "Operator"
+msgid "Local View"
+msgstr "Helyi nézet"
+
+
+msgctxt "Operator"
 msgid "Shear Keyframes"
 msgstr "Kulcs-képkockák tisztítása"
 
@@ -11103,11 +11108,6 @@ msgstr "Objektum eredetpontjának mozgatása a 3D kurzor pozíciójához"
 
 msgid "Change selection of all visible objects in scene"
 msgstr "A jelenet összes látjató objektuma kijelölésének megváltoztatása (váltókapcsoló)"
-
-
-msgctxt "Operator"
-msgid "Select by Type"
-msgstr "Kijelölés típus alapján"
 
 
 msgid "Select all visible objects that are of a type"
@@ -11827,11 +11827,6 @@ msgstr "Terület széleinek mozgatása"
 
 
 msgctxt "Operator"
-msgid "Area Options"
-msgstr "Terület beállításai"
-
-
-msgctxt "Operator"
 msgid "Split Area"
 msgstr "Terület kettéosztása"
 
@@ -12463,11 +12458,6 @@ msgid "Fly Navigation"
 msgstr "Repülő navigáció"
 
 
-msgctxt "Operator"
-msgid "Local View"
-msgstr "Helyi nézet"
-
-
 msgid "Toggle display of selected object(s) separately and centered in view"
 msgstr "Csak a kijelölt objektum(ok) megjelenítése, a nézet közepére helyezve"
 
@@ -12924,10 +12914,6 @@ msgstr "Python szkriptek automatikus futtatása"
 
 msgid "Bone Color Sets"
 msgstr "Csont színkészletek"
-
-
-msgid "Axis & Gizmo Colors"
-msgstr "Tengelyek & kütyük színei"
 
 
 msgid "Shaded"
@@ -13503,14 +13489,6 @@ msgstr "GL textúra limit"
 
 msgid "Limit the texture size to save graphics memory"
 msgstr "Textúra méretének korlátozása, hogy grafikus memóriát spóroljon"
-
-
-msgid "Method used for displaying images on the screen"
-msgstr "A képeknek a képernyőn történő megjelenítésének módja"
-
-
-msgid "2D Texture"
-msgstr "2D Textúra"
 
 
 msgid "Ambient Color"
@@ -15133,6 +15111,11 @@ msgstr "Objektum index"
 
 
 msgctxt "Operator"
+msgid "Clear"
+msgstr "Törlés"
+
+
+msgctxt "Operator"
 msgid "Assign"
 msgstr "Hozzárendelés"
 
@@ -15376,11 +15359,6 @@ msgstr "Áthelyezés:"
 
 msgid "Spline:"
 msgstr "Spline:"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "Törlés"
 
 
 msgid "Animation:"
@@ -16073,6 +16051,11 @@ msgstr "Alap"
 
 msgid "Key %d"
 msgstr "Kulcs %d"
+
+
+msgctxt "Key"
+msgid "Key"
+msgstr "Kulcs"
 
 
 msgid "MaskLayer"
@@ -16823,11 +16806,6 @@ msgstr "Kapcsolat"
 
 msgid "Image not packed"
 msgstr "Kép nincs csomagolva"
-
-
-msgctxt "Key"
-msgid "Key"
-msgstr "Kulcs"
 
 
 msgid "Modify"
