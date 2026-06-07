@@ -24,7 +24,7 @@ _BLEND_FILE = os.path.join(
 
 
 def _set_area_type(area, area_type):
-    """Switch *area* to *area_type*, yielding once so Blender processes the change."""
+    """Switch *area* to *area_type*."""
     import bpy
     with bpy.context.temp_override(area=area):
         area.type = area_type
@@ -198,7 +198,6 @@ def test_graph_editor_search():
 def test_file_browser_search():
     """
     File Browser — Ctrl+F → 'search_target'.
-    Creates a temporary directory at runtime; no special blend-file data needed.
     """
     import bpy
     import tempfile
