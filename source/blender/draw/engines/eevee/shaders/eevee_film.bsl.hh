@@ -484,23 +484,13 @@ struct Film {
     accum += mist * samp.weight;
   }
 
-  void sample_accum_combined(FilmSample samp, int2 texel_film, float4 &accum, float &weight_accum)
+  void sample_accum_combined(FilmSample samp, float4 &accum, float &weight_accum)
   {
     [[resource_table]] const Uniform &uni = this->uniforms;
     if (combined_id == -1) {
       return;
     }
-    float4 color;
-    if (is_panoramic(uni.uniform_buf.camera.type)) {
-      const float2 render_uv = panoramic_render_uv_get(texel_film);
-      if (any(lessThan(render_uv, float2(0.0f)))) {
-        return;
-      }
-      color = texture_as_YCoCg_opacity(combined_tx, render_uv);
-    }
-    else {
-      color = texelfetch_as_YCoCg_opacity(combined_tx, samp.texel);
-    }
+    float4 color = texelfetch_as_YCoCg_opacity(combined_tx, samp.texel);
 
     /* Weight by luma to remove fireflies. */
     float weight = luma_weight(uni, color.x) * samp.weight;
@@ -1122,7 +1112,7 @@ struct Film {
       FilmSample src;
       for (int i = samples_len - 1; i >= 0; i--) {
         src = sample_get(i, texel_film);
-        sample_accum_combined(src, texel_film, combined_accum, weight_accum);
+        sample_accum_combined(src, combined_accum, weight_accum);
       }
       /* NOTE: src.texel is center texel in incoming data buffer. */
       store_combined(dst, src.texel, combined_accum, weight_accum, out_color);
