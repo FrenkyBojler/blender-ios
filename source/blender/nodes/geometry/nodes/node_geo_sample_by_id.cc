@@ -1,9 +1,8 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "UI_interface.hh"
-#include "UI_resources.hh"
+#include "BKE_geometry_fields.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
@@ -11,31 +10,37 @@
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
 
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_sample_by_id_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::Mesh,
                        GeometryComponent::Type::PointCloud,
                        GeometryComponent::Type::Curve,
                        GeometryComponent::Type::Instance});
 
-  b.add_input<decl::Int>("ID").implicit_field_on(implicit_field_inputs::id_or_index, {0});
-  b.add_input<decl::Int>("Sample ID").supports_field();
+  b.add_input<decl::Int>("ID"_ustr).default_input_type(NODE_DEFAULT_INPUT_ID_INDEX_FIELD).evaluated_geometry_field();
+  const int id_input_index = b.add_input<decl::Int>("Sample ID"_ustr).structure_type(StructureType::Dynamic).index();
 
-  b.add_output<decl::Int>("Index").dependent_field({2}).description(
-      "First index of sample ID in sampled geometry");
-  b.add_output<decl::Bool>("Is Valid")
-      .dependent_field({2})
+  b.add_output<decl::Int>("Index"_ustr)
+.inferred_structure_type({id_input_index})
+      .propagate_references({id_input_index})
+      .description("First index of sample ID in sampled geometry");
+  b.add_output<decl::Bool>("Is Valid"_ustr)
+.inferred_structure_type({id_input_index})
+      .propagate_references({id_input_index})
       .description("Sample ID is exists in sempled geometry at least once");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -73,20 +78,20 @@ static const GeometryComponent *find_source_component(const GeometrySet &geometr
   return nullptr;
 }
 
-static Map<int, int> id_to_index_map(const VArray<int> &id_varray)
+static Map<int, int> id_to_index_map(const VArray<int> &ids)
 {
-  BLI_assert(!id_varray.is_empty());
+  BLI_assert(!ids.is_empty());
   Map<int, int> map;
 
-  if (const std::optional<int> id = id_varray.get_if_single()) {
+  if (const std::optional<int> id = ids.get_if_single()) {
     map.add_new(*id, 0);
     return map;
   }
 
-  const IndexRange range = id_varray.index_range();
-  devirtualize_varray(id_varray, [&](auto id_varray) {
+  const IndexRange range = ids.index_range();
+  devirtualize_varray(ids, [&](auto ids) {
     for (const int index : range) {
-      map.add(id_varray[index], index);
+      map.add(ids[index], index);
     }
   });
 
@@ -94,52 +99,47 @@ static Map<int, int> id_to_index_map(const VArray<int> &id_varray)
 }
 
 class SampleIDFunction : public mf::MultiFunction {
-  mf::Signature signature_;
   Map<int, int> id_map_;
 
  public:
-  SampleIDFunction(GeometrySet geometry, Field<int> id_field, const AttrDomain domain)
+
+  SampleIDFunction(const VArray<int> &source_ids)
   {
-    geometry.ensure_owns_direct_data();
+    static auto signature = []() -> mf::Signature {
+      mf::Signature signature;
+      mf::SignatureBuilder builder{"Sample by ID", signature};
+      builder.single_input<int>("Sample ID");
+      builder.single_output<int>("Index", mf::ParamFlag::SupportsUnusedOutput);
+      builder.single_output<bool>("Is Valid", mf::ParamFlag::SupportsUnusedOutput);
+      return signature;
+    }();
+    this->set_signature(&signature);
 
-    mf::SignatureBuilder builder{"Sample ID", signature_};
-    builder.single_input<int>("Sample ID");
-    builder.single_output<int>("Index", mf::ParamFlag::SupportsUnusedOutput);
-    builder.single_output<bool>("Is Valid", mf::ParamFlag::SupportsUnusedOutput);
-    this->set_signature(&signature_);
-
-    const GeometryComponent *component = find_source_component(geometry, domain);
-    if (component == nullptr) {
-      throw std::runtime_error("no component to sample");
-    }
-
-    bke::GeometryFieldContext context(*component, domain);
-    FieldEvaluator evaluator(context, component->attribute_domain_size(domain));
-    evaluator.add(std::move(id_field));
-    evaluator.evaluate();
-
-    const VArray<int> id_varray = evaluator.get_evaluated<int>(0);
-    id_map_ = id_to_index_map(id_varray);
+    id_map_ = id_to_index_map(source_ids);
   }
 
-  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const final
   {
     const VArray<int> &ids = params.readonly_single_input<int>(0, "Sample ID");
     MutableSpan<int> indices = params.uninitialized_single_output_if_required<int>(1, "Index");
-    MutableSpan<bool> is_valid = params.uninitialized_single_output_if_required<bool>(2,
-                                                                                      "Is Valid");
+    MutableSpan<bool> is_valid = params.uninitialized_single_output_if_required<bool>(2, "Is Valid");
 
-    if (!indices.is_empty()) {
+    if (!indices.is_empty() && !is_valid.is_empty()) {
+      devirtualize_varray(ids, [&](auto ids) {
+        mask.foreach_index_optimized<int>([&](const int i) {
+          const int *index = id_map_.lookup_ptr(ids[i]);
+          is_valid[i] = index != nullptr;
+          indices[i] = index ? *index : 0;
+        });
+      });
+    } else if (!indices.is_empty()) {
       devirtualize_varray(ids, [&](auto ids) {
         mask.foreach_index_optimized<int>(
             [&](const int i) { indices[i] = id_map_.lookup_default(ids[i], 0); });
       });
-    }
-
-    if (!is_valid.is_empty()) {
+    } else if (!is_valid.is_empty()) {
       devirtualize_varray(ids, [&](auto ids) {
-        mask.foreach_index_optimized<int>(
-            [&](const int i) { is_valid[i] = id_map_.contains(ids[i]); });
+        mask.foreach_index_optimized<int>([&](const int i) { is_valid[i] = id_map_.contains(ids[i]); });
       });
     }
   }
@@ -147,26 +147,57 @@ class SampleIDFunction : public mf::MultiFunction {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
+  const GeometrySet geometry = params.extract_input<GeometrySet>("Geometry"_ustr);
   const AttrDomain domain = AttrDomain(params.node().custom1);
-
-  Field<int> id_field = params.extract_input<Field<int>>("ID");
-  Field<int> sample_id_field = params.extract_input<Field<int>>("Sample ID");
-
-  std::unique_ptr<SampleIDFunction> sample_id_fn;
-  try {
-    sample_id_fn = std::make_unique<SampleIDFunction>(
-        std::move(geometry), std::move(id_field), domain);
-  }
-  catch (const std::runtime_error &) {
+  
+  const GeometryComponent *component = find_source_component(geometry, domain);
+  if (component == nullptr) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  auto sample_id_op = FieldOperation::Create(std::move(sample_id_fn),
-                                             {std::move(sample_id_field)});
-  params.set_output("Index", Field<int>(sample_id_op, 0));
-  params.set_output("Is Valid", Field<bool>(std::move(sample_id_op), 1));
+  bke::GeometryFieldContext context(*component, domain);
+  FieldEvaluator evaluator(context, component->attribute_domain_size(domain));
+  evaluator.add(params.extract_input<Field<int>>("ID"_ustr));
+  evaluator.evaluate();
+
+  const VArray<int> ids_varray = evaluator.get_evaluated<int>(0);
+
+  SocketValueVariant sample_id_variant = params.extract_input<SocketValueVariant>("Sample ID"_ustr);
+  if (sample_id_variant.is_single()) {
+    const int sample_id = sample_id_variant.get<int>();
+    if (ids_varray.is_single()) {
+      params.set_output("Index"_ustr, 0);
+      params.set_output("Valid"_ustr, ids_varray.get_internal_single() == sample_id);
+      return;
+    }
+    
+    VArraySpan<int> ids_span(ids_varray);
+    const int index = ids_span.first_index_try(sample_id);
+    params.set_output("Index"_ustr, std::max(0, index));
+    params.set_output("Valid"_ustr, index != -1);
+    return;
+  }
+  
+  auto sampling_fn = std::make_shared<SampleIDFunction>(ids_varray);
+
+  bke::SocketValueVariant index_output_value;
+  bke::SocketValueVariant valid_output_value;
+  std::string error_message;
+  if (!execute_multi_function_on_value_variant(
+          sampling_fn,
+          {&sample_id_variant},
+          {&index_output_value, &valid_output_value},
+          params.user_data(),
+          error_message))
+  {
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
+  }
+
+  params.set_output("Index"_ustr, std::move(index_output_value));
+  params.set_output("Valid"_ustr, std::move(valid_output_value));
 }
 
 static void node_rna(StructRNA *srna)
@@ -184,7 +215,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSampleByID");
+  geo_node_type_base(&ntype, "GeometryNodeSampleByID"_ustr);
   ntype.ui_name = "Sample by ID";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
