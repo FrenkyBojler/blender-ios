@@ -5422,7 +5422,9 @@ static int curve_rip_edge_side_get(const ARegion *region,
   if (next_index == -1) {
     return -1;
   }
-  if (prev_index == next_index) {
+  /* In two-point cyclic Bézier splines both sides share the same neighboring control point, but
+   * they are still different evaluated segments because each side uses different handles. */
+  if (prev_index == next_index && nu.type != CU_BEZIER) {
     return 1;
   }
 
