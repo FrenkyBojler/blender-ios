@@ -246,7 +246,8 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 
     /* Can't do motion pass if no motion vectors are available. */
     if (pass->get_type() == PASS_MOTION || pass->get_type() == PASS_MOTION_WEIGHT ||
-        pass->get_type() == PASS_DENOISING_BACKWARD_MOTION)
+        pass->get_type() == PASS_DENOISING_BACKWARD_MOTION ||
+        pass->get_type() == PASS_DENOISING_SPECULAR_MOTION)
     {
       const Scene::MotionType need_motion = scene->need_motion();
       if (need_motion != Scene::MOTION_PASS && need_motion != Scene::MOTION_PASS_INTERACTIVE) {
