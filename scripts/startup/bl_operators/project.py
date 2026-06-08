@@ -66,6 +66,26 @@ class ProjectVariable:
             description=project_variable.description,
         )
 
+    def __post_init__(self):
+        """Validation of invariants that cattrs doesn't check."""
+        if self.name == "" or ":" in self.name or "{" in self.name or "}" in self.name:
+            raise ValueError("Variable names cannot contain ':', '{', or '}'.")
+
+        value_matches_type = True
+        match (self.type, type(self.value)):
+            case (VariableType.INTEGER, int):
+                value_matches_type = True
+            case (VariableType.FLOAT, float):
+                value_matches_type = True
+            case (VariableType.STRING, str):
+                value_matches_type = True
+            case (VariableType.FILEPATH, str):
+                value_matches_type = True
+            case _:
+                value_matches_type = False
+        if not value_matches_type:
+            raise ValueError("Variable's actual and declared types do not match.")
+
 
 @dataclass
 class ProjectConfig:
@@ -96,9 +116,22 @@ class ProjectConfig:
                         var.value_string = config_var.value
                     case VariableType.FILEPATH:
                         var.value_string = config_var.value
-                if config_var.description is not None:
-                    var.description = config_var.description
+                var.description = config_var.description
 
+    def __post_init__(self):
+        """Validation of invariants that cattrs doesn't check."""
+        if self.name == "":
+            raise ValueError("Project name cannot be empty.")
+
+        var_names = set()
+        for var in self.variables:
+            if var.name in var_names:
+                raise ValueError("Duplicate project variable names are not allowed.")
+            var_names.add(var.name)
+
+
+# -------------------------------------------------------------
+# Helpers for cattrs
 
 def structure_int_float_str(obj: int | float | str, cl: type) -> int | float | str:
     if isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, str):
@@ -307,33 +340,10 @@ def read_project_toml_config(root_path, report=None):
     converter.register_structure_hook(int | float | str, structure_int_float_str)
     try:
         project_config = converter.structure(config_dict, ProjectConfig)
-    except cattrs.BaseValidationError as e:
+    except (cattrs.BaseValidationError, ValueError) as e:
         if report:
             report({'ERROR'}, rpt_("Invalid project configuration file: {:s}").format(str(e)))
         raise ProjectLoadException
-
-    # Other validation not handled by the schema.
-    if project_config.name == "":
-        if report:
-            report({'ERROR'}, "Invalid project: project name is empty.")
-        raise ProjectLoadException
-    if project_config.variables is not None:
-        for var in project_config.variables:
-            value_matches_type = True
-            match var.type:
-                case VariableType.INTEGER:
-                    value_matches_type = type(var.value) is int
-                case VariableType.FLOAT:
-                    value_matches_type = type(var.value) is float
-                case VariableType.STRING:
-                    value_matches_type = type(var.value) is str
-                case VariableType.FILEPATH:
-                    value_matches_type = type(var.value) is str
-
-            if not value_matches_type:
-                if report:
-                    report({'ERROR'}, "Invalid project: variable '{:s}' has mismatched type and value.".format(var.name))
-                raise ProjectLoadException
 
     return project_config
 
