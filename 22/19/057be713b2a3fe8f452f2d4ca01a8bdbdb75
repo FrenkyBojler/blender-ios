@@ -1,3 +1,4 @@
 Referenced by issue #158939, Image editor clone brush doesn't work
 Referenced by pull request #158942, Fix #158939: Image editor clone brush does not work
 Referenced by commit b1783debad54cdfdc1ea2abb80379ed0d14f92ca, Fix #158939: Image editor clone brush does not work
+Referenced by commit 6990c0dbc43af7ae3898650fc00f46e83cdc8146, Fix: Float image buffer with data colorspace not set as data
