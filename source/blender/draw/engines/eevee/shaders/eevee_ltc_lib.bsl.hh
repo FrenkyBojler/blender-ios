@@ -157,13 +157,13 @@ float3x3 tangent_basis(float3 N, float3 V)
 }
 
 /* Simple disk with origin, normal, and radius. */
-struct ClippingDisk {
+struct Disk {
   float3 O;
   float3 N;
   float radius;
 };
 
-float spherical_attenuation(float3x3 Minv, float3 L, ClippingDisk disk)
+float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
 {
   /* Dominant BxDF lobe direction. */
   float3 D = normalize(inverse(Minv)[2]);
@@ -177,17 +177,21 @@ float spherical_attenuation(float3x3 Minv, float3 L, ClippingDisk disk)
   float t = (dot(disk.O, D) * TD - dot(disk.O, T)) / (1.0f - TD * TD);
   if (t >= 0.0 && t < disk.radius) {
     /* If t lies within the disk radius, we do not need to attenuate. */
+    /* TODO(not_mark): this may be unnecessary due to the mix-in factor below? */
     return 1.0;
   }
 
   /* Compute near point on the disk, along the line formed by T. Project
    * these points onto the unit sphere. */
-  float3 P = disk.O + T * disk.radius;
+  float3 P = normalize(disk.O + disk.radius * T);
 
-  /* Project disk point into LTC space, then return simple quadratic fitting. */
+  /* Project disk point into LTC space, then fit to simple geometric curve. */
   float attenuation = normalize(Minv * P).z;
-  attenuation = 1.0f - saturate(attenuation);
-  return 1.0f - attenuation * attenuation * attenuation * attenuation;
+  attenuation = 2.0f * attenuation / (1.0f + attenuation);
+
+  /* Fit mix factor, forcing attenuation to go to 1 in upper hemisphere, based on solid angle. */
+  float a = square(square(1.0f - saturate(dot(P, L) + dot(D, -L))));
+  return mix(attenuation, 1.0, a);
 }
 
 }  // namespace detail
@@ -204,10 +208,10 @@ float evaluate_quad(
   /* Rotate area light into basis. */
   Minv = Minv * transpose(T);
 
-  /* Define disk encapsulating the quad for form factor clipping. */
+  /* Define encapuslating disk, for form factor attenuation. */
   float3 edge_a = normalize(corners[1] - corners[0]);
   float3 edge_b = normalize(corners[3] - corners[0]);
-  detail::ClippingDisk clipping_disk = {
+  detail::Disk encapsulating_disk = {
       .O = 0.25f * (corners[0] + corners[1] + corners[2] + corners[3]), /* == lv.L * lv.dist */
       .N = cross(edge_a, edge_b),
       .radius = 0.5f * distance(corners[2], corners[0])};
@@ -233,9 +237,9 @@ float evaluate_quad(
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
 
-  /* Attenuate form_factor leakage, in cases where a sphere lies above the horizon,
-   * but a polygon would be entirely clipped. This is a rough fit based on. */
-  form_factor *= detail::spherical_attenuation(Minv, L, clipping_disk);
+  /* Attenuate form_factor to reduce leakage, in cases where a sphere lies above the
+   * horizon, but a polygon/ellipse should be clipped. This is a fitted function. */
+  form_factor *= detail::spherical_attenuation(Minv, L, encapsulating_disk);
 
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
 }
