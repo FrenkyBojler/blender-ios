@@ -259,7 +259,7 @@ SVMStackOffset SVMCompiler::stack_assign(ShaderInput *input)
       input->stack_offset = input->link->stack_offset;
     }
     else {
-      const ShaderNode *node = input->parent;
+      ShaderNode *node = input->parent;
 
       /* not linked to output -> add nodes to load default value */
       input->stack_offset = stack_find_offset(input);
@@ -345,6 +345,8 @@ SVMInputFloat3 SVMCompiler::input_float3_from_offset(const SVMStackOffset offset
 
 SVMStackOffset SVMCompiler::input_link(const char *name)
 {
+  /* Ensure input link is pushed to SVM before the node itself. */
+  assert(!current_node->added_to_svm);
   /* This is for sockets like normal which always expect a link. For the constant_folded_in we have
    * to write the value to the stack with another load and return a linked svm offset, as these
    * never store the default value in the SVMNode. */
@@ -468,7 +470,7 @@ void SVMCompiler::add_node_data_float(const float f)
   current_svm_nodes.push_back_slow(__float_as_int(f));
 }
 
-void SVMCompiler::add_value_node(const ShaderNode *shader_node,
+void SVMCompiler::add_value_node(ShaderNode *shader_node,
                                  const float value,
                                  const int stack_offset)
 {
@@ -480,7 +482,7 @@ void SVMCompiler::add_value_node(const ShaderNode *shader_node,
            });
 }
 
-void SVMCompiler::add_value_node(const ShaderNode *shader_node,
+void SVMCompiler::add_value_node(ShaderNode *shader_node,
                                  const float3 &value,
                                  const int stack_offset)
 {

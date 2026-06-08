@@ -270,6 +270,8 @@ class ShaderNode : public Node {
    */
   virtual bool equals(const ShaderNode &other);
 
+  bool added_to_svm = false;
+
  protected:
   bool need_derivatives_ = false;
 
