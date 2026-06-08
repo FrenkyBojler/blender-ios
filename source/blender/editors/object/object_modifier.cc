@@ -2600,7 +2600,8 @@ static void skin_root_clear(BMVert *bm_vert, Set<BMVert *> &visited, const int c
 
 static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_edit_object(C);
+  PointerRNA ptr = edit_modifier_ptr_get(C, RNA_SkinModifier);
+  Object *ob = edit_modifier_object_get(C, ptr);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
@@ -2651,7 +2652,8 @@ enum SkinLooseAction {
 
 static wmOperatorStatus skin_loose_mark_clear_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_edit_object(C);
+  PointerRNA ptr = edit_modifier_ptr_get(C, RNA_SkinModifier);
+  Object *ob = edit_modifier_object_get(C, ptr);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
   SkinLooseAction action = static_cast<SkinLooseAction>(RNA_enum_get(op->ptr, "action"));
@@ -2707,7 +2709,8 @@ void OBJECT_OT_skin_loose_mark_clear(wmOperatorType *ot)
 
 static wmOperatorStatus skin_radii_equalize_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_edit_object(C);
+  PointerRNA ptr = edit_modifier_ptr_get(C, RNA_SkinModifier);
+  Object *ob = edit_modifier_object_get(C, ptr);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
