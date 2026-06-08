@@ -16,7 +16,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<ColorGeometry4f> vertex_color = AttributeFieldInput::get_field<ColorGeometry4f, "vertex_color">();
+  Field<ColorGeometry4f> vertex_color =
+      AttributeFieldInput::get_field<ColorGeometry4f, "vertex_color">();
   params.set_output("Point"_ustr, std::move(vertex_color));
 
   Field<ColorGeometry4f> fill_color =
