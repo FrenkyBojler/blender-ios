@@ -265,6 +265,34 @@ static void image_foreach_cache(ID *id,
   }
 }
 
+static void image_foreach_texture_cache_path(BPathForeachPathData *bpath_data,
+                                             const char *source_filepath_abs,
+                                             const char *cache_dir)
+{
+  bpath_data->is_cache = true;
+  bpath_data->is_expanded = true;
+  BKE_image_texture_cache_filepaths_foreach(
+      source_filepath_abs, cache_dir, [&](StringRef cache_filepath) {
+        char cache_path[FILE_MAX];
+        cache_filepath.copy_utf8_truncated(cache_path);
+        BKE_bpath_foreach_path_readonly_process(bpath_data, cache_path);
+      });
+  bpath_data->is_expanded = false;
+  bpath_data->is_cache = false;
+}
+
+static void image_foreach_expanded_path(BPathForeachPathData *bpath_data,
+                                        const char *expanded_path,
+                                        const eBPathForeachFlag flag)
+{
+  bpath_data->is_expanded = true;
+  BKE_bpath_foreach_path_readonly_process(bpath_data, expanded_path);
+  if (flag & BKE_BPATH_FOREACH_PATH_EXPAND_CACHES) {
+    image_foreach_texture_cache_path(bpath_data, expanded_path, U.texture_cachedir);
+  }
+  bpath_data->is_expanded = false;
+}
+
 static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Image *ima = id_cast<Image *>(id);
@@ -280,6 +308,43 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   if (!ELEM(ima->source, IMA_SRC_FILE, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE, IMA_SRC_TILED) ||
       ima->filepath[0] == '\0')
   {
+    return;
+  }
+
+  char abs_filepath[FILE_MAX];
+  STRNCPY(abs_filepath, ima->filepath);
+  if (bpath_data->absolute_base_path) {
+    BLI_path_abs(abs_filepath, bpath_data->absolute_base_path);
+  }
+  else {
+    BLI_path_abs(abs_filepath, ID_BLEND_PATH(bpath_data->bmain, &ima->id));
+  }
+
+  if (ima->source == IMA_SRC_TILED && (flag & BKE_BPATH_FOREACH_PATH_EXPAND_TOKENS)) {
+    /* Expand all UDIM tiles. */
+    eUDIM_TILE_FORMAT tile_format;
+    char *udim_pattern = BKE_image_get_tile_strformat(abs_filepath, &tile_format);
+    if (tile_format != UDIM_TILE_FORMAT_NONE) {
+      for (const ImageTile &tile : ima->tiles) {
+        char tile_filepath[FILE_MAX];
+        BKE_image_set_filepath_from_tile_number(
+            tile_filepath, udim_pattern, tile_format, tile.tile_number);
+        if (BLI_is_file(tile_filepath)) {
+          image_foreach_expanded_path(bpath_data, tile_filepath, flag);
+        }
+      }
+    }
+    MEM_SAFE_DELETE(udim_pattern);
+    return;
+  }
+
+  if (ima->source == IMA_SRC_SEQUENCE && (flag & BKE_BPATH_FOREACH_PATH_EXPAND_SEQUENCES)) {
+    /* Expand all image sequence frames. */
+    BKE_bpath_sequence_filepaths_foreach(abs_filepath, [&](StringRef frame_filepath) {
+      char frame_path[FILE_MAX];
+      frame_filepath.copy_utf8_truncated(frame_path);
+      image_foreach_expanded_path(bpath_data, frame_path, flag);
+    });
     return;
   }
 
@@ -311,6 +376,13 @@ static void image_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   else {
     result = BKE_bpath_foreach_path_fixed_process(
         bpath_data, ima->filepath, sizeof(ima->filepath));
+  }
+
+  /* Also emit the cache file paths for the (non-expanded) source path. */
+  if ((flag & BKE_BPATH_FOREACH_PATH_EXPAND_CACHES) &&
+      !ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE, IMA_SRC_TILED))
+  {
+    image_foreach_texture_cache_path(bpath_data, abs_filepath, U.texture_cachedir);
   }
 
   if (result) {
@@ -1509,7 +1581,7 @@ static bool image_memorypack_imbuf_for_autosave(
   Vector<uint8_t> encoded = IMB_save_image_to_buffer(ibuf, ImBufFlags::ByteData);
   if (encoded.is_empty()) {
     CLOG_STR_ERROR(&LOG, "memory save for pack error");
-    image_free_packedfiles(ima);
+    image_free_autosave_packedfiles(ima);
     return false;
   }
 
@@ -4512,9 +4584,11 @@ void BKE_image_populate_cache_from_autosave(Image *ima)
           "<packed data>",
           nullptr,
           ima->colorspace_settings.name);
-      ibuf->userflags |= IB_BITMAPDIRTY;
-      image_assign_ibuf(ima, ibuf, index, entry);
-      IMB_freeImBuf(ibuf);
+      if (ibuf) {
+        ibuf->userflags |= IB_BITMAPDIRTY;
+        image_assign_ibuf(ima, ibuf, index, entry);
+        IMB_freeImBuf(ibuf);
+      }
     }
   }
 
@@ -5894,6 +5968,113 @@ RenderSlot *BKE_image_get_renderslot(Image *ima, int index)
 {
   /* Can be null for images without render slots. */
   return static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, index));
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Texture Cache File Discovery
+ * \{ */
+
+/* Recognize a filename written by Cycles `unique_filename_tx`, which has the form
+ * `<source_basename>.<digits>-<32 hex chars>.tx` */
+static bool is_texture_cache_filename(StringRef relname, StringRef source_basename)
+{
+  if (!relname.endswith(".tx")) {
+    return false;
+  }
+  relname = relname.drop_known_suffix(".tx");
+  if (!relname.startswith(source_basename)) {
+    return false;
+  }
+  relname = relname.drop_known_prefix(source_basename);
+  if (!relname.startswith(".")) {
+    return false;
+  }
+  relname = relname.drop_known_prefix(".");
+
+  int64_t dash_pos = 0;
+  while (dash_pos < relname.size() && relname[dash_pos] >= '0' && relname[dash_pos] <= '9') {
+    dash_pos++;
+  }
+  if (dash_pos == 0 || dash_pos >= relname.size() || relname[dash_pos] != '-') {
+    return false;
+  }
+  relname = relname.drop_prefix(dash_pos + 1);
+
+  const int64_t hex_len = 32;
+  if (relname.size() != hex_len) {
+    return false;
+  }
+  for (const char c : relname) {
+    if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static void scan_texture_cache_dir(const char *dir,
+                                   const char *source_filepath_abs,
+                                   StringRef source_basename,
+                                   FunctionRef<void(StringRef cache_filepath)> callback)
+{
+  if (!BLI_is_dir(dir)) {
+    return;
+  }
+
+  direntry *filelist = nullptr;
+  const uint nentries = BLI_filelist_dir_contents(dir, &filelist);
+  for (uint i = 0; i < nentries; i++) {
+    if (!(filelist[i].type & S_IFREG)) {
+      continue;
+    }
+    if (!is_texture_cache_filename(StringRef(filelist[i].relname), source_basename)) {
+      continue;
+    }
+    /* Defensive check to not emit the original source file path. */
+    if (STREQ(filelist[i].path, source_filepath_abs)) {
+      continue;
+    }
+    callback(StringRef(filelist[i].path));
+  }
+  BLI_filelist_free(filelist, nentries);
+}
+
+void BKE_image_texture_cache_filepaths_foreach(
+    const char *source_filepath_abs,
+    const char *texture_cache_dir,
+    FunctionRef<void(StringRef cache_filepath)> callback)
+{
+  char source_dir[FILE_MAX];
+  char source_basename[FILE_MAXFILE];
+  BLI_path_split_dir_part(source_filepath_abs, source_dir, sizeof(source_dir));
+  BLI_path_split_file_part(source_filepath_abs, source_basename, sizeof(source_basename));
+  if (source_basename[0] == '\0') {
+    return;
+  }
+
+  /* First look in user configured cache directory. */
+  char user_dir[FILE_MAX] = "";
+  if (texture_cache_dir && texture_cache_dir[0] != '\0') {
+    if (BLI_path_is_abs_from_cwd(texture_cache_dir)) {
+      STRNCPY(user_dir, texture_cache_dir);
+    }
+    else {
+      BLI_path_join(user_dir, sizeof(user_dir), source_dir, texture_cache_dir);
+    }
+    BLI_path_normalize(user_dir);
+  }
+
+  /* Also look in default cache directory. */
+  char default_dir[FILE_MAX];
+  BLI_path_join(default_dir, sizeof(default_dir), source_dir, "blender_tx");
+  BLI_path_normalize(default_dir);
+
+  scan_texture_cache_dir(default_dir, source_filepath_abs, source_basename, callback);
+  if (user_dir[0] != '\0' && !STREQ(user_dir, default_dir)) {
+    scan_texture_cache_dir(user_dir, source_filepath_abs, source_basename, callback);
+  }
 }
 
 /** \} */

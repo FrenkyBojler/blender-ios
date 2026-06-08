@@ -1819,7 +1819,9 @@ static size_t animfilter_nla(bAnimContext *ac,
 
             if (track_ok == false) {
               for (NlaStrip &strip : nlt->strips) {
-                if (name_matches_dopesheet_filter(ac->ads, strip.name)) {
+                if (name_matches_dopesheet_filter(ac->ads, strip.name) ||
+                    (strip.flag & NLASTRIP_FLAG_TEMP_META))
+                {
                   strip_ok = true;
                   break;
                 }
@@ -3677,7 +3679,7 @@ static Base **animdata_filter_ds_sorted_bases(bAnimContext *ac,
 
   Base **sorted_bases = MEM_new_array_zeroed<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
   for (Base &base : *object_bases) {
-    const eObjectMode object_mode = eObjectMode(base.object->mode);
+    const eObjectMode object_mode = base.object->mode;
     if (animdata_filter_base_is_ok(ac, &base, object_mode, filter_mode)) {
       sorted_bases[num_bases++] = &base;
     }
@@ -3782,7 +3784,7 @@ static size_t animdata_filter_dopesheet(bAnimContext *ac,
      * NOTE: This saves performance in cases where order doesn't matter
      */
     Object *obact = BKE_view_layer_active_object_get(view_layer);
-    const eObjectMode object_mode = (obact != nullptr) ? eObjectMode(obact->mode) : OB_MODE_OBJECT;
+    const eObjectMode object_mode = (obact != nullptr) ? obact->mode : OB_MODE_OBJECT;
     for (Base &base : *object_bases) {
       if (animdata_filter_base_is_ok(ac, &base, object_mode, filter_mode)) {
         /* since we're still here, this object should be usable */
