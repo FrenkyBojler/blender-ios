@@ -251,7 +251,7 @@ class NLA_MT_strips(Menu):
         layout.operator("nla.split", text="Split")
 
         layout.separator()
-        layout.operator("nla.duplicate", text="Duplicate").linked = False
+        layout.operator("nla.duplicate", text="Duplicate", icon='DUPLICATE').linked = False
         layout.operator("nla.duplicate", text="Linked Duplicate").linked = True
         layout.operator("nla.delete", text="Delete")
 
@@ -363,13 +363,8 @@ class NLA_MT_context_menu(Menu):
         props = layout.operator("wm.call_panel", text="Rename...")
         props.name = "TOPBAR_PT_name"
         props.keep_open = False
-        layout.operator("nla.duplicate_move")
+        layout.operator("nla.duplicate_move", icon='DUPLICATE')
         layout.operator("nla.duplicate_linked_move")
-
-        layout.separator()
-
-        layout.operator("nla.split")
-        layout.operator("nla.delete")
 
         layout.separator()
 
@@ -383,6 +378,10 @@ class NLA_MT_context_menu(Menu):
         layout.separator()
 
         layout.operator_menu_enum("nla.snap", "type", text="Snap")
+        layout.separator()
+
+        layout.operator("nla.split")
+        layout.operator("nla.delete", icon='X')
 
 
 class NLA_MT_channel_context_menu(Menu):

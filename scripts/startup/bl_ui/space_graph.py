@@ -549,7 +549,7 @@ class GRAPH_MT_context_menu(Menu):
         layout.separator()
 
         layout.operator("graph.keyframe_insert").type = 'SEL'
-        layout.operator("graph.duplicate_move")
+        layout.operator("graph.duplicate_move", icon='DUPLICATE')
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("graph.delete")
 

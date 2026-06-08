@@ -1122,7 +1122,7 @@ class SEQUENCER_MT_strip(Menu):
         if has_preview:
             layout.menu("SEQUENCER_MT_strip_mirror")
             layout.separator()
-            layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.operator("sequencer.preview_duplicate_move", text="Duplicate", icon='DUPLICATE')
             layout.operator("sequencer.copy", text="Copy", icon='COPYDOWN')
             layout.operator("sequencer.paste", text="Paste", icon='PASTEDOWN')
             layout.separator()
@@ -1148,7 +1148,7 @@ class SEQUENCER_MT_strip(Menu):
 
             layout.operator("sequencer.copy", text="Copy", icon='COPYDOWN')
             layout.operator("sequencer.paste", text="Paste", icon='PASTEDOWN')
-            layout.operator("sequencer.duplicate_move", text="Duplicate")
+            layout.operator("sequencer.duplicate_move", text="Duplicate", icon='DUPLICATE')
             layout.operator("sequencer.duplicate_move_linked", text="Duplicate Linked")
 
         layout.separator()
