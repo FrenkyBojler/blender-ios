@@ -3752,7 +3752,8 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     array_utils::copy(faces_span, offsets);
     attributes.add<bool>("cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
 
-    VArray<int> mesh_materials = *mesh_eval.attributes().lookup_or_default(
+    const bke::AttributeAccessor mesh_attributes = mesh_eval.attributes();
+    VArray<int> mesh_materials = *mesh_attributes.lookup_or_default(
         "material_index", bke::AttrDomain::Face, 0);
     bke::SpanAttributeWriter<int> material_indices =
         attributes.lookup_or_add_for_write_only_span<int>("material_index",
@@ -3779,7 +3780,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
         "hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
     hide_stroke.finish();
 
-    bke::gather_attributes(mesh_eval.attributes(),
+    bke::gather_attributes(mesh_attributes,
                            bke::AttrDomain::Point,
                            bke::AttrDomain::Point,
                            bke::attribute_filter_from_skip_ref({"position"}),
