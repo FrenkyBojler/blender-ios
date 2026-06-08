@@ -30,7 +30,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeGreasePencilColor"_ustr);
   ntype.ui_name = "Grease Pencil Color";
-  ntype.ui_description = "Retrieve the color of Grease Pencil curves";
+  ntype.ui_description = "Retrieve the color of Grease Pencil points and fills";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;

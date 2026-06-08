@@ -29,7 +29,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeGreasePencilOpacity"_ustr);
   ntype.ui_name = "Grease Pencil Opacity";
-  ntype.ui_description = "Retrieve the opacity of Grease Pencil curves";
+  ntype.ui_description = "Retrieve the opacity of Grease Pencil points and fills";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.default_width = bke::NodeWidth::_160;
   ntype.declare = node_declare;

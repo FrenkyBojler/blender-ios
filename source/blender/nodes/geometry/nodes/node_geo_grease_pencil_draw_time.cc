@@ -29,7 +29,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeGreasePencilDrawTime"_ustr);
   ntype.ui_name = "Grease Pencil Draw Time";
-  ntype.ui_description = "Retrieve the information as to when a Grease Pencil curve is drawn";
+  ntype.ui_description = "Retrieve information as to when a Grease Pencil curve was drawn";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.default_width = bke::NodeWidth::_180;
   ntype.declare = node_declare;
