@@ -1245,8 +1245,9 @@ void ED_draw_composition_guides(uint shdr_pos,
 
     immBegin(GPU_PRIM_LINES, 2);
       
+    
+    immVertex2f(shdr_pos, rect->xmin, rect->ymin);
     immVertex2f(shdr_pos, xmid, ymid);
-    immVertex2f(shdr_pos, rect->xmin + xmid, rect->ymin + ymid );
 
  /*    immVertex2f(shdr_pos, rect->xmin, rect->ymax);
     immVertex2f(shdr_pos, rect->xmax, rect->ymin);
