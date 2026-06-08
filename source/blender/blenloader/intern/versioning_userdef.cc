@@ -774,7 +774,7 @@ static void keymap_update_mesh_weight_paint_brushes(wmKeyMap *keymap)
 
   const auto asset_id_map = []() {
     Map<int, StringRef> map;
-    map.add_new(WPAINT_BRUSH_TYPE_DRAW, "Paint");
+    map.add_new(WPAINT_BRUSH_TYPE_DRAW, "Add Weight");
     map.add_new(WPAINT_BRUSH_TYPE_BLUR, "Blur");
     map.add_new(WPAINT_BRUSH_TYPE_AVERAGE, "Average");
     map.add_new(WPAINT_BRUSH_TYPE_SMEAR, "Smear");
@@ -1783,6 +1783,9 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->asset_flag |= USER_ASSETS_USE_ONLINE_ESSENTIALS;
   }
 
+  if (!USER_VERSION_ATLEAST(503, 1)) {
+    userdef->pref_flag |= USER_PREF_FLAG_PROJECT_SAVE;
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
