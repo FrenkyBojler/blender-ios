@@ -57,6 +57,8 @@
 #include "SEQ_modifier.hh"
 #include "SEQ_sequencer.hh"
 
+#include "PRF_profile.hh"
+
 namespace blender {
 
 using namespace blender::nodes;
@@ -388,6 +390,7 @@ class NodeTreeMainUpdater {
     if (root_ntrees.is_empty()) {
       return;
     }
+    PRF_scope_with_name("NodeTreeMainUpdater::update_rooted", ProfileCategory::Core);
 
     bool is_single_tree_update = false;
 
@@ -569,6 +572,7 @@ class NodeTreeMainUpdater {
 
   TreeUpdateResult update_tree(bNodeTree &ntree)
   {
+    PRF_scope_with_name("NodeTreeMainUpdater::update_tree", ProfileCategory::Core);
     TreeUpdateResult result;
 
     ntree.runtime->link_errors.clear();
@@ -588,12 +592,6 @@ class NodeTreeMainUpdater {
     this->propagate_runtime_flags(ntree);
     if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT, NTREE_SHADER)) {
       if (this->propagate_enum_definitions(ntree)) {
-        result.interface_changed = true;
-      }
-    }
-
-    if (ntree.type == NTREE_GEOMETRY) {
-      if (node_field_inferencing::update_field_inferencing(ntree)) {
         result.interface_changed = true;
       }
     }
@@ -702,7 +700,7 @@ class NodeTreeMainUpdater {
           /* Should have been created when the node was registered. */
           BLI_assert(ntype.static_declaration != nullptr);
           if (ntype.static_declaration->is_context_dependent) {
-            nodes::update_node_declaration_and_sockets(ntree, *node);
+            nodes::update_node_declaration_and_sockets(ntree, *node, bmain_);
           }
         }
         else if (node->is_undefined()) {
@@ -1496,8 +1494,8 @@ class NodeTreeMainUpdater {
         continue;
       }
       if (ntree.typeinfo->validate_link) {
-        const eNodeSocketDatatype from_type = eNodeSocketDatatype(link.fromsock->type);
-        const eNodeSocketDatatype to_type = eNodeSocketDatatype(link.tosock->type);
+        const eNodeSocketDatatype from_type = link.fromsock->type;
+        const eNodeSocketDatatype to_type = link.tosock->type;
         if (!ntree.typeinfo->validate_link(from_type, to_type)) {
           link.flag &= ~NODE_LINK_VALID;
           ntree.runtime->link_errors.add(
@@ -2078,7 +2076,7 @@ class NodeTreeMainUpdater {
     bool changed = false;
     ntree.ensure_interface_cache();
     for (bNodeTreeInterfaceItem *item : ntree.interface_items()) {
-      if (item->item_type != NODE_INTERFACE_PANEL) {
+      if (item->item_type != NodeTreeInterfaceItemType::Panel) {
         continue;
       }
       bNodeTreeInterfacePanel *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);
