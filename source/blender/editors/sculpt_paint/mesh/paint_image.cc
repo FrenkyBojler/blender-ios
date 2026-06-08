@@ -687,6 +687,11 @@ void paint_init_pivot(Object *ob, Scene *scene, Paint *paint)
   paint_runtime.last_stroke_valid = true;
   paint_runtime.average_stroke_counter = 1;
   copy_v3_v3(paint_runtime.average_stroke_accum, location);
+
+  /* If Orbit Around Selection is enabled, force the pivot to update. */
+  if ((U.uiflag & USER_ORBIT_SELECTION)) {
+    paint->runtime->last_stroke_valid = false;
+  }
 }
 
 void ED_object_texture_paint_mode_enter_ex(Main &bmain,
