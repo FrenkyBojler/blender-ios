@@ -228,6 +228,18 @@ wmEvent *WM_event_add_simulate(wmWindow *win, const wmEvent *event_to_add)
   return event;
 }
 
+struct wmEventSimulateTarget {
+  ScrArea *area;
+  ARegion *region;
+};
+
+static wmEventSimulateTarget *wm_event_simulate_target_get(const wmEvent *event)
+{
+  return (event->custom == EVT_DATA_SIMULATE_TARGET) ?
+             static_cast<wmEventSimulateTarget *>(event->customdata) :
+             nullptr;
+}
+
 static void wm_event_custom_free(wmEvent *event)
 {
   if ((event->customdata && event->customdata_free) == 0) {
@@ -4313,6 +4325,7 @@ void wm_event_do_handlers(bContext *C)
       }
 
       CTX_wm_window_set(C, &win);
+      wmEventSimulateTarget *event_simulate_target = wm_event_simulate_target_get(event);
 
 #ifdef WITH_XR_OPENXR
       if (event->type == EVT_XR_ACTION) {
@@ -4324,120 +4337,137 @@ void wm_event_do_handlers(bContext *C)
       }
 #endif
 
-      /* Clear tool-tip on mouse move. */
-      if (screen->tool_tip && screen->tool_tip->exit_on_event) {
-        if (ISMOUSE_MOTION(event->type)) {
-          if (len_manhattan_v2v2_int(screen->tool_tip->event_xy, event->xy) >
-              WM_EVENT_CURSOR_MOTION_THRESHOLD)
-          {
-            WM_tooltip_clear(C, &win);
+      if (event_simulate_target == nullptr) {
+        /* Clear tool-tip on mouse move. */
+        if (screen->tool_tip && screen->tool_tip->exit_on_event) {
+          if (ISMOUSE_MOTION(event->type)) {
+            if (len_manhattan_v2v2_int(screen->tool_tip->event_xy, event->xy) >
+                WM_EVENT_CURSOR_MOTION_THRESHOLD)
+            {
+              WM_tooltip_clear(C, &win);
+            }
+          }
+        }
+
+        /* Check for a tool-tip. */
+        if (screen == WM_window_get_active_screen(&win)) {
+          if (screen->tool_tip && screen->tool_tip->timer) {
+            if ((event->type == TIMER) && (event->customdata == screen->tool_tip->timer)) {
+              WM_tooltip_init(C, &win);
+            }
           }
         }
       }
 
-      /* We let modal handlers get active area/region, also wm_paintcursor_test needs it. */
-      CTX_wm_area_set(C, area_event_inside(C, event->xy));
-      CTX_wm_region_set(C, region_event_inside(C, event->xy));
-
-      /* MVC demands to not draw in event handlers...
-       * but we need to leave it for GPU selecting etc. */
-      wm_window_make_drawable(wm, &win);
-
-      wm_region_mouse_co(C, event);
-
-      /* First we do priority handlers, modal + some limited key-maps. */
-      action |= wm_handlers_do(C, event, &win.runtime->modalhandlers);
-
-      /* File-read case. */
-      if (CTX_wm_window(C) == nullptr) {
-        wm_event_free_and_remove_from_queue_if_valid(event);
-        GPU_render_end();
-        return;
+      if (event_simulate_target != nullptr) {
+        action |= WM_HANDLER_BREAK;
+        WM_event_do_simulate_region(C, &win, event_simulate_target->area, event_simulate_target->region, event);
       }
+      else {
+        /* We let modal handlers get active area/region, also wm_paintcursor_test needs it. */
+        CTX_wm_area_set(C, area_event_inside(C, event->xy));
+        CTX_wm_region_set(C, region_event_inside(C, event->xy));
 
-      /* Check for a tool-tip. */
-      if (screen == WM_window_get_active_screen(&win)) {
-        if (screen->tool_tip && screen->tool_tip->timer) {
-          if ((event->type == TIMER) && (event->customdata == screen->tool_tip->timer)) {
-            WM_tooltip_init(C, &win);
+        /* MVC demands to not draw in event handlers...
+         * but we need to leave it for GPU selecting etc. */
+        wm_window_make_drawable(wm, &win);
+
+        wm_region_mouse_co(C, event);
+
+        /* First we do priority handlers, modal + some limited key-maps. */
+        action |= wm_handlers_do(C, event, &win.runtime->modalhandlers);
+
+        /* File-read case. */
+        if (CTX_wm_window(C) == nullptr) {
+          wm_event_free_and_remove_from_queue_if_valid(event);
+          GPU_render_end();
+          return;
+        }
+
+        /* Check for a tool-tip. */
+        if (screen == WM_window_get_active_screen(&win)) {
+          if (screen->tool_tip && screen->tool_tip->timer) {
+            if ((event->type == TIMER) && (event->customdata == screen->tool_tip->timer)) {
+              WM_tooltip_init(C, &win);
+            }
           }
         }
-      }
 
-      /* Check dragging, creates new event or frees, adds draw tag. */
-      action |= wm_event_drag_and_drop_test(wm, &win, event);
+        /* Check dragging, creates new event or frees, adds draw tag. */
+        action |= wm_event_drag_and_drop_test(wm, &win, event);
 
-      if ((action & WM_HANDLER_BREAK) == 0) {
-        /* NOTE: setting sub-window active should be done here,
-         * after modal handlers have been done. */
-        if (event->type == MOUSEMOVE) {
-          /* State variables in screen, cursors.
-           * Also used in `wm_draw.cc`, fails for modal handlers though. */
-          ED_screen_set_active_region(C, &win, event->xy);
-          /* For regions having custom cursors. */
-          wm_paintcursor_test(C, event);
-        }
+        if ((action & WM_HANDLER_BREAK) == 0) {
+          /* NOTE: setting sub-window active should be done here,
+           * after modal handlers have been done. */
+          if (event->type == MOUSEMOVE) {
+            /* State variables in screen, cursors.
+             * Also used in `wm_draw.cc`, fails for modal handlers though. */
+            ED_screen_set_active_region(C, &win, event->xy);
+            /* For regions having custom cursors. */
+            wm_paintcursor_test(C, event);
+          }
 #ifdef WITH_INPUT_NDOF
-        else if (event->type == NDOF_MOTION) {
-          win.addmousemove = true;
-        }
+          else if (event->type == NDOF_MOTION) {
+            win.addmousemove = true;
+          }
 #endif
 
-        ED_screen_areas_iter (&win, screen, area) {
-          /* After restoring a screen from SCREENMAXIMIZED we have to wait
-           * with the screen handling till the region coordinates are updated. */
-          if (screen->skip_handling) {
-            /* Restore for the next iteration of wm_event_do_handlers. */
-            screen->skip_handling = false;
-            break;
+          ED_screen_areas_iter (&win, screen, area) {
+            /* After restoring a screen from SCREENMAXIMIZED we have to wait
+             * with the screen handling till the region coordinates are updated. */
+            if (screen->skip_handling) {
+              /* Restore for the next iteration of wm_event_do_handlers. */
+              screen->skip_handling = false;
+              break;
+            }
+
+            /* Update action-zones if needed,
+             * done here because it needs to be independent from redraws. */
+            if (area->flag & AREA_FLAG_ACTIONZONES_UPDATE) {
+              ED_area_azones_update(area, event->xy);
+            }
+
+            if (wm_event_inside_rect(event, &area->totrct)) {
+              CTX_wm_area_set(C, area);
+
+              action |= wm_event_do_handlers_area_regions(C, event, area);
+
+              /* File-read case (Python), #29489. */
+              if (CTX_wm_window(C) == nullptr) {
+                wm_event_free_and_remove_from_queue_if_valid(event);
+                GPU_render_end();
+                return;
+              }
+
+              CTX_wm_region_set(C, nullptr);
+
+              if ((action & WM_HANDLER_BREAK) == 0) {
+                wm_region_mouse_co(C, event); /* Only invalidates `event->mval` in this case. */
+                action |= wm_handlers_do(
+                    C, event, static_cast<ListBaseT<wmEventHandler> *>(&area->handlers));
+              }
+              CTX_wm_area_set(C, nullptr);
+
+              /* NOTE: do not escape on #WM_HANDLER_BREAK,
+               * mouse-move needs handled for previous area. */
+            }
           }
 
-          /* Update action-zones if needed,
-           * done here because it needs to be independent from redraws. */
-          if (area->flag & AREA_FLAG_ACTIONZONES_UPDATE) {
-            ED_area_azones_update(area, event->xy);
-          }
+          if ((action & WM_HANDLER_BREAK) == 0) {
+            /* Also some non-modal handlers need active area/region. */
+            CTX_wm_area_set(C, area_event_inside(C, event->xy));
+            CTX_wm_region_set(C, region_event_inside(C, event->xy));
 
-          if (wm_event_inside_rect(event, &area->totrct)) {
-            CTX_wm_area_set(C, area);
+            wm_region_mouse_co(C, event);
 
-            action |= wm_event_do_handlers_area_regions(C, event, area);
+            action |= wm_handlers_do(C, event, &win.runtime->handlers);
 
-            /* File-read case (Python), #29489. */
+            /* File-read case. */
             if (CTX_wm_window(C) == nullptr) {
               wm_event_free_and_remove_from_queue_if_valid(event);
               GPU_render_end();
               return;
             }
-
-            CTX_wm_region_set(C, nullptr);
-
-            if ((action & WM_HANDLER_BREAK) == 0) {
-              wm_region_mouse_co(C, event); /* Only invalidates `event->mval` in this case. */
-              action |= wm_handlers_do(
-                  C, event, static_cast<ListBaseT<wmEventHandler> *>(&area->handlers));
-            }
-            CTX_wm_area_set(C, nullptr);
-
-            /* NOTE: do not escape on #WM_HANDLER_BREAK,
-             * mouse-move needs handled for previous area. */
-          }
-        }
-
-        if ((action & WM_HANDLER_BREAK) == 0) {
-          /* Also some non-modal handlers need active area/region. */
-          CTX_wm_area_set(C, area_event_inside(C, event->xy));
-          CTX_wm_region_set(C, region_event_inside(C, event->xy));
-
-          wm_region_mouse_co(C, event);
-
-          action |= wm_handlers_do(C, event, &win.runtime->handlers);
-
-          /* File-read case. */
-          if (CTX_wm_window(C) == nullptr) {
-            wm_event_free_and_remove_from_queue_if_valid(event);
-            GPU_render_end();
-            return;
           }
         }
       }
@@ -5323,6 +5353,26 @@ static void WM_event_remove_handler(ListBaseT<wmEventHandler> *handlers, wmEvent
 void WM_event_add_mousemove(wmWindow *win)
 {
   win->addmousemove = 1;
+}
+
+void WM_event_add_simulate_region(
+    wmWindow *win, ScrArea *area, ARegion *region, const wmEvent *event)
+{
+  if (win == nullptr || area == nullptr || region == nullptr || event == nullptr) {
+    return;
+  }
+
+  const int g_flag_prev = G.f;
+  G.f |= G_FLAG_EVENT_SIMULATE;
+
+  wmEvent event_copy = *event;
+  event_copy.custom = EVT_DATA_SIMULATE_TARGET;
+  event_copy.customdata = MEM_new<wmEventSimulateTarget>(
+      __func__, wmEventSimulateTarget{area, region});
+  event_copy.customdata_free = true;
+  WM_event_add_simulate(win, &event_copy);
+
+  G.f = g_flag_prev;
 }
 
 void WM_event_do_simulate_region(

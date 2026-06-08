@@ -124,6 +124,7 @@ struct PanelSort {
 static void panel_set_expansion_from_list_data(const bContext *C, Panel *panel);
 static int get_panel_real_size_y(const Panel *panel);
 static void panel_activate_state(const bContext *C, Panel *panel, const HandlePanelState state);
+static void handler_remove_panel(bContext *C, void *userdata);
 static bool panel_type_context_poll(ARegion *region,
                                     const PanelType *panel_type,
                                     const char *context);
@@ -177,6 +178,19 @@ static bool panel_active_animation_changed(ListBaseT<Panel> *lb,
     }
   }
 
+  return false;
+}
+
+static bool panel_list_contains_ptr_recursive(const ListBaseT<Panel> *lb, const Panel *panel_ptr)
+{
+  for (const Panel &panel : *lb) {
+    if (&panel == panel_ptr) {
+      return true;
+    }
+    if (panel_list_contains_ptr_recursive(&panel.children, panel_ptr)) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -2833,7 +2847,27 @@ bool panel_can_be_pinned(const Panel *panel)
 static int handler_panel(bContext *C, const wmEvent *event, void *userdata)
 {
   Panel *panel = static_cast<Panel *>(userdata);
+  ARegion *region = CTX_wm_region_popup(C);
+  if (region == nullptr) {
+    region = CTX_wm_region(C);
+  }
+  if (panel == nullptr || region == nullptr ||
+      !panel_list_contains_ptr_recursive(&region->panels, panel))
+  {
+    wmWindow *win = CTX_wm_window(C);
+    if (win != nullptr) {
+      WM_event_remove_ui_handler(
+          &win->runtime->modalhandlers, handler_panel, handler_remove_panel, panel, false);
+    }
+    return WM_UI_HANDLER_BREAK;
+  }
+  if (panel == nullptr) {
+    return WM_UI_HANDLER_BREAK;
+  }
   HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
+  if (data == nullptr) {
+    return WM_UI_HANDLER_BREAK;
+  }
 
   /* Verify if we can stop. */
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
@@ -2963,6 +2997,26 @@ void panel_stop_animation(const bContext *C, Panel *panel)
   }
 }
 
+void ED_region_panels_exit_active_state(const bContext *C, ARegion *region)
+{
+  if (C == nullptr || region == nullptr) {
+    return;
+  }
+
+  for (Panel &panel : region->panels) {
+    panel_exit_state_recursive(C, panel);
+  }
+}
+
 /** \} */
 
 }  // namespace blender::ui
+
+namespace blender {
+
+void ED_region_panels_exit_active_state(const bContext *C, ARegion *region)
+{
+  ui::ED_region_panels_exit_active_state(C, region);
+}
+
+}  // namespace blender

@@ -134,6 +134,7 @@ bool ED_region_property_search(const bContext *C,
 
 void ED_region_panels_layout(const bContext *C, ARegion *region);
 void ED_region_panels_draw(const bContext *C, ARegion *region);
+void ED_region_panels_exit_active_state(const bContext *C, ARegion *region);
 
 /**
  * Draws a panel list on a world space panel in the 3D viewport.

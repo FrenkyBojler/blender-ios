@@ -460,8 +460,13 @@ static bool wm_xr_surface_interaction_raycast(const wmXrPanel *panel,
   return true;
 }
 
-static void wm_xr_surface_interaction_event_add(
-    const bContext *C, wmWindow *win, ScrArea *area, ARegion *region, short type, short val, const int xy[2])
+static void wm_xr_surface_interaction_event_add(const bContext * /*C*/,
+                                                wmWindow *win,
+                                                ScrArea *area,
+                                                ARegion *region,
+                                                short type,
+                                                short val,
+                                                const int xy[2])
 {
   wmEvent event{};
   wm_event_init_from_window(win, &event);
@@ -478,7 +483,7 @@ static void wm_xr_surface_interaction_event_add(
                   event.prev_xy[0],
                   event.prev_xy[1],
                   win);
-  WM_event_do_simulate_region(const_cast<bContext *>(C), win, area, region, &event);
+  WM_event_add_simulate_region(win, area, region, &event);
 }
 
 static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
@@ -540,6 +545,7 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
   CTX_wm_region_set(mutable_C, xr_region);
   xr_region->alignment = RGN_ALIGN_FLOAT;
   if (needs_layout) {
+    ED_region_panels_exit_active_state(mutable_C, xr_region);
     ui::blocklist_free(mutable_C, xr_region);
     BKE_area_region_panels_free(&xr_region->panels);
     ED_region_panels_layout(mutable_C, xr_region);
@@ -568,6 +574,7 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
                       xr_region->winrct.ymax,
                       xr_region->winx,
                       xr_region->winy);
+      ED_region_panels_exit_active_state(mutable_C, xr_region);
       ui::blocklist_free(mutable_C, xr_region);
       BKE_area_region_panels_free(&xr_region->panels);
       ED_region_panels_layout(mutable_C, xr_region);
@@ -1321,7 +1328,7 @@ void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *custo
 
 static CLG_LogRef LOG = {"xr"};
 
-void wm_xr_draw_panels_world_space(const bContext * C, ARegion * region, void *customdata)
+void wm_xr_draw_panels_world_space(const bContext *C, ARegion * /*region*/, void *customdata)
 {
   if (C == nullptr) {
     CLOG_ERROR(&LOG, "panels_ws: skipped, null context");

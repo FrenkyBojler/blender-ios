@@ -424,6 +424,7 @@ class VIEW3D_PT_vr_session_view_world_space(Panel):
 class VIEW3D_PT_vr_landmarks_world_space(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'XR'
+    bl_label = "Landmarks"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
