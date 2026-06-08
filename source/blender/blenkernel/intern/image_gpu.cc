@@ -390,6 +390,9 @@ static ImBuf *image_gpu_error_imbuf()
 
 static void image_gpu_log_load_error_once(Image *ima, ImageUser *iuser)
 {
+  if (ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
+    return;
+  }
   if (ima->runtime->gpu_load_error_logged) {
     return;
   }

@@ -134,7 +134,7 @@ struct ImBufGPU {
    */
   gpu::Texture *texture = nullptr;
 
-  /** Last used timestamp for garbace collection */
+  /** Last used timestamp for garbage collection */
   int lastused = 0;
 
   /** GPU buffer flags. */
