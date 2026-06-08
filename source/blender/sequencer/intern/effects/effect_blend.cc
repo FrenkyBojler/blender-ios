@@ -53,9 +53,9 @@ struct AlphaOverEffectOp {
     }
 
     for (int64_t idx = 0; idx < size; idx++) {
-      /* Negative HDR (ringing, sharpening, subtract nodes) should flow through the operator. */
-      if (src1[0] == 0.0f && src1[1] == 0.0f && src1[2] == 0.0f && src1[3] == 0.0f) {
-        /* Pixel emits no light and has no opacity. */
+      if (std::is_same_v<T, uchar> && src1[3] == 0) {
+        /* Optimization for fully transparent pixels: copy src2. Only do this for byte images;
+         * in floats alpha=0 can still have pure emissive color. */
         memcpy(dst, src2, sizeof(T) * 4);
       }
       else if (fac == 1.0f && alpha_opaque(src1[3])) {
@@ -155,26 +155,9 @@ static void apply_blend_function(
 {
   for (int64_t i = 0; i < size; i++) {
     T achannel = src2[3];
-    T top_a = achannel * fac;
-    bool is_pure_emissive = false;
-
-    if constexpr (std::is_same_v<T, float>) {
-      if (top_a == 0.0f && (src2[0] != 0.0f || src2[1] != 0.0f || src2[2] != 0.0f)) {
-        is_pure_emissive = true;
-      }
-    }
-
-    if (is_pure_emissive) {
-      /* Preserve emissive pixels (e.g. glare) where alpha is zero but RGB contains light data. */
-      dst[0] = src1[0] + (src2[0] * fac);
-      dst[1] = src1[1] + (src2[1] * fac);
-      dst[2] = src1[2] + (src2[2] * fac);
-    }
-    else {
-      (static_cast<T *>(const_cast<T *>(src2)))[3] = T(top_a);
-      blend_function(dst, src1, src2);
-      (static_cast<T *>(const_cast<T *>(src2)))[3] = achannel;
-    }
+    (static_cast<T *>(const_cast<T *>(src2)))[3] = T(achannel * fac);
+    blend_function(dst, src1, src2);
+    (static_cast<T *>(const_cast<T *>(src2)))[3] = achannel;
     dst[3] = src1[3];
     src1 += 4;
     src2 += 4;
