@@ -1381,7 +1381,7 @@ void BKE_mesh_legacy_face_map_to_generic(Main *bmain)
     for (const auto [i, face_map] : object.fmaps.enumerate()) {
       mesh->attributes_for_write().rename(".temp_face_map_" + std::to_string(i), face_map.name);
     }
-    BLI_freelistN(&object.fmaps);
+    object.fmaps.free_no_destruct();
   }
 }
 
@@ -2231,7 +2231,7 @@ static bool is_auto_smooth_node_tree(const bNodeTree &group)
   {
     return false;
   }
-  if (BLI_listbase_count(&group.links) != 9) {
+  if (group.links.count() != 9) {
     return false;
   }
 
@@ -2471,7 +2471,7 @@ void mesh_freestyle_marks_to_generic(Mesh &mesh)
       static_assert(char(FREESTYLE_FACE_MARK) == char(true));
       Attribute::ArrayData array_data{};
       array_data.data = data;
-      array_data.size = mesh.edges_num;
+      array_data.size = mesh.faces_num;
       sharing_info->add_user();
       array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
       mesh.attribute_storage.wrap().add(
