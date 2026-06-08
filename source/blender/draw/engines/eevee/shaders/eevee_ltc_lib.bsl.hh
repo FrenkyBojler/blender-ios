@@ -301,8 +301,8 @@ float evaluate_disk(
   avg_dir = normalize(avg_dir);
 
   /* L1, L2 are the extends of the front facing ellipse. */
-  float L1 = sqrt(-e2 / e3);
-  float L2 = sqrt(-e2 / e1);
+  float L1 = inversesqrt(-e3 / e2);
+  float L2 = inversesqrt(-e1 / e2);
 
   /* Find the sphere and compute lighting. */
   float form_factor = max(0.0f, L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2)));
