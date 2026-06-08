@@ -312,6 +312,7 @@ class RuntimeToBakeValue {
     }
     if (geometry.has_mesh()) {
       Mesh &mesh = *geometry.get_mesh_for_write();
+      mesh.runtime->edit_mesh.reset();
       this->runtime_to_bake__AttributeStorage(mesh.attribute_storage.wrap());
       mesh.runtime->bake_materials = materials_to_weak_references(
           &mesh.mat, &mesh.totcol, data_block_map_);
