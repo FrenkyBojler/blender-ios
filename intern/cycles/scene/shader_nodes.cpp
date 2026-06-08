@@ -2739,6 +2739,8 @@ void PrincipledBsdfNode::simplify_settings(Scene * /* scene */)
 
 bool PrincipledBsdfNode::has_surface_transparent()
 {
+  /* TODO(weizhen): check when thin wall is true && has transmission && roughness is low enough. */
+  return true;
   return (input("Alpha")->link != nullptr || alpha < (1.0f - CLOSURE_WEIGHT_CUTOFF));
 }
 
