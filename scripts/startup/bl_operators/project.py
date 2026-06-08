@@ -90,7 +90,7 @@ class ProjectVariable:
 @dataclass
 class ProjectConfig:
     name: str
-    variables: list[ProjectVariable] | None
+    variables: list[ProjectVariable] | None = None
 
     @staticmethod
     def new_from_project(project):
@@ -123,11 +123,12 @@ class ProjectConfig:
         if self.name == "":
             raise ValueError("Project name cannot be empty.")
 
-        var_names = set()
-        for var in self.variables:
-            if var.name in var_names:
-                raise ValueError("Duplicate project variable names are not allowed.")
-            var_names.add(var.name)
+        if self.variables is not None:
+            var_names = set()
+            for var in self.variables:
+                if var.name in var_names:
+                    raise ValueError("Duplicate project variable names are not allowed.")
+                var_names.add(var.name)
 
 
 # -------------------------------------------------------------
