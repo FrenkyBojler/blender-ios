@@ -66,7 +66,8 @@ void tilemap_finalize_main([[resource_table]] TilemapFinalize &srt,
   bool is_cubemap = (tilemap_data.projection_type == SHADOW_PROJECTION_CUBEFACE);
   int lod_max = is_cubemap ? SHADOW_TILEMAP_LOD : 0;
 
-  srt.lod_rendered = 0u;
+  /* All threads in the workgroup share the same tilemap_data. */
+  uint lod_rendered_local = 0u;
 
   for (int lod = lod_max; lod >= 0; lod--) {
     int2 tile_co_lod = tile_co >> lod;
@@ -106,7 +107,7 @@ void tilemap_finalize_main([[resource_table]] TilemapFinalize &srt,
       if (lod_has_update) {
         int view_index = atomicAdd(srt.statistics_buf.view_needed_count, 1);
         if (view_index < SHADOW_VIEW_MAX) {
-          srt.lod_rendered |= 1u << lod;
+          lod_rendered_local |= 1u << lod;
 
           /* Setup the view. */
           srt.view_infos_buf[view_index].viewmat = tilemap_data.viewmat;
@@ -162,9 +163,16 @@ void tilemap_finalize_main([[resource_table]] TilemapFinalize &srt,
         }
       }
     }
+
+    /* Barrier between iterations to prevent the writes in iteration N-1 from racing
+     * with the reads at the end of iteration N.  */
+    barrier();
   }
 
   /* Broadcast result of `lod_rendered`. */
+  if (local_index == 0u) {
+    srt.lod_rendered = lod_rendered_local;
+  }
   barrier();
 
   /* With all threads (LOD0 size dispatch) load each lod tile from the highest lod
