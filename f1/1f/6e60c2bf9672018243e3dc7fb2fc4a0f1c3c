@@ -1,3 +1,4 @@
 Referenced by pull request #158908, Fix: Geometry Nodes: Baking single string value does not work
 Referenced by commit 80391448bc76dd65fdd912d0bf558e08075cba2c, Fix: Geometry Nodes: Baking single string value does not work
 Referenced by pull request #159771, Fix #159717: Bake of empty instances crashes expecting GeometrySet
+Referenced by commit 6560a6a5e0e47e8e2bf465b2438bbae146c73dbc, Fix #159717: Bake of empty instances crashes expecting GeometrySet
