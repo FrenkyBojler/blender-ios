@@ -20,18 +20,41 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
 
   b.add_output<decl::Matrix>("Projection Matrix"_ustr).description("Camera projection matrix");
-  b.add_output<decl::Float>("Focal Length"_ustr).description("Perspective camera focal length");
-  b.add_output<decl::Float>("Field of View"_ustr).description("Panoramic camera field of view");
+  
+
+ 
   b.add_output<decl::Vector>("Sensor"_ustr).dimensions(2).description("Size of the camera sensor");
   b.add_output<decl::Vector>("Shift"_ustr).dimensions(2).description("Camera shift");
   b.add_output<decl::Float>("Clip Start"_ustr).description("Camera near clipping distance");
   b.add_output<decl::Float>("Clip End"_ustr).description("Camera far clipping distance");
   b.add_output<decl::Float>("Focus Distance"_ustr)
       .description("Distance to the focus point for depth of field");
-  b.add_output<decl::Bool>("Is Orthographic"_ustr)
-      .description("Whether the camera is using orthographic projection");
+
   b.add_output<decl::Float>("Orthographic Scale"_ustr)
       .description("Orthographic camera scale (similar to zoom)");
+
+
+    {
+  auto &p = b.add_panel("Perspective"_ustr).default_closed(true);
+  p.add_output<decl::Bool>("Is Perspective"_ustr)
+      .description("Whether the camera is using orthographic projection");
+  p.add_output<decl::Float>("Focal Length"_ustr).description("Perspective camera focal length");  
+  }
+      {
+  auto &p = b.add_panel("Orthographic"_ustr).default_closed(true);
+  p.add_output<decl::Bool>("Is Orthographic"_ustr)
+      .description("Whether the camera is using orthographic projection");
+  p.add_output<decl::Float>("Scale"_ustr).description("Panoramic camera field of view");
+  }
+  {
+  auto &p = b.add_panel("Panoramic"_ustr).default_closed(true);
+  p.add_output<decl::Bool>("Is Fisheye Equidistant"_ustr)
+      .description("Whether the camera is using orthographic projection");
+  p.add_output<decl::Bool>("Is Fisheye Equisolid"_ustr)
+      .description("Whether the camera is using orthographic projection");
+  p.add_output<decl::Float>("Field of View"_ustr).description("Panoramic camera field of view");
+  }
+
 
   b.add_input<decl::Object>("Camera"_ustr).optional_label();
 }
@@ -122,12 +145,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Projection Matrix"_ustr, projection_matrix);
   params.set_output("Focal Length"_ustr, camera_params.lens);
   params.set_output("Field of View"_ustr, camera_params.fisheye_fov); 
+  params.set_output("Scale"_ustr, camera_params.ortho_scale); 
   params.set_output("Sensor"_ustr, float3{sensor_size, 0.0f});
   params.set_output("Shift"_ustr, float3{lens_shift, 0.0f});
   params.set_output("Clip Start"_ustr, camera_params.clip_start);
   params.set_output("Clip End"_ustr, camera_params.clip_end);
   params.set_output("Focus Distance"_ustr, focus_distance);
   params.set_output("Is Orthographic"_ustr, camera_params.is_ortho);
+  params.set_output("Is Perspective"_ustr, camera_params.is_perspective);
+  params.set_output("Is Fisheye Equidistant"_ustr, camera_params.is_fisheye_equidistant);
+  params.set_output("Is Fisheye Equisolid"_ustr, camera_params.is_fisheye_equisolid);
   params.set_output("Orthographic Scale"_ustr, camera_params.ortho_scale);
 }
 

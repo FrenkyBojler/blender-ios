@@ -375,10 +375,25 @@ void BKE_camera_params_from_object(CameraParams *params, const Object *cam_ob)
   if (cam_ob->type == OB_CAMERA) {
     /* camera object */
     const Camera *cam = id_cast<const Camera *>(cam_ob->data);
-
-    if (cam->type == CAM_ORTHO) {
+    if (cam->type == CAM_PERSP) {
+      params->is_perspective = true;
+    }
+    else if (cam->type == CAM_ORTHO) {
       params->is_ortho = true;
     }
+    else if (cam->type == CAM_PANO) {
+      if (cam->panorama_type == CAM_PANORAMA_FISHEYE_EQUISOLID)
+      {
+        params->is_fisheye_equisolid = true;
+        
+      }
+      else if(cam->panorama_type == CAM_PANORAMA_FISHEYE_EQUIDISTANT)
+      {
+        params->is_fisheye_equidistant = true;
+      }
+      
+    }
+
     params->lens = cam->lens;
     params->fisheye_fov = cam->fisheye_fov; 
     params->ortho_scale = cam->ortho_scale;
