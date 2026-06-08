@@ -10,7 +10,9 @@ __all__ = (
 import os
 import logging
 from dataclasses import dataclass
+
 from enum import Enum
+
 
 import bpy
 from bpy.types import Operator
