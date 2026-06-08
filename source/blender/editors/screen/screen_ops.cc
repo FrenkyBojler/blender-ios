@@ -496,6 +496,20 @@ bool ED_operator_info_active(bContext *C)
   return ed_spacetype_test(C, SPACE_INFO);
 }
 
+bool ED_operator_region_info_active(bContext *C)
+{
+  if (!ED_operator_info_active(C)) {
+    CTX_wm_operator_poll_msg_set(C, "Expected an active Info editor");
+    return false;
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    CTX_wm_operator_poll_msg_set(C, "Expected an Info region");
+    return false;
+  }
+  return true;
+}
+
 bool ED_operator_console_active(bContext *C)
 {
   return ed_spacetype_test(C, SPACE_CONSOLE);
