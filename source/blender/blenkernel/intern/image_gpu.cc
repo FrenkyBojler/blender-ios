@@ -486,16 +486,30 @@ static ImageGPUTextures image_get_gpu_texture_tiled(Image *ima,
 {
   ImageGPUTextures result = {};
 
-  /* Create atlas and tile mapping image buffers. */
-  ImBuf *atlas_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_ATLAS);
-  ImBuf *mapping_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_TILE_MAPPING);
+  /* Get or create atlas and tile mapping image buffers. */
+  ImBuf *atlas_ibuf;
+  ImBuf *mapping_ibuf;
+
+  if (try_only) {
+    atlas_ibuf = image_udim_gpu_ibuf_get(ima, IMA_INDEX_UDIM_ATLAS);
+    mapping_ibuf = image_udim_gpu_ibuf_get(ima, IMA_INDEX_UDIM_TILE_MAPPING);
+  }
+  else {
+    atlas_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_ATLAS);
+    mapping_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_TILE_MAPPING);
+  }
+
   result.image_buffer = atlas_ibuf;
   result.tile_mapping_buffer = mapping_ibuf;
 
   /* Update time for garbage collection. */
   const int now = BLI_time_now_seconds_i();
-  atlas_ibuf->gpu.lastused = now;
-  mapping_ibuf->gpu.lastused = now;
+  if (atlas_ibuf != nullptr) {
+    atlas_ibuf->gpu.lastused = now;
+  }
+  if (mapping_ibuf != nullptr) {
+    mapping_ibuf->gpu.lastused = now;
+  }
 
   if (try_only) {
     return result;
@@ -745,10 +759,11 @@ void BKE_image_free_gpu_udim_textures(Image *ima)
 
 void BKE_image_free_gputextures(Image *ima)
 {
-  BKE_image_free_gpu_udim_textures(ima);
-
   if (ima->runtime->cache) {
     std::scoped_lock lock(ima->runtime->cache_mutex);
+
+    BKE_image_free_gpu_udim_textures(ima);
+
     ImBufCacheIter *iter = IMB_cacheIter_new(ima->runtime->cache);
     while (!IMB_cacheIter_done(iter)) {
       ImBuf *ibuf = IMB_cacheIter_getImBuf(iter);
