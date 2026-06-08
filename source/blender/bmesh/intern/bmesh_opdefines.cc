@@ -557,7 +557,7 @@ static BMOpDefine bmo_edge_flow_def = {
         {"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
         /* Redistribution mode: 0 = linear, 1 = flow (deferred). */
         {"mode", BMO_OP_SLOT_INT},
-        /* Blend factor between original and computed position (0.0–1.0). */
+        /* Blend factor between original and computed position from 0.0 to 1.0. */
         {"mix", BMO_OP_SLOT_FLT},
         /* Space vertices at equal distances when true; project onto axis when false. */
         {"space_evenly", BMO_OP_SLOT_BOOL},

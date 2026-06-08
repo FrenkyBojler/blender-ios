@@ -5,7 +5,7 @@
 /** \file
  * \ingroup edmesh
  *
- * Editor operator for edge flow — thin shell that calls the BMesh operator.
+ * Editor operator for edge flow.
  */
 
 #include "DNA_mesh_types.h"
@@ -18,13 +18,14 @@
 #include "WM_types.hh"
 
 #include "ED_mesh.hh"
+#include "ED_screen.hh"
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
 
-#include "mesh_intern.hh" /* own include */
+#include "mesh_intern.hh"
 
 namespace blender {
 
@@ -45,13 +46,17 @@ static wmOperatorStatus edbm_edge_flow_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    const int mode = RNA_enum_get(op->ptr, "mode");
+    const float mix = RNA_float_get(op->ptr, "mix");
+    const bool space_evenly = RNA_boolean_get(op->ptr, "space_evenly");
+
     if (!EDBM_op_callf(em,
                        op,
                        "edge_flow edges=%he mode=%i mix=%f space_evenly=%b",
                        BM_ELEM_SELECT,
-                       RNA_enum_get(op->ptr, "mode"),
-                       RNA_float_get(op->ptr, "mix"),
-                       RNA_boolean_get(op->ptr, "space_evenly")))
+                       mode,
+                       mix,
+                       space_evenly))
     {
       continue;
     }
@@ -75,16 +80,13 @@ static const EnumPropertyItem mode_items[] = {
 
 void MESH_OT_edge_flow(wmOperatorType *ot)
 {
-  /* identifiers */
   ot->name = "Edge Flow";
   ot->idname = "MESH_OT_edge_flow";
   ot->description = "Set edge flow for the selected edges";
 
-  /* API callbacks */
   ot->exec = edbm_edge_flow_exec;
-  ot->poll = EDBM_view3d_poll;
+  ot->poll = ED_operator_editmesh;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_enum(ot->srna, "mode", mode_items, EDGE_FLOW_LINEAR, "Mode", "");

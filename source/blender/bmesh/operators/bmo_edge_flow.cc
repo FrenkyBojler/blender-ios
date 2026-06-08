@@ -150,14 +150,14 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
     }
     /* EDGE_FLOW_FLOW */
 
-    /* Reinterpolate normals for every face loop touching a moved vert. */
-    for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
-      BMIter liter;
-      BMLoop *l;
-      BM_ITER_ELEM (l, &liter, loop.verts[i], BM_LOOPS_OF_VERT) {
-        BM_loop_interp_from_face(bm, l, l->f, false, true);
-      }
-    }
+    /* Reinterpolate UVs/customData for every face loop touching a moved vert. */
+    // for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
+    //   BMIter liter;
+    //   BMLoop *l;
+    //   BM_ITER_ELEM (l, &liter, loop.verts[i], BM_LOOPS_OF_VERT) {
+    //     BM_loop_interp_from_face(bm, l, l->f, false, true);
+    //   }
+    // }
   }
 }
 
