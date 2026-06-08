@@ -4198,7 +4198,8 @@ static int do_but_textedit(
             data->cancel = data->escapecancel = true;
           }
 #ifdef WITH_INPUT_IME
-          else if (is_ime_composing && ime_data->composite.size() && but->type == ButtonType::Text)
+          else if (is_ime_composing && !ime_data->composite.empty() &&
+                   but->type == ButtonType::Text)
           {
             textedit_insert_buf(
                 but, text_edit, ime_data->composite.c_str(), ime_data->composite.size());
@@ -4483,7 +4484,7 @@ static int do_but_textedit(
   }
   else if (event->type == WM_IME_COMPOSITE_EVENT) {
     changed = true;
-    if (ime_data->result.size()) {
+    if (!ime_data->result.empty()) {
       if (ELEM(but->type, ButtonType::Num, ButtonType::NumSlider) &&
           STREQ(ime_data->result.c_str(), "\xE3\x80\x82"))
       {
@@ -4885,7 +4886,14 @@ static void block_open_begin(bContext *C, Button *but, HandleButtonData *data)
     }
   }
   else if (menufunc) {
-    data->menu = popup_menu_create(C, data->region, but, menufunc, arg);
+    data->menu = popup_menu_create(
+        C,
+        data->region,
+        but,
+        menufunc,
+        arg,
+        /* Inherit the `can_refresh` flag from the parent menu, if any. */
+        but->block->handle ? but->block->handle->can_refresh : false);
     if (MenuType *mt = button_menutype_get(but)) {
       STRNCPY_UTF8(data->menu->menu_idname, mt->idname);
     }
