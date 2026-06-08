@@ -1,1 +1,2 @@
 Referenced by commit d6ec9675990d90d374cbbd471015d820f8bd06f6, Fix: ImBuf: Crash from incorrect of temporary scaling buffer
+Referenced by commit f1dac96cfd2663a90c8b4cda50c27b46c64d3a8c, Fix: Image buffer colorspace lost after scaling
