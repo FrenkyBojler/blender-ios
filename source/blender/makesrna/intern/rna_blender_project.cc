@@ -114,6 +114,11 @@ static int rna_ProjectVariable_name_length(PointerRNA *ptr)
 
 static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
 {
+  /* No empty variable names. */
+  if (value[0] == '\0') {
+    return;
+  }
+
   with_blender_project_write_lock([&] {
     BlenderProject *project = ptr->parent().data_as<BlenderProject>();
     BLI_assert(project != nullptr);
@@ -362,7 +367,7 @@ static PointerRNA rna_ProjectVariables_new(BlenderProject *project,
                                            const char *name,
                                            int type)
 {
-  if (name[0] == 0) {
+  if (name[0] == '\0') {
     BKE_reportf(reports, RPT_ERROR, "Invalid variable name '%s': name must not be empty.", name);
     return {};
   }
