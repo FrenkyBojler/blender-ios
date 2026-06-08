@@ -190,7 +190,7 @@ float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
   attenuation = 2.0f * attenuation / (1.0f + attenuation);
 
   /* Fit mix factor, forcing attenuation to go to 1 in upper hemisphere, based on solid angle. */
-  float a = square(square(1.0f - saturate(dot(P, L) + dot(D, -L))));
+  float a = square(square(0.995f * (1.0f - saturate(dot(P, L) + dot(D, -L)))));
   return mix(attenuation, 1.0, a);
 }
 
