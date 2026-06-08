@@ -204,7 +204,7 @@ void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects);
 /**
  * Helper for apply() / reset() - refresh the data.
  */
-void slide_subjects_refresh(bContext *C, ID *id);
+void slide_subjects_refresh(bContext *C, SlideSubject &slide_subject);
 /**
  * Reset changes made to current slide subjects back to their stored values.
  */
