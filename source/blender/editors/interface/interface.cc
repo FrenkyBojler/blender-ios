@@ -3073,6 +3073,25 @@ static std::string textbox_string_get(ButtonTextBox *textbox)
   return RNA_property_string_get(&textbox->rnapoin, textbox->rnaprop);
 }
 
+static bool button_include_unit_suffix(const Button *button)
+{
+  const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(button));
+  if (BKE_unit_is_adaptive(*button->block->unit, unit_type)) {
+    /* Include the unit in the edit string when the unit is adaptive. */
+    return true;
+  }
+  PropertySubType subtype = PROP_NONE;
+  if (button->rnaprop) {
+    subtype = RNA_property_subtype(button->rnaprop);
+  }
+  if (subtype == PROP_TIME_ABSOLUTE) {
+    /* Include the unit in the edit string when the property uses absolute time (independent of the
+     * scene settings). */
+    return true;
+  }
+  return false;
+}
+
 void button_string_get_ex(Button *but,
                           char *str,
                           const size_t str_maxncpy,
@@ -3177,10 +3196,7 @@ void button_string_get_ex(Button *but,
       }
 
       if (button_is_unit(but)) {
-        /* In case where the unit is adaptive, include the unit in the edit string. Otherwise the
-         * unit is added as an edit hint. */
-        const int unit_type = RNA_SUBTYPE_UNIT_VALUE(button_unit_type_get(but));
-        const bool do_suffix = BKE_unit_is_adaptive(*but->block->unit, unit_type);
+        const bool do_suffix = button_include_unit_suffix(but);
         get_but_string_unit(but, str, str_maxncpy, value, false, prec, do_suffix);
       }
       else if (subtype == PROP_FACTOR) {
