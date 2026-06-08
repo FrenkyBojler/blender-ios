@@ -1375,7 +1375,7 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
         if context.edit_object and context.edit_object.type == 'ARMATURE':
             layout.separator()
 
-            layout.operator("armature.align")
+            layout.operator("armature.align", text="Align to Active Bone or Parent")
 
 
 class VIEW3D_MT_mirror(Menu):
