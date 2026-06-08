@@ -6,7 +6,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_grease_pencil_softness__cc {
+namespace blender::nodes::node_geo_grease_pencil_stroke_softness__cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -23,15 +23,15 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeGreasePencilSoftness"_ustr);
-  ntype.ui_name = "Grease Pencil Softness";
+  geo_node_type_base(&ntype, "GeometryNodeGreasePencilStrokeSoftness"_ustr);
+  ntype.ui_name = "Grease Pencil Stroke Softness";
   ntype.ui_description = "Retrieve the softness of Grease Pencil strokes";
   ntype.nclass = NODE_CLASS_INPUT;
-  ntype.default_width = bke::NodeWidth::_160;
+  ntype.default_width = bke::NodeWidth::_200;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_grease_pencil_softness__cc
+}  // namespace blender::nodes::node_geo_grease_pencil_stroke_softness__cc
