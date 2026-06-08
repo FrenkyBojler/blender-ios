@@ -105,9 +105,19 @@ struct AssetLibraryListItem : public ui::AbstractTreeViewItem {
   {
     const bool is_remote_library = library.user_library &&
                                    (library.user_library->flag & ASSET_LIBRARY_USE_REMOTE_URL);
+    const bool project_library = library.user_library &&
+                                 (library.user_library->flag & ASSET_LIBRARY_PROJECT_DEFINED);
 
     if (library.user_library) {
       row.label(label_, is_remote_library ? ICON_INTERNET : ICON_DISK_DRIVE);
+
+      if (project_library) {
+        row.active_set(false);
+        ui::Layout &sub = row.row(true);
+        /* Draw text grayed out. */
+        sub.alignment_set(ui::LayoutAlign::Right);
+        sub.label(IFACE_("Project Defined"), ICON_NONE);
+      }
     }
     else {
       row.label(label_, ICON_NONE);
@@ -125,7 +135,7 @@ struct AssetLibraryListItem : public ui::AbstractTreeViewItem {
       row.label("", ICON_ERROR);
     }
 
-    if (library.user_library) {
+    if (library.user_library && !project_library) {
       PointerRNA ptr = RNA_pointer_create_discrete(
           nullptr, RNA_UserAssetLibrary, library.user_library);
       row.prop(&ptr,
@@ -200,6 +210,12 @@ static void draw_active_library_settings(ui::Layout &layout,
   }
 
   if (library.user_library) {
+    const bool project_library = library.user_library->flag & ASSET_LIBRARY_PROJECT_DEFINED;
+    if (project_library) {
+      layout.label(IFACE_("Go to Project Setup to change Project defined asset library settings."),
+                   ICON_NONE);
+      return;
+    }
     PointerRNA library_ptr = RNA_pointer_create_discrete(
         nullptr, RNA_UserAssetLibrary, library.user_library);
 
@@ -248,8 +264,11 @@ void userpref_asset_libraries_panel_draw(const bContext *C, Panel *panel)
   ui::Layout &sub = col.row(true);
   const bool active_idx_in_range = U.active_asset_library >= 0 &&
                                    U.active_asset_library < libraries.size();
-  sub.enabled_set(active_idx_in_range &&
-                  libraries[U.active_asset_library].type == ASSET_LIBRARY_CUSTOM);
+  const bool is_custom_library = libraries[U.active_asset_library].type == ASSET_LIBRARY_CUSTOM;
+  const bool is_project_library = is_custom_library &&
+                                  (libraries[U.active_asset_library].user_library->flag &
+                                   ASSET_LIBRARY_PROJECT_DEFINED);
+  sub.enabled_set(active_idx_in_range && is_custom_library && !is_project_library);
   PointerRNA props = sub.op("preferences.asset_library_remove", "", ICON_REMOVE);
   /* Convert from UI-items list index to #U.asset_libraries index. */
   RNA_int_set(&props, "index", U.active_asset_library - FIXED_ITEMS_COUNT);
