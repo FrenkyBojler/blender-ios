@@ -2483,7 +2483,6 @@ void mesh_freestyle_marks_to_generic(Mesh &mesh)
   }
 }
 
-
 void mesh_custom_normals_to_generic(Mesh &mesh)
 {
   if (mesh.attributes().contains("custom_normal")) {
