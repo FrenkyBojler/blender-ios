@@ -80,22 +80,28 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
         for rule in dynoverride.rules:
             if not rule.target_filter.target_id:
                 continue
-            row = layout.row()
-            row.label(text="Properties for {target_name} {idtype_name}...".format(
-                           target_name=rule.target_filter.target_id.name,
-                           idtype_name=rule.target_filter.target_id.rna_type.name.lower())
-                      )
-            row.prop(rule, "is_muted", icon='MUTE_IPO_OFF' if rule.is_muted else 'MUTE_IPO_ON', icon_only=True)
-            col = layout.column()
+            target_name = rule.target_filter.target_id.name_full
+            target_type = rule.target_filter.target_id.rna_type.name.lower()
+            rule_id = f"{target_type}::{target_name}"
+            panel_header, panel_body = layout.panel(idname=rule_id)
+            panel_header.label(text="Properties for {target_name} {idtype_name}...".format(
+                               target_name=target_name,
+                               idtype_name=target_type)
+                              )
+            panel_header.prop(rule, "is_muted", icon='HIDE_ON' if rule.is_muted else 'HIDE_OFF', icon_only=True)
+            if panel_body is None:
+                # Closed panel...
+                continue
+            col = panel_body.column()
             col.active = not rule.is_muted
             if isinstance(rule, bpy.types.DynamicOverrideRuleIDData):
                 for prop in rule.properties:
                     row = col.row()
                     row.label(text=f"\t\t{prop.rna_path}:")
-                    row.prop(prop, "is_muted", icon='MUTE_IPO_OFF' if prop.is_muted else 'MUTE_IPO_ON', icon_only=True)
-                    sub = col.column()
+                    sub = row.row()
                     sub.active = not prop.is_muted
                     sub.prop(rule.override_values, prop.property_identifier)
+                    row.prop(prop, "is_muted", icon='HIDE_ON' if prop.is_muted else 'HIDE_OFF', icon_only=True)
 
 
 class SCENE_PT_unit(SceneButtonsPanel, Panel):
