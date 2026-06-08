@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -101,8 +101,10 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
     if (loop.is_cyclic) {
       continue;
     }
-    if ((int)loop.verts.size() <= 2) {
-      continue; /* no interior verts */
+
+    /* no interior verts */
+    if (int(loop.verts.size()) <= 2) {
+      continue; 
     }
 
     Array<float3> orig_cos(loop.verts.size());
@@ -116,33 +118,33 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
     if (mode == EDGE_FLOW_LINEAR) {
       if (space_evenly) {
         const int count = int(loop.verts.size()) - 1;
-        float dir[3];
+        float3 dir[3];
         sub_v3_v3v3(dir, p2->co, p1->co);
 
         for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
-          float co[3];
+          float3 co[3];
           madd_v3_v3v3fl(co, p1->co, dir, float(i) / float(count));
 
-          float blended[3];
+          float3 blended[3];
           interp_v3_v3v3(blended, orig_cos[i], co, mix);
           copy_v3_v3(loop.verts[i]->co, blended);
         }
       }
       else { 
         /* space_evenly off flag */
-        float dir[3], dir_norm[3];
+        float3 dir[3], dir_norm[3];
         sub_v3_v3v3(dir, p2->co, p1->co);
         normalize_v3_v3(dir_norm, dir);
 
         for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
-          float co[3];
+          float3 co[3];
           sub_v3_v3v3(co, orig_cos[i], p1->co);
-          float dir_scalar = dot_v3v3(co, dir_norm);
+          float3 dir_scalar = dot_v3v3(co, dir_norm);
 
-          float new_co[3];
+          float3 new_co[3];
           madd_v3_v3v3fl(new_co, p1->co, dir_norm, dir_scalar);
 
-          float blended[3];
+          float3 blended[3];
           interp_v3_v3v3(blended, orig_cos[i], new_co, mix);
           copy_v3_v3(loop.verts[i]->co, blended);
         }
