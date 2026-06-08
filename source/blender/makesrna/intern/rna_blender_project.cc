@@ -121,7 +121,7 @@ static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
     ProjectVariable *var = ptr->data_as<ProjectVariable>();
 
     std::string new_name(value);
-    BKE_ensure_valid_variable_name(new_name);
+    BKE_ensure_valid_template_variable_name(new_name);
 
     if (var->name == new_name) {
       return;

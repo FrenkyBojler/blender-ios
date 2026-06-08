@@ -13,7 +13,6 @@ from dataclasses import dataclass
 
 from enum import Enum
 
-
 import bpy
 from bpy.types import Operator
 from bpy.app.translations import (
@@ -47,7 +46,7 @@ class ProjectVariable:
     name: str
     type: VariableType
     value: int | str | float
-    description: str | None = None
+    description: str
 
     @staticmethod
     def new_from_real(project_variable):
@@ -71,7 +70,7 @@ class ProjectVariable:
 @dataclass
 class ProjectConfig:
     name: str
-    variables: list[ProjectVariable] | None = None
+    variables: list[ProjectVariable] | None
 
     @staticmethod
     def new_from_project(project):
@@ -105,7 +104,7 @@ def structure_int_float_str(obj: int | float | str, cl: type) -> int | float | s
     if isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, str):
         return obj
     else:
-        raise ValueError(f"Cannot structure {obj!r} as int | float | str")
+        raise ValueError(f"Cannot structure {obj!r} as int | float | str.")
 
 
 # -------------------------------------------------------------

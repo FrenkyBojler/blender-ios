@@ -1081,7 +1081,7 @@ std::optional<std::string> BKE_path_template_format_int(const StringRef format_s
   return buffer;
 }
 
-bool BKE_ensure_valid_variable_name(std::string &name)
+bool BKE_ensure_valid_template_variable_name(std::string &name)
 {
   bool made_change = false;
 

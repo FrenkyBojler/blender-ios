@@ -449,6 +449,6 @@ std::optional<std::string> BKE_path_template_format_int(StringRef format_specifi
  *
  * Returns true if any changes were made, false otherwise.
  */
-bool BKE_ensure_valid_variable_name(std::string &name);
+bool BKE_ensure_valid_template_variable_name(std::string &name);
 
 }  // namespace blender
