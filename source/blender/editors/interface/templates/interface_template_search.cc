@@ -22,7 +22,7 @@
 namespace blender::ui {
 
 struct TemplateSearch {
-  uiRNACollectionSearch search_data;
+  RNACollectionSearch search_data;
 
   bool use_previews;
   int preview_rows, preview_cols;
@@ -31,7 +31,7 @@ struct TemplateSearch {
 static void template_search_exec_fn(bContext *C, void *arg_template, void *item)
 {
   TemplateSearch *template_search = static_cast<TemplateSearch *>(arg_template);
-  uiRNACollectionSearch *coll_search = &template_search->search_data;
+  RNACollectionSearch *coll_search = &template_search->search_data;
   StructRNA *type = RNA_property_pointer_type(&coll_search->target_ptr, coll_search->target_prop);
 
   PointerRNA item_ptr = RNA_pointer_create_discrete(nullptr, type, item);
@@ -44,13 +44,13 @@ static Block *template_search_menu(bContext *C, ARegion *region, void *arg_templ
   static TemplateSearch template_search;
 
   /* arg_template is malloced, can be freed by parent button */
-  template_search = *((TemplateSearch *)arg_template);
+  template_search = *(static_cast<TemplateSearch *>(arg_template));
   PointerRNA active_ptr = RNA_property_pointer_get(&template_search.search_data.target_ptr,
                                                    template_search.search_data.target_prop);
 
   return template_common_search_menu(C,
                                      region,
-                                     ui_rna_collection_search_update_fn,
+                                     rna_collection_search_update_fn,
                                      &template_search,
                                      template_search_exec_fn,
                                      active_ptr.data,
@@ -97,7 +97,7 @@ static void template_search_add_button_name(Block *block,
   int iconid = ICON_NONE;
 
   PropertyRNA *name_prop;
-  if (type == &RNA_ActionSlot) {
+  if (type == RNA_ActionSlot) {
     name_prop = RNA_struct_find_property(active_ptr, "name_display");
     /* Also show an icon for the data-block type that each slot is intended for. */
     animrig::Slot &slot = reinterpret_cast<ActionSlot *>(active_ptr->data)->wrap();
@@ -107,7 +107,12 @@ static void template_search_add_button_name(Block *block,
     name_prop = RNA_struct_name_property(type);
   }
 
-  const int width = template_search_textbut_width(active_ptr, name_prop);
+  int width = template_search_textbut_width(active_ptr, name_prop);
+  if (iconid != ICON_NONE) {
+    /* Widen a bit to make room for the icon. #152027. */
+    width += int(18.0f * UI_SCALE_FAC);
+  }
+
   const int height = template_search_textbut_height();
   uiDefAutoButR(block, active_ptr, name_prop, 0, "", iconid, 0, 0, width, height);
 }
@@ -131,7 +136,7 @@ static void template_search_add_button_operator(
         UI_UNIT_X * 5);
 
     but = uiDefIconTextButO(block,
-                            ButType::But,
+                            ButtonType::But,
                             operator_name,
                             opcontext,
                             icon,
@@ -144,7 +149,7 @@ static void template_search_add_button_operator(
   }
   else {
     but = uiDefIconButO(block,
-                        ButType::But,
+                        ButtonType::But,
                         operator_name,
                         opcontext,
                         icon,
@@ -168,7 +173,7 @@ static void template_search_buttons(const bContext *C,
                                     const std::optional<StringRef> text)
 {
   Block *block = layout.block();
-  uiRNACollectionSearch *search_data = &template_search.search_data;
+  RNACollectionSearch *search_data = &template_search.search_data;
   const StructRNA *type = RNA_property_pointer_type(&search_data->target_ptr,
                                                     search_data->target_prop);
   const bool editable = RNA_property_editable(&search_data->target_ptr, search_data->target_prop);
@@ -195,7 +200,7 @@ static void template_search_buttons(const bContext *C,
   /* For Blender 4.4, the "New" button is only shown on Action Slot selectors.
    * Blender 4.5 may have this enabled for all uses of this template, in which
    * case this type-specific code will be removed. */
-  const bool may_show_new_button = (type == &RNA_ActionSlot);
+  const bool may_show_new_button = (type == RNA_ActionSlot);
   if (may_show_new_button && !active_ptr.data) {
     template_search_add_button_operator(
         block, newop, wm::OpCallContext::InvokeDefault, ICON_ADD, editable, IFACE_("New"));

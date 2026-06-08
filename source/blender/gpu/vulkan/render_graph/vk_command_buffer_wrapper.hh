@@ -10,11 +10,13 @@
 
 #include "vk_common.hh"
 
-namespace blender::gpu {
+namespace blender {
+
+namespace gpu {
 struct VKExtensions;
 }
 
-namespace blender::gpu::render_graph {
+namespace gpu::render_graph {
 class VKCommandBufferInterface {
  public:
   bool use_dynamic_rendering_local_read = true;
@@ -129,7 +131,8 @@ class VKCommandBufferInterface {
   virtual void reset_query_pool(VkQueryPool vk_query_pool,
                                 uint32_t first_query,
                                 uint32_t query_count) = 0;
-  /* Dynamic states*/
+  /* Dynamic states. */
+
   virtual void set_viewport(const Vector<VkViewport> viewports) = 0;
   virtual void set_scissor(const Vector<VkRect2D> scissors) = 0;
   virtual void set_line_width(const float line_width) = 0;
@@ -276,4 +279,6 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT *vk_debug_utils_label) override;
   void end_debug_utils_label() override;
 };
-}  // namespace blender::gpu::render_graph
+}  // namespace gpu::render_graph
+
+}  // namespace blender

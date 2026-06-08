@@ -6,6 +6,8 @@
  * \ingroup edtransform
  */
 
+#include <algorithm>
+
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
@@ -57,6 +59,12 @@ struct EdgeSlideData {
   void update_proj_mat(TransInfo *t, const TransDataContainer *tc)
   {
     ARegion *region = t->region;
+    if (region == nullptr) [[unlikely]] {
+      this->win_half = {1.0f, 1.0f};
+      this->proj_mat = float4x4::identity();
+      return;
+    }
+
     this->win_half = {region->winx / 2.0f, region->winy / 2.0f};
 
     if (t->spacetype == SPACE_VIEW3D) {
@@ -277,9 +285,9 @@ static void calcEdgeSlide_mval_range(TransInfo *t,
   float *loop_maxdist = nullptr;
 
   if (use_calc_direction) {
-    loop_dir = MEM_calloc_arrayN<float2>(loop_nr, "sv loop_dir");
-    loop_maxdist = MEM_malloc_arrayN<float>(loop_nr, "sv loop_maxdist");
-    copy_vn_fl(loop_maxdist, loop_nr, FLT_MAX);
+    loop_dir = MEM_new_array_zeroed<float2>(loop_nr, "sv loop_dir");
+    loop_maxdist = MEM_new_array_uninitialized<float>(loop_nr, "sv loop_maxdist");
+    std::fill_n(loop_maxdist, loop_nr, FLT_MAX);
   }
 
   for (int i : sld->sv.index_range()) {
@@ -326,8 +334,8 @@ static void calcEdgeSlide_mval_range(TransInfo *t,
       }
     }
 
-    MEM_freeN(loop_dir);
-    MEM_freeN(loop_maxdist);
+    MEM_delete(loop_dir);
+    MEM_delete(loop_maxdist);
   }
 
   edge_slide_data_init_mval(&t->mouse, sld, mval_dir);
@@ -460,7 +468,7 @@ static void drawEdgeSlide(TransInfo *t)
   const EdgeSlideParams *slp = static_cast<const EdgeSlideParams *>(t->custom.mode.data);
   const bool is_clamp = !(t->flag & T_ALT_TRANSFORM);
 
-  const float line_size = ui::GetThemeValuef(TH_OUTLINE_WIDTH) + 0.5f;
+  const float line_size = ui::theme::get_value_f(TH_OUTLINE_WIDTH) + 0.5f;
 
   GPU_depth_test(GPU_DEPTH_NONE);
 
@@ -471,8 +479,7 @@ static void drawEdgeSlide(TransInfo *t)
     GPU_matrix_mul(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world().ptr());
   }
 
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -483,7 +490,7 @@ static void drawEdgeSlide(TransInfo *t)
     /* Even mode. */
     float co_a[3], co_b[3], co_mark[3];
     const float fac = (slp->perc + 1.0f) / 2.0f;
-    const float ctrl_size = ui::GetThemeValuef(TH_FACEDOT_SIZE) + 1.5f;
+    const float ctrl_size = ui::theme::get_value_f(TH_FACEDOT_SIZE) + 1.5f;
     const float guide_size = ctrl_size - 0.5f;
     const int alpha_shade = -30;
 
@@ -887,7 +894,7 @@ static void initEdgeSlide_ex(TransInfo *t,
   t->mode = TFM_EDGE_SLIDE;
 
   {
-    EdgeSlideParams *slp = MEM_callocN<EdgeSlideParams>(__func__);
+    EdgeSlideParams *slp = MEM_new_zeroed<EdgeSlideParams>(__func__);
     slp->op = op;
     slp->use_even = use_even;
     slp->flipped = flipped;

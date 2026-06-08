@@ -48,8 +48,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-using blender::Set;
-using blender::Vector;
+namespace blender {
 
 /** We only need this locally. */
 static CLG_LogRef LOG = {"undo"};
@@ -101,6 +100,15 @@ void ED_undo_push(bContext *C, const char *str)
   WM_file_tag_modified();
 
   wmWindowManager *wm = CTX_wm_manager(C);
+  if (G.background) {
+    /* Python developers may have explicitly created the undo stack in background mode,
+     * otherwise allow it to be nullptr, see: #60934.
+     * Otherwise it must never be nullptr, even when undo is disabled. */
+    if (wm->runtime->undo_stack == nullptr) {
+      return;
+    }
+  }
+
   int steps = U.undosteps;
 
   /* Ensure steps that have been initialized are always pushed,
@@ -116,14 +124,6 @@ void ED_undo_push(bContext *C, const char *str)
   }
   if (steps <= 0) {
     return;
-  }
-  if (G.background) {
-    /* Python developers may have explicitly created the undo stack in background mode,
-     * otherwise allow it to be nullptr, see: #60934.
-     * Otherwise it must never be nullptr, even when undo is disabled. */
-    if (wm->runtime->undo_stack == nullptr) {
-      return;
-    }
   }
 
   eUndoPushReturn push_retval;
@@ -216,6 +216,10 @@ static void ed_undo_step_post(bContext *C,
       BLO_main_validate_libraries(bmain, reports);
     }
   }
+
+  /* Undo/redo may have invalidated a lot of data, ensure UI has also been fully updated before
+   * handling next events. */
+  WM_event_handling_break(*C);
 
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
   WM_event_add_notifier(C, NC_WM | ND_UNDO, nullptr);
@@ -338,9 +342,16 @@ void ED_undo_grouped_push(bContext *C, const char *str)
 {
   /* do nothing if previous undo task is the same as this one (or from the same undo group) */
   wmWindowManager *wm = CTX_wm_manager(C);
-  const UndoStep *us = wm->runtime->undo_stack->step_active;
+  UndoStack *ustack = wm->runtime->undo_stack;
+  /* See matching check in #ED_undo_push. */
+  if (G.background) {
+    if (ustack == nullptr) {
+      return;
+    }
+  }
+  const UndoStep *us = ustack->step_active;
   if (us && STREQ(str, us->name)) {
-    BKE_undosys_stack_clear_active(wm->runtime->undo_stack);
+    BKE_undosys_stack_clear_active(ustack);
   }
 
   /* push as usual */
@@ -381,17 +392,26 @@ void ED_undo_pop_op(bContext *C, wmOperator *op)
 bool ED_undo_is_valid(const bContext *C, const char *undoname)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  return BKE_undosys_stack_has_undo(wm->runtime->undo_stack, undoname);
+  UndoStack *ustack = wm->runtime->undo_stack;
+  return ustack && BKE_undosys_stack_has_undo(ustack, undoname);
+}
+
+bool ED_undo_has_redo_step(const bContext *C)
+{
+  const wmWindowManager *wm = CTX_wm_manager(C);
+  UndoStack *ustack = wm->runtime->undo_stack;
+  return ustack && BKE_undosys_stack_has_redo(ustack);
 }
 
 bool ED_undo_is_memfile_compatible(const bContext *C)
 {
   /* Some modes don't co-exist with memfile undo, disable their use: #60593
    * (this matches 2.7x behavior). */
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   if (view_layer != nullptr) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
     if (obact != nullptr) {
       if (obact->mode & OB_MODE_EDIT) {
@@ -412,17 +432,17 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &
     return false;
   }
 
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   if (view_layer != nullptr) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
     if (obact != nullptr) {
-      if (obact->mode & (OB_MODE_ALL_PAINT & ~(OB_MODE_WEIGHT_PAINT | OB_MODE_VERTEX_PAINT))) {
-        /* For all non-weight-paint paint modes: Don't store property changes when painting.
-         * Weight Paint and Vertex Paint use global undo, and thus don't need to be special-cased
-         * here. */
-        CLOG_DEBUG(&LOG, "skipping undo for paint-mode");
+      if (obact->mode & OB_MODE_SCULPT) {
+        /* Changing properties while in sculpt mode is expensive due to the paint BVH rebuild.
+         * Avoid pushing such undo steps for now. */
+        CLOG_DEBUG(&LOG, "skipping undo for sculpt-mode");
         return false;
       }
       if (obact->mode & OB_MODE_EDIT) {
@@ -643,8 +663,7 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
     /* If the redo is called from a HUD, this knows about the region type the operator was
      * initially called in, so attempt to restore that. */
     ARegion *redo_region_from_hud = (region_orig->regiontype == RGN_TYPE_HUD) ?
-                                        blender::ui::ED_area_type_hud_redo_region_find(
-                                            area, region_orig) :
+                                        ui::ED_area_type_hud_redo_region_find(area, region_orig) :
                                         nullptr;
     ARegion *region_repeat = redo_region_from_hud ? redo_region_from_hud :
                                                     BKE_area_find_region_active_win(area);
@@ -708,12 +727,12 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
 
 void ED_undo_operator_repeat_cb(bContext *C, void *arg_op, void * /*arg_unused*/)
 {
-  ED_undo_operator_repeat(C, (wmOperator *)arg_op);
+  ED_undo_operator_repeat(C, static_cast<wmOperator *>(arg_op));
 }
 
 void ED_undo_operator_repeat_cb_evt(bContext *C, void *arg_op, int /*arg_unused*/)
 {
-  ED_undo_operator_repeat(C, (wmOperator *)arg_op);
+  ED_undo_operator_repeat(C, static_cast<wmOperator *>(arg_op));
 }
 
 /** \} */
@@ -748,7 +767,7 @@ static wmOperatorStatus undo_history_invoke(bContext *C, wmOperator *op, const w
     return undo_history_exec(C, op);
   }
 
-  WM_menu_name_call(C, "TOPBAR_MT_undo_history", blender::wm::OpCallContext::InvokeDefault);
+  WM_menu_name_call(C, "TOPBAR_MT_undo_history", wm::OpCallContext::InvokeDefault);
   return OPERATOR_FINISHED;
 }
 
@@ -756,7 +775,7 @@ void ED_OT_undo_history(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Undo History";
-  ot->description = "Redo specific action in history";
+  ot->description = "Undo or redo specific action in history";
   ot->idname = "ED_OT_undo_history";
 
   /* API callbacks. */
@@ -773,11 +792,15 @@ void ED_OT_undo_history(wmOperatorType *ot)
 /** \name Undo Helper Functions
  * \{ */
 
-void ED_undo_object_set_active_or_warn(
-    Scene *scene, ViewLayer *view_layer, Object *ob, const char *info, CLG_LogRef *log)
+void ED_undo_object_set_active_or_warn(const Main &bmain,
+                                       Scene *scene,
+                                       ViewLayer *view_layer,
+                                       Object *ob,
+                                       const char *info,
+                                       CLG_LogRef *log)
 {
   using namespace blender::ed;
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Object *ob_prev = BKE_view_layer_active_object_get(view_layer);
   if (ob_prev != ob) {
     Base *base = BKE_view_layer_base_find(view_layer, ob);
@@ -800,10 +823,10 @@ void ED_undo_object_editmode_validate_scene_from_windows(wmWindowManager *wm,
   if (*scene_p == scene_ref) {
     return;
   }
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (win->scene == scene_ref) {
-      *scene_p = win->scene;
-      *view_layer_p = WM_window_get_active_view_layer(win);
+  for (wmWindow &win : wm->windows) {
+    if (win.scene == scene_ref) {
+      *scene_p = win.scene;
+      *view_layer_p = WM_window_get_active_view_layer(&win);
       return;
     }
   }
@@ -819,9 +842,9 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
   Main *bmain = G_MAIN;
   /* Don't request unique data because we want to de-select objects when exiting edit-mode
    * for that to be done on all objects we can't skip ones that share data. */
-  Vector<Base *> bases = ED_undo_editmode_bases_from_view_layer(scene, view_layer);
+  Vector<Base *> bases = ED_undo_editmode_bases_from_view_layer(*bmain, scene, view_layer);
   for (Base *base : bases) {
-    ((ID *)base->object->data)->tag |= ID_TAG_DOIT;
+    (base->object->data)->tag |= ID_TAG_DOIT;
   }
   Object **ob_p = object_array;
   for (uint i = 0; i < object_array_len;
@@ -829,10 +852,10 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
   {
     Object *obedit = *ob_p;
     object::editmode_enter_ex(bmain, scene, obedit, object::EM_NO_CONTEXT);
-    ((ID *)obedit->data)->tag &= ~ID_TAG_DOIT;
+    (obedit->data)->tag &= ~ID_TAG_DOIT;
   }
   for (Base *base : bases) {
-    const ID *id = static_cast<ID *>(base->object->data);
+    const ID *id = base->object->data;
     if (id->tag & ID_TAG_DOIT) {
       object::editmode_exit_ex(bmain, scene, base->object, object::EM_FREEDATA);
       /* Ideally we would know the selection state it was before entering edit-mode,
@@ -854,10 +877,11 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
  * and local collections may be used.
  * \{ */
 
-Vector<Object *> ED_undo_editmode_objects_from_view_layer(const Scene *scene,
+Vector<Object *> ED_undo_editmode_objects_from_view_layer(const Main &bmain,
+                                                          const Scene *scene,
                                                           ViewLayer *view_layer)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Base *baseact = BKE_view_layer_active_base_get(view_layer);
   if ((baseact == nullptr) || (baseact->object->mode & OB_MODE_EDIT) == 0) {
     return {};
@@ -884,9 +908,11 @@ Vector<Object *> ED_undo_editmode_objects_from_view_layer(const Scene *scene,
   return objects;
 }
 
-Vector<Base *> ED_undo_editmode_bases_from_view_layer(const Scene *scene, ViewLayer *view_layer)
+Vector<Base *> ED_undo_editmode_bases_from_view_layer(const Main &bmain,
+                                                      const Scene *scene,
+                                                      ViewLayer *view_layer)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Base *baseact = BKE_view_layer_active_base_get(view_layer);
   if ((baseact == nullptr) || (baseact->object->mode & OB_MODE_EDIT) == 0) {
     return {};
@@ -920,7 +946,7 @@ size_t ED_undosys_total_memory_calc(UndoStack *ustack)
 
   for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.first); us != nullptr; us = us->next) {
     if (us->type == BKE_UNDOSYS_TYPE_SCULPT) {
-      total_memory += blender::ed::sculpt_paint::undo::step_memory_size_get(us);
+      total_memory += ed::sculpt_paint::undo::step_memory_size_get(us);
     }
     else if (us->data_size > 0) {
       total_memory += us->data_size;
@@ -931,3 +957,5 @@ size_t ED_undosys_total_memory_calc(UndoStack *ustack)
 }
 
 /** \} */
+
+}  // namespace blender

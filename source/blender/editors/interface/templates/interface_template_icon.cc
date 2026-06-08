@@ -23,12 +23,12 @@ struct IconViewMenuArgs {
 };
 
 /* ID Search browse menu, open */
-static Block *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_litem)
+static Block *icon_view_menu_cb(bContext *C, ARegion *region, void *arg_litem)
 {
   static IconViewMenuArgs args;
 
   /* arg_litem is malloced, can be freed by parent button */
-  args = *((IconViewMenuArgs *)arg_litem);
+  args = *(static_cast<IconViewMenuArgs *>(arg_litem));
   const int w = UI_UNIT_X * (args.icon_scale);
   const int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
 
@@ -49,7 +49,7 @@ static Block *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_litem
     Button *but;
     if (args.show_labels) {
       but = uiDefIconTextButR_prop(block,
-                                   ButType::Row,
+                                   ButtonType::Row,
                                    icon,
                                    item[a].name,
                                    x,
@@ -64,17 +64,28 @@ static Block *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_litem
                                    std::nullopt);
     }
     else {
-      but = uiDefIconButR_prop(
-          block, ButType::Row, icon, x, y, w, h, &args.ptr, args.prop, -1, 0, value, std::nullopt);
+      but = uiDefIconButR_prop(block,
+                               ButtonType::Row,
+                               icon,
+                               x,
+                               y,
+                               w,
+                               h,
+                               &args.ptr,
+                               args.prop,
+                               -1,
+                               0,
+                               value,
+                               std::nullopt);
     }
-    ui_def_but_icon(but, icon, UI_HAS_ICON | BUT_ICON_PREVIEW);
+    def_but_icon(but, icon, UI_HAS_ICON | BUT_ICON_PREVIEW);
   }
 
   block_bounds_set_normal(block, 0.3f * U.widget_unit);
   block_direction_set(block, UI_DIR_DOWN);
 
   if (free) {
-    MEM_freeN(item);
+    MEM_delete(item);
   }
 
   return block;
@@ -84,7 +95,7 @@ void template_icon(Layout *layout, int icon_value, float icon_scale)
 {
   Block *block = layout->absolute().block();
   Button *but = uiDefIconBut(block,
-                             ButType::Label,
+                             ButtonType::Label,
                              ICON_X,
                              0,
                              0,
@@ -94,7 +105,7 @@ void template_icon(Layout *layout, int icon_value, float icon_scale)
                              0.0,
                              0.0,
                              "");
-  ui_def_but_icon(but, icon_value, UI_HAS_ICON | BUT_ICON_PREVIEW);
+  def_but_icon(but, icon_value, UI_HAS_ICON | BUT_ICON_PREVIEW);
 }
 
 void template_icon_view(Layout *layout,
@@ -133,7 +144,7 @@ void template_icon_view(Layout *layout,
     cb_args->icon_scale = icon_scale_popup;
 
     but = uiDefBlockButN(block,
-                         ui_icon_view_menu_cb,
+                         icon_view_menu_cb,
                          cb_args,
                          "",
                          0,
@@ -146,7 +157,7 @@ void template_icon_view(Layout *layout,
   }
   else {
     but = uiDefIconBut(block,
-                       ButType::Label,
+                       ButtonType::Label,
                        ICON_X,
                        0,
                        0,
@@ -158,10 +169,10 @@ void template_icon_view(Layout *layout,
                        "");
   }
 
-  ui_def_but_icon(but, icon, UI_HAS_ICON | BUT_ICON_PREVIEW);
+  def_but_icon(but, icon, UI_HAS_ICON | BUT_ICON_PREVIEW);
 
   if (free_items) {
-    MEM_freeN(items);
+    MEM_delete(items);
   }
 }
 

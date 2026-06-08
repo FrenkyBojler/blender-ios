@@ -8,9 +8,15 @@
  * \ingroup bmesh
  */
 
+#include "DNA_listBase.h"
+
 #include "BKE_customdata.hh"
 
 #include "bmesh_class.hh"
+
+struct BMLoopList;
+
+namespace blender {
 
 /**
  * When copying between different BMesh objects,
@@ -189,7 +195,7 @@ void bmesh_face_swap_data(BMFace *f_a, BMFace *f_b);
  *
  * \param bm: The bmesh.
  * \param faces: An array of faces to join.
- * \param totfaces: The length of the face array to join.
+ * \param totface: The length of the face array to join.
  * \param do_del: if true, remove the original faces, internal edges, and internal verts such that
  *    they are replaced by the new face.
  * \param r_double: A pointer to a BMFace* that is controls processing of doubled faces.
@@ -309,7 +315,7 @@ BMFace *bmesh_kernel_split_face_make_edge(BMesh *bm,
                                           BMLoop *l_v2,
                                           BMLoop **r_l,
 #ifdef USE_BMESH_HOLES
-                                          ListBase *holes,
+                                          ListBaseT<BMLoopList> *holes,
 #endif
                                           BMEdge *example,
                                           bool no_double);
@@ -450,3 +456,5 @@ BMVert *bmesh_kernel_unglue_region_make_vert_multi(BMesh *bm, BMLoop **larr, int
  * isolated by calling #bmesh_kernel_edge_separate to segregate it radially.
  */
 BMVert *bmesh_kernel_unglue_region_make_vert_multi_isolated(BMesh *bm, BMLoop *l_sep);
+
+}  // namespace blender

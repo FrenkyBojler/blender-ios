@@ -23,7 +23,7 @@ void button_drag_set_id(Button *but, ID *id)
     WM_drag_data_free(but->dragtype, but->dragpoin);
     but->dragflag &= ~BUT_DRAGPOIN_FREE;
   }
-  but->dragpoin = (void *)id;
+  but->dragpoin = static_cast<void *>(id);
 }
 
 void button_drag_attach_image(Button *but, const ImBuf *imb, const float scale)
@@ -42,7 +42,8 @@ void button_drag_set_asset(Button *but,
   wmDragAsset *asset_drag = WM_drag_create_asset_data(asset, import_settings);
 
   but->dragtype = WM_DRAG_ASSET;
-  ui_def_but_icon(but, icon, 0); /* no flag UI_HAS_ICON, so icon doesn't draw in button */
+  def_but_icon(
+      but, icon, BUT_ICON_PREVIEW); /* no flag UI_HAS_ICON, so icon doesn't draw in button */
   if (but->dragflag & BUT_DRAGPOIN_FREE) {
     WM_drag_data_free(but->dragtype, but->dragpoin);
   }
@@ -58,7 +59,7 @@ void button_drag_set_rna(Button *but, PointerRNA *ptr)
     WM_drag_data_free(but->dragtype, but->dragpoin);
     but->dragflag &= ~BUT_DRAGPOIN_FREE;
   }
-  but->dragpoin = (void *)ptr;
+  but->dragpoin = static_cast<void *>(ptr);
 }
 
 void button_drag_set_path(Button *but, const char *path)
@@ -83,24 +84,24 @@ void button_drag_set_name(Button *but, const char *name)
 
 void button_drag_set_image(Button *but, const char *path, int icon, const ImBuf *imb, float scale)
 {
-  ui_def_but_icon(but, icon, 0); /* no flag UI_HAS_ICON, so icon doesn't draw in button */
+  def_but_icon(but, icon, 0); /* no flag UI_HAS_ICON, so icon doesn't draw in button */
   button_drag_set_path(but, path);
   button_drag_attach_image(but, imb, scale);
 }
 
-void ui_but_drag_free(Button *but)
+void button_drag_free(Button *but)
 {
   if (but->dragpoin && (but->dragflag & BUT_DRAGPOIN_FREE)) {
     WM_drag_data_free(but->dragtype, but->dragpoin);
   }
 }
 
-bool ui_but_drag_is_draggable(const Button *but)
+bool button_drag_is_draggable(const Button *but)
 {
   return but->dragpoin != nullptr;
 }
 
-void ui_but_drag_start(bContext *C, Button *but)
+void button_drag_start(bContext *C, Button *but)
 {
   wmDrag *drag = WM_drag_data_create(C,
                                      but->icon,

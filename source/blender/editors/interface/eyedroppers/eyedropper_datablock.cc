@@ -13,9 +13,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
@@ -167,14 +167,14 @@ static void datadropper_id_sample_pt(
           Object *ob = base->object;
           ID *id = nullptr;
           if (ddr->idcode == ID_OB) {
-            id = (ID *)ob;
+            id = id_cast<ID *>(ob);
           }
           else if (ob->data) {
-            if (GS(((ID *)ob->data)->name) == ddr->idcode) {
-              id = (ID *)ob->data;
+            if (GS(ob->data->name) == ddr->idcode) {
+              id = ob->data;
             }
             else {
-              SNPRINTF_UTF8(ddr->name, "Incompatible, expected a %s", ddr->idcode_name);
+              SNPRINTF_UTF8(ddr->name, RPT_("Incompatible, expected a %s"), ddr->idcode_name);
             }
           }
 
@@ -257,7 +257,7 @@ static void datadropper_set_draw_callback_region(ScrArea *area, DataDropper *ddr
 /* main modal status check */
 static wmOperatorStatus datadropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  DataDropper *ddr = (DataDropper *)op->customdata;
+  DataDropper *ddr = static_cast<DataDropper *>(op->customdata);
 
   /* handle modal keymap */
   if (event->type == EVT_MODAL_MAP) {
@@ -336,7 +336,7 @@ static bool datadropper_poll(bContext *C)
   /* data dropper only supports object data */
   if ((CTX_wm_window(C) != nullptr) &&
       (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
-      (but->type == ButType::SearchMenu) && (but->flag & BUT_VALUE_CLEAR))
+      (but->type == ButtonType::SearchMenu) && (but->flag & BUT_VALUE_CLEAR))
   {
     if (prop && RNA_property_type(prop) == PROP_POINTER) {
       StructRNA *type = RNA_property_pointer_type(&ptr, prop);

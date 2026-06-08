@@ -13,6 +13,8 @@
 /* Required for #eIconSizes. */
 #include "DNA_ID_enums.h"
 
+namespace blender {
+
 struct Collection;
 struct ID;
 struct ImBuf;
@@ -22,7 +24,7 @@ struct PreviewImage;
 struct Scene;
 struct bContext;
 
-namespace blender::ui {
+namespace ui {
 
 struct IconTextOverlay {
   char text[5];
@@ -36,8 +38,8 @@ struct IconTextOverlay {
 
 #define ICON_DEFAULT_HEIGHT_TOOLBAR 32
 
-#define ICON_DEFAULT_HEIGHT_SCALE ((int)(UI_UNIT_Y * 0.8f))
-#define ICON_DEFAULT_WIDTH_SCALE ((int)(UI_UNIT_X * 0.8f))
+#define ICON_DEFAULT_HEIGHT_SCALE int(UI_UNIT_Y * 0.8f)
+#define ICON_DEFAULT_WIDTH_SCALE int(UI_UNIT_X * 0.8f)
 
 #define PREVIEW_DEFAULT_HEIGHT 128
 
@@ -57,7 +59,7 @@ ImBuf *icon_alert_imbuf_get(AlertIcon icon, float size);
 /**
  * Resizable Icons for Blender
  */
-void UI_icons_init();
+void icons_init();
 
 bool icon_get_theme_color(int icon_id, unsigned char color[4]);
 
@@ -101,10 +103,10 @@ void icon_draw_ex(float x,
                   const IconTextOverlay *text_overlay,
                   const bool inverted = false);
 
-ImBuf *UI_svg_icon_bitmap(uint icon_id, float size, bool multicolor = false);
+ImBuf *svg_icon_bitmap(uint icon_id, float size, bool multicolor = false);
 
-void UI_icons_free();
-void UI_icons_free_drawinfo(void *drawinfo);
+void icons_free();
+void icons_free_drawinfo(void *drawinfo);
 
 PreviewImage *icon_to_preview(int icon_id);
 
@@ -117,4 +119,8 @@ int icon_color_from_collection(const Collection *collection);
 
 void icon_text_overlay_init_from_count(IconTextOverlay *text_overlay,
                                        const int icon_indicator_number);
-}  // namespace blender::ui
+
+void icon_ensure_deferred(const bContext *C, int icon_id, bool big);
+
+}  // namespace ui
+}  // namespace blender

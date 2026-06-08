@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-02 11:29+0000\n"
+"POT-Creation-Date: 2026-06-08 09:37+0000\n"
 "PO-Revision-Date: 2025-07-23 15:13+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Basque <https://translate.blender.org/projects/blender-ui/ui/eu/>\n"
@@ -207,6 +207,10 @@ msgid "Default"
 msgstr "Lehenetsia"
 
 
+msgid "Display Mode"
+msgstr "Bistaraketa Modua"
+
+
 msgid "Height"
 msgstr "Altuera"
 
@@ -241,6 +245,10 @@ msgstr "Propietateak"
 
 msgid "File Browser"
 msgstr "Fitxategi Bilatzailea"
+
+
+msgid "Link"
+msgstr "Estekatu"
 
 
 msgid "Vector"
@@ -395,14 +403,6 @@ msgid "Environment"
 msgstr "Ingurunea"
 
 
-msgid "Display Mode"
-msgstr "Bistaraketa Modua"
-
-
-msgid "Link"
-msgstr "Estekatu"
-
-
 msgid "Time"
 msgstr "Denbora"
 
@@ -413,6 +413,14 @@ msgstr "Ezabatu"
 
 msgid "Normal"
 msgstr "Normala"
+
+
+msgid "Text"
+msgstr "Testua"
+
+
+msgid "Sound"
+msgstr "Soinua"
 
 
 msgid "Grid"
@@ -478,10 +486,6 @@ msgstr "Zirkulua"
 
 msgid "Angular Velocity"
 msgstr "Abiadura-angeluarra"
-
-
-msgid "Sound"
-msgstr "Soinua"
 
 
 msgid "Image Texture"
@@ -553,12 +557,12 @@ msgid "Min Angle"
 msgstr "Angelu Minimoa"
 
 
+msgid "Relations"
+msgstr "Loturak"
+
+
 msgid "Show/Hide"
 msgstr "Erakutsi/Ezkutatu"
-
-
-msgid "Text"
-msgstr "Testua"
 
 
 msgid "Import"
@@ -567,10 +571,6 @@ msgstr "Inportatu"
 
 msgid "UV"
 msgstr "UV"
-
-
-msgid "Relations"
-msgstr "Loturak"
 
 
 msgid "Show/Hide Faces"
@@ -689,11 +689,6 @@ msgstr "Berria"
 msgctxt "Operator"
 msgid "Play Rendered Animation"
 msgstr "Renderizatutako Animazioa Erreproduzitu"
-
-
-msgctxt "Operator"
-msgid "Save System Info"
-msgstr "Sistemaren Informazioa Gorde"
 
 
 msgctxt "Operator"
@@ -1290,6 +1285,11 @@ msgstr "Kurtsorea finkatu"
 
 
 msgctxt "Operator"
+msgid "Local View"
+msgstr "Bista Lokala"
+
+
+msgctxt "Operator"
 msgid "Grease Pencil Draw"
 msgstr "Arkatzez marraztu"
 
@@ -1629,11 +1629,6 @@ msgstr "Menua Hautatu"
 
 
 msgctxt "Operator"
-msgid "Local View"
-msgstr "Bista Lokala"
-
-
-msgctxt "Operator"
 msgid "Rotate View"
 msgstr "Bista Biratu"
 
@@ -1804,6 +1799,11 @@ msgid "Report a Bug"
 msgstr "Akats baten berri eman"
 
 
+msgctxt "Operator"
+msgid "Clear"
+msgstr "Garbitu"
+
+
 msgid "3D View"
 msgstr "3D Bista"
 
@@ -1824,11 +1824,6 @@ msgstr "Xehetasuna"
 
 msgid "Priority"
 msgstr "Lehentasuna"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "Garbitu"
 
 
 msgid "Lower"
@@ -1878,6 +1873,11 @@ msgstr "Testua: Barnekoa"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Kopia gorde..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Irten"
 
@@ -1885,11 +1885,6 @@ msgstr "Irten"
 msgctxt "Operator"
 msgid "Render Animation"
 msgstr "Animazioa"
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Kopia gorde..."
 
 
 msgctxt "Operator"

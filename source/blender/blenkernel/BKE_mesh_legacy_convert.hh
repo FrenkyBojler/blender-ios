@@ -12,13 +12,15 @@
 
 #include "BLI_vector.hh"
 
+namespace blender {
+
 struct CustomData;
 struct Main;
 struct Mesh;
 struct MFace;
 struct CustomDataLayer;
 
-namespace blender::bke {
+namespace bke {
 
 void mesh_uv_select_to_single_attribute(Mesh &mesh);
 
@@ -33,7 +35,7 @@ void mesh_freestyle_marks_to_legacy(AttributeStorage::BlendWriteData &attr_write
                                     Vector<CustomDataLayer, 16> &edge_layers,
                                     Vector<CustomDataLayer, 16> &face_layers);
 
-}  // namespace blender::bke
+}  // namespace bke
 
 void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh);
 
@@ -104,7 +106,7 @@ void BKE_mesh_tessface_ensure(Mesh *mesh);
  * Rotates the vertices of a face in case v[2] or v[3] (vertex index) is = 0.
  * this is necessary to make the `if #MFace.v4` check for quads work.
  */
-int BKE_mesh_mface_index_validate(MFace *mface, CustomData *mfdata, int mfindex, int nr);
+int BKE_mesh_mface_index_validate(MFace *mface, CustomData *fdata_legacy, int mfindex, int nr);
 
 void BKE_mesh_convert_mfaces_to_mpolys(Mesh *mesh);
 
@@ -147,3 +149,5 @@ inline int BKE_mesh_origindex_mface_mpoly(const int *index_mf_to_mpoly,
 }
 
 void BKE_mesh_strip_loose_faces(Mesh *mesh);
+
+}  // namespace blender

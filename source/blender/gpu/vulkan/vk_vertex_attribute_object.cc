@@ -65,12 +65,17 @@ void VKVertexAttributeObject::bind(
     }
     visited_bindings[attribute.binding].set(true);
 
-    VkBuffer buffer = dummy.vk_handle();
+    VkBuffer buffer = VK_NULL_HANDLE;
     VkDeviceSize offset = 0;
 
     if (attribute.binding < buffers.size()) {
       buffer = buffers[attribute.binding].buffer;
       offset = buffers[attribute.binding].offset;
+    }
+
+    if (buffer == VK_NULL_HANDLE) {
+      buffer = dummy.vk_handle();
+      offset = 0;
     }
 
     r_vertex_buffer_bindings.buffer[attribute.binding] = buffer;
@@ -133,7 +138,8 @@ void VKVertexAttributeObject::fill_unused_bindings(const VKShaderInterface &inte
         VK_STRUCTURE_TYPE_VERTEX_INPUT_BINDING_DESCRIPTION_2_EXT, nullptr};
     vk_binding_descriptor.binding = binding;
     vk_binding_descriptor.stride = 0;
-    vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+    vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    vk_binding_descriptor.divisor = 1;
     vertex_input.bindings.append(vk_binding_descriptor);
   }
 }
@@ -218,6 +224,7 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
       vk_binding_descriptor.binding = binding;
       vk_binding_descriptor.stride = stride;
       vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+      vk_binding_descriptor.divisor = 1;
       vertex_input.bindings.append(vk_binding_descriptor);
       if (vertex_buffer) {
         add_vbo = true;

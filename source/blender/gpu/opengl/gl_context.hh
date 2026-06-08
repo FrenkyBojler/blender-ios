@@ -20,8 +20,7 @@
 
 #include <mutex>
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 class GLVaoCache;
 
@@ -61,13 +60,20 @@ class GLContext : public Context {
   static bool direct_state_access_support;
   static bool explicit_location_support;
   static bool framebuffer_fetch_support;
+  /* layered_rendering_support requires GL_ARB_shader_viewport_layer_array, which is a superset of
+   * GL_AMD_vertex_shader_viewport_index (vertex_shader_viewport_index_support) and
+   * GL_AMD_vertex_shader_layer (vertex_shader_layer_support) with additional support for
+   * tessellation evaluation shaders (which are not used by the GPU module). */
   static bool layered_rendering_support;
+  static bool vertex_shader_viewport_index_support;
+  static bool vertex_shader_layer_support;
   static bool native_barycentric_support;
   static bool multi_bind_support;
   static bool multi_bind_image_support;
   static bool stencil_texturing_support;
   static bool texture_barrier_support;
   static bool texture_filter_anisotropic_support;
+  static bool derivative_control_support;
 
   /** Workarounds. */
 
@@ -117,7 +123,7 @@ class GLContext : public Context {
   void process_frame_timings();
 
  public:
-  GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list);
+  GLContext(GHOST_IWindow *ghost_window, GLSharedOrphanLists &shared_orphan_list);
   ~GLContext();
 
   static void check_error(const char *info);
@@ -173,5 +179,4 @@ class GLContext : public Context {
   MEM_CXX_CLASS_ALLOC_FUNCS("GLContext")
 };
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

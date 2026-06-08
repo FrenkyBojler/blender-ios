@@ -52,7 +52,8 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C, const bNodeTre
   };
   const AssetLibraryReference library = asset_system::all_library_reference();
   asset_system::all_library_reload_catalogs_if_dirty();
-  return asset::build_filtered_all_catalog_tree(library, C, type_filter, meta_data_filter);
+  return asset::build_filtered_all_catalog_tree(
+      library, C, type_filter, meta_data_filter, node_tree.typeinfo->asset_catalog_path_prefix);
 }
 
 /**
@@ -171,13 +172,12 @@ static void node_catalog_assets_draw(const bContext *C, Menu *menu)
   }
   asset::AssetItemTree &tree = *snode.runtime->assets_for_menu;
 
-  const std::optional<blender::StringRefNull> menu_path = CTX_data_string_get(
-      C, "asset_catalog_path");
+  const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
   if (!menu_path) {
     return;
   }
 
-  const std::optional<blender::StringRefNull> operator_id = CTX_data_string_get(C, "operator_id");
+  const std::optional<StringRefNull> operator_id = CTX_data_string_get(C, "operator_id");
   if (!operator_id) {
     return;
   }
@@ -230,7 +230,7 @@ static void node_unassigned_assets_draw(const bContext *C, Menu *menu)
     return;
   }
 
-  const std::optional<blender::StringRefNull> operator_id = CTX_data_string_get(C, "operator_id");
+  const std::optional<StringRefNull> operator_id = CTX_data_string_get(C, "operator_id");
   if (!operator_id) {
     return;
   }

@@ -71,13 +71,13 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
     /* pass */
   }
   else {
-    if (but->type == ButType::ColorBand) {
+    if (but->type == ButtonType::ColorBand) {
       /* When invoked with a hotkey, we can find the band in 'but->poin'. */
-      band = (ColorBand *)but->poin;
+      band = reinterpret_cast<ColorBand *>(but->poin);
     }
     else {
       /* When invoked from a button it's in custom_data field. */
-      band = (ColorBand *)but->custom_data;
+      band = static_cast<ColorBand *>(but->custom_data);
     }
 
     if (band) {
@@ -88,7 +88,7 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
   }
 
   if (!band) {
-    const PointerRNA ptr = CTX_data_pointer_get_type(C, "color_ramp", &RNA_ColorRamp);
+    const PointerRNA ptr = CTX_data_pointer_get_type(C, "color_ramp", RNA_ColorRamp);
     if (ptr.data != nullptr) {
       band = static_cast<ColorBand *>(ptr.data);
 
@@ -309,10 +309,10 @@ static wmOperatorStatus eyedropper_colorband_exec(bContext *C, wmOperator *op)
 static bool eyedropper_colorband_poll(bContext *C)
 {
   Button *but = context_active_but_get(C);
-  if (but && but->type == ButType::ColorBand) {
+  if (but && but->type == ButtonType::ColorBand) {
     return true;
   }
-  const PointerRNA ptr = CTX_data_pointer_get_type(C, "color_ramp", &RNA_ColorRamp);
+  const PointerRNA ptr = CTX_data_pointer_get_type(C, "color_ramp", RNA_ColorRamp);
   if (ptr.data != nullptr) {
     return true;
   }

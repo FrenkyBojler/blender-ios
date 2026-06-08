@@ -31,6 +31,8 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
+namespace blender {
+
 // #define DEBUG_TIME
 
 #ifdef DEBUG_TIME
@@ -43,7 +45,7 @@
  * Related to managing normals but not directly related to calculating normals.
  * \{ */
 
-namespace blender::bke {
+namespace bke {
 
 void mesh_vert_normals_assign(Mesh &mesh, Span<float3> vert_normals)
 {
@@ -91,7 +93,7 @@ void NormalsCache::store_vector(Vector<float3> &&data)
   this->data = std::move(data);
 }
 
-}  // namespace blender::bke
+}  // namespace bke
 
 bool BKE_mesh_vert_normals_are_dirty(const Mesh *mesh)
 {
@@ -105,7 +107,7 @@ bool BKE_mesh_face_normals_are_dirty(const Mesh *mesh)
 
 /** \} */
 
-namespace blender::bke::mesh {
+namespace bke::mesh {
 
 /* -------------------------------------------------------------------- */
 /** \name Mesh Normal Calculation (Polygons)
@@ -180,6 +182,7 @@ void normals_calc_faces(const Span<float3> positions,
                         const Span<int> corner_verts,
                         MutableSpan<float3> face_normals)
 {
+  PRF_scope(ProfileCategory::Default);
   BLI_assert(faces.size() == face_normals.size());
   threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
     for (const int i : range) {
@@ -195,6 +198,7 @@ void normals_calc_verts(const Span<float3> vert_positions,
                         const Span<float3> face_normals,
                         MutableSpan<float3> vert_normals)
 {
+  PRF_scope(ProfileCategory::Default);
   const Span<float3> positions = vert_positions;
   threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
     for (const int vert : range) {
@@ -228,6 +232,7 @@ static void mix_normals_corner_to_vert(const Span<float3> vert_positions,
                                        const Span<float3> corner_normals,
                                        MutableSpan<float3> vert_normals)
 {
+  PRF_scope(ProfileCategory::Default);
   const Span<float3> positions = vert_positions;
   threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
     for (const int vert : range) {
@@ -260,6 +265,7 @@ static void mix_normals_vert_to_face(const OffsetIndices<int> faces,
                                      const Span<float3> vert_normals,
                                      MutableSpan<float3> face_normals)
 {
+  PRF_scope(ProfileCategory::Default);
   threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
     for (const int face : range) {
       float3 sum(0);
@@ -275,6 +281,7 @@ static void mix_normals_corner_to_face(const OffsetIndices<int> faces,
                                        const Span<float3> corner_normals,
                                        MutableSpan<float3> face_normals)
 {
+  PRF_scope(ProfileCategory::Default);
   threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
     for (const int face : range) {
       const Span<float3> face_corner_normals = corner_normals.slice(faces[face]);
@@ -285,15 +292,14 @@ static void mix_normals_corner_to_face(const OffsetIndices<int> faces,
   });
 }
 
-}  // namespace blender::bke::mesh
+}  // namespace bke::mesh
 
 /* -------------------------------------------------------------------- */
 /** \name Mesh Normal Calculation
  * \{ */
 
-blender::bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_face) const
+bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_face) const
 {
-  using namespace blender;
   using namespace blender::bke;
   if (this->faces_num == 0) {
     return MeshNormalDomain::Point;
@@ -340,9 +346,8 @@ blender::bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_fac
   return MeshNormalDomain::Corner;
 }
 
-blender::Span<blender::float3> Mesh::vert_normals() const
+Span<float3> Mesh::vert_normals() const
 {
-  using namespace blender;
   using namespace blender::bke;
   this->runtime->vert_normals_cache.ensure([&](NormalsCache &r_data) {
     if (const GAttributeReader custom = this->attributes().lookup("custom_normal")) {
@@ -392,9 +397,8 @@ blender::Span<blender::float3> Mesh::vert_normals() const
   return this->runtime->vert_normals_cache.data().get_span();
 }
 
-blender::Span<blender::float3> Mesh::vert_normals_true() const
+Span<float3> Mesh::vert_normals_true() const
 {
-  using namespace blender;
   using namespace blender::bke;
   this->runtime->vert_normals_true_cache.ensure([&](Vector<float3> &r_data) {
     r_data.reinitialize(this->verts_num);
@@ -408,9 +412,8 @@ blender::Span<blender::float3> Mesh::vert_normals_true() const
   return this->runtime->vert_normals_true_cache.data();
 }
 
-blender::Span<blender::float3> Mesh::face_normals() const
+Span<float3> Mesh::face_normals() const
 {
-  using namespace blender;
   using namespace blender::bke;
   if (this->faces_num == 0) {
     return {};
@@ -452,9 +455,8 @@ blender::Span<blender::float3> Mesh::face_normals() const
   return this->runtime->face_normals_cache.data().get_span();
 }
 
-blender::Span<blender::float3> Mesh::face_normals_true() const
+Span<float3> Mesh::face_normals_true() const
 {
-  using namespace blender;
   using namespace blender::bke;
   this->runtime->face_normals_true_cache.ensure([&](Vector<float3> &r_data) {
     r_data.reinitialize(this->faces_num);
@@ -463,9 +465,8 @@ blender::Span<blender::float3> Mesh::face_normals_true() const
   return this->runtime->face_normals_true_cache.data();
 }
 
-blender::Span<blender::float3> Mesh::corner_normals() const
+Span<float3> Mesh::corner_normals() const
 {
-  using namespace blender;
   using namespace blender::bke;
   if (this->faces_num == 0) {
     return {};
@@ -525,10 +526,10 @@ void BKE_lnor_spacearr_init(MLoopNorSpaceArray *lnors_spacearr,
     }
     mem = lnors_spacearr->mem;
     if (numLoops > 0) {
-      lnors_spacearr->lspacearr = (MLoopNorSpace **)BLI_memarena_calloc(
-          mem, sizeof(MLoopNorSpace *) * size_t(numLoops));
-      lnors_spacearr->loops_pool = (LinkNode *)BLI_memarena_alloc(
-          mem, sizeof(LinkNode) * size_t(numLoops));
+      lnors_spacearr->lspacearr = static_cast<MLoopNorSpace **>(
+          BLI_memarena_calloc(mem, sizeof(MLoopNorSpace *) * size_t(numLoops)));
+      lnors_spacearr->loops_pool = static_cast<LinkNode *>(
+          BLI_memarena_alloc(mem, sizeof(LinkNode) * size_t(numLoops)));
     }
     else {
       lnors_spacearr->lspacearr = nullptr;
@@ -582,13 +583,14 @@ void BKE_lnor_spacearr_free(MLoopNorSpaceArray *lnors_spacearr)
 MLoopNorSpace *BKE_lnor_space_create(MLoopNorSpaceArray *lnors_spacearr)
 {
   lnors_spacearr->spaces_num++;
-  return (MLoopNorSpace *)BLI_memarena_calloc(lnors_spacearr->mem, sizeof(MLoopNorSpace));
+  return static_cast<MLoopNorSpace *>(
+      BLI_memarena_calloc(lnors_spacearr->mem, sizeof(MLoopNorSpace)));
 }
 
 /* This threshold is a bit touchy (usual float precision issue), this value seems OK. */
 #define LNOR_SPACE_TRIGO_THRESHOLD (1.0f - 1e-4f)
 
-namespace blender::bke::mesh {
+namespace bke::mesh {
 
 static CornerNormalSpace corner_fan_space_define(const float3 &lnor,
                                                  const float3 &vec_ref,
@@ -652,13 +654,13 @@ static CornerNormalSpace corner_fan_space_define(const float3 &lnor,
   return lnor_space;
 }
 
-}  // namespace blender::bke::mesh
+}  // namespace bke::mesh
 
 void BKE_lnor_space_define(MLoopNorSpace *lnor_space,
                            const float lnor[3],
                            const float vec_ref[3],
                            const float vec_other[3],
-                           const blender::Span<blender::float3> edge_vectors)
+                           const Span<float3> edge_vectors)
 {
   using namespace blender::bke::mesh;
   const CornerNormalSpace space = corner_fan_space_define(lnor, vec_ref, vec_other, edge_vectors);
@@ -685,7 +687,7 @@ void BKE_lnor_space_add_loop(MLoopNorSpaceArray *lnors_spacearr,
   if (is_single) {
     BLI_assert(lnor_space->loops == nullptr);
     lnor_space->flags |= MLNOR_SPACE_IS_SINGLE;
-    lnor_space->loops = (LinkNode *)bm_loop;
+    lnor_space->loops = static_cast<LinkNode *>(bm_loop);
   }
   else {
     BLI_assert((lnor_space->flags & MLNOR_SPACE_IS_SINGLE) == 0);
@@ -704,7 +706,7 @@ MINLINE short unit_float_to_short(const float val)
   return short(floorf(val * float(SHRT_MAX) + 0.5f));
 }
 
-namespace blender::bke::mesh {
+namespace bke::mesh {
 
 static float3 corner_space_custom_data_to_normal(const CornerNormalSpace &lnor_space,
                                                  const short2 clnor_data)
@@ -740,7 +742,7 @@ static float3 corner_space_custom_data_to_normal(const CornerNormalSpace &lnor_s
   return custom_lnor;
 }
 
-}  // namespace blender::bke::mesh
+}  // namespace bke::mesh
 
 void BKE_lnor_space_custom_data_to_normal(const MLoopNorSpace *lnor_space,
                                           const short clnor_data[2],
@@ -756,7 +758,7 @@ void BKE_lnor_space_custom_data_to_normal(const MLoopNorSpace *lnor_space,
   copy_v3_v3(r_custom_lnor, corner_space_custom_data_to_normal(space, clnor_data));
 }
 
-namespace blender::bke::mesh {
+namespace bke::mesh {
 
 short2 corner_space_custom_normal_to_data(const CornerNormalSpace &lnor_space,
                                           const float3 &custom_lnor)
@@ -806,7 +808,7 @@ short2 corner_space_custom_normal_to_data(const CornerNormalSpace &lnor_space,
   return clnor_data;
 }
 
-}  // namespace blender::bke::mesh
+}  // namespace bke::mesh
 
 void BKE_lnor_space_custom_normal_to_data(const MLoopNorSpace *lnor_space,
                                           const float custom_lnor[3],
@@ -822,7 +824,7 @@ void BKE_lnor_space_custom_normal_to_data(const MLoopNorSpace *lnor_space,
   copy_v2_v2_short(r_clnor_data, corner_space_custom_normal_to_data(space, custom_lnor));
 }
 
-namespace blender::bke {
+namespace bke {
 
 namespace mesh {
 
@@ -1246,6 +1248,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           CornerNormalSpaceArray *r_fan_spaces,
                           MutableSpan<float3> r_corner_normals)
 {
+  PRF_scope(ProfileCategory::Default);
   BLI_assert(corner_verts.size() == corner_edges.size());
   BLI_assert(custom_normals.is_empty() || corner_verts.size() == custom_normals.size());
   BLI_assert(corner_verts.size() == r_corner_normals.size());
@@ -1789,8 +1792,10 @@ void NormalJoinInfo::add_mesh(const Mesh &mesh)
 
 }  // namespace mesh
 
-}  // namespace blender::bke
+}  // namespace bke
 
 #undef LNOR_SPACE_TRIGO_THRESHOLD
 
 /** \} */
+
+}  // namespace blender
