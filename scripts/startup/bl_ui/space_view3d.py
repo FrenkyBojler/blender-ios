@@ -1355,6 +1355,8 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
 
         if obj.type == 'ARMATURE':
             if obj.mode == 'POSE':
+                layout.separator()
+
                 layout.operator_context = 'EXEC_REGION_WIN'
                 layout.operator("transform.transform", text="Align to Transform Orientation").mode = 'ALIGN'
                 layout.operator_context = 'INVOKE_REGION_WIN'
