@@ -58,13 +58,22 @@ void rule_rna_property_reset(DynamicOverride &dynamic_override,
                              RNAPath &rna_path);
 
 /** Apply override value to the target data. */
-void rule_rna_property_apply(DynamicOverride &dynamic_override,
-                             DynamicOverrideRule &rule,
-                             DynamicOverrideRuleProperty &rule_property);
+void rule_rna_property_apply_to_target(DynamicOverride &dynamic_override,
+                                       DynamicOverrideRule &rule,
+                                       DynamicOverrideRuleProperty &rule_property);
 /** Apply override value to the target data. */
-void rule_rna_property_apply(DynamicOverride &dynamic_override,
-                             DynamicOverrideRule &rule,
-                             RNAPath &rna_path);
+void rule_rna_property_apply_to_target(DynamicOverride &dynamic_override,
+                                       DynamicOverrideRule &rule,
+                                       RNAPath &rna_path);
+
+/** Update the override value from the target data. */
+void rule_rna_property_update_from_target(DynamicOverride &dynamic_override,
+                                          DynamicOverrideRule &rule,
+                                          DynamicOverrideRuleProperty &rule_property);
+/** Update the override value from the target data. */
+void rule_rna_property_update_from_target(DynamicOverride &dynamic_override,
+                                          DynamicOverrideRule &rule,
+                                          RNAPath &rna_path);
 
 /**
  * Return an identifier representing the RNA path of the property, that is usable as a RNA

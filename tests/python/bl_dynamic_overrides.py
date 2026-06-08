@@ -95,15 +95,15 @@ class TestDynamicOverrides(TestHelper):
         self.assertEqual(tuple(obj_eval.location), tuple(obj_dynoverride_rule.override_values.location))
 
         # FIXME: Does not work???
-        # ~ obj_dynoverride_prop.is_muted = True
-        # ~ bpy.context.view_layer.update()
-        # ~ obj_eval = bpy.context.view_layer.depsgraph.id_eval_get(obj)
-        # ~ self.assertEqual(tuple(obj_eval.location), obj_location)
+        obj_dynoverride_prop.is_muted = True
+        bpy.context.view_layer.update()
+        obj_eval = bpy.context.view_layer.depsgraph.id_eval_get(obj)
+        self.assertEqual(tuple(obj_eval.location), obj_location)
 
-        # ~ obj_dynoverride_prop.is_muted = False
-        # ~ bpy.context.view_layer.update()
-        # ~ obj_eval = bpy.context.view_layer.depsgraph.id_eval_get(obj)
-        # ~ self.assertEqual(tuple(obj_eval.location), tuple(obj_dynoverride_rule.override_values.location))
+        obj_dynoverride_prop.is_muted = False
+        bpy.context.view_layer.update()
+        obj_eval = bpy.context.view_layer.depsgraph.id_eval_get(obj)
+        self.assertEqual(tuple(obj_eval.location), tuple(obj_dynoverride_rule.override_values.location))
 
         # Reset replace current override value by the original one.
         obj_dynoverride_prop.reset()
@@ -111,7 +111,12 @@ class TestDynamicOverrides(TestHelper):
 
         # Apply applies the current override value to the target overridden data.
         obj_dynoverride_rule.override_values.location = (1, 2, 3)
-        obj_dynoverride_prop.apply()
+        obj_dynoverride_prop.apply_to_target()
+        self.assertEqual(tuple(obj.location), tuple(obj_dynoverride_rule.override_values.location))
+
+        # Update copy the current target overriden data to the override value.
+        obj_dynoverride_rule.override_values.location = (-1, -2, -3)
+        obj_dynoverride_prop.update_from_target()
         self.assertEqual(tuple(obj.location), tuple(obj_dynoverride_rule.override_values.location))
 
 

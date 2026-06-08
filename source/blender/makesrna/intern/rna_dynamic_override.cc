@@ -88,11 +88,12 @@ static int rna_DynamicOverride_rule_property_propidentifier_length(PointerRNA *p
 
 static void rna_DynamicOverride_rule_property_reset(ID *self_id,
                                                     PointerRNA self_ptr,
-                                                    Main *bmain,
+                                                    Main * /*bmain*/,
                                                     ReportList *reports)
 {
   auto ancestor = RNA_struct_search_closest_ancestor_by_type(&self_ptr, RNA_DynamicOverrideRule);
   if (!ancestor) {
+    BKE_report(reports, RPT_ERROR, "Cannot find the dynamic override rule owning this property");
     return;
   }
   DynamicOverrideRule *rule = static_cast<DynamicOverrideRule *>(ancestor->data);
@@ -102,35 +103,56 @@ static void rna_DynamicOverride_rule_property_reset(ID *self_id,
       *id_cast<DynamicOverride *>(self_id), *rule, *rule_prop);
 }
 
-static void rna_DynamicOverride_rule_property_apply(ID *self_id,
-                                                    PointerRNA self_ptr,
-                                                    Main *bmain,
-                                                    ReportList *reports)
+static void rna_DynamicOverride_rule_property_apply_to_target(ID *self_id,
+                                                              PointerRNA self_ptr,
+                                                              Main * /*bmain*/,
+                                                              ReportList *reports)
 {
   auto ancestor = RNA_struct_search_closest_ancestor_by_type(&self_ptr, RNA_DynamicOverrideRule);
   if (!ancestor) {
+    BKE_report(reports, RPT_ERROR, "Cannot find the dynamic override rule owning this property");
     return;
   }
   DynamicOverrideRule *rule = static_cast<DynamicOverrideRule *>(ancestor->data);
   DynamicOverrideRuleProperty *rule_prop = self_ptr.data_as<DynamicOverrideRuleProperty>();
 
-  bke::dynoverride::rule_rna_property_apply(
+  bke::dynoverride::rule_rna_property_apply_to_target(
       *id_cast<DynamicOverride *>(self_id), *rule, *rule_prop);
 }
 
-static DynamicOverrideRuleProperty *rna_DynamicOverride_rule_property_add(
-    ID *self_id,
-    DynamicOverrideRule *dynamic_override_rule,
-    Main *bmain,
-    ReportList * /*reports*/,
-    const char *rna_path_str)
+static void rna_DynamicOverride_rule_property_update_from_target(ID *self_id,
+                                                                 PointerRNA self_ptr,
+                                                                 Main * /*bmain*/,
+                                                                 ReportList *reports)
+{
+  auto ancestor = RNA_struct_search_closest_ancestor_by_type(&self_ptr, RNA_DynamicOverrideRule);
+  if (!ancestor) {
+    BKE_report(reports, RPT_ERROR, "Cannot find the dynamic override rule owning this property");
+    return;
+  }
+  DynamicOverrideRule *rule = static_cast<DynamicOverrideRule *>(ancestor->data);
+  DynamicOverrideRuleProperty *rule_prop = self_ptr.data_as<DynamicOverrideRuleProperty>();
+
+  bke::dynoverride::rule_rna_property_apply_to_target(
+      *id_cast<DynamicOverride *>(self_id), *rule, *rule_prop);
+}
+
+static PointerRNA rna_DynamicOverride_rule_property_add(ID *self_id,
+                                                        PointerRNA self_ptr,
+                                                        Main *bmain,
+                                                        ReportList * /*reports*/,
+                                                        const char *rna_path_str)
 {
   RNAPath rna_path = {rna_path_str};
+
   DynamicOverrideRuleProperty *result = bke::dynoverride::rule_rna_property_add(
-      *bmain, *id_cast<DynamicOverride *>(self_id), *dynamic_override_rule, rna_path);
+      *bmain,
+      *id_cast<DynamicOverride *>(self_id),
+      *self_ptr.data_as<DynamicOverrideRule>(),
+      rna_path);
 
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
-  return result;
+  return RNA_pointer_create_with_parent(self_ptr, RNA_DynamicOverrideRuleProperty, result);
 }
 
 static void rna_DynamicOverride_rule_property_remove(ID *self_id,
@@ -221,14 +243,15 @@ static StructRNA *rna_DynamicOverrideRule_refine(PointerRNA *ptr)
   return RNA_DynamicOverrideRule;
 }
 
-static DynamicOverrideRule *rna_DynamicOverride_rule_iddata_ensure(
-    DynamicOverride *dynamic_override, ReportList * /*reports*/, ID *target_id)
+static PointerRNA rna_DynamicOverride_rule_iddata_ensure(PointerRNA self_ptr,
+                                                         ReportList * /*reports*/,
+                                                         ID *target_id)
 {
-  DynamicOverrideRuleIDData &result = bke::dynoverride::rule_ensure_for_id(*dynamic_override,
-                                                                           *target_id);
+  DynamicOverrideRuleIDData &result = bke::dynoverride::rule_ensure_for_id(
+      *self_ptr.data_as<DynamicOverride>(), *target_id);
 
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
-  return &result.base;
+  return RNA_pointer_create_with_parent(self_ptr, RNA_DynamicOverrideRuleIDData, &result.base);
 }
 
 static void rna_DynamicOverride_rule_remove(DynamicOverride *dynamic_override,
@@ -335,8 +358,16 @@ static void rna_def_dynamic_override_rule_property(BlenderRNA *brna)
   RNA_def_function_flag(func,
                         FUNC_USE_MAIN | FUNC_USE_SELF_ID | FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
 
-  func = RNA_def_function(srna, "apply", "rna_DynamicOverride_rule_property_apply");
+  func = RNA_def_function(
+      srna, "apply_to_target", "rna_DynamicOverride_rule_property_apply_to_target");
   RNA_def_function_ui_description(func, "Apply the override value to the target overridden data");
+  RNA_def_function_flag(func,
+                        FUNC_USE_MAIN | FUNC_USE_SELF_ID | FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
+
+  func = RNA_def_function(
+      srna, "update_from_target", "rna_DynamicOverride_rule_property_update_from_target");
+  RNA_def_function_ui_description(func,
+                                  "Update the override value from the target overridden data");
   RNA_def_function_flag(func,
                         FUNC_USE_MAIN | FUNC_USE_SELF_ID | FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
 }
@@ -356,12 +387,14 @@ static void rna_def_dynamic_override_rule_properties(BlenderRNA *brna, PropertyR
   /* Add Property */
   func = RNA_def_function(srna, "add_for_rnapath", "rna_DynamicOverride_rule_property_add");
   RNA_def_function_ui_description(func, "Add a RNA path based property to the given rule");
-  RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+  RNA_def_function_flag(func,
+                        FUNC_USE_MAIN | FUNC_USE_SELF_ID | FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
   parm = RNA_def_pointer(func,
                          "property",
                          "DynamicOverrideRuleProperty",
                          "New Property",
                          "Newly created override property in the rule");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);
   parm = RNA_def_string(
       func,
@@ -491,13 +524,14 @@ static void rna_def_dynamic_override_rules(BlenderRNA *brna, PropertyRNA *cprop)
   func = RNA_def_function(srna, "ensure_for_iddata", "rna_DynamicOverride_rule_iddata_ensure");
   RNA_def_function_ui_description(func,
                                   "Add a rule for the given owner ID, if it doesn't exist yet");
-  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
   parm = RNA_def_pointer(
       func,
       "rule",
       "DynamicOverrideRule",
       "New Rule",
       "Newly created dynamic override rule for the given target ID, or the matching existing one");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);
   parm = RNA_def_pointer(func, "target_id", "ID", "Target ID", "Datablock affected by the rule");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
