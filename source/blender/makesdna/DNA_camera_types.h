@@ -57,6 +57,7 @@ enum eCompositionGuideFlags : short {
   COMPOSITION_GUIDES_GOLDEN_TRI_B = (1 << 5),
   COMPOSITION_GUIDES_HARMONY_TRI_A = (1 << 6),
   COMPOSITION_GUIDES_HARMONY_TRI_B = (1 << 7),
+  COMPOSITION_GUIDES_DOME_MASTER = (1 << 8),
 };
 ENUM_OPERATORS(eCompositionGuideFlags)
 

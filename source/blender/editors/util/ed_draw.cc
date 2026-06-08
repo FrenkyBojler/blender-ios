@@ -1231,6 +1231,31 @@ void ED_draw_composition_guides(uint shdr_pos,
     immEnd();
   }
 
+
+    if (flag & COMPOSITION_GUIDES_DOME_MASTER) {
+    float xmid, ymid;
+    
+    
+    
+
+    xmid = rect->xmin + 0.5f * (rect->xmax - rect->xmin);
+    ymid = rect->ymin + 0.5f * (rect->ymax - rect->ymin);
+    
+    
+
+    immBegin(GPU_PRIM_LINES, 2);
+      
+    immVertex2f(shdr_pos, xmid, ymid);
+    immVertex2f(shdr_pos, rect->xmin + xmid, rect->ymin + ymid );
+
+ /*    immVertex2f(shdr_pos, rect->xmin, rect->ymax);
+    immVertex2f(shdr_pos, rect->xmax, rect->ymin);
+ */
+    immEnd();
+  }
+
+
+
   if (flag & COMPOSITION_GUIDES_THIRDS) {
     drawviewborder_grid3(shdr_pos, *rect, 1.0f / 3.0f);
   }
