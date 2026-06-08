@@ -285,6 +285,8 @@ static bool buttons_context_path_data(ButsContextPath *path, int type)
     if (ob && ELEM(type, -1, ob->type)) {
       if (ID *id = static_cast<ID *>(ob->data)) {
         if (GS(id->name) == ID_IM && ob->empty_drawtype != OB_EMPTY_IMAGE) {
+          path->ptr[path->len] = PointerRNA_NULL;
+          path->len++;
           return true;
         }
       }
