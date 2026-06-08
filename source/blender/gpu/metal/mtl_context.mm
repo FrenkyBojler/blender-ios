@@ -407,6 +407,9 @@ void MTLContext::activate()
 {
   /* Make sure no other context is already bound to this thread. */
   BLI_assert(is_active_ == false);
+  /* Make sure the active GHOST context matches the one this GPU Context was created for. */
+  BLI_assert(ghost_context_ == GHOST_IContext::getActiveDrawingContext());
+
   is_active_ = true;
   thread_ = pthread_self();
 
