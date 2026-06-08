@@ -2508,7 +2508,7 @@ class VIEW3D_MT_edit_metaball_context_menu(Menu):
 
         # Remove
         layout.operator_context = 'EXEC_REGION_WIN'
-        layout.operator("mball.delete_metaelems", text="Delete")
+        layout.operator("mball.delete_metaelems", text="Delete", icon='X')
 
 
 class VIEW3D_MT_metaball_add(Menu):
@@ -5561,14 +5561,14 @@ class VIEW3D_MT_edit_meta(Menu):
 
         layout.separator()
 
-        layout.operator("mball.duplicate_metaelems")
+        layout.operator("mball.duplicate_metaelems", icon='DUPLICATE')
 
         layout.separator()
 
         layout.menu("VIEW3D_MT_edit_meta_showhide")
 
         layout.operator_context = 'EXEC_REGION_WIN'
-        layout.operator("mball.delete_metaelems", text="Delete")
+        layout.operator("mball.delete_metaelems", text="Delete", icon='X')
 
 
 class VIEW3D_MT_edit_meta_showhide(Menu):
