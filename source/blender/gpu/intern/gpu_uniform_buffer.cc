@@ -103,18 +103,30 @@ struct UBOFirstLinks {
 static LinkData **ubo_first_link_ptr(UBOFirstLinks &first_links, const GPUType type)
 {
   switch (type) {
-    case GPU_MAT4:
-      return &first_links.link_mat4;
-    case GPU_VEC4:
-      return &first_links.link_vec4;
-    case GPU_VEC3:
-      return &first_links.link_vec3;
-    case GPU_VEC2:
-      return &first_links.link_vec2;
+    case GPU_NONE:
+      break;
     case GPU_FLOAT:
       return &first_links.link_float;
+    case GPU_VEC2:
+      return &first_links.link_vec2;
+    case GPU_VEC3:
+      return &first_links.link_vec3;
+    case GPU_VEC4:
+      return &first_links.link_vec4;
+    case GPU_MAT3:
+      break;
+    case GPU_MAT4:
+      return &first_links.link_mat4;
+    case GPU_TEX1D_ARRAY:
+    case GPU_TEX2D:
+    case GPU_TEX2D_ARRAY:
+    case GPU_TEX3D:
+    case GPU_CLOSURE:
+    case GPU_ATTR:
+      break;
   }
 
+  BLI_assert_unreachable();
   return nullptr;
 }
 

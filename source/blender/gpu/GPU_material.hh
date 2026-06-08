@@ -236,7 +236,7 @@ constexpr int gpu_type_element_count(const GPUType type)
 {
   switch (type) {
     case GPU_NONE:
-      break;
+      return 0;
     case GPU_FLOAT:
       return 1;
     case GPU_VEC2:
