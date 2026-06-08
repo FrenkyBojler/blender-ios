@@ -1127,6 +1127,9 @@ static wmOperatorStatus bookmark_select_exec(bContext *C, wmOperator *op)
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "dir");
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
+  if (params == nullptr) [[unlikely]] {
+    return OPERATOR_CANCELLED;
+  }
   char entry[256];
 
   RNA_property_string_get(op->ptr, prop, entry);
