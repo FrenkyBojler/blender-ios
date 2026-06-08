@@ -727,13 +727,14 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
         break;
       }
 
-      if (PySequence_Fast_GET_SIZE(py_tricoords_fast) != 3) {
+      const Py_ssize_t py_tricoords_num = PySequence_Fast_GET_SIZE(py_tricoords_fast);
+      if (py_tricoords_num != 3) {
         Py_DECREF(py_tricoords_fast);
         PyErr_Format(PyExc_ValueError,
                      "%s: non triangle found at index %d with length of %d",
                      error_prefix,
                      i,
-                     PySequence_Fast_GET_SIZE(py_tricoords_fast));
+                     py_tricoords_num);
         valid = false;
         break;
       }
@@ -1036,7 +1037,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
   const CustomData_MeshMasks data_masks = CD_MASK_BAREMESH;
   const bool use_render = DEG_get_mode(depsgraph) == DAG_EVAL_RENDER;
   *r_free_mesh = false;
-  Mesh *mesh;
+  const Mesh *mesh;
 
   /* Write the display mesh into the dummy mesh */
   if (use_deform) {

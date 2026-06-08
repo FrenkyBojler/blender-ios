@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_bounds.hh"
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
+#include "BLI_math_color.h"
 #include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
@@ -436,7 +437,7 @@ pugi::xml_node SVGExporter::write_animation_node(pugi::xml_node parent_node,
   animate_node.append_attribute("repeatCount").set_value("indefinite");
 
   std::string animated_frame_ids = [&]() {
-    std::string frame_ids_text = "";
+    std::string frame_ids_text;
     frames.foreach_index([&](const int frame) {
       std::string frame_url_entry = "#" + frame_name(frame) + ";";
       frame_ids_text.append(frame_url_entry);

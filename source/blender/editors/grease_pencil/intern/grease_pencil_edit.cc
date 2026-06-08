@@ -700,6 +700,7 @@ static wmOperatorStatus grease_pencil_dissolve_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
+  const eHandleDisplay handle_display = view3d_handle_type_or_default(v3d);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const DissolveMode mode = DissolveMode(RNA_enum_get(op->ptr, "type"));
@@ -714,7 +715,7 @@ static wmOperatorStatus grease_pencil_dissolve_exec(bContext *C, wmOperator *op)
 
     IndexMaskMemory memory;
     const IndexMask points = ed::greasepencil::retrieve_editable_and_all_selected_points(
-        *object, info.drawing, info.layer_index, v3d->overlay.handle_display, memory);
+        *object, info.drawing, info.layer_index, handle_display, memory);
     if (points.is_empty()) {
       return;
     }
@@ -1192,9 +1193,7 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
     bke::curves::fill_points<float>(points_by_curve, strokes, opacity_stroke, opacities);
 
     if (SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-            "fill_opacity",
-            AttrDomain::Curve,
-            bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
+            "fill_opacity", AttrDomain::Curve, bke::AttributeInitValue(1.0f)))
     {
       index_mask::masked_fill(fill_opacities.span, opacity_fill, strokes);
       fill_opacities.finish();
@@ -1504,8 +1503,8 @@ static wmOperatorStatus grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
 static void GREASE_PENCIL_OT_caps_set(wmOperatorType *ot)
 {
   static const EnumPropertyItem prop_caps_types[] = {
-      {int(CapsMode::ROUND), "ROUND", 0, "Rounded", "Set as default rounded"},
-      {int(CapsMode::FLAT), "FLAT", 0, "Flat", ""},
+      {int(CapsMode::ROUND), "ROUND", ICON_GP_CAPS_ROUND, "Rounded", "Set as default rounded"},
+      {int(CapsMode::FLAT), "FLAT", ICON_GP_CAPS_FLAT, "Flat", ""},
       RNA_ENUM_ITEM_SEPR,
       {int(CapsMode::START), "START", 0, "Toggle Start", ""},
       {int(CapsMode::END), "END", 0, "Toggle End", ""},
@@ -1607,6 +1606,7 @@ static wmOperatorStatus grease_pencil_duplicate_exec(bContext *C, wmOperator * /
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
+  const eHandleDisplay handle_display = view3d_handle_type_or_default(v3d);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
@@ -1629,7 +1629,7 @@ static wmOperatorStatus grease_pencil_duplicate_exec(bContext *C, wmOperator * /
     }
     else if (selection_domain == bke::AttrDomain::Point) {
       const IndexMask points = ed::greasepencil::retrieve_editable_and_all_selected_points(
-          *object, info.drawing, info.layer_index, v3d->overlay.handle_display, memory);
+          *object, info.drawing, info.layer_index, handle_display, memory);
       if (points.is_empty()) {
         return;
       }
@@ -1736,6 +1736,7 @@ static wmOperatorStatus gpencil_stroke_subdivide_exec(bContext *C, wmOperator *o
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
+  const eHandleDisplay handle_display = view3d_handle_type_or_default(v3d);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene->toolsettings);
@@ -1773,7 +1774,7 @@ static wmOperatorStatus gpencil_stroke_subdivide_exec(bContext *C, wmOperator *o
         if (selection[point_i]) {
           return true;
         }
-        if (v3d->overlay.handle_display == CURVE_HANDLE_NONE) {
+        if (handle_display == CURVE_HANDLE_NONE) {
           return false;
         }
         if (curve_types[curve_i] == CURVE_TYPE_BEZIER) {
@@ -2216,7 +2217,8 @@ static Object *duplicate_grease_pencil_object(Main *bmain,
                                               Base *base_prev,
                                               const GreasePencil &grease_pencil_src)
 {
-  const eDupli_ID_Flags dupflag = eDupli_ID_Flags(U.dupflag & USER_DUP_GPENCIL);
+  const eDupli_ID_Flags dupflag = eDupli_ID_Flags((U.dupflag & USER_DUP_GPENCIL) |
+                                                  (U.dupflag & USER_DUP_ACT));
   Base *base_new = object::add_duplicate(bmain, scene, view_layer, base_prev, dupflag);
   Object *object_dst = base_new->object;
   object_dst->mode = OB_MODE_OBJECT;
@@ -3287,6 +3289,8 @@ static wmOperatorStatus grease_pencil_extrude_exec(bContext *C, wmOperator * /*o
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
+  const eHandleDisplay handle_display = view3d_handle_type_or_default(v3d);
+
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   std::atomic<bool> changed = false;
@@ -3295,7 +3299,7 @@ static wmOperatorStatus grease_pencil_extrude_exec(bContext *C, wmOperator * /*o
     IndexMaskMemory memory;
     const IndexMask points_to_extrude =
         ed::greasepencil::retrieve_editable_and_all_selected_points(
-            *object, info.drawing, info.layer_index, v3d->overlay.handle_display, memory);
+            *object, info.drawing, info.layer_index, handle_display, memory);
     if (points_to_extrude.is_empty()) {
       return;
     }
@@ -3945,7 +3949,16 @@ static wmOperatorStatus grease_pencil_texture_gradient_exec(bContext *C, wmOpera
   ARegion *region = CTX_wm_region(C);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
-  std::atomic<bool> changed = false;
+  bool inserted_keyframe = false;
+  const bool use_duplicate_previous_key = true;
+  for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
+    if (layer->is_editable()) {
+      ed::greasepencil::ensure_active_keyframe(
+          *scene, grease_pencil, *layer, use_duplicate_previous_key, inserted_keyframe);
+    }
+  }
+
+  std::atomic<bool> changed = inserted_keyframe;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
@@ -4563,6 +4576,8 @@ static void GREASE_PENCIL_OT_remove_fill_guides(wmOperatorType *ot)
       ot->srna, "mode", rna_mode_items, int(RemoveFillGuidesMode::AllFrames), "Mode", "");
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Outline Operator
  * \{ */
@@ -4605,8 +4620,9 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
   float4x4 viewinv = float4x4::identity();
   switch (mode) {
     case OutlineMode::View: {
-      RegionView3D *rv3d = CTX_wm_region_view3d(C);
-      viewinv = float4x4(rv3d->viewmat);
+      if (RegionView3D *rv3d = CTX_wm_region_view3d(C)) {
+        viewinv = float4x4(rv3d->viewmat);
+      }
       break;
     }
     case OutlineMode::Front:
@@ -4945,6 +4961,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
+  const eHandleDisplay handle_display = view3d_handle_type_or_default(v3d);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
 
   const CornerType corner_type = CornerType(RNA_enum_get(op->ptr, "corner_type"));
@@ -4957,7 +4974,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     miter_angle = GP_STROKE_MITER_ANGLE_BEVEL;
   }
   else if (corner_type == CornerType::Miter) {
-    /* Prevent the angle from being set to zero, and becoming the `Round` type.*/
+    /* Prevent the angle from being set to zero, and becoming the `Round` type. */
     if (miter_angle == 0.0f) {
       miter_angle = DEG2RADF(1.0f);
     }
@@ -4968,7 +4985,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
     const IndexMask selection = ed::greasepencil::retrieve_editable_and_all_selected_points(
-        *object, info.drawing, info.layer_index, v3d->overlay.handle_display, memory);
+        *object, info.drawing, info.layer_index, handle_display, memory);
     if (selection.is_empty()) {
       return;
     }
@@ -4992,8 +5009,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
             attributes.lookup_or_add_for_write_span<float>(
                 "miter_angle",
                 bke::AttrDomain::Point,
-                bke::AttributeInitVArray(
-                    VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.points_num()))))
+                bke::AttributeInitValue(GP_STROKE_MITER_ANGLE_ROUND)))
     {
       index_mask::masked_fill(miter_angles.span, miter_angle, selection);
       miter_angles.finish();
@@ -5109,28 +5125,18 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     }
 
     if (ELEM(type, StrokeType::Fill, StrokeType::Both)) {
-      /* Get the first id that does not already exist. */
-      int new_fill_id = *std::max_element(fill_ids.span.begin(), fill_ids.span.end()) + 1;
-
-      if (new_fill_id == 0) {
-        new_fill_id++;
-      }
-
-      /* Each non fill selected stroke becomes a new fill. */
-      strokes.foreach_index([&](const int64_t i) {
-        if (fill_ids.span[i] == 0) {
-          fill_ids.span[i] = new_fill_id;
-          new_fill_id++;
-        }
-      });
+      const IndexMask selected_non_fill_strokes = IndexMask::from_predicate(
+          strokes, memory, [&](const int64_t index) { return fill_ids.span[index] == 0; });
+      bke::greasepencil::gather_next_available_fill_ids(
+          fill_ids.span.varray(), selected_non_fill_strokes, fill_ids.span);
     }
 
     hide_stroke.finish();
     fill_ids.finish();
 
     if (type == StrokeType::Stroke) {
-      if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t i) {
-            return fill_ids.span[i] == 0;
+      if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t fill_id) {
+            return fill_id == 0;
           }))
       {
         /* Remove #fill_id attribute if there are no fills left. */
@@ -5167,9 +5173,9 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
 static void GREASE_PENCIL_OT_set_stroke_type(wmOperatorType *ot)
 {
   static const EnumPropertyItem prop_stroke_type_types[] = {
-      {int(StrokeType::Stroke), "STROKE", 0, "Stroke", ""},
-      {int(StrokeType::Fill), "FILL", 0, "Fill", ""},
-      {int(StrokeType::Both), "BOTH", 0, "Both", ""},
+      {int(StrokeType::Stroke), "STROKE", ICON_GP_DRAW_STROKE, "Stroke", ""},
+      {int(StrokeType::Fill), "FILL", ICON_GP_DRAW_FILL, "Fill", ""},
+      {int(StrokeType::Both), "BOTH", ICON_GP_DRAW_BOTH, "Both", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

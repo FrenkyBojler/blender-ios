@@ -152,6 +152,7 @@ set(SRC
   intern/time.cc
   intern/timecode.cc
   intern/timeit.cc
+  intern/ustring.cc
   intern/uuid.cc
   intern/vector.cc
   intern/virtual_array.cc
@@ -197,6 +198,7 @@ set(SRC
   BLI_cache_mutex.hh
   BLI_color.hh
   BLI_color_mix.hh
+  BLI_color_types.hh
   BLI_colorspace.hh
   BLI_compiler_attrs.h
   BLI_compiler_compat.h
@@ -208,8 +210,6 @@ set(SRC
   BLI_convexhull_2d.hh
   BLI_cpp_type.hh
   BLI_cpp_type_make.hh
-  BLI_cpp_types.hh
-  BLI_cpp_types_make.hh
   BLI_csv_parse.hh
   BLI_delaunay_2d.hh
   BLI_devirtualize_parameters.hh
@@ -303,6 +303,7 @@ set(SRC
   BLI_math_euler_types.hh
   BLI_math_filter.hh
   BLI_math_geom.h
+  BLI_math_geom.hh
   BLI_math_half.hh
   BLI_math_inline.h
   BLI_math_interp.hh
@@ -322,6 +323,7 @@ set(SRC
   BLI_math_vector.h
   BLI_math_vector.hh
   BLI_math_vector_mpq_types.hh
+  BLI_math_vector_swizzle.hh
   BLI_math_vector_types.hh
   BLI_math_vector_unroll.hh
   BLI_memarena.h
@@ -392,6 +394,7 @@ set(SRC
   BLI_timecode.h
   BLI_timeit.hh
   BLI_timer.h
+  BLI_unique_hash.hh
   BLI_unique_sorted_indices.hh
   BLI_unroll.hh
   BLI_ustring.hh
@@ -407,6 +410,7 @@ set(SRC
   BLI_vector_set_slots.hh
   BLI_virtual_array.hh
   BLI_virtual_array_fwd.hh
+  BLI_virtual_array_range_spans.hh
   BLI_virtual_vector_array.hh
   BLI_voxel.h
   BLI_winstuff.h
@@ -424,6 +428,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::wcwidth
   PRIVATE bf::intern::atomic
+  PUBLIC bf::intern::profile
   PUBLIC bf::dependencies::fmt
   PRIVATE bf::dependencies::eigen
   PUBLIC bf::dependencies::optional::tbb
@@ -501,8 +506,8 @@ add_library(bf::blenlib ALIAS bf_blenlib)
 
 if(WITH_GTESTS)
   set(TEST_SRC
-    tests/BLI_any_test.cc
     tests/BLI_any_derived_test.cc
+    tests/BLI_any_test.cc
     tests/BLI_array_state_test.cc
     tests/BLI_array_store_test.cc
     tests/BLI_array_test.cc
@@ -552,6 +557,7 @@ if(WITH_GTESTS)
     tests/BLI_math_bits_test.cc
     tests/BLI_math_color_test.cc
     tests/BLI_math_geom_test.cc
+    tests/BLI_math_geom_hh_test.cc
     tests/BLI_math_half_test.cc
     tests/BLI_math_interp_test.cc
     tests/BLI_math_matrix_test.cc

@@ -358,7 +358,8 @@ static void try_convert_single_object(Object &curves_ob,
 
     ParticleData &particle = particles[new_hair_i];
     const int num_keys = points.size();
-    MutableSpan<HairKey> hair_keys{MEM_new_array_zeroed<HairKey>(num_keys, __func__), num_keys};
+    MutableSpan<HairKey> hair_keys{
+        MEM_new_array_zeroed<HairKey>(num_keys, "try_convert_single_object hair_keys"), num_keys};
 
     particle.hair = hair_keys.data();
     particle.totkey = hair_keys.size();
@@ -1824,7 +1825,7 @@ static void CURVES_OT_handle_type_set(wmOperatorType *ot)
 {
   ot->name = "Set Handle Type";
   ot->idname = __func__;
-  ot->description = "Set the handle type for bezier curves";
+  ot->description = "Set the handle type for Bézier curves";
 
   ot->invoke = WM_menu_invoke;
   ot->exec = set_handle_type::exec;
