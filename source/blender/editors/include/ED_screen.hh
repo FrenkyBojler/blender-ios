@@ -618,6 +618,7 @@ bool ED_operator_sequencer_active_editable(bContext *C);
 bool ED_operator_image_active(bContext *C);
 bool ED_operator_nla_active(bContext *C);
 bool ED_operator_info_active(bContext *C);
+bool ED_operator_region_info_active(bContext *C);
 bool ED_operator_console_active(bContext *C);
 bool ED_operator_preferences_active(bContext *C);
 
