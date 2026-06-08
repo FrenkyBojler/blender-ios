@@ -450,7 +450,7 @@ class FILEBROWSER_PT_directory_path(Panel):
 
         subsubrow = subrow.row()
         subsubrow.operator_context = 'EXEC_DEFAULT'
-        subsubrow.operator("file.directory_new", icon='NEWFOLDER', text="")
+        subsubrow.operator("file.directory_new", icon='NEWFOLDER', text="").confirm = False
 
         subrow.template_file_select_path(params)
 
@@ -563,7 +563,7 @@ class FILEBROWSER_MT_context_menu(FileBrowserMenu, Menu):
 
         sub = layout.row()
         sub.operator_context = 'EXEC_DEFAULT'
-        sub.operator("file.directory_new", text="New Folder")
+        sub.operator("file.directory_new", text="New Folder").confirm = False
         layout.operator("file.bookmark_add", text="Add Bookmark")
 
         layout.separator()
@@ -714,7 +714,7 @@ class ASSETBROWSER_MT_library(AssetBrowserMenu, Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("asset.library_refresh", text="Refresh")
+        layout.operator("asset.library_refresh", text="Refresh", icon='FILE_REFRESH')
         layout.operator("asset.library_reload_listing", text="Refresh Remote Listing")
 
 
@@ -724,11 +724,11 @@ class ASSETBROWSER_MT_catalog(AssetBrowserMenu, Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("asset.catalog_undo", text="Undo")
-        layout.operator("asset.catalog_redo", text="Redo")
+        layout.operator("asset.catalog_undo", text="Undo", icon='LOOP_BACK')
+        layout.operator("asset.catalog_redo", text="Redo", icon='LOOP_FORWARDS')
 
         layout.separator()
-        layout.operator("asset.catalogs_save")
+        layout.operator("asset.catalogs_save", icon='FILE_TICK')
         layout.operator("asset.catalog_new").parent_path = ""
 
 
