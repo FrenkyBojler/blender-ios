@@ -1880,10 +1880,9 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
                                                                               "operation");
 
   char filepath[FILE_MAX_LIBEXTRA];
-  if (operation == FILE_EXTERNAL_OPERATION_FOLDER_OPEN) {
+  if (!(fileentry->typeflag & FILE_TYPE_DIR) && (operation == FILE_EXTERNAL_OPERATION_FOLDER_OPEN)) {
     const char *root = filelist_dir(sfile->files);
     BLI_strncpy(filepath, root, sizeof(filepath));
-    printf("root: %s\n", root);
   } else {
     filelist_file_get_full_path(sfile->files, fileentry, filepath);
   }
