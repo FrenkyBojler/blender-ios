@@ -1181,7 +1181,7 @@ static wmOperatorStatus armature_align_bones_exec(bContext *C, wmOperator *op)
 void ARMATURE_OT_align(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Align to Active Bone";
+  ot->name = "Align Bones";
   ot->idname = "ARMATURE_OT_align";
   ot->description = "Align selected bones to the active bone (or to their parent)";
 
