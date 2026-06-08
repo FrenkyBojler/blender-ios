@@ -391,7 +391,7 @@ void slide_subjects_free(ListBaseT<SlideSubject> *slide_subjects)
 
 /* ------------------------- */
 
-void slide_subjects_refresh(bContext *C, SlideSubject &slide_subject)
+void slide_subjects_refresh(bContext *C, const SlideSubject &slide_subject)
 {
   ID *id = slide_subject.ptr.owner_id;
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
