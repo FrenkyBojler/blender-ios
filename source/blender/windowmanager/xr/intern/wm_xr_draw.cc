@@ -235,13 +235,20 @@ static void wm_xr_panel_default_transform_init_from_viewer(wmXrPanel *panel, con
   copy_v3_v3(pos, viewer_pose->position);
   pos[0] += forward_xy[0] * 1.5f;
   pos[1] += forward_xy[1] * 1.5f;
+  float normal[3] = {-forward_xy[0], -forward_xy[1], 0.0f};
+  float up[3] = {0.0f, 0.0f, 1.0f};
+  float right[3];
+  cross_v3_v3v3(right, normal, up);
+  normalize_v3(right);
 
-  float rot[3] = {half_pi, 0.0f, 0.0f};
-  const float normal_xy[2] = {-forward_xy[0], -forward_xy[1]};
-  rot[2] = std::atan2(normal_xy[0], normal_xy[1]);
-
-  float size[3] = {screen_to_world_scale, screen_to_world_scale, screen_to_world_scale};
-  loc_eul_size_to_mat4(panel->panel_obmat, pos, rot, size);
+  unit_m4(panel->panel_obmat);
+  copy_v3_v3(panel->panel_obmat[0], right);
+  copy_v3_v3(panel->panel_obmat[1], up);
+  copy_v3_v3(panel->panel_obmat[2], normal);
+  mul_v3_fl(panel->panel_obmat[0], screen_to_world_scale);
+  mul_v3_fl(panel->panel_obmat[1], screen_to_world_scale);
+  mul_v3_fl(panel->panel_obmat[2], screen_to_world_scale);
+  copy_v3_v3(panel->panel_obmat[3], pos);
 }
 
 static wmXrPanel *wm_xr_panel_register(wmXrSurfaceData *surface_data,
@@ -253,14 +260,6 @@ static wmXrPanel *wm_xr_panel_register(wmXrSurfaceData *surface_data,
   wmXrPanel *panel = wm_xr_panel_find(surface_data, win, area);
   if (panel != nullptr) {
     panel->panel_host_region = region;
-    if (xr != nullptr && xr->runtime != nullptr && xr->runtime->session_state.is_view_data_set) {
-      wm_xr_panel_default_transform_init_from_viewer(panel, xr);
-      XR_PANELS_TRACE("panels_ws: updated panel transform from viewer panel=%p loc=(%.3f, %.3f, %.3f)",
-                      panel,
-                      panel->panel_obmat[3][0],
-                      panel->panel_obmat[3][1],
-                      panel->panel_obmat[3][2]);
-    }
     XR_PANELS_TRACE("panels_ws: reuse host panel area=%p region=%p panel_types=%d panel_instances=%d",
                     area,
                     region,
