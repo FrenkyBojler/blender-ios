@@ -33,6 +33,10 @@ void fullscreen_vert([[vertex_id]] const int vert_id,
                      [[out]] VertOut &v_out)
 {
   fullscreen_vertex(vert_id, out_position, v_out.screen_uv);
+  /* We render using a less than depth test to let all fragment behind the geometry pass.
+   * Thus, we need to position the plane on the ndc_z = 0 plane.
+   * With our OpenGL clip space convention that's equal to hs_z = -1. */
+  out_position.z = -1.0f;
 }
 
 struct FragOut {
