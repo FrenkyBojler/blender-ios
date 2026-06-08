@@ -95,6 +95,9 @@ struct bContext {
     Scene *scene;
 
     int recursion;
+
+    bool deny_ui_context;
+
     /** True if python is initialized. */
     bool py_init;
     void *py_context;
@@ -494,8 +497,9 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   }
 #endif
 
-  /* Don't allow UI context access from non-main threads. */
-  if (!BLI_thread_is_main()) {
+  /* Don't allow UI context access from non-main threads or when access has been explicitly denied.
+   */
+  if (!BLI_thread_is_main() || C->data.deny_ui_context) {
     return CTX_RESULT_MEMBER_NOT_FOUND;
   }
 
@@ -1540,6 +1544,11 @@ void CTX_data_scene_set(bContext *C, Scene *scene)
     BPY_context_dict_clear_members_array(&C->data.py_context, C->data.py_context_orig, members, 1);
   }
 #endif
+}
+
+void CTX_data_ui_context_allow(bContext *C, bool allow)
+{
+  C->data.deny_ui_context = !allow;
 }
 
 ToolSettings *CTX_data_tool_settings(const bContext *C)
