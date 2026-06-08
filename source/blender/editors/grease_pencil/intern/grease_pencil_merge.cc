@@ -109,6 +109,24 @@ static bke::CurvesGeometry join_curves(const GreasePencil &src_grease_pencil,
   return {};
 }
 
+/* Try to put the layer under the same node that the original layer had. */
+static void reorder_layer(const Layer &src_first,
+                          Layer &dst_layer,
+                          GreasePencil &dst_grease_pencil)
+{
+  GreasePencilLayerTreeNode *src_node = src_first.as_node().prev;
+  while (src_node) {
+    TreeNode *dst_prev = dst_grease_pencil.find_node_by_name(src_node->name);
+    if (dst_prev) {
+      dst_grease_pencil.move_node_after(dst_layer.as_node(), *dst_prev);
+      return;
+    }
+    src_node = src_node->prev;
+  }
+
+  dst_grease_pencil.move_node_bottom(dst_layer.as_node());
+}
+
 void merge_layers(const GreasePencil &src_grease_pencil,
                   const Span<Vector<int>> src_layer_indices_by_dst_layer,
                   GreasePencil &dst_grease_pencil)
@@ -152,6 +170,9 @@ void merge_layers(const GreasePencil &src_grease_pencil,
     Layer &dst_layer = dst_grease_pencil.add_layer(dst_parent, src_first.name(), false);
     /* Copy the layer parameters of the first source layer. */
     BKE_grease_pencil_copy_layer_parameters(src_first, dst_layer);
+
+    /* Try to match the original order of layers and groups. */
+    reorder_layer(src_first, dst_layer, dst_grease_pencil);
 
     dst_layer_to_old_index_map.add(&dst_layer, dst_layer_i);
 
