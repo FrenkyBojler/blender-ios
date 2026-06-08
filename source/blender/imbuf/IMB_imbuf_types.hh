@@ -214,7 +214,7 @@ struct ImBuf {
   /** Amount of dithering to apply, when converting float -> byte. */
   float dither = 0.0f;
 
-  /** Last used timestamp for grabage collection. */
+  /** Last used timestamp for garbage collection. */
   int lastused = 0;
   /** used to set imbuf to dirty and other stuff */
   int userflags = 0;

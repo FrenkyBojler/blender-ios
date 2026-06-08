@@ -124,18 +124,17 @@ void BKE_image_free_anim_gputextures(Main *bmain);
 void BKE_image_update_gputexture(Image *ima, ImageUser *iuser, int x, int y, int w, int h);
 
 /**
- * Mark areas on the #gpu::Texture that needs to be updated. The areas are marked in
- * chunks. The next time the #gpu::Texture is used these tiles will be refreshes. This
- * saves time when writing to the same place multiple times This happens for during foreground
- * rendering.
+ * Mark areas on the #gpu::Texture that need to be updated. The areas are marked in chunks.
+ * The next time the #gpu::Texture is used these tiles will be refreshed. This saves time
+ * when writing to the same place multiple times during foreground rendering.
  */
 void BKE_image_update_gputexture_delayed(
     Image *ima, ImageTile *image_tile, ImBuf *ibuf, int x, int y, int w, int h);
 
 /**
- * Called on entering and exiting texture paint mode,
- * temporary disabling/enabling mipmapping on all images for quick texture
- * updates with glTexSubImage2D. images that didn't change don't have to be re-uploaded to OpenGL.
+ * Called on entering and exiting texture paint mode, temporarily disabling/enabling
+ * mipmapping on all images for quick partial texture updates. Images that didn't
+ * change don't have to be re-uploaded to the GPU.
  */
 void BKE_image_paint_set_mipmap(Main *bmain, bool mipmap);
 
