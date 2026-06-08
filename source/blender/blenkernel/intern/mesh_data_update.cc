@@ -919,9 +919,8 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
     }
   }
 
-  Mesh *mesh_final = const_cast<Mesh *>(geometry_set.get_mesh());
-
-  BKE_object_eval_assign_data(&obedit, &mesh_final->id, false);
+  BKE_object_eval_assign_data(
+      &obedit, id_cast<ID *>(const_cast<Mesh *>(geometry_set.get_mesh())), false);
 
   obedit.runtime->geometry_set_eval = new GeometrySet(std::move(geometry_set));
 
@@ -1059,7 +1058,7 @@ const Mesh *mesh_get_eval_deform(Depsgraph *depsgraph,
         *depsgraph, *scene, *ob, cddata_masks, need_mapping || ob->runtime->last_need_mapping);
   }
 
-  return const_cast<Mesh *>(BKE_object_get_mesh_deform_eval(ob));
+  return BKE_object_get_mesh_deform_eval(ob);
 }
 
 Mesh *mesh_create_eval_final(Depsgraph *depsgraph,
@@ -1116,7 +1115,7 @@ const Mesh *editbmesh_get_eval_cage(Depsgraph *depsgraph,
     editbmesh_build_data(*depsgraph, *scene, *obedit, cddata_masks);
   }
 
-  return const_cast<Mesh *>(BKE_object_get_editmesh_eval_cage(obedit));
+  return BKE_object_get_editmesh_eval_cage(obedit);
 }
 
 const Mesh *editbmesh_get_eval_cage_from_orig(Depsgraph *depsgraph,
