@@ -18,6 +18,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+#define GUIDING_FLT_LARGE 1.844E18f
+
 /* Utilities. */
 
 struct GuidingRISSample {
@@ -73,6 +75,23 @@ ccl_device_forceinline pgl_point3f guiding_point3f(const float3 v)
 {
   return {v.x, v.y, v.z};
 }
+
+ccl_device_forceinline bool is_valid(const float3 v)
+{
+  bool valid = true;
+  valid &= std::isfinite(v.x);
+  valid &= v.x > -GUIDING_FLT_LARGE && v.x < GUIDING_FLT_LARGE;
+  valid &= std::isfinite(v.y);
+  valid &= v.y > -GUIDING_FLT_LARGE && v.y < GUIDING_FLT_LARGE;
+  valid &= std::isfinite(v.z);
+  valid &= v.z > -GUIDING_FLT_LARGE && v.z < GUIDING_FLT_LARGE;
+  return valid;
+}
+ccl_device_forceinline float3 clamp_position(const float3 p)
+{
+  return clamp(p,make_float3(-GUIDING_FLT_LARGE/5.0f), make_float3(GUIDING_FLT_LARGE/5.0f));
+}
+
 #endif
 
 /* Path recording for guiding. */
@@ -101,7 +120,11 @@ ccl_device_forceinline void guiding_record_surface_segment(
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(sd->P));
+    float3 p = sd->P;
+    /* FIXME: ideally we should not generate postions that are close to floating point limits. */
+    kernel_assert(is_valid(p));
+    p = clamp_position(p);
+    openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(sd->wi));
     openpgl::cpp::SetVolumeScatter(state->guiding.path_segment, false);
     openpgl::cpp::SetScatteredContribution(state->guiding.path_segment, zero);
@@ -200,7 +223,10 @@ ccl_device_forceinline void guiding_record_bssrdf_segment(ccl_attr_maybe_unused 
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(P));
+    /* FIXME: ideally we should not generate postions that are close to floating point limits. */
+    kernel_assert(is_valid(P));
+    float3 p = clamp_position(P);
+    openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(wi));
     openpgl::cpp::SetVolumeScatter(state->guiding.path_segment, true);
     openpgl::cpp::SetScatteredContribution(state->guiding.path_segment, zero);
@@ -300,7 +326,10 @@ ccl_device_forceinline void guiding_record_volume_segment(ccl_attr_maybe_unused 
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(P));
+    /* FIXME: ideally we should not generate postions that are close to floating point limits. */
+    kernel_assert(is_valid(P));
+    float3 p = clamp_position(P);
+    openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(I));
     openpgl::cpp::SetVolumeScatter(state->guiding.path_segment, true);
     openpgl::cpp::SetScatteredContribution(state->guiding.path_segment, zero);
@@ -427,7 +456,10 @@ ccl_device_forceinline void guiding_record_light_surface_segment(
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(P));
+    /* FIXME: ideally we should not generate postions that are close to floating point limits. */
+    kernel_assert(is_valid(P));
+    float3 p = clamp_position(P);
+    openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(-ray_D));
     openpgl::cpp::SetNormal(state->guiding.path_segment, guiding_vec3f(-ray_D));
     openpgl::cpp::SetDirectionIn(state->guiding.path_segment, guiding_vec3f(ray_D));
@@ -461,7 +493,10 @@ ccl_device_forceinline void guiding_record_background(ccl_attr_maybe_unused Kern
   const float3 L_rgb = spectrum_to_rgb(L);
   const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
   const float3 ray_D = INTEGRATOR_STATE(state, ray, D);
-  const float3 P = ray_P + (1e6f) * ray_D;
+  float3 P = ray_P + (1e6f) * ray_D;
+  /* FIXME: ideally we should not generate postions that are close to floating point limits. */
+  kernel_assert(is_valid(P));
+  P = clamp_position(P);
   const float3 normal = make_float3(0.0f, 0.0f, 1.0f);
 
   openpgl::cpp::PathSegment background_segment;
