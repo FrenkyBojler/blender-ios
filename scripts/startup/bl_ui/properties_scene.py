@@ -84,7 +84,7 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
             row.label(text="Properties for {target_name} {idtype_name}...".format(
                            target_name=rule.target_filter.target_id.name,
                            idtype_name=rule.target_filter.target_id.rna_type.name.lower())
-                     )
+                      )
             row.prop(rule, "is_muted", icon='MUTE_IPO_OFF' if rule.is_muted else 'MUTE_IPO_ON', icon_only=True)
             col = layout.column()
             col.active = not rule.is_muted
