@@ -1329,10 +1329,6 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
       case ID_WO:
         context = BCONTEXT_WORLD;
         break;
-      case ID_KE:
-        context = BCONTEXT_DATA;
-        ptr = RNA_id_pointer_create(te->parent->store_elem->id);
-        break;
     }
   }
   else {
