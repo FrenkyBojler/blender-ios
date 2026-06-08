@@ -314,14 +314,12 @@ PassInfo Pass::get_info(const PassType type,
     case PASS_DENOISING_SPECULAR_ALBEDO:
     case PASS_DENOISING_NORMAL:
     case PASS_DENOISING_BACKWARD_MOTION:
+    case PASS_DENOISING_SPECULAR_MOTION:
       pass_info.num_components = 3;
       break;
     case PASS_DENOISING_ROUGHNESS:
     case PASS_DENOISING_DEPTH:
       pass_info.num_components = 1;
-      break;
-    case PASS_DENOISING_SPECULAR_MOTION:
-      pass_info.num_components = 2;
       break;
     case PASS_DENOISING_PREVIOUS:
       pass_info.num_components = 3;
