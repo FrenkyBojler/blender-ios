@@ -706,7 +706,7 @@ void USDGenericMeshWriter::write_normals(const Mesh *mesh, pxr::UsdGeomMesh &usd
   pxr::TfToken interpolation;
   switch (mesh->normals_domain()) {
     case bke::MeshNormalDomain::Point: {
-      assert(mesh->verts_num == mesh->vert_normals().size());
+      BLI_assert(mesh->verts_num == mesh->vert_normals().size());
       loop_normals.resize(mesh->verts_num);
       MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()),
                               loop_normals.size());
@@ -715,7 +715,7 @@ void USDGenericMeshWriter::write_normals(const Mesh *mesh, pxr::UsdGeomMesh &usd
       break;
     }
     case bke::MeshNormalDomain::Face: {
-      assert(mesh->faces_num == mesh->face_normals().size());
+      BLI_assert(mesh->faces_num == mesh->face_normals().size());
       loop_normals.resize(mesh->faces_num);
       MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()),
                               loop_normals.size());
@@ -724,7 +724,7 @@ void USDGenericMeshWriter::write_normals(const Mesh *mesh, pxr::UsdGeomMesh &usd
       break;
     }
     case bke::MeshNormalDomain::Corner: {
-      assert(mesh->corners_num == mesh->corner_normals().size());
+      BLI_assert(mesh->corners_num == mesh->corner_normals().size());
       loop_normals.resize(mesh->corners_num);
       MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()),
                               loop_normals.size());
