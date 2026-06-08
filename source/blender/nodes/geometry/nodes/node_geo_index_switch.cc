@@ -88,7 +88,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
   const NodeIndexSwitch &storage = node_storage(*node);
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
+  const eNodeSocketDatatype data_type = storage.data_type;
   const bool supports_fields = socket_type_supports_fields(data_type) &&
                                ntree->type == NTREE_GEOMETRY;
 
@@ -108,7 +108,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   auto &index =
       b.add_input<decl::Int>("Index"_ustr).min(0).max(std::max<int>(0, items.size() - 1));
   if (supports_fields) {
-    index.supports_field().structure_type(index_structure_type);
+    index.structure_type(index_structure_type);
   }
 
   for (const int i : items.index_range()) {
@@ -116,9 +116,6 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &input = b.add_input(data_type, UString(std::to_string(i)), UString(identifier));
     input.custom_draw(
         [index = i](CustomSocketDrawParams &params) { draw_item_socket(params, index); });
-    if (supports_fields) {
-      input.supports_field();
-    }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
     input.optional_label(ELEM(data_type,
                               SOCK_OBJECT,
@@ -136,17 +133,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   }
 
-  auto &output = b.add_output(data_type, "Output"_ustr);
-  if (supports_fields) {
-    output.dependent_field().reference_pass_all();
-  }
-  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
-    output.propagate_all();
-  }
-  if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
-    output.reference_pass_all();
-  }
-  output.structure_type(value_structure_type);
+  b.add_output(data_type, "Output"_ustr)
+      .propagate_all()
+      .inferred_structure_type()
+      .structure_type(value_structure_type);
 
   b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)
       .custom_draw(socket_items::ui::draw_extend_socket_fn<IndexSwitchItemsAccessor>());
@@ -175,7 +165,9 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 
 static void node_operators()
 {
-  socket_items::ops::make_common_operators<IndexSwitchItemsAccessor>();
+  socket_items::ops::make_add_item_operator<IndexSwitchItemsAccessor>();
+  socket_items::ops::make_remove_item_by_index_operator<IndexSwitchItemsAccessor>();
+  socket_items::ops::make_move_item_operator<IndexSwitchItemsAccessor>();
 }
 
 static void node_init(bNodeTree *tree, bNode *node)
@@ -205,7 +197,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     });
   }
   else {
-    const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
+    const eNodeSocketDatatype other_type = params.other_socket().type;
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_INT)) {
       params.add_item(IFACE_("Index"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("GeometryNodeIndexSwitch"_ustr);
@@ -298,7 +290,7 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
       : node_(node)
   {
     const NodeIndexSwitch &storage = node_storage(node);
-    const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
+    const eNodeSocketDatatype data_type = storage.data_type;
     const bNodeSocket &index_socket = node.input_socket(0);
     const bNodeSocket &output_socket = node.output_socket(0);
     const CPPType &cpp_type = CPPType::get<SocketValueVariant>();

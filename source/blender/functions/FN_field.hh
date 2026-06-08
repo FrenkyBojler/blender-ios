@@ -187,6 +187,13 @@ class GField {
    */
   template<typename T> const Field<T> &typed() const;
   template<typename T> Field<T> &typed();
+
+  /**
+   * Attempts to take ownership of a FieldOperation stored in this field, leaving the field input.
+   * It's expected to be deleted shortly after. This is necessary to avoid deep recursion when
+   * destructing a field tree.
+   */
+  FieldOperationPtr try_extract_operation();
 };
 
 /** A version of #GField that should be used when the field type is known at compile time. */
@@ -403,6 +410,9 @@ class FieldOperation : public ImplicitSharingMixin {
   Span<GField> inputs() const;
 
   void delete_self() override;
+
+ private:
+  void delete_input_fields();
 };
 
 bool operator==(const GField &a, const GField &b);
@@ -517,6 +527,9 @@ inline const CPPType &GField::cpp_type() const
         }
         else if constexpr (is_same_any_v<T, ConstantRef, TrivialInlineConstant, OwnedConstant>) {
           return *v.type;
+        }
+        else {
+          BLI_assert_unreachable_static_t(T);
         }
       },
       this->variant_);
@@ -659,6 +672,9 @@ inline const CPPType &GFieldRef::cpp_type() const
         }
         else if constexpr (std::is_same_v<T, MultiFn>) {
           return v.node->output_cpp_type(v.output_i);
+        }
+        else {
+          BLI_assert_unreachable_static_t(T);
         }
       },
       variant_);

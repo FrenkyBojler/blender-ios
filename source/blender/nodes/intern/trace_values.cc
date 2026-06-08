@@ -46,8 +46,7 @@ static bool use_link_for_tracing(const bNodeLink &link)
   }
   const bNodeTree &tree = link.fromnode->owner_tree();
   if (tree.typeinfo->validate_link &&
-      !tree.typeinfo->validate_link(eNodeSocketDatatype(link.fromsock->type),
-                                    eNodeSocketDatatype(link.tosock->type)))
+      !tree.typeinfo->validate_link(link.fromsock->type, link.tosock->type))
   {
     return false;
   }
@@ -692,6 +691,9 @@ LinkedClosureSignatures gather_linked_target_closure_signatures(
                 const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
                 define_signature = bool(storage.flag &
                                         NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE);
+              }
+              else if (node.is_type("GeometryNodeClosureToList"_ustr)) {
+                define_signature = true;
               }
               result.items.append(
                   {(*closure_decl->create_signature)(node), define_signature, socket});
