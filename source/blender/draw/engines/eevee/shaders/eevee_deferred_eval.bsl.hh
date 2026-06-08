@@ -16,6 +16,7 @@
 #include "eevee_light_eval.bsl.hh"
 #include "eevee_lightprobe.bsl.hh"
 #include "eevee_renderpass.bsl.hh"
+#include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_subsurface_lib.bsl.hh"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_fullscreen_lib.glsl"
@@ -33,10 +34,7 @@ void fullscreen_vert([[vertex_id]] const int vert_id,
                      [[out]] VertOut &v_out)
 {
   fullscreen_vertex(vert_id, out_position, v_out.screen_uv);
-  /* We render using a less than depth test to let all fragment behind the geometry pass.
-   * Thus, we need to position the plane on the ndc_z = 0 plane.
-   * With our OpenGL clip space convention that's equal to hs_z = -1. */
-  out_position.z = -1.0f;
+  out_position = reverse_z::transform(out_position);
 }
 
 struct FragOut {
