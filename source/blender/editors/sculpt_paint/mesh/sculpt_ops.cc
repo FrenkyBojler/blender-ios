@@ -370,16 +370,13 @@ void ensure_valid_pivot(const Object &ob, Paint &paint)
   }
 
   /* No valid pivot? Use bounding box center. */
-  if (paint_runtime.average_stroke_counter == 0 || !paint_runtime.last_stroke_valid) {
+  if (paint_runtime.average_stroke_counter == 0) {
     const Bounds<float3> bounds = bke::pbvh::bounds_get(*pbvh);
     const float3 center = math::midpoint(bounds.min, bounds.max);
     const float3 location = math::transform_point(ob.object_to_world(), center);
 
     copy_v3_v3(paint_runtime.average_stroke_accum, location);
     paint_runtime.average_stroke_counter = 1;
-
-    /* Update last stroke position. */
-    paint_runtime.last_stroke_valid = true;
   }
 }
 

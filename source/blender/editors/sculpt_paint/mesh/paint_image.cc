@@ -678,13 +678,12 @@ void paint_init_pivot(Object *ob, Scene *scene, Paint *paint)
       break;
     default:
       BLI_assert_unreachable();
-      paint_runtime.last_stroke_valid = false;
+      paint_runtime.average_stroke_counter = 0;
       return;
   }
 
   mul_m4_v3(ob->object_to_world().ptr(), location);
 
-  paint_runtime.last_stroke_valid = true;
   paint_runtime.average_stroke_counter = 1;
   copy_v3_v3(paint_runtime.average_stroke_accum, location);
 }

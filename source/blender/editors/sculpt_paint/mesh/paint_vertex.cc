@@ -538,7 +538,6 @@ void last_stroke_update(const float location[3], Paint &paint)
   bke::PaintRuntime &paint_runtime = *paint.runtime;
   paint_runtime.average_stroke_counter++;
   add_v3_v3(paint_runtime.average_stroke_accum, location);
-  paint_runtime.last_stroke_valid = true;
 }
 
 /* -------------------------------------------------------------------- */

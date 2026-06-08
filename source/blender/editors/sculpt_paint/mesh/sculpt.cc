@@ -3669,8 +3669,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
   bke::PaintRuntime &paint_runtime = *sd.paint.runtime;
   add_v3_v3(paint_runtime.average_stroke_accum, world_location);
   paint_runtime.average_stroke_counter++;
-  /* Update last stroke position. */
-  paint_runtime.last_stroke_valid = true;
 }
 
 void cache_calc_brushdata_symm(StrokeCache &cache,

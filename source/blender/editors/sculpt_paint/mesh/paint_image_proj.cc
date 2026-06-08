@@ -5870,7 +5870,6 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
       paint_runtime->average_stroke_counter++;
       mul_m4_v3(ps->obmat, world);
       add_v3_v3(paint_runtime->average_stroke_accum, world);
-      paint_runtime->last_stroke_valid = true;
     }
   }
 

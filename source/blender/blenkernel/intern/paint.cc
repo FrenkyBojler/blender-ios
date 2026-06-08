@@ -1679,7 +1679,7 @@ void BKE_paint_settings_foreach_mode(ToolSettings *ts, FunctionRef<void(Paint *p
 void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3])
 {
   const bke::PaintRuntime &paint_runtime = *paint->runtime;
-  if (paint_runtime.last_stroke_valid && paint_runtime.average_stroke_counter > 0) {
+  if (paint_runtime.average_stroke_counter > 0) {
     float fac = 1.0f / paint_runtime.average_stroke_counter;
     mul_v3_v3fl(stroke, paint_runtime.average_stroke_accum, fac);
   }

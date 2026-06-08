@@ -1087,7 +1087,7 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
     Paint *paint = BKE_paint_get_active_from_context(C);
     bke::PaintRuntime *paint_runtime = paint->runtime;
     if (std::holds_alternative<std::monostate>(ss.active_vert())) {
-      paint_runtime->last_stroke_valid = false;
+      paint_runtime->average_stroke_counter = 0;
     }
     else {
       float location[3];
@@ -1095,7 +1095,6 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
       mul_m4_v3(object.object_to_world().ptr(), location);
       copy_v3_v3(paint_runtime->average_stroke_accum, location);
       paint_runtime->average_stroke_counter = 1;
-      paint_runtime->last_stroke_valid = true;
     }
   }
 

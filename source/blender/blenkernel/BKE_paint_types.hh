@@ -50,7 +50,6 @@ struct PaintRuntime : NonCopyable, NonMovable {
   float2 last_rake = float2(0.0f, 0.0f);
   float last_rake_angle = 0.0f;
 
-  int last_stroke_valid = false;
   float3 average_stroke_accum = float3(0.0f, 0.0f, 0.0f);
   int average_stroke_counter = 0;
 

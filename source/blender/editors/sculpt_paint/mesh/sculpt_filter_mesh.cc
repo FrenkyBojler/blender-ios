@@ -204,7 +204,6 @@ void cache_init(bContext *C,
 
     add_v3_v3(paint_runtime->average_stroke_accum, co);
     paint_runtime->average_stroke_counter++;
-    paint_runtime->last_stroke_valid = true;
   }
   else {
     /* Use last normal. */
