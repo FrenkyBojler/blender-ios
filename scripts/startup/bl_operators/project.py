@@ -68,23 +68,24 @@ class ProjectVariable:
 
     def __post_init__(self):
         """Validation of invariants that cattrs doesn't check."""
-        if self.name == "" or ":" in self.name or "{" in self.name or "}" in self.name:
-            raise ValueError("Variable names cannot contain ':', '{', or '}'.")
+        if self.name == "":
+            raise ValueError("Invalid variable name '{:s}': variable names cannot be empty.")
 
-        value_matches_type = True
-        match (self.type, type(self.value)):
-            case (VariableType.INTEGER, int):
-                value_matches_type = True
-            case (VariableType.FLOAT, float):
-                value_matches_type = True
-            case (VariableType.STRING, str):
-                value_matches_type = True
-            case (VariableType.FILEPATH, str):
-                value_matches_type = True
+        for character in [":", "{", "}"]:
+            if character in self.name:
+                raise ValueError("Invalid variable name '{:s}': variable names cannot contain ':', '{', or '}'.")
+
+        match (self.type, self.value):
+            case (VariableType.INTEGER, int()):
+                pass
+            case (VariableType.FLOAT, float()):
+                pass
+            case (VariableType.STRING, str()):
+                pass
+            case (VariableType.FILEPATH, str()):
+                pass
             case _:
-                value_matches_type = False
-        if not value_matches_type:
-            raise ValueError("Variable's actual and declared types do not match.")
+                raise ValueError("Actual and declared type of project variable '{:s}' do not match.".format(self.name))
 
 
 @dataclass
