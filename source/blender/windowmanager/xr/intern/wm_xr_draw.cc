@@ -298,7 +298,9 @@ static void wm_xr_panel_pointer_clear(wmXrPanel *panel)
   panel->panel_pointer.action_idname[0] = '\0';
 }
 
-static void wm_xr_panel_cursor_draw(const wmXrSurfaceData *surface_data)
+static void wm_xr_panel_cursor_draw_overlay(const float viewmat[4][4],
+                                            const float winmat[4][4],
+                                            const wmXrSurfaceData *surface_data)
 {
   if (surface_data == nullptr) {
     return;
@@ -308,7 +310,11 @@ static void wm_xr_panel_cursor_draw(const wmXrSurfaceData *surface_data)
   gpu::Batch *sphere = GPU_batch_preset_sphere(3);
   GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_batch_uniform_4fv(sphere, "color", cursor_color);
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  GPU_matrix_push_projection();
+  GPU_matrix_projection_set(winmat);
+  GPU_matrix_push();
+  GPU_matrix_set(viewmat);
+  GPU_depth_test(GPU_DEPTH_NONE);
   GPU_blend(GPU_BLEND_ALPHA);
 
   for (const wmXrPanel *panel : ConstListBaseWrapper<wmXrPanel>(surface_data->panels)) {
@@ -321,6 +327,9 @@ static void wm_xr_panel_cursor_draw(const wmXrSurfaceData *surface_data)
     GPU_batch_draw(sphere);
     GPU_matrix_pop();
   }
+
+  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
 }
 
 static void wm_xr_draw_cached_panel_overlay(const float viewmat[4][4],
@@ -1093,6 +1102,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
     }
 
     wm_xr_draw_cached_panel_overlay(viewmat, winmat, surface_data);
+    wm_xr_panel_cursor_draw_overlay(viewmat, winmat, surface_data);
   }
 }
 
