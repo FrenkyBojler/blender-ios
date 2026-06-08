@@ -235,8 +235,6 @@ constexpr int GPU_MAX_CONSTANT_DATA = 16;
 constexpr int gpu_type_element_count(const GPUType type)
 {
   switch (type) {
-    case GPU_NONE:
-      return 0;
     case GPU_FLOAT:
       return 1;
     case GPU_VEC2:
@@ -249,6 +247,7 @@ constexpr int gpu_type_element_count(const GPUType type)
       return 9;
     case GPU_MAT4:
       return 16;
+    case GPU_NONE:
     case GPU_TEX1D_ARRAY:
     case GPU_TEX2D:
     case GPU_TEX2D_ARRAY:
