@@ -137,11 +137,6 @@ template<int KeySnapShotsNum, typename Value> class Cache : public CacheBase {
       {
         return true;
       }
-      for (const int i : IndexRange(item.key.inputs.size())) {
-        if (item.value->versions[i] != item.key.inputs[i]->version()) {
-          return true;
-        }
-      }
       return false;
     });
   }
