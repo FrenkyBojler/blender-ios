@@ -1,2 +1,3 @@
 Referenced by issue #159731, Regression: Node: incorrect cursor insertion position when clicking number input fields
 Referenced by pull request #159786, Fix #159731: Regression: Node: incorrect cursor insertion position
+Referenced by commit ccdf24e4d6aed6492b889612ea72695c1edb4f5a, Fix #159731: Regression: Node: incorrect cursor insertion position
