@@ -526,7 +526,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
           /* Only include main vert if selected. */
           if (sel_key && !use_local_center) {
             /* Move handles relative to center. */
-            if (graph_edit_is_translation_mode(t)) {
+            if (graph_edit_is_translation_mode(t) || t->mode == TFM_RESIZE) {
               if (sel_left) {
                 td->flag |= TD_MOVEHANDLE1;
               }
@@ -692,7 +692,8 @@ static void flushTransGraphData(TransInfo *t)
 
     /* Handle snapping for time values:
      * - We should still be in NLA-mapping time-space.
-     * - Only apply to keyframes (but never to handles).
+     * - Only apply to keyframes, but never to handles. See TD_MOVEHANDLE1 and TD_MOVEHANDLE2 if
+     * handles have move in unison with the key.
      * - Don't do this when canceling, or else these changes won't go away.
      */
     if ((t->tsnap.flag & SCE_SNAP) && (t->state != TRANS_CANCEL) && !(td->flag & TD_NOTIMESNAP)) {
