@@ -96,6 +96,51 @@ static float curves_rip_edge_poly_segment_dist_sq(const ARegion *region,
   return dist_squared_to_line_segment_v2(mval_fl, point1, point2);
 }
 
+/* Measure the cursor distance to a contiguous evaluated segment, wrapping cyclic endings. */
+static float curves_rip_edge_evaluated_segment_dist_sq(const ARegion *region,
+                                                       const bke::CurvesGeometry &curves,
+                                                       const int curve,
+                                                       const IndexRange evaluated_segment,
+                                                       const float mval_fl[2])
+{
+  const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
+  const Span<float3> evaluated_positions = curves.evaluated_positions();
+  const IndexRange evaluated_points = evaluated_points_by_curve[curve];
+  if (evaluated_points.is_empty() || evaluated_segment.size() <= 1) {
+    return FLT_MAX;
+  }
+
+  const int evaluated_segments_num = evaluated_segment.size() - 1;
+
+  float min_dist_sq = FLT_MAX;
+  float point1[2], point2[2];
+  const int first_point = (evaluated_segment.first() - evaluated_points.first()) %
+                              evaluated_points.size() +
+                          evaluated_points.first();
+  bool has_point1 = curves_rip_edge_point_to_screen(
+      region, evaluated_positions[first_point], point1);
+  if (has_point1) {
+    /* Include the first visible endpoint so heavily clipped segments still get a useful distance. */
+    min_dist_sq = min_ff(min_dist_sq, len_squared_v2v2(mval_fl, point1));
+  }
+
+  for (const int evaluated_i : IndexRange(evaluated_segments_num)) {
+    const int point_i = evaluated_segment.first() + evaluated_i + 1;
+    const int point_i_wrapped = (point_i - evaluated_points.first()) % evaluated_points.size() +
+                                evaluated_points.first();
+    if (!curves_rip_edge_point_to_screen(region, evaluated_positions[point_i_wrapped], point2)) {
+      continue;
+    }
+    if (has_point1) {
+      min_dist_sq = min_ff(min_dist_sq, dist_squared_to_line_segment_v2(mval_fl, point1, point2));
+    }
+    copy_v2_v2(point1, point2);
+    has_point1 = true;
+  }
+
+  return min_dist_sq;
+}
+
 /* Approximate screen-space cursor distance to a Bezier segment using its evaluated polyline. */
 static float curves_rip_edge_bezier_segment_dist_sq(const ARegion *region,
                                                     const bke::CurvesGeometry &curves,
@@ -113,7 +158,6 @@ static float curves_rip_edge_bezier_segment_dist_sq(const ARegion *region,
   }
 
   const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
-  const Span<float3> evaluated_positions = curves.evaluated_positions();
   const IndexRange evaluated_points = evaluated_points_by_curve[curve];
   const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve);
 
@@ -121,33 +165,35 @@ static float curves_rip_edge_bezier_segment_dist_sq(const ARegion *region,
   const IndexRange evaluated_segment = IndexRange::from_begin_end_inclusive(offsets[segment],
                                                                            offsets[segment + 1])
                                            .shift(evaluated_points.first());
-  const int evaluated_segments_num = evaluated_segment.size() - 1;
+  return curves_rip_edge_evaluated_segment_dist_sq(
+      region, curves, curve, evaluated_segment, mval_fl);
+}
 
-  float min_dist_sq = FLT_MAX;
-  float point1[2], point2[2];
-  bool has_point1 = curves_rip_edge_point_to_screen(
-      region, evaluated_positions[evaluated_segment.first()], point1);
-  if (has_point1) {
-    /* Include the first visible endpoint so heavily clipped segments still get a useful distance. */
-    min_dist_sq = min_ff(min_dist_sq, len_squared_v2v2(mval_fl, point1));
+/* Approximate screen-space cursor distance to a Catmull Rom segment using evaluated samples. */
+static float curves_rip_edge_catmull_rom_segment_dist_sq(const ARegion *region,
+                                                         const bke::CurvesGeometry &curves,
+                                                         const int curve,
+                                                         const int segment,
+                                                         const float mval_fl[2])
+{
+  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+  const IndexRange points = points_by_curve[curve];
+  const bool cyclic = curves.cyclic()[curve];
+  /* Non-cyclic curves do not have a segment starting at the final control point. */
+  const int segment_next = (segment + 1 < points.size()) ? segment + 1 : (cyclic ? 0 : -1);
+  if (segment_next < 0) {
+    return FLT_MAX;
   }
 
-  for (const int evaluated_i : IndexRange(evaluated_segments_num)) {
-    const int point_i = evaluated_segment.first() + evaluated_i + 1;
-    /* Cyclic Bezier segments can wrap past the end of the evaluated point buffer. */
-    const int point_i_wrapped = (point_i - evaluated_points.first()) % evaluated_points.size() +
-                                evaluated_points.first();
-    if (!curves_rip_edge_point_to_screen(region, evaluated_positions[point_i_wrapped], point2)) {
-      continue;
-    }
-    if (has_point1) {
-      min_dist_sq = min_ff(min_dist_sq, dist_squared_to_line_segment_v2(mval_fl, point1, point2));
-    }
-    copy_v2_v2(point1, point2);
-    has_point1 = true;
-  }
-
-  return min_dist_sq;
+  const OffsetIndices<int> evaluated_points_by_curve = curves.evaluated_points_by_curve();
+  const IndexRange evaluated_points = evaluated_points_by_curve[curve];
+  const int resolution = curves.resolution()[curve];
+  const int evaluated_points_per_segment = (resolution > 1) ? resolution : 1;
+  const IndexRange evaluated_segment = IndexRange::from_begin_size(
+      evaluated_points.first() + segment * evaluated_points_per_segment,
+      evaluated_points_per_segment + 1);
+  return curves_rip_edge_evaluated_segment_dist_sq(
+      region, curves, curve, evaluated_segment, mval_fl);
 }
 
 /* Calculate the screen-space segment distance for editable curve types supported by this operator. */
@@ -165,7 +211,12 @@ static float curves_rip_edge_segment_dist_sq(const ARegion *region,
   if (curve_type == CURVE_TYPE_BEZIER) {
     return curves_rip_edge_bezier_segment_dist_sq(region, curves, curve, segment, mval_fl);
   }
-  if (curve_type == CURVE_TYPE_POLY) {
+  if (curve_type == CURVE_TYPE_CATMULL_ROM) {
+    return curves_rip_edge_catmull_rom_segment_dist_sq(region, curves, curve, segment, mval_fl);
+  }
+  if (ELEM(curve_type, CURVE_TYPE_POLY, CURVE_TYPE_NURBS)) {
+    /* NURBS side picking uses the control polygon because CurvesGeometry does not expose
+     * per-control-point evaluated spans for its curve. */
     return curves_rip_edge_poly_segment_dist_sq(region, curves, curve, segment, mval_fl);
   }
   return FLT_MAX;
@@ -199,8 +250,8 @@ static int curves_rip_edge_side_get(const ARegion *region,
   if (next_index == -1) {
     return -1;
   }
-  /* In two-point cyclic non-Bezier curves, both adjacent directions refer to the same segment. */
-  if (prev_index == next_index && curves.curve_types()[curve] != CURVE_TYPE_BEZIER) {
+  /* In two-point cyclic Poly curves, both adjacent directions refer to the same straight segment. */
+  if (prev_index == next_index && curves.curve_types()[curve] == CURVE_TYPE_POLY) {
     return 1;
   }
 
@@ -222,16 +273,23 @@ static bool curves_rip_edge(bke::CurvesGeometry &curves,
   }
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+  const VArray<int8_t> curve_types = curves.curve_types();
   const bke::AttributeAccessor src_attributes = curves.attributes();
   const VArray<bool> selection = *src_attributes.lookup_or_default<bool>(
       ".selection", bke::AttrDomain::Point, true);
 
   /* First pass: determine which selected points can be duplicated and where to insert them. */
   Array<int8_t> insert_side(curves.points_num(), 0);
+  Array<bool> changed_curves(curves.curves_num(), false);
   int new_points_num = 0;
   for (const int curve : curves.curves_range()) {
-    /* Only poly and Bezier curves can be extended by duplicating control points in-place. */
-    if (!ELEM(curves.curve_types()[curve], CURVE_TYPE_POLY, CURVE_TYPE_BEZIER)) {
+    /* Only curve types with rip-edge side selection implemented below. */
+    if (!ELEM(curve_types[curve],
+              CURVE_TYPE_CATMULL_ROM,
+              CURVE_TYPE_POLY,
+              CURVE_TYPE_BEZIER,
+              CURVE_TYPE_NURBS))
+    {
       continue;
     }
 
@@ -244,6 +302,7 @@ static bool curves_rip_edge(bke::CurvesGeometry &curves,
       const int side = curves_rip_edge_side_get(&region, curves, curve, point, mval_fl);
       if (side != 0) {
         insert_side[point] = side;
+        changed_curves[curve] = true;
         new_points_num++;
       }
     }
@@ -285,6 +344,17 @@ static bool curves_rip_edge(bke::CurvesGeometry &curves,
   bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
   new_curves.resize(dst_point, curves.curves_num());
   new_curves.offsets_for_write().copy_from(new_offsets);
+  /* Changed NURBS curves have a different point count, so their custom knots can no longer be
+   * copied directly. Preserve custom knots only for unchanged NURBS curves and normalize changed
+   * curves to generated knot modes. */
+  if (curves.nurbs_has_custom_knots()) {
+    IndexMaskMemory memory;
+    const IndexMask changed_nurbs_curves = IndexMask::from_predicate(
+        curves.curves_range(), memory, [&](const int64_t curve) {
+          return changed_curves[curve] && curve_types[curve] == CURVE_TYPE_NURBS;
+        });
+    bke::curves::nurbs::copy_custom_knots(curves, changed_nurbs_curves, new_curves);
+  }
 
   bke::MutableAttributeAccessor dst_attributes = new_curves.attributes_for_write();
   /* Copy point attributes from each source point to both original and duplicate outputs. */
