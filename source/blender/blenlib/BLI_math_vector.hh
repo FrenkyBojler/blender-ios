@@ -830,6 +830,7 @@ template<typename T, int Size>
                                                            const VecBase<T, Size> &v4);
 
 /* Kochanek-Bartels Hermite spline interpolation between p2 and p3. */
+template<typename T>
 [[nodiscard]] inline float3 hermite_spline_interp(const float3 &p1,
                                                  const float3 &p2,
                                                  const float3 &p3,
