@@ -265,10 +265,7 @@ static bool use_duplicate_previous_key(bContext *C, wmOperator *op)
   if (brush && mode == PaintMode::GPencil) {
     /* For the eraser and tint tool, we don't want auto-key to create an empty keyframe, so we
      * duplicate the previous frame. */
-    if (ELEM(brush->gpencil_brush_type,
-             GPAINT_BRUSH_TYPE_ERASE,
-             GPAINT_BRUSH_TYPE_TINT))
-    {
+    if (ELEM(brush->gpencil_brush_type, GPAINT_BRUSH_TYPE_ERASE, GPAINT_BRUSH_TYPE_TINT)) {
       return true;
     }
     /* Same for the temporary eraser when using the draw tool. */
