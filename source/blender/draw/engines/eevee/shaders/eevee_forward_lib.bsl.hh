@@ -14,6 +14,7 @@
 
 #include "draw_model.bsl.hh"
 #include "eevee_colorspace_lib.bsl.hh"
+#include "eevee_gbuffer_types.bsl.hh"
 #include "eevee_light_eval.bsl.hh"
 #include "eevee_lightprobe.bsl.hh"
 #include "eevee_lightprobe_plane.bsl.hh"
@@ -40,6 +41,36 @@
 
 namespace eevee {
 
+float3 forward_lighting_surface_normal()
+{
+  ClosureUndetermined cl = g_closure_get(0);
+  if (!gbuffer::closure_is_empty(cl)) {
+    return cl.N;
+  }
+#if CLOSURE_BIN_COUNT > 1
+  cl = g_closure_get(1);
+  if (!gbuffer::closure_is_empty(cl)) {
+    return cl.N;
+  }
+#endif
+#if CLOSURE_BIN_COUNT > 2
+  cl = g_closure_get(2);
+  if (!gbuffer::closure_is_empty(cl)) {
+    return cl.N;
+  }
+#endif
+  return g_data.N;
+}
+
+/* Match the geometry normal used by deferred lighting.
+ * Forward materials skip the GBuffer path so use the same fallback here. */
+float3 forward_lighting_geometry_normal(float3 Ng)
+{
+  float3 N = forward_lighting_surface_normal();
+  uint encoded_Ng = gbuffer::geometry_normal_pack(Ng, N);
+  return gbuffer::geometry_normal_unpack(encoded_Ng, N);
+}
+
 void forward_lighting_eval(const ViewMatrices view,
                            uint resource_id,
                            Thickness thickness,
@@ -59,6 +90,7 @@ void forward_lighting_eval(const ViewMatrices view,
 
   float vPz = dot(view.forward(), g_data.P) - dot(view.forward(), view.position());
   float3 V = view.world_incident_vector(g_data.P);
+  float3 Ng = forward_lighting_geometry_normal(g_data.Ng);
 
   light::EvalCtx<false> ctx;
   for (uint i = 0u; i < 3; i++) [[unroll]] {
@@ -69,7 +101,7 @@ void forward_lighting_eval(const ViewMatrices view,
   }
 
   ctx.P = g_data.P;
-  ctx.Ng = g_data.Ng;
+  ctx.Ng = Ng;
   ctx.V = V;
   ctx.texel = frag_co;
   ctx.thickness = thickness;
@@ -109,7 +141,7 @@ void forward_lighting_eval(const ViewMatrices view,
     }
   }
 
-  LightProbeSample samp = lightprobes.load(frag_co, g_data.P, g_data.Ng, V);
+  LightProbeSample samp = lightprobes.load(frag_co, g_data.P, Ng, V);
 
   float clamp_indirect_sh = uni.uniform_buf.clamp.surface_indirect;
   samp.volume_irradiance = spherical_harmonics::clamp_energy(samp.volume_irradiance,
@@ -118,7 +150,7 @@ void forward_lighting_eval(const ViewMatrices view,
 #ifdef MAT_REFLECTION /* Disable if only rough surfaces. */
   /* Planar reflection. */
   float3 planar_probe_radiance = float3(0.0f);
-  float3 average_N = g_data.Ng * 0.001f;
+  float3 average_N = Ng * 0.001f;
   {
     /* Get average normal.  */
     for (uint i = 0u; i < 3; i++) [[unroll]] {
