@@ -456,7 +456,7 @@ void GRAPH_OT_view_frame(wmOperatorType *ot)
 
   /* API callbacks */
   ot->exec = graphkeys_view_frame_exec;
-  ot->poll = ED_operator_graphedit_active;
+  ot->poll = ED_operator_region_graphedit_active;
 
   /* Flags */
   ot->flag = 0;
