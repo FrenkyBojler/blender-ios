@@ -263,6 +263,22 @@ static int curves_rip_edge_side_get(const ARegion *region,
   return (dist_prev < dist_next) ? -1 : 1;
 }
 
+/* Return whether a point should be ripped, including Bézier handle-only selection. */
+static bool curves_rip_edge_is_point_selected(const VArray<bool> &selection,
+                                              const VArray<bool> &selection_left,
+                                              const VArray<bool> &selection_right,
+                                              const int8_t curve_type,
+                                              const int point)
+{
+  if (selection[point]) {
+    return true;
+  }
+  if (curve_type != CURVE_TYPE_BEZIER) {
+    return false;
+  }
+  return selection_left[point] || selection_right[point];
+}
+
 /* Duplicate selected points beside the chosen adjacent segment, preserving point attributes. */
 static bool curves_rip_edge(bke::CurvesGeometry &curves,
                             const ARegion &region,
@@ -277,6 +293,19 @@ static bool curves_rip_edge(bke::CurvesGeometry &curves,
   const bke::AttributeAccessor src_attributes = curves.attributes();
   const VArray<bool> selection = *src_attributes.lookup_or_default<bool>(
       ".selection", bke::AttrDomain::Point, true);
+  const bool has_bezier = curves.has_curve_with_type(CURVE_TYPE_BEZIER);
+  const VArray<bool> selection_left = has_bezier ?
+                                          *src_attributes.lookup_or_default<bool>(
+                                              ".selection_handle_left",
+                                              bke::AttrDomain::Point,
+                                              true) :
+                                          VArray<bool>::from_single(false, curves.points_num());
+  const VArray<bool> selection_right = has_bezier ?
+                                           *src_attributes.lookup_or_default<bool>(
+                                               ".selection_handle_right",
+                                               bke::AttrDomain::Point,
+                                               true) :
+                                           VArray<bool>::from_single(false, curves.points_num());
 
   /* First pass: determine which selected points can be duplicated and where to insert them. */
   Array<int8_t> insert_side(curves.points_num(), 0);
@@ -295,7 +324,9 @@ static bool curves_rip_edge(bke::CurvesGeometry &curves,
 
     const IndexRange points = points_by_curve[curve];
     for (const int point : points) {
-      if (!selection[point]) {
+      if (!curves_rip_edge_is_point_selected(
+              selection, selection_left, selection_right, curve_types[curve], point))
+      {
         continue;
       }
 
@@ -315,7 +346,7 @@ static bool curves_rip_edge(bke::CurvesGeometry &curves,
 
   Array<int> new_offsets(curves.curves_num() + 1);
   Array<int> dst_to_src_point(curves.points_num() + new_points_num);
-  Array<bool> dst_selection(curves.points_num() + new_points_num, false);
+  Array<bool> dst_is_duplicate(curves.points_num() + new_points_num, false);
 
   int dst_point = 0;
   new_offsets.first() = 0;
@@ -324,17 +355,17 @@ static bool curves_rip_edge(bke::CurvesGeometry &curves,
     for (const int point : points_by_curve[curve]) {
       if (insert_side[point] == -1) {
         dst_to_src_point[dst_point] = point;
-        dst_selection[dst_point] = true;
+        dst_is_duplicate[dst_point] = true;
         dst_point++;
       }
 
       dst_to_src_point[dst_point] = point;
-      dst_selection[dst_point] = selection[point] && insert_side[point] == 0;
+      dst_is_duplicate[dst_point] = false;
       dst_point++;
 
       if (insert_side[point] == 1) {
         dst_to_src_point[dst_point] = point;
-        dst_selection[dst_point] = true;
+        dst_is_duplicate[dst_point] = true;
         dst_point++;
       }
     }
@@ -370,9 +401,24 @@ static bool curves_rip_edge(bke::CurvesGeometry &curves,
 
   /* Write selection separately so only the newly inserted duplicate points remain selected. */
   for (const StringRef selection_name : get_curves_selection_attribute_names(new_curves)) {
+    const VArray<bool> src_selection = *src_attributes.lookup_or_default<bool>(
+        selection_name, bke::AttrDomain::Point, true);
     bke::SpanAttributeWriter<bool> dst_selection_attribute =
         dst_attributes.lookup_or_add_for_write_span<bool>(selection_name, bke::AttrDomain::Point);
-    dst_selection_attribute.span.copy_from(dst_selection);
+    MutableSpan<bool> dst_selection = dst_selection_attribute.span;
+    /* For every selection layer, select inserted duplicates for transform, deselect ripped source
+     * points, and preserve selection on untouched points. */
+    for (const int dst_i : dst_selection.index_range()) {
+      if (dst_is_duplicate[dst_i]) {
+        dst_selection[dst_i] = true;
+      }
+      else if (insert_side[dst_to_src_point[dst_i]] != 0) {
+        dst_selection[dst_i] = false;
+      }
+      else {
+        dst_selection[dst_i] = src_selection[dst_to_src_point[dst_i]];
+      }
+    }
     dst_selection_attribute.finish();
   }
 
