@@ -109,6 +109,7 @@ class RuntimeToBakeValue {
 
   void convert()
   {
+    PRF_scope_with_name("RuntimeToBakeValue::convert", ProfileCategory::Default);
     for (BakeValues::InputValue &input_value : root_values_) {
       input_value.value.ensure_owns_direct_data();
     }
@@ -303,8 +304,10 @@ class RuntimeToBakeValue {
       instances.ensure_geometry_instances();
       this->runtime_to_bake__AttributeStorage(instances.attribute_storage());
       for (bke::InstanceReference &reference : instances.references_for_write()) {
-        GeometrySet &geometry = reference.geometry_set();
-        this->runtime_to_bake__GeometrySet(geometry);
+        if (reference.type() == InstanceReference::Type::GeometrySet) {
+          GeometrySet &geometry = reference.geometry_set();
+          this->runtime_to_bake__GeometrySet(geometry);
+        }
       }
     }
     if (geometry.has_mesh()) {
@@ -370,7 +373,7 @@ class RuntimeToBakeValue {
 
   void runtime_to_bake__Bundle(nodes::Bundle &bundle)
   {
-    Vector<UString> values_to_remove;
+    Vector<nodes::BundleKey> values_to_remove;
     for (const auto &item : bundle.items()) {
       if (auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
         if (!this->runtime_to_bake__SocketValueVariant(socket_value->value)) {
@@ -378,7 +381,7 @@ class RuntimeToBakeValue {
         }
       }
     }
-    for (const UString &value_to_remove : values_to_remove) {
+    for (const nodes::BundleKey &value_to_remove : values_to_remove) {
       bundle.remove(value_to_remove);
     }
   }
@@ -511,8 +514,10 @@ class BakeToRuntimeValue {
       Instances &instances = *geometry.get_instances_for_write();
       instances.ensure_geometry_instances();
       for (bke::InstanceReference &reference : instances.references_for_write()) {
-        GeometrySet &geometry = reference.geometry_set();
-        this->bake_to_runtime__GeometrySet(geometry);
+        if (reference.type() == InstanceReference::Type::GeometrySet) {
+          GeometrySet &geometry = reference.geometry_set();
+          this->bake_to_runtime__GeometrySet(geometry);
+        }
       }
       this->bake_to_runtime__AttributeStorage(instances.attribute_storage());
     }
@@ -580,7 +585,7 @@ class BakeToRuntimeValue {
   {
     for (auto &&item : bundle.items()) {
       if (auto *socket_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
-        this->bake_to_runtime__SocketValueVariant(socket_value->value, item.key.ref());
+        this->bake_to_runtime__SocketValueVariant(socket_value->value, item.key.ustr().ref());
       }
     }
   }

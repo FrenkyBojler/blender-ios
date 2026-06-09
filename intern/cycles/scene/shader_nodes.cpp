@@ -2649,8 +2649,8 @@ NODE_DEFINE(PrincipledBsdfNode)
   SOCKET_IN_FLOAT(diffuse_roughness, "Diffuse Roughness", 0.0f);
 
   SOCKET_IN_FLOAT(subsurface_weight, "Subsurface Weight", 0.0f);
-  SOCKET_IN_FLOAT(subsurface_scale, "Subsurface Scale", 0.1f);
-  SOCKET_IN_VECTOR(subsurface_radius, "Subsurface Radius", make_float3(0.1f, 0.1f, 0.1f));
+  SOCKET_IN_FLOAT(subsurface_scale, "Subsurface Scale", 0.005f);
+  SOCKET_IN_VECTOR(subsurface_radius, "Subsurface Radius", make_float3(1.0f, 0.2f, 0.1f));
   SOCKET_IN_FLOAT(subsurface_ior, "Subsurface IOR", 1.4f);
   SOCKET_IN_FLOAT(subsurface_anisotropy, "Subsurface Anisotropy", 0.0f);
 
@@ -2676,7 +2676,7 @@ NODE_DEFINE(PrincipledBsdfNode)
   SOCKET_IN_FLOAT(emission_strength, "Emission Strength", 0.0f);
 
   SOCKET_IN_FLOAT(thin_film_thickness, "Thin Film Thickness", 0.0f);
-  SOCKET_IN_FLOAT(thin_film_ior, "Thin Film IOR", 1.3f);
+  SOCKET_IN_FLOAT(thin_film_ior, "Thin Film IOR", 1.33f);
 
   SOCKET_IN_FLOAT(surface_mix_weight, "SurfaceMixWeight", 0.0f, SocketType::SVM_INTERNAL);
 
@@ -2988,8 +2988,8 @@ NODE_DEFINE(SubsurfaceScatteringNode)
   method_enum.insert("random_walk_legacy", CLOSURE_BSSRDF_RANDOM_WALK_LEGACY_ID);
   SOCKET_ENUM(method, "Method", method_enum, CLOSURE_BSSRDF_RANDOM_WALK_ID);
 
-  SOCKET_IN_FLOAT(scale, "Scale", 0.01f);
-  SOCKET_IN_VECTOR(radius, "Radius", make_float3(0.1f, 0.1f, 0.1f));
+  SOCKET_IN_FLOAT(scale, "Scale", 0.005f);
+  SOCKET_IN_VECTOR(radius, "Radius", make_float3(1.0f, 0.2f, 0.1f));
 
   SOCKET_IN_FLOAT(subsurface_ior, "IOR", 1.4f);
   SOCKET_IN_FLOAT(subsurface_roughness, "Roughness", 1.0f);
@@ -7335,7 +7335,7 @@ NODE_DEFINE(RGBCurvesNode)
 {
   NodeType *type = NodeType::add("rgb_curves", create, NodeType::SHADER);
 
-  SOCKET_COLOR_ARRAY(curves, "Curves", array<float3>());
+  SOCKET_COLOR_ARRAY(curves, "Curves", array<packed_float3>());
   SOCKET_FLOAT(min_x, "Min X", 0.0f);
   SOCKET_FLOAT(max_x, "Max X", 1.0f);
   SOCKET_BOOLEAN(extrapolate, "Extrapolate", true);
@@ -7371,7 +7371,7 @@ NODE_DEFINE(VectorCurvesNode)
 {
   NodeType *type = NodeType::add("vector_curves", create, NodeType::SHADER);
 
-  SOCKET_VECTOR_ARRAY(curves, "Curves", array<float3>());
+  SOCKET_VECTOR_ARRAY(curves, "Curves", array<packed_float3>());
   SOCKET_FLOAT(min_x, "Min X", 0.0f);
   SOCKET_FLOAT(max_x, "Max X", 1.0f);
   SOCKET_BOOLEAN(extrapolate, "Extrapolate", true);
@@ -7484,7 +7484,7 @@ NODE_DEFINE(RGBRampNode)
 {
   NodeType *type = NodeType::add("rgb_ramp", create, NodeType::SHADER);
 
-  SOCKET_COLOR_ARRAY(ramp, "Ramp", array<float3>());
+  SOCKET_COLOR_ARRAY(ramp, "Ramp", array<packed_float3>());
   SOCKET_FLOAT_ARRAY(ramp_alpha, "Ramp Alpha", array<float>());
   SOCKET_BOOLEAN(interpolate, "Interpolate", true);
 
