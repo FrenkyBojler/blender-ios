@@ -15,7 +15,9 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_sound_types.h"
 
+#include "opentimelineio/anyDictionary.h"
 #include "opentimelineio/clip.h"
 #include "opentimelineio/externalReference.h"
 #include "opentimelineio/gap.h"
@@ -263,6 +265,28 @@ static void img_sequence_create_symlinks(const StripElem *se,
 
 #endif
 
+static const char *get_blender_otio_namespace()
+{
+  return "blender";
+}
+
+static void add_sound_strip_metadata(SerializableObject::Retainer<Clip> &clip, const Strip *strip)
+{
+  if (!strip->sound) {
+    return;
+  }
+
+  AnyDictionary metadata;
+  /* Cast all floats as doubles as OTIO does not support floats and writes them as null in the
+   * file. */
+  metadata["volume"] = static_cast<double>(strip->volume);
+  metadata["speed_factor"] = static_cast<double>(strip->speed_factor);
+  metadata["pan"] = static_cast<double>(strip->pan);
+  metadata["sound_offset"] = static_cast<double>(strip->sound_offset);
+
+  clip->metadata()[get_blender_otio_namespace()] = metadata;
+}
+
 /***** Handle Export for each strip type. *****/
 
 void MovieStripExporter::export_strip(const OTIOExportParams * /*export_params*/)
@@ -293,6 +317,8 @@ void SoundStripExporter::export_strip(const OTIOExportParams * /*export_params*/
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(_strip->name + 2, external_reference, strip_source_range));
+
+  add_sound_strip_metadata(clip, _strip);
 
   _track->append_child(clip);
 }
