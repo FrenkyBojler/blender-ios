@@ -5978,6 +5978,7 @@ class VIEW3D_MT_edit_curves(Menu):
 
         layout.operator("curves.duplicate_move")
         layout.operator("curves.extrude_move")
+        layout.operator("curves.rip_edge_move", text="Rip Vertices and Extend")
 
         layout.separator()
 
@@ -5999,6 +6000,7 @@ class VIEW3D_MT_edit_curves_control_points(Menu):
         layout = self.layout
 
         layout.operator("curves.extrude_move")
+        layout.operator("curves.rip_edge_move", text="Rip Vertices and Extend")
         layout.operator_menu_enum("curves.handle_type_set", "type")
 
 
@@ -6026,6 +6028,7 @@ class VIEW3D_MT_edit_curves_context_menu(Menu):
         layout.separator()
 
         layout.operator("curves.extrude_move")
+        layout.operator("curves.rip_edge_move", text="Rip Vertices and Extend")
 
         layout.separator()
 
