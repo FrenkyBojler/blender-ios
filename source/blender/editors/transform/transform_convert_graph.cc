@@ -259,6 +259,8 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 
   BezTriple *bezt;
   int count = 0, i;
+  /* The amount of keyframe centers that are selected. */
+  int keys_selected = 0;
   float mtx[3][3], smtx[3][3];
   const bool use_handle = !(sipo->flag & SIPO_NOHANDLES);
   const bool use_local_center = graph_edit_use_local_center(t);
@@ -318,6 +320,9 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
        * occurs on the same side of the current frame as mouse. */
       if (FrameOnMouseSide(t->frame_side, bezt->vec[1][0], cfra)) {
         graph_bezt_get_transform_selection(t, bezt, use_handle, &sel_left, &sel_key, &sel_right);
+        if (sel_key) {
+          keys_selected++;
+        }
 
         if (is_prop_edit) {
           curvecount += 3;
@@ -526,7 +531,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
           /* Only include main vert if selected. */
           if (sel_key && !use_local_center) {
             /* Move handles relative to center. */
-            if (graph_edit_is_translation_mode(t) || t->mode == TFM_RESIZE) {
+            if (graph_edit_is_translation_mode(t)) {
               if (sel_left) {
                 td->flag |= TD_MOVEHANDLE1;
               }
@@ -563,9 +568,12 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
            * - Check if we've got entire BezTriple selected and we're scaling/rotating that point,
            *   then check if we're using auto-handles.
            * - If so, change them auto-handles to aligned handles so that handles get affected too.
+           * - Only do so if 0 or 1 key centers are selected or local centers are modified. In that
+           *   case the user wants to modify the handles into a special position and auto handles
+           *   would block him from doing so.
            */
-          if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) && ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM) &&
-              ELEM(t->mode, TFM_ROTATION, TFM_RESIZE))
+          if ((keys_selected <= 1 && !use_local_center) && ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) &&
+              ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM) && ELEM(t->mode, TFM_ROTATION, TFM_RESIZE))
           {
             if (hdata && (sel_left) && (sel_right)) {
               bezt->h1 = HD_ALIGN;
