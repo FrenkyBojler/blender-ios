@@ -536,7 +536,7 @@ static bool override_add_button_poll(bContext *C)
   context_active_but_prop_get(C, &ptr, &prop, &index);
 
   const eRNAOverrideStatus override_status = RNA_property_override_status(
-      CTX_data_main(C), &ptr, prop, index);
+      CTX_data_main(C), CTX_data_scene(C), &ptr, prop, index);
 
   return (ptr.data && prop && flag_is_set(override_status, eRNAOverrideStatus::LibOverridable));
 }
@@ -606,7 +606,7 @@ static bool override_remove_button_poll(bContext *C)
   context_active_but_prop_get(C, &ptr, &prop, &index);
 
   const eRNAOverrideStatus override_status = RNA_property_override_status(
-      CTX_data_main(C), &ptr, prop, index);
+      CTX_data_main(C), CTX_data_scene(C), &ptr, prop, index);
 
   return (ptr.data && ptr.owner_id && prop &&
           flag_is_set(override_status, eRNAOverrideStatus::LibOverridden));
@@ -991,9 +991,10 @@ static bool dynamic_override_add_button_poll(bContext *C)
   context_active_but_prop_get(C, &ptr, &prop, &index);
 
   const eRNAOverrideStatus override_status = RNA_property_override_status(
-      CTX_data_main(C), &ptr, prop, index);
+      CTX_data_main(C), CTX_data_scene(C), &ptr, prop, index);
 
-  return (ptr.data && prop && flag_is_set(override_status, eRNAOverrideStatus::DynOverridable));
+  return (ptr.data && prop && flag_is_set(override_status, eRNAOverrideStatus::DynOverridable) &&
+          !flag_is_set(override_status, eRNAOverrideStatus::DynOverridden));
 }
 
 static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator *op)
@@ -1018,38 +1019,13 @@ static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator
     index = -1;
   }
 
-  std::optional<std::string> rna_path_str = RNA_path_from_ID_to_property(&ptr, prop);
+  std::optional<std::string> rna_path_str;
+  owner_id = RNA_property_override_property_real_id_owner(bmain, &ptr, prop, &rna_path_str);
   if (!rna_path_str) {
     return OPERATOR_CANCELLED;
   }
 
-  const char *rna_path_prefix;
-  if (owner_id->flag & (ID_FLAG_EMBEDDED_DATA | ID_FLAG_EMBEDDED_DATA_LIB_OVERRIDE)) {
-    /* XXX this is very bad band-aid code, but for now it will do.
-     * We should at least use a #define for those prop names.
-     * Ideally RNA as a whole should be aware of those PITA of embedded IDs, and have a way to
-     * retrieve their owner IDs and generate paths from those.
-     */
-    /* TODO: Copied from library override code in `rna_access_compare_override.cc`, needs to be
-     * deduplicated. */
-
-    switch (GS(owner_id->name)) {
-      case ID_KE:
-        owner_id = (id_cast<Key *>(owner_id))->from;
-        rna_path_prefix = "shape_keys.";
-        break;
-      case ID_GR:
-      case ID_NT:
-        /* Master collections, Root node trees. */
-        owner_id = RNA_find_real_ID_and_path(owner_id, &rna_path_prefix);
-        break;
-      default:
-        BLI_assert_unreachable();
-    }
-    rna_path_str.emplace(fmt::format("{}.{}", rna_path_prefix, *rna_path_str));
-  }
-
-  DynamicOverrideRuleIDData &dynamic_override_rule = bke::dynoverride::rule_ensure_for_id(
+  DynamicOverrideRuleIDData &dynamic_override_rule = bke::dynoverride::rule_iddata_ensure_for_id(
       *scene->dynamic_override, *owner_id);
 
   RNAPath rna_path = {*rna_path_str};
@@ -1078,7 +1054,7 @@ static void UI_OT_dynamic_override_add_button(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Add Dynamic Override";
   ot->idname = "UI_OT_dynamic_override_add_button";
-  ot->description = "Create a dynamic override";
+  ot->description = "Create a dynamic override rule property";
 
   /* callbacks */
   ot->poll = dynamic_override_add_button_poll;
@@ -1089,6 +1065,96 @@ static void UI_OT_dynamic_override_add_button(wmOperatorType *ot)
 
   /* properties */
   RNA_def_boolean(ot->srna, "all", true, "All", "Add overrides for all elements of the array");
+}
+
+static bool dynamic_override_edit_button_poll(bContext *C)
+{
+  Scene *scene = CTX_data_scene(C);
+  if (!scene || !scene->dynamic_override) {
+    return false;
+  }
+
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  int index;
+
+  context_active_but_prop_get(C, &ptr, &prop, &index);
+
+  const eRNAOverrideStatus override_status = RNA_property_override_status(
+      CTX_data_main(C), CTX_data_scene(C), &ptr, prop, index);
+
+  return (ptr.data && prop && flag_is_set(override_status, eRNAOverrideStatus::DynOverridden));
+}
+
+static wmOperatorStatus dynamic_override_remove_button_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  if (!scene || !scene->dynamic_override) {
+    return OPERATOR_CANCELLED;
+  }
+
+  PointerRNA ptr;
+  PropertyRNA *prop;
+  int unused_index;
+
+  context_active_but_prop_get(C, &ptr, &prop, &unused_index);
+
+  ID *owner_id = ptr.owner_id;
+  BLI_assert(owner_id != nullptr);
+
+  std::optional<std::string> rna_path_str;
+  owner_id = RNA_property_override_property_real_id_owner(bmain, &ptr, prop, &rna_path_str);
+  if (!rna_path_str) {
+    return OPERATOR_CANCELLED;
+  }
+
+  DynamicOverrideRuleIDData &dynamic_override_rule = bke::dynoverride::rule_iddata_ensure_for_id(
+      *scene->dynamic_override, *owner_id);
+
+  RNAPath rna_path = {*rna_path_str};
+  bke::dynoverride::rule_rna_property_lookup(dynamic_override_rule.base, rna_path);
+  DynamicOverrideRuleProperty *dynamic_override_rule_property =
+      bke::dynoverride::rule_rna_property_lookup(dynamic_override_rule.base, rna_path);
+
+  if (dynamic_override_rule_property == nullptr) {
+    /* Sometimes e.g. RNA cannot generate a path to the given property. */
+    BKE_reportf(op->reports, RPT_WARNING, "Failed to find the existing override rule property");
+    return OPERATOR_CANCELLED;
+  }
+
+  bke::dynoverride::rule_property_remove(*bmain,
+                                         *scene->dynamic_override,
+                                         dynamic_override_rule.base,
+                                         dynamic_override_rule_property);
+
+  if (dynamic_override_rule.properties.is_empty()) {
+    bke::dynoverride::rule_remove(*bmain, *scene->dynamic_override, &dynamic_override_rule.base);
+  }
+
+  /* Outliner e.g. has to be aware of this change. */
+  // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
+  DEG_id_tag_update(&scene->dynamic_override->id, ID_RECALC_PARAMETERS);
+  DEG_id_tag_update(dynamic_override_rule.base.target_filter.target_id,
+                    ID_RECALC_DYNAMIC_OVERRIDE);
+  DEG_relations_tag_update(bmain);
+
+  return operator_button_property_finish(C, &ptr, prop);
+}
+
+static void UI_OT_dynamic_override_remove_button(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Remove Dynamic Override";
+  ot->idname = "UI_OT_dynamic_override_remove_button";
+  ot->description = "Remove a dynamic override rule property";
+
+  /* callbacks */
+  ot->poll = dynamic_override_edit_button_poll;
+  ot->exec = dynamic_override_remove_button_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_UNDO;
 }
 
 /** \} */
@@ -3360,6 +3426,7 @@ void operatortypes_ui()
   override_idtemplate_menu();
 
   WM_operatortype_append(UI_OT_dynamic_override_add_button);
+  WM_operatortype_append(UI_OT_dynamic_override_remove_button);
 
   /* external */
   WM_operatortype_append(UI_OT_eyedropper_color);

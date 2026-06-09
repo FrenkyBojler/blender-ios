@@ -1128,6 +1128,17 @@ void RNA_struct_override_apply(Main *bmain,
                                IDOverrideLibrary *liboverride,
                                eRNAOverrideApplyFlag flag);
 
+/**
+ * Utils returning an override 'real owner' ID (i.e. a non-embedded ID currently), and a RNA path
+ * to the given data & property.
+ *
+ * \note: Used by both library and dynamic override systems.
+ */
+ID *RNA_property_override_property_real_id_owner(Main *bmain,
+                                                 PointerRNA *ptr,
+                                                 PropertyRNA *prop,
+                                                 std::optional<std::string> *r_rna_path);
+
 IDOverrideLibraryProperty *RNA_property_override_property_find(Main *bmain,
                                                                PointerRNA *ptr,
                                                                PropertyRNA *prop,
@@ -1149,10 +1160,8 @@ IDOverrideLibraryPropertyOperation *RNA_property_override_property_operation_get
     bool *r_strict,
     bool *r_created);
 
-eRNAOverrideStatus RNA_property_override_status(Main *bmain,
-                                                PointerRNA *ptr,
-                                                PropertyRNA *prop,
-                                                int index);
+eRNAOverrideStatus RNA_property_override_status(
+    Main *bmain, Scene *scene, PointerRNA *ptr, PropertyRNA *prop, int index);
 
 void RNA_struct_state_owner_set(const char *name);
 const char *RNA_struct_state_owner_get();

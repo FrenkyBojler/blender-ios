@@ -590,7 +590,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       PropertyRNA *prop = but->rnaprop;
 
       const eRNAOverrideStatus override_status = RNA_property_override_status(
-          CTX_data_main(C), ptr, prop, -1);
+          CTX_data_main(C), CTX_data_scene(C), ptr, prop, -1);
       const bool is_dynamic_overridable = flag_is_set(override_status,
                                                       eRNAOverrideStatus::DynOverridable);
 
@@ -601,7 +601,13 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
         layout.separator();
 
         if (but->flag & BUT_DYNAMIC_OVERRIDDEN) {
-          /* TODO not yet implemented. */
+          ot = WM_operatortype_find("UI_OT_dynamic_override_remove_button", false);
+          op_ptr = layout.op(
+              ot,
+              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove Dynamic Override"),
+              ICON_NONE,
+              wm::OpCallContext::InvokeDefault,
+              UI_ITEM_NONE);
         }
         else {
           ot = WM_operatortype_find("UI_OT_dynamic_override_add_button", false);
@@ -642,7 +648,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     const bool is_whole_array = (is_array && but->rnaindex == -1);
 
     const eRNAOverrideStatus override_status = RNA_property_override_status(
-        CTX_data_main(C), ptr, prop, -1);
+        CTX_data_main(C), CTX_data_scene(C), ptr, prop, -1);
     const bool is_overridable = flag_is_set(override_status, eRNAOverrideStatus::LibOverridable);
     const bool is_dynamic_overridable = flag_is_set(override_status,
                                                     eRNAOverrideStatus::DynOverridable);
@@ -892,7 +898,12 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       layout.separator();
 
       if (but->flag & BUT_DYNAMIC_OVERRIDDEN) {
-        /* TODO not yet implemented. */
+        ot = WM_operatortype_find("UI_OT_dynamic_override_remove_button", false);
+        op_ptr = layout.op(ot,
+                           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove Dynamic Override"),
+                           ICON_NONE,
+                           wm::OpCallContext::InvokeDefault,
+                           UI_ITEM_NONE);
       }
       else {
         ot = WM_operatortype_find("UI_OT_dynamic_override_add_button", false);

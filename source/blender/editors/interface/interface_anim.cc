@@ -179,6 +179,10 @@ void button_anim_decorate_update_from_flag(ButtonDecorator *but)
     but->icon = ICON_DECORATE_ANIMATE;
     but->toggle_keyframe_on_click = true;
   }
+  else if (flag & BUT_DYNAMIC_OVERRIDDEN) {
+    but->icon = ICON_DECORATE_OVERRIDE; /* FIXME add dedicated icon? */
+    but->toggle_keyframe_on_click = false;
+  }
   else if (flag & BUT_OVERRIDDEN) {
     but->icon = ICON_DECORATE_OVERRIDE;
     but->toggle_keyframe_on_click = false;

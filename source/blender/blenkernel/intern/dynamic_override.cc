@@ -380,7 +380,8 @@ static void rule_read_data(BlendDataReader &reader, DynamicOverrideRule &dynover
 /** \name Basic Rule Management.
  * \{ */
 
-static DynamicOverrideRuleIDData *rule_get_for_id(DynamicOverride &dynamic_override, ID &owner_id)
+DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(DynamicOverride &dynamic_override,
+                                                     ID &owner_id)
 {
   /* TODO: use runtime data for mappings etc. */
   for (DynamicOverrideRule &rule : dynamic_override.rules) {
@@ -396,9 +397,30 @@ static DynamicOverrideRuleIDData *rule_get_for_id(DynamicOverride &dynamic_overr
   return nullptr;
 }
 
-static DynamicOverrideRuleIDData &rule_add_for_id(DynamicOverride &dynamic_override, ID &owner_id)
+DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(Scene &scene, ID &owner_id)
 {
-  BLI_assert(!rule_get_for_id(dynamic_override, owner_id));
+  DynamicOverride *dynamic_override = scene.dynamic_override;
+  if (!dynamic_override) {
+    return nullptr;
+  }
+
+  for (DynamicOverrideRule &rule : dynamic_override->rules) {
+    if (rule.type != DynamicOverrideRuleType::IDData) {
+      continue;
+    }
+    DynamicOverrideRuleIDData &rule_id_data = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
+    if (rule_id_data.base.target_filter.target_id == &owner_id) {
+      return &rule_id_data;
+    }
+  }
+
+  return nullptr;
+}
+
+static DynamicOverrideRuleIDData &rule_iddata_add_for_id(DynamicOverride &dynamic_override,
+                                                         ID &owner_id)
+{
+  BLI_assert(!rule_iddata_lookup_for_id(dynamic_override, owner_id));
 
   DynamicOverrideRuleIDData *rule_id_data = MEM_new<DynamicOverrideRuleIDData>(__func__);
   rule_id_data->runtime = MEM_new<bke::dynoverride::RuleIDDataRuntime>(__func__);
@@ -414,17 +436,20 @@ static DynamicOverrideRuleIDData &rule_add_for_id(DynamicOverride &dynamic_overr
   return *rule_id_data;
 }
 
-DynamicOverrideRuleIDData &rule_ensure_for_id(DynamicOverride &dynamic_override, ID &owner_id)
+DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(DynamicOverride &dynamic_override,
+                                                     ID &owner_id)
 {
-  DynamicOverrideRuleIDData *existing_rule = rule_get_for_id(dynamic_override, owner_id);
+  DynamicOverrideRuleIDData *existing_rule = rule_iddata_lookup_for_id(dynamic_override, owner_id);
 
   if (existing_rule) {
     return *existing_rule;
   }
-  return rule_add_for_id(dynamic_override, owner_id);
+  return rule_iddata_add_for_id(dynamic_override, owner_id);
 }
 
-void rule_remove(DynamicOverride &dynamic_override, DynamicOverrideRule *existing_rule)
+void rule_remove(Main &bmain,
+                 DynamicOverride &dynamic_override,
+                 DynamicOverrideRule *existing_rule)
 {
   BLI_assert(BLI_findindex(&dynamic_override.rules, existing_rule) != -1);
   BLI_remlink(&dynamic_override.rules, existing_rule);
@@ -434,19 +459,19 @@ void rule_remove(DynamicOverride &dynamic_override, DynamicOverrideRule *existin
         existing_rule);
     DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
     DEG_id_tag_update(iddata_rule->base.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
-    DEG_relations_tag_update(G_MAIN);
+    DEG_relations_tag_update(&bmain);
   }
 
   rule_free(*existing_rule);
   MEM_delete(existing_rule);
 }
 
-void rule_remove_for_id(DynamicOverride &dynamic_override, ID &owner_id)
+void rule_remove_for_id(Main &bmain, DynamicOverride &dynamic_override, ID &owner_id)
 {
-  DynamicOverrideRuleIDData *existing_rule = rule_get_for_id(dynamic_override, owner_id);
+  DynamicOverrideRuleIDData *existing_rule = rule_iddata_lookup_for_id(dynamic_override, owner_id);
 
   if (existing_rule) {
-    rule_remove(dynamic_override, &existing_rule->base);
+    rule_remove(bmain, dynamic_override, &existing_rule->base);
   }
 }
 
@@ -470,7 +495,7 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
     return nullptr;
   }
 
-  /* TODO: search and deduplicate in case of existing property. */
+  BLI_assert(rule_rna_property_lookup(rule, rna_path) == nullptr);
   DynamicOverrideRuleProperty *rule_property = MEM_new<DynamicOverrideRuleProperty>(__func__);
   rule_property->rna_path = BLI_strdup(rna_path.path.c_str());
   if (rna_path.key) {

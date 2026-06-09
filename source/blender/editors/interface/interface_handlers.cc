@@ -10078,7 +10078,7 @@ void context_update_anim_flag(const bContext *C)
     for (Block &block : region->runtime->uiblocks) {
       for (Button &but : block.buttons()) {
         button_anim_flag(&but, &anim_eval_context);
-        button_override_flag(CTX_data_main(C), &but);
+        button_override_flag(CTX_data_main(C), CTX_data_scene(C), &but);
         if (button_is_decorator(&but)) {
           button_anim_decorate_update_from_flag(static_cast<ButtonDecorator *>(&but));
         }

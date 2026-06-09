@@ -1744,10 +1744,17 @@ static void menu_block_set_keymaps(const bContext *C, Block *block)
   }
 }
 
-void button_override_flag(Main *bmain, Button *but)
+void button_override_flag(Main *bmain, Scene *scene, Button *but)
 {
   const eRNAOverrideStatus override_status = RNA_property_override_status(
-      bmain, &but->rnapoin, but->rnaprop, but->rnaindex);
+      bmain, scene, &but->rnapoin, but->rnaprop, but->rnaindex);
+
+  if (flag_is_set(override_status, eRNAOverrideStatus::DynOverridden)) {
+    but->flag |= BUT_DYNAMIC_OVERRIDDEN;
+  }
+  else {
+    but->flag &= ~BUT_DYNAMIC_OVERRIDDEN;
+  }
 
   if (flag_is_set(override_status, eRNAOverrideStatus::LibOverridden)) {
     but->flag |= BUT_OVERRIDDEN;
@@ -2120,7 +2127,7 @@ void block_end_ex(const bContext *C,
     const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
         depsgraph, (scene) ? BKE_scene_frame_get(scene) : 0.0f);
     button_anim_flag(&but, &anim_eval_context);
-    button_override_flag(bmain, &but);
+    button_override_flag(bmain, scene, &but);
     if (button_is_decorator(&but)) {
       button_anim_decorate_update_from_flag(static_cast<ButtonDecorator *>(&but));
     }

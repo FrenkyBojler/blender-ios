@@ -33,15 +33,24 @@ namespace bke::dynoverride {
 /** \name Basic Rule Management.
  * \{ */
 
-DynamicOverrideRuleIDData &rule_ensure_for_id(DynamicOverride &dynamic_override, ID &id_owner);
+DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(DynamicOverride &dynamic_override,
+                                                     ID &id_owner);
+DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(Scene &scene, ID &owner_id);
+DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(DynamicOverride &dynamic_override,
+                                                     ID &id_owner);
 
-void rule_remove(DynamicOverride &dynamic_override, DynamicOverrideRule *existing_rule);
-void rule_remove_for_id(DynamicOverride &dynamic_override, ID &owner_id);
+void rule_remove(Main &bmain,
+                 DynamicOverride &dynamic_override,
+                 DynamicOverrideRule *existing_rule);
+void rule_remove_for_id(Main &bmain, DynamicOverride &dynamic_override, ID &owner_id);
 
 DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
                                                    DynamicOverride &dynamic_override,
                                                    DynamicOverrideRule &rule,
                                                    RNAPath &rna_path);
+
+DynamicOverrideRuleProperty *rule_rna_property_lookup(DynamicOverrideRule &rule,
+                                                      RNAPath &rna_path);
 
 void rule_property_remove(Main &bmain,
                           DynamicOverride &dynamic_override,

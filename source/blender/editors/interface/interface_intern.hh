@@ -981,7 +981,7 @@ bool button_supports_cycling(const Button *but) ATTR_WARN_UNUSED_RESULT;
 int button_is_pushed_ex(Button *but, double *value) ATTR_WARN_UNUSED_RESULT;
 int button_is_pushed(Button *but) ATTR_WARN_UNUSED_RESULT;
 
-void button_override_flag(Main *bmain, Button *but);
+void button_override_flag(Main *bmain, Scene *scene, Button *but);
 
 void block_bounds_calc(Block *block);
 

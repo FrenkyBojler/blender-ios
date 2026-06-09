@@ -247,7 +247,7 @@ static PointerRNA rna_DynamicOverride_rule_iddata_ensure(PointerRNA self_ptr,
                                                          ReportList * /*reports*/,
                                                          ID *target_id)
 {
-  DynamicOverrideRuleIDData &result = bke::dynoverride::rule_ensure_for_id(
+  DynamicOverrideRuleIDData &result = bke::dynoverride::rule_iddata_ensure_for_id(
       *self_ptr.data_as<DynamicOverride>(), *target_id);
 
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
@@ -255,6 +255,7 @@ static PointerRNA rna_DynamicOverride_rule_iddata_ensure(PointerRNA self_ptr,
 }
 
 static void rna_DynamicOverride_rule_remove(DynamicOverride *dynamic_override,
+                                            Main *bmain,
                                             ReportList *reports,
                                             DynamicOverrideRule *rule)
 {
@@ -265,7 +266,7 @@ static void rna_DynamicOverride_rule_remove(DynamicOverride *dynamic_override,
     return;
   }
 
-  bke::dynoverride::rule_remove(*dynamic_override, rule);
+  bke::dynoverride::rule_remove(*bmain, *dynamic_override, rule);
 
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
 }
@@ -538,7 +539,7 @@ static void rna_def_dynamic_override_rules(BlenderRNA *brna, PropertyRNA *cprop)
 
   func = RNA_def_function(srna, "remove", "rna_DynamicOverride_rule_remove");
   RNA_def_function_ui_description(func, "Remove and delete a rule");
-  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_REPORTS);
   parm = RNA_def_pointer(
       func, "rule", "DynamicOverrideRule", "Rule", "Dynamic override rule to be deleted");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);

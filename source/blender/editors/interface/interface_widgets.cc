@@ -3076,6 +3076,9 @@ static const uchar *widget_color_blend_from_flags(const uiWidgetStateColors *wco
     return nullptr;
   }
 
+  if (state->but_flag & BUT_DYNAMIC_OVERRIDDEN) {
+    return wcol_state->inner_overridden_sel;
+  }
   if (state->but_drawflag & BUT_ANIMATED_CHANGED) {
     return wcol_state->inner_changed_sel;
   }
@@ -4637,8 +4640,8 @@ static void widget_swatch(Button *but,
     col[0] = col[1] = col[2] = col[3] = 0.5f;
   }
 
-  if ((state->but_flag &
-       (BUT_ANIMATED | BUT_ANIMATED_KEY | BUT_DRIVEN | BUT_OVERRIDDEN | BUT_REDALERT)) ||
+  if ((state->but_flag & (BUT_ANIMATED | BUT_ANIMATED_KEY | BUT_DYNAMIC_OVERRIDDEN | BUT_DRIVEN |
+                          BUT_OVERRIDDEN | BUT_REDALERT)) ||
       (state->but_drawflag & BUT_ANIMATED_CHANGED))
   {
     /* draw based on state - color for keyed etc */
@@ -4714,8 +4717,8 @@ static void widget_icon_has_anim(Button *but,
                                  int roundboxalign,
                                  const float zoom)
 {
-  if (state->but_flag &
-          (BUT_ANIMATED | BUT_ANIMATED_KEY | BUT_DRIVEN | BUT_OVERRIDDEN | BUT_REDALERT) &&
+  if (state->but_flag & (BUT_ANIMATED | BUT_ANIMATED_KEY | BUT_DYNAMIC_OVERRIDDEN | BUT_DRIVEN |
+                         BUT_OVERRIDDEN | BUT_REDALERT) &&
       but->emboss != EmbossType::None)
   {
     WidgetBase wtb;
@@ -5830,7 +5833,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
   }
 #endif
   if (but->block->flag & BLOCK_NO_DRAW_OVERRIDDEN_STATE) {
-    state.but_flag &= ~BUT_OVERRIDDEN;
+    state.but_flag &= ~(BUT_DYNAMIC_OVERRIDDEN | BUT_OVERRIDDEN);
   }
 
   if (state.but_drawflag & BUT_INDETERMINATE) {
