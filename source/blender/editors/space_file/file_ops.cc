@@ -1174,6 +1174,9 @@ static wmOperatorStatus bookmark_add_exec(bContext *C, wmOperator *op)
   SpaceFile *sfile = CTX_wm_space_file(C);
   FSMenu *fsmenu = ED_fsmenu_get();
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
+  if (!params) {
+    return OPERATOR_CANCELLED;
+  }
 
   if (params->dir[0] != '\0') {
 
@@ -2110,6 +2113,9 @@ static bool file_execute(bContext *C, SpaceFile *sfile)
 {
   Main *bmain = CTX_data_main(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
+  if (!params) {
+    return false;
+  }
   FileDirEntry *file = filelist_file(sfile->files, params->active_file);
 
   if (file && file->redirection_path) {
