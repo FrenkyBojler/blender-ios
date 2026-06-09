@@ -384,6 +384,8 @@ struct CutOperationExecutor {
 
     const float brush_radius_sq = pow2f(brush_radius);
     const uint64_t brush_pos_hash = brush_pos_re_.hash();
+    const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
+        curves_id_->symmetry);
 
     curve_selection_.foreach_index([&](const int curve_i) {
       const IndexRange points = points_by_curve[curve_i];
@@ -402,8 +404,6 @@ struct CutOperationExecutor {
 
       const int first_point_in_stroke = std::distance(brush_projection_info_slice.begin(),
                                                       first_point_in_stroke_bpi);
-      const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
-          curves_id_->symmetry);
       const float4x4 brush_transform =
           symmetry_brush_transforms[first_point_in_stroke_bpi->brush_transform_index];
       const float4x4 brush_transform_inv = math::invert(brush_transform);
