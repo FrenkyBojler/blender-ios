@@ -968,7 +968,7 @@ class VIEW3D_HT_header(Header):
             from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
             tool = ToolSelectPanelHelper.tool_active_from_context(context)
 
-            paint = UnifiedPaintPanel.paint_settings(context)
+            paint = UnifiedPaintPanel.paint_settings_from_mode(context, 'SCULPT')
             is_paint_tool = False
             if tool.use_brushes:
                 brush = paint.brush
@@ -1010,7 +1010,7 @@ class VIEW3D_HT_header(Header):
             row = layout.row()
             row.popover(panel="VIEW3D_PT_slots_color_attributes", icon='GROUP_VCOL')
 
-            paint = UnifiedPaintPanel.paint_settings(context)
+            paint = UnifiedPaintPanel.paint_settings_from_mode(context, 'PAINT_VERTEX')
 
             layout.popover(
                 panel="VIEW3D_PT_mesh_paint_automasking",
@@ -1023,7 +1023,7 @@ class VIEW3D_HT_header(Header):
             row = layout.row()
             row.popover(panel="VIEW3D_PT_slots_vertex_groups", icon='GROUP_VERTEX')
 
-            paint = UnifiedPaintPanel.paint_settings(context)
+            paint = UnifiedPaintPanel.paint_settings_from_mode(context, 'PAINT_WEIGHT')
 
             layout.popover(
                 panel="VIEW3D_PT_sculpt_snapping",
@@ -6266,8 +6266,8 @@ class VIEW3D_MT_mesh_paint_automasking_pie(Menu):
         layout = self.layout
         pie = layout.menu_pie()
 
-        paint = UnifiedPaintPanel.paint_settings(context)
-        mode = UnifiedPaintPanel.get_brush_mode(context)
+        mode = context.mode
+        paint = UnifiedPaintPanel.paint_settings_from_mode(context, mode)
 
         settings = paint.mesh_automasking_settings
 
@@ -8907,8 +8907,8 @@ class VIEW3D_PT_mesh_paint_automasking(Panel):
     def draw(self, context):
         layout = self.layout
 
-        mode = UnifiedPaintPanel.get_brush_mode(context)
-        paint = UnifiedPaintPanel.paint_settings(context)
+        mode = context.mode
+        paint = UnifiedPaintPanel.paint_settings_from_mode(context, mode)
 
         use_face_set = False
         use_operators = False
