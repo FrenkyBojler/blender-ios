@@ -773,8 +773,11 @@ void ED_area_tag_region_hud_size_update(ScrArea *area,
   if (hud_region == nullptr) {
     return;
   }
-  SET_FLAG_FROM_TEST(hud_region->runtime->flag, set_padding, bke::ARegionRuntimeFlag::HUD_PADDING);
-  ED_area_tag_region_size_update(area, changed_region);
+
+  if (set_padding != bool(hud_region->runtime->flag & bke::ARegionRuntimeFlag::HUD_PADDING)) {
+    SET_FLAG_FROM_TEST(hud_region->runtime->flag, set_padding, bke::ARegionRuntimeFlag::HUD_PADDING);
+    ED_area_tag_region_size_update(area, changed_region);
+  }
 }
 
 /* *************************************************************** */
