@@ -30,6 +30,7 @@
 #include "util/string.h"
 #include "util/transform.h"
 
+#include "kernel/closure/bsdf_microfacet.h"
 #include "kernel/svm/color_util.h"
 #include "kernel/svm/mapping_util.h"
 #include "kernel/svm/math_util.h"
@@ -2739,14 +2740,22 @@ void PrincipledBsdfNode::simplify_settings(Scene * /* scene */)
 
 bool PrincipledBsdfNode::has_surface_transparent()
 {
-  if ((input("Thin Wall")->link || thin_wall) && has_nonzero_weight("Transmission Weight")) {
-    /* Smooth thin glass are treated as transparent for non-camera rays.
-     * Transmission roughness depends on both roughness and IOR, so we loosen the constraint here
-     * and do not check if the roughness is zero. */
+  if (input("Alpha")->link != nullptr || alpha < (1.0f - CLOSURE_WEIGHT_CUTOFF)) {
     return true;
   }
 
-  return (input("Alpha")->link != nullptr || alpha < (1.0f - CLOSURE_WEIGHT_CUTOFF));
+  /* Smooth thin glass are treated as transparent for non-camera rays. */
+  if ((input("Thin Wall")->link || thin_wall) && has_nonzero_weight("Transmission Weight")) {
+    if (input("Roughness")->link || input("IOR")->link) {
+      return true;
+    }
+
+    const float transmission_roughness = bsdf_thin_glass_transmission_roughness(sqr(roughness),
+                                                                                ior);
+    return roughness_is_almost_specular(transmission_roughness, transmission_roughness);
+  }
+
+  return false;
 }
 
 bool PrincipledBsdfNode::is_thin_wall()
