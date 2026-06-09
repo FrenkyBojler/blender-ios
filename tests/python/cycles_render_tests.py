@@ -109,6 +109,9 @@ if platform.system() == "Darwin":
         ]
 
 BLOCKLIST_GPU = [
+    # GPUs can double count transparent curves due to restart with
+    # their low INTEGRATOR_SHADOW_ISECT_SIZE.
+    'transparent_curves_and_triangles.blend',
     # Uninvestigated differences with GPU.
     'glass_mix_40964.blend',
     'filter_glossy_refraction_45609.blend',
