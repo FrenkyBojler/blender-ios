@@ -44,7 +44,11 @@ class CutOperation : public CurvesSculptStrokeOperation {
 
 struct BrushProjectionInfo {
   float distance = std::numeric_limits<float>::max();
-  float4x4 brush_transform_inv;
+  /*
+   * Which of the brush transforms caused the cut. Relevant for reverse projection with symmetry
+   * axes.
+   */
+  int64_t brush_transform_index;
 };
 
 /**
@@ -172,13 +176,15 @@ struct CutOperationExecutor {
   {
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         curves_id_->symmetry);
-    for (const float4x4 &brush_transform : symmetry_brush_transforms) {
-      this->find_projected_points_in_stroke(math::invert(brush_transform),
-                                            r_brush_projection_info);
+    for (const int64_t brush_transform_index : symmetry_brush_transforms.index_range()) {
+      const float4x4 &brush_transform = symmetry_brush_transforms[brush_transform_index];
+      this->find_projected_points_in_stroke(
+          math::invert(brush_transform), brush_transform_index, r_brush_projection_info);
     }
   }
 
   void find_projected_points_in_stroke(const float4x4 &brush_transform_inv,
+                                       const int64_t brush_transform_index,
                                        MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
     const float4x4 projection = ED_view3d_ob_project_mat_get(ctx_.rv3d, object_);
@@ -198,7 +204,7 @@ struct CutOperationExecutor {
         const float dist_to_brush_sq_re = math::distance_squared(pos_re, brush_pos_re_);
         if (dist_to_brush_sq_re < r_brush_projection_info[point_i].distance) {
           r_brush_projection_info[point_i].distance = dist_to_brush_sq_re;
-          r_brush_projection_info[point_i].brush_transform_inv = brush_transform_inv;
+          r_brush_projection_info[point_i].brush_transform_index = brush_transform_index;
         }
       }
     });
@@ -218,14 +224,15 @@ struct CutOperationExecutor {
 
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         curves_id_->symmetry);
-    for (const float4x4 &brush_transform : symmetry_brush_transforms) {
-      this->find_spherical_points_in_stroke(math::invert(brush_transform),
+    for (const int64_t brush_transform_index : symmetry_brush_transforms.index_range()) {
+      const float4x4 &brush_transform = symmetry_brush_transforms[brush_transform_index];
+      this->find_spherical_points_in_stroke(brush_transform_index,
                                             math::transform_point(brush_transform, brush_pos_cu),
                                             r_brush_projection_info);
     }
   }
 
-  void find_spherical_points_in_stroke(const float4x4 &brush_transform_inv,
+  void find_spherical_points_in_stroke(const int64_t brush_transform_index,
                                        const float3 &brush_pos_cu,
                                        MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
@@ -242,7 +249,7 @@ struct CutOperationExecutor {
         const float dist_to_brush_sq_cu = math::distance_squared(pos_cu, brush_pos_cu);
         if (dist_to_brush_sq_cu < r_brush_projection_info[point_i].distance) {
           r_brush_projection_info[point_i].distance = dist_to_brush_sq_cu;
-          r_brush_projection_info[point_i].brush_transform_inv = brush_transform_inv;
+          r_brush_projection_info[point_i].brush_transform_index = brush_transform_index;
         }
       }
     });
@@ -392,8 +399,14 @@ struct CutOperationExecutor {
       if (first_point_in_stroke_bpi == brush_projection_info_slice.end()) {
         return;
       }
+
       const int first_point_in_stroke = std::distance(brush_projection_info_slice.begin(),
                                                       first_point_in_stroke_bpi);
+      const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
+          curves_id_->symmetry);
+      const float4x4 brush_transform_inv = math::invert(
+          symmetry_brush_transforms[first_point_in_stroke_bpi->brush_transform_index]);
+
       const uint32_t point_hash = noise::hash(
           noise::hash_float(first_point_in_stroke_bpi->distance), brush_pos_hash);
       const IndexRange::Iterator point_to_cut_iter = std::find_if(
@@ -424,7 +437,7 @@ struct CutOperationExecutor {
 
         if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
           boundary_cu = math::transform_point(
-              first_point_in_stroke_bpi->brush_transform_inv,
+              brush_transform_inv,
               find_projected_cut_boundary(
                   prev_pos_cu, curr_pos_cu, brush_pos_re_, brush_radius, projection));
         }
@@ -432,7 +445,7 @@ struct CutOperationExecutor {
           boundary_cu = find_spherical_cut_boundary(
               prev_pos_cu,
               curr_pos_cu,
-              math::transform_point(first_point_in_stroke_bpi->brush_transform_inv, brush_pos_cu),
+              math::transform_point(brush_transform_inv, brush_pos_cu),
               brush_radius);
         }
         else {
