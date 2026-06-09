@@ -6,9 +6,6 @@
  * \ingroup edmesh
  */
 
-#include <cstdarg>
-#include <optional>
-
 #include "BKE_customdata.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_math_euler_types.hh"
@@ -23,6 +20,8 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.h"
 #include "BKE_paint.hh"
+
+#include <cstdarg>
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -42,6 +41,8 @@
 #include "GEO_mesh_primitive_uv_sphere.hh"
 #include "GEO_transform.hh"
 
+#include <optional>
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
@@ -54,7 +55,6 @@ namespace blender {
 
 #define MESH_ADD_VERTS_MAXI 10000000
 
-#define MESH_CUBE_SUBDIVISIONS_MAXI 1000
 #define MESH_CYLINDER_CONE_LOOP_MAXI 512
 
 /* ********* add primitive operators ************* */
@@ -164,12 +164,6 @@ static void make_prim_finish_sculpt(bContext *C, Object *ob, BMesh *bm)
   BKE_sculptsession_free_pbvh(*ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, object_mesh);
-}
-
-static StringRefNull make_prim_get_uv_map(Object *ob)
-{
-  Mesh *object_mesh = id_cast<Mesh *>(ob->data);
-  return object_mesh->active_uv_map_name();
 }
 
 static void make_prim_finish_geometry(bContext *C, Object *ob, Mesh *primitive_mesh)
@@ -351,19 +345,20 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
     const float size = RNA_float_get(op->ptr, "size");
 
     /* vertice count is subdivisions plus two for the corners */
-    const int vertices = RNA_int_get(op->ptr, "subdivisions") + 2;
-    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
+    const int vertex = RNA_int_get(op->ptr, "subdivisions") + 2;
+
+    Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
+    const StringRefNull uv_map = object_mesh->active_uv_map_name();
 
     Mesh *primitive = geometry::create_cuboid_mesh(float3(size, size, size),
-                                                   vertices,
-                                                   vertices,
-                                                   vertices,
+                                                   vertex,
+                                                   vertex,
+                                                   vertex,
                                                    calc_uvs ? std::make_optional(uv_map) :
                                                               std::nullopt);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
-    /* TODO: calc_uv's */
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {
@@ -406,7 +401,7 @@ void MESH_OT_primitive_cube_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_int(ot->srna, "subdivisions", 0, 0, MESH_CUBE_SUBDIVISIONS_MAXI, "Subdivisions", "", 1, 64);
+  RNA_def_int(ot->srna, "subdivisions", 0, 0, 1000, "Subdivisions", "", 0, 64);
 
   ed::object::add_unit_props_size(ot);
   ed::object::add_mesh_props(ot);
@@ -518,7 +513,8 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
     const float radius = RNA_float_get(op->ptr, "radius");
     geometry::ConeAttributeOutputs attributes{};
 
-    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
+    Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
+    const StringRefNull uv_map = object_mesh->active_uv_map_name();
     attributes.uv_map_id = calc_uvs ? std::make_optional(uv_map) : std::nullopt;
 
     const int side_segments = RNA_int_get(op->ptr, "rings");
@@ -589,7 +585,6 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
       ot->srna, "depth", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.001, 100.00);
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Cap Fill Type", "");
 
-  /* confirm upper limits */
   RNA_def_int(ot->srna, "rings", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Rings", "", 1, 64);
   RNA_def_int(ot->srna, "fill_segments", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Fill Segments", "", 1, 64);
 
@@ -624,7 +619,8 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     geometry::ConeAttributeOutputs attributes{};
 
-    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
+    Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
+    const StringRefNull uv_map = object_mesh->active_uv_map_name();
     attributes.uv_map_id = calc_uvs ? std::make_optional(uv_map) : std::nullopt;
 
     const int side_segments = RNA_int_get(op->ptr, "rings");
@@ -698,7 +694,6 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
       ot->srna, "depth", 2.0f, 0.0, OBJECT_ADD_SIZE_MAXF, "Depth", "", 0.001, 100.00);
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Base Fill Type", "");
 
-  /* confirm upper limits */
   RNA_def_int(ot->srna, "rings", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Rings", "", 1, 64);
   RNA_def_int(ot->srna, "fill_segments", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Fill Segments", "", 1, 64);
 
@@ -859,7 +854,8 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
                           &creation_data);
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
-    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
+    Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
+    const StringRefNull uv_map = object_mesh->active_uv_map_name();
 
     Mesh *primitive = geometry::create_uv_sphere_mesh(RNA_float_get(op->ptr, "radius"),
                                                       RNA_int_get(op->ptr, "segments"),
@@ -947,7 +943,8 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
                           &creation_data);
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
-    const StringRefNull uv_map = make_prim_get_uv_map(obedit);
+    Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
+    const StringRefNull uv_map = object_mesh->active_uv_map_name();
 
     Mesh *primitive = geometry::create_ico_sphere_mesh(RNA_int_get(op->ptr, "subdivisions"),
                                                        RNA_float_get(op->ptr, "radius"),
