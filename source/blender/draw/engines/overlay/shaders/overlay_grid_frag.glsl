@@ -12,21 +12,42 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_next)
 #include "overlay_common_lib.glsl"
 #include "overlay_grid_common_lib.glsl"
 
+/* Test if a vertex output position overlaps with an active axis line. */
+bool3 test_axis_overlap(float3 vertex_pos)
+{
+  constexpr float axis_epsilon = 2e-7f;
+  return bool3(flag_test(grid_flag, AXIS_X) && grid::is_zero(vertex_pos.yz, axis_epsilon),
+               flag_test(grid_flag, AXIS_Y) && grid::is_zero(vertex_pos.xz, axis_epsilon),
+               flag_test(grid_flag, AXIS_Z) && grid::is_zero(vertex_pos.xy, axis_epsilon));
+}
+
 void main()
 {
-  /* Color is a mix of [grid, grid_emphasis], dependent on the level. */
-  out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.emphasis);
-
-  /* Axis line color overrides, and is fixed by theme. */
+  /* Test if a vertex output position overlaps with an active axis line. */
   constexpr float axis_epsilon = 2e-7f;
-  if (flag_test(grid_flag, AXIS_X) && grid::is_zero(vertex_out.pos.yz, axis_epsilon)) {
+  bool3 axis_mask = bool3(
+      flag_test(grid_flag, AXIS_X) && grid::is_zero(vertex_out.pos.yz, axis_epsilon),
+      flag_test(grid_flag, AXIS_Y) && grid::is_zero(vertex_out.pos.xz, axis_epsilon),
+      flag_test(grid_flag, AXIS_Z) && grid::is_zero(vertex_out.pos.xy, axis_epsilon));
+
+  /* If an axis line overlaps, the fragment can be discarded. */
+  if (any(axis_mask) && flag_test(grid_flag, SHOW_GRID)) {
+    gpu_discard_fragment();
+  }
+
+  /* Axis color is fixed by theme, while grid color is a mix of [grid, grid_emphasis]
+   * dependent on the level. */
+  if (axis_mask.x) {
     out_color = theme.colors.grid_axis_x;
   }
-  else if (flag_test(grid_flag, AXIS_Y) && grid::is_zero(vertex_out.pos.xz, axis_epsilon)) {
+  else if (axis_mask.y) {
     out_color = theme.colors.grid_axis_y;
   }
-  else if (flag_test(grid_flag, AXIS_Z) && grid::is_zero(vertex_out.pos.xy, axis_epsilon)) {
+  else if (axis_mask.z) {
     out_color = theme.colors.grid_axis_z;
+  }
+  else {
+    out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.emphasis);
   }
 
   /* Fragment alpha. */
