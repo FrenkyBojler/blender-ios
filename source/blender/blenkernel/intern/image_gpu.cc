@@ -213,7 +213,7 @@ static int compare_packtile(const void *a, const void *b)
   return tile_a->pack_score < tile_b->pack_score;
 }
 
-static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
+static void gpu_texture_create_tile_array(Image *ima, ImBuf *atlas_ibuf, ImBuf *main_ibuf)
 {
   int arraywidth = 0, arrayheight = 0;
   ListBaseT<FixedSizeBoxPack> boxes = {nullptr};
@@ -292,7 +292,7 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
                                             use_grayscale);
 
   if (!tex) {
-    return nullptr;
+    return;
   }
 
   /* Upload each tile one by one. */
@@ -326,11 +326,17 @@ static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
     BKE_image_release_ibuf(ima, ibuf, nullptr);
   }
 
-  GPU_texture_update_mipmap_chain(tex);
-  GPU_texture_mipmap_mode(tex, true, true);
+  if (!(main_ibuf->gpu.flag & IMB_GPU_DISABLE_MIPMAP_UPDATE)) {
+    GPU_texture_update_mipmap_chain(tex);
+    GPU_texture_mipmap_mode(tex, true, true);
+    atlas_ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
+  }
+  else {
+    GPU_texture_mipmap_mode(tex, false, true);
+  }
   GPU_texture_original_size_set(tex, main_ibuf->x, main_ibuf->y);
 
-  return tex;
+  atlas_ibuf->gpu.texture = tex;
 }
 
 /** \} */
@@ -503,7 +509,7 @@ static ImageGPUTextures image_get_gpu_texture_tiled(Image *ima,
   result.tile_mapping_buffer = mapping_ibuf;
 
   /* Update time for garbage collection. */
-  const int now = BLI_time_now_seconds_i();
+  const int64_t now = BLI_time_now_seconds_i();
   if (atlas_ibuf != nullptr) {
     atlas_ibuf->gpu.lastused = now;
   }
@@ -535,9 +541,8 @@ static ImageGPUTextures image_get_gpu_texture_tiled(Image *ima,
   }
   else {
     /* Create atlas and tile mapping textures. */
-    atlas_ibuf->gpu.texture = gpu_texture_create_tile_array(ima, ibuf);
+    gpu_texture_create_tile_array(ima, atlas_ibuf, ibuf);
     if (atlas_ibuf->gpu.texture) {
-      atlas_ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
       image_gpu_clear_load_error(ima);
     }
     else {
@@ -1032,9 +1037,11 @@ static void gpu_texture_update_from_ibuf(
     MEM_delete(rect_float);
   }
 
-  GPU_texture_update_mipmap_chain(tex);
-  if (ibuf->gpu.texture == tex) {
-    ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
+  if (!(ibuf->gpu.flag & IMB_GPU_DISABLE_MIPMAP_UPDATE)) {
+    GPU_texture_update_mipmap_chain(tex);
+    if (ibuf->gpu.texture == tex) {
+      ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
+    }
   }
 
   GPU_texture_unbind(tex);

@@ -353,13 +353,17 @@ void IMB_update_gpu_texture_sub(gpu::Texture *tex,
   }
 }
 
-gpu::Texture *IMB_create_gpu_texture(
-    const char *name, ImBuf *ibuf, bool use_high_bitdepth, bool use_premult, const bool limit_size)
+gpu::Texture *IMB_create_gpu_texture(const char *name,
+                                     ImBuf *ibuf,
+                                     const GPUTextureCreateFlags flags)
 {
   ibuf->gpu.lastused = BLI_time_now_seconds_i();
 
+  const bool use_mipmap = flag_is_set(flags, GPUTextureCreateFlags::EnableMipmaps);
+
+  gpu::Texture *tex = nullptr;
   int size[2] = {ibuf->x, ibuf->y};
-  if (limit_size) {
+  if (flag_is_set(flags, GPUTextureCreateFlags::LimitSize)) {
     size[0] = GPU_texture_size_with_limit(ibuf->x);
     size[1] = GPU_texture_size_with_limit(ibuf->y);
   }
@@ -374,8 +378,6 @@ gpu::Texture *IMB_create_gpu_texture(
       size[0] = int(ibuf->x * (float(size[1]) / ibuf->y));
     }
   }
-
-  gpu::Texture *tex = nullptr;
 
   if (ibuf->ftype == IMB_FTYPE_DDS) {
     gpu::TextureFormat compressed_format;
@@ -406,7 +408,7 @@ gpu::Texture *IMB_create_gpu_texture(
         tex = GPU_texture_create_compressed_2d(name,
                                                ibuf->x,
                                                ibuf->y,
-                                               mip_count,
+                                               use_mipmap ? mip_count : 1,
                                                compressed_format,
                                                GPU_TEXTURE_USAGE_GENERAL,
                                                compressed_data);
@@ -427,24 +429,36 @@ gpu::Texture *IMB_create_gpu_texture(
   }
 
   gpu::TextureFormat tex_format;
-  imb_gpu_get_format(ibuf, use_high_bitdepth, true, &tex_format);
+  imb_gpu_get_format(
+      ibuf, flag_is_set(flags, GPUTextureCreateFlags::HighBitDepth), true, &tex_format);
 
   bool freebuf = false;
 
   /* Create Texture. Specify read usage to allow both shader and host reads, the latter is needed
    * by the GPU compositor. */
-  const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE |
-                                 GPU_TEXTURE_USAGE_HOST_READ;
-  tex = GPU_texture_create_2d(name, UNPACK2(size), 9999, tex_format, usage, nullptr);
+  const eGPUTextureUsage usage = use_mipmap ?
+                                     GPU_TEXTURE_USAGE_SHADER_READ |
+                                         GPU_TEXTURE_USAGE_SHADER_WRITE |
+                                         GPU_TEXTURE_USAGE_HOST_READ :
+                                     GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ;
+  tex = GPU_texture_create_2d(
+      name, UNPACK2(size), use_mipmap ? 9999 : 1, tex_format, usage, nullptr);
   if (tex == nullptr) {
     size[0] = max_ii(1, size[0] / 2);
     size[1] = max_ii(1, size[1] / 2);
-    tex = GPU_texture_create_2d(name, UNPACK2(size), 9999, tex_format, usage, nullptr);
+    tex = GPU_texture_create_2d(
+        name, UNPACK2(size), use_mipmap ? 9999 : 1, tex_format, usage, nullptr);
     do_rescale = true;
   }
   BLI_assert(tex != nullptr);
   eGPUDataFormat data_format;
-  void *data = imb_gpu_get_data(ibuf, do_rescale, size, use_premult, true, &freebuf, &data_format);
+  void *data = imb_gpu_get_data(ibuf,
+                                do_rescale,
+                                size,
+                                flag_is_set(flags, GPUTextureCreateFlags::Premultiplied),
+                                true,
+                                &freebuf,
+                                &data_format);
   GPU_texture_update(tex, data_format, data);
 
   GPU_texture_swizzle_set(tex, imb_gpu_get_swizzle(ibuf));
@@ -469,18 +483,32 @@ gpu::Texture *IMB_ensure_gpu_texture(
     return ibuf->gpu.texture;
   }
 
-  gpu::Texture *tex = IMB_create_gpu_texture(
-      name, ibuf, use_high_bitdepth, use_premult, limit_size);
+  GPUTextureCreateFlags create_flags = GPUTextureCreateFlags::EnableMipmaps;
+  if (use_high_bitdepth) {
+    create_flags |= GPUTextureCreateFlags::HighBitDepth;
+  }
+  if (use_premult) {
+    create_flags |= GPUTextureCreateFlags::Premultiplied;
+  }
+  if (limit_size) {
+    create_flags |= GPUTextureCreateFlags::LimitSize;
+  }
+  gpu::Texture *tex = IMB_create_gpu_texture(name, ibuf, create_flags);
   if (tex == nullptr) {
     return nullptr;
   }
 
   GPU_texture_extend_mode(tex, GPU_SAMPLER_EXTEND_MODE_REPEAT);
-  GPU_texture_update_mipmap_chain(tex);
-  GPU_texture_mipmap_mode(tex, true, true);
 
   ibuf->gpu.texture = tex;
-  ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
+  if (!(ibuf->gpu.flag & IMB_GPU_DISABLE_MIPMAP_UPDATE)) {
+    GPU_texture_update_mipmap_chain(tex);
+    GPU_texture_mipmap_mode(tex, true, true);
+    ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
+  }
+  else {
+    GPU_texture_mipmap_mode(tex, false, true);
+  }
   return tex;
 }
 

@@ -707,8 +707,8 @@ void BKE_image_free_buffers(Image *ima)
 
 void BKE_image_free_old_buffers(Main *bmain)
 {
-  static int lasttime = 0;
-  const int ctime = BLI_time_now_seconds_i();
+  static int64_t lasttime = 0;
+  const int64_t ctime = BLI_time_now_seconds_i();
 
   /*
    * Run garbage collector once for every collecting period of time
@@ -1615,7 +1615,7 @@ static bool image_memorypack_imbuf_for_autosave(
   Vector<uint8_t> encoded = IMB_save_image_to_buffer(ibuf, ImBufFlags::ByteData);
   if (encoded.is_empty()) {
     CLOG_STR_ERROR(&LOG, "memory save for pack error");
-    image_free_packedfiles(ima);
+    image_free_autosave_packedfiles(ima);
     return false;
   }
 
@@ -4590,9 +4590,11 @@ void BKE_image_populate_cache_from_autosave(Image *ima)
           "<packed data>",
           nullptr,
           ima->colorspace_settings.name);
-      ibuf->userflags |= IB_BITMAPDIRTY;
-      image_assign_ibuf(ima, ibuf, index, entry);
-      IMB_freeImBuf(ibuf);
+      if (ibuf) {
+        ibuf->userflags |= IB_BITMAPDIRTY;
+        image_assign_ibuf(ima, ibuf, index, entry);
+        IMB_freeImBuf(ibuf);
+      }
     }
   }
 

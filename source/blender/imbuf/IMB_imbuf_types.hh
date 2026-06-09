@@ -119,6 +119,8 @@ struct ImBufFloatBuffer {
 enum ImBufGPUFlag : int {
   /** Mipmap chain has been generated for the GPU texture. */
   IMB_GPU_MIPMAP_COMPLETE = (1 << 0),
+  /** Disable mipmap updates, primarily used for texture painting. */
+  IMB_GPU_DISABLE_MIPMAP_UPDATE = (1 << 1),
 };
 ENUM_OPERATORS(ImBufGPUFlag)
 
@@ -135,7 +137,7 @@ struct ImBufGPU {
   gpu::Texture *texture = nullptr;
 
   /** Last used timestamp for garbage collection */
-  int lastused = 0;
+  int64_t lastused = 0;
 
   /** GPU buffer flags. */
   ImBufGPUFlag flag = ImBufGPUFlag(0);
@@ -215,7 +217,7 @@ struct ImBuf {
   float dither = 0.0f;
 
   /** Last used timestamp for garbage collection. */
-  int lastused = 0;
+  int64_t lastused = 0;
   /** used to set imbuf to dirty and other stuff */
   int userflags = 0;
 
