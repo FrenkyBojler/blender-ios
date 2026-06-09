@@ -1233,7 +1233,7 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
                                                 int &locy)
 {
   /* Space at the top. */
-  locy -= NODE_DYS / 2;
+  locy -= NODE_ITEM_SPACING_Y * 2;
 
   /* Output sockets. */
   bool add_output_space = false;
@@ -1242,43 +1242,40 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
+    if (socket->is_visible() && add_output_space) {
+      locy -= NODE_ITEM_SPACING_Y;
+    }
     if (node_update_basis_socket(
             tree_draw_ctx, C, ntree, node, nullptr, nullptr, socket, block, locx, locy))
     {
-      if (socket->next && socket->next->is_available()) {
-        locy -= NODE_ITEM_SPACING_Y;
-      }
       add_output_space = true;
     }
-  }
-
-  if (add_output_space) {
-    locy -= NODE_DY / 4;
   }
 
   const bool add_button_space = node_update_basis_buttons(
       C, ntree, node, node.typeinfo->draw_buttons, block, locy);
 
   bool add_input_space = false;
+  const bool add_before_first_input = add_output_space && !add_button_space;
 
   /* Input sockets. */
   for (bNodeSocket *socket : node.input_sockets()) {
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
+    if (socket->is_visible() && (add_input_space || add_before_first_input)) {
+      locy -= NODE_ITEM_SPACING_Y;
+    }
     if (node_update_basis_socket(
             tree_draw_ctx, C, ntree, node, nullptr, socket, nullptr, block, locx, locy))
     {
-      if (socket->next) {
-        locy -= NODE_ITEM_SPACING_Y;
-      }
       add_input_space = true;
     }
   }
 
   /* Little bit of padding at the bottom. */
-  if (add_input_space || add_button_space) {
-    locy -= NODE_DYS / 2;
+  if (add_output_space || add_input_space || add_button_space) {
+    locy -= NODE_ITEM_SPACING_Y * 2;
   }
 }
 
@@ -2513,6 +2510,7 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
             NODE_EVALUATE_CLOSURE) ||
        StringRef(node.idname).startswith("GeometryNodeImport") ||
+       node.is_type("GeometryNodeClosureToList"_ustr) ||
        node.is_type("GeometryNodeFilterList"_ustr) ||
        node.is_type("GeometryNodeListGetItem"_ustr) ||
        node.is_type("GeometryNodeFieldToList"_ustr) ||
@@ -2822,7 +2820,8 @@ static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node
         const std::string description = node.typeinfo->ui_description_fn ?
                                             TIP_(node.typeinfo->ui_description_fn(node)) :
                                             TIP_(node.typeinfo->ui_description);
-        if (!description.empty()) {
+        const bool have_description = !description.empty();
+        if (have_description) {
           tooltip_text_field_add(
               data, std::move(description), "", ui::TIP_STYLE_NORMAL, ui::TIP_LC_NORMAL);
         }
@@ -2836,7 +2835,7 @@ static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node
                                  "",
                                  ui::TIP_STYLE_MONO,
                                  ui::TIP_LC_DIMMED,
-                                 !description.empty());
+                                 have_description);
         }
       });
 }
