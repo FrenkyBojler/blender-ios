@@ -25,7 +25,6 @@
 #include <pthread.h>
 
 class GHOST_IWindow;
-class GHOST_Context;
 
 namespace blender {
 
