@@ -549,6 +549,9 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
   if (defgroup == -1) {
     return;
   }
+  
+  float ref_pos[3] = {0.0f, 0.0f, 0.0f};
+  bool has_ref = false;
 
   float vec[3] = {0.0f, 0.0f, 0.0f};
   float normal[3] = {0.0f, 0.0f, 0.0f};
@@ -564,6 +567,14 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
         MDeformWeight *dw = BKE_defvert_find_index(dv, defgroup);
 
         if (dw && dw->weight > 0.0f) {
+          if (!has_ref) {
+            copy_v3_v3(ref_pos, v->co);
+            has_ref = true;
+          }
+          float diff_pos[3];
+          sub_v3_v3v3(diff_pos, v->co, ref_pos);
+
+          madd_v3_v3fl(vec, diff_pos, dw->weight);
           madd_v3_v3fl(vec, v->co, dw->weight);
           madd_v3_v3fl(normal, v->no, dw->weight);
           weightsum += dw->weight;
@@ -583,6 +594,14 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
         const MDeformWeight *dw = BKE_defvert_find_index(dv, defgroup);
 
         if (dw && dw->weight > 0.0f) {
+          if (!has_ref) {
+            copy_v3_v3(ref_pos, positions[i]);
+            has_ref = true;
+          }
+          float diff_pos[3];
+          sub_v3_v3v3(diff_pos, positions[i], ref_pos);
+
+          madd_v3_v3fl(vec, diff_pos, dw->weight);
           madd_v3_v3fl(vec, positions[i], dw->weight);
           madd_v3_v3fl(normal, vert_normals[i], dw->weight);
           weightsum += dw->weight;
@@ -599,6 +618,8 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
   if (weightsum > 0) {
     mul_v3_fl(vec, 1.0f / weightsum);
     mul_v3_fl(normal, 1.0f / weightsum);
+
+    add_v3_v3(vec, ref_pos);
   }
 
   /* derive the rotation from the average normal:
