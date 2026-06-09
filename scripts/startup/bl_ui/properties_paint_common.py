@@ -1367,7 +1367,7 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
             use_face_set=True,
             use_operators=True)
 
-        if capabilities.has_color:
+        if capabilities.has_color and popover:
             draw_color_jitter_panel(container, context, brush)
 
     elif mode == 'SCULPT_GREASE_PENCIL':
@@ -1410,7 +1410,8 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
                 container.prop(settings, "clone_image", text="Image")
                 container.prop(settings, "clone_alpha", text="Alpha")
 
-        draw_color_jitter_panel(container, context, brush)
+        if popover:
+            draw_color_jitter_panel(container, context, brush)
 
     # Vertex Paint #
     elif mode == 'PAINT_VERTEX':
@@ -1423,7 +1424,8 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
 
         container.prop(brush, "use_frontface", text="Front Faces Only")
         draw_mesh_automasking_settings(container, brush.mesh_automasking_settings)
-        draw_color_jitter_panel(container, context, brush)
+        if popover:
+            draw_color_jitter_panel(container, context, brush)
 
     # Weight Paint
     elif mode == 'PAINT_WEIGHT':
