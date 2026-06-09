@@ -1026,6 +1026,7 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeFieldToGrid")
         self.node_operator(layout, "GeometryNodeGridClip")
         self.node_operator(layout, "GeometryNodeGridDilateAndErode")
+        self.node_operator(layout, "GeometryNodeGridMaskTopology")
         self.node_operator(layout, "GeometryNodeGridMean")
         self.node_operator(layout, "GeometryNodeGridMedian")
         self.node_operator(layout, "GeometryNodeGridPrune")
