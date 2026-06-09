@@ -13,6 +13,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_implicit_sharing_ptr.hh"
+#include "BLI_string_ref.hh"
 
 #include "DNA_image_enums.h"
 #include "IMB_imbuf_enums.h"
@@ -21,7 +22,6 @@
 
 namespace blender {
 
-struct ExrHandle;
 namespace gpu {
 class Texture;
 }
@@ -145,14 +145,14 @@ struct ImBuf {
 
   /**
    * Stores the Data and Display Window information. Those are only initialized if the image buffer
-   * has the ImBufFlags::HasDisplayWindow flag active, otherwise, they should be ignored as the
+   * has the #ImBufFlags::HasDisplayWindow flag active, otherwise, they should be ignored as the
    * image has no display window.
    *
    * The data size is already stored in the x and y members. The data_offset member stores the
    * offset from the display window to the data window, if positive, then only part of the display
    * window has data, while if negative, it means the image has over-scan.
    * The display_offset member is the offset from the origin,
-   * can can be interpreted as a global translation.
+   * can be interpreted as a global translation.
    */
   int display_size[2];
   int data_offset[2];
@@ -185,8 +185,8 @@ struct ImBuf {
 
   /**
    * Image pixel buffer (float representation):
-   * - color space defaults to 'linear' (`rec709`).
-   * - alpha defaults to 'premul'.
+   * - color space defaults to `linear` (`rec709`).
+   * - alpha defaults to `premul`.
    * \note May need gamma correction to `sRGB` when generating 8bit representations.
    * \note Formats that support higher more than 8 but channels load as floats.
    */
@@ -206,10 +206,11 @@ struct ImBuf {
   int index = 0;
   /** used to set imbuf to dirty and other stuff */
   int userflags = 0;
-  /** image metadata */
-  IDProperty *metadata = nullptr;
-  /** OpenEXR handle. */
-  ExrHandle *exrhandle = nullptr;
+
+  /** Image Metadata */
+  IDProperty *metadata_ptr = nullptr;
+  /** Implicit-sharing owner for #metadata_ptr. */
+  ImplicitSharingPtr<> metadata_sharing_info;
 
   /* file information */
   /** file type we are going to save as */
@@ -238,6 +239,11 @@ struct ImBuf {
   void assign_byte_data(const uint8_t *data, ImplicitSharingPtr<> sharing_ptr);
   void assign_float_data(const float *data, ImplicitSharingPtr<> sharing_ptr);
 
+  /** Metadata access, should go through these methods instead of direct access. */
+  const IDProperty *metadata() const;
+  IDProperty *metadata_for_write();
+  void assign_metadata(const IDProperty *metadata, ImplicitSharingPtr<> sharing_info);
+
   [[nodiscard]] bool colorspace_is_data() const;
 
   [[nodiscard]] bool can_contain_alpha() const
@@ -262,6 +268,12 @@ struct ImBuf {
   }
 };
 
+/** Return default color mode for the give number of channels. */
+[[nodiscard]] ImColorMode IMB_color_mode_from_channels(int channels);
+
+/** Test if channel names indicate colors or data. */
+[[nodiscard]] bool IMB_chan_id_is_color(StringRef chan_id);
+
 /**
  * \brief userflags: Flags used internally by blender for image-buffers.
  */
@@ -278,19 +290,6 @@ enum {
    * or are out-dated and needs to read from the GPU texture. */
   IB_HOST_BUFFER_INVALID = (1 << 6),
 };
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name ImBuf Preset Profile Tags
- *
- * \brief Some predefined color space profiles that 8 bit imbufs can represent.
- * \{ */
-
-#define IB_PROFILE_NONE 0
-#define IB_PROFILE_LINEAR_RGB 1
-#define IB_PROFILE_SRGB 2
-#define IB_PROFILE_CUSTOM 3
 
 /** \} */
 

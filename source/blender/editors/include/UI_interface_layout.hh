@@ -239,14 +239,14 @@ struct Layout : public Item, NonCopyable, NonMovable {
   /**
    * Sets when to split property's label into a separate button when adding new property buttons.
    */
-  void use_property_split_set(bool value);
+  void use_property_split_set(bool is_sep);
 
   [[nodiscard]] bool use_property_decorate() const;
   /**
    * Sets when to add an extra button to insert keyframes next to new property buttons added in the
    * layout.
    */
-  void use_property_decorate_set(bool is_sep);
+  void use_property_decorate_set(bool is_decorate);
 
   [[nodiscard]] int width() const;
 
@@ -634,7 +634,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
    * would suggest values from the search property collection.
    * \param searchprop: Collection property in \a searchptr from where to take input values.
    * \param item_searchpropname: The name of the string property in the collection items to use for
-   *        searching (if unset, code will use RNA_struc.
+   *        searching (if unset, code will use RNA_struct).
    * \param results_are_suggestions: Allow inputs that not match any suggested value.
    */
   void prop_search(PointerRNA *ptr,
@@ -896,7 +896,8 @@ bool block_layout_needs_resolving(const Block *block);
 void block_layout_free(Block *block);
 
 enum eUI_Item_Flag : uint16_t {
-  /* ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
+  /** Align text input to the right. */
+  ITEM_R_TEXT_RIGHT = 1 << 0,
   ITEM_R_EXPAND = 1 << 1,
   ITEM_R_SLIDER = 1 << 2,
   /**
