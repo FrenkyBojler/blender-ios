@@ -1141,6 +1141,7 @@ RNA_MOD_OBJECT_SET(GreasePencilOutline, object, OB_EMPTY);
 RNA_MOD_OBJECT_SET(GreasePencilShrinkwrap, target, OB_MESH);
 RNA_MOD_OBJECT_SET(GreasePencilShrinkwrap, aux_target, OB_MESH);
 RNA_MOD_OBJECT_SET(GreasePencilBuild, object, OB_EMPTY);
+RNA_MOD_OBJECT_SET(GreasePencilLineart, source_camera, OB_CAMERA);
 
 static void rna_HookModifier_object_set(PointerRNA *ptr,
                                         PointerRNA value,
@@ -2270,6 +2271,8 @@ bool rna_NodesModifierBake_override_apply(Main *bmain,
 {
   PointerRNA *ptr_dst = &rnaapply_ctx.ptr_dst;
   PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
+
+#  ifndef NDEBUG
   IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
   IDOverrideLibraryPropertyOperation *removed_opop = rnaapply_ctx.liboverride_removed_operation;
 
@@ -2279,6 +2282,7 @@ bool rna_NodesModifierBake_override_apply(Main *bmain,
                   ((opop->operation == LIBOVERRIDE_OP_REPLACE) &&
                    (removed_opop && (removed_opop->operation = LIBOVERRIDE_OP_CUSTOM)))),
                  "Unsupported RNA override operation on Nodes modifier bakes collection");
+#  endif
 
   NodesModifierBake *nmd_bake_src = rnaapply_ctx.ptr_item_src.data_as<NodesModifierBake>();
 
@@ -8268,30 +8272,6 @@ static void rna_def_modifier_nodes_bakes(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Bakes", "Bake data for every bake node");
 }
 
-static void rna_def_modifier_nodes_panel(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-
-  srna = RNA_def_struct(brna, "NodesModifierPanel", nullptr);
-  RNA_def_struct_ui_text(srna, "Nodes Modifier Panel", "");
-
-  prop = RNA_def_property(srna, "is_open", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODES_MODIFIER_PANEL_OPEN);
-  RNA_def_property_ui_text(prop, "Is Open", "Whether the panel is expanded or closed");
-  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, nullptr);
-}
-
-static void rna_def_modifier_nodes_panels(BlenderRNA *brna)
-{
-  StructRNA *srna;
-
-  srna = RNA_def_struct(brna, "NodesModifierPanels", nullptr);
-  RNA_def_struct_sdna(srna, "NodesModifierData");
-  RNA_def_struct_ui_text(srna, "Panels", "State of all panels defined by the node group");
-}
-
 static void rna_def_modifier_nodes_warning(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -8345,9 +8325,6 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   rna_def_modifier_nodes_bake(brna);
   rna_def_modifier_nodes_bakes(brna);
 
-  rna_def_modifier_nodes_panel(brna);
-  rna_def_modifier_nodes_panels(brna);
-
   rna_def_modifier_nodes_warning(brna);
 
   rna_def_modifier_nodes_properties(brna);
@@ -8388,11 +8365,6 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
                                   "rna_NodesModifierBake_override_diff",
                                   nullptr,
                                   "rna_NodesModifierBake_override_apply");
-
-  prop = RNA_def_property(srna, "panels", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_struct_type(prop, "NodesModifierPanel");
-  RNA_def_property_collection_sdna(prop, nullptr, "panels", "panels_num");
-  RNA_def_property_srna(prop, "NodesModifierPanels");
 
   prop = RNA_def_property(srna, "show_group_selector", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(
@@ -9267,6 +9239,11 @@ static void rna_def_modifier_grease_pencil_lineart(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "source_camera", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_funcs(prop,
+                                 nullptr,
+                                 "rna_GreasePencilLineartModifier_source_camera_set",
+                                 nullptr,
+                                 "rna_Camera_object_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
   RNA_def_property_struct_type(prop, "Object");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
