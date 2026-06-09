@@ -44,13 +44,13 @@ struct SearchDebugLightCtx {
   int debug_tilemap_index;
   uint light_index;
 
-  void eval_directional([[resource_table]] LightRenderData & /*res*/, uint l_idx, LightData light)
+  void eval_directional(LightRenderData & /*res*/, uint l_idx, LightData light)
   {
     if (light.tilemap_index == debug_tilemap_index) {
       light_index = l_idx;
     }
   }
-  void eval_local([[resource_table]] LightRenderData & /*res*/, uint l_idx, LightData light)
+  void eval_local(LightRenderData & /*res*/, uint l_idx, LightData light)
   {
     if (light.tilemap_index == debug_tilemap_index) {
       light_index = l_idx;

@@ -168,6 +168,8 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
   lower_host_shared_structures(parser);
   /* Lower enums. */
   lower_enums(parser);
+  /* Lower implicit members before we remove SRT member from their struct. */
+  lower_implicit_resource_table(parser);
   /* Lower SRT and Interfaces. */
   lower_entry_points(parser);
   lower_pipeline_definition(parser, filename);

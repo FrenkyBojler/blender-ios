@@ -82,6 +82,7 @@ void SourceProcessor::parse_namespace_symbols(SourceProcessor::Parser &parser,
                             bool is_method,
                             bool is_static,
                             bool is_struct,
+                            bool is_resource_table,
                             std::vector<std::pair<std::string, std::string>> members = {}) {
     if (name.scope() != ns_scope) {
       return;
@@ -93,6 +94,7 @@ void SourceProcessor::parse_namespace_symbols(SourceProcessor::Parser &parser,
     symbol.is_method = is_method;
     symbol.is_static = is_static;
     symbol.is_struct = is_struct;
+    symbol.is_resource_table = is_resource_table;
     symbol.members = members;
     metadata.symbol_table.emplace_back(symbol);
   };
@@ -123,7 +125,8 @@ void SourceProcessor::parse_namespace_symbols(SourceProcessor::Parser &parser,
       Scope template_args = name.next().scope();
       string resolved_name = string(name.str()) +
                              SourceProcessor::template_arguments_mangle(template_args);
-      process_symbol(ns_scope, name, resolved_name, line, false, false, true, {});
+      process_symbol(
+          ns_scope, name, resolved_name, line, false, false, true, false /* TODO */, {});
     }
     else {
       /* Function. */
@@ -132,17 +135,32 @@ void SourceProcessor::parse_namespace_symbols(SourceProcessor::Parser &parser,
       Token name = template_args.front().prev();
       string resolved_name = string(name.str()) +
                              SourceProcessor::template_arguments_mangle(template_args);
-      process_symbol(ns_scope, name, resolved_name, line, is_method, false, false);
+      process_symbol(ns_scope, name, resolved_name, line, is_method, false, false, false);
     }
   };
 
   ns.foreach_struct([&](Token, Scope, Token struct_name, Scope body) {
     /* Parse member. */
+    bool is_resource_table = false;
     std::vector<std::pair<std::string, std::string>> members;
-    body.foreach_declaration([&](Scope, Token, Token type, Scope, Token name, Scope, Token) {
-      /* For methods, the declaration line is the top of the struct. */
-      members.emplace_back(type.str(), name.str());
-    });
+    body.foreach_declaration(
+        [&](Scope attributes, Token, Token type, Scope, Token name, Scope, Token) {
+          bool is_resource_table_member = false;
+          if (attributes.is_valid()) {
+            attributes.foreach_attribute([&](Token attribute_name, Scope) {
+              string_view name = attribute_name.str();
+              is_resource_table_member |= name == "resource_table";
+              is_resource_table |= is_resource_table_member || name == "storage" ||
+                                   name == "storage" || name == "uniform" || name == "sampler" ||
+                                   name == "image" || name == "push_constant" ||
+                                   name == "compilation_constant" ||
+                                   name == "specialization_constant";
+            });
+          }
+          /* For methods, the declaration line is the top of the struct. */
+          members.emplace_back(type.str(), name.str());
+        });
+
     process_symbol(ns,
                    struct_name,
                    struct_name.str(),
@@ -150,18 +168,20 @@ void SourceProcessor::parse_namespace_symbols(SourceProcessor::Parser &parser,
                    false,
                    false,
                    true,
+                   is_resource_table,
                    members);
     /* Methods. */
     body.foreach_function([&](bool is_static, Token, Token name, Scope, bool, Scope) {
       /* For methods, the declaration line is the top of the struct. */
-      process_symbol(body, name, name.str(), struct_name.line_number(), true, is_static, false);
+      process_symbol(
+          body, name, name.str(), struct_name.line_number(), true, is_static, false, false);
     });
     /* Parse template instantiations. */
     body.foreach_token(Template, [&](Token t) { process_templates(body, t, true); });
   });
 
   ns.foreach_function([&](bool, Token, Token name, Scope, bool, Scope) {
-    process_symbol(ns, name, name.str(), name.line_number(), false, false, false);
+    process_symbol(ns, name, name.str(), name.line_number(), false, false, false, false);
   });
   /* Parse template instantiations. */
   ns.foreach_token(Template, [&](Token t) { process_templates(ns, t, false); });

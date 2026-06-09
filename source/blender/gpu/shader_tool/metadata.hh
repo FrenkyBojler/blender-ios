@@ -229,6 +229,7 @@ struct Symbol {
   bool is_method;
   bool is_static;
   bool is_struct;
+  bool is_resource_table;
   /* For structures only. */
   std::vector<std::pair<std::string, std::string>> members;
 

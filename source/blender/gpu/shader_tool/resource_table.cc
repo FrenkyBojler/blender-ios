@@ -9,6 +9,7 @@
 #include "intermediate.hh"
 #include "metadata.hh"
 #include "processor.hh"
+#include <set>
 
 namespace blender::gpu::shader {
 using namespace std;
@@ -314,6 +315,62 @@ void SourceProcessor::lower_using(Parser &parser)
   parser().foreach_token(Using, [&](const Token &token) {
     report_error(token, "Unsupported `using` keyword usage.");
   });
+}
+
+void SourceProcessor::lower_implicit_resource_table(Parser &parser)
+{
+  auto mangle_namespace = [](std::string str) {
+    size_t pos = 0;
+    while ((pos = str.find("::", pos)) != std::string::npos) {
+      str.replace(pos, 2, "_");
+      pos += 1;
+    }
+    return str;
+  };
+
+  set<string> resolved_srt_struct_names;
+
+  for (const auto &symbol : metadata_.symbol_table) {
+    if (symbol.is_resource_table) {
+      string resolved = mangle_namespace(symbol.name_space + symbol.identifier);
+      resolved_srt_struct_names.emplace(resolved);
+    }
+  }
+
+  auto is_srt_type = [&](const Token tok) -> bool {
+    return resolved_srt_struct_names.contains(string(tok.str()));
+  };
+
+  auto process_function = [&](bool, Token fn_type, Token, Scope fn_args, bool, Scope) {
+    if (is_srt_type(fn_type)) {
+      report_error(fn_type, "Resource table cannot be used as return type.");
+    }
+
+    fn_args.foreach_scope(ScopeType::FunctionArg, [&](Scope arg) {
+      arg.foreach_match("c?A&?A", [&](const Tokens toks) {
+        if (!is_srt_type(toks[2])) {
+          return;
+        }
+
+        /* Check if there is an existing attribute scope. */
+        if (arg[0] == '[') {
+          /* Check if resource_table attribute is already there. */
+          if (arg[2].str() != "resource_table") {
+            parser.insert_after(arg[1], "resource_table,");
+          }
+        }
+        else {
+          parser.insert_before(arg[0], "[[resource_table]] ");
+        }
+      });
+    });
+  };
+
+  parser().foreach_function(process_function);
+  parser().foreach_struct(
+      [&](Token, Scope, Token, Scope body) { body.foreach_function(process_function); });
+
+  parser.apply_mutations();
 }
 
 /* Parse SRT and interfaces, remove their attributes and create init function for SRT structs. */

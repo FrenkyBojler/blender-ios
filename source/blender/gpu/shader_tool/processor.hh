@@ -237,6 +237,8 @@ class SourceProcessor {
   void lower_assert(Parser &parser, const std::string &filename);
   /* Parse SRT and interfaces, remove their attributes and create init function for SRT structs. */
   void lower_resource_table(Parser &parser);
+  /* If needed, inserts resource_table attribute for variable declarations using a SRT struct. */
+  void lower_implicit_resource_table(Parser &parser);
   /* Examples `string_t s = "a" "b"` --> `string_t s = "ab"`. */
   void lower_strings_sequences(Parser &parser);
   /* Replace string literals by their hash and store the original string in the file metadata. */
