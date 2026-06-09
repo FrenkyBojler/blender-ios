@@ -404,8 +404,9 @@ struct CutOperationExecutor {
                                                       first_point_in_stroke_bpi);
       const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
           curves_id_->symmetry);
-      const float4x4 brush_transform_inv = math::invert(
-          symmetry_brush_transforms[first_point_in_stroke_bpi->brush_transform_index]);
+      const float4x4 brush_transform =
+          symmetry_brush_transforms[first_point_in_stroke_bpi->brush_transform_index];
+      const float4x4 brush_transform_inv = math::invert(brush_transform);
 
       const uint32_t point_hash = noise::hash(
           noise::hash_float(first_point_in_stroke_bpi->distance), brush_pos_hash);
@@ -437,9 +438,12 @@ struct CutOperationExecutor {
 
         if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
           boundary_cu = math::transform_point(
-              brush_transform_inv,
-              find_projected_cut_boundary(
-                  prev_pos_cu, curr_pos_cu, brush_pos_re_, brush_radius, projection));
+              brush_transform,
+              find_projected_cut_boundary(math::transform_point(brush_transform_inv, prev_pos_cu),
+                                          math::transform_point(brush_transform_inv, curr_pos_cu),
+                                          brush_pos_re_,
+                                          brush_radius,
+                                          projection));
         }
         else if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
           boundary_cu = find_spherical_cut_boundary(
