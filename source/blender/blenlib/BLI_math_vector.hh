@@ -829,7 +829,13 @@ template<typename T, int Size>
                                                            const VecBase<T, Size> &v3,
                                                            const VecBase<T, Size> &v4);
 
-/* Kochanek-Bartels Hermite spline interpolation between p2 and p3. */
+/** 
+ * Kochanek-Bartels Hermite spline interpolation between p2 and p3.
+ * 
+ * m0 = s * (p2 - p1) + s * (p3 - p2)
+ * m1 = s * (p3 - p2) + s * (p4 - p3)
+ * where s = (1 - tension) * 0.5
+ *  */
 template<typename T>
 [[nodiscard]] inline VecBase<T, 3> hermite_spline_interp(const VecBase<T, 3> &p1,
                                                          const VecBase<T, 3> &p2,
