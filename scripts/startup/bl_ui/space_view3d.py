@@ -1358,11 +1358,6 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
                 layout.operator_context = 'EXEC_REGION_WIN'
                 layout.operator("transform.vertex_random", text="Randomize").offset = 0.1
                 layout.operator_context = 'INVOKE_REGION_WIN'
-                
-                # WTEMP!!
-                layout.operator_context = 'EXEC_REGION_WIN'
-                layout.operator("transform.transform", text="Align to Transform Orientation").mode = 'ALIGN'
-                layout.operator_context = 'INVOKE_REGION_WIN'
             elif obj.mode == 'POSE':
                 layout.separator()
 
