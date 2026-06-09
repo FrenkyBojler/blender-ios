@@ -701,7 +701,8 @@ static void flushTransGraphData(TransInfo *t)
     /* Handle snapping for time values:
      * - We should still be in NLA-mapping time-space.
      * - Only apply to keyframes, but never to handles. See TD_MOVEHANDLE1 and TD_MOVEHANDLE2 if
-     * handles have move in unison with the key.
+     * handles have move in unison with the key. Depending on the handle mode, their position may
+     * be recalculated with BKE_fcurve_handles_recalc_ex later.
      * - Don't do this when canceling, or else these changes won't go away.
      */
     if ((t->tsnap.flag & SCE_SNAP) && (t->state != TRANS_CANCEL) && !(td->flag & TD_NOTIMESNAP)) {
