@@ -561,6 +561,10 @@ static BMOpDefine bmo_edge_flow_def = {
         {"mix", BMO_OP_SLOT_FLT},
         /* Space vertices at equal distances when true; project onto axis when false. */
         {"space_evenly", BMO_OP_SLOT_BOOL},
+        /* Tension of curve for flow mode from -5.0 to 5.0. */
+        {"tensions", BMO_OP_SLOT_INT},
+        /* Number of iterations for the flow algorithm. */
+        {"iterations", BMO_OP_SLOT_INT},
         {{'\0'}},
     },
     /*slot_types_out*/

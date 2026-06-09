@@ -90,6 +90,9 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
   const int mode = BMO_slot_int_get(op->slots_in, "mode");
   const float mix = BMO_slot_float_get(op->slots_in, "mix");
   const bool space_evenly = BMO_slot_bool_get(op->slots_in, "space_evenly");
+  const int tension_int = BMO_slot_int_get(op->slots_in, "tension");
+  const int iterations  = BMO_slot_int_get(op->slots_in, "iterations");
+  const float tension   = float(tension_int) / 100.0f;
 
   /* Tag edges passed in via the slot, then collect ordered loops */
   BMO_slot_buffer_hflag_enable(bm, op->slots_in, "edges", BM_EDGE, BM_ELEM_TAG, false);
@@ -132,7 +135,8 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
       }
       else { 
         /* space_evenly off flag */
-        float3 dir, dir_norm;
+        float3 dir;
+        float3 dir_norm;
         sub_v3_v3v3(dir, p2->co, p1->co);
         normalize_v3_v3(dir_norm, dir);
 
@@ -150,7 +154,9 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
         }
       }
     }
-    /* EDGE_FLOW_FLOW */
+    if (mode == EDGE_FLOW_FLOW) {
+      /* Implementation for flow mode */
+    }
 
     /* Reinterpolate UVs/customData for every face loop touching a moved vert. */
     // for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {

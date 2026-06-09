@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -49,14 +49,18 @@ static wmOperatorStatus edbm_edge_flow_exec(bContext *C, wmOperator *op)
     const int mode = RNA_enum_get(op->ptr, "mode");
     const float mix = RNA_float_get(op->ptr, "mix");
     const bool space_evenly = RNA_boolean_get(op->ptr, "space_evenly");
+    const int tension    = RNA_int_get(op->ptr, "tension");
+    const int iterations = RNA_int_get(op->ptr, "iterations");
 
     if (!EDBM_op_callf(em,
                        op,
-                       "edge_flow edges=%he mode=%i mix=%f space_evenly=%b",
+                       "edge_flow edges=%he mode=%i mix=%f space_evenly=%b tension=%i iterations=%i",
                        BM_ELEM_SELECT,
                        mode,
                        mix,
-                       space_evenly))
+                       space_evenly,
+                       tension,
+                       iterations))
     {
       continue;
     }
@@ -101,8 +105,9 @@ void MESH_OT_edge_flow(wmOperatorType *ot)
                 0.0f,
                 1.0f);
 
-  RNA_def_boolean(
-      ot->srna, "space_evenly", false, "Space Evenly", "Space edges evenly along the loop");
+  RNA_def_boolean( ot->srna, "space_evenly", false, "Space Evenly", "Space edges evenly along the loop");
+  RNA_def_int(ot->srna, "tension", 180, -500, 500, "Tension", "Tension of curve for flow mode", -500, 500);
+  RNA_def_int(ot->srna, "iterations", 8, 1, 32, "Iterations", "Number of iterations for flow algorithm", 1, 32);
 }
 
 }  // namespace blender
