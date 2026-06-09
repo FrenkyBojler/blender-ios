@@ -747,7 +747,7 @@ class VIEW3D_HT_header(Header):
                 show_snap = True
             else:
 
-                paint_settings = UnifiedPaintPanel.paint_settings(context)
+                paint_settings = UnifiedPaintPanel.paint_settings_from_active_tool(context)
 
                 if paint_settings:
                     brush = paint_settings.brush
@@ -1290,8 +1290,6 @@ class VIEW3D_MT_transform_base:
         layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
 
-        layout.separator()
-
 
 # Generic transform menu - geometry types
 class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
@@ -1301,6 +1299,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
 
         # generic...
         layout = self.layout
+        layout.separator()
         if context.mode == 'EDIT_MESH':
             layout.operator("mesh.circularize", text="To Circle")
             layout.operator("mesh.flatten", text="Flatten")
@@ -1314,7 +1313,6 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
 
         if context.mode in {
             'EDIT_MESH',
-            'EDIT_ARMATURE',
             'EDIT_SURFACE',
             'EDIT_CURVE',
             'EDIT_CURVES',
@@ -1370,7 +1368,15 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
 
         # armature specific extensions follow...
         obj = context.object
-        if obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'}:
+        if obj.type == 'ARMATURE':
+            if obj.mode == 'EDIT':
+                layout.separator()
+
+                layout.operator("transform.vertex_warp", text="Warp")
+                layout.operator_context = 'EXEC_REGION_WIN'
+                layout.operator("transform.vertex_random", text="Randomize").offset = 0.1
+                layout.operator_context = 'INVOKE_REGION_WIN'
+
             if obj.data.display_type == 'BBONE':
                 layout.separator()
 
@@ -9064,7 +9070,7 @@ class VIEW3D_PT_curves_sculpt_add_shape(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        settings = UnifiedPaintPanel.paint_settings(context)
+        settings = UnifiedPaintPanel.paint_settings_from_mode(context, 'SCULPT_CURVES')
         brush = settings.brush
 
         col = layout.column(heading="Interpolate", align=True)
@@ -9095,7 +9101,7 @@ class VIEW3D_PT_curves_sculpt_parameter_falloff(Panel):
     def draw(self, context):
         layout = self.layout
 
-        settings = UnifiedPaintPanel.paint_settings(context)
+        settings = UnifiedPaintPanel.paint_settings_from_mode(context, 'SCULPT_CURVES')
         brush = settings.brush
 
         layout.template_curve_mapping(
@@ -9119,7 +9125,7 @@ class VIEW3D_PT_curves_sculpt_grow_shrink_scaling(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        settings = UnifiedPaintPanel.paint_settings(context)
+        settings = UnifiedPaintPanel.paint_settings_from_active_tool(context)
         brush = settings.brush
 
         layout.prop(brush.curves_sculpt_settings, "use_uniform_scale")
