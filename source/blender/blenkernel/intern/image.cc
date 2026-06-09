@@ -741,16 +741,19 @@ void BKE_image_free_old_buffers(Main *bmain)
         ImBuf *ibuf = IMB_cacheIter_getImBuf(iter);
         if (ibuf != nullptr) {
           /* GPU buffers: free when past timeout and image buffer is not used elsewhere. */
+          bool freed_gpu = false;
           if (ibuf->gpu.texture != nullptr && ibuf->refcounter == 0 &&
               (ctime - ibuf->gpu.lastused > U.textimeout))
           {
             IMB_free_gpu_textures(ibuf);
+            freed_gpu = true;
           }
 
-          /* CPU buffers: free whole image buffer if past timeout, and image has not
-           * been edited and has not GPU buffers. */
-          if (ibuf->gpu.texture == nullptr && (ibuf->userflags & IB_BITMAPDIRTY) == 0 &&
-              (ctime - ibuf->lastused > U.textimeout))
+          /* CPU buffers: free whole image buffer if past timeout, and image has not been
+           * edited and has not GPU buffers. When the GPU texture was just freed, keep the
+           * buffer for another more collection cycle to give it a chance to be reused. */
+          if (!freed_gpu && ibuf->gpu.texture == nullptr &&
+              (ibuf->userflags & IB_BITMAPDIRTY) == 0 && (ctime - ibuf->lastused > U.textimeout))
           {
             to_remove.append(*static_cast<const ImageCacheKey *>(IMB_cacheIter_getUserKey(iter)));
           }

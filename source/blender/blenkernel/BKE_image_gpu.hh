@@ -24,11 +24,6 @@ struct ImageUser;
 struct Main;
 
 /**
- * Not to be use directly.
- */
-gpu::Texture *BKE_image_create_gpu_texture_from_ibuf(Image *image, ImBuf *ibuf);
-
-/**
  * Get the #gpu::Texture for a given `Image`.
  */
 gpu::Texture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser);

@@ -492,30 +492,18 @@ static ImageGPUTextures image_get_gpu_texture_tiled(Image *ima,
 {
   ImageGPUTextures result = {};
 
-  /* Get or create atlas and tile mapping image buffers. */
-  ImBuf *atlas_ibuf;
-  ImBuf *mapping_ibuf;
-
-  if (try_only) {
-    atlas_ibuf = image_udim_gpu_ibuf_get(ima, IMA_INDEX_UDIM_ATLAS);
-    mapping_ibuf = image_udim_gpu_ibuf_get(ima, IMA_INDEX_UDIM_TILE_MAPPING);
-  }
-  else {
-    atlas_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_ATLAS);
-    mapping_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_TILE_MAPPING);
-  }
+  /* Get or create atlas and tile mapping image buffers. The placeholder buffers are created even
+   * in try-only mode, so that the texture pointers references can bind to it. */
+  ImBuf *atlas_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_ATLAS);
+  ImBuf *mapping_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_TILE_MAPPING);
 
   result.image_buffer = atlas_ibuf;
   result.tile_mapping_buffer = mapping_ibuf;
 
   /* Update time for garbage collection. */
   const int64_t now = BLI_time_now_seconds_i();
-  if (atlas_ibuf != nullptr) {
-    atlas_ibuf->gpu.lastused = now;
-  }
-  if (mapping_ibuf != nullptr) {
-    mapping_ibuf->gpu.lastused = now;
-  }
+  atlas_ibuf->gpu.lastused = now;
+  mapping_ibuf->gpu.lastused = now;
 
   if (try_only) {
     return result;
