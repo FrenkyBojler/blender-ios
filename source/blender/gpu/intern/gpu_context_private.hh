@@ -90,7 +90,6 @@ class Context {
   bool is_active_;
   /** Can be nullptr for off-screen contexts. */
   GHOST_IWindow *ghost_window_;
-  GHOST_IContext *ghost_context_;
 
  public:
   Context();

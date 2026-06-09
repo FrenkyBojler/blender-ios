@@ -206,14 +206,6 @@ MTLContext::MTLContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_contex
 
   /** Fetch GHOSTContext and fetch Metal device/queue. */
   ghost_window_ = ghost_window;
-  if (ghost_window_ && ghost_context == nullptr) {
-    /* NOTE(Metal): Fetch ghost_context from ghost_window if it is not provided.
-     * Regardless of whether windowed or not, we need access to the GhostContext
-     * for presentation, and device/queue access. */
-    GHOST_Window *ghostWin = reinterpret_cast<GHOST_Window *>(ghost_window_);
-    ghost_context = (ghostWin ? ghostWin->getContext() : nullptr);
-  }
-  BLI_assert(ghost_context);
   this->ghost_context_ = static_cast<GHOST_ContextMTL *>(ghost_context);
   this->queue = (id<MTLCommandQueue>)this->ghost_context_->metalCommandQueue();
   this->device = (id<MTLDevice>)this->ghost_context_->metalDevice();

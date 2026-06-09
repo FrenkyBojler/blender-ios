@@ -76,8 +76,6 @@ Context::Context()
   is_active_ = false;
   matrix_state = GPU_matrix_state_create();
   texture_pool = GPUBackend::get()->texturepool_alloc();
-  ghost_context_ = GHOST_IContext::getActiveDrawingContext();
-  BLI_assert(ghost_context_);
 
   context_id = Context::context_counter;
   Context::context_counter++;
@@ -203,6 +201,7 @@ GPUContext *GPU_context_create(GHOST_IWindow *ghost_window, GHOST_IContext *ghos
     num_backend_users++;
   }
 
+  BLI_assert(ghost_context);
   Context *ctx = GPUBackend::get()->context_alloc(ghost_window, ghost_context);
 
   GPU_context_active_set(wrap(ctx));
