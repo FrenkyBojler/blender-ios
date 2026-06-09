@@ -1160,10 +1160,10 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         if (ELEM(lock, UVTexelLock::Y, UVTexelLock::None)) {
-          luv[0] = (luv[0] - (bounds.center().x)) * scale + (bounds.min[0] + bounds.max[0]) / 2.0f;
+          luv[0] = (luv[0] - bounds.center().x) * scale + bounds.center().x;
         }
         if (ELEM(lock, UVTexelLock::X, UVTexelLock::None)) {
-          luv[1] = (luv[1] - (bounds.center().y)) * scale + (bounds.min[1] + bounds.max[1]) / 2.0f;
+          luv[1] = (luv[1] - bounds.center().y) * scale + bounds.center().y;
         }
         changed = true;
       }
