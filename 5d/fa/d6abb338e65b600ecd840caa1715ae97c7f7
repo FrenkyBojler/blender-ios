@@ -1,2 +1,3 @@
 Referenced by pull request #158421, Fix: Pose select hierarchy sets incorrect active bone
 Referenced by commit 8c7c45ad114e719cf230b2434c0eaae9a6683b6b, Fix: Pose select hierarchy sets incorrect active bone
+Referenced by issue #133135, select child works correctly in objects but not with bones
