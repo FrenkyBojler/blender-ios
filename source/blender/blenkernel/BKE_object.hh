@@ -25,7 +25,6 @@
 namespace blender {
 
 struct Base;
-struct BMEditMesh;
 struct BoundBox;
 struct Curve;
 struct Depsgraph;
@@ -539,10 +538,6 @@ const Mesh *BKE_object_get_pre_modified_mesh(const Object *object);
  *   object uses as data.
  */
 Mesh *BKE_object_get_original_mesh(const Object *object);
-/**
- * Get the edit mesh of the original mesh of this object if it exists, otherwise null.
- */
-BMEditMesh *BKE_object_get_original_edit_mesh(const Object *object);
 
 const Mesh *BKE_object_get_editmesh_eval_final(const Object *object);
 const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object);

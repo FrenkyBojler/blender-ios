@@ -4407,15 +4407,6 @@ Mesh *BKE_object_get_original_mesh(const Object *object)
   return result;
 }
 
-BMEditMesh *BKE_object_get_original_edit_mesh(const Object *object)
-{
-  BLI_assert(object->type == OB_MESH);
-  if (const ID *data_orig = object->runtime->data_orig) {
-    return id_cast<const Mesh *>(data_orig)->runtime->edit_mesh.get();
-  }
-  return nullptr;
-}
-
 const Mesh *BKE_object_get_editmesh_eval_final(const Object *object)
 {
   BLI_assert(!DEG_is_original(object));
