@@ -601,36 +601,37 @@ void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *
   vector<bool> &done_flag = state->nodes_done_flag;
 
   /* Use a heuristic for scheduling the nodes to reduce SVM stack size. When
-   * schedulig the next node, pick the one that increases the stack usage the
+   * scheduling the next node, pick the one that increases the stack usage the
    * least, preferring nodes that free more slots than they allocate. This way
    * short lived intermediate values are released more quickly, before going
    * into other parts of the graph. */
 
-  /* Number of inputs still waiting on each node .*/
-  unordered_map<ShaderNode *, int> num_waiting_inputs;
-  /* Number of nodes waiting on each output, before its socket can be freed. */
+  /* Number of pending inputs for each node. */
+  unordered_map<ShaderNode *, int> num_pending_inputs;
+  /* Number of input sockets still depending on each output socket. */
   unordered_map<const ShaderOutput *, int> num_remaining_users;
   /* Nodes ready to be scheduled. */
   vector<ShaderNode *> ready;
 
-  /* Compute waiting inputs and ready nodes. */
+  /* Count pending inputs and ready nodes. */
   for (ShaderNode *node : nodes) {
     if (done_flag[node->id]) {
       continue;
     }
-    int num_waiting = 0;
+    int num_pending = 0;
     for (const ShaderInput *input : node->inputs) {
       if (input->link && !done_flag[input->link->parent->id]) {
-        num_waiting++;
+        num_pending++;
       }
     }
-    num_waiting_inputs[node] = num_waiting;
-    if (num_waiting == 0) {
+    num_pending_inputs[node] = num_pending;
+    if (num_pending == 0) {
       ready.push_back(node);
     }
   }
 
-  /* Compute number of users of an output sockets. */
+  /* Count input sockets depending on an output socket. Returns a mutable
+   * reference so callers can decrement the count as nodes are scheduled. */
   auto num_remaining_output_users = [&](const ShaderOutput *output) -> int & {
     auto it = num_remaining_users.find(output);
     if (it == num_remaining_users.end()) {
@@ -645,11 +646,13 @@ void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *
     return it->second;
   };
 
-  /* Compute stack size that will be freed by scheduling this node. */
+  /* Compute stack size that will be freed by scheduling this node. If this
+   * node is the last remaining user of an output socket, scheduling it will
+   * free the output socket's stack space. */
   auto node_free_size = [&](const ShaderNode *node) {
     int size = 0;
     for (const ShaderInput *input : node->inputs) {
-      ShaderOutput *output = input->link;
+      const ShaderOutput *output = input->link;
       if (output && output->stack_offset != SVM_STACK_INVALID &&
           num_remaining_output_users(output) == 1)
       {
@@ -667,9 +670,7 @@ void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *
     for (size_t i = 0; i < ready.size(); i++) {
       const int freed = node_free_size(ready[i]);
       const int delta = stack_node_output_size(ready[i]) - freed;
-      if (i == 0 || delta < best_delta || (delta == best_delta && freed > best_freed) ||
-          (delta == best_delta && freed == best_freed && ready[i]->id < ready[best_i]->id))
-      {
+      if (i == 0 || delta < best_delta || (delta == best_delta && freed > best_freed)) {
         best_i = i;
         best_delta = delta;
         best_freed = freed;
@@ -695,8 +696,8 @@ void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *
     /* Update ready nodes when their inputs are ready. */
     for (const ShaderOutput *output : node->outputs) {
       for (ShaderInput *in : output->links) {
-        auto it = num_waiting_inputs.find(in->parent);
-        if (it != num_waiting_inputs.end() && it->second > 0) {
+        auto it = num_pending_inputs.find(in->parent);
+        if (it != num_pending_inputs.end() && it->second > 0) {
           it->second--;
           if (it->second == 0) {
             ready.push_back(in->parent);
