@@ -203,7 +203,7 @@ static float wpaint_blend(const VPaint &wp,
                           float weight,
                           const float alpha,
                           float paintval,
-                          const float /*brush_alpha_value*/,
+                          const float brush_alpha,
                           const bool do_flip)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&wp.paint);
@@ -231,7 +231,10 @@ static float wpaint_blend(const VPaint &wp,
     }
   }
 
-  weight = ED_wpaint_blend_tool(blend, weight, paintval, alpha);
+  UNUSED_VARS(brush_alpha);
+  /* TODO: This isn't quite right, it adjusts the final strength too much due to re-applying the
+   * brush strength. */
+  weight = ED_wpaint_blend_tool(blend, weight, paintval /* * brush_alpha */, alpha);
 
   CLAMP(weight, 0.0f, 1.0f);
   /* The following is a reasonable lower bound for values that a user may want for weight values,
@@ -534,7 +537,8 @@ static void do_weight_paint_vertex_single(const VPaint &wp,
                                           const WeightPaintInfo &wpi,
                                           const uint index,
                                           float alpha,
-                                          float paintweight)
+                                          float paintweight,
+                                          float brush_alpha)
 {
   Mesh *mesh = id_cast<Mesh *>(ob.data);
   MDeformVert *dv = &wpi.dvert[index];
@@ -655,8 +659,7 @@ static void do_weight_paint_vertex_single(const VPaint &wp,
    * then there is no need to run the more complicated checks */
 
   {
-    float new_weight = wpaint_blend(
-        wp, weight_prev, alpha, paintweight, wpi.brush_alpha_value, wpi.do_flip);
+    float new_weight = wpaint_blend(wp, weight_prev, alpha, paintweight, brush_alpha, wpi.do_flip);
 
     float weight = wpaint_clamp_monotonic(weight_prev, weight_cur, new_weight);
 
@@ -740,7 +743,8 @@ static void do_weight_paint_vertex_multi(const VPaint &wp,
                                          const WeightPaintInfo &wpi,
                                          const uint index,
                                          float alpha,
-                                         float paintweight)
+                                         float paintweight,
+                                         float brush_alpha)
 {
   Mesh *mesh = id_cast<Mesh *>(ob.data);
   MDeformVert *dv = &wpi.dvert[index];
@@ -801,7 +805,7 @@ static void do_weight_paint_vertex_multi(const VPaint &wp,
     oldw = curw;
   }
 
-  neww = wpaint_blend(wp, oldw, alpha, paintweight, wpi.brush_alpha_value, wpi.do_flip);
+  neww = wpaint_blend(wp, oldw, alpha, paintweight, brush_alpha, wpi.do_flip);
   neww = wpaint_clamp_monotonic(oldw, curw, neww);
 
   if (wpi.do_lock_relative) {
@@ -858,19 +862,24 @@ static void do_weight_paint_vertex_multi(const VPaint &wp,
   }
 }
 
+/**
+ * @param final_alpha per-vertex factor
+ * @param brush_alpha primary mixing factor, to avoid washing out non-binary automasking values
+ */
 static void do_weight_paint_vertex(const VPaint &wp,
                                    Object &ob,
                                    WPaintData &wpd,
                                    const WeightPaintInfo &wpi,
                                    const uint index,
-                                   float alpha,
-                                   float paintweight)
+                                   float final_alpha,
+                                   float paintweight,
+                                   float brush_alpha)
 {
   if (wpi.do_multipaint) {
-    do_weight_paint_vertex_multi(wp, ob, wpd, wpi, index, alpha, paintweight);
+    do_weight_paint_vertex_multi(wp, ob, wpd, wpi, index, final_alpha, paintweight, brush_alpha);
   }
   else {
-    do_weight_paint_vertex_single(wp, ob, wpd, wpi, index, alpha, paintweight);
+    do_weight_paint_vertex_single(wp, ob, wpd, wpi, index, final_alpha, paintweight, brush_alpha);
   }
 }
 
@@ -1250,7 +1259,8 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
         }
 
         weight_final /= total_hit_loops;
-        do_weight_paint_vertex(vp, ob, wpd, wpi, vert, final_alpha, weight_final);
+        do_weight_paint_vertex(
+            vp, ob, wpd, wpi, vert, final_alpha, weight_final, wpi.brush_alpha_value);
       }
     });
   });
@@ -1377,7 +1387,8 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
             continue;
           }
           const float final_alpha = factors[i] * brush_strength * brush_alpha_pressure;
-          do_weight_paint_vertex(vp, ob, wpd, wpi, vert, final_alpha, weight_final);
+          do_weight_paint_vertex(
+              vp, ob, wpd, wpi, vert, final_alpha, weight_final, wpi.brush_alpha_value);
         }
       }
     });
@@ -1422,6 +1433,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
 
   struct LocalData {
     Vector<float> factors;
+    Vector<float> automask_factors;
     Vector<float> distances;
   };
   threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -1444,8 +1456,15 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
       filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
 
-      auto_mask::calc_vert_factors(
-          depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+      MutableSpan<float> automask_factors;
+      if (cache.automasking) {
+        tls.automask_factors.resize(verts.size());
+        automask_factors = tls.automask_factors;
+        automask_factors.fill(1.0f);
+        auto_mask::calc_vert_factors(
+            depsgraph, ob, *cache.automasking, nodes[i], verts, automask_factors);
+        scale_factors(factors, automask_factors);
+      }
 
       for (const int i : verts.index_range()) {
         const int vert = verts[i];
@@ -1472,7 +1491,15 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
           }
         }
 
-        do_weight_paint_vertex(vp, ob, wpd, wpi, vert, final_alpha, paintweight);
+        const float automask_factor = automask_factors.is_empty() ? 1.0f : automask_factors[i];
+        do_weight_paint_vertex(vp,
+                               ob,
+                               wpd,
+                               wpi,
+                               vert,
+                               final_alpha,
+                               paintweight,
+                               wpi.brush_alpha_value * automask_factor);
       }
     });
   });

@@ -696,7 +696,7 @@ static Color vpaint_blend(const VPaint &vp,
  * stroke_buffer and blend the stroke onto the mesh.
  *
  * \param brush_mark_alpha: Modulated strength on a per-vertex basis
- * \param brush_strength: Unmodified raw value of the brush
+ * \param brush_strength: Primary mix strength, brush and optional automasking factor
  */
 template<typename Color, typename Traits>
 static Color vpaint_blend_stroke(const VPaint &vp,
@@ -1146,9 +1146,6 @@ static void do_vpaint_brush_blur_loops(const Depsgraph &depsgraph,
             ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
         filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
-
-        auto_mask::calc_vert_factors(
-            depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
 
         for (const int i : verts.index_range()) {
           const int vert = verts[i];
@@ -1794,6 +1791,7 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
 
   struct LocalData {
     Vector<float> factors;
+    Vector<float> automask_factors;
     Vector<float> distances;
   };
   threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -1816,8 +1814,15 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
         filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
-        auto_mask::calc_vert_factors(
-            depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+        MutableSpan<float> automask_factors;
+        if (cache.automasking) {
+          tls.automask_factors.resize(verts.size());
+          automask_factors = tls.automask_factors;
+          automask_factors.fill(1.0f);
+          auto_mask::calc_vert_factors(
+              depsgraph, ob, *cache.automasking, nodes[i], verts, automask_factors);
+          scale_factors(factors, automask_factors);
+        }
 
         for (const int i : verts.index_range()) {
           const int vert = verts[i];
@@ -1870,6 +1875,10 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
               tex_alpha = paint_and_tex_color_alpha<Color>(vp, vpd, symm_point, &color_final);
             }
 
+            /* Use the automasking factor again when calculating the final brush strength to avoid
+             * washing out non-binary values. Note that this only has an effect for non-accumulate
+             * brushes. */
+            const float automask_factor = automask_factors.is_empty() ? 1.0f : automask_factors[i];
             const float final_alpha = Traits::frange * brush_fade * brush_strength * tex_alpha *
                                       brush_alpha_pressure;
 
@@ -1880,7 +1889,7 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
                                                                 stroke_buffer,
                                                                 color_final,
                                                                 final_alpha,
-                                                                brush_strength,
+                                                                brush_strength * automask_factor,
                                                                 vert);
             }
             else {
@@ -1897,7 +1906,8 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
                                                                     stroke_buffer,
                                                                     color_final,
                                                                     final_alpha,
-                                                                    brush_strength,
+                                                                    brush_strength *
+                                                                        automask_factor,
                                                                     corner);
               }
             }
