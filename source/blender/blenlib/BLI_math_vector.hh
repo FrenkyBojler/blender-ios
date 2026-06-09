@@ -829,4 +829,27 @@ template<typename T, int Size>
                                                            const VecBase<T, Size> &v3,
                                                            const VecBase<T, Size> &v4);
 
+/* Kochanek-Bartels Hermite spline interpolation between p2 and p3. */
+[[nodiscard]] inline float3 hermite_spline_interp(const float3 &p1,
+                                                 const float3 &p2,
+                                                 const float3 &p3,
+                                                 const float3 &p4,
+                                                 const float mu,
+                                                 const float tension) 
+{
+  const float mu2 = mu * mu;
+  const float mu3 = mu2 * mu;
+  const float s = (1.0f - tension) * 0.5f;
+
+  const float3 m0 = (p2 - p1) * s + (p3 - p2) * s;
+  const float3 m1 = (p3 - p2) * s + (p4 - p3) * s;
+  
+  const float h00 =  2.0f * mu3 - 3.0f * mu2 + 1.0f;
+  const float h10 =         mu3 - 2.0f * mu2 + mu;
+  const float h01 = -2.0f * mu3 + 3.0f * mu2;
+  const float h11 =         mu3 -        mu2;
+
+  return h00 * p2 + h10 * m0 + h01 * p3 + h11 * m1;
+}
+
 }  // namespace blender::math
