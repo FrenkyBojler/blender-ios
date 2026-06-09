@@ -1090,6 +1090,8 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       *bmain, scene, view_layer, nullptr);
   const UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
   const bool use_custom_resolution = RNA_boolean_get(op->ptr, "use_custom_resolution");
+  float density = RNA_float_get(op->ptr, "density");
+  const UVTexelUnit unit = (UVTexelUnit)RNA_enum_get(op->ptr, "unit");
 
   int width = 1024;
   int height = 1024;
@@ -1105,8 +1107,6 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     }
   }
 
-  float density = RNA_float_get(op->ptr, "density");
-  UVTexelUnit unit = (UVTexelUnit)RNA_enum_get(op->ptr, "unit");
   if (unit == UVTexelUnit::Inch) {
     density /= 0.0254;
   }
@@ -1121,16 +1121,14 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
-    BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
     if (bm->totvertsel == 0) {
       continue;
     }
 
     float changed = false;
-    offsets = BM_uv_map_offsets_get(bm);
-
-    UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+    const UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
     if (element_map == nullptr) {
       continue;
     }
@@ -1200,7 +1198,7 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
     col.prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    SpaceImage *sima = CTX_wm_space_image(C);
+    const SpaceImage *sima = CTX_wm_space_image(C);
     int width = 1024;
     int height = 1024;
     if (sima && sima->image) {
