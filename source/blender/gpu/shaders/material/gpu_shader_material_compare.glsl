@@ -4,6 +4,7 @@
 
 #include "gpu_shader_common_color_utils.glsl"
 #include "gpu_shader_math_constants_lib.glsl"
+#include "gpu_shader_math_vector_reduce_lib.glsl"
 
 float angle_normalized_v3v3(float3 v1, float3 v2)
 {
@@ -14,11 +15,6 @@ float angle_normalized_v3v3(float3 v1, float3 v2)
   }
   const float3 v2_n = -v2;
   return M_PI - 2.0f * asin(clamp(length(v2_n - v1) / 2.0f, -1.0f, 1.0f));
-}
-
-float component_average(float3 a)
-{
-  return (a.x + a.y + a.z) / 3.0f;
 }
 
 /* Float */
@@ -102,7 +98,7 @@ void compare_int_not_equal(float a, float b, out float result)
 [[node]]
 void compare_vector_average_less_than(float3 a, float3 b, out float result)
 {
-  result = float(component_average(a) < component_average(b));
+  result = float(average(a) < average(b));
 }
 
 [[node]]
@@ -134,7 +130,7 @@ void compare_vector_length_less_than(float3 a, float3 b, out float result)
 [[node]]
 void compare_vector_average_less_equal(float3 a, float3 b, out float result)
 {
-  result = float(component_average(a) <= component_average(b));
+  result = float(average(a) <= average(b));
 }
 
 [[node]]
@@ -166,7 +162,7 @@ void compare_vector_length_less_equal(float3 a, float3 b, out float result)
 [[node]]
 void compare_vector_average_greater_than(float3 a, float3 b, out float result)
 {
-  result = float(component_average(a) > component_average(b));
+  result = float(average(a) > average(b));
 }
 
 [[node]]
@@ -198,7 +194,7 @@ void compare_vector_length_greater_than(float3 a, float3 b, out float result)
 [[node]]
 void compare_vector_average_greater_equal(float3 a, float3 b, out float result)
 {
-  result = float(component_average(a) >= component_average(b));
+  result = float(average(a) >= average(b));
 }
 
 [[node]]
@@ -230,7 +226,7 @@ void compare_vector_length_greater_equal(float3 a, float3 b, out float result)
 [[node]]
 void compare_vector_average_equal(float3 a, float3 b, float epsilon, out float result)
 {
-  result = float(abs(component_average(a) - component_average(b)) <= epsilon);
+  result = float(abs(average(a) - average(b)) <= epsilon);
 }
 
 [[node]]
@@ -264,7 +260,7 @@ void compare_vector_length_equal(float3 a, float3 b, float epsilon, out float re
 [[node]]
 void compare_vector_average_not_equal(float3 a, float3 b, float epsilon, out float result)
 {
-  result = float(abs(component_average(a) - component_average(b)) > epsilon);
+  result = float(abs(average(a) - average(b)) > epsilon);
 }
 
 [[node]]
