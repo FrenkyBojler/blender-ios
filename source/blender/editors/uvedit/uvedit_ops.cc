@@ -1090,10 +1090,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       *bmain, scene, view_layer, nullptr);
   const UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
   const bool use_custom_resolution = RNA_boolean_get(op->ptr, "use_custom_resolution");
-  Object *active_object = CTX_data_active_object(C);
-  BMEditMesh *em = BKE_editmesh_from_object(active_object);
-  BMesh *bm = em->bm;
-  BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+
   int width = 1024;
   int height = 1024;
   if (use_custom_resolution) {
@@ -1120,10 +1117,12 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     density /= 0.3048;
   }
 
-  float cent[2], min[2], max[2];
+  Bounds<float2> bounds;
   for (Object *obedit : objects) {
-    em = BKE_editmesh_from_object(obedit);
-    bm = em->bm;
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
+    BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+
     if (bm->totvertsel == 0) {
       continue;
     }
@@ -1135,25 +1134,24 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     if (element_map == nullptr) {
       continue;
     }
+
     Set<BMFace *> ed_faces;
     for (int i = 0; i < element_map->total_islands; i++) {
       UvElement *element = element_map->storage + element_map->island_indices[i];
       Set<BMFace *> visited_faces;
-      INIT_MINMAX2(min, max);
+      INIT_MINMAX2(bounds.min, bounds.max);
       float uv_area = 0.0f;
       float object_area = 0.0f;
 
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-        minmax_v2v2_v2(min, max, luv);
+        minmax_v2v2_v2(bounds.min, bounds.max, luv);
         if (!visited_faces.contains(element[j].l->f)) {
           uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
           object_area += BM_face_calc_area(element[j].l->f);
           visited_faces.add(element[j].l->f);
         }
       }
-      cent[0] = (max[0] - min[0]) / 2.0;
-      cent[1] = (max[1] - min[1]) / 2.0;
       float island_density = sqrt((width * height * uv_area) / object_area) /
                              scene->unit.scale_length;
 
@@ -1164,10 +1162,10 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         if (ELEM(lock, UVTexelLock::Y, UVTexelLock::None)) {
-          luv[0] = (luv[0] - (min[0] + cent[0])) * scale + (min[0] + cent[0]);
+          luv[0] = (luv[0] - (bounds.center().x)) * scale + (bounds.min[0] + bounds.max[0]) / 2.0f;
         }
         if (ELEM(lock, UVTexelLock::X, UVTexelLock::None)) {
-          luv[1] = (luv[1] - (min[1] + cent[1])) * scale + (min[1] + cent[1]);
+          luv[1] = (luv[1] - (bounds.center().y)) * scale + (bounds.min[1] + bounds.max[1]) / 2.0f;
         }
         changed = true;
       }
@@ -1199,7 +1197,6 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
   col.separator();
   if (RNA_boolean_get(op->ptr, "use_custom_resolution")) {
     col.prop(&ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col.separator();
     col.prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
@@ -1215,7 +1212,6 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
     }
     col.alignment_set(ui::LayoutAlign::Right);
     col.label("Width:  " + std::to_string(width) + " px", ICON_NONE);
-    col.separator();
     col.label("Height:  " + std::to_string(height) + " px", ICON_NONE);
   }
 }
