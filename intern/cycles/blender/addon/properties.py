@@ -1733,13 +1733,10 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 entry.id = device[2]
                 entry.name = device[0]
                 entry.type = device[1]
-                entry.use = entry.type != 'CPU' and entry.meets_driver_requirement
+                entry.use = entry.type != 'CPU'
             elif entry.name != device[0]:
                 # Update name in case it changed
                 entry.name = device[0]
-                # If the driver requirement is not met, then intentionally unselect
-                if not entry.meets_driver_requirement:
-                    entry.use = False
 
     # Gets all devices types to display in the preferences for a compute device type.
     # This includes the CPU device.
@@ -1755,8 +1752,6 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             entry = self.find_existing_device_entry(device)
             entry.is_optimized = device[7]
             entry.meets_driver_requirement = device[8]
-            if not entry.meets_driver_requirement:
-                entry.use = False
             if entry.type == compute_device_type:
                 devices.append(entry)
             elif entry.type == 'CPU':
@@ -1795,6 +1790,11 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             for device in self.get_device_list(compute_device_type):
                 if device[1] != compute_device_type:
                     continue
+
+                # Skip devices that do not meet the driver requirement.
+                if not device[8]:
+                    continue
+
                 for dev in self.devices:
                     if dev.use and dev.id == device[2]:
                         num += 1
@@ -1806,6 +1806,11 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             for device in self.get_device_list(compute_device_type):
                 if device[1] == compute_device_type:
                     continue
+
+                # Skip devices that do not meet the driver requirement.
+                if not device[8]:
+                    continue
+
                 for dev in self.devices:
                     if dev.use and dev.id == device[2]:
                         return True
@@ -1825,6 +1830,10 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 if device_type == 'CPU':
                     continue
 
+                # Skip devices that do not meet the driver requirement.
+                if not device[8]:
+                    continue
+
                 has_device_oidn_support = device[5]
                 if has_device_oidn_support and self.find_existing_device_entry(device).use:
                     return True
@@ -1839,6 +1848,10 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             for device in self.get_device_list(compute_device_type):
                 device_type = device[1]
                 if device_type == 'CPU':
+                    continue
+
+                # Skip devices that do not meet the driver requirement.
+                if not device[8]:
                     continue
 
                 has_device_optixdenoiser_support = device[6]
@@ -1945,31 +1958,57 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                           icon='BLANK1', translate=False)
             return
 
+        has_usable_gpu_device = False
         for device in devices:
             name = self._format_device_name(device.name)
             if not device.is_optimized:
                 name += rpt_(" (Unoptimized Performance)")
-            row = box.row()
+
+            col = box.column()
+            row = col.row()
+
             if not device.meets_driver_requirement:
                 import sys
-                row.enabled = False
+                row.active = False
+                name += rpt_(" (Disabled)")
+                row.prop(device, "use", text=name, translate=False)
+
+                details = ""
                 if device.type == 'OPTIX':
-                    name += rpt_(" (need NVIDIA driver version %s or newer)") % optix_minimal_driver_version
+                    details = rpt_("(need NVIDIA driver version %s or newer)") % optix_minimal_driver_version
                 elif device.type == 'HIP':
                     if sys.platform[:3] == "win":
-                        name += rpt_(" (need AMD Adrenalin driver %s or newer, or AMD Radeon Pro %s driver or newer)") % (
+                        details = rpt_("(need AMD Adrenalin driver %s or newer, or AMD Radeon Pro %s driver or newer)") % (
                             hip_minimal_adrenalin_driver_version, hip_minimal_pro_driver_version)
                     elif sys.platform.startswith("linux"):
-                        name += rpt_(" (need ROCm HIP Runtime %s or newer, or AMD driver version %s or newer)") % (
+                        details = rpt_("(need ROCm HIP Runtime %s or newer, or AMD driver version %s or newer)") % (
                             hip_rocm_minimal_version, hip_minimal_linux_driver_version)
                 elif device.type == 'ONEAPI':
                     if sys.platform.startswith("win"):
-                        name += rpt_(" (need Windows driver version %s or newer)") % oneapi_windows_driver_version
+                        details = rpt_("(need Windows driver version %s or newer)") % oneapi_windows_driver_version
                     elif sys.platform.startswith("linux"):
-                        name += rpt_(" (need intel-level-zero-gpu or intel-compute-runtime version %s or newer)") % oneapi_linux_driver_version
+                        details = rpt_(
+                            "(need intel-level-zero-gpu or intel-compute-runtime version %s or newer)") % oneapi_linux_driver_version
+
+                if not details:
+                    details = rpt_("(Driver upgrade required)")
+
+                sub = col.row()
+                sub.active = False
+                sub.label(icon='BLANK1', text=details, translate=False)
+            else:
+                if device.type != 'CPU':
+                    if device.use:
+                        has_usable_gpu_device = True
                 else:
-                    name += rpt_(" (Driver upgrade required)")
-            row.prop(device, "use", text=name, translate=False)
+                    # CPU is always listed last (by convention in get_devices()),
+                    # see get_devices_for_type implementation.
+                    # Grey it out if no GPU device is enabled, because CPU here
+                    # is meant as a supplement to GPU rendering. For CPU-only
+                    # rendering, select the "None" compute device type instead.
+                    if not has_usable_gpu_device:
+                        row.active = False
+                row.prop(device, "use", text=name, translate=False)
 
     def draw_impl(self, layout, context):
         row = layout.row()
@@ -1992,8 +2031,18 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             if device[1] != compute_device_type:
                 continue
 
+            # device[8] == DeviceInfo.meets_driver_requirement
+            # For more details see available_devices_func function in python.cpp
+            if not device[8]:
+                # Devices that do not meet the driver requirement are not used;
+                # skip them.
+                continue
+
+            # device[3] == DeviceInfo.has_peer_memory
             if device[3]:
                 has_peer_memory = True
+
+            # device[4] == DeviceInfo.use_hardware_raytracing
             if device[4]:
                 has_enabled_hardware_rt = True
             else:
