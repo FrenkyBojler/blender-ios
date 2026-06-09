@@ -1370,20 +1370,12 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
             if obj.data.display_type == 'BBONE':
                 layout.separator()
 
-                layout.operator_context = 'EXEC_REGION_WIN'
-                layout.operator("transform.transform", text="Align to Transform Orientation").mode = 'ALIGN'
-                layout.operator_context = 'INVOKE_REGION_WIN'
+                layout.operator("transform.transform", text="Scale BBone").mode = 'BONE_SIZE'
+            elif obj.data.display_type == 'ENVELOPE':
+                layout.separator()
 
-            if obj.mode in {'EDIT', 'POSE'}:
-                if obj.data.display_type == 'BBONE':
-                    layout.separator()
-
-                    layout.operator("transform.transform", text="Scale BBone").mode = 'BONE_SIZE'
-                elif obj.data.display_type == 'ENVELOPE':
-                    layout.separator()
-
-                    layout.operator("transform.transform", text="Scale Envelope Distance").mode = 'BONE_SIZE'
-                    layout.operator("transform.transform", text="Scale Radius").mode = 'BONE_ENVELOPE'
+                layout.operator("transform.transform", text="Scale Envelope Distance").mode = 'BONE_SIZE'
+                layout.operator("transform.transform", text="Scale Radius").mode = 'BONE_ENVELOPE'
 
         if context.edit_object and context.edit_object.type == 'ARMATURE':
             layout.separator()
