@@ -10,6 +10,7 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_math_base.h"
 #include "BLI_string.h"
 
@@ -91,43 +92,28 @@ static int inputs_cmp(const void *a, const void *b)
   return gpu_type_element_count(input_a->type) < gpu_type_element_count(input_b->type) ? 1 : 0;
 }
 
-/* First link of each type in the sorted list. */
-struct UBOFirstLinks {
-  LinkData *link_mat4;
-  LinkData *link_vec4;
-  LinkData *link_vec3;
-  LinkData *link_vec2;
-  LinkData *link_float;
-};
-
-static LinkData **ubo_first_link_ptr(UBOFirstLinks &first_links, const GPUType type)
+static bool is_ubo_supported_type(const GPUType type)
 {
   switch (type) {
-    case GPU_NONE:
-      break;
     case GPU_FLOAT:
-      return &first_links.link_float;
     case GPU_VEC2:
-      return &first_links.link_vec2;
     case GPU_VEC3:
-      return &first_links.link_vec3;
     case GPU_VEC4:
-      return &first_links.link_vec4;
-    case GPU_MAT3:
-      break;
     case GPU_MAT4:
-      return &first_links.link_mat4;
+      return true;
+    case GPU_NONE:
+    case GPU_MAT3:
     case GPU_TEX1D_ARRAY:
     case GPU_TEX2D:
     case GPU_TEX2D_ARRAY:
     case GPU_TEX3D:
     case GPU_CLOSURE:
     case GPU_ATTR:
-      break;
+      return false;
   }
 
   BLI_assert_unreachable();
-  return nullptr;
+  return false;
 }
 
 /**
@@ -144,7 +130,7 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
     return;
   }
 
-  UBOFirstLinks first_links{};
+  Map<GPUType, LinkData *> first_links;
   GPUType cur_type = GPU_NONE;
 
   for (LinkData &link : *inputs) {
@@ -156,8 +142,7 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
       continue;
     }
 
-    LinkData **first_link_ptr = ubo_first_link_ptr(first_links, input->type);
-    if (first_link_ptr == nullptr) {
+    if (!is_ubo_supported_type(input->type)) {
       BLI_assert_msg(0, "GPU type not supported in UBO");
       continue;
     }
@@ -166,16 +151,16 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
       continue;
     }
 
-    *first_link_ptr = &link;
+    first_links.add_new(input->type, &link);
     cur_type = input->type;
   }
 
   /* If there is no GPU_VEC3 there is no need for alignment. */
-  if (first_links.link_vec3 == nullptr) {
+  if (!first_links.contains(GPU_VEC3)) {
     return;
   }
 
-  LinkData *link = first_links.link_vec3;
+  LinkData *link = first_links.lookup(GPU_VEC3);
   while (link != nullptr && (static_cast<GPUInput *>(link->data))->type == GPU_VEC3) {
     LinkData *link_next = link->next;
 
@@ -185,9 +170,10 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
     }
 
     /* If there is a float, move it next to current vec3. */
-    if (first_links.link_float != nullptr) {
-      LinkData *float_input = first_links.link_float;
-      first_links.link_float = float_input->next;
+    LinkData **float_link_ptr = first_links.lookup_ptr(GPU_FLOAT);
+    if (float_link_ptr != nullptr) {
+      LinkData *float_input = *float_link_ptr;
+      first_links.add_overwrite(GPU_FLOAT, float_input->next);
 
       BLI_remlink(inputs, float_input);
       BLI_insertlinkafter(inputs, link, float_input);
