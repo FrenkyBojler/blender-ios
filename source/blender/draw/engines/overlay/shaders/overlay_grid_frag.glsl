@@ -8,27 +8,21 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_next)
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_vector_compare_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
 #include "overlay_grid_common_lib.glsl"
-
-/* Test if a vertex output position overlaps with an active axis line. */
-bool3 test_axis_overlap(float3 vertex_pos)
-{
-  constexpr float axis_epsilon = 2e-7f;
-  return bool3(flag_test(grid_flag, AXIS_X) && grid::is_zero(vertex_pos.yz, axis_epsilon),
-               flag_test(grid_flag, AXIS_Y) && grid::is_zero(vertex_pos.xz, axis_epsilon),
-               flag_test(grid_flag, AXIS_Z) && grid::is_zero(vertex_pos.xy, axis_epsilon));
-}
 
 void main()
 {
   /* Test if a vertex output position overlaps with an active axis line. */
   constexpr float axis_epsilon = 2e-7f;
-  bool3 axis_mask = bool3(
-      flag_test(grid_flag, AXIS_X) && grid::is_zero(vertex_out.pos.yz, axis_epsilon),
-      flag_test(grid_flag, AXIS_Y) && grid::is_zero(vertex_out.pos.xz, axis_epsilon),
-      flag_test(grid_flag, AXIS_Z) && grid::is_zero(vertex_out.pos.xy, axis_epsilon));
+  bool3 axis_mask = bool3(flag_test(grid_flag, AXIS_X) &&
+                              is_equal<float2>(vertex_out.pos.yz, float2(0.0), axis_epsilon),
+                          flag_test(grid_flag, AXIS_Y) &&
+                              is_equal<float2>(vertex_out.pos.xz, float2(0.0), axis_epsilon),
+                          flag_test(grid_flag, AXIS_Z) &&
+                              is_equal<float2>(vertex_out.pos.xy, float2(0.0), axis_epsilon));
 
   /* If an axis line overlaps, the fragment can be discarded. */
   if (any(axis_mask) && flag_test(grid_flag, SHOW_GRID)) {
