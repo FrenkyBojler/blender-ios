@@ -1088,7 +1088,10 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       *bmain, scene, view_layer, nullptr);
+  Object *active_object = CTX_data_active_object(C);
   const UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
+  const bool use_active_object = RNA_boolean_get(op->ptr, "use_active_object");
+
   const bool use_custom_resolution = RNA_boolean_get(op->ptr, "use_custom_resolution");
   float density = RNA_float_get(op->ptr, "density");
   const UVTexelUnit unit = (UVTexelUnit)RNA_enum_get(op->ptr, "unit");
@@ -1106,19 +1109,41 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       height = tile->gen_y;
     }
   }
+  if (use_active_object) {
+    BMEditMesh *em = BKE_editmesh_from_object(active_object);
+    BMesh *bm = em->bm;
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+    float uv_area = 0.0f;
+    float object_area = 0.0f;
 
-  if (unit == UVTexelUnit::Inch) {
-    density /= 0.0254;
+    BMFace *efa;
+    BMLoop *l;
+    BMIter iter, liter;
+    BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
+      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+        uv_area += BM_face_calc_area_uv(l->f, offsets.uv);
+        object_area += BM_face_calc_area(l->f);
+      }
+    }
+    density = sqrt((width * height * uv_area) / object_area) / scene->unit.scale_length;
   }
-  else if (unit == UVTexelUnit::Centimeter) {
-    density /= 0.01;
-  }
-  else if (unit == UVTexelUnit::Foot) {
-    density /= 0.3048;
+  else {
+    if (unit == UVTexelUnit::Inch) {
+      density /= 0.0254;
+    }
+    else if (unit == UVTexelUnit::Centimeter) {
+      density /= 0.01;
+    }
+    else if (unit == UVTexelUnit::Foot) {
+      density /= 0.3048;
+    }
   }
 
   Bounds<float2> bounds;
   for (Object *obedit : objects) {
+    if ((obedit == active_object) && use_active_object) {
+      continue;
+    }
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
 
@@ -1136,7 +1161,6 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     Set<BMFace *> ed_faces;
     for (int i = 0; i < element_map->total_islands; i++) {
       UvElement *element = element_map->storage + element_map->island_indices[i];
-      Set<BMFace *> visited_faces;
       INIT_MINMAX2(bounds.min, bounds.max);
       float uv_area = 0.0f;
       float object_area = 0.0f;
@@ -1144,11 +1168,8 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         minmax_v2v2_v2(bounds.min, bounds.max, luv);
-        if (!visited_faces.contains(element[j].l->f)) {
-          uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
-          object_area += BM_face_calc_area(element[j].l->f);
-          visited_faces.add(element[j].l->f);
-        }
+        uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
+        object_area += BM_face_calc_area(element[j].l->f);
       }
       float island_density = sqrt((width * height * uv_area) / object_area) /
                              scene->unit.scale_length;
@@ -1185,8 +1206,10 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
 
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
   ui::Layout &col = layout.column(true);
-
-  col.prop(&ptr, "density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(&ptr, "use_active_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (!RNA_boolean_get(op->ptr, "use_active_object")) {
+    col.prop(&ptr, "density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
   col.prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.separator();
   col.prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1246,7 +1269,11 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 
   ot->ui = uv_apply_texel_density_draw;
-
+  RNA_def_boolean(ot->srna,
+                  "use_active_object",
+                  false,
+                  "Use Active Object",
+                  "Use the active object's texel density");
   RNA_def_float(ot->srna,
                 "density",
                 1024.0f,
