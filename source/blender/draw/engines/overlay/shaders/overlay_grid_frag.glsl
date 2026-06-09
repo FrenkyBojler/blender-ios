@@ -14,22 +14,19 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_next)
 
 void main()
 {
-  /* Fragment color. */
-  if (flag_test(grid_flag, SHOW_GRID)) {
-    /* Color is a mix of [grid, grid_emphasis], dependent on the level. */
-    out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.emphasis);
+  /* Color is a mix of [grid, grid_emphasis], dependent on the level. */
+  out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.emphasis);
+
+  /* Axis line color overrides, and is fixed by theme. */
+  constexpr float axis_epsilon = 2e-7f;
+  if (flag_test(grid_flag, AXIS_X) && grid::is_zero(vertex_out.pos.yz, axis_epsilon)) {
+    out_color = theme.colors.grid_axis_x;
   }
-  else if (flag_test(grid_flag, SHOW_AXES)) {
-    /* Color is fixed by theme. */
-    if (flag_test(grid_flag, AXIS_X) && grid::is_zero(vertex_out.pos.yz, 2e-6f)) {
-      out_color = theme.colors.grid_axis_x;
-    }
-    else if (flag_test(grid_flag, AXIS_Y) && grid::is_zero(vertex_out.pos.xz, 2e-6f)) {
-      out_color = theme.colors.grid_axis_y;
-    }
-    else if (flag_test(grid_flag, AXIS_Z) && grid::is_zero(vertex_out.pos.xy, 2e-6f)) {
-      out_color = theme.colors.grid_axis_z;
-    }
+  else if (flag_test(grid_flag, AXIS_Y) && grid::is_zero(vertex_out.pos.xz, axis_epsilon)) {
+    out_color = theme.colors.grid_axis_y;
+  }
+  else if (flag_test(grid_flag, AXIS_Z) && grid::is_zero(vertex_out.pos.xy, axis_epsilon)) {
+    out_color = theme.colors.grid_axis_z;
   }
 
   /* Fragment alpha. */
