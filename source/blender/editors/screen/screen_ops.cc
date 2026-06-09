@@ -2628,6 +2628,7 @@ static void SCREEN_OT_edge_merge(wmOperatorType *ot)
   ot->description = "Merge aligned area edges";
   ot->idname = "SCREEN_OT_edge_merge";
   ot->exec = area_edge_merge_exec;
+  ot->poll = ED_operator_screenactive;
 
   /* flags */
   ot->flag = OPTYPE_INTERNAL;
