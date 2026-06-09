@@ -345,12 +345,13 @@ SVMInputFloat3 SVMCompiler::input_float3_from_offset(const SVMStackOffset offset
 
 SVMStackOffset SVMCompiler::input_link(const char *name)
 {
-  /* Ensure input link is pushed to SVM before the node itself. */
-  assert(!current_node->added_to_svm);
   /* This is for sockets like normal which always expect a link. For the constant_folded_in we have
    * to write the value to the stack with another load and return a linked svm offset, as these
    * never store the default value in the SVMNode. */
   ShaderInput *input = current_node->input(name);
+  /* Ensure input link is pushed to SVM before the node itself. */
+  assert(!(current_node->added_to_svm && input->constant_folded_in && input->link == nullptr &&
+           input->stack_offset == SVM_STACK_INVALID));
   return (input->link || input->constant_folded_in) ? stack_assign(input) : SVM_STACK_INVALID;
 }
 
@@ -941,6 +942,7 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
   current_svm_nodes.clear();
 
   for (ShaderNode *node : graph->nodes) {
+    node->added_to_svm = false;
     for (ShaderInput *input : node->inputs) {
       input->stack_offset = SVM_STACK_INVALID;
     }

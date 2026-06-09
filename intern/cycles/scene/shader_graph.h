@@ -270,6 +270,7 @@ class ShaderNode : public Node {
    */
   virtual bool equals(const ShaderNode &other);
 
+  /* Helps to avoid adding input link to the node after the node is already added to SVM. */
   bool added_to_svm = false;
 
  protected:
