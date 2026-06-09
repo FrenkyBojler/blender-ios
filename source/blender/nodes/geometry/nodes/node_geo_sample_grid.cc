@@ -8,6 +8,8 @@
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 
+#include "GEO_grid_samplers.hh"
+
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
@@ -15,10 +17,6 @@
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
-
-#ifdef WITH_OPENVDB
-#  include <openvdb/tools/Interpolation.h>
-#endif
 
 #include "node_geometry_util.hh"
 
@@ -28,12 +26,20 @@ enum class InterpolationMode {
   Nearest = 0,
   TriLinear = 1,
   TriQuadratic = 2,
+  QuadraticBSpline = 3,
+  CubicBSpline = 5,
 };
 
 static const EnumPropertyItem interpolation_mode_items[] = {
     {int(InterpolationMode::Nearest), "NEAREST", 0, N_("Nearest Neighbor"), ""},
     {int(InterpolationMode::TriLinear), "TRILINEAR", 0, N_("Trilinear"), ""},
     {int(InterpolationMode::TriQuadratic), "TRIQUADRATIC", 0, N_("Triquadratic"), ""},
+    {int(InterpolationMode::QuadraticBSpline),
+     "QUADRATIC_BSPLINE",
+     0,
+     N_("Quadratic B-Spline"),
+     ""},
+    {int(InterpolationMode::CubicBSpline), "CUBIC_BSPLINE", 0, N_("Cubic B-Spline"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -146,7 +152,7 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
   }
   switch (real_interpolation) {
     case InterpolationMode::TriLinear: {
-      sample_data.template operator()<openvdb::tools::BoxSampler>();
+      sample_data.template operator()<geometry::LinearSampler>();
       break;
     }
     case InterpolationMode::TriQuadratic: {
@@ -155,6 +161,14 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
     }
     case InterpolationMode::Nearest: {
       sample_data.template operator()<openvdb::tools::PointSampler>();
+      break;
+    }
+    case InterpolationMode::QuadraticBSpline: {
+      sample_data.template operator()<geometry::QuadraticBSplineSampler>();
+      break;
+    }
+    case InterpolationMode::CubicBSpline: {
+      sample_data.template operator()<geometry::CubicBSplineSampler>();
       break;
     }
   }
