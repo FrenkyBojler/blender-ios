@@ -68,12 +68,14 @@ class ProjectVariable:
 
     def __post_init__(self):
         """Validation of invariants that cattrs doesn't check."""
+        import re
+
         if self.name == "":
             raise ValueError("Invalid variable name '{:s}': variable names cannot be empty.")
 
-        for character in [":", "{", "}"]:
-            if character in self.name:
-                raise ValueError("Invalid variable name '{:s}': variable names cannot contain ':', '{', or '}'.")
+        if re.match("^[a-zA-Z_][a-zA-Z0-9_]*$", self.name) is None:
+            raise ValueError(
+                "Invalid variable name '{:s}': variable names must not start with a digit, and must contain only alphanumeric characters and underscores.")
 
         match (self.type, self.value):
             case (VariableType.INTEGER, int()):

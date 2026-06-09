@@ -142,6 +142,31 @@ void with_blender_project_write_lock(FunctionRef<void()> lambda)
   lambda();
 }
 
+bool is_valid_project_variable_name(StringRef name)
+{
+  /* Shouldn't be empty. */
+  if (name.is_empty()) {
+    return false;
+  }
+
+  /* Shouldn't start with a numerical digit. */
+  if (name[0] >= '0' && name[0] <= '9') {
+    return false;
+  }
+
+  /* All characters should be alphanumeric or underscore. */
+  for (char c : name) {
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+      /* Valid identifier character. */
+    }
+    else {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 }  // namespace bke
 
 bke::BlenderProject *BKE_blender_project_get(const Main *bmain)

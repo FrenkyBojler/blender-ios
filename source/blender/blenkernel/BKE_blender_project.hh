@@ -135,6 +135,19 @@ void with_blender_project_read_lock(FunctionRef<void()> lambda);
  */
 void with_blender_project_write_lock(FunctionRef<void()> lambda);
 
+/**
+ * Return whether the given string is a valid project variable identifier or not.
+ *
+ * For the moment we are very restrictive: only alphanumeric characters and underscores are
+ * allowed, and the first character must not be a digit. This is very similar to the identifier
+ * rules in some programming languages.
+ *
+ * In the future we should likely expand this to allow more of unicode. But better to start
+ * restrictive and open up later than start super open and discover we need to make a breaking
+ * change by making it more restrictive.
+ */
+bool is_valid_project_variable_name(StringRef name);
+
 }  // namespace bke
 
 /**

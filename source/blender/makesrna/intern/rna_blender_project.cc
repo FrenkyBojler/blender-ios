@@ -114,8 +114,22 @@ static int rna_ProjectVariable_name_length(PointerRNA *ptr)
 
 static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
 {
-  /* No empty variable names. */
-  if (value[0] == '\0') {
+  std::string new_name(value);
+
+  /* Substitute common invalid characters first, rather than just silently
+   * failing on any little issue. This is (probably?) more user friendly
+   * for users setting variable names in the UI. */
+  for (int i = 0; i < new_name.size(); i++) {
+    switch (new_name[i]) {
+      case ' ':
+      case '-': {
+        new_name[i] = '_';
+        break;
+      }
+    }
+  }
+
+  if (!is_valid_project_variable_name(new_name)) {
     return;
   }
 
@@ -124,9 +138,6 @@ static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
     BLI_assert(project != nullptr);
 
     ProjectVariable *var = ptr->data_as<ProjectVariable>();
-
-    std::string new_name(value);
-    BKE_ensure_valid_template_variable_name(new_name);
 
     if (var->name == new_name) {
       return;
@@ -367,8 +378,12 @@ static PointerRNA rna_ProjectVariables_new(BlenderProject *project,
                                            const char *name,
                                            int type)
 {
-  if (name[0] == '\0') {
-    BKE_reportf(reports, RPT_ERROR, "Invalid variable name '%s': name must not be empty.", name);
+  if (!is_valid_project_variable_name(name)) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Invalid variable name '%s': name must not be empty, must not start with a digit, "
+                "and must contain only alphanumeric characters and underscores.",
+                name);
     return {};
   }
 
@@ -485,7 +500,10 @@ void rna_def_project_variable(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_struct_name_property(srna, prop);
-  RNA_def_property_ui_text(prop, "Name", "The variable's name");
+  RNA_def_property_ui_text(prop,
+                           "Name",
+                           "The variable's name. Must not start with a digit, and must contain "
+                           "only alphanumeric characters and underscores");
   RNA_def_property_string_funcs(prop,
                                 "rna_ProjectVariable_name_get",
                                 "rna_ProjectVariable_name_length",
