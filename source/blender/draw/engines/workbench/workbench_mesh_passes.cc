@@ -77,12 +77,12 @@ PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
       sub_pass = &sub_pass->sub(texture->name);
       if (texture->gpu.tile_mapping_buffer) {
         sub_pass->bind_texture(
-            WB_TILE_ARRAY_SLOT, texture->gpu.texture_slot(), texture->sampler_state);
-        sub_pass->bind_texture(WB_TILE_DATA_SLOT, texture->gpu.tile_mapping_slot());
+            WB_TILE_ARRAY_SLOT, texture->gpu.texture_ref(), texture->sampler_state);
+        sub_pass->bind_texture(WB_TILE_DATA_SLOT, texture->gpu.tile_mapping_ref());
       }
       else {
         sub_pass->bind_texture(
-            WB_TEXTURE_SLOT, texture->gpu.texture_slot(), texture->sampler_state);
+            WB_TEXTURE_SLOT, texture->gpu.texture_ref(), texture->sampler_state);
       }
       sub_pass->push_constant("is_image_tile", texture->gpu.tile_mapping_buffer != nullptr);
       sub_pass->push_constant("image_premult", texture->premultiplied);

@@ -37,7 +37,7 @@ Material::Material(blender::Object &ob, bool random)
   packed_data = Material::pack_data(0.0f, 0.4f, ob.color[3]);
 }
 
-MaterialTexture::MaterialTexture(Object *ob, int material_index)
+MaterialTexture::MaterialTexture(Manager &manager, Object *ob, int material_index)
 {
   const blender::bNode *node = nullptr;
 
@@ -85,14 +85,20 @@ MaterialTexture::MaterialTexture(Object *ob, int material_index)
   }
 
   gpu = BKE_image_get_gpu_material_texture(image, user, true);
+  manager.acquire_imbuf(gpu.image_buffer);
+  manager.acquire_imbuf(gpu.tile_mapping_buffer);
   premultiplied = image->alpha_mode == IMA_ALPHA_PREMUL;
   alpha_cutoff = !ELEM(image->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED);
   name = image->id.name;
 }
 
-MaterialTexture::MaterialTexture(blender::Image *image, ImageUser *user /* = nullptr */)
+MaterialTexture::MaterialTexture(Manager &manager,
+                                 blender::Image *image,
+                                 ImageUser *user /* = nullptr */)
 {
   gpu = BKE_image_get_gpu_material_texture(image, user, true);
+  manager.acquire_imbuf(gpu.image_buffer);
+  manager.acquire_imbuf(gpu.tile_mapping_buffer);
   premultiplied = image->alpha_mode == IMA_ALPHA_PREMUL;
   alpha_cutoff = !ELEM(image->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED);
   name = image->id.name;

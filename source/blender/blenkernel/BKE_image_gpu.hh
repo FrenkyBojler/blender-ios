@@ -46,8 +46,8 @@ gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image,
                                                ImBuf *image_buffer);
 
 /*
- * Like BKE_image_get_gpu_texture, but can also return array and tile mapping texture for UDIM
- * tiles as used in material shaders.
+ * Like BKE_image_get_gpu_texture, but can also return a GPU array texture and tile mapping
+ * texture for UDIM tiles as used in material shaders.
  */
 struct ImageGPUTextures {
   ImBuf *image_buffer = nullptr;
@@ -63,8 +63,8 @@ struct ImageGPUTextures {
   gpu::Texture *tile_mapping() const;
 
   /* Get pointers to GPU texture pointers for deferred loading. */
-  gpu::Texture **texture_slot() const;
-  gpu::Texture **tile_mapping_slot() const;
+  gpu::Texture **texture_ref() const;
+  gpu::Texture **tile_mapping_ref() const;
 };
 
 ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,

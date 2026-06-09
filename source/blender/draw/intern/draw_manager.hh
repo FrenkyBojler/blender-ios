@@ -286,7 +286,9 @@ class Manager {
 
   /**
    * Will acquire the image buffer using ref counting and release it after drawing. To be used for
-   * image buffer coming from blender Image.
+   * image buffer coming from blender Image. We acquire an ImBuf instead of gpu::Texture because
+   * we sometimes bind a gpu::Texture**, and so that that memory location on the ImBuf must stay
+   * valid.
    */
   void acquire_imbuf(ImBuf *image_buffer)
   {

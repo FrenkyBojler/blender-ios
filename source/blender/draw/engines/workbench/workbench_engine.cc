@@ -165,7 +165,7 @@ class Instance : public DrawEngine {
       return;
     }
 
-    ObjectState object_state = ObjectState(this->draw_ctx, scene_state_, resources_, ob);
+    ObjectState object_state = ObjectState(this->draw_ctx, scene_state_, resources_, ob, manager);
 
     bool is_object_data_visible = (DRW_object_visibility_in_active_context(ob) &
                                    OB_VISIBLE_SELF) &&
@@ -187,8 +187,6 @@ class Instance : public DrawEngine {
     }
 
     ResourceHandleRange emitter_handle = {};
-
-    acquire_material_texture_imbuf(manager, object_state.image_paint_override);
 
     if (is_object_data_visible) {
       if (object_state.sculpt_pbvh) {
@@ -262,13 +260,6 @@ class Instance : public DrawEngine {
     }
   }
 
-  /* Keep image buffers alive until pass is submitted. */
-  static void acquire_material_texture_imbuf(Manager &manager, MaterialTexture &texture)
-  {
-    manager.acquire_imbuf(texture.gpu.image_buffer);
-    manager.acquire_imbuf(texture.gpu.tile_mapping_buffer);
-  }
-
   void draw_mesh(ObjectRef &ob_ref,
                  Material &material,
                  gpu::Batch *batch,
@@ -319,9 +310,8 @@ class Instance : public DrawEngine {
 
           MaterialTexture texture;
           if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-            texture = MaterialTexture(ob_ref.object, material_slot);
+            texture = MaterialTexture(manager, ob_ref.object, material_slot);
           }
-          acquire_material_texture_imbuf(manager, texture);
 
           this->draw_mesh(
               ob_ref, mat, batches[i], handle, &texture, object_state.show_missing_texture);
@@ -380,9 +370,8 @@ class Instance : public DrawEngine {
 
         MaterialTexture texture;
         if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-          texture = MaterialTexture(ob_ref.object, batch.material_slot);
+          texture = MaterialTexture(manager, ob_ref.object, batch.material_slot);
         }
-        acquire_material_texture_imbuf(manager, texture);
 
         this->draw_mesh(
             ob_ref, mat, batch.batch, handle, &texture, object_state.show_missing_texture);
@@ -429,9 +418,8 @@ class Instance : public DrawEngine {
     Material mat = this->get_material(ob_ref, object_state.color_type, psys->part->omat - 1);
     MaterialTexture texture;
     if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-      texture = MaterialTexture(ob_ref.object, psys->part->omat - 1);
+      texture = MaterialTexture(manager, ob_ref.object, psys->part->omat - 1);
     }
-    acquire_material_texture_imbuf(manager, texture);
     resources_.material_buf.append(mat);
     int material_index = resources_.material_buf.size() - 1;
 

@@ -195,8 +195,8 @@ struct MaterialTexture {
   bool alpha_cutoff = false;
 
   MaterialTexture() = default;
-  MaterialTexture(Object *ob, int material_index);
-  MaterialTexture(blender::Image *image, ImageUser *user = nullptr);
+  MaterialTexture(Manager &manager, Object *ob, int material_index);
+  MaterialTexture(Manager &manager, blender::Image *image, ImageUser *user = nullptr);
 };
 
 struct SceneResources;
@@ -212,7 +212,8 @@ struct ObjectState {
   ObjectState(const DRWContext *draw_ctx,
               const SceneState &scene_state,
               const SceneResources &resources,
-              Object *ob);
+              Object *ob,
+              Manager &manager);
 };
 
 class CavityEffect {

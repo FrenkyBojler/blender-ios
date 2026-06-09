@@ -721,12 +721,12 @@ gpu::Texture *ImageGPUTextures::tile_mapping() const
   return tile_mapping_buffer ? tile_mapping_buffer->gpu.texture : nullptr;
 }
 
-gpu::Texture **ImageGPUTextures::texture_slot() const
+gpu::Texture **ImageGPUTextures::texture_ref() const
 {
   return image_buffer ? &image_buffer->gpu.texture : nullptr;
 }
 
-gpu::Texture **ImageGPUTextures::tile_mapping_slot() const
+gpu::Texture **ImageGPUTextures::tile_mapping_ref() const
 {
   return tile_mapping_buffer ? &tile_mapping_buffer->gpu.texture : nullptr;
 }

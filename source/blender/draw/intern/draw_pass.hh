@@ -1169,10 +1169,10 @@ inline void PassBase<T>::material_set(Manager &manager,
       }
 
       /* Bind a pointer to the texture slot, the texture may not have been loaded yet. */
-      bind_texture(tex->sampler_name, gputex.texture_slot(), sampler_state);
+      bind_texture(tex->sampler_name, gputex.texture_ref(), sampler_state);
       manager.acquire_imbuf(gputex.image_buffer);
       if (gputex.tile_mapping_buffer) {
-        bind_texture(tex->tiled_mapping_name, gputex.tile_mapping_slot(), sampler_state);
+        bind_texture(tex->tiled_mapping_name, gputex.tile_mapping_ref(), sampler_state);
         manager.acquire_imbuf(gputex.tile_mapping_buffer);
       }
     }
