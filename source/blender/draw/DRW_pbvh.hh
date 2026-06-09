@@ -80,6 +80,7 @@ struct PBVHDrawData {
   Vector<PBVHNodeRange> node_ranges;
   std::shared_ptr<gpu::StorageBuf> indirect_buf;
   int node_count = 0;
+  uint64_t topology_version = 0;
 
   PBVHDrawData() = default;
   ~PBVHDrawData() = default;
@@ -88,7 +89,8 @@ struct PBVHDrawData {
         ibo(other.ibo),
         node_ranges(other.node_ranges),
         indirect_buf(other.indirect_buf),
-        node_count(other.node_count)
+        node_count(other.node_count),
+        topology_version(other.topology_version)
   {
   }
   PBVHDrawData &operator=(const PBVHDrawData &other)
@@ -99,6 +101,7 @@ struct PBVHDrawData {
       node_ranges = other.node_ranges;
       indirect_buf = other.indirect_buf;
       node_count = other.node_count;
+      topology_version = other.topology_version;
     }
     return *this;
   }
@@ -107,10 +110,12 @@ struct PBVHDrawData {
         ibo(std::move(other.ibo)),
         node_ranges(std::move(other.node_ranges)),
         indirect_buf(std::move(other.indirect_buf)),
-        node_count(other.node_count)
+        node_count(other.node_count),
+        topology_version(other.topology_version)
   {
     other.vbo = nullptr;
     other.node_count = 0;
+    other.topology_version = 0;
   }
   PBVHDrawData &operator=(PBVHDrawData &&other) noexcept
   {
@@ -120,8 +125,10 @@ struct PBVHDrawData {
       node_ranges = std::move(other.node_ranges);
       indirect_buf = std::move(other.indirect_buf);
       node_count = other.node_count;
+      topology_version = other.topology_version;
       other.vbo = nullptr;
       other.node_count = 0;
+      other.topology_version = 0;
     }
     return *this;
   }

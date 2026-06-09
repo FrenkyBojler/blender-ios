@@ -42,8 +42,6 @@
 // drawing. in the vertex shader the instance number will look for the correct data inside the
 // SSBO. This needs a design first.
 
-// TODO: The new approach is very slow. We should review what the bottlenecks are (is the shared
-// buffer being rebuild every frame?)
 /**
  * Indirect draw command struct matching the layout expected by GPU backends.
  */
@@ -189,6 +187,12 @@ class DrawCacheImpl : public DrawCache {
    */
   Map<uint64_t, Map<AttributeRequest, PBVHDrawData>> combined_draw_data_smooth_;
 
+  /**
+   * Topology version counter for combined draw data invalidation.
+   * Incremented when topology changes to invalidate cached combined buffers.
+   */
+  uint64_t combined_topology_version_ = 0;
+
   /** Combined line draw data for multires PBVH wireframe optimization - flat layout. */
   PBVHDrawData combined_lines_draw_data_flat_;
 
@@ -263,7 +267,7 @@ class DrawCacheImpl : public DrawCache {
    */
   bool ensure_combined_tris_draw_data(const Object &object,
                                       const ViewportRequest &request,
-                                      const IndexMask &visible_nodes);
+                                      const IndexMask &visible_nodes) override;
 
   /**
    * Build combined line draw data for multires PBVH wireframe.
@@ -271,34 +275,34 @@ class DrawCacheImpl : public DrawCache {
    */
   bool ensure_combined_lines_draw_data(const Object &object,
                                        const ViewportRequest &request,
-                                       const IndexMask &visible_nodes);
+                                       const IndexMask &visible_nodes) override;
 
   /**
    * Get the combined draw data for a given request and attribute.
    * \return nullptr if no combined data exists.
    */
   PBVHDrawData *get_combined_draw_data(const ViewportRequest &request,
-                                       const AttributeRequest &attr);
+                                       const AttributeRequest &attr) override;
 
   /**
    * Get the combined draw data for flat layout nodes.
    * \return nullptr if no flat layout combined data exists.
    */
   PBVHDrawData *get_combined_draw_data_flat(const ViewportRequest &request,
-                                            const AttributeRequest &attr);
+                                            const AttributeRequest &attr) override;
 
   /**
    * Get the combined draw data for smooth layout nodes.
    * \return nullptr if no smooth layout combined data exists.
    */
   PBVHDrawData *get_combined_draw_data_smooth(const ViewportRequest &request,
-                                              const AttributeRequest &attr);
+                                              const AttributeRequest &attr) override;
 
   /**
    * Get the combined lines draw data.
    * \return nullptr if no combined data exists.
    */
-  PBVHDrawData *get_combined_lines_draw_data();
+  PBVHDrawData *get_combined_lines_draw_data() override;
 
   /** Free all combined draw data. */
   void free_combined_draw_data();
@@ -326,6 +330,7 @@ void DrawCacheImpl::tag_positions_changed(const IndexMask &node_mask)
   if (DrawCacheImpl::AttributeData *data = attribute_vbos_.lookup_ptr(CustomRequest::Normal)) {
     data->tag_dirty(node_mask);
   }
+  this->combined_topology_version_++;
 }
 
 void DrawCacheImpl::tag_visibility_changed(const IndexMask &node_mask)
@@ -339,6 +344,7 @@ void DrawCacheImpl::tag_topology_changed(const IndexMask &node_mask)
   /** Currently the only times where topology changes are for BMesh dynamic topology, where tagging
    * a visibility update deletes all the GPU data anyway. */
   this->tag_visibility_changed(node_mask);
+  this->combined_topology_version_++;
 }
 
 void DrawCacheImpl::tag_face_sets_changed(const IndexMask &node_mask)
@@ -346,6 +352,7 @@ void DrawCacheImpl::tag_face_sets_changed(const IndexMask &node_mask)
   if (DrawCacheImpl::AttributeData *data = attribute_vbos_.lookup_ptr(CustomRequest::FaceSet)) {
     data->tag_dirty(node_mask);
   }
+  this->combined_topology_version_++;
 }
 
 void DrawCacheImpl::tag_masks_changed(const IndexMask &node_mask)
@@ -353,6 +360,7 @@ void DrawCacheImpl::tag_masks_changed(const IndexMask &node_mask)
   if (DrawCacheImpl::AttributeData *data = attribute_vbos_.lookup_ptr(CustomRequest::Mask)) {
     data->tag_dirty(node_mask);
   }
+  this->combined_topology_version_++;
 }
 
 void DrawCacheImpl::tag_attribute_changed(const IndexMask &node_mask, StringRef attribute_name)
@@ -364,6 +372,7 @@ void DrawCacheImpl::tag_attribute_changed(const IndexMask &node_mask, StringRef 
       }
     }
   }
+  this->combined_topology_version_++;
 }
 
 DrawCache &ensure_draw_data(std::unique_ptr<bke::pbvh::DrawCache> &ptr)
@@ -2095,11 +2104,32 @@ Span<int> DrawCacheImpl::ensure_material_indices(const Object &object)
 
 void DrawCacheImpl::free_combined_draw_data()
 {
+  for (Map<AttributeRequest, PBVHDrawData> &attr_data : combined_draw_data_flat_.values()) {
+    for (PBVHDrawData &data : attr_data.values()) {
+      if (data.vbo) {
+        GPU_vertbuf_discard(data.vbo);
+        data.vbo = nullptr;
+      }
+    }
+  }
   combined_draw_data_flat_.clear();
+  for (Map<AttributeRequest, PBVHDrawData> &attr_data : combined_draw_data_smooth_.values()) {
+    for (PBVHDrawData &data : attr_data.values()) {
+      if (data.vbo) {
+        GPU_vertbuf_discard(data.vbo);
+        data.vbo = nullptr;
+      }
+    }
+  }
   combined_draw_data_smooth_.clear();
-  PBVHDrawData empty_lines;
-  std::swap(combined_lines_draw_data_flat_, empty_lines);
-  std::swap(combined_lines_draw_data_smooth_, empty_lines);
+  if (combined_lines_draw_data_flat_.vbo) {
+    GPU_vertbuf_discard(combined_lines_draw_data_flat_.vbo);
+    combined_lines_draw_data_flat_.vbo = nullptr;
+  }
+  if (combined_lines_draw_data_smooth_.vbo) {
+    GPU_vertbuf_discard(combined_lines_draw_data_smooth_.vbo);
+    combined_lines_draw_data_smooth_.vbo = nullptr;
+  }
 }
 
 PBVHDrawData *DrawCacheImpl::get_combined_draw_data(const ViewportRequest &request,
@@ -2187,12 +2217,6 @@ static void build_indices_grids(Vector<uint32_t> &data,
   visible_nodes.foreach_index([&](const int node_index) {
     const PBVHNodeRange &range = node_ranges[visible_node_index];
     const Span<int> grid_indices = nodes[node_index].grids();
-    const uint visible_quads = bke::pbvh::count_grid_quads(
-        grid_hidden, grid_indices, key.grid_size, key.grid_size);
-    const uint indices_per_quad = 6;
-    const uint node_index_count = visible_quads * indices_per_quad;
-
-    BLI_assert(data_offset + node_index_count <= data.size());
 
     /* Generate triangle indices - skip hidden quads. */
     uint node_vertex_offset = range.vertex_offset;
@@ -2246,7 +2270,6 @@ static void build_lines_indices_grids(Vector<uint32_t> &data,
     const PBVHNodeRange &range = node_ranges[visible_node_index];
     const Span<int> grid_indices = nodes[node_index].grids();
     const int grid_size = key.grid_size;
-    uint node_index_count = 0;
 
     /* First pass: count indices. */
     for (const int grid : grid_indices) {
@@ -2256,12 +2279,9 @@ static void build_lines_indices_grids(Vector<uint32_t> &data,
           if (!gh.is_empty() && paint_is_grid_face_hidden(gh, grid_size, x, y)) {
             continue;
           }
-          node_index_count += 3;
         }
       }
     }
-
-    BLI_assert(data_offset + node_index_count <= data.size());
 
     /* Second pass: write indices. */
     uint node_vertex_offset = range.vertex_offset;
@@ -2656,18 +2676,75 @@ bool DrawCacheImpl::ensure_combined_tris_draw_data(const Object &object,
   /* Build combined draw data for flat layout nodes. */
   if (!flat_nodes.is_empty()) {
     uint64_t request_hash = request.hash();
-    PBVHDrawData draw_data = build_combined_tris_draw_data(object, request, flat_nodes, true);
+    const int flat_node_count = (int)flat_nodes.size();
 
-    if (draw_data.ibo) {
+    /* Check if IBO/indirect buffer cache is valid for this node group. */
+    bool need_rebuild_flat = true;
+    PBVHDrawData shared_draw_data;
+    {
+      if (Map<AttributeRequest, PBVHDrawData> *attr_data = combined_draw_data_flat_.lookup_ptr(
+              request_hash))
+      {
+        if (!request.attributes.is_empty()) {
+          if (PBVHDrawData *existing = attr_data->lookup_ptr(request.attributes[0])) {
+            if (existing->topology_version == this->combined_topology_version_ &&
+                existing->node_count == flat_node_count)
+            {
+              need_rebuild_flat = false;
+              shared_draw_data.ibo = existing->ibo;
+              shared_draw_data.indirect_buf = existing->indirect_buf;
+              shared_draw_data.node_ranges = existing->node_ranges;
+              shared_draw_data.node_count = existing->node_count;
+            }
+          }
+        }
+      }
+    }
+
+    if (need_rebuild_flat) {
+      shared_draw_data = build_combined_tris_draw_data(object, request, flat_nodes, true);
+    }
+
+    if (shared_draw_data.ibo) {
       Map<AttributeRequest, PBVHDrawData> &attr_data =
           combined_draw_data_flat_.lookup_or_add_cb_as(
               request_hash, []() { return Map<AttributeRequest, PBVHDrawData>(); });
 
+      const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
+      const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
       for (const AttributeRequest &attr : request.attributes) {
-        PBVHDrawData attr_draw_data = draw_data;
-        /* Build VBO for this specific attribute. */
-        const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
-        const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+        /* Check if VBO cache is valid for this attribute. */
+        bool need_rebuild_vbo = need_rebuild_flat;
+        PBVHDrawData *cached_vbo = nullptr;
+        if (!need_rebuild_vbo) {
+          cached_vbo = attr_data.lookup_ptr(attr);
+          if (cached_vbo == nullptr ||
+              cached_vbo->topology_version != this->combined_topology_version_ ||
+              cached_vbo->node_count != flat_node_count)
+          {
+            need_rebuild_vbo = true;
+            cached_vbo = nullptr;
+          }
+        }
+
+        if (!need_rebuild_vbo) {
+          /* Cache is valid, just update topology version. */
+          cached_vbo->topology_version = this->combined_topology_version_;
+          continue;
+        }
+
+        PBVHDrawData attr_draw_data;
+        if (!need_rebuild_flat) {
+          /* Reuse shared IBO/indirect_buf from cache, only rebuild VBO. */
+          attr_draw_data.ibo = shared_draw_data.ibo;
+          attr_draw_data.indirect_buf = shared_draw_data.indirect_buf;
+          attr_draw_data.node_ranges = shared_draw_data.node_ranges;
+          attr_draw_data.node_count = shared_draw_data.node_count;
+        }
+        else {
+          attr_draw_data = shared_draw_data;
+        }
 
         const GPUVertFormat *format = nullptr;
         const CustomRequest *cr = std::get_if<CustomRequest>(&attr);
@@ -2815,7 +2892,11 @@ bool DrawCacheImpl::ensure_combined_tris_draw_data(const Object &object,
         GPU_vertbuf_use(vbo.get());
         attr_draw_data.vbo = vbo.release();
         auto &stored = attr_data.lookup_or_add_default(attr);
+        if (stored.vbo) {
+          GPU_vertbuf_discard(stored.vbo);
+        }
         stored = std::move(attr_draw_data);
+        stored.topology_version = this->combined_topology_version_;
 
         BLI_assert(stored.vbo != nullptr);
         BLI_assert(stored.ibo != nullptr);
@@ -2829,18 +2910,76 @@ bool DrawCacheImpl::ensure_combined_tris_draw_data(const Object &object,
   /* Build combined draw data for smooth layout nodes. */
   if (!smooth_nodes.is_empty()) {
     uint64_t request_hash = request.hash();
-    PBVHDrawData draw_data = build_combined_tris_draw_data(object, request, smooth_nodes, false);
+    const int smooth_node_count = (int)smooth_nodes.size();
 
-    if (draw_data.ibo) {
+    /* Check if IBO/indirect buffer cache is valid for this node group. */
+    bool need_rebuild_smooth = true;
+    PBVHDrawData shared_draw_data_smooth;
+    {
+      if (Map<AttributeRequest, PBVHDrawData> *attr_data = combined_draw_data_smooth_.lookup_ptr(
+              request_hash))
+      {
+        if (!request.attributes.is_empty()) {
+          if (PBVHDrawData *existing = attr_data->lookup_ptr(request.attributes[0])) {
+            if (existing->topology_version == this->combined_topology_version_ &&
+                existing->node_count == smooth_node_count)
+            {
+              need_rebuild_smooth = false;
+              shared_draw_data_smooth.ibo = existing->ibo;
+              shared_draw_data_smooth.indirect_buf = existing->indirect_buf;
+              shared_draw_data_smooth.node_ranges = existing->node_ranges;
+              shared_draw_data_smooth.node_count = existing->node_count;
+            }
+          }
+        }
+      }
+    }
+
+    if (need_rebuild_smooth) {
+      shared_draw_data_smooth = build_combined_tris_draw_data(
+          object, request, smooth_nodes, false);
+    }
+
+    if (shared_draw_data_smooth.ibo) {
       Map<AttributeRequest, PBVHDrawData> &attr_data =
           combined_draw_data_smooth_.lookup_or_add_cb_as(
               request_hash, []() { return Map<AttributeRequest, PBVHDrawData>(); });
 
+      const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
+      const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+
       for (const AttributeRequest &attr : request.attributes) {
-        PBVHDrawData attr_draw_data = draw_data;
-        /* Build VBO for this specific attribute. */
-        const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
-        const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
+        /* Check if VBO cache is valid for this attribute. */
+        bool need_rebuild_vbo = need_rebuild_smooth;
+        PBVHDrawData *cached_vbo = nullptr;
+        if (!need_rebuild_vbo) {
+          cached_vbo = attr_data.lookup_ptr(attr);
+          if (cached_vbo == nullptr ||
+              cached_vbo->topology_version != this->combined_topology_version_ ||
+              cached_vbo->node_count != smooth_node_count)
+          {
+            need_rebuild_vbo = true;
+            cached_vbo = nullptr;
+          }
+        }
+
+        if (!need_rebuild_vbo) {
+          /* Cache is valid, just update topology version. */
+          cached_vbo->topology_version = this->combined_topology_version_;
+          continue;
+        }
+
+        PBVHDrawData attr_draw_data;
+        if (!need_rebuild_smooth) {
+          /* Reuse shared IBO/indirect_buf from cache, only rebuild VBO. */
+          attr_draw_data.ibo = shared_draw_data_smooth.ibo;
+          attr_draw_data.indirect_buf = shared_draw_data_smooth.indirect_buf;
+          attr_draw_data.node_ranges = shared_draw_data_smooth.node_ranges;
+          attr_draw_data.node_count = shared_draw_data_smooth.node_count;
+        }
+        else {
+          attr_draw_data = shared_draw_data_smooth;
+        }
 
         const GPUVertFormat *format = nullptr;
         const CustomRequest *cr = std::get_if<CustomRequest>(&attr);
@@ -2953,7 +3092,11 @@ bool DrawCacheImpl::ensure_combined_tris_draw_data(const Object &object,
         GPU_vertbuf_use(vbo.get());
         attr_draw_data.vbo = vbo.release();
         auto &stored = attr_data.lookup_or_add_default(attr);
+        if (stored.vbo) {
+          GPU_vertbuf_discard(stored.vbo);
+        }
         stored = std::move(attr_draw_data);
+        stored.topology_version = this->combined_topology_version_;
 
         BLI_assert(stored.vbo != nullptr);
         BLI_assert(stored.ibo != nullptr);
@@ -2981,17 +3124,46 @@ bool DrawCacheImpl::ensure_combined_lines_draw_data(const Object &object,
     return false;
   }
 
-  PBVHDrawData draw_data = build_combined_lines_draw_data(object, request, visible_nodes);
+  uint64_t request_hash = request.hash();
 
-  if (!draw_data.vbo || !draw_data.ibo) {
-    return false;
+  /* Check if lines draw data cache is valid. */
+  PBVHDrawData *cached_data = nullptr;
+  bool need_rebuild = true;
+  if (Map<AttributeRequest, PBVHDrawData> *attr_data = combined_draw_data_flat_.lookup_ptr(
+          request_hash))
+  {
+    if (PBVHDrawData *existing = attr_data->lookup_ptr(CustomRequest::Position)) {
+      if (existing->topology_version == this->combined_topology_version_ &&
+          existing->node_count == nodes_num && existing->vbo != nullptr &&
+          existing->ibo != nullptr)
+      {
+        need_rebuild = false;
+        cached_data = existing;
+      }
+    }
   }
 
-  /* Store in map for position attribute. */
-  uint64_t request_hash = request.hash();
-  Map<AttributeRequest, PBVHDrawData> &attr_data = combined_draw_data_flat_.lookup_or_add_cb_as(
-      request_hash, []() { return Map<AttributeRequest, PBVHDrawData>(); });
-  attr_data.lookup_or_add_default(CustomRequest::Position) = std::move(draw_data);
+  PBVHDrawData draw_data;
+  if (need_rebuild) {
+    draw_data = build_combined_lines_draw_data(object, request, visible_nodes);
+
+    if (!draw_data.vbo || !draw_data.ibo) {
+      return false;
+    }
+
+    /* Store in map for position attribute. */
+    Map<AttributeRequest, PBVHDrawData> &attr_data = combined_draw_data_flat_.lookup_or_add_cb_as(
+        request_hash, []() { return Map<AttributeRequest, PBVHDrawData>(); });
+    PBVHDrawData &stored = attr_data.lookup_or_add_default(CustomRequest::Position);
+    if (stored.vbo) {
+      GPU_vertbuf_discard(stored.vbo);
+    }
+    stored = std::move(draw_data);
+    stored.topology_version = this->combined_topology_version_;
+  }
+  else {
+    cached_data->topology_version = this->combined_topology_version_;
+  }
 
   return true;
 }
