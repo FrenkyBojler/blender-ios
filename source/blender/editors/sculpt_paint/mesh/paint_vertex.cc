@@ -1147,6 +1147,9 @@ static void do_vpaint_brush_blur_loops(const Depsgraph &depsgraph,
         filter_distances_with_radius(cache.radius, distances, factors);
         calc_brush_strength_factors(cache, brush, distances, factors);
 
+        auto_mask::calc_vert_factors(
+            depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+
         for (const int i : verts.index_range()) {
           const int vert = verts[i];
           if (factors[i] == 0.0f) {
