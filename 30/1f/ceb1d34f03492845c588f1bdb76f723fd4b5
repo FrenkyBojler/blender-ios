@@ -1,3 +1,4 @@
 Referenced by issue #159283, Geometry Nodes Duplicate Elements hides mesh elements (vertices, edges, faces) in Edit Mode
 Referenced by issue #159701, original mesh is not visible in edit mode under geonodes modifier
 Referenced by pull request #159856, Fix #159701: Edit mesh not visible when object has a modifier
+Referenced by commit dd7832a20ebf9fa0c4dd81a2d72c7da95b3283be, Fix #159701: Edit mesh not visible when object has a modifier
