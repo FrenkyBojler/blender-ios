@@ -1009,6 +1009,14 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.additional_info("eevee_PreviousLayerRadiance");
   }
 
+  if (pipeline_type != MAT_PIPE_VOLUME_OCCUPANCY && use_ao_node) {
+    info.additional_info("eevee_HiZ");
+  }
+
+  /** IMPORTANT: All additional_info containing resources should go before
+   * add_pipeline_create_info. This ensure all resource slot are correctly reserved inside the
+   * SlotAllocator. */
+
   SlotAllocator slots = add_pipeline_create_info(
       info, pipeline_type, geometry_type, use_shader_to_rgba);
 
@@ -1336,7 +1344,6 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     Vector<StringRefNull> dependencies;
     if (use_ao_node) {
       dependencies.append("eevee_fast_gi.bsl.hh");
-      info.additional_info("eevee_HiZ");
     }
     dependencies.append("eevee_geom_types_lib.bsl.hh");
     dependencies.append("eevee_nodetree_lib.bsl.hh");
