@@ -868,6 +868,13 @@ void VKCommandBuilder::add_image_barrier(VkImage vk_image,
       if ((vk_image_memory_barrier.dstAccessMask & src_access_mask) == src_access_mask) {
         vk_image_memory_barrier.dstAccessMask |= dst_access_mask;
         vk_image_memory_barrier.srcAccessMask |= src_access_mask;
+        /* When the existing barrier's newLayout matches the new barrier's
+         * oldLayout, update to the combined layout transition. For example,
+         * a read barrier (UNDEFINED->TRANSFER_DST) followed by a write
+         * barrier (TRANSFER_DST->GENERAL) becomes UNDEFINED->GENERAL. */
+        if (old_image_layout == vk_image_memory_barrier.newLayout) {
+          vk_image_memory_barrier.newLayout = new_image_layout;
+        }
         return;
       }
       /* When re-registering resources we can skip if access mask already contain all the flags.
@@ -930,7 +937,7 @@ void VKCommandBuilder::ImageTracker::update(VkImage vk_image,
     if (change.vk_image == vk_image && ((subimage.layer_count != VK_REMAINING_ARRAY_LAYERS &&
                                          change.subimage.layer_base == subimage.layer_base) ||
                                         (subimage.mipmap_count != VK_REMAINING_MIP_LEVELS &&
-                                         change.subimage.mipmap_level != subimage.mipmap_level)))
+                                         change.subimage.mipmap_level == subimage.mipmap_level)))
     {
       BLI_assert_msg(
           change.vk_image_layout == new_layout,

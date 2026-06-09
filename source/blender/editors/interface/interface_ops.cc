@@ -3212,6 +3212,14 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
                "Navigation Direction",
                "Direction in which to navigate and select next element.");
 }
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name UI View Item Focus Operator
+ *
+ * Operator to bring the active item into view by scrolling the view.
+ *
+ * \{ */
 
 static wmOperatorStatus ui_view_item_focus_invoke(bContext *C,
                                                   wmOperator * /*op*/,
@@ -3237,7 +3245,6 @@ static void UI_OT_view_item_focus(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 }
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
