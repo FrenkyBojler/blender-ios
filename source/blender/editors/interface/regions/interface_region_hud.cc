@@ -396,10 +396,6 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
     region->runtime->type = art;
   }
 
-  if (area->spacetype == SPACE_CLIP) {
-    region->runtime->flag |= bke::ARegionRuntimeFlag::HUD_PADDING;
-  }
-
   /* Let 'ED_area_update_region_sizes' do the work of placing the region.
    * Otherwise we could set the 'region->winrct' & 'region->winx/winy' here. */
   if (init) {
