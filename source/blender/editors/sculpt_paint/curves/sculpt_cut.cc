@@ -101,9 +101,9 @@ struct CutOperationExecutor {
         ".selection", bke::AttrDomain::Point, 1.0f);
     transforms_ = CurvesSurfaceTransforms(*object_, curves_id_->surface);
 
-    const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
+    const eBrushFalloffShape falloff_shape = brush_->falloff_shape;
     if (stroke_extension.is_first) {
-      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE || (U.flag & USER_ORBIT_SELECTION)) {
+      if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE || (U.uiflag & USER_ORBIT_SELECTION)) {
         self.brush_3d_ = *sample_curves_3d_brush(*ctx_.depsgraph,
                                                  *ctx_.region,
                                                  *ctx_.v3d,
@@ -118,10 +118,8 @@ struct CutOperationExecutor {
     }
 
     const VArray<bool> cyclic = curves_->cyclic();
-    Array<bool> cyclic_array(cyclic.size());
-    array_utils::copy(cyclic, cyclic_array.as_mutable_span());
     IndexMask curve_selection_without_cyclic = IndexMask::from_bools_inverse(
-        curve_selection_, cyclic_array, selected_curve_memory_);
+        curve_selection_, cyclic, selected_curve_memory_);
     const bool selection_has_cyclic = curve_selection_without_cyclic.size() <
                                       curve_selection_.size();
     curve_selection_ = curve_selection_without_cyclic;
@@ -173,7 +171,7 @@ struct CutOperationExecutor {
       MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
-        eCurvesSymmetryType(curves_id_->symmetry));
+        curves_id_->symmetry);
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
       this->find_projected_points_in_stroke(math::invert(brush_transform),
                                             r_brush_projection_info);
@@ -219,7 +217,7 @@ struct CutOperationExecutor {
     const float3 brush_pos_cu = math::transform_point(transforms_.world_to_curves, brush_pos_wo);
 
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
-        eCurvesSymmetryType(curves_id_->symmetry));
+        curves_id_->symmetry);
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
       this->find_spherical_points_in_stroke(math::invert(brush_transform),
                                             math::transform_point(brush_transform, brush_pos_cu),
@@ -356,24 +354,25 @@ struct CutOperationExecutor {
     /** Only used for sphere falloff. */
     float3 brush_pos_cu;
 
-    const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
-    if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
-      brush_radius = brush_radius_base_re_ * brush_radius_factor_;
-    }
-    else if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
-      brush_radius = self_->brush_3d_.radius_cu * brush_radius_factor_;
+    const eBrushFalloffShape falloff_shape = brush_->falloff_shape;
+    switch (falloff_shape) {
+      case PAINT_FALLOFF_SHAPE_TUBE: {
+        brush_radius = brush_radius_base_re_ * brush_radius_factor_;
+        break;
+      }
+      case PAINT_FALLOFF_SHAPE_SPHERE: {
+        brush_radius = self_->brush_3d_.radius_cu * brush_radius_factor_;
 
-      float3 brush_pos_wo;
-      ED_view3d_win_to_3d(
-          ctx_.v3d,
-          ctx_.region,
-          math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu),
-          brush_pos_re_,
-          brush_pos_wo);
-      brush_pos_cu = math::transform_point(transforms_.world_to_curves, brush_pos_wo);
-    }
-    else {
-      BLI_assert_unreachable();
+        float3 brush_pos_wo;
+        ED_view3d_win_to_3d(
+            ctx_.v3d,
+            ctx_.region,
+            math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu),
+            brush_pos_re_,
+            brush_pos_wo);
+        brush_pos_cu = math::transform_point(transforms_.world_to_curves, brush_pos_wo);
+        break;
+      }
     }
 
     const float brush_radius_sq = pow2f(brush_radius);
@@ -395,16 +394,14 @@ struct CutOperationExecutor {
       }
       const int first_point_in_stroke = std::distance(brush_projection_info_slice.begin(),
                                                       first_point_in_stroke_bpi);
-
+      const uint32_t point_hash = noise::hash(
+          noise::hash_float(first_point_in_stroke_bpi->distance), brush_pos_hash);
       const IndexRange::Iterator point_to_cut_iter = std::find_if(
           points.begin(), points.end(), [&](const int point_i) {
             const BrushProjectionInfo &bpi = brush_projection_info[point_i];
             if (bpi.distance > brush_radius_sq) {
               return false;
             }
-
-            const uint32_t point_hash = noise::hash(
-                noise::hash_float(first_point_in_stroke_bpi->distance), brush_pos_hash);
             return should_point_be_cut(point_i, point_hash);
           });
       if (point_to_cut_iter == points.end()) {
