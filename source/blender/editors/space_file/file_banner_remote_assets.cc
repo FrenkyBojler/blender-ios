@@ -31,10 +31,9 @@ static bool file_banner_remote_asset_libraries_poll(const SpaceFile &sfile)
     return false;
   }
 
-  /* With remote libraries, there may be already-downloaded assets available that should be
-   * displayed. Don't show the "internet access required" hint until done loading, and only if
-   * there are no already-downloaded assets to display. */
-  if (!filelist_is_ready(sfile.files) || !filelist_files_num_entries(sfile.files)) {
+  /* Only show this banner when there are assets being displayed. If there are no assets, the asset
+   * browser draws a larger "Internet Access Required" box instead. */
+  if (filelist_files_num_entries(sfile.files) < 1) {
     return false;
   }
 
