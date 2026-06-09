@@ -344,16 +344,16 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     const float size = RNA_float_get(op->ptr, "size");
 
-    /* vertice count is subdivisions plus two for the corners */
-    const int vertex = RNA_int_get(op->ptr, "subdivisions") + 2;
+    /* vertex count is subdivisions plus two for the corners */
+    const int vertices = RNA_int_get(op->ptr, "subdivisions") + 2;
 
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
     const StringRefNull uv_map = object_mesh->active_uv_map_name();
 
     Mesh *primitive = geometry::create_cuboid_mesh(float3(size, size, size),
-                                                   vertex,
-                                                   vertex,
-                                                   vertex,
+                                                   vertices,
+                                                   vertices,
+                                                   vertices,
                                                    calc_uvs ? std::make_optional(uv_map) :
                                                               std::nullopt);
     geometry::transform_mesh(
