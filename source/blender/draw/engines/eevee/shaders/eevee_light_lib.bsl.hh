@@ -272,7 +272,7 @@ float light_ltc(sampler2DArray utility_tx,
   if (light.type == LIGHT_RECT) {
     return eevee::ltc::evaluate_quad(utility_tx, vertices.v, N, V, lv.L, Minv);
   }
-  return eevee::ltc::evaluate_disk(utility_tx, N, V, Minv, vertices.v);
+  return eevee::ltc::evaluate_disk(utility_tx, N, V, lv.L, Minv, vertices.v);
 }
 
 /** \} */

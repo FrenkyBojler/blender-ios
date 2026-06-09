@@ -166,18 +166,16 @@ struct Disk {
 float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
 {
   /* Dominant BxDF lobe direction. */
-  float3 D = normalize(inverse(Minv)[2]);
+  float D_length;
+  float3 D = normalize_and_get_length(inverse(Minv)[2], D_length);
 
-  /* Vector on the disk plane, coplanar with D and L. */
-  /* TODO: degenerate when D == L for obvious reasons. Probably just return 1. */
-  float3 T = -normalize(L * dot(disk.N, D) - D * dot(disk.N, L));
+  /* Vector on the disk plane, coplanar with D and L. Equals `T = cross(cross(L, D), disk.N)`. */
+  float3 T = normalize(D * dot(disk.N, L) - L * dot(disk.N, D));
 
   /* For line O + tT, find t where it intersects line sD; O + tT = sD. */
-  float TD = dot(T, D);
-  float t = (dot(disk.O, D) * TD - dot(disk.O, T)) / (1.0f - TD * TD);
+  float t = (dot(disk.O, D) * dot(T, D) - dot(disk.O, T)) / (1.0f - square(dot(T, D)));
   if (t >= 0.0 && t < disk.radius) {
-    /* If t lies within the disk radius, we do not need to attenuate. */
-    /* TODO(not_mark): this may be unnecessary due to the mix-in factor below? */
+    /* If t lies within the disk, we do not need to attenuate. */
     return 1.0;
   }
 
@@ -189,11 +187,38 @@ float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
   float attenuation = normalize(Minv * P).z;
   attenuation = 2.0f * attenuation / (1.0f + attenuation);
 
-  /* Fit mix factor, forcing attenuation to go to 1 in upper hemisphere, based on solid angle. */
-  float a = square(square(0.995f * (1.0f - saturate(dot(P, L) + dot(D, -L)))));
-  return mix(attenuation, 1.0, a);
+  /* Fit mix factor, forcing attenuation to approach 1 in upper hemisphere or with alpha. */
+  D_length = saturate(1.0f / D_length);
+  float curve_a = square(square(0.995f * (1.0f - saturate(dot(P, L) + dot(D, -L)))));
+  float curve_b = 1.1f * D_length / (0.1f + D_length);
+  return mix(mix(attenuation, 1.0, curve_a), 1.0, curve_b);
 }
 
+float attenuate_quad(float3x3 Minv, float3 L, float3 verts[4])
+{
+  float3 e0 = normalize(verts[1] - verts[0]);
+  float3 e1 = normalize(verts[3] - verts[0]);
+
+  Disk encapsulating_disk = {
+      .O = 0.25f * (verts[0] + verts[1] + verts[2] + verts[3]), /* == lv.L * lv.dist */
+      .N = cross(e0, e1),
+      .radius = 0.5f * distance(verts[2], verts[0])};
+
+  return spherical_attenuation(Minv, L, encapsulating_disk);
+}
+
+float attenuate_disk(float3x3 Minv, float3 L, float3 verts[4])
+{
+  float s;
+  float3 e0 = normalize_and_get_length(verts[0] - verts[2], s);
+  float t;
+  float3 e1 = normalize_and_get_length(verts[1] - verts[2], t);
+
+  detail::Disk encapsulating_disk = {
+      .O = 0.5f * (verts[0] + verts[2]), .N = cross(e0, e1), .radius = 0.5f * max(s, t)};
+
+  return spherical_attenuation(Minv, L, encapsulating_disk);
+}
 }  // namespace detail
 
 /**
@@ -208,13 +233,9 @@ float evaluate_quad(
   /* Rotate area light into basis. */
   Minv = Minv * transpose(T);
 
-  /* Define encapuslating disk, for form factor attenuation. */
-  float3 edge_a = normalize(corners[1] - corners[0]);
-  float3 edge_b = normalize(corners[3] - corners[0]);
-  detail::Disk encapsulating_disk = {
-      .O = 0.25f * (corners[0] + corners[1] + corners[2] + corners[3]), /* == lv.L * lv.dist */
-      .N = cross(edge_a, edge_b),
-      .radius = 0.5f * distance(corners[2], corners[0])};
+  /* Attenuation to reduce leakage, in cases where the sphere approximation below
+   * is not clipped consistently with a polygon/ellipse. */
+  float form_factor_attenuation = detail::attenuate_disk(Minv, L, corners);
 
   /* Apply LTC inverse matrix. */
   corners[0] = normalize(Minv * corners[0]);
@@ -239,7 +260,7 @@ float evaluate_quad(
 
   /* Attenuate form_factor to reduce leakage, in cases where a sphere lies above the
    * horizon, but a polygon/ellipse should be clipped. This is a fitted function. */
-  form_factor *= detail::spherical_attenuation(Minv, L, encapsulating_disk);
+  form_factor *= form_factor_attenuation;
 
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
 }
@@ -250,7 +271,7 @@ float evaluate_quad(
  * disk_points are WS vectors from the shading point to the disk "bounding domain".
  */
 float evaluate_disk(
-    sampler2DArray util_tx, float3 N, float3 V, float3x3 Minv, float3 disk_points[4])
+    sampler2DArray util_tx, float3 N, float3 V, float3 Lv, float3x3 Minv, float3 disk_points[4])
 {
   /* Construct orthonormal basis around N. */
   float3x3 T = detail::tangent_basis(N, V);
@@ -273,6 +294,13 @@ float evaluate_disk(
   V1 = Minv * V1;
   V2 = Minv * V2;
 
+<<<<<<< HEAD
+=======
+  /* Attenuation to reduce leakage, in cases where the sphere approximation below
+   * is not clipped consistently with a polygon/ellipse. */
+  float form_factor_attenuation = detail::attenuate_disk(Minv * R, Lv, disk_points);
+
+>>>>>>> 5408dca8f18 (Implemented disk light attenuation)
   /* Compute eigenvectors of new ellipse. */
   float d11 = dot(V1, V1);
   float d22 = dot(V2, V2);
@@ -360,6 +388,7 @@ float evaluate_disk(
 
   /* Find the sphere and compute lighting. */
   float form_factor = saturate(L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2)));
+  form_factor *= form_factor_attenuation;
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
