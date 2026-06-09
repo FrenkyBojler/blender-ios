@@ -92,7 +92,7 @@ static int inputs_cmp(const void *a, const void *b)
   return gpu_type_element_count(input_a->type) < gpu_type_element_count(input_b->type) ? 1 : 0;
 }
 
-static bool is_ubo_supported_type(const GPUType type)
+static inline bool is_ubo_supported_type(const GPUType type)
 {
   switch (type) {
     case GPU_FLOAT:
