@@ -679,6 +679,7 @@ void paint_init_pivot(Object *ob, Scene *scene, Paint *paint)
     default:
       BLI_assert_unreachable();
       paint_runtime.average_stroke_counter = 0;
+      paint_runtime.average_stroke_accum = float3(0.0f);
       return;
   }
 

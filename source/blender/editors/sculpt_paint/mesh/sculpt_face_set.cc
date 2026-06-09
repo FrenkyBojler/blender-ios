@@ -1088,6 +1088,7 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
     bke::PaintRuntime *paint_runtime = paint->runtime;
     if (std::holds_alternative<std::monostate>(ss.active_vert())) {
       paint_runtime->average_stroke_counter = 0;
+      paint_runtime->average_stroke_accum = float3(0.0f);
     }
     else {
       float location[3];
