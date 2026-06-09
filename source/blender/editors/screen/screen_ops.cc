@@ -505,6 +505,20 @@ bool ED_operator_nla_active(bContext *C)
   return ed_spacetype_test(C, SPACE_NLA);
 }
 
+bool ED_operator_region_nla_active(bContext *C)
+{
+  if (!ED_operator_nla_active(C)) {
+    CTX_wm_operator_poll_msg_set(C, "Expected an active Nonlinear Animation editor");
+    return false;
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    CTX_wm_operator_poll_msg_set(C, "Expected a Nonlinear Animation region");
+    return false;
+  }
+  return true;
+}
+
 bool ED_operator_info_active(bContext *C)
 {
   return ed_spacetype_test(C, SPACE_INFO);
