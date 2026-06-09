@@ -564,6 +564,7 @@ ccl_device void osl_closure_thin_glass_setup(KernelGlobals kg,
                         thinfilm,
                         &reflectance,
                         &transmittance,
+                        path_visibility,
                         path_flag);
 
   if (layer_albedo != nullptr) {

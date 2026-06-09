@@ -380,6 +380,7 @@ ccl_device
                                   thinfilm,
                                   &reflectance,
                                   &transmittance,
+                                  ray_visibility,
                                   path_flag);
           }
           else {

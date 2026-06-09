@@ -2739,8 +2739,13 @@ void PrincipledBsdfNode::simplify_settings(Scene * /* scene */)
 
 bool PrincipledBsdfNode::has_surface_transparent()
 {
-  /* TODO(weizhen): check when thin wall is true && has transmission && roughness is low enough. */
-  return true;
+  if ((input("Thin Wall")->link || thin_wall) && has_nonzero_weight("Transmission Weight")) {
+    /* Smooth thin glass are treated as transparent for non-camera rays.
+     * Transmission roughness depends on both roughness and IOR, so we loosen the constraint here
+     * and do not check if the roughness is zero. */
+    return true;
+  }
+
   return (input("Alpha")->link != nullptr || alpha < (1.0f - CLOSURE_WEIGHT_CUTOFF));
 }
 

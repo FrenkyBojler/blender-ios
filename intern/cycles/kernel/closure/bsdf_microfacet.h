@@ -1269,10 +1269,15 @@ ccl_device_inline void bsdf_thin_glass_transmission_setup(KernelGlobals kg,
                                                           const float3 N,
                                                           const float roughness,
                                                           const float ior,
+                                                          const PathRayVisibility ray_visibility,
                                                           const uint32_t path_flag)
 {
   const float transmission_roughness = bsdf_thin_glass_transmission_roughness(roughness, ior);
-  if (roughness_is_almost_specular(transmission_roughness, transmission_roughness)) {
+  if (!(ray_visibility & PATH_RAY_VISIBILITY_CAMERA) &&
+      roughness_is_almost_specular(transmission_roughness, transmission_roughness))
+  {
+    /* Smooth thin glass does not bend the ray and is effectively transparent, allocate transparent
+     * closures for non-camera rays to improve sampling and keep render passes intact. */
     bsdf_transparent_setup(sd, weight, path_flag);
     return;
   }
@@ -1351,6 +1356,7 @@ ccl_device void bsdf_thin_glass_setup(KernelGlobals kg,
                                       const FresnelThinFilm thinfilm,
                                       ccl_private Spectrum *r_reflectance,
                                       ccl_private Spectrum *r_transmittance,
+                                      const PathRayVisibility ray_visibility,
                                       const uint32_t path_flag)
 {
   const float cos_theta_i = dot(N, sd->wi);
@@ -1371,7 +1377,7 @@ ccl_device void bsdf_thin_glass_setup(KernelGlobals kg,
   }
   if (!is_zero(*r_transmittance)) {
     bsdf_thin_glass_transmission_setup(
-        kg, sd, *r_transmittance * weight, N, roughness, ior, path_flag);
+        kg, sd, *r_transmittance * weight, N, roughness, ior, ray_visibility, path_flag);
   }
 }
 
