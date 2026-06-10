@@ -1496,7 +1496,7 @@ void BKE_lib_libblock_session_uid_ensure(ID *id)
     id->session_uid = atomic_add_and_fetch_uint32(&global_session_uid, 1);
     /* In case overflow happens, still assign a valid ID. This way opening files many times works
      * correctly. */
-    if (UNLIKELY(id->session_uid == MAIN_ID_SESSION_UID_UNSET)) {
+    if (id->session_uid == MAIN_ID_SESSION_UID_UNSET) [[unlikely]] {
       id->session_uid = atomic_add_and_fetch_uint32(&global_session_uid, 1);
     }
   }
@@ -2763,6 +2763,12 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
         }
         if (opop.subitem_local_name) {
           writer->write_string(opop.subitem_local_name);
+        }
+        if (opop.label) {
+          writer->write_string(opop.label);
+        }
+        if (opop.tooltip) {
+          writer->write_string(opop.tooltip);
         }
       }
     }

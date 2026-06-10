@@ -5776,6 +5776,7 @@ void SculptPaintStroke::stroke_cache_init(const float mval[2])
 
     cache->image_data = paint::image::ImageData::init_active_image(
         ob, this->scene->toolsettings->paint_mode);
+    cache->image_data->image->runtime->gpuflag |= IMA_GPU_DISABLE_MIPMAP_UPDATE;
   }
 
   if (BKE_brush_color_jitter_get_settings(this->paint, brush)) {
@@ -5790,10 +5791,10 @@ void SculptPaintStroke::stroke_cache_init(const float mval[2])
   }
 }
 
-bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
+bool SculptPaintStroke::test_start(wmOperator *op, const float mouse[2])
 {
-  /* Don't start the stroke until `mval` goes over the mesh. */
-  if (over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval)) {
+  /* Don't start the stroke until `mouse` goes over the mesh. */
+  if (over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mouse)) {
     Object &ob = *this->object;
     Brush *brush = this->brush;
 
@@ -5810,14 +5811,14 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
 
     ED_view3d_init_mats_rv3d(&ob, this->vc.rv3d);
 
-    stroke_cache_init(mval);
+    stroke_cache_init(mouse);
     if (brush && brush_type_is_paint(brush->sculpt_brush_type)) {
       BKE_curvemapping_init(brush->curve_rand_hue);
       BKE_curvemapping_init(brush->curve_rand_saturation);
       BKE_curvemapping_init(brush->curve_rand_value);
     }
 
-    cursor_geometry_info_update(*this->depsgraph, *paint, sculpt_, this->vc, base_, mval, false);
+    cursor_geometry_info_update(*this->depsgraph, *paint, sculpt_, this->vc, base_, mouse, false);
 
     stroke_undo_begin(*this->scene, this->brush, *this->paint_mode_settings_, *this->object, op);
 
@@ -6016,6 +6017,12 @@ void SculptPaintStroke::done(bool is_cancel, bool stroke_started)
     mask_brush_toggle_off(&sd.paint, ss.cache);
     /* Refresh the brush pointer in case we switched brush in the toggle function. */
     brush = BKE_paint_brush(&sd.paint);
+  }
+
+  if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
+      SCULPT_use_image_paint_brush(*this->paint_mode_settings_, ob) && ss.cache->image_data)
+  {
+    ss.cache->image_data->image->runtime->gpuflag &= ~IMA_GPU_DISABLE_MIPMAP_UPDATE;
   }
 
   MEM_delete(ss.cache);
