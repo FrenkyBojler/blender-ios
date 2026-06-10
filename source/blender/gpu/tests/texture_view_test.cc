@@ -259,43 +259,61 @@ static void test_texture_view_mip_layer_test()
   const uint2 texture_size = uint2(4);
   const TextureFormat format = TextureFormat::UINT_8_8;
 
-  Vector<uint2> mip_0_data;
-  for (uint i : IndexRange(4 * 4)) {
-    mip_0_data.append({0, i});
-  }
-  Vector<uint2> mip_1_data;
-  for (uint i : IndexRange(2 * 2)) {
-    mip_1_data.append({1, i});
-  }
-  Vector<uint2> mip_2_data{{2, 0}};
+  auto mip_size = [&](int mip) { return int3(texture_size.x >> mip, texture_size.y >> mip, 1); };
 
-  Vector<uint2> *mip_datas[] = {&mip_0_data, &mip_1_data, &mip_2_data};
-  int3 mip_sizes[] = {{4, 4, 1}, {2, 2, 1}, {1, 1, 1}};
+  auto layer_mip_data = [&](int layer, int mip) {
+    int3 size = mip_size(mip);
+    return repeat_data(uint4(layer, layer == 0 ? 0 : mip, 0, 0), size.x * size.y, 2);
+  };
 
-  gpu::Texture *base = create_base_texture(format, texture_size, 3, 0);
-  for (int mip : IndexRange(3)) {
-    base->update_sub(
-        mip, int3(0), mip_sizes[mip], eGPUDataFormat::GPU_DATA_UINT, mip_datas[mip]->data());
-  }
+  gpu::Texture *base = create_base_texture(format, texture_size, 3, 4);
 
-  gpu::Texture *copy = create_base_texture(format, texture_size, 3, 0);
+  /* Clear everything. Layer 0 will be kept like this. */
+  base->clear(double4(0, 0, 0, 0));
 
   for (int mip : IndexRange(3)) {
-    gpu::Texture *base_view = create_view_texture(format, base, mip);
-    auto base_readback = read_texture<uint>(base_view, GPU_DATA_UINT, 0);
-    EXPECT_TRUE(std::equal(reinterpret_cast<uint *>(mip_datas[mip]->begin()),
-                           reinterpret_cast<uint *>(mip_datas[mip]->end()),
-                           base_readback.begin()));
+    /* Upload to layer 1 through base texture */
+    base->update_sub(mip,
+                     int3(0, 0, 1),
+                     mip_size(mip),
+                     eGPUDataFormat::GPU_DATA_UINT,
+                     layer_mip_data(1, mip).data());
 
-    gpu::Texture *copy_view = create_view_texture(format, copy, mip);
-    GPU_texture_copy(copy_view, base_view);
-    auto copy_readback = read_texture<uint>(copy_view, GPU_DATA_UINT, 0);
-    EXPECT_TRUE(std::equal(reinterpret_cast<uint *>(mip_datas[mip]->begin()),
-                           reinterpret_cast<uint *>(mip_datas[mip]->end()),
-                           copy_readback.begin()));
+    /* Upload to layer 2 using a layer and mip view.*/
+    gpu::Texture *layer_2_view = create_view_texture(format, base, mip, 2);
+    layer_2_view->update_sub(0,
+                             int3(0, 0, 0),
+                             mip_size(mip),
+                             eGPUDataFormat::GPU_DATA_UINT,
+                             layer_mip_data(2, mip).data());
 
-    GPU_texture_free(base_view);
-    GPU_texture_free(copy_view);
+    /* Clear layer 3 using a layer and mip view. */
+    gpu::Texture *layer_3_view = create_view_texture(format, base, mip, 3);
+    layer_3_view->clear(double4(3, mip, 0, 0));
+
+    GPU_texture_free(layer_2_view);
+    GPU_texture_free(layer_3_view);
+  }
+
+  gpu::Texture *copy = create_base_texture(format, texture_size, 3, 4);
+
+  for (int layer : IndexRange(4)) {
+    for (int mip : IndexRange(3)) {
+      auto expected_data = layer_mip_data(layer, mip);
+
+      gpu::Texture *base_view = create_view_texture(format, base, mip, layer);
+      auto base_readback = read_texture<uint>(base_view, GPU_DATA_UINT, 0);
+
+      EXPECT_TRUE(std::equal(expected_data.begin(), expected_data.end(), base_readback.begin()));
+
+      gpu::Texture *copy_view = create_view_texture(format, copy, mip, 4 - layer);
+      GPU_texture_copy(copy_view, base_view);
+      auto copy_readback = read_texture<uint>(copy_view, GPU_DATA_UINT, 0);
+      EXPECT_TRUE(std::equal(expected_data.begin(), expected_data.end(), copy_readback.begin()));
+
+      GPU_texture_free(base_view);
+      GPU_texture_free(copy_view);
+    }
   }
 
   GPU_texture_free(base);
