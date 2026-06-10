@@ -14,12 +14,15 @@
 #include "DNA_action_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 
 #include "ANIM_rna.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 #include "ED_anim_transformable.hh"
 
@@ -100,6 +103,67 @@ Array<float> property_interpolated(const Span<float> a, const Span<float> b, con
     interpolated[i] = interpf(b[i], a[i], factor);
   }
   return interpolated;
+}
+
+float4x4 get_world_space(const Depsgraph &depsgraph, const AnimTransformable &transformable)
+{
+  ID *eval_id = DEG_get_evaluated_id(&depsgraph, transformable.owner_id());
+  BLI_assert(eval_id);
+  switch (transformable.type()) {
+    case AnimTransformable::Type::POSE_BONE: {
+      Object *ob_eval = id_cast<Object *>(eval_id);
+      bPoseChannel *pose_bone_eval = BKE_pose_channel_find_name(ob_eval->pose,
+                                                                transformable.name().data());
+      if (!pose_bone_eval) {
+        BLI_assert_unreachable();
+        break;
+      }
+      return ob_eval->object_to_world() * float4x4(pose_bone_eval->pose_mat);
+    }
+    case AnimTransformable::Type::OBJECT: {
+      Object *ob_eval = id_cast<Object *>(eval_id);
+      return ob_eval->object_to_world();
+    }
+  }
+
+  BLI_assert_unreachable();
+  return float4x4::identity();
+}
+
+float4x4 world_to_local(const Depsgraph &depsgraph,
+                        const AnimTransformable &transformable,
+                        const float4x4 &world_matrix)
+{
+  ID *eval_id = DEG_get_evaluated_id(&depsgraph, transformable.owner_id());
+  BLI_assert(eval_id);
+  switch (transformable.type()) {
+    case AnimTransformable::Type::POSE_BONE: {
+      Object *ob_eval = id_cast<Object *>(eval_id);
+      bPoseChannel *pose_bone_eval = BKE_pose_channel_find_name(ob_eval->pose,
+                                                                transformable.name().data());
+      if (!pose_bone_eval) {
+        BLI_assert_unreachable();
+        break;
+      }
+      Bone *bone = pose_bone_eval->bone_get(*ob_eval);
+      float4x4 object_local = ob_eval->world_to_object() * world_matrix;
+      float bone_local[4][4];
+      /* The function docstring tells me I cannot use this function the way I am using it here. But
+       * it works. Either I am missing an edge case, or the description is wrong. */
+      BKE_armature_mat_pose_to_bone({pose_bone_eval, bone},
+                                    reinterpret_cast<const float(*)[4]>(object_local.base_ptr()),
+                                    bone_local);
+      return float4x4(bone_local);
+    }
+
+    case AnimTransformable::Type::OBJECT: {
+      Object *ob_eval = id_cast<Object *>(eval_id);
+      return ob_eval->world_to_object() * world_matrix;
+    }
+  }
+
+  BLI_assert_unreachable();
+  return float4x4::identity();
 }
 
 /* Since there can be more than one representation of rotation data, they are stored in an array.
@@ -245,19 +309,20 @@ AnimTransformable::AnimTransformable(Object &owner_id, bPoseChannel &pchan)
     : type_(AnimTransformable::Type::POSE_BONE),
       owner_id_(&owner_id.id),
       data_(&pchan),
+      name_(pchan.name),
       location_({pchan.loc, 3}),
       rotation_mode_(&pchan.rotmode),
       scale_({pchan.scale, 3})
 {
   build_rotations_array(rotations_, pchan.eul, pchan.quat, pchan.rotAxis, &pchan.rotAngle);
   rna_path_from_id_ = animrig::get_pose_bone_rna_path(pchan);
-  name_ = pchan.name;
 }
 
 AnimTransformable::AnimTransformable(Object &obj)
     : type_(AnimTransformable::Type::OBJECT),
       owner_id_(&obj.id),
       data_(&obj),
+      name_(&obj.id.name[2]),
       location_({obj.loc, 3}),
       rotation_mode_(reinterpret_cast<eRotationModes *>(&obj.rotmode)),
       scale_({obj.scale, 3})

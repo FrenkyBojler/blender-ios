@@ -68,65 +68,6 @@ static float4x4 fcurves_to_matrix(const Span<const FCurve *> fcurves, const int 
   return mat;
 }
 
-/* TODO move this to the AnimTransformable class. */
-static float4x4 get_evaluated_world_space(const Depsgraph &dg,
-                                          const AnimTransformable &transformable)
-{
-  ID *eval_id = DEG_get_evaluated_id(&dg, transformable.owner_id());
-  BLI_assert(eval_id);
-  switch (transformable.type()) {
-    case AnimTransformable::Type::POSE_BONE: {
-      Object *ob_eval = id_cast<Object *>(eval_id);
-      bPoseChannel *pose_bone_eval = BKE_pose_channel_find_name(ob_eval->pose,
-                                                                transformable.name().data());
-      if (!pose_bone_eval) {
-        BLI_assert_unreachable();
-        break;
-      }
-      return ob_eval->object_to_world() * float4x4(pose_bone_eval->pose_mat);
-    }
-    case AnimTransformable::Type::OBJECT: {
-      Object *ob_eval = id_cast<Object *>(eval_id);
-      return ob_eval->object_to_world();
-    }
-  }
-  return float4x4::identity();
-}
-
-static float4x4 world_to_local(const Depsgraph &dg,
-                               const AnimTransformable &transformable,
-                               const float4x4 &world_matrix)
-{
-  ID *eval_id = DEG_get_evaluated_id(&dg, transformable.owner_id());
-  BLI_assert(eval_id);
-  switch (transformable.type()) {
-    case AnimTransformable::Type::POSE_BONE: {
-      Object *ob_eval = id_cast<Object *>(eval_id);
-      bPoseChannel *pose_bone_eval = BKE_pose_channel_find_name(ob_eval->pose,
-                                                                transformable.name().data());
-      if (!pose_bone_eval) {
-        BLI_assert_unreachable();
-        break;
-      }
-      Bone *bone = pose_bone_eval->bone_get(*ob_eval);
-      float4x4 object_local = ob_eval->world_to_object() * world_matrix;
-      float bone_local[4][4];
-      /* The function docstring tells me I cannot use this function the way I am using it here. But
-       * it works. Either I am missing an edge case, or the description is wrong. */
-      BKE_armature_mat_pose_to_bone({pose_bone_eval, bone},
-                                    reinterpret_cast<const float(*)[4]>(object_local.base_ptr()),
-                                    bone_local);
-      return float4x4(bone_local);
-    }
-
-    case AnimTransformable::Type::OBJECT: {
-      Object *ob_eval = id_cast<Object *>(eval_id);
-      return ob_eval->world_to_object() * world_matrix;
-    }
-  }
-  return float4x4::identity();
-}
-
 static Vector<ID *> get_unique_ids(const Span<AnimTransformable *> transformables)
 {
   /* We need the ID pointers to build the depsgraph, but every ID in the Vector
@@ -297,6 +238,7 @@ struct PasteFCurve {
   /* Store info if that FCurve was created by this code. If yes, we can potentially remove it if
    * the keys are all on the same value after pasting. */
   bool created_on_paste = false;
+  /* The index into the bezt array from which to start pasting. */
   int paste_start_index = 0;
 };
 
@@ -444,7 +386,7 @@ static void copy_world_space(Main &bmain,
     DEG_evaluate_on_framechange(depsgraph, frame);
     for (const int transformable_index : transformables.index_range()) {
       const AnimTransformable &transformable = transformables[transformable_index];
-      const float4x4 world_matrix = get_evaluated_world_space(*depsgraph, transformable);
+      const float4x4 world_matrix = get_world_space(*depsgraph, transformable);
       matrix_to_fcurves(world_matrix, world_space_data[transformable_index], frame, key_index);
     }
   }
@@ -641,6 +583,13 @@ static Vector<AnimTransformable> selected_transformables_from_context(bContext *
   Vector<AnimTransformable> transformables;
   Vector<PointerRNA> pointers;
   switch (CTX_data_mode_enum(C)) {
+    case CTX_MODE_OBJECT: {
+      CTX_data_selected_objects(C, &pointers);
+      for (PointerRNA &ptr : pointers) {
+        transformables.append(ed::AnimTransformable(*id_cast<Object *>(ptr.owner_id)));
+      }
+      break;
+    }
 
     case CTX_MODE_POSE: {
       CTX_data_selected_pose_bones(C, &pointers);
@@ -677,7 +626,7 @@ static wmOperatorStatus world_space_copy_exec(bContext *C, wmOperator *op)
 
 static bool world_space_copy_poll(bContext *C)
 {
-  return ED_operator_posemode(C);
+  return ED_operator_posemode(C) || ED_operator_objectmode(C);
 }
 
 void ANIM_OT_world_space_copy(wmOperatorType *ot)
@@ -716,7 +665,7 @@ static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
 
 static bool world_space_paste_poll(bContext *C)
 {
-  return ED_operator_posemode(C);
+  return ED_operator_posemode(C) || ED_operator_objectmode(C);
 }
 
 void ANIM_OT_world_space_paste(wmOperatorType *ot)

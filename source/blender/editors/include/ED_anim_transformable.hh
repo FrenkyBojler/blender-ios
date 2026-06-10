@@ -12,6 +12,7 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
 #include "DNA_action_types.h"
@@ -22,6 +23,7 @@ namespace blender {
 
 struct bPoseChannel;
 struct ID;
+struct Depsgraph;
 
 namespace ed {
 
@@ -206,6 +208,11 @@ Rotation rotation_interpolated(const Rotation &a, const Rotation &b, float facto
  * spans are the same length. With the factor at `0` the values will match `a`.
  */
 Array<float> property_interpolated(Span<float> a, Span<float> b, float factor);
+
+float4x4 get_world_space(const Depsgraph &depsgraph, const AnimTransformable &transformable);
+float4x4 world_to_local(const Depsgraph &depsgraph,
+                        const AnimTransformable &transformable,
+                        const float4x4 &world_matrix);
 
 }  // namespace ed
 }  // namespace blender
