@@ -702,38 +702,30 @@ void USDGenericMeshWriter::write_normals(const Mesh *mesh, pxr::UsdGeomMesh &usd
 {
   pxr::UsdTimeCode time = get_export_time_code();
 
+  Span<float3> src_normals;
   pxr::VtVec3fArray loop_normals;
   pxr::TfToken interpolation;
   switch (mesh->normals_domain()) {
     case bke::MeshNormalDomain::Point: {
-      BLI_assert(mesh->verts_num == mesh->vert_normals().size());
-      loop_normals.resize(mesh->verts_num);
-      MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()),
-                              loop_normals.size());
-      array_utils::copy(mesh->vert_normals(), dst_normals);
+      src_normals = mesh->vert_normals();
       interpolation = pxr::UsdGeomTokens->vertex;
       break;
     }
     case bke::MeshNormalDomain::Face: {
-      BLI_assert(mesh->faces_num == mesh->face_normals().size());
-      loop_normals.resize(mesh->faces_num);
-      MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()),
-                              loop_normals.size());
-      array_utils::copy(mesh->face_normals(), dst_normals);
+      src_normals = mesh->face_normals();
       interpolation = pxr::UsdGeomTokens->uniform;
       break;
     }
     case bke::MeshNormalDomain::Corner: {
-      BLI_assert(mesh->corners_num == mesh->corner_normals().size());
-      loop_normals.resize(mesh->corners_num);
-      MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()),
-                              loop_normals.size());
-      array_utils::copy(mesh->corner_normals(), dst_normals);
+      src_normals = mesh->corner_normals();
       interpolation = pxr::UsdGeomTokens->faceVarying;
       break;
     }
   }
 
+  loop_normals.resize(src_normals.size());
+  MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()), loop_normals.size());
+  array_utils::copy(src_normals, dst_normals);
   pxr::UsdAttribute attr_normals = usd_mesh.CreateNormalsAttr(pxr::VtValue(), true);
   if (!attr_normals.HasValue()) {
     attr_normals.Set(loop_normals, pxr::UsdTimeCode::Default());
