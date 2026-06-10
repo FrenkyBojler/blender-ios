@@ -14,6 +14,7 @@
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
 
+#include "BKE_collection.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
@@ -56,6 +57,28 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
             BKE_paint_brush_set(bmain, &wpaint->paint, *paint_brush_asset_reference);
           }
         }
+      }
+    }
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 2)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &space : area.spacedata) {
+          if (space.spacetype == SPACE_OUTLINER) {
+            SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&space);
+            if (space_outliner->flag & SO_FLAG_UNUSED_4) {
+              space_outliner->sort_method = SO_SORT_CUSTOM;
+              space_outliner->flag &= ~SO_FLAG_UNUSED_4;
+            }
+          }
+        }
+      }
+    }
+
+    for (Collection &collection : bmain->collections) {
+      int i = 0;
+      for (CollectionObject &cob : collection.gobject) {
+        cob.sort_index = i++;
       }
     }
   }
