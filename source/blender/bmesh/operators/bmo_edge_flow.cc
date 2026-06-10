@@ -144,7 +144,7 @@ static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, float3 
   p1 = p2 + d * math::normalize(p1 - p2);
   p4 = p3 + d * math::normalize(p4 - p3);
 
-  r_target = math::hermite_spline_interp(p1, p2, p3, p4, 0.5f, -tension);
+  r_target = math::hermite_spline_interp(p1, p2, p3, p4, 0.5f, -tension, 0.0f);
   return true;
 }
 
@@ -218,14 +218,42 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
       }
     }
     else if (mode == EDGE_FLOW_FLOW) {
-      /* Implementation for flow mode */
+      for (int iter = 0; iter < iterations; iter++) {
+        for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
+          BMVert *v = loop.verts[i];
+          BMEdge *edges[2] = {BM_edge_exists(v, loop.verts[i - 1]), BM_edge_exists(v, loop.verts[i + 1])};
+
+          float3 target_sum(0.0f);
+          int target_count = 0;
+
+          for (BMEdge *e : edges) {
+            if (e == nullptr || e->l == nullptr || BM_edge_is_boundary(e)) {
+              continue;
+            }
+
+            BMIter l_iter;
+            BMLoop *l;
+            BM_ITER_ELEM (l, &l_iter, e, BM_LOOPS_OF_EDGE) {
+              if (BM_edge_other_vert(e, l->v) != v) {
+                continue;
+              }
+              float3 target;
+
+              if (edge_flow_calc_spline_target(l, tension, target)) {
+                target_sum += target;
+                target_count++;
+              }
+            }
+          }
+        }
+      }
     }
 
     /* Reinterpolate UVs/customData for every face loop touching a moved vert. */
     // for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
-    //   BMIter liter;
+    //   BMIter l_iter;
     //   BMLoop *l;
-    //   BM_ITER_ELEM (l, &liter, loop.verts[i], BM_LOOPS_OF_VERT) {
+    //   BM_ITER_ELEM (l, &l_iter, loop.verts[i], BM_LOOPS_OF_VERT) {
     //     BM_loop_interp_from_face(bm, l, l->f, false, true);
     //   }
     // }
