@@ -1195,20 +1195,15 @@ static void drawviewborder_triangle(uint shdr_pos, rctf rect, const bool golden,
   immEnd();
 }
 
-
-void draw_direction(std::string str,float x, float y,int fontid, float fontsize)
+void draw_direction(std::string str, float x, float y, int fontid, float fontsize)
 {
-    const char* direction = str.c_str();
-    float direction_size_x, direction_size_y;
-    BLF_size(fontid, fontsize * UI_SCALE_FAC);
-    BLF_width_and_height(fontid,
-                    direction,
-                    sizeof(direction),
-                    &direction_size_x,
-                    &direction_size_y);
-    
-    BLF_position(fontid, x-direction_size_x/2, y-direction_size_y/2, 0.0f);
-    BLF_draw(fontid, direction, sizeof(direction)); 
+  const char *direction = str.c_str();
+  float direction_size_x, direction_size_y;
+  BLF_size(fontid, fontsize * UI_SCALE_FAC);
+  BLF_width_and_height(fontid, direction, sizeof(direction), &direction_size_x, &direction_size_y);
+
+  BLF_position(fontid, x - direction_size_x / 2, y - direction_size_y / 2, 0.0f);
+  BLF_draw(fontid, direction, sizeof(direction));
 }
 
 /* comp */
@@ -1251,106 +1246,97 @@ void ED_draw_composition_guides(uint shdr_pos,
 
   /* Draw Dome Master Composition Guides  */
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) || (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS))
+  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) ||
+      (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS))
   {
     float w = rect->xmax - rect->xmin;
-    float h = rect->ymax - rect->ymin;   
+    float h = rect->ymax - rect->ymin;
     float xmid = rect->xmin + 0.5f * w;
     float ymid = rect->ymin + 0.5f * h;
     float angle, x1, y1, x2, y2;
     float radius_x = w / 2;
     float radius_y = h / 2;
     int directions = 36;
-    float steps = M_PI * 2 / directions;    
-  
+    float steps = M_PI * 2 / directions;
 
     if (flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) {
-      float rings = 9;    
-      float smallest_radius_x,smallest_radius_y,current_radius_x,current_radius_y;
+      float rings = 9;
+      float smallest_radius_x, smallest_radius_y, current_radius_x, current_radius_y;
       float radius_x_step = radius_x / rings;
       float radius_y_step = radius_y / rings;
 
-      for (int i = 1; i < rings+1; i++) {
+      for (int i = 1; i < rings + 1; i++) {
 
-          current_radius_x = i * radius_x_step;
-          current_radius_y = i * radius_y_step;
-          
-          if(i==1)
-          {
-            smallest_radius_x = current_radius_x;
-            smallest_radius_y = current_radius_y;
-          }
+        current_radius_x = i * radius_x_step;
+        current_radius_y = i * radius_y_step;
 
-          imm_draw_circle_wire_aspect_2d(shdr_pos, xmid, ymid, current_radius_x, current_radius_y, 100);
+        if (i == 1) {
+          smallest_radius_x = current_radius_x;
+          smallest_radius_y = current_radius_y;
+        }
+
+        imm_draw_circle_wire_aspect_2d(
+            shdr_pos, xmid, ymid, current_radius_x, current_radius_y, 100);
       }
 
-      immBegin(GPU_PRIM_LINES, directions*2);
-      
-      for (int i = 0; i < directions; i++)
-      {
-        angle =  steps * i;
+      immBegin(GPU_PRIM_LINES, directions * 2);
+
+      for (int i = 0; i < directions; i++) {
+        angle = steps * i;
         x2 = xmid + radius_x * cos(angle);
-        y2 = ymid + radius_y * sin(angle);     
-        if(i==0 || i==9 || i==9*2 || i==9*3)
-        {
+        y2 = ymid + radius_y * sin(angle);
+        if (i == 0 || i == 9 || i == 9 * 2 || i == 9 * 3) {
           x1 = xmid;
-          y1 = ymid; 
-        } 
-        else
-        {
+          y1 = ymid;
+        }
+        else {
           x1 = xmid + smallest_radius_x * cos(angle);
           y1 = ymid + smallest_radius_y * sin(angle);
         }
-        immVertex2f(shdr_pos, x1, y1); 
-        immVertex2f(shdr_pos, x2, y2); 
-      
+        immVertex2f(shdr_pos, x1, y1);
+        immVertex2f(shdr_pos, x2, y2);
       }
-      
+
       immEnd();
-
-
     }
 
-    if (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS)
-    {
+    if (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS) {
       const uiStyle *style = ui::style_get();
       const uiFontStyle *fstyle = &style->widget;
       const int fontid = fstyle->uifont_id;
       float direction_offset = 10.0f;
       float direction_big = 12.0f;
       float direction_small = 8.0f;
-      draw_direction("N",xmid, rect->ymax + direction_offset,fontid,direction_big);
-      
-      angle =  steps * 13.5f;
-      x1 = xmid + radius_x * cos(angle);
-      y1 = ymid + radius_y * sin(angle);    
-      draw_direction("N/E",x1-direction_offset, y1+direction_offset,fontid,direction_small); 
-      
-      draw_direction("E",rect->xmin - direction_offset, ymid,fontid,direction_big);
+      draw_direction("N", xmid, rect->ymax + direction_offset, fontid, direction_big);
 
-      angle =  steps * 22.5f;
-      x1 = xmid + radius_x * cos(angle);
-      y1 = ymid + radius_y * sin(angle);    
-      draw_direction("S/E",x1-direction_offset, y1-direction_offset,fontid,direction_small);   
-      
-      draw_direction("S",xmid,rect->ymin - direction_offset,fontid,direction_big);
-
-      angle =  steps * 31.5f;
+      angle = steps * 13.5f;
       x1 = xmid + radius_x * cos(angle);
       y1 = ymid + radius_y * sin(angle);
-      
-      draw_direction("S/W",x1+direction_offset, y1-direction_offset,fontid,direction_small);   
-      
-      draw_direction("W",rect->xmax + direction_offset,ymid,fontid,direction_big);
+      draw_direction("N/E", x1 - direction_offset, y1 + direction_offset, fontid, direction_small);
 
-      angle =  steps * 4.5f;
+      draw_direction("E", rect->xmin - direction_offset, ymid, fontid, direction_big);
+
+      angle = steps * 22.5f;
+      x1 = xmid + radius_x * cos(angle);
+      y1 = ymid + radius_y * sin(angle);
+      draw_direction("S/E", x1 - direction_offset, y1 - direction_offset, fontid, direction_small);
+
+      draw_direction("S", xmid, rect->ymin - direction_offset, fontid, direction_big);
+
+      angle = steps * 31.5f;
       x1 = xmid + radius_x * cos(angle);
       y1 = ymid + radius_y * sin(angle);
 
-      draw_direction("N/W",x1+direction_offset, y1+direction_offset,fontid,direction_small);   
-    
+      draw_direction("S/W", x1 + direction_offset, y1 - direction_offset, fontid, direction_small);
+
+      draw_direction("W", rect->xmax + direction_offset, ymid, fontid, direction_big);
+
+      angle = steps * 4.5f;
+      x1 = xmid + radius_x * cos(angle);
+      y1 = ymid + radius_y * sin(angle);
+
+      draw_direction("N/W", x1 + direction_offset, y1 + direction_offset, fontid, direction_small);
     }
- 
   }
 
   if (flag & COMPOSITION_GUIDES_THIRDS) {

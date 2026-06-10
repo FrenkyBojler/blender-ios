@@ -153,7 +153,7 @@ void ED_draw_composition_guides(uint shdr_pos,
                                 const rctf *rect,
                                 const float color[4]);
 /* Helper Fucntion for drawing Directions of DOme Master Composition Guides */
-void draw_direction(std::string str,float x, float y,int fontid, float fontsize);
+void draw_direction(std::string str, float x, float y, int fontid, float fontsize);
 /* ************** XXX OLD CRUFT WARNING ************* */
 
 /**
