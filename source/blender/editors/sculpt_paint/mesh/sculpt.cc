@@ -2732,22 +2732,20 @@ static IndexMask pbvh_gather_generic_cube(Object &ob,
   SculptSession &ss = *ob.runtime->sculpt_session;
   StrokeCache &cache = *ss.cache;
 
-  const float4x4 &mat = cache.brush_local_mat;
-  /* In anchored mode, the local matrix is zero at the beginning, leading to NaN values. */
-  if (!is_zero_m4(mat.ptr())) {
-    const bool ignore_ineffective = brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_MASK;
-    const IndexMask cube_mask = bke::pbvh::search_nodes(
-        pbvh, memory, [&](const bke::pbvh::Node &node) {
-          if (ignore_ineffective && node_fully_masked_or_hidden(node)) {
-            return false;
-          }
-          const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
-          return node_in_box(mat, bounds);
-        });
-    return cube_mask;
+  if (math::is_zero(cache.brush_local_mat)) {
+    BLI_assert_msg(0, "Unable to calculate cube test with empty 'brush_local_mat'");
+    return {};
   }
-
-  return pbvh_gather_generic(ob, brush, use_original, 2.0, memory);
+  const bool ignore_ineffective = brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_MASK;
+  const IndexMask cube_mask = bke::pbvh::search_nodes(
+      pbvh, memory, [&](const bke::pbvh::Node &node) {
+        if (ignore_ineffective && node_fully_masked_or_hidden(node)) {
+          return false;
+        }
+        const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
+        return node_in_box(cache.brush_local_mat, bounds);
+      });
+  return cube_mask;
 }
 
 IndexMask gather_nodes(const bke::pbvh::Tree &pbvh,
@@ -3391,7 +3389,9 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
   }
   /* TODO: Test if gather_generic_cube is good enough for the case above. If true, move the
    * following above radius_scale definition. */
-  else if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+  else if (!math::is_zero(ss.cache->brush_local_mat) &&
+           BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt))
+  {
     return {pbvh_gather_generic_cube(ob, brush, use_original, memory), std::nullopt, std::nullopt};
   }
 
@@ -3532,8 +3532,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
     }
   }
 
-  update_brush_local_mat(sd, ob);
-
   const brushes::CursorSampleResult cursor_sample_result = calc_brush_node_mask(
       depsgraph, ob, brush, memory);
   const IndexMask node_mask = cursor_sample_result.node_mask;
@@ -3569,6 +3567,14 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
   if (sculpt_brush_needs_normal(ss, brush)) {
     update_sculpt_normal(depsgraph, sd, ob, cursor_sample_result);
+  }
+
+  update_brush_local_mat(sd, ob);
+
+  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt) &&
+      stroke_is_first_brush_step_of_symmetry_pass(*ss.cache))
+  {
+    return;
   }
 
   if (brush.deform_target == BRUSH_DEFORM_TARGET_CLOTH_SIM) {
