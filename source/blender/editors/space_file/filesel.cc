@@ -1186,7 +1186,7 @@ FileLayout *ED_fileselect_get_layout(SpaceFile *sfile, ARegion *region)
 void ED_file_change_dir_ex(bContext *C, ScrArea *area)
 {
   /* May happen when manipulating non-active spaces. */
-  if (UNLIKELY(area->spacetype != SPACE_FILE)) {
+  if (area->spacetype != SPACE_FILE) [[unlikely]] {
     return;
   }
   SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
@@ -1334,8 +1334,9 @@ void ED_fileselect_clear(wmWindowManager *wm, SpaceFile *sfile)
     filelist_clear(sfile->files);
   }
 
-  FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  params->highlight_file = -1;
+  if (FileSelectParams *params = ED_fileselect_get_active_params(sfile)) {
+    params->highlight_file = -1;
+  }
   WM_main_add_notifier(NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
 }
 
