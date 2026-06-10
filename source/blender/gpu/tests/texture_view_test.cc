@@ -304,12 +304,13 @@ static void test_texture_view_mip_layer_test()
       gpu::Texture *base_view = create_view_texture(format, base, mip, layer);
       auto base_readback = read_texture<uint>(base_view, GPU_DATA_UINT, 0);
 
-      EXPECT_TRUE(std::equal(expected_data.begin(), expected_data.end(), base_readback.begin()));
+      EXPECT_EQ(expected_data, base_readback);
 
       gpu::Texture *copy_view = create_view_texture(format, copy, mip, 4 - layer);
       GPU_texture_copy(copy_view, base_view);
       auto copy_readback = read_texture<uint>(copy_view, GPU_DATA_UINT, 0);
-      EXPECT_TRUE(std::equal(expected_data.begin(), expected_data.end(), copy_readback.begin()));
+
+      EXPECT_EQ(expected_data, copy_readback);
 
       GPU_texture_free(base_view);
       GPU_texture_free(copy_view);
