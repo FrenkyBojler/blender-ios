@@ -72,9 +72,10 @@ class OBJECT_PT_transform(ObjectButtonsPanel, Panel):
             row.prop(ob, "rotation_euler", text="Rotation")
             row.use_property_decorate = False
             row.prop(ob, "lock_rotation", text="", emboss=False, icon='DECORATE_UNLOCKED')
+
         row = layout.row(align=True)
         row.prop(ob, "rotation_mode", text="Mode")
-        row.operator("anim.rotation_mode_convert", text="", icon='ACTION_TWEAK')
+        row.operator("anim.rotation_mode_convert", text="", icon='GESTURE_ROTATE')
 
         col = layout.column()
         row = col.row(align=True)

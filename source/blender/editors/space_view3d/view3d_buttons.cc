@@ -2073,7 +2073,7 @@ static void v3d_transform_butsR(ui::Layout &layout, PointerRNA *ptr)
 
   split = &layout.split(0.8f, false);
   split->prop(ptr, "rotation_mode", UI_ITEM_NONE, "", ICON_NONE);
-  split->op("ANIM_OT_rotation_mode_convert", "", ICON_ACTION_TWEAK);
+  split->op("ANIM_OT_rotation_mode_convert", "", ICON_GESTURE_ROTATE);
 
   split = &layout.split(0.8f, false);
   colsub = &split->column(true);
