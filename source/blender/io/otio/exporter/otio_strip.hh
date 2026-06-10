@@ -35,13 +35,15 @@ class StripExporter {
 
   virtual ~StripExporter() {};
 
-  virtual void export_strip(const OTIOExportParams *export_params) = 0;
+  virtual void export_strip(const OTIOExportParams * /*export_params*/) {};
 
   void add_gap_if_necessary();
   static void add_gap_if_necessary(SerializableObject::Retainer<Track> &_track,
                                    int start_frame,
                                    int end_frame,
                                    double scene_fps);
+
+  void export_with_missing_reference();
 
  protected:
   Strip *_strip;

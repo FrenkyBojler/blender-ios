@@ -163,6 +163,15 @@ static void otio_export_recursive(Scene *scene,
           ListBaseT<Strip> *seqbase = seq::get_seqbase_from_strip(strip, &r_channels, &r_offset);
 
           if (!seqbase) {
+            StripExporter missing_reference_exporter_video = StripExporter(
+                strip, scene, inside_meta ? meta_video_track : track, last_strip_end);
+
+            StripExporter missing_reference_exporter_audio = StripExporter(
+                strip, scene, inside_meta ? meta_audio_track : track, last_strip_end);
+
+            missing_reference_exporter_video.export_with_missing_reference();
+            missing_reference_exporter_audio.export_with_missing_reference();
+
             break;
           }
 

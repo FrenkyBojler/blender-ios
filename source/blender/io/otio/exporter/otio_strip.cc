@@ -22,6 +22,7 @@
 #include "opentimelineio/externalReference.h"
 #include "opentimelineio/gap.h"
 #include "opentimelineio/imageSequenceReference.h"
+#include "opentimelineio/missingReference.h"
 #include "opentimelineio/serializableObject.h"
 #include "opentimelineio/track.h"
 
@@ -31,30 +32,6 @@
 namespace blender::io::otio {
 
 using namespace opentimelineio::OPENTIMELINEIO_VERSION_NS;
-
-void StripExporter::add_gap_if_necessary()
-{
-  int space_between = _strip->left_handle() - last_strip_end - 1;
-  if (space_between > 0) {
-    auto gap_duration = RationalTime(space_between, _scene->frames_per_second());
-    auto gap = SerializableObject::Retainer<Gap>(new Gap(gap_duration));
-    _track->append_child(gap);
-  }
-  last_strip_end = _strip->right_handle(_scene);
-}
-
-void StripExporter::add_gap_if_necessary(SerializableObject::Retainer<Track> &track,
-                                         int start_frame,
-                                         int end_frame,
-                                         double scene_fps)
-{
-  int space_between = end_frame - start_frame + 1;
-  if (space_between > 0) {
-    auto gap_duration = RationalTime(space_between, scene_fps);
-    auto gap = SerializableObject::Retainer<Gap>(new Gap(gap_duration));
-    track->append_child(gap);
-  }
-}
 
 /************** Helper Functions. **************/
 
@@ -287,6 +264,52 @@ static void add_sound_strip_metadata(SerializableObject::Retainer<Clip> &clip, c
   clip->metadata()[get_blender_otio_namespace()] = metadata;
 }
 
+void StripExporter::add_gap_if_necessary()
+{
+  int space_between = _strip->left_handle() - last_strip_end - 1;
+  if (space_between > 0) {
+    auto gap_duration = RationalTime(space_between, _scene->frames_per_second());
+    auto gap = SerializableObject::Retainer<Gap>(new Gap(gap_duration));
+    _track->append_child(gap);
+  }
+  last_strip_end = _strip->right_handle(_scene);
+}
+
+void StripExporter::add_gap_if_necessary(SerializableObject::Retainer<Track> &track,
+                                         int start_frame,
+                                         int end_frame,
+                                         double scene_fps)
+{
+  int space_between = end_frame - start_frame + 1;
+  if (space_between > 0) {
+    auto gap_duration = RationalTime(space_between, scene_fps);
+    auto gap = SerializableObject::Retainer<Gap>(new Gap(gap_duration));
+    track->append_child(gap);
+  }
+}
+
+void StripExporter::export_with_missing_reference()
+{
+  add_gap_if_necessary();
+
+  float media_fps = _scene->frames_per_second();
+
+  TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
+
+  const char *filename = nullptr;
+  if (_strip->data && _strip->data->stripdata) {
+    filename = _strip->data->stripdata->filename;
+  }
+
+  auto missing_reference = SerializableObject::Retainer<MissingReference>(
+      new MissingReference(filename ? filename : ""));
+
+  auto clip = otio::SerializableObject::Retainer<otio::Clip>(
+      new Clip(_strip->name + 2, missing_reference, strip_source_range));
+
+  _track->append_child(clip);
+}
+
 /***** Handle Export for each strip type. *****/
 
 void MovieStripExporter::export_strip(const OTIOExportParams * /*export_params*/)
@@ -342,6 +365,7 @@ void ImageStripExporter::export_strip(const OTIOExportParams *export_params)
   else {
     /* Image Sequence. */
     if (!_strip->data || !_strip->data->stripdata) {
+      export_with_missing_reference();
       return;
     }
 
@@ -381,6 +405,7 @@ void ImageStripExporter::export_strip(const OTIOExportParams *export_params)
     }
     else {
       if (!BLI_path_frame_get(se->filename, &start_frame_nr, &padding)) {
+        export_with_missing_reference();
         return;
       }
 
