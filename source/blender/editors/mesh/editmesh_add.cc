@@ -348,14 +348,14 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
     const int vertices = RNA_int_get(op->ptr, "subdivisions") + 2;
 
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
-    const StringRefNull uv_map = object_mesh->active_uv_map_name();
+    const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
+    const std::optional<StringRef> uv_map = calc_uvs ? (uv_map_name == nullptr ?
+                                                            std::nullopt :
+                                                            std::make_optional(uv_map_name)) :
+                                                       std::nullopt;
 
-    Mesh *primitive = geometry::create_cuboid_mesh(float3(size, size, size),
-                                                   vertices,
-                                                   vertices,
-                                                   vertices,
-                                                   calc_uvs ? std::make_optional(uv_map) :
-                                                              std::nullopt);
+    Mesh *primitive = geometry::create_cuboid_mesh(
+        float3(size, size, size), vertices, vertices, vertices, uv_map);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
@@ -514,8 +514,10 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
     geometry::ConeAttributeOutputs attributes{};
 
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
-    const StringRefNull uv_map = object_mesh->active_uv_map_name();
-    attributes.uv_map_id = calc_uvs ? std::make_optional(uv_map) : std::nullopt;
+    const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
+    attributes.uv_map_id = calc_uvs ? (uv_map_name == nullptr ? std::nullopt :
+                                                                std::make_optional(uv_map_name)) :
+                                      std::nullopt;
 
     const int side_segments = RNA_int_get(op->ptr, "rings");
     const int fill_segments = RNA_int_get(op->ptr, "fill_segments");
@@ -586,7 +588,8 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Cap Fill Type", "");
 
   RNA_def_int(ot->srna, "rings", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Rings", "", 1, 64);
-  RNA_def_int(ot->srna, "fill_segments", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Fill Segments", "", 1, 64);
+  RNA_def_int(
+      ot->srna, "fill_segments", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Fill Segments", "", 1, 64);
 
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
@@ -620,8 +623,10 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
     geometry::ConeAttributeOutputs attributes{};
 
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
-    const StringRefNull uv_map = object_mesh->active_uv_map_name();
-    attributes.uv_map_id = calc_uvs ? std::make_optional(uv_map) : std::nullopt;
+    const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
+    attributes.uv_map_id = calc_uvs ? (uv_map_name == nullptr ? std::nullopt :
+                                                                std::make_optional(uv_map_name)) :
+                                      std::nullopt;
 
     const int side_segments = RNA_int_get(op->ptr, "rings");
     const int fill_segments = RNA_int_get(op->ptr, "fill_segments");
@@ -695,7 +700,8 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "end_fill_type", fill_type_items, 1, "Base Fill Type", "");
 
   RNA_def_int(ot->srna, "rings", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Rings", "", 1, 64);
-  RNA_def_int(ot->srna, "fill_segments", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Fill Segments", "", 1, 64);
+  RNA_def_int(
+      ot->srna, "fill_segments", 1, 1, MESH_CYLINDER_CONE_LOOP_MAXI, "Fill Segments", "", 1, 64);
 
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
@@ -855,13 +861,16 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
-    const StringRefNull uv_map = object_mesh->active_uv_map_name();
+    const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
+    const std::optional<StringRef> uv_map = calc_uvs ? (uv_map_name == nullptr ?
+                                                            std::nullopt :
+                                                            std::make_optional(uv_map_name)) :
+                                                       std::nullopt;
 
     Mesh *primitive = geometry::create_uv_sphere_mesh(RNA_float_get(op->ptr, "radius"),
                                                       RNA_int_get(op->ptr, "segments"),
                                                       RNA_int_get(op->ptr, "ring_count"),
-                                                      calc_uvs ? std::make_optional(uv_map) :
-                                                                 std::nullopt);
+                                                      uv_map);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
@@ -944,12 +953,14 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
 
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
-    const StringRefNull uv_map = object_mesh->active_uv_map_name();
+    const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
+    const std::optional<StringRef> uv_map = calc_uvs ? (uv_map_name == nullptr ?
+                                                            std::nullopt :
+                                                            std::make_optional(uv_map_name)) :
+                                                       std::nullopt;
 
-    Mesh *primitive = geometry::create_ico_sphere_mesh(RNA_int_get(op->ptr, "subdivisions"),
-                                                       RNA_float_get(op->ptr, "radius"),
-                                                       calc_uvs ? std::make_optional(uv_map) :
-                                                                  std::nullopt);
+    Mesh *primitive = geometry::create_ico_sphere_mesh(
+        RNA_int_get(op->ptr, "subdivisions"), RNA_float_get(op->ptr, "radius"), uv_map);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
