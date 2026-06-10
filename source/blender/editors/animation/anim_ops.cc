@@ -1608,6 +1608,7 @@ static Vector<ed::AnimTransformable> selected_transformables_from_context(bConte
 
 static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
 {
+
   const eRotationModes mode = eRotationModes(RNA_enum_get(op->ptr, "mode"));
   const bool bake = RNA_boolean_get(op->ptr, "bake");
   ID *prev_id = nullptr;
@@ -1616,10 +1617,15 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
   Map<std::pair<animrig::Action *, int32_t>, ChannelbagFCurveMap> data_map;
   int skipped_datablocks = 0;
   int skipped_actions = 0;
-  /* Used to warn the user that he modified only a subset of all users for an
-   * rna path in a slot. We need to keep track of that per rna path so we can
-   * supress the warning when all relevant data has been modified. */
-  Map<std::pair<const animrig::Slot *, StringRefNull>, int> unmodified_users;
+
+  /* Uniquely identifies an AnimTransformable for a Slot. */
+  using SlotTransformableID = std::pair<const animrig::Slot *, StringRefNull>;
+  /* We need to keep track of the modified rna paths per Slot. That is to
+   * avoid modifying the same data twice if two transformables with the same rna path share an
+   * action and slot. The integer value is used to warn the user that he modified only a subset of
+   * all users for an rna path in a slot. We store the slot user count when adding elements and
+   * decrement for each user we visit. */
+  Map<SlotTransformableID, int> unmodified_users;
 
   Main *bmain = CTX_data_main(C);
 
@@ -1641,19 +1647,20 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
           }
           const animrig::Slot *slot = action.slot_for_handle(slot_handle);
           BLI_assert(slot != nullptr);
-          const int slot_user_count = slot->users(*bmain).size();
-          if (slot_user_count > 1) {
-            std::pair<const animrig::Slot *, StringRefNull> identifier = {
-                slot, transformable.rna_path()};
-            int *unmodified_count = unmodified_users.lookup_ptr(identifier);
-            if (unmodified_count) {
-              (*unmodified_count)--;
-              BLI_assert((*unmodified_count) >= 0);
-            }
-            else {
-              unmodified_users.add(identifier, slot_user_count - 1);
-            }
+          SlotTransformableID identifier = {slot, transformable.rna_path()};
+          int *unmodified_count = unmodified_users.lookup_ptr(identifier);
+          if (unmodified_count) {
+            (*unmodified_count)--;
+            BLI_assert((*unmodified_count) >= 0);
+            converted_actions = true;
+            /* We already modified the given rna path for the slot. Don't do it twice! */
+            return true;
           }
+          else {
+            const int slot_user_count = slot->users(*bmain).size();
+            unmodified_users.add(identifier, slot_user_count - 1);
+          }
+
           if (!data_map.contains({&action, slot_handle})) {
             ChannelbagFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
             data_map.add({&action, slot_handle}, std::move(fcurve_map));

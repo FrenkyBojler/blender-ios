@@ -271,7 +271,6 @@ AnimTransformable::AnimTransformable(Object &obj)
   rna_path_from_id_ = "";
 }
 
-
 template<> bPoseChannel *AnimTransformable::data<bPoseChannel *>() const
 {
   BLI_assert(type_ == Type::POSE_BONE);
