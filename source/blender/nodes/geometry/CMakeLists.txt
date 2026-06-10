@@ -121,9 +121,9 @@ set(SRC
   nodes/node_geo_grid_mean.cc
   nodes/node_geo_grid_median.cc
   nodes/node_geo_grid_prune.cc
-  nodes/node_geo_grid_topology_boolean.cc
   nodes/node_geo_grid_to_mesh.cc
   nodes/node_geo_grid_to_points.cc
+  nodes/node_geo_grid_topology_boolean.cc
   nodes/node_geo_grid_voxelize.cc
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
