@@ -244,31 +244,29 @@ static void convert_rotation_mode_range(const Span<const FCurve *> evaluation_bu
    * index is keyed. */
   ed::Rotation rotation_values = transformable.get_rotation_for_mode(from_mode);
 
+  KeyframeIterator key_iterator = KeyframeIterator(evaluation_buffer, range);
+  const animrig::KeyframeSettings settings = key_iterator.get_keyframe_settings();
+  /* Generate the current rotation values respecting missing FCurves. */
+  for (const FCurve *fcurve : evaluation_buffer) {
+    if (!fcurve) {
+      continue;
+    }
+    rotation_values.values[fcurve->array_index] = evaluate_fcurve(fcurve, range.min);
+  }
+
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
   ed::Rotation previous_conversion = rotation_values.converted_to_mode(to_mode);
 
-  KeyframeIterator key_iterator = KeyframeIterator(evaluation_buffer, range);
   if (ensure_range_start_key && key_iterator.get_frame() > range.min) {
-    /* This case can happen if the rotation mode is keyed, but not any of the rotation channels. In
-     * that case the below loop would not insert a key into the range start which would result in a
-     * visual jump after the conversion. */
-    const float frame = range.min;
-    const animrig::KeyframeSettings settings = key_iterator.get_keyframe_settings();
-    /* Generate the current rotation values respecting missing FCurves. */
-    for (const FCurve *fcurve : evaluation_buffer) {
-      if (!fcurve) {
-        continue;
-      }
-      rotation_values.values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
-    }
-    ed::Rotation converted_rotation = rotation_values.converted_to_mode(to_mode,
-                                                                        &previous_conversion);
+    /* This case can happen if the rotation mode is keyed, but not any of the rotation channels.
+     * In that case the below loop would not insert a key into the range start which would result
+     * in a visual jump after the conversion. */
     for (const int i : insertion_buffer.index_range()) {
       FCurve *fcurve = insertion_buffer[i];
       BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
-      insert_vert_fcurve(fcurve, {frame, converted_rotation.values[i]}, settings, INSERTKEY_FAST);
+      insert_vert_fcurve(
+          fcurve, {range.min, previous_conversion.values[i]}, settings, INSERTKEY_FAST);
     }
-    previous_conversion = converted_rotation;
   }
 
   while (key_iterator.can_advance()) {
@@ -289,7 +287,7 @@ static void convert_rotation_mode_range(const Span<const FCurve *> evaluation_bu
       BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
       insert_vert_fcurve(fcurve, {frame, converted_rotation.values[i]}, settings, INSERTKEY_FAST);
     }
-    previous_conversion = converted_rotation;
+    previous_conversion = std::move(converted_rotation);
   }
 }
 
