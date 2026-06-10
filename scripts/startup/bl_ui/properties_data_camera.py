@@ -494,7 +494,8 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         col.prop(camera, "show_composition_harmony_tri_b", text="Triangle B")
 
         col = layout.column(heading="Dome Master", align=True)
-        col.prop(camera, "show_composition_dome_master", text="Grid")
+        col.prop(camera, "show_composition_dome_master_grid", text="Grid")
+        col.prop(camera, "show_composition_dome_master_directions", text="Directions")
 
         col = layout.column()
         col.prop(camera, "composition_guide_color", text="Color")

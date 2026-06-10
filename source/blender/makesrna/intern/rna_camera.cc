@@ -976,11 +976,18 @@ void RNA_def_camera(BlenderRNA *brna)
 
 
   /* Dome Master Guides*/
-  prop = RNA_def_property(srna, "show_composition_dome_master", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "show_composition_dome_master_grid", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
-      prop, nullptr, "composition_guide_flags", COMPOSITION_GUIDES_DOME_MASTER);
+      prop, nullptr, "composition_guide_flags", COMPOSITION_GUIDES_DOME_MASTER_GRID);
   RNA_def_property_ui_text(
       prop, "Dome Master Grid", "Display a grid representing the fulldome");
+  RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_dome_master_directions", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "composition_guide_flags", COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS);
+  RNA_def_property_ui_text(
+      prop, "Dome Master Directions", "Display directions representing the fulldome");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
 
   /* Panoramic settings. */
