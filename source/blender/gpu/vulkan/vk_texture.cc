@@ -298,7 +298,7 @@ void VKTexture::read_sub(
     copy_image_to_buffer.vk_image_aspects = vk_image_aspects;
     node_data.region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
                                                                                  false);
-    node_data.region.imageSubresource.mipLevel = mip;
+    node_data.region.imageSubresource.mipLevel = mip + mip_min_;
     node_data.region.imageSubresource.baseArrayLayer = transfer_region.layers.start();
     node_data.region.imageSubresource.layerCount = transfer_region.layers.size();
 
