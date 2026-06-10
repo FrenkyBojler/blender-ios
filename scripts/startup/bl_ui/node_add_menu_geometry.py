@@ -547,6 +547,7 @@ class NODE_MT_gn_mesh_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeMeshToPoints")
         self.node_operator(layout, "GeometryNodeMeshToSDFGrid")
         self.node_operator(layout, "GeometryNodeMeshToVolume")
+        self.node_operator(layout, "GeometryNodeReplaceFaces")
         self.node_operator(layout, "GeometryNodeScaleElements")
         self.node_operator(layout, "GeometryNodeSplitEdges")
         self.node_operator(layout, "GeometryNodeSubdivideMesh")

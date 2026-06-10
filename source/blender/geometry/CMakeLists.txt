@@ -48,6 +48,7 @@ set(SRC
   intern/randomize.cc
   intern/realize_instances.cc
   intern/reorder.cc
+  intern/replace_faces.cc
   intern/resample_curves.cc
   intern/reverse_uv_sampler.cc
   intern/separate_geometry.cc
@@ -84,6 +85,7 @@ set(SRC
   GEO_mesh_primitive_grid.hh
   GEO_mesh_primitive_line.hh
   GEO_mesh_primitive_uv_sphere.hh
+  GEO_mesh_replace_faces.hh
   GEO_mesh_selection.hh
   GEO_mesh_split_edges.hh
   GEO_mesh_to_curve.hh
