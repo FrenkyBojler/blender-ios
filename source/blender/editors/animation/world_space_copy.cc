@@ -291,12 +291,13 @@ struct PasteFCurve {
   int paste_start_index = 0;
 };
 
-struct TransformableFCurves {
+struct TransformFCurves {
   Array<PasteFCurve, 3> loc;
+  eRotationModes rotation_mode;
   Array<PasteFCurve, 4> rot;
   Array<PasteFCurve, 3> scale;
 
-  TransformableFCurves()
+  TransformFCurves()
   {
     loc.reinitialize(3);
     rot.reinitialize(4);
@@ -329,33 +330,42 @@ static void ensure_baked_fcurves(Main &bmain,
   }
 }
 
-static void set_keys_to_transform(TransformableFCurves &t_fcus,
+static void set_keys_to_transform(TransformFCurves &t_fcus,
                                   const float4x4 &matrix,
                                   const int paste_index)
 {
   const float3 location = matrix.location();
   const float3 scale = math::to_scale(matrix);
-  Rotation rotation;
-  rotation.mode = ROT_MODE_QUAT;
+  Rotation rotation_quat;
+  rotation_quat.mode = ROT_MODE_QUAT;
   const float4 quat = float4(math::to_quaternion(matrix));
-  rotation.values.reinitialize(4);
-  copy_qt_qt(rotation.values.data(), quat);
+  rotation_quat.values.reinitialize(4);
+  copy_qt_qt(rotation_quat.values.data(), quat);
+  /* TODO pass reference rotation to avoid gimbal lock. */
+  Rotation rotation = rotation_quat.converted_to_mode(t_fcus.rotation_mode);
 
-  for (const int i : IndexRange(3)) {
+  for (const int i : t_fcus.loc.index_range()) {
     PasteFCurve &pfcu = t_fcus.loc[i];
     BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
     const int bezt_index = pfcu.paste_start_index + paste_index;
     BezTriple &key = pfcu.fcurve->bezt[bezt_index];
-    /* TODO move with handles. */
-    key.vec[1][1] = location[i];
+    BKE_fcurve_keyframe_move_value_with_handles(&key, location[i]);
   }
 
-  for (const int i : IndexRange(3)) {
+  for (const int i : t_fcus.rot.index_range()) {
+    PasteFCurve &pfcu = t_fcus.rot[i];
+    BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
+    const int bezt_index = pfcu.paste_start_index + paste_index;
+    BezTriple &key = pfcu.fcurve->bezt[bezt_index];
+    BKE_fcurve_keyframe_move_value_with_handles(&key, rotation.values[i]);
+  }
+
+  for (const int i : t_fcus.scale.index_range()) {
     PasteFCurve &pfcu = t_fcus.scale[i];
     BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
     const int bezt_index = pfcu.paste_start_index + paste_index;
     BezTriple &key = pfcu.fcurve->bezt[bezt_index];
-    key.vec[1][1] = scale[i];
+    BKE_fcurve_keyframe_move_value_with_handles(&key, scale[i]);
   }
 }
 
@@ -533,7 +543,7 @@ static void paste_world_space(Main &bmain,
   const Bounds<int> range = {int(dna_action->frame_start), int(dna_action->frame_end)};
   /* We have to ensure every frame of the affected range has a key. Otherwise inserting keys will
    * modify the interpolation of the following frames. */
-  Array<TransformableFCurves> fcurve_buffer(sorted_transformables.size());
+  Array<TransformFCurves> fcurve_buffer(sorted_transformables.size());
   for (const int i : sorted_transformables.index_range()) {
     AnimTransformable *transformable = sorted_transformables[i];
     ID *owner_id = transformable->owner_id();
@@ -550,8 +560,9 @@ static void paste_world_space(Main &bmain,
      */
     ar::assert_baklava_phase_1_invariants(action);
     ar::Channelbag &channelbag = ar::action_channelbag_ensure(*dna_action, *owner_id);
-    TransformableFCurves &fcus = fcurve_buffer[i];
-    if (transformable->get_rotation_mode() >= ROT_MODE_EUL) {
+    TransformFCurves &fcus = fcurve_buffer[i];
+    fcus.rotation_mode = transformable->get_rotation_mode();
+    if (fcus.rotation_mode >= ROT_MODE_EUL) {
       fcus.rot.reinitialize(3);
     }
     else {
@@ -600,7 +611,7 @@ static void paste_world_space(Main &bmain,
        * updated. This is potentially very slow. */
       DEG_evaluate_on_framechange(depsgraph, frame);
       const float4x4 local_matrix = world_to_local(*depsgraph, *transformable, world_matrix);
-      TransformableFCurves &t_fcus = fcurve_buffer[i];
+      TransformFCurves &t_fcus = fcurve_buffer[i];
       set_keys_to_transform(t_fcus, local_matrix, key_index);
     }
   }
