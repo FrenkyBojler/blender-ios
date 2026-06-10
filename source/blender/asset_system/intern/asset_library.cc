@@ -243,6 +243,11 @@ void AssetLibrary::foreach_loaded(FunctionRef<void(AssetLibrary &)> fn,
   service->foreach_loaded_asset_library(fn, include_all_library);
 }
 
+void AssetLibrary::force_remote_listing_download() const
+{
+  /* Default implementation is a no-op. */
+}
+
 bool AssetLibrary::use_relative_paths() const
 {
   return true;
@@ -474,7 +479,8 @@ Vector<AssetLibraryReference> all_valid_asset_library_refs()
   }
 
   const bool include_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
-  if (include_remote_libraries) {
+  const bool include_online_essentials = (U.asset_flag & USER_ASSETS_USE_ONLINE_ESSENTIALS) != 0;
+  if (include_remote_libraries && include_online_essentials) {
     AssetLibraryReference library_ref{};
     library_ref.custom_library_index = -1;
     library_ref.type = ASSET_LIBRARY_ONLINE_ESSENTIALS;
