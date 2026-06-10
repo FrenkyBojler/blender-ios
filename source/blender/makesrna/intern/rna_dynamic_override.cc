@@ -243,6 +243,25 @@ static StructRNA *rna_DynamicOverrideRule_refine(PointerRNA *ptr)
   return RNA_DynamicOverrideRule;
 }
 
+static void rna_DynamicOverride_rule_name_get(PointerRNA *ptr, char *value)
+{
+  DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
+  strcpy(value, (rule->name == nullptr) ? "" : rule->name);
+}
+
+static int rna_DynamicOverride_rule_name_length(PointerRNA *ptr)
+{
+  DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
+  return (rule->name == nullptr) ? 0 : strlen(rule->name);
+}
+
+static void rna_DynamicOverride_rule_name_set(PointerRNA *ptr, const char *value)
+{
+  DynamicOverride *dynoverride = id_cast<DynamicOverride *>(ptr->owner_id);
+  DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
+  bke::dynoverride::rule_name_set(*dynoverride, *rule, value);
+}
+
 static PointerRNA rna_DynamicOverride_rule_iddata_ensure(PointerRNA self_ptr,
                                                          ReportList * /*reports*/,
                                                          ID *target_id)
@@ -325,6 +344,7 @@ static void rna_def_dynamic_override_rule_property(BlenderRNA *brna)
                                 "rna_DynamicOverride_rule_property_rna_path_length",
                                 nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_struct_name_property(srna, prop);
 
   prop = RNA_def_boolean(
       srna, "is_muted", false, "Muted", "Whether this override property is muted or not");
@@ -497,6 +517,18 @@ static void rna_def_dynamic_override_rule(BlenderRNA *brna)
       srna, "Dynamic Override Rule", "Base type for all types of dynamic override rules");
   RNA_def_struct_sdna(srna, "DynamicOverrideRule");
   RNA_def_struct_refine_func(srna, "rna_DynamicOverrideRule_refine");
+
+  prop = RNA_def_string(srna,
+                        "name",
+                        nullptr,
+                        0,
+                        "Name",
+                        "Name (and unique identifier within its DynamicOverride owner) of a rule");
+  RNA_def_property_string_funcs(prop,
+                                "rna_DynamicOverride_rule_name_get",
+                                "rna_DynamicOverride_rule_name_length",
+                                "rna_DynamicOverride_rule_name_set");
+  RNA_def_struct_name_property(srna, prop);
 
   prop = RNA_def_boolean(
       srna, "is_muted", false, "Muted", "Whether this override rule is muted or not");

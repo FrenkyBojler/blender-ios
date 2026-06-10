@@ -52,6 +52,13 @@ ENUM_OPERATORS(DynamicOverrideRuleFlag);
 struct DynamicOverrideRule {
   struct DynamicOverrideRule *next = nullptr, *prev = nullptr;
 
+  /**
+   * Name of this rule.
+   *
+   * NOTE: must be unique within a given Dynamic Override ID, so is also used as unique identifier.
+   */
+  char *name;
+
   /** Type of rule, also defines the type of `rule_data`. */
   DynamicOverrideRuleType type = {};
 
@@ -73,15 +80,16 @@ struct DynamicOverrideRuleProperty {
   struct DynamicOverrideRuleProperty *next = nullptr, *prev = nullptr;
 
   /**
-   * Reference to affected data (RNA path from owner ID, plus optional item info for collection
-   * properties).
+   * Reference to affected data (RNA path from owner ID).
+   *
+   * NOTE: Currently sub-data (e.g. collection item or array index) are not supported.
+   *
+   * NOTE: must be unique within a given IDData rule, so is also used as unique identifier.
    */
   char *rna_path = nullptr;
-  char *sub_item_name = nullptr;
-  int sub_item_index = -1;
 
   DynamicOverrideRulePropertyFlag flag = {};
-  int16_t _pad = 0;
+  int8_t _pad[6] = {};
 };
 
 struct DynamicOverrideRuleIDData {

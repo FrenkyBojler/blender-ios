@@ -84,10 +84,7 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
             target_type = rule.target_filter.target_id.rna_type.name.lower()
             rule_id = f"{target_type}::{target_name}"
             panel_header, panel_body = layout.panel(idname=rule_id)
-            panel_header.label(text="Properties for {target_name} {idtype_name}...".format(
-                               target_name=target_name,
-                               idtype_name=target_type)
-                              )
+            panel_header.prop(rule, "name", text="")
             panel_header.prop(rule, "is_muted", icon='HIDE_ON' if rule.is_muted else 'HIDE_OFF', icon_only=True)
             if panel_body is None:
                 # Closed panel...

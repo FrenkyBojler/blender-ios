@@ -39,6 +39,9 @@ DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(Scene &scene, ID &owner_id)
 DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(DynamicOverride &dynamic_override,
                                                      ID &id_owner);
 
+void rule_name_set(DynamicOverride &dynamic_override,
+                   DynamicOverrideRule &rule,
+                   StringRef rule_name);
 void rule_remove(Main &bmain,
                  DynamicOverride &dynamic_override,
                  DynamicOverrideRule *existing_rule);

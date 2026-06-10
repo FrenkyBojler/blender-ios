@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_resource_scope.hh"
 #include "BLI_string.h"
+#include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
 
@@ -199,9 +200,6 @@ static void rule_property_copy(DynamicOverrideRuleProperty &dynoverride_rule_pro
    * using `BLI_duplicatelist`). */
 
   dynoverride_rule_property_dst.rna_path = MEM_dupalloc(dynoverride_rule_property_src.rna_path);
-  dynoverride_rule_property_dst.sub_item_name = MEM_dupalloc(
-      dynoverride_rule_property_src.sub_item_name);
-  dynoverride_rule_property_dst.sub_item_index = dynoverride_rule_property_src.sub_item_index;
 }
 
 static void rule_copy(DynamicOverrideRule &dynoverride_rule_dst,
@@ -213,6 +211,8 @@ static void rule_copy(DynamicOverrideRule &dynoverride_rule_dst,
 
   BLI_assert(dynoverride_rule_dst.type == dynoverride_rule_src.type);
   BLI_assert(dynoverride_rule_dst.type != DynamicOverrideRuleType::Unknown);
+
+  dynoverride_rule_dst.name = MEM_dupalloc(dynoverride_rule_src.name);
 
   switch (dynoverride_rule_dst.type) {
     case DynamicOverrideRuleType::IDData: {
@@ -255,11 +255,14 @@ static void rule_copy(DynamicOverrideRule &dynoverride_rule_dst,
 static void rule_property_free(DynamicOverrideRuleProperty &dynoverride_rule_property)
 {
   MEM_delete(dynoverride_rule_property.rna_path);
-  MEM_delete(dynoverride_rule_property.sub_item_name);
 }
 
 static void rule_free(DynamicOverrideRule &dynoverride_rule)
 {
+  if (dynoverride_rule.name) {
+    MEM_delete(dynoverride_rule.name);
+  }
+
   switch (dynoverride_rule.type) {
     case DynamicOverrideRuleType::IDData: {
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
@@ -313,11 +316,12 @@ static void rule_property_write(BlendWriter &writer,
   writer.write_struct(&dynoverride_rule_property);
 
   writer.write_string(dynoverride_rule_property.rna_path);
-  writer.write_string(dynoverride_rule_property.sub_item_name);
 }
 
 static void rule_write(BlendWriter &writer, DynamicOverrideRule &dynoverride_rule)
 {
+  writer.write_string(dynoverride_rule.name);
+
   switch (dynoverride_rule.type) {
     case DynamicOverrideRuleType::IDData: {
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
@@ -347,11 +351,12 @@ static void rule_property_read_data(BlendDataReader &reader,
                                     DynamicOverrideRuleProperty &dynoverride_rule_property)
 {
   BLO_read_string(&reader, &dynoverride_rule_property.rna_path);
-  BLO_read_string(&reader, &dynoverride_rule_property.sub_item_name);
 }
 
 static void rule_read_data(BlendDataReader &reader, DynamicOverrideRule &dynoverride_rule)
 {
+  BLO_read_string(&reader, &dynoverride_rule.name);
+
   switch (dynoverride_rule.type) {
     case DynamicOverrideRuleType::IDData: {
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
@@ -379,6 +384,27 @@ static void rule_read_data(BlendDataReader &reader, DynamicOverrideRule &dynover
 /* -------------------------------------------------------------------- */
 /** \name Basic Rule Management.
  * \{ */
+
+/**
+ * Return a unique rule name whithin the given DynamicOverride ID, based on given initial
+ * rule_name.
+ */
+static std::string rule_unique_name_get(DynamicOverride &dynamic_override,
+                                        DynamicOverrideRule &target_rule,
+                                        StringRef rule_name)
+{
+  Set<StringRef> rules_names;
+  for (DynamicOverrideRule &rule : dynamic_override.rules) {
+    if (&rule == &target_rule) {
+      continue;
+    }
+    rules_names.add(rule.name);
+  }
+  return BLI_uniquename_cb(
+      [&rules_names](const StringRef check_name) { return rules_names.contains(check_name); },
+      '.',
+      rule_name);
+}
 
 DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(DynamicOverride &dynamic_override,
                                                      ID &owner_id)
@@ -427,6 +453,18 @@ static DynamicOverrideRuleIDData &rule_iddata_add_for_id(DynamicOverride &dynami
   rule_id_data->base.type = DynamicOverrideRuleType::IDData;
   rule_id_data->base.target_filter.type = DynamicOverrideRuleTargetFilterType::IDSingle;
   rule_id_data->base.target_filter.target_id = &owner_id;
+
+  /* Generate a unique name for this new rule. */
+  char id_full_name[MAX_ID_FULL_NAME];
+  BKE_id_full_name_get(id_full_name, &owner_id, 0);
+  const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(&owner_id);
+  std::string rule_name = fmt::format(
+      fmt::runtime(CTX_DATA_(BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE, "{} {} - Properties")),
+      id_full_name,
+      idtype->name);
+  rule_id_data->base.name = BLI_strdup(
+      rule_unique_name_get(dynamic_override, rule_id_data->base, rule_name).c_str());
+
   BLI_addtail(&dynamic_override.rules, rule_id_data);
 
   DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
@@ -445,6 +483,16 @@ DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(DynamicOverride &dynamic_ov
     return *existing_rule;
   }
   return rule_iddata_add_for_id(dynamic_override, owner_id);
+}
+
+void rule_name_set(DynamicOverride &dynamic_override,
+                   DynamicOverrideRule &rule,
+                   StringRef rule_name)
+{
+  if (rule.name) {
+    MEM_delete(rule.name);
+  }
+  rule.name = BLI_strdup(rule_unique_name_get(dynamic_override, rule, rule_name).c_str());
 }
 
 void rule_remove(Main &bmain,
@@ -498,10 +546,10 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
   BLI_assert(rule_rna_property_lookup(rule, rna_path) == nullptr);
   DynamicOverrideRuleProperty *rule_property = MEM_new<DynamicOverrideRuleProperty>(__func__);
   rule_property->rna_path = BLI_strdup(rna_path.path.c_str());
-  if (rna_path.key) {
-    rule_property->sub_item_name = BLI_strdup(rna_path.key->c_str());
-  }
-  rule_property->sub_item_index = rna_path.index.value_or(-1);
+  /* Sub-item data (e.g. collection item names or array indices) are not supported currently for
+   * dynamic overrides. */
+  BLI_assert(!rna_path.key);
+  BLI_assert(!rna_path.index);
   BLI_addtail(&rule_iddata.properties, rule_property);
 
   BKE_main_ensure_invariants(bmain, dynamic_override.id);
