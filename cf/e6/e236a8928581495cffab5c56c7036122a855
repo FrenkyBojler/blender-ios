@@ -1,1 +1,2 @@
 Referenced by issue #157473, Assertion failure when packing islands with convex shape method
+Referenced by pull request #157494, Fix #157473: UV editor: Silence assert in convex packing
