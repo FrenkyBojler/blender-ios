@@ -477,7 +477,8 @@ static void but_user_menu_add(bContext *C, Button *but, bUserMenu *um)
         but->optype,
         but->opptr ? static_cast<const IDProperty *>(but->opptr->data) : nullptr,
         "",
-        but->opcontext, but->icon);
+        but->opcontext,
+        but->icon);
   }
   else if (but->rnaprop) {
     /* NOTE: 'member_id' may be a path. */
@@ -506,7 +507,8 @@ static void but_user_menu_add(bContext *C, Button *but, bUserMenu *um)
                                           ot,
                                           nullptr,
                                           RNA_property_identifier(prop),
-                                          but->opcontext, but->icon);
+                                          but->opcontext,
+                                          but->icon);
   }
 }
 

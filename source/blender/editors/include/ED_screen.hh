@@ -703,7 +703,7 @@ void ED_screen_user_menu_item_add_operator(ListBaseT<bUserMenuItem> *lb,
                                            const int icon);
 void ED_screen_user_menu_item_add_menu(ListBaseT<bUserMenuItem> *lb,
                                        const char *ui_name,
-                                       const MenuType *mt, 
+                                       const MenuType *mt,
                                        const int icon);
 void ED_screen_user_menu_item_add_prop(ListBaseT<bUserMenuItem> *lb,
                                        const char *ui_name,

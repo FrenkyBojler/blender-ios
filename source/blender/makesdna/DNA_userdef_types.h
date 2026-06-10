@@ -630,8 +630,7 @@ struct bUserMenuItem_Op {
   char op_prop_enum[64] = "";
   char opcontext = 0; /* #wm::OpCallContext */
   char _pad0[3] = {};
-  int icon = 0;      /* BIFIconID */
-
+  int icon = 0; /* BIFIconID */
 };
 
 struct bUserMenuItem_Menu {
