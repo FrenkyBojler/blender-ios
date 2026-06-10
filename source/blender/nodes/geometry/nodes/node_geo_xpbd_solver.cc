@@ -137,6 +137,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     solver_panel.add_input<decl::String>("Solver Path"_ustr)
         .default_value("")
         .description("Optional output path in the world bundle for solver data");
+    solver_panel.add_input<decl::Float>("Warm Start Lambda Factor"_ustr)
+        .default_value(0.8f)
+        .min(0.0f)
+        .max(1.0f);
   }
   {
     auto &p = b.add_panel("Interpolation Range"_ustr).default_closed(true);
@@ -581,6 +585,8 @@ class XpbdSolverStep {
   const float interpolation_begin_;
   const float interpolation_end_;
 
+  const float warm_start_lambda_factor_;
+
   const float4x4 world_to_simulation_;
 
   std::string geometry_tag_filter_;
@@ -606,6 +612,7 @@ class XpbdSolverStep {
                  const int constraint_iterations,
                  const float interpolation_begin,
                  const float interpolation_end,
+                 const float warm_start_lambda_factor,
                  const StringRef geometry_tag_filter,
                  const float4x4 &simulation_to_world)
       : world_(world),
@@ -613,6 +620,7 @@ class XpbdSolverStep {
         sub_delta_time_(total_delta_time / substeps_),
         interpolation_begin_(interpolation_begin),
         interpolation_end_(interpolation_end),
+        warm_start_lambda_factor_(warm_start_lambda_factor),
         world_to_simulation_(math::invert(simulation_to_world)),
         geometry_tag_filter_(geometry_tag_filter),
         constraint_iterations_(constraint_iterations)
@@ -2422,7 +2430,8 @@ class XpbdSolverStep {
           this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i, solver_refs_i);
 
           const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
-          xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
+          xpbd::ConstraintSetParams solve_params{
+              solver_refs, sub_delta_time_, warm_start_lambda_factor_};
           {
             xpbd::GaussSeidelUpdater updater{solver_refs};
             this->simulate__reset_forces__chunk(chunk_i, solve_params, updater);
@@ -2636,7 +2645,8 @@ class XpbdSolverStep {
   void simulate__reset_forces(const int solver_refs_i)
   {
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
-    xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
+    xpbd::ConstraintSetParams solve_params{
+        solver_refs, sub_delta_time_, warm_start_lambda_factor_};
 
     this->parallel_for_each_chunk(16, [&](const int chunk_i) {
       xpbd::GaussSeidelUpdater updater{solver_refs};
@@ -2682,7 +2692,8 @@ class XpbdSolverStep {
                                                   float &r_average_error_squared)
   {
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
-    xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
+    xpbd::ConstraintSetParams solve_params{
+        solver_refs, sub_delta_time_, warm_start_lambda_factor_};
     threading::EnumerableThreadSpecific<ResidualErrorTLS> error_tls;
 
     this->parallel_for_each_chunk(1, [&](const int chunk_i) {
@@ -2805,7 +2816,7 @@ class XpbdSolverStep {
     ChunkData &chunk_data = chunks_data_[chunk_i];
 
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
-    xpbd::ConstraintSetParams params{solver_refs, sub_delta_time_};
+    xpbd::ConstraintSetParams params{solver_refs, sub_delta_time_, warm_start_lambda_factor_};
     xpbd::VelocityUpdater velocity_updater{solver_refs};
 
     for (xpbd::VelocityConstraintSet *constraint : chunk_data.static_velocity_constraints) {
@@ -3353,6 +3364,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float interpolation_begin = params.extract_input<float>("Begin"_ustr);
   const float interpolation_end = params.extract_input<float>("End"_ustr);
   const std::string solver_path = params.extract_input<std::string>("Solver Path"_ustr);
+  const float warm_start_lambda_factor = params.extract_input<float>(
+      "Warm Start Lambda Factor"_ustr);
 
   XpbdSolverStep step(world,
                       delta_time,
@@ -3360,6 +3373,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                       constraint_iterations,
                       interpolation_begin,
                       interpolation_end,
+                      warm_start_lambda_factor,
                       geometry_tag_filter,
                       simulation_to_world);
   step.do_step();

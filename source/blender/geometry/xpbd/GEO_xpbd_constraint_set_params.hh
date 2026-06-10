@@ -17,9 +17,11 @@ class ConstraintSetParams {
   float delta_time;
   float compliance_term_factor;
   float dynamic_friction_factor;
-  float warm_start_lambda_factor = 0.8f;
+  float warm_start_lambda_factor;
 
-  ConstraintSetParams(Span<GeometryRef> geometry_refs, float delta_time);
+  ConstraintSetParams(Span<GeometryRef> geometry_refs,
+                      float delta_time,
+                      float warm_start_lambda_factor);
 
   Span<GeometryRef> geometry_refs() const;
 
@@ -56,11 +58,13 @@ class ConstraintSetParams {
  * \{ */
 
 inline ConstraintSetParams::ConstraintSetParams(Span<GeometryRef> geometry_refs,
-                                                const float delta_time)
+                                                const float delta_time,
+                                                const float warm_start_lambda_factor)
     : geometry_refs_(geometry_refs),
       delta_time(delta_time),
       compliance_term_factor(math::safe_rcp(delta_time * delta_time)),
-      dynamic_friction_factor(math::safe_rcp(delta_time))
+      dynamic_friction_factor(math::safe_rcp(delta_time)),
+      warm_start_lambda_factor(warm_start_lambda_factor)
 {
 }
 
