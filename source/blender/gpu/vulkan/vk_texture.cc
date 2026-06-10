@@ -96,15 +96,14 @@ void VKTexture::copy_to(VKTexture &dst_texture,
     copy_image.node_data.src_image = vk_image_handle();
     copy_image.node_data.dst_image = dst_texture.vk_image_handle();
     copy_image.node_data.region.srcSubresource.aspectMask = vk_image_aspect;
-    copy_image.node_data.region.srcSubresource.mipLevel = mip + mip_map_range().first();
+    copy_image.node_data.region.srcSubresource.mipLevel = mip + mip_min_;
     copy_image.node_data.region.srcSubresource.layerCount = layer_count();
-    copy_image.node_data.region.srcSubresource.baseArrayLayer = layer_range().first();
+    copy_image.node_data.region.srcSubresource.baseArrayLayer = view_layer_start_;
     copy_image.node_data.region.dstSubresource.aspectMask = vk_image_aspect;
-    copy_image.node_data.region.dstSubresource.mipLevel = mip +
-                                                          dst_texture.mip_map_range().first();
+    copy_image.node_data.region.dstSubresource.mipLevel = mip + dst_texture.mip_min_;
     copy_image.node_data.region.dstSubresource.layerCount = layer_count();
-    copy_image.node_data.region.dstSubresource.baseArrayLayer = dst_texture.layer_range().first();
-    copy_image.node_data.region.extent = vk_extent_3d(mip_levels.first());
+    copy_image.node_data.region.dstSubresource.baseArrayLayer = dst_texture.view_layer_start_;
+    copy_image.node_data.region.extent = vk_extent_3d(mip_min_);
     copy_image.vk_image_aspect = vk_image_aspect;
 
     VKContext &context = *VKContext::get();
@@ -182,10 +181,11 @@ void VKTexture::clear_depth_stencil(const GPUFrameBufferBits buffers,
   clear_depth_stencil_image.node_data.vk_clear_depth_stencil_value.depth = clear_depth;
   clear_depth_stencil_image.node_data.vk_clear_depth_stencil_value.stencil = clear_stencil;
   clear_depth_stencil_image.node_data.vk_image_subresource_range.aspectMask = vk_image_aspect;
-  clear_depth_stencil_image.node_data.vk_image_subresource_range.layerCount =
-      VK_REMAINING_ARRAY_LAYERS;
+  clear_depth_stencil_image.node_data.vk_image_subresource_range.baseArrayLayer =
+      view_layer_start_;
+  clear_depth_stencil_image.node_data.vk_image_subresource_range.layerCount = layer_count();
   if (layer.has_value()) {
-    clear_depth_stencil_image.node_data.vk_image_subresource_range.baseArrayLayer = *layer;
+    clear_depth_stencil_image.node_data.vk_image_subresource_range.baseArrayLayer += *layer;
     clear_depth_stencil_image.node_data.vk_image_subresource_range.layerCount = 1;
   }
   clear_depth_stencil_image.node_data.vk_image_subresource_range.levelCount =
@@ -299,7 +299,8 @@ void VKTexture::read_sub(
     node_data.region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
                                                                                  false);
     node_data.region.imageSubresource.mipLevel = mip + mip_min_;
-    node_data.region.imageSubresource.baseArrayLayer = transfer_region.layers.start();
+    node_data.region.imageSubresource.baseArrayLayer = transfer_region.layers.start() +
+                                                       view_layer_start_;
     node_data.region.imageSubresource.layerCount = transfer_region.layers.size();
 
     context.render_graph().add_node(copy_image_to_buffer);
@@ -520,8 +521,8 @@ void VKTexture::update_sub(int mip,
   copy_buffer_to_image.vk_image_aspects = vk_image_aspects;
   node_data.region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
                                                                                false);
-  node_data.region.imageSubresource.mipLevel = mip;
-  node_data.region.imageSubresource.baseArrayLayer = start_layer;
+  node_data.region.imageSubresource.mipLevel = mip + mip_min_;
+  node_data.region.imageSubresource.baseArrayLayer = start_layer + view_layer_start_;
   node_data.region.imageSubresource.layerCount = layers;
 
   context.render_graph().add_node(copy_buffer_to_image);
