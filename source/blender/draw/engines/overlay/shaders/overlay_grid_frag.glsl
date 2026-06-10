@@ -89,8 +89,7 @@ void main()
 
   /* Viewport anti-aliasing output.
    * #159243: do not output AA information on straight lines in e.g. orthographic views,
-   * as these will periodically lie above/below a pixel, causing a periodic widening when
-   * the camera is moved. */
+   * as these will periodically lie above/below a pixel, causing shimmering in motion. */
   if (out_color.a != 0.0 && !is_any_zero(edge_start - edge_pos)) {
     line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
   }
