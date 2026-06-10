@@ -248,6 +248,18 @@ static wmOperatorStatus ed_undo_step_direction(bContext *C,
 
   wmWindowManager *wm = CTX_wm_manager(C);
 
+  if (step == STEP_UNDO) {
+    Main *bmain = CTX_data_main(C);
+    if (!bmain->is_memfile_undo_written &&
+        !BKE_undosys_stack_has_redo(wm->runtime->undo_stack))
+    {
+      /* ID additions/removals can happen without an operator undo push, for example from Python
+       * modal timers. Capture the current Main before undoing so the transition starts from a
+       * valid memfile state instead of freeing IDs that live depsgraph/UI state still references. */
+      ED_undo_push(C, "MemFile Internal (pre)");
+    }
+  }
+
   ed_undo_step_pre(C, wm, step, reports);
 
   if (step == STEP_UNDO) {

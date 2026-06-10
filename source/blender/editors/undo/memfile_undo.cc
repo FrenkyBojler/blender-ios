@@ -203,6 +203,7 @@ static void memfile_undosys_step_decode(
 
   /* bmain has been freed. */
   bmain = CTX_data_main(C);
+  bmain->is_memfile_undo_written = true;
   ED_editors_init_for_undo(bmain);
 
   if (use_old_bmain_data) {
