@@ -11,7 +11,6 @@ from .space_userpref import CenterAlignMixIn
 
 
 MAIN_SECTION_NAME = "General"
-ASSETS_SECTION_NAME = "Asset Libraries"
 
 
 # -------------------------------------------------------------
@@ -208,61 +207,6 @@ class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
             row.operator("project.open_blend_in_project", icon='FILE_FOLDER')
 
 
-class PROJECT_PT_asset_libraries(Panel):
-    bl_label = "Asset Libraries"
-    bl_space_type = 'PROJECT'
-    bl_region_type = 'WINDOW'
-    bl_context = "asset_libraries"
-    bl_category = ASSETS_SECTION_NAME
-
-    @classmethod
-    def poll(cls, context):
-        return PROJECT_PT_main.poll(context)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = False
-        layout.use_property_decorate = False
-
-        data = bpy.data.project
-        active_library_index = data.active_asset_library
-
-        row = layout.row()
-        row.template_list(
-            "PROJECT_UL_asset_libraries", "project_asset_libraries",
-            data, "asset_libraries",
-            data, "active_asset_library",
-        )
-
-        col = row.column(align=True)
-        col.operator("project.asset_library_add", text="", icon='ADD')
-        props = col.operator("project.asset_library_remove", text="", icon='REMOVE')
-        props.index = active_library_index
-
-        try:
-            active_library = None if active_library_index < 0 else data.asset_libraries[active_library_index]
-        except IndexError:
-            active_library = None
-
-        if active_library is None:
-            return
-
-        layout.separator()
-
-        layout.prop(active_library, "path")
-        layout.prop(active_library, "import_method", text="Import Method")
-        layout.prop(active_library, "use_relative_path")
-
-
-class PROJECT_UL_asset_libraries(UIList):
-    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
-        asset_library = item
-
-        row = layout.row(align=True)
-        row.prop(asset_library, "enabled", text="")
-        row.prop(asset_library, "name", text="", emboss=False)
-
-
 # -------------------------------------------------------------
 # Register
 
@@ -275,6 +219,4 @@ classes = (
     PROJECT_PT_save_project,
     PROJECT_PT_main_unset,
     PROJECT_PT_main,
-    PROJECT_PT_asset_libraries,
-    PROJECT_UL_asset_libraries,
 )

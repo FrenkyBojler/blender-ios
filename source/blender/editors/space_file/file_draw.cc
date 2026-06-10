@@ -2118,6 +2118,11 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
     FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
 
     const bUserAssetLibrary *library = assetlib_ref_as_library(asset_params->asset_library_ref);
+
+    if (!library) {
+      return false;
+    }
+
     const bool is_remote_library = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
     const bool is_project_library = library->flag & ASSET_LIBRARY_PROJECT_DEFINED;
 
