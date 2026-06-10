@@ -212,7 +212,6 @@ struct RodBendTwistConstraintUsage {
 struct PinPositionConstraint {
   std::string path;
   float error_threshold;
-  std::string lambda_attr;
 };
 struct PinPositionConstraintUsage {
   /** Index of corresponding #PinPositionConstraint. */
@@ -224,7 +223,7 @@ struct PinPositionConstraintUsage {
   Span<float> compliances;
 
   MutableSpan<float3> current_positions;
-  MutableSpan<float> lambdas;
+  SpanAttributeWriter<float> lambdas;
 };
 struct PinPositionConstraintChunkUsage {
   /** Index of the corresponding #PinPositionConstraintUsage. */
@@ -264,7 +263,7 @@ struct EdgeLengthConstraintUsage {
   bool is_valid = false;
   VArraySpan<float> rest_lengths;
   VArraySpan<float> compliances;
-  MutableSpan<float> lambdas;
+  SpanAttributeWriter<float> lambdas;
 
   xpbd::ConstraintColoring coloring;
 };
@@ -657,7 +656,6 @@ class XpbdSolverStep {
 
     result_ = this->do_simulation();
 
-    this->write_back__pin_positions();
     this->write_back__rod_stretch_shear();
 
     this->finish_common_attribute_writers();
@@ -1860,7 +1858,6 @@ class XpbdSolverStep {
             constraints_.edge_length_constraints[constraint_usage.constraint_i];
         const Mesh &mesh = *geometries_.geometry_sets[data_key.geo_bundle_i].geometry.get_mesh();
         const Span<int2> edges = mesh.edges();
-        const int edge_num = edges.size();
 
         VArray<float> rest_lengths = this->lookup_attribute_required<float>(
             data_key_i, this->prop_attr_name(constraint.path, "rest_length"), AttrDomain::Edge);
@@ -1868,7 +1865,10 @@ class XpbdSolverStep {
           continue;
         }
 
-        constraint_usage.lambdas = tls.allocator.construct_array<float>(edge_num, 0.0f);
+        constraint_usage.lambdas = this->ensure_attribute<float>(
+            geo_data.attributes,
+            this->state_attr_name(constraint.path, "lambda"),
+            AttrDomain::Edge);
         constraint_usage.rest_lengths = rest_lengths;
         constraint_usage.compliances = this->lookup_attribute_default<float>(
             data_key_i,
@@ -1883,7 +1883,7 @@ class XpbdSolverStep {
             constraint_usage.rest_lengths,
             constraint_usage.compliances,
             error_scale_from_threshold(constraint.error_threshold),
-            constraint_usage.lambdas);
+            constraint_usage.lambdas.span);
         xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.allocator);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
       }
@@ -2124,8 +2124,6 @@ class XpbdSolverStep {
       constraint.path = path;
       constraint.error_threshold =
           bundle.lookup<float>(*BundleKey::from_str("error_threshold")).value_or(1e-3f);
-      constraint.lambda_attr =
-          bundle.lookup<std::string>(*BundleKey::from_str("lambda_attribute")).value_or("");
       const int constraint_i = constraints_.pin_position_constraints.append_and_get_index(
           std::move(constraint));
 
@@ -2182,7 +2180,10 @@ class XpbdSolverStep {
         constraint_usage.points = points;
         constraint_usage.end_positions = end_positions;
         constraint_usage.compliances = compliances;
-        constraint_usage.lambdas = tls.allocator.construct_array<float>(pin_num, 0.0f);
+        constraint_usage.lambdas = this->ensure_attribute<float>(
+            geo_data.attributes,
+            this->state_attr_name(constraint.path, "lambda"),
+            geo_data.domain);
         /* These will be initialized later. */
         constraint_usage.current_positions = tls.allocator.allocate_array<float3>(pin_num);
 
@@ -2242,38 +2243,7 @@ class XpbdSolverStep {
           constraint_usage.current_positions.slice(pin_range),
           constraint_usage.compliances.slice(pin_range),
           error_scale_from_threshold(constraint.error_threshold),
-          constraint_usage.lambdas.slice(pin_range)));
-    }
-  }
-
-  void write_back__pin_positions()
-  {
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = *geometries_.data[data_key_i];
-      for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
-      {
-        const PinPositionConstraint &constraint =
-            constraints_.pin_position_constraints[constraint_usage.constraint_i];
-        geo_data.attributes.remove(constraint.lambda_attr);
-      }
-      for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
-      {
-        if (constraint_usage.points.is_empty()) {
-          /* If there is nothing pinned, these attributes don't need to exist. */
-          continue;
-        }
-        const PinPositionConstraint &constraint =
-            constraints_.pin_position_constraints[constraint_usage.constraint_i];
-        if (bke::SpanAttributeWriter<float> lambda_attr = this->get_output_attribute_writer<float>(
-                data_key_i, constraint.lambda_attr, geo_data.domain))
-        {
-          for (const int pin_i : constraint_usage.points.index_range()) {
-            const int point_i = constraint_usage.points[pin_i];
-            lambda_attr.span[point_i] = constraint_usage.lambdas[pin_i];
-          }
-          lambda_attr.finish();
-        }
-      }
+          constraint_usage.lambdas.span.slice(pin_range)));
     }
   }
 
@@ -2870,6 +2840,13 @@ class XpbdSolverStep {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = *geometries_.data[data_key_i];
 
+      for (PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints) {
+        constraint_usage.lambdas.finish();
+      }
+      for (EdgeLengthConstraintUsage &constraint_usage : geo_data.edge_length_constraints) {
+        constraint_usage.lambdas.finish();
+      }
+
       geo_data.position_attr.finish();
       geo_data.velocity_attr.finish();
       geo_data.rotation_attr.finish();
@@ -3335,6 +3312,11 @@ class XpbdSolverStep {
   std::string prev_prop_attr_name(const StringRef effector_path, const StringRef prop_name) const
   {
     return fmt::format("sim:prop_prev:{}:{}", effector_path, prop_name);
+  }
+
+  std::string state_attr_name(const StringRef effector_path, const StringRef state_name) const
+  {
+    return fmt::format("sim:state:{}:{}", effector_path, state_name);
   }
 
   void report(NodeWarningType type, std::string warning)
