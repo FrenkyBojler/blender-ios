@@ -254,12 +254,6 @@ void ImBuf::assign_float_data(const float *data, ImplicitSharingPtr<> sharing_pt
   this->float_buffer.sharing_info = std::move(sharing_ptr);
 }
 
-void IMB_assign_gpu_texture(ImBuf *ibuf, gpu::Texture *texture)
-{
-  IMB_free_gpu_textures(ibuf);
-  ibuf->gpu.texture = texture;
-}
-
 void IMB_ensure_host_buffer(ImBuf *ibuf)
 {
   if (!ibuf || !ibuf->gpu.texture) {

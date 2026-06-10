@@ -273,6 +273,9 @@ struct SceneResources {
   {
     /* TODO(fclem): Auto destruction. */
     GPU_BATCH_DISCARD_SAFE(volume_cube_batch);
+    if (missing_texture.gpu.texture) {
+      GPU_texture_free(missing_texture.gpu.texture);
+    }
   }
 
   void init(const SceneState &scene_state, const DRWContext *ctx);

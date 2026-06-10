@@ -388,7 +388,7 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
     }
   }
 
-  use_per_material_batches = image_paint_override.gpu.texture() == nullptr &&
+  use_per_material_batches = image_paint_override.gpu.texture == nullptr &&
                              ELEM(color_type,
                                   V3D_SHADING_TEXTURE_COLOR,
                                   V3D_SHADING_MATERIAL_COLOR);

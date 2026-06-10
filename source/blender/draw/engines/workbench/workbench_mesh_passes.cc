@@ -71,20 +71,18 @@ PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
 {
   is_empty_ = false;
 
-  if (texture && texture->gpu.texture()) {
+  if (texture && texture->gpu.texture) {
     auto add_cb = [&] {
       PassMain::Sub *sub_pass = &get_subpass(geometry_type, eShaderType::TEXTURE);
       sub_pass = &sub_pass->sub(texture->name);
-      if (texture->gpu.tile_mapping_buffer) {
-        sub_pass->bind_texture(
-            WB_TILE_ARRAY_SLOT, texture->gpu.texture_ref(), texture->sampler_state);
-        sub_pass->bind_texture(WB_TILE_DATA_SLOT, texture->gpu.tile_mapping_ref());
+      if (texture->gpu.tile_mapping) {
+        sub_pass->bind_texture(WB_TILE_ARRAY_SLOT, texture->gpu.texture, texture->sampler_state);
+        sub_pass->bind_texture(WB_TILE_DATA_SLOT, texture->gpu.tile_mapping);
       }
       else {
-        sub_pass->bind_texture(
-            WB_TEXTURE_SLOT, texture->gpu.texture_ref(), texture->sampler_state);
+        sub_pass->bind_texture(WB_TEXTURE_SLOT, texture->gpu.texture, texture->sampler_state);
       }
-      sub_pass->push_constant("is_image_tile", texture->gpu.tile_mapping_buffer != nullptr);
+      sub_pass->push_constant("is_image_tile", texture->gpu.tile_mapping != nullptr);
       sub_pass->push_constant("image_premult", texture->premultiplied);
       /* TODO(@pragma37): This setting should be exposed on the user side,
        * either as a global parameter (and set it here)
@@ -95,7 +93,7 @@ PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
     };
 
     return *texture_subpass_map_.lookup_or_add_cb(
-        {texture->gpu.texture(), texture->sampler_state, geometry_type}, add_cb);
+        {texture->gpu.texture, texture->sampler_state, geometry_type}, add_cb);
   }
 
   return get_subpass(geometry_type, eShaderType::MATERIAL);

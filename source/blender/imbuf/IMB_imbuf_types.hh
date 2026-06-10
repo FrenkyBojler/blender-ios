@@ -14,6 +14,7 @@
 #include "BLI_assert.h"
 #include "BLI_enum_flags.hh"
 #include "BLI_implicit_sharing_ptr.hh"
+#include "BLI_mutex.hh"
 #include "BLI_string_ref.hh"
 
 #include "DNA_image_enums.h"
@@ -141,6 +142,9 @@ struct ImBufGPU {
 
   /** GPU buffer flags. */
   ImBufGPUFlag flag = ImBufGPUFlag(0);
+
+  /** Mutex guarding access to #texture, #lastused, and #flag. */
+  blender::Mutex mutex;
 };
 
 /** \} */

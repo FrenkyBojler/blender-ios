@@ -21,6 +21,7 @@
 #include "IMB_colormanagement.hh"
 
 #include "GPU_material.hh"
+#include "GPU_texture.hh"
 
 #include "draw_cache.hh"
 #include "draw_view_data.hh"
@@ -141,7 +142,9 @@ LookdevWorld::LookdevWorld()
   /* TODO: This works around the issue that the first time the texture is accessed the image would
    * overwrite the set GPU texture. A better solution would be to use image data-blocks as part of
    * the studio-lights, but that requires a larger refactoring. */
-  BKE_image_get_gpu_texture(image, &environment_storage->iuser);
+  if (gpu::Texture *tex = BKE_image_acquire_gpu_texture(image, &environment_storage->iuser)) {
+    GPU_texture_free(tex);
+  }
 }
 
 LookdevWorld::~LookdevWorld()

@@ -185,11 +185,8 @@ void SceneResources::init(const SceneState &scene_state, const DRWContext *ctx)
 
   clip_planes_buf.push_update();
 
-  if (missing_texture.gpu.image_buffer == nullptr) {
-    /* Wrap the error texture in an ImBuf so it fits in ImageGPUTextures. */
-    ImBuf *missing_imbuf = IMB_allocImBuf(1, 1, ImBufFlags::Zero);
-    IMB_assign_gpu_texture(missing_imbuf, GPU_texture_create_error(2, false));
-    missing_texture.gpu.image_buffer = missing_imbuf;
+  if (missing_texture.gpu.texture == nullptr) {
+    missing_texture.gpu.texture = GPU_texture_create_error(2, false);
     missing_texture.name = "Missing Texture";
   }
 

@@ -104,9 +104,10 @@ class Instance : public DrawEngine {
       }
 
       /* Image can fit in a GPU texture, use image space drawing. */
-      gpu::Texture *texture = BKE_image_get_gpu_viewer_texture(
+      gpu::Texture *texture = BKE_image_acquire_gpu_viewer_texture(
           this->state.image, space_->get_image_user(), buffer);
-      return std::make_unique<ImageSpaceDrawingMode>(*this, texture);
+      const bool texture_owned = true;
+      return std::make_unique<ImageSpaceDrawingMode>(*this, texture, nullptr, texture_owned);
     }
 
     for (ImageTile &tile : this->state.image->tiles) {
@@ -136,10 +137,11 @@ class Instance : public DrawEngine {
     }
 
     /* Image can fit in a GPU texture, use image space drawing. */
-    ImageGPUTextures gpu_tiles_textures = BKE_image_get_gpu_material_texture(
-        this->state.image, space_->get_image_user(), true);
+    ImageGPUTextures gpu_tiles_textures = BKE_image_acquire_gpu_material_texture(
+        this->state.image, space_->get_image_user(), true, false);
+    const bool texture_owned = true;
     auto mode = std::make_unique<ImageSpaceDrawingMode>(
-        *this, gpu_tiles_textures.texture(), gpu_tiles_textures.tile_mapping());
+        *this, gpu_tiles_textures.texture, gpu_tiles_textures.tile_mapping, texture_owned);
     return mode;
   }
 

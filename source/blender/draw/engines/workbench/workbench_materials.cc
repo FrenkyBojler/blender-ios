@@ -84,9 +84,9 @@ MaterialTexture::MaterialTexture(Manager &manager, Object *ob, int material_inde
       BLI_assert_msg(0, "Node type not supported by workbench");
   }
 
-  gpu = BKE_image_get_gpu_material_texture(image, user, true);
-  manager.acquire_imbuf(gpu.image_buffer);
-  manager.acquire_imbuf(gpu.tile_mapping_buffer);
+  gpu = BKE_image_acquire_gpu_material_texture(image, user, true, false);
+  manager.hold_texture(gpu.texture);
+  manager.hold_texture(gpu.tile_mapping);
   premultiplied = image->alpha_mode == IMA_ALPHA_PREMUL;
   alpha_cutoff = !ELEM(image->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED);
   name = image->id.name;
@@ -96,9 +96,9 @@ MaterialTexture::MaterialTexture(Manager &manager,
                                  blender::Image *image,
                                  ImageUser *user /* = nullptr */)
 {
-  gpu = BKE_image_get_gpu_material_texture(image, user, true);
-  manager.acquire_imbuf(gpu.image_buffer);
-  manager.acquire_imbuf(gpu.tile_mapping_buffer);
+  gpu = BKE_image_acquire_gpu_material_texture(image, user, true, false);
+  manager.hold_texture(gpu.texture);
+  manager.hold_texture(gpu.tile_mapping);
   premultiplied = image->alpha_mode == IMA_ALPHA_PREMUL;
   alpha_cutoff = !ELEM(image->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED);
   name = image->id.name;

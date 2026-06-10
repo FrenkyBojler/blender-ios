@@ -213,7 +213,7 @@ static int compare_packtile(const void *a, const void *b)
   return tile_a->pack_score < tile_b->pack_score;
 }
 
-static void gpu_texture_create_tile_array(Image *ima, ImBuf *atlas_ibuf, ImBuf *main_ibuf)
+static gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
 {
   int arraywidth = 0, arrayheight = 0;
   ListBaseT<FixedSizeBoxPack> boxes = {nullptr};
@@ -292,7 +292,7 @@ static void gpu_texture_create_tile_array(Image *ima, ImBuf *atlas_ibuf, ImBuf *
                                             use_grayscale);
 
   if (!tex) {
-    return;
+    return nullptr;
   }
 
   /* Upload each tile one by one. */
@@ -329,14 +329,14 @@ static void gpu_texture_create_tile_array(Image *ima, ImBuf *atlas_ibuf, ImBuf *
   if (!(main_ibuf->gpu.flag & IMB_GPU_DISABLE_MIPMAP_UPDATE)) {
     GPU_texture_update_mipmap_chain(tex);
     GPU_texture_mipmap_mode(tex, true, true);
-    atlas_ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
+    main_ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
   }
   else {
     GPU_texture_mipmap_mode(tex, false, true);
   }
   GPU_texture_original_size_set(tex, main_ibuf->x, main_ibuf->y);
 
-  atlas_ibuf->gpu.texture = tex;
+  return tex;
 }
 
 /** \} */
@@ -491,55 +491,76 @@ static ImageGPUTextures image_get_gpu_texture_tiled(Image *ima,
                                                     const bool try_only)
 {
   ImageGPUTextures result = {};
+  result.need_tile_mapping = true;
 
-  /* Get or create atlas and tile mapping image buffers. The placeholder buffers are created even
-   * in try-only mode, so that the texture pointers references can bind to it. */
+  /* Get or create atlas and tile mapping image buffers. */
   ImBuf *atlas_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_ATLAS);
   ImBuf *mapping_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_TILE_MAPPING);
-
-  result.image_buffer = atlas_ibuf;
-  result.tile_mapping_buffer = mapping_ibuf;
 
   /* Update time for garbage collection. */
   const int64_t now = BLI_time_now_seconds_i();
   atlas_ibuf->gpu.lastused = now;
   mapping_ibuf->gpu.lastused = now;
 
-  if (try_only) {
-    return result;
-  }
+  /* Acquire textures if they exist. */
+  result.texture = IMB_acquire_gpu_texture(
+      ima->id.name + 2, atlas_ibuf, false, false, false, true);
+  result.tile_mapping = IMB_acquire_gpu_texture(
+      ima->id.name + 2, mapping_ibuf, false, false, false, true);
 
-  /* If both textures are present, nothing to do. */
-  if (atlas_ibuf->gpu.texture != nullptr && mapping_ibuf->gpu.texture != nullptr) {
+  if (try_only || (result.texture != nullptr && result.tile_mapping != nullptr)) {
     return result;
   }
 
   /* Recreate both textures in case one got freed (unlikely in practice). */
-  IMB_free_gpu_textures(atlas_ibuf);
-  IMB_free_gpu_textures(mapping_ibuf);
+  if (result.texture) {
+    GPU_texture_free(result.texture);
+    result.texture = nullptr;
+  }
+  if (result.tile_mapping) {
+    GPU_texture_free(result.tile_mapping);
+    result.tile_mapping = nullptr;
+  }
 
   /* Acquire image buffer. */
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, nullptr);
+  gpu::Texture *atlas_tex = nullptr;
+  gpu::Texture *mapping_tex = nullptr;
 
   if (ibuf == nullptr) {
     /* Set error texture if failed to load. */
     image_gpu_log_load_error_once(ima, iuser);
-    atlas_ibuf->gpu.texture = GPU_texture_create_error(2, true);
-    mapping_ibuf->gpu.texture = GPU_texture_create_error(1, true);
+    atlas_tex = GPU_texture_create_error(2, true);
+    mapping_tex = GPU_texture_create_error(1, true);
   }
   else {
     /* Create atlas and tile mapping textures. */
-    gpu_texture_create_tile_array(ima, atlas_ibuf, ibuf);
-    if (atlas_ibuf->gpu.texture) {
+    atlas_tex = gpu_texture_create_tile_array(ima, ibuf);
+    if (atlas_tex) {
       image_gpu_clear_load_error(ima);
+      mapping_tex = gpu_texture_create_tile_mapping(ima, atlas_tex);
     }
     else {
       image_gpu_log_load_error_once(ima, iuser);
     }
-    mapping_ibuf->gpu.texture = gpu_texture_create_tile_mapping(ima, atlas_ibuf->gpu.texture);
   }
 
   BKE_image_release_ibuf(ima, ibuf, nullptr);
+
+  /* Increase owned references for the result. */
+  if (atlas_tex) {
+    GPU_texture_ref(atlas_tex);
+  }
+  if (mapping_tex) {
+    GPU_texture_ref(mapping_tex);
+  }
+
+  result.texture = atlas_tex;
+  result.tile_mapping = mapping_tex;
+
+  /* Assign to the image buffers, which takes the reference from creation. */
+  IMB_assign_gpu_texture(atlas_ibuf, atlas_tex);
+  IMB_assign_gpu_texture(mapping_ibuf, mapping_tex);
 
   return result;
 }
@@ -555,41 +576,36 @@ static ImageGPUTextures image_get_gpu_texture_single(
   if (image_buffer == nullptr) {
     ibuf = BKE_image_acquire_ibuf(ima, iuser, use_viewers ? &lock : nullptr);
   }
-  else {
-    IMB_refImBuf(ibuf);
-  }
 
   if (ibuf != nullptr) {
+    /* Acquire a reference to the GPU texture. */
+    const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
+    const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima, ibuf);
+    gpu::Texture *tex = IMB_acquire_gpu_texture(
+        ima->id.name + 2, ibuf, use_high_bitdepth, store_premultiplied, true, try_only);
+    if (tex) {
+      GPU_texture_original_size_set(tex, ibuf->x, ibuf->y);
+      image_gpu_clear_load_error(ima);
+    }
+    else if (!try_only) {
+      image_gpu_log_load_error_once(ima, iuser);
+    }
     if (!try_only) {
-      /* Create GPU texture. */
-      const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
-      const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima, ibuf);
-      gpu::Texture *tex = IMB_ensure_gpu_texture(
-          ima->id.name + 2, ibuf, use_high_bitdepth, store_premultiplied, true);
-      if (tex) {
-        GPU_texture_original_size_set(tex, ibuf->x, ibuf->y);
-        image_gpu_clear_load_error(ima);
-      }
-      else {
-        image_gpu_log_load_error_once(ima, iuser);
-      }
       image_cache_free_inactive_frame_gpu_textures(ima, ibuf);
     }
-
-    result.image_buffer = ibuf;
+    result.texture = tex;
   }
 
   /* Release image buffer. */
   if (image_buffer == nullptr) {
-    BKE_image_release_ibuf(ima, nullptr, lock);
+    BKE_image_release_ibuf(ima, ibuf, lock);
   }
 
-  /* Set error texture if failed to load. */
-  if (result.image_buffer == nullptr) {
+  /* Return error texture if failed to load. */
+  if (result.texture == nullptr && !try_only) {
     image_gpu_log_load_error_once(ima, iuser);
     ImBuf *error_ibuf = image_gpu_error_imbuf();
-    IMB_refImBuf(error_ibuf);
-    result.image_buffer = error_ibuf;
+    result.texture = IMB_acquire_gpu_texture(ima->id.name + 2, error_ibuf, false, false, false);
   }
 
   return result;
@@ -628,10 +644,9 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
                  image_get_gpu_texture_single(ima, iuser, image_buffer, use_viewers, try_only);
 }
 
-gpu::Texture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser)
+gpu::Texture *BKE_image_acquire_gpu_texture(Image *image, ImageUser *iuser)
 {
-  ImageGPUTextures result = image_get_gpu_texture(image, iuser, nullptr, false, false, false);
-  return result.texture();
+  return image_get_gpu_texture(image, iuser, nullptr, false, false, false).texture;
 }
 
 void BKE_image_assign_gpu_texture(Image *image, gpu::Texture *texture)
@@ -646,14 +661,16 @@ void BKE_image_assign_gpu_texture(Image *image, gpu::Texture *texture)
   BKE_image_release_ibuf(image, ibuf, lock);
 }
 
-gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser)
+gpu::Texture *BKE_image_acquire_gpu_viewer_texture(Image *image, ImageUser *iuser)
 {
-  return image_get_gpu_texture(image, iuser, nullptr, true, false, false).texture();
+  return image_get_gpu_texture(image, iuser, nullptr, true, false, false).texture;
 }
 
-gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser, ImBuf *image_buffer)
+gpu::Texture *BKE_image_acquire_gpu_viewer_texture(Image *image,
+                                                   ImageUser *iuser,
+                                                   ImBuf *image_buffer)
 {
-  return image_get_gpu_texture(image, iuser, image_buffer, true, false, false).texture();
+  return image_get_gpu_texture(image, iuser, image_buffer, true, false, false).texture;
 }
 
 /** \} */
@@ -662,80 +679,48 @@ gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser, I
 /** \name Material textures
  * \{ */
 
-ImageGPUTextures::~ImageGPUTextures()
-{
-  if (image_buffer) {
-    IMB_freeImBuf(image_buffer);
-  }
-  if (tile_mapping_buffer) {
-    IMB_freeImBuf(tile_mapping_buffer);
-  }
-}
-
-ImageGPUTextures::ImageGPUTextures(const ImageGPUTextures &other)
-    : image_buffer(other.image_buffer), tile_mapping_buffer(other.tile_mapping_buffer)
-{
-  if (image_buffer) {
-    IMB_refImBuf(image_buffer);
-  }
-  if (tile_mapping_buffer) {
-    IMB_refImBuf(tile_mapping_buffer);
-  }
-}
-
-ImageGPUTextures &ImageGPUTextures::operator=(const ImageGPUTextures &other)
-{
-  if (this != &other) {
-    if (image_buffer) {
-      IMB_freeImBuf(image_buffer);
-    }
-    if (tile_mapping_buffer) {
-      IMB_freeImBuf(tile_mapping_buffer);
-    }
-    image_buffer = other.image_buffer;
-    tile_mapping_buffer = other.tile_mapping_buffer;
-    if (image_buffer) {
-      IMB_refImBuf(image_buffer);
-    }
-    if (tile_mapping_buffer) {
-      IMB_refImBuf(tile_mapping_buffer);
-    }
-  }
-  return *this;
-}
-
-gpu::Texture *ImageGPUTextures::texture() const
-{
-  return image_buffer ? image_buffer->gpu.texture : nullptr;
-}
-
-gpu::Texture *ImageGPUTextures::tile_mapping() const
-{
-  return tile_mapping_buffer ? tile_mapping_buffer->gpu.texture : nullptr;
-}
-
-gpu::Texture **ImageGPUTextures::texture_ref() const
-{
-  return image_buffer ? &image_buffer->gpu.texture : nullptr;
-}
-
-gpu::Texture **ImageGPUTextures::tile_mapping_ref() const
-{
-  return tile_mapping_buffer ? &tile_mapping_buffer->gpu.texture : nullptr;
-}
-
-ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
-                                                    ImageUser *iuser,
-                                                    const bool use_tile_mapping)
-{
-  return image_get_gpu_texture(image, iuser, nullptr, false, use_tile_mapping, false);
-}
-
-ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
+ImageGPUTextures BKE_image_acquire_gpu_material_texture(Image *image,
                                                         ImageUser *iuser,
-                                                        const bool use_tile_mapping)
+                                                        const bool use_tile_mapping,
+                                                        const bool try_only)
 {
-  return image_get_gpu_texture(image, iuser, nullptr, false, use_tile_mapping, true);
+  return image_get_gpu_texture(image, iuser, nullptr, false, use_tile_mapping, try_only);
+}
+
+bool BKE_image_has_gpu_material_texture(Image *image,
+                                        ImageUser *iuser,
+                                        const bool use_tile_mapping)
+{
+  const bool try_only = true;
+  ImageGPUTextures result = image_get_gpu_texture(
+      image, iuser, nullptr, false, use_tile_mapping, try_only);
+  const bool has_texture = result.texture != nullptr;
+
+  /* Release reference, stays owned by the image buffer. */
+  if (result.texture) {
+    GPU_texture_free(result.texture);
+  }
+  if (result.tile_mapping) {
+    GPU_texture_free(result.tile_mapping);
+  }
+
+  return has_texture;
+}
+
+void BKE_image_ensure_gpu_material_texture(Image *image,
+                                           ImageUser *iuser,
+                                           const bool use_tile_mapping)
+{
+  ImageGPUTextures result = image_get_gpu_texture(
+      image, iuser, nullptr, false, use_tile_mapping, false);
+
+  /* Release reference, stays owned by the image buffer. */
+  if (result.texture) {
+    GPU_texture_free(result.texture);
+  }
+  if (result.tile_mapping) {
+    GPU_texture_free(result.tile_mapping);
+  }
 }
 
 /** \} */

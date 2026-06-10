@@ -33,8 +33,10 @@
 #  include "BKE_image_save.hh"
 #  include "BKE_library.hh"
 #  include "BKE_main.hh"
+
 #  include "BKE_report.hh"
 #  include "BKE_scene.hh"
+#  include "GPU_texture.hh"
 
 #  include "IMB_imbuf.hh"
 
@@ -214,13 +216,15 @@ static int rna_Image_gl_load(
     BKE_image_multilayer_index(image->rr, &iuser);
   }
 
-  gpu::Texture *tex = BKE_image_get_gpu_texture(image, &iuser);
+  gpu::Texture *tex = BKE_image_acquire_gpu_texture(image, &iuser);
 
   if (tex == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Failed to load image texture '%s'", image->id.name + 2);
     /* TODO(fclem): this error code makes no sense for vulkan. */
     return 0x0502; /* GL_INVALID_OPERATION */
   }
+
+  GPU_texture_free(tex);
 
   return 0; /* GL_NO_ERROR */
 }

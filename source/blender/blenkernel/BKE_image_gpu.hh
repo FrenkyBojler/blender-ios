@@ -24,52 +24,50 @@ struct ImageUser;
 struct Main;
 
 /**
- * Get the #gpu::Texture for a given `Image`.
+ * Acquire the #gpu::Texture for a given #Image, returning an owned reference
+ * that must be released with #GPU_texture_free
  */
-gpu::Texture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser);
+gpu::Texture *BKE_image_acquire_gpu_texture(Image *image, ImageUser *iuser);
 
 /*
- * Like BKE_image_get_gpu_texture, but can also get render or compositing result.
+ * Like #BKE_image_acquire_gpu_texture, but can also get render or compositing result.
  */
-gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser);
+gpu::Texture *BKE_image_acquire_gpu_viewer_texture(Image *image, ImageUser *iuser);
 
 /*
- * Like BKE_image_get_gpu_viewer_texture, but the image buffer is provided explicitly.
+ * Like #BKE_image_acquire_gpu_viewer_texture, but the image buffer is provided explicitly.
  */
-gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image,
-                                               ImageUser *iuser,
-                                               ImBuf *image_buffer);
+gpu::Texture *BKE_image_acquire_gpu_viewer_texture(Image *image,
+                                                   ImageUser *iuser,
+                                                   ImBuf *image_buffer);
 
 /*
- * Like BKE_image_get_gpu_texture, but can also return a GPU array texture and tile mapping
- * texture for UDIM tiles as used in material shaders.
+ * Like #BKE_image_acquire_gpu_texture, but can also return a GPU array texture and tile mapping
+ * texture for UDIM tiles as used in material shaders. The caller must release the textures.
  */
 struct ImageGPUTextures {
-  ImBuf *image_buffer = nullptr;
-  ImBuf *tile_mapping_buffer = nullptr;
+  gpu::Texture *texture = nullptr;
+  gpu::Texture *tile_mapping = nullptr;
 
-  ImageGPUTextures() = default;
-  ~ImageGPUTextures();
-  ImageGPUTextures(const ImageGPUTextures &other);
-  ImageGPUTextures &operator=(const ImageGPUTextures &other);
-
-  /* Get GPU texture pointers. */
-  gpu::Texture *texture() const;
-  gpu::Texture *tile_mapping() const;
-
-  /* Get pointers to GPU texture pointers for deferred loading. */
-  gpu::Texture **texture_ref() const;
-  gpu::Texture **tile_mapping_ref() const;
+  /* True if the texture needs a tile mapping, set even if textures were not loaded
+   * yet and the pointers are null. */
+  bool need_tile_mapping = false;
 };
 
-ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
-                                                    ImageUser *iuser,
-                                                    const bool use_tile_mapping);
-
-/* Same as BKE_image_get_gpu_material_texture but will not load the texture if it isn't already. */
-ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
+ImageGPUTextures BKE_image_acquire_gpu_material_texture(Image *image,
                                                         ImageUser *iuser,
-                                                        const bool use_tile_mapping);
+                                                        const bool use_tile_mapping,
+                                                        const bool try_only);
+
+/* Return whether the material GPU texture of an image is already loaded, without creating it. */
+bool BKE_image_has_gpu_material_texture(Image *image,
+                                        ImageUser *iuser,
+                                        const bool use_tile_mapping);
+
+/* Ensure the material GPU texture of an image is created, without returning it. */
+void BKE_image_ensure_gpu_material_texture(Image *image,
+                                           ImageUser *iuser,
+                                           const bool use_tile_mapping);
 
 /**
  * Is the alpha of the `gpu::Texture` for a given image/ibuf premultiplied.

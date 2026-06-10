@@ -270,7 +270,7 @@ class Instance : public DrawEngine {
     resources_.material_buf.append(material);
     int material_index = resources_.material_buf.size() - 1;
 
-    if (show_missing_texture && (!texture || !texture->gpu.texture())) {
+    if (show_missing_texture && (!texture || !texture->gpu.texture)) {
       texture = &resources_.missing_texture;
     }
 
