@@ -2114,9 +2114,9 @@ static void ntree_blend_read_after_liblink(BlendLibReader *reader, ID *id)
    * to match the static layout. */
   if (!BLO_read_lib_is_undo(reader)) {
     for (bNode &node : ntree->nodes) {
-      /* Don't update node groups here because they may depend on other node groups which are not
-       * fully versioned yet and don't have `typeinfo` pointers set. */
-      if (!node.is_group()) {
+      /* Don't update nodes that may depend on other IDs which may not be fully linked and
+       * versioned yet. */
+      if (!node.id) {
         node_verify_sockets(reader->main, ntree, &node, false);
       }
     }
