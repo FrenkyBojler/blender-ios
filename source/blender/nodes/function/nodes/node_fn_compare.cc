@@ -42,10 +42,7 @@ static bool is_supported_data_block_type(const bNodeTree *ntree,
   if (!ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_FONT, SOCK_SOUND)) {
     return false;
   }
-  if (ntree != nullptr && ntree->type == NTREE_COMPOSIT) {
-    return data_type == SOCK_FONT;
-  }
-  return true;
+  return bke::node_tree_type_supports_socket_type_static(ntree->type, data_type);
 }
 
 static void node_declare(NodeDeclarationBuilder &b)
