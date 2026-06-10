@@ -4,3 +4,4 @@ Referenced by issue #156268, Render crash with certain nodegroup  [Blender 5.2.0
 Referenced by pull request #156304, Fix #156268: Cycles crash with vector math node after differentials
 Referenced by commit f2b4c325957b1ef98770ebe445c43e112411ffbe, Fix #156268: Cycles crash with vector math node after differentials
 Referenced by pull request #144147, Cycles: Support automatic differentiation of shader nodes in SVM
+Referenced by issue #159895, Barbershop interior renders differently with OSL enabled
