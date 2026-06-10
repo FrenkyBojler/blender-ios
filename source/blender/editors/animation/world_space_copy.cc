@@ -170,50 +170,75 @@ struct TransformableRelations {
   }
 };
 
+/* Uniquely Identifies a component of the depsgraph. */
+struct DegComponentIdentifier {
+  ID *id = nullptr;
+  StringRef name;
+  eDepsObjectComponentType type;
+
+  bool operator==(const DegComponentIdentifier &other)
+  {
+    return id == other.id && type == other.type && name == other.name;
+  }
+};
+
+static DegComponentIdentifier transformable_to_deg_identifier(
+    const ed::AnimTransformable &transformable)
+{
+  switch (transformable.type()) {
+    case ed::AnimTransformable::Type::POSE_BONE:
+      return {transformable.owner_id(), transformable.name(), DEG_OB_COMP_BONE};
+
+    case ed::AnimTransformable::Type::OBJECT:
+      return {transformable.owner_id(), "", DEG_OB_COMP_TRANSFORM};
+  }
+
+  BLI_assert_unreachable();
+  return {transformable.owner_id(), "", DEG_OB_COMP_TRANSFORM};
+}
+
 static Array<TransformableRelations> build_transformable_relations(
     const Depsgraph *depsgraph, const MutableSpan<AnimTransformable *> transformables)
 {
-  using DegComponentIdentifier = std::pair<ID *, StringRef>;
-
   Array<TransformableRelations> transformable_relations(transformables.size());
   Map<DegComponentIdentifier, TransformableRelations *> component_map;
+  /* This is used as an optimization. If we already visited that component for a previous
+   * transformable, the dependency of that branch is already recorded and we can stop iterating
+   * into it. */
   Set<DegComponentIdentifier> visited_components;
 
   for (const int i : transformables.index_range()) {
     AnimTransformable &transformable = *transformables[i];
     transformable_relations[i].transformable = &transformable;
-    /* TODO correctly handle objects since they wouldn't have a component name. */
-    component_map.add({transformable.owner_id(), transformable.name()},
-                      &transformable_relations[i]);
+    component_map.add(transformable_to_deg_identifier(transformable), &transformable_relations[i]);
   }
 
-  for (TransformableRelations &relations : transformable_relations) {
-    AnimTransformable *transformable = relations.transformable;
-
+  for (const DegComponentIdentifier &deg_identifier : component_map.keys()) {
+    TransformableRelations *relations = component_map.lookup(deg_identifier);
     DEG_foreach_dependent_component(
         depsgraph,
-        transformable->owner_id(),
-        /* TODO use correct component type for objects. */
-        DEG_OB_COMP_BONE,
-        transformable->name(),
-        [&](ID *other_id, eDepsObjectComponentType component, StringRef component_name) {
-          if (!ELEM(component, DEG_OB_COMP_TRANSFORM, DEG_OB_COMP_BONE)) {
+        deg_identifier.id,
+        deg_identifier.type,
+        deg_identifier.name,
+        [&](ID *other_id, eDepsObjectComponentType type, StringRef component_name) {
+          if (!ELEM(type, DEG_OB_COMP_TRANSFORM, DEG_OB_COMP_BONE)) {
             return true;
           }
-          if (component_name == transformable->name()) {
+          DegComponentIdentifier cid(other_id, component_name, type);
+          if (cid == deg_identifier) {
             /* Skip self. */
             return true;
-          }
-          DegComponentIdentifier cid(other_id, component_name);
-          if (visited_components.contains(cid)) {
-            return false;
           }
           TransformableRelations *dependent_node = component_map.lookup_default(cid, nullptr);
           if (!dependent_node) {
             return true;
           }
-          dependent_node->ancestors.append(&relations);
-          visited_components.add(cid);
+          if (visited_components.contains(cid)) {
+            dependent_node->ancestors.append(relations);
+            return false;
+          }
+          dependent_node->ancestors.append(relations);
+          visited_components.add_new(cid);
           return true;
         });
   }

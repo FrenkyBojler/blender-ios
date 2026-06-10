@@ -430,7 +430,8 @@ void DEG_foreach_dependent_ID_component(const Depsgraph *depsgraph,
  * \param start_component_name can be empty. Not all components have a name. For bones this is the
  * bone name.
  *
- * \note If the callback returns false, the iteration will end.
+ * \note The callback determines if iteration should continue into dependent components. If true,
+ * continue iterating. False stops the code from going into that branch.
  */
 void DEG_foreach_dependent_component(const Depsgraph *depsgraph,
                                      const ID *start_id,
