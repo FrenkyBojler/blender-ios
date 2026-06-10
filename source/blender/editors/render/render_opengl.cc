@@ -788,7 +788,6 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     return false;
   }
 
-  /* Flush data from sculpt mode, fixes #129203 */
   Main *bmain = CTX_data_main(C);
   ED_editors_flush_edits(bmain);
 
