@@ -302,17 +302,20 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
   const bool use_render = (DEG_get_mode(&depsgraph) == DAG_EVAL_RENDER);
   const int required_mode = use_render ? eModifierMode_Render : eModifierMode_Realtime;
 
-  /* Sculpt can skip certain modifiers. */
+  /* Sculpt can skip certain modifiers. Only active for the sculpt-owned DAG_EVAL_SCULPT graph,
+   * not for the viewport depsgraph (which evaluates multires as a real mesh). */
   const bool has_multires = BKE_sculpt_multires_active(&scene, &ob) != nullptr;
   bool multires_applied = false;
-  const bool sculpt_mode = ob.mode & OB_MODE_SCULPT && ob.runtime->sculpt_session && !use_render;
-  const bool sculpt_dyntopo = (sculpt_mode && ob.runtime->sculpt_session->bm) && !use_render;
+  const bool sculpt_mode = (DEG_get_mode(&depsgraph) == DAG_EVAL_SCULPT);
+  const bool sculpt_dyntopo = sculpt_mode && ob.runtime->sculpt_session->bm;
 
   /* Modifier evaluation contexts for different types of modifiers. */
   ModifierApplyFlag apply_render = use_render ? MOD_APPLY_RENDER : ModifierApplyFlag(0);
   ModifierApplyFlag apply_cache = use_cache ? MOD_APPLY_USECACHE : ModifierApplyFlag(0);
-  const ModifierEvalContext mectx = {&depsgraph, &ob, apply_render | apply_cache};
-  const ModifierEvalContext mectx_orco = {&depsgraph, &ob, apply_render | MOD_APPLY_ORCO};
+  ModifierApplyFlag apply_sculpt = sculpt_mode ? MOD_APPLY_MULTIRES_AS_CCG : ModifierApplyFlag(0);
+  const ModifierEvalContext mectx = {&depsgraph, &ob, apply_render | apply_cache | apply_sculpt};
+  const ModifierEvalContext mectx_orco = {
+      &depsgraph, &ob, apply_render | MOD_APPLY_ORCO | apply_sculpt};
 
   /* Get effective list of modifiers to execute. Some effects like shape keys
    * are added as virtual modifiers before the user created modifiers. */

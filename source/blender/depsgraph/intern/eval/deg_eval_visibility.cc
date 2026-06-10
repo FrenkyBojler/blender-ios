@@ -36,8 +36,8 @@ void deg_evaluate_object_node_visibility(blender::Depsgraph *depsgraph, IDNode *
 
   DEG_debug_print_eval(depsgraph, __func__, object->id.name, &object->id);
 
-  const int required_flags = (graph->mode == DAG_EVAL_VIEWPORT) ? BASE_ENABLED_VIEWPORT :
-                                                                  BASE_ENABLED_RENDER;
+  const int required_flags = (graph->mode == DAG_EVAL_RENDER) ? BASE_ENABLED_RENDER :
+                                                                BASE_ENABLED_VIEWPORT;
 
   const bool is_enabled = !graph->use_visibility_optimization ||
                           object->base_flag & required_flags;
@@ -65,8 +65,8 @@ void deg_evaluate_object_modifiers_mode_node_visibility(blender::Depsgraph *deps
     return;
   }
 
-  const ModifierMode modifier_mode = (graph->mode == DAG_EVAL_VIEWPORT) ? eModifierMode_Realtime :
-                                                                          eModifierMode_Render;
+  const ModifierMode modifier_mode = (graph->mode == DAG_EVAL_RENDER) ? eModifierMode_Render :
+                                                                        eModifierMode_Realtime;
 
   const ComponentNode *geometry_component = id_node->find_component(NodeType::GEOMETRY);
   for (ModifierData &modifier : object->modifiers) {

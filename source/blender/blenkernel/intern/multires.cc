@@ -261,6 +261,14 @@ void multires_mark_as_modified(Depsgraph *depsgraph,
    * do an actual update.
    *
    * In a longer term maybe special dependency graph tag can help sanitizing this a bit. */
+
+  /* In sculpt mode the CCG is tracked directly in the SculptSession, which avoids needing
+   * to look it up via the evaluated object — and works regardless of which depsgraph is passed. */
+  if (object->runtime->sculpt_session && object->runtime->sculpt_session->subdiv_ccg) {
+    multires_ccg_mark_as_modified(object->runtime->sculpt_session->subdiv_ccg, flags);
+    return;
+  }
+
   Object *object_eval = DEG_get_evaluated(depsgraph, object);
   Mesh *mesh = id_cast<Mesh *>(object_eval->data);
   SubdivCCG *subdiv_ccg = mesh->runtime->subdiv_ccg.get();

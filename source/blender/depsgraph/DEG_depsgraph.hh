@@ -46,6 +46,8 @@ struct ViewLayer;
 enum eEvaluationMode {
   DAG_EVAL_VIEWPORT = 0, /* evaluate for OpenGL viewport */
   DAG_EVAL_RENDER = 1,   /* evaluate for render purposes */
+  DAG_EVAL_SCULPT = 2,   /* evaluate for sculpt mode; uses the CCG path for multires instead of
+                          * producing a real mesh. Owned and used exclusively by SculptSession. */
 };
 
 /* DagNode->eval_flags */

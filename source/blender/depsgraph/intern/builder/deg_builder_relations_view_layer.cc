@@ -36,9 +36,8 @@ namespace blender::deg {
 
 bool DepsgraphRelationBuilder::build_layer_collection(LayerCollection *layer_collection)
 {
-  const int hide_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? COLLECTION_HIDE_VIEWPORT :
-                                                              COLLECTION_HIDE_RENDER;
-
+  const int hide_flag = (graph_->mode == DAG_EVAL_RENDER) ? COLLECTION_HIDE_RENDER :
+                                                            COLLECTION_HIDE_VIEWPORT;
   Collection *collection = layer_collection->collection;
 
   const bool is_collection_hidden = collection->flag & hide_flag;

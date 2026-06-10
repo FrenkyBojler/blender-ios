@@ -199,12 +199,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
    * accessible via mesh vertices. For this reason we do not evaluate multires to
    * grids when orco is requested. */
   const bool for_orco = (ctx->flag & MOD_APPLY_ORCO) != 0;
-  /* Needed when rendering or baking will in sculpt mode. */
-  const bool for_render = (ctx->flag & MOD_APPLY_RENDER) != 0;
-
+  const bool use_CCG = (ctx->flag & MOD_APPLY_MULTIRES_AS_CCG) != 0;
   const bool sculpt_base_mesh = mmd->flags & eMultiresModifierFlag_UseSculptBaseMesh;
 
-  if ((ctx->object->mode & OB_MODE_SCULPT) && !for_orco && !for_render && !sculpt_base_mesh) {
+  if (use_CCG && !for_orco && !sculpt_base_mesh) {
     /* NOTE: CCG takes ownership over Subdiv. */
     result = multires_as_ccg(mmd, ctx, mesh, subdiv);
     result->runtime->subdiv_ccg_tot_level = mmd->totlvl;

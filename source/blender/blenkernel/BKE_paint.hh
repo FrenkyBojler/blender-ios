@@ -380,6 +380,11 @@ struct PersistentMultiresData {
 };
 
 struct SculptSession : NonCopyable, NonMovable {
+  /* Owned depsgraph that evaluates with DAG_EVAL_SCULPT, so the multires modifier produces CCG
+   * data instead of a real mesh. The regular viewport depsgraph evaluates multires as a
+   * real mesh, which external consumers (exporters, render preview) can use without any issues. */
+  Depsgraph *depsgraph = nullptr;
+
   /* The current active shapekey for the mesh. Only non-null for Type::Mesh */
   KeyBlock *shapekey_active = nullptr;
 

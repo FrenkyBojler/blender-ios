@@ -14,8 +14,10 @@
 #include "BKE_customdata.hh"
 #include "BKE_main.hh"
 #include "BKE_multires.hh"
+#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_path_utils.hh"
 #include "BLI_string_utf8.h"
@@ -133,9 +135,12 @@ static wmOperatorStatus multires_subdivide_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
 
   if (object->mode & OB_MODE_SCULPT) {
+    Depsgraph *sculpt_depsgraph = object->runtime->sculpt_session->depsgraph;
+    Main *bmain = CTX_data_main(C);
+    BKE_scene_graph_evaluated_ensure(sculpt_depsgraph, bmain);
+
     /* ensure that grid paint mask layer is created */
-    BKE_sculpt_mask_layers_ensure(
-        CTX_data_ensure_evaluated_depsgraph(C), CTX_data_main(C), object, mmd);
+    BKE_sculpt_mask_layers_ensure(sculpt_depsgraph, bmain, object, mmd);
   }
 
   return OPERATOR_FINISHED;

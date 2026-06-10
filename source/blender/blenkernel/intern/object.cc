@@ -2075,6 +2075,7 @@ int BKE_object_visibility(const Object *ob, const int dag_eval_mode)
   /* Optional hiding of self if there are particles or instancers. */
   if (visibility & (OB_VISIBLE_PARTICLES | OB_VISIBLE_INSTANCES)) {
     switch (eEvaluationMode(dag_eval_mode)) {
+      case DAG_EVAL_SCULPT:
       case DAG_EVAL_VIEWPORT:
         if (!(ob->duplicator_visibility_flag & OB_DUPLI_FLAG_VIEWPORT)) {
           visibility &= ~OB_VISIBLE_SELF;

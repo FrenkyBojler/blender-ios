@@ -165,6 +165,10 @@ enum ModifierApplyFlag {
    * See `OBJECT_OT_modifier_apply` operator.
    */
   MOD_APPLY_TO_ORIGINAL = 1 << 4,
+  /**
+   * Evaluate the multiresolution modifier as CCG in sculpt mode
+   */
+  MOD_APPLY_MULTIRES_AS_CCG = 1 << 5,
 };
 ENUM_OPERATORS(ModifierApplyFlag);
 

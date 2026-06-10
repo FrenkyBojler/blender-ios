@@ -67,8 +67,8 @@ DepsgraphBuilder::DepsgraphBuilder(Main *bmain, Depsgraph *graph, DepsgraphBuild
 bool DepsgraphBuilder::need_pull_base_into_graph(const Base *base)
 {
   /* Simple check: enabled bases are always part of dependency graph. */
-  const int base_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? BASE_ENABLED_VIEWPORT :
-                                                              BASE_ENABLED_RENDER;
+  const int base_flag = (graph_->mode == DAG_EVAL_RENDER) ? BASE_ENABLED_RENDER :
+                                                            BASE_ENABLED_VIEWPORT;
 
   if (!graph_->use_visibility_optimization || (base->flag & base_flag)) {
     return true;
@@ -83,7 +83,7 @@ bool DepsgraphBuilder::need_pull_base_into_graph(const Base *base)
 bool DepsgraphBuilder::is_object_visibility_animated(const Object *object)
 {
   AnimatedPropertyID property_id;
-  if (graph_->mode == DAG_EVAL_VIEWPORT) {
+  if (graph_->mode == DAG_EVAL_VIEWPORT || graph_->mode == DAG_EVAL_SCULPT) {
     property_id = AnimatedPropertyID(&object->id, RNA_Object, "hide_viewport");
   }
   else if (graph_->mode == DAG_EVAL_RENDER) {
@@ -100,7 +100,7 @@ bool DepsgraphBuilder::is_modifier_visibility_animated(const Object *object,
                                                        const ModifierData *modifier)
 {
   AnimatedPropertyID property_id;
-  if (graph_->mode == DAG_EVAL_VIEWPORT) {
+  if (graph_->mode == DAG_EVAL_VIEWPORT || graph_->mode == DAG_EVAL_SCULPT) {
     property_id = AnimatedPropertyID(&object->id, RNA_Modifier, (void *)modifier, "show_viewport");
   }
   else if (graph_->mode == DAG_EVAL_RENDER) {

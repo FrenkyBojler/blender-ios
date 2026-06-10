@@ -38,8 +38,8 @@ namespace blender::deg {
 
 void DepsgraphNodeBuilder::build_layer_collections(ListBaseT<LayerCollection> *lb)
 {
-  const int visibility_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? COLLECTION_HIDE_VIEWPORT :
-                                                                    COLLECTION_HIDE_RENDER;
+  const int visibility_flag = (graph_->mode == DAG_EVAL_RENDER) ? COLLECTION_HIDE_RENDER :
+                                                                  COLLECTION_HIDE_VIEWPORT;
 
   for (LayerCollection &lc : *lb) {
     if (lc.collection->flag & visibility_flag) {

@@ -692,8 +692,8 @@ void DepsgraphNodeBuilder::build_idproperties(IDProperty *id_property)
 void DepsgraphNodeBuilder::build_collection(LayerCollection *from_layer_collection,
                                             Collection *collection)
 {
-  const int visibility_flag = (graph_->mode == DAG_EVAL_VIEWPORT) ? COLLECTION_HIDE_VIEWPORT :
-                                                                    COLLECTION_HIDE_RENDER;
+  const int visibility_flag = (graph_->mode == DAG_EVAL_RENDER) ? COLLECTION_HIDE_RENDER :
+                                                                  COLLECTION_HIDE_VIEWPORT;
   const bool is_collection_restricted = (collection->flag & visibility_flag);
   const bool is_collection_visible = !is_collection_restricted && is_parent_collection_visible_;
   IDNode *id_node;
@@ -928,8 +928,8 @@ void DepsgraphNodeBuilder::build_object_modifiers(Object *object)
     return;
   }
 
-  const ModifierMode modifier_mode = (graph_->mode == DAG_EVAL_VIEWPORT) ? eModifierMode_Realtime :
-                                                                           eModifierMode_Render;
+  const ModifierMode modifier_mode = (graph_->mode == DAG_EVAL_RENDER) ? eModifierMode_Render :
+                                                                         eModifierMode_Realtime;
 
   IDNode *id_node = find_id_node(&object->id);
 

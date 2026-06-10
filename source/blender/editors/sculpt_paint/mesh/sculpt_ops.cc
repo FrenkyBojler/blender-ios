@@ -41,6 +41,8 @@
 #include "BKE_subdiv_ccg.hh"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "IMB_colormanagement.hh"
 
@@ -335,7 +337,18 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
    * multires modifier sets .runtime.ccg in
    * the evaluated mesh.
    */
+  /* Create a dedicated DAG_EVAL_SCULPT depsgraph owned by the sculpt session.
+   * This depsgraph drives all sculpt-internal evaluation (CCG setup, PBVH, crazyspace).
+   * The scene's viewport depsgraph remains DAG_EVAL_VIEWPORT and therefore evaluates the
+   * multires modifier as a real mesh, so external consumers (exporters, render preview)
+   * may obtain correct geometry even while sculpting. */
   DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
+  ViewLayer *view_layer = DEG_get_input_view_layer(&depsgraph);
+  Depsgraph *sculpt_depsgraph = DEG_graph_new(&bmain, &scene, view_layer, DAG_EVAL_SCULPT);
+  DEG_graph_build_from_ids(sculpt_depsgraph, Span<ID *>{&ob.id});
+
+  BKE_scene_graph_update_tagged(sculpt_depsgraph, &bmain);
+  ob.runtime->sculpt_session->depsgraph = sculpt_depsgraph;
 
   BKE_scene_graph_evaluated_ensure(&depsgraph, &bmain);
 

@@ -694,6 +694,11 @@ static void rna_def_depsgraph(BlenderRNA *brna)
   static const EnumPropertyItem enum_depsgraph_mode_items[] = {
       {DAG_EVAL_VIEWPORT, "VIEWPORT", 0, "Viewport", "Viewport non-rendered mode"},
       {DAG_EVAL_RENDER, "RENDER", 0, "Render", "Render"},
+      {DAG_EVAL_SCULPT,
+       "SCULPT",
+       0,
+       "Sculpt",
+       "Sculpt mode; multires evaluates as CCG instead of a real mesh"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

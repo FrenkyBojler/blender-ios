@@ -2125,6 +2125,10 @@ void BKE_sculptsession_free(Object *ob)
 
     BKE_sculptsession_free_pbvh(*ob);
 
+    if (ss->depsgraph) {
+      DEG_graph_free(ss->depsgraph);
+    }
+
     MEM_delete(ss);
 
     ob->runtime->sculpt_session = nullptr;
@@ -2509,6 +2513,16 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval)
    * other data when modifiers change the mesh. */
   Object *ob_orig = DEG_get_original(ob_eval);
 
+  /* If the sculpt session owns its own DAG_EVAL_SCULPT depsgraph, the viewport depsgraph
+   * evaluates multires as a real mesh (not CCG). Using it here would clear ss.subdiv_ccg.
+   * Redirect to the sculpt depsgraph so we always work from CCG data. */
+  SculptSession *ss = ob_orig->runtime->sculpt_session;
+  if (ss && ss->depsgraph && ss->depsgraph != depsgraph) {
+    Object *ob_eval_sculpt = DEG_get_evaluated(ss->depsgraph, ob_orig);
+    sculpt_update_object(ss->depsgraph, ob_orig, ob_eval_sculpt, false);
+    return;
+  }
+
   sculpt_update_object(depsgraph, ob_orig, ob_eval, false);
 }
 
@@ -2539,6 +2553,13 @@ void BKE_sculpt_update_object_for_edit(Depsgraph *depsgraph, Object *ob_orig, bo
 {
   PRF_scope(ProfileCategory::Editor);
   BLI_assert(ob_orig == DEG_get_original(ob_orig));
+
+  /* Use the sculpt session's own DAG_EVAL_SCULPT depsgraph when available, so the evaluated
+   * mesh has CCG data from the multires modifier's sculpt path. */
+  SculptSession *ss = ob_orig->runtime->sculpt_session;
+  if (ss && ss->depsgraph) {
+    depsgraph = ss->depsgraph;
+  }
 
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
 
