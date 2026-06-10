@@ -315,8 +315,14 @@ NodeLog::~NodeLog()
 }
 
 NodeLog::NodeLog(NodeLog &&source)
+    : warnings(std::move(source.warnings)),
+      execution_time(source.execution_time),
+      input_values_(std::move(source.input_values_)),
+      output_values_(std::move(source.output_values_)),
+      used_named_attributes(std::move(source.used_named_attributes)),
+      debug_messages(std::move(source.debug_messages)),
+      image_preview(source.image_preview)
 {
-  *this = source;
   source.image_preview = nullptr;
 }
 
@@ -324,7 +330,13 @@ NodeLog &NodeLog::operator=(NodeLog &&source)
 {
   if (this != &source) {
     IMB_freeImBuf(this->image_preview);
-    *this = source;
+    this->warnings = std::move(source.warnings);
+    this->execution_time = source.execution_time;
+    this->input_values_ = std::move(source.input_values_);
+    this->output_values_ = std::move(source.output_values_);
+    this->used_named_attributes = std::move(source.used_named_attributes);
+    this->debug_messages = std::move(source.debug_messages);
+    this->image_preview = source.image_preview;
     source.image_preview = nullptr;
   }
 

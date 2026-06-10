@@ -402,8 +402,8 @@ class NodeLog {
 
   NodeLog();
   ~NodeLog();
-  NodeLog(const NodeLog &source) = default;
-  NodeLog &operator=(const NodeLog &source) = default;
+  NodeLog(const NodeLog &source) = delete;
+  NodeLog &operator=(const NodeLog &source) = delete;
   NodeLog(NodeLog &&source);
   NodeLog &operator=(NodeLog &&source);
 };
