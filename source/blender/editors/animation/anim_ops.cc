@@ -1616,10 +1616,15 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
   Map<std::pair<animrig::Action *, int32_t>, ChannelbagFCurveMap> data_map;
   int skipped_datablocks = 0;
   int skipped_actions = 0;
+  /* Used to warn the user that he modified only a subset of all users for an
+   * rna path in a slot. We need to keep track of that per rna path so we can
+   * supress the warning when all relevant data has been modified. */
+  Map<std::pair<const animrig::Slot *, StringRefNull>, int> unmodified_users;
 
   Main *bmain = CTX_data_main(C);
 
-  for (ed::AnimTransformable &transformable : selected_transformables_from_context(C)) {
+  Vector<ed::AnimTransformable> selected_transformables = selected_transformables_from_context(C);
+  for (ed::AnimTransformable &transformable : selected_transformables) {
     /* We cannot skip transformables based on their current rotation mode since that may be
      * animated. So `transformable.get_rotation_mode() == mode -> continue` won't work.*/
     ID *owner_id = transformable.owner_id();
@@ -1633,6 +1638,21 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
           if (!BKE_id_is_editable(bmain, &action.id)) {
             skipped_actions++;
             return true;
+          }
+          const animrig::Slot *slot = action.slot_for_handle(slot_handle);
+          BLI_assert(slot != nullptr);
+          const int slot_user_count = slot->users(*bmain).size();
+          if (slot_user_count > 1) {
+            std::pair<const animrig::Slot *, StringRefNull> identifier = {
+                slot, transformable.rna_path()};
+            int *unmodified_count = unmodified_users.lookup_ptr(identifier);
+            if (unmodified_count) {
+              (*unmodified_count)--;
+              BLI_assert((*unmodified_count) >= 0);
+            }
+            else {
+              unmodified_users.add(identifier, slot_user_count - 1);
+            }
           }
           if (!data_map.contains({&action, slot_handle})) {
             ChannelbagFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
@@ -1662,6 +1682,38 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
       WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
       prev_id = owner_id;
     }
+  }
+
+  int unmodified_count = 0;
+  std::string unmodified_message;
+  for (const auto &[identifier, value] : unmodified_users.items()) {
+    if (value <= 0) {
+      continue;
+    }
+    if (!unmodified_message.empty()) {
+      unmodified_message.append(", ");
+    }
+    if (identifier.second.is_empty()) {
+      /* Objects don't have an rna path. Use the slot display name. */
+      unmodified_message.append(identifier.first->identifier_without_prefix());
+    }
+    else {
+      unmodified_message.append(identifier.second);
+    }
+    unmodified_count++;
+    if (unmodified_count == 3) {
+      /* The user may modify a lot of transformables at once. More than 3 names will probably
+       * be just noise. */
+      unmodified_message.append(", ...");
+      break;
+    }
+  }
+
+  if (unmodified_count > 0) {
+    BKE_reportf(op->reports,
+                RPT_WARNING,
+                "Multiple users of an action and not all were selected: %s",
+                unmodified_message.data());
   }
 
   if (skipped_datablocks > 0) {

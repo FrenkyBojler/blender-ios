@@ -31,7 +31,8 @@ void SortedFCurveBuffer::insert_fcurve(FCurve &fcurve)
 {
   int insert_index = 0;
   for (FCurve *existing_fcurve : fcurves_) {
-    BLI_assert(fcurve.array_index != existing_fcurve->array_index);
+    BLI_assert_msg(fcurve.array_index != existing_fcurve->array_index,
+                   "An FCurve with that index was already inserted");
     if (existing_fcurve->array_index > fcurve.array_index) {
       break;
     }
