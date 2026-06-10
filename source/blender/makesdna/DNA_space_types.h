@@ -212,7 +212,8 @@ struct SpaceOutliner {
   eSpaceOutliner_ShowRestrictFlag show_restrict_flags = {};
   short filter_id_type = 0;
   eSpaceOutliner_SortMethod sort_method = SO_SORT_ALPHA;
-  char _pad1[6] = {};
+  eSpaceOutliner_SortMethod prev_sort_method = SO_SORT_ALPHA;
+  char _pad1[4] = {};
 
   ed::outliner::SpaceOutliner_Runtime *runtime = nullptr;
 };

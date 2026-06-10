@@ -486,12 +486,43 @@ static bool treesort_alpha_ob(const tTreeSort &x1, const tTreeSort &x2)
   return BLI_strcasecmp_natural(x1.name, x2.name) < 0;
 }
 
+/* Comparator for type sort. Keep non-objects before object. For objects, place members of the
+ * collection before "not in collection”, then group by object type, then by natural name. */
+static bool treesort_type_ob(const tTreeSort &x1, const tTreeSort &x2)
+{
+  /* Keep non objects before objects. */
+  const bool a_is_ob = (x1.idcode == ID_OB);
+  const bool b_is_ob = (x2.idcode == ID_OB);
+  if (a_is_ob != b_is_ob) {
+    return !a_is_ob;
+  }
+
+  /* If neither are objects, preserve existing order. */
+  if (!a_is_ob) {
+    return false;
+  }
+
+  if (std::optional<bool> comp = treesort_child_not_in_collection(x1, x2)) {
+    return *comp;
+  }
+
+  /* Group by object type. */
+  const Object *ob1 = reinterpret_cast<const Object *>(x1.id);
+  const Object *ob2 = reinterpret_cast<const Object *>(x2.id);
+  if (ob1->type != ob2->type) {
+    return ob1->type < ob2->type;
+  }
+
+  return BLI_strcasecmp_natural(x1.name, x2.name) < 0;
+}
+
 /* Sort object entries in a parent collection by `CollectionObject.sort_index`,
  * using natural-name order only as a tie-breaker. Non-object entries are not
  * ordered here and keep their existing relative order. */
 static bool treesort_custom(const tTreeSort &x1,
                             const tTreeSort &x2,
-                            const Map<const Object *, CollectionObject *> *collection_object_map)
+                            const Map<const Object *, CollectionObject *> *collection_object_map,
+                            eSpaceOutliner_SortMethod prev_sort_method)
 {
   /* Only sort objects that are in a collection. If no per-sort object map is
    * available, fallback to alphabetical ordering. */
@@ -517,9 +548,14 @@ static bool treesort_custom(const tTreeSort &x1,
   const int sort2 = (cob2 != nullptr && cob2->sort_index >= 0) ? cob2->sort_index : INT_MAX;
 
   if (sort1 == sort2) {
-    return treesort_alpha(x1, x2);
+    if (prev_sort_method == SO_SORT_ALPHA) {
+      return treesort_alpha(x1, x2);
+    }
+    else if (prev_sort_method == SO_SORT_TYPE) {
+      return treesort_type_ob(x1, x2);
+    }
+    return false;
   }
-
   return sort1 < sort2;
 }
 
@@ -528,6 +564,7 @@ static void outliner_sort_custom_assign_missing_sort_indices(
     TreeElement *last_te,
     const Map<const Object *, CollectionObject *> &collection_object_map)
 {
+  printf("Assigning missing sort indices for collection '%s'\n", last_te->name);
   Collection *collection = outliner_collection_from_tree_element(last_te->parent);
   if (collection == nullptr) {
     return;
@@ -562,36 +599,6 @@ static void outliner_sort_custom_assign_missing_sort_indices(
       }
     }
   }
-}
-
-/* Comparator for type sort. Keep non-objects before object. For objects, place members of the
- * collection before "not in collection”, then group by object type, then by natural name. */
-static bool treesort_type_ob(const tTreeSort &x1, const tTreeSort &x2)
-{
-  /* Keep non objects before objects. */
-  const bool a_is_ob = (x1.idcode == ID_OB);
-  const bool b_is_ob = (x2.idcode == ID_OB);
-  if (a_is_ob != b_is_ob) {
-    return !a_is_ob;
-  }
-
-  /* If neither are objects, preserve existing order. */
-  if (!a_is_ob) {
-    return false;
-  }
-
-  if (std::optional<bool> comp = treesort_child_not_in_collection(x1, x2)) {
-    return *comp;
-  }
-
-  /* Group by object type. */
-  const Object *ob1 = reinterpret_cast<const Object *>(x1.id);
-  const Object *ob2 = reinterpret_cast<const Object *>(x2.id);
-  if (ob1->type != ob2->type) {
-    return ob1->type < ob2->type;
-  }
-
-  return BLI_strcasecmp_natural(x1.name, x2.name) < 0;
 }
 
 /* this is nice option for later? doesn't look too useful... */
@@ -722,7 +729,8 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
   }
 }
 
-static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
+static void outliner_sort_custom(ListBaseT<TreeElement> *lb,
+                                 eSpaceOutliner_SortMethod prev_sort_method)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
   if (last_te == nullptr) {
@@ -755,9 +763,9 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
           tp++;
         }
 
-        auto treesort_custom_fn = [&collection_object_map](const tTreeSort &a,
-                                                           const tTreeSort &b) {
-          return treesort_custom(a, b, &collection_object_map);
+        auto treesort_custom_fn = [&collection_object_map, prev_sort_method](const tTreeSort &a,
+                                                                             const tTreeSort &b) {
+          return treesort_custom(a, b, &collection_object_map, prev_sort_method);
         };
 
         if (tear->idcode == 1) {
@@ -786,7 +794,7 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
   }
 
   for (TreeElement &te_iter : *lb) {
-    outliner_sort_custom(&te_iter.subtree);
+    outliner_sort_custom(&te_iter.subtree, prev_sort_method);
   }
 }
 
@@ -1401,7 +1409,7 @@ void outliner_build_tree(Main *mainvar,
       break;
 
     case SO_SORT_CUSTOM:
-      outliner_sort_custom(&space_outliner->runtime->tree);
+      outliner_sort_custom(&space_outliner->runtime->tree, space_outliner->prev_sort_method);
       break;
 
     case SO_SORT_TYPE:
@@ -1412,6 +1420,7 @@ void outliner_build_tree(Main *mainvar,
       BLI_assert_unreachable();
       break;
   }
+  space_outliner->prev_sort_method = space_outliner->sort_method;
 
   outliner_filter_tree(*mainvar, space_outliner, scene, view_layer);
   outliner_restore_scrolling_position(space_outliner, region, &focus);

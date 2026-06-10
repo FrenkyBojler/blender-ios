@@ -70,15 +70,14 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
               space_outliner->sort_method = SO_SORT_CUSTOM;
               space_outliner->flag &= ~SO_FLAG_UNUSED_4;
             }
+            space_outliner->prev_sort_method = space_outliner->sort_method;
           }
         }
       }
     }
-
     for (Collection &collection : bmain->collections) {
-      int i = 0;
       for (CollectionObject &cob : collection.gobject) {
-        cob.sort_index = i++;
+        cob.sort_index = -1;
       }
     }
   }
