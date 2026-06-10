@@ -1577,7 +1577,9 @@ static void std_node_socket_interface_draw(ID *id,
   if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT &&
       ELEM(node_tree->type, NTREE_GEOMETRY, NTREE_COMPOSIT))
   {
-    if (ELEM(type, SOCK_INT, SOCK_FLOAT, SOCK_VECTOR, SOCK_MATRIX)) {
+    if (ELEM(type, SOCK_INT, SOCK_FLOAT, SOCK_VECTOR, SOCK_MATRIX) ||
+        (node_tree->type == NTREE_GEOMETRY && type == SOCK_OBJECT))
+    {
       col->prop(&ptr, "default_input", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     }
   }
@@ -1781,10 +1783,10 @@ static std::array<float2, 4> node_link_bezier_points(const bNodeLink &link)
 
 static bool node_link_draw_is_visible(const View2D &v2d, const std::array<float2, 4> &points)
 {
-  if (min_ffff(points[0].x, points[1].x, points[2].x, points[3].x) > v2d.cur.xmax) {
+  if (std::min({points[0].x, points[1].x, points[2].x, points[3].x}) > v2d.cur.xmax) {
     return false;
   }
-  if (max_ffff(points[0].x, points[1].x, points[2].x, points[3].x) < v2d.cur.xmin) {
+  if (std::max({points[0].x, points[1].x, points[2].x, points[3].x}) < v2d.cur.xmin) {
     return false;
   }
   return true;

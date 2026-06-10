@@ -258,19 +258,19 @@ AnimTransformable::AnimTransformable(Object &owner_id, bPoseChannel &pchan)
   rna_path_from_id_ = animrig::get_pose_bone_rna_path(pchan);
 }
 
-AnimTransformable::AnimTransformable(Object &object)
+AnimTransformable::AnimTransformable(Object &obj)
     : type_(AnimTransformable::Type::OBJECT),
-      owner_id_(&object.id),
-      data_(&object),
+      owner_id_(&obj.id),
+      data_(&obj),
       fcurve_group_name_("Object Transforms"),
-      location_({object.loc, 3}),
-      rotation_mode_(reinterpret_cast<eRotationModes *>(&object.rotmode)),
-      scale_({object.scale, 3})
+      location_({obj.loc, 3}),
+      rotation_mode_(reinterpret_cast<eRotationModes *>(&obj.rotmode)),
+      scale_({obj.scale, 3})
 {
-  static_assert(std::is_same_v<short, decltype(object.rotmode)>);
-  build_rotations_array(rotations_, object.rot, object.quat, object.rotAxis, &object.rotAngle);
+  build_rotations_array(rotations_, obj.rot, obj.quat, obj.rotAxis, &obj.rotAngle);
   rna_path_from_id_ = "";
 }
+
 
 template<> bPoseChannel *AnimTransformable::data<bPoseChannel *>() const
 {

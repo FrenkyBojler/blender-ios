@@ -86,7 +86,7 @@
 
 /* Fragment shader color input index for subpass input.
  * `sampler_type` is the type of image to bind to this (e.g. usampler2DArray).
- * It must be compatible with the framebuffer attachment type. */
+ * It must be compatible with the frame-buffer attachment type. */
 #  define subpass_input(index, sampler_type) maybe_unused
 
 /* Fragment shader output. */
@@ -142,4 +142,14 @@
  * IMPORTANT: Will discard any iteration above N.
  */
 #  define unroll_n(N) likely
+#else
+/* This path checks for unused variables. Disable warning about unknown attributes. */
+#  if defined(__GNUC__) || defined(__clang__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wattributes"
+#  elif defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 5030)
+#    pragma warning(disable : 5222)
+#  endif
 #endif

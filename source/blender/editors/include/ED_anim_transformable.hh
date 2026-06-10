@@ -106,7 +106,7 @@ class AnimTransformable {
   /* Constructor for pose bones. */
   AnimTransformable(Object &owner_id, bPoseChannel &pchan);
   /* Constructor for Objects. */
-  AnimTransformable(Object &object);
+  explicit AnimTransformable(Object &object);
 
   Type type() const
   {
@@ -146,9 +146,9 @@ class AnimTransformable {
   Rotation get_rotation_for_mode(eRotationModes mode) const;
   /**
    * Sets the rotation for the mode the transformable is currently in. If that doesn't match with
-   * the given rotation, the `value` is converted.
+   * the given rotation, the `rotation` is converted.
    */
-  void set_rotation(const Rotation &value);
+  void set_rotation(const Rotation &rotation);
   /**
    * Returns the current rotation mode of the transformable.
    */
