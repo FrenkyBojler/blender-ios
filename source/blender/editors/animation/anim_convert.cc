@@ -245,7 +245,6 @@ static void convert_rotation_mode_range(const Span<const FCurve *> evaluation_bu
   ed::Rotation rotation_values = transformable.get_rotation_for_mode(from_mode);
 
   KeyframeIterator key_iterator = KeyframeIterator(evaluation_buffer, range);
-  const animrig::KeyframeSettings settings = key_iterator.get_keyframe_settings();
   /* Generate the current rotation values respecting missing FCurves. */
   for (const FCurve *fcurve : evaluation_buffer) {
     if (!fcurve) {
@@ -256,6 +255,7 @@ static void convert_rotation_mode_range(const Span<const FCurve *> evaluation_bu
 
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
   ed::Rotation previous_conversion = rotation_values.converted_to_mode(to_mode);
+  const animrig::KeyframeSettings settings = key_iterator.get_keyframe_settings();
 
   if (ensure_range_start_key && key_iterator.get_frame() > range.min) {
     /* This case can happen if the rotation mode is keyed, but not any of the rotation channels.

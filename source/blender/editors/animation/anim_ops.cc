@@ -1736,6 +1736,9 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
                 "Skipped actions because they cannot be edited: %d",
                 skipped_actions);
   }
+
+  /* Update the 3d viewport so gizmos are correct. */
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   return OPERATOR_FINISHED;
 }
 
