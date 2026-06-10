@@ -1,2 +1,3 @@
 Referenced by issue #159759, Python API: bpy.utils.previews.load(..., 'IMAGE') no longer populates preview in Blender 5.2
 Referenced by pull request #159912, Fix #159759: broken thumbnails generation for temporary images
+Referenced by commit 95ffe4e59731d917b056a7ed053494323691ea16, Fix #159759: broken thumbnails generation for temporary images
