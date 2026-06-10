@@ -2434,7 +2434,7 @@ class XpbdSolverStep {
               solver_refs, sub_delta_time_, warm_start_lambda_factor_};
           {
             xpbd::GaussSeidelUpdater updater{solver_refs};
-            this->simulate__reset_forces__chunk(chunk_i, solve_params, updater);
+            this->simulate__warm_start_or_reset_forces__chunk(chunk_i, solve_params, updater);
           }
           for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
             xpbd::GaussSeidelUpdater updater{solver_refs};
@@ -2476,7 +2476,7 @@ class XpbdSolverStep {
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
         });
         this->simulate__gather_dynamic_constraints(substep, solver_refs_i);
-        this->simulate__reset_forces(solver_refs_i);
+        this->simulate__warm_start_or_reset_forces(solver_refs_i);
         for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
           this->simulate__position_solve__single_iteration(solver_refs_i, average_error_squared);
         }
@@ -2642,7 +2642,7 @@ class XpbdSolverStep {
     chunk_data.external_edge_contacts = std::move(new_edge_contacts);
   }
 
-  void simulate__reset_forces(const int solver_refs_i)
+  void simulate__warm_start_or_reset_forces(const int solver_refs_i)
   {
     const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
     xpbd::ConstraintSetParams solve_params{
@@ -2650,7 +2650,7 @@ class XpbdSolverStep {
 
     this->parallel_for_each_chunk(16, [&](const int chunk_i) {
       xpbd::GaussSeidelUpdater updater{solver_refs};
-      this->simulate__reset_forces__chunk(chunk_i, solve_params, updater);
+      this->simulate__warm_start_or_reset_forces__chunk(chunk_i, solve_params, updater);
     });
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = *geometries_.data[data_key_i];
@@ -2672,9 +2672,9 @@ class XpbdSolverStep {
     }
   }
 
-  void simulate__reset_forces__chunk(const int chunk_i,
-                                     xpbd::ConstraintSetParams &solve_params,
-                                     xpbd::GaussSeidelUpdater &updater)
+  void simulate__warm_start_or_reset_forces__chunk(const int chunk_i,
+                                                   xpbd::ConstraintSetParams &solve_params,
+                                                   xpbd::GaussSeidelUpdater &updater)
   {
     ChunkData &chunk_data = chunks_data_[chunk_i];
     chunk_data.external_face_contacts.lambdas_normal.fill(0.0f);

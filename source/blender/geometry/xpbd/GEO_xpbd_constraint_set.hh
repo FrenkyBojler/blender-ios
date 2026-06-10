@@ -45,6 +45,7 @@ class ConstraintSet {
                                      GaussSeidelUpdater & /*updater*/,
                                      const IndexMask &mask)
   {
+    /* By default, just reset the forces if warm starting is not supported. */
     this->reset_forces(mask);
   };
 
