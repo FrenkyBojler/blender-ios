@@ -171,7 +171,7 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
 
     /* If there is a float, move it next to current vec3. */
     LinkData **float_link_ptr = first_links.lookup_ptr(GPU_FLOAT);
-    if (float_link_ptr != nullptr) {
+    if (float_link_ptr != nullptr && *float_link_ptr != nullptr) {
       LinkData *float_input = *float_link_ptr;
       first_links.add_overwrite(GPU_FLOAT, float_input->next);
 
