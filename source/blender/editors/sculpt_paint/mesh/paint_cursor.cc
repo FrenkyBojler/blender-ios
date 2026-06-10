@@ -730,8 +730,7 @@ static void cursor_space_drawing_setup(const PaintCursorContext &pcontext)
 
     normalize_m4(mat);
 
-    Object &ob = *pcontext.vc.obact;
-    GPU_matrix_mul(ob.object_to_world().ptr());
+    GPU_matrix_mul(pcontext.vc.obact->object_to_world().ptr());
     GPU_matrix_mul(mat);
     return;
   }
