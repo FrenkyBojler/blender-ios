@@ -123,7 +123,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label()
       .description("Kernel function for computing weights at each voxel");
 
-  b.add_input<decl::Vector>("Position"_ustr).default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Vector>("Position"_ustr)
+      .default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD)
+      .structure_type(StructureType::Field);
+
+  b.add_separator();
 
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
@@ -153,8 +157,12 @@ static void node_declare(NodeDeclarationBuilder &b)
           .align_with_previous();
     }
   }
-  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr);
-  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr).align_with_previous();
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)
+      .structure_type(StructureType::Field)
+      .custom_draw(socket_items::ui::draw_extend_socket_fn<RasterizePointsItemsAccessor>());
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
+      .structure_type(StructureType::Field)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
