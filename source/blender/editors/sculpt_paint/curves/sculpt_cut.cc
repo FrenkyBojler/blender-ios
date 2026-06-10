@@ -48,7 +48,7 @@ struct BrushProjectionInfo {
    * Which of the brush transforms caused the cut. Relevant for reverse projection with symmetry
    * axes.
    */
-  int64_t brush_transform_index;
+  int brush_transform_index;
 };
 
 /**
@@ -176,7 +176,7 @@ struct CutOperationExecutor {
   {
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         curves_id_->symmetry);
-    for (const int64_t brush_transform_index : symmetry_brush_transforms.index_range()) {
+    for (const int brush_transform_index : symmetry_brush_transforms.index_range()) {
       const float4x4 &brush_transform = symmetry_brush_transforms[brush_transform_index];
       this->find_projected_points_in_stroke(
           math::invert(brush_transform), brush_transform_index, r_brush_projection_info);
@@ -184,7 +184,7 @@ struct CutOperationExecutor {
   }
 
   void find_projected_points_in_stroke(const float4x4 &brush_transform_inv,
-                                       const int64_t brush_transform_index,
+                                       const int brush_transform_index,
                                        MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
     const float4x4 projection = ED_view3d_ob_project_mat_get(ctx_.rv3d, object_);
@@ -224,7 +224,7 @@ struct CutOperationExecutor {
 
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         curves_id_->symmetry);
-    for (const int64_t brush_transform_index : symmetry_brush_transforms.index_range()) {
+    for (const int brush_transform_index : symmetry_brush_transforms.index_range()) {
       const float4x4 &brush_transform = symmetry_brush_transforms[brush_transform_index];
       this->find_spherical_points_in_stroke(brush_transform_index,
                                             math::transform_point(brush_transform, brush_pos_cu),
@@ -232,7 +232,7 @@ struct CutOperationExecutor {
     }
   }
 
-  void find_spherical_points_in_stroke(const int64_t brush_transform_index,
+  void find_spherical_points_in_stroke(const int brush_transform_index,
                                        const float3 &brush_pos_cu,
                                        MutableSpan<BrushProjectionInfo> r_brush_projection_info)
   {
