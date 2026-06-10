@@ -10,7 +10,6 @@
 #include "eevee_hiz.bsl.hh"
 #include "eevee_renderpass.bsl.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
-#include "gpu_shader_math_vector_safe_lib.glsl"
 #include "gpu_shader_shared_exponent_lib.glsl"
 
 namespace eevee::deferred {
@@ -85,38 +84,6 @@ void combine_vert([[vertex_id]] const int vert_id,
 struct CombineFragOut {
   [[frag_color(0)]] float4 combined;
 };
-
-float3 safe_divide_even_color(float3 a, float3 b)
-{
-  a *= safe_rcp(b);
-  /* Try to get gray even if b is zero. */
-  if (b.x == 0.0f) {
-    if (b.y == 0.0f) {
-      a.x = a.z;
-      a.y = a.z;
-    }
-    else if (b.z == 0.0f) {
-      a.x = a.y;
-      a.z = a.y;
-    }
-    else {
-      a.x = 0.5f * (a.y + a.z);
-    }
-  }
-  else if (b.y == 0.0f) {
-    if (b.z == 0.0f) {
-      a.y = a.x;
-      a.z = a.x;
-    }
-    else {
-      a.y = 0.5f * (a.x + a.z);
-    }
-  }
-  else if (b.z == 0.0f) {
-    a.z = 0.5f * (a.x + a.y);
-  }
-  return a;
-}
 
 /**
  * Combine light passes to the combined color target and apply surface colors.
@@ -217,12 +184,6 @@ void combine_frag([[resource_table]] Combine &srt,
   /* Apply contribution scaling after clamping (compositing-equivalent). */
   out_direct *= uni.uniform_buf.clamp.direct_scale;
   out_indirect *= uni.uniform_buf.clamp.indirect_scale;
-
-  diffuse_direct = safe_divide_even_color(diffuse_direct, diffuse_color);
-  diffuse_indirect = safe_divide_even_color(diffuse_indirect, diffuse_color);
-
-  specular_direct = safe_divide_even_color(specular_direct, specular_color);
-  specular_indirect = safe_divide_even_color(specular_indirect, specular_color);
 
   /* TODO(@fclem): Shouldn't we clamp these relative the main clamp? */
   diffuse_direct = colorspace::brightness_clamp_max(diffuse_direct, clamp_direct);
