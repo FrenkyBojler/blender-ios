@@ -699,10 +699,12 @@ void ED_screen_user_menu_item_add_operator(ListBaseT<bUserMenuItem> *lb,
                                            const wmOperatorType *ot,
                                            const IDProperty *prop,
                                            const char *op_prop_enum,
-                                           wm::OpCallContext opcontext);
+                                           wm::OpCallContext opcontext,
+                                           const int icon);
 void ED_screen_user_menu_item_add_menu(ListBaseT<bUserMenuItem> *lb,
                                        const char *ui_name,
-                                       const MenuType *mt);
+                                       const MenuType *mt, 
+                                       const int icon);
 void ED_screen_user_menu_item_add_prop(ListBaseT<bUserMenuItem> *lb,
                                        const char *ui_name,
                                        const char *context_data_path,

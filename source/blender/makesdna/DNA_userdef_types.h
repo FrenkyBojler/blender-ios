@@ -629,12 +629,16 @@ struct bUserMenuItem_Op {
   struct IDProperty *prop = nullptr;
   char op_prop_enum[64] = "";
   char opcontext = 0; /* #wm::OpCallContext */
-  char _pad0[7] = {};
+  char _pad0[3] = {};
+  int icon = 0;      /* BIFIconID */
+
 };
 
 struct bUserMenuItem_Menu {
   bUserMenuItem item;
   char mt_idname[64] = "";
+  int icon = 0; /* BIFIconID */
+  char _pad0[4] = {};
 };
 
 struct bUserMenuItem_Prop {

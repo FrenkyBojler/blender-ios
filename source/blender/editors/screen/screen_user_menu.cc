@@ -153,11 +153,13 @@ void ED_screen_user_menu_item_add_operator(ListBaseT<bUserMenuItem> *lb,
                                            const wmOperatorType *ot,
                                            const IDProperty *prop,
                                            const char *op_prop_enum,
-                                           wm::OpCallContext opcontext)
+                                           wm::OpCallContext opcontext,
+                                           const int icon)
 {
   bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(
       BKE_blender_user_menu_item_add(lb, USER_MENU_TYPE_OPERATOR));
   umi_op->opcontext = int8_t(opcontext);
+  umi_op->icon = icon;
   if (!STREQ(ui_name, ot->name)) {
     STRNCPY_UTF8(umi_op->item.ui_name, ui_name);
   }
@@ -168,10 +170,12 @@ void ED_screen_user_menu_item_add_operator(ListBaseT<bUserMenuItem> *lb,
 
 void ED_screen_user_menu_item_add_menu(ListBaseT<bUserMenuItem> *lb,
                                        const char *ui_name,
-                                       const MenuType *mt)
+                                       const MenuType *mt,
+                                       const int icon)
 {
   bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(
       BKE_blender_user_menu_item_add(lb, USER_MENU_TYPE_MENU));
+  umi_mt->icon = icon;
   if (!STREQ(ui_name, mt->label)) {
     STRNCPY_UTF8(umi_mt->item.ui_name, ui_name);
   }
@@ -230,7 +234,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
           }
           if (umi_op->op_prop_enum[0] == '\0') {
             PointerRNA ptr = menu->layout->op(
-                ot, ui_name, ICON_NONE, wm::OpCallContext(umi_op->opcontext), UI_ITEM_NONE);
+                ot, ui_name, umi_op->icon, wm::OpCallContext(umi_op->opcontext), UI_ITEM_NONE);
             if (umi_op->prop) {
               IDP_CopyPropertyContent(ptr.data_as<IDProperty>(), umi_op->prop);
             }
@@ -238,7 +242,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
           else {
             /* umi_op->prop could be used to set other properties but it's currently unsupported.
              */
-            menu->layout->op_menu_enum(C, ot, umi_op->op_prop_enum, ui_name, ICON_NONE);
+            menu->layout->op_menu_enum(C, ot, umi_op->op_prop_enum, ui_name, umi_op->icon);
           }
           is_empty = false;
         }
@@ -253,7 +257,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(&umi);
         MenuType *mt = WM_menutype_find(umi_mt->mt_idname, false);
         if (mt != nullptr) {
-          menu->layout->menu(mt, ui_name, ICON_NONE);
+          menu->layout->menu(mt, ui_name, umi_mt->icon);
           is_empty = false;
         }
         else {

@@ -477,7 +477,7 @@ static void but_user_menu_add(bContext *C, Button *but, bUserMenu *um)
         but->optype,
         but->opptr ? static_cast<const IDProperty *>(but->opptr->data) : nullptr,
         "",
-        but->opcontext);
+        but->opcontext, but->icon);
   }
   else if (but->rnaprop) {
     /* NOTE: 'member_id' may be a path. */
@@ -498,7 +498,7 @@ static void but_user_menu_add(bContext *C, Button *but, bUserMenu *um)
     }
   }
   else if ((mt = button_menutype_get(but))) {
-    ED_screen_user_menu_item_add_menu(&um->items, drawstr.c_str(), mt);
+    ED_screen_user_menu_item_add_menu(&um->items, drawstr.c_str(), mt, but->icon);
   }
   else if ((ot = button_operatortype_get_from_enum_menu(but, &prop))) {
     ED_screen_user_menu_item_add_operator(&um->items,
@@ -506,7 +506,7 @@ static void but_user_menu_add(bContext *C, Button *but, bUserMenu *um)
                                           ot,
                                           nullptr,
                                           RNA_property_identifier(prop),
-                                          but->opcontext);
+                                          but->opcontext, but->icon);
   }
 }
 
