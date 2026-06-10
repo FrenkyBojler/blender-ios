@@ -81,6 +81,29 @@ struct UDIMTilePixels {
     BLI_rcti_init_minmax(&dirty_region);
     flags.dirty = false;
   }
+
+  uint pixel_count() const
+  {
+    uint count = 0;
+    for (const PackedPixelRow &pixel_row : pixel_rows) {
+      count += pixel_row.num_pixels;
+    }
+    return count;
+  }
+
+  uint primitive_count() const
+  {
+    if (pixel_rows.is_empty()) {
+      return 0;
+    }
+
+    return pixel_rows.last().uv_primitive_index;
+  }
+
+  double pixel_density() const
+  {
+    return math::safe_divide(pixel_count(), primitive_count());
+  }
 };
 
 struct UDIMTileUndo {

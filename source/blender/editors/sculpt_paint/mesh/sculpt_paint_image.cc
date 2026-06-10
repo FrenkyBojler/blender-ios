@@ -303,6 +303,10 @@ static Bounds<int2> negative_bounds()
   return {int2(std::numeric_limits<int>::max()), int2(std::numeric_limits<int>::lowest())};
 }
 
+/* Arbitrarily chosen limit at which to do line segment tests.
+ * TODO: Further performance testing to figure out breakpoint */
+static constexpr double pixel_density_limit = 10000.0f;
+
 static void do_paint_pixels(const Depsgraph &depsgraph,
                             Object &object,
                             const Paint &paint,
@@ -370,13 +374,18 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
           return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
         });
 
-    const IndexMask valid_rows = IndexMask::from_predicate(
-        valid_uv_rows, memory, [&](const int i) {
-          const float3 end = tile_data.pixel_row_positions[i].start +
-                             tile_data.pixel_row_positions[i].delta *
-                                 tile_data.pixel_rows[i].num_pixels;
-          return brush_bounds.intersects_segment(tile_data.pixel_row_positions[i].start, end);
-        });
+    IndexMask valid_rows;
+    if (tile_data.pixel_density() >= pixel_density_limit) {
+      valid_rows = IndexMask::from_predicate(valid_uv_rows, memory, [&](const int i) {
+        const float3 end = tile_data.pixel_row_positions[i].start +
+                           tile_data.pixel_row_positions[i].delta *
+                               tile_data.pixel_rows[i].num_pixels;
+        return brush_bounds.intersects_segment(tile_data.pixel_row_positions[i].start, end);
+      });
+    }
+    else {
+      valid_rows = valid_uv_rows;
+    }
 
     Array<bool> row_changed(valid_rows.min_array_size(), false);
     threading::EnumerableThreadSpecific<PaintLocalData> all_factor_tls;
