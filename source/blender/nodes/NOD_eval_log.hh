@@ -402,6 +402,10 @@ class NodeLog {
 
   NodeLog();
   ~NodeLog();
+  NodeLog(const NodeLog &source) = default;
+  NodeLog &operator=(const NodeLog &source) = default;
+  NodeLog(NodeLog &&source);
+  NodeLog &operator=(NodeLog &&source);
 };
 
 class NodesEvalLog;

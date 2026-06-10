@@ -314,6 +314,23 @@ NodeLog::~NodeLog()
   IMB_freeImBuf(image_preview);
 }
 
+NodeLog::NodeLog(NodeLog &&source)
+{
+  *this = source;
+  source.image_preview = nullptr;
+}
+
+NodeLog &NodeLog::operator=(NodeLog &&source)
+{
+  if (this != &source) {
+    IMB_freeImBuf(this->image_preview);
+    *this = source;
+    source.image_preview = nullptr;
+  }
+
+  return *this;
+}
+
 NodeTreeLog::NodeTreeLog(NodesEvalLog *root_log, Vector<NodeTreeLogger *> tree_loggers)
     : root_log_(root_log), tree_loggers_(std::move(tree_loggers))
 {
