@@ -273,6 +273,16 @@ class Texture {
     return mipmaps_;
   }
 
+  IndexRange mip_map_range() const
+  {
+    return IndexRange(mip_min_, mip_max_ - mip_min_ + 1);
+  }
+
+  IndexRange layer_range() const
+  {
+    return IndexRange(view_layer_start_, layer_count());
+  }
+
   TextureFormat format_get() const
   {
     return format_;

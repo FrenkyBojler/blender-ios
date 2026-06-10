@@ -172,16 +172,6 @@ class VKTexture : public Texture {
    * Determine the VkExtent3D for the given mip_level.
    */
   VkExtent3D vk_extent_3d(int mip_level) const;
-
-  /* -------------------------------------------------------------------- */
-  /** \name Image Views
-   * \{ */
-
- private:
-  IndexRange mip_map_range() const;
-  IndexRange vk_layer_range() const;
-
-  /** \} */
 };
 
 BLI_INLINE VKTexture *unwrap(Texture *texture)

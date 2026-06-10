@@ -98,13 +98,12 @@ void VKTexture::copy_to(VKTexture &dst_texture,
     copy_image.node_data.region.srcSubresource.aspectMask = vk_image_aspect;
     copy_image.node_data.region.srcSubresource.mipLevel = mip + mip_map_range().first();
     copy_image.node_data.region.srcSubresource.layerCount = layer_count();
-    copy_image.node_data.region.srcSubresource.baseArrayLayer = vk_layer_range().first();
+    copy_image.node_data.region.srcSubresource.baseArrayLayer = layer_range().first();
     copy_image.node_data.region.dstSubresource.aspectMask = vk_image_aspect;
     copy_image.node_data.region.dstSubresource.mipLevel = mip +
                                                           dst_texture.mip_map_range().first();
     copy_image.node_data.region.dstSubresource.layerCount = layer_count();
-    copy_image.node_data.region.dstSubresource.baseArrayLayer =
-        dst_texture.vk_layer_range().first();
+    copy_image.node_data.region.dstSubresource.baseArrayLayer = dst_texture.layer_range().first();
     copy_image.node_data.region.extent = vk_extent_3d(mip_levels.first());
     copy_image.vk_image_aspect = vk_image_aspect;
 
@@ -148,7 +147,7 @@ void VKTexture::clear(const double4 data)
   clear_color_image.vk_image_subresource_range.aspectMask = to_vk_image_aspect_flag_bits(
       device_format_);
 
-  IndexRange layers = vk_layer_range();
+  IndexRange layers = layer_range();
   clear_color_image.vk_image_subresource_range.baseArrayLayer = layers.start();
   clear_color_image.vk_image_subresource_range.layerCount = layers.size();
   IndexRange levels = mip_map_range();
@@ -764,20 +763,6 @@ bool VKTexture::allocate()
   return result == VK_SUCCESS;
 }
 
-/* -------------------------------------------------------------------- */
-/** \name Image Views
- * \{ */
-
-IndexRange VKTexture::mip_map_range() const
-{
-  return IndexRange(mip_min_, mip_max_ - mip_min_ + 1);
-}
-
-IndexRange VKTexture::vk_layer_range() const
-{
-  return IndexRange(view_layer_start_, layer_count());
-}
-
 VkExtent3D VKTexture::vk_extent_3d(int mip_level) const
 {
   if (source_texture_) {
@@ -821,10 +806,10 @@ const VKImageView &VKTexture::image_view_get(VKImageViewArrayed arrayed, VKImage
   image_view_info_.use_srgb = true;
   image_view_info_.use_stencil = use_stencil_;
   image_view_info_.arrayed = arrayed;
-  image_view_info_.vk_layer_range = vk_layer_range();
+  image_view_info_.layer_range = layer_range();
 
   if (arrayed == VKImageViewArrayed::NOT_ARRAYED) {
-    image_view_info_.vk_layer_range = image_view_info_.vk_layer_range.slice(
+    image_view_info_.layer_range = image_view_info_.layer_range.slice(
         0, ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? 6 : 1);
   }
 
