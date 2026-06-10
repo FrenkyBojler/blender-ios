@@ -298,7 +298,7 @@ static void remove_rotation_fcurves(const ed::AnimTransformable &transformable,
                                     animrig::Channelbag &channelbag,
                                     const eRotationModes rotation_mode)
 {
-  std::string rna_path = transformable.rna_path_to_rotation_mode(rotation_mode);
+  std::string rna_path = transformable.rna_path_to_rotation(rotation_mode);
   SortedFCurveBuffer *rotation_fcurves = fcu_map.lookup_ptr(rna_path);
   if (!rotation_fcurves) {
     return;
@@ -329,7 +329,7 @@ static bool convert_rotation_mode_channelbag(animrig::Channelbag &channelbag,
       prop_subtype = PROP_AXISANGLE;
     }
     FCurve *fcurve = animrig::create_fcurve_for_channel(
-        {transformable.rna_path_to_rotation_mode(to_mode),
+        {transformable.rna_path_to_rotation(to_mode),
          i,
          PROP_FLOAT,
          prop_subtype,
@@ -342,7 +342,7 @@ static bool convert_rotation_mode_channelbag(animrig::Channelbag &channelbag,
     const std::pair<float, eRotationModes> &rotation_mode_range = ranges[i];
     const eRotationModes from_mode = rotation_mode_range.second;
 
-    const std::string from_mode_rna_path = transformable.rna_path_to_rotation_mode(from_mode);
+    const std::string from_mode_rna_path = transformable.rna_path_to_rotation(from_mode);
     const SortedFCurveBuffer *rotation_fcurves = fcu_map.lookup_ptr(from_mode_rna_path);
     if (!rotation_fcurves) {
       continue;
@@ -397,8 +397,7 @@ bool convert_rotation_keys(const ed::AnimTransformable &transformable,
   for (const auto &item : channelbag_fcurve_map.items()) {
     animrig::Channelbag *channelbag = item.key;
     RNAFCurveMap &fcu_map = item.value;
-    const std::string rotation_mode_path = fmt::format(
-        "{}.{}", transformable.rna_path(), "rotation_mode");
+    const std::string rotation_mode_path = transformable.rna_path_to_rotation_mode();
     Vector<std::pair<float, eRotationModes>> rotation_mode_ranges;
     FCurve *rotation_mode_fcurve = nullptr;
     if (const SortedFCurveBuffer *rotation_mode_buffer = fcu_map.lookup_ptr(rotation_mode_path)) {
@@ -457,7 +456,7 @@ void bake_rotation_fcurves(const ChannelbagFCurveMap &channelbag_fcurve_map,
   /* Need to bake on all potential FCurves to cover for an animated rotation mode. */
   const Array<eRotationModes> rotation_modes = {ROT_MODE_EUL, ROT_MODE_QUAT, ROT_MODE_AXISANGLE};
   for (const eRotationModes rotation_mode : rotation_modes) {
-    std::string rotation_rna_path = transformable.rna_path_to_rotation_mode(rotation_mode);
+    std::string rotation_rna_path = transformable.rna_path_to_rotation(rotation_mode);
 
     for (const RNAFCurveMap &rna_fcurve_map : channelbag_fcurve_map.values()) {
       const SortedFCurveBuffer *fcurve_buffer = rna_fcurve_map.lookup_ptr(rotation_rna_path);
