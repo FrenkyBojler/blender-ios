@@ -85,7 +85,10 @@ static float4x4 get_evaluated_world_space(const Depsgraph &dg,
       }
       return ob_eval->object_to_world() * float4x4(pose_bone_eval->pose_mat);
     }
-      /** TODO handle object. */
+    case AnimTransformable::Type::OBJECT: {
+      Object *ob_eval = id_cast<Object *>(eval_id);
+      return ob_eval->object_to_world();
+    }
   }
   return float4x4::identity();
 }
@@ -106,13 +109,19 @@ static float4x4 world_to_local(const Depsgraph &dg,
         break;
       }
       Bone *bone = pose_bone_eval->bone_get(*ob_eval);
-      float4x4 foo = ob_eval->world_to_object() * world_matrix;
-      float asd[4][4];
+      float4x4 object_local = ob_eval->world_to_object() * world_matrix;
+      float bone_local[4][4];
       /* The function docstring tells me I cannot use this function the way I am using it here. But
        * it works. Either I am missing an edge case, or the description is wrong. */
-      BKE_armature_mat_pose_to_bone(
-          {pose_bone_eval, bone}, reinterpret_cast<const float(*)[4]>(foo.base_ptr()), asd);
-      return float4x4(asd);
+      BKE_armature_mat_pose_to_bone({pose_bone_eval, bone},
+                                    reinterpret_cast<const float(*)[4]>(object_local.base_ptr()),
+                                    bone_local);
+      return float4x4(bone_local);
+    }
+
+    case AnimTransformable::Type::OBJECT: {
+      Object *ob_eval = id_cast<Object *>(eval_id);
+      return ob_eval->world_to_object() * world_matrix;
     }
   }
   return float4x4::identity();
@@ -188,13 +197,13 @@ struct DegComponentIdentifier {
 };
 
 static DegComponentIdentifier transformable_to_deg_identifier(
-    const ed::AnimTransformable &transformable)
+    const AnimTransformable &transformable)
 {
   switch (transformable.type()) {
-    case ed::AnimTransformable::Type::POSE_BONE:
+    case AnimTransformable::Type::POSE_BONE:
       return {transformable.owner_id(), transformable.name(), DEG_OB_COMP_BONE};
 
-    case ed::AnimTransformable::Type::OBJECT:
+    case AnimTransformable::Type::OBJECT:
       return {transformable.owner_id(), "", DEG_OB_COMP_TRANSFORM};
   }
 
