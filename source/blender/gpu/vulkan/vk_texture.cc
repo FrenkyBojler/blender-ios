@@ -352,10 +352,9 @@ void VKTexture::read(int mip, eGPUDataFormat format, void *data)
   if (mip_size[2] == 0) {
     mip_size[2] = 1;
   }
-  IndexRange layers = IndexRange(view_layer_start_, layer_count());
 
   int region[6] = {0, 0, 0, mip_size[0], mip_size[1], mip_size[2]};
-  read_sub(mip, format, region, layers, data);
+  read_sub(mip, format, region, IndexRange(layer_count()), data);
 }
 
 void VKTexture::update_sub(int mip,
