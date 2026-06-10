@@ -1152,7 +1152,7 @@ bool BKE_collection_contains_geometry_recursive(const Collection *collection)
     if (col_ob.ob->visibility_flag & OB_HIDE_RENDER) {
       continue;
     }
-    if (OB_TYPE_IS_GEOMETRY(col_ob.ob->type)) {
+    if (DEG_object_has_geometry_component(col_ob.ob)) {
       return true;
     }
   }
@@ -1473,7 +1473,7 @@ static bool collection_object_add(Main *bmain,
   bool newly_added = false;
   CollectionObject *cob = collection->runtime->gobject_hash->lookup_or_add_cb(ob, [&]() {
     newly_added = true;
-    return MEM_new<CollectionObject>(__func__);
+    return MEM_new<CollectionObject>("collection_object_add");
   });
   if (!newly_added) {
     return false;

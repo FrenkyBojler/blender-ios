@@ -27,6 +27,7 @@
 #include "BLI_sys_types.h"
 
 #include "DNA_action_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h"
@@ -182,6 +183,11 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
      ICON_PREFERENCES,
      "Preferences",
      "Edit persistent configuration settings"},
+    {SPACE_PROJECT,
+     "PROJECT",
+     ICON_PROJECT,
+     "Project Setup",
+     "Manage the current Blender project"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -734,6 +740,8 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 
 #  include "RE_engine.h"
 
+#  include "rna_screen_utils.hh"
+
 namespace blender {
 
 /* -------------------------------------------------------------------- */
@@ -777,6 +785,8 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
       return RNA_SpaceClipEditor;
     case SPACE_SPREADSHEET:
       return RNA_SpaceSpreadsheet;
+    case SPACE_PROJECT:
+      return RNA_SpaceProject;
 
       /* Currently no type info. */
     case SPACE_SCRIPT:
@@ -3985,6 +3995,38 @@ static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
   return items;
 }
 
+static ARegion *rna_SpaceProject_main_region_get(PointerRNA *ptr)
+{
+  if (!ptr->owner_id || (GS(ptr->owner_id->name) != ID_SCR)) {
+    return nullptr;
+  }
+
+  const bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+  const SpaceProject *space_project = static_cast<SpaceProject *>(ptr->data);
+
+  return BKE_screen_find_region_in_space(
+      screen, reinterpret_cast<const SpaceLink *>(space_project), RGN_TYPE_WINDOW);
+}
+
+static int rna_SpaceProject_active_section_get(PointerRNA *ptr)
+{
+  ARegion *main_region = rna_SpaceProject_main_region_get(ptr);
+  return rna_region_active_panel_category_get(main_region);
+}
+static void rna_SpaceProject_active_section_set(PointerRNA *ptr, int value)
+{
+  ARegion *main_region = rna_SpaceProject_main_region_get(ptr);
+  rna_region_active_panel_category_set(main_region, value);
+}
+const EnumPropertyItem *rna_SpaceProject_active_section_itemf(bContext * /*C*/,
+                                                              PointerRNA *ptr,
+                                                              PropertyRNA * /*prop*/,
+                                                              bool *r_free)
+{
+  ARegion *main_region = rna_SpaceProject_main_region_get(ptr);
+  return rna_region_active_panel_category_itemf(main_region, r_free);
+}
+
 }  // namespace blender
 
 #else
@@ -6513,6 +6555,63 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
       prop, "Center-Cut Safe Areas", "Show safe areas to fit content in a different aspect ratio");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
+  /* Composition Guides */
+  prop = RNA_def_property(srna, "show_composition_center", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_CENTER);
+  RNA_def_property_ui_text(prop, "Center", "Display center composition guide");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_center_diagonal", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_CENTER_DIAG);
+  RNA_def_property_ui_text(prop, "Center Diagonal", "Display diagonal center composition guide");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_thirds", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_THIRDS);
+  RNA_def_property_ui_text(prop, "Thirds", "Display rule of thirds composition guide");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_golden", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_GOLDEN);
+  RNA_def_property_ui_text(prop, "Golden Ratio", "Display golden ratio composition guide");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_golden_tria_a", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_GOLDEN_TRI_A);
+  RNA_def_property_ui_text(
+      prop, "Golden Triangle A", "Display golden triangle A composition guide");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_golden_tria_b", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_GOLDEN_TRI_B);
+  RNA_def_property_ui_text(
+      prop, "Golden Triangle B", "Display golden triangle B composition guide");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_harmony_tri_a", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_HARMONY_TRI_A);
+  RNA_def_property_ui_text(prop, "Harmonious Triangle A", "Display harmony A composition guide");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_harmony_tri_b", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.composition_guide_flags", COMPOSITION_GUIDES_HARMONY_TRI_B);
+  RNA_def_property_ui_text(prop, "Harmonious Triangle B", "Display harmony B composition guide");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "composition_guide_color", PROP_FLOAT, PROP_COLOR);
+  RNA_def_property_float_sdna(prop, nullptr, "preview_overlay.composition_guide_color");
+  RNA_def_property_ui_text(
+      prop, "Composition Guide Color", "Color and alpha for compositional guide overlays");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
   prop = RNA_def_property(srna, "show_metadata", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "preview_overlay.flag", SEQ_PREVIEW_SHOW_METADATA);
   RNA_def_property_ui_text(prop, "Show Metadata", "Show metadata of first visible strip");
@@ -6532,6 +6631,13 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_cursor", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "preview_overlay.flag", SEQ_PREVIEW_SHOW_2D_CURSOR);
   RNA_def_property_ui_text(prop, "2D Cursor", "");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_guides", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "preview_overlay.flag", SEQ_PREVIEW_SHOW_COMPOSITION_GUIDES);
+  RNA_def_property_ui_text(
+      prop, "Composition Guides", "Display composition guides over the preview");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 }
 
@@ -9440,6 +9546,27 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 }
 
+static void rna_def_space_project(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "SpaceProject", "Space");
+  RNA_def_struct_sdna(srna, "SpaceProject");
+  RNA_def_struct_ui_text(srna, "Space Project", "Project space data");
+
+  rna_def_space_generic_show_region_toggles(srna, 1 << RGN_TYPE_UI);
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "active_section", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_region_panel_category_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_SpaceProject_active_section_get",
+                              "rna_SpaceProject_active_section_set",
+                              "rna_SpaceProject_active_section_itemf");
+  RNA_def_property_ui_text(prop, "Active Section", "Choose the category of options to display");
+}
+
 void RNA_def_space(BlenderRNA *brna)
 {
   rna_def_space(brna);
@@ -9468,6 +9595,7 @@ void RNA_def_space(BlenderRNA *brna)
   rna_def_space_node(brna);
   rna_def_space_clip(brna);
   rna_def_space_spreadsheet(brna);
+  rna_def_space_project(brna);
 }
 
 }  // namespace blender

@@ -287,7 +287,8 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     matpass.sub_pass = nullptr;
   }
   else {
-    ShaderKey shader_key(matpass.gpumat, blender_mat, probe_capture);
+    const bool hide_from_raycast = ob->visibility_flag & OB_HIDE_RAYCAST;
+    ShaderKey shader_key(matpass.gpumat, blender_mat, probe_capture, hide_from_raycast);
 
     PassMain::Sub *shader_sub = shader_map_.lookup_or_add_cb(shader_key, [&]() {
       /* First time encountering this shader. Create a sub that will contain materials using it. */
@@ -413,7 +414,6 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
     mat.has_transparent_shadows = blender_mat->blend_flag & MA_BL_TRANSPARENT_SHADOW &&
                                   GPU_material_flag_get(mat.shading.gpumat,
                                                         GPU_MATFLAG_TRANSPARENT);
-    mat.use_scene_time = GPU_material_flag_get(mat.shading.gpumat, GPU_MATFLAG_SCENE_TIME);
 
     return mat;
   });
