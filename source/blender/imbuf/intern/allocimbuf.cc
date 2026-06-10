@@ -290,7 +290,9 @@ void IMB_ensure_host_buffer(ImBuf *ibuf)
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
   float *output_buffer = static_cast<float *>(
       GPU_texture_read(ibuf->gpu.texture, GPU_DATA_FLOAT, 0));
+  const ColorSpace *float_colorspace = ibuf->float_buffer.colorspace;
   ibuf->assign_float_data(output_buffer);
+  ibuf->float_buffer.colorspace = float_colorspace;
 
   if (need_secondary_context) {
     IMB_deactivate_gpu_context();
@@ -436,7 +438,6 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   ibuf2->userflags = ibuf1->userflags;
   ibuf2->metadata_ptr = ibuf1->metadata_ptr;
   ibuf2->metadata_sharing_info = ibuf1->metadata_sharing_info;
-  ibuf2->exrhandle = ibuf1->exrhandle;
   ibuf2->ftype = ibuf1->ftype;
   ibuf2->foptions = ibuf1->foptions;
   ibuf2->filepath = ibuf1->filepath;
@@ -468,6 +469,27 @@ size_t IMB_get_size_in_memory(const ImBuf *ibuf)
   size += channel_size * IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
 
   return size;
+}
+
+ImColorMode IMB_color_mode_from_channels(const int channels)
+{
+  switch (channels) {
+    case 1:
+      return ImColorMode::BW;
+    case 2:
+      return ImColorMode::BW_A;
+    case 3:
+      return ImColorMode::RGB;
+    case 4:
+      return ImColorMode::RGBA;
+  }
+  return ImColorMode::RGBA;
+}
+
+bool IMB_chan_id_is_color(const StringRef chan_id)
+{
+  return chan_id == "RGB" || chan_id == "RGBA" || chan_id == "RA" || chan_id == "BA" ||
+         chan_id == "GA" || chan_id == "R" || chan_id == "G" || chan_id == "B" || chan_id == "A";
 }
 
 }  // namespace blender
