@@ -44,8 +44,7 @@ static const EnumPropertyItem io_stl_export_evaluation_mode[] = {
      "DAG_EVAL_VIEWPORT",
      0,
      "Viewport",
-     "Export objects as they appear in the viewport (Multiresolution modifiers in Sculpt Mode "
-     "will not be evaluated)"},
+     "Export objects as they appear in the viewport"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static wmOperatorStatus wm_stl_export_invoke(bContext *C,
