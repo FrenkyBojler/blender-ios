@@ -29,6 +29,7 @@ namespace {
 
 using TraversalQueue = std::deque<OperationNode *>;
 
+/* Returns true to continue iterating or false to stop. */
 using DEGForeachOperation = bool (*)(OperationNode *, void *);
 
 bool deg_foreach_needs_visit(const OperationNode *op_node, const int flags)
@@ -120,8 +121,8 @@ void deg_foreach_dependent_operation(const ComponentNode *start_component,
 
   TraversalQueue queue;
   Set<OperationNode *> visited;
-  /* Since the OperationNodes are what holds the connections it is the level we need to traverse
-   * on. To hide that fact to the caller, we store which  */
+  /* Since the OperationNodes are what holds the connections it is the level we need to
+   * traverse on. */
   for (OperationNode *op_node : start_component->operations) {
     queue.push_back(op_node);
     visited.add(op_node);

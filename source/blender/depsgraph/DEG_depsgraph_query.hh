@@ -425,13 +425,12 @@ void DEG_foreach_dependent_ID_component(const Depsgraph *depsgraph,
                                         DEGForeachIDComponentCallback callback);
 /**
  * Iterate the dependency graph on a component level starting at a component of the given type and
- * name in `start_id`. The starting point is the scene of the depsgraph so only nodes that have a
- * connection to that are visited. The callback is only called once for each component.
+ * name in `start_id`.
  *
  * \param start_component_name can be empty. Not all components have a name. For bones this is the
  * bone name.
  *
- * \note If the callback returns false, the for loop will end.
+ * \note If the callback returns false, the iteration will end.
  */
 void DEG_foreach_dependent_component(const Depsgraph *depsgraph,
                                      const ID *start_id,

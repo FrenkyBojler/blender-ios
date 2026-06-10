@@ -85,6 +85,7 @@ static float4x4 get_evaluated_world_space(const Depsgraph &dg,
       }
       return ob_eval->object_to_world() * float4x4(pose_bone_eval->pose_mat);
     }
+      /** TODO handle object. */
   }
   return float4x4::identity();
 }
@@ -145,21 +146,23 @@ static Vector<ID *> get_unique_ids(const Span<AnimTransformable> transformables)
   return ids;
 }
 
-struct GraphNode {
+/* Stores which other AnimTransformables have to be applied before it. */
+struct TransformableRelations {
   AnimTransformable *transformable = nullptr;
-  bool inserted = false;
-  /* Other nodes that need to be applied before this. */
-  Vector<GraphNode *> ancestors;
+  /* Other transformable_relations that need to be applied before this. */
+  Vector<TransformableRelations *> ancestors = {};
+  /* Indicates that this data has been processed. */
+  bool done = false;
 
   bool can_insert()
   {
-    if (inserted) {
+    if (done) {
       /* Already applied. Don't apply twice. */
       return false;
     }
-    for (GraphNode *node : ancestors) {
-      if (!node->inserted) {
-        /* All ancestors must be applied before this node. */
+    for (TransformableRelations *ancestor : ancestors) {
+      if (!ancestor->done) {
+        /* All ancestors must be applied before this transformable. */
         return false;
       }
     }
@@ -167,28 +170,30 @@ struct GraphNode {
   }
 };
 
-static Array<GraphNode> build_transformable_ancestry(
+static Array<TransformableRelations> build_transformable_relations(
     const Depsgraph *depsgraph, const MutableSpan<AnimTransformable *> transformables)
 {
   using DegComponentIdentifier = std::pair<ID *, StringRef>;
 
-  Array<GraphNode> nodes(transformables.size());
-  Map<DegComponentIdentifier, GraphNode *> component_map;
+  Array<TransformableRelations> transformable_relations(transformables.size());
+  Map<DegComponentIdentifier, TransformableRelations *> component_map;
   Set<DegComponentIdentifier> visited_components;
 
   for (const int i : transformables.index_range()) {
-    AnimTransformable &t = *transformables[i];
-    nodes[i].transformable = &t;
-    /* TODO handle objects which wouldn't have a component name. */
-    component_map.add({t.owner_id(), t.name()}, &nodes[i]);
+    AnimTransformable &transformable = *transformables[i];
+    transformable_relations[i].transformable = &transformable;
+    /* TODO correctly handle objects since they wouldn't have a component name. */
+    component_map.add({transformable.owner_id(), transformable.name()},
+                      &transformable_relations[i]);
   }
 
-  for (GraphNode &graph_node : nodes) {
-    AnimTransformable *transformable = graph_node.transformable;
+  for (TransformableRelations &relations : transformable_relations) {
+    AnimTransformable *transformable = relations.transformable;
 
     DEG_foreach_dependent_component(
         depsgraph,
         transformable->owner_id(),
+        /* TODO use correct component type for objects. */
         DEG_OB_COMP_BONE,
         transformable->name(),
         [&](ID *other_id, eDepsObjectComponentType component, StringRef component_name) {
@@ -203,39 +208,40 @@ static Array<GraphNode> build_transformable_ancestry(
           if (visited_components.contains(cid)) {
             return false;
           }
-          GraphNode *dependent_node = component_map.lookup_default(cid, nullptr);
+          TransformableRelations *dependent_node = component_map.lookup_default(cid, nullptr);
           if (!dependent_node) {
             return true;
           }
-          dependent_node->ancestors.append(&graph_node);
+          dependent_node->ancestors.append(&relations);
           visited_components.add(cid);
           return true;
         });
   }
-  return nodes;
+  return transformable_relations;
 }
 
 static Vector<AnimTransformable *> depsgraph_sorted_transformables(
     const Depsgraph *depsgraph, const MutableSpan<AnimTransformable *> transformables)
 {
-  Array<GraphNode> nodes = build_transformable_ancestry(depsgraph, transformables);
+  Array<TransformableRelations> transformable_relations = build_transformable_relations(
+      depsgraph, transformables);
   Vector<AnimTransformable *> sorted_transformables;
 
   while (true) {
     bool inserted_any = false;
-    for (GraphNode &graph_node : nodes) {
-      if (!graph_node.can_insert()) {
+    for (TransformableRelations &relations : transformable_relations) {
+      if (!relations.can_insert()) {
         continue;
       }
-      // std::cout << "insert " << graph_node.transformable->name() << std::endl;
-      sorted_transformables.append(graph_node.transformable);
+      sorted_transformables.append(relations.transformable);
       inserted_any = true;
-      graph_node.inserted = true;
+      relations.done = true;
     }
     if (!inserted_any) {
       /* There are 2 cases in which this can happen. Either we applied all transforms, or there
-       * is a dependency cycle where 2 nodes have each other in their ancestors. In the latter case
-       * the returned Vector will not contain those transformables with a cycle.*/
+       * is a dependency cycle where 2 transformable_relations have each other in their
+       * ancestors. In the latter case the returned Vector will not contain those transformables
+       * with a cycle.*/
       break;
     }
   }
