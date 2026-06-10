@@ -1587,7 +1587,7 @@ static Vector<ed::AnimTransformable> selected_transformables_from_context(bConte
     case CTX_MODE_OBJECT: {
       CTX_data_selected_objects(C, &pointers);
       for (PointerRNA &ptr : pointers) {
-        transformables.append({*id_cast<Object *>(ptr.owner_id)});
+        transformables.append(ed::AnimTransformable(*id_cast<Object *>(ptr.owner_id)));
       }
       break;
     }
