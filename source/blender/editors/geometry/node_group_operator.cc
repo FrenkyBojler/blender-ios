@@ -84,6 +84,8 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include "PRF_profile.hh"
+
 #include <xxhash.h>
 
 #include "geometry_intern.hh"
@@ -1302,6 +1304,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
     case SOCK_COLLECTION:
     case SOCK_MATERIAL:
     case SOCK_FONT:
+    case SOCK_SOUND:
     case SOCK_OBJECT: {
       RNA_def_string(srna, "value", nullptr, 0, name.c_str(), description.c_str());
       make_common_value_props(*srna);
@@ -1688,6 +1691,7 @@ static void show_error_reports(const bContext &C, RegistrationData::Errors error
 
 void register_node_group_operators(const bContext &C)
 {
+  PRF_scope(ProfileCategory::Core);
   wmWindowManager &wm = *CTX_wm_manager(&C);
   Main &bmain = *CTX_data_main(&C);
   RegistrationData &registration_data = get_registration_data();
