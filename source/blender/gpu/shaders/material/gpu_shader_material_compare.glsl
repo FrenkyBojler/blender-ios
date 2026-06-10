@@ -4,18 +4,8 @@
 
 #include "gpu_shader_common_color_utils.glsl"
 #include "gpu_shader_math_constants_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_math_vector_reduce_lib.glsl"
-
-float angle_normalized_v3v3(float3 v1, float3 v2)
-{
-  v1 = normalize(v1);
-  v2 = normalize(v2);
-  if (dot(v1, v2) >= 0.0f) {
-    return 2.0f * asin(clamp(length(v2 - v1) / 2.0f, -1.0f, 1.0f));
-  }
-  const float3 v2_n = -v2;
-  return M_PI - 2.0f * asin(clamp(length(v2_n - v1) / 2.0f, -1.0f, 1.0f));
-}
 
 /* Float */
 
@@ -110,7 +100,7 @@ void compare_vector_dot_less_than(float3 a, float3 b, float comp, out float resu
 [[node]]
 void compare_vector_direction_less_than(float3 a, float3 b, float angle, out float result)
 {
-  result = float(angle_normalized_v3v3(a, b) < angle);
+  result = float(angle_normalized(a, b) < angle);
 }
 
 [[node]]
@@ -142,7 +132,7 @@ void compare_vector_dot_less_equal(float3 a, float3 b, float comp, out float res
 [[node]]
 void compare_vector_direction_less_equal(float3 a, float3 b, float angle, out float result)
 {
-  result = float(angle_normalized_v3v3(a, b) <= angle);
+  result = float(angle_normalized(a, b) <= angle);
 }
 
 [[node]]
@@ -174,7 +164,7 @@ void compare_vector_dot_greater_than(float3 a, float3 b, float comp, out float r
 [[node]]
 void compare_vector_direction_greater_than(float3 a, float3 b, float angle, out float result)
 {
-  result = float(angle_normalized_v3v3(a, b) > angle);
+  result = float(angle_normalized(a, b) > angle);
 }
 
 [[node]]
@@ -206,7 +196,7 @@ void compare_vector_dot_greater_equal(float3 a, float3 b, float comp, out float 
 [[node]]
 void compare_vector_direction_greater_equal(float3 a, float3 b, float angle, out float result)
 {
-  result = float(angle_normalized_v3v3(a, b) >= angle);
+  result = float(angle_normalized(a, b) >= angle);
 }
 
 [[node]]
@@ -239,7 +229,7 @@ void compare_vector_dot_equal(float3 a, float3 b, float comp, float epsilon, out
 void compare_vector_direction_equal(
     float3 a, float3 b, float angle, float epsilon, out float result)
 {
-  result = float(abs(angle_normalized_v3v3(a, b) - angle) <= epsilon);
+  result = float(abs(angle_normalized(a, b) - angle) <= epsilon);
 }
 
 [[node]]
@@ -273,7 +263,7 @@ void compare_vector_dot_not_equal(float3 a, float3 b, float comp, float epsilon,
 void compare_vector_direction_not_equal(
     float3 a, float3 b, float angle, float epsilon, out float result)
 {
-  result = float(abs(angle_normalized_v3v3(a, b) - angle) > epsilon);
+  result = float(abs(angle_normalized(a, b) - angle) > epsilon);
 }
 
 [[node]]
