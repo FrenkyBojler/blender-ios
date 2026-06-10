@@ -78,6 +78,38 @@ float patch_float_for_16f_storage(float value)
   return uintBitsToFloat(floatBitsToUint(value) + 0x1000);
 }
 
+float4 safe_divide_even_color(float4 a, float4 b)
+{
+  a *= safe_rcp(b);
+  /* Try to get gray even if b is zero. */
+  if (b.x == 0.0f) {
+    if (b.y == 0.0f) {
+      a.x = a.z;
+      a.y = a.z;
+    }
+    else if (b.z == 0.0f) {
+      a.x = a.y;
+      a.z = a.y;
+    }
+    else {
+      a.x = 0.5f * (a.y + a.z);
+    }
+  }
+  else if (b.y == 0.0f) {
+    if (b.z == 0.0f) {
+      a.y = a.x;
+      a.z = a.x;
+    }
+    else {
+      a.y = 0.5f * (a.x + a.z);
+    }
+  }
+  else if (b.z == 0.0f) {
+    a.z = 0.5f * (a.x + a.y);
+  }
+  return a;
+}
+
 struct Film {
   [[resource_table]] srt_t<CameraVelocity> camera;
   [[resource_table]] srt_t<draw::View> views_;
@@ -631,20 +663,9 @@ struct Film {
     imageStoreFast(out_combined_img, dst.texel, color);
   }
 
-  void store_color(FilmSample dst,
-                   int pass_id,
-                   float4 color,
-                   float4 &display,
-                   bool do_clamp_negative_values = true)
+  void store_color_ex(
+      FilmSample dst, int pass_id, float4 color, float4 &display, bool do_clamp_negative_values)
   {
-    if (pass_id == -1) {
-      return;
-    }
-
-    float4 data_film = imageLoadFast(color_accum_img, int3(dst.texel, pass_id));
-
-    color = (data_film * dst.weight + color) * dst.weight_sum_inv;
-
     /* Filter NaNs. */
     if (any(isnan(color))) {
       color = float4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -667,44 +688,11 @@ struct Film {
     imageStoreFast(color_accum_img, int3(dst.texel, pass_id), color);
   }
 
-  float4 safe_divide_even_color(float4 a, float4 b)
-  {
-    a *= safe_rcp(b);
-    /* Try to get gray even if b is zero. */
-    if (b.x == 0.0f) {
-      if (b.y == 0.0f) {
-        a.x = a.z;
-        a.y = a.z;
-      }
-      else if (b.z == 0.0f) {
-        a.x = a.y;
-        a.z = a.y;
-      }
-      else {
-        a.x = 0.5f * (a.y + a.z);
-      }
-    }
-    else if (b.y == 0.0f) {
-      if (b.z == 0.0f) {
-        a.y = a.x;
-        a.z = a.x;
-      }
-      else {
-        a.y = 0.5f * (a.x + a.z);
-      }
-    }
-    else if (b.z == 0.0f) {
-      a.z = 0.5f * (a.x + a.y);
-    }
-    return a;
-  }
-
-  void store_color_divided(FilmSample dst,
-                           int pass_id,
-                           float4 color,
-                           float4 &display,
-                           float4 divider_prev,
-                           float4 divider_curr)
+  void store_color(FilmSample dst,
+                   int pass_id,
+                   float4 color,
+                   float4 &display,
+                   bool do_clamp_negative_values = true)
   {
     if (pass_id == -1) {
       return;
@@ -712,30 +700,37 @@ struct Film {
 
     float4 data_film = imageLoadFast(color_accum_img, int3(dst.texel, pass_id));
 
-    data_film *= divider_prev;
-
     color = (data_film * dst.weight + color) * dst.weight_sum_inv;
 
-    color = safe_divide_even_color(color, divider_curr);
+    store_color_ex(dst, pass_id, color, display, do_clamp_negative_values);
+  }
 
-    /* Filter NaNs. */
-    if (any(isnan(color))) {
-      color = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  void store_color_and_light(FilmSample dst,
+                             int color_pass_id,
+                             int light_pass_id,
+                             float4 color,
+                             float4 light,
+                             float4 &display)
+  {
+    if (color_pass_id == -1) {
+      return;
     }
 
-    color = clamp_negative_values(color);
-
-    /* Fix alpha not accumulating to 1 because of float imprecision. But here we cannot assume that
-     * the alpha contains actual transparency and not user data. Only bias if very close to 1. */
-    if (color.a > 0.9999f && color.a < 1.0f) {
-      color.a = 1.0f;
+    float4 color_film, light_film;
+    color_film = imageLoadFast(color_accum_img, int3(dst.texel, color_pass_id));
+    if (light_pass_id != -1) {
+      light_film = imageLoadFast(color_accum_img, int3(dst.texel, light_pass_id));
     }
 
-    if (display_id == pass_id) {
-      display = color;
-    }
-    color = patch_float_for_16f_storage(color);
-    imageStoreFast(color_accum_img, int3(dst.texel, pass_id), color);
+    light_film *= color_film;
+
+    color = (color_film * dst.weight + color) * dst.weight_sum_inv;
+    light = (light_film * dst.weight + light) * dst.weight_sum_inv;
+
+    light = safe_divide_even_color(light, color);
+
+    store_color_ex(dst, color_pass_id, color, display, true);
+    store_color_ex(dst, light_pass_id, light, display, true);
   }
 
   void store_value(FilmSample dst, int pass_id, float value, float4 &display)
@@ -878,29 +873,11 @@ struct Film {
       }
     }
 
-    float4 diffuse_color_prev = float4(0.0f);
-    float4 diffuse_color_curr = float4(0.0f);
-    float4 specular_color_prev = float4(0.0f);
-    float4 specular_color_curr = float4(0.0f);
-
-    if (flag_test(enabled_categories, PASS_CATEGORY_COLOR_2)) {
-      if (uni.uniform_buf.film.diffuse_color_id != -1) {
-        diffuse_color_prev = imageLoadFast(color_accum_img,
-                                           int3(dst.texel, uni.uniform_buf.film.diffuse_color_id));
-      }
-      if (uni.uniform_buf.film.specular_color_id != -1) {
-        specular_color_prev = imageLoadFast(
-            color_accum_img, int3(dst.texel, uni.uniform_buf.film.specular_color_id));
-      }
-
-      imageFence(color_accum_img);
-
+    if (flag_test(enabled_categories, PASS_CATEGORY_COLOR_1)) {
       float4 diffuse_color_accum = float4(0.0f);
       float4 specular_color_accum = float4(0.0f);
-      float4 environment_accum = float4(0.0f);
-      float mist_accum = 0.0f;
-      float shadow_accum = 0.0f;
-      float ao_accum = 0.0f;
+      float4 diffuse_light_accum = float4(0.0f);
+      float4 specular_light_accum = float4(0.0f);
 
       for (int i = 0; i < samples_len; i++) {
         FilmSample src = sample_get(i, texel_film);
@@ -914,6 +891,52 @@ struct Film {
                      uni.uniform_buf.render_pass.specular_color_id,
                      rp_color_tx,
                      specular_color_accum);
+        sample_accum(src,
+                     uni.uniform_buf.film.diffuse_light_id,
+                     uni.uniform_buf.render_pass.diffuse_light_id,
+                     rp_color_tx,
+                     diffuse_light_accum);
+        sample_accum(src,
+                     uni.uniform_buf.film.specular_light_id,
+                     uni.uniform_buf.render_pass.specular_light_id,
+                     rp_color_tx,
+                     specular_light_accum);
+      }
+
+      store_color_and_light(dst,
+                            uni.uniform_buf.film.diffuse_color_id,
+                            uni.uniform_buf.film.diffuse_light_id,
+                            diffuse_color_accum,
+                            diffuse_light_accum,
+                            out_color);
+      store_color_and_light(dst,
+                            uni.uniform_buf.film.specular_color_id,
+                            uni.uniform_buf.film.specular_light_id,
+                            specular_color_accum,
+                            specular_light_accum,
+                            out_color);
+    }
+
+    if (flag_test(enabled_categories, PASS_CATEGORY_COLOR_2)) {
+      float4 environment_accum = float4(0.0f);
+      float4 volume_light_accum = float4(0.0f);
+      float4 emission_accum = float4(0.0f);
+      float mist_accum = 0.0f;
+      float shadow_accum = 0.0f;
+      float ao_accum = 0.0f;
+
+      for (int i = 0; i < samples_len; i++) {
+        FilmSample src = sample_get(i, texel_film);
+        sample_accum(src,
+                     uni.uniform_buf.film.volume_light_id,
+                     uni.uniform_buf.render_pass.volume_light_id,
+                     rp_color_tx,
+                     volume_light_accum);
+        sample_accum(src,
+                     uni.uniform_buf.film.emission_id,
+                     uni.uniform_buf.render_pass.emission_id,
+                     rp_color_tx,
+                     emission_accum);
         sample_accum(src,
                      uni.uniform_buf.film.environment_id,
                      uni.uniform_buf.render_pass.environment_id,
@@ -935,69 +958,12 @@ struct Film {
       float4 shadow_accum_color = float4(float3(shadow_accum), weight_accum);
       float4 ao_accum_color = float4(float3(ao_accum), weight_accum);
 
-      store_color(dst, uni.uniform_buf.film.diffuse_color_id, diffuse_color_accum, out_color);
-      store_color(dst, uni.uniform_buf.film.specular_color_id, specular_color_accum, out_color);
+      store_color(dst, uni.uniform_buf.film.volume_light_id, volume_light_accum, out_color);
+      store_color(dst, uni.uniform_buf.film.emission_id, emission_accum, out_color);
       store_color(dst, uni.uniform_buf.film.environment_id, environment_accum, out_color);
       store_color(dst, uni.uniform_buf.film.shadow_id, shadow_accum_color, out_color);
       store_color(dst, uni.uniform_buf.film.ambient_occlusion_id, ao_accum_color, out_color);
       store_value(dst, uni.uniform_buf.film.mist_id, mist_accum, out_color);
-
-      imageFence(color_accum_img);
-
-      if (uni.uniform_buf.film.diffuse_color_id != -1) {
-        diffuse_color_curr = imageLoadFast(color_accum_img,
-                                           int3(dst.texel, uni.uniform_buf.film.diffuse_color_id));
-      }
-      if (uni.uniform_buf.film.specular_color_id != -1) {
-        specular_color_curr = imageLoadFast(
-            color_accum_img, int3(dst.texel, uni.uniform_buf.film.specular_color_id));
-      }
-    }
-
-    if (flag_test(enabled_categories, PASS_CATEGORY_COLOR_1)) {
-      float4 diffuse_light_accum = float4(0.0f);
-      float4 specular_light_accum = float4(0.0f);
-      float4 volume_light_accum = float4(0.0f);
-      float4 emission_accum = float4(0.0f);
-
-      for (int i = 0; i < samples_len; i++) {
-        FilmSample src = sample_get(i, texel_film);
-        sample_accum(src,
-                     uni.uniform_buf.film.diffuse_light_id,
-                     uni.uniform_buf.render_pass.diffuse_light_id,
-                     rp_color_tx,
-                     diffuse_light_accum);
-        sample_accum(src,
-                     uni.uniform_buf.film.specular_light_id,
-                     uni.uniform_buf.render_pass.specular_light_id,
-                     rp_color_tx,
-                     specular_light_accum);
-        sample_accum(src,
-                     uni.uniform_buf.film.volume_light_id,
-                     uni.uniform_buf.render_pass.volume_light_id,
-                     rp_color_tx,
-                     volume_light_accum);
-        sample_accum(src,
-                     uni.uniform_buf.film.emission_id,
-                     uni.uniform_buf.render_pass.emission_id,
-                     rp_color_tx,
-                     emission_accum);
-      }
-
-      store_color_divided(dst,
-                          uni.uniform_buf.film.diffuse_light_id,
-                          diffuse_light_accum,
-                          out_color,
-                          diffuse_color_prev,
-                          diffuse_color_curr);
-      store_color_divided(dst,
-                          uni.uniform_buf.film.specular_light_id,
-                          specular_light_accum,
-                          out_color,
-                          specular_color_prev,
-                          specular_color_curr);
-      store_color(dst, uni.uniform_buf.film.volume_light_id, volume_light_accum, out_color);
-      store_color(dst, uni.uniform_buf.film.emission_id, emission_accum, out_color);
     }
 
     if (flag_test(enabled_categories, PASS_CATEGORY_COLOR_3)) {
