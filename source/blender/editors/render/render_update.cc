@@ -38,6 +38,7 @@
 #include "BKE_node_tree_update.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
+#include "BKE_scene_runtime.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -105,7 +106,8 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
   }
 }
 
-static void update_compositor(const DEGEditorUpdateContext *update_context)
+static void update_compositor(const DEGEditorUpdateContext *update_context,
+                              const bool frame_changed)
 {
   const Scene *scene = DEG_get_evaluated(update_context->depsgraph, update_context->scene);
   const bNodeTree *node_tree = scene->compositing_node_group;
@@ -114,12 +116,16 @@ static void update_compositor(const DEGEditorUpdateContext *update_context)
   }
 
   if (node_tree->id.recalc & ID_RECALC_NTREE_OUTPUT) {
+    if (!frame_changed) {
+      update_context->scene->runtime->compositor.cache.clear_frames();
+    }
+
     ED_node_compositor_job(
         update_context->bmain, update_context->scene, update_context->view_layer);
   }
 }
 
-void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool updated)
+void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool frame_changed)
 {
   Main *bmain = update_ctx->bmain;
   static bool recursive_check = false;
@@ -141,6 +147,7 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool
   }
 
   recursive_check = true;
+  const bool updated = frame_changed || DEG_id_type_any_updated(update_ctx->depsgraph);
 
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   for (wmWindow &window : wm->windows) {
@@ -153,7 +160,7 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool
     }
   }
 
-  update_compositor(update_ctx);
+  update_compositor(update_ctx, frame_changed);
 
   recursive_check = false;
 }

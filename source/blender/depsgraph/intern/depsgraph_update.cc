@@ -24,10 +24,10 @@ void deg_editors_id_update(const DEGEditorUpdateContext *update_ctx, ID *id)
   }
 }
 
-void deg_editors_scene_update(const DEGEditorUpdateContext *update_ctx, bool updated)
+void deg_editors_scene_update(const DEGEditorUpdateContext *update_ctx, bool frame_changed)
 {
   if (deg_editor_update_scene_cb != nullptr) {
-    deg_editor_update_scene_cb(update_ctx, updated);
+    deg_editor_update_scene_cb(update_ctx, frame_changed);
   }
 }
 

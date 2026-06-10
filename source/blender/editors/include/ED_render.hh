@@ -47,9 +47,10 @@ void ED_render_view_layer_changed(Main *bmain, bScreen *screen);
 void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id);
 /**
  * Update all 3D viewport render and draw engines on changes to the scene.
- * This is called by the dependency graph when it detects changes.
+ * This is called by the dependency graph when it detects changes. If the update is due to a frame
+ * change, frame_changed will be true.
  */
-void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, bool updated);
+void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, bool frame_changed);
 /**
  * Update 3D viewport render or draw engine on changes to the scene or view settings.
  */

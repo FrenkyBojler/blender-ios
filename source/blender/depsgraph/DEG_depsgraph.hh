@@ -219,7 +219,8 @@ struct DEGEditorUpdateContext {
 };
 
 using DEG_EditorUpdateIDCb = void (*)(const DEGEditorUpdateContext *update_ctx, ID *id);
-using DEG_EditorUpdateSceneCb = void (*)(const DEGEditorUpdateContext *update_ctx, bool updated);
+using DEG_EditorUpdateSceneCb = void (*)(const DEGEditorUpdateContext *update_ctx,
+                                         bool frame_changed);
 
 /** Set callbacks which are being called when depsgraph changes. */
 void DEG_editors_set_update_cb(DEG_EditorUpdateIDCb id_func, DEG_EditorUpdateSceneCb scene_func);

@@ -10,17 +10,64 @@
 
 #include <string>
 
+#include "BLI_index_range.hh"
+#include "BLI_map.hh"
 #include "BLI_set.hh"
+#include "BLI_vector.hh"
 
 namespace blender {
 
 struct Scene;
 struct ViewLayer;
+struct ImBuf;
 struct bContext;
 struct DepsNodeHandle;
 struct bNodeTree;
 
 namespace bke::compositor {
+
+struct Cache {
+  struct FrameKey {
+    int frame_number = 0;
+    int view_identifier = 0;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(frame_number, view_identifier);
+    }
+
+    friend bool operator==(const FrameKey &a, const FrameKey &b) = default;
+  };
+
+ private:
+  /* A cache of final interactive compositor results across frames. */
+  Map<FrameKey, ImBuf *> frames_;
+
+ public:
+  /* Clear all caches. */
+  ~Cache();
+
+  /* Get the frame cache corresponding to the given frame number and view. */
+  const ImBuf *get_frame(int frame_number, int view_identifier);
+
+  /* Add a new frame cache entry. If the new entry would surpass the memory cache limit, frames
+   * will be evicted to make room. */
+  void add_frame(int frame_number, int view_identifier, ImBuf *image_buffer);
+
+  /* Delete one entry from the frames cache given the current frame number. If a cached frame exist
+   * before the current frame, the furthest one will be removed, otherwise, the furthest cached
+   * frame after the current frame will be removed. */
+  void evict_frame(int current_frame_number);
+
+  /* Clears the frames cache. */
+  void clear_frames();
+
+  /* Computes the total size of the cache in bytes. */
+  int64_t size();
+
+  /* Computes a list of every contiguous segment of cached frames. */
+  Vector<IndexRange> compute_frame_ranges();
+};
 
 /* Get the set of all passes used by the compositor for the given view layer, identified by their
  * pass names. This might be a superset of the passes actually supported by the render engine, in
