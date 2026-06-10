@@ -90,7 +90,7 @@ class BONE_PT_transform(BoneButtonsPanel, Panel):
                 row.prop(pchan, "lock_rotation", text="", emboss=False, icon='DECORATE_UNLOCKED')
             row = layout.row(align=True)
             row.prop(pchan, "rotation_mode", text="Mode")
-            row.label(text="", icon='BLANK1')
+            row.operator("anim.rotation_mode_convert", text="", icon='ACTION_TWEAK')
 
             col = layout.column()
             row = col.row(align=True)
