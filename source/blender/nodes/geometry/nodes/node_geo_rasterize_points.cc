@@ -123,8 +123,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label()
       .description("Kernel function for computing weights at each voxel");
 
-  b.add_input<decl::Vector>("Position"_ustr)
-      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Vector>("Position"_ustr).default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
 
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
@@ -147,7 +146,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       auto &input_decl = b.add_input(input_type, UString(name), UString(identifier));
       input_decl.socket_name_ptr(
           &tree->id, *RasterizePointsItemsAccessor::item_srna, &item, "name");
-      input_decl.field_on_all();
+      input_decl.evaluated_geometry_field();
 
       b.add_output(output_type, UString(name), UString(identifier))
           .structure_type(StructureType::Grid)
