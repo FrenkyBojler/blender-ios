@@ -176,9 +176,14 @@ struct DegComponentIdentifier {
   StringRef name;
   eDepsObjectComponentType type;
 
-  bool operator==(const DegComponentIdentifier &other)
+  bool operator==(const DegComponentIdentifier &other) const
   {
     return id == other.id && type == other.type && name == other.name;
+  }
+
+  uint64_t hash() const
+  {
+    return get_default_hash(id, type, name);
   }
 };
 
@@ -202,19 +207,16 @@ static Array<TransformableRelations> build_transformable_relations(
 {
   Array<TransformableRelations> transformable_relations(transformables.size());
   Map<DegComponentIdentifier, TransformableRelations *> component_map;
-  /* This is used as an optimization. If we already visited that component for a previous
-   * transformable, the dependency of that branch is already recorded and we can stop iterating
-   * into it. */
-  Set<DegComponentIdentifier> visited_components;
 
   for (const int i : transformables.index_range()) {
     AnimTransformable &transformable = *transformables[i];
     transformable_relations[i].transformable = &transformable;
+    transformable_relations[i].done = false;
     component_map.add(transformable_to_deg_identifier(transformable), &transformable_relations[i]);
   }
 
   for (const DegComponentIdentifier &deg_identifier : component_map.keys()) {
-    TransformableRelations *relations = component_map.lookup(deg_identifier);
+    TransformableRelations *transformable_relation = component_map.lookup(deg_identifier);
     DEG_foreach_dependent_component(
         depsgraph,
         deg_identifier.id,
@@ -224,23 +226,30 @@ static Array<TransformableRelations> build_transformable_relations(
           if (!ELEM(type, DEG_OB_COMP_TRANSFORM, DEG_OB_COMP_BONE)) {
             return true;
           }
-          DegComponentIdentifier cid(other_id, component_name, type);
-          if (cid == deg_identifier) {
+          DegComponentIdentifier dependent_deg_id(other_id, component_name, type);
+          if (dependent_deg_id == deg_identifier) {
             /* Skip self. */
             return true;
           }
-          TransformableRelations *dependent_node = component_map.lookup_default(cid, nullptr);
-          if (!dependent_node) {
+          TransformableRelations *dependent = component_map.lookup_default(dependent_deg_id,
+                                                                           nullptr);
+          if (!dependent) {
             return true;
           }
-          if (visited_components.contains(cid)) {
-            dependent_node->ancestors.append(relations);
+          dependent->ancestors.append(transformable_relation);
+          if (dependent->done) {
+            /* This is used as an optimization. If we already visited that component for a previous
+             * transformable, the dependency of that branch is already recorded and we can stop
+             * iterating into it. */
             return false;
           }
-          dependent_node->ancestors.append(relations);
-          visited_components.add_new(cid);
+          dependent->done = true;
           return true;
         });
+  }
+  for (TransformableRelations &relation : transformable_relations) {
+    /* Resetting the bool for the next use. */
+    relation.done = false;
   }
   return transformable_relations;
 }
