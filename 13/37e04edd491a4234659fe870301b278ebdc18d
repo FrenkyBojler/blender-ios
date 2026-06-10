@@ -1,2 +1,3 @@
 Referenced by issue #158034, Assertion failure when deleting an open parenthesis next to a close parenthesis
 Referenced by issue #158853, pyGPU: Crash on shader compilation
+Referenced by commit 9600849178836e7a0b1acbd00705cb607710ab84, Fix: #158034: Assert deleting an open parenthesis next to a closed
