@@ -97,7 +97,8 @@ static Vector<T> read_texture(gpu::Texture *texture, eGPUDataFormat data_format,
 
 /* Given a pair of TextureFormat values, create base and view textures and
  * attempt to perform a framebuffer color clear over the view texture. */
-template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_create_test()
+template<TextureFormat FormatA, TextureFormat FormatB>
+static void texture_view_create_format_test()
 {
   GPU_render_begin();
 
@@ -179,70 +180,129 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
 
 static void test_texture_view_SFLOAT_32_32_32_32()
 {
-  texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::SFLOAT_32_32_32_32>();
-  texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::UINT_32_32_32_32>();
-  texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::SINT_32_32_32_32>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32_32_32,
+                                  TextureFormat::SFLOAT_32_32_32_32>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32_32_32,
+                                  TextureFormat::UINT_32_32_32_32>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32_32_32,
+                                  TextureFormat::SINT_32_32_32_32>();
 }
 GPU_OPENGL_TEST(texture_view_SFLOAT_32_32_32_32);
 
 static void test_texture_view_SFLOAT_32_32()
 {
-  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SFLOAT_32_32>();
-  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SFLOAT_16_16_16_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::UINT_32_32>();
-  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::UINT_16_16_16_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SINT_32_32>();
-  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SINT_16_16_16_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SNORM_16_16_16_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::UNORM_16_16_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32, TextureFormat::SFLOAT_32_32>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32,
+                                  TextureFormat::SFLOAT_16_16_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32, TextureFormat::UINT_32_32>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32, TextureFormat::UINT_16_16_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32, TextureFormat::SINT_32_32>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32, TextureFormat::SINT_16_16_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32, TextureFormat::SNORM_16_16_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32_32, TextureFormat::UNORM_16_16_16_16>();
 }
 GPU_OPENGL_TEST(texture_view_SFLOAT_32_32);
 
 static void test_texture_view_SFLOAT_32()
 {
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SFLOAT_32>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SFLOAT_16_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_32>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_16_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_8_8_8_8>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SINT_32>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SINT_16_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SINT_8_8_8_8>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SNORM_16_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SNORM_8_8_8_8>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_16_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_8_8_8_8>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::SFLOAT_32>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::SFLOAT_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_32>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_8_8_8_8>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::SINT_32>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::SINT_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::SINT_8_8_8_8>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::SNORM_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::SNORM_8_8_8_8>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_16_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_8_8_8_8>();
 
   /* Note the special formats. */
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UFLOAT_11_11_10>();
-  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SRGBA_8_8_8_8>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::UFLOAT_11_11_10>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::SRGBA_8_8_8_8>();
 
   /* Skipped: readback is not handled as we store these in reverse order. */
-  // texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_10_10_10_2>();
-  // texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_10_10_10_2>();
+  // texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_10_10_10_2>();
+  // texture_view_create_format_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_10_10_10_2>();
 }
 GPU_OPENGL_TEST(texture_view_SFLOAT_32);
 
 static void test_texture_view_SFLOAT_16()
 {
-  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::SFLOAT_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UINT_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UINT_8_8>();
-  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::SINT_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::SINT_8_8>();
-  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::SNORM_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_8_8>();
-  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_16>();
-  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_8_8>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_16, TextureFormat::SFLOAT_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_16, TextureFormat::UINT_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_16, TextureFormat::UINT_8_8>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_16, TextureFormat::SINT_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_16, TextureFormat::SINT_8_8>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_16, TextureFormat::SNORM_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_8_8>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_16>();
+  texture_view_create_format_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_8_8>();
 }
 GPU_OPENGL_TEST(texture_view_SFLOAT_16);
 
 static void test_texture_view_UINT_8()
 {
-  texture_view_create_test<TextureFormat::UINT_8, TextureFormat::UINT_8>();
-  texture_view_create_test<TextureFormat::UINT_8, TextureFormat::SINT_8>();
-  texture_view_create_test<TextureFormat::UINT_8, TextureFormat::SNORM_8>();
-  texture_view_create_test<TextureFormat::UINT_8, TextureFormat::UNORM_8>();
+  texture_view_create_format_test<TextureFormat::UINT_8, TextureFormat::UINT_8>();
+  texture_view_create_format_test<TextureFormat::UINT_8, TextureFormat::SINT_8>();
+  texture_view_create_format_test<TextureFormat::UINT_8, TextureFormat::SNORM_8>();
+  texture_view_create_format_test<TextureFormat::UINT_8, TextureFormat::UNORM_8>();
 }
 GPU_OPENGL_TEST(texture_view_UINT_8);
+
+static void test_texture_view_mip_layer_test()
+{
+  GPU_render_begin();
+
+  /* Test operates on a 4x4 texture patch. */
+  const uint2 texture_size = uint2(4);
+  const TextureFormat format = TextureFormat::UINT_8_8;
+
+  Vector<uint2> mip_0_data;
+  for (uint i : IndexRange(4 * 4)) {
+    mip_0_data.append({0, i});
+  }
+  Vector<uint2> mip_1_data;
+  for (uint i : IndexRange(2 * 2)) {
+    mip_1_data.append({1, i});
+  }
+  Vector<uint2> mip_2_data{{2, 0}};
+
+  Vector<uint2> *mip_datas[] = {&mip_0_data, &mip_1_data, &mip_2_data};
+  int3 mip_sizes[] = {{4, 4, 1}, {2, 2, 1}, {1, 1, 1}};
+
+  gpu::Texture *base = create_base_texture(format, texture_size, 3, 0);
+  for (int mip : IndexRange(3)) {
+    base->update_sub(
+        mip, int3(0), mip_sizes[mip], eGPUDataFormat::GPU_DATA_UINT, mip_datas[mip]->data());
+  }
+
+  gpu::Texture *copy = create_base_texture(format, texture_size, 3, 0);
+
+  for (int mip : IndexRange(3)) {
+    gpu::Texture *base_view = create_view_texture(format, base, mip);
+    auto base_readback = read_texture<uint>(base_view, GPU_DATA_UINT, 0);
+    EXPECT_TRUE(std::equal(reinterpret_cast<uint *>(mip_datas[mip]->begin()),
+                           reinterpret_cast<uint *>(mip_datas[mip]->end()),
+                           base_readback.begin()));
+
+    gpu::Texture *copy_view = create_view_texture(format, copy, mip);
+    GPU_texture_copy(copy_view, base_view);
+    auto copy_readback = read_texture<uint>(copy_view, GPU_DATA_UINT, 0);
+    EXPECT_TRUE(std::equal(reinterpret_cast<uint *>(mip_datas[mip]->begin()),
+                           reinterpret_cast<uint *>(mip_datas[mip]->end()),
+                           copy_readback.begin()));
+
+    GPU_texture_free(base_view);
+    GPU_texture_free(copy_view);
+  }
+
+  GPU_texture_free(base);
+  GPU_texture_free(copy);
+
+  GPU_render_end();
+}
+GPU_TEST(texture_view_mip_layer_test);
+
 }  // namespace blender::gpu::tests
