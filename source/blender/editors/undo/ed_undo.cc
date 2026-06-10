@@ -481,8 +481,6 @@ static void ed_undo_refresh_for_op(bContext *C)
 
   /* Keep button under the cursor active. */
   WM_event_add_mousemove(CTX_wm_window(C));
-
-  ED_outliner_select_sync_from_all_tag(C);
 }
 
 static wmOperatorStatus ed_undo_exec(bContext *C, wmOperator *op)
