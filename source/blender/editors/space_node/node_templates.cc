@@ -667,6 +667,8 @@ void uiTemplateNodeLink(
 {
   using namespace blender::ed::space_node;
 
+  layout->active_set(!input->is_inactive());
+
   ui::Block *block = layout->block();
   NodeLinkArg *arg;
   ui::Button *but;
