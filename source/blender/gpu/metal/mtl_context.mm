@@ -204,9 +204,9 @@ MTLContext::MTLContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_contex
   default_fbo_mtltexture_ = nil;
   default_fbo_gputexture_ = nullptr;
 
-  /** Fetch GHOSTContext and fetch Metal device/queue. */
   ghost_window_ = ghost_window;
   this->ghost_context_ = static_cast<GHOST_ContextMTL *>(ghost_context);
+  /** Fetch Metal device/queue. */
   this->queue = (id<MTLCommandQueue>)this->ghost_context_->metalCommandQueue();
   this->device = (id<MTLDevice>)this->ghost_context_->metalDevice();
   BLI_assert(this->queue);
