@@ -17,6 +17,7 @@ class ConstraintSetParams {
   float delta_time;
   float compliance_term_factor;
   float dynamic_friction_factor;
+  float warm_start_lambda_factor = 0.8f;
 
   ConstraintSetParams(Span<GeometryRef> geometry_refs, float delta_time);
 

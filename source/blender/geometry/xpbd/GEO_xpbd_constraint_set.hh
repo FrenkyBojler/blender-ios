@@ -27,6 +27,7 @@ class ConstraintSet {
  protected:
   int constraints_num_;
   Vector<int> affected_geo_indices_;
+  bool supports_warm_start_ = false;
 
  public:
   ConstraintSet(int constraints_num, Vector<int> affected_geo_indices)
@@ -40,7 +41,14 @@ class ConstraintSet {
   virtual void solve_sequential(const ConstraintSetParams &params,
                                 GaussSeidelUpdater &updater,
                                 const IndexMask &mask) = 0;
-  virtual void reset_forces() = 0;
+  virtual void warm_start_sequential(const ConstraintSetParams & /*params*/,
+                                     GaussSeidelUpdater & /*updater*/,
+                                     const IndexMask &mask)
+  {
+    this->reset_forces(mask);
+  };
+
+  virtual void reset_forces(const IndexMask &mask) = 0;
   virtual ConstraintColoring color_constraints(LinearAllocator<> &memory) const = 0;
 
   void solve_sequential_all(const ConstraintSetParams &params, GaussSeidelUpdater &updater)
@@ -51,6 +59,16 @@ class ConstraintSet {
   Span<int> get_affected_geo_indices() const
   {
     return affected_geo_indices_;
+  }
+
+  bool supports_warm_start() const
+  {
+    return supports_warm_start_;
+  }
+
+  int64_t constraints_num() const
+  {
+    return constraints_num_;
   }
 };
 

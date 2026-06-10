@@ -1667,8 +1667,10 @@ class XpbdSolverStep {
         constraint_usage.rest_lengths = std::move(rest_lengths);
         constraint_usage.is_valid = true;
 
-        constraint_usage.lambdas_pos = tls.allocator.allocate_array<float3>(geo_data.size);
-        constraint_usage.lambdas_rot = tls.allocator.allocate_array<float3>(geo_data.size);
+        constraint_usage.lambdas_pos = tls.allocator.construct_array<float3>(geo_data.size,
+                                                                             float3(0.0f));
+        constraint_usage.lambdas_rot = tls.allocator.construct_array<float3>(geo_data.size,
+                                                                             float3(0.0f));
       }
     }
   }
@@ -1772,7 +1774,8 @@ class XpbdSolverStep {
       for (RodBendTwistConstraintUsage &constraint_usage : geo_data.rod_bend_twist_constraints) {
         const RodBendTwistConstraint &constraint =
             constraints_.rod_bend_twist_constraints[constraint_usage.constraint_i];
-        constraint_usage.lambdas = tls.allocator.allocate_array<float4>(geo_data.size);
+        constraint_usage.lambdas = tls.allocator.construct_array<float4>(geo_data.size,
+                                                                         float4(0.0f));
         constraint_usage.compliances = this->make_range_spans(
             tls,
             this->lookup_attribute_default<float>(
@@ -1857,7 +1860,7 @@ class XpbdSolverStep {
           continue;
         }
 
-        constraint_usage.lambdas = tls.allocator.allocate_array<float>(edge_num);
+        constraint_usage.lambdas = tls.allocator.construct_array<float>(edge_num, 0.0f);
         constraint_usage.rest_lengths = rest_lengths;
         constraint_usage.compliances = this->lookup_attribute_default<float>(
             data_key_i,
@@ -1938,7 +1941,7 @@ class XpbdSolverStep {
           cross_edge_compliances.append(compliance);
         });
 
-        constraint_usage.lambdas = tls.allocator.allocate_array<float>(cross_edges.size());
+        constraint_usage.lambdas = tls.allocator.construct_array<float>(cross_edges.size(), 0.0f);
 
         auto &constraint_set = tls.scope.construct<xpbd::DistanceConstraintSet>(
             data_key_i,
@@ -2071,10 +2074,10 @@ class XpbdSolverStep {
                                                   geo_data.domain,
                                                   0.0f));
 
-        constraint_usage.linear_damping_lambdas = tls.allocator.allocate_array<float>(
-            geo_data.size);
-        constraint_usage.angular_damping_lambdas = tls.allocator.allocate_array<float>(
-            geo_data.size);
+        constraint_usage.linear_damping_lambdas = tls.allocator.construct_array<float>(
+            geo_data.size, 0.0f);
+        constraint_usage.angular_damping_lambdas = tls.allocator.construct_array<float>(
+            geo_data.size, 0.0f);
       }
     }
   }
@@ -2171,8 +2174,8 @@ class XpbdSolverStep {
         constraint_usage.points = points;
         constraint_usage.end_positions = end_positions;
         constraint_usage.compliances = compliances;
+        constraint_usage.lambdas = tls.allocator.construct_array<float>(pin_num, 0.0f);
         /* These will be initialized later. */
-        constraint_usage.lambdas = tls.allocator.allocate_array<float>(pin_num);
         constraint_usage.current_positions = tls.allocator.allocate_array<float3>(pin_num);
 
         /* Initialize the previous pin position. */
@@ -2338,8 +2341,8 @@ class XpbdSolverStep {
         constraint_usage.points = points;
         constraint_usage.end_rotations = end_rotations;
         constraint_usage.compliances = compliances;
+        constraint_usage.lambdas = tls.allocator.construct_array<float4>(pin_num, float4(0.0f));
         /* These will be initialized later. */
-        constraint_usage.lambdas = tls.allocator.allocate_array<float4>(pin_num);
         constraint_usage.current_rotations = tls.allocator.allocate_array<math::Quaternion>(
             pin_num);
 
@@ -2417,10 +2420,13 @@ class XpbdSolverStep {
           this->simulate__update_pins__chunk(chunk_i, substep);
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
           this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i, solver_refs_i);
-          this->simulate__reset_forces__chunk(chunk_i);
 
           const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
           xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
+          {
+            xpbd::GaussSeidelUpdater updater{solver_refs};
+            this->simulate__reset_forces__chunk(chunk_i, solve_params, updater);
+          }
           for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
             xpbd::GaussSeidelUpdater updater{solver_refs};
             this->simulate__position_solve__single_iteration__chunk(
@@ -2461,7 +2467,7 @@ class XpbdSolverStep {
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
         });
         this->simulate__gather_dynamic_constraints(substep, solver_refs_i);
-        this->simulate__reset_forces();
+        this->simulate__reset_forces(solver_refs_i);
         for ([[maybe_unused]] const int iter_i : IndexRange(constraint_iterations_)) {
           this->simulate__position_solve__single_iteration(solver_refs_i, average_error_squared);
         }
@@ -2627,25 +2633,45 @@ class XpbdSolverStep {
     chunk_data.external_edge_contacts = std::move(new_edge_contacts);
   }
 
-  void simulate__reset_forces()
+  void simulate__reset_forces(const int solver_refs_i)
   {
-    this->parallel_for_each_chunk(
-        16, [&](const int chunk_i) { this->simulate__reset_forces__chunk(chunk_i); });
+    const Span<xpbd::GeometryRef> solver_refs = geometries_.solver_refs[solver_refs_i];
+    xpbd::ConstraintSetParams solve_params{solver_refs, sub_delta_time_};
+
+    this->parallel_for_each_chunk(16, [&](const int chunk_i) {
+      xpbd::GaussSeidelUpdater updater{solver_refs};
+      this->simulate__reset_forces__chunk(chunk_i, solve_params, updater);
+    });
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = *geometries_.data[data_key_i];
       for (ConstraintWithColoring &constraint : geo_data.static_constraints) {
-        constraint.constraint->reset_forces();
+        if (constraint.constraint->supports_warm_start()) {
+          for (const int color_i : constraint.coloring.colors.index_range()) {
+            const IndexMask &mask = constraint.coloring.colors[color_i];
+            threading::parallel_for(mask.index_range(), 256, [&](const IndexRange range) {
+              const IndexMask sliced_mask = mask.slice(range);
+              xpbd::GaussSeidelUpdater updater{solver_refs};
+              constraint.constraint->warm_start_sequential(solve_params, updater, sliced_mask);
+            });
+          }
+        }
+        else {
+          constraint.constraint->reset_forces(IndexMask(constraint.constraint->constraints_num()));
+        }
       }
     }
   }
 
-  void simulate__reset_forces__chunk(const int chunk_i)
+  void simulate__reset_forces__chunk(const int chunk_i,
+                                     xpbd::ConstraintSetParams &solve_params,
+                                     xpbd::GaussSeidelUpdater &updater)
   {
     ChunkData &chunk_data = chunks_data_[chunk_i];
     chunk_data.external_face_contacts.lambdas_normal.fill(0.0f);
     chunk_data.external_face_contacts.lambdas_friction.fill(0.0f);
     for (xpbd::ConstraintSet *constraint : chunk_data.static_constraints) {
-      constraint->reset_forces();
+      constraint->warm_start_sequential(
+          solve_params, updater, IndexMask(constraint->constraints_num()));
     }
     for (xpbd::VelocityConstraintSet *constraint : chunk_data.static_velocity_constraints) {
       constraint->reset_forces();

@@ -19,14 +19,13 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
   TemplatedConstraintSet(const int constraints_num, Vector<int> affected_geo_indices)
       : ConstraintSet(constraints_num, std::move(affected_geo_indices))
   {
+    supports_warm_start_ = requires { Child::template warm_start<GaussSeidelUpdater>; };
   }
 
-  void reset_forces() override
+  void reset_forces(const IndexMask &mask) override
   {
     const Child &self = static_cast<const Child &>(*this);
-    for (const int constraint_i : IndexRange(constraints_num_)) {
-      self.reset_force(constraint_i);
-    }
+    mask.foreach_index([&](const int64_t constraint_i) { self.reset_force(constraint_i); });
   }
 
   void solve_sequential(const ConstraintSetParams &params,
@@ -36,6 +35,20 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
     const Child &self = static_cast<const Child &>(*this);
     mask.foreach_index(
         [&](const int64_t constraint_i) { self.solve_single(params, updater, constraint_i); });
+  }
+
+  void warm_start_sequential(const ConstraintSetParams &params,
+                             GaussSeidelUpdater &updater,
+                             const IndexMask &mask) override
+  {
+    if constexpr (requires { Child::template warm_start<GaussSeidelUpdater>; }) {
+      const Child &self = static_cast<const Child &>(*this);
+      mask.foreach_index(
+          [&](const int64_t constraint_i) { self.warm_start(params, updater, constraint_i); });
+    }
+    else {
+      this->reset_forces(mask);
+    }
   }
 
   StringRefNull debug_name() const final

@@ -42,6 +42,24 @@ inline DistanceConstraintResult evaluate_distance_constraint(const float3 &p0,
   return {delta_lambda, offset0, offset1, error_squared};
 }
 
+struct DistanceConstraintWarmStartResult {
+  float3 offset0 = float3(0.0f);
+  float3 offset1 = float3(0.0f);
+};
+
+inline DistanceConstraintWarmStartResult evaluate_distance_constraint_warm_start(
+    const float3 &p0, const float3 &p1, const float inv_m0, const float inv_m1, const float lambda)
+{
+  if (inv_m0 == 0.0f && inv_m1 == 0.0f) {
+    return {};
+  }
+  const float3 p_diff = p1 - p0;
+  const float3 normalized_dir = math::normalize(p_diff);
+  const float3 offset0 = -lambda * inv_m0 * normalized_dir;
+  const float3 offset1 = lambda * inv_m1 * normalized_dir;
+  return {offset0, offset1};
+}
+
 class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSet> {
  private:
   /** Indexed by constraint index. */
@@ -96,6 +114,26 @@ class DistanceConstraintSet : public TemplatedConstraintSet<DistanceConstraintSe
     updater.update_position(geo_i, point_i0, result.offset0);
     updater.update_position(geo_i, point_i1, result.offset1);
     updater.add_residual_error(geo_i, result.residual_error_squared * error_scale_);
+  }
+
+  template<typename UpdaterT>
+  void warm_start(const ConstraintSetParams &params,
+                  UpdaterT &updater,
+                  const int constraint_i) const
+  {
+    const int geo_i = affected_geo_indices_[0];
+    const int2 &point_pair = point_pairs_[constraint_i];
+    const int point_i0 = point_pair[0];
+    const int point_i1 = point_pair[1];
+    lambdas_[constraint_i] *= params.warm_start_lambda_factor;
+    const DistanceConstraintWarmStartResult result = evaluate_distance_constraint_warm_start(
+        params.position(geo_i, point_i0),
+        params.position(geo_i, point_i1),
+        params.inv_mass(geo_i, point_i0),
+        params.inv_mass(geo_i, point_i1),
+        lambdas_[constraint_i]);
+    updater.update_position(geo_i, point_i0, result.offset0);
+    updater.update_position(geo_i, point_i1, result.offset1);
   }
 
   ConstraintColoring color_constraints(LinearAllocator<> &memory) const override
