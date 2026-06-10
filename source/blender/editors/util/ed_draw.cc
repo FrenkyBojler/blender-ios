@@ -1195,7 +1195,7 @@ static void drawviewborder_triangle(uint shdr_pos, rctf rect, const bool golden,
   immEnd();
 }
 
-void draw_direction(std::string str, float x, float y, int fontid, float fontsize)
+void ED_composition_guides_dome_master_draw_names_helper(std::string str, float x, float y, int fontid, float fontsize)
 {
   const char *direction = str.c_str();
   float direction_size_x, direction_size_y;
@@ -1206,7 +1206,6 @@ void draw_direction(std::string str, float x, float y, int fontid, float fontsiz
   BLF_draw(fontid, direction, sizeof(direction));
 }
 
-/* comp */
 void ED_draw_composition_guides(uint shdr_pos,
                                 eCompositionGuideFlags flag,
                                 const rctf *rect,
@@ -1307,35 +1306,34 @@ void ED_draw_composition_guides(uint shdr_pos,
       float direction_offset = 10.0f;
       float direction_big = 12.0f;
       float direction_small = 8.0f;
-      draw_direction("N", xmid, rect->ymax + direction_offset, fontid, direction_big);
+
+      ED_composition_guides_dome_master_draw_names_helper("N", xmid, rect->ymax + direction_offset, fontid, direction_big);
 
       angle = steps * 13.5f;
       x1 = xmid + radius_x * cos(angle);
       y1 = ymid + radius_y * sin(angle);
-      draw_direction("N/E", x1 - direction_offset, y1 + direction_offset, fontid, direction_small);
+      ED_composition_guides_dome_master_draw_names_helper("N/E", x1 - direction_offset, y1 + direction_offset, fontid, direction_small);
 
-      draw_direction("E", rect->xmin - direction_offset, ymid, fontid, direction_big);
+      ED_composition_guides_dome_master_draw_names_helper("E", rect->xmin - direction_offset, ymid, fontid, direction_big);
 
       angle = steps * 22.5f;
       x1 = xmid + radius_x * cos(angle);
       y1 = ymid + radius_y * sin(angle);
-      draw_direction("S/E", x1 - direction_offset, y1 - direction_offset, fontid, direction_small);
+      ED_composition_guides_dome_master_draw_names_helper("S/E", x1 - direction_offset, y1 - direction_offset, fontid, direction_small);
 
-      draw_direction("S", xmid, rect->ymin - direction_offset, fontid, direction_big);
+      ED_composition_guides_dome_master_draw_names_helper("S", xmid, rect->ymin - direction_offset, fontid, direction_big);
 
       angle = steps * 31.5f;
       x1 = xmid + radius_x * cos(angle);
       y1 = ymid + radius_y * sin(angle);
+      ED_composition_guides_dome_master_draw_names_helper("S/W", x1 + direction_offset, y1 - direction_offset, fontid, direction_small);
 
-      draw_direction("S/W", x1 + direction_offset, y1 - direction_offset, fontid, direction_small);
-
-      draw_direction("W", rect->xmax + direction_offset, ymid, fontid, direction_big);
+      ED_composition_guides_dome_master_draw_names_helper("W", rect->xmax + direction_offset, ymid, fontid, direction_big);
 
       angle = steps * 4.5f;
       x1 = xmid + radius_x * cos(angle);
       y1 = ymid + radius_y * sin(angle);
-
-      draw_direction("N/W", x1 + direction_offset, y1 + direction_offset, fontid, direction_small);
+      ED_composition_guides_dome_master_draw_names_helper("N/W", x1 + direction_offset, y1 + direction_offset, fontid, direction_small);
     }
   }
 
