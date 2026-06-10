@@ -105,14 +105,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype output_type = get_output_type(moment_type);
 
   b.add_input(input_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Vector>("Position"_ustr).implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Vector>("Position"_ustr).default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Menu>("Interpolation"_ustr)
       .static_items(interpolation_mode_items)
       .default_value(InterpolationMode::TriLinear)
       .optional_label()
       .description("How to interpolate the values between neighboring voxels");
 
-  b.add_output(output_type, "Moment"_ustr).dependent_field({1});
+  b.add_output(output_type, "Moment"_ustr).evaluated_geometry_field({1});
 }
 
 static std::optional<MomentType> moment_type_for_input_type(const bNodeSocket &socket)

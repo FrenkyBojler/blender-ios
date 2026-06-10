@@ -75,7 +75,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
   b.add_input(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
-  b.add_input<decl::Vector>("Position"_ustr).implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Vector>("Position"_ustr).default_input_type(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Menu>("Interpolation"_ustr)
       .static_items(interpolation_mode_items)
       .default_value(InterpolationMode::TriLinear)
@@ -85,7 +85,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (const std::optional<eNodeSocketDatatype> gradient_type = gradient_type_from_data_type(
           data_type))
   {
-    b.add_output(*gradient_type, "Gradient"_ustr).dependent_field({1});
+    b.add_output(*gradient_type, "Gradient"_ustr).evaluated_geometry_field({1});
   }
 }
 
