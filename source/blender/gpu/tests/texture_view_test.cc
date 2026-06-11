@@ -273,16 +273,26 @@ static void test_texture_view_mip_layer_test()
 
   for (int mip : IndexRange(3)) {
     /* Upload to layer 1 through base texture */
-    base->update_sub(mip,
-                     int3(0, 0, 1),
-                     mip_size(mip),
-                     eGPUDataFormat::GPU_DATA_UINT,
-                     layer_mip_data(1, mip).data());
+    if (GPU_backend_get_type() == GPU_BACKEND_METAL && mip != 0) {
+      /* The Metal API doesn't support this.
+       * > Updating texture layers other than mip=0 when data is mismatched is not possible in
+       * > METAL on macOS using texture->write.
+       * Use a clear instead. :/ */
+      gpu::Texture *layer_1_view = create_view_texture(format, base, mip, 1);
+      layer_1_view->clear(double4(1, mip, 0, 0));
+      GPU_texture_free(layer_1_view);
+    }
+    else {
+      base->update_sub(mip,
+                       int3(0, 0, 1),
+                       mip_size(mip),
+                       eGPUDataFormat::GPU_DATA_UINT,
+                       layer_mip_data(1, mip).data());
+    }
 
     /* Clear layer 2 using a layer and mip view. */
     gpu::Texture *layer_2_view = create_view_texture(format, base, mip, 2);
     layer_2_view->clear(double4(2, mip, 0, 0));
-
     GPU_texture_free(layer_2_view);
   }
 
