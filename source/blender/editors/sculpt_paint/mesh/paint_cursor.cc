@@ -455,17 +455,17 @@ static void inactive_cursor_draw(PaintCursorContext &pcontext)
       pcontext.pos,
       pcontext.translation[0],
       pcontext.translation[1],
-      float2(pcontext.final_radius * tip_scale_x, pcontext.final_radius),
-      float2(pcontext.final_radius * roundness * tip_scale_x, pcontext.final_radius * roundness),
+      float2(pcontext.final_radius, pcontext.final_radius * tip_scale_x),
+      float2(pcontext.final_radius * roundness, pcontext.final_radius * roundness * tip_scale_x),
       80);
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha * 0.35f);
   gpu::imm_draw_rounded_box_wire_3d(
       pcontext.pos,
       pcontext.translation[0],
       pcontext.translation[1],
-      float2(pcontext.final_radius * alpha * tip_scale_x, pcontext.final_radius * alpha),
-      float2(pcontext.final_radius * alpha * roundness * tip_scale_x,
-             pcontext.final_radius * alpha * roundness),
+      float2(pcontext.final_radius * alpha, pcontext.final_radius * alpha * tip_scale_x),
+      float2(pcontext.final_radius * alpha * roundness,
+             pcontext.final_radius * alpha * roundness * tip_scale_x),
       80);
 }
 
@@ -769,8 +769,8 @@ static void main_inactive_cursor_draw(const PaintCursorContext &pcontext)
       pcontext.pos,
       0,
       0,
-      float2(pcontext.radius * tip_scale_x, pcontext.radius),
-      float2(pcontext.radius * roundness * tip_scale_x, pcontext.radius * roundness),
+      float2(pcontext.radius, pcontext.radius * tip_scale_x),
+      float2(pcontext.radius * roundness, pcontext.radius * roundness * tip_scale_x),
       80);
 
   GPU_line_width(1.0f);
@@ -779,9 +779,9 @@ static void main_inactive_cursor_draw(const PaintCursorContext &pcontext)
       pcontext.pos,
       0,
       0,
-      float2(pcontext.radius * alpha * tip_scale_x, pcontext.radius * alpha),
-      float2(pcontext.radius * alpha * roundness * tip_scale_x,
-             pcontext.radius * alpha * roundness),
+      float2(pcontext.radius * alpha, pcontext.radius * alpha * tip_scale_x),
+      float2(pcontext.radius * alpha * roundness,
+             pcontext.radius * alpha * roundness * tip_scale_x),
       80);
 }
 

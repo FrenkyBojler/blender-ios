@@ -2926,8 +2926,8 @@ static void radial_control_paint_cursor(bContext *C,
     gpu::imm_draw_rounded_box_wire_2d(pos,
                                       0,
                                       0,
-                                      float2(r1 * tip_scale_x, r1),
-                                      float2(r1 * roundness * tip_scale_x, r1 * roundness),
+                                      float2(r1, r1 * tip_scale_x),
+                                      float2(r1 * roundness, r1 * roundness * tip_scale_x),
                                       80);
   }
   else {
@@ -2940,8 +2940,8 @@ static void radial_control_paint_cursor(bContext *C,
     gpu::imm_draw_rounded_box_wire_2d(pos,
                                       0,
                                       0,
-                                      float2(r2 * tip_scale_x, r2),
-                                      float2(r2 * roundness * tip_scale_x, r2 * roundness),
+                                      float2(r2, r2 * tip_scale_x),
+                                      float2(r2 * roundness, r2 * roundness * tip_scale_x),
                                       80);
   }
   else {
