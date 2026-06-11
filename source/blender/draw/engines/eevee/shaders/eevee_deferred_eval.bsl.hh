@@ -130,7 +130,7 @@ void light_eval_frag([[resource_table]] LightEval &srt,
                      [[frag_coord]] const float4 frag_co,
                      [[in]] const VertOut v_out)
 {
-  [[resource_table]] LightEvalData &lrt = lights.inner;
+  LightEvalData &lrt = lights.inner;
 
   const int2 texel = int2(frag_co.xy);
 

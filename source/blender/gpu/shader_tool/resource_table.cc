@@ -341,7 +341,7 @@ void SourceProcessor::lower_implicit_resource_table(Parser &parser)
     return resolved_srt_struct_names.contains(string(tok.str()));
   };
 
-  auto process_function = [&](bool, Token fn_type, Token, Scope fn_args, bool, Scope) {
+  auto process_function = [&](bool, Token fn_type, Token, Scope fn_args, bool, Scope fn_body) {
     if (is_srt_type(fn_type)) {
       report_error(fn_type, "Resource table cannot be used as return type.");
     }
@@ -352,24 +352,58 @@ void SourceProcessor::lower_implicit_resource_table(Parser &parser)
           return;
         }
 
+        if (toks[3].is_invalid()) {
+          report_error(toks[5], "Resource table must be passed by references.");
+          return;
+        }
+
+        Token first_tok = toks[0].is_valid() ? toks[0] : toks[2];
+
         /* Check if there is an existing attribute scope. */
-        if (arg[0] == '[') {
+        if (first_tok.prev(1) == ']' && first_tok.prev(2) == ']') {
+          Scope attributes = first_tok.prev(2).scope();
           /* Check if resource_table attribute is already there. */
-          if (arg[2].str() != "resource_table") {
-            parser.insert_after(arg[1], "resource_table,");
+          if (attributes[1].str() != "resource_table") {
+            parser.insert_after(attributes[0], "resource_table,");
           }
         }
         else {
-          parser.insert_before(arg[0], "[[resource_table]] ");
+          parser.insert_before(first_tok, "[[resource_table]] ");
         }
       });
+    });
+
+    fn_body.foreach_match("c?A&?A=", [&](const Tokens toks) {
+      if (!is_srt_type(toks[2])) {
+        return;
+      }
+
+      if (toks[3].is_invalid()) {
+        report_error(toks[5], "Resource table must be references.");
+        return;
+      }
+
+      Token first_tok = toks[0].is_valid() ? toks[0] : toks[2];
+
+      /* Check if there is an existing attribute scope. */
+      if (first_tok.prev(1) == ']' && first_tok.prev(2) == ']') {
+        Scope attributes = first_tok.prev(2).scope();
+        /* Check if resource_table attribute is already there. */
+        if (attributes[1].str() != "resource_table") {
+          parser.insert_after(attributes[0], "resource_table,");
+        }
+      }
+      else {
+        parser.insert_before(first_tok, "[[resource_table]] ");
+      }
     });
   };
 
   parser().foreach_function(process_function);
+  parser.apply_mutations();
+
   parser().foreach_struct(
       [&](Token, Scope, Token, Scope body) { body.foreach_function(process_function); });
-
   parser.apply_mutations();
 }
 

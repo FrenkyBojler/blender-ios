@@ -26,9 +26,9 @@ struct LightprobeRenderData {
    */
   LightProbeSample load(float2 screen_texel, float3 P, float3 Ng, float3 V) const
   {
-    [[resource_table]] const Sampling samp = sampling;
-    [[resource_table]] const LightprobeVolumeRenderData &lp_volumes = volumes;
-    [[resource_table]] const LightprobeSphereRenderData &lp_spheres = spheres;
+    const Sampling &samp = sampling;
+    const LightprobeVolumeRenderData &lp_volumes = volumes;
+    const LightprobeSphereRenderData &lp_spheres = spheres;
 
     float noise = interleaved_gradient_noise(screen_texel, 0.0f, 0.0f);
     noise = fract(noise + samp.rng_1D_get(SAMPLING_LIGHTPROBE));

@@ -497,7 +497,7 @@ void brdf_f82_tint_lut(float3 F0,
                        bool do_multiscatter,
                        float3 &reflectance)
 {
-  [[resource_table]] const UtilityTexture util_tx = resource_table_get(UtilityTexture);
+  const UtilityTexture &util_tx = resource_table_get(UtilityTexture);
   eevee::lut::GGXBrdfData lut = eevee::lut::GGXBrdfData::sample_utility_tx(
       util_tx, cos_theta, roughness);
 
@@ -531,7 +531,7 @@ void bsdf_lut(float3 F0,
               float3 &reflectance,
               float3 &transmittance)
 {
-  [[resource_table]] const UtilityTexture util_tx = resource_table_get(UtilityTexture);
+  const UtilityTexture &util_tx = resource_table_get(UtilityTexture);
   if (ior == 1.0f) {
     reflectance = float3(0.0f);
     transmittance = transmission_tint;
