@@ -160,7 +160,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const VolumeGridType grid_type = *bke::socket_type_to_grid_type(data_type);
   BKE_volume_grid_type_to_static_type(
       grid_type, [&]<std::derived_from<openvdb::GridBase> GridType>() {
-        if constexpr (std::is_same_v<GridType, openvdb::FloatGrid> ||
+        if constexpr (std::is_same_v<GridType, openvdb::BoolGrid> ||
+                      std::is_same_v<GridType, openvdb::FloatGrid> ||
                       std::is_same_v<GridType, openvdb::Int32Grid> ||
                       std::is_same_v<GridType, openvdb::Vec3fGrid>)
         {
