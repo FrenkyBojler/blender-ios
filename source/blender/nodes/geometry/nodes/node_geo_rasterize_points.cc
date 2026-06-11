@@ -83,16 +83,8 @@ static geometry::PointRasterizeType get_rasterize_item_type(
   switch (type) {
     case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR:
       return geometry::PointRasterizeType::Scalar;
-    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR_GRADIENT:
-      return geometry::PointRasterizeType::ScalarGradient;
     case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR:
       return geometry::PointRasterizeType::Vector;
-    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR_DIVERGENCE:
-      return geometry::PointRasterizeType::VectorDivergence;
-    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_TENSOR_DIVERGENCE:
-      return geometry::PointRasterizeType::TensorDivergence;
-    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_AFFINE_MOMENTUM:
-      return geometry::PointRasterizeType::AffineMomentum;
   }
   BLI_assert_unreachable();
   return geometry::PointRasterizeType::Scalar;
