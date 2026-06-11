@@ -12,6 +12,7 @@
 #include <stdarg.h>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
 #ifdef __cplusplus
@@ -237,13 +238,10 @@ char *BLI_vsprintfN(const char *__restrict format, va_list args) ATTR_NONNULL(1)
  *
  * \note This is used for creating animation paths in blend files.
  */
-size_t BLI_str_escape(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
-    ATTR_NONNULL(1, 2);
+size_t BLI_str_escape(char *__restrict dst, StringRef src, size_t dst_maxncpy) ATTR_NONNULL(1);
 
-#ifdef __cplusplus
 /** Same as above, but returns an std::string. */
-std::string BLI_str_escape(const char *str);
-#endif
+std::string BLI_str_escape(StringRef str);
 
 /**
  * This roughly matches C and Python's string escaping with double quotes - `"`.

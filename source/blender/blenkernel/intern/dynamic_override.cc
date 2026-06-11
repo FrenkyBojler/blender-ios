@@ -462,8 +462,7 @@ static DynamicOverrideRuleIDData &rule_iddata_add_for_id(DynamicOverride &dynami
       fmt::runtime(CTX_DATA_(BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE, "{} {} - Properties")),
       id_full_name,
       idtype->name);
-  rule_id_data->base.name = BLI_strdup(
-      rule_unique_name_get(dynamic_override, rule_id_data->base, rule_name).c_str());
+  rule_name_set(dynamic_override, rule_id_data->base, rule_name);
 
   BLI_addtail(&dynamic_override.rules, rule_id_data);
 
@@ -489,10 +488,9 @@ void rule_name_set(DynamicOverride &dynamic_override,
                    DynamicOverrideRule &rule,
                    StringRef rule_name)
 {
-  if (rule.name) {
-    MEM_delete(rule.name);
-  }
-  rule.name = BLI_strdup(rule_unique_name_get(dynamic_override, rule, rule_name).c_str());
+  MEM_SAFE_DELETE(rule.name);
+  std::string rule_name_final = BLI_str_escape(rule_name);
+  rule.name = BLI_strdup(rule_unique_name_get(dynamic_override, rule, rule_name_final).c_str());
 }
 
 void rule_remove(Main &bmain,

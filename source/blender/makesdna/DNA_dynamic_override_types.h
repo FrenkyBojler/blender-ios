@@ -57,7 +57,7 @@ struct DynamicOverrideRule {
    *
    * NOTE: must be unique within a given Dynamic Override ID, so is also used as unique identifier.
    */
-  char *name;
+  char *name = nullptr;
 
   /** Type of rule, also defines the type of `rule_data`. */
   DynamicOverrideRuleType type = {};
