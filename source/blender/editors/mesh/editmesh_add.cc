@@ -6,6 +6,8 @@
  * \ingroup edmesh
  */
 
+#include <optional>
+
 #include "BKE_customdata.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_math_euler_types.hh"
@@ -20,8 +22,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.h"
 #include "BKE_paint.hh"
-
-#include <cstdarg>
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -40,8 +40,6 @@
 #include "GEO_mesh_primitive_ico_sphere.hh"
 #include "GEO_mesh_primitive_uv_sphere.hh"
 #include "GEO_transform.hh"
-
-#include <optional>
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -344,12 +342,12 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     const float size = RNA_float_get(op->ptr, "size");
 
-    /* vertex count is subdivisions plus two for the corners */
-    const int vertices = RNA_int_get(op->ptr, "subdivisions") + 2;
+    static constexpr int corners = 2;
+    const int vertices = RNA_int_get(op->ptr, "subdivisions") + corners;
 
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
     const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
-    const std::optional<StringRef> uv_map = calc_uvs ? (uv_map_name == nullptr ?
+    const std::optional<StringRef> uv_map = calc_uvs ? (uv_map_name.is_empty() ?
                                                             std::nullopt :
                                                             std::make_optional(uv_map_name)) :
                                                        std::nullopt;
@@ -515,7 +513,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
 
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
     const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
-    attributes.uv_map_id = calc_uvs ? (uv_map_name == nullptr ? std::nullopt :
+    attributes.uv_map_id = calc_uvs ? (uv_map_name.is_empty() ? std::nullopt :
                                                                 std::make_optional(uv_map_name)) :
                                       std::nullopt;
 
@@ -532,7 +530,6 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
-    /* TODO: calc_uvs */
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {
@@ -624,7 +621,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
 
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
     const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
-    attributes.uv_map_id = calc_uvs ? (uv_map_name == nullptr ? std::nullopt :
+    attributes.uv_map_id = calc_uvs ? (uv_map_name.is_empty() ? std::nullopt :
                                                                 std::make_optional(uv_map_name)) :
                                       std::nullopt;
 
@@ -641,7 +638,6 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
-    /* TODO: calc_uv's */
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {
@@ -862,7 +858,7 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
     const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
-    const std::optional<StringRef> uv_map = calc_uvs ? (uv_map_name == nullptr ?
+    const std::optional<StringRef> uv_map = calc_uvs ? (uv_map_name.is_empty() ?
                                                             std::nullopt :
                                                             std::make_optional(uv_map_name)) :
                                                        std::nullopt;
@@ -874,7 +870,6 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
-    /* TODO: calc_uv's */
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {
@@ -954,7 +949,7 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
   if (creation_data.original_mode == CTX_MODE_SCULPT) {
     Mesh *object_mesh = id_cast<Mesh *>(obedit->data);
     const StringRefNull uv_map_name = object_mesh->active_uv_map_name();
-    const std::optional<StringRef> uv_map = calc_uvs ? (uv_map_name == nullptr ?
+    const std::optional<StringRef> uv_map = calc_uvs ? (uv_map_name.is_empty() ?
                                                             std::nullopt :
                                                             std::make_optional(uv_map_name)) :
                                                        std::nullopt;
@@ -964,7 +959,6 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
-    /* TODO: calc_uv's */
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {

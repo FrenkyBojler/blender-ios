@@ -5,10 +5,9 @@
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
 
-#include "GEO_randomize.hh"
-
 #include "bmesh.hh"
 
+#include "GEO_randomize.hh"
 #include "GEO_mesh_primitive_ico_sphere.hh"
 
 namespace blender::geometry {
