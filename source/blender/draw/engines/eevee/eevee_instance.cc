@@ -12,6 +12,7 @@
 
 #include "BKE_global.hh"
 #include "BKE_object.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_rect.h"
 #include "BLI_time.h"
@@ -85,7 +86,7 @@ void Instance::init()
 
     if (camera) {
       if (scene->r.mode & R_BORDER) {
-        if (draw_ctx->is_viewport_image_render()) {
+        if (draw_ctx->is_viewport_image_render() || draw_ctx->is_viewport_xr()) {
           rect.xmin = scene->r.border.xmin * size[0];
           rect.ymin = scene->r.border.ymin * size[1];
           rect.xmax = scene->r.border.xmax * size[0];
@@ -116,7 +117,7 @@ void Instance::init()
       rect.ymax = v3d->render_border.ymax * size[1];
     }
 
-    if (draw_ctx->is_viewport_image_render()) {
+    if (draw_ctx->is_viewport_image_render() || draw_ctx->is_viewport_xr()) {
       const float2 vp_size = draw_ctx->viewport_size_get();
       visible_rect.xmax = vp_size[0];
       visible_rect.ymax = vp_size[1];
@@ -472,8 +473,6 @@ void Instance::end_sync()
   sphere_probes.end_sync();
   planar_probes.end_sync();
 
-  uniform_data.push_update();
-
   depsgraph_last_update_ = DEG_get_update_count(depsgraph);
 }
 
@@ -527,6 +526,7 @@ void Instance::render_sample()
 {
   if (sampling.finished_viewport()) {
     DRW_submission_start();
+    uniform_data.push_update();
     film.display();
     lookdev.display();
     DRW_submission_end();
@@ -554,6 +554,8 @@ void Instance::render_sample()
     DRW_submission_start();
 
     sampling.step();
+    film.update_sample_table();
+    uniform_data.push_update();
 
     capture_view.render_world();
     lookdev.rotate_world();
@@ -925,6 +927,7 @@ void Instance::light_bake_irradiance(
     /* Sampling module needs to be initialized to computing lighting. */
     sampling.init(probe);
     sampling.step();
+    uniform_data.push_update();
 
     {
       /* Critical section. Potential gpu::Shader concurrent usage. */
@@ -972,7 +975,7 @@ void Instance::light_bake_irradiance(
       /* Batch ray cast. Avoids too much overhead of the context switch. */
       int sample_count_in_batch = ceilf(time_budget_ms / max(0.1f, time_per_sample_ms_smooth));
       /* Avoid batching too many rays, keep system responsive in case of bad values. */
-      sample_count_in_batch = min_iii(32, sample_count_in_batch, remaining_samples);
+      sample_count_in_batch = std::min({32, sample_count_in_batch, remaining_samples});
 
       CLOG_INFO(&Instance::log, "IrradianceBake: Casting %d rays.", sample_count_in_batch);
 

@@ -1666,7 +1666,7 @@ static wmOperatorStatus edbm_vert_connect_path_exec(bContext *C, wmOperator *op)
       failed_selection_order_len++;
     }
 
-    if (!BLI_listbase_is_empty(&selected_orig)) {
+    if (!selected_orig.is_empty()) {
       BM_select_history_clear(bm);
       bm->selected = selected_orig;
     }
@@ -3412,13 +3412,18 @@ static bool merge_firstlast(BMEditMesh *em,
 
   if (use_uvmerge) {
     if (!EDBM_op_callf(
-            em, wmop, "pointmerge_facedata verts=%hv vert_snap=%e", BM_ELEM_SELECT, mergevert))
+            em, wmop, "pointmerge_facedata verts=%hv vert_target=%e", BM_ELEM_SELECT, mergevert))
     {
       return false;
     }
   }
 
-  if (!EDBM_op_callf(em, wmop, "pointmerge verts=%hv merge_co=%v", BM_ELEM_SELECT, mergevert->co))
+  if (!EDBM_op_callf(em,
+                     wmop,
+                     "pointmerge verts=%hv merge_co=%v vert_target=%e",
+                     BM_ELEM_SELECT,
+                     mergevert->co,
+                     mergevert))
   {
     return false;
   }
@@ -6102,8 +6107,14 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
+  bool changed_multi = false;
+
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
+    const int totvert_orig = bm->totvert;
+    const int totedge_orig = bm->totedge;
+    const int totface_orig = bm->totface;
 
     if (em->bm->totedgesel == 0) {
       continue;
@@ -6124,6 +6135,13 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    if (totvert_orig == bm->totvert && totedge_orig == bm->totedge && totface_orig == bm->totface)
+    {
+      continue;
+    }
+
+    changed_multi = true;
+
     BM_custom_loop_normals_from_vector_layer(em->bm, false);
 
     EDBMUpdate_Params params{};
@@ -6131,6 +6149,10 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
+  }
+
+  if (!changed_multi) {
+    BKE_report(op->reports, RPT_WARNING, "No edges dissolved");
   }
 
   return OPERATOR_FINISHED;
@@ -6437,43 +6459,52 @@ static wmOperatorStatus edbm_dissolve_degenerate_exec(bContext *C, wmOperator *o
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int totelem_old[3] = {0, 0, 0};
   int totelem_new[3] = {0, 0, 0};
+  bool changed_multi = false;
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
-
-  for (Object *obedit : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    BMesh *bm = em->bm;
-    totelem_old[0] += bm->totvert;
-    totelem_old[1] += bm->totedge;
-    totelem_old[2] += bm->totface;
-  } /* objects */
 
   const float thresh = RNA_float_get(op->ptr, "threshold");
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
+    const int totvert_orig = bm->totvert;
+    const int totedge_orig = bm->totedge;
+    const int totface_orig = bm->totface;
 
     if (!EDBM_op_callf(em, op, "dissolve_degenerate edges=%he dist=%f", BM_ELEM_SELECT, thresh)) {
+      continue;
+    }
+    if (totvert_orig == bm->totvert && totedge_orig == bm->totedge && totface_orig == bm->totface)
+    {
       continue;
     }
 
     /* tricky to maintain correct selection here, so just flush up from verts */
     EDBM_select_flush_from_verts(em, true);
 
+    changed_multi = true;
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
 
+    totelem_old[0] += totvert_orig;
+    totelem_old[1] += totedge_orig;
+    totelem_old[2] += totface_orig;
+
     totelem_new[0] += bm->totvert;
     totelem_new[1] += bm->totedge;
     totelem_new[2] += bm->totface;
   }
-
-  edbm_report_delete_info(op->reports, totelem_old, totelem_new);
+  if (!changed_multi) {
+    BKE_report(op->reports, RPT_INFO, "No degenerate geometry found");
+  }
+  else {
+    edbm_report_delete_info(op->reports, totelem_old, totelem_new);
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -8121,7 +8152,7 @@ static wmOperatorStatus mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
     }
     EDBMUpdate_Params params{};
     params.calc_looptris = false;
-    params.calc_normals = false;
+    params.calc_normals = true;
     params.is_destructive = false;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
 
@@ -9015,6 +9046,7 @@ static void normals_split(BMesh *bm)
 
   BLI_SMALLSTACK_DECLARE(loop_stack, BMLoop *);
 
+  BM_data_layer_ensure_named(bm, &bm->ldata, CD_PROP_INT16_2D, "custom_normal");
   const int cd_clnors_offset = CustomData_get_offset_named(
       &bm->ldata, CD_PROP_INT16_2D, "custom_normal");
   BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
@@ -9513,7 +9545,7 @@ static wmOperatorStatus edbm_normals_tools_exec(bContext *C, wmOperator *op)
             }
           }
         }
-        else {
+        else if (lnors_ed_arr->totloop != 0) {
           /* 'Vertex' normal, i.e. common set of loop normals on the same vertex,
            * only if they are all the same. */
           bool are_same_lnors = true;
@@ -9716,10 +9748,13 @@ static wmOperatorStatus edbm_set_normals_from_faces_exec(bContext *C, wmOperator
     {
       int v_index;
       BM_ITER_MESH_INDEX (v, &viter, bm, BM_VERTS_OF_MESH, v_index) {
+        BM_elem_index_set(v, v_index); /* set_inline */
         BM_vert_calc_normal_ex(v, BM_ELEM_SELECT, vert_normals[v_index]);
       }
+      bm->elem_index_dirty &= ~BM_VERT;
     }
 
+    BM_mesh_elem_index_ensure(bm, BM_LOOP);
     BLI_bitmap *loop_set = BLI_BITMAP_NEW(bm->totloop, __func__);
     const int cd_clnors_offset = CustomData_get_offset_named(
         &bm->ldata, CD_PROP_INT16_2D, "custom_normal");
@@ -9960,14 +9995,11 @@ static wmOperatorStatus edbm_mod_weighted_strength_exec(bContext *C, wmOperator 
     }
     else {
       BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
+          continue;
+        }
         const int *strength = static_cast<int *>(BM_ELEM_CD_GET_VOID_P(f, cd_prop_int_offset));
-        if (*strength == face_strength) {
-          BM_face_select_set(bm, f, true);
-          BM_select_history_store(bm, f);
-        }
-        else {
-          BM_face_select_set(bm, f, false);
-        }
+        BM_face_select_set(bm, f, *strength == face_strength);
       }
     }
 

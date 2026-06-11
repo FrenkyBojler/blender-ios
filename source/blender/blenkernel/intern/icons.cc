@@ -572,7 +572,7 @@ bool BKE_icon_delete_unmanaged(const int icon_id)
 
   Icon *icon = gIcons.pop_default(icon_id, nullptr);
   if (icon) {
-    if (UNLIKELY(icon->flag & ICON_FLAG_MANAGED)) {
+    if (icon->flag & ICON_FLAG_MANAGED) [[unlikely]] {
       gIcons.add(icon_id, icon);
       return false;
     }
@@ -600,7 +600,7 @@ int BKE_icon_geom_ensure(Icon_Geom *geom)
   geom->icon_id = get_next_free_id();
 
   icon_create(geom->icon_id, ICON_DATA_GEOM, geom);
-  /* Not managed for now, we may want this to be configurable per icon). */
+  /* Not managed for now, we may want this to be configurable per icon. */
 
   return geom->icon_id;
 }

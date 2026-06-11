@@ -285,7 +285,7 @@ static void reverse_group_indices_in_groups(const OffsetIndices<int> groups,
       }
     }
   });
-  offset_indices::sort_small_groups(offsets, results);
+  offset_indices::sort_groups(offsets, results);
 }
 
 Array<int> build_corner_to_face_map(const OffsetIndices<int> faces)
@@ -314,7 +314,7 @@ GroupedSpan<int> build_vert_to_edge_map(const Span<int2> edges,
       }
     }
   });
-  offset_indices::sort_small_groups(offsets, r_indices);
+  offset_indices::sort_groups(offsets, r_indices);
   return {offsets, r_indices};
 }
 
@@ -583,7 +583,7 @@ static void face_edge_loop_islands_calc(const int totedge,
       for (; (face_group_id & bit_face_group_mask) && (gid_bit < 32); gid_bit++) {
         face_group_id <<= 1; /* will 'overflow' on last possible iteration. */
       }
-      if (UNLIKELY(gid_bit > 31)) {
+      if (gid_bit > 31) [[unlikely]] {
         /* All bits used in contiguous smooth groups, not much to do.
          *
          * NOTE: If only considering boundary edges, this is *very* unlikely to happen.
@@ -617,7 +617,7 @@ static void face_edge_loop_islands_calc(const int totedge,
     tot_group++;
   }
 
-  if (UNLIKELY(group_id_overflow)) {
+  if (group_id_overflow) [[unlikely]] {
     int i = int(faces.size()), *gid = face_groups;
     for (; i--; gid++) {
       if (*gid == face_group_id_overflowed) {
@@ -805,7 +805,7 @@ void BKE_mesh_loop_islands_add(MeshIslandStore *island_store,
     island_store->items_to_islands[items_indices[i]] = curr_island_idx;
   }
 
-  if (UNLIKELY(curr_num_islands > island_store->islands_num_alloc)) {
+  if (curr_num_islands > island_store->islands_num_alloc) [[unlikely]] {
     MeshElemMap **islds, **innrcuts;
 
     island_store->islands_num_alloc *= 2;

@@ -21,6 +21,7 @@
 #include "BLI_math_base.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_idprop.hh"
@@ -379,8 +380,15 @@ IDProperty *IDP_NewStringMaxSize(const char *st,
     prop->len = 1; /* nullptr string, has len of 1 to account for null byte. */
   }
   else {
-    /* include null terminator '\0' */
-    const int stlen = int((st_maxncpy > 0) ? BLI_strnlen(st, st_maxncpy - 1) : strlen(st)) + 1;
+    /* Include null terminator '\0'. */
+    size_t stlen_bytes;
+    if (st_maxncpy > 0) {
+      BLI_strnlen_utf8_ex(st, st_maxncpy - 1, &stlen_bytes);
+    }
+    else {
+      stlen_bytes = strlen(st);
+    }
+    const int stlen = int(stlen_bytes) + 1;
 
     prop->data.pointer = MEM_new_array_uninitialized<char>(size_t(stlen), "id property string 2");
     prop->len = prop->totallen = stlen;
@@ -433,6 +441,23 @@ void IDP_AssignStringMaxSize(IDProperty *prop, const char *st, const size_t st_m
    * needs a dedicated function which takes directly the size of the byte buffer. */
 
   BLI_assert(prop->type == IDP_STRING);
+
+  if (prop->subtype != IDP_STRING_SUB_BYTE) {
+    /* Ensure strings remain valid UTF8. */
+    size_t src_len;
+    if (st_maxncpy > 0) {
+      BLI_strnlen_utf8_ex(st, st_maxncpy - 1, &src_len);
+    }
+    else {
+      src_len = strlen(st);
+    }
+    const int stlen = int(src_len) + 1;
+    IDP_ResizeArray(prop, stlen);
+    memcpy(prop->data.pointer, st, size_t(stlen));
+    IDP_string_get(prop)[stlen - 1] = '\0';
+    return;
+  }
+
   const bool is_byte = prop->subtype == IDP_STRING_SUB_BYTE;
   const int stlen = int((st_maxncpy > 0) ? BLI_strnlen(st, st_maxncpy - 1) : strlen(st)) +
                     (is_byte ? 0 : 1);
@@ -793,7 +818,7 @@ static void IDP_FreeGroup(IDProperty *prop, const bool do_id_user)
   for (IDProperty &loop : prop->data.group) {
     IDP_FreePropertyContent_ex(&loop, do_id_user);
   }
-  BLI_freelistN(&prop->data.group);
+  prop->data.group.free_no_destruct();
 }
 
 std::optional<StringRefNull> IDP_group_lookup_string(const IDProperty &group, StringRef name)
@@ -1563,17 +1588,15 @@ static void read_ui_data(IDProperty *prop, BlendDataReader *reader)
       BLO_read_struct(reader, IDPropertyUIDataInt, &prop->ui_data);
       IDPropertyUIDataInt *ui_data_int = reinterpret_cast<IDPropertyUIDataInt *>(prop->ui_data);
       if (prop->type == IDP_ARRAY) {
-        BLO_read_int32_array(
-            reader, ui_data_int->default_array_len, (&ui_data_int->default_array));
+        BLO_read_array_and_validate_size(
+            reader, &ui_data_int->default_array, &ui_data_int->default_array_len);
       }
       else {
         ui_data_int->default_array = nullptr;
         ui_data_int->default_array_len = 0;
       }
-      BLO_read_struct_array(reader,
-                            IDPropertyUIDataEnumItem,
-                            size_t(ui_data_int->enum_items_num),
-                            &ui_data_int->enum_items);
+      BLO_read_array_and_validate_size(
+          reader, &ui_data_int->enum_items, &ui_data_int->enum_items_num);
       for (const int64_t i : IndexRange(ui_data_int->enum_items_num)) {
         IDPropertyUIDataEnumItem &item = ui_data_int->enum_items[i];
         BLO_read_string(reader, &item.identifier);
@@ -1586,8 +1609,8 @@ static void read_ui_data(IDProperty *prop, BlendDataReader *reader)
       BLO_read_struct(reader, IDPropertyUIDataBool, &prop->ui_data);
       IDPropertyUIDataBool *ui_data_bool = reinterpret_cast<IDPropertyUIDataBool *>(prop->ui_data);
       if (prop->type == IDP_ARRAY) {
-        BLO_read_int8_array(
-            reader, ui_data_bool->default_array_len, (&ui_data_bool->default_array));
+        BLO_read_array_and_validate_size(
+            reader, &ui_data_bool->default_array, &ui_data_bool->default_array_len);
       }
       else {
         ui_data_bool->default_array = nullptr;
@@ -1600,8 +1623,8 @@ static void read_ui_data(IDProperty *prop, BlendDataReader *reader)
       IDPropertyUIDataFloat *ui_data_float = reinterpret_cast<IDPropertyUIDataFloat *>(
           prop->ui_data);
       if (prop->type == IDP_ARRAY) {
-        BLO_read_double_array(
-            reader, ui_data_float->default_array_len, (&ui_data_float->default_array));
+        BLO_read_array_and_validate_size(
+            reader, &ui_data_float->default_array, &ui_data_float->default_array_len);
       }
       else {
         ui_data_float->default_array = nullptr;
@@ -1626,7 +1649,8 @@ static void IDP_DirectLinkIDPArray(IDProperty *prop, BlendDataReader *reader)
 {
   /* since we didn't save the extra buffer, set totallen to len */
   prop->totallen = prop->len;
-  BLO_read_struct_array(reader, IDProperty, size_t(prop->len), &prop->data.pointer);
+  BLO_read_array_and_validate_size(
+      reader, reinterpret_cast<IDProperty **>(&prop->data.pointer), &prop->len);
 
   IDProperty *array = static_cast<IDProperty *>(prop->data.pointer);
 
@@ -1649,7 +1673,7 @@ static void IDP_DirectLinkArray(IDProperty *prop, BlendDataReader *reader)
 
   switch (eIDPropertyType(prop->subtype)) {
     case IDP_GROUP: {
-      BLO_read_pointer_array(reader, prop->len, &prop->data.pointer);
+      BLO_read_pointer_array_and_validate_size(reader, &prop->data.pointer, &prop->len);
       IDProperty **array = static_cast<IDProperty **>(prop->data.pointer);
       for (int i = 0; i < prop->len; i++) {
         IDP_DirectLinkProperty(array[i], reader);
@@ -1657,16 +1681,20 @@ static void IDP_DirectLinkArray(IDProperty *prop, BlendDataReader *reader)
       break;
     }
     case IDP_DOUBLE:
-      BLO_read_double_array(reader, prop->len, reinterpret_cast<double **>(&prop->data.pointer));
+      BLO_read_array_and_validate_size(
+          reader, reinterpret_cast<double **>(&prop->data.pointer), &prop->len);
       break;
     case IDP_INT:
-      BLO_read_int32_array(reader, prop->len, reinterpret_cast<int **>(&prop->data.pointer));
+      BLO_read_array_and_validate_size(
+          reader, reinterpret_cast<int **>(&prop->data.pointer), &prop->len);
       break;
     case IDP_FLOAT:
-      BLO_read_float_array(reader, prop->len, reinterpret_cast<float **>(&prop->data.pointer));
+      BLO_read_array_and_validate_size(
+          reader, reinterpret_cast<float **>(&prop->data.pointer), &prop->len);
       break;
     case IDP_BOOLEAN:
-      BLO_read_int8_array(reader, prop->len, reinterpret_cast<int8_t **>(&prop->data.pointer));
+      BLO_read_array_and_validate_size(
+          reader, reinterpret_cast<int8_t **>(&prop->data.pointer), &prop->len);
       break;
     case IDP_STRING:
     case IDP_ARRAY:
@@ -1675,13 +1703,19 @@ static void IDP_DirectLinkArray(IDProperty *prop, BlendDataReader *reader)
       BLI_assert_unreachable();
       break;
   }
+
+  if (prop->data.pointer == nullptr) {
+    prop->len = 0;
+    prop->totallen = 0;
+  }
 }
 
 static void IDP_DirectLinkString(IDProperty *prop, BlendDataReader *reader)
 {
+  BLO_read_array_and_validate_size(
+      reader, reinterpret_cast<char **>(&prop->data.pointer), &prop->len);
   /* Since we didn't save the extra string buffer, set totallen to len. */
   prop->totallen = prop->len;
-  BLO_read_char_array(reader, prop->len, reinterpret_cast<char **>(&prop->data.pointer));
 }
 
 static void IDP_DirectLinkGroup(IDProperty *prop, BlendDataReader *reader)
@@ -1691,7 +1725,7 @@ static void IDP_DirectLinkGroup(IDProperty *prop, BlendDataReader *reader)
 
   BLO_read_struct_list(reader, IDProperty, lb);
 
-  if (!BLI_listbase_is_empty(&prop->data.group)) {
+  if (!prop->data.group.is_empty()) {
     idp_group_children_map_ensure(*prop);
   }
 
@@ -1734,7 +1768,7 @@ static void IDP_DirectLinkProperty(IDProperty *prop, BlendDataReader *reader)
       break; /* Nothing special to do here. */
     default:
       /* Unknown IDP type, nuke it (we cannot handle unknown types everywhere in code,
-       * IDP are way too polymorphic to do it safely. */
+       * IDP are way too polymorphic to do it safely). */
       printf(
           "%s: found unknown IDProperty type %d, reset to Integer one !\n", __func__, prop->type);
       /* NOTE: we do not attempt to free unknown prop, we have no way to know how to do that! */
