@@ -38,10 +38,6 @@ float4 closure_to_rgba_forward(Closure /*cl_unused*/)
 
   const float2 frag_co = gl_FragCoord.xy;
 
-#if defined(MAT_TRANSPARENT) && defined(MAT_SHADER_TO_RGBA)
-  float3 probe_Ng = eevee::forward_lighting_geometry_normal(g_data.Ng);
-#endif
-
   float3 radiance, transmittance;
   eevee::forward_lighting_eval(
       views.get(0), resource_id, g_thickness_forward, frag_co, radiance, transmittance);
@@ -60,7 +56,7 @@ float4 closure_to_rgba_forward(Closure /*cl_unused*/)
     [[resource_table]] eevee::LightprobeSphereRenderData &lp_spheres = lightprobes.spheres;
 
     float3 V = -views.get(0).world_incident_vector(g_data.P);
-    eevee::LightProbeSample samp = lightprobes.load(frag_co, g_data.P, probe_Ng, V);
+    eevee::LightProbeSample samp = lightprobes.load(frag_co, g_data.P, g_data.N, V);
     float3 radiance_behind = lp_spheres.spherical_sample_normalized_with_parallax(
         samp, g_data.P, V, 0.0);
 
