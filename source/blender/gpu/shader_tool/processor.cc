@@ -181,6 +181,8 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
   lower_method_definitions(parser);
   lower_method_calls(parser);
   lower_empty_struct(parser);
+  /* Lower references variables before SRT accesses. */
+  lower_reference_variables(parser);
   /* Lower SRT accesses. */
   lower_srt_member_access(parser);
   lower_srt_arguments(parser);
@@ -200,7 +202,6 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
   lower_tests(parser);
   /* Lower references. */
   lower_reference_arguments(parser);
-  lower_reference_variables(parser);
   /* Lower control flow. */
   lower_static_branch(parser);
   /* Unroll last to avoid processing more tokens in other phases. */
@@ -1692,107 +1693,114 @@ void SourceProcessor::lower_reference_arguments(Parser &parser)
 /* To be run after `lower_reference_arguments()`. */
 void SourceProcessor::lower_reference_variables(Parser &parser)
 {
-  parser().foreach_function([&](bool, Token, Token, Scope fn_args, bool, Scope fn_scope) {
-    fn_scope.foreach_match("c?A&A=", [&](const vector<Token> &tokens) {
-      const Token name = tokens[4];
-      const Scope assignment = tokens[5].scope();
+  do {
+    parser().foreach_function([&](bool, Token, Token, Scope fn_args, bool, Scope fn_scope) {
+      fn_scope.foreach_match("c?A&A=", [&](const vector<Token> &tokens) {
+        const Token name = tokens[4];
+        const Scope assignment = tokens[5].scope();
 
-      Token decl_start = tokens[0].is_valid() ? tokens[0] : tokens[2];
-      /* Take attribute into account. */
-      decl_start = (decl_start.prev() == ']') ? decl_start.prev().scope().front() : decl_start;
-      /* Take ending ; into account. */
-      const Token decl_end = assignment.back().next();
+        Token decl_start = tokens[0].is_valid() ? tokens[0] : tokens[2];
+        /* Take attribute into account. */
+        decl_start = (decl_start.prev() == ']') ? decl_start.prev().scope().front() : decl_start;
+        /* Take ending ; into account. */
+        const Token decl_end = assignment.back().next();
 
-      /* Assert definition doesn't contain any side effect. */
-      assignment.foreach_token(Increment, [&](const Token token) {
-        report_error(token, "Reference definitions cannot have side effects.");
-      });
-      assignment.foreach_token(Decrement, [&](const Token token) {
-        report_error(token, "Reference definitions cannot have side effects.");
-      });
-      assignment.foreach_token(ParOpen, [&](const Token token) {
-        string_view fn_name = token.prev().str();
-        if ((fn_name != "specialization_constant_get") && (fn_name != "push_constant_get") &&
-            (fn_name != "interface_get") && (fn_name != "resource_table_get") &&
-            (fn_name != "attribute_get") && (fn_name != "buffer_get") &&
-            (fn_name != "srt_access") && (fn_name != "sampler_get") && (fn_name != "image_get"))
-        {
-          report_error(token, "Reference definitions cannot contain function calls.");
-        }
-      });
-      assignment.foreach_scope(ScopeType::Subscript, [&](const Scope subscript) {
-        if (subscript.token_count() != 3) {
-          report_error(subscript.front(),
-                       "Array subscript inside reference declaration must be a single variable or "
-                       "a constant, not an expression.");
-          return;
-        }
-
-        const Token index_var = subscript[1];
-
-        if (index_var == Number) {
-          /* Literals are fine. */
-          return;
-        }
-
-        /* Search if index variable definition qualifies it as `const`. */
-        bool is_const = false;
-        bool is_ref = false;
-        bool is_found = false;
-
-        auto process_decl = [&](const vector<Token> &tokens) {
-          if (tokens[5].str_index_start() < index_var.str_index_start() &&
-              tokens[5].str() == index_var.str())
+        /* Assert definition doesn't contain any side effect. */
+        assignment.foreach_token(Increment, [&](const Token token) {
+          report_error(token, "Reference definitions cannot have side effects.");
+        });
+        assignment.foreach_token(Decrement, [&](const Token token) {
+          report_error(token, "Reference definitions cannot have side effects.");
+        });
+        assignment.foreach_token(ParOpen, [&](const Token token) {
+          string_view fn_name = token.prev().str();
+          if ((fn_name != "specialization_constant_get") && (fn_name != "push_constant_get") &&
+              (fn_name != "interface_get") && (fn_name != "resource_table_get") &&
+              (fn_name != "attribute_get") && (fn_name != "buffer_get") &&
+              (fn_name != "srt_access") && (fn_name != "sampler_get") && (fn_name != "image_get"))
           {
-            is_const = tokens[0].is_valid();
-            is_ref = tokens[3].is_valid();
-            is_found = true;
+            report_error(token, "Reference definitions cannot contain function calls.");
           }
-        };
-        fn_args.foreach_match("c?A&?A", [&](const vector<Token> &toks) { process_decl(toks); });
-        fn_scope.foreach_match("c?A&?A", [&](const vector<Token> &toks) { process_decl(toks); });
-
-        if (!is_found) {
-          report_error(index_var,
-                       "Cannot locate array subscript variable declaration. "
-                       "If it is a global variable, assign it to a temporary const variable for "
-                       "indexing inside the reference.");
-          return;
-        }
-        if (!is_const) {
-          report_error(index_var, "Array subscript variable must be declared as const qualified.");
-          return;
-        }
-        if (is_ref) {
-          report_error(index_var, "Array subscript variable must not be declared as reference.");
-          return;
-        }
-      });
-
-      string definition = parser.substr_range_inclusive(assignment[1], assignment.back());
-
-      bool error = false;
-      /* Replace declaration. */
-      parser.erase(decl_start, decl_end);
-      /* Replace all occurrences with definition. */
-      name.scope().foreach_token(Word, [&](const Token token) {
-        /* Do not match member access or function calls. */
-        if (error || token.prev() == '.' || token.next() == '(') {
-          return;
-        }
-        if (token.str_index_start() > decl_end.str_index_last() && token.str() == name.str()) {
-          if (token.prev() == '&' && token.next() == '=') {
-            report_error(token, "Local reference shadowing is not allowed.");
-            error = true;
+        });
+        assignment.foreach_scope(ScopeType::Subscript, [&](const Scope subscript) {
+          if (subscript.token_count() != 3) {
+            report_error(
+                subscript.front(),
+                "Array subscript inside reference declaration must be a single variable or "
+                "a constant, not an expression.");
+            return;
           }
-          else {
-            parser.replace(token, definition);
+
+          const Token index_var = subscript[1];
+
+          if (index_var == Number) {
+            /* Literals are fine. */
+            return;
           }
+
+          /* Search if index variable definition qualifies it as `const`. */
+          bool is_const = false;
+          bool is_ref = false;
+          bool is_found = false;
+
+          auto process_decl = [&](const vector<Token> &tokens) {
+            if (tokens[5].str_index_start() < index_var.str_index_start() &&
+                tokens[5].str() == index_var.str())
+            {
+              is_const = tokens[0].is_valid();
+              is_ref = tokens[3].is_valid();
+              is_found = true;
+            }
+          };
+          fn_args.foreach_match("c?A&?A", [&](const vector<Token> &toks) { process_decl(toks); });
+          fn_scope.foreach_match("c?A&?A", [&](const vector<Token> &toks) { process_decl(toks); });
+
+          if (!is_found) {
+            report_error(index_var,
+                         "Cannot locate array subscript variable declaration. "
+                         "If it is a global variable, assign it to a temporary const variable for "
+                         "indexing inside the reference.");
+            return;
+          }
+          if (!is_const) {
+            report_error(index_var,
+                         "Array subscript variable must be declared as const qualified.");
+            return;
+          }
+          if (is_ref) {
+            report_error(index_var, "Array subscript variable must not be declared as reference.");
+            return;
+          }
+        });
+        /* Replace declaration. */
+        if (parser.erase_try(decl_start, decl_end) == false) {
+          /* If erasing the declaration fails, it means there is a pending expansion on the
+           * declaration (nested references). In this case, we break and will expand this reference
+           * in the next iteration. */
+          return;
         }
+
+        string definition = parser.substr_range_inclusive(assignment[1], assignment.back());
+        bool error = false;
+        /* Replace all occurrences with definition. */
+        name.scope().foreach_token(Word, [&](const Token token) {
+          /* Do not match member access or function calls. */
+          if (error || token.prev() == '.' || token.next() == '(') {
+            return;
+          }
+          if (token.str_index_start() > decl_end.str_index_last() && token.str() == name.str()) {
+            if (token.prev() == '&' && token.next() == '=') {
+              report_error(token, "Local reference shadowing is not allowed.");
+              error = true;
+            }
+            else {
+              parser.replace(token, definition);
+            }
+          }
+        });
       });
     });
-  });
-  parser.apply_mutations();
+  } while (parser.apply_mutations());
 
   parser().foreach_match("c?A&A=", [&](const vector<Token> &tokens) {
     report_error(tokens[4], "Reference is defined inside a global or unterminated scope.");

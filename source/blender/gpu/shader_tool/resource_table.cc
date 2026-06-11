@@ -70,7 +70,7 @@ void SourceProcessor::lower_srt_accessor_templates(Parser &parser)
 }
 
 /* Add `srt_access` around all member access of SRT variables.
- * Need to run before local reference mutations. */
+ * Need to run before after reference mutations. */
 void SourceProcessor::lower_srt_member_access(Parser &parser)
 {
   const string srt_attribute = "resource_table";
@@ -113,23 +113,6 @@ void SourceProcessor::lower_srt_member_access(Parser &parser)
     /* Function arguments. */
     fn_args.foreach_match("[[..]]c?A&A", [&](const vector<Token> toks) {
       memher_access_mutation(toks[0].scope(), toks[8], toks[10], fn_body);
-    });
-    fn_args.foreach_match("[[..]]c?AA", [&](const vector<Token> toks) {
-      if (toks[1].next().str() == srt_attribute) {
-        parser.erase(toks[0].scope());
-        report_error(toks[9], "Shader Resource Table arguments must be references.");
-      }
-    });
-  });
-
-  parser().foreach_scope(ScopeType::Function, [&](const Scope fn_body) {
-    /* Local references. */
-    fn_body.foreach_match("[[..]]c?A&A", [&](const vector<Token> toks) {
-      memher_access_mutation(toks[0].scope(), toks[8], toks[10], toks[10].scope());
-    });
-    /* Local variables. */
-    fn_body.foreach_match("[[..]]c?AA", [&](const vector<Token> toks) {
-      memher_access_mutation(toks[0].scope(), toks[8], toks[9], toks[9].scope());
     });
   });
 
@@ -353,7 +336,7 @@ void SourceProcessor::lower_implicit_resource_table(Parser &parser)
         }
 
         if (toks[3].is_invalid()) {
-          report_error(toks[5], "Resource table must be passed by references.");
+          report_error(toks[5], "Shader Resource Table arguments must be references.");
           return;
         }
 
@@ -379,7 +362,7 @@ void SourceProcessor::lower_implicit_resource_table(Parser &parser)
       }
 
       if (toks[3].is_invalid()) {
-        report_error(toks[5], "Resource table must be references.");
+        report_error(toks[5], "Shader Resource Table must be references.");
         return;
       }
 
