@@ -332,12 +332,12 @@ struct StrokeCache {
    * calc_brush_local_mat() and used in sculpt_apply_texture().
    * Transforms from model-space coords to local area coords.
    */
-  float4x4 brush_local_mat = float4x4::identity();
+  float4x4 brush_local_mat = float4x4::zero();
   /**
    * The matrix from local area coords to model-space coords is used to calculate the vector
    * displacement in area plane mode.
    */
-  float4x4 brush_local_mat_inv = float4x4::identity();
+  float4x4 brush_local_mat_inv = float4x4::zero();
 
   /* used to shift the plane around when doing tiled strokes */
   float3 plane_offset = float3(0);
