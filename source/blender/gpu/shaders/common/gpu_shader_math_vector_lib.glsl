@@ -118,16 +118,20 @@ template float distance_squared<float3>(float3, float3);
 template float distance_squared<float4>(float4, float4);
 
 /**
- * Return the angle between vectors `v1` and `v2`.
+ * Return the shortest angle in radians between the 2 vectors.
  */
 template<typename VecT> float angle_normalized(VecT v1, VecT v2)
 {
   v1 = normalize(v1);
   v2 = normalize(v2);
+
+  /* this is the same as acos(dot_v3v3(v1, v2)), but more accurate */
   if (dot(v1, v2) >= 0.0f) {
     return 2.0f * asin(clamp(length(v2 - v1) / 2.0f, -1.0f, 1.0f));
   }
-  return M_PI - 2.0f * asin(clamp(length(-v2 - v1) / 2.0f, -1.0f, 1.0f));
+
+  const VecT v2_n = -v2;
+  return M_PI - 2.0f * asin(clamp(length(v2_n - v1) / 2.0f, -1.0f, 1.0f));
 }
 template float angle_normalized<float2>(float2, float2);
 template float angle_normalized<float3>(float3, float3);
