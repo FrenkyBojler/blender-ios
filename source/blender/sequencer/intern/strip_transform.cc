@@ -639,10 +639,10 @@ float2 image_transform_raw_size_get(const Scene *scene, const Strip *strip)
       void *lock;
       ImBuf *ibuf = BKE_image_acquire_ibuf(strip->image_id, nullptr, &lock);
       if (ibuf) {
-        return {float(ibuf->x), float(ibuf->y)};
+        const float2 size(float(ibuf->x), float(ibuf->y));
+        BKE_image_release_ibuf(strip->image_id, ibuf, lock);
+        return size;
       }
-
-      BKE_image_release_ibuf(strip->image_id, ibuf, lock);
     }
   }
 

@@ -11,6 +11,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_listbase.h"
+#include "BLI_listbase_wrapper.hh"
 #include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -118,8 +120,13 @@ static bool image_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
     }
   }
 
+  return false;
+}
+
+static bool image_id_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+{
   if (WM_drag_is_ID_type(drag, ID_IM)) {
-    generic_poll_operations(C, event, TH_SEQ_IMAGE);
+    generic_poll_operations(C, event, TH_SEQ_IMAGE_ID);
     return true;
   }
 
@@ -253,6 +260,21 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
   return strip_len;
 }
 
+static int find_image_id_index(bContext *C, Image *image)
+{
+  int index = 0;
+
+  for (Image &iter_image : CTX_data_main(C)->images) {
+    if (&iter_image == image) {
+      return index;
+    }
+    index++;
+  }
+
+  /* Image not found */
+  return -1;
+}
+
 static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
   if (g_drop_coords.in_use) {
@@ -306,13 +328,13 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
     const ID_Type id_type = GS(id->name);
     if (id_type == ID_IM) {
       Image *ima = id_cast<Image *>(id);
-      PointerRNA itemptr;
-      char dir[FILE_MAX], file[FILE_MAX];
-      BLI_path_split_dir_file(ima->filepath, dir, sizeof(dir), file, sizeof(file));
-      RNA_string_set(drop->ptr, "directory", dir);
-      RNA_collection_clear(drop->ptr, "files");
-      RNA_collection_add(drop->ptr, "files", &itemptr);
-      RNA_string_set(&itemptr, "name", file);
+
+      /* It's abit of a workaround, but since RNA_enum_set works only with indexes, we have to find
+       * the index of the Image datablock */
+      int image_index = find_image_id_index(C, ima);
+      if (RNA_struct_find_property(drop->ptr, "image") && image_index >= 0) {
+        RNA_enum_set(drop->ptr, "image", image_index);
+      }
     }
     else if (id_type == ID_MC) {
       MovieClip *clip = id_cast<MovieClip *>(id);
@@ -329,6 +351,7 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
   }
 
   const char *path = WM_drag_get_single_path(drag);
+  printf("Path: %s\n", path);
   /* Path dropped. */
   if (path) {
     if (RNA_struct_find_property(drop->ptr, "filepath")) {
@@ -356,8 +379,7 @@ static void get_drag_path(const bContext *C, wmDrag *drag, char r_path[FILE_MAX]
   if (id != nullptr) {
     const ID_Type id_type = GS(id->name);
     if (id_type == ID_IM) {
-      Image *ima = id_cast<Image *>(id);
-      BLI_strncpy(r_path, ima->filepath, FILE_MAX);
+      return;
     }
     else if (id_type == ID_MC) {
       MovieClip *clip = id_cast<MovieClip *>(id);
@@ -430,6 +452,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
       ui::theme::get_color_3ubv(TH_SEQ_AUDIO, strip_color);
     }
     else {
+      printf("Hoori! We are here\n");
       ui::theme::get_color_3ubv(coords->type, strip_color);
     }
 
@@ -700,6 +723,17 @@ static void sequencer_dropboxes_add_to_lb(ListBaseT<wmDropBox> *lb)
   drop->on_enter = image_drop_on_enter;
   drop->on_exit = sequencer_drop_on_exit;
 
+  drop = WM_dropbox_add(lb,
+                        "SEQUENCER_OT_image_id_strip_add",
+                        image_id_drop_poll,
+                        sequencer_drop_copy,
+                        nullptr,
+                        nullptr);
+  drop->draw_droptip = nop_draw_droptip_fn;
+  drop->draw_in_view = draw_strip_in_view;
+  drop->on_enter = image_drop_on_enter;
+  drop->on_exit = sequencer_drop_on_exit;
+
   drop->on_drag_start = audio_prefetch;
 
   drop = WM_dropbox_add(
@@ -728,7 +762,7 @@ static bool image_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEven
     }
   }
 
-  return WM_drag_is_ID_type(drag, ID_IM);
+  return false;
 }
 
 static bool movie_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
@@ -760,6 +794,13 @@ static void sequencer_preview_dropboxes_add_to_lb(ListBaseT<wmDropBox> *lb)
   WM_dropbox_add(lb,
                  "SEQUENCER_OT_image_strip_add",
                  image_drop_preview_poll,
+                 sequencer_drop_copy,
+                 nullptr,
+                 nullptr);
+
+  WM_dropbox_add(lb,
+                 "SEQUENCER_OT_image_id_strip_add",
+                 image_id_drop_poll,
                  sequencer_drop_copy,
                  nullptr,
                  nullptr);

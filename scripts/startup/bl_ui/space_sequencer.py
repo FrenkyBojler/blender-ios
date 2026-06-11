@@ -709,7 +709,7 @@ class SEQUENCER_MT_add(Menu):
             layout.operator_context = 'INVOKE_DEFAULT'
             layout.operator("sequencer.image_id_strip_add", text="Image ID...", icon='IMAGE_DATA')
         elif bpy_data_images_len > 0:
-            layout.operator_menu_enum("sequencer.image_id_strip_add", "image", text="Image", icon='IMAGE_DATA')
+            layout.operator_menu_enum("sequencer.image_id_strip_add", "image", text="Image ID", icon='IMAGE_DATA')
         else:
             layout.menu("SEQUENCER_MT_add_empty", text="Image", text_ctxt=i18n_contexts.id_image, icon='IMAGE_DATA')
         del bpy_data_images_len

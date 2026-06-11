@@ -49,7 +49,7 @@ struct LoadData {
   } image;         /* Only for image strips. */
   Scene *scene;    /* Only for scene strips. */
   MovieClip *clip; /* Only for clip strips. */
-  Image *image_id; /* Only for clip strips. */
+  Image *image_id; /* Only for image id strips. */
   Mask *mask;      /* Only for mask strips. */
   struct {
     StripType type;

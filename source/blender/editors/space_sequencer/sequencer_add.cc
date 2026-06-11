@@ -420,7 +420,10 @@ static void sequencer_file_drop_channel_frame_set(bContext *C,
 {
   BLI_assert((RNA_struct_property_is_set(op->ptr, "files") &&
               !RNA_collection_is_empty(op->ptr, "files")) ||
-             RNA_struct_property_is_set(op->ptr, "filepath"));
+             RNA_struct_property_is_set(op->ptr, "filepath") ||
+             /* This method is intended specifically for paths for some reason, but it works also
+                for Image id */
+             RNA_struct_property_is_set(op->ptr, "image"));
 
   if (RNA_struct_property_is_set(op->ptr, "channel") ||
       RNA_struct_property_is_set(op->ptr, "frame_start"))
@@ -1120,7 +1123,9 @@ static wmOperatorStatus sequencer_add_image_id_strip_invoke(bContext *C,
     return WM_enum_search_invoke(C, op, event);
   }
 
-  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_IMAGE_ID, event);
+  sequencer_add_init(C, op);
+
+  sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_IMAGE_ID, event);
   return sequencer_add_image_id_strip_exec(C, op);
 }
 
