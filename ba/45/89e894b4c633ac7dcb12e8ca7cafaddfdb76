@@ -5,3 +5,4 @@ Referenced by issue #149288, Regression: Hair in linked collections are placed i
 Referenced by issue #149671, Curves resolution attribute causes trimming when changed via Python API
 Referenced by issue #151270, Deleting hair in sculpting mode causes Blender to crash
 Referenced by issue #153732, Curves Info > Intercept broken under EEVEE in specific circumstances
+Referenced by issue #159987, Dense Hair doesn't render in EEVEE
