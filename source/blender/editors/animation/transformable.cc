@@ -152,7 +152,7 @@ float4x4 world_to_local(const Depsgraph &depsgraph,
       /* The function docstring tells me I cannot use this function the way I am using it here. But
        * it works. Either I am missing an edge case, or the description is wrong. */
       BKE_armature_mat_pose_to_bone({pose_bone_eval, bone},
-                                    reinterpret_cast<const float(*)[4]>(object_local.base_ptr()),
+                                    reinterpret_cast<const float (*)[4]>(object_local.base_ptr()),
                                     bone_local);
       return float4x4(bone_local);
     }
@@ -162,7 +162,7 @@ float4x4 world_to_local(const Depsgraph &depsgraph,
       float4x4 parent_matrix;
       if (ob_eval->parent) {
         BKE_object_get_parent_matrix(
-            ob_eval, ob_eval->parent, reinterpret_cast<float(*)[4]>(parent_matrix.base_ptr()));
+            ob_eval, ob_eval->parent, reinterpret_cast<float (*)[4]>(parent_matrix.base_ptr()));
         parent_matrix = math::invert(parent_matrix);
       }
       else {

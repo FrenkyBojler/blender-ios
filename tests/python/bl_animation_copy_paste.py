@@ -17,7 +17,7 @@ COPYBUFFER_NAME = "world_space_buffer.blend"
 
 class WorldSpaceCopyTest(unittest.TestCase):
     """
-    Test that copying creates the expected temp faile and confirming 
+    Test that copying creates the expected temp faile and confirming
     that temp file contains the correct data.
     """
 
@@ -41,6 +41,8 @@ class WorldSpaceCopyTest(unittest.TestCase):
         # Passing an invalid frame range will error.
         with self.assertRaises(RuntimeError):
             bpy.ops.anim.world_space_copy(start=10, end=0)
+        with self.assertRaises(RuntimeError):
+            bpy.ops.anim.world_space_copy(start=1, end=1)
         self.assertFalse(self._copybuffer_path.exists())
 
     def _test_for_single_entity_in_buffer(self, entity_name):
@@ -53,12 +55,13 @@ class WorldSpaceCopyTest(unittest.TestCase):
         self.assertEqual(len(buffer_fcurves), 12)
         for fcurve in buffer_fcurves:
             self.assertEqual(fcurve.data_path, entity_name)
+            # Data is not stored in BezTriple keyframes.
             self.assertEqual(len(fcurve.keyframe_points), 0)
             self.assertEqual(len(fcurve.sampled_points), 10)
             self.assertEqual(fcurve.sampled_points[0].co.x, 0)
             # Range is exclusive at the end so 10 is not copied.
             self.assertEqual(fcurve.sampled_points[-1].co.x, 9)
-    
+
     def test_copy_object(self) -> None:
         obj = bpy.data.objects["armature_simple"]
         obj_name = obj.name
@@ -79,7 +82,23 @@ class WorldSpaceCopyTest(unittest.TestCase):
         self.assertTrue(self._copybuffer_path.exists())
 
         self._test_for_single_entity_in_buffer(pose_bone.name)
-        
+
+    def test_copy_object_no_anim(self) -> None:
+        """The copying is done even for objects that are not animated."""
+        obj: bpy.types.Object = bpy.data.objects["armature_no_anim"]
+        obj.select_set(True)
+        obj_name = obj.name
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+        self.assertTrue(self._copybuffer_path.exists())
+        bpy.ops.wm.open_mainfile(filepath=self._copybuffer_path.as_posix())
+        buffer_action = bpy.data.actions[0]
+        buffer_fcurves = buffer_action.layers[0].strips[0].channelbags[0].fcurves
+        for fcurve in buffer_fcurves:
+            self.assertEqual(fcurve.data_path, obj_name)
+            self.assertEqual(len(fcurve.sampled_points), 10)
+            # All the FCurves will be flat.
+            self.assertEqual(fcurve.sampled_points[0].co.y, fcurve.sampled_points[-1].co.y)
+
 
 def main():
     global args

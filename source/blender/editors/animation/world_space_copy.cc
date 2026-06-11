@@ -362,6 +362,8 @@ static void copy_world_space(Main &bmain,
     Array<FCurve *> fcurves(12);
     for (const int i : fcurves.index_range()) {
       FCurve *fcurve = BKE_fcurve_create();
+      /* TODO this is not sufficient to identify a bone since they can have identical names in
+       * different armatures. */
       fcurve->rna_path = BLI_strdupn(transformable.name().data(), transformable.name().size());
       fcurve->array_index = i;
       /* Using FPoint because we only need 2 floats per key, not the huge struct that
