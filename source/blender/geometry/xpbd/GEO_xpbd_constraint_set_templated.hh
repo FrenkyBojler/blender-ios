@@ -8,6 +8,12 @@
 
 namespace blender::xpbd {
 
+template<typename T, typename UpdaterT>
+concept constraint_set_has_warm_start = requires(
+    T &&t, const ConstraintSetParams &params, UpdaterT &updater, int val) {
+  t.warm_start(params, updater, val);
+};
+
 /**
  * Utility to implement a constraint evaluator that automatically works with multiple updaters like
  * #GaussSeidelUpdater.
@@ -19,7 +25,7 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
   TemplatedConstraintSet(const int constraints_num, Vector<int> affected_geo_indices)
       : ConstraintSet(constraints_num, std::move(affected_geo_indices))
   {
-    supports_warm_start_ = requires { Child::template warm_start<GaussSeidelUpdater>; };
+    supports_warm_start_ = constraint_set_has_warm_start<Child, GaussSeidelUpdater>;
   }
 
   void reset_forces(const IndexMask &mask) override
@@ -41,7 +47,7 @@ template<typename Child> class TemplatedConstraintSet : public ConstraintSet {
                              GaussSeidelUpdater &updater,
                              const IndexMask &mask) override
   {
-    if constexpr (requires { Child::template warm_start<GaussSeidelUpdater>; }) {
+    if constexpr (constraint_set_has_warm_start<Child, GaussSeidelUpdater>) {
       const Child &self = static_cast<const Child &>(*this);
       mask.foreach_index(
           [&](const int64_t constraint_i) { self.warm_start(params, updater, constraint_i); });
