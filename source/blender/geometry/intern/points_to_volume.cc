@@ -325,16 +325,8 @@ const CPPType &points_rasterize_attribute_type(const PointRasterizeType rasteriz
   switch (rasterize_type) {
     case PointRasterizeType::Scalar:
       return CPPType::get<float>();
-    case PointRasterizeType::ScalarGradient:
-      return CPPType::get<float>();
     case PointRasterizeType::Vector:
       return CPPType::get<float3>();
-    case PointRasterizeType::VectorDivergence:
-      return CPPType::get<float3>();
-    case PointRasterizeType::TensorDivergence:
-      return CPPType::get<float4x4>();
-    case PointRasterizeType::AffineMomentum:
-      return CPPType::get<float4x4>();
   }
   BLI_assert_unreachable();
   return CPPType::get<float>();
@@ -345,15 +337,7 @@ const CPPType &points_rasterize_grid_type(const PointRasterizeType rasterize_typ
   switch (rasterize_type) {
     case PointRasterizeType::Scalar:
       return CPPType::get<float>();
-    case PointRasterizeType::ScalarGradient:
-      return CPPType::get<float3>();
     case PointRasterizeType::Vector:
-      return CPPType::get<float3>();
-    case PointRasterizeType::VectorDivergence:
-      return CPPType::get<float>();
-    case PointRasterizeType::TensorDivergence:
-      return CPPType::get<float3>();
-    case PointRasterizeType::AffineMomentum:
       return CPPType::get<float3>();
   }
   BLI_assert_unreachable();
@@ -393,35 +377,10 @@ inline float kernel_eval_component(const KernelType kernel_type, const float t)
   return 0.0f;
 }
 
-inline float kernel_gradient_eval_component(const KernelType kernel_type, const float t)
-{
-  switch (kernel_type) {
-    case KernelType::Constant:
-      return geometry::grid_sampling::ConstantKernel::derivative(t);
-    case KernelType::Linear:
-      return geometry::grid_sampling::LinearKernel::derivative(t);
-    case KernelType::QuadraticBSpline:
-      return geometry::grid_sampling::QuadraticBSplineKernel::derivative(t);
-    case KernelType::CubicBSpline:
-      return geometry::grid_sampling::CubicBSplineKernel::derivative(t);
-  }
-  return 0.0f;
-}
-
 inline float kernel_eval(const KernelType kernel_type, const float3 &v)
 {
   return kernel_eval_component(kernel_type, v.x) * kernel_eval_component(kernel_type, v.y) *
          kernel_eval_component(kernel_type, v.z);
-}
-
-inline float3 kernel_gradient_eval(const KernelType kernel_type, const float3 &v)
-{
-  const float vx = kernel_eval_component(kernel_type, v.x);
-  const float vy = kernel_eval_component(kernel_type, v.y);
-  const float vz = kernel_eval_component(kernel_type, v.z);
-  return {kernel_gradient_eval_component(kernel_type, v.x) * vy * vz,
-          vx * kernel_gradient_eval_component(kernel_type, v.y) * vz,
-          vx * vy * kernel_gradient_eval_component(kernel_type, v.z)};
 }
 
 }  // namespace kernel_functions
@@ -593,110 +552,6 @@ struct ValueTransfer : public KernelTransferBase<AttributeT, GridValueT> {
   }
 };
 
-template<typename AttributeT, typename GridValueT>
-struct DivergenceTransfer : public KernelTransferBase<AttributeT, GridValueT> {
-  using Base = KernelTransferBase<AttributeT, GridValueT>;
-  using AttributeType = typename Base::AttributeType;
-
-  using Base::KernelTransferBase;
-
-  void rasterizePoints(const openvdb::Coord &ijk,
-                       const openvdb::Index point_index_begin,
-                       const openvdb::Index point_index_end,
-                       const openvdb::CoordBBox &target_bounds)
-  {
-    const openvdb::math::AffineMap::ConstPtr affine_map =
-        this->targetTransform().baseMap()->getAffineMap();
-    this->add_points_to_voxels(
-        ijk,
-        IndexRange::from_begin_end(point_index_begin, point_index_end),
-        target_bounds,
-        [&](const openvdb::Index point_index, const float3 &kernel_distance) {
-          const AttributeType source_value = this->get_value(point_index);
-          const float3 weight_gradient = kernel_functions::kernel_gradient_eval(
-              this->kernel_type(), kernel_distance);
-          const openvdb::Vec3s vdb_weight_gradient = openvdb::Vec3s(
-              weight_gradient.x, weight_gradient.y, weight_gradient.z);
-          const openvdb::Vec3s scaled_weight_gradient = affine_map->applyInverseJacobian(
-              vdb_weight_gradient);
-          if constexpr (std::is_same_v<AttributeType, openvdb::Mat4s>) {
-            return source_value.col(0).getVec3() * scaled_weight_gradient.x() +
-                   source_value.col(1).getVec3() * scaled_weight_gradient.y() +
-                   source_value.col(2).getVec3() * scaled_weight_gradient.z();
-          }
-          else {
-            return source_value[0] * scaled_weight_gradient.x() +
-                   source_value[1] * scaled_weight_gradient.y() +
-                   source_value[2] * scaled_weight_gradient.z();
-          }
-        });
-  }
-};
-
-template<typename AttributeT, typename GridValueT>
-struct AffineMomentTransfer : public KernelTransferBase<AttributeT, GridValueT> {
-  using Base = KernelTransferBase<AttributeT, GridValueT>;
-  using AttributeType = typename Base::AttributeType;
-
-  using Base::KernelTransferBase;
-
-  void rasterizePoints(const openvdb::Coord &ijk,
-                       const openvdb::Index point_index_begin,
-                       const openvdb::Index point_index_end,
-                       const openvdb::CoordBBox &target_bounds)
-  {
-    this->add_points_to_voxels(
-        ijk,
-        IndexRange::from_begin_end(point_index_begin, point_index_end),
-        target_bounds,
-        [&](const openvdb::Index point_index, const float3 &kernel_distance) {
-          const AttributeType source_value = this->get_value(point_index);
-          const float weight = kernel_functions::kernel_eval(this->kernel_type(), kernel_distance);
-          if constexpr (std::is_same_v<AttributeType, openvdb::Mat4s>) {
-            return weight * source_value.pretransform(openvdb::Vec3s(
-                                kernel_distance.x, kernel_distance.y, kernel_distance.z));
-          }
-          else {
-            BLI_assert_unreachable();
-          }
-        });
-  }
-};
-
-template<typename AttributeT, typename GridValueT>
-struct GradientTransfer : public KernelTransferBase<AttributeT, GridValueT> {
-  using Base = KernelTransferBase<AttributeT, GridValueT>;
-  using AttributeType = typename Base::AttributeType;
-  using GridValueType = typename Base::GridValueType;
-
-  using Base::KernelTransferBase;
-
-  void rasterizePoints(const openvdb::Coord &ijk,
-                       const openvdb::Index point_index_begin,
-                       const openvdb::Index point_index_end,
-                       const openvdb::CoordBBox &target_bounds)
-  {
-    const openvdb::math::AffineMap::ConstPtr affine_map =
-        this->targetTransform().baseMap()->getAffineMap();
-    this->add_points_to_voxels(
-        ijk,
-        IndexRange::from_begin_end(point_index_begin, point_index_end),
-        target_bounds,
-        [&](const openvdb::Index point_index, const float3 &kernel_distance) {
-          const AttributeType source_value = this->get_value(point_index);
-          const float3 weight_gradient = kernel_functions::kernel_gradient_eval(
-              this->kernel_type(), kernel_distance);
-          const openvdb::Vec3s vdb_weight_gradient = openvdb::Vec3s(
-              weight_gradient.x, weight_gradient.y, weight_gradient.z);
-          const openvdb::Vec3s scaled_weight_gradient = affine_map->applyInverseJacobian(
-              vdb_weight_gradient);
-          return GridValueType{source_value * scaled_weight_gradient.x(),
-                               source_value * scaled_weight_gradient.y(),
-                               source_value * scaled_weight_gradient.z()};
-        });
-  }
-};
-
 template<typename GridType>
 static typename GridType::Ptr prepare_destination_grid(
     const openvdb::points::PointDataGrid &point_data_grid,
@@ -808,28 +663,8 @@ static bke::GVolumeGrid points_attribute_rasterize(
       result = points_rasterize_with_static_type<float, float, ValueTransfer<float, float>>(
           point_data_grid, value_attribute, attribute_info, transform, kernel_type);
       break;
-    case PointRasterizeType::ScalarGradient:
-      result = points_rasterize_with_static_type<float, float3, GradientTransfer<float, float3>>(
-          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
-      break;
     case PointRasterizeType::Vector:
       result = points_rasterize_with_static_type<float3, float3, ValueTransfer<float3, float3>>(
-          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
-      break;
-    case PointRasterizeType::VectorDivergence:
-      result = points_rasterize_with_static_type<float3, float, DivergenceTransfer<float3, float>>(
-          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
-      break;
-    case PointRasterizeType::TensorDivergence:
-      result = points_rasterize_with_static_type<float4x4,
-                                                 float3,
-                                                 DivergenceTransfer<float4x4, float3>>(
-          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
-      break;
-    case PointRasterizeType::AffineMomentum:
-      result = points_rasterize_with_static_type<float4x4,
-                                                 float3,
-                                                 AffineMomentTransfer<float4x4, float3>>(
           point_data_grid, value_attribute, attribute_info, transform, kernel_type);
       break;
   }
