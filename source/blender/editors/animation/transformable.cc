@@ -16,6 +16,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
+#include "BKE_object.hh"
 
 #include "ANIM_rna.hh"
 
@@ -158,7 +159,18 @@ float4x4 world_to_local(const Depsgraph &depsgraph,
 
     case AnimTransformable::Type::OBJECT: {
       Object *ob_eval = id_cast<Object *>(eval_id);
-      return ob_eval->world_to_object() * world_matrix;
+      float4x4 parent_matrix;
+      if (ob_eval->parent) {
+        BKE_object_get_parent_matrix(
+            ob_eval, ob_eval->parent, reinterpret_cast<float(*)[4]>(parent_matrix.base_ptr()));
+        parent_matrix = math::invert(parent_matrix);
+      }
+      else {
+        parent_matrix = float4x4::identity();
+      }
+      // TODO include delta transforms here
+      float4x4 offset_matrix(ob_eval->parentinv);
+      return parent_matrix * math::invert(offset_matrix) * world_matrix;
     }
   }
 

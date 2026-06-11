@@ -209,7 +209,14 @@ Rotation rotation_interpolated(const Rotation &a, const Rotation &b, float facto
  */
 Array<float> property_interpolated(Span<float> a, Span<float> b, float factor);
 
+/**
+ * Returns the evaluated world space matrix for the given transformable.
+ */
 float4x4 get_world_space(const Depsgraph &depsgraph, const AnimTransformable &transformable);
+
+/**
+ * Converts the given world space matrix into local space using the evaluated depsgraph.
+ */
 float4x4 world_to_local(const Depsgraph &depsgraph,
                         const AnimTransformable &transformable,
                         const float4x4 &world_matrix);
