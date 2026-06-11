@@ -365,6 +365,8 @@ void VKTexture::update_sub(int mip,
                            VKPixelBuffer *pixel_buffer,
                            const uint unpack_row_length)
 {
+  BLI_assert(!is_texture_view());
+
   const bool is_compressed = (format_flag_ & GPU_FORMAT_COMPRESSED);
 
   int3 extent = int3(extent_[0], max_ii(extent_[1], 1), max_ii(extent_[2], 1));

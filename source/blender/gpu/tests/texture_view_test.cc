@@ -266,7 +266,7 @@ static void test_texture_view_mip_layer_test()
     return repeat_data(uint4(layer, layer == 0 ? 0 : mip, 0, 0), size.x * size.y, 2);
   };
 
-  gpu::Texture *base = create_base_texture(format, texture_size, 3, 4);
+  gpu::Texture *base = create_base_texture(format, texture_size, 3, 3);
 
   /* Clear everything. Layer 0 will be kept like this. */
   base->clear(double4(0, 0, 0, 0));
@@ -279,25 +279,16 @@ static void test_texture_view_mip_layer_test()
                      eGPUDataFormat::GPU_DATA_UINT,
                      layer_mip_data(1, mip).data());
 
-    /* Upload to layer 2 using a layer and mip view.*/
+    /* Clear layer 2 using a layer and mip view. */
     gpu::Texture *layer_2_view = create_view_texture(format, base, mip, 2);
-    layer_2_view->update_sub(0,
-                             int3(0, 0, 0),
-                             mip_size(mip),
-                             eGPUDataFormat::GPU_DATA_UINT,
-                             layer_mip_data(2, mip).data());
-
-    /* Clear layer 3 using a layer and mip view. */
-    gpu::Texture *layer_3_view = create_view_texture(format, base, mip, 3);
-    layer_3_view->clear(double4(3, mip, 0, 0));
+    layer_2_view->clear(double4(2, mip, 0, 0));
 
     GPU_texture_free(layer_2_view);
-    GPU_texture_free(layer_3_view);
   }
 
   gpu::Texture *copy = create_base_texture(format, texture_size, 3, 4);
 
-  for (int layer : IndexRange(4)) {
+  for (int layer : IndexRange(3)) {
     for (int mip : IndexRange(3)) {
       auto expected_data = layer_mip_data(layer, mip);
 
