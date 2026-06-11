@@ -46,9 +46,10 @@ def _get_action_fcurves(action):
     return fcurves
 
 
-def _load_blend(t):
+def _load_blend():
     """Load the test blend file; re-acquire and return (e, t, window, area)."""
     import bpy
+    e, t, _ = ui.test_window()
     t.assertTrue(os.path.isfile(_BLEND_FILE), f"Test blend file not found: {_BLEND_FILE}")
     bpy.ops.wm.open_mainfile(filepath=_BLEND_FILE)
     yield  # wait for file load to complete
@@ -65,7 +66,7 @@ def test_properties_search():
     """
     import bpy
 
-    e, t, window, area = yield from _load_blend(t)
+    e, t, window, area = yield from _load_blend()
 
     _set_area_type(area, 'PROPERTIES')
 
@@ -96,7 +97,7 @@ def test_outliner_search():
     """
     import bpy
 
-    e, t, window, area = yield from _load_blend(t)
+    e, t, window, area = yield from _load_blend()
 
     _set_area_type(area, 'OUTLINER')
 
@@ -123,7 +124,8 @@ def test_dopesheet_search():
     """
     import bpy
 
-    e, t, window, area = yield from _load_blend(t)
+    _, t, _ = ui.test_window()
+    e, t, window, area = yield from _load_blend()
 
     _set_area_type(area, 'DOPESHEET_EDITOR')
     with bpy.context.temp_override(area=area):
@@ -165,7 +167,7 @@ def test_graph_editor_search():
     """
     import bpy
 
-    e, t, window, area = yield from _load_blend(t)
+    e, t, window, area = yield from _load_blend()
 
     _set_area_type(area, 'GRAPH_EDITOR')
 
@@ -201,7 +203,7 @@ def test_file_browser_search():
     import bpy
     import tempfile
 
-    e, t, window, area = yield from _load_blend(t)
+    e, t, window, area = yield from _load_blend()
 
     _set_area_type(area, 'FILE_BROWSER')
 
