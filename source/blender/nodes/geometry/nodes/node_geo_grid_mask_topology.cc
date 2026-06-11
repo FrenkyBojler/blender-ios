@@ -106,7 +106,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeGridMaskTopology"_ustr);
   ntype.ui_name = "Grid Mask Topology";
-  ntype.ui_description = "Deactivate voxels of a boolean grid based on value";
+  ntype.ui_description = "Deactivate voxels and tiles where the value is false";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
