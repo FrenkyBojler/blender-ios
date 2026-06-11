@@ -1,1 +1,2 @@
 Referenced by issue #113220, AgX on the GPU displays incorrect Object texture coordinates
+Referenced by pull request #159824, WIP: Fix #159699: Cycles texture cache seam with light tree and MIS
