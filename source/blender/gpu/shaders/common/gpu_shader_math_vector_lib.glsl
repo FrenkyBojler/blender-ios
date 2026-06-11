@@ -122,6 +122,7 @@ template float distance_squared<float4>(float4, float4);
  */
 template<typename VecT> float angle_normalized(VecT v1, VecT v2)
 {
+  /* Ensure inputs are normalized. */
   v1 = normalize(v1);
   v2 = normalize(v2);
 
