@@ -1200,7 +1200,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
       --device "GPU"
     )
   endif()
-  if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+  if(WITH_VULKAN_BACKEND)
     foreach(comp_test ${compositor_tests})
       add_render_test(
         compositor_vulkan_${comp_test}

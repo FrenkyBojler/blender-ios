@@ -63,6 +63,14 @@ def main():
     from modules import render_report
     backend = args.gpu_backend if args.gpu_backend else "CPU"
     report_title = f"Compositor {backend.upper()}"
+
+    if os.getenv("BLENDER_TEST_IGNORE_VENDOR_BLOCKLIST") is None:
+        gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+        if gpu_vendor == "AMD" and args.gpu_backend == "vulkan":
+            # Compositor Vulkan tests are not supported on AMD official drivers (the driver becomes
+            # unresponsive for any future test run and the resolution is to reboot the system).
+            return
+
     report = render_report.Report(report_title, args.outdir, args.oiiotool)
     report.set_pixelated(True)
     report.set_reference_dir("compositor_renders")
