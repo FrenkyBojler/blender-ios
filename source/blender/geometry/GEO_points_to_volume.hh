@@ -90,7 +90,11 @@ MappedPointDataGrid points_to_point_data_grid(const VArray<float3> positions,
 
 enum class PointRasterizeType {
   Scalar,
+  ScalarGradient,
   Vector,
+  VectorDivergence,
+  TensorDivergence,
+  AffineMomentum,
 };
 
 const CPPType &points_rasterize_attribute_type(const PointRasterizeType rasterize_type);
