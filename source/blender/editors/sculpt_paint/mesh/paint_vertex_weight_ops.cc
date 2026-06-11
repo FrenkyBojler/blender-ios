@@ -306,7 +306,7 @@ static bool weight_paint_sample_mark_groups(const MDeformVert *dvert, MutableSpa
   int i = dvert->totweight;
   MDeformWeight *dw;
   for (dw = dvert->dw; i > 0; dw++, i--) {
-    if (UNLIKELY(dw->def_nr >= groups.size())) {
+    if (dw->def_nr >= groups.size()) [[unlikely]] {
       continue;
     }
     groups[dw->def_nr] = true;
@@ -499,6 +499,9 @@ static wmOperatorStatus weight_paint_set_exec(bContext *C, wmOperator *op)
   Object *obact = CTX_data_active_object(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
   Brush *brush = BKE_paint_brush(&ts->wpaint->paint);
+  if (brush == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
   float vgroup_weight = BKE_brush_weight_get(&ts->wpaint->paint, brush);
 
   if (ED_wpaint_ensure_data(C, op->reports, WPAINT_ENSURE_MIRROR, nullptr) == false) {

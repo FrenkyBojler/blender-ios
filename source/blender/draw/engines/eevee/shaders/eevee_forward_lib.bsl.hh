@@ -10,7 +10,9 @@
  * This is used by alpha blended materials and materials using Shader to RGB nodes.
  */
 
-#include "draw_model_lib.glsl"
+#include "infos/eevee_geom_infos.hh"
+
+#include "draw_model.bsl.hh"
 #include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_light_eval.bsl.hh"
 #include "eevee_lightprobe.bsl.hh"
@@ -38,62 +40,64 @@
 
 namespace eevee {
 
-void forward_lighting_eval(Thickness thickness,
+void forward_lighting_eval(const ViewMatrices view,
+                           uint resource_id,
+                           Thickness thickness,
                            float2 frag_co,
                            float3 &radiance,
                            float3 &transmittance)
 {
   [[resource_table]] LightEvalIterator &lights = resource_table_get(eevee::LightEvalIterator);
-
+  [[resource_table]] UtilityTexture &util_tx = resource_table_get(UtilityTexture);
+  [[resource_table]] const Uniform &uni = resource_table_get(eevee::Uniform);
   /* clang-format off */ /* Multiline macro breaks error line counting. */
   [[resource_table]] LightprobeRenderData &lightprobes = resource_table_get(eevee::LightprobeRenderData);
   [[resource_table]] LightprobePlaneRenderData &lightprobe_planes = resource_table_get(eevee::LightprobePlaneRenderData);
   /* clang-format on */
   [[resource_table]] LightEvalData &srt = lights.inner;
+  [[resource_table]] draw::Infos &infos = resource_table_get(draw::Infos);
 
-  float vPz = dot(drw_view_forward(), g_data.P) - dot(drw_view_forward(), drw_view_position());
-  float3 V = drw_world_incident_vector(g_data.P);
+  float vPz = dot(view.forward(), g_data.P) - dot(view.forward(), view.position());
+  float3 V = view.world_incident_vector(g_data.P);
 
   light::EvalCtx<false> ctx;
   for (uint i = 0u; i < 3; i++) [[unroll]] {
     if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
       ClosureUndetermined cl = g_closure_get(uchar(i));
-      ctx.stack.cl[i] = closure_light_new(cl, V);
+      ctx.stack.cl[i] = closure_light_new(util_tx, cl, V);
     }
   }
 
   ctx.P = g_data.P;
   ctx.Ng = g_data.Ng;
   ctx.V = V;
+  ctx.texel = frag_co;
   ctx.thickness = thickness;
 
-  /* TODO(fclem): If transmission (no SSS) is present, we could reduce light_closure_eval_count
-   * by 1 for this evaluation and skip evaluating the transmission closure twice. */
-  const auto &infos_buf = buffer_get(draw_object_infos, drw_infos);
   /* TODO(fclem): If transmission (no SSS) is present, we could reduce LIGHT_CLOSURE_EVAL_COUNT
    * by 1 for this evaluation and skip evaluating the transmission closure twice. */
-  ObjectInfos object_infos = infos_buf[drw_resource_id()];
+  ObjectInfos object_infos = infos.get(resource_id);
   ctx.receiver_light_set = receiver_light_set_get(object_infos);
   ctx.terminator_normal_offset = object_infos.shadow_terminator_normal_offset;
   ctx.terminator_geometry_offset = object_infos.shadow_terminator_geometry_offset;
 
-  lights.eval_reflection(ctx, frag_co, vPz);
+  lights.eval_reflection(ctx, vPz);
 
   if (srt.light_closure_eval_count_transmit > 0) [[static_branch]] {
     ClosureUndetermined cl_transmit = g_closure_get(0);
     if (closure_has_transmission(cl_transmit.type) || cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID)
     {
       light::EvalCtx<true> ctx_tr = light::init_from_reflect_ctx(ctx);
-      ctx_tr.stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
+      ctx_tr.stack.cl[0] = closure_light_new(util_tx, cl_transmit, V, thickness);
 
       /* NOTE: Only evaluates `stack.cl[0]`. */
-      lights.eval_transmission(ctx_tr, frag_co, vPz);
+      lights.eval_transmission(ctx_tr, vPz);
 
       if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {
 #if defined(GLSL_CPP_STUBS) || defined(MAT_SUBSURFACE)
         /* Apply transmission profile onto transmitted light and sum with reflected light. */
-        float3 sss_profile = subsurface_transmission(to_closure_subsurface(cl_transmit).sss_radius,
-                                                     thickness.value());
+        float3 sss_profile = subsurface_transmission(
+            util_tx, to_closure_subsurface(cl_transmit).sss_radius, thickness.value());
         ctx.stack.cl[0].light_shadowed += ctx_tr.stack.cl[0].light_shadowed * sss_profile;
         ctx.stack.cl[0].light_unshadowed += ctx_tr.stack.cl[0].light_unshadowed * sss_profile;
 #endif
@@ -107,7 +111,7 @@ void forward_lighting_eval(Thickness thickness,
 
   LightProbeSample samp = lightprobes.load(frag_co, g_data.P, g_data.Ng, V);
 
-  float clamp_indirect_sh = uniform_buf.clamp.surface_indirect;
+  float clamp_indirect_sh = uni.uniform_buf.clamp.surface_indirect;
   samp.volume_irradiance = spherical_harmonics::clamp_energy(samp.volume_irradiance,
                                                              clamp_indirect_sh);
 
@@ -134,10 +138,10 @@ void forward_lighting_eval(Thickness thickness,
       float3 P_reflected = lightprobe::plane::parallax(
           lightprobe_planes.probe_planar_buf[planar_id], g_data.P, average_N, V);
 
-      float2 ndc_P_reflected = drw_point_world_to_ndc(P_reflected).xy;
+      float2 ndc_P_reflected = view.point_world_to_ndc(P_reflected).xy;
       /* Planar probes are rendered upside down. */
       ndc_P_reflected.y = -ndc_P_reflected.y;
-      float2 texel = drw_ndc_to_screen(ndc_P_reflected);
+      float2 texel = view.ndc_to_screen(ndc_P_reflected);
 
       planar_probe_radiance =
           textureLod(lightprobe_planes.planar_radiance_tx, float3(texel, planar_id), 0.0).rgb;
@@ -184,14 +188,14 @@ void forward_lighting_eval(Thickness thickness,
     }
   }
   /* Light clamping. */
-  float clamp_direct = uniform_buf.clamp.surface_direct;
-  float clamp_indirect = uniform_buf.clamp.surface_indirect;
+  float clamp_direct = uni.uniform_buf.clamp.surface_direct;
+  float clamp_indirect = uni.uniform_buf.clamp.surface_indirect;
 
   radiance_direct = colorspace::brightness_clamp_max(radiance_direct, clamp_direct);
   radiance_indirect = colorspace::brightness_clamp_max(radiance_indirect, clamp_indirect);
 
-  radiance_direct *= uniform_buf.clamp.direct_scale;
-  radiance_indirect *= uniform_buf.clamp.indirect_scale;
+  radiance_direct *= uni.uniform_buf.clamp.direct_scale;
+  radiance_indirect *= uni.uniform_buf.clamp.indirect_scale;
 
   radiance = radiance_direct + radiance_indirect + g_emission;
 

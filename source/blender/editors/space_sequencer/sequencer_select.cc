@@ -1983,7 +1983,13 @@ void SEQUENCER_OT_select_side_of_frame(wmOperatorType *ot)
   PropertyRNA *prop;
   prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  ot->prop = RNA_def_enum(ot->srna, "side", sequencer_select_left_right_types, 0, "Side", "");
+  ot->prop = RNA_def_enum(ot->srna,
+                          "side",
+                          sequencer_select_left_right_types,
+                          0,
+                          "Side",
+                          "Whether to select all strips to the left or right of the current "
+                          "frame, or just those intersecting with it");
 }
 
 /** \} */
@@ -2005,7 +2011,7 @@ static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
   std::fill_n(frame_ranges, ARRAY_SIZE(frame_ranges), frame_init);
 
   for (Strip &strip : *ed->current_strips()) {
-    if (UNLIKELY(strip.channel >= seq::MAX_CHANNELS)) {
+    if (strip.channel >= seq::MAX_CHANNELS) [[unlikely]] {
       continue;
     }
     int *frame_limit_p = &frame_ranges[strip.channel];

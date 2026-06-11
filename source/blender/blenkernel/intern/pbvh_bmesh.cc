@@ -20,6 +20,8 @@
 #include "BKE_global.hh"
 #include "BKE_paint_bvh.hh"
 
+#include "PRF_profile.hh"
+
 #include "bmesh.hh"
 #include "pbvh_intern.hh"
 
@@ -630,7 +632,7 @@ static Array<BMLoop *> pbvh_bmesh_edge_loops(BMEdge *e)
 {
   /* Fast-path for most common case where an edge has 2 faces no need to iterate twice. */
   std::array<BMLoop *, 2> manifold_loops;
-  if (LIKELY(BM_edge_loop_pair(e, manifold_loops.data(), manifold_loops.data() + 1))) {
+  if (BM_edge_loop_pair(e, manifold_loops.data(), manifold_loops.data() + 1)) [[likely]] {
     return Array<BMLoop *>(Span(manifold_loops));
   }
   Array<BMLoop *> loops(BM_edge_face_count(e));
@@ -849,7 +851,7 @@ static void long_edge_queue_edge_add_recursive(const EdgeQueueContext *eq_ctx,
   }
 
   /* temp support previous behavior! */
-  if (UNLIKELY(G.debug_value == 1234)) {
+  if (G.debug_value == 1234) [[unlikely]] {
     return;
   }
 
@@ -1854,7 +1856,7 @@ bool raycast_node_detail_bmesh(const BMeshNode &node,
     const float len3 = len_squared_v3v3(v_tri[2]->co, v_tri[0]->co);
 
     /* Detail returned will be set to the maximum allowed size, so take max here. */
-    *r_edge_length = sqrtf(max_fff(len1, len2, len3));
+    *r_edge_length = sqrtf(std::max({len1, len2, len3}));
   }
 
   return hit;
@@ -2105,6 +2107,7 @@ static void pbvh_bmesh_create_nodes_fast_recursive(Vector<BMeshNode> &nodes,
 
 Tree Tree::from_bmesh(BMesh &bm)
 {
+  PRF_scope(ProfileCategory::Core);
   Tree pbvh(Type::BMesh);
   if (bm.totface == 0) {
     return pbvh;
