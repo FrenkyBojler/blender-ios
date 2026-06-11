@@ -273,7 +273,8 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
   if (data.collection == nullptr || !ID_IS_EDITABLE(data.collection) ||
       ID_IS_OVERRIDE_LIBRARY(data.collection))
   {
-    data.collection = view_layer->active_collection ? view_layer->active_collection->collection : scene->master_collection;
+    data.collection = view_layer->active_collection ? view_layer->active_collection->collection :
+                                                      scene->master_collection;
   }
 
   if (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene)) {
