@@ -120,6 +120,7 @@ static void crashlog_file_generate(const char *filepath, const void *os_info)
               "Unable to save '%s': %s\n",
               filepath,
               errno ? strerror(errno) : "Unknown error opening file");
+      return;
     }
   }
 
