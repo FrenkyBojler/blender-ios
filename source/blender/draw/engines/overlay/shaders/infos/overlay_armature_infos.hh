@@ -19,7 +19,7 @@
 
 GPU_SHADER_CREATE_INFO(overlay_frag_output)
 FRAGMENT_OUT(0, float4, frag_color)
-FRAGMENT_OUT(1, float2, line_output)
+FRAGMENT_OUT(1, float4, line_output)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_INTERFACE_INFO(overlay_armature_wire_iface)

@@ -18,6 +18,6 @@ void main()
     return;
   }
   frag_color = float4(final_color.rgb, alpha);
-  line_output = float2(0.0f);
+  line_output = float4(0.0f);
   select_id_output(select_id);
 }

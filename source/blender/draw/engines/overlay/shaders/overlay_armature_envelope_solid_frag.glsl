@@ -22,7 +22,7 @@ void main()
     frag_color.rgb = mix(final_state_color, final_bone_color, fac * fac);
     frag_color.a = alpha;
   }
-  line_output = float2(0.0f);
+  line_output = float4(0.0f);
 
   select_id_output(select_id);
 }

@@ -10,6 +10,6 @@ void main()
 {
   frag_color = ucolor;
 #ifdef LINE_OUTPUT
-  line_output = float2(0.0f);
+  line_output = float4(0.0f);
 #endif
 }

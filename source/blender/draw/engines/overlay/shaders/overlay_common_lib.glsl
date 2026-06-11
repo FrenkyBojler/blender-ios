@@ -27,7 +27,7 @@ float4x4 extract_matrix_packed_data(float4x4 mat, float4 &dataA, float4 &dataB)
 }
 
 /* edge_start and edge_pos needs to be in the range [0..uniform_buf.size_viewport]. */
-float2 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
+float4 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
 {
   float2 edge = edge_start - edge_pos;
   float len = length(edge);
@@ -40,11 +40,11 @@ float2 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
     float dist = dot(perp, frag_co - edge_start);
 
     /* Add 0.1f to differentiate with cleared pixels. */
-    return float2(theta * M_1_PI * 0.5f + 0.5f, dist * 0.25f + 0.5f + 0.1f);
+    return float4(theta * M_1_PI * 0.5f + 0.5f, dist * 0.25f + 0.5f + 0.1f, 0.0f, 1.0f);
   }
   else {
     /* Default line if the origin is perfectly aligned with a pixel. */
-    return float2(0.0f, 0.5f + 0.1f);
+    return float4(0.0f, 0.5f + 0.1f, 0.0f, 1.0f);
   }
 }
 

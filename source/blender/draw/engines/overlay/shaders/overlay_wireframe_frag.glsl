@@ -21,7 +21,7 @@ void main()
   }
 #endif
 
-  line_output = float2(0.0f);
+  line_output = float4(0.0f);
 
 #if defined(POINTS)
   float2 centered = abs(gl_PointCoord - float2(0.5f));
