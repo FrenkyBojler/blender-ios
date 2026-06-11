@@ -116,7 +116,7 @@ SAMPLER(0, sampler1D, colorramp)
 PUSH_CONSTANT(float, opacity)      /* `1.0f` by default. */
 PUSH_CONSTANT(bool, draw_contours) /* `false` by default. */
 FRAGMENT_OUT(0, float4, frag_color)
-FRAGMENT_OUT(1, float4, line_output)
+FRAGMENT_OUT(1, float2, line_output)
 VERTEX_SOURCE("overlay_paint_weight_vert.glsl")
 FRAGMENT_SOURCE("overlay_paint_weight_frag.glsl")
 ADDITIONAL_INFO(draw_view)

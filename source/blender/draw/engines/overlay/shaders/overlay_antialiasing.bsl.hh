@@ -28,7 +28,7 @@ struct Line {
   float dist;
   float dist_raw;
 
-  static Line decode(float3 data)
+  static Line decode(float2 data)
   {
     float theta = (data.x - 0.5f) * M_TAU;
     return {
@@ -65,7 +65,7 @@ struct Resources {
     return {
         .color = texelFetch(color_tx, texel_actual, 0),
         .depth = texelFetch(depth_tx, texel_actual, 0).r,
-        .line = Line::decode(texelFetch(line_tx, texel_actual, 0).rgb),
+        .line = Line::decode(texelFetch(line_tx, texel_actual, 0).rg),
     };
   }
 };

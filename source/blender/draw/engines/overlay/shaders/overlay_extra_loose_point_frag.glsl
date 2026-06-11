@@ -18,7 +18,7 @@ void main()
   frag_color = mix(col1, col2, 0.45f + fac * 0.65f);
   frag_color *= frag_color;
 
-  line_output = float4(0.0f);
+  line_output = float2(0.0f);
 
   /* Make the effect more like a fresnel by offsetting
    * the depth and creating mini-spheres.

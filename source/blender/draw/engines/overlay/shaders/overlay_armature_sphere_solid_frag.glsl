@@ -58,7 +58,7 @@ void main()
   dither *= (1.0f / 255.0f); /* Assume 8bit per color buffer. */
 
   frag_color = float4(frag_color.rgb + dither, alpha);
-  line_output = float4(0.0f);
+  line_output = float2(0.0f);
 
   t /= ray_len;
 

@@ -9,5 +9,5 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_edit_mesh_analysis)
 void main()
 {
   frag_color = weight_color;
-  line_output = float4(0.0f);
+  line_output = float2(0.0f);
 }

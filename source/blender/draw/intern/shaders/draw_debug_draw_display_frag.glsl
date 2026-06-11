@@ -13,7 +13,7 @@ FRAGMENT_SHADER_CREATE_INFO(draw_debug_draw_display)
 
 /* TODO(fclem): Deduplicate with overlay. */
 /* edge_start and edge_pos needs to be in the range [0..sizeViewport]. */
-float4 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
+float2 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
 {
   float2 edge = edge_start - edge_pos;
   float len = length(edge);
@@ -25,13 +25,12 @@ float4 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
     float theta = atan(perp.y, perp.x);
     float dist = dot(perp, frag_co - edge_start);
 
-    float theta_pack = theta * M_1_PI * 0.5f + 0.5f;
     /* Add 0.1f to differentiate with cleared pixels. */
-    return float4(theta * M_1_PI * 0.5f + 0.5f, dist * 0.25f + 0.5f + 0.1f, 0.0f, 1.0f);
+    return float2(theta * M_1_PI * 0.5f + 0.5f, dist * 0.25f + 0.5f + 0.1f);
   }
   else {
     /* Default line if the origin is perfectly aligned with a pixel. */
-    return float4(0.0f, 0.5f + 0.1f, 0.0f, 1.0f);
+    return float2(0.0f, 0.5f + 0.1f);
   }
 }
 
