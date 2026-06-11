@@ -448,22 +448,28 @@ void GLTexture::copy_to(Texture *dst_, IndexRange mip_levels)
               dst->format_ == TextureFormat::SRGBA_8_8_8_8));
   BLI_assert((dst->type_ & ~GPU_TEXTURE_ARRAY) & (src->type_ & ~GPU_TEXTURE_ARRAY));
 
+  /* Some drivers have issues with texture views, always make the copy using parent textures. */
+  GLTexture *dst_parent = dst->source_texture_ ? static_cast<GLTexture *>(dst->source_texture_) :
+                                                 dst;
+  GLTexture *src_parent = src->source_texture_ ? static_cast<GLTexture *>(src->source_texture_) :
+                                                 src;
+
   for (int mip : mip_levels) {
     /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
     int extent[3] = {1, 1, 1};
     this->mip_size_get(mip, extent);
-    glCopyImageSubData(src->tex_id_,
-                       src->target_,
-                       mip,
+    glCopyImageSubData(src_parent->tex_id_,
+                       src_parent->target_,
+                       mip + src->mip_min_,
                        0,
+                       (src->type_ & GPU_TEXTURE_1D) ? src->view_layer_start_ : 0,
+                       (src->type_ & GPU_TEXTURE_1D) ? 0 : src->view_layer_start_,
+                       dst_parent->tex_id_,
+                       dst_parent->target_,
+                       mip + dst->mip_min_,
                        0,
-                       0,
-                       dst->tex_id_,
-                       dst->target_,
-                       mip,
-                       0,
-                       0,
-                       0,
+                       (dst->type_ & GPU_TEXTURE_1D) ? dst->view_layer_start_ : 0,
+                       (dst->type_ & GPU_TEXTURE_1D) ? 0 : dst->view_layer_start_,
                        UNPACK3(extent));
   }
 
