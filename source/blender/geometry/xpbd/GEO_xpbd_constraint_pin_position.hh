@@ -78,7 +78,6 @@ class PinPositionConstraintSet : public TemplatedConstraintSet<PinPositionConstr
         0.0f,
         lambdas_[constraint_i]);
     updater.update_position(geo_i, point_i, result.offset0);
-    updater.update_position(geo_i, point_i, result.offset1);
   }
 
   ConstraintColoring color_constraints(LinearAllocator<> &memory) const override
