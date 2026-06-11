@@ -5,6 +5,7 @@
 #pragma once
 
 #include "draw_view_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
 
 /* Wire Color Types, matching eV3DShadingColorType. */
 #define V3D_SHADING_SINGLE_COLOR 2
@@ -33,13 +34,17 @@ float4 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
   if (len > 0.0f) {
     edge /= len;
     float2 perp = float2(-edge.y, edge.x);
+
+    /* Get quadrant angle and distance from line along perpendicular vector. */
+    float theta = atan(perp.y, perp.x);
     float dist = dot(perp, frag_co - edge_start);
+
     /* Add 0.1f to differentiate with cleared pixels. */
-    return float4(perp * 0.5f + 0.5f, dist * 0.25f + 0.5f + 0.1f, 1.0f);
+    return float4(theta * M_1_PI * 0.5f + 0.5f, dist * 0.25f + 0.5f + 0.1f, 0.0f, 1.0f);
   }
   else {
     /* Default line if the origin is perfectly aligned with a pixel. */
-    return float4(1.0f, 0.0f, 0.5f + 0.1f, 1.0f);
+    return float4(0.0f, 0.5f + 0.1f, 0.0f, 1.0f);
   }
 }
 

@@ -7,6 +7,7 @@
  */
 
 #include "draw_debug_infos.hh"
+#include "gpu_shader_math_constants_lib.glsl"
 
 FRAGMENT_SHADER_CREATE_INFO(draw_debug_draw_display)
 
@@ -19,12 +20,19 @@ float4 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
   if (len > 0.0f) {
     edge /= len;
     float2 perp = float2(-edge.y, edge.x);
+
+    /* Get quadrant angle, and distance from line. */
+    float theta = atan(perp.y, perp.x);
     float dist = dot(perp, frag_co - edge_start);
+
+    float theta_pack = theta * M_1_PI * 0.5f + 0.5f;
     /* Add 0.1f to differentiate with cleared pixels. */
-    return float4(perp * 0.5f + 0.5f, dist * 0.25f + 0.5f + 0.1f, 1.0f);
+    return float4(theta * M_1_PI * 0.5f + 0.5f, dist * 0.25f + 0.5f + 0.1f, 0.0f, 1.0f);
   }
-  /* Default line if the origin is perfectly aligned with a pixel. */
-  return float4(1.0f, 0.0f, 0.5f + 0.1f, 1.0f);
+  else {
+    /* Default line if the origin is perfectly aligned with a pixel. */
+    return float4(0.0f, 0.5f + 0.1f, 0.0f, 1.0f);
+  }
 }
 
 void main()

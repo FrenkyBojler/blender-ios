@@ -14,6 +14,7 @@
 
 #include "gpu_shader_compat.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
 #include "infos/overlay_common_infos.hh"
 #include "overlay_shader_shared.hh"
 
@@ -29,10 +30,11 @@ struct Line {
 
   static Line decode(float3 data)
   {
+    float theta = (data.x - 0.5f) * M_TAU;
     return {
-        .dir = data.xy * 2.0f - 1.0f,
-        .dist = (data.z - 0.1f) * 4.0f - 2.0f,
-        .dist_raw = data.z,
+        .dir = float2(cos(theta), sin(theta)),
+        .dist = (data.y - 0.1f) * 4.0f - 2.0f,
+        .dist_raw = data.y,
     };
   }
 
