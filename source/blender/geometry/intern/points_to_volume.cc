@@ -360,6 +360,72 @@ const CPPType &points_rasterize_grid_type(const PointRasterizeType rasterize_typ
   return CPPType::get<float>();
 }
 
+namespace kernel_functions {
+
+inline int kernel_size(const KernelType kernel_type)
+{
+  switch (kernel_type) {
+    case KernelType::Constant:
+      return geometry::grid_sampling::ConstantKernel::size;
+    case KernelType::Linear:
+      return geometry::grid_sampling::LinearKernel::size;
+    case KernelType::QuadraticBSpline:
+      return geometry::grid_sampling::QuadraticBSplineKernel::size;
+    case KernelType::CubicBSpline:
+      return geometry::grid_sampling::CubicBSplineKernel::size;
+  }
+  BLI_assert_unreachable();
+  return 0;
+}
+
+inline float kernel_eval_component(const KernelType kernel_type, const float t)
+{
+  switch (kernel_type) {
+    case KernelType::Constant:
+      return geometry::grid_sampling::ConstantKernel::weight(t);
+    case KernelType::Linear:
+      return geometry::grid_sampling::LinearKernel::weight(t);
+    case KernelType::QuadraticBSpline:
+      return geometry::grid_sampling::QuadraticBSplineKernel::weight(t);
+    case KernelType::CubicBSpline:
+      return geometry::grid_sampling::CubicBSplineKernel::weight(t);
+  }
+  return 0.0f;
+}
+
+inline float kernel_gradient_eval_component(const KernelType kernel_type, const float t)
+{
+  switch (kernel_type) {
+    case KernelType::Constant:
+      return geometry::grid_sampling::ConstantKernel::derivative(t);
+    case KernelType::Linear:
+      return geometry::grid_sampling::LinearKernel::derivative(t);
+    case KernelType::QuadraticBSpline:
+      return geometry::grid_sampling::QuadraticBSplineKernel::derivative(t);
+    case KernelType::CubicBSpline:
+      return geometry::grid_sampling::CubicBSplineKernel::derivative(t);
+  }
+  return 0.0f;
+}
+
+inline float kernel_eval(const KernelType kernel_type, const float3 &v)
+{
+  return kernel_eval_component(kernel_type, v.x) * kernel_eval_component(kernel_type, v.y) *
+         kernel_eval_component(kernel_type, v.z);
+}
+
+inline float3 kernel_gradient_eval(const KernelType kernel_type, const float3 &v)
+{
+  const float vx = kernel_eval_component(kernel_type, v.x);
+  const float vy = kernel_eval_component(kernel_type, v.y);
+  const float vz = kernel_eval_component(kernel_type, v.z);
+  return {kernel_gradient_eval_component(kernel_type, v.x) * vy * vz,
+          vx * kernel_gradient_eval_component(kernel_type, v.y) * vz,
+          vx * vy * kernel_gradient_eval_component(kernel_type, v.z)};
+}
+
+}  // namespace kernel_functions
+
 template<typename AttributeT, typename GridValueT>
 struct KernelTransferBase : public openvdb::points::TransformTransfer,
                             public openvdb::points::VolumeTransfer<
