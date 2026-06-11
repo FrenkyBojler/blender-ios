@@ -96,6 +96,7 @@ struct bContext {
 
     int recursion;
 
+    /** Flag to disallow using the UI context for data retrieval. */
     bool ui_data_access_deny;
 
     /** True if python is initialized. */
