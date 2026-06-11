@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_index_range.hh"
+#include "BLI_unique_sorted_indices.hh"
 #include "DNA_object_types.h"
 
 #include "BLI_enumerable_thread_specific.hh"
@@ -15,6 +17,7 @@
 
 #include "GEO_mesh_copy_selection.hh"
 #include "GEO_mesh_selection.hh"
+#include <type_traits>
 
 namespace blender::geometry {
 
@@ -31,27 +34,33 @@ static void remap_verts(const OffsetIndices<int> src_faces,
 {
   Array<int> map(src_verts_num);
   index_mask::build_reverse_map<int>(vert_mask, map);
-  threading::parallel_invoke(
-      vert_mask.size() > 1024,
-      [&]() {
-        face_mask.foreach_index(
-            [&](const int64_t src_i, const int64_t dst_i) {
-              const IndexRange src_face = src_faces[src_i];
-              const IndexRange dst_face = dst_faces[dst_i];
-              for (const int i : src_face.index_range()) {
-                dst_corner_verts[dst_face[i]] = map[src_corner_verts[src_face[i]]];
-              }
-            },
-            exec_mode::grain_size(512));
+  face_mask.foreach_segment_optimized(
+      [&](const auto segment, const int64_t dst_pos) {
+        if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
+          const IndexRange src_corners = src_faces[*segment];
+          const IndexRange dst_corners = dst_faces[IndexRange(dst_pos, segment.size())];
+          for (const int i : src_corners.index_range()) {
+            dst_corner_verts[dst_corners[i]] = map[src_corner_verts[src_corners[i]]];
+          }
+        }
+        else {
+          for (const int segment_i : segment.index_range()) {
+            const IndexRange src_face = src_faces[segment[segment_i]];
+            const IndexRange dst_face = dst_faces[dst_pos + segment_i];
+            for (const int i : src_face.index_range()) {
+              dst_corner_verts[dst_face[i]] = map[src_corner_verts[src_face[i]]];
+            }
+          }
+        }
       },
-      [&]() {
-        edge_mask.foreach_index(
-            [&](const int64_t src_i, const int64_t dst_i) {
-              dst_edges[dst_i][0] = map[src_edges[src_i][0]];
-              dst_edges[dst_i][1] = map[src_edges[src_i][1]];
-            },
-            exec_mode::grain_size(512));
-      });
+      exec_mode::grain_size(512));
+
+  edge_mask.foreach_index(
+      [&](const int64_t src_i, const int64_t dst_i) {
+        dst_edges[dst_i][0] = map[src_edges[src_i][0]];
+        dst_edges[dst_i][1] = map[src_edges[src_i][1]];
+      },
+      exec_mode::grain_size(512));
 }
 
 static void remap_edges(const OffsetIndices<int> src_faces,
