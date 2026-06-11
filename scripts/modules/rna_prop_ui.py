@@ -189,8 +189,6 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         props = value_column.operator("wm.properties_edit_value", text="Edit Value")
         props.data_path = context_member
         props.property_name = key
-    elif is_datablock:
-        value_column.template_ID(rna_item, rna_idprop_quote_path(key), text="")
     else:
         value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
 

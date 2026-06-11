@@ -201,25 +201,20 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   void build_row(ui::Layout &row) override
   {
-    ui::Layout &name_layout = row.split(0.4f, false);
-    name_layout.alignment_set(LayoutAlign::Left);
-    uiItemL_ex(&name_layout, property_->name, ICON_NONE, false, false);
+    uiItemL_ex(&row, property_->name, ICON_NONE, false, false);
 
-    ui::Layout &sub = name_layout.row(false);
+    ui::Layout &sub = row.row(false);
 
     /* Use different emboss for widget style to color buttons when keyframe/drivers are present. */
     const EmbossType emboss = [&]() -> EmbossType {
-      if (property_->type == IDP_BOOLEAN) {
-        return EmbossType::Emboss;
-      }
       if (ELEM(property_->type, IDP_INT, IDP_FLOAT, IDP_DOUBLE)) {
         return EmbossType::NoneOrStatus;
       }
-      return EmbossType::Pulldown;
+      return EmbossType::Emboss;
     }();
 
     sub.emboss_set(emboss);
-    sub.alignment_set(LayoutAlign::Right);
+    sub.alignment_set(property_->type == IDP_BOOLEAN ? LayoutAlign::Right : LayoutAlign::Expand);
 
     const std::string prop_name = "[\"" + std::string(property_->name) + "\"]";
 
@@ -391,7 +386,7 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
   }
 
   if (srna == RNA_IDPropertyUIDataID) {
-    layout->prop(&propui_ptr, "id_type", UI_ITEM_NONE, "ID type", ICON_NONE);
+    layout->prop(&propui_ptr, "id_type", UI_ITEM_NONE, "Data-Block type", ICON_NONE);
     Button *but = button_last(layout->block());
     button_func_set(but, idproperty_id_type_set_fn, user_properties, nullptr);
   }
