@@ -74,17 +74,14 @@ class BlendStructWriter {
   /**
    * Mark the pointer at the given offset as purely runtime. That means that it will be zeroed.
    */
-  void runtime_ptr(const int64_t offset)
-  {
-    data_.slice(offset, sizeof(void *)).fill(0);
-  }
+  void runtime_ptr(int64_t offset);
 
   /**
-   * Tag the pointer at the given offset as "maybe generated". That means that it may be remapped
-   * to a stable pointer. This only does something if the pointee has been tagged with
+   * Tag the pointer at the given offset as "generated". That implies that it may be remapped
+   * to a stable pointer. It's expected that the pointer has been tagged with
    * #BLO_write_generated_pointer_tag before.
    */
-  void maybe_generated_ptr(int64_t offset);
+  void generated_ptr(int64_t offset);
 };
 
 using BlendStructWriterFn = FunctionRef<void(BlendStructWriter &struct_writer)>;

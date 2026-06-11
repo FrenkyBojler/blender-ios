@@ -305,7 +305,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
 
   /* Write LibData */
   writer->write_id_struct(id_address, grease_pencil, [](BlendStructWriter &struct_writer) {
-    struct_writer.maybe_generated_ptr(offsetof(GreasePencil, attribute_storage.dna_attributes));
+    struct_writer.generated_ptr(offsetof(GreasePencil, attribute_storage.dna_attributes));
   });
   BKE_id_blend_write(writer, &grease_pencil->id);
 
@@ -4615,7 +4615,7 @@ static void write_drawing_array(GreasePencil &grease_pencil,
 
         writer->write_struct_at_address_cast<GreasePencilDrawing>(
             drawing_base, &drawing_copy, [](BlendStructWriter &struct_writer) {
-              struct_writer.maybe_generated_ptr(
+              struct_writer.generated_ptr(
                   offsetof(GreasePencilDrawing, geometry.attribute_storage.dna_attributes));
             });
         curves.blend_write(*writer, grease_pencil.id, write_data);

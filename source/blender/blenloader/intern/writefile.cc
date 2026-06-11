@@ -960,7 +960,18 @@ static void writestruct_at_address_nr(WriteData *wd,
   mywrite(wd, data_to_write, size_t(bh.len));
 }
 
-void BlendStructWriter::maybe_generated_ptr(const int64_t offset)
+void BlendStructWriter::runtime_ptr(const int64_t offset)
+{
+#ifndef NDEBUG
+  const dna::pointers::StructInfo &struct_info =
+      wd_->stable_address_ids.sdna_pointers->get_for_struct(struct_nr_);
+  BLI_assert(struct_info.has_pointer_at_offset(offset));
+#endif
+
+  data_.slice(offset, sizeof(void *)).fill(0);
+}
+
+void BlendStructWriter::generated_ptr(const int64_t offset)
 {
   if (!wd_->use_memfile) {
     /* When writing to file, all pointers are remapped to stable pointers. */
@@ -974,6 +985,8 @@ void BlendStructWriter::maybe_generated_ptr(const int64_t offset)
 
   /* In undo case, replace generated pointers by corresponding stable pointers. */
   const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(data_.data(), offset));
+  /* Should exist if #BLO_write_generated_pointer_tag has been called before. */
+  BLI_assert(wd_->stable_address_ids.pointer_map.contains(*p_ptr));
   const void *p_ptr_address_id = get_address_id(*wd_, *p_ptr);
   *p_ptr = p_ptr_address_id;
 }

@@ -706,7 +706,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
                                     write_data.attributes.size(),
                                     write_data.attributes.data(),
                                     [](BlendStructWriter &struct_writer) {
-                                      struct_writer.maybe_generated_ptr(
+                                      struct_writer.generated_ptr(
                                           offsetof(blender::Attribute, data));
                                     });
   for (const blender::Attribute &attr_dna : write_data.attributes) {

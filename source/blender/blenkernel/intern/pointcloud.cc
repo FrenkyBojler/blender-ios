@@ -136,7 +136,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
 
   /* Write LibData */
   writer->write_id_struct(id_address, pointcloud, [](BlendStructWriter &struct_writer) {
-    struct_writer.maybe_generated_ptr(offsetof(PointCloud, attribute_storage.dna_attributes));
+    struct_writer.generated_ptr(offsetof(PointCloud, attribute_storage.dna_attributes));
   });
   BKE_id_blend_write(writer, &pointcloud->id);
 
