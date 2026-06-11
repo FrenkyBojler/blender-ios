@@ -452,7 +452,6 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
       ui::theme::get_color_3ubv(TH_SEQ_AUDIO, strip_color);
     }
     else {
-      printf("Hoori! We are here\n");
       ui::theme::get_color_3ubv(coords->type, strip_color);
     }
 
