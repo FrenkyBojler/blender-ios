@@ -223,9 +223,6 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
           BMVert *v = loop.verts[i];
           BMEdge *edges[2] = {BM_edge_exists(v, loop.verts[i - 1]), BM_edge_exists(v, loop.verts[i + 1])};
 
-          float3 target_sum(0.0f);
-          int target_count = 0;
-
           for (BMEdge *e : edges) {
             if (e == nullptr || e->l == nullptr || BM_edge_is_boundary(e)) {
               continue;
@@ -238,14 +235,19 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
                 continue;
               }
               float3 target;
-
               if (edge_flow_calc_spline_target(l, tension, target)) {
-                target_sum += target;
-                target_count++;
+                copy_v3_v3(v->co, target);
               }
             }
           }
         }
+      }
+
+      /* Blend each moved vert back toward its original position. */
+      for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
+        float3 blended;
+        interp_v3_v3v3(blended, orig_cos[i], loop.verts[i]->co, mix);
+        copy_v3_v3(loop.verts[i]->co, blended);
       }
     }
 
