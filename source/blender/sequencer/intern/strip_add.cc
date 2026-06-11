@@ -682,9 +682,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
         return;
       }
 
-      /* Hack? Copied from case STRIP_TYPE_IMAGE */
-      size_t olen = MEM_allocN_len(strip->data->stripdata) / sizeof(StripElem);
-      strip->len = olen;
+      strip->len = get_image_id_len(strip->image_id);
 
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;
