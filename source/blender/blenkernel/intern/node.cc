@@ -4606,18 +4606,13 @@ bool node_link_is_hidden(const bNodeLink &link)
   return !(link.fromsock->is_visible() && link.tosock->is_visible());
 }
 
-static bool node_is_selected(const bNode *node)
-{
-  return (node->flag & NODE_SELECT);
-}
-
 static bool check_link_selected_backward(const bNodeLink &link, Set<const bNode *> &visited_nodes)
 {
   const bNode *node = link.fromnode;
   if (!node) {
     return false;
   }
-  if (node_is_selected(node)) {
+  if ((node->flag & NODE_SELECT)) {
     return true;
   }
   if (!node->is_reroute()) {
@@ -4644,7 +4639,7 @@ static bool check_link_selected_forward(const bNodeLink &link, Set<const bNode *
   if (!node) {
     return false;
   }
-  if (node_is_selected(node)) {
+  if ((node->flag & NODE_SELECT)) {
     return true;
   }
   if (!node->is_reroute()) {
