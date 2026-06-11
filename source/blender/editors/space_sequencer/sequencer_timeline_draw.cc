@@ -216,6 +216,12 @@ static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, S
   strip_ctx.content_start = strip->content_start();
   strip_ctx.content_end = strip->content_end(scene);
 
+  // TODO: Make an actual function for the strip dimensions that respects the header toggle and
+  // would also be used for the selection bounds
+  if (strip->input2 != nullptr) {
+    strip_ctx.top = strip_ctx.top - strip_header_size_get(ctx);
+  }
+
   if (strip->type == STRIP_TYPE_SOUND && strip->sound != nullptr) {
     /* Visualize sub-frame sound offsets. */
     const double sound_offset = (strip->sound->offset_time + strip->sound_offset) *
@@ -1265,11 +1271,14 @@ static void visible_strips_ordered_get(const TimelineDrawContext &ctx,
 
   for (Strip *strip : strips) {
     StripDrawContext strip_ctx = strip_draw_context_get(ctx, strip);
-    if (!flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::Overlap)) {
-      r_bottom_layer.append(strip_ctx);
+    // tmp (doesn't support transitions on transitions when moving)
+    if (flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::Overlap) ||
+        (strip->input2 != nullptr))
+    {
+      r_top_layer.append(strip_ctx);
     }
     else {
-      r_top_layer.append(strip_ctx);
+      r_bottom_layer.append(strip_ctx);
     }
   }
 

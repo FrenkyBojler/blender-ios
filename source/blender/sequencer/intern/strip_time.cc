@@ -183,11 +183,12 @@ void strip_time_effect_range_set(const Scene *scene, Strip *strip)
   }
 
   if (strip->input1 && strip->input2) { /* 2 - input effect. */
+    return;
     strip->startdisp = max_ii(strip->input1->left_handle(), strip->input2->left_handle());
     strip->enddisp = min_ii(strip->input1->right_handle(scene),
                             strip->input2->right_handle(scene));
   }
-  else if (strip->input1) { /* Single input effect. */
+  if (strip->input1) { /* Single input effect. */
     strip->startdisp = strip->input1->right_handle(scene);
     strip->enddisp = strip->input1->left_handle();
   }
@@ -532,7 +533,7 @@ int Strip::rounded_sound_offset(float scene_fps) const
 
 int Strip::left_handle() const
 {
-  if (this->input1 || this->input2) {
+  if (this->input1 && !this->input2) {
     return this->startdisp;
   }
 
@@ -541,7 +542,7 @@ int Strip::left_handle() const
 
 int Strip::right_handle(const Scene *scene) const
 {
-  if (this->input1 || this->input2) {
+  if (this->input1 && !this->input2) {
     return this->enddisp;
   }
 

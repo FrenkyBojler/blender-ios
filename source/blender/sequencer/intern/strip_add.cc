@@ -187,6 +187,11 @@ Strip *add_effect_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_
     strip->right_handle_set(scene, load_data->start_frame + load_data->effect.length);
   }
 
+  // tmp
+  if (strip->input2 != nullptr) {
+    strip->right_handle_set(scene, load_data->start_frame + load_data->effect.length);
+  }
+
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
 

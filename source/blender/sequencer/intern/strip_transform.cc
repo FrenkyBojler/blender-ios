@@ -56,7 +56,8 @@ bool transform_is_locked(const ListBaseT<SeqTimelineChannel> *channels, const St
 
 bool transform_strip_can_be_translated(const Strip *strip)
 {
-  return !strip->is_effect_with_inputs();
+  // TMP? for now let's make it so you can only move it by manipulating the cut point
+  return !strip->is_effect_with_inputs();  // || (strip->input2 != nullptr);
 }
 
 bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
@@ -66,12 +67,20 @@ bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
            (strip1->left_handle() >= strip2->right_handle(scene))) == 0);
 }
 
+// TMP
 bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
 {
   Strip *strip;
 
+  if (test->input2 != nullptr) {
+    return false;
+  }
+
   strip = static_cast<Strip *>(seqbasep->first);
   while (strip) {
+    if (strip->input2 != nullptr) {
+      continue;
+    }
     if (transform_test_overlap(scene, test, strip)) {
       return true;
     }
@@ -105,7 +114,8 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
     const int right_handle = strip->right_handle(evil_scene);
     strip->handles_set(evil_scene, left_handle + delta, right_handle + delta);
   }
-  else if (strip->input1 == nullptr && strip->input2 == nullptr) { /* All other strip types. */
+  /* All other strip types. */
+  else if ((strip->input1 == nullptr && strip->input2 == nullptr) || (strip->input2 != nullptr)) {
     strip->start += delta;
     /* Only to make files usable in older versions. */
     strip->startdisp = strip->left_handle();

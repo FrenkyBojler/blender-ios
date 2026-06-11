@@ -31,6 +31,7 @@
 
 #include "UI_view2d.hh"
 
+#include "intern/sequencer.hh"
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_mode.hh"
@@ -481,6 +482,9 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
     if (!strip->is_effect_with_inputs()) {
       continue;
     }
+    if (strip->input2 != nullptr) {
+      continue;
+    }
     /* If there is an effect strip without its inputs selected, prevent any x-direction movement,
      * since these strips are tied to their inputs and can only move up and down. */
     if (!(strip->input1->flag & SEQ_SELECT) &&
@@ -512,6 +516,9 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
     bool can_clamp_holds = !(left_sel && right_sel) ||
                            (strip->len >= strip->right_handle(scene) - strip->left_handle());
     can_clamp_holds &= !seq::transform_single_image_check(strip);
+    if (strip->input2 != nullptr) {
+      can_clamp_holds = false;
+    }
 
     /* A handle is selected. Update x-axis clamping data. */
     if (left_sel || right_sel) {
@@ -721,11 +728,36 @@ static void flushTransSeq(TransInfo *t)
           if (abs(offset) > abs(max_offset)) {
             max_offset = offset;
           }
+
+          // TODO: i think this doesn't respect the modifications to the flag tho
+          // really you need to iterate again like this
+          // for (int a = 0; a < tc->data_len; a++, td++) {
+          // rather than with a lookup.
+          // Though, check.
+          Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
+          for (Strip *e : effects) {
+            if (e->input2 == strip) {
+              // well, could be both right and left handles selected. should still do the same move
+              if (e->input1->flag & SEQ_SELECT) {
+                seq::transform_translate_strip(scene, e, offset);
+                seq::strip_channel_set(e, new_channel);
+              }
+            }
+          }
         }
-        seq::strip_channel_set(strip, new_channel);
+        if (strip->input2 == nullptr) {
+          seq::strip_channel_set(strip, new_channel);
+        }
+
         break;
       }
       case SEQ_LEFTSEL: { /* No vertical transform. */
+        if (strip->input2 != nullptr) {
+          int offset = new_frame - strip->left_handle();
+          strip->left_handle_set(scene, new_frame);
+          strip->right_handle_set(scene, strip->right_handle(scene) - offset);
+          break;
+        }
         /* Update right handle first if both handles are selected and the `new_frame` is right of
          * the old one to avoid unexpected left handle clamping when canceling. See #126191. */
         const bool both_handles_selected = (tdsq->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) ==
@@ -746,11 +778,32 @@ static void flushTransSeq(TransInfo *t)
       }
       case SEQ_RIGHTSEL: { /* No vertical transform. */
         int old_enddisp = strip->right_handle(scene);
+        int offset = new_frame - old_enddisp;
+
+        if (strip->input2 != nullptr) {
+          strip->right_handle_set(scene, new_frame);
+          strip->left_handle_set(scene, strip->left_handle() - offset);
+          break;
+        }
+
         strip->right_handle_set(scene, new_frame);
 
         if (abs(strip->right_handle(scene) - old_enddisp) > abs(max_offset)) {
           max_offset = strip->right_handle(scene) - old_enddisp;
         }
+
+        Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
+        for (Strip *e : effects) {
+          if (e->input2 != nullptr) {
+            // eh, these should be kept in the right order, but anyway
+            if ((e->input1 == strip && (e->input2->flag & SEQ_LEFTSEL)) ||
+                (e->input2 == strip && (e->input1->flag & SEQ_LEFTSEL)))
+            {
+              seq::transform_translate_strip(scene, e, offset);
+            }
+          }
+        }
+
         break;
       }
     }
@@ -765,17 +818,18 @@ static void flushTransSeq(TransInfo *t)
 
   /* Need to do the overlap check in a new loop otherwise adjacent strips
    * will not be updated and we'll get false positives. */
-  VectorSet transformed_strips = seq_transform_collection_from_transdata(tc);
-  seq::iterator_set_expand(
-      seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
+  // Let's ignore this for now, since that goes in an infinite loop.
+  // VectorSet transformed_strips = seq_transform_collection_from_transdata(tc);
+  // seq::iterator_set_expand(
+  //     seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
 
-  for (Strip *strip : transformed_strips) {
-    /* Test overlap, displays red outline. */
-    strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
-    if (seq::transform_test_overlap(scene, seqbasep, strip)) {
-      strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
-    }
-  }
+  // for (Strip *strip : transformed_strips) {
+  //   /* Test overlap, displays red outline. */
+  //   strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
+  //   if (seq::transform_test_overlap(scene, seqbasep, strip)) {
+  //     strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
+  //   }
+  // }
 }
 
 static void recalcData_sequencer(TransInfo *t)
