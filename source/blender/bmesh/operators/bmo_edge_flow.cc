@@ -10,6 +10,7 @@
  */
 
 #include "BLI_array.hh"
+#include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
@@ -20,6 +21,7 @@
 namespace blender {
 
 struct EdgeFlowLoop {
+  Vector<BMEdge *> edges;
   Vector<BMVert *> verts;
   bool is_cyclic;
 };
@@ -56,13 +58,12 @@ static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
       }
     }
 
-    if (loop_edges.size() < 2) {
-      continue;
-    }
-
     /* Find p1, vert of edges[0] not shared with edges[1] */
     BMVert *p1 = nullptr;
-    if (loop_edges[0]->v1 != loop_edges[1]->v1 && loop_edges[0]->v1 != loop_edges[1]->v2) {
+    if (loop_edges.size() == 1) {
+      p1 = loop_edges[0]->v1;
+    }
+    else if (loop_edges[0]->v1 != loop_edges[1]->v1 && loop_edges[0]->v1 != loop_edges[1]->v2) {
       p1 = loop_edges[0]->v1;
     }
     else {
@@ -79,6 +80,7 @@ static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
       last = next;
     }
 
+    loop.edges = std::move(loop_edges);
     loop.is_cyclic = (loop.verts.first() == loop.verts.last());
     r_loops.append(std::move(loop));
   }
@@ -163,6 +165,60 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
   Vector<EdgeFlowLoop> loops;
   edge_flow_collect_loops(bm, loops);
 
+  if (mode == EDGE_FLOW_FLOW) {
+    Map<BMVert *, float3> orig_cos;
+
+    for (const EdgeFlowLoop &loop : loops) {
+      for (BMEdge *e : loop.edges) {
+        orig_cos.add(e->v1, e->v1->co);
+        orig_cos.add(e->v2, e->v2->co);
+      }
+    }
+
+    for (int iter = 0; iter < iterations; iter++) {
+      for (const EdgeFlowLoop &loop : loops) {
+        for (BMEdge *e : loop.edges) {
+          /* Skip wire and boundary edges. */
+          if (e->l == nullptr || BM_edge_is_boundary(e)) {
+            continue;
+          }
+
+          BMVert *centers[2];
+          float3 targets[2];
+          int target_count = 0;
+
+          BMIter l_iter;
+          BMLoop *l;
+          BM_ITER_ELEM (l, &l_iter, e, BM_LOOPS_OF_EDGE) {
+            if (target_count == 2) {
+              break;
+            }
+
+            float3 target;
+            if (edge_flow_calc_spline_target(l, tension, target)) {
+              centers[target_count] = BM_edge_other_vert(e, l->v);
+              targets[target_count] = target;
+              target_count++;
+            }
+          }
+
+          for (int k = 0; k < target_count; k++) {
+            copy_v3_v3(centers[k]->co, targets[k]);
+          }
+        }
+      }
+    }
+
+    /* Blend each moved vert back toward its original position. */
+    for (const MutableMapItem<BMVert *, float3> &item : orig_cos.items()) {
+      float3 blended;
+      interp_v3_v3v3(blended, item.value, item.key->co, mix);
+      copy_v3_v3(item.key->co, blended);
+    }
+
+    return;
+  }
+
   for (EdgeFlowLoop &loop : loops) {
     if (loop.is_cyclic) {
       continue;
@@ -215,39 +271,6 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
           interp_v3_v3v3(blended, orig_cos[i], new_co, mix);
           copy_v3_v3(loop.verts[i]->co, blended);
         }
-      }
-    }
-    else if (mode == EDGE_FLOW_FLOW) {
-      for (int iter = 0; iter < iterations; iter++) {
-        for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
-          BMVert *v = loop.verts[i];
-          BMEdge *edges[2] = {BM_edge_exists(v, loop.verts[i - 1]), BM_edge_exists(v, loop.verts[i + 1])};
-
-          for (BMEdge *e : edges) {
-            if (e == nullptr || e->l == nullptr || BM_edge_is_boundary(e)) {
-              continue;
-            }
-
-            BMIter l_iter;
-            BMLoop *l;
-            BM_ITER_ELEM (l, &l_iter, e, BM_LOOPS_OF_EDGE) {
-              if (BM_edge_other_vert(e, l->v) != v) {
-                continue;
-              }
-              float3 target;
-              if (edge_flow_calc_spline_target(l, tension, target)) {
-                copy_v3_v3(v->co, target);
-              }
-            }
-          }
-        }
-      }
-
-      /* Blend each moved vert back toward its original position. */
-      for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
-        float3 blended;
-        interp_v3_v3v3(blended, orig_cos[i], loop.verts[i]->co, mix);
-        copy_v3_v3(loop.verts[i]->co, blended);
       }
     }
 
