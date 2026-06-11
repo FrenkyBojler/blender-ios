@@ -2376,6 +2376,7 @@ static void rna_def_bonecollection(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 
   prop = RNA_def_property(srna, "is_visible", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", BONE_COLLECTION_VISIBLE);
   RNA_def_property_ui_text(
       prop, "Visible", "Bones in this collection will be visible in pose/object mode");
