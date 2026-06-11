@@ -31,7 +31,6 @@
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.hh"
 
 #include "BLT_translation.hh"
 
@@ -635,17 +634,11 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
   Main *temp_main = BKE_main_new();
   bContext *temp_C = CTX_create();
 
-  /* TODO: This should go elsewhere if we keep the temporary window design. */
-  wmWindow *temp_win = MEM_new<wmWindow>("window");
-  temp_win->winid = 1000; /* Placeholder */
-  temp_win->parent = nullptr;
-  temp_win->workspace_hook = BKE_workspace_instance_hook_create(bmain, temp_win->winid);
-  temp_win->runtime = MEM_new<bke::WindowRuntime>(__func__);
-  temp_win->scene = nullptr; /* Scene must be null during the import operator call. */
-
   CTX_data_main_set(temp_C, temp_main);
   CTX_wm_manager_set(temp_C, wm);
-  CTX_wm_window_set(temp_C, temp_win);
+  CTX_wm_window_set(temp_C, CTX_wm_window(C));
+  CTX_data_scene_set(temp_C, nullptr);
+  CTX_data_ui_context_access_deny(temp_C, true);
 
   wm->op_undo_depth++;
   wmOperatorStatus op_result = WM_operator_name_call_ptr(
@@ -695,10 +688,6 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
   else {
     BKE_main_free(temp_main);
   }
-
-  BKE_workspace_instance_hook_free(bmain, temp_win->workspace_hook);
-  MEM_delete(temp_win->runtime);
-  MEM_delete(temp_win);
 
   CTX_free(temp_C);
 
