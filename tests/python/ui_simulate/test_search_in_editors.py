@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Blender Authors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """
 This file does not run anything; its methods are accessed by run_blender_setup.py.
 
@@ -28,7 +32,6 @@ def _set_area_type(area, area_type):
     import bpy
     with bpy.context.temp_override(area=area):
         area.type = area_type
-    yield
 
 
 def _get_action_fcurves(action):
@@ -62,10 +65,9 @@ def test_properties_search():
     """
     import bpy
 
-    _, t, _ = ui.test_window()
     e, t, window, area = yield from _load_blend(t)
 
-    yield from _set_area_type(area, 'PROPERTIES')
+    _set_area_type(area, 'PROPERTIES')
 
     space = area.spaces.active
     t.assertIsInstance(space, bpy.types.SpaceProperties, "Area did not switch to Properties editor")
@@ -94,10 +96,9 @@ def test_outliner_search():
     """
     import bpy
 
-    _, t, _ = ui.test_window()
     e, t, window, area = yield from _load_blend(t)
 
-    yield from _set_area_type(area, 'OUTLINER')
+    _set_area_type(area, 'OUTLINER')
 
     space = area.spaces.active
     t.assertIsInstance(space, bpy.types.SpaceOutliner, "Area did not switch to Outliner")
@@ -122,10 +123,9 @@ def test_dopesheet_search():
     """
     import bpy
 
-    _, t, _ = ui.test_window()
     e, t, window, area = yield from _load_blend(t)
 
-    yield from _set_area_type(area, 'DOPESHEET_EDITOR')
+    _set_area_type(area, 'DOPESHEET_EDITOR')
     with bpy.context.temp_override(area=area):
         area.spaces.active.ui_mode = 'DOPESHEET'
     yield  # wait for mode switch
@@ -165,10 +165,9 @@ def test_graph_editor_search():
     """
     import bpy
 
-    _, t, _ = ui.test_window()
     e, t, window, area = yield from _load_blend(t)
 
-    yield from _set_area_type(area, 'GRAPH_EDITOR')
+    _set_area_type(area, 'GRAPH_EDITOR')
 
     space = area.spaces.active
     t.assertIsInstance(space, bpy.types.SpaceGraphEditor, "Area did not switch to Graph Editor")
@@ -202,10 +201,9 @@ def test_file_browser_search():
     import bpy
     import tempfile
 
-    _, t, _ = ui.test_window()
     e, t, window, area = yield from _load_blend(t)
 
-    yield from _set_area_type(area, 'FILE_BROWSER')
+    _set_area_type(area, 'FILE_BROWSER')
 
     space = area.spaces.active
     t.assertIsInstance(space, bpy.types.SpaceFileBrowser, "Area did not switch to File Browser")
