@@ -1443,6 +1443,7 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
   RNA_def_property_update(prop, 0, "rna_Armature_update_data");
 
   prop = RNA_def_property(srna, "use_inherit_rotation", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", BONE_HINGE);
   RNA_def_property_ui_text(
       prop, "Inherit Rotation", "Bone inherits rotation or scale from parent bone");
@@ -1469,6 +1470,7 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
   RNA_def_property_update(prop, 0, "rna_Armature_update_data");
 
   prop = RNA_def_property(srna, "use_local_location", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(prop, "Local Location", "Bone location is set in local space");
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", BONE_NO_LOCAL_LOCATION);
   RNA_def_property_update(prop, 0, "rna_Armature_update_data");
