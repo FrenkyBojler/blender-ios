@@ -445,6 +445,7 @@ static void wm_xr_surface_interaction_ray_from_pose(const GHOST_XrPose *aim_pose
 static bool wm_xr_surface_interaction_raycast(const wmXrPanel *panel,
                                               const float ray_origin[3],
                                               const float ray_direction[3],
+                                              const bool allow_outside_bounds,
                                               int r_region_xy[2],
                                               float r_hit_world[3],
                                               float *r_lambda)
@@ -482,13 +483,16 @@ static bool wm_xr_surface_interaction_raycast(const wmXrPanel *panel,
 
   const int width = BLI_rcti_size_x(&panel->panel_rect) + 1;
   const int height = BLI_rcti_size_y(&panel->panel_rect) + 1;
-  if (hit_local[0] < 0.0f || hit_local[1] < 0.0f || hit_local[0] > width || hit_local[1] > height) {
+  if (!allow_outside_bounds &&
+      (hit_local[0] < 0.0f || hit_local[1] < 0.0f || hit_local[0] > width || hit_local[1] > height))
+  {
     return false;
   }
 
   r_region_xy[0] = panel->panel_rect.xmin + round_fl_to_int(hit_local[0]);
   r_region_xy[1] = panel->panel_rect.ymin + round_fl_to_int(hit_local[1]);
-  madd_v3_v3v3fl(r_hit_world, ray_origin, ray_direction, 100.0f * lambda);
+  copy_v3_v3(r_hit_world, hit_local);
+  mul_m4_v3(panel->panel_obmat, r_hit_world);
   if (r_lambda != nullptr) {
     *r_lambda = lambda;
   }
@@ -553,6 +557,7 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
   rcti panel_rect = panel->panel_rect;
   const bool needs_layout = !panel->panel_valid ||
                             (panel->panel_last_rebuild_tag != panel->panel_frame_tag) ||
+                            (xr_region->runtime->do_draw & RGN_REFRESH_UI) ||
                             BLI_listbase_is_empty(&xr_region->runtime->uiblocks);
   if (needs_layout) {
     wm_xr_region_ensure_layout_rect(xr_region);
@@ -671,6 +676,7 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
   panel->panel_host_win = CTX_wm_window(C);
   panel->panel_host_area = area;
   panel->panel_host_region = xr_region;
+  xr_region->runtime->do_draw &= ~RGN_REFRESH_UI;
 
   xr_region->runtime->visible = prev_visible;
   XR_PANELS_TRACE("panels_ws: cache update end panel=%p rect=(%d,%d)-(%d,%d) size=%dx%d panel_instances_after=%d",
@@ -771,7 +777,7 @@ void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
   if (is_captured_panel_drag) {
     hit_panel = surface_data->active_panel;
     if (!wm_xr_surface_interaction_raycast(
-            hit_panel, ray_origin, ray_direction, hit_region_xy, hit_world, &hit_lambda))
+            hit_panel, ray_origin, ray_direction, true, hit_region_xy, hit_world, &hit_lambda))
     {
       return;
     }
@@ -782,7 +788,7 @@ void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
       float panel_hit_world[3];
       float lambda;
       if (!wm_xr_surface_interaction_raycast(
-              panel, ray_origin, ray_direction, region_xy, panel_hit_world, &lambda))
+              panel, ray_origin, ray_direction, false, region_xy, panel_hit_world, &lambda))
       {
         continue;
       }
@@ -940,6 +946,7 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
     wm_xr_panel_pointer_clear(panel);
     surface_data->active_panel = nullptr;
     ED_region_tag_redraw(panel->panel_host_region);
+    panel->panel_frame_tag++;
     panel->panel_dirty = true;
     return true;
   }

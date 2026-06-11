@@ -2291,6 +2291,7 @@ static void handle_layout_panel_header(
   }
   const bool new_state = layout_panel_toggle_open(C, header);
   ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_refresh_ui(CTX_wm_region(C));
   WM_tooltip_clear(C, CTX_wm_window(C));
 
   if (event_type == LEFTMOUSE) {
@@ -2369,6 +2370,7 @@ static void handle_panel_header(const bContext *C,
       panel_custom_data_active_set(panel);
     }
 
+    ED_region_tag_refresh_ui(region);
     set_panels_list_data_expand_flag(C, region);
     panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
     return;
