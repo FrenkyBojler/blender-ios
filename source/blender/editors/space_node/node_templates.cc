@@ -785,8 +785,16 @@ static void ui_node_draw_recursive(ui::Layout &layout,
       ui_node_draw_recursive(*panel_layout.body, C, ntree, node, *sub_panel_decl, depth + 1);
     }
     else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl)) {
+      ui::Layout &layout = panel_layout.body->column(false);
+      if (node.is_muted()) {
+        layout.active_set(false);
+      }
+      if (!ID_IS_EDITABLE(&ntree.id)) {
+        layout.enabled_set(false);
+      }
+
       PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, RNA_Node, &node);
-      layout_decl->draw(*panel_layout.body, &C, &nodeptr);
+      layout_decl->draw(layout, &C, &nodeptr);
     }
   }
 }
