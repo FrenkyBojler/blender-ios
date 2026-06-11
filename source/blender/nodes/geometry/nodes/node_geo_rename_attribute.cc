@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::Geometry>("Geometry"_ustr);
-  b.add_output<decl::Geometry>("Geometry"_ustr).align_with_previous().propagate_all();
+  b.add_output<decl::Geometry>("Geometry"_ustr).align_with_previous().propagate_all_geometry();
 
   b.add_input<decl::Menu>("Mode"_ustr).static_items(rename_mode_items).optional_label();
 
@@ -135,7 +135,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeRenameAttribute");
+  geo_node_type_base(&ntype, "GeometryNodeRenameAttribute"_ustr);
   ntype.ui_name = "Rename Attribute";
   ntype.ui_description = "Change the name of an attribute";
   ntype.nclass = NODE_CLASS_GEOMETRY;

@@ -376,21 +376,21 @@ static void select_editcurve_hook(Object *obedit, HookModifierData *hmd)
       a = nu.pntsu;
       while (a--) {
         if (nr == hmd->indexar[index]) {
-          bezt->f1 |= SELECT;
+          bezt->f1 |= BEZT_FLAG_SELECT;
           if (index < hmd->indexar_num - 1) {
             index++;
           }
         }
         nr++;
         if (nr == hmd->indexar[index]) {
-          bezt->f2 |= SELECT;
+          bezt->f2 |= BEZT_FLAG_SELECT;
           if (index < hmd->indexar_num - 1) {
             index++;
           }
         }
         nr++;
         if (nr == hmd->indexar[index]) {
-          bezt->f3 |= SELECT;
+          bezt->f3 |= BEZT_FLAG_SELECT;
           if (index < hmd->indexar_num - 1) {
             index++;
           }
@@ -569,7 +569,7 @@ static int add_hook_object(const bContext *C,
       STRNCPY_UTF8(hmd->subtarget, arm->act_bone->name);
 
       pchan_act = BKE_pose_channel_active_if_bonecoll_visible(ob);
-      if (LIKELY(pchan_act)) {
+      if (pchan_act) [[likely]] {
         invert_m4_m4(pose_mat, pchan_act->pose_mat);
         mul_v3_m4v3(cent, ob->object_to_world().ptr(), pchan_act->pose_mat[3]);
         mul_v3_m4v3(cent, obedit->world_to_object().ptr(), cent);

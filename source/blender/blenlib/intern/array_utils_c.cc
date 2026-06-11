@@ -10,6 +10,7 @@
  * and only included for the cases where the performance is acceptable.
  * Use with care.
  */
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -94,7 +95,7 @@ void _bli_array_permute(
 
 uint _bli_array_deduplicate_ordered(void *arr, uint arr_len, size_t arr_stride)
 {
-  if (UNLIKELY(arr_len <= 1)) {
+  if (arr_len <= 1) [[unlikely]] {
     return arr_len;
   }
 
@@ -223,13 +224,13 @@ bool _bli_array_iter_span(const void *arr,
 
       if (use_wrap) {
         uint i_step = i_curr + 1;
-        if (UNLIKELY(i_step == arr_len)) {
+        if (i_step == arr_len) [[unlikely]] {
           i_step = 0;
         }
         while (test_fn(POINTER_OFFSET(arr, i_step * arr_stride_uint), user_data)) {
           i_step_prev = i_step;
           i_step++;
-          if (UNLIKELY(i_step == arr_len)) {
+          if (i_step == arr_len) [[unlikely]] {
             i_step = 0;
           }
         }
@@ -314,8 +315,8 @@ bool _bli_array_iter_spiral_square(const void *arr_v,
     int y_minus = center[1];
     int y_plus = arr_shape[1] - center[1] - 1;
 
-    steps_in = 2 * min_iiii(x_minus, x_plus, y_minus, y_plus);
-    steps_out = 2 * max_iiii(x_minus, x_plus, y_minus, y_plus);
+    steps_in = 2 * std::min({x_minus, x_plus, y_minus, y_plus});
+    steps_out = 2 * std::max({x_minus, x_plus, y_minus, y_plus});
   }
 
   /* For check_bounds. */

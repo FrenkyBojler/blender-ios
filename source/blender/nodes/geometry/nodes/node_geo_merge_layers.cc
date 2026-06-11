@@ -31,11 +31,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Grease Pencil"_ustr)
       .supported_type(GeometryComponent::Type::GreasePencil)
       .description("Grease Pencil data to merge layers of");
-  b.add_output<decl::Geometry>("Grease Pencil"_ustr).propagate_all().align_with_previous();
-  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_output<decl::Geometry>("Grease Pencil"_ustr)
+      .propagate_all_geometry()
+      .align_with_previous();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .evaluated_geometry_field();
   auto &group_id = b.add_input<decl::Int>("Group ID"_ustr)
                        .hide_value()
-                       .field_on_all()
+                       .evaluated_geometry_field()
                        .make_available([](bNode &node) {
                          node_storage(node).mode = int8_t(MergeLayerMode::ByID);
                        });
@@ -193,7 +198,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMergeLayers", GEO_NODE_MERGE_LAYERS);
+  geo_node_type_base(&ntype, "GeometryNodeMergeLayers"_ustr, GEO_NODE_MERGE_LAYERS);
   ntype.ui_name = "Merge Layers";
   ntype.ui_description = "Join groups of Grease Pencil layers into one";
   ntype.enum_name_legacy = "MERGE_LAYERS";

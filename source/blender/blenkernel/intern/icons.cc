@@ -462,10 +462,10 @@ std::optional<IconBufferRef> BKE_icon_get_buffer(const int icon_id, const eIconS
   switch (icon->obj_type) {
     case ICON_DATA_IMBUF: {
       const ImBuf *ibuf = static_cast<ImBuf *>(icon->obj);
-      if (ibuf->byte_buffer.data == nullptr) {
+      if (!ibuf->byte_data()) {
         return std::nullopt;
       }
-      return construct_icon_buffer(ibuf->x, ibuf->y, ibuf->channels, ibuf->byte_buffer.data);
+      return construct_icon_buffer(ibuf->x, ibuf->y, ibuf->channels, ibuf->byte_data());
     }
     case ICON_DATA_ID: {
       const ID *id = static_cast<ID *>(icon->obj);
@@ -572,7 +572,7 @@ bool BKE_icon_delete_unmanaged(const int icon_id)
 
   Icon *icon = gIcons.pop_default(icon_id, nullptr);
   if (icon) {
-    if (UNLIKELY(icon->flag & ICON_FLAG_MANAGED)) {
+    if (icon->flag & ICON_FLAG_MANAGED) [[unlikely]] {
       gIcons.add(icon_id, icon);
       return false;
     }
@@ -600,7 +600,7 @@ int BKE_icon_geom_ensure(Icon_Geom *geom)
   geom->icon_id = get_next_free_id();
 
   icon_create(geom->icon_id, ICON_DATA_GEOM, geom);
-  /* Not managed for now, we may want this to be configurable per icon). */
+  /* Not managed for now, we may want this to be configurable per icon. */
 
   return geom->icon_id;
 }

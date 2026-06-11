@@ -97,7 +97,7 @@ class SocketSearchOp {
   BitMathOperation operation;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("FunctionNodeBitMath");
+    bNode &node = params.add_node("FunctionNodeBitMath"_ustr);
     node.custom1 = int16_t(operation);
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -105,9 +105,7 @@ class SocketSearchOp {
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
-                                                  SOCK_INT))
-  {
+  if (!params.node_tree().typeinfo->validate_link(params.other_socket().type, SOCK_INT)) {
     return;
   }
 
@@ -182,7 +180,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeBitMath");
+  fn_node_type_base(&ntype, "FunctionNodeBitMath"_ustr);
   ntype.ui_name = "Bit Math";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

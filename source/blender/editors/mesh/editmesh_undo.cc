@@ -182,6 +182,8 @@ struct UndoMesh {
   size_t undo_size;
 };
 
+/** \} */
+
 #ifdef USE_ARRAY_STORE
 
 /* -------------------------------------------------------------------- */
@@ -605,8 +607,8 @@ static void um_arraystore_compact(UndoMesh *um, const UndoMesh *um_ref)
               &um_arraystore.bs_stride[ARRAY_STORE_INDEX_SHAPE],
               stride,
               array_chunk_size_calc(stride));
-          um->store.keyblocks = MEM_new_array_uninitialized<BArrayState *>(mesh->key->totkey,
-                                                                           __func__);
+          um->store.keyblocks = MEM_new_array_uninitialized<BArrayState *>(
+              mesh->key->totkey, "um_arraystore_compact keyblocks");
 
           KeyBlock *keyblock = static_cast<KeyBlock *>(mesh->key->block.first);
           for (int i = 0; i < mesh->key->totkey; i++, keyblock = keyblock->next) {
@@ -912,6 +914,10 @@ static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, in
 
 #endif /* USE_ARRAY_STORE */
 
+/* -------------------------------------------------------------------- */
+/** \name Undo/Redo Helper Functions
+ * \{ */
+
 /* for callbacks */
 /* undo simply makes copies of a bmesh */
 /**
@@ -1058,7 +1064,7 @@ static void undomesh_to_editmesh(UndoMesh *um,
   convert_params.calc_vert_normal = false;
   convert_params.active_shapekey = um->shapenr;
   BM_mesh_bm_from_me(bm, um->mesh, &convert_params);
-  BLI_freelistN(vertex_group_names);
+  vertex_group_names->free_no_destruct();
   BKE_defgroup_copy_list(vertex_group_names, &um->mesh->vertex_group_names);
   *vertex_group_active_index = um->mesh->vertex_group_active_index;
 
@@ -1144,9 +1150,9 @@ struct MeshUndoStep_Elem {
  */
 struct MeshUndoStep_SceneData {
   char selectmode;
-  char uv_selectmode;
-  char uv_sticky;
-  char uv_flag;
+  eTool_UvSelectMode uv_selectmode;
+  eTool_UvSticky uv_sticky;
+  eTool_UvFlag uv_flag;
 };
 
 struct MeshUndoStep {
@@ -1276,7 +1282,7 @@ static void mesh_undosys_step_decode(
      * While other flags could be included too: it's important the user doesn't
      * undo into a state where the scene settings would show a different selection
      * to the selection the user was previously editing. */
-    constexpr char uv_flag_undo = UV_FLAG_SELECT_SYNC | UV_FLAG_SELECT_ISLAND;
+    constexpr eTool_UvFlag uv_flag_undo = UV_FLAG_SELECT_SYNC | UV_FLAG_SELECT_ISLAND;
 
     ToolSettings *ts = scene->toolsettings;
     const MeshUndoStep_SceneData &scene_data = us->scene_data;

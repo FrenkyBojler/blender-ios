@@ -31,7 +31,7 @@
 
 #include "gpu_py_texture.hh" /* own include */
 
-/* Doc-string Literal type for texture formats. */
+/* Docstring Literal type for texture formats. */
 
 #define PYDOC_TEX_FORMAT_LITERAL \
   "Literal[" \
@@ -144,7 +144,7 @@ const PyC_StringEnumItems pygpu_textureextendmode_items[] = {
 
 static int pygpu_texture_valid_check(BPyGPUTexture *bpygpu_tex)
 {
-  if (UNLIKELY(bpygpu_tex->tex == nullptr)) {
+  if (bpygpu_tex->tex == nullptr) [[unlikely]] {
     PyErr_SetString(PyExc_ReferenceError,
 #ifdef BPYGPU_USE_GPUOBJ_FREE_METHOD
                     "GPU texture was freed, no further access is valid"
@@ -160,7 +160,7 @@ static int pygpu_texture_valid_check(BPyGPUTexture *bpygpu_tex)
 
 #define BPYGPU_TEXTURE_CHECK_OBJ(bpygpu) \
   { \
-    if (UNLIKELY(pygpu_texture_valid_check(bpygpu) == -1)) { \
+    if (pygpu_texture_valid_check(bpygpu) == -1) [[unlikely]] { \
       return nullptr; \
     } \
   } \
@@ -685,11 +685,22 @@ static PyObject *pygpu_texture_read(BPyGPUTexture *self)
   }
 
   void *buf = GPU_texture_read(self->tex, best_data_format, 0);
-  const Py_ssize_t shape[3] = {GPU_texture_height(self->tex),
-                               GPU_texture_width(self->tex),
-                               Py_ssize_t(GPU_texture_component_len(tex_format))};
-
-  int shape_len = (shape[2] == 1) ? 2 : 3;
+  const Py_ssize_t component_len = GPU_texture_component_len(tex_format);
+  Py_ssize_t shape[4];
+  int shape_len;
+  if (GPU_texture_dimensions(self->tex) == 3) {
+    shape[0] = GPU_texture_depth(self->tex);
+    shape[1] = GPU_texture_height(self->tex);
+    shape[2] = GPU_texture_width(self->tex);
+    shape[3] = component_len;
+    shape_len = (component_len == 1) ? 3 : 4;
+  }
+  else {
+    shape[0] = GPU_texture_height(self->tex);
+    shape[1] = GPU_texture_width(self->tex);
+    shape[2] = component_len;
+    shape_len = (component_len == 1) ? 2 : 3;
+  }
   return reinterpret_cast<PyObject *>(
       BPyGPU_Buffer_CreatePyObject(best_data_format, shape, shape_len, buf));
 }
@@ -952,7 +963,7 @@ int bpygpu_ParseTexture(PyObject *o, void *p)
     return 0;
   }
 
-  if (UNLIKELY(pygpu_texture_valid_check((BPyGPUTexture *)o) == -1)) {
+  if (pygpu_texture_valid_check((BPyGPUTexture *)o) == -1) [[unlikely]] {
     return 0;
   }
 

@@ -175,25 +175,25 @@ namespace blender {
 #define DECIMAL_DIGITS_BOUND(t) (241 * sizeof(t) / 100 + 1)
 
 #ifdef __cplusplus
-inline constexpr int64_t is_power_of_2(const int64_t x)
+constexpr int64_t is_power_of_2(const int64_t x)
 {
   BLI_assert(x >= 0);
   return (x & (x - 1)) == 0;
 }
 
-inline constexpr int64_t log2_floor(const int64_t x)
+constexpr int64_t log2_floor(const int64_t x)
 {
   BLI_assert(x >= 0);
   return x <= 1 ? 0 : 1 + log2_floor(x >> 1);
 }
 
-inline constexpr int64_t log2_ceil(const int64_t x)
+constexpr int64_t log2_ceil(const int64_t x)
 {
   BLI_assert(x >= 0);
   return (is_power_of_2(int(x))) ? log2_floor(x) : log2_floor(x) + 1;
 }
 
-inline constexpr int64_t power_of_2_max(const int64_t x)
+constexpr int64_t power_of_2_max(const int64_t x)
 {
   BLI_assert(x >= 0);
   return 1ll << log2_ceil(x);
@@ -395,6 +395,23 @@ constexpr bool memory_is_zero(const void *data, const size_t size)
   return (arr_byte == arr_end);
 }
 
+/** Similar to #memory_is_zero but is easier to see through for the compiler. */
+template<typename T> constexpr bool value_is_zero(const T &value)
+{
+  if constexpr (std::is_pointer_v<T>) {
+    return value == nullptr;
+  }
+  else if constexpr (std::is_integral_v<T>) {
+    return value == 0;
+  }
+  else if constexpr (std::is_floating_point_v<T>) {
+    return value == 0.0f;
+  }
+  else {
+    return memory_is_zero(&value, sizeof(T));
+  }
+}
+
 #  define MEMCMP_STRUCT_AFTER_IS_ZERO_OR_EQUAL(struct_dst, struct_src, member) \
     (memory_is_zero((const char *)(struct_dst) + OFFSETOF_STRUCT_AFTER(struct_dst, member), \
                     sizeof(*(struct_dst)) - OFFSETOF_STRUCT_AFTER(struct_dst, member)) || \
@@ -531,7 +548,11 @@ constexpr bool memory_is_zero(const void *data, const size_t size)
 /** \name Branch Prediction Macros
  * \{ */
 
-/* hints for branch prediction, only use in code that runs a _lot_ where */
+/* Hints for branch prediction.
+ *
+ * NOTE: prefer C++ `[[likely]]` / `[[unlikely]]` attribute.
+ * Use the defines in contexts where attributes aren't supported (ternary operators for e.g.).
+ */
 #ifdef __GNUC__
 #  define LIKELY(x) __builtin_expect(!!(x), 1)
 #  define UNLIKELY(x) __builtin_expect(!!(x), 0)

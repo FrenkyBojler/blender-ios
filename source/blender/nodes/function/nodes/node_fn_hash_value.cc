@@ -103,7 +103,7 @@ class SocketSearchOp {
   eNodeSocketDatatype socket_type;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("FunctionNodeHashValue");
+    bNode &node = params.add_node("FunctionNodeHashValue"_ustr);
     node.custom1 = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
@@ -117,7 +117,7 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
+  eNodeSocketDatatype socket_type = params.other_socket().type;
   if (!ELEM(socket_type,
             SOCK_BOOLEAN,
             SOCK_FLOAT,
@@ -175,7 +175,7 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeHashValue", FN_NODE_HASH_VALUE);
+  fn_node_type_base(&ntype, "FunctionNodeHashValue"_ustr, FN_NODE_HASH_VALUE);
   ntype.ui_name = "Hash Value";
   ntype.ui_description = "Generate a randomized integer using the given input value as a seed";
   ntype.enum_name_legacy = "HASH_VALUE";

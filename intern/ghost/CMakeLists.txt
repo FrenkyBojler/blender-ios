@@ -309,7 +309,7 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     # - `SRC`: appended with generated protocol source and header files.
     function(generate_protocol_bindings PROT_DEF)
       # File name without directory or extension (use for header name).
-      get_filename_component(_name ${PROT_DEF} NAME_WLE)
+      cmake_path(GET PROT_DEF STEM LAST_ONLY _name)
       add_custom_command(
         OUTPUT ${INC_DST}/${_name}-client-protocol.h
         COMMAND ${CMAKE_COMMAND} -E make_directory ${INC_DST}
@@ -365,6 +365,10 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/stable/viewporter/viewporter.xml"
     )
+    # Color management (HDR properties)
+    generate_protocol_bindings(
+      "${WAYLAND_PROTOCOLS_DIR}/staging/color-management/color-management-v1.xml"
+    )
     # Pointer-constraints.
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml"
@@ -415,11 +419,6 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
       intern/GHOST_NDOFManagerUnix.hh
     )
   endif()
-
-  if(NOT WITH_INSTALL_PORTABLE)
-    add_definitions(-DPREFIX="${CMAKE_INSTALL_PREFIX}")
-  endif()
-
 
 elseif(WIN32)
   # # Warnings as errors, this is too strict!
