@@ -30,6 +30,7 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BKE_callbacks.hh"
 #include "BKE_colortools.hh"
 #include "BKE_compositor.hh"
 #include "BKE_context.hh"
@@ -530,6 +531,8 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
   }
 
   RE_ReleaseResult(rj->re);
+
+  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
 
   /* make jobs timer to send notifier */
   *(rj->do_update) = true;

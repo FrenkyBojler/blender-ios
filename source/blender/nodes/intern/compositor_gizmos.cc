@@ -383,7 +383,7 @@ void box_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;
@@ -549,7 +549,7 @@ static bool show_crop_gizmo(const SpaceNode &snode)
        * gizmo has no effect. */
       return false;
     }
-    else if (STREQ(input.name, "Alpha Crop") && !input.is_directly_linked()) {
+    if (STREQ(input.name, "Alpha Crop") && !input.is_directly_linked()) {
       PointerRNA input_rna_pointer = RNA_pointer_create_discrete(nullptr, RNA_NodeSocket, &input);
       if (RNA_boolean_get(&input_rna_pointer, "default_value")) {
         /* If Alpha Crop is not set, the image size changes depending on the input parameters,
@@ -647,7 +647,7 @@ void crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;
@@ -829,7 +829,7 @@ void glare_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;
@@ -978,7 +978,7 @@ void corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     for (int i = 0; i < 4; i++) {
       wmGizmo *gz = cpin_group->gizmos[i];
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
@@ -1197,7 +1197,7 @@ void split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Render Result");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;
@@ -1375,7 +1375,7 @@ void transform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   Image *ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
-  if (UNLIKELY(ibuf == nullptr)) {
+  if (ibuf == nullptr) [[unlikely]] {
     WM_gizmo_set_flag(cage, WM_GIZMO_HIDDEN, true);
     BKE_image_release_ibuf(ima, ibuf, lock);
     return;

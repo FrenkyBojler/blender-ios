@@ -1227,7 +1227,7 @@ static void collection_gobject_hash_create(Collection *collection)
 {
   CollectionObjectMap *gobject_hash = collection_gobject_hash_alloc(collection);
   for (CollectionObject &cob : collection->gobject) {
-    if (UNLIKELY(cob.ob == nullptr)) {
+    if (cob.ob == nullptr) [[unlikely]] {
       BLI_assert(collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY);
       continue;
     }
@@ -1460,7 +1460,7 @@ static bool collection_object_add(Main *bmain,
   bool newly_added = false;
   CollectionObject *cob = collection->runtime->gobject_hash->lookup_or_add_cb(ob, [&]() {
     newly_added = true;
-    return MEM_new<CollectionObject>(__func__);
+    return MEM_new<CollectionObject>("collection_object_add");
   });
   if (!newly_added) {
     return false;

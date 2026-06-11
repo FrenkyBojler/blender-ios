@@ -621,20 +621,18 @@ float2 image_transform_raw_size_get(const Scene *scene, const Strip *strip)
     }
   }
 
+  if (strip->type == STRIP_TYPE_COLOR) {
+    const SolidColorVars *data = static_cast<const SolidColorVars *>(strip->effectdata);
+    return {float(data->width), float(data->height)};
+  }
+
   if (strip->type == STRIP_TYPE_TEXT) {
-    const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-    const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
-                                 ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
-
-    std::unique_lock<Mutex> lock = text_runtime_scoped_lock_get();
-    const int font = text_effect_font_init(nullptr, strip, font_flags);
-    const TextVarsRuntime *runtime = text_effect_calc_runtime(
-        strip, font, int2(scene_render_size));
-    BLF_disable(font, font_flags);
-
-    const float2 text_size(float(BLI_rcti_size_x(&runtime->text_boundbox)),
-                           float(BLI_rcti_size_y(&runtime->text_boundbox)));
-    MEM_delete(runtime);
+    TextVars *data = static_cast<TextVars *>(strip->effectdata);
+    std::scoped_lock runtime_lock(text_runtime_mutex_get());
+    text_effect_update_runtime(nullptr, *data, int2(scene_render_size));
+    BLF_disable(data->runtime->font, BLF_BOLD | BLF_ITALIC);
+    const float2 text_size(float(BLI_rcti_size_x(&data->runtime->text_boundbox)),
+                           float(BLI_rcti_size_y(&data->runtime->text_boundbox)));
     return text_size;
   }
 
@@ -694,8 +692,12 @@ Array<float2> image_transform_quad_get(const Scene *scene, const Strip *strip)
   constexpr int num_corners = 4;
   const float2 image_size = image_transform_raw_size_get(scene, strip);
 
-  /* Raw quad before any rotation/scaling or text anchoring is applied. */
-  const StripCrop *crop = strip->data->crop;
+  /* Raw quad before any rotation/scaling or text anchoring is applied.
+   *
+   * NOTE: For text strips, crops should only affect their visible result and not their bounding
+   * box. Text effects can stray outside, so crop works on the full render buffer. */
+  const StripCrop no_crop{};
+  const StripCrop *crop = (strip->type == STRIP_TYPE_TEXT) ? &no_crop : strip->data->crop;
   float2 quad[num_corners]{
       {(image_size.x / 2) - crop->right, (image_size.y / 2) - crop->top},     /* Top right. */
       {(image_size.x / 2) - crop->right, (-image_size.y / 2) + crop->bottom}, /* Bottom right. */
