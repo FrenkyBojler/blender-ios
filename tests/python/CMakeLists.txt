@@ -1555,7 +1555,7 @@ if(TEST_SRC_DIR_EXISTS)
         )
       endforeach()
     endif()
-    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+    if(WITH_VULKAN_BACKEND)
       foreach(render_test ${render_tests})
         add_render_test(
                 sequencer_vulkan_${render_test}
