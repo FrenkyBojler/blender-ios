@@ -6,8 +6,6 @@
  * \ingroup gpu
  */
 
-#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
-
 #  include <chrono>
 #  include <condition_variable>
 #  include <thread>
@@ -21,14 +19,37 @@
 #  include "CLG_log.h"
 
 namespace blender {
-
 static CLG_LogRef LOG = {"gpu.vulkan"};
-
 namespace gpu {
+
+/** Wait for timeline and queue synchronization — need these regardless of render graph flag. **/
+void VKDevice::wait_for_timeline(TimelineValue timeline)
+{
+  if (timeline == 0) {
+    return;
+  }
+  VkSemaphoreWaitInfo vk_semaphore_wait_info = {
+      VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO, nullptr, 0, 1, &vk_timeline_semaphore_, &timeline};
+  VkResult wait_result =
+      vkWaitSemaphores(vk_device_, &vk_semaphore_wait_info, UINT64_MAX);
+  if (wait_result != VK_SUCCESS) {
+    CLOG_ERROR(
+        &LOG, "Vulkan: failed to wait for synchronization timeline [%s]", to_string(wait_result));
+  }
+}
+
+void VKDevice::wait_queue_idle()
+{
+  std::scoped_lock lock(*queue_mutex_);
+  vkQueueWaitIdle(vk_queue_);
+}
+
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
 
 /* -------------------------------------------------------------------- */
 /** \name Render graph
  * \{ */
+
 
 struct VKRenderGraphWait {
   Mutex is_submitted_mutex;
@@ -99,25 +120,7 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
   return timeline;
 }
 
-void VKDevice::wait_for_timeline(TimelineValue timeline)
-{
-  if (timeline == 0) {
-    return;
-  }
-  VkSemaphoreWaitInfo vk_semaphore_wait_info = {
-      VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO, nullptr, 0, 1, &vk_timeline_semaphore_, &timeline};
-  VkResult wait_result = vkWaitSemaphores(vk_device_, &vk_semaphore_wait_info, UINT64_MAX);
-  if (wait_result != VK_SUCCESS) {
-    CLOG_ERROR(
-        &LOG, "Vulkan: failed to wait for synchronization timeline [%s]", to_string(wait_result));
-  }
-}
 
-void VKDevice::wait_queue_idle()
-{
-  std::scoped_lock lock(*queue_mutex_);
-  vkQueueWaitIdle(vk_queue_);
-}
 
 render_graph::VKRenderGraph *VKDevice::render_graph_new()
 {

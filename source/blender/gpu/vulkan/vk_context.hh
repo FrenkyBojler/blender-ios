@@ -70,7 +70,7 @@ class VKContext : public Context, NonCopyable {
   /* Active shader specialization constants state. */
   shader::SpecializationConstants constants_state_;
 
-  friend class VKDirectPipelineBuilder;
+  friend struct VKDirectPipelineBuilder;
 
   /* Allow direct pipeline builder to access constants state. */
   shader::SpecializationConstants &specialization_constants_get()

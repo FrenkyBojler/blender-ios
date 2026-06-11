@@ -105,7 +105,11 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue 
   std::scoped_lock mutex(mutex_);
 
   swapchain_images_.remove_old(current_timeline,
-                               [&](VkImage vk_image) { device.resources.remove_image(vk_image); });
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+                                [&](VkImage vk_image) { device.resources.remove_image(vk_image); });
+#else
+                                [&](VkImage vk_image) { UNUSED_VARS(vk_image); });
+#endif
   image_views_.remove_old(current_timeline, [&](VkImageView vk_image_view) {
     vkDestroyImageView(device.vk_handle(), vk_image_view, nullptr);
   });
@@ -113,19 +117,41 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue 
   allocations_.remove_old(current_timeline, [&](VmaAllocation vma_allocation) {
     vmaFreeMemory(device.mem_allocator_get(), vma_allocation);
   });
-  images_.remove_old(current_timeline, [&](std::pair<VkImage, VmaAllocation> image_allocation) {
-    device.resources.remove_image(image_allocation.first);
-    vmaDestroyImage(device.mem_allocator_get(), image_allocation.first, image_allocation.second);
-  });
+  images_.remove_old(current_timeline,
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+                     [&](std::pair<VkImage, VmaAllocation> image_allocation) {
+                       device.resources.remove_image(image_allocation.first);
+                       vmaDestroyImage(device.mem_allocator_get(),
+                                       image_allocation.first,
+                                       image_allocation.second);
+                     });
+#else
+                     [&](std::pair<VkImage, VmaAllocation> image_allocation) {
+                       vmaDestroyImage(device.mem_allocator_get(),
+                                       image_allocation.first,
+                                       image_allocation.second);
+                     });
+#endif
   buffer_views_.remove_old(current_timeline, [&](VkBufferView vk_buffer_view) {
     vkDestroyBufferView(device.vk_handle(), vk_buffer_view, nullptr);
   });
 
-  buffers_.remove_old(current_timeline, [&](std::pair<VkBuffer, VmaAllocation> buffer_allocation) {
-    device.resources.remove_buffer(buffer_allocation.first);
-    vmaDestroyBuffer(
-        device.mem_allocator_get(), buffer_allocation.first, buffer_allocation.second);
-  });
+  buffers_.remove_old(current_timeline,
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+                      [&](std::pair<VkBuffer, VmaAllocation> buffer_allocation) {
+                        device.resources.remove_buffer(buffer_allocation.first);
+                        vmaDestroyBuffer(
+                            device.mem_allocator_get(),
+                            buffer_allocation.first,
+                            buffer_allocation.second);
+                      });
+#else
+                      [&](std::pair<VkBuffer, VmaAllocation> buffer_allocation) {
+                        vmaDestroyBuffer(device.mem_allocator_get(),
+                                         buffer_allocation.first,
+                                         buffer_allocation.second);
+                      });
+#endif
 
   pipelines_.remove_old(current_timeline, [&](VkPipeline vk_pipeline) {
     vkDestroyPipeline(device.vk_handle(), vk_pipeline, nullptr);

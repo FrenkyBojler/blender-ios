@@ -128,6 +128,7 @@ bool VKFrameBuffer::check(char /*err_out*/[256])
   return true;
 }
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
 void VKFrameBuffer::build_clear_attachments_depth_stencil(
     const GPUFrameBufferBits buffers,
     float clear_depth,
@@ -135,7 +136,7 @@ void VKFrameBuffer::build_clear_attachments_depth_stencil(
     render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments) const
 {
   VkImageAspectFlags aspect_mask = (buffers & GPU_DEPTH_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : 0) |
-                                   (buffers & GPU_STENCIL_BIT ? VK_IMAGE_ASPECT_STENCIL_BIT : 0);
+                                    (buffers & GPU_STENCIL_BIT ? VK_IMAGE_ASPECT_STENCIL_BIT : 0);
 
   VkClearAttachment &clear_attachment =
       clear_attachments.attachments[clear_attachments.attachment_count++];
@@ -167,17 +168,20 @@ void VKFrameBuffer::build_clear_attachments_color(
     color_index += multi_clear_colors ? 1 : 0;
   }
 }
+#endif
 
 /* -------------------------------------------------------------------- */
 /** \name Clear
  * \{ */
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
 void VKFrameBuffer::clear(render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments)
 {
   VKContext &context = *VKContext::get();
   rendering_ensure(context);
   context.render_graph().add_node(clear_attachments);
 }
+#endif
 
 void VKFrameBuffer::clear(const GPUFrameBufferBits buffers,
                           const double4 clear_color,
@@ -504,6 +508,7 @@ static void blit_aspect(VKContext &context,
     return;
   }
 
+ #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKBlitImageNode::CreateInfo blit_image = {};
 
   blit_image.src_image = src_texture.vk_image_handle();
@@ -545,22 +550,47 @@ static void blit_aspect(VKContext &context,
     return;
   }
 
-#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   context.render_graph().add_node(blit_image);
 #else
-  VkImageBlit region = {};
-  region.srcSubresource = blit_image.region.srcSubresource;
-  region.dstSubresource = blit_image.region.dstSubresource;
-  region.srcOffsets[0] = blit_image.region.srcOffsets[0];
-  region.srcOffsets[1] = blit_image.region.srcOffsets[1];
-  region.dstOffsets[0] = blit_image.region.dstOffsets[0];
-  region.dstOffsets[1] = blit_image.region.dstOffsets[1];
-  context.command_buffer().blit_image(blit_image.src_image,
+  VkImageBlit blit_region = {};
+  blit_region.srcSubresource.aspectMask = image_aspect;
+  blit_region.srcSubresource.mipLevel = 0;
+  blit_region.srcSubresource.baseArrayLayer = 0;
+  blit_region.srcSubresource.layerCount = 1;
+  blit_region.srcOffsets[0].x = 0;
+  blit_region.srcOffsets[0].y = 0;
+  blit_region.srcOffsets[0].z = 0;
+  blit_region.srcOffsets[1].x = src_texture.width_get();
+  blit_region.srcOffsets[1].y = src_texture.height_get();
+  blit_region.srcOffsets[1].z = 1;
+
+  blit_region.dstSubresource.aspectMask = image_aspect;
+  blit_region.dstSubresource.mipLevel = 0;
+  blit_region.dstSubresource.baseArrayLayer = 0;
+  blit_region.dstSubresource.layerCount = 1;
+  blit_region.dstOffsets[0].x = clamp_i(dst_offset_x, 0, dst_texture.width_get());
+  blit_region.dstOffsets[0].y = clamp_i(dst_offset_y, 0, dst_texture.height_get());
+  blit_region.dstOffsets[0].z = 0;
+  blit_region.dstOffsets[1].x = clamp_i(
+      dst_offset_x + src_texture.width_get(), 0, dst_texture.width_get());
+  blit_region.dstOffsets[1].y = clamp_i(
+      dst_offset_y + src_texture.height_get(), 0, dst_texture.height_get());
+  blit_region.dstOffsets[1].z = 1;
+
+  /* Early exit when no pixels needs to be blitted. */
+  if (blit_region.dstOffsets[0].x == blit_region.dstOffsets[1].x ||
+      blit_region.dstOffsets[0].y == blit_region.dstOffsets[1].y ||
+      blit_region.dstOffsets[0].z == blit_region.dstOffsets[1].z)
+  {
+    return;
+  }
+
+  context.command_buffer().blit_image(src_texture.vk_image_handle(),
                                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                      blit_image.dst_image,
+                                      dst_texture.vk_image_handle(),
                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                       1,
-                                      &region,
+                                      &blit_region,
                                       VK_FILTER_NEAREST);
 #endif
 }

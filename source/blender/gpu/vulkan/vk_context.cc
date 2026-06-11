@@ -488,8 +488,9 @@ void VKContext::swap_buffer_acquired_handler()
 }
 
 void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_chain_data,
-                                         bool wait_for_submission)
+                                          bool wait_for_submission)
 {
+  UNUSED_VARS(wait_for_submission);
   const bool do_blit_to_swapchain = swap_chain_data.image != VK_NULL_HANDLE;
   const bool use_shader = ELEM(swap_chain_data.surface_format.colorSpace,
                                VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT,
@@ -505,84 +506,87 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
     return;
   }
 
-  VKDevice &device = VKBackend::get().device;
-  VKFrameBuffer &framebuffer = *unwrap(active_fb);
-  framebuffer.rendering_end(*this);
-  VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
 #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
-  render_graph::VKRenderGraph &render_graph = this->render_graph();
-  device.resources.add_swapchain_image(swap_chain_data.image, "SwapchainImage");
+   VKDevice &device = VKBackend::get().device;
+   VKFrameBuffer &framebuffer = *unwrap(active_fb);
+   framebuffer.rendering_end(*this);
+   VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
+   render_graph::VKRenderGraph &render_graph = this->render_graph();
+   device.resources.add_swapchain_image(swap_chain_data.image, "SwapchainImage");
 
-  GPU_debug_group_begin("BackBuffer.Blit");
-  if (use_shader) {
-    VKTexture swap_chain_texture("swap_chain_texture");
-    swap_chain_texture.init_swapchain(swap_chain_data.image,
-                                      to_gpu_format(swap_chain_data.surface_format.format));
-    Shader *shader = device.vk_backbuffer_blit_sh_get();
-    GPU_shader_bind(shader);
-    GPU_shader_uniform_1f(shader, "sdr_scale", swap_chain_data.sdr_scale);
-    VKStateManager &state_manager = state_manager_get();
-    state_manager.image_bind(color_attachment, 0);
-    state_manager.image_bind(&swap_chain_texture, 1);
-    int2 dispatch_size = math::divide_ceil(
-        int2(swap_chain_data.extent.width, swap_chain_data.extent.height), int2(16));
-    VKBackend::get().compute_dispatch(UNPACK2(dispatch_size), 1);
-  }
-  else {
-    render_graph::VKBlitImageNode::CreateInfo blit_image = {};
-    blit_image.src_image = color_attachment->vk_image_handle();
-    blit_image.dst_image = swap_chain_data.image;
-    blit_image.filter = VK_FILTER_LINEAR;
+   GPU_debug_group_begin("BackBuffer.Blit");
+   if (use_shader) {
+     VKTexture swap_chain_texture("swap_chain_texture");
+     swap_chain_texture.init_swapchain(swap_chain_data.image,
+                                       to_gpu_format(swap_chain_data.surface_format.format));
+     Shader *shader = device.vk_backbuffer_blit_sh_get();
+     GPU_shader_bind(shader);
+     GPU_shader_uniform_1f(shader, "sdr_scale", swap_chain_data.sdr_scale);
+     VKStateManager &state_manager = state_manager_get();
+     state_manager.image_bind(color_attachment, 0);
+     state_manager.image_bind(&swap_chain_texture, 1);
+     int2 dispatch_size = math::divide_ceil(
+         int2(swap_chain_data.extent.width, swap_chain_data.extent.height), int2(16));
+     VKBackend::get().compute_dispatch(UNPACK2(dispatch_size), 1);
+   }
+   else {
+     render_graph::VKBlitImageNode::CreateInfo blit_image = {};
+     blit_image.src_image = color_attachment->vk_image_handle();
+     blit_image.dst_image = swap_chain_data.image;
+     blit_image.filter = VK_FILTER_LINEAR;
 
-    VkImageBlit &region = blit_image.region;
-    region.srcOffsets[0] = {0, 0, 0};
-    region.srcOffsets[1] = {color_attachment->width_get(), color_attachment->height_get(), 1};
-    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.srcSubresource.mipLevel = 0;
-    region.srcSubresource.baseArrayLayer = 0;
-    region.srcSubresource.layerCount = 1;
+     VkImageBlit &region = blit_image.region;
+     region.srcOffsets[0] = {0, 0, 0};
+     region.srcOffsets[1] = {color_attachment->width_get(), color_attachment->height_get(), 1};
+     region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+     region.srcSubresource.mipLevel = 0;
+     region.srcSubresource.baseArrayLayer = 0;
+     region.srcSubresource.layerCount = 1;
 
-    region.dstOffsets[0] = {0, int32_t(swap_chain_data.extent.height), 0};
-    region.dstOffsets[1] = {int32_t(swap_chain_data.extent.width), 0, 1};
-    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.dstSubresource.mipLevel = 0;
-    region.dstSubresource.baseArrayLayer = 0;
-    region.dstSubresource.layerCount = 1;
+     region.dstOffsets[0] = {0, int32_t(swap_chain_data.extent.height), 0};
+     region.dstOffsets[1] = {int32_t(swap_chain_data.extent.width), 0, 1};
+     region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+     region.dstSubresource.mipLevel = 0;
+     region.dstSubresource.baseArrayLayer = 0;
+     region.dstSubresource.layerCount = 1;
 
-    render_graph.add_node(blit_image);
-  }
+     render_graph.add_node(blit_image);
+   }
 
-  render_graph::VKSynchronizationNode::CreateInfo synchronization = {};
-  synchronization.vk_image = swap_chain_data.image;
-  synchronization.vk_image_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-  synchronization.vk_image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-  render_graph.add_node(synchronization);
-  GPU_debug_group_end();
+   render_graph::VKSynchronizationNode::CreateInfo synchronization = {};
+   synchronization.vk_image = swap_chain_data.image;
+   synchronization.vk_image_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+   synchronization.vk_image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+   render_graph.add_node(synchronization);
+   GPU_debug_group_end();
 
-  wait_for_submission |= swap_chain_data.submission_fence != VK_NULL_HANDLE;
-  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
-                         (wait_for_submission ? RenderGraphFlushFlags::WAIT_FOR_SUBMISSION :
-                                                RenderGraphFlushFlags::NONE),
-                     VK_PIPELINE_STAGE_TRANSFER_BIT,
-                     swap_chain_data.acquire_semaphore,
-                     swap_chain_data.present_semaphore,
-                     swap_chain_data.submission_fence);
-  /* Discard/remove not owning swapchain handlers.
-   * During a regular swapchain update, NVIDIA can use the same image multiple times in a row.
-   * Placing these images in the discard pool results in incorrect state, best to remove them
-   * directly. */
-  if (wait_for_submission) {
-    device.resources.remove_image(swap_chain_data.image);
-  }
-  else {
-    discard_pool.discard_swapchain_image(swap_chain_data.image);
-  }
+   wait_for_submission |= swap_chain_data.submission_fence != VK_NULL_HANDLE;
+   flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
+                          (wait_for_submission ? RenderGraphFlushFlags::WAIT_FOR_SUBMISSION :
+                                                 RenderGraphFlushFlags::NONE),
+                      VK_PIPELINE_STAGE_TRANSFER_BIT,
+                      swap_chain_data.acquire_semaphore,
+                      swap_chain_data.present_semaphore,
+                      swap_chain_data.submission_fence);
+   /* Discard/remove not owning swapchain handlers.
+    * During a regular swapchain update, NVIDIA can use the same image multiple times in a row.
+    * Placing these images in the discard pool results in incorrect state, best to remove them
+    * directly. */
+   if (wait_for_submission) {
+     device.resources.remove_image(swap_chain_data.image);
+   }
+   else {
+     discard_pool.discard_swapchain_image(swap_chain_data.image);
+   }
 #else
-  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_SUBMISSION,
-                     VK_PIPELINE_STAGE_TRANSFER_BIT,
-                     swap_chain_data.acquire_semaphore,
-                     swap_chain_data.present_semaphore,
-                     swap_chain_data.submission_fence);
+   VKDevice &device = VKBackend::get().device;
+   VKFrameBuffer &framebuffer = *unwrap(active_fb);
+   framebuffer.rendering_end(*this);
+   flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_SUBMISSION,
+                      VK_PIPELINE_STAGE_TRANSFER_BIT,
+                      swap_chain_data.acquire_semaphore,
+                      swap_chain_data.present_semaphore,
+                      swap_chain_data.submission_fence);
 #endif
 #if 0
   device.debug_print();

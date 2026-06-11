@@ -12,6 +12,8 @@
 
 #include "BLI_array.hh"
 
+#include "vk_common.hh"
+
 #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
 #  include "render_graph/vk_resource_access_info.hh"
 #endif

@@ -30,7 +30,10 @@ void VKContext::debug_group_begin(const char *name, int index)
 #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph().debug_group_begin(name, debug::get_debug_group_color(name));
 #else
-  command_buffer_.begin_debug_utils_label(name, debug::get_debug_group_color(name));
+  VkDebugUtilsLabelEXT label = {};
+  label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+  label.pLabelName = name;
+  command_buffer_.begin_debug_utils_label(&label);
 #endif
 
   if (!G.profile_gpu) {
@@ -47,7 +50,11 @@ void VKContext::debug_group_begin(const char *name, int index)
 
 void VKContext::debug_group_end()
 {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph().debug_group_end();
+#else
+  command_buffer_.end_debug_utils_label();
+#endif
 
   if (!G.profile_gpu) {
     return;
