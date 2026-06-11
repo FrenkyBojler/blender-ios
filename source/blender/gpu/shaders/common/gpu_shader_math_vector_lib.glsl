@@ -126,7 +126,7 @@ template<typename VecT> float angle_normalized(VecT v1, VecT v2)
   v1 = normalize(v1);
   v2 = normalize(v2);
 
-  /* this is the same as acos(dot_v3v3(v1, v2)), but more accurate */
+  /* This is the same as acos(dot_v3v3(v1, v2)), but more accurate. */
   if (dot(v1, v2) >= 0.0f) {
     return 2.0f * asin(clamp(length(v2 - v1) / 2.0f, -1.0f, 1.0f));
   }
