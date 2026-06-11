@@ -357,7 +357,9 @@ class DATA_PT_rigify_collection_list(bpy.types.Panel):
             row = col.row()
             row.active = active_coll.rigify_ui_row > 0  # noqa
             row.prop(active_coll, "rigify_ui_title")
-
+            col.separator()
+            col.prop(arm, "rigify_def_group_by_collection")
+            
         if ROOT_COLLECTION not in arm.collections_all:
             text = iface_("The '{:s}' collection will be added upon generation").format(ROOT_COLLECTION)
             layout.label(text=text, translate=False, icon='INFO')

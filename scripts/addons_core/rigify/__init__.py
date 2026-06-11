@@ -781,6 +781,11 @@ def register_rna_properties() -> None:
     id_store.rigify_types = CollectionProperty(type=RigifyName)
     id_store.rigify_active_type = IntProperty(name="Rigify Active Type",
                                               description="The selected rig type")
+    bpy.types.Armature.rigify_def_group_by_collection = BoolProperty(
+        name="Group DEF by Source Collection",
+        description="Create sub-collections inside DEF, one per metarig collection, "
+        "containing the DEF bones whose ORG counterpart belonged to that collection",
+        default=False)
 
     bpy.types.Armature.rigify_force_widget_update = BoolProperty(
         name="Overwrite Widget Meshes",
@@ -899,12 +904,14 @@ def unregister_rna_properties() -> None:
 
     arm_store: typing.Any = bpy.types.Armature
 
+
     del arm_store.active_feature_set
     del arm_store.rigify_colors
     del arm_store.rigify_selection_colors
     del arm_store.rigify_colors_index
     del arm_store.rigify_colors_lock
     del arm_store.rigify_theme_to_add
+    del arm_store.rigify_def_group_by_collection
     del arm_store.rigify_force_widget_update
     del arm_store.rigify_target_rig
     del arm_store.rigify_rig_ui
