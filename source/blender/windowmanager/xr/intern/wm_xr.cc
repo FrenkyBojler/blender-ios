@@ -221,6 +221,22 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
 
     wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
     wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
+    bContext *xr_context = (*runtime)->b_context;
+
+    CTX_wm_window_set(xr_context, xr_win);
+    CTX_wm_area_set(xr_context, xr_offscreen_area);
+    for (ARegion *region = static_cast<ARegion *>(xr_offscreen_area->regionbase.first); region != nullptr;
+         region = region->next)
+    {
+      CTX_wm_region_set(xr_context, region);
+      WM_event_remove_handlers(xr_context, &region->runtime->handlers);
+      ui::UI_region_free_active_but_all(xr_context, region);
+      ED_region_panels_exit_active_state(xr_context, region);
+      ui::blocklist_free(xr_context, region);
+      BKE_area_region_panels_free(&region->panels);
+    }
+    CTX_wm_region_set(xr_context, nullptr);
+
     WM_event_remove_handlers_by_area(&xr_win->runtime->handlers, xr_offscreen_area);
     ED_area_offscreen_free(wm, xr_win, xr_offscreen_area);
 

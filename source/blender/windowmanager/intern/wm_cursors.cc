@@ -412,6 +412,11 @@ void WM_cursor_set(wmWindow *win, int curs)
     curs = win->modalcursor;
   }
 
+  if (UNLIKELY(G.f & G_FLAG_EVENT_SIMULATE)) {
+    win->cursor = curs;
+    return;
+  }
+
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
 
   if (curs == WM_CURSOR_NONE) {

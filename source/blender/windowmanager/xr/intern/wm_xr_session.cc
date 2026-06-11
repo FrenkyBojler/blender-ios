@@ -1555,8 +1555,29 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
         if ((val != KM_NOTHING) &&
             (!modal || (is_active_modal_action && is_active_modal_subaction)))
         {
+          CLOG_ERROR(&LOG,
+                     "xr action dispatch: action_name=%s action_type=%d action_op=%s "
+                     "subaction_path=%s val=%d modal=%d active_modal_action=%d "
+                     "active_modal_subaction=%d",
+                     action->name ? action->name : "<null>",
+                     int(action->type),
+                     (action->ot && action->ot->idname) ? action->ot->idname : "<null>",
+                     action->subaction_paths[subaction_idx] ? action->subaction_paths[subaction_idx] :
+                                                              "<null>",
+                     int(val),
+                     int(modal),
+                     int(is_active_modal_action),
+                     int(is_active_modal_subaction));
           const bool consumed_by_panel = wm_xr_surface_interaction_apply_action(
               C, xr, action, action->subaction_paths[subaction_idx], val);
+          CLOG_ERROR(&LOG,
+                     "xr action dispatch: consumed_by_panel=%d action_name=%s subaction_path=%s "
+                     "val=%d",
+                     int(consumed_by_panel),
+                     action->name ? action->name : "<null>",
+                     action->subaction_paths[subaction_idx] ? action->subaction_paths[subaction_idx] :
+                                                              "<null>",
+                     int(val));
           if (consumed_by_panel) {
             continue;
           }
@@ -1756,9 +1777,6 @@ static void wm_xr_session_surface_draw(bContext *C)
   if (draw_data.surface_data != nullptr) {
     const uint64_t frame_tag = ++xr_panel_frame_tag;
     draw_data.surface_data->panels_frame_tag = frame_tag;
-    for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(draw_data.surface_data->panels)) {
-      panel->panel_frame_tag = frame_tag;
-    }
   }
 
   CLOG_ERROR(&LOG, "begin wm_xr_session_surface_draw_views");

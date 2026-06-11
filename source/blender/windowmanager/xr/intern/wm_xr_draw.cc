@@ -381,6 +381,33 @@ static bool wm_xr_surface_action_is_teleport(const wmXrAction *action)
          BLI_strcasestr(action->ot->idname, "xr_navigation_teleport") != nullptr;
 }
 
+static bool wm_xr_surface_action_is_panel_click_compatible(const wmXrAction *action)
+{
+  if (action == nullptr || action->name == nullptr || action->ot == nullptr ||
+      action->ot->idname == nullptr)
+  {
+    return false;
+  }
+  if (action->type == XR_VECTOR2F_INPUT) {
+    return false;
+  }
+  if (wm_xr_surface_action_is_teleport(action) ||
+      BLI_strcasestr(action->name, "teleport") != nullptr)
+  {
+    return ELEM(action->type, XR_BOOLEAN_INPUT, XR_FLOAT_INPUT);
+  }
+  if (BLI_strcasestr(action->ot->idname, "xr_navigation_") != nullptr) {
+    return false;
+  }
+  if (BLI_strcasestr(action->name, "trigger") == nullptr &&
+      BLI_strcasestr(action->name, "select") == nullptr &&
+      BLI_strcasestr(action->name, "click") == nullptr)
+  {
+    return false;
+  }
+  return ELEM(action->type, XR_BOOLEAN_INPUT, XR_FLOAT_INPUT);
+}
+
 static bool wm_xr_surface_controller_teleport_active(const wmXrData *xr, const char *subaction_path)
 {
   if (xr == nullptr || xr->runtime == nullptr || subaction_path == nullptr) {
@@ -803,7 +830,6 @@ void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
                                         win_xy);
     ED_region_tag_redraw(hit_panel->panel_host_region);
     hit_panel->panel_dirty = true;
-    wm_xr_panel_cache_refresh_host(C, hit_panel);
   }
 
   copy_v2_v2_int(hit_panel->panel_region_xy, hit_region_xy);
@@ -830,14 +856,21 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
     return false;
   }
 
-  /* Only a teleport press that begins over the panel may start capture. After that, only the
-   * matching release for that captured action/subaction is rerouted to the panel. */
+  /* A press that begins over the panel may start capture. After that, only the matching release
+   * for that captured action/subaction is rerouted to the panel. */
   if (event_val == KM_PRESS) {
+    const bool action_is_panel_click = wm_xr_surface_action_is_panel_click_compatible(action);
     XR_PANELS_TRACE(
-        "panels_ws_input: action press hovered=%d pressed=%d subaction_match=%d host_area=%p host_region=%p host_region_type=%d offscreen_area=%p",
+        "panels_ws_input: action press hovered=%d pressed=%d subaction_match=%d "
+        "action_name=%s action_type=%d action_op=%s panel_click=%d "
+        "host_area=%p host_region=%p host_region_type=%d offscreen_area=%p",
         int(panel->panel_hovered),
         int(panel->panel_pointer.pressed),
         int(STREQ(panel->panel_pointer.subaction_path, subaction_path)),
+        action->name ? action->name : "<null>",
+        int(action->type),
+        (action->ot && action->ot->idname) ? action->ot->idname : "<null>",
+        int(action_is_panel_click),
         panel->panel_host_area,
         panel->panel_host_region,
         panel->panel_host_region ? int(panel->panel_host_region->regiontype) : -1,
@@ -846,15 +879,14 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
         STREQ(panel->panel_pointer.subaction_path, subaction_path) &&
         STREQ(panel->panel_pointer.action_idname, action->ot->idname))
     {
-      /* Keep consuming held teleport press events for an active panel drag so the teleport modal
-       * path cannot start while the panel interaction owns this controller. */
+      /* Keep consuming held press events for an active panel drag so the panel interaction keeps
+       * ownership of this controller until release. */
       return true;
     }
-    if (!wm_xr_surface_action_is_teleport(action)) {
+    if (!action_is_panel_click) {
       return false;
     }
-    if (!panel->panel_hovered || !STREQ(panel->panel_pointer.subaction_path, subaction_path))
-    {
+    if (!panel->panel_hovered) {
       return false;
     }
     int win_xy[2] = {
@@ -870,12 +902,13 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
                                         win_xy);
     panel->panel_pointer.pressed = true;
     BLI_strncpy(
+        panel->panel_pointer.subaction_path, subaction_path, XR_MAX_USER_PATH_LENGTH);
+    BLI_strncpy(
         panel->panel_pointer.action_idname,
         action->ot->idname,
         sizeof(panel->panel_pointer.action_idname));
     ED_region_tag_redraw(panel->panel_host_region);
     panel->panel_dirty = true;
-    wm_xr_panel_cache_refresh_host(C, panel);
     return true;
   }
 
@@ -884,7 +917,11 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
       STREQ(panel->panel_pointer.action_idname, action->ot->idname))
   {
     XR_PANELS_TRACE(
-        "panels_ws_input: action release host_area=%p host_region=%p host_region_type=%d offscreen_area=%p",
+        "panels_ws_input: action release action_name=%s action_type=%d action_op=%s "
+        "host_area=%p host_region=%p host_region_type=%d offscreen_area=%p",
+        action->name ? action->name : "<null>",
+        int(action->type),
+        (action->ot && action->ot->idname) ? action->ot->idname : "<null>",
         panel->panel_host_area,
         panel->panel_host_region,
         panel->panel_host_region ? int(panel->panel_host_region->regiontype) : -1,
@@ -904,7 +941,6 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
     surface_data->active_panel = nullptr;
     ED_region_tag_redraw(panel->panel_host_region);
     panel->panel_dirty = true;
-    wm_xr_panel_cache_refresh_host(C, panel);
     return true;
   }
 
