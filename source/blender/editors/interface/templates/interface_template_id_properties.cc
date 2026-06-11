@@ -172,11 +172,6 @@ class IDPropertyItem : public AbstractTreeViewItem {
     user_properties_ = RNA_struct_idprops(prop_ptr_, false);
   }
 
-  StringRef get_rename_string() const override
-  {
-    return property_->name;
-  }
-
   bool supports_renaming() const override
   {
     return true;
@@ -220,7 +215,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
     if ((property_->type == IDP_ARRAY) || !IDP_ui_data_supported(property_)) {
       /* Use edit value operator to tweak array and python properties. */
-      IDPropertyView &view = static_cast<IDPropertyView &>(get_tree_view());
+      const IDPropertyView &view = static_cast<IDPropertyView &>(get_tree_view());
       PointerRNA op_ptr = sub.op("WM_OT_properties_edit_value", "Edit value", ICON_NONE);
       RNA_string_set(&op_ptr, "data_path", view.data_path_);
       RNA_string_set(&op_ptr, "property_name", property_->name);
@@ -286,7 +281,7 @@ void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, const char 
 /* Callback to reset object pointer when ID data type is changed. */
 void idproperty_id_type_set_fn(bContext * /*C*/, void *but_arg1, void * /*arg2*/)
 {
-  IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
+  const IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
 
   IDProperty *active_prop = static_cast<IDProperty *>(
       BLI_findlink(&user_properties->data.group, user_properties->idprop_active_index));
@@ -333,7 +328,7 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
     return;
   }
 
-  auto get_prop_type = [&](const char type) {
+  auto get_prop_type = [&](const char type) -> StructRNA * {
     switch (type) {
       case IDP_INT:
         return RNA_IDPropertyUIDataInt;
@@ -349,8 +344,8 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
       default:
         break;
     }
-    /* Not required (remove later), added to silent the warning. */
-    return RNA_IDPropertyUIDataFloat;
+
+    return nullptr;
   };
 
   StructRNA *srna = active_prop->type == IDP_ARRAY ? get_prop_type(active_prop->subtype) :
@@ -358,26 +353,31 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
 
   PointerRNA propui_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
 
+  const bool is_number = ELEM(srna, RNA_IDPropertyUIDataInt, RNA_IDPropertyUIDataFloat);
+  const bool is_number_or_boolean = is_number || srna == RNA_IDPropertyUIDataBool;
+  const bool is_array = active_prop->type == IDP_ARRAY;
+
   /* Draw `ui_data` of active IDProperty. */
-  if (ELEM(srna, RNA_IDPropertyUIDataInt, RNA_IDPropertyUIDataFloat, RNA_IDPropertyUIDataBool)) {
-    if (active_prop->type == IDP_ARRAY) {
+  if (is_number_or_boolean) {
+    if (is_array) {
       layout->prop(&prop_ptr, "length", UI_ITEM_NONE, "Length", ICON_NONE);
       layout->prop(&propui_ptr, "default_array", ui::ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
     }
     else {
       layout->prop(&propui_ptr, "default_value", UI_ITEM_NONE, "Default Value", ICON_NONE);
     }
-    if (ELEM(srna, RNA_IDPropertyUIDataInt, RNA_IDPropertyUIDataFloat)) {
-      Layout &col = layout->column(true);
-      col.prop(&propui_ptr, "min", UI_ITEM_NONE, "Hard Min", ICON_NONE);
-      col.prop(&propui_ptr, "max", UI_ITEM_NONE, "Max", ICON_NONE);
-      col.prop(&propui_ptr, "use_soft_limits", UI_ITEM_NONE, "Use Soft Limits", ICON_NONE);
-      if (active_prop->ui_data->flag & IDP_UI_USE_SOFT_LIMITS) {
-        col.prop(&propui_ptr, "soft_min", UI_ITEM_NONE, "Soft Min", ICON_NONE);
-        col.prop(&propui_ptr, "soft_max", UI_ITEM_NONE, "Max", ICON_NONE);
-      }
-      layout->prop(&propui_ptr, "step", UI_ITEM_NONE, "Step", ICON_NONE);
+  }
+
+  if (is_number) {
+    Layout &col = layout->column(true);
+    col.prop(&propui_ptr, "min", UI_ITEM_NONE, "Hard Min", ICON_NONE);
+    col.prop(&propui_ptr, "max", UI_ITEM_NONE, "Max", ICON_NONE);
+    col.prop(&propui_ptr, "use_soft_limits", UI_ITEM_NONE, "Use Soft Limits", ICON_NONE);
+    if (active_prop->ui_data->flag & IDP_UI_USE_SOFT_LIMITS) {
+      col.prop(&propui_ptr, "soft_min", UI_ITEM_NONE, "Soft Min", ICON_NONE);
+      col.prop(&propui_ptr, "soft_max", UI_ITEM_NONE, "Max", ICON_NONE);
     }
+    layout->prop(&propui_ptr, "step", UI_ITEM_NONE, "Step", ICON_NONE);
   }
 
   if (srna == RNA_IDPropertyUIDataFloat) {
