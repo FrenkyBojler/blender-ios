@@ -253,7 +253,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (!RepeatItemsAccessor::supports_socket_type(other_socket.type, params.node_tree().type)) {
     return;
   }
-  params.add_item(IFACE_("Iterations"), [](LinkSearchOpParams &params) {
+  params.add_item_full_name(IFACE_("Repeat -> Iterations"), [](LinkSearchOpParams &params) {
     bNode &input_node = params.add_node("GeometryNodeRepeatInput"_ustr);
     bNode &output_node = params.add_node("GeometryNodeRepeatOutput"_ustr);
     output_node.location[0] = 300;
