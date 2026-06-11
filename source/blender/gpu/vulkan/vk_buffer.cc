@@ -106,7 +106,9 @@ bool VKBuffer::create(size_t size_in_bytes,
     return false;
   }
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   device.resources.add_buffer(vk_buffer_);
+#endif
 
   if (debug_name) {
     debug::object_label(vk_buffer_, debug_name);
@@ -144,11 +146,15 @@ void VKBuffer::update_sub_immediately(size_t start_offset,
 void VKBuffer::update_render_graph(VKContext &context, void *data) const
 {
   BLI_assert(size_in_bytes_ <= 65536 && size_in_bytes_ % 4 == 0);
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKUpdateBufferNode::CreateInfo update_buffer = {};
   update_buffer.dst_buffer = vk_buffer_;
   update_buffer.data_size = size_in_bytes_;
   update_buffer.data = data;
   context.render_graph().add_node(update_buffer);
+#else
+  context.command_buffer().update_buffer(vk_buffer_, 0, size_in_bytes_, data);
+#endif
 }
 
 void VKBuffer::flush() const
@@ -160,11 +166,15 @@ void VKBuffer::flush() const
 
 void VKBuffer::clear(VKContext &context, uint32_t clear_value)
 {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKFillBufferNode::CreateInfo fill_buffer = {};
   fill_buffer.vk_buffer = vk_buffer_;
   fill_buffer.data = clear_value;
   fill_buffer.size = alloc_size_in_bytes_;
   context.render_graph().add_node(fill_buffer);
+#else
+  context.command_buffer().fill_buffer(vk_buffer_, 0, alloc_size_in_bytes_, clear_value);
+#endif
 }
 
 void VKBuffer::async_flush_to_host(VKContext &context)
@@ -270,7 +280,9 @@ void VKBuffer::free_immediately(VKDevice &device)
   if (is_mapped()) {
     unmap();
   }
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   device.resources.remove_buffer(vk_buffer_);
+#endif
   vmaDestroyBuffer(device.mem_allocator_get(), vk_buffer_, allocation_);
   allocation_ = VK_NULL_HANDLE;
   vk_buffer_ = VK_NULL_HANDLE;

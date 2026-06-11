@@ -8,8 +8,11 @@
 
 #pragma once
 
-#include "render_graph/vk_render_graph.hh"
 #include "vk_common.hh"
+
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+#  include "render_graph/vk_render_graph.hh"
+#endif
 #include "vk_staging_buffer.hh"
 
 namespace blender::gpu {
@@ -35,11 +38,13 @@ class VKStreamingBuffer {
   VkDeviceSize vk_buffer_size_;
   /** Current offset in the host buffer where new data will be stored. */
   VkDeviceSize offset_ = 0;
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   /**
    * Render graph node handle for the copy of the host buffer to vk_buffer_dst_. Used to update the
    * previous added copy buffer node.
    */
   render_graph::NodeHandle copy_buffer_handle_ = 0;
+#endif
 
  public:
   VKStreamingBuffer(VKBuffer &buffer, VkDeviceSize min_offset_alignment);

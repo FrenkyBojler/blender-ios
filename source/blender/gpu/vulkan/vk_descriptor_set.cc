@@ -22,6 +22,39 @@ namespace blender::gpu {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
+void VKDescriptorSetTracker::update_descriptor_set(VKContext &context)
+{
+  VKShader &shader = *unwrap(context.shader);
+  VKStateManager &state_manager = context.state_manager_get();
+
+  /* Need to know the exact buffer and offset when shader uses an uniform buffer to store push
+   * constants. */
+  VKBufferWithOffset push_constants_buffer = {};
+  /* Bind uniform push constants to descriptor set. */
+  if (shader.push_constants.layout_get().storage_type_get() ==
+      VKPushConstants::StorageType::BUFFER)
+  {
+    push_constants_buffer = shader.push_constants.update_uniform_buffer(context);
+  }
+
+  /* Can we reuse previous descriptor set. */
+  const VkDescriptorSetLayout shader_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
+  if (!state_manager.is_dirty && vk_descriptor_set_layout_ == shader_descriptor_set_layout &&
+      shader.push_constants.layout_get().storage_type_get() !=
+          VKPushConstants::StorageType::BUFFER)
+  {
+    return;
+  }
+  vk_descriptor_set_layout_ = shader_descriptor_set_layout;
+  state_manager.is_dirty = false;
+
+  VKDevice &device = VKBackend::get().device;
+  VkDescriptorSetLayout vk_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
+  descriptor_sets.allocate_new_descriptor_set(device, context, shader, vk_descriptor_set_layout);
+  descriptor_sets.bind_shader_resources(device, state_manager, shader, push_constants_buffer);
+}
+
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
 void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
                                                    render_graph::VKResourceAccessInfo &access_info,
                                                    render_graph::VKPipelineData &r_pipeline_data)
@@ -58,11 +91,13 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
       device, context, shader, vk_descriptor_set_layout, r_pipeline_data);
   descriptor_sets.bind_shader_resources(device, state_manager, shader, push_constants_buffer);
 }
+#endif
 
 /* -------------------------------------------------------------------- */
 /** \name Update resource access info
  * \{ */
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
 void VKDescriptorSetTracker::update_resource_access_info_binding_uniform_buffer(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
@@ -297,6 +332,7 @@ void VKDescriptorSetTracker::update_resource_access_info(
 }
 
 /** \} */
+#endif
 
 void VKDescriptorSetTracker::upload_descriptor_sets()
 {
@@ -525,15 +561,25 @@ void VKDescriptorSetPoolUpdator::allocate_new_descriptor_set(
     VKDevice & /*device*/,
     VKContext &context,
     VKShader &shader,
-    VkDescriptorSetLayout vk_descriptor_set_layout,
-    render_graph::VKPipelineData &r_pipeline_data)
+    VkDescriptorSetLayout vk_descriptor_set_layout)
 {
-  /* Use descriptor pools/sets. */
   vk_descriptor_set = context.descriptor_pools_get().allocate(vk_descriptor_set_layout);
   BLI_assert(vk_descriptor_set != VK_NULL_HANDLE);
   debug::object_label(vk_descriptor_set, shader.name_get());
+}
+
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+void VKDescriptorSetPoolUpdator::allocate_new_descriptor_set(
+    VKDevice &device,
+    VKContext &context,
+    VKShader &shader,
+    VkDescriptorSetLayout vk_descriptor_set_layout,
+    render_graph::VKPipelineData &r_pipeline_data)
+{
+  allocate_new_descriptor_set(device, context, shader, vk_descriptor_set_layout);
   r_pipeline_data.vk_descriptor_set = vk_descriptor_set;
 }
+#endif
 
 void VKDescriptorSetPoolUpdator::bind_buffer(VkDescriptorType vk_descriptor_type,
                                              VkBuffer vk_buffer,

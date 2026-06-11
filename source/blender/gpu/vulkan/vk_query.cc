@@ -63,26 +63,38 @@ void VKQueryPool::begin_query()
   VKContext &context = *VKContext::get();
   VkQueryPool vk_query_pool = vk_query_pools_[pool_index];
   if (is_new_pool) {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     render_graph::VKResetQueryPoolNode::Data reset_query_pool = {};
     reset_query_pool.vk_query_pool = vk_query_pool;
     reset_query_pool.first_query = 0;
     reset_query_pool.query_count = query_chunk_len_;
     context.render_graph().add_node(reset_query_pool);
+#else
+    context.command_buffer().reset_query_pool(vk_query_pool, 0, query_chunk_len_);
+#endif
   }
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKBeginQueryNode::Data begin_query = {};
   begin_query.vk_query_pool = vk_query_pool;
   begin_query.query_index = query_index_in_pool();
   context.render_graph().add_node(begin_query);
+#else
+  context.command_buffer().begin_query(vk_query_pool, query_index_in_pool(), 0);
+#endif
 }
 
 void VKQueryPool::end_query()
 {
   VKContext &context = *VKContext::get();
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKEndQueryNode::Data end_query = {};
   end_query.vk_query_pool = vk_query_pools_.last();
   end_query.query_index = query_index_in_pool();
   context.render_graph().add_node(end_query);
+#else
+  context.command_buffer().end_query(vk_query_pools_.last(), query_index_in_pool());
+#endif
   queries_issued_ += 1;
 }
 

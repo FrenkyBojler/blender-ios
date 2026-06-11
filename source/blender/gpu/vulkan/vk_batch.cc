@@ -8,8 +8,11 @@
 
 #include "vk_batch.hh"
 
-#include "render_graph/nodes/vk_pipeline_data.hh"
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+#  include "render_graph/nodes/vk_pipeline_data.hh"
+#endif
 #include "vk_context.hh"
+#include "vk_direct_pipeline_builder.hh"
 #include "vk_framebuffer.hh"
 #include "vk_index_buffer.hh"
 #include "vk_state_manager.hh"
@@ -22,7 +25,9 @@ namespace blender::gpu {
 void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int instance_count)
 {
   VKContext &context = *VKContext::get();
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
+#endif
   VKVertexAttributeObject vao;
   vao.update_bindings(context, *this);
 
@@ -37,6 +42,7 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
   framebuffer.rendering_ensure(context);
 
   if (draw_indexed) {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     render_graph::VKDrawIndexedNode::CreateInfo draw_indexed(resource_access_info);
     draw_indexed.node_data.index_count = vertex_count;
     draw_indexed.node_data.instance_count = instance_count;
@@ -50,8 +56,24 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     context.update_pipeline_data(framebuffer, prim_type, vao, draw_indexed.node_data.graphics);
 
     context.render_graph().add_node(draw_indexed);
+#else
+    VKDirectPipelineBuilder::bind_graphics_pipeline(
+        context.command_buffer(), context, framebuffer, prim_type, vao);
+    vao.bind(context.command_buffer());
+    VKDirectPipelineBuilder::bind_descriptor_sets(
+        context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    context.command_buffer().bind_index_buffer(
+        index_buffer->vk_handle(), 0, index_buffer->vk_index_type());
+    context.command_buffer().draw_indexed(vertex_count,
+                                          instance_count,
+                                          index_buffer->index_start_get() + vertex_first,
+                                          index_buffer->index_base_get(),
+                                          instance_first);
+#endif
   }
   else {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     render_graph::VKDrawNode::CreateInfo draw(resource_access_info);
     draw.node_data.vertex_count = vertex_count;
     draw.node_data.instance_count = instance_count;
@@ -62,6 +84,15 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     context.update_pipeline_data(framebuffer, prim_type, vao, draw.node_data.graphics);
 
     context.render_graph().add_node(draw);
+#else
+    VKDirectPipelineBuilder::bind_graphics_pipeline(
+        context.command_buffer(), context, framebuffer, prim_type, vao);
+    vao.bind(context.command_buffer());
+    VKDirectPipelineBuilder::bind_descriptor_sets(
+        context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    context.command_buffer().draw(vertex_count, instance_count, vertex_first, instance_first);
+#endif
   }
 }
 
@@ -85,7 +116,9 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
                                   const intptr_t stride)
 {
   VKContext &context = *VKContext::get();
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
+#endif
   VKVertexAttributeObject vao;
   vao.update_bindings(context, *this);
 
@@ -100,6 +133,7 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
   framebuffer.rendering_ensure(context);
 
   if (draw_indexed) {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     render_graph::VKDrawIndexedIndirectNode::CreateInfo draw_indexed_indirect(
         resource_access_info);
     draw_indexed_indirect.node_data.indirect_buffer = indirect_buffer;
@@ -114,8 +148,20 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
         framebuffer, prim_type, vao, draw_indexed_indirect.node_data.graphics);
 
     context.render_graph().add_node(draw_indexed_indirect);
+#else
+    VKDirectPipelineBuilder::bind_graphics_pipeline(
+        context.command_buffer(), context, framebuffer, prim_type, vao);
+    vao.bind(context.command_buffer());
+    VKDirectPipelineBuilder::bind_descriptor_sets(
+        context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    context.command_buffer().bind_index_buffer(
+        index_buffer->vk_handle(), 0, index_buffer->vk_index_type());
+    context.command_buffer().draw_indexed_indirect(indirect_buffer, offset, count, stride);
+#endif
   }
   else {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     render_graph::VKDrawIndirectNode::CreateInfo draw(resource_access_info);
     draw.node_data.indirect_buffer = indirect_buffer;
     draw.node_data.offset = offset;
@@ -126,6 +172,15 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
     context.update_pipeline_data(framebuffer, prim_type, vao, draw.node_data.graphics);
 
     context.render_graph().add_node(draw);
+#else
+    VKDirectPipelineBuilder::bind_graphics_pipeline(
+        context.command_buffer(), context, framebuffer, prim_type, vao);
+    vao.bind(context.command_buffer());
+    VKDirectPipelineBuilder::bind_descriptor_sets(
+        context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    context.command_buffer().draw_indirect(indirect_buffer, offset, count, stride);
+#endif
   }
 }
 

@@ -8,9 +8,14 @@
 
 #pragma once
 
-#include "render_graph/vk_render_graph.hh"
 #include "vk_buffer.hh"
+
+#include "vk_command_buffer_interface.hh"
 #include "vk_vertex_input_description.hh"
+
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+#  include "render_graph/vk_render_graph.hh"
+#endif
 
 namespace blender::gpu {
 
@@ -38,7 +43,11 @@ class VKVertexAttributeObject {
   VKVertexAttributeObject();
   void clear();
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   void bind(render_graph::VKVertexBufferBindings &r_vertex_buffer_bindings) const;
+#else
+  void bind(render_graph::VKCommandBufferInterface &command_buffer) const;
+#endif
 
   /** Copy assignment operator. */
   VKVertexAttributeObject &operator=(const VKVertexAttributeObject &other);

@@ -94,7 +94,12 @@ void VKDevice::deinit()
     return;
   }
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   deinit_submission_pool();
+#else
+  vkDestroySemaphore(vk_device_, vk_timeline_semaphore_, nullptr);
+  vk_timeline_semaphore_ = VK_NULL_HANDLE;
+#endif
 
   dummy_buffer.free();
   samplers_.free();
@@ -105,6 +110,7 @@ void VKDevice::deinit()
   {
     while (!thread_data_.is_empty()) {
       VKThreadData *thread_data = thread_data_.pop_last();
+      thread_data->destroy_command_pool(*this);
       delete thread_data;
     }
     thread_data_.clear();
@@ -115,10 +121,12 @@ void VKDevice::deinit()
   vma_pools.deinit(*this);
   mem_allocator_ = VK_NULL_HANDLE;
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   while (!render_graphs_.is_empty()) {
     render_graph::VKRenderGraph *render_graph = render_graphs_.pop_last();
     MEM_delete<render_graph::VKRenderGraph>(render_graph);
   }
+#endif
 
   debugging_tools_.deinit(vk_instance_);
 
@@ -166,10 +174,20 @@ void VKDevice::init(GHOST_IContext *ghost_context)
   debug::object_label(vk_handle(), "LogicalDevice");
   debug::object_label(vk_queue_, "GenericQueue");
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   resources.use_dynamic_rendering_local_read = extensions_.dynamic_rendering_local_read;
+#endif
   orphaned_data.timeline_ = 0;
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   init_submission_pool();
+#else
+  VkSemaphoreTypeCreateInfo vk_semaphore_type_create_info = {
+      VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO, nullptr, VK_SEMAPHORE_TYPE_TIMELINE, 0};
+  VkSemaphoreCreateInfo vk_semaphore_create_info = {
+      VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, &vk_semaphore_type_create_info, 0};
+  vkCreateSemaphore(vk_device_, &vk_semaphore_create_info, nullptr, &vk_timeline_semaphore_);
+#endif
   is_initialized_ = true;
 }
 
@@ -490,6 +508,26 @@ VKThreadData::VKThreadData(VKDevice &device, pthread_t thread_id) : thread_id(th
   descriptor_pools.init(device);
 }
 
+void VKThreadData::ensure_command_pool(VKDevice &device)
+{
+  if (command_pool == VK_NULL_HANDLE) {
+    VkCommandPoolCreateInfo info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                                    nullptr,
+                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                        VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                                    device.queue_family_get()};
+    vkCreateCommandPool(device.vk_handle(), &info, nullptr, &command_pool);
+  }
+}
+
+void VKThreadData::destroy_command_pool(VKDevice &device)
+{
+  if (command_pool != VK_NULL_HANDLE) {
+    vkDestroyCommandPool(device.vk_handle(), command_pool, nullptr);
+    command_pool = VK_NULL_HANDLE;
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -498,7 +536,11 @@ VKThreadData::VKThreadData(VKDevice &device, pthread_t thread_id) : thread_id(th
 
 VKThreadData &VKDevice::current_thread_data()
 {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   std::scoped_lock mutex(resources.mutex);
+#else
+  std::scoped_lock mutex(thread_data_mutex_);
+#endif
   pthread_t current_thread_id = pthread_self();
 
   for (VKThreadData *thread_data : thread_data_) {
@@ -519,6 +561,7 @@ void VKDevice::context_register(VKContext &context)
 
 void VKDevice::context_unregister(VKContext &context)
 {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   if (context.render_graph_.has_value()) {
     render_graph::VKRenderGraph &render_graph = context.render_graph();
     context.render_graph_.reset();
@@ -528,6 +571,7 @@ void VKDevice::context_unregister(VKContext &context)
     BLI_thread_queue_push(
         unused_render_graphs_, &render_graph, BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL);
   }
+#endif
   {
     std::scoped_lock lock(orphaned_data.mutex_get());
     orphaned_data.move_data(context.discard_pool, timeline_value_ + 1);
@@ -576,7 +620,9 @@ void VKDevice::debug_print() const
   BLI_assert_msg(BLI_thread_is_main(),
                  "VKDevice::debug_print can only be called from the main thread.");
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   resources.debug_print();
+#endif
   std::ostream &os = std::cout;
   os << "Pipelines\n";
   os << " Graphics: " << pipelines.graphics_.size() << "\n";

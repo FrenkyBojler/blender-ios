@@ -184,6 +184,7 @@ void VKFrameBuffer::clear(const GPUFrameBufferBits buffers,
                           float clear_depth,
                           uint clear_stencil)
 {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKClearAttachmentsNode::CreateInfo clear_attachments = {};
   render_area_update(clear_attachments.vk_clear_rect.rect);
   clear_attachments.vk_clear_rect.baseArrayLayer = 0;
@@ -230,10 +231,72 @@ void VKFrameBuffer::clear(const GPUFrameBufferBits buffers,
   if (clear_attachments.attachment_count) {
     clear(clear_attachments);
   }
+#else
+  VkClearAttachment attachments[GPU_FB_MAX_COLOR_ATTACHMENT + 2];
+  uint32_t attachment_count = 0;
+  VkClearRect clear_rect = {};
+  render_area_update(clear_rect.rect);
+  clear_rect.baseArrayLayer = 0;
+  clear_rect.layerCount = 1;
+
+  if (buffers & (GPU_DEPTH_BIT | GPU_STENCIL_BIT)) {
+    VKContext &context = *VKContext::get();
+    GPUWriteMask needed_mask = GPU_WRITE_NONE;
+    if (buffers & GPU_DEPTH_BIT) {
+      needed_mask |= GPU_WRITE_DEPTH;
+    }
+    if (buffers & GPU_STENCIL_BIT) {
+      needed_mask |= GPU_WRITE_STENCIL;
+    }
+
+    if ((context.state_manager_get().state.write_mask & needed_mask) == needed_mask &&
+        !GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL))
+    {
+      VkClearAttachment &clear_attachment = attachments[attachment_count++];
+      clear_attachment.aspectMask = to_vk_image_aspect_flag_bits(
+          buffers & (GPU_DEPTH_BIT | GPU_STENCIL_BIT));
+      clear_attachment.clearValue.depthStencil.depth = clear_depth;
+      clear_attachment.clearValue.depthStencil.stencil = clear_stencil;
+      clear_attachment.colorAttachment = 0;
+    }
+    else {
+      const GPUAttachment &attachment = depth_attachment();
+      VKTexture *depth_texture = unwrap(unwrap(attachment.tex));
+      if (depth_texture != nullptr) {
+        depth_texture->clear_depth_stencil(
+            buffers,
+            clear_depth,
+            clear_stencil,
+            attachment.layer == -1 ? std::nullopt : std::make_optional(attachment.layer));
+      }
+    }
+  }
+  if (buffers & GPU_COLOR_BIT) {
+    for (int color_slot = 0; color_slot < GPU_FB_MAX_COLOR_ATTACHMENT; color_slot++) {
+      const GPUAttachment &attachment = attachments_[GPU_FB_COLOR_ATTACHMENT0 + color_slot];
+      if (attachment.tex == nullptr) {
+        continue;
+      }
+      VkClearAttachment &clear_attachment = attachments[attachment_count++];
+      clear_attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      clear_attachment.colorAttachment = color_slot;
+      eGPUDataFormat data_format = to_texture_data_format(GPU_texture_format(attachment.tex));
+      clear_attachment.clearValue.color = to_vk_clear_color_value(data_format, clear_color);
+      break;
+    }
+  }
+
+  if (attachment_count) {
+    VKContext &context = *VKContext::get();
+    rendering_ensure(context);
+    context.command_buffer().clear_attachments(attachment_count, attachments, 1, &clear_rect);
+  }
+#endif
 }
 
 void VKFrameBuffer::clear_multi(Span<double4> clear_cols)
 {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKClearAttachmentsNode::CreateInfo clear_attachments = {};
   render_area_update(clear_attachments.vk_clear_rect.rect);
   clear_attachments.vk_clear_rect.baseArrayLayer = 0;
@@ -243,6 +306,35 @@ void VKFrameBuffer::clear_multi(Span<double4> clear_cols)
   if (clear_attachments.attachment_count) {
     clear(clear_attachments);
   }
+#else
+  VkClearAttachment attachments[GPU_FB_MAX_COLOR_ATTACHMENT];
+  uint32_t attachment_count = 0;
+  VkClearRect clear_rect = {};
+  render_area_update(clear_rect.rect);
+  clear_rect.baseArrayLayer = 0;
+  clear_rect.layerCount = 1;
+
+  int color_index = 0;
+  for (int color_slot = 0; color_slot < GPU_FB_MAX_COLOR_ATTACHMENT; color_slot++) {
+    const GPUAttachment &attachment = attachments_[GPU_FB_COLOR_ATTACHMENT0 + color_slot];
+    if (attachment.tex == nullptr) {
+      continue;
+    }
+    VkClearAttachment &clear_attachment = attachments[attachment_count++];
+    clear_attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    clear_attachment.colorAttachment = color_slot;
+    eGPUDataFormat data_format = to_texture_data_format(GPU_texture_format(attachment.tex));
+    clear_attachment.clearValue.color = to_vk_clear_color_value(data_format,
+                                                                clear_cols[color_index]);
+    color_index++;
+  }
+
+  if (attachment_count) {
+    VKContext &context = *VKContext::get();
+    rendering_ensure(context);
+    context.command_buffer().clear_attachments(attachment_count, attachments, 1, &clear_rect);
+  }
+#endif
 }
 
 void VKFrameBuffer::clear_attachment(GPUAttachmentType /*type*/, const double4 /*clear_value*/)
@@ -453,7 +545,24 @@ static void blit_aspect(VKContext &context,
     return;
   }
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   context.render_graph().add_node(blit_image);
+#else
+  VkImageBlit region = {};
+  region.srcSubresource = blit_image.region.srcSubresource;
+  region.dstSubresource = blit_image.region.dstSubresource;
+  region.srcOffsets[0] = blit_image.region.srcOffsets[0];
+  region.srcOffsets[1] = blit_image.region.srcOffsets[1];
+  region.dstOffsets[0] = blit_image.region.dstOffsets[0];
+  region.dstOffsets[1] = blit_image.region.dstOffsets[1];
+  context.command_buffer().blit_image(blit_image.src_image,
+                                      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                      blit_image.dst_image,
+                                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                      1,
+                                      &region,
+                                      VK_FILTER_NEAREST);
+#endif
 }
 
 void VKFrameBuffer::blit_to(GPUFrameBufferBits planes,
@@ -574,11 +683,22 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
   depth_attachment_format_ = VK_FORMAT_UNDEFINED;
   stencil_attachment_format_ = VK_FORMAT_UNDEFINED;
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKResourceAccessInfo access_info;
   render_graph::VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
   begin_rendering.node_data.vk_rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
   begin_rendering.node_data.vk_rendering_info.layerCount = 1;
   render_area_update(begin_rendering.node_data.vk_rendering_info.renderArea);
+#else
+  VkRenderingInfo rendering_info = {};
+  rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+  rendering_info.layerCount = 1;
+  render_area_update(rendering_info.renderArea);
+  VkRenderingAttachmentInfo color_attachments[GPU_FB_MAX_COLOR_ATTACHMENT];
+  VkRenderingAttachmentInfo depth_attachment = {};
+  VkRenderingAttachmentInfo stencil_attachment = {};
+  uint32_t color_attachment_count = 0;
+#endif
 
   color_attachment_formats_.clear();
   int32_t max_filled_slot_index = -1;
@@ -588,9 +708,13 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     const GPUAttachment &attachment = attachments_[color_attachment_index];
     if (attachment.tex == nullptr) {
       color_attachment_formats_.append(VK_FORMAT_UNDEFINED);
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
       VkRenderingAttachmentInfo &attachment_info =
           begin_rendering.node_data.color_attachments[begin_rendering.node_data.vk_rendering_info
                                                           .colorAttachmentCount++];
+#else
+      VkRenderingAttachmentInfo &attachment_info = color_attachments[color_attachment_count++];
+#endif
       attachment_info = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                          nullptr,
                          VK_NULL_HANDLE,
@@ -613,13 +737,21 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
      */
     int layer_count = color_texture.layer_count();
     if (attachment.layer == -1 && layer_count != 1) {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
       begin_rendering.node_data.vk_rendering_info.layerCount = max_ii(
           begin_rendering.node_data.vk_rendering_info.layerCount, layer_count);
+#else
+      rendering_info.layerCount = max_ii(rendering_info.layerCount, layer_count);
+#endif
     }
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     VkRenderingAttachmentInfo &attachment_info =
         begin_rendering.node_data
             .color_attachments[begin_rendering.node_data.vk_rendering_info.colorAttachmentCount++];
+#else
+    VkRenderingAttachmentInfo &attachment_info = color_attachments[color_attachment_count++];
+#endif
     attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
 
     VkImageView vk_image_view = VK_NULL_HANDLE;
@@ -648,6 +780,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
 
     set_load_store(attachment_info, data_format, load_stores[color_attachment_index]);
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     access_info.images.append(
         {color_texture.vk_image_handle(),
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -656,6 +789,16 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
           1,
           layer_base,
           uint32_t(max_ii(layer_count - layer_base, 1))}});
+#else
+    VkImageLayout color_layout = supports_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
+                                                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    context.command_buffer().barrier_image(color_texture.vk_image_handle(),
+                                           color_layout,
+                                           VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                                               VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                           VK_IMAGE_ASPECT_COLOR_BIT);
+#endif
     color_attachment_formats_.append(
         (!extensions.dynamic_rendering_unused_attachments && vk_image_view == VK_NULL_HANDLE) ?
             VK_FORMAT_UNDEFINED :
@@ -664,9 +807,14 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
   uint32_t color_attachment_size = uint32_t(max_filled_slot_index + 1);
   color_attachment_formats_.resize(color_attachment_size);
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = color_attachment_size;
   begin_rendering.node_data.vk_rendering_info.pColorAttachments =
       begin_rendering.node_data.color_attachments;
+#else
+  rendering_info.colorAttachmentCount = color_attachment_size;
+  rendering_info.pColorAttachments = color_attachments;
+#endif
 
   for (int depth_attachment_index : IndexRange(GPU_FB_DEPTH_ATTACHMENT, 2)) {
     const GPUAttachment &attachment = attachments_[depth_attachment_index];
@@ -706,29 +854,46 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
      * #pDepthAttachment/#pStencilAttachment to the same struct.
      * But perhaps the stencil clear op might be different. */
     {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
       VkRenderingAttachmentInfo &attachment_info = begin_rendering.node_data.depth_attachment;
+#else
+      VkRenderingAttachmentInfo &attachment_info = depth_attachment;
+#endif
       attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
       attachment_info.imageView = depth_image_view;
       attachment_info.imageLayout = vk_image_layout;
 
       set_load_store(attachment_info, GPU_DATA_FLOAT, load_stores[depth_attachment_index]);
       depth_attachment_format_ = vk_format;
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
       begin_rendering.node_data.vk_rendering_info.pDepthAttachment =
           &begin_rendering.node_data.depth_attachment;
+#else
+      rendering_info.pDepthAttachment = &depth_attachment;
+#endif
     }
 
     if (is_stencil_attachment) {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
       VkRenderingAttachmentInfo &attachment_info = begin_rendering.node_data.stencil_attachment;
+#else
+      VkRenderingAttachmentInfo &attachment_info = stencil_attachment;
+#endif
       attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
       attachment_info.imageView = depth_image_view;
       attachment_info.imageLayout = vk_image_layout;
 
       set_load_store(attachment_info, GPU_DATA_UINT, load_stores[depth_attachment_index]);
       stencil_attachment_format_ = vk_format;
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
       begin_rendering.node_data.vk_rendering_info.pStencilAttachment =
           &begin_rendering.node_data.stencil_attachment;
+#else
+      rendering_info.pStencilAttachment = &stencil_attachment;
+#endif
     }
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     access_info.images.append(
         {depth_texture.vk_image_handle(),
          VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
@@ -737,10 +902,26 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
                                                                  VK_IMAGE_ASPECT_STENCIL_BIT) :
                                  static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT),
          {uint32_t(attachment.mip), 1, uint32_t(max_ii(attachment.layer, 0)), 1}});
+#else
+    VkImageAspectFlags depth_aspect = is_stencil_attachment ?
+                                          VkImageAspectFlags(VK_IMAGE_ASPECT_DEPTH_BIT |
+                                                             VK_IMAGE_ASPECT_STENCIL_BIT) :
+                                          VkImageAspectFlags(VK_IMAGE_ASPECT_DEPTH_BIT);
+    context.command_buffer().barrier_image(depth_texture.vk_image_handle(),
+                                           vk_image_layout,
+                                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                                               VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                           VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                                           depth_aspect);
+#endif
     break;
   }
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   context.render_graph().add_node(begin_rendering);
+#else
+  context.command_buffer().begin_rendering(&rendering_info);
+#endif
 }
 
 void VKFrameBuffer::rendering_ensure(VKContext &context)
@@ -782,8 +963,12 @@ void VKFrameBuffer::rendering_end(VKContext &context)
   }
 
   if (is_rendering_) {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     render_graph::VKEndRenderingNode::CreateInfo end_rendering = {};
     context.render_graph().add_node(end_rendering);
+#else
+    context.command_buffer().end_rendering();
+#endif
     is_rendering_ = false;
   }
 }

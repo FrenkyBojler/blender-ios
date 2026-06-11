@@ -14,11 +14,15 @@
 
 #include "GHOST_Types.hh"
 
-#include "render_graph/vk_render_graph.hh"
 #include "vk_buffer_pool.hh"
+
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+#  include "render_graph/vk_render_graph.hh"
+#endif
 #include "vk_common.hh"
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
+#include "vk_direct_command_buffer.hh"
 #include "vk_resource_pool.hh"
 #include "vk_streaming_buffer.hh"
 
@@ -51,14 +55,28 @@ class VKContext : public Context, NonCopyable {
 
   Vector<std::unique_ptr<VKStreamingBuffer>> streaming_buffers_;
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   /* Reusable data. Stored inside context to limit reallocations. */
   render_graph::VKResourceAccessInfo access_info_ = {};
+#endif
 
   std::optional<std::reference_wrapper<VKThreadData>> thread_data_;
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   std::optional<std::reference_wrapper<render_graph::VKRenderGraph>> render_graph_;
+#else
+  VKDirectCommandBuffer command_buffer_;
+#endif
 
   /* Active shader specialization constants state. */
   shader::SpecializationConstants constants_state_;
+
+  friend class VKDirectPipelineBuilder;
+
+  /* Allow direct pipeline builder to access constants state. */
+  shader::SpecializationConstants &specialization_constants_get()
+  {
+    return constants_state_;
+  }
 
   /* Debug scope timings. Adapted form GLContext::TimeQuery.
    * Only supports CPU timings for now. */
@@ -79,6 +97,7 @@ class VKContext : public Context, NonCopyable {
   VKDiscardPool discard_pool;
   VKBufferPool push_constants_pool;
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   const render_graph::VKRenderGraph &render_graph() const
   {
     return render_graph_.value().get();
@@ -87,6 +106,17 @@ class VKContext : public Context, NonCopyable {
   {
     return render_graph_.value().get();
   }
+#endif
+#ifndef WITH_VULKAN_BACKEND_RENDER_GRAPH
+  VKDirectCommandBuffer &command_buffer()
+  {
+    return command_buffer_;
+  }
+  const VKDirectCommandBuffer &command_buffer() const
+  {
+    return command_buffer_;
+  }
+#endif
 
   VKContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context);
   virtual ~VKContext();
@@ -133,6 +163,7 @@ class VKContext : public Context, NonCopyable {
    */
   void rendering_end();
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKResourceAccessInfo &reset_and_get_access_info();
 
   /**
@@ -143,6 +174,7 @@ class VKContext : public Context, NonCopyable {
                             GPUPrimType primitive,
                             VKVertexAttributeObject &vao,
                             render_graph::VKPipelineDataGraphics &r_pipeline_data);
+#endif
 
   void sync_backbuffer();
 
@@ -173,9 +205,11 @@ class VKContext : public Context, NonCopyable {
   void openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData &data);
   void openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData &data);
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   void update_pipeline_data(VKShader &shader,
                             VkPipeline vk_pipeline,
                             render_graph::VKPipelineData &r_pipeline_data);
+#endif
 };
 
 BLI_INLINE bool operator==(const VKContext &a, const VKContext &b)

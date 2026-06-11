@@ -15,9 +15,12 @@
 
 #include "gpu_framebuffer_private.hh"
 
-#include "render_graph/vk_render_graph.hh"
 #include "vk_common.hh"
 #include "vk_image_view.hh"
+
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+#  include "render_graph/vk_render_graph.hh"
+#endif
 
 namespace blender::gpu {
 class VKContext;
@@ -133,6 +136,7 @@ class VKFrameBuffer : public FrameBuffer {
   int color_attachments_resource_size() const;
 
  private:
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   /* Clearing attachments */
   void build_clear_attachments_depth_stencil(
       GPUFrameBufferBits buffers,
@@ -144,6 +148,7 @@ class VKFrameBuffer : public FrameBuffer {
       const bool multi_clear_colors,
       render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments) const;
   void clear(render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments);
+#endif
 };
 
 static inline VKFrameBuffer *unwrap(gpu::FrameBuffer *framebuffer)

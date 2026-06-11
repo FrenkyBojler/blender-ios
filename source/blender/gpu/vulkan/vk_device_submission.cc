@@ -6,17 +6,19 @@
  * \ingroup gpu
  */
 
-#include <chrono>
-#include <condition_variable>
-#include <thread>
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
 
-#include "BLI_mutex.hh"
-#include "BLI_task.h"
+#  include <chrono>
+#  include <condition_variable>
+#  include <thread>
 
-#include "vk_device.hh"
-#include "vk_to_string.hh"
+#  include "BLI_mutex.hh"
+#  include "BLI_task.h"
 
-#include "CLG_log.h"
+#  include "vk_device.hh"
+#  include "vk_to_string.hh"
+
+#  include "CLG_log.h"
 
 namespace blender {
 
@@ -323,3 +325,5 @@ void VKDevice::deinit_submission_pool()
 
 }  // namespace gpu
 }  // namespace blender
+
+#endif

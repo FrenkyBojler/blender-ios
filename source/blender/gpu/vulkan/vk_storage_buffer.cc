@@ -121,6 +121,8 @@ void VKStorageBuffer::copy_sub(VertBuf *src, uint dst_offset, uint src_offset, u
   VKVertexBuffer &src_vertex_buffer = *unwrap(src);
   src_vertex_buffer.upload();
 
+  VKContext &context = *VKContext::get();
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKCopyBufferNode::CreateInfo copy_buffer = {};
   copy_buffer.src_buffer = src_vertex_buffer.vk_handle();
   copy_buffer.dst_buffer = vk_handle();
@@ -128,8 +130,14 @@ void VKStorageBuffer::copy_sub(VertBuf *src, uint dst_offset, uint src_offset, u
   copy_buffer.region.dstOffset = dst_offset;
   copy_buffer.region.size = copy_size;
 
-  VKContext &context = *VKContext::get();
   context.render_graph().add_node(copy_buffer);
+#else
+  VkBufferCopy region = {};
+  region.srcOffset = src_offset;
+  region.dstOffset = dst_offset;
+  region.size = copy_size;
+  context.command_buffer().copy_buffer(src_vertex_buffer.vk_handle(), vk_handle(), 1, &region);
+#endif
 }
 
 void VKStorageBuffer::async_flush_to_host()

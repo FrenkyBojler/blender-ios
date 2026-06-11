@@ -53,8 +53,12 @@ VKVertexAttributeObject &VKVertexAttributeObject::operator=(const VKVertexAttrib
 /** \name Bind resources
  * \{ */
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
 void VKVertexAttributeObject::bind(
     render_graph::VKVertexBufferBindings &r_vertex_buffer_bindings) const
+#else
+void VKVertexAttributeObject::bind(render_graph::VKCommandBufferInterface &command_buffer) const
+#endif
 {
   BitVector visited_bindings(vertex_input.bindings.size());
 
@@ -78,10 +82,14 @@ void VKVertexAttributeObject::bind(
       offset = 0;
     }
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     r_vertex_buffer_bindings.buffer[attribute.binding] = buffer;
     r_vertex_buffer_bindings.offset[attribute.binding] = offset;
     r_vertex_buffer_bindings.buffer_count = max_ii(r_vertex_buffer_bindings.buffer_count,
                                                    attribute.binding + 1);
+#else
+    command_buffer.bind_vertex_buffers(attribute.binding, 1, &buffer, &offset);
+#endif
   }
 }
 

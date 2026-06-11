@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,22 +8,138 @@
 
 #pragma once
 
+#include "BLI_map.hh"
+#include "BLI_math_vector.hh"
+#include "BLI_set.hh"
+
 #include "vk_command_buffer_interface.hh"
+#include "vk_common.hh"
 
-namespace blender {
+namespace blender::gpu {
 
-namespace gpu {
-struct VKExtensions;
-}
+class VKContext;
+class VKThreadData;
+class VKTexture;
 
-namespace gpu::render_graph {
+/** Mipmap generation helper. */
+struct VKUpdateMipmapsData {
+  VkImage vk_image;
+  VkImageAspectFlags vk_image_aspect;
+  int mipmaps;
+  int layer_count;
+  int3 l0_size;
+};
 
-class VKCommandBufferWrapper : public VKCommandBufferInterface {
- private:
+/**
+ * Per-context command buffer for direct mode (without render graph).
+ *
+ * Records Vulkan commands directly into a VkCommandBuffer and tracks per-resource state
+ * for automatic pipeline barrier insertion. On context deactivation, dirty textures
+ * are transitioned back to their preferred layout.
+ */
+class VKDirectCommandBuffer : public render_graph::VKCommandBufferInterface {
   VkCommandBuffer vk_command_buffer_ = VK_NULL_HANDLE;
+  VKThreadData *thread_data_ = nullptr;
 
  public:
-  VKCommandBufferWrapper(VkCommandBuffer vk_command_buffer, const VKExtensions &extensions);
+  const VkCommandBuffer &vk_handle() const
+  {
+    return vk_command_buffer_;
+  }
+
+ private:
+
+  /** Per-resource barrier tracking state. */
+  struct ImageState {
+    VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VkAccessFlags access = VK_ACCESS_NONE;
+    VkPipelineStageFlags stages = VK_PIPELINE_STAGE_NONE;
+  };
+  struct BufferState {
+    VkAccessFlags access = VK_ACCESS_NONE;
+    VkPipelineStageFlags stages = VK_PIPELINE_STAGE_NONE;
+  };
+
+  Map<VkImage, ImageState> image_states_;
+  Map<VkBuffer, BufferState> buffer_states_;
+
+  /** Textures whose layout was changed from their preferred layout. */
+  Set<VkImage> dirty_images_;
+
+  bool is_rendering_ = false;
+  TimelineValue last_submitted_timeline_ = 0;
+
+ public:
+  VKDirectCommandBuffer();
+  ~VKDirectCommandBuffer();
+
+  /**
+   * Begin recording on the given command buffer.
+   */
+  void begin(VkCommandBuffer vk_command_buffer, VKThreadData &thread_data);
+
+  /**
+   * Submit the current command buffer to the device queue.
+   * Returns the timeline value for this submission.
+   */
+  TimelineValue submit(VkSemaphore wait_semaphore = VK_NULL_HANDLE,
+                       VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_NONE,
+                       VkSemaphore signal_semaphore = VK_NULL_HANDLE,
+                       VkFence signal_fence = VK_NULL_HANDLE);
+
+  /**
+   * Transition all dirty textures back to their preferred layout, submit the
+   * command buffer to the device queue, and clear tracking state.
+   */
+  TimelineValue restore_and_submit(VKContext &context,
+                                   VkSemaphore wait_semaphore = VK_NULL_HANDLE,
+                                   VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_NONE,
+                                   VkSemaphore signal_semaphore = VK_NULL_HANDLE,
+                                   VkFence signal_fence = VK_NULL_HANDLE);
+
+  /** Clear all tracking state. */
+  void reset_tracking();
+
+  bool is_rendering() const
+  {
+    return is_rendering_;
+  }
+
+  TimelineValue last_submitted_timeline() const
+  {
+    return last_submitted_timeline_;
+  }
+
+  /**
+   * Ensure that the given image is in the required layout/access/stage.
+   * Inserts a pipeline barrier if the tracked state differs from the required state.
+   */
+  void barrier_image(VkImage image,
+                     VkImageLayout required_layout,
+                     VkAccessFlags required_access,
+                     VkPipelineStageFlags required_stages,
+                     VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT);
+
+  /**
+   * Ensure that the given buffer is in the required access/stage.
+   * Inserts a pipeline barrier if the tracked state differs from the required state.
+   */
+  void barrier_buffer(VkBuffer buffer,
+                      VkAccessFlags required_access,
+                      VkPipelineStageFlags required_stages);
+
+  /**
+   * Generate mipmaps for the given image.
+   * Calls vkCmdBlitImage for each mip level.
+   */
+  void generate_mipmaps(const VKUpdateMipmapsData &data);
+
+  /** Mark an image as dirty (layout changed from preferred). */
+  void mark_image_dirty(VkImage image);
+
+  /* -------------------------------------------------------------------- */
+  /** \name VKCommandBufferInterface implementation
+   * \{ */
 
   void begin_recording() override;
   void end_recording() override;
@@ -58,7 +174,9 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
                              VkDeviceSize offset,
                              uint32_t draw_count,
                              uint32_t stride) override;
-  void dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) override;
+  void dispatch(uint32_t group_count_x,
+                uint32_t group_count_y,
+                uint32_t group_count_z) override;
   void dispatch_indirect(VkBuffer buffer, VkDeviceSize offset) override;
   void update_buffer(VkBuffer dst_buffer,
                      VkDeviceSize dst_offset,
@@ -143,7 +261,8 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
   void end_rendering() override;
   void begin_debug_utils_label(const VkDebugUtilsLabelEXT *vk_debug_utils_label) override;
   void end_debug_utils_label() override;
-};
-}  // namespace gpu::render_graph
 
-}  // namespace blender
+  /** \} */
+};
+
+}  // namespace blender::gpu

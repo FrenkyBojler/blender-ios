@@ -27,7 +27,11 @@ namespace gpu {
 void VKContext::debug_group_begin(const char *name, int index)
 {
   UNUSED_VARS(index);
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph().debug_group_begin(name, debug::get_debug_group_color(name));
+#else
+  command_buffer_.begin_debug_utils_label(name, debug::get_debug_group_color(name));
+#endif
 
   if (!G.profile_gpu) {
     return;

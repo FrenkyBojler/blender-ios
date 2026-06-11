@@ -945,6 +945,9 @@ else()
   mark_as_advanced(WITH_VULKAN_BACKEND)
 endif()
 
+option(WITH_VULKAN_BACKEND_RENDER_GRAPH "Enable Vulkan render graph backend" ON)
+mark_as_advanced(WITH_VULKAN_BACKEND_RENDER_GRAPH)
+
 # Metal
 if(APPLE)
   option(WITH_METAL_BACKEND "\

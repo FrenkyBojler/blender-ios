@@ -17,6 +17,7 @@
 
 namespace blender::gpu {
 class VKDevice;
+class VKDirectCommandBuffer;
 class VKDiscardPool;
 
 template<typename Item> class TimelineResources : Vector<std::pair<TimelineValue, Item>> {
@@ -77,6 +78,7 @@ template<typename Item> class TimelineResources : Vector<std::pair<TimelineValue
 class VKDiscardPool {
   friend class VKDevice;
   friend class VKBackend;
+  friend class VKDirectCommandBuffer;
 
  private:
   TimelineResources<VkImage> swapchain_images_;

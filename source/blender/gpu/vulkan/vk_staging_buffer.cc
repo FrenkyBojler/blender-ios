@@ -41,6 +41,7 @@ VKStagingBuffer::VKStagingBuffer(const VKBuffer &device_buffer,
 void VKStagingBuffer::copy_to_device(VKContext &context)
 {
   BLI_assert(host_buffer_.is_allocated() && host_buffer_.is_mapped());
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKCopyBufferNode::CreateInfo copy_buffer = {};
   copy_buffer.src_buffer = host_buffer_.vk_handle();
   copy_buffer.dst_buffer = device_buffer_.vk_handle();
@@ -48,11 +49,19 @@ void VKStagingBuffer::copy_to_device(VKContext &context)
   copy_buffer.region.size = region_size_;
 
   context.render_graph().add_node(copy_buffer);
+#else
+  VkBufferCopy region = {};
+  region.dstOffset = device_buffer_offset_;
+  region.size = region_size_;
+  context.command_buffer().copy_buffer(
+      host_buffer_.vk_handle(), device_buffer_.vk_handle(), 1, &region);
+#endif
 }
 
 void VKStagingBuffer::copy_from_device(VKContext &context)
 {
   BLI_assert(host_buffer_.is_allocated() && host_buffer_.is_mapped());
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKCopyBufferNode::CreateInfo copy_buffer = {};
   copy_buffer.src_buffer = device_buffer_.vk_handle();
   copy_buffer.dst_buffer = host_buffer_.vk_handle();
@@ -60,6 +69,13 @@ void VKStagingBuffer::copy_from_device(VKContext &context)
   copy_buffer.region.size = region_size_;
 
   context.render_graph().add_node(copy_buffer);
+#else
+  VkBufferCopy region = {};
+  region.srcOffset = device_buffer_offset_;
+  region.size = region_size_;
+  context.command_buffer().copy_buffer(
+      device_buffer_.vk_handle(), host_buffer_.vk_handle(), 1, &region);
+#endif
 }
 
 void VKStagingBuffer::free()

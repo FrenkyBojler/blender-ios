@@ -13,6 +13,7 @@
 
 #include "vk_backend.hh"
 #include "vk_context.hh"
+#include "vk_direct_pipeline_builder.hh"
 #include "vk_framebuffer.hh"
 #include "vk_immediate.hh"
 #include "vk_state_manager.hh"
@@ -80,11 +81,12 @@ void VKImmediate::end()
   }
   else {
     GPU_matrix_bind(context.shader);
-    render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
     vertex_attributes_.update_bindings(*this);
     VKFrameBuffer &framebuffer = *context.active_framebuffer_get();
     framebuffer.rendering_ensure(context);
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+    render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
     render_graph::VKDrawNode::CreateInfo draw(resource_access_info);
     draw.node_data.vertex_count = vertex_idx;
     draw.node_data.instance_count = 1;
@@ -96,6 +98,15 @@ void VKImmediate::end()
         framebuffer, prim_type, vertex_attributes_, draw.node_data.graphics);
 
     context.render_graph().add_node(draw);
+#else
+    VKDirectPipelineBuilder::bind_graphics_pipeline(
+        context.command_buffer(), context, framebuffer, prim_type, vertex_attributes_);
+    vertex_attributes_.bind(context.command_buffer());
+    VKDirectPipelineBuilder::bind_descriptor_sets(
+        context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    context.command_buffer().draw(vertex_idx, 1, 0, 0);
+#endif
   }
 
   buffer_offset_ += current_subbuffer_len_;

@@ -13,9 +13,12 @@
 
 #include "gpu_shader_private.hh"
 
-#include "render_graph/nodes/vk_pipeline_data.hh"
-#include "render_graph/vk_resource_access_info.hh"
 #include "vk_buffer.hh"
+
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+#  include "render_graph/nodes/vk_pipeline_data.hh"
+#  include "render_graph/vk_resource_access_info.hh"
+#endif
 #include "vk_common.hh"
 #include "vk_descriptor_set_layouts.hh"
 #include "vk_uniform_buffer.hh"
@@ -86,8 +89,14 @@ class VKDescriptorSetUpdator {
   virtual void allocate_new_descriptor_set(VKDevice &device,
                                            VKContext &context,
                                            VKShader &shader,
+                                           VkDescriptorSetLayout vk_descriptor_set_layout) = 0;
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+  virtual void allocate_new_descriptor_set(VKDevice &device,
+                                           VKContext &context,
+                                           VKShader &shader,
                                            VkDescriptorSetLayout vk_descriptor_set_layout,
                                            render_graph::VKPipelineData &r_pipeline_data) = 0;
+#endif
   void bind_shader_resources(const VKDevice &device,
                              const VKStateManager &state_manager,
                              VKShader &shader,
@@ -133,8 +142,14 @@ class VKDescriptorSetPoolUpdator : public VKDescriptorSetUpdator {
   void allocate_new_descriptor_set(VKDevice &device,
                                    VKContext &context,
                                    VKShader &shader,
+                                   VkDescriptorSetLayout vk_descriptor_set_layout) override;
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+  void allocate_new_descriptor_set(VKDevice &device,
+                                   VKContext &context,
+                                   VKShader &shader,
                                    VkDescriptorSetLayout vk_descriptor_set_layout,
                                    render_graph::VKPipelineData &r_pipeline_data) override;
+#endif
 
   void upload_descriptor_sets() override;
 
@@ -174,9 +189,12 @@ class VKDescriptorSetTracker {
    * Update the descriptor set. Reuses previous descriptor set when no changes are detected. This
    * improves performance when working with large grease pencil scenes.
    */
+  void update_descriptor_set(VKContext &context);
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   void update_descriptor_set(VKContext &context,
                              render_graph::VKResourceAccessInfo &resource_access_info,
                              render_graph::VKPipelineData &r_pipeline_data);
+#endif
 
   /**
    * Upload all descriptor sets to the device.
@@ -184,6 +202,7 @@ class VKDescriptorSetTracker {
   void upload_descriptor_sets();
 
  private:
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   /**
    * Add resources of the descriptor set to the resource access info.
    */
@@ -213,6 +232,7 @@ class VKDescriptorSetTracker {
       const VKStateManager &state_manager,
       const VKResourceBinding &resource_binding,
       render_graph::VKResourceAccessInfo &access_info);
+#endif
 };
 
 }  // namespace blender::gpu

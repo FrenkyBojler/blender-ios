@@ -16,8 +16,12 @@ namespace blender::gpu {
 void VKFence::signal()
 {
   VKContext &context = *VKContext::get();
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   timeline_value_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                                                RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+#else
+  timeline_value_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT);
+#endif
   signalled_ = true;
 }
 

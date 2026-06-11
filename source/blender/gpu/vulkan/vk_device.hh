@@ -15,9 +15,12 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
-#include "render_graph/vk_render_graph.hh"
-#include "render_graph/vk_resource_state_tracker.hh"
 #include "vk_buffer.hh"
+
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+#  include "render_graph/vk_render_graph.hh"
+#  include "render_graph/vk_resource_state_tracker.hh"
+#endif
 #include "vk_common.hh"
 #include "vk_debug.hh"
 #include "vk_descriptor_pools.hh"
@@ -134,6 +137,12 @@ class VKThreadData : public NonCopyable, NonMovable {
   VKDescriptorSetTracker descriptor_set;
 
   /**
+   * Command pool for allocating command buffers on this thread.
+   * Used in direct mode (when render graph is disabled).
+   */
+  VkCommandPool command_pool = VK_NULL_HANDLE;
+
+  /**
    * The current rendering depth.
    *
    * GPU_rendering_begin can be called multiple times forming a hierarchy. The same resource pool
@@ -144,9 +153,16 @@ class VKThreadData : public NonCopyable, NonMovable {
   int32_t rendering_depth = 0;
 
   VKThreadData(VKDevice &device, pthread_t thread_id);
+
+  void ensure_command_pool(VKDevice &device);
+  void destroy_command_pool(VKDevice &device);
 };
 
+class VKDirectCommandBuffer;
+
 class VKDevice : public NonCopyable {
+  friend class VKDirectCommandBuffer;
+
  private:
   /** Copies of the handles owned by the GHOST context. */
   VkInstance vk_instance_ = VK_NULL_HANDLE;
@@ -158,6 +174,7 @@ class VKDevice : public NonCopyable {
 
   bool is_initialized_ = false;
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   /**
    * Task pool for render graph submission.
    *
@@ -172,7 +189,11 @@ class VKDevice : public NonCopyable {
   Vector<render_graph::VKRenderGraph *> render_graphs_;
   ThreadQueue *submitted_render_graphs_ = nullptr;
   ThreadQueue *unused_render_graphs_ = nullptr;
+#endif
   VkSemaphore vk_timeline_semaphore_ = VK_NULL_HANDLE;
+#ifndef WITH_VULKAN_BACKEND_RENDER_GRAPH
+  std::mutex thread_data_mutex_;
+#endif
   /**
    * Last used timeline value.
    *
@@ -229,7 +250,9 @@ class VKDevice : public NonCopyable {
   Shader *vk_backbuffer_blit_sh_ = nullptr;
 
  public:
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKResourceStateTracker resources;
+#endif
   VKDiscardPool orphaned_data;
   /** Discard pool for resources that could still be used during rendering. */
   VKDiscardPool orphaned_data_render;
@@ -406,6 +429,7 @@ class VKDevice : public NonCopyable {
   /* -------------------------------------------------------------------- */
   /** \name Render graph
    * \{ */
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   static void submission_runner(TaskPool *__restrict pool, void *task_data);
   render_graph::VKRenderGraph *render_graph_new();
 
@@ -418,6 +442,7 @@ class VKDevice : public NonCopyable {
                                     VkSemaphore wait_semaphore,
                                     VkSemaphore signal_semaphore,
                                     VkFence signal_fence);
+#endif
   void wait_for_timeline(TimelineValue timeline);
   void wait_queue_idle();
 
@@ -481,8 +506,10 @@ class VKDevice : public NonCopyable {
   void init_physical_device_features();
   void init_physical_device_extensions();
   void init_debug_callbacks();
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   void init_submission_pool();
   void deinit_submission_pool();
+#endif
   /**
    * Initialize the functions struct with extension specific function pointer.
    */

@@ -121,6 +121,7 @@ void VKContext::activate()
   VKThreadData &thread_data = device.current_thread_data();
   thread_data_ = std::reference_wrapper<VKThreadData>(thread_data);
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   if (!render_graph_.has_value()) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
@@ -133,6 +134,17 @@ void VKContext::activate()
                                                     debug::get_debug_group_color(str_group));
     }
   }
+#else
+  thread_data.ensure_command_pool(device);
+  VkCommandBufferAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                                            nullptr,
+                                            thread_data.command_pool,
+                                            VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                                            1};
+  VkCommandBuffer vk_command_buffer = {};
+  vkAllocateCommandBuffers(device.vk_handle(), &alloc_info, &vk_command_buffer);
+  command_buffer_.begin(vk_command_buffer, thread_data);
+#endif
 
   is_active_ = true;
 
@@ -143,7 +155,16 @@ void VKContext::activate()
 
 void VKContext::deactivate()
 {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   flush_render_graph(RenderGraphFlushFlags(0));
+#else
+  VKDevice &device = VKBackend::get().device;
+  /* Restore dirty textures and submit. */
+  command_buffer_.restore_and_submit(*this);
+  VKThreadData &thread_data = thread_data_.value().get();
+  vkFreeCommandBuffers(
+      device.vk_handle(), thread_data.command_pool, 1, &command_buffer_.vk_handle());
+#endif
   immDeactivate();
   thread_data_.reset();
 
@@ -161,7 +182,11 @@ void VKContext::flush()
 {
   /* Submit when flushing to avoid out-of-memory errors and TDRs when more and more commands are
    * added in background mode without ever submitting work to the GPU. */
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+#else
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT);
+#endif
 }
 
 TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
@@ -180,6 +205,7 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
   push_constants_pool.ensure_uploaded();
   push_constants_pool.discard();
   descriptor_set_get().upload_descriptor_sets();
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   TimelineValue timeline = device.render_graph_submit(
       &render_graph_.value().get(),
       discard_pool,
@@ -204,13 +230,37 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
                                                     debug::get_debug_group_color(str_group));
     }
   }
+#else
+  TimelineValue timeline = 0;
+  if (flags & RenderGraphFlushFlags::SUBMIT) {
+    timeline = command_buffer_.restore_and_submit(
+        *this, wait_semaphore, wait_dst_stage_mask, signal_semaphore, signal_fence);
+  }
+  streaming_buffers_.clear();
+  /* In direct mode, allocate a new command buffer after submit. */
+  if (flags & RenderGraphFlushFlags::SUBMIT) {
+    VKThreadData &thread_data = thread_data_.value().get();
+    VkCommandBufferAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                                              nullptr,
+                                              thread_data.command_pool,
+                                              VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                                              1};
+    VkCommandBuffer vk_command_buffer = {};
+    vkAllocateCommandBuffers(device.vk_handle(), &alloc_info, &vk_command_buffer);
+    command_buffer_.begin(vk_command_buffer, thread_data);
+  }
+#endif
   return timeline;
 }
 
 void VKContext::finish()
 {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
                      RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+#else
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
+#endif
 }
 
 void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
@@ -301,6 +351,7 @@ void VKContext::rendering_end()
 /** \name Pipeline
  * \{ */
 
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
 void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
                                      GPUPrimType primitive,
                                      VKVertexAttributeObject &vao,
@@ -408,6 +459,7 @@ render_graph::VKResourceAccessInfo &VKContext::reset_and_get_access_info()
   access_info_.reset();
   return access_info_;
 }
+#endif
 
 /** \} */
 
@@ -445,15 +497,20 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
 
   /* When swapchain is invalid/minimized we only flush the render graph to free GPU resources. */
   if (!do_blit_to_swapchain) {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
     flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+#else
+    flush_render_graph(RenderGraphFlushFlags::SUBMIT);
+#endif
     return;
   }
 
   VKDevice &device = VKBackend::get().device;
-  render_graph::VKRenderGraph &render_graph = this->render_graph();
   VKFrameBuffer &framebuffer = *unwrap(active_fb);
   framebuffer.rendering_end(*this);
   VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+  render_graph::VKRenderGraph &render_graph = this->render_graph();
   device.resources.add_swapchain_image(swap_chain_data.image, "SwapchainImage");
 
   GPU_debug_group_begin("BackBuffer.Blit");
@@ -520,6 +577,13 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
   else {
     discard_pool.discard_swapchain_image(swap_chain_data.image);
   }
+#else
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_SUBMISSION,
+                     VK_PIPELINE_STAGE_TRANSFER_BIT,
+                     swap_chain_data.acquire_semaphore,
+                     swap_chain_data.present_semaphore,
+                     swap_chain_data.submission_fence);
+#endif
 #if 0
   device.debug_print();
 #endif

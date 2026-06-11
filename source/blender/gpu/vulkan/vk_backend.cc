@@ -37,6 +37,7 @@
 #include "vk_vertex_buffer.hh"
 
 #include "vk_backend.hh"
+#include "vk_direct_pipeline_builder.hh"
 
 namespace blender {
 
@@ -748,6 +749,7 @@ void VKBackend::delete_resources()
 void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len)
 {
   VKContext &context = *VKContext::get();
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKResourceAccessInfo &resources = context.reset_and_get_access_info();
   render_graph::VKDispatchNode::CreateInfo dispatch_info(resources);
   context.update_pipeline_data(dispatch_info.dispatch_node.pipeline_data);
@@ -755,6 +757,14 @@ void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_
   dispatch_info.dispatch_node.group_count_y = groups_y_len;
   dispatch_info.dispatch_node.group_count_z = groups_z_len;
   context.render_graph().add_node(dispatch_info);
+#else
+  context.rendering_end();
+  VKDirectPipelineBuilder::bind_compute_pipeline(context.command_buffer(), context);
+  VKDirectPipelineBuilder::bind_descriptor_sets(
+      context.command_buffer(), context, VK_PIPELINE_BIND_POINT_COMPUTE);
+  VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+  context.command_buffer().dispatch(groups_x_len, groups_y_len, groups_z_len);
+#endif
 }
 
 void VKBackend::compute_dispatch_indirect(StorageBuf *indirect_buf)
@@ -762,12 +772,21 @@ void VKBackend::compute_dispatch_indirect(StorageBuf *indirect_buf)
   BLI_assert(indirect_buf);
   VKContext &context = *VKContext::get();
   VKStorageBuffer &indirect_buffer = *unwrap(indirect_buf);
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKResourceAccessInfo &resources = context.reset_and_get_access_info();
   render_graph::VKDispatchIndirectNode::CreateInfo dispatch_indirect_info(resources);
   context.update_pipeline_data(dispatch_indirect_info.dispatch_indirect_node.pipeline_data);
   dispatch_indirect_info.dispatch_indirect_node.buffer = indirect_buffer.vk_handle();
   dispatch_indirect_info.dispatch_indirect_node.offset = 0;
   context.render_graph().add_node(dispatch_indirect_info);
+#else
+  context.rendering_end();
+  VKDirectPipelineBuilder::bind_compute_pipeline(context.command_buffer(), context);
+  VKDirectPipelineBuilder::bind_descriptor_sets(
+      context.command_buffer(), context, VK_PIPELINE_BIND_POINT_COMPUTE);
+  VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+  context.command_buffer().dispatch_indirect(indirect_buffer.vk_handle(), 0);
+#endif
 }
 
 Context *VKBackend::context_alloc(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
