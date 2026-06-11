@@ -969,9 +969,18 @@ Mesh *BKE_modifier_modify_mesh(ModifierData *md, const ModifierEvalContext *ctx,
       BKE_mesh_wrapper_ensure_mdata(mesh);
     }
   }
+ 
+  Mesh *result = mti->modify_mesh(md, ctx, mesh);
+  /* If any modifier fails to evaluate and returns null,
+     inject an empty mesh so it doesn't crash.*/
+  if (result == nullptr) {
+    result = BKE_mesh_new_nomain(0, 0, 0, 0);
+    BKE_mesh_copy_parameters_for_eval(result, mesh);
+  }
 
-  return mti->modify_mesh(md, ctx, mesh);
+  return result;
 }
+
 
 bool BKE_modifier_deform_verts(ModifierData *md,
                                const ModifierEvalContext *ctx,
