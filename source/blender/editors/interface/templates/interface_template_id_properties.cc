@@ -206,7 +206,6 @@ class IDPropertyItem : public AbstractTreeViewItem {
     uiItemL_ex(&name_layout, property_->name, ICON_NONE, false, false);
 
     ui::Layout &sub = name_layout.row(false);
-    sub.alignment_set(LayoutAlign::Right);
 
     /* Use different emboss for widget style to color buttons when keyframe/drivers are present. */
     const EmbossType emboss = [&]() -> EmbossType {

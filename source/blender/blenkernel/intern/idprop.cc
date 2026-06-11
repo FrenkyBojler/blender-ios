@@ -2312,7 +2312,7 @@ void IDP_TryConvertProperty(IDProperty *src,
   const int array_len = ((src->len > 1) && (src->type != IDP_STRING)) ? src->len : 3;
 
   /* Change property type and reset array length. */
-  src->type = type;
+  src->type = eIDPropertyType(type);
   src->subtype = sub_type;
   src->len = 0;
   src->totallen = 0;
