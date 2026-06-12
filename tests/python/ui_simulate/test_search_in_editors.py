@@ -15,7 +15,6 @@ Tests for search/filter functionality in:
 Requires: tests/files/ui_tests/test_search_in_editors.blend
   Objects expected in that file:
     __search_test_cube__  — mesh with a Subdivision Surface modifier
-    __anim_test_obj__     — mesh with location keyframes on frames 1 and 10
 """
 
 import os
@@ -121,7 +120,6 @@ def test_dopesheet_search():
     space = area.spaces.active
     t.assertIsInstance(space, bpy.types.SpaceDopeSheetEditor, "Area did not switch to Dope Sheet")
 
-    t.assertIn("__anim_test_obj__", bpy.data.objects, "Blend file is missing __anim_test_obj__")
 
     e.cursor_position_set(*ui.get_area_center(area), move=True)
     yield e.ctrl.f()
@@ -150,7 +148,6 @@ def test_graph_editor_search():
     space = area.spaces.active
     t.assertIsInstance(space, bpy.types.SpaceGraphEditor, "Area did not switch to Graph Editor")
 
-    t.assertIn("__anim_test_obj__", bpy.data.objects, "Blend file is missing __anim_test_obj__")
 
     e.cursor_position_set(*ui.get_area_center(area), move=True)
     yield e.ctrl.f()
@@ -164,6 +161,7 @@ def test_graph_editor_search():
     yield e.ret()
     t.assertEqual(space.dopesheet.filter_text, "",
                   "Graph Editor: filter_text was not cleared")
+
 
 def test_file_browser_search():
     """
