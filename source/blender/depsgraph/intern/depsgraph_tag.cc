@@ -934,13 +934,14 @@ void DEG_editors_update(Depsgraph *depsgraph, bool time)
   Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
   Main *bmain = DEG_get_bmain(depsgraph);
+  bool updated = time || DEG_id_type_any_updated(depsgraph);
 
   DEGEditorUpdateContext update_ctx = {nullptr};
   update_ctx.bmain = bmain;
   update_ctx.depsgraph = depsgraph;
   update_ctx.scene = scene;
   update_ctx.view_layer = view_layer;
-  deg::deg_editors_scene_update(&update_ctx, time);
+  deg::deg_editors_scene_update(&update_ctx, updated);
 }
 
 static void deg_graph_clear_id_recalc_flags(ID *id)
