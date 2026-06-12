@@ -193,7 +193,7 @@ static Mesh *create_mesh_from_positions_add_tolology_lists(GeoNodeExecParams &pa
     }
   }
 
-  if (edges_num > 0) {
+  if (edges_num > 0 || faces_num > 0) {
     bke::mesh_calc_edges(*mesh, true, false);
   }
 
