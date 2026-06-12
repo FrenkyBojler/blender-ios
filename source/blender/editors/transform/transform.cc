@@ -1876,13 +1876,6 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
       RNA_boolean_set(
           op->ptr, "use_snap_project", (t->tsnap.mode & SCE_SNAP_INDIVIDUAL_PROJECT) != 0);
       RNA_enum_set(op->ptr, "snap_target", t->tsnap.source_operation);
-
-      eSnapTargetOP target = t->tsnap.target_operation;
-      RNA_boolean_set(op->ptr, "use_snap_self", (target & SCE_SNAP_TARGET_NOT_ACTIVE) == 0);
-      RNA_boolean_set(op->ptr, "use_snap_edit", (target & SCE_SNAP_TARGET_NOT_EDITED) == 0);
-      RNA_boolean_set(op->ptr, "use_snap_nonedit", (target & SCE_SNAP_TARGET_NOT_NONEDITED) == 0);
-      RNA_boolean_set(
-          op->ptr, "use_snap_selectable", (target & SCE_SNAP_TARGET_ONLY_SELECTABLE) != 0);
     }
   }
 

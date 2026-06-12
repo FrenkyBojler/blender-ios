@@ -5717,8 +5717,18 @@ static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmE
       ed::transform::SnapObjectContext *snap_context = ed::transform::snap_object_context_create();
 
       ed::transform::SnapObjectParams params{};
-      params.snap_target_select = (vc.obedit != nullptr) ? SCE_SNAP_TARGET_NOT_ACTIVE :
-                                                           SCE_SNAP_TARGET_ALL;
+      if (vc.obedit != nullptr) {
+        params.snap_active_edit_mode = SCE_SNAP_TO_NONE;
+        params.snap_edited_edit_mode = eSnapMode(short(0xffff));
+        params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+        params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
+      }
+      else {
+        params.snap_active_edit_mode = eSnapMode(short(0xffff));
+        params.snap_edited_edit_mode = eSnapMode(short(0xffff));
+        params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+        params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
+      }
       params.edit_mode_type = ed::transform::SNAP_GEOM_FINAL;
       ed::transform::snap_object_project_view3d(snap_context,
                                                 vc.depsgraph,

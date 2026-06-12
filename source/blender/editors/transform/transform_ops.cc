@@ -735,12 +735,6 @@ void properties_register(wmOperatorType *ot, int flags)
       RNA_def_property_flag(prop, PROP_HIDDEN);
 
       /* Target selection. */
-      prop = RNA_def_boolean(ot->srna, "use_snap_self", true, "Target: Include Active", "");
-      RNA_def_property_flag(prop, PROP_HIDDEN);
-      prop = RNA_def_boolean(ot->srna, "use_snap_edit", true, "Target: Include Edit", "");
-      RNA_def_property_flag(prop, PROP_HIDDEN);
-      prop = RNA_def_boolean(ot->srna, "use_snap_nonedit", true, "Target: Include Non-Edited", "");
-      RNA_def_property_flag(prop, PROP_HIDDEN);
       prop = RNA_def_boolean(
           ot->srna, "use_snap_selectable", false, "Target: Exclude Non-Selectable", "");
       RNA_def_property_flag(prop, PROP_HIDDEN);

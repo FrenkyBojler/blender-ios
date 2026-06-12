@@ -3772,6 +3772,38 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, "Project Mode", "Type of element for individual transformed elements to snap to");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
+  prop = RNA_def_property(srna, "snap_active_edit_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_active_edit_mode");
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
+  RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
+  RNA_def_property_ui_text(
+      prop, "Include Active Edit Mode", "Snap to other mesh elements of the active object");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
+
+  prop = RNA_def_property(srna, "snap_edited_edit_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_edited_edit_mode");
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
+  RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
+  RNA_def_property_ui_text(
+      prop, "Include Edited Edit Mode", "Snap to other objects that are also in Edit Mode");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
+
+  prop = RNA_def_property(srna, "snap_non_edited_edit_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_non_edited_edit_mode");
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
+  RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
+  RNA_def_property_ui_text(
+      prop, "Include Non-Edited Edit Mode", "Snap to other objects that are not in Edit Mode");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
+
+  prop = RNA_def_property(srna, "snap_exclude_non_selectable", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_exclude_non_selectable");
+  RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
+  RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
+  RNA_def_property_ui_text(
+      prop, "Exclude Non-Selectable", "Snap only to objects that are selectable");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
+
   prop = RNA_def_property(srna, "snap_face_nearest_steps", PROP_INT, PROP_FACTOR);
   RNA_def_property_int_sdna(prop, nullptr, "snap_face_nearest_steps");
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
@@ -3889,36 +3921,6 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SCE_SNAP_BACKFACE_CULLING);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(prop, "Backface Culling", "Exclude back facing geometry from snapping");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
-
-  /* TODO(@gfxcoder): Rename `use_snap_self` to `use_snap_active`, because active is correct but
-   * self is not (breaks API). This only makes a difference when more than one mesh is edited. */
-  prop = RNA_def_property(srna, "use_snap_self", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "snap_flag", SCE_SNAP_NOT_TO_ACTIVE);
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
-  RNA_def_property_ui_text(
-      prop, "Snap onto Active", "Snap onto itself only if enabled (edit mode only)");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
-
-  prop = RNA_def_property(srna, "use_snap_edit", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SCE_SNAP_TO_INCLUDE_EDITED);
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
-  RNA_def_property_ui_text(
-      prop, "Snap onto Edited", "Snap onto non-active objects in edit mode (edit mode only)");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
-
-  prop = RNA_def_property(srna, "use_snap_nonedit", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SCE_SNAP_TO_INCLUDE_NONEDITED);
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
-  RNA_def_property_ui_text(
-      prop, "Snap onto Non-edited", "Snap onto objects not in edit mode (edit mode only)");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
-
-  prop = RNA_def_property(srna, "use_snap_selectable", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SCE_SNAP_TO_ONLY_SELECTABLE);
-  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
-  RNA_def_property_ui_text(
-      prop, "Snap onto Selectable Only", "Snap only onto objects that are selectable");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "use_snap_translate", PROP_BOOLEAN, PROP_NONE);

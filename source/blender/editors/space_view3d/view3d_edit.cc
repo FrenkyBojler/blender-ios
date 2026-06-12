@@ -940,7 +940,10 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
     const Object *ob_dummy = nullptr;
     float dist_px = 0;
     ed::transform::SnapObjectParams params{};
-    params.snap_target_select = SCE_SNAP_TARGET_ALL;
+    params.snap_active_edit_mode = eSnapMode(short(0xffff));
+    params.snap_edited_edit_mode = eSnapMode(short(0xffff));
+    params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+    params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
     params.edit_mode_type = ed::transform::SNAP_GEOM_FINAL;
     params.occlusion_test = ed::transform::SNAP_OCCLUSION_AS_SEEM;
     if (ed::transform::snap_object_project_view3d_ex(snap_context,

@@ -439,7 +439,10 @@ static bool walk_floor_distance_get(RegionView3D *rv3d,
   add_v3_v3(ray_start, dvec_tmp);
 
   ed::transform::SnapObjectParams snap_params = {};
-  snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
+  snap_params.snap_active_edit_mode = eSnapMode(short(0xffff));
+  snap_params.snap_edited_edit_mode = eSnapMode(short(0xffff));
+  snap_params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+  snap_params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
   /* Avoid having to convert the edit-mesh to a regular mesh. */
   snap_params.edit_mode_type = ed::transform::SNAP_GEOM_EDIT;
 
@@ -481,7 +484,10 @@ static bool walk_ray_cast(RegionView3D *rv3d,
   normalize_v3(ray_normal);
 
   ed::transform::SnapObjectParams snap_params = {};
-  snap_params.snap_target_select = SCE_SNAP_TARGET_ALL;
+  snap_params.snap_active_edit_mode = eSnapMode(short(0xffff));
+  snap_params.snap_edited_edit_mode = eSnapMode(short(0xffff));
+  snap_params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+  snap_params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
 
   const bool ret = ed::transform::snap_object_project_ray(walk->snap_context,
                                                           walk->depsgraph,

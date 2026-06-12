@@ -279,7 +279,10 @@ static wmOperatorStatus gizmo_move_modal(bContext *C,
       const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
       float co[3];
       transform::SnapObjectParams params{};
-      params.snap_target_select = SCE_SNAP_TARGET_ALL;
+      params.snap_active_edit_mode = eSnapMode(short(0xffff));
+      params.snap_edited_edit_mode = eSnapMode(short(0xffff));
+      params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+      params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
       params.edit_mode_type = transform::SNAP_GEOM_EDIT;
       params.occlusion_test = transform::SNAP_OCCLUSION_AS_SEEM;
       if (transform::snap_object_project_view3d(

@@ -3702,7 +3702,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
         /* Minimum of snap steps for face nearest is 1. */
         tool_settings->snap_face_nearest_steps = 1;
         /* Set snap to edited and non-edited as default. */
-        tool_settings->snap_flag |= SCE_SNAP_TO_INCLUDE_EDITED | SCE_SNAP_TO_INCLUDE_NONEDITED;
+        tool_settings->snap_flag |= SCE_SNAP_UNUSED_8 | SCE_SNAP_UNUSED_9;
       }
     }
   }

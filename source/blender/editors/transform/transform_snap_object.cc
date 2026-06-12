@@ -444,58 +444,59 @@ using IterSnapObjsCallback = eSnapMode (*)(SnapObjectContext *sctx,
                                            bool is_object_active,
                                            bool use_hide);
 
-static bool snap_object_is_snappable(const SnapObjectContext *sctx,
-                                     const eSnapTargetOP snap_target_select,
-                                     const Base *base_act,
-                                     const Base *base)
+static eSnapMode snap_object_allowed_modes(const SnapObjectContext *sctx,
+                                           const Base *base_act,
+                                           const Base *base)
 {
   if (!BASE_VISIBLE(sctx->runtime.v3d, base)) {
-    return false;
-  }
-
-  if (snap_target_select == SCE_SNAP_TARGET_ALL) {
-    return true;
+    return SCE_SNAP_TO_NONE;
   }
 
   if (base->flag_legacy & BA_SNAP_FIX_DEPS_FIASCO) {
-    return false;
+    return SCE_SNAP_TO_NONE;
   }
+
+  const SnapObjectParams &params = sctx->runtime.params;
 
   /* Get attributes of potential target. */
   const bool is_active = (base_act == base);
   const bool is_selected = (base->flag & BASE_SELECTED) || (base->flag_legacy & BA_WAS_SEL);
-  const bool is_edited = (base->object->mode == OB_MODE_EDIT);
+  const bool is_edited = (base->object->mode & OB_MODE_EDIT);
   const bool is_selectable = (base->flag & BASE_SELECTABLE);
   /* Get attributes of state. */
   const bool is_in_object_mode = (base_act == nullptr) ||
                                  (base_act->object->mode == OB_MODE_OBJECT);
 
+  eSnapMode allowed_mask = SCE_SNAP_TO_NONE;
+
   if (is_in_object_mode) {
     /* Handle target selection options that make sense for object mode. */
-    if ((snap_target_select & SCE_SNAP_TARGET_NOT_SELECTED) && is_selected) {
-      /* What is selectable or not is part of the object and depends on the mode. */
-      return false;
+    if (is_selected && params.snap_active_edit_mode == SCE_SNAP_TO_NONE) {
+      /* Selected objects are excluded from snapping in object mode. */
+      allowed_mask = SCE_SNAP_TO_NONE;
+    }
+    else {
+      allowed_mask = eSnapMode(short(0xffff));
     }
   }
   else {
     /* Handle target selection options that make sense for edit/pose mode. */
-    if ((snap_target_select & SCE_SNAP_TARGET_NOT_ACTIVE) && is_active) {
-      return false;
+    if (is_active) {
+      allowed_mask = params.snap_active_edit_mode;
     }
-    if ((snap_target_select & SCE_SNAP_TARGET_NOT_EDITED) && is_edited && !is_active) {
-      /* Base is edited, but not active. */
-      return false;
+    else if (is_edited) {
+      allowed_mask = params.snap_edited_edit_mode;
     }
-    if ((snap_target_select & SCE_SNAP_TARGET_NOT_NONEDITED) && !is_edited) {
-      return false;
+    else {
+      allowed_mask = params.snap_non_edited_edit_mode;
     }
   }
 
-  if ((snap_target_select & SCE_SNAP_TARGET_ONLY_SELECTABLE) && !is_selectable) {
-    return false;
+  if (!is_selectable) {
+    allowed_mask &= ~params.snap_exclude_non_selectable;
   }
 
-  return true;
+  return allowed_mask;
 }
 
 /**
@@ -508,13 +509,16 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
 
   Scene *scene = DEG_get_input_scene(sctx->runtime.depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(sctx->runtime.depsgraph);
-  const eSnapTargetOP snap_target_select = sctx->runtime.params.snap_target_select;
   BKE_view_layer_synced_ensure(*DEG_get_bmain(sctx->runtime.depsgraph), scene, view_layer);
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
   DupliList duplilist;
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
-    if (!snap_object_is_snappable(sctx, snap_target_select, base_act, &base)) {
+    const eSnapMode allowed_mask = snap_object_allowed_modes(sctx, base_act, &base);
+    const eSnapMode prev_snap_to_flag = sctx->runtime.snap_to_flag;
+    sctx->runtime.snap_to_flag &= allowed_mask;
+    if (sctx->runtime.snap_to_flag == SCE_SNAP_TO_NONE) {
+      sctx->runtime.snap_to_flag = prev_snap_to_flag;
       continue;
     }
 
@@ -543,6 +547,8 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
     {
       ret = tmp;
     }
+
+    sctx->runtime.snap_to_flag = prev_snap_to_flag;
   }
   return ret;
 }

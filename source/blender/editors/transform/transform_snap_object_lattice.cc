@@ -45,8 +45,7 @@ eSnapMode snapLattice(SnapObjectContext *sctx, const Object *ob_eval, const floa
 
   nearest2d.clip_planes_enable(sctx, ob_eval, true);
 
-  bool skip_selected = (sctx->runtime.params.snap_target_select & SCE_SNAP_TARGET_NOT_SELECTED) !=
-                       0;
+  bool skip_selected = (sctx->runtime.params.snap_exclude_non_selectable & SCE_SNAP_TO_POINT) != 0;
 
   const int totpoint = lt->pntsu * lt->pntsv * lt->pntsw;
   Span<BPoint> points(lt->def, totpoint);

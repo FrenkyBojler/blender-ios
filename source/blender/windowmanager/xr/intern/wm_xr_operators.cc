@@ -1383,8 +1383,11 @@ static void wm_xr_navigation_teleport_raycast(Depsgraph *depsgraph,
   ed::transform::SnapObjectContext *sctx = ed::transform::snap_object_context_create();
 
   ed::transform::SnapObjectParams params{};
-  params.snap_target_select = (selectable_only ? SCE_SNAP_TARGET_ONLY_SELECTABLE :
-                                                 SCE_SNAP_TARGET_ALL);
+  params.snap_active_edit_mode = eSnapMode(short(0xffff));
+  params.snap_edited_edit_mode = eSnapMode(short(0xffff));
+  params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+  params.snap_exclude_non_selectable = selectable_only ? eSnapMode(short(0xffff)) :
+                                                         SCE_SNAP_TO_NONE;
   ed::transform::snap_object_project_ray_ex(sctx,
                                             depsgraph,
                                             nullptr,

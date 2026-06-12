@@ -2053,15 +2053,7 @@ void EDBM_project_snap_verts(
   const Scene *scene = CTX_data_scene(C);
   transform::SnapObjectContext *snap_context = transform::snap_object_context_create();
 
-  eSnapTargetOP target_op = SCE_SNAP_TARGET_NOT_ACTIVE;
   const int snap_flag = scene->toolsettings->snap_flag;
-
-  SET_FLAG_FROM_TEST(
-      target_op, !(snap_flag & SCE_SNAP_TO_INCLUDE_EDITED), SCE_SNAP_TARGET_NOT_EDITED);
-  SET_FLAG_FROM_TEST(
-      target_op, !(snap_flag & SCE_SNAP_TO_INCLUDE_NONEDITED), SCE_SNAP_TARGET_NOT_NONEDITED);
-  SET_FLAG_FROM_TEST(
-      target_op, (snap_flag & SCE_SNAP_TO_ONLY_SELECTABLE), SCE_SNAP_TARGET_ONLY_SELECTABLE);
 
   BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
     if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
@@ -2070,9 +2062,12 @@ void EDBM_project_snap_verts(
           V3D_PROJ_RET_OK)
       {
         transform::SnapObjectParams params{};
-        params.snap_target_select = target_op;
-        params.edit_mode_type = transform ::SNAP_GEOM_FINAL;
-        params.occlusion_test = transform ::SNAP_OCCLUSION_AS_SEEM;
+        params.snap_active_edit_mode = SCE_SNAP_TO_NONE;
+        params.snap_edited_edit_mode = eSnapMode(short(0xffff));
+        params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+        params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
+        params.edit_mode_type = transform::SNAP_GEOM_FINAL;
+        params.occlusion_test = transform::SNAP_OCCLUSION_AS_SEEM;
         if (transform::snap_object_project_view3d(snap_context,
                                                   depsgraph,
                                                   region,

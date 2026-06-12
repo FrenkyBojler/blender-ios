@@ -1867,16 +1867,15 @@ enum eSnapFlag : short {
   SCE_SNAP_PEEL_OBJECT = (1 << 2),
   // SCE_SNAP_PROJECT = (1 << 3), /* DEPRECATED, see #SCE_SNAP_INDIVIDUAL_PROJECT. */
   /** Was `SCE_SNAP_NO_SELF`, but self should be active. */
-  SCE_SNAP_NOT_TO_ACTIVE = (1 << 4),
+  SCE_SNAP_UNUSED_4 = (1 << 4), /* DEPRECATED */
   SCE_SNAP_ABS_GRID = (1 << 5),
   /* Same value with different name to make it easier to understand in time based code. */
   SCE_SNAP_ABS_TIME_STEP = (1 << 5),
   SCE_SNAP_BACKFACE_CULLING = (1 << 6),
   SCE_SNAP_KEEP_ON_SAME_OBJECT = (1 << 7),
-  /** see #eSnapTargetOP */
-  SCE_SNAP_TO_INCLUDE_EDITED = (1 << 8),
-  SCE_SNAP_TO_INCLUDE_NONEDITED = (1 << 9),
-  SCE_SNAP_TO_ONLY_SELECTABLE = (1 << 10),
+  SCE_SNAP_UNUSED_8 = (1 << 8),   /* DEPRECATED */
+  SCE_SNAP_UNUSED_9 = (1 << 9),   /* DEPRECATED */
+  SCE_SNAP_UNUSED_10 = (1 << 10), /* DEPRECATED */
 };
 ENUM_OPERATORS(eSnapFlag)
 
@@ -1888,21 +1887,6 @@ enum eSnapSourceOP : char {
   SCE_SNAP_SOURCE_ACTIVE = 3,
 };
 ENUM_OPERATORS(eSnapSourceOP)
-
-/**
- * #TransSnap::target_operation and #ToolSettings::snap_flag
- * (#SCE_SNAP_NOT_TO_ACTIVE, #SCE_SNAP_TO_INCLUDE_EDITED, #SCE_SNAP_TO_INCLUDE_NONEDITED,
- * #SCE_SNAP_TO_ONLY_SELECTABLE).
- */
-enum eSnapTargetOP : short {
-  SCE_SNAP_TARGET_ALL = 0,
-  SCE_SNAP_TARGET_NOT_SELECTED = (1 << 0),
-  SCE_SNAP_TARGET_NOT_ACTIVE = (1 << 1),
-  SCE_SNAP_TARGET_NOT_EDITED = (1 << 2),
-  SCE_SNAP_TARGET_ONLY_SELECTABLE = (1 << 3),
-  SCE_SNAP_TARGET_NOT_NONEDITED = (1 << 4),
-};
-ENUM_OPERATORS(eSnapTargetOP)
 
 /** #ToolSettings::snap_mode */
 enum eSnapMode : short {
@@ -2328,7 +2312,7 @@ struct ToolSettings {
   eSnapMode snap_anim_mode = SCE_SNAP_TO_FRAME;
   eSnapMode snap_playhead_mode = SCE_SNAP_TO_KEYS | SCE_SNAP_TO_STRIPS;
   /** Generic flags (per space-type). */
-  eSnapFlag snap_flag = SCE_SNAP_TO_INCLUDE_EDITED | SCE_SNAP_TO_INCLUDE_NONEDITED;
+  eSnapFlag snap_flag = {};
   eSnapFlag snap_flag_node = {};
   eSnapFlag snap_flag_seq = SCE_SNAP;
   eSnapFlag snap_flag_anim = SCE_SNAP;
@@ -2439,7 +2423,12 @@ struct ToolSettings {
   /* Flags for "Fix to Camera" operator. */
   uint8_t fix_to_cam_flag = FIX_TO_CAM_FLAG_USE_LOC | FIX_TO_CAM_FLAG_USE_ROT |
                             FIX_TO_CAM_FLAG_USE_SCALE; /* eFixToCam_Flags */
-  char _pad8[7] = {};
+  char _pad_snap[1] = {};
+  eSnapMode snap_active_edit_mode = SCE_SNAP_TO_NONE;
+  eSnapMode snap_edited_edit_mode = SCE_SNAP_TO_NONE;
+  eSnapMode snap_non_edited_edit_mode = SCE_SNAP_TO_NONE;
+  eSnapMode snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
+  char _pad8[6] = {};
 };
 
 /** \} */

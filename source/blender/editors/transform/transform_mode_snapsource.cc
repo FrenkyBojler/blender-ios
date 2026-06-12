@@ -41,7 +41,10 @@ struct SnapSourceCustomData {
   TransModeInfo *mode_info_prev;
   void *customdata_mode_prev;
 
-  eSnapTargetOP target_operation_prev;
+  eSnapMode snap_active_edit_mode_prev;
+  eSnapMode snap_edited_edit_mode_prev;
+  eSnapMode snap_non_edited_edit_mode_prev;
+  eSnapMode snap_exclude_non_selectable_prev;
   eSnapMode snap_mode_confirm;
 
   struct {
@@ -60,7 +63,10 @@ static void snapsource_end(TransInfo *t)
   t->mode_info = customdata->mode_info_prev;
   t->custom.mode.data = customdata->customdata_mode_prev;
 
-  t->tsnap.target_operation = customdata->target_operation_prev;
+  t->tsnap.snap_active_edit_mode = customdata->snap_active_edit_mode_prev;
+  t->tsnap.snap_edited_edit_mode = customdata->snap_edited_edit_mode_prev;
+  t->tsnap.snap_non_edited_edit_mode = customdata->snap_non_edited_edit_mode_prev;
+  t->tsnap.snap_exclude_non_selectable = customdata->snap_exclude_non_selectable_prev;
 
   t->mouse.apply = customdata->mouse_prev.apply;
   t->mouse.post = customdata->mouse_prev.post;
@@ -186,7 +192,10 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   SnapSourceCustomData *customdata = MEM_new_zeroed<SnapSourceCustomData>(__func__);
   customdata->mode_info_prev = t->mode_info;
 
-  customdata->target_operation_prev = t->tsnap.target_operation;
+  customdata->snap_active_edit_mode_prev = t->tsnap.snap_active_edit_mode;
+  customdata->snap_edited_edit_mode_prev = t->tsnap.snap_edited_edit_mode;
+  customdata->snap_non_edited_edit_mode_prev = t->tsnap.snap_non_edited_edit_mode;
+  customdata->snap_exclude_non_selectable_prev = t->tsnap.snap_exclude_non_selectable;
 
   customdata->mouse_prev.apply = t->mouse.apply;
   customdata->mouse_prev.post = t->mouse.post;
@@ -200,7 +209,10 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   }
 
   t->mode_info = &TransMode_snapsource;
-  t->tsnap.target_operation = SCE_SNAP_TARGET_ALL;
+  t->tsnap.snap_active_edit_mode = eSnapMode(short(0xffff));
+  t->tsnap.snap_edited_edit_mode = eSnapMode(short(0xffff));
+  t->tsnap.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+  t->tsnap.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
   t->tsnap.status &= ~SNAP_SOURCE_FOUND;
 
   if (t->spacetype == SPACE_VIEW3D) {
