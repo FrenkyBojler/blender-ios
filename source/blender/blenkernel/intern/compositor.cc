@@ -45,6 +45,7 @@ Cache::~Cache()
 
 const ImBuf *Cache::get_frame(const int frame_number, const int view_identifier)
 {
+  std::scoped_lock lock{frames_mutex_};
   return this->frames_.lookup_try(FrameKey(frame_number, view_identifier)).value_or(nullptr);
 }
 
@@ -59,11 +60,13 @@ void Cache::add_frame(const int frame_number, const int view_identifier, ImBuf *
     this->evict_frame(frame_number);
   }
 
+  std::scoped_lock lock{frames_mutex_};
   this->frames_.add_new(FrameKey(frame_number, view_identifier), image_buffer);
 }
 
 void Cache::evict_frame(const int current_frame_number)
 {
+  std::scoped_lock lock{frames_mutex_};
   if (this->frames_.is_empty()) {
     return;
   }
@@ -92,6 +95,7 @@ void Cache::evict_frame(const int current_frame_number)
 
 void Cache::clear_frames()
 {
+  std::scoped_lock lock{frames_mutex_};
   for (ImBuf *image_buffer : this->frames_.values()) {
     IMB_freeImBuf(image_buffer);
   }
@@ -101,8 +105,11 @@ void Cache::clear_frames()
 int64_t Cache::size()
 {
   int64_t size = 0;
-  for (ImBuf *image_buffer : this->frames_.values()) {
-    size += IMB_get_size_in_memory(image_buffer);
+  {
+    std::scoped_lock lock{frames_mutex_};
+    for (ImBuf *image_buffer : this->frames_.values()) {
+      size += IMB_get_size_in_memory(image_buffer);
+    }
   }
   return size;
 }
@@ -110,11 +117,15 @@ int64_t Cache::size()
 Vector<IndexRange> Cache::compute_frame_ranges()
 {
   /* Compute a sorted vector of all cached frames. */
-  Vector<int> frame_numbers;
-  frame_numbers.reserve(this->frames_.size());
-  for (const FrameKey &key : this->frames_.keys()) {
-    frame_numbers.append(key.frame_number);
+  VectorSet<int> frame_numbers_set;
+  {
+    std::scoped_lock lock{frames_mutex_};
+    frame_numbers_set.reserve(this->frames_.size());
+    for (const FrameKey &key : this->frames_.keys()) {
+      frame_numbers_set.add(key.frame_number);
+    }
   }
+  Vector<int> frame_numbers = frame_numbers_set.extract_vector();
   std::ranges::sort(frame_numbers);
 
   Vector<IndexRange> frame_ranges;

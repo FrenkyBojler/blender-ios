@@ -360,7 +360,7 @@ class Context : public compositor::Context {
     }
 
     if (this->should_cache_viewer_result()) {
-      /* Duplicate the viewer image buffer to store in the change, making sure to manually
+      /* Duplicate the viewer image buffer to store in the cache, making sure to manually
        * duplicate the GPU texture since it is not done in IMB_dupImBuf. */
       ImBuf *cached_buffer = IMB_dupImBuf(image_buffer);
       if (this->use_gpu()) {

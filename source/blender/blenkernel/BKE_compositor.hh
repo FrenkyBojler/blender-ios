@@ -12,6 +12,7 @@
 
 #include "BLI_index_range.hh"
 #include "BLI_map.hh"
+#include "BLI_mutex.hh"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
 
@@ -42,6 +43,8 @@ struct Cache {
  private:
   /* A cache of final interactive compositor results across frames. */
   Map<FrameKey, ImBuf *> frames_;
+  /* A mutex for accessing frames_. */
+  Mutex frames_mutex_;
 
  public:
   /* Clear all caches. */
