@@ -15,6 +15,7 @@
 #include "vk_shader.hh"
 #include "vk_shader_interface.hh"
 #include "vk_state_manager.hh"
+#include "vk_texture.hh"
 #include "vk_vertex_attribute_object.hh"
 
 namespace blender::gpu {
@@ -38,28 +39,26 @@ void VKDirectPipelineBuilder::bind_graphics_pipeline(VKDirectCommandBuffer &comm
       device.vertex_input_descriptions.get_or_insert(vao.vertex_input);
 
   VkPipeline vk_pipeline = shader.ensure_and_get_graphics_pipeline(
-      primitive, vertex_input_key, state_manager, framebuffer, context.specialization_constants_get());
+      primitive,
+      vertex_input_key,
+      state_manager,
+      framebuffer,
+      context.specialization_constants_get());
 
   command_buffer.bind_pipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline);
 
   /* Dynamic state. */
   set_dynamic_state(command_buffer, context, framebuffer, primitive, vao);
-
-  /* Descriptor sets and push constants. */
-  bind_descriptor_sets(command_buffer, context, VK_PIPELINE_BIND_POINT_GRAPHICS);
-  push_constants(command_buffer, context);
 }
 
 void VKDirectPipelineBuilder::bind_compute_pipeline(VKDirectCommandBuffer &command_buffer,
                                                     VKContext &context)
 {
   VKShader &shader = *unwrap(context.shader);
-  VkPipeline vk_pipeline = shader.ensure_and_get_compute_pipeline(context.specialization_constants_get());
+  VkPipeline vk_pipeline = shader.ensure_and_get_compute_pipeline(
+      context.specialization_constants_get());
 
   command_buffer.bind_pipeline(VK_PIPELINE_BIND_POINT_COMPUTE, vk_pipeline);
-
-  bind_descriptor_sets(command_buffer, context, VK_PIPELINE_BIND_POINT_COMPUTE);
-  push_constants(command_buffer, context);
 }
 
 void VKDirectPipelineBuilder::bind_descriptor_sets(VKDirectCommandBuffer &command_buffer,
@@ -73,18 +72,94 @@ void VKDirectPipelineBuilder::bind_descriptor_sets(VKDirectCommandBuffer &comman
     return;
   }
 
-  /* We don't have access to VKResourceAccessInfo and VKPipelineData in direct mode
-   * as those are render graph types. The descriptor set was already updated during
-   * state manager bindings. We just need to bind the descriptor set. */
+  /* Transition images to VK_IMAGE_LAYOUT_GENERAL before updating descriptors.
+   * This must happen outside a render pass. Descriptors always specify GENERAL
+   * for both sampled and storage images. */
+  VKStateManager &state_manager = context.state_manager_get();
+  const VKShaderInterface &shader_interface = shader.interface_get();
+  bool needs_restart = false;
+  bool did_end_rendering = false;
+  for (const VKResourceBinding &resource_binding : shader_interface.resource_bindings_get()) {
+    if (resource_binding.bind_type == VKBindType::IMAGE) {
+      VKTexture *texture = state_manager.images_.get(resource_binding.binding);
+      if (texture) {
+        needs_restart = true;
+        break;
+      }
+    }
+    if (resource_binding.bind_type == VKBindType::SAMPLER) {
+      const BindSpaceTextures::Elem *elem = state_manager.textures_.get(resource_binding.binding);
+      if (elem && elem->resource_type == BindSpaceTextures::Type::Texture) {
+        needs_restart = true;
+        break;
+      }
+    }
+  }
+
+  if (needs_restart && command_buffer.is_rendering()) {
+    command_buffer.end_rendering();
+    VKFrameBuffer *framebuffer = context.active_framebuffer_get();
+    if (framebuffer) {
+      framebuffer->rendering_reset();
+    }
+    did_end_rendering = true;
+  }
+
+  if (needs_restart) {
+    for (const VKResourceBinding &resource_binding : shader_interface.resource_bindings_get()) {
+      if (resource_binding.bind_type == VKBindType::IMAGE) {
+        VKTexture *texture = state_manager.images_.get(resource_binding.binding);
+        if (texture) {
+          VkImageAspectFlags aspect = to_vk_image_aspect_flag_bits(texture->device_format_get());
+          command_buffer.barrier_image_to_general(texture->vk_image_handle(),
+                                                  VK_ACCESS_SHADER_READ_BIT |
+                                                      VK_ACCESS_SHADER_WRITE_BIT,
+                                                  aspect);
+        }
+      }
+      if (resource_binding.bind_type == VKBindType::SAMPLER) {
+        const BindSpaceTextures::Elem *elem = state_manager.textures_.get(
+            resource_binding.binding);
+        if (elem && elem->resource_type == BindSpaceTextures::Type::Texture) {
+          VKTexture *texture = static_cast<VKTexture *>(elem->resource);
+          VkImageAspectFlags aspect = to_vk_image_aspect_flag_bits(texture->device_format_get());
+          command_buffer.barrier_image_to_general(
+              texture->vk_image_handle(), VK_ACCESS_SHADER_READ_BIT, aspect);
+        }
+      }
+    }
+  }
+
+  if (did_end_rendering) {
+    VKFrameBuffer *framebuffer = context.active_framebuffer_get();
+    if (framebuffer) {
+      framebuffer->rendering_ensure(context);
+    }
+  }
+
+  /* In direct mode we must explicitly update and upload the descriptor set before binding,
+   * unlike the render graph path where this is handled by update_pipeline_data. */
+  descriptor_set.update_descriptor_set(context);
+
+  /* The descriptor set update may have ended the render pass (e.g., via ensure_updated()
+   * calling copy_buffer for staging uploads). Restart it if needed. */
+  if (!command_buffer.is_rendering()) {
+    VKFrameBuffer *framebuffer = context.active_framebuffer_get();
+    if (framebuffer) {
+      framebuffer->rendering_ensure(context);
+    }
+  }
+
+  descriptor_set.upload_descriptor_sets();
   VkDescriptorSet vk_descriptor_set = descriptor_set.descriptor_sets.vk_descriptor_set;
 
   VkPipelineLayout layout = shader.vk_pipeline_layout;
-  command_buffer.bind_descriptor_sets(
-      bind_point, layout, 0, 1, &vk_descriptor_set, 0, nullptr);
+  command_buffer.bind_descriptor_sets(bind_point, layout, 0, 1, &vk_descriptor_set, 0, nullptr);
 }
 
 void VKDirectPipelineBuilder::push_constants(VKDirectCommandBuffer &command_buffer,
-                                             VKContext &context)
+                                             VKContext &context,
+                                             VkShaderStageFlags stage_flags)
 {
   VKShader &shader = *unwrap(context.shader);
   const VKPushConstants::Layout &layout = shader.interface_get().push_constants_layout_get();
@@ -94,9 +169,6 @@ void VKDirectPipelineBuilder::push_constants(VKDirectCommandBuffer &command_buff
   }
 
   VkPipelineLayout pipeline_layout = shader.vk_pipeline_layout;
-  VkShaderStageFlags stage_flags = VK_SHADER_STAGE_ALL_GRAPHICS;
-  /* Use VK_SHADER_STAGE_ALL for compute. */
-  stage_flags |= VK_SHADER_STAGE_COMPUTE_BIT;
 
   uint32_t size = layout.size_in_bytes();
   const void *data = shader.push_constants.data();
@@ -132,11 +204,12 @@ void VKDirectPipelineBuilder::set_dynamic_state(VKDirectCommandBuffer &command_b
   set_dynamic_state_front_face(command_buffer, context);
 
   /* Vertex input (VK_EXT_vertex_input_dynamic_state). */
-  set_dynamic_state_vertex_input(command_buffer, context, vao);
+  set_dynamic_state_vertex_input(command_buffer, vao);
 }
 
-void VKDirectPipelineBuilder::set_dynamic_state_line_width(
-    VKDirectCommandBuffer &command_buffer, VKContext &context, GPUPrimType primitive)
+void VKDirectPipelineBuilder::set_dynamic_state_line_width(VKDirectCommandBuffer &command_buffer,
+                                                           VKContext &context,
+                                                           GPUPrimType primitive)
 {
   const VKStateManager &state_manager = context.state_manager_get();
   VKDevice &device = VKBackend::get().device;
@@ -154,8 +227,9 @@ void VKDirectPipelineBuilder::set_dynamic_state_line_width(
   }
 }
 
-void VKDirectPipelineBuilder::set_dynamic_state_stencil(
-    VKDirectCommandBuffer &command_buffer, VKContext &context, const VKFrameBuffer &framebuffer)
+void VKDirectPipelineBuilder::set_dynamic_state_stencil(VKDirectCommandBuffer &command_buffer,
+                                                        VKContext &context,
+                                                        const VKFrameBuffer &framebuffer)
 {
   const VKStateManager &state_manager = context.state_manager_get();
 
@@ -168,23 +242,22 @@ void VKDirectPipelineBuilder::set_dynamic_state_stencil(
   }
 }
 
-void VKDirectPipelineBuilder::set_dynamic_state_front_face(
-    VKDirectCommandBuffer &command_buffer, VKContext &context)
+void VKDirectPipelineBuilder::set_dynamic_state_front_face(VKDirectCommandBuffer &command_buffer,
+                                                           VKContext &context)
 {
   VKDevice &device = VKBackend::get().device;
   const VKExtensions &extensions = device.extensions_get();
 
   if (extensions.extended_dynamic_state) {
     const VKStateManager &state_manager = context.state_manager_get();
-    VkFrontFace front_face = state_manager.state.invert_facing ?
-                                 VK_FRONT_FACE_COUNTER_CLOCKWISE :
-                                 VK_FRONT_FACE_CLOCKWISE;
+    VkFrontFace front_face = state_manager.state.invert_facing ? VK_FRONT_FACE_COUNTER_CLOCKWISE :
+                                                                 VK_FRONT_FACE_CLOCKWISE;
     command_buffer.set_front_face(front_face);
   }
 }
 
-void VKDirectPipelineBuilder::set_dynamic_state_vertex_input(
-    VKDirectCommandBuffer &command_buffer, VKContext &context, VKVertexAttributeObject &vao)
+void VKDirectPipelineBuilder::set_dynamic_state_vertex_input(VKDirectCommandBuffer &command_buffer,
+                                                             VKVertexAttributeObject &vao)
 {
   VKDevice &device = VKBackend::get().device;
   const VKExtensions &extensions = device.extensions_get();

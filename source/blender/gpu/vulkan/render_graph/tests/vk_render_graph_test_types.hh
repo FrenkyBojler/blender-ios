@@ -216,7 +216,9 @@ class CommandBufferLog : public VKCommandBufferInterface {
                   VkImage dst_image,
                   VkImageLayout dst_image_layout,
                   uint32_t region_count,
-                  const VkImageCopy *p_regions) override
+                  const VkImageCopy *p_regions,
+                  VkImageAspectFlags /*src_aspect_mask*/ = VK_IMAGE_ASPECT_COLOR_BIT,
+                  VkImageAspectFlags /*dst_aspect_mask*/ = VK_IMAGE_ASPECT_COLOR_BIT) override
   {
     EXPECT_TRUE(is_recording_);
     std::stringstream ss;
@@ -239,7 +241,9 @@ class CommandBufferLog : public VKCommandBufferInterface {
                   VkImageLayout dst_image_layout,
                   uint32_t region_count,
                   const VkImageBlit *p_regions,
-                  VkFilter filter) override
+                  VkFilter filter,
+                  VkImageAspectFlags /*src_aspect_mask*/ = VK_IMAGE_ASPECT_COLOR_BIT,
+                  VkImageAspectFlags /*dst_aspect_mask*/ = VK_IMAGE_ASPECT_COLOR_BIT) override
   {
     EXPECT_TRUE(is_recording_);
     std::stringstream ss;
@@ -257,11 +261,13 @@ class CommandBufferLog : public VKCommandBufferInterface {
     log_.append(ss.str());
   }
 
-  void copy_buffer_to_image(VkBuffer src_buffer,
-                            VkImage dst_image,
-                            VkImageLayout dst_image_layout,
-                            uint32_t region_count,
-                            const VkBufferImageCopy *p_regions) override
+  void copy_buffer_to_image(
+      VkBuffer src_buffer,
+      VkImage dst_image,
+      VkImageLayout dst_image_layout,
+      uint32_t region_count,
+      const VkBufferImageCopy *p_regions,
+      VkImageAspectFlags /*dst_aspect_mask*/ = VK_IMAGE_ASPECT_COLOR_BIT) override
   {
     EXPECT_TRUE(is_recording_);
     std::stringstream ss;
@@ -278,11 +284,13 @@ class CommandBufferLog : public VKCommandBufferInterface {
     log_.append(ss.str());
   }
 
-  void copy_image_to_buffer(VkImage src_image,
-                            VkImageLayout src_image_layout,
-                            VkBuffer dst_buffer,
-                            uint32_t region_count,
-                            const VkBufferImageCopy *p_regions) override
+  void copy_image_to_buffer(
+      VkImage src_image,
+      VkImageLayout src_image_layout,
+      VkBuffer dst_buffer,
+      uint32_t region_count,
+      const VkBufferImageCopy *p_regions,
+      VkImageAspectFlags /*src_aspect_mask*/ = VK_IMAGE_ASPECT_COLOR_BIT) override
   {
     EXPECT_TRUE(is_recording_);
     std::stringstream ss;
@@ -319,7 +327,8 @@ class CommandBufferLog : public VKCommandBufferInterface {
                          VkImageLayout image_layout,
                          const VkClearColorValue *p_color,
                          uint32_t range_count,
-                         const VkImageSubresourceRange *p_ranges) override
+                         const VkImageSubresourceRange *p_ranges,
+                         VkImageAspectFlags /*aspect_mask*/ = VK_IMAGE_ASPECT_COLOR_BIT) override
   {
     UNUSED_VARS(p_color, range_count, p_ranges);
     EXPECT_TRUE(is_recording_);
@@ -331,11 +340,13 @@ class CommandBufferLog : public VKCommandBufferInterface {
     log_.append(ss.str());
   }
 
-  void clear_depth_stencil_image(VkImage image,
-                                 VkImageLayout image_layout,
-                                 const VkClearDepthStencilValue *p_depth_stencil,
-                                 uint32_t range_count,
-                                 const VkImageSubresourceRange *p_ranges) override
+  void clear_depth_stencil_image(
+      VkImage image,
+      VkImageLayout image_layout,
+      const VkClearDepthStencilValue *p_depth_stencil,
+      uint32_t range_count,
+      const VkImageSubresourceRange *p_ranges,
+      VkImageAspectFlags /*aspect_mask*/ = VK_IMAGE_ASPECT_COLOR_BIT) override
   {
     UNUSED_VARS(image, image_layout, p_depth_stencil, range_count, p_ranges);
     EXPECT_TRUE(is_recording_);

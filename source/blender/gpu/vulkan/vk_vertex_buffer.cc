@@ -53,6 +53,13 @@ void VKVertexBuffer::ensure_buffer_view()
     return;
   }
 
+  /* Ensure the buffer is allocated before creating a view on it. */
+  upload_data();
+
+  if (!buffer_.is_allocated()) {
+    return;
+  }
+
   VkBufferViewCreateInfo buffer_view_info = {};
   buffer_view_info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
   buffer_view_info.buffer = buffer_.vk_handle();
@@ -103,6 +110,9 @@ void VKVertexBuffer::read(void *data) const
     VKBuffer &buffer = staging_buffer.host_buffer_get();
     if (buffer.is_mapped()) {
       staging_buffer.copy_from_device(context);
+      context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                                 RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
+                                 RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
       staging_buffer.host_buffer_get().read(context, data);
     }
     else {
@@ -180,6 +190,9 @@ void VKVertexBuffer::upload_data()
     }
   }
 
+  if (usage_ == GPU_USAGE_DEVICE_ONLY) {
+    return;
+  }
   if (!ELEM(usage_, GPU_USAGE_STATIC, GPU_USAGE_STREAM, GPU_USAGE_DYNAMIC)) {
     return;
   }

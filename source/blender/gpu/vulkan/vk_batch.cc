@@ -62,7 +62,8 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     vao.bind(context.command_buffer());
     VKDirectPipelineBuilder::bind_descriptor_sets(
         context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    VKDirectPipelineBuilder::push_constants(
+        context.command_buffer(), context, VK_SHADER_STAGE_ALL_GRAPHICS);
     context.command_buffer().bind_index_buffer(
         index_buffer->vk_handle(), 0, index_buffer->vk_index_type());
     context.command_buffer().draw_indexed(vertex_count,
@@ -90,7 +91,8 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     vao.bind(context.command_buffer());
     VKDirectPipelineBuilder::bind_descriptor_sets(
         context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    VKDirectPipelineBuilder::push_constants(
+        context.command_buffer(), context, VK_SHADER_STAGE_ALL_GRAPHICS);
     context.command_buffer().draw(vertex_count, instance_count, vertex_first, instance_first);
 #endif
   }
@@ -154,7 +156,8 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
     vao.bind(context.command_buffer());
     VKDirectPipelineBuilder::bind_descriptor_sets(
         context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    VKDirectPipelineBuilder::push_constants(
+        context.command_buffer(), context, VK_SHADER_STAGE_ALL_GRAPHICS);
     context.command_buffer().bind_index_buffer(
         index_buffer->vk_handle(), 0, index_buffer->vk_index_type());
     context.command_buffer().draw_indexed_indirect(indirect_buffer, offset, count, stride);
@@ -178,7 +181,8 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
     vao.bind(context.command_buffer());
     VKDirectPipelineBuilder::bind_descriptor_sets(
         context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    VKDirectPipelineBuilder::push_constants(
+        context.command_buffer(), context, VK_SHADER_STAGE_ALL_GRAPHICS);
     context.command_buffer().draw_indirect(indirect_buffer, offset, count, stride);
 #endif
   }

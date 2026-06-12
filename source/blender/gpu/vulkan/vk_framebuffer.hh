@@ -114,7 +114,7 @@ class VKFrameBuffer : public FrameBuffer {
    * the latest changes that can happen between drawing commands inside `VKStateManager`.
    */
   void rendering_ensure(VKContext &context);
-   void rendering_ensure_dynamic_rendering(VKContext &context, const VKExtensions &extensions);
+  void rendering_ensure_dynamic_rendering(VKContext &context, const VKExtensions &extensions);
 
   /**
    * End the rendering on this framebuffer.

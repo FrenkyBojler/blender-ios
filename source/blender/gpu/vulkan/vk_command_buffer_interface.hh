@@ -75,24 +75,32 @@ class VKCommandBufferInterface {
                           VkImage dst_image,
                           VkImageLayout dst_image_layout,
                           uint32_t region_count,
-                          const VkImageCopy *p_regions) = 0;
+                          const VkImageCopy *p_regions,
+                          VkImageAspectFlags src_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
+                          VkImageAspectFlags dst_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) = 0;
   virtual void blit_image(VkImage src_image,
                           VkImageLayout src_image_layout,
                           VkImage dst_image,
                           VkImageLayout dst_image_layout,
                           uint32_t region_count,
                           const VkImageBlit *p_regions,
-                          VkFilter filter) = 0;
-  virtual void copy_buffer_to_image(VkBuffer src_buffer,
-                                    VkImage dst_image,
-                                    VkImageLayout dst_image_layout,
-                                    uint32_t region_count,
-                                    const VkBufferImageCopy *p_regions) = 0;
-  virtual void copy_image_to_buffer(VkImage src_image,
-                                    VkImageLayout src_image_layout,
-                                    VkBuffer dst_buffer,
-                                    uint32_t region_count,
-                                    const VkBufferImageCopy *p_regions) = 0;
+                          VkFilter filter,
+                          VkImageAspectFlags src_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
+                          VkImageAspectFlags dst_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) = 0;
+  virtual void copy_buffer_to_image(
+      VkBuffer src_buffer,
+      VkImage dst_image,
+      VkImageLayout dst_image_layout,
+      uint32_t region_count,
+      const VkBufferImageCopy *p_regions,
+      VkImageAspectFlags dst_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) = 0;
+  virtual void copy_image_to_buffer(
+      VkImage src_image,
+      VkImageLayout src_image_layout,
+      VkBuffer dst_buffer,
+      uint32_t region_count,
+      const VkBufferImageCopy *p_regions,
+      VkImageAspectFlags src_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) = 0;
   virtual void fill_buffer(VkBuffer dst_buffer,
                            VkDeviceSize dst_offset,
                            VkDeviceSize size,
@@ -101,12 +109,15 @@ class VKCommandBufferInterface {
                                  VkImageLayout image_layout,
                                  const VkClearColorValue *p_color,
                                  uint32_t range_count,
-                                 const VkImageSubresourceRange *p_ranges) = 0;
-  virtual void clear_depth_stencil_image(VkImage image,
-                                         VkImageLayout image_layout,
-                                         const VkClearDepthStencilValue *p_depth_stencil,
-                                         uint32_t range_count,
-                                         const VkImageSubresourceRange *p_ranges) = 0;
+                                 const VkImageSubresourceRange *p_ranges,
+                                 VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) = 0;
+  virtual void clear_depth_stencil_image(
+      VkImage image,
+      VkImageLayout image_layout,
+      const VkClearDepthStencilValue *p_depth_stencil,
+      uint32_t range_count,
+      const VkImageSubresourceRange *p_ranges,
+      VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) = 0;
   virtual void clear_attachments(uint32_t attachment_count,
                                  const VkClearAttachment *p_attachments,
                                  uint32_t rect_count,

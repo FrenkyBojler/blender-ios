@@ -40,8 +40,7 @@ struct VKDirectPipelineBuilder {
   /**
    * Bind a compute pipeline.
    */
-  static void bind_compute_pipeline(VKDirectCommandBuffer &command_buffer,
-                                    VKContext &context);
+  static void bind_compute_pipeline(VKDirectCommandBuffer &command_buffer, VKContext &context);
 
   /**
    * Bind descriptor sets for the current shader.
@@ -53,7 +52,9 @@ struct VKDirectPipelineBuilder {
   /**
    * Push constants for the current shader.
    */
-  static void push_constants(VKDirectCommandBuffer &command_buffer, VKContext &context);
+  static void push_constants(VKDirectCommandBuffer &command_buffer,
+                             VKContext &context,
+                             VkShaderStageFlags stage_flags);
 
   /**
    * Apply dynamic state (viewports, scissors, line width, front face, stencil, vertex input).
@@ -74,7 +75,6 @@ struct VKDirectPipelineBuilder {
   static void set_dynamic_state_front_face(VKDirectCommandBuffer &command_buffer,
                                            VKContext &context);
   static void set_dynamic_state_vertex_input(VKDirectCommandBuffer &command_buffer,
-                                             VKContext &context,
                                              VKVertexAttributeObject &vao);
 };
 

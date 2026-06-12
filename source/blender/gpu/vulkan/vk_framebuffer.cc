@@ -136,7 +136,7 @@ void VKFrameBuffer::build_clear_attachments_depth_stencil(
     render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments) const
 {
   VkImageAspectFlags aspect_mask = (buffers & GPU_DEPTH_BIT ? VK_IMAGE_ASPECT_DEPTH_BIT : 0) |
-                                    (buffers & GPU_STENCIL_BIT ? VK_IMAGE_ASPECT_STENCIL_BIT : 0);
+                                   (buffers & GPU_STENCIL_BIT ? VK_IMAGE_ASPECT_STENCIL_BIT : 0);
 
   VkClearAttachment &clear_attachment =
       clear_attachments.attachments[clear_attachments.attachment_count++];
@@ -508,7 +508,7 @@ static void blit_aspect(VKContext &context,
     return;
   }
 
- #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   render_graph::VKBlitImageNode::CreateInfo blit_image = {};
 
   blit_image.src_image = src_texture.vk_image_handle();
@@ -783,6 +783,10 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     VkRenderingAttachmentInfo &attachment_info = color_attachments[color_attachment_count++];
 #endif
     attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    attachment_info.pNext = nullptr;
+    attachment_info.resolveMode = VK_RESOLVE_MODE_NONE;
+    attachment_info.resolveImageView = VK_NULL_HANDLE;
+    attachment_info.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VkImageView vk_image_view = VK_NULL_HANDLE;
     uint32_t layer_base = max_ii(attachment.layer, 0);
@@ -956,9 +960,15 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
 
 void VKFrameBuffer::rendering_ensure(VKContext &context)
 {
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   if (!dirty_state_ && is_rendering_) {
     return;
   }
+#else
+  if (!dirty_state_ && is_rendering_ && context.command_buffer().is_rendering()) {
+    return;
+  }
+#endif
 
   if (is_rendering_) {
     rendering_end(context);
@@ -997,7 +1007,9 @@ void VKFrameBuffer::rendering_end(VKContext &context)
     render_graph::VKEndRenderingNode::CreateInfo end_rendering = {};
     context.render_graph().add_node(end_rendering);
 #else
-    context.command_buffer().end_rendering();
+    if (context.command_buffer().is_rendering()) {
+      context.command_buffer().end_rendering();
+    }
 #endif
     is_rendering_ = false;
   }

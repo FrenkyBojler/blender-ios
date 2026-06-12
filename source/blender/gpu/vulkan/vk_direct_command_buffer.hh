@@ -48,7 +48,6 @@ class VKDirectCommandBuffer : public render_graph::VKCommandBufferInterface {
   }
 
  private:
-
   /** Per-resource barrier tracking state. */
   struct ImageState {
     VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -68,6 +67,13 @@ class VKDirectCommandBuffer : public render_graph::VKCommandBufferInterface {
 
   bool is_rendering_ = false;
   TimelineValue last_submitted_timeline_ = 0;
+
+  /** Stored rendering info for suspend/resume during in-render-pass barriers. */
+  static constexpr int MAX_COLOR_ATTACHMENTS = 8;
+  VkRenderingInfo stored_rendering_info_ = {};
+  VkRenderingAttachmentInfo stored_color_attachments_[MAX_COLOR_ATTACHMENTS] = {};
+  VkRenderingAttachmentInfo stored_depth_attachment_ = {};
+  VkRenderingAttachmentInfo stored_stencil_attachment_ = {};
 
  public:
   VKDirectCommandBuffer();
@@ -119,6 +125,15 @@ class VKDirectCommandBuffer : public render_graph::VKCommandBufferInterface {
                      VkAccessFlags required_access,
                      VkPipelineStageFlags required_stages,
                      VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT);
+
+  /**
+   * Transition an image to VK_IMAGE_LAYOUT_GENERAL for use as a storage image.
+   * Always uses VK_IMAGE_LAYOUT_UNDEFINED as the source layout to avoid
+   * tracked-state mismatches from previous render passes.
+   */
+  void barrier_image_to_general(VkImage image,
+                                VkAccessFlags required_access,
+                                VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT);
 
   /**
    * Ensure that the given buffer is in the required access/stage.
@@ -174,9 +189,7 @@ class VKDirectCommandBuffer : public render_graph::VKCommandBufferInterface {
                              VkDeviceSize offset,
                              uint32_t draw_count,
                              uint32_t stride) override;
-  void dispatch(uint32_t group_count_x,
-                uint32_t group_count_y,
-                uint32_t group_count_z) override;
+  void dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) override;
   void dispatch_indirect(VkBuffer buffer, VkDeviceSize offset) override;
   void update_buffer(VkBuffer dst_buffer,
                      VkDeviceSize dst_offset,
@@ -191,24 +204,32 @@ class VKDirectCommandBuffer : public render_graph::VKCommandBufferInterface {
                   VkImage dst_image,
                   VkImageLayout dst_image_layout,
                   uint32_t region_count,
-                  const VkImageCopy *p_regions) override;
+                  const VkImageCopy *p_regions,
+                  VkImageAspectFlags src_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
+                  VkImageAspectFlags dst_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
   void blit_image(VkImage src_image,
                   VkImageLayout src_image_layout,
                   VkImage dst_image,
                   VkImageLayout dst_image_layout,
                   uint32_t region_count,
                   const VkImageBlit *p_regions,
-                  VkFilter filter) override;
-  void copy_buffer_to_image(VkBuffer src_buffer,
-                            VkImage dst_image,
-                            VkImageLayout dst_image_layout,
-                            uint32_t region_count,
-                            const VkBufferImageCopy *p_regions) override;
-  void copy_image_to_buffer(VkImage src_image,
-                            VkImageLayout src_image_layout,
-                            VkBuffer dst_buffer,
-                            uint32_t region_count,
-                            const VkBufferImageCopy *p_regions) override;
+                  VkFilter filter,
+                  VkImageAspectFlags src_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
+                  VkImageAspectFlags dst_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
+  void copy_buffer_to_image(
+      VkBuffer src_buffer,
+      VkImage dst_image,
+      VkImageLayout dst_image_layout,
+      uint32_t region_count,
+      const VkBufferImageCopy *p_regions,
+      VkImageAspectFlags dst_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
+  void copy_image_to_buffer(
+      VkImage src_image,
+      VkImageLayout src_image_layout,
+      VkBuffer dst_buffer,
+      uint32_t region_count,
+      const VkBufferImageCopy *p_regions,
+      VkImageAspectFlags src_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
   void fill_buffer(VkBuffer dst_buffer,
                    VkDeviceSize dst_offset,
                    VkDeviceSize size,
@@ -217,12 +238,15 @@ class VKDirectCommandBuffer : public render_graph::VKCommandBufferInterface {
                          VkImageLayout image_layout,
                          const VkClearColorValue *p_color,
                          uint32_t range_count,
-                         const VkImageSubresourceRange *p_ranges) override;
-  void clear_depth_stencil_image(VkImage image,
-                                 VkImageLayout image_layout,
-                                 const VkClearDepthStencilValue *p_depth_stencil,
-                                 uint32_t range_count,
-                                 const VkImageSubresourceRange *p_ranges) override;
+                         const VkImageSubresourceRange *p_ranges,
+                         VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
+  void clear_depth_stencil_image(
+      VkImage image,
+      VkImageLayout image_layout,
+      const VkClearDepthStencilValue *p_depth_stencil,
+      uint32_t range_count,
+      const VkImageSubresourceRange *p_ranges,
+      VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
   void clear_attachments(uint32_t attachment_count,
                          const VkClearAttachment *p_attachments,
                          uint32_t rect_count,

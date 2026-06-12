@@ -759,11 +759,17 @@ void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_
   context.render_graph().add_node(dispatch_info);
 #else
   context.rendering_end();
+  fprintf(stderr, "DEBUG compute_dispatch: about to bind compute pipeline\n");
   VKDirectPipelineBuilder::bind_compute_pipeline(context.command_buffer(), context);
+  fprintf(stderr, "DEBUG compute_dispatch: about to bind descriptor sets\n");
   VKDirectPipelineBuilder::bind_descriptor_sets(
       context.command_buffer(), context, VK_PIPELINE_BIND_POINT_COMPUTE);
-  VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+  fprintf(stderr, "DEBUG compute_dispatch: about to push constants\n");
+  VKDirectPipelineBuilder::push_constants(
+      context.command_buffer(), context, VK_SHADER_STAGE_COMPUTE_BIT);
+  fprintf(stderr, "DEBUG compute_dispatch: about to dispatch\n");
   context.command_buffer().dispatch(groups_x_len, groups_y_len, groups_z_len);
+  fprintf(stderr, "DEBUG compute_dispatch: dispatched OK\n");
 #endif
 }
 
@@ -784,7 +790,8 @@ void VKBackend::compute_dispatch_indirect(StorageBuf *indirect_buf)
   VKDirectPipelineBuilder::bind_compute_pipeline(context.command_buffer(), context);
   VKDirectPipelineBuilder::bind_descriptor_sets(
       context.command_buffer(), context, VK_PIPELINE_BIND_POINT_COMPUTE);
-  VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+  VKDirectPipelineBuilder::push_constants(
+      context.command_buffer(), context, VK_SHADER_STAGE_COMPUTE_BIT);
   context.command_buffer().dispatch_indirect(indirect_buffer.vk_handle(), 0);
 #endif
 }

@@ -73,24 +73,32 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
                   VkImage dst_image,
                   VkImageLayout dst_image_layout,
                   uint32_t region_count,
-                  const VkImageCopy *p_regions) override;
+                  const VkImageCopy *p_regions,
+                  VkImageAspectFlags src_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
+                  VkImageAspectFlags dst_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
   void blit_image(VkImage src_image,
                   VkImageLayout src_image_layout,
                   VkImage dst_image,
                   VkImageLayout dst_image_layout,
                   uint32_t region_count,
                   const VkImageBlit *p_regions,
-                  VkFilter filter) override;
-  void copy_buffer_to_image(VkBuffer src_buffer,
-                            VkImage dst_image,
-                            VkImageLayout dst_image_layout,
-                            uint32_t region_count,
-                            const VkBufferImageCopy *p_regions) override;
-  void copy_image_to_buffer(VkImage src_image,
-                            VkImageLayout src_image_layout,
-                            VkBuffer dst_buffer,
-                            uint32_t region_count,
-                            const VkBufferImageCopy *p_regions) override;
+                  VkFilter filter,
+                  VkImageAspectFlags src_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
+                  VkImageAspectFlags dst_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
+  void copy_buffer_to_image(
+      VkBuffer src_buffer,
+      VkImage dst_image,
+      VkImageLayout dst_image_layout,
+      uint32_t region_count,
+      const VkBufferImageCopy *p_regions,
+      VkImageAspectFlags dst_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
+  void copy_image_to_buffer(
+      VkImage src_image,
+      VkImageLayout src_image_layout,
+      VkBuffer dst_buffer,
+      uint32_t region_count,
+      const VkBufferImageCopy *p_regions,
+      VkImageAspectFlags src_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
   void fill_buffer(VkBuffer dst_buffer,
                    VkDeviceSize dst_offset,
                    VkDeviceSize size,
@@ -99,12 +107,15 @@ class VKCommandBufferWrapper : public VKCommandBufferInterface {
                          VkImageLayout image_layout,
                          const VkClearColorValue *p_color,
                          uint32_t range_count,
-                         const VkImageSubresourceRange *p_ranges) override;
-  void clear_depth_stencil_image(VkImage image,
-                                 VkImageLayout image_layout,
-                                 const VkClearDepthStencilValue *p_depth_stencil,
-                                 uint32_t range_count,
-                                 const VkImageSubresourceRange *p_ranges) override;
+                         const VkImageSubresourceRange *p_ranges,
+                         VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
+  void clear_depth_stencil_image(
+      VkImage image,
+      VkImageLayout image_layout,
+      const VkClearDepthStencilValue *p_depth_stencil,
+      uint32_t range_count,
+      const VkImageSubresourceRange *p_ranges,
+      VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT) override;
   void clear_attachments(uint32_t attachment_count,
                          const VkClearAttachment *p_attachments,
                          uint32_t rect_count,

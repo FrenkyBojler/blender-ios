@@ -347,7 +347,19 @@ void VKDescriptorSetTracker::upload_descriptor_sets()
 void VKDescriptorSetUpdator::bind_image_resource(const VKStateManager &state_manager,
                                                  const VKResourceBinding &resource_binding)
 {
-  VKTexture &texture = *state_manager.images_.get(resource_binding.binding);
+  VKTexture *tex = state_manager.images_.get(resource_binding.binding);
+  if (!tex) {
+    printf("DEBUG bind_image_resource: binding=%d location=%u texture=NULL\n",
+           resource_binding.binding,
+           resource_binding.location);
+    return;
+  }
+  printf("DEBUG bind_image_resource: binding=%d location=%u texture=%p image=%p\n",
+         resource_binding.binding,
+         resource_binding.location,
+         (void *)tex,
+         (void *)tex->vk_image_handle());
+  VKTexture &texture = *tex;
   bind_image(
       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
       VK_NULL_HANDLE,
@@ -446,6 +458,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
   switch (elem.resource_type) {
     case BindSpaceStorageBuffers::Type::IndexBuffer: {
       VKIndexBuffer *index_buffer = static_cast<VKIndexBuffer *>(elem.resource);
+      index_buffer->ensure_updated();
       vk_buffer = index_buffer->vk_handle();
       /* Using the allocated size of the buffer as conservative depth shader can read additional
        * bytes when there are an uneven number of indices. */
@@ -454,12 +467,14 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
     }
     case BindSpaceStorageBuffers::Type::VertexBuffer: {
       VKVertexBuffer *vertex_buffer = static_cast<VKVertexBuffer *>(elem.resource);
+      vertex_buffer->ensure_updated();
       vk_buffer = vertex_buffer->vk_handle();
       vk_device_size = vertex_buffer->size_used_get() - elem.offset;
       break;
     }
     case BindSpaceStorageBuffers::Type::UniformBuffer: {
       VKUniformBuffer *uniform_buffer = static_cast<VKUniformBuffer *>(elem.resource);
+      uniform_buffer->ensure_updated();
       vk_buffer = uniform_buffer->vk_handle();
       vk_device_size = uniform_buffer->size_in_bytes() - elem.offset;
       break;
@@ -588,7 +603,8 @@ void VKDescriptorSetPoolUpdator::bind_buffer(VkDescriptorType vk_descriptor_type
                                              VKDescriptorSet::Location location)
 {
   if (vk_buffer == VK_NULL_HANDLE) {
-    vk_descriptor_buffer_infos_.append({VK_NULL_HANDLE, 0, VK_WHOLE_SIZE});
+    VKDevice &device = VKBackend::get().device;
+    vk_descriptor_buffer_infos_.append({device.dummy_buffer.vk_handle(), 0, VK_WHOLE_SIZE});
   }
   else {
     vk_descriptor_buffer_infos_.append({vk_buffer, buffer_offset, size_in_bytes});

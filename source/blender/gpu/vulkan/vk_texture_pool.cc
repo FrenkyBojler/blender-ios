@@ -83,7 +83,7 @@ static VkImage create_and_bind_vk_image(const VKImageInfo &info, const std::stri
   /* Register VkImage handle as resource for synchronization. */
   bool use_subresource_tracking = info.create_info.arrayLayers > 1 ||
                                   info.create_info.mipLevels > 1;
- #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
+#ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
   device.resources.add_aliased_image(image, use_subresource_tracking, name_str.c_str());
 #endif
 

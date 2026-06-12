@@ -127,24 +127,16 @@ void VKTexture::copy_to(VKTexture &dst_texture,
   region.dstSubresource.layerCount = vk_layer_count(1);
   region.extent = vk_extent_3d(mip_levels.first());
 
-  VkImageAspectFlags aspects = to_vk_image_aspect_flag_bits(device_format_get());
-  context.command_buffer().barrier_image(vk_image_handle(),
-                                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                         VK_ACCESS_TRANSFER_READ_BIT,
-                                         VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                         aspects);
-  context.command_buffer().barrier_image(
-      dst_texture.vk_image_handle(),
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_ACCESS_TRANSFER_WRITE_BIT,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      to_vk_image_aspect_flag_bits(dst_texture.device_format_get()));
+  VkImageAspectFlags src_aspect = to_vk_image_aspect_flag_bits(device_format_get());
+  VkImageAspectFlags dst_aspect = to_vk_image_aspect_flag_bits(dst_texture.device_format_get());
   context.command_buffer().copy_image(vk_image_handle(),
                                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                       dst_texture.vk_image_handle(),
                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                       1,
-                                      &region);
+                                      &region,
+                                      src_aspect,
+                                      dst_aspect);
 #endif
 
   dst_texture.has_data_ = true;
@@ -203,11 +195,6 @@ void VKTexture::clear(const double4 data)
   range.baseMipLevel = clear_levels.start();
   range.levelCount = clear_levels.size();
   VkClearColorValue clear_value = to_vk_clear_color_value(data_format, data);
-  context.command_buffer().barrier_image(vk_image_handle(),
-                                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                         VK_ACCESS_TRANSFER_WRITE_BIT,
-                                         VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                         to_vk_image_aspect_flag_bits(device_format_));
   context.command_buffer().clear_color_image(
       vk_image_handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
 #endif
@@ -223,8 +210,8 @@ void VKTexture::clear_depth_stencil(const GPUFrameBufferBits buffers,
   BLI_assert(buffers & (GPU_DEPTH_BIT | GPU_STENCIL_BIT));
   VkImageAspectFlags vk_image_aspect_device = to_vk_image_aspect_flag_bits(device_format_get());
   VkImageAspectFlags vk_image_aspect = to_vk_image_aspect_flag_bits(
-                                               buffers & (GPU_DEPTH_BIT | GPU_STENCIL_BIT)) &
-                                           vk_image_aspect_device;
+                                           buffers & (GPU_DEPTH_BIT | GPU_STENCIL_BIT)) &
+                                       vk_image_aspect_device;
   if (vk_image_aspect == VK_IMAGE_ASPECT_NONE) {
     /* Early exit: texture doesn't have any aspect that needs to be cleared. */
     return;
@@ -260,13 +247,12 @@ void VKTexture::clear_depth_stencil(const GPUFrameBufferBits buffers,
     range.layerCount = 1;
   }
   range.levelCount = VK_REMAINING_MIP_LEVELS;
-  context.command_buffer().barrier_image(vk_image_handle(),
-                                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                         VK_ACCESS_TRANSFER_WRITE_BIT,
-                                         VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                         vk_image_aspect_device);
-  context.command_buffer().clear_depth_stencil_image(
-      vk_image_handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
+  context.command_buffer().clear_depth_stencil_image(vk_image_handle(),
+                                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                     &clear_value,
+                                                     1,
+                                                     &range,
+                                                     vk_image_aspect_device);
 #endif
 
   has_data_ = true;
@@ -379,7 +365,7 @@ void VKTexture::read_sub(
     VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_flag_bits(device_format_);
     copy_image_to_buffer.vk_image_aspects = vk_image_aspects;
     node_data.region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
-                                                                                  false);
+                                                                                 false);
     node_data.region.imageSubresource.mipLevel = mip;
     node_data.region.imageSubresource.baseArrayLayer = transfer_region.layers.start();
     node_data.region.imageSubresource.layerCount = transfer_region.layers.size();
@@ -402,16 +388,12 @@ void VKTexture::read_sub(
     buffer_image_region.imageSubresource.mipLevel = mip;
     buffer_image_region.imageSubresource.baseArrayLayer = transfer_region.layers.start();
     buffer_image_region.imageSubresource.layerCount = transfer_region.layers.size();
-    context.command_buffer().barrier_image(vk_image_handle(),
-                                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                           VK_ACCESS_TRANSFER_READ_BIT,
-                                           VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                           vk_image_aspects);
     context.command_buffer().copy_image_to_buffer(vk_image_handle(),
                                                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                                   staging_buffer.vk_handle(),
                                                   1,
-                                                  &buffer_image_region);
+                                                  &buffer_image_region,
+                                                  vk_image_aspects);
 #endif
   }
 
@@ -544,10 +526,10 @@ void VKTexture::update_sub(int mip,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         {vk_image_aspects, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS},
     };
-device.functions.vkTransitionImageLayout(device.vk_handle(), 1, &image_layout_transition);
+    device.functions.vkTransitionImageLayout(device.vk_handle(), 1, &image_layout_transition);
 #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
-     device.resources.update_image_layout(vk_image_handle(),
-                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    device.resources.update_image_layout(vk_image_handle(),
+                                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 #endif
     /* TODO: Add support for VK_HOST_IMAGE_COPY_MEMCPY_EXT flag. It would theoretically allow
      * faster uploading, but requires sub resource to match our CPU layout. */
@@ -619,49 +601,48 @@ device.functions.vkTransitionImageLayout(device.vk_handle(), 1, &image_layout_tr
   }
 
 #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
-   render_graph::VKCopyBufferToImageNode::CreateInfo copy_buffer_to_image = {};
-   render_graph::VKCopyBufferToImageNode::Data &node_data = copy_buffer_to_image.node_data;
-   node_data.src_buffer = vk_buffer;
-   node_data.dst_image = vk_image_handle();
-   node_data.region.imageExtent.width = extent.x;
-   node_data.region.imageExtent.height = extent.y;
-   node_data.region.imageExtent.depth = extent.z;
-   node_data.region.imageOffset.x = offset.x;
-   node_data.region.imageOffset.y = offset.y;
-   node_data.region.imageOffset.z = offset.z;
-   VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_flag_bits(device_format_);
-   copy_buffer_to_image.vk_image_aspects = vk_image_aspects;
-   node_data.region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
-                                                                                 false);
-   node_data.region.imageSubresource.mipLevel = mip;
-   node_data.region.imageSubresource.baseArrayLayer = start_layer;
-   node_data.region.imageSubresource.layerCount = layers;
+  render_graph::VKCopyBufferToImageNode::CreateInfo copy_buffer_to_image = {};
+  render_graph::VKCopyBufferToImageNode::Data &node_data = copy_buffer_to_image.node_data;
+  node_data.src_buffer = vk_buffer;
+  node_data.dst_image = vk_image_handle();
+  node_data.region.imageExtent.width = extent.x;
+  node_data.region.imageExtent.height = extent.y;
+  node_data.region.imageExtent.depth = extent.z;
+  node_data.region.imageOffset.x = offset.x;
+  node_data.region.imageOffset.y = offset.y;
+  node_data.region.imageOffset.z = offset.z;
+  VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_flag_bits(device_format_);
+  copy_buffer_to_image.vk_image_aspects = vk_image_aspects;
+  node_data.region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
+                                                                               false);
+  node_data.region.imageSubresource.mipLevel = mip;
+  node_data.region.imageSubresource.baseArrayLayer = start_layer;
+  node_data.region.imageSubresource.layerCount = layers;
 
-   context.render_graph().add_node(copy_buffer_to_image);
+  context.render_graph().add_node(copy_buffer_to_image);
 #else
-   VkBufferImageCopy buffer_image_region = {};
-   buffer_image_region.bufferOffset = 0;
-   buffer_image_region.bufferRowLength = 0;
-   buffer_image_region.bufferImageHeight = 0;
-   buffer_image_region.imageExtent.width = extent.x;
-   buffer_image_region.imageExtent.height = extent.y;
-   buffer_image_region.imageExtent.depth = extent.z;
-   buffer_image_region.imageOffset.x = offset.x;
-   buffer_image_region.imageOffset.y = offset.y;
-   buffer_image_region.imageOffset.z = offset.z;
-   VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_flag_bits(device_format_);
-   buffer_image_region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
-                                                                                   false);
-   buffer_image_region.imageSubresource.mipLevel = mip;
-   buffer_image_region.imageSubresource.baseArrayLayer = start_layer;
-   buffer_image_region.imageSubresource.layerCount = layers;
-   context.command_buffer().barrier_image(vk_image_handle(),
-                                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                          VK_ACCESS_TRANSFER_WRITE_BIT,
-                                          VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                          vk_image_aspects);
-context.command_buffer().copy_buffer_to_image(
-        vk_buffer, vk_image_handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffer_image_region);
+  VkBufferImageCopy buffer_image_region = {};
+  buffer_image_region.bufferOffset = 0;
+  buffer_image_region.bufferRowLength = 0;
+  buffer_image_region.bufferImageHeight = 0;
+  buffer_image_region.imageExtent.width = extent.x;
+  buffer_image_region.imageExtent.height = extent.y;
+  buffer_image_region.imageExtent.depth = extent.z;
+  buffer_image_region.imageOffset.x = offset.x;
+  buffer_image_region.imageOffset.y = offset.y;
+  buffer_image_region.imageOffset.z = offset.z;
+  VkImageAspectFlags vk_image_aspects = to_vk_image_aspect_flag_bits(device_format_);
+  buffer_image_region.imageSubresource.aspectMask = to_vk_image_aspect_single_bit(vk_image_aspects,
+                                                                                  false);
+  buffer_image_region.imageSubresource.mipLevel = mip;
+  buffer_image_region.imageSubresource.baseArrayLayer = start_layer;
+  buffer_image_region.imageSubresource.layerCount = layers;
+  context.command_buffer().copy_buffer_to_image(vk_buffer,
+                                                vk_image_handle(),
+                                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                1,
+                                                &buffer_image_region,
+                                                vk_image_aspects);
 #endif
   has_data_ = true;
 }
@@ -909,8 +890,8 @@ bool VKTexture::allocate()
   debug::object_label(vk_image_, name_.c_str());
 
 #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
-   const bool use_subresource_tracking = image_info.arrayLayers > 1 || image_info.mipLevels > 1;
-   device.resources.add_image(vk_image_, use_subresource_tracking, name_.c_str());
+  const bool use_subresource_tracking = image_info.arrayLayers > 1 || image_info.mipLevels > 1;
+  device.resources.add_image(vk_image_, use_subresource_tracking, name_.c_str());
 #endif
 
   return result == VK_SUCCESS;

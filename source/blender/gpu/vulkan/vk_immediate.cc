@@ -104,7 +104,8 @@ void VKImmediate::end()
     vertex_attributes_.bind(context.command_buffer());
     VKDirectPipelineBuilder::bind_descriptor_sets(
         context.command_buffer(), context, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    VKDirectPipelineBuilder::push_constants(context.command_buffer(), context);
+    VKDirectPipelineBuilder::push_constants(
+        context.command_buffer(), context, VK_SHADER_STAGE_ALL_GRAPHICS);
     context.command_buffer().draw(vertex_idx, 1, 0, 0);
 #endif
   }

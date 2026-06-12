@@ -106,7 +106,7 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue 
 
   swapchain_images_.remove_old(current_timeline,
 #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
-                                [&](VkImage vk_image) { device.resources.remove_image(vk_image); });
+                               [&](VkImage vk_image) { device.resources.remove_image(vk_image); });
 #else
                                 [&](VkImage vk_image) { UNUSED_VARS(vk_image); });
 #endif
@@ -140,10 +140,9 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue 
 #ifdef WITH_VULKAN_BACKEND_RENDER_GRAPH
                       [&](std::pair<VkBuffer, VmaAllocation> buffer_allocation) {
                         device.resources.remove_buffer(buffer_allocation.first);
-                        vmaDestroyBuffer(
-                            device.mem_allocator_get(),
-                            buffer_allocation.first,
-                            buffer_allocation.second);
+                        vmaDestroyBuffer(device.mem_allocator_get(),
+                                         buffer_allocation.first,
+                                         buffer_allocation.second);
                       });
 #else
                       [&](std::pair<VkBuffer, VmaAllocation> buffer_allocation) {

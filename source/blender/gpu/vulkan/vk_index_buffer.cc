@@ -89,6 +89,9 @@ void VKIndexBuffer::read(uint32_t *data) const
   VKBuffer &buffer = staging_buffer.host_buffer_get();
   if (buffer.is_mapped()) {
     staging_buffer.copy_from_device(context);
+    context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                               RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
+                               RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
     staging_buffer.host_buffer_get().read(context, data);
   }
   else {

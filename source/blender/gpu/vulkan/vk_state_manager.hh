@@ -221,6 +221,7 @@ class BindSpaceTextures {
 class VKStateManager : public StateManager {
   friend class VKDescriptorSetUpdator;
   friend class VKDescriptorSetTracker;
+  friend class VKDirectPipelineBuilder;
 
   BindSpaceTextures textures_;
   BindSpaceImages<BIND_SPACE_IMAGE_OFFSET> images_;
