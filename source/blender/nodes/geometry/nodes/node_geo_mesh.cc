@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array.hh"
+#include "BLI_vector_set.hh"
 
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
@@ -95,6 +96,10 @@ static bool get_edges_from_edges_list(GeoNodeExecParams &params,
         params.error_message_add(NodeWarningType::Error, "Edge vertex index out of bounds");
         return false;
       }
+      if (edges[i][0] == edges[i][1]) {
+        params.error_message_add(NodeWarningType::Error, "Edge vertex indices must be different");
+        return false;
+      }
     }
   }
 
@@ -136,11 +141,17 @@ static bool get_corners_from_face_list(GeoNodeExecParams &params,
       BLI_assert(face_list->size() == face.size());
       /* TODO: Could use face_list->varray().materialize(corners.slice(face));
        * without the error handling. */
+      VectorSet<int> all_corners;
       const auto corner_values = face_list->typed<int>().values();
       if (const auto *span_corner_values = std::get_if<Span<int>>(&corner_values)) {
         for (const int i : span_corner_values->index_range()) {
           const int corner = face[i];
           corners[corner] = (*span_corner_values)[i];
+          if (!all_corners.add(corners[corner])) {
+            params.error_message_add(NodeWarningType::Error,
+                                     "Corner indices cannot contain repeats");
+            return false;
+          }
           if (!verts.contains(corners[corner])) {
             params.error_message_add(NodeWarningType::Error, "Corner index out of bounds");
             return false;
