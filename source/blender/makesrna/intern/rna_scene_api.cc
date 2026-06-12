@@ -175,10 +175,10 @@ static void rna_Scene_ray_cast(Scene * /*scene*/,
   ed::transform::SnapObjectContext *sctx = ed::transform::snap_object_context_create();
 
   ed::transform::SnapObjectParams snap_object_params{};
-  snap_object_params.snap_exclude_active_edit_mode = SCE_SNAP_TO_NONE;
-  snap_object_params.snap_exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
-  snap_object_params.snap_exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
-  snap_object_params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
+  snap_object_params.snap_selection.exclude_active_edit_mode = SCE_SNAP_TO_NONE;
+  snap_object_params.snap_selection.exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
+  snap_object_params.snap_selection.exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
+  snap_object_params.snap_selection.exclude_non_selectable = SCE_SNAP_TO_NONE;
   snap_object_params.ignore_editmode_filtering = true;
 
   bool ret = ed::transform::snap_object_project_ray_ex(sctx,

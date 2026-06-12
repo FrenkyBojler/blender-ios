@@ -473,24 +473,32 @@ static eSnapMode snap_object_allowed_modes(const SnapObjectContext *sctx,
     /* Handle target selection options that make sense for object mode. */
     if (is_selected) {
       /* Selected objects are excluded from snapping in object mode. */
-      allowed_mask &= ~params.snap_exclude_active_edit_mode;
+      allowed_mask &= ~params.snap_selection.exclude_active_edit_mode;
+      printf("Snap: Exclude active objects is not implemented yet.\n%d",
+             params.snap_selection.exclude_active_edit_mode);
     }
   }
   else {
     /* Handle target selection options that make sense for edit/pose mode. */
     if (is_active) {
-      allowed_mask &= ~params.snap_exclude_active_edit_mode;
+      allowed_mask &= ~params.snap_selection.exclude_active_edit_mode;
+      printf("Snap: Exclude active object is not implemented yet.\n%d",
+             params.snap_selection.exclude_active_edit_mode);
     }
     else if (is_edited) {
-      allowed_mask &= ~params.snap_exclude_edited_edit_mode;
+      allowed_mask &= ~params.snap_selection.exclude_edited_edit_mode;
+      printf("Snap: Exclude edited objects is not implemented yet.\n%d",
+             params.snap_selection.exclude_edited_edit_mode);
     }
     else {
-      allowed_mask &= ~params.snap_exclude_non_edited_edit_mode;
+      allowed_mask &= ~params.snap_selection.exclude_non_edited_edit_mode;
+      printf("Snap: Exclude non-edited objects is not implemented yet.\n%d",
+             params.snap_selection.exclude_non_edited_edit_mode);
     }
   }
 
   if (!is_selectable) {
-    allowed_mask &= ~params.snap_exclude_non_selectable;
+    allowed_mask &= ~params.snap_selection.exclude_non_selectable;
   }
 
   return allowed_mask;

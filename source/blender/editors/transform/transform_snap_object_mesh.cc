@@ -430,7 +430,13 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
   nearest.dist_sq = sctx->ret.dist_px_sq;
 
   const IndexRange face = mesh_eval->faces()[face_index];
-
+  printf("Object %s: snap_polygon_mesh called for face %d with snap_to_flag %d\n",
+         ob_eval->id.name + 2,
+         face_index,
+         snap_to_flag);
+  printf("Snap: snap_polygon_mesh called for face %d with snap_to_flag %d\n",
+         face_index,
+         snap_to_flag);
   if (snap_to_flag &
       (SCE_SNAP_TO_EDGE | SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR))
   {

@@ -3773,7 +3773,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_exclude_active_edit_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_exclude_active_edit_mode");
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_selection.exclude_active_edit_mode");
   RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
   RNA_def_property_ui_text(prop,
@@ -3782,7 +3782,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_exclude_edited_edit_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_exclude_edited_edit_mode");
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_selection.exclude_edited_edit_mode");
   RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
   RNA_def_property_ui_text(prop,
@@ -3791,7 +3791,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_exclude_non_edited_edit_mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_exclude_non_edited_edit_mode");
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_selection.exclude_non_edited_edit_mode");
   RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
   RNA_def_property_ui_text(prop,
@@ -3800,7 +3800,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_exclude_non_selectable", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_exclude_non_selectable");
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "snap_selection.exclude_non_selectable");
   RNA_def_property_flag(prop, PROP_ENUM_FLAG | PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, rna_enum_snap_element_items);
   RNA_def_property_ui_text(
