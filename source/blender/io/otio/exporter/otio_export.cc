@@ -9,6 +9,7 @@
 #include <map>
 
 #include "BKE_context.hh"
+#include "BKE_main.hh"
 #include "BKE_report.hh"
 
 #include "BLI_listbase_iterator.hh"
@@ -75,7 +76,8 @@ static void export_scene_markers(const Scene *scene, SerializableObject::Retaine
  *
  * NOTE: `secondary_stack` is nullptr when the function is not inside a metastrip.
  */
-static void otio_export_recursive(Scene *scene,
+static void otio_export_recursive(Main *bmain,
+                                  Scene *scene,
                                   const blender::OTIOExportParams *export_params,
                                   SerializableObject::Retainer<Stack> *primary_stack,
                                   SerializableObject::Retainer<Stack> *secondary_stack,
@@ -178,7 +180,8 @@ static void otio_export_recursive(Scene *scene,
           auto primary_meta_stack = SerializableObject::Retainer<Stack>(new Stack());
           auto secondary_meta_stack = SerializableObject::Retainer<Stack>(new Stack());
 
-          otio_export_recursive(scene,
+          otio_export_recursive(bmain,
+                                scene,
                                 export_params,
                                 &primary_meta_stack,
                                 &secondary_meta_stack,
@@ -202,7 +205,7 @@ static void otio_export_recursive(Scene *scene,
       }
 
       if (strip_exporter) {
-        strip_exporter->export_strip(export_params);
+        strip_exporter->export_strip(bmain, export_params);
         last_strip_end = strip_exporter->last_strip_end;
 
         delete strip_exporter;
@@ -248,6 +251,7 @@ void otio_export_job_start(void *custom_data, wmJobWorkerStatus *worker_status)
   ExportJobData *job_data = static_cast<ExportJobData *>(custom_data);
   OTIOExportParams *export_params = &job_data->params;
 
+  Main *bmain = job_data->bmain;
   Scene *scene = job_data->scene;
   Editing *editing = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = &editing->seqbase;
@@ -264,7 +268,8 @@ void otio_export_job_start(void *custom_data, wmJobWorkerStatus *worker_status)
       new Timeline(scene->id.name + 2, RationalTime(0, scene->frames_per_second())));
 
   auto main_stack = SerializableObject::Retainer<Stack>(new Stack());
-  otio_export_recursive(scene, export_params, &main_stack, nullptr, seqbase, 0, scene->r.efra);
+  otio_export_recursive(
+      bmain, scene, export_params, &main_stack, nullptr, seqbase, 0, scene->r.efra);
 
   export_scene_markers(scene, main_stack);
 

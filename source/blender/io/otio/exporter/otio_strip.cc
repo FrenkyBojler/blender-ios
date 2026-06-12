@@ -8,6 +8,8 @@
 
 #include <cstring>
 
+#include "BKE_main.hh"
+
 #include "BLI_fileops.hh"
 #include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
@@ -40,9 +42,10 @@ static void get_media_filename(const Strip *strip, char *filename_out)
   strcpy(filename_out, strip->data->stripdata->filename);
 }
 
-static void get_media_filepath(const Strip *strip, char *filepath_out)
+static void get_media_filepath(const Main *bmain, const Strip *strip, char *filepath_out)
 {
   BLI_path_join(filepath_out, FILE_MAX, strip->data->dirpath, strip->data->stripdata->filename);
+  BLI_path_abs(filepath_out, BKE_main_blendfile_path(bmain));
 }
 
 static int get_strip_duration(const Strip *strip, const Scene *scene)
@@ -75,12 +78,12 @@ static TimeRange get_strip_source_range(const Strip *strip,
 }
 
 static SerializableObject::Retainer<ExternalReference> create_external_reference(
-    const Strip *strip, const Scene *scene, float media_fps)
+    const Main *bmain, const Strip *strip, const Scene *scene, float media_fps)
 {
   char media_filename[FILE_MAX];
   char media_filepath[FILE_MAX];
   get_media_filename(strip, media_filename);
-  get_media_filepath(strip, media_filepath);
+  get_media_filepath(bmain, strip, media_filepath);
 
   TimeRange media_available_range = get_media_available_range(strip, scene, media_fps);
 
@@ -312,7 +315,7 @@ void StripExporter::export_with_missing_reference()
 
 /***** Handle Export for each strip type. *****/
 
-void MovieStripExporter::export_strip(const OTIOExportParams * /*export_params*/)
+void MovieStripExporter::export_strip(Main *bmain, const OTIOExportParams * /*export_params*/)
 {
   add_gap_if_necessary();
 
@@ -320,7 +323,7 @@ void MovieStripExporter::export_strip(const OTIOExportParams * /*export_params*/
 
   TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
   SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
-      _strip, _scene, media_fps);
+      bmain, _strip, _scene, media_fps);
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(_strip->name + 2, external_reference, strip_source_range));
@@ -328,7 +331,7 @@ void MovieStripExporter::export_strip(const OTIOExportParams * /*export_params*/
   _track->append_child(clip);
 }
 
-void SoundStripExporter::export_strip(const OTIOExportParams * /*export_params*/)
+void SoundStripExporter::export_strip(Main *bmain, const OTIOExportParams * /*export_params*/)
 {
   add_gap_if_necessary();
 
@@ -336,7 +339,7 @@ void SoundStripExporter::export_strip(const OTIOExportParams * /*export_params*/
 
   TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
   SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
-      _strip, _scene, media_fps);
+      bmain, _strip, _scene, media_fps);
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(_strip->name + 2, external_reference, strip_source_range));
@@ -346,7 +349,7 @@ void SoundStripExporter::export_strip(const OTIOExportParams * /*export_params*/
   _track->append_child(clip);
 }
 
-void ImageStripExporter::export_strip(const OTIOExportParams *export_params)
+void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *export_params)
 {
   add_gap_if_necessary();
   bool is_single_image = _strip->flag & SEQ_SINGLE_FRAME_CONTENT;
@@ -355,7 +358,7 @@ void ImageStripExporter::export_strip(const OTIOExportParams *export_params)
   if (is_single_image) {
     TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
     SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
-        _strip, _scene, media_fps);
+        bmain, _strip, _scene, media_fps);
 
     auto clip = otio::SerializableObject::Retainer<otio::Clip>(
         new Clip(_strip->name + 2, external_reference, strip_source_range));
@@ -374,6 +377,8 @@ void ImageStripExporter::export_strip(const OTIOExportParams *export_params)
 
     char target_url_base[FILE_MAX];
     BLI_strncpy(target_url_base, _strip->data->dirpath, sizeof(target_url_base));
+    BLI_path_abs(target_url_base, BKE_main_blendfile_path(bmain));
+
     char name_prefix[FILE_MAX];
     char name_suffix[FILE_MAX];
     BLI_strncpy(name_suffix, BLI_path_extension(se->filename), sizeof(name_suffix));
