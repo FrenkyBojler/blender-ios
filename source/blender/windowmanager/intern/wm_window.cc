@@ -3517,6 +3517,7 @@ void WM_system_gpu_context_activate(GHOST_IContext *context)
 void WM_system_gpu_context_release(GHOST_IContext *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
+  GPU_context_active_set(nullptr);
   context->releaseDrawingContext();
 }
 

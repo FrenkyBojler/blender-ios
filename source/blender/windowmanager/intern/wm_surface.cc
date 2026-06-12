@@ -71,7 +71,6 @@ void wm_surface_clear_drawable()
 {
   if (g_drawable) {
     WM_system_gpu_context_release(g_drawable->system_gpu_context);
-    GPU_context_active_set(nullptr);
 
     if (g_drawable->deactivate) {
       g_drawable->deactivate();

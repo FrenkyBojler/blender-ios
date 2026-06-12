@@ -1339,7 +1339,6 @@ bool RE_engine_gpu_context_create(RenderEngine *engine)
     WM_system_gpu_context_activate(engine->system_gpu_context);
     /* Requires GPUContext for usage of GPU Module for displaying results. */
     engine->blender_gpu_context = GPU_context_create(nullptr, engine->system_gpu_context);
-    GPU_context_active_set(nullptr);
     /* Deactivate newly created GPU Context, as it is not needed until
      * `RE_engine_gpu_context_enable` is called. */
     WM_system_gpu_context_release(engine->system_gpu_context);
@@ -1408,10 +1407,7 @@ void RE_engine_gpu_context_disable(RenderEngine *engine)
   }
   else {
     if (engine->system_gpu_context) {
-      if (engine->blender_gpu_context) {
-        GPU_context_active_set(nullptr);
-        GPU_render_end();
-      }
+      GPU_render_end();
       WM_system_gpu_context_release(engine->system_gpu_context);
       /* Restore DRW state context if previously active. */
       DRW_gpu_context_activate(engine->gpu_restore_context);

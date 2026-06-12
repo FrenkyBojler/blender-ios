@@ -140,7 +140,6 @@ class ContextShared {
     }
     else {
       WM_system_gpu_context_release(system_gpu_context_);
-      GPU_context_active_set(nullptr);
     }
     /* Render boundaries are opened and closed here as this may be
      * called outside of an existing render loop. */
@@ -429,7 +428,6 @@ bool DRW_gpu_context_release()
     return false;
   }
 
-  GPU_context_active_set(nullptr);
   WM_system_gpu_context_release(viewport_context->system_gpu_context_);
 
   return true;
