@@ -152,13 +152,19 @@ void SourceProcessor::parse_namespace_symbols(SourceProcessor::Parser &parser,
               is_resource_table_member |= name == "resource_table";
               is_resource_table |= is_resource_table_member || name == "storage" ||
                                    name == "storage" || name == "uniform" || name == "sampler" ||
-                                   name == "image" || name == "push_constant" ||
-                                   name == "compilation_constant" ||
+                                   name == "shared" || name == "image" ||
+                                   name == "push_constant" || name == "compilation_constant" ||
                                    name == "specialization_constant";
             });
           }
+
+          string type_str(type.full_symbol_name());
+          /* For compatibility with older code. Will be phased out. */
+          if (type_str == "srt_t") {
+            type_str = type.next().scope().back().prev().full_symbol_name();
+          }
           /* For methods, the declaration line is the top of the struct. */
-          members.emplace_back(type.str(), name.str());
+          members.emplace_back(type_str, name.str());
         });
 
     process_symbol(ns,

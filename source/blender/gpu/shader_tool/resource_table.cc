@@ -9,12 +9,32 @@
 #include "intermediate.hh"
 #include "metadata.hh"
 #include "processor.hh"
+#include <map>
 #include <set>
 
 namespace blender::gpu::shader {
 using namespace std;
 using namespace shader::parser;
 using namespace metadata;
+
+static std::string mangle_namespace(std::string str)
+{
+  size_t pos = 0;
+  while ((pos = str.find("::", pos)) != std::string::npos) {
+    str.replace(pos, 2, "_");
+    pos += 1;
+  }
+  return str;
+}
+
+static std::pair<std::string, std::string> split_namespace(std::string ns_name)
+{
+  size_t split = ns_name.rfind("::");
+  if (split == string::npos) {
+    return {"", ns_name};
+  }
+  return {ns_name.substr(0, split), ns_name.substr(split + 2)};
+}
 
 /**
  * For safety reason, nested resource tables need to be declared with the srt_t template.
@@ -45,12 +65,6 @@ void SourceProcessor::lower_srt_accessor_templates(Parser &parser)
         return;
       }
 
-      if (type.str() != "srt_t") {
-        report_error(type,
-                     "Members declared with the [[resource_table]] attribute must wrap their type "
-                     "with the srt_t<T> template.");
-      }
-
       if (array.is_valid()) {
         report_error(name, "[[resource_table]] members cannot be arrays.");
       }
@@ -59,8 +73,8 @@ void SourceProcessor::lower_srt_accessor_templates(Parser &parser)
       }
 
       /* Remove the template but not the wrapped type. */
-      parser.erase(type);
       if (template_scope.is_valid()) {
+        parser.erase(type);
         parser.erase(template_scope.front());
         parser.erase(template_scope.back());
       }
@@ -69,42 +83,116 @@ void SourceProcessor::lower_srt_accessor_templates(Parser &parser)
   parser.apply_mutations();
 }
 
+static string resolve_namespace(metadata::Source &metadata,
+                                const string &ns_prefix,
+                                const string &symbol_str)
+{
+  auto [symbol_ns, type_only] = split_namespace(symbol_str);
+
+  for (const auto &symbol : metadata.symbol_table) {
+    if (type_only != symbol.identifier || !symbol.is_struct) {
+      continue;
+    }
+    /* Only expand symbols that are visible inside this namespace. */
+    if (!symbol.name_space.starts_with(ns_prefix) && !ns_prefix.starts_with(symbol.name_space)) {
+      continue;
+    }
+    /* Symbol as it could be specified from this namespace. */
+    size_t min_len = std::min(ns_prefix.size(), symbol.name_space.size());
+    string symbol_visible = symbol.name_space.substr(min_len) + symbol.identifier;
+
+    /* Other symbols. */
+    if (symbol_str != symbol_visible) {
+      continue;
+    }
+
+    return symbol.name_space + symbol.identifier;
+  }
+
+  return symbol_str;
+}
+
 /* Add `srt_access` around all member access of SRT variables.
  * Need to run before after reference mutations. */
 void SourceProcessor::lower_srt_member_access(Parser &parser)
 {
   const string srt_attribute = "resource_table";
 
-  auto memher_access_mutation = [&](Scope attribute, Token type, Token var, Scope body_scope) {
-    if (attribute[2].str() != srt_attribute) {
-      return;
+  map<string, Symbol> resolved_srt_structs;
+  set<string> resolved_template_structs;
+
+  for (auto &symbol : metadata_.symbol_table) {
+    if (symbol.is_resource_table) {
+      /* Resolve members namespace. */
+      for (auto &pair : symbol.members) {
+        const string resolved = resolve_namespace(metadata_, symbol.name_space, pair.first);
+        pair.first = mangle_namespace(resolved);
+      }
+
+      string resolved = mangle_namespace(symbol.name_space + symbol.identifier);
+      resolved_srt_structs.emplace(resolved, symbol);
     }
+  }
 
-    const bool is_func_prototype_decl = body_scope.is_invalid();
-    const bool is_local_reference = attribute.scope().type() != ScopeType::FunctionArgs &&
-                                    attribute.scope().type() != ScopeType::FunctionArg;
-
-    if (is_local_reference || is_func_prototype_decl) {
-      parser.replace(attribute, "");
+  for (auto &symbol : metadata_.template_definitions) {
+    if (symbol.is_struct) {
+      string resolved = mangle_namespace(symbol.name_space + symbol.identifier);
+      resolved_template_structs.emplace(resolved + "T");
     }
+  }
 
-    /* Change references to copies to allow placeholder "*_new_()" function result to be passed
-     * as argument. Once these placeholder function are removed, we can pass the value as
-     * reference. */
-    if (!is_local_reference && var.prev() == '&') {
-      parser.erase(var.prev());
-    }
+  auto memher_access_mutation = [&](string srt_type, const Token access_start, Token resource) {
+    string srt_type_templated;
 
-    string srt_type(type.str());
-    string srt_var(var.str());
+    /* Walk down the chain of dereference until we hit a non-SRT member. */
+    while (true) {
+      /* In case type is templated, keep original type. */
+      srt_type_templated = srt_type;
+      /* Make sure to match templates by checking the prefix.
+       * Assume that templates all have the same content, which is not true.
+       * WARNING: This will break if a templated type uses a resource table type name or if a
+       * resource table member uses a templated type.
+       */
+      for (const auto &key : resolved_template_structs) {
+        if (srt_type.starts_with(key)) {
+          srt_type = key.substr(0, key.size() - 1);
+          break;
+        }
+      }
 
-    body_scope.foreach_match("A.A", [&](const vector<Token> toks) {
-      if (toks[0].str() != srt_var || toks[0].prev() == '.') {
+      const Symbol &srt_struct = resolved_srt_structs[srt_type];
+
+      string resource_type;
+      const string_view resource_name = resource.str();
+      for (auto [type, name] : srt_struct.members) {
+        if (name == resource_name) {
+          resource_type = type;
+          break;
+        }
+      }
+      if (resource_type.empty()) {
+        report_error(resource, "Unknown structure member");
         return;
       }
-      parser.replace(
-          toks[0], toks[2], "srt_access(" + srt_type + ", " + string(toks[2].str()) + ")", true);
-    });
+
+      if (!resolved_srt_structs.contains(resource_type)) {
+        /* Resource is finally a resource! */
+        break;
+      }
+
+      srt_type = resource_type;
+      if (resource.next() != '.') {
+        /* This is not a resource access but a simple SRT member access which can be passed as
+         * parameter to a function. */
+        return;
+      }
+      resource = resource.next(2);
+    }
+
+    parser.replace(access_start,
+                   resource,
+                   "srt_access(" + srt_type_templated + ", " + string(resource.str()) + ")",
+                   true);
   };
 
   parser().foreach_scope(ScopeType::FunctionArgs, [&](const Scope fn_args) {
@@ -112,7 +200,47 @@ void SourceProcessor::lower_srt_member_access(Parser &parser)
     Scope fn_body = fn_args.next().type() == ScopeType::Function ? fn_args.next() : Scope(parser);
     /* Function arguments. */
     fn_args.foreach_match("[[..]]c?A&A", [&](const vector<Token> toks) {
-      memher_access_mutation(toks[0].scope(), toks[8], toks[10], fn_body);
+      Scope attribute = toks[0].scope();
+      Token type = toks[8];
+      Token var = toks[10];
+      if (attribute[2].str() != srt_attribute) {
+        return;
+      }
+
+      const bool is_func_prototype_decl = fn_body.is_invalid();
+      const bool is_local_reference = attribute.scope().type() != ScopeType::FunctionArgs &&
+                                      attribute.scope().type() != ScopeType::FunctionArg;
+
+      if (is_local_reference || is_func_prototype_decl) {
+        parser.replace(attribute, "");
+      }
+
+      /* Change references to copies to allow placeholder "*_new_()" function result to be passed
+       * as argument. Once these placeholder function are removed, we can pass the value as
+       * reference. */
+      if (!is_local_reference && var.prev() == '&') {
+        parser.erase(var.prev());
+      }
+
+      const string srt_type(type.str());
+      const string srt_var(var.str());
+
+      fn_body.foreach_match("A.A", [&](const vector<Token> toks) {
+        if (toks[0].str() != srt_var || toks[0].prev() == '.') {
+          return;
+        }
+        memher_access_mutation(srt_type, toks[0], toks[2]);
+      });
+    });
+  });
+
+  parser().foreach_scope(ScopeType::Function, [&](const Scope fn_args) {
+    /* Function arguments. */
+    fn_args.foreach_match("A(A).A", [&](const vector<Token> toks) {
+      if (toks[0].str() != "resource_table_get" || toks[0].prev() == '.') {
+        return;
+      }
+      memher_access_mutation(string(toks[2].str()), toks[0], toks.back());
     });
   });
 
@@ -302,15 +430,6 @@ void SourceProcessor::lower_using(Parser &parser)
 
 void SourceProcessor::lower_implicit_resource_table(Parser &parser)
 {
-  auto mangle_namespace = [](std::string str) {
-    size_t pos = 0;
-    while ((pos = str.find("::", pos)) != std::string::npos) {
-      str.replace(pos, 2, "_");
-      pos += 1;
-    }
-    return str;
-  };
-
   set<string> resolved_srt_struct_names;
 
   for (const auto &symbol : metadata_.symbol_table) {

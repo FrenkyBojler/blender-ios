@@ -1297,31 +1297,7 @@ SRT SRT_new_();
   {
     string input = R"(
 struct SRT {
-  [[resource_table]] T a;
-};
-)";
-    string error;
-    string output = process_test_string(input, error);
-    EXPECT_EQ(error,
-              "Members declared with the [[resource_table]] attribute must wrap their type "
-              "with the srt_t<T> template.");
-  }
-  {
-    string input = R"(
-struct SRT {
-  srt_t<T> a;
-};
-)";
-    string error;
-    string output = process_test_string(input, error);
-    EXPECT_EQ(error,
-              "The srt_t<T> template is only to be used with members declared with the "
-              "[[resource_table]] attribute.");
-  }
-  {
-    string input = R"(
-struct SRT {
-  [[resource_table]] srt_t<T> a[4];
+  [[resource_table]] T a[4];
 };
 )";
     string error;
