@@ -9,6 +9,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_screen.hh"
@@ -98,6 +99,7 @@ static bool panel_has_used_inputs(const bNode &node, const PanelDeclaration &pan
 
 static void draw_node_inputs_recursive(bContext *C,
                                        Layout &layout,
+                                       bNodeTree &ntree,
                                        bNode &node,
                                        PointerRNA *node_ptr,
                                        const PanelDeclaration &panel_decl)
@@ -122,11 +124,18 @@ static void draw_node_inputs_recursive(bContext *C,
       }
     }
     else if (const auto *sub_panel_decl = dynamic_cast<const PanelDeclaration *>(item_decl)) {
-      draw_node_inputs_recursive(C, *panel.body, node, node_ptr, *sub_panel_decl);
+      draw_node_inputs_recursive(C, *panel.body, ntree, node, node_ptr, *sub_panel_decl);
     }
     else if (const auto *layout_decl = dynamic_cast<const LayoutDeclaration *>(item_decl)) {
       if (!layout_decl->is_default) {
-        layout_decl->draw(*panel.body, C, node_ptr);
+        Layout &column = panel.body->column(false);
+        if (node.is_muted()) {
+          column.active_set(false);
+        }
+        if (!ID_IS_EDITABLE(&ntree.id)) {
+          column.enabled_set(false);
+        }
+        layout_decl->draw(column, C, node_ptr);
       }
     }
   }
@@ -155,7 +164,7 @@ void template_node_inputs(Layout *layout, bContext *C, PointerRNA *ptr)
     const NodeDeclaration &node_decl = *node.declaration();
     for (const ItemDeclaration *item_decl : node_decl.root_items) {
       if (const auto *panel_decl = dynamic_cast<const PanelDeclaration *>(item_decl)) {
-        nodes::draw_node_inputs_recursive(C, *layout, node, ptr, *panel_decl);
+        nodes::draw_node_inputs_recursive(C, *layout, tree, node, ptr, *panel_decl);
       }
       else if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
         bNodeSocket &socket = node.socket_by_decl(*socket_decl);
@@ -177,7 +186,15 @@ void template_node_inputs(Layout *layout, bContext *C, PointerRNA *ptr)
       }
       else if (const auto *layout_decl = dynamic_cast<const LayoutDeclaration *>(item_decl)) {
         if (!layout_decl->is_default) {
-          layout_decl->draw(*layout, C, ptr);
+          Layout &column = layout->column(false);
+          if (node.is_muted()) {
+            column.active_set(false);
+          }
+          if (!ID_IS_EDITABLE(&tree.id)) {
+            column.enabled_set(false);
+          }
+
+          layout_decl->draw(column, C, ptr);
         }
       }
     }
