@@ -426,8 +426,25 @@ class Generator(base_generate.BaseGenerator):
                 if coll:
                     return coll
                 # Strip trailing numeric suffix (.001, .002, …) and retry
-                base = re.sub(r'\.\d+$', '', original_name)
+                base = re.sub(r'\.+$', '', original_name)
                 return meta_bone_colls.get(base)
+
+            # Pre-create DEF sub-collections in rigify_ui_row order.
+            # Only create a sub-collection for metarig collections that actually
+            # have at least one DEF bone whose original name maps to that collection.
+            needed_colls = set()
+            for pose_bone in self.obj.pose.bones:
+                if pose_bone.bone.name.startswith(DEF_PREFIX):
+                    coll_name = lookup_meta_coll(pose_bone.bone.name[len(DEF_PREFIX):])
+                    if coll_name:
+                        needed_colls.add(coll_name)
+
+            for meta_coll in sorted(self.metarig.data.collections_all,
+                                    key=lambda c: c.rigify_ui_row):
+                if meta_coll.name in needed_colls:
+                    sub_name = DEF_COLLECTION + " (" + meta_coll.name + ")"
+                    if not self.obj.data.collections_all.get(sub_name):
+                        self.obj.data.collections.new(sub_name, parent=def_coll)
 
         # Every bone that has a name starting with "DEF-" make deforming.  All the
         # others make non-deforming.
@@ -447,11 +464,9 @@ class Generator(base_generate.BaseGenerator):
             # Move all the bones with names starting with "DEF-" to their layer.
             elif name.startswith(DEF_PREFIX):
                 if group_by_coll:
-                    # Look up the source collection of the corresponding metarig bone.
                     original_name = name[len(DEF_PREFIX):]
                     source_coll_name = lookup_meta_coll(original_name)
                     if source_coll_name:
-                        # Ensure a sub-collection of DEF exists for this source collection.
                         sub_name = DEF_COLLECTION + " (" + source_coll_name + ")"
                         sub_coll = self.obj.data.collections_all.get(sub_name)
                         if not sub_coll:
