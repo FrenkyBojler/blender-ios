@@ -192,7 +192,9 @@ static gpu::Texture *gpu_texture_create_tile_mapping(Image *ima, gpu::Texture *t
                                                   gpu::TextureFormat::SFLOAT_32_32_32_32,
                                                   GPU_TEXTURE_USAGE_SHADER_READ,
                                                   data);
-  GPU_texture_mipmap_mode(tex, false, false);
+  if (tex != nullptr) {
+    GPU_texture_mipmap_mode(tex, false, false);
+  }
 
   MEM_delete(data);
 
@@ -495,8 +497,12 @@ static ImageGPUTextures image_get_gpu_texture_tiled(Image *ima,
   result.need_tile_mapping = true;
 
   /* Get or create atlas and tile mapping image buffers. */
-  ImBuf *atlas_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_ATLAS);
-  ImBuf *mapping_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_TILE_MAPPING);
+  ImBuf *atlas_ibuf, *mapping_ibuf;
+  {
+    std::scoped_lock lock(ima->runtime->cache_mutex);
+    atlas_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_ATLAS);
+    mapping_ibuf = image_udim_gpu_ibuf_ensure(ima, IMA_INDEX_UDIM_TILE_MAPPING);
+  }
 
   /* Update time for garbage collection. */
   const int64_t now = BLI_time_now_seconds_i();
@@ -529,21 +535,32 @@ static ImageGPUTextures image_get_gpu_texture_tiled(Image *ima,
   gpu::Texture *mapping_tex = nullptr;
 
   if (ibuf == nullptr) {
-    /* Set error texture if failed to load. */
     image_gpu_log_load_error_once(ima, iuser);
-    atlas_tex = GPU_texture_create_error(2, true);
-    mapping_tex = GPU_texture_create_error(1, true);
   }
   else {
     /* Create atlas and tile mapping textures. */
     atlas_tex = gpu_texture_create_tile_array(ima, ibuf);
     if (atlas_tex) {
-      image_gpu_clear_load_error(ima);
       mapping_tex = gpu_texture_create_tile_mapping(ima, atlas_tex);
+    }
+    if (atlas_tex && mapping_tex) {
+      image_gpu_clear_load_error(ima);
     }
     else {
       image_gpu_log_load_error_once(ima, iuser);
     }
+  }
+
+  /* Set error texture if either failed to load. */
+  if (atlas_tex == nullptr || mapping_tex == nullptr) {
+    if (atlas_tex) {
+      GPU_texture_free(atlas_tex);
+    }
+    if (mapping_tex) {
+      GPU_texture_free(mapping_tex);
+    }
+    atlas_tex = GPU_texture_create_error(2, true);
+    mapping_tex = GPU_texture_create_error(1, true);
   }
 
   BKE_image_release_ibuf(ima, ibuf, nullptr);
