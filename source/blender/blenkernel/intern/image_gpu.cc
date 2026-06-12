@@ -383,8 +383,9 @@ static void image_cache_free_inactive_frame_gpu_textures(Image *ima, const ImBuf
 
 static ImBuf *g_error_imbuf = nullptr;
 
-static ImBuf *image_gpu_error_imbuf()
+static ImBuf *image_gpu_error_imbuf_ensure()
 {
+  /* Create on demand so we have a GPU context available when creating. */
   if (g_error_imbuf == nullptr) {
     g_error_imbuf = IMB_allocImBuf(1, 1, ImBufFlags::Zero);
   }
@@ -604,7 +605,7 @@ static ImageGPUTextures image_get_gpu_texture_single(
   /* Return error texture if failed to load. */
   if (result.texture == nullptr && !try_only) {
     image_gpu_log_load_error_once(ima, iuser);
-    ImBuf *error_ibuf = image_gpu_error_imbuf();
+    ImBuf *error_ibuf = image_gpu_error_imbuf_ensure();
     result.texture = IMB_acquire_gpu_texture(ima->id.name + 2, error_ibuf, false, false, false);
   }
 
