@@ -8,7 +8,7 @@
  * \ingroup bli
  */
 
-#include "BLI_math_base_c.hh"  // IWYU pragma: keep
+#include "BLI_math_base_c.hh"     // IWYU pragma: keep
 #include "BLI_math_constants.hh"  // IWYU pragma: keep
 #include "BLI_utildefines.hh"
 
