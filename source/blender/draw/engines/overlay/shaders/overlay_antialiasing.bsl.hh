@@ -14,6 +14,7 @@
 
 #include "gpu_shader_compat.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "infos/overlay_common_infos.hh"
 #include "overlay_shader_shared.hh"
@@ -30,10 +31,17 @@ struct Line {
 
   static Line decode(float2 data)
   {
-    float theta = (data.x - 0.5f) * M_TAU;
+    /* Unpack distance to edge, remove 0.1f boundary that differentiates cleared pixels. */
+    float dist = (data.y - 0.5f) * 2.5f;
+
+    /* Recover perpendicular vector from packed sin_theta. */
+    float sin_theta = (data.x - 0.5f) * 2.0f;
+    float cos_theta = cos_from_sin(sin_theta);
+    float2 perp = normalize(float2(sin_theta, cos_theta));
+
     return {
-        .dir = float2(cos(theta), sin(theta)),
-        .dist = (data.y - 0.1f) * 4.0f - 2.0f,
+        .dir = perp,
+        .dist = dist,
         .dist_raw = data.y,
     };
   }
