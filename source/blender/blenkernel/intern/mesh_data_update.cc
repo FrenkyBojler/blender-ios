@@ -218,7 +218,7 @@ static void modifier_modify_mesh_and_geometry_set(ModifierData *md,
     }
     mti->modify_geometry_set(md, &mectx, &geometry_set);
     if (const Mesh *mesh = geometry_set.get_mesh()) {
-      ASSERT_IS_VALID_MESH_OUTPUT(const_cast<Mesh *>(mesh));
+      ASSERT_IS_VALID_MESH_OUTPUT(mesh);
     }
   }
   else {
