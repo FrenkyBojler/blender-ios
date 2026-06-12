@@ -23,14 +23,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Base mesh to instantiate face meshes on");
   b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geometry().align_with_previous();
-  b.add_output<decl::Bool>("Selection"_ustr)
-      .structure_type(StructureType::Field)
-      .propagate_references()
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .evaluated_geometry_field({0})
       .description("The faces to replace with the provided meshes");
   b.add_input<decl::Geometry>("Meshes"_ustr)
       .supported_type(GeometryComponent::Type::Mesh)
       .structure_type(StructureType::List);
   b.add_input<decl::Int>("Indices"_ustr).min(0).hide_value().evaluated_geometry_field({0});
+  b.add_input<decl::Float>("Height"_ustr)
+      .min(0.0f)
+      .default_value(1.0f)
+      .evaluated_geometry_field({0});
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -72,7 +77,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const fn::Field<bool> selection = params.extract_input<fn::Field<bool>>("Selection"_ustr);
   const fn::Field<int> indices = params.extract_input<fn::Field<int>>("Indices"_ustr);
-  Mesh *result = geometry::replace_faces(*base, selection, indices, meshes);
+  const fn::Field<float> height = params.extract_input<fn::Field<float>>("Height"_ustr);
+  Mesh *result = geometry::replace_faces(*base, selection, indices, height, meshes);
   geometry.replace_mesh(result);
   params.set_output("Mesh"_ustr, std::move(geometry));
 }

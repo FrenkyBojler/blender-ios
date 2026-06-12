@@ -37,7 +37,7 @@ static void remap_verts(const OffsetIndices<int> src_faces,
   face_mask.foreach_segment_optimized(
       [&](const auto segment, const int64_t dst_pos) {
         if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
-          const IndexRange src_corners = src_faces[*segment];
+          const IndexRange src_corners = src_faces[segment];
           const IndexRange dst_corners = dst_faces[IndexRange(dst_pos, segment.size())];
           for (const int i : src_corners.index_range()) {
             dst_corner_verts[dst_corners[i]] = map[src_corner_verts[src_corners[i]]];

@@ -14,8 +14,11 @@
 #include "BLI_array_utils.hh"
 #include "BLI_execution_mode.hh"
 #include "BLI_index_mask.hh"
+#include "BLI_kdtree.hh"
+#include "BLI_kdtree_types.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 #include "FN_field_evaluation.hh"
@@ -111,7 +114,9 @@ Mesh *replace_faces(const Mesh &base,
   }
 
   Array<int> verts_num_per_face(base_faces.size() + 1);
-  array_utils::gather<int>(mesh_vert_nums, indices, selection, verts_num_per_face);
+  array_utils::gather<int>(
+      mesh_vert_nums, indices, selection, verts_num_per_face.as_mutable_span().drop_back(1));
+  index_mask::masked_fill<int>(verts_num_per_face, 0, unselected);
   const std::optional<OffsetIndices<int>> face_vert_offsets_opt =
       offset_indices::accumulate_counts_to_offsets_with_overflow_check(verts_num_per_face);
   if (!face_vert_offsets_opt) {
@@ -120,20 +125,24 @@ Mesh *replace_faces(const Mesh &base,
   const OffsetIndices<int> face_vert_offsets = *face_vert_offsets_opt;
 
   Array<int> faces_num_per_face(base_faces.size() + 1);
-  array_utils::gather<int>(mesh_face_nums, indices, selection, faces_num_per_face);
+  array_utils::gather<int>(
+      mesh_face_nums, indices, selection, faces_num_per_face.as_mutable_span().drop_back(1));
+  index_mask::masked_fill<int>(faces_num_per_face, 0, unselected);
   const OffsetIndices<int> face_face_offsets = offset_indices::accumulate_counts_to_offsets(
       faces_num_per_face);
 
   Array<int> corners_num_per_face(base_faces.size() + 1);
-  array_utils::gather<int>(mesh_corner_nums, indices, selection, corners_num_per_face);
+  array_utils::gather<int>(
+      mesh_corner_nums, indices, selection, corners_num_per_face.as_mutable_span().drop_back(1));
+  index_mask::masked_fill<int>(corners_num_per_face, 0, unselected);
   const OffsetIndices<int> face_corner_offsets = offset_indices::accumulate_counts_to_offsets(
       corners_num_per_face);
 
-  const IndexMask base_verts_to_copy = vert_selection_from_face(
-      base_faces, selection, base_corner_verts, base.verts_num, memory);
+  const IndexMask unselected_verts = vert_selection_from_face(
+      base_faces, unselected, base_corner_verts, base.verts_num, memory);
 
-  const IndexMask unselected_verts = base_verts_to_copy.complement(IndexMask(base.verts_num),
-                                                                   memory);
+  // const IndexMask unselected_verts = base_verts_to_copy.complement(IndexMask(base.verts_num),
+  //                                                                  memory);
 
   const int unselected_corners_num = offset_indices::sum_group_sizes(base_faces, unselected);
 
@@ -150,20 +159,24 @@ Mesh *replace_faces(const Mesh &base,
               face_vert_offsets[base_face_i]);
           for (const int i : positions.index_range()) {
             const float2 xy = src_positions[i].xy();
+            const float z = src_positions[i].z;
             const float2 factor = (xy + 1.0f) * 0.5f;
+            const float4 mix_factors((1.0f - factor.x) * (1.0f - factor.y),
+                                     factor.x * (1.0f - factor.y),
+                                     factor.x * factor.y,
+                                     (1.0f - factor.x) * factor.y);
             const float3 new_face_interp = bke::attribute_math::mix4(
-                float4(factor.x, factor.y, 1.0f - factor.x, 1.0f - factor.y),
+                mix_factors,
                 base_positions[face_verts[0]],
                 base_positions[face_verts[1]],
                 base_positions[face_verts[2]],
                 base_positions[face_verts[3]]);
-            const float3 normal = bke::attribute_math::mix4(
-                float4(factor.x, factor.y, 1.0f - factor.x, 1.0f - factor.y),
-                base_corner_normals[base_face[0]],
-                base_corner_normals[base_face[1]],
-                base_corner_normals[base_face[2]],
-                base_corner_normals[base_face[3]]);
-            const float3 new_position = new_face_interp + normal * height;
+            const float3 normal = bke::attribute_math::mix4(mix_factors,
+                                                            base_corner_normals[base_face[0]],
+                                                            base_corner_normals[base_face[1]],
+                                                            base_corner_normals[base_face[2]],
+                                                            base_corner_normals[base_face[3]]);
+            const float3 new_position = new_face_interp + normal * height * z;
             positions[i] = new_position;
           }
         }
@@ -185,13 +198,17 @@ Mesh *replace_faces(const Mesh &base,
   selection.to_bits(selection_bits);
 
   selection.foreach_index([&](const int base_face_i) {
+    const Span<float3> face_positions = new_positions.as_span().slice(
+        face_vert_offsets[base_face_i]);
     const Span<int> neighbor_faces = face_to_face_map[base_face_i];
     for (const int neighbor_face : neighbor_faces) {
       if (selection_bits[neighbor_face]) {
       }
       else {
-        const Mesh &mesh = *meshes[indices[neighbor_face]];
         const Span<float3> neighbor_positions = mesh_positions[indices[neighbor_face]];
+        KDTree<float3> *kdtree = kdtree_new<float3>(neighbor_positions.size() +
+                                                    face_positions.size());
+        kdtree_free(kdtree);
       }
     }
   });
@@ -208,23 +225,29 @@ Mesh *replace_faces(const Mesh &base,
                     result_positions.take_back(face_vert_offsets.total_size()));
 
   MutableSpan<int> result_face_offsets = result->face_offsets_for_write();
-  offset_indices::gather_selected_offsets(
-      base_faces, selection, result_face_offsets.take_front(unselected.size()));
+  if (!unselected.is_empty()) {
+    offset_indices::gather_selected_offsets(
+        base_faces, unselected, result_face_offsets.take_front(unselected.size() + 1));
+  }
 
   selection.foreach_index(
       [&](const int base_face_i) {
         const OffsetIndices<int> faces = mesh_faces[indices[base_face_i]];
+        const IndexRange face_range = face_face_offsets[base_face_i].shift(unselected.size());
+        const int offset = unselected_corners_num + face_corner_offsets[base_face_i].start();
         offset_indices::gather_selected_offsets(
             faces,
             faces.index_range(),
-            result_face_offsets.slice(face_corner_offsets[base_face_i].shift(unselected.size())));
+            offset,
+            result_face_offsets.slice(face_range.start(), face_range.size() + 1));
       },
       exec_mode::grain_size(128));
   const OffsetIndices<int> result_faces = result->faces();
 
   Array<int> base_vert_to_selected_vert(base.verts_num);
-  index_mask::build_reverse_map<int>(base_verts_to_copy, base_vert_to_selected_vert);
+  index_mask::build_reverse_map<int>(unselected_verts, base_vert_to_selected_vert);
   MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
+  result_corner_verts.fill(-1);
   unselected.foreach_index(
       [&](const int64_t src_i, const int64_t dst_i) {
         const IndexRange src_face = base_faces[src_i];
@@ -238,7 +261,7 @@ Mesh *replace_faces(const Mesh &base,
   selection.foreach_index(
       [&](const int base_face_i) {
         const Span<int> corner_verts = mesh_corner_verts[indices[base_face_i]];
-        const int vert_offset = face_vert_offsets[base_face_i].start();
+        const int vert_offset = unselected_verts.size() + face_vert_offsets[base_face_i].start();
         MutableSpan<int> dst_corner_verts = result_corner_verts.slice(
             face_corner_offsets[base_face_i].shift(unselected_corners_num));
         for (const int i : corner_verts.index_range()) {
@@ -248,8 +271,6 @@ Mesh *replace_faces(const Mesh &base,
       exec_mode::grain_size(128));
 
   bke::mesh_calc_edges(*result, false, false);
-
-  // EXISTING LOGIC BORKED
 
   // Build the position of every single vertex on the new face meshes. For quads, it might be best
   // to do this with a transform per face. The transform should move 0,0,0 to the first corner of

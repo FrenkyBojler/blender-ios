@@ -17,8 +17,9 @@ namespace geometry {
 Mesh *replace_faces(const Mesh &base,
                     const fn::Field<bool> &selection_field,
                     const fn::Field<int> &indices_field,
+                    const fn::Field<float> &height_field,
                     Span<const Mesh *> meshes);
 
-};  // namespace geometry
+}  // namespace geometry
 
 }  // namespace blender
