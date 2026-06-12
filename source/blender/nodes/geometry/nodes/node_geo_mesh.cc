@@ -123,7 +123,7 @@ static bool get_corners_from_face_list(GeoNodeExecParams &params,
         params.error_message_add(NodeWarningType::Error, "Face must be a list of integers");
         return false;
       }
-      if (face_list->size() < 1) {
+      if (face_list->size() < 3) {
         params.error_message_add(NodeWarningType::Error,
                                  "Face must be a list of at least 3 integers");
         return false;
