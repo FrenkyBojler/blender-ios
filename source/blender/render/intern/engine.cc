@@ -1322,57 +1322,25 @@ void RE_engine_tile_highlight_clear_all(RenderEngine *engine)
 bool RE_engine_gpu_context_create(RenderEngine *engine)
 {
   /* If there already is a draw manager render context available, reuse it. */
-  engine->use_drw_render_context = (engine->re && RE_system_gpu_context_get(engine->re));
+  engine->use_drw_render_context = (engine->re &&
+                                    RE_system_gpu_context_get(engine->re).is_initialized());
   if (engine->use_drw_render_context) {
     return true;
   }
-
-  /* Viewport render case where no render context is available. We are expected to be on
-   * the main thread here to safely create a context. */
-  BLI_assert(BLI_thread_is_main());
-
   const bool drw_state = DRW_gpu_context_release();
-  engine->system_gpu_context = WM_system_gpu_context_create();
-
-  if (engine->system_gpu_context) {
-    /* Activate new GPU Context for GPUContext creation. */
-    WM_system_gpu_context_activate(engine->system_gpu_context);
-    /* Requires GPUContext for usage of GPU Module for displaying results. */
-    engine->blender_gpu_context = GPU_context_create(nullptr, engine->system_gpu_context);
-    /* Deactivate newly created GPU Context, as it is not needed until
-     * `RE_engine_gpu_context_enable` is called. */
-    WM_system_gpu_context_release(engine->system_gpu_context);
-  }
-  else {
-    engine->blender_gpu_context = nullptr;
-  }
-
+  engine->gpu_context = WM_system_gpu_context_create();
   DRW_gpu_context_activate(drw_state);
-
-  return engine->system_gpu_context != nullptr;
+  return engine->gpu_context.is_initialized();
 }
 
 void RE_engine_gpu_context_destroy(RenderEngine *engine)
 {
-  if (!engine->system_gpu_context) {
+  if (!engine->gpu_context.is_initialized()) {
     return;
   }
-
   const bool drw_state = DRW_gpu_context_release();
-
-  WM_system_gpu_context_activate(engine->system_gpu_context);
-  if (engine->blender_gpu_context) {
-    GPUContext *restore_context = GPU_context_active_get();
-    GPU_context_active_set(engine->blender_gpu_context);
-    GPU_context_discard(engine->blender_gpu_context);
-    if (restore_context != engine->blender_gpu_context) {
-      GPU_context_active_set(restore_context);
-    }
-    engine->blender_gpu_context = nullptr;
-  }
-  WM_system_gpu_context_dispose(engine->system_gpu_context);
-  engine->system_gpu_context = nullptr;
-
+  WM_system_gpu_context_release(engine->gpu_context);
+  WM_system_gpu_context_dispose(engine->gpu_context);
   DRW_gpu_context_activate(drw_state);
 }
 
@@ -1383,18 +1351,12 @@ bool RE_engine_gpu_context_enable(RenderEngine *engine)
     DRW_render_context_enable(engine->re);
     return true;
   }
-  if (engine->system_gpu_context) {
-    BLI_mutex_lock(&engine->blender_gpu_context_mutex);
+  if (engine->gpu_context.is_initialized()) {
+    BLI_mutex_lock(&engine->gpu_context_mutex);
     /* If a previous GPU/GPUContext was active (DST.blender_gpu_context), we should later
      * restore this when disabling the RenderEngine context. */
     engine->gpu_restore_context = DRW_gpu_context_release();
-
-    /* Activate RenderEngine System and Blender GPU Context. */
-    WM_system_gpu_context_activate(engine->system_gpu_context);
-    if (engine->blender_gpu_context) {
-      GPU_render_begin();
-      GPU_context_active_set(engine->blender_gpu_context);
-    }
+    WM_system_gpu_context_activate(engine->gpu_context);
     return true;
   }
   return false;
@@ -1406,12 +1368,11 @@ void RE_engine_gpu_context_disable(RenderEngine *engine)
     DRW_render_context_disable(engine->re);
   }
   else {
-    if (engine->system_gpu_context) {
-      GPU_render_end();
-      WM_system_gpu_context_release(engine->system_gpu_context);
+    if (engine->gpu_context.is_initialized()) {
+      WM_system_gpu_context_release(engine->gpu_context);
       /* Restore DRW state context if previously active. */
       DRW_gpu_context_activate(engine->gpu_restore_context);
-      BLI_mutex_unlock(&engine->blender_gpu_context_mutex);
+      BLI_mutex_unlock(&engine->gpu_context_mutex);
     }
   }
 }
@@ -1422,8 +1383,8 @@ void RE_engine_gpu_context_lock(RenderEngine *engine)
     /* Locking already handled by the draw manager. */
   }
   else {
-    if (engine->system_gpu_context) {
-      BLI_mutex_lock(&engine->blender_gpu_context_mutex);
+    if (engine->gpu_context.is_initialized()) {
+      BLI_mutex_lock(&engine->gpu_context_mutex);
     }
   }
 }
@@ -1434,8 +1395,8 @@ void RE_engine_gpu_context_unlock(RenderEngine *engine)
     /* Locking already handled by the draw manager. */
   }
   else {
-    if (engine->system_gpu_context) {
-      BLI_mutex_unlock(&engine->blender_gpu_context_mutex);
+    if (engine->gpu_context.is_initialized()) {
+      BLI_mutex_unlock(&engine->gpu_context_mutex);
     }
   }
 }

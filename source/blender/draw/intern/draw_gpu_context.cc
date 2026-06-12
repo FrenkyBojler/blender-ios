@@ -84,28 +84,20 @@ class ContextShared {
   /* Should be private but needs to be public for XR workaround. */
  public:
   TicketMutex *mutex_ = nullptr;
-  /** Unique ghost context used by Viewports. */
-  GHOST_IContext *system_gpu_context_ = nullptr;
-  /** GPUContext associated to the system_gpu_context. */
-  GPUContext *blender_gpu_context_ = nullptr;
+  WM_GPU_Context context_;
 
   /* NOTE: This changes the active context. */
   ContextShared()
   {
     mutex_ = BLI_ticket_mutex_alloc();
 
-    system_gpu_context_ = WM_system_gpu_context_create();
-    WM_system_gpu_context_activate(system_gpu_context_);
-    blender_gpu_context_ = GPU_context_create(nullptr, system_gpu_context_);
+    context_ = WM_system_gpu_context_create();
   }
 
   ~ContextShared()
   {
-    WM_system_gpu_context_activate(system_gpu_context_);
-    GPU_context_active_set(blender_gpu_context_);
-
-    GPU_context_discard(blender_gpu_context_);
-    WM_system_gpu_context_dispose(system_gpu_context_);
+    WM_system_gpu_context_release(context_);
+    WM_system_gpu_context_dispose(context_);
 
     BLI_ticket_mutex_free(mutex_);
   }
@@ -120,26 +112,25 @@ class ContextShared {
 
     GPU_render_begin();
 
-    WM_system_gpu_context_activate(system_gpu_context_);
-    GPU_context_active_set(blender_gpu_context_);
-    GPU_context_begin_frame(blender_gpu_context_);
+    WM_system_gpu_context_activate(context_);
+    GPU_context_begin_frame(context_.gpu_context);
   }
 
   bool is_enabled()
   {
-    return blender_gpu_context_ == GPU_context_active_get();
+    return context_.gpu_context == GPU_context_active_get();
   }
 
   /* Restore window drawable after disabling if restore is true. */
   void disable(bool restore = false)
   {
-    GPU_context_end_frame(blender_gpu_context_);
+    GPU_context_end_frame(context_.gpu_context);
 
     if (BLI_thread_is_main() && restore) {
       wm_window_reset_drawable();
     }
     else {
-      WM_system_gpu_context_release(system_gpu_context_);
+      WM_system_gpu_context_release(context_);
     }
     /* Render boundaries are opened and closed here as this may be
      * called outside of an existing render loop. */
@@ -255,7 +246,7 @@ void DRW_gpu_context_disable()
   DRW_gpu_context_disable_ex(true);
 }
 
-void DRW_system_gpu_render_context_enable(GHOST_IContext *re_system_gpu_context)
+void DRW_system_gpu_render_context_enable(const WM_GPU_Context &re_system_gpu_context)
 {
   /* If thread is main you should use DRW_gpu_context_enable(). */
   BLI_assert(!BLI_thread_is_main());
@@ -264,24 +255,11 @@ void DRW_system_gpu_render_context_enable(GHOST_IContext *re_system_gpu_context)
   WM_system_gpu_context_activate(re_system_gpu_context);
 }
 
-void DRW_system_gpu_render_context_disable(GHOST_IContext *re_system_gpu_context)
-{
-  WM_system_gpu_context_release(re_system_gpu_context);
-  DRW_lock_end();
-}
-
-void DRW_blender_gpu_render_context_enable(void *re_gpu_context)
-{
-  /* If thread is main you should use DRW_gpu_context_enable(). */
-  BLI_assert(!BLI_thread_is_main());
-
-  GPU_context_active_set(static_cast<GPUContext *>(re_gpu_context));
-}
-
-void DRW_blender_gpu_render_context_disable(void * /*re_gpu_context*/)
+void DRW_system_gpu_render_context_disable(const WM_GPU_Context &re_system_gpu_context)
 {
   GPU_flush();
-  GPU_context_active_set(nullptr);
+  WM_system_gpu_context_release(re_system_gpu_context);
+  DRW_lock_end();
 }
 
 void DRW_render_context_enable(Render *render)
@@ -298,14 +276,11 @@ void DRW_render_context_enable(Render *render)
     return;
   }
 
-  GHOST_IContext *re_viewport_system_gpu_context = RE_system_gpu_context_get(render);
+  WM_GPU_Context gpu_context = RE_system_gpu_context_get(render);
 
   /* Changing Context */
-  if (re_viewport_system_gpu_context != nullptr) {
-    DRW_system_gpu_render_context_enable(re_viewport_system_gpu_context);
-    /* We need to query gpu context after a gl context has been bound. */
-    void *re_viewport_context = RE_blender_gpu_context_ensure(render);
-    DRW_blender_gpu_render_context_enable(re_viewport_context);
+  if (gpu_context.is_initialized()) {
+    DRW_system_gpu_render_context_enable(gpu_context);
   }
   else {
     drw_gpu_preview_context_enable();
@@ -316,25 +291,22 @@ void DRW_render_context_disable(Render *render)
 {
   if (GPU_use_main_context_workaround()) {
     DRW_gpu_context_disable();
-    GPU_render_end();
+    GPU_render_end();  // TODO: check
     GPU_context_main_unlock();
     return;
   }
 
-  GHOST_IContext *re_viewport_system_gpu_context = RE_system_gpu_context_get(render);
+  WM_GPU_Context gpu_context = RE_system_gpu_context_get(render);
 
-  if (re_viewport_system_gpu_context != nullptr) {
-    void *re_viewport_context = RE_blender_gpu_context_ensure(render);
-    /* GPU rendering may occur during context disable. */
-    DRW_blender_gpu_render_context_disable(re_viewport_context);
+  if (gpu_context.is_initialized()) {
     GPU_render_end();
-    DRW_system_gpu_render_context_disable(re_viewport_system_gpu_context);
+    DRW_system_gpu_render_context_disable(gpu_context);
   }
   else {
+    GPU_render_end();  // TODO:check
     /* Usually the case for a preview job. The `Render` is created inside the render thread which
      * is too late to create a GPU context. */
     drw_gpu_preview_context_disable();
-    GPU_render_end();
   }
 }
 
@@ -421,14 +393,14 @@ bool DRW_gpu_context_release()
     return false;
   }
 
-  if (GPU_context_active_get() != viewport_context->blender_gpu_context_) {
+  if (GPU_context_active_get() != viewport_context->context_.gpu_context) {
     /* Context release is requested from the outside of the draw manager main draw loop, indicate
      * this to the `DRW_gpu_context_activate()` so that it restores drawable of the window.
      */
     return false;
   }
 
-  WM_system_gpu_context_release(viewport_context->system_gpu_context_);
+  WM_system_gpu_context_release(viewport_context->context_);
 
   return true;
 }
@@ -440,8 +412,7 @@ void DRW_gpu_context_activate(bool drw_state)
   }
 
   if (drw_state) {
-    WM_system_gpu_context_activate(viewport_context->system_gpu_context_);
-    GPU_context_active_set(viewport_context->blender_gpu_context_);
+    WM_system_gpu_context_activate(viewport_context->context_);
   }
   else {
     wm_window_reset_drawable();

@@ -87,17 +87,8 @@ RenderDisplay::~RenderDisplay()
 
 void RenderDisplay::free_gpu_context()
 {
-  if (blender_gpu_context) {
-    WM_system_gpu_context_activate(system_gpu_context);
-    GPU_context_active_set(static_cast<GPUContext *>(blender_gpu_context));
-    GPU_context_discard(static_cast<GPUContext *>(blender_gpu_context));
-    blender_gpu_context = nullptr;
-  }
-
-  if (system_gpu_context) {
-    WM_system_gpu_context_dispose(system_gpu_context);
-    system_gpu_context = nullptr;
-
+  if (gpu_context.is_initialized()) {
+    WM_system_gpu_context_dispose(gpu_context);
     /* If in main thread, reset window context. */
     if (BLI_thread_is_main()) {
       wm_window_reset_drawable();
@@ -107,27 +98,10 @@ void RenderDisplay::free_gpu_context()
 
 void RenderDisplay::ensure_system_gpu_context()
 {
-  BLI_assert(BLI_thread_is_main());
-
-  if (system_gpu_context == nullptr) {
+  if (!gpu_context.is_initialized()) {
     /* Needs to be created in the main thread. */
-    system_gpu_context = WM_system_gpu_context_create();
-    /* The context is activated during creation, so release it here since the function should not
-     * have context activation as a side effect. Then activate the drawable's context below. */
-    if (system_gpu_context) {
-      WM_system_gpu_context_release(system_gpu_context);
-    }
-    wm_window_reset_drawable();
+    gpu_context = WM_system_gpu_context_create();
   }
-}
-
-void *RenderDisplay::ensure_blender_gpu_context()
-{
-  BLI_assert(system_gpu_context != nullptr);
-  if (blender_gpu_context == nullptr) {
-    blender_gpu_context = GPU_context_create(nullptr, system_gpu_context);
-  }
-  return blender_gpu_context;
 }
 
 void RenderDisplay::display_update(RenderResult *render_result, rcti *rect)

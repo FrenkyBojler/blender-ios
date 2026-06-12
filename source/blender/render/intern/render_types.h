@@ -19,6 +19,8 @@
 #include "BLI_mutex.hh"
 #include "BLI_threads.h"
 
+#include "WM_api.hh"
+
 #include "RE_compositor.hh"
 #include "RE_pipeline.h"
 
@@ -240,8 +242,7 @@ struct RenderDisplay {
 
   /* GPU contexts.
    * TODO: replace by a whole draw manager. */
-  GHOST_IContext *system_gpu_context = nullptr;
-  void *blender_gpu_context = nullptr;
+  WM_GPU_Context gpu_context;
 };
 
 /* **************** defines ********************* */

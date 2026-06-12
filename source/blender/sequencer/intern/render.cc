@@ -2073,15 +2073,13 @@ bool render_begin_gpu(const RenderData &rd)
 
   /* Use GPU context from Render. */
   BLI_assert(rd.render != nullptr);
-  GHOST_IContext *render_ghost_context = RE_system_gpu_context_get(rd.render);
-  if (!render_ghost_context) {
+  WM_GPU_Context gpu_context = RE_system_gpu_context_get(rd.render);
+  if (!gpu_context.is_initialized()) {
     return false;
   }
 
-  WM_system_gpu_context_activate(render_ghost_context);
-  void *render_gpu_context = RE_blender_gpu_context_ensure(rd.render);
-  GPU_render_begin();
-  GPU_context_active_set(static_cast<GPUContext *>(render_gpu_context));
+  WM_system_gpu_context_activate(gpu_context);
+  GPU_render_begin();  // TODO: Check
   return true;
 }
 
@@ -2099,10 +2097,10 @@ void render_end_gpu(const RenderData &rd)
   else {
     /* Use GPU context from Render. */
     BLI_assert(rd.render != nullptr);
-    GHOST_IContext *render_ghost_context = RE_system_gpu_context_get(rd.render);
-    BLI_assert(render_ghost_context != nullptr);
+    WM_GPU_Context gpu_context = RE_system_gpu_context_get(rd.render);
+    BLI_assert(gpu_context.is_initialized());
     GPU_render_end();
-    WM_system_gpu_context_release(render_ghost_context);
+    WM_system_gpu_context_release(gpu_context);
   }
 }
 

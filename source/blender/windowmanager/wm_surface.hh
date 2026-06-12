@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "GHOST_Types.hh"
+#include "WM_api.hh"
 
 struct GPUContext;
 class GHOST_IContext;
@@ -23,8 +23,7 @@ struct bContext;
 struct wmSurface {
   wmSurface *next, *prev;
 
-  GHOST_IContext *system_gpu_context;
-  GPUContext *blender_gpu_context;
+  WM_GPU_Context gpu_context;
 
   void *customdata;
 

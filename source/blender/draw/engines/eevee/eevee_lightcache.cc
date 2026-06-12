@@ -62,9 +62,7 @@ class LightBake {
    * If running in parallel (in a separate thread), use this context.
    * Created on main thread but first bound in worker thread.
    */
-  GHOST_IContext *gl_context_ = nullptr;
-  /** Context associated to `gl_context_`. Created in the worker thread. */
-  GPUContext *gpu_context_ = nullptr;
+  WM_GPU_Context wm_gpu_context;
 
   /** Baking instance. Created and freed in the worker thread. */
   Instance *instance_ = nullptr;
@@ -98,7 +96,7 @@ class LightBake {
 
     if (run_as_job && !GPU_use_main_context_workaround()) {
       /* This needs to happen in main thread. */
-      gl_context_ = WM_system_gpu_context_create();
+      wm_gpu_context = WM_system_gpu_context_create();
       wm_window_reset_drawable();
     }
   }
@@ -208,19 +206,9 @@ class LightBake {
       GPU_context_main_lock();
       DRW_gpu_context_enable();
     }
-    else if (gl_context_ == nullptr) {
-      /* Main thread case. */
-      DRW_gpu_context_enable();
-    }
     else {
       /* Worker thread case. */
-      DRW_system_gpu_render_context_enable(gl_context_);
-      if (gpu_context_ == nullptr) {
-        /* Create GPUContext in worker thread as it needs the correct gl context bound (which can
-         * only be bound in worker thread because of some GL driver requirements). */
-        gpu_context_ = GPU_context_create(nullptr, gl_context_);
-      }
-      DRW_blender_gpu_render_context_enable(gpu_context_);
+      DRW_system_gpu_render_context_enable(wm_gpu_context);
     }
 
     if (render_begin) {

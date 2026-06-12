@@ -33,6 +33,7 @@ struct View3D;
 struct ViewLayer;
 struct bContext;
 struct rcti;
+struct WM_GPU_Context;
 
 namespace bke {
 enum class AttrType : int16_t;
@@ -188,10 +189,8 @@ void DRW_gpu_context_disable_ex(bool restore);
  * Enable system context first, then enable blender context,
  * then disable blender context, then disable system context. */
 
-void DRW_system_gpu_render_context_enable(GHOST_IContext *re_system_gpu_context);
-void DRW_system_gpu_render_context_disable(GHOST_IContext *re_system_gpu_context);
-void DRW_blender_gpu_render_context_enable(void *re_gpu_context);
-void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
+void DRW_system_gpu_render_context_enable(const WM_GPU_Context &re_system_gpu_context);
+void DRW_system_gpu_render_context_disable(const WM_GPU_Context &re_system_gpu_context);
 
 DRWData *DRW_viewport_data_create();
 void DRW_viewport_data_free(DRWData *drw_data);

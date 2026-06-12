@@ -12,6 +12,8 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
+#include "WM_api.hh"
+
 class GHOST_IContext;
 
 namespace blender {
@@ -440,8 +442,7 @@ void RE_current_scene_update_cb(struct Render *re,
                                 void *handle,
                                 void (*f)(void *handle, struct Scene *scene));
 
-GHOST_IContext *RE_system_gpu_context_get(Render *re);
-void *RE_blender_gpu_context_ensure(Render *re);
+WM_GPU_Context RE_system_gpu_context_get(Render *re);
 
 bool RE_seq_render_active(struct Scene *scene, struct RenderData *rd);
 

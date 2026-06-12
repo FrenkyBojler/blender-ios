@@ -663,8 +663,17 @@ static GHOST_TDrawingContextType ghost_context_type()
 
 GPUSecondaryContextData GPU_create_secondary_context()
 {
-  /* Contexts can only be created on the main thread. */
+  /* On Windows there is a problem creating contexts that share resources (almost any object,
+   * including legacy display lists, but also textures) with a context which is current in another
+   * thread. This is a documented and behavior of both `::wglCreateContextAttribsARB()` and
+   * `::wglShareLists()`.
+   *
+   * Other platforms might successfully share resources from context which is active somewhere
+   * else, but to keep our code behave the same on all platform we expect contexts to only be
+   * created from the main thread. */
+
   BLI_assert(BLI_thread_is_main());
+  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
   GHOST_IContext *main_thread_ghost_context = GHOST_IContext::getActiveDrawingContext();
   GPUContext *main_thread_gpu_context = GPU_context_active_get();
@@ -676,6 +685,10 @@ GPUSecondaryContextData GPU_create_secondary_context()
     gpu_settings.flags |= GHOST_gpuDebugContext;
   }
   gpu_settings.preferred_device = GPU_backend_preferred_device_get();
+  if (GPU_backend_vsync_is_overridden()) {
+    gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
+    gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
+  }
 
   /* Grab the system handle. */
   GHOST_ISystem *ghost_system = GPU_backend_ghost_system_get();

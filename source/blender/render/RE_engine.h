@@ -16,6 +16,8 @@
 
 #include "BLI_threads.h"
 
+#include "WM_api.hh"
+
 namespace blender {
 
 struct BakePixel;
@@ -23,7 +25,6 @@ struct BakeTargets;
 struct bNode;
 struct bNodeTree;
 struct Depsgraph;
-struct GPUContext;
 struct Main;
 struct Object;
 struct Render;
@@ -162,10 +163,9 @@ struct RenderEngine {
   void *update_render_passes_data;
 
   /* GPU context. */
-  GHOST_IContext *system_gpu_context; /* WindowManager GPU context -> GHOSTContext. */
-  ThreadMutex blender_gpu_context_mutex;
+  WM_GPU_Context gpu_context; /* WindowManager GPU context -> GHOSTContext. */
+  ThreadMutex gpu_context_mutex;
   bool use_drw_render_context;
-  struct GPUContext *blender_gpu_context;
   /* Whether to restore DRWState after RenderEngine display pass. */
   bool gpu_restore_context;
 };

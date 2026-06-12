@@ -3473,52 +3473,35 @@ void wm_window_IME_end(wmWindow *win)
 /** \name Direct GPU Context Management
  * \{ */
 
-GHOST_IContext *WM_system_gpu_context_create()
+WM_GPU_Context WM_system_gpu_context_create()
 {
-  /* On Windows there is a problem creating contexts that share resources (almost any object,
-   * including legacy display lists, but also textures) with a context which is current in another
-   * thread. This is a documented and behavior of both `::wglCreateContextAttribsARB()` and
-   * `::wglShareLists()`.
-   *
-   * Other platforms might successfully share resources from context which is active somewhere
-   * else, but to keep our code behave the same on all platform we expect contexts to only be
-   * created from the main thread. */
-
-  BLI_assert(BLI_thread_is_main());
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-
-  GHOST_GPUSettings gpu_settings = {0};
-  const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
-  gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
-  if (G.debug & G_DEBUG_GPU) {
-    gpu_settings.flags |= GHOST_gpuDebugContext;
-  }
-  gpu_settings.preferred_device = GPU_backend_preferred_device_get();
-  if (GPU_backend_vsync_is_overridden()) {
-    gpu_settings.flags |= GHOST_gpuVSyncIsOverridden;
-    gpu_settings.vsync = GHOST_TVSyncModes(GPU_backend_vsync_get());
-  }
-
-  return g_system->createOffscreenContext(gpu_settings);
+  gpu::GPUSecondaryContextData context_data = gpu::GPU_create_secondary_context();
+  return {context_data.ghost_context, context_data.gpu_context};
 }
 
-void WM_system_gpu_context_dispose(GHOST_IContext *context)
+void WM_system_gpu_context_dispose(WM_GPU_Context &context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  g_system->disposeContext(context);
+  gpu::GPUSecondaryContextData context_data = {context.ghost_context, context.gpu_context};
+  gpu::GPU_destroy_secondary_context(context_data);
+  context = {};
+  wm_window_reset_drawable();
 }
 
-void WM_system_gpu_context_activate(GHOST_IContext *context)
+void WM_system_gpu_context_activate(const WM_GPU_Context &context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  context->activateDrawingContext();
+  gpu::GPUSecondaryContextData context_data = {context.ghost_context, context.gpu_context};
+  gpu::GPU_activate_secondary_context(context_data);
 }
 
-void WM_system_gpu_context_release(GHOST_IContext *context)
+void WM_system_gpu_context_release(const WM_GPU_Context &context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GPU_context_active_set(nullptr);
-  context->releaseDrawingContext();
+  gpu::GPUSecondaryContextData context_data = {context.ghost_context, context.gpu_context};
+  gpu::GPU_deactivate_secondary_context(context_data);
+  wm_window_reset_drawable();
 }
 
 void WM_ghost_show_message_box(const char *title,
