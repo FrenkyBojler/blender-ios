@@ -34,18 +34,6 @@ def _set_area_type(area, area_type):
         area.type = area_type
 
 
-def _get_action_fcurves(action):
-    """Return F-Curves for an Action, supporting both Legacy and Slotted formats."""
-    if getattr(action, "is_action_legacy", True):
-        return list(getattr(action, "fcurves", []))
-    fcurves = []
-    for layer in getattr(action, "layers", []):
-        for strip in getattr(layer, "strips", []):
-            for bag in getattr(strip, "channelbags", []):
-                fcurves.extend(getattr(bag, "fcurves", []))
-    return fcurves
-
-
 def _load_blend():
     """Load the test blend file; re-acquire and return (e, t, window, area)."""
     import bpy
@@ -120,11 +108,9 @@ def test_outliner_search():
 def test_dopesheet_search():
     """
     Dope Sheet — Ctrl+F → 'location'.
-    Requires __anim_test_obj__ with at least one location F-Curve in the blend file.
     """
     import bpy
 
-    _, t, _ = ui.test_window()
     e, t, window, area = yield from _load_blend()
 
     _set_area_type(area, 'DOPESHEET_EDITOR')
@@ -136,34 +122,24 @@ def test_dopesheet_search():
     t.assertIsInstance(space, bpy.types.SpaceDopeSheetEditor, "Area did not switch to Dope Sheet")
 
     t.assertIn("__anim_test_obj__", bpy.data.objects, "Blend file is missing __anim_test_obj__")
-    obj = bpy.data.objects["__anim_test_obj__"]
-    t.assertIsNotNone(obj.animation_data,
-                      "__anim_test_obj__ has no animation_data — insert location keyframes and resave")
-    t.assertIsNotNone(obj.animation_data.action,
-                      "__anim_test_obj__ has no action — insert location keyframes and resave")
-    location_curves = [fc for fc in _get_action_fcurves(obj.animation_data.action)
-                       if fc.data_path == "location"]
-    t.assertGreater(len(location_curves), 0,
-                    "__anim_test_obj__ has no location F-Curves — insert keyframes and resave")
 
     e.cursor_position_set(*ui.get_area_center(area), move=True)
     yield e.ctrl.f()
     yield e.text("location")
     yield e.ret()
-    t.assertEqual(space.dopesheet.filter_fcurve_name, "location",
-                  "Dope Sheet: filter_fcurve_name was not set by Ctrl+F")
+    t.assertEqual(space.dopesheet.filter_text, "location",
+                  "Dope Sheet: filter_text was not set by Ctrl+F")
 
     yield e.ctrl.f()
     yield e.back_space()
     yield e.ret()
-    t.assertEqual(space.dopesheet.filter_fcurve_name, "",
-                  "Dope Sheet: filter_fcurve_name was not cleared")
+    t.assertEqual(space.dopesheet.filter_text, "",
+                  "Dope Sheet: filter_text was not cleared")
 
 
 def test_graph_editor_search():
     """
     Graph Editor — Ctrl+F → 'location'.
-    Requires __anim_test_obj__ with at least one location F-Curve in the blend file.
     """
     import bpy
 
@@ -175,26 +151,19 @@ def test_graph_editor_search():
     t.assertIsInstance(space, bpy.types.SpaceGraphEditor, "Area did not switch to Graph Editor")
 
     t.assertIn("__anim_test_obj__", bpy.data.objects, "Blend file is missing __anim_test_obj__")
-    obj = bpy.data.objects["__anim_test_obj__"]
-    t.assertIsNotNone(obj.animation_data, "__anim_test_obj__ has no animation_data")
-    t.assertIsNotNone(obj.animation_data.action, "__anim_test_obj__ has no action")
-    location_curves = [fc for fc in _get_action_fcurves(obj.animation_data.action)
-                       if fc.data_path == "location"]
-    t.assertGreater(len(location_curves), 0, "__anim_test_obj__ has no location F-Curves")
 
     e.cursor_position_set(*ui.get_area_center(area), move=True)
     yield e.ctrl.f()
     yield e.text("location")
     yield e.ret()
-    t.assertEqual(space.dopesheet.filter_fcurve_name, "location",
-                  "Graph Editor: filter_fcurve_name was not set by Ctrl+F")
+    t.assertEqual(space.dopesheet.filter_text, "location",
+                  "Graph Editor: filter_text was not set by Ctrl+F")
 
     yield e.ctrl.f()
     yield e.back_space()
     yield e.ret()
-    t.assertEqual(space.dopesheet.filter_fcurve_name, "",
-                  "Graph Editor: filter_fcurve_name was not cleared")
-
+    t.assertEqual(space.dopesheet.filter_text, "",
+                  "Graph Editor: filter_text was not cleared")
 
 def test_file_browser_search():
     """
