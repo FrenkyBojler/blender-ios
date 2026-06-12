@@ -1595,7 +1595,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
         parent = scene->master_collection;
       }
 
-      if ((te_selected->flag & TE_CHILD_NOT_IN_COLLECTION) == 0){
+      if ((te_selected->flag & TE_CHILD_NOT_IN_COLLECTION) == 0) {
         for (wmDragID &drag_id : drag->ids) {
           if (drag_id.id == id) {
             drag_id.from_parent = &parent->id;
