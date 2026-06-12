@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
-from bpy.types import Header, Menu, Panel, UIList
+from bpy.types import Header, Menu, Panel
 
 from bpy.app.translations import pgettext_iface
 
