@@ -96,7 +96,7 @@ bool sample_tree(const AccessorT &accessor,
   constexpr int N = Kernel::size;
   ValueT data[N][N][N];
   bool active = probe_values(accessor, index, data);
-  interpolate_value_3d(data, uvw, Kernel::template weight<ValueT>, result);
+  interpolate_value_3d(data, uvw, Kernel::template sample_value<ValueT>, result);
 
   return active;
 }
@@ -115,7 +115,7 @@ typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openv
   get_values(accessor, index, data);
 
   ValueT result;
-  interpolate_value_3d(data, uvw, Kernel::template weight<ValueT>, result);
+  interpolate_value_3d(data, uvw, Kernel::template sample_value<ValueT>, result);
   return result;
 }
 
@@ -142,14 +142,15 @@ struct ConstantKernel {
     return 0.0f;
   }
 
-  template<class ValueT> static ValueT weight(const ValueT *value, float /*weight*/)
+  template<class ValueT> static ValueT sample_value(const ValueT *values, float /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    return value[0];
+    return values[0];
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT derivative(const ValueT * /*value*/, float /*weight*/)
+  template<class ValueT>
+  static ValueT sample_derivative(const ValueT * /*values*/, float /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     return ValueT(0.0);
@@ -192,19 +193,19 @@ struct LinearKernel {
     return 0.0f;
   }
 
-  template<class ValueT> static ValueT weight(const ValueT *value, float weight)
+  template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT lin = static_cast<ValueT>(value[1] - value[0]);
-    const ValueT con = static_cast<ValueT>(value[0]);
+    const ValueT lin = static_cast<ValueT>(values[1] - values[0]);
+    const ValueT con = static_cast<ValueT>(values[0]);
     return static_cast<ValueT>(weight * lin) + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT derivative(const ValueT *value, float /*weight*/)
+  template<class ValueT> static ValueT sample_derivative(const ValueT *values, float /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT con = static_cast<ValueT>(value[1] - value[0]);
+    const ValueT con = static_cast<ValueT>(values[1] - values[0]);
     return con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -290,34 +291,35 @@ struct QuadraticBSplineKernel {
     return 0.0f;
   }
 
-  template<class ValueT> static ValueT weight(const ValueT *value, float weight)
+  template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     if (weight < 0.5) {
-      const ValueT sqr = static_cast<ValueT>(0.5 * (value[0] + value[2]) - value[1]);
-      const ValueT lin = static_cast<ValueT>(0.5 * (value[2] - value[0]));
-      const ValueT con = static_cast<ValueT>(0.125 * (value[0] + value[2]) + 0.75 * value[1]);
+      const ValueT sqr = static_cast<ValueT>(0.5 * (values[0] + values[2]) - values[1]);
+      const ValueT lin = static_cast<ValueT>(0.5 * (values[2] - values[0]));
+      const ValueT con = static_cast<ValueT>(0.125 * (values[0] + values[2]) + 0.75 * values[1]);
       return weight * (weight * sqr + lin) + con;
     }
 
-    const ValueT sqr = static_cast<ValueT>(0.5 * (value[1] + value[3]) - value[2]);
-    const ValueT lin = static_cast<ValueT>(-1.5 * value[1] + 2 * value[2] - 0.5 * value[3]);
-    const ValueT con = static_cast<ValueT>(1.125 * value[1] - 0.25 * value[2] + 0.125 * value[3]);
+    const ValueT sqr = static_cast<ValueT>(0.5 * (values[1] + values[3]) - values[2]);
+    const ValueT lin = static_cast<ValueT>(-1.5 * values[1] + 2 * values[2] - 0.5 * values[3]);
+    const ValueT con = static_cast<ValueT>(1.125 * values[1] - 0.25 * values[2] +
+                                           0.125 * values[3]);
     return weight * (weight * sqr + lin) + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT derivative(const ValueT *value, float weight)
+  template<class ValueT> static ValueT sample_derivative(const ValueT *values, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     if (weight < 0.5) {
-      const ValueT lin = static_cast<ValueT>(value[0] - 2.0 * value[1] + value[2]);
-      const ValueT con = static_cast<ValueT>(0.5 * (value[2] - value[0]));
+      const ValueT lin = static_cast<ValueT>(values[0] - 2.0 * values[1] + values[2]);
+      const ValueT con = static_cast<ValueT>(0.5 * (values[2] - values[0]));
       return weight * lin + con;
     }
 
-    const ValueT lin = static_cast<ValueT>(value[1] - 2.0 * value[2] + value[3]);
-    const ValueT con = static_cast<ValueT>(-1.5 * value[1] + 2.0 * value[2] - 0.5 * value[3]);
+    const ValueT lin = static_cast<ValueT>(values[1] - 2.0 * values[2] + values[3]);
+    const ValueT con = static_cast<ValueT>(-1.5 * values[1] + 2.0 * values[2] - 0.5 * values[3]);
     return weight * lin + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -404,26 +406,26 @@ struct CubicBSplineKernel {
     return 0.0f;
   }
 
-  template<class ValueT> static ValueT weight(const ValueT *value, float weight)
+  template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     constexpr double inv6 = 1.0 / 6.0;
-    const ValueT cub = static_cast<ValueT>(inv6 * (value[3] - value[0]) +
-                                           0.5 * (value[1] - value[2]));
-    const ValueT sqr = static_cast<ValueT>(0.5 * (value[0] + value[2]) - value[1]);
-    const ValueT lin = static_cast<ValueT>(0.5 * (value[2] - value[0]));
-    const ValueT con = static_cast<ValueT>(inv6 * (value[0] + 4.0 * value[1] + value[2]));
+    const ValueT cub = static_cast<ValueT>(inv6 * (values[3] - values[0]) +
+                                           0.5 * (values[1] - values[2]));
+    const ValueT sqr = static_cast<ValueT>(0.5 * (values[0] + values[2]) - values[1]);
+    const ValueT lin = static_cast<ValueT>(0.5 * (values[2] - values[0]));
+    const ValueT con = static_cast<ValueT>(inv6 * (values[0] + 4.0 * values[1] + values[2]));
     return weight * (weight * (weight * cub + sqr) + lin) + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT derivative(const ValueT *value, float weight)
+  template<class ValueT> static ValueT sample_derivative(const ValueT *values, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT sqr = static_cast<ValueT>(0.5 * (value[3] - value[0]) +
-                                           1.5 * (value[1] - value[2]));
-    const ValueT lin = static_cast<ValueT>(value[0] - 2.0 * value[1] + value[2]);
-    const ValueT con = static_cast<ValueT>(0.5 * (value[2] - value[0]));
+    const ValueT sqr = static_cast<ValueT>(0.5 * (values[3] - values[0]) +
+                                           1.5 * (values[1] - values[2]));
+    const ValueT lin = static_cast<ValueT>(values[0] - 2.0 * values[1] + values[2]);
+    const ValueT con = static_cast<ValueT>(0.5 * (values[2] - values[0]));
     return weight * (weight * sqr + lin) + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -455,6 +457,11 @@ template<typename KernelT> struct SamplerWithKernel {
  * Grid value sampler using linear kernels.
  */
 using LinearSampler = grid_sampling::SamplerWithKernel<grid_sampling::LinearKernel>;
+
+/**
+ * Grid value sampler using constant kernels.
+ */
+using NearestSampler = grid_sampling::SamplerWithKernel<grid_sampling::ConstantKernel>;
 
 /**
  * Grid value sampler using quadratic B-spline kernels.
