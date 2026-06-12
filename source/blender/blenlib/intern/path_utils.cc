@@ -1024,8 +1024,16 @@ bool BLI_path_frame_get(const char *path, int *r_frame, int *r_digits_len)
     return false;
   }
 
-  /* No need to trim the string, `atio` ignores non-digits. */
-  *r_frame = atoi(c);
+  /* Only consider numbers inside the range of valid framenumbers (ints). */
+  /* No need to trim the string, `strtol` ignores non-digits. */
+  errno = 0;
+  char *str_end = nullptr;
+  const long num = strtol(c, &str_end, 10);
+  if ((errno == ERANGE) || ((num < INT_MIN) || (num > INT_MAX))) {
+    return false;
+  }
+
+  *r_frame = int(num);
   *r_digits_len = digits_len;
   return true;
 }
@@ -1048,6 +1056,19 @@ void BLI_path_frame_strip(char *path, char *r_ext, const size_t ext_maxncpy)
     digits_len++;
   }
   c++;
+
+  if (digits_len == 0) {
+    return;
+  }
+
+  /* Dont strip numbers outside the range of valid framenumbers (ints). */
+  /* No need to trim the string, `strtol` ignores non-digits. */
+  errno = 0;
+  char *str_end = nullptr;
+  const long num = strtol(c, &str_end, 10);
+  if ((errno == ERANGE) || ((num < INT_MIN) || (num > INT_MAX))) {
+    return;
+  }
 
   BLI_strncpy(r_ext, file_ext, ext_maxncpy);
 
