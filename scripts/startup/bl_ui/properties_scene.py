@@ -85,9 +85,10 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
             rule_id = f"{target_type}::{target_name}"
             panel_header, panel_body = layout.panel(idname=rule_id)
             panel_header.prop(rule, "name", text="")
-            panel_header.prop(rule, "is_muted", icon='HIDE_ON' if rule.is_muted else 'HIDE_OFF', icon_only=True)
-            panel_header.separator()
-            op = panel_header.operator('UI_OT_dynoverride_remove_rule', text="", icon='X')
+            sub_butts = panel_header.row(align=True)
+            sub_butts.prop(rule, "is_muted", icon='HIDE_ON' if rule.is_muted else 'HIDE_OFF', icon_only=True)
+            sub_butts.separator_spacer()
+            op = sub_butts.operator('UI_OT_dynoverride_remove_rule', text="", icon='X')
             op.session_uid = dynoverride.session_uid
             op.rule_name = rule.name
             if panel_body is None:
@@ -103,9 +104,10 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
                     sub = row.row()
                     sub.active = not prop.is_muted
                     sub.prop(rule.override_values, prop.property_identifier)
-                    row.prop(prop, "is_muted", icon='HIDE_ON' if prop.is_muted else 'HIDE_OFF', icon_only=True)
-                    row.separator()
-                    op = row.operator('UI_OT_dynoverride_remove_rule_property', text="", icon='X')
+                    sub_butts = row.row(align=True)
+                    sub_butts.prop(prop, "is_muted", icon='HIDE_ON' if prop.is_muted else 'HIDE_OFF', icon_only=True)
+                    sub_butts.separator_spacer()
+                    op = sub_butts.operator('UI_OT_dynoverride_remove_rule_property', text="", icon='X')
                     op.session_uid = dynoverride.session_uid
                     op.rule_name = rule.name
                     op.property_rna_path = prop.rna_path
