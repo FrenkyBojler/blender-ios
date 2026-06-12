@@ -176,8 +176,7 @@ template<typename T> constexpr bool is_ListPtr_v<ListPtr<T>> = true;
 
 fn::GField as_field(const GListPtr &list);
 
-template<typename T>
-inline fn::Field<T> as_field(const ListPtr<T> &list)
+template<typename T> inline fn::Field<T> as_field(const ListPtr<T> &list)
 {
   return as_field(GListPtr(list)).typed<T>();
 }
