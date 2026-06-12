@@ -160,7 +160,7 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
       break;
     }
     case InterpolationMode::Nearest: {
-      sample_data.template operator()<openvdb::tools::PointSampler>();
+      sample_data.template operator()<geometry::NearestPointSampler>();
       break;
     }
     case InterpolationMode::QuadraticBSpline: {

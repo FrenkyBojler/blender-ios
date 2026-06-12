@@ -89,7 +89,8 @@ bool sample_tree(const AccessorT &accessor,
 {
   using ValueT = typename AccessorT::ValueType;
 
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
+  const openvdb::Vec3R coord_offset = openvdb::Vec3R(Kernel::coord_offset);
+  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord + coord_offset);
   const openvdb::Vec3R uvw = coord - index;
 
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
@@ -106,7 +107,8 @@ typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openv
 {
   using ValueT = typename AccessorT::ValueType;
 
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
+  const openvdb::Vec3R coord_offset = openvdb::Vec3R(Kernel::coord_offset);
+  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord + coord_offset);
   const openvdb::Vec3R uvw = coord - index;
 
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
@@ -120,11 +122,12 @@ typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openv
 }
 
 /**
- * Nearest-neighbor kernel function with a nominal (zero) gradient output.
+ * Nearest-point kernel function.
  */
-struct ConstantKernel {
+struct NearestPointKernel {
   static constexpr float range = 0.5f;
   static constexpr int size = 1;
+  static constexpr float coord_offset = 0.5f;
 
   static float weight(float x)
   {
@@ -159,11 +162,12 @@ struct ConstantKernel {
 };
 
 /**
- * Linear kernel function that also supports gradient output.
+ * Linear kernel function.
  */
 struct LinearKernel {
   static constexpr float range = 1.0f;
   static constexpr int size = 2;
+  static constexpr float coord_offset = 0.0f;
 
   static float weight(float x)
   {
@@ -256,6 +260,7 @@ struct LinearKernel {
 struct QuadraticBSplineKernel {
   static constexpr float range = 1.5f;
   static constexpr int size = 4;
+  static constexpr float coord_offset = 0.0f;
 
   static float weight(float x)
   {
@@ -365,6 +370,7 @@ struct QuadraticBSplineKernel {
 struct CubicBSplineKernel {
   static constexpr float range = 2.0f;
   static constexpr int size = 4;
+  static constexpr float coord_offset = 0.0f;
 
   static float weight(float x)
   {
@@ -454,14 +460,14 @@ template<typename KernelT> struct SamplerWithKernel {
 }  // namespace grid_sampling
 
 /**
+ * Grid value sampler using nearest-point kernels.
+ */
+using NearestPointSampler = grid_sampling::SamplerWithKernel<grid_sampling::NearestPointKernel>;
+
+/**
  * Grid value sampler using linear kernels.
  */
 using LinearSampler = grid_sampling::SamplerWithKernel<grid_sampling::LinearKernel>;
-
-/**
- * Grid value sampler using constant kernels.
- */
-using NearestSampler = grid_sampling::SamplerWithKernel<grid_sampling::ConstantKernel>;
 
 /**
  * Grid value sampler using quadratic B-spline kernels.
