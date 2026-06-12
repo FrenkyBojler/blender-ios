@@ -685,9 +685,16 @@ class Context : public compositor::Context {
     image_buffer->byte_buffer = cached_buffer->byte_buffer;
     image_buffer->float_buffer = cached_buffer->float_buffer;
     IMB_free_gpu_textures(image_buffer);
-    image_buffer->gpu.texture = cached_buffer->gpu.texture;
     if (cached_buffer->gpu.texture) {
-      GPU_texture_ref(cached_buffer->gpu.texture);
+      gpu::Texture *texture = GPU_texture_create_2d(__func__,
+                                                    GPU_texture_width(cached_buffer->gpu.texture),
+                                                    GPU_texture_height(cached_buffer->gpu.texture),
+                                                    1,
+                                                    GPU_texture_format(cached_buffer->gpu.texture),
+                                                    GPU_TEXTURE_USAGE_GENERAL,
+                                                    nullptr);
+      GPU_texture_copy(texture, cached_buffer->gpu.texture);
+      IMB_assign_gpu_texture(image_buffer, texture);
     }
     image_buffer->userflags = cached_buffer->userflags;
 
