@@ -2601,7 +2601,6 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
   return dist_sq < radius_sq || true;
 }
 
-/** Calculates whether node intersects the [-1,1] x [-1,1] x [-1,1] volume in local space.*/
 bool node_in_box(const float4x4 &mat,
                  const Bounds<float3> &bounds,
                  const float3 brush_center,
@@ -3571,6 +3570,8 @@ static void do_brush_action(const Depsgraph &depsgraph,
 
   update_brush_local_mat(sd, ob);
 
+  /* Cube tipped brushes cannot run on the first brush step due to needing the screen delta to
+   * calculate tip alignment. */
   if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt) &&
       stroke_is_first_brush_step_of_symmetry_pass(*ss.cache))
   {
