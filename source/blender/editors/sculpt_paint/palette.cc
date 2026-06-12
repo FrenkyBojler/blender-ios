@@ -14,7 +14,7 @@
 #include "RNA_define.hh"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_set.hh"
 
 #include "BKE_brush.hh"

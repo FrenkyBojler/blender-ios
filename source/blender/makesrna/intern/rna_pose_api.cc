@@ -28,7 +28,7 @@
 #  include "DNA_armature_types.h"
 
 #  include "BLI_ghash.hh"
-#  include "BLI_math_matrix_capi.hh"
+#  include "BLI_math_matrix_c.hh"
 
 #  include "ANIM_action.hh"
 #  include "ANIM_pose.hh"

@@ -12,7 +12,7 @@
 #include "BLI_array_store.hh"
 #include "BLI_array_store_utils.hh" /* own include */
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 
 namespace blender {
 

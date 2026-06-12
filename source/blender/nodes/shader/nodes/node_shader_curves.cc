@@ -10,7 +10,7 @@
 
 #include "BKE_colortools.hh"
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "NOD_multi_function.hh"
 

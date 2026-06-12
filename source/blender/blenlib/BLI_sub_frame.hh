@@ -12,7 +12,7 @@
 
 #include "BLI_assert.hh"
 #include "BLI_hash.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 
 namespace blender {
 

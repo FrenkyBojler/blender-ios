@@ -15,7 +15,7 @@
 
 #include "BLI_easing.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_stack.hh"
 #include "BLI_vector.hh"
 

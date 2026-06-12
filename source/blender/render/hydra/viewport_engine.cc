@@ -15,7 +15,7 @@
 #include "DNA_vec_types.h" /* This include must be before `BKE_camera.h` due to `rctf` type. */
 #include "DNA_view3d_types.h"
 
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_time.hh"
 #include "BLI_timecode.hh"
 

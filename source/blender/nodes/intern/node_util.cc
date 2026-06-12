@@ -12,7 +12,7 @@
 #include "DNA_node_types.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_utildefines.hh"

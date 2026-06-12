@@ -13,7 +13,7 @@
 
 #include <Python.h>
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_string_utf8.hh"
 
 #include "DNA_image_types.h"

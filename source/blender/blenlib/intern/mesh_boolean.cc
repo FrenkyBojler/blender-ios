@@ -19,7 +19,7 @@
 #  include "BLI_kdopbvh.hh"
 #  include "BLI_map.hh"
 #  include "BLI_math_boolean.hh"
-#  include "BLI_math_geom_capi.hh"
+#  include "BLI_math_geom_c.hh"
 #  include "BLI_math_mpq.hh"
 #  include "BLI_math_vector.hh"
 #  include "BLI_math_vector_mpq_types.hh"

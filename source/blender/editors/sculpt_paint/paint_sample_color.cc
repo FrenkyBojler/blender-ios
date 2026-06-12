@@ -17,7 +17,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_rect.hh"

@@ -14,8 +14,8 @@
 #include "BKE_image.hh"
 #include "BKE_material.hh"
 
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_memblock.hh"
 
 #include "GPU_uniform_buffer.hh"

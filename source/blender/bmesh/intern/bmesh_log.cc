@@ -21,7 +21,7 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_pool.hh"
 #include "BLI_utildefines.hh"
 

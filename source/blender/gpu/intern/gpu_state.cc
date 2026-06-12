@@ -13,7 +13,7 @@
 #  define PIXELSIZE (1.0f)
 #endif
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "GPU_state.hh"

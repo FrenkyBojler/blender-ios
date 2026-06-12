@@ -34,8 +34,8 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_color_blend.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 
 #include "BPY_extern.hh"
 

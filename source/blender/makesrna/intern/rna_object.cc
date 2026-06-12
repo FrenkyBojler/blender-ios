@@ -15,7 +15,7 @@
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -304,8 +304,8 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include "DNA_material_types.h"
 #  include "DNA_node_types.h"
 
-#  include "BLI_math_matrix_capi.hh"
-#  include "BLI_math_vector_capi.hh"
+#  include "BLI_math_matrix_c.hh"
+#  include "BLI_math_vector_c.hh"
 
 #  include "BKE_armature.hh"
 #  include "BKE_brush.hh"

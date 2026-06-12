@@ -17,8 +17,8 @@
 
 #include "BLI_ghash.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
 #include "BLI_string.hh"

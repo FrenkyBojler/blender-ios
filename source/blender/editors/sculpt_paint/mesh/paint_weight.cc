@@ -13,7 +13,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_color_mix.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.hh"

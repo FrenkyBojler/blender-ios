@@ -8,9 +8,9 @@
 
 #include <cstdlib>
 
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_editmesh.hh"
 #include "BKE_mesh.hh"

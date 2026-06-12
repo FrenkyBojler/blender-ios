@@ -10,7 +10,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_linklist_stack.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 
 #include "bmesh.hh"
 

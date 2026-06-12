@@ -14,7 +14,7 @@
 #include "BLI_sys_types.hh"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "DNA_gpencil_legacy_types.h"

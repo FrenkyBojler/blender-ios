@@ -30,7 +30,7 @@
 
 #include "BLI_heap_simple.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_memarena.hh"
 
 #include "BLI_astar.hh"

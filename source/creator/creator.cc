@@ -36,7 +36,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
 #include "BLI_system.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_threads.hh"
 #include "BLI_utildefines.hh"
 

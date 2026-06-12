@@ -10,7 +10,7 @@
 
 #include "DNA_vec_types.h"
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_polyfill_2d.hh"
 #include "BLI_sort_utils.hh"

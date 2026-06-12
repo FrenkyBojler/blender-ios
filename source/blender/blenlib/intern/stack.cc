@@ -12,7 +12,7 @@
 #include "BLI_utildefines.hh"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_stack_capi.hh" /* own include */
+#include "BLI_stack_c.hh" /* own include */
 
 #include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 

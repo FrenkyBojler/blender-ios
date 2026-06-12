@@ -7,7 +7,7 @@
  */
 
 #include "BLI_array_utils.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "extract_mesh.hh"
 

@@ -11,8 +11,8 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BLT_translation.hh"
 

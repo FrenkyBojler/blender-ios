@@ -17,9 +17,9 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_color_blend.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #ifdef DEBUG_PIXEL_NODES
-#  include "BLI_hash_capi.hh"
+#  include "BLI_hash_c.hh"
 #endif
 
 #include "IMB_colormanagement.hh"

@@ -20,8 +20,8 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_color_capi.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_rand_c.hh"
 
 #include "BLT_translation.hh"
 

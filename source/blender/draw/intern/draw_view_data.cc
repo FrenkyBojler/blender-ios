@@ -9,7 +9,7 @@
 #include <memory>
 
 #include "BLI_listbase.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_vector.hh"
 
 #include "GPU_viewport.hh"

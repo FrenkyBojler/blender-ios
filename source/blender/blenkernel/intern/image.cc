@@ -60,11 +60,11 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_mempool.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_system.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_threads.hh"
 #include "BLI_time.hh"
 #include "BLI_timecode.hh" /* For stamp time-code format. */

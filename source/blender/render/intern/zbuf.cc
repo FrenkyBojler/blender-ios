@@ -18,7 +18,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 
 /* own includes */
 #include "zbuf.h"

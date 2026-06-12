@@ -107,8 +107,8 @@ static const EnumPropertyItem rna_enum_mesh_remesh_mode_items[] = {
 #  include "DNA_scene_types.h"
 #  include "DNA_world_types.h"
 
-#  include "BLI_math_geom_capi.hh"
-#  include "BLI_math_vector_capi.hh"
+#  include "BLI_math_geom_c.hh"
+#  include "BLI_math_vector_c.hh"
 #  include "BLI_string.hh"
 #  include "BLI_string_utf8.hh"
 

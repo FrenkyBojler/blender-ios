@@ -12,11 +12,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
-#include "BLI_noise_capi.hh"
-#include "BLI_rand_capi.hh"
-#include "BLI_stack_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_noise_c.hh"
+#include "BLI_rand_c.hh"
+#include "BLI_stack_c.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_customdata.hh"

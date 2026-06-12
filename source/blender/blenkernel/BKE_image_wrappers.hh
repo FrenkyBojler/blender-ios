@@ -10,8 +10,8 @@
 
 #include "DNA_image_types.h"
 
-#include "BLI_math_color_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_utils.hh"
 

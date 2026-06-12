@@ -23,12 +23,12 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_utildefines.hh"
 #include "BLI_vector.hh"

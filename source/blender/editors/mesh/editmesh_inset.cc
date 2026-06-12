@@ -11,8 +11,8 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 

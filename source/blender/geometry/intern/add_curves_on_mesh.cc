@@ -7,8 +7,8 @@
 #include "BLI_kdtree.hh"
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_task.hh"
 
 #include "BKE_attribute_math.hh"

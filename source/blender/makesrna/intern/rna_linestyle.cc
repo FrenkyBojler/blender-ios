@@ -8,7 +8,7 @@
 
 #include <cstdlib>
 
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 
 #include "BLT_translation.hh"
 

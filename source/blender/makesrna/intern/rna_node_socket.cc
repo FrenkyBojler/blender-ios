@@ -60,7 +60,7 @@ const EnumPropertyItem rna_enum_node_socket_type_items[] = {
 #  include "DNA_material_types.h"
 
 #  include "BLI_listbase.hh"
-#  include "BLI_math_vector_capi.hh"
+#  include "BLI_math_vector_c.hh"
 #  include "BLI_string.hh"
 #  include "BLI_string_ref.hh"
 

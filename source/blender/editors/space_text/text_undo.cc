@@ -14,7 +14,7 @@
 #include "DNA_text_types.h"
 
 #include "BLI_array_store.hh"
-#include "BLI_array_utils_capi.hh" /* For `BLI_array_is_zeroed`. */
+#include "BLI_array_utils_c.hh" /* For `BLI_array_is_zeroed`. */
 
 #include "BKE_context.hh"
 #include "BKE_main.hh"

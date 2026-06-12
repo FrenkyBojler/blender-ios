@@ -15,13 +15,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_ghash.hh"
 #include "BLI_listbase_wrapper.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.hh"

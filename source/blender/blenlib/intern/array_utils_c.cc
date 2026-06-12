@@ -17,11 +17,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_sys_types.hh"
 #include "BLI_utildefines.hh"
 
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 
 #include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 

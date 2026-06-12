@@ -18,7 +18,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_gsqueue.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_ccg.hh"

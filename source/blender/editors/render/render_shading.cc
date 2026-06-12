@@ -24,7 +24,7 @@
 #include "DNA_world_types.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utils.hh"

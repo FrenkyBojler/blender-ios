@@ -24,8 +24,8 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
-#include "BLI_math_base_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.hh"
 

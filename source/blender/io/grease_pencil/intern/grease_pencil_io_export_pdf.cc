@@ -7,7 +7,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_scene.hh"
 
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 
 #include "DEG_depsgraph_query.hh"
 

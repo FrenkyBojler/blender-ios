@@ -17,7 +17,7 @@
 #include "DNA_world_types.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.hh"

@@ -13,10 +13,10 @@
 
 #include "BLI_jitter_2d.hh"
 #include "BLI_kdtree.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_sort.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "DNA_mesh_types.h"

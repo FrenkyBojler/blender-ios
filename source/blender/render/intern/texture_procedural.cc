@@ -11,9 +11,9 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_math_geom_capi.hh"
-#include "BLI_noise_capi.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_noise_c.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "DNA_material_types.h"

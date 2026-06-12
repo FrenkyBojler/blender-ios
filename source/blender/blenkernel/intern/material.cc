@@ -34,11 +34,11 @@
 #include "DNA_userdef_types.h"
 #include "DNA_volume_types.h"
 
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_color_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_string.hh"
 
 #include "BLT_translation.hh"

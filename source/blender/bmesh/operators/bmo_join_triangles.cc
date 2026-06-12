@@ -16,10 +16,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_heap.hh"
-#include "BLI_math_base_capi.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_customdata.hh"
 

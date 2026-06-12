@@ -15,7 +15,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "BKE_attribute.hh"

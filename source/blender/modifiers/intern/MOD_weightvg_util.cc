@@ -8,8 +8,8 @@
 
 #include "BLI_utildefines.hh"
 
-#include "BLI_math_color_capi.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_string.hh"
 
 #include "BLT_translation.hh"

@@ -9,7 +9,7 @@
  * Contains VAOs + VBOs + Shader representing a drawable entity.
  */
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "GPU_batch.hh"

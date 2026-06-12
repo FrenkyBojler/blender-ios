@@ -6,7 +6,7 @@
  * \ingroup draw
  */
 
-#include "BLI_rand_capi.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_smaa_textures.hh"
 
 #include "DNA_scene_types.h"

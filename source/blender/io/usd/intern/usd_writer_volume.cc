@@ -19,7 +19,7 @@
 
 #include "BLI_fileops.hh"
 #include "BLI_index_range.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
 

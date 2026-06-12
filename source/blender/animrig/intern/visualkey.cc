@@ -14,8 +14,8 @@
 
 #include "BKE_armature.hh"
 
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"

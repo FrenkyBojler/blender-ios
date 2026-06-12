@@ -10,8 +10,8 @@
 
 #include "BLI_fileops.hh"
 #include "BLI_map.hh"
-#include "BLI_math_color_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_mmap.hh"
 #include "BLI_string.hh"

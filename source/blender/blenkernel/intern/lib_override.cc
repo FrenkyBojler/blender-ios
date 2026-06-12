@@ -62,7 +62,7 @@
 #include "BLI_memarena.hh"
 #include "BLI_set.hh"
 #include "BLI_string.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_time.hh"
 #include "BLI_utildefines.hh"
 #include "BLI_vector.hh"

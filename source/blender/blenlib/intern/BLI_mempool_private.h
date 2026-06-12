@@ -14,7 +14,7 @@
 #include "BLI_compiler_attrs.hh"
 
 #include "BLI_mempool.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 
 namespace blender {
 

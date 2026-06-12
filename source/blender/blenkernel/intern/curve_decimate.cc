@@ -9,7 +9,7 @@
 #include "DNA_curve_types.h"
 
 #include "BLI_heap.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BKE_curve.hh"

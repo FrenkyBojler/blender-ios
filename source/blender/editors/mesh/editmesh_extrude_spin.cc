@@ -9,8 +9,8 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_string.hh"
 
 #include "BKE_context.hh"

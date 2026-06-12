@@ -8,11 +8,11 @@
 
 #include <algorithm>
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "BLI_bitmap.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_utildefines_stack.hh"
 
 #include "DNA_mesh_types.h"

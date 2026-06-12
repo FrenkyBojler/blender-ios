@@ -18,8 +18,8 @@
 #include "BLI_array.hh"
 #include "BLI_bitmap.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_task.hh"
 #include "BLI_utildefines.hh"
 

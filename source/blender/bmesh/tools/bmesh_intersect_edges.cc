@@ -10,10 +10,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_sort.hh"
-#include "BLI_stack_capi.hh"
+#include "BLI_stack_c.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_bvhutils.hh"

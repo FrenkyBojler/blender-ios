@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_mutex.hh"
 #include "BLI_string.hh"
 #include "BLI_system.hh"

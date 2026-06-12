@@ -21,7 +21,7 @@
 #include "BLI_mutex.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_task.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 

@@ -20,10 +20,10 @@
 #include "BKE_report.hh"
 #include "BKE_workspace.hh"
 
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"

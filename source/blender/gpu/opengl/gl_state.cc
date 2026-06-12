@@ -8,7 +8,7 @@
 
 #include "BKE_global.hh"
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_math_bits.hh"
 
 #include "GPU_capabilities.hh"

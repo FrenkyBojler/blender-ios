@@ -6,7 +6,7 @@
  * \ingroup edanimation
  */
 
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_string.hh"
 
 #include "DNA_object_types.h"

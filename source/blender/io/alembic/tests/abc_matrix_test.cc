@@ -7,8 +7,8 @@
 /* Keep first since `BLI_utildefines.hh` defines `AT` which conflicts with STL. */
 #include "intern/abc_axis_conversion.h"
 
-#include "BLI_math_base_capi.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_matrix_c.hh"
 
 namespace blender::io::alembic {
 

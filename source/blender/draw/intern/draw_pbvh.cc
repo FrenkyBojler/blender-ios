@@ -10,7 +10,7 @@
  */
 
 #include "BLI_map.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.hh"
 #include "BLI_vector.hh"

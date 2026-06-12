@@ -16,8 +16,8 @@
 
 #include <Python.h>
 
-#include "BLI_math_vector_capi.hh"
-#include "BLI_noise_capi.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_noise_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "DNA_texture_types.h"

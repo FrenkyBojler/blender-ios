@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_hash_capi.hh"
+#include "BLI_hash_c.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"

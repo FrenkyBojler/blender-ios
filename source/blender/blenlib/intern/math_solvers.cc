@@ -6,10 +6,10 @@
  * \ingroup bli
  */
 
-#include "BLI_math_base_capi.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_solvers.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.hh"

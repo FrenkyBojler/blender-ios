@@ -14,7 +14,7 @@
 #include "testing/testing.h"
 
 #include "BLI_math_geom.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_vector.hh"
 
 namespace blender::math {

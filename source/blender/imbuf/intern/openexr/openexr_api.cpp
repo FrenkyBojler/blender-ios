@@ -81,7 +81,7 @@
 
 #include "BLI_fileops.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_half.hh"
 #include "BLI_mmap.hh"
 #include "BLI_string.hh"

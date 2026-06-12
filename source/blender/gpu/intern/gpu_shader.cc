@@ -7,7 +7,7 @@
  */
 
 #include "BLI_colorspace.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_string.hh"
 

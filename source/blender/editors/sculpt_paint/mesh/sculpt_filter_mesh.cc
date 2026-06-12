@@ -14,12 +14,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_hash_capi.hh"
+#include "BLI_hash_c.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "BLT_translation.hh"

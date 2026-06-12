@@ -13,7 +13,7 @@
  * Currently only plane primitive supported without its own handling, use with operator only.
  */
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "MEM_guardedalloc.h"
 

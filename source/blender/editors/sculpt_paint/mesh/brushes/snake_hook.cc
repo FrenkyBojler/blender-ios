@@ -19,7 +19,7 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_task.hh"
 
 #include "editors/sculpt_paint/mesh/mesh_brush_common.hh"

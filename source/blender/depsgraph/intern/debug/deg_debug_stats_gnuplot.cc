@@ -12,7 +12,7 @@
 #include <cstdarg>
 
 #include "BLI_compiler_attrs.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 
 #include "intern/depsgraph.hh"
 #include "intern/node/deg_node_id.hh"

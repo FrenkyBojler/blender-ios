@@ -10,8 +10,8 @@
 
 #include "BLI_bit_vector.hh"
 #include "BLI_linklist_stack.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "DNA_mesh_types.h"
 

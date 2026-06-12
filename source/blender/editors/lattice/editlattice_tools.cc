@@ -6,7 +6,7 @@
  * \ingroup edlattice
  */
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"

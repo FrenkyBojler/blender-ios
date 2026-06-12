@@ -16,7 +16,7 @@
 #include "BLI_math_color.hh"
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_offset_indices.hh"
 
 #include "PRF_profile.hh"

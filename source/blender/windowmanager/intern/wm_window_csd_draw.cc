@@ -11,7 +11,7 @@
 #include "DNA_vec_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_rect.hh"
 
 #include "GHOST_IWindow.hh"

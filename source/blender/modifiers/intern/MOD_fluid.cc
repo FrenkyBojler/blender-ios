@@ -8,7 +8,7 @@
 
 #include <cstddef>
 
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 
 #include "BLT_translation.hh"
 

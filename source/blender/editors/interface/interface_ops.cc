@@ -23,7 +23,7 @@
 #include "ANIM_keyframing.hh"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"

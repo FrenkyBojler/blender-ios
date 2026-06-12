@@ -6,7 +6,7 @@
  * \ingroup modifiers
  */
 
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"

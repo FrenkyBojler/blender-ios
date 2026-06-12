@@ -7,9 +7,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_store.hh"
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_listbase.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_resource_strings.h"
 #include "BLI_string.hh"
 #include "BLI_sys_types.hh"

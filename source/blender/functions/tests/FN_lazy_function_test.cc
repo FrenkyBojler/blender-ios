@@ -8,7 +8,7 @@
 #include "FN_lazy_function_graph.hh"
 #include "FN_lazy_function_graph_executor.hh"
 
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_gtest_base.hh"
 

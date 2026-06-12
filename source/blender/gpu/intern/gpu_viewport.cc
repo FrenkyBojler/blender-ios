@@ -10,7 +10,7 @@
 
 #include <cstring>
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.hh"
 

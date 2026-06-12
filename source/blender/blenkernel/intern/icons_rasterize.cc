@@ -7,8 +7,8 @@
  */
 
 #include "BLI_bitmap_draw_2d.hh"
-#include "BLI_math_color_capi.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "IMB_imbuf.hh"

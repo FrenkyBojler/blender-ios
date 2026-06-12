@@ -10,8 +10,8 @@
 
 #include "BLI_compiler_attrs.hh"
 #include "BLI_kdopbvh.hh"
-#include "BLI_math_vector_capi.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rand_c.hh"
 
 namespace blender {
 

@@ -19,10 +19,10 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_string.hh"
 #include "BLI_task.hh"
@@ -100,7 +100,7 @@
 #endif
 
 #ifdef USE_ARRAY_STORE_THREAD
-#  include "BLI_task_capi.hh"
+#  include "BLI_task_c.hh"
 #endif
 
 namespace blender {

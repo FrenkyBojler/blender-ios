@@ -10,8 +10,8 @@
 
 #include "mathutils.hh"
 
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "../generic/py_capi_utils.hh"

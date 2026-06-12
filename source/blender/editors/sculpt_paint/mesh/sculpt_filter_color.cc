@@ -10,7 +10,7 @@
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_color_blend.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_vector.hh"
 
 #include "BLT_translation.hh"

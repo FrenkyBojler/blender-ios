@@ -15,7 +15,7 @@
 
 #include <cstring> /* required for STREQ later on. */
 
-#include "BLI_hash_capi.hh"
+#include "BLI_hash_c.hh"
 #include "BLI_sys_types.hh"
 
 #include "GPU_format.hh"

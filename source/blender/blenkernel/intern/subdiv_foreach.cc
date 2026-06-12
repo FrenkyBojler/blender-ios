@@ -7,7 +7,7 @@
  */
 
 #include "BLI_bitmap.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_customdata.hh"
 #include "BKE_subdiv.hh"

@@ -19,7 +19,7 @@
 #  include "DNA_brush_types.h"
 
 #  include "BLI_listbase.hh"
-#  include "BLI_math_color_capi.hh"
+#  include "BLI_math_color_c.hh"
 
 #  include "BKE_library.hh"
 #  include "BKE_paint.hh"

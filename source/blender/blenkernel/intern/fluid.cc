@@ -11,13 +11,13 @@
 #include "BLI_listbase.hh"
 
 #include "BLI_fileops.hh"
-#include "BLI_hash_capi.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_hash_c.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "DNA_colorband_types.h"

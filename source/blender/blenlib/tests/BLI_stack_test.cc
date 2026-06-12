@@ -5,7 +5,7 @@
 #include "testing/testing.h"
 #include <cstring>
 
-#include "BLI_stack_capi.hh"
+#include "BLI_stack_c.hh"
 #include "BLI_utildefines.hh"
 
 namespace blender {

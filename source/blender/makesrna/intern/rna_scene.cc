@@ -18,7 +18,7 @@
 
 #include "MOV_enums.hh"
 
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_string_utf8_symbols.hh"
 
 #include "BLT_translation.hh"

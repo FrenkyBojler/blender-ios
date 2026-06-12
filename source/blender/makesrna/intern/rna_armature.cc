@@ -62,7 +62,7 @@ constexpr int COLOR_SETS_MAX_THEMED_INDEX = 20;
 
 #  include <fmt/format.h>
 
-#  include "BLI_math_vector_capi.hh"
+#  include "BLI_math_vector_c.hh"
 #  include "BLI_string.hh"
 #  include "BLI_string_utf8.hh"
 

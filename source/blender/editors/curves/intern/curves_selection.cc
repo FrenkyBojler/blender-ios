@@ -10,7 +10,7 @@
 #include "BLI_assert.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_lasso_2d.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_rect.hh"
 
 #include "BKE_attribute.hh"

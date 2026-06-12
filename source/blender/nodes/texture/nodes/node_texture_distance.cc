@@ -6,7 +6,7 @@
  * \ingroup texnodes
  */
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "node_texture_util.hh"
 
 namespace blender {

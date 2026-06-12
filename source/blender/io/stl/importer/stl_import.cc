@@ -20,8 +20,8 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_fileops.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_memory_utils.hh"
 #include "BLI_string.hh"
 

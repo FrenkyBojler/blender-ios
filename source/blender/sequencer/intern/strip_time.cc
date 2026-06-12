@@ -14,7 +14,7 @@
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 
 #include "BKE_movieclip.hh"
 #include "BKE_sound.hh"

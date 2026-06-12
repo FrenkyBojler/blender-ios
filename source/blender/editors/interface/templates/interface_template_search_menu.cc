@@ -20,7 +20,7 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"

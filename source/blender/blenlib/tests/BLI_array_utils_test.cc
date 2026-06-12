@@ -5,7 +5,7 @@
 #include "testing/testing.h"
 
 #include "BLI_array_utils.hh"
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_utildefines.hh"
 #include "BLI_utildefines_stack.hh"
 #include "BLI_virtual_array.hh"

@@ -18,7 +18,7 @@
 #include "BKE_screen.hh"
 
 #include "BLI_assert.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_string_utf8.hh"
 
 #include "RNA_access.hh"

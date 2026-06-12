@@ -7,7 +7,7 @@
  */
 
 #include "BLI_array_utils.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_task.hh"
 #include "BLI_threads.hh"

@@ -18,8 +18,8 @@
 
 #include "BLI_math_axis_angle.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "ED_view3d.hh"
 

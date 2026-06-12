@@ -19,7 +19,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "DEG_depsgraph_query.hh"
 

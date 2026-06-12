@@ -15,7 +15,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_rect.hh"
 
 #include "UI_resources.hh"

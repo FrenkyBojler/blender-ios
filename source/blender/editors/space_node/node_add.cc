@@ -19,7 +19,7 @@
 
 #include "BLI_easing.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"
 

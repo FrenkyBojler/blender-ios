@@ -12,7 +12,7 @@
 #include "BLI_math_mpq.hh"
 #include "BLI_math_vector_mpq_types.hh"
 #include "BLI_mesh_intersect.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_time.hh"
 #include "BLI_vector.hh"
 

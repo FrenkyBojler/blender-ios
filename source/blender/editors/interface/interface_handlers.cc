@@ -23,10 +23,10 @@
 #include "DNA_screen_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_linklist.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_sort_utils.hh"
 #include "BLI_string.hh"

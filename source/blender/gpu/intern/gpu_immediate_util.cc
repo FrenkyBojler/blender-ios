@@ -12,8 +12,8 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_utildefines.hh"
 

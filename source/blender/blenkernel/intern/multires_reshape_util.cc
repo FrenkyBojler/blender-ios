@@ -17,9 +17,9 @@
 #include "DNA_object_types.h"
 
 #include "BLI_math_matrix.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"

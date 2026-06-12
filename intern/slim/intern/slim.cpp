@@ -12,7 +12,7 @@
 #include "flip_avoiding_line_search.h"
 
 #include "BLI_assert.hh"
-#include "BLI_math_base_capi.hh" /* M_PI */
+#include "BLI_math_base_c.hh" /* M_PI */
 
 #include <vector>
 

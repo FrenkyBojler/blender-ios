@@ -35,7 +35,7 @@
 #include "view3d_navigate.hh"
 
 #ifdef WIN32
-#  include "BLI_math_base_capi.hh" /* M_PI */
+#  include "BLI_math_base_c.hh" /* M_PI */
 #endif
 
 namespace blender {

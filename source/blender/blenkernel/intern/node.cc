@@ -41,7 +41,7 @@
 #include "BLI_math_rotation.hh"
 #include "BLI_math_rotation_types.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"

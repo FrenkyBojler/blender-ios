@@ -11,7 +11,7 @@
 
 #include "BLI_color.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_hash_capi.hh"
+#include "BLI_hash_c.hh"
 #include "BLI_math_color_blend.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"

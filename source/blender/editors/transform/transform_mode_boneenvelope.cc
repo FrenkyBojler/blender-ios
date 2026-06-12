@@ -8,7 +8,7 @@
 
 #include <cstdlib>
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_string_utf8.hh"
 
 #include "BKE_unit.hh"

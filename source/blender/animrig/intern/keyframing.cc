@@ -30,7 +30,7 @@
 
 #include "DNA_scene_types.h"
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_task.hh"
 #include "BLI_utildefines.hh"
 #include "BLT_translation.hh"

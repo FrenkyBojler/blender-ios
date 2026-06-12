@@ -15,9 +15,9 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "BLI_math_base_capi.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_rect.hh"
 #include "BLI_utildefines.hh"

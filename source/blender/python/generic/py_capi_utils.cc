@@ -30,7 +30,7 @@
 #endif
 
 #ifdef _WIN32
-#  include "BLI_math_base_capi.hh" /* isfinite() */
+#  include "BLI_math_base_c.hh" /* isfinite() */
 #endif
 
 namespace blender {

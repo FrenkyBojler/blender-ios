@@ -13,8 +13,8 @@
 #include "DNA_sequence_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_math_base_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_string_utf8_symbols.hh"
 #ifdef WIN32
 #  include "BLI_winstuff.hh"
@@ -235,7 +235,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "AS_remote_library.hh"
 
 #  include "BLI_listbase.hh"
-#  include "BLI_math_vector_capi.hh"
+#  include "BLI_math_vector_c.hh"
 #  include "BLI_memory_cache.hh"
 #  include "BLI_string.hh"
 #  include "BLI_string_utf8.hh"

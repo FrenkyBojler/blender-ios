@@ -13,7 +13,7 @@
 
 #include "CLG_log.h"
 
-#include "BLI_array_utils_capi.hh" /* For #BLI_array_is_zeroed. */
+#include "BLI_array_utils_c.hh" /* For #BLI_array_is_zeroed. */
 #include "BLI_utildefines.hh"
 
 #include "DNA_curve_types.h"

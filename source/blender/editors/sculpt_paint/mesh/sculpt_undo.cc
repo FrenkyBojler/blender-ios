@@ -37,7 +37,7 @@
 #include "BLI_map.hh"
 #include "BLI_memory_counter.hh"
 #include "BLI_string_utf8.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 

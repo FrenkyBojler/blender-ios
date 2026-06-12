@@ -11,13 +11,13 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 #include "BKE_movieclip.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_tracking.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_matrix_c.hh"
 
 #include "ED_clip.hh"
 

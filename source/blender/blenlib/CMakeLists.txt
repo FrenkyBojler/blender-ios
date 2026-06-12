@@ -175,7 +175,7 @@ set(SRC
   BLI_array_state.hh
   BLI_array_store.hh
   BLI_array_store_utils.hh
-  BLI_array_utils_capi.hh
+  BLI_array_utils_c.hh
   BLI_array_utils.hh
   BLI_asan.hh
   BLI_assert.hh
@@ -247,7 +247,7 @@ set(SRC
   BLI_generic_virtual_vector_array.hh
   BLI_ghash.hh
   BLI_gsqueue.hh
-  BLI_hash_capi.hh
+  BLI_hash_c.hh
   BLI_hash.hh
   BLI_hash_fwd.hh
   BLI_hash_md5.hh
@@ -287,38 +287,38 @@ set(SRC
   BLI_math_angle_types.hh
   BLI_math_axis_angle.hh
   BLI_math_axis_angle_types.hh
-  BLI_math_base_capi.hh
+  BLI_math_base_c.hh
   BLI_math_base.hh
   BLI_math_base_safe.hh
   BLI_math_basis_types.hh
   BLI_math_bits.hh
   BLI_math_boolean.hh
-  BLI_math_color_capi.hh
+  BLI_math_color_c.hh
   BLI_math_color.hh
   BLI_math_color_blend.hh
   BLI_math_constants.hh
   BLI_math_euler.hh
   BLI_math_euler_types.hh
   BLI_math_filter.hh
-  BLI_math_geom_capi.hh
+  BLI_math_geom_c.hh
   BLI_math_geom.hh
   BLI_math_half.hh
   BLI_math_inline.hh
   BLI_math_interp.hh
-  BLI_math_matrix_capi.hh
+  BLI_math_matrix_c.hh
   BLI_math_matrix.hh
   BLI_math_matrix_types.hh
   BLI_math_mpq.hh
   BLI_math_quaternion.hh
   BLI_math_quaternion_types.hh
-  BLI_math_rotation_capi.hh
+  BLI_math_rotation_c.hh
   BLI_math_rotation.hh
   BLI_math_rotation_legacy.hh
   BLI_math_rotation_types.hh
   BLI_math_solvers.hh
   BLI_math_statistics.hh
   BLI_math_time.hh
-  BLI_math_vector_capi.hh
+  BLI_math_vector_c.hh
   BLI_math_vector.hh
   BLI_math_vector_mpq_types.hh
   BLI_math_vector_swizzle.hh
@@ -338,7 +338,7 @@ set(SRC
   BLI_mmap.hh
   BLI_multi_value_map.hh
   BLI_mutex.hh
-  BLI_noise_capi.hh
+  BLI_noise_c.hh
   BLI_noise.hh
   BLI_offset_indices.hh
   BLI_offset_span.hh
@@ -351,7 +351,7 @@ set(SRC
   BLI_probing_strategies.hh
   BLI_quadric.hh
   BLI_radial_tiling.hh
-  BLI_rand_capi.hh
+  BLI_rand_c.hh
   BLI_rand.hh
   BLI_random_access_iterator_mixin.hh
   BLI_rect.hh
@@ -367,7 +367,7 @@ set(SRC
   BLI_sort.hh
   BLI_sort_utils.hh
   BLI_span.hh
-  BLI_stack_capi.hh
+  BLI_stack_c.hh
   BLI_stack.hh
   BLI_strict_flags.hh
   BLI_string.hh
@@ -381,7 +381,7 @@ set(SRC
   BLI_subprocess.hh
   BLI_sys_types.hh
   BLI_system.hh
-  BLI_task_capi.hh
+  BLI_task_c.hh
   BLI_task.hh
   BLI_task_size_hints.hh
   BLI_tempfile.hh

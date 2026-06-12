@@ -9,7 +9,7 @@
 
 #include "BLI_exception_safety_test_utils.hh"
 #include "BLI_map.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_set.hh"
 #include "BLI_timeit.hh"
 #include "BLI_vector.hh"

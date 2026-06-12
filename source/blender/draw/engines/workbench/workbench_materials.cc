@@ -5,8 +5,8 @@
 #include "workbench_private.hh"
 
 #include "BLI_ghash.hh"
-#include "BLI_hash_capi.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_hash_c.hh"
+#include "BLI_math_color_c.hh"
 
 #include "IMB_colormanagement.hh"
 

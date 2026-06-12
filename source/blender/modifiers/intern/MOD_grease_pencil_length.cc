@@ -6,8 +6,8 @@
  * \ingroup modifiers
  */
 
-#include "BLI_hash_capi.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_hash_c.hh"
+#include "BLI_rand_c.hh"
 
 #include "BLT_translation.hh"
 

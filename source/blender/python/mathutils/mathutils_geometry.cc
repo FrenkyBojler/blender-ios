@@ -24,8 +24,8 @@
 #  include "MEM_guardedalloc.h"
 #endif /* !MATH_STANDALONE */
 
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "../generic/py_capi_utils.hh"

@@ -10,11 +10,11 @@
 #include <fmt/format.h>
 
 #include "BLI_listbase.hh"
-#include "BLI_math_color_capi.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_half.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"

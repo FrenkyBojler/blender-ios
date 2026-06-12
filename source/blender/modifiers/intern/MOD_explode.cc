@@ -12,10 +12,10 @@
 
 #include "BLI_kdtree.hh"
 #include "BLI_map.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rand_c.hh"
 
 #include "BLT_translation.hh"
 

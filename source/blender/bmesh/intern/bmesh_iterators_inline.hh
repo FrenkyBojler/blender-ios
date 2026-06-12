@@ -170,7 +170,7 @@ ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1) BLI_INLINE
  *
  * Uses #BLI_task_parallel_mempool to iterate over all items of underlying matching mempool.
  *
- * \note You have to include BLI_task_capi.hh before BMesh includes to be able to use this
+ * \note You have to include BLI_task_c.hh before BMesh includes to be able to use this
  * function!
  */
 

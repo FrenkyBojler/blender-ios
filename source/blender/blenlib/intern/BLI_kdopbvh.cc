@@ -30,10 +30,10 @@
 #include "BLI_alloca.hh"
 #include "BLI_heap_simple.hh"
 #include "BLI_kdopbvh.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_stack_capi.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_stack_c.hh"
+#include "BLI_task_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */

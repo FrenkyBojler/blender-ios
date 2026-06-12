@@ -12,9 +12,9 @@
 
 #include "BLI_jitter_2d.hh"
 #include "BLI_map.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_ordered_edge.hh"
 
 #include "BKE_bvhutils.hh"

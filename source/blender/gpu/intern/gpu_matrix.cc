@@ -14,9 +14,9 @@
 #include "GPU_matrix.hh"
 #undef USE_GPU_PY_MATRIX_API
 
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "MEM_guardedalloc.h"
 

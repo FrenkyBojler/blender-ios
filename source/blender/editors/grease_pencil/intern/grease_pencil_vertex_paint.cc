@@ -6,7 +6,7 @@
  * \ingroup edgreasepencil
  */
 
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 
 #include "BLT_translation.hh"
 

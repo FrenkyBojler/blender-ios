@@ -11,7 +11,7 @@
 #include "DNA_key_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"

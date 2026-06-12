@@ -50,7 +50,7 @@
 #include "BLI_mutex.hh"
 #include "BLI_stack.hh"
 #include "BLI_task.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 
 #include "FN_lazy_function_graph_executor.hh"
 #include "FN_lazy_function_graph_executor_generic.hh"

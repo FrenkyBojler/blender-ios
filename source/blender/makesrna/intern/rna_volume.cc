@@ -53,7 +53,7 @@ const EnumPropertyItem rna_enum_volume_grid_data_type_items[] = {
  */
 #ifdef RNA_RUNTIME
 
-#  include "BLI_math_base_capi.hh"
+#  include "BLI_math_base_c.hh"
 
 #  include "BKE_volume.hh"
 

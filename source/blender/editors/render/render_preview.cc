@@ -21,8 +21,8 @@
 #endif
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_set.hh"
 #include "BLI_string_utf8.hh"
@@ -70,7 +70,7 @@
 #include "BKE_texture.h"
 #include "BKE_world.h"
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"

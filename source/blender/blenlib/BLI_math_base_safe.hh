@@ -11,7 +11,7 @@
  * In this context "safe" means that the output is not NaN if the input is not NaN.
  */
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 
 namespace blender {
 

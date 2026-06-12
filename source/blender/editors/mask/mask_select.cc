@@ -8,7 +8,7 @@
 
 #include "BLI_lasso_2d.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.hh"
 

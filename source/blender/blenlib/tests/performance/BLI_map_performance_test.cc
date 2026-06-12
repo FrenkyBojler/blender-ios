@@ -13,7 +13,7 @@
 #include "BLI_ghash.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_string.hh"
 #include "BLI_timeit.hh"
 #include "BLI_utildefines.hh"

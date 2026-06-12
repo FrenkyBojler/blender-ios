@@ -9,8 +9,8 @@
 
 #include "BKE_volume.hh"
 #include "BKE_volume_render.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_rand_c.hh"
 #include "DNA_fluid_types.h"
 #include "DNA_modifier_types.h"
 

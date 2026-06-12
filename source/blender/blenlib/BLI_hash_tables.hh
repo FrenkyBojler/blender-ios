@@ -20,7 +20,7 @@ namespace blender {
 /* -------------------------------------------------------------------- */
 /** \name Constexpr Utility Functions
  *
- * Those should eventually be de-duplicated with functions in BLI_math_base_capi.hh.
+ * Those should eventually be de-duplicated with functions in BLI_math_base_c.hh.
  * \{ */
 
 template<typename IntT> constexpr IntT ceil_division(const IntT x, const IntT y)

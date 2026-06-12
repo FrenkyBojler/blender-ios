@@ -13,8 +13,8 @@
 #include "BLI_color_types.hh"
 #include "BLI_colorspace.hh"
 #include "BLI_compiler_compat.hh"
-#include "BLI_math_color_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
 
 namespace blender {
 

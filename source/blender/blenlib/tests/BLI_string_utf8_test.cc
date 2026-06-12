@@ -4,7 +4,7 @@
 
 #include "testing/testing.h"
 
-#include "BLI_rand_capi.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_string.hh"
 #include "BLI_string_cursor_utf8.hh"
 #include "BLI_string_utf8.hh"

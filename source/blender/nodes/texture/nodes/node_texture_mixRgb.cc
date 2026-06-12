@@ -11,7 +11,7 @@
 
 #include "BKE_material.hh"
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 namespace blender {
 

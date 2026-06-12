@@ -9,11 +9,11 @@
 #include "GEO_join_geometries.hh"
 #include "GEO_mesh_boolean.hh"
 
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_polyfill_2d.hh"
 
 #include "BKE_brush.hh"

@@ -9,9 +9,9 @@
 #pragma once
 
 #include "BLI_colorspace.hh"
-#include "BLI_math_color_capi.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "IMB_colormanagement_intern.hh"
 
 namespace blender {

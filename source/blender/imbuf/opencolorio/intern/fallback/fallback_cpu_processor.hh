@@ -5,7 +5,7 @@
 #pragma once
 
 #include "BLI_assert.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 
 #include "OCIO_cpu_processor.hh"
 #include "OCIO_packed_image.hh"

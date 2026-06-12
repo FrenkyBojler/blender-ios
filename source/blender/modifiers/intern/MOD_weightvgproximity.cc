@@ -10,10 +10,10 @@
 
 #include "BLI_ghash.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
-#include "BLI_rand_capi.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rand_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BLT_translation.hh"
 

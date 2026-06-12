@@ -7,7 +7,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_linklist_lockfree.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_threads.hh"
 #include "BLI_utildefines.hh"
 

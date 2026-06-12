@@ -25,7 +25,7 @@
 #include "BLI_listbase.hh"
 #include "BLI_mutex.hh"
 #include "BLI_rect.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"

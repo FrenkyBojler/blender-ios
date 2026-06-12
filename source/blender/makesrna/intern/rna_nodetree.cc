@@ -12,7 +12,7 @@
 #include <type_traits>
 
 #include "BLI_linear_allocator.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_string.hh"
 
 #include "BLT_translation.hh"

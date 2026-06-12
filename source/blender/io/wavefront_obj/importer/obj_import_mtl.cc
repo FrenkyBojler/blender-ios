@@ -11,7 +11,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
 

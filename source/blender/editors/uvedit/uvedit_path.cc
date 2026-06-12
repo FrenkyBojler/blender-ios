@@ -12,7 +12,7 @@
 #include <cstring>
 
 #include "BLI_linklist.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "MEM_guardedalloc.h"

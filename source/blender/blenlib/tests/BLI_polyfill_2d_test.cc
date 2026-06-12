@@ -13,9 +13,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_map.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_polyfill_2d.hh"
 #include "BLI_utildefines.hh"

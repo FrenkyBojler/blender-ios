@@ -18,7 +18,7 @@
 #include "BKE_volume.hh"
 
 #include "BLI_fftw.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_threads.hh"
 
 #include "CLG_log.h"

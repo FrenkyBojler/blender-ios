@@ -13,7 +13,7 @@
 
 #include "BLI_endian_switch.hh"
 #include "BLI_fileops.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #ifdef WIN32
 #  include "BLI_winstuff.hh"
 #endif

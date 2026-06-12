@@ -23,7 +23,7 @@
 #include "BLI_length_parameterize.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_rect.hh"

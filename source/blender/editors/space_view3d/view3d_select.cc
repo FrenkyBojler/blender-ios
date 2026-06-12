@@ -28,7 +28,7 @@
 #include "BLI_lasso_2d.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_bits.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_span.hh"
 #include "BLI_string_utf8.hh"

@@ -10,7 +10,7 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_matrix_c.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"

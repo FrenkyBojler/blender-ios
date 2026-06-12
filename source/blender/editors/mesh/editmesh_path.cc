@@ -16,7 +16,7 @@
 #endif
 
 #include "BLI_linklist.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"

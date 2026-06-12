@@ -8,7 +8,7 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_utildefines.hh"
 

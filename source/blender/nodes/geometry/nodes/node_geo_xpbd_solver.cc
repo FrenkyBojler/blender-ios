@@ -13,7 +13,7 @@
 #include "BKE_mesh_sample.hh"
 #include "BKE_pointcloud.hh"
 
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_stack.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_virtual_array_range_spans.hh"

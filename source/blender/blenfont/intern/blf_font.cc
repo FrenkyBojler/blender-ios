@@ -30,7 +30,7 @@
 
 #include "BLI_math_bits.hh"
 #include "BLI_math_color_blend.hh"
-#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.hh"

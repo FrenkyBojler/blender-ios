@@ -6,9 +6,9 @@
  * \ingroup pybmesh
  */
 
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_sort.hh"
 #include "BLI_string_utils.hh"
 

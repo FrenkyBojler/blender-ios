@@ -18,13 +18,13 @@
 #include "DNA_curve_types.h"
 
 #include "BLI_math_base.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.hh"
 #include "BLI_string_utf8.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "BKE_colortools.hh"

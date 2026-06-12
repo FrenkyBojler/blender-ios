@@ -34,7 +34,7 @@
 #include "BLI_fileops.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_color.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"

@@ -14,7 +14,7 @@
 #include <deque>
 
 #include "BLI_listbase.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "BKE_global.hh"

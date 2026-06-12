@@ -18,9 +18,9 @@
 #include "BLI_bitmap.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_color_blend.hh"
-#include "BLI_math_color_capi.hh"
-#include "BLI_stack_capi.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_stack_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_brush.hh"
 #include "BKE_colorband.hh"

@@ -15,7 +15,7 @@
 #include "BKE_report.hh"
 
 #include "BLI_fileops.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_task.hh"
 
 #include "DEG_depsgraph.hh"

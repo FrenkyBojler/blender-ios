@@ -12,7 +12,7 @@
 
 #include "DNA_mesh_types.h"
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_eval.hh"

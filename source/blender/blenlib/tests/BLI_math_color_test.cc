@@ -5,7 +5,7 @@
 #include "testing/testing.h"
 
 #include "BLI_math_color_blend.hh"
-#include "BLI_math_color_capi.hh"
+#include "BLI_math_color_c.hh"
 
 namespace blender {
 

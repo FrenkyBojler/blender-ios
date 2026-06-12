@@ -8,7 +8,7 @@
 
 #include <algorithm>
 
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"

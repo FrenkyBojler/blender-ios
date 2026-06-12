@@ -27,7 +27,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_geom_capi.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.hh"

@@ -7,9 +7,9 @@
  */
 
 #include "BLI_array.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"

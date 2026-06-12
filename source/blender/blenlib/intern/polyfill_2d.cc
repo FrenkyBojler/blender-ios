@@ -40,8 +40,8 @@
 
 #include "BLI_alloca.hh"
 #include "BLI_enum_flags.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_memarena.hh"
 
 #include "BLI_polyfill_2d.hh" /* own include */

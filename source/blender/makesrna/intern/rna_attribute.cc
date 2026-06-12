@@ -269,7 +269,7 @@ const EnumPropertyItem rna_enum_attribute_curves_domain_items[] = {
 #  include "DNA_meshdata_types.h"
 #  include "DNA_pointcloud_types.h"
 
-#  include "BLI_math_color_capi.hh"
+#  include "BLI_math_color_c.hh"
 #  include "BLI_string.hh"
 
 #  include "BKE_anonymous_attribute_id.hh"

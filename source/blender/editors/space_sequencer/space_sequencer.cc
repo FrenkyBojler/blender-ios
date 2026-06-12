@@ -15,7 +15,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_string_utf8.hh"
 

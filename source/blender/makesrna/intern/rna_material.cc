@@ -12,7 +12,7 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 
 #include "BLT_translation.hh"
 

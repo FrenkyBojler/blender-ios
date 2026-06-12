@@ -19,7 +19,7 @@
 
 #include "BLI_assert.hh"
 #include "BLI_mempool.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_threads.hh"
 #include "BLI_vector.hh"
 

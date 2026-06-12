@@ -13,10 +13,10 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_axis_angle.hh"
-#include "BLI_math_color_capi.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_rect.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_utildefines.hh"
 
 #include "DNA_brush_types.h"

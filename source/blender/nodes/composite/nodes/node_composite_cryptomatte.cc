@@ -11,7 +11,7 @@
 
 #include "BLI_assert.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.hh"

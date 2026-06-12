@@ -6,7 +6,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array_utils_capi.hh"
+#include "BLI_array_utils_c.hh"
 #include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_resource_strings.h"

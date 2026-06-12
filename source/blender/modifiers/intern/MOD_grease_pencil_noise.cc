@@ -6,7 +6,7 @@
  * \ingroup modifiers
  */
 
-#include "BLI_hash_capi.hh"
+#include "BLI_hash_c.hh"
 #include "BLI_math_vector.hh"
 
 #include "BLT_translation.hh"

@@ -7,7 +7,7 @@
  */
 
 #include "BLI_listbase.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 #include "node_texture_util.hh"
 #include "node_util.hh"
 

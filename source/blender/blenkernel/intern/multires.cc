@@ -19,9 +19,9 @@
 #include "BLI_bitmap.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_ccg.hh"
 #include "BKE_editmesh.hh"

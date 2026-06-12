@@ -16,7 +16,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_mempool.hh"
 #include "BLI_sys_types.hh" /* for intptr_t support */
 #include "BLI_utildefines.hh"

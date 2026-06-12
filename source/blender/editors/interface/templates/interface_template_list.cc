@@ -12,7 +12,7 @@
 #include "BLI_fnmatch.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_string.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.hh"

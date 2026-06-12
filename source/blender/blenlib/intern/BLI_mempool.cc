@@ -23,7 +23,7 @@
 #include "BLI_utildefines.hh"
 
 #include "BLI_asan.hh"
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_mempool.hh"        /* own include */
 #include "BLI_mempool_private.h" /* own include */
 

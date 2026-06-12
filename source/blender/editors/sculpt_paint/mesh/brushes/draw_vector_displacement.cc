@@ -17,7 +17,7 @@
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_task.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 
 #include "editors/sculpt_paint/mesh/mesh_brush_common.hh"
 #include "editors/sculpt_paint/mesh/sculpt_automask.hh"

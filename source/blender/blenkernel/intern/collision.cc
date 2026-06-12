@@ -17,9 +17,9 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_cloth.hh"
 #include "BKE_collection.hh"

@@ -8,7 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_mutex.hh"
 #include "BLI_utildefines.hh"
 
@@ -36,7 +36,7 @@
 #include <cstring>
 
 #ifdef WITH_MOD_REMESH
-#  include "BLI_math_vector_capi.hh"
+#  include "BLI_math_vector_c.hh"
 
 #  include "dualcon.h"
 #endif

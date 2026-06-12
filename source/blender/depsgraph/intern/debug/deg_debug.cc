@@ -9,7 +9,7 @@
 #include "intern/debug/deg_debug.h"
 
 #include "BLI_console.hh"
-#include "BLI_hash_capi.hh"
+#include "BLI_hash_c.hh"
 #include "BLI_string.hh"
 #include "BLI_time.hh"
 

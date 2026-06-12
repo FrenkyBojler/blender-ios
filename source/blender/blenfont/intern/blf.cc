@@ -21,7 +21,7 @@
 #include FT_GLYPH_H
 
 #include "BLI_fileops.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
 

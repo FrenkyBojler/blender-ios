@@ -9,9 +9,9 @@
 #include <algorithm>
 #include <cstdlib>
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_math_color_blend.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_task.hh"
 #include "BLI_utildefines.hh"

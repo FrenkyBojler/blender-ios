@@ -12,7 +12,7 @@
 #include <cstring>
 
 #include "BLI_jitter_2d.hh"
-#include "BLI_rand_capi.hh"
+#include "BLI_rand_c.hh"
 
 #include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 

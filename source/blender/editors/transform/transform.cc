@@ -7,8 +7,8 @@
  */
 
 #include "BLI_listbase.hh"
-#include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_rect.hh"
 
 #include "BKE_context.hh"

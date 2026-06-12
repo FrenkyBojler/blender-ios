@@ -12,7 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_math_base_capi.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_string_utf8_symbols.hh"

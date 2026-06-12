@@ -15,7 +15,7 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_gsqueue.hh"
-#include "BLI_task_capi.hh"
+#include "BLI_task_c.hh"
 #include "BLI_time.hh"
 
 #include "BKE_global.hh"

@@ -17,7 +17,7 @@
 #include "DNA_screen_types.h"
 
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_polyfill_2d.hh"
 #include "BLI_rect.hh"
 #include "BLI_string_utf8.hh"

@@ -12,7 +12,7 @@
 #include "BLI_compiler_compat.hh"
 #include "BLI_sys_types.hh"
 
-#include "BLI_noise_capi.hh" /* Own include. */
+#include "BLI_noise_c.hh" /* Own include. */
 
 namespace blender {
 

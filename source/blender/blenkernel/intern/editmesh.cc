@@ -12,8 +12,8 @@
 #include "DNA_object_types.h"
 
 #include "BLI_bitmap.hh"
-#include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"

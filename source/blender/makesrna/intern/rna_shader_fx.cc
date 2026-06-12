@@ -13,7 +13,7 @@
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_shader_fx_types.h"
 
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_rotation_c.hh"
 
 #include "BLT_translation.hh"
 
