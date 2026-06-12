@@ -385,27 +385,6 @@ static void rule_read_data(BlendDataReader &reader, DynamicOverrideRule &dynover
 /** \name Basic Rule Management.
  * \{ */
 
-/**
- * Return a unique rule name whithin the given DynamicOverride ID, based on given initial
- * rule_name.
- */
-static std::string rule_unique_name_get(DynamicOverride &dynamic_override,
-                                        DynamicOverrideRule &target_rule,
-                                        StringRef rule_name)
-{
-  Set<StringRef> rules_names;
-  for (DynamicOverrideRule &rule : dynamic_override.rules) {
-    if (&rule == &target_rule) {
-      continue;
-    }
-    rules_names.add(rule.name);
-  }
-  return BLI_uniquename_cb(
-      [&rules_names](const StringRef check_name) { return rules_names.contains(check_name); },
-      '.',
-      rule_name);
-}
-
 DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(DynamicOverride &dynamic_override,
                                                      ID &owner_id)
 {
@@ -484,6 +463,39 @@ DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(DynamicOverride &dynamic_ov
   return rule_iddata_add_for_id(dynamic_override, owner_id);
 }
 
+/**
+ * Return a unique rule name whithin the given DynamicOverride ID, based on given initial
+ * rule_name.
+ */
+static std::string rule_unique_name_get(DynamicOverride &dynamic_override,
+                                        DynamicOverrideRule &target_rule,
+                                        StringRef rule_name)
+{
+  Set<StringRef> rules_names;
+  for (DynamicOverrideRule &rule : dynamic_override.rules) {
+    if (&rule == &target_rule) {
+      continue;
+    }
+    rules_names.add(rule.name);
+  }
+  return BLI_uniquename_cb(
+      [&rules_names](const StringRef check_name) { return rules_names.contains(check_name); },
+      '.',
+      rule_name);
+}
+
+DynamicOverrideRule *rule_lookup_by_name(DynamicOverride &dynamic_override, StringRef rule_name)
+{
+  /* TODO: use runtime data for mappings etc. */
+  for (DynamicOverrideRule &rule : dynamic_override.rules) {
+    if (rule_name == rule.name) {
+      return &rule;
+    }
+  }
+
+  return nullptr;
+}
+
 void rule_name_set(DynamicOverride &dynamic_override,
                    DynamicOverrideRule &rule,
                    StringRef rule_name)
@@ -500,13 +512,9 @@ void rule_remove(Main &bmain,
   BLI_assert(BLI_findindex(&dynamic_override.rules, existing_rule) != -1);
   BLI_remlink(&dynamic_override.rules, existing_rule);
 
-  if (existing_rule->type == DynamicOverrideRuleType::IDData) {
-    DynamicOverrideRuleIDData *iddata_rule = reinterpret_cast<DynamicOverrideRuleIDData *>(
-        existing_rule);
-    DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
-    DEG_id_tag_update(iddata_rule->base.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
-    DEG_relations_tag_update(&bmain);
-  }
+  DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
+  DEG_id_tag_update(existing_rule->target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
+  DEG_relations_tag_update(&bmain);
 
   rule_free(*existing_rule);
   MEM_delete(existing_rule);
@@ -608,6 +616,9 @@ void rule_property_remove(Main &bmain,
   BLI_remlink(&rule_iddata.properties, existing_property);
   rule_property_free(*existing_property);
   MEM_delete(existing_property);
+
+  DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
+  DEG_id_tag_update(rule.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
 
   BKE_main_ensure_invariants(bmain, dynamic_override.id);
 }

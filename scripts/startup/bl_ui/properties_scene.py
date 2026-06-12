@@ -86,9 +86,14 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
             panel_header, panel_body = layout.panel(idname=rule_id)
             panel_header.prop(rule, "name", text="")
             panel_header.prop(rule, "is_muted", icon='HIDE_ON' if rule.is_muted else 'HIDE_OFF', icon_only=True)
+            panel_header.separator()
+            op = panel_header.operator('UI_OT_dynoverride_remove_rule', text="", icon='X')
+            op.session_uid = dynoverride.session_uid
+            op.rule_name = rule.name
             if panel_body is None:
                 # Closed panel...
                 continue
+
             col = panel_body.column()
             col.active = not rule.is_muted
             if isinstance(rule, bpy.types.DynamicOverrideRuleIDData):
@@ -99,6 +104,11 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
                     sub.active = not prop.is_muted
                     sub.prop(rule.override_values, prop.property_identifier)
                     row.prop(prop, "is_muted", icon='HIDE_ON' if prop.is_muted else 'HIDE_OFF', icon_only=True)
+                    row.separator()
+                    op = row.operator('UI_OT_dynoverride_remove_rule_property', text="", icon='X')
+                    op.session_uid = dynoverride.session_uid
+                    op.rule_name = rule.name
+                    op.property_rna_path = prop.rna_path
 
 
 class SCENE_PT_unit(SceneButtonsPanel, Panel):

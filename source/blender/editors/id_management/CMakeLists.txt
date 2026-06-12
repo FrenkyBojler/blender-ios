@@ -12,6 +12,7 @@ set(INC_SYS
 
 set(SRC
   ed_id_management.cc
+  ed_dynamic_override.cc
 )
 
 set(LIB

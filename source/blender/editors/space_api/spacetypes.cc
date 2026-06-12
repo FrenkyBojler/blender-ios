@@ -34,6 +34,7 @@
 #include "ED_gizmo_library.hh"
 #include "ED_gpencil_legacy.hh"
 #include "ED_grease_pencil.hh"
+#include "ED_id_management.hh"
 #include "ED_lattice.hh"
 #include "ED_markers.hh"
 #include "ED_mask.hh"
@@ -121,6 +122,8 @@ void ED_spacetypes_init()
 
   ui::ED_operatortypes_view2d();
   ui::operatortypes_ui();
+
+  ui::operatortypes_dynamic_override();
 
   ED_screen_user_menu_register();
 
