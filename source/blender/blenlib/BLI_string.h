@@ -10,14 +10,11 @@
 
 #include <inttypes.h>
 #include <stdarg.h>
+#include <string>
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-#  include <string>
-#endif
 
 namespace blender {
 
