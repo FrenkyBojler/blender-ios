@@ -14,7 +14,7 @@
 
 #include "intern/bmesh_operators_private.hh" /* own include */
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_capi.hh"
 
 #include "BKE_customdata.hh"
 

@@ -10,10 +10,10 @@
 #include "BKE_object.hh"
 
 #include "BLI_delaunay_2d.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "DNA_object_types.h"
 

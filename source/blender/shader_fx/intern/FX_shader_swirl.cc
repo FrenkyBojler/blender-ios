@@ -8,7 +8,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"

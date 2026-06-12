@@ -9,8 +9,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"

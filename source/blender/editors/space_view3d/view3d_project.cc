@@ -14,10 +14,10 @@
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "BKE_camera.h"
 #include "BKE_screen.hh"

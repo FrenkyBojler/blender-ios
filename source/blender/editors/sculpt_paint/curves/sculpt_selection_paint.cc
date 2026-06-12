@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_capi.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 

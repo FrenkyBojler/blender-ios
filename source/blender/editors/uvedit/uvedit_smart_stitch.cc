@@ -17,10 +17,10 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_ghash.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_ghash.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_span.hh"
 
 #include "BLT_translation.hh"

@@ -15,11 +15,11 @@
 #include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_object.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_task.h"
-#include "BLI_time.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
+#include "BLI_task_capi.hh"
+#include "BLI_time.hh"
 
 #include "DNA_light_types.h"
 #include "DNA_modifier_types.h"

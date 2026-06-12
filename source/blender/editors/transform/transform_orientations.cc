@@ -22,14 +22,14 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_vector_capi.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
@@ -246,7 +246,7 @@ static bool test_rotmode_euler(short rotmode)
 }
 
 /**
- * Could move into BLI_math_rotation.h however this is only useful for display/editing purposes.
+ * Could move into BLI_math_rotation_capi.hh however this is only useful for display/editing purposes.
  */
 static void axis_angle_to_gimbal_axis(float gmat[3][3], const float axis[3], const float angle)
 {

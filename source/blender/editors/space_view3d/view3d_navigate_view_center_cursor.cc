@@ -6,7 +6,7 @@
  * \ingroup spview3d
  */
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_capi.hh"
 
 #include "BKE_context.hh"
 

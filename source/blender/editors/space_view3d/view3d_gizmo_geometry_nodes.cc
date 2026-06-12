@@ -24,10 +24,10 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 
-#include "BLI_math_base_safe.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_base_safe.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation_capi.hh"
 #include "BLI_math_rotation.hh"
 
 #include "RNA_access.hh"

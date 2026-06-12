@@ -10,8 +10,8 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_math_vector.h"
-#include "BLI_stack.h"
+#include "BLI_math_vector_capi.hh"
+#include "BLI_stack_capi.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"

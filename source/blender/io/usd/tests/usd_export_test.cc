@@ -23,8 +23,8 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
 

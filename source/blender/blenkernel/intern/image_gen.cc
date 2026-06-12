@@ -10,9 +10,9 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "BLI_math_base.h"
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_base_capi.hh"
+#include "BLI_math_color_capi.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_task.hh"
 
 #include "BKE_image.hh"

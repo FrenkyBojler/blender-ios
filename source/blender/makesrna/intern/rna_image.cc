@@ -51,9 +51,9 @@ static const EnumPropertyItem image_source_items[] = {
 #  include <algorithm>
 #  include <fmt/format.h>
 
-#  include "BLI_listbase.h"
-#  include "BLI_math_base.h"
-#  include "BLI_math_vector.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_math_base_capi.hh"
+#  include "BLI_math_vector_capi.hh"
 
 #  include "BKE_global.hh"
 #  include "BKE_image.hh"

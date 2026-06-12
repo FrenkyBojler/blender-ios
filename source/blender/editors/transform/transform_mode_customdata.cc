@@ -8,8 +8,8 @@
 
 #include <cstdlib>
 
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
+#include "BLI_math_vector_capi.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_task.hh"
 
 #include "BKE_unit.hh"

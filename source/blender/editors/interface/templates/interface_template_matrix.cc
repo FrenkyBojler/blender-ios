@@ -10,8 +10,8 @@
 
 #include "BKE_unit.hh"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
 
 #include "BLT_translation.hh"
 

@@ -12,8 +12,8 @@
 
 #include "DNA_object_types.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
 
 #include "GPU_matrix.hh"
 #include "GPU_select.hh"

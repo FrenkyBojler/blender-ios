@@ -11,10 +11,10 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_math_geom.h"
-#include "BLI_noise.h"
-#include "BLI_rand.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_noise_capi.hh"
+#include "BLI_rand_capi.hh"
+#include "BLI_utildefines.hh"
 
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"

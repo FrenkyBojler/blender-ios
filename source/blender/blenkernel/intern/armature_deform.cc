@@ -14,13 +14,13 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_listbase_wrapper.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_quaternion.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_task.h"
+#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_vector_capi.hh"
+#include "BLI_task_capi.hh"
 #include "BLI_task.hh"
 
 #include "DNA_action_types.h"

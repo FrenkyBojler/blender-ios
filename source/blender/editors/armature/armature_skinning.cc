@@ -14,8 +14,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_string_utils.hh"
 
 #include "BKE_action.hh"

@@ -8,17 +8,17 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 
-#include "BLI_fileops.h"
-#include "BLI_hash.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_fileops.hh"
+#include "BLI_hash_capi.hh"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_task.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_task_capi.hh"
+#include "BLI_utildefines.hh"
 
 #include "DNA_colorband_types.h"
 #include "DNA_fluid_types.h"
@@ -55,8 +55,8 @@
 #  include "BLI_kdtree.hh"
 #  include "BLI_math_vector.hh"
 #  include "BLI_mutex.hh"
-#  include "BLI_threads.h"
-#  include "BLI_voxel.h"
+#  include "BLI_threads.hh"
+#  include "BLI_voxel.hh"
 
 #  include "BKE_bvhutils.hh"
 #  include "BKE_collision.h"

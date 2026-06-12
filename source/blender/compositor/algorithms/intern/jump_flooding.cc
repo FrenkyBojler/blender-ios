@@ -5,8 +5,8 @@
 #include <limits>
 #include <utility>
 
-#include "BLI_assert.h"
-#include "BLI_math_base.h"
+#include "BLI_assert.hh"
+#include "BLI_math_base_capi.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"

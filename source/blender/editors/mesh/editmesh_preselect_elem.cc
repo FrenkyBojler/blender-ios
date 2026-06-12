@@ -8,8 +8,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"

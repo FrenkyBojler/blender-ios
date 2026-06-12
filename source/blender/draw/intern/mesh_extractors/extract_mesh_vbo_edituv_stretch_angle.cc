@@ -6,7 +6,7 @@
  * \ingroup draw
  */
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_capi.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_mesh.hh"

@@ -6,13 +6,13 @@
  * \ingroup bli
  */
 
-#include "BLI_math_base.h"
-#include "BLI_math_statistics.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_base_capi.hh"
+#include "BLI_math_statistics.hh"
+#include "BLI_math_vector_capi.hh"
 
-#include "BLI_task.h"
+#include "BLI_task_capi.hh"
 
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+#include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 
 namespace blender {
 

@@ -21,11 +21,11 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_noise.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_capi.hh"
+#include "BLI_noise_capi.hh"
 #include "BLI_noise.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BKE_fcurve.hh"
 

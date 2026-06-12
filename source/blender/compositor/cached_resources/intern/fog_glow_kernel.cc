@@ -14,7 +14,7 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_hash.hh"
 #include "BLI_index_range.hh"
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"

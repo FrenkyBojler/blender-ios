@@ -4,7 +4,7 @@
 
 #include "BKE_curves.hh"
 
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_capi.hh"
 
 #include "NOD_rna_define.hh"
 

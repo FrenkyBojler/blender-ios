@@ -17,9 +17,9 @@
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_matrix_capi.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_meshdata_types.h"

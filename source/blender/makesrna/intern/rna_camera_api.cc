@@ -17,7 +17,7 @@
 
 #  include "DNA_scene_types.h"
 
-#  include "BLI_math_vector.h"
+#  include "BLI_math_vector_capi.hh"
 
 #  include "BKE_camera.h"
 #  include "BKE_context.hh"

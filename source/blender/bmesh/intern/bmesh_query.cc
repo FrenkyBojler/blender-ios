@@ -18,13 +18,13 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_linklist.h"
-#include "BLI_math_base.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines_stack.h"
+#include "BLI_linklist.hh"
+#include "BLI_math_base_capi.hh"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_vector_capi.hh"
+#include "BLI_utildefines_stack.hh"
 
 #include "BKE_customdata.hh"
 

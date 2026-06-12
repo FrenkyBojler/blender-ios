@@ -11,7 +11,7 @@
 #include <thread>
 
 #include "BLI_mutex.hh"
-#include "BLI_task.h"
+#include "BLI_task_capi.hh"
 
 #include "vk_device.hh"
 #include "vk_to_string.hh"

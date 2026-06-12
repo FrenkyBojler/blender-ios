@@ -18,7 +18,7 @@
 
 #include "../system/FreestyleConfig.h"
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 
 #include "MEM_guardedalloc.h"
 

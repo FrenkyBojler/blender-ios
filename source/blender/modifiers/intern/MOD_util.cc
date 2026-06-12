@@ -8,9 +8,9 @@
 
 #include <cstring>
 
-#include "BLI_bitmap.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_bitmap.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"

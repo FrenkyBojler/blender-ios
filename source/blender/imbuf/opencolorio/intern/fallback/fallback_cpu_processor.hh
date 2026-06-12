@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "BLI_assert.h"
-#include "BLI_math_color.h"
+#include "BLI_assert.hh"
+#include "BLI_math_color_capi.hh"
 
 #include "OCIO_cpu_processor.hh"
 #include "OCIO_packed_image.hh"

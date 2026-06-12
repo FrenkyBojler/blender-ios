@@ -15,11 +15,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_simd.hh"
-#include "BLI_task.h"
-#include "BLI_utildefines.h"
+#include "BLI_task_capi.hh"
+#include "BLI_utildefines.hh"
 
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"

@@ -16,10 +16,10 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
-#include "BLI_task.h"
+#include "BLI_math_vector_capi.hh"
+#include "BLI_task_capi.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"

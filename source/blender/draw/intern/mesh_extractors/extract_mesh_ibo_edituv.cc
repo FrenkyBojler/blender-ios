@@ -8,7 +8,7 @@
 
 #include "BKE_editmesh.hh"
 
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_capi.hh"
 
 #include "extract_mesh.hh"
 

@@ -11,7 +11,7 @@
 
 #include "GaussianFilter.h"
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 
 namespace Freestyle {
 

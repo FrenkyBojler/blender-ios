@@ -7,10 +7,10 @@
  */
 
 #include "BLI_array_utils.hh"
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_task.hh"
-#include "BLI_threads.h"
+#include "BLI_threads.hh"
 #include "BLI_vector_set.hh"
 
 #include "BKE_attribute.hh"

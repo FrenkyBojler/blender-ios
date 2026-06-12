@@ -12,7 +12,7 @@
 #include <optional>
 
 #include "BLI_math_base.hh"
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation_capi.hh"
 
 #include "ED_numinput.hh"
 

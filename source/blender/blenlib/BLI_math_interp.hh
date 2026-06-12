@@ -22,7 +22,7 @@
  * #interpolate_nearest_wrapmode_fl).
  */
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_simd.hh"

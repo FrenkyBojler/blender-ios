@@ -6,8 +6,8 @@
  * \ingroup spview3d
  */
 
-#include "BLI_math_base.h"
-#include "BLI_math_rotation.h"
+#include "BLI_math_base_capi.hh"
+#include "BLI_math_rotation_capi.hh"
 
 #include "DNA_userdef_types.h"
 

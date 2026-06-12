@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "BLI_math_base.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_base_capi.hh"
+#include "BLI_utildefines.hh"
 
 namespace blender {
 

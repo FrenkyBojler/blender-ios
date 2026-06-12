@@ -4,7 +4,7 @@
 
 #include "testing/testing.h"
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_capi.hh"
 
 #include "BKE_gtest_base.hh"
 

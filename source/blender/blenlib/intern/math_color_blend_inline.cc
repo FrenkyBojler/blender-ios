@@ -6,14 +6,14 @@
  * \ingroup bli
  */
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 
 #if !BLI_MATH_DO_INLINE
-#  include "BLI_math_color_blend.h"
+#  include "BLI_math_color_blend.hh"
 #endif
 
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_color_capi.hh"
+#include "BLI_math_vector_capi.hh"
 
 namespace blender {
 

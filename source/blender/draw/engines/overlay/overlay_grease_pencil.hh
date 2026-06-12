@@ -9,7 +9,7 @@
 #pragma once
 
 #include "BLI_bounds.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
 
 #include "BKE_curves.hh"

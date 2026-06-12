@@ -14,9 +14,9 @@
 
 #include "BLF_api.hh"
 
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_math_color_capi.hh"
+#include "BLI_math_vector_capi.hh"
+#include "BLI_string.hh"
 
 #include "BLT_translation.hh"
 

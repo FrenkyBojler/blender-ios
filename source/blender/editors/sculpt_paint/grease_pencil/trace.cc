@@ -15,7 +15,7 @@
 #include "BKE_report.hh"
 
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
 
 #include "BLI_task.hh"

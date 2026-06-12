@@ -18,7 +18,7 @@
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_quaternion.hh"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 

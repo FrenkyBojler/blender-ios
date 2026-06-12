@@ -8,10 +8,10 @@
 
 #include <algorithm>
 
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_bvh.hh"

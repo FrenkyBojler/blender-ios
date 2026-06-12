@@ -24,10 +24,10 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
+#include "BLI_string.hh"
 
 #include "Alembic/AbcGeom/Visibility.h"
 

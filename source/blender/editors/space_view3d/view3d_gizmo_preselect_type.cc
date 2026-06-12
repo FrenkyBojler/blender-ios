@@ -23,8 +23,8 @@
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"

@@ -13,9 +13,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"

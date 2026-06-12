@@ -9,8 +9,8 @@
  */
 #include "BLI_kdopbvh.hh"
 #include "BLI_map.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_set.hh"

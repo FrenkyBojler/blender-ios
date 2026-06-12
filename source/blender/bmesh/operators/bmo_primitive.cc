@@ -12,10 +12,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_base_safe.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_base_safe.hh"
+#include "BLI_math_matrix_capi.hh"
+#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "BKE_customdata.hh"
 

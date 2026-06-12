@@ -8,7 +8,7 @@
 
 #include "BKE_editmesh.hh"
 
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_capi.hh"
 
 #include "GPU_index_buffer.hh"
 

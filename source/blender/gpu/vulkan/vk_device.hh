@@ -10,8 +10,8 @@
 
 #include <atomic>
 
-#include "BLI_task.h"
-#include "BLI_threads.h"
+#include "BLI_task_capi.hh"
+#include "BLI_threads.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 

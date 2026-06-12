@@ -5,10 +5,10 @@
 #include "fallback_display_cpu_processor.hh"
 
 #include "BLI_math_base.hh"
-#include "BLI_math_color.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_color_capi.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_capi.hh"
 
 #include "OCIO_config.hh"
 #include "OCIO_cpu_processor.hh"

@@ -6,7 +6,7 @@
  * \ingroup modifiers
  */
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 
 #include "DNA_modifier_types.h"
 

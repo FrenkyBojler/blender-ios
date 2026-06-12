@@ -8,14 +8,14 @@
 
 #include <algorithm>
 
-#include "BLI_math_base.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_base_capi.hh"
+#include "BLI_math_vector_capi.hh"
 
-#include "BLI_math_base_safe.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_rotation.h"
+#include "BLI_math_base_safe.hh"
+#include "BLI_math_geom_capi.hh"
+#include "BLI_math_rotation_capi.hh"
 
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+#include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 
 namespace blender {
 

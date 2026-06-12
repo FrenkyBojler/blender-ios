@@ -8,7 +8,7 @@
 
 #include "node_shader_util.hh"
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 
 #include "FN_multi_function_builder.hh"
 

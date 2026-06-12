@@ -21,9 +21,9 @@
 
 #  include "MEM_guardedalloc.h"
 
-#  include "BLI_listbase.h"
-#  include "BLI_math_rotation.h"
-#  include "BLI_math_vector.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_math_rotation_capi.hh"
+#  include "BLI_math_vector_capi.hh"
 
 #  include "DNA_object_types.h"
 #  include "DNA_scene_types.h"

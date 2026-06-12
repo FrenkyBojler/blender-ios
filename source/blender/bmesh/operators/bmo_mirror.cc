@@ -8,7 +8,7 @@
  * Basic mirror, optionally with UVs's.
  */
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 
 #include "BKE_customdata.hh"
 
