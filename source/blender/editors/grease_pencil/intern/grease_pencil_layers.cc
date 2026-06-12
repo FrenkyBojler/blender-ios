@@ -8,8 +8,8 @@
 
 #include "BLI_assert.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_string.hh"
 
 #include "BKE_attribute_math.hh"

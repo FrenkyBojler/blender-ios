@@ -20,8 +20,8 @@
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_rotation_capi.hh"
 #include "BLI_math_vector_capi.hh"
-#include "BLI_task_capi.hh"
 #include "BLI_task.hh"
+#include "BLI_task_capi.hh"
 
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"

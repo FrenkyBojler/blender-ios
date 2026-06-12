@@ -12,8 +12,8 @@
 #include "node_util.hh"
 
 #include "BLI_math_base_safe.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "FN_multi_function_builder.hh"
 

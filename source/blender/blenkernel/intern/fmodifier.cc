@@ -23,8 +23,8 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_base_capi.hh"
-#include "BLI_noise_capi.hh"
 #include "BLI_noise.hh"
+#include "BLI_noise_capi.hh"
 #include "BLI_utildefines.hh"
 
 #include "BKE_fcurve.hh"

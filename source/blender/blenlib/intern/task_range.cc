@@ -15,8 +15,8 @@
 #include "BLI_array.hh"
 #include "BLI_lazy_threading.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_task_capi.hh"
 #include "BLI_task.hh"
+#include "BLI_task_capi.hh"
 #include "BLI_threads.hh"
 #include "BLI_vector.hh"
 

@@ -18,8 +18,8 @@
 #include "BLI_index_range.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "BLT_translation.hh"

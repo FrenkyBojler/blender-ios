@@ -16,8 +16,8 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_color_capi.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_rect.hh"
 
 #include "BLT_translation.hh"

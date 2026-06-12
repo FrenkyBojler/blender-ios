@@ -11,8 +11,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 

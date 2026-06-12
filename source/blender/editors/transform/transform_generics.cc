@@ -11,8 +11,8 @@
 #include "DNA_brush_types.h"
 
 #include "BLI_listbase.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_rotation_capi.hh"
 #include "BLI_math_vector_capi.hh"
 #include "BLI_rand_capi.hh"

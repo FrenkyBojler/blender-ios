@@ -15,11 +15,11 @@
 #include "BKE_context.hh"
 
 #include "BLI_array.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_rotation_capi.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"

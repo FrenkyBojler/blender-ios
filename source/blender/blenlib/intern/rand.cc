@@ -18,8 +18,8 @@
 #include "BLI_compiler_compat.hh"
 #include "BLI_math_vector_capi.hh"
 #include "BLI_noise_capi.hh"
-#include "BLI_rand_capi.hh"
 #include "BLI_rand.hh"
+#include "BLI_rand_capi.hh"
 #include "BLI_sys_types.hh"
 #include "BLI_threads.hh"
 

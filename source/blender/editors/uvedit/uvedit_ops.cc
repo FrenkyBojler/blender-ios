@@ -25,8 +25,8 @@
 #include "BLI_kdtree.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "BLT_translation.hh"
 

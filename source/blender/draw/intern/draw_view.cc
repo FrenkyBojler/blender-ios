@@ -7,8 +7,8 @@
  */
 
 #include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 
 #include "DRW_render.hh"
 #include "GPU_compute.hh"

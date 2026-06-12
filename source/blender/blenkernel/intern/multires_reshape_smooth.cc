@@ -13,8 +13,8 @@
 #include "DNA_mesh_types.h"
 
 #include "BLI_function_ref.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_vector_capi.hh"
 #include "BLI_task.hh"
 #include "BLI_utildefines.hh"

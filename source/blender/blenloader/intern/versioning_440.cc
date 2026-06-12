@@ -25,8 +25,8 @@
 #undef DNA_GENFILE_VERSIONING_MACROS
 
 #include "BLI_listbase.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_set.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"

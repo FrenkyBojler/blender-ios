@@ -10,8 +10,8 @@
 #include "BKE_subdiv_eval.hh"
 
 #include "BLI_array_utils.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_task_capi.hh"
 
 #include "BKE_customdata.hh"

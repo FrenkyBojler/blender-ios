@@ -10,8 +10,8 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_mesh.hh"

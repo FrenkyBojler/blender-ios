@@ -8,8 +8,8 @@
 
 #include "BLI_atomic_disjoint_set.hh"
 #include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_task.hh"
 #include "BLI_vector_set.hh"
 

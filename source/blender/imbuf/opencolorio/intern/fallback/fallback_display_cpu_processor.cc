@@ -6,8 +6,8 @@
 
 #include "BLI_math_base.hh"
 #include "BLI_math_color_capi.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_vector_capi.hh"
 
 #include "OCIO_config.hh"

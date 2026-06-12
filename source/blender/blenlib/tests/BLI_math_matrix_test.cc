@@ -6,10 +6,10 @@
 
 #include "BLI_array.hh"
 #include "BLI_math_base_capi.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation_capi.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_rotation.hh"
+#include "BLI_math_rotation_capi.hh"
 #include "BLI_rand.hh"
 
 namespace blender::tests {

@@ -11,8 +11,8 @@
 #include "BLI_linklist_stack.hh"
 #include "BLI_math_geom_capi.hh"
 #include "BLI_math_matrix_capi.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"

@@ -6,8 +6,8 @@
 
 #include "BLI_math_base_capi.hh"
 #include "BLI_math_matrix_capi.hh"
-#include "BLI_math_rotation_capi.hh"
 #include "BLI_math_rotation.hh"
+#include "BLI_math_rotation_capi.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 

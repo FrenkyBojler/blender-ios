@@ -27,8 +27,8 @@
 #  include "MEM_guardedalloc.h"
 
 #  include "BLI_fileops.hh"
-#  include "BLI_math_base_capi.hh"
 #  include "BLI_math_base.hh"
+#  include "BLI_math_base_capi.hh"
 #  include "BLI_math_color_capi.hh"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.hh"

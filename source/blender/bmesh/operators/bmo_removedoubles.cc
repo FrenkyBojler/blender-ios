@@ -17,8 +17,8 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_capi.hh"
 #include "BLI_multi_value_map.hh"
-#include "BLI_stack_capi.hh"
 #include "BLI_stack.hh"
+#include "BLI_stack_capi.hh"
 #include "BLI_utildefines_stack.hh"
 
 #include "BKE_customdata.hh"

@@ -16,8 +16,8 @@
 
 #include "BLI_linklist.hh"
 #include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_utildefines.hh"
 
 #include "BKE_cloth.hh"

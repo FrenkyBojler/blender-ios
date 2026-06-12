@@ -21,10 +21,10 @@
 #include "BLI_math_geom_capi.hh"
 #include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_math_rotation_capi.hh"
 #include "BLI_math_rotation.hh"
-#include "BLI_math_vector_capi.hh"
+#include "BLI_math_rotation_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
 

@@ -246,7 +246,8 @@ static bool test_rotmode_euler(short rotmode)
 }
 
 /**
- * Could move into BLI_math_rotation_capi.hh however this is only useful for display/editing purposes.
+ * Could move into BLI_math_rotation_capi.hh however this is only useful for display/editing
+ * purposes.
  */
 static void axis_angle_to_gimbal_axis(float gmat[3][3], const float axis[3], const float angle)
 {

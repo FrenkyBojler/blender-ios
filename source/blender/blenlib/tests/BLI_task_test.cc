@@ -12,8 +12,8 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_mempool.hh"
-#include "BLI_task_capi.hh"
 #include "BLI_task.hh"
+#include "BLI_task_capi.hh"
 
 namespace blender {
 

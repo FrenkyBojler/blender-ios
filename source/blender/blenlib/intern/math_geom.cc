@@ -9,8 +9,8 @@
 #include <algorithm>
 
 #include "BLI_array.hh"
-#include "BLI_math_base_capi.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_base_capi.hh"
 #include "BLI_math_geom_capi.hh"
 
 #include "BLI_math_bits.hh"

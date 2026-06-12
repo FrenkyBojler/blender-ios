@@ -12,8 +12,8 @@
 #include "DNA_object_types.h"
 
 #include "BLI_math_geom_capi.hh"
-#include "BLI_math_vector_capi.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_capi.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 

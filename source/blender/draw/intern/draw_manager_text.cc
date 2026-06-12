@@ -10,8 +10,8 @@
 
 #include "BLI_math_color_capi.hh"
 #include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_rotation_capi.hh"
 #include "BLI_math_vector_capi.hh"
 #include "BLI_memiter.hh"

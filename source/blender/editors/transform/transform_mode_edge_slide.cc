@@ -9,8 +9,8 @@
 #include <algorithm>
 
 #include "BLI_math_geom_capi.hh"
-#include "BLI_math_matrix_capi.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_capi.hh"
 #include "BLI_string_utf8.hh"
 
 #include "BKE_editmesh.hh"
