@@ -23,19 +23,17 @@ namespace grid_sampling {
 
 template<int N, class AccessorT>
 bool probe_values(const AccessorT &accessor,
-                  const openvdb::Vec3i &index,
+                  const openvdb::CoordBBox &index_box,
                   typename AccessorT::ValueType (&data)[N][N][N])
 {
-  constexpr int start_offset = ((N + 1) >> 1) - 1;
-  const openvdb::Vec3i start_index = index -
-                                     openvdb::Vec3i(start_offset, start_offset, start_offset);
-
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
   bool active = false;
-  for (int dx = 0, ix = start_index.x(); dx < N; ++dx, ++ix) {
-    for (int dy = 0, iy = start_index.y(); dy < N; ++dy, ++iy) {
-      for (int dz = 0, iz = start_index.z(); dz < N; ++dz, ++iz) {
-        if (accessor.probeValue(openvdb::Coord(ix, iy, iz), data[dx][dy][dz])) {
+  for (int dx : IndexRange(N)) {
+    for (int dy : IndexRange(N)) {
+      for (int dz : IndexRange(N)) {
+        if (accessor.probeValue(index_box.getStart() + openvdb::Coord(dx, dy, dz),
+                                data[dx][dy][dz]))
+        {
           active = true;
         }
       }
@@ -46,18 +44,14 @@ bool probe_values(const AccessorT &accessor,
 
 template<int N, class AccessorT>
 void get_values(const AccessorT &accessor,
-                const openvdb::Vec3i &index,
+                const openvdb::CoordBBox &index_box,
                 typename AccessorT::ValueType (&data)[N][N][N])
 {
-  constexpr int start_offset = ((N + 1) >> 1) - 1;
-  const openvdb::Vec3i start_index = index -
-                                     openvdb::Vec3i(start_offset, start_offset, start_offset);
-
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  for (int dx = 0, ix = start_index.x(); dx < N; ++dx, ++ix) {
-    for (int dy = 0, iy = start_index.y(); dy < N; ++dy, ++iy) {
-      for (int dz = 0, iz = start_index.z(); dz < N; ++dz, ++iz) {
-        data[dx][dy][dz] = accessor.getValue(openvdb::Coord(ix, iy, iz));
+  for (int dx : IndexRange(N)) {
+    for (int dy : IndexRange(N)) {
+      for (int dz : IndexRange(N)) {
+        data[dx][dy][dz] = accessor.getValue(index_box.getStart() + openvdb::Coord(dx, dy, dz));
       }
     }
   }
@@ -71,9 +65,9 @@ void interpolate_value_3d(ValueT (&data)[N][N][N],
                           ValueT &result)
 {
   ValueT vx[N];
-  for (int dx = 0; dx < N; ++dx) {
+  for (int dx : IndexRange(N)) {
     ValueT vy[N];
-    for (int dy = 0; dy < N; ++dy) {
+    for (int dy : IndexRange(N)) {
       const ValueT *vz = &data[dx][dy][0];
       vy[dy] = kernel_fn(vz, uvw.z());
     }
@@ -90,13 +84,17 @@ bool sample_tree(const AccessorT &accessor,
   using ValueT = typename AccessorT::ValueType;
 
   const openvdb::Vec3R sample_offset = openvdb::Vec3R(Kernel::sample_offset);
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord + sample_offset);
+  const openvdb::Coord index = openvdb::Coord(
+      openvdb::tools::local_util::floorVec3(coord + sample_offset));
+  const openvdb::CoordBBox index_box = openvdb::CoordBBox(
+      index - openvdb::Coord(Kernel::samples_left - 1),
+      index + openvdb::Coord(Kernel::samples_right));
   const openvdb::Vec3R uvw = coord - index;
 
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  constexpr int N = Kernel::size;
+  constexpr int N = Kernel::samples_left + Kernel::samples_right;
   ValueT data[N][N][N];
-  bool active = probe_values(accessor, index, data);
+  bool active = probe_values(accessor, index_box, data);
   interpolate_value_3d(data, uvw, Kernel::template sample_value<ValueT>, result);
 
   return active;
@@ -108,13 +106,17 @@ typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openv
   using ValueT = typename AccessorT::ValueType;
 
   const openvdb::Vec3R sample_offset = openvdb::Vec3R(Kernel::sample_offset);
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord + sample_offset);
+  const openvdb::Coord index = openvdb::Coord(
+      openvdb::tools::local_util::floorVec3(coord + sample_offset));
+  const openvdb::CoordBBox index_box = openvdb::CoordBBox(
+      index - openvdb::Coord(Kernel::samples_left - 1),
+      index + openvdb::Coord(Kernel::samples_right));
   const openvdb::Vec3R uvw = coord - index;
 
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  constexpr int N = Kernel::size;
+  constexpr int N = Kernel::samples_left + Kernel::samples_right;
   ValueT data[N][N][N];
-  get_values(accessor, index, data);
+  get_values(accessor, index_box, data);
 
   ValueT result;
   interpolate_value_3d(data, uvw, Kernel::template sample_value<ValueT>, result);
@@ -123,9 +125,13 @@ typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openv
 
 /**
  * Nearest-point kernel function.
+ *
+ * To avoid reading an unnecessary value (one value always has zero weight), the sampling interval
+ * is shifted by 0.5. This is equivalent to rounding the sampling position to the nearest point.
  */
 struct NearestPointKernel {
-  static constexpr int size = 1;
+  static constexpr int samples_left = 1;
+  static constexpr int samples_right = 0;
   /* Shift the sampling interval (round the coordinate), to use the value the closest point. */
   static constexpr float sample_offset = 0.5f;
 
@@ -164,7 +170,8 @@ struct NearestPointKernel {
  * Linear kernel function.
  */
 struct LinearKernel {
-  static constexpr int size = 2;
+  static constexpr int samples_left = 1;
+  static constexpr int samples_right = 1;
   static constexpr float sample_offset = 0.0f;
 
   static float weight(float x)
@@ -256,7 +263,8 @@ struct LinearKernel {
  *           +    (-3/2*B   + 2*C - 1/2*D)
  */
 struct QuadraticBSplineKernel {
-  static constexpr int size = 4;
+  static constexpr int samples_left = 2;
+  static constexpr int samples_right = 2;
   static constexpr float sample_offset = 0.0f;
 
   static float weight(float x)
@@ -365,7 +373,8 @@ struct QuadraticBSplineKernel {
  *        +     (-1/2*A         + 1/2*C)
  */
 struct CubicBSplineKernel {
-  static constexpr int size = 4;
+  static constexpr int samples_left = 2;
+  static constexpr int samples_right = 2;
   static constexpr float sample_offset = 0.0f;
 
   static float weight(float x)
