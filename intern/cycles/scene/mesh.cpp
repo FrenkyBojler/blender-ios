@@ -796,7 +796,7 @@ void Mesh::add_undisplaced(Scene *scene)
 
 void Mesh::update_generated(Scene *scene)
 {
-  if (!num_triangles()) {
+  if (!num_triangles() && !num_subd_faces) {
     return;
   }
 
