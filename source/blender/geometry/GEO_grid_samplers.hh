@@ -221,6 +221,63 @@ struct LinearKernel {
 };
 
 /**
+ * Quadratic kernel function using the same basis as OpenVDB's QuadraticSampler.
+ *
+ * The kernel uses three different basis functions for samples at x={-1, 0, +1} respectively:
+ * f[-1](x) = 1/2*x^2 - 1/2*x
+ * f[0](x)  = -x^2 + 1
+ * f[+1](x) = 1/2*x^2 + 1/2*x
+ *
+ * The derivatives are linear functions:
+ * f[-1](x) = x - 1/2
+ * f[0](x)  = -2*x
+ * f[+1](x) = 1/2*x^2 + 1/2*x
+ *
+ * This kernel is asymmetric: it only takes the left-side neighbor at x=-1 into account but not
+ * the right-side neighbor at x=+2. This can be useful in combination with asymmetric
+ * forward/backward difference operators. For symmetric kernel functions see the quadratic and
+ * cubic B-spline kernels.
+ *
+ * For sampling in the index space of i <= x <= i+1
+ * the contribution of points [i-1, i, i+1] must be considered.
+ * v(x) = v[i-1]*f(x+1) +   v[i]*f(x) + v[i+1]*f(x-1)
+ *      =      A*f(x+1) +      B*f(x) +      C*f(x-1)
+ *
+ * This results in the following expressions for sampling in one dimension:
+ *   v(x) =   x^2*( 1/2*A - B + 1/2*C)
+ *          +   x*(-1/2*A     + 1/2*C)
+ *          +               B
+ *
+ * and for the derivative:
+ *   v(x) =   x*(     A - 2*B +     C)
+ *          +   (-1/2*A       + 1/2*C)
+ */
+struct QuadraticBackwardKernel {
+  static constexpr int samples_left = 2;
+  static constexpr int samples_right = 1;
+  static constexpr float sample_offset = 0.0f;
+
+  template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
+  {
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+    const ValueT sqr = static_cast<ValueT>(0.5 * (values[0] + values[2]) - values[1]);
+    const ValueT lin = static_cast<ValueT>(0.5 * (values[2] - values[0]));
+    const ValueT con = static_cast<ValueT>(values[1]);
+    return weight * (weight * sqr + lin) + con;
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+  }
+
+  template<class ValueT> static ValueT sample_derivative(const ValueT *values, float weight)
+  {
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+    const ValueT lin = static_cast<ValueT>(values[0] + values[2] - 2.0 * values[1]);
+    const ValueT con = static_cast<ValueT>(0.5 * (values[2] - values[0]));
+    return weight * lin + con;
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+  }
+};
+
+/**
  * Quadratic B-spline kernel function as described in
  * Steffen et al., "Analysis and reduction of quadrature errors in the material point method (MPM)"
  *
@@ -465,23 +522,29 @@ template<typename KernelT> struct SamplerWithKernel {
 }  // namespace grid_sampling
 
 /**
- * Grid value sampler using nearest-point kernels.
+ * Grid value sampler using a nearest-point kernel.
  */
 using NearestPointSampler = grid_sampling::SamplerWithKernel<grid_sampling::NearestPointKernel>;
 
 /**
- * Grid value sampler using linear kernels.
+ * Grid value sampler using a linear kernel.
  */
 using LinearSampler = grid_sampling::SamplerWithKernel<grid_sampling::LinearKernel>;
 
 /**
- * Grid value sampler using quadratic B-spline kernels.
+ * Grid value sampler using an asymmetric quadratic kernel.
+ */
+using QuadraticBackwardSampler =
+    grid_sampling::SamplerWithKernel<grid_sampling::QuadraticBackwardKernel>;
+
+/**
+ * Grid value sampler using a quadratic B-spline kernel.
  */
 using QuadraticBSplineSampler =
     grid_sampling::SamplerWithKernel<grid_sampling::QuadraticBSplineKernel>;
 
 /**
- * Grid value sampler using cubic B-spline kernels.
+ * Grid value sampler using a cubic B-spline kernel.
  */
 using CubicBSplineSampler = grid_sampling::SamplerWithKernel<grid_sampling::CubicBSplineKernel>;
 
