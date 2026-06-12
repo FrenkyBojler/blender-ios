@@ -182,7 +182,9 @@ template<typename T> T SocketValueVariant::extract()
         const GPointer single_value = this->get_single_ptr();
         return fn::GField::from_constant(*single_value.type(), single_value.get());
       }
-      case Kind::List:
+      case Kind::List: {
+        return nodes::as_field(this->get<nodes::GListPtr>());
+      }
       case Kind::Grid: {
         const CPPType *cpp_type = socket_type_to_geo_nodes_base_cpp_type(this->socket_type());
         BLI_assert(cpp_type);

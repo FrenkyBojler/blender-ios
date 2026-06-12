@@ -7,7 +7,17 @@
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_list.hh"
 
+#include "list_function_eval.hh"
+
 namespace blender::nodes {
+
+fn::GField as_field(const GListPtr &list)
+{
+  auto sampling_fn = std::make_shared<SampleIndexFunction>(list);
+  auto sampling_op = fn::FieldOperation::from(std::move(sampling_fn),
+                                              {std::move(fn::IndexFieldInput::get_field())});
+  return GField(std::move(sampling_op), 0);
+}
 
 class ArrayImplicitSharingData : public ImplicitSharingInfo {
  public:

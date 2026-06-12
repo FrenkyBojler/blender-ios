@@ -11,6 +11,8 @@
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_memory_counter_fwd.hh"
 
+#include "FN_field.hh"
+
 #include "NOD_geometry_nodes_list_fwd.hh"
 
 namespace blender::nodes {
@@ -171,6 +173,14 @@ template<typename T> class ListPtr {
 
 template<typename T> constexpr bool is_ListPtr_v = false;
 template<typename T> constexpr bool is_ListPtr_v<ListPtr<T>> = true;
+
+fn::GField as_field(const GListPtr &list);
+
+template<typename T>
+inline fn::Field<T> as_field(const ListPtr<T> &list)
+{
+  return as_field(GListPtr(list)).typed<T>();
+}
 
 template<typename ContainerT> inline GListPtr GList::from_container(ContainerT &&container)
 {

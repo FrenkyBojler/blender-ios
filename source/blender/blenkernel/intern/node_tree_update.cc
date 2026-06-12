@@ -1557,10 +1557,10 @@ class NodeTreeMainUpdater {
         if (ELEM(from_shape, SOCK_DISPLAY_SHAPE_LINE, SOCK_DISPLAY_SHAPE_DIAMOND)) {
           return nullptr;
         }
-        if (ELEM(from_inferred_type, StructureType::Single, StructureType::Field)) {
+        if (ELEM(from_inferred_type, StructureType::Single, StructureType::Field, StructureType::List)) {
           return nullptr;
         }
-        return TIP_("Input expects a field or single value");
+        return TIP_("Input expects a field, list or single value");
       }
       case SOCK_DISPLAY_SHAPE_VOLUME_GRID: {
         if (from_shape == SOCK_DISPLAY_SHAPE_VOLUME_GRID) {
