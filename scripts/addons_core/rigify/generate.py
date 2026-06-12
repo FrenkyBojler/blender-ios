@@ -426,7 +426,7 @@ class Generator(base_generate.BaseGenerator):
                 if coll:
                     return coll
                 # Strip trailing numeric suffix (.001, .002, …) and retry
-                base = re.sub(r'\.+$', '', original_name)
+                base = re.sub(r'\.\d+$', '', original_name)
                 return meta_bone_colls.get(base)
 
             # Pre-create DEF sub-collections in rigify_ui_row order.
