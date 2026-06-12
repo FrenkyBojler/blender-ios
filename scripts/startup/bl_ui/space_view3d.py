@@ -7787,7 +7787,7 @@ class VIEW3D_PT_snapping(Panel):
         for item in snap_elements_base_prop.enum_items:
             icon_row = right_col.row(align=True)
             icon_row.alignment = 'RIGHT'
-            if item.identifier != 'INCREMENT':
+            if item.identifier != 'INCREMENT' and item.identifier != 'GRID':
                 is_selected = item.identifier in tool_settings.snap_elements_base
                 icon_row.active = is_selected
                 if object_mode == 'EDIT' and obj.type not in {'LATTICE', 'META', 'FONT'}:
