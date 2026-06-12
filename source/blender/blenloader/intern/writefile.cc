@@ -1223,7 +1223,6 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
   for (const bUserAssetLibrary &asset_library_ref : userdef->asset_libraries) {
     if (asset_library_ref.flag & ASSET_LIBRARY_PROJECT_DEFINED) {
       /* Do not save project defined asset libraries. */
-      printf("skipped asset lib: %s\n", asset_library_ref.name);
       continue;
     }
 
@@ -1312,8 +1311,6 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
   }
 
   for (const bUserAssetLibrary &asset_library_ref : asset_libraries_filtered) {
-    // TODO: cleanup the print
-    printf("Wrote asset to disk: %s\n", asset_library_ref.name);
     writer->write_struct(&asset_library_ref);
   }
   BLI_freelistN(&asset_libraries_filtered);
