@@ -1801,15 +1801,6 @@ static void modifyGeometry(ModifierData *md,
     return;
   }
 
-  bool use_orig_index_verts = false;
-  bool use_orig_index_edges = false;
-  bool use_orig_index_faces = false;
-  if (const Mesh *mesh = geometry_set.get_mesh()) {
-    use_orig_index_verts = CustomData_has_layer(&mesh->vert_data, CD_ORIGINDEX);
-    use_orig_index_edges = CustomData_has_layer(&mesh->edge_data, CD_ORIGINDEX);
-    use_orig_index_faces = CustomData_has_layer(&mesh->face_data, CD_ORIGINDEX);
-  }
-
   nodes::GeoNodesCallData call_data;
 
   nodes::GeoNodesModifierData modifier_eval_data{};
@@ -1852,19 +1843,31 @@ static void modifyGeometry(ModifierData *md,
     add_data_block_items_writeback(*ctx, *nmd, *nmd_orig, simulation_params, bake_params);
   }
 
-  if (use_orig_index_verts || use_orig_index_edges || use_orig_index_faces) {
-    if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
-      /* Add #CD_ORIGINDEX layers if they don't exist already. This is required because the
-       * #eModifierTypeFlag_SupportsMapping flag is set. If the layers did not exist before, it is
-       * assumed that the output mesh does not have a mapping to the original mesh. */
-      if (use_orig_index_verts) {
-        CustomData_add_layer(&mesh->vert_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh->verts_num);
+  /* Ensure #CD_ORIGINDEX layers exist on the output mesh.
+   *
+   * Notes:
+   * - Without this, any changes to the topology are assumed to be aligned 1:1 with the
+   *   original data which won't be correct if geometry nodes added/removed/reorder geometry.
+   *   Address this by preemptively initializing missing layers to #ORIGINDEX_NONE so new
+   *   elements will be properly initialized to #ORIGINDEX_NONE.
+   * - Ideally geometry nodes would add #CD_ORIGINDEX on a more granular basis
+   *   (per-node, on demand), but until that is supported this preemptive addition is necessary.
+   *   This isn't *that* bad as it's common for geometry-nodes to be used constructively.
+   */
+  if (const Mesh *mesh = geometry_set.get_mesh()) {
+    const bool need_vert = !CustomData_has_layer(&mesh->vert_data, CD_ORIGINDEX);
+    const bool need_edge = !CustomData_has_layer(&mesh->edge_data, CD_ORIGINDEX);
+    const bool need_face = !CustomData_has_layer(&mesh->face_data, CD_ORIGINDEX);
+    if (need_vert || need_edge || need_face) {
+      Mesh *mesh_w = geometry_set.get_mesh_for_write();
+      if (need_vert) {
+        CustomData_add_layer(&mesh_w->vert_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh_w->verts_num);
       }
-      if (use_orig_index_edges) {
-        CustomData_add_layer(&mesh->edge_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh->edges_num);
+      if (need_edge) {
+        CustomData_add_layer(&mesh_w->edge_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh_w->edges_num);
       }
-      if (use_orig_index_faces) {
-        CustomData_add_layer(&mesh->face_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh->faces_num);
+      if (need_face) {
+        CustomData_add_layer(&mesh_w->face_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh_w->faces_num);
       }
     }
   }
