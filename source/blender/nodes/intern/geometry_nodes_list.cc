@@ -15,7 +15,7 @@ fn::GField as_field(const GListPtr &list)
 {
   auto sampling_fn = std::make_shared<SampleIndexFunction>(list);
   auto sampling_op = fn::FieldOperation::from(std::move(sampling_fn),
-                                              {std::move(fn::IndexFieldInput::get_field())});
+                                              {fn::IndexFieldInput::get_field()});
   return GField(std::move(sampling_op), 0);
 }
 
