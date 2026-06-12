@@ -7773,87 +7773,97 @@ class VIEW3D_PT_snapping(Panel):
 
         col.label(text="Snap Target")
         snap_elements_base_prop = tool_settings.bl_rna.properties["snap_elements_base"]
+
+        if object_mode == 'EDIT' and obj.type not in {'LATTICE', 'META', 'FONT'}:
+            split = col.split(factor=0.65, align=False)
+        else:
+            split = col.split(factor=0.90, align=False)
+        left_col = split.column(align=True)
+        left_col.alignment = 'LEFT'
+        left_col.scale_y = 1.10
+        left_col.prop(tool_settings, "snap_elements_base", toggle=True)
+        right_col = split.column(align=False)
+
         for item in snap_elements_base_prop.enum_items:
-            row = col.row(align=True)
-
-            if object_mode == 'EDIT' and obj.type not in {'LATTICE', 'META', 'FONT'}:
-                split = row.split(factor=0.65, align=True)
-            else:
-                split = row.split(factor=0.90, align=True)
-
-            left_side = split.row(align=True)
-            left_side.prop_enum(tool_settings, "snap_elements_base", value=item.identifier)
-
-            right_side = split.row(align=True)
-            right_side.alignment = 'RIGHT'
+            icon_row = right_col.row(align=True)
+            icon_row.alignment = 'RIGHT'
             if item.identifier != 'INCREMENT':
+                is_selected = item.identifier in tool_settings.snap_elements_base
+                icon_row.active = is_selected
                 if object_mode == 'EDIT' and obj.type not in {'LATTICE', 'META', 'FONT'}:
-                    right_side.prop_enum(
+                    icon_row.prop_enum(
                         tool_settings,
                         "snap_active_edit_mode",
                         value=item.identifier,
                         text="",
                         icon='EDITMODE_HLT')
-                    right_side.prop_enum(
+                    icon_row.prop_enum(
                         tool_settings,
                         "snap_edited_edit_mode",
                         value=item.identifier,
                         text="",
                         icon='OUTLINER_DATA_MESH')
-                    right_side.prop_enum(
+                    icon_row.prop_enum(
                         tool_settings,
                         "snap_non_edited_edit_mode",
                         value=item.identifier,
                         text="",
                         icon='OUTLINER_OB_MESH')
-                right_side.prop_enum(
+                icon_row.prop_enum(
                     tool_settings,
                     "snap_exclude_non_selectable",
                     value=item.identifier,
                     text="",
                     icon='RESTRICT_SELECT_OFF')
+            else:
+                icon_row = icon_row.row()
+                icon_row.enabled = False
+                icon_row.label(text="")
+
         col.separator()
 
         col.label(text="Snap Target for Individual Elements")
         snap_elements_individual_prop = tool_settings.bl_rna.properties["snap_elements_individual"]
+
+        if object_mode == 'EDIT' and obj.type not in {'LATTICE', 'META', 'FONT'}:
+            split = col.split(factor=0.65, align=False)
+        else:
+            split = col.split(factor=0.90, align=False)
+        left_col = split.column(align=True)
+        left_col.alignment = 'LEFT'
+        left_col.prop(tool_settings, "snap_elements_individual", toggle=True)
+        left_col.scale_y = 1.10
+        right_col = split.column(align=False)
         for item in snap_elements_individual_prop.enum_items:
-            row = col.row(align=True)
+            icon_row = right_col.row(align=True)
+            icon_row.alignment = 'RIGHT'
+            is_selected = item.identifier in tool_settings.snap_elements_individual
+            icon_row.active = is_selected
             if object_mode == 'EDIT' and obj.type not in {'LATTICE', 'META', 'FONT'}:
-                split = row.split(factor=0.65, align=True)
-            else:
-                split = row.split(factor=0.90, align=True)
-
-            left_side = split.row(align=True)
-            left_side.prop_enum(tool_settings, "snap_elements_individual", value=item.identifier)
-
-            right_side = split.row(align=True)
-            right_side.alignment = 'RIGHT'
-            if object_mode == 'EDIT' and obj.type not in {'LATTICE', 'META', 'FONT'}:
-                right_side.prop_enum(
+                icon_row.prop_enum(
                     tool_settings,
                     "snap_active_edit_mode",
                     value=item.identifier,
                     text="",
                     icon='EDITMODE_HLT')
-                right_side.prop_enum(
+                icon_row.prop_enum(
                     tool_settings,
                     "snap_edited_edit_mode",
                     value=item.identifier,
                     text="",
                     icon='OUTLINER_DATA_MESH')
-                right_side.prop_enum(
+                icon_row.prop_enum(
                     tool_settings,
                     "snap_non_edited_edit_mode",
                     value=item.identifier,
                     text="",
                     icon='OUTLINER_OB_MESH')
-            right_side.prop_enum(
+            icon_row.prop_enum(
                 tool_settings,
                 "snap_exclude_non_selectable",
                 value=item.identifier,
                 text="",
                 icon='RESTRICT_SELECT_OFF')
-        col.separator()
 
         if 'INCREMENT' in tool_settings.snap_elements:
             col.prop(tool_settings, "use_snap_grid_absolute")
