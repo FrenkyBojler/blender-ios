@@ -4648,7 +4648,9 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
       break;
     }
     case OutlineMode::Camera:
-      viewinv = scene->camera->world_to_object();
+      if (scene->camera != nullptr) {
+        viewinv = scene->camera->world_to_object();
+      }
       break;
     default:
       BLI_assert_unreachable();
