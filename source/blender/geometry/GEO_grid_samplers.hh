@@ -89,8 +89,8 @@ bool sample_tree(const AccessorT &accessor,
 {
   using ValueT = typename AccessorT::ValueType;
 
-  const openvdb::Vec3R coord_offset = openvdb::Vec3R(Kernel::coord_offset);
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord + coord_offset);
+  const openvdb::Vec3R sample_offset = openvdb::Vec3R(Kernel::sample_offset);
+  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord + sample_offset);
   const openvdb::Vec3R uvw = coord - index;
 
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
@@ -107,8 +107,8 @@ typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openv
 {
   using ValueT = typename AccessorT::ValueType;
 
-  const openvdb::Vec3R coord_offset = openvdb::Vec3R(Kernel::coord_offset);
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord + coord_offset);
+  const openvdb::Vec3R sample_offset = openvdb::Vec3R(Kernel::sample_offset);
+  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord + sample_offset);
   const openvdb::Vec3R uvw = coord - index;
 
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
@@ -127,14 +127,15 @@ typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openv
 struct NearestPointKernel {
   static constexpr float range = 0.5f;
   static constexpr int size = 1;
-  static constexpr float coord_offset = 0.5f;
+  /* Shift the sampling interval (round the coordinate), to use the value the closest point. */
+  static constexpr float sample_offset = 0.5f;
 
   static float weight(float x)
   {
-    if (x < -0.5f) {
+    if (x < 0.0f) {
       return 0.0f;
     }
-    if (x < 0.5f) {
+    if (x < 1.0f) {
       return 1.0f;
     }
     return 0.0f;
@@ -152,8 +153,7 @@ struct NearestPointKernel {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT>
-  static ValueT sample_derivative(const ValueT * /*values*/, float /*weight*/)
+  template<class ValueT> static ValueT sample_gradient(const ValueT * /*values*/, float /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     return ValueT(0.0);
@@ -167,7 +167,7 @@ struct NearestPointKernel {
 struct LinearKernel {
   static constexpr float range = 1.0f;
   static constexpr int size = 2;
-  static constexpr float coord_offset = 0.0f;
+  static constexpr float sample_offset = 0.0f;
 
   static float weight(float x)
   {
@@ -206,7 +206,7 @@ struct LinearKernel {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT sample_derivative(const ValueT *values, float /*weight*/)
+  template<class ValueT> static ValueT sample_gradient(const ValueT *values, float /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     const ValueT con = static_cast<ValueT>(values[1] - values[0]);
@@ -260,7 +260,7 @@ struct LinearKernel {
 struct QuadraticBSplineKernel {
   static constexpr float range = 1.5f;
   static constexpr int size = 4;
-  static constexpr float coord_offset = 0.0f;
+  static constexpr float sample_offset = 0.0f;
 
   static float weight(float x)
   {
@@ -314,7 +314,7 @@ struct QuadraticBSplineKernel {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT sample_derivative(const ValueT *values, float weight)
+  template<class ValueT> static ValueT sample_gradient(const ValueT *values, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     if (weight < 0.5) {
@@ -370,7 +370,7 @@ struct QuadraticBSplineKernel {
 struct CubicBSplineKernel {
   static constexpr float range = 2.0f;
   static constexpr int size = 4;
-  static constexpr float coord_offset = 0.0f;
+  static constexpr float sample_offset = 0.0f;
 
   static float weight(float x)
   {
@@ -425,7 +425,7 @@ struct CubicBSplineKernel {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT sample_derivative(const ValueT *values, float weight)
+  template<class ValueT> static ValueT sample_gradient(const ValueT *values, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     const ValueT sqr = static_cast<ValueT>(0.5 * (values[3] - values[0]) +
