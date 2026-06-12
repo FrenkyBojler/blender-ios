@@ -29,6 +29,11 @@
 #define GGX_GEN_SCHLICK_S_IOR_RES_MU 16
 #define GGX_GEN_SCHLICK_S_IOR_RES_IOR 16
 
+ccl_device_forceinline float alpha_to_roughness(const float alpha_x, const float alpha_y)
+{
+  return sqrtf(sqrtf(alpha_x * alpha_y));
+}
+
 CCL_NAMESPACE_BEGIN
 
 enum MicrofacetType {
@@ -450,7 +455,7 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
                                                       const Spectrum Fss)
 {
   const float mu = dot(wi, bsdf->N);
-  const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
+  const float rough = alpha_to_roughness(bsdf->alpha_x, bsdf->alpha_y);
 
   float E;
   float E_avg;
@@ -533,7 +538,7 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
        * reflection approximation from the microfacet_fresnel call above in that case. */
     }
     else {
-      const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
+      const float rough = alpha_to_roughness(bsdf->alpha_x, bsdf->alpha_y);
       float s;
       if (fresnel->exponent < 0.0f) {
         const float z = sqrtf(fabsf((bsdf->ior - 1.0f) / (bsdf->ior + 1.0f)));
@@ -572,7 +577,7 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
        * reflection approximation from the microfacet_fresnel call above in that case. */
     }
     else {
-      const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
+      const float rough = alpha_to_roughness(bsdf->alpha_x, bsdf->alpha_y);
       const float s = lookup_table_read_3D(kg,
                                            rough,
                                            cos_NI,
@@ -592,7 +597,7 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
   {
     /* We can re-use the ggx_gen_schlick_ior_s table here, since it's already precomputed for our
      * exponent<0 corner case where we use the real dielectric Fresnel. */
-    const float rough = sqrtf(sqrtf(bsdf->alpha_x * bsdf->alpha_y));
+    const float rough = alpha_to_roughness(bsdf->alpha_x, bsdf->alpha_y);
     const float z = sqrtf(fabsf((bsdf->ior - 1.0f) / (bsdf->ior + 1.0f)));
     const float s = lookup_table_read_3D(kg,
                                          rough,
