@@ -125,7 +125,6 @@ typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openv
  * Nearest-point kernel function.
  */
 struct NearestPointKernel {
-  static constexpr float range = 0.5f;
   static constexpr int size = 1;
   /* Shift the sampling interval (round the coordinate), to use the value the closest point. */
   static constexpr float sample_offset = 0.5f;
@@ -165,7 +164,6 @@ struct NearestPointKernel {
  * Linear kernel function.
  */
 struct LinearKernel {
-  static constexpr float range = 1.0f;
   static constexpr int size = 2;
   static constexpr float sample_offset = 0.0f;
 
@@ -258,7 +256,6 @@ struct LinearKernel {
  *           +    (-3/2*B   + 2*C - 1/2*D)
  */
 struct QuadraticBSplineKernel {
-  static constexpr float range = 1.5f;
   static constexpr int size = 4;
   static constexpr float sample_offset = 0.0f;
 
@@ -368,7 +365,6 @@ struct QuadraticBSplineKernel {
  *        +     (-1/2*A         + 1/2*C)
  */
 struct CubicBSplineKernel {
-  static constexpr float range = 2.0f;
   static constexpr int size = 4;
   static constexpr float sample_offset = 0.0f;
 
