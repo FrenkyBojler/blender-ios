@@ -1859,15 +1859,18 @@ static void modifyGeometry(ModifierData *md,
     const bool need_edge = !CustomData_has_layer(&mesh->edge_data, CD_ORIGINDEX);
     const bool need_face = !CustomData_has_layer(&mesh->face_data, CD_ORIGINDEX);
     if (need_vert || need_edge || need_face) {
-      Mesh *mesh_w = geometry_set.get_mesh_for_write();
+      Mesh *mesh_mut = geometry_set.get_mesh_for_write();
       if (need_vert) {
-        CustomData_add_layer(&mesh_w->vert_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh_w->verts_num);
+        CustomData_add_layer(
+            &mesh_mut->vert_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh_mut->verts_num);
       }
       if (need_edge) {
-        CustomData_add_layer(&mesh_w->edge_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh_w->edges_num);
+        CustomData_add_layer(
+            &mesh_mut->edge_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh_mut->edges_num);
       }
       if (need_face) {
-        CustomData_add_layer(&mesh_w->face_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh_w->faces_num);
+        CustomData_add_layer(
+            &mesh_mut->face_data, CD_ORIGINDEX, CD_SET_DEFAULT, mesh_mut->faces_num);
       }
     }
   }
