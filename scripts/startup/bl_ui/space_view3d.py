@@ -7793,19 +7793,19 @@ class VIEW3D_PT_snapping(Panel):
                 if object_mode == 'EDIT' and obj.type not in {'LATTICE', 'META', 'FONT'}:
                     icon_row.prop_enum(
                         tool_settings,
-                        "snap_active_edit_mode",
+                        "snap_exclude_active_edit_mode",
                         value=item.identifier,
                         text="",
                         icon='EDITMODE_HLT')
                     icon_row.prop_enum(
                         tool_settings,
-                        "snap_edited_edit_mode",
+                        "snap_exclude_edited_edit_mode",
                         value=item.identifier,
                         text="",
                         icon='OUTLINER_DATA_MESH')
                     icon_row.prop_enum(
                         tool_settings,
-                        "snap_non_edited_edit_mode",
+                        "snap_exclude_non_edited_edit_mode",
                         value=item.identifier,
                         text="",
                         icon='OUTLINER_OB_MESH')
@@ -7842,19 +7842,19 @@ class VIEW3D_PT_snapping(Panel):
             if object_mode == 'EDIT' and obj.type not in {'LATTICE', 'META', 'FONT'}:
                 icon_row.prop_enum(
                     tool_settings,
-                    "snap_active_edit_mode",
+                    "snap_exclude_active_edit_mode",
                     value=item.identifier,
                     text="",
                     icon='EDITMODE_HLT')
                 icon_row.prop_enum(
                     tool_settings,
-                    "snap_edited_edit_mode",
+                    "snap_exclude_edited_edit_mode",
                     value=item.identifier,
                     text="",
                     icon='OUTLINER_DATA_MESH')
                 icon_row.prop_enum(
                     tool_settings,
-                    "snap_non_edited_edit_mode",
+                    "snap_exclude_non_edited_edit_mode",
                     value=item.identifier,
                     text="",
                     icon='OUTLINER_OB_MESH')

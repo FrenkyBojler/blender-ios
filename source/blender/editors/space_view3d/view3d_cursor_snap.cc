@@ -675,9 +675,9 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
       float dist_px = 12.0f * U.pixelsize;
 
       ed::transform::SnapObjectParams params{};
-      params.snap_active_edit_mode = eSnapMode(short(0xffff));
-      params.snap_edited_edit_mode = eSnapMode(short(0xffff));
-      params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+      params.snap_exclude_active_edit_mode = SCE_SNAP_TO_NONE;
+      params.snap_exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
+      params.snap_exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
       params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
       params.edit_mode_type = edit_mode_type;
       params.occlusion_test = (state->flag & V3D_SNAPCURSOR_OCCLUSION_ALWAYS_TRUE) ?

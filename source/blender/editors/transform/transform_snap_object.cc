@@ -467,28 +467,25 @@ static eSnapMode snap_object_allowed_modes(const SnapObjectContext *sctx,
   const bool is_in_object_mode = (base_act == nullptr) ||
                                  (base_act->object->mode == OB_MODE_OBJECT);
 
-  eSnapMode allowed_mask = SCE_SNAP_TO_NONE;
+  eSnapMode allowed_mask = eSnapMode(short(0xffff));
 
   if (is_in_object_mode) {
     /* Handle target selection options that make sense for object mode. */
-    if (is_selected && params.snap_active_edit_mode == SCE_SNAP_TO_NONE) {
+    if (is_selected) {
       /* Selected objects are excluded from snapping in object mode. */
-      allowed_mask = SCE_SNAP_TO_NONE;
-    }
-    else {
-      allowed_mask = eSnapMode(short(0xffff));
+      allowed_mask &= ~params.snap_exclude_active_edit_mode;
     }
   }
   else {
     /* Handle target selection options that make sense for edit/pose mode. */
     if (is_active) {
-      allowed_mask = params.snap_active_edit_mode;
+      allowed_mask &= ~params.snap_exclude_active_edit_mode;
     }
     else if (is_edited) {
-      allowed_mask = params.snap_edited_edit_mode;
+      allowed_mask &= ~params.snap_exclude_edited_edit_mode;
     }
     else {
-      allowed_mask = params.snap_non_edited_edit_mode;
+      allowed_mask &= ~params.snap_exclude_non_edited_edit_mode;
     }
   }
 

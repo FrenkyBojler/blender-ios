@@ -2062,9 +2062,9 @@ void EDBM_project_snap_verts(
           V3D_PROJ_RET_OK)
       {
         transform::SnapObjectParams params{};
-        params.snap_active_edit_mode = SCE_SNAP_TO_NONE;
-        params.snap_edited_edit_mode = eSnapMode(short(0xffff));
-        params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+        params.snap_exclude_active_edit_mode = eSnapMode(short(0xffff));
+        params.snap_exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
+        params.snap_exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
         params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
         params.edit_mode_type = transform::SNAP_GEOM_FINAL;
         params.occlusion_test = transform::SNAP_OCCLUSION_AS_SEEM;

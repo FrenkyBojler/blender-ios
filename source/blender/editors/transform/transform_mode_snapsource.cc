@@ -41,9 +41,9 @@ struct SnapSourceCustomData {
   TransModeInfo *mode_info_prev;
   void *customdata_mode_prev;
 
-  eSnapMode snap_active_edit_mode_prev;
-  eSnapMode snap_edited_edit_mode_prev;
-  eSnapMode snap_non_edited_edit_mode_prev;
+  eSnapMode snap_exclude_active_edit_mode_prev;
+  eSnapMode snap_exclude_edited_edit_mode_prev;
+  eSnapMode snap_exclude_non_edited_edit_mode_prev;
   eSnapMode snap_exclude_non_selectable_prev;
   eSnapMode snap_mode_confirm;
 
@@ -63,9 +63,9 @@ static void snapsource_end(TransInfo *t)
   t->mode_info = customdata->mode_info_prev;
   t->custom.mode.data = customdata->customdata_mode_prev;
 
-  t->tsnap.snap_active_edit_mode = customdata->snap_active_edit_mode_prev;
-  t->tsnap.snap_edited_edit_mode = customdata->snap_edited_edit_mode_prev;
-  t->tsnap.snap_non_edited_edit_mode = customdata->snap_non_edited_edit_mode_prev;
+  t->tsnap.snap_exclude_active_edit_mode = customdata->snap_exclude_active_edit_mode_prev;
+  t->tsnap.snap_exclude_edited_edit_mode = customdata->snap_exclude_edited_edit_mode_prev;
+  t->tsnap.snap_exclude_non_edited_edit_mode = customdata->snap_exclude_non_edited_edit_mode_prev;
   t->tsnap.snap_exclude_non_selectable = customdata->snap_exclude_non_selectable_prev;
 
   t->mouse.apply = customdata->mouse_prev.apply;
@@ -192,9 +192,9 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   SnapSourceCustomData *customdata = MEM_new_zeroed<SnapSourceCustomData>(__func__);
   customdata->mode_info_prev = t->mode_info;
 
-  customdata->snap_active_edit_mode_prev = t->tsnap.snap_active_edit_mode;
-  customdata->snap_edited_edit_mode_prev = t->tsnap.snap_edited_edit_mode;
-  customdata->snap_non_edited_edit_mode_prev = t->tsnap.snap_non_edited_edit_mode;
+  customdata->snap_exclude_active_edit_mode_prev = t->tsnap.snap_exclude_active_edit_mode;
+  customdata->snap_exclude_edited_edit_mode_prev = t->tsnap.snap_exclude_edited_edit_mode;
+  customdata->snap_exclude_non_edited_edit_mode_prev = t->tsnap.snap_exclude_non_edited_edit_mode;
   customdata->snap_exclude_non_selectable_prev = t->tsnap.snap_exclude_non_selectable;
 
   customdata->mouse_prev.apply = t->mouse.apply;
@@ -209,9 +209,9 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   }
 
   t->mode_info = &TransMode_snapsource;
-  t->tsnap.snap_active_edit_mode = eSnapMode(short(0xffff));
-  t->tsnap.snap_edited_edit_mode = eSnapMode(short(0xffff));
-  t->tsnap.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+  t->tsnap.snap_exclude_active_edit_mode = SCE_SNAP_TO_NONE;
+  t->tsnap.snap_exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
+  t->tsnap.snap_exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
   t->tsnap.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
   t->tsnap.status &= ~SNAP_SOURCE_FOUND;
 

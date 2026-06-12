@@ -5718,15 +5718,15 @@ static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmE
 
       ed::transform::SnapObjectParams params{};
       if (vc.obedit != nullptr) {
-        params.snap_active_edit_mode = SCE_SNAP_TO_NONE;
-        params.snap_edited_edit_mode = eSnapMode(short(0xffff));
-        params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+        params.snap_exclude_active_edit_mode = eSnapMode(short(0xffff));
+        params.snap_exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
+        params.snap_exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
         params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
       }
       else {
-        params.snap_active_edit_mode = eSnapMode(short(0xffff));
-        params.snap_edited_edit_mode = eSnapMode(short(0xffff));
-        params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+        params.snap_exclude_active_edit_mode = SCE_SNAP_TO_NONE;
+        params.snap_exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
+        params.snap_exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
         params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
       }
       params.edit_mode_type = ed::transform::SNAP_GEOM_FINAL;

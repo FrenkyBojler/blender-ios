@@ -359,9 +359,9 @@ static bool view3d_ruler_item_mousemove(const bContext *C,
       float3 &co_other = ruler_item->co[inter->co_index == 0 ? 2 : 0];
 
       ed::transform::SnapObjectParams snap_object_params{};
-      snap_object_params.snap_active_edit_mode = eSnapMode(short(0xffff));
-      snap_object_params.snap_edited_edit_mode = eSnapMode(short(0xffff));
-      snap_object_params.snap_non_edited_edit_mode = eSnapMode(short(0xffff));
+      snap_object_params.snap_exclude_active_edit_mode = SCE_SNAP_TO_NONE;
+      snap_object_params.snap_exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
+      snap_object_params.snap_exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
       snap_object_params.snap_exclude_non_selectable = SCE_SNAP_TO_NONE;
       snap_object_params.edit_mode_type = ed::transform::SNAP_GEOM_CAGE;
 
