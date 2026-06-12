@@ -2102,6 +2102,65 @@ static const bUserAssetLibrary *assetlib_ref_as_library(
   return library;
 }
 
+static bool show_asset_library_message(const bContext *C,
+                                       const SpaceFile *sfile,
+                                       ARegion *region,
+                                       const auto setup_view)
+{
+  FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
+
+  const bUserAssetLibrary *library = assetlib_ref_as_library(asset_params->asset_library_ref);
+
+  if (!library) {
+    /* We do not need to draw or check for any error in non user defined asset libraries.
+     * This is because we do not expect the paths to ever be invalid for these.
+     */
+    return false;
+  }
+
+  const bool is_remote_library = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
+  const bool is_project_library = library->flag & ASSET_LIBRARY_PROJECT_DEFINED;
+
+  if (is_remote_library) {
+    /* With remote libraries, there may be already-downloaded assets available that should be
+     * displayed. Don't show the "internet access required" hint until done loading, and only if
+     * there are no already-downloaded assets to display. */
+    if (!filelist_is_ready(sfile->files) || !filelist_files_num_entries(sfile->files)) {
+      return false;
+    }
+
+    const bool is_online_allowed = G.f & G_FLAG_INTERNET_ALLOW;
+    const bool was_choice_made = U.extension_flag & USER_EXTENSION_FLAG_ONLINE_ACCESS_HANDLED;
+    if (!is_online_allowed && !was_choice_made) {
+      setup_view();
+      file_draw_asset_library_internet_access_required_hint(C, sfile, region);
+      return true;
+    }
+    if (RemoteLibraryLoadingStatus::status(library->remote_url) ==
+        RemoteLibraryLoadingStatus::Failure)
+    {
+      setup_view();
+      file_draw_asset_library_remote_loading_failed_hint(C, sfile, region, library);
+      return true;
+    }
+  }
+
+  const bool is_on_disk_library = !ELEM(asset_params->asset_library_ref.type,
+                                        ASSET_LIBRARY_LOCAL,
+                                        ASSET_LIBRARY_ALL) &&
+                                  !is_remote_library;
+
+  /* Check if the asset library exists. */
+  if (is_on_disk_library && !filelist_is_dir(sfile->files, asset_params->base_params.dir)) {
+    setup_view();
+    file_draw_invalid_asset_library_hint(C, sfile, region, asset_params, is_project_library);
+    return true;
+  }
+
+  /* We didn't draw any messages. */
+  return false;
+}
+
 bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegion *region)
 {
   char blendfile_path[FILE_MAX_LIBEXTRA];
@@ -2114,53 +2173,8 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
     ui::view2d_view_ortho(&region->v2d);
   };
 
-  if (is_asset_browser) {
-    FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
-
-    const bUserAssetLibrary *library = assetlib_ref_as_library(asset_params->asset_library_ref);
-
-    if (!library) {
-      return false;
-    }
-
-    const bool is_remote_library = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
-    const bool is_project_library = library->flag & ASSET_LIBRARY_PROJECT_DEFINED;
-
-    if (is_remote_library) {
-      /* With remote libraries, there may be already-downloaded assets available that should be
-       * displayed. Don't show the "internet access required" hint until done loading, and only if
-       * there are no already-downloaded assets to display. */
-      if (!filelist_is_ready(sfile->files) || !filelist_files_num_entries(sfile->files)) {
-        return false;
-      }
-
-      const bool is_online_allowed = G.f & G_FLAG_INTERNET_ALLOW;
-      const bool was_choice_made = U.extension_flag & USER_EXTENSION_FLAG_ONLINE_ACCESS_HANDLED;
-      if (!is_online_allowed && !was_choice_made) {
-        setup_view();
-        file_draw_asset_library_internet_access_required_hint(C, sfile, region);
-        return true;
-      }
-      if (RemoteLibraryLoadingStatus::status(library->remote_url) ==
-          RemoteLibraryLoadingStatus::Failure)
-      {
-        setup_view();
-        file_draw_asset_library_remote_loading_failed_hint(C, sfile, region, library);
-        return true;
-      }
-    }
-
-    const bool is_on_disk_library = !ELEM(asset_params->asset_library_ref.type,
-                                          ASSET_LIBRARY_LOCAL,
-                                          ASSET_LIBRARY_ALL) &&
-                                    !is_remote_library;
-
-    /* Check if the asset library exists. */
-    if (is_on_disk_library && !filelist_is_dir(sfile->files, asset_params->base_params.dir)) {
-      setup_view();
-      file_draw_invalid_asset_library_hint(C, sfile, region, asset_params, is_project_library);
-      return true;
-    }
+  if (is_asset_browser && show_asset_library_message(C, sfile, region, setup_view)) {
+    return true;
   }
 
   /* Check if the blendfile library is valid (has entries). */

@@ -16,9 +16,12 @@
 
 #include "BLT_translation.hh"
 
-#include "project_intern.hh"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "ED_asset_library_ui.hh"
+
+#include "project_intern.hh"
 
 namespace blender {
 
@@ -126,7 +129,8 @@ void project_asset_panel_draw(const bContext *C, Panel *panel)
 
   ui::Layout &row = layout.row(false);
 
-  draw_library_list<ProjectAssetLibraryListItem>(*C, row, libraries);
+  draw_library_list<ProjectAssetLibraryListItem>(
+      *C, row, libraries, "Project Asset Library Preferences");
 
   ui::Layout &col = row.column(true);
   if (USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries)) {

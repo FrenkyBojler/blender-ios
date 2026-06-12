@@ -23,6 +23,37 @@
 
 namespace blender {
 
+AssetLibraryListItemCommon::AssetLibraryListItemCommon(const AnyAssetLibraryDefinition &library,
+                                                       const int index_in_list)
+    : library(library), index_in_list(index_in_list)
+{
+
+  if (library.user_library) {
+    label_ = library.user_library->name;
+  }
+  else {
+    const char *name_cstr;
+    RNA_enum_name_gettexted(
+        rna_enum_asset_library_type_items, library.type, BLT_I18NCONTEXT_DEFAULT, &name_cstr);
+    label_ = name_cstr;
+  }
+}
+
+bool AssetLibraryListItemCommon::supports_renaming() const
+{
+  return library.user_library != nullptr;
+}
+
+bool AssetLibraryListItemCommon::rename(const bContext &C, StringRefNull new_name)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      nullptr, RNA_UserAssetLibrary, library.user_library);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "name");
+  RNA_property_string_set(&ptr, prop, new_name.c_str());
+  RNA_property_update(&const_cast<bContext &>(C), &ptr, prop);
+  return true;
+}
+
 void draw_active_library_settings(ui::Layout &layout, const AnyAssetLibraryDefinition &library)
 {
   if (library.type == ASSET_LIBRARY_ESSENTIALS) {

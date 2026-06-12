@@ -147,7 +147,7 @@ void userpref_asset_libraries_panel_draw(const bContext *C, Panel *panel)
 
   ui::Layout &row = layout.row(false);
 
-  draw_library_list<AssetLibraryListItem>(*C, row, libraries);
+  draw_library_list<AssetLibraryListItem>(*C, row, libraries, "Asset Libraries Preferences");
 
   ui::Layout &col = row.column(true);
   if (USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries)) {

@@ -8,12 +8,6 @@
 
 #pragma once
 
-#include "BLT_translation.hh"
-
-#include "RNA_access.hh"
-#include "RNA_enum_types.hh"
-#include "RNA_prototypes.hh"
-
 #include "UI_tree_view.hh"
 
 namespace blender {
@@ -27,39 +21,10 @@ struct AssetLibraryListItemCommon : public ui::AbstractTreeViewItem {
   AnyAssetLibraryDefinition library;
   int index_in_list = 0;
 
-  AssetLibraryListItemCommon(const AnyAssetLibraryDefinition &library, const int index_in_list)
-      : library(library), index_in_list(index_in_list)
-  {
+  AssetLibraryListItemCommon(const AnyAssetLibraryDefinition &library, const int index_in_list);
 
-    if (library.user_library) {
-      label_ = library.user_library->name;
-    }
-    else {
-      const char *name_cstr;
-      RNA_enum_name_gettexted(
-          rna_enum_asset_library_type_items, library.type, BLT_I18NCONTEXT_DEFAULT, &name_cstr);
-      label_ = name_cstr;
-    }
-  }
-
-  void build_row(ui::Layout &row) override
-  {
-    row.label("Implement your own list row drawing code!", ICON_ERROR);
-  }
-
-  bool supports_renaming() const override
-  {
-    return library.user_library != nullptr;
-  }
-  bool rename(const bContext &C, StringRefNull new_name) override
-  {
-    PointerRNA ptr = RNA_pointer_create_discrete(
-        nullptr, RNA_UserAssetLibrary, library.user_library);
-    PropertyRNA *prop = RNA_struct_find_property(&ptr, "name");
-    RNA_property_string_set(&ptr, prop, new_name.c_str());
-    RNA_property_update(&const_cast<bContext &>(C), &ptr, prop);
-    return true;
-  }
+  bool supports_renaming() const override;
+  bool rename(const bContext &C, StringRefNull new_name) override;
 };
 
 template<typename AssetLibraryListItemType> struct AssetLibraryList : public ui::AbstractTreeView {
@@ -81,13 +46,14 @@ template<typename AssetLibraryListItemType> struct AssetLibraryList : public ui:
 template<typename AssetLibraryListItemType>
 void draw_library_list(const bContext &C,
                        ui::Layout &layout,
-                       Vector<AnyAssetLibraryDefinition> &libraries)
+                       Vector<AnyAssetLibraryDefinition> &libraries,
+                       StringRef view_description)
 {
   ui::Block *block = layout.block();
 
-  ui::AbstractTreeView *tree_view = block_add_view(
+  ui::AbstractTreeView *tree_view = ui::block_add_view(
       *block,
-      "Asset Libraries Preferences",
+      view_description,
       std::make_unique<AssetLibraryList<AssetLibraryListItemType>>(libraries));
   tree_view->set_default_rows(5);
 
