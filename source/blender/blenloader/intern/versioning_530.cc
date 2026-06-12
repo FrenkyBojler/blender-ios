@@ -16,6 +16,7 @@
 
 #include "BKE_main.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 
