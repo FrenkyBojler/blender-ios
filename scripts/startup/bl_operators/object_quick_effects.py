@@ -94,8 +94,9 @@ class QuickFur(ObjectModeOperator, Operator):
         if not super().poll(context):
             return False
 
-        if context.active_object is None or context.active_object.type != 'MESH':
-            cls.poll_message_set("No active mesh object.")
+        mesh_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        if not mesh_objects:
+            cls.poll_message_set("No mesh object selected.")
             return False
 
         return True
