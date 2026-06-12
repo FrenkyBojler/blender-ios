@@ -175,9 +175,6 @@ ccl_device void shadow_linking_shade(KernelGlobals kg, IntegratorState state)
   Spectrum light_eval;
   const bool is_constant_light_shader = light_sample_shader_eval_nee_constant(
       kg, shader_id, isect.prim, isect.type == PRIMITIVE_LAMP, light_eval);
-#  if defined(__PATH_GUIDING__)
-  const Spectrum light_eval_no_mis = light_eval;
-#  endif
   light_eval *= light_weight;
 
   if (is_zero(light_eval)) {
@@ -218,12 +215,18 @@ ccl_device void shadow_linking_shade(KernelGlobals kg, IntegratorState state)
   if (kernel_data.integrator.train_guiding) {
     LightType lt = (LightType)kernel_data_fetch(lights, isect.prim).type;
     if(lt != LIGHT_SUN && lt != LIGHT_BACKGROUND) {
+      // we need to check if need to add the new segment her or only if the shadow path 
+      // goes through
       guiding_record_light_surface_segment(kg, state, &isect);
-      //guiding_record_surface_emission(kg, state, light_eval_no_mis, mis_weight);
-      INTEGRATOR_STATE(shadow_state, shadow_path, guiding_mis_weight) = mis_weight;
+      // Need to check if we 
+      guiding_record_surface_emission(kg, state, safe_divide(light_eval, mis_weight), mis_weight);
+      //INTEGRATOR_STATE(shadow_state, shadow_path, guiding_mis_weight) = 0;
     } else {
-      guiding_record_background(kg, state, light_eval_no_mis, mis_weight);
+      guiding_record_background(kg, state, safe_divide(light_eval, mis_weight), mis_weight);
     }
+    // Adjust the unlit_throughput to disable recording direct light contributions at the end 
+    // of the additional shadow path.
+    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, unlit_throughput) = make_float3(0.f);
   }
 #  endif
 }

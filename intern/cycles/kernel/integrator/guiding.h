@@ -539,9 +539,9 @@ ccl_device_forceinline void guiding_record_direct_light(
     else {
       /* Dedicated shadow ray for BSDF sampled ray direction.
        * The mis weight was already folded into the throughput, so need to divide it out. */
-      openpgl::cpp::SetDirectContribution(state->shadow_path.path_segment,
-                                          guiding_vec3f(Lo_rgb / mis_weight));
-      openpgl::cpp::SetMiWeight(state->shadow_path.path_segment, mis_weight);
+      //openpgl::cpp::SetDirectContribution(state->shadow_path.path_segment,
+      //                                    guiding_vec3f(Lo_rgb / mis_weight));
+      //openpgl::cpp::SetMiWeight(state->shadow_path.path_segment, mis_weight);
     }
   }
 #endif
