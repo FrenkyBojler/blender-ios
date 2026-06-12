@@ -6,7 +6,7 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_capi.hh"
 
 #include "mtl_context.hh"
 #include "mtl_debug.hh"

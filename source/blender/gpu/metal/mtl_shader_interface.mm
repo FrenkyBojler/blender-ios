@@ -8,7 +8,7 @@
  * GPU shader interface (C --> GLSL)
  */
 
-#include "BLI_bitmap.h"
+#include "BLI_bitmap.hh"
 
 #include "GPU_capabilities.hh"
 
