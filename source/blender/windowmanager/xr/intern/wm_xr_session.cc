@@ -1852,7 +1852,7 @@ static wmSurface *wm_xr_session_surface_create()
     return g_xr_surface;
   }
 
-  wmSurface *surface = MEM_new_zeroed<wmSurface>(__func__);
+  wmSurface *surface = MEM_new<wmSurface>(__func__);
   wmXrSurfaceData *data = MEM_new_zeroed<wmXrSurfaceData>("XrSurfaceData");
   data->controller_art = MEM_new_zeroed<ARegionType>("XrControllerRegionType");
 
@@ -1862,8 +1862,7 @@ static wmSurface *wm_xr_session_surface_create()
   surface->activate = DRW_xr_drawing_begin;
   surface->deactivate = DRW_xr_drawing_end;
 
-  surface->system_gpu_context = DRW_system_gpu_context_get();
-  surface->blender_gpu_context = static_cast<GPUContext *>(DRW_xr_blender_gpu_context_get());
+  surface->gpu_context = DRW_gpu_context_get();
 
   data->controller_art->regionid = RGN_TYPE_XR;
   surface->customdata = data;
@@ -1883,7 +1882,7 @@ GHOST_IContext *wm_xr_session_gpu_binding_context_create()
    * and running. */
   WM_main_add_notifier(NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
-  return surface->system_gpu_context;
+  return surface->gpu_context.ghost_context;
 }
 
 void wm_xr_session_gpu_binding_context_destroy(GHOST_IContext * /*context*/)

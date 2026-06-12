@@ -23,6 +23,8 @@
 
 namespace blender {
 
+using namespace blender::gpu;
+
 /* -------------------------------------------------------------------- */
 /** \name Submission critical section
  *
@@ -84,20 +86,20 @@ class ContextShared {
   /* Should be private but needs to be public for XR workaround. */
  public:
   TicketMutex *mutex_ = nullptr;
-  WM_GPU_Context context_;
+  GPUSecondaryContextData context_;
 
   /* NOTE: This changes the active context. */
   ContextShared()
   {
     mutex_ = BLI_ticket_mutex_alloc();
 
-    context_ = WM_system_gpu_context_create();
+    context_ = GPU_create_secondary_context();
   }
 
   ~ContextShared()
   {
-    WM_system_gpu_context_release(context_);
-    WM_system_gpu_context_dispose(context_);
+    GPU_deactivate_secondary_context(context_);
+    GPU_destroy_secondary_context(context_);
 
     BLI_ticket_mutex_free(mutex_);
   }
@@ -112,7 +114,7 @@ class ContextShared {
 
     GPU_render_begin();
 
-    WM_system_gpu_context_activate(context_);
+    GPU_activate_secondary_context(context_);
     GPU_context_begin_frame(context_.gpu_context);
   }
 
@@ -130,7 +132,7 @@ class ContextShared {
       wm_window_reset_drawable();
     }
     else {
-      WM_system_gpu_context_release(context_);
+      GPU_deactivate_secondary_context(context_);
     }
     /* Render boundaries are opened and closed here as this may be
      * called outside of an existing render loop. */
@@ -246,19 +248,19 @@ void DRW_gpu_context_disable()
   DRW_gpu_context_disable_ex(true);
 }
 
-void DRW_system_gpu_render_context_enable(const WM_GPU_Context &re_system_gpu_context)
+void DRW_system_gpu_render_context_enable(const GPUSecondaryContextData &re_system_gpu_context)
 {
   /* If thread is main you should use DRW_gpu_context_enable(). */
   BLI_assert(!BLI_thread_is_main());
 
   DRW_lock_start();
-  WM_system_gpu_context_activate(re_system_gpu_context);
+  GPU_activate_secondary_context(re_system_gpu_context);
 }
 
-void DRW_system_gpu_render_context_disable(const WM_GPU_Context &re_system_gpu_context)
+void DRW_system_gpu_render_context_disable(const GPUSecondaryContextData &re_system_gpu_context)
 {
   GPU_flush();
-  WM_system_gpu_context_release(re_system_gpu_context);
+  GPU_deactivate_secondary_context(re_system_gpu_context);
   DRW_lock_end();
 }
 
@@ -276,7 +278,7 @@ void DRW_render_context_enable(Render *render)
     return;
   }
 
-  WM_GPU_Context gpu_context = RE_system_gpu_context_get(render);
+  GPUSecondaryContextData gpu_context = RE_system_gpu_context_get(render);
 
   /* Changing Context */
   if (gpu_context.is_initialized()) {
@@ -296,7 +298,7 @@ void DRW_render_context_disable(Render *render)
     return;
   }
 
-  WM_GPU_Context gpu_context = RE_system_gpu_context_get(render);
+  GPUSecondaryContextData gpu_context = RE_system_gpu_context_get(render);
 
   if (gpu_context.is_initialized()) {
     GPU_render_end();
@@ -318,7 +320,7 @@ void DRW_render_context_disable(Render *render)
 
 #ifdef WITH_XR_OPENXR
 
-GHOST_IContext *DRW_system_gpu_context_get()
+GPUSecondaryContextData DRW_gpu_context_get()
 {
   /* XXX: There should really be no such getter, but for VR we currently can't easily avoid it.
    * OpenXR needs some low level info for the GPU context that will be used for submitting the
@@ -329,19 +331,12 @@ GHOST_IContext *DRW_system_gpu_context_get()
    * have to work from the main thread, which is tricky to get working too. The preferable solution
    * would be using a separate thread for VR drawing where a single context can stay active. */
 
-  return viewport_context->system_gpu_context_;
-}
-
-void *DRW_xr_blender_gpu_context_get()
-{
-  /* XXX: See comment on #DRW_system_gpu_context_get(). */
-
-  return viewport_context->blender_gpu_context_;
+  return viewport_context->context_;
 }
 
 void DRW_xr_drawing_begin()
 {
-  /* XXX: See comment on #DRW_system_gpu_context_get(). */
+  /* XXX: See comment on #DRW_gpu_context_get(). */
 
   DRW_lock_start();
   BLI_ticket_mutex_lock(viewport_context->mutex_);
@@ -349,7 +344,7 @@ void DRW_xr_drawing_begin()
 
 void DRW_xr_drawing_end()
 {
-  /* XXX: See comment on #DRW_system_gpu_context_get(). */
+  /* XXX: See comment on #DRW_gpu_context_get(). */
 
   BLI_ticket_mutex_unlock(viewport_context->mutex_);
   DRW_lock_end();
@@ -369,14 +364,14 @@ void DRW_xr_drawing_end()
  * Example of context creation:
  *
  *   const bool drw_state = DRW_gpu_context_release();
- *   viewport_system_gpu_context = WM_system_gpu_context_create();
+ *   viewport_system_gpu_context = GPU_create_secondary_context();
  *   DRW_gpu_context_activate(drw_state);
  *
  * Example of context destruction:
  *
  *   const bool drw_state = DRW_gpu_context_release();
- *   WM_system_gpu_context_activate(viewport_system_gpu_context);
- *   WM_system_gpu_context_dispose(viewport_system_gpu_context);
+ *   GPU_activate_secondary_context(viewport_system_gpu_context);
+ *   GPU_destroy_secondary_context(viewport_system_gpu_context);
  *   DRW_gpu_context_activate(drw_state);
  *
  *
@@ -400,7 +395,7 @@ bool DRW_gpu_context_release()
     return false;
   }
 
-  WM_system_gpu_context_release(viewport_context->context_);
+  GPU_deactivate_secondary_context(viewport_context->context_);
 
   return true;
 }
@@ -412,7 +407,7 @@ void DRW_gpu_context_activate(bool drw_state)
   }
 
   if (drw_state) {
-    WM_system_gpu_context_activate(viewport_context->context_);
+    GPU_activate_secondary_context(viewport_context->context_);
   }
   else {
     wm_window_reset_drawable();

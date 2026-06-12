@@ -972,16 +972,10 @@ void RE_display_free(Render *re)
   RE_display_init(re);
 }
 
-WM_GPU_Context RE_system_gpu_context_get(Render *re)
+GPUSecondaryContextData RE_system_gpu_context_get(Render *re)
 {
   RenderDisplay *display = re->display.get();
   return display->gpu_context;
-}
-
-void *RE_blender_gpu_context_ensure(Render *re)
-{
-  RenderDisplay *display = re->display.get();
-  return display->ensure_blender_gpu_context();
 }
 
 /** \} */

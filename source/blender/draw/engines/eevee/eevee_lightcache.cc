@@ -62,7 +62,7 @@ class LightBake {
    * If running in parallel (in a separate thread), use this context.
    * Created on main thread but first bound in worker thread.
    */
-  WM_GPU_Context wm_gpu_context;
+  GPUSecondaryContextData gpu_context_;
 
   /** Baking instance. Created and freed in the worker thread. */
   Instance *instance_ = nullptr;
@@ -96,7 +96,7 @@ class LightBake {
 
     if (run_as_job && !GPU_use_main_context_workaround()) {
       /* This needs to happen in main thread. */
-      wm_gpu_context = WM_system_gpu_context_create();
+      gpu_context_ = GPU_create_secondary_context();
       wm_window_reset_drawable();
     }
   }
@@ -208,7 +208,7 @@ class LightBake {
     }
     else {
       /* Worker thread case. */
-      DRW_system_gpu_render_context_enable(wm_gpu_context);
+      DRW_system_gpu_render_context_enable(gpu_context_);
     }
 
     if (render_begin) {
@@ -224,16 +224,15 @@ class LightBake {
       GPU_render_end();
       GPU_context_main_unlock();
     }
-    else if (gl_context_ == nullptr) {
+    else if (!gpu_context_.is_initialized()) {
       /* Main thread case. */
-      DRW_gpu_context_disable();
       GPU_render_end();
+      DRW_gpu_context_disable();
     }
     else {
       /* Worker thread case. */
-      DRW_blender_gpu_render_context_disable(gpu_context_);
       GPU_render_end();
-      DRW_system_gpu_render_context_disable(gl_context_);
+      DRW_system_gpu_render_context_disable(gpu_context_);
     }
   }
 
@@ -258,17 +257,16 @@ class LightBake {
       DRW_gpu_context_disable();
       GPU_context_main_unlock();
     }
-    else if (gl_context_ == nullptr) {
+    else if (!gpu_context_.is_initialized()) {
       /* Main thread case. */
       DRW_gpu_context_disable();
     }
     else {
+      DRW_system_gpu_render_context_disable(gpu_context_);
       /* Worker thread case. */
-      if (gpu_context_ != nullptr) {
-        GPU_context_discard(gpu_context_);
+      if (gpu_context_.is_initialized()) {
+        GPU_destroy_secondary_context(gpu_context_);
       }
-      DRW_system_gpu_render_context_disable(gl_context_);
-      WM_system_gpu_context_dispose(gl_context_);
     }
   }
 };

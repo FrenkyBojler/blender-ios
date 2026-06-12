@@ -12,10 +12,7 @@
 
 #pragma once
 
-#include "WM_api.hh"
-
-struct GPUContext;
-class GHOST_IContext;
+#include "GPU_context.hh"
 
 namespace blender {
 
@@ -23,7 +20,7 @@ struct bContext;
 struct wmSurface {
   wmSurface *next, *prev;
 
-  WM_GPU_Context gpu_context;
+  GPUSecondaryContextData gpu_context;
 
   void *customdata;
 

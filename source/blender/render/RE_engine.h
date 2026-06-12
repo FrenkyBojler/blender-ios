@@ -16,7 +16,7 @@
 
 #include "BLI_threads.h"
 
-#include "WM_api.hh"
+#include "GPU_context.hh"
 
 namespace blender {
 
@@ -163,7 +163,7 @@ struct RenderEngine {
   void *update_render_passes_data;
 
   /* GPU context. */
-  WM_GPU_Context gpu_context; /* WindowManager GPU context -> GHOSTContext. */
+  GPUSecondaryContextData gpu_context; /* WindowManager GPU context -> GHOSTContext. */
   ThreadMutex gpu_context_mutex;
   bool use_drw_render_context;
   /* Whether to restore DRWState after RenderEngine display pass. */

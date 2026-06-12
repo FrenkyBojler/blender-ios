@@ -33,7 +33,7 @@ struct View3D;
 struct ViewLayer;
 struct bContext;
 struct rcti;
-struct WM_GPU_Context;
+struct GPUSecondaryContextData;
 
 namespace bke {
 enum class AttrType : int16_t;
@@ -164,8 +164,8 @@ bool DRW_gpu_context_is_enabled();
 void DRW_gpu_context_disable();
 
 #ifdef WITH_XR_OPENXR
-/* XXX: see comment on #DRW_system_gpu_context_get() */
-GHOST_IContext *DRW_system_gpu_context_get();
+/* XXX: see comment on #DRW_gpu_context_get() */
+GPUSecondaryContextData DRW_gpu_context_get();
 void *DRW_xr_blender_gpu_context_get();
 void DRW_xr_drawing_begin();
 void DRW_xr_drawing_end();
@@ -189,8 +189,8 @@ void DRW_gpu_context_disable_ex(bool restore);
  * Enable system context first, then enable blender context,
  * then disable blender context, then disable system context. */
 
-void DRW_system_gpu_render_context_enable(const WM_GPU_Context &re_system_gpu_context);
-void DRW_system_gpu_render_context_disable(const WM_GPU_Context &re_system_gpu_context);
+void DRW_system_gpu_render_context_enable(const GPUSecondaryContextData &re_system_gpu_context);
+void DRW_system_gpu_render_context_disable(const GPUSecondaryContextData &re_system_gpu_context);
 
 DRWData *DRW_viewport_data_create();
 void DRW_viewport_data_free(DRWData *drw_data);

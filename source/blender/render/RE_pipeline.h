@@ -12,10 +12,6 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
-#include "WM_api.hh"
-
-class GHOST_IContext;
-
 namespace blender {
 
 namespace gpu {
@@ -39,6 +35,7 @@ struct ReportList;
 struct Scene;
 struct StampData;
 struct ViewLayer;
+struct GPUSecondaryContextData;
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is what is exposed of render to outside world */
@@ -442,7 +439,7 @@ void RE_current_scene_update_cb(struct Render *re,
                                 void *handle,
                                 void (*f)(void *handle, struct Scene *scene));
 
-WM_GPU_Context RE_system_gpu_context_get(Render *re);
+GPUSecondaryContextData RE_system_gpu_context_get(Render *re);
 
 bool RE_seq_render_active(struct Scene *scene, struct RenderData *rd);
 

@@ -20,7 +20,7 @@
 
 namespace blender {
 
-static gpu::GPUSecondaryContextData g_gpu_context;
+static GPUSecondaryContextData g_gpu_context;
 static Mutex g_gpu_context_mutex;
 
 void IMB_init()
@@ -35,7 +35,7 @@ void IMB_exit()
   colormanagement_exit();
 
   if (g_gpu_context.gpu_context) {
-    gpu::GPU_destroy_secondary_context(g_gpu_context);
+    GPU_destroy_secondary_context(g_gpu_context);
   }
 }
 
@@ -47,7 +47,7 @@ void IMB_ensure_gpu_context()
     return;
   }
 
-  g_gpu_context = gpu::GPU_create_secondary_context();
+  g_gpu_context = GPU_create_secondary_context();
 }
 
 void IMB_activate_gpu_context()
@@ -55,14 +55,14 @@ void IMB_activate_gpu_context()
   BLI_assert(g_gpu_context.gpu_context);
 
   g_gpu_context_mutex.lock();
-  gpu::GPU_activate_secondary_context(g_gpu_context);
+  GPU_activate_secondary_context(g_gpu_context);
 }
 
 void IMB_deactivate_gpu_context()
 {
   BLI_assert(g_gpu_context.gpu_context);
 
-  gpu::GPU_deactivate_secondary_context(g_gpu_context);
+  GPU_deactivate_secondary_context(g_gpu_context);
   g_gpu_context_mutex.unlock();
 }
 

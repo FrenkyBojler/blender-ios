@@ -125,11 +125,11 @@ bool RE_engine_is_external(const Render *re)
 
 RenderEngine *RE_engine_create(RenderEngineType *type)
 {
-  RenderEngine *engine = MEM_new_zeroed<RenderEngine>("RenderEngine");
+  RenderEngine *engine = MEM_new<RenderEngine>("RenderEngine");
   engine->type = type;
 
   BLI_mutex_init(&engine->update_render_passes_mutex);
-  BLI_mutex_init(&engine->blender_gpu_context_mutex);
+  BLI_mutex_init(&engine->gpu_context_mutex);
 
   return engine;
 }
@@ -175,7 +175,7 @@ void RE_engine_free(RenderEngine *engine)
 
   engine_depsgraph_free(engine);
 
-  BLI_mutex_end(&engine->blender_gpu_context_mutex);
+  BLI_mutex_end(&engine->gpu_context_mutex);
   BLI_mutex_end(&engine->update_render_passes_mutex);
 
   MEM_delete(engine);
@@ -1328,7 +1328,7 @@ bool RE_engine_gpu_context_create(RenderEngine *engine)
     return true;
   }
   const bool drw_state = DRW_gpu_context_release();
-  engine->gpu_context = WM_system_gpu_context_create();
+  engine->gpu_context = GPU_create_secondary_context();
   DRW_gpu_context_activate(drw_state);
   return engine->gpu_context.is_initialized();
 }
@@ -1339,8 +1339,8 @@ void RE_engine_gpu_context_destroy(RenderEngine *engine)
     return;
   }
   const bool drw_state = DRW_gpu_context_release();
-  WM_system_gpu_context_release(engine->gpu_context);
-  WM_system_gpu_context_dispose(engine->gpu_context);
+  GPU_deactivate_secondary_context(engine->gpu_context);
+  GPU_destroy_secondary_context(engine->gpu_context);
   DRW_gpu_context_activate(drw_state);
 }
 
@@ -1356,7 +1356,7 @@ bool RE_engine_gpu_context_enable(RenderEngine *engine)
     /* If a previous GPU/GPUContext was active (DST.blender_gpu_context), we should later
      * restore this when disabling the RenderEngine context. */
     engine->gpu_restore_context = DRW_gpu_context_release();
-    WM_system_gpu_context_activate(engine->gpu_context);
+    GPU_activate_secondary_context(engine->gpu_context);
     return true;
   }
   return false;
@@ -1369,7 +1369,7 @@ void RE_engine_gpu_context_disable(RenderEngine *engine)
   }
   else {
     if (engine->gpu_context.is_initialized()) {
-      WM_system_gpu_context_release(engine->gpu_context);
+      GPU_deactivate_secondary_context(engine->gpu_context);
       /* Restore DRW state context if previously active. */
       DRW_gpu_context_activate(engine->gpu_restore_context);
       BLI_mutex_unlock(&engine->gpu_context_mutex);

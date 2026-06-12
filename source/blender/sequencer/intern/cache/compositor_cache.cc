@@ -22,7 +22,7 @@ CompositorCache::~CompositorCache()
       DRW_gpu_context_enable();
     }
     else {
-      gpu::GPU_activate_secondary_context(this->secondary_gpu_context);
+      GPU_activate_secondary_context(this->secondary_gpu_context);
     }
   }
 
@@ -34,16 +34,16 @@ CompositorCache::~CompositorCache()
       DRW_gpu_context_disable();
     }
     else {
-      gpu::GPU_deactivate_secondary_context(this->secondary_gpu_context);
+      GPU_deactivate_secondary_context(this->secondary_gpu_context);
     }
   }
 }
 
 void CompositorCache::recreate_if_needed(bool gpu,
                                          compositor::ResultPrecision precision,
-                                         const gpu::GPUSecondaryContextData &gpu_context)
+                                         const GPUSecondaryContextData &gpu_context)
 {
-  this->secondary_gpu_context = gpu ? gpu_context : gpu::GPUSecondaryContextData();
+  this->secondary_gpu_context = gpu ? gpu_context : GPUSecondaryContextData();
 
   if (this->last_evaluation_used_gpu == gpu && this->last_evaluation_precision == precision) {
     return;

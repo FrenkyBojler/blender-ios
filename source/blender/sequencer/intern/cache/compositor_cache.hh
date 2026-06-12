@@ -16,7 +16,7 @@ class CompositorCache {
   compositor::StaticCacheManager cache_manager;
   bool last_evaluation_used_gpu = false;
   compositor::ResultPrecision last_evaluation_precision = compositor::ResultPrecision::Half;
-  gpu::GPUSecondaryContextData secondary_gpu_context = {};
+  GPUSecondaryContextData secondary_gpu_context = {};
 
  public:
   ~CompositorCache();
@@ -28,7 +28,7 @@ class CompositorCache {
 
   void recreate_if_needed(bool gpu,
                           compositor::ResultPrecision precision,
-                          const gpu::GPUSecondaryContextData &gpu_context);
+                          const GPUSecondaryContextData &gpu_context);
 };
 
 }  // namespace blender::seq

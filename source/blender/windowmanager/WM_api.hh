@@ -392,22 +392,6 @@ void WM_window_ensure_active_view_layer(wmWindow *win) ATTR_NONNULL(1);
 
 bool WM_window_is_temp_screen(const wmWindow *win) ATTR_WARN_UNUSED_RESULT;
 
-struct WM_GPU_Context {
-  class GHOST_IContext *ghost_context = nullptr;
-  class GPUContext *gpu_context = nullptr;
-
-  bool is_initialized()
-  {
-    BLI_assert((ghost_context == nullptr) == (gpu_context == nullptr));
-    return ghost_context && gpu_context;
-  }
-};
-
-WM_GPU_Context WM_system_gpu_context_create();
-void WM_system_gpu_context_dispose(WM_GPU_Context &context);
-void WM_system_gpu_context_activate(const WM_GPU_Context &context);
-void WM_system_gpu_context_release(const WM_GPU_Context &context);
-
 /** #WM_window_open alignment. */
 enum eWindowAlignment {
   WIN_ALIGN_ABSOLUTE = 0,

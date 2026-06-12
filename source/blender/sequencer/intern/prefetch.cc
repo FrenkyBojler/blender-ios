@@ -273,13 +273,13 @@ void PrefetchJob::init_depsgraph()
 
 void PrefetchJob::init_gpu()
 {
-  this->context_cpy.gpu_context = gpu::GPU_create_secondary_context();
+  this->context_cpy.gpu_context = GPU_create_secondary_context();
 }
 
 void PrefetchJob::free_gpu()
 {
   if (this->context_cpy.gpu_context.ghost_context != nullptr) {
-    gpu::GPU_destroy_secondary_context(this->context_cpy.gpu_context);
+    GPU_destroy_secondary_context(this->context_cpy.gpu_context);
     this->context_cpy.gpu_context = {};
   }
 }

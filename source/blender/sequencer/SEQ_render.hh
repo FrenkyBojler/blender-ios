@@ -54,9 +54,9 @@ struct RenderData {
   // bool gpu_full_samples;
 
   /* If GPU access is needed and this is set, use it
-   * instead of regular GPU context. Primary case: prefetch job;
+   * instead of the main GPU context. Primary case: prefetch job;
    * it is on another thread and can't use regular GPU context. */
-  gpu::GPUSecondaryContextData gpu_context;
+  GPUSecondaryContextData gpu_context;
 };
 
 /**

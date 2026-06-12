@@ -638,8 +638,6 @@ GPUBackend *GPUBackend::get()
 /** \name GPUSecondaryContext
  * \{ */
 
-namespace gpu {
-
 static GHOST_TDrawingContextType ghost_context_type()
 {
   switch (GPU_backend_type_selection_get()) {
@@ -725,12 +723,14 @@ GPUSecondaryContextData GPU_create_secondary_context()
 
 void GPU_activate_secondary_context(const GPUSecondaryContextData &data)
 {
+  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
   data.ghost_context->activateDrawingContext();
   GPU_context_active_set(data.gpu_context);
 }
 
 void GPU_deactivate_secondary_context(const GPUSecondaryContextData &data)
 {
+  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
   GPU_context_active_set(nullptr);
   data.ghost_context->releaseDrawingContext();
 }
@@ -792,5 +792,4 @@ void GPUSecondaryContext::activate()
 
 /** \} */
 
-}  // namespace gpu
 }  // namespace blender

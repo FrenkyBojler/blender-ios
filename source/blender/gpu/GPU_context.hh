@@ -156,11 +156,15 @@ void GPU_render_step(bool force_resource_release = false);
 void GPU_backend_ghost_system_set(GHOST_ISystem *ghost_system_handle);
 GHOST_ISystem *GPU_backend_ghost_system_get();
 
-namespace gpu {
-
 struct GPUSecondaryContextData {
   GHOST_IContext *ghost_context = nullptr;
   GPUContext *gpu_context = nullptr;
+
+  bool is_initialized()
+  {
+    BLI_assert((ghost_context == nullptr) == (gpu_context == nullptr));
+    return ghost_context && gpu_context;
+  }
 };
 
 /** Creates a secondary off-screen GHOST and GPU contexts. Must be called on the main thread. */
@@ -191,6 +195,8 @@ class GPUSecondaryContext {
   /** Must be called from a secondary thread. */
   void activate();
 };
+
+namespace gpu {
 
 /**
  * \brief Activate pipeline creation debugging for a certain scope.

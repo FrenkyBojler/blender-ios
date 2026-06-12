@@ -19,14 +19,12 @@
 #include "BLI_mutex.hh"
 #include "BLI_threads.h"
 
-#include "WM_api.hh"
+#include "GPU_context.hh"
 
 #include "RE_compositor.hh"
 #include "RE_pipeline.h"
 
 #include "tile_highlight.h"
-
-class GHOST_IContext;
 
 namespace blender {
 
@@ -211,7 +209,6 @@ struct RenderDisplay {
   void free_gpu_context();
 
   void ensure_system_gpu_context();
-  void *ensure_blender_gpu_context();
 
   void display_update(RenderResult *render_result, rcti *rect);
   void current_scene_update(struct Scene *scene);
@@ -242,7 +239,7 @@ struct RenderDisplay {
 
   /* GPU contexts.
    * TODO: replace by a whole draw manager. */
-  WM_GPU_Context gpu_context;
+  GPUSecondaryContextData gpu_context;
 };
 
 /* **************** defines ********************* */

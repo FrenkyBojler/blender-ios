@@ -3467,43 +3467,6 @@ void wm_window_IME_end(wmWindow *win)
 }
 #endif /* WITH_INPUT_IME */
 
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Direct GPU Context Management
- * \{ */
-
-WM_GPU_Context WM_system_gpu_context_create()
-{
-  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  gpu::GPUSecondaryContextData context_data = gpu::GPU_create_secondary_context();
-  return {context_data.ghost_context, context_data.gpu_context};
-}
-
-void WM_system_gpu_context_dispose(WM_GPU_Context &context)
-{
-  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  gpu::GPUSecondaryContextData context_data = {context.ghost_context, context.gpu_context};
-  gpu::GPU_destroy_secondary_context(context_data);
-  context = {};
-  wm_window_reset_drawable();
-}
-
-void WM_system_gpu_context_activate(const WM_GPU_Context &context)
-{
-  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  gpu::GPUSecondaryContextData context_data = {context.ghost_context, context.gpu_context};
-  gpu::GPU_activate_secondary_context(context_data);
-}
-
-void WM_system_gpu_context_release(const WM_GPU_Context &context)
-{
-  BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  gpu::GPUSecondaryContextData context_data = {context.ghost_context, context.gpu_context};
-  gpu::GPU_deactivate_secondary_context(context_data);
-  wm_window_reset_drawable();
-}
-
 void WM_ghost_show_message_box(const char *title,
                                const char *message,
                                const char *help_label,

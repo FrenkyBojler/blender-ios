@@ -88,7 +88,7 @@ RenderDisplay::~RenderDisplay()
 void RenderDisplay::free_gpu_context()
 {
   if (gpu_context.is_initialized()) {
-    WM_system_gpu_context_dispose(gpu_context);
+    GPU_destroy_secondary_context(gpu_context);
     /* If in main thread, reset window context. */
     if (BLI_thread_is_main()) {
       wm_window_reset_drawable();
@@ -100,7 +100,7 @@ void RenderDisplay::ensure_system_gpu_context()
 {
   if (!gpu_context.is_initialized()) {
     /* Needs to be created in the main thread. */
-    gpu_context = WM_system_gpu_context_create();
+    gpu_context = GPU_create_secondary_context();
   }
 }
 

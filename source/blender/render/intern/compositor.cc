@@ -738,13 +738,13 @@ class Compositor {
        * render system GPU context, use the DRW context directly, while for threaded rendering when
        * we have a render system GPU context, use the render's system GPU context to avoid blocking
        * with the global DST. */
-      WM_GPU_Context gpu_context = RE_system_gpu_context_get(&render_);
+      GPUSecondaryContextData gpu_context = RE_system_gpu_context_get(&render_);
       if (BLI_thread_is_main() || !gpu_context.is_initialized()) {
         DRW_gpu_context_enable();
         context.set_gpu_supported(DRW_gpu_context_is_enabled());
       }
       else if (gpu_context.is_initialized()) {
-        WM_system_gpu_context_activate(gpu_context);
+        GPU_activate_secondary_context(gpu_context);
 
         GPU_render_begin();  // TODO:check
       }
@@ -771,13 +771,13 @@ class Compositor {
     if (context.use_gpu()) {
       gpu::TexturePool::get().reset();
 
-      WM_GPU_Context gpu_context = RE_system_gpu_context_get(&render_);
+      GPUSecondaryContextData gpu_context = RE_system_gpu_context_get(&render_);
       if (BLI_thread_is_main() || !gpu_context.is_initialized()) {
         DRW_gpu_context_disable();
       }
       else {
         GPU_render_end();
-        WM_system_gpu_context_release(gpu_context);
+        GPU_deactivate_secondary_context(gpu_context);
       }
     }
   }
