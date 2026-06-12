@@ -314,6 +314,8 @@ option(WITH_MANIFOLD "Enable features depending on Manifold (Fast Robust Boolean
 
 option(WITH_OPENIMAGEDENOISE "Enable the OpenImageDenoise compositing node" ON)
 
+option(WITH_METALFX "Enable viewport denoising with MetalFX" ON)
+
 option(WITH_OPENSUBDIV "Enable OpenSubdiv for surface subdivision" ON)
 
 option(WITH_POTRACE "Enable features relying on potrace" ON)

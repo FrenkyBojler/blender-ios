@@ -267,13 +267,22 @@ def enum_optix_denoiser(self, context):
         return [('OPTIX', "OptiX", n_(
             "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs when configured in the system tab in the user preferences"), 2)]
     return []
+    
+    
+def enum_mtlfx_denoiser(self, context):
+    import _cycles
+    if context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('METAL')):
+        return [('METALFX', "MetalFX", n_(
+            "Use MetalFX denoising on Apple Silicon GPUs with macOS 26 Tahoe and Metal 4"), 16)]
+    return []
 
 
 def enum_preview_denoiser(self, context):
     optix_items = enum_optix_denoiser(self, context)
     oidn_items = enum_openimagedenoise_denoiser(self, context)
+    mtlfx_items = enum_mtlfx_denoiser(self, context)
 
-    if len(optix_items) or len(oidn_items):
+    if len(optix_items) or len(oidn_items) or len(mtlfx_items):
         items = [
             ('AUTO',
              "Automatic",
@@ -285,6 +294,7 @@ def enum_preview_denoiser(self, context):
 
     items += optix_items
     items += oidn_items
+    items += mtlfx_items
     return items
 
 
@@ -1799,6 +1809,21 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 if has_device_optixdenoiser_support and self.find_existing_device_entry(device).use:
                     return True
 
+        return False
+        
+    def has_mtlfx_gpu_devices(self):
+        compute_device_type = self.get_compute_device_type()
+        
+        if compute_device_type == 'METAL':
+            for device in self.get_device_list(compute_device_type):
+                device_type = device[1]
+                if device_type == 'CPU':
+                    continue
+                
+                has_device_mtlfx_support = device[16]
+                if has_device_mtlfx_support and self.find_existing_device_entry(device).use:
+                    return True
+ 
         return False
 
     @staticmethod

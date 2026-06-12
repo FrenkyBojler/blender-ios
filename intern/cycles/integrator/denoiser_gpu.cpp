@@ -54,7 +54,7 @@ bool DenoiserGPU::denoise_buffer(const BufferParams &buffer_params,
     /* Create buffer which is available by the device used by denoiser. */
 
     /* TODO(sergey): Optimize data transfers. For example, only copy denoising related passes,
-     * ignoring other light ad data passes. */
+     * ignoring other light and data passes. */
 
     local_buffer_used = true;
 

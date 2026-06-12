@@ -11,13 +11,15 @@ CCL_NAMESPACE_BEGIN
 enum DenoiserType {
   DENOISER_OPTIX = 2,
   DENOISER_OPENIMAGEDENOISE = 4,
+  // DENOISER_DLSS = 8,
+  DENOISER_MTLFX = 16,
   DENOISER_NUM,
 
   DENOISER_NONE = 0,
   DENOISER_ALL = ~0,
 };
 
-/* COnstruct human-readable string which denotes the denoiser type. */
+/* Construct human-readable string which denotes the denoiser type. */
 const char *denoiserTypeToHumanReadable(DenoiserType type);
 
 using DenoiserTypeMask = int;

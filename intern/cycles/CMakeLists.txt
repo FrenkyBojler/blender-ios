@@ -311,6 +311,10 @@ if(WITH_OPENIMAGEDENOISE)
   add_definitions(-DWITH_OPENIMAGEDENOISE)
 endif()
 
+if(WITH_METALFX)
+  add_definitions(-DWITH_METALFX)
+endif()
+
 if(WITH_OPENVDB)
   add_definitions(-DWITH_OPENVDB)
 endif()

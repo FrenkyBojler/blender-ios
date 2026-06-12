@@ -75,6 +75,12 @@ void device_metal_info(vector<DeviceInfo> &devices)
       info.denoisers |= DENOISER_OPENIMAGEDENOISE;
     }
 #  endif
+      
+#  ifdef WITH_METALFX
+    if (@available(macos 26.0, *)) {
+      info.denoisers |= DENOISER_MTLFX;
+    }
+#  endif
 
     info.has_nanovdb = true;
 
@@ -107,6 +113,11 @@ void device_metal_info(vector<DeviceInfo> &devices)
     if (info.denoisers & DENOISER_OPENIMAGEDENOISE) {
       LOG_INFO << "Device with id \"" << info.id << "\" supports "
                << denoiserTypeToHumanReadable(DENOISER_OPENIMAGEDENOISE) << ".";
+    }
+    
+    if (info.denoisers & DENOISER_MTLFX) {
+      LOG_INFO << "Device with id \"" << info.id << "\" supports "
+               << denoiserTypeToHumanReadable(DENOISER_MTLFX) << ".";
     }
   }
 }

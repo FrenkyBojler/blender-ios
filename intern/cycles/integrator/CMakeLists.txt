@@ -17,6 +17,7 @@ set(SRC
   denoiser_oidn_base.cpp
   denoiser_oidn_gpu.cpp
   denoiser_optix.cpp
+  denoiser_mtlfx.mm
   path_trace.cpp
   tile.cpp
   pass_accessor.cpp
@@ -41,6 +42,7 @@ set(SRC_HEADERS
   denoiser_oidn_base.h
   denoiser_oidn_gpu.h
   denoiser_optix.h
+  denoiser_mtlfx.h
   guiding.h
   path_trace.h
   tile.h

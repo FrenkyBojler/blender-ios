@@ -153,6 +153,9 @@ def show_preview_denoise_active(context):
 
     if cscene.preview_denoiser == 'OPTIX':
         return has_optixdenoiser_gpu_devices(context)
+        
+    if cscene.preview_denoiser == 'MTLFX':
+        return has_mtlfx_gpu_devices(context)
 
     # OIDN is always available, thanks to CPU support
     return True
@@ -194,6 +197,10 @@ def has_optixdenoiser_gpu_devices(context):
     return context.preferences.addons[__package__].preferences.has_optixdenoiser_gpu_devices()
 
 
+def has_mtlfx_gpu_devices(context):
+    return context.preferences.addons[__package__].preferences.has_mtlfx_gpu_devices()
+
+
 def use_mnee(context):
     # The MNEE kernel doesn't compile on macOS < 13.
     if use_metal(context):
@@ -224,6 +231,8 @@ class CYCLES_RENDER_PT_sampling_viewport(CyclesButtonsPanel, Panel):
 
         scene = context.scene
         cscene = scene.cycles
+        
+        layout.active = not (cscene.use_preview_denoising and cscene.preview_denoiser == 'MTLFX')
 
         layout.use_property_split = True
         layout.use_property_decorate = False
@@ -273,6 +282,14 @@ class CYCLES_RENDER_PT_sampling_viewport_denoise(CyclesButtonsPanel, Panel):
 
         has_oidn_gpu = has_oidn_gpu_devices(context)
         effective_preview_denoiser = get_effective_preview_denoiser(context, has_oidn_gpu)
+        
+        if effective_preview_denoiser == 'MTLFX':
+            if has_mtlfx_gpu_devices(context):
+                col.label(text="MTLFX Enable")
+            else:
+                col.label(text="Requires macOS 26 Tahoe and Metal 4.")
+            return
+        
         if effective_preview_denoiser == 'OPENIMAGEDENOISE':
             col.prop(cscene, "preview_denoising_prefilter", text="Prefilter")
             col.prop(cscene, "preview_denoising_quality", text="Quality")

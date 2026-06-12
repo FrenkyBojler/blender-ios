@@ -163,6 +163,7 @@ NODE_DEFINE(Integrator)
   denoiser_type_enum.insert("none", DENOISER_NONE);
   denoiser_type_enum.insert("optix", DENOISER_OPTIX);
   denoiser_type_enum.insert("openimagedenoise", DENOISER_OPENIMAGEDENOISE);
+  denoiser_type_enum.insert("mtlfx", DENOISER_MTLFX);
 
   static NodeEnum denoiser_prefilter_enum;
   denoiser_prefilter_enum.insert("none", DENOISER_PREFILTER_NONE);
