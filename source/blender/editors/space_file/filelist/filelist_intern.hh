@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "BKE_virtual_file_system.hh"
 #include "BLI_fileops.hh"
 #include "BLI_map.hh"
 
@@ -195,6 +196,8 @@ enum {
 struct FileListReadJob;
 struct FileList {
   FileDirEntryArr filelist;
+
+  blender::vse::VFSPath vfs_path;
 
   eFileSelectType type;
   /* The library this list was created for. Stored here so we know when to re-read. */

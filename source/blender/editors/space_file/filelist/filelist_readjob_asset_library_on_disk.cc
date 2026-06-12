@@ -32,7 +32,12 @@ static bool filelist_contains_main(const FileList *filelist, const Main *bmain)
   }
 
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
-  return blendfile_path[0] && BLI_path_contains(filelist->filelist.root, blendfile_path);
+  if (!blendfile_path[0]) {
+    return false;
+  }
+  std::optional<blender::vse::VFSPath> vfs_root = blender::vse::VFSPath::parse(
+      filelist->filelist.root);
+  return vfs_root && BLI_path_contains(vfs_root->path.c_str(), blendfile_path);
 }
 
 static void filelist_readjob_asset_library(FileListReadJob *job_params,

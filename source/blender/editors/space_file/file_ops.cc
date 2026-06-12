@@ -21,6 +21,7 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+#include "BKE_virtual_file_system.hh"
 
 #include "BLT_translation.hh"
 
@@ -194,8 +195,9 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
       }
       else {
         if (is_parent_dir) {
-          /* Avoids `/../../`. */
-          BLI_path_parent_dir(params->dir);
+          blender::vse::VFSPath vfspath = *blender::vse::VFSPath::parse(params->dir);
+          blender::vse::VFSPath parent = vfspath.parent();
+          STRNCPY(params->dir, parent.to_string().c_str());
 
           if (params->recursion_level > 1) {
             /* Disable `dirtree` recursion when going up in tree. */
@@ -207,6 +209,9 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
           STRNCPY(params->dir, file->redirection_path);
           BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
           BLI_path_normalize_dir(params->dir, sizeof(params->dir));
+        }
+        else if (blender::vse::VFSPath::parse(params->dir)->is_virtual()) {
+          BLI_path_append_dir(params->dir, sizeof(params->dir), file->relpath);
         }
         else {
           BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
@@ -1888,8 +1893,8 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
   char filepath[FILE_MAX_LIBEXTRA];
   if (!(fileentry->typeflag & FILE_TYPE_DIR) && (operation == FILE_EXTERNAL_OPERATION_FOLDER_OPEN))
   {
-    const char *root = filelist_dir(sfile->files);
-    BLI_strncpy(filepath, root, sizeof(filepath));
+    const blender::vse::VFSPath &root = filelist_dir(sfile->files);
+    BLI_strncpy(filepath, root.to_string().c_str(), sizeof(filepath));
   }
   else {
     filelist_file_get_full_path(sfile->files, fileentry, filepath);
@@ -1902,8 +1907,8 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
       ELEM(operation, FILE_EXTERNAL_OPERATION_FOLDER_OPEN, FILE_EXTERNAL_OPERATION_FOLDER_CMD))
   {
     /* Not a folder path, so for these operations use the root. */
-    const char *root = filelist_dir(sfile->files);
-    if (BLI_file_external_operation_execute(root, operation)) {
+    const blender::vse::VFSPath &root = filelist_dir(sfile->files);
+    if (BLI_file_external_operation_execute(root.to_string().c_str(), operation)) {
       WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
       return OPERATOR_FINISHED;
     }
@@ -2025,7 +2030,8 @@ static void file_os_operations_menu_draw(const bContext *C_const, Menu *menu)
 
   char path[FILE_MAX_LIBEXTRA];
   filelist_file_get_full_path(sfile->files, fileentry, path);
-  const char *root = filelist_dir(sfile->files);
+  const blender::vse::VFSPath &root = filelist_dir(sfile->files);
+  const std::string root_str = root.to_string();
 
   ui::Layout &layout = *menu->layout;
   layout.operator_context_set(wm::OpCallContext::InvokeDefault);
@@ -2048,8 +2054,9 @@ static void file_os_operations_menu_draw(const bContext *C_const, Menu *menu)
     file_os_operations_menu_item(layout, ot, path, FILE_EXTERNAL_OPERATION_PRINT);
     file_os_operations_menu_item(layout, ot, path, FILE_EXTERNAL_OPERATION_INSTALL);
     file_os_operations_menu_item(layout, ot, path, FILE_EXTERNAL_OPERATION_RUNAS);
-    file_os_operations_menu_item(layout, ot, root, FILE_EXTERNAL_OPERATION_FOLDER_OPEN);
-    file_os_operations_menu_item(layout, ot, root, FILE_EXTERNAL_OPERATION_FOLDER_CMD);
+    file_os_operations_menu_item(
+        layout, ot, root_str.c_str(), FILE_EXTERNAL_OPERATION_FOLDER_OPEN);
+    file_os_operations_menu_item(layout, ot, root_str.c_str(), FILE_EXTERNAL_OPERATION_FOLDER_CMD);
     file_os_operations_menu_item(layout, ot, path, FILE_EXTERNAL_OPERATION_PROPERTIES);
   }
 }
@@ -2327,17 +2334,20 @@ static wmOperatorStatus file_parent_exec(bContext *C, wmOperator * /*unused*/)
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   if (params) {
-    if (BLI_path_parent_dir(params->dir)) {
+    blender::vse::VFSPath vfspath = *blender::vse::VFSPath::parse(params->dir);
+    blender::vse::VFSPath parent = vfspath.parent();
+    STRNCPY(params->dir, parent.to_string().c_str());
+    if (!parent.is_virtual()) {
       BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
       BLI_path_normalize_dir(params->dir, sizeof(params->dir));
-      ED_file_change_dir(C);
-      if (params->recursion_level > 1) {
-        /* Disable `dirtree` recursion when going up in tree. */
-        params->recursion_level = 0;
-        filelist_setrecursion(sfile->files, params->recursion_level);
-      }
-      WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
     }
+    ED_file_change_dir(C);
+    if (params->recursion_level > 1) {
+      /* Disable `dirtree` recursion when going up in tree. */
+      params->recursion_level = 0;
+      filelist_setrecursion(sfile->files, params->recursion_level);
+    }
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -2996,7 +3006,7 @@ void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void *arg_b
   BLI_path_normalize_dir(params->dir, sizeof(params->dir));
 
   if (filelist_is_dir(sfile->files, params->dir)) {
-    if (!STREQ(params->dir, filelist_dir(sfile->files))) {
+    if (!STREQ(params->dir, filelist_dir(sfile->files).to_string().c_str())) {
       /* Keep focus to allow Tab auto-completion. #150689. */
       blender::ui::Button *but = static_cast<blender::ui::Button *>(arg_but);
       textbutton_activate_but(C, but);

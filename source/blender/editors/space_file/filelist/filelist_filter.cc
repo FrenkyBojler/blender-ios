@@ -341,9 +341,15 @@ void filelist_filter(FileList *filelist)
   filtered_tmp = MEM_new_array_uninitialized<FileListInternEntry *>(num_files, __func__);
 
   /* Filter remap & count how many files are left after filter in a single loop. */
-  for (FileListInternEntry &file : filelist->filelist_intern.entries) {
-    if (filelist->filter_fn(&file, filelist->filelist.root, &filelist->filter_data)) {
-      filtered_tmp[num_filtered++] = &file;
+  {
+    /* Parse root to VFSPath to get the filesystem path (strips "file://" prefix for local). */
+    std::optional<blender::vse::VFSPath> filter_root = blender::vse::VFSPath::parse(
+        filelist->filelist.root);
+    const char *fs_root = filter_root ? filter_root->path.c_str() : filelist->filelist.root;
+    for (FileListInternEntry &file : filelist->filelist_intern.entries) {
+      if (filelist->filter_fn(&file, fs_root, &filelist->filter_data)) {
+        filtered_tmp[num_filtered++] = &file;
+      }
     }
   }
 

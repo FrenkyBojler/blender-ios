@@ -11,6 +11,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "BKE_virtual_file_system.hh"
+#include "BLI_string_ref.hh"
 #include "DNA_space_types.h"
 struct BlendHandle;
 namespace blender {
@@ -120,15 +122,12 @@ void filelist_clear_from_reset_tag(FileList *filelist);
 void filelist_free(FileList *filelist);
 
 /**
- * Get the root path of the file list. To get the full path for a file, use
+ * Get the root VFSPath of the file list. To get the full path for a file, use
  * #filelist_file_get_full_path().
  */
-const char *filelist_dir(const FileList *filelist);
+const blender::vse::VFSPath &filelist_dir(const FileList *filelist);
 bool filelist_is_dir(const FileList *filelist, const char *path);
-/**
- * May modify in place given `dirpath`, which is expected to be #FILE_MAX_LIBEXTRA length.
- */
-void filelist_setdir(FileList *filelist, char dirpath[/*FILE_MAX_LIBEXTRA*/ 1282]);
+void filelist_setdir(FileList *filelist, blender::StringRefNull dirpath);
 
 /**
  * Limited version of full update done by space_file's file_refresh(),

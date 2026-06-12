@@ -53,7 +53,7 @@ static void filelist_readjob_startjob(void *flrjv, wmJobWorkerStatus *worker_sta
     std::scoped_lock lock(flrj->lock);
     BLI_assert((flrj->tmp_filelist == nullptr) && flrj->filelist);
 
-    flrj->tmp_filelist = MEM_dupalloc(flrj->filelist);
+    flrj->tmp_filelist = MEM_new<FileList>(__func__, *flrj->filelist);
 
     flrj->tmp_filelist->filelist.entries.clear_no_delete();
     flrj->tmp_filelist->filelist.entries_num = FILEDIR_NBR_ENTRIES_UNSET;

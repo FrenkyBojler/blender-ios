@@ -1201,7 +1201,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
     params->active_file = -1;
 
     if (!filelist_is_dir(sfile->files, params->dir)) {
-      STRNCPY(params->dir, filelist_dir(sfile->files));
+      STRNCPY(params->dir, filelist_dir(sfile->files).to_string().c_str());
       /* could return but just refresh the current dir */
     }
     filelist_setdir(sfile->files, params->dir);

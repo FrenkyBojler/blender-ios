@@ -55,8 +55,13 @@ static void filelist_readjob_essentials_asset_library(FileListReadJob *job_param
   job_params->load_asset_library = AS_asset_library_load(
       job_params->current_main, asset_system::online_essentials_library_reference());
 
-  STRNCPY(filelist->filelist.root, asset_system::online_essentials_cache_directory_path().c_str());
-  BLI_path_slash_ensure(filelist->filelist.root, sizeof(filelist->filelist.root));
+  {
+    blender::vse::VFSPath cachedir = *blender::vse::VFSPath::parse(
+        asset_system::online_essentials_cache_directory_path().c_str());
+    cachedir.normalize();
+    STRNCPY(filelist->filelist.root, cachedir.to_string().c_str());
+    filelist->vfs_path = std::move(cachedir);
+  }
 
   if (job_params->remote_library_requests.is_empty()) {
     filelist_readjob_recursive_dir_add_items(true, job_params, stop, do_update, progress);

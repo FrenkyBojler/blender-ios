@@ -70,7 +70,12 @@ static void filelist_readjob_all_asset_library(FileListReadJob *job_params,
 
         /* Override library info to read this library. */
         job_params->load_asset_library = &nested_library;
-        STRNCPY(filelist->filelist.root, root_path.c_str());
+        {
+          blender::vse::VFSPath root_vfs = *blender::vse::VFSPath::parse(root_path.c_str());
+          root_vfs.normalize();
+          STRNCPY(filelist->filelist.root, root_vfs.to_string().c_str());
+          filelist->vfs_path = std::move(root_vfs);
+        }
 
         float progress_this = 0.0f;
         /* Online asset libraries: */

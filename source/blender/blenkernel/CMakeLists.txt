@@ -305,6 +305,9 @@ set(SRC
   intern/vfont_curve.cc
   intern/vfontdata_freetype.cc
   intern/viewer_path.cc
+  intern/virtual_file_system.cc
+  intern/virtual_file_system_filesystem.cc
+  intern/virtual_file_system_python_wrapper.cc
   intern/volume.cc
   intern/volume_grid.cc
   intern/volume_grid_fields.cc
@@ -547,6 +550,7 @@ set(SRC
   BKE_volume_openvdb.hh
   BKE_volume_render.hh
   BKE_volume_to_mesh.hh
+  BKE_virtual_file_system.hh
   BKE_wm_runtime.hh
   BKE_workspace.hh
   BKE_world.h
@@ -785,6 +789,7 @@ if(WITH_GTESTS)
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc
     intern/volume_test.cc
+    intern/virtual_file_system_test.cc
   )
   set(TEST_INC
     # WARNING: this is a bad-level include which is only acceptable for tests

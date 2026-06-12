@@ -30,11 +30,14 @@
 #include "ED_file_indexer.hh"
 #include "ED_fileselect.hh"
 
+#include "BKE_virtual_file_system.hh"
+
 #include "filelist_intern.hh"
 
 #include "filelist_readjob.hh"
 
 namespace blender {
+using namespace blender::vse;
 
 /* helper, could probably go in BKE actually? */
 static int groupname_to_code(const char *group)
@@ -110,6 +113,9 @@ bool filelist_checkdir_dir(const FileList * /*filelist*/,
                            char dirpath[FILE_MAX_LIBEXTRA],
                            const bool do_change)
 {
+  if (VFSPath::parse(dirpath).has_value()) {
+    return true;
+  }
   bool is_valid;
   if (do_change) {
     parent_dir_until_exists_or_default_root(dirpath);
@@ -125,6 +131,10 @@ bool filelist_checkdir_lib(const FileList * /*filelist*/,
                            char dirpath[FILE_MAX_LIBEXTRA],
                            const bool do_change)
 {
+  if (VFSPath::parse(dirpath).has_value()) {
+    return true;
+  }
+
   char tdir[FILE_MAX_LIBEXTRA];
   char *name;
 
@@ -246,11 +256,8 @@ static int filelist_readjob_list_dir(FileListReadJob *job_params,
                                      const char *root,
                                      ListBaseT<FileListInternEntry> *entries,
                                      const char *filter_glob,
-                                     const bool do_lib,
-                                     const char *main_filepath,
                                      const bool skip_currpar)
 {
-  direntry *files;
   int entries_num = 0;
   /* Full path of the item. */
   char full_path[FILE_MAX];
@@ -264,87 +271,52 @@ static int filelist_readjob_list_dir(FileListReadJob *job_params,
   }
 #endif
 
-  const int files_num = BLI_filelist_dir_contents(root, &files);
-  if (files) {
-    int i = files_num;
-    while (i--) {
-      FileListInternEntry *entry;
-
-      if (skip_currpar && FILENAME_IS_CURRPAR(files[i].relname)) {
-        continue;
+  /* VFS protocol paths: use backend->list_directory instead of real filesystem. */
+  {
+    std::optional<VFSPath> vfspath = VFSPath::parse(root);
+    if (vfspath.has_value()) {
+      std::unique_ptr<VFSBackend> backend = vfspath->get_backend();
+      BLI_assert(backend != nullptr);
+      if (!backend) {
+        return entries_num;
       }
-
-      entry = MEM_new<FileListInternEntry>(__func__);
-      entry->relpath = current_relpath_append(job_params, files[i].relname);
-      entry->st = files[i].s;
-
-      BLI_path_join(full_path, FILE_MAX, root, files[i].relname);
-      char *target = full_path;
-
-      /* Set initial file type and attributes. */
-      entry->attributes = BLI_file_attributes(full_path);
-      if (S_ISDIR(files[i].s.st_mode)
-#ifdef __APPLE__
-          && !(ED_path_extension_type(full_path) & FILE_TYPE_BUNDLE)
-#endif
-      )
-      {
-        entry->typeflag = FILE_TYPE_DIR;
-      }
-
-      /* Is this a file that points to another file? */
-      if (entry->attributes & FILE_ATTR_ALIAS) {
-        entry->redirection_path = MEM_new_array_zeroed<char>(FILE_MAXDIR, __func__);
-        if (BLI_file_alias_target(full_path, entry->redirection_path)) {
-          if (BLI_is_dir(entry->redirection_path)) {
+      VFSResult result = backend->list_directory(*vfspath);
+      if (result.success) {
+        for (const VFSEntry &e : result.entries) {
+          if (skip_currpar && FILENAME_IS_CURRPAR(e.name.c_str())) {
+            continue;
+          }
+          FileListInternEntry *entry = MEM_new<FileListInternEntry>(__func__);
+          entry->relpath = current_relpath_append(job_params, e.name.c_str());
+          if (e.is_directory) {
             entry->typeflag = FILE_TYPE_DIR;
-            BLI_path_slash_ensure(entry->redirection_path, FILE_MAXDIR);
           }
           else {
-            entry->typeflag = eFileSel_File_Types(ED_path_extension_type(entry->redirection_path));
+            BLI_path_join(full_path, FILE_MAX, root, e.name.c_str());
+            entry->typeflag = eFileSel_File_Types(ED_path_extension_type(full_path));
+            if (filter_glob[0] && BLI_path_extension_check_glob(full_path, filter_glob)) {
+              entry->typeflag |= FILE_TYPE_OPERATOR;
+            }
           }
-          target = entry->redirection_path;
-#ifdef WIN32
-          /* On Windows don't show `.lnk` extension for valid shortcuts. */
-          BLI_path_extension_strip(entry->relpath);
-#endif
-        }
-        else {
-          MEM_delete(entry->redirection_path);
-          entry->redirection_path = nullptr;
-          entry->attributes |= FILE_ATTR_HIDDEN;
+          if ((e.flags & VFSEntryFlags::IsHidden) != VFSEntryFlags::None) {
+            entry->attributes |= FILE_ATTR_HIDDEN;
+          }
+          entry->st.st_size = e.size;
+          entry->st.st_mtime = e.last_modification_time;
+          BLI_addtail(entries, entry);
+          entries_num++;
         }
       }
-
-      if (!(entry->typeflag & FILE_TYPE_DIR)) {
-        if (do_lib && BKE_blendfile_extension_check(target)) {
-          /* If we are considering .blend files as libraries, promote them to directory status. */
-          entry->typeflag = FILE_TYPE_BLENDER;
-          /* prevent current file being used as acceptable dir */
-          if (BLI_path_cmp(main_filepath, target) != 0) {
-            entry->typeflag |= FILE_TYPE_DIR;
-          }
-        }
-        else {
-          entry->typeflag = eFileSel_File_Types(ED_path_extension_type(target));
-          if (filter_glob[0] && BLI_path_extension_check_glob(target, filter_glob)) {
-            entry->typeflag |= FILE_TYPE_OPERATOR;
-          }
-        }
+      else if (!result.error_message.empty()) {
+        FileListInternEntry *entry = MEM_new<FileListInternEntry>(__func__);
+        std::string err = std::string("! ") + result.error_message;
+        entry->relpath = current_relpath_append(job_params, err.c_str());
+        BLI_addtail(entries, entry);
+        entries_num++;
       }
-
-#ifndef WIN32
-      /* Set linux-style dot files hidden too. */
-      if (BLI_path_has_hidden_component(entry->relpath)) {
-        entry->attributes |= FILE_ATTR_HIDDEN;
-      }
-#endif
-
-      BLI_addtail(entries, entry);
-      entries_num++;
     }
-    BLI_filelist_free(files, files_num);
   }
+
   return entries_num;
 }
 
@@ -536,12 +508,19 @@ static std::optional<int> filelist_readjob_list_lib(FileListReadJob *job_params,
 
   BlendHandle *libfiledata = nullptr;
 
+  /* Parse root to VFSPath to strip protocol prefix (e.g., "file://") for library operations. */
+  const char *fs_root = root;
+  std::optional<VFSPath> vfs_root = VFSPath::parse(root);
+  if (vfs_root) {
+    fs_root = vfs_root->path.c_str();
+  }
+
   /* Check if the given root is actually a library. All folders are passed to
    * `filelist_readjob_list_lib` and based on the number of found entries `filelist_readjob_do`
    * will do a dir listing only when this function does not return any entries. */
   /* TODO(jbakker): We should consider introducing its own function to detect if it is a lib and
    * call it directly from `filelist_readjob_do` to increase readability. */
-  const bool is_lib = BKE_blendfile_library_path_explode(root, dir, &group, nullptr);
+  const bool is_lib = BKE_blendfile_library_path_explode(fs_root, dir, &group, nullptr);
   if (!is_lib) {
     return std::nullopt;
   }
@@ -693,13 +672,18 @@ void filelist_readjob_recursive_dir_add_items(const bool do_lib,
   TodoDir *td_dir;
   char dir[FILE_MAX_LIBEXTRA];
   char filter_glob[FILE_MAXFILE];
-  const char *root = filelist->filelist.root;
   const int max_recursion = filelist->max_recursion;
   int dirs_done_count = 0, dirs_todo_count = 1;
 
-  /* The code below assumes the root ends in a slash. It's also not just the code below; weird
-   * things happen when it doesn't end in a slash. Better to just enforce it. */
-  BLI_assert_msg(StringRef(filelist->filelist.root).endswith(SEP_STR), filelist->filelist.root);
+  /* The code below assumes the root ends in a slash. */
+  BLI_path_slash_ensure(filelist->filelist.root, sizeof(filelist->filelist.root));
+
+  /* Parse the root into a VFSPath. For local paths, root_fs is the bare filesystem path
+   * (without "file://" prefix); for virtual paths it matches root. */
+  const std::optional<blender::vse::VFSPath> parsed_root = blender::vse::VFSPath::parse(
+      filelist->filelist.root);
+  const char *root = filelist->filelist.root;
+  const char *root_fs = parsed_root ? parsed_root->path.c_str() : root;
 
   todo_dirs = BLI_stack_new(sizeof(*td_dir), __func__);
   td_dir = static_cast<TodoDir *>(BLI_stack_push_r(todo_dirs));
@@ -708,8 +692,6 @@ void filelist_readjob_recursive_dir_add_items(const bool do_lib,
   STRNCPY(dir, filelist->filelist.root);
   STRNCPY(filter_glob, filelist->filter_data.filter_glob);
 
-  BLI_path_abs(dir, job_params->main_filepath);
-  BLI_path_normalize_dir(dir, sizeof(dir));
   td_dir->dir = BLI_strdup(dir);
 
   /* Init the file indexer. */
@@ -739,13 +721,34 @@ void filelist_readjob_recursive_dir_add_items(const bool do_lib,
      * name inside .blend file, which can have slashes and backslashes! See #46827.
      * Note that in the end, this means we 'cache' valid relative subdir once here,
      * this is actually better. */
-    STRNCPY(rel_subdir, subdir);
-    BLI_path_abs(rel_subdir, root);
-    BLI_path_normalize_dir(rel_subdir, sizeof(rel_subdir));
-    BLI_path_rel(rel_subdir, root);
+    if (VFSPath::parse(subdir).has_value()) {
+      std::optional<VFSPath> vfspath = VFSPath::parse(subdir);
+      if (vfspath.has_value() && parsed_root.has_value()) {
+        const char *rel = vfspath->path.c_str();
+        const char *root_path = parsed_root->path.c_str();
+        size_t root_len = strlen(root_path);
+        /* Strip the root path prefix to get a relative offset. */
+        if (strncmp(rel, root_path, root_len) == 0) {
+          rel += root_len;
+        }
+        if (rel[0] == '/') {
+          rel++;
+        }
+        STRNCPY(job_params->cur_relbase, rel);
+        if (job_params->cur_relbase[0]) {
+          BLI_path_slash_ensure(job_params->cur_relbase, sizeof(job_params->cur_relbase));
+        }
+      }
+    }
+    else {
+      STRNCPY(rel_subdir, subdir);
+      BLI_path_abs(rel_subdir, root);
+      BLI_path_normalize_dir(rel_subdir, sizeof(rel_subdir));
+      BLI_path_rel(rel_subdir, root);
 
-    /* Update the current relative base path within the filelist root. */
-    STRNCPY(job_params->cur_relbase, rel_subdir);
+      /* Update the current relative base path within the filelist root. */
+      STRNCPY(job_params->cur_relbase, rel_subdir);
+    }
 
     bool is_lib = false;
     if (do_lib) {
@@ -772,20 +775,15 @@ void filelist_readjob_recursive_dir_add_items(const bool do_lib,
       }
     }
 
-    if (!is_lib && BLI_is_dir(subdir)) {
-      entries_num = filelist_readjob_list_dir(job_params,
-                                              subdir,
-                                              &entries,
-                                              filter_glob,
-                                              do_lib,
-                                              job_params->main_filepath,
-                                              skip_currpar);
+    if (!is_lib && (VFSPath::parse(subdir).has_value() || BLI_is_dir(subdir))) {
+      entries_num = filelist_readjob_list_dir(
+          job_params, subdir, &entries, filter_glob, skip_currpar);
     }
 
     for (FileListInternEntry &entry : entries) {
       entry.uid = filelist_uid_generate(filelist);
       if (!entry.name) {
-        entry.name = fileentry_uiname(root, &entry, dir);
+        entry.name = fileentry_uiname(root_fs, &entry, dir);
       }
       entry.free_name = true;
 
@@ -794,9 +792,15 @@ void filelist_readjob_recursive_dir_add_items(const bool do_lib,
       {
         /* We have a directory we want to list, add it to todo list!
          * Using #BLI_path_join works but isn't needed as `root` has a trailing slash. */
-        BLI_string_join(dir, sizeof(dir), root, entry.relpath);
-        BLI_path_abs(dir, job_params->main_filepath);
-        BLI_path_normalize_dir(dir, sizeof(dir));
+        if (VFSPath::parse(root).has_value()) {
+          BLI_string_join(dir, sizeof(dir), root, entry.relpath);
+          BLI_path_slash_ensure(dir, sizeof(dir));
+        }
+        else {
+          BLI_string_join(dir, sizeof(dir), root, entry.relpath);
+          BLI_path_abs(dir, job_params->main_filepath);
+          BLI_path_normalize_dir(dir, sizeof(dir));
+        }
         td_dir = static_cast<TodoDir *>(BLI_stack_push_r(todo_dirs));
         td_dir->level = recursion_level + 1;
         td_dir->dir = BLI_strdup(dir);

@@ -245,8 +245,11 @@ void filelist_file_get_full_path(const FileList *filelist,
     return;
   }
 
-  const char *root = filelist_dir(filelist);
-  BLI_path_join(r_filepath, FILE_MAX_LIBEXTRA, root, file->relpath);
+  const blender::vse::VFSPath &root = filelist_dir(filelist);
+  BLI_path_join(r_filepath,
+                FILE_MAX_LIBEXTRA,
+                root.is_virtual() ? root.to_string().c_str() : root.path.c_str(),
+                file->relpath);
 }
 
 bool filelist_file_is_preview_pending(const FileList *filelist, const FileDirEntry *file)
@@ -1103,9 +1106,9 @@ const char *fileentry_uiname(const char *root, FileListInternEntry *entry, char 
   return BLI_strdup(name);
 }
 
-const char *filelist_dir(const FileList *filelist)
+const blender::vse::VFSPath &filelist_dir(const FileList *filelist)
 {
-  return filelist->filelist.root;
+  return filelist->vfs_path;
 }
 
 bool filelist_is_dir(const FileList *filelist, const char *path)
@@ -1113,19 +1116,34 @@ bool filelist_is_dir(const FileList *filelist, const char *path)
   return filelist->check_dir_fn(filelist, const_cast<char *>(path), false);
 }
 
-void filelist_setdir(FileList *filelist, char dirpath[FILE_MAX_LIBEXTRA])
+void filelist_setdir(FileList *filelist, blender::StringRefNull dirpath)
 {
-  const bool allow_invalid = filelist->asset_library_ref != nullptr;
-  BLI_assert(strlen(dirpath) < FILE_MAX_LIBEXTRA);
+  std::optional<blender::vse::VFSPath> parsed = blender::vse::VFSPath::parse(dirpath.c_str());
+  blender::vse::VFSPath vfspath = std::move(*parsed);
 
-  BLI_path_abs(dirpath, BKE_main_blendfile_path_from_global());
-  BLI_path_normalize_dir(dirpath, FILE_MAX_LIBEXTRA);
-  const bool is_valid_path = filelist->check_dir_fn(filelist, dirpath, !allow_invalid);
+  if (!vfspath.is_virtual()) {
+    /* Local path: resolve relative to the current blend file. */
+    char abs_buf[FILE_MAX_LIBEXTRA];
+    STRNCPY(abs_buf, vfspath.path.c_str());
+    BLI_path_abs(abs_buf, BKE_main_blendfile_path_from_global());
+    BLI_path_normalize_dir(abs_buf, FILE_MAX_LIBEXTRA);
+    vfspath.path = abs_buf;
+  }
+
+  vfspath.normalize();
+  BLI_assert(!vfspath.path.empty());
+
+  const bool dir_changed = !STREQ(filelist->filelist.root, vfspath.to_string().c_str());
+  STRNCPY(filelist->filelist.root, vfspath.to_string().c_str());
+  filelist->vfs_path = std::move(vfspath);
+
+  const bool allow_invalid = filelist->asset_library_ref != nullptr;
+  const bool is_valid_path = filelist->check_dir_fn(
+      filelist, filelist->filelist.root, !allow_invalid);
   BLI_assert(is_valid_path || allow_invalid);
   UNUSED_VARS_NDEBUG(is_valid_path);
 
-  if (!STREQ(filelist->filelist.root, dirpath)) {
-    STRNCPY(filelist->filelist.root, dirpath);
+  if (dir_changed) {
     filelist->flags |= FL_FORCE_RESET;
   }
 }
@@ -2065,6 +2083,9 @@ bool filelist_islibrary(FileList *filelist, char *dir, char **r_group)
 {
   if (filelist->asset_library) {
     return true;
+  }
+  if (blender::vse::VFSPath::parse(filelist->filelist.root)->is_virtual()) {
+    return false;
   }
   return BKE_blendfile_library_path_explode(filelist->filelist.root, dir, r_group, nullptr);
 }

@@ -421,6 +421,14 @@ bool fsmenu_write_file(FSMenu *fsmenu, const char *filepath)
       has_error |= (fprintf(fp, "%s\n", fsm_iter->path) < 0);
     }
   }
+  has_error |= (fprintf(fp, "[Volumes]\n") < 0);
+  for (fsm_iter = ED_fsmenu_get_category(fsmenu, FS_CATEGORY_SYSTEM); fsm_iter;
+       fsm_iter = fsm_iter->next)
+  {
+    if (fsm_iter->path && fsm_iter->save) {
+      has_error |= (fprintf(fp, "%s\n", fsm_iter->path) < 0);
+    }
+  }
   fclose(fp);
 
   return !has_error;
@@ -446,6 +454,9 @@ void fsmenu_read_bookmarks(FSMenu *fsmenu, const char *filepath)
     }
     else if (STRPREFIX(line, "[Recent]")) {
       category = FS_CATEGORY_RECENT;
+    }
+    else if (STRPREFIX(line, "[Volumes]")) {
+      category = FS_CATEGORY_SYSTEM;
     }
     else if (line[0] == '!') {
       int len = strlen(line);
