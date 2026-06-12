@@ -44,13 +44,8 @@ float4 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
     float sin_theta = perp.x;
     float dist = dot(perp, frag_co - edge_start);
 
-    /* Pack [-1, 1] -> [0, 1]. */
-    sin_theta = sin_theta * 0.5f + 0.5f;
-
-    /* Leave 0.1f boundary to differentiate cleared or intentially blocked pixels. */
-    dist = dist * 0.4f + 0.5f;
-
-    return float4(sin_theta, dist, 0.0f, 1.0f);
+    /* Leave 0.1f boundary around dist to differentiate cleared or intentially blocked pixels. */
+    return float4(sin_theta * 0.5f + 0.5f, dist * 0.4f + 0.5f, 0.0f, 1.0f);
   }
   else {
     /* Default line if the origin is perfectly aligned with a pixel. */
