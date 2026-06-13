@@ -657,6 +657,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_menu_switch.hh"
 #  include "NOD_geo_repeat.hh"
 #  include "NOD_geo_simulation.hh"
+#  include "NOD_geo_memory_zone.hh"
 #  include "NOD_geo_viewer.hh"
 #  include "NOD_geometry.hh"
 #  include "NOD_geometry_nodes_lazy_function.hh"
@@ -700,6 +701,8 @@ using nodes::IndexSwitchItemsAccessor;
 using nodes::MenuSwitchItemsAccessor;
 using nodes::RaycastSampleAttributeItemsAccessor;
 using nodes::RepeatItemsAccessor;
+using nodes::MemoryZoneInputItemsAccessor;
+using nodes::MemoryZoneOutputItemsAccessor;
 using nodes::SeparateBundleItemsAccessor;
 using nodes::SimulationItemsAccessor;
 

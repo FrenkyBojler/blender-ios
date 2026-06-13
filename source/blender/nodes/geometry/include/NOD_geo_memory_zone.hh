@@ -75,7 +75,7 @@ struct MemoryZoneInputItemsAccessor : public socket_items::SocketItemsAccessorDe
     NodeMemoryZoneInputItems &inputs = storage->input_items;
     item.socket_type = socket_type;
     item.identifier = inputs.next_identifier++;
-    socket_items::set_item_name_and_make_unique<MemoryZoneItemsAccessor>(node, item, name);
+    socket_items::set_item_name_and_make_unique<MemoryZoneInputItemsAccessor>(node, item, name);
   }
 
   static std::string socket_identifier_for_item(const ItemT &item)
@@ -149,7 +149,7 @@ struct MemoryZoneOutputItemsAccessor : public socket_items::SocketItemsAccessorD
     NodeMemoryZoneOutputItems &outputs = storage->output_items;
     item.socket_type = socket_type;
     item.identifier = outputs.next_identifier++;
-    socket_items::set_item_name_and_make_unique<MemoryZoneItemsAccessor>(node, item, name);
+    socket_items::set_item_name_and_make_unique<MemoryZoneOutputItemsAccessor>(node, item, name);
   }
 
   static std::string socket_identifier_for_item(const ItemT &item)

@@ -3856,7 +3856,6 @@ struct NodeGeometryMemoryZoneOutput {
 #endif
 };
 
-
 struct NodeGeometryDistributePointsInVolume {
   DNA_DEFINE_CXX_METHODS(NodeGeometryDistributePointsInVolume)
 
