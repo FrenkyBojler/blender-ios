@@ -569,8 +569,10 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
   const float userdef_jump_height = U.walk_navigation.jump_height / walk->grid;
   const float userdef_view_height = U.walk_navigation.view_height / walk->grid;
 
-  if (fabsf(U.walk_navigation.walk_speed - g_walk.userdef_speed) > 0.1f) {
-    g_walk.base_speed = U.walk_navigation.walk_speed;
+  if (fabsf(U.walk_navigation.walk_speed - g_walk.userdef_speed) > 0.1f ||
+      fabsf(walk->grid - g_walk.grid) > FLT_EPSILON)
+  {
+    g_walk.base_speed = U.walk_navigation.walk_speed / walk->grid;
     g_walk.userdef_speed = U.walk_navigation.walk_speed;
   }
 
@@ -601,17 +603,17 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
 
   walk->view_height = userdef_view_height;
   walk->jump_height = userdef_jump_height;
-  walk->speed = U.walk_navigation.walk_speed;
+  walk->speed = U.walk_navigation.walk_speed / walk->grid;
   walk->speed_factor = U.walk_navigation.walk_speed_factor;
   walk->zlock = WALK_AXISLOCK_STATE_OFF;
 
   walk->gravity_state = WALK_GRAVITY_STATE_OFF;
 
   if (walk->scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
-    walk->gravity = fabsf(walk->scene->physics_settings.gravity[2]) * walk->grid;
+    walk->gravity = fabsf(walk->scene->physics_settings.gravity[2]) / walk->grid;
   }
   else {
-    walk->gravity = 9.80668f * walk->grid; /* m/s2 */
+    walk->gravity = 9.80668f / walk->grid; /* m/s2 */
   }
 
   walk->is_reversed = ((U.walk_navigation.flag & USER_WALK_MOUSE_REVERSE) != 0);
@@ -894,7 +896,7 @@ static void walkEvent(WalkInfo *walk, const wmEvent *event)
 
 #define JUMP_SPEED_MIN 1.0f
 #define JUMP_TIME_MAX 0.2f /* s */
-#define JUMP_SPEED_MAX sqrtf(2.0f * walk->gravity * walk->jump_height)
+#define JUMP_SPEED_MAX sqrtf(2.0f * walk->gravity * (g_walk.jump_height))
 
       case WALK_MODAL_JUMP_STOP: {
         if (walk->gravity_state == WALK_GRAVITY_STATE_JUMP) {
