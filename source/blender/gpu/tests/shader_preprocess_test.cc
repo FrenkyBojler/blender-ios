@@ -1556,6 +1556,10 @@ void func(Resources  srt)
   }
   {
     string input = R"(
+struct Resources {
+  [[compilation_constant]] const bool use_color_band;
+};
+
 void func([[resource_table]] Resources &srt)
 {
   if (srt.use_color_band) [[static_branch]] {
@@ -1571,6 +1575,10 @@ void func([[resource_table]] Resources &srt)
   }
   {
     string input = R"(
+struct Resources {
+  [[compilation_constant]] const bool use_color_band;
+};
+
 void func([[resource_table]] Resources &srt)
 {
   if (use_color_band) [[static_branch]] {
@@ -1586,6 +1594,11 @@ void func([[resource_table]] Resources &srt)
   }
   {
     string input = R"(
+struct Resources {
+  [[compilation_constant]] const bool use_color_band;
+  [[compilation_constant]] const bool use_color_band;
+};
+
 void func([[resource_table]] Resources &srt)
 {
   if (srt.use_color_band && srt.use_color_band) [[static_branch]] {
@@ -2612,20 +2625,57 @@ static void test_preprocess_srt_mutations()
 
   {
     string input = R"(
+struct SRT {
+  [[push_constant]] const float member;
+};
+
 float fn([[resource_table]] SRT &srt) {
   return srt.member;
 }
 )";
     string expect = R"(
+#define access_SRT_member() member
+#ifdef CREATE_INFO_RES_PASS_SRT
+CREATE_INFO_RES_PASS_SRT
+#endif
+#ifdef CREATE_INFO_RES_BATCH_SRT
+CREATE_INFO_RES_BATCH_SRT
+#endif
+#ifdef CREATE_INFO_RES_GEOMETRY_SRT
+CREATE_INFO_RES_GEOMETRY_SRT
+#endif
+#ifdef CREATE_INFO_RES_SHARED_VARS_SRT
+CREATE_INFO_RES_SHARED_VARS_SRT
+#endif
+#line 2
+struct SRT {
+#line 12
+int _pad;};
+#line 15
+#ifndef GPU_METAL
+SRT SRT_ctor_();
+SRT SRT_new_();
+#endif
+#line 2
+                   SRT SRT_ctor_() {SRT r;r._pad=0;return r;}
+#line 5
+       SRT SRT_new_()
+{
+  SRT result;
+  result._pad = 0;
+  return result;
+#line 3
+}
+#line 6
 
 #if defined(CREATE_INFO_SRT)
-#line 2
+#line 6
 float fn(SRT  srt) {
   return srt_access(SRT, member);
 }
 
 #endif
-#line 5
+#line 9
 )";
     string error;
     string output = process_test_string(input, error);
@@ -2634,6 +2684,10 @@ float fn(SRT  srt) {
   }
   {
     string input = R"(
+struct SRT {
+  [[push_constant]] const float member;
+};
+
 float fn([[resource_table]] SRT srt) {
   return srt.member;
 }
@@ -2644,22 +2698,96 @@ float fn([[resource_table]] SRT srt) {
   }
   {
     string input = R"(
+struct OtherSRT {
+  [[push_constant]] const float member;
+};
+struct SRT {
+  [[resource_table]] OtherSRT other_srt;
+};
+
 float fn([[resource_table]] SRT &srt) {
   [[resource_table]] OtherSRT &other_srt = srt.other_srt;
   return other_srt.member;
 }
 )";
     string expect = R"(
+#define access_OtherSRT_member() member
+#ifdef CREATE_INFO_RES_PASS_OtherSRT
+CREATE_INFO_RES_PASS_OtherSRT
+#endif
+#ifdef CREATE_INFO_RES_BATCH_OtherSRT
+CREATE_INFO_RES_BATCH_OtherSRT
+#endif
+#ifdef CREATE_INFO_RES_GEOMETRY_OtherSRT
+CREATE_INFO_RES_GEOMETRY_OtherSRT
+#endif
+#ifdef CREATE_INFO_RES_SHARED_VARS_OtherSRT
+CREATE_INFO_RES_SHARED_VARS_OtherSRT
+#endif
+#line 2
+struct OtherSRT {
+#line 12
+int _pad;};
+
+#ifndef GPU_METAL
+OtherSRT OtherSRT_ctor_();
+OtherSRT OtherSRT_new_();
+#endif
+#line 2
+                        OtherSRT OtherSRT_ctor_() {OtherSRT r;r._pad=0;return r;}
+#line 5
+       OtherSRT OtherSRT_new_()
+{
+  OtherSRT result;
+  result._pad = 0;
+  return result;
+#line 3
+}
+#line 5
+#define access_SRT_other_srt() OtherSRT_new_()
+#ifdef CREATE_INFO_RES_PASS_SRT
+CREATE_INFO_RES_PASS_SRT
+#endif
+#ifdef CREATE_INFO_RES_BATCH_SRT
+CREATE_INFO_RES_BATCH_SRT
+#endif
+#ifdef CREATE_INFO_RES_GEOMETRY_SRT
+CREATE_INFO_RES_GEOMETRY_SRT
+#endif
+#ifdef CREATE_INFO_RES_SHARED_VARS_SRT
+CREATE_INFO_RES_SHARED_VARS_SRT
+#endif
+#line 5
+struct SRT {
+                     OtherSRT other_srt;
+#line 15
+};
+#line 18
+#ifndef GPU_METAL
+SRT SRT_ctor_();
+SRT SRT_new_();
+#endif
+#line 5
+                   SRT SRT_ctor_() {SRT r;r.other_srt=OtherSRT_ctor_();return r;}
+#line 8
+       SRT SRT_new_()
+{
+  SRT result;
+  result.other_srt = OtherSRT_new_();
+  return result;
+#line 6
+}
+#line 9
 
 #if defined(CREATE_INFO_SRT)
-#line 2
+#line 9
 float fn(SRT  srt) {
 
   return srt_access(OtherSRT, member);
 }
 
 #endif
-#line 6
+#line 13
 )";
     string error;
     string output = process_test_string(input, error);
