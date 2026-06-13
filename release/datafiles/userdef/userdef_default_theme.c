@@ -557,7 +557,6 @@ const bTheme U_theme_default = {
     .facedot_size = 4,
     .movie = RGBA(0x6282a3ff),
     .movieclip = RGBA(0x8f6e56ff),
-    .image_id = RGBA(0xA67389),
     .mask = RGBA(0x8f5656ff),
     .image = RGBA(0x8c548cff),
     .scene = RGBA(0x999999ff),

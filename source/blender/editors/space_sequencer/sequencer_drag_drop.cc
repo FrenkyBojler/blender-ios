@@ -126,7 +126,7 @@ static bool image_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 static bool image_id_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   if (WM_drag_is_ID_type(drag, ID_IM)) {
-    generic_poll_operations(C, event, TH_SEQ_IMAGE_ID);
+    generic_poll_operations(C, event, TH_SEQ_IMAGE);
     return true;
   }
 
@@ -351,7 +351,6 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
   }
 
   const char *path = WM_drag_get_single_path(drag);
-  printf("Path: %s\n", path);
   /* Path dropped. */
   if (path) {
     if (RNA_struct_find_property(drop->ptr, "filepath")) {

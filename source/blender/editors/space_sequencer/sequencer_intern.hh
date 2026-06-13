@@ -112,6 +112,7 @@ struct StripDrawContext {
   bool show_strip_color_tag;
   bool missing_data_block;
   bool missing_media;
+  bool is_image_id;
   bool is_connected;
   bool is_muted;
   bool has_retiming;

@@ -728,9 +728,6 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
         case TH_SEQ_MOVIECLIP:
           cp = ts->movieclip;
           break;
-        case TH_SEQ_IMAGE_ID:
-          cp = ts->image_id;
-          break;
         case TH_SEQ_MASK:
           cp = ts->mask;
           break;
