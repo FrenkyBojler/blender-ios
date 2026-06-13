@@ -213,6 +213,23 @@ static Vector<float2> ring_vertices(const float radius,
   return verts;
 }
 
+
+/* A single ring of vertices. */
+static Vector<float2> arc_vertices(const float radius,
+                                    const int segments,
+                                    const float build = 2.0f)
+{
+  Vector<float2> verts;
+  const float full = build * std::numbers::pi;
+  const float angle_offset = 1.5708f;
+  for (const int angle_i : IndexRange(segments + 1)) {
+    const float angle = (full * angle_i) / segments;
+    verts.append(radius * float2(math::cos(angle+angle_offset), math::sin(angle+angle_offset)));
+  }
+  return verts;
+}
+
+
 /* Returns lines segment geometry forming 3 circles, one on each axis. */
 static Vector<Vertex> sphere_axes_circles(const float radius,
                                           const VertexClass vclass,
@@ -239,6 +256,100 @@ static Vector<Vertex> sphere_axes_circles(const float radius,
   }
   return verts;
 }
+
+
+struct Vector3 {
+    double x, y, z;
+};
+
+
+static Vector3 rotateZ(const Vector3& vec, double angleRadians) {
+    double cosAngle = std::cos(angleRadians);
+    double sinAngle = std::sin(angleRadians);
+
+    Vector3 rotated;
+    rotated.x = vec.x * cosAngle - vec.y * sinAngle;
+    rotated.y = vec.x * sinAngle + vec.y * cosAngle;
+    rotated.z = vec.z; // Z remains unchanged during Z-axis rotation
+
+    return rotated;
+}
+
+
+/* Returns lines segment geometry forming 3 circles, one on each axis. */
+static Vector<Vertex> dome_sphere_axes(const float radius,
+                                          const VertexClass vclass,
+                                          const int segments)
+{
+  Vector<float2> arc = arc_vertices(radius, segments - 1,.5f);
+  Vector<float2> ring = arc_vertices(radius, segments);
+
+  Vector<Vertex> verts;
+  for (int axis : IndexRange(4)) {
+    for (int i : IndexRange(segments)) {
+
+      for (int j : IndexRange(2)) {
+
+        if(j==1 && i==segments-1)
+        {
+          j = 0;
+        }
+
+        float2 cv = arc[(i + j) % segments];
+
+
+
+        if (axis == 0) {
+          verts.append({{-cv[0], 0.0f, -cv[1]},vclass});
+        }
+        else if (axis == 1) {
+          verts.append({{cv[0], 0.0f, -cv[1]},vclass});
+        }
+        else if (axis == 2) {
+          verts.append({{0.0f, -cv[0], -cv[1]},vclass});
+        } 
+        else {
+          verts.append({{0.0f, cv[0], -cv[1]},vclass});
+        } 
+      }
+    }
+  }
+
+  for (int axis : IndexRange(4)) {
+    for (int i : IndexRange(segments)) {
+
+      for (int j : IndexRange(2)) {
+
+        if(j==1 && i==segments-1)
+        {
+          j = 0;
+        }
+
+        float2 cv = arc[(i + j)];
+
+        /* if (axis == 0) {} */
+          Vector3 base = {-cv[0], 0.0, -cv[1]};
+          double pi = std::acos(-1.0);
+          double angle = ((45.0 * (axis+1))+45.0*(axis)) * (pi / 180.0); 
+          Vector3 v = rotateZ(base, angle);
+          verts.append({{v.x, v.y, v.z},vclass});
+        
+      }
+    }
+  }
+
+  for (int i : IndexRange(segments)) {
+    for (int j : IndexRange(2)) {
+          float2 cv = ring[(i + j) % segments];
+
+            verts.append({{cv[0], cv[1], 0.0f},vclass});
+
+        }
+  }
+
+  return verts;
+}
+
 
 static void light_append_direction_line(const char axis,
                                         Span<float2> diamond,
@@ -872,6 +983,17 @@ ShapeCache::ShapeCache()
     camera_frame = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
+
+  /* dome grid */
+  {
+
+   Vector<Vertex> verts = dome_sphere_axes(1.0f,VCLASS_CAMERA_FISHEYE_FOV, 32);
+
+    dome_grid = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+
+
   /* camera tria */
   {
     const Vector<float2> triangle = {{-1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}};

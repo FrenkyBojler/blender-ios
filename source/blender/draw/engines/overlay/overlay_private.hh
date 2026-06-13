@@ -374,6 +374,7 @@ class ShapeCache {
 
   BatchPtr camera_distances;
   BatchPtr camera_frame;
+  BatchPtr dome_grid;
   BatchPtr camera_tria_wire;
   BatchPtr camera_tria;
 

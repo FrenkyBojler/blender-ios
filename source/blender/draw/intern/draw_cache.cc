@@ -61,6 +61,7 @@
 #define VCLASS_EMPTY_AXES_NAME (1 << 12)
 #define VCLASS_EMPTY_AXES_SHADOW (1 << 13)
 #define VCLASS_EMPTY_SIZE (1 << 14)
+#define VCLASS_CAMERA_FISHEYE_FOV (1 << 15)
 
 /** \} */
 

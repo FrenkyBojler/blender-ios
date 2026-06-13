@@ -73,6 +73,7 @@ enum [[host_shared]] VertexClass : uint32_t {
   VCLASS_EMPTY_AXES_NAME = 1 << 12,
   VCLASS_EMPTY_AXES_SHADOW = 1 << 13,
   VCLASS_EMPTY_SIZE = 1 << 14,
+  VCLASS_CAMERA_FISHEYE_FOV = 1 << 15
 };
 #ifndef GPU_SHADER
 ENUM_OPERATORS(VertexClass)

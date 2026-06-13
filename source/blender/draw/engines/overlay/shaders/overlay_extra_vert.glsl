@@ -24,6 +24,7 @@ void main()
   /* Extract data packed inside the unused float4x4 members. */
   float4 inst_data = float4(input_mat[0][3], input_mat[1][3], input_mat[2][3], input_mat[3][3]);
   float4 color = data_buf[gl_InstanceID].color_;
+  
   float inst_color_data = color.a;
   float4x4 obmat = input_mat;
   obmat[0][3] = obmat[1][3] = obmat[2][3] = 0.0f;
@@ -50,6 +51,7 @@ void main()
 
   float3 empty_size = inst_data.xyz;
   float empty_scale = inst_data.w;
+  
 
   float lamp_spot_sine;
   float3 vpos = pos;
@@ -134,6 +136,10 @@ void main()
   else if (flag_test(vclass, VCLASS_EMPTY_SIZE)) {
     /* This is a bit silly but we avoid scaling the object matrix on CPU (saving a float4x4 mul) */
     vpos *= empty_size;
+  }
+  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV)) {
+    /* This is a bit silly but we avoid scaling the object matrix on CPU (saving a float4x4 mul) */
+    vpos *= 1;
   }
   else if (flag_test(vclass, VCLASS_EMPTY_AXES)) {
     float axis = vpos.z;
