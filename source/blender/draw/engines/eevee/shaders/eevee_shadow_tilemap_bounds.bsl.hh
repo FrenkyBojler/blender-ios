@@ -36,7 +36,7 @@ void tilemap_bounds_clear([[resource_table]] TilemapBoundsInit &srt,
 }
 
 struct TilemapBounds {
-  [[resource_table]] srt_t<LightRenderData> light_data;
+  [[resource_table]] LightRenderData light_data;
 
   [[storage(4, read)]] const uint (&casters_id_buf)[];
   [[storage(5, read_write)]] ShadowTileMapData (&tilemaps_buf)[];

@@ -155,7 +155,7 @@ struct CameraVelocity {
 struct GeometryVelocity {
   [[legacy_info]] ShaderCreateInfo eevee_velocity_iface_info;
 
-  [[resource_table]] srt_t<CameraVelocity> camera;
+  [[resource_table]] CameraVelocity camera;
 
   [[storage(VELOCITY_OBJ_PREV_BUF_SLOT, read)]] const float4x4 (&velocity_obj_prev_buf)[];
   [[storage(VELOCITY_OBJ_NEXT_BUF_SLOT, read)]] const float4x4 (&velocity_obj_next_buf)[];

@@ -38,8 +38,8 @@
 namespace eevee {
 
 struct LightEvalData {
-  [[resource_table]] srt_t<ShadowRenderData> shadow_data;
-  [[resource_table]] srt_t<UtilityTexture> utility_tx;
+  [[resource_table]] ShadowRenderData shadow_data;
+  [[resource_table]] UtilityTexture utility_tx;
 
   [[compilation_constant]] int light_closure_eval_count_reflect;
   [[compilation_constant]] int light_closure_eval_count_transmit;
@@ -222,8 +222,8 @@ EvalCtx<true> init_from_reflect_ctx(EvalCtx<false> ctx)
 }  // namespace light
 
 struct LightEvalIterator {
-  [[resource_table]] srt_t<LightEvalData> inner;
-  [[resource_table]] srt_t<LightRenderData> light_data;
+  [[resource_table]] LightEvalData inner;
+  [[resource_table]] LightRenderData light_data;
 
   void eval_reflection(light::EvalCtx<false> &ctx, float vPz)
   {

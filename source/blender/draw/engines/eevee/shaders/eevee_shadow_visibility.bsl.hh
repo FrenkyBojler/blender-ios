@@ -26,7 +26,7 @@ namespace eevee::shadow {
 struct ViewVisibility {
   [[legacy_info]] ShaderCreateInfo draw_view_culling;
 
-  [[resource_table]] srt_t<draw::Infos> infos_;
+  [[resource_table]] draw::Infos infos_;
 
   [[storage(0, read)]] const ObjectBounds (&bounds_buf)[];
   [[storage(1, read_write)]] uint (&visibility_buf)[];

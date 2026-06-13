@@ -78,8 +78,8 @@ float patch_float_for_16f_storage(float value)
 }
 
 struct Film {
-  [[resource_table]] srt_t<CameraVelocity> camera;
-  [[resource_table]] srt_t<draw::View> views_;
+  [[resource_table]] CameraVelocity camera;
+  [[resource_table]] draw::View views_;
 
   [[specialization_constant(1)]] uint enabled_categories;
   [[specialization_constant(9)]] int samples_len;
@@ -109,8 +109,8 @@ struct Film {
   [[image(5, read_write, SFLOAT_16_16_16_16)]] image2DArray color_accum_img;
   [[image(6, read_write, SFLOAT_16)]] image2DArray value_accum_img;
 
-  [[resource_table]] srt_t<Cryptomatte> cryptomatte;
-  [[resource_table]] srt_t<Uniform> uniforms;
+  [[resource_table]] Cryptomatte cryptomatte;
+  [[resource_table]] Uniform uniforms;
 
   /* -------------------------------------------------------------------- */
   /** \name Filter

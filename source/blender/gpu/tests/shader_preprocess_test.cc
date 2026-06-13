@@ -1250,7 +1250,7 @@ static void test_preprocess_srt_template_wrapper()
   {
     string input = R"(
 struct SRT {
-  [[resource_table]] srt_t<T> a;
+  [[resource_table]] T a;
 };
 )";
     string expect = R"(
@@ -1315,7 +1315,7 @@ static void test_preprocess_srt_method()
   {
     string input = R"(
 struct SRT {
-  [[resource_table]] srt_t<T> a;
+  [[resource_table]] T a;
 
   void method(int t) {
     this->a;

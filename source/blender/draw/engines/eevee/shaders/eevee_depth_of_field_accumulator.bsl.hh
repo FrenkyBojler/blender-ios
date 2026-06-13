@@ -65,8 +65,8 @@ struct Accumulator {
 
   [[uniform(0)]] const DepthOfFieldData &dof_buf;
 
-  [[resource_table]] srt_t<Sampling> sampling;
-  [[resource_table]] srt_t<draw::View> views;
+  [[resource_table]] Sampling sampling;
+  [[resource_table]] draw::View views;
 
   /** \} */
 

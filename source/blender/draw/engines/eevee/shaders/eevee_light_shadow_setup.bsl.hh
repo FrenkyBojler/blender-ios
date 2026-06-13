@@ -26,7 +26,7 @@ struct Resources {
   [[storage(2, read_write)]] ShadowTileMapData (&tilemaps_buf)[];
   [[storage(3, read_write)]] ShadowTileMapClip (&tilemaps_clip_buf)[];
 
-  [[resource_table]] srt_t<Uniform> uniforms;
+  [[resource_table]] Uniform uniforms;
 
   void orthographic_sync(int tilemap_id,
                          Transform object_to_world,

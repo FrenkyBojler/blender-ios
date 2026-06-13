@@ -29,7 +29,7 @@ struct VertOut {
 };
 
 struct TagUsageTransparent {
-  [[resource_table]] srt_t<Uniform> uniforms;
+  [[resource_table]] Uniform uniforms;
 
   [[storage(4, read)]] const ObjectBounds (&bounds_buf)[];
 

@@ -65,7 +65,7 @@ struct SceneBound {
 }
 
 struct VolumeOffset {
-  [[resource_table]] srt_t<SurfelData> surfels_data;
+  [[resource_table]] SurfelData surfels_data;
 
   [[storage(0, read)]] const int (&list_start_buf)[];
   [[storage(6, read)]] const SurfelListInfoData &list_info_buf;
@@ -278,8 +278,8 @@ void volume_offset([[resource_table]] VolumeOffset &srt,
 }
 
 struct RayCapture {
-  [[resource_table]] srt_t<LightprobeSphereRenderData> lightprobe_sphere;
-  [[resource_table]] srt_t<SurfelData> surfels_data;
+  [[resource_table]] LightprobeSphereRenderData lightprobe_sphere;
+  [[resource_table]] SurfelData surfels_data;
 
   [[storage(0, read)]] const int (&list_start_buf)[];
   [[storage(6, read)]] const SurfelListInfoData &list_info_buf;

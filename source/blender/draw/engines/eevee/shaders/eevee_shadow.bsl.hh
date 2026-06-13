@@ -21,9 +21,9 @@ struct ShadowRenderData {
   [[compilation_constant]] bool shadow_random;
 
   [[resource_table]] srt_t<Uniform> uniforms;
-  [[resource_table]] srt_t<draw::View> views;
+  [[resource_table]] draw::View views;
   [[resource_table, condition(shadow_random)]] srt_t<Sampling> sampling;
-  [[resource_table, condition(shadow_random)]] srt_t<UtilityTexture> util_tx;
+  [[resource_table, condition(shadow_random)]] UtilityTexture util_tx;
 
   float read_depth(ShadowCoordinates coord) const
   {

@@ -19,8 +19,8 @@
 namespace eevee::dof::resolve {
 
 struct Resources {
-  [[resource_table]] srt_t<Accumulator> accumulator;
-  [[resource_table]] srt_t<draw::View> views;
+  [[resource_table]] Accumulator accumulator;
+  [[resource_table]] draw::View views;
 
   [[specialization_constant(false)]] const bool do_debug_color;
 

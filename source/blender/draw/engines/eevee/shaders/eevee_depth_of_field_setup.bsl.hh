@@ -115,8 +115,8 @@ float bilateral_weight(float reference_coc, float sample_coc)
 }
 
 struct Resources {
-  [[resource_table]] srt_t<CameraVelocity> camera;
-  [[resource_table]] srt_t<draw::View> views;
+  [[resource_table]] CameraVelocity camera;
+  [[resource_table]] draw::View views;
 
   [[push_constant]] const bool u_use_history;
 

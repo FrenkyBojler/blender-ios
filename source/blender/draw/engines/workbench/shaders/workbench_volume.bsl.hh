@@ -133,11 +133,11 @@ struct Resources {
   [[push_constant, condition(use_slice)]] const int slice_axis; /* -1 is no slice. */
   [[push_constant, condition(use_slice)]] const float slice_position;
 
-  [[resource_table, condition(!is_legacy_smoke)]] srt_t<Volume> volume;
-  [[resource_table, condition(is_legacy_smoke)]] srt_t<Smoke> smoke;
+  [[resource_table, condition(!is_legacy_smoke)]] Volume volume;
+  [[resource_table, condition(is_legacy_smoke)]] Smoke smoke;
 
-  [[resource_table, condition(use_color_band)]] srt_t<ColorBand> color_band;
-  [[resource_table, condition(!use_color_band)]] srt_t<ColorUniform> color_uniform;
+  [[resource_table, condition(use_color_band)]] ColorBand color_band;
+  [[resource_table, condition(!use_color_band)]] ColorUniform color_uniform;
 
   float4 sample_volume_texture(sampler3D ima, float3 co)
   {

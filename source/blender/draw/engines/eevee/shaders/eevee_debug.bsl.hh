@@ -63,8 +63,8 @@ template void light::foreach<SearchDebugLightCtx, LightRenderData>(const LightRe
                                                                    LightRenderData &);
 
 struct ShadowDebug {
-  [[resource_table]] srt_t<LightRenderData> light_data;
-  [[resource_table]] srt_t<ShadowRenderData> shadow_data;
+  [[resource_table]] LightRenderData light_data;
+  [[resource_table]] ShadowRenderData shadow_data;
 
   [[storage(5, read)]] ShadowTileMapData (&tilemaps_buf)[];
   [[storage(6, read)]] uint (&tiles_buf)[];

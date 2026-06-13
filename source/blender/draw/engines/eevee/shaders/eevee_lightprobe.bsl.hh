@@ -16,9 +16,9 @@
 namespace eevee {
 
 struct LightprobeRenderData {
-  [[resource_table]] srt_t<LightprobeSphereRenderData> spheres;
-  [[resource_table]] srt_t<LightprobeVolumeRenderData> volumes;
-  [[resource_table]] srt_t<Sampling> sampling;
+  [[resource_table]] LightprobeSphereRenderData spheres;
+  [[resource_table]] LightprobeVolumeRenderData volumes;
+  [[resource_table]] Sampling sampling;
 
   /**
    * Return cached light-probe data at P.

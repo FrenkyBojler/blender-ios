@@ -209,8 +209,8 @@ struct VolumeResolveSample {
 };
 
 struct UnifiedVolumeData {
-  [[resource_table]] srt_t<eevee::Uniform> uniforms;
-  [[resource_table]] srt_t<draw::View> views_;
+  [[resource_table]] eevee::Uniform uniforms;
+  [[resource_table]] draw::View views_;
 
   [[sampler(VOLUME_TRANSMITTANCE_TEX_SLOT)]] sampler3D volume_transmittance_tx;
   [[sampler(VOLUME_SCATTERING_TEX_SLOT)]] sampler3D volume_scattering_tx;

@@ -18,8 +18,8 @@ float avg_albedo(float3 albedo)
 }
 
 struct SurfelRay {
-  [[resource_table]] srt_t<LightprobeSphereRenderData> lightprobe_spheres;
-  [[resource_table]] srt_t<SurfelData> surfels_data;
+  [[resource_table]] LightprobeSphereRenderData lightprobe_spheres;
+  [[resource_table]] SurfelData surfels_data;
 
   [[push_constant]] const int radiance_src;
   [[push_constant]] const int radiance_dst;
