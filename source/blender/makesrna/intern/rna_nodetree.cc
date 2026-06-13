@@ -7945,6 +7945,99 @@ static void def_geo_foreach_geometry_element_output(BlenderRNA *brna, StructRNA 
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
+static void rna_def_geo_memory_zone_input_item(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "NodeMemoryZoneInputItem", nullptr);
+  RNA_def_struct_ui_text(srna, "Memory Item", "");
+  RNA_def_struct_sdna(srna, "NodeMemoryZoneInputItem");
+
+  rna_def_node_item_array_socket_item_common(
+      srna, "MemoryZoneInputItemsAccessor", true);
+}
+
+static void rna_def_geo_memory_zone_input_items(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  
+  rna_def_geo_memory_zone_input_item(brna);
+
+  srna = RNA_def_struct(brna, "NodeMemoryZoneInputItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Input Items", "Collection of input items");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "NodeMemoryZoneInputItem", "MemoryZoneInputItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "NodeMemoryZoneInputItem", "MemoryZoneInputItemsAccessor");
+}
+
+static void rna_def_geo_memory_zone_output_item(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "NodeMemoryZoneOutputItem", nullptr);
+  RNA_def_struct_ui_text(srna, "Memory Item", "");
+  RNA_def_struct_sdna(srna, "NodeMemoryZoneOutputItem");
+
+  rna_def_node_item_array_socket_item_common(
+      srna, "MemoryZoneOutputItemsAccessor", true);
+}
+
+static void rna_def_geo_memory_zone_output_items(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  
+  rna_def_geo_memory_zone_output_item(brna);
+
+  srna = RNA_def_struct(brna, "NodeMemoryZoneOutputItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Output Items", "Collection of output items");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "NodeMemoryZoneOutputItem", "MemoryZoneOutputItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "NodeMemoryZoneOutputItem", "MemoryZoneOutputItemsAccessor");
+}
+
+static void def_geo_memory_zone_output(BlenderRNA *brna, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  rna_def_geo_memory_zone_input_items(brna);
+  rna_def_geo_memory_zone_output_items(brna);
+
+  RNA_def_struct_sdna_from(srna, "NodeGeometryMemoryZoneOutput", "storage");
+
+  prop = RNA_def_property(srna, "input_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "input_items.items", "input_items.items_num");
+  RNA_def_property_struct_type(prop, "NodeMemoryZoneInputItem");
+  RNA_def_property_srna(prop, "NodeMemoryZoneInputItems");
+
+  prop = RNA_def_property(srna, "output_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "input_items.items", "input_items.items_num");
+  RNA_def_property_struct_type(prop, "NodeMemoryZoneOutputItem");
+  RNA_def_property_srna(prop, "NodeMemoryZoneOutputItems");
+
+  prop = RNA_def_property(srna, "active_input_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "input_items.active_index");
+  RNA_def_property_ui_text(prop, "Active Input Item Index", "Index of the active input item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "active_output_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "output_items.active_index");
+  RNA_def_property_ui_text(prop, "Active Output Item Index", "Index of the active output item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+}
+
+static void def_geo_memory_zone_input(BlenderRNA *brna, StructRNA *srna)
+{
+  RNA_def_struct_sdna_from(srna, "NodeGeometryMemoryZoneInput", "storage");
+
+  def_common_zone_input(brna, srna);
+}
+
 static void rna_def_closure_input_item(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -10670,6 +10763,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeExtrudeMesh");
   define("GeometryNode", "GeometryNodeFaceOfCorner");
   define("GeometryNode", "GeometryNodeFieldAtIndex");
+  define("GeometryNode", "GeometryNodeMemoryZoneInput", def_geo_memory_zone_input);
+  define("GeometryNode", "GeometryNodeMemoryZoneOutput", def_geo_memory_zone_output);
   define("GeometryNode", "GeometryNodeFieldAverage");
   define("GeometryNode", "GeometryNodeFieldMinAndMax");
   define("GeometryNode", "GeometryNodeFieldOnDomain");

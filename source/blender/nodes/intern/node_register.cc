@@ -122,16 +122,36 @@ class ClosureZoneType : public bke::bNodeZoneType {
   }
 };
 
+class MemoryZoneType : public bke::bNodeZoneType {
+ public:
+  MemoryZoneType()
+  {
+    this->input_idname = "NodeMemoryZoneInput"_ustr;
+    this->output_idname = "NodeMemoryZoneOutput"_ustr;
+    this->input_type = NODE_MEMORY_ZONE_INPUT;
+    this->output_type = NODE_MEMORY_ZONE_OUTPUT;
+    this->theme_id = TH_NODE_ZONE_CLOSURE;
+  }
+
+  const int &get_corresponding_output_id(const bNode &input_bnode) const override
+  {
+    BLI_assert(input_bnode.type_legacy == this->input_type);
+    return static_cast<NodeClosureInput *>(input_bnode.storage)->output_node_id;
+  }
+};
+
 static void register_zone_types()
 {
   static SimulationZoneType simulation_zone_type;
   static RepeatZoneType repeat_zone_type;
   static ForeachGeometryElementZoneType foreach_geometry_element_zone_type;
   static ClosureZoneType closure_zone_type;
+  static MemoryZoneType memory_zone_type;
   bke::register_node_zone_type(simulation_zone_type);
   bke::register_node_zone_type(repeat_zone_type);
   bke::register_node_zone_type(foreach_geometry_element_zone_type);
   bke::register_node_zone_type(closure_zone_type);
+  bke::register_node_zone_type(memory_zone_type);
 }
 
 void register_nodes()

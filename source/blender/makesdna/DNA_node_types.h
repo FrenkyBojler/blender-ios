@@ -3792,6 +3792,71 @@ struct GeometryNodeClosureToList {
   int active_index = 0;
 };
 
+struct NodeGeometryMemoryZoneInput {
+  DNA_DEFINE_CXX_METHODS(NodeGeometryMemoryZoneInput)
+
+  /** bNode.identifier of the corresponding output node. */
+  int32_t output_node_id = 0;
+};
+
+struct NodeMemoryZoneInputItem {
+  char *name = nullptr;
+  eNodeSocketDatatype socket_type = {};
+  char _pad[2] = {};
+  /**
+   * Generated unique identifier for sockets which stays the same even when the item order or
+   * names change.
+   */
+  int identifier = 0;
+};
+
+struct NodeMemoryZoneInputItems {
+  DNA_DEFINE_CXX_METHODS(NodeMemoryZoneInputItems)
+
+  NodeMemoryZoneInputItem *items = nullptr;
+  int items_num = 0;
+  int active_index = 0;
+  int next_identifier = 0;
+  char _pad[4] = {};
+};
+
+struct NodeMemoryZoneOutputItem {
+  char *name = nullptr;
+  eNodeSocketDatatype socket_type = {};
+  char _pad[2] = {};
+  /**
+   * Generated unique identifier for sockets which stays the same even when the item order or
+   * names change.
+   */
+  int identifier = 0;
+};
+
+struct NodeMemoryZoneOutputItems {
+  DNA_DEFINE_CXX_METHODS(NodeMemoryZoneOutputItems)
+
+  NodeMemoryZoneOutputItem *items = nullptr;
+  int items_num = 0;
+  int active_index = 0;
+  int next_identifier = 0;
+  char _pad[4] = {};
+};
+
+struct NodeGeometryMemoryZoneOutput {
+  DNA_DEFINE_CXX_METHODS(NodeGeometryMemoryZoneOutput)
+
+  NodeMemoryZoneInputItems input_items;
+  NodeMemoryZoneOutputItems output_items;
+
+#ifdef __cplusplus
+  Span<NodeMemoryZoneInputItem> input_items_span() const;
+  MutableSpan<NodeMemoryZoneInputItem> input_items_span();
+
+  Span<NodeMemoryZoneOutputItem> output_items_span() const;
+  MutableSpan<NodeMemoryZoneOutputItem> output_items_span();
+#endif
+};
+
+
 struct NodeGeometryDistributePointsInVolume {
   DNA_DEFINE_CXX_METHODS(NodeGeometryDistributePointsInVolume)
 

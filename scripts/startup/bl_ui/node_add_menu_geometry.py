@@ -741,6 +741,7 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeMenuSwitch")
         self.node_operator(layout, "FunctionNodeRandomValue")
         self.repeat_zone(layout, label="Repeat")
+        self.memory_zone(layout, label="Memory Zone")
         self.node_operator(layout, "GeometryNodeSwitch")
         layout.separator()
         self.draw_assets_for_catalog(layout, self.bl_label)

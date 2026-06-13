@@ -5,7 +5,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
-#include "NOD_geo_repeat.hh"
+#include "NOD_geo_memory_zone.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
@@ -24,7 +24,6 @@
 #include "UI_interface_layout.hh"
 
 #include "node_geometry_util.hh"
-#include "shader/node_shader_util.hh"
 
 namespace blender {
 
@@ -52,9 +51,9 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_
       current_node_ptr->owner_id, RNA_Node, &output_node);
 
   if (ui::Layout *panel = layout.panel(C, "repeat_items", false, IFACE_("Repeat Items"))) {
-    socket_items::ui::draw_items_list_with_operators<RepeatItemsAccessor>(
+    socket_items::ui::draw_items_list_with_operators<MemoryZoneItemsAccessor>(
         C, panel, ntree, output_node);
-    socket_items::ui::draw_active_item_props<RepeatItemsAccessor>(
+    socket_items::ui::draw_active_item_props<MemoryZoneItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
@@ -82,16 +81,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node && tree) {
     const NodeGeometryRepeatInput &storage = node_storage(*node);
     if (const bNode *output_node = tree->node_by_id(storage.output_node_id)) {
-      const auto &output_storage = *static_cast<const NodeGeometryRepeatOutput *>(
+      const auto &output_storage = *static_cast<const NodeGeometryMemoryZoneOutput *>(
           output_node->storage);
       for (const int i : IndexRange(output_storage.items_num)) {
-        const NodeRepeatItem &item = output_storage.items[i];
+        const NodeMemoryZoneItem &item = output_storage.items[i];
         const eNodeSocketDatatype socket_type = item.socket_type;
         const UString name = item.name ? UString(item.name) : ""_ustr;
-        const UString identifier(RepeatItemsAccessor::socket_identifier_for_item(item));
+        const UString identifier(MemoryZoneItemsAccessor::socket_identifier_for_item(item));
         auto &input_decl = b.add_input(socket_type, name, identifier)
                                .socket_name_ptr(
-                                   &tree->id, *RepeatItemsAccessor::item_srna, &item, "name")
+                                   &tree->id, *MemoryZoneItemsAccessor::item_srna, &item, "name")
                                .structure_type(StructureType::Dynamic);
         b.add_output(socket_type, name, identifier)
             .align_with_previous()
@@ -103,7 +102,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
-      .custom_draw(socket_items::ui::draw_extend_socket_fn<RepeatItemsAccessor>());
+      .custom_draw(socket_items::ui::draw_extend_socket_fn<MemoryZoneItemsAccessor>());
   b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
@@ -131,24 +130,14 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
   if (!output_node) {
     return true;
   }
-  return socket_items::try_add_item_via_any_extend_socket<RepeatItemsAccessor>(
+  return socket_items::try_add_item_via_any_extend_socket<MemoryZoneItemsAccessor>(
       params.ntree, params.node, *output_node, params.link);
-}
-
-static int node_shader_fn(GPUMaterial *mat,
-                          bNode *node,
-                          bNodeExecData * /*execdata*/,
-                          GPUNodeStack *in,
-                          GPUNodeStack *out)
-{
-  int zone_id = node_storage(*node).output_node_id;
-  return GPU_stack_link_zone(mat, node, "REPEAT_BEGIN", in, out, zone_id, false, 1, 1);
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  sh_geo_node_type_base(&ntype, "GeometryNodeMemoryZoneInput"_ustr, GEO_NODE_MEMORY_ZONE_INPUT);
+  sh_geo_node_type_base(&ntype, "GeometryNodeMemoryZoneInput"_ustr, NODE_MEMORY_ZONE_INPUT);
   ntype.ui_name = "Memory Zone Input";
   ntype.enum_name_legacy = "MEMORY_ZONE_INPUT";
   ntype.nclass = NODE_CLASS_INTERFACE;
@@ -169,7 +158,7 @@ NOD_REGISTER_NODE(node_register)
 
 namespace memory_zonet_output_node {
 
-NODE_STORAGE_FUNCS(NodeGeometryRepeatOutput);
+NODE_STORAGE_FUNCS(NodeGeometryMemoryZoneOutput);
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -178,15 +167,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
   if (node) {
-    const NodeGeometryRepeatOutput &storage = node_storage(*node);
+    const NodeGeometryMemoryZoneOutput &storage = node_storage(*node);
     for (const int i : IndexRange(storage.items_num)) {
-      const NodeRepeatItem &item = storage.items[i];
+      const NodeMemoryZoneItem &item = storage.items[i];
       const eNodeSocketDatatype socket_type = item.socket_type;
       const UString name = item.name ? UString(item.name) : ""_ustr;
-      const UString identifier(RepeatItemsAccessor::socket_identifier_for_item(item));
+      const UString identifier(MemoryZoneItemsAccessor::socket_identifier_for_item(item));
       auto &input_decl = b.add_input(socket_type, name, identifier)
                              .socket_name_ptr(
-                                 &tree->id, *RepeatItemsAccessor::item_srna, &item, "name")
+                                 &tree->id, *MemoryZoneItemsAccessor::item_srna, &item, "name")
                              .structure_type(StructureType::Dynamic);
       b.add_output(socket_type, name, identifier)
           .align_with_previous()
@@ -197,7 +186,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
-      .custom_draw(socket_items::ui::draw_extend_socket_fn<RepeatItemsAccessor>());
+      .custom_draw(socket_items::ui::draw_extend_socket_fn<MemoryZoneItemsAccessor>());
   b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
@@ -205,12 +194,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree *tree, bNode *node)
 {
-  NodeGeometryRepeatOutput *data = MEM_new<NodeGeometryRepeatOutput>(__func__);
+  NodeGeometryMemoryZoneOutput *data = MEM_new<NodeGeometryMemoryZoneOutput>(__func__);
 
   data->next_identifier = 0;
 
   if (tree->type == NTREE_GEOMETRY) {
-    data->items = MEM_new_array<NodeRepeatItem>(1, __func__);
+    data->items = MEM_new_array<NodeMemoryZoneItem>(1, __func__);
     data->items[0].name = BLI_strdup(DATA_("Geometry"));
     data->items[0].socket_type = SOCK_GEOMETRY;
     data->items[0].identifier = data->next_identifier++;
@@ -222,34 +211,34 @@ static void node_init(bNodeTree *tree, bNode *node)
 
 static void node_free_storage(bNode *node)
 {
-  socket_items::destruct_array<RepeatItemsAccessor>(*node);
-  MEM_delete(reinterpret_cast<NodeGeometryRepeatOutput *>(node->storage));
+  socket_items::destruct_array<MemoryZoneItemsAccessor>(*node);
+  MEM_delete(reinterpret_cast<NodeGeometryMemoryZoneOutput *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
-  const NodeGeometryRepeatOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new<NodeGeometryRepeatOutput>(__func__, dna::shallow_copy(src_storage));
+  const NodeGeometryMemoryZoneOutput &src_storage = node_storage(*src_node);
+  auto *dst_storage = MEM_new<NodeGeometryMemoryZoneOutput>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
-  socket_items::copy_array<RepeatItemsAccessor>(*src_node, *dst_node);
+  socket_items::copy_array<MemoryZoneItemsAccessor>(*src_node, *dst_node);
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
 {
-  return socket_items::try_add_item_via_any_extend_socket<RepeatItemsAccessor>(
+  return socket_items::try_add_item_via_any_extend_socket<MemoryZoneItemsAccessor>(
       params.ntree, params.node, params.node, params.link);
 }
 
 static void node_operators()
 {
-  socket_items::ops::make_common_operators<RepeatItemsAccessor>();
+  socket_items::ops::make_common_operators<MemoryZoneItemsAccessor>();
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
-  if (!RepeatItemsAccessor::supports_socket_type(other_socket.type, params.node_tree().type)) {
+  if (!MemoryZoneItemsAccessor::supports_socket_type(other_socket.type, params.node_tree().type)) {
     return;
   }
   params.add_item_full_name(IFACE_("Repeat"), [](LinkSearchOpParams &params) {
@@ -260,9 +249,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     auto &input_storage = *static_cast<NodeGeometryRepeatInput *>(input_node.storage);
     input_storage.output_node_id = output_node.identifier;
 
-    socket_items::clear<RepeatItemsAccessor>(output_node);
+    socket_items::clear<MemoryZoneItemsAccessor>(output_node);
     const UString name(params.socket.name);
-    socket_items::add_item_with_socket_type_and_name<RepeatItemsAccessor>(
+    socket_items::add_item_with_socket_type_and_name<MemoryZoneItemsAccessor>(
         params.node_tree, output_node, params.socket.type, name.c_str());
     update_node_declaration_and_sockets(params.node_tree, input_node);
     update_node_declaration_and_sockets(params.node_tree, output_node);
@@ -283,34 +272,24 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
-  socket_items::blend_write<RepeatItemsAccessor>(&writer, node);
+  socket_items::blend_write<MemoryZoneItemsAccessor>(&writer, node);
 }
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
-  socket_items::blend_read_data<RepeatItemsAccessor>(&reader, node);
-}
-
-static int node_shader_fn(GPUMaterial *mat,
-                          bNode *node,
-                          bNodeExecData * /*execdata*/,
-                          GPUNodeStack *in,
-                          GPUNodeStack *out)
-{
-  int zone_id = node->identifier;
-  return GPU_stack_link_zone(mat, node, "REPEAT_END", in, out, zone_id, true, 0, 0);
+  socket_items::blend_read_data<MemoryZoneItemsAccessor>(&reader, node);
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
-  sh_geo_node_type_base(&ntype, "GeometryNodeMemoryZoneOutput"_ustr, GEO_NODE_MEMORY_ZONE_OUTPUT);
+  sh_geo_node_type_base(&ntype, "GeometryNodeMemoryZoneOutput"_ustr, NODE_MEMORY_ZONE_OUTPUT);
   ntype.ui_name = "Memory Zone Output";
   ntype.enum_name_legacy = "MEMORY_ZONE_OUTPUT";
   ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
-  ntype.labelfunc = repeat_input_node::node_label;
+  ntype.labelfunc = memory_zone_input_node::node_label;
   ntype.insert_link = node_insert_link;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.no_muting = true;
@@ -329,28 +308,40 @@ NOD_REGISTER_NODE(node_register)
 
 namespace nodes {
 
-StructRNA **RepeatItemsAccessor::item_srna = &RNA_RepeatItem;
+StructRNA **MemoryZoneInputItemsAccessor::item_srna = &RNA_NodeMemoryZoneInputItem;
 
-void RepeatItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
+void MemoryZoneInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
   writer->write_string(item.name);
 }
 
-void RepeatItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
+void MemoryZoneInputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
+{
+  BLO_read_string(reader, &item.name);
+}
+
+StructRNA **MemoryZoneOutputItemsAccessor::item_srna = &RNA_NodeMemoryZoneOutputItem;
+
+void MemoryZoneOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
+{
+  writer->write_string(item.name);
+}
+
+void MemoryZoneOutputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
 {
   BLO_read_string(reader, &item.name);
 }
 
 }  // namespace nodes
 
-Span<NodeRepeatItem> NodeGeometryRepeatOutput::items_span() const
+Span<NodeMemoryZoneItem> NodeGeometryMemoryZoneOutput::items_span() const
 {
-  return Span<NodeRepeatItem>(items, items_num);
+  return Span<NodeMemoryZoneItem>(items, items_num);
 }
 
-MutableSpan<NodeRepeatItem> NodeGeometryRepeatOutput::items_span()
+MutableSpan<NodeMemoryZoneItem> NodeGeometryMemoryZoneOutput::items_span()
 {
-  return MutableSpan<NodeRepeatItem>(items, items_num);
+  return MutableSpan<NodeMemoryZoneItem>(items, items_num);
 }
 
 }  // namespace blender

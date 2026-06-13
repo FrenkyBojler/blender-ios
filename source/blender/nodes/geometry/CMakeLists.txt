@@ -290,6 +290,7 @@ set(SRC
   nodes/node_geo_tool_face_set.cc
   nodes/node_geo_tool_selection.cc
   nodes/node_geo_tool_set_face_set.cc
+  nodes/node_geo_memory_zone.cc
   nodes/node_geo_tool_set_selection.cc
   nodes/node_geo_transform_geometry.cc
   nodes/node_geo_translate_instances.cc
@@ -317,6 +318,7 @@ set(SRC
   include/NOD_geo_menu_switch.hh
   include/NOD_geo_repeat.hh
   include/NOD_geo_simulation.hh
+  include/NOD_geo_memory_zone.hh
   include/NOD_geo_tag_filter.hh
   include/NOD_geo_viewer.hh
 
