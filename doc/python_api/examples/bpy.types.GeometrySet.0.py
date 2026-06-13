@@ -1,6 +1,5 @@
 """
-Accessing Evaluated Geometry
-++++++++++++++++++++++++++++
+.. rubric:: Accessing Evaluated Geometry
 """
 import bpy
 
