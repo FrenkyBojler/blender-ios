@@ -896,7 +896,7 @@ static void walkEvent(WalkInfo *walk, const wmEvent *event)
 
 #define JUMP_SPEED_MIN 1.0f
 #define JUMP_TIME_MAX 0.2f /* s */
-#define JUMP_SPEED_MAX sqrtf(2.0f * walk->gravity * (walk->jump_height))
+#define JUMP_SPEED_MAX sqrtf(2.0f * walk->gravity * walk->jump_height)
 
       case WALK_MODAL_JUMP_STOP: {
         if (walk->gravity_state == WALK_GRAVITY_STATE_JUMP) {
