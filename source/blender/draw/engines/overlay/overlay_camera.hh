@@ -384,7 +384,8 @@ class Cameras : Overlay {
         {
         
         
-        data.center_x = cam.fisheye_fov;
+        data.color_.x = cam.fisheye_fov;
+        printf("%f\n",cam.fisheye_fov); 
         call_buffers_.dome_buf.append(data, select_id); 
         }
         else

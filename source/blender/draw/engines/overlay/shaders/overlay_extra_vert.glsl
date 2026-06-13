@@ -139,7 +139,15 @@ void main()
   }
   else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV)) {
     /* This is a bit silly but we avoid scaling the object matrix on CPU (saving a float4x4 mul) */
-    vpos *= 1;
+
+    
+
+    if(pos.x < 1.0f)
+    {
+      final_color.a = 0.0f;
+    }
+     /* vpos *= color.x; */
+    
   }
   else if (flag_test(vclass, VCLASS_EMPTY_AXES)) {
     float axis = vpos.z;

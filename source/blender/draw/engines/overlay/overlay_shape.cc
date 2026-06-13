@@ -282,7 +282,7 @@ static Vector<Vertex> dome_sphere_axes(const float radius,
                                           const int segments)
 {
   Vector<float2> arc = arc_vertices(radius, segments - 1,.5f);
-  Vector<float2> ring = arc_vertices(radius, segments);
+  Vector<float2> ring = ring_vertices(radius, segments);
 
   Vector<Vertex> verts;
   for (int axis : IndexRange(4)) {
