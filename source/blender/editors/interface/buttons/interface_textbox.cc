@@ -29,13 +29,14 @@ void invalidate_text_wrap_cache(const ARegion &region)
       }
       ButtonTextBox &textbox = static_cast<ButtonTextBox &>(button);
       textbox.wrap_cache.reset();
+      textbox.placeholder_wrap_cache.reset();
     }
   }
 }
 
 void textbox_add_scroll(ButtonTextBox *textbox, int step)
 {
-  textbox->last_total_lines = textbox_wrap_lines(textbox).size();
+  textbox_wrap_lines(textbox);
   textbox->line_scroll_set(textbox->line_scroll() + step);
 }
 
@@ -47,7 +48,7 @@ void textbox_scroll_to_cursor(ButtonTextBox *textbox)
 #ifdef WITH_INPUT_IME
   /* Include the ime composition string when scrolling to the cursor. */
   const wmIMEData *ime_data = button_ime_data_get(textbox);
-  if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
+  if (ime_data && !ime_data->composite.empty() && ime_data->cursor_pos != -1) {
     but_pos += ime_data->cursor_pos;
   }
 #endif
@@ -77,15 +78,15 @@ void textbox_textedit_set_cursor_pos(ButtonTextBox *textbox,
                                      const float2 xy)
 {
 
-  /* Don't include grip bounds when selecting text with the mouse.*/
+  /* Don't include grip bounds when selecting text with the mouse. */
   float2 start = {textbox->rect.xmin, textbox->rect.ymin};
   float2 end = {textbox->rect.xmax, textbox->rect.ymax};
 
   block_to_window_fl(region, textbox->block, &start.x, &start.y);
   block_to_window_fl(region, textbox->block, &end.x, &end.y);
 
-  start.y += textbox_padding_bottom() / textbox->block->aspect;
-  end.y -= textbox_padding_top() / textbox->block->aspect;
+  start.y += textbox_vertical_padding() / textbox->block->aspect;
+  end.y -= textbox_vertical_padding() / textbox->block->aspect;
 
   const Vector<StringRef> lines = textbox_wrap_lines(textbox);
   uiFontStyle fstyle = style_get()->widget;
@@ -207,7 +208,7 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
   StringRef text = textbox->drawstr;
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data = button_ime_data_get(textbox);
-  if (ime_data && ime_data->composite.size() > 0) {
+  if (ime_data && !ime_data->composite.empty()) {
     StringRef edit_str = textbox->editstr;
     StringRef l = edit_str.is_empty() ? StringRef("") : edit_str.substr(0, textbox->pos);
     StringRef r = edit_str.is_empty() ? StringRef("") : edit_str.substr(textbox->pos);
@@ -221,23 +222,19 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
   {
     text = textbox->editstr;
   }
-  constexpr int textbox_min_string_size_for_wrap_cache = sizeof(std::string);
-  if (text.size() >= textbox_min_string_size_for_wrap_cache) {
-    if (!textbox->wrap_cache) {
-      textbox->wrap_cache = std::make_unique<TextWrapCache>();
-    }
-    TextWrapCache &cache = *textbox->wrap_cache;
-    if (cache.aspect == aspect && cache.wrap_width == width && text == cache.text) {
-      return cache.wrapped_lines;
-    }
-    cache.text = text;
-    text = cache.text;
-    cache.wrap_width = width;
-    cache.aspect = aspect;
+  if (!textbox->wrap_cache) {
+    textbox->wrap_cache = std::make_unique<TextWrapCache>();
   }
-  else {
-    textbox->wrap_cache.reset();
+  TextWrapCache &cache = *textbox->wrap_cache;
+  if (cache.aspect == aspect && cache.wrap_width == width && text == cache.text) {
+    textbox->last_total_lines = cache.wrapped_lines.size();
+    return cache.wrapped_lines;
   }
+  cache.text = text;
+  text = cache.text;
+  cache.wrap_width = width;
+  cache.aspect = aspect;
+
   fontscale(&fstyle.points, aspect);
   fontstyle_set(&fstyle);
   Vector<StringRef> lines = BLF_string_wrap(
@@ -259,11 +256,40 @@ Vector<StringRef> textbox_wrap_lines(ButtonTextBox *textbox)
     }
   }
 
-  if (textbox->wrap_cache) {
-    textbox->wrap_cache->wrapped_lines = lines;
-  }
+  cache.wrapped_lines = lines;
 
   return lines;
+}
+
+Vector<StringRef> textbox_wrap_placeholder(ButtonTextBox *textbox)
+{
+  BLI_assert(textbox->placeholder);
+  uiFontStyle fstyle = style_get()->widget;
+  const float aspect = textbox->block->aspect;
+  const int width = std::max<int>(std::ceil(BLI_rctf_size_x(&textbox->rect) -
+                                            2.0f * UI_TEXT_MARGIN_X * float(U.widget_unit) - 2.0f),
+                                  0) /
+                    aspect;
+  StringRef text = textbox->placeholder;
+
+  if (!textbox->placeholder_wrap_cache) {
+    textbox->placeholder_wrap_cache = std::make_unique<TextWrapCache>();
+  }
+  TextWrapCache &cache = *textbox->placeholder_wrap_cache;
+  if (cache.aspect == aspect && cache.wrap_width == width && text == cache.text) {
+    return cache.wrapped_lines;
+  }
+  cache.text = text;
+  cache.wrap_width = width;
+  cache.aspect = aspect;
+
+  fontscale(&fstyle.points, aspect);
+  fontstyle_set(&fstyle);
+
+  cache.wrapped_lines = BLF_string_wrap(
+      fstyle.uifont_id, cache.text, width, BLFWrapMode::HardLimit | BLFWrapMode::Typographical);
+
+  return cache.wrapped_lines;
 }
 
 float textbox_grip_height()
@@ -278,14 +304,10 @@ void ButtonTextBox::line_scroll_set(int line_scroll)
   this->state->scroll = this->line_scroll();
 }
 
-float textbox_padding_top()
+float textbox_vertical_padding()
 {
-  return U.pixelsize + 2.0f * UI_SCALE_FAC;
-}
-
-float textbox_padding_bottom()
-{
-  return textbox_grip_height() + 0.25f * UI_SCALE_FAC;
+  /* Allow aligning text buttons with single line text-box buttons. */
+  return float(UI_UNIT_Y - fontstyle_height_max(UI_FSTYLE_WIDGET)) / 2.0f;
 }
 
 TextboxState *textbox_ensure_state(ARegion *region, StringRefNull idname)
@@ -310,7 +332,7 @@ int ButtonTextBox::line_scroll() const
 
 int ButtonTextBox::visible_lines() const
 {
-  return std::max<int>(this->state->visible_lines, 3);
+  return std::max<int>(this->state->visible_lines, textbox_minimum_visible_lines);
 }
 
 }  // namespace blender::ui

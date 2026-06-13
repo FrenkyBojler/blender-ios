@@ -390,7 +390,7 @@ int main(int argc,
 #endif
 
 #if defined(WITH_TBB_MALLOC) && defined(__linux__)
-  /* Enable huge pages for performance .*/
+  /* Enable huge pages for performance. */
   scalable_allocation_mode(TBBMALLOC_USE_HUGE_PAGES, 1);
 #endif
 
@@ -417,7 +417,7 @@ int main(int argc,
   {
     const time_t temp_time = build_commit_timestamp;
     const tm *tm = gmtime(&temp_time);
-    if (LIKELY(tm)) {
+    if (tm) [[likely]] {
       strftime(build_commit_date, sizeof(build_commit_date), "%Y-%m-%d", tm);
       strftime(build_commit_time, sizeof(build_commit_time), "%H:%M", tm);
     }

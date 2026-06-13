@@ -153,7 +153,7 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
   pointcloud->attribute_storage.wrap().blend_read(*reader);
 
   /* Materials */
-  BLO_read_pointer_array(reader, pointcloud->totcol, reinterpret_cast<void **>(&pointcloud->mat));
+  BLO_read_pointer_array_and_validate_size(reader, &pointcloud->mat, &pointcloud->totcol);
 
   pointcloud->runtime = new bke::PointCloudRuntime();
 }
@@ -372,7 +372,7 @@ static void pointcloud_evaluate_modifiers(Depsgraph *depsgraph,
 
   /* Evaluate modifiers. */
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
 
     if (!BKE_modifier_is_enabled(scene, md, required_mode)) {
       continue;

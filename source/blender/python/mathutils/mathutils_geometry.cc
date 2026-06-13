@@ -1428,7 +1428,7 @@ static PyObject *M_Geometry_tessellate_polygon(PyObject * /*self*/, PyObject *po
             fp, 2, 3 | MU_ARRAY_SPILL, polyVec, "tessellate_polygon: parse coord");
         Py_DECREF(polyVec);
 
-        if (UNLIKELY(polyVec_len == -1)) {
+        if (polyVec_len == -1) [[unlikely]] {
           list_parse_error = true;
         }
         else if (polyVec_len == 2) {
@@ -1762,12 +1762,13 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
   PyObject *ret_value = nullptr;
 
   if (!PyArg_ParseTuple(args,
-                        "OOOif|p:delaunay_2d_cdt",
+                        "OOOif|O&:delaunay_2d_cdt",
                         &vert_coords,
                         &edges,
                         &faces,
                         &output_type,
                         &epsilon,
+                        PyC_ParseBool,
                         &need_ids))
   {
     return nullptr;

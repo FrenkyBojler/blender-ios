@@ -288,7 +288,7 @@ static void build_bvh_spatial(
 
 /**
  * the LBN corner of cube (i, j, k), corresponds with location
- * (i-0.5)*size, (j-0.5)*size, (k-0.5)*size)
+ * (i-0.5)*size, (j-0.5)*size, (k-0.5)*size
  */
 
 #define HASHBIT (5)
@@ -445,7 +445,7 @@ static void make_face(PROCESS *process, int i1, int i2, int i3, int i4)
   float n[3];
 #endif
 
-  if (UNLIKELY(process->totindex == process->curindex)) {
+  if (process->totindex == process->curindex) [[unlikely]] {
     process->totindex = process->totindex ? (process->totindex * 2) : MBALL_ARRAY_LEN_INIT;
     process->indices = static_cast<int (*)[4]>(
         MEM_realloc_uninitialized(process->indices, sizeof(int[4]) * process->totindex));
@@ -1296,6 +1296,9 @@ static void init_meta(Depsgraph *depsgraph, PROCESS *process, Scene *scene, Obje
 
       switch (ml.type) {
         case MB_BALL:
+        case MB_TUBEX:
+        case MB_TUBEY:
+        case MB_TUBEZ:
           break;
         case MB_CUBE: /* cube is "expanded" by expz, expy and expx */
           expz += ml.expz;
@@ -1341,7 +1344,7 @@ static void init_meta(Depsgraph *depsgraph, PROCESS *process, Scene *scene, Obje
       copy_v3_v3(new_ml->bb->vec[6], tempmax);
 
       /* add new_ml to mainb[] */
-      if (UNLIKELY(process->totelem == process->mem)) {
+      if (process->totelem == process->mem) [[unlikely]] {
         process->mem = process->mem * 2 + 10;
         process->mainb = static_cast<MetaElem **>(
             MEM_realloc_uninitialized(process->mainb, sizeof(MetaElem *) * process->mem));

@@ -281,7 +281,8 @@ class USDExportTest(AbstractUSDTest):
         bpy.context.scene.frame_set(1)
 
         export_path = self.tempdir / "usd_materials_multi.usda"
-        self.export_and_validate(filepath=str(export_path), export_animation=True, evaluation_mode="RENDER")
+        self.export_and_validate(
+            filepath=str(export_path), export_animation=True, incremental_frames=1, evaluation_mode="RENDER")
 
         stage = Usd.Stage.Open(str(export_path))
 
@@ -737,7 +738,8 @@ class USDExportTest(AbstractUSDTest):
         bpy.context.scene.frame_set(1)
 
         export_path = self.tempdir / "usd_attribute_varying_test.usda"
-        self.export_and_validate(filepath=str(export_path), export_animation=True, evaluation_mode="RENDER")
+        self.export_and_validate(
+            filepath=str(export_path), export_animation=True, incremental_frames=2, evaluation_mode="RENDER")
 
         stage = Usd.Stage.Open(str(export_path))
         sparse_frames = [4.0, 5.0, 8.0, 9.0, 12.0, 13.0]
@@ -2206,6 +2208,52 @@ class USDExportTest(AbstractUSDTest):
         check_colorspace(stage.GetPrimAtPath(f"/root/{light_name}/{light_name}"), "Light")
         check_colorspace(stage.GetPrimAtPath(f"/root/_materials/{mat.name}"), "Material")
         check_colorspace(stage.GetPrimAtPath(f"/root/{mesh_name}/{mesh_name}"), "Mesh")
+
+    def test_export_mesh_normals(self):
+        """Test that each exported USD normal interpolation and number matches
+        Blender mesh normal domain"""
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_mesh_normals.blend"))
+        export_path = self.tempdir / "usd_mesh_normals.usda"
+
+        self.export_and_validate(
+            filepath=str(export_path),
+            evaluation_mode="RENDER",
+        )
+
+        stage = Usd.Stage.Open(str(export_path))
+
+        # validate face normals (uniform)
+        faceMesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/shade_flat/shade_flat"))
+        self.assertEqual(
+            len(faceMesh.GetNormalsAttr().Get()),
+            len(faceMesh.GetFaceVertexCountsAttr().Get()),
+            "Number of normals should equal number of faces")
+        self.assertEqual(
+            faceMesh.GetNormalsInterpolation(),
+            UsdGeom.Tokens.uniform,
+            "Normals should be uniform interpolated")
+
+        # validate corner normals (face-varying)
+        cornerMesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/shade_auto22/shade_auto22"))
+        self.assertEqual(
+            len(cornerMesh.GetNormalsAttr().Get()),
+            len(cornerMesh.GetFaceVertexIndicesAttr().Get()),
+            "Number of normals should equal number of indices")
+        self.assertEqual(
+            cornerMesh.GetNormalsInterpolation(),
+            UsdGeom.Tokens.faceVarying,
+            "Normals should be faceVarying interpolated")
+
+        # validate point normals (vertex)
+        pointMesh = UsdGeom.Mesh(stage.GetPrimAtPath("/root/shade_smooth/shade_smooth"))
+        self.assertEqual(
+            len(pointMesh.GetNormalsAttr().Get()),
+            len(pointMesh.GetPointsAttr().Get()),
+            "Number of normals should equal number of points")
+        self.assertEqual(
+            pointMesh.GetNormalsInterpolation(),
+            UsdGeom.Tokens.vertex,
+            "Normals should be vertex interpolated")
 
 
 class USDHookBase:
