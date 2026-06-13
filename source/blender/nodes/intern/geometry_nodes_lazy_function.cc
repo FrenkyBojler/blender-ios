@@ -2080,6 +2080,9 @@ struct GeometryNodesLazyFunctionBuilder {
         case NODE_CLOSURE_OUTPUT:
           this->build_closure_zone_function(zone);
           break;
+        case NODE_MEMORY_ZONE_OUTPUT:
+          this->build_memory_zone_function(zone);
+          break;
         default: {
           BLI_assert_unreachable();
           break;
@@ -2265,6 +2268,16 @@ struct GeometryNodesLazyFunctionBuilder {
     ZoneBodyFunction &body_fn = this->build_zone_body_function(
         zone, "Closure Body", &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>());
     auto &zone_fn = build_closure_zone_lazy_function(
+        scope_, btree_, zone, zone_info, body_fn, lf_graph_info_);
+    zone_info.lazy_function = &zone_fn;
+  }
+
+  void build_memory_zone_function(const bNodeTreeZone &zone)
+  {
+    ZoneBuildInfo &zone_info = zone_build_infos_[zone.index];
+    ZoneBodyFunction &body_fn = this->build_zone_body_function(
+        zone, "Memory Zone Body", &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>());
+    auto &zone_fn = build_memory_zone_lazy_function(
         scope_, btree_, zone, zone_info, body_fn, lf_graph_info_);
     zone_info.lazy_function = &zone_fn;
   }

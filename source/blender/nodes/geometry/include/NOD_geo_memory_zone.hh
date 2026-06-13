@@ -10,6 +10,39 @@
 
 namespace blender::nodes {
 
+inline bool socket_type_supported_in_memory_input(const eNodeSocketDatatype socket_type,
+                                                  const int ntree_type)
+{
+  return (ELEM(socket_type,
+              SOCK_BOOLEAN,
+              SOCK_MENU,
+              SOCK_INT,
+              SOCK_INT_VECTOR,
+              SOCK_FLOAT,
+              SOCK_VECTOR,
+              SOCK_ROTATION,
+              SOCK_RGBA,
+              SOCK_STRING) ||
+              ELEM(socket_type,
+              SOCK_OBJECT,
+              SOCK_IMAGE,
+              SOCK_COLLECTION,
+              SOCK_TEXTURE,
+              SOCK_MATERIAL,
+              SOCK_MATRIX,
+              SOCK_BUNDLE,
+              SOCK_FONT,
+              SOCK_SCENE,
+              SOCK_TEXT_ID,
+              SOCK_SOUND)) && bke::node_tree_type_supports_socket_type_static(ntree_type, socket_type);
+}
+
+inline bool socket_type_supported_in_closure_in_memory_output(const eNodeSocketDatatype socket_type,
+                                                              const int ntree_type)
+{
+  return bke::node_tree_type_supports_socket_type_static(ntree_type, socket_type);
+}
+
 struct MemoryZoneInputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeMemoryZoneInputItem;
   static StructRNA **item_srna;
@@ -26,12 +59,13 @@ struct MemoryZoneInputItemsAccessor : public socket_items::SocketItemsAccessorDe
     static constexpr StringRefNull list = "DATA_UL_memory_zone_input_state";
   };
   struct rna_names {
-    static constexpr StringRefNull items = "memory_zone_input_items";
+    static constexpr StringRefNull items = "input_items";
     static constexpr StringRefNull active_index = "active_input_index";
   };
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
+    printf("%s;\n", node.name);
     auto *storage = static_cast<NodeGeometryMemoryZoneOutput *>(node.storage);
     NodeMemoryZoneInputItems &inputs = storage->input_items;
     return {&inputs.items, &inputs.items_num, &inputs.active_index};
@@ -63,7 +97,7 @@ struct MemoryZoneInputItemsAccessor : public socket_items::SocketItemsAccessorDe
 
   static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int ntree_type)
   {
-    return bke::node_tree_type_supports_socket_type_static(ntree_type, socket_type);
+    return socket_type_supported_in_memory_input(socket_type, ntree_type);
   }
 
   static void init_with_socket_type_and_name(bNode &node,
@@ -100,7 +134,7 @@ struct MemoryZoneOutputItemsAccessor : public socket_items::SocketItemsAccessorD
     static constexpr StringRefNull list = "DATA_UL_memory_zone_output_state";
   };
   struct rna_names {
-    static constexpr StringRefNull items = "memory_zone_output_items";
+    static constexpr StringRefNull items = "output_items";
     static constexpr StringRefNull active_index = "active_output_index";
   };
 
@@ -137,7 +171,7 @@ struct MemoryZoneOutputItemsAccessor : public socket_items::SocketItemsAccessorD
 
   static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int ntree_type)
   {
-    return bke::node_tree_type_supports_socket_type_static(ntree_type, socket_type);
+    return socket_type_supported_in_closure_in_memory_output(socket_type, ntree_type);
   }
 
   static void init_with_socket_type_and_name(bNode &node,

@@ -126,17 +126,17 @@ class MemoryZoneType : public bke::bNodeZoneType {
  public:
   MemoryZoneType()
   {
-    this->input_idname = "NodeMemoryZoneInput"_ustr;
-    this->output_idname = "NodeMemoryZoneOutput"_ustr;
+    this->input_idname = "GeometryNodeMemoryZoneInput"_ustr;
+    this->output_idname = "GeometryNodeMemoryZoneOutput"_ustr;
     this->input_type = NODE_MEMORY_ZONE_INPUT;
     this->output_type = NODE_MEMORY_ZONE_OUTPUT;
-    this->theme_id = TH_NODE_ZONE_CLOSURE;
+    this->theme_id = TH_NODE_ZONE_MEMORY;
   }
 
   const int &get_corresponding_output_id(const bNode &input_bnode) const override
   {
     BLI_assert(input_bnode.type_legacy == this->input_type);
-    return static_cast<NodeClosureInput *>(input_bnode.storage)->output_node_id;
+    return static_cast<NodeGeometryMemoryZoneInput *>(input_bnode.storage)->output_node_id;
   }
 };
 
