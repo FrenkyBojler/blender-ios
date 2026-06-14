@@ -3462,17 +3462,18 @@ static void lib_override_resync_tagging_finalize(Main *bmain,
                   IDOverrideLibraryTag::TAG_RESYNC_ISOLATED_FROM_ROOT) == IDOverrideLibraryTag(0));
     }
 
-    LinkNodePair *id_resync_roots = id_roots.lookup_or_add_cb(
-        hierarchy_root, []() { return MEM_new_zeroed<LinkNodePair>(__func__); });
+    LinkNodePair *id_resync_roots = id_roots.lookup_or_add_cb(hierarchy_root, []() {
+      return MEM_new_zeroed<LinkNodePair>("lib_override_resync_tagging_finalize");
+    });
     BLI_linklist_append(id_resync_roots, id_iter);
   }
   FOREACH_MAIN_ID_END;
 
   BKE_main_relations_tag_set(
       bmain,
-      static_cast<const eMainIDRelationsEntryTags>(MAINIDRELATIONS_ENTRY_TAGS_PROCESSED |
-                                                   MAINIDRELATIONS_ENTRY_TAGS_DOIT |
-                                                   MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS),
+      static_cast<eMainIDRelationsEntryTags>(MAINIDRELATIONS_ENTRY_TAGS_PROCESSED |
+                                             MAINIDRELATIONS_ENTRY_TAGS_DOIT |
+                                             MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS),
       false);
 }
 
@@ -3943,7 +3944,7 @@ static int lib_override_libraries_index_define(Main *bmain)
       Vector<std::pair<ID *, ID *>> &lib_user_ids = sort_libs_data.dependency_trace_data.lookup(
           &library);
       if (lib_user_ids.size() >= LibOverrideSortLibrariesData::MAX_DEPENDENCY_DEPTH) {
-        std::string deps_chain = "";
+        std::string deps_chain;
         int index = -1;
         for (auto [id_owner, id] : lib_user_ids) {
           index++;
@@ -3993,7 +3994,7 @@ void BKE_lib_override_library_main_resync(
       }
       if (view_layer) {
         CLOG_WARN(&LOG_RESYNC,
-                  "Provided scene '%s' is not local, using instead local scene '%s', viewlayer "
+                  "Provided scene '%s' is not local, using instead local scene '%s', view-layer "
                   "'%s' as container for the library override leftover collections and objects",
                   BKE_id_name(scene->id),
                   BKE_id_name(new_scene->id),
@@ -4252,7 +4253,7 @@ static Map<StringRefNull, IDOverrideLibraryProperty *> &override_library_rna_pat
     IDOverrideLibrary *liboverride)
 {
   IDOverrideLibraryRuntime *liboverride_runtime = override_library_runtime_ensure(liboverride);
-  if (UNLIKELY(!liboverride_runtime->rna_path_to_override_properties)) {
+  if (!liboverride_runtime->rna_path_to_override_properties) [[unlikely]] {
     liboverride_runtime->rna_path_to_override_properties =
         std::make_optional<Map<StringRefNull, IDOverrideLibraryProperty *>>();
     for (IDOverrideLibraryProperty *op =

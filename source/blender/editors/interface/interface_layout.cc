@@ -2517,7 +2517,7 @@ void Layout::prop_enum(PointerRNA *ptr,
                        const std::optional<StringRefNull> name,
                        int icon)
 {
-  if (UNLIKELY(RNA_property_type(prop) != PROP_ENUM)) {
+  if (RNA_property_type(prop) != PROP_ENUM) [[unlikely]] {
     const StringRefNull propname = RNA_property_identifier(prop);
     item_disabled(this, propname.c_str());
     RNA_warning_bare("UILayout.prop_enum(): not an enum property: %s.%s",
@@ -2569,7 +2569,7 @@ void Layout::prop_enum(PointerRNA *ptr,
                        int icon)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  if (UNLIKELY(prop == nullptr)) {
+  if (prop == nullptr) [[unlikely]] {
     item_disabled(this, propname.c_str());
     RNA_warning_bare("UILayout.prop_enum(): enum property not found: %s.%s",
                      RNA_struct_identifier(ptr->type),
@@ -5280,9 +5280,9 @@ bool Layout::use_property_decorate() const
   return flag_is_set(flag_, ItemInternalFlag::PropDecorate);
 }
 
-void Layout::use_property_decorate_set(bool is_sep)
+void Layout::use_property_decorate_set(bool is_decorate)
 {
-  SET_FLAG_FROM_TEST(flag_, is_sep, ItemInternalFlag::PropDecorate);
+  SET_FLAG_FROM_TEST(flag_, is_decorate, ItemInternalFlag::PropDecorate);
 }
 
 Panel *Layout::root_panel() const

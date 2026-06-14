@@ -616,7 +616,7 @@ static BHeadN *get_bhead(FileData *fd)
           new_bhead->is_memchunk_identical = false;
           new_bhead->bhead = *bhead;
           const off64_t seek_new = fd->file->seek(fd->file, bhead->len, SEEK_CUR);
-          if (UNLIKELY(seek_new == -1)) {
+          if (seek_new == -1) [[unlikely]] {
             fd->is_eof = true;
             MEM_delete(new_bhead);
             new_bhead = nullptr;
@@ -644,7 +644,7 @@ static BHeadN *get_bhead(FileData *fd)
 
           const int64_t readsize = fd->file->read(fd->file, new_bhead + 1, size_t(bhead->len));
 
-          if (UNLIKELY(readsize != bhead->len)) {
+          if (readsize != bhead->len) [[unlikely]] {
             fd->is_eof = true;
             MEM_delete(new_bhead);
             new_bhead = nullptr;
@@ -734,12 +734,12 @@ static bool blo_bhead_read_data(FileData *fd, BHead *thisblock, void *buf)
   BHeadN *new_bhead = BHEADN_FROM_BHEAD(thisblock);
   BLI_assert(new_bhead->has_data == false && new_bhead->file_offset != 0);
   off64_t offset_backup = fd->file->offset;
-  if (UNLIKELY(fd->file->seek(fd->file, new_bhead->file_offset, SEEK_SET) == -1)) {
+  if (fd->file->seek(fd->file, new_bhead->file_offset, SEEK_SET) == -1) [[unlikely]] {
     success = false;
   }
   else {
-    if (UNLIKELY(fd->file->read(fd->file, buf, size_t(new_bhead->bhead.len)) !=
-                 new_bhead->bhead.len))
+    if (fd->file->read(fd->file, buf, size_t(new_bhead->bhead.len)) != new_bhead->bhead.len)
+        [[unlikely]]
     {
       success = false;
     }
@@ -1522,9 +1522,7 @@ static FileData *change_ID_link_filedata_get(Main *bmain, FileData *basefd)
   if (bmain->curlib) {
     return bmain->curlib->runtime->filedata;
   }
-  else {
-    return basefd;
-  }
+  return basefd;
 }
 
 static void change_link_placeholder_to_real_ID_pointer(FileData *basefd, void *old, void *newp)
@@ -1792,7 +1790,7 @@ static const char *get_alloc_name(FileData *fd,
   /* Simple storage for pure release builds, using integer as key, one entry for each ID type. */
   UNUSED_VARS_NDEBUG(bh);
   if (is_id_data) {
-    if (UNLIKELY(!storage.contains(id_type_index))) {
+    if (!storage.contains(id_type_index)) [[unlikely]] {
       if (id_type_index == INDEX_ID_NULL) {
         return storage.insert(id_type_index, "Data from UNKNOWN");
       }
@@ -1825,7 +1823,7 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const i
 #ifdef USE_BHEAD_READ_ON_DEMAND
       if (BHEADN_FROM_BHEAD(bh)->has_data == false) {
         bh = blo_bhead_read_full(fd, bh);
-        if (UNLIKELY(bh == nullptr)) {
+        if (bh == nullptr) [[unlikely]] {
           fd->flags &= ~FD_FLAGS_FILE_OK;
           return nullptr;
         }
@@ -1839,7 +1837,7 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const i
 #ifdef USE_BHEAD_READ_ON_DEMAND
         if (BHEADN_FROM_BHEAD(bh)->has_data == false) {
           bh = blo_bhead_read_full(fd, bh);
-          if (UNLIKELY(bh == nullptr)) {
+          if (bh == nullptr) [[unlikely]] {
             fd->flags &= ~FD_FLAGS_FILE_OK;
             return nullptr;
           }
@@ -1859,7 +1857,7 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const i
         else {
           /* Instead of allocating the bhead, then copying it,
            * read the data from the file directly into the memory. */
-          if (UNLIKELY(!blo_bhead_read_data(fd, bh, temp))) {
+          if (!blo_bhead_read_data(fd, bh, temp)) [[unlikely]] {
             fd->flags &= ~FD_FLAGS_FILE_OK;
             MEM_delete_void(temp);
             temp = nullptr;
@@ -3699,7 +3697,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
     char build_commit_datetime[32];
     time_t temp_time = main->build_commit_timestamp;
     tm *tm = (temp_time) ? gmtime(&temp_time) : nullptr;
-    if (LIKELY(tm)) {
+    if (tm) [[likely]] {
       strftime(build_commit_datetime, sizeof(build_commit_datetime), "%Y-%m-%d %H:%M", tm);
     }
     else {
@@ -3762,6 +3760,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   }
   if (!main->is_read_invalid) {
     blo_do_versions_520(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_530(fd, lib, main);
   }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -3830,6 +3831,9 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_520(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_530(fd, main);
   }
 
   main->is_locked_for_linking = false;
@@ -4671,7 +4675,7 @@ static BHead *find_bhead_from_code_name(FileData *fd, const short idcode, const 
 static BHead *find_bhead_from_idname(FileData *fd, const char *idname)
 {
   BHead *bhead = fd->bhead_idname_map->lookup_default(idname, nullptr);
-  if (LIKELY(bhead)) {
+  if (bhead) [[likely]] {
     return bhead;
   }
 

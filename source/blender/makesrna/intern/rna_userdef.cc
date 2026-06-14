@@ -1241,7 +1241,7 @@ static void rna_Addon_module_set(PointerRNA *ptr, const char *value)
    * In practice this is something only add-on developers should run into,
    * so it's more of a paper cut for developers. */
   const size_t submodule_len_limit = sizeof(bAddon::module) / 2;
-  if (UNLIKELY(module_len >= submodule_len_limit)) {
+  if (module_len >= submodule_len_limit) [[unlikely]] {
     char *submodule_end = addon->module + module_len;
     char *submodule_beg = addon->module;
     for (size_t i = module_len - 1; i > 0; i--) {
@@ -7962,6 +7962,14 @@ void RNA_def_userdef(BlenderRNA *brna)
                            "Save on Exit",
                            "Save preferences on exit when modified "
                            "(unless factory settings have been loaded)");
+
+  prop = RNA_def_property(srna, "use_project_auto_save", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "pref_flag", USER_PREF_FLAG_PROJECT_SAVE);
+  RNA_def_property_ui_text(
+      prop,
+      "Auto-save Project",
+      "Save projects automatically on exit and when saving or switching blend files");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "is_dirty", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "runtime.is_dirty", 0);

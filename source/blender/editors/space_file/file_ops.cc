@@ -593,7 +593,7 @@ static wmOperatorStatus file_select_exec(bContext *C, wmOperator *op)
   mval[1] = RNA_int_get(op->ptr, "mouse_y");
   rect = file_select_mval_to_select_rect(mval);
 
-  if (sfile->layout == nullptr) {
+  if (sfile->files == nullptr || sfile->layout == nullptr) {
     return OPERATOR_CANCELLED;
   }
   if (!ED_fileselect_layout_is_inside_pt(sfile->layout, &region->v2d, rect.xmin, rect.ymin)) {
@@ -1769,7 +1769,7 @@ void file_sfile_filepath_set(SpaceFile *sfile, const char *filepath)
 void file_draw_check_ex(bContext *C, ScrArea *area)
 {
   /* May happen when manipulating non-active spaces. */
-  if (UNLIKELY(area->spacetype != SPACE_FILE)) {
+  if (area->spacetype != SPACE_FILE) [[unlikely]] {
     return;
   }
   SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
@@ -2948,7 +2948,7 @@ void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void *arg_b
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  if (UNLIKELY(params == nullptr)) {
+  if (params == nullptr) [[unlikely]] {
     return;
   }
 
@@ -3041,7 +3041,7 @@ void file_filename_enter_handle(bContext *C, void * /*arg_unused*/, void *arg_bu
 {
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  if (UNLIKELY(params == nullptr)) {
+  if (params == nullptr) [[unlikely]] {
     return;
   }
 
