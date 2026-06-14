@@ -271,7 +271,10 @@ int BKE_crazyspace_get_first_deform_matrices_editbmesh(Depsgraph *depsgraph,
       mti->deform_matrices_EM(md, &mectx, em, mesh, deformcos, deformmats);
     }
     else {
-      break;
+      /* Skip non-deform modifiers (e.g. Geometry Nodes) to allow subsequent
+       * deform modifiers (e.g. Armature) to compute crazyspace matrices.
+       * See #156653. */
+      continue;
     }
   }
 
