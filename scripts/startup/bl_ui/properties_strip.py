@@ -632,6 +632,26 @@ class STRIP_PT_movie_clip(StripButtonsPanel, Panel):
                 translate=False,
             )
 
+class STRIP_PT_image_id(StripButtonsPanel, Panel):
+    bl_label = "Image ID"
+
+    @classmethod
+    def poll(cls, context):
+        strip = context.active_strip
+        if not strip:
+            return False
+
+        return strip.type == 'IMAGE_ID'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        strip = context.active_strip
+
+        layout.active = not strip.mute
+        layout.template_ID(strip, "image_id", open="image.open")
 
 class STRIP_PT_scene(StripButtonsPanel, Panel):
     bl_label = "Scene"
@@ -1122,6 +1142,7 @@ classes = (
     STRIP_PT_effect_text_box,
     STRIP_PT_effect_text_layout,
     STRIP_PT_movie_clip,
+    STRIP_PT_image_id,
 
     STRIP_PT_adjust_comp,
     STRIP_PT_adjust_transform,
