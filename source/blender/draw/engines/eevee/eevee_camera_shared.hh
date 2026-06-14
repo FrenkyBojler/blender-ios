@@ -53,13 +53,14 @@ struct [[host_shared]] CameraData {
   float2 fisheye_sensor;
   float fisheye_polynomial_bias;
   float panoramic_view_overscan;
+  /** Enabled cubemap face bitmask for panoramic rendering. */
+  uint panoramic_view_mask;
   /** Clipping distances. */
   float clip_near;
   float clip_far;
   enum eCameraType type;
   /** World space distance between view corners at unit distance from camera. */
   float screen_diagonal_length;
-  float _pad0;
   float _pad1;
   float _pad2;
 

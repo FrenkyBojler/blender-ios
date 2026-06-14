@@ -102,7 +102,6 @@ class Film {
 
   FilmData &data_;
   bool32_t display_only_;
-  int panoramic_view_id_ = -1;
   int2 display_extent = int2(-1);
 
   eViewLayerEEVEEPassType enabled_passes_ = eViewLayerEEVEEPassType(0);
@@ -128,7 +127,7 @@ class Film {
   }
 
   /** Accumulate the newly rendered sample contained in #RenderBuffers and blit to display. */
-  void accumulate(View &view, gpu::Texture *combined_final_tx, int panoramic_view_id = -1);
+  void accumulate(View &view, gpu::Texture *combined_final_tx);
 
   /** Sort and normalize cryptomatte samples. */
   void cryptomatte_sort();

@@ -80,7 +80,8 @@ inline bool operator==(const CameraData &a, const CameraData &b)
          (a.fisheye_lens == b.fisheye_lens) && (a.fisheye_sensor == b.fisheye_sensor) &&
          (a.fisheye_polynomial_bias == b.fisheye_polynomial_bias) &&
          (a.fisheye_polynomial_coefficients == b.fisheye_polynomial_coefficients) &&
-         (a.central_cylindrical_range == b.central_cylindrical_range) && (a.type == b.type);
+         (a.central_cylindrical_range == b.central_cylindrical_range) &&
+         (a.panoramic_view_mask == b.panoramic_view_mask) && (a.type == b.type);
 }
 
 inline bool operator!=(const CameraData &a, const CameraData &b)

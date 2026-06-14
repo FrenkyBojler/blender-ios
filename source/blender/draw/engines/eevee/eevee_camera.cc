@@ -9,6 +9,7 @@
 #include "BKE_camera.h"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
+#include "BLI_math_base.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_rect.hh"
 
@@ -25,6 +26,49 @@
 #include "eevee_instance.hh"
 
 namespace blender::eevee {
+
+constexpr uint PANORAMIC_VIEW_POS_X = 1u << 0u;
+constexpr uint PANORAMIC_VIEW_NEG_X = 1u << 1u;
+constexpr uint PANORAMIC_VIEW_POS_Y = 1u << 2u;
+constexpr uint PANORAMIC_VIEW_NEG_Y = 1u << 3u;
+constexpr uint PANORAMIC_VIEW_POS_Z = 1u << 4u;
+constexpr uint PANORAMIC_VIEW_NEG_Z = 1u << 5u;
+constexpr uint PANORAMIC_VIEW_ALL = (1u << 6u) - 1u;
+constexpr uint PANORAMIC_VIEW_SIDES = PANORAMIC_VIEW_POS_X | PANORAMIC_VIEW_NEG_X |
+                                      PANORAMIC_VIEW_POS_Y | PANORAMIC_VIEW_NEG_Y;
+
+static uint panoramic_fisheye_view_mask_get(const CameraData &cam)
+{
+  constexpr float angle_epsilon = 1.0e-4f;
+  const float half_fov = cam.fisheye_fov * 0.5f;
+  uint mask = PANORAMIC_VIEW_NEG_Z;
+  if (half_fov >= float(M_PI_4) - angle_epsilon) {
+    mask |= PANORAMIC_VIEW_SIDES;
+  }
+  if (half_fov >= 3.0f * float(M_PI_4) - angle_epsilon) {
+    mask |= PANORAMIC_VIEW_POS_Z;
+  }
+  return mask;
+}
+
+static uint panoramic_view_mask_get(const CameraData &cam)
+{
+  switch (cam.type) {
+    case CAMERA_PANO_EQUIANGULAR_CUBEMAP_FACE:
+      return PANORAMIC_VIEW_NEG_Z;
+    case CAMERA_PANO_EQUIDISTANT:
+    case CAMERA_PANO_EQUISOLID:
+    case CAMERA_PANO_FISHEYE_LENS_POLYNOMIAL:
+      return panoramic_fisheye_view_mask_get(cam);
+    case CAMERA_PANO_EQUIRECT:
+    case CAMERA_PANO_CENTRAL_CYLINDRICAL:
+    case CAMERA_PANO_MIRROR:
+      /* No face can be analytically excluded for these projections. */
+      return PANORAMIC_VIEW_ALL;
+    default:
+      return PANORAMIC_VIEW_NEG_Z;
+  }
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Camera
@@ -246,6 +290,8 @@ void Camera::sync()
   }
 
   data.panoramic_view_overscan = this->is_panoramic() ? 1.05f : 1.0f;
+  data.panoramic_view_mask = this->is_panoramic() ? panoramic_view_mask_get(data) :
+                                                    PANORAMIC_VIEW_NEG_Z;
   data_.initialized = true;
 
   update_bounds();

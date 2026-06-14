@@ -623,7 +623,6 @@ void Film::init_pass(PassSimple &pass, gpu::Shader *sh)
   pass.specialize_constant(sh, "normal_id", &data_.normal_id);
   pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
   pass.shader_set(sh);
-  pass.push_constant("panoramic_view_id", &panoramic_view_id_);
   /* For viewport, only previous motion is supported.
    * Still bind previous step to avoid undefined behavior. */
   eVelocityStep step_next = inst_.is_viewport() ? STEP_PREVIOUS : STEP_NEXT;
@@ -864,7 +863,7 @@ void Film::update_sample_table()
   }
 }
 
-void Film::accumulate(View &view, gpu::Texture *combined_final_tx, int panoramic_view_id)
+void Film::accumulate(View &view, gpu::Texture *combined_final_tx)
 {
   if (inst_.is_viewport()) {
     DefaultFramebufferList *dfbl = inst_.draw_ctx->viewport_framebuffer_list_get();
@@ -878,7 +877,6 @@ void Film::accumulate(View &view, gpu::Texture *combined_final_tx, int panoramic
   }
 
   combined_final_tx_ = combined_final_tx;
-  panoramic_view_id_ = panoramic_view_id;
 
   display_only_ = false;
   inst_.manager->submit(accumulate_ps_, view);
@@ -905,7 +903,6 @@ void Film::display()
   GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(data_.offset), UNPACK2(data_.extent));
 
   combined_final_tx_ = inst_.render_buffers.combined_tx;
-  panoramic_view_id_ = -1;
 
   draw::View &drw_view = draw::View::default_get();
 
