@@ -78,9 +78,68 @@ float max_element_from_3x3(float3x3 M)
       max(max(abs(M[1][1]), abs(M[1][2])), max(abs(M[2][0]), max(abs(M[2][1]), abs(M[2][2])))));
 }
 
+/* Compute Jacobi rotation for symmetric 2x2 matrix [[x, y], [y, z]]. */
+JacobiRotation construct_jacobi_rotation(float x, float y, float z)
+{
+  JacobiRotation j;
+
+  /* Check if off-diagonal is negligible; no rotation needed. */
+  float deno = 2.0f * abs(y);
+  if (deno < FLT_MIN) {
+    j.c = 1.0f;
+    j.s = 0.0f;
+    return j;
+  }
+
+  /* Stable construction of Jacobi rotation. */
+  float tau = (x - z) / deno;
+  float w = sqrt(tau * tau + 1.0f);
+  float t;
+  if (tau > 0.0f) {
+    t = 1.0f / (tau + w);
+  }
+  else {
+    t = 1.0f / (tau - w);
+  }
+
+  float sign_t = t > 0.0f ? 1.0f : -1.0f;
+  float n = 1.0f / sqrt(t * t + 1.0f);
+  j.s = -sign_t * sign(y) * abs(t) * n;
+  j.c = n;
+  return j;
+}
+
+/* Compute left and right Jacobi rotations for the 2x2 block at indices (p, q)
+ * (i.e. block obtained from intersecting lines p & q with columns p & q). */
+void jacobi_svd_2x2(
+    float3x3 matrix, int p, int q, out JacobiRotation j_left, out JacobiRotation j_right)
+{
+  float2x2 block;
+  block[0] = float2(matrix[p][p], matrix[p][q]);
+  block[1] = float2(matrix[q][p], matrix[q][q]);
+
+  float t = block[0][0] + block[1][1];
+  float d = block[0][1] - block[1][0];
+  JacobiRotation rot1;
+  if (abs(d) < FLT_MIN) {
+    rot1.c = 1.0f;
+    rot1.s = 0.0f;
+  }
+  else {
+    float u = t / d;
+    float tmp = sqrt(1.0f + u * u);
+    rot1.s = 1.0f / tmp;
+    rot1.c = u / tmp;
+  }
+
+  block = jacobi_rotate_left_2x2(block, rot1);
+  j_right = construct_jacobi_rotation(block[0][0], block[0][1], block[1][1]);
+  j_left = jacobi_multiply(rot1, jacobi_transpose(j_right));
+}
+
 void jacobi_svd_3x3(float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
 {
-  const float precision = 2.0f * FLT_EPSILON;
+  const float jacobi_precision = 2.0f * FLT_EPSILON;
   const float consider_as_zero = FLT_MIN;
 
   /* Normalize matrix for numerical stability. */
@@ -104,7 +163,7 @@ void jacobi_svd_3x3(float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
       for (int q = 0; q < p; q++) {
 
         /* Skip pairs already converged. */
-        float threshold = max(consider_as_zero, precision * max_diag_entry);
+        float threshold = max(consider_as_zero, jacobi_precision * max_diag_entry);
         if (abs(A[q][p]) > threshold || abs(A[p][q]) > threshold) {
           finished = false;
 
