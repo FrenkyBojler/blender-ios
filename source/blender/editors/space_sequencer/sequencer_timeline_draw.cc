@@ -957,7 +957,7 @@ static void draw_strip_icons(const TimelineDrawContext &ctx,
     }
 
     /* Draw icon in the title bar area. */
-    if ((ctx.sseq->flag & SEQ_SHOW_OVERLAY) != 0  && !strip.strip_is_too_small) {
+    if ((ctx.sseq->flag & SEQ_SHOW_OVERLAY) != 0 && !strip.strip_is_too_small) {
       uchar col[4];
       get_strip_text_color(strip, col);
 

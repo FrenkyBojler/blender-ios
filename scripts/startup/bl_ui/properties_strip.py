@@ -632,6 +632,7 @@ class STRIP_PT_movie_clip(StripButtonsPanel, Panel):
                 translate=False,
             )
 
+
 class STRIP_PT_image_id(StripButtonsPanel, Panel):
     bl_label = "Image ID"
 
@@ -652,6 +653,7 @@ class STRIP_PT_image_id(StripButtonsPanel, Panel):
 
         layout.active = not strip.mute
         layout.template_ID(strip, "image_id", open="image.open")
+
 
 class STRIP_PT_scene(StripButtonsPanel, Panel):
     bl_label = "Scene"
