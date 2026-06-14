@@ -31,8 +31,13 @@ class StripExporter {
   StripExporter(Strip *strip,
                 Scene *scene,
                 SerializableObject::Retainer<Track> &track,
-                int last_strip_end = 0)
-      : last_strip_end(last_strip_end), _strip(strip), _scene(scene), _track(track) {};
+                int last_strip_end = 0,
+                const char *filepath = nullptr)
+      : last_strip_end(last_strip_end),
+        _strip(strip),
+        _scene(scene),
+        _track(track),
+        _filepath(filepath) {};
 
   virtual ~StripExporter() {};
 
@@ -50,6 +55,7 @@ class StripExporter {
   Strip *_strip;
   Scene *_scene;
   SerializableObject::Retainer<Track> &_track;
+  const char *_filepath;
 };
 
 class MovieStripExporter : public StripExporter {
@@ -57,8 +63,9 @@ class MovieStripExporter : public StripExporter {
   MovieStripExporter(Strip *strip,
                      Scene *scene,
                      SerializableObject::Retainer<Track> &track,
-                     int last_strip_end = 0)
-      : StripExporter(strip, scene, track, last_strip_end) {};
+                     int last_strip_end = 0,
+                     const char *filepath = nullptr)
+      : StripExporter(strip, scene, track, last_strip_end, filepath) {};
 
   void export_strip(Main *bmain, const OTIOExportParams *export_params) override;
 };
@@ -83,6 +90,23 @@ class ImageStripExporter : public StripExporter {
       : StripExporter(strip, scene, track, last_strip_end) {};
 
   void export_strip(Main *bmain, const OTIOExportParams *export_params) override;
+};
+
+class RenderAsMovieExporter : public StripExporter {
+ public:
+  RenderAsMovieExporter(Strip *strip,
+                        Scene *scene,
+                        SerializableObject::Retainer<Track> &track,
+                        int last_strip_end = 0,
+                        const char *filepath = nullptr,
+                        const bool include_audio = false)
+      : StripExporter(strip, scene, track, last_strip_end, filepath),
+        _include_audio(include_audio) {};
+
+  void export_strip(Main *bmain, const OTIOExportParams *export_params) override;
+
+ private:
+  bool _include_audio = false;
 };
 
 }  // namespace io::otio

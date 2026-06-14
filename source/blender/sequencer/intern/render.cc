@@ -21,6 +21,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
+#include "BLI_string.h"
 #include "BLI_task.hh"
 
 #include "BKE_anim_data.hh"
@@ -32,6 +33,7 @@
 #include "BKE_main.hh"
 #include "BKE_mask.hh"
 #include "BKE_movieclip.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_scene_runtime.hh"
 
@@ -51,12 +53,14 @@
 
 #include "PRF_profile.hh"
 
+#include "MOV_enums.hh"
 #include "MOV_read.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
 #include "SEQ_channels.hh"
+#include "SEQ_edit.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_offscreen.hh"
@@ -1733,6 +1737,93 @@ SeqResult seq_render_strip(const RenderData *context,
   }
 
   return res;
+}
+
+void render_strip_full(Main *bmain, Scene *scene, Strip *strip, const char *filepath, bool audio)
+{
+  Editing *ed = editing_get(scene);
+  if (!ed) {
+    return;
+  }
+
+  /* Create a temporary copy of scene. */
+  Scene *scene_temp = BKE_scene_duplicate(
+      bmain, scene, SCE_COPY_FULL, static_cast<eDupli_ID_Flags>(0), 0);
+  Strip *strip_temp = nullptr;
+
+  Editing *ed_temp = editing_get(scene_temp);
+
+  /* Find the strip pointer in the new temporary scene. */
+  int index = 0;
+  for (Strip &st : ed->seqbase) {
+    if (&st == strip) {
+      break;
+    }
+    ++index;
+  }
+
+  int index2 = 0;
+  for (Strip &st : ed_temp->seqbase) {
+    if (index == index2) {
+      strip_temp = &st;
+    }
+    else {
+      edit_flag_for_removal(scene_temp, &ed_temp->seqbase, &st);
+    }
+    ++index2;
+  }
+
+  if (!strip_temp) {
+    BKE_id_free(bmain, scene_temp);
+    return;
+  }
+
+  /* Free and remove all the other strips. */
+  edit_remove_flagged_strips(scene_temp, &ed_temp->seqbase);
+
+  /* Set `RenderData` for video render. */
+  scene_temp->r.im_format.media_type = MEDIA_TYPE_VIDEO;
+  scene_temp->r.im_format.imtype = R_IMF_IMTYPE_FFMPEG;
+  scene_temp->r.ffcodecdata.type = FFMPEG_MPEG4;
+  scene_temp->r.ffcodecdata.codec_id_set(FFMPEG_CODEC_ID_H264);
+  scene_temp->r.ffcodecdata.audio_codec = audio ? FFMPEG_CODEC_ID_AAC : FFMPEG_CODEC_ID_NONE;
+  scene_temp->r.sfra = strip_temp->left_handle();
+  scene_temp->r.efra = strip_temp->right_handle(scene_temp);
+  scene_temp->r.frame_step = 1;
+  BLI_strncpy(scene_temp->r.pic, filepath, FILE_MAX);
+
+  ViewLayer *active_layer = BKE_view_layer_default_render(scene_temp);
+  RenderEngineType *re_type = RE_engines_find(scene_temp->r.engine);
+
+  if (re_type->render == nullptr) {
+    BKE_id_free(bmain, scene_temp);
+    return;
+  }
+
+  Render *re = RE_NewSceneRender(scene_temp);
+
+  G.is_break = false;
+
+  RE_draw_lock_cb(re, nullptr, nullptr);
+  RE_test_break_cb(re, nullptr, [](void * /*rjv*/) { return G.is_break; });
+
+  ReportList *reports_temp = MEM_new<ReportList>("Temporary Report List");
+  RE_SetReports(re, reports_temp);
+
+  RE_RenderAnim(re,
+                bmain,
+                scene_temp,
+                active_layer,
+                nullptr,
+                scene_temp->r.sfra,
+                scene_temp->r.efra,
+                scene_temp->r.frame_step);
+
+  RE_SetReports(re, nullptr);
+  /* Deallocate stuff. */
+  RE_FreeRender(re);
+  MEM_delete(reports_temp);
+  BKE_id_free(bmain, scene_temp);
 }
 
 static bool seq_must_swap_input_in_blend_mode(Strip *strip)

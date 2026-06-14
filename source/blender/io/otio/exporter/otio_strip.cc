@@ -19,6 +19,8 @@
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
+#include "SEQ_render.hh"
+
 #include "opentimelineio/anyDictionary.h"
 #include "opentimelineio/clip.h"
 #include "opentimelineio/externalReference.h"
@@ -78,12 +80,22 @@ static TimeRange get_strip_source_range(const Strip *strip,
 }
 
 static SerializableObject::Retainer<ExternalReference> create_external_reference(
-    const Main *bmain, const Strip *strip, const Scene *scene, float media_fps)
+    const Main *bmain,
+    const Strip *strip,
+    const Scene *scene,
+    float media_fps,
+    const char *filepath = nullptr)
 {
   char media_filename[FILE_MAX];
   char media_filepath[FILE_MAX];
-  get_media_filename(strip, media_filename);
-  get_media_filepath(bmain, strip, media_filepath);
+  if (!filepath) {
+    get_media_filename(strip, media_filename);
+    get_media_filepath(bmain, strip, media_filepath);
+  }
+  else {
+    BLI_strncpy(media_filepath, filepath, sizeof(media_filepath));
+    BLI_path_split_file_part(filepath, media_filename, sizeof(media_filename));
+  }
 
   TimeRange media_available_range = get_media_available_range(strip, scene, media_fps);
 
@@ -323,7 +335,7 @@ void MovieStripExporter::export_strip(Main *bmain, const OTIOExportParams * /*ex
 
   TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
   SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
-      bmain, _strip, _scene, media_fps);
+      bmain, _strip, _scene, media_fps, _filepath);
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(_strip->name + 2, external_reference, strip_source_range));
@@ -455,6 +467,29 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
 
     _track->append_child(clip);
   }
+}
+
+void RenderAsMovieExporter::export_strip(Main *bmain, const OTIOExportParams *export_params)
+{
+  if (!_filepath) {
+    export_with_missing_reference();
+    return;
+  }
+
+  char render_filename[FILE_MAX];
+  BLI_strncpy(render_filename, _strip->name + 2, sizeof(render_filename));
+  BLI_strncat(render_filename, ".mp4", sizeof(render_filename));
+
+  char render_filepath[FILE_MAX];
+  BLI_path_split_dir_part(_filepath, render_filepath, sizeof(render_filepath));
+  BLI_path_append(render_filepath, sizeof(render_filepath), render_filename);
+
+  seq::render_strip_full(bmain, _scene, _strip, render_filepath, false);
+
+  auto exporter = MovieStripExporter(_strip, _scene, _track, last_strip_end, render_filepath);
+  exporter.export_strip(bmain, export_params);
+
+  UNUSED_VARS(_include_audio);
 }
 
 }  // namespace blender::io::otio
