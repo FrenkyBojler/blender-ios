@@ -39,6 +39,7 @@
 #include "SEQ_offscreen.hh"
 #include "SEQ_preview_cache.hh"
 #include "SEQ_retiming.hh"
+#include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
@@ -298,6 +299,15 @@ static void sequencer_listener(const wmSpaceTypeListenerParams *params)
           break;
       }
       break;
+    case NC_IMAGE:
+      if(wmn->action == NA_PAINTING){
+        return;
+      }
+      
+      if (wmn->reference) {
+        Image *ima = static_cast<Image *>(wmn->reference);
+        seq::relations_invalidate_image_id_strips(params->bmain, ima);
+      }
     case NC_WINDOW:
     case NC_SPACE:
       if (wmn->data == ND_SPACE_SEQUENCER) {

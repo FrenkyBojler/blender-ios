@@ -262,7 +262,7 @@ void relations_invalidate_movieclip_strips(Main *bmain, MovieClip *clip_target)
 }
 
 static void invalidate_image_id_strips(Scene *scene,
-                                       Image *image_target,
+                                       const Image *image_target,
                                        ListBaseT<Strip> *seqbase)
 {
   for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next)
@@ -277,7 +277,7 @@ static void invalidate_image_id_strips(Scene *scene,
   }
 }
 
-void relations_invalidate_image_id_strips(Main *bmain, Image *image_target)
+void relations_invalidate_image_id_strips(const Main *bmain, Image *image_target)
 {
   for (Scene *scene = static_cast<Scene *>(bmain->scenes.first); scene != nullptr;
        scene = static_cast<Scene *>(scene->id.next))

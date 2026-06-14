@@ -1226,6 +1226,8 @@ static ImBuf *seq_get_image_id_strip(const RenderData *context, Strip *strip, fl
     return nullptr;
   }
 
+  PRF_scope_with_name("SeqRenderImageId", ProfileCategory::Draw);
+
   ImageUser user = {};
   user.framenr = int(frame_index) + strip->anim_startofs + 1;
 
@@ -1708,15 +1710,18 @@ static SeqResult do_render_strip_uncached(const RenderData *context,
     }
   }
   else if (strip->type == STRIP_TYPE_IMAGE_ID) {
-    ibuf = seq_get_image_id_strip(context, strip, round_fl_to_int(frame_index));
+    out.image = seq_get_image_id_strip(
+      context, strip, round_fl_to_int(frame_index));
+  if (out.image && !out.image->can_contain_alpha()) {
+    out.is_opaque_before_transform = true;
+  }
 
-    // TODO: GD;; Not sure if needed
-    if (ibuf) {
-      /* duplicate frame so cache wouldn't be confused by sequencer's stuff */
-      ImBuf *i = IMB_dupImBuf(ibuf);
-      IMB_freeImBuf(ibuf);
-      ibuf = i;
-    }
+  if (out.image) {
+    /* duplicate frame so movie cache wouldn't be confused by sequencer's stuff */
+    ImBuf *i = IMB_dupImBuf(out.image);
+    IMB_freeImBuf(out.image);
+    out.image = i;
+  }
   }
   else if (strip->type == STRIP_TYPE_MASK) {
     out.image = seq_render_mask_strip(context, strip, frame_index);
