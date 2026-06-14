@@ -7503,7 +7503,10 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
     dst_face_offsets[n_surv_faces + nf] = n_surv_corners + new_face_offs[nf];
   }
   /* Sentinel at the end (Blender stores offsets as face_offsets[face_num] = corners_num). */
-  dst_face_offsets[n_surv_faces + n_new_faces] = n_surv_corners + new_face_offs[n_new_faces];
+
+  if (!dst_face_offsets.is_empty()) {
+    dst_face_offsets[n_surv_faces + n_new_faces] = n_surv_corners + new_face_offs[n_new_faces];
+  }
 
   const OffsetIndices<int> dst_faces(dst_face_offsets);
 
