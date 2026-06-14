@@ -187,6 +187,9 @@ static bool parse_track(const Span<uint8_t> data,
       if (status < 0xf0) {
         running_status = status;
       }
+      else {
+        running_status = 0;
+      }
     }
 
     if (status == 0xff) {
@@ -377,6 +380,7 @@ std::unique_ptr<MidiFile> MidiFile::parse(const Span<uint8_t> data, std::string 
       });
 
   Vector<TempoPoint> tempo_points;
+  tempo_points.reserve(tempo_events.size() + 1);
   tempo_points.append({0, 0.0, 500'000});
   uint64_t previous_tick = 0;
   double previous_time = 0.0;
@@ -436,6 +440,7 @@ std::unique_ptr<MidiFile> MidiFile::parse(const Span<uint8_t> data, std::string 
     impl->memory_usage += int64_t(state_events.capacity()) * sizeof(NoteStateEvent);
     impl->events_by_note.add(item.key, std::move(state_events));
   }
+  impl->memory_usage += impl->events_by_note.size_in_bytes();
 
   return std::unique_ptr<MidiFile>(new MidiFile(std::move(impl)));
 }
@@ -443,13 +448,14 @@ std::unique_ptr<MidiFile> MidiFile::parse(const Span<uint8_t> data, std::string 
 std::unique_ptr<MidiFile> MidiFile::load(const StringRefNull path, std::string &r_error)
 {
   size_t size;
-  uint8_t *data = static_cast<uint8_t *>(BLI_file_read_binary_as_mem(path.c_str(), 0, &size));
+  void *data = BLI_file_read_binary_as_mem(path.c_str(), 0, &size);
   if (!data) {
     r_error = "Unable to read MIDI file";
     return nullptr;
   }
-  BLI_SCOPED_DEFER([&]() { MEM_delete(data); });
-  return MidiFile::parse(Span<uint8_t>(data, int64_t(size)), r_error);
+  BLI_SCOPED_DEFER([&]() { MEM_delete_void(data); });
+  return MidiFile::parse(Span<uint8_t>(static_cast<const uint8_t *>(data), int64_t(size)),
+                         r_error);
 }
 
 NoteSample MidiFile::sample(const double time, const int channel, const int note) const

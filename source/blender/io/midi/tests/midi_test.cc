@@ -51,22 +51,8 @@ static Vector<uint8_t> midi_file(const uint16_t format,
 
 TEST(midi, NoteStateAndRunningStatus)
 {
-  const Vector<uint8_t> track = {0x00,
-                                 0x90,
-                                 0x3c,
-                                 0x40,
-                                 0x00,
-                                 0xff,
-                                 0x01,
-                                 0x00,
-                                 0x81,
-                                 0x70,
-                                 0x3c,
-                                 0x00,
-                                 0x00,
-                                 0xff,
-                                 0x2f,
-                                 0x00};
+  const Vector<uint8_t> track = {
+      0x00, 0x90, 0x3c, 0x40, 0x81, 0x70, 0x3c, 0x00, 0x00, 0xff, 0x2f, 0x00};
   const Vector<Vector<uint8_t>> tracks = {track};
   const Vector<uint8_t> data = midi_file(0, 480, tracks);
 
@@ -148,6 +134,7 @@ TEST(midi, SkipsSystemExclusiveEvents)
                                  0xf7,
                                  0x81,
                                  0x70,
+                                 0x80,
                                  0x3c,
                                  0x00,
                                  0x00,
@@ -162,6 +149,27 @@ TEST(midi, SkipsSystemExclusiveEvents)
   ASSERT_NE(midi, nullptr) << error;
   EXPECT_TRUE(midi->sample(0.125, 0, 60).is_playing);
   EXPECT_FALSE(midi->sample(0.25, 0, 60).is_playing);
+}
+
+TEST(midi, SystemEventsClearRunningStatus)
+{
+  const Vector<Vector<uint8_t>> system_events = {
+      {0xff, 0x01, 0x00},
+      {0xf0, 0x01, 0xf7},
+      {0xf7, 0x00},
+  };
+
+  for (const Vector<uint8_t> &system_event : system_events) {
+    Vector<uint8_t> track = {0x00, 0x90, 0x3c, 0x40, 0x00};
+    track.extend(system_event);
+    track.extend({0x00, 0x3c, 0x00});
+    const Vector<Vector<uint8_t>> tracks = {track};
+    const Vector<uint8_t> data = midi_file(0, 480, tracks);
+
+    std::string error;
+    EXPECT_EQ(MidiFile::parse(data, error), nullptr);
+    EXPECT_EQ(error, "MIDI running status has no preceding channel event");
+  }
 }
 
 TEST(midi, RejectsMalformedAndUnsupportedFiles)
