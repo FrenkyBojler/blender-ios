@@ -8,7 +8,7 @@
 
 #include "BKE_node_runtime.hh"
 
-#include "BLI_profile.hh"
+#include "PRF_profile.hh"
 
 #include "COM_algorithm_parallel_reduction.hh"
 #include "COM_ocio_color_space_conversion_shader.hh"
@@ -41,7 +41,7 @@ compositor::ResultPrecision CompositorContext::get_precision() const
 
 void CompositorContext::create_result_from_input(compositor::Result &result, ImBuf &input)
 {
-  BLI_profile_scope_with_name("SeqCreateCompInput", ProfileCategory::Draw);
+  PRF_scope_with_name("SeqCreateCompInput", ProfileCategory::Draw);
   const bool gpu = this->use_gpu();
   const int2 size = int2(input.x, input.y);
   if (!gpu) {
@@ -125,6 +125,34 @@ void CompositorContext::create_result_from_input(compositor::Result &result, ImB
   }
 }
 
+void CompositorContext::write_viewer_impl(const compositor::Result &result, ImBuf &image)
+{
+  using namespace compositor;
+
+  /* Realize the transforms if needed. */
+  const InputDescriptor input_descriptor = {ResultType::Color,
+                                            InputRealizationMode::OperationDomain};
+  SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+      *this, result, input_descriptor, result.domain());
+
+  if (realization_operation) {
+    Result realize_input = this->create_result(ResultType::Color, result.precision());
+    realize_input.share_data(result);
+    realization_operation->map_input_to_result(&realize_input);
+    realization_operation->evaluate();
+
+    Result &realized_viewer_result = realization_operation->get_result();
+    this->write_output(realized_viewer_result, image);
+    realized_viewer_result.release();
+    viewer_was_written_ = true;
+    delete realization_operation;
+    return;
+  }
+
+  this->write_output(result, image);
+  viewer_was_written_ = true;
+}
+
 void CompositorContext::write_output(const compositor::Result &result, ImBuf &image)
 {
   /* Do not write the output if the viewer output was already written. */
@@ -132,7 +160,7 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
     return;
   }
 
-  BLI_profile_scope_with_name("SeqCompWriteOutput", ProfileCategory::Draw);
+  PRF_scope_with_name("SeqCompWriteOutput", ProfileCategory::Draw);
 
   if (result.is_single_value()) {
     compositor::Color color = result.get_single_value<compositor::Color>();
@@ -156,7 +184,7 @@ void CompositorContext::write_output(const compositor::Result &result, ImBuf &im
   image.color_mode = min_color.a < 1.0f ? ImColorMode::RGBA : ImColorMode::RGB;
 
   if (this->use_gpu()) {
-    BLI_profile_scope_with_name("SeqCompositorGPUReadback", ProfileCategory::Draw);
+    PRF_scope_with_name("SeqCompositorGPUReadback", ProfileCategory::Draw);
     GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
     IMB_alloc_float_pixels(&image, 4, false);
     GPU_texture_read(result.gpu_texture(), GPU_DATA_FLOAT, 0, image.float_data_for_write());

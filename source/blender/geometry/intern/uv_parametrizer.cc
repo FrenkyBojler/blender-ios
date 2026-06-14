@@ -752,7 +752,7 @@ static PVert *p_vert_add(
    * Note that values within the calculation may _become_ non-finite,
    * so the rest of the code still needs to take this possibility into account. */
   for (int i = 0; i < 3; i++) {
-    if (UNLIKELY(!isfinite(v->co[i]))) {
+    if (!isfinite(v->co[i])) [[unlikely]] {
       v->co[i] = 0.0f;
     }
   }
@@ -3262,7 +3262,7 @@ static bool p_chart_lscm_solve(ParamHandle *handle, PChart *chart)
     double sina2 = sin(a2);
     double sina3 = sin(a3);
 
-    const double sinmax = max_ddd(sina1, sina2, sina3);
+    const double sinmax = std::max({sina1, sina2, sina3});
 
     /* Shift vertices to find most stable order. */
     if (sina3 != sinmax) {
@@ -3917,7 +3917,7 @@ static void p_add_ngon(ParamHandle *handle,
     add_newell_cross_v3_v3v3(normal, co_prev, co_curr);
     co_prev = co_curr;
   }
-  if (UNLIKELY(normalize_v3(normal) == 0.0f)) {
+  if (normalize_v3(normal) == 0.0f) [[unlikely]] {
     normal[2] = 1.0f;
   }
 

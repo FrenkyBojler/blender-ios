@@ -119,9 +119,9 @@ principled_bsdf_emission(KernelGlobals kg,
   if (sheen_weight > CLOSURE_WEIGHT_CUTOFF) {
     const float3 sheen_tint = max(stack_load(stack, data.sheen_tint), zero_float3());
     const float sheen_roughness = saturatef(stack_load(stack, data.sheen_roughness));
-
-    ccl_private SheenBsdf *bsdf = (ccl_private SheenBsdf *)bsdf_alloc(
-        sd, sizeof(SheenBsdf), sheen_weight * rgb_to_spectrum(sheen_tint) * weight);
+    SheenBsdf sheen;
+    ccl_private SheenBsdf *bsdf = bsdf_alloc_maybe_emission(
+        sd, &sheen, path_flag, sheen_weight * rgb_to_spectrum(sheen_tint) * weight);
 
     if (bsdf) {
       const float3 coat_normal = safe_normalize_fallback(
@@ -153,8 +153,9 @@ principled_bsdf_emission(KernelGlobals kg,
         stack_load_float3_default(stack, data.coat_normal_offset, N), sd->N);
     const float3 valid_coat_normal = maybe_ensure_valid_specular_reflection(sd, coat_normal);
     if (reflective_caustics) {
-      ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)bsdf_alloc(
-          sd, sizeof(MicrofacetBsdf), coat_weight * weight);
+      MicrofacetBsdf coat;
+      ccl_private MicrofacetBsdf *bsdf = bsdf_alloc_maybe_emission(
+          sd, &coat, path_flag, coat_weight * weight);
 
       if (bsdf) {
         bsdf->N = valid_coat_normal;
@@ -205,7 +206,7 @@ principled_bsdf_emission(KernelGlobals kg,
   const Spectrum emission = rgb_to_spectrum(stack_load(stack, data.emission_color)) *
                             stack_load(stack, data.emission_strength);
   if (!is_zero(emission)) {
-    emission_setup(sd, rgb_to_spectrum(emission) * weight);
+    emission_setup(sd, emission * weight);
   }
 
   return weight;
@@ -362,9 +363,7 @@ ccl_device
       const float transmission_weight = saturatef(stack_load(stack, data.transmission_weight));
       if (transmission_weight > CLOSURE_WEIGHT_CUTOFF) {
         if (reflective_caustics || refractive_caustics) {
-          const bool backfacing = !thin_wall && (sd->flag & SD_BACKFACING);
-          const FresnelThinFilm thinfilm = {thinfilm_thickness,
-                                            backfacing ? thinfilm_ior / ior : thinfilm_ior};
+          FresnelThinFilm thinfilm = {thinfilm_thickness, thinfilm_ior};
 
           if (thin_wall) {
             Spectrum reflectance, transmittance;
@@ -380,7 +379,9 @@ ccl_device
                                   ior,
                                   thinfilm,
                                   &reflectance,
-                                  &transmittance);
+                                  &transmittance,
+                                  ray_visibility,
+                                  path_flag);
           }
           else {
             ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)bsdf_alloc(
@@ -391,11 +392,15 @@ ccl_device
                                     nullptr;
 
             if (bsdf && fresnel) {
+              const bool backfacing = (sd->flag & SD_BACKFACING);
               bsdf->N = valid_reflection_N;
               bsdf->T = zero_float3();
 
               bsdf->alpha_x = bsdf->alpha_y = sqr(roughness);
               bsdf->ior = backfacing ? 1.0f / ior : ior;
+              if (backfacing) {
+                adjust_thin_film_ior_at_backface(thinfilm.ior, bsdf->ior);
+              }
 
               *fresnel = generalized_schlick_setup(ior,
                                                    reflective_caustics,
