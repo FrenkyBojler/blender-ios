@@ -314,12 +314,12 @@ static float transition_fader_calc(const Scene *scene, const Strip *strip, float
   /* Compositor with no inputs can have strip->len not be updated,
    * since most of existing editing code assumes no-input effects never need the length.
    * So for the fader, just calculated it here directly. */
-  if (strip->type == STRIP_TYPE_COMPOSITOR) {
-    fac /= strip->enddisp - strip->startdisp;
-  }
-  else {
-    fac /= strip->length(scene);
-  }
+  // if (strip->type == STRIP_TYPE_COMPOSITOR) {
+  fac /= strip->enddisp - strip->startdisp;
+  // }
+  // else {
+  //   fac /= strip->length(scene);
+  // }
   fac = math::clamp(fac, 0.0f, 1.0f);
   return fac;
 }
