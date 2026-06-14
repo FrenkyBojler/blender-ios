@@ -28,7 +28,7 @@ float2x2 jacobi_rotate_left_2x2(float2x2 M, JacobiRotation j)
 }
 
 /* Apply left Jacobi rotation on 3x3 matrix : M = J * M.
- * Rotates rows p and q (0-based, matching Eigen). */
+ * Rotates rows p and q. */
 float3x3 jacobi_rotate_left_3x3(float3x3 M, int p, int q, JacobiRotation j)
 {
   float3 row_p = float3(M[0][p], M[1][p], M[2][p]);
@@ -45,7 +45,7 @@ float3x3 jacobi_rotate_left_3x3(float3x3 M, int p, int q, JacobiRotation j)
 }
 
 /* Apply right Jacobi rotation on 3x3 matrix : M = M * J.
- * Rotates columns p and q (0-based, matching Eigen). */
+ * Rotates columns p and q. */
 float3x3 jacobi_rotate_right_3x3(float3x3 M, int p, int q, JacobiRotation j)
 {
   float3 col_p = M[p];
@@ -91,7 +91,6 @@ JacobiRotation construct_jacobi_rotation(float x, float y, float z)
     return j;
   }
 
-  /* Stable construction of Jacobi rotation. */
   float tau = (x - z) / deno;
   float w = sqrt(tau * tau + 1.0f);
   float t;
