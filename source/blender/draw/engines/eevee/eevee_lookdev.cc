@@ -21,6 +21,8 @@
 
 #include "GPU_material.hh"
 
+#include "DRW_engine.hh"
+
 #include "draw_cache.hh"
 #include "draw_view_data.hh"
 
@@ -429,10 +431,11 @@ void LookdevModule::sync_display()
   PassSimple &pass = display_ps_;
 
   const float2 viewport_size = inst_.draw_ctx->viewport_size_get();
-  const DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS |
-                         DRW_STATE_BLEND_ALPHA;
+  const DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_WRITE_STENCIL |
+                         DRW_STATE_DEPTH_ALWAYS | DRW_STATE_STENCIL_ALWAYS | DRW_STATE_BLEND_ALPHA;
   pass.init();
   pass.state_set(state);
+  pass.state_stencil(0xFF, DRW_STENCIL_REFERENCE_LOOKDEV_SPHERE, 0xFF);
   pass.shader_set(inst_.shaders.static_shader_get(LOOKDEV_DISPLAY));
   pass.push_constant("viewportSize", viewport_size);
   pass.push_constant("invertedViewportSize", 1.0f / viewport_size);
