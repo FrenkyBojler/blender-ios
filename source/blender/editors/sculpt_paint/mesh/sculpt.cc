@@ -2662,13 +2662,6 @@ bool node_in_box(const float4x4 &mat,
   return true;
 }
 
-/**
- * Checks whether the node's bounding box overlaps with the region affected by the brush.
- * Clay Strips affects only vertices below the brush plane. The brush-local coordinate
- * system is oriented so that vertices below the plane have positive local z-coordinates.
- * Therefore, we only need to check if the node intersects the [-1,1] x [-1,1] x [0,1] volume in
- * local space.
- */
 bool node_in_box_positive_z(const Bounds<float3> &bounds, const float4x4 &mat)
 {
   return node_in_box(mat, bounds, float3(0.0f, 0.0f, 0.5f), float3(1.0f, 1.0f, 0.5f));
