@@ -56,12 +56,11 @@ void ShadingView::sync()
   /* Create views. */
   float4x4 viewmat, winmat;
   if (inst_.camera.is_panoramic()) {
-    /* TODO(@fclem) Over-scans. */
-    /* For now a mandatory 5% over-scan for DoF. */
-    float side = cam.clip_near * cam.panoramic_view_overscan;
     float near = cam.clip_near;
     float far = cam.clip_far;
-    winmat = math::projection::perspective(-side, side, -side, side, near, far);
+    const PanoramicFaceRect rect = panoramic_face_rect_get(cam, face_id_);
+    winmat = math::projection::perspective(
+        rect.min.x * near, rect.max.x * near, rect.min.y * near, rect.max.y * near, near, far);
     viewmat = face_matrix_ * cam.viewmat;
   }
   else {
