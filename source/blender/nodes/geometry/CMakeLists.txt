@@ -17,6 +17,7 @@ set(INC
   ../../modifiers
   ../../io/common
   ../../io/csv
+  ../../io/midi
   ../../io/ply
   ../../io/stl
   ../../io/wavefront_obj
@@ -233,6 +234,7 @@ set(SRC
   nodes/node_geo_sample_grid.cc
   nodes/node_geo_sample_grid_index.cc
   nodes/node_geo_sample_index.cc
+  nodes/node_geo_sample_midi_note.cc
   nodes/node_geo_sample_nearest.cc
   nodes/node_geo_sample_nearest_surface.cc
   nodes/node_geo_sample_sound_frequencies.cc
@@ -344,6 +346,7 @@ set(LIB
   bf_compositor
   bf_io_common
   bf_io_csv
+  bf_io_midi
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
