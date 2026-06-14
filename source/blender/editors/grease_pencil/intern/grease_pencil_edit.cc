@@ -2211,6 +2211,23 @@ static void remove_unused_materials(Main *bmain, Object *object)
   object->actcol = actcol;
 }
 
+static void copy_materials_to_object(Main &bmain, Object &object_src, Object *object_dst)
+{
+  Material ***matar_obdata = BKE_object_material_array_p(&object_src);
+  Material ***matar_object = &object_src.mat;
+
+  Material **matar = MEM_new_array_zeroed<Material *>(size_t(object_src.totcol), __func__);
+  for (int i = object_src.totcol; i--;) {
+    matar[i] = object_src.matbits[i] ? (*matar_object)[i] : (*matar_obdata)[i];
+  }
+
+  /* Add object materials to target object. */
+  BKE_object_material_array_assign(
+      &bmain, object_dst, &matar, *BKE_object_material_len_p(&object_src), false);
+
+  MEM_delete(matar);
+}
+
 static Object *duplicate_grease_pencil_object(Main *bmain,
                                               Scene *scene,
                                               ViewLayer *view_layer,
@@ -2314,12 +2331,7 @@ static bool grease_pencil_separate_selected(bContext &C,
       }
     }
 
-    /* Add object materials to target object. */
-    BKE_object_material_array_assign(&bmain,
-                                     object_dst,
-                                     BKE_object_material_array_p(&object_src),
-                                     *BKE_object_material_len_p(&object_src),
-                                     false);
+    copy_materials_to_object(bmain, object_src, object_dst);
 
     remove_unused_materials(&bmain, object_dst);
     DEG_id_tag_update(&grease_pencil_dst.id, ID_RECALC_GEOMETRY);
@@ -2366,12 +2378,7 @@ static bool grease_pencil_separate_layer(bContext &C,
         continue;
       }
 
-      /* Add object materials. */
-      BKE_object_material_array_assign(&bmain,
-                                       object_dst,
-                                       BKE_object_material_array_p(&object_src),
-                                       *BKE_object_material_len_p(&object_src),
-                                       false);
+      copy_materials_to_object(bmain, object_src, object_dst);
 
       /* Insert Keyframe at current frame/layer. */
       Drawing *drawing_dst = grease_pencil_dst.insert_frame(layer_dst, info.frame_number);
@@ -2429,12 +2436,7 @@ static bool grease_pencil_separate_material(bContext &C,
         &bmain, &scene, &view_layer, &base_prev, grease_pencil_src);
     GreasePencil &grease_pencil_dst = *id_cast<GreasePencil *>(object_dst->data);
 
-    /* Add object materials. */
-    BKE_object_material_array_assign(&bmain,
-                                     object_dst,
-                                     BKE_object_material_array_p(&object_src),
-                                     *BKE_object_material_len_p(&object_src),
-                                     false);
+    copy_materials_to_object(bmain, object_src, object_dst);
 
     /* Iterate through all the drawings at current scene frame. */
     const Vector<MutableDrawingInfo> drawings_src = retrieve_editable_drawings(scene,
