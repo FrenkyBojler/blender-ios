@@ -5,6 +5,7 @@
 
 add_subdirectory(common)
 add_subdirectory(csv)
+add_subdirectory(midi)
 
 if(WITH_IO_WAVEFRONT_OBJ)
   add_subdirectory(wavefront_obj)
