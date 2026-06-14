@@ -93,8 +93,6 @@ struct SnapObjectContext {
 
     bool has_occlusion_plane;
     bool has_occlusion_plane_in_front;
-    bool is_iterating;
-    eSnapMode allowed_mask;
   } runtime;
 
   /* Output. */

@@ -316,9 +316,6 @@ void SnapData::register_result(SnapObjectContext *sctx,
   sctx->ret.ob = ob_eval;
   sctx->ret.data = id_eval;
   sctx->ret.dist_px_sq = r_nearest->dist_sq;
-  if (sctx->runtime.is_iterating) {
-    sctx->ret.allowed_mask = sctx->runtime.allowed_mask;
-  }
 
   /* Global space. */
   sctx->ret.loc = math::transform_point(obmat, sctx->ret.loc);
@@ -355,9 +352,6 @@ void SnapData::register_result_raycast(SnapObjectContext *sctx,
     sctx->ret.obmat = obmat;
     sctx->ret.ob = ob_eval;
     sctx->ret.data = id_eval;
-    if (sctx->runtime.is_iterating) {
-      sctx->ret.allowed_mask = sctx->runtime.allowed_mask;
-    }
     sctx->ret.ray_depth_max = std::min(hit->dist, sctx->ret.ray_depth_max);
 
     if (is_in_front) {
@@ -501,7 +495,6 @@ static eSnapMode snap_object_allowed_modes(const SnapObjectContext *sctx,
  */
 static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback sob_callback)
 {
-  sctx->runtime.is_iterating = true;
   eSnapMode ret = SCE_SNAP_TO_NONE;
   eSnapMode tmp;
 
@@ -513,7 +506,6 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   DupliList duplilist;
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     const eSnapMode allowed_mask = snap_object_allowed_modes(sctx, base_act, &base);
-    sctx->runtime.allowed_mask = allowed_mask;
     const eSnapMode prev_snap_to_flag = sctx->runtime.snap_to_flag;
     sctx->runtime.snap_to_flag &= allowed_mask;
     if (sctx->runtime.snap_to_flag == SCE_SNAP_TO_NONE) {
@@ -533,6 +525,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
             SCE_SNAP_TO_NONE)
         {
           ret = tmp;
+          sctx->ret.allowed_mask = allowed_mask;
         }
       }
       duplilist.clear();
@@ -545,11 +538,11 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
         SCE_SNAP_TO_NONE)
     {
       ret = tmp;
+      sctx->ret.allowed_mask = allowed_mask;
     }
 
     sctx->runtime.snap_to_flag = prev_snap_to_flag;
   }
-  sctx->runtime.is_iterating = false;
   return ret;
 }
 
@@ -1245,8 +1238,6 @@ static bool snap_object_context_runtime_init(SnapObjectContext *sctx,
   sctx->ret.data = nullptr;
   sctx->ret.dist_px_sq = dist_px_sq;
   sctx->ret.allowed_mask = eSnapMode(short(0xffff));
-  sctx->runtime.allowed_mask = eSnapMode(short(0xffff));
-  sctx->runtime.is_iterating = false;
 
   return true;
 }
