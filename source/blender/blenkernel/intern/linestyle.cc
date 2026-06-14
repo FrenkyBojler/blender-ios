@@ -87,22 +87,22 @@ static void linestyle_copy_data(Main *bmain,
                        flag_embedded_id_data);
   }
 
-  BLI_listbase_clear(&linestyle_dst->color_modifiers);
+  linestyle_dst->color_modifiers.clear_no_delete();
   for (LineStyleModifier &linestyle_modifier : linestyle_src->color_modifiers) {
     BKE_linestyle_color_modifier_copy(linestyle_dst, &linestyle_modifier, flag_subdata);
   }
 
-  BLI_listbase_clear(&linestyle_dst->alpha_modifiers);
+  linestyle_dst->alpha_modifiers.clear_no_delete();
   for (LineStyleModifier &linestyle_modifier : linestyle_src->alpha_modifiers) {
     BKE_linestyle_alpha_modifier_copy(linestyle_dst, &linestyle_modifier, flag_subdata);
   }
 
-  BLI_listbase_clear(&linestyle_dst->thickness_modifiers);
+  linestyle_dst->thickness_modifiers.clear_no_delete();
   for (LineStyleModifier &linestyle_modifier : linestyle_src->thickness_modifiers) {
     BKE_linestyle_thickness_modifier_copy(linestyle_dst, &linestyle_modifier, flag_subdata);
   }
 
-  BLI_listbase_clear(&linestyle_dst->geometry_modifiers);
+  linestyle_dst->geometry_modifiers.clear_no_delete();
   for (LineStyleModifier &linestyle_modifier : linestyle_src->geometry_modifiers) {
     BKE_linestyle_geometry_modifier_copy(linestyle_dst, &linestyle_modifier, flag_subdata);
   }
@@ -832,7 +832,7 @@ LineStyleModifier *BKE_linestyle_color_modifier_add(FreestyleLineStyle *linestyl
   LineStyleModifier *m;
 
   m = alloc_color_modifier(name, type);
-  if (UNLIKELY(m == nullptr)) {
+  if (m == nullptr) [[unlikely]] {
     return nullptr;
   }
   m->blend = LS_VALUE_BLEND;
@@ -898,7 +898,7 @@ LineStyleModifier *BKE_linestyle_color_modifier_copy(FreestyleLineStyle *linesty
   LineStyleModifier *new_m;
 
   new_m = alloc_color_modifier(m->name, m->type);
-  if (UNLIKELY(new_m == nullptr)) {
+  if (new_m == nullptr) [[unlikely]] {
     return nullptr;
   }
   new_m->influence = m->influence;
@@ -2010,7 +2010,7 @@ void BKE_linestyle_modifier_list_color_ramps(FreestyleLineStyle *linestyle,
   ColorBand *color_ramp;
   LinkData *link;
 
-  BLI_listbase_clear(listbase);
+  listbase->clear_no_delete();
 
   for (LineStyleModifier &m : linestyle->color_modifiers) {
     switch (m.type) {

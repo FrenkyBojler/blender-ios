@@ -390,7 +390,7 @@ static void snode_autoconnect(bContext &C,
     bNode *node_fr = sorted_nodes[i];
     bNode *node_to = sorted_nodes[i + 1];
     /* Corner case: input/output node aligned the wrong way around (#47729). */
-    if (BLI_listbase_is_empty(&node_to->inputs) || BLI_listbase_is_empty(&node_fr->outputs)) {
+    if (node_to->inputs.is_empty() || node_fr->outputs.is_empty()) {
       std::swap(node_fr, node_to);
     }
 
@@ -2613,14 +2613,10 @@ static bool node_can_be_inserted_on_link(bNodeTree &tree, bNode &node, const bNo
   if (!tree.typeinfo->validate_link) {
     return true;
   }
-  if (!tree.typeinfo->validate_link(eNodeSocketDatatype(link.fromsock->type),
-                                    eNodeSocketDatatype(main_input->type)))
-  {
+  if (!tree.typeinfo->validate_link(link.fromsock->type, main_input->type)) {
     return false;
   }
-  if (!tree.typeinfo->validate_link(eNodeSocketDatatype(main_output->type),
-                                    eNodeSocketDatatype(link.tosock->type)))
-  {
+  if (!tree.typeinfo->validate_link(main_output->type, link.tosock->type)) {
     return false;
   }
   return true;
@@ -2712,11 +2708,9 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   }
 }
 
-void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode, const int2 &cursor)
+void node_insert_on_frame_flag_set(SpaceNode &snode, ARegion &region, const int2 &cursor)
 {
   snode.runtime->frame_identifier_to_highlight.reset();
-
-  ARegion &region = *CTX_wm_region(&C);
 
   snode.edittree->ensure_topology_cache();
   const bNode *frame = node_find_frame_to_attach(region, *snode.edittree, cursor);
@@ -2801,14 +2795,12 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   if (!node_to_insert->is_reroute()) {
     /* Ignore main sockets when the types don't match. */
     if (best_input != nullptr && ntree.typeinfo->validate_link != nullptr &&
-        !ntree.typeinfo->validate_link(eNodeSocketDatatype(old_link->fromsock->type),
-                                       eNodeSocketDatatype(best_input->type)))
+        !ntree.typeinfo->validate_link(old_link->fromsock->type, best_input->type))
     {
       best_input = nullptr;
     }
     if (best_output != nullptr && ntree.typeinfo->validate_link != nullptr &&
-        !ntree.typeinfo->validate_link(eNodeSocketDatatype(best_output->type),
-                                       eNodeSocketDatatype(old_link->tosock->type)))
+        !ntree.typeinfo->validate_link(best_output->type, old_link->tosock->type))
     {
       best_output = nullptr;
     }
@@ -2861,7 +2853,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 
 static int get_main_socket_priority(const bNodeSocket *socket)
 {
-  switch (eNodeSocketDatatype(socket->type)) {
+  switch (socket->type) {
     case SOCK_CUSTOM:
       return 0;
     case SOCK_MENU:
@@ -3114,7 +3106,7 @@ static wmOperatorStatus node_insert_offset_modal(bContext *C, wmOperator *op, co
   /* handle animation - do this before possibly aborting due to duration, since
    * main thread might be so busy that node hasn't reached final position yet */
   for (bNode *node : snode->edittree->all_nodes()) {
-    if (UNLIKELY(node->runtime->anim_ofsx)) {
+    if (node->runtime->anim_ofsx) [[unlikely]] {
       const float prev_duration = duration - float(iofsd->anim_timer->time_delta);
       /* Clamp duration to not overshoot. */
       const float clamped_duration = math::min(duration, NODE_INSOFS_ANIM_DURATION);

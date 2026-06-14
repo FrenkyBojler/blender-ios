@@ -48,6 +48,7 @@
 
 #include "BLO_read_write.hh"
 
+#include "file_banner.hh"
 #include "file_indexer.hh"
 #include "file_intern.hh" /* own include */
 #include "filelist.hh"
@@ -380,7 +381,7 @@ static void file_listener(const wmSpaceTypeListenerParams *listener_params)
   /* context changes */
   switch (wmn->category) {
     case NC_UI:
-      if (sfile) {
+      if (wmn->data == ND_UI_LANG && sfile) {
         filelist_tag_force_reset(sfile->files);
       }
       break;
@@ -646,6 +647,7 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
     file_highlight_set(sfile, region, event->xy[0], event->xy[1]);
   }
 
+  file_banners_update(*sfile);
   ED_fileselect_init_layout(sfile, region);
 
   if (!file_draw_hint_if_invalid(C, sfile, region)) {
@@ -655,6 +657,8 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
     ui::view2d_view_ortho(v2d);
 
     file_draw_list(C, region);
+    /* After the list, so it draws on top. */
+    file_draw_banner(C, sfile, region);
   }
 
   /* reset view matrix */
@@ -952,7 +956,7 @@ static void file_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
    * plus, it isn't saved to files yet!
    */
   sfile->folders_prev = sfile->folders_next = nullptr;
-  BLI_listbase_clear(&sfile->folder_histories);
+  sfile->folder_histories.clear_no_delete();
   sfile->files = nullptr;
   sfile->layout = nullptr;
   sfile->op = nullptr;

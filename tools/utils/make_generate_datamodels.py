@@ -37,7 +37,7 @@ import time
 # the corresponding `.py`` file is automatically marked as 'generated' in
 # `.gitattributes`.
 YAML_PATHS = [
-    "scripts/modules/_bpy_internal/assets/remote_library_listing/blender_asset_library_openapi.yaml",
+    "scripts/modules/_bpy_internal/assets/remote_library/blender_asset_library_openapi.yaml",
 ]
 
 # Packages to install in the virtualenv. These are only necessary to run this
@@ -172,7 +172,7 @@ def _docformatter(py_paths: list[Path]) -> None:
     """Run 'docformatter' on generated Python files.
 
     This is necessary because the generated docstrings are very long, and
-    'make format' doesn't automatically rewrap them.
+    'make format' doesn't automatically re-wrap them.
     """
     from docformatter import format
     from docformatter import configuration
