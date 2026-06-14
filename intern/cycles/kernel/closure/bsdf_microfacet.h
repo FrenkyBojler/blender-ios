@@ -34,6 +34,15 @@ ccl_device_forceinline float alpha_to_roughness(const float alpha_x, const float
   return sqrtf(sqrtf(alpha_x * alpha_y));
 }
 
+ccl_device_forceinline float ior_to_z_index(const float ior)
+{
+  return sqrtf(fabsf((ior - 1.0f) / (ior + 1.0f)));
+}
+
+ccl_device_forceinline float mu_to_y_index(const float mu)
+{
+  return sqrtf(mu);
+}
 CCL_NAMESPACE_BEGIN
 
 enum MicrofacetType {
@@ -476,9 +485,10 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
       avg_ofs = kernel_data.tables.ggx_glass_inv_Eavg;
     }
     /* TODO: Bias mu towards more precision for low values. */
-    const float z = sqrtf(fabsf((ior - 1.0f) / (ior + 1.0f)));
+    const float z = ior_to_z_index(ior);
+    const float y = mu_to_y_index(mu);
     E = lookup_table_read_3D(
-        kg, rough, mu, z, ofs, GGX_GLASS_E_RES_ROUGH, GGX_GLASS_E_RES_MU, GGX_GLASS_E_RES_IOR);
+        kg, rough, y, z, ofs, GGX_GLASS_E_RES_ROUGH, GGX_GLASS_E_RES_MU, GGX_GLASS_E_RES_IOR);
     E_avg = lookup_table_read_2D(
         kg, rough, z, avg_ofs, GGX_GLASS_E_RES_ROUGH, GGX_GLASS_E_RES_IOR);
   }
@@ -541,7 +551,7 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
       const float rough = alpha_to_roughness(bsdf->alpha_x, bsdf->alpha_y);
       float s;
       if (fresnel->exponent < 0.0f) {
-        const float z = sqrtf(fabsf((bsdf->ior - 1.0f) / (bsdf->ior + 1.0f)));
+        const float z = ior_to_z_index(bsdf->ior);
         s = lookup_table_read_3D(kg,
                                  rough,
                                  cos_NI,
@@ -598,7 +608,7 @@ ccl_device Spectrum bsdf_microfacet_estimate_albedo(KernelGlobals kg,
     /* We can re-use the ggx_gen_schlick_ior_s table here, since it's already precomputed for our
      * exponent<0 corner case where we use the real dielectric Fresnel. */
     const float rough = alpha_to_roughness(bsdf->alpha_x, bsdf->alpha_y);
-    const float z = sqrtf(fabsf((bsdf->ior - 1.0f) / (bsdf->ior + 1.0f)));
+    const float z = ior_to_z_index(bsdf->ior);
     const float s = lookup_table_read_3D(kg,
                                          rough,
                                          cos_NI,

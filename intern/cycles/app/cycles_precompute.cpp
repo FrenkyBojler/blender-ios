@@ -139,6 +139,11 @@ inline float ior_parametrization(const float z)
   return ior_from_F0(sqr(sqr(z)));
 }
 
+inline float mu_parametrization(const float y)
+{
+  return y*y;
+}
+
 struct PrecomputeTerm {
   int samples;
   int nx, ny, nz;
@@ -171,8 +176,9 @@ static bool cycles_precompute(std::string name)
       GGX_GLASS_E_RES_ROUGH,
       GGX_GLASS_E_RES_MU,
       GGX_GLASS_E_RES_IOR,
-      [](const float rough, const float mu, const float z, const float3 rand) {
+      [](const float rough, const float y, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
+        const float mu = mu_parametrization(y);
         return precompute_ggx_glass_E(rough, mu, ior, rand);
       }};
   /* Overall albedo of the GGX microfacet BSDF with dielectric Fresnel,
@@ -182,8 +188,9 @@ static bool cycles_precompute(std::string name)
       GGX_GLASS_E_RES_ROUGH,
       1,
       GGX_GLASS_E_RES_IOR,
-      [](const float rough, const float mu, const float z, const float3 rand) {
+      [](const float rough, const float y, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
+        const float mu = mu_parametrization(y);
         return 2.0f * mu * precompute_ggx_glass_E(rough, mu, ior, rand);
       }};
   /* Overall albedo of the GGX microfacet BSDF with dielectric Fresnel,
@@ -193,8 +200,9 @@ static bool cycles_precompute(std::string name)
       GGX_GLASS_E_RES_ROUGH,
       GGX_GLASS_E_RES_MU,
       GGX_GLASS_E_RES_IOR,
-      [](const float rough, const float mu, const float z, const float3 rand) {
+      [](const float rough, const float y, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
+        const float mu = mu_parametrization(y);
         return precompute_ggx_glass_E(rough, mu, 1.0f / ior, rand);
       }};
   /* Overall albedo of the GGX microfacet BSDF with dielectric Fresnel,
@@ -204,8 +212,9 @@ static bool cycles_precompute(std::string name)
       GGX_GLASS_E_RES_ROUGH,
       1,
       GGX_GLASS_E_RES_IOR,
-      [](const float rough, const float mu, const float z, const float3 rand) {
+      [](const float rough, const float y, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
+        const float mu = mu_parametrization(y);
         return 2.0f * mu * precompute_ggx_glass_E(rough, mu, 1.0f / ior, rand);
       }};
 
