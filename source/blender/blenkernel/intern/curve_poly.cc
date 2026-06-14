@@ -175,11 +175,11 @@ void calculate_normals_minimum(const Span<float3> tangents,
 
   const float epsilon = 1e-4f;
 
-  /* Set initial normal. To avoid discontinuities, we look for the first handle that is
+  /* Set initial normal. To avoid discontinuities, we look for the first tangent that is
    * non-vertical to compute the initial normal. Fixes #158105 */
 
   normals.first() = {1.0f, 0.0f, 0.0f};
-  for (const int i : IndexRange(0, tangents.size() - 1)) {
+  for (const int i : IndexRange(0, tangents.size())) {
     if (fabs(tangents[i].x) + fabs(tangents[i].y) > epsilon) [[likely]] {
       normals.first() = math::normalize(float3(tangents[i].y, -tangents[i].x, 0.0f));
       break;
