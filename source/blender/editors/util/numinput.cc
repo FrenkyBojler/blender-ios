@@ -146,7 +146,8 @@ void outputNumInput(NumInput *n, char *str, const UnitSettings &unit_settings)
                                             n->unit_sys,
                                             n->unit_type[i],
                                             true,
-                                            false);
+                                            false,
+                                            true);
         }
 
         /* +1 because of trailing '\0' */
@@ -169,7 +170,7 @@ void outputNumInput(NumInput *n, char *str, const UnitSettings &unit_settings)
         else {
           char tstr[NUM_STR_REP_LEN];
           BKE_unit_value_as_string_adaptive(
-              tstr, ln, double(n->val[i]), prec, n->unit_sys, n->unit_type[i], true, false);
+              tstr, ln, double(n->val[i]), prec, n->unit_sys, n->unit_type[i], true, false, true);
           BLI_snprintf_utf8(&str[j * ln], ln, "%s%s%s", cur, tstr, cur);
         }
       }
@@ -259,7 +260,8 @@ static void value_to_editstr(NumInput *n, int idx)
                                                  n->unit_sys,
                                                  n->unit_type[idx],
                                                  true,
-                                                 false);
+                                                 false,
+                                                 true);
 }
 
 static bool editstr_insert_at_cursor(NumInput *n, const char *buf, const int buf_len)
@@ -664,7 +666,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
     }
 #endif
 
-    if (UNLIKELY(!isfinite(n->val[idx]))) {
+    if (!isfinite(n->val[idx])) [[unlikely]] {
       n->val[idx] = val_prev;
       n->val_flag[idx] |= NUM_INVALID;
     }

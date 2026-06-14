@@ -1519,7 +1519,7 @@ static ModifierData &legacy_object_modifier_common(ConversionData &conversion_da
   if (mti->flags & eModifierTypeFlag_RequiresOriginalData) {
     ModifierData *md;
     for (md = static_cast<ModifierData *>(object.modifiers.first);
-         md && BKE_modifier_get_info(ModifierType(md->type))->type == ModifierTypeType::OnlyDeform;
+         md && BKE_modifier_get_info(md->type)->type == ModifierTypeType::OnlyDeform;
          md = md->next)
     {
       ;
@@ -3038,6 +3038,7 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
           case SPACE_TOPBAR:
           case SPACE_STATUSBAR:
           case SPACE_SPREADSHEET:
+          case SPACE_PROJECT:
             break;
         }
       }
