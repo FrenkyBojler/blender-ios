@@ -1716,8 +1716,9 @@ static SeqResult do_render_strip_uncached(const RenderData *context,
     out.is_opaque_before_transform = true;
   }
 
+  /* Not sure if neccesry */
   if (out.image) {
-    /* duplicate frame so movie cache wouldn't be confused by sequencer's stuff */
+    /* duplicate frame so image id cache wouldn't be confused by sequencer's stuff */
     ImBuf *i = IMB_dupImBuf(out.image);
     IMB_freeImBuf(out.image);
     out.image = i;
