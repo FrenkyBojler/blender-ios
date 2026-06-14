@@ -49,31 +49,104 @@ class LazyFunctionForMemoryZone : public LazyFunction {
   {
     debug_name_ = "Memory Zone";
     initialize_zone_wrapper(zone, zone_info, body_fn, true, inputs_, outputs_);
+    
+    printf("%s{\n", __func__);
+    for (const auto &output : outputs_) {
+      printf("   %s: %s;\n", output.debug_name, output.type->name().c_str());
+    }
+    printf("}\n");
+    
+    for (auto &input : inputs_) {
+      input.usage = lf::ValueUsage::Maybe;
+    }
   }
+
+  struct EvalState {
+    std::optional<Array<bool>> set_outputs;
+    void *body_state;
+  };
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
-    body_fn_.function->execute(params, context);
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+
+    const int total_inputs = body_fn_.function->inputs().size();
+    const int total_outputs = body_fn_.function->outputs().size();
+
+    auto &eval_storage = *static_cast<EvalState *>(context.storage);
+    if (!eval_storage.set_outputs.has_value()) {
+      eval_storage.set_outputs.emplace(total_outputs, false);
+    }
+
+    Array<lf::ValueUsage> output_usages(total_outputs);
+    for (const int i : IndexRange(total_outputs)) {
+      output_usages[i] = params.get_output_usage(1 - i);
+      if (params.output_was_set(1 - i)) {
+        output_usages[i] = lf::ValueUsage::Unused;
+      }
+    }
+
+    Array<GMutablePointer> inputs(total_inputs);
+    for (const int i : IndexRange(total_inputs)) {
+      inputs[i] = GMutablePointer(inputs_[i].type, params.try_get_input_data_ptr(i));
+    }
+    
+    Array<GMutablePointer> outputs(total_outputs);
+    for (const int i : IndexRange(total_outputs)) {
+      outputs[1 - i] = GMutablePointer(outputs_[i].type, params.get_output_data_ptr(i));
+    }
+
+    Array<std::optional<lf::ValueUsage>> input_usages(body_fn_.function->inputs().size(), std::nullopt);
+
+    lf::BasicParams captured_params(*body_fn_.function,
+                                    inputs.as_span(),
+                                    outputs.as_span(),
+                                    input_usages.as_mutable_span(),
+                                    output_usages.as_span(),
+                                    eval_storage.set_outputs->as_mutable_span());
+
+    bke::NodeComputeContext compute_context(user_data.compute_context, output_bnode_.identifier, &btree_);
+
+    GeoNodesUserData group_user_data = user_data;
+    group_user_data.compute_context = &compute_context;
+    group_user_data.verbose_log = should_log_verbose_in_context(user_data, compute_context.hash());
+
+    GeoNodesLocalUserData group_local_user_data(group_user_data);
+    lf::Context sub_context(eval_storage.body_state, &group_user_data, &group_local_user_data);
+
+    body_fn_.function->execute(captured_params, sub_context);
+    
+    for (const int i : eval_storage.set_outputs->index_range()) {
+      if ((*eval_storage.set_outputs)[i]) {
+        printf("%d;\n", i);
+        params.output_set(1 - i);
+      }
+    }
   }
 
   void *init_storage(LinearAllocator<> &allocator) const override
   {
-    return body_fn_.function->init_storage(allocator);
+    auto &state = *allocator.construct<EvalState>();
+    state.body_state = body_fn_.function->init_storage(allocator);
+    return &state; 
   }
 
   void destruct_storage(void *storage) const override
   {
-    body_fn_.function->destruct_storage(storage);
+    auto &state = *static_cast<EvalState *>(storage);
+    body_fn_.function->destruct_storage(state.body_state);
+    std::destroy_at(&state);
   }
 
   std::string input_name(const int i) const override
   {
-    return body_fn_.function->input_name(i);
+    return zone_wrapper_input_name(zone_info_, zone_, inputs_, i);
   }
 
   std::string output_name(const int i) const override
   {
-    return body_fn_.function->output_name(i);
+    return zone_wrapper_output_name(zone_info_, zone_, outputs_, i);
   }
 };
 
