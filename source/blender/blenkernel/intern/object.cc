@@ -3694,6 +3694,9 @@ void BKE_object_empty_draw_type_set(Object *ob, const int value)
       ob->iuser->sfra = 1;
     }
   }
+  else if (ob->type == OB_EMPTY && ob->empty_drawtype != OB_EMPTY_IMAGE) {
+    ob->data = nullptr;
+  }
   else {
     MEM_SAFE_DELETE(ob->iuser);
   }
