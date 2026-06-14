@@ -2634,9 +2634,9 @@ enum {
   SEQ_SELECT_GROUP_TYPE_BASIC,
   SEQ_SELECT_GROUP_TYPE_EFFECT,
   SEQ_SELECT_GROUP_DATA,
-  SEQ_SELECT_GROUP_EFFECT_USER,
-  SEQ_SELECT_GROUP_COVERED,
+  SEQ_SELECT_GROUP_STRIPS_UNDER_EFFECT,
   SEQ_SELECT_GROUP_TIME_OVERLAP,
+  SEQ_SELECT_GROUP_VISUAL_OVERLAP
 };
 
 static const EnumPropertyItem sequencer_prop_select_grouped_types[] = {
@@ -2662,22 +2662,22 @@ static const EnumPropertyItem sequencer_prop_select_grouped_types[] = {
      "Data",
      "Select strips referencing the same source data as the active strip, with matching file "
      "directory, scene, clip, or mask"},
-    {SEQ_SELECT_GROUP_EFFECT_USER,
-     "EFFECT_USER",
+    {SEQ_SELECT_GROUP_STRIPS_UNDER_EFFECT,
+     "STRIPS_UNDER_EFFECT",
      0,
-     "Shared Effect User",
+     "Strips Under Effect",
      "Select strips that are inputs to the same effect type as the active strip"},
-    {SEQ_SELECT_GROUP_COVERED,
-     "COVERED",
-     0,
-     "Covered",
-     "Select strips covered by the active strip on lower channels that have overlapping time "
-     "ranges, plus their full effect chains"},
     {SEQ_SELECT_GROUP_TIME_OVERLAP,
      "TIME_OVERLAP",
      0,
      "Time Overlap",
-     "Select all strips whose time range overlaps the active strip, on any channel"},
+     "Select strips on any channel whose time range overlaps the active strip"},
+    {SEQ_SELECT_GROUP_VISUAL_OVERLAP,
+     "VISUAL_OVERLAP",
+     0,
+     "Visual Overlap",
+     "Select strips on channels below the active strip's channel whose time range overlaps, plus "
+     "their full effect chains"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -2781,9 +2781,9 @@ static bool select_grouped_data(VectorSet<Strip *> strips,
   return changed;
 }
 
-static bool select_grouped_effect(VectorSet<Strip *> strips,
-                                  Strip *act_strip,
-                                  std::optional<int> channel)
+static bool select_grouped_strips_under_effect(VectorSet<Strip *> strips,
+                                               Strip *act_strip,
+                                               std::optional<int> channel)
 {
   bool changed = false;
   Set<StripType> effects;
@@ -2829,10 +2829,10 @@ static bool select_grouped_time_overlap(const Scene *scene,
   return changed;
 }
 
-static bool select_grouped_effect_link(const Scene *scene,
-                                       VectorSet<Strip *> strips,
-                                       ListBaseT<Strip> *seqbase,
-                                       Strip *act_strip)
+static bool select_grouped_visual_overlap(const Scene *scene,
+                                          VectorSet<Strip *> strips,
+                                          ListBaseT<Strip> *seqbase,
+                                          Strip *act_strip)
 {
   VectorSet<Strip *> strips_to_select;
 
@@ -2911,14 +2911,14 @@ static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *o
     case SEQ_SELECT_GROUP_DATA:
       changed |= select_grouped_data(strips, act_strip, channel);
       break;
-    case SEQ_SELECT_GROUP_EFFECT_USER:
-      changed |= select_grouped_effect(strips, act_strip, channel);
-      break;
-    case SEQ_SELECT_GROUP_COVERED:
-      changed |= select_grouped_effect_link(scene, strips, seqbase, act_strip);
+    case SEQ_SELECT_GROUP_STRIPS_UNDER_EFFECT:
+      changed |= select_grouped_strips_under_effect(strips, act_strip, channel);
       break;
     case SEQ_SELECT_GROUP_TIME_OVERLAP:
       changed |= select_grouped_time_overlap(scene, strips, act_strip);
+      break;
+    case SEQ_SELECT_GROUP_VISUAL_OVERLAP:
+      changed |= select_grouped_visual_overlap(scene, strips, seqbase, act_strip);
       break;
     default:
       BLI_assert(0);
@@ -2960,7 +2960,7 @@ void SEQUENCER_OT_select_grouped(wmOperatorType *ot)
                   "use_active_channel",
                   false,
                   "Same Channel",
-                  "Only consider strips on the same channel as the active one");
+                  "Only consider strips on the same channel as the active strip");
 }
 
 /** \} */
