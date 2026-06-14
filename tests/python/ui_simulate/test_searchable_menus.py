@@ -18,6 +18,7 @@ Covered test cases:
 """
 import modules.ui_test_utils as ui
 
+
 def _setup(area_type):
     import bpy
     bpy.ops.wm.read_homefile(use_empty=True)
@@ -39,7 +40,6 @@ def _invoke(e, t, w, a, menu):
 
 def _search(e, t, w, a, menu, search_text, ret_count=1):
     _invoke(e, t, w, a, menu)
-    yield
     yield e.text(search_text)
     for _ in range(ret_count):
         yield e.ret()
@@ -49,14 +49,14 @@ def test_view3d_add():
     import bpy
     e, t, w, a = _setup('VIEW_3D')
     yield
-    
+
     count_before = len(bpy.data.objects)
     _invoke(e, t, w, a, "VIEW3D_MT_add")
     yield
     yield e.text("Monkey")
     yield e.ret()
     yield e.ret()
-    
+
     t.assertEqual(len(bpy.data.objects), count_before + 1)
 
 
@@ -64,19 +64,18 @@ def test_modifier_add():
     import bpy
     e, t, w, a = _setup('PROPERTIES')
     yield
-    
+
     bpy.ops.mesh.primitive_cube_add()
     cube = bpy.context.view_layer.objects.active
     yield
-    
+
     a.spaces.active.context = 'MODIFIER'
-    yield
-    
+
     _invoke(e, t, w, a, "OBJECT_MT_modifier_add")
     yield
     yield e.text("Subdivision Surface")
     yield e.ret()
-    
+
     t.assertTrue(any(m.type == 'SUBSURF' for m in cube.modifiers))
 
 
@@ -91,11 +90,9 @@ def test_sequencer_add():
 
     count_before = len(bpy.context.scene.sequence_editor.strips)
     _invoke(e, t, w, a, "SEQUENCER_MT_add")
-    yield
     yield e.text("Adjustment Layer")
-    yield
     yield e.ret()
-    
+
     t.assertEqual(len(bpy.context.scene.sequence_editor.strips), count_before + 1)
 
 
@@ -114,9 +111,7 @@ def test_sequencer_modifier_add():
 
     yield
     _invoke(e, t, w, a, "SEQUENCER_MT_modifier_add")
-    yield
     yield e.text("Color Balance")
-    yield
     yield e.ret()
 
     t.assertEqual(len(strip.modifiers), count_before + 1)
@@ -126,22 +121,21 @@ def test_shader_node_add():
     import bpy
     e, t, w, a = _setup('NODE_EDITOR')
     yield
-    
+
     mat = bpy.data.materials.new("TestMat")
     mat.use_nodes = True
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     a.spaces.active.tree_type = 'ShaderNodeTree'
     yield
-    
+
     count_before = len(mat.node_tree.nodes)
     _invoke(e, t, w, a, "NODE_MT_add")
     yield
     yield e.text("Math")
-    yield
     yield e.ret()
     yield e.ret()
-    
+
     t.assertEqual(len(mat.node_tree.nodes), count_before + 1)
     t.assertTrue(any(n.type == 'MATH' for n in mat.node_tree.nodes))
 
@@ -150,12 +144,12 @@ def test_compositor_node_add():
     import bpy
     e, t, w, a = _setup('NODE_EDITOR')
     yield
-    
+
     tree = bpy.data.node_groups.new("TestCompositor", 'CompositorNodeTree')
     bpy.context.scene.compositing_node_group = tree
     a.spaces.active.tree_type = 'CompositorNodeTree'
     yield
-    
+
     count_before = len(tree.nodes)
     _invoke(e, t, w, a, "NODE_MT_add")
     yield
@@ -163,7 +157,7 @@ def test_compositor_node_add():
     yield
     yield e.ret()
     yield e.ret()
-    
+
     t.assertEqual(len(tree.nodes), count_before + 1)
     t.assertTrue(any(n.type == 'CURVE_RGB' for n in tree.nodes))
 
@@ -172,7 +166,7 @@ def test_geometry_node_add():
     import bpy
     e, t, w, a = _setup('NODE_EDITOR')
     yield
-    
+
     bpy.ops.mesh.primitive_cube_add()
     t.assertTrue(bpy.ops.node.new_geometry_nodes_modifier.poll(), "Geometry Nodes modifier poll failed")
     bpy.ops.node.new_geometry_nodes_modifier()
@@ -180,7 +174,7 @@ def test_geometry_node_add():
     node_tree = bpy.context.active_object.modifiers[-1].node_group
     a.spaces.active.node_tree = node_tree
     yield
-    
+
     count_before = len(node_tree.nodes)
     _invoke(e, t, w, a, "NODE_MT_add")
     yield
@@ -188,7 +182,7 @@ def test_geometry_node_add():
     yield
     yield e.ret()
     yield e.ret()
-    
+
     t.assertEqual(len(node_tree.nodes), count_before + 1)
     t.assertTrue(any(n.bl_idname == 'GeometryNodeTransform' for n in node_tree.nodes))
 
@@ -211,7 +205,6 @@ def test_node_swap_search():
     yield
 
     yield from _search(e, t, w, a, "NODE_MT_swap", "Math")
-    yield
 
     t.assertEqual(node_tree.nodes.active.type, 'MATH')
 
@@ -230,6 +223,5 @@ def test_grease_pencil_layer_search():
     yield
 
     yield from _search(e, t, w, a, "GREASE_PENCIL_MT_move_to_layer_SEARCH", "Layer 2")
-    yield
 
     t.assertEqual(gp.layers.active.name, "Layer 2")
