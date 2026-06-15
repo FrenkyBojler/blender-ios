@@ -29,20 +29,6 @@
 #define GGX_GEN_SCHLICK_S_IOR_RES_MU 32
 #define GGX_GEN_SCHLICK_S_IOR_RES_IOR 32
 
-ccl_device_forceinline float alpha_to_roughness(const float alpha_x, const float alpha_y)
-{
-  return sqrtf(sqrtf(alpha_x * alpha_y));
-}
-
-ccl_device_forceinline float ior_to_z_index(const float ior)
-{
-  return sqrtf(fabsf((ior - 1.0f) / (ior + 1.0f)));
-}
-
-ccl_device_forceinline float mu_to_y_index(const float mu)
-{
-  return sqrtf(mu);
-}
 CCL_NAMESPACE_BEGIN
 
 enum MicrofacetType {
@@ -111,6 +97,21 @@ struct MicrofacetBsdf {
 };
 
 static_assert(sizeof(ShaderClosure) >= sizeof(MicrofacetBsdf), "MicrofacetBsdf is too large!");
+
+ccl_device_forceinline float alpha_to_roughness(const float alpha_x, const float alpha_y)
+{
+  return sqrtf(sqrtf(alpha_x * alpha_y));
+}
+
+ccl_device_forceinline float ior_to_z_index(const float ior)
+{
+  return sqrtf(fabsf((ior - 1.0f) / (ior + 1.0f)));
+}
+
+ccl_device_forceinline float mu_to_y_index(const float mu)
+{
+  return sqrtf(mu);
+}
 
 ccl_device_inline void adjust_thin_film_ior_at_backface(ccl_private float &film_ior,
                                                         const float inv_bulk_ior)
