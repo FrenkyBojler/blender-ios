@@ -3101,7 +3101,7 @@ void UV_OT_unwrap(wmOperatorType *ot)
   RNA_def_string(ot->srna,
                  "weight_group",
                  tool_settings_default_uvcalc_weight_group,
-                 MAX_ID_NAME,
+                 MAX_VGROUP_NAME,
                  "Weight Group",
                  "Vertex group name for importance weights (modulating the deform)");
   RNA_def_float(
@@ -4401,6 +4401,9 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   scene->toolsettings->uv_flag &= ~UV_FLAG_SELECT_SYNC;
 
   ED_mesh_uv_ensure(mesh, nullptr);
+
+  bm->uv_select_sync_valid = false;
+  uvedit_select_prepare_custom_data(scene, bm);
 
   BMeshFromMeshParams bm_from_me_params{};
   bm_from_me_params.calc_face_normal = true;

@@ -847,6 +847,9 @@ static void find_side_effect_nodes(const NodesModifierData &nmd,
     find_side_effect_nodes_for_viewer_path(workspace->viewer_path, nmd, ctx, r_side_effect_nodes);
     for (const ScrArea &area : screen->areabase) {
       const SpaceLink *sl = static_cast<SpaceLink *>(area.spacedata.first);
+      if (sl == nullptr) {
+        continue;
+      }
       if (sl->spacetype == SPACE_SPREADSHEET) {
         const SpaceSpreadsheet &sspreadsheet = *reinterpret_cast<const SpaceSpreadsheet *>(sl);
         find_side_effect_nodes_for_viewer_path(
@@ -878,6 +881,9 @@ static void find_verbose_log_contexts(const NodesModifierData &nmd,
     const bScreen *screen = BKE_workspace_active_screen_get(window.workspace_hook);
     for (const ScrArea &area : screen->areabase) {
       const SpaceLink *sl = static_cast<SpaceLink *>(area.spacedata.first);
+      if (sl == nullptr) [[unlikely]] {
+        continue;
+      }
       if (sl->spacetype == SPACE_NODE) {
         const SpaceNode &snode = *reinterpret_cast<const SpaceNode *>(sl);
         if (snode.edittree == nullptr || snode.edittree->type != NTREE_GEOMETRY) {
@@ -2106,24 +2112,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
           }
         }
       }
-      if (bake.packed) {
-        bake.packed = MEM_dupalloc(bake.packed);
-        const auto copy_bake_files_inplace = [](NodesModifierBakeFile **bake_files,
-                                                const int bake_files_num) {
-          if (!*bake_files) {
-            return;
-          }
-          *bake_files = MEM_dupalloc(*bake_files);
-          for (NodesModifierBakeFile &bake_file : MutableSpan{*bake_files, bake_files_num}) {
-            bake_file.name = BLI_strdup_null(bake_file.name);
-            if (bake_file.packed_file) {
-              bake_file.packed_file = BKE_packedfile_duplicate(bake_file.packed_file);
-            }
-          }
-        };
-        copy_bake_files_inplace(&bake.packed->meta_files, bake.packed->meta_files_num);
-        copy_bake_files_inplace(&bake.packed->blob_files, bake.packed->blob_files_num);
-      }
+      nodes_modifier_packed_bake_copy(bake, nmd->bakes[i]);
     }
   }
 
@@ -2144,6 +2133,32 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
     /* Clear the bake path when duplicating. */
     tnmd->bake_directory = nullptr;
   }
+}
+
+void nodes_modifier_packed_bake_copy(NodesModifierBake &bake_dst,
+                                     const NodesModifierBake &bake_src)
+{
+  BLI_assert(ELEM(bake_dst.packed, bake_src.packed, nullptr));
+  if (!bake_src.packed) {
+    return;
+  }
+
+  bake_dst.packed = MEM_dupalloc(bake_src.packed);
+  const auto copy_bake_files_inplace = [](NodesModifierBakeFile **bake_files,
+                                          const int bake_files_num) {
+    if (!*bake_files) {
+      return;
+    }
+    *bake_files = MEM_dupalloc(*bake_files);
+    for (NodesModifierBakeFile &bake_file : MutableSpan{*bake_files, bake_files_num}) {
+      bake_file.name = BLI_strdup_null(bake_file.name);
+      if (bake_file.packed_file) {
+        bake_file.packed_file = BKE_packedfile_duplicate(bake_file.packed_file);
+      }
+    }
+  };
+  copy_bake_files_inplace(&bake_dst.packed->meta_files, bake_dst.packed->meta_files_num);
+  copy_bake_files_inplace(&bake_dst.packed->blob_files, bake_dst.packed->blob_files_num);
 }
 
 void nodes_modifier_packed_bake_free(NodesModifierPackedBake *packed_bake)

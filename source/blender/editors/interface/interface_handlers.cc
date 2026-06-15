@@ -2197,7 +2197,7 @@ static bool but_drag_init(bContext *C, Button *but, HandleButtonData *data, cons
       drag_info->pushed_state = drag_toggle_but_pushed_state(but);
       drag_info->but_cent_start[0] = BLI_rctf_cent_x(&but->rect);
       drag_info->but_cent_start[1] = BLI_rctf_cent_y(&but->rect);
-      if (but->flag & BUT_DRAG_LOCK_X) {
+      if ((but->flag & BUT_DRAG_LOCK_X) == BUT_DRAG_LOCK_X) {
         drag_info->xy_lock[0] = true;
       }
       copy_v2_v2_int(drag_info->xy_init, event->xy);
@@ -3299,40 +3299,42 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
 
   if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
     if (but->flag & UI_HAS_ICON) {
-      startx += UI_ICON_SIZE / aspect;
+      startx += UI_ICON_SIZE;
     }
   }
   if (!(but->drawflag & BUT_NO_TEXT_PADDING)) {
     if (right_aligned) {
-      startx += U.pixelsize / aspect;
-      endx -= UI_TEXT_MARGIN_X * U.widget_unit / aspect;
+      startx += U.pixelsize;
+      endx -= UI_TEXT_MARGIN_X * U.widget_unit;
     }
     else {
-      startx += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
-      endx -= U.pixelsize / aspect;
+      startx += UI_TEXT_MARGIN_X * U.widget_unit;
+      endx -= U.pixelsize;
     }
   }
   else if (right_aligned) {
-    endx -= U.pixelsize / aspect;
+    endx -= U.pixelsize;
   }
   else {
-    startx += U.pixelsize / aspect;
+    startx += U.pixelsize;
   }
 
-  if (right_aligned) {
-    int width = BLF_width(fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs));
-    const float align_x_ofs = endx - startx - width;
-    startx += max_ff(0.0f, align_x_ofs);
-  }
-
-  /* Transform startx to screen space. */
+  /* Transform startx and endx to screen space. */
   block_to_window_fl(region, but->block, &startx, &starty_dummy);
+  block_to_window_fl(region, but->block, &endx, &starty_dummy);
 
   fontscale(&fstyle.points, aspect);
 
   fontstyle_set(&fstyle);
 
   button_text_password_hide(password_str, but, false);
+
+  /* Compute shift due to right-alignment after password filter. */
+  if (right_aligned) {
+    int width = BLF_width(fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs));
+    const float align_x_ofs = endx - startx - width;
+    startx += max_ff(0.0f, align_x_ofs);
+  }
 
   /* mouse dragged outside the widget to the left */
   if (xy.x < startx) {
