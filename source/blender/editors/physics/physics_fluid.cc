@@ -657,6 +657,60 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
   /* Clear existing banners so that the upcoming progress bar from this job has more room. */
   WM_report_banners_cancel(job->bmain);
 
+  wmJobWorkerStatus worker_status = {};
+  fluid_free_startjob(job, &worker_status);
+  fluid_free_endjob(job);
+  fluid_bake_free(job);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus fluid_free_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
+{
+  FluidModifierData *fmd = nullptr;
+  FluidDomainSettings *fds;
+  Object *ob = ed::object::context_active_object(C);
+  Scene *scene = CTX_data_scene(C);
+
+  /*
+   * Get modifier data
+   */
+  fmd = reinterpret_cast<FluidModifierData *>(BKE_modifiers_findby_type(ob, eModifierType_Fluid));
+  if (!fmd) {
+    BKE_report(op->reports, RPT_ERROR, "Bake free failed: no Fluid modifier found");
+    return OPERATOR_CANCELLED;
+  }
+  fds = fmd->domain;
+  if (!fds) {
+    BKE_report(op->reports, RPT_ERROR, "Bake free failed: invalid domain");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Cannot free data if other bakes currently working */
+  if (fmd->domain->cache_flag & (FLUID_DOMAIN_BAKING_DATA | FLUID_DOMAIN_BAKING_NOISE |
+                                 FLUID_DOMAIN_BAKING_MESH | FLUID_DOMAIN_BAKING_PARTICLES))
+  {
+    BKE_report(op->reports, RPT_ERROR, "Bake free failed: pending bake jobs found");
+    return OPERATOR_CANCELLED;
+  }
+
+  FluidJob *job = MEM_new_uninitialized<FluidJob>("FluidJob");
+  job->bmain = CTX_data_main(C);
+  job->scene = scene;
+  job->depsgraph = CTX_data_depsgraph_pointer(C);
+  job->ob = ob;
+  job->fmd = fmd;
+  job->type = op->type->idname;
+  job->name = op->type->name;
+
+  if (!fluid_validatepaths(job, op->reports)) {
+    fluid_bake_free(job);
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Clear existing banners so that the upcoming progress bar from this job has more room. */
+  WM_report_banners_cancel(job->bmain);
+
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
                               scene,
@@ -670,10 +724,27 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
 
   WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
-  /* Free Fluid Geometry. */
   WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_event_add_modal_handler(C, op);
 
-  return OPERATOR_FINISHED;
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static wmOperatorStatus fluid_free_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+{
+  /* no running blender, remove handler and pass through */
+  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
+    return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
+  }
+
+  switch (event->type) {
+    case EVT_ESCKEY:
+      return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
+  }
+  return OPERATOR_PASS_THROUGH;
 }
 
 static wmOperatorStatus fluid_pause_exec(bContext *C, wmOperator *op)
@@ -724,6 +795,8 @@ void FLUID_OT_free_all(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = fluid_free_exec;
+  ot->invoke = fluid_free_invoke;
+  ot->modal = fluid_free_modal;
   ot->poll = ED_operator_object_active_editable;
 }
 
