@@ -10,6 +10,8 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase_iterator.hh"
@@ -89,6 +91,22 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           if (sl.spacetype == SPACE_ACTION) {
             SpaceAction *saction = reinterpret_cast<SpaceAction *>(&sl);
             saction->cache_display |= TIME_CACHE_COMPOSITOR;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
+    if (!DNA_struct_member_exists(fd->filesdna, "SmoothModifierData", "float", "taubin_mu")) {
+      for (Object &ob : bmain->objects) {
+        for (ModifierData &md : ob.modifiers) {
+          if (md.type == eModifierType_Smooth) {
+            SmoothModifierData *smd = reinterpret_cast<SmoothModifierData *>(&md);
+            smd->method = MOD_SMOOTH_METHOD_SIMPLE;
+            smd->taubin_mu = -0.53f;
+            smd->hc_alpha = 0.0f;
+            smd->hc_beta = 0.5f;
           }
         }
       }
