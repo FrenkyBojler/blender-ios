@@ -238,14 +238,6 @@ static eViewLayerEEVEEPassType enabled_passes(const ViewLayer *view_layer)
                      view_layer->cryptomatte_flag & VIEW_LAYER_CRYPTOMATTE_MATERIAL,
                      EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL);
 
-  /* Force enable color passes if light passes are enabled.
-   * This is needed since we need to predivide by them. */
-  if (result & EEVEE_RENDER_PASS_DIFFUSE_LIGHT) {
-    result |= EEVEE_RENDER_PASS_DIFFUSE_COLOR;
-  }
-  if (result & EEVEE_RENDER_PASS_SPECULAR_LIGHT) {
-    result |= EEVEE_RENDER_PASS_SPECULAR_COLOR;
-  }
   return result;
 }
 
@@ -328,6 +320,15 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     else {
       /* Render Case. */
       enabled_passes_ = enabled_passes(inst_.view_layer);
+    }
+
+    /* Force enable color passes if light passes are enabled.
+     * This is needed since we need to pre-divide by them. */
+    if (enabled_passes_ & EEVEE_RENDER_PASS_DIFFUSE_LIGHT) {
+      enabled_passes_ |= EEVEE_RENDER_PASS_DIFFUSE_COLOR;
+    }
+    if (enabled_passes_ & EEVEE_RENDER_PASS_SPECULAR_LIGHT) {
+      enabled_passes_ |= EEVEE_RENDER_PASS_SPECULAR_COLOR;
     }
 
     /* Filter obsolete passes. */
