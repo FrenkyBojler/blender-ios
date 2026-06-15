@@ -117,10 +117,10 @@ static void crashlog_file_generate(const char *filepath, const void *os_info)
     fp = BLI_fopen(filepath, "wb");
     if (fp == nullptr) {
       fprintf(stderr,
-              "Unable to save '%s': %s\n",
+              "Unable to save '%s': %s , falling back to console\n",
               filepath,
               errno ? strerror(errno) : "Unknown error opening file");
-      return;
+      fp = stderr;
     }
   }
 
@@ -135,7 +135,7 @@ static void crashlog_file_generate(const char *filepath, const void *os_info)
   /* Generate python back-trace if Python is currently active. */
   BPY_python_backtrace(fp);
 #  endif
-  if (!app_state.signal.use_console_crash_handler) {
+  if (fp != stderr) {
     fclose(fp);
   }
 }
