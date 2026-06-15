@@ -94,21 +94,15 @@ ProjectVariable *BlenderProject::new_variable()
 
 int BlenderProject::remove_variable(ProjectVariable *var)
 {
-  int index = -1;
   for (int i = 0; i < this->variables.size(); i++) {
     if (this->variables[i].get() == var) {
-      index = i;
-      break;
+      this->variables.remove(i);
+      this->is_dirty = true;
+      return i;
     }
   }
 
-  if (index != -1) {
-    this->variables.remove(index);
-
-    this->is_dirty = true;
-  }
-
-  return index;
+  return -1;
 }
 
 void BlenderProject::move_variable(int from_index, int to_index)
