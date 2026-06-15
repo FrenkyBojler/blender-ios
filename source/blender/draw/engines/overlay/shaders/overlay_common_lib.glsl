@@ -53,6 +53,12 @@ float4 pack_line_data(float2 frag_co, float2 edge_start, float2 edge_pos)
   }
 }
 
+/* Special value to indicate a blocked pixel, which should not affect AA. */
+float4 pack_line_data_blocked()
+{
+  return float4(0.0f, 1.0f, 0.0f, 1.0f);
+}
+
 /* View-space Z is used to adjust for perspective projection.
  * Homogenous W is used to convert from NDC to homogenous space.
  * Offset is in view-space, so positive values are closer to the camera. */
