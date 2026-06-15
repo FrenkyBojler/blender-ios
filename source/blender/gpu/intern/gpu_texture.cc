@@ -34,20 +34,15 @@ Texture::Texture(const char *name)
     name_ = name;
   }
 
-  for (int i = 0; i < ARRAY_SIZE(fb_); i++) {
-    fb_[i] = nullptr;
-  }
-
   gpu_image_usage_flags_ = GPU_TEXTURE_USAGE_GENERAL;
 }
 
 Texture::~Texture()
 {
-  for (int i = 0; i < ARRAY_SIZE(fb_); i++) {
-    if (fb_[i] != nullptr) {
-      fb_[i]->attachment_remove(fb_attachment_[i]);
-    }
+  for (const std::pair<FrameBuffer *, GPUAttachmentType> &entry : fb_attachments_) {
+    entry.first->attachment_remove(entry.second);
   }
+  fb_attachments_.clear();
 
 #ifndef GPU_NO_USE_PY_REFERENCES
   if (this->py_ref) {
@@ -190,33 +185,25 @@ void Texture::usage_set(eGPUTextureUsage usage_flags)
 
 void Texture::attach_to(FrameBuffer *fb, GPUAttachmentType type)
 {
-  for (int i = 0; i < ARRAY_SIZE(fb_); i++) {
-    if (fb_[i] == fb) {
-      /* Already stores a reference */
-      if (fb_attachment_[i] != type) {
-        /* Ensure it's not attached twice to the same FrameBuffer. */
-        fb_[i]->attachment_remove(fb_attachment_[i]);
-        fb_attachment_[i] = type;
+  for (std::pair<FrameBuffer *, GPUAttachmentType> &entry : fb_attachments_) {
+    if (entry.first == fb) {
+      /* Already stores a reference, just update the attachment type if needed. */
+      if (entry.second != type) {
+        fb->attachment_remove(entry.second);
+        entry.second = type;
       }
       return;
     }
   }
-  for (int i = 0; i < ARRAY_SIZE(fb_); i++) {
-    if (fb_[i] == nullptr) {
-      fb_attachment_[i] = type;
-      fb_[i] = fb;
-      return;
-    }
-  }
-  BLI_assert_msg(0, "GPU: Error: Texture: Not enough attachment");
+  fb_attachments_.append({fb, type});
 }
 
 void Texture::detach_from(FrameBuffer *fb)
 {
-  for (int i = 0; i < ARRAY_SIZE(fb_); i++) {
-    if (fb_[i] == fb) {
-      fb_[i]->attachment_remove(fb_attachment_[i]);
-      fb_[i] = nullptr;
+  for (int64_t i = 0; i < fb_attachments_.size(); i++) {
+    if (fb_attachments_[i].first == fb) {
+      fb->attachment_remove(fb_attachments_[i].second);
+      fb_attachments_.remove(i);
       return;
     }
   }

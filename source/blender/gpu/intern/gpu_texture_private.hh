@@ -10,6 +10,7 @@
 
 #include "BLI_assert.hh"
 #include "BLI_enum_flags.hh"
+#include "BLI_vector.hh"
 
 #include "GPU_vertex_buffer.hh"
 
@@ -84,8 +85,8 @@ ENUM_OPERATORS(GPUSamplerFormat)
 /* Maximum number of image units. */
 #define GPU_MAX_IMAGE 8
 
-/* Maximum number of FBOs a texture can be attached to. */
-#define GPU_TEX_MAX_FBO_ATTACHED 32
+/* Initial inline buffer capacity for framebuffer attachments. */
+#define GPU_TEX_FBO_ATTACHED_INLINE_CAPACITY 16
 
 /**
  * Implementation of Textures.
@@ -131,9 +132,11 @@ class Texture {
   /** For debugging. */
   std::string name_;
 
-  /** Frame-buffer references to update on deletion. */
-  GPUAttachmentType fb_attachment_[GPU_TEX_MAX_FBO_ATTACHED];
-  FrameBuffer *fb_[GPU_TEX_MAX_FBO_ATTACHED];
+  /**
+   * Framebuffer references to update on deletion. Stored as (fb, attachment_type) pairs.
+   */
+  Vector<std::pair<FrameBuffer *, GPUAttachmentType>, GPU_TEX_FBO_ATTACHED_INLINE_CAPACITY>
+      fb_attachments_;
 
  public:
   Texture(const char *name);
