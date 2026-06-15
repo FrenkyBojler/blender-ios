@@ -141,7 +141,9 @@ inline float ior_parametrization(const float z)
 
 inline float mu_parametrization(const float y)
 {
-  return y*y;
+  /* This parametrization inceases the resolution at grazing angles, where the Fresnel
+   * can have a significant influence on the directional albedo. */
+  return y * y;
 }
 
 struct PrecomputeTerm {
@@ -158,7 +160,8 @@ static bool cycles_precompute(std::string name)
                                GGX_E_RES_ROUGH,
                                GGX_E_RES_MU,
                                1,
-                               [](const float rough, const float mu, float, const float3 rand) {
+                               [](const float rough, const float y, float, const float3 rand) {
+                                 const float mu = mu_parametrization(y);
                                  return precompute_ggx_E(rough, mu, rand);
                                }};
   /* Overall albedo of the GGX microfacet BRDF, averaged over cosI */
@@ -166,7 +169,8 @@ static bool cycles_precompute(std::string name)
                                   GGX_E_RES_ROUGH,
                                   1,
                                   1,
-                                  [](const float rough, const float mu, float, const float3 rand) {
+                                  [](const float rough, const float y, float, const float3 rand) {
+                                    const float mu = mu_parametrization(y);
                                     return 2.0f * mu * precompute_ggx_E(rough, mu, rand);
                                   }};
   /* Overall albedo of the GGX microfacet BSDF with dielectric Fresnel,
@@ -225,8 +229,9 @@ static bool cycles_precompute(std::string name)
       GGX_GEN_SCHLICK_S_IOR_RES_ROUGH,
       GGX_GEN_SCHLICK_S_IOR_RES_MU,
       GGX_GEN_SCHLICK_S_IOR_RES_IOR,
-      [](const float rough, const float mu, const float z, const float3 rand) {
+      [](const float rough, const float y, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
+        const float mu = mu_parametrization(y);
         return precompute_ggx_gen_schlick_s(rough, mu, ior, -1.0f, rand);
       }};
 
@@ -237,9 +242,10 @@ static bool cycles_precompute(std::string name)
       GGX_GEN_SCHLICK_S_RES_ROUGH,
       GGX_GEN_SCHLICK_S_RES_MU,
       GGX_GEN_SCHLICK_S_RES_IOR,
-      [](const float rough, const float mu, const float z, const float3 rand) {
+      [](const float rough, const float y, const float z, const float3 rand) {
         /* Remap 0..1 to 0..inf, with 0.5 mapping to 5 (the default value). */
         const float exponent = 5.0f * ((1.0f - z) / z);
+        const float mu = mu_parametrization(y);
         return precompute_ggx_gen_schlick_s(rough, mu, 1.0f, exponent, rand);
       }};
 
