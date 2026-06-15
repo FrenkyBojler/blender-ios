@@ -35,6 +35,8 @@ enum export_fallback {
   FALLBACK_RENDER_MOVIE,
 };
 
+short get_scene_strip_resolution_percent(scene_strip_resolution resolution);
+
 }  // namespace io::otio
 
 struct OTIOExportParams {

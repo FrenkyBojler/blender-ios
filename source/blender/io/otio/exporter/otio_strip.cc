@@ -484,10 +484,16 @@ void RenderAsMovieExporter::export_strip(Main *bmain, const OTIOExportParams *ex
   BLI_path_split_dir_part(_filepath, render_filepath, sizeof(render_filepath));
   BLI_path_append(render_filepath, sizeof(render_filepath), render_filename);
 
-  seq::render_strip_full(bmain, _scene, _strip, render_filepath, false);
+  seq::render_strip_full(bmain,
+                         _scene,
+                         _strip,
+                         get_scene_strip_resolution_percent(export_params->scene_strip_res),
+                         render_filepath,
+                         false);
 
   auto exporter = MovieStripExporter(_strip, _scene, _track, last_strip_end, render_filepath);
   exporter.export_strip(bmain, export_params);
+  last_strip_end = exporter.last_strip_end;
 
   UNUSED_VARS(_include_audio);
 }

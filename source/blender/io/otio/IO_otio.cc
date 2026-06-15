@@ -17,6 +17,32 @@
 #include "otio_export.hh"
 
 namespace blender {
+namespace io::otio {
+short get_scene_strip_resolution_percent(scene_strip_resolution resolution)
+{
+  switch (resolution) {
+    case SCENE_STRIP_25_PERCENT:
+      return 25;
+      break;
+
+    case SCENE_STRIP_50_PERCENT:
+      return 50;
+      break;
+
+    case SCENE_STRIP_75_PERCENT:
+      return 75;
+      break;
+
+    case SCENE_STRIP_100_PERCENT:
+      return 100;
+      break;
+
+    default:
+      return 100;
+      break;
+  }
+}
+}  // namespace io::otio
 
 using namespace io::otio;
 

@@ -1743,7 +1743,12 @@ SeqResult seq_render_strip(const RenderData *context,
   return res;
 }
 
-void render_strip_full(Main *bmain, Scene *scene, Strip *strip, const char *filepath, bool audio)
+void render_strip_full(Main *bmain,
+                       Scene *scene,
+                       Strip *strip,
+                       short resolution_percent,
+                       const char *filepath,
+                       bool audio)
 {
   Editing *ed = editing_get(scene);
   if (!ed) {
@@ -1788,6 +1793,7 @@ void render_strip_full(Main *bmain, Scene *scene, Strip *strip, const char *file
   /* Set `RenderData` for video render. */
   scene_temp->r.im_format.media_type = MEDIA_TYPE_VIDEO;
   scene_temp->r.im_format.imtype = R_IMF_IMTYPE_FFMPEG;
+  scene_temp->r.size = resolution_percent;
   scene_temp->r.ffcodecdata.type = FFMPEG_MPEG4;
   scene_temp->r.ffcodecdata.codec_id_set(FFMPEG_CODEC_ID_H264);
   scene_temp->r.ffcodecdata.audio_codec = audio ? FFMPEG_CODEC_ID_AAC : FFMPEG_CODEC_ID_NONE;
