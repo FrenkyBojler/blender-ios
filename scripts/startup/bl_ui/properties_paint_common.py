@@ -678,8 +678,8 @@ class SmoothStrokePanel(BrushPanel):
         col.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
 
 
-class FalloffPanel(BrushPanel):
-    bl_label = "Falloff"
+class TipPanel(BrushPanel):
+    bl_label = "Tip"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -687,10 +687,17 @@ class FalloffPanel(BrushPanel):
         if not super().poll(context):
             return False
         settings = cls.paint_settings_from_active_tool(context)
-        if not (settings and settings.brush and settings.brush.curve_distance_falloff):
+        mode = cls.get_brush_mode(context)
+        brush = settings.brush
+
+        if mode == 'SCULPT' and (
+            brush.sculpt_capabilities.has_hardness or brush.sculpt_capabilities.has_tip_roundness):
+            return True
+
+        if not (settings and brush and brush.curve_distance_falloff):
             return False
+
         if cls.get_brush_mode(context) == 'SCULPT_CURVES':
-            brush = settings.brush
             if brush.curves_sculpt_brush_type in {'ADD', 'DELETE'}:
                 return False
         return True
@@ -704,7 +711,34 @@ class FalloffPanel(BrushPanel):
         if brush is None:
             return
 
+        has_content = False
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        if mode == 'SCULPT' and brush.sculpt_capabilities.has_hardness:
+            row = layout.row(align=True)
+            row.prop(brush, "hardness", slider=True)
+            if brush.sculpt_capabilities.has_hardness_pressure:
+                row.prop(brush, "invert_hardness_pressure", text="")
+                row.prop(brush, "use_hardness_pressure", text="")
+            has_content = True
+
+        if mode == 'SCULPT' and brush.sculpt_brush_type in {'CLAY_STRIPS', 'PAINT'}:
+            if has_content:
+                layout.separator()
+            row = layout.row(align=True)
+            row.prop(brush, "tip_roundness")
+
+            row = layout.row(align=True)
+            row.prop(brush, "tip_scale_x")
+            has_content = True
+
+        if has_content:
+            layout.separator()
+
         col = layout.column(align=True)
+        col.use_property_split = False
         if context.region.type == 'TOOL_HEADER':
             col.prop(brush, "curve_distance_falloff_preset", expand=True)
         else:
@@ -836,17 +870,6 @@ def brush_settings(layout, context, brush, popover=False):
 
         if capabilities.has_tilt:
             layout.prop(brush, "tilt_strength_factor", slider=True)
-
-        row = layout.row(align=True)
-        if capabilities.has_hardness:
-            row.prop(brush, "hardness", slider=True)
-            if capabilities.has_hardness_pressure:
-                row.prop(brush, "invert_hardness_pressure", text="")
-                row.prop(brush, "use_hardness_pressure", text="")
-
-        if capabilities.has_tip_roundness:
-            layout.prop(brush, "tip_roundness", slider=True)
-            layout.prop(brush, "tip_scale_x", slider=True)
 
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:
@@ -1323,6 +1346,32 @@ def draw_color_jitter_panel(layout, context, brush):
         row.prop(prop_owner, "value_jitter", slider=True, text="Value", text_ctxt=i18n_contexts.color)
         row.prop(prop_owner, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
         row.prop(prop_owner, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
+
+
+def brush_has_tip_settings(context, brush):
+    mode = UnifiedPaintPanel.get_brush_mode(context)
+
+    if mode in {'SCULPT', 'PAINT_TEXTURE', 'PAINT_2D', 'PAINT_VERTEX', 'PAINT_WEIGHT'}:
+        if brush.curve_distance_falloff:
+            return True
+
+    if mode == 'SCULPT':
+        return brush.sculpt_capabilities.has_hardness or brush.sculpt_brush_type in {'CLAY_STRIPS', 'PAINT'}
+
+    return False
+
+
+def brush_has_falloff_settings(context, brush):
+    mode = UnifiedPaintPanel.get_brush_mode(context)
+
+    if mode == 'SCULPT_CURVES':
+        return brush.curve_distance_falloff and brush.curves_sculpt_brush_type not in {'ADD', 'DELETE'}
+    if mode == 'PAINT_TEXTURE':
+        return context.image_paint_object and brush.curve_distance_falloff
+    if mode in {'PAINT_VERTEX', 'PAINT_WEIGHT'}:
+        return brush.curve_distance_falloff
+    return False
+
 
 
 def brush_settings_advanced(layout, context, settings, brush, popover=False):
@@ -1879,7 +1928,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
         else:
             layout.prop(gp_settings, "vertex_mode", text="Stroke Mode")
 
-        layout.popover("VIEW3D_PT_tools_brush_falloff")
+        layout.popover("VIEW3D_PT_tools_brush_tip")
         layout.prop(gp_settings, "use_active_layer_only")
 
 

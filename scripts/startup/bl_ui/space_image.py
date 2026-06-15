@@ -22,7 +22,7 @@ from bl_ui.properties_paint_common import (
     ColorPalettePanel,
     StrokePanel,
     SmoothStrokePanel,
-    FalloffPanel,
+    TipPanel,
     DisplayPanel,
     BrushAssetShelf,
 )
@@ -1387,7 +1387,7 @@ class IMAGE_PT_paint_stroke_smooth_stroke(Panel, BrushButtonsPanel, SmoothStroke
     bl_options = {'DEFAULT_CLOSED'}
 
 
-class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel, FalloffPanel):
+class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel, TipPanel):
     bl_label = "Falloff"
     bl_context = ".paint_common_2d"
     bl_parent_id = "IMAGE_PT_paint_settings"
