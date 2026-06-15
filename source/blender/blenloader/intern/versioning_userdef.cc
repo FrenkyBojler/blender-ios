@@ -1776,6 +1776,10 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->experimental.use_remote_asset_libraries = true;
   }
 
+  if (!USER_VERSION_ATLEAST(502, 42)) {
+    userdef->asset_flag |= USER_ASSETS_USE_ONLINE_ESSENTIALS;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
