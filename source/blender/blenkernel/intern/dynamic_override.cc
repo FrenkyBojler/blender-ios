@@ -1187,8 +1187,14 @@ void eval_for_id(Depsgraph &depsgraph, DepsgraphCtx &eval_context, ID &id_cow)
         continue;
       }
 
-      RNA_property_copy(
-          nullptr, data_cow_ptr, override_data_ptr, data_cow_rna_prop, override_rna_prop);
+      RNA_property_copy(nullptr,
+                        data_cow_ptr,
+                        override_data_ptr,
+                        data_cow_rna_prop,
+                        override_rna_prop,
+                        -1,
+                        -1,
+                        RNAPropertyCopyFlag::IgnoreNonEditable);
     }
   }
 }

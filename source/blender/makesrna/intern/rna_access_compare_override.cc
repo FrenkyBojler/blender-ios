@@ -240,15 +240,18 @@ bool RNA_property_copy(Main *bmain,
                        PropertyRNA *from_prop,
                        int to_index,
                        int from_index,
+                       RNAPropertyCopyFlag flag,
                        IDOverrideLibraryProperty *removed_oprop,
                        IDOverrideLibraryPropertyOperation *removed_opop)
 {
-  /* Ignore editable state if this is removing a liboverride, and the removed operation is a
-   * custom one. Apply callback of the property is expected to know what to do then. */
-  if (!removed_opop || removed_opop->operation != LIBOVERRIDE_OP_CUSTOM) {
-    if (!RNA_property_editable(&to_ptr, to_prop)) {
-      return false;
-    }
+  /* Ignore editable state if:
+   * - Caller has requested it through the flag, or...
+   * - This is removing a liboverride, and the removed operation is a custom one. Apply callback of
+   *   the property is expected to know what to do then. */
+  const bool ignore_editable = flag_is_set(flag, RNAPropertyCopyFlag::IgnoreNonEditable) ||
+                               (removed_opop && removed_opop->operation == LIBOVERRIDE_OP_CUSTOM);
+  if (!ignore_editable && !RNA_property_editable(&to_ptr, to_prop)) {
+    return false;
   }
 
   IDOverrideLibraryPropertyOperation opop{};
@@ -292,7 +295,7 @@ bool RNA_property_copy(Main *bmain,
                        IDOverrideLibraryPropertyOperation *removed_opop)
 {
   return RNA_property_copy(
-      bmain, *ptr, *fromptr, prop, prop, index, index, removed_oprop, removed_opop);
+      bmain, *ptr, *fromptr, prop, prop, index, index, {}, removed_oprop, removed_opop);
 }
 
 static int rna_property_override_diff(Main *bmain,

@@ -714,6 +714,14 @@ bool RNA_property_copy(Main *bmain,
                        int index,
                        IDOverrideLibraryProperty *removed_oprop = nullptr,
                        IDOverrideLibraryPropertyOperation *removed_opop = nullptr);
+
+/** Advanced or specific flags affecting the copy operations. */
+enum class RNAPropertyCopyFlag {
+  /* Do not check if a property is editable or not before doing the copy. */
+  IgnoreNonEditable = 1 << 0,
+};
+ENUM_OPERATORS(RNAPropertyCopyFlag);
+
 /**
  * Same as above, but with higher level of control on source and destination, allowing e.g. to copy
  * data between different properties, even from different data pointer types.
@@ -725,6 +733,7 @@ bool RNA_property_copy(Main *bmain,
                        PropertyRNA *from_prop,
                        int to_index = -1,
                        int from_index = -1,
+                       RNAPropertyCopyFlag flags = {},
                        IDOverrideLibraryProperty *removed_oprop = nullptr,
                        IDOverrideLibraryPropertyOperation *removed_opop = nullptr);
 /**
