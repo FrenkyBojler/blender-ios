@@ -180,6 +180,8 @@ Mesh *replace_faces(const Mesh &base,
             positions[i] = new_position;
           }
         }
+        else {
+        }
       },
       exec_mode::grain_size(128));
 
@@ -197,23 +199,30 @@ Mesh *replace_faces(const Mesh &base,
   BitVector<> selection_bits(base_faces.size());
   selection.to_bits(selection_bits);
 
-  selection.foreach_index([&](const int base_face_i) {
-    const Span<float3> face_positions = new_positions.as_span().slice(
-        face_vert_offsets[base_face_i]);
-    const Span<int> neighbor_faces = face_to_face_map[base_face_i];
-    for (const int neighbor_face : neighbor_faces) {
-      if (selection_bits[neighbor_face]) {
-      }
-      else {
-        const Span<float3> neighbor_positions = mesh_positions[indices[neighbor_face]];
-        KDTree<float3> *kdtree = kdtree_new<float3>(neighbor_positions.size() +
-                                                    face_positions.size());
-        kdtree_free(kdtree);
-      }
-    }
-  });
+  Array<int> merged_vert_indices(new_positions.size());
+  Array<int> verts_num_per_face_merged(base.faces_num + 1);
+  selection.foreach_index(
+      [&](const int base_face_i) {
+        const Span<float3> face_positions = new_positions.as_span().slice(
+            face_vert_offsets[base_face_i]);
+        const Span<int> neighbor_faces = face_to_face_map[base_face_i];
+        for (const int neighbor_face : neighbor_faces) {
+          if (selection_bits[neighbor_face]) {
+          }
+          else {
+            const Span<float3> neighbor_positions = mesh_positions[indices[neighbor_face]];
+            KDTree<float3> *kdtree = kdtree_new<float3>(neighbor_positions.size() +
+                                                        face_positions.size());
+            kdtree_free(kdtree);
+          }
+        }
+      },
+      exec_mode::grain_size(128));
+  const OffsetIndices<int> face_vert_offsets_merged = offset_indices::accumulate_counts_to_offsets(
+      verts_num_per_face_merged);
 
-  Mesh *result = BKE_mesh_new_nomain(unselected_verts.size() + face_vert_offsets.total_size(),
+  Mesh *result = BKE_mesh_new_nomain(unselected_verts.size() +
+                                         face_vert_offsets_merged.total_size(),
                                      0,
                                      unselected.size() + face_face_offsets.total_size(),
                                      unselected_corners_num + face_corner_offsets.total_size());
@@ -222,7 +231,7 @@ Mesh *replace_faces(const Mesh &base,
   array_utils::gather(
       base_positions, unselected_verts, result_positions.take_front(unselected_verts.size()));
   array_utils::copy(new_positions.as_span(),
-                    result_positions.take_back(face_vert_offsets.total_size()));
+                    result_positions.take_back(face_vert_offsets_merged.total_size()));
 
   MutableSpan<int> result_face_offsets = result->face_offsets_for_write();
   if (!unselected.is_empty()) {
@@ -258,10 +267,13 @@ Mesh *replace_faces(const Mesh &base,
         }
       },
       exec_mode::grain_size(512));
+
+  // Array<int>
   selection.foreach_index(
       [&](const int base_face_i) {
         const Span<int> corner_verts = mesh_corner_verts[indices[base_face_i]];
-        const int vert_offset = unselected_verts.size() + face_vert_offsets[base_face_i].start();
+        const int vert_offset = unselected_verts.size() +
+                                face_vert_offsets_merged[base_face_i].start();
         MutableSpan<int> dst_corner_verts = result_corner_verts.slice(
             face_corner_offsets[base_face_i].shift(unselected_corners_num));
         for (const int i : corner_verts.index_range()) {
