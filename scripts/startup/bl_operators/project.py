@@ -50,6 +50,7 @@ class ProjectVariable:
 
     @staticmethod
     def new_from_real(project_variable):
+        """Create a ProjectVariable config object from an existing real project variable."""
         match project_variable.type:
             case 'INTEGER':
                 value = project_variable.value_int
@@ -66,6 +67,21 @@ class ProjectVariable:
             description=project_variable.description,
         )
 
+    def populate_real(self, variable):
+        """Fills in an existing real project variable with this object's data."""
+        variable.name = self.name
+        variable.type = self.type.value
+        match self.type:
+            case VariableType.INTEGER:
+                variable.value_int = self.value
+            case VariableType.FLOAT:
+                variable.value_float = self.value
+            case VariableType.STRING:
+                variable.value_string = self.value
+            case VariableType.FILEPATH:
+                variable.value_string = self.value
+        variable.description = self.description
+
     def __post_init__(self):
         """Validation of invariants that cattrs doesn't check."""
         import re
@@ -75,7 +91,8 @@ class ProjectVariable:
 
         if re.match("^[a-zA-Z_][a-zA-Z0-9_]*$", self.name) is None:
             raise ValueError(
-                "Invalid variable name '{:s}': variable names must not start with a digit, and must contain only alphanumeric characters and underscores.")
+                "Invalid variable name '{:s}': variable names must not start with a digit, and "
+                "must contain only alphanumeric characters and underscores.")
 
         match (self.type, self.value):
             case (VariableType.INTEGER, int()):
@@ -96,30 +113,19 @@ class ProjectConfig:
     variables: list[ProjectVariable] | None = None
 
     @staticmethod
-    def new_from_project(project):
+    def new_from_real(project):
         """Create a ProjectConfig object from an existing real project."""
         return ProjectConfig(
             name=project.name,
             variables=[ProjectVariable.new_from_real(var) for var in project.variables],
         )
 
-    def populate_project(self, project):
+    def populate_real(self, project):
         """Fills in an existing real project's data from this ProjectConfig object."""
         if self.variables is not None:
             for config_var in self.variables:
                 var = bpy.data.project.variables.new()
-                var.name = config_var.name
-                var.type = config_var.type.value
-                match config_var.type:
-                    case VariableType.INTEGER:
-                        var.value_int = config_var.value
-                    case VariableType.FLOAT:
-                        var.value_float = config_var.value
-                    case VariableType.STRING:
-                        var.value_string = config_var.value
-                    case VariableType.FILEPATH:
-                        var.value_string = config_var.value
-                var.description = config_var.description
+                config_var.populate_real(var)
 
     def __post_init__(self):
         """Validation of invariants that cattrs doesn't check."""
@@ -227,7 +233,7 @@ def save_project(project, report=None):
 
     # Create a project config dict from the current project.
     converter = cattrs.Converter()
-    config = ProjectConfig.new_from_project(project)
+    config = ProjectConfig.new_from_real(project)
     config_dict = converter.unstructure(config, ProjectConfig)
 
     # Write the config TOML file.
@@ -286,7 +292,7 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
     # Load project.
     config = read_project_toml_config(root_path, report)
     bpy.data.project_init(config.name, str(root_path))
-    config.populate_project(bpy.data.project)
+    config.populate_real(bpy.data.project)
     bpy.data.project.is_dirty = False
 
 
