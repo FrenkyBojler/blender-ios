@@ -7,7 +7,7 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_scene.hh"
 
-#include "BLI_math_color.h"
+#include "BLI_math_color_c.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -215,7 +215,7 @@ constexpr double default_pdf_ppi = 72.0;
 bool PDFExporter::add_page(Scene &scene)
 {
   page_ = HPDF_AddPage(pdf_);
-  if (!pdf_) {
+  if (!page_) {
     std::cout << "error: cannot create PdfPage\n";
     return false;
   }
