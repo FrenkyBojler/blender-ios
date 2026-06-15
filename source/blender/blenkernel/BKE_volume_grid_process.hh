@@ -101,6 +101,16 @@ void set_grid_values(openvdb::GridBase &grid_base, GSpan values, Span<openvdb::C
  */
 void set_tile_values(openvdb::GridBase &grid_base, GSpan values, Span<openvdb::CoordBBox> tiles);
 
+/** Deactivate values for the given voxels in the grid. */
+void set_grid_values_off(openvdb::GridBase &grid_base,
+                         const IndexMask &index_mask,
+                         Span<openvdb::Coord> voxels);
+
+/** Deactivate values for the given tiles in the grid. */
+void set_tile_values_off(openvdb::GridBase &grid_base,
+                         const IndexMask &index_mask,
+                         Span<openvdb::CoordBBox> tiles);
+
 /**
  * Boolean grids are stored as bitmaps, but we often have to process arrays of booleans. This
  * utility sets the bitmap values based on the boolean array.

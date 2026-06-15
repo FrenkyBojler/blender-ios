@@ -778,6 +778,49 @@ void set_tile_values(openvdb::GridBase &grid_base,
   });
 }
 
+void set_grid_values_off(openvdb::GridBase &grid_base,
+                         const IndexMask &index_mask,
+                         const Span<openvdb::Coord> voxels)
+{
+  to_typed_grid(grid_base, [&](auto &grid) {
+    auto accessor = grid.getUnsafeAccessor();
+    index_mask.foreach_index_optimized<int>([&](const int i) { accessor.setValueOff(voxels[i]); });
+  });
+}
+
+void set_tile_values_off(openvdb::GridBase &grid_base,
+                         const IndexMask &index_mask,
+                         const Span<openvdb::CoordBBox> tiles)
+{
+  to_typed_grid(grid_base, [&](auto &grid) {
+    using GridT = typename std::decay_t<decltype(grid)>;
+    using TreeT = typename GridT::TreeType;
+    auto &tree = grid.tree();
+
+    const auto set_tile_value_off = [&](auto &node, const openvdb::Coord &coord_in_tile) {
+      const openvdb::Index n = node.coordToOffset(coord_in_tile);
+      node.setValueOffUnsafe(n);
+    };
+
+    index_mask.foreach_index_optimized<int>([&](const int i) {
+      const openvdb::CoordBBox tile = tiles[i];
+      const openvdb::Coord coord_in_tile = tile.min();
+      using InternalNode1 = typename TreeT::RootNodeType::ChildNodeType;
+      using InternalNode2 = typename InternalNode1::ChildNodeType;
+      /* Find the internal node that contains the tile and update the value in there. */
+      if (auto *node = tree.template probeNode<InternalNode2>(coord_in_tile)) {
+        set_tile_value_off(*node, coord_in_tile);
+      }
+      else if (auto *node = tree.template probeNode<InternalNode1>(coord_in_tile)) {
+        set_tile_value_off(*node, coord_in_tile);
+      }
+      else {
+        BLI_assert_unreachable();
+      }
+    });
+  });
+}
+
 void set_mask_leaf_buffer_from_bools(openvdb::BoolGrid &grid,
                                      const Span<bool> values,
                                      const IndexMask &index_mask,
