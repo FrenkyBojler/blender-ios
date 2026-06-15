@@ -12,15 +12,15 @@
 
 #include "BLI_array.hh"
 #include "BLI_bounds.hh"
-#include "BLI_boxpack_2d.h"
+#include "BLI_boxpack_2d.hh"
 #include "BLI_convexhull_2d.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_polyfill_2d.h"
-#include "BLI_polyfill_2d_beautify.h"
-#include "BLI_rect.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_polyfill_2d.hh"
+#include "BLI_polyfill_2d_beautify.hh"
+#include "BLI_rect.hh"
 #include "BLI_vector.hh"
 
 #include "MEM_guardedalloc.h"
@@ -344,12 +344,12 @@ void PackIsland::finalize_geometry_(const UVPackIsland_Params &params, MemArena 
     int convex_len = BLI_convexhull_2d(triangle_vertices_, index_map);
     if (convex_len >= 3) {
       /* Write back. */
-      triangle_vertices_.clear();
       float2 *convex_verts = static_cast<float2 *>(
           BLI_memarena_alloc(arena, sizeof(*convex_verts) * convex_len));
       for (int i = 0; i < convex_len; i++) {
         convex_verts[i] = triangle_vertices_[index_map[i]];
       }
+      triangle_vertices_.clear();
       add_polygon(Span(convex_verts, convex_len), arena, heap);
     }
   }
@@ -1624,6 +1624,14 @@ static int64_t pack_island_xatlas(const Span<std::unique_ptr<UVAABBIsland>> isla
   int i = 0;
   bool placed_can_rotate = true;
 
+  /* Bound the number of times the search area may be enlarged
+   * (see #Occupancy::increase_scale). See #159462 for an example
+   * where even faces of a cube hang, although degenerate UV's may cause the same problem.
+   *
+   * TODO(@ideasman42): investigate how other XATLAS implementation handle this,
+   * as this just avoids hanging, ideally these cases wouldn't perform so poorly. */
+  int increase_scale_remaining = 32;
+
   /* The following `while` loop is setting up a three-way race:
    * `for (scan_line = 0; scan_line < bitmap_radix; scan_line++)`
    * `for (i : island_indices.index_range())`
@@ -1709,6 +1717,11 @@ static int64_t pack_island_xatlas(const Span<std::unique_ptr<UVAABBIsland>> isla
       }
 
       /* Enlarge search parameters. */
+      if (--increase_scale_remaining < 0) {
+        /* Unable to pack within a reasonable number of enlargements, give up and keep the layout
+         * from the previous packers (left untouched in `r_phis`). */
+        return 0;
+      }
       scan_line = 0;
       occupancy.increase_scale();
       traced_islands = 0; /* Will trigger a re-trace of previously solved islands. */

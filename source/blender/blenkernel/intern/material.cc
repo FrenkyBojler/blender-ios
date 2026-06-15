@@ -11,7 +11,7 @@
 #include <cstring>
 #include <optional>
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
@@ -34,12 +34,12 @@
 #include "DNA_userdef_types.h"
 #include "DNA_volume_types.h"
 
-#include "BLI_array_utils.h"
+#include "BLI_array_utils_c.hh"
 #include "BLI_enum_flags.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
 
 #include "BLT_translation.hh"
 
@@ -1263,6 +1263,14 @@ void BKE_object_material_remap(Object *ob, const uint *remap)
   }
   else if (ob->type == OB_GREASE_PENCIL) {
     BKE_grease_pencil_material_remap(id_cast<GreasePencil *>(ob->data), remap, ob->totcol);
+  }
+  else if (ob->type == OB_VOLUME) {
+    /* Material support doesn't store "indices".
+     * The way "baked" materials are stored means they store ID's and don't need remapping. */
+  }
+  else if (ob->type == OB_MBALL) {
+    /* While meta-balls have a material array, they only use the first material slot
+     * (no support for mixing materials). */
   }
   else {
     /* add support for this object data! */

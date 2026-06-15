@@ -11,12 +11,14 @@
 #include "DNA_image_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_image_wrappers.hh"
 #include "BKE_paint.hh"
+
+#include "PRF_profile.hh"
 
 #include "pbvh_intern.hh"
 #include "pbvh_pixels_copy.hh"
@@ -105,6 +107,7 @@ static void extract_barycentric_pixels(UDIMTilePixels &tile_data,
 /** Update the geometry primitives of the pbvh. */
 static void update_geom_primitives(Tree &pbvh, const uv_islands::MeshData &mesh_data)
 {
+  PRF_scope(ProfileCategory::Editor);
   PixelData &pbvh_data = data_get(pbvh);
   pbvh_data.vert_tris.reinitialize(mesh_data.corner_tris.size());
   bke::mesh::vert_tris_from_corner_tris(
@@ -146,6 +149,7 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
                              MeshNode &node,
                              PixelNode &pixel_node)
 {
+  PRF_scope(ProfileCategory::Editor);
   BLI_assert(pixel_node.flags.rebuild ||
              (pixel_node.uv_primitives.tri_indices.is_empty() &&
               pixel_node.uv_primitives.delta_barycentric_coords.is_empty() &&
@@ -345,10 +349,12 @@ static bool update_pixels(const Depsgraph &depsgraph,
   MutableSpan<MeshNode> nodes = pbvh.nodes<MeshNode>();
   MutableSpan<PixelNode> pixel_nodes = pbvh.pixels_->nodes;
 
-  nodes_to_update.foreach_index([&](const int i) {
-    do_encode_pixels(
-        mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i], pixel_nodes[i]);
-  });
+  nodes_to_update.foreach_index(
+      [&](const int i) {
+        do_encode_pixels(
+            mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i], pixel_nodes[i]);
+      },
+      exec_mode::grain_size(1));
   if (USE_WATERTIGHT_CHECK) {
     apply_watertight_check(pbvh, image, image_user);
   }
@@ -357,7 +363,8 @@ static bool update_pixels(const Depsgraph &depsgraph,
   copy_update(pbvh, image, image_user, mesh_data);
 
   /* Rebuild the undo regions. */
-  nodes_to_update.foreach_index([&](const int i) { pixel_nodes[i].rebuild_undo_regions(); });
+  nodes_to_update.foreach_index([&](const int i) { pixel_nodes[i].rebuild_undo_regions(); },
+                                exec_mode::grain_size(1));
 
   /* Clear the UpdatePixels flag. */
   nodes_to_update.foreach_index([&](const int i) { pixel_nodes[i].flags.rebuild = false; });
@@ -423,6 +430,7 @@ void mark_image_dirty(bke::pbvh::Node & /*node*/,
                       Image &image,
                       Map<image::TileNumber, ImBuf *> &buffers)
 {
+  PRF_scope(ProfileCategory::Editor);
   if (pixel_node.flags.dirty) {
     for (UDIMTilePixels &tile : pixel_node.tiles) {
       std::optional<image::ImageTileWrapper> image_tile = find_image_tile(image, tile.tile_number);
@@ -448,6 +456,7 @@ namespace bke::pbvh {
 
 void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, ImageUser &image_user)
 {
+  PRF_scope(ProfileCategory::Editor);
   Tree &pbvh = *object::pbvh_get(object);
   pixels::update_pixels(depsgraph, object, pbvh, image, image_user);
 }

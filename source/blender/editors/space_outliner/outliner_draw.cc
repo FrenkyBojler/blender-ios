@@ -19,14 +19,14 @@
 #include "DNA_sequence_types.h"
 #include "DNA_text_types.h"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -1988,6 +1988,7 @@ static void outliner_draw_overrides_rna_buts(ui::Block *block,
     {
       StringRefNull op_label = override_op_elem->get_override_operation_label();
       if (!op_label.is_empty()) {
+        StringRefNull op_tooltip = override_op_elem->get_override_operation_tooltip();
         uiDefBut(block,
                  ui::ButtonType::Label,
                  op_label,
@@ -1998,7 +1999,7 @@ static void outliner_draw_overrides_rna_buts(ui::Block *block,
                  nullptr,
                  0,
                  0,
-                 "");
+                 op_tooltip);
         continue;
       }
     }

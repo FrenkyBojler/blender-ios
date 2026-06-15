@@ -5,10 +5,10 @@
 #include <cstring>
 #include <string>
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_utils.hh"
-#include "BLI_threads.h"
+#include "BLI_threads.hh"
 #include "BLI_vector.hh"
 
 #include "MEM_guardedalloc.h"
@@ -210,10 +210,10 @@ class Context : public compositor::Context {
         else {
           float *data = MEM_new_array_uninitialized<float>(
               4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
+          image_buffer->assign_float_data(data);
           std::memcpy(image_buffer->float_data_for_write(),
                       result.cpu_data().data(),
                       render_result->rectx * render_result->recty * 4 * sizeof(float));
-          image_buffer->assign_float_data(data);
         }
       }
     }

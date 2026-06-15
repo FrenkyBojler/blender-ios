@@ -10,7 +10,7 @@
 
 #include "BKE_idprop.hh"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 
 #include <pxr/imaging/hd/dataSource.h>
 #include <pxr/imaging/hd/overlayContainerDataSource.h>
@@ -34,7 +34,7 @@ class BlenderCameraIDPropertiesDataSource : public pxr::HdContainerDataSource {
     pxr::TfTokenVector result;
     if (camera_ && camera_->id.properties) {
       for (const IDProperty &prop : camera_->id.properties->data.group) {
-        result.push_back(pxr::TfToken(prop.name));
+        result.emplace_back(prop.name);
       }
     }
     return result;
