@@ -343,8 +343,24 @@ void load_plydata(PlyData &plyData, Depsgraph *depsgraph, const PLYExportParams 
     }
 
     Object *obj_eval = DEG_get_evaluated(depsgraph, object);
+
+    /* Curves and NURBS surfaces need a new mesh when they're
+     * exported in the form of vertices and edges.
+     */
+    bool is_original_mesh_type = true;
+    Mesh *pre_modified_mesh = nullptr;
+    if (const ID *data_orig = obj_eval->runtime->data_orig) {
+      if (GS(data_orig->name) != ID_ME) {
+        is_original_mesh_type = false;
+        if (!export_params.apply_modifiers) {
+          pre_modified_mesh = BKE_mesh_new_from_object(
+              depsgraph, DEG_get_original(obj_eval), true, true, true);
+        }
+      }
+    }
     const Mesh *mesh = export_params.apply_modifiers ? BKE_object_get_evaluated_mesh(obj_eval) :
-                                                       BKE_object_get_pre_modified_mesh(obj_eval);
+                       is_original_mesh_type         ? BKE_object_get_pre_modified_mesh(obj_eval) :
+                                                       pre_modified_mesh;
 
     /* Ensure data exists if currently in edit mode. */
     BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(mesh));
@@ -461,6 +477,9 @@ void load_plydata(PlyData &plyData, Depsgraph *depsgraph, const PLYExportParams 
     vertex_offset = int(plyData.vertices.size());
     if (manually_free_mesh) {
       BKE_id_free(nullptr, manually_free_mesh);
+    }
+    if (pre_modified_mesh) {
+      BKE_id_free(nullptr, pre_modified_mesh);
     }
   }
 
