@@ -17,22 +17,22 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_atomic_disjoint_set.hh"
-#include "BLI_dial_2d.h"
+#include "BLI_dial_2d.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_axis_angle.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
-#include "BLI_task.h"
 #include "BLI_task.hh"
+#include "BLI_task_c.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_brush_types.h"
@@ -5888,7 +5888,6 @@ void SculptPaintStroke::stroke_cache_init(const float mval[2])
 
     cache->image_data = paint::image::ImageData::init_active_image(
         ob, this->scene->toolsettings->paint_mode);
-    cache->image_data->image->runtime->gpuflag |= IMA_GPU_DISABLE_MIPMAP_UPDATE;
   }
 
   if (BKE_brush_color_jitter_get_settings(this->paint, brush)) {
@@ -6129,12 +6128,6 @@ void SculptPaintStroke::done(bool is_cancel, bool stroke_started)
     mask_brush_toggle_off(&sd.paint, ss.cache);
     /* Refresh the brush pointer in case we switched brush in the toggle function. */
     brush = BKE_paint_brush(&sd.paint);
-  }
-
-  if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
-      SCULPT_use_image_paint_brush(*this->paint_mode_settings_, ob) && ss.cache->image_data)
-  {
-    ss.cache->image_data->image->runtime->gpuflag &= ~IMA_GPU_DISABLE_MIPMAP_UPDATE;
   }
 
   MEM_delete(ss.cache);
