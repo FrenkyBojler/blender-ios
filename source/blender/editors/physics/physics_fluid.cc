@@ -596,7 +596,7 @@ static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmE
 
 static wmOperatorStatus fluid_bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
-  /* no running blender, remove handler and pass through */
+  /* No running blender, remove handler and pass through. */
   if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
@@ -618,9 +618,6 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
   Object *ob = ed::object::context_active_object(C);
   Scene *scene = CTX_data_scene(C);
 
-  /*
-   * Get modifier data
-   */
   fmd = reinterpret_cast<FluidModifierData *>(BKE_modifiers_findby_type(ob, eModifierType_Fluid));
   if (!fmd) {
     BKE_report(op->reports, RPT_ERROR, "Bake free failed: no Fluid modifier found");
@@ -632,7 +629,7 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* Cannot free data if other bakes currently working */
+  /* Cannot free data if other bakes currently working. */
   if (fmd->domain->cache_flag & (FLUID_DOMAIN_BAKING_DATA | FLUID_DOMAIN_BAKING_NOISE |
                                  FLUID_DOMAIN_BAKING_MESH | FLUID_DOMAIN_BAKING_PARTICLES))
   {
@@ -654,7 +651,6 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* Clear existing banners so that the upcoming progress bar from this job has more room. */
   WM_report_banners_cancel(job->bmain);
 
   wmJobWorkerStatus worker_status = {};
@@ -672,9 +668,6 @@ static wmOperatorStatus fluid_free_invoke(bContext *C, wmOperator *op, const wmE
   Object *ob = ed::object::context_active_object(C);
   Scene *scene = CTX_data_scene(C);
 
-  /*
-   * Get modifier data
-   */
   fmd = reinterpret_cast<FluidModifierData *>(BKE_modifiers_findby_type(ob, eModifierType_Fluid));
   if (!fmd) {
     BKE_report(op->reports, RPT_ERROR, "Bake free failed: no Fluid modifier found");
@@ -686,7 +679,7 @@ static wmOperatorStatus fluid_free_invoke(bContext *C, wmOperator *op, const wmE
     return OPERATOR_CANCELLED;
   }
 
-  /* Cannot free data if other bakes currently working */
+  /* Cannot free data if other bakes currently working. */
   if (fmd->domain->cache_flag & (FLUID_DOMAIN_BAKING_DATA | FLUID_DOMAIN_BAKING_NOISE |
                                  FLUID_DOMAIN_BAKING_MESH | FLUID_DOMAIN_BAKING_PARTICLES))
   {
@@ -732,7 +725,7 @@ static wmOperatorStatus fluid_free_invoke(bContext *C, wmOperator *op, const wmE
 
 static wmOperatorStatus fluid_free_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
-  /* no running blender, remove handler and pass through */
+  /* No running blender, remove handler and pass through. */
   if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
