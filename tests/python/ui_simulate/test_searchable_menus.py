@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Blender Authors
+# SPDX-FileCopyrightText: 2026 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -38,11 +38,10 @@ def _invoke(e, t, w, a, menu):
         bpy.ops.wm.search_single_menu('INVOKE_DEFAULT', menu_idname=menu)
 
 
-def _search(e, t, w, a, menu, search_text, ret_count=1):
+def _search(e, t, w, a, menu, search_text):
     _invoke(e, t, w, a, menu)
     yield e.text(search_text)
-    for _ in range(ret_count):
-        yield e.ret()
+    yield e.ret()
 
 
 def test_view3d_add():
@@ -84,13 +83,13 @@ def test_sequencer_add():
     e, t, w, a = _setup('SEQUENCE_EDITOR')
     yield
 
-    bpy.context.scene.sequence_editor_create()
     bpy.context.workspace.sequencer_scene = bpy.context.scene
     yield
 
     count_before = len(bpy.context.scene.sequence_editor.strips)
     _invoke(e, t, w, a, "SEQUENCER_MT_add")
     yield e.text("Adjustment Layer")
+    yield e.ret()
     yield e.ret()
 
     t.assertEqual(len(bpy.context.scene.sequence_editor.strips), count_before + 1)
@@ -101,7 +100,6 @@ def test_sequencer_modifier_add():
     e, t, w, a = _setup('SEQUENCE_EDITOR')
     yield
 
-    bpy.context.scene.sequence_editor_create()
     bpy.context.workspace.sequencer_scene = bpy.context.scene
     with bpy.context.temp_override(window=w, area=a):
         bpy.ops.sequencer.scene_strip_add_new()
