@@ -48,7 +48,12 @@ struct Line {
 
   bool is_valid() const
   {
-    return dist_raw != 0.0f;
+    return dist_raw != 0.0f && dist_raw != 1.0f;
+  }
+
+  bool is_blocked() const
+  {
+    return dist_raw == 1.0f;
   }
 };
 
@@ -96,6 +101,22 @@ template float line_coverage<float>(float, float, bool);
 template float4 line_coverage<float4>(float4, float, bool);
 
 /**
+ * Return the color of the furthest pixel in the neighboring crosshair.
+ */
+float4 furthest_neighbor(TexelData center, TexelData neighbors[4])
+{
+  float4 furthest_color = center.color;
+  float furthest_depth = center.depth;
+  for (int i = 0; i < 4; ++i) {
+    if (neighbors[i].depth > furthest_depth && !neighbors[i].line.is_blocked()) {
+      furthest_color = neighbors[i].color;
+      furthest_depth = neighbors[i].depth;
+    }
+  }
+  return furthest_color;
+}
+
+/**
  * Compute distance-to-line for one of the neighboring crosshair pixels, dependent
  * on whether that pixel has influence or not; in which case distance is set to
  * a maximal value.
@@ -114,21 +135,36 @@ float neighbor_dist(const TexelData &neighbor, int2 offset)
 }
 
 /**
+ * Alpha-over blending for 4-channel non-premultiplied colors.
+ */
+float4 alpha_over_blend(float4 over, float4 under)
+{
+  under.a *= (1.0f - over.a);
+  return (over * over.a + under * under.a) / (over.a + under.a);
+}
+
+/**
  * Blend the neighbor pixel onto the target pixel, based on the pixels'
  * relative depths doing alpha-over or alpha-under. The resulting pixel's
  * depth is then adjusted to the closest depth.
  */
-void neighbor_blend(TexelData neighbor, TexelData &target, float line_coverage)
+void neighbor_blend(float4 background, TexelData neighbor, TexelData &target, float line_coverage)
 {
-  neighbor.color *= line_coverage;
-  if (line_coverage > 0.0f && neighbor.depth < target.depth) {
-    /* Alpha over blending, and update to new closest target depth. */
-    target.color = neighbor.color + target.color * (1.0f - neighbor.color.a);
-    target.depth = neighbor.depth;
+  /* Special value on neighbor indicates it should not affect pixels around it. */
+  if (neighbor.line.is_blocked() || line_coverage == 0.0f) {
+    return;
   }
-  else {
-    /* Alpha under blending */
-    target.color = target.color + neighbor.color * (1.0f - target.color.a);
+
+  /* Background is visible through neighbor dependent on line coverage. */
+  neighbor.color = mix(background, neighbor.color, line_coverage);
+
+  /* Update target color.
+   * Closest blends over farthest, and sets new target depth. */
+  bool target_over_neighbor = target.depth < neighbor.depth;
+  target.color = alpha_over_blend(target_over_neighbor ? target.color : neighbor.color,
+                                  target_over_neighbor ? neighbor.color : target.color);
+  if (!target_over_neighbor) {
+    target.depth = neighbor.depth;
   }
 }
 
@@ -175,18 +211,19 @@ struct FragOut {
   float4 coverage = line_coverage(neighbor_dists, line_kernel, srt.do_smooth_lines);
 
   /* Multiply current output color by center pixel's line coverage. */
+  float4 background = furthest_neighbor(center, neighbors);
   if (center.line.is_valid()) {
     float coverage = line_coverage(center.line.dist, line_kernel, srt.do_smooth_lines);
-    center.color *= coverage;
+    center.color = mix(background, center.color, coverage);
   }
 
   /* We don't order fragments; instead, we blend using alpha-over/alpha-under
    * based on the tracked depth of each neighbor pixel, using the center pixel
    * as reference input and tracked value. */
-  neighbor_blend(neighbors[0], center, coverage.x);
-  neighbor_blend(neighbors[1], center, coverage.y);
-  neighbor_blend(neighbors[2], center, coverage.z);
-  neighbor_blend(neighbors[3], center, coverage.w);
+  neighbor_blend(background, neighbors[0], center, coverage.x);
+  neighbor_blend(background, neighbors[1], center, coverage.y);
+  neighbor_blend(background, neighbors[2], center, coverage.z);
+  neighbor_blend(background, neighbors[3], center, coverage.w);
 
 #if 1
   /* Fix aliasing issue with really dense meshes and 1 pixel sized lines. */
