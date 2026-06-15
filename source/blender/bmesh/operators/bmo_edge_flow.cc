@@ -259,6 +259,19 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
       }
     }
 
+    const int blend_mode = BMO_slot_int_get(op->slots_in, "blend_mode");
+    const float blend_start = BMO_slot_float_get(op->slots_in, "blend_start");
+    const float blend_end = BMO_slot_float_get(op->slots_in, "blend_end");
+    const bool blend_smooth = BMO_slot_int_get(op->slots_in, "blend_type") == 1;
+
+    for (const int j : loops.index_range()) {
+      const EdgeFlowLoop &loop = loops[j];
+      const int count = int(loop.verts.size());
+      const int start = (blend_mode == 1) ? int(roundf(float(count) * blend_start)) : int(blend_start);
+      const int end = (blend_mode == 1) ? int(roundf(float(count) * blend_end)) : int(blend_end);
+      edge_flow_blend_ends(loop, orig_cos[j], start, end, blend_smooth);
+    }
+
     /* Blend each moved vert back toward its original position. */
     for (const int j : loops.index_range()) {
       const EdgeFlowLoop &loop = loops[j];
