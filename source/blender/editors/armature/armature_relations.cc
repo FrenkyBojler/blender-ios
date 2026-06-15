@@ -714,15 +714,13 @@ static void separate_armature_bones(Main *bmain, Object *ob, const bool is_selec
     /* Also delete any drivers that point to bones which no longer exist. */
     PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_Object, ob);
     PathResolvedRNA resolved_rna;
-    FCurve *iter = static_cast<FCurve *>(ob->adt->drivers.first);
-    while (iter) {
-      FCurve *fcu = iter;
-      iter = fcu->next;
-      if (!BKE_animsys_rna_path_resolve(&ptr, fcu->rna_path, fcu->array_index, &resolved_rna)) {
-        /* If the driver path cannot be resolved, we can assume that the bone no longer exists. */
-        BLI_remlink(&ob->adt->drivers, fcu);
-        BKE_fcurve_free(fcu);
+    for (FCurve &fcurve : ob->adt->drivers.items_mutable()) {
+      if (BKE_animsys_rna_path_resolve(&ptr, fcurve.rna_path, fcurve.array_index, &resolved_rna)) {
+        continue;
       }
+      /* If the driver path cannot be resolved, we can assume that the bone no longer exists. */
+      BLI_remlink(&ob->adt->drivers, &fcurve);
+      BKE_fcurve_free(&fcurve);
     }
   }
 
