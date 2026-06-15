@@ -9,7 +9,7 @@
 
 #include "DNA_listBase.h"
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_mutex.hh"
 #include "BLI_string_ref.hh"
@@ -81,7 +81,7 @@ struct ImageRuntime {
   short gpu_layer = IMAGE_GPU_LAYER_NONE;
   short gpu_view = IMAGE_GPU_VIEW_NONE;
 
-  int lastused = 0;
+  int64_t lastused = 0;
 
   /** Register containing partial updates. */
   PartialUpdateRegister *partial_update_register = nullptr;
