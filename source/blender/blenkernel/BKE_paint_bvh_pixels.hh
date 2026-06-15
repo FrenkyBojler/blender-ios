@@ -26,9 +26,6 @@ namespace blender::bke::pbvh::pixels {
 
 /**
  * Encode sequential pixels to reduce memory footprint.
- * TODO: Can we pack an associated Bounds<float3> to improve coarse filtering?
- * TODO: Experiment with adding an initial float3 and delta so calculating positions doesn't need
- * to happen as frequently
  */
 struct PackedPixelRow {
   /** Barycentric coordinate of the first pixel. */
