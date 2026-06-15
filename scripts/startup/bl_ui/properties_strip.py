@@ -634,7 +634,7 @@ class STRIP_PT_movie_clip(StripButtonsPanel, Panel):
 
 
 class STRIP_PT_image_id(StripButtonsPanel, Panel):
-    bl_label = "Image ID"
+    bl_label = "Image"
 
     @classmethod
     def poll(cls, context):
