@@ -415,6 +415,7 @@ static PointerRNA rna_ProjectVariables_new(BlenderProject *project,
         new_var);
   });
   project_mark_dirty(project);
+  WM_main_add_notifier(NC_WINDOW, nullptr);
   return variable;
 }
 
@@ -442,6 +443,7 @@ void rna_ProjectVariables_remove(BlenderProject *project,
                                               int(project->variables.size() - 1));
   });
   project_mark_dirty(project);
+  WM_main_add_notifier(NC_WINDOW, nullptr);
 }
 
 void rna_ProjectVariables_move(BlenderProject *project,
@@ -463,6 +465,7 @@ void rna_ProjectVariables_move(BlenderProject *project,
     project->move_variable(from_index, to_index);
   });
   project_mark_dirty(project);
+  WM_main_add_notifier(NC_WINDOW, nullptr);
 }
 
 /* --------------------------------------------------------- */
