@@ -1066,7 +1066,7 @@ bool OneapiDevice::create_queue(SyclQueue *&external_queue,
     if (devices[device_index].meets_driver_requirement == false) {
       oneapi_error_string_ =
           "The SYCL device does not meet the minimal driver requirement. "
-          "The UI should not have allowed it to be selected. "
+          "The Blender should not have allowed it to be used for the rendering. "
           "This is a bug in Blender, please report it.";
       return false;
     }
