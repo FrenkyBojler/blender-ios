@@ -51,6 +51,7 @@
 #include "ED_select_utils.hh"
 #include "ED_sequencer.hh"
 
+#include "UI_resources.hh"
 #include "UI_view2d.hh"
 
 #include "sequencer_intern.hh"
@@ -2631,8 +2632,6 @@ void SEQUENCER_OT_select_circle(wmOperatorType *ot)
 
 enum {
   SEQ_SELECT_GROUP_TYPE,
-  SEQ_SELECT_GROUP_TYPE_BASIC,
-  SEQ_SELECT_GROUP_TYPE_EFFECT,
   SEQ_SELECT_GROUP_DATA,
   SEQ_SELECT_GROUP_STRIPS_UNDER_EFFECT,
   SEQ_SELECT_GROUP_TIME_OVERLAP,
@@ -2645,17 +2644,6 @@ static const EnumPropertyItem sequencer_prop_select_grouped_types[] = {
      0,
      "Type",
      "Select all strips of the same specific type as the active strip"},
-    {SEQ_SELECT_GROUP_TYPE_BASIC,
-     "TYPE_BASIC",
-     0,
-     "Visual or Sound",
-     "Select all visual strips if the active strip is visual, or all sound strips if it is not"},
-    {SEQ_SELECT_GROUP_TYPE_EFFECT,
-     "TYPE_EFFECT",
-     0,
-     "Effect or Non-Effect",
-     "Select all effect strips if the active strip is an effect, or all non-effect strips if it "
-     "is not"},
     {SEQ_SELECT_GROUP_DATA,
      "DATA",
      0,
@@ -2681,11 +2669,28 @@ static const EnumPropertyItem sequencer_prop_select_grouped_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static bool strip_use_data(const Strip *strip)
+/* TODO(john): We can't use `all_strips_from_context` because it checks for a `RGN_TYPE_PREVIEW`,
+ * and when clicking an enum menu item in the UI, the context is always `RGN_TYPE_WINDOW`. Thus
+ * we need a separate helper that passes `is_preview`. If we make changes to Sequencer & Preview
+ * view type context, we can adjust the logic in there to allow it to be re-used here. */
+static VectorSet<Strip *> strips_from_context(const Scene *scene, bool is_preview)
+{
+  const Editing *ed = seq::editing_get(scene);
+  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
+  ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
+
+  VectorSet<Strip *> strips = is_preview ? seq::query_rendered_strips(
+                                               scene, channels, seqbase, scene->r.cfra, 0) :
+                                           seq::query_all_strips(seqbase);
+  return strips;
+}
+
+static bool strip_uses_data(const Strip *strip)
 {
   return ELEM(strip->type, STRIP_TYPE_SCENE, STRIP_TYPE_MOVIECLIP, STRIP_TYPE_MASK) ||
          STRIP_HAS_PATH(strip);
 }
+
 static bool select_grouped_type(VectorSet<Strip *> strips,
                                 Strip *act_strip,
                                 std::optional<int> channel)
@@ -2702,41 +2707,6 @@ static bool select_grouped_type(VectorSet<Strip *> strips,
   return changed;
 }
 
-static bool select_grouped_type_basic(VectorSet<Strip *> strips,
-                                      Strip *act_strip,
-                                      std::optional<int> channel)
-{
-  bool changed = false;
-  const bool is_sound = (act_strip->type == STRIP_TYPE_SOUND);
-
-  for (Strip *strip : strips) {
-    if ((!channel || strip->channel == *channel) && (strip->type == STRIP_TYPE_SOUND) == is_sound)
-    {
-      strip->flag |= SEQ_SELECT;
-      changed = true;
-    }
-  }
-
-  return changed;
-}
-
-static bool select_grouped_type_effect(VectorSet<Strip *> strips,
-                                       Strip *act_strip,
-                                       std::optional<int> channel)
-{
-  bool changed = false;
-  const bool is_effect = act_strip->is_effect();
-
-  for (Strip *strip : strips) {
-    if ((!channel || strip->channel == *channel) && strip->is_effect() == is_effect) {
-      strip->flag |= SEQ_SELECT;
-      changed = true;
-    }
-  }
-
-  return changed;
-}
-
 static bool select_grouped_data(VectorSet<Strip *> strips,
                                 Strip *act_strip,
                                 std::optional<int> channel)
@@ -2744,7 +2714,7 @@ static bool select_grouped_data(VectorSet<Strip *> strips,
   bool changed = false;
   const char *dirpath = act_strip->data ? act_strip->data->dirpath : nullptr;
 
-  if (!strip_use_data(act_strip)) {
+  if (!strip_uses_data(act_strip)) {
     return changed;
   }
 
@@ -2831,9 +2801,10 @@ static bool select_grouped_time_overlap(const Scene *scene,
 
 static bool select_grouped_visual_overlap(const Scene *scene,
                                           VectorSet<Strip *> strips,
-                                          ListBaseT<Strip> *seqbase,
                                           Strip *act_strip)
 {
+  Editing *ed = seq::editing_get(scene);
+  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   VectorSet<Strip *> strips_to_select;
 
   for (Strip *strip : strips) {
@@ -2863,62 +2834,46 @@ static bool select_grouped_visual_overlap(const Scene *scene,
 static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  Editing *ed = seq::editing_get(scene);
   SpaceSeq *sseq = CTX_wm_space_seq(C);
-  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
-  ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   Strip *act_strip = seq::select_active_get(scene);
-
-  /* TODO(john): We can't use `all_strips_from_context` because it checks for a `RGN_TYPE_PREVIEW`,
-   * and when clicking an enum menu item in the UI, the context is always `RGN_TYPE_WINDOW`. If we
-   * make changes to Sequencer & Preview view type context, we can adjust the logic in there to
-   * allow it to be re-used here. */
   const bool is_preview = (sseq && (sseq->view == SEQ_VIEW_PREVIEW) &&
                            (sseq->mainb == SEQ_DRAW_IMG_IMBUF));
-  VectorSet<Strip *> strips = is_preview ? seq::query_rendered_strips(
-                                               scene, channels, seqbase, scene->r.cfra, 0) :
-                                           seq::query_all_strips(seqbase);
+
+  VectorSet<Strip *> strips = strips_from_context(scene, is_preview);
   if (act_strip == nullptr || (is_preview && !strips.contains(act_strip))) {
     BKE_report(op->reports, RPT_ERROR, "No active strip in context");
     return OPERATOR_CANCELLED;
   }
 
-  const int type = RNA_enum_get(op->ptr, "type");
-  const std::optional<int> channel = RNA_boolean_get(op->ptr, "use_active_channel") ?
-                                         std::optional<int>(act_strip->channel) :
-                                         std::nullopt;
   const bool extend = RNA_boolean_get(op->ptr, "extend");
-
   bool changed = false;
-
   if (!extend) {
-    for (Strip &strip : *seqbase) {
-      strip.flag &= ~SEQ_SELECT;
-      changed = true;
-    }
+    deselect_all_strips(scene);
+    changed = true;
   }
+
+  const int type = RNA_enum_get(op->ptr, "type");
+  const std::optional<int> active_channel = (!is_preview &&
+                                             RNA_boolean_get(op->ptr, "use_active_channel") &&
+                                             act_strip != nullptr) ?
+                                                std::optional<int>(act_strip->channel) :
+                                                std::nullopt;
 
   switch (type) {
     case SEQ_SELECT_GROUP_TYPE:
-      changed |= select_grouped_type(strips, act_strip, channel);
-      break;
-    case SEQ_SELECT_GROUP_TYPE_BASIC:
-      changed |= select_grouped_type_basic(strips, act_strip, channel);
-      break;
-    case SEQ_SELECT_GROUP_TYPE_EFFECT:
-      changed |= select_grouped_type_effect(strips, act_strip, channel);
+      changed |= select_grouped_type(strips, act_strip, active_channel);
       break;
     case SEQ_SELECT_GROUP_DATA:
-      changed |= select_grouped_data(strips, act_strip, channel);
+      changed |= select_grouped_data(strips, act_strip, active_channel);
       break;
     case SEQ_SELECT_GROUP_STRIPS_UNDER_EFFECT:
-      changed |= select_grouped_strips_under_effect(strips, act_strip, channel);
+      changed |= select_grouped_strips_under_effect(strips, act_strip, active_channel);
       break;
     case SEQ_SELECT_GROUP_TIME_OVERLAP:
       changed |= select_grouped_time_overlap(scene, strips, act_strip);
       break;
     case SEQ_SELECT_GROUP_VISUAL_OVERLAP:
-      changed |= select_grouped_visual_overlap(scene, strips, seqbase, act_strip);
+      changed |= select_grouped_visual_overlap(scene, strips, act_strip);
       break;
     default:
       BLI_assert(0);
@@ -2960,7 +2915,126 @@ void SEQUENCER_OT_select_grouped(wmOperatorType *ot)
                   "use_active_channel",
                   false,
                   "Same Channel",
-                  "Only consider strips on the same channel as the active strip");
+                  "If selecting from the timeline, only consider strips on the same channel as "
+                  "the active strip");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Select by Type Operator
+ * \{ */
+
+/* Special pseudo-types for this operator. Use a high value to avoid clashing with `STRIP_TYPE`. */
+enum {
+  SEQ_SELECT_TYPE_EFFECT = 1000,
+  SEQ_SELECT_TYPE_VISUAL,
+};
+
+static const EnumPropertyItem sequencer_prop_select_by_type_items[] = {
+    {STRIP_TYPE_SCENE, "SCENE", ICON_SCENE_DATA, "Scene", ""},
+    {STRIP_TYPE_MOVIECLIP, "MOVIECLIP", ICON_TRACKER, "Clip", ""},
+    {STRIP_TYPE_MASK, "MASK", ICON_MOD_MASK, "Mask", ""},
+    RNA_ENUM_ITEM_SEPR,
+    {STRIP_TYPE_MOVIE, "MOVIE", ICON_FILE_MOVIE, "Movie", ""},
+    {STRIP_TYPE_SOUND, "SOUND", ICON_FILE_SOUND, "Sound", ""},
+    {STRIP_TYPE_IMAGE, "IMAGE", ICON_FILE_IMAGE, "Image", ""},
+    RNA_ENUM_ITEM_SEPR,
+    {STRIP_TYPE_COLOR, "COLOR", ICON_COLOR, "Color", ""},
+    {STRIP_TYPE_TEXT, "TEXT", ICON_FONT_DATA, "Text", ""},
+    RNA_ENUM_ITEM_SEPR,
+    {STRIP_TYPE_ADJUSTMENT, "ADJUSTMENT", ICON_COLOR, "Adjustment Layer", ""},
+    {STRIP_TYPE_COMPOSITOR, "COMPOSITOR", ICON_NODE_COMPOSITING, "Compositor", ""},
+    RNA_ENUM_ITEM_SEPR,
+    {SEQ_SELECT_TYPE_EFFECT, "EFFECT", ICON_SHADERFX, "Effect Strip", ""},
+    {SEQ_SELECT_TYPE_VISUAL,
+     "VISUAL",
+     ICON_HIDE_OFF,
+     "Visual",
+     "All strips that can produce an image in the preview, which includes everything but sound "
+     "strips"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static wmOperatorStatus sequencer_select_by_type_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  Strip *act_strip = seq::select_active_get(scene);
+  const bool is_preview = (sseq && (sseq->view == SEQ_VIEW_PREVIEW) &&
+                           (sseq->mainb == SEQ_DRAW_IMG_IMBUF));
+
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  bool changed = false;
+  if (!extend) {
+    deselect_all_strips(scene);
+    changed = true;
+  }
+
+  VectorSet<Strip *> strips = strips_from_context(scene, is_preview);
+  const int type = RNA_enum_get(op->ptr, "type");
+  const std::optional<int> active_channel = (!is_preview &&
+                                             RNA_boolean_get(op->ptr, "use_active_channel") &&
+                                             act_strip != nullptr) ?
+                                                std::optional<int>(act_strip->channel) :
+                                                std::nullopt;
+
+  for (Strip *strip : strips) {
+    if (active_channel && strip->channel != *active_channel) {
+      continue;
+    }
+
+    bool match;
+    if (type == SEQ_SELECT_TYPE_EFFECT) {
+      match = strip->is_effect() && !ELEM(strip->type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT);
+    }
+    else if (type == SEQ_SELECT_TYPE_VISUAL) {
+      match = strip->type != STRIP_TYPE_SOUND;
+    }
+    else {
+      match = strip->type == type;
+    }
+    if (match) {
+      strip->flag |= SEQ_SELECT;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    ED_outliner_select_sync_from_sequence_tag(C);
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  }
+  return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_select_by_type(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Select by Type";
+  ot->description = "Select all strips that are of a type";
+  ot->idname = "SEQUENCER_OT_select_by_type";
+
+  /* API callbacks. */
+  ot->invoke = WM_menu_invoke;
+  ot->exec = sequencer_select_by_type_exec;
+  ot->poll = sequencer_edit_poll;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Properties. */
+  ot->prop = RNA_def_enum(ot->srna, "type", sequencer_prop_select_by_type_items, 0, "Type", "");
+  RNA_def_boolean(ot->srna,
+                  "extend",
+                  false,
+                  "Extend",
+                  "Extend selection instead of deselecting everything first");
+  RNA_def_boolean(ot->srna,
+                  "use_active_channel",
+                  false,
+                  "Same Channel",
+                  "If selecting from the timeline, only consider strips on the same channel as "
+                  "the active strip");
 }
 
 /** \} */
