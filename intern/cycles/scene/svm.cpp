@@ -657,7 +657,10 @@ void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *
   };
 
   while (!ready.empty()) {
-    /* Pick the node with lowest added - freed, and use highest freed as a tie break. */
+    /* Pick the node with lowest added - freed, and use highest freed as a tie break.
+     * If equal, use node ID as tie breaker. There is no good justification for the
+     * latter, and it's randomly better or worse in some scenes, but mostly better in
+     * our test scenes. A better solution would be to use Sethi–Ullman ordering. */
     size_t best_i = 0;
     if (ready.size() > 1) {
       int best_delta = 0;
@@ -665,7 +668,9 @@ void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *
       for (size_t i = 0; i < ready.size(); i++) {
         const int freed = node_free_size(ready[i]);
         const int delta = stack_node_output_size(ready[i]) - freed;
-        if (i == 0 || delta < best_delta || (delta == best_delta && freed > best_freed)) {
+        if (i == 0 || delta < best_delta || (delta == best_delta && freed > best_freed) ||
+            (delta == best_delta && freed == best_freed && ready[i]->id < ready[best_i]->id))
+        {
           best_i = i;
           best_delta = delta;
           best_freed = freed;
