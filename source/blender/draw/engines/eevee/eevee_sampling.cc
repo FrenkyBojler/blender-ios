@@ -13,9 +13,9 @@
 #include "BKE_colortools.hh"
 #include "BKE_scene.hh"
 
-#include "BLI_rand.h"
+#include "BLI_rand.hh"
 #include "BLI_rand_c.hh"
-#include "BLI_time.h"
+#include "BLI_time.hh"
 
 #include "BLI_math_base.hh"
 #include "BLI_math_base_safe.hh"
