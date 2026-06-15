@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Blender Authors
+# SPDX-FileCopyrightText: 2026 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -120,7 +120,6 @@ def test_dopesheet_search():
     space = area.spaces.active
     t.assertIsInstance(space, bpy.types.SpaceDopeSheetEditor, "Area did not switch to Dope Sheet")
 
-
     e.cursor_position_set(*ui.get_area_center(area), move=True)
     yield e.ctrl.f()
     yield e.text("location")
@@ -148,7 +147,6 @@ def test_graph_editor_search():
     space = area.spaces.active
     t.assertIsInstance(space, bpy.types.SpaceGraphEditor, "Area did not switch to Graph Editor")
 
-
     e.cursor_position_set(*ui.get_area_center(area), move=True)
     yield e.ctrl.f()
     yield e.text("location")
@@ -168,7 +166,6 @@ def test_file_browser_search():
     File Browser — Ctrl+F → 'search_target'.
     """
     import bpy
-    import tempfile
 
     e, t, window, area = yield from _load_blend()
 
@@ -177,24 +174,22 @@ def test_file_browser_search():
     space = area.spaces.active
     t.assertIsInstance(space, bpy.types.SpaceFileBrowser, "Area did not switch to File Browser")
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        open(os.path.join(tmpdir, "search_target_file.blend"), 'w').close()
+    blend_dir = os.path.dirname(_BLEND_FILE)
+    with bpy.context.temp_override(area=area):
+        bpy.ops.file.select_bookmark(dir=blend_dir)
+    yield  # wait for navigation to complete
 
-        with bpy.context.temp_override(area=area):
-            bpy.ops.file.select_bookmark(dir=tmpdir)
-        yield  # wait for navigation to complete
+    params = space.params
+    t.assertIsNotNone(params, "File Browser: params is None after navigation")
 
-        params = space.params
-        t.assertIsNotNone(params, "File Browser: params is None after navigation")
+    e.cursor_position_set(*ui.get_area_center(area), move=True)
+    yield e.ctrl.f()
+    yield e.text("search_target")
+    yield e.ret()
+    t.assertEqual(params.filter_search, "search_target",
+                  "File Browser: filter_search was not set by Ctrl+F")
 
-        e.cursor_position_set(*ui.get_area_center(area), move=True)
-        yield e.ctrl.f()
-        yield e.text("search_target")
-        yield e.ret()
-        t.assertEqual(params.filter_search, "search_target",
-                      "File Browser: filter_search was not set by Ctrl+F")
-
-        yield e.ctrl.f()
-        yield e.back_space()
-        yield e.ret()
-        t.assertEqual(params.filter_search, "", "File Browser: filter_search was not cleared")
+    yield e.ctrl.f()
+    yield e.back_space()
+    yield e.ret()
+    t.assertEqual(params.filter_search, "", "File Browser: filter_search was not cleared")
