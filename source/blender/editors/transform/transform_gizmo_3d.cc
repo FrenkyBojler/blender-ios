@@ -1780,12 +1780,43 @@ static wmOperatorStatus gizmo_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void gizmogroup_init_properties_from_twtype(wmGizmoGroup *gzgroup)
+static void gizmo_operator_set_properties(PointerRNA *ptr, const bool constraint_axis[3])
+{
+  if (ptr == nullptr) {
+    return;
+  }
+
+  RNA_STRUCT_BEGIN (ptr, prop) {
+    if (RNA_property_type(prop) != PROP_POINTER) {
+      continue;
+    }
+    PointerRNA propptr = RNA_property_pointer_get(ptr, prop);
+    if (!propptr.data || !RNA_struct_is_a(propptr.type, RNA_OperatorProperties)) {
+      continue;
+    }
+    PropertyRNA *constr = nullptr;
+    if (ELEM(true, UNPACK3(constraint_axis))) {
+      if ((constr = RNA_struct_find_property(&propptr, "constraint_axis"))) {
+        RNA_property_boolean_set_array(&propptr, constr, constraint_axis);
+      }
+    }
+    if (constr) {
+      RNA_boolean_set(&propptr, "release_confirm", 1);
+    }
+  }
+  RNA_STRUCT_END;
+}
+
+static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGroup *gzgroup)
 {
   struct {
     wmOperatorType *translate, *rotate, *trackball, *resize;
+    wmOperatorType *action1_translate, *action1_rotate, *action1_trackball, *action1_resize;
+    wmOperatorType *action2_translate, *action2_rotate, *action2_trackball, *action2_resize;
   } ot_store = {nullptr};
   GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);
+
+  const eContextObjectMode mode = CTX_data_mode_enum(C);
 
   MAN_ITER_AXES_BEGIN (axis, axis_idx) {
     const short axis_type = gizmo_get_axis_type(axis_idx);
@@ -1804,21 +1835,94 @@ static void gizmogroup_init_properties_from_twtype(wmGizmoGroup *gzgroup)
         if (ot_store.translate == nullptr) {
           ot_store.translate = WM_operatortype_find("TRANSFORM_OT_translate", true);
         }
+        if (ot_store.action1_translate == nullptr) {
+          switch (mode) {
+            default:
+              break;
+            case CTX_MODE_OBJECT:
+              ot_store.action1_translate = WM_operatortype_find("OBJECT_OT_duplicate_move", true);
+              ot_store.action2_translate = WM_operatortype_find("OBJECT_OT_duplicate_move_linked",
+                                                                true);
+              break;
+            case CTX_MODE_EDIT_MESH:
+              ot_store.action1_translate = WM_operatortype_find("MESH_OT_extrude_context_move",
+                                                                true);
+              ot_store.action2_translate = WM_operatortype_find("MESH_OT_duplicate_move", true);
+              break;
+          }
+        }
+
+        if (ot_store.action1_translate) {
+          WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_ACTION_1, ot_store.action1_translate, nullptr);
+        }
+        if (ot_store.action2_translate) {
+          WM_gizmo_operator_set(
+              axis, WM_GIZMO_OP_SLOT_ACTION_2, ot_store.action2_translate, nullptr);
+        }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.translate, nullptr);
         break;
       case MAN_AXES_ROTATE: {
         wmOperatorType *ot_rotate;
+        wmOperatorType *ot_rotate_action1;
+        wmOperatorType *ot_rotate_action2;
         if (axis_idx == MAN_AXIS_ROT_T) {
           if (ot_store.trackball == nullptr) {
             ot_store.trackball = WM_operatortype_find("TRANSFORM_OT_trackball", true);
           }
+          if (ot_store.action1_trackball == nullptr) {
+            switch (mode) {
+              default:
+                break;
+              case CTX_MODE_OBJECT:
+                ot_store.action1_trackball = WM_operatortype_find("OBJECT_OT_duplicate_trackball",
+                                                                  true);
+                ot_store.action2_trackball = WM_operatortype_find(
+                    "OBJECT_OT_duplicate_trackball_linked", true);
+                break;
+              case CTX_MODE_EDIT_MESH:
+                ot_store.action1_trackball = WM_operatortype_find(
+                    "MESH_OT_extrude_context_trackball", true);
+                ot_store.action2_trackball = WM_operatortype_find(
+                    "MESH_OT_context_duplicate_trackball", true);
+                break;
+            }
+          }
           ot_rotate = ot_store.trackball;
+          ot_rotate_action1 = ot_store.action1_trackball;
+          ot_rotate_action2 = ot_store.action2_trackball;
         }
         else {
           if (ot_store.rotate == nullptr) {
             ot_store.rotate = WM_operatortype_find("TRANSFORM_OT_rotate", true);
           }
+          if (ot_store.action1_rotate == nullptr) {
+            switch (mode) {
+              default:
+                break;
+              case CTX_MODE_OBJECT:
+                ot_store.action1_rotate = WM_operatortype_find("OBJECT_OT_duplicate_rotate", true);
+                ot_store.action2_rotate = WM_operatortype_find("OBJECT_OT_duplicate_rotate_linked",
+                                                               true);
+                break;
+              case CTX_MODE_EDIT_MESH:
+                ot_store.action1_rotate = WM_operatortype_find("MESH_OT_extrude_context_rotate",
+                                                               true);
+                ot_store.action2_rotate = WM_operatortype_find("MESH_OT_context_duplicate_rotate",
+                                                               true);
+                break;
+            }
+          }
           ot_rotate = ot_store.rotate;
+          ot_rotate_action1 = ot_store.action1_rotate;
+          ot_rotate_action2 = ot_store.action2_rotate;
+        }
+
+        if (ot_rotate_action1) {
+          WM_gizmo_operator_set(axis, WM_GIZMO_OP_SLOT_ACTION_1, ot_rotate_action1, nullptr);
+        }
+        if (ot_rotate_action2) {
+          WM_gizmo_operator_set(axis, WM_GIZMO_OP_SLOT_ACTION_2, ot_rotate_action2, nullptr);
         }
         ptr = WM_gizmo_operator_set(axis, 0, ot_rotate, nullptr);
         break;
@@ -1827,8 +1931,42 @@ static void gizmogroup_init_properties_from_twtype(wmGizmoGroup *gzgroup)
         if (ot_store.resize == nullptr) {
           ot_store.resize = WM_operatortype_find("TRANSFORM_OT_resize", true);
         }
+        if (ot_store.action1_resize == nullptr) {
+          switch (mode) {
+            default:
+              break;
+            case CTX_MODE_OBJECT:
+              ot_store.action1_resize = WM_operatortype_find("OBJECT_OT_duplicate_resize", true);
+              ot_store.action2_resize = WM_operatortype_find("OBJECT_OT_duplicate_resize_linked",
+                                                             true);
+              break;
+            case CTX_MODE_EDIT_MESH:
+              ot_store.action1_resize = WM_operatortype_find("MESH_OT_extrude_context_resize",
+                                                             true);
+              ot_store.action2_resize = WM_operatortype_find("MESH_OT_context_duplicate_scale",
+                                                             true);
+              break;
+          }
+        }
+        if (ot_store.action1_resize) {
+          WM_gizmo_operator_set(axis, WM_GIZMO_OP_SLOT_ACTION_1, ot_store.action1_resize, nullptr);
+        }
+        if (ot_store.action2_resize) {
+          WM_gizmo_operator_set(axis, WM_GIZMO_OP_SLOT_ACTION_2, ot_store.action2_resize, nullptr);
+        }
         ptr = WM_gizmo_operator_set(axis, 0, ot_store.resize, nullptr);
         break;
+      }
+    }
+
+    /* Re-fetch the action operator slots rather than reusing the pointers returned by
+     * #WM_gizmo_operator_set above: each call may resize #wmGizmo.op_data, invalidating the
+     * pointers returned by earlier calls. */
+    for (const int slot : {WM_GIZMO_OP_SLOT_ACTION_1, WM_GIZMO_OP_SLOT_ACTION_2}) {
+      if (wmGizmoOpElem *gzop = WM_gizmo_operator_get(axis, slot)) {
+        if (gzop->type != nullptr) {
+          gizmo_operator_set_properties(&gzop->ptr, constraint_axis);
+        }
       }
     }
 
@@ -1882,7 +2020,7 @@ static void WIDGETGROUP_gizmo_setup(const bContext *C, wmGizmoGroup *gzgroup)
   }
 
   /* *** set properties for axes *** */
-  gizmogroup_init_properties_from_twtype(gzgroup);
+  gizmogroup_init_properties_from_twtype(C, gzgroup);
 }
 
 /**
@@ -1984,7 +2122,7 @@ static void WIDGETGROUP_gizmo_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     ggd->twtype = v3d->gizmo_show_object & ggd->twtype_init;
     if (ggd->twtype != ggd->twtype_prev) {
       ggd->twtype_prev = ggd->twtype;
-      gizmogroup_init_properties_from_twtype(gzgroup);
+      gizmogroup_init_properties_from_twtype(C, gzgroup);
     }
   }
 
@@ -2181,43 +2319,6 @@ static void WIDGETGROUP_gizmo_invoke_prepare(const bContext *C,
       /* TODO: API function. */
       int index = BKE_scene_orientation_slot_get_index(orient_slot);
       RNA_property_enum_set(ptr, prop_orient_type, index);
-    }
-  }
-
-  /* Support shift click to constrain axis. */
-  int axis = -1;
-  switch (axis_idx) {
-    case MAN_AXIS_TRANS_X:
-    case MAN_AXIS_TRANS_Y:
-    case MAN_AXIS_TRANS_Z:
-      axis = axis_idx - MAN_AXIS_TRANS_X;
-      break;
-    case MAN_AXIS_SCALE_X:
-    case MAN_AXIS_SCALE_Y:
-    case MAN_AXIS_SCALE_Z:
-      axis = axis_idx - MAN_AXIS_SCALE_X;
-      break;
-  }
-
-  if (axis != -1) {
-    /* Swap single axis for two-axis constraint. */
-    const bool flip = (event->modifier & KM_SHIFT) != 0;
-    BLI_assert(axis_idx != -1);
-    const short axis_type = gizmo_get_axis_type(axis_idx);
-    if (axis_type != MAN_AXES_ROTATE) {
-      wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, 0);
-      PointerRNA *ptr = &gzop->ptr;
-      PropertyRNA *prop_constraint_axis = RNA_struct_find_property(ptr, "constraint_axis");
-      if (prop_constraint_axis) {
-        bool constraint[3] = {false};
-        constraint[axis] = true;
-        if (flip) {
-          for (int i = 0; i < ARRAY_SIZE(constraint); i++) {
-            constraint[i] = !constraint[i];
-          }
-        }
-        RNA_property_boolean_set_array(ptr, prop_constraint_axis, constraint);
-      }
     }
   }
 }

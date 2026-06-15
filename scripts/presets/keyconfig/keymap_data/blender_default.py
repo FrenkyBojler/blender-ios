@@ -491,8 +491,18 @@ def _template_items_object_subdivision_set():
     ]
 
 
+# Gizmo tweak with the duplicate/extrude "action" variants. These run alternative operators
+# (e.g. duplicate or extrude) before transforming, see #GIZMOGROUP_OT_gizmo_tweak. The modifier
+# lives here in the key-map so it stays user-remappable; the more specific items must come before
+# the permissive default since key-map matching is first-match.
 def _template_items_gizmo_tweak_value():
     return [
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'PRESS', **any_except("alt", "shift"), "shift": True, "alt": True},
+         {"properties": [("action", 'DUPLICATE_LINKED')]}),
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'PRESS', **any_except("alt", "shift"), "shift": True},
+         {"properties": [("action", 'DUPLICATE')]}),
         ("gizmogroup.gizmo_tweak",
          {"type": 'LEFTMOUSE', "value": 'PRESS', **any_except("alt")}, None),
     ]
@@ -500,6 +510,12 @@ def _template_items_gizmo_tweak_value():
 
 def _template_items_gizmo_tweak_value_click_drag():
     return [
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', **any_except("alt", "shift"), "shift": True, "alt": True},
+         {"properties": [("action", 'DUPLICATE_LINKED')]}),
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', **any_except("alt", "shift"), "shift": True},
+         {"properties": [("action", 'DUPLICATE')]}),
         ("gizmogroup.gizmo_tweak",
          {"type": 'LEFTMOUSE', "value": 'CLICK', **any_except("alt")}, None),
         ("gizmogroup.gizmo_tweak",
@@ -509,7 +525,14 @@ def _template_items_gizmo_tweak_value_click_drag():
 
 def _template_items_gizmo_tweak_value_drag():
     return [
-        ("gizmogroup.gizmo_tweak", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', **any_except("alt")}, None),
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', **any_except("alt", "shift"), "shift": True, "alt": True},
+         {"properties": [("action", 'DUPLICATE_LINKED')]}),
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', **any_except("alt", "shift"), "shift": True},
+         {"properties": [("action", 'DUPLICATE')]}),
+        ("gizmogroup.gizmo_tweak",
+         {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', **any_except("alt")}, None),
     ]
 
 
