@@ -51,6 +51,7 @@ const ImBuf *Cache::get_frame(const int frame_number, const int view_identifier)
 
 void Cache::add_frame(const int frame_number, const int view_identifier, ImBuf *image_buffer)
 {
+  std::scoped_lock lock{frames_mutex_};
   /* First evict frames if needed to maintain the memory cache limit. In almost all cases, the
    * while loop will run exactly once, since the images in the cache will almost always have the
    * same size, so one goes out, one goes in. So we needn't worry about performance. */
@@ -60,37 +61,7 @@ void Cache::add_frame(const int frame_number, const int view_identifier, ImBuf *
     this->evict_frame(frame_number);
   }
 
-  std::scoped_lock lock{frames_mutex_};
   this->frames_.add_new(FrameKey(frame_number, view_identifier), image_buffer);
-}
-
-void Cache::evict_frame(const int current_frame_number)
-{
-  std::scoped_lock lock{frames_mutex_};
-  if (this->frames_.is_empty()) {
-    return;
-  }
-
-  /* Find the keys with the maximum and minimum frame numbers. */
-  FrameKey minimum_key = FrameKey(std::numeric_limits<int>::max());
-  FrameKey maximum_key = FrameKey(std::numeric_limits<int>::lowest());
-  for (const FrameKey &key : this->frames_.keys()) {
-    if (key.frame_number < minimum_key.frame_number) {
-      minimum_key = key;
-    }
-    if (key.frame_number > maximum_key.frame_number) {
-      maximum_key = key;
-    }
-  }
-
-  /* Prioritize evicting frames that are behind the current frame and are furthest from it. */
-  if (minimum_key.frame_number < current_frame_number) {
-    IMB_freeImBuf(this->frames_.pop(minimum_key));
-    return;
-  }
-
-  /* Otherwise, evict the frame that is after the current frame and is furthest from it. */
-  IMB_freeImBuf(this->frames_.pop(maximum_key));
 }
 
 void Cache::clear_frames()
@@ -100,18 +71,6 @@ void Cache::clear_frames()
     IMB_freeImBuf(image_buffer);
   }
   this->frames_.clear();
-}
-
-int64_t Cache::size()
-{
-  int64_t size = 0;
-  {
-    std::scoped_lock lock{frames_mutex_};
-    for (ImBuf *image_buffer : this->frames_.values()) {
-      size += IMB_get_size_in_memory(image_buffer);
-    }
-  }
-  return size;
 }
 
 Vector<IndexRange> Cache::compute_frame_ranges()
@@ -144,6 +103,43 @@ Vector<IndexRange> Cache::compute_frame_ranges()
   }
 
   return frame_ranges;
+}
+
+void Cache::evict_frame(const int current_frame_number)
+{
+  if (this->frames_.is_empty()) {
+    return;
+  }
+
+  /* Find the keys with the maximum and minimum frame numbers. */
+  FrameKey minimum_key = FrameKey(std::numeric_limits<int>::max());
+  FrameKey maximum_key = FrameKey(std::numeric_limits<int>::lowest());
+  for (const FrameKey &key : this->frames_.keys()) {
+    if (key.frame_number < minimum_key.frame_number) {
+      minimum_key = key;
+    }
+    if (key.frame_number > maximum_key.frame_number) {
+      maximum_key = key;
+    }
+  }
+
+  /* Prioritize evicting frames that are behind the current frame and are furthest from it. */
+  if (minimum_key.frame_number < current_frame_number) {
+    IMB_freeImBuf(this->frames_.pop(minimum_key));
+    return;
+  }
+
+  /* Otherwise, evict the frame that is after the current frame and is furthest from it. */
+  IMB_freeImBuf(this->frames_.pop(maximum_key));
+}
+
+int64_t Cache::size()
+{
+  int64_t size = 0;
+  for (ImBuf *image_buffer : this->frames_.values()) {
+    size += IMB_get_size_in_memory(image_buffer);
+  }
+  return size;
 }
 
 /* Adds the pass names of the passes used by the given Render Layer node to the given used passes.

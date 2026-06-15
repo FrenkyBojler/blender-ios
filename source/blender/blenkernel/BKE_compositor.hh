@@ -43,7 +43,9 @@ struct Cache {
  private:
   /* A cache of final interactive compositor results across frames. */
   Map<FrameKey, ImBuf *> frames_;
-  /* A mutex for accessing frames_. */
+  /* A mutex for accessing frames_. The frames cache is intrinsically thread-safe since all access
+   * happen in the same interactive compositor job, except for drawing cache overlays since it can
+   * happen simultaneously while the job is running, that's why the mutex is needed. */
   Mutex frames_mutex_;
 
  public:
@@ -57,19 +59,21 @@ struct Cache {
    * will be evicted to make room. */
   void add_frame(int frame_number, int view_identifier, ImBuf *image_buffer);
 
+  /* Clears the frames cache. */
+  void clear_frames();
+
+  /* Computes a list of every contiguous segment of cached frames. Can be used to draw which frame
+   * ranges are cached. */
+  Vector<IndexRange> compute_frame_ranges();
+
+ private:
   /* Delete one entry from the frames cache given the current frame number. If a cached frame exist
    * before the current frame, the furthest one will be removed, otherwise, the furthest cached
    * frame after the current frame will be removed. */
   void evict_frame(int current_frame_number);
 
-  /* Clears the frames cache. */
-  void clear_frames();
-
   /* Computes the total size of the cache in bytes. */
   int64_t size();
-
-  /* Computes a list of every contiguous segment of cached frames. */
-  Vector<IndexRange> compute_frame_ranges();
 };
 
 /* Get the set of all passes used by the compositor for the given view layer, identified by their
