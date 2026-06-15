@@ -80,7 +80,7 @@ static void grease_pencil_to_mesh(GeometrySet &geometry_set,
     if (drawing == nullptr) {
       continue;
     }
-    const bke::CurvesGeometry &curves = drawing->strokes();
+    const bke::CurvesGeometry &curves = drawing->as_curves();
     const bke::GreasePencilLayerFieldContext context{
         grease_pencil, bke::AttrDomain::Point, layer_index};
     mesh_by_layer[layer_index] = curve_to_mesh(

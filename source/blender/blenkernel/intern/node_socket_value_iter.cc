@@ -248,7 +248,7 @@ class RecursiveVisitor {
   bool check_Layer(const GreasePencil &grease_pencil, const greasepencil::Layer &layer)
   {
     if (const greasepencil::Drawing *drawing = grease_pencil.get_eval_drawing(layer)) {
-      const CurvesGeometry &curves = drawing->strokes();
+      const CurvesGeometry &curves = drawing->as_curves();
       if (this->check_AttributeAccessor(curves.attributes())) {
         return true;
       }
@@ -259,7 +259,7 @@ class RecursiveVisitor {
   void edit_Layer(GreasePencil &grease_pencil, greasepencil::Layer &layer)
   {
     if (greasepencil::Drawing *drawing = grease_pencil.get_eval_drawing(layer)) {
-      CurvesGeometry &curves = drawing->strokes_for_write();
+      CurvesGeometry &curves = drawing->as_curves_for_write();
       MutableAttributeAccessor attributes = curves.attributes_for_write();
       this->edit_AttributeAccessor(attributes);
     }

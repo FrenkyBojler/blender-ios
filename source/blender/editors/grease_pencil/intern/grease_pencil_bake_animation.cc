@@ -224,17 +224,17 @@ static wmOperatorStatus bake_grease_pencil_animation_exec(bContext *C, wmOperato
         Drawing &source_drawing = *source_eval_grease_pencil.get_drawing_at(*source_layer,
                                                                             scene.r.cfra);
         Drawing &target_drawing = *target.insert_frame(target_layer, target_frame_num);
-        target_drawing.strokes_for_write() = source_drawing.strokes();
+        target_drawing.as_curves_for_write() = source_drawing.as_curves();
 
-        bke::AttributeAccessor source_attributes = source_drawing.strokes().attributes();
+        bke::AttributeAccessor source_attributes = source_drawing.as_curves().attributes();
         const VArray<int> source_material_indices = *source_attributes.lookup_or_default<int>(
             "material_index", bke::AttrDomain::Curve, 0);
-        bke::CurvesGeometry &target_strokes = target_drawing.strokes_for_write();
+        bke::CurvesGeometry &target_strokes = target_drawing.as_curves_for_write();
         bke::SpanAttributeWriter<int> target_material_indices =
             target_strokes.attributes_for_write().lookup_or_add_for_write_span<int>(
                 "material_index", bke::AttrDomain::Curve);
 
-        for (const int i : target_drawing.strokes().curves_range()) {
+        for (const int i : target_drawing.as_curves().curves_range()) {
           Material *source_material = BKE_object_material_get(source_object,
                                                               source_material_indices[i] + 1);
           BLI_assert(source_material != nullptr);

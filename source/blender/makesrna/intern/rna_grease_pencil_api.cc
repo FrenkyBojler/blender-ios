@@ -55,14 +55,14 @@ static void rna_GreasePencilDrawing_add_curves(ID *grease_pencil_id,
                                                const int sizes_num)
 {
   bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   if (!rna_CurvesGeometry_add_curves(curves, reports, sizes, sizes_num)) {
     return;
   }
 
   /* Default to `POLY` curves for the newly added ones. */
-  drawing.strokes_for_write().curve_types_for_write().take_back(sizes_num).fill(CURVE_TYPE_POLY);
-  drawing.strokes_for_write().update_curve_types();
+  drawing.as_curves_for_write().curve_types_for_write().take_back(sizes_num).fill(CURVE_TYPE_POLY);
+  drawing.as_curves_for_write().update_curve_types();
 
   drawing.tag_topology_changed();
 
@@ -80,7 +80,7 @@ static void rna_GreasePencilDrawing_remove_curves(ID *grease_pencil_id,
                                                   const int indices_num)
 {
   bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   if (!rna_CurvesGeometry_remove_curves(curves, reports, indices_ptr, indices_num)) {
     return;
   }
@@ -103,7 +103,7 @@ static void rna_GreasePencilDrawing_resize_curves(ID *grease_pencil_id,
                                                   const int indices_num)
 {
   bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   if (!rna_CurvesGeometry_resize_curves(
           curves, reports, sizes_ptr, sizes_num, indices_ptr, indices_num))
   {
@@ -126,7 +126,7 @@ static void rna_GreasePencilDrawing_reorder_curves(ID *grease_pencil_id,
                                                    const int reorder_indices_num)
 {
   bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   if (!rna_CurvesGeometry_reorder_curves(
           curves, reports, reorder_indices_ptr, reorder_indices_num))
   {
@@ -150,7 +150,7 @@ static void rna_GreasePencilDrawing_set_types(ID *grease_pencil_id,
                                               const int indices_num)
 {
   bke::greasepencil::Drawing &drawing = drawing_ptr->wrap();
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   if (!rna_CurvesGeometry_set_types(curves, reports, type, indices_ptr, indices_num)) {
     return;
   }
@@ -187,7 +187,7 @@ static void rna_GreasePencilDrawing_vertex_group_assign(ID *id,
     return;
   }
 
-  bke::CurvesGeometry &curves = drawing_ptr->wrap().strokes_for_write();
+  bke::CurvesGeometry &curves = drawing_ptr->wrap().as_curves_for_write();
   const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
                                                             curves.vertex_group_names);
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
@@ -225,7 +225,7 @@ static void rna_GreasePencilDrawing_vertex_group_remove(ID *id,
     return;
   }
 
-  bke::CurvesGeometry &curves = drawing_ptr->wrap().strokes_for_write();
+  bke::CurvesGeometry &curves = drawing_ptr->wrap().as_curves_for_write();
   const int def_nr = BKE_defgroup_name_index(&curves.vertex_group_names, vgroup_name);
   if (def_nr == -1) {
     return;
@@ -288,7 +288,7 @@ static void rna_GreasePencilDrawing_set_vertex_weights(ID *grease_pencil_id,
     return;
   }
 
-  bke::CurvesGeometry &curves = drawing_ptr->wrap().strokes_for_write();
+  bke::CurvesGeometry &curves = drawing_ptr->wrap().as_curves_for_write();
   const int def_nr = bke::greasepencil::ensure_vertex_group(vertex_group_name,
                                                             curves.vertex_group_names);
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();

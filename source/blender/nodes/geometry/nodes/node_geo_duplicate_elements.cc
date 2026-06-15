@@ -370,7 +370,7 @@ static void duplicate_curves(GeometrySet &geometry_set,
             if (!drawing) {
               continue;
             }
-            bke::CurvesGeometry &curves = drawing->strokes_for_write();
+            bke::CurvesGeometry &curves = drawing->as_curves_for_write();
             const bke::GreasePencilLayerFieldContext field_context{
                 *grease_pencil, AttrDomain::Curve, layer_i};
             curves = duplicate_curves_CurveGeometry(curves,
@@ -931,7 +931,7 @@ static void duplicate_points_grease_pencil(GeometrySet &geometry_set,
           if (!drawing) {
             continue;
           }
-          bke::CurvesGeometry &curves = drawing->strokes_for_write();
+          bke::CurvesGeometry &curves = drawing->as_curves_for_write();
           const bke::GreasePencilLayerFieldContext field_context{
               grease_pencil, AttrDomain::Point, layer_i};
           curves = duplicate_points_CurvesGeometry(curves,
@@ -1153,14 +1153,14 @@ static void duplicate_layers(GeometrySet &geometry_set,
     }
     const Layer &src_layer = src_grease_pencil.layer(src_layer_i);
     const Drawing *src_drawing = src_grease_pencil.get_eval_drawing(src_layer);
-    const bke::CurvesGeometry &src_curves = src_drawing ? src_drawing->strokes() :
+    const bke::CurvesGeometry &src_curves = src_drawing ? src_drawing->as_curves() :
                                                           static_empty_curves;
     const StringRefNull src_layer_name = src_layer.name();
     for (Layer *new_layer : new_grease_pencil->layers_for_write().slice(range)) {
       BKE_grease_pencil_copy_layer_parameters(src_layer, *new_layer);
       new_layer->set_name(src_layer_name);
       Drawing *new_drawing = new_grease_pencil->get_eval_drawing(*new_layer);
-      new_drawing->strokes_for_write() = src_curves;
+      new_drawing->as_curves_for_write() = src_curves;
     }
   });
 

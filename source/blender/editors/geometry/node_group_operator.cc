@@ -704,7 +704,7 @@ static void store_result_geometry(const bContext &C,
           if (bke::greasepencil::Drawing *drawing_orig = grease_pencil.get_drawing_at(layer,
                                                                                       eval_frame))
           {
-            drawing_orig->strokes_for_write() = {};
+            drawing_orig->as_curves_for_write() = {};
             drawing_orig->tag_topology_changed();
           }
         }

@@ -50,7 +50,7 @@ static void set_grease_pencil_tilt(GreasePencil &grease_pencil,
       continue;
     }
     set_curve_tilt(
-        drawing->strokes_for_write(),
+        drawing->as_curves_for_write(),
         bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Point, layer_index),
         selection,
         tilt);

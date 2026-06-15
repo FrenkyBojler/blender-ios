@@ -135,7 +135,7 @@ static void modify_fill_color(Object &ob,
                               Drawing &drawing,
                               const IndexMask &curves_mask)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const bke::AttributeAccessor attributes = curves.attributes();
   /* Fill color per stroke. */
   MutableSpan<ColorGeometry4f> fill_colors = drawing.fill_colors_for_write();
@@ -159,7 +159,7 @@ static void modify_drawing(ModifierData &md, const ModifierEvalContext &ctx, Dra
 {
   auto &cmd = reinterpret_cast<GreasePencilColorModifierData &>(md);
 
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   IndexMaskMemory mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(
       ctx.object, curves, cmd.influence, mask_memory);

@@ -397,7 +397,7 @@ Drawing::Drawing(const Drawing &other)
   this->base.type = GP_DRAWING;
   this->base.flag = other.base.flag;
 
-  new (&this->geometry) bke::CurvesGeometry(other.strokes());
+  new (&this->geometry) bke::CurvesGeometry(other.as_curves());
   /* Initialize runtime data. */
   this->runtime = MEM_new<bke::greasepencil::DrawingRuntime>(__func__);
 
@@ -442,7 +442,7 @@ Drawing &Drawing::operator=(Drawing &&other)
 
 Drawing::~Drawing()
 {
-  this->strokes().~CurvesGeometry();
+  this->as_curves().~CurvesGeometry();
   MEM_delete(this->runtime);
   this->runtime = nullptr;
 }
@@ -450,7 +450,7 @@ Drawing::~Drawing()
 static void ensure_fill_cache(const Drawing &drawing)
 {
   drawing.runtime->fill_cache.ensure([&](std::optional<FillCache> &r_fill_cache) {
-    const CurvesGeometry &curves = drawing.strokes();
+    const CurvesGeometry &curves = drawing.as_curves();
     const bke::AttributeAccessor attributes = curves.attributes();
 
     const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
@@ -639,7 +639,7 @@ static void ensure_triangle_and_offset_cache(const Drawing &drawing)
       TriangleCache triangle_cache;
       triangle_cache.triangle_offsets.resize(fills->size() + 1);
 
-      const CurvesGeometry &curves = drawing.strokes();
+      const CurvesGeometry &curves = drawing.as_curves();
       update_triangle_and_offsets_cache(curves.evaluated_positions(),
                                         drawing.curve_plane_normals(),
                                         curves.evaluated_points_by_curve(),
@@ -710,7 +710,7 @@ static void update_curve_plane_normal_cache(const Span<float3> positions,
 Span<float3> Drawing::curve_plane_normals() const
 {
   this->runtime->curve_plane_normals_cache.ensure([&](Vector<float3> &r_data) {
-    const CurvesGeometry &curves = this->strokes();
+    const CurvesGeometry &curves = this->as_curves();
     r_data.reinitialize(curves.curves_num());
     update_curve_plane_normal_cache(curves.positions(),
                                     curves.points_by_curve(),
@@ -814,7 +814,7 @@ static float4x3 expand_4x2_mat(const float4x2 &strokemat)
 Span<float4x2> Drawing::texture_matrices() const
 {
   this->runtime->curve_texture_matrices.ensure([&](Vector<float4x2> &r_data) {
-    const CurvesGeometry &curves = this->strokes();
+    const CurvesGeometry &curves = this->as_curves();
     const AttributeAccessor attributes = curves.attributes();
 
     const VArray<float> uv_rotations = *attributes.lookup_or_default<float>(
@@ -848,7 +848,7 @@ Span<float4x2> Drawing::texture_matrices() const
 
 void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &selection)
 {
-  CurvesGeometry &curves = this->strokes_for_write();
+  CurvesGeometry &curves = this->as_curves_for_write();
   MutableAttributeAccessor attributes = curves.attributes_for_write();
   SpanAttributeWriter<float> uv_rotations = attributes.lookup_or_add_for_write_span<float>(
       "uv_rotation", AttrDomain::Curve);
@@ -926,75 +926,85 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
   this->tag_texture_matrices_changed();
 }
 
-const bke::CurvesGeometry &Drawing::strokes() const
+const bke::CurvesGeometry &Drawing::as_curves() const
 {
   return this->geometry.wrap();
 }
 
-bke::CurvesGeometry &Drawing::strokes_for_write()
+bke::CurvesGeometry &Drawing::as_curves_for_write()
 {
   return this->geometry.wrap();
+}
+
+AttributeAccessor Drawing::attributes() const
+{
+  return AttributeAccessor(this, greasepencil::drawing::get_attribute_accessor_functions());
+}
+
+MutableAttributeAccessor Drawing::attributes_for_write()
+{
+  return MutableAttributeAccessor(this, greasepencil::drawing::get_attribute_accessor_functions());
 }
 
 VArray<float> Drawing::radii() const
 {
-  return *this->strokes().attributes().lookup_or_default<float>(
+  return *this->as_curves().attributes().lookup_or_default<float>(
       ATTR_RADIUS, AttrDomain::Point, 0.01f);
 }
 
 MutableSpan<float> Drawing::radii_for_write()
 {
-  return bke::get_mutable_attribute<float>(this->strokes_for_write().attribute_storage.wrap(),
+  return bke::get_mutable_attribute<float>(this->as_curves_for_write().attribute_storage.wrap(),
                                            AttrDomain::Point,
                                            ATTR_RADIUS,
-                                           this->strokes().points_num(),
+                                           this->as_curves().points_num(),
                                            0.01f);
 }
 
 VArray<float> Drawing::opacities() const
 {
-  return *this->strokes().attributes().lookup_or_default<float>(
+  return *this->as_curves().attributes().lookup_or_default<float>(
       ATTR_OPACITY, AttrDomain::Point, 1.0f);
 }
 
 MutableSpan<float> Drawing::opacities_for_write()
 {
-  return bke::get_mutable_attribute<float>(this->strokes_for_write().attribute_storage.wrap(),
+  return bke::get_mutable_attribute<float>(this->as_curves_for_write().attribute_storage.wrap(),
                                            AttrDomain::Point,
                                            ATTR_OPACITY,
-                                           this->strokes().points_num(),
+                                           this->as_curves().points_num(),
                                            1.0f);
 }
 
 VArray<ColorGeometry4f> Drawing::vertex_colors() const
 {
-  return *this->strokes().attributes().lookup_or_default<ColorGeometry4f>(
+  return *this->as_curves().attributes().lookup_or_default<ColorGeometry4f>(
       ATTR_VERTEX_COLOR, AttrDomain::Point, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 MutableSpan<ColorGeometry4f> Drawing::vertex_colors_for_write()
 {
   return bke::get_mutable_attribute<ColorGeometry4f>(
-      this->strokes_for_write().attribute_storage.wrap(),
+      this->as_curves_for_write().attribute_storage.wrap(),
       AttrDomain::Point,
       ATTR_VERTEX_COLOR,
-      this->strokes().points_num(),
+      this->as_curves().points_num(),
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 VArray<ColorGeometry4f> Drawing::fill_colors() const
 {
-  return *this->strokes().attributes().lookup_or_default<ColorGeometry4f>(
+  return *this->as_curves().attributes().lookup_or_default<ColorGeometry4f>(
       ATTR_FILL_COLOR, AttrDomain::Curve, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 MutableSpan<ColorGeometry4f> Drawing::fill_colors_for_write()
 {
   return bke::get_mutable_attribute<ColorGeometry4f>(
-      this->strokes_for_write().attribute_storage.wrap(),
+      this->as_curves_for_write().attribute_storage.wrap(),
       AttrDomain::Curve,
       ATTR_FILL_COLOR,
-      this->strokes().curves_num(),
+      this->as_curves().curves_num(),
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
@@ -1016,7 +1026,7 @@ void Drawing::tag_fills_changed()
 
 void Drawing::tag_positions_changed()
 {
-  this->strokes_for_write().tag_positions_changed();
+  this->as_curves_for_write().tag_positions_changed();
   this->runtime->curve_plane_normals_cache.tag_dirty();
   this->tag_triangles_changed();
   this->tag_texture_matrices_changed();
@@ -1114,7 +1124,7 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
    * curves need to be updated.
    * TODO: This could probably be a bit more rigorous once this function gets used in more places.
    */
-  if (changed_curves.size() > this->strokes().curves_num() / 2) {
+  if (changed_curves.size() > this->as_curves().curves_num() / 2) {
     this->tag_positions_changed();
     return;
   }
@@ -1126,9 +1136,9 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
   }
   /* Positions needs to be tagged first, because the triangle cache updates just after need the
    * positions to be up-to-date. */
-  this->strokes_for_write().tag_positions_changed();
+  this->as_curves_for_write().tag_positions_changed();
   this->runtime->curve_plane_normals_cache.update([&](Vector<float3> &normals) {
-    const CurvesGeometry &curves = this->strokes();
+    const CurvesGeometry &curves = this->as_curves();
     update_curve_plane_normal_cache(
         curves.positions(), curves.points_by_curve(), changed_curves, normals);
   });
@@ -1152,9 +1162,9 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
       TriangleCache triangle_cache;
       triangle_cache.triangle_offsets.resize(fills->size() + 1);
 
-      update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
+      update_triangle_and_offsets_changed(this->as_curves().evaluated_positions(),
                                           this->curve_plane_normals(),
-                                          this->strokes().evaluated_points_by_curve(),
+                                          this->as_curves().evaluated_points_by_curve(),
                                           changed_curves,
                                           fills,
                                           src_triangles,
@@ -1172,7 +1182,7 @@ void Drawing::tag_topology_changed()
 {
   this->tag_positions_changed();
   this->tag_fills_changed();
-  this->strokes_for_write().tag_topology_changed();
+  this->as_curves_for_write().tag_topology_changed();
 }
 
 void Drawing::tag_topology_changed(const IndexMask &changed_curves)
@@ -1185,7 +1195,7 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
    * curves need to be updated.
    * TODO: This could probably be a bit more rigorous once this function gets used in more places.
    */
-  if (changed_curves.size() > this->strokes().curves_num() / 2) {
+  if (changed_curves.size() > this->as_curves().curves_num() / 2) {
     this->tag_topology_changed();
     return;
   }
@@ -1197,9 +1207,9 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
   }
   /* Positions needs to be tagged first, because the triangle cache updates just after need the
    * positions to be up-to-date. */
-  this->strokes_for_write().tag_positions_changed();
+  this->as_curves_for_write().tag_positions_changed();
   this->runtime->curve_plane_normals_cache.update([&](Vector<float3> &normals) {
-    const CurvesGeometry &curves = this->strokes();
+    const CurvesGeometry &curves = this->as_curves();
     update_curve_plane_normal_cache(
         curves.positions(), curves.points_by_curve(), changed_curves, normals);
   });
@@ -1221,9 +1231,9 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
       TriangleCache triangle_cache;
       triangle_cache.triangle_offsets.resize(fills->size() + 1);
 
-      update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
+      update_triangle_and_offsets_changed(this->as_curves().evaluated_positions(),
                                           this->curve_plane_normals(),
-                                          this->strokes().evaluated_points_by_curve(),
+                                          this->as_curves().evaluated_points_by_curve(),
                                           changed_curves,
                                           fills,
                                           src_triangles,
@@ -2400,7 +2410,7 @@ void BKE_grease_pencil_vgroup_name_update(Object *ob, const char *old_name, cons
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob->data);
   for (GreasePencilDrawingBase *base : grease_pencil.drawings()) {
     Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-    CurvesGeometry &curves = drawing.strokes_for_write();
+    CurvesGeometry &curves = drawing.as_curves_for_write();
     for (bDeformGroup &vgroup : curves.vertex_group_names) {
       if (STREQ(vgroup.name, old_name)) {
         STRNCPY_UTF8(vgroup.name, new_name);
@@ -2647,7 +2657,7 @@ bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil, co
     }
     const bke::greasepencil::Drawing &drawing =
         reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
-    const bke::CurvesGeometry &curves = drawing.strokes();
+    const bke::CurvesGeometry &curves = drawing.as_curves();
     if (curves.has_curve_with_type(type)) {
       return true;
     }
@@ -2671,7 +2681,7 @@ int BKE_grease_pencil_stroke_point_count(const GreasePencil &grease_pencil)
           }
           const bke::greasepencil::Drawing &drawing =
               reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
-          const bke::CurvesGeometry &curves = drawing.strokes();
+          const bke::CurvesGeometry &curves = drawing.as_curves();
           total_points += curves.points_num();
         });
   }
@@ -2696,7 +2706,7 @@ void BKE_grease_pencil_point_coords_get(const GreasePencil &grease_pencil,
       }
       const bke::greasepencil::Drawing &drawing =
           reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
-      const bke::CurvesGeometry &curves = drawing.strokes();
+      const bke::CurvesGeometry &curves = drawing.as_curves();
       const Span<float3> positions = curves.positions();
       const VArray<float> radii = drawing.radii();
 
@@ -2741,7 +2751,7 @@ void BKE_grease_pencil_point_coords_apply(GreasePencil &grease_pencil,
         return;
       }
       bke::greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-      bke::CurvesGeometry &curves = drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = drawing.as_curves_for_write();
 
       MutableSpan<float3> positions = curves.positions_for_write();
       MutableSpan<float> radii = drawing.radii_for_write();
@@ -2792,7 +2802,7 @@ void BKE_grease_pencil_point_coords_apply_with_mat4(GreasePencil &grease_pencil,
         return;
       }
       bke::greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-      bke::CurvesGeometry &curves = drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = drawing.as_curves_for_write();
 
       MutableSpan<float3> positions = curves.positions_for_write();
       MutableSpan<float> radii = drawing.radii_for_write();
@@ -2964,7 +2974,7 @@ void BKE_grease_pencil_material_remap(GreasePencil *grease_pencil, const uint *r
       continue;
     }
     greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-    MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+    MutableAttributeAccessor attributes = drawing.as_curves_for_write().attributes_for_write();
     SpanAttributeWriter<int> material_indices = attributes.lookup_for_write_span<int>(
         "material_index");
     if (!material_indices) {
@@ -2989,7 +2999,7 @@ void BKE_grease_pencil_material_index_remove(GreasePencil *grease_pencil, const 
       continue;
     }
     greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-    MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+    MutableAttributeAccessor attributes = drawing.as_curves_for_write().attributes_for_write();
     SpanAttributeWriter<int> material_indices = attributes.lookup_for_write_span<int>(
         "material_index");
     if (!material_indices) {
@@ -3014,7 +3024,7 @@ bool BKE_grease_pencil_material_index_used(GreasePencil *grease_pencil, int inde
       continue;
     }
     greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-    AttributeAccessor attributes = drawing.strokes().attributes();
+    AttributeAccessor attributes = drawing.as_curves().attributes();
     const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
         "material_index", AttrDomain::Curve, 0);
 
@@ -3684,7 +3694,7 @@ std::optional<Bounds<float3>> GreasePencil::bounds_min_max(const int frame,
     if (!drawing) {
       continue;
     }
-    const bke::CurvesGeometry &curves = drawing->strokes();
+    const bke::CurvesGeometry &curves = drawing->as_curves();
     if (curves.is_empty()) {
       continue;
     }
@@ -3737,7 +3747,7 @@ void GreasePencil::count_memory(MemoryCounter &memory) const
     }
     const greasepencil::Drawing &drawing =
         reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
-    drawing.strokes().count_memory(memory);
+    drawing.as_curves().count_memory(memory);
   }
 }
 
@@ -3751,7 +3761,8 @@ std::optional<int> GreasePencil::material_index_max() const
     }
     const GreasePencilDrawing *drawing = reinterpret_cast<const GreasePencilDrawing *>(
         drawing_base);
-    const std::optional<int> max_index_in_drawing = drawing->wrap().strokes().material_index_max();
+    const std::optional<int> max_index_in_drawing =
+        drawing->wrap().as_curves().material_index_max();
     if (max_index) {
       if (max_index_in_drawing) {
         max_index = std::max(*max_index, *max_index_in_drawing);
@@ -4582,7 +4593,7 @@ static void read_drawing_array(GreasePencil &grease_pencil, BlendDataReader *rea
     switch (GreasePencilDrawingType(drawing_base->type)) {
       case GP_DRAWING: {
         GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-        drawing->wrap().strokes_for_write().blend_read(*reader);
+        drawing->wrap().as_curves_for_write().blend_read(*reader);
         /* Initialize runtime data. */
         drawing->runtime = MEM_new<bke::greasepencil::DrawingRuntime>(__func__);
         break;

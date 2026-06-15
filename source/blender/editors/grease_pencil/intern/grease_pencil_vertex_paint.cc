@@ -52,7 +52,7 @@ static bool apply_color_operation_for_mode(const VertexColorMode mode,
   IndexMaskMemory memory;
   using namespace ed::greasepencil;
   if (ELEM(mode, VertexColorMode::Stroke, VertexColorMode::Both)) {
-    if (info.drawing.strokes().attributes().contains("vertex_color")) {
+    if (info.drawing.as_curves().attributes().contains("vertex_color")) {
       const IndexMask points = use_selection_mask ?
                                    retrieve_editable_and_selected_points(
                                        object, info.drawing, info.layer_index, memory) :
@@ -73,7 +73,7 @@ static bool apply_color_operation_for_mode(const VertexColorMode mode,
     }
   }
   if (ELEM(mode, VertexColorMode::Fill, VertexColorMode::Both)) {
-    if (info.drawing.strokes().attributes().contains("fill_color")) {
+    if (info.drawing.as_curves().attributes().contains("fill_color")) {
       const IndexMask strokes = use_selection_mask ?
                                     ed::greasepencil::retrieve_editable_and_selected_strokes(
                                         object, info.drawing, info.layer_index, memory) :
@@ -128,7 +128,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_brightness_contrast_exec(bCon
   std::atomic<bool> any_changed;
   Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](MutableDrawingInfo info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       return;
     }
@@ -187,7 +187,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_hsv_exec(bContext *C, wmOpera
   std::atomic<bool> any_changed;
   Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](MutableDrawingInfo info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       return;
     }
@@ -259,7 +259,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_invert_exec(bContext *C, wmOp
   std::atomic<bool> any_changed;
   Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](MutableDrawingInfo info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       return;
     }
@@ -314,7 +314,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_levels_exec(bContext *C, wmOp
   std::atomic<bool> any_changed;
   Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](MutableDrawingInfo info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       return;
     }
@@ -378,7 +378,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_set_exec(bContext *C, wmOpera
   std::atomic<bool> any_changed;
   Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](MutableDrawingInfo info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       return;
     }
@@ -441,7 +441,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_reset_exec(bContext *C, wmOpe
   std::atomic<bool> any_changed;
   Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](MutableDrawingInfo info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       return;
     }

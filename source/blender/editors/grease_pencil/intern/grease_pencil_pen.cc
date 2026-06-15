@@ -94,7 +94,7 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
   bke::CurvesGeometry &get_curves(const int curves_index) const override
   {
     const MutableDrawingInfo &info = this->drawings[curves_index];
-    return info.drawing.strokes_for_write();
+    return info.drawing.as_curves_for_write();
   }
 
   IndexRange curves_range() const override

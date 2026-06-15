@@ -199,7 +199,7 @@ static void stats_object(Object *ob,
       for (const GreasePencilDrawingBase *drawing_base : grease_pencil->drawings()) {
         const GreasePencilDrawing *drawing = reinterpret_cast<const GreasePencilDrawing *>(
             drawing_base);
-        const bke::CurvesGeometry &curves = drawing->wrap().strokes();
+        const bke::CurvesGeometry &curves = drawing->wrap().as_curves();
 
         stats->totpoints += curves.points_num();
         stats->totgpstroke += curves.curves_num();

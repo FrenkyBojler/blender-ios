@@ -262,7 +262,7 @@ class GeometryToObjectsBuilder {
         }
         bke::greasepencil::Drawing &drawing =
             reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-        drawing.strokes_for_write().attributes_for_write().remove_anonymous();
+        drawing.as_curves_for_write().attributes_for_write().remove_anonymous();
       }
       copy_materials_to_new_geometry_object(
           src_ob_eval, src_grease_pencil.id, *new_ob, new_grease_pencil->id);

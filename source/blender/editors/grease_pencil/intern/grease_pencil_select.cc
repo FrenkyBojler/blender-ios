@@ -249,7 +249,7 @@ bool selection_update(const ViewContext *vc,
       // empty.
 
       const ed::greasepencil::MutableDrawingInfo &info = drawings[i_drawing];
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
       const Span<StringRef> selection_attribute_names =
           ed::curves::get_curves_selection_attribute_names(curves);
 
@@ -328,12 +328,12 @@ static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
       return;
     }
     if (action == SEL_TOGGLE) {
-      action = ed::curves::has_anything_selected(info.drawing.strokes(), selection_domain) ?
+      action = ed::curves::has_anything_selected(info.drawing.as_curves(), selection_domain) ?
                    SEL_DESELECT :
                    SEL_SELECT;
     }
     ed::curves::select_all(
-        info.drawing.strokes_for_write(), selectable_elements, selection_domain, action);
+        info.drawing.as_curves_for_write(), selectable_elements, selection_domain, action);
   });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -364,15 +364,16 @@ static wmOperatorStatus select_more_exec(bContext *C, wmOperator * /*op*/)
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object->data);
   const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
-  ed::greasepencil::selection_update(&vc,
-                                     SEL_OP_ADD,
-                                     [&](const ed::greasepencil::MutableDrawingInfo &info,
-                                         const IndexMask & /*universe*/,
-                                         StringRef attribute_name,
-                                         IndexMaskMemory &memory) {
-                                       return ed::curves::select_adjacent_mask(
-                                           info.drawing.strokes(), attribute_name, false, memory);
-                                     });
+  ed::greasepencil::selection_update(
+      &vc,
+      SEL_OP_ADD,
+      [&](const ed::greasepencil::MutableDrawingInfo &info,
+          const IndexMask & /*universe*/,
+          StringRef attribute_name,
+          IndexMaskMemory &memory) {
+        return ed::curves::select_adjacent_mask(
+            info.drawing.as_curves(), attribute_name, false, memory);
+      });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
    * attribute for now. */
@@ -407,7 +408,7 @@ static wmOperatorStatus select_less_exec(bContext *C, wmOperator * /*op*/)
                                          StringRef attribute_name,
                                          IndexMaskMemory &memory) {
                                        return ed::curves::select_adjacent_mask(
-                                           info.drawing.strokes(), attribute_name, true, memory);
+                                           info.drawing.as_curves(), attribute_name, true, memory);
                                      });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -445,7 +446,7 @@ static wmOperatorStatus select_linked_exec(bContext *C, wmOperator *op)
     if (selectable_strokes.is_empty()) {
       return;
     }
-    ed::curves::select_linked(info.drawing.strokes_for_write(), selectable_strokes, unselect);
+    ed::curves::select_linked(info.drawing.as_curves_for_write(), selectable_strokes, unselect);
   });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -502,7 +503,7 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
           return {};
         }
         return random_mask(selectable_elements,
-                           info.drawing.strokes().points_num(),
+                           info.drawing.as_curves().points_num(),
                            get_default_hash<int>(seed, info.layer_index),
                            ratio,
                            memory);
@@ -539,7 +540,7 @@ static wmOperatorStatus select_alternate_exec(bContext *C, wmOperator *op)
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    ed::curves::select_alternate(info.drawing.strokes_for_write(), deselect_ends);
+    ed::curves::select_alternate(info.drawing.as_curves_for_write(), deselect_ends);
   });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -596,7 +597,7 @@ void insert_selected_values(Object *object,
   T default_value;
   CPPType::get<T>().default_construct(&default_value);
 
-  const bke::CurvesGeometry &curves = info.drawing.strokes();
+  const bke::CurvesGeometry &curves = info.drawing.as_curves();
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArraySpan<T> values = *attributes.lookup_or_default<T>(name, domain, default_value);
 
@@ -661,7 +662,7 @@ static void select_similar_by_value(Scene *scene,
     IndexMaskMemory memory;
     const IndexMask elements = ed::greasepencil::retrieve_editable_elements(
         *object, info, selection_domain, memory);
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
         name, selection_domain, default_value);
 
@@ -701,7 +702,7 @@ static void select_similar_by_layer(Scene *scene,
   /* Layer is selected if any point is selected. */
   for (const MutableDrawingInfo &info : drawings) {
     const VArraySpan<bool> selection =
-        *info.drawing.strokes().attributes().lookup_or_default<bool>(".selection", domain, true);
+        *info.drawing.as_curves().attributes().lookup_or_default<bool>(".selection", domain, true);
     for (const int i : selection.index_range()) {
       if (selection[i]) {
         selected_layers.add(info.layer_index);
@@ -721,7 +722,7 @@ static void select_similar_by_layer(Scene *scene,
       return;
     }
     ed::curves::select_all(
-        info.drawing.strokes_for_write(), editable_elements, domain, SEL_SELECT);
+        info.drawing.as_curves_for_write(), editable_elements, domain, SEL_SELECT);
   });
 }
 
@@ -831,7 +832,7 @@ static wmOperatorStatus select_ends_exec(bContext *C, wmOperator *op)
         const IndexMask selectable_strokes = ed::greasepencil::retrieve_editable_strokes(
             *object, info.drawing, info.layer_index, memory);
         return ed::curves::end_points(
-            info.drawing.strokes(), selectable_strokes, amount_start, amount_end, false, memory);
+            info.drawing.as_curves(), selectable_strokes, amount_start, amount_end, false, memory);
       });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -890,7 +891,7 @@ static wmOperatorStatus select_fill_exec(bContext *C, wmOperator * /*op*/)
       return;
     }
 
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
 
@@ -986,7 +987,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
     }
 
     GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-    bke::CurvesGeometry &curves = drawing->wrap().strokes_for_write();
+    bke::CurvesGeometry &curves = drawing->wrap().as_curves_for_write();
     if (curves.is_empty()) {
       continue;
     }
@@ -1138,7 +1139,7 @@ static wmOperatorStatus grease_pencil_material_select_exec(bContext *C, wmOperat
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
 
     IndexMaskMemory memory;
     const IndexMask strokes = retrieve_editable_strokes_by_material(
@@ -1223,7 +1224,7 @@ static wmOperatorStatus grease_pencil_select_by_stroke_type_exec(bContext *C, wm
       return;
     }
 
-    const bke::CurvesGeometry &curves = info.drawing.strokes();
+    const bke::CurvesGeometry &curves = info.drawing.as_curves();
     if (stroke_type == StrokeType::Stroke) {
       if (const VArray<bool> hide_stroke = *curves.attributes().lookup<bool>(
               "hide_stroke", bke::AttrDomain::Curve))
@@ -1232,10 +1233,10 @@ static wmOperatorStatus grease_pencil_select_by_stroke_type_exec(bContext *C, wm
         if (selection_domain == bke::AttrDomain::Point) {
           mask = IndexMask::from_ranges(curves.points_by_curve(), mask, memory);
         }
-        ed::curves::select_all(info.drawing.strokes_for_write(), mask, selection_domain, action);
+        ed::curves::select_all(info.drawing.as_curves_for_write(), mask, selection_domain, action);
       }
       else {
-        ed::curves::select_all(info.drawing.strokes_for_write(), selection_domain, action);
+        ed::curves::select_all(info.drawing.as_curves_for_write(), selection_domain, action);
       }
       changed.store(true, std::memory_order_relaxed);
     }
@@ -1248,7 +1249,7 @@ static wmOperatorStatus grease_pencil_select_by_stroke_type_exec(bContext *C, wm
         if (selection_domain == bke::AttrDomain::Point) {
           mask = IndexMask::from_ranges(curves.points_by_curve(), mask, memory);
         }
-        ed::curves::select_all(info.drawing.strokes_for_write(), mask, selection_domain, action);
+        ed::curves::select_all(info.drawing.as_curves_for_write(), mask, selection_domain, action);
         changed.store(true, std::memory_order_relaxed);
       }
     }

@@ -340,7 +340,7 @@ class GreasePencil : Overlay {
       pass.bind_texture("gp_pos_tx", position_tx);
       pass.bind_texture("gp_col_tx", color_tx);
 
-      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      const bke::CurvesGeometry &curves = info.drawing.as_curves();
       const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
       const bke::AttributeAccessor attributes = curves.attributes();
       const std::optional<GroupedSpan<int3>> triangles = info.drawing.triangles();
@@ -542,7 +542,7 @@ class GreasePencil : Overlay {
     for (const ed::greasepencil::DrawingInfo &info : drawings) {
       const bke::greasepencil::Drawing &drawing = info.drawing;
 
-      const bke::CurvesGeometry strokes = drawing.strokes();
+      const bke::CurvesGeometry strokes = drawing.as_curves();
       const OffsetIndices<int> points_by_curve = strokes.points_by_curve();
       const bke::AttrDomain domain = show_points_ ? bke::AttrDomain::Point :
                                                     bke::AttrDomain::Curve;

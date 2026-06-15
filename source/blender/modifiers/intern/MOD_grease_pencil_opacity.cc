@@ -221,7 +221,7 @@ static void modify_geometry_set(ModifierData *md,
   const Vector<Drawing *> drawings = modifier::greasepencil::get_drawings_for_write(
       *grease_pencil, layer_mask, frame);
   threading::parallel_for_each(
-      drawings, [&](Drawing *drawing) { modify_curves(md, ctx, drawing->strokes_for_write()); });
+      drawings, [&](Drawing *drawing) { modify_curves(md, ctx, drawing->as_curves_for_write()); });
 }
 
 static void panel_draw(const bContext *C, Panel *panel)

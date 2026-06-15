@@ -62,7 +62,7 @@ void CloneOperation::on_stroke_begin(const bContext &C, const InputSample &start
           return false;
         }
 
-        bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = params.drawing.as_curves_for_write();
         const OffsetIndices<int> pasted_points_by_curve = curves.points_by_curve().slice(
             pasted_curves);
         const IndexRange pasted_points = IndexRange::from_begin_size(

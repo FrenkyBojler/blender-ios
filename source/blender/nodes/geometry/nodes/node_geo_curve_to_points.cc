@@ -241,7 +241,7 @@ static void node_geo_exec(GeoNodeExecParams params)
               continue;
             }
             bke::CurvesGeometry dst_curves = geometry::resample_to_count(
-                drawing->strokes(),
+                drawing->as_curves(),
                 bke::GreasePencilLayerFieldContext(*grease_pencil, AttrDomain::Curve, layer_index),
                 fn::Field<bool>(true),
                 count,
@@ -280,7 +280,7 @@ static void node_geo_exec(GeoNodeExecParams params)
               continue;
             }
             bke::CurvesGeometry dst_curves = geometry::resample_to_length(
-                drawing->strokes(),
+                drawing->as_curves(),
                 bke::GreasePencilLayerFieldContext(*grease_pencil, AttrDomain::Curve, layer_index),
                 fn::Field<bool>(true),
                 length,
@@ -318,7 +318,7 @@ static void node_geo_exec(GeoNodeExecParams params)
               continue;
             }
             bke::CurvesGeometry dst_curves = geometry::resample_to_evaluated(
-                drawing->strokes(),
+                drawing->as_curves(),
                 bke::GreasePencilLayerFieldContext(*grease_pencil, AttrDomain::Curve, layer_index),
                 fn::Field<bool>(true),
                 resample_attributes);

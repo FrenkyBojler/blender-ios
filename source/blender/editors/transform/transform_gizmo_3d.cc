@@ -812,7 +812,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
             ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
         threading::parallel_for_each(
             drawings, [&](const ed::greasepencil::MutableDrawingInfo &info) {
-              const bke::CurvesGeometry &curves = info.drawing.strokes();
+              const bke::CurvesGeometry &curves = info.drawing.as_curves();
 
               const bke::crazyspace::GeometryDeformation deformation =
                   bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(

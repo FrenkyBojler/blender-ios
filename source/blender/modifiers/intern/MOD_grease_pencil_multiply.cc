@@ -126,7 +126,7 @@ static void generate_curves(GreasePencilMultiModifierData &mmd,
                             const ModifierEvalContext &ctx,
                             Drawing &drawing)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
 
   IndexMaskMemory mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(

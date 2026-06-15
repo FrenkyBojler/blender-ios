@@ -543,8 +543,8 @@ static wmOperatorStatus frame_clean_duplicate_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      bke::CurvesGeometry &curves = drawing->strokes_for_write();
-      bke::CurvesGeometry &curves_next = drawing_next->strokes_for_write();
+      bke::CurvesGeometry &curves = drawing->as_curves_for_write();
+      bke::CurvesGeometry &curves_next = drawing_next->as_curves_for_write();
 
       if (!curves_geometry_is_equal(curves, curves_next)) {
         continue;

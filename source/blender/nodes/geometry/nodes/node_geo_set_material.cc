@@ -144,7 +144,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (drawing == nullptr) {
           continue;
         }
-        bke::CurvesGeometry &curves = drawing->strokes_for_write();
+        bke::CurvesGeometry &curves = drawing->as_curves_for_write();
         if (curves.is_empty()) {
           continue;
         }

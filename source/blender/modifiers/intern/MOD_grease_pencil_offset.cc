@@ -308,7 +308,7 @@ static void modify_drawing(const ModifierData &md,
 
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
 
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   IndexMaskMemory mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(
       ctx.object, curves, omd.influence, mask_memory);
@@ -339,7 +339,7 @@ static void modify_drawing_by_layer(const ModifierData &md,
 {
   const auto &omd = reinterpret_cast<const GreasePencilOffsetModifierData &>(md);
 
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   IndexMaskMemory mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(
       ctx.object, curves, omd.influence, mask_memory);

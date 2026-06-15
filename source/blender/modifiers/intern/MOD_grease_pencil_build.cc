@@ -608,7 +608,7 @@ static void build_drawing(const GreasePencilBuildModifierData &mmd,
                           const float scene_fps)
 {
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
 
   if (curves.is_empty()) {
     return;
@@ -620,7 +620,7 @@ static void build_drawing(const GreasePencilBuildModifierData &mmd,
 
   /* Remove a count of #prev_strokes. */
   if (mmd.mode == MOD_GREASE_PENCIL_BUILD_MODE_ADDITIVE && previous_drawing != nullptr) {
-    const bke::CurvesGeometry &prev_curves = previous_drawing->strokes();
+    const bke::CurvesGeometry &prev_curves = previous_drawing->as_curves();
     const int prev_strokes = prev_curves.curves_num();
     const int added_strokes = curves.curves_num() - prev_strokes;
     if (added_strokes > 0) {

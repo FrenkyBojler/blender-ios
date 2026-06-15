@@ -40,7 +40,7 @@ static void set_material_index_in_grease_pencil(GreasePencil &grease_pencil,
       continue;
     }
     bke::try_capture_field_on_geometry(
-        drawing->strokes_for_write().attributes_for_write(),
+        drawing->as_curves_for_write().attributes_for_write(),
         bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Curve, layer_index),
         "material_index",
         AttrDomain::Curve,

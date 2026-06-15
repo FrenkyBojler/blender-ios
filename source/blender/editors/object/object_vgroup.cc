@@ -263,7 +263,7 @@ bool vgroup_parray_alloc(ID *id,
         if (!drawing) {
           return false;
         }
-        bke::CurvesGeometry &curves = drawing->strokes_for_write();
+        bke::CurvesGeometry &curves = drawing->as_curves_for_write();
         MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
 
         if (!dverts.is_empty()) {
@@ -1057,7 +1057,7 @@ static void vgroup_grease_pencil_select_verts(const Scene &scene,
 
   Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, *grease_pencil);
   for (MutableDrawingInfo &info : drawings) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     ListBaseT<bDeformGroup> &vertex_group_names = curves.vertex_group_names;
 
     const int def_nr = BKE_defgroup_name_index(&vertex_group_names, def_group->name);

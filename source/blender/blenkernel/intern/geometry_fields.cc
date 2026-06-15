@@ -51,8 +51,8 @@ GVArray GreasePencilLayerFieldContext::get_varray_for_input(const fn::FieldInput
     if (const bke::greasepencil::Drawing *drawing = this->grease_pencil().get_eval_drawing(
             this->grease_pencil().layer(this->layer_index())))
     {
-      if (drawing->strokes().attributes().domain_supported(this->domain())) {
-        const CurvesFieldContext context{drawing->strokes(), this->domain()};
+      if (drawing->as_curves().attributes().domain_supported(this->domain())) {
+        const CurvesFieldContext context{drawing->as_curves(), this->domain()};
         return curves_field_input->get_varray_for_context(context, mask, scope);
       }
     }
@@ -191,7 +191,7 @@ std::optional<AttributeAccessor> GeometryFieldContext::attributes() const
     if (const greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
             grease_pencil->layer(grease_pencil_layer_index_)))
     {
-      return drawing->strokes().attributes();
+      return drawing->as_curves().attributes();
     }
   }
   if (const Instances *instances = this->instances()) {
@@ -239,7 +239,7 @@ const CurvesGeometry *GeometryFieldContext::curves_or_strokes() const
     return curves;
   }
   if (const greasepencil::Drawing *drawing = this->grease_pencil_layer_drawing()) {
-    return &drawing->strokes();
+    return &drawing->as_curves();
   }
   return nullptr;
 }
@@ -451,7 +451,7 @@ GVArray AttributeExistsFieldInput::get_varray_for_context(const bke::GeometryFie
       return VArray<bool>::from_single(exists, domain_size);
     }
     const greasepencil::Drawing *drawing = context.grease_pencil_layer_drawing();
-    const AttributeAccessor curve_attributes = drawing->strokes().attributes();
+    const AttributeAccessor curve_attributes = drawing->as_curves().attributes();
     const bool exists = layer_attributes.contains(name_) || curve_attributes.contains(name_);
     const int domain_size = curve_attributes.domain_size(domain);
     return VArray<bool>::from_single(exists, domain_size);
@@ -1150,7 +1150,7 @@ bool try_capture_fields_on_geometry(GeometryComponent &component,
         {
           const GeometryFieldContext field_context{*grease_pencil, domain, layer_index};
           const bool success = try_capture_fields_on_geometry(
-              drawing->strokes_for_write().attributes_for_write(),
+              drawing->as_curves_for_write().attributes_for_write(),
               field_context,
               names,
               domain,

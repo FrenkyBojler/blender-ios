@@ -232,7 +232,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           continue;
         }
         const float4x4 &layer_transform = layer.local_transform();
-        const bke::CurvesGeometry &src_curves = drawing->strokes();
+        const bke::CurvesGeometry &src_curves = drawing->as_curves();
         if (src_curves.is_empty()) {
           /* Add an empty reference so the number of layers and instances match.
            * This makes it easy to reconstruct the layers afterwards and keep their attributes.

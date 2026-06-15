@@ -138,8 +138,11 @@ class Drawing : public blender::GreasePencilDrawing {
   Drawing &operator=(Drawing &&other);
   ~Drawing();
 
-  const bke::CurvesGeometry &strokes() const;
-  bke::CurvesGeometry &strokes_for_write();
+  const bke::CurvesGeometry &as_curves() const;
+  bke::CurvesGeometry &as_curves_for_write();
+
+  AttributeAccessor attributes() const;
+  MutableAttributeAccessor attributes_for_write();
 
   /**
    * Group of curve indices for each fill. Can be nullopt when there are no fills in this drawing.
@@ -967,6 +970,9 @@ inline LayerGroup &Layer::parent_group()
 
 TREENODE_COMMON_METHODS_FORWARD_IMPL(LayerGroup);
 
+namespace drawing {
+const AttributeAccessorFunctions &get_attribute_accessor_functions();
+}  // namespace drawing
 const AttributeAccessorFunctions &get_attribute_accessor_functions();
 
 /**

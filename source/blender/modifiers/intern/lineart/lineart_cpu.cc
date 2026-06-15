@@ -5428,7 +5428,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   new_curves.fill_curve_types(CURVE_TYPE_POLY);
 
   BKE_defgroup_copy_list(&new_curves.vertex_group_names,
-                         &drawing.strokes_for_write().vertex_group_names);
+                         &drawing.as_curves_for_write().vertex_group_names);
 
   MutableAttributeAccessor attributes = new_curves.attributes_for_write();
   MutableSpan<float3> point_positions = new_curves.positions_for_write();
@@ -5463,7 +5463,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     return -1;
   };
 
-  const bool skip_weight_transfer = drawing.strokes().vertex_group_names.is_empty();
+  const bool skip_weight_transfer = drawing.as_curves().vertex_group_names.is_empty();
 
   int up_to_point = 0;
   for (int chain_i : writer.index_range()) {
@@ -5576,13 +5576,13 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     fill_ids.finish();
   }
 
-  Curves *original_curves = bke::curves_new_nomain(drawing.strokes());
+  Curves *original_curves = bke::curves_new_nomain(drawing.as_curves());
   Curves *created_curves = bke::curves_new_nomain(std::move(new_curves));
   std::array<bke::GeometrySet, 2> geometry_sets{bke::GeometrySet::from_curves(original_curves),
                                                 bke::GeometrySet::from_curves(created_curves)};
   bke::GeometrySet joined = geometry::join_geometries(geometry_sets, {});
 
-  drawing.strokes_for_write() = std::move(joined.get_curves_for_write()->geometry.wrap());
+  drawing.as_curves_for_write() = std::move(joined.get_curves_for_write()->geometry.wrap());
   drawing.tag_topology_changed();
 
   if (G.debug_value == 4000) {

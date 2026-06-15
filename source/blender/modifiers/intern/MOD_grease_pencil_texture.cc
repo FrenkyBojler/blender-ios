@@ -78,7 +78,7 @@ static void write_stroke_transforms(bke::greasepencil::Drawing &drawing,
                                     const float scale,
                                     const bool normalize_u)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
 
@@ -193,7 +193,7 @@ static void write_fill_transforms(bke::greasepencil::Drawing &drawing,
    *    SL = S/2
    */
 
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const Span<float3> positions = curves.positions();
   Array<float4x2> texture_matrices(drawing.texture_matrices());
 
@@ -252,7 +252,7 @@ static void modify_curves(const GreasePencilTextureModifierData &tmd,
 {
   IndexMaskMemory mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(
-      ctx.object, drawing.strokes(), tmd.influence, mask_memory);
+      ctx.object, drawing.as_curves(), tmd.influence, mask_memory);
 
   const bool normalize_u = (tmd.fit_method == MOD_GREASE_PENCIL_TEXTURE_FIT_STROKE);
   switch (GreasePencilTextureModifierMode(tmd.mode)) {

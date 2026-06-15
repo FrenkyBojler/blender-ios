@@ -47,7 +47,7 @@ static void reverse_grease_pencil(GreasePencil &grease_pencil, const Field<bool>
     if (drawing == nullptr) {
       continue;
     }
-    bke::CurvesGeometry &curves = drawing->strokes_for_write();
+    bke::CurvesGeometry &curves = drawing->as_curves_for_write();
     const bke::GreasePencilLayerFieldContext field_context(
         grease_pencil, AttrDomain::Curve, layer_index);
     reverse_curve(curves, field_context, selection_field);

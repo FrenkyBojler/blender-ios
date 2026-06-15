@@ -333,7 +333,7 @@ static void shift_to_bounds_center(GreasePencil &grease_pencil)
         continue;
       }
       Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base)->wrap();
-      bounds = bounds::merge(bounds, drawing.strokes().bounds_min_max());
+      bounds = bounds::merge(bounds, drawing.as_curves().bounds_min_max());
     }
     return bounds;
   }();
@@ -347,7 +347,7 @@ static void shift_to_bounds_center(GreasePencil &grease_pencil)
       continue;
     }
     Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base)->wrap();
-    drawing.strokes_for_write().translate(offset);
+    drawing.as_curves_for_write().translate(offset);
     drawing.tag_positions_changed();
   }
 }
@@ -461,7 +461,7 @@ bool SVGImporter::read(StringRefNull filepath)
       has_color_gradient = true;
     }
 
-    bke::CurvesGeometry &curves = drawing->strokes_for_write();
+    bke::CurvesGeometry &curves = drawing->as_curves_for_write();
     const IndexRange new_curves_range = extend_curves_geometry(curves, *shape);
     if (new_curves_range.is_empty()) {
       continue;
@@ -469,7 +469,7 @@ bool SVGImporter::read(StringRefNull filepath)
 
     shape_attributes_to_curves(
         curves, *shape, new_curves_range, transform, shape_index, material_index);
-    drawing->strokes_for_write() = std::move(curves);
+    drawing->as_curves_for_write() = std::move(curves);
 
     shape_index++;
   }

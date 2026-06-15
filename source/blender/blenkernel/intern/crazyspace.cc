@@ -647,7 +647,7 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(
 
   GeometryDeformation deformation;
   /* Use the undeformed positions by default. */
-  deformation.positions = drawing_orig.strokes().positions();
+  deformation.positions = drawing_orig.as_curves().positions();
 
   if (ob_eval == nullptr) {
     return deformation;

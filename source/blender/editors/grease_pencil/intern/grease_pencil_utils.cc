@@ -951,7 +951,7 @@ IndexMask retrieve_editable_strokes(Object &object,
                                     int layer_index,
                                     IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const IndexRange curves_range = curves.curves_range();
 
   if (object.totcol == 0) {
@@ -999,7 +999,7 @@ IndexMask retrieve_editable_fill_strokes(Object &object,
     return {};
   }
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const IndexRange curves_range = curves.curves_range();
 
   const bke::AttributeAccessor attributes = curves.attributes();
@@ -1018,7 +1018,7 @@ IndexMask retrieve_editable_strokes_by_material(Object &object,
                                                 const int mat_i,
                                                 IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const IndexRange curves_range = curves.curves_range();
 
   /* Get all the editable material indices */
@@ -1050,7 +1050,7 @@ IndexMask retrieve_editable_points(Object &object,
                                    int layer_index,
                                    IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const IndexRange points_range = curves.points_range();
 
   if (object.totcol == 0) {
@@ -1112,11 +1112,11 @@ IndexMask retrieve_visible_strokes(Object &object,
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
   if (hidden_material_indices.is_empty()) {
-    return drawing.strokes().curves_range();
+    return drawing.as_curves().curves_range();
   }
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
-  const IndexRange curves_range = drawing.strokes().curves_range();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
+  const IndexRange curves_range = drawing.as_curves().curves_range();
   const bke::AttributeAccessor attributes = curves.attributes();
 
   /* Get all the strokes that have their material visible. */
@@ -1136,10 +1136,10 @@ IndexMask retrieve_visible_points(Object &object,
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
   if (hidden_material_indices.is_empty()) {
-    return drawing.strokes().points_range();
+    return drawing.as_curves().points_range();
   }
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const IndexRange points_range = curves.points_range();
   const bke::AttributeAccessor attributes = curves.attributes();
 
@@ -1164,7 +1164,7 @@ IndexMask retrieve_visible_bezier_strokes(Object &object,
                                           const bke::greasepencil::Drawing &drawing,
                                           IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
 
   if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return IndexMask(0);
@@ -1187,7 +1187,7 @@ IndexMask retrieve_visible_bezier_points(Object &object,
                                          const bke::greasepencil::Drawing &drawing,
                                          IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
 
   if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return IndexMask(0);
@@ -1213,7 +1213,7 @@ IndexMask retrieve_visible_bezier_handle_strokes(Object &object,
     return IndexMask(0);
   }
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
 
   if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return IndexMask(0);
@@ -1246,7 +1246,7 @@ IndexMask retrieve_visible_fills(Object &object,
     return fills->index_range();
   }
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const bke::AttributeAccessor attributes = curves.attributes();
 
   /* Get all the fills that have their first curve's material visible. */
@@ -1274,7 +1274,7 @@ IndexMask retrieve_visible_bezier_handle_points(Object &object,
   }
   /* else handle_display == CURVE_HANDLE_SELECTED */
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
 
   if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return IndexMask(0);
@@ -1327,7 +1327,7 @@ IndexMask retrieve_editable_and_selected_strokes(Object &object,
                                                  int layer_index,
                                                  IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
 
   const IndexMask editable_strokes = retrieve_editable_strokes(
       object, drawing, layer_index, memory);
@@ -1341,7 +1341,7 @@ IndexMask retrieve_editable_and_selected_fill_strokes(Object &object,
                                                       int layer_index,
                                                       IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
 
   const IndexMask editable_strokes = retrieve_editable_fill_strokes(
       object, drawing, layer_index, memory);
@@ -1355,7 +1355,7 @@ IndexMask retrieve_editable_and_selected_points(Object &object,
                                                 int layer_index,
                                                 IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
 
   const IndexMask editable_points = retrieve_editable_points(object, drawing, layer_index, memory);
   const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
@@ -1386,7 +1386,7 @@ IndexMask retrieve_editable_and_all_selected_points(Object &object,
                                                     const eHandleDisplay handle_display,
                                                     IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
 
   const IndexMask editable_points = retrieve_editable_points(object, drawing, layer_index, memory);
   const IndexMask selected_points = ed::curves::retrieve_all_selected_points(
@@ -1825,7 +1825,7 @@ GreasePencil *from_context(bContext &C)
 
 void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   if (at_end) {
     const int num_old_curves = curves.curves_num();
     const int num_old_points = curves.points_num();
@@ -2018,7 +2018,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
         drawing_orig = orig_grease_pencil.get_drawing_at(*layer_orig, eval_frame);
       }
       /* Clear the existing drawing. */
-      drawing_orig->strokes_for_write() = {};
+      drawing_orig->as_curves_for_write() = {};
       drawing_orig->tag_topology_changed();
     }
   }
@@ -2038,7 +2038,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
     Drawing *drawing_orig = orig_grease_pencil.get_drawing_at(*layer_orig, eval_frame);
 
     if (drawing_orig && drawing_eval) {
-      bke::CurvesGeometry &eval_strokes = drawing_eval->strokes_for_write();
+      bke::CurvesGeometry &eval_strokes = drawing_eval->as_curves_for_write();
 
       /* Check for new vertex groups in CurvesGeometry. */
       for (bDeformGroup &dg : eval_strokes.vertex_group_names) {
@@ -2048,9 +2048,9 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
       }
 
       /* Write the data to the original drawing. */
-      drawing_orig->strokes_for_write() = std::move(eval_strokes);
+      drawing_orig->as_curves_for_write() = std::move(eval_strokes);
       /* Anonymous attributes shouldn't be available on original geometry. */
-      drawing_orig->strokes_for_write().attributes_for_write().remove_anonymous();
+      drawing_orig->as_curves_for_write().attributes_for_write().remove_anonymous();
       drawing_orig->tag_topology_changed();
       all_updated_drawings.add_new(drawing_orig);
     }
@@ -2102,7 +2102,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
         /* Skip remapping drawings that already have been updated. */
         continue;
       }
-      MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+      MutableAttributeAccessor attributes = drawing.as_curves_for_write().attributes_for_write();
       if (!attributes.contains("material_index")) {
         continue;
       }

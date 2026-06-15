@@ -652,7 +652,7 @@ void GeometrySet::attribute_foreach(const Span<GeometryComponent::Type> componen
       const GreasePencil &grease_pencil = *this->get_grease_pencil();
       for (const bke::greasepencil::Layer *layer : grease_pencil.layers()) {
         if (const bke::greasepencil::Drawing *drawing = grease_pencil.get_eval_drawing(*layer)) {
-          const AttributeAccessor attributes = drawing->strokes().attributes();
+          const AttributeAccessor attributes = drawing->as_curves().attributes();
           attributes.foreach_attribute([&](const AttributeIter &iter) {
             callback(iter.name, {iter.domain, iter.data_type}, component);
           });

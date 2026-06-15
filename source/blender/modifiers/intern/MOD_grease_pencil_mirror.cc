@@ -156,7 +156,7 @@ static void modify_drawing(const GreasePencilMirrorModifierData &mmd,
     return;
   }
 
-  const bke::CurvesGeometry &src_curves = drawing.strokes();
+  const bke::CurvesGeometry &src_curves = drawing.as_curves();
   if (src_curves.curve_num == 0) {
     return;
   }
@@ -167,14 +167,14 @@ static void modify_drawing(const GreasePencilMirrorModifierData &mmd,
 
   if (curves_mask.size() == src_curves.curve_num) {
     /* All geometry gets mirrored. */
-    drawing.strokes_for_write() = create_mirror_copies(*ctx.object, mmd, src_curves, src_curves);
+    drawing.as_curves_for_write() = create_mirror_copies(*ctx.object, mmd, src_curves, src_curves);
   }
   else {
     /* Create masked geometry, then mirror it. */
     bke::CurvesGeometry masked_curves = bke::curves_copy_curve_selection(
         src_curves, curves_mask, {});
 
-    drawing.strokes_for_write() = create_mirror_copies(
+    drawing.as_curves_for_write() = create_mirror_copies(
         *ctx.object, mmd, src_curves, masked_curves);
   }
 

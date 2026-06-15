@@ -79,11 +79,11 @@ static void subdivide_drawing(ModifierData &md, Object &ob, bke::greasepencil::D
 
   IndexMaskMemory memory;
   const IndexMask strokes = modifier::greasepencil::get_filtered_stroke_mask(
-      &ob, drawing.strokes_for_write(), mmd.influence, memory);
+      &ob, drawing.as_curves_for_write(), mmd.influence, memory);
 
   if (use_catmull_clark) {
     modifier::greasepencil::ensure_no_bezier_curves(drawing);
-    bke::CurvesGeometry subdivided_curves = drawing.strokes();
+    bke::CurvesGeometry subdivided_curves = drawing.as_curves();
     const VArray<bool> cyclic = subdivided_curves.cyclic();
     for ([[maybe_unused]] const int level_i : IndexRange(mmd.level)) {
       VArray<int> one_cut = VArray<int>::from_single(1, subdivided_curves.points_num());
@@ -116,12 +116,13 @@ static void subdivide_drawing(ModifierData &md, Object &ob, bke::greasepencil::D
         }
       });
     }
-    drawing.strokes_for_write() = subdivided_curves;
+    drawing.as_curves_for_write() = subdivided_curves;
   }
   else {
     VArray<int> cuts = VArray<int>::from_single(math::pow(mmd.level, 2),
-                                                drawing.strokes().points_num());
-    drawing.strokes_for_write() = geometry::subdivide_curves(drawing.strokes(), strokes, cuts, {});
+                                                drawing.as_curves().points_num());
+    drawing.as_curves_for_write() = geometry::subdivide_curves(
+        drawing.as_curves(), strokes, cuts, {});
   }
 
   drawing.tag_topology_changed();

@@ -579,7 +579,7 @@ std::optional<const bke::AttributeAccessor> GeometryDataSource::get_component_at
     if (const bke::greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
             grease_pencil->layer(layer_index_)))
     {
-      return drawing->strokes().attributes();
+      return drawing->as_curves().attributes();
     }
   }
   return {};

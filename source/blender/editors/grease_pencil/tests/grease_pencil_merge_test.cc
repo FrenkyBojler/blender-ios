@@ -191,29 +191,29 @@ TEST_F(GreasePencilMergeTest, merge_keyframes)
   grease_pencil.add_layer("Layer5");
 
   Drawing *drawing = grease_pencil.insert_frame(layer1, 0);
-  drawing->strokes_for_write().resize(10, 2);
-  drawing->strokes_for_write().update_curve_types();
+  drawing->as_curves_for_write().resize(10, 2);
+  drawing->as_curves_for_write().update_curve_types();
 
   drawing = grease_pencil.insert_frame(layer2, 0);
-  drawing->strokes_for_write().resize(20, 3);
-  drawing->strokes_for_write().update_curve_types();
+  drawing->as_curves_for_write().resize(20, 3);
+  drawing->as_curves_for_write().update_curve_types();
   drawing = grease_pencil.insert_frame(layer2, 2);
-  drawing->strokes_for_write().resize(30, 4);
-  drawing->strokes_for_write().update_curve_types();
+  drawing->as_curves_for_write().resize(30, 4);
+  drawing->as_curves_for_write().update_curve_types();
 
   drawing = grease_pencil.insert_frame(layer3, 0);
-  drawing->strokes_for_write().resize(40, 5);
-  drawing->strokes_for_write().update_curve_types();
+  drawing->as_curves_for_write().resize(40, 5);
+  drawing->as_curves_for_write().update_curve_types();
   drawing = grease_pencil.insert_frame(layer3, 3);
-  drawing->strokes_for_write().resize(50, 6);
-  drawing->strokes_for_write().update_curve_types();
+  drawing->as_curves_for_write().resize(50, 6);
+  drawing->as_curves_for_write().update_curve_types();
 
   drawing = grease_pencil.insert_frame(layer4, 1);
-  drawing->strokes_for_write().resize(60, 7);
-  drawing->strokes_for_write().update_curve_types();
+  drawing->as_curves_for_write().resize(60, 7);
+  drawing->as_curves_for_write().update_curve_types();
   drawing = grease_pencil.insert_frame(layer4, 3);
-  drawing->strokes_for_write().resize(70, 8);
-  drawing->strokes_for_write().update_curve_types();
+  drawing->as_curves_for_write().resize(70, 8);
+  drawing->as_curves_for_write().update_curve_types();
 
   GreasePencil *merged_grease_pencil = BKE_grease_pencil_new_nomain();
   BKE_grease_pencil_copy_parameters(grease_pencil, *merged_grease_pencil);
@@ -225,13 +225,16 @@ TEST_F(GreasePencilMergeTest, merge_keyframes)
   EXPECT_EQ(merged_grease_pencil->layers().size(), 4);
 
   Layer &expected_layer_1 = merged_grease_pencil->find_node_by_name("Layer1")->as_layer();
-  EXPECT_EQ(merged_grease_pencil->get_drawing_at(expected_layer_1, 0)->strokes().points_num(), 10);
+  EXPECT_EQ(merged_grease_pencil->get_drawing_at(expected_layer_1, 0)->as_curves().points_num(),
+            10);
 
   Layer &expected_layer_2 = merged_grease_pencil->find_node_by_name("Layer2")->as_layer();
-  EXPECT_EQ(merged_grease_pencil->get_drawing_at(expected_layer_2, 0)->strokes().points_num(), 60);
+  EXPECT_EQ(merged_grease_pencil->get_drawing_at(expected_layer_2, 0)->as_curves().points_num(),
+            60);
 
   Layer &expected_layer_4 = merged_grease_pencil->find_node_by_name("Layer4")->as_layer();
-  EXPECT_EQ(merged_grease_pencil->get_drawing_at(expected_layer_4, 3)->strokes().points_num(), 70);
+  EXPECT_EQ(merged_grease_pencil->get_drawing_at(expected_layer_4, 3)->as_curves().points_num(),
+            70);
 
   BKE_id_free(nullptr, merged_grease_pencil);
 }

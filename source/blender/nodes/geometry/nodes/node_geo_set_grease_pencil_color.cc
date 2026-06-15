@@ -82,7 +82,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (drawing == nullptr) {
           continue;
         }
-        bke::CurvesGeometry &curves = drawing->strokes_for_write();
+        bke::CurvesGeometry &curves = drawing->as_curves_for_write();
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
         const bke::GreasePencilLayerFieldContext layer_field_context(

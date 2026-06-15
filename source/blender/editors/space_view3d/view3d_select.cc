@@ -1211,7 +1211,7 @@ static bool do_lasso_select_grease_pencil(const ViewContext *vc,
           const IndexMask &mask,
           const StringRef attribute_name,
           IndexMaskMemory &memory) {
-        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
         const bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
@@ -3400,7 +3400,7 @@ static bool ed_grease_pencil_select_pick(bContext *C,
                   selection_domain,
                   vc.v3d->overlay.handle_display,
                   memory);
-          const bke::CurvesGeometry &curves = info.drawing.strokes();
+          const bke::CurvesGeometry &curves = info.drawing.as_curves();
           const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
           const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(vc.rv3d,
                                                                               layer_to_world);
@@ -3462,7 +3462,7 @@ static bool ed_grease_pencil_select_pick(bContext *C,
         if (elements.is_empty()) {
           continue;
         }
-        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
         if (!ed::curves::has_anything_selected(curves, selection_domain, elements)) {
           continue;
         }
@@ -4480,7 +4480,7 @@ static bool do_grease_pencil_box_select(const ViewContext *vc,
           const IndexMask &mask,
           const StringRef attribute_name,
           IndexMaskMemory &memory) {
-        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
         const bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
@@ -5341,7 +5341,7 @@ static bool grease_pencil_circle_select(const ViewContext *vc,
           const IndexMask &mask,
           const StringRef attribute_name,
           IndexMaskMemory &memory) {
-        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
         const bke::crazyspace::GeometryDeformation deformation =
             bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(

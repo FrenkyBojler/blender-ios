@@ -131,7 +131,7 @@ static void modify_drawing(const GreasePencilShrinkwrapModifierData &smd,
                            bke::greasepencil::Drawing &drawing)
 {
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const Span<MDeformVert> dverts = curves.deform_verts();
   const MutableSpan<float3> positions = curves.positions_for_write();
@@ -141,7 +141,7 @@ static void modify_drawing(const GreasePencilShrinkwrapModifierData &smd,
   /* Selected source curves. */
   IndexMaskMemory curve_mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(
-      ctx.object, drawing.strokes(), smd.influence, curve_mask_memory);
+      ctx.object, drawing.as_curves(), smd.influence, curve_mask_memory);
 
   ShrinkwrapParams params;
   params.target = smd.target;

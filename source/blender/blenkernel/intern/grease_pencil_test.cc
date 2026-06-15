@@ -68,7 +68,7 @@ TEST_F(GreasePencilTest, remove_drawings)
   grease_pencil.add_empty_drawings(3);
 
   GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(grease_pencil.drawing(1));
-  drawing->wrap().strokes_for_write().resize(0, 10);
+  drawing->wrap().as_curves_for_write().resize(0, 10);
 
   Layer &layer1 = grease_pencil.add_layer("Layer1");
   Layer &layer2 = grease_pencil.add_layer("Layer2");

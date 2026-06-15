@@ -64,7 +64,7 @@ static void subdivide_grease_pencil_curves(GreasePencil &grease_pencil,
       continue;
     }
 
-    const bke::CurvesGeometry &src_curves = drawing->strokes();
+    const bke::CurvesGeometry &src_curves = drawing->as_curves();
     const bke::GreasePencilLayerFieldContext field_context{
         grease_pencil, AttrDomain::Point, layer_index};
 
@@ -80,7 +80,7 @@ static void subdivide_grease_pencil_curves(GreasePencil &grease_pencil,
     bke::CurvesGeometry dst_curves = geometry::subdivide_curves(
         src_curves, src_curves.curves_range(), cuts, attribute_filter);
 
-    drawing->strokes_for_write() = std::move(dst_curves);
+    drawing->as_curves_for_write() = std::move(dst_curves);
     drawing->tag_topology_changed();
   }
 }

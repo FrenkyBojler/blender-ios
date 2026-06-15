@@ -48,7 +48,7 @@ static GreasePencil *curves_to_grease_pencil_with_one_layer(
   bke::greasepencil::Layer &layer = grease_pencil->layer(0);
   layer.set_name(layer_name);
   bke::greasepencil::Drawing &drawing = *grease_pencil->get_eval_drawing(layer);
-  drawing.strokes_for_write() = std::move(curves);
+  drawing.as_curves_for_write() = std::move(curves);
 
   /* Transfer materials. */
   const int materials_num = curves_id.totcol;
@@ -103,7 +103,7 @@ static GreasePencil *curve_instances_to_grease_pencil_layers(
       return;
     }
 
-    bke::CurvesGeometry &strokes = drawing.strokes_for_write();
+    bke::CurvesGeometry &strokes = drawing.as_curves_for_write();
     strokes = instance_curves->geometry.wrap();
 
     Vector<int> new_material_indices;

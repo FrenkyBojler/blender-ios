@@ -116,8 +116,8 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
       C, [&](const GreasePencilStrokeParams &params, const IndexMask &point_mask) {
         /* Note: smoothing requires full range of view positions regardless of point selection. */
         const Array<float2> view_positions = view_positions_from_point_mask(
-            params, params.drawing.strokes().points_range());
-        bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
+            params, params.drawing.as_curves().points_range());
+        bke::CurvesGeometry &curves = params.drawing.as_curves_for_write();
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
         const OffsetIndices points_by_curve = curves.points_by_curve();
         const VArray<bool> cyclic = curves.cyclic();

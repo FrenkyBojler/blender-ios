@@ -92,7 +92,7 @@ struct ForeachElementComponent {
       const bke::greasepencil::Layer &layer = grease_pencil->layer(*this->id.layer_index);
       bke::greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(layer);
       BLI_assert(drawing);
-      return drawing->strokes_for_write().attributes_for_write();
+      return drawing->as_curves_for_write().attributes_for_write();
     }
     GeometryComponent &component = geometry.get_component_for_write(this->id.component_type);
     return *component.attributes_for_write();
@@ -441,7 +441,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
           if (drawing == nullptr) {
             continue;
           }
-          const bke::CurvesGeometry &curves = drawing->strokes();
+          const bke::CurvesGeometry &curves = drawing->as_curves();
           if (curves.is_empty()) {
             continue;
           }

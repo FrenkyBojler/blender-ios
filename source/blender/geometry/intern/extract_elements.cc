@@ -416,7 +416,7 @@ Array<GreasePencil *> extract_greasepencil_layers(const GreasePencil &grease_pen
         if (src_drawing) {
           Layer &new_layer = element->add_layer(src_layer.name());
           Drawing &drawing = *element->insert_frame(new_layer, element->runtime->eval_frame);
-          drawing.strokes_for_write() = src_drawing->strokes();
+          drawing.as_curves_for_write() = src_drawing->as_curves();
 
           bke::gather_attributes(src_attributes,
                                  AttrDomain::Layer,
@@ -442,7 +442,7 @@ Array<GreasePencil *> extract_greasepencil_layer_points(
   using namespace bke::greasepencil;
   const Layer &src_layer = grease_pencil.layer(layer_i);
   const Drawing &src_drawing = *grease_pencil.get_eval_drawing(src_layer);
-  const bke::CurvesGeometry &src_curves = src_drawing.strokes();
+  const bke::CurvesGeometry &src_curves = src_drawing.as_curves();
   const bke::AttributeAccessor src_layer_attributes = grease_pencil.attributes();
   const bke::AttributeAccessor src_curves_attributes = src_curves.attributes();
   const Array<int> point_to_curve_map = src_curves.point_to_curve_map();
@@ -458,7 +458,7 @@ Array<GreasePencil *> extract_greasepencil_layer_points(
 
         Layer &new_layer = element->add_layer(src_layer.name());
         Drawing &drawing = *element->insert_frame(new_layer, element->runtime->eval_frame);
-        bke::CurvesGeometry &new_curves = drawing.strokes_for_write();
+        bke::CurvesGeometry &new_curves = drawing.as_curves_for_write();
         new_curves.resize(1, 1);
         new_curves.offsets_for_write().last() = 1;
 
@@ -499,7 +499,7 @@ Array<GreasePencil *> extract_greasepencil_layer_curves(
   using namespace bke::greasepencil;
   const Layer &src_layer = grease_pencil.layer(layer_i);
   const Drawing &src_drawing = *grease_pencil.get_eval_drawing(src_layer);
-  const bke::CurvesGeometry &src_curves = src_drawing.strokes();
+  const bke::CurvesGeometry &src_curves = src_drawing.as_curves();
   const bke::AttributeAccessor src_layer_attributes = grease_pencil.attributes();
   const bke::AttributeAccessor src_curves_attributes = src_curves.attributes();
   const OffsetIndices<int> src_points_by_curve = src_curves.points_by_curve();
@@ -516,7 +516,7 @@ Array<GreasePencil *> extract_greasepencil_layer_curves(
 
         Layer &new_layer = element->add_layer(src_layer.name());
         Drawing &drawing = *element->insert_frame(new_layer, element->runtime->eval_frame);
-        bke::CurvesGeometry &new_curves = drawing.strokes_for_write();
+        bke::CurvesGeometry &new_curves = drawing.as_curves_for_write();
 
         new_curves.resize(points_num, 1);
         bke::gather_attributes(src_curves_attributes,

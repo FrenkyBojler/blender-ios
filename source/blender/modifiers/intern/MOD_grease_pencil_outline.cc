@@ -177,14 +177,14 @@ static void modify_drawing(const GreasePencilOutlineModifierData &omd,
 {
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
 
-  if (drawing.strokes().curve_num == 0) {
+  if (drawing.as_curves().curve_num == 0) {
     return;
   }
 
   /* Selected source curves. */
   IndexMaskMemory curve_mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(
-      ctx.object, drawing.strokes(), omd.influence, curve_mask_memory);
+      ctx.object, drawing.as_curves(), omd.influence, curve_mask_memory);
 
   /* Unit object scale is applied to the stroke radius. */
   const float object_scale = math::length(
@@ -224,7 +224,7 @@ static void modify_drawing(const GreasePencilOutlineModifierData &omd,
     curves = geometry::resample_to_length(curves, curves.curves_range(), sample_lengths);
   }
 
-  drawing.strokes_for_write() = std::move(curves);
+  drawing.as_curves_for_write() = std::move(curves);
   drawing.tag_topology_changed();
 }
 

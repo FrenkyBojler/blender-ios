@@ -1188,14 +1188,14 @@ void create_stroke(Main &bmain, Object &object, const float4x4 &matrix, const in
   Drawing &drawing_lines = *grease_pencil.insert_frame(layer_lines, frame_number);
   grease_pencil.insert_frame(layer_color, frame_number);
 
-  drawing_lines.strokes_for_write() = create_drawing_data(stroke_positions,
-                                                          stroke_radii,
-                                                          stroke_opacities,
-                                                          {0, 175},
-                                                          {material_index},
-                                                          {},
-                                                          {},
-                                                          matrix);
+  drawing_lines.as_curves_for_write() = create_drawing_data(stroke_positions,
+                                                            stroke_radii,
+                                                            stroke_opacities,
+                                                            {0, 175},
+                                                            {material_index},
+                                                            {},
+                                                            {},
+                                                            matrix);
   drawing_lines.tag_topology_changed();
 }
 
@@ -1274,22 +1274,22 @@ void create_suzanne(Main &bmain, Object &object, const float4x4 &matrix, const i
   Drawing &drawing_lines = *grease_pencil.insert_frame(layer_lines, frame_number);
   Drawing &drawing_fills = *grease_pencil.insert_frame(layer_fills, frame_number);
 
-  drawing_lines.strokes_for_write() = create_drawing_data(monkey_line_positions,
-                                                          monkey_line_radii,
-                                                          monkey_line_opacities,
-                                                          monkey_line_offsets,
-                                                          monkey_line_materials,
-                                                          monkey_line_hide_strokes,
-                                                          monkey_line_fill_ids,
-                                                          matrix);
-  drawing_fills.strokes_for_write() = create_drawing_data(monkey_fill_positions,
-                                                          monkey_fill_radii,
-                                                          monkey_fill_opacities,
-                                                          monkey_fill_offsets,
-                                                          monkey_fill_materials,
-                                                          monkey_fill_hide_strokes,
-                                                          monkey_fill_fill_ids,
-                                                          matrix);
+  drawing_lines.as_curves_for_write() = create_drawing_data(monkey_line_positions,
+                                                            monkey_line_radii,
+                                                            monkey_line_opacities,
+                                                            monkey_line_offsets,
+                                                            monkey_line_materials,
+                                                            monkey_line_hide_strokes,
+                                                            monkey_line_fill_ids,
+                                                            matrix);
+  drawing_fills.as_curves_for_write() = create_drawing_data(monkey_fill_positions,
+                                                            monkey_fill_radii,
+                                                            monkey_fill_opacities,
+                                                            monkey_fill_offsets,
+                                                            monkey_fill_materials,
+                                                            monkey_fill_hide_strokes,
+                                                            monkey_fill_fill_ids,
+                                                            matrix);
   drawing_lines.tag_topology_changed();
   drawing_fills.tag_topology_changed();
 }

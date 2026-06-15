@@ -68,7 +68,7 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
     if (!fill_selection.is_empty() && do_fill) {
       BLI_assert(params.drawing.fills().has_value());
       const GroupedSpan<int> fills = *params.drawing.fills();
-      const OffsetIndices<int> points_by_curve = params.drawing.strokes().points_by_curve();
+      const OffsetIndices<int> points_by_curve = params.drawing.as_curves().points_by_curve();
       const Array<float2> view_positions = view_positions_from_point_mask(params, point_selection);
       const VArray<ColorGeometry4f> fill_colors = params.drawing.fill_colors();
       fill_selection.foreach_index([&](const int64_t fill_i) {
@@ -126,7 +126,7 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
         if (!fill_selection.is_empty() && do_fill) {
           BLI_assert(params.drawing.fills().has_value());
           const GroupedSpan<int> fills = *params.drawing.fills();
-          const bke::CurvesGeometry &curves = params.drawing.strokes();
+          const bke::CurvesGeometry &curves = params.drawing.as_curves();
           const OffsetIndices<int> points_by_curve = curves.points_by_curve();
           MutableSpan<ColorGeometry4f> fill_colors = params.drawing.fill_colors_for_write();
           /* TODO. Only calculate needed positions. */

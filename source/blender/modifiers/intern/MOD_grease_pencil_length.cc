@@ -106,7 +106,7 @@ static void deform_drawing(const ModifierData &md,
   const GreasePencilLengthModifierData &mmd =
       reinterpret_cast<const GreasePencilLengthModifierData &>(md);
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
 
   if (curves.is_empty()) {
     return;

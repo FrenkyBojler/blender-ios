@@ -2691,8 +2691,8 @@ static void execute_realize_grease_pencil_task(
     }
     bke::greasepencil::Drawing &dst_drawing = *dst_grease_pencil.get_eval_drawing(dst_layer);
 
-    const bke::CurvesGeometry &src_curves = src_drawing->strokes();
-    bke::CurvesGeometry &dst_curves = dst_drawing.strokes_for_write();
+    const bke::CurvesGeometry &src_curves = src_drawing->as_curves();
+    bke::CurvesGeometry &dst_curves = dst_drawing.as_curves_for_write();
     dst_curves = src_curves;
 
     /* Remap materials. */

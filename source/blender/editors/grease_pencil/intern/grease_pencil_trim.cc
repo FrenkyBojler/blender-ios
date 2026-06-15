@@ -44,7 +44,7 @@ static bool execute_trim_on_drawing(const int layer_index,
                                     const bool keep_caps,
                                     bke::greasepencil::Drawing &drawing)
 {
-  const bke::CurvesGeometry &src = drawing.strokes();
+  const bke::CurvesGeometry &src = drawing.as_curves();
 
   /* Get evaluated geometry. */
   bke::crazyspace::GeometryDeformation deformation =
@@ -70,7 +70,7 @@ static bool execute_trim_on_drawing(const int layer_index,
       src, screen_space_positions, mcoords, editable_strokes, visible_strokes, keep_caps);
 
   /* Set the new geometry. */
-  drawing.strokes_for_write() = std::move(cut_strokes);
+  drawing.as_curves_for_write() = std::move(cut_strokes);
   drawing.tag_topology_changed();
 
   return true;

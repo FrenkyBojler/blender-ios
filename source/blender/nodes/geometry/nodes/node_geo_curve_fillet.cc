@@ -110,7 +110,7 @@ static void fillet_grease_pencil(GreasePencil &grease_pencil,
     if (drawing == nullptr) {
       continue;
     }
-    const bke::CurvesGeometry &src_curves = drawing->strokes();
+    const bke::CurvesGeometry &src_curves = drawing->as_curves();
     if (src_curves.is_empty()) {
       continue;
     }
@@ -123,7 +123,7 @@ static void fillet_grease_pencil(GreasePencil &grease_pencil,
                                                   radius_field,
                                                   limit_radius,
                                                   attribute_filter);
-    drawing->strokes_for_write() = std::move(dst_curves);
+    drawing->as_curves_for_write() = std::move(dst_curves);
     drawing->tag_topology_changed();
   }
 }

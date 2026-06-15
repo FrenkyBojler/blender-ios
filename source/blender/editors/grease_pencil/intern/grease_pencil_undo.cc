@@ -127,7 +127,7 @@ class StepDrawingGeometry : public StepDrawingGeometryBase {
     index_ = int(drawing_index);
 
     flag_ = drawing.base.flag;
-    geometry_ = drawing.wrap().strokes();
+    geometry_ = drawing.wrap().as_curves();
   }
 
   void decode(GreasePencil &grease_pencil, StepDecodeStatus & /*decode_status*/) const
@@ -139,7 +139,7 @@ class StepDrawingGeometry : public StepDrawingGeometryBase {
     GreasePencilDrawing &drawing = *reinterpret_cast<GreasePencilDrawing *>(drawings[index_]);
 
     drawing.base.flag = flag_;
-    drawing.wrap().strokes_for_write() = geometry_;
+    drawing.wrap().as_curves_for_write() = geometry_;
 
     /* TODO: Check if there is a way to tell if both stored and current geometry are still the
      * same, to avoid recomputing the caches all the time for all drawings? */

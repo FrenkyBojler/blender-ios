@@ -285,7 +285,7 @@ static wmOperatorStatus grease_pencil_material_lock_unselected_exec(bContext *C,
       return OPERATOR_CANCELLED;
     }
 
-    AttributeAccessor attributes = info.drawing.strokes().attributes();
+    AttributeAccessor attributes = info.drawing.as_curves().attributes();
     const VArray<int> material_indices = *attributes.lookup_or_default<int>(
         "material_index", AttrDomain::Curve, 0);
 

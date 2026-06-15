@@ -465,7 +465,7 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
   const int new_points_num = grease_pencil_primitive_curve_points_number(ptd);
   const bool use_random = (ptd.settings->flag & GP_BRUSH_GROUP_RANDOM) != 0;
 
-  bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
+  bke::CurvesGeometry &curves = ptd.drawing->as_curves_for_write();
   const int target_curve_index = on_back ? 0 : curves.curves_range().last();
   ed::greasepencil::resize_single_curve(curves, on_back == false, new_points_num);
 
@@ -577,7 +577,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   /* Resize the curves geometry so there is one more curve with a single point. */
   const bool on_back = ptd.on_back;
   ed::greasepencil::add_single_curve(*ptd.drawing, on_back == false);
-  bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
+  bke::CurvesGeometry &curves = ptd.drawing->as_curves_for_write();
 
   const int target_curve_index = on_back ? 0 : (curves.curves_num() - 1);
 
@@ -680,7 +680,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
 
 static void grease_pencil_primitive_undo_curves(PrimitiveToolOperation &ptd)
 {
-  bke::CurvesGeometry &curves = ptd.drawing->strokes_for_write();
+  bke::CurvesGeometry &curves = ptd.drawing->as_curves_for_write();
   const int target_curve_index = ptd.on_back ? 0 : (curves.curves_num() - 1);
   curves.remove_curves(IndexRange::from_single(target_curve_index), {});
   ptd.drawing->tag_topology_changed();
@@ -894,12 +894,12 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op, const bool
     constexpr float merge_distance = 30.0f;
     const float4x4 layer_to_world = active_layer.to_world_space(ob);
     bke::greasepencil::Drawing &drawing = *ptd->drawing;
-    const bke::CurvesGeometry &src_curves = drawing.strokes();
+    const bke::CurvesGeometry &src_curves = drawing.as_curves();
     const int active_curve = on_back ? src_curves.curves_range().first() :
                                        src_curves.curves_range().last();
     const IndexMask selection = IndexRange::from_single(active_curve);
 
-    drawing.strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
+    drawing.as_curves_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
         *CTX_wm_region(C), src_curves, layer_to_world, merge_distance, selection, {});
     drawing.tag_topology_changed();
   }

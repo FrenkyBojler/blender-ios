@@ -40,7 +40,7 @@ static void set_grease_pencil_order(GreasePencil &grease_pencil,
     if (drawing == nullptr) {
       continue;
     }
-    bke::CurvesGeometry &curves = drawing->strokes_for_write();
+    bke::CurvesGeometry &curves = drawing->as_curves_for_write();
     if (curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
       bke::try_capture_field_on_geometry(
           curves.attributes_for_write(),

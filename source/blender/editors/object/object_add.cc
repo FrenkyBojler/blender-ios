@@ -3537,7 +3537,7 @@ static Object *convert_grease_pencil_component_to_curves(Base &base,
         Array<bke::GeometrySet> geometries(drawings.size());
         for (const int i : drawings.index_range()) {
           Curves *curves_id = BKE_id_new_nomain<Curves>(nullptr);
-          curves_id->geometry.wrap() = drawings[i].drawing.strokes();
+          curves_id->geometry.wrap() = drawings[i].drawing.as_curves();
           geometries[i] = bke::GeometrySet::from_curves(curves_id);
         }
         bke::GeometrySet joined_curves = geometry::join_geometries(geometries, {});
@@ -3748,8 +3748,8 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     const int fills_num = faces.size();
     const int fills_points_num = corner_verts.size();
 
-    drawing_fill->strokes_for_write().resize(fills_points_num, fills_num);
-    bke::CurvesGeometry &curves = drawing_fill->strokes_for_write();
+    drawing_fill->as_curves_for_write().resize(fills_points_num, fills_num);
+    bke::CurvesGeometry &curves = drawing_fill->as_curves_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     MutableSpan<float3> positions = curves.positions_for_write();
     MutableSpan<int> offsets = curves.offsets_for_write();
@@ -3829,7 +3829,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   bke::MutableAttributeAccessor attributes = curves_edges.attributes_for_write();
   attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(stroke_radius));
 
-  drawing_line->strokes_for_write() = std::move(curves_edges);
+  drawing_line->as_curves_for_write() = std::move(curves_edges);
   drawing_line->tag_topology_changed();
 
   BKE_id_free(nullptr, mesh_copied);
@@ -4015,9 +4015,10 @@ static Object *convert_curves_to_grease_pencil(Base &base,
     bke::greasepencil::Layer &layer = grease_pencil->add_layer(layer_name);
     bke::greasepencil::Drawing *drawing = grease_pencil->insert_frame(layer, frame_number);
     BLI_assert(drawing != nullptr);
-    drawing->strokes_for_write() = curves_eval->geometry.wrap();
+    drawing->as_curves_for_write() = curves_eval->geometry.wrap();
     /* Default radius (1.0 unit) is too thick for converted strokes. */
-    bke::MutableAttributeAccessor attributes = drawing->strokes_for_write().attributes_for_write();
+    bke::MutableAttributeAccessor attributes =
+        drawing->as_curves_for_write().attributes_for_write();
     attributes.remove("radius");
     attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
 
@@ -4095,7 +4096,7 @@ static Object *convert_grease_pencil_to_mesh(Base &base,
       Array<bke::GeometrySet> geometries(drawings.size());
       for (const int i : drawings.index_range()) {
         Curves *curves_id = BKE_id_new_nomain<Curves>(nullptr);
-        curves_id->geometry.wrap() = drawings[i].drawing.strokes();
+        curves_id->geometry.wrap() = drawings[i].drawing.as_curves();
         const int layer_index = drawings[i].layer_index;
         const bke::greasepencil::Layer *layer = grease_pencil->layers()[layer_index];
         float4x4 to_object = layer->to_object_space(*ob);
@@ -4289,7 +4290,7 @@ static void add_grease_pencil_materials_for_conversion(Main &bmain, ID &from_id,
 
 static void create_grease_pencil_fills(bke::greasepencil::Drawing &drawing)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
   VArray<int> materials = *attributes.lookup_or_default(
@@ -4330,9 +4331,9 @@ static Object *convert_font_to_grease_pencil(Base &base,
 
   bke::CurvesGeometry &curves = curves_nomain->geometry.wrap();
 
-  drawing->strokes_for_write() = std::move(curves);
+  drawing->as_curves_for_write() = std::move(curves);
   /* Default radius (1.0 unit) is too thick for converted strokes. */
-  bke::MutableAttributeAccessor attributes = drawing->strokes_for_write().attributes_for_write();
+  bke::MutableAttributeAccessor attributes = drawing->as_curves_for_write().attributes_for_write();
   attributes.remove("radius");
   attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
 
@@ -4447,9 +4448,10 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
   if (curves_nomain) {
     bke::CurvesGeometry &curves = curves_nomain->geometry.wrap();
 
-    drawing->strokes_for_write() = std::move(curves);
+    drawing->as_curves_for_write() = std::move(curves);
     /* Default radius (1.0 unit) is too thick for converted strokes. */
-    bke::MutableAttributeAccessor attributes = drawing->strokes_for_write().attributes_for_write();
+    bke::MutableAttributeAccessor attributes =
+        drawing->as_curves_for_write().attributes_for_write();
     attributes.remove("radius");
     attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
     drawing->tag_positions_changed();

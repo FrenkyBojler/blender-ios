@@ -735,7 +735,7 @@ static GreasePencil *try_load_grease_pencil(const DictionaryValue &io_geometry,
       return cancel();
     }
     greasepencil::Drawing &drawing = *grease_pencil->get_eval_drawing(layer);
-    drawing.strokes_for_write() = std::move(*curves_opt);
+    drawing.as_curves_for_write() = std::move(*curves_opt);
   }
 
   MutableAttributeAccessor attributes = grease_pencil->attributes_for_write();
@@ -1192,7 +1192,7 @@ static std::shared_ptr<DictionaryValue> serialize_geometry_set(const GeometrySet
       auto io_strokes = io_layer->append_dict("strokes");
       const greasepencil::Drawing *drawing = grease_pencil.get_eval_drawing(*layer);
       if (drawing) {
-        serialize_curves_geometry(*io_strokes, drawing->strokes(), blob_writer, blob_sharing);
+        serialize_curves_geometry(*io_strokes, drawing->as_curves(), blob_writer, blob_sharing);
       }
       else {
         serialize_curves_geometry(*io_strokes, CurvesGeometry(), blob_writer, blob_sharing);

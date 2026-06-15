@@ -759,7 +759,7 @@ class XpbdSolverStep {
           if (!drawing) {
             continue;
           }
-          bke::CurvesGeometry &curves = drawing->strokes_for_write();
+          bke::CurvesGeometry &curves = drawing->as_curves_for_write();
           geometries_.data_keys.add_new(
               {geo_bundle_i, bke::GeometryComponent::Type::Curve, layer_i});
           GeometryData &geo_data = tls.scope.construct<GeometryData>(

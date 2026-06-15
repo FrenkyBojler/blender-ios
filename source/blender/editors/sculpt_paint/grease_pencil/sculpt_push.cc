@@ -46,7 +46,7 @@ void PushOperation::on_stroke_extended(const bContext &C, const InputSample &ext
           const DeltaProjectionFunc &projection_fn) {
         bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
         const Array<float2> view_positions = view_positions_from_point_mask(params, point_mask);
-        bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = params.drawing.as_curves_for_write();
         MutableSpan<float3> positions = curves.positions_for_write();
 
         const float2 mouse_delta = this->mouse_delta(extension_sample);

@@ -247,7 +247,7 @@ void GrabOperation::on_stroke_extended(const bContext &C, const InputSample &ext
         /* Transform mouse delta into layer space. */
         const float2 mouse_delta_win = this->mouse_delta(extension_sample);
 
-        bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = params.drawing.as_curves_for_write();
         bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
         MutableSpan<float3> positions = curves.positions_for_write();
         mask.foreach_index(

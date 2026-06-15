@@ -91,7 +91,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
     curves_transform_data.grease_pencil_falloffs.reinitialize(drawings.size());
 
     for (ed::greasepencil::MutableDrawingInfo info : drawings) {
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
       Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
           curves);
       std::array<IndexMask, 3> selection_per_attribute;
@@ -197,7 +197,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
       ed::greasepencil::MutableDrawingInfo info = drawings[drawing];
       const bke::greasepencil::Layer &layer = *layers[info.layer_index];
       const float4x4 layer_space_to_world_space = layer.to_world_space(*object_eval);
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
       const bke::crazyspace::GeometryDeformation deformation =
           bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
               *CTX_data_depsgraph_pointer(C), *object, info.drawing);
@@ -257,7 +257,7 @@ static void recalcData_grease_pencil(TransInfo *t)
     int layer_i = 0;
     for (const int64_t i : drawings.index_range()) {
       ed::greasepencil::MutableDrawingInfo info = drawings[i];
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
 
       if (t->mode == TFM_CURVE_SHRINKFATTEN) {
         curves.tag_radii_changed();

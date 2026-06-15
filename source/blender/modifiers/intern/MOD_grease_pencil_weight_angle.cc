@@ -110,7 +110,7 @@ static void write_weights_for_drawing(const ModifierData &md,
                                       bke::greasepencil::Drawing &drawing)
 {
   const auto &mmd = reinterpret_cast<const GreasePencilWeightAngleModifierData &>(md);
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   if (curves.is_empty()) {
     return;
   }

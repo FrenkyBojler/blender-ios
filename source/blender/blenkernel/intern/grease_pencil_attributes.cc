@@ -2,14 +2,351 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_listbase.hh"
+
 #include "BKE_attribute_storage.hh"
+#include "BKE_curves.hh"
+#include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
 
 #include "DNA_grease_pencil_types.h"
 
 #include "attribute_storage_access.hh"
+#include "curves_attributes.hh"
 
 namespace blender::bke::greasepencil {
+
+namespace drawing {
+
+static int get_domain_size(const void *owner, const AttrDomain domain)
+{
+  const Drawing &drawing = *static_cast<const Drawing *>(owner);
+  switch (domain) {
+    case AttrDomain::Point:
+      return drawing.geometry.wrap().points_num();
+    case AttrDomain::Curve:
+      return drawing.geometry.wrap().curves_num();
+    default:
+      return 0;
+  }
+}
+
+static const auto &changed_tags()
+{
+  static Map<StringRef, AttrUpdateOnChange> attributes{
+      // {"position", tag_positions_changed},
+      // {"radius", tag_radii_changed},
+      // {"tilt", tag_normals_changed},
+      // {"handle_left", tag_positions_changed},
+      // {"handle_right", tag_positions_changed},
+      // {"handle_type_left", tag_topology_changed},
+      // {"handle_type_right", tag_topology_changed},
+      // {"nurbs_weight", tag_positions_changed},
+      // {"nurbs_order", tag_topology_changed},
+      // {"normal_mode", tag_normals_changed},
+      // {"custom_normal", tag_normals_changed},
+      // {"curve_type", tag_curve_types_changed},
+      // {"resolution", tag_topology_changed},
+      // {"cyclic", tag_topology_changed},
+      // {"material_index", tag_material_index_changed},
+  };
+  return attributes;
+}
+
+static GAttributeReader reader_for_vertex_group_index(const CurvesGeometry &curves,
+                                                      const Span<MDeformVert> dverts,
+                                                      const int vertex_group_index)
+{
+  BLI_assert(vertex_group_index >= 0);
+  if (dverts.is_empty()) {
+    return {VArray<float>::from_single(0.0f, curves.points_num()), AttrDomain::Point};
+  }
+  return {varray_for_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
+}
+
+static GAttributeReader try_get_vertex_group(const void *owner, const StringRef name)
+{
+  if (owner == nullptr) {
+    return {};
+  }
+  const Drawing &drawing = *static_cast<const Drawing *>(owner);
+  const CurvesGeometry &curves = drawing.as_curves();
+
+  const int vertex_group_index = BKE_defgroup_name_index(&curves.vertex_group_names, name);
+  if (vertex_group_index < 0) {
+    return {};
+  }
+  const Span<MDeformVert> dverts = curves.deform_verts();
+  return reader_for_vertex_group_index(curves, dverts, vertex_group_index);
+}
+
+static GAttributeWriter try_get_vertex_group_for_write(void *owner, const StringRef name)
+{
+  if (owner == nullptr) {
+    return {};
+  }
+  Drawing &drawing = *static_cast<Drawing *>(owner);
+  CurvesGeometry &curves = drawing.as_curves_for_write();
+
+  const int vertex_group_index = BKE_defgroup_name_index(&curves.vertex_group_names, name);
+  if (vertex_group_index < 0) {
+    return {};
+  }
+  MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
+  return {varray_for_mutable_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
+}
+
+static bool foreach_vertex_group(const void *owner, FunctionRef<void(const AttributeIter &)> fn)
+{
+  if (owner == nullptr) {
+    return true;
+  }
+  const Drawing &drawing = *static_cast<const Drawing *>(owner);
+  const CurvesGeometry &curves = drawing.as_curves();
+
+  const AttributeAccessor accessor = curves.attributes();
+  const Span<MDeformVert> dverts = curves.deform_verts();
+
+  for (const auto [group_index, group] : curves.vertex_group_names.enumerate()) {
+    const auto get_fn = [&, group_index = group_index]() {
+      return reader_for_vertex_group_index(curves, dverts, group_index);
+    };
+    AttributeIter iter{group.name, AttrDomain::Point, bke::AttrType::Float, get_fn};
+    iter.is_builtin = false;
+    iter.accessor = &accessor;
+    fn(iter);
+    if (iter.is_stopped()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static const auto &builtin_attributes()
+{
+  static auto attributes = []() {
+    /* Grease Pencil drawings use `CurvesGeometry` as the foundation so use the existing builtin
+     * curves attributes. */
+    Map<StringRef, AttrBuiltinInfo> map = bke::curves::get_builtin_attributes_map();
+
+    AttrBuiltinInfo opacity(AttrDomain::Point, AttrType::Float);
+    map.add_new("opacity", std::move(opacity));
+
+    /* TODO: Add all remaining attributes. */
+
+    return map;
+  }();
+  return attributes;
+}
+
+static const auto &array_storage_required()
+{
+  static Set<StringRef> attributes{"position", "handle_left", "handle_right", "nurbs_weight"};
+  return attributes;
+}
+
+static AttributeAccessorFunctions get_grease_pencil_drawing_accessor_functions()
+{
+  AttributeAccessorFunctions fn{};
+  fn.domain_supported = [](const void * /*owner*/, const AttrDomain domain) {
+    return ELEM(domain, AttrDomain::Point, AttrDomain::Curve);
+  };
+  fn.domain_size = get_domain_size;
+  fn.builtin_domain_and_type = [](const void * /*owner*/,
+                                  const StringRef name) -> std::optional<AttributeDomainAndType> {
+    const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
+    if (!info) {
+      return std::nullopt;
+    }
+    return AttributeDomainAndType{info->domain, info->type};
+  };
+  fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
+    const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
+    return info.default_value;
+  };
+  fn.lookup_meta_data = [](const void *owner, StringRef name) -> std::optional<AttributeMetaData> {
+    const Drawing &drawing = *static_cast<const Drawing *>(owner);
+    const CurvesGeometry &curves = drawing.as_curves();
+    if (BKE_defgroup_name_index(&curves.vertex_group_names, name) != -1) {
+      return AttributeMetaData{AttrDomain::Point, AttrType::Float};
+    }
+    const AttributeStorage &storage = curves.attribute_storage.wrap();
+    const Attribute *attr = storage.lookup(name);
+    if (!attr) {
+      return std::nullopt;
+    }
+    return AttributeMetaData{attr->domain(), attr->data_type()};
+  };
+  fn.lookup = [](const void *owner, const StringRef name) -> GAttributeReader {
+    const Drawing &drawing = *static_cast<const Drawing *>(owner);
+    const CurvesGeometry &curves = drawing.as_curves();
+    if (GAttributeReader vertex_group = try_get_vertex_group(owner, name)) {
+      return vertex_group;
+    }
+
+    const AttributeStorage &storage = curves.attribute_storage.wrap();
+    const Attribute *attr = storage.lookup(name);
+    if (!attr) {
+      return {};
+    }
+    const int domain_size = get_domain_size(owner, attr->domain());
+    return attribute_to_reader(*attr, attr->domain(), domain_size);
+  };
+  fn.adapt_domain = [](const void *owner,
+                       const GVArray &varray,
+                       const AttrDomain from_domain,
+                       const AttrDomain to_domain) -> GVArray {
+    const Drawing &drawing = *static_cast<const Drawing *>(owner);
+    const CurvesGeometry &curves = drawing.as_curves();
+    return curves.adapt_domain(varray, from_domain, to_domain);
+  };
+  fn.foreach_attribute = [](const void *owner,
+                            const FunctionRef<void(const AttributeIter &)> fn,
+                            const AttributeAccessor &accessor) {
+    const Drawing &drawing = *static_cast<const Drawing *>(owner);
+    const CurvesGeometry &curves = drawing.as_curves();
+
+    const bool should_continue = foreach_vertex_group(owner, fn);
+    if (!should_continue) {
+      return;
+    }
+
+    const AttributeStorage &storage = curves.attribute_storage.wrap();
+    for (const Attribute &attr : storage) {
+      const auto get_fn = [&]() {
+        const int domain_size = get_domain_size(owner, attr.domain());
+        return attribute_to_reader(attr, attr.domain(), domain_size);
+      };
+      AttributeIter iter(attr.name(), attr.domain(), attr.data_type(), get_fn);
+      iter.is_builtin = builtin_attributes().contains(attr.name());
+      iter.storage_type = attr.storage_type();
+      iter.accessor = &accessor;
+      fn(iter);
+      if (iter.is_stopped()) {
+        break;
+      }
+    }
+  };
+  fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
+    const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
+    if (!info) {
+      return {};
+    }
+    return info->validator;
+  };
+  fn.lookup_for_write = [](void *owner, const StringRef name) -> GAttributeWriter {
+    Drawing &drawing = *static_cast<Drawing *>(owner);
+    CurvesGeometry &curves = drawing.as_curves_for_write();
+
+    if (GAttributeWriter vertex_group = try_get_vertex_group_for_write(owner, name)) {
+      return vertex_group;
+    }
+
+    AttributeStorage &storage = curves.attribute_storage.wrap();
+    Attribute *attr = storage.lookup(name);
+    if (!attr) {
+      return {};
+    }
+    const int domain_size = get_domain_size(owner, attr->domain());
+    return attribute_to_writer(&curves, changed_tags(), domain_size, *attr);
+  };
+  fn.remove = [](void *owner, const StringRef name) -> bool {
+    Drawing &drawing = *static_cast<Drawing *>(owner);
+    CurvesGeometry &curves = drawing.as_curves_for_write();
+
+    if (try_delete_vertex_group(
+            curves.vertex_group_names, name, [&]() { return curves.deform_verts_for_write(); }))
+    {
+      return true;
+    }
+
+    AttributeStorage &storage = curves.attribute_storage.wrap();
+    if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+      if (!info->deletable) {
+        return false;
+      }
+    }
+    const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name);
+    const bool removed = storage.remove(name);
+    if (!removed) {
+      return false;
+    }
+    if (fn) {
+      (*fn)(owner);
+    }
+    return true;
+  };
+  fn.add = [](void *owner,
+              const StringRef name,
+              const AttrDomain domain,
+              const AttrType type,
+              const AttributeInit &initializer) {
+    Drawing &drawing = *static_cast<Drawing *>(owner);
+    CurvesGeometry &curves = drawing.as_curves_for_write();
+    const int domain_size = get_domain_size(owner, domain);
+    AttributeStorage &storage = curves.attribute_storage.wrap();
+    if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+      if (info->domain != domain || info->type != type) {
+        return false;
+      }
+    }
+    if (storage.lookup(name)) {
+      return false;
+    }
+    const bool array = array_storage_required().contains(name);
+    Attribute::DataVariant data = attribute_init_to_data(type, domain_size, initializer, array);
+    storage.add(name, domain, type, std::move(data));
+    if (initializer.type != AttributeInit::Type::Construct) {
+      if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
+        (*fn)(owner);
+      }
+    }
+    return true;
+  };
+  fn.rename = [](void *owner, const Map<StringRef, StringRef> &name_map, bool overwrite) {
+    Drawing &drawing = *static_cast<Drawing *>(owner);
+    CurvesGeometry &curves = drawing.as_curves_for_write();
+    return rename_attributes(
+        curves.attribute_storage.wrap(),
+        name_map,
+        overwrite,
+        builtin_attributes(),
+        array_storage_required(),
+        [&](const bke::AttrDomain domain) { return get_domain_size(owner, domain); },
+        &curves.vertex_group_names,
+        [&]() { return curves.deform_verts_for_write(); });
+  };
+  fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
+    Drawing &drawing = *static_cast<Drawing *>(owner);
+    CurvesGeometry &curves = drawing.as_curves_for_write();
+    AttributeStorage &storage = curves.attribute_storage.wrap();
+    Attribute *attr = storage.lookup(name);
+    if (!attr) {
+      return false;
+    }
+    Attribute::DataVariant data = attribute_init_to_data(attr->data_type(),
+                                                         get_domain_size(owner, attr->domain()),
+                                                         initializer,
+                                                         array_storage_required().contains(name));
+    attr->assign_data(std::move(data));
+    if (initializer.type != AttributeInit::Type::Construct) {
+      if (const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name)) {
+        (*fn)(owner);
+      }
+    }
+    return true;
+  };
+
+  return fn;
+}
+
+const AttributeAccessorFunctions &get_attribute_accessor_functions()
+{
+  static const AttributeAccessorFunctions fn = get_grease_pencil_drawing_accessor_functions();
+  return fn;
+}
+
+}  // namespace drawing
 
 static const auto &changed_tags()
 {

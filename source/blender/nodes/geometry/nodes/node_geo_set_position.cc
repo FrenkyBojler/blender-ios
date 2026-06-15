@@ -91,11 +91,11 @@ static void set_position_in_grease_pencil(GreasePencil &grease_pencil,
   using namespace blender::bke::greasepencil;
   for (const int layer_index : grease_pencil.layers().index_range()) {
     Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
-    if (drawing == nullptr || drawing->strokes().is_empty()) {
+    if (drawing == nullptr || drawing->as_curves().is_empty()) {
       continue;
     }
     set_curves_position(
-        drawing->strokes_for_write(),
+        drawing->as_curves_for_write(),
         bke::GreasePencilLayerFieldContext(grease_pencil, bke::AttrDomain::Point, layer_index),
         selection_field,
         position_field);

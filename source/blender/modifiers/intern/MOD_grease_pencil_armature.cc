@@ -120,13 +120,13 @@ static void modify_curves(ModifierData &md,
                               ARM_DEF_INVERT_VGROUP :
                               0);
 
-  if (drawing.strokes().deform_verts().is_empty()) {
+  if (drawing.as_curves().deform_verts().is_empty()) {
     return;
   }
 
   IndexMaskMemory mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(
-      ctx.object, drawing.strokes(), amd.influence, mask_memory);
+      ctx.object, drawing.as_curves(), amd.influence, mask_memory);
 
   auto deform_curves = [&](MutableSpan<float3> positions,
                            std::optional<Span<float3>> old_positions,
@@ -150,7 +150,7 @@ static void modify_curves(ModifierData &md,
           }
           BKE_armature_deform_coords_with_curves(*amd.object,
                                                  *ctx.object,
-                                                 &drawing.strokes().vertex_group_names,
+                                                 &drawing.as_curves().vertex_group_names,
                                                  positions.slice(points),
                                                  old_positions_for_curve,
                                                  deform_mats_for_curve,
@@ -164,18 +164,18 @@ static void modify_curves(ModifierData &md,
   /* Cached position data for supporting the multi-modifier feature. This data is only valid as
    * long as topology does not change, don't use this after converting Bezier curves! */
   const ImplicitSharingPtrAndData old_positions_data = save_shared_attribute(
-      drawing.strokes().attributes().lookup("position", bke::AttrType::Float3));
+      drawing.as_curves().attributes().lookup("position", bke::AttrType::Float3));
   const Span<float3> old_positions = {static_cast<const float3 *>(old_positions_data.data),
-                                      drawing.strokes().points_num()};
+                                      drawing.as_curves().points_num()};
 
-  const bool has_bezier_curves = drawing.strokes().has_curve_with_type(
+  const bool has_bezier_curves = drawing.as_curves().has_curve_with_type(
       CurveType::CURVE_TYPE_BEZIER);
   if (has_bezier_curves) {
     /* Update deformation data in edit hints related to original points.
      * Do this before converting Bezier curves because that changes the topology.
      * The multi-modifier feature is not supported in this case (no "old_positions" argument). */
     if (edit_hints && edit_hints->positions()) {
-      const bke::CurvesGeometry &curves = drawing.strokes();
+      const bke::CurvesGeometry &curves = drawing.as_curves();
       std::optional<MutableSpan<float3x3>> deform_mats =
           edit_hints->deform_mats ?
               edit_hints->deform_mats->as_mutable_span() :
@@ -192,7 +192,7 @@ static void modify_curves(ModifierData &md,
 
     /* Deform curve data without changes to edit hints. */
     {
-      bke::CurvesGeometry &curves = drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = drawing.as_curves_for_write();
       deform_curves(curves.positions_for_write(),
                     std::nullopt,
                     std::nullopt,
@@ -202,7 +202,7 @@ static void modify_curves(ModifierData &md,
   }
   else {
     /* Deform curve data and edit hints at the same time. */
-    bke::CurvesGeometry &curves = drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = drawing.as_curves_for_write();
     std::optional<MutableSpan<float3x3>> deform_mats;
     if (edit_hints) {
       deform_mats = edit_hints->deform_mats ?

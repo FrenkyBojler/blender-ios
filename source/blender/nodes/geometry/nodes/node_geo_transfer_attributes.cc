@@ -475,8 +475,8 @@ static void node_geo_exec(GeoNodeExecParams params)
       if (!dst_drawing) {
         continue;
       }
-      const bke::CurvesGeometry &src_curves = src_drawing->strokes();
-      bke::CurvesGeometry &dst_curves = dst_drawing->strokes_for_write();
+      const bke::CurvesGeometry &src_curves = src_drawing->as_curves();
+      bke::CurvesGeometry &dst_curves = dst_drawing->as_curves_for_write();
       const bke::AttributeAccessor src_attributes = src_curves.attributes();
       bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
       transfer_attributes(

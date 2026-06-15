@@ -130,7 +130,7 @@ static bool clear_strokes(Object *ob, ModifierData *md, int frame)
     if (!drawing) {
       return false;
     }
-    drawing->strokes_for_write() = {};
+    drawing->as_curves_for_write() = {};
   }
 
   return true;

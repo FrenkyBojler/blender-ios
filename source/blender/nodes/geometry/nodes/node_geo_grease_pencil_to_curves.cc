@@ -73,7 +73,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       transforms[pos] = transform;
       return;
     }
-    const bke::CurvesGeometry &layer_strokes = drawing->strokes();
+    const bke::CurvesGeometry &layer_strokes = drawing->as_curves();
     Curves *curves_id = bke::curves_new_nomain(layer_strokes);
     curves_id->mat = MEM_dupalloc(grease_pencil->material_array);
     curves_id->totcol = grease_pencil->material_array_num;

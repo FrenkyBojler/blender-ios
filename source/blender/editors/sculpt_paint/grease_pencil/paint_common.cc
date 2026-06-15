@@ -400,7 +400,7 @@ Array<float2> view_positions_from_curve_mask(const GreasePencilStrokeParams &par
   Array<float2> view_positions(deformation.positions.size());
 
   /* Compute screen space positions. */
-  const OffsetIndices points_by_curve = params.drawing.strokes().points_by_curve();
+  const OffsetIndices points_by_curve = params.drawing.as_curves().points_by_curve();
   const float4x4 transform = params.layer.to_world_space(params.ob_eval);
   curve_mask.foreach_index(
       [&](const int64_t curve_i) {
@@ -425,7 +425,7 @@ Array<float2> view_positions_left_from_point_mask(const GreasePencilStrokeParams
                                                   const IndexMask &selection)
 {
   const Span<float3> handle_positions_left =
-      params.drawing.strokes().handle_positions_left().value_or(Span<float3>());
+      params.drawing.as_curves().handle_positions_left().value_or(Span<float3>());
   Array<float2> view_positions(handle_positions_left.size());
 
   if (handle_positions_left.is_empty()) {
@@ -454,7 +454,7 @@ Array<float2> view_positions_right_from_point_mask(const GreasePencilStrokeParam
                                                    const IndexMask &selection)
 {
   const Span<float3> handle_positions_right =
-      params.drawing.strokes().handle_positions_right().value_or(Span<float3>());
+      params.drawing.as_curves().handle_positions_right().value_or(Span<float3>());
   Array<float2> view_positions(handle_positions_right.size());
 
   if (handle_positions_right.is_empty()) {
@@ -780,7 +780,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
       continue;
     }
 
-    const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
+    const bke::CurvesGeometry &curves = drawing_info.drawing.as_curves();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const bke::AttributeAccessor attributes = curves.attributes();
 
@@ -852,7 +852,7 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
     }
 
     if (use_auto_mask_material) {
-      const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
+      const bke::CurvesGeometry &curves = drawing_info.drawing.as_curves();
       const VArraySpan<int> material_indices = *curves.attributes().lookup_or_default<int>(
           "material_index", bke::AttrDomain::Curve, 0);
       IndexMaskMemory memory;

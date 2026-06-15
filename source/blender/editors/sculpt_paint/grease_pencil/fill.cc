@@ -668,7 +668,7 @@ static IndexMask get_visible_boundary_strokes(const Object &object,
                                               const bool is_boundary_layer,
                                               IndexMaskMemory &memory)
 {
-  const bke::CurvesGeometry &strokes = info.drawing.strokes();
+  const bke::CurvesGeometry &strokes = info.drawing.as_curves();
   const bke::AttributeAccessor attributes = strokes.attributes();
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       attr_material_index, bke::AttrDomain::Curve, 0);
@@ -773,7 +773,7 @@ static std::optional<Bounds<float2>> get_boundary_bounds(const ARegion &region,
             &object_eval, object, info.drawing);
     const bool only_boundary_strokes = boundary_layers[info.layer_index];
     const VArray<float> radii = info.drawing.radii();
-    const bke::CurvesGeometry &strokes = info.drawing.strokes();
+    const bke::CurvesGeometry &strokes = info.drawing.as_curves();
     const bke::AttributeAccessor attributes = strokes.attributes();
     const VArray<int> materials = *attributes.lookup_or_default<int>(
         attr_material_index, bke::AttrDomain::Curve, 0);
@@ -954,7 +954,7 @@ static Image *render_strokes(const ViewContext &view_context,
     }
     const float4x4 layer_to_world = layer.to_world_space(object);
     const bool is_boundary_layer = boundary_layers[info.layer_index];
-    const bke::CurvesGeometry &strokes = info.drawing.strokes();
+    const bke::CurvesGeometry &strokes = info.drawing.as_curves();
     const bke::AttributeAccessor attributes = strokes.attributes();
     const VArray<float> opacities = info.drawing.opacities();
     const VArray<int> materials = *attributes.lookup_or_default<int>(
@@ -965,7 +965,7 @@ static Image *render_strokes(const ViewContext &view_context,
         object, info, is_boundary_layer, curve_mask_memory);
 
     const VArray<ColorGeometry4f> stroke_colors = get_stroke_colors(object,
-                                                                    info.drawing.strokes(),
+                                                                    info.drawing.as_curves(),
                                                                     opacities,
                                                                     materials,
                                                                     draw_boundary_color,
@@ -1398,7 +1398,7 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
               &object_eval, object, info.drawing);
       const bool only_boundary_strokes = boundary_layers[info.layer_index];
       const VArray<float> radii = info.drawing.radii();
-      const bke::CurvesGeometry &strokes = info.drawing.strokes();
+      const bke::CurvesGeometry &strokes = info.drawing.as_curves();
       const bke::AttributeAccessor attributes = strokes.attributes();
       const VArray<bool> cyclic = strokes.cyclic();
       const VArray<float> opacities = info.drawing.opacities();

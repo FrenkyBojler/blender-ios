@@ -936,7 +936,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
               }
               bke::greasepencil::Drawing &drawing =
                   reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-              bke::CurvesGeometry &curves = drawing.strokes_for_write();
+              bke::CurvesGeometry &curves = drawing.as_curves_for_write();
               MutableSpan<float> radii = drawing.radii_for_write();
               threading::parallel_for(radii.index_range(), 8192, [&](const IndexRange range) {
                 for (const int i : range) {
@@ -1696,7 +1696,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
           if (const bke::greasepencil::Drawing *drawing = grease_pencil.get_drawing_at(
                   layer, current_frame))
           {
-            const bke::CurvesGeometry &curves = drawing->strokes();
+            const bke::CurvesGeometry &curves = drawing->as_curves();
             const Span<float3> positions = curves.positions();
 
             for (const int i : positions.index_range()) {
@@ -1726,7 +1726,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
               }
               bke::greasepencil::Drawing &drawing =
                   reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-              bke::CurvesGeometry &curves = drawing.strokes_for_write();
+              bke::CurvesGeometry &curves = drawing.as_curves_for_write();
 
               curves.translate(math::transform_direction(object_to_layer, -cent));
               curves.calculate_bezier_auto_handles();

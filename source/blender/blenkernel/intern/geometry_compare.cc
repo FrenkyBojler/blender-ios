@@ -1159,7 +1159,7 @@ static std::optional<GeoMismatch> compare_grease_pencil_layer(const GreasePencil
       continue;
     }
 
-    mismatch = compare_curves(drawing_1->strokes(), drawing_2->strokes(), threshold);
+    mismatch = compare_curves(drawing_1->as_curves(), drawing_2->as_curves(), threshold);
     if (mismatch) {
       return mismatch;
     }

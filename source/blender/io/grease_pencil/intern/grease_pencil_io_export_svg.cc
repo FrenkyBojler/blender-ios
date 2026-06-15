@@ -296,7 +296,7 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
       std::string layer_node_id = "layer." + layer->name() + this->get_node_uuid_string();
       layer_node.append_attribute("id").set_value(layer_node_id.c_str());
 
-      const bke::CurvesGeometry &curves = drawing->strokes();
+      const bke::CurvesGeometry &curves = drawing->as_curves();
       /* Convert NURBS and Catmull Rom to bezier then export. */
       if (curves.has_curve_with_type({CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_NURBS})) {
         IndexMaskMemory memory;
@@ -310,7 +310,7 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
         options.keep_catmull_rom_shape_as_nurbs = true;
 
         Drawing export_drawing;
-        export_drawing.strokes_for_write() = geometry::convert_curves(
+        export_drawing.as_curves_for_write() = geometry::convert_curves(
             curves, non_poly_selection, CURVE_TYPE_BEZIER, {}, options);
         export_drawing.tag_topology_changed();
         export_grease_pencil_layer(layer_node, *ob_eval, *layer, export_drawing);

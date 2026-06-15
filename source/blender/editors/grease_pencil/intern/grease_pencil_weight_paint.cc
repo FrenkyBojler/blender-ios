@@ -342,7 +342,7 @@ void add_armature_envelope_weights(Scene &scene, Object &object, const Object &o
     const bke::greasepencil::Layer &layer = *layers[info.layer_index];
     const float4x4 layer_to_world = layer.to_world_space(object);
 
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
 
     /* Get all the positions in world space. */
     Array<float3> positions(curves.points_num());
@@ -409,7 +409,7 @@ void add_armature_automatic_weights(Scene &scene, Object &object, const Object &
     const bke::greasepencil::Layer &layer = *layers[info.layer_index];
     const float4x4 layer_to_world = layer.to_world_space(object);
 
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
 
     /* Get all the positions in world space. */
     Array<float3> positions(curves.points_num());
@@ -481,7 +481,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
 
           /* Skip drawing when it doesn't use the active vertex group. */
           const int drawing_defgroup_nr = BKE_defgroup_name_index(
-              &info.drawing.strokes().vertex_group_names, object_defgroup->name);
+              &info.drawing.as_curves().vertex_group_names, object_defgroup->name);
           if (drawing_defgroup_nr == -1) {
             continue;
           }
@@ -499,7 +499,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
           const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
           const float4x4 projection = ED_view3d_ob_project_mat_get_from_obmat(vc.rv3d,
                                                                               layer_to_world);
-          const bke::CurvesGeometry &curves = info.drawing.strokes();
+          const bke::CurvesGeometry &curves = info.drawing.as_curves();
           std::optional<ed::curves::FindClosestData> new_closest_elem =
               ed::curves::closest_elem_find_screen_space(vc,
                                                          curves.points_by_curve(),
@@ -528,7 +528,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
 
   /* From the closest point found, get the vertex weight in the active vertex group. */
   const VArray<float> point_weights = bke::varray_for_deform_verts(
-      closest.drawing->strokes().deform_verts(), closest.active_defgroup_index);
+      closest.drawing->as_curves().deform_verts(), closest.active_defgroup_index);
   const float new_weight = math::clamp(point_weights[closest.elem.index], 0.0f, 1.0f);
 
   /* Set the new brush weight. */
@@ -628,7 +628,7 @@ static wmOperatorStatus grease_pencil_weight_invert_exec(bContext *C, wmOperator
   Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
   threading::parallel_for_each(drawings, [&](MutableDrawingInfo info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     /* Active vgroup index of drawing. */
     const int drawing_vgroup_index = BKE_defgroup_name_index(&curves.vertex_group_names,
                                                              active_defgroup->name);
@@ -707,7 +707,7 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
   /* Smooth weights in all editable drawings. */
   threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange drawing_range) {
     for (const int drawing : drawing_range) {
-      bke::CurvesGeometry &curves = drawings[drawing].drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = drawings[drawing].drawing.as_curves_for_write();
       bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
       /* Skip the drawing when it doesn't use the active vertex group. */
@@ -788,7 +788,7 @@ static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
         [&](const IndexRange drawing_range, const float &drawing_weight_init) {
           float max_weight_in_drawing = drawing_weight_init;
           for (const int drawing_i : drawing_range) {
-            const bke::CurvesGeometry &curves = drawings[drawing_i].drawing.strokes();
+            const bke::CurvesGeometry &curves = drawings[drawing_i].drawing.as_curves();
             const bke::AttributeAccessor attributes = curves.attributes();
 
             /* Skip the drawing when it doesn't use the active vertex group. */
@@ -826,7 +826,7 @@ static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
     changed = true;
     threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange drawing_range) {
       for (const int drawing_i : drawing_range) {
-        bke::CurvesGeometry &curves = drawings[drawing_i].drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = drawings[drawing_i].drawing.as_curves_for_write();
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
         /* Skip the drawing when it doesn't use the active vertex group. */
@@ -896,7 +896,7 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator 
   /* Normalize weights in all drawings. */
   threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange drawing_range) {
     for (const int drawing_i : drawing_range) {
-      bke::CurvesGeometry &curves = drawings[drawing_i].drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = drawings[drawing_i].drawing.as_curves_for_write();
 
       /* Get the active vertex group in the drawing when it needs to be locked. */
       int active_vertex_group = -1;

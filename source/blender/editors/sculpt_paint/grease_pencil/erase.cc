@@ -962,7 +962,7 @@ struct EraseOperationExecutor {
     bool changed = false;
     const auto execute_eraser_on_drawing = [&](const int layer_index, Drawing &drawing) {
       const Layer &layer = grease_pencil.layer(layer_index);
-      const bke::CurvesGeometry &src = drawing.strokes();
+      const bke::CurvesGeometry &src = drawing.as_curves();
 
       /* Evaluated geometry. */
       bke::crazyspace::GeometryDeformation deformation =
@@ -1005,7 +1005,7 @@ struct EraseOperationExecutor {
 
       if (erased) {
         /* Set the new geometry. */
-        drawing.strokes_for_write() = std::move(dst);
+        drawing.as_curves_for_write() = std::move(dst);
         drawing.tag_topology_changed();
         changed = true;
         self.affected_drawings_.add(&drawing);
@@ -1164,16 +1164,16 @@ void EraseOperation::on_stroke_done(const bContext &C)
   for (GreasePencilDrawing *drawing_ : affected_drawings_) {
     bke::greasepencil::Drawing &drawing = drawing_->wrap();
 
-    if (drawing.strokes().attributes().contains("_eraser_inserted")) {
-      simplify_opacities(drawing.strokes_for_write(), drawing.opacities(), 0.01f);
+    if (drawing.as_curves().attributes().contains("_eraser_inserted")) {
+      simplify_opacities(drawing.as_curves_for_write(), drawing.opacities(), 0.01f);
     }
 
     if (this->eraser_mode_ == GP_BRUSH_ERASER_SOFT) {
-      remove_points_with_low_opacity(drawing.strokes_for_write(), drawing.opacities(), 0.0001f);
-      drawing.strokes_for_write().attributes_for_write().remove("_eraser_opacity_modified");
+      remove_points_with_low_opacity(drawing.as_curves_for_write(), drawing.opacities(), 0.0001f);
+      drawing.as_curves_for_write().attributes_for_write().remove("_eraser_opacity_modified");
     }
 
-    drawing.strokes_for_write().attributes_for_write().remove("_eraser_inserted");
+    drawing.as_curves_for_write().attributes_for_write().remove("_eraser_inserted");
     drawing.tag_topology_changed();
   }
 

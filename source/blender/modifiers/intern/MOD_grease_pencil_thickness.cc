@@ -85,7 +85,7 @@ static void deform_drawing(const ModifierData &md,
 {
   const auto &mmd = reinterpret_cast<const GreasePencilThickModifierData &>(md);
 
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   if (curves.is_empty()) {
     return;
   }

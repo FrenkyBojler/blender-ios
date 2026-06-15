@@ -115,7 +115,7 @@ static wmOperatorStatus grease_pencil_stroke_smooth_exec(bContext *C, wmOperator
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       return;
     }
@@ -285,7 +285,7 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       return;
     }
@@ -302,13 +302,13 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
         const int steps = RNA_int_get(op->ptr, "steps");
         const IndexMask points_to_keep = simplify_fixed(curves, steps, strokes, memory);
         if (points_to_keep.is_empty()) {
-          info.drawing.strokes_for_write() = {};
+          info.drawing.as_curves_for_write() = {};
           break;
         }
         if (points_to_keep.size() == curves.points_num()) {
           break;
         }
-        info.drawing.strokes_for_write() = bke::curves_copy_point_selection(
+        info.drawing.as_curves_for_write() = bke::curves_copy_point_selection(
             curves, points_to_keep, {});
         info.drawing.tag_topology_changed();
         changed = true;
@@ -324,7 +324,7 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
             simplify_factor,
             curves.positions(),
             memory);
-        info.drawing.strokes_for_write().remove_points(points_to_delete, {});
+        info.drawing.as_curves_for_write().remove_points(points_to_delete, {});
         info.drawing.tag_topology_changed();
         changed = true;
         break;
@@ -335,7 +335,7 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
         if (resample_length == 0.0f) {
           break;
         }
-        info.drawing.strokes_for_write() = geometry::resample_to_length(
+        info.drawing.as_curves_for_write() = geometry::resample_to_length(
             curves, strokes, VArray<float>::from_single(resample_length, curves.curves_num()), {});
         info.drawing.tag_topology_changed();
         changed = true;
@@ -355,7 +355,7 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext *C, wmOperat
               }
               return false;
             });
-        info.drawing.strokes_for_write() = ed::greasepencil::curves_merge_by_distance(
+        info.drawing.as_curves_for_write() = ed::greasepencil::curves_merge_by_distance(
             curves, merge_distance, filtered_points, {});
         info.drawing.tag_topology_changed();
         changed = true;
@@ -460,7 +460,7 @@ static bool remove_curves_based_on_mode(Object &object,
   if (editable_strokes.is_empty()) {
     return false;
   }
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
       "fill_id", bke::AttrDomain::Curve, 0);
@@ -496,7 +496,7 @@ static bool remove_stroke_or_fill_based_on_mode(Object &object,
                                                 const DeleteMode mode,
                                                 IndexMaskMemory &memory)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   if (!attributes.contains("fill_id")) {
     return false;
@@ -548,7 +548,7 @@ static wmOperatorStatus grease_pencil_delete_exec(bContext *C, wmOperator *op)
       if (elements_to_delete.is_empty()) {
         return;
       }
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
       if (selection_domain == bke::AttrDomain::Curve) {
         curves.remove_curves(elements_to_delete, {});
         info.drawing.tag_topology_changed();
@@ -708,7 +708,7 @@ static wmOperatorStatus grease_pencil_dissolve_exec(bContext *C, wmOperator *op)
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       return;
     }
@@ -883,7 +883,7 @@ static wmOperatorStatus grease_pencil_stroke_material_set_exec(bContext *C, wmOp
       return;
     }
 
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
         "material_index", bke::AttrDomain::Curve);
@@ -983,7 +983,7 @@ static wmOperatorStatus grease_pencil_cyclical_set_exec(bContext *C, wmOperator 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (mode == CyclicalMode::OPEN && !curves.attributes().contains("cyclic")) {
       /* Avoid creating unneeded attribute. */
       return;
@@ -1081,7 +1081,7 @@ static wmOperatorStatus grease_pencil_set_active_material_exec(bContext *C, wmOp
     if (strokes.is_empty()) {
       continue;
     }
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
 
     const VArray<int> materials = *curves.attributes().lookup_or_default<int>(
         "material_index", bke::AttrDomain::Curve, 0);
@@ -1129,7 +1129,7 @@ static wmOperatorStatus grease_pencil_set_uniform_thickness_exec(bContext *C, wm
     if (strokes.is_empty()) {
       return;
     }
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
 
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     MutableSpan<float> radii = info.drawing.radii_for_write();
@@ -1185,7 +1185,7 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
     if (strokes.is_empty()) {
       return;
     }
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     MutableAttributeAccessor attributes = curves.attributes_for_write();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
@@ -1249,7 +1249,7 @@ static wmOperatorStatus grease_pencil_stroke_switch_direction_exec(bContext *C,
     if (strokes.is_empty()) {
       return;
     }
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
 
     /* Switch stroke direction. */
     curves.reverse_curves(strokes);
@@ -1370,7 +1370,7 @@ static wmOperatorStatus grease_pencil_set_start_point_exec(bContext *C, wmOperat
       return;
     }
 
-    info.drawing.strokes_for_write() = set_start_point(info.drawing.strokes(), selection);
+    info.drawing.as_curves_for_write() = set_start_point(info.drawing.as_curves(), selection);
 
     info.drawing.tag_topology_changed();
     changed = true;
@@ -1435,7 +1435,7 @@ static wmOperatorStatus grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     IndexMaskMemory memory;
     const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
         *object, info.drawing, info.layer_index, memory);
@@ -1617,7 +1617,7 @@ static wmOperatorStatus grease_pencil_duplicate_exec(bContext *C, wmOperator * /
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     IndexMaskMemory memory;
 
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     const int num_old_curves = curves.curves_num();
     if (selection_domain == bke::AttrDomain::Curve) {
       const IndexMask strokes = retrieve_editable_and_selected_strokes(
@@ -1670,7 +1670,7 @@ static wmOperatorStatus grease_pencil_clean_loose_exec(bContext *C, wmOperator *
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
     IndexMaskMemory memory;
@@ -1750,7 +1750,7 @@ static wmOperatorStatus gpencil_stroke_subdivide_exec(bContext *C, wmOperator *o
     if (strokes.is_empty()) {
       return;
     }
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
 
     VArray<int> vcuts = {};
 
@@ -1960,7 +1960,7 @@ static wmOperatorStatus grease_pencil_stroke_reorder_exec(bContext *C, wmOperato
     if (strokes.is_empty()) {
       return;
     }
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
 
     /* Return if everything is selected. */
     if (strokes.size() == curves.curves_num()) {
@@ -2056,7 +2056,7 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
   const Vector<MutableDrawingInfo> drawings_src = retrieve_editable_drawings(*scene,
                                                                              grease_pencil);
   for (const MutableDrawingInfo &info : drawings_src) {
-    bke::CurvesGeometry &curves_src = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves_src = info.drawing.as_curves_for_write();
     IndexMaskMemory memory;
     const IndexMask selected_strokes = ed::curves::retrieve_selected_curves(curves_src, memory);
     if (selected_strokes.is_empty()) {
@@ -2079,7 +2079,7 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
     if (has_active_key && is_key_inserted) {
       /* Move geometry to a new drawing in target layer. */
       Drawing &drawing_dst = *grease_pencil.get_drawing_at(layer_dst, info.frame_number);
-      drawing_dst.strokes_for_write() = bke::curves_copy_curve_selection(
+      drawing_dst.as_curves_for_write() = bke::curves_copy_curve_selection(
           curves_src, selected_strokes, {});
 
       curves_src.remove_curves(selected_strokes, {});
@@ -2090,12 +2090,13 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
       bke::CurvesGeometry selected_elems = curves_copy_curve_selection(
           curves_src, selected_strokes, {});
       Curves *selected_curves = bke::curves_new_nomain(std::move(selected_elems));
-      Curves *layer_curves = bke::curves_new_nomain(std::move(drawing_dst->strokes_for_write()));
+      Curves *layer_curves = bke::curves_new_nomain(std::move(drawing_dst->as_curves_for_write()));
       std::array<bke::GeometrySet, 2> geometry_sets{
           bke::GeometrySet::from_curves(layer_curves),
           bke::GeometrySet::from_curves(selected_curves)};
       bke::GeometrySet joined = geometry::join_geometries(geometry_sets, {});
-      drawing_dst->strokes_for_write() = std::move(joined.get_curves_for_write()->geometry.wrap());
+      drawing_dst->as_curves_for_write() = std::move(
+          joined.get_curves_for_write()->geometry.wrap());
 
       curves_src.remove_curves(selected_strokes, {});
 
@@ -2271,7 +2272,7 @@ static bool grease_pencil_separate_selected(bContext &C,
                                                                              grease_pencil_src);
   Vector<int> src_to_dst_layer_indices;
   for (const MutableDrawingInfo &info : drawings_src) {
-    bke::CurvesGeometry &curves_src = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves_src = info.drawing.as_curves_for_write();
     IndexMaskMemory memory;
     const IndexMask selected_points = ed::curves::retrieve_selected_points(curves_src, memory);
     if (selected_points.is_empty()) {
@@ -2286,7 +2287,7 @@ static bool grease_pencil_separate_selected(bContext &C,
     BLI_assert(drawing_dst != nullptr);
 
     /* Copy strokes to new CurvesGeometry. */
-    drawing_dst->strokes_for_write() = bke::curves_copy_point_selection(
+    drawing_dst->as_curves_for_write() = bke::curves_copy_point_selection(
         curves_src, selected_points, {});
     curves_src = geometry::remove_points_and_split(curves_src, selected_points);
 
@@ -2358,7 +2359,7 @@ static bool grease_pencil_separate_layer(bContext &C,
     const Vector<MutableDrawingInfo> drawings_src = retrieve_editable_drawings_from_layer(
         scene, grease_pencil_src, layer_src);
     for (const MutableDrawingInfo &info : drawings_src) {
-      bke::CurvesGeometry &curves_src = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves_src = info.drawing.as_curves_for_write();
       IndexMaskMemory memory;
       const IndexMask strokes = retrieve_editable_strokes(
           object_src, info.drawing, info.layer_index, memory);
@@ -2379,8 +2380,8 @@ static bool grease_pencil_separate_layer(bContext &C,
       BLI_assert(drawing_dst != nullptr);
 
       /* Copy strokes to new CurvesGeometry. */
-      drawing_dst->strokes_for_write() = bke::curves_copy_curve_selection(
-          info.drawing.strokes(), strokes, {});
+      drawing_dst->as_curves_for_write() = bke::curves_copy_curve_selection(
+          info.drawing.as_curves(), strokes, {});
       curves_src.remove_curves(strokes, {});
 
       info.drawing.tag_topology_changed();
@@ -2441,7 +2442,7 @@ static bool grease_pencil_separate_material(bContext &C,
                                                                                grease_pencil_src);
     Vector<int> src_to_dst_layer_indices;
     for (const MutableDrawingInfo &info : drawings_src) {
-      bke::CurvesGeometry &curves_src = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves_src = info.drawing.as_curves_for_write();
       IndexMaskMemory memory;
       const IndexMask strokes = retrieve_editable_strokes_by_material(
           object_src, info.drawing, mat_i, memory);
@@ -2458,7 +2459,8 @@ static bool grease_pencil_separate_material(bContext &C,
       BLI_assert(drawing_dst != nullptr);
 
       /* Copy strokes to new CurvesGeometry. */
-      drawing_dst->strokes_for_write() = bke::curves_copy_curve_selection(curves_src, strokes, {});
+      drawing_dst->as_curves_for_write() = bke::curves_copy_curve_selection(
+          curves_src, strokes, {});
       curves_src.remove_curves(strokes, {});
 
       info.drawing.tag_topology_changed();
@@ -2510,7 +2512,7 @@ static wmOperatorStatus grease_pencil_separate_exec(bContext *C, wmOperator *op)
                                                                              grease_pencil_src);
       const bool has_selection = std::any_of(
           drawings.begin(), drawings.end(), [&](const MutableDrawingInfo &info) {
-            return ed::curves::has_anything_selected(info.drawing.strokes());
+            return ed::curves::has_anything_selected(info.drawing.as_curves());
           });
       if (!has_selection) {
         BKE_report(op->reports, RPT_ERROR, "Nothing selected");
@@ -2694,7 +2696,7 @@ static wmOperatorStatus grease_pencil_copy_strokes_exec(bContext *C, wmOperator 
   /* Collect all selected strokes/points on all editable layers. */
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   for (const MutableDrawingInfo &drawing_info : drawings) {
-    const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
+    const bke::CurvesGeometry &curves = drawing_info.drawing.as_curves();
     const Layer &layer = grease_pencil.layer(drawing_info.layer_index);
 
     if (curves.is_empty()) {
@@ -2808,12 +2810,12 @@ static IndexRange clipboard_paste_strokes_ex(Main &bmain,
 
   /* Get the index range of the pasted curves in the target layer. */
   const IndexRange pasted_curves_range = paste_back ? IndexRange(0, curves_to_paste.curves_num()) :
-                                                      IndexRange(drawing.strokes().curves_num(),
+                                                      IndexRange(drawing.as_curves().curves_num(),
                                                                  curves_to_paste.curves_num());
 
   /* Append the geometry from the clipboard to the target layer. */
   Curves *clipboard_id = bke::curves_new_nomain(curves_to_paste);
-  Curves *target_id = curves_new_nomain(std::move(drawing.strokes_for_write()));
+  Curves *target_id = curves_new_nomain(std::move(drawing.as_curves_for_write()));
 
   const Array<bke::GeometrySet> geometry_sets = {
       bke::GeometrySet::from_curves(paste_back ? clipboard_id : target_id),
@@ -2828,11 +2830,12 @@ static IndexRange clipboard_paste_strokes_ex(Main &bmain,
   bke::GeometrySet joined_curves = join_geometries_with_transforms(
       geometry_sets, VArray<float4x4>::from_container(transforms));
 
-  drawing.strokes_for_write() = std::move(joined_curves.get_curves_for_write()->geometry.wrap());
+  drawing.as_curves_for_write() = std::move(joined_curves.get_curves_for_write()->geometry.wrap());
 
   if (!clipboard_material_remap.is_empty()) {
     /* Remap the material indices of the pasted curves to the target object material indices. */
-    bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+    bke::MutableAttributeAccessor attributes =
+        drawing.as_curves_for_write().attributes_for_write();
     bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
         "material_index", bke::AttrDomain::Curve);
     if (material_indices) {
@@ -2896,7 +2899,7 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
     const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
       bke::GSpanAttributeWriter selection_in_target = ed::curves::ensure_selection_attribute(
-          info.drawing.strokes_for_write(), selection_domain, bke::AttrType::Bool);
+          info.drawing.as_curves_for_write(), selection_domain, bke::AttrType::Bool);
       ed::curves::fill_selection_false(selection_in_target.span);
       selection_in_target.finish();
     });
@@ -2956,7 +2959,7 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
     const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
       bke::GSpanAttributeWriter selection_in_target = ed::curves::ensure_selection_attribute(
-          info.drawing.strokes_for_write(), selection_domain, bke::AttrType::Bool);
+          info.drawing.as_curves_for_write(), selection_domain, bke::AttrType::Bool);
       ed::curves::fill_selection_false(selection_in_target.span);
       selection_in_target.finish();
     });
@@ -3110,8 +3113,8 @@ static wmOperatorStatus grease_pencil_stroke_merge_by_distance_exec(bContext *C,
     if (points.is_empty()) {
       return;
     }
-    drawing.strokes_for_write() = curves_merge_by_distance(
-        drawing.strokes(), threshold, points, {});
+    drawing.as_curves_for_write() = curves_merge_by_distance(
+        drawing.as_curves(), threshold, points, {});
     drawing.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
   });
@@ -3304,8 +3307,8 @@ static wmOperatorStatus grease_pencil_extrude_exec(bContext *C, wmOperator * /*o
       return;
     }
 
-    const bke::CurvesGeometry &curves = info.drawing.strokes();
-    info.drawing.strokes_for_write() = extrude_grease_pencil_curves(curves, points_to_extrude);
+    const bke::CurvesGeometry &curves = info.drawing.as_curves();
+    info.drawing.as_curves_for_write() = extrude_grease_pencil_curves(curves, points_to_extrude);
 
     info.drawing.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
@@ -3391,7 +3394,7 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
         return;
       }
 
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
       if (selection_domain == bke::AttrDomain::Curve) {
         curves::duplicate_curves(curves, elements);
       }
@@ -3420,7 +3423,7 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
     }
 
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
       MutableSpan<float> radii = curves.radius_for_write();
 
       IndexMaskMemory memory;
@@ -3664,7 +3667,7 @@ static wmOperatorStatus grease_pencil_snap_to_grid_exec(bContext *C, wmOperator 
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   for (const MutableDrawingInfo &drawing_info : drawings) {
-    bke::CurvesGeometry &curves = drawing_info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = drawing_info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       continue;
     }
@@ -3741,7 +3744,7 @@ static wmOperatorStatus grease_pencil_snap_to_cursor_exec(bContext *C, wmOperato
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
   for (const MutableDrawingInfo &drawing_info : drawings) {
-    bke::CurvesGeometry &curves = drawing_info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = drawing_info.drawing.as_curves_for_write();
     if (curves.is_empty()) {
       continue;
     }
@@ -3841,7 +3844,7 @@ static bool grease_pencil_snap_compute_centroid(const Scene &scene,
     if (layer.is_locked()) {
       continue;
     }
-    const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
+    const bke::CurvesGeometry &curves = drawing_info.drawing.as_curves();
     if (curves.is_empty()) {
       continue;
     }
@@ -3977,7 +3980,7 @@ static wmOperatorStatus grease_pencil_texture_gradient_exec(bContext *C, wmOpera
     const float2 screen_direction = screen_end - screen_start;
     const float2 screen_tangent = screen_start + float2(-screen_direction[1], screen_direction[0]);
 
-    const bke::CurvesGeometry &curves = info.drawing.strokes();
+    const bke::CurvesGeometry &curves = info.drawing.as_curves();
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const Span<float3> positions = curves.positions();
     const Span<float3> normals = info.drawing.curve_plane_normals();
@@ -4135,7 +4138,7 @@ static wmOperatorStatus grease_pencil_set_curve_type_exec(bContext *C, wmOperato
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     IndexMaskMemory memory;
     const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
         *object, info.drawing, info.layer_index, memory);
@@ -4221,7 +4224,7 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
       return;
     }
@@ -4309,7 +4312,7 @@ static wmOperatorStatus grease_pencil_set_curve_resolution_exec(bContext *C, wmO
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     IndexMaskMemory memory;
     const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
         *object, info.drawing, info.layer_index, memory);
@@ -4371,7 +4374,7 @@ static wmOperatorStatus grease_pencil_reset_uvs_exec(bContext *C, wmOperator * /
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     IndexMaskMemory memory;
     const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
@@ -4471,8 +4474,8 @@ static wmOperatorStatus grease_pencil_stroke_split_exec(bContext *C, wmOperator 
       return;
     }
 
-    info.drawing.strokes_for_write() = ed::curves::split_points(info.drawing.strokes(),
-                                                                selected_points);
+    info.drawing.as_curves_for_write() = ed::curves::split_points(info.drawing.as_curves(),
+                                                                  selected_points);
     info.drawing.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
   });
@@ -4538,7 +4541,7 @@ static wmOperatorStatus grease_pencil_remove_fill_guides_exec(bContext *C, wmOpe
     }
   }
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    if (ed::greasepencil::remove_fill_guides(info.drawing.strokes_for_write())) {
+    if (ed::greasepencil::remove_fill_guides(info.drawing.as_curves_for_write())) {
       info.drawing.tag_topology_changed();
       changed.store(true, std::memory_order_relaxed);
     }
@@ -4677,16 +4680,16 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
                                                               outline_offset,
                                                               mat_nr);
 
-    info.drawing.strokes_for_write().remove_curves(editable_strokes, {});
+    info.drawing.as_curves_for_write().remove_curves(editable_strokes, {});
 
     /* Join the outline stroke into the drawing. */
     Curves *strokes = bke::curves_new_nomain(std::move(outline));
 
-    Curves *other_curves = bke::curves_new_nomain(std::move(info.drawing.strokes_for_write()));
+    Curves *other_curves = bke::curves_new_nomain(std::move(info.drawing.as_curves_for_write()));
     const std::array<bke::GeometrySet, 2> geometry_sets = {
         bke::GeometrySet::from_curves(other_curves), bke::GeometrySet::from_curves(strokes)};
 
-    info.drawing.strokes_for_write() = std::move(
+    info.drawing.as_curves_for_write() = std::move(
         geometry::join_geometries(geometry_sets, {}).get_curves_for_write()->geometry.wrap());
 
     info.drawing.tag_topology_changed();
@@ -4853,7 +4856,7 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     IndexMaskMemory memory;
     const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
         *object, info.drawing, info.layer_index, memory);
@@ -4994,7 +4997,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
       return;
     }
 
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     /* Only create the attribute if we are not storing the default. */
@@ -5104,7 +5107,7 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
       return;
     }
 
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
@@ -5291,7 +5294,7 @@ static wmOperatorStatus grease_pencil_join_fills_exec(bContext *C, wmOperator *o
     int active_layer_index = *grease_pencil.get_layer_index(*active_layer);
 
     for (const MutableDrawingInfo &info : drawings_src) {
-      bke::CurvesGeometry &curves_src = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves_src = info.drawing.as_curves_for_write();
       IndexMaskMemory memory;
       const IndexMask base_selected_strokes =
           ed::greasepencil::retrieve_editable_and_selected_strokes(
@@ -5325,7 +5328,7 @@ static wmOperatorStatus grease_pencil_join_fills_exec(bContext *C, wmOperator *o
       if (has_active_key && is_key_inserted) {
         /* Move geometry to a new drawing in target layer. */
         Drawing &drawing_dst = *grease_pencil.get_drawing_at(*active_layer, info.frame_number);
-        drawing_dst.strokes_for_write() = bke::curves_copy_curve_selection(
+        drawing_dst.as_curves_for_write() = bke::curves_copy_curve_selection(
             curves_src, selected_strokes, {});
 
         curves_src.remove_curves(selected_strokes, {});
@@ -5338,12 +5341,13 @@ static wmOperatorStatus grease_pencil_join_fills_exec(bContext *C, wmOperator *o
         bke::CurvesGeometry selected_elems = curves_copy_curve_selection(
             curves_src, selected_strokes, {});
         Curves *selected_curves = bke::curves_new_nomain(std::move(selected_elems));
-        Curves *layer_curves = bke::curves_new_nomain(std::move(drawing_dst->strokes_for_write()));
+        Curves *layer_curves = bke::curves_new_nomain(
+            std::move(drawing_dst->as_curves_for_write()));
         std::array<bke::GeometrySet, 2> geometry_sets{
             bke::GeometrySet::from_curves(layer_curves),
             bke::GeometrySet::from_curves(selected_curves)};
         bke::GeometrySet joined = geometry::join_geometries(geometry_sets, {});
-        drawing_dst->strokes_for_write() = std::move(
+        drawing_dst->as_curves_for_write() = std::move(
             joined.get_curves_for_write()->geometry.wrap());
 
         curves_src.remove_curves(selected_strokes, {});
@@ -5361,7 +5365,7 @@ static wmOperatorStatus grease_pencil_join_fills_exec(bContext *C, wmOperator *o
   if (base_selected_strokes.is_empty()) {
     return OPERATOR_CANCELLED;
   }
-  bke::CurvesGeometry &curves = drawing_dst->strokes_for_write();
+  bke::CurvesGeometry &curves = drawing_dst->as_curves_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
       "fill_id", bke::AttrDomain::Curve);
@@ -5446,7 +5450,7 @@ static wmOperatorStatus grease_pencil_separate_fills_exec(bContext *C, wmOperato
     if (strokes.is_empty()) {
       return;
     }
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_for_write_span<int>("fill_id");
     if (!fill_ids) {
@@ -5636,7 +5640,7 @@ static Array<int> add_materials_to_map(Object &object, VectorSet<Material *> &ma
 static void remap_material_indices(bke::greasepencil::Drawing &drawing,
                                    const Span<int> material_index_map)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   /* Validate material indices and add missing materials. */
   bke::SpanAttributeWriter<int> material_writer = attributes.lookup_or_add_for_write_span<int>(
@@ -5665,7 +5669,7 @@ static Map<StringRefNull, StringRefNull> add_vertex_groups(
 static void remap_vertex_groups(bke::greasepencil::Drawing &drawing,
                                 const Map<StringRefNull, StringRefNull> &vertex_group_map)
 {
-  for (bDeformGroup &dg : drawing.strokes_for_write().vertex_group_names) {
+  for (bDeformGroup &dg : drawing.as_curves_for_write().vertex_group_names) {
     STRNCPY_UTF8(dg.name, vertex_group_map.lookup(dg.name).c_str());
   }
 
@@ -5807,7 +5811,7 @@ static void join_object_with_active(Main &bmain,
         continue;
       }
       Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base)->wrap();
-      bke::CurvesGeometry &curves = drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = drawing.as_curves_for_write();
       curves.transform(math::invert(new_layer_to_world) * old_layer_to_world);
 
       if (!is_orig_layer) {

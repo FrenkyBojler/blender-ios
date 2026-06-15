@@ -139,7 +139,7 @@ void PDFExporter::export_grease_pencil_objects(const int frame_number)
         continue;
       }
 
-      const bke::CurvesGeometry &curves = drawing->strokes();
+      const bke::CurvesGeometry &curves = drawing->as_curves();
       if (curves.has_curve_with_type(
               {CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_BEZIER, CURVE_TYPE_NURBS}))
       {
@@ -147,8 +147,8 @@ void PDFExporter::export_grease_pencil_objects(const int frame_number)
         const IndexMask non_poly_selection = curves.indices_for_curve_type(CURVE_TYPE_POLY, memory)
                                                  .complement(curves.curves_range(), memory);
         Drawing export_drawing;
-        export_drawing.strokes_for_write() = geometry::resample_to_evaluated(curves,
-                                                                             non_poly_selection);
+        export_drawing.as_curves_for_write() = geometry::resample_to_evaluated(curves,
+                                                                               non_poly_selection);
         export_drawing.tag_topology_changed();
         export_grease_pencil_layer(*ob_eval, *layer, export_drawing);
       }

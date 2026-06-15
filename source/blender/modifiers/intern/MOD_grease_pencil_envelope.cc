@@ -293,7 +293,7 @@ static void deform_drawing_as_envelope(const GreasePencilEnvelopeModifierData &e
                                        bke::greasepencil::Drawing &drawing,
                                        const IndexMask &curves_mask)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const bke::AttributeAccessor attributes = curves.attributes();
   const MutableSpan<float3> positions = curves.positions_for_write();
   const MutableSpan<float> radii = drawing.radii_for_write();
@@ -500,7 +500,7 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
                                     const IndexMask &curves_mask,
                                     const bool keep_original)
 {
-  const bke::CurvesGeometry &src_curves = drawing.strokes();
+  const bke::CurvesGeometry &src_curves = drawing.as_curves();
   const bke::AttributeAccessor src_attributes = src_curves.attributes();
   const VArray<bool> src_cyclic = *src_attributes.lookup_or_default(
       "cyclic", bke::AttrDomain::Curve, false);
@@ -615,7 +615,7 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
   dst_material_indices.finish();
   dst_curves.update_curve_types();
 
-  drawing.strokes_for_write() = std::move(dst_curves);
+  drawing.as_curves_for_write() = std::move(dst_curves);
   drawing.tag_topology_changed();
 }
 
@@ -629,7 +629,7 @@ static void modify_drawing(const GreasePencilEnvelopeModifierData &emd,
 
   IndexMaskMemory mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(
-      ctx.object, drawing.strokes(), emd.influence, mask_memory);
+      ctx.object, drawing.as_curves(), emd.influence, mask_memory);
 
   const auto mode = GreasePencilEnvelopeModifierMode(emd.mode);
   switch (mode) {

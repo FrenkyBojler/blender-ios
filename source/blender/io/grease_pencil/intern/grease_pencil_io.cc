@@ -142,7 +142,7 @@ std::optional<Bounds<float2>> GreasePencilExporter::compute_screen_space_drawing
   const Layer &layer = *grease_pencil.layers()[layer_index];
   const float4x4 layer_to_world = layer.to_world_space(object);
   const VArray<float> radii = drawing.radii();
-  const bke::CurvesGeometry &strokes = drawing.strokes();
+  const bke::CurvesGeometry &strokes = drawing.as_curves();
   const Span<float3> positions = strokes.positions();
 
   IndexMaskMemory memory;
@@ -402,7 +402,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
   const float4x4 viewmat = float4x4(context_.rv3d->viewmat);
   const float4x4 layer_to_view = viewmat * layer_to_world;
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const bke::AttributeAccessor attributes = curves.attributes();
   /* Curve attributes. */
   const OffsetIndices points_by_curve = curves.points_by_curve();

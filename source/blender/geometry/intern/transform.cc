@@ -206,7 +206,7 @@ static void transform_grease_pencil_edit_hints(bke::GreasePencilEditHints &edit_
       });
     }
     else if (drawing_hints.drawing_orig) {
-      drawing_hints.deform_mats.emplace(drawing_hints.drawing_orig->strokes().points_num(),
+      drawing_hints.deform_mats.emplace(drawing_hints.drawing_orig->as_curves().points_num(),
                                         deform_mat);
     }
   }

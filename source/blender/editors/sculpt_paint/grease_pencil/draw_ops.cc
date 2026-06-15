@@ -758,7 +758,7 @@ static void grease_pencil_fill_extension_cut(const bContext &C,
   const IndexRange bvh_extension_range = extension_data.lines.starts.index_range();
   Array<int> bvh_curve_offsets_data(drawings.size() + 1);
   for (const int i : drawings.index_range()) {
-    bvh_curve_offsets_data[i] = drawings[i].drawing.strokes().points_num();
+    bvh_curve_offsets_data[i] = drawings[i].drawing.as_curves().points_num();
   }
   const OffsetIndices bvh_curve_offsets = offset_indices::accumulate_counts_to_offsets(
       bvh_curve_offsets_data, bvh_extension_range.size());
@@ -791,7 +791,7 @@ static void grease_pencil_fill_extension_cut(const bContext &C,
   /* Insert segments for cutting extensions on stroke intersection. */
   for (const int i_drawing : drawings.index_range()) {
     const ed::greasepencil::DrawingInfo &info = drawings[i_drawing];
-    const bke::CurvesGeometry &curves = info.drawing.strokes();
+    const bke::CurvesGeometry &curves = info.drawing.as_curves();
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const Span<float3> positions = curves.positions();
     const VArray<bool> cyclic = curves.cyclic();
@@ -1035,7 +1035,7 @@ static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
   Vector<int> origin_drawings;
   for (const int i_drawing : drawings.index_range()) {
     const ed::greasepencil::DrawingInfo &info = drawings[i_drawing];
-    const bke::CurvesGeometry &curves = info.drawing.strokes();
+    const bke::CurvesGeometry &curves = info.drawing.as_curves();
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const Span<float3> positions = curves.positions();
     const VArray<float> radii = info.drawing.radii();
@@ -1195,9 +1195,9 @@ static void grease_pencil_fill_overlay_cb(const bContext *C, ARegion * /*region*
         ed::greasepencil::retrieve_visible_drawings(scene, grease_pencil, false);
 
     for (const ed::greasepencil::DrawingInfo &info : drawings) {
-      const IndexMask curve_mask = info.drawing.strokes().curves_range();
+      const IndexMask curve_mask = info.drawing.as_curves().curves_range();
       const VArray<ColorGeometry4f> colors = VArray<ColorGeometry4f>::from_single(
-          stroke_curves_color, info.drawing.strokes().points_num());
+          stroke_curves_color, info.drawing.as_curves().points_num());
       const float4x4 layer_to_world = grease_pencil.layer(info.layer_index).to_world_space(object);
       const bool use_xray = false;
       const float radius_scale = 1.0f;
@@ -1648,7 +1648,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
       }
     }
 
-    bke::CurvesGeometry &dst_curves = info.target.drawing.strokes_for_write();
+    bke::CurvesGeometry &dst_curves = info.target.drawing.as_curves_for_write();
     if (auto_remove_fill_guides) {
       /* Remove strokes that were created using the fill tool as boundary strokes. */
       ed::greasepencil::remove_fill_guides(dst_curves);
@@ -2054,8 +2054,8 @@ static bool remove_points_and_split_from_drawings(
     if (Drawing *drawing = get_current_drawing_or_duplicate_for_autokey(
             scene, grease_pencil, info.layer_index))
     {
-      drawing->strokes_for_write() = geometry::remove_points_and_split(drawing->strokes(),
-                                                                       points_to_remove);
+      drawing->as_curves_for_write() = geometry::remove_points_and_split(drawing->as_curves(),
+                                                                         points_to_remove);
       drawing->tag_topology_changed();
       changed = true;
     }
@@ -2119,7 +2119,7 @@ static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *
               ob_eval, *object, info.drawing);
       const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
 
-      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      const bke::CurvesGeometry &curves = info.drawing.as_curves();
       Array<float2> screen_space_positions(curves.points_num());
       threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
         for (const int point : points) {
@@ -2229,7 +2229,7 @@ static wmOperatorStatus grease_pencil_erase_box_exec(bContext *C, wmOperator *op
               ob_eval, *object, info.drawing);
       const float4x4 layer_to_world = layer.to_world_space(*ob_eval);
 
-      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      const bke::CurvesGeometry &curves = info.drawing.as_curves();
       Array<float2> screen_space_positions(curves.points_num());
       threading::parallel_for(curves.points_range(), 4096, [&](const IndexRange points) {
         for (const int point : points) {

@@ -579,7 +579,7 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
     GPU_polygon_offset(1.0f, 1.0f);
   }
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const OffsetIndices points_by_curve = curves.evaluated_points_by_curve();
   const Span<float3> positions = curves.evaluated_positions();
   const bke::AttributeAccessor attributes = curves.attributes();

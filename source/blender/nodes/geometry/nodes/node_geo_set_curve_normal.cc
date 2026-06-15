@@ -77,7 +77,7 @@ static void set_grease_pencil_normal(GreasePencil &grease_pencil,
       continue;
     }
     set_curve_normal(
-        drawing->strokes_for_write(),
+        drawing->as_curves_for_write(),
         mode,
         bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Curve, layer_index),
         bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Point, layer_index),

@@ -211,7 +211,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
     threading::parallel_for(drawings.index_range(), 1, [&](const IndexRange range) {
       for (const int drawing_index : range) {
         const ed::greasepencil::MutableDrawingInfo &drawing_info = drawings[drawing_index];
-        bke::CurvesGeometry &curves = drawing_info.drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = drawing_info.drawing.as_curves_for_write();
 
         /* Find or create the active vertex group in the drawing. */
         DrawingWeightData &drawing_weight_data =

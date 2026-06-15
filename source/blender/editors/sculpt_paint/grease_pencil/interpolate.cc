@@ -262,7 +262,7 @@ static bool find_curve_mapping_from_index(const GreasePencil &grease_pencil,
   const Drawing &to_drawing = *grease_pencil.get_drawing_at(layer, interval->second);
   /* In addition to interpolated pairs, the unselected original strokes are also included, making
    * the total pair count the same as the "from" curve count. */
-  const int pairs_num = from_drawing.strokes().curves_num();
+  const int pairs_num = from_drawing.as_curves().curves_num();
 
   const int old_pairs_num = pairs.from_frames.size();
   pairs.from_frames.append_n_times(interval->first, pairs_num);
@@ -278,15 +278,15 @@ static bool find_curve_mapping_from_index(const GreasePencil &grease_pencil,
 
   IndexMaskMemory memory;
   IndexMask from_selection, to_selection;
-  if (only_selected && ed::curves::has_anything_selected(from_drawing.strokes()) &&
-      ed::curves::has_anything_selected(to_drawing.strokes()))
+  if (only_selected && ed::curves::has_anything_selected(from_drawing.as_curves()) &&
+      ed::curves::has_anything_selected(to_drawing.as_curves()))
   {
-    from_selection = ed::curves::retrieve_selected_curves(from_drawing.strokes(), memory);
-    to_selection = ed::curves::retrieve_selected_curves(to_drawing.strokes(), memory);
+    from_selection = ed::curves::retrieve_selected_curves(from_drawing.as_curves(), memory);
+    to_selection = ed::curves::retrieve_selected_curves(to_drawing.as_curves(), memory);
   }
   else {
-    from_selection = from_drawing.strokes().curves_range();
-    to_selection = to_drawing.strokes().curves_range();
+    from_selection = from_drawing.as_curves().curves_range();
+    to_selection = to_drawing.as_curves().curves_range();
   }
   /* Discard additional elements of the larger selection. */
   if (from_selection.size() > to_selection.size()) {
@@ -513,10 +513,10 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
       if (!from_drawing || !to_drawing) {
         continue;
       }
-      const OffsetIndices from_points_by_curve = from_drawing->strokes().points_by_curve();
-      const OffsetIndices to_points_by_curve = to_drawing->strokes().points_by_curve();
-      const Span<float3> from_positions = from_drawing->strokes().positions();
-      const Span<float3> to_positions = to_drawing->strokes().positions();
+      const OffsetIndices from_points_by_curve = from_drawing->as_curves().points_by_curve();
+      const OffsetIndices to_points_by_curve = to_drawing->as_curves().points_by_curve();
+      const Span<float3> from_positions = from_drawing->as_curves().positions();
+      const Span<float3> to_positions = to_drawing->as_curves().positions();
 
       for (const int sorted_index : pair_range) {
         const int pair_index = sorted_pairs[sorted_index];
@@ -604,10 +604,10 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
     if (!from_drawing || !to_drawing) {
       continue;
     }
-    const OffsetIndices from_points_by_curve = from_drawing->strokes().points_by_curve();
-    const OffsetIndices to_points_by_curve = to_drawing->strokes().points_by_curve();
-    const VArray<bool> from_curves_cyclic = from_drawing->strokes().cyclic();
-    const VArray<bool> to_curves_cyclic = to_drawing->strokes().cyclic();
+    const OffsetIndices from_points_by_curve = from_drawing->as_curves().points_by_curve();
+    const OffsetIndices to_points_by_curve = to_drawing->as_curves().points_by_curve();
+    const VArray<bool> from_curves_cyclic = from_drawing->as_curves().cyclic();
+    const VArray<bool> to_curves_cyclic = to_drawing->as_curves().cyclic();
 
     for (const int i : pair_range.index_range()) {
       const int pair_index = sorted_pairs[pair_range[i]];
@@ -639,7 +639,7 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
         BLI_assert(from_points.size() == dst_points.size());
         array_utils::fill_index_range(from_sample_indices.as_mutable_span().slice(dst_points));
         from_sample_factors.as_mutable_span().slice(dst_points).fill(0.0f);
-        geometry::sample_curve_padded(to_drawing->strokes(),
+        geometry::sample_curve_padded(to_drawing->as_curves(),
                                       to_curve,
                                       to_curves_cyclic[to_curve],
                                       dst_curve_flip[pair_index],
@@ -649,7 +649,7 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
       else {
         /* Target curve samples match 'to' points. */
         BLI_assert(to_points.size() == dst_points.size());
-        geometry::sample_curve_padded(from_drawing->strokes(),
+        geometry::sample_curve_padded(from_drawing->as_curves(),
                                       from_curve,
                                       from_curves_cyclic[from_curve],
                                       dst_curve_flip[pair_index],
@@ -660,8 +660,8 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
       }
     }
 
-    geometry::interpolate_curves_with_samples(from_drawing->strokes(),
-                                              to_drawing->strokes(),
+    geometry::interpolate_curves_with_samples(from_drawing->as_curves(),
+                                              to_drawing->as_curves(),
                                               from_indices,
                                               to_indices,
                                               from_sample_indices,
@@ -731,7 +731,7 @@ static bke::greasepencil::Drawing *ensure_drawing_at_exact_frame(
   static constexpr eBezTriple_KeyframeType keyframe_type = BEZT_KEYTYPE_BREAKDOWN;
 
   if (Drawing *drawing = get_drawing_at_exact_frame(grease_pencil, layer, frame_number)) {
-    layer_data.orig_curves = drawing->strokes();
+    layer_data.orig_curves = drawing->as_curves();
     return drawing;
   }
   return grease_pencil.insert_frame(layer, frame_number, 0, keyframe_type);
@@ -778,7 +778,7 @@ static void grease_pencil_interpolate_update(bContext &C, const wmOperator &op)
       interpolated_curves.tag_positions_changed();
     }
 
-    dst_drawing->strokes_for_write() = std::move(interpolated_curves);
+    dst_drawing->as_curves_for_write() = std::move(interpolated_curves);
     dst_drawing->tag_topology_changed();
   });
 
@@ -812,7 +812,7 @@ static void grease_pencil_interpolate_restore(bContext &C, wmOperator &op)
       /* Keyframe existed before the operator, restore geometry. */
       Drawing *drawing = grease_pencil.get_editable_drawing_at(layer, current_frame);
       if (drawing) {
-        drawing->strokes_for_write() = *layer_data.orig_curves;
+        drawing->as_curves_for_write() = *layer_data.orig_curves;
         drawing->tag_topology_changed();
         DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
         WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
@@ -1320,7 +1320,7 @@ static wmOperatorStatus grease_pencil_interpolate_sequence_exec(bContext *C, wmO
         interpolated_curves.tag_positions_changed();
       }
 
-      dst_drawing->strokes_for_write() = std::move(interpolated_curves);
+      dst_drawing->as_curves_for_write() = std::move(interpolated_curves);
       dst_drawing->tag_topology_changed();
     }
   });

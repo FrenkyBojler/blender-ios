@@ -350,7 +350,7 @@ static void modify_drawing(const GreasePencilDashModifierData &dmd,
                            bke::greasepencil::Drawing &drawing)
 {
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
-  const bke::CurvesGeometry &src_curves = drawing.strokes();
+  const bke::CurvesGeometry &src_curves = drawing.as_curves();
   if (src_curves.curve_num == 0) {
     return;
   }
@@ -372,10 +372,10 @@ static void modify_drawing(const GreasePencilDashModifierData &dmd,
   bke::GeometrySet joined_geo = geometry::join_geometries({unselected_geo, masked_geo}, {});
 
   if (!joined_geo.has_curves()) {
-    drawing.strokes_for_write() = {};
+    drawing.as_curves_for_write() = {};
   }
   else {
-    drawing.strokes_for_write() = std::move(joined_geo.get_curves_for_write()->geometry.wrap());
+    drawing.as_curves_for_write() = std::move(joined_geo.get_curves_for_write()->geometry.wrap());
   }
   drawing.tag_topology_changed();
 }

@@ -554,6 +554,7 @@ set(SRC
   particle_private.h
 
   intern/attribute_storage_access.hh
+  intern/curves_attributes.hh
   intern/data_transfer_intern.hh
   intern/lib_intern.hh
   intern/multires_inline.hh

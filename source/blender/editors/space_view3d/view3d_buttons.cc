@@ -888,7 +888,7 @@ static void v3d_editvertex_buts(
             CurvesPointSelectionStatus value = acc;
             for (const int drawing : range) {
               value = CurvesPointSelectionStatus::sum(
-                  value, init_curves_point_selection_status(drawings[drawing].drawing.strokes()));
+                  value, init_curves_point_selection_status(drawings[drawing].drawing.as_curves()));
             }
             return value;
           },
@@ -1672,7 +1672,7 @@ static void v3d_editvertex_buts(
       Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
       threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+        bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
         if (apply_to_curves_point_selection(
                 tot, median_basis.curves, ve_median_basis.curves, curves))
         {
@@ -2290,7 +2290,7 @@ static void apply_to_active_object(
     Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      bke::CurvesGeometry &curves = info.drawing.as_curves_for_write();
       IndexMaskMemory memory;
       const IndexMask selection = ed::curves::retrieve_selected_curves(curves, memory);
       if (selection.is_empty()) {
@@ -2689,7 +2689,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
         [&](const IndexRange range, const CurvesSelectionStatus &acc) {
           CurvesSelectionStatus value = acc;
           for (const int drawing : range) {
-            const bke::CurvesGeometry &curves = drawings[drawing].drawing.strokes();
+            const bke::CurvesGeometry &curves = drawings[drawing].drawing.as_curves();
             value = CurvesSelectionStatus::sum(value, init_curves_selection_status(curves));
             value = CurvesSelectionStatus::sum(value, init_grease_pencil_selection_status(curves));
           }

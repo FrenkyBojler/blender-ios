@@ -4018,7 +4018,7 @@ void BKE_object_foreach_display_point(Object *ob,
       if (const Drawing *drawing = grease_pencil.get_drawing_at(*layer,
                                                                 grease_pencil.runtime->eval_frame))
       {
-        const bke::CurvesGeometry &curves = drawing->strokes();
+        const bke::CurvesGeometry &curves = drawing->as_curves();
         const Span<float3> positions = curves.evaluated_positions();
         threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
           for (const int i : range) {

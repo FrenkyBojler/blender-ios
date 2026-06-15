@@ -52,7 +52,7 @@ static void set_grease_pencil_resolution(GreasePencil &grease_pencil,
       continue;
     }
     set_curve_resolution(
-        drawing->strokes_for_write(),
+        drawing->as_curves_for_write(),
         bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Curve, layer_index),
         selection,
         resolution);

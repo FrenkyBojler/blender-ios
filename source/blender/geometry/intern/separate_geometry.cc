@@ -237,14 +237,14 @@ void separate_geometry(bke::GeometrySet &geometry_set,
         if (drawing == nullptr) {
           continue;
         }
-        const bke::CurvesGeometry &src_curves = drawing->strokes();
+        const bke::CurvesGeometry &src_curves = drawing->as_curves();
         const bke::GreasePencilLayerFieldContext field_context(grease_pencil, domain, layer_index);
         std::optional<bke::CurvesGeometry> dst_curves = separate_curves_selection(
             src_curves, field_context, selection, domain, attribute_filter);
         if (!dst_curves) {
           continue;
         }
-        drawing->strokes_for_write() = std::move(*dst_curves);
+        drawing->as_curves_for_write() = std::move(*dst_curves);
         drawing->tag_topology_changed();
         some_valid_domain = true;
       }

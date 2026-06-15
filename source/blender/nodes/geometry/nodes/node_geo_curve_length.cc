@@ -46,7 +46,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       if (drawing == nullptr) {
         continue;
       }
-      const bke::CurvesGeometry &curves = drawing->strokes();
+      const bke::CurvesGeometry &curves = drawing->as_curves();
       length += curves_total_length(curves);
     }
   }

@@ -411,7 +411,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     const Layer &layer = *layers[info.layer_index];
 
     const std::optional<GroupedSpan<int3>> triangles = info.drawing.triangles();
-    const bke::CurvesGeometry &curves = info.drawing.strokes();
+    const bke::CurvesGeometry &curves = info.drawing.as_curves();
     const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
     const bke::AttributeAccessor attributes = curves.attributes();
     const VArray<bool> cyclic = *attributes.lookup_or_default<bool>(

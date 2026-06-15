@@ -344,7 +344,7 @@ class RuntimeToBakeValue {
         }
         greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
         this->runtime_to_bake__AttributeStorage(
-            drawing.strokes_for_write().attribute_storage.wrap());
+            drawing.as_curves_for_write().attribute_storage.wrap());
       }
       grease_pencil.runtime->bake_materials = materials_to_weak_references(
           &grease_pencil.material_array, &grease_pencil.material_array_num, data_block_map_);
@@ -563,7 +563,7 @@ class BakeToRuntimeValue {
         }
         greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
         this->bake_to_runtime__AttributeStorage(
-            drawing.strokes_for_write().attribute_storage.wrap());
+            drawing.as_curves_for_write().attribute_storage.wrap());
       }
     }
     if (geometry.has_volume()) {

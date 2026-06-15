@@ -65,7 +65,7 @@ GreasePencil *merge_layers(const GreasePencil &src_grease_pencil,
     layer.opacity = first_src_layer.opacity;
     Drawing *drawing = new_grease_pencil->get_eval_drawing(layer);
     BLI_assert(drawing != nullptr);
-    curves_by_new_layer[new_layer_i] = &drawing->strokes_for_write();
+    curves_by_new_layer[new_layer_i] = &drawing->as_curves_for_write();
   }
 
   threading::parallel_for(IndexRange(new_layers_num), 32, [&](const IndexRange new_layers_range) {
@@ -84,7 +84,7 @@ GreasePencil *merge_layers(const GreasePencil &src_grease_pencil,
       if (src_layer_indices.size() == 1) {
         /* Optimization for the case if the new layer corresponds to exactly one source layer. */
         if (const Drawing *src_drawing = src_grease_pencil.get_eval_drawing(first_src_layer)) {
-          const bke::CurvesGeometry &src_curves = src_drawing->strokes();
+          const bke::CurvesGeometry &src_curves = src_drawing->as_curves();
           new_curves = src_curves;
         }
         continue;
@@ -99,7 +99,7 @@ GreasePencil *merge_layers(const GreasePencil &src_grease_pencil,
         const int src_layer_i = src_layer_indices[i];
         const Layer &src_layer = src_grease_pencil.layer(src_layer_i);
         if (const Drawing *src_drawing = src_grease_pencil.get_eval_drawing(src_layer)) {
-          const bke::CurvesGeometry &src_curves = src_drawing->strokes();
+          const bke::CurvesGeometry &src_curves = src_drawing->as_curves();
           all_src_curves.append(&src_curves);
           transforms_to_apply.append(new_layer_transform_inv * src_layer.local_transform());
         }

@@ -323,7 +323,7 @@ static void curve_fill_calculate(GeometrySet &geometry_set,
       if (drawing == nullptr) {
         continue;
       }
-      const bke::CurvesGeometry &src_curves = drawing->strokes();
+      const bke::CurvesGeometry &src_curves = drawing->as_curves();
       if (src_curves.is_empty()) {
         continue;
       }

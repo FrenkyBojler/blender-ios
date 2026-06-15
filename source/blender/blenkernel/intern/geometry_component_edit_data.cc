@@ -112,8 +112,8 @@ static void remember_deformed_grease_pencil_if_necessary(const GreasePencil *gre
       continue;
     }
     drawing_hints.drawing_orig = orig_drawing;
-    const CurvesGeometry &curves = drawing->strokes();
-    if (curves.points_num() != orig_drawing->strokes().points_num()) {
+    const CurvesGeometry &curves = drawing->as_curves();
+    if (curves.points_num() != orig_drawing->as_curves().points_num()) {
       continue;
     }
     if (curves.is_empty()) {

@@ -216,7 +216,7 @@ static void convex_hull_grease_pencil(GeometrySet &geometry_set)
     if (drawing == nullptr) {
       continue;
     }
-    const bke::CurvesGeometry &curves = drawing->strokes();
+    const bke::CurvesGeometry &curves = drawing->as_curves();
     const Span<float3> positions_span = curves.evaluated_positions();
     if (positions_span.is_empty()) {
       continue;

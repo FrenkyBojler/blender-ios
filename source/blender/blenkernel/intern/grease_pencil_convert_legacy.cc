@@ -808,7 +808,7 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(
   }
 
   /* Resize the CurvesGeometry. */
-  CurvesGeometry &curves = drawing.strokes_for_write();
+  CurvesGeometry &curves = drawing.as_curves_for_write();
   curves.resize(num_points, num_strokes);
   curves.offsets_for_write().copy_from(offsets);
 
@@ -3168,7 +3168,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
     greasepencil::Drawing &drawing)
 {
   using namespace blender;
-  CurvesGeometry &curves = drawing.strokes_for_write();
+  CurvesGeometry &curves = drawing.as_curves_for_write();
   if (curves.is_empty()) {
     return;
   }

@@ -311,7 +311,7 @@ void merge_layers(const GreasePencil &src_grease_pencil,
       if (src_drawing_indices.size() == 1) {
         const Drawing &src_drawing =
             reinterpret_cast<const GreasePencilDrawing *>(src_first_base)->wrap();
-        dst_drawing.strokes_for_write() = src_drawing.strokes();
+        dst_drawing.as_curves_for_write() = src_drawing.as_curves();
         dst_drawing.tag_topology_changed();
         continue;
       }
@@ -323,10 +323,10 @@ void merge_layers(const GreasePencil &src_grease_pencil,
         BLI_assert(src_base->type == GP_DRAWING);
         const Drawing &src_drawing =
             reinterpret_cast<const GreasePencilDrawing *>(src_base)->wrap();
-        all_src_curves.append(&src_drawing.strokes());
+        all_src_curves.append(&src_drawing.as_curves());
       }
 
-      dst_drawing.strokes_for_write() = join_curves(
+      dst_drawing.as_curves_for_write() = join_curves(
           src_grease_pencil, all_src_curves, src_transforms_to_apply);
       dst_drawing.tag_topology_changed();
     }

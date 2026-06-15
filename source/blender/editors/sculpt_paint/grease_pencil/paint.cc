@@ -380,7 +380,7 @@ struct PaintOperationExecutor {
 
     /* Resize the curves geometry so there is one more curve with a single point. */
     ed::greasepencil::add_single_curve(*self.drawing_, on_back == false);
-    bke::CurvesGeometry &curves = self.drawing_->strokes_for_write();
+    bke::CurvesGeometry &curves = self.drawing_->as_curves_for_write();
 
     const int active_curve = on_back ? curves.curves_range().first() :
                                        curves.curves_range().last();
@@ -725,7 +725,7 @@ struct PaintOperationExecutor {
     const float brush_radius_px = brush_radius_to_pixel_radius(
         rv3d, brush_, math::transform_point(self.placement_.to_world_space(), position));
 
-    bke::CurvesGeometry &curves = self.drawing_->strokes_for_write();
+    bke::CurvesGeometry &curves = self.drawing_->as_curves_for_write();
     OffsetIndices<int> points_by_curve = curves.points_by_curve();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
@@ -1023,7 +1023,7 @@ struct PaintOperationExecutor {
 
     this->process_extension_sample(self, C, extension_sample);
 
-    const bke::CurvesGeometry &curves = self.drawing_->strokes();
+    const bke::CurvesGeometry &curves = self.drawing_->as_curves();
     const int active_curve = on_back ? curves.curves_range().first() :
                                        curves.curves_range().last();
     self.drawing_->tag_topology_changed(IndexRange::from_single(active_curve));
@@ -1119,9 +1119,9 @@ IndexRange PaintOperation::interpolate_stroke_depth(std::optional<int> start_poi
   /* Drawing should exist. */
   BLI_assert(drawing_);
   bke::greasepencil::Drawing &drawing = *drawing_;
-  const int active_curve = on_back ? drawing.strokes().curves_range().first() :
-                                     drawing.strokes().curves_range().last();
-  const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
+  const int active_curve = on_back ? drawing.as_curves().curves_range().first() :
+                                     drawing.as_curves().curves_range().last();
+  const offset_indices::OffsetIndices<int> points_by_curve = drawing.as_curves().points_by_curve();
   const IndexRange all_points = points_by_curve[active_curve];
   BLI_assert(screen_space_final_coords_.size() == all_points.size());
   if (all_points.is_empty()) {
@@ -1141,7 +1141,7 @@ IndexRange PaintOperation::interpolate_stroke_depth(std::optional<int> start_poi
 
   MutableSpan<std::optional<float>> depths = stroke_placement_depths_.as_mutable_span().slice(
       active_curve_points);
-  MutableSpan<float3> positions = drawing.strokes_for_write().positions_for_write().slice(
+  MutableSpan<float3> positions = drawing.as_curves_for_write().positions_for_write().slice(
       active_points);
   const Span<float2> final_coords = screen_space_final_coords_.as_span().slice(
       active_curve_points);
@@ -1280,9 +1280,9 @@ static void smooth_stroke(bke::greasepencil::Drawing &drawing,
                           const int iterations,
                           const int active_curve)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const IndexRange stroke = IndexRange::from_single(active_curve);
-  const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
+  const offset_indices::OffsetIndices<int> points_by_curve = drawing.as_curves().points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
   const VArray<bool> point_selection = VArray<bool>::from_single(true, curves.points_num());
 
@@ -1332,7 +1332,7 @@ static void subdivide_stroke(bke::greasepencil::Drawing &drawing,
                              const float subdivisions,
                              const int active_curve)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const IndexRange stroke = IndexRange::from_single(active_curve);
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
@@ -1348,7 +1348,7 @@ static void simplify_stroke(bke::greasepencil::Drawing &drawing,
                             const float epsilon,
                             const int active_curve)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const bke::AttributeAccessor attributes = curves.attributes();
   const IndexRange points = curves.points_by_curve()[active_curve];
   const VArray<float2> screen_space_positions_attribute = *attributes.lookup<float2>(
@@ -1358,7 +1358,7 @@ static void simplify_stroke(bke::greasepencil::Drawing &drawing,
   const Span<float2> screen_space_positions =
       screen_space_positions_attribute.get_internal_span().slice(points);
 
-  Array<bool> points_to_delete_arr(drawing.strokes().points_num(), false);
+  Array<bool> points_to_delete_arr(drawing.as_curves().points_num(), false);
   points_to_delete_arr.as_mutable_span().slice(points).fill(true);
   geometry::curve_simplify(curves.positions().slice(points),
                            curves.cyclic()[active_curve],
@@ -1369,7 +1369,7 @@ static void simplify_stroke(bke::greasepencil::Drawing &drawing,
   IndexMaskMemory memory;
   const IndexMask points_to_delete = IndexMask::from_bools(points_to_delete_arr, memory);
   if (!points_to_delete.is_empty()) {
-    drawing.strokes_for_write().remove_points(points_to_delete, {});
+    drawing.as_curves_for_write().remove_points(points_to_delete, {});
     drawing.tag_topology_changed();
   }
 }
@@ -1378,7 +1378,7 @@ static void add_strokes_to_drawing(const bool on_back,
                                    Curves *strokes,
                                    bke::greasepencil::Drawing &drawing)
 {
-  Curves *other_curves = bke::curves_new_nomain(std::move(drawing.strokes_for_write()));
+  Curves *other_curves = bke::curves_new_nomain(std::move(drawing.as_curves_for_write()));
   std::array<bke::GeometrySet, 2> geometry_sets;
   if (on_back) {
     geometry_sets = {bke::GeometrySet::from_curves(strokes),
@@ -1388,7 +1388,7 @@ static void add_strokes_to_drawing(const bool on_back,
     geometry_sets = {bke::GeometrySet::from_curves(other_curves),
                      bke::GeometrySet::from_curves(strokes)};
   }
-  drawing.strokes_for_write() = std::move(
+  drawing.as_curves_for_write() = std::move(
       geometry::join_geometries(geometry_sets, {}).get_curves_for_write()->geometry.wrap());
   drawing.tag_topology_changed();
 }
@@ -1397,7 +1397,7 @@ static void trim_stroke_ends(bke::greasepencil::Drawing &drawing,
                              const int active_curve,
                              const bool on_back)
 {
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const IndexRange points = curves.points_by_curve()[active_curve];
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<float2> screen_space_positions_attribute = *attributes.lookup<float2>(
@@ -1408,7 +1408,7 @@ static void trim_stroke_ends(bke::greasepencil::Drawing &drawing,
   /* Extract the drawn stroke into a separate geometry, so we can trim the ends for just this
    * stroke. */
   bke::CurvesGeometry stroke = bke::curves_copy_curve_selection(
-      drawing.strokes(), IndexRange::from_single(active_curve), {});
+      drawing.as_curves(), IndexRange::from_single(active_curve), {});
 
   const IndexRange curve_mask = IndexRange::from_single(0);
   /* Trim the stroke ends by finding self intersections using the screen space positions. */
@@ -1421,7 +1421,7 @@ static void trim_stroke_ends(bke::greasepencil::Drawing &drawing,
   }
 
   /* Remove the original stroke. */
-  drawing.strokes_for_write().remove_curves(IndexRange::from_single(active_curve), {});
+  drawing.as_curves_for_write().remove_curves(IndexRange::from_single(active_curve), {});
 
   /* Join the trimmed stroke into the drawing. */
   add_strokes_to_drawing(on_back, bke::curves_new_nomain(std::move(stroke_trimmed)), drawing);
@@ -1449,7 +1449,7 @@ static void outline_stroke(bke::greasepencil::Drawing &drawing,
   placement.reproject(outline.positions(), outline.positions_for_write());
 
   /* Remove the original stroke. */
-  drawing.strokes_for_write().remove_curves(IndexRange::from_single(active_curve), {});
+  drawing.as_curves_for_write().remove_curves(IndexRange::from_single(active_curve), {});
 
   /* Join the outline stroke into the drawing. */
   add_strokes_to_drawing(on_back, bke::curves_new_nomain(std::move(outline)), drawing);
@@ -1460,8 +1460,8 @@ static int trim_end_points(bke::greasepencil::Drawing &drawing,
                            const bool on_back,
                            const int active_curve)
 {
-  const IndexRange points = drawing.strokes().points_by_curve()[active_curve];
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  const IndexRange points = drawing.as_curves().points_by_curve()[active_curve];
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const VArray<float> radii = drawing.radii();
 
   /* Remove points at the end that have a radius close to 0. */
@@ -1518,9 +1518,9 @@ static void deselect_stroke(Scene *scene,
                             bke::greasepencil::Drawing &drawing,
                             const int active_curve)
 {
-  const IndexRange points = drawing.strokes().points_by_curve()[active_curve];
+  const IndexRange points = drawing.as_curves().points_by_curve()[active_curve];
 
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene->toolsettings);
 
@@ -1547,7 +1547,7 @@ static void process_stroke_weights(const Scene &scene,
                                    bke::greasepencil::Drawing &drawing,
                                    const int active_curve)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const IndexRange points = curves.points_by_curve()[active_curve];
 
   const int def_nr = BKE_object_defgroup_active_index_get(&object) - 1;
@@ -1673,7 +1673,7 @@ static void convert_stroke_type(bke::greasepencil::Drawing &drawing,
                                 const float threshold,
                                 const int8_t curve_type)
 {
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   const IndexMask selection = IndexRange::from_single(active_curve);
   const VArray<float> thresholds = VArray<float>::from_single(threshold, curves.curves_num());
 
@@ -1722,14 +1722,14 @@ void PaintOperation::on_stroke_done(const bContext &C)
   bke::greasepencil::Layer &active_layer = *grease_pencil.get_active_layer();
   /* Drawing should exist. */
   bke::greasepencil::Drawing &drawing = *drawing_;
-  const int active_curve = on_back ? drawing.strokes().curves_range().first() :
-                                     drawing.strokes().curves_range().last();
-  const offset_indices::OffsetIndices<int> points_by_curve = drawing.strokes().points_by_curve();
+  const int active_curve = on_back ? drawing.as_curves().curves_range().first() :
+                                     drawing.as_curves().curves_range().last();
+  const offset_indices::OffsetIndices<int> points_by_curve = drawing.as_curves().points_by_curve();
   const IndexRange points = points_by_curve[active_curve];
 
   /* Write the screen space positions of the new stroke as a temporary attribute, so all the
    * changes in topology with the operations below get propagated correctly. */
-  bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+  bke::MutableAttributeAccessor attributes = drawing.as_curves_for_write().attributes_for_write();
   bke::SpanAttributeWriter<float2> screen_space_positions =
       attributes.lookup_or_add_for_write_only_span<float2>(".draw_tool_screen_space_positions",
                                                            bke::AttrDomain::Point);
@@ -1798,8 +1798,8 @@ void PaintOperation::on_stroke_done(const bContext &C)
     constexpr float merge_distance = 20.0f;
     const float4x4 layer_to_world = active_layer.to_world_space(*object_);
     const IndexMask selection = IndexRange::from_single(active_curve);
-    drawing.strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
-        *region, drawing.strokes(), layer_to_world, merge_distance, selection, {});
+    drawing.as_curves_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
+        *region, drawing.as_curves(), layer_to_world, merge_distance, selection, {});
   }
 
   if (do_automerge_endpoints || on_back) {
@@ -1814,7 +1814,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
 
   if (use_multi_frame_editing) {
     append_stroke_to_multiframe_drawings(
-        drawing.strokes(), active_curve, frame_number_, on_back, multi_frame_drawings_);
+        drawing.as_curves(), active_curve, frame_number_, on_back, multi_frame_drawings_);
   }
 
   /* Now we're done drawing. */

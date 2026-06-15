@@ -37,7 +37,7 @@ void validate_drawing_vertex_groups(GreasePencil &grease_pencil)
     Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
 
     /* Remove unknown vertex groups. */
-    CurvesGeometry &curves = drawing.strokes_for_write();
+    CurvesGeometry &curves = drawing.as_curves_for_write();
     int defgroup_index = 0;
     for (bDeformGroup &defgroup : curves.vertex_group_names.items_mutable()) {
       if (!valid_names.contains(defgroup.name)) {
@@ -97,7 +97,7 @@ void assign_to_vertex_group_from_mask(bke::CurvesGeometry &curves,
 void assign_to_vertex_group(Drawing &drawing, const StringRef name, const float weight)
 {
 
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   ListBaseT<bDeformGroup> &vertex_group_names = curves.vertex_group_names;
 
   const bke::AttributeAccessor attributes = curves.attributes();
@@ -131,7 +131,7 @@ void assign_to_vertex_group(Drawing &drawing, const StringRef name, const float 
 bool remove_from_vertex_group(Drawing &drawing, const StringRef name, const bool use_selection)
 {
   bool changed = false;
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
   ListBaseT<bDeformGroup> &vertex_group_names = curves.vertex_group_names;
 
   const int def_nr = BKE_defgroup_name_index(&vertex_group_names, name);
@@ -162,7 +162,7 @@ void clear_vertex_groups(GreasePencil &grease_pencil)
       continue;
     }
     Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-    bke::CurvesGeometry &curves = drawing.strokes_for_write();
+    bke::CurvesGeometry &curves = drawing.as_curves_for_write();
 
     for (MDeformVert &dvert : curves.deform_verts_for_write()) {
       BKE_defvert_clear(&dvert);

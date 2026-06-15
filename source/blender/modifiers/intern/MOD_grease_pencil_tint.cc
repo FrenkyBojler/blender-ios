@@ -264,7 +264,7 @@ static void modify_fill_color(Object &ob,
                               const IndexMask &curves_mask)
 {
   const bool use_weight_as_factor = (tmd.flag & MOD_GREASE_PENCIL_TINT_USE_WEIGHT_AS_FACTOR);
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const GreasePencilTintModifierMode tint_mode = GreasePencilTintModifierMode(tmd.tint_mode);
 
@@ -273,7 +273,7 @@ static void modify_fill_color(Object &ob,
     return;
   }
 
-  bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
+  bke::MutableAttributeAccessor attributes = drawing.as_curves_for_write().attributes_for_write();
   /* Fill color per stroke. */
   MutableSpan<ColorGeometry4f> fill_colors = drawing.fill_colors_for_write();
   const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
@@ -381,7 +381,7 @@ static void modify_opacity(const GreasePencilTintModifierData &tmd,
 static void modify_curves(ModifierData &md, const ModifierEvalContext &ctx, Drawing &drawing)
 {
   auto &tmd = reinterpret_cast<GreasePencilTintModifierData &>(md);
-  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  bke::CurvesGeometry &curves = drawing.as_curves_for_write();
 
   IndexMaskMemory mask_memory;
   const IndexMask curves_mask = modifier::greasepencil::get_filtered_stroke_mask(

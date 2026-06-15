@@ -96,7 +96,7 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
                              bke::greasepencil::Drawing &drawing)
 {
   modifier::greasepencil::ensure_no_bezier_curves(drawing);
-  const bke::CurvesGeometry &curves = drawing.strokes();
+  const bke::CurvesGeometry &curves = drawing.as_curves();
 
   IndexMaskMemory memory;
   const IndexMask strokes = modifier::greasepencil::get_filtered_stroke_mask(
@@ -109,13 +109,13 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
     case MOD_GREASE_PENCIL_SIMPLIFY_FIXED: {
       const IndexMask points_to_keep = simplify_fixed(curves, mmd.step, memory);
       if (points_to_keep.is_empty()) {
-        drawing.strokes_for_write() = {};
+        drawing.as_curves_for_write() = {};
         break;
       }
       if (points_to_keep.size() == curves.points_num()) {
         break;
       }
-      drawing.strokes_for_write() = bke::curves_copy_point_selection(curves, points_to_keep, {});
+      drawing.as_curves_for_write() = bke::curves_copy_point_selection(curves, points_to_keep, {});
       break;
     }
     case MOD_GREASE_PENCIL_SIMPLIFY_ADAPTIVE: {
@@ -127,11 +127,11 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
           mmd.factor,
           curves.positions(),
           memory);
-      drawing.strokes_for_write().remove_points(points_to_delete, {});
+      drawing.as_curves_for_write().remove_points(points_to_delete, {});
       break;
     }
     case MOD_GREASE_PENCIL_SIMPLIFY_SAMPLE: {
-      drawing.strokes_for_write() = geometry::resample_to_length(
+      drawing.as_curves_for_write() = geometry::resample_to_length(
           curves, strokes, VArray<float>::from_single(mmd.length, curves.curves_num()), {});
       break;
     }
@@ -147,7 +147,7 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
             }
             return false;
           });
-      drawing.strokes_for_write() = ed::greasepencil::curves_merge_by_distance(
+      drawing.as_curves_for_write() = ed::greasepencil::curves_merge_by_distance(
           curves, mmd.distance, points, {});
       break;
     }

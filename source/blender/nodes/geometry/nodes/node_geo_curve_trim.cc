@@ -189,7 +189,7 @@ static void geometry_set_curve_trim(GeometrySet &geometry_set,
       if (drawing == nullptr) {
         continue;
       }
-      const bke::CurvesGeometry &src_curves = drawing->strokes();
+      const bke::CurvesGeometry &src_curves = drawing->as_curves();
       const bke::GreasePencilLayerFieldContext field_context{
           grease_pencil, AttrDomain::Curve, layer_index};
       bke::CurvesGeometry dst_curves;
@@ -202,7 +202,7 @@ static void geometry_set_curve_trim(GeometrySet &geometry_set,
                       attribute_filter,
                       dst_curves))
       {
-        drawing->strokes_for_write() = std::move(dst_curves);
+        drawing->as_curves_for_write() = std::move(dst_curves);
         drawing->tag_topology_changed();
       }
     }

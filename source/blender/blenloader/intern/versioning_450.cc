@@ -114,7 +114,7 @@ static void fix_curve_nurbs_knot_mode_custom(Main *bmain)
         continue;
       }
       bke::greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-      fix_curves(drawing.strokes_for_write());
+      fix_curves(drawing.as_curves_for_write());
     }
   }
 }

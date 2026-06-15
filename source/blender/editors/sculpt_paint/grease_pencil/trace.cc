@@ -288,7 +288,7 @@ static void trace_end_job(void *customdata)
       BLI_assert(trace_job.traced_curves.size() == 1);
       bke::greasepencil::Drawing *drawing = ensure_drawing_at_frame(trace_job.frame_target);
       BLI_assert(drawing != nullptr);
-      drawing->strokes_for_write() = trace_job.traced_curves.first();
+      drawing->as_curves_for_write() = trace_job.traced_curves.first();
       drawing->tag_topology_changed();
       break;
     }
@@ -302,7 +302,7 @@ static void trace_end_job(void *customdata)
         const int frame_number = init_frame + i;
         bke::greasepencil::Drawing *drawing = ensure_drawing_at_frame(frame_number);
         BLI_assert(drawing != nullptr);
-        drawing->strokes_for_write() = trace_job.traced_curves[i];
+        drawing->as_curves_for_write() = trace_job.traced_curves[i];
         drawing->tag_topology_changed();
       }
       break;

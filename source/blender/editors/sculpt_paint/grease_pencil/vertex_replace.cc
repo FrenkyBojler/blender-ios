@@ -73,7 +73,7 @@ void VertexReplaceOperation::on_stroke_extended(const bContext &C,
         if (!fill_selection.is_empty() && do_fill) {
           BLI_assert(params.drawing.fills().has_value());
           const GroupedSpan<int> fills = *params.drawing.fills();
-          const bke::CurvesGeometry &curves = params.drawing.strokes();
+          const bke::CurvesGeometry &curves = params.drawing.as_curves();
           const OffsetIndices<int> points_by_curve = curves.points_by_curve();
           MutableSpan<ColorGeometry4f> fill_colors = params.drawing.fill_colors_for_write();
           /* TODO. Only calculate needed positions. */
