@@ -1,2 +1,3 @@
 Referenced by issue #45830, 'View selected' does not always zoom in/out in node editor
 Referenced by pull request #157847, Nodes: Remove single-node exception from Frame Selected
+Referenced by commit 61172bc032a52a1dccab6b7eeab2b03261609bf4, Nodes: Remove single-node exception from Frame Selected
