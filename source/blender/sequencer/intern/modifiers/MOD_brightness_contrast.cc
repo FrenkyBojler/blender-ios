@@ -15,6 +15,8 @@
 
 #include "DNA_sequence_types.h"
 
+#include "PRF_profile.hh"
+
 #include "SEQ_modifier.hh"
 #include "SEQ_render.hh"
 
@@ -55,7 +57,8 @@ struct BrightContrastApplyOp {
 
 static void brightcontrast_apply(ModifierApplyContext &context, StripModifierData *smd)
 {
-  ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
+  PRF_scope_with_name("SeqModBrightContrast", ProfileCategory::Draw);
+  ensure_ibuf_is_sequencer_space(context.render_data.scene, context.result.image, false);
   ImBuf *mask = modifier_render_mask_input(context, *smd);
 
   const BrightContrastModifierData *bcmd = reinterpret_cast<BrightContrastModifierData *>(smd);
@@ -80,7 +83,7 @@ static void brightcontrast_apply(ModifierApplyContext &context, StripModifierDat
     op.add = op.mul * brightness + delta;
   }
 
-  apply_modifier_op(op, context.image, mask, context.transform);
+  apply_modifier_op(op, context.result.image, mask, context.transform);
   if (mask != nullptr) {
     IMB_freeImBuf(mask);
   }

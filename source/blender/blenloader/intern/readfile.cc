@@ -173,7 +173,7 @@ namespace blender {
  *
  * \note Still a weak point is the new-address function, that doesn't solve reading from
  * multiple files at the same time.
- * (added remark: oh, i thought that was solved? will look at that... (ton).
+ * (added remark: oh, i thought that was solved? will look at that... (ton)).
  */
 
 /**
@@ -424,7 +424,7 @@ void blo_split_main(Main *bmain, const bool do_split_packed_ids)
   bmain->split_mains = std::make_shared<VectorSet<Main *>>();
   bmain->split_mains->add_new(bmain);
 
-  if (BLI_listbase_is_empty(&bmain->libraries)) {
+  if (bmain->libraries.is_empty()) {
     return;
   }
 
@@ -1357,7 +1357,7 @@ void blo_filedata_free(FileData *fd)
 {
   /* Free all BHeadN data blocks */
 #ifdef NDEBUG
-  BLI_freelistN(&fd->bhead_list);
+  fd->bhead_list.free_no_destruct();
 #else
   /* Sanity check we're not keeping memory we don't need. */
   for (BHeadN &new_bhead : fd->bhead_list.items_mutable()) {
@@ -2016,6 +2016,8 @@ static void direct_link_id_override_property(BlendDataReader *reader,
   for (IDOverrideLibraryPropertyOperation &opop : op->operations) {
     BLO_read_string(reader, &opop.subitem_reference_name);
     BLO_read_string(reader, &opop.subitem_local_name);
+    BLO_read_string(reader, &opop.label);
+    BLO_read_string(reader, &opop.tooltip);
 
     opop.tag = {}; /* Runtime only. */
   }
@@ -2402,7 +2404,7 @@ static bool scene_validate_setscene__liblink(Scene *sce, const int totscene)
 static void lib_link_scenes_check_set(Main *bmain)
 {
 #ifdef USE_SETSCENE_CHECK
-  const int totscene = BLI_listbase_count(&bmain->scenes);
+  const int totscene = bmain->scenes.count();
   for (Scene &sce : bmain->scenes) {
     if (sce.flag & SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK) {
       sce.flag &= ~SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK;
@@ -2921,7 +2923,7 @@ static void read_undo_reuse_noundo_local_ids(FileData *fd)
     }
 
     ListBaseT<ID> *new_lb = which_libbase(new_bmain, id_type->id_code);
-    BLI_assert(BLI_listbase_is_empty(new_lb));
+    BLI_assert(new_lb->is_empty());
     BLI_movelisttolist(new_lb, lbarray[i]);
 
     /* Update mappings accordingly. */
@@ -4527,6 +4529,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
       /* Update invariants after re-generating overrides. */
       BKE_main_ensure_invariants(*bfd->main);
 
+      BKE_main_id_indirect_linked_update(*bfd->main);
+
       fd->reports->duration.lib_overrides = BLI_time_now_seconds() -
                                             fd->reports->duration.lib_overrides;
     }
@@ -5874,17 +5878,9 @@ static void *blo_verify_data_address(FileData *fd,
   return new_address;
 }
 
-void *BLO_read_get_new_data_address(BlendDataReader *reader, const void *old_address)
+void *blo_read_raw_address_impl(BlendDataReader *reader, const void *old_address)
 {
   return newdataadr(reader->fd, old_address);
-}
-
-void *BLO_read_get_new_data_address_no_us(BlendDataReader *reader,
-                                          const void *old_address,
-                                          const size_t expected_size)
-{
-  void *new_address = newdataadr_no_us(reader->fd, old_address);
-  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
 }
 
 void *blo_read_struct_impl(BlendDataReader *reader,
@@ -5893,6 +5889,42 @@ void *blo_read_struct_impl(BlendDataReader *reader,
 {
   void *new_address = newdataadr(reader->fd, old_address);
   return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
+}
+
+void *blo_read_struct_no_us_impl(BlendDataReader *reader,
+                                 const void *old_address,
+                                 const size_t expected_size)
+{
+  void *new_address = newdataadr_no_us(reader->fd, old_address);
+  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
+}
+
+static void *blo_check_data_address_nonnull(FileData *fd,
+                                            const void *old_address,
+                                            void *new_address)
+{
+  if (old_address != nullptr && new_address == nullptr) {
+    blo_readfile_invalidate(fd,
+                            (*fd->bmain->split_mains)[fd->bmain->split_mains->size() - 1],
+                            "Corrupt .blend file, missing required data block.");
+  }
+  return new_address;
+}
+
+void *blo_read_struct_nonnull_impl(BlendDataReader *reader,
+                                   const void *old_address,
+                                   const size_t expected_size)
+{
+  void *new_address = blo_read_struct_impl(reader, old_address, expected_size);
+  return blo_check_data_address_nonnull(reader->fd, old_address, new_address);
+}
+
+void *blo_read_struct_no_us_nonnull_impl(BlendDataReader *reader,
+                                         const void *old_address,
+                                         const size_t expected_size)
+{
+  void *new_address = blo_read_struct_no_us_impl(reader, old_address, expected_size);
+  return blo_check_data_address_nonnull(reader->fd, old_address, new_address);
 }
 
 bool blo_read_array_impl(BlendDataReader *reader,
@@ -5990,7 +6022,7 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
 
 void BLO_read_string(BlendDataReader *reader, char **ptr_p)
 {
-  BLO_read_data_address(reader, ptr_p);
+  BLO_read_raw_address(reader, ptr_p);
 
 #ifndef NDEBUG
   const char *str = *ptr_p;

@@ -907,7 +907,9 @@ class CYCLES_RENDER_PT_performance_texture_cache(CyclesButtonsPanel, Panel):
 
         row = col.split(factor=0.4)
         row.label()
-        row.operator("render.generate_texture_cache", text="Generate All")
+        sub = row.row(align=True)
+        sub.operator("render.generate_texture_cache", text="Generate")
+        sub.operator("render.clear_texture_cache", text="Clear")
 
         prefs = context.preferences
         if prefs.experimental.use_cycles_debug and prefs.view.show_developer_ui:
@@ -1068,7 +1070,20 @@ class CYCLES_RENDER_PT_passes_data(CyclesButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_uv")
         col.prop(view_layer, "use_pass_grease_pencil", text="Grease Pencil")
 
-        col.prop(cycles_view_layer, "denoising_store_passes", text="Denoising Data")
+        prefs = context.preferences
+        use_debug = prefs.experimental.use_cycles_debug and prefs.view.show_developer_ui
+        if use_debug:
+            col = layout.column(heading="Denoising", align=True)
+            col.prop(cycles_view_layer, "denoising_store_passes", text="Data Passes")
+            sub = col.column()
+            sub.active = cycles_view_layer.denoising_store_passes
+            sub.prop(cycles_view_layer, "denoising_pass_follow_reflections", text="Follow Reflections")
+            sub.prop(
+                cycles_view_layer,
+                "denoising_pass_use_albedo_roughness_weighting",
+                text="Albedo Roughness Weighting")
+        else:
+            col.prop(cycles_view_layer, "denoising_store_passes", text="Denoising Data")
 
         col = layout.column(heading="Indexes", align=True)
         col.prop(view_layer, "use_pass_object_index")
@@ -2339,9 +2354,13 @@ class CYCLES_RENDER_PT_simplify_viewport(CyclesButtonsPanel, Panel):
         col = layout.column()
         col.prop(rd, "simplify_subdivision", text="Max Subdivision")
         col.prop(rd, "simplify_child_particles", text="Child Particles")
-        col.prop(cscene, "texture_resolution", text="Texture Resolution")
-        col.prop(rd, "simplify_volumes", text="Volume Resolution")
         col.prop(rd, "use_simplify_normals", text="Normals")
+        col.prop(rd, "simplify_volumes", text="Volume Resolution")
+
+        col.separator()
+
+        col.prop(cscene, "texture_resolution", text="Texture Resolution")
+        col.prop(cscene, "texture_limit", text="Texture Size Limit")
 
 
 class CYCLES_RENDER_PT_simplify_render(CyclesButtonsPanel, Panel):
@@ -2365,7 +2384,11 @@ class CYCLES_RENDER_PT_simplify_render(CyclesButtonsPanel, Panel):
 
         col.prop(rd, "simplify_subdivision_render", text="Max Subdivision")
         col.prop(rd, "simplify_child_particles_render", text="Child Particles")
+
+        col.separator()
+
         col.prop(cscene, "texture_resolution_render", text="Texture Resolution")
+        col.prop(cscene, "texture_limit_render", text="Texture Size Limit")
 
 
 class CYCLES_RENDER_PT_simplify_culling(CyclesButtonsPanel, Panel):
