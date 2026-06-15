@@ -49,6 +49,10 @@ bool device_hip_init(bool *r_meets_driver_requirement)
       if (r_meets_driver_requirement) {
         *r_meets_driver_requirement = false;
       }
+      /* The device will not be used because it does not meet the driver requirement.
+       * Returning true ensures the real AMD device information is still reported
+       * in the UI. */
+      result = true;
     }
     else if (HIPDevice::have_precompiled_kernels()) {
       LOG_INFO << "Found precompiled kernels";

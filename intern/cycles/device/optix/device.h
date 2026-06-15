@@ -21,10 +21,8 @@ unique_ptr<Device> device_optix_create(const DeviceInfo &info,
                                        Profiler &profiler,
                                        bool headless);
 
-void device_optix_info(const vector<DeviceInfo> &cuda_devices, vector<DeviceInfo> &devices);
-
 /** Generate proper OptiX DeviceInfo based on an existing CUDA DeviceInfo for the same device.
- * Does not require usage of the OptiX API. */
-bool optix_device_info_from_cuda(const DeviceInfo &cuda_device, DeviceInfo *r_optix_device);
+ * Does not require usage of the OptiX API, only CUDA API. */
+void device_optix_info(const vector<DeviceInfo> &cuda_devices, vector<DeviceInfo> &devices);
 
 CCL_NAMESPACE_END

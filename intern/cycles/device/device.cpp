@@ -277,17 +277,11 @@ vector<DeviceInfo> Device::available_devices(const uint mask)
   if (mask & DEVICE_MASK_OPTIX) {
     if (!(devices_initialized_mask & DEVICE_MASK_OPTIX)) {
       bool meets_nvidia_driver_requirement = true;
-      if (device_optix_init(&meets_nvidia_driver_requirement)) {
+      if (device_optix_init(&meets_nvidia_driver_requirement) || !meets_nvidia_driver_requirement)
+      {
         device_optix_info(cuda_devices(), optix_devices());
-      }
-      else if (meets_nvidia_driver_requirement == false) {
-        for (DeviceInfo &cuda_info : cuda_devices()) {
-          DeviceInfo optix_info = DeviceInfo();
-          /* Not every CUDA device is OptiX-compatible, which is why this is conditional. */
-          if (optix_device_info_from_cuda(cuda_info, &optix_info)) {
-            optix_info.meets_driver_requirement = false;
-            optix_devices().push_back(optix_info);
-          }
+        for (DeviceInfo &info : optix_devices()) {
+          info.meets_driver_requirement = meets_nvidia_driver_requirement;
         }
       }
       else {
