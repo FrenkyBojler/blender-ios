@@ -2226,7 +2226,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_mixcolor(View3DPanel, Panel):
         settings = tool_settings.gpencil_paint
         brush = settings.brush
         gp_settings = brush.gpencil_settings
-        use_unified_paint = (context.object.mode != 'PAINT_GREASE_PENCIL')
+        use_unified_paint = True
         ups = settings.unified_paint_settings
         prop_owner = ups if use_unified_paint and ups.use_unified_color else brush
 
@@ -2250,6 +2250,8 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_mixcolor(View3DPanel, Panel):
             sub_row.prop(brush, "secondary_color", text="")
 
         sub_row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
+        if use_unified_paint:
+            sub_row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
 
         if brush.gpencil_brush_type in {'DRAW', 'FILL'}:
             col.prop(gp_settings, "vertex_color_factor", slider=True, text="Mix Factor")

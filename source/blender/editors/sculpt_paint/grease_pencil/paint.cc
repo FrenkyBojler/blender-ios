@@ -300,7 +300,7 @@ struct PaintOperationExecutor {
     use_vertex_color_ = brush_using_vertex_color(scene_->toolsettings->gp_paint, brush_);
     if (use_vertex_color_) {
       ColorGeometry4f color_base;
-      copy_v3_v3(color_base, brush_->color);
+      copy_v3_v3(color_base, BKE_brush_color_get(paint, brush_));
       color_base.a = settings_->vertex_factor;
       if (settings_->flag2 & GP_BRUSH_USE_STROKE) {
         vertex_color_ = color_base;

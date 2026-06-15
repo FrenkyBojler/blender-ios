@@ -826,7 +826,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
                                  GPPAINT_FLAG_USE_VERTEXCOLOR);
   if (use_vertex_color) {
     ColorGeometry4f color_base;
-    copy_v3_v3(color_base, ptd.brush->color);
+    copy_v3_v3(color_base, BKE_brush_color_get(paint, ptd.brush));
     color_base.a = ptd.settings->vertex_factor;
 
     ptd.vertex_color = (ptd.settings->flag2 & GP_BRUSH_USE_STROKE) ?

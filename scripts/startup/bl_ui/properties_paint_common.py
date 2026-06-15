@@ -1742,7 +1742,9 @@ def brush_basic__draw_color_selector(context, layout, brush, gp_settings):
             sub_row = row.row(align=True)
             sub_row.enabled = show_vertex_color
             sub_row.scale_x = 0.8
-            sub_row.prop_with_popover(brush, "color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
+            ups = settings.unified_paint_settings
+            prop_owner = ups if ups.use_unified_color else brush
+            sub_row.prop_with_popover(prop_owner, "color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
         row.prop(gp_settings, "pin_draw_mode", text="")
 
 

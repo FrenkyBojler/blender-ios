@@ -173,7 +173,8 @@ void grease_pencil_cursor_draw(PaintCursorContext &pcontext)
             pcontext.scene->toolsettings->gp_paint, brush);
         const bool use_vertex_color_stroke = use_vertex_color;
         if (use_vertex_color_stroke) {
-          IMB_colormanagement_scene_linear_to_srgb_v3(color, brush->color);
+          color = BKE_brush_color_get(paint, brush);
+          IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
         }
         else {
           color = float4(gp_style->stroke_rgba).xyz();

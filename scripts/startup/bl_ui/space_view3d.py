@@ -663,8 +663,9 @@ class _draw_tool_settings_context_mode:
             brush_basic__draw_color_selector(context, layout, brush, brush.gpencil_settings)
 
         if grease_pencil_tool == 'TINT':
-            row.separator(factor=0.4)
-            row.prop_with_popover(brush, "color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
+            ups = paint.unified_paint_settings
+            prop_owner = ups if ups.use_unified_color else brush
+            row.prop_with_popover(prop_owner, "color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
 
         from bl_ui.properties_paint_common import (
             brush_basic_grease_pencil_paint_settings,
@@ -8585,8 +8586,10 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
 
         if brush.gpencil_brush_type not in {'ERASE', 'CUTTER', 'EYEDROPPER'} and is_vertex:
             split = layout.split(factor=0.1)
-            split.prop(brush, "color", text="")
-            split.template_color_picker(brush, "color", value_slider=True)
+            ups = settings.unified_paint_settings
+            prop_owner = ups if ups.use_unified_color else brush
+            split.prop(prop_owner, "color", text="")
+            split.template_color_picker(prop_owner, "color", value_slider=True)
 
         if brush.gpencil_brush_type not in {'FILL', 'CUTTER', 'ERASE'}:
             if brush.use_locked_size == 'VIEW':
@@ -9064,7 +9067,7 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
             paint = context.scene.tool_settings.gpencil_paint
         elif ob.mode == 'VERTEX_GREASE_PENCIL':
             paint = context.scene.tool_settings.gpencil_vertex_paint
-        use_unified_paint = (ob.mode != 'PAINT_GREASE_PENCIL')
+        use_unified_paint = True
 
         ups = paint.unified_paint_settings
         brush = paint.brush
@@ -9082,6 +9085,8 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
             sub_row.prop(brush, "secondary_color", text="")
 
         sub_row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
+        if use_unified_paint:
+            sub_row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
 
         row = layout.row(align=True)
         row.template_ID(paint, "palette", new="palette.new")
