@@ -23,6 +23,7 @@
 #include "util/math_float3.h"
 #include "util/progress.h"
 #include "util/queue.h"
+#include "util/set.h"
 #include "util/task.h"
 
 CCL_NAMESPACE_BEGIN
@@ -397,12 +398,11 @@ bool SVMCompiler::is_sole_user(const ShaderNode *node,
 
 void SVMCompiler::stack_clear_users(ShaderNode *node, ShaderNodeSet &done)
 {
-  /* optimization we should add:
-   * find and lower user counts for outputs for which all inputs are done.
-   * this is done before the node is compiled, under the assumption that the
-   * node will first load all inputs from the stack and then writes its
-   * outputs. this used to work, but was disabled because it gave trouble
-   * with inputs getting stack positions assigned */
+  /* Possible minor optimization: If all nodes read all inputs before writing outputs,
+   * the input stack space could be reused for the output and cache locality would be
+   * improved. This was tried at some point but disabled, it would need careful validation
+   * of stack assignment code and every SVM node implementation. It's not obvious if it's
+   * worth it. */
 
   for (ShaderInput *input : node->inputs) {
     ShaderOutput *output = input->link;
@@ -637,13 +637,20 @@ void SVMCompiler::generate_svm_nodes(const ShaderNodeSet &nodes, CompilerState *
    * node is the last remaining user of an output socket, scheduling it will
    * free the output socket's stack space. This mirrors stack_clear_users(),
    * which performs the actual freeing once the node is compiled. */
+  unordered_set<const ShaderOutput *> output_counted;
   auto node_free_size = [&](const ShaderNode *node) {
     int size = 0;
+    /* Clear instead of allocating from scratch for slightly better performance. */
+    output_counted.clear();
     for (const ShaderInput *input : node->inputs) {
       const ShaderOutput *output = input->link;
       if (output && output->stack_offset != SVM_STACK_INVALID && is_sole_user(node, output, done))
       {
-        size += stack_size(output);
+        /* Multiple inputs may link to the same output, count its size only once. */
+        if (!output_counted.contains(output)) {
+          output_counted.insert(output);
+          size += stack_size(output);
+        }
       }
     }
     return size;
