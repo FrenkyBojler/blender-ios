@@ -14,13 +14,13 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_linklist.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_linklist.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_editmesh.hh"
@@ -1134,10 +1134,10 @@ void mesh_data_update(Depsgraph &depsgraph,
   }
 }
 
-Mesh *mesh_get_eval_deform(Depsgraph *depsgraph,
-                           const Scene *scene,
-                           Object *ob,
-                           const CustomData_MeshMasks *dataMask)
+const Mesh *mesh_get_eval_deform(Depsgraph *depsgraph,
+                                 const Scene *scene,
+                                 Object *ob,
+                                 const CustomData_MeshMasks *dataMask)
 {
   BMEditMesh *em = (id_cast<Mesh *>(ob->data))->runtime->edit_mesh.get();
   if (em != nullptr) {
@@ -1210,11 +1210,11 @@ Mesh *mesh_create_eval_no_deform_render(Depsgraph *depsgraph,
   return result;
 }
 
-Mesh *editbmesh_get_eval_cage(Depsgraph *depsgraph,
-                              const Scene *scene,
-                              Object *obedit,
-                              BMEditMesh * /*em*/,
-                              const CustomData_MeshMasks *dataMask)
+const Mesh *editbmesh_get_eval_cage(Depsgraph *depsgraph,
+                                    const Scene *scene,
+                                    Object *obedit,
+                                    BMEditMesh * /*em*/,
+                                    const CustomData_MeshMasks *dataMask)
 {
   CustomData_MeshMasks cddata_masks = *dataMask;
 
@@ -1234,10 +1234,10 @@ Mesh *editbmesh_get_eval_cage(Depsgraph *depsgraph,
   return obedit->runtime->editmesh_eval_cage;
 }
 
-Mesh *editbmesh_get_eval_cage_from_orig(Depsgraph *depsgraph,
-                                        const Scene *scene,
-                                        Object *obedit,
-                                        const CustomData_MeshMasks *dataMask)
+const Mesh *editbmesh_get_eval_cage_from_orig(Depsgraph *depsgraph,
+                                              const Scene *scene,
+                                              Object *obedit,
+                                              const CustomData_MeshMasks *dataMask)
 {
   BLI_assert((obedit->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
   const Scene *scene_eval = DEG_get_evaluated(depsgraph, scene);
@@ -1264,7 +1264,7 @@ static void make_vertexcos__mapFunc(void *user_data,
   }
 }
 
-void mesh_get_mapped_verts_coords(Mesh *mesh_eval, MutableSpan<float3> r_cos)
+void mesh_get_mapped_verts_coords(const Mesh *mesh_eval, MutableSpan<float3> r_cos)
 {
   if (mesh_eval->runtime->deformed_only == false) {
     MappedUserData user_data;
