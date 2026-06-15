@@ -368,8 +368,7 @@ void VKShaderInterface::descriptor_set_location_update(
     vk_access_flags |= VK_ACCESS_UNIFORM_READ_BIT;
   }
   else if (bind_type == VKBindType::INPUT_ATTACHMENT) {
-    vk_access_flags |= supports_local_read ? VK_ACCESS_INPUT_ATTACHMENT_READ_BIT |
-                                                 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT :
+    vk_access_flags |= supports_local_read ? VK_ACCESS_INPUT_ATTACHMENT_READ_BIT :
                                              VK_ACCESS_SHADER_READ_BIT;
   }
 

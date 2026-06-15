@@ -78,7 +78,9 @@ void VKResourceStateTracker::add_aliased_image(VkImage vk_image,
 {
   add_image(vk_image,
             use_subresource_tracking,
-            {VK_ACCESS_NONE, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_IMAGE_LAYOUT_UNDEFINED},
+            {VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+             VK_IMAGE_LAYOUT_UNDEFINED},
             name);
 }
 
@@ -88,7 +90,7 @@ void VKResourceStateTracker::add_swapchain_image(VkImage vk_image, const char *n
             false,
             {
                 VK_ACCESS_NONE,
-                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_PIPELINE_STAGE_NONE,
             },
             name);
 }

@@ -87,10 +87,9 @@ class VKCommandBuilder {
      */
     struct SubImageChange {
       VkImage vk_image;
-      VkImageLayout vk_image_layout;
+      VkImageAspectFlags vk_image_aspect;
       VKSubImageRange subimage;
       VKResourceBarrierState resource_state;
-      VkImageAspectFlags aspect_mask;
     };
     Vector<SubImageChange> changes;
 
@@ -237,9 +236,7 @@ class VKCommandBuilder {
                                Barrier &r_barrier,
                                bool within_rendering = false);
   void reset_barriers(Barrier &r_barrier);
-  void send_pipeline_barriers(VKCommandBufferInterface &command_buffer,
-                              const Barrier &barrier,
-                              bool within_rendering);
+  void send_pipeline_barriers(VKCommandBufferInterface &command_buffer, const Barrier &barrier);
 
   void add_buffer_barriers(VKRenderGraph &render_graph,
                            NodeHandle node_handle,

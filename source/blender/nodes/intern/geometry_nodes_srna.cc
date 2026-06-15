@@ -20,6 +20,8 @@
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
+#include "PRF_profile.hh"
+
 namespace blender::nodes {
 
 static constexpr EnumPropertyItem input_type_item_fallback = {
@@ -180,7 +182,7 @@ static StructRNA *create_panels_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
 
   tree.ensure_interface_cache();
   for (const bNodeTreeInterfaceItem *item : tree.interface_items()) {
-    if (item->item_type != NODE_INTERFACE_PANEL) {
+    if (item->item_type != NodeTreeInterfaceItemType::Panel) {
       continue;
     }
     const auto &panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
@@ -199,6 +201,7 @@ static StructRNA *create_panels_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
 std::shared_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
     const bNodeTree &tree)
 {
+  PRF_scope(ProfileCategory::Core);
   auto generated = std::make_unique<GeneratedTreeSrnaData>();
   tree.ensure_interface_cache();
 
