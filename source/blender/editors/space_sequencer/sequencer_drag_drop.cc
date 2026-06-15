@@ -11,9 +11,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 
-#include "BLI_math_base_c.hh"
 #include "BLI_listbase.hh"
 #include "BLI_listbase_wrapper.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
 #include "BLI_string_ref.hh"
