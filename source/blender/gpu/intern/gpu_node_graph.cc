@@ -22,6 +22,7 @@
 #include "BLI_string.hh"
 #include "BLI_utildefines.hh"
 
+#include "BKE_image.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -498,6 +499,13 @@ static GPULayerAttr *gpu_node_graph_add_layer_attribute(GPUNodeGraph *graph, con
   return attr;
 }
 
+static bool gpu_image_user_match(const GPUMaterialTexture *tex, const ImageUser *iuser)
+{
+  return (tex->iuser_available == (iuser != nullptr)) ?
+             (tex->iuser_available) ? BKE_image_user_match(tex->iuser, *iuser) : true :
+             false;
+}
+
 static GPUMaterialTexture *gpu_node_graph_add_texture(GPUNodeGraph *graph,
                                                       Image *ima,
                                                       ImageUser *iuser,
@@ -511,7 +519,7 @@ static GPUMaterialTexture *gpu_node_graph_add_texture(GPUNodeGraph *graph,
   GPUMaterialTexture *tex = static_cast<GPUMaterialTexture *>(graph->textures.first);
   for (; tex; tex = tex->next) {
     if (tex->ima == ima && tex->colorband == colorband && tex->sky == sky &&
-        tex->sampler_state == sampler_state)
+        tex->sampler_state == sampler_state && gpu_image_user_match(tex, iuser))
     {
       break;
     }
