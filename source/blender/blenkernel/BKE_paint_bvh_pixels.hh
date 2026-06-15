@@ -58,6 +58,12 @@ struct UDIMTilePixels {
   rcti dirty_region;
 
   Vector<PackedPixelRow> pixel_rows;
+
+  /**
+   * Encoded 3D position data corresponding to each element of `pixel_rows`.
+   *
+   * Needs to be re-calculated when underlying mesh position data changes.
+   */
   Vector<PackedPixelRowPosition> pixel_row_positions;
 
   UDIMTilePixels()

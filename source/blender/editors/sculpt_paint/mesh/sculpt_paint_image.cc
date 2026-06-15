@@ -120,15 +120,15 @@ static void fetch_image_buffers(ImageData &image_data,
   }
 }
 
-static void calc_pixel_row_positions(const PackedPixelRowPosition &packed_pixel_row_position,
+static void calc_pixel_row_positions(const PackedPixelRowPosition &row_data,
                                      const MutableSpan<float3> positions,
                                      IndexRange range)
 {
   PRF_scope(ProfileCategory::Editor);
   BLI_assert(range.size() == positions.size());
 
-  const float3 delta = packed_pixel_row_position.delta;
-  const float3 start = packed_pixel_row_position.start + delta * range.start();
+  const float3 delta = row_data.delta;
+  const float3 start = row_data.start + delta * range.start();
   for (const int i : positions.index_range()) {
     positions[i] = start + delta * i;
   }
@@ -347,7 +347,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
   const float3 location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
   const float radius = ss.cache ? ss.cache->radius : ss.cursor_radius;
-  Bounds<float3> brush_bounds(location - radius, location + radius);
+  const Bounds<float3> brush_bounds(location - radius, location + radius);
 
   for (UDIMTilePixels &tile_data : pixel_node.tiles) {
     ImBuf *image_buffer = image_data.buffers.lookup_default(tile_data.tile_number, nullptr);

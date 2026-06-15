@@ -299,12 +299,10 @@ static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_us
 static float3 calc_pixel_position(const Span<float3> vert_positions,
                                   const Span<int3> vert_tris,
                                   const int tri_index,
-                                  const float2 &barycentric_weight)
+                                  const float2 &bary_weight)
 {
   const int3 &verts = vert_tris[tri_index];
-  const float3 weights(barycentric_weight.x,
-                       barycentric_weight.y,
-                       1.0f - barycentric_weight.x - barycentric_weight.y);
+  const float3 weights(bary_weight.x, bary_weight.y, 1.0f - bary_weight.x - bary_weight.y);
   float3 result;
   interp_v3_v3v3v3(result,
                    vert_positions[verts[0]],
@@ -314,9 +312,9 @@ static float3 calc_pixel_position(const Span<float3> vert_positions,
   return result;
 }
 
-static void do_calculate_3d_positions(const uv_islands::MeshData &mesh_data,
-                                      const PixelData &pixel_data,
-                                      PixelNode &pixel_node)
+static void calc_node_pixel_row_positions(const uv_islands::MeshData &mesh_data,
+                                          const PixelData &pixel_data,
+                                          PixelNode &pixel_node)
 {
   for (UDIMTilePixels &tile_data : pixel_node.tiles) {
     BLI_assert(tile_data.pixel_row_positions.is_empty() ||
@@ -411,7 +409,7 @@ static bool update_pixels(const Depsgraph &depsgraph,
       exec_mode::grain_size(1));
   const PixelData &pixel_data = data_get(pbvh);
   nodes_to_update.foreach_index(
-      [&](const int i) { do_calculate_3d_positions(mesh_data, pixel_data, pixel_nodes[i]); },
+      [&](const int i) { calc_node_pixel_row_positions(mesh_data, pixel_data, pixel_nodes[i]); },
       exec_mode::grain_size(1));
   if (USE_WATERTIGHT_CHECK) {
     apply_watertight_check(pbvh, image, image_user);
