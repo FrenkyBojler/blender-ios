@@ -2946,7 +2946,7 @@ static const EnumPropertyItem sequencer_prop_select_by_type_items[] = {
     {STRIP_TYPE_ADJUSTMENT, "ADJUSTMENT", ICON_COLOR, "Adjustment Layer", ""},
     {STRIP_TYPE_COMPOSITOR, "COMPOSITOR", ICON_NODE_COMPOSITING, "Compositor", ""},
     RNA_ENUM_ITEM_SEPR,
-    {SEQ_SELECT_TYPE_EFFECT, "EFFECT", ICON_SHADERFX, "Effect Strip", ""},
+    {SEQ_SELECT_TYPE_EFFECT, "EFFECT", ICON_SHADERFX, "Effect", ""},
     {SEQ_SELECT_TYPE_VISUAL,
      "VISUAL",
      ICON_HIDE_OFF,
