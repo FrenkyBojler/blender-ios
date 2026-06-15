@@ -151,7 +151,7 @@ static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
       }
       return false;
     };
-    var->name = BLI_uniquename_cb(check_name_is_used, '.', new_name);
+    var->name = BLI_uniquename_cb(check_name_is_used, '_', new_name);
   });
 }
 
