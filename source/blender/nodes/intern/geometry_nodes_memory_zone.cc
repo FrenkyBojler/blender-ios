@@ -48,14 +48,9 @@ class LazyFunctionForMemoryZone : public LazyFunction {
         body_fn_(body_fn)
   {
     debug_name_ = "Memory Zone";
+    // allow_missing_requested_inputs_ = true;
     initialize_zone_wrapper(zone, zone_info, body_fn, true, inputs_, outputs_);
-    
-    printf("%s{\n", __func__);
-    for (const auto &output : outputs_) {
-      printf("   %s: %s;\n", output.debug_name, output.type->name().c_str());
-    }
-    printf("}\n");
-    
+
     for (auto &input : inputs_) {
       input.usage = lf::ValueUsage::Maybe;
     }
@@ -81,20 +76,20 @@ class LazyFunctionForMemoryZone : public LazyFunction {
 
     Array<lf::ValueUsage> output_usages(total_outputs);
     for (const int i : IndexRange(total_outputs)) {
-      output_usages[i] = params.get_output_usage(1 - i);
-      if (params.output_was_set(1 - i)) {
-        output_usages[i] = lf::ValueUsage::Unused;
-      }
+      output_usages[i] = params.get_output_usage(i);
     }
 
     Array<GMutablePointer> inputs(total_inputs);
     for (const int i : IndexRange(total_inputs)) {
       inputs[i] = GMutablePointer(inputs_[i].type, params.try_get_input_data_ptr(i));
     }
-    
+
     Array<GMutablePointer> outputs(total_outputs);
     for (const int i : IndexRange(total_outputs)) {
-      outputs[1 - i] = GMutablePointer(outputs_[i].type, params.get_output_data_ptr(i));
+      if ((*eval_storage.set_outputs)[i]) {
+        continue;
+      }
+      outputs[i] = GMutablePointer(outputs_[i].type, params.get_output_data_ptr(i));
     }
 
     Array<std::optional<lf::ValueUsage>> input_usages(body_fn_.function->inputs().size(), std::nullopt);
@@ -106,6 +101,22 @@ class LazyFunctionForMemoryZone : public LazyFunction {
                                     output_usages.as_span(),
                                     eval_storage.set_outputs->as_mutable_span());
 
+    Vector<int> input_mapping;
+    input_mapping.extend(zone_info_.indices.inputs.main);
+    input_mapping.extend(zone_info_.indices.inputs.border_links);
+    input_mapping.extend(zone_info_.indices.inputs.output_usages);
+    Vector<int> output_mapping;
+    output_mapping.extend(zone_info_.indices.outputs.input_usages);
+    output_mapping.extend(zone_info_.indices.outputs.border_link_usages);
+    output_mapping.extend(zone_info_.indices.outputs.main);
+
+    bool use_threading = true;
+    lf::RemappedParams mapped_params{*body_fn_.function,
+                                     captured_params,
+                                     input_mapping,
+                                     output_mapping,
+                                     use_threading};
+
     bke::NodeComputeContext compute_context(user_data.compute_context, output_bnode_.identifier, &btree_);
 
     GeoNodesUserData group_user_data = user_data;
@@ -115,13 +126,23 @@ class LazyFunctionForMemoryZone : public LazyFunction {
     GeoNodesLocalUserData group_local_user_data(group_user_data);
     lf::Context sub_context(eval_storage.body_state, &group_user_data, &group_local_user_data);
 
-    body_fn_.function->execute(captured_params, sub_context);
-    
+    body_fn_.function->execute(mapped_params, sub_context);
+
     for (const int i : eval_storage.set_outputs->index_range()) {
-      if ((*eval_storage.set_outputs)[i]) {
-        printf("%d;\n", i);
-        params.output_set(1 - i);
+      if (params.output_was_set(i)) {
+        continue;
       }
+      if ((*eval_storage.set_outputs)[i]) {
+        params.output_set(i);
+      }
+    }
+
+    for (const int i : IndexRange(total_inputs)) {
+      if (input_usages[i].value_or(lf::ValueUsage::Unused) != lf::ValueUsage::Used) {
+        continue;
+      }
+
+      params.try_get_input_data_ptr_or_request(i);
     }
   }
 
@@ -129,7 +150,7 @@ class LazyFunctionForMemoryZone : public LazyFunction {
   {
     auto &state = *allocator.construct<EvalState>();
     state.body_state = body_fn_.function->init_storage(allocator);
-    return &state; 
+    return &state;
   }
 
   void destruct_storage(void *storage) const override

@@ -65,7 +65,6 @@ struct MemoryZoneInputItemsAccessor : public socket_items::SocketItemsAccessorDe
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    printf("%s;\n", node.name);
     auto *storage = static_cast<NodeGeometryMemoryZoneOutput *>(node.storage);
     NodeMemoryZoneInputItems &inputs = storage->input_items;
     return {&inputs.items, &inputs.items_num, &inputs.active_index};
