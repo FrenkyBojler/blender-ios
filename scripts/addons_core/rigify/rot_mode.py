@@ -299,8 +299,6 @@ def register():
     for cls in classes:
         register_class(cls)
 
-    bpy.types.VIEW3D_MT_pose.append(draw_convert_rotation)
-
 
 def unregister():
     from bpy.utils import unregister_class
@@ -308,5 +306,3 @@ def unregister():
     # Classes.
     for cls in classes:
         unregister_class(cls)
-
-    bpy.types.VIEW3D_MT_pose.remove(draw_convert_rotation)
