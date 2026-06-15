@@ -70,23 +70,21 @@ bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
 // TMP
 bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
 {
-  Strip *strip;
-
   if (test->input2 != nullptr) {
     return false;
   }
 
-  strip = static_cast<Strip *>(seqbasep->first);
-  while (strip) {
-    if (strip->input2 != nullptr) {
+  for (Strip &strip : *seqbasep) {
+    if (strip.input2 != nullptr) {
+      // TODO: here would be the check to see if the overlap has been broken for moving one of the
+      // strips
       continue;
     }
-    if (transform_test_overlap(scene, test, strip)) {
+    if (transform_test_overlap(scene, test, &strip)) {
       return true;
     }
-
-    strip = strip->next;
   }
+
   return false;
 }
 
