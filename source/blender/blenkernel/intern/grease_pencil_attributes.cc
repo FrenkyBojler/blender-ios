@@ -132,7 +132,49 @@ static const auto &builtin_attributes()
     AttrBuiltinInfo opacity(AttrDomain::Point, AttrType::Float);
     map.add_new("opacity", std::move(opacity));
 
-    /* TODO: Add all remaining attributes. */
+    AttrBuiltinInfo rotation(AttrDomain::Point, AttrType::Float);
+    map.add_new("rotation", std::move(rotation));
+
+    AttrBuiltinInfo miter_angle(AttrDomain::Point, AttrType::Float);
+    /* TODO: GP_STROKE_MITER_ANGLE_ROUND */
+    map.add_new("miter_angle", std::move(miter_angle));
+
+    AttrBuiltinInfo vertex_color(AttrDomain::Point, AttrType::ColorFloat);
+    map.add_new("vertex_color", std::move(vertex_color));
+
+    AttrBuiltinInfo start_cap(AttrDomain::Curve, AttrType::Int8);
+    /* TODO: GP_STROKE_CAP_TYPE_ROUND */
+    map.add_new("start_cap", std::move(start_cap));
+
+    AttrBuiltinInfo end_cap(AttrDomain::Curve, AttrType::Int8);
+    /* TODO: GP_STROKE_CAP_TYPE_ROUND */
+    map.add_new("end_cap", std::move(end_cap));
+
+    AttrBuiltinInfo fill_color(AttrDomain::Curve, AttrType::ColorFloat);
+    /* TODO */
+    map.add_new("fill_color", std::move(fill_color));
+
+    AttrBuiltinInfo fill_opacity(AttrDomain::Curve, AttrType::Float);
+    /* TODO: Default 1. */
+    map.add_new("fill_opacity", std::move(fill_opacity));
+
+    AttrBuiltinInfo fill_id(AttrDomain::Curve, AttrType::Int32);
+    /* TODO: validate. */
+    map.add_new("fill_id", std::move(fill_id));
+
+    AttrBuiltinInfo softness(AttrDomain::Curve, AttrType::Float);
+    map.add_new("softness", std::move(softness));
+
+    AttrBuiltinInfo aspect_ratio(AttrDomain::Curve, AttrType::Float);
+    /* TODO: Default 1. */
+    map.add_new("aspect_ratio", std::move(aspect_ratio));
+
+    AttrBuiltinInfo u_translation(AttrDomain::Curve, AttrType::Float);
+    map.add_new("u_translation", std::move(u_translation));
+
+    AttrBuiltinInfo u_scale(AttrDomain::Curve, AttrType::Float);
+    /* TODO: Default 1. */
+    map.add_new("u_scale", std::move(u_scale));
 
     return map;
   }();
