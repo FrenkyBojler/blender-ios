@@ -16,13 +16,13 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_task.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -581,6 +581,27 @@ void searchbox_update(bContext *C, ARegion *region, Button *but, const bool rese
     }
     if (data->items.totitem == 1 && but->editstr[0]) {
       data->active = 0;
+    }
+  }
+
+  /* Nothing active, check at mouse location. */
+  if (data->active == -1) {
+    wmWindow *win = CTX_wm_window(C);
+    if (win && win->runtime && win->runtime->eventstate) {
+      const int cursor_x = win->runtime->eventstate->xy[0];
+      const int cursor_y = win->runtime->eventstate->xy[1];
+      if (BLI_rcti_isect_pt(&region->winrct, cursor_x, cursor_y)) {
+        rcti rect;
+        for (int a = 0; a < data->items.totitem; a++) {
+          searchbox_butrect(&rect, data, a);
+          if (BLI_rcti_isect_pt(
+                  &rect, cursor_x - region->winrct.xmin, cursor_y - region->winrct.ymin))
+          {
+            data->active = a;
+            break;
+          }
+        }
+      }
     }
   }
 

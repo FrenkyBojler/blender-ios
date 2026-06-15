@@ -4,7 +4,7 @@
 
 #include <fmt/format.h>
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_virtual_array.hh"
 
@@ -34,10 +34,10 @@
 #include "ED_curves.hh"
 #include "ED_outliner.hh"
 
+#include "NOD_eval_log.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_list.hh"
-#include "NOD_geometry_nodes_log.hh"
 
 #include "BLT_translation.hh"
 
@@ -228,9 +228,6 @@ void GeometryDataSource::foreach_default_column_ids(
   if (!attributes.has_value()) {
     return;
   }
-  if (attributes->domain_size(domain_) == 0) {
-    return;
-  }
 
   if (component_->type() == bke::GeometryComponent::Type::Instance) {
     fn({const_cast<char *>("Name")}, false);
@@ -274,9 +271,6 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
     return {};
   }
   const int domain_num = attributes->domain_size(domain_);
-  if (domain_num == 0) {
-    return {};
-  }
   if (!display_attribute(column_id.name, domain_)) {
     return {};
   }
@@ -810,7 +804,7 @@ int VolumeGridDataSource::tot_rows() const
 
 #endif
 
-ListDataSource::ListDataSource(nodes::ListPtr list) : list_(std::move(list)) {}
+ListDataSource::ListDataSource(nodes::GListPtr list) : list_(std::move(list)) {}
 
 void ListDataSource::foreach_default_column_ids(
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
@@ -916,8 +910,8 @@ void BundleDataSource::collect_flat_items(const nodes::Bundle &bundle, const Str
 {
   for (const auto &item : bundle.items()) {
     const std::string path = parent_path.is_empty() ?
-                                 item.key :
-                                 nodes::Bundle::combine_path({parent_path, item.key});
+                                 item.key.ustr().string() :
+                                 nodes::Bundle::combine_path({parent_path, item.key.ustr().ref()});
     flat_item_keys_.append(path);
     flat_items_.append(&item.value);
     if (const auto *value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value)) {
@@ -1085,10 +1079,9 @@ int get_instance_reference_icon(const bke::InstanceReference &reference)
   return ICON_NONE;
 }
 
-const nodes::geo_eval_log::ViewerNodeLog *viewer_node_log_lookup(
-    const SpaceSpreadsheet &sspreadsheet)
+const nodes::eval_log::ViewerNodeLog *viewer_node_log_lookup(const SpaceSpreadsheet &sspreadsheet)
 {
-  return nodes::geo_eval_log::GeoNodesLog::find_viewer_node_log_for_path(
+  return nodes::eval_log::NodesEvalLog::find_viewer_node_log_for_path(
       sspreadsheet.geometry_id.viewer_path);
 }
 
@@ -1101,9 +1094,16 @@ static bke::SocketValueVariant lookup_bundle_path(const nodes::BundlePtr &bundle
   if (path.bundle_path_num == 0) {
     return bke::SocketValueVariant::From(bundle);
   }
-  Vector<StringRef> keys;
+  Vector<nodes::BundleKey> keys;
   for (const int i : IndexRange(path.bundle_path_num)) {
-    keys.append(path.bundle_path[i].identifier);
+    if (const std::optional<nodes::BundleKey> key = nodes::BundleKey::from_str(
+            path.bundle_path[i].identifier))
+    {
+      keys.append(*key);
+    }
+    else {
+      return {};
+    }
   }
   return bundle->lookup_path<bke::SocketValueVariant>(keys).value_or(bke::SocketValueVariant{});
 }
@@ -1148,12 +1148,12 @@ bke::SocketValueVariant root_display_data_get(const SpaceSpreadsheet *sspreadshe
     return {};
   }
 
-  if (BLI_listbase_is_single(&sspreadsheet->geometry_id.viewer_path.path)) {
+  if (sspreadsheet->geometry_id.viewer_path.path.is_single()) {
     return bke::SocketValueVariant::From(bke::object_get_evaluated_geometry_set(*object_eval));
   }
 
-  const nodes::geo_eval_log::ViewerNodeLog *viewer_log =
-      nodes::geo_eval_log::GeoNodesLog::find_viewer_node_log_for_path(
+  const nodes::eval_log::ViewerNodeLog *viewer_log =
+      nodes::eval_log::NodesEvalLog::find_viewer_node_log_for_path(
           sspreadsheet->geometry_id.viewer_path);
   if (!viewer_log) {
     return {};
@@ -1252,7 +1252,7 @@ static std::unique_ptr<DataSource> data_source_from_socket_value(
 #endif
   }
   if (value.is_list()) {
-    return std::make_unique<ListDataSource>(value.get<nodes::ListPtr>());
+    return std::make_unique<ListDataSource>(value.get<nodes::GListPtr>());
   }
   if (value.is_single()) {
     const GPointer ptr = value.get_single_ptr();

@@ -21,7 +21,7 @@
 #include "DNA_pointcloud_types.h"
 
 #include "BLI_index_range.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -138,7 +138,7 @@ std::optional<bke::MutableAttributeAccessor> AttributeOwner::get_accessor() cons
     case AttributeOwnerType::GreasePencil:
       return this->get_grease_pencil()->attributes_for_write();
     case AttributeOwnerType::GreasePencilDrawing:
-      return this->get_grease_pencil_drawing()->geometry.wrap().attributes_for_write();
+      return this->get_grease_pencil_drawing()->wrap().strokes_for_write().attributes_for_write();
   }
   BLI_assert(false);
   return std::nullopt;
@@ -367,7 +367,11 @@ std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const St
       add_names(bm.pdata);
       add_names(bm.ldata);
       return BLI_uniquename_cb(
-          [&](const StringRef new_name) { return names.contains(new_name); }, '.', name_final);
+          [&](const StringRef new_name) {
+            return names.contains(new_name) || BM_attribute_stored_in_bmesh_builtin(new_name);
+          },
+          '.',
+          name_final);
     }
   }
 

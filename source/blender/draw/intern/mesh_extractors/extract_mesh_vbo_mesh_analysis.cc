@@ -10,11 +10,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_jitter_2d.h"
+#include "BLI_jitter_2d.hh"
 #include "BLI_map.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_ordered_edge.hh"
 
 #include "BKE_bvhutils.hh"
@@ -143,7 +143,7 @@ static void statvis_calc_thickness(const MeshRenderData &mr,
   BLI_assert(samples <= 32);
   BLI_assert(min <= max);
 
-  copy_vn_fl(face_dists, mr.faces_num, max);
+  std::fill_n(face_dists, mr.faces_num, max);
 
   BLI_jitter_init(jit_ofs, samples);
   for (int j = 0; j < samples; j++) {
@@ -262,7 +262,7 @@ static bool bvh_overlap_cb(void *userdata, int index_a, int index_b, int /*threa
 {
   BVHTree_OverlapData *data = static_cast<BVHTree_OverlapData *>(userdata);
 
-  if (UNLIKELY(data->tri_faces[index_a] == data->tri_faces[index_b])) {
+  if (data->tri_faces[index_a] == data->tri_faces[index_b]) [[unlikely]] {
     return false;
   }
 
@@ -485,7 +485,7 @@ static void statvis_calc_sharp(const MeshRenderData &mr, MutableSpan<float> r_sh
 
   /* Can we avoid this extra allocation? */
   float *vert_angles = MEM_new_array_uninitialized<float>(mr.verts_num, __func__);
-  copy_vn_fl(vert_angles, mr.verts_num, -M_PI);
+  std::fill_n(vert_angles, mr.verts_num, -M_PI);
 
   if (mr.extract_type == MeshExtractType::BMesh) {
     BMEditMesh *em = mr.edit_bmesh;

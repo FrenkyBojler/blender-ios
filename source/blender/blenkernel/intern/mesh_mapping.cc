@@ -16,19 +16,19 @@
 #include "atomic_ops.h"
 
 #include "BLI_array.hh"
-#include "BLI_bitmap.h"
+#include "BLI_bitmap.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_task.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
-#include "BLI_memarena.h"
+#include "BLI_memarena.hh"
 
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+#include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 
 namespace blender {
 
@@ -276,8 +276,7 @@ static void reverse_group_indices_in_groups(const OffsetIndices<int> groups,
                                             const OffsetIndices<int> offsets,
                                             MutableSpan<int> results)
 {
-  int *counts = MEM_new_array_zeroed<int>(size_t(offsets.size()), __func__);
-  BLI_SCOPED_DEFER([&]() { MEM_delete(counts); })
+  Array<int> counts(offsets.size(), 0);
   threading::parallel_for(groups.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t face : range) {
       for (const int elem : group_to_elem.slice(groups[face])) {
@@ -286,7 +285,7 @@ static void reverse_group_indices_in_groups(const OffsetIndices<int> groups,
       }
     }
   });
-  offset_indices::sort_small_groups(offsets, results);
+  offset_indices::sort_groups(offsets, results);
 }
 
 Array<int> build_corner_to_face_map(const OffsetIndices<int> faces)
@@ -306,8 +305,7 @@ GroupedSpan<int> build_vert_to_edge_map(const Span<int2> edges,
   r_indices.reinitialize(offsets.total_size());
 
   /* Version of #reverse_indices_in_groups that accounts for storing two indices for each edge. */
-  int *counts = MEM_new_array_zeroed<int>(size_t(offsets.size()), __func__);
-  BLI_SCOPED_DEFER([&]() { MEM_delete(counts); })
+  Array<int> counts(offsets.size(), 0);
   threading::parallel_for(edges.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t edge : range) {
       for (const int vert : {edges[edge][0], edges[edge][1]}) {
@@ -316,7 +314,7 @@ GroupedSpan<int> build_vert_to_edge_map(const Span<int2> edges,
       }
     }
   });
-  offset_indices::sort_small_groups(offsets, r_indices);
+  offset_indices::sort_groups(offsets, r_indices);
   return {offsets, r_indices};
 }
 
@@ -585,7 +583,7 @@ static void face_edge_loop_islands_calc(const int totedge,
       for (; (face_group_id & bit_face_group_mask) && (gid_bit < 32); gid_bit++) {
         face_group_id <<= 1; /* will 'overflow' on last possible iteration. */
       }
-      if (UNLIKELY(gid_bit > 31)) {
+      if (gid_bit > 31) [[unlikely]] {
         /* All bits used in contiguous smooth groups, not much to do.
          *
          * NOTE: If only considering boundary edges, this is *very* unlikely to happen.
@@ -619,7 +617,7 @@ static void face_edge_loop_islands_calc(const int totedge,
     tot_group++;
   }
 
-  if (UNLIKELY(group_id_overflow)) {
+  if (group_id_overflow) [[unlikely]] {
     int i = int(faces.size()), *gid = face_groups;
     for (; i--; gid++) {
       if (*gid == face_group_id_overflowed) {
@@ -807,7 +805,7 @@ void BKE_mesh_loop_islands_add(MeshIslandStore *island_store,
     island_store->items_to_islands[items_indices[i]] = curr_island_idx;
   }
 
-  if (UNLIKELY(curr_num_islands > island_store->islands_num_alloc)) {
+  if (curr_num_islands > island_store->islands_num_alloc) [[unlikely]] {
     MeshElemMap **islds, **innrcuts;
 
     island_store->islands_num_alloc *= 2;

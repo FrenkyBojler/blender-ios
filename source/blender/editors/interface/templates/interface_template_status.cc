@@ -17,11 +17,11 @@
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
 
 #include "BLF_api.hh"
 #include "BLT_translation.hh"
@@ -374,9 +374,7 @@ void uiTemplateInputStatus(Layout *layout, bContext *C)
   }
 }
 
-static std::string ui_template_status_tooltip(bContext *C,
-                                              void * /*argN*/,
-                                              const StringRef /*tip*/)
+static std::string template_status_tooltip(bContext *C, void * /*argN*/, const StringRef /*tip*/)
 {
   Main *bmain = CTX_data_main(C);
   std::string tooltip_message;
@@ -563,7 +561,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
                          0.0f,
                          0.0f,
                          "");
-  /*# ButtonType::Roundbox's background color is set in `but->col`. */
+  /* #ButtonType::Roundbox's background color is set in `but->col`. */
   theme::get_color_4ubv(TH_WARNING, but->col);
 
   if (!warning_message.empty()) {
@@ -600,7 +598,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
                      0.0f,
                      0.0f,
                      std::nullopt);
-  button_func_tooltip_set(but, ui_template_status_tooltip, nullptr, nullptr);
+  button_func_tooltip_set(but, template_status_tooltip, nullptr, nullptr);
   theme::get_color_type_4ubv(TH_INFO_WARNING_TEXT, SPACE_INFO, but->col);
   but->col[3] = 255; /* This theme color is RBG only, so have to set alpha here. */
 
@@ -617,7 +615,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
                    0.0f,
                    0.0f,
                    std::nullopt);
-    button_func_tooltip_set(but, ui_template_status_tooltip, nullptr, nullptr);
+    button_func_tooltip_set(but, template_status_tooltip, nullptr, nullptr);
   }
 
   block_emboss_set(block, previous_emboss);

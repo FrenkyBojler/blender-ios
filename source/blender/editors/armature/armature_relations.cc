@@ -15,13 +15,13 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -529,6 +529,10 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
         }
       }
 
+      /* Bring armature out of edit mode. See #159084. */
+      ED_armature_from_edit(bmain, curarm);
+      ED_armature_edit_free(curarm);
+
       /* Free the old object data */
       ed::object::base_free_and_unlink(bmain, scene, ob_iter);
     }
@@ -722,7 +726,7 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
   WM_cursor_wait(true);
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   for (Base *base_old : bases) {
     Object *ob_old = base_old->object;
@@ -1085,6 +1089,7 @@ static void editbone_clear_parent(EditBone *ebone, int mode)
 
 static wmOperatorStatus armature_parent_clear_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const int val = RNA_enum_get(op->ptr, "type");
@@ -1095,7 +1100,7 @@ static wmOperatorStatus armature_parent_clear_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   for (Object *ob : objects) {
     bArmature *arm = id_cast<bArmature *>(ob->data);
     bool changed = false;

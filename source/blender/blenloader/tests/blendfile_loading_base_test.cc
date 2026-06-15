@@ -9,6 +9,7 @@
 #include "BKE_blender.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
+#include "BKE_cpp_types.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
@@ -23,9 +24,9 @@
 
 #include "BLF_api.hh"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_threads.h"
+#include "BLI_threads.hh"
 
 #include "BLO_readfile.hh"
 
@@ -63,6 +64,7 @@ void BlendfileLoadingBaseTest::SetUpTestCase()
   BKE_blender_globals_init();
 
   BKE_idtype_init();
+  BKE_cpp_types_init();
   BKE_appdir_init();
   IMB_init();
   BKE_modifier_init();
@@ -137,7 +139,7 @@ bool BlendfileLoadingBaseTest::blendfile_load(const char *filepath)
   /* Make sure that all view_layers in the file are synced. Depsgraph can make a copy of the whole
    * scene, which will fail when one view layer isn't synced. */
   for (ViewLayer &view_layer : bfile->curscene->view_layers) {
-    BKE_view_layer_synced_ensure(bfile->curscene, &view_layer);
+    BKE_view_layer_synced_ensure(*bfile->main, bfile->curscene, &view_layer);
   }
 
   return true;

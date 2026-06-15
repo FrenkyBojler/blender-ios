@@ -17,7 +17,7 @@
 #include <pxr/usd/usdSkel/bindingAPI.h>
 
 #include "BLI_array_utils.hh"
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
@@ -226,7 +226,7 @@ void USDGenericMeshWriter::write_generic_data(const Mesh *mesh,
                                               const bke::AttributeIter &attr)
 {
   const pxr::TfToken pv_name(
-      make_safe_name(attr.name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(attr.name, usd_export_context_.export_params.allow_unicode));
   const bool use_color3f_type = pv_name == usdtokens::displayColor;
   const std::optional<pxr::TfToken> pv_interp = convert_blender_domain_to_usd(attr.domain);
   const std::optional<pxr::SdfValueTypeName> pv_type = convert_blender_type_to_usd(
@@ -319,13 +319,18 @@ void USDGenericMeshWriter::write_uv_data(const Mesh *mesh,
 
   const pxr::UsdTimeCode time = get_export_time_code();
   const pxr::TfToken pv_name(
-      make_safe_name(name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(name, usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_mesh);
 
   pxr::UsdGeomPrimvar pv_uv = pv_api.CreatePrimvar(
       pv_name, pxr::SdfValueTypeNames->TexCoord2fArray, pxr::UsdGeomTokens->faceVarying);
   set_attribute(pv_uv, unique_uvs, time, usd_value_writer_);
-  pv_uv.SetIndices(indices, time);
+
+  pxr::UsdAttribute attr_indices = pv_uv.CreateIndicesAttr();
+  if (!attr_indices.HasValue()) {
+    attr_indices.Set(indices, time);
+  }
+  usd_value_writer_.SetAttribute(attr_indices, pxr::VtValue(indices), time);
 }
 
 void USDGenericMeshWriter::free_export_mesh(Mesh *mesh)
@@ -697,36 +702,36 @@ void USDGenericMeshWriter::write_normals(const Mesh *mesh, pxr::UsdGeomMesh &usd
 {
   pxr::UsdTimeCode time = get_export_time_code();
 
+  Span<float3> src_normals;
   pxr::VtVec3fArray loop_normals;
-  loop_normals.resize(mesh->corners_num);
-
-  MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()), loop_normals.size());
-
+  pxr::TfToken interpolation;
   switch (mesh->normals_domain()) {
     case bke::MeshNormalDomain::Point: {
-      array_utils::gather(mesh->vert_normals(), mesh->corner_verts(), dst_normals);
+      src_normals = mesh->vert_normals();
+      interpolation = pxr::UsdGeomTokens->vertex;
       break;
     }
     case bke::MeshNormalDomain::Face: {
-      const OffsetIndices faces = mesh->faces();
-      const Span<float3> face_normals = mesh->face_normals();
-      for (const int i : faces.index_range()) {
-        dst_normals.slice(faces[i]).fill(face_normals[i]);
-      }
+      src_normals = mesh->face_normals();
+      interpolation = pxr::UsdGeomTokens->uniform;
       break;
     }
     case bke::MeshNormalDomain::Corner: {
-      array_utils::copy(mesh->corner_normals(), dst_normals);
+      src_normals = mesh->corner_normals();
+      interpolation = pxr::UsdGeomTokens->faceVarying;
       break;
     }
   }
 
+  loop_normals.resize(src_normals.size());
+  MutableSpan dst_normals(reinterpret_cast<float3 *>(loop_normals.data()), loop_normals.size());
+  array_utils::copy(src_normals, dst_normals);
   pxr::UsdAttribute attr_normals = usd_mesh.CreateNormalsAttr(pxr::VtValue(), true);
   if (!attr_normals.HasValue()) {
     attr_normals.Set(loop_normals, pxr::UsdTimeCode::Default());
   }
   usd_value_writer_.SetAttribute(attr_normals, pxr::VtValue(loop_normals), time);
-  usd_mesh.SetNormalsInterpolation(pxr::UsdGeomTokens->faceVarying);
+  usd_mesh.SetNormalsInterpolation(interpolation);
 }
 
 void USDGenericMeshWriter::write_surface_velocity(const Mesh *mesh,

@@ -16,10 +16,10 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
-#include "BLI_task.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
@@ -42,7 +42,7 @@ bke::subdiv::Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgraph,
                                                     const MultiresModifierData *mmd)
 {
   using namespace blender::bke;
-  Mesh *base_mesh;
+  const Mesh *base_mesh;
 
   if (depsgraph != nullptr) {
     Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);

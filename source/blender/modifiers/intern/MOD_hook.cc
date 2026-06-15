@@ -6,11 +6,11 @@
  * \ingroup modifiers
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
-#include "BLI_bitmap.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_bitmap.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -519,7 +519,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
     BKE_curvemapping_blend_write(writer, hmd->curfalloff);
   }
 
-  BLO_write_int32_array(writer, hmd->indexar_num, hmd->indexar);
+  writer->write_int32_array(hmd->indexar_num, hmd->indexar);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
@@ -531,7 +531,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
     BKE_curvemapping_blend_read(reader, hmd->curfalloff);
   }
 
-  BLO_read_int32_array(reader, hmd->indexar_num, &hmd->indexar);
+  BLO_read_array_and_validate_size(reader, &hmd->indexar, &hmd->indexar_num);
 }
 
 ModifierTypeInfo modifierType_Hook = {

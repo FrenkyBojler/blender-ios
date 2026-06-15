@@ -13,11 +13,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
@@ -100,7 +100,7 @@ static PyObject *python_compat_wrapper_PyRun_FileExFlags(FILE *fp,
     fclose(fp);
   }
 
-  if (UNLIKELY(buf == nullptr)) {
+  if (buf == nullptr) [[unlikely]] {
     PyErr_Format(PyExc_IOError, "Python file \"%s\" could not read buffer", filepath);
   }
   else {
@@ -200,6 +200,9 @@ static bool python_script_exec(
     if (reports) {
       BPy_errors_to_report(reports);
     }
+    else {
+      PyC_Err_CaptureSystemExitCode();
+    }
     if (text) {
       if (do_jump) {
         /* ensure text is valid before use, the script may have freed itself */
@@ -247,6 +250,24 @@ bool BPY_run_text(bContext *C, Text *text, ReportList *reports, const bool do_ju
   return python_script_exec(C, nullptr, text, reports, do_jump);
 }
 
+bool BPY_string_compile_check(const char *expr)
+{
+  if (!expr || expr[0] == '\0') {
+    return true;
+  }
+  PyGILState_STATE gilstate = PyGILState_Ensure();
+  bool success = false;
+  if (PyObject *retval = Py_CompileString(expr, "<expression>", Py_eval_input)) {
+    Py_DECREF(retval);
+    success = true;
+  }
+  else {
+    PyErr_Clear();
+  }
+  PyGILState_Release(gilstate);
+  return success;
+}
+
 /**
  * \param mode: Passed to #PyRun_String, matches Python's `compile` functions mode argument.
  * #Py_eval_input for `eval`, #Py_file_input for `exec`.
@@ -265,7 +286,8 @@ static bool bpy_run_string_impl(bContext *C,
     return ok;
   }
 
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   PyObject *main_mod = PyC_MainModule_Backup();
 
@@ -283,6 +305,9 @@ static bool bpy_run_string_impl(bContext *C,
     ok = false;
     if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
       BPy_errors_to_report(wm_reports);
+    }
+    else {
+      PyC_Err_CaptureSystemExitCode();
     }
     PyErr_Print();
   }
@@ -312,7 +337,7 @@ bool BPY_run_string_exec(bContext *C, const char *imports[], const char *expr)
  *
  * Only supports bool, int, float, string, and None values.
  *
- * \param obj The Python object to convert. Should NOT be nullptr.
+ * \param py_object: The Python object to convert. Should NOT be nullptr.
  * \return IDProperty The converted property, or nullptr if the Python value was None. The caller
  * owns the pointer, and is responsible for freeing it.
  */
@@ -360,7 +385,6 @@ static bool bpy_run_string_exec_with_locals_assume_gil(
   }
 
   /* Clean up references. */
-  Py_DECREF(py_globals);
   Py_DECREF(py_locals);
 
   return ok;
@@ -373,7 +397,9 @@ static bool bpy_run_string_exec_with_locals_acquire_gil(
     FunctionRef<void(PyObject *py_locals)> on_exec_ok)
 {
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
+
+  bpy_context_set_allow_null(C, &gilstate);
 
   PyObject *main_mod_backup = PyC_MainModule_Backup();
 
@@ -381,6 +407,9 @@ static bool bpy_run_string_exec_with_locals_acquire_gil(
   if (!ok) {
     if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
       BPy_errors_to_report(wm_reports);
+    }
+    else {
+      PyC_Err_CaptureSystemExitCode();
     }
     PyErr_Print();
   }
@@ -501,7 +530,8 @@ bool BPY_run_string_as_number(bContext *C,
   }
 
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsNumber(imports, expr, "<expr as number>", r_value);
 
@@ -529,7 +559,8 @@ bool BPY_run_string_as_string_and_len(bContext *C,
   }
 
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsStringAndSize(imports, expr, "<expr as str>", r_value, r_value_len);
 
@@ -564,7 +595,8 @@ bool BPY_run_string_as_string_and_len_or_none(bContext *C,
   }
 
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsStringAndSizeOrNone(
       imports, expr, "<expr as str or none>", r_value, r_value_len);
@@ -600,7 +632,8 @@ bool BPY_run_string_as_intptr(bContext *C,
   }
 
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsIntPtr(imports, expr, "<expr as intptr>", r_value);
 

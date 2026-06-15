@@ -12,7 +12,7 @@
 
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_iterator.h"
+#include "BLI_iterator.hh"
 #include "BLI_set.hh"
 
 #include "DEG_depsgraph.hh"
@@ -295,7 +295,7 @@ void DEG_iterator_objects_end(BLI_Iterator *iter);
     DEGObjectIterData data_ = { \
         (settings_), \
         (settings_)->depsgraph, \
-        (int)(settings_)->flags, \
+        int((settings_)->flags), \
     }; \
 \
     ITER_BEGIN (DEG_iterator_objects_begin, \

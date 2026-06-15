@@ -27,15 +27,15 @@
 #    include <float.h>
 #    include <windows.h>
 
-#    include "BLI_winstuff.h"
+#    include "BLI_winstuff.hh"
 
 #    include "GPU_platform.hh"
 #  endif
 
-#  include "BLI_fileops.h"
+#  include "BLI_fileops.hh"
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
-#  include "BLI_system.h"
+#  include "BLI_string.hh"
+#  include "BLI_system.hh"
 #  include BLI_SYSTEM_PID_H
 
 #  include "BKE_appdir.hh" /* #BKE_tempdir_session_purge. */
@@ -146,7 +146,7 @@ static void sig_cleanup_and_terminate(int signum)
   TerminateProcess(GetCurrentProcess(), signum);
 #  endif
 }
-
+#  if !defined(WIN32)
 static void sig_handle_crash_fn(int signum)
 {
   char filepath_crashlog[FILE_MAX];
@@ -154,8 +154,7 @@ static void sig_handle_crash_fn(int signum)
   crashlog_file_generate(filepath_crashlog, nullptr);
   sig_cleanup_and_terminate(signum);
 }
-
-#  ifdef WIN32
+#  else
 extern LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
 {
   /* If this is a stack overflow then we can't walk the stack, so just try to show

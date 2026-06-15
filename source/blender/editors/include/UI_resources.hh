@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 
 namespace blender {
 
@@ -49,6 +49,7 @@ enum ThemeColorID {
   TH_WARNING,
   TH_INFO,
   TH_SUCCESS,
+  TH_LINK,
 
   TH_THEMEUI,
   /* Common colors among spaces. */
