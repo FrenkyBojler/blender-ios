@@ -477,7 +477,7 @@ class STRIP_PT_source(StripButtonsPanel, Panel):
         if not strip:
             return False
 
-        return strip.type in {'MOVIE', 'IMAGE', 'SOUND'}
+        return strip.type in {'MOVIE', 'IMAGE', 'SOUND', 'IMAGE_ID'}
 
     def draw(self, context):
         layout = self.layout
@@ -551,7 +551,7 @@ class STRIP_PT_source(StripButtonsPanel, Panel):
                 col.prop(strip, "alpha_mode", text="Alpha")
                 sub = col.column(align=True)
                 sub.operator("sequencer.change_path", text="Change Data/Files", icon='FILEBROWSER').filter_image = True
-            else:  # elif strip_type == 'MOVIE':
+            elif strip_type == 'MOVIE':
                 elem = strip.elements[0]
 
                 col = layout.column()
@@ -563,6 +563,8 @@ class STRIP_PT_source(StripButtonsPanel, Panel):
                     menu="UI_MT_color_space_select")
                 col.prop(strip, "stream_index")
                 col.prop(strip, "use_deinterlace")
+            else:  # elif strip_Type == 'IMAGE_ID'
+                layout.template_ID(strip, "image_id", open="image.open")
 
             if scene.render.use_multiview:
                 layout.prop(strip, "use_multiview")
@@ -576,25 +578,27 @@ class STRIP_PT_source(StripButtonsPanel, Panel):
                 box.active = strip.views_format == 'STEREO_3D'
                 box.template_image_stereo_3d(strip.stereo_3d_format)
 
+
             # Resolution.
-            col = layout.box()
-            col = col.column(align=True)
-            split = col.split(factor=0.5, align=False)
-            split.alignment = 'RIGHT'
-            split.label(text="Resolution")
-            size = (elem.orig_width, elem.orig_height) if elem else (0, 0)
-            if size[0] and size[1]:
-                split.alignment = 'LEFT'
-                split.label(text="{:d}x{:d}".format(*size), translate=False)
-            else:
-                split.label(text="None")
-            # FPS
-            if elem.orig_fps:
+            if strip_type != 'IMAGE_ID':
+                col = layout.box()
+                col = col.column(align=True)
                 split = col.split(factor=0.5, align=False)
                 split.alignment = 'RIGHT'
-                split.label(text="FPS")
-                split.alignment = 'LEFT'
-                split.label(text="{:.2f}".format(elem.orig_fps), translate=False)
+                split.label(text="Resolution")
+                size = (elem.orig_width, elem.orig_height) if elem else (0, 0)
+                if size[0] and size[1]:
+                    split.alignment = 'LEFT'
+                    split.label(text="{:d}x{:d}".format(*size), translate=False)
+                else:
+                    split.label(text="None")
+                # FPS
+                if elem.orig_fps:
+                    split = col.split(factor=0.5, align=False)
+                    split.alignment = 'RIGHT'
+                    split.label(text="FPS")
+                    split.alignment = 'LEFT'
+                    split.label(text="{:.2f}".format(elem.orig_fps), translate=False)
 
 
 class STRIP_PT_movie_clip(StripButtonsPanel, Panel):
@@ -631,29 +635,6 @@ class STRIP_PT_movie_clip(StripButtonsPanel, Panel):
                 text=rpt_("Original frame range: {:d}-{:d} ({:d})").format(sta, end, end - sta + 1),
                 translate=False,
             )
-
-
-class STRIP_PT_image_id(StripButtonsPanel, Panel):
-    bl_label = "Image"
-
-    @classmethod
-    def poll(cls, context):
-        strip = context.active_strip
-        if not strip:
-            return False
-
-        return strip.type == 'IMAGE_ID'
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        strip = context.active_strip
-
-        layout.active = not strip.mute
-        layout.template_ID(strip, "image_id", open="image.open")
-
 
 class STRIP_PT_scene(StripButtonsPanel, Panel):
     bl_label = "Scene"
@@ -1144,7 +1125,6 @@ classes = (
     STRIP_PT_effect_text_box,
     STRIP_PT_effect_text_layout,
     STRIP_PT_movie_clip,
-    STRIP_PT_image_id,
 
     STRIP_PT_adjust_comp,
     STRIP_PT_adjust_transform,
