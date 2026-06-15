@@ -69,17 +69,6 @@ namespace blender {
 /** \name Frame Change Operator
  * \{ */
 
-enum class PlaybackDirection : int8_t {
-  BACKWARDS = -1,
-  FORWARDS = 1,
-};
-
-enum class PlaySyncMode : int8_t {
-  UNCHANGED = -1,
-  OFF = 0,
-  ON = 1,
-};
-
 /** Persistent data to re-use during frame change modal operations. */
 class FrameChangeModalData {
   /**
@@ -88,16 +77,10 @@ class FrameChangeModalData {
    */
  public:
   AnimKeylist *keylist;
-  bool was_playing;
-  PlaySyncMode play_sync;
-  PlaybackDirection play_mode;
 
   FrameChangeModalData()
   {
     keylist = nullptr;
-    was_playing = false;
-    play_sync = PlaySyncMode::UNCHANGED;
-    play_mode = PlaybackDirection::FORWARDS;
   }
 
   ~FrameChangeModalData()
@@ -726,20 +709,7 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
     RNA_boolean_set(op->ptr, "snap", true);
   }
 
-  /* Screen where playback started might not be the current screen. */
-  bScreen *play_screen = ED_screen_animation_playing(CTX_wm_manager(C));
-  if (play_screen && play_screen->animtimer) {
-    ScreenAnimData *sad = static_cast<ScreenAnimData *>(play_screen->animtimer->customdata);
-    op_data->was_playing = true;
-    op_data->play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? PlaybackDirection::BACKWARDS :
-                                                               PlaybackDirection::FORWARDS;
-    op_data->play_sync = (sad->flag & ANIMPLAY_FLAG_SYNC) ?
-                             PlaySyncMode::ON :
-                             ((sad->flag & ANIMPLAY_FLAG_NO_SYNC) ? PlaySyncMode::OFF :
-                                                                    PlaySyncMode::UNCHANGED);
-    ED_screen_animation_play(C, 0, 0);
-  }
-  screen->scrubbing = true;
+  ED_screen_scrubbing_enable(C, screen);
 
   if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -770,20 +740,10 @@ static bool need_extra_redraw_after_scrubbing_ends(bContext *C)
   return false;
 }
 
-static void change_frame_restore_playback(bContext *C, wmOperator *op)
-{
-  FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
-  if (op_data && op_data->was_playing) {
-    op_data->was_playing = false;
-    ED_screen_animation_play(C, int(op_data->play_sync), int(op_data->play_mode));
-  }
-}
-
 static void change_frame_cancel(bContext *C, wmOperator *op)
 {
   bScreen *screen = CTX_wm_screen(C);
-  screen->scrubbing = false;
-  change_frame_restore_playback(C, op);
+  ED_screen_scrubbing_disable(C, screen);
 
   if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -853,8 +813,7 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
   if (ret != OPERATOR_RUNNING_MODAL) {
     ED_workspace_status_text(C, nullptr);
     bScreen *screen = CTX_wm_screen(C);
-    screen->scrubbing = false;
-    change_frame_restore_playback(C, op);
+    ED_screen_scrubbing_disable(C, screen);
 
     FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
     MEM_delete(op_data);

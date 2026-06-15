@@ -960,6 +960,7 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
   }
   screen->animtimer = nullptr;
   screen->scrubbing = false;
+  screen->scrub_flag = 0;
 
   screen->active_region = nullptr;
 

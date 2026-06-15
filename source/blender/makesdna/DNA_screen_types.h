@@ -138,7 +138,11 @@ struct bScreen {
   char skip_handling = 0;
   /** Set when scrubbing to avoid some costly updates. */
   char scrubbing = 0;
-  char _pad[1] = {};
+  char _pad0[1] = {};
+  /** Saved flags to resume playback after scrubbing*/
+  short scrub_flag = 0;
+
+  char _pad[6] = {};
 
   /** Active region that has mouse focus. */
   struct ARegion *active_region = nullptr;

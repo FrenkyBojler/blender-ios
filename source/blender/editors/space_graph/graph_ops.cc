@@ -145,7 +145,7 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 
   /* Signal that a scrubbing operating is starting */
   if (screen) {
-    screen->scrubbing = true;
+    ED_screen_scrubbing_enable(C, screen);
   }
 
   /* add temp handler */
@@ -163,7 +163,7 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
   switch (event->type) {
     case EVT_ESCKEY:
       if (screen) {
-        screen->scrubbing = false;
+        ED_screen_scrubbing_disable(C, screen);
       }
 
       WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
@@ -181,7 +181,7 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
       /* We check for either mouse-button to end, to work with all user keymaps. */
       if (event->val == KM_RELEASE) {
         if (screen) {
-          screen->scrubbing = false;
+          ED_screen_scrubbing_disable(C, screen);
         }
 
         WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
