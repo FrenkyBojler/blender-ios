@@ -112,66 +112,6 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 
 #ifdef WITH_OPENVDB
 
-template<typename TreeT> struct BoolGridTopologyOp {
- public:
-  using RootT = typename TreeT::RootNodeType;
-  using LeafT = typename TreeT::LeafNodeType;
-  using ValueT = typename TreeT::ValueType;
-
-  bool operator()(RootT &root, size_t /*node_index*/) const
-  {
-    for (auto it = root.beginValueOn(); it; ++it) {
-
-      if (!(*it)) {
-        it.setValueOn(false);
-      }
-    }
-    return true;
-  }
-
-  template<typename NodeT> bool operator()(NodeT &node, size_t /*node_index*/) const
-  {
-    /* Only iterate if there are active tiles. */
-    if (!node.isValueMaskOff()) {
-      for (auto it = node.beginValueOn(); it; ++it) {
-        if (!(*it)) {
-          it.setValueOn(false);
-        }
-      }
-    }
-    /* Return false if there are no child nodes below this node. */
-    return !node.isChildMaskOff();
-  }
-
-  bool operator()(LeafT &leaf, size_t /*node_index*/) const
-  {
-    /* Early-exit if there are no active values. */
-    if (leaf.isValueMaskOff()) {
-      return true;
-    }
-    for (auto it = leaf.beginValueOn(); it; ++it) {
-      if (!(*it)) {
-        it.setValueOn(false);
-      }
-    }
-    return true;
-  }
-};
-
-template<typename GridOrTree> void bool_grid_topology(GridOrTree &gridOrTree, const bool threaded)
-{
-  using Adapter = openvdb::TreeAdapter<GridOrTree>;
-  using TreeType = typename Adapter::TreeType;
-
-  TreeType &tree = Adapter::tree(gridOrTree);
-
-  openvdb::tree::DynamicNodeManager<TreeType> nodeManager(tree);
-
-  BoolGridTopologyOp<TreeType> op;
-  nodeManager.foreachTopDown(op, threaded);
-}
-
-#endif
 BLI_NOINLINE static void process_leaf_node(const fn::Field<bool> selection_field,
                                            const openvdb::math::Transform &transform,
                                            const volume_grid::LeafNodeMask &leaf_node_mask,
@@ -257,6 +197,8 @@ BLI_NOINLINE static void process_tiles(const fn::Field<bool> selection_field,
   const IndexMask selection_mask = IndexMask::from_bools(selection, scope.allocator());
   volume_grid::set_tile_values_off(output_grid, selection_mask, tiles);
 }
+
+#endif
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
