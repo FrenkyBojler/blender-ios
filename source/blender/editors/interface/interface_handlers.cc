@@ -9028,15 +9028,15 @@ static int do_button(bContext *C, Block *block, Button *but, const wmEvent *even
       }
     }
 
+    if (is_disabled) {
+      return WM_UI_HANDLER_CONTINUE;
+    }
+
     if (event->type == LEFTMOUSE && event->val == KM_DBL_CLICK &&
         but->flag2 & BUT2_TEXT_LABEL_STYLE)
     {
       button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
       return WM_UI_HANDLER_BREAK;
-    }
-
-    if (is_disabled) {
-      return WM_UI_HANDLER_CONTINUE;
     }
 
 #ifdef WITH_INPUT_NDOF
