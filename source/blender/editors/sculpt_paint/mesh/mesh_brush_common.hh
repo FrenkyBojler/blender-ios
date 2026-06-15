@@ -377,6 +377,14 @@ void calc_brush_cube_distances(const Brush &brush,
                                const MutableSpan<float> r_distances);
 
 /**
+ * Calculate distances based on a "square" brush tip falloff in XY and clip vertices outside the
+ * local Z range.
+ */
+void calc_brush_cube_distances_xy(const Brush &brush,
+                                  Span<float3> positions,
+                                  MutableSpan<float> r_distances);
+
+/**
  * Scale the distances based on the brush radius and the cached "hardness" setting, which increases
  * the strength of the effect for vertices towards the outside of the radius.
  */
