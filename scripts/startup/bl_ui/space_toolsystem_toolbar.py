@@ -142,6 +142,10 @@ class _defs_view3d_generic:
 
     @ToolDef.from_fn
     def ruler():
+        def draw_settings(_context, layout, tool):
+            props = tool.gizmo_group_properties("VIEW3D_GGT_ruler")
+            layout.prop(props, "show_components")
+
         def description(_context, _item, km):
             if km is not None:
                 kmi_add = km.keymap_items.find_from_operator("view3d.ruler_add")
@@ -167,6 +171,7 @@ class _defs_view3d_generic:
             icon="ops.view3d.ruler",
             widget="VIEW3D_GGT_ruler",
             keymap="3D View Tool: Measure",
+            draw_settings=draw_settings,
         )
 
 

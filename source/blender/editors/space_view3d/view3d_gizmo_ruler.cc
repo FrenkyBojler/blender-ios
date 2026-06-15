@@ -40,6 +40,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "WM_api.hh"
 #include "WM_toolsystem.hh"
@@ -115,6 +116,8 @@ enum {
 
 struct RulerItem;
 
+static const char *ruler_show_components_prop_id = "show_components";
+
 struct RulerInfo {
   RulerItem *item_active;
   int flag;
@@ -189,6 +192,21 @@ static void ruler_item_remove(bContext *C, wmGizmoGroup *gzgroup, RulerItem *rul
   WM_gizmo_unlink(&gzgroup->gizmos, gzgroup->parent_gzmap, &ruler_item->gz, C);
 }
 
+static void ruler_unit_as_string(const UnitSettings &unit,
+                                 const float value,
+                                 const int prec,
+                                 char *numstr,
+                                 const size_t numstr_size)
+{
+  if (unit.system == USER_UNIT_NONE) {
+    BLI_snprintf_utf8(numstr, numstr_size, "%.*f", prec, value);
+  }
+  else {
+    BKE_unit_value_as_string_scaled(
+        numstr, numstr_size, value, prec, B_UNIT_LENGTH, unit, false, true);
+  }
+}
+
 static void ruler_item_as_string(
     RulerItem *ruler_item, const UnitSettings &unit, char *numstr, size_t numstr_size, int prec)
 {
@@ -207,15 +225,66 @@ static void ruler_item_as_string(
   }
   else {
     const float ruler_len = len_v3v3(ruler_item->co[0], ruler_item->co[2]);
-
-    if (unit.system == USER_UNIT_NONE) {
-      BLI_snprintf_utf8(numstr, numstr_size, "%.*f", prec, ruler_len);
-    }
-    else {
-      BKE_unit_value_as_string_scaled(
-          numstr, numstr_size, ruler_len, prec, B_UNIT_LENGTH, unit, false, true);
-    }
+    ruler_unit_as_string(unit, ruler_len, prec, numstr, numstr_size);
   }
+}
+
+static void ruler_item_as_string_prefixed(const UnitSettings &unit,
+                                          const char *prefix,
+                                          const float value,
+                                          const int prec,
+                                          char *numstr,
+                                          const size_t numstr_size)
+{
+  char valuestr[64];
+  ruler_unit_as_string(unit, value, prec, valuestr, sizeof(valuestr));
+  BLI_snprintf_utf8(numstr, numstr_size, "%s: %s", prefix, valuestr);
+}
+
+static bool ruler_show_components_get(const bContext *C, wmGizmoGroup *gzgroup)
+{
+  bToolRef *tref = WM_toolsystem_ref_from_context(const_cast<bContext *>(C));
+  if (tref == nullptr) {
+    return false;
+  }
+
+  PointerRNA ptr;
+  WM_toolsystem_ref_properties_ensure_from_gizmo_group(tref, gzgroup->type, &ptr);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, ruler_show_components_prop_id);
+  return prop != nullptr && RNA_property_boolean_get(&ptr, prop);
+}
+
+static void ruler_component_points_get(const RulerItem *ruler_item, float3 r_component_co[4])
+{
+  const float3 &start = ruler_item->co[0];
+  const float3 &end = ruler_item->co[2];
+
+  r_component_co[0] = start;
+  r_component_co[1] = float3(end.x, start.y, start.z);
+  r_component_co[2] = float3(end.x, end.y, start.z);
+  r_component_co[3] = end;
+}
+
+static bool ruler_component_is_visible(const float value)
+{
+  return fabsf(value) > 1e-6f;
+}
+
+static float2 ruler_label_position_get(const float2 &co_a,
+                                       const float2 &co_b,
+                                       const float2 &numstr_size,
+                                       const float bg_margin)
+{
+  float2 posit = (co_a + co_b) / 2.0f;
+  posit -= numstr_size / 2.0f;
+
+  const float2 dir = co_a - co_b;
+  if (math::length_squared(dir) > 1.0f) {
+    const float2 normal = math::normalize(float2{-dir.y, dir.x});
+    posit += normal * (numstr_size.y + bg_margin);
+  }
+
+  return posit;
 }
 
 static bool view3d_ruler_pick(wmGizmoGroup *gzgroup,
@@ -724,6 +793,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   }
 
   const bool is_act = (ruler_info->item_active == ruler_item);
+  const bool show_components = ruler_show_components_get(C, gz->parent_gzgroup);
   float2 dir_ruler;
   float3x2 co_ss;
   bool proj_ok[3];
@@ -836,6 +906,33 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     immEnd();
 
     immUnbindProgram();
+
+    if (show_components) {
+      const float3 delta = ruler_item->co[2] - ruler_item->co[0];
+      float3 component_co[4];
+      ruler_component_points_get(ruler_item, component_co);
+
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+      GPU_line_width(2.0f);
+
+      for (int axis = 0; axis < 3; axis++) {
+        if (!ruler_component_is_visible(delta[axis])) {
+          continue;
+        }
+
+        float4 axis_color;
+        ui::theme::get_color_4fv(ThemeColorID(TH_AXIS_X + axis), axis_color);
+        immUniformColor4fv(axis_color);
+
+        immBegin(GPU_PRIM_LINES, 2);
+        immVertex3fv(shdr_pos_3d, component_co[axis]);
+        immVertex3fv(shdr_pos_3d, component_co[axis + 1]);
+        immEnd();
+      }
+
+      GPU_line_width(1.0f);
+      immUnbindProgram();
+    }
   }
 
   /* 2d drawing. */
@@ -910,7 +1007,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     /* text */
     char numstr[256];
     float2 numstr_size;
-    float posit[2];
+    float2 posit;
     const int prec = 2; /* XXX, todo, make optional */
 
     ruler_item_as_string(ruler_item, unit, numstr, sizeof(numstr), prec);
@@ -945,8 +1042,8 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
     /* draw text */
     if (proj_ok[1]) {
       BLF_color3ubv(blf_mono_font, color_text);
-      BLF_position(blf_mono_font, posit[0], posit[1], 0.0f);
       BLF_rotation(blf_mono_font, 0.0f);
+      BLF_position(blf_mono_font, posit[0], posit[1], 0.0f);
       BLF_draw(blf_mono_font, numstr, sizeof(numstr));
     }
   }
@@ -997,6 +1094,53 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 
     BLF_width_and_height(blf_mono_font, numstr, sizeof(numstr), &numstr_size[0], &numstr_size[1]);
 
+    char component_numstr[3][128];
+    float2 component_numstr_size[3];
+    float2 component_posit[3];
+    uchar component_color[3][3];
+    bool component_draw[3] = {false, false, false};
+
+    if (show_components) {
+      const char *component_prefix[3] = {"X", "Y", "Z"};
+      const float3 delta = ruler_item->co[2] - ruler_item->co[0];
+      float3 component_co[4];
+      float2 component_co_ss[4];
+      bool component_proj_ok[4];
+      ruler_component_points_get(ruler_item, component_co);
+
+      for (int i = 0; i < 4; i++) {
+        eV3DProjStatus status = ED_view3d_project_float_global(
+            region, component_co[i], component_co_ss[i], V3D_PROJ_TEST_CLIP_NEAR);
+        component_proj_ok[i] = (status == V3D_PROJ_RET_OK);
+      }
+
+      for (int axis = 0; axis < 3; axis++) {
+        if (!ruler_component_is_visible(delta[axis]) || !component_proj_ok[axis] ||
+            !component_proj_ok[axis + 1])
+        {
+          continue;
+        }
+
+        ruler_item_as_string_prefixed(unit,
+                                      component_prefix[axis],
+                                      fabsf(delta[axis]),
+                                      prec,
+                                      component_numstr[axis],
+                                      sizeof(component_numstr[axis]));
+        BLF_width_and_height(blf_mono_font,
+                             component_numstr[axis],
+                             sizeof(component_numstr[axis]),
+                             &component_numstr_size[axis][0],
+                             &component_numstr_size[axis][1]);
+        component_posit[axis] = ruler_label_position_get(component_co_ss[axis],
+                                                         component_co_ss[axis + 1],
+                                                         component_numstr_size[axis],
+                                                         bg_margin);
+        ui::theme::get_color_3ubv(ThemeColorID(TH_AXIS_X + axis), component_color[axis]);
+        component_draw[axis] = true;
+      }
+    }
+
     posit = (co_ss[0] + co_ss[2]) / 2.0f;
 
     /* center text */
@@ -1026,6 +1170,17 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
                posit[1] - bg_margin,
                posit[0] + bg_margin + numstr_size[0],
                posit[1] + bg_margin + numstr_size[1]);
+
+      for (int axis = 0; axis < 3; axis++) {
+        if (!component_draw[axis]) {
+          continue;
+        }
+        immRectf(shdr_pos_2d,
+                 component_posit[axis][0] - bg_margin,
+                 component_posit[axis][1] - bg_margin,
+                 component_posit[axis][0] + bg_margin + component_numstr_size[axis][0],
+                 component_posit[axis][1] + bg_margin + component_numstr_size[axis][1]);
+      }
       GPU_blend(GPU_BLEND_NONE);
     }
 
@@ -1036,6 +1191,15 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
       BLF_color3ubv(blf_mono_font, color_text);
       BLF_position(blf_mono_font, posit[0], posit[1], 0.0f);
       BLF_draw(blf_mono_font, numstr, sizeof(numstr));
+
+      for (int axis = 0; axis < 3; axis++) {
+        if (!component_draw[axis]) {
+          continue;
+        }
+        BLF_color3ubv(blf_mono_font, component_color[axis]);
+        BLF_position(blf_mono_font, component_posit[axis][0], component_posit[axis][1], 0.0f);
+        BLF_draw(blf_mono_font, component_numstr[axis], sizeof(component_numstr[axis]));
+      }
     }
   }
 
@@ -1349,6 +1513,12 @@ void VIEW3D_GGT_ruler(wmGizmoGroupType *gzgt)
 
   gzgt->poll = ED_gizmo_poll_or_unlink_delayed_from_tool;
   gzgt->setup = WIDGETGROUP_ruler_setup;
+
+  RNA_def_boolean(gzgt->srna,
+                  ruler_show_components_prop_id,
+                  true,
+                  "Show Components",
+                  "Show X, Y, Z components");
 }
 
 /** \} */
