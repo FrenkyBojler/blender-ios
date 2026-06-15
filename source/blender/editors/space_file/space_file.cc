@@ -750,6 +750,50 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
+static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
+{
+  /* Collect all file browser tool panels */
+  Vector<Panel *> panels;
+  for (Panel &panel : region->panels) {
+    if (panel.type && STRPREFIX(panel.type->idname, "FILEBROWSER_PT_")) {
+      panels.append(&panel);
+    }
+  }
+
+  /* Sort by sortorder. */
+  std::stable_sort(panels.begin(), panels.end(), [](const Panel *a, const Panel *b) {
+    return a->sortorder < b->sortorder;
+  });
+
+  for (const int i : panels.index_range()) {
+    Panel *panel = panels[i];
+    const bool is_open = !(panel->flag & PNL_CLOSED);
+
+    if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_volumes")) {
+      U.file_space_data.volumes_index = i;
+      U.file_space_data.volumes_open = is_open;
+    }
+    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_system")) {
+      U.file_space_data.system_index = i;
+      U.file_space_data.system_open = is_open;
+    }
+    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_recents")) {
+      U.file_space_data.recent_index = i;
+      U.file_space_data.recent_open = is_open;
+    }
+    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_bookmarks_favorites")) {
+      U.file_space_data.bookmarks_index = i;
+      U.file_space_data.bookmarks_open = is_open;
+    }
+    else if (STREQ(panel->type->idname, "FILEBROWSER_PT_advanced_filter")) {
+      U.file_space_data.advanced_filter_index = i;
+      U.file_space_data.advanced_filter_open = is_open;
+    }
+  }
+
+  U.runtime.is_dirty = true;
+}
+
 static void file_tools_region_draw(const bContext *C, ARegion *region)
 {
   ED_region_panels(C, region);
@@ -1088,6 +1132,7 @@ void ED_spacetype_file()
   art->keymapflag = ED_KEYMAP_UI;
   art->listener = file_tools_region_listener;
   art->init = file_tools_region_init;
+  art->exit = file_tools_region_exit;
   art->draw = file_tools_region_draw;
   BLI_addhead(&st->regiontypes, art);
   file_tools_region_panels_register(art);
