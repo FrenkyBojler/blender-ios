@@ -555,7 +555,7 @@ static BMOpDefine bmo_edge_flow_def = {
     {
         /* Input edges. */
         {"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
-        /* Redistribution mode: 0 = linear, 1 = flow (deferred). */
+        /* Redistribution mode: 0 = linear, 1 = flow. */
         {"mode", BMO_OP_SLOT_INT},
         /* Blend factor between original and computed position from 0.0 to 1.0. */
         {"mix", BMO_OP_SLOT_FLT},
@@ -565,6 +565,14 @@ static BMOpDefine bmo_edge_flow_def = {
         {"tension", BMO_OP_SLOT_INT},
         /* Number of iterations for the flow algorithm. */
         {"iterations", BMO_OP_SLOT_INT},
+        /* Blend mode 0 for absolute vert count, 1 for loop length factor. */
+        {"blend_mode", BMO_OP_SLOT_INT},
+        /* Vert for absolute blend mode, factor if factor, blended toward loop start endpoint. */
+        {"blend_start", BMO_OP_SLOT_FLT},
+        /* Vert for absolute blend mode, factor if factor, blended toward loop end endpoint. */
+        {"blend_end", BMO_OP_SLOT_FLT},
+        /* 0 for linear falloff, 1 for smooth falloff. */
+        {"blend_type", BMO_OP_SLOT_INT},
         {{'\0'}},
     },
     /*slot_types_out*/

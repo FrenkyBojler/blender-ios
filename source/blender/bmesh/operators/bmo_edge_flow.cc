@@ -10,7 +10,6 @@
  */
 
 #include "BLI_array.hh"
-#include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
@@ -21,7 +20,6 @@
 namespace blender {
 
 struct EdgeFlowLoop {
-  Vector<BMEdge *> edges;
   Vector<BMVert *> verts;
   bool is_cyclic;
 };
@@ -80,7 +78,6 @@ static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
       last = next;
     }
 
-    loop.edges = std::move(loop_edges);
     loop.is_cyclic = (loop.verts.first() == loop.verts.last());
     r_loops.append(std::move(loop));
   }
@@ -166,18 +163,22 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
   edge_flow_collect_loops(bm, loops);
 
   if (mode == EDGE_FLOW_FLOW) {
-    Map<BMVert *, float3> orig_cos;
+    Array<Array<float3>> orig_cos(loops.size());
 
-    for (const EdgeFlowLoop &loop : loops) {
-      for (BMEdge *e : loop.edges) {
-        orig_cos.add(e->v1, e->v1->co);
-        orig_cos.add(e->v2, e->v2->co);
+    for (const int j : loops.index_range()) {
+      const EdgeFlowLoop &loop = loops[j];
+      orig_cos[j].reinitialize(loop.verts.size());
+      for (const int i : loop.verts.index_range()) {
+        orig_cos[j][i] = loop.verts[i]->co;
       }
     }
 
     for (int iter = 0; iter < iterations; iter++) {
       for (const EdgeFlowLoop &loop : loops) {
-        for (BMEdge *e : loop.edges) {
+        for (const int i : loop.verts.index_range().drop_back(1)) {
+          BMEdge *e = BM_edge_exists(loop.verts[i], loop.verts[i + 1]);
+          BLI_assert(e != nullptr);
+
           /* Skip wire and boundary edges. */
           if (e->l == nullptr || BM_edge_is_boundary(e)) {
             continue;
@@ -210,10 +211,13 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
     }
 
     /* Blend each moved vert back toward its original position. */
-    for (const MutableMapItem<BMVert *, float3> &item : orig_cos.items()) {
-      float3 blended;
-      interp_v3_v3v3(blended, item.value, item.key->co, mix);
-      copy_v3_v3(item.key->co, blended);
+    for (const int j : loops.index_range()) {
+      const EdgeFlowLoop &loop = loops[j];
+      for (const int i : loop.verts.index_range().drop_back(loop.is_cyclic ? 1 : 0)) {
+        float3 blended;
+        interp_v3_v3v3(blended, orig_cos[j][i], loop.verts[i]->co, mix);
+        copy_v3_v3(loop.verts[i]->co, blended);
+      }
     }
 
     return;
