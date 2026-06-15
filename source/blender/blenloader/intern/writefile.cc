@@ -985,6 +985,9 @@ void BlendStructWriter::generated_ptr(const int64_t offset)
 
   /* In undo case, replace generated pointers by corresponding stable pointers. */
   const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(data_.data(), offset));
+  if (!*p_ptr) {
+    return;
+  }
   /* Should exist if #BLO_write_generated_pointer_tag has been called before. */
   BLI_assert(wd_->stable_address_ids.pointer_map.contains(*p_ptr));
   const void *p_ptr_address_id = get_address_id(*wd_, *p_ptr);
