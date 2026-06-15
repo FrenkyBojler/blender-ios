@@ -78,6 +78,13 @@ static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
       last = next;
     }
 
+    /* Ensure larger coord endpoint is first for stable loop ordering */
+    const float3 first_co = loop.verts.first()->co;
+    const float3 last_co = loop.verts.last()->co;
+    if (first_co.x + first_co.y + first_co.z < last_co.x + last_co.y + last_co.z) {
+      std::reverse(loop.verts.begin(), loop.verts.end());
+    }
+
     loop.is_cyclic = (loop.verts.first() == loop.verts.last());
     r_loops.append(std::move(loop));
   }
@@ -145,6 +152,48 @@ static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, float3 
 
   r_target = math::hermite_spline_interp(p1, p2, p3, p4, 0.5f, -tension, 0.0f);
   return true;
+}
+
+/* Apply blend_start / blend_end to verts of each loop back towards original positions. */
+static void edge_flow_blend_ends(const EdgeFlowLoop &loop, const Array<float3> &orig_cos, int blend_start, int blend_end, const bool smooth) {
+  if (loop.is_cyclic) {
+    return;
+  }
+
+  edge_flow_blend_range(loop, orig_cos, blend_start, false, smooth);
+  edge_flow_blend_range(loop, orig_cos, blend_end, true, smooth);
+}
+
+static void edge_flow_blend_range(const EdgeFlowLoop &loop, const Array<float3> &orig_cos, int range, const bool reverse, const bool smooth) {
+  const int count = int(loop.verts.size());
+  range = std::min(range, count - 1);
+  if (range <= 0) {
+    return;
+  }
+
+  Array<float> dist(range + 1);
+  dist[0] = 0.0f;
+  float total_dist = 0.0f;
+  for (int i = 1; i <= range; i++) {
+    const int a = reverse ? count - 1 - i : i;
+    const int b = reverse ? count - i : i - 1;
+    total_dist += math::distance(float3(loop.verts[a]->co), float3(loop.verts[b]->co));
+    dist[i] = total_dist;
+  }
+
+  if (total_dist == 0.0f) {
+    return;
+  }
+
+  for (int i = 0; i <= range; i++) {
+    const int a = reverse ? count - 1 - i : i;
+    float t = dist[i] / total_dist;
+    if (smooth) {
+      t = t * t * (3.0f - 2.0f * t);
+    }
+
+    interp_v3_v3v3(loop.verts[a]->co, orig_cos[a], loop.verts[a]->co, t);
+  }
 }
 
 void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
@@ -277,15 +326,6 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
         }
       }
     }
-
-    /* Reinterpolate UVs/customData for every face loop touching a moved vert. */
-    // for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
-    //   BMIter l_iter;
-    //   BMLoop *l;
-    //   BM_ITER_ELEM (l, &l_iter, loop.verts[i], BM_LOOPS_OF_VERT) {
-    //     BM_loop_interp_from_face(bm, l, l->f, false, true);
-    //   }
-    // }
   }
 }
 
