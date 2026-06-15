@@ -717,22 +717,19 @@ struct Film {
     }
 
     float4 color_film = imageLoadFast(color_accum_img, int3(dst.texel, color_pass_id));
-
-    float4 light_film;
-    if (light_pass_id != -1) {
-      light_film = imageLoadFast(color_accum_img, int3(dst.texel, light_pass_id));
-      /* Undivide. */
-      light_film *= color_film;
-    }
-
     color = (color_film * dst.weight + color) * dst.weight_sum_inv;
     store_color_ex(dst, color_pass_id, color, display, true);
 
-    if (light_pass_id != -1) {
-      light = (light_film * dst.weight + light) * dst.weight_sum_inv;
-      light = safe_divide_even_color(light, color);
-      store_color_ex(dst, light_pass_id, light, display, true);
+    if (light_pass_id == -1) {
+      return;
     }
+
+    float4 light_film = imageLoadFast(color_accum_img, int3(dst.texel, light_pass_id));
+    /* Undivide. */
+    light_film *= color_film;
+    light = (light_film * dst.weight + light) * dst.weight_sum_inv;
+    light = safe_divide_even_color(light, color);
+    store_color_ex(dst, light_pass_id, light, display, true);
   }
 
   void store_value(FilmSample dst, int pass_id, float value, float4 &display)
