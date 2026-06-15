@@ -14,6 +14,7 @@
 #include "BKE_scene.hh"
 
 #include "BLI_rand.h"
+#include "BLI_time.h"
 
 #include "BLI_math_base.hh"
 #include "BLI_math_base_safe.h"
@@ -35,6 +36,7 @@ void Sampling::init(const Scene *scene)
                                                                    scene->eevee.taa_render_samples;
 
   sample_count_ = inst_.is_viewport() ? scene->eevee.taa_samples : render_sample_count;
+  time_limit_ = scene->eevee.time_limit;
 
   if (inst_.is_image_render) {
     sample_count_ = math::max(uint64_t(1), sample_count_);
@@ -108,6 +110,8 @@ void Sampling::init(const Scene *scene)
       printf("%s: scene.custom_pixel_jitter_sample length is not 0 or 2.\n", __func__);
     }
   }
+
+  start_render_time_ = BLI_time_now_seconds();
 }
 
 void Sampling::init(const Object &probe_object)
@@ -118,6 +122,7 @@ void Sampling::init(const Object &probe_object)
 
   sample_count_ = max_ii(1, lightprobe.grid_bake_samples);
   sample_ = 0;
+  start_render_time_ = BLI_time_now_seconds();
 }
 
 void Sampling::end_sync()
@@ -149,6 +154,17 @@ void Sampling::end_sync()
       }
     }
   }
+}
+
+bool Sampling::check_time_limit_reached() const
+{
+  if (time_limit_ > 0.0f && sample_ > 0 && viewport_sample_ > 0) {
+    auto current_time = BLI_time_now_seconds();
+    if (current_time - start_render_time_ >= time_limit_) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void Sampling::step()

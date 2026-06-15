@@ -16,6 +16,7 @@
 
 #include "BLI_rect.h"
 #include "BLI_time.h"
+#include "BLI_timecode.h"
 
 #include "BLT_translation.hh"
 
@@ -660,6 +661,7 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
   DebugScope debug_scope(debug_scope_render_frame, "EEVEE.render_frame");
 
   /* TODO: Break on RE_engine_test_break(engine) */
+  auto start_time = BLI_time_now_seconds();
   while (!sampling.finished()) {
     this->render_sample();
 
@@ -701,6 +703,16 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
   this->film.cryptomatte_sort();
 
   this->render_read_result(render_layer, view_name);
+
+  if (!is_viewport()) {
+    char time_string[32];
+    auto current_time = BLI_time_now_seconds();
+    BLI_timecode_string_from_time_simple(
+        time_string, sizeof(time_string), current_time - start_time);
+    auto message = fmt::format(
+        "Rendered {} samples in {} seconds", sampling.sample_index(), time_string);
+    CLOG_INFO(&Instance::log, message.c_str());
+  }
 
   if (!info_.empty()) {
     RE_engine_set_error_message(

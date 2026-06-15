@@ -81,6 +81,12 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 3)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.eevee.time_limit = 0.0f;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

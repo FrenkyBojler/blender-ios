@@ -752,6 +752,7 @@ class RENDER_PT_eevee_sampling_advanced(RenderButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(props, "light_threshold")
+        col.prop(props, "time_limit")
 
 
 class RENDER_PT_eevee_film(RenderButtonsPanel, Panel):
