@@ -482,22 +482,18 @@ void GLTexture::read(int mip, eGPUDataFormat type, void *data)
       format_ == TextureFormat::SFLOAT_32_DEPTH_UINT_8 ? TextureFormat::SFLOAT_32_DEPTH : format_);
   GLenum gl_type = to_gl(type);
 
-  if (GLContext::direct_state_access_support) {
-    glGetTextureImage(tex_id_, mip, gl_format, gl_type, texture_size, data);
-  }
-  else {
-    GLContext::state_manager_active_get()->texture_bind_temp(this);
-    if (type_ == GPU_TEXTURE_CUBE) {
-      size_t cube_face_size = texture_size / 6;
-      char *pdata = static_cast<char *>(data);
-      for (int i = 0; i < 6; i++, pdata += cube_face_size) {
-        glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, mip, gl_format, gl_type, pdata);
-      }
-    }
-    else {
-      glGetTexImage(target_, mip, gl_format, gl_type, data);
-    }
-  }
+  glGetTextureSubImage(tex_id_,
+                       mip,
+                       0,
+                       0,
+                       0,
+                       w_,
+                       std::max(h_, 1),
+                       std::max(d_, 1),
+                       gl_format,
+                       gl_type,
+                       texture_size,
+                       data);
 }
 
 /** \} */
