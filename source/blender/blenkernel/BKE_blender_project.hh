@@ -108,6 +108,13 @@ class BlenderProject {
    */
   int remove_variable(ProjectVariable *var);
 
+  /**
+   * Move the variable at from_index to to_index.
+   *
+   * The other variables are shifted appropriately around this.
+   *
+   * Both from_index and to_index must be valid indices in the list.
+   */
   void move_variable(int from_index, int to_index);
 };
 

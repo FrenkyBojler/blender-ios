@@ -254,6 +254,7 @@ class PROJECT_PT_variables(Panel):
 
         layout = self.layout
         layout.use_property_split = True
+
         row = layout.row()
         row.template_list(
             listtype_name="PROJECT_UL_variables",
