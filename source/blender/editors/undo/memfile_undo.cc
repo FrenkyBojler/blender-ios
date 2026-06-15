@@ -312,15 +312,6 @@ static void memfile_undosys_step_decode(
             DEG_id_tag_update_ex(bmain, &mesh->id, ID_RECALC_GEOMETRY);
           }
         }
-        else if (ELEM(object->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT)) {
-          /* Memfile undo restores curve edit data but may reuse a dependency graph whose displist
-           * no longer matches. #ObjectRuntime.bounds_eval (RNA dimensions) can then be empty; the
-           * fallback in #BKE_object_boundbox_eval_cached_get uses edit-mode bounds that ignore
-           * bevel and add control-point radius (which legacy curve object bounds do not use), so
-           * dimensions disagree with evaluated geometry (e.g. a default circle reporting 4.0 m
-           * instead of 2.0 m). See #148786. */
-          DEG_id_tag_update_ex(bmain, id, ID_RECALC_GEOMETRY);
-        }
       }
     }
     FOREACH_MAIN_ID_END;
