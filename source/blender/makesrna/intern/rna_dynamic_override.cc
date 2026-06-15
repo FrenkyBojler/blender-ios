@@ -310,6 +310,7 @@ static void rna_def_dynamic_override_rule_target_filter(BlenderRNA *brna)
 static void rna_def_dynamic_override_rule_target_filter_single_id(BlenderRNA *brna)
 {
   StructRNA *srna;
+  PropertyRNA *prop;
 
   srna = RNA_def_struct(
       brna, "DynamicOverrideRuleTargetFilterIDSingle", "DynamicOverrideRuleTargetFilter");
@@ -318,7 +319,8 @@ static void rna_def_dynamic_override_rule_target_filter_single_id(BlenderRNA *br
                          "Rules with this type of filter only affect a single ID");
   RNA_def_struct_sdna(srna, "DynamicOverrideRuleTargetFilter");
 
-  RNA_def_pointer(srna, "target_id", "ID", "Target ID", "Data-block affected by this rule");
+  prop = RNA_def_pointer(srna, "target_id", "ID", "Target ID", "Data-block affected by this rule");
+  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
 }
 
 static void rna_def_dynamic_override_rule_property(BlenderRNA *brna)

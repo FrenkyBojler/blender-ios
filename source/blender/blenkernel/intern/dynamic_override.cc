@@ -11,11 +11,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_build_config.h"
+#include "BLI_build_config.hh"
 #include "BLI_enum_flags.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_resource_scope.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -153,6 +153,26 @@ static void blend_read_data(BlendDataReader *reader, ID *id)
   }
 }
 
+static void blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
+{
+  DynamicOverride *dynoverride = id_cast<DynamicOverride *>(id);
+
+  /* Cleanup invalid rules.
+   *
+   * The target ID is a weak link, so it may become nullptr, in which case the rule itself can also
+   * be removed.
+   *
+   * TODO: likely move this into dedicated util, as 'removable' data logic will become more complex
+   * once we add more filtering logic e.g. */
+  for (DynamicOverrideRule &dynoverride_rule : dynoverride->rules.items_mutable()) {
+    if (!dynoverride_rule.target_filter.target_id) {
+      BLI_remlink(&dynoverride->rules, &dynoverride_rule);
+      rule_free(dynoverride_rule);
+      MEM_delete(&dynoverride_rule);
+    }
+  }
+}
+
 }  // namespace bke::dynoverride
 
 IDTypeInfo IDType_ID_OV = {
@@ -179,7 +199,7 @@ IDTypeInfo IDType_ID_OV = {
 
     .blend_write = bke::dynoverride::blend_write,
     .blend_read_data = bke::dynoverride::blend_read_data,
-    .blend_read_after_liblink = nullptr,
+    .blend_read_after_liblink = bke::dynoverride::blend_read_after_liblink,
 
     .blend_read_undo_preserve = nullptr,
 
@@ -295,7 +315,11 @@ static void rule_foreach_id(DynamicOverrideRule &dynoverride_rule, LibraryForeac
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule);
 
-      BKE_LIB_FOREACHID_PROCESS_ID(&data, rule.base.target_filter.target_id, IDWALK_CB_NOP);
+      /* Target IDs are not hard dependencies, they should not be linked only because a dynamic
+       * override ID references them.
+       * These usages are also not refcounting. */
+      BKE_LIB_FOREACHID_PROCESS_ID(
+          &data, rule.base.target_filter.target_id, IDWALK_CB_DIRECT_WEAK_LINK);
 
       IDP_foreach_property(rule.override_values, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
         BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
@@ -409,17 +433,7 @@ DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(Scene &scene, ID &owner_id)
     return nullptr;
   }
 
-  for (DynamicOverrideRule &rule : dynamic_override->rules) {
-    if (rule.type != DynamicOverrideRuleType::IDData) {
-      continue;
-    }
-    DynamicOverrideRuleIDData &rule_id_data = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
-    if (rule_id_data.base.target_filter.target_id == &owner_id) {
-      return &rule_id_data;
-    }
-  }
-
-  return nullptr;
+  return rule_iddata_lookup_for_id(*dynamic_override, owner_id);
 }
 
 static DynamicOverrideRuleIDData &rule_iddata_add_for_id(DynamicOverride &dynamic_override,
@@ -944,6 +958,9 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
     if (rule.type != DynamicOverrideRuleType::IDData) {
       continue;
     }
+    if (!rule.target_filter.target_id) {
+      continue;
+    }
 
     DynamicOverrideRuleIDData &iddata_rule = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
     auto generated = std::make_unique<GeneratedRuleSrnaData>();
@@ -956,11 +973,11 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
         "DynamicOverrideRuleIDDataOriginalValuesRT",
         RNA_DynamicOverrideRuleIDDataOriginalValues);
 
+    PointerRNA owner_id_ptr = RNA_id_pointer_create(rule.target_filter.target_id);
     for (DynamicOverrideRuleProperty &rule_property : iddata_rule.properties) {
-      PointerRNA owner_id_ptr, ptr;
+      PointerRNA ptr;
       PropertyRNA *prop_orig;
 
-      owner_id_ptr = RNA_id_pointer_create(rule.target_filter.target_id);
       RNA_path_resolve(&owner_id_ptr, rule_property.rna_path, &ptr, &prop_orig);
 
       if (!ptr.data || !prop_orig) {
@@ -985,6 +1002,9 @@ static void dynamic_override_update_rules_system_idprops(Main & /*bmain*/,
 {
   for (DynamicOverrideRule &rule : dynamic_override.rules) {
     if (rule.type != DynamicOverrideRuleType::IDData) {
+      continue;
+    }
+    if (!rule.target_filter.target_id) {
       continue;
     }
 
@@ -1133,6 +1153,9 @@ void eval_for_id(Depsgraph &depsgraph, DepsgraphCtx &eval_context, ID &id_cow)
   PointerRNA id_cow_ptr = RNA_id_pointer_create(&id_cow);
   for (DynamicOverrideRule &rule : dynamic_override->rules) {
     if (rule.type != DynamicOverrideRuleType::IDData) {
+      continue;
+    }
+    if (!rule.target_filter.target_id) {
       continue;
     }
     if (flag_is_set(rule.flag, DynamicOverrideRuleFlag::IsMuted)) {
