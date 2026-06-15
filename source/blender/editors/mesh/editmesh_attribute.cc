@@ -63,13 +63,17 @@ static char domain_to_htype(const bke::AttrDomain domain)
 
 static bool mesh_active_attribute_poll(bContext *C)
 {
-  if (!ED_operator_editmesh(C)) {
+  const Object *object = CTX_data_active_object(C);
+  if (!object) {
     return false;
   }
-  const Mesh *mesh = ED_mesh_context(C);
-  if (mesh == nullptr) {
+  if (object->mode != OB_MODE_EDIT) {
     return false;
   }
+  if (object->type != OB_MESH) {
+    return false;
+  }
+  const Mesh *mesh = id_cast<const Mesh *>(object->data);
   if (!geometry::attribute_set_poll(*C, mesh->id)) {
     return false;
   }
