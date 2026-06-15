@@ -7881,38 +7881,6 @@ template void calc_brush_cube_distances<float3>(const Brush &brush,
                                                 const Span<float3> positions,
                                                 MutableSpan<float> r_distances);
 
-void calc_brush_cube_distances_xy(const Brush &brush,
-                                  const Span<float3> positions,
-                                  const MutableSpan<float> r_distances)
-{
-  PRF_scope(ProfileCategory::Editor);
-  BLI_assert(r_distances.size() == positions.size());
-
-  const float roundness = brush.tip_roundness;
-  const float roundness_rcp = math::safe_rcp(roundness);
-  const float hardness = 1.0f - roundness;
-  const float2 hardness_vec(hardness);
-  const float2 zero(0.0f);
-
-  for (const int i : positions.index_range()) {
-    const float3 local = math::abs(positions[i]);
-
-    if (math::reduce_max(local) > 1.0f) {
-      r_distances[i] = 1.0f;
-      continue;
-    }
-
-    const float2 excess = math::max(local.xy() - hardness_vec, zero);
-    if (math::reduce_max(excess) == 0.0f) {
-      r_distances[i] = 0.0f;
-      continue;
-    }
-
-    const float distance = math::min(math::length(excess) * roundness_rcp, 1.0f);
-    r_distances[i] = distance;
-  }
-}
-
 void apply_hardness_to_distances(const float radius,
                                  const float hardness,
                                  const MutableSpan<float> distances)

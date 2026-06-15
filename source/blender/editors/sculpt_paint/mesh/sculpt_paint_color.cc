@@ -375,7 +375,7 @@ static void do_paint_brush_task(const Depsgraph &depsgraph,
   if (brush.tip_roundness < 1.0f) {
     tls.positions.resize(verts.size());
     calc_local_positions(vert_positions, verts, mat, tls.positions);
-    calc_brush_cube_distances_xy(brush, tls.positions, distances);
+    calc_brush_cube_distances<float3>(brush, tls.positions, distances);
     radius = 1.0f;
   }
   else {
