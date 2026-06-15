@@ -659,7 +659,13 @@ class LightMapPack(Operator):
     @classmethod
     def poll(cls, context):
         ob = context.active_object
-        return ob and ob.type == 'MESH'
+        if not ob or ob.type != 'MESH':
+            return False
+        mesh = ob.data
+        if not mesh.uv_layers.active:
+            cls.poll_message_set("No active UV map")
+            return False
+        return True
 
     def execute(self, context):
         kwargs = self.as_keywords()
