@@ -1,2 +1,3 @@
 Referenced by issue #159836, Python UI Layout textbox component appears with a single line instead of 3
 Referenced by pull request #160147, Fix #159836: Textbox uses only single line by default
+Referenced by commit 6a4f31ae2765c4ccf623b7ac288ba038b4a1326b, Fix #159836: Textbox uses only single line by default
