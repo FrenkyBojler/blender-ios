@@ -1784,6 +1784,14 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->asset_flag |= USER_ASSETS_USE_ONLINE_ESSENTIALS;
   }
 
+  if (!USER_VERSION_ATLEAST(503, 4)) {
+    userdef->file_space_data.bookmarks_open = true;
+    userdef->file_space_data.system_open = true;
+    userdef->file_space_data.volumes_open = true;
+    userdef->file_space_data.recent_open = true;
+    userdef->file_space_data.advanced_filter_open = true;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

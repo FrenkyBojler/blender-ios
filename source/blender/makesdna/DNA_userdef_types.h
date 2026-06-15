@@ -832,8 +832,9 @@ struct UserDef_FileSpaceData {
   char recent_open = 1;
   char advanced_filter_index = 4;
   char advanced_filter_open = 1;
+  char custom_order = 0;
 
-  char _pad1[6] = {};
+  char _pad1[5] = {};
 };
 
 struct UserDef_TempWinBounds {
