@@ -57,21 +57,24 @@ static Mutex thumb_cache_mutex;
 struct ThumbnailCache {
 
   struct SourceKey {
-    explicit SourceKey() : id(nullptr) {}
-    explicit SourceKey(const std::string &path) : path(path), id(nullptr) {}
-    explicit SourceKey(const ID *id) : id(id) {}
+    explicit SourceKey() = default;
+    explicit SourceKey(const std::string &path) : path(path) {}
+    explicit SourceKey(const ID *id) : id_session_uid(id->session_uid) {}
 
+    /* Used for strips where media is a file with a path. */
     std::string path;
-    const ID *id;
+    /* Used for strips that are IDs. We store the session UID so it stays valid
+     * across undo/redo. */
+    unsigned int id_session_uid = 0;
 
     bool is_valid() const
     {
-      return !path.empty() || id != nullptr;
+      return !path.empty() || id_session_uid != 0;
     }
 
     uint64_t hash() const
     {
-      return get_default_hash(path, reinterpret_cast<size_t>(id));
+      return get_default_hash(path, id_session_uid);
     }
     friend bool operator==(const SourceKey &a, const SourceKey &b) = default;
     bool operator<(const SourceKey &o) const
@@ -79,7 +82,7 @@ struct ThumbnailCache {
       if (path != o.path) {
         return path < o.path;
       }
-      return id < o.id;
+      return id_session_uid < o.id_session_uid;
     }
   };
 
@@ -136,6 +139,10 @@ struct ThumbnailCache {
 
   Map<SourceKey, SourceEntry> map_;
   Set<Request> requests_;
+  /* Local copies of IDs (e.g. movie clip, mask) used for thumbnails, keyed by session UID.
+   * Copies are needed so that the thumbnail generation thread is safe with regards to ID
+   * modifications or deletions that might happen on the main thread. */
+  Map<unsigned int, ID *> id_copies_;
   int64_t logical_time_ = 0;
 
   ~ThumbnailCache()
@@ -152,6 +159,10 @@ struct ThumbnailCache {
     }
     map_.clear();
     requests_.clear();
+    for (ID *id_copy : id_copies_.values()) {
+      BKE_id_free(nullptr, id_copy);
+    }
+    id_copies_.clear();
     logical_time_ = 0;
   }
 
@@ -290,25 +301,21 @@ static void scale_to_thumbnail_size(ImBuf *ibuf)
   IMB_scale(ibuf, width, height, IMBScaleFilter::Nearest, false);
 }
 
-static ImBuf *render_mask_thumb(const Mask *mask, float frame_index)
+static ImBuf *render_mask_thumb(Mask *mask, float frame_index)
 {
   if (!mask) {
     return nullptr;
   }
 
-  Mask *mask_copy = (Mask *)BKE_id_copy_ex(
-      nullptr, &mask->id, nullptr, LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_NO_ANIMDATA);
-  BKE_mask_evaluate(mask_copy, mask->sfra + frame_index, true);
+  BKE_mask_evaluate(mask, mask->sfra + frame_index, true);
 
   constexpr int width = THUMB_SIZE;
   constexpr int height = THUMB_SIZE;
   Array<float> mask_buffer(width * height);
   MaskRasterHandle *raster = BKE_maskrasterize_handle_new();
-  BKE_maskrasterize_handle_init(raster, mask_copy, width, height, true, true, true);
+  BKE_maskrasterize_handle_init(raster, mask, width, height, true, true, true);
   BKE_maskrasterize_buffer(raster, width, height, mask_buffer.data());
   BKE_maskrasterize_handle_free(raster);
-
-  BKE_id_free(nullptr, &mask_copy->id);
 
   ImBuf *ibuf = IMB_allocImBuf(
       width, height, ImBufFlags::ByteData | ImBufFlags::UninitializedPixels);
@@ -366,6 +373,30 @@ void ThumbGenerationJob::free_fn(void *customdata)
   MEM_delete(job);
 }
 
+/* Return the worker-owned, localized off-Main copy of the ID-based source for this request, taking
+ * ownership of a new copy (and freeing the previous one) when the source changes. Returns null if
+ * no copy is available (e.g. it was already consumed); the request is then skipped and will be
+ * re-created on the next redraw. */
+static ID *get_id_copy(ThumbnailCache *cache,
+                       const ThumbnailCache::Request &request,
+                       ID *&cur_id_copy,
+                       unsigned int &cur_id_uid)
+{
+  const unsigned int uid = request.source_key.id_session_uid;
+  if (uid != cur_id_uid) {
+    if (cur_id_copy != nullptr) {
+      BKE_id_free(nullptr, cur_id_copy);
+      cur_id_copy = nullptr;
+    }
+    {
+      std::scoped_lock lock(thumb_cache_mutex);
+      cur_id_copy = cache->id_copies_.pop_default(uid, nullptr);
+    }
+    cur_id_uid = uid;
+  }
+  return cur_id_copy;
+}
+
 void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_status)
 {
 #ifdef DEBUG_PRINT_THUMB_JOB_TIMES
@@ -417,6 +448,13 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
       std::string cur_anim_path;
       int cur_stream = 0;
       IMB_Proxy_Size cur_proxy_size = IMB_PROXY_NONE;
+
+      /* For ID-based sources (movie clip, mask) we take ownership of the localized
+       * off-Main copy made on the main thread and reuse it across all of this source's frames. By
+       * popping it out of the cache's map, a concurrent cache clear/eviction can never free a copy
+       * we are still rendering from. The copy is freed when switching sources or at loop end. */
+      ID *cur_id_copy = nullptr;
+      unsigned int cur_id_uid = 0;
       for (const ThumbnailCache::Request &request : requests) {
         if (worker_status->stop) {
           break;
@@ -474,19 +512,23 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
         }
         else if (request.strip_type == STRIP_TYPE_MOVIECLIP) {
           /* Load thumbnail for a movie clip. */
-          MovieClipUser clip_user = {};
-          //@TODO: clip_user.render_size to pick smaller proxy size?
-          MovieClip *clip = (MovieClip *)request.source_key.id;
-          BKE_movieclip_user_set_frame(&clip_user, request.frame_index + clip->start_frame);
-          thumb = BKE_movieclip_get_ibuf_flag(
-              clip, &clip_user, MovieClipFlag(clip->flag), MovieClipCacheFlag::SkipCache);
-          if (thumb != nullptr) {
-            seq_imbuf_assign_spaces(job->scene_, thumb);
+          MovieClip *clip = reinterpret_cast<MovieClip *>(
+              get_id_copy(job->cache_, request, cur_id_copy, cur_id_uid));
+          if (clip != nullptr) {
+            MovieClipUser clip_user = {};
+            //@TODO: clip_user.render_size to pick smaller proxy size?
+            BKE_movieclip_user_set_frame(&clip_user, request.frame_index + clip->start_frame);
+            thumb = BKE_movieclip_get_ibuf_flag(
+                clip, &clip_user, MovieClipFlag(clip->flag), MovieClipCacheFlag::SkipCache);
+            if (thumb != nullptr) {
+              seq_imbuf_assign_spaces(job->scene_, thumb);
+            }
           }
         }
         else if (request.strip_type == STRIP_TYPE_MASK) {
           /* Load thumbnail for a mask. */
-          Mask *mask = (Mask *)request.source_key.id;
+          Mask *mask = reinterpret_cast<Mask *>(
+              get_id_copy(job->cache_, request, cur_id_copy, cur_id_uid));
           thumb = render_mask_thumb(mask, request.frame_index);
           if (thumb != nullptr) {
             seq_imbuf_assign_spaces(job->scene_, thumb);
@@ -521,6 +563,10 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
       if (cur_anim != nullptr) {
         MOV_close(cur_anim);
         cur_anim = nullptr;
+      }
+      if (cur_id_copy != nullptr) {
+        BKE_id_free(nullptr, cur_id_copy);
+        cur_id_copy = nullptr;
       }
     }
   }
@@ -579,6 +625,24 @@ static ImBuf *query_thumbnail(ThumbnailCache &cache,
 
   if (best_score > 0) {
     /* We do not have an exact frame match, add a thumb generation request. */
+
+    /* For ID-based sources, make a copy of the ID so that the worker thread can safely access it.
+     * One copy per source is shared across all frame requests. Lifetime is handled in
+     * run_fn (worker takes ownership) and ThumbnailCache::clear(). */
+    const ID *source_id = nullptr;
+    if (strip->type == STRIP_TYPE_MOVIECLIP && strip->clip != nullptr) {
+      source_id = &strip->clip->id;
+    }
+    else if (strip->type == STRIP_TYPE_MASK && strip->mask != nullptr) {
+      source_id = &strip->mask->id;
+    }
+    if (source_id != nullptr) {
+      cache.id_copies_.lookup_or_add_cb(key.id_session_uid, [&]() {
+        return BKE_id_copy_ex(
+            nullptr, source_id, nullptr, LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_NO_ANIMDATA);
+      });
+    }
+
     ThumbnailCache::Request request(key,
                                     frame_index,
                                     strip->streamindex,
