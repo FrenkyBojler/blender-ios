@@ -1659,7 +1659,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
   }
 
   const meshintersect::CDT_input<double> input = get_input_from_drawings(
-      src_drawings, object, boundary_layers, region, opacity_threshold);
+      src_drawings, object_eval, boundary_layers, region, opacity_threshold);
   meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_FULL);
 
   Array<bool> is_source_edge(result.edge.size(), false);
