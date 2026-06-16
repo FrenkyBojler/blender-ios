@@ -19,18 +19,18 @@
 #include "AS_asset_representation.hh"
 #include "AS_remote_library.hh"
 
-#include "BLI_fileops.h"
-#include "BLI_fileops_types.h"
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
+#include "BLI_fileops.hh"
+#include "BLI_fileops_types.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
 #include "BIF_glutil.hh"
@@ -119,7 +119,6 @@ void ED_file_path_button(bScreen *screen,
                   0.0f,
                   float(FILE_MAX),
                   TIP_("File path"));
-  button_retval_set(but, -1);
 
   BLI_assert(!button_flag_is_set(but, ui::BUT_UNDO));
   BLI_assert(!but_is_utf8(but));
@@ -1612,7 +1611,6 @@ void file_draw_list(const bContext *C, ARegion *region)
                                  1.0f,
                                  float(sizeof(params->renamefile)),
                                  "");
-      button_retval_set(but, 1);
       text_button_func_rename_set(but, renamebutton_cb);
       button_flag_enable(but, ui::BUT_NO_UTF8); /* Allow non UTF8 names. */
       button_flag_disable(but, ui::BUT_UNDO);
