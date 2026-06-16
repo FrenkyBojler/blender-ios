@@ -661,7 +661,7 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
   DebugScope debug_scope(debug_scope_render_frame, "EEVEE.render_frame");
 
   /* TODO: Break on RE_engine_test_break(engine) */
-  auto start_time = BLI_time_now_seconds();
+  double start_time = BLI_time_now_seconds();
   while (!sampling.finished()) {
     this->render_sample();
 
@@ -706,10 +706,10 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
 
   if (!is_viewport()) {
     char time_string[32];
-    auto current_time = BLI_time_now_seconds();
+    double current_time = BLI_time_now_seconds();
     BLI_timecode_string_from_time_simple(
         time_string, sizeof(time_string), current_time - start_time);
-    auto message = fmt::format(
+    std::string message = fmt::format(
         "Rendered {} samples in {} seconds", sampling.sample_index(), time_string);
     CLOG_INFO(&Instance::log, message.c_str());
   }

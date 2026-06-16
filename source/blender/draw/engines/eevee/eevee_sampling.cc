@@ -160,7 +160,7 @@ void Sampling::end_sync()
 bool Sampling::check_time_limit_reached() const
 {
   if (time_limit_ > 0.0f && sample_ > 0 && viewport_sample_ > 0) {
-    auto current_time = BLI_time_now_seconds();
+    double current_time = BLI_time_now_seconds();
     if (current_time - start_render_time_ >= time_limit_) {
       return true;
     }
