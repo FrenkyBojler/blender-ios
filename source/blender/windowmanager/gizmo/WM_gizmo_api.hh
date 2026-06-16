@@ -63,6 +63,7 @@ struct wmWindowManager;
  */
 constexpr int WM_GIZMO_OP_SLOT_ACTION_1 = 15;
 constexpr int WM_GIZMO_OP_SLOT_ACTION_2 = 16;
+constexpr int WM_GIZMO_OP_SLOT_ACTION_3 = 17;
 
 wmGizmo *WM_gizmo_new_ptr(const wmGizmoType *gzt, wmGizmoGroup *gzgroup, PointerRNA *properties);
 /**

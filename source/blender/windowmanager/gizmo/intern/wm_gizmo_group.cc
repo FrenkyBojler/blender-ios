@@ -655,6 +655,11 @@ void GIZMOGROUP_OT_gizmo_tweak(wmOperatorType *ot)
        "Duplicate Linked",
        "Make a linked duplicate (object mode) or a plain duplicate (edit mesh) before "
        "transforming"},
+      {WM_GIZMO_OP_SLOT_ACTION_3,
+       "CONSTRAIN_PLANE",
+       0,
+       "Constrain to Plane",
+       "Transform on the plane perpendicular to the axis handle, instead of along the axis"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

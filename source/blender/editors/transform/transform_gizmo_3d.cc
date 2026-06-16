@@ -1959,6 +1959,24 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
       }
     }
 
+    /* Plane-constrain action: run the same transform operator as the primary slot, but on the
+     * plane perpendicular to the handle. Only meaningful for single-axis translate/scale handles;
+     * a plane flip makes no sense for rotation or for handles that already span a plane. */
+    const bool is_single_axis = (int(constraint_axis[0]) + int(constraint_axis[1]) +
+                                 int(constraint_axis[2])) == 1;
+    if (is_single_axis) {
+      wmOperatorType *ot_plane = nullptr;
+      if (axis_type == MAN_AXES_TRANSLATE) {
+        ot_plane = ot_store.translate;
+      }
+      else if (axis_type == MAN_AXES_SCALE) {
+        ot_plane = ot_store.resize;
+      }
+      if (ot_plane) {
+        WM_gizmo_operator_set(axis, WM_GIZMO_OP_SLOT_ACTION_3, ot_plane, nullptr);
+      }
+    }
+
     /* Re-fetch the action operator slots rather than reusing the pointers returned by
      * #WM_gizmo_operator_set above: each call may resize #wmGizmo.op_data, invalidating the
      * pointers returned by earlier calls. */
@@ -1967,6 +1985,22 @@ static void gizmogroup_init_properties_from_twtype(const bContext *C, wmGizmoGro
         if (gzop->type != nullptr) {
           gizmo_operator_set_properties(&gzop->ptr, constraint_axis);
         }
+      }
+    }
+
+    /* The plane-constrain slot runs the plain transform operator (not a macro), so set its
+     * top-level "constraint_axis" directly like the primary slot below, rather than via
+     * #gizmo_operator_set_properties which only reaches a macro's nested operator. The constraint
+     * is inverted: the single-axis handle now drives the perpendicular plane. */
+    if (wmGizmoOpElem *gzop = WM_gizmo_operator_get(axis, WM_GIZMO_OP_SLOT_ACTION_3)) {
+      if (gzop->type != nullptr) {
+        const bool plane_axis[3] = {
+            !constraint_axis[0], !constraint_axis[1], !constraint_axis[2]};
+        PropertyRNA *prop = RNA_struct_find_property(&gzop->ptr, "constraint_axis");
+        if (prop) {
+          RNA_property_boolean_set_array(&gzop->ptr, prop, plane_axis);
+        }
+        RNA_boolean_set(&gzop->ptr, "release_confirm", true);
       }
     }
 
@@ -2303,22 +2337,34 @@ static void WIDGETGROUP_gizmo_invoke_prepare(const bContext *C,
   /* Support gizmo specific orientation. */
   if (gz != ggd->gizmos[MAN_AXIS_ROT_T]) {
     Scene *scene = CTX_data_scene(C);
-    wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, 0);
-    PointerRNA *ptr = &gzop->ptr;
-    PropertyRNA *prop_orient_type = RNA_struct_find_property(ptr, "orient_type");
     const TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get_from_flag(
         scene, ggd->twtype_init);
-    if ((gz == ggd->gizmos[MAN_AXIS_ROT_C]) ||
-        (orient_slot == &scene->orientation_slots[SCE_ORIENT_DEFAULT]))
-    {
-      /* #MAN_AXIS_ROT_C always uses the #V3D_ORIENT_VIEW orientation,
-       * optionally we could set this orientation instead of unset the property. */
-      RNA_property_unset(ptr, prop_orient_type);
-    }
-    else {
-      /* TODO: API function. */
-      int index = BKE_scene_orientation_slot_get_index(orient_slot);
-      RNA_property_enum_set(ptr, prop_orient_type, index);
+    /* #MAN_AXIS_ROT_C always uses the #V3D_ORIENT_VIEW orientation,
+     * optionally we could set this orientation instead of unset the property. */
+    const bool use_default = (gz == ggd->gizmos[MAN_AXIS_ROT_C]) ||
+                             (orient_slot == &scene->orientation_slots[SCE_ORIENT_DEFAULT]);
+
+    /* Apply to the primary slot and to the plane-constrain action slot (when present): the latter
+     * runs the same transform operator and interprets its constraint relative to this
+     * orientation, so it must match. */
+    for (const int slot : {0, WM_GIZMO_OP_SLOT_ACTION_3}) {
+      wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, slot);
+      if (gzop == nullptr || gzop->type == nullptr) {
+        continue;
+      }
+      PointerRNA *ptr = &gzop->ptr;
+      PropertyRNA *prop_orient_type = RNA_struct_find_property(ptr, "orient_type");
+      if (prop_orient_type == nullptr) {
+        continue;
+      }
+      if (use_default) {
+        RNA_property_unset(ptr, prop_orient_type);
+      }
+      else {
+        /* TODO: API function. */
+        int index = BKE_scene_orientation_slot_get_index(orient_slot);
+        RNA_property_enum_set(ptr, prop_orient_type, index);
+      }
     }
   }
 }
