@@ -12,6 +12,7 @@
 #include "draw_view.bsl.hh"
 #include "eevee_bxdf_lut_lib.bsl.hh"
 #include "eevee_hiz.bsl.hh"
+#include "eevee_light_data.bsl.hh"
 #include "eevee_nodetree_closures_lib.glsl"
 #include "eevee_pipeline.bsl.hh"
 #include "eevee_ray_trace_screen_lib.bsl.hh"
@@ -825,6 +826,15 @@ void node_light_info_impl(float4 &color,
                           float &distance,
                           float &attenuation)
 {
+  /* clang-format off */ /* Multiline macros would break line count. */
+  [[resource_table]] const eevee::LightRenderData &lrd = resource_table_get(eevee::LightRenderData);
+  /* clang-format on */
+  LightData light = lrd.light_buf[g_data.light_index];
+
+  color = float4(light.color, 1.0f);
+  position = light.object_to_world.location();
+  direction = normalize_and_get_length(position - g_data.P, distance);
+
   /*TODO*/
 }
 

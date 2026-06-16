@@ -70,6 +70,9 @@ void init_globals([[resource_table]] const eevee::Uniform &uni,
                   const ViewMatrices view,
                   bool front_face)
 {
+  g_data.light_index = 0u;
+  g_data.light_weight = 0.0f;
+
   auto &interp = interface_get(eevee_geom_iface_info, interp);
   /* Default values. */
   g_data.P = interp.P;

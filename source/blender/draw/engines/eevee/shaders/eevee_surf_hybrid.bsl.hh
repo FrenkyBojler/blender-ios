@@ -131,7 +131,7 @@ struct HybridFragOut {
 void surf_hybrid([[resource_table]] PipelineConstants &pipe,
                  [[resource_table]] SurfaceHybrid &srt,
                  [[resource_table]] gbuffer::PackParameters &gbuf_params,
-                 [[resource_table]] LightEvalIterator & /*lights*/,
+                 [[resource_table]] LightEvalIterator &lights,
                  [[resource_table]] LightprobeRenderData & /*lightprobes*/,
                  [[resource_table]] LightprobePlaneRenderData & /*lightprobe_planes*/,
                  [[resource_table]] CryptomatteOutput &cryptomatte,
@@ -160,6 +160,11 @@ void surf_hybrid([[resource_table]] PipelineConstants &pipe,
 
   fragment_displacement();
 
+  eevee::LightSample samp = lights.sample_one(
+      g_data.P, g_data.N, fract(pcg3d(g_data.P).x + sampling.rng_1D_get(SAMPLING_CLOSURE)));
+  g_data.light_index = samp.light_id;
+  g_data.light_weight = samp.weight;
+
   nodetree_surface(closure_rand);
 
   g_holdout = saturate(g_holdout);
@@ -179,6 +184,7 @@ void surf_hybrid([[resource_table]] PipelineConstants &pipe,
   }
 
   g_emission *= alpha_rcp;
+  g_emission *= samp.total_weight * safe_rcp(samp.weight);
 
   int2 out_texel = int2(frag_co.xy);
 
