@@ -493,6 +493,9 @@ float Strip::media_fps(Scene *scene)
 
 float Strip::content_start() const
 {
+  if (this->input1 != nullptr) {
+    return this->startdisp;
+  }
   return this->start;
 }
 
@@ -506,11 +509,17 @@ void Strip::content_start_set(const Scene *scene, int timeline_frame)
 
 float Strip::content_end(const Scene *scene) const
 {
+  if (this->input1 != nullptr) {
+    return this->enddisp;
+  }
   return this->content_start() + this->length(scene);
 }
 
 int Strip::length(const Scene *scene) const
 {
+  if (this->input1 != nullptr) {
+    return this->enddisp - this->startdisp;
+  }
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   if (seq::retiming_has_keys(this)) {
     const int last_key_frame = seq::retiming_key_frame_get(
@@ -533,7 +542,7 @@ int Strip::rounded_sound_offset(float scene_fps) const
 
 int Strip::left_handle() const
 {
-  if (this->input1 && !this->input2) {
+  if (this->input1 || this->input2) {
     return this->startdisp;
   }
 
@@ -542,7 +551,7 @@ int Strip::left_handle() const
 
 int Strip::right_handle(const Scene *scene) const
 {
-  if (this->input1 && !this->input2) {
+  if (this->input1 || this->input2) {
     return this->enddisp;
   }
 
@@ -551,6 +560,7 @@ int Strip::right_handle(const Scene *scene) const
 
 void Strip::left_handle_set(const Scene *scene, int timeline_frame)
 {
+  printf("%s\n", this->name);
   const float right_handle_orig_frame = this->right_handle(scene);
 
   if (timeline_frame >= right_handle_orig_frame) {
@@ -564,12 +574,16 @@ void Strip::left_handle_set(const Scene *scene, int timeline_frame)
      * Move strip start left and adjust end offset to be negative (rightwards past the 1 frame). */
     this->content_start_set(scene, timeline_frame);
     this->endofs += offset;
+    printf("endofs: %f\n", this->endofs);
   }
   else {
     this->startofs = offset;
+    printf("strarofs: %f\n", this->startofs);
   }
 
   this->startdisp = timeline_frame; /* Only to make files usable in older versions. */
+
+  printf("startdisp: %i\n", this->startdisp);
 
   Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(scene->ed, this);
   seq::strip_time_update_effects_strip_range(scene, effects);

@@ -36,7 +36,13 @@ float4 add_outline(float d, float edge1, float edge2, float4 cur, float4 outline
   return blend_color(cur, outline_color);
 }
 
-void main()
+float box_mask(float d)
+{
+  return clamp(1.0f - d, 0.0f, 1.0f);
+}
+
+// TODO: I'll merge these later
+float4 draw_transition()
 {
   float2 co = co_interp;
 
@@ -56,8 +62,71 @@ void main()
             pos,
             radius);
 
+  bool selected = (strip.flags & GPU_SEQ_FLAG_SELECTED) != 0;
+  float outline_width = selected ? 2.0f : 1.0f;
+
+  /* Distance to whole strip shape. */
+  float sdf = sdf_rounded_box(pos - center, size, radius);
+
+  /* Distance to inner part when handles are taken into account. */
+  float sdf_inner = sdf;
+  float handle_width = strip.handle_width;
+  /* Take left/right handle from horizontal sides. */
+  if ((strip.flags & GPU_SEQ_FLAG_SELECTED_LH) != 0) {
+    pos1.x += handle_width;
+  }
+  if ((strip.flags & GPU_SEQ_FLAG_SELECTED_RH) != 0) {
+    pos2.x -= handle_width;
+  }
+  /* Reduce vertical size by outline width. */
+  pos1 += context_data.pixelsize * outline_width;
+  pos2 -= context_data.pixelsize * outline_width;
+
+  size = (pos2 - pos1) * 0.5f;
+  center = (pos1 + pos2) * 0.5f;
+  sdf_inner = sdf_rounded_box(pos - center, size, radius);
+
+  float box = box_mask(sdf);
+  float box_inner = box_mask(sdf_inner);
+
+  float4 outline = float4(1.0, 0.0, 0.0, 0.6);
+  outline.a *= (box - box_inner);
+  /* Premultiply */
+  outline = float4(outline.rgb * outline.a, outline.a);
+
+  float4 contents = float4(0.0, 1.0, 0.0, 0.3);
+  contents.a *= box_inner;
+    
+
+  return blend_color(outline, contents);
+}
+
+void main()
+{
+  SeqStripDrawData strip = strip_data[strip_id];
+  if ((strip.flags & GPU_SEQ_FLAG_TRANSITION) != 0) {
+    fragColor = draw_transition();
+    return;
+  }
+  float2 co = co_interp;
+
+  float2 pos1, pos2, size, center, pos;
+  float radius = 0.0f;
+  strip_box(strip.left_handle,
+            strip.right_handle,
+            strip.bottom,
+            strip.top,
+            co,
+            pos1,
+            pos2,
+            size,
+            center,
+            pos,
+            radius);
+
   bool border = (strip.flags & GPU_SEQ_FLAG_BORDER) != 0;
   bool selected = (strip.flags & GPU_SEQ_FLAG_SELECTED) != 0;
+  bool transition = (strip.flags & GPU_SEQ_FLAG_TRANSITION) != 0;
   float outline_width = selected ? 2.0f : 1.0f;
 
   /* Distance to whole strip shape. */
@@ -108,14 +177,14 @@ void main()
   }
 
   /* Transition. */
-  if ((strip.flags & GPU_SEQ_FLAG_TRANSITION) != 0) {
+  if (transition) {
     if (co.x >= strip.content_start && co.x <= strip.content_end && co.y < strip.strip_content_top)
     {
       float diag_y = strip.strip_content_top - (strip.strip_content_top - strip.bottom) *
                                                    (co.x - strip.content_start) /
                                                    (strip.content_end - strip.content_start);
       uint transition_color = co.y <= diag_y ? strip.col_transition_in : strip.col_transition_out;
-      col.rgb = unpackUnorm4x8(transition_color).rgb;
+      col.rgba = unpackUnorm4x8(transition_color).rgba;
     }
   }
 
@@ -176,30 +245,37 @@ void main()
 
   /* Outline / border. */
   if (border) {
+    if (!transition) {
+      if (selected) {
+        /* Selection highlight + darker inset line. */
+        col = add_outline(sdf, 1.0f, 3.0f, col, col_outline);
+        /* Inset line should be inside regular border or inside the handles. */
+        if (!transition) {
+          float d = max(sdf_inner - 3.0f * context_data.pixelsize, sdf);
+          col = add_outline(d, 3.0f, 4.0f, col, float4(0, 0, 0, 0.33f));
+        }
+      }
 
-    if (selected) {
-      /* Selection highlight + darker inset line. */
-      col = add_outline(sdf, 1.0f, 3.0f, col, col_outline);
-      /* Inset line should be inside regular border or inside the handles. */
-      float d = max(sdf_inner - 3.0f * context_data.pixelsize, sdf);
-      col = add_outline(d, 3.0f, 4.0f, col, float4(0, 0, 0, 0.33f));
+      /* Active, but not selected strips get a thin inner line. */
+      bool active_strip = (strip.flags & GPU_SEQ_FLAG_ACTIVE) != 0;
+      if (active_strip && !selected) {
+        col = add_outline(sdf, 1.0f, 2.0f, col, col_outline);
+      }
+
+      /* 2px outline for all overlapping strips. */
+      bool overlaps = (strip.flags & GPU_SEQ_FLAG_OVERLAP) != 0;
+      bool clamped = (strip.flags & GPU_SEQ_FLAG_CLAMPED) != 0;
+      if (overlaps || clamped) {
+        col = add_outline(sdf, 1.0f, 3.0f, col, col_outline);
+      }
+
+      /* Outer 1px outline for all strips. */
+      col = add_outline(sdf, 0.0f, 1.0f, col, unpackUnorm4x8(context_data.col_back));
     }
-
-    /* Active, but not selected strips get a thin inner line. */
-    bool active_strip = (strip.flags & GPU_SEQ_FLAG_ACTIVE) != 0;
-    if (active_strip && !selected) {
-      col = add_outline(sdf, 1.0f, 2.0f, col, col_outline);
+    else {
+      float width = selected ? 4.0f : 2.0f;
+      col = add_outline(sdf, 1.0f, width, col, col_outline);
     }
-
-    /* 2px outline for all overlapping strips. */
-    bool overlaps = (strip.flags & GPU_SEQ_FLAG_OVERLAP) != 0;
-    bool clamped = (strip.flags & GPU_SEQ_FLAG_CLAMPED) != 0;
-    if (overlaps || clamped) {
-      col = add_outline(sdf, 1.0f, 3.0f, col, col_outline);
-    }
-
-    /* Outer 1px outline for all strips. */
-    col = add_outline(sdf, 0.0f, 1.0f, col, unpackUnorm4x8(context_data.col_back));
   }
 
   fragColor = col;

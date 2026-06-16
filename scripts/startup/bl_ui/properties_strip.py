@@ -802,6 +802,7 @@ class STRIP_PT_time(StripButtonsPanel, Panel):
         split.label(text="Channel")
         split.prop(strip, "channel", text="")
 
+        # TODO
         if not is_effect or strip.input_count == 0:
             layout.alignment = 'RIGHT'
             sub = layout.column(align=True)

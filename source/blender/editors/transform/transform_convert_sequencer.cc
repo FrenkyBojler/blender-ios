@@ -819,17 +819,17 @@ static void flushTransSeq(TransInfo *t)
   /* Need to do the overlap check in a new loop otherwise adjacent strips
    * will not be updated and we'll get false positives. */
   // Let's ignore this for now, since that goes in an infinite loop.
-  // VectorSet transformed_strips = seq_transform_collection_from_transdata(tc);
+  VectorSet transformed_strips = seq_transform_collection_from_transdata(tc);
   // seq::iterator_set_expand(
   //     seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
 
-  // for (Strip *strip : transformed_strips) {
-  //   /* Test overlap, displays red outline. */
-  //   strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
-  //   if (seq::transform_test_overlap(scene, seqbasep, strip)) {
-  //     strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
-  //   }
-  // }
+  for (Strip *strip : transformed_strips) {
+    /* Test overlap, displays red outline. */
+    strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
+    if (seq::transform_test_overlap(scene, seqbasep, strip)) {
+      strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
+    }
+  }
 }
 
 static void recalcData_sequencer(TransInfo *t)

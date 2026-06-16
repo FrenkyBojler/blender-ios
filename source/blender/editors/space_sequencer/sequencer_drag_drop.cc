@@ -408,7 +408,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
   }
 
   /* Init GPU drawing. */
-  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+  GPU_blend(GPU_BLEND_ALPHA_PREMULT);  // !
 
   /* Draw strips. The code here is taken from sequencer_draw. */
   float x1 = coords->start_frame;

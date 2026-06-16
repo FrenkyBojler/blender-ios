@@ -42,6 +42,7 @@
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
+#include "GPU_shader_shared.hh"
 #include "GPU_state.hh"
 
 #include "PRF_profile.hh"
@@ -1296,106 +1297,6 @@ static void visible_strips_ordered_get(const TimelineDrawContext &ctx,
   });
 }
 
-static void draw_strips_background(const TimelineDrawContext &ctx,
-                                   StripsDrawBatch &strips_batch,
-                                   const Vector<StripDrawContext> &strips)
-{
-  GPU_matrix_push_projection();
-  wmOrtho2_region_pixelspace(ctx.region);
-
-  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
-
-  const bool show_overlay = (ctx.sseq->flag & SEQ_SHOW_OVERLAY) != 0;
-  const Scene *scene = ctx.scene;
-  for (const StripDrawContext &strip : strips) {
-    SeqStripDrawData &data = strips_batch.add_strip(strip.content_start,
-                                                    strip.content_end,
-                                                    strip.top,
-                                                    strip.bottom,
-                                                    strip.strip_content_top,
-                                                    strip.left_handle,
-                                                    strip.right_handle,
-                                                    strip.handle_width,
-                                                    strip.is_single_image);
-
-    /* Background color. */
-    uchar col[4];
-    data.flags |= GPU_SEQ_FLAG_BACKGROUND;
-    color3ubv_from_seq(scene, strip.strip, strip.show_strip_color_tag, strip.is_muted, col);
-    col[3] = strip.is_muted ? MUTE_ALPHA : 255;
-    /* Muted strips: turn almost gray. */
-    if (strip.is_muted) {
-      uchar muted_color[3] = {128, 128, 128};
-      ui::theme::get_color_blend_shade_3ubv(col, muted_color, 0.5f, 0, col);
-    }
-    data.col_background = color_pack(col);
-
-    const bool show_thumbnails = (ctx.sseq->timeline_overlay.flag &
-                                  SEQ_TIMELINE_STRIP_END_THUMBNAILS) ||
-                                 (ctx.sseq->timeline_overlay.flag &
-                                  SEQ_TIMELINE_CONTINUOUS_THUMBNAILS);
-    /* Darker color band for thumbnail strips. */
-    if (show_overlay && seq::strip_can_have_thumbnail(scene, strip.strip) && show_thumbnails) {
-      /* The more negative the offset, darker the color. */
-      const int color_offset = -20;
-      uchar col_in[3] = {col[0], col[1], col[2]};
-      uchar col_out[3];
-
-      ui::theme::get_color_shade_3ubv(col_in, color_offset, col_out);
-
-      col[0] = col_out[0];
-      col[1] = col_out[1];
-      col[2] = col_out[2];
-
-      data.flags |= GPU_SEQ_FLAG_COLOR_BAND;
-      data.col_color_band = color_pack(col);
-    }
-
-    /* Color band state. */
-    if (show_overlay && (strip.strip->type == STRIP_TYPE_COLOR)) {
-      data.flags |= GPU_SEQ_FLAG_COLOR_BAND;
-      SolidColorVars *colvars = static_cast<SolidColorVars *>(strip.strip->effectdata);
-      rgb_float_to_uchar(col, colvars->col);
-      data.col_color_band = color_pack(col);
-    }
-
-    /* Transition state. */
-    if (show_overlay && strip.can_draw_strip_content &&
-        seq::effect_is_transition(strip.strip->type) && strip.strip->input1 && strip.strip->input2)
-    {
-      data.flags |= GPU_SEQ_FLAG_TRANSITION;
-
-      const Strip *input1 = strip.strip->input1;
-      const Strip *input2 = strip.strip->input2;
-
-      /* Left side. */
-      if (input1->type == STRIP_TYPE_COLOR) {
-        rgb_float_to_uchar(col, (static_cast<const SolidColorVars *>(input1->effectdata))->col);
-      }
-      else {
-        color3ubv_from_seq(scene, input1, strip.show_strip_color_tag, strip.is_muted, col);
-      }
-      data.col_transition_in = color_pack(col);
-
-      /* Right side. */
-      if (input2->type == STRIP_TYPE_COLOR) {
-        rgb_float_to_uchar(col, (static_cast<const SolidColorVars *>(input2->effectdata))->col);
-      }
-      else {
-        color3ubv_from_seq(scene, input2, strip.show_strip_color_tag, strip.is_muted, col);
-        /* If the transition inputs are of the same type, draw the right side slightly darker. */
-        if (input1->type == input2->type) {
-          ui::theme::get_color_shade_3ubv(col, -15, col);
-        }
-      }
-      data.col_transition_out = color_pack(col);
-    }
-  }
-  strips_batch.flush_batch();
-  GPU_blend(GPU_BLEND_ALPHA);
-  GPU_matrix_pop_projection();
-}
-
 static void strip_data_missing_media_flags_set(const StripDrawContext &strip,
                                                SeqStripDrawData &data)
 {
@@ -1518,6 +1419,9 @@ static void draw_strips_foreground(const TimelineDrawContext &ctx,
   GPU_blend(GPU_BLEND_ALPHA_PREMULT);
 
   for (const StripDrawContext &strip : strips) {
+    if (strip.strip->input2 != nullptr) {
+      continue;
+    }
     SeqStripDrawData &data = strips_batch.add_strip(strip.content_start,
                                                     strip.content_end,
                                                     strip.top,
@@ -1535,6 +1439,91 @@ static void draw_strips_foreground(const TimelineDrawContext &ctx,
     strip_data_highlight_flags_set(strip, ctx, data);
   }
 
+  strips_batch.flush_batch();
+  GPU_blend(GPU_BLEND_ALPHA);
+  GPU_matrix_pop_projection();
+}
+
+static void draw_strips_background(const TimelineDrawContext &ctx,
+                                   StripsDrawBatch &strips_batch,
+                                   const Vector<StripDrawContext> &strips)
+{
+  GPU_matrix_push_projection();
+  wmOrtho2_region_pixelspace(ctx.region);
+
+  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+
+  const bool show_overlay = (ctx.sseq->flag & SEQ_SHOW_OVERLAY) != 0;
+  const Scene *scene = ctx.scene;
+  for (const StripDrawContext &strip : strips) {
+    SeqStripDrawData &data = strips_batch.add_strip(strip.content_start,
+                                                    strip.content_end,
+                                                    strip.top,
+                                                    strip.bottom,
+                                                    strip.strip_content_top,
+                                                    strip.left_handle,
+                                                    strip.right_handle,
+                                                    strip.handle_width,
+                                                    strip.is_single_image);
+
+    /* Background color. */
+    uchar col[4];
+    data.flags |= GPU_SEQ_FLAG_BACKGROUND;
+    color3ubv_from_seq(scene, strip.strip, strip.show_strip_color_tag, strip.is_muted, col);
+    col[3] = strip.is_muted ? MUTE_ALPHA : 255;
+    /* Muted strips: turn almost gray. */
+    if (strip.is_muted) {
+      uchar muted_color[3] = {128, 128, 128};
+      ui::theme::get_color_blend_shade_3ubv(col, muted_color, 0.5f, 0, col);
+    }
+    data.col_background = color_pack(col);
+
+    const bool show_thumbnails = (ctx.sseq->timeline_overlay.flag &
+                                  SEQ_TIMELINE_STRIP_END_THUMBNAILS) ||
+                                 (ctx.sseq->timeline_overlay.flag &
+                                  SEQ_TIMELINE_CONTINUOUS_THUMBNAILS);
+    /* Darker color band for thumbnail strips. */
+    if (show_overlay && seq::strip_can_have_thumbnail(scene, strip.strip) && show_thumbnails) {
+      /* The more negative the offset, darker the color. */
+      const int color_offset = -20;
+      uchar col_in[3] = {col[0], col[1], col[2]};
+      uchar col_out[3];
+
+      ui::theme::get_color_shade_3ubv(col_in, color_offset, col_out);
+
+      col[0] = col_out[0];
+      col[1] = col_out[1];
+      col[2] = col_out[2];
+
+      data.flags |= GPU_SEQ_FLAG_COLOR_BAND;
+      data.col_color_band = color_pack(col);
+    }
+
+    /* Color band state. */
+    if (show_overlay && (strip.strip->type == STRIP_TYPE_COLOR)) {
+      data.flags |= GPU_SEQ_FLAG_COLOR_BAND;
+      SolidColorVars *colvars = static_cast<SolidColorVars *>(strip.strip->effectdata);
+      rgb_float_to_uchar(col, colvars->col);
+      data.col_color_band = color_pack(col);
+    }
+
+    /* Transition state. */
+    if (show_overlay && strip.can_draw_strip_content &&
+        seq::effect_is_transition(strip.strip->type) && strip.strip->input1 && strip.strip->input2)
+    {
+      data.flags |= GPU_SEQ_FLAG_TRANSITION;
+      data.flags |= GPU_SEQ_FLAG_BORDER;
+
+      strip_data_handle_flags_set(strip, ctx, data);
+      strip_data_outline_params_set(strip, ctx, data);
+      strip_data_highlight_flags_set(strip, ctx, data);
+
+      data.col_transition_in = 0x40ffffff;
+      data.col_transition_out = 0x80ffffff;
+      data.col_background = 0x80ffffff;
+      data.col_outline = 0x40ffffff;
+    }
+  }
   strips_batch.flush_batch();
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_matrix_pop_projection();
