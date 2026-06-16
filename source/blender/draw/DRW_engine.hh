@@ -53,11 +53,6 @@ enum eDRWSelectStage {
 using DRW_SelectPassFn = bool (*)(eDRWSelectStage stage, void *user_data);
 using DRW_ObjectFilterFn = bool (*)(Object *ob, void *user_data);
 
-/** Preserve lookdev sphere pixels through editor overlays. */
-enum eDRWStencilReference {
-  DRW_STENCIL_REFERENCE_LOOKDEV_SPHERE = 0x80,
-};
-
 /**
  * Everything starts here.
  * This function takes care of calling all cache and rendering functions

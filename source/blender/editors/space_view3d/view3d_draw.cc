@@ -515,11 +515,6 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
 
       immUniformThemeColorAlpha(TH_CAMERA_PASSEPARTOUT, alpha);
 
-      /* Keep EEVEE reference spheres visible. */
-      GPU_stencil_test(GPU_STENCIL_NEQUAL);
-      GPU_stencil_reference_set(DRW_STENCIL_REFERENCE_LOOKDEV_SPHERE);
-      GPU_stencil_compare_mask_set(0xFF);
-
       if (x1i > 0.0f) {
         immRectf(shdr_pos, 0.0f, winy, x1i, 0.0f);
       }
@@ -532,8 +527,6 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       if (y2i > 0.0f) {
         immRectf(shdr_pos, x1i, y1i, x2i, 0.0f);
       }
-
-      GPU_stencil_test(GPU_STENCIL_NONE);
       GPU_blend(GPU_BLEND_NONE);
       immUniformThemeColor3(TH_BACK);
       imm_draw_box_wire_2d(shdr_pos, x1i, y1i, x2i, y2i);
