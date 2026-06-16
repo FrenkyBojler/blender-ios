@@ -24,8 +24,7 @@ def _setup(area_type):
     bpy.ops.wm.read_homefile(use_empty=True)
     e, t, w = ui.test_window()
     a = max(w.screen.areas, key=lambda area: area.width * area.height)
-    with bpy.context.temp_override(window=w, area=a):
-        a.type = area_type
+    a.type = area_type
     return e, t, w, a
 
 
@@ -51,7 +50,6 @@ def test_view3d_add():
 
     count_before = len(bpy.data.objects)
     _invoke(e, t, w, a, "VIEW3D_MT_add")
-    yield
     yield e.text("Monkey")
     yield e.ret()
     yield e.ret()
@@ -71,7 +69,6 @@ def test_modifier_add():
     a.spaces.active.context = 'MODIFIER'
 
     _invoke(e, t, w, a, "OBJECT_MT_modifier_add")
-    yield
     yield e.text("Subdivision Surface")
     yield e.ret()
 
@@ -107,7 +104,6 @@ def test_sequencer_modifier_add():
     t.assertIsNotNone(strip)
     count_before = len(strip.modifiers)
 
-    yield
     _invoke(e, t, w, a, "SEQUENCER_MT_modifier_add")
     yield e.text("Color Balance")
     yield e.ret()
@@ -129,7 +125,6 @@ def test_shader_node_add():
 
     count_before = len(mat.node_tree.nodes)
     _invoke(e, t, w, a, "NODE_MT_add")
-    yield
     yield e.text("Math")
     yield e.ret()
     yield e.ret()
@@ -150,9 +145,7 @@ def test_compositor_node_add():
 
     count_before = len(tree.nodes)
     _invoke(e, t, w, a, "NODE_MT_add")
-    yield
     yield e.text("RGB Curves")
-    yield
     yield e.ret()
     yield e.ret()
 
@@ -175,9 +168,7 @@ def test_geometry_node_add():
 
     count_before = len(node_tree.nodes)
     _invoke(e, t, w, a, "NODE_MT_add")
-    yield
     yield e.text("Transform Geometry")
-    yield
     yield e.ret()
     yield e.ret()
 
