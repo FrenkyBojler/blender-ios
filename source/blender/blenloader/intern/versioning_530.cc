@@ -81,7 +81,7 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 3)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 4)) {
     for (Scene &scene : bmain->scenes) {
       scene.eevee.time_limit = 0.0f;
     }
