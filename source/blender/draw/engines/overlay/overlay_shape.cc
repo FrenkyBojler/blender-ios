@@ -258,18 +258,6 @@ struct Vector3 {
   double x, y, z;
 };
 
-/* static Vector3 rotateZ(const Vector3& vec, double angleRadians) {
-    double cosAngle = std::cos(angleRadians);
-    double sinAngle = std::sin(angleRadians);
-
-    Vector3 rotated;
-    rotated.x = vec.x * cosAngle - vec.y * sinAngle;
-    rotated.y = vec.x * sinAngle + vec.y * cosAngle;
-    rotated.z = vec.z; // Z remains unchanged during Z-axis rotation
-
-    return rotated;
-} */
-
 /* Returns lines segment geometry forming 3 circles, one on each axis. */
 
 static Vector<Vertex> fisheye_direction_verts()

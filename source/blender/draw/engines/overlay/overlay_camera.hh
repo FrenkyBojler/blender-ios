@@ -386,7 +386,6 @@ class Cameras : Overlay {
       }
       else {
         if (is_panoramic) {
-          float fov = (cam.fisheye_fov - M_PI) / 2;
           data.corner_x = cam.fisheye_fov;
           data.matrix.x_axis() *= cam.fisheye_radius;
           data.matrix.y_axis() *= cam.fisheye_radius;
@@ -395,12 +394,6 @@ class Cameras : Overlay {
                        call_buffers_.fisheye_direction_wire_buf)
               .append(data, select_id);
 
-          /*    data.matrix.x_axis() *= cam.fisheye_radius;
-             data.matrix.y_axis() *= cam.fisheye_radius;
-             data.matrix.z_axis() *= cam.fisheye_radius;  */
-
-          /* data.color_.x = cam.fisheye_fov; */
-          /* printf("FISHEYE %f\n",fov); */
           call_buffers_.fisheye_dome_buf.append(data, select_id);
         }
         else {
