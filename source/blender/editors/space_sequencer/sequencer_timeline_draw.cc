@@ -1518,10 +1518,21 @@ static void draw_strips_background(const TimelineDrawContext &ctx,
       strip_data_outline_params_set(strip, ctx, data);
       strip_data_highlight_flags_set(strip, ctx, data);
 
-      data.col_transition_in = 0x40ffffff;
-      data.col_transition_out = 0x80ffffff;
-      data.col_background = 0x80ffffff;
-      data.col_outline = 0x40ffffff;
+      uchar col_in[4] = {0xff, 0xff, 0xff, (char)(0.2 * 0xff)};
+      data.col_transition_in = color_pack(col_in);
+      uchar col_title[4] = {0xff, 0xff, 0xff, (char)(0.8 * 0xff)};
+      data.col_transition_out = data.col_background = color_pack(col_title);
+      uchar col_outline[4] = {0xff, 0xff, 0xff, (char)(0.6 * 0xff)};
+      data.col_outline = color_pack(col_outline);
+
+      if (strip.strip->flag & SEQ_SELECT) {
+        uchar col_in[4] = {0x00, 0x00, 0x00, (char)(0.2 * 0xff)};
+        data.col_transition_in = color_pack(col_in);
+        uchar col_out[4] = {0xff, 0xff, 0xff, (char)(0.8 * 0xff)};
+        data.col_transition_out = color_pack(col_out);
+        data.col_background = 0xffffffff;
+        data.col_outline = 0xffffffff;
+      }
     }
   }
   strips_batch.flush_batch();

@@ -63,7 +63,7 @@ float4 draw_transition()
             radius);
 
   bool selected = (strip.flags & GPU_SEQ_FLAG_SELECTED) != 0;
-  float outline_width = selected ? 2.0f : 1.0f;
+  float outline_width = selected ? 4.0f : 2.0f;
 
   /* Distance to whole strip shape. */
   float sdf = sdf_rounded_box(pos - center, size, radius);
@@ -89,16 +89,30 @@ float4 draw_transition()
   float box = box_mask(sdf);
   float box_inner = box_mask(sdf_inner);
 
-  float4 outline = float4(1.0, 0.0, 0.0, 0.6);
+  float4 outline = unpackUnorm4x8(strip.col_outline);
   outline.a *= (box - box_inner);
-  /* Premultiply */
+  /* Premultiply. */
   outline = float4(outline.rgb * outline.a, outline.a);
 
-  float4 contents = float4(0.0, 1.0, 0.0, 0.3);
-  contents.a *= box_inner;
-    
+  /* Title bar. */
+  float4 col = unpackUnorm4x8(strip.col_background);
 
-  return blend_color(outline, contents);
+  /* Diagonal transition line. */
+  if (co.x >= strip.content_start && co.x <= strip.content_end && co.y < strip.strip_content_top)
+  {
+    float start_x = strip.left_handle + 2.0f * context_data.pixelsize;
+    float end_x = strip.right_handle - 2.0f * context_data.pixelsize;
+    float diag_y = pos1.y + (strip.strip_content_top - pos1.y) *
+                                                  (co.x - start_x) /
+                                                  (end_x - start_x);
+    uint transition_color = co.y <= diag_y ? strip.col_transition_out : strip.col_transition_in;
+    col.rgba = unpackUnorm4x8(transition_color).rgba;
+  }
+
+  /* Mask out the contents within the rounded rectangle. */
+  col.a *= box_inner;
+
+  return blend_color(outline, col);
 }
 
 void main()
