@@ -41,6 +41,10 @@ constexpr StringRefNull REMOTE_LIBRARY_TOP_META_FILE_NAME = "_asset-library-meta
 constexpr StringRefNull REMOTE_LIBRARY_TOP_META_FILE_NAME_LEADING_SLASH =
     "/_asset-library-meta.json";
 
+/**
+ * Get the absolute file path to the `_asset-library-meta.json` of the given library's cache
+ * directory.
+ */
 std::string remote_library_top_meta_file_path(const RemoteLibraryDefinitionRef &library);
 
 bool remote_library_url_ends_with_top_meta_file_name(const StringRef url);
