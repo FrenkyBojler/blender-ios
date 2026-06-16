@@ -41,47 +41,43 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : IndexRange(storage.expression_items.items_num)) {
     const NodeExpressionItem &item = storage.expression_items.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-    const std::string identifier = ExpressionItemsAccessor::socket_identifier_for_item(item);
-    b.add_input<decl::String>(item.name, identifier)
+    const UString identifier{ExpressionItemsAccessor::socket_identifier_for_item(item)};
+    const UString name{item.name};
+    b.add_input<decl::String>(name, identifier)
         .optional_label()
         .hide_socket_icon(tree->type == NTREE_COMPOSIT)
         .description("Expression to be evaluated");
-    auto &output = b.add_output(socket_type, item.name, identifier).align_with_previous();
-    if (socket_type_supports_fields(socket_type) && tree->type == NTREE_GEOMETRY) {
-      output.field_source_reference_all();
-    }
-    output.structure_type(StructureType::Dynamic);
+    b.add_output(socket_type, name, identifier)
+        .align_with_previous()
+        .propagate_all()
+        .structure_type(StructureType::Dynamic);
   }
-  b.add_input<decl::Extend>("", "__extend__expression_input")
+  b.add_input<decl::Extend>(""_ustr, "__extend__expression_input"_ustr)
       .structure_type(StructureType::Dynamic)
       .hide_socket_icon(tree->type == NTREE_COMPOSIT);
-  b.add_output<decl::Extend>("", "__extend__expression_output")
-      .align_with_previous()
+  b.add_output<decl::Extend>(""_ustr, "__extend__expression_output"_ustr)
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
 
-  auto &inputs_panel = b.add_panel("Inputs");
+  auto &inputs_panel = b.add_panel("Inputs"_ustr);
   for (const int i : IndexRange(storage.input_items.items_num)) {
     const NodeExpressionInputItem &item = storage.input_items.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-    const std::string identifier = ExpressionInputItemsAccessor::socket_identifier_for_item(item);
-    auto &input = inputs_panel.add_input(socket_type, item.name, identifier)
-                      .socket_name_ptr(
-                          &tree->id, ExpressionInputItemsAccessor::item_srna, &item, "name");
-    if (socket_type_supports_fields(socket_type) && tree->type == NTREE_GEOMETRY) {
-      input.supports_field();
-    }
-    input.structure_type(StructureType::Dynamic);
+    const UString identifier{ExpressionInputItemsAccessor::socket_identifier_for_item(item)};
+    const UString name{item.name};
+    inputs_panel.add_input(socket_type, name, identifier)
+        .socket_name_ptr(&tree->id, *ExpressionInputItemsAccessor::item_srna, &item, "name")
+        .structure_type(StructureType::Dynamic);
   }
-  inputs_panel.add_input<decl::Extend>("", "__extend__input")
+  inputs_panel.add_input<decl::Extend>(""_ustr, "__extend__input"_ustr)
       .structure_type(StructureType::Dynamic);
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNodeTree &ntree = *id_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *ptr->data_as<bNode>();
-  if (uiLayout *panel = layout->panel(C, "expression_items", false, IFACE_("Expression Items"))) {
+  if (ui::Layout *panel = layout.panel(C, "expression_items", false, IFACE_("Expression Items"))) {
     socket_items::ui::draw_items_list_with_operators<ExpressionItemsAccessor>(
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<ExpressionItemsAccessor>(
@@ -91,7 +87,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
-  if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
+  if (ui::Layout *panel = layout.panel(C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<ExpressionInputItemsAccessor>(
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<ExpressionInputItemsAccessor>(
@@ -105,10 +101,10 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  auto *storage = MEM_callocN<NodeExpression>(__func__);
+  auto *storage = MEM_new<NodeExpression>(__func__);
   node->storage = storage;
 
-  storage->expression_items.items = MEM_calloc_arrayN<NodeExpressionItem>(1, __func__);
+  storage->expression_items.items = MEM_new_array<NodeExpressionItem>(1, __func__);
   NodeExpressionItem &item = storage->expression_items.items[0];
   item.name = BLI_strdup(DATA_("Expression"));
   item.socket_type = SOCK_RGBA;
@@ -120,13 +116,14 @@ static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<ExpressionInputItemsAccessor>(*node);
   socket_items::destruct_array<ExpressionItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  NodeExpression &storage = node_storage(*node);
+  MEM_delete(&storage);
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeExpression &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeExpression>(__func__, src_storage);
+  auto *dst_storage = MEM_new<NodeExpression>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<ExpressionInputItemsAccessor>(*src_node, *dst_node);
@@ -171,7 +168,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  common_node_type_base(&ntype, "NodeExpression");
+  common_node_type_base(&ntype, "NodeExpression"_ustr);
   ntype.ui_name = "Expression";
   ntype.ui_description = "Evaluate an expression on inputs";
   ntype.nclass = NODE_CLASS_CONVERTER;
@@ -191,12 +188,12 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-StructRNA *ExpressionInputItemsAccessor::item_srna = &RNA_NodeExpressionInputItem;
-StructRNA *ExpressionItemsAccessor::item_srna = &RNA_NodeExpressionItem;
+StructRNA **ExpressionInputItemsAccessor::item_srna = &RNA_NodeExpressionInputItem;
+StructRNA **ExpressionItemsAccessor::item_srna = &RNA_NodeExpressionItem;
 
 void ExpressionInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void ExpressionInputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
@@ -206,7 +203,7 @@ void ExpressionInputItemsAccessor::blend_read_data_item(BlendDataReader *reader,
 
 void ExpressionItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void ExpressionItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

@@ -301,7 +301,7 @@ class SocketUsageInferencerImpl {
           this->usage_task__input__enable_output(socket);
           break;
         }
-        if (node->is_type("NodeExpression")) {
+        if (node->is_type("NodeExpression"_ustr)) {
           this->usage_task__input__expression_node(socket);
           break;
         }

@@ -7,9 +7,11 @@
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
 
+namespace blender {
 struct bNodeSocket;
 struct bNodeTree;
 struct bNode;
+}  // namespace blender
 
 namespace blender::nodes::expression {
 

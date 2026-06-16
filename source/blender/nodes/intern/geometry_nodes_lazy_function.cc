@@ -1633,7 +1633,7 @@ class LazyFunctionForExpressionNode : public LazyFunction {
   struct EvalStorage {
     ResourceScope scope;
     std::shared_ptr<expression::ExpressionNodeGroup> expression_node_group;
-    const GeometryNodesLazyFunctionGraphInfo *group_graph_info = nullptr;
+    std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo> group_graph_info;
     void *group_storage = nullptr;
     Vector<int> inputs_index_map;
     Vector<int> output_index_map;
@@ -1721,8 +1721,7 @@ class LazyFunctionForExpressionNode : public LazyFunction {
 
     GeoNodesUserData group_user_data = user_data;
     group_user_data.compute_context = &compute_context;
-    group_user_data.log_socket_values = should_log_socket_values_for_context(
-        user_data, compute_context.hash());
+    group_user_data.verbose_log = should_log_verbose_in_context(user_data, compute_context.hash());
 
     GeoNodesLocalUserData group_local_user_data{group_user_data};
     lf::Context group_context{
@@ -1753,8 +1752,7 @@ class LazyFunctionForExpressionNode : public LazyFunction {
     GeoNodesLocalUserData &local_user_data = *static_cast<GeoNodesLocalUserData *>(
         context.local_user_data);
 
-    if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data))
-    {
+    if (eval_log::NodeTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data)) {
       tree_logger->node_warnings.append(*tree_logger->allocator,
                                         {bnode_.identifier, {NodeWarningType::Error, error}});
     }
@@ -3145,7 +3143,7 @@ struct GeometryNodesLazyFunctionBuilder {
           this->build_enable_output_node(bnode, graph_params);
           break;
         }
-        if (bnode.is_type("NodeExpression")) {
+        if (bnode.is_type("NodeExpression"_ustr)) {
           this->build_expression_node(bnode, graph_params);
           break;
         }

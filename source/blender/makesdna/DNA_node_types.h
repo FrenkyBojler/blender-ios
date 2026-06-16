@@ -3936,36 +3936,38 @@ struct NodeStoreBundleItem {
 };
 
 struct NodeExpressionInputItem {
-  char *name;
-  int identifier;
-  eNodeSocketDatatype socket_type;
-  char _pad[2];
+  char *name = nullptr;
+  int identifier = 0;
+  eNodeSocketDatatype socket_type = {};
+  char _pad[2] = {};
 };
 
 struct NodeExpressionItem {
-  char *name;
-  int identifier;
-  eNodeSocketDatatype socket_type;
-  char _pad[2];
+  char *name = nullptr;
+  int identifier = 0;
+  eNodeSocketDatatype socket_type = {};
+  char _pad[2] = {};
 };
 
 struct NodeExpressionInputItems {
-  NodeExpressionInputItem *items;
-  int items_num;
-  int active_index;
-  int next_identifier;
-  char _pad[4];
+  NodeExpressionInputItem *items = nullptr;
+  int items_num = 0;
+  int active_index = 0;
+  int next_identifier = 0;
+  char _pad[4] = {};
 };
 
 struct NodeExpressionItems {
-  NodeExpressionItem *items;
-  int items_num;
-  int active_index;
-  int next_identifier;
-  char _pad[4];
+  NodeExpressionItem *items = nullptr;
+  int items_num = 0;
+  int active_index = 0;
+  int next_identifier = 0;
+  char _pad[4] = {};
 };
 
 struct NodeExpression {
+  DNA_DEFINE_CXX_METHODS(NodeExpression)
+
   NodeExpressionInputItems input_items;
   NodeExpressionItems expression_items;
 };

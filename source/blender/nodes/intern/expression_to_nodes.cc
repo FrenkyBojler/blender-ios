@@ -9,9 +9,9 @@
 
 #include <fast_float.h>
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_resource_scope.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLT_translation.hh"
 
 #include "NOD_expression_parse.hh"
@@ -46,15 +46,16 @@ struct TypeCheckCallParams {
   Vector<const bke::bNodeSocketType *> input_types;
 };
 
-static bNodeSocket *find_available_socket_by_index(ListBase &sockets, const int index)
+static bNodeSocket *find_available_socket_by_index(ListBaseT<bNodeSocket> &sockets,
+                                                   const int index)
 {
   int remaining = index;
-  LISTBASE_FOREACH (bNodeSocket *, socket, &sockets) {
-    if (!socket->is_available()) {
+  for (bNodeSocket &socket : sockets) {
+    if (!socket.is_available()) {
       continue;
     }
     if (remaining == 0) {
-      return socket;
+      return &socket;
     }
     remaining--;
   }
@@ -68,7 +69,7 @@ struct InsertCallParams {
   Vector<NodeAndSocket> inputs;
   NodeAndSocket output;
 
-  bNode &add_node(const StringRef idname);
+  bNode &add_node(const UString idname);
   void update_node_sockets(bNode &node);
 
   void add_input(bNode &node, bNodeSocket &socket)
@@ -105,18 +106,18 @@ struct InsertCallParams {
 
   void use_node_inputs(bNode &node)
   {
-    LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
-      if (socket->is_available()) {
-        this->add_input(node, *socket);
+    for (bNodeSocket &socket : node.inputs) {
+      if (socket.is_available()) {
+        this->add_input(node, socket);
       }
     }
   }
 
   void use_node_output(bNode &node)
   {
-    LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
-      if (socket->is_available()) {
-        this->set_output(node, *socket);
+    for (bNodeSocket &socket : node.outputs) {
+      if (socket.is_available()) {
+        this->set_output(node, socket);
       }
     }
   }
@@ -190,8 +191,8 @@ class AstToNodeGroupBuilder {
     this->add_interface_inputs();
     this->add_interface_outputs();
 
-    bNode &group_input_node = this->add_node("NodeGroupInput");
-    bNode &group_output_node = this->add_node("NodeGroupOutput");
+    bNode &group_input_node = this->add_node("NodeGroupInput"_ustr);
+    bNode &group_output_node = this->add_node("NodeGroupOutput"_ustr);
 
     {
       bNodeSocket *group_input_socket = static_cast<bNodeSocket *>(group_input_node.outputs.first);
@@ -225,7 +226,7 @@ class AstToNodeGroupBuilder {
       const NodeExpressionInputItem &item = bnode_storage_.input_items.items[i];
       const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type);
       r_tree_.tree_interface.add_socket(
-          item.name, "", stype->idname, NODE_INTERFACE_SOCKET_INPUT, nullptr);
+          item.name, "", stype->idname.ref(), NODE_INTERFACE_SOCKET_INPUT, nullptr);
     }
   }
 
@@ -237,7 +238,7 @@ class AstToNodeGroupBuilder {
       const bke::bNodeSocketType *output_stype = bke::node_socket_type_find_static(
           expr_item.socket_type);
       r_tree_.tree_interface.add_socket(
-          expr_item.name, "", output_stype->idname, NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+          expr_item.name, "", output_stype->idname.ref(), NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
     }
   }
 
@@ -255,7 +256,7 @@ class AstToNodeGroupBuilder {
       r_error_ = fmt::format("{}: {}", TIP_("Invalid number"), ast_node.value);
       return {};
     }
-    bNode &node = this->add_node("ShaderNodeValue");
+    bNode &node = this->add_node("ShaderNodeValue"_ustr);
     bNodeSocket *socket = static_cast<bNodeSocket *>(node.outputs.first);
     socket->default_value_typed<bNodeSocketValueFloat>()->value = value;
     return {&node, socket};
@@ -263,7 +264,7 @@ class AstToNodeGroupBuilder {
 
   NodeAndSocket build_expr(const ast::StringLiteral &ast_node)
   {
-    bNode &node = this->add_node("FunctionNodeInputString");
+    bNode &node = this->add_node("FunctionNodeInputString"_ustr);
     auto &storage = *static_cast<NodeInputString *>(node.storage);
     const StringRef str = ast_node.value.drop_known_prefix("\"").drop_known_suffix("\"");
     storage.string = BLI_strdupn(str.data(), str.size());
@@ -357,7 +358,7 @@ class AstToNodeGroupBuilder {
     return insert_params.output;
   }
 
-  bNode &add_node(const StringRef idname)
+  bNode &add_node(const UString idname)
   {
     return *bke::node_add_node(nullptr, r_tree_, idname);
   }
@@ -386,7 +387,7 @@ static FunctionSymbol float_math_function(const StringRef name,
         return params.input_types.size() == inputs_num && all_inputs_1d(params);
       },
       [op](InsertCallParams &params) {
-        bNode &math_node = params.add_node("ShaderNodeMath");
+        bNode &math_node = params.add_node("ShaderNodeMath"_ustr);
         math_node.custom1 = op;
         params.update_node_sockets(math_node);
         params.use_node_sockets(math_node);
@@ -418,7 +419,7 @@ static FunctionSymbol vector_math_function(const StringRef name,
         return true;
       },
       [op](InsertCallParams &params) {
-        bNode &math_node = params.add_node("ShaderNodeVectorMath");
+        bNode &math_node = params.add_node("ShaderNodeVectorMath"_ustr);
         math_node.custom1 = op;
         params.update_node_sockets(math_node);
         params.use_node_sockets(math_node);
@@ -435,7 +436,7 @@ static FunctionSymbol negate_float_function()
         return params.input_types.size() == 1 && all_inputs_1d(params);
       },
       [](InsertCallParams &params) {
-        bNode &math_node = params.add_node("ShaderNodeMath");
+        bNode &math_node = params.add_node("ShaderNodeMath"_ustr);
         math_node.custom1 = NODE_MATH_SUBTRACT;
         params.update_node_sockets(math_node);
         static_cast<bNodeSocket *>(math_node.inputs.first)
@@ -456,7 +457,7 @@ static FunctionSymbol vector_member_access(const int index)
                ELEM(params.input_types[0]->type, SOCK_VECTOR, SOCK_RGBA);
       },
       [index](InsertCallParams &params) {
-        bNode &node = params.add_node("ShaderNodeSeparateXYZ");
+        bNode &node = params.add_node("ShaderNodeSeparateXYZ"_ustr);
         params.use_node_inputs(node);
         params.set_output(node, index);
       });
@@ -470,7 +471,7 @@ static FunctionSymbol attribute_access(const StringRef name, const eCustomDataTy
         return params.input_types.size() == 1 && params.input_types[0]->type == SOCK_STRING;
       },
       [type](InsertCallParams &params) {
-        bNode &node = params.add_node("GeometryNodeInputNamedAttribute");
+        bNode &node = params.add_node("GeometryNodeInputNamedAttribute"_ustr);
         auto &storage = *static_cast<NodeGeometryInputNamedAttribute *>(node.storage);
         storage.data_type = type;
         params.update_node_sockets(node);
@@ -488,9 +489,9 @@ static FunctionSymbol string_concatenation()
                params.input_types[1]->type == SOCK_STRING;
       },
       [](InsertCallParams &params) {
-        bNode &node = params.add_node("FunctionNodeFormatString");
+        bNode &node = params.add_node("FunctionNodeFormatString"_ustr);
         auto &storage = *static_cast<NodeFunctionFormatString *>(node.storage);
-        storage.items = MEM_calloc_arrayN<NodeFunctionFormatStringItem>(2, "string_concatenation");
+        storage.items = MEM_new_array<NodeFunctionFormatStringItem>(2, "string_concatenation");
         NodeFunctionFormatStringItem &item0 = storage.items[0];
         NodeFunctionFormatStringItem &item1 = storage.items[1];
         item0.identifier = storage.next_identifier++;
@@ -537,7 +538,7 @@ static FunctionSymbol ternary_conditional_operator(const eNodeSocketDatatype typ
       },
       [type](InsertCallParams &params) {
         if (params.tree.type == NTREE_GEOMETRY) {
-          bNode &node = params.add_node("GeometryNodeSwitch");
+          bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
           auto &storage = *static_cast<NodeSwitch *>(node.storage);
           storage.input_type = type;
           params.update_node_sockets(node);
@@ -547,7 +548,7 @@ static FunctionSymbol ternary_conditional_operator(const eNodeSocketDatatype typ
           params.use_node_output(node);
           return;
         }
-        bNode &node = params.add_node("ShaderNodeMix");
+        bNode &node = params.add_node("ShaderNodeMix"_ustr);
         NodeShaderMix &storage = *static_cast<NodeShaderMix *>(node.storage);
         storage.clamp_factor = false;
         if (ELEM(type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN)) {
@@ -578,20 +579,20 @@ static FunctionSymbol create_vec_function()
         return all_inputs_1d(params);
       },
       [](InsertCallParams &params) {
-        bNode &node = params.add_node("ShaderNodeCombineXYZ");
+        bNode &node = params.add_node("ShaderNodeCombineXYZ"_ustr);
         params.use_node_sockets(node);
       });
 }
 
-static StringRef get_combine_color_node_idname(const int tree_type)
+static UString get_combine_color_node_idname(const int tree_type)
 {
   switch (tree_type) {
     case NTREE_GEOMETRY:
-      return "FunctionNodeCombineColor";
+      return "FunctionNodeCombineColor"_ustr;
     case NTREE_COMPOSIT:
-      return "CompositorNodeCombineColor";
+      return "CompositorNodeCombineColor"_ustr;
     case NTREE_SHADER:
-      return "ShaderNodeCombineColor";
+      return "ShaderNodeCombineColor"_ustr;
   }
   BLI_assert_unreachable();
   return {};
@@ -608,7 +609,7 @@ static FunctionSymbol create_rgb_function()
         return all_inputs_1d(params);
       },
       [](InsertCallParams &params) {
-        const StringRef idname = get_combine_color_node_idname(params.tree.type);
+        const UString idname = get_combine_color_node_idname(params.tree.type);
         bNode &node = params.add_node(idname);
         params.add_input(node, 0);
         params.add_input(node, 1);
@@ -631,21 +632,21 @@ static FunctionSymbol create_rgba_function()
         return all_inputs_1d(params);
       },
       [](InsertCallParams &params) {
-        const StringRef idname = get_combine_color_node_idname(params.tree.type);
+        const UString idname = get_combine_color_node_idname(params.tree.type);
         bNode &node = params.add_node(idname);
         params.use_node_sockets(node);
       });
 }
 
-static StringRef get_separate_color_node_idname(const int tree_type)
+static UString get_separate_color_node_idname(const int tree_type)
 {
   switch (tree_type) {
     case NTREE_GEOMETRY:
-      return "FunctionNodeSeparateColor";
+      return "FunctionNodeSeparateColor"_ustr;
     case NTREE_COMPOSIT:
-      return "CompositorNodeSeparateColor";
+      return "CompositorNodeSeparateColor"_ustr;
     case NTREE_SHADER:
-      return "ShaderNodeSeparateColor";
+      return "ShaderNodeSeparateColor"_ustr;
   }
   BLI_assert_unreachable();
   return {};
@@ -669,7 +670,7 @@ static FunctionSymbol create_color_member_access(const int index)
         return true;
       },
       [index](InsertCallParams &params) {
-        const StringRef node_idname = get_separate_color_node_idname(params.tree.type);
+        const UString node_idname = get_separate_color_node_idname(params.tree.type);
         bNode &node = params.add_node(node_idname);
         params.use_node_inputs(node);
         params.set_output(node, index);
@@ -774,7 +775,7 @@ ExpressionNodeGroup::~ExpressionNodeGroup()
   }
 }
 
-bNode &InsertCallParams::add_node(const StringRef idname)
+bNode &InsertCallParams::add_node(const UString idname)
 {
   return this->builder.add_node(idname);
 }

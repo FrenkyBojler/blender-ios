@@ -17,7 +17,7 @@ namespace blender::nodes {
 
 struct ExpressionInputItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeExpressionInputItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "NodeExpression";
   static constexpr bool has_type = true;
@@ -54,7 +54,7 @@ struct ExpressionInputItemsAccessor : public socket_items::SocketItemsAccessorDe
 
   static void destruct_item(NodeExpressionInputItem *item)
   {
-    MEM_SAFE_FREE(item->name);
+    MEM_delete(item->name);
   }
 
   static void blend_write_item(BlendWriter *writer, const ItemT &item);
@@ -122,7 +122,7 @@ struct ExpressionInputItemsAccessor : public socket_items::SocketItemsAccessorDe
 
 struct ExpressionItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeExpressionItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "NodeExpression";
   static constexpr bool has_type = true;

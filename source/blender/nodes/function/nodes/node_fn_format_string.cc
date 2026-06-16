@@ -822,4 +822,5 @@ void FormatStringItemsAccessor::blend_read_data_item(BlendDataReader *reader, It
   BLO_read_string(reader, &item.name);
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

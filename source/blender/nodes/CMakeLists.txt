@@ -77,7 +77,6 @@ set(SRC
   intern/compositor_nodes_caller_ui.cc
   intern/compositor_nodes_srna.cc
   intern/dependencies.cc
-  intern/derived_node_tree.cc
   intern/eval_log.cc
   intern/expression_ast.cc
   intern/expression_parse.cc
@@ -131,7 +130,6 @@ set(SRC
   NOD_compositor_nodes_srna.hh
   NOD_defaults.hh
   NOD_dependencies.hh
-  NOD_derived_node_tree.hh
   NOD_eval_log.hh
   NOD_expression_ast.hh
   NOD_expression_parse.hh
