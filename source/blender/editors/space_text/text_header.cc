@@ -8,10 +8,11 @@
 
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_screen.hh"
 
 #include "DNA_text_types.h"
@@ -85,7 +86,6 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
     const char *active_category = ui::panel_category_active_get(region, false);
     if (active_category && !STREQ(active_category, "Text")) {
       ui::panel_category_active_set(region, "Text");
-      ED_region_tag_redraw(region);
     }
 
     ED_region_activate_rna_prop(C, region, st, "find_text", "TEXT_PT_find");

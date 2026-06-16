@@ -108,6 +108,12 @@ set(SRC
   nodes/node_geo_gizmo_dial.cc
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
+  nodes/node_geo_grease_pencil_color.cc
+  nodes/node_geo_grease_pencil_draw_time.cc
+  nodes/node_geo_grease_pencil_fill_id.cc
+  nodes/node_geo_grease_pencil_opacity.cc
+  nodes/node_geo_grease_pencil_stroke_softness.cc
+  nodes/node_geo_grease_pencil_stroke_visibility.cc
   nodes/node_geo_grease_pencil_to_curves.cc
   nodes/node_geo_grid_advect.cc
   nodes/node_geo_grid_clip.cc
@@ -185,6 +191,7 @@ set(SRC
   nodes/node_geo_merge_by_distance.cc
   nodes/node_geo_merge_layers.cc
   nodes/node_geo_merge_points.cc
+  nodes/node_geo_mesh_bevel.cc
   nodes/node_geo_mesh_face_group_boundaries.cc
   nodes/node_geo_mesh_primitive_circle.cc
   nodes/node_geo_mesh_primitive_cone.cc
@@ -268,6 +275,7 @@ set(SRC
   nodes/node_geo_set_spline_resolution.cc
   nodes/node_geo_simulation.cc
   nodes/node_geo_sort_elements.cc
+  nodes/node_geo_sort_list.cc
   nodes/node_geo_split_to_instances.cc
   nodes/node_geo_store_bundle_item.cc
   nodes/node_geo_store_named_attribute.cc

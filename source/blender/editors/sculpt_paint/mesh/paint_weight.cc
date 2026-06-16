@@ -13,10 +13,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array_utils.h"
+#include "BLI_array_utils_c.hh"
 #include "BLI_color_mix.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_base.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
@@ -1099,9 +1099,7 @@ static float wpaint_get_active_weight(const MDeformVert &dv, const WeightPaintIn
 static void precompute_weight_values(
     Object &ob, const Brush &brush, WPaintData &wpd, WeightPaintInfo &wpi, Mesh &mesh)
 {
-  if (wpd.precomputed_weight_ready &&
-      !vwpaint::brush_use_accumulate_ex(brush, eObjectMode(ob.mode)))
-  {
+  if (wpd.precomputed_weight_ready && !vwpaint::brush_use_accumulate_ex(brush, ob.mode)) {
     return;
   }
 
