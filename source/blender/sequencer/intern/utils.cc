@@ -17,10 +17,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
 
@@ -37,7 +38,6 @@
 #include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
 #include "IMB_imbuf_types.hh"
@@ -58,10 +58,10 @@ struct StripUniqueInfo {
   int match;
 };
 
-static void seqbase_unique_name(ListBase *seqbasep, StripUniqueInfo *sui)
+static void seqbase_unique_name(ListBaseT<Strip> *seqbasep, StripUniqueInfo *sui)
 {
-  LISTBASE_FOREACH (Strip *, strip, seqbasep) {
-    if ((sui->strip != strip) && STREQ(sui->name_dest, strip->name + 2)) {
+  for (Strip &strip : *seqbasep) {
+    if ((sui->strip != &strip) && STREQ(sui->name_dest, strip.name + 2)) {
       /* STRIP_NAME_MAXSTR -4 for the number, -1 for \0, - 2 for r_prefix */
       SNPRINTF(
           sui->name_dest, "%.*s.%03d", STRIP_NAME_MAXSTR - 4 - 1 - 2, sui->name_src, sui->count++);
@@ -73,29 +73,27 @@ static void seqbase_unique_name(ListBase *seqbasep, StripUniqueInfo *sui)
 static bool seqbase_unique_name_recursive_fn(Strip *strip, void *arg_pt)
 {
   if (strip->seqbase.first) {
-    seqbase_unique_name(&strip->seqbase, (StripUniqueInfo *)arg_pt);
+    seqbase_unique_name(&strip->seqbase, static_cast<StripUniqueInfo *>(arg_pt));
   }
   return true;
 }
 
-void strip_unique_name_set(Scene *scene, ListBase *seqbasep, Strip *strip)
+void strip_unique_name_set(Scene *scene, ListBaseT<Strip> *seqbasep, Strip *strip)
 {
   StripUniqueInfo sui;
   char *dot;
   sui.strip = strip;
   STRNCPY(sui.name_src, strip->name + 2);
-  STRNCPY(sui.name_dest, strip->name + 2);
-
+  STRNCPY(sui.name_dest, sui.name_src);
   sui.count = 1;
   sui.match = 1; /* assume the worst to start the loop */
 
-  /* Strip off the suffix */
+  /* Strip off the suffix only if it is purely numeric. */
   if ((dot = strrchr(sui.name_src, '.'))) {
-    *dot = '\0';
-    dot++;
-
-    if (*dot) {
-      sui.count = atoi(dot) + 1;
+    char *suffix = dot + 1;
+    if (BLI_string_is_decimal(suffix)) {
+      *dot = '\0';
+      sui.count = atoi(suffix) + 1;
     }
   }
 
@@ -123,12 +121,14 @@ const char *get_default_stripname_by_type(int type)
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Clip");
     case STRIP_TYPE_MASK:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Mask");
-    case STRIP_TYPE_SOUND_RAM:
+    case STRIP_TYPE_SOUND:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Audio");
     case STRIP_TYPE_CROSS:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Crossfade");
     case STRIP_TYPE_GAMCROSS:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Gamma Crossfade");
+    case STRIP_TYPE_COMPOSITOR:
+      return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Compositor");
     case STRIP_TYPE_ADD:
       return CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, "Add");
     case STRIP_TYPE_SUB:
@@ -176,15 +176,17 @@ const char *strip_give_name(const Strip *strip)
   return name;
 }
 
-ListBase *get_seqbase_from_strip(Strip *strip, ListBase **r_channels, int *r_offset)
+ListBaseT<Strip> *get_seqbase_from_strip(Strip *strip,
+                                         ListBaseT<SeqTimelineChannel> **r_channels,
+                                         int *r_offset)
 {
-  ListBase *seqbase = nullptr;
+  ListBaseT<Strip> *seqbase = nullptr;
 
   switch (strip->type) {
     case STRIP_TYPE_META: {
       seqbase = &strip->seqbase;
       *r_channels = &strip->channels;
-      *r_offset = time_start_frame_get(strip);
+      *r_offset = strip->content_start();
       break;
     }
     case STRIP_TYPE_SCENE: {
@@ -198,6 +200,8 @@ ListBase *get_seqbase_from_strip(Strip *strip, ListBase **r_channels, int *r_off
       }
       break;
     }
+    default:
+      break;
   }
 
   return seqbase;
@@ -209,13 +213,14 @@ static MovieReader *open_anim_filepath(Strip *strip, const char *filepath, bool 
    * kept unchanged for the performance reasons. */
   if (openfile) {
     return openanim(filepath,
-                    IB_byte_data | ((strip->flag & SEQ_DEINTERLACE) ? IB_animdeinterlace : 0),
+                    (strip->flag & SEQ_DEINTERLACE) ? ImBufFlags::Deinterlace : ImBufFlags::Zero,
                     strip->streamindex,
                     true,
                     strip->data->colorspace_settings.name);
   }
   return openanim_noload(filepath,
-                         IB_byte_data | ((strip->flag & SEQ_DEINTERLACE) ? IB_animdeinterlace : 0),
+                         (strip->flag & SEQ_DEINTERLACE) ? ImBufFlags::Deinterlace :
+                                                           ImBufFlags::Zero,
                          strip->streamindex,
                          true,
                          strip->data->colorspace_settings.name);
@@ -330,17 +335,17 @@ const Strip *strip_topmost_get(const Scene *scene, int frame)
     return nullptr;
   }
 
-  ListBase *channels = channels_displayed_get(ed);
+  ListBaseT<SeqTimelineChannel> *channels = channels_displayed_get(ed);
   const Strip *best_strip = nullptr;
   int best_channel = -1;
 
-  LISTBASE_FOREACH (const Strip *, strip, ed->current_strips()) {
-    if (render_is_muted(channels, strip) || !time_strip_intersects_frame(scene, strip, frame)) {
+  for (const Strip &strip : *ed->current_strips()) {
+    if (render_is_muted(channels, &strip) || !strip.intersects_frame(scene, frame)) {
       continue;
     }
     /* Only use strips that generate an image, not ones that combine
      * other strips or apply some effect. */
-    if (ELEM(strip->type,
+    if (ELEM(strip.type,
              STRIP_TYPE_IMAGE,
              STRIP_TYPE_META,
              STRIP_TYPE_SCENE,
@@ -348,19 +353,19 @@ const Strip *strip_topmost_get(const Scene *scene, int frame)
              STRIP_TYPE_COLOR,
              STRIP_TYPE_TEXT))
     {
-      if (strip->channel > best_channel) {
-        best_strip = strip;
-        best_channel = strip->channel;
+      if (strip.channel > best_channel) {
+        best_strip = &strip;
+        best_channel = strip.channel;
       }
     }
   }
   return best_strip;
 }
 
-ListBase *get_seqbase_by_strip(const Scene *scene, Strip *strip)
+ListBaseT<Strip> *get_seqbase_by_strip(const Scene *scene, Strip *strip)
 {
   Editing *ed = editing_get(scene);
-  ListBase *main_seqbase = &ed->seqbase;
+  ListBaseT<Strip> *main_seqbase = &ed->seqbase;
   Strip *strip_meta = lookup_meta_by_strip(ed, strip);
 
   if (strip_meta != nullptr) {
@@ -372,7 +377,7 @@ ListBase *get_seqbase_by_strip(const Scene *scene, Strip *strip)
   return nullptr;
 }
 
-Strip *strip_from_strip_elem(ListBase *seqbase, StripElem *se)
+Strip *strip_from_strip_elem(ListBaseT<Strip> *seqbase, StripElem *se)
 {
   Strip *istrip;
 
@@ -392,14 +397,14 @@ Strip *strip_from_strip_elem(ListBase *seqbase, StripElem *se)
   return istrip;
 }
 
-Strip *get_strip_by_name(ListBase *seqbase, const char *name, bool recursive)
+Strip *get_strip_by_name(ListBaseT<Strip> *seqbase, const char *name, bool recursive)
 {
-  LISTBASE_FOREACH (Strip *, istrip, seqbase) {
-    if (STREQ(name, istrip->name + 2)) {
-      return istrip;
+  for (Strip &istrip : *seqbase) {
+    if (STREQ(name, istrip.name + 2)) {
+      return &istrip;
     }
-    if (recursive && !BLI_listbase_is_empty(&istrip->seqbase)) {
-      Strip *rseq = get_strip_by_name(&istrip->seqbase, name, true);
+    if (recursive && !istrip.seqbase.is_empty()) {
+      Strip *rseq = get_strip_by_name(&istrip.seqbase, name, true);
       if (rseq != nullptr) {
         return rseq;
       }
@@ -424,7 +429,7 @@ void alpha_mode_from_file_extension(Strip *strip)
 {
   if (strip->data && strip->data->stripdata) {
     const char *filename = strip->data->stripdata->filename;
-    strip->alpha_mode = BKE_image_alpha_mode_from_extension_ex(filename);
+    strip->alpha_mode = eStripAlphaMode(BKE_image_alpha_mode_from_extension_ex(filename));
   }
 }
 
@@ -437,11 +442,11 @@ bool strip_has_valid_data(const Strip *strip)
       return (strip->clip != nullptr);
     case STRIP_TYPE_SCENE:
       return (strip->scene != nullptr);
-    case STRIP_TYPE_SOUND_RAM:
+    case STRIP_TYPE_SOUND:
       return (strip->sound != nullptr);
+    default:
+      return true;
   }
-
-  return true;
 }
 
 bool sequencer_strip_generates_image(Strip *strip)
@@ -455,8 +460,9 @@ bool sequencer_strip_generates_image(Strip *strip)
     case STRIP_TYPE_COLOR:
     case STRIP_TYPE_TEXT:
       return true;
+    default:
+      return false;
   }
-  return false;
 }
 
 void set_scale_to_fit(const Strip *strip,
@@ -504,11 +510,12 @@ void ensure_unique_name(Strip *strip, Scene *scene)
                                 strip->name + 2,
                                 0,
                                 0,
-                                false);
+                                /*verify_paths=*/false,
+                                /*infix_is_name=*/true);
 
   if (strip->type == STRIP_TYPE_META) {
-    LISTBASE_FOREACH (Strip *, strip_child, &strip->seqbase) {
-      ensure_unique_name(strip_child, scene);
+    for (Strip &strip_child : strip->seqbase) {
+      ensure_unique_name(&strip_child, scene);
     }
   }
 }

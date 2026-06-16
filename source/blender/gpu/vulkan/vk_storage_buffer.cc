@@ -15,9 +15,11 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 VKStorageBuffer::VKStorageBuffer(size_t size, GPUUsageType usage, const char *name)
     : StorageBuf(size, name), usage_(usage)
@@ -85,10 +87,9 @@ void VKStorageBuffer::allocate()
                  buffer_usage_flags,
                  VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
                  VmaAllocationCreateFlags(0),
-                 0.8f);
-  if (buffer_.is_allocated()) {
-    debug::object_label(buffer_.vk_handle(), name_);
-  }
+                 0.8f,
+                 false,
+                 name_);
 }
 
 void VKStorageBuffer::bind(int slot)
@@ -157,4 +158,5 @@ void VKStorageBuffer::read(void *data)
   async_read_buffer_ = nullptr;
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

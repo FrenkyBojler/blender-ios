@@ -10,8 +10,9 @@
 
 #include <string>
 
+#include "BLI_assert.hh"
 #include "BLI_enum_flags.hh"
-#include "BLI_math_base.h"
+#include "BLI_math_base_c.hh"
 #include "BLI_set.hh"
 
 #include "DNA_customdata_types.h" /* for eCustomDataType */
@@ -21,18 +22,20 @@
 #include "GPU_shader.hh"  /* for GPUShaderCreateInfo */
 #include "GPU_texture.hh" /* for GPUSamplerState */
 
+namespace blender {
+
 struct GHash;
 struct GPUMaterial;
+struct GPUInput;
 struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUPass;
-namespace blender::gpu {
+namespace gpu {
 class Texture;
 class UniformBuf;
-}  // namespace blender::gpu
+}  // namespace gpu
 struct Image;
 struct ImageUser;
-struct ListBase;
 struct Main;
 struct Material;
 struct Scene;
@@ -76,6 +79,7 @@ enum eGPUMaterialFlag {
   /* Signals the presence of multiple reflection closures. */
   GPU_MATFLAG_COAT = (1 << 9),
   GPU_MATFLAG_TRANSLUCENT = (1 << 10),
+  GPU_MATFLAG_RAYCAST = (1 << 11),
 
   GPU_MATFLAG_VOLUME_SCATTER = (1 << 16),
   GPU_MATFLAG_VOLUME_ABSORPTION = (1 << 17),
@@ -92,6 +96,9 @@ enum eGPUMaterialFlag {
 
   /* Set if the material uses the "Is Diffuse / Glossy Ray" output of the light path node. */
   GPU_MATFLAG_IS_DIFFUSE_OR_GLOSSY_RAY_FLAG = (1 << 24),
+
+  /* Signals scene time use. */
+  GPU_MATFLAG_SCENE_TIME = (1 << 25),
 
   /* Tells the render engine the material was just compiled or updated. */
   GPU_MATFLAG_UPDATED = (1 << 29),
@@ -114,14 +121,14 @@ struct GPUMaterialFromNodeTreeResult {
     const bNode *node;
     std::string message;
   };
-  blender::Vector<Error> errors;
+  Vector<Error> errors;
 };
 
 /** WARNING: gpumaterials thread safety must be ensured by the caller. */
 GPUMaterialFromNodeTreeResult GPU_material_from_nodetree(
     Material *ma,
     bNodeTree *ntree,
-    ListBase *gpumaterials,
+    ListBaseT<LinkData> *gpumaterials,
     const char *name,
     eGPUMaterialEngine engine,
     uint64_t shader_uuid,
@@ -142,13 +149,13 @@ GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
                                          void *thunk);
 
 void GPU_material_free_single(GPUMaterial *material);
-void GPU_material_free(ListBase *gpumaterial);
+void GPU_material_free(ListBaseT<LinkData> *gpumaterial);
 
 void GPU_materials_free(Main *bmain);
 
 GPUPass *GPU_material_get_pass(GPUMaterial *material);
 /** Return the most optimal shader configuration for the given material. */
-blender::gpu::Shader *GPU_material_get_shader(GPUMaterial *material);
+gpu::Shader *GPU_material_get_shader(GPUMaterial *material);
 
 const char *GPU_material_get_name(GPUMaterial *material);
 
@@ -168,13 +175,13 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
 
 uint64_t GPU_material_compilation_timestamp(GPUMaterial *mat);
 
-blender::gpu::UniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
+gpu::UniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
 /**
  * Create dynamic UBO from parameters
  *
  * \param inputs: Items are #LinkData, data is #GPUInput (`BLI_genericNodeN(GPUInput)`).
  */
-void GPU_material_uniform_buffer_create(GPUMaterial *material, ListBase *inputs);
+void GPU_material_uniform_buffer_create(GPUMaterial *material, ListBaseT<LinkData> *inputs);
 
 bool GPU_material_has_surface_output(GPUMaterial *mat);
 bool GPU_material_has_volume_output(GPUMaterial *mat);
@@ -196,34 +203,84 @@ struct GPULayerAttr {
   int users;
 };
 
-const ListBase *GPU_material_layer_attributes(const GPUMaterial *material);
+const ListBaseT<GPULayerAttr> *GPU_material_layer_attributes(const GPUMaterial *material);
 
 /* Requested Material Attributes and Textures */
 
 enum GPUType {
-  /* Keep in sync with GPU_DATATYPE_STR */
-  /* The value indicates the number of elements in each type */
-  GPU_NONE = 0,
-  GPU_FLOAT = 1,
-  GPU_VEC2 = 2,
-  GPU_VEC3 = 3,
-  GPU_VEC4 = 4,
-  GPU_MAT3 = 9,
-  GPU_MAT4 = 16,
-  GPU_MAX_CONSTANT_DATA = GPU_MAT4,
+  /* Float types */
+  GPU_NONE,
+  GPU_FLOAT,
+  GPU_VEC2,
+  GPU_VEC3,
+  GPU_VEC4,
+  GPU_MAT3,
+  GPU_MAT4,
 
-  /* Values not in GPU_DATATYPE_STR */
-  GPU_TEX1D_ARRAY = 1001,
-  GPU_TEX2D = 1002,
-  GPU_TEX2D_ARRAY = 1003,
-  GPU_TEX3D = 1004,
+  GPU_TEX1D_ARRAY,
+  GPU_TEX2D,
+  GPU_TEX2D_ARRAY,
+  GPU_TEX3D,
 
   /* GLSL Struct types */
-  GPU_CLOSURE = 1007,
+  GPU_CLOSURE,
 
   /* Opengl Attributes */
-  GPU_ATTR = 3001,
+  GPU_ATTR,
 };
+
+/* Element count of GPU_MAT4. */
+constexpr int GPU_MAX_CONSTANT_DATA = 16;
+
+constexpr int gpu_type_element_count(const GPUType type)
+{
+  switch (type) {
+    case GPU_FLOAT:
+      return 1;
+    case GPU_VEC2:
+      return 2;
+    case GPU_VEC3:
+      return 3;
+    case GPU_VEC4:
+      return 4;
+    case GPU_MAT3:
+      return 9;
+    case GPU_MAT4:
+      return 16;
+    case GPU_NONE:
+    case GPU_TEX1D_ARRAY:
+    case GPU_TEX2D:
+    case GPU_TEX2D_ARRAY:
+    case GPU_TEX3D:
+    case GPU_CLOSURE:
+    case GPU_ATTR:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return 0;
+}
+
+constexpr GPUType gpu_float_type_from_element_count(const int count)
+{
+  switch (count) {
+    case 1:
+      return GPU_FLOAT;
+    case 2:
+      return GPU_VEC2;
+    case 3:
+      return GPU_VEC3;
+    case 4:
+      return GPU_VEC4;
+    case 9:
+      return GPU_MAT3;
+    case 16:
+      return GPU_MAT4;
+  }
+
+  BLI_assert_unreachable();
+  return GPU_NONE;
+}
 
 enum GPUDefaultValue {
   GPU_DEFAULT_0 = 0,
@@ -260,16 +317,16 @@ struct GPUMaterialTexture {
   Image *ima;
   ImageUser iuser;
   bool iuser_available;
-  blender::gpu::Texture **colorband;
-  blender::gpu::Texture **sky;
+  gpu::Texture **colorband;
+  gpu::Texture **sky;
   char sampler_name[32];       /* Name of sampler in GLSL. */
   char tiled_mapping_name[32]; /* Name of tile mapping sampler in GLSL. */
   int users;
   GPUSamplerState sampler_state;
 };
 
-ListBase GPU_material_attributes(const GPUMaterial *material);
-ListBase GPU_material_textures(GPUMaterial *material);
+ListBaseT<GPUMaterialAttribute> GPU_material_attributes(const GPUMaterial *material);
+ListBaseT<GPUMaterialTexture> GPU_material_textures(GPUMaterial *material);
 
 struct GPUUniformAttr {
   GPUUniformAttr *next, *prev;
@@ -286,7 +343,7 @@ struct GPUUniformAttr {
 };
 
 struct GPUUniformAttrList {
-  ListBase list; /* GPUUniformAttr */
+  ListBaseT<GPUUniformAttr> list;
 
   /* List length and hash code precomputed for fast lookup and comparison. */
   unsigned int count, hash_code;
@@ -315,23 +372,38 @@ struct GPUNodeStack {
 
   bool socket_not_zero() const
   {
-    return this->link || (clamp_f(this->vec[0], 0.0f, 1.0f) > 1e-5f);
+    return this->link || (saturate_f(this->vec[0]) > near_zero);
   }
 
   bool socket_not_one() const
   {
-    return this->link || (clamp_f(this->vec[0], 0.0f, 1.0f) < 1.0f - 1e-5f);
+    return this->link || (saturate_f(this->vec[0]) < near_one);
   }
 
-  bool socket_is_one() const
+  bool socket_not_black() const
   {
-    return !this->link && (clamp_f(this->vec[0], 0.0f, 1.0f) > 0.9999f);
+    return this->link || saturate_f(this->vec[0]) > near_zero ||
+           saturate_f(this->vec[1]) > near_zero || saturate_f(this->vec[2]) > near_zero;
+  }
+
+  bool socket_not_white() const
+  {
+    return this->link || saturate_f(this->vec[0]) < near_one ||
+           saturate_f(this->vec[1]) < near_one || saturate_f(this->vec[2]) < near_one;
+  }
+
+ private:
+  static constexpr float near_zero = 1e-5f;
+  static constexpr float near_one = 1.0f - 1e-5f;
+  float saturate_f(const float f) const
+  {
+    return clamp_f(f, 0.0f, 1.0f);
   }
 };
 
 struct GPUGraphOutput {
   std::string serialized;
-  blender::Vector<blender::StringRefNull> dependencies;
+  Vector<StringRefNull> dependencies;
 
   bool empty() const
   {
@@ -352,7 +424,7 @@ struct GPUCodegenOutput {
   GPUGraphOutput volume;
   GPUGraphOutput thickness;
   GPUGraphOutput composite;
-  blender::Vector<GPUGraphOutput> material_functions;
+  Vector<GPUGraphOutput> material_functions;
 
   GPUShaderCreateInfo *create_info;
 };
@@ -449,3 +521,21 @@ eGPUMaterialFlag GPU_material_flag(const GPUMaterial *mat);
 GHash *GPU_uniform_attr_list_hash_new(const char *info);
 void GPU_uniform_attr_list_copy(GPUUniformAttrList *dest, const GPUUniformAttrList *src);
 void GPU_uniform_attr_list_free(GPUUniformAttrList *set);
+
+/* Returns the GPU node stack of the input with the given identifier in the given node within the
+ * given inputs stack array. */
+GPUNodeStack &GPU_node_get_input(const bNode &node, GPUNodeStack inputs[], StringRef identifier);
+
+/* Returns the GPU node stack of the output with the given identifier in the given node within the
+ * given output stack array. */
+GPUNodeStack &GPU_node_get_output(const bNode &node, GPUNodeStack outputs[], StringRef identifier);
+
+/* Returns the GPU node link of the input with the given identifier in the given node within the
+ * given inputs stack array, if the input is not linked, a uniform link carrying the value of the
+ * input will be created and returned. It is expected that the caller will use the returned link in
+ * a GPU material, otherwise, the link may not be properly freed. */
+GPUNodeLink *GPU_node_get_input_link(const bNode &node,
+                                     GPUNodeStack inputs[],
+                                     StringRef identifier);
+
+}  // namespace blender

@@ -10,7 +10,9 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
+
+namespace blender {
 
 struct rctf;
 
@@ -174,3 +176,5 @@ void imm_draw_cylinder_fill_3d(
     uint pos, float base, float top, float height, int slices, int stacks);
 
 void imm_drawcircball(const float cent[3], float radius, const float tmat[4][4], uint pos);
+
+}  // namespace blender

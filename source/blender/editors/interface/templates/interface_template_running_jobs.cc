@@ -8,33 +8,37 @@
 
 #include <fmt/format.h>
 
+#include "AS_asset_library.hh"
+#include "AS_remote_library.hh"
+
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
-#include "BLI_time.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
 
-#include "BLI_timecode.h"
+#include "BLI_timecode.hh"
 #include "BLT_translation.hh"
 
 #include "ED_screen.hh"
 
+#include "UI_resources.hh"
 #include "WM_api.hh"
 
 #include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
+namespace blender::ui {
+
 struct ProgressTooltip_Store {
   wmWindowManager *wm;
   void *owner;
 };
 
-static std::string progress_tooltip_func(bContext * /*C*/,
-                                         void *argN,
-                                         const blender::StringRef /*tip*/)
+static std::string progress_tooltip_func(bContext * /*C*/, void *argN, const StringRef /*tip*/)
 {
   ProgressTooltip_Store *arg = static_cast<ProgressTooltip_Store *>(argN);
   wmWindowManager *wm = arg->wm;
@@ -44,7 +48,7 @@ static std::string progress_tooltip_func(bContext * /*C*/,
 
   /* create tooltip text and associate it with the job */
   char elapsed_str[32];
-  char remaining_str[32] = "Unknown";
+  char remaining_str[32];
   const double elapsed = BLI_time_now_seconds() - WM_jobs_starttime(wm, owner);
   BLI_timecode_string_from_time_simple(elapsed_str, sizeof(elapsed_str), elapsed);
 
@@ -53,11 +57,10 @@ static std::string progress_tooltip_func(bContext * /*C*/,
     BLI_timecode_string_from_time_simple(remaining_str, sizeof(remaining_str), remaining);
   }
 
-  return fmt::format(
-      "Time Remaining: {}\n"
-      "Time Elapsed: {}",
-      remaining_str,
-      elapsed_str);
+  return fmt::format(fmt::runtime(TIP_("Time Remaining: {}\n"
+                                       "Time Elapsed: {}")),
+                     progress ? remaining_str : TIP_("Unknown"),
+                     elapsed_str);
 }
 
 static void cancel_all_scene_jobs(bContext &C)
@@ -70,7 +73,7 @@ static void set_global_break(bContext &C)
   WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), CTX_data_scene(&C));
 }
 
-void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
+void template_running_jobs(Layout *layout, bContext *C)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -82,57 +85,57 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
   const char *op_name = nullptr;
   const char *op_description = nullptr;
 
-  uiBlock *block = layout->block();
-  blender::ui::block_layout_set_current(block, layout);
+  Block *block = layout->block();
+  block_layout_set_current(block, layout);
 
   /* another scene can be rendering too, for example via compositor */
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY)) {
+  for (Scene &scene : bmain->scenes) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_ANY)) {
       cancel_fn = set_global_break;
       icon = ICON_NONE;
-      owner = scene;
+      owner = &scene;
     }
     else {
       continue;
     }
 
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_SEQ_BUILD_PROXY)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_SEQ_BUILD_PROXY)) {
       cancel_fn = cancel_all_scene_jobs;
       icon = ICON_SEQUENCE;
-      owner = scene;
+      owner = &scene;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_SEQ_BUILD_PREVIEW)) {
-      cancel_fn = cancel_all_scene_jobs;
-      icon = ICON_SEQUENCE;
-      break;
-    }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_SEQ_DRAW_THUMBNAIL)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_SEQ_BUILD_PREVIEW)) {
       cancel_fn = cancel_all_scene_jobs;
       icon = ICON_SEQUENCE;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_BUILD_PROXY)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_SEQ_DRAW_THUMBNAIL)) {
+      cancel_fn = cancel_all_scene_jobs;
+      icon = ICON_SEQUENCE;
+      break;
+    }
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_CLIP_BUILD_PROXY)) {
       cancel_fn = cancel_all_scene_jobs;
       icon = ICON_TRACKER;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_PREFETCH)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_CLIP_PREFETCH)) {
       cancel_fn = cancel_all_scene_jobs;
       icon = ICON_TRACKER;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_TRACK_MARKERS)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_CLIP_TRACK_MARKERS)) {
       cancel_fn = cancel_all_scene_jobs;
       icon = ICON_TRACKER;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
       cancel_fn = cancel_all_scene_jobs;
       icon = ICON_TRACKER;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_RENDER)) {
       cancel_fn = set_global_break;
       icon = ICON_SCENE;
       if (U.render_display_type != USER_RENDER_DISPLAY_NONE) {
@@ -141,18 +144,16 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
       }
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_COMPOSITE)) {
       cancel_fn = cancel_all_scene_jobs;
       icon = ICON_RENDERLAYERS;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE) ||
-        WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE))
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE) ||
+        WM_jobs_test(wm, &scene, WM_JOB_TYPE_OBJECT_BAKE))
     {
-      /* Skip bake jobs in compositor to avoid compo header displaying
-       * progress bar which is not being updated (bake jobs only need
-       * to update NC_IMAGE context.
-       */
+      /* Skip bake jobs in compositor to avoid compo header displaying progress bar
+       * which is not being updated (bake jobs only need to update NC_IMAGE context). */
       if (area->spacetype != SPACE_NODE) {
         cancel_fn = set_global_break;
         icon = ICON_IMAGE;
@@ -160,50 +161,62 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
       }
       continue;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_DPAINT_BAKE)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_DPAINT_BAKE)) {
       cancel_fn = set_global_break;
       icon = ICON_MOD_DYNAMICPAINT;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_POINTCACHE)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_POINTCACHE)) {
       cancel_fn = set_global_break;
       icon = ICON_PHYSICS;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
       cancel_fn = set_global_break;
       icon = ICON_MOD_FLUIDSIM;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_SIM_OCEAN)) {
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_OBJECT_SIM_OCEAN)) {
       cancel_fn = set_global_break;
       icon = ICON_MOD_OCEAN;
       break;
     }
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_SOUND_MIXDOWN)) {
+      cancel_fn = set_global_break;
+      icon = ICON_FILE_SOUND;
+      break;
+    }
   }
   if (!owner) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      const bScreen *screen = WM_window_get_active_screen(win);
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (area->spacetype != SPACE_FILE) {
+    for (wmWindow &win : wm->windows) {
+      const bScreen *screen = WM_window_get_active_screen(&win);
+      for (ScrArea &area : screen->areabase) {
+        if (area.spacetype != SPACE_FILE) {
           continue;
         }
-        const SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
-        auto tmp_cancel_fn = [sfile](bContext &C) {
-          WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), sfile->files);
-        };
+        const SpaceFile *sfile = static_cast<SpaceFile *>(area.spacedata.first);
 
         if (WM_jobs_test(wm, sfile->files, WM_JOB_TYPE_FILESEL_READDIR)) {
           icon = ICON_FILEBROWSER;
           owner = sfile->files;
-          cancel_fn = tmp_cancel_fn;
+          cancel_fn = [sfile](bContext &C) {
+            WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), sfile->files);
+          };
           break;
         }
 
         if (WM_jobs_test(wm, sfile->files, WM_JOB_TYPE_ASSET_LIBRARY_LOAD)) {
+          const bool needs_cancelling_online_assets =
+              sfile->asset_params && asset_system::is_or_contains_remote_libraries(
+                                         sfile->asset_params->asset_library_ref);
           icon = ICON_ASSET_MANAGER;
           owner = sfile->files;
-          cancel_fn = tmp_cancel_fn;
+          cancel_fn = [sfile, needs_cancelling_online_assets](bContext &C) {
+            WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), sfile->files);
+            if (needs_cancelling_online_assets) {
+              asset_system::remote_library_cancel_all_listing_downloads(C);
+            }
+          };
           break;
         }
       }
@@ -213,11 +226,20 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     }
   }
 
+  /* Blend file wide jobs. */
+  if (owner == nullptr) {
+    if (WM_jobs_test(wm, bmain, WM_JOB_TYPE_GENERATE_TEXTURE_CACHE)) {
+      owner = bmain;
+      cancel_fn = set_global_break;
+      icon = ICON_TEXTURE;
+    }
+  }
+
   if (owner) {
     const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
     const bool active = !(G.is_break || WM_jobs_is_stopped(wm, owner));
 
-    uiLayout *row = &layout->row(false);
+    Layout *row = &layout->row(false);
     block = row->block();
 
     /* get percentage done and set it as the UI text */
@@ -230,9 +252,9 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     /* job icon as a button */
     if (op_name) {
       uiDefIconButO(block,
-                    ButType::But,
+                    ButtonType::But,
                     op_name,
-                    blender::wm::OpCallContext::InvokeDefault,
+                    wm::OpCallContext::InvokeDefault,
                     icon,
                     0,
                     0,
@@ -242,9 +264,9 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     }
 
     /* job name and icon if not previously set */
-    const int textwidth = UI_fontstyle_string_width(fstyle, name);
+    const int textwidth = fontstyle_string_width(fstyle, name);
     uiDefIconTextBut(block,
-                     ButType::Label,
+                     ButtonType::Label,
                      op_name ? 0 : icon,
                      name,
                      0,
@@ -260,57 +282,104 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     block = row->block();
 
     {
-      ProgressTooltip_Store *tip_arg = static_cast<ProgressTooltip_Store *>(
-          MEM_mallocN(sizeof(*tip_arg), __func__));
+      ProgressTooltip_Store *tip_arg = MEM_new_uninitialized<ProgressTooltip_Store>(__func__);
       tip_arg->wm = wm;
       tip_arg->owner = owner;
-      uiButProgress *but_progress = (uiButProgress *)uiDefIconTextBut(block,
-                                                                      ButType::Progress,
-                                                                      ICON_NONE,
-                                                                      text,
-                                                                      UI_UNIT_X,
-                                                                      0,
-                                                                      UI_UNIT_X * 6.0f,
-                                                                      UI_UNIT_Y,
-                                                                      nullptr,
-                                                                      nullptr);
+      ButtonProgress *but_progress = static_cast<ButtonProgress *>(
+          uiDefIconTextBut(block,
+                           ButtonType::Progress,
+                           ICON_NONE,
+                           text,
+                           UI_UNIT_X,
+                           0,
+                           UI_UNIT_X * 6.0f,
+                           UI_UNIT_Y,
+                           nullptr,
+                           nullptr));
 
       but_progress->progress_factor = progress;
-      UI_but_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg, MEM_freeN);
+      button_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg, MEM_delete_void);
     }
 
     if (cancel_fn && !wm->runtime->is_interface_locked) {
-      uiBut *but = uiDefIconTextBut(block,
-                                    ButType::But,
-                                    ICON_PANEL_CLOSE,
-                                    "",
-                                    0,
-                                    0,
-                                    UI_UNIT_X,
-                                    UI_UNIT_Y,
-                                    nullptr,
-                                    TIP_("Stop this job"));
-      UI_but_func_set(but, std::move(cancel_fn));
+      Button *but = uiDefIconTextBut(block,
+                                     ButtonType::But,
+                                     ICON_PANEL_CLOSE,
+                                     "",
+                                     0,
+                                     0,
+                                     UI_UNIT_X,
+                                     UI_UNIT_Y,
+                                     nullptr,
+                                     TIP_("Stop this job"));
+      button_func_set(but, std::move(cancel_fn));
     }
   }
 
   if (ED_screen_animation_no_scrub(wm)) {
-    uiBut *but = uiDefIconTextBut(block,
-                                  ButType::But,
-                                  ICON_CANCEL,
-                                  IFACE_("Anim Player"),
-                                  0,
-                                  0,
-                                  UI_UNIT_X * 5.0f,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  TIP_("Stop animation playback"));
-    UI_but_func_set(but, [](bContext &C) {
-      WM_operator_name_call(&C,
-                            "SCREEN_OT_animation_play",
-                            blender::wm::OpCallContext::InvokeScreen,
-                            nullptr,
-                            nullptr);
+    Button *but = uiDefIconTextBut(block,
+                                   ButtonType::But,
+                                   ICON_CANCEL,
+                                   IFACE_("Anim Player"),
+                                   0,
+                                   0,
+                                   UI_UNIT_X * 5.0f,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   TIP_("Stop animation playback"));
+    button_func_set(but, [](bContext &C) {
+      WM_operator_name_call(
+          &C, "SCREEN_OT_animation_play", wm::OpCallContext::InvokeScreen, nullptr, nullptr);
     });
   }
+
+  /* Not using the jobs system, but should be shown everywhere where jobs are shown too. */
+  if (asset_system::remote_library_has_unfinished_asset_downloads()) {
+    uiDefIconTextBut(block,
+                     ButtonType::Label,
+                     ICON_ASSET_MANAGER,
+                     IFACE_("Downloading Assets"),
+                     0,
+                     0,
+                     UI_UNIT_X,
+                     UI_UNIT_Y,
+                     nullptr,
+                     "");
+
+    Layout *row = &layout->row(false);
+    block = row->block();
+    row = &layout->row(true);
+
+    const float progress = asset_system::remote_library_total_asset_downloads_progress();
+    char text[8];
+    SNPRINTF_UTF8(text, "%d%%", int(progress * 100));
+
+    ButtonProgress *but_progress = static_cast<ButtonProgress *>(
+        uiDefIconTextBut(block,
+                         ButtonType::Progress,
+                         ICON_NONE,
+                         text,
+                         UI_UNIT_X,
+                         0,
+                         UI_UNIT_X * 6.0f,
+                         UI_UNIT_Y,
+                         nullptr,
+                         nullptr));
+    but_progress->progress_factor = progress;
+
+    Button *but = uiDefIconTextBut(block,
+                                   ButtonType::But,
+                                   ICON_PANEL_CLOSE,
+                                   "",
+                                   0,
+                                   0,
+                                   UI_UNIT_X,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   TIP_("Cancel all asset downloads"));
+    button_func_set(
+        but, [](bContext &C) { asset_system::remote_library_cancel_all_asset_downloads(C); });
+  }
 }
+
+}  // namespace blender::ui

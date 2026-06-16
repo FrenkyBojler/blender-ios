@@ -10,22 +10,24 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_c.hh"
 #include "BLI_mutex.hh"
-#include "BLI_string.h"
-#include "BLI_system.h"
+#include "BLI_string.hh"
+#include "BLI_system.hh"
 
 /* for backtrace and gethostname/GetComputerName */
 #if defined(WIN32)
 #  include <intrin.h>
 
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #else
 #  if defined(HAVE_EXECINFO_H)
 #    include <execinfo.h>
 #  endif
 #  include <unistd.h>
 #endif
+
+namespace blender {
 
 int BLI_cpu_support_sse2()
 {
@@ -102,7 +104,7 @@ void BLI_system_backtrace_with_os_info(FILE *fp, const void * /*os_info*/)
 
 void BLI_system_backtrace(FILE *fp)
 {
-  static blender::Mutex mutex;
+  static Mutex mutex;
   std::scoped_lock lock(mutex);
   BLI_system_backtrace_with_os_info(fp, nullptr);
 }
@@ -140,9 +142,9 @@ char *BLI_cpu_brand_string()
   int result[4] = {0};
   __cpuid(result, 0x80000000);
   if (result[0] >= int(0x80000004)) {
-    __cpuid((int *)(buf + 0), 0x80000002);
-    __cpuid((int *)(buf + 16), 0x80000003);
-    __cpuid((int *)(buf + 32), 0x80000004);
+    __cpuid(reinterpret_cast<int *>(buf + 0), 0x80000002);
+    __cpuid(reinterpret_cast<int *>(buf + 16), 0x80000003);
+    __cpuid(reinterpret_cast<int *>(buf + 32), 0x80000004);
     char *brand = BLI_strdup(buf);
     /* TODO(sergey): Make it a bit more presentable by removing trademark. */
     return brand;
@@ -212,3 +214,5 @@ int BLI_system_memory_max_in_megabytes_int()
   /* NOTE: The result will fit into integer. */
   return int(min_zz(limit_megabytes, size_t(INT_MAX)));
 }
+
+}  // namespace blender

@@ -8,7 +8,9 @@
  */
 
 #ifdef WIN32
-
+#  ifdef WIN32_LEAN_AND_MEAN
+#    undef WIN32_LEAN_AND_MEAN
+#  endif
 #  include <conio.h>
 #  include <shlwapi.h>
 #  include <stdio.h>
@@ -19,14 +21,16 @@
 #  include "MEM_guardedalloc.h"
 
 #  define WIN32_SKIP_HKEY_PROTECTION /* Need to use HKEY. */
-#  include "BLI_fileops.h"
+#  include "BLI_fileops.hh"
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
-#  include "BLI_utildefines.h"
-#  include "BLI_winstuff.h"
+#  include "BLI_string.hh"
+#  include "BLI_utildefines.hh"
+#  include "BLI_winstuff.hh"
 
 #  include "utf_winfunc.hh"
 #  include "utfconv.hh"
+
+namespace blender {
 
 /* FILE_MAXDIR + FILE_MAXFILE */
 
@@ -583,12 +587,15 @@ void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence)
                              &processPowerThrottlingState,
                              sizeof(PROCESS_POWER_THROTTLING_STATE)))
   {
-    fprintf(
-        stderr, "BLI_windows_set_process_qos: SetProcessInformation failed: %d\n", GetLastError());
+    fprintf(stderr,
+            "BLI_windows_set_process_qos: SetProcessInformation failed: %lx\n",
+            GetLastError());
     return;
   }
   qos_precedence_last = qos_precedence;
 }
+
+}  // namespace blender
 
 #else
 

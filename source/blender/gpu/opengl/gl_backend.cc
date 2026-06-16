@@ -13,13 +13,13 @@
 
 #include "BKE_global.hh"
 #if defined(WIN32)
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 #include "BLI_array.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_subprocess.hh"
-#include "BLI_threads.h"
+#include "BLI_threads.hh"
 #include "BLI_vector.hh"
 
 #include "CLG_log.h"
@@ -33,9 +33,11 @@
 
 #include "gl_backend.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.opengl"};
 
-namespace blender::gpu {
+namespace gpu {
 
 /* -------------------------------------------------------------------- */
 /** \name Platform
@@ -127,9 +129,9 @@ void GLBackend::platform_init()
 {
   BLI_assert(!GPG.initialized);
 
-  const char *vendor = (const char *)glGetString(GL_VENDOR);
-  const char *renderer = (const char *)glGetString(GL_RENDERER);
-  const char *version = (const char *)glGetString(GL_VERSION);
+  const char *vendor = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+  const char *renderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+  const char *version = reinterpret_cast<const char *>(glGetString(GL_VERSION));
   GPUDeviceType device = GPU_DEVICE_ANY;
   GPUOSType os = GPU_OS_ANY;
   GPUDriverType driver = GPU_DRIVER_ANY;
@@ -293,8 +295,8 @@ void GLBackend::platform_init()
     glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &max_ssbo_binds_vertex);
     glGetIntegerv(GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &max_ssbo_binds_fragment);
     glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &max_ssbo_binds_compute);
-    GLint max_ssbo_binds = min_iii(
-        max_ssbo_binds_vertex, max_ssbo_binds_fragment, max_ssbo_binds_compute);
+    GLint max_ssbo_binds = std::min(
+        {max_ssbo_binds_vertex, max_ssbo_binds_fragment, max_ssbo_binds_compute});
     if (max_ssbo_binds < 12) {
       std::cout << "Warning: Unsupported platform as it supports max " << max_ssbo_binds
                 << " SSBO binding locations\n";
@@ -328,6 +330,9 @@ void GLBackend::platform_init()
            renderer,
            version,
            GPU_ARCHITECTURE_IMR);
+
+  GPG.devices.append(
+      {.identifier = "OPENGL", .index = 0, .vendor_id = 0, .device_id = 0, .name = renderer});
 
   GPG.device_uuid.reinitialize(0);
   GPG.device_luid.reinitialize(0);
@@ -363,6 +368,17 @@ void GLBackend::platform_exit()
   GPG.clear();
 }
 
+TexturePool *GLBackend::texturepool_alloc()
+{
+  if (GCaps.texture_pool_workaround) {
+    CLOG_TRACE(&LOG, "Using texture pool \"TexturePoolImpl\".");
+    return new TexturePoolImpl();
+  }
+
+  CLOG_TRACE(&LOG, "Using texture pool \"GLTexturePool\".");
+  return new GLTexturePool();
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -371,14 +387,14 @@ void GLBackend::platform_exit()
 
 static const char *gl_extension_get(int i)
 {
-  return (char *)glGetStringi(GL_EXTENSIONS, i);
+  return reinterpret_cast<char *>(const_cast<GLubyte *>(glGetStringi(GL_EXTENSIONS, i)));
 }
 
 static void detect_workarounds()
 {
-  const char *vendor = (const char *)glGetString(GL_VENDOR);
-  const char *renderer = (const char *)glGetString(GL_RENDERER);
-  const char *version = (const char *)glGetString(GL_VERSION);
+  const char *vendor = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+  const char *renderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+  const char *version = reinterpret_cast<const char *>(glGetString(GL_VERSION));
 
   if (G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS) {
     printf("\n");
@@ -389,6 +405,7 @@ static void detect_workarounds()
     printf("    version: %s\n\n", version);
     GCaps.depth_blitting_workaround = true;
     GCaps.stencil_clasify_buffer_workaround = true;
+    GCaps.texture_pool_workaround = true;
     GLContext::debug_layer_workaround = true;
     /* Turn off Blender features. */
     GCaps.hdr_viewport_support = false;
@@ -397,10 +414,13 @@ static void detect_workarounds()
     GLContext::multi_bind_image_support = false;
     /* Turn off OpenGL 4.5 features. */
     GLContext::direct_state_access_support = false;
+    GLContext::derivative_control_support = false;
     /* Turn off OpenGL 4.6 features. */
     GLContext::texture_filter_anisotropic_support = false;
     /* Turn off extensions. */
     GLContext::layered_rendering_support = false;
+    GLContext::vertex_shader_viewport_index_support = false;
+    GLContext::vertex_shader_layer_support = false;
     /* Turn off vendor specific extensions. */
     GLContext::native_barycentric_support = false;
     GLContext::framebuffer_fetch_support = false;
@@ -503,6 +523,12 @@ static void detect_workarounds()
       if (ver0 == 31) {
         GCaps.stencil_clasify_buffer_workaround = true;
       }
+
+      /* Disable OpenGL texture pool on Snapdragon 8cx Gen 3 devices. See #142229. We assume that
+       * these devices use driver 30.x.x.x */
+      if (ver0 == 30) {
+        GCaps.texture_pool_workaround = true;
+      }
     }
   }
 #endif
@@ -525,6 +551,25 @@ static void detect_workarounds()
     GLContext::multi_bind_image_support = false;
   }
 
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    GCaps.texture_pool_workaround = true;
+  }
+
+  /* Disable texture pool on any Intel driver; glTextureView is inconsistently
+   * broken on Intel HD and newer integrated cards, and output of the vendor string doesn't
+   * differentiate e.g. an Arc V140 from an Arc B750 :( */
+  if ((GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY) ||
+       GPU_type_matches(GPU_DEVICE_INTEL_UHD, GPU_OS_ANY, GPU_DRIVER_ANY)))
+  {
+    GCaps.texture_pool_workaround = true;
+  }
+
+  /* Disable texture pool on closed source AMD driver; glTextureView
+   * breaks frame-buffers for several formats. This is not an issue on Mesa. */
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+    GCaps.texture_pool_workaround = true;
+  }
+
   /* Metal-related Workarounds. */
 
   /* Minimum Per-Vertex stride is 1 byte for OpenGL. */
@@ -544,12 +589,15 @@ bool GLContext::direct_state_access_support = false;
 bool GLContext::explicit_location_support = false;
 bool GLContext::framebuffer_fetch_support = false;
 bool GLContext::layered_rendering_support = false;
+bool GLContext::vertex_shader_viewport_index_support = false;
+bool GLContext::vertex_shader_layer_support = false;
 bool GLContext::native_barycentric_support = false;
 bool GLContext::multi_bind_support = false;
 bool GLContext::multi_bind_image_support = false;
 bool GLContext::stencil_texturing_support = false;
 bool GLContext::texture_barrier_support = false;
 bool GLContext::texture_filter_anisotropic_support = false;
+bool GLContext::derivative_control_support = false;
 
 /** Workarounds. */
 
@@ -563,10 +611,7 @@ void GLBackend::capabilities_init()
   /* Common Capabilities. */
   glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GCaps.max_texture_size);
   glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &GCaps.max_texture_layers);
-  glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &GCaps.max_textures_frag);
-  glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &GCaps.max_textures_vert);
-  glGetIntegerv(GL_MAX_GEOMETRY_TEXTURE_IMAGE_UNITS, &GCaps.max_textures_geom);
-  glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &GCaps.max_textures);
+  glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &GCaps.max_textures);
   glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &GCaps.max_uniforms_vert);
   glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &GCaps.max_uniforms_frag);
   glGetIntegerv(GL_MAX_ELEMENTS_INDICES, &GCaps.max_batch_indices);
@@ -578,11 +623,9 @@ void GLBackend::capabilities_init()
   glGetIntegerv(GL_NUM_EXTENSIONS, &GCaps.extensions_len);
   GCaps.extension_get = gl_extension_get;
 
-  GCaps.max_samplers = GCaps.max_textures;
   GCaps.mem_stats_support = epoxy_has_gl_extension("GL_NVX_gpu_memory_info") ||
                             epoxy_has_gl_extension("GL_ATI_meminfo");
   GCaps.geometry_shader_support = true;
-  GCaps.max_samplers = GCaps.max_textures;
   GCaps.hdr_viewport_support = false;
 
   glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &GCaps.max_work_group_count[0]);
@@ -627,11 +670,16 @@ void GLBackend::capabilities_init()
   GLContext::texture_barrier_support = epoxy_has_gl_extension("GL_ARB_texture_barrier");
   GLContext::layered_rendering_support = epoxy_has_gl_extension(
       "GL_ARB_shader_viewport_layer_array");
+  GLContext::vertex_shader_viewport_index_support = epoxy_has_gl_extension(
+      "GL_AMD_vertex_shader_viewport_index");
+  GLContext::vertex_shader_layer_support = epoxy_has_gl_extension("GL_AMD_vertex_shader_layer");
   GLContext::native_barycentric_support = epoxy_has_gl_extension(
       "GL_AMD_shader_explicit_vertex_parameter");
   GLContext::multi_bind_support = GLContext::multi_bind_image_support = epoxy_has_gl_extension(
       "GL_ARB_multi_bind");
   GLContext::stencil_texturing_support = epoxy_gl_version() >= 43;
+  GLContext::derivative_control_support = epoxy_gl_version() >= 45 ||
+                                          epoxy_has_gl_extension("GL_ARB_derivative_control");
   GLContext::texture_filter_anisotropic_support = epoxy_has_gl_extension(
       "GL_EXT_texture_filter_anisotropic");
 
@@ -723,18 +771,24 @@ void GLBackend::log_extensions()
              " - [%c] Direct state access\n"
              " - [%c] Anisotropic Texture Filtering\n"
              " - [%c] Layered rendering\n"
+             " - [%c] Vertex shader viewport index\n"
+             " - [%c] Vertex shader layer array\n"
              " - [%c] Native barycentric coordinates\n"
              " - [%c] Framebuffer fetch\n"
              " - [%c] Texture barrier\n"
-             " - [%c] Shader stencil export\n",
+             " - [%c] Shader stencil export\n"
+             " - [%c] Derivative control\n",
              GLContext::multi_bind_support ? 'X' : ' ',
              GLContext::direct_state_access_support ? 'X' : ' ',
              GLContext::texture_filter_anisotropic_support ? 'X' : ' ',
              GLContext::layered_rendering_support ? 'X' : ' ',
+             GLContext::vertex_shader_viewport_index_support ? 'X' : ' ',
+             GLContext::vertex_shader_layer_support ? 'X' : ' ',
              GLContext::native_barycentric_support ? 'X' : ' ',
              GLContext::framebuffer_fetch_support ? 'X' : ' ',
              GLContext::texture_barrier_support ? 'X' : ' ',
-             GCaps.stencil_export_support ? 'X' : ' ');
+             GCaps.stencil_export_support ? 'X' : ' ',
+             GLContext::derivative_control_support ? 'X' : ' ');
 }
 
 /** \} */
@@ -765,4 +819,5 @@ void GLBackend::log_workarounds()
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

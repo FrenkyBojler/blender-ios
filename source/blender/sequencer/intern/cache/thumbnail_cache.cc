@@ -7,11 +7,10 @@
  */
 
 #include "BLI_map.hh"
-#include "BLI_math_base.h"
+#include "BLI_math_base_c.hh"
 #include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
-#include "BLI_struct_equality_utils.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -30,6 +29,7 @@
 #include "MOV_read.hh"
 
 #include "SEQ_render.hh"
+#include "SEQ_sequencer.hh"
 #include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
 
@@ -73,7 +73,7 @@ struct ThumbnailCache {
     {
       return get_default_hash(path, reinterpret_cast<size_t>(id));
     }
-    BLI_STRUCT_EQUALITY_OPERATORS_2(SourceKey, path, id);
+    friend bool operator==(const SourceKey &a, const SourceKey &b) = default;
     bool operator<(const SourceKey &o) const
     {
       if (path != o.path) {
@@ -127,7 +127,11 @@ struct ThumbnailCache {
     {
       return get_default_hash(source_key, frame_index, stream_index, strip_type);
     }
-    BLI_STRUCT_EQUALITY_OPERATORS_4(Request, frame_index, stream_index, strip_type, source_key);
+    friend bool operator==(const Request &a, const Request &b)
+    {
+      return a.frame_index == b.frame_index && a.stream_index == b.stream_index &&
+             a.strip_type == b.strip_type && a.source_key == b.source_key;
+    }
   };
 
   Map<SourceKey, SourceEntry> map_;
@@ -166,7 +170,7 @@ struct ThumbnailCache {
 
 static ThumbnailCache *ensure_thumbnail_cache(Scene *scene)
 {
-  ThumbnailCache **cache = &scene->ed->runtime.thumbnail_cache;
+  ThumbnailCache **cache = &scene->ed->runtime->thumbnail_cache;
   if (*cache == nullptr) {
     *cache = MEM_new<ThumbnailCache>(__func__);
   }
@@ -178,7 +182,7 @@ static ThumbnailCache *query_thumbnail_cache(Scene *scene)
   if (scene == nullptr || scene->ed == nullptr) {
     return nullptr;
   }
-  return scene->ed->runtime.thumbnail_cache;
+  return scene->ed->runtime->thumbnail_cache;
 }
 
 bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip)
@@ -258,12 +262,11 @@ static ImBuf *make_thumb_for_image(const Scene *scene, const ThumbnailCache::Req
     return nullptr;
   }
   /* Keep only float buffer if we have both byte & float. */
-  if (ibuf->float_buffer.data != nullptr && ibuf->byte_buffer.data != nullptr) {
+  if (ibuf->float_data() != nullptr && ibuf->byte_data() != nullptr) {
     IMB_free_byte_pixels(ibuf);
   }
 
-  seq_imbuf_to_sequencer_space(scene, ibuf, false);
-  seq_imbuf_assign_spaces(scene, ibuf);
+  ensure_ibuf_is_sequencer_space(scene, ibuf, false);
   return ibuf;
 }
 
@@ -272,6 +275,15 @@ static void scale_to_thumbnail_size(ImBuf *ibuf)
   if (ibuf == nullptr) {
     return;
   }
+
+  /* We only need byte thumbnails. */
+  if (ibuf->float_data()) {
+    if (ibuf->byte_data() == nullptr) {
+      IMB_byte_from_float(ibuf);
+    }
+    IMB_free_float_pixels(ibuf);
+  }
+
   int width = ibuf->x;
   int height = ibuf->y;
   image_size_to_thumb_size(width, height);
@@ -298,9 +310,10 @@ static ImBuf *render_mask_thumb(const Mask *mask, float frame_index)
 
   BKE_id_free(nullptr, &mask_copy->id);
 
-  ImBuf *ibuf = IMB_allocImBuf(width, height, 32, IB_byte_data | IB_uninitialized_pixels);
+  ImBuf *ibuf = IMB_allocImBuf(
+      width, height, ImBufFlags::ByteData | ImBufFlags::UninitializedPixels);
   const float *src = mask_buffer.data();
-  uchar *dst = ibuf->byte_buffer.data;
+  uchar *dst = ibuf->byte_data_for_write();
   for (int i = 0; i < width * height; i++) {
     dst[0] = dst[1] = dst[2] = uchar(*src * 255.0f); /* already clamped */
     dst[3] = 255;
@@ -381,17 +394,16 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
     }
 
     /* Sort requests by file, stream and increasing frame index. */
-    std::sort(requests.begin(),
-              requests.end(),
-              [](const ThumbnailCache::Request &a, const ThumbnailCache::Request &b) {
-                if (a.source_key != b.source_key) {
-                  return a.source_key < b.source_key;
-                }
-                if (a.stream_index != b.stream_index) {
-                  return a.stream_index < b.stream_index;
-                }
-                return a.frame_index < b.frame_index;
-              });
+    std::ranges::sort(requests,
+                      [](const ThumbnailCache::Request &a, const ThumbnailCache::Request &b) {
+                        if (a.source_key != b.source_key) {
+                          return a.source_key < b.source_key;
+                        }
+                        if (a.stream_index != b.stream_index) {
+                          return a.stream_index < b.stream_index;
+                        }
+                        return a.frame_index < b.frame_index;
+                      });
 
     /* Note: we could process thumbnail cache requests somewhat in parallel,
      * but let's not do that so that UI responsiveness is not affected much.
@@ -437,7 +449,7 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
             cur_anim_path = request.source_key.path;
             cur_stream = request.stream_index;
             cur_anim = MOV_open_file(
-                cur_anim_path.c_str(), IB_byte_data, cur_stream, true, nullptr);
+                cur_anim_path.c_str(), ImBufFlags::Zero, cur_stream, true, nullptr);
             cur_proxy_size = IMB_PROXY_NONE;
             if (cur_anim != nullptr) {
               /* Find the lowest proxy resolution available.
@@ -449,11 +461,11 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
 
           /* Decode the movie frame. */
           if (cur_anim != nullptr) {
-            thumb = MOV_decode_frame(cur_anim, request.frame_index, IMB_TC_NONE, cur_proxy_size);
+            thumb = MOV_decode_frame(cur_anim, request.frame_index, cur_proxy_size);
             if (thumb == nullptr && cur_proxy_size != IMB_PROXY_NONE) {
               /* Broken proxy file, switch to non-proxy. */
               cur_proxy_size = IMB_PROXY_NONE;
-              thumb = MOV_decode_frame(cur_anim, request.frame_index, IMB_TC_NONE, cur_proxy_size);
+              thumb = MOV_decode_frame(cur_anim, request.frame_index, cur_proxy_size);
             }
             if (thumb != nullptr) {
               seq_imbuf_assign_spaces(job->scene_, thumb);
@@ -570,7 +582,7 @@ static ImBuf *query_thumbnail(ThumbnailCache &cache,
     ThumbnailCache::Request request(key,
                                     frame_index,
                                     strip->streamindex,
-                                    StripType(strip->type),
+                                    strip->type,
                                     cur_time,
                                     timeline_frame,
                                     strip->channel);
@@ -692,6 +704,7 @@ void thumbnail_cache_maintain_capacity(Scene *scene)
           if (item.value.frames[i].used_at < cache->logical_time_ - 100) {
             IMB_freeImBuf(item.value.frames[i].thumb);
             item.value.frames.remove_and_reorder(i);
+            i--;
           }
         }
       }
@@ -716,7 +729,7 @@ void thumbnail_cache_clear(Scene *scene)
   std::scoped_lock lock(thumb_cache_mutex);
   ThumbnailCache *cache = query_thumbnail_cache(scene);
   if (cache != nullptr) {
-    scene->ed->runtime.thumbnail_cache->clear();
+    scene->ed->runtime->thumbnail_cache->clear();
   }
 }
 
@@ -725,9 +738,9 @@ void thumbnail_cache_destroy(Scene *scene)
   std::scoped_lock lock(thumb_cache_mutex);
   ThumbnailCache *cache = query_thumbnail_cache(scene);
   if (cache != nullptr) {
-    BLI_assert(cache == scene->ed->runtime.thumbnail_cache);
-    MEM_delete(scene->ed->runtime.thumbnail_cache);
-    scene->ed->runtime.thumbnail_cache = nullptr;
+    BLI_assert(cache == scene->ed->runtime->thumbnail_cache);
+    MEM_delete(scene->ed->runtime->thumbnail_cache);
+    scene->ed->runtime->thumbnail_cache = nullptr;
   }
 }
 

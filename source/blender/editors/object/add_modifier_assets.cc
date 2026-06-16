@@ -7,9 +7,9 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_multi_value_map.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
@@ -34,6 +34,8 @@
 #include "ED_screen.hh"
 
 #include "MOD_nodes.hh"
+
+#include "NOD_geometry.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -68,7 +70,8 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C)
   };
   const AssetLibraryReference library = asset_system::all_library_reference();
   asset_system::all_library_reload_catalogs_if_dirty();
-  return asset::build_filtered_all_catalog_tree(library, C, type_filter, meta_data_filter);
+  return asset::build_filtered_all_catalog_tree(
+      library, C, type_filter, meta_data_filter, ntreeType_Geometry->asset_catalog_path_prefix);
 }
 
 static asset::AssetItemTree *get_static_item_tree()
@@ -109,7 +112,10 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : assets) {
     if (skip_essentials) {
-      if (asset->owner_asset_library().library_reference()->type == ASSET_LIBRARY_ESSENTIALS) {
+      if (ELEM(asset->owner_asset_library().library_reference()->type,
+               ASSET_LIBRARY_ESSENTIALS,
+               ASSET_LIBRARY_ONLINE_ESSENTIALS))
+      {
         continue;
       }
     }
@@ -127,13 +133,13 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
 
 static bool unassigned_local_poll(const Main &bmain)
 {
-  LISTBASE_FOREACH (const bNodeTree *, group, &bmain.nodetrees) {
+  for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (group->id.library_weak_reference || group->id.asset_data) {
+    if (group.id.library_weak_reference || group.id.asset_data) {
       continue;
     }
-    if (!group->geometry_node_asset_traits ||
-        !(group->geometry_node_asset_traits->flag & GEO_NODE_ASSET_MODIFIER))
+    if (!group.geometry_node_asset_traits ||
+        !(group.geometry_node_asset_traits->flag & GEO_NODE_ASSET_MODIFIER))
     {
       continue;
     }
@@ -156,13 +162,13 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
 
   bool first = true;
   bool add_separator = !tree.unassigned_assets.is_empty();
-  LISTBASE_FOREACH (const bNodeTree *, group, &bmain.nodetrees) {
+  for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (group->id.library_weak_reference || group->id.asset_data) {
+    if (group.id.library_weak_reference || group.id.asset_data) {
       continue;
     }
-    if (!group->geometry_node_asset_traits ||
-        !(group->geometry_node_asset_traits->flag & GEO_NODE_ASSET_MODIFIER))
+    if (!group.geometry_node_asset_traits ||
+        !(group.geometry_node_asset_traits->flag & GEO_NODE_ASSET_MODIFIER))
     {
       continue;
     }
@@ -177,8 +183,8 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
     }
 
     PointerRNA props_ptr = layout.op(
-        ot, group->id.name + 2, ICON_NONE, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
-    WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
+        ot, group.id.name + 2, ICON_NONE, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+    WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group.id);
   }
 }
 
@@ -209,7 +215,14 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
     if (ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_LATTICE)) {
       menus.add_new("Edit");
     }
-    if (ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_VOLUME)) {
+    if (ELEM(object->type,
+             OB_MESH,
+             OB_CURVES_LEGACY,
+             OB_FONT,
+             OB_SURF,
+             OB_VOLUME,
+             OB_GREASE_PENCIL))
+    {
       menus.add_new("Generate");
     }
     if (ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_LATTICE, OB_VOLUME)) {
@@ -259,7 +272,7 @@ static bNodeTree *get_asset_or_local_node_group(const bContext &C,
 static bNodeTree *get_node_group(const bContext &C, PointerRNA &ptr, ReportList *reports)
 {
   bNodeTree *node_group = get_asset_or_local_node_group(C, ptr, reports);
-  if (!node_group) {
+  if (!node_group || ID_MISSING(node_group)) {
     return nullptr;
   }
   if (node_group->type != NTREE_GEOMETRY) {
@@ -397,9 +410,9 @@ static MenuType modifier_add_root_catalogs_menu_type()
 
 void object_modifier_add_asset_register()
 {
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_catalog_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_unassigned_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, modifier_add_catalog_assets_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, modifier_add_unassigned_assets_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, modifier_add_root_catalogs_menu_type()));
   WM_operatortype_append(OBJECT_OT_modifier_add_node_group);
 }
 

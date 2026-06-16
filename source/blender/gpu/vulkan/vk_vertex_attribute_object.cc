@@ -59,18 +59,23 @@ void VKVertexAttributeObject::bind(
   BitVector visited_bindings(vertex_input.bindings.size());
 
   const VKBuffer &dummy = VKBackend::get().device.dummy_buffer;
-  for (VkVertexInputAttributeDescription attribute : vertex_input.attributes) {
+  for (VkVertexInputAttributeDescription2EXT attribute : vertex_input.attributes) {
     if (visited_bindings[attribute.binding]) {
       continue;
     }
     visited_bindings[attribute.binding].set(true);
 
-    VkBuffer buffer = dummy.vk_handle();
+    VkBuffer buffer = VK_NULL_HANDLE;
     VkDeviceSize offset = 0;
 
     if (attribute.binding < buffers.size()) {
       buffer = buffers[attribute.binding].buffer;
       offset = buffers[attribute.binding].offset;
+    }
+
+    if (buffer == VK_NULL_HANDLE) {
+      buffer = dummy.vk_handle();
+      offset = 0;
     }
 
     r_vertex_buffer_bindings.buffer[attribute.binding] = buffer;
@@ -121,17 +126,20 @@ void VKVertexAttributeObject::fill_unused_bindings(const VKShaderInterface &inte
     /* Use dummy binding. */
     shader::Type attribute_type = interface.get_attribute_type(location);
     const uint32_t binding = vertex_input.bindings.size();
-    VkVertexInputAttributeDescription attribute_description = {};
+    VkVertexInputAttributeDescription2EXT attribute_description = {
+        VK_STRUCTURE_TYPE_VERTEX_INPUT_ATTRIBUTE_DESCRIPTION_2_EXT, nullptr};
     attribute_description.binding = binding;
     attribute_description.location = location;
     attribute_description.offset = 0;
     attribute_description.format = to_vk_format(attribute_type);
     vertex_input.attributes.append(attribute_description);
 
-    VkVertexInputBindingDescription vk_binding_descriptor = {};
+    VkVertexInputBindingDescription2EXT vk_binding_descriptor = {
+        VK_STRUCTURE_TYPE_VERTEX_INPUT_BINDING_DESCRIPTION_2_EXT, nullptr};
     vk_binding_descriptor.binding = binding;
     vk_binding_descriptor.stride = 0;
-    vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+    vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    vk_binding_descriptor.divisor = 1;
     vertex_input.bindings.append(vk_binding_descriptor);
   }
 }
@@ -202,7 +210,8 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
 
       r_occupied_attributes |= attribute_mask;
       const uint32_t binding = vertex_input.bindings.size();
-      VkVertexInputAttributeDescription attribute_description = {};
+      VkVertexInputAttributeDescription2EXT attribute_description = {
+          VK_STRUCTURE_TYPE_VERTEX_INPUT_ATTRIBUTE_DESCRIPTION_2_EXT, nullptr};
       attribute_description.binding = binding;
       attribute_description.location = shader_input->location;
       attribute_description.offset = attribute_offset;
@@ -210,10 +219,12 @@ void VKVertexAttributeObject::update_bindings(const GPUVertFormat &vertex_format
           attribute.type.comp_type(), attribute.type.size(), attribute.type.fetch_mode());
       vertex_input.attributes.append(attribute_description);
 
-      VkVertexInputBindingDescription vk_binding_descriptor = {};
+      VkVertexInputBindingDescription2EXT vk_binding_descriptor = {
+          VK_STRUCTURE_TYPE_VERTEX_INPUT_BINDING_DESCRIPTION_2_EXT, nullptr};
       vk_binding_descriptor.binding = binding;
       vk_binding_descriptor.stride = stride;
       vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+      vk_binding_descriptor.divisor = 1;
       vertex_input.bindings.append(vk_binding_descriptor);
       if (vertex_buffer) {
         add_vbo = true;
@@ -243,7 +254,7 @@ void VKVertexAttributeObject::debug_print() const
   std::cout << __FILE__ << "::" << __func__ << "\n";
   BitVector visited_bindings(vertex_input.bindings.size());
 
-  for (VkVertexInputAttributeDescription attribute : vertex_input.attributes) {
+  for (VkVertexInputAttributeDescription2EXT attribute : vertex_input.attributes) {
     std::cout << " - attribute(binding=" << attribute.binding
               << ", location=" << attribute.location << ")";
 

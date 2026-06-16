@@ -13,21 +13,25 @@
  * of inspecting the mesh structure directly.
  */
 
+#include <array>
+
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
-#include "BLI_linklist.h"
-#include "BLI_math_base.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines_stack.h"
+#include "BLI_array.hh"
+#include "BLI_linklist.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_utildefines_stack.hh"
 
 #include "BKE_customdata.hh"
 
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
+
+namespace blender {
 
 BMLoop *BM_face_other_edge_loop(BMFace *f, BMEdge *e, BMVert *v)
 {
@@ -854,7 +858,7 @@ int BM_loop_region_loops_count(BMLoop *l)
 
 bool BM_vert_is_manifold_region(const BMVert *v)
 {
-  BMLoop *l_first = BM_vert_find_first_loop((BMVert *)v);
+  BMLoop *l_first = BM_vert_find_first_loop(const_cast<BMVert *>(v));
   if (l_first) {
     int count, count_total;
     count = BM_loop_region_loops_count_at_most(l_first, &count_total);
@@ -1159,10 +1163,10 @@ BMLoop *BM_loop_find_prev_nodouble(BMLoop *l, BMLoop *l_stop, const float eps_sq
 
   BLI_assert(!ELEM(l_stop, nullptr, l));
 
-  while (UNLIKELY(len_squared_v3v3(l->v->co, l_step->v->co) < eps_sq)) {
+  while (len_squared_v3v3(l->v->co, l_step->v->co) < eps_sq) [[unlikely]] {
     l_step = l_step->prev;
     BLI_assert(l_step != l);
-    if (UNLIKELY(l_step == l_stop)) {
+    if (l_step == l_stop) [[unlikely]] {
       return nullptr;
     }
   }
@@ -1176,10 +1180,10 @@ BMLoop *BM_loop_find_next_nodouble(BMLoop *l, BMLoop *l_stop, const float eps_sq
 
   BLI_assert(!ELEM(l_stop, nullptr, l));
 
-  while (UNLIKELY(len_squared_v3v3(l->v->co, l_step->v->co) < eps_sq)) {
+  while (len_squared_v3v3(l->v->co, l_step->v->co) < eps_sq) [[unlikely]] {
     l_step = l_step->next;
     BLI_assert(l_step != l);
-    if (UNLIKELY(l_step == l_stop)) {
+    if (l_step == l_stop) [[unlikely]] {
       return nullptr;
     }
   }
@@ -1285,7 +1289,7 @@ float BM_loop_calc_face_normal(const BMLoop *l, float r_normal[3])
 
   cross_v3_v3v3(r_normal, v1, v2);
   const float len = normalize_v3(r_normal);
-  if (UNLIKELY(len == 0.0f)) {
+  if (len == 0.0f) [[unlikely]] {
     copy_v3_v3(r_normal, l->f->no);
   }
   return len;
@@ -1323,7 +1327,7 @@ void BM_loop_calc_face_tangent(const BMLoop *l, float r_tangent[3])
     float nor[3]; /* for this purpose doesn't need to be normalized */
     cross_v3_v3v3(nor, v_prev, v_next);
     /* concave face check */
-    if (UNLIKELY(dot_v3v3(nor, l->f->no) < 0.0f)) {
+    if (dot_v3v3(nor, l->f->no) < 0.0f) [[unlikely]] {
       negate_v3(nor);
     }
     cross_v3_v3v3(r_tangent, dir, nor);
@@ -1598,7 +1602,7 @@ BMEdge *BM_edge_find_double(BMEdge *e)
 
   e_iter = e;
   while ((e_iter = bmesh_disk_edge_next(e_iter, v)) != e) {
-    if (UNLIKELY(BM_vert_in_edge(e_iter, v_other))) {
+    if (BM_vert_in_edge(e_iter, v_other)) [[unlikely]] {
       return e_iter;
     }
   }
@@ -1811,15 +1815,15 @@ finally:
 
 bool BM_face_exists_multi_edge(BMEdge **earr, int len)
 {
-  BMVert **varr = BLI_array_alloca(varr, len);
+  Array<BMVert *, BM_DEFAULT_TOPOLOGY_STACK_SIZE> varr(len);
 
   /* first check if verts have edges, if not we can bail out early */
-  if (!BM_verts_from_edges(varr, earr, len)) {
+  if (!BM_verts_from_edges(varr.data(), earr, len)) {
     BMESH_ASSERT(0);
     return false;
   }
 
-  return BM_face_exists_multi(varr, earr, len);
+  return BM_face_exists_multi(varr.data(), earr, len);
 }
 
 BMFace *BM_face_exists_overlap(BMVert **varr, const int len)
@@ -2048,7 +2052,8 @@ bool BM_face_is_normal_valid(const BMFace *f)
   float no[3];
 
   BM_face_calc_normal(f, no);
-  return len_squared_v3v3(no, f->no) < (eps * eps);
+  /* Invert comparison so NAN normals don't assert. */
+  return !(len_squared_v3v3(no, f->no) >= (eps * eps));
 }
 
 /**
@@ -2059,11 +2064,11 @@ bool BM_face_is_normal_valid(const BMFace *f)
 static double bm_mesh_calc_volume_face(const BMFace *f)
 {
   const int tottri = f->len - 2;
-  BMLoop **loops = BLI_array_alloca(loops, f->len);
-  uint(*index)[3] = BLI_array_alloca(index, tottri);
+  Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops(f->len);
+  Array<std::array<uint, 3>, BM_DEFAULT_NGON_STACK_SIZE> index(tottri);
   double vol = 0.0;
 
-  BM_face_calc_tessellation(f, false, loops, index);
+  BM_face_calc_tessellation(f, false, loops.data(), reinterpret_cast<uint(*)[3]>(index.data()));
 
   for (int j = 0; j < tottri; j++) {
     const float *p1 = loops[index[j][0]]->v->co;
@@ -2120,8 +2125,7 @@ int BM_mesh_calc_face_groups(BMesh *bm,
   int group_index_len = 32;
 #endif
 
-  int (*group_index)[2] = static_cast<int (*)[2]>(
-      MEM_mallocN(sizeof(*group_index) * group_index_len, __func__));
+  int (*group_index)[2] = MEM_new_array_uninitialized<int[2]>(group_index_len, __func__);
 
   int *group_array = r_groups_array;
   STACK_DECLARE(group_array);
@@ -2158,7 +2162,7 @@ int BM_mesh_calc_face_groups(BMesh *bm,
   bm->elem_index_dirty &= ~BM_FACE;
 
   /* detect groups */
-  stack = MEM_malloc_arrayN<BMFace *>(tot_faces, __func__);
+  stack = MEM_new_array_uninitialized<BMFace *>(tot_faces, __func__);
 
   f_next = static_cast<BMFace *>(BM_iter_new(&iter, bm, BM_FACES_OF_MESH, nullptr));
 
@@ -2186,7 +2190,7 @@ int BM_mesh_calc_face_groups(BMesh *bm,
     if (group_index_len == group_curr) {
       group_index_len *= 2;
       group_index = static_cast<int (*)[2]>(
-          MEM_reallocN(group_index, sizeof(*group_index) * group_index_len));
+          MEM_realloc_uninitialized(group_index, sizeof(*group_index) * group_index_len));
     }
 
     group_item = group_index[group_curr];
@@ -2248,12 +2252,12 @@ int BM_mesh_calc_face_groups(BMesh *bm,
     group_curr++;
   }
 
-  MEM_freeN(stack);
+  MEM_delete(stack);
 
   /* reduce alloc to required size */
   if (group_index_len != group_curr) {
     group_index = static_cast<int (*)[2]>(
-        MEM_reallocN(group_index, sizeof(*group_index) * group_curr));
+        MEM_realloc_uninitialized(group_index, sizeof(*group_index) * group_curr));
   }
   *r_group_index = group_index;
 
@@ -2275,8 +2279,7 @@ int BM_mesh_calc_edge_groups(BMesh *bm,
   int group_index_len = 32;
 #endif
 
-  int (*group_index)[2] = static_cast<int (*)[2]>(
-      MEM_mallocN(sizeof(*group_index) * group_index_len, __func__));
+  int (*group_index)[2] = MEM_new_array_uninitialized<int[2]>(group_index_len, __func__);
 
   int *group_array = r_groups_array;
   STACK_DECLARE(group_array);
@@ -2310,7 +2313,7 @@ int BM_mesh_calc_edge_groups(BMesh *bm,
   bm->elem_index_dirty &= ~BM_EDGE;
 
   /* detect groups */
-  stack = MEM_malloc_arrayN<BMEdge *>(tot_edges, __func__);
+  stack = MEM_new_array_uninitialized<BMEdge *>(tot_edges, __func__);
 
   e_next = static_cast<BMEdge *>(BM_iter_new(&iter, bm, BM_EDGES_OF_MESH, nullptr));
 
@@ -2338,7 +2341,7 @@ int BM_mesh_calc_edge_groups(BMesh *bm,
     if (group_index_len == group_curr) {
       group_index_len *= 2;
       group_index = static_cast<int (*)[2]>(
-          MEM_reallocN(group_index, sizeof(*group_index) * group_index_len));
+          MEM_realloc_uninitialized(group_index, sizeof(*group_index) * group_index_len));
     }
 
     group_item = group_index[group_curr];
@@ -2373,12 +2376,12 @@ int BM_mesh_calc_edge_groups(BMesh *bm,
     group_curr++;
   }
 
-  MEM_freeN(stack);
+  MEM_delete(stack);
 
   /* reduce alloc to required size */
   if (group_index_len != group_curr) {
     group_index = static_cast<int (*)[2]>(
-        MEM_reallocN(group_index, sizeof(*group_index) * group_curr));
+        MEM_realloc_uninitialized(group_index, sizeof(*group_index) * group_curr));
   }
   *r_group_index = group_index;
 
@@ -2388,14 +2391,14 @@ int BM_mesh_calc_edge_groups(BMesh *bm,
 int BM_mesh_calc_edge_groups_as_arrays(
     BMesh *bm, BMVert **verts, BMEdge **edges, BMFace **faces, int (**r_groups)[3])
 {
-  int (*groups)[3] = MEM_malloc_arrayN<int[3]>(bm->totvert, __func__);
+  int (*groups)[3] = MEM_new_array_uninitialized<int[3]>(bm->totvert, __func__);
   STACK_DECLARE(groups);
   STACK_INIT(groups, bm->totvert);
 
   /* Clear all selected vertices */
   BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
 
-  BMVert **stack = MEM_malloc_arrayN<BMVert *>(bm->totvert, __func__);
+  BMVert **stack = MEM_new_array_uninitialized<BMVert *>(bm->totvert, __func__);
   STACK_DECLARE(stack);
   STACK_INIT(stack, bm->totvert);
 
@@ -2462,10 +2465,11 @@ int BM_mesh_calc_edge_groups_as_arrays(
     g[2] = STACK_SIZE(faces) - faces_init;
   }
 
-  MEM_freeN(stack);
+  MEM_delete(stack);
 
   /* Reduce alloc to required size. */
-  groups = static_cast<int (*)[3]>(MEM_reallocN(groups, sizeof(*groups) * STACK_SIZE(groups)));
+  groups = static_cast<int (*)[3]>(
+      MEM_realloc_uninitialized(groups, sizeof(*groups) * STACK_SIZE(groups)));
   *r_groups = groups;
   return STACK_SIZE(groups);
 }
@@ -2497,3 +2501,5 @@ float bmesh_subd_falloff_calc(const int falloff, float val)
 
   return val;
 }
+
+}  // namespace blender

@@ -22,11 +22,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_time.h" /* Smooth-view. */
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_time.hh" /* Smooth-view. */
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
@@ -51,7 +51,9 @@
 
 #include <fmt/format.h>
 
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+#include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Modal Key-map
@@ -250,7 +252,7 @@ static void drawFlyPixel(const bContext * /*C*/, ARegion * /*region*/, void *arg
   const float y2 = float(yoff) + 0.55f * fly->viewport_size[1];
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -458,16 +460,16 @@ static wmOperatorStatus flyEnd(bContext *C, FlyInfo *fly)
 
 #ifdef WITH_INPUT_NDOF
   if (fly->ndof) {
-    MEM_freeN(fly->ndof);
+    MEM_delete(fly->ndof);
   }
 #endif
 
   if (fly->state == FLY_CONFIRM) {
-    MEM_freeN(fly);
+    MEM_delete(fly);
     return OPERATOR_FINISHED;
   }
 
-  MEM_freeN(fly);
+  MEM_delete(fly);
   return OPERATOR_CANCELLED;
 }
 
@@ -502,8 +504,8 @@ static void flyEvent(FlyInfo *fly, const wmEvent *event)
         fflush(stdout);
 #  endif
         if (fly->ndof == nullptr) {
-          // fly->ndof = MEM_mallocN(sizeof(wmNDOFMotionData), tag_name);
-          fly->ndof = static_cast<wmNDOFMotionData *>(MEM_dupallocN(incoming_ndof));
+          // fly->ndof = MEM_new_uninitializedwmNDOFMotionData(tag_name);
+          fly->ndof = MEM_dupalloc(incoming_ndof);
           // fly->ndof = malloc(sizeof(wmNDOFMotionData));
         }
         else {
@@ -517,7 +519,7 @@ static void flyEvent(FlyInfo *fly, const wmEvent *event)
         puts("stop keeping track of 3D mouse position");
 #  endif
         if (fly->ndof) {
-          MEM_freeN(fly->ndof);
+          MEM_delete(fly->ndof);
           // free(fly->ndof);
           fly->ndof = nullptr;
         }
@@ -1116,12 +1118,12 @@ static wmOperatorStatus fly_invoke(bContext *C, wmOperator *op, const wmEvent *e
     return OPERATOR_CANCELLED;
   }
 
-  FlyInfo *fly = MEM_callocN<FlyInfo>("FlyOperation");
+  FlyInfo *fly = MEM_new_zeroed<FlyInfo>("FlyOperation");
 
   op->customdata = fly;
 
   if (initFlyInfo(C, fly, op, event) == false) {
-    MEM_freeN(fly);
+    MEM_delete(fly);
     return OPERATOR_CANCELLED;
   }
 
@@ -1217,3 +1219,5 @@ void VIEW3D_OT_fly(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

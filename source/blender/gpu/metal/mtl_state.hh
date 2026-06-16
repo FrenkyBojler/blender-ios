@@ -9,7 +9,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "GPU_state.hh"
 #include "gpu_state_private.hh"
@@ -52,8 +52,6 @@ class MTLStateManager : public StateManager {
   void image_bind(Texture *tex, int unit) override;
   void image_unbind(Texture *tex) override;
   void image_unbind_all() override;
-
-  void texture_unpack_row_length_set(uint len) override;
 
   /* Global pipeline descriptors. */
   MTLRenderPipelineStateDescriptor &get_pipeline_descriptor()
