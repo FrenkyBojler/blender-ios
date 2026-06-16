@@ -1,3 +1,4 @@
 Referenced by commit 9be3c42271b0b75eca0bad3abd2e743b203f8765, Fix: Accidental change in versioning code
 Referenced by issue #157328, Grease Pencil Strokes Visible behind Mesh Objects
 Referenced by pull request #160193, Fix #91467: Grease Pencil: Update dot rotation tooltip
+Referenced by commit 25b27ba981d6ae8739d47d865ce606cc02a2405d, Fix #91467: Grease Pencil: Update dot rotation tooltip
