@@ -7,8 +7,8 @@
 
 #include "bmesh.hh"
 
-#include "GEO_randomize.hh"
 #include "GEO_mesh_primitive_ico_sphere.hh"
+#include "GEO_randomize.hh"
 
 namespace blender::geometry {
 
