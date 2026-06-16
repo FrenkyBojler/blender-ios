@@ -10,6 +10,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.hh"
@@ -79,6 +80,16 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 4)) {
+    for (Scene &scene : bmain->scenes) {
+      if(scene.ed == nullptr){
+        return;
+      }
+      
+      scene.ed->image_user.flag |= IMA_ANIM_ALWAYS;
+    }
   }
 
   /**

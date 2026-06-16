@@ -50,6 +50,8 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "RNA_prototypes.hh"
+
 #include "image_intern.hh"
 
 namespace blender {
@@ -903,8 +905,10 @@ void uiTemplateImage(ui::Layout *layout,
     sub.prop(userptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
     sub.prop(userptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    col.prop(userptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col.prop(userptr, "use_auto_refresh", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    if(ptr->type != RNA_ImageIdStrip) {
+      col.prop(userptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col.prop(userptr, "use_auto_refresh", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    }
 
     if (ima->source == IMA_SRC_MOVIE && compact == 0) {
       col.prop(&imaptr, "use_deinterlace", UI_ITEM_NONE, IFACE_("Deinterlace"), ICON_NONE);

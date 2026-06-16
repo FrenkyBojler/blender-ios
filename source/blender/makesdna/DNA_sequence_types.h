@@ -16,6 +16,7 @@
 
 #include "DNA_color_types.h"
 #include "DNA_defs.h"
+#include "DNA_image_types.h"
 #include "DNA_listBase.h"
 #include "DNA_scene_enums.h"
 #include "DNA_screen_types.h" /* for #TextboxState. */
@@ -641,6 +642,9 @@ struct Editing {
 
   Strip *act_strip = nullptr;
   char proxy_dir[/*FILE_MAX*/ 1024] = "";
+  
+  /* For Image ID datablocks */
+  struct ImageUser image_user = {};
 
   eEditingProxyStorageMode proxy_storage = SEQ_EDIT_PROXY_NONE;
 
