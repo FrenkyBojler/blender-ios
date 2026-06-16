@@ -30,11 +30,14 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_sound.hh"
+
+#include "IMB_imbuf_types.hh"
 
 #include "SEQ_add.hh"
 #include "SEQ_animation.hh"
@@ -4149,12 +4152,24 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
         src_w = cv->width;
         src_h = cv->height;
       }
+      else if (strip.type == STRIP_TYPE_IMAGE_ID) {
+        if (strip.image_id != nullptr) {
+          void *lock;
+          ImBuf *ibuf = BKE_image_acquire_ibuf(strip.image_id, nullptr, &lock);
+          if (ibuf) {
+            src_w = float(ibuf->x);
+            src_h = float(ibuf->y);
+            BKE_image_release_ibuf(strip.image_id, ibuf, lock);
+          }
+        }
+      }
       else {
         const int timeline_frame = scene->r.cfra;
         const StripElem *strip_elem = seq::render_give_stripelem(scene, &strip, timeline_frame);
         if (strip_elem == nullptr) {
           continue;
         }
+
         src_w = strip_elem->orig_width;
         src_h = strip_elem->orig_height;
       }
