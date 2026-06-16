@@ -281,6 +281,7 @@ void BKE_add_template_variables_general(bke::path_templates::VariableMap &variab
   if (project) {
     variables.add_string("project_name", project->get_name());
     variables.add_filepath("project_root", project->get_root_path());
+    variables.add_filepath("pr", project->get_root_path());
   }
 
   /* Global blend filepath (a.k.a. path to the blend file that's currently
