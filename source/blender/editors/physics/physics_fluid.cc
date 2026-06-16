@@ -131,7 +131,7 @@ static inline bool fluid_is_free_guiding(FluidJob *job)
   return STREQ(job->type, FLUID_JOB_FREE_GUIDES);
 }
 
-static bool fluid_initjob(
+static bool fluid_job_init(
     bContext *C, FluidJob *job, wmOperator *op, char *error_msg, int error_size)
 {
   FluidModifierData *fmd = nullptr;
@@ -140,13 +140,19 @@ static bool fluid_initjob(
 
   fmd = reinterpret_cast<FluidModifierData *>(BKE_modifiers_findby_type(ob, eModifierType_Fluid));
   if (!fmd) {
-    BLI_strncpy_utf8(error_msg, N_("Bake failed: no Fluid modifier found"), error_size);
+    BLI_strncpy_utf8(error_msg, N_("No Fluid modifier found"), error_size);
     return false;
   }
   fds = fmd->domain;
   if (!fds) {
-    BLI_strncpy_utf8(error_msg, N_("Bake failed: invalid domain"), error_size);
+    BLI_strncpy_utf8(error_msg, N_("Invalid domain"), error_size);
     return false;
+  }
+  if (fds->cache_flag & (FLUID_DOMAIN_BAKING_DATA | FLUID_DOMAIN_BAKING_NOISE |
+                         FLUID_DOMAIN_BAKING_MESH | FLUID_DOMAIN_BAKING_PARTICLES))
+  {
+    BKE_report(op->reports, RPT_ERROR, "Pending bake jobs found");
+    return OPERATOR_CANCELLED;
   }
 
   job->bmain = CTX_data_main(C);
@@ -160,7 +166,7 @@ static bool fluid_initjob(
   return true;
 }
 
-static bool fluid_validatepaths(FluidJob *job, ReportList *reports)
+static bool fluid_validate_paths(FluidJob *job, ReportList *reports)
 {
   FluidDomainSettings *fds = job->fmd->domain;
   char temp_dir[FILE_MAX];
@@ -224,10 +230,30 @@ static bool fluid_validatepaths(FluidJob *job, ReportList *reports)
   return true;
 }
 
-static void fluid_bake_free(void *customdata)
+static void fluid_job_free(void *customdata)
 {
   FluidJob *job = static_cast<FluidJob *>(customdata);
   MEM_delete(job);
+}
+
+static FluidJob *fluid_job_create(bContext *C, wmOperator *op)
+{
+  FluidJob *job = MEM_new_uninitialized<FluidJob>("FluidJob");
+  char error_msg[256] = "\0";
+
+  if (!fluid_job_init(C, job, op, error_msg, sizeof(error_msg))) {
+    if (error_msg[0]) {
+      BKE_report(op->reports, RPT_ERROR, error_msg);
+    }
+    fluid_job_free(job);
+    return nullptr;
+  }
+  if (!fluid_validate_paths(job, op->reports)) {
+    fluid_job_free(job);
+    return nullptr;
+  }
+  WM_report_banners_cancel(job->bmain);
+  return job;
 }
 
 static void fluid_bake_sequence(FluidJob *job)
@@ -529,60 +555,34 @@ static void fluid_free_startjob(void *customdata, wmJobWorkerStatus *worker_stat
 
 static wmOperatorStatus fluid_bake_exec(bContext *C, wmOperator *op)
 {
-  FluidJob *job = MEM_new_uninitialized<FluidJob>("FluidJob");
-  char error_msg[256] = "\0";
-
-  if (!fluid_initjob(C, job, op, error_msg, sizeof(error_msg))) {
-    if (error_msg[0]) {
-      BKE_report(op->reports, RPT_ERROR, error_msg);
-    }
-    fluid_bake_free(job);
+  FluidJob *job = fluid_job_create(C, op);
+  if (job == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  if (!fluid_validatepaths(job, op->reports)) {
-    fluid_bake_free(job);
-    return OPERATOR_CANCELLED;
-  }
-  WM_report_banners_cancel(job->bmain);
 
   wmJobWorkerStatus worker_status = {};
   fluid_bake_startjob(job, &worker_status);
   fluid_bake_endjob(job);
-  fluid_bake_free(job);
+  fluid_job_free(job);
 
   return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  FluidJob *job = MEM_new_uninitialized<FluidJob>("FluidJob");
-  char error_msg[256] = "\0";
-
-  if (!fluid_initjob(C, job, op, error_msg, sizeof(error_msg))) {
-    if (error_msg[0]) {
-      BKE_report(op->reports, RPT_ERROR, error_msg);
-    }
-    fluid_bake_free(job);
+  FluidJob *job = fluid_job_create(C, op);
+  if (job == nullptr) {
     return OPERATOR_CANCELLED;
   }
-
-  if (!fluid_validatepaths(job, op->reports)) {
-    fluid_bake_free(job);
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Clear existing banners so that the upcoming progress bar from this job has more room. */
-  WM_report_banners_cancel(job->bmain);
 
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
-                              scene,
+                              CTX_data_scene(C),
                               "Baking fluid...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_SIM_FLUID);
 
-  WM_jobs_customdata_set(wm_job, job, fluid_bake_free);
+  WM_jobs_customdata_set(wm_job, job, fluid_job_free);
   WM_jobs_timer(wm_job, 0.01, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, fluid_bake_startjob, nullptr, nullptr, fluid_bake_endjob);
 
@@ -613,105 +613,34 @@ static wmOperatorStatus fluid_bake_modal(bContext *C, wmOperator * /*op*/, const
 
 static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
 {
-  FluidModifierData *fmd = nullptr;
-  FluidDomainSettings *fds;
-  Object *ob = ed::object::context_active_object(C);
-  Scene *scene = CTX_data_scene(C);
-
-  fmd = reinterpret_cast<FluidModifierData *>(BKE_modifiers_findby_type(ob, eModifierType_Fluid));
-  if (!fmd) {
-    BKE_report(op->reports, RPT_ERROR, "Bake free failed: no Fluid modifier found");
+  FluidJob *job = fluid_job_create(C, op);
+  if (job == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  fds = fmd->domain;
-  if (!fds) {
-    BKE_report(op->reports, RPT_ERROR, "Bake free failed: invalid domain");
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Cannot free data if other bakes currently working. */
-  if (fmd->domain->cache_flag & (FLUID_DOMAIN_BAKING_DATA | FLUID_DOMAIN_BAKING_NOISE |
-                                 FLUID_DOMAIN_BAKING_MESH | FLUID_DOMAIN_BAKING_PARTICLES))
-  {
-    BKE_report(op->reports, RPT_ERROR, "Bake free failed: pending bake jobs found");
-    return OPERATOR_CANCELLED;
-  }
-
-  FluidJob *job = MEM_new_uninitialized<FluidJob>("FluidJob");
-  job->bmain = CTX_data_main(C);
-  job->scene = scene;
-  job->depsgraph = CTX_data_depsgraph_pointer(C);
-  job->ob = ob;
-  job->fmd = fmd;
-  job->type = op->type->idname;
-  job->name = op->type->name;
-
-  if (!fluid_validatepaths(job, op->reports)) {
-    fluid_bake_free(job);
-    return OPERATOR_CANCELLED;
-  }
-
-  WM_report_banners_cancel(job->bmain);
 
   wmJobWorkerStatus worker_status = {};
   fluid_free_startjob(job, &worker_status);
   fluid_free_endjob(job);
-  fluid_bake_free(job);
+  fluid_job_free(job);
 
   return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus fluid_free_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
 {
-  FluidModifierData *fmd = nullptr;
-  FluidDomainSettings *fds;
-  Object *ob = ed::object::context_active_object(C);
-  Scene *scene = CTX_data_scene(C);
-
-  fmd = reinterpret_cast<FluidModifierData *>(BKE_modifiers_findby_type(ob, eModifierType_Fluid));
-  if (!fmd) {
-    BKE_report(op->reports, RPT_ERROR, "Bake free failed: no Fluid modifier found");
+  FluidJob *job = fluid_job_create(C, op);
+  if (job == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  fds = fmd->domain;
-  if (!fds) {
-    BKE_report(op->reports, RPT_ERROR, "Bake free failed: invalid domain");
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Cannot free data if other bakes currently working. */
-  if (fmd->domain->cache_flag & (FLUID_DOMAIN_BAKING_DATA | FLUID_DOMAIN_BAKING_NOISE |
-                                 FLUID_DOMAIN_BAKING_MESH | FLUID_DOMAIN_BAKING_PARTICLES))
-  {
-    BKE_report(op->reports, RPT_ERROR, "Bake free failed: pending bake jobs found");
-    return OPERATOR_CANCELLED;
-  }
-
-  FluidJob *job = MEM_new_uninitialized<FluidJob>("FluidJob");
-  job->bmain = CTX_data_main(C);
-  job->scene = scene;
-  job->depsgraph = CTX_data_depsgraph_pointer(C);
-  job->ob = ob;
-  job->fmd = fmd;
-  job->type = op->type->idname;
-  job->name = op->type->name;
-
-  if (!fluid_validatepaths(job, op->reports)) {
-    fluid_bake_free(job);
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Clear existing banners so that the upcoming progress bar from this job has more room. */
-  WM_report_banners_cancel(job->bmain);
 
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
                               CTX_wm_window(C),
-                              scene,
+                              CTX_data_scene(C),
                               "Freeing fluid...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_SIM_FLUID);
 
-  WM_jobs_customdata_set(wm_job, job, fluid_bake_free);
+  WM_jobs_customdata_set(wm_job, job, fluid_job_free);
   WM_jobs_timer(wm_job, 0.01, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, fluid_free_startjob, nullptr, nullptr, fluid_free_endjob);
 
