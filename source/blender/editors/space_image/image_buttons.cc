@@ -891,7 +891,7 @@ void uiTemplateImage(ui::Layout *layout,
   }
 
   if (BKE_image_is_animated(ima)) {
-    /* Animation */
+    /* Animation */    
     layout->separator();
 
     ui::Layout &col = layout->column(true);
@@ -899,13 +899,15 @@ void uiTemplateImage(ui::Layout *layout,
 
     ui::Layout &sub = col.column(true);
     ui::Layout &row = sub.row(true);
-    row.prop(userptr, "frame_duration", UI_ITEM_NONE, IFACE_("Frames"), ICON_NONE);
-    row.op("IMAGE_OT_match_movie_length", "", ICON_FILE_REFRESH);
 
-    sub.prop(userptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
-    sub.prop(userptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
+    /* Since lots of the animated image features won't be very useful in the VSE Image ID Strip (And also aren't supported), we better simply hide them. */
     if(ptr->type != RNA_ImageIdStrip) {
+      row.prop(userptr, "frame_duration", UI_ITEM_NONE, IFACE_("Frames"), ICON_NONE);
+      row.op("IMAGE_OT_match_movie_length", "", ICON_FILE_REFRESH);
+
+      sub.prop(userptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
+      sub.prop(userptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
       col.prop(userptr, "use_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       col.prop(userptr, "use_auto_refresh", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
