@@ -583,6 +583,11 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    object_bounds_sync_crash
+    --python ${TEST_PYTHON_DIR}/bl_object_bounds_sync_crash.py
+  )
+
+  add_blender_test(
     node_tools
     --python ${TEST_PYTHON_DIR}/bl_node_tool.py
   )
