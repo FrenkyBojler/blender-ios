@@ -181,7 +181,6 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
 
     if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA && camera) {
       Object *cam_eval = DEG_get_evaluated(depsgraph, camera);
-      Scene *scene = DEG_get_input_scene(depsgraph);
       /* Aka projection matrix. */
       float4x4 window_matrix;
       BKE_camera_multiview_window_matrix(nullptr, cam_eval, nullptr, window_matrix.ptr());

@@ -16,7 +16,7 @@ void main()
   int cacheStart = mpath_point_settings.z;
   int stepSize = mpath_point_settings.w;
 
-  float4 world_space = (camera_space_matrix * pos);
+  float4 world_space = camera_space_matrix * pos;
   gl_Position = drw_view().winmat * (drw_view().viewmat * world_space);
   gl_PointSize = float(pt_size + 2);
 

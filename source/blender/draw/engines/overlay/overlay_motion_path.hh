@@ -157,7 +157,6 @@ class MotionPath : Overlay {
         state.v3d->camera)
     {
       camera_eval = DEG_get_evaluated(state.depsgraph, state.v3d->camera);
-      Scene *scene = DEG_get_input_scene(state.depsgraph);
       float4x4 window_matrix;
       BKE_camera_multiview_window_matrix(nullptr, camera_eval, nullptr, window_matrix.ptr());
       /* Storing the inverse perspective matrix of the current camera to convert the verts stored
