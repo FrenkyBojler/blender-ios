@@ -171,6 +171,12 @@ class NODE_MT_gn_grease_pencil_read_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeGreasePencilColor")
+        self.node_operator(layout, "GeometryNodeGreasePencilDrawTime")
+        self.node_operator(layout, "GeometryNodeGreasePencilFillID")
+        self.node_operator(layout, "GeometryNodeGreasePencilOpacity")
+        self.node_operator(layout, "GeometryNodeGreasePencilStrokeSoftness")
+        self.node_operator(layout, "GeometryNodeGreasePencilStrokeVisibility")
         self.node_operator(layout, "GeometryNodeInputNamedLayerSelection")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
@@ -861,6 +867,7 @@ class NODE_MT_gn_utilities_list_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeFilterList")
         self.node_operator(layout, "GeometryNodeListGetItem")
         self.node_operator(layout, "GeometryNodeListLength")
+        self.node_operator(layout, "GeometryNodeSortList")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
