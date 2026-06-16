@@ -101,6 +101,12 @@ BLOCKLIST_AMD_WINDOWS_VK = [
     "implicit_volume.blend"
 ]
 
+# Block list for AMD official driver. On buildbot this driver can fail and the artifacts are likely
+# caused by incorrect index buffer synchronization or vertex shader execution.
+BLOCKLIST_AMD_VK = [
+    ".*"
+]
+
 BLOCKLIST_INTEL_WINDOWS_GL = [
     # Fails sporadically and causes all subsequent volume tests to fail (See #153612).
     "volume_instance.blend"
@@ -242,6 +248,7 @@ def get_arguments(filepath, output_filepath, gpu_backend):
         "--factory-startup",
         "--enable-autoexec",
         "--debug-memory",
+        "--console-crash-handler",
         "--debug-exit-on-error"]
 
     if gpu_backend:
@@ -294,6 +301,8 @@ def main():
             blocklist += BLOCKLIST_NVIDIA_GL
         if gpu_vendor == "AMD" and sys.platform == "win32" and args.gpu_backend == "vulkan":
             blocklist += BLOCKLIST_AMD_WINDOWS_VK
+        if gpu_vendor == "AMD" and args.gpu_backend == "vulkan":
+            blocklist += BLOCKLIST_AMD_VK
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
@@ -362,6 +371,8 @@ def main():
         if gpu_vendor == "INTEL":
             # light_path_is_singular_ray has some fireflies.
             report.set_fail_percent(0.11)
+            if args.gpu_backend == "vulkan":
+                report.set_fail_threshold(9.0 / 255.0)
         if gpu_vendor == "AMD":
             # light_path_is_singular_ray has some fireflies.
             report.set_fail_threshold(9.0 / 255.0)
