@@ -578,6 +578,8 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
 
   call_data.call_depth_limit = U.geometry_nodes_stack_limit;
 
+  call_data.memory_zones_cache = std::make_shared<MemoryZonesCache>();
+
   GeoNodesUserData user_data;
   user_data.call_data = &call_data;
   call_data.root_ntree = &btree;

@@ -28,6 +28,17 @@ namespace blender::nodes {
 using bke::node_tree_reference_lifetimes::ReferenceSetInfo;
 using bke::node_tree_reference_lifetimes::ReferenceSetType;
 
+
+uint64_t MemoryZoneSignatureKey::hash() const
+{
+  return 0;
+}
+
+friend bool MemoryZoneSignatureKey::operator!=(const MemoryZoneSignatureKey &a, const MemoryZoneSignatureKey &b)
+{
+  return false;
+}
+
 class LazyFunctionForMemoryZone : public LazyFunction {
  private:
   const bNodeTree &btree_;
@@ -65,6 +76,9 @@ class LazyFunctionForMemoryZone : public LazyFunction {
   {
     auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
     auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+
+    BLI_assert(user_data.call_data);
+    auto &memory_zones_cache = user_data.call_data->memory_zones_cache;
 
     const int total_inputs = body_fn_.function->inputs().size();
     const int total_outputs = body_fn_.function->outputs().size();

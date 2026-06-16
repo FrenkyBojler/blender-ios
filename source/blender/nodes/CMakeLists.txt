@@ -142,6 +142,7 @@ set(SRC
   NOD_geometry_nodes_lazy_function.hh
   NOD_geometry_nodes_list.hh
   NOD_geometry_nodes_list_fwd.hh
+  NOD_geometry_nodes_memory_zone.hh
   NOD_geometry_nodes_physics_bundles.hh
   NOD_geometry_nodes_srna.hh
   NOD_geometry_nodes_values.hh

@@ -28,6 +28,7 @@
 #include "NOD_eval_log.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_nested_node_id.hh"
+#include "NOD_geometry_nodes_memory_zone.hh"
 
 #include "BLI_compute_context.hh"
 #include "BLI_math_quaternion_types.hh"
@@ -225,6 +226,10 @@ struct GeoNodesCallData {
    * Optional injected behavior for bake nodes.
    */
   GeoNodesBakeParams *bake_params = nullptr;
+  /**
+   * Storage of runtime data of memory zones, used to find data computed for same input values.
+   */
+  std::shared_ptr<MemoryZonesCache> memory_zones_cache;
   /**
    * Some nodes should be executed even when their output is not used (e.g. active viewer nodes and
    * the node groups they are contained in).
