@@ -34,7 +34,7 @@ uint64_t MemoryZoneSignatureKey::hash() const
   return 0;
 }
 
-friend bool MemoryZoneSignatureKey::operator!=(const MemoryZoneSignatureKey &a, const MemoryZoneSignatureKey &b)
+bool operator!=(const MemoryZoneSignatureKey &a, const MemoryZoneSignatureKey &b)
 {
   return false;
 }

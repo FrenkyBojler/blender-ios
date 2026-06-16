@@ -19,6 +19,7 @@ struct MemoryZoneSignatureKey {
 
 struct MemoryZoneValue {
   Array<GMutablePointer> output_values;
+  void *zone_data;
   Mutex mutex;
 };
 
