@@ -15,6 +15,7 @@
 #include "FN_multi_function_registry.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender {
 
@@ -164,6 +165,42 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
+static const char *gpu_shader_get_name(const BitMathOperation operation)
+{
+  switch (operation) {
+    case BitMathOperation::And:
+      return "bit_math_and";
+    case BitMathOperation::Or:
+      return "bit_math_or";
+    case BitMathOperation::Xor:
+      return "bit_math_xor";
+    case BitMathOperation::Not:
+      return "bit_math_not";
+    case BitMathOperation::Shift:
+      return "bit_math_shift";
+    case BitMathOperation::Rotate:
+      return "bit_math_rotate";
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
+{
+  const char *name = gpu_shader_get_name(BitMathOperation(node->custom1));
+
+  if (name == nullptr) {
+    return 0;
+  }
+
+  return GPU_stack_link(mat, node, name, in, out);
+}
+
 static void node_rna(StructRNA *srna)
 {
   PropertyRNA *prop = RNA_def_node_enum(srna,
@@ -180,12 +217,13 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeBitMath"_ustr);
+  fn_cmp_node_type_base(&ntype, "FunctionNodeBitMath"_ustr);
   ntype.ui_name = "Bit Math";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
   ntype.build_multi_function = node_build_multi_function;
+  ntype.gpu_fn = node_gpu_material;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.ui_description = "Perform bitwise operations on 32-bit integers";
