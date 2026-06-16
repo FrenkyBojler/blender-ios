@@ -18,9 +18,9 @@
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
 
-#include "BLI_listbase.h"  // IWYU pragma: keep
+#include "BLI_listbase.hh"  // IWYU pragma: keep
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 
 #include "DNA_asset_types.h"
 #include "DNA_space_types.h"
@@ -241,6 +241,11 @@ void AssetLibrary::foreach_loaded(FunctionRef<void(AssetLibrary &)> fn,
 {
   AssetLibraryService *service = AssetLibraryService::get();
   service->foreach_loaded_asset_library(fn, include_all_library);
+}
+
+void AssetLibrary::force_remote_listing_download() const
+{
+  /* Default implementation is a no-op. */
 }
 
 bool AssetLibrary::use_relative_paths() const
@@ -474,7 +479,8 @@ Vector<AssetLibraryReference> all_valid_asset_library_refs()
   }
 
   const bool include_remote_libraries = USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
-  if (include_remote_libraries) {
+  const bool include_online_essentials = (U.asset_flag & USER_ASSETS_USE_ONLINE_ESSENTIALS) != 0;
+  if (include_remote_libraries && include_online_essentials) {
     AssetLibraryReference library_ref{};
     library_ref.custom_library_index = -1;
     library_ref.type = ASSET_LIBRARY_ONLINE_ESSENTIALS;

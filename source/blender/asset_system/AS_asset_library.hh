@@ -132,6 +132,18 @@ class AssetLibrary {
   static void foreach_loaded(FunctionRef<void(AssetLibrary &)> fn, bool include_all_library);
 
   /**
+   * (Re-)download the remote listing for this library.
+   *
+   * This only has an effect for asset libraries that are themselves a remote library, or contain
+   * one (such as the "Essentials" library if it includes online essentials, or the "All" if there
+   * are any remote libraries included).
+   *
+   * The "Allow Online Access" option will be enforced internally, but probably some check to give
+   * a user message should be done at a higher level.
+   */
+  virtual void force_remote_listing_download() const;
+
+  /**
    * Get the #AssetLibraryReference referencing this library. This can fail for custom libraries,
    * which have too look up their #bUserAssetLibrary. It will not return a value for values that
    * were loaded directly through a path.
@@ -298,12 +310,8 @@ std::string AS_asset_library_root_path_from_library_ref(
  * * If \a input_path is empty or doesn't have a parent path (e.g. because a .blend wasn't saved
  *   yet), there is no suitable path. The caller has to decide how to handle this case.
  *
- * \param r_library_path: The returned asset library path with a trailing slash, or an empty string
- *                        if no suitable path is found. Assumed to be a buffer of at least
- *                        #FILE_MAXDIR bytes.
- *
- * \return True if the function could find a valid, that is, a non-empty path to return in \a
- *         r_library_path.
+ * \return The returned asset library path with a trailing slash,
+ * or an empty string if no suitable path is found.
  */
 std::string AS_asset_library_find_suitable_root_path_from_path(StringRefNull input_path);
 

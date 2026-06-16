@@ -12,8 +12,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_base.h"
-#include "BLI_string.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_string.hh"
 
 #include "BLT_translation.hh"
 
@@ -971,7 +971,7 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
       bArmature *arm = id_cast<bArmature *>(ob->data);
 
       /* Only selected bones should be affected. */
-      if (!animrig::bone_is_selected(arm, pchan)) {
+      if (!animrig::bone_is_selected(arm, {pchan, pchan->bone_get(*ob)})) {
         return false;
       }
     }

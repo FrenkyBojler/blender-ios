@@ -274,6 +274,33 @@ class ViewerNodeLog {
   const bke::GeometrySet *main_geometry() const;
 };
 
+/* Compositor image result. */
+class ImageInfoLog : public ValueLog {
+ public:
+  /* Stores compositor::Domain information. */
+  const int2 data_size;
+  const int2 display_size;
+  const int2 data_offset;
+  const float3x3 transformation;
+
+  /* Stores compositor::RealizationOptions information in a textual representation. */
+  const StringRefNull interpolation;
+  const StringRefNull extension_x;
+  const StringRefNull extension_y;
+
+  /* Stores compositor::Result.precision in a textual representation. */
+  const StringRefNull precision;
+
+  ImageInfoLog(int2 data_size,
+               int2 display_size,
+               int2 data_offset,
+               float3x3 transformation,
+               StringRefNull interpolation,
+               StringRefNull extension_x,
+               StringRefNull extension_y,
+               StringRefNull precision);
+};
+
 using Clock = std::chrono::steady_clock;
 using TimePoint = Clock::time_point;
 
@@ -388,6 +415,7 @@ class NodesEvalLog;
  */
 class NodeTreeLog {
  private:
+  LinearAllocator<> allocator_;
   NodesEvalLog *root_log_;
   Vector<NodeTreeLogger *> tree_loggers_;
   VectorSet<ComputeContextHash> children_hashes_;
@@ -403,7 +431,7 @@ class NodeTreeLog {
   bool reduced_node_image_previews_ = false;
 
  public:
-  Map<int32_t, NodeLog> nodes;
+  Map<int32_t, destruct_ptr<NodeLog>> nodes;
   Map<int32_t, ViewerNodeLog *, 0> viewer_node_logs;
   VectorSet<NodeWarning> all_warnings;
   std::chrono::nanoseconds execution_time{0};
@@ -433,6 +461,9 @@ class NodeTreeLog {
   void ensure_evaluated_gizmo_nodes();
   void ensure_layer_names();
   void ensure_node_image_previews();
+
+  NodeLog *find_node_log(int32_t identifier) const;
+  NodeLog &lookup_or_add_node_log(const int32_t identifier);
 
   ValueLog *find_socket_value_log(const bNodeSocket &query_socket);
   [[nodiscard]] bool try_convert_primitive_socket_value(const GenericValueLog &value_log,

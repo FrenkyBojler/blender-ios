@@ -10,7 +10,7 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-#include "BLI_string_cursor_utf8.h"
+#include "BLI_string_cursor_utf8.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
@@ -22,7 +22,7 @@ namespace ui {
 
 struct ButtonTextBox;
 
-constexpr int textbox_minimum_visible_lines = 3;
+constexpr int textbox_minimum_visible_lines = 1;
 
 void textbox_add_scroll(ButtonTextBox *textbox, int step);
 

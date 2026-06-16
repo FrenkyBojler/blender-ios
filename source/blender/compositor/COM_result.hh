@@ -9,9 +9,9 @@
 #include <string>
 #include <variant>
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_color_types.hh"
-#include "BLI_compiler_compat.h"
+#include "BLI_compiler_compat.hh"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_generic_span.hh"
@@ -19,10 +19,11 @@
 #include "BLI_math_interp.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_quaternion_types.hh"
-#include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_utils.hh"
+#include "BLI_string_ref.hh"
 
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -327,9 +328,6 @@ class Result {
    * after constructing the result to declare the number of operations that needs it. */
   void set_reference_count(int count);
 
-  /* Increment the reference count of the result by the given count. */
-  void increment_reference_count(int count = 1);
-
   /* Decrement the reference count of the result by the given count. */
   void decrement_reference_count(int count = 1);
 
@@ -481,6 +479,8 @@ class Result {
    * time. */
   int64_t get_pixel_index(const int2 &texel) const;
 };
+
+StringRefNull to_string(const ResultPrecision &precision);
 
 /* -------------------------------------------------------------------- */
 /* Inline Methods.

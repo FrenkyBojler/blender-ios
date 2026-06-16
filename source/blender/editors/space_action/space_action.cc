@@ -16,10 +16,10 @@
 #include "DNA_screen_types.h"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
@@ -234,7 +234,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
         &ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
     /* The View2D's height needs to be set before calling view2d_view_ortho because the latter
      * uses the View2D's `cur` rect which might be modified when setting the height. */
-    set_v2d_height(v2d, items, !BLI_listbase_is_empty(ac.markers));
+    set_v2d_height(v2d, items, !ac.markers->is_empty());
   }
 
   ui::view2d_view_ortho(v2d);
@@ -364,7 +364,7 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
       &ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
   /* The View2D's height needs to be set before calling view2d_view_ortho because the latter
    * uses the View2D's `cur` rect which might be modified when setting the height. */
-  set_v2d_height(v2d, item_count, !BLI_listbase_is_empty(ac.markers));
+  set_v2d_height(v2d, item_count, !ac.markers->is_empty());
 
   ui::view2d_view_ortho(v2d);
   draw_channel_names(const_cast<bContext *>(C), &ac, region, anim_data);

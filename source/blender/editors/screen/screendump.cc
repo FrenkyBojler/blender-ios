@@ -13,9 +13,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_path_utils.hh"
-#include "BLI_rect.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_rect.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -116,7 +116,7 @@ static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
       BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
       /* operator ensures the extension */
-      ibuf = IMB_allocImBuf(scd->dumpsx, scd->dumpsy, 0);
+      ibuf = IMB_allocImBuf(scd->dumpsx, scd->dumpsy, ImBufFlags::Zero);
       ibuf->color_mode = ImColorMode::RGB;
       ibuf->assign_byte_data(scd->dumprect);
       scd->dumprect = nullptr;

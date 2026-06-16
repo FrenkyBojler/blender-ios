@@ -7,7 +7,7 @@
 #include <string>
 #include <variant>
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_array.hh"
 #include "BLI_generic_pointer.hh"
@@ -15,6 +15,8 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
+
+#include "BLT_translation.hh"
 
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
@@ -877,11 +879,6 @@ void Result::set_reference_count(int count)
   reference_count_ = count;
 }
 
-void Result::increment_reference_count(int count)
-{
-  reference_count_ += count;
-}
-
 void Result::decrement_reference_count(int count)
 {
   reference_count_ -= count;
@@ -1127,7 +1124,7 @@ class GPUData {
           __func__, size.x, size.y, 4, 1, format, usage, nullptr);
     }
     else if (is_from_pool) {
-      this->texture = gpu::TexturePool::get().acquire_texture(size, format, usage);
+      this->texture = gpu::TexturePool::get().acquire_texture_2d(size, 1, format, usage);
     }
     else {
       this->texture = GPU_texture_create_2d(__func__, size.x, size.y, 1, format, usage, nullptr);
@@ -1167,6 +1164,19 @@ void Result::allocate_data(const int2 size,
     sharing_info_ = ImplicitSharingPtr<>(new_array);
     cpu_data_ = new_array->data.as_span();
   }
+}
+
+StringRefNull to_string(const ResultPrecision &precision)
+{
+  switch (precision) {
+    case ResultPrecision::Full:
+      return N_("Full");
+    case ResultPrecision::Half:
+      return N_("Half");
+  }
+
+  BLI_assert_unreachable();
+  return "None";
 }
 
 }  // namespace blender::compositor
