@@ -182,17 +182,15 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
     if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA && camera) {
       Object *cam_eval = DEG_get_evaluated(depsgraph, camera);
       Scene *scene = DEG_get_input_scene(depsgraph);
-      /* Convert point to camera clip space. */
-      CameraParams params;
-      BKE_camera_params_init(&params);
-      BKE_camera_params_from_object(&params, cam_eval);
-      /* Compute matrix, view-plane, etc. */
-      BKE_camera_params_compute_viewplane(
-          &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
-      BKE_camera_params_compute_matrix(&params);
+      /* Aka projection matrix. */
+      float4x4 window_matrix;
+      BKE_camera_multiview_window_matrix(nullptr, cam_eval, nullptr, window_matrix.ptr());
       /* World to Object is the view matrix. */
-      float4x4 persmat = float4x4(params.winmat) * cam_eval->world_to_object();
-      const float4 co_clip_space = persmat * float4(mpv->co[0], mpv->co[1], mpv->co[2], 1.0);
+      float4x4 perspective_matrix = window_matrix * cam_eval->world_to_object();
+      const float4 co_clip_space = perspective_matrix *
+                                   float4(mpv->co[0], mpv->co[1], mpv->co[2], 1.0);
+      /* Storing the verts in clip space which contains lens effects like sensor offset. See
+       * `overlay_motion_path.hh/motion_path_sync`. */
       copy_v4_v4(mpv->co, co_clip_space);
     }
 

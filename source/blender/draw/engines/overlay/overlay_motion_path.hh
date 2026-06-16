@@ -157,15 +157,13 @@ class MotionPath : Overlay {
         state.v3d->camera)
     {
       camera_eval = DEG_get_evaluated(state.depsgraph, state.v3d->camera);
-      CameraParams params;
       Scene *scene = DEG_get_input_scene(state.depsgraph);
-      BKE_camera_params_init(&params);
-      BKE_camera_params_from_object(&params, camera_eval);
-      /* Compute matrix, view-plane, etc. */
-      BKE_camera_params_compute_viewplane(
-          &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
-      BKE_camera_params_compute_matrix(&params);
-      camera_matrix = math::invert(float4x4(params.winmat) * camera_eval->world_to_object());
+      float4x4 window_matrix;
+      BKE_camera_multiview_window_matrix(nullptr, camera_eval, nullptr, window_matrix.ptr());
+      /* Storing the inverse perspective matrix of the current camera to convert the verts stored
+       * in clip space, back into world space from the point of view of the current camera. See
+       * `anim_motion_paths.cc/motionpaths_calc_bake_targets`. */
+      camera_matrix = math::invert(window_matrix * camera_eval->world_to_object());
     }
 
     /* Draw curve-line of path. */
