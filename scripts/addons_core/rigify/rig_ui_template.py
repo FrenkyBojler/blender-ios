@@ -920,7 +920,7 @@ class RigLayers(bpy.types.Panel):
             if row_buttons:
                 for coll in row_buttons:
                     title = coll.rigify_ui_title or coll.name
-                    row2 = row.row()
+                    row2 = row.row(align=True)
                     row2.active = coll.is_visible_ancestors
                     row2.prop(coll, 'is_visible', toggle=True, text=title, translate=False)
                     #Choose icon based on is_solo
