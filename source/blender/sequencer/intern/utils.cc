@@ -91,7 +91,7 @@ void strip_unique_name_set(Scene *scene, ListBaseT<Strip> *seqbasep, Strip *stri
   /* Strip off the suffix only if it is purely numeric. */
   if ((dot = strrchr(sui.name_src, '.'))) {
     char *suffix = dot + 1;
-    if (*suffix && BLI_string_is_decimal(suffix)) {
+    if (BLI_string_is_decimal(suffix)) {
       *dot = '\0';
       sui.count = atoi(suffix) + 1;
     }
