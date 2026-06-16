@@ -1,1 +1,1 @@
-Referenced by pull request #158513, Fix #158031: Crash when propagating displacement of newly created face
+Referenced by pull request #158513, Cleanup: Remove unneeded `multires_topology_changed`
