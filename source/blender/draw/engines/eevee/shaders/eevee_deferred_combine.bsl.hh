@@ -143,7 +143,7 @@ void combine_frag([[resource_table]] Combine &srt,
 
         average_normal += cl.N * closure_weight;
 
-        if (render_passes_denoising_enabled) {
+        if (srt.render_passes_denoising_enabled) {
           /* These two values are equivalent between Cycles and EEVEE:
           * - Cycles: sqrtf(bsdf_get_specular_roughness_squared(sc))
           * - EEVEE: square(closure_apparent_roughness_get(cl)) */
@@ -247,26 +247,27 @@ void combine_frag([[resource_table]] Combine &srt,
     render_passes.store_color(texel, uni.uniform_buf.render_pass.position_id, float4(P, 1.0f));
   }
   if (srt.render_passes_denoising_enabled) {
-    float depth = texelFetch(hiz_tx, texel, 0).r;
-    depth = -drw_depth_screen_to_view(depth);
-    render_passes.store_value(uni.uniform_buf.render_pass.denoising_depth_id, depth);
+    const ViewMatrices view = views.get(0);
+    float depth = texelFetch(hiz.hiz_tx, texel, 0).r;
+    depth = -view.depth_screen_to_view(depth);
+    render_passes.store_value(texel, uni.uniform_buf.render_pass.denoising_depth_id, depth);
 
     float normal_len = length(average_normal);
     /* Normalize or fallback to default normal. */
     average_normal = (normal_len < 1e-5f) ? gbuf.surface_N() : (average_normal / normal_len);
-    average_normal = drw_normal_world_to_view(average_normal);
-    render_passes.store_color(uni.uniform_buf.render_pass.denoising_normal_id,
+    average_normal = view.normal_world_to_view(average_normal);
+    render_passes.store_color(texel, uni.uniform_buf.render_pass.denoising_normal_id,
                             float4(average_normal, 1.0f));
 
-    render_passes.store_color(uni.uniform_buf.render_pass.denoising_diffuse_albedo_id,
+    render_passes.store_color(texel, uni.uniform_buf.render_pass.denoising_diffuse_albedo_id,
                             float4(diffuse_albedo, 1.0f));
-    render_passes.store_color(uni.uniform_buf.render_pass.denoising_specular_albedo_id,
+    render_passes.store_color(texel, uni.uniform_buf.render_pass.denoising_specular_albedo_id,
                             float4(specular_albedo, 1.0f));
 
     if (sum_weight >= 1e-5f) {
       average_roughness *= safe_rcp(sum_weight);
     }
-    render_passes.store_value(uni.uniform_buf.render_pass.denoising_roughness_id, average_roughness);
+    render_passes.store_value(texel, uni.uniform_buf.render_pass.denoising_roughness_id, average_roughness);
   }
 
   frag_out.combined = float4(out_direct + out_indirect, 0.0f);
