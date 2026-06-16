@@ -84,10 +84,10 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 4)) {
     for (Scene &scene : bmain->scenes) {
-      if(scene.ed == nullptr){
+      if (scene.ed == nullptr) {
         return;
       }
-      
+
       scene.ed->image_user.flag |= IMA_ANIM_ALWAYS;
     }
   }

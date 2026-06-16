@@ -642,7 +642,7 @@ struct Editing {
 
   Strip *act_strip = nullptr;
   char proxy_dir[/*FILE_MAX*/ 1024] = "";
-  
+
   /* For Image ID datablocks */
   struct ImageUser image_user = {};
 

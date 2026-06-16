@@ -3039,9 +3039,7 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "ImageUser");
   RNA_def_property_pointer_sdna(prop, nullptr, "image_user");
   RNA_def_property_ui_text(
-      prop,
-      "Image User",
-      "Parameters defining how an Image data-block is used.");
+      prop, "Image User", "Parameters defining how an Image data-block is used.");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
   /* cache flags */

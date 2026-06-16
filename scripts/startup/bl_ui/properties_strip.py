@@ -579,7 +579,6 @@ class STRIP_PT_source(StripButtonsPanel, Panel):
                 box.active = strip.views_format == 'STEREO_3D'
                 box.template_image_stereo_3d(strip.stereo_3d_format)
 
-
             # Resolution.
             if strip_type != 'IMAGE_ID':
                 col = layout.box()
@@ -636,6 +635,7 @@ class STRIP_PT_movie_clip(StripButtonsPanel, Panel):
                 text=rpt_("Original frame range: {:d}-{:d} ({:d})").format(sta, end, end - sta + 1),
                 translate=False,
             )
+
 
 class STRIP_PT_scene(StripButtonsPanel, Panel):
     bl_label = "Scene"
