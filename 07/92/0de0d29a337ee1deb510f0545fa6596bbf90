@@ -1,1 +1,2 @@
 Referenced by issue #155844, Orbit direction in the 3d-viewport using touchpad is sensitive to factors like compiler, CPU architecture, and trackpad model
+Referenced by issue #160216, Picking the "Annotate Line" tool throws exception
