@@ -1,2 +1,3 @@
 Referenced by issue #147503, Anim: `/` for isolating selected f-curve(s) in graph editor
 Referenced by pull request #159199, Fix Local/Isolate View in Graph Editor limited to 2 open spaces
+Referenced by commit 901f067bfe4cff95e6cb6f4f6000121ab46463a5, Fix Local/Isolate View in Graph Editor limited to 2 open spaces
