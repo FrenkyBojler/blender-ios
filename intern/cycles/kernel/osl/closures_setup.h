@@ -273,7 +273,7 @@ ccl_device void osl_closure_ray_portal_bsdf_setup(KernelGlobals /*kg*/,
 ccl_device void osl_closure_dielectric_bsdf_setup(KernelGlobals kg,
                                                   ccl_private ShaderData *sd,
                                                   const PathRayVisibility path_visibility,
-                                                  const uint32_t /*path_flag*/,
+                                                  const uint32_t path_flag,
                                                   const float3 weight,
                                                   const ccl_private DielectricBSDFClosure *closure,
                                                   float3 *layer_albedo)
@@ -287,14 +287,23 @@ ccl_device void osl_closure_dielectric_bsdf_setup(KernelGlobals kg,
     return;
   }
 
-  ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)bsdf_alloc(
-      sd, sizeof(MicrofacetBsdf), rgb_to_spectrum(weight));
+  MicrofacetBsdf dielectric;
+  ccl_private MicrofacetBsdf *bsdf = bsdf_alloc_maybe_emission(
+      sd, &dielectric, path_flag, rgb_to_spectrum(weight));
   if (!bsdf) {
     return;
   }
 
-  ccl_private FresnelDielectricTint *fresnel = (ccl_private FresnelDielectricTint *)
-      closure_alloc_extra(sd, sizeof(FresnelDielectricTint));
+  FresnelDielectricTint fresnel_;
+  ccl_private FresnelDielectricTint *fresnel = nullptr;
+  if (path_flag & PATH_RAY_EMISSION) {
+    fresnel = &fresnel_;
+  }
+  else {
+    fresnel = (ccl_private FresnelDielectricTint *)closure_alloc_extra(
+        sd, sizeof(FresnelDielectricTint));
+  }
+
   if (!fresnel) {
     return;
   }
@@ -508,7 +517,7 @@ ccl_device void osl_closure_generalized_schlick_bsdf_setup(
 ccl_device void osl_closure_thin_glass_setup(KernelGlobals kg,
                                              ccl_private ShaderData *sd,
                                              const PathRayVisibility path_visibility,
-                                             const uint32_t /*path_flag*/,
+                                             const uint32_t path_flag,
                                              const float3 weight,
                                              const ccl_private ThinGlassClosure *closure,
                                              float3 *layer_albedo)
@@ -554,7 +563,9 @@ ccl_device void osl_closure_thin_glass_setup(KernelGlobals kg,
                         closure->ior,
                         thinfilm,
                         &reflectance,
-                        &transmittance);
+                        &transmittance,
+                        path_visibility,
+                        path_flag);
 
   if (layer_albedo != nullptr) {
     *layer_albedo = transmittance * !!has_transmission + reflectance * !!has_reflection;
@@ -807,7 +818,7 @@ ccl_device void osl_closure_ashikhmin_velvet_setup(
 ccl_device void osl_closure_sheen_setup(KernelGlobals kg,
                                         ccl_private ShaderData *sd,
                                         const PathRayVisibility path_visibility,
-                                        const uint32_t /*path_flag*/,
+                                        const uint32_t path_flag,
                                         const float3 weight,
                                         const ccl_private SheenClosure *closure,
                                         float3 *layer_albedo)
@@ -818,8 +829,9 @@ ccl_device void osl_closure_sheen_setup(KernelGlobals kg,
     return;
   }
 
-  ccl_private SheenBsdf *bsdf = (ccl_private SheenBsdf *)bsdf_alloc(
-      sd, sizeof(SheenBsdf), rgb_to_spectrum(weight));
+  SheenBsdf sheen;
+  ccl_private SheenBsdf *bsdf = bsdf_alloc_maybe_emission(
+      sd, &sheen, path_flag, rgb_to_spectrum(weight));
   if (!bsdf) {
     return;
   }
@@ -1107,7 +1119,7 @@ ccl_device void osl_closure_subsurface_bssrdf_setup(
     const ccl_private SubsurfaceBSSRDFClosure *closure,
     float3 * /*layer_albedo*/)
 {
-  ccl_private Bssrdf *bssrdf = bssrdf_alloc(sd, rgb_to_spectrum(weight));
+  ccl_private Bssrdf *bssrdf = bssrdf_alloc(sd, rgb_to_spectrum(closure->albedo * weight));
   if (!bssrdf) {
     return;
   }
