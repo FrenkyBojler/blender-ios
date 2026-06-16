@@ -36,8 +36,7 @@ def _set_area_type(area, area_type):
 def _load_blend():
     """Load the test blend file; re-acquire and return (e, t, window, area)."""
     import bpy
-    e, t, _ = ui.test_window()
-    t.assertTrue(os.path.isfile(_BLEND_FILE), f"Test blend file not found: {_BLEND_FILE}")
+    assert os.path.isfile(_BLEND_FILE), f"Test blend file not found: {_BLEND_FILE}"
     bpy.ops.wm.open_mainfile(filepath=_BLEND_FILE)
     yield  # wait for file load to complete
     e, t, window = ui.test_window()
