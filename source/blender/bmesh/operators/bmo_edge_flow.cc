@@ -31,7 +31,7 @@ static void walk_edge_loop(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
 
   BMIter l_iter;
   BMLoop *l;
-  BM_ITER_ELEM (l, &l_iter, e, BM_LOOPS_OF_EDGE) {
+  BM_ITER_ELEM (l, &l_iter, start_edge, BM_LOOPS_OF_EDGE) {
     const int start_valence = BM_vert_edge_count(l->v);
     if (start_valence <= 4) {
       while (true) {
@@ -68,39 +68,112 @@ static void walk_edge_loop(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
   }
 }
 
+static void walk_ngon(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
+  BMLoop *start_loop = nullptr;
+  int max_valence = 0;
+
+  BMIter l_iter;
+  BMLoop *l;
+  BM_ITER_ELEM (l, &l_iter, start_edge, BM_LOOPS_OF_EDGE) {
+    const int valence = l->f->len;
+    if (valence > 4 && valence > max_valence) {
+      max_valence = valence;
+      start_loop = l;
+    }
+  }
+
+  BLI_assert(start_loop != nullptr);
+  Vector<BMEdge *> forward;
+  Vector<BMEdge *> backward;
+
+  l = start_loop->next;
+  while (BM_vert_edge_count(l->v) < 4 && l->e != start_edge && !forward.contains(l->e)) {
+    if (!BM_elem_flag_test(l->e, BM_ELEM_TAG)) {
+      break;
+    }
+
+    forward.append(l->e);
+    l = l->next;
+  }
+
+  l = start_loop->prev;
+  while (BM_vert_edge_count(BM_edge_other_vert(l->e, l->v)) < 4 && l->e != start_edge && !forward.contains(l->e) && !backward.contains(l->e)) {
+    if (!BM_elem_flag_test(l->e, BM_ELEM_TAG)) {
+      break;
+    }
+
+    backward.append(l->e);
+    l = l->prev;
+  }
+
+  for (int i = backward.size() - 1; i >= 0; i--) {
+    r_edges.append(backward[i]);
+  }
+
+  r_edges.append(start_edge);
+
+  for (BMEdge *e : forward) {
+    r_edges.append(e);
+  }
+}
+
+static void walk_boundary(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
+  BMIter l_iter;
+  BMLoop *l;
+  BM_ITER_ELEM (l, &l_iter, start_edge, BM_LOOPS_OF_EDGE) {
+
+  }
+}
+
+static void edge_flow_walk_loop(BMEdge *start_edge, Vector<BMEdge *> &r_edges)
+{
+  bool is_ngon = false;
+  BMIter l_iter;
+  BMLoop *l;
+  BM_ITER_ELEM (l, &l_iter, start_edge, BM_LOOPS_OF_EDGE) {
+    if (l->f->len > 4) {
+      is_ngon = true;
+      break;
+    }
+  }
+
+  const int val0 = BM_vert_edge_count(start_edge->v1);
+  const int val1 = BM_vert_edge_count(start_edge->v2);
+  const bool quad_flow = (val0 == 4 && val1 == 4);
+  const bool loop_end = (val0 > 4 && val1 == 4) || (val0 == 4 && val1 > 4);
+
+  if (is_ngon && !quad_flow && !loop_end) {
+    walk_ngon(start_edge, r_edges);
+  }
+  else if (BM_edge_is_boundary(start_edge)) {
+    walk_boundary(start_edge, r_edges);   
+  }
+  else {
+    walk_edge_loop(start_edge, r_edges);
+  }
+}
+
 static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
 {
   BMIter eiter;
   BMEdge *e;
 
-  BMWalker walker;
-  BMW_init(&walker,
-           bm,
-           BMW_EDGELOOP,
-           BMW_MASK_NOP,
-           BMW_MASK_NOP,
-           BMW_MASK_NOP,
-           BMW_FLAG_NOP,
-           BMW_NIL_LAY,
-           BMWDelimitFlag(0));
-
   BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
     if (!BM_elem_flag_test(e, BM_ELEM_TAG)) {
       continue;
     }
-
-    /* Collect tagged edges from this topological loop in walker order. */
+    
     Vector<BMEdge *> loop_edges;
-    for (BMEdge *we = static_cast<BMEdge *>(BMW_begin(&walker, e)); we;
-         we = static_cast<BMEdge *>(BMW_step(&walker)))
-    {
-      if (BM_elem_flag_test(we, BM_ELEM_TAG)) {
-        loop_edges.append(we);
-        BM_elem_flag_disable(we, BM_ELEM_TAG);
-      }
+    edge_flow_walk_loop(e, loop_edges);
+
+    for (BMEdge *le : loop_edges) {
+      BM_elem_flag_disable(le, BM_ELEM_TAG);
     }
 
-    /* Find p1, vert of edges[0] not shared with edges[1] */
+    if (loop_edges.is_empty()) {
+      continue;
+    }
+
     BMVert *p1 = nullptr;
     if (loop_edges.size() == 1) {
       p1 = loop_edges[0]->v1;
@@ -111,29 +184,9 @@ static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
     else {
       p1 = loop_edges[0]->v2;
     }
-
-    /* Build ordered vert array. */
-    EdgeFlowLoop loop;
-    loop.verts.append(p1);
-    BMVert *last = p1;
-    for (BMEdge *le : loop_edges) {
-      BMVert *next = BM_edge_other_vert(le, last);
-      loop.verts.append(next);
-      last = next;
-    }
-
-    /* Ensure larger coord endpoint is first for stable loop ordering */
-    const float3 first_co = loop.verts.first()->co;
-    const float3 last_co = loop.verts.last()->co;
-    if (first_co.x + first_co.y + first_co.z < last_co.x + last_co.y + last_co.z) {
-      std::reverse(loop.verts.begin(), loop.verts.end());
-    }
-
-    loop.is_cyclic = (loop.verts.first() == loop.verts.last());
-    r_loops.append(std::move(loop));
   }
 
-  BMW_end(&walker);
+  
 }
 
 static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, const float min_angle, float3 &r_target)
