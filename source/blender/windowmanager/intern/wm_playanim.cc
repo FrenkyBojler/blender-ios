@@ -31,15 +31,15 @@
 #include "CLG_log.h"
 
 #include "BLI_enum_flags.hh"
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_system.h"
-#include "BLI_time.h"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_system.hh"
+#include "BLI_time.hh"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
@@ -125,7 +125,7 @@ static bool buffer_from_filepath(const char *filepath,
 {
   errno = 0;
   const int file = BLI_open(filepath, O_BINARY | O_RDONLY, 0);
-  if (UNLIKELY(file == -1)) {
+  if (file == -1) [[unlikely]] {
     *r_error_message = BLI_sprintfN("failure '%s' to open file", strerror(errno));
     return false;
   }
@@ -134,7 +134,7 @@ static bool buffer_from_filepath(const char *filepath,
   uchar *mem = nullptr;
   const size_t size = BLI_file_descriptor_size(file);
   int64_t size_read;
-  if (UNLIKELY(size == size_t(-1))) {
+  if (size == size_t(-1)) [[unlikely]] {
     *r_error_message = BLI_sprintfN("failure '%s' to access size", strerror(errno));
   }
   else if (r_mem && UNLIKELY(!(mem = MEM_new_array_uninitialized<uchar>(size, __func__)))) {
@@ -550,7 +550,7 @@ static ImBuf *ibuf_from_picture(PlayAnimPict *pic)
     ibuf = pic->ibuf;
   }
   else if (pic->anim) {
-    ibuf = MOV_decode_frame(pic->anim, pic->frame, IMB_TC_NONE, IMB_PROXY_NONE);
+    ibuf = MOV_decode_frame(pic->anim, pic->frame, IMB_PROXY_NONE);
   }
   else if (pic->mem) {
     /* Use correct color-space here. */
@@ -942,13 +942,13 @@ static void build_pict_list_from_anim(ListBaseT<PlayAnimPict> &picsbase,
     return;
   }
 
-  ImBuf *ibuf = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
+  ImBuf *ibuf = MOV_decode_frame(anim, 0, IMB_PROXY_NONE);
   if (ibuf) {
     playanim_toscreen_on_load(ghost_data, display_ctx, nullptr, ibuf);
     IMB_freeImBuf(ibuf);
   }
 
-  for (int pic = 0; pic < MOV_get_duration_frames(anim, IMB_TC_NONE); pic++) {
+  for (int pic = 0; pic < MOV_get_duration_frames(anim); pic++) {
     PlayAnimPict *picture = MEM_new_zeroed<PlayAnimPict>("Pict");
     picture->anim = anim;
     picture->frame = pic + frame_offset;
@@ -1939,7 +1939,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
          * colorspace. Skip colorspace conversions in the movie module to improve performance. */
         MovieReader *anim = MOV_open_file(filepath, ImBufFlags::Zero, 0, true, nullptr);
         if (anim) {
-          ibuf = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
+          ibuf = MOV_decode_frame(anim, 0, IMB_PROXY_NONE);
           MOV_close(anim);
           anim = nullptr;
         }
@@ -1971,7 +1971,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
       GHOST_ISystem::createSystem();
       ps.ghost_data.system = GHOST_ISystem::getSystem();
-      if (UNLIKELY(ps.ghost_data.system == nullptr)) {
+      if (ps.ghost_data.system == nullptr) [[unlikely]] {
         /* GHOST will have reported the back-ends that failed to load. */
         fprintf(stderr, "%s: unable to initialize GHOST, exiting!\n", message_prefix);
         return EXIT_FAILURE;
@@ -1995,7 +1995,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
                                                   ibuf->x,
                                                   ibuf->y);
 
-      if (UNLIKELY(ps.ghost_data.window == nullptr)) {
+      if (ps.ghost_data.window == nullptr) [[unlikely]] {
         fprintf(stderr, "%s: unable to create window, exiting!\n", message_prefix);
         return EXIT_FAILURE;
       }
@@ -2022,7 +2022,8 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   // GHOST_ActivateWindowDrawingContext(ps.ghost_data.window);
 
   /* Init Blender GPU context. */
-  ps.ghost_data.gpu_context = GPU_context_create(ps.ghost_data.window, nullptr);
+  ps.ghost_data.gpu_context = GPU_context_create(ps.ghost_data.window,
+                                                 ps.ghost_data.window->getDrawingContext());
   GPU_init();
 
   /* Initialize the font. */

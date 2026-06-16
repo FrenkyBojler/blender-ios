@@ -9,9 +9,10 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <ranges>
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
@@ -185,6 +186,12 @@ enum {
 /** The maximum number of items a radial menu (pie menu) can contain. */
 #define PIE_MAX_ITEMS 8
 
+enum class TextDirection : int8_t {
+  Default, /* Horizontal. */
+  Down,
+  Up,
+};
+
 struct Button : NonMovable {
 
   /** Pointer back to the layout item holding this button. */
@@ -192,6 +199,8 @@ struct Button : NonMovable {
   int flag = 0;
   int drawflag = 0;
   char flag2 = 0;
+
+  TextDirection text_direction = TextDirection::Default;
 
   ButtonType type = ButtonType(0);
   ButPointerType pointype = ButPointerType::None;
@@ -202,7 +211,13 @@ struct Button : NonMovable {
   /** When non-zero, this is the key used to activate a menu items (`a-z` always lower case). */
   uchar menu_key = 0;
 
-  short retval = 0, strwidth = 0, alignnr = 0;
+  /**
+   * Stores argument values for #Block::handle_func as well as enum values for
+   * #ButtonType::ButMenu.
+   */
+  int retval = 0;
+  short strwidth = 0;
+  short alignnr = 0;
   int ofs = 0, pos = 0, selsta = 0, selend = 0;
 
   /**
@@ -912,6 +927,11 @@ Button *button_drag_multi_edit_get(Button *but);
  */
 const char *button_placeholder_get(Button *but);
 
+/**
+ * Get the unit hint shown after the text while editing.
+ */
+std::optional<StringRef> button_edit_unit_hint_get(const Button &but);
+
 void def_but_icon(Button *but, int icon, int flag);
 /**
  * Avoid using this where possible since it's better not to ask for an icon in the first place.
@@ -1030,7 +1050,6 @@ struct PopupBlockHandle {
   ARegion *ctx_region = nullptr;
 
   /* return values */
-  int butretval = 0;
   int menuretval = 0;
   int retvalue = 0;
   float retvec[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -1147,8 +1166,25 @@ PopupBlockHandle *popup_block_create(bContext *C,
                                      void *arg,
                                      FreeArgFunc arg_free,
                                      bool can_refresh);
-PopupBlockHandle *popup_menu_create(
-    bContext *C, ARegion *butregion, Button *but, MenuCreateFunc menu_func, void *arg);
+/**
+ * \param can_refresh: Allow menus to re-run their layout definitions using
+ *    `ED_region_tag_refresh_ui()`. This can be used to update the grayed out state of items or the
+ *    icon for example, but doesn't have many use-cases.
+ *
+ *    Changes that mess with user input or make popups jump around under the cursor should be
+ *    avoided. For example, avoid:
+ *    - Adding/removing menu items.
+ *    - Changing menu item names.
+ *    - Changes that interfere with keyboard navigation.
+ *
+ *    Note that this property is inherited to submenus.
+ */
+PopupBlockHandle *popup_menu_create(bContext *C,
+                                    ARegion *butregion,
+                                    Button *but,
+                                    MenuCreateFunc menu_func,
+                                    void *arg,
+                                    bool can_refresh);
 
 /* `interface_region_popover.cc` */
 

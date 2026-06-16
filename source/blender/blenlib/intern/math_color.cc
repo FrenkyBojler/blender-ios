@@ -6,17 +6,17 @@
  * \ingroup bli
  */
 
-#include "BLI_math_color.h"
 #include "BLI_math_color.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_simd.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include <algorithm>
 #include <cstring>
 
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+#include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 
 namespace blender {
 
@@ -324,8 +324,8 @@ void rgb_to_hsv_v(const float rgb[3], float r_hsv[3])
 
 void rgb_to_hsl(float r, float g, float b, float *r_h, float *r_s, float *r_l)
 {
-  const float cmax = max_fff(r, g, b);
-  const float cmin = min_fff(r, g, b);
+  const float cmax = std::max({r, g, b});
+  const float cmin = std::min({r, g, b});
   float h, s, l = min_ff(1.0f, (cmax + cmin) / 2.0f);
 
   if (cmax == cmin) {
@@ -429,7 +429,7 @@ void rgb_to_hsv_compat_v(const float rgb[3], float r_hsv[3])
 
 void hsv_clamp_v(float hsv[3], float v_max)
 {
-  if (UNLIKELY(hsv[0] < 0.0f || hsv[0] > 1.0f)) {
+  if (hsv[0] < 0.0f || hsv[0] > 1.0f) [[unlikely]] {
     hsv[0] = hsv[0] - floorf(hsv[0]);
   }
   CLAMP(hsv[1], 0.0f, 1.0f);
