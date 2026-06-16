@@ -54,7 +54,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   b.add_input<decl::Extend>(""_ustr, "__extend__expression_input"_ustr)
       .structure_type(StructureType::Dynamic)
-      .hide_socket_icon(tree->type == NTREE_COMPOSIT);
+      .hide_socket_icon(tree->type == NTREE_COMPOSIT)
+      .custom_draw(socket_items::ui::draw_extend_socket_fn<ExpressionItemsAccessor>());
   b.add_output<decl::Extend>(""_ustr, "__extend__expression_output"_ustr)
       .structure_type(StructureType::Dynamic)
       .align_with_previous();
@@ -70,7 +71,8 @@ static void node_declare(NodeDeclarationBuilder &b)
         .structure_type(StructureType::Dynamic);
   }
   inputs_panel.add_input<decl::Extend>(""_ustr, "__extend__input"_ustr)
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .custom_draw(socket_items::ui::draw_extend_socket_fn<ExpressionInputItemsAccessor>());
 }
 
 static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
