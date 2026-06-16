@@ -6715,44 +6715,31 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
   return start_playback(C, sync, mode);
 }
 
-void ED_screen_scrubbing_enable(bContext *C, bScreen *screen)
+void ED_screen_scrubbing_enable(bContext *C, bScreen *screen, ScrubResumeState &resume)
 {
-  /* Pause playback while scrubbing, remembering its state so it can be resumed afterwards.
+  /* Pause playback while scrubbing, recording its settings so it can be resumed afterwards.
    * The screen where playback started might not be the screen being scrubbed. */
   bScreen *play_screen = ED_screen_animation_playing(CTX_wm_manager(C));
   if (play_screen && play_screen->animtimer) {
     const ScreenAnimData *sad = static_cast<ScreenAnimData *>(play_screen->animtimer->customdata);
-    int scrub_flag = SCRUB_FLAG_WAS_PLAYING;
-    if (sad->flag & ANIMPLAY_FLAG_REVERSE) {
-      scrub_flag |= SCRUB_FLAG_PLAY_REVERSE;
-    }
-    if (sad->flag & ANIMPLAY_FLAG_SYNC) {
-      scrub_flag |= SCRUB_FLAG_SYNC_ON;
-    }
-    else if (sad->flag & ANIMPLAY_FLAG_NO_SYNC) {
-      scrub_flag |= SCRUB_FLAG_SYNC_OFF;
-    }
-    screen->scrub_flag = short(scrub_flag);
+    resume.was_playing = true;
+    resume.play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? PlaybackDirection::BACKWARDS :
+                                                             PlaybackDirection::FORWARDS;
+    resume.play_sync = (sad->flag & ANIMPLAY_FLAG_SYNC) ?
+                           PlaySyncMode::ON :
+                           ((sad->flag & ANIMPLAY_FLAG_NO_SYNC) ? PlaySyncMode::OFF :
+                                                                  PlaySyncMode::UNCHANGED);
     ED_screen_animation_play(C, 0, 0);
   }
   screen->scrubbing = true;
 }
 
-void ED_screen_scrubbing_disable(bContext *C, bScreen *screen)
+void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const ScrubResumeState &resume)
 {
   screen->scrubbing = false;
-  if (screen->scrub_flag & SCRUB_FLAG_WAS_PLAYING) {
-    const int mode = (screen->scrub_flag & SCRUB_FLAG_PLAY_REVERSE) ? -1 : 1;
-    int sync = -1;
-    if (screen->scrub_flag & SCRUB_FLAG_SYNC_ON) {
-      sync = 1;
-    }
-    else if (screen->scrub_flag & SCRUB_FLAG_SYNC_OFF) {
-      sync = 0;
-    }
-    ED_screen_animation_play(C, sync, mode);
+  if (resume.was_playing) {
+    ED_screen_animation_play(C, int(resume.play_sync), int(resume.play_mode));
   }
-  screen->scrub_flag = 0;
 }
 
 static wmOperatorStatus screen_animation_play_exec(bContext *C, wmOperator *op)
