@@ -17,11 +17,6 @@ bool is_equal(float2 a, float2 b, float epsilon)
 {
   return all(lessThanEqual(abs(a - b), float2(epsilon)));
 }
-/* TODO(not_mark): De-duplicate in BSL port, `gpu_shader_math_vector_compare_lib`. */
-bool is_any_zero(float2 vec)
-{
-  return any(equal(vec, float2(0.0f)));
-}
 
 void main()
 {
@@ -90,7 +85,7 @@ void main()
   /* Viewport anti-aliasing output.
    * #159243: do not output AA information on straight lines in e.g. orthographic views,
    * as these will periodically lie above/below a pixel, causing shimmering in motion. */
-  if (out_color.a != 0.0 && !is_any_zero(edge_start - edge_pos)) {
+  if (out_color.a != 0.0 && !flag_test(grid_flag, GRID_SIMA | GRID_ALIGNED)) {
     line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
   }
   else {
@@ -99,14 +94,12 @@ void main()
 
   /* Alpha discard; discard by stipple pattern for low alpha, to account for overlays
    * incompatible with depth+blend, e.g. MeshEdit. */
-  {
-    constexpr float dash_width = 4.0f; /* Width of dash pattern; increase to make lines longer. */
-    constexpr float fade_start = 0.1f; /* Cutoff for dash fade; alpha above is fully drawn. */
-    constexpr float fade_rcp = 1.0f / fade_start;
-    float dist = distance(edge_start, edge_pos);
-    if (out_color.a < fade_start && fade_rcp * out_color.a < fract(dist / dash_width)) {
-      gpu_discard_fragment();
-    }
+  constexpr float dash_width = 4.0f; /* Width of dash pattern; increase to make lines longer. */
+  constexpr float fade_start = 0.1f; /* Cutoff for dash fade; alpha above is fully drawn. */
+  constexpr float fade_rcp = 1.0f / fade_start;
+  float dist = distance(edge_start, edge_pos);
+  if (out_color.a < fade_start && fade_rcp * out_color.a < fract(dist / dash_width)) {
+    gpu_discard_fragment();
   }
 
   /* Grid iteration additive alpha in perspective view; lower iterations
