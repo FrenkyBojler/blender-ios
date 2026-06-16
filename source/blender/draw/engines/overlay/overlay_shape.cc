@@ -254,10 +254,6 @@ static Vector<Vertex> sphere_axes_circles(const float radius,
   return verts;
 }
 
-struct Vector3 {
-  double x, y, z;
-};
-
 /* Returns lines segment geometry forming 3 circles, one on each axis. */
 
 static Vector<Vertex> fisheye_direction_verts()
@@ -318,35 +314,7 @@ static Vector<Vertex> dome_sphere_axes()
       }
     }
   }
-  /*
-    for (int axis : IndexRange(4))
-    {
-      for (int i : IndexRange(segments)) {
-
-        for (int j : IndexRange(2)) {
-
-          if(j==1 && i==segments-1)
-          {
-            j = 0;
-          }
-
-          float2 cv = arc[(i + j)];
-
-
-            Vector3 base = {-cv[0], 0.0, -cv[1]};
-            double pi = std::acos(-1.0);
-            double angle = ((45.0 * (axis+1))+45.0*(axis)) * (pi / 180.0);
-            Vector3 v = rotateZ(base, angle);
-
-
-
-            verts.append({{v.x, v.y, v.z},vclass});
-
-        }
-      }
-    }
-   */
-
+ 
   for (int i : IndexRange(segments)) {
     for (int j : IndexRange(2)) {
       float2 cv = ring[(i + j) % segments];
@@ -360,15 +328,10 @@ static Vector<Vertex> dome_sphere_axes()
   for (int r : IndexRange(35)) {
 
     float angle = ((ring_step * (r + 1)) * (M_PI / 180)) / 2;
-    /*
-        double theta = halfAngleDegrees * (PI / 180.0); */
 
     float height = -1.0 + (1.0f * (1.0 - std::cos(angle)));
     float radius = 1.0f * std::sin(angle);
 
-    /* printf("xx RING Angle: %f height: %f\n",angle,height); */
-
-    /*     float new_height = 1.0 * (1.0 - std::cos((ring_step+1)*r / 2));*/
     for (int i : IndexRange(segments)) {
 
       if (i % 2) {

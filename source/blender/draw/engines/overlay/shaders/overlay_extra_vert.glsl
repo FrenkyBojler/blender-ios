@@ -193,7 +193,6 @@ void main()
     float radius = 1.0f;
     float new_height = radius * (1.0 - cos(fisheye_fov / 2));
     float new_radius = radius * sin(fisheye_fov / 2);
-    printf("FISHEYE DIRECTION %f \n", new_radius);
     vpos.y += new_radius;
     vpos.z = -1.0f + new_height;
   }
@@ -218,18 +217,6 @@ void main()
       else {
         vpos.y = new_radius;
       }
-
-      /*          if(vpos.y<0)
-               {
-                 vpos.y = -new_radius;
-               }
-               else
-               {
-                 vpos.y = new_radius;
-               } */
-
-      /* vpos.y = -new_radius;
-      vpos.y = -new_radius;    */
     }
   }
   else if (flag_test(vclass, VCLASS_EMPTY_AXES)) {
