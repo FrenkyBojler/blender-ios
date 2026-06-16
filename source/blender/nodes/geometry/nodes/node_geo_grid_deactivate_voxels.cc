@@ -149,11 +149,9 @@ BLI_NOINLINE static void process_leaf_node(const fn::Field<bool> selection_field
 
   evaluator.evaluate();
 
-  /* TODO This could write straight to the valueMask() of the leaf node.
-   * Then it wouldn't need to use an accessor, indices can be mapped straight to mask "words".
-   * The same applies to volume_grid::set_mask_leaf_buffer_from_bools.
-   */
   const IndexMask selection_mask = IndexMask::from_bools(selection, scope.allocator());
+  volume_grid::set_leaf_values_off(output_grid, any_voxel_in_leaf, selection_mask);
+
   volume_grid::set_grid_values_off(output_grid, selection_mask, voxels);
 }
 

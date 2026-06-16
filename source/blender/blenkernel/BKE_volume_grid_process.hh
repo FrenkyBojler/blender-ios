@@ -101,6 +101,13 @@ void set_grid_values(openvdb::GridBase &grid_base, GSpan values, Span<openvdb::C
  */
 void set_tile_values(openvdb::GridBase &grid_base, GSpan values, Span<openvdb::CoordBBox> tiles);
 
+/**
+ * Deactivate values for the given voxels in a leaf node. A leaf node must exist at the given
+ * coordinates.
+ */
+void set_leaf_values_off(openvdb::GridBase &grid_base,
+                         const openvdb::Coord &coord,
+                         const IndexMask &index_mask);
 /** Deactivate values for the given voxels in the grid. */
 void set_grid_values_off(openvdb::GridBase &grid_base,
                          const IndexMask &index_mask,

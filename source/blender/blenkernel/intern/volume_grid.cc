@@ -778,6 +778,25 @@ void set_tile_values(openvdb::GridBase &grid_base,
   });
 }
 
+void set_leaf_values_off(openvdb::GridBase &grid_base,
+                         const openvdb::Coord &coord,
+                         const IndexMask &index_mask)
+{
+  to_typed_grid(grid_base, [&](auto &grid) {
+    using GridType = std::decay_t<decltype(grid)>;
+    using TreeType = typename GridType::TreeType;
+    using LeafNodeType = typename TreeType::LeafNodeType;
+    using NodeMaskType = typename LeafNodeType::NodeMaskType;
+
+    TreeType &tree = grid.tree();
+    LeafNodeType *leaf_node = tree.probeLeaf(coord);
+    BLI_assert(leaf_node);
+    NodeMaskType &mask = leaf_node->getValueMask();
+
+    index_mask.foreach_index_optimized<int>([&](const int i) { mask.setOff(i); });
+  });
+}
+
 void set_grid_values_off(openvdb::GridBase &grid_base,
                          const IndexMask &index_mask,
                          const Span<openvdb::Coord> voxels)
