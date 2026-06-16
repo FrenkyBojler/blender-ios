@@ -881,6 +881,23 @@ class PackageInstallerFedora(PackageInstaller):
             cls._instance = super(PackageInstallerFedora, cls).__new__(cls, settings)
         return cls._instance
 
+    _extra_repos = (
+        "powertools", # required for ninja-build
+    )
+
+    def enable_extra_repos(self):
+        """Enable extra repositories needed for certain package installs"""
+        for repo in self._extra_repos:
+            result = self.run_command([*MAYSUDO, "dnf", "config-manager", "--set-enabled", repo])
+            if self.is_returncode_successful(result.returncode):
+                self.settings.logger.debug(f"Enabled repo '{repo}'.")
+                return
+
+    def packages_database_update(self):
+        if not self.settings.no_sudo:
+            self.enable_extra_repos()
+        return super().packages_database_update()
+
     _re_version = re.compile(r"Version\s*:\s*(?:[0-9]+:)?(?P<version>([0-9]+\.?)+([0-9]+)).*")
 
     _install_command = [*MAYSUDO, "dnf", "install", "-y"]
