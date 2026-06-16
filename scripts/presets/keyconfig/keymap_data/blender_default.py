@@ -5707,7 +5707,7 @@ def km_edit_armature(params):
             (op_tool_cycle, "builtin.bone_size"), params),
         op_tool_optional(
             ("transform.transform", {"type": 'S', "value": 'PRESS', "alt": True},
-             {"properties": [("mode", 'BONE_ENVELOPE')]}),
+             {"properties": [("mode", 'BONE_ENVELOPE_DIST')]}),
             (op_tool_cycle, "builtin.bone_envelope"), params),
         op_tool_optional(
             ("transform.transform", {"type": 'R', "value": 'PRESS', "ctrl": True},
@@ -7642,7 +7642,7 @@ def km_3d_view_tool_edit_armature_bone_envelope(params):
 
         {"items": [
             ("transform.transform", {**params.tool_maybe_tweak_event, **params.tool_modifier},
-             {"properties": [("release_confirm", True), ("mode", 'BONE_ENVELOPE')]}),
+             {"properties": [("release_confirm", True), ("mode", 'BONE_ENVELOPE_DIST')]}),
         ]},
     )
 
