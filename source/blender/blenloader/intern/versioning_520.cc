@@ -475,6 +475,7 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
     /* Shift animation data to accommodate the new thin wall input. */
     version_node_socket_index_animdata(bmain, NTREE_SHADER, SH_NODE_BSDF_PRINCIPLED, 5, 1, 31);
   }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
