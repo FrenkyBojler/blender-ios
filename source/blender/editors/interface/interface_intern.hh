@@ -412,6 +412,7 @@ struct ButtonTextBox : public Button {
 /** Derived struct for #ButtonType::But */
 struct ButtonPush : public Button {
   bool draw_as_link = false;
+  /** See #button_pushbutton_draw_as_overlay_set(). */
   bool draw_as_overlay = false;
 };
 

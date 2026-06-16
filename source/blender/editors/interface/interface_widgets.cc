@@ -5126,9 +5126,14 @@ static void widget_roundbut_exec(Button *but,
       wtb.draw_inner = true;
       wtb.draw_outline = false;
       wtb.draw_emboss = true;
+      /* Use a black transparent background and a white icon color, to ensure good contrast. */
       const uchar background_col[4] = {0, 0, 0, (but->flag & UI_HOVER) ? uchar(120) : uchar(100)};
       copy_v4_v4_uchar(wcol->inner, background_col);
       copy_v4_v4_uchar(wcol->inner_sel, background_col);
+      const uchar foreground_col[4] = {
+          255, 255, 255, (but->flag & UI_HOVER) ? uchar(255) : uchar(230)};
+      copy_v4_v4_uchar(wcol->text, foreground_col);
+      copy_v4_v4_uchar(wcol->text_sel, foreground_col);
     }
   }
 
