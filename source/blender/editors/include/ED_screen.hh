@@ -534,26 +534,16 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph);
 void ED_reset_audio_device(bContext *C);
 wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
 
-/** Flags stored in #bScreen.scrub_flag to restore playback when scrubbing ends. */
-enum {
-  SCRUB_FLAG_WAS_PLAYING = 1 << 0,
-  /** Playback direction was reverse (otherwise forward). */
-  SCRUB_FLAG_PLAY_REVERSE = 1 << 1,
-  /** Sync mode was explicitly on / off (neither set means "unchanged"). */
-  SCRUB_FLAG_SYNC_ON = 1 << 2,
-  SCRUB_FLAG_SYNC_OFF = 1 << 3,
-};
-
 /**
- * Start scrubbing on \a screen: pause any running animation playback (remembering its
- * state in #bScreen.scrub_flag so it can be resumed) and set the scrubbing flag.
+ * Start scrubbing on \a screen: pause any running animation playback (returning its settings so
+ * it can be resumed afterwards) and set the scrubbing flag.
  */
-void ED_screen_scrubbing_enable(bContext *C, bScreen *screen);
+ScrubResumeState ED_screen_scrubbing_enable(bContext *C, bScreen *screen);
 /**
- * Stop scrubbing on \a screen: clear the scrubbing flag and resume playback if it was
- * paused by #ED_screen_scrubbing_enable, using the state saved in #bScreen.scrub_flag.
+ * Stop scrubbing on \a screen: clear the scrubbing flag and resume playback if it was paused by
+ * #ED_screen_scrubbing_enable, using the settings recorded in \a resume.
  */
-void ED_screen_scrubbing_disable(bContext *C, bScreen *screen);
+void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const ScrubResumeState &resume);
 
 /**
  * Find window that owns the animation timer.

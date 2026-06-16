@@ -10,6 +10,8 @@
 
 #include "DNA_scene_types.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
@@ -131,10 +133,25 @@ static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent
   RNA_float_set(op->ptr, "value", viewy);
 }
 
+/* End scrubbing and free the operator's resume state. */
+static void graphview_cursor_exit(bContext *C, wmOperator *op)
+{
+  ScrubResumeState *scrub_resume = static_cast<ScrubResumeState *>(op->customdata);
+  bScreen *screen = CTX_wm_screen(C);
+  if (screen) {
+    ED_screen_scrubbing_disable(C, screen, *scrub_resume);
+  }
+  MEM_delete(scrub_resume);
+  op->customdata = nullptr;
+}
+
 /* Modal Operator init */
 static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bScreen *screen = CTX_wm_screen(C);
+
+  ScrubResumeState *scrub_resume = MEM_new<ScrubResumeState>(__func__);
+  op->customdata = scrub_resume;
 
   /* Change to frame that mouse is over before adding modal handler,
    * as user could click on a single frame (jump to frame) as well as
@@ -145,7 +162,7 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 
   /* Signal that a scrubbing operating is starting */
   if (screen) {
-    ED_screen_scrubbing_enable(C, screen);
+    *scrub_resume = ED_screen_scrubbing_enable(C, screen);
   }
 
   /* add temp handler */
@@ -156,16 +173,12 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 /* Modal event handling of cursor changing */
 static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  bScreen *screen = CTX_wm_screen(C);
   Scene *scene = CTX_data_scene(C);
 
   /* execute the events */
   switch (event->type) {
     case EVT_ESCKEY:
-      if (screen) {
-        ED_screen_scrubbing_disable(C, screen);
-      }
-
+      graphview_cursor_exit(C, op);
       WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
       return OPERATOR_FINISHED;
 
@@ -180,10 +193,7 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
     case MIDDLEMOUSE:
       /* We check for either mouse-button to end, to work with all user keymaps. */
       if (event->val == KM_RELEASE) {
-        if (screen) {
-          ED_screen_scrubbing_disable(C, screen);
-        }
-
+        graphview_cursor_exit(C, op);
         WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
         return OPERATOR_FINISHED;
       }
@@ -194,6 +204,12 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
   }
 
   return OPERATOR_RUNNING_MODAL;
+}
+
+/* Called when the modal operation is interrupted (e.g. window focus lost). */
+static void graphview_cursor_cancel(bContext *C, wmOperator *op)
+{
+  graphview_cursor_exit(C, op);
 }
 
 static void GRAPH_OT_cursor_set(wmOperatorType *ot)
@@ -207,6 +223,7 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
   ot->exec = graphview_cursor_exec;
   ot->invoke = graphview_cursor_invoke;
   ot->modal = graphview_cursor_modal;
+  ot->cancel = graphview_cursor_cancel;
   ot->poll = graphview_cursor_poll;
 
   /* flags */

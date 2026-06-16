@@ -220,7 +220,6 @@ bool BKE_screen_blend_read_data(BlendDataReader *reader, bScreen *screen)
   screen->animtimer = nullptr; /* saved in rare cases */
   screen->tool_tip = nullptr;
   screen->scrubbing = false;
-  screen->scrub_flag = 0;
 
   BLO_read_struct(reader, PreviewImage, &screen->preview);
   BKE_previewimg_blend_read(reader, screen->preview);
