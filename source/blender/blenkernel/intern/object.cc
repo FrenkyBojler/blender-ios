@@ -1249,38 +1249,6 @@ static AssetTypeInfo AssetType_OB = {
     /*on_clear_asset_fn*/ nullptr,
 };
 
-static void object_undo_preserve(BlendLibReader * /*reader*/, ID *id, ID *id_from_undo_swap)
-{
-  if (id == id_from_undo_swap) {
-    return;
-  }
-
-  if (id->recalc & ID_RECALC_GEOMETRY) {
-    return;
-  }
-
-  Object *ob = id_cast<Object *>(id);
-  Object *ob_from_swap = id_cast<Object *>(id_from_undo_swap);
-  const ID *data_id = static_cast<const ID *>(ob->data);
-  if (data_id == nullptr) {
-    return;
-  }
-
-  if (data_id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) {
-    /* #BKE_lib_id_swap_full in #read_libblock_undo_restore_at_old_address swaps in an empty
-     * #ObjectRuntime. The geometry datablock was reused unchanged, so restore the full runtime
-     * from before the swap. See #148786. */
-    std::swap(ob->runtime, ob_from_swap->runtime);
-  }
-  else if ((id->tag & ID_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) &&
-           !(data_id->recalc & ID_RECALC_GEOMETRY) && ob_from_swap->runtime->bounds_eval)
-  {
-    /* Object DNA changed (e.g. selection) without geometry recalc. Only restore #bounds_eval,
-     * not other #ObjectRuntime fields. See #148786. */
-    std::swap(ob->runtime->bounds_eval, ob_from_swap->runtime->bounds_eval);
-  }
-}
-
 IDTypeInfo IDType_ID_OB = {
     .id_code = Object::id_type,
     .id_filter = FILTER_ID_OB,
@@ -1308,7 +1276,7 @@ IDTypeInfo IDType_ID_OB = {
     .blend_read_data = object_blend_read_data,
     .blend_read_after_liblink = object_blend_read_after_liblink,
 
-    .blend_read_undo_preserve = object_undo_preserve,
+    .blend_read_undo_preserve = nullptr,
 
     .lib_override_apply_post = object_lib_override_apply_post,
 };
