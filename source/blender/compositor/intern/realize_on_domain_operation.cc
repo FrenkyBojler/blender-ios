@@ -117,18 +117,19 @@ void RealizeOnDomainOperation::execute()
 
   /* select faster interpolation if possible */
   bool box = options.interpolation == Interpolation::Bilinear ||
-    options.interpolation == Interpolation::Anisotropic;
+             options.interpolation == Interpolation::Anisotropic;
   if (wh[0] < 1.1f && wh[1] < 1.1f) {
     options.no_jacobian = true;
     if (box && /* also cubic or sync or other interpolating filter */
-        is_int(options.transformation, 0) && is_int(options.transformation, 1)) {
+        is_int(options.transformation, 0) && is_int(options.transformation, 1))
+    {
       options.interpolation = Interpolation::Nearest;
     }
-  } else {
-    options.no_jacobian =
-      (box &&
-       (wh[0] < 1.1f || (wh[0] < 2.1f && is_int(options.transformation, 0))) &&
-       (wh[1] < 1.1f || (wh[1] < 2.1f && is_int(options.transformation, 1))));
+  }
+  else {
+    options.no_jacobian = (box &&
+                           (wh[0] < 1.1f || (wh[0] < 2.1f && is_int(options.transformation, 0))) &&
+                           (wh[1] < 1.1f || (wh[1] < 2.1f && is_int(options.transformation, 1))));
   }
 
   /* Transform from pixel centers rather than pixel corners */
@@ -261,29 +262,16 @@ static void realize_on_domain(const Result &input,
                               const Interpolation &interpolation,
                               const Extension &extension_mode_x,
                               const Extension &extension_mode_y,
-                              const float3x3 &transformation)
+                              const float3x3 &transformation,
+                              bool no_jacobian)
 {
-  const float2x2 jacobian(transformation);
+  std::optional<float2x2> jacobian;
+  if (!no_jacobian)
+    jacobian.emplace(transformation);
   parallel_for(output.domain().data_size, [&](const int2 texel) {
     const float2 coordinates = math::transform_point(transformation, float2(texel));
     T sample = input.sample<T>(
         coordinates, interpolation, extension_mode_x, extension_mode_y, jacobian);
-    output.store_pixel(texel, sample);
-  });
-}
-
-template<typename T>
-static void realize_on_domain_no_jacobian(const Result &input,
-                                          Result &output,
-                                          const Interpolation &interpolation,
-                                          const Extension &extension_mode_x,
-                                          const Extension &extension_mode_y,
-                                          const float3x3 &transformation)
-{
-  parallel_for(output.domain().data_size, [&](const int2 texel) {
-    const float2 coordinates = math::transform_point(transformation, float2(texel));
-    T sample = input.sample<T>(
-        coordinates, interpolation, extension_mode_x, extension_mode_y);
     output.store_pixel(texel, sample);
   });
 }
@@ -306,21 +294,13 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const Options &options)
                       float4x4,
                       nodes::MenuValue,
                       math::Quaternion>([&]<typename T>() {
-        if (options.no_jacobian) {
-          realize_on_domain_no_jacobian<T>(input,
-                                           output,
-                                           options.interpolation,
-                                           options.extension_mode_x,
-                                           options.extension_mode_y,
-                                           options.transformation);
-        } else {
-          realize_on_domain<T>(input,
-                               output,
-                               options.interpolation,
-                               options.extension_mode_x,
-                               options.extension_mode_y,
-                               options.transformation);
-        }
+        realize_on_domain<T>(input,
+                             output,
+                             options.interpolation,
+                             options.extension_mode_x,
+                             options.extension_mode_y,
+                             options.transformation,
+                             options.no_jacobian);
       });
 }
 
