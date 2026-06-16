@@ -11,6 +11,8 @@
 
 #include "DNA_grease_pencil_types.h"
 
+#include "FN_multi_function_builder.hh"
+
 #include "attribute_storage_access.hh"
 #include "curves_attributes.hh"
 
@@ -34,21 +36,7 @@ static int get_domain_size(const void *owner, const AttrDomain domain)
 static const auto &changed_tags()
 {
   static Map<StringRef, AttrUpdateOnChange> attributes{
-      // {"position", tag_positions_changed},
-      // {"radius", tag_radii_changed},
-      // {"tilt", tag_normals_changed},
-      // {"handle_left", tag_positions_changed},
-      // {"handle_right", tag_positions_changed},
-      // {"handle_type_left", tag_topology_changed},
-      // {"handle_type_right", tag_topology_changed},
-      // {"nurbs_weight", tag_positions_changed},
-      // {"nurbs_order", tag_topology_changed},
-      // {"normal_mode", tag_normals_changed},
-      // {"custom_normal", tag_normals_changed},
-      // {"curve_type", tag_curve_types_changed},
-      // {"resolution", tag_topology_changed},
-      // {"cyclic", tag_topology_changed},
-      // {"material_index", tag_material_index_changed},
+      /* TODO. */
   };
   return attributes;
 }
@@ -129,52 +117,77 @@ static const auto &builtin_attributes()
      * curves attributes. */
     Map<StringRef, AttrBuiltinInfo> map = bke::curves::get_builtin_attributes_map();
 
+    static float default_opacity = 1.0f;
     AttrBuiltinInfo opacity(AttrDomain::Point, AttrType::Float);
+    opacity.default_value = &default_opacity;
     map.add_new("opacity", std::move(opacity));
 
     AttrBuiltinInfo rotation(AttrDomain::Point, AttrType::Float);
     map.add_new("rotation", std::move(rotation));
 
+    static auto miter_angle_clamp = mf::build::SI1_SO<float, float>(
+        "Miter Angle Validate",
+        [](float value) {
+          return std::clamp<float>(
+              value, GP_STROKE_MITER_ANGLE_ROUND, GP_STROKE_MITER_ANGLE_BEVEL);
+        },
+        mf::build::exec_presets::AllSpanOrSingle());
     AttrBuiltinInfo miter_angle(AttrDomain::Point, AttrType::Float);
-    /* TODO: GP_STROKE_MITER_ANGLE_ROUND */
+    miter_angle.validator = AttributeValidator{&miter_angle_clamp};
     map.add_new("miter_angle", std::move(miter_angle));
 
     AttrBuiltinInfo vertex_color(AttrDomain::Point, AttrType::ColorFloat);
     map.add_new("vertex_color", std::move(vertex_color));
 
+    AttrBuiltinInfo delta_time(AttrDomain::Point, AttrType::Float);
+    map.add_new("delta_time", std::move(delta_time));
+
+    static auto caps_type_clamp = mf::build::SI1_SO<int8_t, int8_t>(
+        "Cap Type Validate",
+        [](int8_t value) {
+          return std::clamp<int8_t>(value, GP_STROKE_CAP_TYPE_ROUND, GP_STROKE_CAP_TYPE_FLAT);
+        },
+        mf::build::exec_presets::AllSpanOrSingle());
     AttrBuiltinInfo start_cap(AttrDomain::Curve, AttrType::Int8);
-    /* TODO: GP_STROKE_CAP_TYPE_ROUND */
+    start_cap.validator = AttributeValidator{&caps_type_clamp};
     map.add_new("start_cap", std::move(start_cap));
 
     AttrBuiltinInfo end_cap(AttrDomain::Curve, AttrType::Int8);
-    /* TODO: GP_STROKE_CAP_TYPE_ROUND */
+    end_cap.validator = AttributeValidator{&caps_type_clamp};
     map.add_new("end_cap", std::move(end_cap));
 
+    AttrBuiltinInfo hide_stroke(AttrDomain::Curve, AttrType::Bool);
+    map.add_new("hide_stroke", std::move(hide_stroke));
+
     AttrBuiltinInfo fill_color(AttrDomain::Curve, AttrType::ColorFloat);
-    /* TODO */
     map.add_new("fill_color", std::move(fill_color));
 
+    static float default_fill_opacity = 1.0f;
     AttrBuiltinInfo fill_opacity(AttrDomain::Curve, AttrType::Float);
-    /* TODO: Default 1. */
+    fill_opacity.default_value = &default_fill_opacity;
     map.add_new("fill_opacity", std::move(fill_opacity));
 
     AttrBuiltinInfo fill_id(AttrDomain::Curve, AttrType::Int32);
-    /* TODO: validate. */
     map.add_new("fill_id", std::move(fill_id));
 
     AttrBuiltinInfo softness(AttrDomain::Curve, AttrType::Float);
     map.add_new("softness", std::move(softness));
 
+    static float default_aspect_ratio = 1.0f;
     AttrBuiltinInfo aspect_ratio(AttrDomain::Curve, AttrType::Float);
-    /* TODO: Default 1. */
+    aspect_ratio.default_value = &default_aspect_ratio;
     map.add_new("aspect_ratio", std::move(aspect_ratio));
 
     AttrBuiltinInfo u_translation(AttrDomain::Curve, AttrType::Float);
     map.add_new("u_translation", std::move(u_translation));
 
+    static float default_u_scale = 1.0f;
     AttrBuiltinInfo u_scale(AttrDomain::Curve, AttrType::Float);
-    /* TODO: Default 1. */
+    u_scale.default_value = &default_u_scale;
     map.add_new("u_scale", std::move(u_scale));
+
+    AttrBuiltinInfo init_time(AttrDomain::Curve, AttrType::Float);
+    map.add_new("init_time", std::move(init_time));
 
     return map;
   }();
