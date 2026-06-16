@@ -12,9 +12,9 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_utildefines.hh"
 
 /* Types --------------------------------------------------------------- */
 
@@ -926,7 +926,7 @@ void timeline_draw_cache(const SpaceAction *saction, const Object *ob, const Sce
   GPU_blend(GPU_BLEND_NONE);
   immUnbindProgram();
 
-  BLI_freelistN(&pidlist);
+  pidlist.free_no_destruct();
 }
 
 /** \} */

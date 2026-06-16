@@ -8,7 +8,7 @@
 #include "AS_asset_representation.hh"
 
 #include "BLI_multi_value_map.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 
 #include "DNA_space_types.h"
 
@@ -52,7 +52,8 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C, const bNodeTre
   };
   const AssetLibraryReference library = asset_system::all_library_reference();
   asset_system::all_library_reload_catalogs_if_dirty();
-  return asset::build_filtered_all_catalog_tree(library, C, type_filter, meta_data_filter);
+  return asset::build_filtered_all_catalog_tree(
+      library, C, type_filter, meta_data_filter, node_tree.typeinfo->asset_catalog_path_prefix);
 }
 
 /**

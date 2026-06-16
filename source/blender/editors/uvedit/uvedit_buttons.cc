@@ -15,10 +15,10 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -160,7 +160,7 @@ static void uvedit_vertex_buttons(const bContext *C, ui::Block *block)
 
     int y = 0;
     block_align_begin(block);
-    but = uiDefButF(block,
+    but = uiDefButV(block,
                     ui::ButtonType::Num,
                     IFACE_("X:"),
                     0,
@@ -173,7 +173,7 @@ static void uvedit_vertex_buttons(const bContext *C, ui::Block *block)
     button_retval_set(but, B_UVEDIT_VERTEX);
     button_number_step_size_set(but, step);
     button_number_precision_set(but, digits);
-    but = uiDefButF(block,
+    but = uiDefButV(block,
                     ui::ButtonType::Num,
                     IFACE_("Y:"),
                     0,

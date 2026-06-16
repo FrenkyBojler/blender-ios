@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
 /* Required for #eIconSizes. */
 #include "DNA_ID_enums.h"
@@ -38,8 +38,8 @@ struct IconTextOverlay {
 
 #define ICON_DEFAULT_HEIGHT_TOOLBAR 32
 
-#define ICON_DEFAULT_HEIGHT_SCALE ((int)(UI_UNIT_Y * 0.8f))
-#define ICON_DEFAULT_WIDTH_SCALE ((int)(UI_UNIT_X * 0.8f))
+#define ICON_DEFAULT_HEIGHT_SCALE int(UI_UNIT_Y * 0.8f)
+#define ICON_DEFAULT_WIDTH_SCALE int(UI_UNIT_X * 0.8f)
 
 #define PREVIEW_DEFAULT_HEIGHT 128
 
