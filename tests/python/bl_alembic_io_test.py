@@ -379,7 +379,6 @@ class CameraExportImportTest(unittest.TestCase):
                 boundary_smooth = boundary_smooth_options[boundary_smooth_index]
 
                 obj_name = 'obj{}{}'.format(uv_smooth_index, boundary_smooth_index)
-                #  mesh_name = 'mesh{}{}'.format(uv_smooth_index, boundary_smooth_index)
 
                 obj = bpy.data.objects[obj_name]
                 modifier = obj.modifiers['Subdivision']

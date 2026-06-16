@@ -120,9 +120,9 @@ static void assign_materials(Main *bmain,
 
 } /* namespace utils */
 
-/** This utility structure holds mesh data arrays which are common between the IPolyMeshSchema
- * and the ISubDSchema. As those schemas do not derive from one another, this structure is used
- * to read mesh data generically. */
+/** This utility structure holds mesh data arrays which are common between the IPolyMeshSchema and
+ * the ISubDSchema. As those schemas do not derive from one another, this structure is used to read
+ * mesh data generically. */
 struct AbcMeshData {
   StringRef iobject_full_name;
   StringRef schema_name;
@@ -247,8 +247,8 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
 
     face_offsets[i] = loop_index;
 
-    /* Polygons are always assumed to be smooth-shaded. If the Alembic mesh should be
-     * flat-shaded, this is encoded in custom loop normals. See #71246. */
+    /* Polygons are always assumed to be smooth-shaded. If the Alembic mesh should be flat-shaded,
+     * this is encoded in custom loop normals. See #71246. */
 
     /* NOTE: Alembic data is stored in the reverse order. */
     if (face_size > 0 && face_size <= corners_num - loop_index) {
@@ -294,8 +294,8 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
 
   /* If we detect bad faces it would be unsafe to continue beyond this point without first
    * performing a destructive validate. Any operation requiring mesh connectivity information can
-   * assert or crash if the problem isn't addressed. Performing the check here, before most of
-   * the data has been loaded, unfortunately means any remaining data will be lost. */
+   * assert or crash if the problem isn't addressed. Performing the check here, before most of the
+   * data has been loaded, unfortunately means any remaining data will be lost. */
   if (!all_faces_ok) {
     if (config.modifier_error_message) {
       *config.modifier_error_message = "Mesh has invalid geometry";
@@ -326,8 +326,8 @@ static void process_loop_normals(CDStreamConfig &config, const N3fArraySamplePtr
   if (loop_count != mesh->corners_num) {
     /* This happens in certain Houdini exports. When a mesh is animated and then replaced by a
      * fluid simulation, Houdini will still write the original mesh's loop normals, but the mesh
-     * verts/loops/faces are from the simulation. In such cases the normals cannot be mapped to
-     * the mesh, so it's better to ignore them. */
+     * verts/loops/faces are from the simulation. In such cases the normals cannot be mapped to the
+     * mesh, so it's better to ignore them. */
     process_no_normals(config);
     return;
   }
