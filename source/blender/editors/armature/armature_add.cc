@@ -1537,12 +1537,8 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
               /* If the selected bone is connected to the parent, connect mirrored bone to the
                * parent. Also ensure, that parent tail and connected children heads are at mirror
                * axis. Some offset may have been introduced by floating point precision errors. */
-              ebone->flag |= BONE_CONNECTED;
               ebone_parent->tail[axis] = 0.0f;
               symmetrize_snap_connected_children_head_to_mirror_axis(arm, ebone_parent, axis);
-            }
-            else {
-              ebone->flag &= ~BONE_CONNECTED;
             }
           }
 
