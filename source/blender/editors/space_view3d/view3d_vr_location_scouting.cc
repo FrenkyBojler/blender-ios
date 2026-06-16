@@ -11,8 +11,8 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -131,19 +131,17 @@ static void location_scouting_review_draw_status(bContext *C, wmOperator *op)
   status.item(IFACE_("Add Marker"), ICON_NONE);
 }
 
-bool vr_location_scouting_capture_review_poll(bContext *C)
+static bool vr_location_scouting_capture_review_poll(bContext *C)
 {
   return !wm_xr_location_scouting_is_captures_empty(CTX_data_scene(C)) &&
          ED_operator_region_view3d_active(C);
 }
 
-/* The capture review property is stored on the WM, registered by the VR Python add-on. */
+/* The capture review running property is stored on the WM, registered by the Python VR add-on. */
 static bool vr_location_scouting_capture_review_get_running_state(bContext *C)
 {
   PointerRNA wm_ptr = RNA_id_pointer_create(&CTX_wm_manager(C)->id);
   PropertyRNA *state_prop = RNA_struct_find_property(&wm_ptr, "vr_capture_review_running");
-
-  /* Property wasn't found, VR add-on is probably not loaded. Shouldn't be possible. */
   BLI_assert(state_prop != nullptr);
 
   return RNA_property_boolean_get(&wm_ptr, state_prop);
@@ -153,8 +151,6 @@ static void vr_location_scouting_capture_review_set_running_state(bContext *C, c
 {
   PointerRNA wm_ptr = RNA_id_pointer_create(&CTX_wm_manager(C)->id);
   PropertyRNA *state_prop = RNA_struct_find_property(&wm_ptr, "vr_capture_review_running");
-
-  /* Property wasn't found, VR add-on is probably not loaded. Shouldn't be possible. */
   BLI_assert(state_prop != nullptr);
 
   RNA_property_boolean_set(&wm_ptr, state_prop, state);
@@ -166,7 +162,7 @@ static wmOperatorStatus vr_location_scouting_capture_review_invoke(bContext *C,
 {
   /* Operator invoked while already running, toggle off. */
   if (vr_location_scouting_capture_review_get_running_state(C)) {
-    /* Set the running state (stored on the WM) to false, catched by the running operator modal. */
+    /* Set the running state (stored on the WM) to false, cached by the running operator modal. */
     vr_location_scouting_capture_review_set_running_state(C, false);
     return OPERATOR_CANCELLED;
   }
@@ -197,7 +193,8 @@ static wmOperatorStatus vr_location_scouting_capture_review_invoke(bContext *C,
   op_data->cam_ob = BKE_id_new_nomain<Object>("ReviewCaptureCamera");
   op_data->cam_ob->type = OB_CAMERA;
 
-  /* Lock rotation to prevent user from exiting the review camera view. Re-using quadview flags. */
+  /* Lock rotation to prevent user from exiting the review camera view.
+   * Re-using quad-view flags. */
   rv3d->viewlock |= RV3D_LOCK_ROTATION;
 
   op_data->cam_data = BKE_id_new_nomain<Camera>("ReviewCaptureCameraData");
