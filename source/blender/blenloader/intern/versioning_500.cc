@@ -35,16 +35,16 @@
 #include "DNA_world_types.h"
 
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
@@ -2620,13 +2620,13 @@ static void sequencer_substitute_transform_effects(Scene *scene)
       float2 offset(tv->xIni, tv->yIni);
       if (tv->percent == 1) {
         float2 scene_resolution(scene->r.xsch, scene->r.ysch);
-        offset *= scene_resolution;
+        offset *= scene_resolution / 100;
       }
       transform->xofs += offset.x;
       transform->yofs += offset.y;
       transform->scale_x *= tv->ScalexIni;
       transform->scale_y *= tv->ScaleyIni;
-      transform->rotation += tv->rotIni;
+      transform->rotation += DEG2RADF(tv->rotIni);
       seq::effect_free(strip);
       strip->type = STRIP_TYPE_GAUSSIAN_BLUR;
       seq::effect_ensure_initialized(strip);
@@ -2946,7 +2946,7 @@ static void remove_in_and_out_node_panel_recursive(bNodeTreeInterfacePanel &pane
 
   Vector<bNodeTreeInterfaceItem *> new_sockets;
   for (bNodeTreeInterfaceItem *item : old_sockets) {
-    if (item->item_type == NODE_INTERFACE_PANEL) {
+    if (item->item_type == NodeTreeInterfaceItemType::Panel) {
       remove_in_and_out_node_panel_recursive(*reinterpret_cast<bNodeTreeInterfacePanel *>(item));
       continue;
     }
@@ -2957,7 +2957,7 @@ static void remove_in_and_out_node_panel_recursive(bNodeTreeInterfacePanel &pane
     }
 
     bNodeTreeInterfaceSocket *new_output = MEM_new<bNodeTreeInterfaceSocket>(__func__);
-    new_output->item.item_type = NODE_INTERFACE_SOCKET;
+    new_output->item.item_type = NodeTreeInterfaceItemType::Socket;
     new_output->name = BLI_strdup_null(socket->name);
     new_output->description = BLI_strdup_null(socket->description);
     new_output->socket_type = BLI_strdup_null(socket->socket_type);
@@ -3547,7 +3547,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
         GreasePencilDrawingBase *drawing_base = grease_pencil.drawing_array[i];
         if (drawing_base->type == GP_DRAWING) {
           GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-          bke::curves_convert_customdata_to_storage(drawing->geometry.wrap());
+          bke::curves_convert_customdata_to_storage(drawing->wrap().strokes_for_write());
         }
       }
     }
@@ -4280,7 +4280,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     /* Enable new "Optional Label" setting for all menu sockets. This was implicit before. */
     FOREACH_NODETREE_BEGIN (bmain, tree, id) {
       tree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
-        if (item.item_type != NODE_INTERFACE_SOCKET) {
+        if (item.item_type != NodeTreeInterfaceItemType::Socket) {
           return true;
         }
         auto &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);

@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_attribute_math.hh"
@@ -305,13 +305,13 @@ static void node_declare(NodeDeclarationBuilder &b)
     const UString identifier(SimulationItemsAccessor::socket_identifier_for_item(item));
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &node_tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
-    auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_attributes(socket_type)) {
-      /* If it's below a geometry input it may be a field evaluated on that geometry. */
-      input_decl.supports_field().structure_type(StructureType::Dynamic);
-      output_decl.dependent_field({input_decl.index()});
-    }
+                               &node_tree->id, *SimulationItemsAccessor::item_srna, &item, "name")
+                           .structure_type(StructureType::Dynamic);
+    auto &output_decl = b.add_output(socket_type, name, identifier)
+                            .align_with_previous()
+                            .propagate_all({input_decl.index()})
+                            .inferred_structure_type({input_decl.index()})
+                            .structure_type(StructureType::Dynamic);
     if (socket_type == SOCK_BUNDLE) {
       dynamic_cast<decl::BundleBuilder &>(output_decl)
           .pass_through_input_index(input_decl.index());
@@ -640,13 +640,13 @@ static void node_declare(NodeDeclarationBuilder &b)
     const UString identifier(SimulationItemsAccessor::socket_identifier_for_item(item));
     auto &input_decl = b.add_input(socket_type, name, identifier)
                            .socket_name_ptr(
-                               &tree->id, *SimulationItemsAccessor::item_srna, &item, "name");
-    auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_attributes(socket_type)) {
-      /* If it's below a geometry input it may be a field evaluated on that geometry. */
-      input_decl.supports_field().structure_type(StructureType::Dynamic);
-      output_decl.dependent_field({input_decl.index()});
-    }
+                               &tree->id, *SimulationItemsAccessor::item_srna, &item, "name")
+                           .structure_type(StructureType::Dynamic);
+    auto &output_decl = b.add_output(socket_type, name, identifier)
+                            .align_with_previous()
+                            .propagate_all({input_decl.index()})
+                            .inferred_structure_type({input_decl.index()})
+                            .structure_type(StructureType::Dynamic);
     if (socket_type == SOCK_BUNDLE) {
       dynamic_cast<decl::BundleBuilder &>(output_decl)
           .pass_through_input_index(input_decl.index());

@@ -19,14 +19,14 @@
 #include "DNA_sequence_types.h"
 #include "DNA_text_types.h"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -1988,6 +1988,7 @@ static void outliner_draw_overrides_rna_buts(ui::Block *block,
     {
       StringRefNull op_label = override_op_elem->get_override_operation_label();
       if (!op_label.is_empty()) {
+        StringRefNull op_tooltip = override_op_elem->get_override_operation_tooltip();
         uiDefBut(block,
                  ui::ButtonType::Label,
                  op_label,
@@ -1998,7 +1999,7 @@ static void outliner_draw_overrides_rna_buts(ui::Block *block,
                  nullptr,
                  0,
                  0,
-                 "");
+                 op_tooltip);
         continue;
       }
     }
@@ -2241,7 +2242,6 @@ static void outliner_buttons(const bContext *C,
                 1.0,
                 float(len),
                 "");
-  button_retval_set(bt, OL_NAMEBUTTON);
   /* Handle undo through the #template_id_cb set below. Default undo handling from the button
    * code (see #apply_but_undo) would not work here, as the new name is not yet applied to the
    * ID. */
@@ -2774,8 +2774,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         data.drag_id = tselem->id;
 
         ModifierData *md = static_cast<ModifierData *>(BLI_findlink(&ob->modifiers, tselem->nr));
-        if (const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(ModifierType(md->type)))
-        {
+        if (const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(md->type)) {
           data.icon = modifier_type->icon;
         }
         else {

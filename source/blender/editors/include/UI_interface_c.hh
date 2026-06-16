@@ -14,11 +14,11 @@
 #include <string>
 #include <type_traits>
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8_symbols.h"
-#include "BLI_sys_types.h" /* size_t */
+#include "BLI_string_utf8_symbols.hh"
+#include "BLI_sys_types.hh" /* size_t */
 
 #include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
@@ -350,18 +350,19 @@ enum ButtonFlag {
   BUT_NODE_LINK = 1 << 10,
   BUT_NODE_ACTIVE = 1 << 11,
   BUT_DRAG_LOCK = 1 << 12,
-  /** Grayed out and un-editable. */
-  BUT_DISABLED = 1 << 13,
+  BUT_DRAG_LOCK_X = BUT_DRAG_LOCK | 1 << 13,
 
-  BUT_ANIMATED = 1 << 14,
-  BUT_ANIMATED_KEY = 1 << 15,
-  BUT_DRIVEN = 1 << 16,
-  BUT_REDALERT = 1 << 17,
+  /** Grayed out and un-editable. */
+  BUT_DISABLED = 1 << 14,
+
+  BUT_ANIMATED = 1 << 15,
+  BUT_ANIMATED_KEY = 1 << 16,
+  BUT_DRIVEN = 1 << 17,
+  BUT_REDALERT = 1 << 18,
   /** Grayed out but still editable. */
-  BUT_INACTIVE = 1 << 18,
-  BUT_LAST_ACTIVE = 1 << 19,
-  BUT_UNDO = 1 << 20,
-  /* UNUSED = 1 << 21, */
+  BUT_INACTIVE = 1 << 19,
+  BUT_LAST_ACTIVE = 1 << 20,
+  BUT_UNDO = 1 << 21,
   BUT_NO_UTF8 = 1 << 22,
 
   /** For popups, pressing return activates this button, overriding the highlighted button.
@@ -620,7 +621,7 @@ inline char but_pointer_bit_max_index(ButPointerType pointer_type)
 /** Deduce the #ButPointerType matching \a T. */
 template<typename T> constexpr ButPointerType but_pointer_type_for()
 {
-  constexpr ButPointerType ptr_type = (std::is_floating_point_v<T>) ?
+  constexpr ButPointerType ptr_type = (std::is_same_v<T, float>) ?
                                           ButPointerType::Float :
                                       (std::is_integral_v<T> || std::is_enum_v<T>) ?
                                           (sizeof(T) == 1) ? ButPointerType::Char :
@@ -747,7 +748,7 @@ float text_clip_middle_ex(const uiFontStyle *fstyle,
 Vector<StringRef> text_clip_multiline_middle(const uiFontStyle *fstyle,
                                              const char *str,
                                              char *clipped_str_buf,
-                                             const size_t max_len_clipped_str_buf,
+                                             const size_t clipped_str_buf_maxncpy,
                                              const float max_line_width,
                                              const int max_lines);
 
@@ -1570,6 +1571,7 @@ Button *uiDefIconTextButO_ptr(Block *block,
                               short height,
                               std::optional<StringRef> tip);
 
+void button_enum_prop_value_set(Button *but, int retval);
 void button_retval_set(Button *but, int retval);
 
 void button_operator_set(Button *but,
@@ -2231,7 +2233,9 @@ void panel_category_clear_all(ARegion *region);
 /**
  * Draw vertical tabs on the left side of the region, one tab per category.
  */
-void panel_category_tabs_draw_all(ARegion *region, const char *category_id_active);
+void panel_category_tabs_draw_all(const bContext *C,
+                                  ARegion *region,
+                                  const char *category_id_active);
 
 void panel_stop_animation(const bContext *C, Panel *panel);
 
@@ -3014,10 +3018,6 @@ ARegion *tooltip_create_from_button_or_extra_icon(bContext *C,
                                                   ButtonExtraOpIcon *extra_icon,
                                                   bool is_quick_tip);
 ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz);
-ARegion *tooltip_create_from_panel_category(bContext *C,
-                                            const std::string &category_name,
-                                            const int x,
-                                            const int y);
 
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 

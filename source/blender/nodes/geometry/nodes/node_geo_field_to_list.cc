@@ -48,7 +48,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const UString name(item.name);
 
     b.add_input(type, name, UString(input_identifier))
-        .supports_field()
+        .structure_type(StructureType::Field)
         .socket_name_ptr(&tree->id, *ItemsAccessor::item_srna, &item, "name");
     b.add_output(type, name, UString(output_identifier))
         .structure_type(StructureType::List)
@@ -143,13 +143,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     const eNodeSocketDatatype type = items[item_i].socket_type;
     const CPPType &cpp_type = *bke::socket_type_to_geo_nodes_base_cpp_type(type);
     lists[i] = GList::create(cpp_type, GList::ArrayData::ForUninitialized(cpp_type, count), count);
-  }
-
-  Array<GMutableSpan> list_values(lists.size());
-  for (const int i : lists.index_range()) {
-    list_values[i] = {lists[i]->cpp_type(),
-                      const_cast<void *>(std::get<GList::ArrayData>(lists[i]->data()).data),
-                      count};
   }
 
   ListFieldContext context;

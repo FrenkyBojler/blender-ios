@@ -51,13 +51,14 @@ static const EnumPropertyItem image_source_items[] = {
 #  include <algorithm>
 #  include <fmt/format.h>
 
-#  include "BLI_listbase.h"
-#  include "BLI_math_base.h"
-#  include "BLI_math_vector.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_math_base_c.hh"
+#  include "BLI_math_vector_c.hh"
 
 #  include "BKE_global.hh"
 #  include "BKE_image.hh"
 #  include "BKE_image_format.hh"
+#  include "BKE_image_gpu.hh"
 #  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
 #  include "BKE_main_invariants.hh"
@@ -606,7 +607,7 @@ static int rna_Image_frame_duration_get(PointerRNA *ptr)
   if (BKE_image_has_anim(ima)) {
     MovieReader *anim = (static_cast<ImageAnim *>(ima->anims.first))->anim;
     if (anim) {
-      duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
+      duration = MOV_get_duration_frames(anim);
     }
   }
 
