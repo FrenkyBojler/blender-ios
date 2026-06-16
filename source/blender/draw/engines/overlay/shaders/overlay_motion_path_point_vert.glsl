@@ -16,8 +16,8 @@ void main()
   int cacheStart = mpath_point_settings.z;
   int stepSize = mpath_point_settings.w;
 
-  gl_Position = drw_view().winmat *
-                (drw_view().viewmat * (camera_space_matrix * float4(pos, 1.0f)));
+  float4 world_space = (camera_space_matrix * pos);
+  gl_Position = drw_view().winmat * (drw_view().viewmat * world_space);
   gl_PointSize = float(pt_size + 2);
 
   int frame = gl_VertexID + cacheStart;
@@ -62,5 +62,5 @@ void main()
 
   gl_PointSize *= theme.sizes.pixel;
 
-  view_clipping_distances(pos);
+  view_clipping_distances(world_space.xyz);
 }

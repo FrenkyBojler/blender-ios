@@ -152,10 +152,20 @@ class MotionPath : Overlay {
     int start_index = frame_range.start() - mpath->start_frame;
 
     Object *camera_eval = nullptr;
+    float4x4 camera_matrix = float4x4::identity();
     if ((eMotionPath_BakeFlag(avs.path_bakeflag) & MOTIONPATH_BAKE_CAMERA_SPACE) &&
         state.v3d->camera)
     {
       camera_eval = DEG_get_evaluated(state.depsgraph, state.v3d->camera);
+      CameraParams params;
+      Scene *scene = DEG_get_input_scene(state.depsgraph);
+      BKE_camera_params_init(&params);
+      BKE_camera_params_from_object(&params, camera_eval);
+      /* Compute matrix, view-plane, etc. */
+      BKE_camera_params_compute_viewplane(
+          &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
+      BKE_camera_params_compute_matrix(&params);
+      camera_matrix = math::invert(float4x4(params.winmat) * camera_eval->world_to_object());
     }
 
     /* Draw curve-line of path. */
@@ -169,8 +179,7 @@ class MotionPath : Overlay {
       sub.push_constant("selected", selected);
       sub.push_constant("custom_color_pre", color_pre);
       sub.push_constant("custom_color_post", color_post);
-      sub.push_constant("camera_space_matrix",
-                        camera_eval ? camera_eval->object_to_world() : float4x4::identity());
+      sub.push_constant("camera_space_matrix", camera_matrix);
 
       gpu::Batch *geom = mpath_batch_points_get(mpath);
       /* Only draw the required range. */
@@ -187,8 +196,7 @@ class MotionPath : Overlay {
       sub.push_constant("show_key_frames", show_keyframes);
       sub.push_constant("custom_color_pre", color_pre);
       sub.push_constant("custom_color_post", color_post);
-      sub.push_constant("camera_space_matrix",
-                        camera_eval ? camera_eval->object_to_world() : float4x4::identity());
+      sub.push_constant("camera_space_matrix", camera_matrix);
 
       gpu::Batch *geom = mpath_batch_points_get(mpath);
       /* Only draw the required range. */
@@ -212,11 +220,8 @@ class MotionPath : Overlay {
         int frame = frame_range.start() + i;
         bool is_keyframe = (mpv_curr.flag & MOTIONPATH_VERT_KEY) != 0;
 
-        float3 vert_coordinate(mpv_curr.co);
-        if (camera_eval) {
-          /* Projecting the point into world space from the camera's POV. */
-          vert_coordinate = math::transform_point(camera_eval->object_to_world(), vert_coordinate);
-        }
+        /* Projecting the point into world space from the camera's POV. */
+        float3 vert_coordinate = float3(camera_matrix * float4(mpv_curr.co));
 
         if ((show_keyframes && show_keyframes_number && is_keyframe) ||
             (show_frame_number && (i == 0)))
@@ -263,7 +268,7 @@ class MotionPath : Overlay {
     if (!mpath->points_vbo) {
       GPUVertFormat format = {0};
       /* Match structure of #bMotionPathVert. */
-      GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+      GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
       GPU_vertformat_attr_add(&format, "flag", gpu::VertAttrType::SINT_32);
       mpath->points_vbo = GPU_vertbuf_create_with_format(format);
       GPU_vertbuf_data_alloc(*mpath->points_vbo, mpath->length);

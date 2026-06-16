@@ -24,6 +24,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
+#include "BKE_camera.h"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 
@@ -148,6 +149,8 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
 
     /* Get the relevant cache vert to write to. */
     bMotionPathVert *mpv = mpath->points + (cframe - mpath->start_frame);
+    /* Last value may not be written to. */
+    mpv->co[3] = 1.0;
 
     Object *ob_eval = DEG_get_evaluated(depsgraph, mpt->ob);
 
@@ -178,9 +181,19 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
 
     if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA && camera) {
       Object *cam_eval = DEG_get_evaluated(depsgraph, camera);
-      /* Convert point to camera space. */
-      float3 co_camera_space = math::transform_point(cam_eval->world_to_object(), float3(mpv->co));
-      copy_v3_v3(mpv->co, co_camera_space);
+      Scene *scene = DEG_get_input_scene(depsgraph);
+      /* Convert point to camera clip space. */
+      CameraParams params;
+      BKE_camera_params_init(&params);
+      BKE_camera_params_from_object(&params, cam_eval);
+      /* Compute matrix, view-plane, etc. */
+      BKE_camera_params_compute_viewplane(
+          &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
+      BKE_camera_params_compute_matrix(&params);
+      /* World to Object is the view matrix. */
+      float4x4 persmat = float4x4(params.winmat) * cam_eval->world_to_object();
+      const float4 co_clip_space = persmat * float4(mpv->co[0], mpv->co[1], mpv->co[2], 1.0);
+      copy_v4_v4(mpv->co, co_clip_space);
     }
 
     float mframe = float(cframe);
