@@ -46,25 +46,6 @@
 
 namespace blender {
 
-static void object_sync_bounds_eval_to_original(Depsgraph *depsgraph, Object *object_eval)
-{
-  if (!DEG_is_active(depsgraph)) {
-    return;
-  }
-  /* Only copy bounds when geometry eval is up to date. #BKE_object_sync_to_original can run
-   * without it; reading eval geometry then is unsafe and causes crashes (#122451).
-   * See #148786, PR #160024. */
-  if (!DEG_object_geometry_is_evaluated(*object_eval)) {
-    return;
-  }
-  const std::optional<Bounds<float3>> bounds = BKE_object_evaluated_geometry_bounds(object_eval);
-  if (!bounds) {
-    return;
-  }
-  Object *object_orig = DEG_get_original(object_eval);
-  object_orig->runtime->bounds_eval = bounds;
-}
-
 void BKE_object_eval_reset(Object *ob_eval)
 {
   BKE_object_free_derived_caches(ob_eval);
@@ -299,7 +280,11 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
     }
   }
 
-  object_sync_bounds_eval_to_original(depsgraph, ob);
+  if (DEG_is_active(depsgraph)) {
+    ob->runtime->bounds_eval = BKE_object_evaluated_geometry_bounds(ob);
+    Object *object_orig = DEG_get_original(ob);
+    object_orig->runtime->bounds_eval = ob->runtime->bounds_eval;
+  }
 }
 
 void BKE_object_sync_to_original(Depsgraph *depsgraph, Object *object)
@@ -343,7 +328,7 @@ void BKE_object_sync_to_original(Depsgraph *depsgraph, Object *object)
     }
   }
 
-  object_sync_bounds_eval_to_original(depsgraph, object);
+  object_orig->runtime->bounds_eval = object->runtime->bounds_eval;
 }
 
 void BKE_object_eval_uber_transform(Depsgraph * /*depsgraph*/, Object * /*object*/) {}
