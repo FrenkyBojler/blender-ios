@@ -5,3 +5,4 @@ Referenced by commit d9ead90b64990c5f1fcf643864808102871290f2, Fix: Crash render
 Referenced by issue #149925, crashes when trying to render in EEVEE using Freestyle
 Referenced by issue #150874, The progress bar does not advance when baking any texture.
 Referenced by issue #153734, materials properties preview tab not working
+Referenced by pull request #160223, Fix #156178: Render Sequence Animation stopped showing total progress
