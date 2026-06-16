@@ -141,7 +141,7 @@ inline float ior_parametrization(const float z)
 
 inline float mu_parametrization(const float y)
 {
-  /* This parametrization inceases the resolution at grazing angles, where the Fresnel
+  /* This parametrization increases the resolution at grazing angles, where the Fresnel
    * can have a significant influence on the directional albedo. */
   return y * y;
 }
@@ -169,8 +169,7 @@ static bool cycles_precompute(std::string name)
                                   GGX_E_RES_ROUGH,
                                   1,
                                   1,
-                                  [](const float rough, const float y, float, const float3 rand) {
-                                    const float mu = mu_parametrization(y);
+                                  [](const float rough, const float mu, float, const float3 rand) {
                                     return 2.0f * mu * precompute_ggx_E(rough, mu, rand);
                                   }};
   /* Overall albedo of the GGX microfacet BSDF with dielectric Fresnel,
@@ -192,9 +191,8 @@ static bool cycles_precompute(std::string name)
       GGX_GLASS_E_RES_ROUGH,
       1,
       GGX_GLASS_E_RES_IOR,
-      [](const float rough, const float y, const float z, const float3 rand) {
+      [](const float rough, const float mu, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
-        const float mu = mu_parametrization(y);
         return 2.0f * mu * precompute_ggx_glass_E(rough, mu, ior, rand);
       }};
   /* Overall albedo of the GGX microfacet BSDF with dielectric Fresnel,
@@ -216,9 +214,8 @@ static bool cycles_precompute(std::string name)
       GGX_GLASS_E_RES_ROUGH,
       1,
       GGX_GLASS_E_RES_IOR,
-      [](const float rough, const float y, const float z, const float3 rand) {
+      [](const float rough, const float mu, const float z, const float3 rand) {
         const float ior = ior_parametrization(z);
-        const float mu = mu_parametrization(y);
         return 2.0f * mu * precompute_ggx_glass_E(rough, mu, 1.0f / ior, rand);
       }};
 

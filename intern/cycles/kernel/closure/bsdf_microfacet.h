@@ -488,7 +488,6 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
     }
     /* TODO: Bias mu towards more precision for low values. */
     const float z = ior_to_z_index(ior);
-    const float y = mu_to_y_index(mu);
     E = lookup_table_read_3D(
         kg, rough, y, z, ofs, GGX_GLASS_E_RES_ROUGH, GGX_GLASS_E_RES_MU, GGX_GLASS_E_RES_IOR);
     E_avg = lookup_table_read_2D(
