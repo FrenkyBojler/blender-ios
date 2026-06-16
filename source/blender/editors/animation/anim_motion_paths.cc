@@ -183,7 +183,8 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
       Object *cam_eval = DEG_get_evaluated(depsgraph, camera);
       /* Aka projection matrix. */
       float4x4 window_matrix;
-      BKE_camera_multiview_window_matrix(nullptr, cam_eval, nullptr, window_matrix.ptr());
+      Scene *scene = DEG_get_input_scene(depsgraph);
+      BKE_camera_multiview_window_matrix(&scene->r, cam_eval, nullptr, window_matrix.ptr());
       /* World to Object is the view matrix. */
       float4x4 perspective_matrix = window_matrix * cam_eval->world_to_object();
       const float4 co_clip_space = perspective_matrix *

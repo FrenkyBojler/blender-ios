@@ -25,10 +25,7 @@ VertIn input_assembly(uint in_vertex_id)
   uint v_i = gpu_index_load(in_vertex_id);
 
   VertIn vert_in;
-  vert_in.P = float4(pos[gpu_attr_load_index(v_i, gpu_attr_0) + 0],
-                     pos[gpu_attr_load_index(v_i, gpu_attr_0) + 1],
-                     pos[gpu_attr_load_index(v_i, gpu_attr_0) + 2],
-                     pos[gpu_attr_load_index(v_i, gpu_attr_0) + 3]);
+  vert_in.P = gpu_attr_load_float4(pos, gpu_attr_0, v_i);
   vert_in.vert_id = v_i;
   return vert_in;
 }
