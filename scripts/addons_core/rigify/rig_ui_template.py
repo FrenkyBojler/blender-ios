@@ -923,6 +923,9 @@ class RigLayers(bpy.types.Panel):
                     row2 = row.row()
                     row2.active = coll.is_visible_ancestors
                     row2.prop(coll, 'is_visible', toggle=True, text=title, translate=False)
+                    #Choose icon based on is_solo
+                    solo_icon= 'SOLO_ON' if coll.is_solo else 'SOLO_OFF'
+                    row2.prop(coll, 'is_solo', toggle=True, text='', icon=solo_icon)
             else:
                 row.separator()
 '''
