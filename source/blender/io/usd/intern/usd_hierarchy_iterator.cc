@@ -30,10 +30,12 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 
 #include "DNA_layer_types.h"
 #include "DNA_object_types.h"
+
+#include "WM_types.hh"
 
 namespace blender::io::usd {
 
@@ -451,8 +453,7 @@ void USDHierarchyIterator::add_usd_skel_export_mapping(const Object *obj, const 
   }
 }
 
-const blender::Map<pxr::SdfPath, blender::Vector<ID *>> &USDHierarchyIterator::
-    get_exported_prim_map() const
+const Map<pxr::SdfPath, Vector<ID *>> &USDHierarchyIterator::get_exported_prim_map() const
 {
   return exported_prim_map_;
 }

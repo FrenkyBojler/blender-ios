@@ -10,6 +10,9 @@
 #include <cstring>
 
 #ifdef WIN32
+#  ifdef WIN32_LEAN_AND_MEAN
+#    undef WIN32_LEAN_AND_MEAN
+#  endif
 #  include "utfconv.hh"
 #  include <windows.h>
 #  ifdef WITH_CPU_CHECK
@@ -28,14 +31,14 @@
 
 #include "DNA_genfile.h"
 
-#include "BLI_endian_defines.h"
+#include "BLI_endian_defines.hh"
 #include "BLI_fftw.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_system.h"
-#include "BLI_task.h"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_system.hh"
+#include "BLI_task_c.hh"
+#include "BLI_threads.hh"
+#include "BLI_utildefines.hh"
 
 /* Mostly initialization functions. */
 #include "BKE_appdir.hh"
@@ -50,13 +53,13 @@
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_particle.h"
-#include "BKE_shader_fx.h"
-#include "BKE_sound.h"
+#include "BKE_shader_fx.hh"
+#include "BKE_sound.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
 #ifndef WITH_PYTHON_MODULE
-#  include "BLI_args.h"
+#  include "BLI_args.hh"
 #endif
 
 #include "DEG_depsgraph.hh"
@@ -75,6 +78,8 @@
 #include "WM_api.hh"
 
 #include "RNA_define.hh"
+
+#include "FN_init.hh"
 
 #ifdef WITH_OPENGL_BACKEND
 #  include "GPU_compilation_subprocess.hh"
@@ -102,9 +107,55 @@
 #  include "CCL_api.h"
 #endif
 
+#if defined(WITH_PYTHON_MODULE) && defined(__APPLE__)
+/* Environment is not available in macOS shared libraries. */
+#  include <crt_externs.h>
+char **environ = nullptr;
+#endif
+
+#if defined(WITH_TBB_MALLOC) && defined(__linux__)
+#  include <tbb/scalable_allocator.h>
+#endif
+
 #include "creator_intern.h" /* Own include. */
 
 BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
+
+/* -------------------------------------------------------------------- */
+/** \name GMP Allocator Workaround
+ * \{ */
+
+#if (defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG) && defined(WITH_GMP)) || \
+    defined(DOXYGEN)
+#  include "gmp.h"
+#  include "tbb/scalable_allocator.h"
+
+void *gmp_alloc(size_t size)
+{
+  return scalable_malloc(size);
+}
+void *gmp_realloc(void *ptr, size_t /*old_size*/, size_t new_size)
+{
+  return scalable_realloc(ptr, new_size);
+}
+
+void gmp_free(void *ptr, size_t /*size*/)
+{
+  scalable_free(ptr);
+}
+/**
+ * Use TBB's scalable_allocator on Windows.
+ * `TBBmalloc` correctly captures all allocations already,
+ * however, GMP is built with MINGW since it doesn't build with MSVC,
+ * which TBB has issues hooking into automatically.
+ */
+void gmp_blender_init_allocator()
+{
+  mp_set_memory_functions(gmp_alloc, gmp_realloc, gmp_free);
+}
+#endif
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Local Defines
@@ -118,6 +169,8 @@ BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endia
 
 /** \} */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Local Application State
  * \{ */
@@ -126,6 +179,7 @@ BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endia
 ApplicationState app_state = []() {
   ApplicationState app_state{};
   app_state.signal.use_crash_handler = true;
+  app_state.signal.use_console_crash_handler = false;
   app_state.signal.use_abort_handler = true;
   app_state.exit_code_on_error.python = 0;
   app_state.main_arg_deferred = nullptr;
@@ -218,65 +272,8 @@ static void callback_clg_fatal(void *fp)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Blender as a Stand-Alone Python Module (bpy)
- *
- * While not officially supported, this can be useful for Python developers.
- * See: https://developer.blender.org/docs/handbook/building_blender/python_module/
+/** \name LD_PRELOAD for Linux
  * \{ */
-
-#ifdef WITH_PYTHON_MODULE
-
-/* Called in `bpy_interface.cc` when building as a Python module. */
-int main_python_enter(int argc, const char **argv);
-void main_python_exit();
-
-/* Rename the `main(..)` function, allowing Python initialization to call it. */
-#  define main main_python_enter
-static void *evil_C = nullptr;
-
-#  ifdef __APPLE__
-/* Environment is not available in macOS shared libraries. */
-#    include <crt_externs.h>
-char **environ = nullptr;
-#  endif /* __APPLE__ */
-
-#endif /* WITH_PYTHON_MODULE */
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name GMP Allocator Workaround
- * \{ */
-
-#if (defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG) && defined(WITH_GMP)) || \
-    defined(DOXYGEN)
-#  include "gmp.h"
-#  include "tbb/scalable_allocator.h"
-
-void *gmp_alloc(size_t size)
-{
-  return scalable_malloc(size);
-}
-void *gmp_realloc(void *ptr, size_t /*old_size*/, size_t new_size)
-{
-  return scalable_realloc(ptr, new_size);
-}
-
-void gmp_free(void *ptr, size_t /*size*/)
-{
-  scalable_free(ptr);
-}
-/**
- * Use TBB's scalable_allocator on Windows.
- * `TBBmalloc` correctly captures all allocations already,
- * however, GMP is built with MINGW since it doesn't build with MSVC,
- * which TBB has issues hooking into automatically.
- */
-void gmp_blender_init_allocator()
-{
-  mp_set_memory_functions(gmp_alloc, gmp_realloc, gmp_free);
-}
-#endif
 
 static void restore_ld_preload()
 {
@@ -289,6 +286,33 @@ static void restore_ld_preload()
 }
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Blender as a Stand-Alone Python Module (bpy)
+ *
+ * While not officially supported, this can be useful for Python developers.
+ * See: https://developer.blender.org/docs/handbook/building_blender/python_module/
+ * \{ */
+
+#ifdef WITH_PYTHON_MODULE
+static void *main_python_evil_C = nullptr;
+
+/* Called in `bpy_interface.cc` when building as a Python module. */
+int main_python_enter(int argc, const char **argv);
+
+void main_python_exit()
+{
+  WM_exit_ex((bContext *)main_python_evil_C, true, false);
+  main_python_evil_C = nullptr;
+}
+
+/* Rename the `main(..)` function, allowing Python initialization to call it. */
+#  define main blender::main_python_enter
+#endif /* WITH_PYTHON_MODULE */
+
+/** \} */
+
+}  // namespace blender
 
 /* -------------------------------------------------------------------- */
 /** \name Main Function
@@ -313,6 +337,8 @@ int main(int argc,
 #endif
 )
 {
+  using namespace blender;
+
   bContext *C;
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
@@ -364,6 +390,11 @@ int main(int argc,
   }
 #endif
 
+#if defined(WITH_TBB_MALLOC) && defined(__linux__)
+  /* Enable huge pages for performance. */
+  scalable_allocation_mode(TBBMALLOC_USE_HUGE_PAGES, 1);
+#endif
+
   /* NOTE: Special exception for guarded allocator type switch:
    *       we need to perform switch from lock-free to fully
    *       guarded allocator before any allocation happened.
@@ -387,7 +418,7 @@ int main(int argc,
   {
     const time_t temp_time = build_commit_timestamp;
     const tm *tm = gmtime(&temp_time);
-    if (LIKELY(tm)) {
+    if (tm) [[likely]] {
       strftime(build_commit_date, sizeof(build_commit_date), "%Y-%m-%d", tm);
       strftime(build_commit_time, sizeof(build_commit_time), "%H:%M", tm);
     }
@@ -417,7 +448,7 @@ int main(int argc,
 #  endif
 
 #  undef main
-  evil_C = C;
+  main_python_evil_C = C;
 #endif
 
 #ifdef WITH_BINRELOC
@@ -462,9 +493,10 @@ int main(int argc,
   BKE_blender_globals_init(); /* `blender.cc` */
 
   BKE_cpp_types_init();
+  fn::multi_function::register_common_functions();
   BKE_idtype_init();
   BKE_modifier_init();
-  blender::seq::modifiers_init();
+  seq::modifiers_init();
   BKE_shaderfx_init();
   BKE_volumes_init();
   DEG_register_node_types();
@@ -496,7 +528,7 @@ int main(int argc,
   BLI_task_scheduler_init();
 
   /* Initialize FFTW threading support. */
-  blender::fftw::initialize_float();
+  fftw::initialize_float();
 
 #ifndef WITH_PYTHON_MODULE
   /* The settings pass includes:
@@ -518,6 +550,7 @@ int main(int argc,
 
 #ifdef WITH_CYCLES
   CCL_log_init();
+  CCL_implicit_sharing_init();
 #endif
 
   /* Must be initialized after #BKE_appdir_init to account for color-management paths. */
@@ -530,7 +563,7 @@ int main(int argc,
 
   RE_texture_rng_init();
   RE_engines_init();
-  blender::bke::node_system_init();
+  bke::node_system_init();
 
   BKE_brush_system_init();
   BKE_particle_init_rng();
@@ -633,13 +666,5 @@ int main(int argc,
   return 0;
 
 } /* End of `int main(...)` function. */
-
-#ifdef WITH_PYTHON_MODULE
-void main_python_exit()
-{
-  WM_exit_ex((bContext *)evil_C, true, false);
-  evil_C = nullptr;
-}
-#endif
 
 /** \} */

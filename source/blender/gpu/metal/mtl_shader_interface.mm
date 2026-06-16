@@ -8,7 +8,7 @@
  * GPU shader interface (C --> GLSL)
  */
 
-#include "BLI_bitmap.h"
+#include "BLI_bitmap.hh"
 
 #include "GPU_capabilities.hh"
 
@@ -19,9 +19,9 @@
 #include "mtl_shader_interface.hh"
 #include "mtl_shader_interface_type.hh"
 
-#include "BLI_math_base.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 #include "MEM_guardedalloc.h"
 
 namespace blender::gpu {
@@ -64,11 +64,11 @@ MTLShaderInterface::MTLShaderInterface(const char *name,
   }
 
   int32_t input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_;
-  inputs_ = MEM_calloc_arrayN<ShaderInput>(input_tot_len, __func__);
+  inputs_ = MEM_new_array_zeroed<ShaderInput>(input_tot_len, __func__);
   ShaderInput *input = inputs_;
 
   size_t names_size = info.interface_names_size_;
-  name_buffer_ = (char *)MEM_mallocN(names_size, "name_buffer");
+  name_buffer_ = MEM_new_array_uninitialized<char>(names_size, "name_buffer");
   uint32_t name_buffer_offset = 0;
 
   /* Attributes */
@@ -99,14 +99,16 @@ MTLShaderInterface::MTLShaderInterface(const char *name,
     if (res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
       sampler_names_offsets_[res.slot] = name_buffer_offset;
       copy_input_name(input, res.sampler.name, name_buffer_, name_buffer_offset);
-      input->location = input->binding = res.slot;
+      input->location = -1; /* Setting location is not possible in MSL. */
+      input->binding = res.slot;
       enabled_tex_mask_ |= (1ull << input->binding);
       input++;
     }
     else if (res.bind_type == ShaderCreateInfo::Resource::BindType::IMAGE) {
       image_names_offsets_[res.slot] = name_buffer_offset;
       copy_input_name(input, res.image.name, name_buffer_, name_buffer_offset);
-      input->location = input->binding = res.slot;
+      input->location = -1; /* Setting location is not possible in MSL. */
+      input->binding = res.slot;
       enabled_ima_mask_ |= (1 << input->binding);
       input++;
     }

@@ -4,7 +4,9 @@
 
 #include "testing/testing.h"
 
-#include "BLI_session_uid.h"
+#include "BLI_session_uid.hh"
+
+namespace blender {
 
 TEST(SessionUID, GenerateBasic)
 {
@@ -20,3 +22,5 @@ TEST(SessionUID, GenerateBasic)
     EXPECT_FALSE(BLI_session_uid_is_equal(&uid1, &uid2));
   }
 }
+
+}  // namespace blender

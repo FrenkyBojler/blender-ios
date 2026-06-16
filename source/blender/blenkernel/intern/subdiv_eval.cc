@@ -9,9 +9,10 @@
 #include "BKE_attribute.hh"
 #include "BKE_subdiv_eval.hh"
 
-#include "BLI_math_vector.h"
+#include "BLI_array_utils.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_task.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
@@ -93,24 +94,18 @@ bool eval_begin(Subdiv *subdiv,
 
 static void set_coarse_positions(Subdiv *subdiv,
                                  const Span<float3> positions,
-                                 const bke::LooseVertCache &verts_no_face)
+                                 const IndexMask &verts_no_face)
 {
   OpenSubdiv_Evaluator *evaluator = subdiv->evaluator;
-  if (verts_no_face.count == 0) {
+  if (verts_no_face.is_empty()) {
     evaluator->eval_output->setCoarsePositions(
         reinterpret_cast<const float *>(positions.data()), 0, positions.size());
     return;
   }
-  Array<float3> used_vert_positions(positions.size() - verts_no_face.count);
-  const BitSpan bits = verts_no_face.is_loose_bits;
-  int used_vert_count = 0;
-  for (const int vert : positions.index_range()) {
-    if (bits[vert]) {
-      continue;
-    }
-    used_vert_positions[used_vert_count] = positions[vert];
-    used_vert_count++;
-  }
+  Array<float3> used_vert_positions(positions.size() - verts_no_face.size());
+  IndexMaskMemory memory;
+  const IndexMask verts = verts_no_face.complement(positions.index_range(), memory);
+  array_utils::gather(positions, verts, used_vert_positions.as_mutable_span());
   evaluator->eval_output->setCoarsePositions(
       reinterpret_cast<const float *>(used_vert_positions.data()), 0, used_vert_positions.size());
 }
@@ -155,7 +150,7 @@ static void set_face_varying_data_from_uv(Subdiv *subdiv,
 
   const int num_fvar_values = topology_refiner->base_level().GetNumFVarValues(layer_index);
   /* Use a temporary buffer so we do not upload UVs one at a time to the GPU. */
-  float (*buffer)[2] = MEM_malloc_arrayN<float[2]>(size_t(num_fvar_values), __func__);
+  float (*buffer)[2] = MEM_new_array_uninitialized<float[2]>(size_t(num_fvar_values), __func__);
 
   FaceVaryingDataFromUVContext ctx;
   ctx.topology_refiner = topology_refiner;
@@ -174,10 +169,10 @@ static void set_face_varying_data_from_uv(Subdiv *subdiv,
 
   evaluator->eval_output->setFaceVaryingData(layer_index, &buffer[0][0], 0, num_fvar_values);
 
-  MEM_freeN(buffer);
+  MEM_delete(buffer);
 }
 
-static void set_vertex_data_from_orco(Subdiv *subdiv, const Mesh *mesh)
+static void set_vert_data_from_orco(Subdiv *subdiv, const Mesh *mesh)
 {
   const float (*orco)[3] = static_cast<const float (*)[3]>(
       CustomData_get_layer(&mesh->vert_data, CD_ORCO));
@@ -185,7 +180,7 @@ static void set_vertex_data_from_orco(Subdiv *subdiv, const Mesh *mesh)
       CustomData_get_layer(&mesh->vert_data, CD_CLOTH_ORCO));
 
   if (orco || cloth_orco) {
-    blender::opensubdiv::TopologyRefinerImpl *topology_refiner = subdiv->topology_refiner;
+    opensubdiv::TopologyRefinerImpl *topology_refiner = subdiv->topology_refiner;
     OpenSubdiv_Evaluator *evaluator = subdiv->evaluator;
     const int num_verts = topology_refiner->base_level().GetNumVertices();
 
@@ -261,7 +256,7 @@ bool eval_refine_from_mesh(Subdiv *subdiv,
     set_face_varying_data_from_uv(subdiv, mesh, uv_map, i);
   }
   /* Set vertex data to orco. */
-  set_vertex_data_from_orco(subdiv, mesh);
+  set_vert_data_from_orco(subdiv, mesh);
   /* Update evaluator to the new coarse geometry. */
   stats_begin(&subdiv->stats, SUBDIV_STATS_EVALUATOR_REFINE);
   subdiv->evaluator->eval_output->refine();
@@ -344,13 +339,13 @@ void eval_limit_point_and_normal(Subdiv *subdiv,
   r_N = math::normalize(math::cross(dPdu, dPdv));
 }
 
-void eval_vertex_data(
-    Subdiv *subdiv, const int ptex_face_index, const float u, const float v, float r_vertex_data[])
+void eval_vert_data(
+    Subdiv *subdiv, const int ptex_face_index, const float u, const float v, float r_vert_data[])
 {
 #ifdef WITH_OPENSUBDIV
-  subdiv->evaluator->eval_output->evaluateVertexData(ptex_face_index, u, v, r_vertex_data);
+  subdiv->evaluator->eval_output->evaluateVertexData(ptex_face_index, u, v, r_vert_data);
 #else
-  UNUSED_VARS(subdiv, ptex_face_index, u, v, r_vertex_data);
+  UNUSED_VARS(subdiv, ptex_face_index, u, v, r_vert_data);
 #endif
 }
 
