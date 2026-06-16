@@ -1804,6 +1804,10 @@ static wmOperatorStatus asset_download_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+/**
+ * Variant of #ASSET_OT_assets_download that only downloads a single specific asset given in the
+ * operator properties.
+ */
 static void ASSET_OT_asset_download(wmOperatorType *ot)
 {
   /* identifiers */
