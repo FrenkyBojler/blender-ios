@@ -2789,7 +2789,7 @@ static void UI_OT_view_scroll(wmOperatorType *ot)
 
 static AbstractViewItem *find_active_view_item(bContext *C)
 {
-  AbstractView *view = get_view_focused(C);
+  const AbstractView *view = get_view_focused(C);
   if (!view) {
     return nullptr;
   }

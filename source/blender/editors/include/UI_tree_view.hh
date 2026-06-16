@@ -182,7 +182,6 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
    * height. */
   void set_default_rows(int default_rows);
-
   TreeViewSortOrder invert_sort_type_get() const;
   /**
    * Scroll the view so the active item is visible.
