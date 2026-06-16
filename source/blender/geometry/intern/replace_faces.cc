@@ -199,7 +199,8 @@ Mesh *replace_faces(const Mesh &base,
   BitVector<> selection_bits(base_faces.size());
   selection.to_bits(selection_bits);
 
-  Array<int> merged_vert_indices(new_positions.size());
+  Array<bool> new_vert_merged(new_positions.size(), false);
+  Array<int> merged_vert_indices(new_positions.size(), -1);
   Array<int> verts_num_per_face_merged(base.faces_num + 1);
   selection.foreach_index(
       [&](const int base_face_i) {
@@ -268,16 +269,26 @@ Mesh *replace_faces(const Mesh &base,
       },
       exec_mode::grain_size(512));
 
-  // Array<int>
+  MutableSpan<int> new_corner_verts = result_corner_verts.take_back(
+      face_vert_offsets_merged.total_size());
   selection.foreach_index(
       [&](const int base_face_i) {
+        const IndexRange new_vert_range = face_corner_offsets[base_face_i];
+        const Span<bool> is_merged = new_vert_merged.as_span().slice(new_vert_range);
+        const Span<int> merge_index = merged_vert_indices.as_span().slice(new_vert_range);
         const Span<int> corner_verts = mesh_corner_verts[indices[base_face_i]];
         const int vert_offset = unselected_verts.size() +
                                 face_vert_offsets_merged[base_face_i].start();
-        MutableSpan<int> dst_corner_verts = result_corner_verts.slice(
-            face_corner_offsets[base_face_i].shift(unselected_corners_num));
+        MutableSpan<int> dst_corner_verts = new_corner_verts.slice(
+            face_corner_offsets[base_face_i]);
         for (const int i : corner_verts.index_range()) {
-          dst_corner_verts[i] = vert_offset + corner_verts[i];
+          const int src_vert = corner_verts[i];
+          if (is_merged[src_vert]) {
+            dst_corner_verts[i] = merge_index[i];
+          }
+          else {
+            dst_corner_verts[i] = vert_offset + corner_verts[i];
+          }
         }
       },
       exec_mode::grain_size(128));
