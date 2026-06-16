@@ -599,6 +599,9 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
   RNA_property_copy(nullptr, override_data_ptr, target_data_ptr, override_rna_prop, target_prop);
   RNA_property_copy(nullptr, original_data_ptr, target_data_ptr, original_rna_prop, target_prop);
 
+  DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
+  DEG_id_tag_update(rule.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
+
   return rule_property;
 }
 
