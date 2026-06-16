@@ -1,1 +1,2 @@
 Referenced by issue #160201, 5.3.0 a: Compositor does not affect Render Result
+Referenced by pull request #160219, Fix #160201: Render Result image not updating for compositing
