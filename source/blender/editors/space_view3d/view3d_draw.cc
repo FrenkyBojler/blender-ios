@@ -527,6 +527,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       if (y2i > 0.0f) {
         immRectf(shdr_pos, x1i, y1i, x2i, 0.0f);
       }
+
       GPU_blend(GPU_BLEND_NONE);
       immUniformThemeColor3(TH_BACK);
       imm_draw_box_wire_2d(shdr_pos, x1i, y1i, x2i, y2i);
