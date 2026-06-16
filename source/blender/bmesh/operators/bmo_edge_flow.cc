@@ -25,6 +25,49 @@ struct EdgeFlowLoop {
   bool is_cyclic;
 };
 
+static void walk_edge_loop(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
+  Vector<BMEdge *> side[2];
+  int dir = 0;
+
+  BMIter l_iter;
+  BMLoop *l;
+  BM_ITER_ELEM (l, &l_iter, e, BM_LOOPS_OF_EDGE) {
+    const int start_valence = BM_vert_edge_count(l->v);
+    if (start_valence <= 4) {
+      while (true) {
+        const int valence = BM_vert_edge_count(l->v);
+        if (valence != start_valence || valence != 4) {
+          break;
+        }
+
+        l = l->prev->radial_prev->prev;
+        if (l->e == start_edge || side[0].contains(l->e) || side[1].contains(l->e)) {
+          break;
+        }
+
+        if (!BM_elem_flag_test(l->e, BM_ELEM_TAG)) {
+          break;
+        }
+
+        side[dir].append(l->e);
+      }
+    }
+    if (++dir == 2) {
+      break;
+    }
+  }
+
+  for (int i = side[1].size() - 1; i >= 0; i--) {
+    r_edges.append(side[1][i]);
+  }
+
+  r_edges.append(start_edge);
+
+  for (BMEdge *e : side[0]) {
+    r_edges.append(e);
+  }
+}
+
 static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
 {
   BMIter eiter;
