@@ -39,25 +39,25 @@
 #include "BLI_color_types.hh"
 #include "BLI_delaunay_2d.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_math_euler_types.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_memarena.h"
+#include "BLI_memarena.hh"
 #include "BLI_memory_utils.hh"
-#include "BLI_polyfill_2d.h"
+#include "BLI_polyfill_2d.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_span.hh"
 #include "BLI_stack.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 #include "BLI_vector_set.hh"
 #include "BLI_virtual_array.hh"
 
@@ -2436,10 +2436,10 @@ static void grease_pencil_evaluate_modifiers(Depsgraph *depsgraph,
    * for the current frame, so we run the time offset modifiers before all the other ones. */
   ModifierData *tmd = md;
   for (; tmd; tmd = tmd->next) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(tmd->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(tmd->type);
 
     if (!BKE_modifier_is_enabled(scene, tmd, required_mode) ||
-        ModifierType(tmd->type) != eModifierType_GreasePencilTime)
+        tmd->type != eModifierType_GreasePencilTime)
     {
       continue;
     }
@@ -2453,10 +2453,10 @@ static void grease_pencil_evaluate_modifiers(Depsgraph *depsgraph,
 
   /* Evaluate drawing modifiers. */
   for (; md; md = md->next) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
 
     if (!BKE_modifier_is_enabled(scene, md, required_mode) ||
-        ModifierType(md->type) == eModifierType_GreasePencilTime)
+        md->type == eModifierType_GreasePencilTime)
     {
       continue;
     }
@@ -3338,9 +3338,7 @@ bool GreasePencil::remove_frames(bke::greasepencil::Layer &layer, Span<int> fram
     return true;
   }
 #ifndef NDEBUG
-  else {
-    this->validate_drawing_user_counts();
-  }
+  this->validate_drawing_user_counts();
 #endif
   return false;
 }

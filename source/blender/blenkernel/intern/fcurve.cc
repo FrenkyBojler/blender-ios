@@ -20,14 +20,14 @@
 #include "DNA_anim_types.h"
 #include "DNA_curve_types.h"
 
-#include "BLI_easing.h"
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_easing.hh"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
-#include "BLI_sort_utils.h"
-#include "BLI_string.h"
+#include "BLI_rect.hh"
+#include "BLI_sort_utils.hh"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
 #include "BLI_vector_set.hh"
@@ -273,8 +273,8 @@ FCurve *BKE_fcurve_find(ListBaseT<FCurve> *list, const char rna_path[], const in
   for (FCurve &fcu : *list) {
     /* Check indices first, much cheaper than a string comparison. */
     /* Simple string-compare (this assumes that they have the same root...) */
-    if (UNLIKELY(fcu.array_index == array_index && fcu.rna_path &&
-                 fcu.rna_path[0] == rna_path[0] && STREQ(fcu.rna_path, rna_path)))
+    if (fcu.array_index == array_index && fcu.rna_path && fcu.rna_path[0] == rna_path[0] &&
+        STREQ(fcu.rna_path, rna_path)) [[unlikely]]
     {
       return &fcu;
     }
@@ -601,8 +601,8 @@ static void calculate_bezt_bounds_x(BezTriple *bezt_array,
     /* Need to check all handles because they might extend beyond their neighboring keys. */
     for (int i = index_range[0]; i <= index_range[1]; i++) {
       const BezTriple *bezt = &bezt_array[i];
-      *r_min = min_fff(*r_min, bezt->vec[0][0], bezt->vec[1][0]);
-      *r_max = max_fff(*r_max, bezt->vec[1][0], bezt->vec[2][0]);
+      *r_min = std::min({*r_min, bezt->vec[0][0], bezt->vec[1][0]});
+      *r_max = std::max({*r_max, bezt->vec[1][0], bezt->vec[2][0]});
     }
   }
 }
@@ -628,8 +628,8 @@ static void calculate_bezt_bounds_y(BezTriple *bezt_array,
     *r_max = max_ff(*r_max, bezt->vec[1][1]);
 
     if (include_handles) {
-      *r_min = min_fff(*r_min, bezt->vec[0][1], bezt->vec[2][1]);
-      *r_max = max_fff(*r_max, bezt->vec[0][1], bezt->vec[2][1]);
+      *r_min = std::min({*r_min, bezt->vec[0][1], bezt->vec[2][1]});
+      *r_max = std::max({*r_max, bezt->vec[0][1], bezt->vec[2][1]});
     }
   }
 }
@@ -1711,7 +1711,7 @@ void BKE_fcurve_delete_keys(FCurve &fcu, uint2 index_range)
 BezTriple *BKE_bezier_array_merge(
     const BezTriple *a, const int size_a, const BezTriple *b, const int size_b, int *r_merged_size)
 {
-  BezTriple *large_array = MEM_new_array_zeroed<BezTriple>(size_t(size_a + size_b), "beztriple");
+  BezTriple *large_array = MEM_new_array_zeroed<BezTriple>(size_t(size_a) + size_b, "beztriple");
 
   int iterator_a = 0;
   int iterator_b = 0;
