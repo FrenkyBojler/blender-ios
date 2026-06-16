@@ -573,6 +573,8 @@ static BMOpDefine bmo_edge_flow_def = {
         {"blend_end", BMO_OP_SLOT_FLT},
         /* 0 for linear falloff, 1 for smooth falloff. */
         {"blend_type", BMO_OP_SLOT_INT},
+        /* Angle in degrees below which ring curvature is ignored (0 disables). */
+        {"min_angle", BMO_OP_SLOT_INT},
         {{'\0'}},
     },
     /*slot_types_out*/

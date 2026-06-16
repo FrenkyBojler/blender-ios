@@ -51,16 +51,33 @@ static wmOperatorStatus edbm_edge_flow_exec(bContext *C, wmOperator *op)
     const bool space_evenly = RNA_boolean_get(op->ptr, "space_evenly");
     const int tension    = RNA_int_get(op->ptr, "tension");
     const int iterations = RNA_int_get(op->ptr, "iterations");
+    const int blend_mode = RNA_enum_get(op->ptr, "blend_mode");
+    float blend_start, blend_end;
+    if (blend_mode == 0) {
+      blend_start = float(RNA_int_get(op->ptr, "blend_start_int"));
+      blend_end = float(RNA_int_get(op->ptr, "blend_end_int"));
+    }
+    else {
+      blend_start = RNA_float_get(op->ptr, "blend_start_float");
+      blend_end = RNA_float_get(op->ptr, "blend_end_float");
+    }
+    const int blend_type = RNA_enum_get(op->ptr, "blend_type");
+    const int min_angle = RNA_int_get(op->ptr, "min_angle");
 
     if (!EDBM_op_callf(em,
                        op,
-                       "edge_flow edges=%he mode=%i mix=%f space_evenly=%b tension=%i iterations=%i",
+                       "edge_flow edges=%he mode=%i mix=%f space_evenly=%b tension=%i iterations=%i blend_mode=%i blend_start=%f blend_end=%f blend_type=%i min_angle=%i",
                        BM_ELEM_SELECT,
                        mode,
                        mix,
                        space_evenly,
                        tension,
-                       iterations))
+                       iterations,
+                       blend_mode,
+                       blend_start,
+                       blend_end,
+                       blend_type,
+                       min_angle))
     {
       continue;
     }
@@ -79,6 +96,18 @@ static wmOperatorStatus edbm_edge_flow_exec(bContext *C, wmOperator *op)
 static const EnumPropertyItem mode_items[] = {
     {EDGE_FLOW_LINEAR, "LINEAR", 0, "Linear", "Straighten the loop between endpoints"},
     {EDGE_FLOW_FLOW, "FLOW", 0, "Flow", "Adjust loop to match surrounding geometry"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem blend_mode_items[] = {
+    {0, "ABSOLUTE", 0, "Absolute", "Blend a fixed number of vertices from each end"},
+    {1, "FACTOR", 0, "Factor", "Blend a fraction of the loop from each end"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem blend_type_items[] = {
+    {0, "LINEAR", 0, "Linear", "Linear falloff"},
+    {1, "SMOOTH", 0, "Smooth", "Smooth falloff"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -108,6 +137,14 @@ void MESH_OT_edge_flow(wmOperatorType *ot)
   RNA_def_boolean( ot->srna, "space_evenly", false, "Space Evenly", "Space edges evenly along the loop");
   RNA_def_int(ot->srna, "tension", 180, -500, 500, "Tension", "Tension of curve for flow mode", -500, 500);
   RNA_def_int(ot->srna, "iterations", 8, 1, 32, "Iterations", "Number of iterations for flow algorithm", 1, 32);
+
+  RNA_def_enum(ot->srna, "blend_mode", blend_mode_items, 0, "Blend Mode", "Blend start/end as vertex counts or loop fractions");
+  RNA_def_int(ot->srna, "blend_start_int", 0, 0, INT_MAX, "Blend Start", "Vertices from the loop start to blend", 0, 100);
+  RNA_def_int(ot->srna, "blend_end_int", 0, 0, INT_MAX, "Blend End", "Vertices from the loop end to blend", 0, 100);
+  RNA_def_float(ot->srna, "blend_start_float", 0.0f, 0.0f, 1.0f, "Blend Start", "Loop fraction from the start to blend", 0.0f, 1.0f);
+  RNA_def_float(ot->srna, "blend_end_float", 0.0f, 0.0f, 1.0f, "Blend End", "Loop fraction from the end to blend", 0.0f, 1.0f);
+  RNA_def_enum(ot->srna, "blend_type", blend_type_items, 0, "Blend Curve", "Falloff used when blending");
+  RNA_def_int(ot->srna, "min_angle", 0, 0, 180, "Min Angle", "Angle below which loop curvature is ignored", 0, 180);
 }
 
 }  // namespace blender

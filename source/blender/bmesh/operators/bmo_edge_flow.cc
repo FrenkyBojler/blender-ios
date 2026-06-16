@@ -10,6 +10,7 @@
  */
 
 #include "BLI_array.hh"
+#include "BLI_math_base.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
@@ -92,11 +93,13 @@ static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
   BMW_end(&walker);
 }
 
-static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, float3 &r_target)
+static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, const float min_angle, float3 &r_target)
 {
   if (l->f->len != 4 || l->radial_prev->f->len != 4) {
     return false;
   }
+
+  const float3 center_co = BM_edge_other_vert(l->e, l->v)->co;
 
   BMLoop *ring1 = l->next->next;
   BMLoop *ring2 = l->radial_prev->prev->prev;
@@ -118,6 +121,13 @@ static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, float3 
     }
 
     p1 = v1->co;
+
+    /* Ignore curvature where the ring bends sharply back toward the moved vert. */
+    const float3 arm1 = p1 - p2;
+    const float3 spoke1 = center_co - p2;
+    if (angle_v3v3(arm1, spoke1) < min_angle) {
+      p1 = p2 - (p3 - p2) * 0.5f;
+    }
   }
   else {
     /* Create a phantom control point and reflect p3 through p2. */
@@ -133,6 +143,12 @@ static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, float3 
     }
 
     p4 = v4->co;
+
+    const float3 arm2 = p4 - p3;
+    const float3 spoke2 = center_co - p3;
+    if (angle_v3v3(arm2, spoke2) < min_angle) {
+      p4 = p3 - (p2 - p3) * 0.5f;
+    }
   }
   else {
     /* Set v3 to the far vert first. Create a phantom control point and reflect p3 through p2. */
@@ -152,16 +168,6 @@ static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, float3 
 
   r_target = math::hermite_spline_interp(p1, p2, p3, p4, 0.5f, -tension, 0.0f);
   return true;
-}
-
-/* Apply blend_start / blend_end to verts of each loop back towards original positions. */
-static void edge_flow_blend_ends(const EdgeFlowLoop &loop, const Array<float3> &orig_cos, int blend_start, int blend_end, const bool smooth) {
-  if (loop.is_cyclic) {
-    return;
-  }
-
-  edge_flow_blend_range(loop, orig_cos, blend_start, false, smooth);
-  edge_flow_blend_range(loop, orig_cos, blend_end, true, smooth);
 }
 
 static void edge_flow_blend_range(const EdgeFlowLoop &loop, const Array<float3> &orig_cos, int range, const bool reverse, const bool smooth) {
@@ -196,6 +202,16 @@ static void edge_flow_blend_range(const EdgeFlowLoop &loop, const Array<float3> 
   }
 }
 
+/* Apply blend_start / blend_end to verts of each loop back towards original positions. */
+static void edge_flow_blend_ends(const EdgeFlowLoop &loop, const Array<float3> &orig_cos, int blend_start, int blend_end, const bool smooth) {
+  if (loop.is_cyclic) {
+    return;
+  }
+
+  edge_flow_blend_range(loop, orig_cos, blend_start, false, smooth);
+  edge_flow_blend_range(loop, orig_cos, blend_end, true, smooth);
+}
+
 void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
 {
   const int mode = BMO_slot_int_get(op->slots_in, "mode");
@@ -204,6 +220,7 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
   const int tension_int = BMO_slot_int_get(op->slots_in, "tension");
   const int iterations  = BMO_slot_int_get(op->slots_in, "iterations");
   const float tension   = float(tension_int) / 100.0f;
+  const float min_angle = DEG2RADF(float(BMO_slot_int_get(op->slots_in, "min_angle")));
 
   /* Tag edges passed in via the slot, then collect ordered loops */
   BMO_slot_buffer_hflag_enable(bm, op->slots_in, "edges", BM_EDGE, BM_ELEM_TAG, false);
@@ -245,7 +262,7 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
             }
 
             float3 target;
-            if (edge_flow_calc_spline_target(l, tension, target)) {
+            if (edge_flow_calc_spline_target(l, tension, min_angle, target)) {
               centers[target_count] = BM_edge_other_vert(e, l->v);
               targets[target_count] = target;
               target_count++;
