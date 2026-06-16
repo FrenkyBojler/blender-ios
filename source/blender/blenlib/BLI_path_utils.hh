@@ -7,10 +7,10 @@
  * \ingroup bli
  */
 
-#include "BLI_compiler_attrs.h"
-#include "BLI_compiler_compat.h"
-#include "BLI_utildefines.h"
-#include "BLI_utildefines_variadic.h"
+#include "BLI_compiler_attrs.hh"
+#include "BLI_compiler_compat.hh"
+#include "BLI_utildefines.hh"
+#include "BLI_utildefines_variadic.hh"
 
 namespace blender {
 
@@ -356,7 +356,7 @@ size_t BLI_path_append_dir(char *__restrict dst, size_t dst_maxncpy, const char 
  * \{ */
 
 /**
- * See #BLI_path_join doc-string.
+ * See #BLI_path_join docstring.
  */
 size_t BLI_path_join_array(char *__restrict dst,
                            const size_t dst_maxncpy,

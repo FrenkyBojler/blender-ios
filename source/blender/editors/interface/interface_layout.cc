@@ -18,14 +18,14 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_dynstr.h"
+#include "BLI_dynstr.hh"
 #include "BLI_enum_flags.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -1239,6 +1239,10 @@ static Button *item_with_label(Layout *layout,
                                                  std::make_optional<StringRefNull>("");
     but = uiDefAutoButR(
         block, ptr, prop, index, str, icon, x, y, prop_but_width, h, button_type_override);
+    if (flag & ITEM_R_TEXT_RIGHT) {
+      but->drawflag |= BUT_TEXT_RIGHT;
+      but->drawflag &= ~BUT_TEXT_LEFT;
+    }
   }
 
   /* Highlight in red on path template validity errors. */
@@ -2516,7 +2520,7 @@ void Layout::prop_enum(PointerRNA *ptr,
                        const std::optional<StringRefNull> name,
                        int icon)
 {
-  if (UNLIKELY(RNA_property_type(prop) != PROP_ENUM)) {
+  if (RNA_property_type(prop) != PROP_ENUM) [[unlikely]] {
     const StringRefNull propname = RNA_property_identifier(prop);
     item_disabled(this, propname.c_str());
     RNA_warning_bare("UILayout.prop_enum(): not an enum property: %s.%s",
@@ -2568,7 +2572,7 @@ void Layout::prop_enum(PointerRNA *ptr,
                        int icon)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  if (UNLIKELY(prop == nullptr)) {
+  if (prop == nullptr) [[unlikely]] {
     item_disabled(this, propname.c_str());
     RNA_warning_bare("UILayout.prop_enum(): enum property not found: %s.%s",
                      RNA_struct_identifier(ptr->type),
@@ -5279,9 +5283,9 @@ bool Layout::use_property_decorate() const
   return flag_is_set(flag_, ItemInternalFlag::PropDecorate);
 }
 
-void Layout::use_property_decorate_set(bool is_sep)
+void Layout::use_property_decorate_set(bool is_decorate)
 {
-  SET_FLAG_FROM_TEST(flag_, is_sep, ItemInternalFlag::PropDecorate);
+  SET_FLAG_FROM_TEST(flag_, is_decorate, ItemInternalFlag::PropDecorate);
 }
 
 Panel *Layout::root_panel() const
@@ -6048,12 +6052,12 @@ int2 block_layout_resolve(Block *block)
     MEM_delete(&root);
   }
 
-  BLI_listbase_clear(&block->layouts);
+  block->layouts.clear_no_delete();
   return block_size;
 }
 bool block_layout_needs_resolving(const Block *block)
 {
-  return !BLI_listbase_is_empty(&block->layouts);
+  return !block->layouts.is_empty();
 }
 
 const PointerRNA *Layout::context_ptr_get(const StringRef name, const StructRNA *type) const

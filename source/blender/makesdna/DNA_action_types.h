@@ -161,8 +161,9 @@ ENUM_OPERATORS(bPoseChannelRuntimeFlag);
 
 /* PoseChannel (transform) flags. */
 enum ePchan_Flag : short {
-  /* (1 << 0) to (1 << 3) used to be flags to determine if a type of channel should be modified by
-     pose sliding. This has been moved to the `SlideSubject` struct in Blender 5.2.  */
+  /* (1 << 0) to (1 << 3) used to be flags to determine if a type of channel
+   * should be modified by pose sliding.
+   * This has been moved to the `SlideSubject` struct in Blender 5.2. */
 
   /* old IK/cache stuff
    * - used to be here from (1 << 3) to (1 << 8)
@@ -275,8 +276,8 @@ enum ePchan_BBoneFlag : char {
 enum eRotationModes : short {
   /* quaternion rotations (default, and for older Blender versions) */
   ROT_MODE_QUAT = 0,
-  /* euler rotations - keep in sync with enum in BLI_math_rotation.h */
-  /** Blender 'default' (classic) - must be as 1 to sync with BLI_math_rotation.h defines */
+  /* euler rotations - keep in sync with enum in BLI_math_rotation_c.hh */
+  /** Blender 'default' (classic) - must be as 1 to sync with BLI_math_rotation_c.hh defines */
   ROT_MODE_EUL = 1,
   ROT_MODE_XYZ = 1,
   ROT_MODE_XZY = 2,

@@ -10,7 +10,7 @@
 #include <memory>
 #include <string>
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
@@ -328,7 +328,7 @@ struct ARegionType {
 
   /** Hardcoded constraints, smaller than these values region is not visible. */
   int minsizex, minsizey;
-  /** When new region opens (region prefsizex/y are zero then. */
+  /** When new region opens (region prefsizex/y are zero then). */
   int prefsizex, prefsizey;
   /** Default keymaps to add. */
   int keymapflag;

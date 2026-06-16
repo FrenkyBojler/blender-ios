@@ -8,8 +8,8 @@
 
 #include <fmt/format.h>
 
-#include "BLI_assert.h"
-#include "BLI_listbase.h"
+#include "BLI_assert.hh"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_math_vector_types.hh"
@@ -491,9 +491,11 @@ void ShaderOperation::populate_results_for_node(const bNode &node)
 
     /* If any of the nodes linked to the output are not part of the shader operation but are part
      * of the execution schedule, then an output result needs to be populated for it. */
-    const bool is_operation_output = is_output_linked_to_node_conditioned(
-        *output, [&](const bNode &node) {
-          return schedule_.nodes.contains(&node) && !compile_unit_.contains(&node);
+    const bool is_operation_output = is_output_linked_to_input_conditioned(
+        *output, [&](const bNodeSocket &input) {
+          return schedule_.nodes.contains(&input.owner_node()) &&
+                 !schedule_.unneeded_inputs.contains(&input) &&
+                 !compile_unit_.contains(&input.owner_node());
         });
 
     /* If the output is used as the node preview, then an output result needs to be populated for
@@ -561,8 +563,7 @@ void ShaderOperation::populate_operation_result(const bNodeSocket &output_socket
   std::string output_identifier = "output" + std::to_string(output_id);
 
   const ResultType result_type = get_node_socket_result_type(&output_socket);
-  const Result result = context().create_result(result_type);
-  populate_result(output_identifier, result);
+  populate_result(output_identifier, result_type);
 
   /* Map the output socket to the identifier of the newly populated result. */
   output_sockets_to_output_identifiers_map_.add_new(&output_socket, output_identifier);
@@ -1066,7 +1067,7 @@ std::string ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
   /* The attributes of the GPU material represents the inputs of the operation. */
   ListBaseT<GPUMaterialAttribute> attributes = GPU_material_attributes(material);
 
-  if (BLI_listbase_is_empty(&attributes)) {
+  if (attributes.is_empty()) {
     return "";
   }
 
@@ -1076,7 +1077,7 @@ std::string ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
    * counting the sampler slot location from the number of textures in the material, since some
    * sampler slots may be reserved for things like color band textures. */
   const ListBaseT<GPUMaterialTexture> textures = GPU_material_textures(material);
-  int input_slot_location = BLI_listbase_count(&textures);
+  int input_slot_location = textures.count();
   for (GPUMaterialAttribute &attribute : attributes) {
     const InputDescriptor &input_descriptor = get_input_descriptor(attribute.name);
     shader_create_info.sampler(input_slot_location,

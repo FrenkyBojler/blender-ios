@@ -15,13 +15,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 
 #include "BKE_action.hh"
@@ -537,7 +537,7 @@ static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator
   FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
     const bArmature *arm = id_cast<const bArmature *>(ob->data);
 
-    int chanbase_len = BLI_listbase_count(&ob->pose->chanbase);
+    int chanbase_len = ob->pose->chanbase.count();
     /* Storage for the calculated matrices to prevent reading from modified values.
      * NOTE: this could be avoided if children were always calculated before parents
      * however ensuring this is involved and doesn't give any significant advantage. */
@@ -752,10 +752,9 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
   /* ID properties */
   if (chan->prop) {
     if (pchan->prop) {
-      /* if we have existing properties on a bone, just copy over the values of
-       * matching properties (i.e. ones which will have some impact) on to the
-       * target instead of just blinding replacing all [
-       */
+      /* If we have existing properties on a bone, just copy over the values of
+       * matching properties (i.e. ones which will have some impact) on to the target
+       * instead of just blindly replacing all. */
       IDP_SyncGroupValues(pchan->prop, chan->prop);
     }
     else {
@@ -1497,7 +1496,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
       }
 
       /* was copied without constraints */
-      BLI_freelistN(&dummyPose->chanbase);
+      dummyPose->chanbase.free_no_destruct();
       MEM_delete(dummyPose);
     }
     else {

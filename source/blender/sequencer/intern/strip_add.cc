@@ -21,8 +21,8 @@
 
 #include "BLI_math_base.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
@@ -217,13 +217,11 @@ void add_image_init_alpha_mode(Main *bmain, Scene *scene, Strip *strip)
     /* Initialize input color space. */
     if (strip->type == STRIP_TYPE_IMAGE) {
       ibuf = IMB_load_image_from_filepath(filepath,
-                                          ImBufFlags::Test | ImBufFlags::MultiLayer |
-                                              ImBufFlags::AlphaDetect,
+                                          ImBufFlags::Test | ImBufFlags::AlphaDetect,
                                           strip->data->colorspace_settings.name);
 
       /* Byte images are default to straight alpha, however sequencer
-       * works in premul space, so mark strip to be premultiplied first.
-       */
+       * works in pre-multiply space, so mark strip to be pre-multiplied first. */
       strip->alpha_mode = SEQ_ALPHA_STRAIGHT;
       if (ibuf) {
         if (flag_is_set(ibuf->flags, ImBufFlags::AlphaPremul)) {
@@ -263,9 +261,8 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
   STRNCPY(file_path, load_data->path);
   BLI_path_abs(file_path, ID_BLEND_PATH(bmain, &scene->id));
 
-  ImBuf *ibuf = IMB_load_image_from_filepath(file_path,
-                                             ImBufFlags::ByteData | ImBufFlags::MultiLayer,
-                                             strip->data->colorspace_settings.name);
+  ImBuf *ibuf = IMB_load_image_from_filepath(
+      file_path, ImBufFlags::ByteData, strip->data->colorspace_settings.name);
   if (ibuf != nullptr) {
     /* Set image resolution. Assume that all images in sequence are same size. This fields are only
      * informative. */
@@ -483,7 +480,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
   });
 
   if (anim_arr[0] != nullptr) {
-    strip->len = MOV_get_duration_frames(anim_arr[0], IMB_TC_RECORD_RUN);
+    strip->len = MOV_get_duration_frames(anim_arr[0]);
 
     MOV_load_metadata(anim_arr[0]);
 
@@ -622,10 +619,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
 
       MOV_load_metadata(reader);
 
-      strip->len = MOV_get_duration_frames(
-          reader,
-          IMB_Timecode_Type(strip->data->proxy ? IMB_Timecode_Type(strip->data->proxy->tc) :
-                                                 IMB_TC_RECORD_RUN));
+      strip->len = MOV_get_duration_frames(reader);
 
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;

@@ -23,15 +23,15 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_system.h"
-#include "BLI_time.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_system.hh"
+#include "BLI_time.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
@@ -596,8 +596,8 @@ static void swap_old_bmain_data_for_blendfile(ReuseOldBMainData *reuse_data, con
 
   /* NOTE: Full swapping is only supported for ID types that are assumed to be only local
    * data-blocks (like UI-like ones). Otherwise, the swapping could fail in many funny ways. */
-  BLI_assert(BLI_listbase_is_empty(old_lb) || !ID_IS_LINKED(static_cast<ID *>(old_lb->last)));
-  BLI_assert(BLI_listbase_is_empty(new_lb) || !ID_IS_LINKED(static_cast<ID *>(new_lb->last)));
+  BLI_assert(old_lb->is_empty() || !ID_IS_LINKED(static_cast<ID *>(old_lb->last)));
+  BLI_assert(new_lb->is_empty() || !ID_IS_LINKED(static_cast<ID *>(new_lb->last)));
 
   std::swap(*new_lb, *old_lb);
 
