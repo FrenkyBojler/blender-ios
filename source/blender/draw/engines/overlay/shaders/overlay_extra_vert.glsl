@@ -12,6 +12,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_extra_spot_cone)
 #include "overlay_common_lib.glsl"
 #include "select_lib.glsl"
 
+
 void main()
 {
   select_id_set(in_select_buf[gl_InstanceID]);
@@ -48,7 +49,7 @@ void main()
   float camera_dist_sta = inst_data.z;
   float camera_dist_end = inst_data.w;
   float camera_distance_color = inst_data.x;
-
+  float fisheye_fov = camera_corner.x;
   float3 empty_size = inst_data.xyz;
   float empty_scale = inst_data.w;
   
@@ -138,16 +139,121 @@ void main()
     vpos *= empty_size;
   }
   else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV)) {
-    /* This is a bit silly but we avoid scaling the object matrix on CPU (saving a float4x4 mul) */
-
-    
-
-    if(pos.x < 1.0f)
+    /* Feel free to optimize this. I am not a math guy! */
+   
+    if (-(asin(vpos.z / 1.0f)) < radians(90)-fisheye_fov/2)
     {
-      final_color.a = 0.0f;
+      float new_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
+      float new_radius = 1.0f * sin(fisheye_fov / 2);
+      vpos.z = -1.0f + new_height;
+      vpos.y = -new_radius;      
     }
-     /* vpos *= color.x; */
+
+
+    int d = 0;
+
+    if(flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_90)) 
+    {
+       d += 90;
+    } 
+
+    if(flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_180))
+    {
+      d += 180;
+    }
     
+    if(flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_45))
+    {
+      d += 45;
+    }
+
+
+    if(d > 0)
+    {
+
+      float cosAngle = cos(radians(d));
+      float sinAngle = sin(radians(d));
+
+      float rotated_x;
+      float rotated_y;
+      rotated_x = vpos.x * cosAngle - vpos.y * sinAngle;
+      rotated_y = vpos.x * sinAngle + vpos.y * cosAngle;
+ 
+      vpos.x = rotated_x;
+      vpos.y = rotated_y;
+    }
+
+    
+  }
+  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_EDGE)) {
+
+
+    float radius = 1.0f;
+
+
+    float new_height = radius * (1.0 - cos(fisheye_fov / 2));
+    
+    float new_radius = radius * sin(fisheye_fov / 2);
+  
+    vpos.x *= new_radius;
+    vpos.y *= new_radius; 
+    vpos.z = -1.0f + new_height;
+    final_color.r = 1;
+    final_color.r = 0;
+    final_color.r = 0;
+  }
+  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_DIRECTION)) {
+    float radius = 1.0f;
+    float new_height = radius * (1.0 - cos(fisheye_fov / 2));    
+    float new_radius = radius * sin(fisheye_fov / 2);
+    printf("FISHEYE DIRECTION %f \n",new_radius);
+    vpos.y += new_radius;
+    vpos.z = -1.0f + new_height;
+
+  }
+  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_RING)) {
+
+        if (-(asin(vpos.z / 1.0f)) < radians(90)-fisheye_fov/2)
+        {
+          float new_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
+          float new_radius = 1.0f * sin(fisheye_fov / 2);
+
+          vpos.z = -1.0f + new_height;
+
+          
+          if(vpos.x < 0.0f)
+          {
+            vpos.x = -new_radius;
+          }
+          else 
+          {
+            vpos.x = new_radius;
+          }
+
+          if(vpos.y < 0.0f)
+          {
+            vpos.y = -new_radius;
+          }
+          else 
+          {
+            vpos.y = new_radius;
+          }
+
+ /*          if(vpos.y<0)
+          {
+            vpos.y = -new_radius;
+          }
+          else
+          {
+            vpos.y = new_radius;
+          } */
+
+
+
+          /* vpos.y = -new_radius;      
+          vpos.y = -new_radius;    */
+        }
+
   }
   else if (flag_test(vclass, VCLASS_EMPTY_AXES)) {
     float axis = vpos.z;

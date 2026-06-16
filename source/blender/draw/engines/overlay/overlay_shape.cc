@@ -217,14 +217,16 @@ static Vector<float2> ring_vertices(const float radius,
 /* A single ring of vertices. */
 static Vector<float2> arc_vertices(const float radius,
                                     const int segments,
-                                    const float build = 2.0f)
+                                    const bool half = false)
 {
   Vector<float2> verts;
-  const float full = build * std::numbers::pi;
-  const float angle_offset = 1.5708f;
-  for (const int angle_i : IndexRange(segments + 1)) {
+  const float full = (half ? 1.0f : 2.0f) * std::numbers::pi;
+  int range = segments + (half ? 1 : 0);
+  for (const int angle_i : IndexRange(range)) {
+
     const float angle = (full * angle_i) / segments;
-    verts.append(radius * float2(math::cos(angle+angle_offset), math::sin(angle+angle_offset)));
+    verts.append(radius * float2(math::cos(angle), math::sin(angle)));
+    
   }
   return verts;
 }
@@ -263,7 +265,7 @@ struct Vector3 {
 };
 
 
-static Vector3 rotateZ(const Vector3& vec, double angleRadians) {
+/* static Vector3 rotateZ(const Vector3& vec, double angleRadians) {
     double cosAngle = std::cos(angleRadians);
     double sinAngle = std::sin(angleRadians);
 
@@ -273,49 +275,79 @@ static Vector3 rotateZ(const Vector3& vec, double angleRadians) {
     rotated.z = vec.z; // Z remains unchanged during Z-axis rotation
 
     return rotated;
-}
+} */
 
 
 /* Returns lines segment geometry forming 3 circles, one on each axis. */
-static Vector<Vertex> dome_sphere_axes(const float radius,
-                                          const VertexClass vclass,
-                                          const int segments)
+
+
+
+static Vector<Vertex> fisheye_direction_verts()
 {
-  Vector<float2> arc = arc_vertices(radius, segments - 1,.5f);
-  Vector<float2> ring = ring_vertices(radius, segments);
+  Vector<Vertex> verts;
+
+
+
+  float x = 5.0f;
+  float scale = 0.7f;
+  float width = 0.21f * scale;
+  float length = 0.2f * scale;
+  float margin = 0.1f;
+
+  verts.append({{width, margin, 0.0},VCLASS_CAMERA_FISHEYE_DIRECTION});
+  verts.append({{0.0, margin+length, 0.0},VCLASS_CAMERA_FISHEYE_DIRECTION});
+  verts.append({{-width, margin, 0.0},VCLASS_CAMERA_FISHEYE_DIRECTION});
+  return verts;
+}
+
+static Vector<Vertex> dome_sphere_axes()
+{
+  const float radius = 1.0f;
+  const int segments = 96;
+  VertexClass vclass;
+  Vector<float2> arc = arc_vertices(radius,segments-1,true);
+  Vector<float2> ring = arc_vertices(radius, segments);
 
   Vector<Vertex> verts;
   for (int axis : IndexRange(4)) {
-    for (int i : IndexRange(segments)) {
+    for (int i : IndexRange(segments)) {  
 
-      for (int j : IndexRange(2)) {
+          if (i>=segments-1)
+          {
+            continue;
+          }
 
-        if(j==1 && i==segments-1)
-        {
-          j = 0;
-        }
+          for (int j : IndexRange(2)) {
+     
+            float2 cv = arc[(i + j) % segments];
 
-        float2 cv = arc[(i + j) % segments];
+            if (axis == 0) {
+             
+              vclass = VCLASS_CAMERA_FISHEYE_FOV;              
+            }
+            else if (axis == 1) {
+             
+              vclass = VCLASS_CAMERA_FISHEYE_FOV | VCLASS_CAMERA_FISHEYE_FOV_90;              
+            }
+            else if (axis == 2) {
+           
+              vclass = VCLASS_CAMERA_FISHEYE_FOV | VCLASS_CAMERA_FISHEYE_FOV_180;              
+            } 
+            else if (axis == 3) {
+            
+              vclass = VCLASS_CAMERA_FISHEYE_FOV | VCLASS_CAMERA_FISHEYE_FOV_90 | VCLASS_CAMERA_FISHEYE_FOV_180;              
+            } 
 
-
-
-        if (axis == 0) {
-          verts.append({{-cv[0], 0.0f, -cv[1]},vclass});
-        }
-        else if (axis == 1) {
-          verts.append({{cv[0], 0.0f, -cv[1]},vclass});
-        }
-        else if (axis == 2) {
-          verts.append({{0.0f, -cv[0], -cv[1]},vclass});
-        } 
-        else {
-          verts.append({{0.0f, cv[0], -cv[1]},vclass});
-        } 
-      }
+            verts.append({{0.0f, -cv[1], cv[0]},vclass});
+          }
+      
     }
-  }
 
-  for (int axis : IndexRange(4)) {
+    
+  }
+/* 
+  for (int axis : IndexRange(4)) 
+  {
     for (int i : IndexRange(segments)) {
 
       for (int j : IndexRange(2)) {
@@ -327,25 +359,61 @@ static Vector<Vertex> dome_sphere_axes(const float radius,
 
         float2 cv = arc[(i + j)];
 
-        /* if (axis == 0) {} */
+        
           Vector3 base = {-cv[0], 0.0, -cv[1]};
           double pi = std::acos(-1.0);
           double angle = ((45.0 * (axis+1))+45.0*(axis)) * (pi / 180.0); 
           Vector3 v = rotateZ(base, angle);
+
+  
+
           verts.append({{v.x, v.y, v.z},vclass});
         
       }
     }
   }
+ */
 
   for (int i : IndexRange(segments)) {
     for (int j : IndexRange(2)) {
           float2 cv = ring[(i + j) % segments];
-
-            verts.append({{cv[0], cv[1], 0.0f},vclass});
+          
+          verts.append({{cv[0], cv[1], 0.0f},VCLASS_CAMERA_FISHEYE_FOV_EDGE});
 
         }
   }
+
+
+  constexpr float ring_step = 10;
+
+  for(int r : IndexRange(35))
+  {
+
+    float angle = ((ring_step*(r+1))* (M_PI / 180))/2;
+/* 
+    double theta = halfAngleDegrees * (PI / 180.0); */
+
+    float height = -1.0 + (1.0f * (1.0 - std::cos(angle)));
+    float radius = 1.0f * std::sin(angle);
+
+    /* printf("xx RING Angle: %f height: %f\n",angle,height); */
+
+/*     float new_height = 1.0 * (1.0 - std::cos((ring_step+1)*r / 2));*/
+   for (int i : IndexRange(segments)) { 
+
+     if (i % 2)
+      {
+      for (int j : IndexRange(2)) {
+            float2 cv = ring[(i + j) % segments];           
+
+            verts.append({{cv[0]*radius, cv[1]*radius, height},VCLASS_CAMERA_FISHEYE_FOV_RING});
+
+          }
+      } 
+    } 
+  }
+
+  
 
   return verts;
 }
@@ -987,11 +1055,36 @@ ShapeCache::ShapeCache()
   /* dome grid */
   {
 
-   Vector<Vertex> verts = dome_sphere_axes(1.0f,VCLASS_CAMERA_FISHEYE_FOV, 32);
+   Vector<Vertex> verts = dome_sphere_axes();
 
-    dome_grid = BatchPtr(
+    fisheye_dome = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
+
+
+
+  /* Dome direction */
+  {
+/*     const Vector<float2> triangle = {{-1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}};
+    Vector<Vertex> verts; */
+
+
+    Vector<Vertex> verts = fisheye_direction_verts();
+    /* Wire */
+/*     Vector<Vertex> verts = fisheye_direction();
+    
+    fisheye_direction = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+ */
+/*     verts.clear(); */
+    /* Triangle */
+/*     for (const float2 &point : triangle) {
+      verts.append({{point.x, point.y, 1.0f}, VCLASS_CAMERA_FRAME});
+    } */
+    fisheye_direction = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_TRIS, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+
 
 
   /* camera tria */

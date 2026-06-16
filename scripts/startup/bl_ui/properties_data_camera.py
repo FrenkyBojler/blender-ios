@@ -103,9 +103,11 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                 col.prop(cam, "panorama_type")
                 if cam.panorama_type == 'FISHEYE_EQUIDISTANT':
                     col.prop(cam, "fisheye_fov")
+                    col.prop(cam, "fisheye_radius",text="Radius")
                 elif cam.panorama_type == 'FISHEYE_EQUISOLID':
                     col.prop(cam, "fisheye_lens", text="Lens")
                     col.prop(cam, "fisheye_fov")
+                    col.prop(cam, "fisheye_radius",text="Radius")
                 elif cam.panorama_type == 'EQUIRECTANGULAR':
                     sub = col.column(align=True)
                     sub.prop(cam, "latitude_min", text="Latitude Min")

@@ -77,7 +77,9 @@ class Cameras : Overlay {
     const SelectionType selection_type_;
     CameraInstanceBuf distances_buf = {selection_type_, "camera_distances_buf"};
     CameraInstanceBuf frame_buf = {selection_type_, "camera_frame_buf"};
-    CameraInstanceBuf dome_buf = {selection_type_, "camera_dome_buf"};
+    CameraInstanceBuf fisheye_dome_buf = {selection_type_, "camera_fisheye_dome_buf"};
+    CameraInstanceBuf fisheye_direction_buf = {selection_type_, "camera_fisheye_direction_buf"};
+    CameraInstanceBuf fisheye_direction_wire_buf = {selection_type_, "camera_fisheye_direction_wire_buf"};
     CameraInstanceBuf tria_buf = {selection_type_, "camera_tria_buf"};
     CameraInstanceBuf tria_wire_buf = {selection_type_, "camera_tria_wire_buf"};
     CameraInstanceBuf volume_buf = {selection_type_, "camera_volume_buf"};
@@ -111,7 +113,9 @@ class Cameras : Overlay {
     if (extras_enabled_ || motion_tracking_enabled_) {
       call_buffers_.distances_buf.clear();
       call_buffers_.frame_buf.clear();
-      call_buffers_.dome_buf.clear();
+      call_buffers_.fisheye_dome_buf.clear();
+      call_buffers_.fisheye_direction_buf.clear();
+      call_buffers_.fisheye_direction_wire_buf.clear();
       call_buffers_.tria_buf.clear();
       call_buffers_.tria_wire_buf.clear();
       call_buffers_.volume_buf.clear();
@@ -201,7 +205,9 @@ class Cameras : Overlay {
       sub_pass.shader_set(res.shaders->extra_shape.get());
       call_buffers_.distances_buf.end_sync(sub_pass, res.shapes.camera_distances.get());
       call_buffers_.frame_buf.end_sync(sub_pass, res.shapes.camera_frame.get());
-      call_buffers_.dome_buf.end_sync(sub_pass, res.shapes.dome_grid.get());
+      call_buffers_.fisheye_dome_buf.end_sync(sub_pass, res.shapes.fisheye_dome.get());
+      call_buffers_.fisheye_direction_buf.end_sync(sub_pass, res.shapes.fisheye_direction.get());
+      call_buffers_.fisheye_direction_wire_buf.end_sync(sub_pass, res.shapes.fisheye_direction_wire.get());
       call_buffers_.tria_buf.end_sync(sub_pass, res.shapes.camera_tria.get());
       call_buffers_.tria_wire_buf.end_sync(sub_pass, res.shapes.camera_tria_wire.get());
       call_buffers_.sphere_solid_buf.end_sync(sub_pass, res.shapes.sphere_low_detail.get());
@@ -382,11 +388,21 @@ class Cameras : Overlay {
       else {
         if(is_panoramic)
         {
-        
-        
-        data.color_.x = cam.fisheye_fov;
-        printf("%f\n",cam.fisheye_fov); 
-        call_buffers_.dome_buf.append(data, select_id); 
+          float fov = (cam.fisheye_fov - M_PI)  / 2;
+          data.corner_x = cam.fisheye_fov;
+          data.matrix.x_axis() *= cam.fisheye_radius;
+          data.matrix.y_axis() *= cam.fisheye_radius;
+          data.matrix.z_axis() *= cam.fisheye_radius; 
+          (is_active ? call_buffers_.fisheye_direction_buf : call_buffers_.fisheye_direction_wire_buf).append(data, select_id);
+          
+       /*    data.matrix.x_axis() *= cam.fisheye_radius;
+          data.matrix.y_axis() *= cam.fisheye_radius;
+          data.matrix.z_axis() *= cam.fisheye_radius;  */
+
+          /* data.color_.x = cam.fisheye_fov; */
+         /* printf("FISHEYE %f\n",fov); */
+          call_buffers_.fisheye_dome_buf.append(data, select_id); 
+          
         }
         else
         {
@@ -397,15 +413,17 @@ class Cameras : Overlay {
     }
 
     if (!is_camera_view) {
-      /* Triangle. */
-
-        float tria_size = 0.7f * drawsize / fabsf(data.depth);
-        float tria_margin = 0.1f * drawsize / fabsf(data.depth);
-        data.center_x = center.x;
-        data.center_y = center.y + data.corner_y + tria_margin + tria_size;
-        data.corner_x = data.corner_y = -tria_size;
-        (is_active ? call_buffers_.tria_buf : call_buffers_.tria_wire_buf).append(data, select_id);
-      
+  
+      if(!is_panoramic)
+        { 
+          float tria_size = 0.7f * drawsize / fabsf(data.depth);
+          float tria_margin = 0.1f * drawsize / fabsf(data.depth);
+          data.center_x = center.x;
+          data.center_y = center.y + data.corner_y + tria_margin + tria_size;
+          data.corner_x = data.corner_y = -tria_size;
+          (is_active ? call_buffers_.tria_buf : call_buffers_.tria_wire_buf).append(data, select_id);
+       } 
+       
     }
 
     if (cam.flag & CAM_SHOWLIMITS) {
