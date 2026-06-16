@@ -244,7 +244,7 @@ static void blender_camera_from_object(BlenderCamera *bcam,
     }
 
     bcam->panorama_type = blender_panorama_type_to_cycles(b_camera.panorama_type);
-    bcam->fisheye_fov = b_camera.fisheye_fov;    
+    bcam->fisheye_fov = b_camera.fisheye_fov;
     bcam->fisheye_lens = b_camera.fisheye_lens;
     bcam->latitude_min = b_camera.latitude_min;
     bcam->latitude_max = b_camera.latitude_max;

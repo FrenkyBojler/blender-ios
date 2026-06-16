@@ -70,7 +70,6 @@
 #define VCLASS_CAMERA_FISHEYE_FOV_RING (1 << 21)
 #define VCLASS_CAMERA_FISHEYE_DIRECTION (1 << 22)
 
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

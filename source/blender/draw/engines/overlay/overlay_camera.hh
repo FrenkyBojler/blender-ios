@@ -32,13 +32,12 @@ struct CameraInstanceData : public ExtraInstanceData {
   float &dist_color_id = matrix[0][3];
   float &corner_x = matrix[0][3];
   float &corner_y = matrix[1][3];
-  float &center_x = matrix[2][3];  
+  float &center_x = matrix[2][3];
   float &clip_start = matrix[2][3];
   float &mist_start = matrix[2][3];
   float &center_y = matrix[3][3];
   float &clip_end = matrix[3][3];
   float &mist_end = matrix[3][3];
-  
 
   CameraInstanceData(const CameraInstanceData &data)
       : CameraInstanceData(data.object_to_world, data.color_)
@@ -79,7 +78,8 @@ class Cameras : Overlay {
     CameraInstanceBuf frame_buf = {selection_type_, "camera_frame_buf"};
     CameraInstanceBuf fisheye_dome_buf = {selection_type_, "camera_fisheye_dome_buf"};
     CameraInstanceBuf fisheye_direction_buf = {selection_type_, "camera_fisheye_direction_buf"};
-    CameraInstanceBuf fisheye_direction_wire_buf = {selection_type_, "camera_fisheye_direction_wire_buf"};
+    CameraInstanceBuf fisheye_direction_wire_buf = {selection_type_,
+                                                    "camera_fisheye_direction_wire_buf"};
     CameraInstanceBuf tria_buf = {selection_type_, "camera_tria_buf"};
     CameraInstanceBuf tria_wire_buf = {selection_type_, "camera_tria_wire_buf"};
     CameraInstanceBuf volume_buf = {selection_type_, "camera_volume_buf"};
@@ -207,7 +207,8 @@ class Cameras : Overlay {
       call_buffers_.frame_buf.end_sync(sub_pass, res.shapes.camera_frame.get());
       call_buffers_.fisheye_dome_buf.end_sync(sub_pass, res.shapes.fisheye_dome.get());
       call_buffers_.fisheye_direction_buf.end_sync(sub_pass, res.shapes.fisheye_direction.get());
-      call_buffers_.fisheye_direction_wire_buf.end_sync(sub_pass, res.shapes.fisheye_direction_wire.get());
+      call_buffers_.fisheye_direction_wire_buf.end_sync(sub_pass,
+                                                        res.shapes.fisheye_direction_wire.get());
       call_buffers_.tria_buf.end_sync(sub_pass, res.shapes.camera_tria.get());
       call_buffers_.tria_wire_buf.end_sync(sub_pass, res.shapes.camera_tria_wire.get());
       call_buffers_.sphere_solid_buf.end_sync(sub_pass, res.shapes.sphere_low_detail.get());
@@ -309,8 +310,6 @@ class Cameras : Overlay {
     const bool is_camera_view = (is_active && (rv3d->persp == RV3D_CAMOB));
     const bool is_panoramic = cam.type == CAM_PANO;
 
-    
-
     const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
     const bool is_stereo3d_view = (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D);
     const bool is_stereo3d_display_extra = is_active && is_multiview && (!is_camera_view) &&
@@ -342,7 +341,7 @@ class Cameras : Overlay {
                              shift,
                              &drawsize,
                              vecs.ptr());
-   
+
     /* Apply scale to simplify the rest of the drawing. */
     for (int i = 0; i < 4; i++) {
       vecs[i] *= scale;
@@ -386,44 +385,41 @@ class Cameras : Overlay {
             *DEG_get_bmain(state.depsgraph), data, select_id, scene, v3d, res, ob);
       }
       else {
-        if(is_panoramic)
-        {
-          float fov = (cam.fisheye_fov - M_PI)  / 2;
+        if (is_panoramic) {
+          float fov = (cam.fisheye_fov - M_PI) / 2;
           data.corner_x = cam.fisheye_fov;
           data.matrix.x_axis() *= cam.fisheye_radius;
           data.matrix.y_axis() *= cam.fisheye_radius;
-          data.matrix.z_axis() *= cam.fisheye_radius; 
-          (is_active ? call_buffers_.fisheye_direction_buf : call_buffers_.fisheye_direction_wire_buf).append(data, select_id);
-          
-       /*    data.matrix.x_axis() *= cam.fisheye_radius;
-          data.matrix.y_axis() *= cam.fisheye_radius;
-          data.matrix.z_axis() *= cam.fisheye_radius;  */
+          data.matrix.z_axis() *= cam.fisheye_radius;
+          (is_active ? call_buffers_.fisheye_direction_buf :
+                       call_buffers_.fisheye_direction_wire_buf)
+              .append(data, select_id);
+
+          /*    data.matrix.x_axis() *= cam.fisheye_radius;
+             data.matrix.y_axis() *= cam.fisheye_radius;
+             data.matrix.z_axis() *= cam.fisheye_radius;  */
 
           /* data.color_.x = cam.fisheye_fov; */
-         /* printf("FISHEYE %f\n",fov); */
-          call_buffers_.fisheye_dome_buf.append(data, select_id); 
-          
+          /* printf("FISHEYE %f\n",fov); */
+          call_buffers_.fisheye_dome_buf.append(data, select_id);
         }
-        else
-        {
-         
-        call_buffers_.frame_buf.append(data, select_id);
+        else {
+
+          call_buffers_.frame_buf.append(data, select_id);
         }
       }
     }
 
     if (!is_camera_view) {
-  
-      if(!is_panoramic)
-        { 
-          float tria_size = 0.7f * drawsize / fabsf(data.depth);
-          float tria_margin = 0.1f * drawsize / fabsf(data.depth);
-          data.center_x = center.x;
-          data.center_y = center.y + data.corner_y + tria_margin + tria_size;
-          data.corner_x = data.corner_y = -tria_size;
-          (is_active ? call_buffers_.tria_buf : call_buffers_.tria_wire_buf).append(data, select_id);
-       } 
-       
+
+      if (!is_panoramic) {
+        float tria_size = 0.7f * drawsize / fabsf(data.depth);
+        float tria_margin = 0.1f * drawsize / fabsf(data.depth);
+        data.center_x = center.x;
+        data.center_y = center.y + data.corner_y + tria_margin + tria_size;
+        data.corner_x = data.corner_y = -tria_size;
+        (is_active ? call_buffers_.tria_buf : call_buffers_.tria_wire_buf).append(data, select_id);
+      }
     }
 
     if (cam.flag & CAM_SHOWLIMITS) {
@@ -437,7 +433,6 @@ class Cameras : Overlay {
       data.clip_start = cam.clip_start;
       data.clip_end = cam.clip_end;
       call_buffers_.distances_buf.append(data, select_id);
-      
     }
 
     if (cam.flag & CAM_SHOWMIST) {

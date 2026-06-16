@@ -236,7 +236,7 @@ struct Camera {
   float fisheye_polynomial_k3 = 3.099275275886036e-06f;
   float fisheye_polynomial_k4 = -2.6064646454854524e-08f;
   float fisheye_radius = 10.5f;
-  
+
   /* Central cylindrical range properties. */
   float central_cylindrical_range_u_min = DEG2RADF(-180.0f);
   float central_cylindrical_range_u_max = DEG2RADF(180.0f);
@@ -270,8 +270,6 @@ struct Camera {
 
   /** Runtime data (keep last). */
   Camera_Runtime runtime;
-
-
 };
 
 /* **************** CAMERA ********************* */

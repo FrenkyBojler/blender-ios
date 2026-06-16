@@ -12,7 +12,6 @@ VERTEX_SHADER_CREATE_INFO(overlay_extra_spot_cone)
 #include "overlay_common_lib.glsl"
 #include "select_lib.glsl"
 
-
 void main()
 {
   select_id_set(in_select_buf[gl_InstanceID]);
@@ -25,7 +24,7 @@ void main()
   /* Extract data packed inside the unused float4x4 members. */
   float4 inst_data = float4(input_mat[0][3], input_mat[1][3], input_mat[2][3], input_mat[3][3]);
   float4 color = data_buf[gl_InstanceID].color_;
-  
+
   float inst_color_data = color.a;
   float4x4 obmat = input_mat;
   obmat[0][3] = obmat[1][3] = obmat[2][3] = 0.0f;
@@ -52,7 +51,6 @@ void main()
   float fisheye_fov = camera_corner.x;
   float3 empty_size = inst_data.xyz;
   float empty_scale = inst_data.w;
-  
 
   float lamp_spot_sine;
   float3 vpos = pos;
@@ -140,36 +138,29 @@ void main()
   }
   else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV)) {
     /* Feel free to optimize this. I am not a math guy! */
-   
-    if (-(asin(vpos.z / 1.0f)) < radians(90)-fisheye_fov/2)
-    {
+
+    if (-(asin(vpos.z / 1.0f)) < radians(90) - fisheye_fov / 2) {
       float new_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
       float new_radius = 1.0f * sin(fisheye_fov / 2);
       vpos.z = -1.0f + new_height;
-      vpos.y = -new_radius;      
+      vpos.y = -new_radius;
     }
-
 
     int d = 0;
 
-    if(flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_90)) 
-    {
-       d += 90;
-    } 
+    if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_90)) {
+      d += 90;
+    }
 
-    if(flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_180))
-    {
+    if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_180)) {
       d += 180;
     }
-    
-    if(flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_45))
-    {
+
+    if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_45)) {
       d += 45;
     }
 
-
-    if(d > 0)
-    {
+    if (d > 0) {
 
       float cosAngle = cos(radians(d));
       float sinAngle = sin(radians(d));
@@ -178,25 +169,21 @@ void main()
       float rotated_y;
       rotated_x = vpos.x * cosAngle - vpos.y * sinAngle;
       rotated_y = vpos.x * sinAngle + vpos.y * cosAngle;
- 
+
       vpos.x = rotated_x;
       vpos.y = rotated_y;
     }
-
-    
   }
   else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_EDGE)) {
 
-
     float radius = 1.0f;
 
-
     float new_height = radius * (1.0 - cos(fisheye_fov / 2));
-    
+
     float new_radius = radius * sin(fisheye_fov / 2);
-  
+
     vpos.x *= new_radius;
-    vpos.y *= new_radius; 
+    vpos.y *= new_radius;
     vpos.z = -1.0f + new_height;
     final_color.r = 1;
     final_color.r = 0;
@@ -204,56 +191,46 @@ void main()
   }
   else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_DIRECTION)) {
     float radius = 1.0f;
-    float new_height = radius * (1.0 - cos(fisheye_fov / 2));    
+    float new_height = radius * (1.0 - cos(fisheye_fov / 2));
     float new_radius = radius * sin(fisheye_fov / 2);
-    printf("FISHEYE DIRECTION %f \n",new_radius);
+    printf("FISHEYE DIRECTION %f \n", new_radius);
     vpos.y += new_radius;
     vpos.z = -1.0f + new_height;
-
   }
   else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_RING)) {
 
-        if (-(asin(vpos.z / 1.0f)) < radians(90)-fisheye_fov/2)
-        {
-          float new_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
-          float new_radius = 1.0f * sin(fisheye_fov / 2);
+    if (-(asin(vpos.z / 1.0f)) < radians(90) - fisheye_fov / 2) {
+      float new_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
+      float new_radius = 1.0f * sin(fisheye_fov / 2);
 
-          vpos.z = -1.0f + new_height;
+      vpos.z = -1.0f + new_height;
 
-          
-          if(vpos.x < 0.0f)
-          {
-            vpos.x = -new_radius;
-          }
-          else 
-          {
-            vpos.x = new_radius;
-          }
+      if (vpos.x < 0.0f) {
+        vpos.x = -new_radius;
+      }
+      else {
+        vpos.x = new_radius;
+      }
 
-          if(vpos.y < 0.0f)
-          {
-            vpos.y = -new_radius;
-          }
-          else 
-          {
-            vpos.y = new_radius;
-          }
+      if (vpos.y < 0.0f) {
+        vpos.y = -new_radius;
+      }
+      else {
+        vpos.y = new_radius;
+      }
 
- /*          if(vpos.y<0)
-          {
-            vpos.y = -new_radius;
-          }
-          else
-          {
-            vpos.y = new_radius;
-          } */
+      /*          if(vpos.y<0)
+               {
+                 vpos.y = -new_radius;
+               }
+               else
+               {
+                 vpos.y = new_radius;
+               } */
 
-
-
-          /* vpos.y = -new_radius;      
-          vpos.y = -new_radius;    */
-        }
-
+      /* vpos.y = -new_radius;
+      vpos.y = -new_radius;    */
+    }
   }
   else if (flag_test(vclass, VCLASS_EMPTY_AXES)) {
     float axis = vpos.z;
