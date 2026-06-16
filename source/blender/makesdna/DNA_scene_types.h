@@ -1045,7 +1045,7 @@ struct RenderData {
   eCompositorDevice compositor_device = SCE_COMPOSITOR_DEVICE_GPU;
 
   /** Cache options for the interactive compositor. */
-  eCompositorCacheFlags compositor_cache_flags = SCE_COMPOSITOR_CACHE_NONE;
+  eCompositorCacheFlags compositor_cache_flags = SCE_COMPOSITOR_CACHE_FRAMES;
 
   char _pad10[3] = {};
 
