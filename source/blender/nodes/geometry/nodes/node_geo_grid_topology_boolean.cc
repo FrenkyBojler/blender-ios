@@ -121,7 +121,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const std::optional<VolumeGridType> grid_type = bke::socket_type_to_grid_type(data_type);
-  if (grid_type) {
+  if (!grid_type) {
     params.set_default_remaining_outputs();
     return;
   }
