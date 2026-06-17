@@ -302,12 +302,6 @@ Mesh *replace_faces(const Mesh &base,
 
   // TODO: EDGES
   MutableSpan<int2> result_edges = result->edges_for_write();
-  unselected_edges.foreach_index(
-      [&](const int64_t src_i, const int64_t dst_i) {
-        result_edges[dst_i][0] = base_vert_to_unselected[base_edges[src_i][0]];
-        result_edges[dst_i][1] = base_vert_to_unselected[base_edges[src_i][1]];
-      },
-      exec_mode::grain_size(512));
 
   MutableSpan<int> result_face_offsets = result->face_offsets_for_write();
   if (!unselected_faces.is_empty()) {
@@ -332,16 +326,15 @@ Mesh *replace_faces(const Mesh &base,
 
   MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
 
-  MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
-  // TODO: DEDUPLICATE WITH MESH COPY SELECTED / DELETE GEOMETRY CODE
-  unselected_faces.foreach_index(
-      [&](const int64_t src_i, const int64_t dst_i) {
-        array_utils::gather(base_vert_to_unselected.as_span(),
-                            base_corner_verts.slice(base_faces[src_i]),
-                            result_corner_verts.slice(result_faces[dst_i]),
-                            exec_mode::serial);
-      },
-      exec_mode::grain_size(512));
+  geometry::remap_verts(base_faces,
+                        result_faces,
+                        base_vert_to_unselected,
+                        unselected_edges,
+                        unselected_faces,
+                        base_edges,
+                        base_corner_verts,
+                        result_edges.take_front(unselected_edges.size()),
+                        result_corner_verts);
 
   MutableSpan<int> new_corner_verts = result_corner_verts.take_back(new_corners_num);
   selection.foreach_index(

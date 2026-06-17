@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "BLI_math_vector_types.hh"
 #include "BLI_virtual_array.hh"
 
 #include "BKE_attribute_filter.hh"
@@ -38,6 +39,16 @@ std::optional<Mesh *> mesh_copy_selection_keep_edges(
     const VArray<bool> &selection,
     bke::AttrDomain selection_domain,
     const bke::AttributeFilter &attribute_filter = {});
+
+void remap_verts(OffsetIndices<int> src_faces,
+                 OffsetIndices<int> dst_faces,
+                 Span<int> vert_reverse_map,
+                 const IndexMask &edge_mask,
+                 const IndexMask &face_mask,
+                 Span<int2> src_edges,
+                 Span<int> src_corner_verts,
+                 MutableSpan<int2> dst_edges,
+                 MutableSpan<int> dst_corner_verts);
 
 }  // namespace geometry
 }  // namespace blender

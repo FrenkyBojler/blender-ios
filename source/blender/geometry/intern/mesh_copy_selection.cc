@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
 #include "BLI_index_range.hh"
 #include "BLI_unique_sorted_indices.hh"
 #include "DNA_object_types.h"
@@ -21,6 +22,57 @@
 
 namespace blender::geometry {
 
+void remap_verts(const OffsetIndices<int> src_faces,
+                 const OffsetIndices<int> dst_faces,
+                 const Span<int> vert_reverse_map,
+                 const IndexMask &edge_mask,
+                 const IndexMask &face_mask,
+                 const Span<int2> src_edges,
+                 const Span<int> src_corner_verts,
+                 MutableSpan<int2> dst_edges,
+                 MutableSpan<int> dst_corner_verts)
+{
+  const Span<int> map = vert_reverse_map;
+  face_mask.foreach_segment_optimized(
+      [&](const auto segment, const int64_t dst_pos) {
+        if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
+          array_utils::gather(
+              map,
+              src_corner_verts.slice(src_faces[segment]),
+              dst_corner_verts.slice(dst_faces[IndexRange(dst_pos, segment.size())]),
+              exec_mode::serial);
+        }
+        else {
+          for (const int segment_i : segment.index_range()) {
+            array_utils::gather(map,
+                                src_corner_verts.slice(src_faces[segment[segment_i]]),
+                                dst_corner_verts.slice(dst_faces[dst_pos + segment_i]),
+                                exec_mode::serial);
+          }
+        }
+      },
+      exec_mode::grain_size(512));
+
+  edge_mask.foreach_segment_optimized(
+      [&](const auto segment, const int64_t dst_pos) {
+        if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
+          array_utils::gather(map,
+                              src_edges.slice(segment).template cast<int>(),
+                              dst_edges.slice(IndexRange(dst_pos, segment.size())).cast<int>(),
+                              exec_mode::serial);
+        }
+        else {
+          for (const int segment_i : segment.index_range()) {
+            const int src_i = segment[segment_i];
+            const int dst_i = dst_pos + segment_i;
+            dst_edges[dst_i][0] = map[src_edges[src_i][0]];
+            dst_edges[dst_i][1] = map[src_edges[src_i][1]];
+          }
+        }
+      },
+      exec_mode::grain_size(512));
+}
+
 static void remap_verts(const OffsetIndices<int> src_faces,
                         const OffsetIndices<int> dst_faces,
                         const int src_verts_num,
@@ -34,33 +86,15 @@ static void remap_verts(const OffsetIndices<int> src_faces,
 {
   Array<int> map(src_verts_num);
   index_mask::build_reverse_map<int>(vert_mask, map);
-  face_mask.foreach_segment_optimized(
-      [&](const auto segment, const int64_t dst_pos) {
-        if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
-          const IndexRange src_corners = src_faces[segment];
-          const IndexRange dst_corners = dst_faces[IndexRange(dst_pos, segment.size())];
-          for (const int i : src_corners.index_range()) {
-            dst_corner_verts[dst_corners[i]] = map[src_corner_verts[src_corners[i]]];
-          }
-        }
-        else {
-          for (const int segment_i : segment.index_range()) {
-            const IndexRange src_face = src_faces[segment[segment_i]];
-            const IndexRange dst_face = dst_faces[dst_pos + segment_i];
-            for (const int i : src_face.index_range()) {
-              dst_corner_verts[dst_face[i]] = map[src_corner_verts[src_face[i]]];
-            }
-          }
-        }
-      },
-      exec_mode::grain_size(512));
-
-  edge_mask.foreach_index(
-      [&](const int64_t src_i, const int64_t dst_i) {
-        dst_edges[dst_i][0] = map[src_edges[src_i][0]];
-        dst_edges[dst_i][1] = map[src_edges[src_i][1]];
-      },
-      exec_mode::grain_size(512));
+  remap_verts(src_faces,
+              dst_faces,
+              map,
+              edge_mask,
+              face_mask,
+              src_edges,
+              src_corner_verts,
+              dst_edges,
+              dst_corner_verts);
 }
 
 static void remap_edges(const OffsetIndices<int> src_faces,
