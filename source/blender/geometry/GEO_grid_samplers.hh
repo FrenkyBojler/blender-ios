@@ -126,8 +126,10 @@ typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openv
 /**
  * Nearest-point kernel function.
  *
- * To avoid reading an unnecessary value (one value always has zero weight), the sampling interval
- * is shifted by 0.5. This is equivalent to rounding the sampling position to the nearest point.
+ * This kernel has a range of 0.5 voxels. For sampling in the index space of i <= x <= i+1
+ * the contribution of points {i, i+1} must be considered. However, the influence of one
+ * grid node can be avoided by shifting the sampling interval by half a voxel from [i, i+1]
+ * to [i-0.5, i+0.5]. On this interval only point i affects the sampling.
  */
 struct NearestPointKernel {
   static constexpr int samples_left = 1;
@@ -283,46 +285,36 @@ struct QuadraticBackwardKernel {
  *
  * The kernel is a piece-wise quadratic spline:
  * f(x) = 0                          for         x < -3/2
- * f(x) = 1/2*x^2 + 3/2*x + 9/8      for 1/2 <= x < 3/2
+ * f(x) = 1/2*x^2 + 3/2*x + 9/8      for -3/2 <= x < -1/2
  * f(x) = -x^2 + 3/4                 for -1/2 <= x < 1/2
- * f(x) = 1/2*x^2 - 3/2*x + 9/8      for 1/2 <= x < 3/2
- * f(x) = 0                          for 3/2 <= x
- *
- * The derivative is a piece-wise linear function:
- * f(x) = 0                          for         x < -3/2
- * f(x) = x + 3/2                    for -3/2 <= x < -1/2
- * f(x) = -2*x                       for    0 <= x < 1/2
- * f(x) = x - 3/2                    for  1/2 <= x < 3/2
+ * f(x) = 1/2*x^2 - 3/2*x + 9/8      for  1/2 <= x < 3/2
  * f(x) = 0                          for  3/2 <= x
  *
  * This kernel has a range of 1.5 voxels. For sampling in the index space of i <= x <= i+1
- * the contribution of points [i-1, i, i+1, i+2] must be considered.
- * Shifting the kernel function to these voxel locations yields these contributions:
- * v(x) = v[i-1]*f(x+1) +   v[i]*f(x) + v[i+1]*f(x-1) + v[i+2]*f(x-2)
- *      =      A*f(x+1) +      B*f(x) +      C*f(x-1) +      D*f(x-2)
+ * the contribution of points {i-1, i, i+1, i+2} must be considered. However, the influence of one
+ * grid node can be avoided by shifting the sampling interval by half a voxel from [i, i+1]
+ * to [i-0.5, i+0.5]. On this interval only points {i-1, i, i+1} affect the sampling.
+ * The shifted interval is also aligned with the piecewise function changes, requiring no
+ * branching.
  *
- * This results in the following expressions for sampling in one dimension:
- * For 0 <= x < 1/2:
+ * Shifting the kernel function to these voxel locations yields these contributions:
+ * v(x) = v[i-1]*f(x+1) +   v[i]*f(x) + v[i+1]*f(x-1)
+ *      =      A*f(x+1) +      B*f(x) +      C*f(x-1)
+ *
+ * This results in the following expression for sampling in one dimension over x in [i-0.5, i+0.5]:
  *   v(x) =   x^2*( 1/2*A     - B + 1/2*C)
  *          +   x*(-1/2*A         + 1/2*C)
  *          +     ( 1/8*A + 6/8*B + 1/8*C)
- * For 1/2 <= x < 1:
- *   v(x) =   x^2*( 1/2*B     - C + 1/2*D)
- *          +   x*(-3/2*B   + 2*C - 1/2*D)
- *          +     ( 9/8*B - 2/8*C + 1/8*D)
  *
  * and for the derivative:
- * For 0 <= x < 1/2:
  *   dv(x) =    x*(     A   - 2*B     + C)
  *           +    (-1/2*A         + 1/2*C)
- * For 1/2 <= x < 1:
- *   dv(x) =    x*(     B   - 2*C     + D)
- *           +    (-3/2*B   + 2*C - 1/2*D)
  */
 struct QuadraticBSplineKernel {
   static constexpr int samples_left = 2;
-  static constexpr int samples_right = 2;
-  static constexpr float sample_offset = 0.0f;
+  static constexpr int samples_right = 1;
+  /* Shift the sampling interval to simplify interpolation. */
+  static constexpr float sample_offset = 0.5f;
 
   static float weight(float x)
   {
@@ -361,17 +353,9 @@ struct QuadraticBSplineKernel {
   template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    if (weight < 0.5) {
-      const ValueT sqr = static_cast<ValueT>(0.5 * (values[0] + values[2]) - values[1]);
-      const ValueT lin = static_cast<ValueT>(0.5 * (values[2] - values[0]));
-      const ValueT con = static_cast<ValueT>(0.125 * (values[0] + values[2]) + 0.75 * values[1]);
-      return weight * (weight * sqr + lin) + con;
-    }
-
-    const ValueT sqr = static_cast<ValueT>(0.5 * (values[1] + values[3]) - values[2]);
-    const ValueT lin = static_cast<ValueT>(-1.5 * values[1] + 2 * values[2] - 0.5 * values[3]);
-    const ValueT con = static_cast<ValueT>(1.125 * values[1] - 0.25 * values[2] +
-                                           0.125 * values[3]);
+    const ValueT sqr = static_cast<ValueT>(0.5 * (values[0] + values[2]) - values[1]);
+    const ValueT lin = static_cast<ValueT>(0.5 * (values[2] - values[0]));
+    const ValueT con = static_cast<ValueT>(0.125 * (values[0] + values[2]) + 0.75 * values[1]);
     return weight * (weight * sqr + lin) + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -379,14 +363,8 @@ struct QuadraticBSplineKernel {
   template<class ValueT> static ValueT sample_gradient(const ValueT *values, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    if (weight < 0.5) {
-      const ValueT lin = static_cast<ValueT>(values[0] - 2.0 * values[1] + values[2]);
-      const ValueT con = static_cast<ValueT>(0.5 * (values[2] - values[0]));
-      return weight * lin + con;
-    }
-
-    const ValueT lin = static_cast<ValueT>(values[1] - 2.0 * values[2] + values[3]);
-    const ValueT con = static_cast<ValueT>(-1.5 * values[1] + 2.0 * values[2] - 0.5 * values[3]);
+    const ValueT lin = static_cast<ValueT>(values[0] - 2.0 * values[1] + values[2]);
+    const ValueT con = static_cast<ValueT>(0.5 * (values[2] - values[0]));
     return weight * lin + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -405,15 +383,15 @@ struct QuadraticBSplineKernel {
  * f(x) = 0                                 for   2 <= x
  *
  * The derivative is a piece-wise quadratic spline:
- * f(x) = 0                                 for        x < -2
- * f(x) = 1/2*x^2 + 2*x + 2                 for  -2 <= x < -1
- * f(x) = -3/2*x^2 - 2*x                    for  -1 <= x < 1
- * f(x) = 3/2*x^2 - 2*x                     for   0 <= x < 1
- * f(x) = -1/2*x^2 + 2*x - 2                for   1 <= x < 2
- * f(x) = 0                                 for   2 <= x
+ * df(x) = 0                                for        x < -2
+ * df(x) = 1/2*x^2 + 2*x + 2                for  -2 <= x < -1
+ * df(x) = -3/2*x^2 - 2*x                   for  -1 <= x < 1
+ * df(x) = 3/2*x^2 - 2*x                    for   0 <= x < 1
+ * df(x) = -1/2*x^2 + 2*x - 2               for   1 <= x < 2
+ * df(x) = 0                                for   2 <= x
  *
  * This kernel has a range of 2 voxels. For sampling in the index space of i <= x <= i+1
- * the contribution of points [i-1, i, i+1, i+2] must be considered.
+ * the contribution of points {i-1, i, i+1, i+2} must be considered.
  * Shifting the kernel function to these voxel locations yields these contributions:
  * v(x) = v[i-1]*f(x+1) +   v[i]*f(x) + v[i+1]*f(x-1) + v[i+2]*f(x-2)
  *      =      A*f(x+1) +      B*f(x) +      C*f(x-1) +      D*f(x-2)
