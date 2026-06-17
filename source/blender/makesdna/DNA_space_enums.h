@@ -161,7 +161,6 @@ ENUM_OPERATORS(eSpaceOutliner_Flag)
 enum eSpaceOutliner_SortMethod : short {
   SO_SORT_ALPHA = 0,
   SO_SORT_CUSTOM = 1,
-  SO_SORT_TYPE = 2,
 };
 
 /** #SpaceOutliner.filter */

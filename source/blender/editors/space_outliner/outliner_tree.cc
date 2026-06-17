@@ -790,63 +790,6 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
   }
 }
 
-static void outliner_sort_type(ListBaseT<TreeElement> *lb)
-{
-  TreeElement *last_te = static_cast<TreeElement *>(lb->last);
-  if (last_te == nullptr) {
-    return;
-  }
-  TreeStoreElem *last_tselem = TREESTORE(last_te);
-
-  /* Sorting rules; only object lists, ID lists, or deform-groups. */
-  const short last_idcode = last_te->idcode;
-  if (ELEM(last_tselem->type, TSE_DEFGROUP, TSE_ID_BASE) ||
-      ((last_tselem->type == TSE_SOME_ID) && (last_idcode == ID_OB)))
-  {
-    const int totelem = BLI_listbase_count(lb);
-    if (totelem > 1) {
-      Vector<tTreeSort> tear_vec(totelem);
-      tTreeSort *tear = tear_vec.data();
-      tTreeSort *tp = tear;
-
-      for (TreeElement &te : *lb) {
-        TreeStoreElem *tselem = TREESTORE(&te);
-        tp->te = &te;
-        tp->name = te.name;
-        tp->idcode = te.idcode;
-        tp->id = tselem->id;
-
-        tp++;
-      }
-
-      if (tear->idcode == 1) {
-        std::sort(tear, tear + totelem, treesort_type_ob);
-      }
-      else {
-        int skip = 0;
-        for (tp = tear; skip < totelem; skip++, tp++) {
-          if (tp->idcode) {
-            break;
-          }
-        }
-        if (skip < totelem) {
-          std::sort(tear + skip, tear + totelem, treesort_type_ob);
-        }
-      }
-
-      lb->clear_no_delete();
-      tp = tear;
-      for (int i = 0; i < totelem; i++, tp++) {
-        BLI_addtail(lb, tp->te);
-      }
-    }
-  }
-
-  for (TreeElement &te_iter : *lb) {
-    outliner_sort_type(&te_iter.subtree);
-  }
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1402,10 +1345,6 @@ void outliner_build_tree(Main *mainvar,
 
     case SO_SORT_CUSTOM:
       outliner_sort_custom(&space_outliner->runtime->tree);
-      break;
-
-    case SO_SORT_TYPE:
-      outliner_sort_type(&space_outliner->runtime->tree);
       break;
 
     default:
