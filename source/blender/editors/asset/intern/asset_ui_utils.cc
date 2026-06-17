@@ -51,8 +51,8 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
   if (asset.remote_file_status() == asset_system::RemoteAssetFileStatus::NO_MATCH) {
     tooltip_text_field_add(
         tip,
-        TIP_("This asset was downloaded before but is outdated or otherwise inconsistent.\n"
-             "Redownloading is recommended."),
+        TIP_("This asset was previously downloaded, but it is outdated or inconsistent.\n"
+             "Downloading it again is recommended."),
         {},
         ui::TIP_STYLE_NORMAL,
         ui::TIP_LC_ALERT);
