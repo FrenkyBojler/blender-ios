@@ -145,19 +145,19 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
     uint4 ucolr(colr);
     auto colr_expected = repeat_data(ucolr, texture_size, to_component_len(FormatB));
     auto colr_readback = read_texture<uint>(view, GPU_DATA_UINT);
-    EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin()));
+    EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_readback.begin()));
   }
   else if (to_texture_data_format(FormatB) == GPU_DATA_INT) {
     int4 icolr(colr);
     auto colr_expected = repeat_data(icolr, texture_size, to_component_len(FormatB));
     auto colr_readback = read_texture<int>(view, GPU_DATA_INT);
-    EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin()));
+    EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_readback.begin()));
   }
   else if (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) {
     auto colr_expected = repeat_data(colr, texture_size, to_component_len(FormatB));
     auto colr_readback = read_texture<float>(view, GPU_DATA_FLOAT);
     EXPECT_TRUE(
-        std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin(), f_eq));
+        std::equal(colr_expected.begin(), colr_expected.end(), colr_readback.begin(), f_eq));
   }
   else {
     BLI_assert_unreachable();
