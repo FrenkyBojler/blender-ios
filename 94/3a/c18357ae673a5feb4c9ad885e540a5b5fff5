@@ -1,1 +1,2 @@
 Referenced by commit b994ec727bf7ef9aa3f8f9ed5dee3e159b69af1c, Fix: error in 3D text character spacing
+Referenced by issue #160037, Regression: String to Curve got new text offset
