@@ -33,17 +33,17 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
-#include "BLI_math_matrix.h"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -2080,15 +2080,16 @@ void OBJECT_OT_collection_instance_add(wmOperatorType *ot)
 static wmOperatorStatus collection_drop_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  LayerCollection *active_collection = CTX_data_layer_collection(C);
+  Collection *active_collection = BKE_collection_parent_editable_find_recursive(
+      CTX_data_view_layer(C), CTX_data_collection(C));
   std::optional<CollectionAddInfo> add_info = collection_add_info_get_from_op(C, op);
   if (!add_info) {
     return OPERATOR_CANCELLED;
   }
 
   if (RNA_boolean_get(op->ptr, "use_instance")) {
-    BKE_collection_child_remove(bmain, active_collection->collection, add_info->collection);
-    DEG_id_tag_update(&active_collection->collection->id, ID_RECALC_SYNC_TO_EVAL);
+    BKE_collection_child_remove(bmain, active_collection, add_info->collection);
+    DEG_id_tag_update(&active_collection->id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(bmain);
 
     Object *ob = add_type(C,
@@ -3851,7 +3852,8 @@ static Object *convert_mesh_to_grease_pencil(Base &base,
                               bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
 
   Object *ob_eval = DEG_get_evaluated(info.depsgraph, ob);
-  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+  BKE_mesh_wrapper_ensure_mdata(mesh_eval);
 
   VectorSet<FillColorRecord> fill_colors;
   Array<int> material_remap;

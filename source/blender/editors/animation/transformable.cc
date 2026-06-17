@@ -8,8 +8,8 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_string.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_string.hh"
 
 #include "DNA_action_types.h"
 #include "DNA_object_types.h"
