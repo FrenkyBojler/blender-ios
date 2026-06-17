@@ -1,2 +1,3 @@
 Referenced by pull request #160211, Fix: pose sliding with identically named bones in multiple armatures
 Referenced by commit fa1afe8f2ba55cd303e784e741c75959ddc19894, Fix: pose sliding with identically named bones in multiple armatures
+Referenced by issue #119411, Pose Sliding Tools Dont work as expected when Mirror is On.
