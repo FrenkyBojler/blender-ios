@@ -1679,29 +1679,6 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
   GPU_depth_test(GPU_DEPTH_NONE);
 
   v3d->runtime.flag &= ~V3D_RUNTIME_DEPTHBUF_OVERRIDDEN;
-
-  /* Draw property panels in world space. */
-  /* TODO: Remove this, it's just a hacky example... */
-  {
-    const float HALF_PI = 3.1415f * 0.5f;
-    const float SCREEN_TO_WORLD_SCALE = 1.0f / 256.0f;
-
-    float obmat[4][4];
-    float pos[3] = {0.0f, 0.0f, 2.0f};
-    float rot[3] = {HALF_PI, 0.0f, 0.0f};
-    float size[3] = {SCREEN_TO_WORLD_SCALE, SCREEN_TO_WORLD_SCALE, SCREEN_TO_WORLD_SCALE};
-
-    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-
-    ScrArea *area = CTX_wm_area(C);
-    ARegion *ui_region = BKE_area_find_region_type(area, RGN_TYPE_UI);
-
-    loc_eul_size_to_mat4(obmat, pos, rot, size);
-
-    bContext* mutable_C = const_cast<bContext *>(C);
-    ED_region_panels_draw_world_space(mutable_C, ui_region, rv3d, obmat);
-  }
-
   /* TODO: Clear cache? */
 }
 
