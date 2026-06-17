@@ -118,12 +118,12 @@ set(SRC
   nodes/node_geo_grid_advect.cc
   nodes/node_geo_grid_clip.cc
   nodes/node_geo_grid_curl.cc
+  nodes/node_geo_grid_deactivate_voxels.cc
   nodes/node_geo_grid_dilate_erode.cc
   nodes/node_geo_grid_divergence.cc
   nodes/node_geo_grid_gradient.cc
   nodes/node_geo_grid_info.cc
   nodes/node_geo_grid_laplacian.cc
-  nodes/node_geo_grid_mask_topology.cc
   nodes/node_geo_grid_mean.cc
   nodes/node_geo_grid_median.cc
   nodes/node_geo_grid_prune.cc
