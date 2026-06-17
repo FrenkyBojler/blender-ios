@@ -12,12 +12,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_build_config.h"
-#include "BLI_listbase.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_time.h"
-#include "BLI_utildefines.h"
+#include "BLI_build_config.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_time.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -604,7 +604,6 @@ bool ED_operator_object_active_from_view_layer(bContext *C)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
-  return (obact != nullptr);
   return ((obact != nullptr) && !ed_object_hidden(obact));
 }
 
@@ -6800,6 +6799,22 @@ static wmOperatorStatus start_playback(bContext *C, int sync, int mode)
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
+
+  /* The SCE_LOOP_MODE_STOP_END_FRAME loop mode is special: playback should stop at the end frame,
+   * but when playback starts, in this mode, already at the end frame, it should actually start
+   * playback from the start frame. This way, you can repeatedly play back the scene, each time
+   * ending at the last frame. */
+  if (scene->playback_loop_mode == SCE_LOOP_MODE_STOP_END_FRAME) {
+    /* What are the actual start/end frames depends on whether playback is reversed or not. */
+    const bool is_playing_forward = mode > 0;
+    const int end_frame = is_playing_forward ? scene->playback_end() : scene->playback_start();
+    if (scene->r.cfra == end_frame) {
+      const int start_frame = is_playing_forward ? scene->playback_start() : scene->playback_end();
+      scene->r.cfra = start_frame;
+      scene->r.subframe = 0.0f;
+    }
+  }
+
   ViewLayer *view_layer = is_sequencer ? BKE_view_layer_default_render(scene) :
                                          CTX_data_view_layer(C);
   Depsgraph *depsgraph = is_sequencer ? BKE_scene_ensure_depsgraph(bmain, scene, view_layer) :
