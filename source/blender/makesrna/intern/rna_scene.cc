@@ -5447,7 +5447,8 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
 
   prop = RNA_def_property(
       srna, "denoising_pass_use_albedo_roughness_weighting", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "denoising_pass_flags", SCE_PASS_DENOISING);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "denoising_pass_flags", SCE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING);
   RNA_def_property_ui_text(
       prop,
       "Denoising Pass Albedo Roughness Weighting",

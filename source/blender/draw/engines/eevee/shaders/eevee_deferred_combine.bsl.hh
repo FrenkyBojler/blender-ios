@@ -165,7 +165,7 @@ void combine_frag([[resource_table]] Combine &srt,
             diffuse_color += cl.color;
             diffuse_direct += closure_direct_light * cl.color;
             diffuse_indirect += closure_indirect_light * cl.color;
-            if (srt.render_passes_denoising_enabled && srt.use_albedo_roughness_weighting) {
+            if (srt.render_passes_denoising_enabled && !srt.use_albedo_roughness_weighting) {
               diffuse_albedo += cl.color;
             }
             break;
@@ -175,7 +175,7 @@ void combine_frag([[resource_table]] Combine &srt,
             specular_color += cl.color;
             specular_direct += closure_direct_light * cl.color;
             specular_indirect += closure_indirect_light * cl.color;
-            if (srt.render_passes_denoising_enabled && srt.use_albedo_roughness_weighting) {
+            if (srt.render_passes_denoising_enabled && !srt.use_albedo_roughness_weighting) {
               specular_albedo += cl.color;
             }
             break;
