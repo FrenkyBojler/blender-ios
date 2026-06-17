@@ -110,6 +110,7 @@ set(SRC
   algorithms/COM_algorithm_van_vliet_gaussian_blur.hh
 
   cached_resources/intern/bokeh_kernel.cc
+  cached_resources/intern/cached_expression_node_group.cc
   cached_resources/intern/cached_image.cc
   cached_resources/intern/cached_mask.cc
   cached_resources/intern/cached_shader.cc
@@ -127,6 +128,7 @@ set(SRC
   cached_resources/intern/van_vliet_gaussian_coefficients.cc
 
   cached_resources/COM_bokeh_kernel.hh
+  cached_resources/COM_cached_expression_node_group.hh
   cached_resources/COM_cached_image.hh
   cached_resources/COM_cached_mask.hh
   cached_resources/COM_cached_resource.hh

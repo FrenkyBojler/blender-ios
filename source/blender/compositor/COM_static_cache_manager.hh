@@ -5,6 +5,7 @@
 #pragma once
 
 #include "COM_bokeh_kernel.hh"
+#include "COM_cached_expression_node_group.hh"
 #include "COM_cached_image.hh"
 #include "COM_cached_mask.hh"
 #include "COM_cached_shader.hh"
@@ -64,6 +65,7 @@ class StaticCacheManager {
   FogGlowKernelContainer fog_glow_kernels;
   ImageCoordinatesContainer image_coordinates;
   StringImageContainer string_images;
+  CachedExpressionNodeGroupContainer expression_node_groups;
 
  public:
   /* Reset the cache manager by deleting the cached resources that are no longer needed because

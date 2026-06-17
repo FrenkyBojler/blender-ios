@@ -74,6 +74,7 @@ struct ExpressionInputItemsAccessor : public socket_items::SocketItemsAccessorDe
   {
     switch (ntree_type) {
       case NTREE_GEOMETRY:
+      case NTREE_COMPOSIT:
         return ELEM(socket_type,
                     SOCK_FLOAT,
                     SOCK_VECTOR,
@@ -86,8 +87,6 @@ struct ExpressionInputItemsAccessor : public socket_items::SocketItemsAccessorDe
       case NTREE_SHADER:
         return ELEM(
             socket_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT, SOCK_STRING);
-      case NTREE_COMPOSIT:
-        return ELEM(socket_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT);
       default:
         return false;
     }
