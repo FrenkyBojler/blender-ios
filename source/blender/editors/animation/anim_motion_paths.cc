@@ -187,7 +187,7 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
       float4x4 perspective_matrix = window_matrix * cam_eval->world_to_object();
       const float4 co_clip_space = perspective_matrix *
                                    float4(mpv->co[0], mpv->co[1], mpv->co[2], 1.0);
-      /* Storing the verts in clip space which contains lens effects like sensor offset. See
+      /* Storing the verts in NDC space which contains lens effects like sensor offset. See
        * `overlay_motion_path.hh/motion_path_sync`. */
       const float3 co_ndc_space = float3(co_clip_space) / co_clip_space.w;
       copy_v3_v3(mpv->co, co_ndc_space);

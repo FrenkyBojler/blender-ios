@@ -584,8 +584,7 @@ ENUM_OPERATORS(eTimeline_Cache_Flag)
 
 /** Data point for motion path (`mpv`). */
 struct bMotionPathVert {
-  /** Coordinates of point in world space or clip space. If they are in world space, only the first
-   * 3 values are used. */
+  /** Coordinates of point in world space or NDC space. */
   float co[3] = {};
   /** Quick settings. */
   eMotionPathVert_Flag flag = {};

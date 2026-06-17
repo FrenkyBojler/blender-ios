@@ -161,7 +161,7 @@ class MotionPath : Overlay {
       float4x4 window_matrix;
       BKE_camera_multiview_window_matrix(&scene->r, camera_eval, nullptr, window_matrix.ptr());
       /* Storing the inverse perspective matrix of the current camera to convert the verts stored
-       * in clip space, back into world space from the point of view of the current camera. See
+       * in NDC space, back into world space from the point of view of the current camera. See
        * `anim_motion_paths.cc/motionpaths_calc_bake_targets`. */
       camera_matrix = math::invert(window_matrix * camera_eval->world_to_object());
     }
