@@ -1655,15 +1655,16 @@ VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene,
     selected_strips.remove_if([&](Strip *strip) { return strip == active_strip; });
   }
 
-  if (selected_strips.size() > num_inputs) {
-    VectorSet<Strip *> inputs;
-    for (int64_t i : IndexRange(num_inputs)) {
-      inputs.add(selected_strips[i]);
-    }
-    return inputs;
-  }
+  /* Sort by timeline frame so 2-input effects like crossfade go "from" earlier "to" later. */
+  Vector<Strip *> sorted(selected_strips.extract_vector());
+  std::ranges::sort(
+      sorted, [](const Strip *a, const Strip *b) { return a->left_handle() < b->left_handle(); });
 
-  return selected_strips;
+  VectorSet<Strip *> inputs;
+  for (int64_t i : IndexRange(std::min<int64_t>(sorted.size(), num_inputs))) {
+    inputs.add(sorted[i]);
+  }
+  return inputs;
 }
 
 static wmOperatorStatus sequencer_reassign_inputs_exec(bContext *C, wmOperator *op)
