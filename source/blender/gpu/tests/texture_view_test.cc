@@ -23,8 +23,6 @@
 #include "GPU_texture.hh"
 #include "gpu_texture_private.hh"
 
-#include <bitset>
-
 namespace blender::gpu::tests {
 
 #ifdef WITH_OPENGL_BACKEND
@@ -136,7 +134,7 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   /* Clear FBO to specific color with a different value on each channel. */
   float4 colr = (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) ?
                     float4(0.75f, 0.5f, 0.25f, 0.0f) :
-                    float4(128.0f, 64.0f, 32.0f, 16.0f);
+                    float4(127.0f, 31.0f, 14.0f, 15.0f);
   GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, double4(colr), 0.0f, 0u);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
