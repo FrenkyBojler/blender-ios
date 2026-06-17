@@ -40,8 +40,6 @@ BLOCKLIST = [
     "light_path_is_shadow_ray.blend",
     # Blocked as the test seems to alternate between two different states
     "light_path_is_diffuse_ray.blend",
-    # Blocked due to stochastic diffuse/transmission layering resulting in non-deterministic surfel lighting.
-    "principled_bsdf_transmission.blend",
     # Blocked due to platform-dependent noise differences (likely floating-point/fast-math differences).
     "raycast_bump.blend",
     # Blocked due to platform-dependent uninitialized pixels.
@@ -101,9 +99,9 @@ BLOCKLIST_AMD_WINDOWS_VK = [
     "implicit_volume.blend"
 ]
 
-# Block list for Linux/AMD official driver. On buildbot this driver can fail and the artifacts are likely
+# Block list for AMD official driver. On buildbot this driver can fail and the artifacts are likely
 # caused by incorrect index buffer synchronization or vertex shader execution.
-BLOCKLIST_AMD_LINUX_VK = [
+BLOCKLIST_AMD_VK = [
     ".*"
 ]
 
@@ -301,8 +299,8 @@ def main():
             blocklist += BLOCKLIST_NVIDIA_GL
         if gpu_vendor == "AMD" and sys.platform == "win32" and args.gpu_backend == "vulkan":
             blocklist += BLOCKLIST_AMD_WINDOWS_VK
-        if gpu_vendor == "AMD" and sys.platform == "linux" and args.gpu_backend == "vulkan":
-            blocklist += BLOCKLIST_AMD_LINUX_VK
+        if gpu_vendor == "AMD" and args.gpu_backend == "vulkan":
+            blocklist += BLOCKLIST_AMD_VK
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
