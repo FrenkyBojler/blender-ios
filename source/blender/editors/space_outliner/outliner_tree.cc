@@ -564,36 +564,6 @@ static void outliner_sort_custom_assign_missing_sort_indices(
   }
 }
 
-/* Comparator for type sort. Keep non-objects before object. For objects, place members of the
- * collection before "not in collection”, then group by object type, then by natural name. */
-static bool treesort_type_ob(const tTreeSort &x1, const tTreeSort &x2)
-{
-  /* Keep non objects before objects. */
-  const bool a_is_ob = (x1.idcode == ID_OB);
-  const bool b_is_ob = (x2.idcode == ID_OB);
-  if (a_is_ob != b_is_ob) {
-    return !a_is_ob;
-  }
-
-  /* If neither are objects, preserve existing order. */
-  if (!a_is_ob) {
-    return false;
-  }
-
-  if (std::optional<bool> comp = treesort_child_not_in_collection(x1, x2)) {
-    return *comp;
-  }
-
-  /* Group by object type. */
-  const Object *ob1 = reinterpret_cast<const Object *>(x1.id);
-  const Object *ob2 = reinterpret_cast<const Object *>(x2.id);
-  if (ob1->type != ob2->type) {
-    return ob1->type < ob2->type;
-  }
-
-  return BLI_strcasecmp_natural(x1.name, x2.name) < 0;
-}
-
 /* this is nice option for later? doesn't look too useful... */
 #if 0
 static int treesort_obtype_alpha(const void *v1, const void *v2)
