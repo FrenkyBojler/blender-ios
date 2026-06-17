@@ -408,6 +408,15 @@ static Vector<AnimTransformable *> pasteable_transformables(
   Vector<AnimTransformable *> pasteables;
   /* TODO: more sophisticated logic matching data in the world space buffer with transformables to
    * paste on. */
+
+  const bool to_single = transformables.size();
+  const bool from_single = world_space_data.size();
+  if (from_single && to_single) {
+    pasteables.append(&transformables[0]);
+    return pasteables;
+  }
+
+  /* Strict name matching. */
   for (AnimTransformable &transformable : transformables) {
     const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable.name());
     if (fcurves) {
@@ -415,6 +424,68 @@ static Vector<AnimTransformable *> pasteable_transformables(
     }
   }
   return pasteables;
+}
+
+/**
+ * Ensures that all FCurves exist to paste keys into and they have keys on all required frames.
+ * The returned array will have the same length as the given `transformables`.
+ */
+static Array<TransformFCurves> build_fcurves_for_paste(
+    Main &bmain, const Span<AnimTransformable *> transformables, const Bounds<int> range)
+{
+  namespace ar = blender::animrig;
+  Array<TransformFCurves> fcurve_buffer(transformables.size());
+  for (const int i : transformables.index_range()) {
+    AnimTransformable *transformable = transformables[i];
+    ID *owner_id = transformable->owner_id();
+    bAction *paste_dna_action = ar::id_action_ensure(&bmain, owner_id);
+    /* When adding layers this becomes a lot more complicated. We'll have to answer where keys go
+     * in this case. Multiple things to consider:
+     * - The active layer may have no effect on the final pose
+     * - Not every layer may have a channelbag for this transformable.
+     * - When inserting keys into a layer that is additive, we need to adjust the inserted values.
+     * - When inserting keys into a layer with an influence < 1 we'll also have to adjust the
+     * values.
+     * - In all cases, the result has to be that the final world space of the transformable ends up
+     * where it was copied from.
+     */
+    ar::assert_baklava_phase_1_invariants(paste_dna_action->wrap());
+    ar::Channelbag &channelbag = ar::action_channelbag_ensure(*paste_dna_action, *owner_id);
+    TransformFCurves &fcus = fcurve_buffer[i];
+    fcus.rotation_mode = transformable->get_rotation_mode();
+    if (fcus.rotation_mode >= ROT_MODE_EUL) {
+      fcus.rot.reinitialize(3);
+    }
+    else {
+      fcus.rot.reinitialize(4);
+    }
+    const std::string loc_path = transformable->rna_path_to_property(
+        AnimTransformable::PropertyType::LOCATION);
+    /* This will fail if the rotation mode is animated to jump from e.g. euler to quaternion. */
+    const std::string rot_path = transformable->rna_path_to_property(
+        AnimTransformable::PropertyType::ROTATION);
+    const std::string scale_path = transformable->rna_path_to_property(
+        AnimTransformable::PropertyType::SCALE);
+
+    for (FCurve *fcurve : channelbag.fcurves()) {
+      StringRefNull fcurve_path(fcurve->rna_path);
+      if (fcurve_path == loc_path) {
+        fcus.loc[fcurve->array_index].fcurve = fcurve;
+      }
+      else if (fcurve_path == rot_path) {
+        fcus.rot[fcurve->array_index].fcurve = fcurve;
+      }
+      else if (fcurve_path == scale_path) {
+        fcus.scale[fcurve->array_index].fcurve = fcurve;
+      }
+    }
+
+    /* Ensuring all FCurves exist. */
+    ensure_baked_fcurves(bmain, fcus.loc, channelbag, loc_path, range);
+    ensure_baked_fcurves(bmain, fcus.rot, channelbag, rot_path, range);
+    ensure_baked_fcurves(bmain, fcus.scale, channelbag, scale_path, range);
+  }
+  return fcurve_buffer;
 }
 
 static void paste_world_space(Main &bmain,
@@ -441,17 +512,17 @@ static void paste_world_space(Main &bmain,
     return;
   }
 
-  bAction *dna_action = reinterpret_cast<bAction *>(clipboard_bmain->actions.first);
-  ar::Action &action = dna_action->wrap();
-  if (action.strip_keyframe_data().is_empty() ||
-      action.strip_keyframe_data()[0]->channelbags().is_empty())
+  bAction *clipboard_dna_action = reinterpret_cast<bAction *>(clipboard_bmain->actions.first);
+  ar::Action &clipboard_action = clipboard_dna_action->wrap();
+  if (clipboard_action.strip_keyframe_data().is_empty() ||
+      clipboard_action.strip_keyframe_data()[0]->channelbags().is_empty())
   {
     BKE_report(&reports, RPT_ERROR, "Clipboard data has no animation");
     BKE_main_free(clipboard_bmain);
     return;
   }
 
-  ar::Channelbag &channelbag = *action.strip_keyframe_data()[0]->channelbags()[0];
+  ar::Channelbag &channelbag = *clipboard_action.strip_keyframe_data()[0]->channelbags()[0];
   Map<StringRefNull, Array<FCurve *>> world_space_data;
   for (FCurve *fcurve : channelbag.fcurves()) {
     BLI_assert(fcurve != nullptr);
@@ -493,60 +564,12 @@ static void paste_world_space(Main &bmain,
     BKE_report(&reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
   }
 
-  const Bounds<int> range = {int(dna_action->frame_start), int(dna_action->frame_end)};
+  const Bounds<int> range = {int(clipboard_dna_action->frame_start),
+                             int(clipboard_dna_action->frame_end)};
   /* We have to ensure every frame of the affected range has a key. Otherwise inserting keys will
    * modify the interpolation of the following frames. */
-  Array<TransformFCurves> fcurve_buffer(sorted_transformables.size());
-  for (const int i : sorted_transformables.index_range()) {
-    AnimTransformable *transformable = sorted_transformables[i];
-    ID *owner_id = transformable->owner_id();
-    bAction *dna_action = ar::id_action_ensure(&bmain, owner_id);
-    /* When adding layers this becomes a lot more complicated. We'll have to answer where keys go
-     * in this case. Multiple things to consider:
-     * - The active layer may have no effect on the final pose
-     * - Not every layer may have a channelbag for this transformable.
-     * - When inserting keys into a layer that is additive, we need to adjust the inserted values.
-     * - When inserting keys into a layer with an influence < 1 we'll also have to adjust the
-     * values.
-     * - In all cases, the result has to be that the final world space of the transformable ends up
-     * where it was copied from.
-     */
-    ar::assert_baklava_phase_1_invariants(action);
-    ar::Channelbag &channelbag = ar::action_channelbag_ensure(*dna_action, *owner_id);
-    TransformFCurves &fcus = fcurve_buffer[i];
-    fcus.rotation_mode = transformable->get_rotation_mode();
-    if (fcus.rotation_mode >= ROT_MODE_EUL) {
-      fcus.rot.reinitialize(3);
-    }
-    else {
-      fcus.rot.reinitialize(4);
-    }
-    const std::string loc_path = transformable->rna_path_to_property(
-        AnimTransformable::PropertyType::LOCATION);
-    /* This will fail if the rotation mode is animated to jump from e.g. euler to quaternion. */
-    const std::string rot_path = transformable->rna_path_to_property(
-        AnimTransformable::PropertyType::ROTATION);
-    const std::string scale_path = transformable->rna_path_to_property(
-        AnimTransformable::PropertyType::SCALE);
-
-    for (FCurve *fcurve : channelbag.fcurves()) {
-      StringRefNull fcurve_path(fcurve->rna_path);
-      if (fcurve_path == loc_path) {
-        fcus.loc[fcurve->array_index].fcurve = fcurve;
-      }
-      else if (fcurve_path == rot_path) {
-        fcus.rot[fcurve->array_index].fcurve = fcurve;
-      }
-      else if (fcurve_path == scale_path) {
-        fcus.scale[fcurve->array_index].fcurve = fcurve;
-      }
-    }
-
-    /* Ensuring all FCurves exist. */
-    ensure_baked_fcurves(bmain, fcus.loc, channelbag, loc_path, range);
-    ensure_baked_fcurves(bmain, fcus.rot, channelbag, rot_path, range);
-    ensure_baked_fcurves(bmain, fcus.scale, channelbag, scale_path, range);
-  }
+  Array<TransformFCurves> fcurve_buffer = build_fcurves_for_paste(
+      bmain, sorted_transformables, range);
 
   /* Since we potentially added FCurves, we have to rebuild the depsgraph. */
   DEG_graph_build_from_ids(depsgraph, ids);
