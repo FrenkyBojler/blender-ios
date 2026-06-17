@@ -242,10 +242,12 @@ void combine_frag([[resource_table]] Combine &srt,
     render_passes.store_color(
         texel, uni.uniform_buf.render_pass.specular_light_id, float4(specular_light, 1.0f));
   }
-  if (srt.render_pass_normal_enabled) {
+  if (srt.render_pass_normal_enabled || srt.render_passes_denoising_enabled) {
     float normal_len = length(average_normal);
     /* Normalize or fallback to default normal. */
     average_normal = (normal_len < 1e-5f) ? gbuf.surface_N() : (average_normal / normal_len);
+  }
+  if (srt.render_pass_normal_enabled) {
     render_passes.store_color(
         texel, uni.uniform_buf.render_pass.normal_id, float4(average_normal, 1.0f));
   }
@@ -261,12 +263,11 @@ void combine_frag([[resource_table]] Combine &srt,
     depth = -view.depth_screen_to_view(depth);
     render_passes.store_value(texel, uni.uniform_buf.render_pass.denoising_depth_id, depth);
 
-    float normal_len = length(average_normal);
-    /* Normalize or fallback to default normal. */
-    average_normal = (normal_len < 1e-5f) ? gbuf.surface_N() : (average_normal / normal_len);
     average_normal = view.normal_world_to_view(average_normal);
+    /* For compatibility with Cycles */
+    average_normal.z *= -1.0f;
     render_passes.store_color(
-        texel, uni.uniform_buf.render_pass.denoising_normal_id, float4(average_normal, 1.0f));
+        texel, uni.uniform_buf.render_pass.average_normal, float4(average_normal, 1.0f));
 
     render_passes.store_color(texel,
                               uni.uniform_buf.render_pass.denoising_diffuse_albedo_id,

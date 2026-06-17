@@ -67,6 +67,13 @@ enum eViewLayerEEVEEPassType : int {
 #define EEVEE_RENDER_PASS_MAX_BIT 26
 ENUM_OPERATORS(eViewLayerEEVEEPassType)
 
+/** #SceneRenderLayer::passflag */
+enum eViewLayerEEVEEDenoisingPassFlag : uint32_t {
+  /* Whether to use roughness-based weighting for the albedo or split by the BSDF type. */
+  EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING = (1 << 0),
+};
+ENUM_OPERATORS(eViewLayerEEVEEDenoisingPassFlag)
+
 /* #ViewLayer::grease_pencil_flags */
 enum eViewLayerGreasePencilFlags : int {
   GREASE_PENCIL_AS_SEPARATE_PASS = (1 << 0),
@@ -219,6 +226,7 @@ struct LayerCollection {
 struct ViewLayerEEVEE {
   eViewLayerEEVEEPassType render_passes = {};
   float ambient_occlusion_distance = 10.0f;
+  int denoising_pass_flags = EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
 };
 
 /** AOV Render-pass definition. */
@@ -292,10 +300,6 @@ struct ViewLayer {
   /* Runtime data */
   struct Base **object_bases_array = nullptr;
   ObjectBasesMap *object_bases_hash = nullptr;
-
-  /* Denoising pass data */
-  int denoising_pass_flags = SCE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
-  char _pad2[12] = {};
 };
 
 }  // namespace blender

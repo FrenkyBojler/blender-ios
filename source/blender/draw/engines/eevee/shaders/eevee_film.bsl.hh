@@ -1020,7 +1020,7 @@ struct Film {
 
       store_value(dst, uni.uniform_buf.film.denoising_depth_id, denoising_depth_accum, out_color);
       store_color(
-          dst, uni.uniform_buf.film.denoising_normal_id, denoising_normal_accum, out_color);
+          dst, uni.uniform_buf.film.denoising_normal_id, denoising_normal_accum, out_color, false);
       store_value(
           dst, uni.uniform_buf.film.denoising_roughness_id, denoising_roughness_accum, out_color);
       store_color(dst,

@@ -84,7 +84,8 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 4)) {
     for (Scene &scene : bmain->scenes) {
       for (ViewLayer &view_layer : scene.view_layers) {
-        view_layer.denoising_pass_flags = SCE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
+        view_layer.eevee.denoising_pass_flags =
+            EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
       }
     }
   }
