@@ -201,16 +201,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   bke::VolumeTreeAccessToken tree_token;
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
-  const openvdb::math::Transform &transform = grid_base.transform();
 
   fn::Field<bool> selection_field = params.extract_input<fn::Field<bool>>("Selection"_ustr);
-  const bool selection_is_full = !selection_field.depends_on_input() &&
-                                 fn::evaluate_constant_field(selection_field);
-  if (selection_is_full) {
-    /* Deactivate everything. */
-    grid_base.clear();
+  if (!selection_field.depends_on_input()) {
+    if (fn::evaluate_constant_field(selection_field)) {
+      /* Deactivate everything. */
+      grid_base.clear();
+    }
+    /* If selection_field evaluates to false keep the grid unmodified. */
   }
   else {
+    const openvdb::math::Transform &transform = grid_base.transform();
     openvdb::MaskTree mask_tree;
     volume_grid::to_typed_grid(grid_base,
                                [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
