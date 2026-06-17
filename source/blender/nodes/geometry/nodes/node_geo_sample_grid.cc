@@ -26,20 +26,14 @@ enum class InterpolationMode {
   Nearest = 0,
   TriLinear = 1,
   TriQuadratic = 2,
-  QuadraticBSpline = 3,
-  CubicBSpline = 5,
+  TriCubic = 3,
 };
 
 static const EnumPropertyItem interpolation_mode_items[] = {
     {int(InterpolationMode::Nearest), "NEAREST", 0, N_("Nearest Neighbor"), ""},
     {int(InterpolationMode::TriLinear), "TRILINEAR", 0, N_("Trilinear"), ""},
     {int(InterpolationMode::TriQuadratic), "TRIQUADRATIC", 0, N_("Triquadratic"), ""},
-    {int(InterpolationMode::QuadraticBSpline),
-     "QUADRATIC_BSPLINE",
-     0,
-     N_("Quadratic B-Spline"),
-     ""},
-    {int(InterpolationMode::CubicBSpline), "CUBIC_BSPLINE", 0, N_("Cubic B-Spline"), ""},
+    {int(InterpolationMode::TriCubic), "TRICUBIC", 0, N_("Tricubic"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -160,14 +154,10 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
       break;
     }
     case InterpolationMode::TriQuadratic: {
-      sample_data.template operator()<geometry::QuadraticBackwardSampler>();
-      break;
-    }
-    case InterpolationMode::QuadraticBSpline: {
       sample_data.template operator()<geometry::QuadraticBSplineSampler>();
       break;
     }
-    case InterpolationMode::CubicBSpline: {
+    case InterpolationMode::TriCubic: {
       sample_data.template operator()<geometry::CubicBSplineSampler>();
       break;
     }
