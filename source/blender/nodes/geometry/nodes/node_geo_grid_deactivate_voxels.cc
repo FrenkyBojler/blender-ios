@@ -202,25 +202,34 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::VolumeTreeAccessToken tree_token;
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
   const openvdb::math::Transform &transform = grid_base.transform();
-  openvdb::MaskTree mask_tree;
-  volume_grid::to_typed_grid(grid_base,
-                             [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
 
   fn::Field<bool> selection_field = params.extract_input<fn::Field<bool>>("Selection"_ustr);
-  volume_grid::parallel_grid_topology_tasks(
-      mask_tree,
-      [&](const volume_grid::LeafNodeMask &leaf_node_mask,
-          const openvdb::CoordBBox &leaf_bbox,
-          const volume_grid::GetVoxelsFn get_voxels_fn) {
-        process_leaf_node(
-            selection_field, transform, leaf_node_mask, leaf_bbox, get_voxels_fn, grid_base);
-      },
-      [&](const Span<openvdb::Coord> voxels) {
-        process_voxels(selection_field, transform, voxels, grid_base);
-      },
-      [&](const Span<openvdb::CoordBBox> tiles) {
-        process_tiles(selection_field, transform, tiles, grid_base);
-      });
+  const bool selection_is_full = !selection_field.depends_on_input() &&
+                                 fn::evaluate_constant_field(selection_field);
+  if (selection_is_full) {
+    /* Deactivate everything. */
+    grid_base.clear();
+  }
+  else {
+    openvdb::MaskTree mask_tree;
+    volume_grid::to_typed_grid(grid_base,
+                               [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
+
+    volume_grid::parallel_grid_topology_tasks(
+        mask_tree,
+        [&](const volume_grid::LeafNodeMask &leaf_node_mask,
+            const openvdb::CoordBBox &leaf_bbox,
+            const volume_grid::GetVoxelsFn get_voxels_fn) {
+          process_leaf_node(
+              selection_field, transform, leaf_node_mask, leaf_bbox, get_voxels_fn, grid_base);
+        },
+        [&](const Span<openvdb::Coord> voxels) {
+          process_voxels(selection_field, transform, voxels, grid_base);
+        },
+        [&](const Span<openvdb::CoordBBox> tiles) {
+          process_tiles(selection_field, transform, tiles, grid_base);
+        });
+  }
 
   params.set_output("Grid"_ustr, std::move(grid));
 #else
