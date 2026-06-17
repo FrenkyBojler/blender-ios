@@ -1398,10 +1398,10 @@ void IDP_Reset(IDProperty *prop, const IDProperty *reference)
   }
 }
 
-void idp_foreach_property_recurse(IDProperty *id_property_root,
-                                  const int type_filter,
-                                  const int recursion_depth,
-                                  const FunctionRef<void(IDProperty *id_property)> callback)
+static void idp_foreach_property_recurse(IDProperty *id_property_root,
+                                         const int type_filter,
+                                         const int recursion_depth,
+                                         const FunctionRef<void(IDProperty *id_property)> callback)
 {
   if (!id_property_root) {
     return;
@@ -1445,7 +1445,7 @@ void IDP_foreach_property(IDProperty *id_property_root,
                           const int type_filter,
                           const FunctionRef<void(IDProperty *id_property)> callback)
 {
-  return idp_foreach_property_recurse(id_property_root, type_filter, 0, callback);
+  idp_foreach_property_recurse(id_property_root, type_filter, 0, callback);
 }
 
 static void idp_blend_write_recurse(BlendWriter *writer,
@@ -1829,11 +1829,11 @@ static void IDP_DirectLinkProperty(IDProperty *prop,
                                    BlendDataReader *reader,
                                    const int recursion_depth)
 {
-  auto reset_property = [](IDProperty *prop) -> void {
-    prop->type = IDP_INT;
-    prop->subtype = 0;
-    IDP_int_set(prop, 0);
-    prop->ui_data = nullptr;
+  auto reset_property = [](IDProperty *idprop) -> void {
+    idprop->type = IDP_INT;
+    idprop->subtype = 0;
+    IDP_int_set(idprop, 0);
+    idprop->ui_data = nullptr;
   };
 
   if (recursion_depth > MAX_IDPROP_DEPTH_LEVEL) {
