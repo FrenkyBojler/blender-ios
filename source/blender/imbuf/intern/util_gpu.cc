@@ -291,10 +291,10 @@ static ImBuf *get_gpu_texture_data(ImBuf *source_buffer,
     if (output_buffer->float_data()) {
       ImBuf *buffer = IMB_allocImBuf(output_buffer->x, output_buffer->y, ImBufFlags::Zero);
       IMB_alloc_float_pixels(buffer, 1);
-      const float *source_buffer = output_buffer->float_data();
-      float *target_buffer = buffer->float_data_for_write();
+      const float *source_pixels = output_buffer->float_data();
+      float *target_pixels = buffer->float_data_for_write();
       for (size_t i = 0; i < buffer_size; i++) {
-        target_buffer[i] = source_buffer[i * 4];
+        target_pixels[i] = source_pixels[i * 4];
       }
       IMB_freeImBuf(output_buffer);
       output_buffer = buffer;
@@ -303,10 +303,10 @@ static ImBuf *get_gpu_texture_data(ImBuf *source_buffer,
       ImBuf *buffer = IMB_allocImBuf(output_buffer->x, output_buffer->y, ImBufFlags::Zero);
       buffer->color_mode = ImColorMode::BW;
       buffer->assign_byte_data(MEM_new_array_uninitialized<uint8_t>(buffer_size, __func__));
-      const uint8_t *source_buffer = output_buffer->byte_data();
-      uint8_t *target_buffer = buffer->byte_data_for_write();
+      const uint8_t *source_pixels = output_buffer->byte_data();
+      uint8_t *target_pixels = buffer->byte_data_for_write();
       for (size_t i = 0; i < buffer_size; i++) {
-        target_buffer[i] = source_buffer[i * 4];
+        target_pixels[i] = source_pixels[i * 4];
       }
       IMB_freeImBuf(output_buffer);
       output_buffer = buffer;
