@@ -90,25 +90,23 @@ void VKTexture::copy_to(VKTexture &dst_texture,
     return;
   }
 
-  for (int mip : mip_levels) {
-    render_graph::VKCopyImageNode::CreateInfo copy_image = {};
-    copy_image.node_data.mip_levels = uint32_t(mip_levels.size());
-    copy_image.node_data.src_image = vk_image_handle();
-    copy_image.node_data.dst_image = dst_texture.vk_image_handle();
-    copy_image.node_data.region.srcSubresource.aspectMask = vk_image_aspect;
-    copy_image.node_data.region.srcSubresource.mipLevel = mip + mip_min_;
-    copy_image.node_data.region.srcSubresource.layerCount = layer_count();
-    copy_image.node_data.region.srcSubresource.baseArrayLayer = view_layer_start_;
-    copy_image.node_data.region.dstSubresource.aspectMask = vk_image_aspect;
-    copy_image.node_data.region.dstSubresource.mipLevel = mip + dst_texture.mip_min_;
-    copy_image.node_data.region.dstSubresource.layerCount = layer_count();
-    copy_image.node_data.region.dstSubresource.baseArrayLayer = dst_texture.view_layer_start_;
-    copy_image.node_data.region.extent = vk_extent_3d(mip_min_);
-    copy_image.vk_image_aspect = vk_image_aspect;
+  render_graph::VKCopyImageNode::CreateInfo copy_image = {};
+  copy_image.node_data.mip_levels = uint32_t(mip_levels.size());
+  copy_image.node_data.src_image = vk_image_handle();
+  copy_image.node_data.dst_image = dst_texture.vk_image_handle();
+  copy_image.node_data.region.srcSubresource.aspectMask = vk_image_aspect;
+  copy_image.node_data.region.srcSubresource.mipLevel = mip_min_;
+  copy_image.node_data.region.srcSubresource.layerCount = layer_count();
+  copy_image.node_data.region.srcSubresource.baseArrayLayer = view_layer_start_;
+  copy_image.node_data.region.dstSubresource.aspectMask = vk_image_aspect;
+  copy_image.node_data.region.dstSubresource.mipLevel = dst_texture.mip_min_;
+  copy_image.node_data.region.dstSubresource.layerCount = dst_texture.layer_count();
+  copy_image.node_data.region.dstSubresource.baseArrayLayer = dst_texture.view_layer_start_;
+  copy_image.node_data.region.extent = vk_extent_3d(mip_min_);
+  copy_image.vk_image_aspect = vk_image_aspect;
 
-    VKContext &context = *VKContext::get();
-    context.render_graph().add_node(copy_image);
-  }
+  VKContext &context = *VKContext::get();
+  context.render_graph().add_node(copy_image);
 
   dst_texture.has_data_ = true;
 }
