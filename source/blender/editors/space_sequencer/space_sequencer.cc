@@ -40,6 +40,7 @@
 #include "SEQ_preview_cache.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
@@ -464,6 +465,12 @@ static void sequencer_main_region_draw(const bContext *C, ARegion *region)
 static void sequencer_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   draw_timeline_seq_display(C, region);
+
+  /* Process pending scene strip thumbnails. This is done in overlay phase to be outside of DRW
+   * lock. */
+  if (Scene *scene = CTX_data_sequencer_scene(C)) {
+    seq::thumbnail_cache_update_scene_thumbs(C, scene);
+  }
 }
 
 static void sequencer_main_clamp_view(const bContext *C, ARegion *region)

@@ -21,6 +21,11 @@ namespace seq {
 static constexpr int THUMB_SIZE = 256;
 
 /**
+ * Adjust given image size so that the larger dimension is at most `size`, preserving aspect ratio.
+ */
+void image_size_to_thumb_size(int &r_width, int &r_height, int size = THUMB_SIZE);
+
+/**
  * Get a thumbnail image for given `strip` at `timeline_frame`.
  *
  * The function can return null if a strip type does not have a thumbnail, a source media file is
@@ -35,6 +40,13 @@ ImBuf *thumbnail_cache_get(const bContext *C,
                            Scene *scene,
                            const Strip *strip,
                            float timeline_frame);
+
+/**
+ * Update scene thumbnail requests. This must be called on the main thread, outside of DRW lock.
+ * This renders one pending scene strip thumbnail (to keep UI responsive), and schedules a redraw
+ * if more requests remain.
+ */
+void thumbnail_cache_update_scene_thumbs(const bContext *C, Scene *scene);
 
 /**
  * If total amount of resident thumbnails is too large, try to remove oldest-used ones to
