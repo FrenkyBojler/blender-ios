@@ -70,15 +70,15 @@ void ED_operatormacros_mask();
 
 /* `mask_query.cc` */
 
-void ED_mask_get_size(ScrArea *area, int *r_width, int *r_height);
-void ED_mask_zoom(ScrArea *area, ARegion *region, float *r_zoomx, float *r_zoomy);
-void ED_mask_get_aspect(ScrArea *area, ARegion *region, float *r_aspx, float *r_aspy);
+void ED_mask_get_size(const bContext *C, int *r_width, int *r_height);
+void ED_mask_zoom(const bContext *C, float *r_zoomx, float *r_zoomy);
+void ED_mask_get_aspect(const bContext *C, float *r_aspx, float *r_aspy);
 
-void ED_mask_pixelspace_factor(ScrArea *area, ARegion *region, float *r_scalex, float *r_scaley);
+void ED_mask_pixelspace_factor(const bContext *C, float *r_scalex, float *r_scaley);
 /**
  * Takes `event->mval`.
  */
-void ED_mask_mouse_pos(ScrArea *area, ARegion *region, const int mval[2], float r_co[2]);
+void ED_mask_mouse_pos(const bContext *C, const int mval[2], float r_co[2]);
 
 /**
  * \param x, y: input, mval space.

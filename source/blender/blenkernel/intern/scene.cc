@@ -3140,6 +3140,19 @@ void BKE_render_resolution(const RenderData *r, const bool use_crop, int *r_widt
   }
 }
 
+void BKE_render_get_aspect(const RenderData *rd, float *r_aspx, float *r_aspy)
+{
+  *r_aspy = 1.0;
+
+  /* y is always 1 */
+  if (rd) {
+    *r_aspx = rd->xasp / rd->yasp;
+  }
+  else {
+    *r_aspx = 1.0f;
+  }
+}
+
 int BKE_render_preview_pixel_size(const RenderData *r)
 {
   if (r->preview_pixel_size == 0) {

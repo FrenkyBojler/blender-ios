@@ -373,12 +373,9 @@ static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-
   float co[2];
 
-  ED_mask_mouse_pos(area, region, event->mval, co);
+  ED_mask_mouse_pos(C, event->mval, co);
 
   RNA_float_set_array(op->ptr, "location", co);
 
@@ -674,8 +671,8 @@ static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
   const int radius = RNA_int_get(op->ptr, "radius");
 
   /* compute ellipse and position in unified coordinates */
-  ED_mask_get_size(area, &width, &height);
-  ED_mask_zoom(area, region, &zoomx, &zoomy);
+  ED_mask_get_size(C, &width, &height);
+  ED_mask_zoom(C, &zoomx, &zoomy);
   width = height = max_ii(width, height);
 
   ellipse[0] = width * zoomx / radius;
@@ -767,9 +764,6 @@ static wmOperatorStatus mask_select_linked_pick_invoke(bContext *C,
                                                        wmOperator *op,
                                                        const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-
   Mask *mask = CTX_data_edit_mask(C);
   MaskLayer *mask_layer;
   MaskSpline *spline;
@@ -779,7 +773,7 @@ static wmOperatorStatus mask_select_linked_pick_invoke(bContext *C,
   const float threshold = 19;
   bool changed = false;
 
-  ED_mask_mouse_pos(area, region, event->mval, co);
+  ED_mask_mouse_pos(C, event->mval, co);
 
   point = ED_mask_point_find_nearest(
       C, mask, co, threshold, &mask_layer, &spline, nullptr, nullptr);

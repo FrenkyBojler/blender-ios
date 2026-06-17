@@ -44,6 +44,7 @@
 #include "BKE_mask.hh"
 #include "BKE_movieclip.hh"
 #include "BKE_tracking.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph_build.hh"
 
@@ -1198,7 +1199,22 @@ void BKE_mask_coord_from_image(Image *image, ImageUser *iuser, float r_co[2], co
   BKE_image_get_size_fl(image, iuser, frame_size);
   BKE_image_get_aspect(image, &aspx, &aspy);
 
+
   frame_size[1] *= (aspy / aspx);
+
+  BKE_mask_coord_from_frame(r_co, co, frame_size);
+}
+
+void BKE_mask_coord_from_sequence(Scene *scene, float r_co[2], const float co[2])
+{
+  float aspx, aspy;
+  int width, height;
+  float frame_size[2];
+
+  BKE_render_get_aspect(&scene->r, &aspx, &aspy);
+  BKE_render_resolution(&scene->r, false, &width, &height);
+  frame_size[0] = static_cast<float>(width);
+  frame_size[1] = static_cast<float>(height);
 
   BKE_mask_coord_from_frame(r_co, co, frame_size);
 }
@@ -1248,6 +1264,10 @@ void BKE_mask_coord_to_image(Image *image, ImageUser *iuser, float r_co[2], cons
   frame_size[1] *= (aspy / aspx);
 
   BKE_mask_coord_to_frame(r_co, co, frame_size);
+}
+
+void BKE_mask_coord_to_sequence(Scene *scene, float r_co[2], const float co[2]) {
+  /*Add Code*/
 }
 
 void BKE_mask_point_parent_matrix_get(MaskSplinePoint *point,

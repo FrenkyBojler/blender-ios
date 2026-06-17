@@ -77,6 +77,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   sseq->spacetype = SPACE_SEQ;
   sseq->chanshown = 0;
   sseq->view = SEQ_VIEW_SEQUENCE;
+  sseq->mode = SEQ_MODE_VIEW;
   sseq->mainb = SEQ_DRAW_IMG_IMBUF;
   sseq->flag = SEQ_USE_ALPHA | SEQ_SHOW_MARKERS | SEQ_ZOOM_TO_FIT | SEQ_SHOW_OVERLAY;
   sseq->preview_overlay.flag = SEQ_PREVIEW_SHOW_GPENCIL | SEQ_PREVIEW_SHOW_OUTLINE_SELECTED;
@@ -331,6 +332,7 @@ static int /*eContextResult*/ sequencer_context(const bContext *C,
                                                 bContextDataResult *result)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, sequencer_context_dir);
@@ -344,7 +346,7 @@ static int /*eContextResult*/ sequencer_context(const bContext *C,
     }
   }
   if (CTX_data_equals(member, "edit_mask")) {
-    if (scene) {
+    if (scene && sseq->mode == SEQ_MODE_MASK) {
       Mask *mask = seq::active_mask_get(scene);
       if (mask) {
         CTX_data_id_pointer_set(result, &mask->id);
@@ -842,10 +844,8 @@ static void sequencer_preview_region_init(wmWindowManager *wm, ARegion *region)
 
   view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
-#if 0
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
-#endif
 
   /* Own keymap. */
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Preview", SPACE_SEQ, RGN_TYPE_WINDOW);

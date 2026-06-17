@@ -349,8 +349,13 @@ void ED_image_mouse_pos(SpaceImage *sima, const ARegion *region, const int mval[
 
   ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
 
+  // printf("Zoomx: %f | zoomy: %f\n", zoomx, zoomy);
+  // printf("sx: %d | sy: %d\n", sx, sy);
+  // printf("width: %d | Height: %d\n", width, height);
   co[0] = ((mval[0] - sx) / zoomx) / width;
   co[1] = ((mval[1] - sy) / zoomy) / height;
+  // printf("co: %f | %f\n\n", co[0], co[1]);
+
 }
 
 void ED_image_view_center_to_point(SpaceImage *sima, float x, float y)

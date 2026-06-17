@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_vector_set.hh"
+#include "DNA_scene_types.h"
 
 namespace blender {
 
@@ -47,6 +48,10 @@ bool deselect_all_strips(const Scene *scene);
 bool maskedit_mask_poll(bContext *C);
 bool check_show_maskedit(SpaceSeq *sseq, Scene *scene);
 bool maskedit_poll(bContext *C);
+
+/*Add description*/
+void mouse_position(Scene *scene, ARegion *region, const int mval[2], float r_co[2]);
+void get_zoom(Scene *scene, ARegion *region, float *r_zoomx, float *r_zoomy);
 
 /**
  * Are we displaying the seq output (not channels or histogram).

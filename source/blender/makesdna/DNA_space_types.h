@@ -351,11 +351,13 @@ struct SpaceSeq {
   DNA_DEPRECATED float zoom = 0;
   /** See SEQ_VIEW_* below. */
   eSpaceSeq_Displays view = SEQ_VIEW_SEQUENCE;
+  eSpaceSeq_Mode mode = SEQ_MODE_VIEW;
+
   eSpaceSeq_OverlayFrameType overlay_frame_type = SEQ_OVERLAY_FRAME_TYPE_RECT;
   /** Overlay an image of the editing on below the strips. */
   eSpaceSeq_DrawFlag draw_flag = {};
   eSpaceSeq_Gizmo_Flag gizmo_flag = {};
-  char _pad[4] = {};
+  char _pad[3] = {};
 
   /** 2D cursor for transform. */
   float cursor[2] = {};

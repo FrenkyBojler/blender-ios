@@ -98,7 +98,7 @@ bool maskedit_mask_poll(bContext *C)
 
 bool check_show_maskedit(SpaceSeq *sseq, Scene *scene)
 {
-  if (sseq && sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+  if (sseq && sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->mode == SEQ_MODE_MASK) {
     return (seq::active_mask_get(scene) != nullptr);
   }
 
@@ -115,6 +115,52 @@ bool maskedit_poll(bContext *C)
   }
 
   return false;
+}
+
+/*
+void sequencer_strip_add_mask_modifier(Strip *strip, Mask *mask)
+{
+  strip->mask = mask;
+}
+
+bool sequencer_strip_check_mask_modifier(Strip *strip, Mask *mask)
+{
+  if (mask == strip->modifiers->one_of_the_mask) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void sequencer_strip_set_mask_modifier(Strip *strip, Mask* mask) {
+  
+}
+*/
+
+void mouse_position(Scene *scene, ARegion *region, const int mval[2], float r_co[2])
+{
+  int sx, sy, height, width;
+  float zoomx, zoomy;
+  float aspx, aspy;
+  
+  BKE_render_resolution(&scene->r, false, &width, &height);
+  BKE_render_get_aspect(&scene->r, &aspx, &aspy);
+  ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  get_zoom(scene, region, &zoomx, &zoomy);
+
+  r_co[0] = (((mval[0] - sx) / zoomx) / (width * aspx));
+  r_co[1] = (((mval[1] - sy) / zoomy) / (height * aspy));
+}
+
+void get_zoom(Scene *scene, ARegion *region, float *r_zoomx, float *r_zoomy)
+{
+  int width, height;
+  BKE_render_resolution(&scene->r, false, &width, &height);
+
+  *r_zoomx = float(BLI_rcti_size_x(&region->winrct) + 1) /
+             float(BLI_rctf_size_x(&region->v2d.cur));
+  *r_zoomy = float(BLI_rcti_size_y(&region->winrct) + 1) /
+             float(BLI_rctf_size_y(&region->v2d.cur));
 }
 
 bool check_show_imbuf(const SpaceSeq &sseq)

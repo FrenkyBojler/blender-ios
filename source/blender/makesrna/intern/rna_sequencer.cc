@@ -2844,6 +2844,14 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Connected Strips", "Other strips currently connected to this strip");
 
+  /* Mask. */
+  prop = RNA_def_property(srna, "mask", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "mask");
+  RNA_def_property_struct_type(prop, "Mask");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Mask", "Mask data-block associated with this strip");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+
   RNA_api_strip(srna);
 }
 

@@ -729,7 +729,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
     if (mask && clip) {
       ScrArea *area = CTX_wm_area(C);
       int mask_width, mask_height;
-      ED_mask_get_size(area, &mask_width, &mask_height);
+      ED_mask_get_size(C, &mask_width, &mask_height);
       ED_mask_draw_region(CTX_data_expect_evaluated_depsgraph(C),
                           mask,
                           region,

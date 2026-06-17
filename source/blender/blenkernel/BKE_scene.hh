@@ -274,6 +274,7 @@ int BKE_scene_num_threads(const Scene *scene);
 int BKE_render_num_threads(const RenderData *r);
 
 void BKE_render_resolution(const RenderData *r, const bool use_crop, int *r_width, int *r_height);
+void BKE_render_get_aspect(const RenderData *rd, float *r_aspx, float *r_aspy);
 int BKE_render_preview_pixel_size(const RenderData *r);
 
 /**********************************/

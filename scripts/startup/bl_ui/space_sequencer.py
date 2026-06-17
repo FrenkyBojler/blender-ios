@@ -87,10 +87,18 @@ class SEQUENCER_HT_header(Header):
         layout.template_header()
 
         layout.prop(st, "view_type", text="")
+        if(st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}):
+            layout.prop(st, "mode", text="")
 
         SEQUENCER_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.separator_spacer()
+
+        if st.mode in {'MASK'} and st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
+            strip = context.active_strip
+            if strip:
+                row = layout.row(align=True)
+                row.template_ID(strip, "mask", new="mask.new")
 
         scene = context.sequencer_scene
         tool_settings = scene.tool_settings if scene else None

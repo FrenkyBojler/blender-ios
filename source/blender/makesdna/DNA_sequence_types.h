@@ -400,7 +400,7 @@ struct Strip {
   char *scene_view_layer_name = nullptr;
   /** For MOVIECLIP strips. */
   struct MovieClip *clip = nullptr;
-  /** For MASK strips. */
+  /** For MASK strips & active MASK modifier. */
   struct Mask *mask = nullptr;
 
   /** Only for transition effect strips. Allows keyframing custom fade progression over time. */

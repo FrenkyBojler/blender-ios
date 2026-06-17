@@ -421,7 +421,7 @@ Mask *active_mask_get(Scene *scene)
 {
   Strip *strip_act = select_active_get(scene);
 
-  if (strip_act && strip_act->type == STRIP_TYPE_MASK) {
+  if (strip_act) {
     return strip_act->mask;
   }
 

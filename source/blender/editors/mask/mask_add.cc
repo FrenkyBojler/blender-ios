@@ -443,11 +443,8 @@ static void mask_point_make_pixel_space(bContext *C,
                                         const float point_normalized[2],
                                         float point_pixel[2])
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-
   float scalex, scaley;
-  ED_mask_pixelspace_factor(area, region, &scalex, &scaley);
+  ED_mask_pixelspace_factor(C, &scalex, &scaley);
 
   point_pixel[0] = point_normalized[0] * scalex;
   point_pixel[1] = point_normalized[1] * scaley;
@@ -570,12 +567,9 @@ static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-
   float co[2];
 
-  ED_mask_mouse_pos(area, region, event->mval, co);
+  ED_mask_mouse_pos(C, event->mval, co);
 
   RNA_float_set_array(op->ptr, "location", co);
 
@@ -669,12 +663,9 @@ static wmOperatorStatus add_feather_vertex_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-
   float co[2];
 
-  ED_mask_mouse_pos(area, region, event->mval, co);
+  ED_mask_mouse_pos(C, event->mval, co);
 
   RNA_float_set_array(op->ptr, "location", co);
 
@@ -751,11 +742,10 @@ static int create_primitive_from_points(bContext *C,
   MaskViewLockState lock_state;
   ED_mask_view_lock_state_store(C, &lock_state);
 
-  ScrArea *area = CTX_wm_area(C);
   int size = RNA_float_get(op->ptr, "size");
 
   int width, height;
-  ED_mask_get_size(area, &width, &height);
+  ED_mask_get_size(C, &width, &height);
   float scale = float(size) / max_ii(width, height);
 
   /* Get location in mask space. */
@@ -827,7 +817,7 @@ static wmOperatorStatus primitive_add_invoke(bContext *C,
   float cursor[2];
   int width, height;
 
-  ED_mask_get_size(area, &width, &height);
+  ED_mask_get_size(C, &width, &height);
   ED_mask_cursor_location_get(area, cursor);
 
   cursor[0] *= width;
