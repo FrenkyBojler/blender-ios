@@ -1992,6 +1992,8 @@ static void panels_layout_begin_clear_flags(ListBaseT<Panel> *lb)
     /* Flags to copy over to the next layout pass. */
     const short flag_copy = PANEL_USE_CLOSED_FROM_SEARCH | PANEL_IS_DRAG_DROP;
 
+    panel.runtime->layout_panels.clear();
+
     const bool was_active = panel.runtime_flag & PANEL_ACTIVE;
     const bool was_closed = panel_is_closed(&panel);
     panel.runtime_flag &= flag_copy;

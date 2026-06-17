@@ -587,7 +587,6 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
   if (needs_layout) {
     ED_region_panels_exit_active_state(mutable_C, xr_region);
     ui::blocklist_free(mutable_C, xr_region);
-    BKE_area_region_panels_free(&xr_region->panels);
     ED_region_panels_layout(mutable_C, xr_region);
 
     const int content_width = std::max(1, int(std::ceil(BLI_rctf_size_x(&xr_region->v2d.tot))));
@@ -616,7 +615,6 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
                       xr_region->winy);
       ED_region_panels_exit_active_state(mutable_C, xr_region);
       ui::blocklist_free(mutable_C, xr_region);
-      BKE_area_region_panels_free(&xr_region->panels);
       ED_region_panels_layout(mutable_C, xr_region);
     }
     BLI_rcti_init(&panel_rect, 0, content_width - 1, 0, content_height - 1);
