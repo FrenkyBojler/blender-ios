@@ -227,7 +227,6 @@ typedef struct Object {
   bAnimVizSettings avs;
   /** Motion path cache for this object. */
   bMotionPath *mpath;
-  void *_pad0;
 
   ListBase effect DNA_DEPRECATED;  /* XXX deprecated... keep for readfile */
   ListBase defbase DNA_DEPRECATED; /* Only for versioning, moved to object data. */
@@ -691,6 +690,7 @@ enum {
   OB_HIDE_PROBE_VOLUME = 1 << 11,
   OB_HIDE_PROBE_CUBEMAP = 1 << 12,
   OB_HIDE_PROBE_PLANAR = 1 << 13,
+  OB_HIDE_SURFACE_PICK = 1 << 14,
 };
 
 /** #Object.shapeflag */

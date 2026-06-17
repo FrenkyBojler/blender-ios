@@ -108,6 +108,16 @@ struct bAnimContext {
   eAnimEdit_Context dopesheet_mode;
   eGraphEdit_Mode grapheditor_mode;
 
+  /**
+   * Filters from the dopesheet/graph editor settings. These may reflect the corresponding bits in
+   * ads->filterflag and ads->filterflag2, but can also be overriden by the dopesheet mode to force
+   * certain filters (without having to write to ads->filterflag/flag2).
+   */
+  struct {
+    eDopeSheet_FilterFlag flag;
+    eDopeSheet_FilterFlag2 flag2;
+  } filters;
+
   /** area->spacetype */
   eSpace_Type spacetype;
   /** active region -> type (channels or main) */
@@ -880,6 +890,11 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag);
  * Draw preview range 'curtains' for highlighting where the animation data is.
  */
 void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width);
+
+/**
+ * Draw range of the current sequencer scene strip when using scene time syncing.
+ */
+void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d);
 
 /** \} */
 

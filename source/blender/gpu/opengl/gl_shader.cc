@@ -38,6 +38,13 @@
 
 #include <fmt/format.h>
 
+#include <chrono>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <stdio.h>
+#include <string>
+
 #ifdef WIN32
 #  define popen _popen
 #  define pclose _pclose
@@ -46,8 +53,6 @@
 using namespace blender;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
-
-extern "C" char datatoc_glsl_shader_defines_glsl[];
 
 /* -------------------------------------------------------------------- */
 /** \name Creation / Destruction
@@ -1096,10 +1101,11 @@ static StringRefNull glsl_patch_vertex_get()
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_VERTEX_SHADER\n";
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
 
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1125,10 +1131,11 @@ static StringRefNull glsl_patch_geometry_get()
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_GEOMETRY_SHADER\n";
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
 
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1161,10 +1168,11 @@ static StringRefNull glsl_patch_fragment_get()
 
     /* Needs to have this defined upfront for configuring shader defines. */
     ss << "#define GPU_FRAGMENT_SHADER\n";
-    /* GLSL Backend Lib. */
-    ss << datatoc_glsl_shader_defines_glsl;
 
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1185,9 +1193,10 @@ static StringRefNull glsl_patch_compute_get()
 
     ss << "#define GPU_ARB_clip_control\n";
 
-    ss << datatoc_glsl_shader_defines_glsl;
-
-    return ss.str();
+    shader::GeneratedSource extensions{"gpu_shader_glsl_extension.glsl", {}, ss.str()};
+    shader::GeneratedSourceList sources{extensions};
+    return fmt::to_string(fmt::join(
+        gpu_shader_dependency_get_resolved_source("gpu_shader_compat_glsl.glsl", sources), ""));
   }();
   return patch;
 }
@@ -1236,9 +1245,7 @@ GLuint GLShader::create_shader_stage(GLenum gl_stage,
         sources[SOURCES_INDEX_SPECIALIZATION_CONSTANTS]);
   }
 
-  if (DEBUG_LOG_SHADER_SRC_ON_ERROR ||
-      (this->name_get().startswith("MADefault Material") && gl_stage == GL_FRAGMENT_SHADER))
-  {
+  if (DEBUG_LOG_SHADER_SRC_ON_ERROR) {
     /* Store the generated source for printing in case the link fails. */
     StringRefNull source_type;
     switch (gl_stage) {
@@ -1560,12 +1567,13 @@ size_t GLSourcesBaked::size()
 
 GLShader::GLProgram::~GLProgram()
 {
+  /* This can run from any thread even without a GLContext bound. */
   /* Invalid handles are silently ignored. */
-  glDeleteShader(vert_shader);
-  glDeleteShader(geom_shader);
-  glDeleteShader(frag_shader);
-  glDeleteShader(compute_shader);
-  glDeleteProgram(program_id);
+  GLContext::shader_free(vert_shader);
+  GLContext::shader_free(geom_shader);
+  GLContext::shader_free(frag_shader);
+  GLContext::shader_free(compute_shader);
+  GLContext::program_free(program_id);
 }
 
 void GLShader::GLProgram::program_link(StringRefNull shader_name)
@@ -1689,11 +1697,19 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 
 GLCompilerWorker::GLCompilerWorker()
 {
-  static size_t pipe_id = 0;
-  pipe_id++;
+  using namespace std::chrono;
+  /* This function has to be thread-safe. */
+  static std::atomic<size_t> g_pipe_id = 0;
+  size_t pipe_id = g_pipe_id++;
+
+  /* Use a timestamp on top of the PID.
+   * If a Blender session crashes without unlinking its shared memory, and the PID is reused, we
+   * may run into a name collision otherwise. */
+  static size_t time_id =
+      duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
   std::string name = "BLENDER_SHADER_COMPILER_" + std::to_string(getpid()) + "_" +
-                     std::to_string(pipe_id);
+                     std::to_string(time_id) + "_" + std::to_string(pipe_id);
 
   shared_mem_ = std::make_unique<SharedMemory>(
       name, compilation_subprocess_shared_memory_size, true);

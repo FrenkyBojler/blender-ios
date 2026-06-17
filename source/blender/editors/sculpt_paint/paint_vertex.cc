@@ -531,7 +531,7 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
   if (cache->first_time) {
     cache->initial_radius = paint_calc_object_space_radius(
         *cache->vc, cache->location, BKE_brush_radius_get(&vp.paint, &brush));
-    BKE_brush_unprojected_size_set(&vp.paint, &brush, cache->initial_radius);
+    BKE_brush_unprojected_size_set(&vp.paint, &brush, cache->initial_radius * 2.0f);
   }
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, paint_mode)) {
@@ -599,7 +599,7 @@ void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
   cache->saved_active_brush = cur_brush;
   cache->saved_smooth_size = BKE_brush_size_get(paint, smooth_brush);
   BKE_brush_size_set(paint, smooth_brush, cur_brush_size);
-  BKE_curvemapping_init(smooth_brush->curve);
+  BKE_curvemapping_init(smooth_brush->curve_distance_falloff);
 }
 /** \} */
 }  // namespace blender::ed::sculpt_paint::vwpaint
@@ -1076,6 +1076,10 @@ static bool vpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
       C, op, scene, depsgraph, vp, ob, *mesh, meta_data->domain, meta_data->data_type, brush);
 
   paint_stroke_set_mode_data(stroke, std::move(vpd));
+
+  BKE_curvemapping_init(brush.curve_rand_hue);
+  BKE_curvemapping_init(brush.curve_rand_saturation);
+  BKE_curvemapping_init(brush.curve_rand_value);
 
   /* If not previously created, create vertex/weight paint mode session data */
   vertex_paint_init_stroke(depsgraph, ob);

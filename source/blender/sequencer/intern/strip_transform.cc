@@ -113,10 +113,15 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
   const ListBase *channels = channels_displayed_get(editing_get(evil_scene));
   SeqTimelineChannel *channel = channel_get_by_index(channels, test->channel);
 
+  bool use_fallback_translation = false;
+
   while (transform_test_overlap(evil_scene, seqbasep, test) || channel_is_muted(channel) ||
          channel_is_locked(channel))
   {
-    if ((channel_delta > 0) ? (test->channel >= MAX_CHANNELS) : (test->channel < 1)) {
+    if ((channel_delta > 0) ? (test->channel + channel_delta >= MAX_CHANNELS) :
+                              (test->channel + channel_delta < 1))
+    {
+      use_fallback_translation = true;
       break;
     }
 
@@ -124,10 +129,8 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
     channel = channel_get_by_index(channels, test->channel);
   }
 
-  if (!is_valid_strip_channel(test)) {
-    /* Blender 2.4x would remove the strip.
-     * nicer to move it to the end */
-
+  /* Strip can not be moved to next free channel, translate it instead. */
+  if (use_fallback_translation) {
     int new_frame = time_right_handle_frame_get(evil_scene, test);
 
     LISTBASE_FOREACH (Strip *, strip, seqbasep) {
@@ -403,21 +406,31 @@ static void strip_transform_handle_overwrite_split(Scene *scene,
   /* Because we are doing a soft split, bmain is not used in SEQ_edit_strip_split, so we can
    * pass nullptr here. */
   Main *bmain = nullptr;
-
+  const char *error_msg = nullptr;
   Strip *split_strip = edit_strip_split(bmain,
                                         scene,
                                         seqbasep,
                                         target,
                                         time_left_handle_frame_get(scene, transformed),
                                         SPLIT_SOFT,
-                                        nullptr);
-  edit_strip_split(bmain,
-                   scene,
-                   seqbasep,
-                   split_strip,
-                   time_right_handle_frame_get(scene, transformed),
-                   SPLIT_SOFT,
-                   nullptr);
+                                        true,
+                                        &error_msg);
+  if (split_strip == nullptr) {
+    return;
+  }
+
+  error_msg = nullptr;
+  if (edit_strip_split(bmain,
+                       scene,
+                       seqbasep,
+                       split_strip,
+                       time_right_handle_frame_get(scene, transformed),
+                       SPLIT_SOFT,
+                       true,
+                       &error_msg) == nullptr)
+  {
+    return;
+  }
   edit_flag_for_removal(scene, seqbasep, split_strip);
   edit_remove_flagged_strips(scene, seqbasep);
 }
@@ -460,9 +473,14 @@ static void strip_transform_handle_overwrite(Scene *scene,
   blender::VectorSet targets = query_overwrite_targets(scene, seqbasep, transformed_strips);
   blender::VectorSet<Strip *> strips_to_delete;
 
+  ListBase *channels = channels_displayed_get(editing_get(scene));
   for (Strip *target : targets) {
     for (Strip *transformed : transformed_strips) {
       if (transformed->channel != target->channel) {
+        continue;
+      }
+      /* Do not allow overwriting/trimming/deleting locked strips. */
+      if (transform_is_locked(channels, target)) {
         continue;
       }
 
@@ -611,10 +629,12 @@ float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
     const TextVars *data = static_cast<TextVars *>(strip->effectdata);
     const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
                                  ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
-    const int font = text_effect_font_init(nullptr, strip, font_flags);
 
+    std::unique_lock<Mutex> lock = text_runtime_scoped_lock_get();
+    const int font = text_effect_font_init(nullptr, strip, font_flags);
     const TextVarsRuntime *runtime = text_effect_calc_runtime(
         strip, font, int2(scene_render_size));
+    BLF_disable(font, font_flags);
 
     const float2 text_size(float(BLI_rcti_size_x(&runtime->text_boundbox)),
                            float(BLI_rcti_size_y(&runtime->text_boundbox)));
@@ -694,6 +714,33 @@ static Array<float2> strip_image_transform_quad_get_ex(const Scene *scene,
       {(-image_size[0] / 2) + crop->left, (-image_size[1] / 2) + crop->bottom},
       {(-image_size[0] / 2) + crop->left, (image_size[1] / 2) - crop->top},
   };
+
+  if (strip->type == STRIP_TYPE_TEXT) {
+    const TextVars *data = static_cast<TextVars *>(strip->effectdata);
+    float2 offset(0, 0);
+
+    switch (data->anchor_x) {
+      case SEQ_TEXT_ALIGN_X_LEFT:
+        offset.x = image_size.x / 2;
+        break;
+      case SEQ_TEXT_ALIGN_X_RIGHT:
+        offset.x = -image_size.x / 2;
+        break;
+    }
+    switch (data->anchor_y) {
+      case SEQ_TEXT_ALIGN_Y_BOTTOM:
+        offset.y = image_size.y / 2;
+        break;
+      case SEQ_TEXT_ALIGN_Y_TOP:
+        offset.y = -image_size.y / 2;
+        break;
+    }
+
+    quad[0] += offset;
+    quad[1] += offset;
+    quad[2] += offset;
+    quad[3] += offset;
+  }
 
   const float3x3 matrix = seq_image_transform_matrix_get_ex(scene, strip, apply_rotation);
   const float2 viewport_pixel_aspect(scene->r.xasp / scene->r.yasp, 1.0f);

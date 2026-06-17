@@ -23,6 +23,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_path_utils.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
@@ -97,7 +98,7 @@ struct BakeAPIRender {
   int normal_space;
   eBakeNormalSwizzle normal_swizzle[3];
 
-  char uv_layer[MAX_CUSTOMDATA_LAYER_NAME];
+  std::string uv_layer;
   char custom_cage[MAX_NAME];
 
   /* Settings for external image saving. */
@@ -220,7 +221,7 @@ static bool write_internal_bake_pixels(Image *image,
                                        const bool is_noncolor,
                                        const bool is_tangent_normal,
                                        Mesh const *mesh_eval,
-                                       char const *uv_layer,
+                                       const StringRef uv_layer,
                                        const float uv_offset[2])
 {
   ImBuf *ibuf;
@@ -368,7 +369,7 @@ static bool write_external_bake_pixels(const char *filepath,
                                        const bool is_noncolor,
                                        const bool is_tangent_normal,
                                        Mesh const *mesh_eval,
-                                       char const *uv_layer,
+                                       const StringRef uv_layer,
                                        const float uv_offset[2])
 {
   ImBuf *ibuf = nullptr;
@@ -612,14 +613,14 @@ static bool bake_pass_filter_check(eScenePassType pass_type,
 
         BKE_report(reports,
                    RPT_ERROR,
-                   "Combined bake pass requires Emit, or a light pass with "
+                   "Combined bake pass requires Emission, or a light pass with "
                    "Direct or Indirect contributions enabled");
 
         return false;
       }
       BKE_report(reports,
                  RPT_ERROR,
-                 "Combined bake pass requires Emit, or a light pass with "
+                 "Combined bake pass requires Emission, or a light pass with "
                  "Direct or Indirect contributions enabled");
       return false;
     case SCE_PASS_DIFFUSE_COLOR:
@@ -1452,13 +1453,16 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
     goto cleanup;
   }
 
-  if (bkr->uv_layer[0] != '\0') {
+  if (!bkr->uv_layer.empty()) {
     Mesh *mesh = (Mesh *)ob_low->data;
-    if (CustomData_get_named_layer(&mesh->corner_data, CD_PROP_FLOAT2, bkr->uv_layer) == -1) {
+    const bke::AttributeAccessor attributes = mesh->attributes();
+    const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+        bkr->uv_layer);
+    if (meta_data != bke::AttributeMetaData{bke::AttrDomain::Corner, bke::AttrType::Float2}) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "No UV layer named \"%s\" found in the object \"%s\"",
-                  bkr->uv_layer,
+                  bkr->uv_layer.c_str(),
                   ob_low->id.name + 2);
       goto cleanup;
     }
@@ -1487,16 +1491,11 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
       }
       else {
         ob_cage_eval = DEG_get_evaluated(depsgraph, ob_cage);
-        if (ob_cage_eval->id.orig_id != &ob_cage->id) {
-          BKE_reportf(reports,
-                      RPT_ERROR,
-                      "Cage object \"%s\" not found in evaluated scene, it may be hidden",
-                      ob_cage->id.name + 2);
-          goto cleanup;
+        if (ob_cage_eval) {
+          ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
+          ob_cage_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                                       BASE_ENABLED_RENDER);
         }
-        ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
-        ob_cage_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                                     BASE_ENABLED_RENDER);
       }
     }
   }
@@ -1518,6 +1517,15 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
 
   /* get the mesh as it arrives in the renderer */
   me_low_eval = bake_mesh_new_from_object(depsgraph, ob_low_eval, preserve_origindex);
+
+  /* Ensure cage object was evaluated by the depsgraph. */
+  if (ob_cage && (ob_cage_eval == nullptr || (ob_cage_eval->id.orig_id != &ob_cage->id))) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Cage object \"%s\" not found in evaluated scene, it may be hidden",
+                ob_cage->id.name + 2);
+    goto cleanup;
+  }
 
   /* Initialize bake targets. */
   if (!bake_targets_init(bkr, &targets, ob_low, ob_low_eval, reports)) {
@@ -1904,7 +1912,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
   bkr->height = RNA_int_get(op->ptr, "height");
   bkr->identifier = "";
 
-  RNA_string_get(op->ptr, "uv_layer", bkr->uv_layer);
+  bkr->uv_layer = RNA_string_get(op->ptr, "uv_layer");
 
   RNA_string_get(op->ptr, "cage_object", bkr->custom_cage);
 

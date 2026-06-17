@@ -1368,10 +1368,11 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ID *owner_id = iod->pprop.ptr.owner_id;
   Library *owner_library = owner_id ? owner_id->lib : nullptr;
+  blender::StringRefNull blendfile_path = BKE_main_blendfile_path(bmain);
   blender::StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs :
-                                                     BKE_main_blendfile_path(bmain);
+                                                     blendfile_path;
 
-  ListBase ranges = ED_image_filesel_detect_sequences(root_path, op, use_udim);
+  ListBase ranges = ED_image_filesel_detect_sequences(blendfile_path, root_path, op, use_udim);
   LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
     Image *ima_range = image_open_single(bmain, owner_library, op, range, use_multiview);
 
@@ -3296,7 +3297,7 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
     ED_image_undo_push_end();
   }
   else {
-    // Ensure that an image buffer can be aquired for all UDIM tiles
+    // Ensure that an image buffer can be acquired for all UDIM tiles
     LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
       iuser.tile = current_tile->tile_number;
 

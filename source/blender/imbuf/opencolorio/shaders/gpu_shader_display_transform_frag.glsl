@@ -238,8 +238,19 @@ float4 OCIO_ProcessColor(float4 col, float4 col_overlay)
   }
 
   if (parameters.dither > 0.0) {
-    uint2 texel = get_pixel_coord(image_texture, texCoord_interp.st);
+    uint2 texel = get_pixel_coord(image_texture, texCoord_interp.xy);
     col = apply_dither(col, texel);
+  }
+#endif
+
+#ifdef OUTPUT_PREMULTIPLIED
+  /* Note: do not premultiply with a=0 when input image was already
+   * premultiplied; we want to preserve pure emissive colors (#141013).
+   * However for straight alpha images do premultiply; in some cases
+   * their fully transparent regions contain garbage RGB data
+   * (#150156) and they can't express "pure emissive" colors anyway. */
+  if (col.a < 1.0 && !(parameters.use_predivide && col.a <= 0.0)) {
+    col.rgb *= col.a;
   }
 #endif
 
@@ -250,8 +261,8 @@ float4 OCIO_ProcessColor(float4 col, float4 col_overlay)
 
 void main()
 {
-  float4 col = texture(image_texture, texCoord_interp.st);
-  float4 col_overlay = texture(overlay_texture, texCoord_interp.st);
+  float4 col = texture(image_texture, texCoord_interp.xy);
+  float4 col_overlay = texture(overlay_texture, texCoord_interp.xy);
 
   fragColor = OCIO_ProcessColor(col, col_overlay);
 }

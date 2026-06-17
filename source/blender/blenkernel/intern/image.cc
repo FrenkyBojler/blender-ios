@@ -1312,7 +1312,7 @@ static void image_colorspace_from_imbuf(Image *image, const ImBuf *ibuf)
       colorspace_name = IMB_colormanagement_colorspace_get_name(ibuf->float_buffer.colorspace);
     }
     else {
-      colorspace_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_FLOAT);
+      colorspace_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
     }
   }
 
@@ -1878,7 +1878,7 @@ static void stampdata(
     }
 
     if (use_dynamic && stats && (scene->r.stamp & R_STAMP_MEMORY)) {
-      SNPRINTF_UTF8(stamp_data->memory, do_prefix ? "Peak Memory ddM" : "%dM", stats->mem_peak);
+      SNPRINTF_UTF8(stamp_data->memory, do_prefix ? "Peak Memory %dM" : "%dM", stats->mem_peak);
     }
     else {
       stamp_data->memory[0] = '\0';
@@ -2569,7 +2569,7 @@ bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *i
   BKE_image_format_to_imbuf(ibuf, imf);
 
   const bool ok = IMB_save_image(ibuf, filepath, IB_byte_data);
-  if (ok == 0) {
+  if (!ok && errno != 0) {
     perror(filepath);
   }
 
@@ -2870,7 +2870,7 @@ static void image_walk_id_all_users(
     }
     case ID_MA: {
       Material *ma = (Material *)id;
-      if (ma->nodetree && ma->use_nodes && !skip_nested_nodes) {
+      if (ma->nodetree && !skip_nested_nodes) {
         image_walk_ntree_all_users(ma->nodetree, &ma->id, customdata, callback);
       }
       image_walk_gpu_materials(id, &ma->gpumaterial, customdata, callback);
@@ -3945,12 +3945,12 @@ static void image_create_multilayer(Image *ima, ImBuf *ibuf, int framenr)
 
   /* only load rr once for multiview */
   if (!ima->rr) {
-    ima->rr = RE_MultilayerConvert(ibuf->userdata, colorspace, predivide, ibuf->x, ibuf->y);
+    ima->rr = RE_MultilayerConvert(ibuf->exrhandle, colorspace, predivide, ibuf->x, ibuf->y);
   }
 
-  IMB_exr_close(ibuf->userdata);
+  IMB_exr_close(ibuf->exrhandle);
 
-  ibuf->userdata = nullptr;
+  ibuf->exrhandle = nullptr;
   if (ima->rr != nullptr) {
     ima->rr->framenr = framenr;
     BKE_stamp_info_from_imbuf(ima->rr, ibuf);
@@ -4217,10 +4217,10 @@ static ImBuf *load_image_single(Image *ima,
 
   if (ibuf) {
 #ifdef WITH_IMAGE_OPENEXR
-    if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->userdata) {
+    if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->exrhandle) {
       /* Handle multilayer and multiview cases, don't assign ibuf here.
        * will be set layer in BKE_image_acquire_ibuf from ima->rr. */
-      if (IMB_exr_has_multilayer(ibuf->userdata)) {
+      if (IMB_exr_has_multilayer(ibuf->exrhandle)) {
         image_create_multilayer(ima, ibuf, cfra);
         ima->type = IMA_TYPE_MULTILAYER;
         IMB_freeImBuf(ibuf);

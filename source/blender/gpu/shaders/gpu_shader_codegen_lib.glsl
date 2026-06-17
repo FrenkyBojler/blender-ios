@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "gpu_glsl_cpp_stubs.hh"
+#include "gpu_shader_compat.hh"
 
 float3 calc_barycentric_distances(float3 pos0, float3 pos1, float3 pos2)
 {
@@ -287,7 +287,7 @@ float3 dF_impl(float3 v)
 
 #  define dF_branch(fn, filter_width, result) \
     if (true) { \
-      g_derivative_filter_width = filter_width; \
+      g_derivative_filter_width = filter_width * derivative_scale_get(); \
       g_derivative_flag = 1; \
       result.x = (fn); \
       g_derivative_flag = -1; \
@@ -299,7 +299,7 @@ float3 dF_impl(float3 v)
 /* Used when the non-offset value is already computed elsewhere */
 #  define dF_branch_incomplete(fn, filter_width, result) \
     if (true) { \
-      g_derivative_filter_width = filter_width; \
+      g_derivative_filter_width = filter_width * derivative_scale_get(); \
       g_derivative_flag = 1; \
       result.x = (fn); \
       g_derivative_flag = -1; \

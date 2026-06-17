@@ -26,13 +26,16 @@ namespace blender::nodes::node_composite_inpaint_cc {
 
 static void cmp_node_inpaint_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Int>("Size").default_value(0).min(0).description(
       "The size of the inpaint in pixels");
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -256,7 +259,7 @@ class InpaintOperation : public NodeOperation {
 
       /* Mix the boundary color with the original color using its alpha because semi-transparent
        * areas are considered to be partially inpainted. */
-      float4 boundary_color = input.load_pixel<float4>(closest_boundary_texel);
+      float4 boundary_color = input.load_pixel_extended<float4>(closest_boundary_texel);
       filled_region.store_pixel(texel, math::interpolate(boundary_color, color, color.w));
     });
   }

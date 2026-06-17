@@ -535,8 +535,8 @@ class USDExportTest(AbstractUSDTest):
 
         hair_curves = UsdGeom.BasisCurves(hair_prim)
         hair_samples = hair_curves.GetPointsAttr().GetTimeSamples()
-        self.assertEqual(hair_curves.GetTypeAttr().Get(), "cubic")
-        self.assertEqual(hair_curves.GetBasisAttr().Get(), "bspline")
+        self.assertEqual(hair_curves.GetTypeAttr().Get(), "linear")
+        self.assertEqual(hair_curves.GetBasisAttr().Get(), "catmullRom")
         self.assertEqual(len(hair_samples), 10)
 
     def check_primvar(self, prim, pv_name, pv_typeName, pv_interp, elements_len):
@@ -1257,7 +1257,11 @@ class USDExportTest(AbstractUSDTest):
         # Create a simple scene with 1 object and 1 material
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
         material = bpy.data.materials.new(name="test_material")
-        material.use_nodes = True
+        node_tree = material.node_tree
+        node_tree.nodes.clear()
+        bsdf = node_tree.nodes.new("ShaderNodeBsdfPrincipled")
+        output = node_tree.nodes.new("ShaderNodeOutputMaterial")
+        node_tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
         bpy.ops.mesh.primitive_plane_add()
         bpy.data.objects[0].data.materials.append(material)
 

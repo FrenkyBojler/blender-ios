@@ -103,6 +103,8 @@ void WM_init_state_normal_set();
 void WM_init_state_maximized_set();
 void WM_init_state_start_with_console_set(bool value);
 void WM_init_window_focus_set(bool do_it);
+bool WM_init_window_frame_get();
+void WM_init_window_frame_set(bool do_it);
 void WM_init_native_pixels(bool do_it);
 void WM_init_input_devices();
 
@@ -157,8 +159,6 @@ void WM_init_splash_on_startup(bContext *C);
 void WM_init_splash(bContext *C);
 
 void WM_init_gpu();
-
-bool WM_gpu_is_initialized();
 
 /**
  * Return an identifier for the underlying GHOST implementation.
@@ -975,6 +975,21 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
 bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
+
+/**
+ * Check poll succeeds or returns false & report an error.
+ *
+ * This can be used from #wmOperatorType::exec for operators that use the file-selector.
+ * It's needed in this case because the context can be changed once the file-selector
+ * has been activated.
+ *
+ * \return true or false & report an error.
+ *
+ * \note It's best practice that `ot->poll` sets the "poll message",
+ * otherwise a generic (unhelpful) error will be used.
+ */
+bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportList *reports);
+
 /**
  * For running operators with frozen context (modal handlers, menus).
  *
@@ -1641,6 +1656,7 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
  */
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
 bool WM_drag_asset_will_import_linked(const wmDrag *drag);
+bool WM_drag_asset_will_import_packed(const wmDrag *drag);
 void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent);
 ID *WM_drag_get_local_ID(const wmDrag *drag, short idcode);
 ID *WM_drag_get_local_ID_from_event(const wmEvent *event, short idcode);
@@ -2107,7 +2123,7 @@ bool WM_event_is_ime_switch(const wmEvent *event);
 
 /* `wm_tooltip.cc` */
 
-using wmTooltipInitFn = ARegion *(*)(bContext *C,
+using wmTooltipInitFn = ARegion *(*)(bContext * C,
                                      ARegion *region,
                                      int *pass,
                                      double *r_pass_delay,
@@ -2184,6 +2200,9 @@ void WM_xr_session_state_nav_rotation_set(wmXrData *xr, const float rotation[4])
 bool WM_xr_session_state_nav_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_nav_scale_set(wmXrData *xr, float scale);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
+void WM_xr_session_state_vignette_reset(wmXrSessionState *state);
+void WM_xr_session_state_vignette_activate(wmXrData *xr);
+void WM_xr_session_state_vignette_update(wmXrSessionState *state);
 
 ARegionType *WM_xr_surface_controller_region_type_get();
 

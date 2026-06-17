@@ -4,7 +4,7 @@
 
 #pragma once
 
-#if !defined(GPU_SHADER) && !defined(GLSL_CPP_STUBS)
+#ifndef GPU_SHADER
 #  include "GPU_shader_shared_utils.hh"
 
 #  include "DNA_action_types.h"
@@ -234,7 +234,6 @@ struct ThemeColors {
   float4 nurb_vline;
   float4 nurb_sel_uline;
   float4 nurb_sel_vline;
-  float4 active_spline;
 
   float4 bone_pose;
   float4 bone_pose_active;
@@ -325,7 +324,7 @@ struct ExtraInstanceData {
   float4 color_;
   float4x4 object_to_world;
 
-#if !defined(GPU_SHADER)
+#ifndef GPU_SHADER
   ExtraInstanceData(const float4x4 &object_to_world, const float4 &color, float draw_size)
   {
     this->color_ = color;
@@ -405,7 +404,7 @@ struct BoneEnvelopeData {
         tail_sphere(tail_sphere),
         bone_color_and_wire_width(bone_color, 0.0f),
         state_color(state_color, 0.0f),
-        x_axis(x_axis, 0.0f){};
+        x_axis(x_axis, 0.0f) {};
 
   /* For bone outlines. */
   BoneEnvelopeData(float4 &head_sphere,
@@ -415,11 +414,11 @@ struct BoneEnvelopeData {
       : head_sphere(head_sphere),
         tail_sphere(tail_sphere),
         bone_color_and_wire_width(color_and_wire_width),
-        x_axis(x_axis, 0.0f){};
+        x_axis(x_axis, 0.0f) {};
 
   /* For bone distance volumes. */
   BoneEnvelopeData(float4 &head_sphere, float4 &tail_sphere, float3 &x_axis)
-      : head_sphere(head_sphere), tail_sphere(tail_sphere), x_axis(x_axis, 0.0f){};
+      : head_sphere(head_sphere), tail_sphere(tail_sphere), x_axis(x_axis, 0.0f) {};
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(BoneEnvelopeData, 16)
@@ -447,7 +446,7 @@ struct BoneStickData {
         wire_color(wire_color),
         bone_color(bone_color),
         head_color(head_color),
-        tail_color(tail_color){};
+        tail_color(tail_color) {};
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(BoneStickData, 16)

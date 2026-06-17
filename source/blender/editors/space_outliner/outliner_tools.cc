@@ -36,6 +36,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -1546,6 +1548,18 @@ static void id_override_library_resync_hierarchy_process(bContext *C,
   BlendFileReadReport report{};
   report.reports = reports;
 
+  /* In some cases, resync issues can be caused by missing hierarchy data (e.g. some liboverrides
+   * have lost their hierarchy root ID pointer). So always attempt to fix/rebuild invalid hierarchy
+   * info when this 'troubleshooting' tool is used.
+   *
+   * NOTE: Reproduction of this issue was never achieved simply so far, nor is it understood what
+   * can cause hierarchy info to get broken.
+   * Only known case so far, from Singularity Blender Studio production:
+   * `singularity/pro/shots/090_ignite/090_0040/090_0040-fx.blend`, rev. 1651 ,
+   * `FX-creature_blob` liboverride collection, several objects lost their hierarchy data,
+   * e.g. `RIG-creature_blob`, `GEO-creature_blob-curve`, and the three `WGT` riggin widgets. */
+  BKE_lib_override_library_main_hierarchy_root_ensure(bmain);
+
   for (auto &&id_hierarchy_root : data.id_hierarchy_roots.keys()) {
     BKE_lib_override_library_resync(bmain,
                                     scene,
@@ -2093,14 +2107,14 @@ static void pchan_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   bPoseChannel *pchan = (bPoseChannel *)te->directdata;
 
   if (event == OL_DOP_SELECT) {
-    pchan->bone->flag |= BONE_SELECTED;
+    pchan->flag |= POSE_SELECTED_ALL;
   }
   else if (event == OL_DOP_DESELECT) {
-    pchan->bone->flag &= ~BONE_SELECTED;
+    pchan->flag &= ~POSE_SELECTED_ALL;
   }
   else if (event == OL_DOP_HIDE) {
     pchan->drawflag |= PCHAN_DRAW_HIDDEN;
-    pchan->bone->flag &= ~BONE_SELECTED;
+    pchan->flag &= ~POSE_SELECTED_ALL;
   }
   else if (event == OL_DOP_UNHIDE) {
     pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
@@ -2513,7 +2527,7 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
         WM_window_set_active_scene(bmain, C, win, sce);
       }
 
-      str = "Select Objects";
+      str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Objects");
       selection_changed = true;
       break;
     }
@@ -2531,14 +2545,14 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
       if (scene != sce) {
         WM_window_set_active_scene(bmain, C, win, sce);
       }
-      str = "Select Object Hierarchy";
+      str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Object Hierarchy");
       selection_changed = true;
       break;
     }
     case OL_OP_DESELECT:
       outliner_do_object_operation(
           C, op->reports, scene, space_outliner, &space_outliner->tree, object_deselect_fn);
-      str = "Deselect Objects";
+      str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Deselect Objects");
       selection_changed = true;
       break;
     case OL_OP_REMAP:
@@ -2549,7 +2563,7 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
     case OL_OP_RENAME:
       outliner_do_object_operation(
           C, op->reports, scene, space_outliner, &space_outliner->tree, item_rename_fn);
-      str = "Rename Object";
+      str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Object");
       break;
     default:
       BLI_assert_unreachable();

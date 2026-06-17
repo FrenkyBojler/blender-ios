@@ -87,7 +87,7 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     mtlDevice = usable_devices[mtlDevId];
     metal_printf("Creating new Cycles Metal device: %s", info.description.c_str());
 
-    /* Ensure that back-compatability helpers for getting gpuAddress & gpuResourceID are set up. */
+    /* Ensure that back-compatibility helpers for getting gpuAddress & gpuResourceID are set up. */
     metal_gpu_address_helper_init(mtlDevice);
 
     /* Enable increased concurrent shader compiler limit.
@@ -494,6 +494,16 @@ void MetalDevice::compile_and_load(const int device_id, MetalPipelineType pso_ty
     }
     if (@available(ios 17.0, *)) {
       options.languageVersion = MTLLanguageVersion3_1;
+    }
+#  endif
+#  if defined(MAC_OS_VERSION_15_0)
+    if (@available(macos 15.0, *)) {
+      options.languageVersion = MTLLanguageVersion3_2;
+      if (const char *loglevel = getenv("MTL_LOG_LEVEL")) {
+        if (strcmp(loglevel, "MTLLogLevelDebug") == 0) {
+          options.enableLogging = true;
+        }
+      }
     }
 #  endif
 

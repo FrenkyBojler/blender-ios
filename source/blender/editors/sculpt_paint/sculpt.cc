@@ -3422,7 +3422,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
   if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_MASK) &&
       brush.autosmooth_factor > 0)
   {
-    if (brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
+    if (bke::brush::supports_auto_smooth_pressure(brush) &&
+        brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE)
+    {
       brushes::do_smooth_brush(
           depsgraph, sd, ob, node_mask, brush.autosmooth_factor * (1.0f - ss.cache->pressure));
     }
@@ -3902,7 +3904,7 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
 
   cache->saved_smooth_size = BKE_brush_size_get(paint, smooth_brush);
   BKE_brush_size_set(paint, smooth_brush, cur_brush_size);
-  BKE_curvemapping_init(smooth_brush->curve);
+  BKE_curvemapping_init(smooth_brush->curve_distance_falloff);
 }
 
 static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
@@ -4177,7 +4179,9 @@ static void brush_delta_update(const Depsgraph &depsgraph,
   float grab_location[3], imat[4][4], delta[3], loc[3];
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
-    if (brush_type == SCULPT_BRUSH_TYPE_GRAB && brush.flag & BRUSH_GRAB_ACTIVE_VERTEX) {
+    if (brush_type == SCULPT_BRUSH_TYPE_GRAB && brush.flag & BRUSH_GRAB_ACTIVE_VERTEX &&
+        !std::holds_alternative<std::monostate>(ss.active_vert()))
+    {
       if (pbvh.type() == bke::pbvh::Type::Mesh) {
         const Span<float3> positions = vert_positions_for_grab_active_get(depsgraph, ob);
         cache->orig_grab_location = positions[std::get<int>(ss.active_vert())];
@@ -4290,7 +4294,9 @@ static void brush_delta_update(const Depsgraph &depsgraph,
 static void cache_paint_invariants_update(StrokeCache &cache, const Brush &brush)
 {
   cache.hardness = brush.hardness;
-  if (brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE) {
+  if (bke::brush::supports_hardness_pressure(brush) &&
+      brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE)
+  {
     cache.hardness *= brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE_INVERT ?
                           1.0f - cache.pressure :
                           cache.pressure;
@@ -4368,7 +4374,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
     cache.initial_radius = object_space_radius_get(*cache.vc, paint, brush, cache.location);
 
     if (!BKE_brush_use_locked_size(&paint, &brush)) {
-      BKE_brush_unprojected_size_set(&paint, &brush, cache.initial_radius);
+      BKE_brush_unprojected_size_set(&paint, &brush, cache.initial_radius * 2.0f);
     }
   }
 
@@ -5030,11 +5036,7 @@ static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
   }
 
   /* Restore the mesh before continuing with anchored stroke. */
-  if ((brush->flag & BRUSH_ANCHORED) ||
-      (ELEM(brush->sculpt_brush_type, SCULPT_BRUSH_TYPE_GRAB, SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) &&
-       BKE_brush_use_size_pressure(brush)) ||
-      (brush->flag & BRUSH_DRAG_DOT))
-  {
+  if (brush->flag & BRUSH_ANCHORED || brush->flag & BRUSH_DRAG_DOT) {
 
     undo::restore_from_undo_step(depsgraph, sd, ob);
 
@@ -5512,6 +5514,11 @@ static bool stroke_test_start(bContext *C, wmOperator *op, const float mval[2])
     ED_view3d_init_mats_rv3d(&ob, CTX_wm_region_view3d(C));
 
     sculpt_update_cache_invariants(C, sd, ss, *op, mval);
+    if (brush && brush_type_is_paint(brush->sculpt_brush_type)) {
+      BKE_curvemapping_init(brush->curve_rand_hue);
+      BKE_curvemapping_init(brush->curve_rand_saturation);
+      BKE_curvemapping_init(brush->curve_rand_value);
+    }
 
     CursorGeometryInfo cgi;
     cursor_geometry_info_update(C, &cgi, mval, false);
@@ -7185,8 +7192,11 @@ void calc_brush_strength_factors(const StrokeCache &cache,
                                  const Span<float> distances,
                                  const MutableSpan<float> factors)
 {
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               cache.radius,
+                               factors);
 }
 
 void calc_brush_texture_factors(const SculptSession &ss,
@@ -7624,10 +7634,12 @@ GroupedSpan<int> calc_vert_neighbors(const SubdivCCG &subdiv_ccg,
   for (const int i : grids.index_range()) {
     const int grid = grids[i];
     const int node_verts_start = i * key.grid_area;
-    r_offset_data[node_verts_start] = r_data.size();
 
     for (const short y : IndexRange(key.grid_size)) {
       for (const short x : IndexRange(key.grid_size)) {
+        const int offset = CCG_grid_xy_to_index(key.grid_size, x, y);
+        r_offset_data[node_verts_start + offset] = r_data.size();
+
         SubdivCCGCoord coord{};
         coord.grid_index = grid;
         coord.x = x;
@@ -7639,6 +7651,7 @@ GroupedSpan<int> calc_vert_neighbors(const SubdivCCG &subdiv_ccg,
       }
     }
   }
+  r_offset_data.last() = r_data.size();
   return GroupedSpan<int>(r_offset_data.as_span(), r_data.as_span());
 }
 

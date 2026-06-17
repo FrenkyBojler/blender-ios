@@ -73,15 +73,15 @@ endif()
 
 # IOS build has trouble locating correct builds
 if(WITH_APPLE_CROSSPLATFORM)
-  
+
   # Use iOS utility to set some env vars to help us build for iOS
   include(cmake/ios_defines.cmake)
   ios_get_dependency_env_vars(OPENIMAGEIO OPENEXR IMATH LLVM PNG PUGIXML ROBINMAP DEFLATE PYBIND11)
-  
+
   set(OSL_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${IOSDEP_INCLUDES_STRING}")
   set(OSL_CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${IOSDEP_INCLUDES_STRING}")
   set(OSL_CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES} ${IOSDEP_LIBDIRS_STRING} ${IOSDEP_LIBRARIES_STRING}")
- 
+
   # Disable bitcode for now as issues finding llvm bitcode generator
   set(OSL_EXTRA_ARGS
     ${OSL_EXTRA_ARGS}
@@ -107,9 +107,16 @@ ExternalProject_Add(external_osl
   URL_HASH ${OSL_HASH_TYPE}=${OSL_HASH}
   PREFIX ${BUILD_DIR}/osl
 
-  PATCH_COMMAND ${PATCH_CMD} -p 1 -d
-    ${BUILD_DIR}/osl/src/external_osl <
-    ${OSL_PATCH_FILE}
+  PATCH_COMMAND
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/osl/src/external_osl <
+      ${OSL_PATCH_FILE} &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/osl/src/external_osl <
+      ${PATCH_DIR}/osl_ptx_version.diff &&
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/osl/src/external_osl <
+      ${PATCH_DIR}/osl_supports_isa_thread.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/osl

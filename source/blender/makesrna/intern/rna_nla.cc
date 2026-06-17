@@ -14,6 +14,8 @@
 #include "ANIM_action.hh"
 #include "ANIM_nla.hh"
 
+#include "BLT_translation.hh"
+
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
@@ -597,7 +599,7 @@ static NlaStrip *rna_NlaStrip_new(ID *id,
                                   Main *bmain,
                                   bContext *C,
                                   ReportList *reports,
-                                  const char * /*name*/,
+                                  const char *name,
                                   int start,
                                   bAction *action)
 {
@@ -646,7 +648,7 @@ static NlaStrip *rna_NlaStrip_new(ID *id,
     }
     adt.nla_tracks.last = nlt_p;
 
-    /* now we can just auto-name as usual */
+    STRNCPY(strip->name, name);
     BKE_nlastrip_validate_name(&adt, strip);
   }
 
@@ -787,6 +789,7 @@ static void rna_def_nlastrip(BlenderRNA *brna)
   RNA_def_property_clear_flag(
       prop, PROP_EDITABLE); /* XXX for now, not editable, since this is dangerous */
   RNA_def_property_enum_items(prop, prop_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
   RNA_def_property_ui_text(prop, "Type", "Type of NLA Strip");
   RNA_def_property_update(prop, NC_ANIMATION | ND_NLA | NA_EDITED, "rna_NlaStrip_update");
 
@@ -1130,7 +1133,7 @@ static void rna_api_nlatrack_strips(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_flag(func,
                         FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Add a new Action-Clip strip to the track");
-  parm = RNA_def_string(func, "name", "NlaStrip", 0, "", "Name for the NLA Strips");
+  parm = RNA_def_string(func, "name", "NlaStrip", 0, "", "Name for the NLA Strip");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
                      "start",

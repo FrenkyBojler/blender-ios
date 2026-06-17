@@ -521,6 +521,7 @@ void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
         DEG_graph_relations_update(depsgraph);
         DEG_tag_on_visible_update(bmain, depsgraph);
       }
+      DEG_make_active(depsgraph);
       BKE_scene_graph_update_tagged(depsgraph, bmain);
     }
 
@@ -746,7 +747,7 @@ void wm_event_do_notifiers(bContext *C)
         /* Pass. */
       }
       else if (note->category == NC_SCENE && note->reference &&
-               (note->reference != scene && note->reference != workspace->sequencer_scene))
+               !ELEM(note->reference, scene, workspace->sequencer_scene))
       {
         /* Pass. */
       }
@@ -1111,6 +1112,26 @@ bool WM_operator_poll(bContext *C, wmOperatorType *ot)
   }
 
   return true;
+}
+
+bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportList *reports)
+{
+  CTX_wm_operator_poll_msg_clear(C);
+  if (WM_operator_poll(C, ot)) {
+    return true;
+  }
+  bool msg_free = false;
+  const char *msg = CTX_wm_operator_poll_msg_get(C, &msg_free);
+  CTX_wm_operator_poll_msg_clear(C);
+  BKE_reportf(reports,
+              RPT_ERROR,
+              "Invalid context: \"%s\", %s",
+              CTX_IFACE_(ot->translation_context, ot->name),
+              msg ? msg : IFACE_("poll failed"));
+  if (msg_free) {
+    MEM_freeN(msg);
+  }
+  return false;
 }
 
 bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context)
@@ -3504,9 +3525,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
           LISTBASE_FOREACH (wmDropBox *, drop, handler->dropboxes) {
             /* Other drop custom types allowed. */
             if (event->custom == EVT_DATA_DRAGDROP) {
-              /* Drop handlers can perform multiple operations (e.g., collection drag-and-drop),
-               * but we want to treat it as a single operation. */
-              ED_undo_group_begin(C);
               ListBase *lb = (ListBase *)event->customdata;
               LISTBASE_FOREACH_MUTABLE (wmDrag *, drag, lb) {
                 if (drop->poll(C, drag, event)) {
@@ -3550,7 +3568,6 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
               }
               /* Always exit all drags on a drop event, even if poll didn't succeed. */
               wm_drags_exit(wm, win);
-              ED_undo_group_end(C);
             }
           }
         }
@@ -4947,41 +4964,25 @@ bool WM_event_handler_region_marker_poll(const wmWindow *win,
                                          const ARegion *region,
                                          const wmEvent *event)
 {
-  switch (area->spacetype) {
-    case SPACE_ACTION: {
-      const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
-      if ((saction->flag & SACTION_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
+  if (!ED_markers_region_visible(area, region)) {
+    return false;
+  }
+
+  /* Check for markers in the current scene, noting that the VSE uses a special sequencer scene. */
+  Scene *scene = WM_window_get_active_scene(win);
+
+  if (area->spacetype == SPACE_SEQ) {
+    WorkSpace *workspace = WM_window_get_active_workspace(win);
+    if (workspace && workspace->sequencer_scene) {
+      scene = workspace->sequencer_scene;
     }
-    case SPACE_GRAPH: {
-      const SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
-      if ((sgraph->flag & SIPO_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
+    else {
+      return false;
     }
-    case SPACE_NLA: {
-      const SpaceNla *snla = static_cast<SpaceNla *>(area->spacedata.first);
-      if ((snla->flag & SNLA_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
-    }
-    case SPACE_SEQ: {
-      const SpaceSeq *seq = static_cast<SpaceSeq *>(area->spacedata.first);
-      if ((seq->flag & SEQ_SHOW_MARKERS) == 0) {
-        return false;
-      }
-      break;
-    }
-    default:
-      break;
   }
 
   const ListBase *markers = ED_scene_markers_get_from_area(
-      WM_window_get_active_scene(win), WM_window_get_active_view_layer(win), area);
+      scene, WM_window_get_active_view_layer(win), area);
   if (BLI_listbase_is_empty(markers)) {
     return false;
   }

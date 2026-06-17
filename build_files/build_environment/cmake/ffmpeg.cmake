@@ -191,7 +191,6 @@ ExternalProject_Add(external_ffmpeg
     cd ${BUILD_DIR}/ffmpeg/src/external_ffmpeg/ &&
     ${FFMPEG_ENV} ${CONFIGURE_COMMAND_NO_TARGET} ${FFMPEG_EXTRA_FLAGS}
       --disable-lzma
-      --disable-avfilter
       --disable-vdpau
       --disable-bzlib
       --disable-libgsm

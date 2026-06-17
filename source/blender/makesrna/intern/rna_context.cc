@@ -200,7 +200,6 @@ static PointerRNA rna_Context_tool_settings_get(PointerRNA *ptr)
       return RNA_pointer_create_id_subdata(
           *reinterpret_cast<ID *>(scene), &RNA_ToolSettings, toolsettings);
     }
-    return PointerRNA_NULL;
   }
   return RNA_pointer_create_id_subdata(
       *reinterpret_cast<ID *>(CTX_data_scene(C)), &RNA_ToolSettings, CTX_data_tool_settings(C));
@@ -227,7 +226,7 @@ static Depsgraph *rna_Context_evaluated_depsgraph_get(bContext *C)
   BPy_BEGIN_ALLOW_THREADS;
 #  endif
 
-  depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  depsgraph = CTX_data_ensure_evaluated_depsgraph(C, true);
 
 #  ifdef WITH_PYTHON
   BPy_END_ALLOW_THREADS;

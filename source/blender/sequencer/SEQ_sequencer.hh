@@ -8,6 +8,8 @@
  * \ingroup sequencer
  */
 
+#include "BLI_map.hh"
+#include "BLI_vector_set.hh"
 #include "DNA_scene_types.h"
 
 struct BlendDataReader;
@@ -143,6 +145,23 @@ Strip *lookup_strip_by_name(Editing *ed, const char *key);
  * \return Span of strips
  */
 Span<Strip *> lookup_strips_by_scene(Editing *ed, const Scene *key);
+
+/**
+ * Returns Map of scenes to scene strips
+ *
+ * \param ed: Editing that owns lookup hash
+ */
+Map<const Scene *, VectorSet<Strip *>> &lookup_strips_by_scene_map_get(Editing *ed);
+
+/**
+ * Find all strips using provided compositor node tree as a modifier
+ *
+ * \param ed: Editing that owns lookup hash
+ * \param key: Node tree pointer
+ *
+ * \return Span of strips
+ */
+Span<Strip *> lookup_strips_by_compositor_node_group(Editing *ed, const bNodeTree *key);
 
 /**
  * Find which meta strip the given timeline channel belongs to. Returns nullptr if it is a global
