@@ -244,8 +244,11 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
     }
 
     /* Can't do motion pass if no motion vectors are available. */
-    if (pass->get_type() == PASS_MOTION || pass->get_type() == PASS_MOTION_WEIGHT) {
-      if (scene->need_motion() != Scene::MOTION_PASS) {
+    if (pass->get_type() == PASS_MOTION || pass->get_type() == PASS_MOTION_WEIGHT ||
+        pass->get_type() == PASS_DENOISING_BACKWARD_MOTION)
+    {
+      const Scene::MotionType need_motion = scene->need_motion();
+      if (need_motion != Scene::MOTION_PASS && need_motion != Scene::MOTION_PASS_INTERACTIVE) {
         kfilm->pass_stride += pass->get_info().num_components;
         continue;
       }
@@ -663,7 +666,8 @@ void Film::update_passes(Scene *scene)
 
   /* Flush scene updates. */
   const bool have_uv_pass = Pass::contains(scene->passes, PASS_UV);
-  const bool have_motion_pass = Pass::contains(scene->passes, PASS_MOTION);
+  const bool have_motion_pass = Pass::contains(scene->passes, PASS_MOTION) ||
+                                Pass::contains(scene->passes, PASS_DENOISING_BACKWARD_MOTION);
   const bool have_ao_pass = Pass::contains(scene->passes, PASS_AO);
 
   if (have_uv_pass != prev_have_uv_pass) {

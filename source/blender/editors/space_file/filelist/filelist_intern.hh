@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_map.hh"
 
 #include "DNA_listBase.h"
@@ -27,7 +27,6 @@ using FileUID = uint32_t;
 struct AssetLibraryReference;
 struct FileDirEntry;
 struct FileIndexerType;
-struct GHash;
 struct ID;
 struct PreviewImage;
 struct ThreadQueue;
@@ -85,7 +84,7 @@ struct FileListInternEntry {
   /* See #FILE_ENTRY_BLENDERLIB_NO_PREVIEW. */
   bool blenderlib_has_no_preview = false;
 
-  /** Defined in BLI_fileops.h */
+  /** Defined in BLI_fileops.hh */
   eFileAttributes attributes = eFileAttributes(0);
   BLI_stat_t st = {0};
 

@@ -34,12 +34,12 @@
 #include "BKE_scene_runtime.hh"
 #include "BKE_screen.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -395,7 +395,7 @@ static bool socket_is_occluded(const float2 &cursor,
       return true;
     }
 
-    /* The hitbox of the socket is larger than the socket symbol to make dragging links easier. So
+    /* The hit-box of the socket is larger than the socket symbol to make dragging links easier. So
      * we check if the socket is fully occluded to prevent dragging links from behind nodes.
      * Subtract some tolerance to avoid picking the socket when it's only barely visible.
      */

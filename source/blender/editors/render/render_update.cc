@@ -25,8 +25,8 @@
 
 #include "DRW_engine.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_threads.h"
+#include "BLI_listbase.hh"
+#include "BLI_threads.hh"
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
@@ -136,7 +136,7 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool
   }
 
   /* Do not call if no WM available, see #42688. */
-  if (BLI_listbase_is_empty(&bmain->wm)) {
+  if (bmain->wm.is_empty()) {
     return;
   }
 

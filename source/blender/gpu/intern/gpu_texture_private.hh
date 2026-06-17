@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_enum_flags.hh"
 
 #include "GPU_vertex_buffer.hh"
@@ -125,6 +125,8 @@ class Texture {
   int mipmaps_ = -1;
   /** For error checking */
   int mip_min_ = 0, mip_max_ = 0;
+
+  bool is_texture_view_ = false;
 
   /** For debugging. */
   std::string name_;
@@ -321,6 +323,11 @@ class Texture {
         BLI_assert_msg(0, "Texture cannot be attached to a framebuffer because of its type");
         return GPU_FB_COLOR_ATTACHMENT0;
     }
+  }
+
+  bool is_texture_view() const
+  {
+    return is_texture_view_;
   }
 
  protected:
