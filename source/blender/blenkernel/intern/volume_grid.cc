@@ -779,8 +779,8 @@ void set_tile_values(openvdb::GridBase &grid_base,
 }
 
 void set_leaf_values_off(openvdb::GridBase &grid_base,
-                         const openvdb::Coord &coord,
-                         const IndexMask &index_mask)
+                         const openvdb::Coord &probe_coord,
+                         const Span<bool> selection)
 {
   to_typed_grid(grid_base, [&](auto &grid) {
     using GridType = std::decay_t<decltype(grid)>;
@@ -788,27 +788,37 @@ void set_leaf_values_off(openvdb::GridBase &grid_base,
     using LeafNodeType = typename TreeType::LeafNodeType;
     using NodeMaskType = typename LeafNodeType::NodeMaskType;
 
+    BLI_assert(selection.size() <= LeafNodeType::SIZE);
+
     TreeType &tree = grid.tree();
-    LeafNodeType *leaf_node = tree.probeLeaf(coord);
+    LeafNodeType *leaf_node = tree.probeLeaf(probe_coord);
     BLI_assert(leaf_node);
     NodeMaskType &mask = leaf_node->getValueMask();
 
-    index_mask.foreach_index_optimized<int>([&](const int i) { mask.setOff(i); });
+    for (const int i : selection.index_range()) {
+      if (selection[i]) {
+        mask.setOff(i);
+      }
+    }
   });
 }
 
 void set_grid_values_off(openvdb::GridBase &grid_base,
-                         const IndexMask &index_mask,
+                         const Span<bool> selection,
                          const Span<openvdb::Coord> voxels)
 {
   to_typed_grid(grid_base, [&](auto &grid) {
     auto accessor = grid.getUnsafeAccessor();
-    index_mask.foreach_index_optimized<int>([&](const int i) { accessor.setValueOff(voxels[i]); });
+    for (const int i : selection.index_range()) {
+      if (selection[i]) {
+        accessor.setValueOff(voxels[i]);
+      }
+    }
   });
 }
 
 void set_tile_values_off(openvdb::GridBase &grid_base,
-                         const IndexMask &index_mask,
+                         const Span<bool> selection,
                          const Span<openvdb::CoordBBox> tiles)
 {
   to_typed_grid(grid_base, [&](auto &grid) {
@@ -821,7 +831,11 @@ void set_tile_values_off(openvdb::GridBase &grid_base,
       node.setValueOffUnsafe(n);
     };
 
-    index_mask.foreach_index_optimized<int>([&](const int i) {
+    for (const int i : selection.index_range()) {
+      if (!selection[i]) {
+        continue;
+      }
+
       const openvdb::CoordBBox tile = tiles[i];
       const openvdb::Coord coord_in_tile = tile.min();
       using InternalNode1 = typename TreeT::RootNodeType::ChildNodeType;
@@ -836,7 +850,7 @@ void set_tile_values_off(openvdb::GridBase &grid_base,
       else {
         BLI_assert_unreachable();
       }
-    });
+    }
   });
 }
 

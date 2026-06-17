@@ -112,7 +112,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 
 #ifdef WITH_OPENVDB
 
-BLI_NOINLINE static void process_leaf_node(const fn::Field<bool> selection_field,
+BLI_NOINLINE static void process_leaf_node(const fn::Field<bool> &selection_field,
                                            const openvdb::math::Transform &transform,
                                            const volume_grid::LeafNodeMask &leaf_node_mask,
                                            const openvdb::CoordBBox &leaf_bbox,
@@ -149,13 +149,10 @@ BLI_NOINLINE static void process_leaf_node(const fn::Field<bool> selection_field
 
   evaluator.evaluate();
 
-  const IndexMask selection_mask = IndexMask::from_bools(selection, scope.allocator());
-  volume_grid::set_leaf_values_off(output_grid, any_voxel_in_leaf, selection_mask);
-
-  volume_grid::set_grid_values_off(output_grid, selection_mask, voxels);
+  volume_grid::set_leaf_values_off(output_grid, any_voxel_in_leaf, selection);
 }
 
-BLI_NOINLINE static void process_voxels(const fn::Field<bool> selection_field,
+BLI_NOINLINE static void process_voxels(const fn::Field<bool> &selection_field,
                                         const openvdb::math::Transform &transform,
                                         const Span<openvdb::Coord> voxels,
                                         openvdb::GridBase &output_grid)
@@ -171,11 +168,10 @@ BLI_NOINLINE static void process_voxels(const fn::Field<bool> selection_field,
   evaluator.add_with_destination(selection_field, selection);
   evaluator.evaluate();
 
-  const IndexMask selection_mask = IndexMask::from_bools(selection, scope.allocator());
-  volume_grid::set_grid_values_off(output_grid, selection_mask, voxels);
+  volume_grid::set_grid_values_off(output_grid, selection, voxels);
 }
 
-BLI_NOINLINE static void process_tiles(const fn::Field<bool> selection_field,
+BLI_NOINLINE static void process_tiles(const fn::Field<bool> &selection_field,
                                        const openvdb::math::Transform &transform,
                                        const Span<openvdb::CoordBBox> tiles,
                                        openvdb::GridBase &output_grid)
@@ -192,8 +188,7 @@ BLI_NOINLINE static void process_tiles(const fn::Field<bool> selection_field,
   evaluator.add_with_destination(selection_field, selection);
   evaluator.evaluate();
 
-  const IndexMask selection_mask = IndexMask::from_bools(selection, scope.allocator());
-  volume_grid::set_tile_values_off(output_grid, selection_mask, tiles);
+  volume_grid::set_tile_values_off(output_grid, selection, tiles);
 }
 
 #endif
@@ -260,7 +255,7 @@ static void node_register()
 
   geo_node_type_base(&ntype, "GeometryNodeGridDeactivateVoxels"_ustr);
   ntype.ui_name = "Deactivate Voxels";
-  ntype.ui_description = "Deactivate voxels and tiles where the mask field is false";
+  ntype.ui_description = "Deactivate selected voxels and tiles";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;

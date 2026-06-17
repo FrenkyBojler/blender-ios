@@ -106,16 +106,16 @@ void set_tile_values(openvdb::GridBase &grid_base, GSpan values, Span<openvdb::C
  * coordinates.
  */
 void set_leaf_values_off(openvdb::GridBase &grid_base,
-                         const openvdb::Coord &coord,
-                         const IndexMask &index_mask);
+                         const openvdb::Coord &probe_coord,
+                         Span<bool> selection);
 /** Deactivate values for the given voxels in the grid. */
 void set_grid_values_off(openvdb::GridBase &grid_base,
-                         const IndexMask &index_mask,
+                         Span<bool> selection,
                          Span<openvdb::Coord> voxels);
 
 /** Deactivate values for the given tiles in the grid. */
 void set_tile_values_off(openvdb::GridBase &grid_base,
-                         const IndexMask &index_mask,
+                         Span<bool> selection,
                          Span<openvdb::CoordBBox> tiles);
 
 /**
