@@ -12,6 +12,8 @@
 
 #include "NOD_expression_to_nodes.hh"
 
+#include "BKE_node_runtime.hh"
+
 #include "COM_cached_expression_node_group.hh"
 
 namespace blender::compositor {
