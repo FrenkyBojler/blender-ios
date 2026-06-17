@@ -57,7 +57,7 @@ Texture *TexturePoolImpl::acquire_texture_impl(int3 extent,
                                tex->height_get(),
                                tex->depth_get(),
                                tex->mip_count(),
-                               tex->usage_get());
+                               (tex->usage_get() & usage));
     if (std::tie(format, type, UNPACK3(extent), mip_len, usage) == tex_args) {
       match_index = i;
       break;
