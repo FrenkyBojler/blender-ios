@@ -10,6 +10,7 @@
 
 #include "DNA_image_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BLT_translation.hh"
 
@@ -294,6 +295,19 @@ static std::optional<std::string> rna_ImageUser_path(const PointerRNA *ptr)
         return rna_Node_ImageUser_path(ptr);
       case ID_CA:
         return rna_CameraBackgroundImage_image_or_movieclip_user_path(ptr);
+      /* This code assumes there's no other image user owned by Scene ID but the sequencer editing one, but if this will change we'll have to properly adjust this. */
+      case ID_SCE: {
+      //  if (ptr->type != RNA_ImageIdStrip) {
+          const Scene *scene = reinterpret_cast<const Scene *>(ptr->owner_id);
+          if (scene->ed) {
+            const ImageUser *iuser = static_cast<const ImageUser *>(ptr->data);
+              if (&scene->ed->image_user == iuser) {
+                return "sequence_editor.image_user";
+            }
+        //  }
+        }
+        break;
+      }
       case ID_SCR: {
         const bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
         const ImageUser *iuser = static_cast<ImageUser *>(ptr->data);
