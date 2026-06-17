@@ -322,7 +322,7 @@ struct PaintOperationExecutor {
                             const bool use_fill)
   {
     const float2 start_coords = start_sample.mouse_position;
-    Paint *paint = &scene_->toolsettings->gp_paint->paint;
+    const Paint *paint = &scene_->toolsettings->gp_paint->paint;
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
 
@@ -696,7 +696,7 @@ struct PaintOperationExecutor {
   {
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
-    Paint *paint = &scene_->toolsettings->gp_paint->paint;
+    const Paint *paint = &scene_->toolsettings->gp_paint->paint;
 
     const bool on_back = (scene_->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 

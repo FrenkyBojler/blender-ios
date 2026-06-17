@@ -9067,26 +9067,20 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
             paint = context.scene.tool_settings.gpencil_paint
         elif ob.mode == 'VERTEX_GREASE_PENCIL':
             paint = context.scene.tool_settings.gpencil_vertex_paint
-        use_unified_paint = True
 
         ups = paint.unified_paint_settings
         brush = paint.brush
-        prop_owner = ups if use_unified_paint and ups.use_unified_color else brush
+        prop_owner = ups if ups.use_unified_color else brush
 
         col = layout.column()
         col.template_color_picker(prop_owner, "color", value_slider=True)
 
         sub_row = layout.row(align=True)
-        if use_unified_paint:
-            UnifiedPaintPanel.prop_unified_color(sub_row, context, brush, "color", text="")
-            UnifiedPaintPanel.prop_unified_color(sub_row, context, brush, "secondary_color", text="")
-        else:
-            sub_row.prop(brush, "color", text="")
-            sub_row.prop(brush, "secondary_color", text="")
+        UnifiedPaintPanel.prop_unified_color(sub_row, context, brush, "color", text="")
+        UnifiedPaintPanel.prop_unified_color(sub_row, context, brush, "secondary_color", text="")
 
         sub_row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
-        if use_unified_paint:
-            sub_row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
+        sub_row.prop(ups, "use_unified_color", text="", icon='BRUSHES_ALL')
 
         row = layout.row(align=True)
         row.template_ID(paint, "palette", new="palette.new")

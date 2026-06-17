@@ -493,7 +493,7 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 
   const ToolSettings *ts = ptd.vc.scene->toolsettings;
   const GP_Sculpt_Settings *gset = &ts->gp_sculpt;
-  const Paint &paint = ptd.vc.scene->toolsettings->gp_paint->paint;
+  const Paint &paint = ts->gp_paint->paint;
 
   /* Screen-space length along curve used as randomization parameter. */
   Array<float> lengths(new_points_num);
