@@ -493,6 +493,7 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 
   const ToolSettings *ts = ptd.vc.scene->toolsettings;
   const GP_Sculpt_Settings *gset = &ts->gp_sculpt;
+  const Paint &paint = ptd.vc.scene->toolsettings->gp_paint->paint;
 
   /* Screen-space length along curve used as randomization parameter. */
   Array<float> lengths(new_points_num);
@@ -507,13 +508,14 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 
     const float radius = ed::greasepencil::radius_from_input_sample(ptd.vc.rv3d,
                                                                     ptd.region,
+                                                                    &paint,
                                                                     ptd.brush,
                                                                     pressure,
                                                                     positions_3d[point],
                                                                     ptd.placement.to_world_space(),
                                                                     ptd.settings);
     const float opacity = ed::greasepencil::opacity_from_input_sample(
-        pressure, ptd.brush, ptd.settings);
+        pressure, &paint, ptd.brush, ptd.settings);
 
     if (point == 0) {
       lengths[point] = 0.0f;

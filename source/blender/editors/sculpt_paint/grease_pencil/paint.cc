@@ -58,14 +58,15 @@
 namespace blender::ed::sculpt_paint::greasepencil {
 
 static float brush_radius_to_pixel_radius(const RegionView3D *rv3d,
+                                          const Paint *paint,
                                           const Brush *brush,
                                           const float3 pos)
 {
   if ((brush->flag & BRUSH_LOCK_SIZE) != 0) {
     const float pixel_size = ED_view3d_pixel_size(rv3d, pos);
-    return (brush->unprojected_size / 2.0f) / pixel_size;
+    return (BKE_brush_unprojected_radius_get(paint, brush)) / pixel_size;
   }
-  return float(brush->size / 2.0f);
+  return float(BKE_brush_radius_get(paint, brush));
 }
 
 template<typename T>
@@ -321,6 +322,7 @@ struct PaintOperationExecutor {
                             const bool use_fill)
   {
     const float2 start_coords = start_sample.mouse_position;
+    Paint *paint = &scene_->toolsettings->gp_paint->paint;
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
 
@@ -340,6 +342,7 @@ struct PaintOperationExecutor {
     float start_radius = ed::greasepencil::radius_from_input_sample(
         rv3d,
         region,
+        paint,
         brush_,
         start_sample.pressure,
         start_location,
@@ -349,7 +352,7 @@ struct PaintOperationExecutor {
         *settings_, self.stroke_random_radius_factor_, 0.0f, start_radius, start_sample.pressure);
 
     float start_opacity = ed::greasepencil::opacity_from_input_sample(
-        start_sample.pressure, brush_, settings_);
+        start_sample.pressure, paint, brush_, settings_);
     start_opacity = ed::greasepencil::randomize_opacity(*settings_,
                                                         self.stroke_random_opacity_factor_,
                                                         0.0f,
@@ -693,6 +696,8 @@ struct PaintOperationExecutor {
   {
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
+    Paint *paint = &scene_->toolsettings->gp_paint->paint;
+
     const bool on_back = (scene_->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
     const float2 coords = extension_sample.mouse_position;
@@ -714,16 +719,17 @@ struct PaintOperationExecutor {
 
     float radius = ed::greasepencil::radius_from_input_sample(rv3d,
                                                               region,
+                                                              paint,
                                                               brush_,
                                                               extension_sample.pressure,
                                                               position,
                                                               self.placement_.to_world_space(),
                                                               settings_);
     float opacity = ed::greasepencil::opacity_from_input_sample(
-        extension_sample.pressure, brush_, settings_);
+        extension_sample.pressure, paint, brush_, settings_);
 
     const float brush_radius_px = brush_radius_to_pixel_radius(
-        rv3d, brush_, math::transform_point(self.placement_.to_world_space(), position));
+        rv3d, paint, brush_, math::transform_point(self.placement_.to_world_space(), position));
 
     bke::CurvesGeometry &curves = self.drawing_->strokes_for_write();
     OffsetIndices<int> points_by_curve = curves.points_by_curve();
@@ -1766,7 +1772,8 @@ void PaintOperation::on_stroke_done(const bContext &C)
       process_stroke_weights(*scene_, *object_, drawing, active_curve);
     }
     if ((settings->flag & GP_BRUSH_OUTLINE_STROKE) != 0) {
-      const float outline_radius = brush->unprojected_size / 2.0f * settings->outline_fac * 0.5f;
+      const float outline_radius = BKE_brush_unprojected_radius_get(paint, brush) / 2.0f *
+                                   settings->outline_fac * 0.5f;
       const int material_index = [&]() {
         Material *material = BKE_grease_pencil_object_material_alt_ensure_from_brush(
             CTX_data_main(&C), object_, brush);

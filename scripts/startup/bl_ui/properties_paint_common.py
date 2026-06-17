@@ -1761,37 +1761,27 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
         size = "size"
         if brush.use_locked_size == 'SCENE' and (grease_pencil_brush_type == 'DRAW' or is_primitive_tool):
             size = "unprojected_size"
-        row = layout.row(align=True)
-        row.prop(brush, size, slider=True, text="Size")
-        row.prop(brush, "use_pressure_size", text="")
-        if not compact:
-            row.prop(
-                paint,
-                "show_size_curve",
-                text="",
-                icon='DOWNARROW_HLT' if paint.show_size_curve else 'RIGHTARROW',
-                emboss=False,
-            )
-            if paint.show_size_curve:
-                col = layout.column()
-                col.active = brush.use_pressure_size
-                col.template_curve_mapping(gp_settings, "curve_sensitivity", brush=True, show_presets=True)
-
-        row = layout.row(align=True)
-        row.prop(brush, "strength", slider=True, text="Strength")
-        row.prop(brush, "use_pressure_strength", text="")
-        if not compact:
-            row.prop(
-                paint,
-                "show_strength_curve",
-                text="",
-                icon='DOWNARROW_HLT' if paint.show_strength_curve else 'RIGHTARROW',
-                emboss=False,
-            )
-            if paint.show_strength_curve:
-                col = layout.column()
-                col.active = brush.use_pressure_strength
-                col.template_curve_mapping(gp_settings, "curve_strength", brush=True, show_presets=True)
+        UnifiedPaintPanel.prop_unified(
+            layout,
+            context,
+            brush,
+            size,
+            pressure_name="use_pressure_size",
+            unified_name="use_unified_size",
+            text="Size",
+            slider=True,
+            header=compact,
+        )
+        UnifiedPaintPanel.prop_unified(
+            layout,
+            context,
+            brush,
+            "strength",
+            pressure_name="use_pressure_strength",
+            unified_name="use_unified_strength",
+            text="Strength",
+            header=compact,
+        )
 
     if props:
         layout.prop(props, "subdivision")

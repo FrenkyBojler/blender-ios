@@ -1464,13 +1464,14 @@ static void set_fill_attributes(bke::CurvesGeometry &fill_curves,
     const float pressure = 1.0f;
     radii.span[point_i] = ed::greasepencil::radius_from_input_sample(view_context.rv3d,
                                                                      view_context.region,
+                                                                     &paint,
                                                                      &brush,
                                                                      pressure,
                                                                      positions[point_i],
                                                                      to_world,
                                                                      brush.gpencil_settings);
     opacities.span[point_i] = ed::greasepencil::opacity_from_input_sample(
-        pressure, &brush, brush.gpencil_settings);
+        pressure, &paint, &brush, brush.gpencil_settings);
   }
 
   radii.finish();
