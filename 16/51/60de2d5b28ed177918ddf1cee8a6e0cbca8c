@@ -1,3 +1,4 @@
 Referenced by issue #160201, 5.3.0 a: Compositor does not affect Render Result
 Referenced by pull request #160219, Fix #160201: Render Result image not updating for compositing
 Referenced by commit 6e6cde6be1254973a23275a77724357f439f981c, Fix #160201: Render Result image not updating for compositing
+Referenced by issue #160263, 5.3a: Drawing doesn't work in Image Editor
