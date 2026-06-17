@@ -27,19 +27,19 @@ inline bool probe_values(const AccessorT &accessor,
                          typename AccessorT::ValueType (&data)[N][N][N])
 {
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  bool active = false;
-  for (int dx : IndexRange(N)) {
-    for (int dy : IndexRange(N)) {
-      for (int dz : IndexRange(N)) {
+  bool any_active = false;
+  for (const int dx : IndexRange(N)) {
+    for (const int dy : IndexRange(N)) {
+      for (const int dz : IndexRange(N)) {
         if (accessor.probeValue(index_box.getStart() + openvdb::Coord(dx, dy, dz),
                                 data[dx][dy][dz]))
         {
-          active = true;
+          any_active = true;
         }
       }
     }
   }
-  return active;
+  return any_active;
 }
 
 template<int N, class AccessorT>
@@ -48,9 +48,9 @@ inline void get_values(const AccessorT &accessor,
                        typename AccessorT::ValueType (&data)[N][N][N])
 {
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  for (int dx : IndexRange(N)) {
-    for (int dy : IndexRange(N)) {
-      for (int dz : IndexRange(N)) {
+  for (const int dx : IndexRange(N)) {
+    for (const int dy : IndexRange(N)) {
+      for (const int dz : IndexRange(N)) {
         data[dx][dy][dz] = accessor.getValue(index_box.getStart() + openvdb::Coord(dx, dy, dz));
       }
     }
@@ -65,9 +65,9 @@ inline void interpolate_value_3d(ValueT (&data)[N][N][N],
                                  ValueT &result)
 {
   ValueT vx[N];
-  for (int dx : IndexRange(N)) {
+  for (const int dx : IndexRange(N)) {
     ValueT vy[N];
-    for (int dy : IndexRange(N)) {
+    for (const int dy : IndexRange(N)) {
       const ValueT *vz = &data[dx][dy][0];
       vy[dy] = kernel_fn(vz, uvw.z());
     }
