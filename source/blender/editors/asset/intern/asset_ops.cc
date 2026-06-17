@@ -1812,7 +1812,7 @@ static void ASSET_OT_asset_download(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Download Asset";
-  ot->description = "Make the asset available for direct use and for use offline";
+  ot->description = "Make the asset available without internet access";
   ot->idname = "ASSET_OT_asset_download";
 
   /* API callbacks. */
