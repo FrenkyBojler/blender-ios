@@ -140,15 +140,8 @@ BLI_NOINLINE static void process_leaf_node(const fn::Field<bool> &selection_fiel
   fn::FieldEvaluator evaluator{field_context, &index_mask};
 
   MutableSpan<bool> selection;
-  volume_grid::to_typed_grid(output_grid, [&](auto &grid) {
-    auto &tree = grid.tree();
-    auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf);
-    /* Should have been added before. */
-    BLI_assert(leaf_node);
-
-    selection = scope.allocator().allocate_array<bool>(index_mask.min_array_size());
-    evaluator.add_with_destination(selection_field, selection);
-  });
+  selection = scope.allocator().allocate_array<bool>(index_mask.min_array_size());
+  evaluator.add_with_destination(selection_field, selection);
 
   evaluator.evaluate();
 
