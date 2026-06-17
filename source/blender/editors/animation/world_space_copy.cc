@@ -401,29 +401,30 @@ static void copy_world_space(Main &bmain,
   copybuffer.write_as_copypaste_buffer(filepath, reports);
 }
 
-static Vector<AnimTransformable *> pasteable_transformables(
+/* Build a map of the transformable name to the name in the clipboard to read from. */
+static Map<AnimTransformable *, StringRefNull> generate_paste_mapping(
     const MutableSpan<AnimTransformable> transformables,
-    const Map<StringRefNull, Array<FCurve *>> &world_space_data)
+    const Map<StringRefNull, Array<FCurve *>> &clipboard_data)
 {
-  Vector<AnimTransformable *> pasteables;
+  Map<AnimTransformable *, StringRefNull> paste_map;
   /* TODO: more sophisticated logic matching data in the world space buffer with transformables to
    * paste on. */
 
   const bool to_single = transformables.size();
-  const bool from_single = world_space_data.size();
+  const bool from_single = clipboard_data.size();
   if (from_single && to_single) {
-    pasteables.append(&transformables[0]);
-    return pasteables;
+    paste_map.add(&transformables[0], *clipboard_data.keys().begin());
+    return paste_map;
   }
 
   /* Strict name matching. */
   for (AnimTransformable &transformable : transformables) {
-    const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable.name());
+    const Array<FCurve *> *fcurves = clipboard_data.lookup_ptr(transformable.name());
     if (fcurves) {
-      pasteables.append(&transformable);
+      paste_map.add(&transformable, transformable.name());
     }
   }
-  return pasteables;
+  return paste_map;
 }
 
 /**
@@ -523,15 +524,14 @@ static void paste_world_space(Main &bmain,
   }
 
   ar::Channelbag &channelbag = *clipboard_action.strip_keyframe_data()[0]->channelbags()[0];
-  Map<StringRefNull, Array<FCurve *>> world_space_data;
+  Map<StringRefNull, Array<FCurve *>> clipboard_data;
   for (FCurve *fcurve : channelbag.fcurves()) {
     BLI_assert(fcurve != nullptr);
-    Array<FCurve *> &fcurves = world_space_data.lookup_or_add(fcurve->rna_path,
-                                                              Array<FCurve *>(12));
+    Array<FCurve *> &fcurves = clipboard_data.lookup_or_add(fcurve->rna_path, Array<FCurve *>(12));
     fcurves[fcurve->array_index] = fcurve;
   }
 
-  for (Array<FCurve *> &fcurves : world_space_data.values()) {
+  for (Array<FCurve *> &fcurves : clipboard_data.values()) {
     for (FCurve *fcurve : fcurves) {
       if (fcurve == nullptr) {
         BKE_report(&reports, RPT_ERROR, "Clipboard contains incomplete animation data");
@@ -541,27 +541,34 @@ static void paste_world_space(Main &bmain,
     }
   }
 
-  Vector<AnimTransformable *> pasteables = pasteable_transformables(transformables,
-                                                                    world_space_data);
-  if (pasteables.size() == 0) {
+  Map<AnimTransformable *, StringRefNull> paste_map = generate_paste_mapping(transformables,
+                                                                             clipboard_data);
+
+  if (paste_map.size() == 0) {
     BKE_report(&reports, RPT_ERROR, "Cannot match selection to clipboard data");
     BKE_main_free(clipboard_bmain);
     return;
   }
 
+  Vector<AnimTransformable *> pasteables;
+  pasteables.reserve(paste_map.size());
+  for (AnimTransformable *anim_transformable : paste_map.keys()) {
+    pasteables.append(anim_transformable);
+  }
   /* Build a minimal depsgraph because we need to evaluate the scene on every frame to correctly
    * invert world to local space. */
   Depsgraph *depsgraph = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
   Vector<ID *> ids = get_unique_ids(pasteables);
   DEG_graph_build_from_ids(depsgraph, ids);
 
-  /* We need to first apply the transformation to those entities that are not affected by any other
-   * transformables. This is why we need to sort using the depsgraph. */
+  /* We need to first apply the transformation to those transformables that are not affected by any
+   * other transformables. This is why we need to sort using the depsgraph. */
   Vector<AnimTransformable *> sorted_transformables = depsgraph_sorted_transformables(depsgraph,
                                                                                       pasteables);
 
   if (sorted_transformables.size() != pasteables.size()) {
-    BKE_report(&reports, RPT_ERROR, "Failed to paste all transforms. Potential dependency cycle");
+    BKE_report(
+        &reports, RPT_ERROR, "Failed to figure out pasting order. Potential dependency cycle");
   }
 
   const Bounds<int> range = {int(clipboard_dna_action->frame_start),
@@ -579,7 +586,8 @@ static void paste_world_space(Main &bmain,
     const int key_index = frame - range.min;
     for (const int i : sorted_transformables.index_range()) {
       AnimTransformable *transformable = sorted_transformables[i];
-      const Array<FCurve *> *fcurves = world_space_data.lookup_ptr(transformable->name());
+      const StringRefNull clipboard_name = paste_map.lookup(transformable);
+      const Array<FCurve *> *fcurves = clipboard_data.lookup_ptr(clipboard_name);
       BLI_assert_msg(fcurves != nullptr,
                      "Only transformables with matching matrix data should iterated here");
       const float4x4 world_matrix = fcurves_to_matrix(*fcurves, key_index);
