@@ -177,7 +177,7 @@ class MotionPath : Overlay {
       sub.push_constant("selected", selected);
       sub.push_constant("custom_color_pre", color_pre);
       sub.push_constant("custom_color_post", color_post);
-      sub.push_constant("camera_space_matrix", camera_matrix);
+      sub.push_constant("camera_object_persinv", camera_matrix);
 
       gpu::Batch *geom = mpath_batch_points_get(mpath);
       /* Only draw the required range. */
@@ -194,7 +194,7 @@ class MotionPath : Overlay {
       sub.push_constant("show_key_frames", show_keyframes);
       sub.push_constant("custom_color_pre", color_pre);
       sub.push_constant("custom_color_post", color_post);
-      sub.push_constant("camera_space_matrix", camera_matrix);
+      sub.push_constant("camera_object_persinv", camera_matrix);
 
       gpu::Batch *geom = mpath_batch_points_get(mpath);
       /* Only draw the required range. */
@@ -219,7 +219,7 @@ class MotionPath : Overlay {
         bool is_keyframe = (mpv_curr.flag & MOTIONPATH_VERT_KEY) != 0;
 
         /* Projecting the point into world space from the camera's POV. */
-        float3 vert_coordinate = float3(camera_matrix * float4(mpv_curr.co));
+        float3 vert_world_space = project_point(camera_matrix, float3(mpv_curr.co));
 
         if ((show_keyframes && show_keyframes_number && is_keyframe) ||
             (show_frame_number && (i == 0)))
@@ -227,7 +227,7 @@ class MotionPath : Overlay {
           char numstr[32];
           size_t numstr_len = SNPRINTF_RLEN(numstr, " %d", frame);
           DRW_text_cache_add(state.dt,
-                             vert_coordinate,
+                             vert_world_space,
                              numstr,
                              numstr_len,
                              0,
@@ -246,7 +246,7 @@ class MotionPath : Overlay {
             char numstr[32];
             size_t numstr_len = SNPRINTF_RLEN(numstr, " %d", frame);
             DRW_text_cache_add(state.dt,
-                               vert_coordinate,
+                               vert_world_space,
                                numstr,
                                numstr_len,
                                0,
@@ -266,7 +266,7 @@ class MotionPath : Overlay {
     if (!mpath->points_vbo) {
       GPUVertFormat format = {0};
       /* Match structure of #bMotionPathVert. */
-      GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
+      GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
       GPU_vertformat_attr_add(&format, "flag", gpu::VertAttrType::SINT_32);
       mpath->points_vbo = GPU_vertbuf_create_with_format(format);
       GPU_vertbuf_data_alloc(*mpath->points_vbo, mpath->length);

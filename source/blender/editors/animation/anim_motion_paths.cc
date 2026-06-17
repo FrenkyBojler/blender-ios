@@ -149,8 +149,6 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
 
     /* Get the relevant cache vert to write to. */
     bMotionPathVert *mpv = mpath->points + (cframe - mpath->start_frame);
-    /* Last value may not be written to. */
-    mpv->co[3] = 1.0;
 
     Object *ob_eval = DEG_get_evaluated(depsgraph, mpt->ob);
 
@@ -191,7 +189,8 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
                                    float4(mpv->co[0], mpv->co[1], mpv->co[2], 1.0);
       /* Storing the verts in clip space which contains lens effects like sensor offset. See
        * `overlay_motion_path.hh/motion_path_sync`. */
-      copy_v4_v4(mpv->co, co_clip_space);
+      const float3 co_ndc_space = float3(co_clip_space) / co_clip_space.w;
+      copy_v3_v3(mpv->co, co_ndc_space);
     }
 
     float mframe = float(cframe);

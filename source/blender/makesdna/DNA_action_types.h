@@ -586,7 +586,7 @@ ENUM_OPERATORS(eTimeline_Cache_Flag)
 struct bMotionPathVert {
   /** Coordinates of point in world space or clip space. If they are in world space, only the first
    * 3 values are used. */
-  float co[4] = {};
+  float co[3] = {};
   /** Quick settings. */
   eMotionPathVert_Flag flag = {};
 };

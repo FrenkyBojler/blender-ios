@@ -16,7 +16,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_motion_path_line)
 #include "gpu_shader_utildefines_lib.glsl"
 
 struct VertIn {
-  float4 P;
+  float3 P;
   uint vert_id;
 };
 
@@ -25,7 +25,7 @@ VertIn input_assembly(uint in_vertex_id)
   uint v_i = gpu_index_load(in_vertex_id);
 
   VertIn vert_in;
-  vert_in.P = gpu_attr_load_float4(pos, gpu_attr_0, v_i);
+  vert_in.P = gpu_attr_load_float3(pos, gpu_attr_0, v_i);
   vert_in.vert_id = v_i;
   return vert_in;
 }
@@ -46,7 +46,7 @@ VertOut vertex_main(VertIn vert_in)
 
   VertOut vert_out;
   /* Optionally transform from view space to world space for screen space motion paths. */
-  vert_out.ws_P = (camera_space_matrix * vert_in.P).xyz;
+  vert_out.ws_P = project_point(camera_object_persinv, vert_in.P);
   vert_out.hs_P = drw_point_world_to_homogenous(vert_out.ws_P);
   vert_out.ss_P = drw_ndc_to_screen(drw_perspective_divide(vert_out.hs_P)).xy *
                   uniform_buf.size_viewport;
