@@ -86,8 +86,9 @@ class ImageStripExporter : public StripExporter {
   ImageStripExporter(Strip *strip,
                      Scene *scene,
                      SerializableObject::Retainer<Track> &track,
-                     int last_strip_end = 0)
-      : StripExporter(strip, scene, track, last_strip_end) {};
+                     int last_strip_end = 0,
+                     const char *filepath = nullptr)
+      : StripExporter(strip, scene, track, last_strip_end, filepath) {};
 
   void export_strip(Main *bmain, const OTIOExportParams *export_params) override;
 };

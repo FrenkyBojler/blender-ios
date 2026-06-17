@@ -1798,7 +1798,7 @@ void render_strip_full(Main *bmain,
   scene_temp->r.ffcodecdata.codec_id_set(FFMPEG_CODEC_ID_H264);
   scene_temp->r.ffcodecdata.audio_codec = audio ? FFMPEG_CODEC_ID_AAC : FFMPEG_CODEC_ID_NONE;
   scene_temp->r.sfra = strip_temp->left_handle();
-  scene_temp->r.efra = strip_temp->right_handle(scene_temp);
+  scene_temp->r.efra = strip_temp->right_handle(scene_temp) - 1;
   scene_temp->r.frame_step = 1;
   BLI_strncpy(scene_temp->r.pic, filepath, FILE_MAX);
 

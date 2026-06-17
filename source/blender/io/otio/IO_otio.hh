@@ -28,11 +28,12 @@ enum scene_strip_resolution {
   SCENE_STRIP_100_PERCENT,
 };
 
-enum export_fallback {
-  FALLBACK_IMG_SEQUENCE_RENAME,
-  FALLBACK_IMG_SEQUENCE_SYMLINK,
-
-  FALLBACK_RENDER_MOVIE,
+enum export_options {
+  EXPORT_OPTION_DEFAULT,
+  EXPORT_OPTION_IMG_SEQUENCE_RENAME,
+  EXPORT_OPTION_IMG_SEQUENCE_SYMLINK,
+  EXPORT_OPTION_RENDER_MOVIE,
+  EXPORT_OPTION_MISSING_REFERENCE,
 };
 
 short get_scene_strip_resolution_percent(scene_strip_resolution resolution);
@@ -44,8 +45,11 @@ struct OTIOExportParams {
   bool bake_scene_strips = true;
   io::otio::scene_strip_resolution scene_strip_res = io::otio::SCENE_STRIP_100_PERCENT;
 
-  /* Fallback Options. */
-  io::otio::export_fallback img_sequence_fallback = io::otio::FALLBACK_IMG_SEQUENCE_RENAME;
+  /* Export Options. */
+  io::otio::export_options img_sequence_export = io::otio::EXPORT_OPTION_DEFAULT;
+  io::otio::export_options img_sequence_fallback = io::otio::EXPORT_OPTION_IMG_SEQUENCE_SYMLINK;
+
+  io::otio::export_options meta_strip_export = io::otio::EXPORT_OPTION_DEFAULT;
 };
 
 namespace io::otio {

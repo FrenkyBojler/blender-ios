@@ -384,6 +384,13 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
       return;
     }
 
+    if (export_params->img_sequence_export == EXPORT_OPTION_RENDER_MOVIE) {
+      auto exporter = RenderAsMovieExporter(_strip, _scene, _track, last_strip_end, _filepath);
+      exporter.export_strip(bmain, export_params);
+      last_strip_end = exporter.last_strip_end;
+      return;
+    }
+
     StripElem *se = _strip->data->stripdata;
     size_t img_count = MEM_allocN_len(se) / sizeof(*se);
 
@@ -406,12 +413,12 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
       BLI_strncat(name_prefix, ".", sizeof(name_prefix));
 
       switch (export_params->img_sequence_fallback) {
-        case FALLBACK_IMG_SEQUENCE_RENAME:
+        case EXPORT_OPTION_IMG_SEQUENCE_RENAME:
           img_sequence_rename(se, target_url_base, img_count, padding);
           break;
 
 #ifndef WIN32
-        case FALLBACK_IMG_SEQUENCE_SYMLINK:
+        case EXPORT_OPTION_IMG_SEQUENCE_SYMLINK:
           img_sequence_create_symlinks(se, target_url_base, img_count, padding);
           break;
 #endif
