@@ -1,1 +1,2 @@
 Referenced by issue #160299, Crash after unlinking sound in VSE
+Referenced by pull request #160305, Fix #160299: crash when unlinking a sound file in the VSE
