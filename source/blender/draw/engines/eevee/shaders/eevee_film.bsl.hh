@@ -992,44 +992,45 @@ struct Film {
       for (int i = 0; i < samples_len; i++) {
         FilmSample src = sample_get(i, texel_film);
         sample_accum(src,
-                          uni.uniform_buf.film.denoising_depth_id,
-                          uni.uniform_buf.render_pass.denoising_depth_id,
-                          rp_value_tx,
-                          denoising_depth_accum);
+                     uni.uniform_buf.film.denoising_depth_id,
+                     uni.uniform_buf.render_pass.denoising_depth_id,
+                     rp_value_tx,
+                     denoising_depth_accum);
         sample_accum(src,
-                          uni.uniform_buf.film.denoising_normal_id,
-                          uni.uniform_buf.render_pass.denoising_normal_id,
-                          rp_color_tx,
-                          denoising_normal_accum);
+                     uni.uniform_buf.film.denoising_normal_id,
+                     uni.uniform_buf.render_pass.denoising_normal_id,
+                     rp_color_tx,
+                     denoising_normal_accum);
         sample_accum(src,
-                          uni.uniform_buf.film.denoising_roughness_id,
-                          uni.uniform_buf.render_pass.denoising_roughness_id,
-                          rp_value_tx,
-                          denoising_roughness_accum);
+                     uni.uniform_buf.film.denoising_roughness_id,
+                     uni.uniform_buf.render_pass.denoising_roughness_id,
+                     rp_value_tx,
+                     denoising_roughness_accum);
         sample_accum(src,
-                          uni.uniform_buf.film.denoising_diffuse_albedo_id,
-                          uni.uniform_buf.render_pass.denoising_diffuse_albedo_id,
-                          rp_color_tx,
-                          denoising_diffuse_albedo_accum);
+                     uni.uniform_buf.film.denoising_diffuse_albedo_id,
+                     uni.uniform_buf.render_pass.denoising_diffuse_albedo_id,
+                     rp_color_tx,
+                     denoising_diffuse_albedo_accum);
         sample_accum(src,
-                          uni.uniform_buf.film.denoising_specular_albedo_id,
-                          uni.uniform_buf.render_pass.denoising_specular_albedo_id,
-                          rp_color_tx,
-                          denoising_specular_albedo_accum);
+                     uni.uniform_buf.film.denoising_specular_albedo_id,
+                     uni.uniform_buf.render_pass.denoising_specular_albedo_id,
+                     rp_color_tx,
+                     denoising_specular_albedo_accum);
       }
 
       store_value(dst, uni.uniform_buf.film.denoising_depth_id, denoising_depth_accum, out_color);
-      store_color(dst, uni.uniform_buf.film.denoising_normal_id, denoising_normal_accum, out_color);
+      store_color(
+          dst, uni.uniform_buf.film.denoising_normal_id, denoising_normal_accum, out_color);
       store_value(
           dst, uni.uniform_buf.film.denoising_roughness_id, denoising_roughness_accum, out_color);
       store_color(dst,
-                      uni.uniform_buf.film.denoising_diffuse_albedo_id,
-                      denoising_diffuse_albedo_accum,
-                      out_color);
+                  uni.uniform_buf.film.denoising_diffuse_albedo_id,
+                  denoising_diffuse_albedo_accum,
+                  out_color);
       store_color(dst,
-                      uni.uniform_buf.film.denoising_specular_albedo_id,
-                      denoising_specular_albedo_accum,
-                      out_color);
+                  uni.uniform_buf.film.denoising_specular_albedo_id,
+                  denoising_specular_albedo_accum,
+                  out_color);
     }
 
     if (flag_test(enabled_categories, PASS_CATEGORY_AOV)) {

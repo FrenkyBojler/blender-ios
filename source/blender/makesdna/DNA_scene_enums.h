@@ -117,6 +117,13 @@ enum eScenePassType : uint32_t {
 };
 ENUM_OPERATORS(eScenePassType)
 
+/** #SceneRenderLayer::passflag */
+enum eSceneDenoisingPassFlag : uint32_t {
+  /* Whether to use roughness-based weighting for the albedo or split by the BSDF type. */
+  SCE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING = (1 << 0),
+};
+ENUM_OPERATORS(eSceneDenoisingPassFlag)
+
 #define RE_PASSNAME_DEPRECATED "Deprecated"
 
 #define RE_PASSNAME_COMBINED "Combined"

@@ -23,6 +23,7 @@ struct Combine {
   [[specialization_constant(false)]] bool render_pass_normal_enabled;
   [[specialization_constant(false)]] bool render_pass_position_enabled;
   [[specialization_constant(false)]] bool render_passes_denoising_enabled;
+  [[specialization_constant(false)]] bool use_albedo_roughness_weighting;
   [[specialization_constant(false)]] bool use_radiance_feedback;
   [[specialization_constant(true)]] bool use_split_radiance;
 
@@ -145,14 +146,16 @@ void combine_frag([[resource_table]] Combine &srt,
 
         if (srt.render_passes_denoising_enabled) {
           /* These two values are equivalent between Cycles and EEVEE:
-          * - Cycles: sqrtf(bsdf_get_specular_roughness_squared(sc))
-          * - EEVEE: square(closure_apparent_roughness_get(cl)) */
+           * - Cycles: sqrtf(bsdf_get_specular_roughness_squared(sc))
+           * - EEVEE: square(closure_apparent_roughness_get(cl)) */
           float closure_roughness = closure_apparent_roughness_get(cl);
-          float roughness_sq = square(closure_roughness);
-          float diffuse_weight = smoothstep(0.0f, 0.15f, roughness_sq);
           average_roughness += closure_roughness * closure_weight;
-          diffuse_albedo += diffuse_weight * cl.color;
-          specular_albedo += (1.0 - diffuse_weight) * cl.color;
+          if (srt.use_albedo_roughness_weighting) {
+            float roughness_sq = square(closure_roughness);
+            float diffuse_weight = smoothstep(0.0f, 0.15f, roughness_sq);
+            diffuse_albedo += diffuse_weight * cl.color;
+            specular_albedo += (1.0 - diffuse_weight) * cl.color;
+          }
         }
 
         switch (cl.type) {
@@ -162,6 +165,9 @@ void combine_frag([[resource_table]] Combine &srt,
             diffuse_color += cl.color;
             diffuse_direct += closure_direct_light * cl.color;
             diffuse_indirect += closure_indirect_light * cl.color;
+            if (srt.render_passes_denoising_enabled && srt.use_albedo_roughness_weighting) {
+              diffuse_albedo += cl.color;
+            }
             break;
           case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
           case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
@@ -169,6 +175,9 @@ void combine_frag([[resource_table]] Combine &srt,
             specular_color += cl.color;
             specular_direct += closure_direct_light * cl.color;
             specular_indirect += closure_indirect_light * cl.color;
+            if (srt.render_passes_denoising_enabled && srt.use_albedo_roughness_weighting) {
+              specular_albedo += cl.color;
+            }
             break;
           case CLOSURE_NONE_ID:
             assert(false);
@@ -256,18 +265,21 @@ void combine_frag([[resource_table]] Combine &srt,
     /* Normalize or fallback to default normal. */
     average_normal = (normal_len < 1e-5f) ? gbuf.surface_N() : (average_normal / normal_len);
     average_normal = view.normal_world_to_view(average_normal);
-    render_passes.store_color(texel, uni.uniform_buf.render_pass.denoising_normal_id,
-                            float4(average_normal, 1.0f));
+    render_passes.store_color(
+        texel, uni.uniform_buf.render_pass.denoising_normal_id, float4(average_normal, 1.0f));
 
-    render_passes.store_color(texel, uni.uniform_buf.render_pass.denoising_diffuse_albedo_id,
-                            float4(diffuse_albedo, 1.0f));
-    render_passes.store_color(texel, uni.uniform_buf.render_pass.denoising_specular_albedo_id,
-                            float4(specular_albedo, 1.0f));
+    render_passes.store_color(texel,
+                              uni.uniform_buf.render_pass.denoising_diffuse_albedo_id,
+                              float4(diffuse_albedo, 1.0f));
+    render_passes.store_color(texel,
+                              uni.uniform_buf.render_pass.denoising_specular_albedo_id,
+                              float4(specular_albedo, 1.0f));
 
     if (sum_weight >= 1e-5f) {
       average_roughness *= safe_rcp(sum_weight);
     }
-    render_passes.store_value(texel, uni.uniform_buf.render_pass.denoising_roughness_id, average_roughness);
+    render_passes.store_value(
+        texel, uni.uniform_buf.render_pass.denoising_roughness_id, average_roughness);
   }
 
   frag_out.combined = float4(out_direct + out_indirect, 0.0f);

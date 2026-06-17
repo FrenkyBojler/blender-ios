@@ -250,7 +250,7 @@ struct ViewLayer {
   struct ViewLayer *next = nullptr, *prev = nullptr;
   char name[/*MAX_NAME*/ 64] = "";
   eViewLayer_Flag flag = VIEW_LAYER_RENDER | VIEW_LAYER_FREESTYLE;
-  char _pad[6] = {};
+  char _pad1[6] = {};
   ListBaseT<Base> object_bases = {nullptr, nullptr};
   /** Default allocated now. */
   struct SceneStats *stats = nullptr;
@@ -292,6 +292,10 @@ struct ViewLayer {
   /* Runtime data */
   struct Base **object_bases_array = nullptr;
   ObjectBasesMap *object_bases_hash = nullptr;
+
+  /* Denoising pass data */
+  int denoising_pass_flags = SCE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
+  char _pad2[12] = {};
 };
 
 }  // namespace blender

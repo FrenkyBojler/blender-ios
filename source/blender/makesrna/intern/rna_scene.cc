@@ -5444,6 +5444,20 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
   else {
     RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   }
+
+  prop = RNA_def_property(
+      srna, "denoising_pass_use_albedo_roughness_weighting", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "denoising_pass_flags", SCE_PASS_DENOISING);
+  RNA_def_property_ui_text(
+      prop,
+      "Denoising Pass Albedo Roughness Weighting",
+      "Use roughness-based weighting of the albedo for the denoising feature passes");
+  if (scene) {
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+  }
+  else {
+    RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  }
 }
 
 static void rna_def_freestyle_modules(BlenderRNA *brna, PropertyRNA *cprop)

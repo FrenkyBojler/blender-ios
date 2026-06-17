@@ -134,6 +134,7 @@ class VIEWLAYER_PT_eevee_layer_passes_data(ViewLayerButtonsPanel, Panel):
         col.prop(view_layer, "use_pass_grease_pencil", text="Grease Pencil")
 
         col.prop(view_layer, "denoising_store_passes", text="Denoising Data")
+        col.prop(view_layer, "denoising_pass_use_albedo_roughness_weighting")
 
 
 class VIEWLAYER_PT_workbench_layer_passes_data(ViewLayerButtonsPanel, Panel):
