@@ -94,13 +94,17 @@ static void node_rna(StructRNA *srna)
        "INTERSECT",
        0,
        "Intersect",
-       "Keep the part of the grids that is common between all operands"},
-      {int(Operation::Union), "UNION", 0, "Union", "Combine grids in an additive way"},
+       "Keep voxels and tiles that are active in all grids"},
+      {int(Operation::Union),
+       "UNION",
+       0,
+       "Union",
+       "Add voxels or tiles that are active in any grid"},
       {int(Operation::Difference),
        "DIFFERENCE",
        0,
        "Difference",
-       "Combine grids in a subtractive way"},
+       "Keep active voxels and tiles of the primary grid that are not active in secondary grids"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -156,7 +160,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const VolumeGridType grid_type = *bke::socket_type_to_grid_type(data_type);
   BKE_volume_grid_type_to_static_type(
       grid_type, [&]<std::derived_from<openvdb::GridBase> GridType>() {
-        if constexpr (std::is_same_v<GridType, openvdb::FloatGrid> ||
+        if constexpr (std::is_same_v<GridType, openvdb::BoolGrid> ||
+                      std::is_same_v<GridType, openvdb::FloatGrid> ||
                       std::is_same_v<GridType, openvdb::Int32Grid> ||
                       std::is_same_v<GridType, openvdb::Vec3fGrid>)
         {
@@ -217,6 +222,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
+  ntype.default_width = bke::NodeWidth::_180;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(ntype);
 
