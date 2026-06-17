@@ -70,18 +70,31 @@ bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
 // TMP
 bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
 {
+  /* Transitions overlap their inputs, but can't overlap other strips. */
   if (test->input2 != nullptr) {
-    return false;
-  }
-
-  for (Strip &strip : *seqbasep) {
-    if (strip.input2 != nullptr) {
-      // TODO: here would be the check to see if the overlap has been broken for moving one of the
-      // strips
-      continue;
+    // TODO: If strips overlap, and the transition is valid, this is already checked by the loop
+    // below. This should only check if the transition is valid (eg. the strips haven't been moved
+    // away)
+    // Actually this idea doesn't work at all. If a transition strips input overlaps a strip, but
+    // the transition itself doesn't have invalid overlap, the input is drawn over the transition
+    // This should rather be changed to something like "transform_flag_invalid_overlap"
+    for (Strip &strip : *seqbasep) {
+      if (test->input1 == &strip || test->input2 == &strip) {
+        continue;
+      }
+      if (transform_test_overlap(scene, test, &strip)) {
+        return true;
+      }
     }
-    if (transform_test_overlap(scene, test, &strip)) {
-      return true;
+  }
+  else {
+    for (Strip &strip : *seqbasep) {
+      if (strip.input1 == test || strip.input2 == test) {
+        continue;
+      }
+      if (transform_test_overlap(scene, test, &strip)) {
+        return true;
+      }
     }
   }
 

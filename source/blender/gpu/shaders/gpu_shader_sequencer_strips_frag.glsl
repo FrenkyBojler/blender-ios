@@ -98,7 +98,7 @@ float4 draw_transition()
   float4 col = unpackUnorm4x8(strip.col_background);
 
   /* Diagonal transition line. */
-  if (co.x >= strip.content_start && co.x <= strip.content_end && co.y < strip.strip_content_top)
+  if (co.x >= strip.left_handle && co.x <= strip.right_handle && co.y < strip.strip_content_top)
   {
     float start_x = strip.left_handle + 2.0f * context_data.pixelsize;
     float end_x = strip.right_handle - 2.0f * context_data.pixelsize;
