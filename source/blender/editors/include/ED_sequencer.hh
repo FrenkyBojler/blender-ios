@@ -77,6 +77,7 @@ void special_preview_clear();
  */
 VectorSet<Strip *> selected_strips_from_context(bContext *C);
 StripSelection pick_strip_and_handle(const struct Scene *scene,
+                                     const SpaceSeq *sseq,
                                      const View2D *v2d,
                                      float mouse_co[2]);
 bool can_select_handle(const Scene *scene, const Strip *strip, const View2D *v2d);

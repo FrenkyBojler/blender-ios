@@ -93,7 +93,10 @@ bool deselect_all_strips(const Scene *scene)
   return changed;
 }
 
-Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mval[2])
+Strip *strip_under_mouse_get(const Scene *scene,
+                             const SpaceSeq *sseq,
+                             const View2D *v2d,
+                             const int mval[2])
 {
   float mouse_co[2];
   ui::view2d_region_to_view(v2d, mval[0], mval[1], &mouse_co[0], &mouse_co[1]);
@@ -104,7 +107,7 @@ Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mv
     if (strip->channel != mouse_channel) {
       continue;
     }
-    rctf body = strip_bounds_get(scene, strip);
+    rctf body = strip_bounds_get(scene, sseq, v2d, strip);
     if (BLI_rctf_isect_pt_v(&body, mouse_co)) {
       return strip;
     }
@@ -290,16 +293,6 @@ void select_strip_single(Scene *scene, Strip *strip, bool deselect_all)
 
   strip->flag |= SEQ_SELECT;
   recurs_sel_strip(strip);
-}
-
-rctf strip_bounds_get(const Scene *scene, const Strip *strip)
-{
-  rctf bounds;
-  bounds.xmin = strip->left_handle();
-  bounds.xmax = strip->right_handle(scene);
-  bounds.ymin = strip->channel + STRIP_OFSBOTTOM;
-  bounds.ymax = strip->channel + STRIP_OFSTOP;
-  return bounds;
 }
 
 Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel)
@@ -998,13 +991,14 @@ bool can_select_handle(const Scene *scene, const Strip *strip, const View2D *v2d
 }
 
 static void strip_clickable_areas_get(const Scene *scene,
-                                      const Strip *strip,
+                                      const SpaceSeq *sseq,
                                       const View2D *v2d,
+                                      const Strip *strip,
                                       rctf *r_body,
                                       rctf *r_left_handle,
                                       rctf *r_right_handle)
 {
-  *r_body = strip_bounds_get(scene, strip);
+  *r_body = strip_bounds_get(scene, sseq, v2d, strip);
   *r_left_handle = *r_body;
   *r_right_handle = *r_body;
 
@@ -1016,22 +1010,26 @@ static void strip_clickable_areas_get(const Scene *scene,
   BLI_rctf_pad(r_body, -handsize, 0.0f);
 }
 
-static rctf strip_clickable_area_get(const Scene *scene, const View2D *v2d, const Strip *strip)
+static rctf strip_clickable_area_get(const Scene *scene,
+                                     const SpaceSeq *sseq,
+                                     const View2D *v2d,
+                                     const Strip *strip)
 {
   rctf body, left, right;
-  strip_clickable_areas_get(scene, strip, v2d, &body, &left, &right);
+  strip_clickable_areas_get(scene, sseq, v2d, strip, &body, &left, &right);
   BLI_rctf_union(&body, &left);
   BLI_rctf_union(&body, &right);
   return body;
 }
 
 static float strip_to_frame_distance(const Scene *scene,
+                                     const SpaceSeq *sseq,
                                      const View2D *v2d,
                                      const Strip *strip,
                                      float timeline_frame)
 {
   rctf body, left, right;
-  strip_clickable_areas_get(scene, strip, v2d, &body, &left, &right);
+  strip_clickable_areas_get(scene, sseq, v2d, strip, &body, &left, &right);
   return BLI_rctf_length_x(&body, timeline_frame);
 }
 
@@ -1041,6 +1039,7 @@ static float strip_to_frame_distance(const Scene *scene,
  * returned.
  */
 static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
+                                                     const SpaceSeq *sseq,
                                                      const View2D *v2d,
                                                      float mouse_co[2])
 {
@@ -1061,7 +1060,7 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
     if (strip.right_handle(scene) < v2d->cur.xmin) {
       continue;
     }
-    const rctf body = strip_clickable_area_get(scene, v2d, &strip);
+    const rctf body = strip_clickable_area_get(scene, sseq, v2d, &strip);
     if (!BLI_rctf_isect_pt_v(&body, mouse_co)) {
       continue;
     }
@@ -1074,8 +1073,8 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
   }
 
   std::ranges::sort(strips, [&](const Strip *strip1, const Strip *strip2) {
-    return strip_to_frame_distance(scene, v2d, strip1, mouse_co[0]) <
-           strip_to_frame_distance(scene, v2d, strip2, mouse_co[0]);
+    return strip_to_frame_distance(scene, sseq, v2d, strip1, mouse_co[0]) <
+           strip_to_frame_distance(scene, sseq, v2d, strip2, mouse_co[0]);
   });
 
   return strips;
@@ -1092,6 +1091,7 @@ static bool strips_are_adjacent(const Scene *scene, const Strip *strip1, const S
 }
 
 static eStripHandle strip_handle_under_cursor_get(const Scene *scene,
+                                                  const SpaceSeq *sseq,
                                                   const Strip *strip,
                                                   const View2D *v2d,
                                                   float mouse_co[2])
@@ -1101,7 +1101,7 @@ static eStripHandle strip_handle_under_cursor_get(const Scene *scene,
   }
 
   rctf body, left, right;
-  strip_clickable_areas_get(scene, strip, v2d, &body, &left, &right);
+  strip_clickable_areas_get(scene, sseq, v2d, strip, &body, &left, &right);
   if (BLI_rctf_isect_pt_v(&left, mouse_co)) {
     return STRIP_HANDLE_LEFT;
   }
@@ -1113,12 +1113,13 @@ static eStripHandle strip_handle_under_cursor_get(const Scene *scene,
 }
 
 static bool is_mouse_over_both_handles_of_adjacent_strips(const Scene *scene,
+                                                          const SpaceSeq *sseq,
                                                           Vector<Strip *> strips,
                                                           const View2D *v2d,
                                                           float mouse_co[2])
 {
   const eStripHandle strip1_handle = strip_handle_under_cursor_get(
-      scene, strips[0], v2d, mouse_co);
+      scene, sseq, strips[0], v2d, mouse_co);
 
   if (strip1_handle == STRIP_HANDLE_NONE) {
     return false;
@@ -1127,7 +1128,7 @@ static bool is_mouse_over_both_handles_of_adjacent_strips(const Scene *scene,
     return false;
   }
   const eStripHandle strip2_handle = strip_handle_under_cursor_get(
-      scene, strips[1], v2d, mouse_co);
+      scene, sseq, strips[1], v2d, mouse_co);
   if (strip1_handle == STRIP_HANDLE_RIGHT && strip2_handle != STRIP_HANDLE_LEFT) {
     return false;
   }
@@ -1138,7 +1139,10 @@ static bool is_mouse_over_both_handles_of_adjacent_strips(const Scene *scene,
   return true;
 }
 
-StripSelection pick_strip_and_handle(const Scene *scene, const View2D *v2d, float mouse_co[2])
+StripSelection pick_strip_and_handle(const Scene *scene,
+                                     const SpaceSeq *sseq,
+                                     const View2D *v2d,
+                                     float mouse_co[2])
 {
   StripSelection selection;
   /* Do not pick strips when clicking inside time scrub region. */
@@ -1147,17 +1151,17 @@ StripSelection pick_strip_and_handle(const Scene *scene, const View2D *v2d, floa
     return selection;
   }
 
-  Vector<Strip *> strips = padded_strips_under_mouse_get(scene, v2d, mouse_co);
+  Vector<Strip *> strips = padded_strips_under_mouse_get(scene, sseq, v2d, mouse_co);
 
   if (strips.size() == 0) {
     return selection;
   }
 
   selection.strip1 = strips[0];
-  selection.handle = strip_handle_under_cursor_get(scene, selection.strip1, v2d, mouse_co);
+  selection.handle = strip_handle_under_cursor_get(scene, sseq, selection.strip1, v2d, mouse_co);
 
   if (strips.size() == 2 &&
-      is_mouse_over_both_handles_of_adjacent_strips(scene, strips, v2d, mouse_co))
+      is_mouse_over_both_handles_of_adjacent_strips(scene, sseq, strips, v2d, mouse_co))
   {
     selection.strip2 = strips[1];
   }
@@ -1170,6 +1174,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   const View2D *v2d = ui::view2d_fromcontext(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
   ARegion *region = CTX_wm_region(C);
 
   if (ed == nullptr) {
@@ -1246,7 +1251,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     selection.strip1 = strip_select_from_preview(C, mouse_co.region, toggle, extend, center);
   }
   else {
-    selection = pick_strip_and_handle(scene, v2d, mouse_co.view);
+    selection = pick_strip_and_handle(scene, sseq, v2d, mouse_co.view);
   }
 
   /* NOTE: `side_of_frame` and `linked_time` functionality is designed to be shared on one
@@ -1285,7 +1290,6 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
   const bool already_selected = element_already_selected(selection);
 
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
   if (selection.handle != STRIP_HANDLE_NONE && already_selected) {
     sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
   }
@@ -1461,6 +1465,7 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op
   const View2D *v2d = ui::view2d_fromcontext(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
@@ -1468,7 +1473,7 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op
 
   MouseCoords mouse_co(v2d, RNA_int_get(op->ptr, "mouse_x"), RNA_int_get(op->ptr, "mouse_y"));
 
-  StripSelection selection = pick_strip_and_handle(scene, v2d, mouse_co.view);
+  StripSelection selection = pick_strip_and_handle(scene, sseq, v2d, mouse_co.view);
   if (selection.strip1 == nullptr || selection.handle == STRIP_HANDLE_NONE) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
@@ -1480,7 +1485,6 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
   if (element_already_selected(selection)) {
     sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -1711,6 +1715,7 @@ static wmOperatorStatus sequencer_select_linked_pick_invoke(bContext *C,
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = ui::view2d_fromcontext(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   bool extend = RNA_boolean_get(op->ptr, "extend");
 
@@ -1718,7 +1723,7 @@ static wmOperatorStatus sequencer_select_linked_pick_invoke(bContext *C,
   ui::view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouse_co[0], &mouse_co[1]);
 
   /* This works like UV, not mesh. */
-  StripSelection mouse_selection = pick_strip_and_handle(scene, v2d, mouse_co);
+  StripSelection mouse_selection = pick_strip_and_handle(scene, sseq, v2d, mouse_co);
   if (!mouse_selection.strip1) {
     return OPERATOR_FINISHED; /* User error as with mesh?? */
   }
@@ -2127,6 +2132,7 @@ static void seq_box_select_strip_from_preview(const bContext *C,
 static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
   View2D *v2d = ui::view2d_fromcontext(C);
   Editing *ed = seq::editing_get(scene);
 
@@ -2163,7 +2169,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
   }
 
   for (Strip &strip : *ed->current_strips()) {
-    rctf rq = strip_bounds_get(scene, &strip);
+    rctf rq = strip_bounds_get(scene, sseq, v2d, &strip);
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
       if (handles) {
         /* Get the clickable handle size, ignoring padding. */
@@ -2234,6 +2240,7 @@ static wmOperatorStatus sequencer_box_select_invoke(bContext *C,
   Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = ui::view2d_fromcontext(C);
   ARegion *region = CTX_wm_region(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   if (region->regiontype == RGN_TYPE_PREVIEW && !sequencer_view_preview_only_poll(C)) {
     return OPERATOR_CANCELLED;
@@ -2247,7 +2254,7 @@ static wmOperatorStatus sequencer_box_select_invoke(bContext *C,
     WM_event_drag_start_mval(event, region, mval);
     ui::view2d_region_to_view(v2d, mval[0], mval[1], &mouse_co[0], &mouse_co[1]);
 
-    StripSelection selection = pick_strip_and_handle(scene, v2d, mouse_co);
+    StripSelection selection = pick_strip_and_handle(scene, sseq, v2d, mouse_co);
 
     if (selection.strip1 != nullptr) {
       return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -2352,12 +2359,14 @@ static bool do_lasso_select_timeline(bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  View2D *v2d = ui::view2d_fromcontext(C);
 
   bool changed = false;
   const bool select = (sel_op != SEL_OP_SUB);
 
   for (Strip &strip : ed->seqbase) {
-    rctf strip_rct = strip_bounds_get(scene, &strip);
+    rctf strip_rct = strip_bounds_get(scene, sseq, v2d, &strip);
     rcti region_rct;
     ui::view2d_view_to_region_clip(
         &region->v2d, strip_rct.xmin, strip_rct.ymin, &region_rct.xmin, &region_rct.ymin);
@@ -2542,6 +2551,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
 
   Scene *scene = CTX_data_scene(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
   View2D *v2d = ui::view2d_fromcontext(C);
   Editing *ed = seq::editing_get(scene);
   ARegion *region = CTX_wm_region(C);
@@ -2571,7 +2581,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
   float y_radius = radius / ui::view2d_scale_get_y(v2d);
   bool changed = false;
   for (Strip &strip : *ed->current_strips()) {
-    rctf rq = strip_bounds_get(scene, &strip);
+    rctf rq = strip_bounds_get(scene, sseq, v2d, &strip);
     /* Use custom function to check the distance because in timeline the circle is a ellipse. */
     if (check_circle_intersection_in_timeline(&rq, view_mval, x_radius, y_radius)) {
       if (ELEM(sel_op, SEL_OP_ADD, SEL_OP_SET)) {

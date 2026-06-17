@@ -679,7 +679,7 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
       &region->v2d, mouse_co_region[0], mouse_co_region[1], &mouse_co_view[0], &mouse_co_view[1]);
 
   if (STREQ(tref->idname, "builtin.blade") || STREQ(tref->idname, "builtin.slip")) {
-    Strip *strip = strip_under_mouse_get(scene, v2d, mouse_co_region);
+    Strip *strip = strip_under_mouse_get(scene, sseq, v2d, mouse_co_region);
     if (strip != nullptr) {
       const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
       const bool locked = seq::transform_is_locked(channels, strip);
@@ -706,7 +706,7 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
-  StripSelection selection = pick_strip_and_handle(scene, &region->v2d, mouse_co_view);
+  StripSelection selection = pick_strip_and_handle(scene, sseq, &region->v2d, mouse_co_view);
 
   if (selection.strip1 == nullptr) {
     WM_cursor_set(win, wmcursor);

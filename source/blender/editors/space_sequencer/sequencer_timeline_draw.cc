@@ -199,10 +199,10 @@ static bool strip_header_poll(const SpaceSeq *sseq, float pixely, float strip_he
   return has_space && overlays_enabled;
 }
 
-rctf strip_bounds_get2(const SpaceSeq *sseq,
-                       const View2D *v2d,
-                       const Scene *scene,
-                       const Strip *strip)
+rctf strip_bounds_get(const Scene *scene,
+                      const SpaceSeq *sseq,
+                      const View2D *v2d,
+                      const Strip *strip)
 {
   rctf bounds;
   bounds.xmin = strip->left_handle();
@@ -250,7 +250,7 @@ static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, S
   Scene *scene = ctx.scene;
 
   strip_ctx.strip = strip;
-  rctf bounds = strip_bounds_get2(ctx.sseq, ctx.v2d, scene, strip);
+  rctf bounds = strip_bounds_get(scene, ctx.sseq, ctx.v2d, strip);
 
   strip_ctx.bottom = bounds.ymin;
   strip_ctx.top = bounds.ymax;

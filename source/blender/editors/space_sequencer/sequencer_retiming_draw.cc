@@ -83,9 +83,19 @@ static inline float retiming_key_center(const View2D *v2d, const Strip *strip)
           retiming_key_size() / 2);
 }
 
+// TMP
+static rctf strip_bounds_get2(const Scene *scene, const Strip *strip)
+{
+  rctf bounds;
+  bounds.xmin = strip->left_handle();
+  bounds.xmax = strip->right_handle(scene);
+  bounds.ymin = strip->channel + STRIP_OFSBOTTOM;
+  bounds.ymax = strip->channel + STRIP_OFSTOP;
+  return bounds;
+}
 rcti strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip)
 {
-  rctf strip_bounds = strip_bounds_get(scene, strip);
+  rctf strip_bounds = strip_bounds_get2(scene, strip);
   rcti key_bounds;
   ui::view2d_view_to_region_rcti(v2d, &strip_bounds, &key_bounds);
 
@@ -110,7 +120,7 @@ static void retiming_key_draw(const TimelineDrawContext &ctx,
   Strip *strip = strip_ctx.strip;
 
   const float key_frame = seq::retiming_key_frame_get(scene, strip, key);
-  const rctf strip_bounds = strip_bounds_get(scene, strip);
+  const rctf strip_bounds = strip_bounds_get(scene, ctx.sseq, ctx.v2d, strip);
   if (!BLI_rctf_isect_x(&strip_bounds, key_frame)) {
     return; /* Key out of the strip bounds. */
   }

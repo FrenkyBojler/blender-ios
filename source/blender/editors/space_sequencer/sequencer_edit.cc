@@ -18,6 +18,7 @@
 #include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_space_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLT_translation.hh"
@@ -890,13 +891,14 @@ static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
   const Editing *ed = seq::editing_get(scene);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
   const View2D *v2d = ui::view2d_fromcontext(C);
 
   SlipData *data = MEM_new<SlipData>("slipdata");
 
   VectorSet<Strip *> strips;
   if (RNA_boolean_get(op->ptr, "use_cursor_position") && event) {
-    Strip *strip = strip_under_mouse_get(scene, v2d, event->mval);
+    Strip *strip = strip_under_mouse_get(scene, sseq, v2d, event->mval);
     if (strip) {
       strips.add(strip);
     }
@@ -1927,6 +1929,7 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus sequencer_split_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
   View2D *v2d = ui::view2d_fromcontext(C);
 
   int split_side = RNA_enum_get(op->ptr, "side");
@@ -1945,7 +1948,7 @@ static wmOperatorStatus sequencer_split_invoke(bContext *C, wmOperator *op, cons
     ui::view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
     if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
       split_frame = round_fl_to_int(mouseloc[0]);
-      Strip *strip = strip_under_mouse_get(scene, v2d, event->mval);
+      Strip *strip = strip_under_mouse_get(scene, sseq, v2d, event->mval);
       if (strip == nullptr || split_frame == strip->left_handle() ||
           split_frame == strip->right_handle(scene))
       {
@@ -2074,6 +2077,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
   scene->ed->runtime->show_transform_preview = false;
@@ -2102,7 +2106,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
    * note that this means strips.size() can increase during the loops.  */
   for (int i = 0; i < strips.size(); i++) {
     Strip *strip = strips[i];
-    rctf strip_rect = strip_bounds_get(scene, strip);
+    rctf strip_rect = strip_bounds_get(scene, sseq, v2d, strip);
     if (BLI_rctf_isect(&strip_rect, &box_rect, nullptr)) {
       gap_removal_boundary[0] = math::min(gap_removal_boundary[0], strip->left_handle());
       gap_removal_boundary[1] = math::max(gap_removal_boundary[1], strip->right_handle(scene));

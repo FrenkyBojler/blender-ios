@@ -269,7 +269,6 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 /**
  *  Returns box bounds of strip in view-space.
  */
-rctf strip_bounds_get(const Scene *scene, const Strip *strip);
 Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel);
 void recurs_sel_strip(Strip *strip_meta);
 
@@ -301,7 +300,10 @@ void sequencer_select_do_updates(const bContext *C, Scene *scene);
  * \param mval: Mouse cursor location in region-space.
  * \return `Strip` that intersects with the cursor, or `nullptr` if not found.
  */
-Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mval[2]);
+Strip *strip_under_mouse_get(const Scene *scene,
+                             const SpaceSeq *sseq,
+                             const View2D *v2d,
+                             const int mval[2]);
 
 /* `sequencer_add.cc` */
 
@@ -429,10 +431,10 @@ IndexRange strip_text_selection_range_get(const TextVars *data);
 /* `sequencer_timeline_draw.cc` */
 Vector<Strip *> sequencer_visible_strips_get(const bContext *C);
 Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v2d);
-rctf strip_bounds_get2(const SpaceSeq *sseq,
-                       const View2D *v2d,
-                       const Scene *scene,
-                       const Strip *strip);
+rctf strip_bounds_get(const Scene *scene,
+                      const SpaceSeq *sseq,
+                      const View2D *v2d,
+                      const Strip *strip);
 
 /* `sequencer_clipboard.cc` */
 wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
