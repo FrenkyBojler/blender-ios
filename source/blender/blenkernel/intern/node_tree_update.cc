@@ -1051,10 +1051,14 @@ class NodeTreeMainUpdater {
             socket.display_shape = get_socket_shape(
                 socket, item.structure_type == NodeSocketInterfaceStructureType::Auto);
           }
+          bNodeSocket &socket = *node->output_by_identifier("Bundle"_ustr);
+          socket.display_shape = get_socket_shape(socket);
           break;
         }
         case NODE_SEPARATE_BUNDLE: {
           const auto &storage = *static_cast<const NodeSeparateBundle *>(node->storage);
+          bNodeSocket &socket = *node->input_by_identifier("Bundle"_ustr);
+          socket.display_shape = get_socket_shape(socket);
           for (const int i : IndexRange(storage.items_num)) {
             const NodeSeparateBundleItem &item = storage.items[i];
             bNodeSocket &socket = node->output_socket(i);
@@ -1086,10 +1090,14 @@ class NodeTreeMainUpdater {
             socket.display_shape = get_socket_shape(
                 socket, item.structure_type == NodeSocketInterfaceStructureType::Auto);
           }
+          bNodeSocket &socket = *node->output_by_identifier("Closure"_ustr);
+          socket.display_shape = get_socket_shape(socket);
           break;
         }
         case NODE_EVALUATE_CLOSURE: {
           const auto &storage = *static_cast<const NodeEvaluateClosure *>(node->storage);
+          bNodeSocket &socket = *node->input_by_identifier("Closure"_ustr);
+          socket.display_shape = get_socket_shape(socket);
           for (const int i : IndexRange(storage.input_items.items_num)) {
             const NodeEvaluateClosureInputItem &item = storage.input_items.items[i];
             bNodeSocket &socket = node->input_socket(i + 1);
