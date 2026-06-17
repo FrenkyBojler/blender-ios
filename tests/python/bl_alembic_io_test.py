@@ -321,7 +321,7 @@ class CameraExportImportTest(unittest.TestCase):
 
             # The file was written using a simple formula for each frame's crease value
             expected_edge_creases = [round(frame / 24.0, 3)] * 48
-            # Creases are not propagated to edges that do not come from a coarse edge
+            #  Creases are not propagated to edges that do not come from a coarse edge
             expected_edge_creases.extend([0.0] * 144)
             expected_vert_creases = [round(frame / 24.0, 3)] * 25
 
