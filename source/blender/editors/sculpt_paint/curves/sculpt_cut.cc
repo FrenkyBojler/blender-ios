@@ -20,9 +20,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
-#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_noise.hh"
-#include "BLI_task.hh"
 
 #include "GEO_trim_curves.hh"
 
@@ -148,7 +146,6 @@ struct CutOperationExecutor {
     const IndexMask mask_to_keep = IndexMask::from_bools(curves_to_keep, mask_memory);
 
     *curves_ = bke::curves_copy_curve_selection(*curves_, mask_to_keep, {});
-    curves_->tag_topology_changed();
 
     Array<float> kept_ends(mask_to_keep.size());
     array_utils::gather(ends.as_span(), mask_to_keep, kept_ends.as_mutable_span());
@@ -275,6 +272,10 @@ struct CutOperationExecutor {
     return true;
   }
 
+  /**
+   * Finds the position where the brush (represented as an infinite cylinder aligned with the view)
+   * intersects with a line segment.
+   */
   float3 find_projected_cut_boundary(const float3 &point_outside_cu,
                                      const float3 &point_inside_cu,
                                      const float2 &brush_pos_re,
@@ -289,14 +290,17 @@ struct CutOperationExecutor {
     const float2 line_re = point_inside_re - point_outside_re;
     const float2 brush_to_outside_re = point_outside_re - brush_pos_re;
 
-    const float a = dot_v2v2(line_re, line_re);
-    const float b = 2.0f * dot_v2v2(line_re, brush_to_outside_re);
-    const float c = dot_v2v2(brush_to_outside_re, brush_to_outside_re) -
+    /* Solve a quadratic equation to find the line-segment-circle intersection. */
+    const float a = math::dot(line_re, line_re);
+    const float b = 2.0f * math::dot(line_re, brush_to_outside_re);
+    const float c = math::dot(brush_to_outside_re, brush_to_outside_re) -
                     brush_radius_re * brush_radius_re;
 
     float d = b * b - 4.0f * a * c;
     /* It shouldn't be possible to have no intersection (d < 0), so assume to be tangential. */
     d = math::max(d, 0.0f);
+
+    /* Compute the intersection point via the factor "t" along the line segment. */
     const float t = (-b - sqrtf(d)) / (2.0f * a);
 
     const float3 line_cu = point_inside_cu - point_outside_cu;
@@ -304,6 +308,9 @@ struct CutOperationExecutor {
     return intersection_cu;
   }
 
+  /**
+   * Finds the position where the brush (represented as a sphere) intersects with a line segment.
+   */
   float3 find_spherical_cut_boundary(const float3 &point_outside_cu,
                                      const float3 &point_inside_cu,
                                      const float3 &brush_pos_cu,
@@ -312,14 +319,17 @@ struct CutOperationExecutor {
     const float3 line_cu = point_inside_cu - point_outside_cu;
     const float3 brush_to_outside_cu = point_outside_cu - brush_pos_cu;
 
-    const float a = dot_v3v3(line_cu, line_cu);
-    const float b = 2.0f * dot_v3v3(line_cu, brush_to_outside_cu);
-    const float c = dot_v3v3(brush_to_outside_cu, brush_to_outside_cu) -
+    /* Solve a quadratic equation to find the line-segment-sphere intersection. */
+    const float a = math::dot(line_cu, line_cu);
+    const float b = 2.0f * math::dot(line_cu, brush_to_outside_cu);
+    const float c = math::dot(brush_to_outside_cu, brush_to_outside_cu) -
                     brush_radius_cu * brush_radius_cu;
 
     float d = b * b - 4.0f * a * c;
     /* It shouldn't be possible to have no intersection (d < 0), so assume to be tangential. */
     d = math::max(d, 0.0f);
+
+    /* Compute the intersection point via the factor "t" along the line segment. */
     const float t = (-b - sqrtf(d)) / (2.0f * a);
 
     const float3 intersection_cu = point_outside_cu + t * line_cu;
@@ -334,23 +344,25 @@ struct CutOperationExecutor {
     const Span<float3> positions = curves_->positions();
 
     Array<float> segment_lengths(curves_->points_num());
-    curve_selection_.foreach_segment([&](const IndexMaskSegment segment) {
-      for (const int curve_i : segment) {
-        const IndexRange points = points_by_curve[curve_i];
-        float accumulated_length = 0.0f;
-        for (const int i : points.index_range()) {
-          const int point_i = points[i];
-          if (i == 0) {
-            segment_lengths[point_i] = 0.0f;
-            continue;
+    curve_selection_.foreach_segment(
+        [&](const IndexMaskSegment segment) {
+          for (const int curve_i : segment) {
+            const IndexRange points = points_by_curve[curve_i];
+            float accumulated_length = 0.0f;
+            for (const int i : points.index_range()) {
+              const int point_i = points[i];
+              if (i == 0) {
+                segment_lengths[point_i] = 0.0f;
+                continue;
+              }
+              const float3 &p1 = positions[point_i - 1];
+              const float3 &p2 = positions[point_i];
+              accumulated_length += math::distance(p1, p2);
+              segment_lengths[point_i] = accumulated_length;
+            }
           }
-          const float3 &p1 = positions[point_i - 1];
-          const float3 &p2 = positions[point_i];
-          accumulated_length += math::distance(p1, p2);
-          segment_lengths[point_i] = accumulated_length;
-        }
-      }
-    });
+        },
+        exec_mode::grain_size(128));
 
     const bke::crazyspace::GeometryDeformation deformation =
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
@@ -387,84 +399,87 @@ struct CutOperationExecutor {
     const Vector<float4x4> symmetry_brush_transforms = get_symmetry_brush_transforms(
         curves_id_->symmetry);
 
-    curve_selection_.foreach_index([&](const int curve_i) {
-      const IndexRange points = points_by_curve[curve_i];
-      const Span<BrushProjectionInfo> brush_projection_info_slice = brush_projection_info.slice(
-          points);
+    curve_selection_.foreach_index(
+        [&](const int curve_i) {
+          const IndexRange points = points_by_curve[curve_i];
+          const Span<BrushProjectionInfo> brush_projection_info_slice =
+              brush_projection_info.slice(points);
 
-      const BrushProjectionInfo *first_point_in_stroke_bpi = std::find_if(
-          brush_projection_info_slice.begin(),
-          brush_projection_info_slice.end(),
-          [&](const BrushProjectionInfo projection_info) {
-            return projection_info.distance <= brush_radius_sq;
-          });
-      if (first_point_in_stroke_bpi == brush_projection_info_slice.end()) {
-        return;
-      }
+          const BrushProjectionInfo *first_point_in_stroke_bpi = std::find_if(
+              brush_projection_info_slice.begin(),
+              brush_projection_info_slice.end(),
+              [&](const BrushProjectionInfo projection_info) {
+                return projection_info.distance <= brush_radius_sq;
+              });
+          if (first_point_in_stroke_bpi == brush_projection_info_slice.end()) {
+            return;
+          }
 
-      const int first_point_in_stroke = std::distance(brush_projection_info_slice.begin(),
-                                                      first_point_in_stroke_bpi);
-      const float4x4 brush_transform =
-          symmetry_brush_transforms[first_point_in_stroke_bpi->brush_transform_index];
-      const float4x4 brush_transform_inv = math::invert(brush_transform);
+          const int first_point_in_stroke = std::distance(brush_projection_info_slice.begin(),
+                                                          first_point_in_stroke_bpi);
+          const float4x4 brush_transform =
+              symmetry_brush_transforms[first_point_in_stroke_bpi->brush_transform_index];
+          const float4x4 brush_transform_inv = math::invert(brush_transform);
 
-      const uint32_t point_hash = noise::hash(
-          noise::hash_float(first_point_in_stroke_bpi->distance), brush_pos_hash);
-      const IndexRange::Iterator point_to_cut_iter = std::find_if(
-          points.begin(), points.end(), [&](const int point_i) {
-            const BrushProjectionInfo &bpi = brush_projection_info[point_i];
-            if (bpi.distance > brush_radius_sq) {
-              return false;
+          const uint32_t point_hash = noise::hash(
+              noise::hash_float(first_point_in_stroke_bpi->distance), brush_pos_hash);
+          const IndexRange::Iterator point_to_cut_iter = std::find_if(
+              points.begin(), points.end(), [&](const int point_i) {
+                const BrushProjectionInfo &bpi = brush_projection_info[point_i];
+                if (bpi.distance > brush_radius_sq) {
+                  return false;
+                }
+                return should_point_be_cut(point_i, point_hash);
+              });
+          if (point_to_cut_iter == points.end()) {
+            return;
+          }
+          const int point_to_cut = std::distance(points.begin(), point_to_cut_iter);
+
+          if (point_to_cut == 0) {
+            /* Delete entire curve. Simply trimming would leave behind the root control point. */
+            r_curves_to_keep[curve_i] = false;
+          }
+          else if (first_point_in_stroke == point_to_cut) {
+            /* Brush boundary is cutting straight through previous and current point.
+             * Delete all points after current. */
+            const int current_point = points[point_to_cut];
+            const int previous_point = points[point_to_cut - 1];
+            const float3 &curr_pos_cu = deformation.positions[current_point];
+            const float3 &prev_pos_cu = deformation.positions[previous_point];
+            float3 boundary_cu;
+
+            if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
+              boundary_cu = math::transform_point(
+                  brush_transform,
+                  find_projected_cut_boundary(
+                      math::transform_point(brush_transform_inv, prev_pos_cu),
+                      math::transform_point(brush_transform_inv, curr_pos_cu),
+                      brush_pos_re_,
+                      brush_radius,
+                      projection));
             }
-            return should_point_be_cut(point_i, point_hash);
-          });
-      if (point_to_cut_iter == points.end()) {
-        return;
-      }
-      const int point_to_cut = std::distance(points.begin(), point_to_cut_iter);
+            else if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
+              boundary_cu = find_spherical_cut_boundary(
+                  prev_pos_cu,
+                  curr_pos_cu,
+                  math::transform_point(brush_transform_inv, brush_pos_cu),
+                  brush_radius);
+            }
+            else {
+              BLI_assert_unreachable();
+            }
 
-      if (point_to_cut == 0) {
-        /* Delete entire curve. Simply trimming would leave behind the root control point. */
-        r_curves_to_keep[curve_i] = false;
-      }
-      else if (first_point_in_stroke == point_to_cut) {
-        /* Brush boundary is cutting straight through previous and current point.
-         * Delete all points after current. */
-        const int current_point = points[point_to_cut];
-        const int previous_point = points[point_to_cut - 1];
-        const float3 &curr_pos_cu = deformation.positions[current_point];
-        const float3 &prev_pos_cu = deformation.positions[previous_point];
-        float3 boundary_cu;
-
-        if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
-          boundary_cu = math::transform_point(
-              brush_transform,
-              find_projected_cut_boundary(math::transform_point(brush_transform_inv, prev_pos_cu),
-                                          math::transform_point(brush_transform_inv, curr_pos_cu),
-                                          brush_pos_re_,
-                                          brush_radius,
-                                          projection));
-        }
-        else if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
-          boundary_cu = find_spherical_cut_boundary(
-              prev_pos_cu,
-              curr_pos_cu,
-              math::transform_point(brush_transform_inv, brush_pos_cu),
-              brush_radius);
-        }
-        else {
-          BLI_assert_unreachable();
-        }
-
-        const float boundary_length = math::distance(curr_pos_cu, boundary_cu);
-        r_ends[curve_i] = segment_lengths[current_point] - boundary_length;
-      }
-      else {
-        /* Brush is encompassing a boundary between selected and unselected points. */
-        const int previous_point = points[point_to_cut - 1];
-        r_ends[curve_i] = segment_lengths[previous_point];
-      }
-    });
+            const float boundary_length = math::distance(curr_pos_cu, boundary_cu);
+            r_ends[curve_i] = segment_lengths[current_point] - boundary_length;
+          }
+          else {
+            /* Brush is encompassing a boundary between selected and unselected points. */
+            const int previous_point = points[point_to_cut - 1];
+            r_ends[curve_i] = segment_lengths[previous_point];
+          }
+        },
+        exec_mode::grain_size(128));
   }
 };
 
