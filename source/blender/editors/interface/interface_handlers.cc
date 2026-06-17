@@ -3933,7 +3933,11 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   }
 #endif
   data->region->runtime->text_cursor_overlay = {
-      rctf{}, WM_event_timer_add(data->wm, data->window, TIMER, 0.6), BLI_time_now_seconds()};
+      .rect = rctf{},
+      .timer = WM_event_timer_add(data->wm, data->window, TIMER, 0.6),
+      .last_active_time = BLI_time_now_seconds(),
+      .draw = true,
+  };
   theme::get_color_4fv(TH_WIDGET_TEXT_CURSOR, data->region->runtime->text_cursor_overlay->color);
 }
 

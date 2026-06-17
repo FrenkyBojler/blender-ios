@@ -514,8 +514,8 @@ struct TextCursorOverlay {
   rctf rect = {};
   wmTimer *timer = nullptr;
   double last_active_time = 0;
-  bool draw = true;
   float color[4];
+  bool draw = true;
 };
 
 struct ARegionRuntime {
@@ -578,6 +578,7 @@ struct ARegionRuntime {
   Panel *popup_block_panel = nullptr;
 
   std::optional<TextCursorOverlay> text_cursor_overlay = std::nullopt;
+  bool is_search_menu = false;
 };
 
 }  // namespace bke

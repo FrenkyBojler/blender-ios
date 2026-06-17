@@ -236,7 +236,8 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
   /* data... */
   if (!region->runtime->text_cursor_overlay) {
     region->runtime->text_cursor_overlay = bke::TextCursorOverlay{
-        rctf{}, nullptr, BLI_time_now_seconds()};
+        .last_active_time = BLI_time_now_seconds(),
+    };
     region->runtime->text_cursor_overlay->timer = WM_event_timer_add(
         CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.6);
   }

@@ -1165,6 +1165,22 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 #if 0
   GPU_clear_color(0, 0, 0, 0);
 #endif
+  /* Multiple popups can be shown at the same time, and all they can have a text input active,
+   * select the last added one as active. */
+  ARegion *active_region = nullptr;
+  for (ARegion &region : screen->regionbase.items_reversed()) {
+    if (region.runtime->is_search_menu) {
+      /* Search menu buttons shows their content in a sub-region, select the button region as
+       * active region instead, which can be the previous popup region or the active region in the
+       * screen. */
+      continue;
+    }
+    active_region = &region;
+    break;
+  }
+  if (!active_region) {
+    active_region = screen->active_region;
+  }
 
   /* Blit non-overlapping area regions. */
   ED_screen_areas_iter (win, screen, area) {
@@ -1216,8 +1232,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
       if (region.overlap) {
         wm_draw_region_blend(&region, 0, true);
       }
-      wm_region_draw_cursor_overlay(
-          C, region, screen->regionbase.is_empty() && screen->active_region == &region);
+      wm_region_draw_cursor_overlay(C, region, active_region == &region);
     }
   }
 
@@ -1237,7 +1252,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
       continue;
     }
     wm_draw_region_blend(&region, 0, true);
-    wm_region_draw_cursor_overlay(C, region, true);
+    wm_region_draw_cursor_overlay(C, region, active_region == &region);
   }
 
   /* Always draw, not only when screen tagged. */
