@@ -120,9 +120,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const VolumeGridType grid_type = *bke::socket_type_to_grid_type(data_type);
+  const std::optional<VolumeGridType> grid_type = bke::socket_type_to_grid_type(data_type);
+  if (grid_type) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
   BKE_volume_grid_type_to_static_type(
-      grid_type, [&]<std::derived_from<openvdb::GridBase> GridType>() {
+      *grid_type, [&]<std::derived_from<openvdb::GridBase> GridType>() {
         if constexpr (std::is_same_v<GridType, openvdb::BoolGrid> ||
                       std::is_same_v<GridType, openvdb::FloatGrid> ||
                       std::is_same_v<GridType, openvdb::Int32Grid> ||
