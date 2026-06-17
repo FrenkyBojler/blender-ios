@@ -45,7 +45,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous()
       .propagate_references({1});
 
-  b.add_input<decl::Bool>("Selection"_ustr).hide_value().structure_type(StructureType::Field);
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .structure_type(StructureType::Field);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
