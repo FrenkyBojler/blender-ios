@@ -139,8 +139,8 @@ BLI_NOINLINE static void process_leaf_node(const fn::Field<bool> &selection_fiel
   bke::VoxelFieldContext field_context{transform, voxels};
   fn::FieldEvaluator evaluator{field_context, &index_mask};
 
-  MutableSpan<bool> selection;
-  selection = scope.allocator().allocate_array<bool>(index_mask.min_array_size());
+  MutableSpan<bool> selection = scope.allocator().allocate_array<bool>(
+      index_mask.min_array_size());
   evaluator.add_with_destination(selection_field, selection);
 
   evaluator.evaluate();
