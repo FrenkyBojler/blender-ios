@@ -22,9 +22,9 @@ namespace blender::geometry {
 namespace grid_sampling {
 
 template<int N, class AccessorT>
-bool probe_values(const AccessorT &accessor,
-                  const openvdb::CoordBBox &index_box,
-                  typename AccessorT::ValueType (&data)[N][N][N])
+inline bool probe_values(const AccessorT &accessor,
+                         const openvdb::CoordBBox &index_box,
+                         typename AccessorT::ValueType (&data)[N][N][N])
 {
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
   bool active = false;
@@ -43,9 +43,9 @@ bool probe_values(const AccessorT &accessor,
 }
 
 template<int N, class AccessorT>
-void get_values(const AccessorT &accessor,
-                const openvdb::CoordBBox &index_box,
-                typename AccessorT::ValueType (&data)[N][N][N])
+inline void get_values(const AccessorT &accessor,
+                       const openvdb::CoordBBox &index_box,
+                       typename AccessorT::ValueType (&data)[N][N][N])
 {
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
   for (int dx : IndexRange(N)) {
@@ -59,10 +59,10 @@ void get_values(const AccessorT &accessor,
 
 /* Interpolate values in 3D using a function that combines a 1-dimensional array. */
 template<typename ValueT, int N, typename KernelFn>
-void interpolate_value_3d(ValueT (&data)[N][N][N],
-                          const openvdb::Vec3R &uvw,
-                          KernelFn kernel_fn,
-                          ValueT &result)
+inline void interpolate_value_3d(ValueT (&data)[N][N][N],
+                                 const openvdb::Vec3R &uvw,
+                                 KernelFn kernel_fn,
+                                 ValueT &result)
 {
   ValueT vx[N];
   for (int dx : IndexRange(N)) {
@@ -77,9 +77,9 @@ void interpolate_value_3d(ValueT (&data)[N][N][N],
 }
 
 template<typename Kernel, class AccessorT>
-bool sample_tree(const AccessorT &accessor,
-                 const openvdb::Vec3R &coord,
-                 typename AccessorT::ValueType &result)
+inline bool sample_tree(const AccessorT &accessor,
+                        const openvdb::Vec3R &coord,
+                        typename AccessorT::ValueType &result)
 {
   using ValueT = typename AccessorT::ValueType;
 
@@ -101,7 +101,8 @@ bool sample_tree(const AccessorT &accessor,
 }
 
 template<typename Kernel, class AccessorT>
-typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openvdb::Vec3R &coord)
+inline typename AccessorT::ValueType sample_tree(const AccessorT &accessor,
+                                                 const openvdb::Vec3R &coord)
 {
   using ValueT = typename AccessorT::ValueType;
 
