@@ -1,2 +1,3 @@
 Referenced by issue #159914, Creating Text or Filled curves instantly crashes Blender 5.2 LTS Beta Commit 27e49f9936dd
 Referenced by pull request #159841, [5.2]: Various fixes (crashes)
+Referenced by commit b23a9d8c3974736a8dac14b43b64c75c7503a530, Fix: "frame all/selected" channels in the graph editor
