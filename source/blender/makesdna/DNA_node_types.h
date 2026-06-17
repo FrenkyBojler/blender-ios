@@ -3815,8 +3815,8 @@ typedef struct NodeGeometryRasterizePointsItem {
 } NodeGeometryRasterizePointsItem;
 
 typedef enum NodeGeometryRasterizePointsItemType {
-  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR,
-  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR,
+  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR = 0,
+  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR = 1,
 } NodeGeometryRasterizePointsItemType;
 
 typedef enum NodeGeometryRasterizePointsItemFlag {
