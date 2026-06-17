@@ -67,18 +67,17 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           if (space.spacetype == SPACE_OUTLINER) {
             SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&space);
             if (space_outliner->flag & SO_FLAG_UNUSED_4) {
+              for (Collection &collection : bmain->collections) {
+                int i = 0;
+                for (CollectionObject &cob : collection.gobject) {
+                  cob.sort_index = i++;
+                }
+              }
               space_outliner->sort_method = SO_SORT_CUSTOM;
               space_outliner->flag &= ~SO_FLAG_UNUSED_4;
             }
           }
         }
-      }
-    }
-
-    for (Collection &collection : bmain->collections) {
-      int i = 0;
-      for (CollectionObject &cob : collection.gobject) {
-        cob.sort_index = i++;
       }
     }
   }
