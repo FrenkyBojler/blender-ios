@@ -1583,7 +1583,7 @@ static void draw_strip_texts(const TimelineDrawContext &ctx,
                                  BLF_CLIPPING | BLF_SHADOW;
 
     const int font = seq::text_effect_font_get(*data);
-    float font_size = std::min(data->text_size, std::min(content_height_px * 0.5f, 40.0f));
+    float font_size = std::min(data->text_size, content_height_px * 0.5f);
     const float lightness = srgb_to_grayscale(data->color);
     const bool outline_is_dark = lightness > 0.37f;
     float outline_dark_color[4] = {0, 0, 0, 0.8f * data->color[3]};
@@ -1603,7 +1603,7 @@ static void draw_strip_texts(const TimelineDrawContext &ctx,
     const float y1 = batch.pos_to_pixel_space_y(strip.bottom) + margin;
     const float y2 = batch.pos_to_pixel_space_y(strip.strip_content_top) - margin;
 
-    BLF_clipping(font, x1, y1, x2, y2);
+    BLF_clipping(font, int(x1), int(y1), int(x2), int(y2));
     BLF_position(font, x1 + margin, (y1 + y2) * 0.5f - font_size * 0.25f, 0.0f);
     BLF_draw(font, data->text_ptr, data->text_len_bytes);
 

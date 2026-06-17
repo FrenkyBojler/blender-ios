@@ -8,6 +8,7 @@
 
 #include "BLI_map.hh"
 #include "BLI_math_base_c.hh"
+#include "BLI_math_bits.hh"
 #include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
@@ -243,9 +244,6 @@ static ThumbnailCache::SourceKey get_key_from_strip(Scene *scene,
     case STRIP_TYPE_MASK:
       BLI_assert(strip->mask);
       return ThumbnailCache::SourceKey(&strip->mask->id);
-    case STRIP_TYPE_SCENE:
-      BLI_assert(strip->scene);
-      return ThumbnailCache::SourceKey(&strip->scene->id);
     default:
       break;
   }
@@ -516,8 +514,14 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
               get_id_copy(job->cache_, request, cur_id_copy, cur_id_uid));
           if (clip != nullptr) {
             MovieClipUser clip_user = {};
-            //@TODO: clip_user.render_size to pick smaller proxy size?
             BKE_movieclip_user_set_frame(&clip_user, request.frame_index + clip->start_frame);
+            const short build_sizes = clip->proxy.build_size_flag & 0x0F;
+            if ((clip->flag & MCLIP_USE_PROXY) && build_sizes != 0) {
+              /* Find the lowest proxy resolution available, or fall back to full. */
+              clip_user.render_size = eMovieClipProxy_RenderSize(bitscan_forward_i(build_sizes) +
+                                                                 1);
+              clip_user.render_flag = MCLIP_PROXY_RENDER_USE_FALLBACK_RENDER;
+            }
             thumb = BKE_movieclip_get_ibuf_flag(
                 clip, &clip_user, MovieClipFlag(clip->flag), MovieClipCacheFlag::SkipCache);
             if (thumb != nullptr) {
@@ -725,9 +729,6 @@ void thumbnail_cache_invalidate_strip(Scene *scene, const Strip *strip)
     }
     else if (strip->type == STRIP_TYPE_MASK && strip->mask) {
       cache->remove_entry(ThumbnailCache::SourceKey(&strip->mask->id));
-    }
-    else if (strip->type == STRIP_TYPE_SCENE && strip->scene) {
-      cache->remove_entry(ThumbnailCache::SourceKey(&strip->scene->id));
     }
   }
 }
