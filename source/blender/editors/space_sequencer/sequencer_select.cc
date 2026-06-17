@@ -302,26 +302,6 @@ rctf strip_bounds_get(const Scene *scene, const Strip *strip)
   return bounds;
 }
 
-static float strip_header_size_get(const View2D *v2d)
-{
-  float pixely = BLI_rctf_size_y(&v2d->cur) / (BLI_rcti_size_y(&v2d->mask) + 1);
-  return min_ff(0.40f, 20 * UI_SCALE_FAC * pixely);
-}
-
-// TODO: replace all uses of the first one with this
-rctf strip_bounds_get2(const View2D *v2d, const Scene *scene, const Strip *strip)
-{
-  rctf bounds;
-  bounds.xmin = strip->left_handle();
-  bounds.xmax = strip->right_handle(scene);
-  bounds.ymin = strip->channel + STRIP_OFSBOTTOM;
-  bounds.ymax = strip->channel + STRIP_OFSTOP;
-  if (strip->input2 != nullptr) {
-    bounds.ymax = bounds.ymax - strip_header_size_get(v2d);
-  }
-  return bounds;
-}
-
 Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel)
 {
   /* sel: 0==unselected, 1==selected, -1==don't care. */
@@ -1024,7 +1004,7 @@ static void strip_clickable_areas_get(const Scene *scene,
                                       rctf *r_left_handle,
                                       rctf *r_right_handle)
 {
-  *r_body = strip_bounds_get2(v2d, scene, strip);
+  *r_body = strip_bounds_get(scene, strip);
   *r_left_handle = *r_body;
   *r_right_handle = *r_body;
 

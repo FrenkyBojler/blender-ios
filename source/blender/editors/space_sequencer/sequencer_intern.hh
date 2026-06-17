@@ -429,6 +429,10 @@ IndexRange strip_text_selection_range_get(const TextVars *data);
 /* `sequencer_timeline_draw.cc` */
 Vector<Strip *> sequencer_visible_strips_get(const bContext *C);
 Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v2d);
+rctf strip_bounds_get2(const SpaceSeq *sseq,
+                       const View2D *v2d,
+                       const Scene *scene,
+                       const Strip *strip);
 
 /* `sequencer_clipboard.cc` */
 wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);

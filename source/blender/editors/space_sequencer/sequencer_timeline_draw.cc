@@ -165,16 +165,61 @@ static void strip_draw_context_set_text_overlay_visibility(const TimelineDrawCon
                                                            StripDrawContext &strip_ctx)
 {
   float threshold = 8 * UI_SCALE_FAC;
-  if (strip_hides_text_overlay_first(ctx, strip_ctx)) {
+  if (strip_ctx.strip->input2 != nullptr) {
+    threshold = 40 * UI_SCALE_FAC;
+  }
+  else if (strip_hides_text_overlay_first(ctx, strip_ctx)) {
     threshold = 20 * UI_SCALE_FAC;
   }
 
   const bool overlays_enabled = (ctx.sseq->timeline_overlay.flag &
                                  (SEQ_TIMELINE_SHOW_STRIP_NAME | SEQ_TIMELINE_SHOW_STRIP_SOURCE |
-                                  SEQ_TIMELINE_SHOW_STRIP_DURATION)) != 0;
+                                  SEQ_TIMELINE_SHOW_STRIP_DURATION)) != 0 &&
+                                (ctx.sseq->flag & SEQ_SHOW_OVERLAY) != 0;
 
   strip_ctx.can_draw_text_overlay = (strip_ctx.top - strip_ctx.bottom) / ctx.pixely >= threshold;
   strip_ctx.can_draw_text_overlay &= overlays_enabled;
+}
+
+static float strip_header_size_get(float pixely)
+{
+  return min_ff(0.40f, 20 * UI_SCALE_FAC * pixely);
+}
+
+static bool strip_header_poll(const SpaceSeq *sseq, float pixely, float strip_height)
+{
+  const float threshold = 20 * UI_SCALE_FAC;
+
+  const bool has_space = ((strip_height) / pixely) > threshold;
+  const bool overlays_enabled = (sseq->timeline_overlay.flag &
+                                 (SEQ_TIMELINE_SHOW_STRIP_NAME | SEQ_TIMELINE_SHOW_STRIP_SOURCE |
+                                  SEQ_TIMELINE_SHOW_STRIP_DURATION)) != 0 &&
+                                (sseq->flag & SEQ_SHOW_OVERLAY) != 0;
+
+  return has_space && overlays_enabled;
+}
+
+rctf strip_bounds_get2(const SpaceSeq *sseq,
+                       const View2D *v2d,
+                       const Scene *scene,
+                       const Strip *strip)
+{
+  rctf bounds;
+  bounds.xmin = strip->left_handle();
+  bounds.xmax = strip->right_handle(scene);
+  bounds.ymin = strip->channel + STRIP_OFSBOTTOM;
+  bounds.ymax = strip->channel + STRIP_OFSTOP;
+
+  float pixely = BLI_rctf_size_y(&v2d->cur) / (BLI_rcti_size_y(&v2d->mask) + 1);
+  if (strip->input2 != nullptr) {
+    if (strip_header_poll(sseq, pixely, bounds.ymax - bounds.ymin)) {
+      bounds.ymax -= strip_header_size_get(pixely);
+    }
+    /* Draw transitions fully inside strips. */
+    bounds.ymax -= pixely;
+    bounds.ymin += pixely;
+  }
+  return bounds;
 }
 
 static void strip_draw_context_set_strip_content_visibility(const TimelineDrawContext &ctx,
@@ -198,11 +243,6 @@ static void strip_draw_context_set_retiming_overlay_visibility(const TimelineDra
   strip_ctx.can_draw_retiming_overlay &= retiming_overlay_enabled(ctx.sseq);
 }
 
-static float strip_header_size_get(const TimelineDrawContext &ctx)
-{
-  return min_ff(0.40f, 20 * UI_SCALE_FAC * ctx.pixely);
-}
-
 static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, Strip *strip)
 {
   using namespace seq;
@@ -210,19 +250,14 @@ static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, S
   Scene *scene = ctx.scene;
 
   strip_ctx.strip = strip;
-  strip_ctx.bottom = strip->channel + STRIP_OFSBOTTOM;
-  strip_ctx.top = strip->channel + STRIP_OFSTOP;
-  strip_ctx.left_handle = strip->left_handle();
-  strip_ctx.right_handle = strip->right_handle(scene);
+  rctf bounds = strip_bounds_get2(ctx.sseq, ctx.v2d, scene, strip);
+
+  strip_ctx.bottom = bounds.ymin;
+  strip_ctx.top = bounds.ymax;
+  strip_ctx.left_handle = bounds.xmin;
+  strip_ctx.right_handle = bounds.xmax;
   strip_ctx.content_start = strip->content_start();
   strip_ctx.content_end = strip->content_end(scene);
-
-  // TODO: Make an actual function for the strip dimensions that respects the header toggle and
-  // would also be used for the selection bounds
-  if (strip->input2 != nullptr) {
-    strip_ctx.top -= strip_header_size_get(ctx) + ctx.pixely;
-    strip_ctx.bottom += ctx.pixely;
-  }
 
   if (strip->type == STRIP_TYPE_SOUND && strip->sound != nullptr) {
     /* Visualize sub-frame sound offsets. */
@@ -267,7 +302,7 @@ static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, S
   }
 
   if (strip_ctx.can_draw_text_overlay) {
-    strip_ctx.strip_content_top = strip_ctx.top - strip_header_size_get(ctx);
+    strip_ctx.strip_content_top = strip_ctx.top - strip_header_size_get(ctx.pixely);
   }
   else {
     strip_ctx.strip_content_top = strip_ctx.top;
@@ -970,7 +1005,7 @@ static void draw_strip_icons(const TimelineDrawContext &ctx,
       const float icon_indent = 2.0f * strip.handle_width - 4 * ctx.pixelx * UI_SCALE_FAC;
       const float icon_spacing = 3.0f * ctx.pixelx * UI_SCALE_FAC;
       rctf rect;
-      rect.ymin = strip.top - strip_header_size_get(ctx);
+      rect.ymin = strip.top - strip_header_size_get(ctx.pixely);
       rect.ymax = strip.top;
       rect.xmin = max_ff(strip.left_handle, ctx.v2d->cur.xmin) + icon_indent;
       if (missing_data) {
@@ -1020,9 +1055,6 @@ static void draw_strip_icons(const TimelineDrawContext &ctx,
 static void draw_seq_text_overlay(const TimelineDrawContext &ctx,
                                   const StripDrawContext &strip_ctx)
 {
-  if ((ctx.sseq->flag & SEQ_SHOW_OVERLAY) == 0) {
-    return;
-  }
   /* Draw text only if there is enough horizontal or vertical space. */
   if ((strip_ctx.strip_length <= 32 * ctx.pixelx * UI_SCALE_FAC) || strip_ctx.strip_is_too_small ||
       !strip_ctx.can_draw_text_overlay)
