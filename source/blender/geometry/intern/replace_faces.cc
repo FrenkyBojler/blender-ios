@@ -12,16 +12,20 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BLI_array_utils.hh"
+#include "BLI_atomic_disjoint_set.hh"
 #include "BLI_execution_mode.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdtree.hh"
 #include "BLI_kdtree_types.hh"
+#include "BLI_math_geom.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_span.hh"
 #include "BLI_task.hh"
 #include "FN_field_evaluation.hh"
+#include "GEO_mesh_copy_selection.hh"
 #include "GEO_mesh_replace_faces.hh"
 #include "GEO_mesh_selection.hh"
 
@@ -77,9 +81,11 @@ Mesh *replace_faces(const Mesh &base,
                     const Span<const Mesh *> meshes)
 {
   const Span<float3> base_positions = base.vert_positions();
+  const Span<int2> base_edges = base.edges();
   const OffsetIndices<int> base_faces = base.faces();
   const Span<int> base_corner_verts = base.corner_verts();
   const Span<int> base_corner_edges = base.corner_edges();
+  const Span<float3> base_face_normals = base.face_normals();
   const Span<float3> base_corner_normals = base.corner_normals();
   const bke::MeshFieldContext field_context(base, bke::AttrDomain::Face);
   fn::FieldEvaluator field_evaluator(field_context, base.faces_num);
@@ -92,21 +98,25 @@ Mesh *replace_faces(const Mesh &base,
   const VArraySpan<float> heights = field_evaluator.get_evaluated<float>(1);
   IndexMaskMemory memory;
   selection = array_utils::indices_in_range(selection, indices, meshes.index_range(), memory);
-  const IndexMask unselected = selection.complement(IndexMask(base.faces_num), memory);
+  const IndexMask unselected_faces = selection.complement(IndexMask(base.faces_num), memory);
 
   Array<int> mesh_vert_nums(meshes.size());
   Array<int> mesh_face_nums(meshes.size());
+  Array<int> mesh_edge_nums(meshes.size());
   Array<int> mesh_corner_nums(meshes.size());
   Array<Span<float3>> mesh_positions(meshes.size());
   Array<OffsetIndices<int>> mesh_faces(meshes.size());
   Array<Span<int>> mesh_corner_verts(meshes.size());
+  Array<Span<int>> mesh_corner_edges(meshes.size());
   for (const int i : meshes.index_range()) {
     mesh_vert_nums[i] = meshes[i]->verts_num;
+    mesh_edge_nums[i] = meshes[i]->edges_num;
     mesh_face_nums[i] = meshes[i]->faces_num;
     mesh_corner_nums[i] = meshes[i]->corners_num;
     mesh_positions[i] = meshes[i]->vert_positions();
     mesh_faces[i] = meshes[i]->faces();
     mesh_corner_verts[i] = meshes[i]->corner_verts();
+    mesh_corner_edges[i] = meshes[i]->corner_edges();
   }
 
   Array<IndexMask> mesh_boundary_verts(meshes.size());
@@ -116,7 +126,7 @@ Mesh *replace_faces(const Mesh &base,
   Array<int> verts_num_per_face(base_faces.size() + 1);
   array_utils::gather<int>(
       mesh_vert_nums, indices, selection, verts_num_per_face.as_mutable_span().drop_back(1));
-  index_mask::masked_fill<int>(verts_num_per_face, 0, unselected);
+  index_mask::masked_fill<int>(verts_num_per_face, 0, unselected_faces);
   const std::optional<OffsetIndices<int>> face_vert_offsets_opt =
       offset_indices::accumulate_counts_to_offsets_with_overflow_check(verts_num_per_face);
   if (!face_vert_offsets_opt) {
@@ -124,40 +134,54 @@ Mesh *replace_faces(const Mesh &base,
   }
   const OffsetIndices<int> face_vert_offsets = *face_vert_offsets_opt;
 
+  Array<int> edges_num_per_face(base_faces.size() + 1);
+  array_utils::gather<int>(
+      mesh_edge_nums, indices, selection, edges_num_per_face.as_mutable_span().drop_back(1));
+  index_mask::masked_fill<int>(edges_num_per_face, 0, unselected_faces);
+  const std::optional<OffsetIndices<int>> face_edge_offsets_opt =
+      offset_indices::accumulate_counts_to_offsets_with_overflow_check(edges_num_per_face);
+  if (!face_edge_offsets_opt) {
+    return BKE_mesh_copy_for_eval(base);
+  }
+  const OffsetIndices<int> face_edge_offsets = *face_edge_offsets_opt;
+
   Array<int> faces_num_per_face(base_faces.size() + 1);
   array_utils::gather<int>(
       mesh_face_nums, indices, selection, faces_num_per_face.as_mutable_span().drop_back(1));
-  index_mask::masked_fill<int>(faces_num_per_face, 0, unselected);
+  index_mask::masked_fill<int>(faces_num_per_face, 0, unselected_faces);
   const OffsetIndices<int> face_face_offsets = offset_indices::accumulate_counts_to_offsets(
       faces_num_per_face);
 
   Array<int> corners_num_per_face(base_faces.size() + 1);
   array_utils::gather<int>(
       mesh_corner_nums, indices, selection, corners_num_per_face.as_mutable_span().drop_back(1));
-  index_mask::masked_fill<int>(corners_num_per_face, 0, unselected);
+  index_mask::masked_fill<int>(corners_num_per_face, 0, unselected_faces);
   const OffsetIndices<int> face_corner_offsets = offset_indices::accumulate_counts_to_offsets(
       corners_num_per_face);
+  const int new_corners_num = face_corner_offsets.total_size();
 
   const IndexMask unselected_verts = vert_selection_from_face(
-      base_faces, unselected, base_corner_verts, base.verts_num, memory);
+      base_faces, unselected_faces, base_corner_verts, base.verts_num, memory);
 
-  // const IndexMask unselected_verts = base_verts_to_copy.complement(IndexMask(base.verts_num),
-  //                                                                  memory);
+  const IndexMask unselected_edges = edge_selection_from_face(
+      base_faces, unselected_faces, base_corner_edges, base.edges_num, memory);
 
-  const int unselected_corners_num = offset_indices::sum_group_sizes(base_faces, unselected);
+  const int unselected_corners_num = offset_indices::sum_group_sizes(base_faces, unselected_faces);
 
-  // NEW POSITIONS
-  Array<float3> new_positions(face_vert_offsets.total_size());
+  Array<float3> positions(unselected_verts.size() + face_vert_offsets.total_size());
+  array_utils::gather(base_positions,
+                      unselected_verts,
+                      positions.as_mutable_span().take_front(unselected_verts.size()));
   selection.foreach_index(
       [&](const int base_face_i) {
         const IndexRange base_face = base_faces[base_face_i];
         const Span<int> face_verts = base_corner_verts.slice(base_face);
+        const float height = heights[base_face_i];
+        const Span<float3> src_positions = mesh_positions[indices[base_face_i]];
+        MutableSpan<float3> part_positions = positions.as_mutable_span().slice(
+            face_vert_offsets[base_face_i]);
         if (face_verts.size() == 4) {
-          const float height = heights[base_face_i];
-          const Span<float3> src_positions = mesh_positions[indices[base_face_i]];
-          MutableSpan<float3> positions = new_positions.as_mutable_span().slice(
-              face_vert_offsets[base_face_i]);
-          for (const int i : positions.index_range()) {
+          for (const int i : part_positions.index_range()) {
             const float2 xy = src_positions[i].xy();
             const float z = src_positions[i].z;
             const float2 factor = (xy + 1.0f) * 0.5f;
@@ -177,10 +201,15 @@ Mesh *replace_faces(const Mesh &base,
                                                             base_corner_normals[base_face[2]],
                                                             base_corner_normals[base_face[3]]);
             const float3 new_position = new_face_interp + normal * height * z;
-            positions[i] = new_position;
+            part_positions[i] = new_position;
           }
         }
         else {
+          const float3x3 face_to_2d = math::axis_dominant_to_m3(base_face_normals[base_face_i]);
+          for (const int i : part_positions.index_range()) {
+            const float2 xy = src_positions[i].xy();
+            const float z = src_positions[i].z;
+          }
         }
       },
       exec_mode::grain_size(128));
@@ -199,51 +228,98 @@ Mesh *replace_faces(const Mesh &base,
   BitVector<> selection_bits(base_faces.size());
   selection.to_bits(selection_bits);
 
-  Array<bool> new_vert_merged(new_positions.size(), false);
-  Array<int> merged_vert_indices(new_positions.size(), -1);
-  Array<int> verts_num_per_face_merged(base.faces_num + 1);
+  const float threshold = 1e-4f;
+  const float threshold_sq = threshold * threshold;
+
+  Array<int> base_vert_to_unselected(base.verts_num);
+  index_mask::build_reverse_map<int>(unselected_verts, base_vert_to_unselected);
+
+  // TODO: PROTECT AGAINST MERGING VERTICES IN THE SAME PART
+  AtomicDisjointSet disjoint_set(positions.size());
   selection.foreach_index(
       [&](const int base_face_i) {
-        const Span<float3> face_positions = new_positions.as_span().slice(
-            face_vert_offsets[base_face_i]);
+        const IndexRange part_verts = face_vert_offsets[base_face_i];
+        const Span<float3> face_positions = positions.as_span().slice(part_verts);
         const Span<int> neighbor_faces = face_to_face_map[base_face_i];
         for (const int neighbor_face : neighbor_faces) {
           if (selection_bits[neighbor_face]) {
+            const IndexRange neighbor_range = face_vert_offsets[neighbor_face];
+            const Span<float3> neighbor_positions = mesh_positions[indices[neighbor_face]];
+
+            // TODO: REPLACE QUADRATIC LOOP WITH ACCELERATION STRUCTURE
+
+            for (const int i : face_positions.index_range()) {
+              const float3 &position = face_positions[i];
+              const int part_vert = part_verts[i];
+              for (const int neighbor_i : neighbor_positions.index_range()) {
+                const float3 &neighbor_position = neighbor_positions[neighbor_i];
+                if (math::distance_squared(position, neighbor_position) > threshold_sq) {
+                  continue;
+                }
+                const int vert_neighbor = neighbor_range[neighbor_i];
+                disjoint_set.join(part_vert, vert_neighbor);
+              }
+            }
           }
           else {
-            const Span<float3> neighbor_positions = mesh_positions[indices[neighbor_face]];
-            KDTree<float3> *kdtree = kdtree_new<float3>(neighbor_positions.size() +
-                                                        face_positions.size());
-            kdtree_free(kdtree);
+            for (const int i : face_positions.index_range()) {
+              const float3 &position = face_positions[i];
+              const int part_vert = part_verts[i];
+              const Span<int> neighbor_face_verts = base_corner_verts.slice(
+                  base_faces[neighbor_face]);
+              for (const int neighbor_vert : neighbor_face_verts) {
+                const float3 &neighbor_position = base_positions[neighbor_vert];
+                if (math::distance_squared(position, neighbor_position) > threshold_sq) {
+                  continue;
+                }
+                const int vert_base_new = base_vert_to_unselected[neighbor_vert];
+                disjoint_set.join(part_vert, vert_base_new);
+              }
+            }
           }
         }
       },
       exec_mode::grain_size(128));
-  const OffsetIndices<int> face_vert_offsets_merged = offset_indices::accumulate_counts_to_offsets(
-      verts_num_per_face_merged);
 
-  Mesh *result = BKE_mesh_new_nomain(unselected_verts.size() +
-                                         face_vert_offsets_merged.total_size(),
-                                     0,
-                                     unselected.size() + face_face_offsets.total_size(),
+  Array<int> merged_verts(positions.size());
+  const int merged_verts_num = disjoint_set.calc_reduced_ids(merged_verts);
+
+  // TODO: EDGE MERGING
+  Array<int> merged_edges(positions.size());
+  const int merged_edges_num = 0;
+
+  Mesh *result = BKE_mesh_new_nomain(unselected_verts.size() + merged_verts_num,
+                                     unselected_edges.size() + merged_edges_num,
+                                     unselected_faces.size() + face_face_offsets.total_size(),
                                      unselected_corners_num + face_corner_offsets.total_size());
 
   MutableSpan<float3> result_positions = result->vert_positions_for_write();
   array_utils::gather(
       base_positions, unselected_verts, result_positions.take_front(unselected_verts.size()));
-  array_utils::copy(new_positions.as_span(),
-                    result_positions.take_back(face_vert_offsets_merged.total_size()));
+  // TODO: AVERAGE POSITIONS
+  array_utils::gather(
+      positions.as_span(), merged_verts.as_span(), result_positions.take_back(merged_verts_num));
+
+  // TODO: EDGES
+  MutableSpan<int2> result_edges = result->edges_for_write();
+  unselected_edges.foreach_index(
+      [&](const int64_t src_i, const int64_t dst_i) {
+        result_edges[dst_i][0] = base_vert_to_unselected[base_edges[src_i][0]];
+        result_edges[dst_i][1] = base_vert_to_unselected[base_edges[src_i][1]];
+      },
+      exec_mode::grain_size(512));
 
   MutableSpan<int> result_face_offsets = result->face_offsets_for_write();
-  if (!unselected.is_empty()) {
+  if (!unselected_faces.is_empty()) {
     offset_indices::gather_selected_offsets(
-        base_faces, unselected, result_face_offsets.take_front(unselected.size() + 1));
+        base_faces, unselected_faces, result_face_offsets.take_front(unselected_faces.size() + 1));
   }
 
   selection.foreach_index(
       [&](const int base_face_i) {
         const OffsetIndices<int> faces = mesh_faces[indices[base_face_i]];
-        const IndexRange face_range = face_face_offsets[base_face_i].shift(unselected.size());
+        const IndexRange face_range = face_face_offsets[base_face_i].shift(
+            unselected_faces.size());
         const int offset = unselected_corners_num + face_corner_offsets[base_face_i].start();
         offset_indices::gather_selected_offsets(
             faces,
@@ -254,46 +330,97 @@ Mesh *replace_faces(const Mesh &base,
       exec_mode::grain_size(128));
   const OffsetIndices<int> result_faces = result->faces();
 
-  Array<int> base_vert_to_selected_vert(base.verts_num);
-  index_mask::build_reverse_map<int>(unselected_verts, base_vert_to_selected_vert);
   MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
-  result_corner_verts.fill(-1);
-  unselected.foreach_index(
+
+  MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
+  // TODO: DEDUPLICATE WITH MESH COPY SELECTED / DELETE GEOMETRY CODE
+  unselected_faces.foreach_index(
       [&](const int64_t src_i, const int64_t dst_i) {
-        const IndexRange src_face = base_faces[src_i];
-        const IndexRange dst_face = result_faces[dst_i];
-        for (const int i : src_face.index_range()) {
-          result_corner_verts[dst_face[i]] =
-              base_vert_to_selected_vert[base_corner_verts[src_face[i]]];
-        }
+        array_utils::gather(base_vert_to_unselected.as_span(),
+                            base_corner_verts.slice(base_faces[src_i]),
+                            result_corner_verts.slice(result_faces[dst_i]),
+                            exec_mode::serial);
       },
       exec_mode::grain_size(512));
 
-  MutableSpan<int> new_corner_verts = result_corner_verts.take_back(
-      face_vert_offsets_merged.total_size());
+  MutableSpan<int> new_corner_verts = result_corner_verts.take_back(new_corners_num);
   selection.foreach_index(
       [&](const int base_face_i) {
-        const IndexRange new_vert_range = face_corner_offsets[base_face_i];
-        const Span<bool> is_merged = new_vert_merged.as_span().slice(new_vert_range);
-        const Span<int> merge_index = merged_vert_indices.as_span().slice(new_vert_range);
-        const Span<int> corner_verts = mesh_corner_verts[indices[base_face_i]];
-        const int vert_offset = unselected_verts.size() +
-                                face_vert_offsets_merged[base_face_i].start();
-        MutableSpan<int> dst_corner_verts = new_corner_verts.slice(
-            face_corner_offsets[base_face_i]);
-        for (const int i : corner_verts.index_range()) {
-          const int src_vert = corner_verts[i];
-          if (is_merged[src_vert]) {
-            dst_corner_verts[i] = merge_index[i];
-          }
-          else {
-            dst_corner_verts[i] = vert_offset + corner_verts[i];
-          }
-        }
+        array_utils::gather(merged_verts.as_span().slice(face_vert_offsets[base_face_i]),
+                            mesh_corner_verts[indices[base_face_i]],
+                            new_corner_verts.slice(face_corner_offsets[base_face_i]));
       },
-      exec_mode::grain_size(128));
+      exec_mode::grain_size(512));
 
-  bke::mesh_calc_edges(*result, false, false);
+  // TODO: ONLY IF THE SELECTION ISN'T FULL
+  Array<int> base_edge_to_unselected(base.edges_num);
+  index_mask::build_reverse_map<int>(unselected_edges, base_edge_to_unselected);
+
+  MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
+  unselected_faces.foreach_index(
+      [&](const int64_t src_i, const int64_t dst_i) {
+        array_utils::gather(base_edge_to_unselected.as_span(),
+                            base_corner_edges.slice(base_faces[src_i]),
+                            result_corner_edges.slice(result_faces[dst_i]),
+                            exec_mode::serial);
+      },
+      exec_mode::grain_size(512));
+
+  MutableSpan<int> new_corner_edges = result_corner_edges.take_back(new_corners_num);
+  selection.foreach_index(
+      [&](const int base_face_i) {
+        array_utils::gather(merged_edges.as_span().slice(face_edge_offsets[base_face_i]),
+                            mesh_corner_edges[indices[base_face_i]],
+                            new_corner_edges.slice(face_corner_offsets[base_face_i]));
+      },
+      exec_mode::grain_size(512));
+
+  bke::MutableAttributeAccessor result_attributes = result->attributes_for_write();
+  base.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
+      return;
+    }
+    const bool any_part_has_attribute = false;
+    if (any_part_has_attribute) {
+    }
+    else {
+      const GVArray src_attr = *iter.get();
+      const CommonVArrayInfo info = src_attr.common_info();
+      if (info.type == CommonVArrayInfo::Type::Single) {
+        const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+        if (result_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+          return;
+        }
+      }
+      const GVArraySpan src_span = src_attr;
+      switch (iter.domain) {
+        case bke::AttrDomain::Point: {
+          break;
+        }
+        case bke::AttrDomain::Edge: {
+          break;
+        }
+        case bke::AttrDomain::Face: {
+          bke::GSpanAttributeWriter dst_attr = result_attributes.lookup_or_add_for_write_only_span(
+              iter.name, iter.domain, iter.data_type);
+          array_utils::gather(src_attr, unselected_faces, dst_attr.span);
+          bke::attribute_math::gather_to_groups(
+              face_face_offsets,
+              selection,
+              src_span,
+              dst_attr.span.take_back(face_face_offsets.total_size()));
+          dst_attr.finish();
+          break;
+        }
+        case bke::AttrDomain::Corner: {
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+  });
 
   // Build the position of every single vertex on the new face meshes. For quads, it might be best
   // to do this with a transform per face. The transform should move 0,0,0 to the first corner of
