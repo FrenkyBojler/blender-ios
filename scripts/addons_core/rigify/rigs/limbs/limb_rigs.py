@@ -237,7 +237,7 @@ class BaseLimbRig(BaseRig):
         panel = self.script.panel_with_selected_check(self, [ctrl.master, *ctrl.fk])
 
         self.make_property(self.prop_bone, 'FK_limb_follow', default=0.0)
-        panel.custom_prop(self.prop_bone, 'FK_limb_follow', text='FK Limb Follow', slider=True)
+        panel.custom_prop(self.prop_bone, 'FK_limb_follow', text='FK Limb Isolation', slider=True)
 
     @stage.rig_bones
     def rig_mch_follow_bone(self):
