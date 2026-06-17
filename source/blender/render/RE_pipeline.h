@@ -96,7 +96,7 @@ struct RenderLayer {
 
   /** copy of RenderData */
   char name[RE_MAXNAME];
-  int layflag, passflag, pass_xor;
+  int layflag, passflag, pass_xor, denoising_pass_flags;
 
   int rectx, recty;
 
