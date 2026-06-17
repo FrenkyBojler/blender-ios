@@ -117,7 +117,6 @@ def test_shader_node_add():
     yield
 
     mat = bpy.data.materials.new("TestMat")
-    mat.use_nodes = True
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     a.spaces.active.tree_type = 'ShaderNodeTree'
@@ -182,7 +181,6 @@ def test_node_swap_search():
     yield
 
     mat = bpy.data.materials.new("TestSwapMat")
-    mat.use_nodes = True
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     a.spaces.active.tree_type = 'ShaderNodeTree'
