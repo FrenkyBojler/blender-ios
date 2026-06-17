@@ -6,7 +6,6 @@
  * \ingroup edanimation
  */
 
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation_c.hh"
 #include "BLI_string.hh"

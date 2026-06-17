@@ -6,6 +6,7 @@ import os
 import bpy
 import pathlib
 import tempfile
+import mathutils
 
 import unittest
 import sys
@@ -15,11 +16,7 @@ TEST_FILE = "world_space_copy_paste.blend"
 COPYBUFFER_NAME = "world_space_buffer.blend"
 
 
-class WorldSpaceCopyTest(unittest.TestCase):
-    """
-    Test that copying creates the expected temp faile and confirming
-    that temp file contains the correct data.
-    """
+class AbstractCopyPasteTest(unittest.TestCase):
 
     def setUp(self) -> None:
         bpy.ops.wm.open_mainfile(filepath=str(args.testdir / TEST_FILE))
@@ -30,6 +27,13 @@ class WorldSpaceCopyTest(unittest.TestCase):
         # system temporary directory.
         bpy.context.preferences.filepaths.temporary_directory = ""
         self._copybuffer_path = pathlib.Path(tempfile.gettempdir()) / COPYBUFFER_NAME
+
+
+class WorldSpaceCopyTest(AbstractCopyPasteTest):
+    """
+    Test that copying creates the expected temp file and confirming
+    that temp file contains the correct data.
+    """
 
     def tearDown(self) -> None:
         if self._copybuffer_path.exists():
@@ -46,6 +50,7 @@ class WorldSpaceCopyTest(unittest.TestCase):
         self.assertFalse(self._copybuffer_path.exists())
 
     def _test_for_single_entity_in_buffer(self, entity_name):
+        # Asserts that there are only FCurves with matching rna paths in the buffer.
         bpy.ops.wm.open_mainfile(filepath=self._copybuffer_path.as_posix())
         self.assertEqual(len(bpy.data.actions), 1)
         buffer_action = bpy.data.actions[0]
@@ -98,6 +103,78 @@ class WorldSpaceCopyTest(unittest.TestCase):
             self.assertEqual(len(fcurve.sampled_points), 10)
             # All the FCurves will be flat.
             self.assertEqual(fcurve.sampled_points[0].co.y, fcurve.sampled_points[-1].co.y)
+
+
+class WorldSpacePasteTest(AbstractCopyPasteTest):
+
+    def _assert_almost_equal_matrix(self, a: mathutils.Matrix, b: mathutils.Matrix):
+        equal = True
+        for j in range(4):
+            for i in range(4):
+                if abs(a.row[i][j] - b.row[i][j]) > 0.001:
+                    equal = False
+                    break
+        if not equal:
+            raise AssertionError(f"Matrices don't match\n{a}\n{b}")
+
+    def _assert_bones_equal_world_space(
+            self,
+            arm_a: bpy.types.Object,
+            bone_a: bpy.types.PoseBone,
+            arm_b: bpy.types.Object,
+            bone_b: bpy.types.PoseBone) -> None:
+        for frame in range(0, 10):
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_matrix(arm_a.matrix_world @ bone_a.matrix, arm_b.matrix_world @ bone_b.matrix)
+
+    def _assert_objects_equal_world_space(self, obj_a: bpy.types.Object, obj_b: bpy.types.Object) -> None:
+        for frame in range(0, 10):
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_matrix(obj_a.matrix_world, obj_b.matrix_world)
+
+    def test_paste_to_different_object(self) -> None:
+        """Tests that pasting to a differently named object works in the simple 1:1 case."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
+        copy_obj.select_set(True)
+        paste_obj.select_set(False)
+
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+        self.assertTrue(self._copybuffer_path.exists())
+
+        copy_obj.select_set(False)
+        paste_obj.select_set(True)
+
+        bpy.ops.anim.world_space_paste()
+
+        self._assert_objects_equal_world_space(copy_obj, paste_obj)
+
+    def test_paste_pose_bone(self) -> None:
+        """Tests that pasting to equally named bones in different armatures works."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
+        paste_obj.select_set(True)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[0]
+        copy_bone.select = True
+        paste_bone.select = False
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+        self.assertTrue(self._copybuffer_path.exists())
+
+        copy_bone.select = False
+        paste_bone.select = True
+        bpy.ops.anim.world_space_paste()
+
+        self._assert_bones_equal_world_space(copy_obj, copy_bone, paste_obj, paste_bone)
+
+    def test_from_object_to_bone(self) -> None:
+        # TODO
+        pass
 
 
 def main():
