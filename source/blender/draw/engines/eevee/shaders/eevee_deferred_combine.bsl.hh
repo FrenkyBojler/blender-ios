@@ -275,8 +275,8 @@ void combine_frag([[resource_table]] Combine &srt,
                               uni.uniform_buf.render_pass.denoising_specular_albedo_id,
                               float4(specular_albedo, 1.0f));
 
-    if (sum_weight >= 1e-5f) {
-      average_roughness *= safe_rcp(sum_weight);
+    if (sum_weight > 0.0f) {
+      average_roughness /= sum_weight;
     }
     render_passes.store_value(
         texel, uni.uniform_buf.render_pass.denoising_roughness_id, average_roughness);
