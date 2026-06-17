@@ -58,6 +58,7 @@ uint4 gpu_attr_decode_uchar4_to_uint4(uint in_data)
   _type(_data[gpu_attr_load_index(_i, _stride_and_offset) + 0], \
         _data[gpu_attr_load_index(_i, _stride_and_offset) + 1])
 
+/* Assumes _data is declared as an array of float. */
 #define gpu_attr_load_float3(_data, _stride_and_offset, _i) \
   gpu_attr_load_triplet(float3, _data, _stride_and_offset, _i)
 #define gpu_attr_load_float2(_data, _stride_and_offset, _i) \
