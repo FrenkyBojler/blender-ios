@@ -1559,8 +1559,37 @@ static void IDP_WriteIDPArray(const IDProperty *prop,
   if (prop->data.pointer) {
     const IDProperty *array = static_cast<const IDProperty *>(prop->data.pointer);
 
-    writer->write_struct_array(prop->len, array);
+    /* Recursion depth limit also needs to be handled here, as IDP arrays are written in a single
+     * call, without going through a call to `idp_blend_write_recurse`. */
+    if (recursion_depth > MAX_IDPROP_DEPTH_LEVEL) {
+      CLOG_ERROR(&LOG,
+                 "Too deep level of IDProperties embedding detected (over %d levels), this is "
+                 "likely caused by a buggy script or add-on. The data in property '%s' will not "
+                 "be written in the blendfile or memfile undo step",
+                 MAX_IDPROP_DEPTH_LEVEL,
+                 prop->name);
+      IDProperty *empty_prop_idparray = IDP_NewIDPArray(prop->name);
+      IDP_ResizeIDPArray(empty_prop_idparray, prop->len);
 
+      IDProperty *empty_array = static_cast<IDProperty *>(empty_prop_idparray->data.pointer);
+      for (int a = 0; a < empty_prop_idparray->len; a++) {
+        empty_array[a].type = IDP_INT;
+        empty_array[a].subtype = 0;
+        IDP_int_set(&empty_array[a], 0);
+        STRNCPY(empty_array[a].name, array[a].name);
+      }
+
+      writer->write_struct_array_at_address(
+          empty_prop_idparray->len, prop->data.pointer, empty_array);
+      for (int a = 0; a < empty_prop_idparray->len; a++) {
+        IDP_WriteProperty_OnlyData(&empty_array[a], writer, recursion_depth + 1);
+      }
+
+      MEM_delete(empty_prop_idparray);
+      return;
+    }
+
+    writer->write_struct_array(prop->len, array);
     for (int a = 0; a < prop->len; a++) {
       IDP_WriteProperty_OnlyData(&array[a], writer, recursion_depth + 1);
     }
@@ -1878,7 +1907,7 @@ static void IDP_DirectLinkProperty(IDProperty *prop,
       /* Unknown IDP type, nuke it (we cannot handle unknown types everywhere in code,
        * IDP are way too polymorphic to do it safely). */
       CLOG_WARN(&LOG,
-                "Found unknown IDProperty type % d, reset to Integer one with null value",
+                "Found unknown IDProperty type %d, reset to Integer one with null value",
                 prop->type);
       /* NOTE: we do not attempt to free unknown prop, we have no way to know how to do that! */
       reset_property(prop);
