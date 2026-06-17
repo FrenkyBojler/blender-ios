@@ -147,7 +147,7 @@ template<> struct VolumeGridTraits<float4x4> {
 
   static openvdb::Mat4s to_openvdb(const float4x4 &value)
   {
-    /* float3x3 accessor returns columns, Mat3s expects values in row-major form. */
+    /* float4x4 accessor returns columns, Mat4s expects values in row-major form. */
     return openvdb::Mat4s(value[0][0],
                           value[1][0],
                           value[2][0],
@@ -171,7 +171,7 @@ template<> struct VolumeGridTraits<float4x4> {
     return float4x4(float4(value(0, 0), value(1, 0), value(2, 0), value(3, 0)),
                     float4(value(0, 1), value(1, 1), value(2, 1), value(3, 1)),
                     float4(value(0, 2), value(1, 2), value(2, 2), value(3, 2)),
-                    float4(value(0, 2), value(1, 2), value(2, 2), value(3, 3)));
+                    float4(value(0, 3), value(1, 3), value(2, 3), value(3, 3)));
   }
 };
 

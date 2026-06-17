@@ -364,15 +364,17 @@ namespace kernel_functions {
 
 inline int kernel_size(const KernelType kernel_type)
 {
+  using namespace geometry::grid_sampling;
+
   switch (kernel_type) {
     case KernelType::Constant:
-      return geometry::grid_sampling::ConstantKernel::size;
+      return std::max(NearestPointKernel::samples_left, NearestPointKernel::samples_right);
     case KernelType::Linear:
-      return geometry::grid_sampling::LinearKernel::size;
+      return std::max(LinearKernel::samples_left, LinearKernel::samples_right);
     case KernelType::QuadraticBSpline:
-      return geometry::grid_sampling::QuadraticBSplineKernel::size;
+      return std::max(QuadraticBSplineKernel::samples_left, QuadraticBSplineKernel::samples_right);
     case KernelType::CubicBSpline:
-      return geometry::grid_sampling::CubicBSplineKernel::size;
+      return std::max(CubicBSplineKernel::samples_left, CubicBSplineKernel::samples_right);
   }
   BLI_assert_unreachable();
   return 0;
@@ -382,7 +384,7 @@ inline float kernel_eval_component(const KernelType kernel_type, const float t)
 {
   switch (kernel_type) {
     case KernelType::Constant:
-      return geometry::grid_sampling::ConstantKernel::weight(t);
+      return geometry::grid_sampling::NearestPointKernel::weight(t);
     case KernelType::Linear:
       return geometry::grid_sampling::LinearKernel::weight(t);
     case KernelType::QuadraticBSpline:
