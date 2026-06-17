@@ -222,7 +222,12 @@ class Texture {
       r_size[2] = max_ii(1, d_ / div);
     }
   }
-
+  int3 mip_size_get(int mip) const
+  {
+    int3 size = int3(1);
+    mip_size_get(mip, size);
+    return size;
+  }
   int mip_width_get(int mip) const
   {
     return max_ii(1, w_ / (1 << mip));

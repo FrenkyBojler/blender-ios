@@ -107,7 +107,7 @@ static void texture_view_create_format_test()
   const uint pixel_count = texture_size.x * texture_size.y;
 
   /* Float comparator threshold; half-to-full conversion has significant precision loss. */
-  constexpr auto f_eq = [](float a, float b) { return std::abs(a - b) < 1e5f; };
+  constexpr float tolerance = 1e5f;
 
   gpu::Texture *base = create_base_texture(FormatA, texture_size);
   gpu::Texture *view = create_view_texture(FormatB, base);
@@ -118,19 +118,18 @@ static void texture_view_create_format_test()
     uint4 uzero(zero);
     auto zero_expected = repeat_data(uzero, pixel_count, to_component_len(FormatB));
     auto zero_readback = read_texture<uint>(view, GPU_DATA_UINT);
-    EXPECT_TRUE(std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin()));
+    EXPECT_EQ(zero_expected, zero_readback);
   }
   else if (to_texture_data_format(FormatB) == GPU_DATA_INT) {
     int4 izero(zero);
     auto zero_expected = repeat_data(izero, pixel_count, to_component_len(FormatB));
     auto zero_readback = read_texture<int>(view, GPU_DATA_INT);
-    EXPECT_TRUE(std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin()));
+    EXPECT_EQ(zero_expected, zero_readback);
   }
   else if (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) {
     auto zero_expected = repeat_data(zero, pixel_count, to_component_len(FormatB));
     auto zero_readback = read_texture<float>(view, GPU_DATA_FLOAT);
-    EXPECT_TRUE(
-        std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin(), f_eq));
+    EXPECT_NEAR_SPAN(zero_expected.as_span(), zero_readback.as_span(), tolerance);
   }
   else {
     BLI_assert_unreachable();
@@ -144,7 +143,7 @@ static void texture_view_create_format_test()
   /* Clear FBO to specific color with a different value on each channel. */
   float4 colr = (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) ?
                     float4(0.75f, 0.5f, 0.25f, 0.0f) :
-                    float4(128.0f, 64.0f, 32.0f, 16.0f);
+                    float4(127.0f, 31.0f, 14.0f, 15.0f);
   GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, double4(colr), 0.0f, 0u);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
@@ -153,19 +152,18 @@ static void texture_view_create_format_test()
     uint4 ucolr(colr);
     auto colr_expected = repeat_data(ucolr, pixel_count, to_component_len(FormatB));
     auto colr_readback = read_texture<uint>(view, GPU_DATA_UINT);
-    EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin()));
+    EXPECT_EQ(colr_expected, colr_readback);
   }
   else if (to_texture_data_format(FormatB) == GPU_DATA_INT) {
     int4 icolr(colr);
     auto colr_expected = repeat_data(icolr, pixel_count, to_component_len(FormatB));
     auto colr_readback = read_texture<int>(view, GPU_DATA_INT);
-    EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin()));
+    EXPECT_EQ(colr_expected, colr_readback);
   }
   else if (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) {
     auto colr_expected = repeat_data(colr, pixel_count, to_component_len(FormatB));
     auto colr_readback = read_texture<float>(view, GPU_DATA_FLOAT);
-    EXPECT_TRUE(
-        std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin(), f_eq));
+    EXPECT_NEAR_SPAN(colr_expected.as_span(), colr_readback.as_span(), tolerance);
   }
   else {
     BLI_assert_unreachable();
