@@ -190,6 +190,7 @@ struct SpaceType {
 /* Region types are also defined using spacetypes_init, via a callback. */
 
 struct wmRegionListenerParams {
+  wmWindowManager *wm;
   wmWindow *window;
   /** Can be NULL when the region is not part of an area. */
   ScrArea *area;
@@ -509,6 +510,14 @@ enum class ARegionQuadviewIndex : uint8_t {
   TopRight = 4,
 };
 
+struct TextCursorOverlay {
+  rctf rect = {};
+  wmTimer *timer = nullptr;
+  double last_active_time = 0;
+  bool draw = true;
+  float color[4];
+};
+
 struct ARegionRuntime {
   /** Callbacks for this region type. */
   struct ARegionType *type;
@@ -567,6 +576,8 @@ struct ARegionRuntime {
 
   /** Dummy panel used in popups so they can support layout panels. */
   Panel *popup_block_panel = nullptr;
+
+  std::optional<TextCursorOverlay> text_cursor_overlay = std::nullopt;
 };
 
 }  // namespace bke

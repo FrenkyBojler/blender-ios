@@ -15,6 +15,7 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
@@ -288,6 +289,12 @@ static void text_main_region_draw(const bContext *C, ARegion *region)
   // view2d_view_ortho(v2d);
 
   /* Data. */
+  if (!region->runtime->text_cursor_overlay) {
+    region->runtime->text_cursor_overlay = bke::TextCursorOverlay{
+        rctf{}, nullptr, BLI_time_now_seconds()};
+    region->runtime->text_cursor_overlay->timer = WM_event_timer_add(
+        CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.6);
+  }
   draw_text_main(st, region);
 
   /* Reset view matrix. */
@@ -469,6 +476,7 @@ void ED_spacetype_text()
   /* Regions: main window. */
   art = MEM_new_zeroed<ARegionType>("spacetype text region");
   art->regionid = RGN_TYPE_WINDOW;
+  art->keymapflag = ED_CURSOR_UI;
   art->init = text_main_region_init;
   art->draw = text_main_region_draw;
   art->cursor = text_cursor;

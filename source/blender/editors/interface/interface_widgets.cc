@@ -2256,21 +2256,14 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
                                              but_pos - (lines[line_cursor].begin() - str),
                                              caret_width);
 
-      /* We are drawing on top of widget bases. Flush cache. */
-      GPU_blend(GPU_BLEND_ALPHA);
-      widgetbase_draw_cache_flush();
-      GPU_blend(GPU_BLEND_NONE);
-
-      const uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
-      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-      immUniformThemeColor(TH_WIDGET_TEXT_CURSOR);
-      const int y = rect.ymax - (line_height * (line_cursor - scroll));
-      /* draw cursor */
-      immRectf(pos, rect.xmin + t, y - line_height, rect.xmin + t + caret_width, y);
-
-      immUnbindProgram();
+      const float y = rect.ymax - (line_height * (line_cursor - scroll));
+      text_button_update_cursor_pos(textbox,
+                                    rctf{
+                                        .xmin = float(rect.xmin) + t,
+                                        .xmax = float(rect.xmin) + t + caret_width,
+                                        .ymin = y - line_height,
+                                        .ymax = y,
+                                    });
 #ifdef WITH_INPUT_IME
       /* IME candidate window uses cursor position. */
       if (!ime_reposition_window) {
@@ -2282,6 +2275,9 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
                     3;
       }
 #endif
+    }
+    else {
+      text_button_update_cursor_pos(textbox, rctf{});
     }
 
 #ifdef WITH_INPUT_IME
@@ -2541,25 +2537,14 @@ static void widget_draw_text(const uiFontStyle *fstyle,
                                        but_pos_ofs - but->ofs,
                                        max_ii(1, int(U.pixelsize * 2)));
 
-      /* We are drawing on top of widget bases. Flush cache. */
-      GPU_blend(GPU_BLEND_ALPHA);
-      widgetbase_draw_cache_flush();
-      GPU_blend(GPU_BLEND_NONE);
-
-      uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
-      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-      immUniformThemeColor(TH_WIDGET_TEXT_CURSOR);
-
-      /* draw cursor */
-      immRectf(pos,
-               rect->xmin + t + align_x_ofs,
-               rect->ymin + U.pixelsize,
-               rect->xmin + t + align_x_ofs + int(2.0f * U.pixelsize),
-               rect->ymax - U.pixelsize);
-
-      immUnbindProgram();
+      text_button_update_cursor_pos(
+          but,
+          rctf{
+              .xmin = float(rect->xmin + t + align_x_ofs),
+              .xmax = float(rect->xmin + t + align_x_ofs + int(2.0f * U.pixelsize)),
+              .ymin = float(rect->ymin + U.pixelsize),
+              .ymax = float(rect->ymax - U.pixelsize),
+          });
 
 #ifdef WITH_INPUT_IME
       /* IME candidate window uses cursor position. */

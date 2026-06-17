@@ -1821,6 +1821,7 @@ static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr
 
   switch (type) {
     case GHOST_kEventWindowDeactivate: {
+      WM_main_add_notifier(NC_UI | ND_UI_TEXT_BLINK_TIMER_PAUSE, win);
       wm_window_update_eventstate_modifiers_clear(wm, win, event_time_ms);
 
       wm_event_add_ghostevent(wm, win, type, data, event_time_ms);
@@ -1829,6 +1830,7 @@ static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr
       break;
     }
     case GHOST_kEventWindowActivate: {
+      WM_main_add_notifier(NC_UI | ND_UI_TEXT_BLINK_TIMER_RESTART, win);
       /* Ensure the event state matches modifiers (window was inactive). */
       wm_window_update_eventstate_modifiers(wm, win, event_time_ms);
 

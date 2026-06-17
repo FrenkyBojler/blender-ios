@@ -12,6 +12,7 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
 #include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
@@ -129,9 +130,13 @@ static void info_main_region_draw(const bContext *C, ARegion *region)
 
   /* Works best with no view2d matrix set. */
   ui::view2d_view_ortho(v2d);
-
+  if (!region->runtime->text_cursor_overlay) {
+    region->runtime->text_cursor_overlay = bke::TextCursorOverlay{
+        rctf{}, nullptr, BLI_time_now_seconds()};
+    region->runtime->text_cursor_overlay->timer = WM_event_timer_add(
+        CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.6);
+  }
   info_textview_main(sinfo, region, CTX_wm_reports(C));
-
   /* reset view matrix */
   ui::view2d_view_restore(C);
 

@@ -302,7 +302,8 @@ static bool textview_draw_string(TextViewDrawState *tds,
   return true;
 }
 
-int textview_draw(TextViewContext *tvc,
+int textview_draw(const ARegion *region,
+                  TextViewContext *tvc,
                   const bool do_draw,
                   const int mval_init[2],
                   void **r_mval_pick_item,
@@ -399,7 +400,7 @@ int textview_draw(TextViewContext *tvc,
       if (do_draw) {
         /* We always want the cursor to draw. */
         if (tvc->draw_cursor && iter_index == 0) {
-          tvc->draw_cursor(tvc, tds.cwidth, tds.columns);
+          tvc->draw_cursor(region, tvc, tds.cwidth, tds.columns);
         }
 
         /* When drawing, if we pass v2d->cur.ymax, then quit. */

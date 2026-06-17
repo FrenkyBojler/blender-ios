@@ -1860,5 +1860,7 @@ int paste_property_drivers(Span<FCurve *> src_drivers,
 
 }  // namespace internal
 
+void text_button_update_cursor_pos(Button *button, const rctf &rect);
+
 }  // namespace ui
 }  // namespace blender

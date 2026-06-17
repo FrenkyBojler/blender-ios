@@ -419,6 +419,36 @@ static void wm_region_draw_overlay(bContext *C, const ScrArea *area, ARegion *re
   wmWindowViewport(win);
 }
 
+static void wm_region_draw_cursor_overlay(bContext *C, ARegion &region, bool active)
+{
+  if (!(region.runtime->text_cursor_overlay.has_value() &&
+        (region.runtime->text_cursor_overlay->draw || !active)))
+  {
+    return;
+  }
+  const wmWindow *win = CTX_wm_window(C);
+  wmViewport(&region.winrct);
+  GPU_matrix_push_projection();
+  GPU_blend(GPU_BLEND_ALPHA);
+  rctf rect = region.runtime->text_cursor_overlay->rect;
+  const uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  float4 color = region.runtime->text_cursor_overlay->color;
+  if (!active) {
+    color[3] *= 0.5f;
+  }
+  immUniformColor4fv(color);
+
+  /* Draw cursor. */
+  immRectf(pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+
+  immUnbindProgram();
+  GPU_matrix_pop_projection();
+  wmWindowViewport(win);
+  GPU_blend(GPU_BLEND_NONE);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1186,6 +1216,8 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
       if (region.overlap) {
         wm_draw_region_blend(&region, 0, true);
       }
+      wm_region_draw_cursor_overlay(
+          C, region, screen->regionbase.is_empty() && screen->active_region == &region);
     }
   }
 
@@ -1205,6 +1237,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
       continue;
     }
     wm_draw_region_blend(&region, 0, true);
+    wm_region_draw_cursor_overlay(C, region, true);
   }
 
   /* Always draw, not only when screen tagged. */

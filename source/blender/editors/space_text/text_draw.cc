@@ -16,6 +16,7 @@
 #include "BLI_rect.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -1309,17 +1310,14 @@ static void draw_text_decoration(SpaceText *st, ARegion *region)
       GPU_blend(GPU_BLEND_NONE);
     }
   }
-
+  region->runtime->text_cursor_overlay->rect = {};
+  ui::theme::get_color_4fv(TH_HILITE, region->runtime->text_cursor_overlay->color);
   if (!hidden) {
-    /* Draw the cursor itself (we draw the sel. cursor as this is the leading edge). */
     int x = TXT_BODY_LEFT(st) + (vselc * st->runtime->cwidth_px);
     int y = region->winy - vsell * lheight;
     if (st->flags & ST_SCROLL_SELECT) {
       y += st->runtime->scroll_ofs_px[1];
     }
-
-    immUniformThemeColor(TH_HILITE);
-
     if (st->overwrite) {
       char ch = text->sell->line[text->selc];
 
@@ -1328,13 +1326,24 @@ static void draw_text_decoration(SpaceText *st, ARegion *region)
       if (ch == '\t') {
         w *= st->tabnumber - (vselc + st->left) % st->tabnumber;
       }
-
-      immRectf(
-          pos, x, y - lheight - U.pixelsize, x + w + U.pixelsize, y - lheight - (3 * U.pixelsize));
+      region->runtime->text_cursor_overlay->rect = {
+          .xmin = float(x),
+          .xmax = float(x + w + U.pixelsize),
+          .ymin = float(y - lheight - U.pixelsize),
+          .ymax = float(y - lheight - (3 * U.pixelsize)),
+      };
     }
     else {
-      immRectf(pos, x - U.pixelsize, y, x + U.pixelsize, y - lheight);
+      region->runtime->text_cursor_overlay->rect = {
+          .xmin = float(x - U.pixelsize),
+          .xmax = float(x + U.pixelsize),
+          .ymin = float(y),
+          .ymax = float(y - lheight),
+      };
     }
+  }
+  else {
+    region->runtime->text_cursor_overlay->rect = {};
   }
 
   immUnbindProgram();

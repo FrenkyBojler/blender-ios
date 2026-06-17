@@ -16,6 +16,7 @@
 #include "BLI_listbase.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -233,7 +234,12 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
   ui::view2d_view_ortho(v2d);
 
   /* data... */
-
+  if (!region->runtime->text_cursor_overlay) {
+    region->runtime->text_cursor_overlay = bke::TextCursorOverlay{
+        rctf{}, nullptr, BLI_time_now_seconds()};
+    region->runtime->text_cursor_overlay->timer = WM_event_timer_add(
+        CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.6);
+  }
   console_history_verify(C); /* make sure we have some command line */
   console_textview_main(sc, region);
 
@@ -369,7 +375,7 @@ void ED_spacetype_console()
   /* regions: main window */
   art = MEM_new_zeroed<ARegionType>("spacetype console region");
   art->regionid = RGN_TYPE_WINDOW;
-  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_CURSOR_UI;
 
   art->init = console_main_region_init;
   art->draw = console_main_region_draw;

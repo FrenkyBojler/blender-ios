@@ -21,6 +21,7 @@
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
+#include "BLI_time.hh"
 #include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
@@ -112,6 +113,34 @@ void ED_region_do_listen(wmRegionListenerParams *params)
       if (notifier->data == ND_UI_FONT) {
         ui::invalidate_text_wrap_cache(*region);
         ED_region_tag_redraw(region);
+      }
+      else if (notifier->data == ND_UI_TEXT_BLINK_TIMER_PAUSE &&
+               params->window == notifier->reference && region->runtime->text_cursor_overlay)
+      {
+        if (region->runtime->text_cursor_overlay->timer) {
+          WM_event_timer_remove(
+              params->wm, params->window, region->runtime->text_cursor_overlay->timer);
+        }
+        region->runtime->text_cursor_overlay->timer = nullptr;
+
+        region->runtime->text_cursor_overlay->draw = true;
+        region->runtime->text_cursor_overlay->last_active_time = BLI_time_now_seconds();
+        region->runtime->do_draw |= RGN_DRAW_TEXT_CURSOR;
+      }
+      else if (notifier->data == ND_UI_TEXT_BLINK_TIMER_RESTART &&
+               ELEM(notifier->reference, region, params->window) &&
+               region->runtime->text_cursor_overlay)
+      {
+        if (region->runtime->text_cursor_overlay->timer) {
+          WM_event_timer_remove(
+              params->wm, params->window, region->runtime->text_cursor_overlay->timer);
+        }
+        region->runtime->text_cursor_overlay->timer = WM_event_timer_add(
+            params->wm, params->window, TIMER, 0.0f);
+
+        region->runtime->text_cursor_overlay->draw = true;
+        region->runtime->text_cursor_overlay->last_active_time = BLI_time_now_seconds();
+        region->runtime->do_draw |= RGN_DRAW_TEXT_CURSOR;
       }
       break;
   }
@@ -2042,6 +2071,9 @@ static void ed_default_handlers(wmWindowManager *wm,
   /* NOTE: add-handler checks if it already exists. */
 
   /* XXX: it would be good to have bound-box checks for some of these. */
+  if (region && flag & ED_CURSOR_UI) {
+    ui::region_cursor_timers_add(handlers);
+  }
   if (flag & ED_KEYMAP_UI) {
     wmKeyMap *keymap = WM_keymap_ensure(
         wm->runtime->defaultconf, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);

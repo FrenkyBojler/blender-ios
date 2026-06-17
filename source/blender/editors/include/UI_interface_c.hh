@@ -2300,6 +2300,7 @@ bool panel_list_matches_data(ARegion *region,
  * as screen/ if ED_KEYMAP_UI is set, or internally in popup functions. */
 
 void region_handlers_add(ListBaseT<wmEventHandler> *handlers);
+void region_cursor_timers_add(ListBaseT<wmEventHandler> *handlers);
 void popup_handlers_add(bContext *C,
                         ListBaseT<wmEventHandler> *handlers,
                         PopupBlockHandle *popup,

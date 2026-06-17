@@ -782,6 +782,7 @@ void wm_event_do_notifiers(bContext *C)
 
         for (ARegion &region : screen->regionbase) {
           wmRegionListenerParams region_params{};
+          region_params.wm = wm;
           region_params.window = &win;
           region_params.area = nullptr;
           region_params.region = &region;
@@ -808,6 +809,7 @@ void wm_event_do_notifiers(bContext *C)
           ED_area_do_listen(&area_params);
           for (ARegion &region : area->regionbase) {
             wmRegionListenerParams region_params{};
+            region_params.wm = wm;
             region_params.window = &win;
             region_params.area = area;
             region_params.region = &region;

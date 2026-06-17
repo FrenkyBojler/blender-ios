@@ -803,6 +803,8 @@ enum eRegion_DrawFlag : int {
 
   /** Only editor overlays (currently gizmos only!) should be redrawn. */
   RGN_DRAW_EDITOR_OVERLAYS = 32,
+
+  RGN_DRAW_TEXT_CURSOR = 1 << 6,
 };
 ENUM_OPERATORS(eRegion_DrawFlag)
 

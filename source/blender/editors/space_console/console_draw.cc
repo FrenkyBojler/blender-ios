@@ -11,9 +11,12 @@
 #include "BLI_listbase.hh"
 #include "BLI_string_utf8.hh"
 
+#include "BLI_time.hh"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
+
+#include "BKE_screen.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -134,7 +137,10 @@ static void console_cursor_wrap_offset(
   }
 }
 
-static void console_textview_draw_cursor(TextViewContext *tvc, int cwidth, int columns)
+static void console_textview_draw_cursor(const ARegion *region,
+                                         TextViewContext *tvc,
+                                         int cwidth,
+                                         int columns)
 {
   int pen[2];
   {
@@ -154,15 +160,13 @@ static void console_textview_draw_cursor(TextViewContext *tvc, int cwidth, int c
     pen[1] += tvc->draw_rect.ymin;
   }
 
-  /* cursor */
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  immUniformThemeColor(TH_CONSOLE_CURSOR);
-
-  immRectf(pos, pen[0] - U.pixelsize, pen[1], pen[0] + U.pixelsize, pen[1] + tvc->lheight);
-
-  immUnbindProgram();
+  region->runtime->text_cursor_overlay->rect = rctf{
+      .xmin = float(pen[0] - U.pixelsize),
+      .xmax = float(pen[0] + U.pixelsize),
+      .ymin = float(pen[1]),
+      .ymax = float(pen[1] + tvc->lheight),
+  };
+  ui::theme::get_color_4fv(TH_CONSOLE_CURSOR, region->runtime->text_cursor_overlay->color);
 }
 
 static void console_textview_const_colors(TextViewContext * /*tvc*/, uchar bg_sel[4])
@@ -230,7 +234,7 @@ static int console_textview_main__internal(SpaceConsole *sc,
   }
 
   console_scrollback_prompt_begin(sc, &cl_dummy);
-  ret = textview_draw(&tvc, do_draw, m_pos, r_mval_pick_item, r_mval_pick_offset);
+  ret = textview_draw(region, &tvc, do_draw, m_pos, r_mval_pick_item, r_mval_pick_offset);
   console_scrollback_prompt_end(sc, &cl_dummy);
 
   return ret;

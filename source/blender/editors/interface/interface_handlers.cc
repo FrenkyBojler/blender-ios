@@ -520,6 +520,17 @@ struct HandleButtonData {
   Button *postbut = nullptr;
 };
 
+void text_button_update_cursor_pos(Button *button, const rctf &rect)
+{
+  HandleButtonData *handle = button->active ? button->active : button->semi_modal_state;
+  handle->region->runtime->text_cursor_overlay->rect = rect;
+}
+
+static void text_button_reset_cursor_timer(HandleButtonData *data)
+{
+  WM_main_add_notifier(NC_UI | ND_UI_TEXT_BLINK_TIMER_RESTART, data->region);
+}
+
 struct AfterFunc {
   AfterFunc *next, *prev;
 
@@ -3279,6 +3290,7 @@ static bool textedit_delete_selection(Button *but, TextEdit &text_edit)
  */
 static void textedit_set_cursor_pos(Button *but, const ARegion *region, const float2 xy)
 {
+  text_button_reset_cursor_timer(but->active);
   if (but->type == ButtonType::TextBox) {
     textbox_textedit_set_cursor_pos(static_cast<ButtonTextBox *>(but), region, xy);
     return;
@@ -3441,6 +3453,7 @@ static void textedit_move(Button *but,
                           eStrCursorJumpType jump,
                           bool jump_all_multiline = false)
 {
+  text_button_reset_cursor_timer(but->active);
   Vector<StringRef> lines = {text_edit.edit_string};
   if (but->type == ButtonType::TextBox && jump == STRCUR_JUMP_ALL && !jump_all_multiline) {
     lines = textbox_wrap_lines(static_cast<ButtonTextBox *>(but));
@@ -3763,6 +3776,12 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
 {
   TextEdit &text_edit = data->text_edit;
   wmWindow *win = data->window;
+
+  if (data->region->runtime->type->regionid != RGN_TYPE_TEMPORARY) {
+    /* Ensure active region is updated when activating button with operators. */
+    CTX_wm_screen(C)->active_region = data->region;
+  }
+
   const bool is_num_but = ELEM(but->type, ButtonType::Num, ButtonType::NumSlider);
   const bool is_textbox = ELEM(but->type, ButtonType::TextBox);
 
@@ -3913,6 +3932,9 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
     textedit_ime_begin(win, but);
   }
 #endif
+  data->region->runtime->text_cursor_overlay = {
+      rctf{}, WM_event_timer_add(data->wm, data->window, TIMER, 0.6), BLI_time_now_seconds()};
+  theme::get_color_4fv(TH_WIDGET_TEXT_CURSOR, data->region->runtime->text_cursor_overlay->color);
 }
 
 static void textedit_end(bContext *C, Button *but, HandleButtonData *data)
@@ -3989,6 +4011,8 @@ static void textedit_end(bContext *C, Button *but, HandleButtonData *data)
     textedit_ime_end(win, but);
   }
 #endif
+  WM_event_timer_remove(data->wm, win, data->region->runtime->text_cursor_overlay->timer);
+  data->region->runtime->text_cursor_overlay = std::nullopt;
 }
 
 static void textedit_next_but(Block *block, Button *actbut, HandleButtonData *data)
@@ -4510,6 +4534,7 @@ static int do_but_textedit(
     textbox_scroll_to_cursor(textbox);
   }
   if (changed) {
+    text_button_reset_cursor_timer(data);
     /* The undo stack may be nullptr if an event exits editing. */
     if ((skip_undo_push == false) && (text_edit.undo_stack_text != nullptr)) {
       textedit_undo_push(text_edit.undo_stack_text, text_edit.edit_string, but->pos);
@@ -8973,6 +8998,21 @@ static int do_but_TRACKPREVIEW(
   return WM_UI_HANDLER_CONTINUE;
 }
 
+static int region_cursor_handler(ARegion *region, const wmEvent *event)
+{
+  if (event->type == TIMER && region->runtime->text_cursor_overlay &&
+      region->runtime->text_cursor_overlay->timer == event->customdata)
+  {
+    region->runtime->text_cursor_overlay->draw =
+        (int((BLI_time_now_seconds() - region->runtime->text_cursor_overlay->last_active_time) *
+             10.0) %
+         12) < 6;
+    region->runtime->do_draw |= RGN_DRAW_TEXT_CURSOR;
+    return WM_UI_HANDLER_BREAK;
+  }
+  return WM_UI_HANDLER_CONTINUE;
+}
+
 static int do_button(bContext *C, Block *block, Button *but, const wmEvent *event)
 {
   HandleButtonData *data = but->active;
@@ -9079,7 +9119,9 @@ static int do_button(bContext *C, Block *block, Button *but, const wmEvent *even
       return WM_UI_HANDLER_BREAK;
     }
   }
-
+  if (region_cursor_handler(data->region, event) == WM_UI_HANDLER_BREAK) {
+    return WM_UI_HANDLER_BREAK;
+  }
   if (but->flag & BUT_DISABLED) {
     /* It's important to continue here instead of breaking since breaking causes the event to be
      * considered "handled", preventing further click/drag events from being generated.
@@ -12683,7 +12725,6 @@ static int handle_menus_recursive(bContext *C,
       }
     }
   }
-
   /* now handle events for our own menu */
 
   if (retval == WM_UI_HANDLER_CONTINUE) {
@@ -12783,8 +12824,9 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
   /* either handle events for already activated button or try to activate */
   Button *but = region_find_active_but(region);
   Button *listbox = listbox_find_mouse_over(region, event);
-
-  retval = handler_panel_region(C, event, region, listbox ? listbox : but);
+  if (retval == WM_UI_HANDLER_CONTINUE) {
+    retval = handler_panel_region(C, event, region, listbox ? listbox : but);
+  }
 
   if (retval == WM_UI_HANDLER_CONTINUE && listbox) {
     retval = handle_uilist_event(C, event, region, listbox);
@@ -13067,7 +13109,6 @@ static int popup_handler(bContext *C, const wmEvent *event, void *userdata)
 
     retval = WM_UI_HANDLER_CONTINUE;
   }
-
   handle_menus_recursive(C, event, menu, 0, false, false, true);
 
   /* free if done, does not free handle itself */
@@ -13157,6 +13198,24 @@ void region_handlers_add(ListBaseT<wmEventHandler> *handlers)
   WM_event_remove_ui_handler(handlers, region_handler, region_handler_remove, nullptr, false);
   WM_event_add_ui_handler(
       nullptr, handlers, region_handler, region_handler_remove, nullptr, eWM_EventHandlerFlag(0));
+}
+
+static int region_cursor_handler(bContext *C, const wmEvent *event, void *)
+{
+  return region_cursor_handler(CTX_wm_region(C), event);
+}
+
+static void region_cursor_handler_remove(bContext * /*C*/, void *) {}
+void region_cursor_timers_add(ListBaseT<wmEventHandler> *handlers)
+{
+  WM_event_remove_ui_handler(
+      handlers, region_cursor_handler, region_cursor_handler_remove, nullptr, false);
+  WM_event_add_ui_handler(nullptr,
+                          handlers,
+                          region_cursor_handler,
+                          region_cursor_handler_remove,
+                          nullptr,
+                          eWM_EventHandlerFlag(0));
 }
 
 void popup_handlers_add(bContext *C,

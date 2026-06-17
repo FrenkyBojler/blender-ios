@@ -591,6 +591,8 @@ struct wmNotifier {
 
 /* Changes in theme preferences that affects UI text drawing. */
 #define ND_UI_FONT (1 << 16)
+#define ND_UI_TEXT_BLINK_TIMER_RESTART (2 << 16)
+#define ND_UI_TEXT_BLINK_TIMER_PAUSE (3 << 16)
 
 #define ND_UI_LANG (2 << 16)
 

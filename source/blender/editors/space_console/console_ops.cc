@@ -22,6 +22,7 @@
 #include "BLI_string.hh"
 #include "BLI_string_cursor_utf8.hh"
 #include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
 #include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
@@ -47,6 +48,16 @@ namespace blender {
 /* -------------------------------------------------------------------- */
 /** \name Utilities
  * \{ */
+
+static void console_reset_cursor_timer(const bContext &C)
+{
+  ScrArea *area = CTX_wm_area(&C);
+  if (!area) {
+    return;
+  }
+  ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  WM_main_add_notifier(NC_UI | ND_UI_TEXT_BLINK_TIMER_RESTART, region);
+}
 
 static char *console_select_to_buffer(SpaceConsole *sc)
 {
@@ -380,6 +391,7 @@ static const EnumPropertyItem console_move_type_items[] = {
 
 static wmOperatorStatus console_move_exec(bContext *C, wmOperator *op)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
@@ -503,6 +515,7 @@ void CONSOLE_OT_move(wmOperatorType *ot)
 
 static wmOperatorStatus console_insert_exec(bContext *C, wmOperator *op)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
@@ -591,6 +604,7 @@ void CONSOLE_OT_insert(wmOperatorType *ot)
 
 static wmOperatorStatus console_indent_or_autocomplete_exec(bContext *C, wmOperator * /*op*/)
 {
+  console_reset_cursor_timer(*C);
   ConsoleLine *ci = console_history_verify(C);
   bool text_before_cursor = false;
 
@@ -638,6 +652,7 @@ void CONSOLE_OT_indent_or_autocomplete(wmOperatorType *ot)
 
 static wmOperatorStatus console_indent_exec(bContext *C, wmOperator * /*op*/)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
@@ -687,6 +702,7 @@ void CONSOLE_OT_indent(wmOperatorType *ot)
 
 static wmOperatorStatus console_unindent_exec(bContext *C, wmOperator * /*op*/)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
@@ -749,6 +765,7 @@ static const EnumPropertyItem console_delete_type_items[] = {
 
 static wmOperatorStatus console_delete_exec(bContext *C, wmOperator *op)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
@@ -854,6 +871,7 @@ void CONSOLE_OT_delete(wmOperatorType *ot)
 
 static wmOperatorStatus console_clear_line_exec(bContext *C, wmOperator * /*op*/)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
@@ -891,6 +909,7 @@ void CONSOLE_OT_clear_line(wmOperatorType *ot)
 /* the python exec operator uses this */
 static wmOperatorStatus console_clear_exec(bContext *C, wmOperator *op)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
@@ -938,6 +957,7 @@ void CONSOLE_OT_clear(wmOperatorType *ot)
 /* the python exec operator uses this */
 static wmOperatorStatus console_history_cycle_exec(bContext *C, wmOperator *op)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
@@ -1192,6 +1212,7 @@ void CONSOLE_OT_copy(wmOperatorType *ot)
 
 static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
 {
+  console_reset_cursor_timer(*C);
   const bool selection = RNA_boolean_get(op->ptr, "selection");
   SpaceConsole *sc = CTX_wm_space_console(C);
   ConsoleLine *ci = console_history_verify(C);
@@ -1333,6 +1354,7 @@ static wmOperatorStatus console_select_set_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
@@ -1370,6 +1392,7 @@ static wmOperatorStatus console_select_set_modal(bContext *C, wmOperator *op, co
     case LEFTMOUSE:
     case MIDDLEMOUSE:
     case RIGHTMOUSE:
+      console_reset_cursor_timer(*C);
       if (event->val == KM_PRESS) {
         console_modal_select_apply(C, op, event);
         break;
@@ -1382,6 +1405,7 @@ static wmOperatorStatus console_select_set_modal(bContext *C, wmOperator *op, co
       }
       break;
     case MOUSEMOVE:
+      console_reset_cursor_timer(*C);
       console_modal_select_apply(C, op, event);
       break;
     default: {
@@ -1453,6 +1477,7 @@ static wmOperatorStatus console_selectword_invoke(bContext *C,
                                                   wmOperator * /*op*/,
                                                   const wmEvent *event)
 {
+  console_reset_cursor_timer(*C);
   SpaceConsole *sc = CTX_wm_space_console(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
