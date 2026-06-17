@@ -31,11 +31,11 @@
 
 namespace blender::geometry {
 
-static void build_face_to_face_by_edge_map(const OffsetIndices<int> faces,
-                                           const Span<int> corner_edges,
-                                           const int edges_num,
-                                           Array<int> &r_offsets,
-                                           Array<int> &r_indices)
+static GroupedSpan<int> build_face_to_face_by_edge_map(const OffsetIndices<int> faces,
+                                                       const Span<int> corner_edges,
+                                                       const int edges_num,
+                                                       Array<int> &r_offsets,
+                                                       Array<int> &r_indices)
 {
   Array<int> edge_to_face_offset_data;
   Array<int> edge_to_face_indices;
@@ -72,6 +72,8 @@ static void build_face_to_face_by_edge_map(const OffsetIndices<int> faces,
       }
     }
   });
+
+  return {OffsetIndices<int>(r_offsets), r_indices.as_span()};
 }
 
 Mesh *replace_faces(const Mesh &base,
@@ -123,42 +125,42 @@ Mesh *replace_faces(const Mesh &base,
   for (const int i : meshes.index_range()) {
   }
 
-  Array<int> verts_num_per_face(base_faces.size() + 1);
+  Array<int> verts_all_by_part_data(base_faces.size() + 1);
   array_utils::gather<int>(
-      mesh_vert_nums, indices, selection, verts_num_per_face.as_mutable_span().drop_back(1));
-  index_mask::masked_fill<int>(verts_num_per_face, 0, unselected_faces);
-  const std::optional<OffsetIndices<int>> face_vert_offsets_opt =
-      offset_indices::accumulate_counts_to_offsets_with_overflow_check(verts_num_per_face);
-  if (!face_vert_offsets_opt) {
+      mesh_vert_nums, indices, selection, verts_all_by_part_data.as_mutable_span().drop_back(1));
+  index_mask::masked_fill<int>(verts_all_by_part_data, 0, unselected_faces);
+  const std::optional<OffsetIndices<int>> verts_all_by_part_opt =
+      offset_indices::accumulate_counts_to_offsets_with_overflow_check(verts_all_by_part_data);
+  if (!verts_all_by_part_opt) {
     return BKE_mesh_copy_for_eval(base);
   }
-  const OffsetIndices<int> face_vert_offsets = *face_vert_offsets_opt;
+  const OffsetIndices<int> verts_by_part = *verts_all_by_part_opt;
 
-  Array<int> edges_num_per_face(base_faces.size() + 1);
+  Array<int> edges_all_by_part_data(base_faces.size() + 1);
   array_utils::gather<int>(
-      mesh_edge_nums, indices, selection, edges_num_per_face.as_mutable_span().drop_back(1));
-  index_mask::masked_fill<int>(edges_num_per_face, 0, unselected_faces);
-  const std::optional<OffsetIndices<int>> face_edge_offsets_opt =
-      offset_indices::accumulate_counts_to_offsets_with_overflow_check(edges_num_per_face);
-  if (!face_edge_offsets_opt) {
+      mesh_edge_nums, indices, selection, edges_all_by_part_data.as_mutable_span().drop_back(1));
+  index_mask::masked_fill<int>(edges_all_by_part_data, 0, unselected_faces);
+  const std::optional<OffsetIndices<int>> edges_all_by_part_opt =
+      offset_indices::accumulate_counts_to_offsets_with_overflow_check(edges_all_by_part_data);
+  if (!edges_all_by_part_opt) {
     return BKE_mesh_copy_for_eval(base);
   }
-  const OffsetIndices<int> face_edge_offsets = *face_edge_offsets_opt;
+  const OffsetIndices<int> edges_all_by_part = *edges_all_by_part_opt;
 
-  Array<int> faces_num_per_face(base_faces.size() + 1);
+  Array<int> faces_by_part_data(base_faces.size() + 1);
   array_utils::gather<int>(
-      mesh_face_nums, indices, selection, faces_num_per_face.as_mutable_span().drop_back(1));
-  index_mask::masked_fill<int>(faces_num_per_face, 0, unselected_faces);
-  const OffsetIndices<int> face_face_offsets = offset_indices::accumulate_counts_to_offsets(
-      faces_num_per_face);
+      mesh_face_nums, indices, selection, faces_by_part_data.as_mutable_span().drop_back(1));
+  index_mask::masked_fill<int>(faces_by_part_data, 0, unselected_faces);
+  const OffsetIndices<int> faces_by_part = offset_indices::accumulate_counts_to_offsets(
+      faces_by_part_data);
 
-  Array<int> corners_num_per_face(base_faces.size() + 1);
+  Array<int> corners_by_part_data(base_faces.size() + 1);
   array_utils::gather<int>(
-      mesh_corner_nums, indices, selection, corners_num_per_face.as_mutable_span().drop_back(1));
-  index_mask::masked_fill<int>(corners_num_per_face, 0, unselected_faces);
-  const OffsetIndices<int> face_corner_offsets = offset_indices::accumulate_counts_to_offsets(
-      corners_num_per_face);
-  const int new_corners_num = face_corner_offsets.total_size();
+      mesh_corner_nums, indices, selection, corners_by_part_data.as_mutable_span().drop_back(1));
+  index_mask::masked_fill<int>(corners_by_part_data, 0, unselected_faces);
+  const OffsetIndices<int> corners_by_part = offset_indices::accumulate_counts_to_offsets(
+      corners_by_part_data);
+  const int new_corners_num = corners_by_part.total_size();
 
   const IndexMask unselected_verts = vert_selection_from_face(
       base_faces, unselected_faces, base_corner_verts, base.verts_num, memory);
@@ -168,7 +170,7 @@ Mesh *replace_faces(const Mesh &base,
 
   const int unselected_corners_num = offset_indices::sum_group_sizes(base_faces, unselected_faces);
 
-  Array<float3> positions(unselected_verts.size() + face_vert_offsets.total_size());
+  Array<float3> positions(unselected_verts.size() + verts_by_part.total_size());
   array_utils::gather(base_positions,
                       unselected_verts,
                       positions.as_mutable_span().take_front(unselected_verts.size()));
@@ -179,7 +181,7 @@ Mesh *replace_faces(const Mesh &base,
         const float height = heights[base_face_i];
         const Span<float3> src_positions = mesh_positions[indices[base_face_i]];
         MutableSpan<float3> part_positions = positions.as_mutable_span().slice(
-            face_vert_offsets[base_face_i]);
+            verts_by_part[base_face_i]);
         if (face_verts.size() == 4) {
           for (const int i : part_positions.index_range()) {
             const float2 xy = src_positions[i].xy();
@@ -214,16 +216,14 @@ Mesh *replace_faces(const Mesh &base,
       },
       exec_mode::grain_size(128));
 
-  // MERGING
   Array<int> face_to_face_map_offsets;
   Array<int> face_to_face_map_indices;
-  build_face_to_face_by_edge_map(base_faces,
-                                 base_corner_edges,
-                                 base.edges_num,
-                                 face_to_face_map_offsets,
-                                 face_to_face_map_indices);
-  const GroupedSpan<int> face_to_face_map(OffsetIndices<int>(face_to_face_map_offsets),
-                                          face_to_face_map_indices);
+  const GroupedSpan<int> base_face_to_face_map = build_face_to_face_by_edge_map(
+      base_faces,
+      base_corner_edges,
+      base.edges_num,
+      face_to_face_map_offsets,
+      face_to_face_map_indices);
 
   BitVector<> selection_bits(base_faces.size());
   selection.to_bits(selection_bits);
@@ -238,12 +238,12 @@ Mesh *replace_faces(const Mesh &base,
   AtomicDisjointSet disjoint_set(positions.size());
   selection.foreach_index(
       [&](const int base_face_i) {
-        const IndexRange part_verts = face_vert_offsets[base_face_i];
+        const IndexRange part_verts = verts_by_part[base_face_i];
         const Span<float3> face_positions = positions.as_span().slice(part_verts);
-        const Span<int> neighbor_faces = face_to_face_map[base_face_i];
+        const Span<int> neighbor_faces = base_face_to_face_map[base_face_i];
         for (const int neighbor_face : neighbor_faces) {
           if (selection_bits[neighbor_face]) {
-            const IndexRange neighbor_range = face_vert_offsets[neighbor_face];
+            const IndexRange neighbor_range = verts_by_part[neighbor_face];
             const Span<float3> neighbor_positions = mesh_positions[indices[neighbor_face]];
 
             // TODO: REPLACE QUADRATIC LOOP WITH ACCELERATION STRUCTURE
@@ -290,8 +290,8 @@ Mesh *replace_faces(const Mesh &base,
 
   Mesh *result = BKE_mesh_new_nomain(unselected_verts.size() + merged_verts_num,
                                      unselected_edges.size() + merged_edges_num,
-                                     unselected_faces.size() + face_face_offsets.total_size(),
-                                     unselected_corners_num + face_corner_offsets.total_size());
+                                     unselected_faces.size() + faces_by_part.total_size(),
+                                     unselected_corners_num + corners_by_part.total_size());
 
   MutableSpan<float3> result_positions = result->vert_positions_for_write();
   array_utils::gather(
@@ -312,21 +312,22 @@ Mesh *replace_faces(const Mesh &base,
   selection.foreach_index(
       [&](const int base_face_i) {
         const OffsetIndices<int> faces = mesh_faces[indices[base_face_i]];
-        const IndexRange face_range = face_face_offsets[base_face_i].shift(
-            unselected_faces.size());
-        const int offset = unselected_corners_num + face_corner_offsets[base_face_i].start();
+        const IndexRange part_faces = faces_by_part[base_face_i].shift(unselected_faces.size());
+        const int part_corner_start = unselected_corners_num +
+                                      corners_by_part[base_face_i].start();
         offset_indices::gather_selected_offsets(
             faces,
             faces.index_range(),
-            offset,
-            result_face_offsets.slice(face_range.start(), face_range.size() + 1));
+            part_corner_start,
+            result_face_offsets.slice(part_faces.start(), part_faces.size() + 1));
       },
       exec_mode::grain_size(128));
   const OffsetIndices<int> result_faces = result->faces();
 
   MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
+  MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
 
-  geometry::remap_verts(base_faces,
+  mesh_gather_and_remap(base_faces,
                         result_faces,
                         base_vert_to_unselected,
                         unselected_edges,
@@ -334,14 +335,14 @@ Mesh *replace_faces(const Mesh &base,
                         base_edges,
                         base_corner_verts,
                         result_edges.take_front(unselected_edges.size()),
-                        result_corner_verts);
+                        result_corner_verts.take_front(unselected_corners_num));
 
   MutableSpan<int> new_corner_verts = result_corner_verts.take_back(new_corners_num);
   selection.foreach_index(
       [&](const int base_face_i) {
-        array_utils::gather(merged_verts.as_span().slice(face_vert_offsets[base_face_i]),
+        array_utils::gather(merged_verts.as_span().slice(verts_by_part[base_face_i]),
                             mesh_corner_verts[indices[base_face_i]],
-                            new_corner_verts.slice(face_corner_offsets[base_face_i]));
+                            new_corner_verts.slice(corners_by_part[base_face_i]));
       },
       exec_mode::grain_size(512));
 
@@ -349,7 +350,6 @@ Mesh *replace_faces(const Mesh &base,
   Array<int> base_edge_to_unselected(base.edges_num);
   index_mask::build_reverse_map<int>(unselected_edges, base_edge_to_unselected);
 
-  MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
   unselected_faces.foreach_index(
       [&](const int64_t src_i, const int64_t dst_i) {
         array_utils::gather(base_edge_to_unselected.as_span(),
@@ -362,9 +362,9 @@ Mesh *replace_faces(const Mesh &base,
   MutableSpan<int> new_corner_edges = result_corner_edges.take_back(new_corners_num);
   selection.foreach_index(
       [&](const int base_face_i) {
-        array_utils::gather(merged_edges.as_span().slice(face_edge_offsets[base_face_i]),
+        array_utils::gather(merged_edges.as_span().slice(edges_all_by_part[base_face_i]),
                             mesh_corner_edges[indices[base_face_i]],
-                            new_corner_edges.slice(face_corner_offsets[base_face_i]));
+                            new_corner_edges.slice(corners_by_part[base_face_i]));
       },
       exec_mode::grain_size(512));
 
@@ -398,10 +398,10 @@ Mesh *replace_faces(const Mesh &base,
               iter.name, iter.domain, iter.data_type);
           array_utils::gather(src_attr, unselected_faces, dst_attr.span);
           bke::attribute_math::gather_to_groups(
-              face_face_offsets,
+              faces_by_part,
               selection,
               src_span,
-              dst_attr.span.take_back(face_face_offsets.total_size()));
+              dst_attr.span.take_back(faces_by_part.total_size()));
           dst_attr.finish();
           break;
         }

@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
-#include "BLI_index_range.hh"
-#include "BLI_unique_sorted_indices.hh"
 #include "DNA_object_types.h"
 
 #include "BLI_enumerable_thread_specific.hh"
@@ -18,33 +16,31 @@
 
 #include "GEO_mesh_copy_selection.hh"
 #include "GEO_mesh_selection.hh"
-#include <type_traits>
 
 namespace blender::geometry {
 
-void remap_verts(const OffsetIndices<int> src_faces,
-                 const OffsetIndices<int> dst_faces,
-                 const Span<int> vert_reverse_map,
-                 const IndexMask &edge_mask,
-                 const IndexMask &face_mask,
-                 const Span<int2> src_edges,
-                 const Span<int> src_corner_verts,
-                 MutableSpan<int2> dst_edges,
-                 MutableSpan<int> dst_corner_verts)
+void mesh_gather_and_remap(const OffsetIndices<int> src_faces,
+                           const OffsetIndices<int> dst_faces,
+                           const Span<int> vert_map,
+                           const IndexMask &edge_mask,
+                           const IndexMask &face_mask,
+                           const Span<int2> src_edges,
+                           const Span<int> src_corner_verts,
+                           MutableSpan<int2> dst_edges,
+                           MutableSpan<int> dst_corner_verts)
 {
-  const Span<int> map = vert_reverse_map;
   face_mask.foreach_segment_optimized(
       [&](const auto segment, const int64_t dst_pos) {
         if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
           array_utils::gather(
-              map,
+              vert_map,
               src_corner_verts.slice(src_faces[segment]),
               dst_corner_verts.slice(dst_faces[IndexRange(dst_pos, segment.size())]),
               exec_mode::serial);
         }
         else {
           for (const int segment_i : segment.index_range()) {
-            array_utils::gather(map,
+            array_utils::gather(vert_map,
                                 src_corner_verts.slice(src_faces[segment[segment_i]]),
                                 dst_corner_verts.slice(dst_faces[dst_pos + segment_i]),
                                 exec_mode::serial);
@@ -56,7 +52,7 @@ void remap_verts(const OffsetIndices<int> src_faces,
   edge_mask.foreach_segment_optimized(
       [&](const auto segment, const int64_t dst_pos) {
         if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
-          array_utils::gather(map,
+          array_utils::gather(vert_map,
                               src_edges.slice(segment).template cast<int>(),
                               dst_edges.slice(IndexRange(dst_pos, segment.size())).cast<int>(),
                               exec_mode::serial);
@@ -65,8 +61,8 @@ void remap_verts(const OffsetIndices<int> src_faces,
           for (const int segment_i : segment.index_range()) {
             const int src_i = segment[segment_i];
             const int dst_i = dst_pos + segment_i;
-            dst_edges[dst_i][0] = map[src_edges[src_i][0]];
-            dst_edges[dst_i][1] = map[src_edges[src_i][1]];
+            dst_edges[dst_i][0] = vert_map[src_edges[src_i][0]];
+            dst_edges[dst_i][1] = vert_map[src_edges[src_i][1]];
           }
         }
       },
@@ -86,15 +82,15 @@ static void remap_verts(const OffsetIndices<int> src_faces,
 {
   Array<int> map(src_verts_num);
   index_mask::build_reverse_map<int>(vert_mask, map);
-  remap_verts(src_faces,
-              dst_faces,
-              map,
-              edge_mask,
-              face_mask,
-              src_edges,
-              src_corner_verts,
-              dst_edges,
-              dst_corner_verts);
+  mesh_gather_and_remap(src_faces,
+                        dst_faces,
+                        map,
+                        edge_mask,
+                        face_mask,
+                        src_edges,
+                        src_corner_verts,
+                        dst_edges,
+                        dst_corner_verts);
 }
 
 static void remap_edges(const OffsetIndices<int> src_faces,
