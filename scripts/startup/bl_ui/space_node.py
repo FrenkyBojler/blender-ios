@@ -971,9 +971,9 @@ class NODE_PT_quality(Panel):
         if rd.compositor_device == 'GPU':
             col.prop(rd, "compositor_precision", text="Precision")
 
-        col = layout.column(heading="Cache", align=True)
-
-        col.prop(rd, "use_compositor_frames_cache", text="Frames")
+        if snode.node_tree_sub_type == 'SCENE':
+            col = layout.column(heading="Cache", align=True)
+            col.prop(rd, "use_compositor_frames_cache", text="Frames")
 
 
 class NODE_PT_overlay(Panel):
