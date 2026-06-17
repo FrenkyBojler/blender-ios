@@ -6,6 +6,8 @@
  * \ingroup spoutliner
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "CLG_log.h"
@@ -4036,6 +4038,136 @@ void OUTLINER_OT_operation(wmOperatorType *ot)
   ot->invoke = outliner_operation_invoke;
 
   ot->poll = ED_operator_region_outliner_active;
+}
+
+static bool sort_selected_alphabetically_poll(bContext *C)
+{
+  if (!ED_operator_outliner_active(C)) {
+    return false;
+  }
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  if (space_outliner == nullptr || space_outliner->sort_method != SO_SORT_CUSTOM) {
+    CTX_wm_operator_poll_msg_set(C, "Outliner is not in custom sort mode");
+    return false;
+  }
+  return true;
+}
+
+static wmOperatorStatus sort_selected_alphabetically_exec(bContext *C, wmOperator * /*op*/)
+{
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  if (space_outliner == nullptr || space_outliner->sort_method != SO_SORT_CUSTOM) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Main *bmain = CTX_data_main(C);
+
+  IDsSelectedData data = {{nullptr}};
+  outliner_tree_traverse(space_outliner,
+                         &space_outliner->runtime->tree,
+                         0,
+                         TSE_SELECTED,
+                         outliner_collect_selected_objects,
+                         &data);
+
+  if (BLI_listbase_is_empty(&data.selected_array)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Map<Collection *, Vector<TreeElement *>> selected_by_collection;
+  for (LinkData &link : data.selected_array) {
+    TreeElement *te = static_cast<TreeElement *>(link.data);
+    Collection *coll = outliner_collection_from_tree_element(te->parent);
+    if (coll != nullptr && ID_IS_EDITABLE(coll) && !ID_IS_OVERRIDE_LIBRARY(coll)) {
+      selected_by_collection.lookup_or_add_default(coll).append(te);
+    }
+  }
+
+  data.selected_array.free_no_destruct();
+
+  if (selected_by_collection.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  bool changed = false;
+
+  for (auto item : selected_by_collection.items()) {
+    Collection *coll = item.key;
+    const Vector<TreeElement *> &selected_te_vec = item.value;
+
+    if (selected_te_vec.size() <= 1) {
+      continue;
+    }
+
+    Vector<CollectionObject *> cobs;
+    for (CollectionObject &cob : coll->gobject) {
+      cobs.append(&cob);
+    }
+
+    std::ranges::sort(cobs, [](const CollectionObject *a, const CollectionObject *b) {
+      const int sort_a = a->sort_index >= 0 ? a->sort_index : INT_MAX;
+      const int sort_b = b->sort_index >= 0 ? b->sort_index : INT_MAX;
+      if (sort_a != sort_b) {
+        return sort_a < sort_b;
+      }
+      return BLI_strcasecmp_natural(a->ob->id.name + 2, b->ob->id.name + 2) < 0;
+    });
+
+    for (const int i : cobs.index_range()) {
+      cobs[i]->sort_index = i;
+    }
+
+    Set<const Object *> selected_obs;
+    for (TreeElement *te : selected_te_vec) {
+      selected_obs.add(reinterpret_cast<const Object *>(TREESTORE(te)->id));
+    }
+
+    Vector<CollectionObject *> selected_cobs;
+    Vector<int> selected_indices;
+    for (CollectionObject *cob : cobs) {
+      if (selected_obs.contains(cob->ob)) {
+        selected_cobs.append(cob);
+        selected_indices.append(cob->sort_index);
+      }
+    }
+
+    if (selected_cobs.size() <= 1) {
+      continue;
+    }
+
+    std::ranges::sort(selected_cobs, [](const CollectionObject *a, const CollectionObject *b) {
+      return BLI_strcasecmp_natural(a->ob->id.name + 2, b->ob->id.name + 2) < 0;
+    });
+
+    for (const int i : selected_cobs.index_range()) {
+      selected_cobs[i]->sort_index = selected_indices[i];
+    }
+
+    DEG_id_tag_update(&coll->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_HIERARCHY);
+    changed = true;
+  }
+
+  if (changed) {
+    DEG_relations_tag_update(bmain);
+    outliner_cleanup_tree(space_outliner);
+    WM_main_add_notifier(NC_SCENE | ND_LAYER, nullptr);
+    ED_undo_push(C, "Sort Selected Alphabetically");
+    return OPERATOR_FINISHED;
+  }
+
+  return OPERATOR_CANCELLED;
+}
+
+void OUTLINER_OT_sort_selected_alphabetically(wmOperatorType *ot)
+{
+  ot->name = "Sort Selected Alphabetically";
+  ot->idname = "OUTLINER_OT_sort_selected_alphabetically";
+  ot->description = "Sort the selected objects alphabetically";
+
+  ot->exec = sort_selected_alphabetically_exec;
+  ot->poll = sort_selected_alphabetically_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */

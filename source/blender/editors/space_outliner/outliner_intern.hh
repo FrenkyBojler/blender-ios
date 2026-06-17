@@ -555,6 +555,7 @@ void OUTLINER_OT_action_set(wmOperatorType *ot);
 void OUTLINER_OT_constraint_operation(wmOperatorType *ot);
 void OUTLINER_OT_modifier_operation(wmOperatorType *ot);
 void OUTLINER_OT_delete(wmOperatorType *ot);
+void OUTLINER_OT_sort_selected_alphabetically(wmOperatorType *ot);
 
 /* `outliner_ops.cc` */
 

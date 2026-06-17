@@ -346,6 +346,9 @@ class OUTLINER_MT_object(Menu):
         layout.operator("outliner.object_operation", text="Deselect").type = 'DESELECT'
 
         layout.separator()
+        layout.operator("outliner.sort_selected_alphabetically", text="Sort Selected Alphabetically")
+
+        layout.separator()
 
         if not (space.display_mode == 'VIEW_LAYER' and not space.use_filter_collection):
             layout.operator("outliner.id_operation", text="Unlink").type = 'UNLINK'

@@ -46,6 +46,7 @@ void outliner_operatortypes()
   WM_operatortype_append(OUTLINER_OT_constraint_operation);
   WM_operatortype_append(OUTLINER_OT_modifier_operation);
   WM_operatortype_append(OUTLINER_OT_delete);
+  WM_operatortype_append(OUTLINER_OT_sort_selected_alphabetically);
 
   WM_operatortype_append(OUTLINER_OT_show_one_level);
   WM_operatortype_append(OUTLINER_OT_show_active);
