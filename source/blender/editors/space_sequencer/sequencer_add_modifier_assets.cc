@@ -7,8 +7,8 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_asset.hh"
 #include "BKE_context.hh"
@@ -22,6 +22,8 @@
 #include "ED_asset.hh"
 #include "ED_asset_menu_utils.hh"
 #include "ED_object.hh"
+
+#include "NOD_composite.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -61,7 +63,8 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C)
   };
   const AssetLibraryReference library = asset_system::all_library_reference();
   asset_system::all_library_reload_catalogs_if_dirty();
-  return asset::build_filtered_all_catalog_tree(library, C, type_filter, meta_data_filter);
+  return asset::build_filtered_all_catalog_tree(
+      library, C, type_filter, meta_data_filter, ntreeType_Composite->asset_catalog_path_prefix);
 }
 
 static asset::AssetItemTree *get_static_item_tree()

@@ -15,10 +15,10 @@
 #include "BLI_index_range.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
-#include "BLI_utildefines.h"
+#include "BLI_rect.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_scene_types.h"
@@ -1239,6 +1239,7 @@ static void text_edit_draw(const bContext *C)
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
+  std::scoped_lock runtime_lock(seq::text_runtime_mutex_get());
   text_selection_draw(C, strip, pos);
   text_edit_draw_cursor(C, strip, pos);
 
