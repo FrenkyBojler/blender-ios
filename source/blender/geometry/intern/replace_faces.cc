@@ -285,7 +285,7 @@ Mesh *replace_faces(const Mesh &base,
   const int merged_verts_num = disjoint_set.calc_reduced_ids(merged_verts);
 
   // TODO: EDGE MERGING
-  Array<int> merged_edges(positions.size());
+  Array<int> merged_edges(edges_all_by_part.total_size());
   const int merged_edges_num = 0;
 
   Mesh *result = BKE_mesh_new_nomain(unselected_verts.size() + merged_verts_num,
