@@ -156,6 +156,7 @@ enum SpaceInterpolationMethod {
 enum EdgeFlowMode {
   EDGE_FLOW_LINEAR = 0,
   EDGE_FLOW_FLOW = 1,
+  EDGE_FLOW_CURVE = 2,
 };
 
 /**

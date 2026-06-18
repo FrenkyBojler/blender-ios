@@ -575,6 +575,14 @@ static BMOpDefine bmo_edge_flow_def = {
         {"blend_type", BMO_OP_SLOT_INT},
         /* Angle in degrees below which ring curvature is ignored (0 disables). */
         {"min_angle", BMO_OP_SLOT_INT},
+        /* Use first and last edge to control curvature. */
+        {"use_rail", BMO_OP_SLOT_BOOL},
+        /* Rail length as absolute or factor of end edge. */
+        {"rail_mode", BMO_OP_SLOT_INT},
+        /* Rail length at start of loop, absolute or factor based on rail_mode. */
+        {"rail_start", BMO_OP_SLOT_FLT},
+        /* Rail length at end of loop, absolute or factor based on rail_mode. */
+        {"rail_end", BMO_OP_SLOT_FLT},
         {{'\0'}},
     },
     /*slot_types_out*/

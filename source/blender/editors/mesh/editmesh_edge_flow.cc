@@ -64,9 +64,14 @@ static wmOperatorStatus edbm_edge_flow_exec(bContext *C, wmOperator *op)
     const int blend_type = RNA_enum_get(op->ptr, "blend_type");
     const int min_angle = RNA_int_get(op->ptr, "min_angle");
 
+    const bool use_rail = RNA_boolean_get(op->ptr, "use_rail");
+    const int rail_mode = RNA_enum_get(op->ptr, "rail_mode");
+    const float rail_start = RNA_float_get(op->ptr, "rail_start");
+    const float rail_end = RNA_float_get(op->ptr, "rail_end");
+
     if (!EDBM_op_callf(em,
                        op,
-                       "edge_flow edges=%he mode=%i mix=%f space_evenly=%b tension=%i iterations=%i blend_mode=%i blend_start=%f blend_end=%f blend_type=%i min_angle=%i",
+                       "edge_flow edges=%he mode=%i mix=%f space_evenly=%b tension=%i iterations=%i blend_mode=%i blend_start=%f blend_end=%f blend_type=%i min_angle=%i use_rail=%b rail_mode=%i rail_start=%f rail_end=%f",
                        BM_ELEM_SELECT,
                        mode,
                        mix,
@@ -77,7 +82,11 @@ static wmOperatorStatus edbm_edge_flow_exec(bContext *C, wmOperator *op)
                        blend_start,
                        blend_end,
                        blend_type,
-                       min_angle))
+                       min_angle,
+                       use_rail,
+                       rail_mode,
+                       rail_start,
+                       rail_end))
     {
       continue;
     }
@@ -96,6 +105,7 @@ static wmOperatorStatus edbm_edge_flow_exec(bContext *C, wmOperator *op)
 static const EnumPropertyItem mode_items[] = {
     {EDGE_FLOW_LINEAR, "LINEAR", 0, "Linear", "Straighten the loop between endpoints"},
     {EDGE_FLOW_FLOW, "FLOW", 0, "Flow", "Adjust loop to match surrounding geometry"},
+    {EDGE_FLOW_CURVE, "CURVE", 0, "Curve", "Fit loop to smooth curve between endpoints"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -108,6 +118,12 @@ static const EnumPropertyItem blend_mode_items[] = {
 static const EnumPropertyItem blend_type_items[] = {
     {0, "LINEAR", 0, "Linear", "Linear falloff"},
     {1, "SMOOTH", 0, "Smooth", "Smooth falloff"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem rail_mode_items[] = {
+    {0, "ABSOLUTE", 0, "Absolute", "Rail length in absolute units"},
+    {1, "FACTOR", 0, "Factor", "Rail length as a factor of the end edge"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -145,6 +161,11 @@ void MESH_OT_edge_flow(wmOperatorType *ot)
   RNA_def_float(ot->srna, "blend_end_float", 0.0f, 0.0f, 1.0f, "Blend End", "Loop fraction from the end to blend", 0.0f, 1.0f);
   RNA_def_enum(ot->srna, "blend_type", blend_type_items, 0, "Blend Curve", "Falloff used when blending");
   RNA_def_int(ot->srna, "min_angle", 0, 0, 180, "Min Angle", "Angle below which loop curvature is ignored", 0, 180);
+
+  RNA_def_boolean(ot->srna, "use_rail", false, "Use Rail", "Use first and last edge to control curvature");
+  RNA_def_enum(ot->srna, "rail_mode", rail_mode_items, 1, "Rail Mode", "Rail length as absolute or factor of end edge");
+  RNA_def_float(ot->srna, "rail_start", 1.0f, -FLT_MAX, FLT_MAX, "Rail Start", "Rail length at start of loop", -100.0f, 100.0f);
+  RNA_def_float(ot->srna, "rail_end", 1.0f, -FLT_MAX, FLT_MAX, "Rail End", "Rail length at end of loop", -100.0f, 100.0f);
 }
 
 }  // namespace blender

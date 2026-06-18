@@ -422,6 +422,10 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
   const int iterations  = BMO_slot_int_get(op->slots_in, "iterations");
   const float tension   = float(tension_int) / 100.0f;
   const float min_angle = DEG2RADF(float(BMO_slot_int_get(op->slots_in, "min_angle")));
+  const bool use_rail = BMO_slot_bool_get(op->slots_in, "use_rail");
+  const int rail_mode = BMO_slot_int_get(op->slots_in, "rail_mode");
+  const float rail_start = BMO_slot_float_get(op->slots_in, "rail_start");
+  const float rail_end = BMO_slot_float_get(op->slots_in, "rail_end");
 
   /* Tag edges passed in via the slot, then collect ordered loops */
   BMO_slot_buffer_hflag_enable(bm, op->slots_in, "edges", BM_EDGE, BM_ELEM_TAG, false);
