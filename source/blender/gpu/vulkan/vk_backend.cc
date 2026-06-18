@@ -621,11 +621,9 @@ void VKBackend::detect_workarounds(VKDevice &device)
       VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
   extensions.vertex_input_dynamic_state = device.supports_extension(
       VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
-#ifdef VK_KHR_unified_image_layouts
   extensions.unified_image_layouts =
       device.supports_extension(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME) &&
       device.physical_device_unified_image_layouts_features_get().unifiedImageLayouts;
-#endif
 #if 0
   extensions.host_image_copy = device.supports_extension(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
 #endif

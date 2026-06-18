@@ -281,12 +281,10 @@ void VKDevice::init_physical_device_features()
   vk_physical_device_vulkan_11_features_.pNext = &vk_physical_device_vulkan_12_features_;
   vk_physical_device_vulkan_12_features_.pNext = nullptr;
 
-#ifdef VK_KHR_unified_image_layouts
   if (supports_extension(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME)) {
     vk_physical_device_vulkan_12_features_.pNext =
         &vk_physical_device_unified_image_layouts_features_;
   }
-#endif
 
   vkGetPhysicalDeviceFeatures2(vk_physical_device_, &features);
   vk_physical_device_features_ = features.features;
