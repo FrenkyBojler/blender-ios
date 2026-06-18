@@ -85,7 +85,7 @@ def do_primitives_pointcloud(gltf, mesh_idx, pointcloud):
     attribute_component_type = {}
     attribute_data_type = {}
 
-    for prim in pypc.primitives:
+    for prim_idx, prim in enumerate(pypc.primitives):
         if 'POSITION' not in prim.attributes:
             continue
 
@@ -128,7 +128,17 @@ def do_primitives_pointcloud(gltf, mesh_idx, pointcloud):
                     gltf.data.accessors[prim.attributes[attr]].component_type,
                     gltf.data.accessors[prim.attributes[attr]].type
                 )
+
+        if 'glTF_primitive_index' not in attributes:
+            attribute_type['glTF_primitive_index'] = 'SCALAR'
+            attributes['glTF_primitive_index'] = np.zeros(
+                len(point_locs) - len(vs[unique_indices]), dtype=np.uint32
+            )
+            attribute_data_type['glTF_primitive_index'] = 'INT'
+
         for idx, attr in enumerate(attributes.keys()):
+            if attr == "glTF_primitive_index":
+                continue
             if attr in prim.attributes:
                 attr_data = BinaryData.decode_accessor(gltf, prim.attributes[attr], cache=True)
                 attributes[attr] = np.concatenate((attributes[attr], attr_data[unique_indices]))
@@ -139,6 +149,10 @@ def do_primitives_pointcloud(gltf, mesh_idx, pointcloud):
                     dtype=ComponentType.to_numpy_dtype(attribute_component_type[attr])
                 )
                 attributes[attr] = np.concatenate((attributes[attr], attr_data))
+
+        attributes['glTF_primitive_index'] = np.concatenate(
+            (attributes['glTF_primitive_index'], np.full(
+                len(unique_indices), prim_idx, dtype=np.uint32)))
 
     pointcloud.resize(point_locs.shape[0])  # Add points to the point cloud
 
@@ -521,7 +535,15 @@ def do_primitives(gltf, mesh_idx, skin_idx, mesh, ob):
     default_materials = {}  # Store VC => index
     we_can_merge_slots = gltf.import_settings['import_merge_material_slots']
 
-    if has_materials is True:
+    # If some primitives are Gaussian Splatting, we cannot merge slots,
+    # because some extension data are defined at primitive level
+    split_no_material_primitives = False
+    if any([prim.extensions is not None and 'KHR_gaussian_splatting' in prim.extensions.keys()
+           for prim in pymesh.primitives]):
+        we_can_merge_slots = False
+        split_no_material_primitives = True
+
+    if has_materials is True or split_no_material_primitives is True:
         bl_material_index_dtype = np.intc
         material_indices = np.empty(num_faces, dtype=bl_material_index_dtype)
         empty_material_slot_index = None
@@ -531,6 +553,12 @@ def do_primitives(gltf, mesh_idx, skin_idx, mesh, ob):
 
             has_variant = prim.extensions is not None and 'KHR_materials_variants' in prim.extensions.keys() \
                 and 'mappings' in prim.extensions['KHR_materials_variants'].keys()
+
+            is_gaussian = prim.extensions is not None and 'KHR_gaussian_splatting' in prim.extensions.keys()
+
+            if is_gaussian and prim.material is not None:
+                # Extension specification: We need to ignore the material
+                prim.material = None
 
             if prim.material is not None:
                 # Get the material
@@ -569,7 +597,7 @@ def do_primitives(gltf, mesh_idx, skin_idx, mesh, ob):
                         # In case of variant, do not merge slots // or if user does not want to merge slots
                         # So we are going to create a new slot if not exists already
                         # Else, create a new slot, but using the existing material
-                        if vertex_color in default_materials.keys():
+                        if vertex_color in default_materials.keys() or is_gaussian:
                             material_index = default_materials[vertex_color]
                             mesh.materials.append(bpy.data.materials[mesh.materials[material_index].name])
                             material_index = len(mesh.materials) - 1
