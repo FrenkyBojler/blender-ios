@@ -50,27 +50,32 @@ static const EnumPropertyItem operation_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
+  b.add_default_layout();
+
   b.add_input<decl::Menu>("Operation"_ustr)
       .default_value(Operation::Intersect)
       .static_items(operation_items)
       .optional_label();
 
-  b.add_input(data_type, "Grid"_ustr, "Grid 1"_ustr)
+  b.add_input(data_type, "Grid 1"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_output(data_type, "Grid"_ustr)
       .hide_value()
       .structure_type(StructureType::Grid)
-      .usage_by_menu("Operation"_ustr, int(Operation::Difference));
-  b.add_input(data_type, "Grid"_ustr, "Grid 2"_ustr)
+      .align_with_previous();
+
+  b.add_input(data_type, "Grid 2"_ustr)
       .hide_value()
       .multi_input()
       .structure_type(StructureType::Grid);
-
-  b.add_output(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -100,19 +105,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
   const Operation operation = params.extract_input<Operation>("Operation"_ustr);
-  auto grids = params.extract_input<GeoNodesMultiInput<bke::GVolumeGrid>>("Grid 2"_ustr);
   Vector<bke::GVolumeGrid> operands;
-  switch (operation) {
-    case Operation::Intersect:
-    case Operation::Union:
-      operands.extend(grids.values);
-      break;
-    case Operation::Difference:
-      if (auto grid = params.extract_input<bke::GVolumeGrid>("Grid 1"_ustr)) {
-        operands.append(std::move(grid));
-      }
-      operands.extend(grids.values);
-      break;
+  if (auto grid = params.extract_input<bke::GVolumeGrid>("Grid 1"_ustr)) {
+    operands.append(std::move(grid));
+  }
+  const auto grids = params.extract_input<GeoNodesMultiInput<bke::GVolumeGrid>>("Grid 2"_ustr);
+  for (const bke::GVolumeGrid &grid : grids.values) {
+    if (grid) {
+      operands.append(grid);
+    }
   }
 
   if (operands.is_empty()) {
