@@ -1650,6 +1650,9 @@ static void bm_to_mesh_loops(Mesh &mesh,
 void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParams *params)
 {
   const int old_verts_num = mesh->verts_num;
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+  const std::optional<StringRef> name_ref = BKE_attributes_active_name_get(owner);
+  const std::string active_attribute_name = name_ref ? *name_ref : "";
 
   BKE_mesh_clear_geometry(mesh);
 
@@ -1923,6 +1926,13 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   edge_single_checker.optimize_storage();
   face_single_checker.optimize_storage();
   corner_single_checker.optimize_storage();
+
+  if (active_attribute_name.size()) {
+    BKE_attributes_active_set(owner, active_attribute_name);
+  }
+  else {
+    BLI_assert(mesh->attributes_active_index == -1);
+  }
 }
 
 void BM_mesh_bm_to_me_compact(BMesh &bm,
