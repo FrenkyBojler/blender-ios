@@ -29,85 +29,62 @@ enum class Operation {
   Difference = 2,
 };
 
+static const EnumPropertyItem operation_items[] = {
+    {int(Operation::Intersect),
+     "INTERSECT",
+     0,
+     "Intersect",
+     "Keep voxels and tiles that are active in all grids"},
+    {int(Operation::Union),
+     "UNION",
+     0,
+     "Union",
+     "Add voxels or tiles that are active in any grid"},
+    {int(Operation::Difference),
+     "DIFFERENCE",
+     0,
+     "Difference",
+     "Keep active voxels and tiles of the primary grid that are not active in secondary grids"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_default_layout();
+
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  const Operation operation = Operation(node->custom2);
 
-  auto &first_grid =
-      b.add_input(data_type, "Grid 1"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_default_layout();
 
-  static const auto make_available = [](bNode &node) {
-    node.custom2 = int16_t(Operation::Difference);
-  };
-  switch (operation) {
-    case Operation::Intersect:
-    case Operation::Union:
-      b.add_input(data_type, "Grid"_ustr, "Grid 2"_ustr)
-          .hide_value()
-          .multi_input()
-          .make_available(make_available)
-          .structure_type(StructureType::Grid);
-      break;
-    case Operation::Difference:
-      b.add_input(data_type, "Grid 2"_ustr)
-          .hide_value()
-          .multi_input()
-          .make_available(make_available)
-          .structure_type(StructureType::Grid);
-      break;
-  }
+  b.add_input<decl::Menu>("Operation"_ustr)
+      .default_value(Operation::Intersect)
+      .static_items(operation_items)
+      .optional_label();
 
-  b.add_output(data_type, "Grid"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_input(data_type, "Grid 1"_ustr).hide_value().structure_type(StructureType::Grid);
+  b.add_output(data_type, "Grid"_ustr)
+      .hide_value()
+      .structure_type(StructureType::Grid)
+      .align_with_previous();
 
-  if (node) {
-    switch (Operation(node->custom2)) {
-      case Operation::Intersect:
-      case Operation::Union:
-        first_grid.available(false);
-        break;
-      case Operation::Difference:
-        first_grid.available(true);
-        break;
-    }
-  }
+  b.add_input(data_type, "Grid 2"_ustr)
+      .hide_value()
+      .multi_input()
+      .structure_type(StructureType::Grid);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = SOCK_FLOAT;
-  node->custom2 = int16_t(Operation::Difference);
 }
 
 static void node_rna(StructRNA *srna)
 {
-
-  static const EnumPropertyItem operation_items[] = {
-      {int(Operation::Intersect),
-       "INTERSECT",
-       0,
-       "Intersect",
-       "Keep voxels and tiles that are active in all grids"},
-      {int(Operation::Union),
-       "UNION",
-       0,
-       "Union",
-       "Add voxels or tiles that are active in any grid"},
-      {int(Operation::Difference),
-       "DIFFERENCE",
-       0,
-       "Difference",
-       "Keep active voxels and tiles of the primary grid that are not active in secondary grids"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   RNA_def_node_enum(srna,
                     "data_type",
                     "Data Type",
@@ -116,40 +93,27 @@ static void node_rna(StructRNA *srna)
                     NOD_inline_enum_accessors(custom1),
                     SOCK_FLOAT,
                     grid_socket_type_items_filter_fn);
-
-  RNA_def_node_enum(srna,
-                    "operation",
-                    "Operation",
-                    "",
-                    operation_items,
-                    NOD_inline_enum_accessors(custom2),
-                    int(Operation::Difference));
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout.prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
-  const Operation operation = Operation(params.node().custom2);
-  auto grids = params.extract_input<GeoNodesMultiInput<bke::GVolumeGrid>>("Grid 2"_ustr);
+  const Operation operation = params.extract_input<Operation>("Operation"_ustr);
   Vector<bke::GVolumeGrid> operands;
-  switch (operation) {
-    case Operation::Intersect:
-    case Operation::Union:
-      operands.extend(grids.values);
-      break;
-    case Operation::Difference:
-      if (auto grid = params.extract_input<bke::GVolumeGrid>("Grid 1"_ustr)) {
-        operands.append(std::move(grid));
-      }
-      operands.extend(grids.values);
-      break;
+  if (auto grid = params.extract_input<bke::GVolumeGrid>("Grid 1"_ustr)) {
+    operands.append(std::move(grid));
+  }
+  const auto grids = params.extract_input<GeoNodesMultiInput<bke::GVolumeGrid>>("Grid 2"_ustr);
+  for (const bke::GVolumeGrid &grid : grids.values) {
+    if (grid) {
+      operands.append(grid);
+    }
   }
 
   if (operands.is_empty()) {
@@ -157,9 +121,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const VolumeGridType grid_type = *bke::socket_type_to_grid_type(data_type);
+  const std::optional<VolumeGridType> grid_type = bke::socket_type_to_grid_type(data_type);
+  if (!grid_type) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
   BKE_volume_grid_type_to_static_type(
-      grid_type, [&]<std::derived_from<openvdb::GridBase> GridType>() {
+      *grid_type, [&]<std::derived_from<openvdb::GridBase> GridType>() {
         if constexpr (std::is_same_v<GridType, openvdb::BoolGrid> ||
                       std::is_same_v<GridType, openvdb::FloatGrid> ||
                       std::is_same_v<GridType, openvdb::Int32Grid> ||

@@ -45,7 +45,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous()
       .propagate_references({1});
 
-  b.add_input<decl::Bool>("Selection"_ustr).hide_value().structure_type(StructureType::Field);
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .structure_type(StructureType::Field);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -136,16 +139,9 @@ BLI_NOINLINE static void process_leaf_node(const fn::Field<bool> &selection_fiel
   bke::VoxelFieldContext field_context{transform, voxels};
   fn::FieldEvaluator evaluator{field_context, &index_mask};
 
-  MutableSpan<bool> selection;
-  volume_grid::to_typed_grid(output_grid, [&](auto &grid) {
-    auto &tree = grid.tree();
-    auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf);
-    /* Should have been added before. */
-    BLI_assert(leaf_node);
-
-    selection = scope.allocator().allocate_array<bool>(index_mask.min_array_size());
-    evaluator.add_with_destination(selection_field, selection);
-  });
+  MutableSpan<bool> selection = scope.allocator().allocate_array<bool>(
+      index_mask.min_array_size());
+  evaluator.add_with_destination(selection_field, selection);
 
   evaluator.evaluate();
 
@@ -205,26 +201,36 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   bke::VolumeTreeAccessToken tree_token;
   openvdb::GridBase &grid_base = grid.get_for_write().grid_for_write(tree_token);
-  const openvdb::math::Transform &transform = grid_base.transform();
-  openvdb::MaskTree mask_tree;
-  volume_grid::to_typed_grid(grid_base,
-                             [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
 
   fn::Field<bool> selection_field = params.extract_input<fn::Field<bool>>("Selection"_ustr);
-  volume_grid::parallel_grid_topology_tasks(
-      mask_tree,
-      [&](const volume_grid::LeafNodeMask &leaf_node_mask,
-          const openvdb::CoordBBox &leaf_bbox,
-          const volume_grid::GetVoxelsFn get_voxels_fn) {
-        process_leaf_node(
-            selection_field, transform, leaf_node_mask, leaf_bbox, get_voxels_fn, grid_base);
-      },
-      [&](const Span<openvdb::Coord> voxels) {
-        process_voxels(selection_field, transform, voxels, grid_base);
-      },
-      [&](const Span<openvdb::CoordBBox> tiles) {
-        process_tiles(selection_field, transform, tiles, grid_base);
-      });
+  if (!selection_field.depends_on_input()) {
+    if (fn::evaluate_constant_field(selection_field)) {
+      /* Deactivate everything. */
+      grid_base.clear();
+    }
+    /* If selection_field evaluates to false keep the grid unmodified. */
+  }
+  else {
+    const openvdb::math::Transform &transform = grid_base.transform();
+    openvdb::MaskTree mask_tree;
+    volume_grid::to_typed_grid(grid_base,
+                               [&](const auto &grid) { mask_tree.topologyUnion(grid.tree()); });
+
+    volume_grid::parallel_grid_topology_tasks(
+        mask_tree,
+        [&](const volume_grid::LeafNodeMask &leaf_node_mask,
+            const openvdb::CoordBBox &leaf_bbox,
+            const volume_grid::GetVoxelsFn get_voxels_fn) {
+          process_leaf_node(
+              selection_field, transform, leaf_node_mask, leaf_bbox, get_voxels_fn, grid_base);
+        },
+        [&](const Span<openvdb::Coord> voxels) {
+          process_voxels(selection_field, transform, voxels, grid_base);
+        },
+        [&](const Span<openvdb::CoordBBox> tiles) {
+          process_tiles(selection_field, transform, tiles, grid_base);
+        });
+  }
 
   params.set_output("Grid"_ustr, std::move(grid));
 #else
