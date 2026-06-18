@@ -16,11 +16,11 @@
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 #include "BLI_task.hh"
 
 #include "BKE_anim_data.hh"
@@ -835,10 +835,11 @@ static SeqResult seq_render_effect_strip_impl(const RenderData *context,
 /** \name Individual strip rendering functions
  * \{ */
 
-void convert_multilayer_ibuf(ImBuf *ibuf)
+void ensure_ibuf_is_rgba(ImBuf *ibuf)
 {
-  /* Load the combined/RGB layer, if this is a multi-layer image. */
-  BKE_movieclip_convert_multilayer_ibuf(ibuf);
+  if (ibuf == nullptr) {
+    return;
+  }
 
   /* Combined layer might be non-4 channels, however the rest
    * of sequencer assumes RGBA everywhere. Convert to 4 channel if needed. */
@@ -863,7 +864,7 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
 {
   ImBuf *ibuf = nullptr;
 
-  ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::Metadata | ImBufFlags::MultiLayer;
+  ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::Metadata;
   if (strip->alpha_mode == SEQ_ALPHA_PREMUL) {
     flag |= ImBufFlags::AlphaPremul;
   }
@@ -882,7 +883,7 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
   if (ibuf == nullptr) {
     return nullptr;
   }
-  convert_multilayer_ibuf(ibuf);
+  ensure_ibuf_is_rgba(ibuf);
 
   /* We don't need both (speed reasons)! */
   if (ibuf->float_data() != nullptr && ibuf->byte_data() != nullptr) {
@@ -975,7 +976,10 @@ static ImBuf *seq_render_image_strip(const RenderData *context,
     }
 
     if (strip->views_format == R_IMF_VIEWS_STEREO_3D) {
-      IMB_ImBufFromStereo3d(strip->stereo3d_format, ibufs_arr[0], &ibufs_arr[0], &ibufs_arr[1]);
+      IMB_ImBufFromStereo3d(strip->stereo3d_format,
+                            ibufs_arr[0],
+                            &ibufs_arr[0],  // NOLINT(readability-container-data-pointer)
+                            &ibufs_arr[1]);
     }
 
     /* Return the requested image; release the others. */
@@ -1107,7 +1111,10 @@ static ImBuf *seq_render_movie_strip(const RenderData *context,
         return nullptr;
       }
 
-      IMB_ImBufFromStereo3d(strip->stereo3d_format, ibuf_arr[0], &ibuf_arr[0], &ibuf_arr[1]);
+      IMB_ImBufFromStereo3d(strip->stereo3d_format,
+                            ibuf_arr[0],
+                            &ibuf_arr[0],  // NOLINT(readability-container-data-pointer)
+                            &ibuf_arr[1]);
     }
 
     /* Return the requested image; release the others. */

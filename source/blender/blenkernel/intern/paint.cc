@@ -29,14 +29,14 @@
 #include "DNA_view3d_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BLI_hash.h"
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
+#include "BLI_hash_c.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 #include "BLI_noise.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -892,7 +892,7 @@ static void paint_brush_default_essentials_name_get(const PaintMode paint_mode,
       }
       break;
     case PaintMode::Weight:
-      name = "Paint";
+      name = "Add Weight";
       if (brush_type) {
         switch (eBrushWeightPaintType(*brush_type)) {
           case WPAINT_BRUSH_TYPE_BLUR:

@@ -11,8 +11,8 @@
 #include <sstream>
 
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_threads.h"
+#include "BLI_string.hh"
+#include "BLI_threads.hh"
 
 #include "CLG_log.h"
 
@@ -770,12 +770,6 @@ void VKBackend::compute_dispatch_indirect(StorageBuf *indirect_buf)
 
 Context *VKBackend::context_alloc(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
 {
-  if (ghost_window) {
-    BLI_assert(ghost_context == nullptr);
-    ghost_context = ghost_window->getDrawingContext();
-  }
-
-  BLI_assert(ghost_context != nullptr);
   if (!device.is_initialized()) {
     device.init(ghost_context);
     device.extensions_get().log();

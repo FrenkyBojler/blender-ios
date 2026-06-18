@@ -16,10 +16,10 @@
 
 #include "DNA_object_types.h"
 
-#include "BLI_compiler_compat.h"
-#include "BLI_listbase.h"
+#include "BLI_compiler_compat.hh"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_ordered_edge.hh"
 
@@ -454,11 +454,14 @@ static bool samples_have_same_topology(const SampleType &sample, const SampleTyp
   /* Otherwise, we need to check the connectivity as files from e.g. videogrammetry may have the
    * same face count, but different connections between faces. */
 
-  if (memcmp(face_counts->get(), ceil_face_counts->get(), face_counts->size() * sizeof(int))) {
+  if (memcmp(face_counts->get(), ceil_face_counts->get(), face_counts->size() * sizeof(int)) != 0)
+  {
     return false;
   }
 
-  if (memcmp(face_indices->get(), ceil_face_indices->get(), face_indices->size() * sizeof(int))) {
+  if (memcmp(face_indices->get(), ceil_face_indices->get(), face_indices->size() * sizeof(int)) !=
+      0)
+  {
     return false;
   }
 
