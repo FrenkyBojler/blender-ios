@@ -391,7 +391,6 @@ class Meshes : Overlay {
     manager.submit(edit_mesh_prepass_ps_, view);
     manager.submit(edit_mesh_analysis_ps_, view);
     manager.submit(edit_mesh_weight_ps_, view);
-    manager.submit(edit_mesh_edges_ps_, view);
 
     if (!xray_enabled_) {
       /* Still use depth-testing for selected faces when X-Ray flag is enabled but transparency is
@@ -406,6 +405,7 @@ class Meshes : Overlay {
     }
 
     manager.submit(edit_mesh_normals_ps_, view);
+    manager.submit(edit_mesh_edges_ps_, view);
     manager.submit(edit_mesh_verts_ps_, view);
     manager.submit(edit_mesh_skin_roots_ps_, view);
     manager.submit(edit_mesh_facedots_ps_, view);
