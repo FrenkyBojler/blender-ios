@@ -40,6 +40,7 @@ static void walk_edge_loop(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
           break;
         }
 
+        /* Opposite edge across the next quad in this direction. */
         l = l->prev->radial_prev->prev;
         if (l->e == start_edge || side[0].contains(l->e) || side[1].contains(l->e)) {
           break;
@@ -57,6 +58,7 @@ static void walk_edge_loop(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
     }
   }
 
+  /* Walker order: reverse(side[1]) ++ start_edge ++ side[0] */
   for (int i = side[1].size() - 1; i >= 0; i--) {
     r_edges.append(side[1][i]);
   }
@@ -72,6 +74,7 @@ static void walk_ngon(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
   BMLoop *start_loop = nullptr;
   int max_valence = 0;
 
+  /* Pick loop on largest n-gon bordering start edge. */
   BMIter l_iter;
   BMLoop *l;
   BM_ITER_ELEM (l, &l_iter, start_edge, BM_LOOPS_OF_EDGE) {
@@ -86,6 +89,7 @@ static void walk_ngon(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
   Vector<BMEdge *> forward;
   Vector<BMEdge *> backward;
 
+  /* Forward walk around face while vert is non-junction. */
   l = start_loop->next;
   while (BM_vert_edge_count(l->v) < 4 && l->e != start_edge && !forward.contains(l->e)) {
     if (!BM_elem_flag_test(l->e, BM_ELEM_TAG)) {
@@ -96,6 +100,7 @@ static void walk_ngon(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
     l = l->next;
   }
 
+  /* Backward walk around face while other vert is non-junction. */
   l = start_loop->prev;
   while (BM_vert_edge_count(BM_edge_other_vert(l->e, l->v)) < 4 && l->e != start_edge && !forward.contains(l->e) && !backward.contains(l->e)) {
     if (!BM_elem_flag_test(l->e, BM_ELEM_TAG)) {
@@ -106,6 +111,7 @@ static void walk_ngon(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
     l = l->prev;
   }
 
+  /* Walker order: reverse(backward) ++ start_edge ++ forward */
   for (int i = backward.size() - 1; i >= 0; i--) {
     r_edges.append(backward[i]);
   }
@@ -117,11 +123,80 @@ static void walk_ngon(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
   }
 }
 
-static void walk_boundary(BMEdge *start_edge, Vector<BMEdge *> &r_edges) {
-  BMIter l_iter;
-  BMLoop *l;
-  BM_ITER_ELEM (l, &l_iter, start_edge, BM_LOOPS_OF_EDGE) {
+static void walk_boundary(BMEdge *start_edge, Vector<BMEdge *> &r_edges)
+{
+  /* collect boundary edges reachable from start_edge through junction verts valence > 2 */
+  Vector<BMEdge *> edge_loop;
+  edge_loop.append(start_edge);
+  int visited = 0;
 
+  while (visited < edge_loop.size()) {
+    const int boundary_end = edge_loop.size();
+    for (int i = visited; i < boundary_end; i++) {
+      BMEdge *candidate = edge_loop[i];
+      for (BMVert *v : {candidate->v1, candidate->v2}) {
+        if (BM_vert_edge_count(v) <= 2) {
+          continue;
+        }
+        BMIter eiter;
+        BMEdge *e;
+        BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
+          if (BM_edge_is_boundary(e) && BM_elem_flag_test(e, BM_ELEM_TAG) &&
+              !edge_loop.contains(e))
+          {
+            edge_loop.append(e);
+          }
+        }
+      }
+    }
+    visited = boundary_end;
+  }
+
+  if (edge_loop.size() == 1) {
+    r_edges.append(start_edge);
+    return;
+  }
+
+  /* order the set into a chain. remaining = edge_loop minus start_edge. */
+  Vector<BMEdge *> remaining;
+  for (BMEdge *e : edge_loop) {
+    if (e != start_edge) {
+      remaining.append(e);
+    }
+  }
+
+  Vector<BMEdge *> forward;
+  Vector<BMEdge *> backward;
+  Vector<BMEdge *> *chain = &forward;
+
+  /* Walk shared verts out from ends of start_edge. */
+  for (BMVert *p : {start_edge->v1, start_edge->v2}) {
+    while (true) {
+      BMEdge *found = nullptr;
+      for (BMEdge *e : remaining) {
+        if (e->v1 == p || e->v2 == p) {
+          found = e;
+        }
+      }
+      if (found == nullptr) {
+        break;
+      }
+      chain->append(found);
+      p = BM_edge_other_vert(found, p);
+      remaining.remove_first_occurrence_and_reorder(found);
+    }
+    chain = &backward;
+  }
+
+  /* Walker order: reverse(backward) ++ start_edge ++ forward */
+  for (int i = backward.size() - 1; i >= 0; i--) {
+    r_edges.append(backward[i]);
+  }
+
+  r_edges.append(start_edge);
+  
+  for (BMEdge *fe : forward) {
+    r_edges.append(fe);
   }
 }
 
@@ -162,7 +237,8 @@ static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
     if (!BM_elem_flag_test(e, BM_ELEM_TAG)) {
       continue;
     }
-    
+
+    /* Walk one ordered, contiguous run of tagged edges starting at e. */
     Vector<BMEdge *> loop_edges;
     edge_flow_walk_loop(e, loop_edges);
 
@@ -174,6 +250,7 @@ static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
       continue;
     }
 
+    /* Find p1, vert of edges[0] not shared with edges[1]. */
     BMVert *p1 = nullptr;
     if (loop_edges.size() == 1) {
       p1 = loop_edges[0]->v1;
@@ -184,9 +261,37 @@ static void edge_flow_collect_loops(BMesh *bm, Vector<EdgeFlowLoop> &r_loops)
     else {
       p1 = loop_edges[0]->v2;
     }
-  }
 
-  
+    /* Build ordered vert array. */
+    EdgeFlowLoop loop;
+    loop.verts.append(p1);
+    BMVert *last = p1;
+    bool valid = true;
+    for (BMEdge *le : loop_edges) {
+      BMVert *next = BM_edge_other_vert(le, last);
+      if (next == nullptr) {
+        /* Backstop for non-contiguous edges */
+        valid = false;
+        break;
+      }
+      loop.verts.append(next);
+      last = next;
+    }
+
+    if (!valid) {
+      continue;
+    }
+
+    /* Ensure larger coord endpoint is first for stable loop ordering. */
+    const float3 first_co = loop.verts.first()->co;
+    const float3 last_co = loop.verts.last()->co;
+    if (first_co.x + first_co.y + first_co.z < last_co.x + last_co.y + last_co.z) {
+      std::reverse(loop.verts.begin(), loop.verts.end());
+    }
+
+    loop.is_cyclic = (loop.verts.first() == loop.verts.last());
+    r_loops.append(std::move(loop));
+  }
 }
 
 static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, const float min_angle, float3 &r_target)
