@@ -66,21 +66,43 @@ static int rna_UndoStep_name_length(PointerRNA *ptr)
   return strlen(us->name);
 }
 
-static void rna_UndoStep_type_name_get(PointerRNA *ptr, char *value)
+static int rna_UndoStep_type_get(PointerRNA *ptr)
 {
-  UndoStep *us = static_cast<UndoStep *>(ptr->data);
-  if (us->type && us->type->name) {
-    strcpy(value, us->type->name);
+  const UndoStep *us = static_cast<const UndoStep *>(ptr->data);
+  if (!us->type) {
+    return 0;
   }
-  else {
-    value[0] = '\0';
+  int index = 0;
+  for (const UndoType &ut : g_undo_types) {
+    if (&ut == us->type) {
+      return index;
+    }
+    index++;
   }
+  return 0;
 }
 
-static int rna_UndoStep_type_name_length(PointerRNA *ptr)
+static const EnumPropertyItem *rna_UndoStep_type_itemf(bContext * /*C*/,
+                                                        PointerRNA * /*ptr*/,
+                                                        PropertyRNA * /*prop*/,
+                                                        bool *r_free)
 {
-  UndoStep *us = static_cast<UndoStep *>(ptr->data);
-  return strlen(us->type->name);
+  EnumPropertyItem *item = nullptr;
+  EnumPropertyItem tmp = {0, "", 0, "", ""};
+  int a = 0, totitem = 0;
+
+  for (const UndoType *ut = static_cast<UndoType *>(g_undo_types.first); ut;
+       ut = ut->next, a++)
+  {
+    tmp.value = a;
+    tmp.identifier = ut->identifier.c_str();
+    tmp.name = ut->name;
+    RNA_enum_item_add(&item, &totitem, &tmp);
+  }
+
+  RNA_enum_item_end(&item, &totitem);
+  *r_free = true;
+  return item;
 }
 
 static bool rna_UndoStep_is_substep_get(PointerRNA *ptr)
@@ -108,13 +130,11 @@ void RNA_def_undo(BlenderRNA *brna)
                                 nullptr);
   RNA_def_property_ui_text(prop, "Name", "Label of the undo step");
 
-  prop = RNA_def_property(srna, "type", PROP_STRING, PROP_NONE);
+  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_string_funcs(prop,
-                                "rna_UndoStep_type_name_get",
-                                "rna_UndoStep_type_name_length",
-                                nullptr);
-  RNA_def_property_ui_text(prop, "Type", "Type name of the undo step");
+  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
+  RNA_def_property_enum_funcs(prop, "rna_UndoStep_type_get", nullptr, "rna_UndoStep_type_itemf");
+  RNA_def_property_ui_text(prop, "Type", "Type of the undo step");
 
   prop = RNA_def_property(srna, "is_substep", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

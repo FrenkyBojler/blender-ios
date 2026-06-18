@@ -10,6 +10,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #include "CLG_log.h"
 
@@ -68,7 +69,16 @@ const UndoType *BKE_UNDOSYS_TYPE_PARTICLE = nullptr;
 const UndoType *BKE_UNDOSYS_TYPE_SCULPT = nullptr;
 const UndoType *BKE_UNDOSYS_TYPE_TEXT = nullptr;
 
-static ListBaseT<UndoType> g_undo_types = {nullptr, nullptr};
+ListBaseT<UndoType> g_undo_types = {nullptr, nullptr};
+
+static std::string undosys_name_to_identifier(const char *name)
+{
+  std::string identifier(name);
+  for (char &c : identifier) {
+    c = (c == ' ') ? '_' : BLI_toupper_ascii(c);
+  }
+  return identifier;
+}
 
 /* An unused function with public linkage just to ensure symbols from the blender_undo.cc are not
  * stripped. */
@@ -914,9 +924,11 @@ bool BKE_undosys_step_redo(UndoStack *ustack, bContext *C)
 
 UndoType *BKE_undosys_type_append(void (*undosys_fn)(UndoType *))
 {
-  UndoType *ut = MEM_new_zeroed<UndoType>(__func__);
+  UndoType *ut = MEM_new<UndoType>(__func__);
 
   undosys_fn(ut);
+
+  ut->identifier = undosys_name_to_identifier(ut->name);
 
   BLI_addtail(&g_undo_types, ut);
 
