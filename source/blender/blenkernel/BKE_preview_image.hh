@@ -184,6 +184,9 @@ PreviewImage *BKE_previewimg_cached_ensure(const char *name);
  * Generate a #PreviewImage from given `filepath`, using thumbnails management, if not yet
  * existing. Does not actually generate the preview, #BKE_previewimg_ensure() must be called for
  * that.
+ *
+ * \param count_users: This must be applied consistently to all previews of their kind (for
+ *     example, to all asset previews, to *no* BPY defined previews, etc.).
  */
 PreviewImage *BKE_previewimg_cached_thumbnail_read(const char *name,
                                                    const char *filepath,
@@ -199,6 +202,8 @@ PreviewImage *BKE_previewimg_cached_thumbnail_read(const char *name,
  *
  * \param force_update: Clear the preview's data, so it will be re-loaded once actual loading is
  *   triggered.
+ * \param count_users: This must be applied consistently to all previews of their kind (for
+ *     example, to all asset previews, to *no* BPY defined previews, etc.).
  */
 PreviewImage *BKE_previewimg_online_thumbnail_read(const char *name,
                                                    const char *dst_filepath,
