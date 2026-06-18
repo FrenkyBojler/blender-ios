@@ -10,7 +10,6 @@
 
 #ifdef WITH_OPENVDB
 
-#  include "BLI_math_matrix_types.hh"
 #  include "BLI_math_vector_types.hh"
 
 #  include "BKE_volume_enums.hh"

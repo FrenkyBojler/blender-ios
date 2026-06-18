@@ -5,10 +5,6 @@
 #pragma once
 
 #include "BLI_index_range.hh"
-#include "BLI_math_matrix_types.hh"
-#include "BLI_math_vector_types.hh"
-
-#include "BKE_volume_grid_type_traits.hh"
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/openvdb.h>
@@ -22,35 +18,35 @@ namespace blender::geometry {
 namespace grid_sampling {
 
 template<int N, class AccessorT>
-bool probe_values(const AccessorT &accessor,
-                  const openvdb::CoordBBox &index_box,
-                  typename AccessorT::ValueType (&data)[N][N][N])
+inline bool probe_values(const AccessorT &accessor,
+                         const openvdb::CoordBBox &index_box,
+                         typename AccessorT::ValueType (&data)[N][N][N])
 {
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  bool active = false;
-  for (int dx : IndexRange(N)) {
-    for (int dy : IndexRange(N)) {
-      for (int dz : IndexRange(N)) {
+  bool any_active = false;
+  for (const int dx : IndexRange(N)) {
+    for (const int dy : IndexRange(N)) {
+      for (const int dz : IndexRange(N)) {
         if (accessor.probeValue(index_box.getStart() + openvdb::Coord(dx, dy, dz),
                                 data[dx][dy][dz]))
         {
-          active = true;
+          any_active = true;
         }
       }
     }
   }
-  return active;
+  return any_active;
 }
 
 template<int N, class AccessorT>
-void get_values(const AccessorT &accessor,
-                const openvdb::CoordBBox &index_box,
-                typename AccessorT::ValueType (&data)[N][N][N])
+inline void get_values(const AccessorT &accessor,
+                       const openvdb::CoordBBox &index_box,
+                       typename AccessorT::ValueType (&data)[N][N][N])
 {
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  for (int dx : IndexRange(N)) {
-    for (int dy : IndexRange(N)) {
-      for (int dz : IndexRange(N)) {
+  for (const int dx : IndexRange(N)) {
+    for (const int dy : IndexRange(N)) {
+      for (const int dz : IndexRange(N)) {
         data[dx][dy][dz] = accessor.getValue(index_box.getStart() + openvdb::Coord(dx, dy, dz));
       }
     }
@@ -59,15 +55,15 @@ void get_values(const AccessorT &accessor,
 
 /* Interpolate values in 3D using a function that combines a 1-dimensional array. */
 template<typename ValueT, int N, typename KernelFn>
-void interpolate_value_3d(ValueT (&data)[N][N][N],
-                          const openvdb::Vec3R &uvw,
-                          KernelFn kernel_fn,
-                          ValueT &result)
+inline void interpolate_value_3d(ValueT (&data)[N][N][N],
+                                 const openvdb::Vec3R &uvw,
+                                 KernelFn kernel_fn,
+                                 ValueT &result)
 {
   ValueT vx[N];
-  for (int dx : IndexRange(N)) {
+  for (const int dx : IndexRange(N)) {
     ValueT vy[N];
-    for (int dy : IndexRange(N)) {
+    for (const int dy : IndexRange(N)) {
       const ValueT *vz = &data[dx][dy][0];
       vy[dy] = kernel_fn(vz, uvw.z());
     }
@@ -77,9 +73,9 @@ void interpolate_value_3d(ValueT (&data)[N][N][N],
 }
 
 template<typename Kernel, class AccessorT>
-bool sample_tree(const AccessorT &accessor,
-                 const openvdb::Vec3R &coord,
-                 typename AccessorT::ValueType &result)
+inline bool sample_tree(const AccessorT &accessor,
+                        const openvdb::Vec3R &coord,
+                        typename AccessorT::ValueType &result)
 {
   using ValueT = typename AccessorT::ValueType;
 
@@ -101,7 +97,8 @@ bool sample_tree(const AccessorT &accessor,
 }
 
 template<typename Kernel, class AccessorT>
-typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openvdb::Vec3R &coord)
+inline typename AccessorT::ValueType sample_tree(const AccessorT &accessor,
+                                                 const openvdb::Vec3R &coord)
 {
   using ValueT = typename AccessorT::ValueType;
 
@@ -155,16 +152,12 @@ struct NearestPointKernel {
 
   template<class ValueT> static ValueT sample_value(const ValueT *values, float /*weight*/)
   {
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     return values[0];
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
   template<class ValueT> static ValueT sample_gradient(const ValueT * /*values*/, float /*weight*/)
   {
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     return ValueT(0.0);
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 };
 
@@ -206,19 +199,15 @@ struct LinearKernel {
 
   template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT lin = static_cast<ValueT>(values[1] - values[0]);
-    const ValueT con = static_cast<ValueT>(values[0]);
-    return static_cast<ValueT>(weight * lin) + con;
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+    const ValueT lin = ValueT(values[1] - values[0]);
+    const ValueT con = ValueT(values[0]);
+    return ValueT(weight * lin) + con;
   }
 
   template<class ValueT> static ValueT sample_gradient(const ValueT *values, float /*weight*/)
   {
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT con = static_cast<ValueT>(values[1] - values[0]);
+    const ValueT con = ValueT(values[1] - values[0]);
     return con;
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 };
 
@@ -295,21 +284,17 @@ struct QuadraticBSplineKernel {
 
   template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT sqr = static_cast<ValueT>(0.5 * (values[0] + values[2]) - values[1]);
-    const ValueT lin = static_cast<ValueT>(0.5 * (values[2] - values[0]));
-    const ValueT con = static_cast<ValueT>(0.125 * (values[0] + values[2]) + 0.75 * values[1]);
+    const ValueT sqr = ValueT(0.5 * (values[0] + values[2]) - values[1]);
+    const ValueT lin = ValueT(0.5 * (values[2] - values[0]));
+    const ValueT con = ValueT(0.125 * (values[0] + values[2]) + 0.75 * values[1]);
     return weight * (weight * sqr + lin) + con;
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
   template<class ValueT> static ValueT sample_gradient(const ValueT *values, float weight)
   {
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT lin = static_cast<ValueT>(values[0] - 2.0 * values[1] + values[2]);
-    const ValueT con = static_cast<ValueT>(0.5 * (values[2] - values[0]));
+    const ValueT lin = ValueT(values[0] - 2.0 * values[1] + values[2]);
+    const ValueT con = ValueT(0.5 * (values[2] - values[0]));
     return weight * lin + con;
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 };
 
@@ -397,26 +382,20 @@ struct CubicBSplineKernel {
 
   template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     constexpr double inv6 = 1.0 / 6.0;
-    const ValueT cub = static_cast<ValueT>(inv6 * (values[3] - values[0]) +
-                                           0.5 * (values[1] - values[2]));
-    const ValueT sqr = static_cast<ValueT>(0.5 * (values[0] + values[2]) - values[1]);
-    const ValueT lin = static_cast<ValueT>(0.5 * (values[2] - values[0]));
-    const ValueT con = static_cast<ValueT>(inv6 * (values[0] + 4.0 * values[1] + values[2]));
+    const ValueT cub = ValueT(inv6 * (values[3] - values[0]) + 0.5 * (values[1] - values[2]));
+    const ValueT sqr = ValueT(0.5 * (values[0] + values[2]) - values[1]);
+    const ValueT lin = ValueT(0.5 * (values[2] - values[0]));
+    const ValueT con = ValueT(inv6 * (values[0] + 4.0 * values[1] + values[2]));
     return weight * (weight * (weight * cub + sqr) + lin) + con;
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
   template<class ValueT> static ValueT sample_gradient(const ValueT *values, float weight)
   {
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT sqr = static_cast<ValueT>(0.5 * (values[3] - values[0]) +
-                                           1.5 * (values[1] - values[2]));
-    const ValueT lin = static_cast<ValueT>(values[0] - 2.0 * values[1] + values[2]);
-    const ValueT con = static_cast<ValueT>(0.5 * (values[2] - values[0]));
+    const ValueT sqr = ValueT(0.5 * (values[3] - values[0]) + 1.5 * (values[1] - values[2]));
+    const ValueT lin = ValueT(values[0] - 2.0 * values[1] + values[2]);
+    const ValueT con = ValueT(0.5 * (values[2] - values[0]));
     return weight * (weight * sqr + lin) + con;
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 };
 
