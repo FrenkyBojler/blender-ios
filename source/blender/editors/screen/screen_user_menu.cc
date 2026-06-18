@@ -217,8 +217,7 @@ static bool all_loading_finished()
 
 /**
  * When adding operators that reference an asset (see
- * `ed::asset::operator_asset_reference_props_is_set`) make sure the asset libraries are loaded and
- * the context "asset" is set.
+ * `ed::asset::operator_asset_reference_props_is_set`) make sure the asset libraries are loaded.
  */
 static void handle_operator_asset_reference_props(const bContext &C,
                                                   bUserMenuItem_Op &umi_op,
