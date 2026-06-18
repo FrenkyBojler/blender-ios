@@ -26,7 +26,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../s
 from space_view3d import VIEW3D_PT_object_type_visibility
 
 
-class VRButtonsPanel:
+class VIEW3D_PT_vr_world_space_panel:
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'XR'
+    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
+
+
+class VRButtonsPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "VR"
@@ -346,10 +352,9 @@ class VIEW3D_PT_vr_info(VRButtonsPanel, Panel):
         layout.label(icon='STATUS_ERROR', text=missing_support_string)
 
 
-class VIEW3D_PT_vr_session_world_space(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'XR'
+class VIEW3D_PT_vr_session_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
     bl_label = "VR Session"
+    bl_xr_panel_mount_point = 'LEFT_HAND'
 
     def draw(self, context):
         layout = self.layout
@@ -378,10 +383,9 @@ class VIEW3D_PT_vr_session_world_space(Panel):
         col.prop(scene, "vr_actions_enable")
 
 
-class VIEW3D_PT_vr_session_view_world_space(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'XR'
+class VIEW3D_PT_vr_session_view_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
     bl_label = "View"
+    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
 
     def draw(self, context):
         layout = self.layout
@@ -421,11 +425,10 @@ class VIEW3D_PT_vr_session_view_world_space(Panel):
         col = layout.column(align=True)
         col.prop(session_settings, "fly_speed", text="Fly Speed")
 
-class VIEW3D_PT_vr_landmarks_world_space(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'XR'
+class VIEW3D_PT_vr_landmarks_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
     bl_label = "Landmarks"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_xr_panel_mount_point = 'LEFT_HAND'
 
     def draw(self, context):
         layout = self.layout
@@ -463,11 +466,10 @@ class VIEW3D_PT_vr_landmarks_world_space(Panel):
 
 
 # Actions.
-class VIEW3D_PT_vr_actionmaps_world_space(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'XR'
+class VIEW3D_PT_vr_actionmaps_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
     bl_label = "Action Maps"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
 
     def draw(self, context):
         layout = self.layout

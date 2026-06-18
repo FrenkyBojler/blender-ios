@@ -96,19 +96,163 @@ struct wmXrPanelHostContextOverride {
 
 static wmXrPanel *wm_xr_panel_find(wmXrSurfaceData *surface_data,
                                    const wmWindow *win,
-                                   const ScrArea *area)
+                                   const ScrArea *area,
+                                   const ARegion *region,
+                                   const eWMXrPanelMountPoint mount_point)
 {
   if (surface_data == nullptr) {
     return nullptr;
   }
 
   for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(surface_data->panels)) {
-    if (panel->panel_host_win == win && panel->panel_host_area == area) {
+    if (panel->panel_host_win == win && panel->panel_host_area == area &&
+        panel->panel_host_region == region && panel->mount_point == mount_point)
+    {
       return panel;
     }
   }
   return nullptr;
 }
+
+static void wm_xr_panel_free(wmXrSurfaceData *surface_data, wmXrPanel *panel)
+{
+  if (surface_data == nullptr || panel == nullptr) {
+    return;
+  }
+  if (panel->panel_offscreen != nullptr) {
+    GPU_offscreen_free(panel->panel_offscreen);
+  }
+  if (surface_data->active_panel == panel) {
+    surface_data->active_panel = nullptr;
+  }
+  BLI_remlink(&surface_data->panels, panel);
+  MEM_delete(panel);
+}
+
+void WM_xr_surface_panel_mount_set(wmXrData *xr, eWMXrPanelMountPoint mount_point)
+{
+  if (xr == nullptr || xr->runtime == nullptr) {
+    return;
+  }
+  xr->runtime->panel_mount_point = mount_point;
+}
+
+static eWMXrPanelMountPoint wm_xr_panel_mount_point_resolve(const wmXrData *xr, const ARegion *region)
+{
+  if (xr != nullptr && xr->runtime != nullptr && xr->runtime->panel_mount_point != XR_PANEL_MOUNT_NONE) {
+    return xr->runtime->panel_mount_point;
+  }
+  if (region == nullptr || region->runtime == nullptr || region->runtime->type == nullptr) {
+    return XR_PANEL_MOUNT_NONE;
+  }
+
+  eWMXrPanelMountPoint mount_point = XR_PANEL_MOUNT_NONE;
+  for (PanelType *panel_type : ListBaseWrapper<PanelType>(region->runtime->type->paneltypes)) {
+    const eWMXrPanelMountPoint panel_mount = eWMXrPanelMountPoint(panel_type->xr_panel_mount_point);
+    if (panel_mount == XR_PANEL_MOUNT_NONE) {
+      continue;
+    }
+    if (mount_point != XR_PANEL_MOUNT_NONE && mount_point != panel_mount) {
+      return XR_PANEL_MOUNT_NONE;
+    }
+    mount_point = panel_mount;
+  }
+
+  return mount_point;
+}
+
+static eWMXrPanelMountPoint wm_xr_panel_type_mount_point_get(const PanelType *panel_type)
+{
+  for (const PanelType *current = panel_type; current != nullptr; current = current->parent) {
+    if (current->xr_panel_mount_point != XR_PANEL_MOUNT_NONE) {
+      return eWMXrPanelMountPoint(current->xr_panel_mount_point);
+    }
+  }
+  return XR_PANEL_MOUNT_NONE;
+}
+
+static int wm_xr_panel_mount_points_collect(const wmXrData *xr,
+                                            const ARegion *region,
+                                            eWMXrPanelMountPoint r_mount_points[4])
+{
+  if (xr != nullptr && xr->runtime != nullptr && xr->runtime->panel_mount_point != XR_PANEL_MOUNT_NONE) {
+    r_mount_points[0] = xr->runtime->panel_mount_point;
+    return 1;
+  }
+  if (region == nullptr || region->runtime == nullptr || region->runtime->type == nullptr) {
+    return 0;
+  }
+
+  int count = 0;
+  for (PanelType *panel_type : ListBaseWrapper<PanelType>(region->runtime->type->paneltypes)) {
+    const eWMXrPanelMountPoint mount_point = wm_xr_panel_type_mount_point_get(panel_type);
+    if (mount_point == XR_PANEL_MOUNT_NONE) {
+      continue;
+    }
+    if (!ELEM(mount_point, XR_PANEL_MOUNT_LEFT_HAND, XR_PANEL_MOUNT_RIGHT_HAND, XR_PANEL_MOUNT_HEAD_FOLLOW, XR_PANEL_MOUNT_WORLD))
+    {
+      continue;
+    }
+    bool already_added = false;
+    for (int i = 0; i < count; i++) {
+      if (r_mount_points[i] == mount_point) {
+        already_added = true;
+        break;
+      }
+    }
+    if (!already_added && count < 4) {
+      r_mount_points[count++] = mount_point;
+    }
+  }
+
+  return count;
+}
+
+class wmXrPanelTypeFilterScope {
+  struct PanelTypeLink {
+    PanelTypeLink *next, *prev;
+    PanelType *panel_type;
+  };
+
+  ARegion *region_;
+  ListBase original_paneltypes_ = {nullptr, nullptr};
+
+ public:
+  wmXrPanelTypeFilterScope(ARegion *region, eWMXrPanelMountPoint mount_point) : region_(region)
+  {
+    if (region_ == nullptr || region_->runtime == nullptr || region_->runtime->type == nullptr) {
+      return;
+    }
+
+    ListBase &paneltypes = region_->runtime->type->paneltypes;
+    for (PanelType *panel_type : ListBaseWrapper<PanelType>(paneltypes)) {
+      PanelTypeLink *link = MEM_new<PanelTypeLink>(__func__);
+      link->panel_type = panel_type;
+      BLI_addtail(&original_paneltypes_, link);
+    }
+
+    BLI_listbase_clear(&paneltypes);
+    for (PanelTypeLink *link : ListBaseWrapper<PanelTypeLink>(original_paneltypes_)) {
+      if (wm_xr_panel_type_mount_point_get(link->panel_type) == mount_point) {
+        BLI_addtail(&paneltypes, link->panel_type);
+      }
+    }
+  }
+
+  ~wmXrPanelTypeFilterScope()
+  {
+    if (region_ == nullptr || region_->runtime == nullptr || region_->runtime->type == nullptr) {
+      return;
+    }
+
+    ListBase &paneltypes = region_->runtime->type->paneltypes;
+    BLI_listbase_clear(&paneltypes);
+    for (PanelTypeLink *link : ListBaseWrapper<PanelTypeLink>(original_paneltypes_)) {
+      BLI_addtail(&paneltypes, link->panel_type);
+    }
+    BLI_freelistN(&original_paneltypes_);
+  }
+};
 
 static int wm_xr_region_panel_type_count(const ARegion *region)
 {
@@ -199,24 +343,127 @@ static void wm_xr_region_ensure_layout_rect(ARegion *region)
 static void wm_xr_panel_default_transform_init(wmXrPanel *panel)
 {
   const float half_pi = 3.1415f * 0.5f;
-  const float screen_to_world_scale = 1.0f / 256.0f;
+  const float screen_to_world_scale = 1.0f / 1536.0f;
   float pos[3] = {0.0f, 0.0f, 2.0f};
   float rot[3] = {half_pi, 0.0f, 0.0f};
   float size[3] = {screen_to_world_scale, screen_to_world_scale, screen_to_world_scale};
   loc_eul_size_to_mat4(panel->panel_obmat, pos, rot, size);
 }
 
-static void wm_xr_panel_default_transform_init_from_viewer(wmXrPanel *panel, const wmXrData *xr)
+static float wm_xr_panel_scale_get(const wmXrPanel *panel)
 {
-  if (panel == nullptr || xr == nullptr || xr->runtime == nullptr ||
-      !xr->runtime->session_state.is_view_data_set)
+  if (panel != nullptr && panel->mount_point == XR_PANEL_MOUNT_HEAD_FOLLOW) {
+    return 1.0f / 500.0f;
+  }
+  return 1.0f / 1536.0f;
+}
+
+static bool wm_xr_controller_pose_find(const wmXrData *xr,
+                                       const char *subaction_path,
+                                       const wmXrController **r_controller,
+                                       bool *r_use_grip_pose)
+{
+  if (subaction_path == nullptr || r_controller == nullptr || r_use_grip_pose == nullptr) {
+    return false;
+  }
+  *r_controller = nullptr;
+  *r_use_grip_pose = false;
+
+  if (xr == nullptr || xr->runtime == nullptr) {
+    return false;
+  }
+
+  for (const wmXrController *controller :
+       ConstListBaseWrapper<wmXrController>(xr->runtime->session_state.controllers))
   {
-    wm_xr_panel_default_transform_init(panel);
+    if (STREQ(controller->subaction_path, subaction_path)) {
+      if (controller->grip_active) {
+        *r_controller = controller;
+        *r_use_grip_pose = true;
+        return true;
+      }
+      if (controller->aim_active) {
+        *r_controller = controller;
+        *r_use_grip_pose = false;
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+static void wm_xr_panel_basis_from_back(const float back_in[3], float r_right[3], float r_up[3], float r_back[3])
+{
+  float back[3];
+  copy_v3_v3(back, back_in);
+  if (normalize_v3(back) == 0.0f) {
+    back[0] = 0.0f;
+    back[1] = -1.0f;
+    back[2] = 0.0f;
+  }
+
+  const float world_up[3] = {0.0f, 0.0f, 1.0f};
+  cross_v3_v3v3(r_right, back, world_up);
+  if (normalize_v3(r_right) == 0.0f) {
+    r_right[0] = 1.0f;
+    r_right[1] = 0.0f;
+    r_right[2] = 0.0f;
+  }
+
+  cross_v3_v3v3(r_up, r_right, back);
+  normalize_v3(r_up);
+  copy_v3_v3(r_back, back);
+}
+
+static void wm_xr_panel_transform_apply(wmXrPanel *panel, const float pos[3], const float back[3])
+{
+  if (panel == nullptr) {
     return;
   }
 
-  const float half_pi = 3.1415f * 0.5f;
-  const float screen_to_world_scale = 1.0f / 256.0f;
+  const float screen_to_world_scale = wm_xr_panel_scale_get(panel);
+  float right[3];
+  float up[3];
+  float basis_back[3];
+
+  wm_xr_panel_basis_from_back(back, right, up, basis_back);
+
+  unit_m4(panel->panel_obmat);
+  copy_v3_v3(panel->panel_obmat[0], right);
+  copy_v3_v3(panel->panel_obmat[1], up);
+  copy_v3_v3(panel->panel_obmat[2], basis_back);
+  mul_v3_fl(panel->panel_obmat[0], screen_to_world_scale);
+  mul_v3_fl(panel->panel_obmat[1], screen_to_world_scale);
+  mul_v3_fl(panel->panel_obmat[2], screen_to_world_scale);
+  copy_v3_v3(panel->panel_obmat[3], pos);
+
+  const int panel_px_width = std::max(BLI_rcti_size_x(&panel->panel_rect) + 1, 1);
+  const int panel_px_height = std::max(BLI_rcti_size_y(&panel->panel_rect) + 1, 1);
+  madd_v3_v3fl(panel->panel_obmat[3], panel->panel_obmat[0], -0.5f * panel_px_width);
+  madd_v3_v3fl(panel->panel_obmat[3], panel->panel_obmat[1], -0.5f * panel_px_height);
+}
+
+static void wm_xr_panel_center_position_get(const wmXrPanel *panel, float r_center[3])
+{
+  if (panel == nullptr) {
+    zero_v3(r_center);
+    return;
+  }
+
+  copy_v3_v3(r_center, panel->panel_obmat[3]);
+  const int panel_px_width = std::max(BLI_rcti_size_x(&panel->panel_rect) + 1, 1);
+  const int panel_px_height = std::max(BLI_rcti_size_y(&panel->panel_rect) + 1, 1);
+  madd_v3_v3fl(r_center, panel->panel_obmat[0], 0.5f * panel_px_width);
+  madd_v3_v3fl(r_center, panel->panel_obmat[1], 0.5f * panel_px_height);
+}
+
+static bool wm_xr_panel_target_from_viewer(const wmXrData *xr, float r_pos[3], float r_back[3])
+{
+  if (xr == nullptr || xr->runtime == nullptr || !xr->runtime->session_state.is_view_data_set) {
+    return false;
+  }
+
   const GHOST_XrPose *viewer_pose = &xr->runtime->session_state.viewer_pose;
   float viewer_mat[4][4];
   wm_xr_pose_to_mat(viewer_pose, viewer_mat);
@@ -231,34 +478,166 @@ static void wm_xr_panel_default_transform_init_from_viewer(wmXrPanel *panel, con
     forward_xy[1] = -1.0f;
   }
 
-  float pos[3];
-  copy_v3_v3(pos, viewer_pose->position);
-  pos[0] += forward_xy[0] * 1.5f;
-  pos[1] += forward_xy[1] * 1.5f;
-  float normal[3] = {-forward_xy[0], -forward_xy[1], 0.0f};
-  float up[3] = {0.0f, 0.0f, 1.0f};
-  float right[3];
-  cross_v3_v3v3(right, normal, up);
-  normalize_v3(right);
+  copy_v3_v3(r_pos, viewer_pose->position);
+  r_pos[0] += forward_xy[0] * 1.5f;
+  r_pos[1] += forward_xy[1] * 1.5f;
+  r_back[0] = forward_xy[0];
+  r_back[1] = forward_xy[1];
+  r_back[2] = 0.0f;
+  return true;
+}
 
-  unit_m4(panel->panel_obmat);
-  copy_v3_v3(panel->panel_obmat[0], right);
-  copy_v3_v3(panel->panel_obmat[1], up);
-  copy_v3_v3(panel->panel_obmat[2], normal);
-  mul_v3_fl(panel->panel_obmat[0], screen_to_world_scale);
-  mul_v3_fl(panel->panel_obmat[1], screen_to_world_scale);
-  mul_v3_fl(panel->panel_obmat[2], screen_to_world_scale);
-  copy_v3_v3(panel->panel_obmat[3], pos);
+static bool wm_xr_panel_target_from_controller(const wmXrData *xr,
+                                               const char *subaction_path,
+                                               float r_pos[3],
+                                               float r_back[3])
+{
+  const wmXrController *controller = nullptr;
+  bool use_grip_pose = false;
+  if (!wm_xr_controller_pose_find(xr, subaction_path, &controller, &use_grip_pose)) {
+    return false;
+  }
+
+  float controller_right[3];
+  float controller_up[3];
+  float controller_forward[3];
+  const float(*controller_mat)[4] = use_grip_pose ? controller->grip_mat : controller->aim_mat;
+  const GHOST_XrPose *controller_pose = use_grip_pose ? &controller->grip_pose : &controller->aim_pose;
+  normalize_v3_v3(controller_right, controller_mat[0]);
+  normalize_v3_v3(controller_up, controller_mat[1]);
+  normalize_v3_v3(controller_forward, controller_mat[2]);
+
+  const float side_sign = STREQ(subaction_path, "/user/hand/right") ? 1.0f : -1.0f;
+  copy_v3_v3(r_pos, controller_pose->position);
+  madd_v3_v3fl(r_pos, controller_right, 0.08f * side_sign);
+  madd_v3_v3fl(r_pos, controller_up, 0.05f);
+  madd_v3_v3fl(r_pos, controller_forward, -0.04f);
+
+  if (xr != nullptr && xr->runtime != nullptr && xr->runtime->session_state.is_view_data_set) {
+    const GHOST_XrPose *viewer_pose = &xr->runtime->session_state.viewer_pose;
+    r_back[0] = r_pos[0] - viewer_pose->position[0];
+    r_back[1] = r_pos[1] - viewer_pose->position[1];
+    r_back[2] = 0.0f;
+  }
+  else {
+    r_back[0] = controller_forward[0];
+    r_back[1] = controller_forward[1];
+    r_back[2] = 0.0f;
+  }
+
+  return true;
+}
+
+static bool wm_xr_panel_target_from_head_follow(const wmXrData *xr,
+                                                const wmXrPanel *panel,
+                                                float r_pos[3],
+                                                float r_back[3])
+{
+  float target_pos[3];
+  float target_back[3];
+  if (!wm_xr_panel_target_from_viewer(xr, target_pos, target_back)) {
+    return false;
+  }
+
+  if (panel == nullptr || is_zero_m4(panel->panel_obmat)) {
+    copy_v3_v3(r_pos, target_pos);
+    copy_v3_v3(r_back, target_back);
+    return true;
+  }
+
+  float current_back[3];
+  if (xr == nullptr || xr->runtime == nullptr || !xr->runtime->session_state.is_view_data_set) {
+    copy_v3_v3(r_pos, target_pos);
+    copy_v3_v3(r_back, target_back);
+    return true;
+  }
+
+  const GHOST_XrPose *viewer_pose = &xr->runtime->session_state.viewer_pose;
+  float current_center[3];
+  wm_xr_panel_center_position_get(panel, current_center);
+  sub_v3_v3v3(current_back, current_center, viewer_pose->position);
+  current_back[2] = 0.0f;
+  if (normalize_v3(current_back) == 0.0f) {
+    copy_v3_v3(current_back, target_back);
+  }
+
+  const float fixed_distance = 1.0f;
+  const float follow_angle_threshold = DEG2RADF(25.0f);
+  const float follow_factor = 0.01f;
+  const float angle = angle_normalized_v3v3(current_back, target_back);
+
+  if (angle < follow_angle_threshold) {
+    madd_v3_v3v3fl(r_pos, viewer_pose->position, current_back, fixed_distance);
+    copy_v3_v3(r_back, current_back);
+    return true;
+  }
+
+  interp_v3_v3v3(r_back, current_back, target_back, follow_factor);
+  normalize_v3(r_back);
+  madd_v3_v3v3fl(r_pos, viewer_pose->position, r_back, fixed_distance);
+  return true;
+}
+
+static void wm_xr_panel_mount_update(wmXrPanel *panel, const wmXrData *xr)
+{
+  if (panel == nullptr) {
+    return;
+  }
+
+  float pos[3];
+  float back[3];
+  bool has_target = false;
+
+  switch (panel->mount_point) {
+    case XR_PANEL_MOUNT_NONE:
+      return;
+    case XR_PANEL_MOUNT_LEFT_HAND:
+      has_target = wm_xr_panel_target_from_controller(xr, "/user/hand/left", pos, back);
+      if (!has_target) {
+        has_target = wm_xr_panel_target_from_viewer(xr, pos, back);
+      }
+      break;
+    case XR_PANEL_MOUNT_RIGHT_HAND:
+      has_target = wm_xr_panel_target_from_controller(xr, "/user/hand/right", pos, back);
+      if (!has_target) {
+        has_target = wm_xr_panel_target_from_viewer(xr, pos, back);
+      }
+      break;
+    case XR_PANEL_MOUNT_HEAD_FOLLOW:
+      has_target = wm_xr_panel_target_from_head_follow(xr, panel, pos, back);
+      break;
+    case XR_PANEL_MOUNT_WORLD:
+      if (is_zero_m4(panel->panel_obmat)) {
+        has_target = wm_xr_panel_target_from_viewer(xr, pos, back);
+      }
+      else {
+        return;
+      }
+      break;
+  }
+
+  if (!has_target) {
+    wm_xr_panel_default_transform_init(panel);
+    return;
+  }
+
+  wm_xr_panel_transform_apply(panel, pos, back);
 }
 
 static wmXrPanel *wm_xr_panel_register(wmXrSurfaceData *surface_data,
                                        wmWindow *win,
                                        ScrArea *area,
                                        ARegion *region,
+                                       eWMXrPanelMountPoint mount_point,
                                        const wmXrData *xr)
 {
-  wmXrPanel *panel = wm_xr_panel_find(surface_data, win, area);
+  if (mount_point == XR_PANEL_MOUNT_NONE) {
+    return nullptr;
+  }
+
+  wmXrPanel *panel = wm_xr_panel_find(surface_data, win, area, region, mount_point);
   if (panel != nullptr) {
+    panel->mount_point = mount_point;
     panel->panel_host_region = region;
     XR_PANELS_TRACE("panels_ws: reuse host panel area=%p region=%p panel_types=%d panel_instances=%d",
                     area,
@@ -269,11 +648,12 @@ static wmXrPanel *wm_xr_panel_register(wmXrSurfaceData *surface_data,
   }
 
   panel = MEM_new_zeroed<wmXrPanel>(__func__);
-  wm_xr_panel_default_transform_init_from_viewer(panel, xr);
-  panel->panel_frame_tag = surface_data->panels_frame_tag;
+  panel->mount_point = mount_point;
   panel->panel_host_win = win;
   panel->panel_host_area = area;
   panel->panel_host_region = region;
+  wm_xr_panel_mount_update(panel, xr);
+  panel->panel_frame_tag = surface_data->panels_frame_tag;
   BLI_addtail(&surface_data->panels, panel);
   XR_PANELS_TRACE("panels_ws: created panel transform panel=%p loc=(%.3f, %.3f, %.3f)",
                   panel,
@@ -533,8 +913,8 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
     return true;
   }
 
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *xr_region = area ? BKE_area_find_region_type(area, RGN_TYPE_XR) : nullptr;
+  ScrArea *area = panel ? panel->panel_host_area : nullptr;
+  ARegion *xr_region = panel ? panel->panel_host_region : nullptr;
   if (panel == nullptr || area == nullptr || xr_region == nullptr || xr_region->runtime == nullptr ||
       xr_region->runtime->type == nullptr)
   {
@@ -555,10 +935,13 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
   ARegion *prev_region = CTX_wm_region(mutable_C);
   const bool prev_visible = xr_region->runtime->visible;
   rcti panel_rect = panel->panel_rect;
+  int w = 0;
+  int h = 0;
   const bool needs_layout = !panel->panel_valid ||
                             (panel->panel_last_rebuild_tag != panel->panel_frame_tag) ||
                             (xr_region->runtime->do_draw & RGN_REFRESH_UI) ||
-                            BLI_listbase_is_empty(&xr_region->runtime->uiblocks);
+                            BLI_listbase_is_empty(&xr_region->runtime->uiblocks) ||
+                            (CTX_wm_manager(C)->xr.runtime->offscreen_area_mount_point != panel->mount_point);
   if (needs_layout) {
     wm_xr_region_ensure_layout_rect(xr_region);
   }
@@ -584,89 +967,94 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
                   int(xr_region->alignment));
   CTX_wm_region_set(mutable_C, xr_region);
   xr_region->alignment = RGN_ALIGN_FLOAT;
-  if (needs_layout) {
-    ED_region_panels_exit_active_state(mutable_C, xr_region);
-    ui::blocklist_free(mutable_C, xr_region);
-    ED_region_panels_layout(mutable_C, xr_region);
-
-    const int content_width = std::max(1, int(std::ceil(BLI_rctf_size_x(&xr_region->v2d.tot))));
-    const int content_height = std::max(1, int(std::ceil(BLI_rctf_size_y(&xr_region->v2d.tot))));
-    XR_PANELS_TRACE("panels_ws: panel content size=%dx%d v2d_tot=(%.3f, %.3f)-(%.3f, %.3f)",
-                    content_width,
-                    content_height,
-                    xr_region->v2d.tot.xmin,
-                    xr_region->v2d.tot.ymin,
-                    xr_region->v2d.tot.xmax,
-                    xr_region->v2d.tot.ymax);
-
-    if (content_width != xr_region->winx || content_height != xr_region->winy) {
-      BLI_rcti_init(&xr_region->winrct, 0, content_width - 1, 0, content_height - 1);
-      xr_region->sizex = content_width;
-      xr_region->sizey = content_height;
-      ED_region_update_rect(xr_region);
-      view2d_region_reinit(
-          &xr_region->v2d, ui::V2D_COMMONVIEW_PANELS_UI, xr_region->winx, xr_region->winy);
-      XR_PANELS_TRACE("panels_ws: resized xr panel region winrct=(%d,%d)-(%d,%d) size=%dx%d",
-                      xr_region->winrct.xmin,
-                      xr_region->winrct.ymin,
-                      xr_region->winrct.xmax,
-                      xr_region->winrct.ymax,
-                      xr_region->winx,
-                      xr_region->winy);
+  {
+    wmXrPanelTypeFilterScope panel_type_filter(xr_region, panel->mount_point);
+    if (needs_layout) {
       ED_region_panels_exit_active_state(mutable_C, xr_region);
       ui::blocklist_free(mutable_C, xr_region);
+      BKE_area_region_panels_free(&xr_region->panels);
       ED_region_panels_layout(mutable_C, xr_region);
-    }
-    BLI_rcti_init(&panel_rect, 0, content_width - 1, 0, content_height - 1);
-    XR_PANELS_TRACE("panels_ws: layout done xr_region=%p rect=(%d,%d)-(%d,%d) panel_instances_after_layout=%d",
-                    xr_region,
-                    panel_rect.xmin,
-                    panel_rect.ymin,
-                    panel_rect.xmax,
-                    panel_rect.ymax,
-                    wm_xr_region_panel_instance_count(xr_region));
-    wm_xr_trace_panel_blocks(xr_region);
-  }
-  else {
-    XR_PANELS_TRACE("panels_ws: redraw existing panel rect=(%d,%d)-(%d,%d) panel_instances=%d",
-                    panel_rect.xmin,
-                    panel_rect.ymin,
-                    panel_rect.xmax,
-                    panel_rect.ymax,
-                    wm_xr_region_panel_instance_count(xr_region));
-  }
 
-  const int w = BLI_rcti_size_x(&panel_rect) + 1;
-  const int h = BLI_rcti_size_y(&panel_rect) + 1;
-  XR_PANELS_TRACE("panels_ws: offscreen target size=%dx%d existing=%p", w, h, panel->panel_offscreen);
-  bool create_new = true;
-  if (panel->panel_offscreen) {
-    if (GPU_offscreen_width(panel->panel_offscreen) == w &&
-        GPU_offscreen_height(panel->panel_offscreen) == h)
-    {
-      create_new = false;
+      const int content_width = std::max(1, int(std::ceil(BLI_rctf_size_x(&xr_region->v2d.tot))));
+      const int content_height = std::max(1, int(std::ceil(BLI_rctf_size_y(&xr_region->v2d.tot))));
+      XR_PANELS_TRACE("panels_ws: panel content size=%dx%d v2d_tot=(%.3f, %.3f)-(%.3f, %.3f)",
+                      content_width,
+                      content_height,
+                      xr_region->v2d.tot.xmin,
+                      xr_region->v2d.tot.ymin,
+                      xr_region->v2d.tot.xmax,
+                      xr_region->v2d.tot.ymax);
+
+      if (content_width != xr_region->winx || content_height != xr_region->winy) {
+        BLI_rcti_init(&xr_region->winrct, 0, content_width - 1, 0, content_height - 1);
+        xr_region->sizex = content_width;
+        xr_region->sizey = content_height;
+        ED_region_update_rect(xr_region);
+        view2d_region_reinit(
+            &xr_region->v2d, ui::V2D_COMMONVIEW_PANELS_UI, xr_region->winx, xr_region->winy);
+        XR_PANELS_TRACE("panels_ws: resized xr panel region winrct=(%d,%d)-(%d,%d) size=%dx%d",
+                        xr_region->winrct.xmin,
+                        xr_region->winrct.ymin,
+                        xr_region->winrct.xmax,
+                        xr_region->winrct.ymax,
+                        xr_region->winx,
+                        xr_region->winy);
+        ED_region_panels_exit_active_state(mutable_C, xr_region);
+        ui::blocklist_free(mutable_C, xr_region);
+        BKE_area_region_panels_free(&xr_region->panels);
+        ED_region_panels_layout(mutable_C, xr_region);
+      }
+      BLI_rcti_init(&panel_rect, 0, content_width - 1, 0, content_height - 1);
+      XR_PANELS_TRACE("panels_ws: layout done xr_region=%p rect=(%d,%d)-(%d,%d) panel_instances_after_layout=%d",
+                      xr_region,
+                      panel_rect.xmin,
+                      panel_rect.ymin,
+                      panel_rect.xmax,
+                      panel_rect.ymax,
+                      wm_xr_region_panel_instance_count(xr_region));
+      wm_xr_trace_panel_blocks(xr_region);
     }
     else {
-      GPU_offscreen_free(panel->panel_offscreen);
-      panel->panel_offscreen = nullptr;
+      XR_PANELS_TRACE("panels_ws: redraw existing panel rect=(%d,%d)-(%d,%d) panel_instances=%d",
+                      panel_rect.xmin,
+                      panel_rect.ymin,
+                      panel_rect.xmax,
+                      panel_rect.ymax,
+                      wm_xr_region_panel_instance_count(xr_region));
     }
-  }
-  if (create_new) {
-    panel->panel_offscreen = GPU_offscreen_create(
-        w, h, false, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, false, nullptr);
-  }
-  if (!panel->panel_offscreen) {
-    XR_PANELS_TRACE("panels_ws: offscreen create failed size=%dx%d", w, h);
-    CLOG_ERROR(&LOG, "panels_ws: offscreen create failed");
-    xr_region->runtime->visible = prev_visible;
-    ED_region_panels_world_layout_end(mutable_C, xr_region, prev_alignment, prev_region);
-    return false;
-  }
 
-  XR_PANELS_TRACE("panels_ws: draw offscreen begin offscreen=%p", panel->panel_offscreen);
-  ED_region_panels_draw_offscreen(C, xr_region, &panel_rect, panel->panel_offscreen);
-  XR_PANELS_TRACE("panels_ws: draw offscreen end offscreen=%p", panel->panel_offscreen);
-  wm_xr_trace_panel_texture_sample(panel->panel_offscreen, &panel_rect);
+    w = BLI_rcti_size_x(&panel_rect) + 1;
+    h = BLI_rcti_size_y(&panel_rect) + 1;
+    XR_PANELS_TRACE("panels_ws: offscreen target size=%dx%d existing=%p", w, h, panel->panel_offscreen);
+    bool create_new = true;
+    if (panel->panel_offscreen) {
+      if (GPU_offscreen_width(panel->panel_offscreen) == w &&
+          GPU_offscreen_height(panel->panel_offscreen) == h)
+      {
+        create_new = false;
+      }
+      else {
+        GPU_offscreen_free(panel->panel_offscreen);
+        panel->panel_offscreen = nullptr;
+      }
+    }
+    if (create_new) {
+      panel->panel_offscreen = GPU_offscreen_create(
+          w, h, false, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, false, nullptr);
+    }
+    if (!panel->panel_offscreen) {
+      XR_PANELS_TRACE("panels_ws: offscreen create failed size=%dx%d", w, h);
+      CLOG_ERROR(&LOG, "panels_ws: offscreen create failed");
+      xr_region->runtime->visible = prev_visible;
+      ED_region_panels_world_layout_end(mutable_C, xr_region, prev_alignment, prev_region);
+      return false;
+    }
+
+    XR_PANELS_TRACE("panels_ws: draw offscreen begin offscreen=%p", panel->panel_offscreen);
+    ED_region_panels_draw_offscreen(C, xr_region, &panel_rect, panel->panel_offscreen);
+    XR_PANELS_TRACE("panels_ws: draw offscreen end offscreen=%p", panel->panel_offscreen);
+    wm_xr_trace_panel_texture_sample(panel->panel_offscreen, &panel_rect);
+  }
   panel->panel_rect = panel_rect;
   panel->panel_valid = true;
   panel->panel_dirty = false;
@@ -674,6 +1062,7 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
   panel->panel_host_win = CTX_wm_window(C);
   panel->panel_host_area = area;
   panel->panel_host_region = xr_region;
+  CTX_wm_manager(C)->xr.runtime->offscreen_area_mount_point = panel->mount_point;
   xr_region->runtime->do_draw &= ~RGN_REFRESH_UI;
 
   xr_region->runtime->visible = prev_visible;
@@ -713,25 +1102,66 @@ void WM_xr_surface_panels_register(const bContext *C)
 
   wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
   wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *xr_region = area ? BKE_area_find_region_type(area, RGN_TYPE_XR) : nullptr;
   const wmWindowManager *wm = CTX_wm_manager(C);
   const wmXrData *xr = wm ? &wm->xr : nullptr;
-  if (surface_data == nullptr || win == nullptr || area == nullptr || xr_region == nullptr) {
-    XR_PANELS_TRACE("panels_ws: register skipped surface=%p win=%p area=%p xr_region=%p",
+  if (surface_data == nullptr || win == nullptr || xr == nullptr || xr->runtime == nullptr) {
+    XR_PANELS_TRACE("panels_ws: register skipped surface=%p win=%p xr=%p",
                     surface_data,
                     win,
-                    area,
-                    xr_region);
+                    xr);
     return;
   }
 
-  XR_PANELS_TRACE("panels_ws: register host request area=%p xr_region=%p panel_types=%d panel_instances=%d",
-                  area,
-                  xr_region,
-                  wm_xr_region_panel_type_count(xr_region),
-                  wm_xr_region_panel_instance_count(xr_region));
-  wm_xr_panel_register(surface_data, win, area, xr_region, xr);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *xr_region = area ? BKE_area_find_region_type(area, RGN_TYPE_XR) : nullptr;
+  eWMXrPanelMountPoint mount_points[4];
+  const int mount_count = wm_xr_panel_mount_points_collect(xr, xr_region, mount_points);
+  if (area == nullptr || xr_region == nullptr || mount_count == 0) {
+    return;
+  }
+  for (int i = 0; i < mount_count; i++) {
+    wm_xr_panel_register(surface_data, win, area, xr_region, mount_points[i], xr);
+  }
+}
+
+void WM_xr_surface_panels_update(const bContext *C, const wmXrData *xr)
+{
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  wmWindow *win = C ? CTX_wm_window(C) : nullptr;
+  if (surface_data == nullptr || xr == nullptr || xr->runtime == nullptr || win == nullptr) {
+    return;
+  }
+
+  ScrArea *area = C ? CTX_wm_area(C) : nullptr;
+  ARegion *xr_region = area ? BKE_area_find_region_type(area, RGN_TYPE_XR) : nullptr;
+  eWMXrPanelMountPoint mount_points[4];
+  const int mount_count = wm_xr_panel_mount_points_collect(xr, xr_region, mount_points);
+  if (area != nullptr && xr_region != nullptr) {
+    for (int i = 0; i < mount_count; i++) {
+      wm_xr_panel_register(surface_data, win, area, xr_region, mount_points[i], xr);
+    }
+  }
+
+  wmXrPanel *panel = static_cast<wmXrPanel *>(surface_data->panels.first);
+  while (panel != nullptr) {
+    wmXrPanel *panel_next = panel->next;
+    bool mount_found = false;
+    for (int i = 0; i < mount_count; i++) {
+      if (panel->mount_point == mount_points[i]) {
+        mount_found = true;
+        break;
+      }
+    }
+    if (panel->panel_host_win != win || panel->panel_host_area != area || panel->panel_host_region != xr_region ||
+        !mount_found)
+    {
+      wm_xr_panel_free(surface_data, panel);
+      panel = panel_next;
+      continue;
+    }
+    wm_xr_panel_mount_update(panel, xr);
+    panel = panel_next;
+  }
 }
 
 void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
@@ -821,6 +1251,7 @@ void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
       hit_panel->panel_region_xy[1] != hit_region_xy[1] ||
       !STREQ(hit_panel->panel_pointer.subaction_path, subaction_path))
   {
+    wm_xr_panel_cache_refresh_host(C, hit_panel);
     int win_xy[2] = {
         hit_panel->panel_host_region->winrct.xmin + hit_region_xy[0],
         hit_panel->panel_host_region->winrct.ymin + hit_region_xy[1],
@@ -893,6 +1324,7 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
     if (!panel->panel_hovered) {
       return false;
     }
+    wm_xr_panel_cache_refresh_host(C, panel);
     int win_xy[2] = {
         panel->panel_host_region->winrct.xmin + panel->panel_region_xy[0],
         panel->panel_host_region->winrct.ymin + panel->panel_region_xy[1],
@@ -930,6 +1362,7 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
         panel->panel_host_region,
         panel->panel_host_region ? int(panel->panel_host_region->regiontype) : -1,
         xr->runtime ? xr->runtime->offscreen_area : nullptr);
+    wm_xr_panel_cache_refresh_host(C, panel);
     int win_xy[2] = {
         panel->panel_host_region->winrct.xmin + panel->panel_region_xy[0],
         panel->panel_host_region->winrct.ymin + panel->panel_region_xy[1],
@@ -1411,13 +1844,21 @@ void wm_xr_draw_panels_world_space(const bContext *C, ARegion * /*region*/, void
                   wm_xr_region_panel_type_count(xr_region),
                   wm_xr_region_panel_instance_count(xr_region),
                   BLI_listbase_count(&surface_data->panels));
-  wmXrPanel *panel = wm_xr_panel_find(surface_data, CTX_wm_window(C), area);
-  if (panel == nullptr) {
-    CLOG_ERROR(&LOG, "panels_ws: XR panel host not registered");
-    return;
+  bool found_host = false;
+  for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(surface_data->panels)) {
+    if (panel->panel_host_win != CTX_wm_window(C) || panel->panel_host_area != area ||
+        panel->panel_host_region != xr_region)
+    {
+      continue;
+    }
+    found_host = true;
+    panel->panel_host_region = xr_region;
+    wm_xr_panel_mount_update(panel, xr);
+    wm_xr_panel_cache_update(C, panel);
   }
-  panel->panel_host_region = xr_region;
-  wm_xr_panel_cache_update(C, panel);
+  if (!found_host) {
+    CLOG_ERROR(&LOG, "panels_ws: XR panel host not registered");
+  }
 }
 
 }  // namespace blender

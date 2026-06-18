@@ -747,6 +747,16 @@ static void rna_XrSessionState_reset_to_base_pose(bContext *C)
 #  endif
 }
 
+static void rna_XrSessionState_panel_mount_set(bContext *C, int mount_point)
+{
+#  ifdef WITH_XR_OPENXR
+  wmWindowManager *wm = CTX_wm_manager(C);
+  WM_xr_surface_panel_mount_set(&wm->xr, eWMXrPanelMountPoint(mount_point));
+#  else
+  UNUSED_VARS(C, mount_point);
+#  endif
+}
+
 static bool rna_XrSessionState_action_set_create(bContext *C, XrActionMap *actionmap)
 {
 #  ifdef WITH_XR_OPENXR
@@ -2467,6 +2477,18 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
   StructRNA *srna;
   FunctionRNA *func;
   PropertyRNA *parm, *prop;
+  static const EnumPropertyItem panel_mount_point_items[] = {
+      {0, "NONE", 0, "None", "Do not create an XR panel"},
+      {1, "LEFT_HAND", 0, "Left Hand", "Mount the XR panel to the left hand"},
+      {2, "RIGHT_HAND", 0, "Right Hand", "Mount the XR panel to the right hand"},
+      {3,
+       "HEAD_FOLLOW",
+       0,
+       "Head Follow",
+       "Follow the viewer with built-in easing and thresholds"},
+      {4, "WORLD", 0, "World", "Keep the XR panel fixed in world space"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
   srna = RNA_def_struct(brna, "XrSessionState", nullptr);
   RNA_def_struct_ui_text(srna, "Session State", "Runtime state information about the VR session");
@@ -2489,6 +2511,14 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
   RNA_def_function_ui_description(func, "Force resetting of position and rotation deltas");
   RNA_def_function_flag(func, FUNC_NO_SELF);
   parm = RNA_def_pointer(func, "context", "Context", "", "");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+
+  func = RNA_def_function(srna, "panel_mount_set", "rna_XrSessionState_panel_mount_set");
+  RNA_def_function_ui_description(func, "Set the mount point for the built-in XR world-space panel host");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_pointer(func, "context", "Context", "", "");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+  parm = RNA_def_enum(func, "mount_point", panel_mount_point_items, 0, "Mount Point", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "action_set_create", "rna_XrSessionState_action_set_create");

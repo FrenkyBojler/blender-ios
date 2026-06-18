@@ -1968,6 +1968,25 @@ static void rna_def_panel(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Region Type", "The region where the panel is going to be used in");
 
+  static const EnumPropertyItem panel_xr_mount_point_items[] = {
+      {0, "NONE", 0, "None", "Do not create a mounted XR panel"},
+      {1, "LEFT_HAND", 0, "Left Hand", "Mount the XR panel to the left hand"},
+      {2, "RIGHT_HAND", 0, "Right Hand", "Mount the XR panel to the right hand"},
+      {3,
+       "HEAD_FOLLOW",
+       0,
+       "Head Follow",
+       "Follow the viewer with built-in easing and thresholds"},
+      {4, "WORLD", 0, "World", "Keep the XR panel fixed in world space"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "bl_xr_panel_mount_point", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "type->xr_panel_mount_point");
+  RNA_def_property_enum_items(prop, panel_xr_mount_point_items);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop, "XR Panel Mount Point", "How XR world-space panels from this class should be mounted");
+
   prop = RNA_def_property(srna, "bl_context", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "type->context");
   RNA_def_property_flag(

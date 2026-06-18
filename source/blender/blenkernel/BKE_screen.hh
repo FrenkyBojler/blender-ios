@@ -370,6 +370,8 @@ struct PanelType {
   char pin_to_last_property[BKE_ST_MAXNAME];
   short space_type;
   short region_type;
+  /** XR world-space mount declaration for Python-defined XR panels. */
+  short xr_panel_mount_point;
   /** For popovers, 0 for default. */
   int ui_units_x;
   /**

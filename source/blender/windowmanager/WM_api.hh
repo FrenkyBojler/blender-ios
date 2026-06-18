@@ -78,7 +78,20 @@ struct wmNDOFMotionData;
 #ifdef WITH_XR_OPENXR
 struct wmXrRuntimeData;
 struct wmXrSessionState;
+<<<<<<< HEAD
 struct wmXrViewfinderState;
+=======
+
+enum eWMXrPanelMountPoint {
+  XR_PANEL_MOUNT_NONE = 0,
+  XR_PANEL_MOUNT_LEFT_HAND = 1,
+  XR_PANEL_MOUNT_RIGHT_HAND = 2,
+  XR_PANEL_MOUNT_HEAD_FOLLOW = 3,
+  XR_PANEL_MOUNT_WORLD = 4,
+};
+
+void WM_xr_surface_panel_mount_set(wmXrData *xr, eWMXrPanelMountPoint mount_point);
+>>>>>>> ba38f126b11 (POC for XR Panel Mount Point option)
 #endif
 
 namespace bke::id {

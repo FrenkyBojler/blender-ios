@@ -153,6 +153,8 @@ struct wmXrRuntimeData {
   /** Although this struct is internal, RNA gets a handle to this for state information queries. */
   wmXrSessionState session_state;
   wmXrSessionExitFn exit_fn;
+  eWMXrPanelMountPoint panel_mount_point;
+  eWMXrPanelMountPoint offscreen_area_mount_point;
 
   ListBaseT<XrActionMap> actionmaps;
   short actactionmap;
@@ -176,6 +178,7 @@ struct wmXrPanel {
   struct GPUOffScreen *panel_offscreen;
   rcti panel_rect;
   float panel_obmat[4][4];
+  eWMXrPanelMountPoint mount_point;
   bool panel_valid;
   bool panel_dirty;
   uint64_t panel_frame_tag;
@@ -355,6 +358,7 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
                                             const char *subaction_path,
                                             short event_val);
 void WM_xr_surface_panels_register(const bContext *C);
+void WM_xr_surface_panels_update(const bContext *C, const wmXrData *xr);
 
 /**
  * \brief Check if XR passthrough is enabled.

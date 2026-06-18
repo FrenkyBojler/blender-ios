@@ -1775,6 +1775,7 @@ static void wm_xr_session_surface_draw(bContext *C)
   CLOG_ERROR(&LOG, "end wm_xr_session_draw_data_populate");
 
   if (draw_data.surface_data != nullptr) {
+    WM_xr_surface_panels_update(C, &wm->xr);
     const uint64_t frame_tag = ++xr_panel_frame_tag;
     draw_data.surface_data->panels_frame_tag = frame_tag;
   }
