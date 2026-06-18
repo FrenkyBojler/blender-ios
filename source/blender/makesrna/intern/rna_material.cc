@@ -664,7 +664,8 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   /* texture pixsize factor (used for UV along the stroke) */
   prop = RNA_def_property(srna, "pixel_size", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "texture_pixsize");
-  RNA_def_property_range(prop, 1, 5000);
+  RNA_def_property_ui_range(prop, 1, 5000, 1, 1);
+  RNA_def_property_range(prop, 1, FLT_MAX);
   RNA_def_property_ui_text(prop, "UV Factor", "Texture Pixel Size factor along the stroke");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
