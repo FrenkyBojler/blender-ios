@@ -29,6 +29,11 @@ struct Line {
   float dist;
   float dist_raw;
 
+  static Line zero()
+  {
+    return {.dir = float2(0.0f), .dist = 0.0f, .dist_raw = 0.0f};
+  }
+
   static Line decode(float2 data)
   {
     /* Unpack distance to edge, remove 0.1f boundary that differentiates cleared pixels. */
@@ -61,6 +66,11 @@ struct TexelData {
   float4 color;
   float depth;
   Line line;
+
+  static TexelData zero()
+  {
+    return {.color = float4(0.0f), .depth = 1.0f, .line = Line::zero()};
+  }
 };
 
 struct Resources {
@@ -71,15 +81,17 @@ struct Resources {
   [[sampler(2)]] const sampler2D line_tx;
 
   [[push_constant]] const bool do_smooth_lines;
+  [[push_constant]] const bool do_background_fetch;
 
   TexelData fetch_texel(int2 texel, int2 offset)
   {
     int2 texel_actual = texel + offset;
-    return {
+    TexelData texel_data = {
         .color = texelFetch(color_tx, texel_actual, 0),
         .depth = texelFetch(depth_tx, texel_actual, 0).r,
         .line = Line::decode(texelFetch(line_tx, texel_actual, 0).rg),
     };
+    return texel_data;
   }
 };
 
@@ -101,19 +113,17 @@ template float line_coverage<float>(float, float, bool);
 template float4 line_coverage<float4>(float4, float, bool);
 
 /**
- * Return the color of the furthest pixel in the neighboring crosshair.
+ * Return the furthest non-line texel in the neighboring crosshair.
  */
-float4 furthest_neighbor(TexelData center, TexelData neighbors[4])
+TexelData furthest_neighbor(TexelData center, TexelData neighbors[4])
 {
-  float4 furthest_color = center.color;
-  float furthest_depth = center.depth;
+  TexelData furthest = center;
   for (int i = 0; i < 4; ++i) {
-    if (neighbors[i].depth > furthest_depth && !neighbors[i].line.is_blocked()) {
-      furthest_color = neighbors[i].color;
-      furthest_depth = neighbors[i].depth;
+    if (neighbors[i].depth > furthest.depth && !neighbors[i].line.is_valid()) {
+      furthest = neighbors[i];
     }
   }
-  return furthest_color;
+  return !furthest.line.is_valid() ? furthest : TexelData::zero();
 }
 
 /**
@@ -135,34 +145,34 @@ float neighbor_dist(const TexelData &neighbor, int2 offset)
 }
 
 /**
- * Alpha-over blending for 4-channel non-premultiplied colors.
- */
-float4 alpha_over_blend(float4 over, float4 under)
-{
-  under.a *= (1.0f - over.a);
-  return (over * over.a + under * under.a) / (over.a + under.a);
-}
-
-/**
  * Blend the neighbor pixel onto the target pixel, based on the pixels'
  * relative depths doing alpha-over or alpha-under. The resulting pixel's
  * depth is then adjusted to the closest depth.
  */
-void neighbor_blend(TexelData neighbor, TexelData &target, float4 background, float line_coverage)
+void neighbor_blend(TexelData neighbor,
+                    TexelData &target,
+                    float line_coverage,
+                    bool blend_over_background)
 {
   /* Special value on neighbor indicates it should not affect pixels around it. */
   if (neighbor.line.is_blocked() || line_coverage == 0.0f) {
     return;
   }
 
-  /* Background is visible through neighbor dependent on line coverage. */
-  neighbor.color = mix(background, neighbor.color, line_coverage);
-
-  /* Update target color.
-   * Closest blends over farthest, and sets new target depth. */
+  /* Update target color using alpha-over/alpha-under, dependent on which
+   * pixel is closest. */
   bool target_over_neighbor = target.depth < neighbor.depth;
-  target.color = alpha_over_blend(target_over_neighbor ? target.color : neighbor.color,
-                                  target_over_neighbor ? neighbor.color : target.color);
+  float4 over = target_over_neighbor ? target.color : neighbor.color;
+  float4 under = target_over_neighbor ? neighbor.color : target.color;
+  if (blend_over_background) {
+    under.a *= (1.0f - over.a);
+    target.color = (over * over.a + under * under.a) / (over.a + under.a);
+  }
+  else {
+    target.color = over + under * (1.0f - over.a);
+  }
+
+  /* Update tracked depth value to closest. */
   if (!target_over_neighbor) {
     target.depth = neighbor.depth;
   }
@@ -201,6 +211,11 @@ struct FragOut {
                            srt.fetch_texel(texel, int2(0, 1)),
                            srt.fetch_texel(texel, int2(0, -1))};
 
+  /* Fetch the furthest available among center+neighboring pixels. This is only fetched
+   * in cases like x-ray mode, where some overlays write color as background. */
+  TexelData background = srt.do_background_fetch ? furthest_neighbor(center, neighbors) :
+                                                   TexelData::zero();
+
   float4 neighbor_dists = float4(neighbor_dist(neighbors[0], int2(1, 0)),
                                  neighbor_dist(neighbors[1], int2(-1, 0)),
                                  neighbor_dist(neighbors[2], int2(0, 1)),
@@ -208,22 +223,22 @@ struct FragOut {
 
   /* Compute per-neighbor line coverage */
   float line_kernel = theme.sizes.pixel * 0.5f - 0.5f;
-  float4 coverage = line_coverage(neighbor_dists, line_kernel, srt.do_smooth_lines);
 
-  /* Multiply current output color by center pixel's line coverage. */
-  float4 background = furthest_neighbor(center, neighbors);
+  /* Blend target color over background based on center pixel's line coverage. */
   if (center.line.is_valid()) {
     float coverage = line_coverage(center.line.dist, line_kernel, srt.do_smooth_lines);
-    center.color = mix(background, center.color, coverage);
+    center.color = mix(background.color, center.color, coverage);
   }
 
-  /* We don't order fragments; instead, we blend using alpha-over/alpha-under
-   * based on the tracked depth of each neighbor pixel, using the center pixel
-   * as reference input and tracked value. */
-  neighbor_blend(neighbors[0], center, background, coverage.x);
-  neighbor_blend(neighbors[1], center, background, coverage.y);
-  neighbor_blend(neighbors[2], center, background, coverage.z);
-  neighbor_blend(neighbors[3], center, background, coverage.w);
+  float4 coverage = line_coverage(neighbor_dists, line_kernel, srt.do_smooth_lines);
+  for (int i = 0; i < 4; i++) [[unroll]] {
+    /* Blend neighbor colors over background based on their respective line coverages. */
+    neighbors[i].color = mix(background.color, neighbors[i].color, coverage[i]);
+
+    /* We don't order fragments; intsead blending as alpha-over/alpha-under based on
+     * the tracked depth of each neighbor, using the center pixel as reference value. */
+    neighbor_blend(neighbors[i], center, coverage[i], background.color.a != 0.0f);
+  }
 
 #if 1
   /* Fix aliasing issue with really dense meshes and 1 pixel sized lines. */
