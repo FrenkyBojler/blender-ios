@@ -1,1 +1,2 @@
 Referenced by issue #159905, Regression: button styled with layout.alert drawn too dark
+Referenced by commit 3cb431d13749e4db7b9f09ecbd5a85cddb4e013f, Revert "Fix: UI: Low contrast alert in drag-drop and tooltips"
