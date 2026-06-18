@@ -316,6 +316,11 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   }
   const bool is_new = !(bm->totvert || (bm->vdata.totlayer || bm->edata.totlayer ||
                                         bm->pdata.totlayer || bm->ldata.totlayer));
+
+  AttributeOwner owner = AttributeOwner::from_id(const_cast<ID *>(&mesh->id));
+  const std::optional<StringRef> name_ref = BKE_attributes_active_name_get(owner);
+  const std::string active_attribute_name = name_ref.value_or("");
+
   KeyBlock *actkey;
   float (*keyco)[3] = nullptr;
   CustomData_MeshMasks mask = CD_MASK_BMESH;
@@ -717,6 +722,16 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   else {
     BM_select_history_clear(bm);
   }
+
+  int prevIndex = mesh->attributes_active_index;
+  if (!active_attribute_name.empty()) {
+    BKE_attributes_active_set(owner, active_attribute_name);
+  }
+  else {
+    BLI_assert(mesh->attributes_active_index == -1);
+  }
+
+  BLI_assert(prevIndex == mesh->attributes_active_index);
 }
 
 /**
