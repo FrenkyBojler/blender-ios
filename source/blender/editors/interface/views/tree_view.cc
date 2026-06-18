@@ -207,7 +207,7 @@ AbstractViewItem *AbstractTreeView::navigate_down(AbstractViewItem *from)
   return next_item ? next_item : from;
 }
 
-void AbstractTreeView::page_scroll(bContext */*C*/, PageScrollDirection direction)
+void AbstractTreeView::page_scroll(bContext * /*C*/, PageScrollDirection direction)
 {
   if (!this || this->is_fully_visible()) {
     return;

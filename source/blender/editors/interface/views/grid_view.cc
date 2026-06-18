@@ -248,7 +248,8 @@ void AbstractGridView::page_scroll(bContext *C, PageScrollDirection direction)
       break;
     }
     case PageScrollDirection::Down: {
-      const int target_row = std::min(tot_rows, (first_idx_in_view / cols_per_row_) + count_rows_in_view);
+      const int target_row = std::min(tot_rows,
+                                      (first_idx_in_view / cols_per_row_) + count_rows_in_view);
       const int cur_height = BLI_rctf_size_y(&v2d.cur);
       v2d.cur.ymax = v2d.tot.ymax - target_row * style_.tile_height;
       v2d.cur.ymin = v2d.cur.ymax - cur_height;

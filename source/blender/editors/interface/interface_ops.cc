@@ -3111,7 +3111,8 @@ static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
 {
   ARegion &region = *CTX_wm_region(C);
   AbstractView *view = get_view_focused(C);
-  const PageScrollDirection direction = PageScrollDirection(RNA_enum_get(op->ptr, "scroll_direction"));
+  const PageScrollDirection direction = PageScrollDirection(
+      RNA_enum_get(op->ptr, "scroll_direction"));
 
   view->page_scroll(C, direction);
 
