@@ -180,9 +180,6 @@ struct TreeElementIcon {
         ID_PC, \
         ID_OV))
 
-/* button events */
-#define OL_NAMEBUTTON 1
-
 enum eOLDrawState {
   OL_DRAWSEL_NONE = 0,   /* inactive (regular black text) */
   OL_DRAWSEL_NORMAL = 1, /* active object (draws white text) */
@@ -550,6 +547,7 @@ void OUTLINER_OT_liboverride_operation(wmOperatorType *ot);
 void OUTLINER_OT_liboverride_troubleshoot_operation(wmOperatorType *ot);
 void OUTLINER_OT_liboverride_property_remove(wmOperatorType *ot);
 void OUTLINER_OT_id_operation(wmOperatorType *ot);
+void OUTLINER_OT_pack_data(wmOperatorType *ot);
 void OUTLINER_OT_id_remap(wmOperatorType *ot);
 void OUTLINER_OT_id_copy(wmOperatorType *ot);
 void OUTLINER_OT_id_paste(wmOperatorType *ot);
