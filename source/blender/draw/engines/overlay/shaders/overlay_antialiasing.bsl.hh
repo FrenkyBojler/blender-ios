@@ -148,7 +148,7 @@ float4 alpha_over_blend(float4 over, float4 under)
  * relative depths doing alpha-over or alpha-under. The resulting pixel's
  * depth is then adjusted to the closest depth.
  */
-void neighbor_blend(float4 background, TexelData neighbor, TexelData &target, float line_coverage)
+void neighbor_blend(TexelData neighbor, TexelData &target, float4 background, float line_coverage)
 {
   /* Special value on neighbor indicates it should not affect pixels around it. */
   if (neighbor.line.is_blocked() || line_coverage == 0.0f) {
@@ -220,10 +220,10 @@ struct FragOut {
   /* We don't order fragments; instead, we blend using alpha-over/alpha-under
    * based on the tracked depth of each neighbor pixel, using the center pixel
    * as reference input and tracked value. */
-  neighbor_blend(background, neighbors[0], center, coverage.x);
-  neighbor_blend(background, neighbors[1], center, coverage.y);
-  neighbor_blend(background, neighbors[2], center, coverage.z);
-  neighbor_blend(background, neighbors[3], center, coverage.w);
+  neighbor_blend(neighbors[0], center, background, coverage.x);
+  neighbor_blend(neighbors[1], center, background, coverage.y);
+  neighbor_blend(neighbors[2], center, background, coverage.z);
+  neighbor_blend(neighbors[3], center, background, coverage.w);
 
 #if 1
   /* Fix aliasing issue with really dense meshes and 1 pixel sized lines. */
