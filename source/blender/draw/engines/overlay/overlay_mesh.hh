@@ -435,6 +435,7 @@ class Meshes : Overlay {
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_mesh_normals_ps_, view);
+    manager.submit(edit_mesh_edges_ps_, view);
     manager.submit(edit_mesh_verts_ps_, view);
     manager.submit(edit_mesh_skin_roots_ps_, view);
     manager.submit(edit_mesh_facedots_ps_, view);
