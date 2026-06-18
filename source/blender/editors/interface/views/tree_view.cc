@@ -209,36 +209,25 @@ AbstractViewItem *AbstractTreeView::navigate_down(AbstractViewItem *from)
 
 void AbstractTreeView::page_scroll(bContext * /*C*/, PageScrollDirection direction)
 {
-  if (!this || this->is_fully_visible()) {
+  if (this->is_fully_visible() || !this->supports_scrolling()) {
     return;
   }
 
-  int scroll_value = 0;
-  ViewScrollDirection scroll_direction;
   const int visible_rows = this->tot_visible_row_count().value_or(0);
 
   switch (direction) {
     case PageScrollDirection::Up:
-      scroll_direction = ViewScrollDirection::UP;
-      scroll_value = visible_rows;
+      *this->scroll_value_ = std::max(0, *this->scroll_value_ - visible_rows);
       break;
     case PageScrollDirection::Down:
-      scroll_direction = ViewScrollDirection::DOWN;
-      scroll_value = visible_rows;
+      *this->scroll_value_ = std::min(this->last_tot_items_, *this->scroll_value_ + visible_rows);
       break;
     case PageScrollDirection::Top:
-      scroll_direction = ViewScrollDirection::UP;
-      scroll_value = this->scroll_value();
+      *this->scroll_value_ = 0;
       break;
     case PageScrollDirection::Bottom:
-      scroll_direction = ViewScrollDirection::DOWN;
-      scroll_value = this->tot_row_count() - (visible_rows + this->scroll_value());
+      *this->scroll_value_ = this->last_tot_items_;
       break;
-  }
-
-  while (scroll_value > 0) {
-    this->scroll(scroll_direction);
-    scroll_value--;
   }
 }
 
@@ -507,11 +496,6 @@ std::optional<int> AbstractTreeView::tot_visible_row_count() const
   return math::max(MIN_ROWS, calculate_rows);
 }
 
-int AbstractTreeView::tot_row_count() const
-{
-  return last_tot_items_;
-}
-
 bool AbstractTreeView::supports_scrolling() const
 {
   return custom_height_ && scroll_value_;
@@ -529,11 +513,6 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   }
   /* Scroll value will be sanitized/clamped when drawing. */
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
-}
-
-int AbstractTreeView::scroll_value() const
-{
-  return scroll_value_ ? *scroll_value_ : 0;
 }
 
 void AbstractTreeView::scroll_active_into_view(bContext * /*C*/, bool scroll_active_to_center)

@@ -3098,6 +3098,32 @@ static void UI_OT_view_item_navigate(wmOperatorType *ot)
  *
  * \{ */
 
+static wmOperatorStatus ui_view_item_focus_invoke(bContext *C,
+                                                  wmOperator * /*op*/,
+                                                  const wmEvent * /*event*/)
+{
+  ARegion *region = CTX_wm_region(C);
+  AbstractView *view = get_view_focused(C);
+
+  view->scroll_active_into_view(C, true);
+  ED_region_tag_redraw(region);
+
+  return OPERATOR_FINISHED;
+}
+
+static void UI_OT_view_item_focus(wmOperatorType *ot)
+{
+  ot->name = "Focus Active Item";
+  ot->idname = "UI_OT_view_item_focus";
+  ot->description = "Bring active item into focus by scrolling the view";
+
+  ot->invoke = ui_view_item_focus_invoke;
+  ot->poll = view_focused_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+}
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Tree View Page Scroll Operator
  *
@@ -3143,30 +3169,6 @@ static void UI_OT_view_item_page_scroll(wmOperatorType *ot)
                0,
                "Scroll Direction",
                "Scroll to next/previous page in the list.");
-}
-static wmOperatorStatus ui_view_item_focus_invoke(bContext *C,
-                                                  wmOperator * /*op*/,
-                                                  const wmEvent * /*event*/)
-{
-  ARegion *region = CTX_wm_region(C);
-  AbstractView *view = get_view_focused(C);
-
-  view->scroll_active_into_view(C, true);
-  ED_region_tag_redraw(region);
-
-  return OPERATOR_FINISHED;
-}
-
-static void UI_OT_view_item_focus(wmOperatorType *ot)
-{
-  ot->name = "Focus Active Item";
-  ot->idname = "UI_OT_view_item_focus";
-  ot->description = "Bring active item into focus by scrolling the view";
-
-  ot->invoke = ui_view_item_focus_invoke;
-  ot->poll = view_focused_poll;
-
-  ot->flag = OPTYPE_INTERNAL;
 }
 /** \} */
 

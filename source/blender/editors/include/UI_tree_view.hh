@@ -173,9 +173,6 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
-  int scroll_value() const;
-  std::optional<int> tot_visible_row_count() const;
-  int tot_row_count() const;
 
   /** Visual feature: Define a number of item rows the view will show by default. If there
    * are fewer items, empty dummy items will be added. These contribute to the view bounds, so the
@@ -204,6 +201,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
                                                  const TreeViewOrItem &old_items);
   static AbstractTreeViewItem *find_matching_child(
       const AbstractTreeViewItem &lookup_item, const Span<AbstractTreeViewItem *> possible_items);
+  std::optional<int> tot_visible_row_count() const;
 
   bool supports_scrolling() const override;
 
