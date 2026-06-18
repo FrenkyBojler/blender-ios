@@ -112,7 +112,9 @@ void Sampling::init(const Scene *scene)
     }
   }
 
-  start_render_time_ = BLI_time_now_seconds();
+  if (!inst_.is_viewport()) {
+    start_render_time_ = BLI_time_now_seconds();
+  }
 }
 
 void Sampling::init(const Object &probe_object)
@@ -130,6 +132,7 @@ void Sampling::end_sync()
 {
   if (reset_) {
     viewport_sample_ = 0;
+    start_render_time_ = BLI_time_now_seconds();
   }
 
   if (inst_.is_viewport()) {

@@ -646,6 +646,18 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 /** \name Interface
  * \{ */
 
+static void render_frame_step()
+{
+  /* Metal: Perform render step between samples to allow flushing of freed GPUBackend resources.
+   * Vulkan: Perform render step between samples to avoid allocation of a high amount of command
+   * buffer memory that can eventually result in out-of-memory errors or a TDR when submitted as
+   * one large command buffer. */
+  if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
+    GPU_flush();
+  }
+  GPU_render_step();
+}
+
 void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, const char *view_name)
 {
   skip_render_ = skip_render_ || !is_loaded(needed_shaders);
@@ -674,14 +686,7 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
       RE_engine_update_stats(engine, nullptr, re_info.c_str());
     }
 
-    /* Metal: Perform render step between samples to allow flushing of freed GPUBackend resources.
-     * Vulkan: Perform render step between samples to avoid allocation of a high amount of command
-     * buffer memory that can eventually result in out-of-memory errors or a TDR when submitted as
-     * one large command buffer. */
-    if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
-      GPU_flush();
-    }
-    GPU_render_step();
+    render_frame_step();
 
 #if 0
     /* TODO(fclem) print progression. */
@@ -788,6 +793,7 @@ void Instance::draw_viewport_image_render()
   do {
     /* Render at least once to blit the finished image. */
     this->render_sample();
+    render_frame_step();
   } while (!sampling.finished_viewport());
   velocity.step_swap();
 
