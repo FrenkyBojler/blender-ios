@@ -2114,9 +2114,12 @@ static void ntree_blend_read_after_liblink(BlendLibReader *reader, ID *id)
    * to match the static layout. */
   if (!BLO_read_lib_is_undo(reader)) {
     for (bNode &node : ntree->nodes) {
-      /* Don't update node groups here because they may depend on other node groups which are not
-       * fully versioned yet and don't have `typeinfo` pointers set. */
-      if (!node.is_group()) {
+      /* Don't update nodes whose declaration may depend on other IDs which may not be fully linked
+       * and versioned yet. */
+      const bool is_context_dependent = node.typeinfo->static_declaration &&
+                                        node.typeinfo->static_declaration->is_context_dependent;
+      const bool references_another_id = node.id != nullptr;
+      if (!(is_context_dependent && references_another_id)) {
         node_verify_sockets(reader->main, ntree, &node, false);
       }
     }
@@ -3881,8 +3884,7 @@ bNodeSocket *node_add_static_socket(bNodeTree &ntree,
 static void node_socket_free(bNodeSocket *sock, const bool do_id_user)
 {
   if (sock->prop) {
-    IDP_FreePropertyContent_ex(sock->prop, do_id_user);
-    MEM_delete(sock->prop);
+    IDP_FreeProperty_ex(sock->prop, do_id_user);
   }
 
   if (sock->default_value) {
@@ -4353,7 +4355,7 @@ static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socke
   if (node.is_type("FunctionNodeInputMenu"_ustr)) {
     return &reinterpret_cast<NodeInputMenu *>(node.storage)->value;
   }
-  if (node.is_type("ShaderNodeRGB"_ustr)) {
+  if (node.is_type("ShaderNodeRGB"_ustr) || node.is_type("CompositorNodeRGB"_ustr)) {
     return &node.output_socket(0).default_value_typed<bNodeSocketValueRGBA>()->value;
   }
   if (node.is_type("ShaderNodeValue"_ustr)) {
@@ -4932,13 +4934,11 @@ void node_free_node(bNodeTree *ntree, bNode &node)
 
   if (node.prop) {
     /* Remember, no ID user refcount management here! */
-    IDP_FreePropertyContent_ex(node.prop, false);
-    MEM_delete(node.prop);
+    IDP_FreeProperty_ex(node.prop, false);
   }
   if (node.system_properties) {
     /* Remember, no ID user refcount management here! */
-    IDP_FreePropertyContent_ex(node.system_properties, false);
-    MEM_delete(node.system_properties);
+    IDP_FreeProperty_ex(node.system_properties, false);
   }
 
   if (node.runtime->declaration) {
