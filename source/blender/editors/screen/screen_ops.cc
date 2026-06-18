@@ -6942,11 +6942,11 @@ static void SCREEN_OT_animation_pause(wmOperatorType *ot)
   ot->description = "Pause animation, stopping at the current frame";
   ot->idname = "SCREEN_OT_animation_pause";
 
-  ot->undo_group = "Frame Change";
-
   /* API callbacks. */
   ot->exec = screen_animation_pause_exec;
   ot->poll = ED_operator_screenactive;
+  ot->flag = OPTYPE_UNDO_GROUPED;
+  ot->undo_group = "Frame Change";
 }
 
 /** \} */
