@@ -1652,7 +1652,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   const int old_verts_num = mesh->verts_num;
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
   const std::optional<StringRef> name_ref = BKE_attributes_active_name_get(owner);
-  const std::string active_attribute_name = name_ref ? *name_ref : "";
+  const std::string active_attribute_name = name_ref.value_or("");
 
   BKE_mesh_clear_geometry(mesh);
 
@@ -1927,7 +1927,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   face_single_checker.optimize_storage();
   corner_single_checker.optimize_storage();
 
-  if (active_attribute_name.size()) {
+  if (!active_attribute_name.empty()) {
     BKE_attributes_active_set(owner, active_attribute_name);
   }
   else {
@@ -1945,6 +1945,11 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
 
   /* Must be an empty mesh. */
   BLI_assert(mesh.verts_num == 0);
+
+  /* If this ever is set we'd need the same workaround as above to remember the active attribute
+   * by name. */
+  BLI_assert(mesh.attributes_active_index == -1);
+
   /* Just in case, clear the derived geometry caches from the input mesh. */
   BKE_mesh_runtime_clear_geometry(&mesh);
 
