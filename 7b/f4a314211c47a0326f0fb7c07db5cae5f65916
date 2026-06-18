@@ -1,3 +1,4 @@
 Referenced by issue #157593, Regression: Image texture drawn with offset in image editor
 Referenced by issue #157813, EEVEE: Blender crashes when disabling Camera Ray Visibility on an object that uses Volume material
 Referenced by issue #158029, Crash when opening Scopes in image editor
+Referenced by issue #160332, Blender 520 eevee motion blur
