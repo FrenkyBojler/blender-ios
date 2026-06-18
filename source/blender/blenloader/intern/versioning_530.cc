@@ -63,6 +63,17 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  // TODO: GD;; Change before merge! (and bump version up)
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 99)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.ed == nullptr) {
+        return;
+      }
+
+      scene.ed->image_user.flag |= IMA_ANIM_ALWAYS;
+    }
+  }
+
   /* The compositor previously did not support default inputs for group nodes, but some built-in
    * nodes had the position field default type for some inputs, so node groups would gain it as a
    * default type through some operators. Later, the default inputs were supported for group nodes,
@@ -80,16 +91,6 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 4)) {
-    for (Scene &scene : bmain->scenes) {
-      if (scene.ed == nullptr) {
-        return;
-      }
-
-      scene.ed->image_user.flag |= IMA_ANIM_ALWAYS;
-    }
   }
 
   /**
