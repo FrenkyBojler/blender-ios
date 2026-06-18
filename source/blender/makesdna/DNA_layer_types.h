@@ -227,6 +227,7 @@ struct ViewLayerEEVEE {
   eViewLayerEEVEEPassType render_passes = {};
   float ambient_occlusion_distance = 10.0f;
   int denoising_pass_flags = EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
+  char _pad[4] = {};
 };
 
 /** AOV Render-pass definition. */
@@ -258,7 +259,7 @@ struct ViewLayer {
   struct ViewLayer *next = nullptr, *prev = nullptr;
   char name[/*MAX_NAME*/ 64] = "";
   eViewLayer_Flag flag = VIEW_LAYER_RENDER | VIEW_LAYER_FREESTYLE;
-  char _pad1[6] = {};
+  char _pad[6] = {};
   ListBaseT<Base> object_bases = {nullptr, nullptr};
   /** Default allocated now. */
   struct SceneStats *stats = nullptr;

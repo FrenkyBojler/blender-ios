@@ -267,7 +267,7 @@ void combine_frag([[resource_table]] Combine &srt,
     /* For compatibility with Cycles */
     average_normal.z *= -1.0f;
     render_passes.store_color(
-        texel, uni.uniform_buf.render_pass.average_normal, float4(average_normal, 1.0f));
+        texel, uni.uniform_buf.render_pass.denoising_normal_id, float4(average_normal, 1.0f));
 
     render_passes.store_color(texel,
                               uni.uniform_buf.render_pass.denoising_diffuse_albedo_id,
