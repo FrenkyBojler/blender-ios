@@ -327,15 +327,15 @@ Mesh *replace_faces(const Mesh &base,
   MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
   MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
 
-  mesh_gather_and_remap(base_faces,
-                        result_faces,
-                        base_vert_to_unselected,
-                        unselected_edges,
-                        unselected_faces,
-                        base_edges,
-                        base_corner_verts,
-                        result_edges.take_front(unselected_edges.size()),
-                        result_corner_verts.take_front(unselected_corners_num));
+  mesh_gather_elements_and_remap_verts(base_faces,
+                                       result_faces,
+                                       base_vert_to_unselected,
+                                       unselected_edges,
+                                       unselected_faces,
+                                       base_edges,
+                                       base_corner_verts,
+                                       result_edges.take_front(unselected_edges.size()),
+                                       result_corner_verts.take_front(unselected_corners_num));
 
   MutableSpan<int> new_corner_verts = result_corner_verts.take_back(new_corners_num);
   selection.foreach_index(
@@ -350,14 +350,12 @@ Mesh *replace_faces(const Mesh &base,
   Array<int> base_edge_to_unselected(base.edges_num);
   index_mask::build_reverse_map<int>(unselected_edges, base_edge_to_unselected);
 
-  unselected_faces.foreach_index(
-      [&](const int64_t src_i, const int64_t dst_i) {
-        array_utils::gather(base_edge_to_unselected.as_span(),
-                            base_corner_edges.slice(base_faces[src_i]),
-                            result_corner_edges.slice(result_faces[dst_i]),
-                            exec_mode::serial);
-      },
-      exec_mode::grain_size(512));
+  mesh_gather_elements_and_remap_edges(base_faces,
+                                       result_faces,
+                                       base_edge_to_unselected,
+                                       unselected_faces,
+                                       base_corner_edges,
+                                       result_corner_edges);
 
   MutableSpan<int> new_corner_edges = result_corner_edges.take_back(new_corners_num);
   selection.foreach_index(

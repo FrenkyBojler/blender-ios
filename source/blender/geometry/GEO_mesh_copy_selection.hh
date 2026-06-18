@@ -40,15 +40,22 @@ std::optional<Mesh *> mesh_copy_selection_keep_edges(
     bke::AttrDomain selection_domain,
     const bke::AttributeFilter &attribute_filter = {});
 
-void mesh_gather_and_remap(OffsetIndices<int> src_faces,
-                           OffsetIndices<int> dst_faces,
-                           Span<int> vert_map,
-                           const IndexMask &edge_mask,
-                           const IndexMask &face_mask,
-                           Span<int2> src_edges,
-                           Span<int> src_corner_verts,
-                           MutableSpan<int2> dst_edges,
-                           MutableSpan<int> dst_corner_verts);
+void mesh_gather_elements_and_remap_verts(OffsetIndices<int> src_faces,
+                                          OffsetIndices<int> dst_faces,
+                                          Span<int> vert_map,
+                                          const IndexMask &edge_mask,
+                                          const IndexMask &face_mask,
+                                          Span<int2> src_edges,
+                                          Span<int> src_corner_verts,
+                                          MutableSpan<int2> dst_edges,
+                                          MutableSpan<int> dst_corner_verts);
+
+void mesh_gather_elements_and_remap_edges(OffsetIndices<int> src_faces,
+                                          OffsetIndices<int> dst_faces,
+                                          Span<int> edge_map,
+                                          const IndexMask &face_mask,
+                                          Span<int> src_corner_edges,
+                                          MutableSpan<int> dst_corner_edges);
 
 }  // namespace geometry
 }  // namespace blender

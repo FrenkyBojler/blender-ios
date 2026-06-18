@@ -19,36 +19,39 @@
 
 namespace blender::geometry {
 
-void mesh_gather_and_remap(const OffsetIndices<int> src_faces,
-                           const OffsetIndices<int> dst_faces,
-                           const Span<int> vert_map,
-                           const IndexMask &edge_mask,
-                           const IndexMask &face_mask,
-                           const Span<int2> src_edges,
-                           const Span<int> src_corner_verts,
-                           MutableSpan<int2> dst_edges,
-                           MutableSpan<int> dst_corner_verts)
+static void gather_mapped_corner_data(const OffsetIndices<int> src_faces,
+                                      const OffsetIndices<int> dst_faces,
+                                      const Span<int> vert_map,
+                                      const IndexMask &face_mask,
+                                      const Span<int> src_corner_verts_or_edges,
+                                      MutableSpan<int> dst_corner_verts_or_edges)
 {
   face_mask.foreach_segment_optimized(
       [&](const auto segment, const int64_t dst_pos) {
         if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
           array_utils::gather(
               vert_map,
-              src_corner_verts.slice(src_faces[segment]),
-              dst_corner_verts.slice(dst_faces[IndexRange(dst_pos, segment.size())]),
+              src_corner_verts_or_edges.slice(src_faces[segment]),
+              dst_corner_verts_or_edges.slice(dst_faces[IndexRange(dst_pos, segment.size())]),
               exec_mode::serial);
         }
         else {
           for (const int segment_i : segment.index_range()) {
             array_utils::gather(vert_map,
-                                src_corner_verts.slice(src_faces[segment[segment_i]]),
-                                dst_corner_verts.slice(dst_faces[dst_pos + segment_i]),
+                                src_corner_verts_or_edges.slice(src_faces[segment[segment_i]]),
+                                dst_corner_verts_or_edges.slice(dst_faces[dst_pos + segment_i]),
                                 exec_mode::serial);
           }
         }
       },
       exec_mode::grain_size(512));
+}
 
+static void gather_remapped_edges(const Span<int> vert_map,
+                                  const IndexMask &edge_mask,
+                                  const Span<int2> src_edges,
+                                  MutableSpan<int2> dst_edges)
+{
   edge_mask.foreach_segment_optimized(
       [&](const auto segment, const int64_t dst_pos) {
         if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
@@ -69,49 +72,30 @@ void mesh_gather_and_remap(const OffsetIndices<int> src_faces,
       exec_mode::grain_size(512));
 }
 
-static void remap_verts(const OffsetIndices<int> src_faces,
-                        const OffsetIndices<int> dst_faces,
-                        const int src_verts_num,
-                        const IndexMask &vert_mask,
-                        const IndexMask &edge_mask,
-                        const IndexMask &face_mask,
-                        const Span<int2> src_edges,
-                        const Span<int> src_corner_verts,
-                        MutableSpan<int2> dst_edges,
-                        MutableSpan<int> dst_corner_verts)
+void mesh_gather_elements_and_remap_verts(const OffsetIndices<int> src_faces,
+                                          const OffsetIndices<int> dst_faces,
+                                          const Span<int> vert_map,
+                                          const IndexMask &edge_mask,
+                                          const IndexMask &face_mask,
+                                          const Span<int2> src_edges,
+                                          const Span<int> src_corner_verts,
+                                          MutableSpan<int2> dst_edges,
+                                          MutableSpan<int> dst_corner_verts)
 {
-  Array<int> map(src_verts_num);
-  index_mask::build_reverse_map<int>(vert_mask, map);
-  mesh_gather_and_remap(src_faces,
-                        dst_faces,
-                        map,
-                        edge_mask,
-                        face_mask,
-                        src_edges,
-                        src_corner_verts,
-                        dst_edges,
-                        dst_corner_verts);
+  gather_mapped_corner_data(
+      src_faces, dst_faces, vert_map, face_mask, src_corner_verts, dst_corner_verts);
+  gather_remapped_edges(vert_map, edge_mask, src_edges, dst_edges);
 }
 
-static void remap_edges(const OffsetIndices<int> src_faces,
-                        const OffsetIndices<int> dst_faces,
-                        const int src_edges_num,
-                        const IndexMask &edge_mask,
-                        const IndexMask &face_mask,
-                        const Span<int> src_corner_edges,
-                        MutableSpan<int> dst_corner_edges)
+void mesh_gather_elements_and_remap_edges(const OffsetIndices<int> src_faces,
+                                          const OffsetIndices<int> dst_faces,
+                                          const Span<int> edge_map,
+                                          const IndexMask &face_mask,
+                                          const Span<int> src_corner_edges,
+                                          MutableSpan<int> dst_corner_edges)
 {
-  Array<int> map(src_edges_num);
-  index_mask::build_reverse_map<int>(edge_mask, map);
-  face_mask.foreach_index(
-      [&](const int64_t src_i, const int64_t dst_i) {
-        const IndexRange src_face = src_faces[src_i];
-        const IndexRange dst_face = dst_faces[dst_i];
-        for (const int i : src_face.index_range()) {
-          dst_corner_edges[dst_face[i]] = map[src_corner_edges[src_face[i]]];
-        }
-      },
-      exec_mode::grain_size(512));
+  gather_mapped_corner_data(
+      src_faces, dst_faces, edge_map, face_mask, src_corner_edges, dst_corner_edges);
 }
 
 static void copy_loose_vert_hint(const Mesh &src, Mesh &dst)
@@ -261,25 +245,23 @@ std::optional<Mesh *> mesh_copy_selection(const Mesh &src_mesh,
   threading::parallel_invoke(
       vert_mask.size() > 1024,
       [&]() {
-        remap_verts(src_faces,
-                    dst_faces,
-                    src_mesh.verts_num,
-                    vert_mask,
-                    edge_mask,
-                    face_mask,
-                    src_edges,
-                    src_corner_verts,
-                    dst_edges,
-                    dst_corner_verts);
+        Array<int> vert_map(src_mesh.verts_num);
+        index_mask::build_reverse_map<int>(vert_mask, vert_map);
+        mesh_gather_elements_and_remap_verts(src_faces,
+                                             dst_faces,
+                                             vert_map,
+                                             edge_mask,
+                                             face_mask,
+                                             src_edges,
+                                             src_corner_verts,
+                                             dst_edges,
+                                             dst_corner_verts);
       },
       [&]() {
-        remap_edges(src_faces,
-                    dst_faces,
-                    src_edges.size(),
-                    edge_mask,
-                    face_mask,
-                    src_corner_edges,
-                    dst_corner_edges);
+        Array<int> edge_map(src_edges.size());
+        index_mask::build_reverse_map<int>(edge_mask, edge_map);
+        mesh_gather_elements_and_remap_edges(
+            src_faces, dst_faces, edge_map, face_mask, src_corner_edges, dst_corner_edges);
       },
       [&]() {
         gather_vert_attributes(src_mesh, attribute_filter, vert_mask, *dst_mesh);
@@ -392,13 +374,10 @@ std::optional<Mesh *> mesh_copy_selection_keep_verts(const Mesh &src_mesh,
 
   threading::parallel_invoke(
       [&]() {
-        remap_edges(src_faces,
-                    dst_faces,
-                    src_edges.size(),
-                    edge_mask,
-                    face_mask,
-                    src_corner_edges,
-                    dst_corner_edges);
+        Array<int> edge_map(src_edges.size());
+        index_mask::build_reverse_map<int>(edge_mask, edge_map);
+        mesh_gather_elements_and_remap_edges(
+            src_faces, dst_faces, edge_map, face_mask, src_corner_edges, dst_corner_edges);
       },
       [&]() {
         bke::copy_attributes(src_attributes,
