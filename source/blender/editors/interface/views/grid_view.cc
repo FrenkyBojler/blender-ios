@@ -234,6 +234,7 @@ void AbstractGridView::page_scroll(bContext *C, PageScrollDirection direction)
   const IndexRange &visible_range = this->get_visible_range(v2d, nullptr);
   const int first_idx_in_view = visible_range.first();
 
+  const int cur_height = BLI_rctf_size_y(&v2d.cur);
   const int view_height = BLI_rcti_size_y(&v2d.mask);
   const int tot_height = BLI_rctf_size_y(&v2d.tot);
   const int count_rows_in_view = std::max(view_height / style_.tile_height, 1);
@@ -242,7 +243,6 @@ void AbstractGridView::page_scroll(bContext *C, PageScrollDirection direction)
   switch (direction) {
     case PageScrollDirection::Up: {
       const int target_row = std::max(0, (first_idx_in_view / cols_per_row_) - count_rows_in_view);
-      const int cur_height = BLI_rctf_size_y(&v2d.cur);
       v2d.cur.ymax = v2d.tot.ymax - target_row * style_.tile_height;
       v2d.cur.ymin = v2d.cur.ymax - cur_height;
       break;
@@ -250,19 +250,16 @@ void AbstractGridView::page_scroll(bContext *C, PageScrollDirection direction)
     case PageScrollDirection::Down: {
       const int target_row = std::min(tot_rows,
                                       (first_idx_in_view / cols_per_row_) + count_rows_in_view);
-      const int cur_height = BLI_rctf_size_y(&v2d.cur);
       v2d.cur.ymax = v2d.tot.ymax - target_row * style_.tile_height;
       v2d.cur.ymin = v2d.cur.ymax - cur_height;
       break;
     }
     case PageScrollDirection::Top: {
-      const int cur_height = BLI_rctf_size_y(&v2d.cur);
       v2d.cur.ymax = v2d.tot.ymax;
       v2d.cur.ymin = v2d.cur.ymax - cur_height;
       break;
     }
     case PageScrollDirection::Bottom: {
-      const int cur_height = BLI_rctf_size_y(&v2d.cur);
       v2d.cur.ymin = v2d.tot.ymin;
       v2d.cur.ymax = v2d.cur.ymin + cur_height;
       break;
