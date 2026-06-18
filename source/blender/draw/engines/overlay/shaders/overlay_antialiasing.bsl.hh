@@ -86,12 +86,11 @@ struct Resources {
   TexelData fetch_texel(int2 texel, int2 offset)
   {
     int2 texel_actual = texel + offset;
-    TexelData texel_data = {
+    return {
         .color = texelFetch(color_tx, texel_actual, 0),
         .depth = texelFetch(depth_tx, texel_actual, 0).r,
         .line = Line::decode(texelFetch(line_tx, texel_actual, 0).rg),
     };
-    return texel_data;
   }
 };
 
@@ -118,7 +117,7 @@ template float4 line_coverage<float4>(float4, float, bool);
 TexelData furthest_neighbor(TexelData center, TexelData neighbors[4])
 {
   TexelData furthest = center;
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 4; i++) [[unroll]] {
     if (neighbors[i].depth > furthest.depth && !neighbors[i].line.is_valid()) {
       furthest = neighbors[i];
     }
@@ -152,7 +151,7 @@ float neighbor_dist(const TexelData &neighbor, int2 offset)
 void neighbor_blend(TexelData neighbor,
                     TexelData &target,
                     float line_coverage,
-                    bool blend_over_background)
+                    bool with_background)
 {
   /* Special value on neighbor indicates it should not affect pixels around it. */
   if (neighbor.line.is_blocked() || line_coverage == 0.0f) {
@@ -164,8 +163,8 @@ void neighbor_blend(TexelData neighbor,
   bool target_over_neighbor = target.depth < neighbor.depth;
   float4 over = target_over_neighbor ? target.color : neighbor.color;
   float4 under = target_over_neighbor ? neighbor.color : target.color;
-  if (blend_over_background) {
-    /* With background, avoid working with pre-multiplied alpha. */
+  if (with_background) {
+    /* Avoid working with pre-multiplied alpha when background color is present. */
     under.a *= (1.0f - over.a);
     target.color = (over * over.a + under * under.a) / (over.a + under.a);
   }
