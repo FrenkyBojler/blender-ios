@@ -2,3 +2,4 @@ Referenced by pull request #159396, Fix: Python GIL leak in unit hint expression
 Referenced by commit 6421f4c8273c7a340ce04d052538dcd8dde02727, Fix: Python GIL leak in unit hint expression compilation
 Referenced by issue #159732, Absolute time input always resets to "seconds" unit
 Referenced by pull request #159790, Fix #159732: Unit hint for absolute time property not working
+Referenced by commit 80e6c7531a0605822e6866638e8a7beb55e1907e, Fix #159732: Unit hint for absolute time property not working
