@@ -207,6 +207,41 @@ AbstractViewItem *AbstractTreeView::navigate_down(AbstractViewItem *from)
   return next_item ? next_item : from;
 }
 
+void AbstractTreeView::page_scroll(bContext */*C*/, PageScrollDirection direction)
+{
+  if (!this || this->is_fully_visible()) {
+    return;
+  }
+
+  int scroll_value = 0;
+  ViewScrollDirection scroll_direction;
+  const int visible_rows = this->tot_visible_row_count().value_or(0);
+
+  switch (direction) {
+    case PageScrollDirection::Up:
+      scroll_direction = ViewScrollDirection::UP;
+      scroll_value = visible_rows;
+      break;
+    case PageScrollDirection::Down:
+      scroll_direction = ViewScrollDirection::DOWN;
+      scroll_value = visible_rows;
+      break;
+    case PageScrollDirection::Top:
+      scroll_direction = ViewScrollDirection::UP;
+      scroll_value = this->scroll_value();
+      break;
+    case PageScrollDirection::Bottom:
+      scroll_direction = ViewScrollDirection::DOWN;
+      scroll_value = this->tot_row_count() - (visible_rows + this->scroll_value());
+      break;
+  }
+
+  while (scroll_value > 0) {
+    this->scroll(scroll_direction);
+    scroll_value--;
+  }
+}
+
 void AbstractTreeView::set_default_rows(int default_rows)
 {
   BLI_assert_msg(default_rows >= MIN_ROWS,
