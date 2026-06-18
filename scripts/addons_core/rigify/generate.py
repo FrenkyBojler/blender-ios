@@ -445,6 +445,7 @@ class Generator(base_generate.BaseGenerator):
                     sub_name = DEF_COLLECTION + " (" + meta_coll.name + ")"
                     if not self.obj.data.collections_all.get(sub_name):
                         self.obj.data.collections.new(sub_name, parent=def_coll)
+                    self.def_sub_collections.append(sub_name)
 
         # Every bone that has a name starting with "DEF-" make deforming.  All the
         # others make non-deforming.
@@ -527,10 +528,16 @@ class Generator(base_generate.BaseGenerator):
             if coll.rigify_ui_row > 0
         ])
 
+        # Ensure DEF collection acts the same way with
+        # and without sub-collections by forcing sub-collection
+        # to be always visible. If DEF is visible all sub-collections
+        # will be visible
+        force_visible = set(self.def_sub_collections)
+        
         # Hide all layers without UI buttons
         for coll in self.obj.data.collections_all:
             user_visible = self.saved_visible_layers.get(coll.name, coll.is_visible)
-            coll.is_visible = user_visible and coll.name in has_ui_buttons
+            coll.is_visible = (user_visible and coll.name in has_ui_buttons) or coll.name in force_visible
 
     def generate(self):
         context = self.context
