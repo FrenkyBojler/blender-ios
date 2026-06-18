@@ -757,9 +757,7 @@ Panel *panel_begin(
     }
   }
 
-  if (newpanel &&
-      !(region->regiontype == RGN_TYPE_TOOLS && U.file_space_data.custom_order))
-  {
+  if (newpanel && !(region->regiontype == RGN_TYPE_TOOLS && U.file_space_data.custom_order)) {
     panel->sortorder = (panel_last) ? panel_last->sortorder + 1 : 0;
 
     for (Panel &panel_next : *lb) {
