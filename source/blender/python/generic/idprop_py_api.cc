@@ -328,7 +328,7 @@ static PyGetSetDef BPy_IDGroup_getseters[] = {
     {"idprop_active_index",
      reinterpret_cast<getter>(BPy_IDProperty_GetActiveIndex),
      reinterpret_cast<setter>(BPy_IDProperty_SetActiveIndex),
-     "The active index of properties inside this group.",
+     "The active index of properties inside this group.\n:type: int",
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr},
 };
