@@ -1654,6 +1654,15 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   const std::optional<StringRef> name_ref = BKE_attributes_active_name_get(owner);
   const std::string active_attribute_name = name_ref.value_or("");
 
+  /* When a new Mesh has just been created by BKE_id_new(_nomain)() it is initialized
+   * with zeros. So then mesh->attributes_active_index == 0, which can lead to a wrong
+   * result as soons as attributes are created. So in that case override it with -1
+   */
+  if (!name_ref) {
+    BLI_assert(mesh->attributes_active_index == 0 || mesh->attributes_active_index == -1);
+    mesh->attributes_active_index = -1;
+  }
+
   BKE_mesh_clear_geometry(mesh);
 
   mesh->verts_num = bm->totvert;
@@ -1946,9 +1955,10 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   /* Must be an empty mesh. */
   BLI_assert(mesh.verts_num == 0);
 
-  /* If this ever is set we'd need the same workaround as above to remember the active attribute
-   * by name. */
-  BLI_assert(mesh.attributes_active_index == -1);
+  /* new Mesh is created with this at 0, but if the conversion from BMesh potetnially adds
+   * some attributes we should make sure it is at -1 or it might point to an invalid internal
+   * attribute */
+  mesh.attributes_active_index = -1;
 
   /* Just in case, clear the derived geometry caches from the input mesh. */
   BKE_mesh_runtime_clear_geometry(&mesh);
