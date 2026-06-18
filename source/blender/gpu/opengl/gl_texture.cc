@@ -195,7 +195,6 @@ void GLTexture::update_sub(int mip,
 {
   BLI_assert(validate_data_format(format_, type));
   BLI_assert(data != nullptr);
-  BLI_assert(!is_texture_view());
 
   if (mip >= mipmaps_) {
     debug::raise_gl_error("Updating a miplvl on a texture too small to have this many levels.");
