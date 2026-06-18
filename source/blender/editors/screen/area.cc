@@ -1775,6 +1775,24 @@ static void region_rect_recursive(
       }
     }
     else {
+      if (region->regiontype == RGN_TYPE_UI &&
+          BKE_regiontype_uses_categories(region->runtime->type))
+      {
+        /* Update category tab width when #USER_UIFLAG2_PANEL_TABS_COMPACT flag is set/unset. */
+        const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                             (BLI_rcti_size_y(&region->v2d.mask) + 1);
+        const int min_width = ui::PANEL_CATEGORY_TAB_MIN_WIDTH * UI_SCALE_FAC / aspect;
+        const int min_compact_width = ui::PANEL_CATEGORY_TAB_MIN_WIDTH_COMPACT * UI_SCALE_FAC /
+                                      aspect;
+        if (U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT) {
+          if (prefsizex < min_compact_width) {
+            prefsizex = UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect;
+          }
+        }
+        else if (prefsizex <= min_compact_width && prefsizex > min_width) {
+          prefsizex = UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect;
+        }
+      }
       int fac = rct_fits(winrct, SCREEN_AXIS_H, prefsizex);
 
       if (fac < 0) {

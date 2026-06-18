@@ -447,7 +447,11 @@ enum {
   (((U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT) ? 1.4f : 1.0f) * U.widget_unit)
 
 /* Minimum width for a panel showing only category tabs. */
-#define UI_PANEL_CATEGORY_MIN_WIDTH ((U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT) ? 32.0f : 26.0f)
+constexpr float PANEL_CATEGORY_TAB_MIN_WIDTH_COMPACT = 32.0f;
+constexpr float PANEL_CATEGORY_TAB_MIN_WIDTH = 26.0f;
+#define UI_PANEL_CATEGORY_MIN_WIDTH \
+  ((U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT) ? ui::PANEL_CATEGORY_TAB_MIN_WIDTH_COMPACT : \
+                                                   ui::PANEL_CATEGORY_TAB_MIN_WIDTH)
 /* Minimum width for a panel showing content and category tabs. */
 #define UI_PANEL_CATEGORY_MIN_SNAP_WIDTH 90.0f
 
