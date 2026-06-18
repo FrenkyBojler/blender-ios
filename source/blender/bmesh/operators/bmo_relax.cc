@@ -9,7 +9,7 @@
  */
 
 #include "BLI_array_utils.hh"
-#include "BLI_math_base.h"
+#include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"

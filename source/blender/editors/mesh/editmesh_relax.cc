@@ -9,7 +9,7 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLT_translation.hh"
 
 #include "DNA_mesh_types.h"
