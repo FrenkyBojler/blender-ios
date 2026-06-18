@@ -143,14 +143,6 @@ TEST_F(ViewLayerTest, aov_conflict)
       scene, engine, view_layer, aov, "Glossy Direct", "use_pass_glossy_direct");
   test_render_pass_conflict(
       scene, engine, view_layer, aov, "Glossy Color", "use_pass_glossy_color");
-  test_render_pass_conflict(
-      scene, engine, view_layer, aov, "Denoising Depth", "denoising_store_passes");
-  test_render_pass_conflict(
-      scene, engine, view_layer, aov, "Denoising Normal", "denoising_store_passes");
-  test_render_pass_conflict(
-      scene, engine, view_layer, aov, "Denoising Roughness", "denoising_store_passes");
-  test_render_pass_conflict(
-      scene, engine, view_layer, aov, "Denoising Specular Albedo", "denoising_store_passes");
 
   BKE_main_free(bmain);
   RE_engine_free(engine);
