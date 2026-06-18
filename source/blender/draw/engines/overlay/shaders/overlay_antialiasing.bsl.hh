@@ -165,10 +165,12 @@ void neighbor_blend(TexelData neighbor,
   float4 over = target_over_neighbor ? target.color : neighbor.color;
   float4 under = target_over_neighbor ? neighbor.color : target.color;
   if (blend_over_background) {
+    /* With background, avoid working with pre-multiplied alpha. */
     under.a *= (1.0f - over.a);
     target.color = (over * over.a + under * under.a) / (over.a + under.a);
   }
   else {
+    /* Without background, do additive alpha over the current framebuffer value. */
     target.color = over + under * (1.0f - over.a);
   }
 
