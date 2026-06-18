@@ -1,2 +1,3 @@
 Referenced by issue #153195, Serious Performance Issue with Auto Smooth Modifier on Complex Scenes
 Referenced by issue #160339, Crash while editing mesh with Array modifier
+Referenced by pull request #160349, Fix #160339: Edit mode crash with array modifier
