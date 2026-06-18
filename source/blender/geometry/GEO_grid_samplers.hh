@@ -199,14 +199,14 @@ struct LinearKernel {
 
   template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
-    const ValueT lin = values[1] - values[0];
-    const ValueT con = values[0];
-    return weight * lin + con;
+    const ValueT lin = ValueT(values[1] - values[0]);
+    const ValueT con = ValueT(values[0]);
+    return ValueT(weight * lin) + con;
   }
 
   template<class ValueT> static ValueT sample_gradient(const ValueT *values, float /*weight*/)
   {
-    const ValueT con = values[1] - values[0];
+    const ValueT con = ValueT(values[1] - values[0]);
     return con;
   }
 };
@@ -284,16 +284,16 @@ struct QuadraticBSplineKernel {
 
   template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
-    const ValueT sqr = 0.5 * (values[0] + values[2]) - values[1];
-    const ValueT lin = 0.5 * (values[2] - values[0]);
-    const ValueT con = 0.125 * (values[0] + values[2]) + 0.75 * values[1];
+    const ValueT sqr = ValueT(0.5 * (values[0] + values[2]) - values[1]);
+    const ValueT lin = ValueT(0.5 * (values[2] - values[0]));
+    const ValueT con = ValueT(0.125 * (values[0] + values[2]) + 0.75 * values[1]);
     return weight * (weight * sqr + lin) + con;
   }
 
   template<class ValueT> static ValueT sample_gradient(const ValueT *values, float weight)
   {
-    const ValueT lin = values[0] - 2.0 * values[1] + values[2];
-    const ValueT con = 0.5 * (values[2] - values[0]);
+    const ValueT lin = ValueT(values[0] - 2.0 * values[1] + values[2]);
+    const ValueT con = ValueT(0.5 * (values[2] - values[0]));
     return weight * lin + con;
   }
 };
@@ -383,18 +383,18 @@ struct CubicBSplineKernel {
   template<class ValueT> static ValueT sample_value(const ValueT *values, float weight)
   {
     constexpr double inv6 = 1.0 / 6.0;
-    const ValueT cub = inv6 * (values[3] - values[0]) + 0.5 * (values[1] - values[2]);
-    const ValueT sqr = 0.5 * (values[0] + values[2]) - values[1];
-    const ValueT lin = 0.5 * (values[2] - values[0]);
-    const ValueT con = inv6 * (values[0] + 4.0 * values[1] + values[2]);
+    const ValueT cub = ValueT(inv6 * (values[3] - values[0]) + 0.5 * (values[1] - values[2]));
+    const ValueT sqr = ValueT(0.5 * (values[0] + values[2]) - values[1]);
+    const ValueT lin = ValueT(0.5 * (values[2] - values[0]));
+    const ValueT con = ValueT(inv6 * (values[0] + 4.0 * values[1] + values[2]));
     return weight * (weight * (weight * cub + sqr) + lin) + con;
   }
 
   template<class ValueT> static ValueT sample_gradient(const ValueT *values, float weight)
   {
-    const ValueT sqr = 0.5 * (values[3] - values[0]) + 1.5 * (values[1] - values[2]);
-    const ValueT lin = values[0] - 2.0 * values[1] + values[2];
-    const ValueT con = 0.5 * (values[2] - values[0]);
+    const ValueT sqr = ValueT(0.5 * (values[3] - values[0]) + 1.5 * (values[1] - values[2]));
+    const ValueT lin = ValueT(values[0] - 2.0 * values[1] + values[2]);
+    const ValueT con = ValueT(0.5 * (values[2] - values[0]));
     return weight * (weight * sqr + lin) + con;
   }
 };
