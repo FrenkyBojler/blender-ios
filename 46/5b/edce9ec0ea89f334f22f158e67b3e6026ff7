@@ -3,3 +3,4 @@ Referenced by pull request #157814, Fix #157813: Segfault when Camera Ray Visibi
 Referenced by commit 3a29d756911d974d4097f2ce1103557aa11fc5db, Fix #157813: Segfault when Camera Ray Visibility is toggled
 Referenced by issue #158282, draw_handle.hh:315 - Code marked as unreachable has been executed.
 Referenced by issue #159205, Duplicate edge length overlays with instanced vertices from geometry nodes
+Referenced by issue #160332, Blender 520 eevee motion blur
