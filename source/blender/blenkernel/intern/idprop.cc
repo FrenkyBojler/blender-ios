@@ -69,7 +69,21 @@ static size_t idp_size_table[] = {
  * inside groups etc.).
  *
  * Too many levels will lead to running out of stack memory and crashes. */
-constexpr int MAX_IDPROP_DEPTH_LEVEL = 1024;
+constexpr int MAX_IDPROP_DEPTH_LEVEL = 1026;
+/**
+ * Write code uses one level less than runtime processing code, because it still has to write
+ * something when it detects the issue, to ensure references to the 'limit properties' remain
+ * valid.
+ * Limits overly noisy continous error messages in the console due to runtime processing and
+ * undo/redo. */
+constexpr int MAX_IDPROP_DEPTH_LEVEL_FOR_WRITE = MAX_IDPROP_DEPTH_LEVEL - 1;
+/**
+ * Read code uses two level less than runtime processing code, because it still has to read
+ * something when it detects the issue, to ensure references to the 'limit properties' remain
+ * valid.
+ * Limits overly noisy continous error messages in the console due to runtime processing and
+ * undo/redo. */
+constexpr int MAX_IDPROP_DEPTH_LEVEL_FOR_READ = MAX_IDPROP_DEPTH_LEVEL - 2;
 
 static void idp_free_property_content_recurse(IDProperty *prop,
                                               const bool do_id_user,
@@ -1561,12 +1575,12 @@ static void IDP_WriteIDPArray(const IDProperty *prop,
 
     /* Recursion depth limit also needs to be handled here, as IDP arrays are written in a single
      * call, without going through a call to `idp_blend_write_recurse`. */
-    if (recursion_depth > MAX_IDPROP_DEPTH_LEVEL) {
+    if (recursion_depth > MAX_IDPROP_DEPTH_LEVEL_FOR_WRITE) {
       CLOG_ERROR(&LOG,
                  "Too deep level of IDProperties embedding detected (over %d levels), this is "
                  "likely caused by a buggy script or add-on. The data in property '%s' will not "
                  "be written in the blendfile or memfile undo step",
-                 MAX_IDPROP_DEPTH_LEVEL,
+                 MAX_IDPROP_DEPTH_LEVEL_FOR_WRITE,
                  prop->name);
       IDProperty *empty_prop_idparray = IDP_NewIDPArray(prop->name);
       IDP_ResizeIDPArray(empty_prop_idparray, prop->len);
@@ -1645,12 +1659,12 @@ static void idp_blend_write_recurse(BlendWriter *writer,
                                     const IDProperty *prop,
                                     const int recursion_depth)
 {
-  if (recursion_depth > MAX_IDPROP_DEPTH_LEVEL) {
+  if (recursion_depth > MAX_IDPROP_DEPTH_LEVEL_FOR_WRITE) {
     CLOG_ERROR(&LOG,
                "Too deep level of IDProperties embedding detected (over %d levels), this is "
                "likely caused by a buggy script or add-on. The data in property '%s' will not "
                "be written in the blendfile or memfile undo step",
-               MAX_IDPROP_DEPTH_LEVEL,
+               MAX_IDPROP_DEPTH_LEVEL_FOR_WRITE,
                prop->name);
     IDProperty empty_prop = {};
     empty_prop.type = IDP_INT;
@@ -1865,12 +1879,12 @@ static void IDP_DirectLinkProperty(IDProperty *prop,
     idprop->ui_data = nullptr;
   };
 
-  if (recursion_depth > MAX_IDPROP_DEPTH_LEVEL) {
+  if (recursion_depth > MAX_IDPROP_DEPTH_LEVEL_FOR_READ) {
     CLOG_ERROR(&LOG,
                "Too deep level of IDProperties embedding detected (over %d levels), this is "
                "likely caused by a buggy script or add-on. The data in property '%s' will not "
                "be read from the blendfile",
-               MAX_IDPROP_DEPTH_LEVEL,
+               MAX_IDPROP_DEPTH_LEVEL_FOR_READ,
                prop->name);
     /* NOTE: No attempt to free the property, as it may lead to further recursion. */
     reset_property(prop);
