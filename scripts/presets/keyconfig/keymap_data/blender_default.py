@@ -7729,7 +7729,6 @@ def km_3d_view_tool_edit_armature_extrude(params):
             ("armature.extrude_move", {**params.tool_maybe_tweak_event, **params.tool_modifier},
              {"properties": [("TRANSFORM_OT_translate", [("release_confirm", True)])]}),
         ]},
-
     )
 
 
