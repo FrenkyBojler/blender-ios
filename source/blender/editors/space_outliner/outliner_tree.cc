@@ -523,47 +523,6 @@ static bool treesort_custom(const tTreeSort &x1,
   return sort1 < sort2;
 }
 
-static void outliner_sort_custom_assign_missing_sort_indices(
-    ListBaseT<TreeElement> *lb,
-    TreeElement *last_te,
-    const Map<const Object *, CollectionObject *> &collection_object_map)
-{
-  Collection *collection = outliner_collection_from_tree_element(last_te->parent);
-  if (collection == nullptr) {
-    return;
-  }
-
-  int max_sort_index = -1;
-  for (CollectionObject &cob : collection->gobject) {
-    max_sort_index = std::max(max_sort_index, cob.sort_index);
-  }
-
-  bool has_missing_indices = false;
-  for (TreeElement &te : *lb) {
-    if (te.idcode != ID_OB) {
-      continue;
-    }
-    Object *ob = reinterpret_cast<Object *>(TREESTORE(&te)->id);
-    CollectionObject *cob = collection_object_map.lookup_default(ob, nullptr);
-    if (cob != nullptr && cob->sort_index < 0) {
-      has_missing_indices = true;
-      break;
-    }
-  }
-
-  int next_index = has_missing_indices ? max_sort_index + 1 : 0;
-
-  for (TreeElement &te : *lb) {
-    Object *ob = reinterpret_cast<Object *>(TREESTORE(&te)->id);
-    CollectionObject *cob = collection_object_map.lookup_default(ob, nullptr);
-    if (cob != nullptr) {
-      if (cob->sort_index < 0) {
-        cob->sort_index = next_index++;
-      }
-    }
-  }
-}
-
 /* this is nice option for later? doesn't look too useful... */
 #if 0
 static int treesort_obtype_alpha(const void *v1, const void *v2)
@@ -744,6 +703,14 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
             std::stable_sort(tear + skip, tear + totelem, treesort_custom_fn);
           }
         }
+        int index = 0;
+        for (tTreeSort element : tear_vec) {
+          if (element.idcode == ID_OB) {
+            Object *ob = reinterpret_cast<Object *>(element.id);
+            CollectionObject *cob = collection_object_map.lookup_default(ob, nullptr);
+            cob->sort_index = index++;
+          }
+        }
 
         lb->clear_no_delete();
         tp = tear;
@@ -752,7 +719,6 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
         }
       }
     }
-    outliner_sort_custom_assign_missing_sort_indices(lb, last_te, collection_object_map);
   }
 
   for (TreeElement &te_iter : *lb) {
