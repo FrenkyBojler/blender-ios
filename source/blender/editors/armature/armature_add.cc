@@ -1350,9 +1350,9 @@ static EditBone *get_symmetrized_bone(bArmature *arm, EditBone *bone)
   return (mirror != nullptr) ? mirror : bone;
 }
 
-static void symmetrize_snap_connected_children_head_to_mirror_axis(bArmature *arm,
-                                                                   EditBone *parent,
-                                                                   int axis)
+static void symmetrize_snap_connected_children_to_armature_center(bArmature *arm,
+                                                                  EditBone *parent,
+                                                                  int axis)
 {
   for (EditBone &child : *arm->edbo) {
     if (child.parent == parent && (child.flag & BONE_CONNECTED)) {
@@ -1538,7 +1538,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
                * parent. Also ensure, that parent tail and connected children heads are at mirror
                * axis. Some offset may have been introduced by floating point precision errors. */
               ebone_parent->tail[axis] = 0.0f;
-              symmetrize_snap_connected_children_head_to_mirror_axis(arm, ebone_parent, axis);
+              symmetrize_snap_connected_children_to_armature_center(arm, ebone_parent, axis);
             }
           }
 
