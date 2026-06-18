@@ -18,9 +18,9 @@
 #include "BKE_global.hh"
 #include "DNA_modifier_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_span.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
@@ -2836,8 +2836,11 @@ void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
       if (curves_id->surface != nullptr) {
         build_object(curves_id->surface);
 
-        /* The relations between the surface and the curves are handled as part of the modifier
-         * stack building. */
+        ComponentKey surface_geometry_key(&curves_id->surface->id, NodeType::GEOMETRY);
+        add_relation(surface_geometry_key, obdata_geom_eval_key, "Curves Object Surface");
+
+        ComponentKey surface_transform_key(&curves_id->surface->id, NodeType::TRANSFORM);
+        add_relation(surface_transform_key, obdata_geom_eval_key, "Curves Object Surface");
       }
       break;
     }

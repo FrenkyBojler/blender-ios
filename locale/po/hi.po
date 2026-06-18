@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e899b48ea546')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-25 07:25+0000\n"
+"POT-Creation-Date: 2026-06-15 07:32+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -709,6 +709,10 @@ msgstr "बहु"
 
 msgid "All"
 msgstr "सभी"
+
+
+msgid "Pixel"
+msgstr "पिक्सेल"
 
 
 msgid "Iterations"
@@ -1565,6 +1569,10 @@ msgid "Grid"
 msgstr "जालक"
 
 
+msgid "Dynamic"
+msgstr "गतिकी"
+
+
 msgid "Items"
 msgstr "वस्तु"
 
@@ -1655,10 +1663,6 @@ msgstr "स्थानीय"
 
 msgid "Global"
 msgstr "भूमंडलीय"
-
-
-msgid "Dynamic"
-msgstr "गतिकी"
 
 
 msgid "Add Color"
@@ -2129,10 +2133,6 @@ msgid "Rigid Body Constraint"
 msgstr "कठोर-पदार्थ प्रतिबंधी"
 
 
-msgid "Pixel"
-msgstr "पिक्सेल"
-
-
 msgid "Global X"
 msgstr "भूमंडलीय एक्स"
 
@@ -2586,6 +2586,14 @@ msgid "Placement"
 msgstr "नियोजन"
 
 
+msgid "Track"
+msgstr "ट्रैक"
+
+
+msgid "Math"
+msgstr "गणित"
+
+
 msgid "Mirror"
 msgstr "दर्पण"
 
@@ -2594,48 +2602,40 @@ msgid "Snap"
 msgstr "स्नैप"
 
 
-msgid "Math"
-msgstr "गणित"
-
-
-msgid "Light"
-msgstr "प्रकाश"
-
-
 msgid "Rigid Body"
 msgstr "कठोर-पदार्थ"
-
-
-msgid "Apply"
-msgstr "लागू करें"
-
-
-msgid "Track"
-msgstr "ट्रैक"
-
-
-msgid "Quick Effects"
-msgstr "त्वरित प्रभाव"
 
 
 msgid "Import"
 msgstr "आयात करें"
 
 
+msgid "UV"
+msgstr "यूवी"
+
+
 msgid "Show/Hide"
 msgstr "छुपाएँ / दिखाएँ"
 
 
-msgid "Make Single User"
-msgstr "एकल प्रयोक्ता बनाएँ"
+msgid "Apply"
+msgstr "लागू करें"
+
+
+msgid "Light"
+msgstr "प्रकाश"
 
 
 msgid "Hooks"
 msgstr "खूँटी"
 
 
-msgid "UV"
-msgstr "यूवी"
+msgid "Make Single User"
+msgstr "एकल प्रयोक्ता बनाएँ"
+
+
+msgid "Quick Effects"
+msgstr "त्वरित प्रभाव"
 
 
 msgid "Names"
@@ -4961,6 +4961,10 @@ msgid "Relationship Lines"
 msgstr "संबंध रेखाएँ"
 
 
+msgid "Cancel"
+msgstr "रद्द करें"
+
+
 msgctxt "WindowManager"
 msgid "Object Mode"
 msgstr "वस्तु रूप"
@@ -5065,6 +5069,11 @@ msgstr "कोई पाठ या संचिका निर्दिष्�
 
 msgid "External shader script must have .osl or .oso extension, or be a module name"
 msgstr "बाह्य shader स्क्रिप्ट .osl या .oso एक्सटेंशन होना चाहिए, या एक मॉड्यूल का नाम हो"
+
+
+msgctxt "Operator"
+msgid "Clear"
+msgstr "स्पष्ट"
 
 
 msgctxt "Operator"
@@ -5198,11 +5207,6 @@ msgstr "प्रसंकेतक के लिए चयन"
 
 msgid "Transform:"
 msgstr "संचनांतरण:"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "स्पष्ट"
 
 
 msgid "Date"
@@ -5789,10 +5793,6 @@ msgstr "\"%s\" संपत्ति एनिमेटेड किया ज�
 
 msgid "Same bone selected..."
 msgstr "एक ही हड्डी का चयन किया..."
-
-
-msgid "Cancel"
-msgstr "रद्द करें"
 
 
 msgctxt "Curve"

@@ -70,7 +70,7 @@
 #include <xxhash.h>
 
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #  include "winsock2.h"
 #  include <io.h>
 #else
@@ -79,7 +79,7 @@
 
 #include <fmt/format.h>
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "CLG_log.h"
 
@@ -95,18 +95,18 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_endian_defines.h"
+#include "BLI_endian_defines.hh"
 #include "BLI_fileops.hh"
 #include "BLI_implicit_sharing.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_math_matrix.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_threads.h"
-#include "BLI_time.h"
+#include "BLI_string.hh"
+#include "BLI_threads.hh"
+#include "BLI_time.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -457,7 +457,7 @@ static void writedata_do_write(WriteData *wd, const void *mem, const size_t meml
     return;
   }
 
-  if (UNLIKELY(wd->validation_data.critical_error)) {
+  if (wd->validation_data.critical_error) [[unlikely]] {
     return;
   }
 
@@ -505,11 +505,11 @@ static void mywrite_flush(WriteData *wd)
  */
 static void mywrite(WriteData *wd, const void *adr, size_t len)
 {
-  if (UNLIKELY(wd->validation_data.critical_error)) {
+  if (wd->validation_data.critical_error) [[unlikely]] {
     return;
   }
 
-  if (UNLIKELY(adr == nullptr)) {
+  if (adr == nullptr) [[unlikely]] {
     BLI_assert(0);
     return;
   }
@@ -837,7 +837,7 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
    * `pointer_map`. */
   if (wd.use_memfile) {
     return wd.stable_address_ids.pointer_map.lookup_default_as(
-        address, reinterpret_cast<const uint64_t>(address));
+        address, reinterpret_cast<uint64_t>(address));
   }
   /* Either reuse an existing identifier or create a new one. */
   return wd.stable_address_ids.pointer_map.lookup_or_add_cb(address, [&]() {
@@ -1558,48 +1558,6 @@ BLO_Write_IDBuffer::BLO_Write_IDBuffer(ID &id, BlendWriter *writer)
 {
 }
 
-/* Helper callback for checking linked IDs used by given ID (assumed local), to ensure directly
- * linked data is tagged accordingly. */
-static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_data)
-{
-  ID *self_id = cb_data->self_id;
-  ID *id = *cb_data->id_pointer;
-  const LibraryForeachIDCallbackFlag cb_flag = cb_data->cb_flag;
-
-  if (id == nullptr || !ID_IS_LINKED(id)) {
-    return IDWALK_RET_NOP;
-  }
-  BLI_assert(!ID_IS_LINKED(self_id));
-  BLI_assert((cb_flag & IDWALK_CB_INDIRECT_USAGE) == 0);
-
-  if (self_id->tag & ID_TAG_RUNTIME) {
-    return IDWALK_RET_NOP;
-  }
-
-  if (cb_flag & IDWALK_CB_WRITEFILE_IGNORE) {
-    /* Do not consider these ID usages (typically, from the Outliner e.g.) as making the ID
-     * directly linked. */
-    return IDWALK_RET_NOP;
-  }
-
-  if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
-    /* Usages of unlinkable IDs (aka ShapeKeys and some UI IDs) should never cause them to be
-     * considered as directly linked. This can often happen e.g. from UI data (the Outliner will
-     * have links to most IDs).
-     */
-    return IDWALK_RET_NOP;
-  }
-
-  if (cb_flag & IDWALK_CB_DIRECT_WEAK_LINK) {
-    id_lib_indirect_weak_link(id);
-  }
-  else {
-    id_lib_extern(id);
-  }
-
-  return IDWALK_RET_NOP;
-}
-
 static std::string get_blend_file_header()
 {
   if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 &&
@@ -1762,43 +1720,6 @@ static bool write_file_handle(Main *mainvar,
 
   prepare_stable_data_block_ids(*wd, *mainvar);
 
-  /* Clear 'directly linked' flag for all linked data, these are not necessarily valid/up-to-date
-   * info, they will be re-generated while write code is processing local IDs below. */
-  if (!wd->use_memfile) {
-    ID *id_iter;
-    FOREACH_MAIN_ID_BEGIN (mainvar, id_iter) {
-      if (ID_IS_LINKED(id_iter) && BKE_idtype_idcode_is_linkable(GS(id_iter->name))) {
-        if (USER_DEVELOPER_TOOL_TEST(&U, use_all_linked_data_direct)) {
-          /* Forces all linked data to be considered as directly linked.
-           * FIXME: Workaround some BAT tool limitations for Heist production, should be removed
-           * asap afterward. */
-          id_lib_extern(id_iter);
-        }
-        else if (GS(id_iter->name) == ID_SCE) {
-          /* For scenes, do not force them into 'indirectly linked' status.
-           * The main reason is that scenes typically have no users, so most linked scene would be
-           * systematically 'lost' on file save.
-           *
-           * While this change re-introduces the 'no-more-used data laying around in files for
-           * ever' issue when it comes to scenes, this solution seems to be the most sensible one
-           * for the time being, considering that:
-           *   - Scene are a top-level container.
-           *   - Linked scenes are typically explicitly linked by the user.
-           *   - Cases where scenes would be indirectly linked by other data (e.g. when linking a
-           *     collection or material) can be considered at the very least as not following sane
-           *     practice in data dependencies.
-           *   - There are typically not hundreds of scenes in a file, and they are always very
-           *     easily discoverable and browsable from the main UI. */
-        }
-        else {
-          id_iter->tag |= ID_TAG_INDIRECT;
-          id_iter->tag &= ~ID_TAG_EXTERN;
-        }
-      }
-    }
-    FOREACH_MAIN_ID_END;
-  }
-
   /* Recompute all ID user-counts if requested. Allows to avoid skipping writing of IDs wrongly
    * detected as unused due to invalid user-count. */
   if (!wd->use_memfile) {
@@ -1820,14 +1741,7 @@ static bool write_file_handle(Main *mainvar,
   Vector<ID *> local_ids_to_write = gather_local_ids_to_write(mainvar, is_undo);
 
   if (!is_undo) {
-    /* If not writing undo data, properly set directly linked IDs as `ID_TAG_EXTERN`. */
-    for (ID *id : local_ids_to_write) {
-      BKE_library_foreach_ID_link(mainvar,
-                                  id,
-                                  write_id_direct_linked_data_process_cb,
-                                  nullptr,
-                                  IDWALK_READONLY | IDWALK_INCLUDE_UI);
-    }
+    BKE_main_id_indirect_linked_update(*mainvar, local_ids_to_write);
 
     /* Forcefully ensure we know about all needed override operations. */
     for (ID *id : local_ids_to_write) {
@@ -2068,7 +1982,7 @@ static bool BLO_write_file_impl(Main *mainvar,
       STRNCPY(mainvar->filepath, filepath);
 
       /* Check if we need to backup and restore paths. */
-      if (UNLIKELY(use_save_as_copy)) {
+      if (use_save_as_copy) [[unlikely]] {
         path_list_backup = BKE_bpath_list_backup(mainvar, path_list_flag);
       }
 
@@ -2114,7 +2028,7 @@ static bool BLO_write_file_impl(Main *mainvar,
 
   ww.close();
 
-  if (UNLIKELY(path_list_backup)) {
+  if (path_list_backup) [[unlikely]] {
     BKE_bpath_list_restore(mainvar, path_list_flag, path_list_backup);
     BKE_bpath_list_free(path_list_backup);
   }
@@ -2194,7 +2108,7 @@ void BlendWriter::write_struct_array_by_name(const char *struct_name,
                                              const void *data)
 {
   int struct_id = this->struct_id_by_name(struct_name);
-  if (UNLIKELY(struct_id == -1)) {
+  if (struct_id == -1) [[unlikely]] {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
   }
@@ -2244,7 +2158,7 @@ void BlendWriter::write_struct_list_by_id(const int struct_id, const ListBase *l
 void BlendWriter::write_struct_list_by_name(const char *struct_name, ListBase *list)
 {
   int struct_id = this->struct_id_by_name(struct_name);
-  if (UNLIKELY(struct_id == -1)) {
+  if (struct_id == -1) [[unlikely]] {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
   }

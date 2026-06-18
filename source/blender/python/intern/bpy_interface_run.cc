@@ -13,11 +13,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
@@ -100,7 +100,7 @@ static PyObject *python_compat_wrapper_PyRun_FileExFlags(FILE *fp,
     fclose(fp);
   }
 
-  if (UNLIKELY(buf == nullptr)) {
+  if (buf == nullptr) [[unlikely]] {
     PyErr_Format(PyExc_IOError, "Python file \"%s\" could not read buffer", filepath);
   }
   else {
@@ -256,15 +256,16 @@ bool BPY_string_compile_check(const char *expr)
     return true;
   }
   PyGILState_STATE gilstate = PyGILState_Ensure();
+  bool success = false;
   if (PyObject *retval = Py_CompileString(expr, "<expression>", Py_eval_input)) {
     Py_DECREF(retval);
-    return true;
+    success = true;
   }
   else {
     PyErr_Clear();
   }
   PyGILState_Release(gilstate);
-  return false;
+  return success;
 }
 
 /**
