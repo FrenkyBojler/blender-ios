@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2018-2021 The glTF-Blender-IO authors
+# SPDX-FileCopyrightText: 2018-2026 The glTF-Blender-IO authors
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -61,6 +61,7 @@ class glTFImporter():
             'KHR_materials_anisotropy',
             'KHR_materials_dispersion',
             'KHR_materials_iridescence',
+            'KHR_node_visibility'
         ]
 
         # Add extensions required supported by custom import extensions
