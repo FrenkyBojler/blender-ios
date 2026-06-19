@@ -54,6 +54,10 @@
 #include "eevee_volume.hh"
 #include "eevee_world.hh"
 
+namespace blender::gpu {
+class WorkInFlight;
+}  // namespace blender::gpu
+
 namespace blender::eevee {
 
 using UniformDataBuf = draw::UniformBuffer<UniformData>;

@@ -25,6 +25,7 @@
 #include "mtl_texture_pool.hh"
 #include "mtl_uniform_buffer.hh"
 #include "mtl_vertex_buffer.hh"
+#include "mtl_work_in_flight.hh"
 
 #include "gpu_capabilities_private.hh"
 #include "gpu_platform_private.hh"
@@ -69,9 +70,9 @@ Fence *MTLBackend::fence_alloc()
   return new MTLFence();
 };
 
-WorkInFlight *MTLBackend::work_in_flight_alloc(unsigned int /*max_in_flight*/)
+WorkInFlight *MTLBackend::work_in_flight_alloc(unsigned int max_in_flight)
 {
-  return new WorkInFlightDummy();
+  return new MTLInFlightDummy(max_in_flight);
 };
 
 FrameBuffer *MTLBackend::framebuffer_alloc(const char *name)

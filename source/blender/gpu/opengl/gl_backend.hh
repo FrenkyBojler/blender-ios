@@ -17,6 +17,7 @@
 #include "BLI_vector.hh"
 
 #include "gpu_capabilities_private.hh"
+#include "gpu_work_in_flight_private.hh"
 
 #ifdef WITH_RENDERDOC
 #  include "renderdoc_api.hh"
