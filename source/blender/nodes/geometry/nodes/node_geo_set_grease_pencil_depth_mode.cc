@@ -19,7 +19,7 @@ namespace blender::nodes::node_geo_grease_pencil_set_depth_mode {
 
 enum class Mode : int8_t {
   Layers2D = 0,
-  DepthOrder = GREASE_PENCIL_STROKE_ORDER_3D,
+  Location3D = GREASE_PENCIL_STROKE_ORDER_3D,
 };
 
 static void node_declare(NodeDeclarationBuilder &b)
