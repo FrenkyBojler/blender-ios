@@ -126,7 +126,7 @@ struct Resources {
         .depth = texelFetch(depth_tx, texel_actual, 0).r,
         .line = Line::decode(texelFetch(line_tx, texel_actual, 0).rg),
     };
-    if (!is_zero(offset)) {
+    if (any(notEqual(offset, int2(0)))) {
       data.line.offset_to_neighbor(offset);
     }
     return data;
