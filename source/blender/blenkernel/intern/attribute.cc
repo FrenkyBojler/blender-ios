@@ -771,37 +771,37 @@ int *BKE_attributes_active_index_p(AttributeOwner &owner)
 void BKE_attributes_active_set_first_non_internal(AttributeOwner &owner)
 {
   int *active_index = BKE_attributes_active_index_p(owner);
-  if (*active_index > 0) {
-    bke::AttributeStorage *attributes = owner.get_storage();
-    int index_check = *active_index - 1;
-    bool found = false;
 
-    /* First try downwards. */
-    while (index_check >= 0 && !found) {
-      bke::Attribute attribute_check = attributes->at_index(index_check);
-      if (bke::allow_procedural_attribute_access(attribute_check.name())) {
-        *active_index = index_check;
-        found = true;
-      }
-      index_check--;
-    }
-    if (!found) {
-      /* Still not found? Try upwards. */
-      index_check = *active_index + 1;
-      while (index_check < attributes->count() && !found) {
-        bke::Attribute attribute_check = attributes->at_index(index_check);
-        if (bke::allow_procedural_attribute_access(attribute_check.name())) {
-          *active_index = index_check;
-          found = true;
-        }
-        index_check++;
-      }
-    }
-    if (!found) {
-      /* Still not found? Mark none as active. */
-      *active_index = -1;
-    }
+  if (*active_index < 0) {
+    return;
   }
+
+  bke::AttributeStorage *attributes = owner.get_storage();
+
+  /* First try downwards. */
+  int index_check = *active_index - 1;
+  while (index_check >= 0) {
+    bke::Attribute attribute_check = attributes->at_index(index_check);
+    if (bke::allow_procedural_attribute_access(attribute_check.name())) {
+      *active_index = index_check;
+      return;
+    }
+    index_check--;
+  }
+
+  /* Still not found? Try upwards. */
+  index_check = *active_index + 1;
+  while (index_check < attributes->count()) {
+    bke::Attribute attribute_check = attributes->at_index(index_check);
+    if (bke::allow_procedural_attribute_access(attribute_check.name())) {
+      *active_index = index_check;
+      return;
+    }
+    index_check++;
+  }
+
+  /* Still not found? Mark none as active. */
+  *active_index = -1;
 }
 
 std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
