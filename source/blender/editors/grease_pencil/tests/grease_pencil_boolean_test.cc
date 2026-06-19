@@ -13,6 +13,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_gtest_base.hh"
 
 #include "ED_grease_pencil.hh"
@@ -315,14 +316,14 @@ static void draw_results(const std::string &label,
 
 static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
                                               const Span<float2> points,
-                                              const Span<int> fill_id,
+                                              const Span<int> fill_ids,
                                               const Span<bool> cyclic)
 {
   BLI_assert(!offsets.is_empty());
   const int curves_num = offsets.size() - 1;
   const int points_num = offsets.last();
   BLI_assert(cyclic.size() == curves_num);
-  BLI_assert(fill_id.size() == curves_num);
+  BLI_assert(fill_ids.size() == curves_num);
 
   bke::CurvesGeometry curves(points_num, curves_num);
   curves.offsets_for_write().copy_from(offsets);
@@ -332,7 +333,7 @@ static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
 
   bke::SpanAttributeWriter<int> fill_id_writer = attributes.lookup_or_add_for_write_span<int>(
       "fill_id", bke::AttrDomain::Curve);
-  fill_id_writer.span.copy_from(fill_id);
+  fill_id_writer.span.copy_from(fill_ids);
   fill_id_writer.finish();
 
   bke::SpanAttributeWriter<float2> pos_writer = attributes.lookup_or_add_for_write_span<float2>(
@@ -382,26 +383,26 @@ static void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
   // }
 }
 
-static bke::CurvesGeometry curve_boolean2(const ed::greasepencil::carver::Operation /*opt*/,
-                                          const bke::CurvesGeometry &src_curves,
-                                          const IndexMask /*&clipping_shapes*/)
+static bke::CurvesGeometry test_curve_boolean(const ed::greasepencil::carver::Operation opt,
+                                              const bke::CurvesGeometry &src_curves,
+                                              const Span<int> fill_ids,
+                                              const IndexMask &clipping_fills)
 {
+  using namespace bke::greasepencil;
+  carver::CurveBooleanOpParameters op_params;
+  op_params.boolean_mode = opt;
+  op_params.keep_caps = false;
 
-  // const ARegion &region = {}
-  // const float4x4 &layer_to_world = float4x4::identry()
-  // Array <float4> normal_planes(src_curves.curves_num());
-  // std::optional<GroupedSpan<int>> fills;
+  const std::optional<FillCache> fill_cache = fill_cache_from_fill_ids(
+      VArray<int>::from_span(fill_ids));
+  if (!fill_cache) {
+    return {};
+  }
 
-  // return curve_boolean( {opt},
-  //                                 src_curves,
-  //                                 fills,
-  //                                 normal_planes,
-  //                                 clipping_fills,
-  //                                 layer_to_world,
-  //                                 region,
-  //                                 true)
+  const GroupedSpan<int> fills = GroupedSpan<int>(fill_cache->fill_offsets.as_span(),
+                                                  fill_cache->fill_map.as_span());
 
-  return src_curves;
+  return curve_boolean(op_params, src_curves, fills, clipping_fills);
 }
 
 class GreasePencilBooleanTest : public bke::BlenderGTestBase {};
@@ -412,21 +413,21 @@ TEST_F(GreasePencilBooleanTest, Squares)
 
   const Array<float2> points = {{0, 0}, {2, 0}, {2, 2}, {0, 2}, {1, 1}, {3, 1}, {3, 3}, {1, 3}};
   const Array<int> points_by_curve = {0, 4, 8};
-  const Array<int> fill_id = {1, 2};
+  const Array<int> fill_ids = {1, 2};
   const Array<bool> is_cyclic = {true, true};
-  const IndexRange clipping_shapes = IndexRange(1, 1);
+  const IndexRange clipping_fills = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(
-      points_by_curve, points, fill_id, is_cyclic);
+      points_by_curve, points, fill_ids, is_cyclic);
 
   {
-    const bke::CurvesGeometry dst_curves = curve_boolean2(
-        Operation::Intersect, src_curves, clipping_shapes);
+    const bke::CurvesGeometry dst_curves = test_curve_boolean(
+        Operation::Intersect, src_curves, fill_ids, clipping_fills);
 
     const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 1}, {2, 1}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
   }
 
   draw_divider_end();
