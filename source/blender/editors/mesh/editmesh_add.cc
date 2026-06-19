@@ -521,7 +521,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
                                                              RNA_int_get(op->ptr, "vertices"),
                                                              side_segments,
                                                              fill_segments,
-                                                             geometry::ConeFillType::NGon,
+                                                             static_cast<geometry::ConeFillType>(end_fill_type),
                                                              attributes);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
@@ -629,7 +629,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
                                                              RNA_int_get(op->ptr, "vertices"),
                                                              side_segments,
                                                              fill_segments,
-                                                             geometry::ConeFillType::NGon,
+                                                             static_cast<geometry::ConeFillType>(end_fill_type),
                                                              attributes);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
