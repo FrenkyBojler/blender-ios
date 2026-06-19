@@ -193,7 +193,11 @@ void Texture::attach_to(FrameBuffer *fb, GPUAttachmentType type)
 
 void Texture::detach_from(FrameBuffer *fb)
 {
-  if (!fb_attachments_.remove(fb)) {
+  std::optional<GPUAttachmentType> type = fb_attachments_.pop_try(fb);
+  if (type.has_value()) {
+    fb->attachment_remove(*type);
+  }
+  else {
     BLI_assert_msg(0, "GPU: Error: Texture: Framebuffer is not attached");
   };
 }
