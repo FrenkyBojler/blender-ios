@@ -1781,9 +1781,9 @@ static void region_rect_recursive(
         /* Update category tab width when #USER_UIFLAG2_PANEL_TABS_COMPACT flag is set/unset. */
         const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                              (BLI_rcti_size_y(&region->v2d.mask) + 1);
-        const int min_compact_width = ui::PANEL_CATEGORY_TAB_MIN_WIDTH_COMPACT * UI_SCALE_FAC /
-                                      aspect;
-        if (prefsizex < min_compact_width) {
+        const int tab_auto_snap_width = (UI_PANEL_CATEGORY_MIN_WIDTH + ui::PANEL_MIN_DRAW_WIDTH) *
+                                        UI_SCALE_FAC / aspect;
+        if (prefsizex < tab_auto_snap_width) {
           prefsizex = UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect;
         }
       }
