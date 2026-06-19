@@ -1432,11 +1432,9 @@ static void expand_panel_region(bContext &C, ARegion *region)
   /* Enlarge region. */
   int new_width = region->runtime->type->prefsizex ? region->runtime->type->prefsizex : 250;
 
-  if (new_width <
-      int((UI_PANEL_CATEGORY_MIN_WIDTH + PANEL_MIN_DRAW_WIDTH) * UI_SCALE_FAC / aspect))
-  {
-    region->runtime->type->prefsizex = UI_SIDEBAR_PANEL_WIDTH * UI_SCALE_FAC / aspect;
-    new_width = UI_SIDEBAR_PANEL_WIDTH * UI_SCALE_FAC / aspect;
+  if (new_width < int(UI_PANEL_CATEGORY_MIN_WIDTH + PANEL_MIN_DRAW_WIDTH)) {
+    region->runtime->type->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
+    new_width = UI_SIDEBAR_PANEL_WIDTH;
   }
 
   panel_region_width_set(region, aspect, new_width);
