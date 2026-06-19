@@ -13,6 +13,7 @@
 #include "BKE_curves_utils.hh"
 #include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
@@ -21,7 +22,6 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
-#include "BLI_implicit_sharing_cache.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
@@ -521,11 +521,15 @@ static int get_active_frame_for_falloff(const bke::greasepencil::Layer &layer,
                                         const std::optional<Bounds<int>> frame_bounds,
                                         const int current_frame)
 {
-  std::optional<int> current_start_frame = layer.start_frame_at(current_frame);
-  if (!current_start_frame && frame_bounds) {
+  const std::optional<int> current_start_frame = layer.start_frame_at(current_frame);
+  if (current_start_frame) {
+    return *current_start_frame;
+  }
+  if (frame_bounds) {
     return math::clamp(current_frame, frame_bounds->min, frame_bounds->max);
   }
-  return *current_start_frame;
+  /* Unused by get_frame_falloff() when there are no frame bounds. */
+  return current_frame;
 }
 
 static std::optional<int> get_frame_id(const bke::greasepencil::Layer &layer,
@@ -1196,9 +1200,14 @@ IndexMask retrieve_visible_bezier_points(Object &object,
   return IndexMask::from_ranges(curves.points_by_curve(), visible_bezier_strokes, memory);
 }
 
+eHandleDisplay view3d_handle_type_or_default(const View3D *v3d)
+{
+  return v3d ? v3d->overlay.handle_display : CURVE_HANDLE_SELECTED;
+}
+
 IndexMask retrieve_visible_bezier_handle_strokes(Object &object,
                                                  const bke::greasepencil::Drawing &drawing,
-                                                 const int handle_display,
+                                                 const eHandleDisplay handle_display,
                                                  IndexMaskMemory &memory)
 {
   if (handle_display == CURVE_HANDLE_NONE) {
@@ -1255,7 +1264,7 @@ IndexMask retrieve_visible_fills(Object &object,
 IndexMask retrieve_visible_bezier_handle_points(Object &object,
                                                 const bke::greasepencil::Drawing &drawing,
                                                 const int layer_index,
-                                                const int handle_display,
+                                                const eHandleDisplay handle_display,
                                                 IndexMaskMemory &memory)
 {
   if (handle_display == CURVE_HANDLE_NONE) {
@@ -1300,7 +1309,7 @@ IndexMask retrieve_visible_bezier_handle_elements(Object &object,
                                                   const bke::greasepencil::Drawing &drawing,
                                                   const int layer_index,
                                                   const bke::AttrDomain selection_domain,
-                                                  const int handle_display,
+                                                  const eHandleDisplay handle_display,
                                                   IndexMaskMemory &memory)
 {
   if (selection_domain == bke::AttrDomain::Curve) {
@@ -1374,8 +1383,8 @@ IndexMask retrieve_editable_and_selected_elements(Object &object,
 
 IndexMask retrieve_editable_and_all_selected_points(Object &object,
                                                     const bke::greasepencil::Drawing &drawing,
-                                                    int layer_index,
-                                                    int handle_display,
+                                                    const int layer_index,
+                                                    const eHandleDisplay handle_display,
                                                     IndexMaskMemory &memory)
 {
   const bke::CurvesGeometry &curves = drawing.strokes();
@@ -1520,7 +1529,7 @@ Array<PointTransferData> compute_topology_change(
   const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
 
   /* Vertex group names. */
-  BLI_assert(BLI_listbase_count(&dst.vertex_group_names) == 0);
+  BLI_assert(dst.vertex_group_names.count() == 0);
   BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
 
   /* Attributes. */
@@ -1835,7 +1844,7 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
     });
     /* Update the fill cache if it exists. */
     if (curves.attributes().contains("fill_id")) {
-      const implicit_sharing::CacheKeyRef key({
+      const bke::greasepencil::FillCache::KeyRef key({
           curves.attributes().lookup<int>("fill_id").sharing_info,
       });
       auto &cache = bke::greasepencil::DrawingRuntime::get_fill_cache();

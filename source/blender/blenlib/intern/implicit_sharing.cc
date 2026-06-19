@@ -13,6 +13,7 @@
 
 #include "BLI_implicit_sharing.hh"
 #include "BLI_implicit_sharing_cache.hh"
+#include "BLI_set.hh"
 
 namespace blender::implicit_sharing {
 
@@ -36,24 +37,6 @@ class MEMFreeImplicitSharing : public ImplicitSharingInfo {
 const ImplicitSharingInfo *info_for_mem_free(void *data)
 {
   return MEM_new<MEMFreeImplicitSharing>(__func__, data);
-}
-
-bool operator==(const SnapshotRef &a, const Snapshot &b)
-{
-  return a.sharing_info == b.sharing_info && a.sharing_info->version() == b.version;
-}
-
-bool operator==(const CacheKey &a, const CacheKeyRef &b)
-{
-  if (a.inputs.size() != b.inputs.size()) {
-    return false;
-  }
-  for (const int i : a.inputs.index_range()) {
-    if (!(a.inputs[i] == b.inputs[i])) {
-      return false;
-    }
-  }
-  return true;
 }
 
 namespace detail {
@@ -127,4 +110,28 @@ void *resize_trivial_array_impl(void *old_data,
 }
 
 }  // namespace detail
+
+static auto &get_global_caches()
+{
+  static Set<CacheBase *> caches;
+  return caches;
+}
+
+CacheBase::CacheBase(const StringRef name) : debug_name_(name)
+{
+  get_global_caches().add_new(this);
+}
+
+CacheBase::~CacheBase()
+{
+  get_global_caches().remove(this);
+}
+
+void clear_unused_caches_all()
+{
+  for (CacheBase *cache : get_global_caches()) {
+    cache->clear_unused();
+  }
+}
+
 }  // namespace blender::implicit_sharing

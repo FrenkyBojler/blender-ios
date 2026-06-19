@@ -370,12 +370,12 @@ void NodeTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, con
           if (const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
                   &item.value.value))
           {
-            items.append({item.key, {socket_value->type}});
+            items.append({item.key.ustr(), {socket_value->type}});
           }
           if (const BundleItemInternalValue *internal_value = std::get_if<BundleItemInternalValue>(
                   &item.value.value))
           {
-            items.append({item.key, {internal_value->value->type_name()}});
+            items.append({item.key.ustr(), {internal_value->value->type_name()}});
           }
         }
       }
@@ -413,7 +413,13 @@ void NodeTreeLogger::log_value(const bNode &node, const bNodeSocket &socket, con
     }
   }
   else {
-    log_generic_value(type, value.get());
+    if (type.is<std::string>()) {
+      const std::string &string = *value.get<std::string>();
+      store_logged_value(this->allocator->construct<StringLog>(string, *this->allocator));
+    }
+    else {
+      log_generic_value(type, value.get());
+    }
   }
 }
 
@@ -515,7 +521,7 @@ void NodeTreeLog::ensure_node_warnings(
       NodeWarningPropagation propagation = NODE_WARNING_PROPAGATION_ALL;
       if (tree) {
         if (const bNode *node = tree->node_by_id(warning.node_id)) {
-          propagation = NodeWarningPropagation(node->warning_propagation);
+          propagation = node->warning_propagation;
         }
       }
       this->nodes.lookup_or_add_default(warning.node_id).warnings.add(warning.warning);
@@ -534,7 +540,7 @@ void NodeTreeLog::ensure_node_warnings(
     const std::optional<int32_t> &caller_node_id = first_child_logger.parent_node_id;
     if (tree && caller_node_id) {
       if (const bNode *caller_node = tree->node_by_id(*caller_node_id)) {
-        propagation = NodeWarningPropagation(caller_node->warning_propagation);
+        propagation = caller_node->warning_propagation;
       }
     }
     child_log.ensure_node_warnings(orig_tree_by_session_uid);

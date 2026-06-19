@@ -55,16 +55,25 @@ static destruct_ptr<nodes::eval_log::ImageInfoLog> get_image_info_log(
 
 void PixelOperation::log_data()
 {
-  /* No logging for single-value pixel operations for now. */
-  if (is_single_value_) {
-    return;
-  }
-
   nodes::eval_log::NodesEvalLog *log = this->context().nodes_evaluation_log();
   if (!log) {
     return;
   }
   nodes::eval_log::NodeTreeLogger &tree_logger = log->get_local_tree_logger(compute_context_);
+
+  if (is_single_value_) {
+    for (const bNodeSocket *output_socket : logged_outputs_) {
+      Result &result = this->get_result(
+          this->get_output_identifier_from_output_socket(*output_socket));
+      tree_logger.log_value(output_socket->owner_node(), *output_socket, result.single_value());
+
+      /* Logged results gets as an extra reference in pixel operations as can be seen in the
+       * compute_results_reference_counts method, so release it after logging. */
+      result.release();
+    }
+
+    return;
+  }
 
   const Domain domain = this->compute_domain();
 
@@ -92,6 +101,26 @@ void PixelOperation::log_data()
     /* Log input values. */
     for (const bNodeSocket *input_socket : node->input_sockets()) {
       if (!is_socket_available(input_socket)) {
+        continue;
+      }
+
+      /* The input has an implicit value. Get the input that corresponds to it, if it is a single
+       * value, log that single value, if not, we log the operation domain. */
+      const InputDescriptor input_descriptor = input_descriptor_from_input_socket(input_socket);
+      if (!input_socket->is_logically_linked() && input_descriptor.implicit_input.has_value()) {
+        const std::string &input_identifier = implicit_inputs_to_input_identifiers_map_.lookup(
+            input_descriptor.implicit_input.value());
+        const Result &input = this->get_input(input_identifier);
+        if (input.is_single_value()) {
+          tree_logger.log_value(*node, *input_socket, input.single_value());
+          continue;
+        }
+
+        tree_logger.input_socket_values.append(
+            *tree_logger.allocator,
+            {node->identifier,
+             input_socket->index(),
+             get_image_info_log(tree_logger.allocator, domain, this->context().get_precision())});
         continue;
       }
 
@@ -146,7 +175,7 @@ Map<std::string, const bNodeSocket *> &PixelOperation::get_inputs_to_linked_outp
   return inputs_to_linked_outputs_map_;
 }
 
-Map<ImplicitInput, std::string> &PixelOperation::get_implicit_inputs_to_input_identifiers_map()
+Map<ImplicitInputType, std::string> &PixelOperation::get_implicit_inputs_to_input_identifiers_map()
 {
   return implicit_inputs_to_input_identifiers_map_;
 }
@@ -170,6 +199,10 @@ void PixelOperation::compute_results_reference_counts(const Schedule &schedule)
         });
 
     if (preview_outputs_.contains(item.key)) {
+      reference_count++;
+    }
+
+    if (logged_outputs_.contains(item.key)) {
       reference_count++;
     }
 

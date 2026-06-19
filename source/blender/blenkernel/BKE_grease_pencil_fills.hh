@@ -10,10 +10,16 @@
 
 #include <optional>
 
-#include "BKE_attribute.hh"
+#include "BLI_implicit_sharing_cache.hh"
+
+#include "BKE_attribute_enums.hh"
 #include "BKE_grease_pencil.hh"
 
 namespace blender::bke::greasepencil {
+
+using FillCache = implicit_sharing::Cache<1, std::optional<FillData>>;
+
+FillCache &get_fill_cache();
 
 std::optional<FillData> fill_cache_from_fill_ids(const VArray<int> &fill_ids);
 
