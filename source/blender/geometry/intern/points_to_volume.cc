@@ -129,37 +129,6 @@ bke::VolumeGridData *fog_volume_grid_add_from_points(Volume *volume,
   return BKE_volume_grid_add_vdb(*volume, name, std::move(new_grid));
 }
 
-/* Helper class providing a point data interface to OpenVDB. */
-template<typename T> class PointAttributeSpan {
- private:
-  Span<T> data_;
-
- public:
-  using type_traits = bke::VolumeGridTraits<T>;
-
-  using value_type = typename type_traits::PrimitiveType;
-  using PosType = value_type;
-
-  PointAttributeSpan(const Span<T> data) : data_(data) {}
-
-  size_t size() const
-  {
-    return data_.size();
-  }
-  void getPos(size_t n, PosType &xyz) const
-  {
-    xyz = type_traits::to_openvdb(data_[n]);
-  }
-  void get(value_type &value, size_t n) const
-  {
-    value = type_traits::to_openvdb(data_[n]);
-  }
-  void get(value_type &value, size_t n, openvdb::Index m) const
-  {
-    value = type_traits::to_openvdb(data_[n + m]);
-  }
-};
-
 static openvdb::math::Transform get_vdb_transform(const float4x4 &transform)
 {
   openvdb::math::Mat4f matrix_openvdb;
@@ -223,6 +192,37 @@ static std::optional<StringRef> find_vdb_attribute_name(const PointAttributeName
   }
   return std::nullopt;
 }
+
+/* Helper class providing a point data interface to OpenVDB. */
+template<typename T> class PointAttributeSpan {
+ private:
+  Span<T> data_;
+
+ public:
+  using type_traits = bke::VolumeGridTraits<T>;
+
+  using value_type = typename type_traits::PrimitiveType;
+  using PosType = value_type;
+
+  PointAttributeSpan(const Span<T> data) : data_(data) {}
+
+  size_t size() const
+  {
+    return data_.size();
+  }
+  void getPos(size_t n, PosType &xyz) const
+  {
+    xyz = type_traits::to_openvdb(data_[n]);
+  }
+  void get(value_type &value, size_t n) const
+  {
+    value = type_traits::to_openvdb(data_[n]);
+  }
+  void get(value_type &value, size_t n, openvdb::Index m) const
+  {
+    value = type_traits::to_openvdb(data_[n + m]);
+  }
+};
 
 MappedPointDataGrid points_to_point_data_grid(const Span<float3> positions,
                                               const Span<PointDataGridAttributeInfo> attributes,
@@ -362,39 +362,49 @@ const CPPType &points_rasterize_grid_type(const PointRasterizeType rasterize_typ
 
 namespace kernel_functions {
 
+/* Range of a kernel function in voxels.
+ *
+ * TODO currently this expands the search box uniformly in both directions.
+ * Some kernel functions (nearest point, quadratic) only affect an odd number of voxels.
+ * A smaller search box could be used by sorting the point data grid with a half-voxel offset.
+ * This is equivalent to the offset applied to sampling positions,
+ * see geometry::grid_sampling::sample_tree.
+ */
 inline int kernel_size(const KernelType kernel_type)
 {
   using namespace geometry::grid_sampling;
 
   switch (kernel_type) {
-    case KernelType::Constant:
+    case KernelType::NearestPoint:
       return std::max(NearestPointKernel::samples_left, NearestPointKernel::samples_right);
     case KernelType::Linear:
       return std::max(LinearKernel::samples_left, LinearKernel::samples_right);
-    case KernelType::QuadraticBSpline:
+    case KernelType::Quadratic:
       return std::max(QuadraticBSplineKernel::samples_left, QuadraticBSplineKernel::samples_right);
-    case KernelType::CubicBSpline:
+    case KernelType::Cubic:
       return std::max(CubicBSplineKernel::samples_left, CubicBSplineKernel::samples_right);
   }
   BLI_assert_unreachable();
   return 0;
 }
 
+/* Evaluate a kernel weight function in one dimension. */
 inline float kernel_eval_component(const KernelType kernel_type, const float t)
 {
   switch (kernel_type) {
-    case KernelType::Constant:
+    case KernelType::NearestPoint:
       return geometry::grid_sampling::NearestPointKernel::weight(t);
     case KernelType::Linear:
       return geometry::grid_sampling::LinearKernel::weight(t);
-    case KernelType::QuadraticBSpline:
+    case KernelType::Quadratic:
       return geometry::grid_sampling::QuadraticBSplineKernel::weight(t);
-    case KernelType::CubicBSpline:
+    case KernelType::Cubic:
       return geometry::grid_sampling::CubicBSplineKernel::weight(t);
   }
   return 0.0f;
 }
 
+/* Evaluate a kernel gradient function in one dimension. */
 inline float kernel_gradient_eval_component(const KernelType kernel_type, const float t)
 {
   switch (kernel_type) {
@@ -410,12 +420,14 @@ inline float kernel_gradient_eval_component(const KernelType kernel_type, const 
   return 0.0f;
 }
 
+/* Evaluate a kernel weight function in three dimensions. */
 inline float kernel_eval(const KernelType kernel_type, const float3 &v)
 {
   return kernel_eval_component(kernel_type, v.x) * kernel_eval_component(kernel_type, v.y) *
          kernel_eval_component(kernel_type, v.z);
 }
 
+/* Evaluate a kernel gradient function in three dimensions. */
 inline float3 kernel_gradient_eval(const KernelType kernel_type, const float3 &v)
 {
   const float vx = kernel_eval_component(kernel_type, v.x);
@@ -427,6 +439,38 @@ inline float3 kernel_gradient_eval(const KernelType kernel_type, const float3 &v
 }
 
 }  // namespace kernel_functions
+
+/**
+ * Transfer class implementing point data accumulation on grids.
+ * This is used with the openvdb::points::rasterize function.
+ * It uses a kernel function with a known support interval, which determines the size of
+ * the intersection box required.
+ *
+ * Points are first sorted into a `PointDataGrid`. A leaf of this grid contains all points located
+ * inside the leaf node bounds. Each voxel in turn contains all points located inside the voxel.
+ *
+ * The point data grid has the same transform as the output grid. An output grid leaf can be mapped
+ * directly to a point data grid leaf.
+ *
+ * The general procedure in openvdb::points::rasterize:
+ *   For each target leaf of the output tree:
+ *   1. Get the target bounding box (index space)
+ *   2. Construct the search box by expanding the leaf bounds based on the kernel size.
+ *   3. For each leaf node overlapping with the search box:
+ *       - Find the matching source leaf in the point data grid.
+ *       - For every voxel in the source leaf buffer:
+ *           - Get the point range contained in the voxel.
+ *           - Using the Transfer struct:
+ *               - Compute overlap of the kernel range box around the point with the target leaf.
+ *               - For each voxel within this overlap box calculate the kernel weight and add the
+ *                 point value to that voxel.
+ */
+
+/* TODO use multifunction evaluation for efficient kernel eval.
+ * Currently the kernel type is checked at runtime to determine the weights for each point.
+ * This could be optimized by making the kernel type a template argument, but that increases code
+ * generation. Using multi-function evaluation can avoid that but requires significant changes to
+ * the Transfer class and possible rewrite of the rasterization grid operator itself. */
 
 template<typename AttributeT, typename GridValueT>
 struct KernelTransferBase : public openvdb::points::TransformTransfer,
@@ -506,11 +550,12 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
     return true;
   }
 
-  /* For each point, compute its relative index space position in the destination tree and
+  /**
+   * For each point, compute its relative index space position in the destination tree and
    * sum a function of per-point values.
    *
-   * \param ijk Point voxel coordinate which contains the point.
-   * \param point_index Index of the point within its leaf node buffer.
+   * \param ijk Point voxel coordinate.
+   * \param point_index_range Range of points inside the point voxel bounds.
    * \param target_bounds Coordinate region of the destination tree to add into.
    */
   template<typename ValueFn>
@@ -530,7 +575,6 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
     const auto &mask = *(this->template mask<0>());
 
     for (const openvdb::Index point_index : point_index_range) {
-      /* TODO use multifunction evaluation for efficient kernel eval. */
       const openvdb::Vec3d source_position = ijk.asVec3d() +
                                              this->position_handle_->get(point_index);
       const openvdb::Vec3d target_position = this->transformSourceToTarget(source_position);
@@ -559,14 +603,15 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
 
   bool endPointLeaf(const openvdb::points::PointDataTree::LeafNodeType & /*leaf_node*/)
   {
+    /* If endPointLeaf returns false for the given point leaf node
+     * then finalize is called and rasterization may be repeated for that point leaf. */
     return true;
   }
 
-  // XXX Example comment says:
-  // "Return true for endPointLeaf() to continue, false for finalize() so we don't
-  // recurse." but it looks like both should return "true"? Is this a bug in documentation?
   bool finalize(const openvdb::Coord & /*origin*/, size_t /*idx*/)
   {
+    /* If finalize returns false for the given leaf origin
+     * then the rasterization is repeated for that leaf. */
     return true;
   }
 };
@@ -699,6 +744,9 @@ struct GradientTransfer : public KernelTransferBase<AttributeT, GridValueT> {
   }
 };
 
+/* Construct a destination grid for a point data attribute.
+ * The grid transform is determined by the pre-constructed point data grid and the topology is
+ * dilated by the kernel size to ensure all point values are fully rasterized. */
 template<typename GridType>
 static typename GridType::Ptr prepare_destination_grid(
     const openvdb::points::PointDataGrid &point_data_grid,
@@ -736,6 +784,7 @@ static typename GridType::Ptr prepare_destination_grid(
   return dst_grid;
 }
 
+/* Rasterize a point attribute with a known static destination grid type. */
 template<typename AttributeT, typename GridValueT, typename TransferT>
 static bke::GVolumeGrid points_rasterize_with_static_type(
     const openvdb::points::PointDataGrid &point_data_grid,
@@ -805,6 +854,7 @@ static bke::GVolumeGrid points_attribute_rasterize(
     const float4x4 &transform)
 {
   bke::GVolumeGrid result;
+  /* Dispatch to the correct static grid type function. */
   switch (attribute_info.type) {
     case PointRasterizeType::Scalar:
       result = points_rasterize_with_static_type<float, float, ValueTransfer<float, float>>(

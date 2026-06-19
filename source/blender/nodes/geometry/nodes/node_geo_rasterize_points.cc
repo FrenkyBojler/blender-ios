@@ -54,7 +54,7 @@ static EnumPropertyItem grid_transform_mode_items[] = {
 };
 
 static EnumPropertyItem kernel_type_items[] = {
-    {int(geometry::KernelType::Constant),
+    {int(geometry::KernelType::NearestPoint),
      "CONSTANT",
      0,
      N_("Constant"),
@@ -64,12 +64,12 @@ static EnumPropertyItem kernel_type_items[] = {
      0,
      N_("Linear"),
      N_("Linear falloff over the voxel range")},
-    {int(geometry::KernelType::QuadraticBSpline),
+    {int(geometry::KernelType::Quadratic),
      "QUADRATIC",
      0,
      N_("Quadratic B-Spline"),
      N_("Quadratic b-spline kernel over 1.5 voxels")},
-    {int(geometry::KernelType::CubicBSpline),
+    {int(geometry::KernelType::Cubic),
      "CONSTANT",
      0,
      N_("Cubic B-Spline"),
@@ -83,10 +83,10 @@ static geometry::PointRasterizeType get_rasterize_item_type(
   switch (type) {
     case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR:
       return geometry::PointRasterizeType::Scalar;
-    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR_GRADIENT:
-      return geometry::PointRasterizeType::ScalarGradient;
     case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR:
       return geometry::PointRasterizeType::Vector;
+    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR_GRADIENT:
+      return geometry::PointRasterizeType::ScalarGradient;
     case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR_DIVERGENCE:
       return geometry::PointRasterizeType::VectorDivergence;
     case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_TENSOR_DIVERGENCE:
