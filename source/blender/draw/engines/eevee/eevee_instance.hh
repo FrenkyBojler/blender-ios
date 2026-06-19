@@ -184,6 +184,9 @@ class Instance : public DrawEngine {
 
   GPUSamplerFiltering anisotropic_filtering = GPU_SAMPLER_FILTERING_DEFAULT;
 
+  /** For limiting number of submitted samples in flight on the GPU. */
+  gpu::WorkInFlight *samples_in_flight = nullptr;
+
   /** Debug mode from debug value. */
   eDebugMode debug_mode = eDebugMode::DEBUG_NONE;
 
@@ -217,7 +220,7 @@ class Instance : public DrawEngine {
         volume_probes(*this),
         light_probes(*this),
         volume(*this, uniform_data.data.volumes) {};
-  ~Instance() override {};
+  ~Instance();
 
   StringRefNull name_get() final
   {

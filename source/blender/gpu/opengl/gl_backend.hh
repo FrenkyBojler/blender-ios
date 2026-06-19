@@ -119,6 +119,11 @@ class GLBackend : public GPUBackend {
     return new GLFence();
   };
 
+  WorkInFlight *work_in_flight_alloc(unsigned int /*max_in_flight*/) override
+  {
+    return new WorkInFlightDummy();
+  };
+
   FrameBuffer *framebuffer_alloc(const char *name) override
   {
     return new GLFrameBuffer(name);

@@ -69,6 +69,11 @@ Fence *MTLBackend::fence_alloc()
   return new MTLFence();
 };
 
+WorkInFlight *MTLBackend::work_in_flight_alloc(unsigned int /*max_in_flight*/)
+{
+  return new WorkInFlightDummy();
+};
+
 FrameBuffer *MTLBackend::framebuffer_alloc(const char *name)
 {
   return new MTLFrameBuffer(MTLContext::get(), name);

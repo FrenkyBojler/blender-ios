@@ -29,6 +29,7 @@
 #include "ED_view3d.hh"
 #include "GPU_context.hh"
 #include "GPU_pass.hh"
+#include "GPU_work_in_flight.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "RE_pipeline.h"
@@ -72,6 +73,11 @@ void Instance::init()
 
   DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
   int2 size = int2(GPU_texture_width(dtxl->color), GPU_texture_height(dtxl->color));
+
+  if (!samples_in_flight) {
+    /** Allow up to 3 samples in flight on the GPU. */
+    samples_in_flight = GPU_work_in_flight_create(3);
+  }
 
   draw::View &default_view = draw::View::default_get();
 
@@ -319,6 +325,13 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   needed_shaders = IRRADIANCE_BAKE_SHADERS | SHADOW_SHADERS | SURFEL_SHADERS;
   shaders.static_shaders_load_async(needed_shaders);
   shaders.static_shaders_wait_ready(needed_shaders);
+}
+
+Instance::~Instance()
+{
+  if (samples_in_flight) {
+    GPU_work_in_flight_free(samples_in_flight);
+  }
 }
 
 void Instance::set_time(float time)
@@ -661,18 +674,6 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 /** \name Interface
  * \{ */
 
-static void render_frame_step()
-{
-  /* Metal: Perform render step between samples to allow flushing of freed GPUBackend resources.
-   * Vulkan: Perform render step between samples to avoid allocation of a high amount of command
-   * buffer memory that can eventually result in out-of-memory errors or a TDR when submitted as
-   * one large command buffer. */
-  if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
-    GPU_flush();
-  }
-  GPU_render_step();
-}
-
 void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, const char *view_name)
 {
   skip_render_ = skip_render_ || !is_loaded(needed_shaders);
@@ -690,6 +691,7 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
   /* TODO: Break on RE_engine_test_break(engine) */
   double start_time = BLI_time_now_seconds();
   while (!sampling.finished()) {
+    GPU_work_in_flight_begin_work(samples_in_flight);
     this->render_sample();
 
     if ((sampling.sample_index() == 1) || ((sampling.sample_index() % 25) == 0) ||
@@ -701,7 +703,7 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
       RE_engine_update_stats(engine, nullptr, re_info.c_str());
     }
 
-    render_frame_step();
+    GPU_work_in_flight_end_work(samples_in_flight);
 
 #if 0
     /* TODO(fclem) print progression. */
@@ -807,8 +809,9 @@ void Instance::draw_viewport_image_render()
 
   do {
     /* Render at least once to blit the finished image. */
+    GPU_work_in_flight_begin_work(samples_in_flight);
     this->render_sample();
-    render_frame_step();
+    GPU_work_in_flight_end_work(samples_in_flight);
   } while (!sampling.finished_viewport());
   velocity.step_swap();
 
