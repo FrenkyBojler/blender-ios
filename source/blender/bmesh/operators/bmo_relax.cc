@@ -8,11 +8,14 @@
  * Relaxes vertices along edge loops so they are smoother.
  */
 
-#include "BLI_array_utils.hh"
-#include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
+
+#include "BLI_array_utils.hh"
+#include "BLI_length_parameterize.hh"
+#include "BLI_math_solvers.hh"
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
+#include <array>
 
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh" /* own include */
@@ -68,67 +71,92 @@ struct PendingMove {
 
 enum { CUBIC = 0, LINEAR = 1 };
 
+/** Epsilon to prevent zero division. */
+constexpr float RELAX_EPSILON = 1e-8f;
+
 /**
- * Solves a tridiagonal linear system using the Thomas Algorithm to find
- * coefficients for a natural cubic spline.
+ * Compute cubic spline coefficients for one coordinate axis.
+ * Uses `BLI_tridiagonal_solve` for open chains and
+ * `BLI_tridiagonal_solve_cyclic` for closed loops.
  */
-static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCoeffs> &r_coeffs)
+static void calculate_splines_axis(Span<float> distances,
+                                   Span<float> coords,
+                                   const bool is_circular,
+                                   Vector<SplineCoeffs> &r_coeffs)
 {
-  int n = t.size();
-  if (n < 2) {
+  const int verts_num = coords.size();
+  if (verts_num < 2) {
     return;
   }
-  /* Parameter interval between consecutive knots. */
-  Array<float> h(n - 1);
-  /* Forward elimination variables. */
-  Array<float> l(n);
-  Array<float> u(n);
-  Array<float> z(n);
-  /* The final polynomial coefficients. */
-  Array<float> c(n);
-  Array<float> b(n);
-  Array<float> d(n);
+  const int num_segments = is_circular ? verts_num : verts_num - 1;
+  Array<float> segment_length(num_segments);
 
-  /* Calculate the length of each segment between consecutive knots. */
-  for (const int i : IndexRange(n - 1)) {
-    h[i] = t[i + 1] - t[i];
-    /* In the case where there are two overlapping verticies, we give an arbitrary length
-     * to prevent a zero division. */
-    if (h[i] == 0.0f) {
-      h[i] = 1e-8f;
+  for (const int i : IndexRange(num_segments)) {
+    segment_length[i] = distances[i + 1] - distances[i];
+    if (!(segment_length[i] > 0.0f)) {
+      segment_length[i] = RELAX_EPSILON;
     }
   }
 
-  /* Boundary conditions. */
-  l[0] = 1.0f;
-  u[0] = 0.0f;
-  z[0] = 0.0f;
+  /* Stores second derivative coefficients. For a natural cubic spline, the boundary
+   * condition defines the first and last points as zero. */
+  Array<float> c_vals(verts_num, 0.0f);
 
-  /* Forward Elimination. */
-  for (const int i : IndexRange(1, n - 2)) {
-    float q = (3.0f / h[i]) * (y[i + 1] - y[i]) - (3.0f / h[i - 1]) * (y[i] - y[i - 1]);
-    l[i] = 2.0f * (t[i + 1] - t[i - 1]) - h[i - 1] * u[i - 1];
-    if (l[i] == 0.0f) {
-      l[i] = 1e-8f;
+  /* The Thomas algorithm used in `BLI_tridiagonal_solve` can't properly solve
+   * a cyclic tridiagonal system so in this case, we use the Sherman-Morrison formula
+   * via `BLI_tridiagonal_solve_cyclic`. */
+  if (is_circular) {
+    Array<float> lower_diag(verts_num);
+    Array<float> diag(verts_num);
+    Array<float> upper_diag(verts_num);
+    Array<float> rhs(verts_num);
+    for (const int i : IndexRange(verts_num)) {
+      const int i_prev = math::mod_periodic(i - 1, verts_num);
+      const int i_next = math::mod_periodic(i + 1, verts_num);
+      lower_diag[i] = segment_length[i_prev];
+      diag[i] = 2.0f * (segment_length[i_prev] + segment_length[i]);
+      upper_diag[i] = segment_length[i];
+      rhs[i] = 3.0f * (((coords[i_next] - coords[i]) / segment_length[i]) -
+                       ((coords[i] - coords[i_prev]) / segment_length[i_prev]));
     }
-    u[i] = h[i] / l[i];
-    z[i] = (q - h[i - 1] * z[i - 1]) / l[i];
+    BLI_tridiagonal_solve_cyclic(
+        lower_diag.data(), diag.data(), upper_diag.data(), rhs.data(), c_vals.data(), verts_num);
   }
-  /* End boundary condition. */
-  l[n - 1] = 1.0f;
-  z[n - 1] = 0.0f;
-  c[n - 1] = 0.0f;
+  else {
+    /* For a natural cubic spline the curvature at the first and last point
+     * is 0, so for n given points, we only have n-2 unknown interior points. */
+    const int interior = verts_num - 2;
+    Array<float> lower_diag(interior);
+    Array<float> diag(interior);
+    Array<float> upper_diag(interior);
+    Array<float> rhs(interior);
 
-  /* Backsubstitution. */
-  for (int i = n - 2; i >= 0; i--) {
-    c[i] = z[i] - u[i] * c[i + 1];
-    b[i] = (y[i + 1] - y[i]) / h[i] - h[i] * (c[i + 1] + 2.0f * c[i]) / 3.0f;
-    d[i] = (c[i + 1] - c[i]) / (3.0f * h[i]);
+    for (const int i_curr : IndexRange(interior)) {
+      const int i_next = i_curr + 1;
+      lower_diag[i_curr] = segment_length[i_curr];
+      diag[i_curr] = 2.0f * (segment_length[i_curr] + segment_length[i_next]);
+      upper_diag[i_curr] = segment_length[i_next];
+      rhs[i_curr] = 3.0f * (((coords[i_next + 1] - coords[i_next]) / segment_length[i_next]) -
+                            ((coords[i_next] - coords[i_curr]) / segment_length[i_curr]));
+    }
+    BLI_tridiagonal_solve(lower_diag.data(),
+                          diag.data(),
+                          upper_diag.data(),
+                          rhs.data(),
+                          c_vals.data() + 1,
+                          interior);
   }
 
-  /* Build spline coefficients for each segment. */
-  for (const int i : IndexRange(n - 1)) {
-    r_coeffs.append({y[i], b[i], c[i], d[i], t[i]});
+  /* Build polynomial coefficients for each segment. */
+  for (const int i : IndexRange(num_segments)) {
+    const int i_next = is_circular ? math::mod_periodic(i + 1, verts_num) : i + 1;
+
+    const float coeff_a = coords[i];
+    const float coeff_b = ((coords[i_next] - coords[i]) / segment_length[i]) -
+                          (segment_length[i] * (c_vals[i_next] + 2.0f * c_vals[i])) / 3.0f;
+    const float coeff_c = c_vals[i];
+    const float coeff_d = (c_vals[i_next] - c_vals[i]) / (3.0f * segment_length[i]);
+    r_coeffs.append({coeff_a, coeff_b, coeff_c, coeff_d, distances[i]});
   }
 }
 
@@ -274,31 +302,35 @@ static void calculate_relax_t(Span<BMVert *> verts,
 {
   const int n_knots = phase.knot_indices.size();
   const int n_points = phase.point_indices.size();
+  const int total = n_knots + n_points;
 
-  float cumulative_length = 0.0f;
-  float3 prev_loc = float3(verts[phase.knot_indices[0]]->co);
-
-  for (const int i : IndexRange(n_knots + n_points)) {
+  Array<float3> positions(total);
+  for (const int i : IndexRange(total)) {
     int vert_index;
-    bool is_knot = i % 2 == 0;
-
-    if (is_knot) {
+    if (i % 2 == 0) {
       vert_index = phase.knot_indices[i / 2];
+    }
+    else if (i == total - 1) {
+      vert_index = phase.knot_indices.last();
     }
     else {
       vert_index = phase.point_indices[i / 2];
     }
+    positions[i] = verts[vert_index]->co;
+  }
 
-    const float3 curr_loc(verts[vert_index]->co);
-    cumulative_length += math::distance(curr_loc, prev_loc);
+  Array<float> cumulative(total);
+  cumulative[0] = 0.0f;
+  length_parameterize::accumulate_lengths<float3>(
+      positions, false, cumulative.as_mutable_span().drop_front(1));
 
-    if (is_knot) {
-      r_t_knots.append(cumulative_length);
+  for (const int i : IndexRange(total)) {
+    if (i % 2 == 0 || i == total - 1) {
+      r_t_knots.append(cumulative[i]);
     }
     else {
-      r_t_points.append(cumulative_length);
+      r_t_points.append(cumulative[i]);
     }
-    prev_loc = curr_loc;
   }
 
   /* Place a point halfway between two knots if regular is enabled. */
@@ -314,56 +346,27 @@ static void calculate_relax_splines(Span<BMVert *> verts,
                                     Span<int> knot_indices,
                                     Span<float> t_params,
                                     int interpolation,
-                                    Vector<SplineCoeffs> (&r_coeffs)[3])
+                                    std::array<Vector<SplineCoeffs>, 3> &r_coeffs)
 {
   const int n = knot_indices.size();
-  Array<float> coords_x(n);
-  Array<float> coords_y(n);
-  Array<float> coords_z(n);
-
-  for (const int i : IndexRange(n)) {
-    const float *co = verts[knot_indices[i]]->co;
-    coords_x[i] = co[0];
-    coords_y[i] = co[1];
-    coords_z[i] = co[2];
-  }
-
-  const bool is_circular = (knot_indices.first() == knot_indices.last());
+  const bool is_circular = knot_indices.first() == knot_indices.last();
 
   if (interpolation == CUBIC) {
-    if (is_circular) {
-      const int padding = 4;
-      const int period = n - 1;
+    const int unique = is_circular ? n - 1 : n;
+    Array<float> coords_x(unique);
+    Array<float> coords_y(unique);
+    Array<float> coords_z(unique);
 
-      Vector<float> t_ext, x_ext, y_ext, z_ext;
-
-      for (int i = -padding; i < n + padding; i++) {
-        const int wrapped_index = mod_i(i, period);
-
-        const float lap_offset = floorf(float(i) / period) * t_params[period];
-        t_ext.append(t_params[wrapped_index] + lap_offset);
-
-        x_ext.append(coords_x[wrapped_index]);
-        y_ext.append(coords_y[wrapped_index]);
-        z_ext.append(coords_z[wrapped_index]);
-      }
-
-      Vector<SplineCoeffs> cx_ext, cy_ext, cz_ext;
-      solve_thomas_algorithm(t_ext, x_ext, cx_ext);
-      solve_thomas_algorithm(t_ext, y_ext, cy_ext);
-      solve_thomas_algorithm(t_ext, z_ext, cz_ext);
-
-      for (int i : IndexRange(padding, period)) {
-        r_coeffs[0].append(cx_ext[i]);
-        r_coeffs[1].append(cy_ext[i]);
-        r_coeffs[2].append(cz_ext[i]);
-      }
+    for (const int i : IndexRange(unique)) {
+      const float *co = verts[knot_indices[i]]->co;
+      coords_x[i] = co[0];
+      coords_y[i] = co[1];
+      coords_z[i] = co[2];
     }
-    else {
-      solve_thomas_algorithm(t_params, coords_x, r_coeffs[0]);
-      solve_thomas_algorithm(t_params, coords_y, r_coeffs[1]);
-      solve_thomas_algorithm(t_params, coords_z, r_coeffs[2]);
-    }
+
+    calculate_splines_axis(t_params, coords_x, is_circular, r_coeffs[0]);
+    calculate_splines_axis(t_params, coords_y, is_circular, r_coeffs[1]);
+    calculate_splines_axis(t_params, coords_z, is_circular, r_coeffs[2]);
   }
 }
 
@@ -376,7 +379,7 @@ static void execute_relax_phase(Span<BMVert *> verts,
   Vector<float> t_knots, t_points;
   calculate_relax_t(verts, phase, regular, t_knots, t_points);
 
-  Vector<SplineCoeffs> axis_coeffs[3];
+  std::array<Vector<SplineCoeffs>, 3> axis_coeffs;
 
   if (interpolation == CUBIC) {
     calculate_relax_splines(verts, phase.knot_indices, t_knots, interpolation, axis_coeffs);
