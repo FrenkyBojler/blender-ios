@@ -44,14 +44,13 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const int16_t depth_order = int16_t(params.get_input<Mode>("Depth Order"_ustr));
+  const auto depth_order = params.get_input<Mode>("Depth Order"_ustr);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Grease Pencil"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
     if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
-      SET_FLAG_FROM_TEST(grease_pencil->flag,
-                         depth_order == GREASE_PENCIL_STROKE_ORDER_3D,
-                         GREASE_PENCIL_STROKE_ORDER_3D);
+      SET_FLAG_FROM_TEST(
+          grease_pencil->flag, depth_order == Mode::Location3D, GREASE_PENCIL_STROKE_ORDER_3D);
     }
   });
 
