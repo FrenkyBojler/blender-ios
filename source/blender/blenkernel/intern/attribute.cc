@@ -464,8 +464,10 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
     return false;
   }
   if (BKE_attribute_required(owner, name)) {
-    BKE_reportf(
-        reports, RPT_ERROR, "Attribute '%s' is required and cannot be removed", name.data());
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Attribute '%s' is required and cannot be removed",
+                std::string(name).c_str());
     return false;
   }
 
