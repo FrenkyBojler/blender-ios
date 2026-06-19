@@ -5,21 +5,24 @@
 #pragma once
 
 #include "BLI_mutex.hh"
+#include "BLI_linear_allocator.hh"
 #include "BLI_map.hh"
+
+#include "BKE_node_socket_value.hh"
 
 namespace blender::nodes {
 
 struct MemoryZoneSignatureKey {
   int32_t output_identifier;
-  Array<GMutablePointer> inputs;
-  
-  uint64_t hash() const;
+  Array<bke::SocketValueVariant> inputs;
+
   friend bool operator!=(const MemoryZoneSignatureKey &a, const MemoryZoneSignatureKey &b);
+  uint64_t hash() const;
 };
 
 struct MemoryZoneValue {
-  Array<GMutablePointer> output_values;
-  void *zone_data;
+  Array<std::optional<bke::SocketValueVariant>> output_values;
+  void *zone_eval_data;
   Mutex mutex;
 };
 
