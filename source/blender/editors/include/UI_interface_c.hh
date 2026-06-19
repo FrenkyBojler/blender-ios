@@ -392,7 +392,7 @@ enum ButtonFlag : int64_t {
   BUT_VALUE_CLEAR = 1 << 30,
 
   /** RNA property of the button is overridden from linked reference data. */
-  BUT_OVERRIDDEN = 1 << 31,
+  BUT_OVERRIDDEN = int64_t(1) << 31,
 
   /** Property has some dynamic overrides applied to it. */
   BUT_DYNAMIC_OVERRIDDEN = int64_t(1) << 32,
@@ -1204,9 +1204,9 @@ Button *button_active_drop_name_button(const bContext *C);
 bool button_active_drop_name(const bContext *C);
 bool button_active_drop_color(bContext *C);
 
-void button_flag_enable(Button *but, int flag);
-void button_flag_disable(Button *but, int flag);
-bool button_flag_is_set(Button *but, int flag);
+void button_flag_enable(Button *but, int64_t flag);
+void button_flag_disable(Button *but, int64_t flag);
+bool button_flag_is_set(Button *but, int64_t flag);
 void button_flag2_enable(Button *but, int flag);
 
 void button_drawflag_enable(Button *but, int flag);
