@@ -118,6 +118,7 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
 
   carver::CurveBooleanOpParameters op_params;
   op_params.boolean_mode = carver::Operation::Difference;
+  op_params.keep_caps = keep_caps;
 
   bke::greasepencil::Drawing drawing_with_stroke(drawing);
   drawing_with_stroke.strokes_for_write() = std::move(input_curves);
@@ -135,8 +136,7 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
                                                              normal_planes,
                                                              clipping_fills,
                                                              layer_to_world,
-                                                             region,
-                                                             keep_caps);
+                                                             region);
 
   carved_strokes.attributes_for_write().remove(".positions_2d");
 

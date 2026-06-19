@@ -991,6 +991,7 @@ enum class Operation : int8_t {
 
 struct CurveBooleanOpParameters {
   Operation boolean_mode;
+  bool keep_caps;
 };
 
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
@@ -999,8 +1000,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   Span<float4> normal_planes,
                                   const IndexMask &clipping_fills,
                                   const float4x4 &layer_to_world,
-                                  const ARegion &region,
-                                  bool keep_caps);
+                                  const ARegion &region);
 
 }  // namespace carver
 

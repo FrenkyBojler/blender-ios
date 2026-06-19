@@ -2333,8 +2333,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const Span<float4> normal_planes,
                                   const IndexMask &clipping_fills,
                                   const float4x4 &layer_to_world,
-                                  const ARegion &region,
-                                  const bool keep_caps)
+                                  const ARegion &region)
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
 
@@ -2422,7 +2421,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
     }
   }
 
-  if (!keep_caps) {
+  if (!op_params.keep_caps) {
     cut_caps(dst_curves,
              result.segments,
              result.segment_reversed,
