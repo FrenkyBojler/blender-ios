@@ -193,6 +193,14 @@ class DrawCacheImpl : public DrawCache {
    */
   uint64_t combined_topology_version_ = 0;
 
+  /**
+   * Per-node dirty tracking for combined draw data buffers.
+   * Tracks which PBVH nodes have had attribute value changes (position, normal, mask, face set)
+   * since the last combined buffer update. Enables partial VBO updates via GPU_vertbuf_update_sub
+   * instead of full combined buffer rebuilds.
+   */
+  BitVector<> pbvh_combined_dirty_nodes_;
+
   /** Combined line draw data for multires PBVH wireframe optimization - flat layout. */
   PBVHDrawData combined_lines_draw_data_flat_;
 
@@ -330,7 +338,9 @@ void DrawCacheImpl::tag_positions_changed(const IndexMask &node_mask)
   if (DrawCacheImpl::AttributeData *data = attribute_vbos_.lookup_ptr(CustomRequest::Normal)) {
     data->tag_dirty(node_mask);
   }
-  this->combined_topology_version_++;
+  this->pbvh_combined_dirty_nodes_.resize(
+      std::max(this->pbvh_combined_dirty_nodes_.size(), node_mask.min_array_size()), false);
+  node_mask.set_bits(this->pbvh_combined_dirty_nodes_);
 }
 
 void DrawCacheImpl::tag_visibility_changed(const IndexMask &node_mask)
@@ -352,7 +362,9 @@ void DrawCacheImpl::tag_face_sets_changed(const IndexMask &node_mask)
   if (DrawCacheImpl::AttributeData *data = attribute_vbos_.lookup_ptr(CustomRequest::FaceSet)) {
     data->tag_dirty(node_mask);
   }
-  this->combined_topology_version_++;
+  this->pbvh_combined_dirty_nodes_.resize(
+      std::max(this->pbvh_combined_dirty_nodes_.size(), node_mask.min_array_size()), false);
+  node_mask.set_bits(this->pbvh_combined_dirty_nodes_);
 }
 
 void DrawCacheImpl::tag_masks_changed(const IndexMask &node_mask)
@@ -360,7 +372,9 @@ void DrawCacheImpl::tag_masks_changed(const IndexMask &node_mask)
   if (DrawCacheImpl::AttributeData *data = attribute_vbos_.lookup_ptr(CustomRequest::Mask)) {
     data->tag_dirty(node_mask);
   }
-  this->combined_topology_version_++;
+  this->pbvh_combined_dirty_nodes_.resize(
+      std::max(this->pbvh_combined_dirty_nodes_.size(), node_mask.min_array_size()), false);
+  node_mask.set_bits(this->pbvh_combined_dirty_nodes_);
 }
 
 void DrawCacheImpl::tag_attribute_changed(const IndexMask &node_mask, StringRef attribute_name)
@@ -372,7 +386,9 @@ void DrawCacheImpl::tag_attribute_changed(const IndexMask &node_mask, StringRef 
       }
     }
   }
-  this->combined_topology_version_++;
+  this->pbvh_combined_dirty_nodes_.resize(
+      std::max(this->pbvh_combined_dirty_nodes_.size(), node_mask.min_array_size()), false);
+  node_mask.set_bits(this->pbvh_combined_dirty_nodes_);
 }
 
 DrawCache &ensure_draw_data(std::unique_ptr<bke::pbvh::DrawCache> &ptr)
@@ -2729,7 +2745,161 @@ bool DrawCacheImpl::ensure_combined_tris_draw_data(const Object &object,
         }
 
         if (!need_rebuild_vbo) {
-          /* Cache is valid, just update topology version. */
+          /* Check if any nodes need partial VBO updates for this attribute. */
+          const CustomRequest *cr = std::get_if<CustomRequest>(&attr);
+          const bool is_position = (cr && *cr == CustomRequest::Position);
+          const bool is_normal = (cr && *cr == CustomRequest::Normal);
+          const bool is_mask = (cr && *cr == CustomRequest::Mask);
+          const bool is_face_set = (cr && *cr == CustomRequest::FaceSet);
+
+          bool any_dirty = false;
+          flat_nodes.foreach_index([&](const int node_index) {
+            if (node_index < (int)this->pbvh_combined_dirty_nodes_.size() &&
+                this->pbvh_combined_dirty_nodes_[node_index]) {
+              any_dirty = true;
+            }
+          });
+
+          if (any_dirty) {
+            const GPUVertFormat *fmt = GPU_vertbuf_get_format(cached_vbo->vbo);
+            const uint stride = fmt->stride;
+
+            if (is_position) {
+              GPU_vertbuf_use(cached_vbo->vbo);
+              const Span<float3> positions = subdiv_ccg.positions;
+              flat_nodes.foreach_index([&](const int node_index, const int pos) {
+                if (node_index >= (int)this->pbvh_combined_dirty_nodes_.size() ||
+                    !this->pbvh_combined_dirty_nodes_[node_index]) {
+                  return;
+                }
+                const PBVHNodeRange &range = cached_vbo->node_ranges[pos];
+                const uint vertex_count = range.vertex_count;
+                if (vertex_count == 0) {
+                  return;
+                }
+                Vector<float3> node_data(vertex_count);
+                float3 *out = node_data.data();
+                const Span<int> grid_indices = grids_nodes[node_index].grids();
+                for (const int grid : grid_indices) {
+                  const Span<float3> grid_positions = positions.slice(
+                      bke::ccg::grid_range(key, grid));
+                  const int grid_size_1 = key.grid_size - 1;
+                  for (int y = 0; y < grid_size_1; y++) {
+                    for (int x = 0; x < grid_size_1; x++) {
+                      *out++ = grid_positions[CCG_grid_xy_to_index(key.grid_size, x, y)];
+                      *out++ = grid_positions[CCG_grid_xy_to_index(key.grid_size, x + 1, y)];
+                      *out++ = grid_positions[CCG_grid_xy_to_index(key.grid_size, x + 1, y + 1)];
+                      *out++ = grid_positions[CCG_grid_xy_to_index(key.grid_size, x, y + 1)];
+                    }
+                  }
+                }
+                GPU_vertbuf_update_sub(cached_vbo->vbo,
+                                       range.vertex_offset * stride,
+                                       vertex_count * stride,
+                                       node_data.data());
+              });
+            }
+            else if (is_normal) {
+              GPU_vertbuf_use(cached_vbo->vbo);
+              const Span<float3> normals = subdiv_ccg.normals;
+              flat_nodes.foreach_index([&](const int node_index, const int pos) {
+                if (node_index >= (int)this->pbvh_combined_dirty_nodes_.size() ||
+                    !this->pbvh_combined_dirty_nodes_[node_index]) {
+                  return;
+                }
+                const PBVHNodeRange &range = cached_vbo->node_ranges[pos];
+                const uint vertex_count = range.vertex_count;
+                if (vertex_count == 0) {
+                  return;
+                }
+                Vector<short4> node_data(vertex_count);
+                short4 *out = node_data.data();
+                const Span<int> grid_indices = grids_nodes[node_index].grids();
+                for (const int grid : grid_indices) {
+                  const Span<float3> grid_normals = normals.slice(
+                      bke::ccg::grid_range(key, grid));
+                  const int grid_size_1 = key.grid_size - 1;
+                  for (int y = 0; y < grid_size_1; y++) {
+                    for (int x = 0; x < grid_size_1; x++) {
+                      *out++ = normal_float_to_short(
+                          grid_normals[CCG_grid_xy_to_index(key.grid_size, x, y)]);
+                      *out++ = normal_float_to_short(
+                          grid_normals[CCG_grid_xy_to_index(key.grid_size, x + 1, y)]);
+                      *out++ = normal_float_to_short(
+                          grid_normals[CCG_grid_xy_to_index(key.grid_size, x + 1, y + 1)]);
+                      *out++ = normal_float_to_short(
+                          grid_normals[CCG_grid_xy_to_index(key.grid_size, x, y + 1)]);
+                    }
+                  }
+                }
+                GPU_vertbuf_update_sub(cached_vbo->vbo,
+                                       range.vertex_offset * stride,
+                                       vertex_count * stride,
+                                       node_data.data());
+              });
+            }
+            else if (is_mask) {
+              GPU_vertbuf_use(cached_vbo->vbo);
+              const Span<float> masks = subdiv_ccg.masks;
+              flat_nodes.foreach_index([&](const int node_index, const int pos) {
+                if (node_index >= (int)this->pbvh_combined_dirty_nodes_.size() ||
+                    !this->pbvh_combined_dirty_nodes_[node_index]) {
+                  return;
+                }
+                const PBVHNodeRange &range = cached_vbo->node_ranges[pos];
+                const uint vertex_count = range.vertex_count;
+                if (vertex_count == 0) {
+                  return;
+                }
+                Vector<float> node_data(vertex_count);
+                float *out = node_data.data();
+                const Span<int> grid_indices = grids_nodes[node_index].grids();
+                for (const int grid : grid_indices) {
+                  const Span<float> grid_masks = masks.slice(
+                      bke::ccg::grid_range(key, grid));
+                  const int grid_size_1 = key.grid_size - 1;
+                  for (int y = 0; y < grid_size_1; y++) {
+                    for (int x = 0; x < grid_size_1; x++) {
+                      *out++ = grid_masks[CCG_grid_xy_to_index(key.grid_size, x, y)];
+                      *out++ = grid_masks[CCG_grid_xy_to_index(key.grid_size, x + 1, y)];
+                      *out++ = grid_masks[CCG_grid_xy_to_index(key.grid_size, x + 1, y + 1)];
+                      *out++ = grid_masks[CCG_grid_xy_to_index(key.grid_size, x, y + 1)];
+                    }
+                  }
+                }
+                GPU_vertbuf_update_sub(cached_vbo->vbo,
+                                       range.vertex_offset * stride,
+                                       vertex_count * stride,
+                                       node_data.data());
+              });
+            }
+            else if (is_face_set) {
+              GPU_vertbuf_use(cached_vbo->vbo);
+              flat_nodes.foreach_index([&](const int node_index, const int pos) {
+                if (node_index >= (int)this->pbvh_combined_dirty_nodes_.size() ||
+                    !this->pbvh_combined_dirty_nodes_[node_index]) {
+                  return;
+                }
+                const PBVHNodeRange &range = cached_vbo->node_ranges[pos];
+                const uint vertex_count = range.vertex_count;
+                if (vertex_count == 0) {
+                  return;
+                }
+                Vector<uchar4> node_data(vertex_count);
+                uchar4 *out = node_data.data();
+                for (int i = 0; i < vertex_count; i++) {
+                  *out++ = uchar4(255);
+                }
+                GPU_vertbuf_update_sub(cached_vbo->vbo,
+                                       range.vertex_offset * stride,
+                                       vertex_count * stride,
+                                       node_data.data());
+              });
+            }
+            cached_vbo->topology_version = this->combined_topology_version_;
+            continue;
+          }
+
           cached_vbo->topology_version = this->combined_topology_version_;
           continue;
         }
@@ -2898,12 +3068,26 @@ bool DrawCacheImpl::ensure_combined_tris_draw_data(const Object &object,
         stored = std::move(attr_draw_data);
         stored.topology_version = this->combined_topology_version_;
 
+        /* Full rebuild: clear all dirty bits for this node group. */
+        flat_nodes.foreach_index([&](const int node_index) {
+          if (node_index < (int)this->pbvh_combined_dirty_nodes_.size()) {
+            this->pbvh_combined_dirty_nodes_[node_index].reset();
+          }
+        });
+
         BLI_assert(stored.vbo != nullptr);
         BLI_assert(stored.ibo != nullptr);
         BLI_assert(stored.indirect_buf != nullptr);
         BLI_assert(stored.node_count == (int)flat_nodes.size());
         BLI_assert(stored.node_ranges.size() == flat_nodes.size());
       }
+
+      /* Clear combined dirty bits for all processed attributes of this node group. */
+      flat_nodes.foreach_index([&](const int node_index) {
+        if (node_index < (int)this->pbvh_combined_dirty_nodes_.size()) {
+          this->pbvh_combined_dirty_nodes_[node_index].reset();
+        }
+      });
     }
   }
 
@@ -2964,7 +3148,138 @@ bool DrawCacheImpl::ensure_combined_tris_draw_data(const Object &object,
         }
 
         if (!need_rebuild_vbo) {
-          /* Cache is valid, just update topology version. */
+          /* Check if any nodes need partial VBO updates for this attribute. */
+          const CustomRequest *cr = std::get_if<CustomRequest>(&attr);
+          const bool is_position = (cr && *cr == CustomRequest::Position);
+          const bool is_normal = (cr && *cr == CustomRequest::Normal);
+          const bool is_mask = (cr && *cr == CustomRequest::Mask);
+          const bool is_face_set = (cr && *cr == CustomRequest::FaceSet);
+
+          bool any_dirty = false;
+          smooth_nodes.foreach_index([&](const int node_index) {
+            if (node_index < (int)this->pbvh_combined_dirty_nodes_.size() &&
+                this->pbvh_combined_dirty_nodes_[node_index]) {
+              any_dirty = true;
+            }
+          });
+
+          if (any_dirty) {
+            const GPUVertFormat *fmt = GPU_vertbuf_get_format(cached_vbo->vbo);
+            const uint stride = fmt->stride;
+
+            if (is_position) {
+              GPU_vertbuf_use(cached_vbo->vbo);
+              const Span<float3> positions = subdiv_ccg.positions;
+              smooth_nodes.foreach_index([&](const int node_index, const int pos) {
+                if (node_index >= (int)this->pbvh_combined_dirty_nodes_.size() ||
+                    !this->pbvh_combined_dirty_nodes_[node_index]) {
+                  return;
+                }
+                const PBVHNodeRange &range = cached_vbo->node_ranges[pos];
+                const uint vertex_count = range.vertex_count;
+                if (vertex_count == 0) {
+                  return;
+                }
+                Vector<float3> node_data(vertex_count);
+                float3 *out = node_data.data();
+                const Span<int> grid_indices = grids_nodes[node_index].grids();
+                for (const int grid : grid_indices) {
+                  const Span<float3> grid_positions = positions.slice(
+                      bke::ccg::grid_range(key, grid));
+                  std::copy_n(grid_positions.data(), grid_positions.size(), out);
+                  out += grid_positions.size();
+                }
+                GPU_vertbuf_update_sub(cached_vbo->vbo,
+                                       range.vertex_offset * stride,
+                                       vertex_count * stride,
+                                       node_data.data());
+              });
+            }
+            else if (is_normal) {
+              GPU_vertbuf_use(cached_vbo->vbo);
+              const Span<float3> normals = subdiv_ccg.normals;
+              smooth_nodes.foreach_index([&](const int node_index, const int pos) {
+                if (node_index >= (int)this->pbvh_combined_dirty_nodes_.size() ||
+                    !this->pbvh_combined_dirty_nodes_[node_index]) {
+                  return;
+                }
+                const PBVHNodeRange &range = cached_vbo->node_ranges[pos];
+                const uint vertex_count = range.vertex_count;
+                if (vertex_count == 0) {
+                  return;
+                }
+                Vector<short4> node_data(vertex_count);
+                short4 *out = node_data.data();
+                const Span<int> grid_indices = grids_nodes[node_index].grids();
+                for (const int grid : grid_indices) {
+                  const Span<float3> grid_normals = normals.slice(
+                      bke::ccg::grid_range(key, grid));
+                  for (const float3 &normal : grid_normals) {
+                    *out = normal_float_to_short(normal);
+                    out++;
+                  }
+                }
+                GPU_vertbuf_update_sub(cached_vbo->vbo,
+                                       range.vertex_offset * stride,
+                                       vertex_count * stride,
+                                       node_data.data());
+              });
+            }
+            else if (is_mask) {
+              GPU_vertbuf_use(cached_vbo->vbo);
+              const Span<float> masks = subdiv_ccg.masks;
+              smooth_nodes.foreach_index([&](const int node_index, const int pos) {
+                if (node_index >= (int)this->pbvh_combined_dirty_nodes_.size() ||
+                    !this->pbvh_combined_dirty_nodes_[node_index]) {
+                  return;
+                }
+                const PBVHNodeRange &range = cached_vbo->node_ranges[pos];
+                const uint vertex_count = range.vertex_count;
+                if (vertex_count == 0) {
+                  return;
+                }
+                Vector<float> node_data(vertex_count);
+                float *out = node_data.data();
+                const Span<int> grid_indices = grids_nodes[node_index].grids();
+                for (const int grid : grid_indices) {
+                  const Span<float> grid_masks = masks.slice(
+                      bke::ccg::grid_range(key, grid));
+                  std::copy_n(grid_masks.data(), grid_masks.size(), out);
+                  out += grid_masks.size();
+                }
+                GPU_vertbuf_update_sub(cached_vbo->vbo,
+                                       range.vertex_offset * stride,
+                                       vertex_count * stride,
+                                       node_data.data());
+              });
+            }
+            else if (is_face_set) {
+              GPU_vertbuf_use(cached_vbo->vbo);
+              smooth_nodes.foreach_index([&](const int node_index, const int pos) {
+                if (node_index >= (int)this->pbvh_combined_dirty_nodes_.size() ||
+                    !this->pbvh_combined_dirty_nodes_[node_index]) {
+                  return;
+                }
+                const PBVHNodeRange &range = cached_vbo->node_ranges[pos];
+                const uint vertex_count = range.vertex_count;
+                if (vertex_count == 0) {
+                  return;
+                }
+                Vector<uchar4> node_data(vertex_count);
+                uchar4 *out = node_data.data();
+                for (int i = 0; i < vertex_count; i++) {
+                  *out++ = uchar4(255);
+                }
+                GPU_vertbuf_update_sub(cached_vbo->vbo,
+                                       range.vertex_offset * stride,
+                                       vertex_count * stride,
+                                       node_data.data());
+              });
+            }
+            cached_vbo->topology_version = this->combined_topology_version_;
+            continue;
+          }
+
           cached_vbo->topology_version = this->combined_topology_version_;
           continue;
         }
@@ -3098,12 +3413,26 @@ bool DrawCacheImpl::ensure_combined_tris_draw_data(const Object &object,
         stored = std::move(attr_draw_data);
         stored.topology_version = this->combined_topology_version_;
 
+        /* Full rebuild: clear all dirty bits for this node group. */
+        smooth_nodes.foreach_index([&](const int node_index) {
+          if (node_index < (int)this->pbvh_combined_dirty_nodes_.size()) {
+            this->pbvh_combined_dirty_nodes_[node_index].reset();
+          }
+        });
+
         BLI_assert(stored.vbo != nullptr);
         BLI_assert(stored.ibo != nullptr);
         BLI_assert(stored.indirect_buf != nullptr);
         BLI_assert(stored.node_count == (int)smooth_nodes.size());
         BLI_assert(stored.node_ranges.size() == smooth_nodes.size());
       }
+
+      /* Clear combined dirty bits for all processed attributes of this node group. */
+      smooth_nodes.foreach_index([&](const int node_index) {
+        if (node_index < (int)this->pbvh_combined_dirty_nodes_.size()) {
+          this->pbvh_combined_dirty_nodes_[node_index].reset();
+        }
+      });
     }
   }
 
