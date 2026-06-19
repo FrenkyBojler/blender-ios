@@ -408,13 +408,13 @@ inline float kernel_eval_component(const KernelType kernel_type, const float t)
 inline float kernel_gradient_eval_component(const KernelType kernel_type, const float t)
 {
   switch (kernel_type) {
-    case KernelType::Constant:
-      return geometry::grid_sampling::ConstantKernel::derivative(t);
+    case KernelType::NearestPoint:
+      return geometry::grid_sampling::NearestPointKernel::derivative(t);
     case KernelType::Linear:
       return geometry::grid_sampling::LinearKernel::derivative(t);
-    case KernelType::QuadraticBSpline:
+    case KernelType::Quadratic:
       return geometry::grid_sampling::QuadraticBSplineKernel::derivative(t);
-    case KernelType::CubicBSpline:
+    case KernelType::Cubic:
       return geometry::grid_sampling::CubicBSplineKernel::derivative(t);
   }
   return 0.0f;

@@ -173,6 +173,31 @@ void interpolate_gradient_3d(ValueT (&data)[N][N][N],
   }
 }
 
+/** Utility struct for reading a fixed number of samples based on a kernel type. */
+template<typename Kernel, class AccessorT> struct SampleBuffer {
+  using ValueType = typename AccessorT::ValueType;
+
+  /* Size of the buffer in one dimension. */
+  static const int N = Kernel::samples_left + Kernel::samples_right;
+
+  /* Coordinates of the samples. */
+  openvdb::CoordBBox index_box;
+  /* Fractional offset of the sampling location from the center coordinate. */
+  openvdb::Vec3R uvw;
+  /* Sample data. */
+  ValueType data[N][N][N];
+
+  SampleBuffer(const openvdb::Vec3R &coord)
+  {
+    const openvdb::Vec3R sample_offset = openvdb::Vec3R(Kernel::sample_offset);
+    const openvdb::Coord index = openvdb::Coord(
+        openvdb::tools::local_util::floorVec3(coord + sample_offset));
+    index_box = openvdb::CoordBBox(index - openvdb::Coord(Kernel::samples_left - 1),
+                                   index + openvdb::Coord(Kernel::samples_right));
+    uvw = coord - index;
+  }
+};
+
 template<typename Kernel, class AccessorT>
 inline bool sample_tree(const AccessorT &accessor,
                         const openvdb::Vec3R &coord,
@@ -180,19 +205,10 @@ inline bool sample_tree(const AccessorT &accessor,
 {
   using ValueT = typename AccessorT::ValueType;
 
-  const openvdb::Vec3R sample_offset = openvdb::Vec3R(Kernel::sample_offset);
-  const openvdb::Coord index = openvdb::Coord(
-      openvdb::tools::local_util::floorVec3(coord + sample_offset));
-  const openvdb::CoordBBox index_box = openvdb::CoordBBox(
-      index - openvdb::Coord(Kernel::samples_left - 1),
-      index + openvdb::Coord(Kernel::samples_right));
-  const openvdb::Vec3R uvw = coord - index;
-
+  SampleBuffer<Kernel, AccessorT> buffer(coord);
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  constexpr int N = Kernel::samples_left + Kernel::samples_right;
-  ValueT data[N][N][N];
-  bool active = probe_values(accessor, index_box, data);
-  interpolate_value_3d(data, uvw, Kernel::template sample_value<ValueT>, result);
+  bool active = probe_values(accessor, buffer.index_box, buffer.data);
+  interpolate_value_3d(buffer.data, buffer.uvw, Kernel::template sample_value<ValueT>, result);
 
   return active;
 }
@@ -203,21 +219,12 @@ inline typename AccessorT::ValueType sample_tree(const AccessorT &accessor,
 {
   using ValueT = typename AccessorT::ValueType;
 
-  const openvdb::Vec3R sample_offset = openvdb::Vec3R(Kernel::sample_offset);
-  const openvdb::Coord index = openvdb::Coord(
-      openvdb::tools::local_util::floorVec3(coord + sample_offset));
-  const openvdb::CoordBBox index_box = openvdb::CoordBBox(
-      index - openvdb::Coord(Kernel::samples_left - 1),
-      index + openvdb::Coord(Kernel::samples_right));
-  const openvdb::Vec3R uvw = coord - index;
-
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  constexpr int N = Kernel::samples_left + Kernel::samples_right;
-  ValueT data[N][N][N];
-  get_values(accessor, index_box, data);
+  SampleBuffer<Kernel, AccessorT> buffer(coord);
+  get_values(accessor, buffer.index_box, buffer.data);
 
   ValueT result;
-  interpolate_value_3d(data, uvw, Kernel::template sample_value<ValueT>, result);
+  interpolate_value_3d(buffer.data, buffer.uvw, Kernel::template sample_value<ValueT>, result);
   return result;
 }
 
@@ -229,18 +236,14 @@ bool sample_tree_gradient(const AccessorT &accessor,
 {
   using ValueT = typename AccessorT::ValueType;
 
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
-  const openvdb::Vec3R uvw = coord - index;
-
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  constexpr int N = Kernel::size;
-  ValueT data[N][N][N];
-  bool active = probe_values(accessor, index, data);
-  interpolate_gradient_3d(data,
-                          uvw,
+  SampleBuffer<Kernel, AccessorT> buffer(coord);
+  bool active = probe_values(accessor, buffer.index_box, buffer.data);
+  interpolate_gradient_3d(buffer.data,
+                          buffer.uvw,
                           transform,
-                          Kernel::template weight<ValueT>,
-                          Kernel::template derivative<ValueT>,
+                          Kernel::template sample_value<ValueT>,
+                          Kernel::template sample_gradient<ValueT>,
                           result);
 
   return active;
@@ -254,20 +257,16 @@ OpenvdbGradientType<typename AccessorT::ValueType> sample_tree_gradient(
 {
   using ValueT = typename AccessorT::ValueType;
 
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
-  const openvdb::Vec3R uvw = coord - index;
-
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  constexpr int N = Kernel::size;
-  ValueT data[N][N][N];
-  get_values(accessor, index, data);
+  SampleBuffer<Kernel, AccessorT> buffer(coord);
+  get_values(accessor, buffer.index_box, buffer.data);
 
   ValueT result;
-  interpolate_gradient_3d(data,
-                          uvw,
+  interpolate_gradient_3d(buffer.data,
+                          buffer.uvw,
                           transform,
-                          Kernel::template weight<ValueT>,
-                          Kernel::template derivative<ValueT>,
+                          Kernel::template sample_value<ValueT>,
+                          Kernel::template sample_gradient<ValueT>,
                           result);
   return result;
 }
@@ -278,7 +277,7 @@ void compute_moments(ValueT const (&data)[N][N][N],
                      const openvdb::Vec3R &uvw,
                      const openvdb::math::Transform &transform)
 {
-  const openvdb::Vec3R kernel_offset = openvdb::Vec3R((Kernel::size - 1) >> 1);
+  const openvdb::Vec3R kernel_offset = openvdb::Vec3R((N - 1) >> 1);
   const openvdb::math::AffineMap::ConstPtr affine_map = transform.baseMap()->getAffineMap();
 
   /* Compute moment contributions by multiplying with distance. */
@@ -322,18 +321,12 @@ bool sample_tree_moment(const AccessorT &accessor,
                         const openvdb::Vec3R &coord,
                         ResultT &result)
 {
-  using ValueT = typename AccessorT::ValueType;
-
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
-  const openvdb::Vec3R uvw = coord - index;
-
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  constexpr int N = Kernel::size;
-  ValueT data[N][N][N];
-  bool active = probe_values(accessor, index, data);
-  ResultT moments[N][N][N];
-  compute_moments<Kernel, Moment>(data, moments, uvw, transform);
-  interpolate_value_3d(moments, uvw, Kernel::template weight<ResultT>, result);
+  SampleBuffer<Kernel, AccessorT> buffer(coord);
+  bool active = probe_values(accessor, buffer.index_box, buffer.data);
+  ResultT moments[buffer.N][buffer.N][buffer.N];
+  compute_moments<Kernel, Moment>(buffer.data, moments, buffer.uvw, transform);
+  interpolate_value_3d(moments, buffer.uvw, Kernel::template sample_value<ResultT>, result);
 
   return active;
 }
@@ -343,20 +336,14 @@ ResultT sample_tree_moment(const AccessorT &accessor,
                            const openvdb::math::Transform &transform,
                            const openvdb::Vec3R &coord)
 {
-  using ValueT = typename AccessorT::ValueType;
-
-  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
-  const openvdb::Vec3R uvw = coord - index;
-
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
-  constexpr int N = Kernel::size;
-  ValueT data[N][N][N];
-  get_values(accessor, index, data);
-  ResultT moments[N][N][N];
-  compute_moments<Kernel, Moment>(data, moments, uvw, transform);
+  SampleBuffer<Kernel, AccessorT> buffer(coord);
+  get_values(accessor, buffer.index_box, buffer.data);
+  ResultT moments[buffer.N][buffer.N][buffer.N];
+  compute_moments<Kernel, Moment>(buffer.data, moments, buffer.uvw, transform);
 
   ResultT result;
-  interpolate_value_3d(moments, uvw, Kernel::template weight<ResultT>, result);
+  interpolate_value_3d(moments, buffer.uvw, Kernel::template sample_value<ResultT>, result);
   return result;
 }
 
