@@ -66,7 +66,7 @@ static void do_version_merge_layers_options_to_inputs(bNodeTree &ntree, bNode &n
 
 void do_versions_after_linking_530(FileData * /*fd*/, Main *bmain)
 {
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 4)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
     version_node_socket_index_animdata(
         bmain, NTREE_GEOMETRY, "GeometryNodeSetGreasePencilColor", 5, 1, 6);
   }
@@ -121,6 +121,19 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 4)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype == SPACE_ACTION) {
+            SpaceAction *saction = reinterpret_cast<SpaceAction *>(&sl);
+            saction->cache_display |= TIME_CACHE_COMPOSITOR;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
       for (bNode &node : node_tree->nodes) {
         if (STREQ(node.idname, "GeometryNodeSetGreasePencilColor")) {
@@ -136,7 +149,6 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
   }
-
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
