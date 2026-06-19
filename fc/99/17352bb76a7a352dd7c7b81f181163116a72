@@ -1,2 +1,2 @@
 Referenced by issue #160089, Cycles: MNEE rendering artifacts on RDNA1/2 on Linux.
-Referenced by pull request #160110, WIP: Fix #160052: Cycles: Performance regression with CUDA + Blackwell + BVH2
+Referenced by pull request #160110, Fix: Cycles Blackwell performance and HIP MNEE issues
