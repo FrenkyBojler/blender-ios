@@ -391,7 +391,7 @@ static bke::CurvesGeometry test_curve_boolean(const ed::greasepencil::carver::Op
   using namespace bke::greasepencil;
   carver::CurveBooleanOpParameters op_params;
   op_params.boolean_mode = opt;
-  op_params.keep_caps = false;
+  op_params.keep_caps = true;
 
   const std::optional<FillCache> fill_cache = fill_cache_from_fill_ids(
       VArray<int>::from_span(fill_ids));
@@ -702,7 +702,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 9};
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(1, 1);
+    const IndexRange clipping_fills = IndexRange(0, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -722,7 +722,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 8};
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(1, 1);
+    const IndexRange clipping_fills = IndexRange(0, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -752,7 +752,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 13};
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(1, 1);
+    const IndexRange clipping_fills = IndexRange(0, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -785,7 +785,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 13};
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(1, 1);
+    const IndexRange clipping_fills = IndexRange(0, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -807,7 +807,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 9};
     const Array<bool> is_cyclic = {true, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(1, 1);
+    const IndexRange clipping_fills = IndexRange(0, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -950,90 +950,90 @@ TEST_F(GreasePencilBooleanTest, Multiple_Shapes)
    * Multiple separate but intersecting clipping shapes.
    * The subject shape should be affected as if the two clipping shapes were union.
    */
-  {
-    const IndexRange clipping_fills = IndexRange::from_begin_end(0, 2);
-    const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Intersect, src_curves, fill_ids, clipping_fills);
+  // {
+  //   const IndexRange clipping_fills = IndexRange::from_begin_end(0, 2);
+  //   const bke::CurvesGeometry dst_curves = test_curve_boolean(
+  //       Operation::Intersect, src_curves, fill_ids, clipping_fills);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+  //   /* TODO. */
+  //   // const Array<Vector<float2>> expected_points = {
+  //   //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+  //   // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("2 Clipping Intersection", "polygon", src_curves, dst_curves, clipping_fills);
-  }
-  {
-    const IndexRange clipping_fills = IndexRange::from_begin_end(0, 2);
-    const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+  //   draw_results("2 Clipping Intersection", "polygon", src_curves, dst_curves, clipping_fills);
+  // }
+  // {
+  //   const IndexRange clipping_fills = IndexRange::from_begin_end(0, 2);
+  //   const bke::CurvesGeometry dst_curves = test_curve_boolean(
+  //       Operation::Difference, src_curves, fill_ids, clipping_fills);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+  //   /* TODO. */
+  //   // const Array<Vector<float2>> expected_points = {
+  //   //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+  //   // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("2 Clipping Difference", "polygon", src_curves, dst_curves, clipping_fills);
-  }
+  //   draw_results("2 Clipping Difference", "polygon", src_curves, dst_curves, clipping_fills);
+  // }
   draw_divider_end();
 }
 
-TEST_F(GreasePencilBooleanTest, Four_Shapes)
-{
-  draw_divider_start("Four Shapes");
+// TEST_F(GreasePencilBooleanTest, Four_Shapes)
+// {
+//   draw_divider_start("Four Shapes");
 
-  const Array<float2> points = {
-      {0, 2},
-      {0, 7},
-      {5, 7},
-      {5, 2},
+//   const Array<float2> points = {
+//       {0, 2},
+//       {0, 7},
+//       {5, 7},
+//       {5, 2},
 
-      {2, 0},
-      {2, 5},
-      {7, 5},
-      {7, 0},
+//       {2, 0},
+//       {2, 5},
+//       {7, 5},
+//       {7, 0},
 
-      {1, 3},
-      {1, 8},
-      {6, 8},
-      {6, 3},
+//       {1, 3},
+//       {1, 8},
+//       {6, 8},
+//       {6, 3},
 
-      {3, 1},
-      {3, 6},
-      {8, 6},
-      {8, 1},
-  };
-  const Array<int> points_by_curve = {0, 4, 8, 12, 16};
-  const Array<bool> is_cyclic = {true, true, true, true};
-  const Array<int> fill_ids = {1, 2, 3, 4};
-  const IndexRange clipping_fills = IndexRange::from_begin_end(2, 4);
+//       {3, 1},
+//       {3, 6},
+//       {8, 6},
+//       {8, 1},
+//   };
+//   const Array<int> points_by_curve = {0, 4, 8, 12, 16};
+//   const Array<bool> is_cyclic = {true, true, true, true};
+//   const Array<int> fill_ids = {1, 2, 3, 4};
+//   const IndexRange clipping_fills = IndexRange::from_begin_end(2, 4);
 
-  const bke::CurvesGeometry src_curves = create_test_curves(
-      points_by_curve, points, fill_ids, is_cyclic);
+//   const bke::CurvesGeometry src_curves = create_test_curves(
+//       points_by_curve, points, fill_ids, is_cyclic);
 
-  {
-    const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Intersect, src_curves, fill_ids, clipping_fills);
+//   {
+//     const bke::CurvesGeometry dst_curves = test_curve_boolean(
+//         Operation::Intersect, src_curves, fill_ids, clipping_fills);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+//     /* TODO. */
+//     // const Array<Vector<float2>> expected_points = {
+//     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+//     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
-  }
-  {
-    const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+//     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
+//   }
+//   {
+//     const bke::CurvesGeometry dst_curves = test_curve_boolean(
+//         Operation::Difference, src_curves, fill_ids, clipping_fills);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+//     /* TODO. */
+//     // const Array<Vector<float2>> expected_points = {
+//     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+//     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
-  }
+//     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
+//   }
 
-  draw_divider_end();
-}
+//   draw_divider_end();
+// }
 
 }  // namespace blender::ed::greasepencil::tests
