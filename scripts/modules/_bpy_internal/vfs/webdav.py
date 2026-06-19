@@ -1,6 +1,7 @@
 """WebDAV virtual file system backend."""
 
 import email.utils
+import urllib.parse
 import xml.etree.ElementTree as ET
 
 import requests
@@ -72,7 +73,7 @@ class VFSWebDAV:
                 skipped_self = True
                 continue
 
-            name = href.rsplit("/", 1)[-1]
+            name = urllib.parse.unquote(href.rsplit("/", 1)[-1])
             if not name:
                 continue
 
@@ -107,8 +108,10 @@ class VFSWebDAV:
         :param path: Virtual directory path to create, e.g. ``/productions/my-project``.
         :returns: True if successful, False otherwise.
         """
-        url = f"http://{self.address}{path}"
-        
+        # Ensure trailing slash for MKCOL - some servers (nginx dav) require it
+        path_for_mkcol = path if path.endswith('/') else path + '/'
+        url = f"http://{self.address}{path_for_mkcol}"
+
         print(f"VFS WebDAV: MKCOL {url}", flush=True)
         try:
             resp = requests.request(
@@ -116,7 +119,10 @@ class VFSWebDAV:
                 url,
                 timeout=30,
             )
-            resp.raise_for_status()
+            # 201 Created = new directory, 204 No Content = success, 409 Conflict
+            # = already exists. All treated as success.
+            if resp.status_code not in (200, 201, 204, 409):
+                resp.raise_for_status()
         except BaseException:
             print(f"VFS WebDAV: MKCOL request failed", flush=True)
             raise
@@ -124,16 +130,45 @@ class VFSWebDAV:
         print(f"VFS WebDAV: MKCOL status={resp.status_code}", flush=True)
         return True
 
+    def exists(self, path: str) -> bool:
+        """Check if a path exists on the WebDAV server.
+
+        :param path: Virtual directory path to check, e.g. ``/productions/my-project``.
+        :returns: True if the path exists, False otherwise.
+        """
+        # Try without trailing slash first (file check)
+        url = f"http://{self.address}{path}"
+        try:
+            resp = requests.request("PROPFIND", url, timeout=10)
+            if resp.status_code in (200, 207):
+                return True
+            if resp.status_code == 409:
+                return False
+        except requests.RequestException:
+            pass
+
+        # Try with trailing slash (folder/collection check)
+        path_with_slash = path if path.endswith('/') else path + '/'
+        url = f"http://{self.address}{path_with_slash}"
+        try:
+            resp = requests.request("PROPFIND", url, timeout=10)
+            if resp.status_code in (200, 207):
+                return True
+            if resp.status_code == 409:
+                return False
+        except requests.RequestException:
+            return False
+
     def rename_item(self, src: str, dst: str) -> bool:
         """Rename an item from src to dst. Both must share the same parent VFSPath.
-        
+
         :param src: Source virtual path.
         :param dst: Destination virtual path.
         :returns: True if successful, False otherwise.
         """
         src_url = f"http://{self.address}{src}"
         dst_url = f"http://{self.address}{dst}"
-        
+
         print(f"VFS WebDAV: MOVE {src_url} -> {dst_url}", flush=True)
         try:
             resp = requests.request(
@@ -149,3 +184,32 @@ class VFSWebDAV:
 
         print(f"VFS WebDAV: MOVE status={resp.status_code}", flush=True)
         return True
+
+    def delete_item(self, path: str) -> bool:
+        """Delete an item (file or directory) at the given virtual path.
+
+        :param path: Virtual path to delete, e.g. ``/productions/my-project/file.txt``.
+        :returns: True if successful, False otherwise.
+        """
+        # Try without trailing slash first (file check)
+        url = f"http://{self.address}{path}"
+        try:
+            resp = requests.request("DELETE", url, timeout=30)
+            if resp.status_code in (200, 204, 404):
+                return True
+        except requests.RequestException:
+            pass
+
+        # Try with trailing slash (folder/collection check)
+        path_with_slash = path if path.endswith('/') else path + '/'
+        url = f"http://{self.address}{path_with_slash}"
+
+        print(f"VFS WebDAV: DELETE {url}", flush=True)
+        try:
+            resp = requests.request("DELETE", url, timeout=30)
+            if resp.status_code in (200, 204, 404):
+                return True
+        except requests.RequestException:
+            pass
+
+        return False

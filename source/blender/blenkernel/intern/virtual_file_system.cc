@@ -240,7 +240,7 @@ VFSPath VFSPath::join(std::string_view component) const
   return result;
 }
 
-std::unique_ptr<VFSBackend> VFSPath::get_backend()
+std::unique_ptr<VFSBackend> VFSPath::get_backend() const
 {
   std::unique_ptr<VFSBackend> result;
   switch (protocol) {
@@ -255,15 +255,6 @@ std::unique_ptr<VFSBackend> VFSPath::get_backend()
       break;
   }
   return result;
-}
-
-VFSResult VFSResult::from_error(const char *error_msg) noexcept
-{
-  VFSResult r{};
-  r.success = false;
-  if (error_msg)
-    r.error_message = error_msg;
-  return r;
 }
 
 }  // namespace blender::vse

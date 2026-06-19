@@ -7,7 +7,7 @@
  *
  * Provides a unified protocol://path addressing scheme for browsing
  * local and remote (WebDAV) resources through the file browser.
- * Only read-only directory listings are supported in this prototype.
+ * Supports listing, directory creation, renaming, and existence checks.
  */
 
 #pragma once
@@ -82,7 +82,7 @@ struct VFSPath {
     return protocol != VFSProtocol::FileSystem;
   }
 
-  std::unique_ptr<VFSBackend> get_backend();
+  std::unique_ptr<VFSBackend> get_backend() const;
 };
 /* \} */
 
@@ -116,15 +116,22 @@ struct VFSEntry {
 /* \} */
 
 /* -------------------------------------------------------------------- */
-/** \name VFSResult – backend response
+/** \name VFSResult – backend response with typed value and error handling
  * \{ */
 
-struct VFSResult {
+template<typename T = void> struct VFSResult {
   bool success = true;
   std::string error_message;
-  std::vector<VFSEntry> entries;
+  std::optional<T> value;
 
-  static VFSResult from_error(const char *error_msg) noexcept;
+  static VFSResult from_error(const char *error_msg) noexcept
+  {
+    VFSResult r{};
+    r.success = false;
+    if (error_msg)
+      r.error_message = error_msg;
+    return r;
+  }
 };
 
 /* \} */
@@ -137,14 +144,22 @@ class VFSBackend {
  public:
   virtual ~VFSBackend() = default;
 
-  /** List directory contents. Returns (name, is_dir) pairs. */
-  virtual VFSResult list_directory(const VFSPath &path) const = 0;
-  
-  /** Create a single directory at path within this VFS. Parent must already exist. */
-  virtual VFSResult create_directory(const VFSPath &path) const = 0;
+  /** List directory contents. Returns entries for the requested path. */
+  virtual VFSResult<std::vector<VFSEntry>> list_directory(const VFSPath &path) const = 0;
 
-  /** Rename an existing entry from src to dst. Both must share the same parent VFSPath (rename, not move). */
-  virtual VFSResult rename_item(const VFSPath &src, const VFSPath &dst) const = 0;
+  /** Create a single directory at path within this VFS. Parent must already exist. Returns true if
+   * successful. */
+  virtual VFSResult<bool> create_directory(const VFSPath &path) const = 0;
+
+  /** Rename an existing entry from src to dst. Both must share the same parent VFSPath (rename,
+   * not move). Returns true if successful. */
+  virtual VFSResult<bool> rename_item(const VFSPath &src, const VFSPath &dst) const = 0;
+
+  /** Check if a path exists in this VFS. */
+  virtual VFSResult<bool> exists(const VFSPath &path) const = 0;
+
+  /** Delete an item (file or directory) at path. Returns true if successful. */
+  virtual VFSResult<bool> delete_item(const VFSPath &path) const = 0;
 };
 
 /** Factory for the local filesystem backend. */

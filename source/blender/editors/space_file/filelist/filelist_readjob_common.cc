@@ -280,9 +280,9 @@ static int filelist_readjob_list_dir(FileListReadJob *job_params,
       if (!backend) {
         return entries_num;
       }
-      VFSResult result = backend->list_directory(*vfspath);
+      VFSResult<std::vector<VFSEntry>> result = backend->list_directory(*vfspath);
       if (result.success) {
-        for (const VFSEntry &e : result.entries) {
+        for (const VFSEntry &e : *result.value) {
           if (skip_currpar && FILENAME_IS_CURRPAR(e.name.c_str())) {
             continue;
           }

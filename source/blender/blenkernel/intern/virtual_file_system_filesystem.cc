@@ -8,6 +8,7 @@
 
 #include "BKE_virtual_file_system.hh"
 #include "BLI_assert.hh"
+#include "BLI_fileops.hh"
 #include "CLG_log.h"
 
 #ifdef WIN32
@@ -27,19 +28,21 @@ namespace blender::vse {
 
 class FileSystemBackend final : public VFSBackend {
  public:
-  ~FileSystemBackend() = default;
-  VFSResult list_directory(const VFSPath &path) const override;
-  VFSResult create_directory(const VFSPath &path) const override;
-  VFSResult rename_item(const VFSPath &src, const VFSPath &dst) const override;
-};
+   ~FileSystemBackend() = default;
+   VFSResult<std::vector<VFSEntry>> list_directory(const VFSPath &path) const override;
+   VFSResult<bool> create_directory(const VFSPath &path) const override;
+   VFSResult<bool> rename_item(const VFSPath &src, const VFSPath &dst) const override;
+   VFSResult<bool> exists(const VFSPath &path) const override;
+   VFSResult<bool> delete_item(const VFSPath &path) const override;
+ };
 
 #ifdef WIN32
 
-VFSResult FileSystemBackend::list_directory(const VFSPath &path) const
+VFSResult<std::vector<VFSEntry>> FileSystemBackend::list_directory(const VFSPath &path) const
 {
   if (path.path.empty()) {
     CLOG_WARN(&LOG, "FileSystemBackend::list_directory: empty path");
-    return VFSResult::from_error("Empty path");
+    return VFSResult<std::vector<VFSEntry>>::from_error("Empty path");
   }
 
   std::string win_path = path.path.substr(1);
@@ -55,10 +58,11 @@ VFSResult FileSystemBackend::list_directory(const VFSPath &path) const
   longptr_t ptr = _findfirst64(pattern, &fi);
   if (ptr == -1) {
     CLOG_WARN(&LOG, "FileSystemBackend::list_directory: opendir('%s') failed", path.path.c_str());
-    return VFSResult::from_error("Could not open directory");
+    return VFSResult<std::vector<VFSEntry>>::from_error("Could not open directory");
   }
 
-  VFSResult result;
+  VFSResult<std::vector<VFSEntry>> result;
+  result.value.emplace();
   do {
     if (fi.name[0] == '.' && (fi.name[1] == '\0' || (fi.name[1] == '.' && fi.name[2] == '\0')))
       continue;
@@ -75,34 +79,35 @@ VFSResult FileSystemBackend::list_directory(const VFSPath &path) const
     }
     e.size = fi.size;
     e.last_modification_time = fi.time_write;
-    result.entries.push_back(std::move(e));
+    result.value->push_back(std::move(e));
   } while (_findnext64(ptr, &fi) == 0);
   _findclose(ptr);
   CLOG_DEBUG(&LOG,
-              "FileSystemBackend::list_directory('%s'): %zu entries",
-              path.path.c_str(),
-              result.entries.size());
+             "FileSystemBackend::list_directory('%s'): %zu entries",
+             path.path.c_str(),
+             result.value->size());
   return result;
 }
 
 #else /* POSIX */
 
-VFSResult FileSystemBackend::list_directory(const VFSPath &path) const
+VFSResult<std::vector<VFSEntry>> FileSystemBackend::list_directory(const VFSPath &path) const
 {
   BLI_assert(!path.path.empty());
   if (path.path.empty()) {
     CLOG_WARN(&LOG, "FileSystemBackend::list_directory: empty path");
-    return VFSResult::from_error("Empty path");
+    return VFSResult<std::vector<VFSEntry>>::from_error("Empty path");
   }
 
   DIR *dir = opendir(path.path.c_str());
   if (!dir) {
     std::string err = std::string("opendir('") + path.path + "') failed";
     CLOG_WARN(&LOG, "FileSystemBackend::list_directory: %s", err.c_str());
-    return VFSResult::from_error(err.c_str());
+    return VFSResult<std::vector<VFSEntry>>::from_error(err.c_str());
   }
 
-  VFSResult result;
+  VFSResult<std::vector<VFSEntry>> result;
+  result.value.emplace();
   struct dirent *de;
   while ((de = readdir(dir)) != nullptr) {
     if (de->d_name[0] == '.' &&
@@ -126,26 +131,25 @@ VFSResult FileSystemBackend::list_directory(const VFSPath &path) const
     }
     e.size = st.st_size;
     e.last_modification_time = st.st_mtime;
-    result.entries.push_back(std::move(e));
+    result.value->push_back(std::move(e));
   }
   closedir(dir);
   CLOG_DEBUG(&LOG,
-              "FileSystemBackend::list_directory('%s'): %zu entries",
-              path.path.c_str(),
-              result.entries.size());
+             "FileSystemBackend::list_directory('%s'): %zu entries",
+             path.path.c_str(),
+             result.value->size());
   return result;
 }
 
 #endif /* WIN32 */
 
-
 /* -------------------------------------------------------------------- */
-/** \name FileSystemBackend - create_directory and rename_item */
-VFSResult FileSystemBackend::create_directory(const VFSPath &path) const
+/** \name FileSystemBackend - create_directory, rename_item, and exists */
+VFSResult<bool> FileSystemBackend::create_directory(const VFSPath &path) const
 {
   if (path.path.empty()) {
     CLOG_WARN(&LOG, "FileSystemBackend::create_directory: empty path");
-    return VFSResult::from_error("Empty path");
+    return VFSResult<bool>::from_error("Empty path");
   }
 
 #ifdef WIN32
@@ -157,24 +161,47 @@ VFSResult FileSystemBackend::create_directory(const VFSPath &path) const
   if (_mkdir(win_path.c_str()) != 0) {
     std::string err = std::string("mkdir('") + win_path + "') failed";
     CLOG_WARN(&LOG, "FileSystemBackend::create_directory: %s", err.c_str());
-    return VFSResult::from_error(err.c_str());
+    return VFSResult<bool>::from_error(err.c_str());
   }
 #else
   if (mkdir(path.path.c_str(), 0755) != 0) {
     std::string err = std::string("mkdir('") + path.path + "') failed";
     CLOG_WARN(&LOG, "FileSystemBackend::create_directory: %s", err.c_str());
-    return VFSResult::from_error(err.c_str());
+    return VFSResult<bool>::from_error(err.c_str());
   }
 #endif
   CLOG_DEBUG(&LOG, "FileSystemBackend::create_directory('%s'): success", path.path.c_str());
-  return VFSResult{};
+  return VFSResult<bool>{true};
 }
 
-VFSResult FileSystemBackend::rename_item(const VFSPath &src, const VFSPath &dst) const
+VFSResult<bool> FileSystemBackend::exists(const VFSPath &path) const
+{
+  if (path.path.empty()) {
+    return VFSResult<bool>::from_error("Empty path");
+  }
+  return VFSResult<bool>{BLI_exists(path.path.c_str())};
+}
+
+VFSResult<bool> FileSystemBackend::delete_item(const VFSPath &path) const
+{
+  if (path.path.empty()) {
+    return VFSResult<bool>::from_error("Empty path");
+  }
+
+  const char *r_error_message = nullptr;
+  if (BLI_delete_soft(path.path.c_str(), &r_error_message) != 0 || BLI_exists(path.path.c_str())) {
+    CLOG_WARN(&LOG, "FileSystemBackend::delete_item('%s'): failed", path.path.c_str());
+    return VFSResult<bool>::from_error(r_error_message ? r_error_message : "delete failed");
+  }
+  CLOG_DEBUG(&LOG, "FileSystemBackend::delete_item('%s'): success", path.path.c_str());
+  return VFSResult<bool>{true};
+}
+
+VFSResult<bool> FileSystemBackend::rename_item(const VFSPath &src, const VFSPath &dst) const
 {
   if (src.path.empty() || dst.path.empty()) {
     CLOG_WARN(&LOG, "FileSystemBackend::rename_item: empty path");
-    return VFSResult::from_error("Empty path");
+    return VFSResult<bool>::from_error("Empty path");
   }
 
 #ifdef WIN32
@@ -190,20 +217,24 @@ VFSResult FileSystemBackend::rename_item(const VFSPath &src, const VFSPath &dst)
   }
 
   if (_wrename(reinterpret_cast<const wchar_t *>(src_win.c_str()),
-               reinterpret_cast<const wchar_t *>(dst_win.c_str())) != 0) {
+               reinterpret_cast<const wchar_t *>(dst_win.c_str())) != 0)
+  {
     std::string err = std::string("rename('") + src_win + "' -> '" + dst_win + "') failed";
     CLOG_WARN(&LOG, "FileSystemBackend::rename_item: %s", err.c_str());
-    return VFSResult::from_error(err.c_str());
+    return VFSResult<bool>::from_error(err.c_str());
   }
 #else
   if (rename(src.path.c_str(), dst.path.c_str()) != 0) {
     std::string err = std::string("rename('") + src.path + "' -> '" + dst.path + "') failed";
     CLOG_WARN(&LOG, "FileSystemBackend::rename_item: %s", err.c_str());
-    return VFSResult::from_error(err.c_str());
+    return VFSResult<bool>::from_error(err.c_str());
   }
 #endif
-  CLOG_DEBUG(&LOG, "FileSystemBackend::rename_item('%s' -> '%s'): success", src.path.c_str(), dst.path.c_str());
-  return VFSResult{};
+  CLOG_DEBUG(&LOG,
+             "FileSystemBackend::rename_item('%s' -> '%s'): success",
+             src.path.c_str(),
+             dst.path.c_str());
+  return VFSResult<bool>{true};
 }
 
 std::unique_ptr<VFSBackend> get_file_system_backend() noexcept

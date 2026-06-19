@@ -25,12 +25,14 @@ namespace blender::vse {
 class PythonBackend final : public VFSBackend {
  public:
    explicit PythonBackend(std::string class_name) : class_name_(std::move(class_name)) {}
-    
-   VFSResult list_directory(const VFSPath &path) const override;
-   VFSResult create_directory(const VFSPath &path) const override;
-   VFSResult rename_item(const VFSPath &src, const VFSPath &dst) const override;
-    
- private:
+
+   VFSResult<std::vector<VFSEntry>> list_directory(const VFSPath &path) const override;
+   VFSResult<bool> create_directory(const VFSPath &path) const override;
+   VFSResult<bool> rename_item(const VFSPath &src, const VFSPath &dst) const override;
+   VFSResult<bool> exists(const VFSPath &path) const override;
+   VFSResult<bool> delete_item(const VFSPath &path) const override;
+
+  private:
 #ifdef WITH_PYTHON
    std::string class_name_;
 #endif
@@ -52,9 +54,9 @@ static void parse_qualified_class_name(const std::string &fqcn,
   }
 }
 
-VFSResult PythonBackend::list_directory(const VFSPath &path) const
+VFSResult<std::vector<VFSEntry>> PythonBackend::list_directory(const VFSPath &path) const
 {
-  VFSResult result;
+  VFSResult<std::vector<VFSEntry>> result;
   if (path.path.empty()) {
     result.success = false;
     result.error_message = "Empty virtual path";
@@ -77,12 +79,14 @@ VFSResult PythonBackend::list_directory(const VFSPath &path) const
   script_str += "try:\n";
   script_str += "    client = _vfs_cls(address)\n";
   script_str += "    raw = client.list_directory(path)\n";
-  script_str += "    _result = {'success': True, 'entries': [{'name': n, 'is_directory': d, 'size': s, 'last_modification_time': m, 'is_hidden': h} for n, d, s, m, h in raw]}\n";
+  script_str +=
+      "    _result = {'success': True, 'entries': [{'name': n, 'is_directory': d, 'size': s, "
+      "'last_modification_time': m, 'is_hidden': h} for n, d, s, m, h in raw]}\n";
   script_str += "\nexcept Exception as ex:\n";
   script_str += "    _result = {'success': False, 'error_message': repr(ex)}\n";
 
-  std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> locals =
-      bke::idprop::create_group("locals");
+  std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> locals = bke::idprop::create_group(
+      "locals");
   IDP_AddToGroup(locals.get(), IDP_NewString(path.endpoint.c_str(), "address"));
   IDP_AddToGroup(locals.get(), IDP_NewString(path.path.c_str(), "path"));
 
@@ -117,7 +121,8 @@ VFSResult PythonBackend::list_directory(const VFSPath &path) const
     CLOG_WARN(&LOG, "Missing 'success' field from Python result");
     CLOG_WARN(&LOG, "  result_prop->len=%d, name='%s'", result_prop->len, result_prop->name);
     for (IDProperty *child = static_cast<IDProperty *>(result_prop->data.group.first); child;
-         child = child->next) {
+         child = child->next)
+    {
       CLOG_WARN(&LOG, "  child name='%s' type=%d", child->name, child->type);
     }
     result.success = false;
@@ -144,6 +149,7 @@ VFSResult PythonBackend::list_directory(const VFSPath &path) const
     return result;
   }
 
+  result.value.emplace();
   IDProperty *array = IDP_property_array_get(entries_prop);
   for (int i = 0; i < entries_prop->len; i++) {
     IDProperty *item = &array[i];
@@ -159,17 +165,14 @@ VFSResult PythonBackend::list_directory(const VFSPath &path) const
 
     VFSEntry e;
     e.name = IDP_string_get(name_prop);
-    bool is_dir = (is_dir_prop && is_dir_prop->type == IDP_BOOLEAN &&
-                   IDP_bool_get(is_dir_prop));
-    e.is_directory     = is_dir;
+    bool is_dir = (is_dir_prop && is_dir_prop->type == IDP_BOOLEAN && IDP_bool_get(is_dir_prop));
+    e.is_directory = is_dir;
     if (is_dir) {
       e.flags |= VFSEntryFlags::IsDirectory;
     }
 
     IDProperty *is_hidden_prop = IDP_GetPropertyFromGroup(item, "is_hidden");
-    if (is_hidden_prop && is_hidden_prop->type == IDP_BOOLEAN &&
-        IDP_bool_get(is_hidden_prop))
-    {
+    if (is_hidden_prop && is_hidden_prop->type == IDP_BOOLEAN && IDP_bool_get(is_hidden_prop)) {
       e.flags |= VFSEntryFlags::IsHidden;
     }
 
@@ -184,10 +187,10 @@ VFSResult PythonBackend::list_directory(const VFSPath &path) const
       e.last_modification_time = int64_t(IDP_double_get(mtime_prop));
     }
 
-    result.entries.push_back(std::move(e));
+    result.value->push_back(std::move(e));
   }
 
-  CLOG_INFO(&LOG, "Listed %zu entries from WebDAV", result.entries.size());
+  CLOG_INFO(&LOG, "Listed %zu entries from WebDAV", result.value->size());
   return result;
 #else
   (void)path;
@@ -197,9 +200,9 @@ VFSResult PythonBackend::list_directory(const VFSPath &path) const
 #endif
 }
 
-VFSResult PythonBackend::create_directory(const VFSPath &path) const
+VFSResult<bool> PythonBackend::create_directory(const VFSPath &path) const
 {
-  VFSResult result;
+  VFSResult<bool> result;
   if (path.path.empty()) {
     result.success = false;
     result.error_message = "Empty virtual path";
@@ -226,8 +229,8 @@ VFSResult PythonBackend::create_directory(const VFSPath &path) const
   script_str += "\nexcept Exception as ex:\n";
   script_str += "    _result = {'success': False, 'error_message': repr(ex)}\n";
 
-  std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> locals =
-      bke::idprop::create_group("locals");
+  std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> locals = bke::idprop::create_group(
+      "locals");
   IDP_AddToGroup(locals.get(), IDP_NewString(path.endpoint.c_str(), "address"));
   IDP_AddToGroup(locals.get(), IDP_NewString(path.path.c_str(), "path"));
 
@@ -262,7 +265,8 @@ VFSResult PythonBackend::create_directory(const VFSPath &path) const
     CLOG_WARN(&LOG, "Missing 'success' field from Python result");
     CLOG_WARN(&LOG, "  result_prop->len=%d, name='%s'", result_prop->len, result_prop->name);
     for (IDProperty *child = static_cast<IDProperty *>(result_prop->data.group.first); child;
-         child = child->next) {
+         child = child->next)
+    {
       CLOG_WARN(&LOG, "  child name='%s' type=%d", child->name, child->type);
     }
     result.success = false;
@@ -270,7 +274,8 @@ VFSResult PythonBackend::create_directory(const VFSPath &path) const
     return result;
   }
   result.success = IDP_bool_get(success_prop);
-  CLOG_INFO(&LOG, "Python script success=%d", result.success);
+  result.value = IDP_bool_get(success_prop);
+  CLOG_INFO(&LOG, "Python script success=%d", result.value.value());
 
   if (!result.success) {
     IDProperty *err_prop = IDP_GetPropertyFromGroup(result_prop, "error_message");
@@ -289,9 +294,9 @@ VFSResult PythonBackend::create_directory(const VFSPath &path) const
 #endif
 }
 
-VFSResult PythonBackend::rename_item(const VFSPath &src, const VFSPath &dst) const
+VFSResult<bool> PythonBackend::rename_item(const VFSPath &src, const VFSPath &dst) const
 {
-  VFSResult result;
+  VFSResult<bool> result;
   if (src.path.empty() || dst.path.empty()) {
     result.success = false;
     result.error_message = "Empty virtual path";
@@ -318,8 +323,8 @@ VFSResult PythonBackend::rename_item(const VFSPath &src, const VFSPath &dst) con
   script_str += "\nexcept Exception as ex:\n";
   script_str += "    _result = {'success': False, 'error_message': repr(ex)}\n";
 
-  std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> locals =
-      bke::idprop::create_group("locals");
+  std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> locals = bke::idprop::create_group(
+      "locals");
   IDP_AddToGroup(locals.get(), IDP_NewString(src.endpoint.c_str(), "address"));
   IDP_AddToGroup(locals.get(), IDP_NewString(src.path.c_str(), "src"));
   IDP_AddToGroup(locals.get(), IDP_NewString(dst.path.c_str(), "dst"));
@@ -355,7 +360,8 @@ VFSResult PythonBackend::rename_item(const VFSPath &src, const VFSPath &dst) con
     CLOG_WARN(&LOG, "Missing 'success' field from Python result");
     CLOG_WARN(&LOG, "  result_prop->len=%d, name='%s'", result_prop->len, result_prop->name);
     for (IDProperty *child = static_cast<IDProperty *>(result_prop->data.group.first); child;
-         child = child->next) {
+         child = child->next)
+    {
       CLOG_WARN(&LOG, "  child name='%s' type=%d", child->name, child->type);
     }
     result.success = false;
@@ -363,7 +369,8 @@ VFSResult PythonBackend::rename_item(const VFSPath &src, const VFSPath &dst) con
     return result;
   }
   result.success = IDP_bool_get(success_prop);
-  CLOG_INFO(&LOG, "Python script success=%d", result.success);
+  result.value = IDP_bool_get(success_prop);
+  CLOG_INFO(&LOG, "Python script success=%d", result.value.value());
 
   if (!result.success) {
     IDProperty *err_prop = IDP_GetPropertyFromGroup(result_prop, "error_message");
@@ -377,6 +384,200 @@ VFSResult PythonBackend::rename_item(const VFSPath &src, const VFSPath &dst) con
 #else
   (void)src;
   (void)dst;
+  result.success = false;
+  result.error_message = "Blender built without Python support";
+  return result;
+#endif
+}
+
+VFSResult<bool> PythonBackend::exists(const VFSPath &path) const
+{
+  VFSResult<bool> result;
+  if (path.path.empty()) {
+    result.success = false;
+    result.error_message = "Empty virtual path";
+    return result;
+  }
+
+#ifdef WITH_PYTHON
+  std::string mod;
+  std::string cls;
+  parse_qualified_class_name(class_name_, mod, cls);
+
+  std::string script_str;
+  if (mod.empty()) {
+    script_str = "from " + cls + " import VFSWebDAV as _vfs_cls\n";
+  }
+  else {
+    script_str = "from " + mod + " import " + cls + " as _vfs_cls\n";
+  }
+  script_str += "try:\n";
+  script_str += "    client = _vfs_cls(address)\n";
+  script_str += "    exists = client.exists(path)\n";
+  script_str += "    _result = {'success': True, 'exists': exists}\n";
+  script_str += "\nexcept Exception as ex:\n";
+  script_str += "    _result = {'success': False, 'exists': False, 'error_message': repr(ex)}\n";
+
+  std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> locals = bke::idprop::create_group(
+      "locals");
+  IDP_AddToGroup(locals.get(), IDP_NewString(path.endpoint.c_str(), "address"));
+  IDP_AddToGroup(locals.get(), IDP_NewString(path.path.c_str(), "path"));
+
+  std::optional<IDProperty *> idprop_opt = BPY_run_string_exec_with_locals_return_idprop(
+      nullptr, script_str.c_str(), *locals, "_result");
+
+  if (!idprop_opt.has_value()) {
+    CLOG_WARN(&LOG, "Python script execution failed");
+    result.success = false;
+    result.error_message = "Python script execution failed";
+    return result;
+  }
+
+  IDProperty *result_prop = *idprop_opt;
+  if (!result_prop) {
+    CLOG_WARN(&LOG, "Python script returned None");
+    result.success = false;
+    result.error_message = "Python script returned None";
+    return result;
+  }
+  BLI_SCOPED_DEFER([&] { IDP_FreeProperty(result_prop); });
+
+  if (result_prop->type != IDP_GROUP) {
+    CLOG_WARN(&LOG, "Unexpected return type from Python: %d", result_prop->type);
+    result.success = false;
+    result.error_message = "Unexpected return type from Python";
+    return result;
+  }
+
+  IDProperty *success_prop = IDP_GetPropertyFromGroup(result_prop, "success");
+  if (!success_prop || success_prop->type != IDP_BOOLEAN) {
+    CLOG_WARN(&LOG, "Missing 'success' field from Python result");
+    result.success = false;
+    result.error_message = "Missing 'success' field from Python result";
+    return result;
+  }
+  result.success = IDP_bool_get(success_prop);
+  CLOG_INFO(&LOG, "Python script success=%d", result.success);
+
+  if (!result.success) {
+    IDProperty *err_prop = IDP_GetPropertyFromGroup(result_prop, "error_message");
+    if (err_prop && err_prop->type == IDP_STRING) {
+      result.error_message = IDP_string_get(err_prop);
+    }
+    CLOG_WARN(&LOG, "WebDAV error: %s", result.error_message.c_str());
+    return result;
+  }
+
+  IDProperty *exists_prop = IDP_GetPropertyFromGroup(result_prop, "exists");
+  if (!exists_prop || exists_prop->type != IDP_BOOLEAN) {
+    CLOG_WARN(&LOG, "Missing 'exists' field from Python result");
+    result.success = false;
+    result.error_message = "Missing 'exists' field from Python result";
+    return result;
+  }
+  result.value = IDP_bool_get(exists_prop);
+  CLOG_INFO(&LOG, "Python script exists=%d", result.value.value());
+
+  return result;
+#else
+  (void)path;
+  result.success = false;
+  result.error_message = "Blender built without Python support";
+  return result;
+#endif
+}
+
+VFSResult<bool> PythonBackend::delete_item(const VFSPath &path) const
+{
+  VFSResult<bool> result;
+  if (path.path.empty()) {
+    result.success = false;
+    result.error_message = "Empty virtual path";
+    return result;
+  }
+
+#ifdef WITH_PYTHON
+  std::string mod;
+  std::string cls;
+  parse_qualified_class_name(class_name_, mod, cls);
+
+  std::string script_str;
+  if (mod.empty()) {
+    script_str = "from " + cls + " import VFSWebDAV as _vfs_cls\n";
+  }
+  else {
+    script_str = "from " + mod + " import " + cls + " as _vfs_cls\n";
+  }
+  script_str += "try:\n";
+  script_str += "    client = _vfs_cls(address)\n";
+  script_str += "    success = client.delete_item(path)\n";
+  script_str += "    _result = {'success': True, 'deleted': success}\n";
+  script_str += "\nexcept Exception as ex:\n";
+  script_str += "    _result = {'success': False, 'deleted': False, 'error_message': repr(ex)}\n";
+
+  std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> locals = bke::idprop::create_group(
+      "locals");
+  IDP_AddToGroup(locals.get(), IDP_NewString(path.endpoint.c_str(), "address"));
+  IDP_AddToGroup(locals.get(), IDP_NewString(path.path.c_str(), "path"));
+
+  std::optional<IDProperty *> idprop_opt = BPY_run_string_exec_with_locals_return_idprop(
+      nullptr, script_str.c_str(), *locals, "_result");
+
+  if (!idprop_opt.has_value()) {
+    CLOG_WARN(&LOG, "Python script execution failed");
+    result.success = false;
+    result.error_message = "Python script execution failed";
+    return result;
+  }
+
+  IDProperty *result_prop = *idprop_opt;
+  if (!result_prop) {
+    CLOG_WARN(&LOG, "Python script returned None");
+    result.success = false;
+    result.error_message = "Python script returned None";
+    return result;
+  }
+  BLI_SCOPED_DEFER([&] { IDP_FreeProperty(result_prop); });
+
+  if (result_prop->type != IDP_GROUP) {
+    CLOG_WARN(&LOG, "Unexpected return type from Python: %d", result_prop->type);
+    result.success = false;
+    result.error_message = "Unexpected return type from Python";
+    return result;
+  }
+
+  IDProperty *success_prop = IDP_GetPropertyFromGroup(result_prop, "success");
+  if (!success_prop || success_prop->type != IDP_BOOLEAN) {
+    CLOG_WARN(&LOG, "Missing 'success' field from Python result");
+    result.success = false;
+    result.error_message = "Missing 'success' field from Python result";
+    return result;
+  }
+  result.success = IDP_bool_get(success_prop);
+  CLOG_INFO(&LOG, "Python script success=%d", result.success);
+
+  if (!result.success) {
+    IDProperty *err_prop = IDP_GetPropertyFromGroup(result_prop, "error_message");
+    if (err_prop && err_prop->type == IDP_STRING) {
+      result.error_message = IDP_string_get(err_prop);
+    }
+    CLOG_WARN(&LOG, "WebDAV error: %s", result.error_message.c_str());
+    return result;
+  }
+
+  IDProperty *deleted_prop = IDP_GetPropertyFromGroup(result_prop, "deleted");
+  if (!deleted_prop || deleted_prop->type != IDP_BOOLEAN) {
+    CLOG_WARN(&LOG, "Missing 'deleted' field from Python result");
+    result.success = false;
+    result.error_message = "Missing 'deleted' field from Python result";
+    return result;
+  }
+  result.value = IDP_bool_get(deleted_prop);
+  CLOG_INFO(&LOG, "Python script deleted=%d", result.value.value());
+
+  return result;
+#else
+  (void)path;
   result.success = false;
   result.error_message = "Blender built without Python support";
   return result;
