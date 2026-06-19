@@ -117,6 +117,10 @@ std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owne
 void BKE_attributes_active_set(AttributeOwner &owner, StringRef name);
 void BKE_attributes_active_clear(AttributeOwner &owner);
 int *BKE_attributes_active_index_p(AttributeOwner &owner);
+/**
+ * After removing an attribute, set the first non-internal attribute active.
+ */
+void BKE_attributes_active_set_first_non_internal(AttributeOwner &owner);
 
 std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
                                                   int lookup_index,

@@ -464,7 +464,8 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
     return false;
   }
   if (BKE_attribute_required(owner, name)) {
-    BKE_report(reports, RPT_ERROR, "Attribute is required and cannot be removed");
+    BKE_reportf(
+        reports, RPT_ERROR, "Attribute '%s' is required and cannot be removed", name.data());
     return false;
   }
 
@@ -725,6 +726,7 @@ std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owne
 
 void BKE_attributes_active_set(AttributeOwner &owner, const StringRef name)
 {
+  BLI_assert(bke::allow_procedural_attribute_access(name));
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (mesh->runtime->edit_mesh) {
@@ -764,6 +766,42 @@ int *BKE_attributes_active_index_p(AttributeOwner &owner)
     }
   }
   return nullptr;
+}
+
+void BKE_attributes_active_set_first_non_internal(AttributeOwner &owner)
+{
+  int *active_index = BKE_attributes_active_index_p(owner);
+  if (*active_index > 0) {
+    bke::AttributeStorage *attributes = owner.get_storage();
+    int index_check = *active_index - 1;
+    bool found = false;
+
+    /* First try downwards. */
+    while (index_check >= 0 && !found) {
+      bke::Attribute attribute_check = attributes->at_index(index_check);
+      if (bke::allow_procedural_attribute_access(attribute_check.name())) {
+        *active_index = index_check;
+        found = true;
+      }
+      index_check--;
+    }
+    if (!found) {
+      /* Still not found? Try upwards. */
+      index_check = *active_index + 1;
+      while (index_check < attributes->count() && !found) {
+        bke::Attribute attribute_check = attributes->at_index(index_check);
+        if (bke::allow_procedural_attribute_access(attribute_check.name())) {
+          *active_index = index_check;
+          found = true;
+        }
+        index_check++;
+      }
+    }
+    if (!found) {
+      /* Still not found? Mark none as active. */
+      *active_index = -1;
+    }
+  }
 }
 
 std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,

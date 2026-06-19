@@ -505,10 +505,7 @@ static wmOperatorStatus geometry_attribute_remove_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  int *active_index = BKE_attributes_active_index_p(owner);
-  if (*active_index > 0) {
-    *active_index -= 1;
-  }
+  BKE_attributes_active_set_first_non_internal(owner);
 
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
@@ -732,10 +729,7 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
           }
         }
         BKE_object_defgroup_active_index_set(ob, defgroup_index + 1);
-        int *active_index = BKE_attributes_active_index_p(owner);
-        if (*active_index > 0) {
-          *active_index -= 1;
-        }
+        BKE_attributes_active_set_first_non_internal(owner);
         break;
       }
     }
