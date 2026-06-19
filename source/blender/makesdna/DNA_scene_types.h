@@ -2810,6 +2810,9 @@ struct Scene {
 
   struct Scene *set = nullptr;
 
+  struct ID *foo = nullptr;
+  void *_pad_v = nullptr;
+
   ListBaseT<Base> base = {nullptr, nullptr};
   /** Active base. */
   DNA_DEPRECATED struct Base *basact = nullptr;

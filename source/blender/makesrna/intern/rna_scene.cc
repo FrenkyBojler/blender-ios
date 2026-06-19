@@ -8884,6 +8884,8 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Camera", "Active camera, used for rendering the scene");
   RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_camera_update");
 
+  prop = RNA_def_property(srna, "foo", PROP_POINTER, PROP_NONE);
+
   prop = RNA_def_property(srna, "background_set", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "set");
   RNA_def_property_struct_type(prop, "Scene");
