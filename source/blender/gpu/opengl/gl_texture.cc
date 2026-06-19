@@ -815,9 +815,9 @@ void GLTexture::check_feedback_loop()
     return;
   }
   GLFrameBuffer *fb = static_cast<GLFrameBuffer *>(GLContext::get()->active_fb);
-  for (int i = 0; i < ARRAY_SIZE(fb_); i++) {
-    if (fb_[i] == fb) {
-      GPUAttachmentType type = fb_attachment_[i];
+  for (const std::pair<FrameBuffer *, GPUAttachmentType> &item : fb_attachments_) {
+    if (item.first == fb) {
+      GPUAttachmentType type = item.second;
       GPUAttachment attachment = fb->attachments_[type];
       /* Check for when texture is used with texture barrier. */
       GPUAttachment attachment_read = fb->tmp_detached_[type];
