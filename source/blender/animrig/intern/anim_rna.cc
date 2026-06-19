@@ -10,9 +10,9 @@
 
 #include "ANIM_rna.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_string.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_object_types.h"
@@ -267,7 +267,6 @@ Array<float> rna_property_get_as_float(PointerRNA &ptr, PropertyRNA &prop)
       break;
     default:
       /* Unsupported property type. */
-      BLI_assert_unreachable();
       return {};
   }
   return values;
