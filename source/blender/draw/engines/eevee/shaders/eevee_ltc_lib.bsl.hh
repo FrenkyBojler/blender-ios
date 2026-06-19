@@ -14,6 +14,7 @@
 #include "eevee_defines.hh"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_matrix_construct_lib.glsl"
+#include "gpu_shader_math_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl" /* IWYU pragma: export. FLT_MAX */
 
 namespace eevee::ltc {
@@ -173,7 +174,7 @@ float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
   float3 T = normalize(D * dot(disk.N, L) - L * dot(disk.N, D));
 
   /* For line O + tT, find t where it intersects line sD; O + tT = sD. */
-  float t = (dot(disk.O, D) * dot(T, D) - dot(disk.O, T)) / (1.0f - square(dot(T, D)));
+  float t = safe_divide(dot(disk.O, D) * dot(T, D) - dot(disk.O, T), 1.0f - square(dot(T, D)));
   if (t >= 0.0 && t < disk.radius) {
     /* If t lies within the disk, we do not need to attenuate. */
     return 1.0;
@@ -183,14 +184,17 @@ float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
    * these points onto the unit sphere. */
   float3 P = normalize(disk.O + disk.radius * T);
 
-  /* Project disk point into LTC space, then fit to simple geometric curve. */
+  /* Project disk point into LTC space. */
   float attenuation = normalize(Minv * P).z;
-  attenuation = 2.0f * attenuation / (1.0f + attenuation);
+  /* Then fit to simple geometric curve */
+  attenuation = saturate(2.0f * attenuation / (1.0f + attenuation));
 
-  /* Fit mix factor, forcing attenuation to approach 1 in upper hemisphere or with alpha. */
-  D_length = saturate(1.0f / D_length);
+  /* Curve: attenuation approaches 1 towards upper hemisphere. */
   float curve_a = square(square(0.995f * (1.0f - saturate(dot(P, L) + dot(D, -L)))));
+  /* Curve: attenuation approaches 1 with higher alpha. */
+  D_length = saturate(1.0f / D_length);
   float curve_b = 1.1f * D_length / (0.1f + D_length);
+  /* Mix attenuation to 1 by the above curves. */
   return mix(mix(attenuation, 1.0, curve_a), 1.0, curve_b);
 }
 
@@ -235,7 +239,7 @@ float evaluate_quad(
 
   /* Attenuation to reduce leakage, in cases where the sphere approximation below
    * is not clipped consistently with a polygon/ellipse. */
-  float form_factor_attenuation = detail::attenuate_disk(Minv, L, corners);
+  float form_factor_attenuation = detail::attenuate_quad(Minv, L, corners);
 
   /* Apply LTC inverse matrix. */
   corners[0] = normalize(Minv * corners[0]);
@@ -255,12 +259,12 @@ float evaluate_quad(
   float avg_dir_z = (avg_dir * form_factor_inv).z;
   float form_factor = saturate(1.0f / form_factor_inv);
 
-  /* The form factor should always be finite. Check that the previous saturate works as filter. */
-  // assert(!isnan(form_factor) && !isinf(form_factor));
-
   /* Attenuate form_factor to reduce leakage, in cases where a sphere lies above the
    * horizon, but a polygon/ellipse should be clipped. This is a fitted function. */
   form_factor *= form_factor_attenuation;
+
+  /* The form factor should always be finite. Check that the previous saturate works as filter. */
+  // assert(!isnan(form_factor) && !isinf(form_factor));
 
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
 }
@@ -388,9 +392,14 @@ float evaluate_disk(
 
   /* Find the sphere and compute lighting. */
   float form_factor = saturate(L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2)));
+
+  /* Attenuate form_factor to reduce leakage, in cases where a sphere lies above the
+   * horizon, but a polygon/ellipse should be clipped. This is a fitted function. */
   form_factor *= form_factor_attenuation;
+
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
+
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
 }
 
