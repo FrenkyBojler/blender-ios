@@ -437,7 +437,7 @@ static void statvis_calc_distort(const MeshRenderData &mr, MutableSpan<float> r_
         const float *f_no = mr.face_normals[face_index];
         fac = 0.0f;
 
-        for (const int corner : face.drop_front(1)) {
+        for (const int corner : face) {
           const int corner_prev = bke::mesh::face_corner_prev(face, corner);
           const int corner_next = bke::mesh::face_corner_next(face, corner);
           float no_corner[3];
