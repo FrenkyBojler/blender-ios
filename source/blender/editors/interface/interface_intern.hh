@@ -196,7 +196,7 @@ struct Button : NonMovable {
 
   /** Pointer back to the layout item holding this button. */
   Layout *layout = nullptr;
-  int flag = 0;
+  int64_t flag = 0;
   int drawflag = 0;
   char flag2 = 0;
 
