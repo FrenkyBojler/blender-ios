@@ -86,7 +86,7 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
             panel_header, panel_body = layout.panel(idname=rule_id)
             panel_header.prop(rule, "name", text="")
             sub_butts = panel_header.row(align=True)
-            sub_butts.prop(rule, "is_muted", icon='HIDE_ON' if rule.is_muted else 'HIDE_OFF', icon_only=True)
+            sub_butts.prop(rule, "is_muted", icon='CHECKBOX_DEHLT' if rule.is_muted else 'CHECKBOX_HLT', icon_only=True)
             sub_butts.separator_spacer()
             op = sub_butts.operator('UI_OT_dynoverride_remove_rule', text="", icon='X')
             op.session_uid = dynoverride.session_uid
@@ -97,6 +97,10 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
 
             col = panel_body.column()
             col.active = not rule.is_muted
+            # Commented out for now, icon preview generation of all IDs at once seems to be utterly broken :(((
+            # ~ if isinstance(rule.target_filter, bpy.types.DynamicOverrideRuleTargetFilterIDSingle):
+                # ~ col.prop(rule.target_filter, "target_id")
+
             if isinstance(rule, bpy.types.DynamicOverrideRuleIDData):
                 for prop in rule.properties:
                     row = col.row()
@@ -105,7 +109,7 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
                     sub.active = not prop.is_muted
                     sub.prop(rule.override_values, prop.property_identifier)
                     sub_butts = row.row(align=True)
-                    sub_butts.prop(prop, "is_muted", icon='HIDE_ON' if prop.is_muted else 'HIDE_OFF', icon_only=True)
+                    sub_butts.prop(prop, "is_muted", icon='CHECKBOX_DEHLT' if prop.is_muted else 'CHECKBOX_HLT', icon_only=True)
                     sub_butts.separator_spacer()
                     op = sub_butts.operator('UI_OT_dynoverride_remove_rule_property', text="", icon='X')
                     op.session_uid = dynoverride.session_uid
