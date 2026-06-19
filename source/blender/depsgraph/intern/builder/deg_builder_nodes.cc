@@ -686,7 +686,6 @@ void DepsgraphNodeBuilder::build_generic_id(ID *id)
   build_idproperties(id->system_properties);
   build_animdata(id);
   build_parameters(id);
-  build_dynamic_override_target(id);
 }
 
 void DepsgraphNodeBuilder::build_idproperties(IDProperty *id_property)
@@ -731,7 +730,6 @@ void DepsgraphNodeBuilder::build_collection(LayerCollection *from_layer_collecti
     build_idproperties(collection->id.properties);
     build_idproperties(collection->id.system_properties);
     build_parameters(&collection->id);
-    build_dynamic_override_target(&collection->id);
     add_operation_node(&collection->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_DONE);
   }
   if (from_layer_collection != nullptr) {
@@ -834,7 +832,6 @@ void DepsgraphNodeBuilder::build_object(int base_index,
   /* Parameters, used by both drivers/animation and also to inform dependency
    * from object's data. */
   build_parameters(&object->id);
-  build_dynamic_override_target(&object->id);
   build_idproperties(object->id.properties);
   build_idproperties(object->id.system_properties);
   /* Build animation data,
@@ -1251,6 +1248,7 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
 {
   /* Special handling for animated images/sequences. */
   build_animation_images(id);
+  build_drivers_and_dynamic_overrides(id);
   /* Regular animation. */
   AnimData *adt = BKE_animdata_from_id(id);
   if (adt == nullptr) {
@@ -1284,8 +1282,6 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
     }
     build_animdata_nlastrip_targets(&nlt.strips);
   }
-  /* Drivers. */
-  build_animdata_drivers(id, adt);
 }
 
 void DepsgraphNodeBuilder::build_animdata_nlastrip_targets(ListBaseT<NlaStrip> *strips)
@@ -1332,35 +1328,128 @@ void DepsgraphNodeBuilder::build_action(bAction *action)
 
   /* To make it possible to use animation data as a variable for drivers: */
   build_parameters(&action->id);
-  // build_dynamic_override_target(&action->id); ???
 
   build_idproperties(action->id.properties);
   build_idproperties(action->id.system_properties);
   add_operation_node(&action->id, NodeType::ANIMATION, OperationCode::ANIMATION_EVAL);
 }
 
-void DepsgraphNodeBuilder::build_animdata_drivers(ID *id, AnimData *adt)
+void DepsgraphNodeBuilder::build_drivers_and_dynamic_overrides(ID *id)
 {
   bool needs_unshare = false;
-
-  /* Drivers. */
-
-  for (const auto [driver_index, fcu] : adt->drivers.enumerate()) {
-    build_driver(id, &fcu, driver_index);
-    needs_unshare = needs_unshare || data_path_maybe_shared(*id, fcu.rna_path);
+  VectorSet<StringRefNull> overridden_rna_paths;
+  const Span<bke::dynoverride::RuleWithOwner> override_rules =
+      dynamic_override_ctx_->get_override_rules_for_id(*id);
+  for (const bke::dynoverride::RuleWithOwner &rule_with_owner : override_rules) {
+    if (flag_is_set(rule_with_owner.rule->flag, DynamicOverrideRuleFlag::IsMuted)) {
+      continue;
+    }
+    switch (rule_with_owner.rule->type) {
+      case DynamicOverrideRuleType::Unknown: {
+        break;
+      }
+      case DynamicOverrideRuleType::IDData: {
+        const auto &iddata_rule = reinterpret_cast<const DynamicOverrideRuleIDData &>(
+            *rule_with_owner.rule);
+        for (const DynamicOverrideRuleProperty &property : iddata_rule.properties) {
+          if (flag_is_set(property.flag, DynamicOverrideRulePropertyFlag::IsMuted)) {
+            continue;
+          }
+          if (!property.rna_path) {
+            continue;
+          }
+          const StringRefNull rna_path = property.rna_path;
+          if (!overridden_rna_paths.add(rna_path)) {
+            /* Ignore duplicate rna path. */
+            continue;
+          }
+          needs_unshare = needs_unshare || data_path_maybe_shared(*id, property.rna_path);
+          build_dynamic_property_override_rule(
+              *id, *rule_with_owner.owner, rule_with_owner.rule_i, property);
+        }
+        break;
+      }
+    }
   }
-
-  if (!needs_unshare) {
-    return;
+  if (AnimData *adt = BKE_animdata_from_id(id)) {
+    for (const auto [driver_index, fcu] : adt->drivers.enumerate()) {
+      bool is_overridden = false;
+      for (const StringRef overridden_path : overridden_rna_paths) {
+        if (StringRef(fcu.rna_path).startswith(overridden_path)) {
+          is_overridden = true;
+          break;
+        }
+      }
+      if (is_overridden) {
+        continue;
+      }
+      build_driver(id, &fcu, driver_index);
+      needs_unshare = needs_unshare || data_path_maybe_shared(*id, fcu.rna_path);
+    }
   }
+  if (needs_unshare) {
+    ID *id_cow = get_cow_id(id);
+    ensure_operation_node(id,
+                          NodeType::PARAMETERS,
+                          OperationCode::DRIVER_UNSHARE,
+                          [id_cow](blender::Depsgraph *depsgraph) {
+                            /* TODO: Also handle overridden rna paths. */
+                            if (BKE_animdata_from_id(id_cow)) {
+                              BKE_animsys_eval_driver_unshare(depsgraph, id_cow);
+                            }
+                          });
+  }
+}
 
-  ID *id_cow = get_cow_id(id);
-  ensure_operation_node(id,
-                        NodeType::PARAMETERS,
-                        OperationCode::DRIVER_UNSHARE,
-                        [id_cow](blender::Depsgraph *depsgraph) {
-                          BKE_animsys_eval_driver_unshare(depsgraph, id_cow);
-                        });
+void DepsgraphNodeBuilder::build_dynamic_property_override_rule(
+    ID &id,
+    DynamicOverride &dynamic_override,
+    const int rule_i,
+    const DynamicOverrideRuleProperty &property)
+{
+  DynamicOverride *dynamic_override_cow = get_cow_datablock(&dynamic_override);
+  ID *id_cow = get_cow_id(&id);
+
+  ensure_operation_node(
+      &id,
+      NodeType::PARAMETERS,
+      OperationCode::DRIVER,
+      [id_cow, dynamic_override_cow, rule_i, &property](blender::Depsgraph * /*depsgraph*/) {
+        PointerRNA id_cow_ptr = RNA_id_pointer_create(id_cow);
+        PointerRNA data_cow_ptr;
+        PropertyRNA *data_cow_rna_prop;
+        RNA_path_resolve(&id_cow_ptr, property.rna_path, &data_cow_ptr, &data_cow_rna_prop);
+        if (!data_cow_ptr.data || !data_cow_rna_prop) {
+          return;
+        }
+        const DynamicOverrideRule *rule_cow = static_cast<const DynamicOverrideRule *>(
+            BLI_findlink(&dynamic_override_cow->rules, rule_i));
+        BLI_assert(rule_cow->type == DynamicOverrideRuleType::IDData);
+        const DynamicOverrideRuleIDData &rule_iddata_cow =
+            reinterpret_cast<const DynamicOverrideRuleIDData &>(*rule_cow);
+
+        PointerRNA override_data_ptr = RNA_pointer_create_id_subdata(
+            dynamic_override_cow->id,
+            RNA_DynamicOverrideRuleIDDataOverrideValues,
+            const_cast<DynamicOverrideRuleIDData *>(&rule_iddata_cow));
+        PropertyRNA *override_rna_prop = RNA_struct_find_property(
+            &override_data_ptr, bke::dynoverride::rule_property_rna_identifier(property).c_str());
+        if (!override_data_ptr.data || !override_rna_prop) {
+          BLI_assert_unreachable();
+          return;
+        }
+        RNA_property_copy(nullptr,
+                          data_cow_ptr,
+                          override_data_ptr,
+                          data_cow_rna_prop,
+                          override_rna_prop,
+                          -1,
+                          -1,
+                          RNAPropertyCopyFlag::IgnoreNonEditable);
+      },
+      property.rna_path);
+
+  build_dynamic_override(&dynamic_override);
 }
 
 void DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcurve, int driver_index)
@@ -1502,29 +1591,6 @@ void DepsgraphNodeBuilder::build_parameters(ID *id)
   op_node->set_as_exit();
 }
 
-void DepsgraphNodeBuilder::build_dynamic_override_target(ID *id)
-{
-  DynamicOverride *dynamic_override = dynamic_override_ctx_->get_override_for_id(*id);
-  if (!dynamic_override) {
-    return;
-  }
-
-  if (!built_map_.check_is_built_and_tag(&dynamic_override->id)) {
-    this->build_id(&dynamic_override->id);
-  }
-
-  /* With dynamic overrides, the dependency is reversed: the overridde ID referenced in the
-   * DynamicOverride ID depends on the latter. */
-  ID *id_cow = get_cow_id(id);
-  bke::dynoverride::DepsgraphCtx &dynamic_override_ctx = *this->dynamic_override_ctx_;
-  add_operation_node(id,
-                     NodeType::DYNAMIC_OVERRIDE,
-                     OperationCode::DYNAMIC_OVERRIDE_EVAL,
-                     [&dynamic_override_ctx, id_cow](blender::Depsgraph *depsgraph) {
-                       bke::dynoverride::eval_for_id(*depsgraph, dynamic_override_ctx, *id_cow);
-                     });
-}
-
 void DepsgraphNodeBuilder::build_dimensions(Object *object)
 {
   /* Object dimensions (bounding box) node. Will depend on both geometry and transform. */
@@ -1550,7 +1616,6 @@ void DepsgraphNodeBuilder::build_world(World *world)
   /* Animation. */
   build_animdata(&world->id);
   build_parameters(&world->id);
-  build_dynamic_override_target(&world->id);
   /* World's nodetree. */
   build_nodetree(world->nodetree);
 }
@@ -1750,7 +1815,6 @@ void DepsgraphNodeBuilder::build_shapekeys(Key *key)
   build_idproperties(key->id.system_properties);
   build_animdata(&key->id);
   build_parameters(&key->id);
-  build_dynamic_override_target(&key->id);
   /* This is an exit operation for the entire key datablock, is what is used
    * as dependency for modifiers evaluation. */
   add_operation_node(&key->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_SHAPEKEY);
@@ -1948,7 +2012,6 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata)
   op_node->set_as_exit();
   /* Parameters for driver sources. */
   build_parameters(obdata);
-  build_dynamic_override_target(obdata);
   /* Batch cache. */
   add_operation_node(obdata,
                      NodeType::BATCH_CACHE,
@@ -1970,7 +2033,6 @@ void DepsgraphNodeBuilder::build_armature(bArmature *armature)
   build_idproperties(armature->id.system_properties);
   build_animdata(&armature->id);
   build_parameters(&armature->id);
-  build_dynamic_override_target(&armature->id);
   /* This operation is no longer necessary, as it was updating things with the bone layers (which
    * got replaced by bone collections). However, it's still used by other depsgraph components as a
    * dependency, so for now the node itself is kept as a no-op.
@@ -2011,7 +2073,6 @@ void DepsgraphNodeBuilder::build_camera(Camera *camera)
   build_idproperties(camera->id.system_properties);
   build_animdata(&camera->id);
   build_parameters(&camera->id);
-  build_dynamic_override_target(&camera->id);
   if (camera->dof.focus_object != nullptr) {
     build_object(-1, camera->dof.focus_object, DEG_ID_LINKED_INDIRECTLY, false);
   }
@@ -2026,7 +2087,6 @@ void DepsgraphNodeBuilder::build_light(Light *lamp)
   build_idproperties(lamp->id.system_properties);
   build_animdata(&lamp->id);
   build_parameters(&lamp->id);
-  build_dynamic_override_target(&lamp->id);
   /* light's nodetree */
   build_nodetree(lamp->nodetree);
 
@@ -2089,7 +2149,6 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
   add_id_node(&ntree->id);
   /* General parameters. */
   build_parameters(&ntree->id);
-  build_dynamic_override_target(&ntree->id);
   build_idproperties(ntree->id.properties);
   build_idproperties(ntree->id.system_properties);
   /* Animation, */
@@ -2206,7 +2265,6 @@ void DepsgraphNodeBuilder::build_material(Material *material)
   /* Material animation. */
   build_animdata(&material->id);
   build_parameters(&material->id);
-  build_dynamic_override_target(&material->id);
   /* Material's nodetree. */
   build_nodetree(material->nodetree);
 }
@@ -2233,7 +2291,6 @@ void DepsgraphNodeBuilder::build_texture(Tex *texture)
   build_idproperties(texture->id.system_properties);
   build_animdata(&texture->id);
   build_parameters(&texture->id);
-  build_dynamic_override_target(&texture->id);
   /* Texture's nodetree. */
   build_nodetree(texture->nodetree);
   /* Special cases for different IDs which texture uses. */
@@ -2256,7 +2313,6 @@ void DepsgraphNodeBuilder::build_image(Image *image)
     return;
   }
   build_parameters(&image->id);
-  build_dynamic_override_target(&image->id);
   build_idproperties(image->id.properties);
   build_idproperties(image->id.system_properties);
   add_operation_node(
@@ -2276,7 +2332,6 @@ void DepsgraphNodeBuilder::build_cachefile(CacheFile *cache_file)
   /* Animation, */
   build_animdata(cache_file_id);
   build_parameters(cache_file_id);
-  build_dynamic_override_target(cache_file_id);
   /* Cache evaluation itself. */
   add_operation_node(cache_file_id,
                      NodeType::CACHE,
@@ -2298,7 +2353,6 @@ void DepsgraphNodeBuilder::build_mask(Mask *mask)
   /* F-Curve based animation. */
   build_animdata(mask_id);
   build_parameters(mask_id);
-  build_dynamic_override_target(mask_id);
   /* Animation based on mask's shapes. */
   add_operation_node(
       mask_id,
@@ -2334,7 +2388,6 @@ void DepsgraphNodeBuilder::build_freestyle_linestyle(FreestyleLineStyle *linesty
 
   ID *linestyle_id = &linestyle->id;
   build_parameters(linestyle_id);
-  build_dynamic_override_target(linestyle_id);
   build_idproperties(linestyle->id.properties);
   build_idproperties(linestyle->id.system_properties);
   build_animdata(linestyle_id);
@@ -2353,7 +2406,6 @@ void DepsgraphNodeBuilder::build_movieclip(MovieClip *clip)
   /* Animation. */
   build_animdata(clip_id);
   build_parameters(clip_id);
-  build_dynamic_override_target(clip_id);
   /* Movie clip evaluation. */
   add_operation_node(clip_id,
                      NodeType::PARAMETERS,
@@ -2374,7 +2426,6 @@ void DepsgraphNodeBuilder::build_lightprobe(LightProbe *probe)
   build_idproperties(probe->id.system_properties);
   build_animdata(&probe->id);
   build_parameters(&probe->id);
-  build_dynamic_override_target(&probe->id);
 }
 
 void DepsgraphNodeBuilder::build_speaker(Speaker *speaker)
@@ -2388,7 +2439,6 @@ void DepsgraphNodeBuilder::build_speaker(Speaker *speaker)
   build_idproperties(speaker->id.system_properties);
   build_animdata(&speaker->id);
   build_parameters(&speaker->id);
-  build_dynamic_override_target(&speaker->id);
   if (speaker->sound != nullptr) {
     build_sound(speaker->sound);
   }
@@ -2411,7 +2461,6 @@ void DepsgraphNodeBuilder::build_sound(bSound *sound)
   build_idproperties(sound->id.system_properties);
   build_animdata(&sound->id);
   build_parameters(&sound->id);
-  build_dynamic_override_target(&sound->id);
 }
 
 void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
@@ -2420,20 +2469,22 @@ void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
     return;
   }
   build_parameters(&vfont->id);
-  build_dynamic_override_target(&vfont->id);
   build_idproperties(vfont->id.properties);
   build_idproperties(vfont->id.system_properties);
 }
 
 void DepsgraphNodeBuilder::build_dynamic_override(DynamicOverride *dynamic_override)
 {
+  if (built_map_.check_is_built_and_tag(dynamic_override)) {
+    return;
+  }
+
   /* Same as #build_generic_id, but dynamic overrides are not allowed to be overridden by other
    * dynamic overrides. */
   build_idproperties(dynamic_override->id.properties);
   build_idproperties(dynamic_override->id.system_properties);
   build_animdata(&dynamic_override->id);
   build_parameters(&dynamic_override->id);
-  BLI_assert(dynamic_override_ctx_->get_override_for_id(dynamic_override->id) == nullptr);
 
   /* TODO: dependencies (imported DynamicOverride IDs). */
 }

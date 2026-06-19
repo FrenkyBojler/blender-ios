@@ -67,14 +67,6 @@ enum class NodeType {
   PARAMETERS,
   /* Animation Component */
   ANIMATION,
-  /* Dynamic Override Component.
-   *
-   * TODO: Could use PARAMETERS maybe instead? But...:
-   *
-   * One specific aspect of dynamic overrides is that the dependency relation is inverted, as even
-   * though the dynamic override ID uses (points to) the overriden ID, it is the latter which
-   * depends on the former. */
-  DYNAMIC_OVERRIDE,
   /* Transform Component (Parenting/Constraints) */
   TRANSFORM,
   /* Geometry Component (#Mesh, #Curves, etc.) */

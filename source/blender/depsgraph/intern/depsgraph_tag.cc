@@ -151,7 +151,7 @@ void depsgraph_tag_to_component_opcode(const ID *id,
       *component_type = NodeType::ANIMATION;
       break;
     case ID_RECALC_DYNAMIC_OVERRIDE:
-      *component_type = NodeType::DYNAMIC_OVERRIDE;
+      *component_type = NodeType::PARAMETERS;
       break;
     case ID_RECALC_PSYS_REDO:
     case ID_RECALC_PSYS_RESET:
@@ -282,8 +282,6 @@ void depsgraph_tag_component(Depsgraph *graph,
       id_node->is_cow_explicitly_tagged = true;
       depsgraph_id_tag_copy_on_write(graph, id_node, update_source);
     }
-    /* TODO: Would Dynamic Override components need same special handling as Animation ones?
-     * NodeType::DYNAMIC_OVERRIDE. */
     return;
   }
   if (operation_code == OperationCode::OPERATION) {
@@ -473,9 +471,6 @@ void deg_graph_node_tag_zero(Main *bmain,
 
   for (ComponentNode *comp_node : id_node->components.values()) {
     if (comp_node->type == NodeType::ANIMATION) {
-      continue;
-    }
-    if (comp_node->type == NodeType::DYNAMIC_OVERRIDE) {
       continue;
     }
     if (comp_node->type == NodeType::COPY_ON_EVAL) {

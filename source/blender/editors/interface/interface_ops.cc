@@ -1039,6 +1039,8 @@ static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator
     return OPERATOR_CANCELLED;
   }
 
+  DEG_relations_tag_update(bmain);
+
   /* Outliner e.g. has to be aware of this change. */
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
 

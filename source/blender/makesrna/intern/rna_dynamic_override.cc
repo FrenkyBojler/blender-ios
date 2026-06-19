@@ -16,6 +16,8 @@
 
 #include "RNA_define.hh"
 
+#include "DEG_depsgraph_build.hh"
+
 #include "rna_internal.hh"
 
 #ifdef RNA_RUNTIME
@@ -56,6 +58,12 @@ void rna_DynamicOverrideRuleProperty_update(Main * /*bmain*/, Scene * /*scene*/,
   const DynamicOverrideRule *rule = static_cast<DynamicOverrideRule *>(ancestor->data);
 
   DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
+}
+
+void rna_DynamicOverrideRuleProperty_is_muted_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_DynamicOverrideRuleProperty_update(bmain, scene, ptr);
+  DEG_relations_tag_update(bmain);
 }
 
 static void rna_DynamicOverride_rule_property_rna_path_get(PointerRNA *ptr, char *value)
@@ -230,6 +238,20 @@ void rna_DynamicOverrideRule_update(Main * /*bmain*/, Scene * /*scene*/, Pointer
   DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
 }
 
+void rna_DynamicOverrideRule_is_muted_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
+  if (rule->target_filter.target_id) {
+    /* TODO: Not quite sure what's the right combination of tags yet to make muting the entire rule
+     * work properly. */
+    DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_SYNC_TO_EVAL);
+    DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_PARAMETERS);
+    DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_TRANSFORM);
+  }
+  rna_DynamicOverrideRule_update(bmain, scene, ptr);
+  DEG_relations_tag_update(bmain);
+}
+
 static StructRNA *rna_DynamicOverrideRule_refine(PointerRNA *ptr)
 {
   DynamicOverrideRule *rule = ptr->data_as<DynamicOverrideRule>();
@@ -352,7 +374,8 @@ static void rna_def_dynamic_override_rule_property(BlenderRNA *brna)
       srna, "is_muted", false, "Muted", "Whether this override property is muted or not");
   RNA_def_property_boolean_sdna(
       prop, nullptr, "flag", int64_t(DynamicOverrideRulePropertyFlag::IsMuted));
-  RNA_def_property_update(prop, NC_ID | NA_EDITED, "rna_DynamicOverrideRuleProperty_update");
+  RNA_def_property_update(
+      prop, NC_ID | NA_EDITED, "rna_DynamicOverrideRuleProperty_is_muted_update");
 
   RNA_define_verify_sdna(false);
 
@@ -535,7 +558,7 @@ static void rna_def_dynamic_override_rule(BlenderRNA *brna)
   prop = RNA_def_boolean(
       srna, "is_muted", false, "Muted", "Whether this override rule is muted or not");
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", int64_t(DynamicOverrideRuleFlag::IsMuted));
-  RNA_def_property_update(prop, NC_ID | NA_EDITED, "rna_DynamicOverrideRule_update");
+  RNA_def_property_update(prop, NC_ID | NA_EDITED, "rna_DynamicOverrideRule_is_muted_update");
 
   RNA_def_pointer(srna,
                   "target_filter",

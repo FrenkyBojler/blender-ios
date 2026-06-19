@@ -309,7 +309,6 @@ DEG_COMPONENT_NODE_DEFINE(Scene, SCENE, 0);
 DEG_COMPONENT_NODE_DEFINE(Visibility, VISIBILITY, 0);
 DEG_COMPONENT_NODE_DEFINE(NTreeOutput, NTREE_OUTPUT, ID_RECALC_NTREE_OUTPUT);
 DEG_COMPONENT_NODE_DEFINE(NTreeGeometryPreprocess, NTREE_GEOMETRY_PREPROCESS, 0);
-DEG_COMPONENT_NODE_DEFINE(DynamicOverride, DYNAMIC_OVERRIDE, ID_RECALC_DYNAMIC_OVERRIDE);
 
 /** \} */
 
@@ -347,7 +346,6 @@ void deg_register_component_depsnodes()
   register_node_typeinfo(&DNTI_VISIBILITY);
   register_node_typeinfo(&DNTI_NTREE_OUTPUT);
   register_node_typeinfo(&DNTI_NTREE_GEOMETRY_PREPROCESS);
-  register_node_typeinfo(&DNTI_DYNAMIC_OVERRIDE);
 }
 
 /** \} */

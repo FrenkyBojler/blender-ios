@@ -193,12 +193,15 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                                ComponentKey &adt_key,
                                                OperationNode *operation_from,
                                                ListBaseT<NlaStrip> *strips);
-  virtual void build_animdata_drivers(ID *id);
+  virtual void build_drivers_and_dynamic_overrides(ID *id);
+  virtual void build_dynamic_property_override_rule(ID &id,
+                                                    DynamicOverride &dynamic_override,
+                                                    const DynamicOverrideRuleProperty &property);
   virtual void build_animdata_force(ID *id);
   virtual void build_animation_images(ID *id);
   virtual void build_action(bAction *action);
   virtual void build_driver(ID *id, FCurve *fcurve);
-  virtual void build_driver_data(ID *id, FCurve *fcurve);
+  virtual void build_driver_data(ID *id, const char *rna_path, const OperationKey &driver_key);
   virtual void build_driver_variables(ID *id, FCurve *fcurve);
 
   virtual void build_driver_scene_camera_variable(const OperationKey &driver_key,
@@ -225,11 +228,6 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
                                         const char *rna_path_from_target_prop);
 
   virtual void build_parameters(ID *id);
-  /**
-   * Ensure that the root dynamic override affecting the given target ID, and related relations,
-   * are built.
-   */
-  virtual void build_dynamic_override_target(ID *id);
   virtual void build_dimensions(Object *object);
   virtual void build_world(World *world);
   virtual void build_rigidbody(Scene *scene);
@@ -349,9 +347,6 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
    * the same node tree as a driver variable. */
   template<typename KeyFrom, typename KeyTo>
   bool is_same_nodetree_node_dependency(const KeyFrom &key_from, const KeyTo &key_to);
-
-  /** Return `true` if the given ID is affected by dynamic override. */
-  bool id_has_dynamic_override_component(ID *id);
 
  private:
   struct BuilderWalkUserData {

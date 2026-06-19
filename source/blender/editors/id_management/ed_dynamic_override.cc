@@ -27,6 +27,8 @@
 
 #include "ED_id_management.hh"
 
+#include "DEG_depsgraph_build.hh"
+
 namespace blender {
 
 /** We only need this locally. */
@@ -122,6 +124,7 @@ static wmOperatorStatus dynoverride_remove_rule_property_exec(bContext *C, wmOpe
   }
 
   WM_main_add_notifier(NC_ID | NA_EDITED, nullptr);
+  DEG_relations_tag_update(bmain);
 
   return OPERATOR_FINISHED;
 }

@@ -61,6 +61,8 @@ struct bNodeTree;
 struct bPoseChannel;
 struct bSound;
 struct PointerRNA;
+struct DynamicOverrideRuleIDData;
+struct DynamicOverrideRuleProperty;
 
 namespace bke::dynoverride {
 class DepsgraphCtx;
@@ -237,7 +239,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_animation_images(ID *id);
   virtual void build_action(bAction *action);
 
-  virtual void build_animdata_drivers(ID *id, AnimData *adt);
+  virtual void build_drivers_and_dynamic_overrides(ID *id);
   /**
    * Build graph node(s) for Driver
    * \param id: ID-Block that driver is attached to
@@ -245,6 +247,10 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
    * \param driver_index: Index in animation data drivers list
    */
   virtual void build_driver(ID *id, FCurve *fcurve, int driver_index);
+  virtual void build_dynamic_property_override_rule(ID &id,
+                                                    DynamicOverride &dynamic_override,
+                                                    int rule_i,
+                                                    const DynamicOverrideRuleProperty &property);
 
   virtual void build_driver_variables(ID *id, FCurve *fcurve);
   virtual void build_driver_scene_camera_variable(Scene *scene, const char *camera_path);
@@ -263,8 +269,6 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
                                         const char *rna_path_from_target_prop);
 
   virtual void build_parameters(ID *id);
-  /** Ensure that the root dynamic override affecting the given ID is built. */
-  virtual void build_dynamic_override_target(ID *id);
   virtual void build_dimensions(Object *object);
   /** IK Solver Eval Steps. */
   virtual void build_ik_pose(Object *object, bPoseChannel *pchan, bConstraint *con);

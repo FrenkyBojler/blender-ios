@@ -19,6 +19,7 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::windowmanager
   PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc

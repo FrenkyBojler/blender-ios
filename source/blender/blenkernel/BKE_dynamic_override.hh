@@ -8,7 +8,7 @@
  * \ingroup bke
  */
 
-#include "BLI_map.hh"
+#include "BLI_multi_value_map.hh"
 #include "BLI_span.hh"
 #include "BLI_vector_set.hh"
 
@@ -92,7 +92,7 @@ void rule_rna_property_update_from_target(DynamicOverride &dynamic_override,
  * Return an identifier representing the RNA path of the property, that is usable as a RNA
  * property identifier.
  */
-std::string rule_property_rna_identifier(DynamicOverrideRuleProperty &rule_property);
+std::string rule_property_rna_identifier(const DynamicOverrideRuleProperty &rule_property);
 
 /** \} */
 
@@ -113,6 +113,12 @@ StructRNA *rule_get_runtime_original_values_rna_struct(DynamicOverrideRuleIDData
 /** \name Runtime/depgraph building & evaluation context.
  * \{ */
 
+struct RuleWithOwner {
+  DynamicOverride *owner = nullptr;
+  const DynamicOverrideRule *rule = nullptr;
+  int rule_i = -1;
+};
+
 class DepsgraphCtx {
   Scene *scene_;
   ViewLayer *layer_;
@@ -122,7 +128,7 @@ class DepsgraphCtx {
    * data-blocks in the evaluated scene & view layer, with all the DynamicOverrideRules affecting
    * them.
    */
-  Map<ID *, Vector<const DynamicOverrideRule *>> id_targets_ = {};
+  MultiValueMap<ID *, RuleWithOwner> id_targets_ = {};
   bool id_targets_are_gathered_ = false;
 
   /**
@@ -173,23 +179,10 @@ class DepsgraphCtx {
   }
 
   /**
-   * Return the top-most orig DynamicOverride ID affecting the given (orig) ID, in the context.
-   */
-  DynamicOverride *get_override_for_id(ID &id) const;
-  /**
    * Return the gathered list of rules affecting the given ID.
    */
-  Span<const DynamicOverrideRule *> get_override_rules_for_id(ID &id) const;
-
-  /**
-   * Return the top-most evaluated DynamicOverride ID affecting the given (orig) ID, in the
-   * context.
-   */
-  DynamicOverride *get_evaluated_override_for_id(Depsgraph &depsgraph, ID &id) const;
+  Span<RuleWithOwner> get_override_rules_for_id(ID &id) const;
 };
-
-/** Actually evaluate the effects of dynamic overrides over a given ID. */
-void eval_for_id(Depsgraph &depsgraph, DepsgraphCtx &eval_context, ID &id_cow);
 
 /** \} */
 

@@ -774,7 +774,7 @@ void rule_rna_property_update_from_target(DynamicOverride &dynamic_override,
   }
 }
 
-std::string rule_property_rna_identifier(DynamicOverrideRuleProperty &rule_property)
+std::string rule_property_rna_identifier(const DynamicOverrideRuleProperty &rule_property)
 {
   std::string safe_property_name = rule_property.rna_path ? rule_property.rna_path : "";
   RNA_identifier_sanitize(safe_property_name, true);
@@ -1094,8 +1094,8 @@ void DepsgraphCtx::gather_id_targets(const bool force_reset)
   }
 
   gather_dynamic_overrides(force_reset);
-  for (const DynamicOverride *dynoverride_iter : dynamic_overrides_) {
-    for (const DynamicOverrideRule &rule_iter : dynoverride_iter->rules) {
+  for (DynamicOverride *dynoverride_iter : dynamic_overrides_) {
+    for (const auto &&[rule_i, rule_iter] : dynoverride_iter->rules.enumerate()) {
       if (flag_is_set(rule_iter.flag, DynamicOverrideRuleFlag::IsMuted)) {
         continue;
       }
@@ -1106,7 +1106,8 @@ void DepsgraphCtx::gather_id_targets(const bool force_reset)
           /* Dynamic overrides are not allowed to be overridden by other dynamic overrides!
            * NOTE: Once implemented, dynoverride imports will be a different case. */
           BLI_assert(GS(id_rule.base.target_filter.target_id->name) != ID_OV);
-          id_targets_.lookup_or_add(id_rule.base.target_filter.target_id, {}).append(&rule_iter);
+          id_targets_.add(id_rule.base.target_filter.target_id,
+                          {dynoverride_iter, &rule_iter, rule_i});
         }
       }
     }
@@ -1114,92 +1115,10 @@ void DepsgraphCtx::gather_id_targets(const bool force_reset)
   id_targets_are_gathered_ = true;
 }
 
-DynamicOverride *DepsgraphCtx::get_override_for_id(ID &id) const
+Span<RuleWithOwner> DepsgraphCtx::get_override_rules_for_id(ID &id) const
 {
   BLI_assert(dynamic_overrides_are_gathered_ && id_targets_are_gathered_);
-  /* TODO once there are several dynoverride IDs composed together, should be a mapping returning
-   * the 'root' override ID for a given ID. */
-  if (id_targets_.contains(&id)) {
-    return dynamic_overrides_[0];
-  }
-  return nullptr;
-}
-
-Span<const DynamicOverrideRule *> DepsgraphCtx::get_override_rules_for_id(ID &id) const
-{
-  BLI_assert(dynamic_overrides_are_gathered_ && id_targets_are_gathered_);
-  /* TODO once there are several dynoverride IDs composed together, should be a mapping returning
-   * the 'root' override ID for a given ID. */
-  if (id_targets_.contains(&id)) {
-    return id_targets_.lookup_as(&id);
-  }
-  return {};
-}
-
-DynamicOverride *DepsgraphCtx::get_evaluated_override_for_id(Depsgraph &depsgraph, ID &id) const
-{
-  DynamicOverride *dynamic_override_orig = this->get_override_for_id(id);
-  if (dynamic_override_orig) {
-    return id_cast<DynamicOverride *>(
-        DEG_get_evaluated_id(&depsgraph, id_cast<ID *>(dynamic_override_orig)));
-  }
-  return nullptr;
-}
-
-void eval_for_id(Depsgraph &depsgraph, DepsgraphCtx &eval_context, ID &id_cow)
-{
-  ID *id_orig = DEG_get_original_id(&id_cow);
-  DynamicOverride *dynamic_override = eval_context.get_evaluated_override_for_id(depsgraph,
-                                                                                 *id_orig);
-  BLI_assert(dynamic_override);
-
-  PointerRNA id_cow_ptr = RNA_id_pointer_create(&id_cow);
-  for (DynamicOverrideRule &rule : dynamic_override->rules) {
-    if (rule.type != DynamicOverrideRuleType::IDData) {
-      continue;
-    }
-    if (!rule.target_filter.target_id) {
-      continue;
-    }
-    if (flag_is_set(rule.flag, DynamicOverrideRuleFlag::IsMuted)) {
-      continue;
-    }
-    DynamicOverrideRuleIDData &rule_iddata = reinterpret_cast<DynamicOverrideRuleIDData &>(rule);
-    if (rule_iddata.base.target_filter.target_id != &id_cow) {
-      continue;
-    }
-    for (DynamicOverrideRuleProperty &rule_prop : rule_iddata.properties) {
-      if (flag_is_set(rule_prop.flag, DynamicOverrideRulePropertyFlag::IsMuted)) {
-        continue;
-      }
-      PointerRNA data_cow_ptr;
-      PropertyRNA *data_cow_rna_prop;
-      RNA_path_resolve(&id_cow_ptr, rule_prop.rna_path, &data_cow_ptr, &data_cow_rna_prop);
-
-      if (!data_cow_ptr.data || !data_cow_rna_prop) {
-        continue;
-      }
-
-      PointerRNA override_data_ptr = RNA_pointer_create_id_subdata(
-          dynamic_override->id, RNA_DynamicOverrideRuleIDDataOverrideValues, &rule_iddata);
-      PropertyRNA *override_rna_prop = RNA_struct_find_property(
-          &override_data_ptr, rule_property_rna_identifier(rule_prop).c_str());
-
-      if (!override_data_ptr.data || !override_rna_prop) {
-        BLI_assert_unreachable();
-        continue;
-      }
-
-      RNA_property_copy(nullptr,
-                        data_cow_ptr,
-                        override_data_ptr,
-                        data_cow_rna_prop,
-                        override_rna_prop,
-                        -1,
-                        -1,
-                        RNAPropertyCopyFlag::IgnoreNonEditable);
-    }
-  }
+  return id_targets_.lookup(&id);
 }
 
 /** \} */
