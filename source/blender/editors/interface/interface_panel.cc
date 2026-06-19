@@ -1424,14 +1424,17 @@ static void expand_panel_region(bContext &C, ARegion *region)
   const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
   const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
-                          int((UI_PANEL_CATEGORY_MIN_WIDTH + 20) * UI_SCALE_FAC / aspect);
+                          int((UI_PANEL_CATEGORY_MIN_WIDTH + PANEL_MIN_DRAW_WIDTH) * UI_SCALE_FAC /
+                              aspect);
   if (!too_narrow) {
     return;
   }
   /* Enlarge region. */
   int new_width = region->runtime->type->prefsizex ? region->runtime->type->prefsizex : 250;
 
-  if (new_width < int((UI_PANEL_CATEGORY_MIN_WIDTH + 20.0f) * UI_SCALE_FAC / aspect)) {
+  if (new_width <
+      int((UI_PANEL_CATEGORY_MIN_WIDTH + PANEL_MIN_DRAW_WIDTH) * UI_SCALE_FAC / aspect))
+  {
     region->runtime->type->prefsizex = UI_SIDEBAR_PANEL_WIDTH * UI_SCALE_FAC / aspect;
     new_width = UI_SIDEBAR_PANEL_WIDTH * UI_SCALE_FAC / aspect;
   }
@@ -1519,7 +1522,8 @@ void panel_category_tabs_draw_all(const bContext *C,
   }
   /* If the area is too small to show panels, then don't show any tabs as active. */
   const bool too_narrow = BLI_rcti_size_x(&region->winrct) <
-                          int((UI_PANEL_CATEGORY_MIN_WIDTH + 20.0f) * UI_SCALE_FAC / aspect);
+                          int((UI_PANEL_CATEGORY_MIN_WIDTH + PANEL_MIN_DRAW_WIDTH) * UI_SCALE_FAC /
+                              aspect);
   /* #widget_roundbox_set has this correction, keep in sync. */
   const int align_pad = (!region->overlap && !is_left) ? px : 0;
   /* Same for all tabs. */
@@ -2631,8 +2635,9 @@ int handler_panel_region(bContext *C,
         const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                              (BLI_rcti_size_y(&region->v2d.mask) + 1);
         const bool too_narrow = BLI_rcti_size_x(&region->winrct) <
-                                int(std::floor((UI_PANEL_CATEGORY_MIN_WIDTH + 20) * UI_SCALE_FAC /
-                                               aspect));
+                                int(std::floor(
+                                    (UI_PANEL_CATEGORY_MIN_WIDTH + PANEL_MIN_DRAW_WIDTH) *
+                                    UI_SCALE_FAC / aspect));
         if (too_narrow) {
           expand_panel_region(*C, region);
         }
