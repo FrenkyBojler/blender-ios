@@ -275,7 +275,7 @@ static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
    * than being found on adding later... */
   wmKeyMap *km = WM_keymap_guess_opname(C, idname);
   KeyMapItem_Params params{};
-  params.type = EVT_AKEY;
+  params.type = EVENT_NONE;
   params.value = KM_PRESS;
   params.modifier = 0;
   params.direction = KM_ANY;
@@ -291,6 +291,7 @@ static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
 
   km = WM_keymap_guess_opname(C, idname);
   kmi = WM_keymap_item_find_id(km, kmi_id);
+  BLI_assert(kmi != nullptr);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, RNA_KeyMapItem, kmi);
 
