@@ -62,9 +62,8 @@ class AntiAliasing : Overlay {
       return;
     }
 
-    const bool is_xray_and_not_wireframe = state.xray_enabled_and_not_wire;
     const bool do_smooth_lines = (U.gpu_flag & USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE) != 0;
-    const bool do_background_fetch = is_xray_and_not_wireframe && state.is_space_v3d() &&
+    const bool do_background_fetch = state.xray_enabled_and_not_wire && state.is_space_v3d() &&
                                      (state.rv3d->is_persp || state.rv3d->view == RV3D_VIEW_USER);
 
     {
