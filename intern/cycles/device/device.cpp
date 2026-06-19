@@ -287,7 +287,6 @@ vector<DeviceInfo> Device::available_devices(const uint mask)
       else {
         /* `device_optix_init` has failed but not because of the driver being too old.
          * Nothing to do in this case. */
-        ;
       }
       devices_initialized_mask |= DEVICE_MASK_OPTIX;
     }
@@ -323,7 +322,6 @@ vector<DeviceInfo> Device::available_devices(const uint mask)
       else {
         /* `device_hip_init` has failed but not because of the driver being too old.
          * Nothing to do in this case. */
-        ;
       }
       devices_initialized_mask |= DEVICE_MASK_HIP;
     }
