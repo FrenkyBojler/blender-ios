@@ -327,7 +327,7 @@ static void rna_userdef_update_compact_tabs(Main *bmain, Scene *scene, PointerRN
   rna_userdef_update(bmain, scene, ptr);
   for (wmWindowManager &wm : bmain->wm) {
     for (wmWindow &win : wm.windows) {
-      /* Notify regions so they can update its category tab with. */
+      /* Notify regions so they can update its category tab width when showing only tabs. */
       WM_event_add_notifier_ex(&wm, &win, NC_SCREEN | NA_EDITED, nullptr);
     }
   }
