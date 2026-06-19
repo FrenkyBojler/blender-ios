@@ -120,7 +120,7 @@ int *BKE_attributes_active_index_p(AttributeOwner &owner);
 /**
  * After removing an attribute, set the first non-internal attribute active.
  */
-void BKE_attributes_active_set_first_non_internal(AttributeOwner &owner);
+void BKE_attributes_active_index_validate(AttributeOwner &owner);
 
 std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
                                                   int lookup_index,

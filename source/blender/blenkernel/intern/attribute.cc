@@ -770,7 +770,7 @@ int *BKE_attributes_active_index_p(AttributeOwner &owner)
   return nullptr;
 }
 
-void BKE_attributes_active_set_first_non_internal(AttributeOwner &owner)
+void BKE_attributes_active_index_validate(AttributeOwner &owner)
 {
   int *active_index = BKE_attributes_active_index_p(owner);
 
