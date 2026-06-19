@@ -130,13 +130,14 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
 
   const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
 
-  bke::CurvesGeometry carved_strokes = carver::curve_boolean(op_params,
-                                                             drawing_with_stroke.strokes(),
-                                                             fills,
-                                                             normal_planes,
-                                                             clipping_fills,
-                                                             layer_to_world,
-                                                             region);
+  bke::CurvesGeometry carved_strokes = carver::curve_boolean_with_planes(
+      op_params,
+      drawing_with_stroke.strokes(),
+      fills,
+      normal_planes,
+      clipping_fills,
+      layer_to_world,
+      region);
 
   carved_strokes.attributes_for_write().remove(".positions_2d");
 
