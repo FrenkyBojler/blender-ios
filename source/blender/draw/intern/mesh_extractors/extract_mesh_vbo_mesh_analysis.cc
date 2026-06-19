@@ -373,6 +373,32 @@ BLI_INLINE float distort_remap(float fac, float min, float /*max*/, float minmax
   return fac;
 }
 
+static float mesh_corner_normal_safe(const float3 &co_prev,
+                                     const float3 &co,
+                                     const float3 &co_next,
+                                     const float face_normal[3],
+                                     float r_normal[3])
+{
+  float v1[3], v2[3], v_tmp[3];
+  sub_v3_v3v3(v1, co_prev, co);
+  sub_v3_v3v3(v2, co_next, co);
+
+  const float fac = ((v2[0] == 0.0f) ?
+                         ((v2[1] == 0.0f) ? ((v2[2] == 0.0f) ? 0.0f : v1[2] / v2[2]) :
+                                            v1[1] / v2[1]) :
+                         v1[0] / v2[0]);
+
+  mul_v3_v3fl(v_tmp, v2, fac);
+  sub_v3_v3(v_tmp, v1);
+  if (fac != 0.0f && !is_zero_v3(v1) && len_squared_v3(v_tmp) > 1e-5f) {
+    cross_v3_v3v3(r_normal, v1, v2);
+    return normalize_v3(r_normal);
+  }
+
+  copy_v3_v3(r_normal, face_normal);
+  return 0.0f;
+}
+
 static void statvis_calc_distort(const MeshRenderData &mr, MutableSpan<float> r_distort)
 {
   const MeshStatVis *statvis = &mr.toolsettings->statvis;
@@ -441,10 +467,11 @@ static void statvis_calc_distort(const MeshRenderData &mr, MutableSpan<float> r_
           const int corner_prev = bke::mesh::face_corner_prev(face, corner);
           const int corner_next = bke::mesh::face_corner_next(face, corner);
           float no_corner[3];
-          normal_tri_v3(no_corner,
-                        mr.vert_positions[mr.corner_verts[corner_prev]],
-                        mr.vert_positions[mr.corner_verts[corner]],
-                        mr.vert_positions[mr.corner_verts[corner_next]]);
+          mesh_corner_normal_safe(mr.vert_positions[mr.corner_verts[corner_prev]],
+                                  mr.vert_positions[mr.corner_verts[corner]],
+                                  mr.vert_positions[mr.corner_verts[corner_next]],
+                                  f_no,
+                                  no_corner);
           /* simple way to detect (what is most likely) concave */
           if (dot_v3v3(f_no, no_corner) < 0.0f) {
             negate_v3(no_corner);
