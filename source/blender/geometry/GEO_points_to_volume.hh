@@ -88,47 +88,53 @@ MappedPointDataGrid points_to_point_data_grid(const VArray<float3> positions,
                                               const bke::AttributeFilter &attribute_filter,
                                               const float4x4 &transform);
 
+/** Supported rasterization types. */
 enum class PointRasterizeType {
+  /** Rasterize a float attribute into a float grid. */
   Scalar,
+  /** Rasterize a vector attribute into a vector grid. */
   Vector,
 };
 
+/** Attribute type required for the given rasterization type. */
 const CPPType &points_rasterize_attribute_type(const PointRasterizeType rasterize_type);
+/** Grid type produced by the given rasterization type. */
 const CPPType &points_rasterize_grid_type(const PointRasterizeType rasterize_type);
 
+/** Rasterization settings for a single attribute. */
 struct PointRasterizeAttributeInfo {
   StringRef name;
   PointRasterizeType type;
+  /** Only for vector grids: compute vector components located on faces instead of corners. */
   bool use_staggered_vector;
 };
 
-/* TODO For ultimate flexibility a multi-function based kernel transfer class could be implemented,
- * but will require modifying the OpenVDB rasterization function to avoid overhead and remain
- * efficient. For most purposes adding a fixed kernel type here is sufficient. */
+/** Kernel functions for weighting point influence on surrounding voxels. */
 enum class KernelType {
-  /* Constant weight in each voxel. */
-  Constant,
-  /* Linear falloff over the voxel range. */
+  /** Only the nearest voxel is affected. */
+  NearestPoint,
+  /** Linear falloff over 1 voxel. */
   Linear,
-  /* Quadratic b-spline kernel (see "Drucker-Prager Elastoplasticity for Sand Animation"). */
-  QuadraticBSpline,
-  /* Cubic b-spline kernel (see "Drucker-Prager Elastoplasticity for Sand Animation"). */
-  CubicBSpline,
+  /** Quadratic falloff over 1.5 voxels with a continuous derivative. */
+  Quadratic,
+  /** Cubic falloff over 2 voxels with a continuous and smooth derivative. */
+  Cubic,
 };
 
 /**
- * Rasterize points into grids using a custom weighting kernel.
+ * Rasterize points into grids using a weighting kernel.
+ *
  * Each point attribute generates an output grid.
  * Each voxel contains the weighted sum of points within the maximum range of the voxel center.
  * Each point contributes a value according to the kernel function. The kernel function takes
- * the distance between voxel center and particle and computes a weighting factor, which should
- * fall off to zero within the maximum distance. The maximum distance is a multiple of the point
- * data grid voxel size.
+ * the distance between the voxel and particle and computes a weighting factor, falling to zero
+ * within the range of the kernel.
  *
  * \param point_data_grid Point grid with optional attributes.
- * \param kernel_fn Weighting kernel function, takes a \a float3 distance vector and outputs float.
+ * \param kernel_type Weighting kernel function.
+ * \param point_attributes List of attributes that should be converted to grids.
  * \param transform Grid transform defining voxel size and offset.
- * \param max_voxel_range Maximum range of point data grid voxels contributing to a target voxel.
+ * \param r_attribute_grids List of output grids, must have the same size as \a point_attributes.
  */
 void points_rasterize(const MappedPointDataGrid &point_data_grid,
                       const KernelType kernel_type,

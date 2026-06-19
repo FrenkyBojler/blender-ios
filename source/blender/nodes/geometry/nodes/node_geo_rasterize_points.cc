@@ -54,7 +54,7 @@ static EnumPropertyItem grid_transform_mode_items[] = {
 };
 
 static EnumPropertyItem kernel_type_items[] = {
-    {int(geometry::KernelType::Constant),
+    {int(geometry::KernelType::NearestPoint),
      "CONSTANT",
      0,
      N_("Constant"),
@@ -64,12 +64,12 @@ static EnumPropertyItem kernel_type_items[] = {
      0,
      N_("Linear"),
      N_("Linear falloff over the voxel range")},
-    {int(geometry::KernelType::QuadraticBSpline),
+    {int(geometry::KernelType::Quadratic),
      "QUADRATIC",
      0,
      N_("Quadratic B-Spline"),
      N_("Quadratic b-spline kernel over 1.5 voxels")},
-    {int(geometry::KernelType::CubicBSpline),
+    {int(geometry::KernelType::Cubic),
      "CONSTANT",
      0,
      N_("Cubic B-Spline"),
