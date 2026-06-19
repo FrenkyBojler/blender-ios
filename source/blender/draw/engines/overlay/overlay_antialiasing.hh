@@ -67,9 +67,6 @@ class AntiAliasing : Overlay {
     const bool do_background_fetch = is_xray_and_not_wireframe && state.is_space_v3d() &&
                                      (state.rv3d->is_persp || state.rv3d->view == RV3D_VIEW_USER);
 
-    /* In xray mode, overlays are not present in the scene depth buffer. */
-    gpu::Texture **depth_tx = is_xray_and_not_wireframe ? &res.depth_target_tx : &res.depth_tx;
-
     {
       PassSimple &pass = anti_aliasing_ps_;
       pass.init();
@@ -78,7 +75,7 @@ class AntiAliasing : Overlay {
       pass.shader_set(res.shaders->anti_aliasing.get());
       pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
       pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-      pass.bind_texture("depth_tx", depth_tx);
+      pass.bind_texture("depth_tx", &res.depth_target_tx);
       pass.bind_texture("color_tx", &res.overlay_tx);
       pass.bind_texture("line_tx", &res.line_tx);
       pass.push_constant("do_smooth_lines", do_smooth_lines);
