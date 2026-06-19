@@ -56,7 +56,7 @@ float4 closure_to_rgba_forward(Closure /*cl_unused*/)
     [[resource_table]] eevee::LightprobeSphereRenderData &lp_spheres = lightprobes.spheres;
 
     float3 V = -views.get(0).world_incident_vector(g_data.P);
-    eevee::LightProbeSample samp = lightprobes.load(frag_co, g_data.P, g_data.Ng, V);
+    eevee::LightProbeSample samp = lightprobes.load(frag_co, g_data.P, g_data.N, V);
     float3 radiance_behind = lp_spheres.spherical_sample_normalized_with_parallax(
         samp, g_data.P, V, 0.0);
 
@@ -112,7 +112,7 @@ void surf_forward([[resource_table]] PipelineConstants & /*pipe*/,
                   [[resource_table]] LightprobeRenderData & /*lightprobes*/,
                   [[resource_table]] LightprobePlaneRenderData & /*lightprobe_planes*/,
                   [[resource_table]] const draw::View &views,
-                  [[resource_table]] const draw::Model &models,
+                  [[resource_table]] const draw::Model & /*models*/,
                   [[resource_table]] const draw::Infos & /*infos*/,
                   [[resource_table]] const UnifiedVolumeData &volumes,
                   [[resource_table]] const Uniform &uni,
