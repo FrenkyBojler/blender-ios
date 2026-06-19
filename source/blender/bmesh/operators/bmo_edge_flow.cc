@@ -15,6 +15,8 @@
 #include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_curve.hh"
+
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh" /* own include */
 
@@ -411,6 +413,47 @@ static void edge_flow_blend_ends(const EdgeFlowLoop &loop, const Array<float3> &
 
   edge_flow_blend_range(loop, orig_cos, blend_start, false, smooth);
   edge_flow_blend_range(loop, orig_cos, blend_end, true, smooth);
+}
+
+static void edge_flow_sample_bezier(const float3 &p1, const float3 &p2, const float3 &p3, const float3 &p4, MutableSpan<float3> r_result)
+{
+  const int n = int(r_result.size());
+  BLI_assert(n >= 2);
+  for (int axis = 0; axis < 3; axis++) {
+    BKE_curve_forward_diff_bezier(p1[axis], p2[axis], p3[axis], p4[axis], &r_result[0][axis], n-1, sizeof(float3));
+  }
+}
+
+static void edge_flow_map_onto_spline(Span<BMVert *> loop_verts, Span<float3> spline) 
+{
+  const int count = int(loop_verts.size());
+  if (count <= 2 || spline.size() < 2) {
+    return;
+  }
+
+  /* Accumuate arc length along spline sample for points. */
+  Array<float> accum(spline.size());
+  accum[0] = 0.0f;
+  for (const int i : spline.index_range().drop_front(1)) {
+    accum[i] = accum[i - 1] + math::distance(spline[i], spline[i - 1]);
+  }
+  const float total = accum.last();
+  if (total == 0.0f) {
+    return;
+  }
+
+  /* Place interior verts at target arc lengths. */
+  int cursor = 1;
+  for (const int k : IndexRange(count).drop_front(1).drop_back(1)) {
+    const float target = total * float(k) / float(count - 1);
+    while (cursor < accum.size() - 1 && accum[cursor] < target) {
+      cursor++;
+    }
+
+    const float seg_len = accum[cursor] - accum[cursor - 1];
+    const float t = (seg_len > 0.0f) ? (target - accum[cursor - 1]) / seg_len : 0.0f;
+    copy_v3_v3(loop_verts[k]->co, math::interpolate(spline[cursor - 1], spline[cursor], t));
+  }
 }
 
 void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)

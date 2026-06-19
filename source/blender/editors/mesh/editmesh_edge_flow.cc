@@ -102,9 +102,21 @@ static wmOperatorStatus edbm_edge_flow_exec(bContext *C, wmOperator *op)
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
+static wmOperatorStatus edbm_edge_flow_invoke(bContext *C,
+                                              wmOperator *op,
+                                              const wmEvent */*event*/)
+{
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "tension");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    const int mode = RNA_enum_get(op->ptr, "mode");
+    RNA_int_set(op->ptr, "tension", mode == EDGE_FLOW_CURVE ? 100 : 180);
+  }
+  return edbm_edge_flow_exec(C, op);
+}
+
 static const EnumPropertyItem mode_items[] = {
-    {EDGE_FLOW_LINEAR, "LINEAR", 0, "Linear", "Straighten the loop between endpoints"},
     {EDGE_FLOW_FLOW, "FLOW", 0, "Flow", "Adjust loop to match surrounding geometry"},
+    {EDGE_FLOW_LINEAR, "LINEAR", 0, "Linear", "Straighten the loop between endpoints"},
     {EDGE_FLOW_CURVE, "CURVE", 0, "Curve", "Fit loop to smooth curve between endpoints"},
     {0, nullptr, 0, nullptr, nullptr},
 };
@@ -134,11 +146,12 @@ void MESH_OT_edge_flow(wmOperatorType *ot)
   ot->description = "Set edge flow for the selected edges";
 
   ot->exec = edbm_edge_flow_exec;
+  ot->invoke = edbm_edge_flow_invoke;
   ot->poll = ED_operator_editmesh;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_enum(ot->srna, "mode", mode_items, EDGE_FLOW_LINEAR, "Mode", "");
+  RNA_def_enum(ot->srna, "mode", mode_items, EDGE_FLOW_FLOW, "Mode", "");
 
   RNA_def_float(ot->srna,
                 "mix",

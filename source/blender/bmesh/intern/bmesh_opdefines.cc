@@ -555,7 +555,7 @@ static BMOpDefine bmo_edge_flow_def = {
     {
         /* Input edges. */
         {"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
-        /* Redistribution mode: 0 = linear, 1 = flow. */
+        /* Redistribution mode: 0 = linear, 1 = flow, 2 = curve. */
         {"mode", BMO_OP_SLOT_INT},
         /* Blend factor between original and computed position from 0.0 to 1.0. */
         {"mix", BMO_OP_SLOT_FLT},
