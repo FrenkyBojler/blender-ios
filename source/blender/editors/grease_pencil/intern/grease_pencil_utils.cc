@@ -22,8 +22,8 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_vector_set.hh"
 
@@ -1847,7 +1847,7 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
       const bke::greasepencil::FillCache::KeyRef key({
           curves.attributes().lookup<int>("fill_id").sharing_info,
       });
-      auto &cache = bke::greasepencil::DrawingRuntime::get_fill_cache();
+      auto &cache = bke::greasepencil::get_fill_cache();
       cache.update(key, [&](std::optional<bke::greasepencil::FillData> &fill_cache) {
         if (fill_cache) {
           fill_cache->fill_map.append(num_old_curves);

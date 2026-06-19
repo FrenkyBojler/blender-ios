@@ -16,6 +16,12 @@
 
 namespace blender::bke::greasepencil {
 
+FillCache &get_fill_cache()
+{
+  static FillCache cache("Grease Pencil Fills");
+  return cache;
+}
+
 std::optional<FillData> fill_cache_from_fill_ids(const VArray<int> &fill_ids)
 {
   if (!fill_ids || fill_ids.is_empty()) {
@@ -196,6 +202,7 @@ void separate_fill_ids(CurvesGeometry &curves, const IndexMask &strokes_to_keep)
       [&](const int curve_i) { max_id = math::max(max_id, fill_ids.span[curve_i]); });
 
   if (max_id == 0) {
+    fill_ids.finish();
     return;
   }
 

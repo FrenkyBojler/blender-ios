@@ -94,14 +94,6 @@ struct TriangleCache {
 class DrawingRuntime {
  public:
   /**
-   * Fill cache for the drawing. Will be `nullopt` when there are no fills.
-   */
-  static FillCache &get_fill_cache()
-  {
-    static FillCache cache("Grease Pencil Fills");
-    return cache;
-  }
-  /**
    * Triangle cache for all the fills in the drawing (see #fill_cache). Will be `nullopt` when
    * there are no fills.
    */
