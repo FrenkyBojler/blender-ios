@@ -18,28 +18,23 @@
 
 namespace blender {
 namespace io::otio {
-short get_scene_strip_resolution_percent(scene_strip_resolution resolution)
+short get_scene_strip_resolution_percent(SceneStripRes resolution)
 {
   switch (resolution) {
-    case SCENE_STRIP_25_PERCENT:
+    case SceneStripRes::PERCENT_25:
       return 25;
-      break;
 
-    case SCENE_STRIP_50_PERCENT:
+    case SceneStripRes::PERCENT_50:
       return 50;
-      break;
 
-    case SCENE_STRIP_75_PERCENT:
+    case SceneStripRes::PERCENT_75:
       return 75;
-      break;
 
-    case SCENE_STRIP_100_PERCENT:
+    case SceneStripRes::PERCENT_100:
       return 100;
-      break;
 
     default:
       return 100;
-      break;
   }
 }
 }  // namespace io::otio

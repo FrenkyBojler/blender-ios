@@ -34,17 +34,17 @@ class StripExporter {
                 int last_strip_end = 0,
                 const char *filepath = nullptr)
       : last_strip_end(last_strip_end),
-        _strip(strip),
-        _scene(scene),
-        _track(track),
-        _filepath(filepath) {};
+        strip_(strip),
+        scene_(scene),
+        track_(track),
+        filepath_(filepath) {};
 
   virtual ~StripExporter() {};
 
   virtual void export_strip(Main * /*bmain*/, const OTIOExportParams * /*export_params*/) {};
 
   void add_gap_if_necessary();
-  static void add_gap_if_necessary(SerializableObject::Retainer<Track> &_track,
+  static void add_gap_if_necessary(SerializableObject::Retainer<Track> &track_,
                                    int start_frame,
                                    int end_frame,
                                    double scene_fps);
@@ -52,10 +52,10 @@ class StripExporter {
   void export_with_missing_reference();
 
  protected:
-  Strip *_strip;
-  Scene *_scene;
-  SerializableObject::Retainer<Track> &_track;
-  const char *_filepath;
+  Strip *strip_;
+  Scene *scene_;
+  SerializableObject::Retainer<Track> &track_;
+  const char *filepath_;
 };
 
 class MovieStripExporter : public StripExporter {
@@ -102,12 +102,12 @@ class RenderAsMovieExporter : public StripExporter {
                         const char *filepath = nullptr,
                         const bool include_audio = false)
       : StripExporter(strip, scene, track, last_strip_end, filepath),
-        _include_audio(include_audio) {};
+        include_audio_(include_audio) {};
 
   void export_strip(Main *bmain, const OTIOExportParams *export_params) override;
 
  private:
-  bool _include_audio = false;
+  bool include_audio_ = false;
 };
 
 }  // namespace io::otio

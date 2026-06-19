@@ -20,6 +20,7 @@
 #include "DNA_sound_types.h"
 
 #include "SEQ_render.hh"
+#include "SEQ_transform.hh"
 
 #include "opentimelineio/anyDictionary.h"
 #include "opentimelineio/clip.h"
@@ -41,7 +42,7 @@ using namespace opentimelineio::OPENTIMELINEIO_VERSION_NS;
 
 static void get_media_filename(const Strip *strip, char *filename_out)
 {
-  strcpy(filename_out, strip->data->stripdata->filename);
+  BLI_strncpy(filename_out, strip->data->stripdata->filename, FILE_MAX);
 }
 
 static void get_media_filepath(const Main *bmain, const Strip *strip, char *filepath_out)
@@ -60,7 +61,7 @@ static TimeRange get_media_available_range(const Strip *strip,
                                            const float media_fps)
 {
   int media_length = strip->len;
-  if (strip->type == STRIP_TYPE_IMAGE && strip->flag | SEQ_SINGLE_FRAME_CONTENT) {
+  if (strip->type == STRIP_TYPE_IMAGE && seq::transform_single_image_check(strip)) {
     media_length = get_strip_duration(strip, scene);
   }
 
@@ -71,12 +72,13 @@ static TimeRange get_strip_source_range(const Strip *strip,
                                         const Scene *scene,
                                         const float media_fps)
 {
-  /* The strips could be moved left of the timeline start and could have -ve `strip->start`. Most
-   * NLE's doesn't have the concept of moving a strip left of the timeline. */
-  int left_offset = max_ii(0, -strip->start);
+  /* The strips could be moved left of the timeline start and could have negative left handle.
+   * Most NLEs don't have the concept of moving a strip left of the timeline. */
+  int strip_timeline_start = max_ii(0, strip->left_handle());
+  int left_offset = strip_timeline_start - strip->start;
 
-  return TimeRange(RationalTime(strip->startofs + left_offset, media_fps),
-                   RationalTime(get_strip_duration(strip, scene) - left_offset, media_fps));
+  return TimeRange(RationalTime(left_offset, media_fps),
+                   RationalTime(strip->right_handle(scene) - strip_timeline_start, media_fps));
 }
 
 static SerializableObject::Retainer<ExternalReference> create_external_reference(
@@ -133,17 +135,13 @@ static SerializableObject::Retainer<ImageSequenceReference> create_image_sequenc
   return img_seq_ref;
 }
 
-static bool img_seq_need_fallback(StripElem *se, size_t img_count)
+static bool img_seq_need_fallback(StripElem *se)
 {
   /* Get sequence number of the first image. */
   int frame_nr = 0;
   int num_digits = 0;
   if (!BLI_path_frame_get(se->filename, &frame_nr, &num_digits)) {
     return true;
-  }
-
-  if (img_count == 1) {
-    return false;
   }
 
   /* Get sequence number of the second image. */
@@ -257,11 +255,6 @@ static void img_sequence_create_symlinks(const StripElem *se,
 
 #endif
 
-static const char *get_blender_otio_namespace()
-{
-  return "blender";
-}
-
 static void add_sound_strip_metadata(SerializableObject::Retainer<Clip> &clip, const Strip *strip)
 {
   if (!strip->sound) {
@@ -276,18 +269,18 @@ static void add_sound_strip_metadata(SerializableObject::Retainer<Clip> &clip, c
   metadata["pan"] = static_cast<double>(strip->pan);
   metadata["sound_offset"] = static_cast<double>(strip->sound_offset);
 
-  clip->metadata()[get_blender_otio_namespace()] = metadata;
+  clip->metadata()["blender"] = metadata;
 }
 
 void StripExporter::add_gap_if_necessary()
 {
-  int space_between = _strip->left_handle() - last_strip_end - 1;
+  int space_between = strip_->left_handle() - last_strip_end - 1;
   if (space_between > 0) {
-    auto gap_duration = RationalTime(space_between, _scene->frames_per_second());
+    auto gap_duration = RationalTime(space_between, scene_->frames_per_second());
     auto gap = SerializableObject::Retainer<Gap>(new Gap(gap_duration));
-    _track->append_child(gap);
+    track_->append_child(gap);
   }
-  last_strip_end = _strip->right_handle(_scene);
+  last_strip_end = strip_->right_handle(scene_);
 }
 
 void StripExporter::add_gap_if_necessary(SerializableObject::Retainer<Track> &track,
@@ -307,22 +300,22 @@ void StripExporter::export_with_missing_reference()
 {
   add_gap_if_necessary();
 
-  float media_fps = _scene->frames_per_second();
+  float media_fps = scene_->frames_per_second();
 
-  TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
+  TimeRange strip_source_range = get_strip_source_range(strip_, scene_, media_fps);
 
   const char *filename = nullptr;
-  if (_strip->data && _strip->data->stripdata) {
-    filename = _strip->data->stripdata->filename;
+  if (strip_->data && strip_->data->stripdata) {
+    filename = strip_->data->stripdata->filename;
   }
 
   auto missing_reference = SerializableObject::Retainer<MissingReference>(
       new MissingReference(filename ? filename : ""));
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
-      new Clip(_strip->name + 2, missing_reference, strip_source_range));
+      new Clip(strip_->name + 2, missing_reference, strip_source_range));
 
-  _track->append_child(clip);
+  track_->append_child(clip);
 }
 
 /***** Handle Export for each strip type. *****/
@@ -331,71 +324,71 @@ void MovieStripExporter::export_strip(Main *bmain, const OTIOExportParams * /*ex
 {
   add_gap_if_necessary();
 
-  float media_fps = _scene->frames_per_second();
+  float media_fps = scene_->frames_per_second();
 
-  TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
+  TimeRange strip_source_range = get_strip_source_range(strip_, scene_, media_fps);
   SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
-      bmain, _strip, _scene, media_fps, _filepath);
+      bmain, strip_, scene_, media_fps, filepath_);
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
-      new Clip(_strip->name + 2, external_reference, strip_source_range));
+      new Clip(strip_->name + 2, external_reference, strip_source_range));
 
-  _track->append_child(clip);
+  track_->append_child(clip);
 }
 
 void SoundStripExporter::export_strip(Main *bmain, const OTIOExportParams * /*export_params*/)
 {
   add_gap_if_necessary();
 
-  float media_fps = _scene->frames_per_second();
+  float media_fps = scene_->frames_per_second();
 
-  TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
+  TimeRange strip_source_range = get_strip_source_range(strip_, scene_, media_fps);
   SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
-      bmain, _strip, _scene, media_fps);
+      bmain, strip_, scene_, media_fps);
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
-      new Clip(_strip->name + 2, external_reference, strip_source_range));
+      new Clip(strip_->name + 2, external_reference, strip_source_range));
 
-  add_sound_strip_metadata(clip, _strip);
+  add_sound_strip_metadata(clip, strip_);
 
-  _track->append_child(clip);
+  track_->append_child(clip);
 }
 
 void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *export_params)
 {
-  add_gap_if_necessary();
-  bool is_single_image = _strip->flag & SEQ_SINGLE_FRAME_CONTENT;
-  float media_fps = _scene->frames_per_second();
+  float media_fps = scene_->frames_per_second();
 
-  if (is_single_image) {
-    TimeRange strip_source_range = get_strip_source_range(_strip, _scene, media_fps);
+  if (seq::transform_single_image_check(strip_)) {
+    add_gap_if_necessary();
+
+    TimeRange strip_source_range = get_strip_source_range(strip_, scene_, media_fps);
     SerializableObject::Retainer<ExternalReference> external_reference = create_external_reference(
-        bmain, _strip, _scene, media_fps);
+        bmain, strip_, scene_, media_fps);
 
     auto clip = otio::SerializableObject::Retainer<otio::Clip>(
-        new Clip(_strip->name + 2, external_reference, strip_source_range));
+        new Clip(strip_->name + 2, external_reference, strip_source_range));
 
-    _track->append_child(clip);
+    track_->append_child(clip);
   }
   else {
     /* Image Sequence. */
-    if (!_strip->data || !_strip->data->stripdata) {
+    if (!strip_->data || !strip_->data->stripdata) {
       export_with_missing_reference();
       return;
     }
 
-    if (export_params->img_sequence_export == EXPORT_OPTION_RENDER_MOVIE) {
-      auto exporter = RenderAsMovieExporter(_strip, _scene, _track, last_strip_end, _filepath);
+    if (export_params->img_sequence_export == ExportOption::RENDER_MOVIE) {
+      auto exporter = RenderAsMovieExporter(strip_, scene_, track_, last_strip_end, filepath_);
       exporter.export_strip(bmain, export_params);
       last_strip_end = exporter.last_strip_end;
       return;
     }
 
-    StripElem *se = _strip->data->stripdata;
+    StripElem *se = strip_->data->stripdata;
     size_t img_count = MEM_allocN_len(se) / sizeof(*se);
 
     char target_url_base[FILE_MAX];
-    BLI_strncpy(target_url_base, _strip->data->dirpath, sizeof(target_url_base));
+    BLI_strncpy(target_url_base, strip_->data->dirpath, sizeof(target_url_base));
     BLI_path_abs(target_url_base, BKE_main_blendfile_path(bmain));
 
     char name_prefix[FILE_MAX];
@@ -406,19 +399,19 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
     int start_frame_nr = 1;
     int padding = calculate_padding(img_count);
 
-    if (img_seq_need_fallback(se, img_count)) {
+    if (img_seq_need_fallback(se)) {
       /* Update `name_prefix` to : filename without extension + '.' */
       BLI_strncpy(name_prefix, se->filename, sizeof(name_prefix));
       BLI_path_extension_strip(name_prefix);
       BLI_strncat(name_prefix, ".", sizeof(name_prefix));
 
       switch (export_params->img_sequence_fallback) {
-        case EXPORT_OPTION_IMG_SEQUENCE_RENAME:
+        case ImgSeqFallback::RENAME:
           img_sequence_rename(se, target_url_base, img_count, padding);
           break;
 
 #ifndef WIN32
-        case EXPORT_OPTION_IMG_SEQUENCE_SYMLINK:
+        case ImgSeqFallback::SYMLINK:
           img_sequence_create_symlinks(se, target_url_base, img_count, padding);
           break;
 #endif
@@ -458,8 +451,8 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
     add_gap_if_necessary();
 
     SerializableObject::Retainer<ImageSequenceReference> img_seq_ref =
-        create_image_sequence_reference(_strip,
-                                        _scene,
+        create_image_sequence_reference(strip_,
+                                        scene_,
                                         target_url_base,
                                         name_prefix,
                                         name_suffix,
@@ -467,42 +460,46 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
                                         frame_step,
                                         media_fps,
                                         padding);
-    TimeRange source_range = get_strip_source_range(_strip, _scene, _scene->frames_per_second());
+    TimeRange source_range = get_strip_source_range(strip_, scene_, scene_->frames_per_second());
 
     auto clip = SerializableObject::Retainer<Clip>(
-        new Clip(_strip->name + 2, img_seq_ref, source_range));
+        new Clip(strip_->name + 2, img_seq_ref, source_range));
 
-    _track->append_child(clip);
+    track_->append_child(clip);
   }
 }
 
 void RenderAsMovieExporter::export_strip(Main *bmain, const OTIOExportParams *export_params)
 {
-  if (!_filepath) {
+  if (!filepath_) {
     export_with_missing_reference();
     return;
   }
 
   char render_filename[FILE_MAX];
-  BLI_strncpy(render_filename, _strip->name + 2, sizeof(render_filename));
+  BLI_strncpy(render_filename, strip_->name + 2, sizeof(render_filename));
   BLI_strncat(render_filename, ".mp4", sizeof(render_filename));
 
   char render_filepath[FILE_MAX];
-  BLI_path_split_dir_part(_filepath, render_filepath, sizeof(render_filepath));
+  BLI_path_split_dir_part(filepath_, render_filepath, sizeof(render_filepath));
+  BLI_path_append_dir(render_filepath, sizeof(render_filepath), "BL_render");
+  if (!BLI_dir_create_recursive(render_filepath)) {
+    return;
+  }
   BLI_path_append(render_filepath, sizeof(render_filepath), render_filename);
 
   seq::render_strip_full(bmain,
-                         _scene,
-                         _strip,
+                         scene_,
+                         strip_,
                          get_scene_strip_resolution_percent(export_params->scene_strip_res),
                          render_filepath,
                          false);
 
-  auto exporter = MovieStripExporter(_strip, _scene, _track, last_strip_end, render_filepath);
+  auto exporter = MovieStripExporter(strip_, scene_, track_, last_strip_end, render_filepath);
   exporter.export_strip(bmain, export_params);
   last_strip_end = exporter.last_strip_end;
 
-  UNUSED_VARS(_include_audio);
+  UNUSED_VARS(include_audio_);
 }
 
 }  // namespace blender::io::otio

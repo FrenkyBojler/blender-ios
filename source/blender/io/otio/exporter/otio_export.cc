@@ -62,7 +62,7 @@ static void export_scene_markers(const Scene *scene, SerializableObject::Retaine
  * We need two stacks when we have meta strips with both video and audio strips. It is not as
  * straight forward as separating clips to video or audio channels as metastrips can also contain
  * other metastrips. Even if we separate the clips inside a meta strip to video and audio tracks,
- * the metastrip will still me multi-media and could not be classified as a video/visual clip or
+ * the metastrip will still be multi-media and could not be classified as a video/visual clip or
  * audio clip. Hence, no mono-media track could be used to hold the metastrip.
  *
  * So, for every metastrip in the `main_stack` (root stack), we create two stacks: `primary_stack`
@@ -143,7 +143,7 @@ static void otio_export_recursive(Main *bmain,
       else if (strip->type == STRIP_TYPE_META ||
                ((strip->type == STRIP_TYPE_SCENE) && (strip->flag & SEQ_SCENE_STRIPS)))
       {
-        if (export_params->meta_strip_export == EXPORT_OPTION_RENDER_MOVIE) {
+        if (export_params->meta_strip_export == ExportOption::RENDER_MOVIE) {
           strip_exporter = new RenderAsMovieExporter(
               strip, scene, inside_meta ? meta_video_track : track, last_strip_end, filepath);
         }
@@ -269,12 +269,13 @@ void otio_export_job_start(void *custom_data, wmJobWorkerStatus *worker_status)
   Main *bmain = job_data->bmain;
   Scene *scene = job_data->scene;
   Editing *editing = seq::editing_get(scene);
-  ListBaseT<Strip> *seqbase = &editing->seqbase;
 
   if (!scene || !editing) {
     BKE_report(worker_status->reports, RPT_ERROR, "No Sequencer Scene found");
     return;
   }
+
+  ListBaseT<Strip> *seqbase = &editing->seqbase;
 
   worker_status->progress = 0.0f;
   worker_status->do_update = true;
