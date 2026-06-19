@@ -222,6 +222,14 @@ enum eUserpref_TabletAPI : short {
   USER_TABLET_WINTAB = 2,
 };
 
+/** #UserDef.name_incr_mode */
+enum eUserPref_NameIncrMode : char {
+  /** Classic dot-padded suffix: "Cube" -> "Cube.001", gap-filling. */
+  USER_NAME_INCR_CLASSIC = 0,
+  /** Increment rightmost digit run: "Cube" -> "Cube1", "Cube9" -> "Cube10". */
+  USER_NAME_INCR_MODERN = 1,
+};
+
 /**
  * #UserDef.tablet_flag
  */
@@ -919,6 +927,9 @@ struct UserDef {
   /** Preferences for the preferences. */
   eUserPref_PrefFlag pref_flag = USER_PREF_FLAG_SAVE | USER_PREF_FLAG_PROJECT_SAVE;
   char savetime = 2;
+  /** #eUserPref_NameIncrMode. */
+  eUserPref_NameIncrMode name_incr_mode = {};
+  char _pad_name_incr[7] = {};
   eUserpref_EmulateMMBMod mouse_emulate_3_button_modifier = {};
   /**
    * Workaround for WAYLAND (at time of writing compositors don't support this info).

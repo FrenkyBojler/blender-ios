@@ -6016,6 +6016,30 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
                            "Duplicate Node Tree",
                            "Make copies of node groups when duplicating nodes in the node editor");
 
+  static const EnumPropertyItem name_incr_mode_items[] = {
+      {USER_NAME_INCR_CLASSIC,
+       "CLASSIC",
+       0,
+       "Classic",
+       "Append a dot-padded number suffix (e.g. \"Cube\" \xe2\x86\x92 \"Cube.001\"), "
+       "always filling the lowest available number"},
+      {USER_NAME_INCR_MODERN,
+       "MODERN",
+       0,
+       "Modern",
+       "Increment the rightmost digit run in the name (e.g. \"Cube\" \xe2\x86\x92 \"Cube1\", "
+       "\"Cube9\" \xe2\x86\x92 \"Cube10\")"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "name_incrementing", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, name_incr_mode_items);
+  RNA_def_property_enum_sdna(prop, nullptr, "name_incr_mode");
+  RNA_def_property_ui_text(
+      prop,
+      "Name Incrementing",
+      "How numeric suffixes are generated when duplicating data-blocks");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
   prop = RNA_def_property(srna, "node_use_insert_offset", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_NODE_AUTO_OFFSET);
   RNA_def_property_ui_text(prop,

@@ -454,6 +454,12 @@ class USERPREF_PT_edit_objects_duplicate_data(EditingPanel, CenterAlignMixIn, Pa
         prefs = context.preferences
         edit = prefs.edit
 
+        col = layout.column()
+        col.use_property_split = True
+        col.prop(edit, "name_incrementing", expand=True)
+
+        layout.separator()
+
         layout.use_property_split = False
 
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=True)

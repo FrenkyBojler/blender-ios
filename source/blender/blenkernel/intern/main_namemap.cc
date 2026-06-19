@@ -23,6 +23,7 @@
 #include "BLI_string_utils.hh"
 
 #include "DNA_ID.h"
+#include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -529,12 +530,80 @@ static bool namemap_get_name(Main &bmain,
 
   bool is_name_changed = false;
 
-  while (true) {
+  if (U.name_incr_mode == USER_NAME_INCR_MODERN) {
+    /* Modern mode: increment the rightmost digit run, like file name incrementation.
+     * "Cube" -> "Cube1", "Cube9" -> "Cube10", "Cube1_1.L" -> "Cube1_2.L". */
+    while (true) {
+      if (!type_map.full_names.contains(r_name_full)) {
+        int number = 0;
+        const std::string name_base = BLI_string_split_name_number(r_name_full, '.', number);
+        name_map->add_name(type_map, r_name_full, name_base, number);
+        if (name_map_other != nullptr) {
+          name_map_other->add_name(GS(id.name), r_name_full, name_base, number);
+        }
+        return is_name_changed;
+      }
+
+      is_name_changed = true;
+
+      const char *s = r_name_full.c_str();
+      const int len = int(r_name_full.size());
+
+      int tail_start = len;
+      while (tail_start > 0 && !(s[tail_start - 1] >= '0' && s[tail_start - 1] <= '9')) {
+        tail_start--;
+      }
+      int digits_start = tail_start;
+      while (digits_start > 0 && (s[digits_start - 1] >= '0' && s[digits_start - 1] <= '9')) {
+        digits_start--;
+      }
+
+      if (digits_start == tail_start) {
+        /* No digits: check for a symmetry suffix and insert before its separator if present. */
+        char flipped[MAX_ID_NAME];
+        BLI_string_flip_side_name(flipped, r_name_full.c_str(), false, sizeof(flipped));
+        if (strcmp(flipped, r_name_full.c_str()) != 0) {
+          int insert_pos = 0;
+          while (r_name_full[insert_pos] != '\0' &&
+                 r_name_full[insert_pos] == flipped[insert_pos])
+          {
+            insert_pos++;
+          }
+          while (insert_pos > 0 && (r_name_full[insert_pos - 1] == '.' ||
+                                    r_name_full[insert_pos - 1] == ' ' ||
+                                    r_name_full[insert_pos - 1] == '-' ||
+                                    r_name_full[insert_pos - 1] == '_'))
+          {
+            insert_pos--;
+          }
+          r_name_full.insert(insert_pos, "1");
+        }
+        else {
+          r_name_full += "1";
+        }
+      }
+      else {
+        const int digits_len = tail_start - digits_start;
+        const int num = int(strtol(s + digits_start, nullptr, 10));
+        char num_buf[32];
+        BLI_snprintf(num_buf, sizeof(num_buf), "%.*d", digits_len, num + 1);
+        r_name_full.replace(digits_start, digits_len, num_buf);
+      }
+
+      if (r_name_full.size() >= MAX_ID_NAME - 2) {
+        r_name_full.resize(MAX_ID_NAME - 3);
+        BLI_str_utf8_invalid_strip(r_name_full.data(), r_name_full.size());
+      }
+    }
+  }
+  else {
+    /* Classic mode: dot-padded suffix with gap-filling. "Cube" -> "Cube.001". */
+    while (true) {
     /* Get the name and number parts ("name.number"). */
-    int number = 0;
-    const std::string name_base = BLI_string_split_name_number(r_name_full, '.', number);
-    std::unique_ptr<UniqueName_Value> &val = type_map.base_name_to_num_suffix.lookup_or_add_as(
-        name_base, std::make_unique<UniqueName_Value>(UniqueName_Value{}));
+      int number = 0;
+      const std::string name_base = BLI_string_split_name_number(r_name_full, '.', number);
+      std::unique_ptr<UniqueName_Value> &val = type_map.base_name_to_num_suffix.lookup_or_add_as(
+          name_base, std::make_unique<UniqueName_Value>(UniqueName_Value{}));
 
     /* If the full original name is unused, and its number suffix is unused, or is above the max
      * managed value, the name can be used directly.
@@ -543,39 +612,39 @@ static bool namemap_get_name(Main &bmain,
      * the same name base, and the same numeric value as suffix, but written differently.
      * E.g. `Mesh.001` and `Mesh.1` would both "use" the numeric suffix for base name `Mesh`.
      * Removing `Mesh.1` would then mark `001` suffix as available, which would be incorrect. */
-    if (!type_map.full_names.contains(r_name_full)) {
-      name_map->add_name(type_map, r_name_full, name_base, number);
-      if (name_map_other != nullptr) {
-        name_map_other->add_name(GS(id.name), r_name_full, name_base, number);
+      if (!type_map.full_names.contains(r_name_full)) {
+        name_map->add_name(type_map, r_name_full, name_base, number);
+        if (name_map_other != nullptr) {
+          name_map_other->add_name(GS(id.name), r_name_full, name_base, number);
+        }
+        return is_name_changed;
       }
-      return is_name_changed;
-    }
 
     /* At this point, if this is the first iteration, the initially given name is colliding with an
      * existing ID name, and has to be modified. If this is a later iteration, the given name has
      * already been modified one way or another. */
-    is_name_changed = true;
+      is_name_changed = true;
 
     /* The base name and current number suffix are already used.
      * Request the lowest available valid number suffix (will return #NO_AVAILABLE_NUMBER if none
      * are available for the current base name). */
-    const int number_to_use = val->get_smallest_unused();
+      const int number_to_use = val->get_smallest_unused();
 
     /* Try to build final name from the current base name and the number.
      * Note that this will fail if the suffix number is #NO_AVAILABLE_NUMBER, or if the base name
      * and suffix number would give a too long name. In such cases, this call will modify
      * the base name and put it into r_name_full, and a new iteration to find a suitable suffix
      * number and valid full name is needed. */
-    if (!id_name_final_build(type_map, name_base, number_to_use, r_name_full)) {
-      continue;
-    }
+      if (!id_name_final_build(type_map, name_base, number_to_use, r_name_full)) {
+        continue;
+      }
 
     /* All good, add final name to the set. */
-    name_map->add_name(type_map, r_name_full, name_base, number_to_use);
-    if (name_map_other != nullptr) {
-      name_map_other->add_name(GS(id.name), r_name_full, name_base, number_to_use);
-    }
-    return is_name_changed;
+      name_map->add_name(type_map, r_name_full, name_base, number_to_use);
+      if (name_map_other != nullptr) {
+        name_map_other->add_name(GS(id.name), r_name_full, name_base, number_to_use);
+      }
+      return is_name_changed;
   }
 }
 
