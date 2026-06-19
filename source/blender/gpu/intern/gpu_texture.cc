@@ -39,9 +39,8 @@ Texture::Texture(const char *name)
 
 Texture::~Texture()
 {
-  for (const std::pair<FrameBuffer *, GPUAttachmentType> &entry : fb_attachments_) {
-    entry.first->attachment_remove(entry.second);
-  }
+  fb_attachments_.foreach_item(
+      [&](FrameBuffer *key, const GPUAttachmentType value) { key->attachment_remove(value); });
   fb_attachments_.clear();
 
 #ifndef GPU_NO_USE_PY_REFERENCES
@@ -185,29 +184,18 @@ void Texture::usage_set(eGPUTextureUsage usage_flags)
 
 void Texture::attach_to(FrameBuffer *fb, GPUAttachmentType type)
 {
-  for (std::pair<FrameBuffer *, GPUAttachmentType> &entry : fb_attachments_) {
-    if (entry.first == fb) {
-      /* Already stores a reference, just update the attachment type if needed. */
-      if (entry.second != type) {
-        fb->attachment_remove(entry.second);
-        entry.second = type;
-      }
-      return;
-    }
+  GPUAttachmentType &current_type = fb_attachments_.lookup_or_add(fb, type);
+  if (current_type != type) {
+    fb->attachment_remove(current_type);
+    current_type = type;
   }
-  fb_attachments_.append({fb, type});
 }
 
 void Texture::detach_from(FrameBuffer *fb)
 {
-  for (int64_t i = 0; i < fb_attachments_.size(); i++) {
-    if (fb_attachments_[i].first == fb) {
-      fb->attachment_remove(fb_attachments_[i].second);
-      fb_attachments_.remove(i);
-      return;
-    }
-  }
-  BLI_assert_msg(0, "GPU: Error: Texture: Framebuffer is not attached");
+  if (!fb_attachments_.remove(fb)) {
+    BLI_assert_msg(0, "GPU: Error: Texture: Framebuffer is not attached");
+  };
 }
 
 void Texture::update(eGPUDataFormat format, const void *data)
