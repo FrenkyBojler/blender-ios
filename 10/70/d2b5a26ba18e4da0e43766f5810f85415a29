@@ -3,3 +3,4 @@ Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #156083, Can't remove particular command from quick favorites
 Referenced by issue #160010, Cannot add both Mark sharp and Clear sharp commands in quick favorites
 Referenced by pull request #160012, Fix #160010: Cannot add both Mark sharp and Clear sharp commands in quick favorites
+Referenced by commit 82dd01ce15cba3a24e0cdc05a0eff85a872f2c99, Fix #160010: Cannot add both Mark sharp and Clear sharp commands in quick favorites
