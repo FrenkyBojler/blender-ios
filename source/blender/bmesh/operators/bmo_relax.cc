@@ -161,7 +161,7 @@ static void calculate_splines_axis(Span<float> distances,
 }
 
 /** Return the index of the spline segment that contains target_distance. */
-static int find_spline_segment(Span<float> knot_distances, float target_distance)
+static int calculate_spline_segment(Span<float> knot_distances, float target_distance)
 {
   for (const int k : IndexRange(knot_distances.size() - 1)) {
     if (target_distance >= knot_distances[k] && target_distance <= knot_distances[k + 1]) {
@@ -387,7 +387,7 @@ static void execute_relax_phase(Span<BMVert *> verts,
 
   for (const int i : phase.point_indices.index_range()) {
     float target_dist = t_points[i];
-    int seg = find_spline_segment(t_knots, target_dist);
+    int seg = calculate_spline_segment(t_knots, target_dist);
     float3 spline_pos;
 
     if (interpolation == LINEAR) {
