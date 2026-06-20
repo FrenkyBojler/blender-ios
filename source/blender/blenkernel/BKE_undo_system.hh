@@ -114,8 +114,8 @@ struct UndoType {
   UndoType *next, *prev;
   /** A simple readable name for the undo type. */
   const char *name;
-  /** 
-   * A normalized version of the name, used to create the enum identifier in the RNA. 
+  /**
+   * A normalized version of the name, used to create the enum identifier in the RNA.
    * Computed from name at registration. e.g. Edit Armature -> EDIT_ARMATURE
    */
   std::string identifier;

@@ -7,11 +7,11 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
-#include "DNA_windowmanager_types.h"
 #include "BKE_undo_system.hh"
+#include "DNA_windowmanager_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -83,17 +83,15 @@ static int rna_UndoStep_type_get(PointerRNA *ptr)
 }
 
 static const EnumPropertyItem *rna_UndoStep_type_itemf(bContext * /*C*/,
-                                                        PointerRNA * /*ptr*/,
-                                                        PropertyRNA * /*prop*/,
-                                                        bool *r_free)
+                                                       PointerRNA * /*ptr*/,
+                                                       PropertyRNA * /*prop*/,
+                                                       bool *r_free)
 {
   EnumPropertyItem *item = nullptr;
   EnumPropertyItem tmp = {0, "", 0, "", ""};
   int a = 0, totitem = 0;
 
-  for (const UndoType *ut = static_cast<UndoType *>(g_undo_types.first); ut;
-       ut = ut->next, a++)
-  {
+  for (const UndoType *ut = static_cast<UndoType *>(g_undo_types.first); ut; ut = ut->next, a++) {
     tmp.value = a;
     tmp.identifier = ut->identifier.c_str();
     tmp.name = ut->name;
@@ -124,10 +122,8 @@ void RNA_def_undo(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_string_funcs(prop,
-                                "rna_UndoStep_name_get",
-                                "rna_UndoStep_name_length",
-                                nullptr);
+  RNA_def_property_string_funcs(
+      prop, "rna_UndoStep_name_get", "rna_UndoStep_name_length", nullptr);
   RNA_def_property_ui_text(prop, "Name", "Label of the undo step");
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
@@ -156,7 +152,9 @@ void RNA_def_undo(BlenderRNA *brna)
                                     "rna_iterator_listbase_end",
                                     "rna_UndoStack_steps_get",
                                     "rna_UndoStack_steps_length",
-                                    nullptr, nullptr, nullptr);
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
 
   prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -166,13 +164,8 @@ void RNA_def_undo(BlenderRNA *brna)
   prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_struct_type(prop, "UndoStep");
-  RNA_def_property_pointer_funcs(prop,
-                                 "rna_UndoStack_active_get",
-                                 nullptr,
-                                 nullptr,
-                                 nullptr);
+  RNA_def_property_pointer_funcs(prop, "rna_UndoStack_active_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Active", "Currently active undo step");
-
 }
 
 #endif /* RNA_RUNTIME */

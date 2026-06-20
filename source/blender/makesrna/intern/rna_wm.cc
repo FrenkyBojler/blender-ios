@@ -3027,7 +3027,7 @@ static void rna_def_windowmanager(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Undo Stack", "Read-only access to the undo stack");
   RNA_def_property_pointer_funcs(
-    prop, "rna_WindowManager_undo_stack_get", nullptr, nullptr, nullptr);
+      prop, "rna_WindowManager_undo_stack_get", nullptr, nullptr, nullptr);
 
   prop = RNA_def_property(srna, "xr_session_settings", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "xr.session_settings");
