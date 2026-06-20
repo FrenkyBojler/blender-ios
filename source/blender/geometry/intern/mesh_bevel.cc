@@ -1120,8 +1120,8 @@ static bool point_between_edges(
   dir1 = math::normalize(dir1);
   dir2 = math::normalize(dir2);
   dirco = math::normalize(dirco);
-  float ang11 = acosf(math::clamp(math::dot(dir1, dir2), -1.0f, 1.0f));
-  float ang1co = acosf(math::clamp(math::dot(dir1, dirco), -1.0f, 1.0f));
+  float ang11 = angle_normalized_v3v3(dir1, dir2);
+  float ang1co = angle_normalized_v3v3(dir1, dirco);
   float3 no = math::cross(dir1, dir2);
   if (math::dot(no, emesh.src_face_normals[f]) < 0.0f) {
     ang11 = float(M_PI * 2.0) - ang11;
@@ -5704,15 +5704,12 @@ static VMesh interp_vmesh(const BevelState &state, VMesh &vm_in, int nseg)
         else {
           const int j0inc = (restj < geom::BEVEL_EPSILON_D || j_in == ns_in) ? 0 : 1;
           const int k0inc = (restk < geom::BEVEL_EPSILON_D || k_in == ns_in) ? 0 : 1;
-          float quad[4][3];
-          *reinterpret_cast<float3 *>(quad[0]) = geom::mesh_vert_canon(&vm_in, i, j_in, k_in)->co;
-          *reinterpret_cast<float3 *>(
-              quad[1]) = geom::mesh_vert_canon(&vm_in, i, j_in, k_in + k0inc)->co;
-          *reinterpret_cast<float3 *>(
-              quad[2]) = geom::mesh_vert_canon(&vm_in, i, j_in + j0inc, k_in + k0inc)->co;
-          *reinterpret_cast<float3 *>(
-              quad[3]) = geom::mesh_vert_canon(&vm_in, i, j_in + j0inc, k_in)->co;
-          interp_bilinear_quad_v3(quad, restk, restj, co);
+          float3 quad[4];
+          quad[0] = geom::mesh_vert_canon(&vm_in, i, j_in, k_in)->co;
+          quad[1] = geom::mesh_vert_canon(&vm_in, i, j_in, k_in + k0inc)->co;
+          quad[2] = geom::mesh_vert_canon(&vm_in, i, j_in + j0inc, k_in + k0inc)->co;
+          quad[3] = geom::mesh_vert_canon(&vm_in, i, j_in + j0inc, k_in)->co;
+          interp_bilinear_quad_v3(reinterpret_cast<float (*)[3]>(quad), restk, restj, co);
         }
         geom::mesh_vert(&vm_out, i, j, k)->co = co;
       }
@@ -5952,14 +5949,18 @@ static void snap_to_superellipsoid(float3 &co, const float super_r, const bool m
  * tetrahedron formed by `va`, `vb`, `vc` (the three boundary verts) and `vd`
  * (the original beveled vertex). Same as BMesh's #make_unit_cube_map.
  */
-static void make_unit_cube_map(
-    const float3 &va, const float3 &vb, const float3 &vc, const float3 &vd, float4x4 &r_mat)
+static float4x4 make_unit_cube_map(const float3 &va,
+                                   const float3 &vb,
+                                   const float3 &vc,
+                                   const float3 &vd)
 {
+  float4x4 mat;
   /* Columns of the 4x4 column-major matrix. */
-  r_mat[0] = float4((va - vb - vc + vd) * 0.5f, 0.0f);
-  r_mat[1] = float4((vb - va - vc + vd) * 0.5f, 0.0f);
-  r_mat[2] = float4((vc - va - vb + vd) * 0.5f, 0.0f);
-  r_mat[3] = float4((va + vb + vc - vd) * 0.5f, 1.0f);
+  mat[0] = float4((va - vb - vc + vd) * 0.5f, 0.0f);
+  mat[1] = float4((vb - va - vc + vd) * 0.5f, 0.0f);
+  mat[2] = float4((vc - va - vb + vd) * 0.5f, 0.0f);
+  mat[3] = float4((va + vb + vc - vd) * 0.5f, 1.0f);
+  return mat;
 }
 
 /**
@@ -5989,7 +5990,7 @@ static VMesh make_cube_corner_square(const int nseg)
         if (!geom::is_canon(&vm, i, j, k)) {
           continue;
         }
-        float3 co(0.0f);
+        float3 co;
         co[i] = 1.0f;
         co[(i + 1) % 3] = float(k) * 2.0f / float(nseg);
         co[(i + 2) % 3] = float(j) * 2.0f / float(nseg);
@@ -6183,14 +6184,9 @@ static VMesh make_cube_corner_adj_vmesh(BevelState &state)
 /**
  * Copy whichever of `a` and `b` is closer to `v` into `r`.
  */
-static void closer_v3_v3v3v3(float3 &r, const float3 &a, const float3 &b, const float3 &v)
+static float3 closer_v3_v3v3v3(const float3 &a, const float3 &b, const float3 &v)
 {
-  if (math::distance_squared(a, v) <= math::distance_squared(b, v)) {
-    r = a;
-  }
-  else {
-    r = b;
-  }
+  return (math::distance_squared(a, v) <= math::distance_squared(b, v)) ? a : b;
 }
 
 /**
@@ -6250,15 +6246,14 @@ static BoundVert *pipe_test(const BevelState &state, BevVert *bv)
  * Snap co to the closest point on the profile for vpipe projected onto the plane
  * containing co with normal in the direction of edge vpipe->ebev.
  */
-static void snap_to_pipe_profile(
-    const BevelState &state, BevVert *bv, BoundVert *vpipe, bool midline, float3 &co)
+static float3 snap_to_pipe_profile(
+    const BevelState &state, BevVert *bv, BoundVert *vpipe, bool midline, const float3 &co)
 {
   Profile *pro = &vpipe->profile;
   EdgeHalf *e = vpipe->ebev;
 
   if (math::is_equal(pro->start, pro->end, geom::BEVEL_EPSILON_D)) {
-    co = pro->start;
-    return;
+    return pro->start;
   }
 
   /* Get a plane with the normal pointing along the beveled edge. */
@@ -6280,12 +6275,11 @@ static void snap_to_pipe_profile(
       /* Transform co and project it onto superellipse. */
       float3 p = math::transform_point(minv, co);
       snap_to_superellipsoid(p, pro->super_r, midline);
-      co = math::transform_point(m, p);
-      return;
+      return math::transform_point(m, p);
     }
   }
   /* Planar case: just snap to line start_plane--end_plane. */
-  co = math::closest_to_line_segment(co, start_plane, end_plane);
+  return math::closest_to_line_segment(co, start_plane, end_plane);
 }
 
 /**
@@ -6350,7 +6344,8 @@ static VMesh pipe_adj_vmesh(BevelState &state, BevVert *bv, BoundVert *vpipe)
           const bool even = (ns % 2) == 0;
           const bool midline = even && k == half_ns &&
                                ((i == 0 && j == half_ns) || ELEM(i, ipipe1, ipipe2));
-          snap_to_pipe_profile(state, bv, vpipe, midline, geom::mesh_vert(&vm, i, j, k)->co);
+          geom::mesh_vert(&vm, i, j, k)->co = snap_to_pipe_profile(
+              state, bv, vpipe, midline, geom::mesh_vert(&vm, i, j, k)->co);
         }
       }
     }
@@ -6456,7 +6451,7 @@ static VMesh square_out_adj_vmesh(BevelState &state, BevVert *bv)
       float3 &on_edge_prev = centerline[clstride * iprev];
       if (v2set) {
         if (cset[i]) {
-          closer_v3_v3v3v3(on_edge_cur, on_edge_cur, v2co, bv_co);
+          on_edge_cur = closer_v3_v3v3v3(on_edge_cur, v2co, bv_co);
         }
         else {
           on_edge_cur = v2co;
@@ -6465,7 +6460,7 @@ static VMesh square_out_adj_vmesh(BevelState &state, BevVert *bv)
       }
       if (v1set) {
         if (cset[iprev]) {
-          closer_v3_v3v3v3(on_edge_prev, on_edge_prev, v1co, bv_co);
+          on_edge_prev = closer_v3_v3v3v3(on_edge_prev, v1co, bv_co);
         }
         else {
           on_edge_prev = v1co;
@@ -6676,9 +6671,8 @@ static VMesh tri_corner_adj_vmesh(BevelState &state, BevVert *bv)
   bndv = bndv->next;
   const float3 co2 = bndv->nv.co;
 
-  float4x4 mat;
   const float3 v_co = state.emesh.src_positions[bv->v];
-  make_unit_cube_map(co0, co1, co2, v_co, mat);
+  const float4x4 mat = make_unit_cube_map(co0, co1, co2, v_co);
 
   VMesh vm = make_cube_corner_adj_vmesh(state);
   /* Set the correct BoundVert ring (the canonical helper builds with nullptr). */
