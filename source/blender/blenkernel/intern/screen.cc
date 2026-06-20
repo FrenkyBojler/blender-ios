@@ -266,7 +266,8 @@ IDTypeInfo IDType_ID_SCR = {
     .name = "Screen",
     .name_plural = N_("screens"),
     .translation_context = BLT_I18NCONTEXT_ID_SCREEN,
-    .flags = IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO,
+    .flags = IDTYPE_FLAGS_ONLY_APPEND | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_MEMFILE_UNDO |
+             IDTYPE_FLAGS_NO_PREVIEW_RENDER,
     .asset_type_info = nullptr,
 
     .init_data = screen_init_data,

@@ -746,7 +746,7 @@ IDTypeInfo IDType_ID_AC = {
     .name = "Action",
     .name_plural = "actions",
     .translation_context = BLT_I18NCONTEXT_ID_ACTION,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_PREVIEW_RENDER,
     .asset_type_info = &bke::AssetType_AC,
 
     .init_data = bke::action_init_data,

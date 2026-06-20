@@ -220,7 +220,8 @@ IDTypeInfo IDType_ID_LI = {
     .name = "Library",
     .name_plural = N_("libraries"),
     .translation_context = BLT_I18NCONTEXT_ID_LIBRARY,
-    .flags = IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NEVER_UNUSED,
+    .flags = IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NEVER_UNUSED |
+             IDTYPE_FLAGS_NO_PREVIEW_RENDER,
     .asset_type_info = nullptr,
 
     .init_data = library_init_data,

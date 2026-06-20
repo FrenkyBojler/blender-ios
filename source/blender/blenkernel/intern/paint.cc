@@ -162,7 +162,7 @@ IDTypeInfo IDType_ID_PAL = {
     .name = "Palette",
     .name_plural = N_("palettes"),
     .translation_context = BLT_I18NCONTEXT_ID_PALETTE,
-    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_NO_PREVIEW_RENDER,
     .asset_type_info = nullptr,
 
     .init_data = palette_init_data,

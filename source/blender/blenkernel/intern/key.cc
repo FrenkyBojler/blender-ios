@@ -178,7 +178,7 @@ IDTypeInfo IDType_ID_KE = {
     .name = "Key",
     .name_plural = N_("shape_keys"),
     .translation_context = BLT_I18NCONTEXT_ID_SHAPEKEY,
-    .flags = IDTYPE_FLAGS_NO_LIBLINKING,
+    .flags = IDTYPE_FLAGS_NO_LIBLINKING | IDTYPE_FLAGS_NO_PREVIEW_RENDER,
     .asset_type_info = nullptr,
 
     .init_data = nullptr,

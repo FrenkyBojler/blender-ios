@@ -53,6 +53,7 @@
 #include "BKE_global.hh"
 #include "BKE_icons.hh"
 #include "BKE_idprop.hh"
+#include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -1209,6 +1210,11 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
   short idtype = GS(id->name);
   int sizex;
   Main *pr_main = sp->pr_main;
+
+  const IDTypeInfo *idtype_info = BKE_idtype_get_info_from_id(id);
+  if (idtype_info->flags & IDTYPE_FLAGS_NO_PREVIEW_RENDER) {
+    return;
+  }
 
   /* in case of split preview, use border render */
   if (split) {

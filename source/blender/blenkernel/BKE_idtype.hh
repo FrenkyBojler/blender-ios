@@ -70,6 +70,8 @@ enum {
    * IDs have at least an 'extra user' (#ID_TAG_EXTRAUSER).
    */
   IDTYPE_FLAGS_NEVER_UNUSED = 1 << 6,
+  /** This ID type does not support preview generation through render. */
+  IDTYPE_FLAGS_NO_PREVIEW_RENDER = 1 << 7,
 };
 
 struct IDCacheKey {
