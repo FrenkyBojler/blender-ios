@@ -50,8 +50,10 @@ bool check_show_maskedit(SpaceSeq *sseq, Scene *scene);
 bool maskedit_poll(bContext *C);
 
 /*Add description*/
-void mouse_position(Scene *scene, ARegion *region, const int mval[2], float r_co[2]);
-void get_zoom(Scene *scene, ARegion *region, float *r_zoomx, float *r_zoomy);
+void mouse_position(Scene *scene, const ARegion *region, const int mval[2], float r_co[2]);
+void point_position(Scene *scene, const ARegion *region, float x, float y, float *r_x, float *r_y);
+void point_position__reverse(Scene *scene, const ARegion *region, const float *co, float *r_co);
+void get_zoom(Scene *scene, const ARegion *region, float *r_zoomx, float *r_zoomy);
 
 /**
  * Are we displaying the seq output (not channels or histogram).

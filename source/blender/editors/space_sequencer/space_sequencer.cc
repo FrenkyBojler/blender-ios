@@ -1041,10 +1041,18 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
       }
       break;
     case NC_MASK:
-      if (wmn->action == NA_EDITED) {
+    switch(wmn->data) {
+      case ND_SELECT:
         ED_region_tag_redraw(region);
-      }
-      break;
+        break;
+    }
+    switch(wmn->action) {
+      case NA_EDITED:
+      case NA_ADDED:
+        ED_region_tag_redraw(region);
+        break;
+    }
+    break;
   }
 }
 

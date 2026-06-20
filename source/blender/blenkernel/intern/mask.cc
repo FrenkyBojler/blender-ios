@@ -1205,16 +1205,18 @@ void BKE_mask_coord_from_image(Image *image, ImageUser *iuser, float r_co[2], co
   BKE_mask_coord_from_frame(r_co, co, frame_size);
 }
 
-void BKE_mask_coord_from_sequence(Scene *scene, float r_co[2], const float co[2])
+void BKE_mask_coord_from_sequence(Scene *scene, float r_co[2], float co[2])
 {
-  float aspx, aspy;
   int width, height;
   float frame_size[2];
 
-  BKE_render_get_aspect(&scene->r, &aspx, &aspy);
   BKE_render_resolution(&scene->r, false, &width, &height);
   frame_size[0] = static_cast<float>(width);
   frame_size[1] = static_cast<float>(height);
+  // Mask coordinates use a bottom-left origin, while Space Sequence uses a center origin.
+  // Add 0.5f to convert from center-origin to bottom-left-origin coordinates.
+  co[0] += 0.5f;
+  co[1] += 0.5f;
 
   BKE_mask_coord_from_frame(r_co, co, frame_size);
 }
@@ -1267,7 +1269,18 @@ void BKE_mask_coord_to_image(Image *image, ImageUser *iuser, float r_co[2], cons
 }
 
 void BKE_mask_coord_to_sequence(Scene *scene, float r_co[2], const float co[2]) {
-  /*Add Code*/
+  int width, height;
+  float frame_size[2];
+
+  BKE_render_resolution(&scene->r, false, &width, &height);
+  frame_size[0] = static_cast<float>(width);
+  frame_size[1] = static_cast<float>(height);
+
+  BKE_mask_coord_to_frame(r_co, co, frame_size);
+  // Mask coordinates use a bottom-left origin, while Space Sequence uses a center origin.
+  // Subtract 0.5f to convert from bottom-left-origin to center-origin coordinates.
+  r_co[0] -= 0.5f;
+  r_co[1] -= 0.5f;
 }
 
 void BKE_mask_point_parent_matrix_get(MaskSplinePoint *point,

@@ -185,7 +185,7 @@ void BKE_mask_coord_from_movieclip(MovieClip *clip,
                                    float r_co[2],
                                    const float co[2]);
 void BKE_mask_coord_from_image(Image *image, ImageUser *iuser, float r_co[2], const float co[2]);
-void BKE_mask_coord_from_sequence(Scene *scene, float r_co[2], const float co[2]);
+void BKE_mask_coord_from_sequence(Scene *scene, float r_co[2], float co[2]);
 /**
  * Inverse of #BKE_mask_coord_from_image.
  */

@@ -265,7 +265,7 @@ static void sequencer_draw_maskedit(const bContext *C, Scene *scene, ARegion *re
 {
   if (space_sequencer.mode == SEQ_MODE_MASK && space_sequencer.mainb == SEQ_DRAW_IMG_IMBUF) {
     Mask *mask = CTX_data_edit_mask(C);
-    ScrArea *area = CTX_wm_area(C);
+    // ScrArea *area = CTX_wm_area(C);
     /* Strip *act_strip = seq::select_active_get(scene); */
     Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
 

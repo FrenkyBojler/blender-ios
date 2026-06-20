@@ -423,9 +423,6 @@ void MASK_OT_select(wmOperatorType *ot)
 
 static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-
   Mask *mask_orig = CTX_data_edit_mask(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
@@ -444,8 +441,12 @@ static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
   /* get rectangle from operator */
   WM_operator_properties_border_to_rcti(op, &rect);
 
-  ED_mask_point_pos(area, region, rect.xmin, rect.ymin, &rectf.xmin, &rectf.ymin);
-  ED_mask_point_pos(area, region, rect.xmax, rect.ymax, &rectf.xmax, &rectf.ymax);
+  ED_mask_point_pos(C, rect.xmin, rect.ymin, &rectf.xmin, &rectf.ymin);
+  // printf("X min: %d | %f\n", rect.xmin, rectf.xmin);
+  // printf("Y min: %d | %f\n\n", rect.ymin, rectf.ymin);
+  ED_mask_point_pos(C, rect.xmax, rect.ymax, &rectf.xmax, &rectf.ymax);
+  // printf("X max: %d | %f\n", rect.xmax, rectf.xmax);
+  // printf("Y max: %d | %f\n\n", rect.ymax, rectf.ymax);
 
   /* do actual selection */
   for (MaskLayer *mask_layer_orig = static_cast<MaskLayer *>(mask_orig->masklayers.first),
@@ -520,9 +521,6 @@ void MASK_OT_select_box(wmOperatorType *ot)
 
 static bool do_lasso_select_mask(bContext *C, const Span<int2> mcoords, const eSelectOp sel_op)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-
   Mask *mask_orig = CTX_data_edit_mask(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
@@ -570,12 +568,13 @@ static bool do_lasso_select_mask(bContext *C, const Span<int2> mcoords, const eS
         float screen_co[2];
 
         /* point in screen coords */
-        ED_mask_point_pos__reverse(area,
-                                   region,
+        ED_mask_point_pos__reverse(C,
                                    point_deform->bezt.vec[1][0],
                                    point_deform->bezt.vec[1][1],
                                    &screen_co[0],
                                    &screen_co[1]);
+        
+        // printf("Sent: %f | %f\n Get: %f | %f\n\n", point_deform->bezt.vec[1][0], point_deform->bezt.vec[1][1], screen_co[0], screen_co[1]);
 
         if (BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
             BLI_lasso_is_point_inside(mcoords, screen_co[0], screen_co[1], INT_MAX))
@@ -654,9 +653,6 @@ static int mask_spline_point_inside_ellipse(BezTriple *bezt,
 
 static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-
   Mask *mask_orig = CTX_data_edit_mask(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
@@ -678,7 +674,7 @@ static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
   ellipse[0] = width * zoomx / radius;
   ellipse[1] = height * zoomy / radius;
 
-  ED_mask_point_pos(area, region, x, y, &offset[0], &offset[1]);
+  ED_mask_point_pos(C, x, y, &offset[0], &offset[1]);
 
   const eSelectOp sel_op = ED_select_op_modal(
       eSelectOp(RNA_enum_get(op->ptr, "mode")),

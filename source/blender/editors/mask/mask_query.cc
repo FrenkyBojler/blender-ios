@@ -494,10 +494,6 @@ void ED_mask_mouse_pos(const bContext *C, const int mval[2], float r_co[2])
       case SPACE_SEQ: {
         Scene *scene = CTX_data_sequencer_scene(C);
         ed::vse::mouse_position(scene, region, mval, r_co);
-        // Mask coordinates use a bottom-left origin, while Space Sequence uses a center origin.
-        // Add 0.5f to convert from center-origin to bottom-left-origin coordinates.
-        r_co[0] += 0.5f;
-        r_co[1] += 0.5f;
         BKE_mask_coord_from_sequence(scene, r_co, r_co);
         break;
       }
@@ -521,8 +517,10 @@ void ED_mask_mouse_pos(const bContext *C, const int mval[2], float r_co[2])
   }
 }
 
-void ED_mask_point_pos(ScrArea *area, ARegion *region, float x, float y, float *r_x, float *r_y)
+void ED_mask_point_pos(const bContext *C, float x, float y, float *r_x, float *r_y)
 {
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
   float co[2];
 
   if (area) {
@@ -533,9 +531,12 @@ void ED_mask_point_pos(ScrArea *area, ARegion *region, float x, float y, float *
         BKE_mask_coord_from_movieclip(sc->clip, &sc->user, co, co);
         break;
       }
-      case SPACE_SEQ:
-        zero_v2(co); /* MASKTODO */
+      case SPACE_SEQ: {
+        Scene *scene = CTX_data_sequencer_scene(C);
+        ed::vse::point_position(scene, region, x, y, &co[0], &co[1]);
+        BKE_mask_coord_from_sequence(scene, co, co);
         break;
+      }
       case SPACE_IMAGE: {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
         ED_image_point_pos(sima, region, x, y, &co[0], &co[1]);
@@ -559,8 +560,10 @@ void ED_mask_point_pos(ScrArea *area, ARegion *region, float x, float y, float *
 }
 
 void ED_mask_point_pos__reverse(
-    ScrArea *area, ARegion *region, float x, float y, float *r_x, float *r_y)
+    const bContext *C, float x, float y, float *r_x, float *r_y)
 {
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
   float co[2];
 
   if (area) {
@@ -573,9 +576,14 @@ void ED_mask_point_pos__reverse(
         ED_clip_point_stable_pos__reverse(sc, region, co, co);
         break;
       }
-      case SPACE_SEQ:
-        zero_v2(co); /* MASKTODO */
+      case SPACE_SEQ: {
+        Scene *scene = CTX_data_sequencer_scene(C);
+        co[0] = x;
+        co[1] = y;
+        BKE_mask_coord_to_sequence(scene, co, co);
+        ed::vse::point_position__reverse(scene, region, co, co);
         break;
+      }
       case SPACE_IMAGE: {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
         co[0] = x;
@@ -721,7 +729,7 @@ void ED_mask_get_size(const bContext *C, int *r_width, int *r_height)
         break;
       }
       case SPACE_SEQ: {
-        Scene *scene = CTX_data_scene(C);
+        Scene *scene = CTX_data_sequencer_scene(C);
         BKE_render_resolution(&scene->r, false, r_width, r_height);
         break;
       }
@@ -758,7 +766,7 @@ void ED_mask_zoom(const bContext *C, float *r_zoomx, float *r_zoomy)
         break;
       }
       case SPACE_SEQ: {
-        Scene *scene = CTX_data_scene(C);
+        Scene *scene = CTX_data_sequencer_scene(C);
         ed::vse::get_zoom(scene, region, r_zoomx, r_zoomy);
         break;
       }
@@ -792,7 +800,7 @@ void ED_mask_get_aspect(const bContext *C, float *r_aspx, float *r_aspy)
         break;
       }
       case SPACE_SEQ: {
-        Scene *scene = CTX_data_scene(C);
+        Scene *scene = CTX_data_sequencer_scene(C);
         BKE_render_get_aspect(&scene->r, r_aspx, r_aspy);
         break;
       }
@@ -833,7 +841,7 @@ void ED_mask_pixelspace_factor(const bContext *C, float *r_scalex, float *r_scal
         break;
       }
       case SPACE_SEQ: {
-        Scene *scene = CTX_data_scene(C);
+        Scene *scene = CTX_data_sequencer_scene(C);
         float aspx, aspy;
         int width, height;
 
@@ -879,7 +887,11 @@ void ED_mask_cursor_location_get(ScrArea *area, float cursor[2])
         break;
       }
       case SPACE_SEQ: {
-        zero_v2(cursor);
+        SpaceSeq *space_seq = static_cast<SpaceSeq *>(area->spacedata.first);
+        // Mask coordinates use a bottom-left origin, while Space Sequence uses a center origin.
+        // Add 0.5f to convert from center-origin to bottom-left-origin coordinates.
+        float mask_cursor[2] = {(space_seq->cursor[0] + 0.5f), (space_seq->cursor[1] + 0.5f)};
+        copy_v2_v2(cursor, mask_cursor);
         break;
       }
       case SPACE_IMAGE: {

@@ -8864,6 +8864,66 @@ def km_sequencer_preview_tool_generic_select_circle(params, *, fallback):
     )
 
 
+def km_sequencer_editor_tool_mask_select(params, *, fallback):
+    return (
+        _fallback_id("Sequence Editor Tool: Mask, Tweak", fallback),
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and (params.select_mouse == 'RIGHTMOUSE')) else _template_items_tool_select(
+                params, "mask.select", "sequencer.cursor_set", fallback=fallback)),
+                
+            *([] if params.use_fallback_tool_select_handled else
+              _template_mask_select(
+                  type=params.select_mouse,
+                  value=params.select_mouse_value,
+                  select_passthrough=params.use_tweak_select_passthrough,
+                  legacy=params.legacy,
+            )),
+        ]},
+    )
+
+
+def km_sequencer_editor_tool_mask_select_box(params, *, fallback):
+    return (
+        _fallback_id("Sequence Editor Tool: Mask, Select Box", fallback),
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "mask.select_box",
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   params.tool_tweak_event))),
+        ]},
+    )
+
+
+def km_sequencer_editor_tool_mask_select_lasso(params, *, fallback):
+    return (
+        _fallback_id("Sequence Editor Tool: Mask, Select Lasso", fallback),
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "mask.select_lasso",
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   params.tool_tweak_event))),
+        ]},
+    )
+
+
+def km_sequencer_editor_tool_mask_select_circle(params, *, fallback):
+    return (
+        _fallback_id("Sequence Editor Tool: Mask, Select Circle", fallback),
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "mask.select_circle",
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   {"type": params.tool_mouse, "value": 'PRESS'}),
+                properties=[("wait_for_input", False)])),
+        ]},
+    )
+
+
 def km_sequencer_preview_tool_generic_cursor(params):
     return (
         "Preview Tool: Cursor",
@@ -9291,6 +9351,14 @@ def generate_keymaps(params=None):
         *(km_sequencer_preview_tool_generic_select_circle(params, fallback=fallback)
           for fallback in (False, True)),
         *(km_sequencer_tool_generic_select_circle(params, fallback=fallback)
+          for fallback in (False, True)),
+        *(km_sequencer_editor_tool_mask_select(params, fallback=fallback)
+          for fallback in (False, True)),
+        *(km_sequencer_editor_tool_mask_select_box(params, fallback=fallback)
+          for fallback in (False, True)),
+        *(km_sequencer_editor_tool_mask_select_lasso(params, fallback=fallback)
+          for fallback in (False, True)),
+        *(km_sequencer_editor_tool_mask_select_circle(params, fallback=fallback)
           for fallback in (False, True)),
         km_sequencer_tool_blade(params),
         km_sequencer_tool_slip(params),

@@ -137,22 +137,50 @@ void sequencer_strip_set_mask_modifier(Strip *strip, Mask* mask) {
 }
 */
 
-void mouse_position(Scene *scene, ARegion *region, const int mval[2], float r_co[2])
+void mouse_position(Scene *scene, const ARegion *region, const int mval[2], float r_co[2])
 {
   int sx, sy, height, width;
   float zoomx, zoomy;
   float aspx, aspy;
   
+  ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
   BKE_render_resolution(&scene->r, false, &width, &height);
   BKE_render_get_aspect(&scene->r, &aspx, &aspy);
-  ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
   get_zoom(scene, region, &zoomx, &zoomy);
 
-  r_co[0] = (((mval[0] - sx) / zoomx) / (width * aspx));
-  r_co[1] = (((mval[1] - sy) / zoomy) / (height * aspy));
+  r_co[0] = ((mval[0] - sx) / zoomx) / (width * aspx);
+  r_co[1] = ((mval[1] - sy) / zoomy) / (height * aspy);
 }
 
-void get_zoom(Scene *scene, ARegion *region, float *r_zoomx, float *r_zoomy)
+void point_position(Scene *scene, const ARegion *region, float x, float y, float *r_x, float *r_y) {
+  int sx, sy, width, height;
+  float zoomx, zoomy;
+  float aspx, aspy;
+
+  ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  BKE_render_resolution(&scene->r, false, &width, &height);
+  BKE_render_get_aspect(&scene->r, &aspx, &aspy);
+  get_zoom(scene, region, &zoomx, &zoomy);
+
+  *r_x = ((x - sx) / zoomx) / (width * aspx);
+  *r_y = ((y - sy) / zoomy) / (height * aspy);
+}
+
+void point_position__reverse(Scene *scene, const ARegion *region, const float *co, float *r_co) {
+  int sx, sy, width, height;
+  float zoomx, zoomy;
+  float aspx, aspy;
+
+  ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  BKE_render_resolution(&scene->r, false, &width, &height);
+  BKE_render_get_aspect(&scene->r, &aspx, &aspy);
+  get_zoom(scene, region, &zoomx, &zoomy);
+
+  r_co[0] = co[0] * (width * aspx) * zoomx + static_cast<float>(sx);
+  r_co[1] = co[1] * (height * aspy) * zoomy + static_cast<float>(sy);
+}
+
+void get_zoom(Scene *scene, const ARegion *region, float *r_zoomx, float *r_zoomy)
 {
   int width, height;
   BKE_render_resolution(&scene->r, false, &width, &height);

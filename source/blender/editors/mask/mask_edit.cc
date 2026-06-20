@@ -82,7 +82,7 @@ bool ED_maskedit_mask_visible_splines_poll(bContext *C)
       case SPACE_CLIP:
         return ED_space_clip_maskedit_mask_visible_splines_poll(C);
       case SPACE_SEQ:
-        return ed::vse::maskedit_mask_poll(C);
+        return ed::vse::maskedit_mask_poll(C);  // Need New Poll?
       case SPACE_IMAGE:
         return ED_space_image_maskedit_mask_visible_splines_poll(C);
     }

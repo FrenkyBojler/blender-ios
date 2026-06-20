@@ -84,9 +84,9 @@ void ED_mask_mouse_pos(const bContext *C, const int mval[2], float r_co[2]);
  * \param x, y: input, mval space.
  * \param r_x, r_y: output, mask point space.
  */
-void ED_mask_point_pos(ScrArea *area, ARegion *region, float x, float y, float *r_x, float *r_y);
+void ED_mask_point_pos(const bContext *C, float x, float y, float *r_x, float *r_y);
 void ED_mask_point_pos__reverse(
-    ScrArea *area, ARegion *region, float x, float y, float *r_x, float *r_y);
+    const bContext *C, float x, float y, float *r_x, float *r_y);
 
 void ED_mask_cursor_location_get(ScrArea *area, float cursor[2]);
 
