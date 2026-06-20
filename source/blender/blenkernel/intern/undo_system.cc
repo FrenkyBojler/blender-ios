@@ -10,7 +10,6 @@
 
 #include <cstdio>
 #include <cstring>
-#include <string>
 
 #include "CLG_log.h"
 
@@ -70,15 +69,6 @@ const UndoType *BKE_UNDOSYS_TYPE_SCULPT = nullptr;
 const UndoType *BKE_UNDOSYS_TYPE_TEXT = nullptr;
 
 ListBaseT<UndoType> g_undo_types = {nullptr, nullptr};
-
-static std::string undosys_name_to_identifier(const char *name)
-{
-  std::string identifier(name);
-  for (char &c : identifier) {
-    c = (c == ' ') ? '_' : BLI_toupper_ascii(c);
-  }
-  return identifier;
-}
 
 /* An unused function with public linkage just to ensure symbols from the blender_undo.cc are not
  * stripped. */
@@ -173,7 +163,7 @@ static void undosys_id_ref_resolve(void *user_data, UndoRefID *id_ref)
 
 static bool undosys_step_encode(bContext *C, Main *bmain, UndoStack *ustack, UndoStep *us)
 {
-  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->identifier);
   UNDO_NESTED_CHECK_BEGIN;
   bool ok = us->type->step_encode(C, bmain, us);
   UNDO_NESTED_CHECK_END;
@@ -203,7 +193,7 @@ static void undosys_step_decode(bContext *C,
                                 const eUndoStepDir dir,
                                 bool is_final)
 {
-  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->identifier);
 
   if (us->type->step_foreach_ID_ref) {
 #ifdef WITH_GLOBAL_UNDO_CORRECT_ORDER
@@ -243,7 +233,7 @@ static void undosys_step_decode(bContext *C,
 
 static void undosys_step_free_and_unlink(UndoStack *ustack, UndoStep *us)
 {
-  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+  CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->identifier);
   UNDO_NESTED_CHECK_BEGIN;
   us->type->step_free(us);
   UNDO_NESTED_CHECK_END;
@@ -512,8 +502,8 @@ UndoStep *BKE_undosys_step_push_init_with_type(UndoStack *ustack,
     }
     us->type = ut;
     ustack->step_init = us;
-    CLOG_INFO(&LOG, "Initialize type='%s'", ut->name);
-    CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+    CLOG_INFO(&LOG, "Initialize type='%s'", ut->identifier);
+    CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->identifier);
     ut->step_encode_init(C, us);
     undosys_stack_validate(ustack, false);
     return us;
@@ -600,7 +590,7 @@ eUndoPushReturn BKE_undosys_step_push_with_type(UndoStack *ustack,
     us->use_old_bmain_data = true;
     /* Initialized, not added yet. */
 
-    CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->name);
+    CLOG_DEBUG(&LOG, "addr=%p, name='%s', type='%s'", us, us->name, us->type->identifier);
 
     if (!undosys_step_encode(C, G_MAIN, ustack, us)) {
       MEM_delete(us);
@@ -810,7 +800,7 @@ bool BKE_undosys_step_load_data_ex(UndoStack *ustack,
              "addr=%p, name='%s', type='%s', undo_dir=%d",
              us_target,
              us_target->name,
-             us_target->type->name,
+             us_target->type->identifier,
              undo_dir);
 
   /* Undo/Redo steps until we reach given target step (or beyond if it has to be skipped),
@@ -829,7 +819,7 @@ bool BKE_undosys_step_load_data_ex(UndoStack *ustack,
                  "undo/redo continue with skip addr=%p, name='%s', type='%s'",
                  us_iter,
                  us_iter->name,
-                 us_iter->type->name);
+                 us_iter->type->identifier);
     }
 
     undosys_step_decode(C, G_MAIN, ustack, us_iter, undo_dir, is_final);
@@ -928,8 +918,6 @@ UndoType *BKE_undosys_type_append(void (*undosys_fn)(UndoType *))
 
   undosys_fn(ut);
 
-  ut->identifier = undosys_name_to_identifier(ut->name);
-
   BLI_addtail(&g_undo_types, ut);
 
   return ut;
@@ -1024,7 +1012,7 @@ void BKE_undosys_print(UndoStack *ustack)
            us.skip ? 'S' : ' ',
            index,
            static_cast<void *>(&us),
-           us.type->name,
+           us.type->identifier,
            us.name);
     index++;
   }

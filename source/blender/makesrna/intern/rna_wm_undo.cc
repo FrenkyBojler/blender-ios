@@ -6,9 +6,8 @@
  * \ingroup RNA
  */
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_undo_system.hh"
 #include "DNA_windowmanager_types.h"
@@ -93,8 +92,8 @@ static const EnumPropertyItem *rna_UndoStep_type_itemf(bContext * /*C*/,
 
   for (const UndoType *ut = static_cast<UndoType *>(g_undo_types.first); ut; ut = ut->next, a++) {
     tmp.value = a;
-    tmp.identifier = ut->identifier.c_str();
-    tmp.name = ut->name;
+    tmp.identifier = ut->identifier;
+    tmp.name = ut->identifier;
     RNA_enum_item_add(&item, &totitem, &tmp);
   }
 

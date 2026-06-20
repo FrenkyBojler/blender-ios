@@ -7,8 +7,6 @@
  * \ingroup bke
  */
 
-#include <string>
-
 #include "BLI_enum_flags.hh"
 #include "BLI_path_utils.hh"
 
@@ -112,13 +110,11 @@ using UndoTypeForEachIDRefFn = void (*)(void *user_data, UndoRefID *id_ref);
 
 struct UndoType {
   UndoType *next, *prev;
-  /** A simple readable name for the undo type. */
-  const char *name;
   /**
-   * A normalized version of the name, used to create the enum identifier in the RNA.
-   * Computed from name at registration. e.g. Edit Armature -> EDIT_ARMATURE
+   * Identifier for the undo type, also exposed as the RNA enum identifier.
+   * Use upper-case with underscore separated words (e.g. "EDIT_ARMATURE").
    */
-  std::string identifier;
+  const char *identifier;
 
   /**
    * When undefined, we don't consider this undo type for context checks.
@@ -358,7 +354,7 @@ UndoStep *BKE_undosys_step_same_type_prev(UndoStep *us);
 
 /* Type System. */
 
-/** All registered undo types.*/
+/** All registered undo types. */
 extern ListBaseT<UndoType> g_undo_types;
 
 /**
