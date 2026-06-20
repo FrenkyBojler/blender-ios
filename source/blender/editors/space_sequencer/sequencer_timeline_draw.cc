@@ -9,15 +9,15 @@
 
 #include <cmath>
 
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
+#include "BLI_threads.hh"
+#include "BLI_utildefines.hh"
 
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -43,6 +43,8 @@
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
+
+#include "PRF_profile.hh"
 
 #include "RNA_prototypes.hh"
 
@@ -455,6 +457,8 @@ static void draw_seq_waveform_overlay(const TimelineDrawContext &ctx,
     return;
   }
 
+  PRF_scope_with_name("SeqTimelineWaveform", ProfileCategory::Draw);
+
   const View2D *v2d = ctx.v2d;
   Scene *scene = ctx.scene;
   Strip *strip = strip_ctx.strip;
@@ -638,7 +642,7 @@ static void drawmeta_contents(const TimelineDrawContext &ctx,
 
   ListBaseT<Strip> *meta_seqbase = get_seqbase_from_strip(strip_meta, &meta_channels, &offset);
 
-  if (!meta_seqbase || BLI_listbase_is_empty(meta_seqbase)) {
+  if (!meta_seqbase || meta_seqbase->is_empty()) {
     return;
   }
 
@@ -1133,6 +1137,8 @@ static void draw_seq_fcurve_overlay(const TimelineDrawContext &ctx,
     return;
   }
 
+  PRF_scope_with_name("SeqTimelineFCurve", ProfileCategory::Draw);
+
   const int eval_step = max_ii(1, floor(ctx.pixelx));
   uchar color[4] = {0, 0, 0, 38};
 
@@ -1547,6 +1553,8 @@ static void draw_seq_strips(const TimelineDrawContext &ctx,
     return;
   }
 
+  PRF_scope_with_name("SeqTimelineStrips", ProfileCategory::Draw);
+
   ui::view2d_view_ortho(ctx.v2d);
 
   /* Draw parts of strips below thumbnails. */
@@ -1647,7 +1655,7 @@ static void draw_timeline_sfra_efra(const TimelineDrawContext &ctx)
   ctx.quads->draw();
 
   /* While in meta strip, draw a checkerboard overlay outside of frame range. */
-  if (ed && !BLI_listbase_is_empty(&ed->metastack)) {
+  if (ed && !ed->metastack.is_empty()) {
     const MetaStack *ms = static_cast<const MetaStack *>(ed->metastack.last);
 
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -1878,6 +1886,8 @@ static void draw_timeline_post_view_callbacks(const TimelineDrawContext &ctx)
 
 void draw_timeline_seq(const bContext *C, const ARegion *region)
 {
+  PRF_scope_with_name("SeqTimelineDraw", ProfileCategory::Draw);
+
   SeqQuadsBatch quads_batch;
   TimelineDrawContext ctx = timeline_draw_context_get(C, &quads_batch);
   StripsDrawBatch strips_batch(ctx.v2d);

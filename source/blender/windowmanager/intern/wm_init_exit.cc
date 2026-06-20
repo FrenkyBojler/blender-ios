@@ -21,14 +21,14 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_memory_cache.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_task.h"
-#include "BLI_threads.h"
-#include "BLI_timer.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_task_c.hh"
+#include "BLI_threads.hh"
+#include "BLI_timer.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLO_undofile.hh"
 #include "BLO_writefile.hh"
@@ -40,6 +40,7 @@
 #include "BKE_global.hh"
 #include "BKE_icons.hh"
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
@@ -89,6 +90,7 @@
 #include "ED_asset.hh"
 #include "ED_gpencil_legacy.hh"
 #include "ED_grease_pencil.hh"
+#include "ED_image.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_keyframing.hh"
 #include "ED_node.hh"
@@ -296,7 +298,7 @@ void WM_init(bContext *C, int argc, const char **argv)
     if (wm != nullptr) {
       wm_window_ghostwindows_remove_invalid(C, wm);
     }
-    if (wm == nullptr || BLI_listbase_is_empty(&wm->windows)) {
+    if (wm == nullptr || wm->windows.is_empty()) {
       if (params_file_read_post != nullptr) {
         MEM_delete_void(static_cast<void *>(params_file_read_post));
         params_file_read_post = nullptr;
@@ -406,7 +408,7 @@ void WM_init_splash(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   /* NOTE(@ideasman42): this should practically never happen. */
-  if (UNLIKELY(BLI_listbase_is_empty(&wm->windows))) {
+  if (wm->windows.is_empty()) [[unlikely]] {
     return;
   }
 
@@ -501,6 +503,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
       BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
       ED_editors_flush_edits(bmain);
+      ED_image_internal_autosave_flush(bmain);
 
       BlendFileWriteParams blend_file_write_params{};
       if (BLO_write_file(bmain, filepath, fileflags, &blend_file_write_params, nullptr)) {
@@ -609,10 +612,6 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
   bke::subdiv::exit();
 
-  if (gpu_is_init) {
-    BKE_image_free_unused_gpu_textures();
-  }
-
   /* Frees the entire library (#G_MAIN) and space-types. */
   BKE_blender_free();
 
@@ -673,6 +672,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
     DRW_gpu_context_enable_ex(false);
     ui::exit();
     GPU_shader_cache_dir_clear_old();
+    BKE_image_free_gpu_fallback();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
     DRW_gpu_context_destroy();

@@ -19,10 +19,20 @@ namespace blender::nodes::node_geo_input_shortest_edge_paths_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>("End Vertex"_ustr).default_value(false).hide_value().supports_field();
-  b.add_input<decl::Float>("Edge Cost"_ustr).default_value(1.0f).hide_value().supports_field();
-  b.add_output<decl::Int>("Next Vertex Index"_ustr).field_source().reference_pass_all();
-  b.add_output<decl::Float>("Total Cost"_ustr).field_source().reference_pass_all();
+  b.add_input<decl::Bool>("End Vertex"_ustr)
+      .default_value(false)
+      .hide_value()
+      .structure_type(StructureType::Field);
+  b.add_input<decl::Float>("Edge Cost"_ustr)
+      .default_value(1.0f)
+      .hide_value()
+      .structure_type(StructureType::Field);
+  b.add_output<decl::Int>("Next Vertex Index"_ustr)
+      .structure_type(StructureType::Field)
+      .propagate_references();
+  b.add_output<decl::Float>("Total Cost"_ustr)
+      .structure_type(StructureType::Field)
+      .propagate_references();
 }
 
 using VertPriority = std::pair<float, int>;
@@ -264,6 +274,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
+  ntype.default_width = bke::NodeWidth::_160;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

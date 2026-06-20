@@ -10,7 +10,7 @@
 
 #include <optional>
 
-#include "BLI_compiler_compat.h"
+#include "BLI_compiler_compat.hh"
 #include "BLI_span.hh"
 
 #include "BKE_node_socket_value_fwd.hh"
@@ -237,7 +237,7 @@ struct NodeInsertLinkParams {
   bContext *C = nullptr;
 };
 
-/** Common node widths for easy searchability. */
+/** Common node widths for easy search-ability. */
 struct NodeWidth {
   /* Generally a multiple of 20 is used because it matches the grid width.
    * Also see #NODE_GRID_STEP_SIZE. */
@@ -531,6 +531,18 @@ struct bNodeTreeType {
   std::string ui_name;
   std::string ui_description;
   int ui_icon = 0;
+
+  /**
+   * When set, menus will ignore this path prefix to determine where assets and catalogs are
+   * placed in the hierarchy. For example, setting this to "My Nodes" means a "My Nodes/Utils"
+   * catalog path will be treated as if it was just "Utils". This way the catalog hierarchy can
+   * still have some high level categorization, without affecting menus.
+   *
+   * Note that multiple path segments can be defined to skip multiple parents, for example
+   * "Nodes/Geometry Nodes" to treat assets and catalogs under "Nodes/Geometry Nodes" as root
+   * level.
+   */
+  std::optional<std::string> asset_catalog_path_prefix;
 
   /* callbacks */
   /* Iteration over all node classes. */
@@ -889,7 +901,7 @@ void node_type_storage(bNodeType &ntype,
  *
  * FOREACH_NODETREE_BEGIN(bmain, nodetree, id) {
  *     if (nodetree->idname == "ShaderNodeTree")
- *         printf("This is a shader node tree);
+ *         printf("This is a shader node tree");
  *     if (GS(id) == ID_MA)
  *         printf(" and it's owned by a material");
  * } FOREACH_NODETREE_END;
