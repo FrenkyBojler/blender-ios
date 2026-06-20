@@ -1157,7 +1157,7 @@ static float3 offset_meet(const ExtendableMesh &emesh,
     dir2p = v_co - emesh.vert_position(geom::edge_other_vert(emesh, e2prev->e, v));
   }
 
-  float ang = math::safe_acos(math::dot(math::normalize(dir1), math::normalize(dir2)));
+  float ang = angle_v3v3(dir1, dir2);
   float3 norm_perp1;
   float3 meetco;
   if (ang < BEVEL_EPSILON_ANG) {
