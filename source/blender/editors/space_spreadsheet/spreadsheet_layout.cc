@@ -589,23 +589,32 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
 
 template<typename T>
 static float estimate_max_column_width(const float min_width,
+                                       const std::optional<int64_t> max_sample_size,
+                                       const VArray<T> &data,
+                                       FunctionRef<float(const T &)> get_width)
+{
+  if (const std::optional<T> value = data.get_if_single()) {
+    return std::max(min_width, get_width(*value));
+  }
+  const int sample_size = max_sample_size.value_or(data.size());
+  float width = min_width;
+  for (const int i : data.index_range().take_front(sample_size)) {
+    width = std::max(width, get_width(data[i]));
+  }
+  return width;
+}
+
+template<typename T>
+static float estimate_max_column_width(const float min_width,
                                        const int fontid,
                                        const std::optional<int64_t> max_sample_size,
                                        const VArray<T> &data,
                                        FunctionRef<std::string(const T &)> to_string)
 {
-  if (const std::optional<T> value = data.get_if_single()) {
-    const std::string str = to_string(*value);
-    return std::max(min_width, BLF_width(fontid, str.c_str(), str.size()));
-  }
-  const int sample_size = max_sample_size.value_or(data.size());
-  float width = min_width;
-  for (const int i : data.index_range().take_front(sample_size)) {
-    const std::string str = to_string(data[i]);
-    const float value_width = BLF_width(fontid, str.c_str(), str.size());
-    width = std::max(width, value_width);
-  }
-  return width;
+  return estimate_max_column_width<T>(min_width, max_sample_size, data, [&](const T &value) {
+    const std::string str = to_string(value);
+    return BLF_width(fontid, str.c_str(), str.size());
+  });
 }
 
 float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max_sample_size) const
@@ -616,6 +625,11 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
   auto get_min_width = [&](const float min_width) {
     return max_sample_size.has_value() ? min_width : 0.0f;
   };
+
+  auto string_width = [&](const std::string &str) {
+    return BLF_width(fontid, str.c_str(), str.size());
+  };
+  const float space_width = string_width("  ");
 
   const eSpreadsheetColumnValueType column_type = this->type();
   switch (column_type) {
@@ -662,87 +676,111 @@ float ColumnValues::fit_column_values_width_px(const std::optional<int64_t> &max
     }
     case SPREADSHEET_VALUE_TYPE_INT32_2D: {
       if (data_.type().is<short2>()) {
-        return estimate_max_column_width<short2>(
-            get_min_width(6 * SPREADSHEET_WIDTH_UNIT),
-            fontid,
-            max_sample_size,
-            data_.typed<short2>(),
-            [](const short2 value) { return fmt::format("{}  {}", value.x, value.y); });
+        return estimate_max_column_width<short2>(get_min_width(6 * SPREADSHEET_WIDTH_UNIT),
+                                                 max_sample_size,
+                                                 data_.typed<short2>(),
+                                                 [&](const short2 value) {
+                                                   const float w = std::max(
+                                                       {string_width(fmt::format("{}", value.x)),
+                                                        string_width(fmt::format("{}", value.y))});
+                                                   return w * 2.0f + space_width;
+                                                 });
       }
-      return estimate_max_column_width<int2>(
-          get_min_width(6 * SPREADSHEET_WIDTH_UNIT),
-          fontid,
-          max_sample_size,
-          data_.typed<int2>(),
-          [](const int2 value) { return fmt::format("{}  {}", value.x, value.y); });
+      return estimate_max_column_width<int2>(get_min_width(6 * SPREADSHEET_WIDTH_UNIT),
+                                             max_sample_size,
+                                             data_.typed<int2>(),
+                                             [&](const int2 value) {
+                                               const float w = std::max(
+                                                   {string_width(fmt::format("{}", value.x)),
+                                                    string_width(fmt::format("{}", value.y))});
+                                               return w * 2.0f + space_width;
+                                             });
     }
     case SPREADSHEET_VALUE_TYPE_INT32_3D: {
-      return estimate_max_column_width<int3>(
-          get_min_width(9 * SPREADSHEET_WIDTH_UNIT),
-          fontid,
-          max_sample_size,
-          data_.typed<int3>(),
-          [](const int3 value) { return fmt::format("{}  {}  {}", value.x, value.y, value.z); });
+      return estimate_max_column_width<int3>(get_min_width(9 * SPREADSHEET_WIDTH_UNIT),
+                                             max_sample_size,
+                                             data_.typed<int3>(),
+                                             [&](const int3 value) {
+                                               const float w = std::max(
+                                                   {string_width(fmt::format("{}", value.x)),
+                                                    string_width(fmt::format("{}", value.y)),
+                                                    string_width(fmt::format("{}", value.z))});
+                                               return w * 3.0f + space_width * 2.0f;
+                                             });
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT2: {
       return estimate_max_column_width<float2>(
           get_min_width(6 * SPREADSHEET_WIDTH_UNIT),
-          fontid,
           max_sample_size,
           data_.typed<float2>(),
-          [](const float2 value) { return fmt::format("{:.3f}  {:.3f}", value.x, value.y); });
+          [&](const float2 value) {
+            const float w = std::max({string_width(fmt::format("{:.3f}", value.x)),
+                                      string_width(fmt::format("{:.3f}", value.y))});
+            return w * 2.0f + space_width;
+          });
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT3: {
       return estimate_max_column_width<float3>(
           get_min_width(9 * SPREADSHEET_WIDTH_UNIT),
-          fontid,
           max_sample_size,
           data_.typed<float3>(),
-          [](const float3 value) {
-            return fmt::format("{:.3f}  {:.3f}  {:.3f}", value.x, value.y, value.z);
+          [&](const float3 value) {
+            const float w = std::max({string_width(fmt::format("{:.3f}", value.x)),
+                                      string_width(fmt::format("{:.3f}", value.y)),
+                                      string_width(fmt::format("{:.3f}", value.z))});
+            return w * 3.0f + space_width * 2.0f;
           });
     }
     case SPREADSHEET_VALUE_TYPE_FLOAT4: {
       return estimate_max_column_width<float4>(
           get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
-          fontid,
           max_sample_size,
           data_.typed<float4>(),
-          [](const float4 value) {
-            return fmt::format(
-                "{:.3f}  {:.3f}  {:.3f}  {:.3f}", value.x, value.y, value.z, value.w);
+          [&](const float4 value) {
+            const float w = std::max({string_width(fmt::format("{:.3f}", value.x)),
+                                      string_width(fmt::format("{:.3f}", value.y)),
+                                      string_width(fmt::format("{:.3f}", value.z)),
+                                      string_width(fmt::format("{:.3f}", value.w))});
+            return w * 4.0f + space_width * 3.0f;
           });
     }
     case SPREADSHEET_VALUE_TYPE_COLOR: {
       return estimate_max_column_width<ColorGeometry4f>(
           get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
-          fontid,
           max_sample_size,
           data_.typed<ColorGeometry4f>(),
-          [](const ColorGeometry4f value) {
-            return fmt::format(
-                "{:.3f}  {:.3f}  {:.3f}  {:.3f}", value.r, value.g, value.b, value.a);
+          [&](const ColorGeometry4f value) {
+            const float w = std::max({string_width(fmt::format("{:.3f}", value.r)),
+                                      string_width(fmt::format("{:.3f}", value.g)),
+                                      string_width(fmt::format("{:.3f}", value.b)),
+                                      string_width(fmt::format("{:.3f}", value.a))});
+            return w * 4.0f + space_width * 3.0f;
           });
     }
     case SPREADSHEET_VALUE_TYPE_BYTE_COLOR: {
       return estimate_max_column_width<ColorGeometry4b>(
           get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
-          fontid,
           max_sample_size,
           data_.typed<ColorGeometry4b>(),
-          [](const ColorGeometry4b value) {
-            return fmt::format("{}  {}  {}  {}", value.r, value.g, value.b, value.a);
+          [&](const ColorGeometry4b value) {
+            const float w = std::max({string_width(fmt::format("{}", value.r)),
+                                      string_width(fmt::format("{}", value.g)),
+                                      string_width(fmt::format("{}", value.b)),
+                                      string_width(fmt::format("{}", value.a))});
+            return w * 4.0f + space_width * 3.0f;
           });
     }
     case SPREADSHEET_VALUE_TYPE_QUATERNION: {
       return estimate_max_column_width<math::Quaternion>(
           get_min_width(12 * SPREADSHEET_WIDTH_UNIT),
-          fontid,
           max_sample_size,
           data_.typed<math::Quaternion>(),
-          [](const math::Quaternion value) {
-            return fmt::format(
-                "{:.3f}  {:.3f}  {:.3f}  {:.3f}", value.x, value.y, value.z, value.w);
+          [&](const math::Quaternion value) {
+            const float w = std::max({string_width(fmt::format("{:.3f}", value.x)),
+                                      string_width(fmt::format("{:.3f}", value.y)),
+                                      string_width(fmt::format("{:.3f}", value.z)),
+                                      string_width(fmt::format("{:.3f}", value.w))});
+            return w * 4.0f + space_width * 3.0f;
           });
     }
     case SPREADSHEET_VALUE_TYPE_INSTANCES: {
