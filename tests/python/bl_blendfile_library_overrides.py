@@ -127,6 +127,68 @@ class TestLibraryOverrides(TestHelper):
         self.assertEqual(override_operation.subitem_local_index, -1)
 
 
+class TestLibraryOverridesMaterials(TestHelper):
+    # Materials overridden at the object level must be resolved by
+    # `Object.to_mesh()` instead of the ones from the mesh data. See #146649.
+
+    DATA_NAME = "LibMatMesh"
+    MATERIAL_DATA_0 = "LibMatData_0"
+    MATERIAL_DATA_1 = "LibMatData_1"
+    MATERIAL_OVERRIDE = "MatOverride"
+
+    def __init__(self, args):
+        super().__init__(args)
+
+        output_dir = pathlib.Path(self.args.output_dir)
+        self.ensure_path(str(output_dir))
+        self.output_path = output_dir / "blendlib_overrides_materials.blend"
+
+        bpy.ops.wm.read_homefile(use_empty=True, use_factory_startup=True)
+        mesh = bpy.data.meshes.new(TestLibraryOverridesMaterials.DATA_NAME)
+        mesh.from_pydata([(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)], [], [(0, 1, 2)])
+        mesh.materials.append(bpy.data.materials.new(TestLibraryOverridesMaterials.MATERIAL_DATA_0))
+        mesh.materials.append(bpy.data.materials.new(TestLibraryOverridesMaterials.MATERIAL_DATA_1))
+        obj = bpy.data.objects.new(TestLibraryOverridesMaterials.DATA_NAME, object_data=mesh)
+        bpy.context.collection.objects.link(obj)
+
+        bpy.ops.wm.save_as_mainfile(filepath=str(self.output_path), check_existing=False, compress=False)
+
+    def test_to_mesh_object_material(self):
+        bpy.ops.wm.read_homefile(use_empty=True, use_factory_startup=True)
+        bpy.data.orphans_purge()
+
+        link_dir = self.output_path / "Object"
+        bpy.ops.wm.link(directory=str(link_dir), filename=TestLibraryOverridesMaterials.DATA_NAME)
+
+        obj = bpy.data.objects[TestLibraryOverridesMaterials.DATA_NAME]
+        local_obj = obj.override_create(remap_local_usages=True)
+        self.assertIsNotNone(local_obj.override_library)
+
+        # Material assignments on a liboverride happen at the object level, the
+        # mesh data (and its material slots) remains linked.
+        mat_override = bpy.data.materials.new(TestLibraryOverridesMaterials.MATERIAL_OVERRIDE)
+        local_obj.material_slots[1].link = 'OBJECT'
+        local_obj.material_slots[1].material = mat_override
+        self.assertEqual(local_obj.material_slots[1].material, mat_override)
+        self.assertEqual(local_obj.data.materials[1].name, TestLibraryOverridesMaterials.MATERIAL_DATA_1)
+
+        bpy.context.view_layer.update()
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        obj_eval = local_obj.evaluated_get(depsgraph)
+
+        # The evaluated ('apply modifiers') path.
+        mesh_eval = obj_eval.to_mesh()
+        self.assertEqual(mesh_eval.materials[0].name, TestLibraryOverridesMaterials.MATERIAL_DATA_0)
+        self.assertEqual(mesh_eval.materials[1].name, TestLibraryOverridesMaterials.MATERIAL_OVERRIDE)
+        obj_eval.to_mesh_clear()
+
+        # The original ('no modifiers') path.
+        mesh_new = local_obj.to_mesh()
+        self.assertEqual(mesh_new.materials[0].name, TestLibraryOverridesMaterials.MATERIAL_DATA_0)
+        self.assertEqual(mesh_new.materials[1].name, TestLibraryOverridesMaterials.MATERIAL_OVERRIDE)
+        local_obj.to_mesh_clear()
+
+
 class TestLibraryOverridesComplex(TestHelper):
     # Test resync, recursive resync, overrides of overrides, ID names collision handling, and multiple overrides.
 
@@ -906,6 +968,7 @@ class TestLibraryOverridesFromProxies(TestHelper):
 
 TESTS = (
     TestLibraryOverrides,
+    TestLibraryOverridesMaterials,
     TestLibraryOverridesComplex,
     TestLibraryOverridesFromProxies,
 )

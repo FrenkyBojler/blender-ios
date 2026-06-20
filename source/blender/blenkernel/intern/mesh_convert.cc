@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include <algorithm>
+
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
@@ -949,6 +951,18 @@ Mesh *BKE_mesh_new_from_object(Depsgraph *depsgraph,
    * ownership is allowed, so we make sure edit mesh is reset to nullptr (which is similar to as if
    * one duplicates the objects and applies all the modifiers). */
   new_mesh->runtime->edit_mesh = nullptr;
+
+  /* Object slots overriding material. */
+  if (new_mesh->mat != nullptr && object->matbits != nullptr) {
+    const bool is_evaluated = DEG_is_evaluated(object);
+    const int slots_num = std::min<int>(new_mesh->totcol, object->totcol);
+    for (int i = 0; i < slots_num; i++) {
+      if (object->matbits[i]) {
+        new_mesh->mat[i] = is_evaluated ? BKE_object_material_get_eval(object, i + 1) :
+                                          BKE_object_material_get(object, i + 1);
+      }
+    }
+  }
 
   return new_mesh;
 }
