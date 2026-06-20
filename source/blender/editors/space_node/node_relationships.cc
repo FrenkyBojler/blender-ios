@@ -7,11 +7,13 @@
  */
 
 #include <algorithm>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_array_utils.hh"
 #include "DNA_node_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BLI_easing.hh"
 #include "BLI_listbase.hh"
@@ -2603,7 +2605,7 @@ static bNode *get_selected_node_for_insertion(bNodeTree &node_tree)
 static bool node_can_be_inserted_on_link(bNodeTree &tree, bNode &node, const bNodeLink &link)
 {
   const bNodeSocket *main_input = get_main_socket(tree, node, SOCK_IN);
-  const bNodeSocket *main_output = get_main_socket(tree, node, SOCK_IN);
+  const bNodeSocket *main_output = get_main_socket(tree, node, SOCK_OUT);
   if (ELEM(nullptr, main_input, main_output)) {
     return false;
   }
@@ -2622,6 +2624,598 @@ static bool node_can_be_inserted_on_link(bNodeTree &tree, bNode &node, const bNo
   return true;
 }
 
+struct NodeInsertGroupCandidate {
+  VectorSet<bNode *> nodes;
+  bNodeSocket *input = nullptr;
+  bNodeSocket *output = nullptr;
+  rctf bounds;
+};
+
+static bool node_has_selected_parent_for_insertion(const bNode &node)
+{
+  for (const bNode *parent = node.parent; parent; parent = parent->parent) {
+    if (parent->flag & NODE_SELECT) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool node_group_has_internal_input_link(const bNode &node,
+                                               const VectorSet<bNode *> &group_nodes)
+{
+  for (const bNodeSocket *socket : node.input_sockets()) {
+    for (const bNodeLink *link : socket->directly_linked_links()) {
+      if (group_nodes.contains(link->fromnode)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static bool node_group_has_internal_output_link(const bNode &node,
+                                                const VectorSet<bNode *> &group_nodes)
+{
+  for (const bNodeSocket *socket : node.output_sockets()) {
+    for (const bNodeLink *link : socket->directly_linked_links()) {
+      if (group_nodes.contains(link->tonode)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static bool node_group_has_external_links(const bNodeTree &node_tree,
+                                          const VectorSet<bNode *> &group_nodes)
+{
+  for (const bNodeLink &link : node_tree.links) {
+    const bool from_group = group_nodes.contains(link.fromnode);
+    const bool to_group = group_nodes.contains(link.tonode);
+    if (from_group != to_group) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool node_insert_group_candidate_get(bNodeTree &node_tree,
+                                            NodeInsertGroupCandidate &r_candidate)
+{
+  node_tree.ensure_topology_cache();
+
+  for (bNode *node : node_tree.all_nodes()) {
+    if ((node->flag & NODE_SELECT) || node_has_selected_parent_for_insertion(*node)) {
+      r_candidate.nodes.add(node);
+    }
+  }
+  if (r_candidate.nodes.size() < 2 || node_group_has_external_links(node_tree, r_candidate.nodes))
+  {
+    return false;
+  }
+
+  BLI_rctf_init_minmax(&r_candidate.bounds);
+  bool has_bounds = false;
+  bNode *entry_node = nullptr;
+  bNode *exit_node = nullptr;
+  for (bNode *node : r_candidate.nodes) {
+    BLI_rctf_union(&r_candidate.bounds, &node->runtime->draw_bounds);
+    has_bounds = true;
+
+    bNodeSocket *main_input = get_main_socket(node_tree, *node, SOCK_IN);
+    bNodeSocket *main_output = get_main_socket(node_tree, *node, SOCK_OUT);
+    if (ELEM(nullptr, main_input, main_output)) {
+      continue;
+    }
+
+    if (!node_group_has_internal_input_link(*node, r_candidate.nodes)) {
+      if (entry_node != nullptr) {
+        return false;
+      }
+      entry_node = node;
+      r_candidate.input = main_input;
+    }
+    if (!node_group_has_internal_output_link(*node, r_candidate.nodes)) {
+      if (exit_node != nullptr) {
+        return false;
+      }
+      exit_node = node;
+      r_candidate.output = main_output;
+    }
+  }
+
+  if (!has_bounds || entry_node == nullptr || exit_node == nullptr) {
+    return false;
+  }
+  return r_candidate.input != nullptr && r_candidate.output != nullptr;
+}
+
+static int node_shake_detach_flag_for_tree_type(const int tree_type)
+{
+  switch (tree_type) {
+    case NTREE_SHADER:
+      return USER_NODE_SHAKE_DETACH_SHADER;
+    case NTREE_GEOMETRY:
+      return USER_NODE_SHAKE_DETACH_GEOMETRY;
+    case NTREE_COMPOSIT:
+      return USER_NODE_SHAKE_DETACH_COMPOSIT;
+    case NTREE_TEXTURE:
+      return USER_NODE_SHAKE_DETACH_TEXTURE;
+    default:
+      return USER_NODE_SHAKE_DETACH_CUSTOM;
+  }
+}
+
+bool node_shake_detach_is_enabled(const bNodeTree &node_tree)
+{
+  if ((U.node_shake_detach_flags & USER_NODE_SHAKE_DETACH_ENABLE) == 0) {
+    return false;
+  }
+  return (U.node_shake_detach_flags & node_shake_detach_flag_for_tree_type(node_tree.type)) != 0;
+}
+
+static bool node_link_sockets_are_compatible(const bNodeTree &ntree,
+                                             const bNodeSocket &fromsock,
+                                             const bNodeSocket &tosock)
+{
+  if (ntree.typeinfo->validate_link == nullptr) {
+    return true;
+  }
+  return ntree.typeinfo->validate_link(eNodeSocketDatatype(fromsock.type),
+                                       eNodeSocketDatatype(tosock.type));
+}
+
+static bool node_insert_group_can_be_inserted_on_link(const bNodeTree &node_tree,
+                                                      const NodeInsertGroupCandidate &candidate,
+                                                      const bNodeLink &link)
+{
+  if (ELEM(nullptr, candidate.input, candidate.output, link.fromsock, link.tosock)) {
+    return false;
+  }
+  return node_link_sockets_are_compatible(node_tree, *link.fromsock, *candidate.input) &&
+         node_link_sockets_are_compatible(node_tree, *candidate.output, *link.tosock);
+}
+
+static const bNodeLink *node_internal_link_to_output(const bNode &node,
+                                                     const bNodeSocket &output_socket)
+{
+  for (const bNodeLink &internal_link : node.runtime->internal_links) {
+    if (internal_link.tosock == &output_socket) {
+      return &internal_link;
+    }
+  }
+  return nullptr;
+}
+
+struct NodeShakeUpstreamSource {
+  bNode *node = nullptr;
+  bNodeSocket *socket = nullptr;
+  eNodeLink_Flag flag = NODE_LINK_VALID;
+};
+
+static eNodeLink_Flag node_shake_combine_link_flags(const eNodeLink_Flag a,
+                                                    const eNodeLink_Flag b)
+{
+  eNodeLink_Flag flag = a & (NODE_LINK_VALID | NODE_LINK_MUTED);
+  if (!flag_is_set(b, NODE_LINK_VALID)) {
+    flag &= ~NODE_LINK_VALID;
+  }
+  if (flag_is_set(b, NODE_LINK_MUTED)) {
+    flag |= NODE_LINK_MUTED;
+  }
+  return flag;
+}
+
+static std::optional<NodeShakeUpstreamSource> node_shake_find_upstream_source(
+    bNodeSocket &output_socket,
+    const Set<bNode *> &selected_nodes,
+    Set<const bNodeSocket *> &visited_outputs)
+{
+  bNode &node = output_socket.owner_node();
+  if (!selected_nodes.contains(&node)) {
+    return NodeShakeUpstreamSource{&node, &output_socket, NODE_LINK_VALID};
+  }
+  if (!visited_outputs.add(&output_socket)) {
+    return std::nullopt;
+  }
+
+  const bNodeLink *internal_link = node_internal_link_to_output(node, output_socket);
+  if (internal_link == nullptr || internal_link->fromsock == nullptr) {
+    return std::nullopt;
+  }
+
+  const Span<bNodeLink *> upstream_links = internal_link->fromsock->directly_linked_links();
+  if (upstream_links.size() != 1) {
+    return std::nullopt;
+  }
+
+  bNodeLink &upstream_link = *upstream_links[0];
+  if (!selected_nodes.contains(upstream_link.fromnode)) {
+    return NodeShakeUpstreamSource{upstream_link.fromnode,
+                                   upstream_link.fromsock,
+                                   upstream_link.flag};
+  }
+  std::optional<NodeShakeUpstreamSource> source = node_shake_find_upstream_source(
+      *upstream_link.fromsock, selected_nodes, visited_outputs);
+  if (source) {
+    source->flag = node_shake_combine_link_flags(source->flag, upstream_link.flag);
+  }
+  return source;
+}
+
+static bool node_shake_preview_has_bypass_link(const NodeShakeDetachPreview &preview,
+                                               const bNodeSocket &fromsock,
+                                               const bNodeSocket &tosock)
+{
+  for (const bNodeLink &link : preview.bypass_links) {
+    if (link.fromsock == &fromsock && link.tosock == &tosock) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool node_shake_tree_has_link(const bNodeTree &ntree,
+                                     const bNodeSocket &fromsock,
+                                     const bNodeSocket &tosock)
+{
+  for (const bNodeLink &link : ntree.links) {
+    if (link.fromsock == &fromsock && link.tosock == &tosock) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void node_shake_preview_add_bypass_link(NodeShakeDetachPreview &preview,
+                                               bNodeTree &ntree,
+                                               bNode &fromnode,
+                                               bNodeSocket &fromsock,
+                                               bNode &tonode,
+                                               bNodeSocket &tosock,
+                                               const eNodeLink_Flag flag)
+{
+  if (&fromnode == &tonode || node_shake_preview_has_bypass_link(preview, fromsock, tosock) ||
+      node_shake_tree_has_link(ntree, fromsock, tosock))
+  {
+    return;
+  }
+  if (!node_link_sockets_are_compatible(ntree, fromsock, tosock)) {
+    return;
+  }
+
+  bNodeLink bypass{};
+  bypass.fromnode = &fromnode;
+  bypass.fromsock = &fromsock;
+  bypass.tonode = &tonode;
+  bypass.tosock = &tosock;
+  bypass.flag = flag & (NODE_LINK_VALID | NODE_LINK_MUTED);
+  preview.bypass_links.append(bypass);
+}
+
+static bNodeSocket *node_shake_single_socket_or_null(const Set<bNodeSocket *> &sockets)
+{
+  if (sockets.size() != 1) {
+    return nullptr;
+  }
+  return *sockets.begin();
+}
+
+static bool node_shake_preview_build(bNodeTree &ntree,
+                                     Span<bNode *> nodes,
+                                     NodeShakeDetachPreview &preview)
+{
+  ntree.ensure_topology_cache();
+
+  Set<bNode *> selected_nodes;
+  for (bNode *node : nodes) {
+    selected_nodes.add(node);
+    preview.nodes.add(node);
+  }
+  if (selected_nodes.is_empty()) {
+    return false;
+  }
+
+  Set<bNodeSocket *> external_inputs;
+  Set<bNodeSocket *> external_outputs;
+
+  for (bNodeLink &link : ntree.links) {
+    const bool from_selected = selected_nodes.contains(link.fromnode);
+    const bool to_selected = selected_nodes.contains(link.tonode);
+    if (from_selected == to_selected) {
+      continue;
+    }
+
+    preview.links_to_hide.add(&link);
+
+    if (!from_selected && to_selected) {
+      external_inputs.add(link.tosock);
+      continue;
+    }
+
+    external_outputs.add(link.fromsock);
+    Set<const bNodeSocket *> visited_outputs;
+    if (std::optional<NodeShakeUpstreamSource> source = node_shake_find_upstream_source(
+            *link.fromsock, selected_nodes, visited_outputs))
+    {
+      node_shake_preview_add_bypass_link(preview,
+                                         ntree,
+                                         *source->node,
+                                         *source->socket,
+                                         *link.tonode,
+                                         *link.tosock,
+                                         node_shake_combine_link_flags(link.flag, source->flag));
+    }
+  }
+
+  preview.group_input = node_shake_single_socket_or_null(external_inputs);
+  preview.group_output = node_shake_single_socket_or_null(external_outputs);
+  if (selected_nodes.size() == 1) {
+    bNode &node = **selected_nodes.begin();
+    if (bNodeSocket *main_input = get_main_socket(ntree, node, SOCK_IN)) {
+      preview.group_input = main_input;
+    }
+    if (bNodeSocket *main_output = get_main_socket(ntree, node, SOCK_OUT)) {
+      preview.group_output = main_output;
+    }
+  }
+
+  return !preview.links_to_hide.is_empty() || !preview.bypass_links.is_empty();
+}
+
+bool node_shake_preview_create(SpaceNode &snode, Span<bNode *> nodes)
+{
+  if (snode.edittree == nullptr) {
+    return false;
+  }
+
+  auto preview = std::make_unique<NodeShakeDetachPreview>();
+  if (!node_shake_preview_build(*snode.edittree, nodes, *preview)) {
+    return false;
+  }
+
+  snode.runtime->shake_preview = std::move(preview);
+  return true;
+}
+
+bool node_shake_preview_is_active(const SpaceNode &snode)
+{
+  return snode.runtime && snode.runtime->shake_preview != nullptr;
+}
+
+void node_shake_preview_clear(SpaceNode &snode)
+{
+  if (snode.runtime) {
+    snode.runtime->shake_preview.reset();
+  }
+}
+
+static bNodeLink *node_find_link_by_sockets(bNodeTree &ntree,
+                                            const bNodeSocket &fromsock,
+                                            const bNodeSocket &tosock)
+{
+  for (bNodeLink &link : ntree.links) {
+    if (link.fromsock == &fromsock && link.tosock == &tosock) {
+      return &link;
+    }
+  }
+  return nullptr;
+}
+
+static bool node_shake_insert_target_is_compatible(const bNodeTree &ntree,
+                                                   const NodeShakeDetachPreview &preview,
+                                                   const bNodeLink &target_link)
+{
+  if (preview.group_input == nullptr || preview.group_output == nullptr) {
+    return false;
+  }
+  if (ELEM(nullptr,
+           target_link.fromnode,
+           target_link.fromsock,
+           target_link.tonode,
+           target_link.tosock))
+  {
+    return false;
+  }
+  return node_link_sockets_are_compatible(ntree, *target_link.fromsock, *preview.group_input) &&
+         node_link_sockets_are_compatible(ntree, *preview.group_output, *target_link.tosock);
+}
+
+static void node_shake_preview_apply_insert_target(bNodeTree &ntree,
+                                                   NodeShakeDetachPreview &preview,
+                                                   Set<bNode *> &affected_nodes)
+{
+  if (!preview.insert_target || !preview.insert_target->valid || preview.group_input == nullptr ||
+      preview.group_output == nullptr)
+  {
+    return;
+  }
+
+  NodeShakeDetachPreview::InsertTarget &target = *preview.insert_target;
+  bNodeLink target_link{};
+  target_link.fromnode = target.fromnode;
+  target_link.fromsock = target.fromsock;
+  target_link.tonode = target.tonode;
+  target_link.tosock = target.tosock;
+  if (!node_shake_insert_target_is_compatible(ntree, preview, target_link)) {
+    return;
+  }
+
+  if (bNodeLink *old_link = node_find_link_by_sockets(
+          ntree, *target.fromsock, *target.tosock))
+  {
+    affected_nodes.add(old_link->tonode);
+    bke::node_remove_link(&ntree, *old_link);
+  }
+
+  bke::node_add_link(ntree,
+                     *target.fromnode,
+                     *target.fromsock,
+                     preview.group_input->owner_node(),
+                     *preview.group_input);
+  bke::node_add_link(ntree,
+                     preview.group_output->owner_node(),
+                     *preview.group_output,
+                     *target.tonode,
+                     *target.tosock);
+  affected_nodes.add(&preview.group_input->owner_node());
+  affected_nodes.add(target.tonode);
+}
+
+bool node_shake_preview_apply(Main &bmain, SpaceNode &snode)
+{
+  if (!node_shake_preview_is_active(snode) || snode.edittree == nullptr) {
+    return false;
+  }
+
+  bNodeTree &ntree = *snode.edittree;
+  NodeShakeDetachPreview &preview = *snode.runtime->shake_preview;
+
+  Set<bNode *> affected_nodes;
+  Vector<bNodeLink *> links_to_remove;
+  for (bNodeLink &link : ntree.links) {
+    if (preview.links_to_hide.contains(&link)) {
+      links_to_remove.append(&link);
+      affected_nodes.add(link.tonode);
+    }
+  }
+  for (bNodeLink *link : links_to_remove) {
+    bke::node_remove_link(&ntree, *link);
+  }
+
+  for (const bNodeLink &bypass : preview.bypass_links) {
+    if (node_find_link_by_sockets(ntree, *bypass.fromsock, *bypass.tosock) == nullptr) {
+      bNodeLink &new_link = bke::node_add_link(
+          ntree, *bypass.fromnode, *bypass.fromsock, *bypass.tonode, *bypass.tosock);
+      new_link.flag &= ~(NODE_LINK_VALID | NODE_LINK_MUTED);
+      new_link.flag |= bypass.flag & (NODE_LINK_VALID | NODE_LINK_MUTED);
+      affected_nodes.add(bypass.tonode);
+    }
+  }
+
+  node_shake_preview_apply_insert_target(ntree, preview, affected_nodes);
+
+  ntree.ensure_topology_cache();
+  for (bNode *node : affected_nodes) {
+    update_multi_input_indices_for_removed_links(*node);
+  }
+
+  BKE_main_ensure_invariants(bmain, ntree.id);
+  return true;
+}
+
+static bool node_link_intersection_distance_get(const bNodeLink &link,
+                                                const rctf &bounds,
+                                                float &r_dist)
+{
+  std::array<float2, NODE_LINK_RESOL + 1> coords;
+  node_link_bezier_points_evaluated(link, coords);
+
+  bool intersects = false;
+  r_dist = FLT_MAX;
+  const float bounds_xy[] = {bounds.xmin, bounds.ymax};
+  for (int i = 0; i < NODE_LINK_RESOL; i++) {
+    if (BLI_rctf_isect_segment(&bounds, coords[i], coords[i + 1])) {
+      r_dist = min_ff(r_dist, dist_squared_to_line_segment_v2(bounds_xy, coords[i], coords[i + 1]));
+      intersects = true;
+    }
+  }
+
+  return intersects;
+}
+
+static bool node_shake_preview_bounds_get(const NodeShakeDetachPreview &preview, rctf &r_bounds)
+{
+  BLI_rctf_init_minmax(&r_bounds);
+  bool has_bounds = false;
+  for (const bNode *node : preview.nodes) {
+    BLI_rctf_union(&r_bounds, &node->runtime->draw_bounds);
+    has_bounds = true;
+  }
+  return has_bounds;
+}
+
+static bool node_shake_preview_link_is_targetable(const NodeShakeDetachPreview &preview,
+                                                  const bNodeLink &link)
+{
+  if (ELEM(nullptr, link.fromnode, link.fromsock, link.tonode, link.tosock)) {
+    return false;
+  }
+  if (preview.nodes.contains(link.fromnode) || preview.nodes.contains(link.tonode)) {
+    return false;
+  }
+  return true;
+}
+
+static void node_shake_preview_insert_flags_set(bNodeTree &node_tree,
+                                                NodeShakeDetachPreview &preview,
+                                                const ARegion &region,
+                                                const bool attach_enabled)
+{
+  preview.insert_target.reset();
+  for (bNodeLink &link : preview.bypass_links) {
+    link.flag &= ~(NODE_LINK_INSERT_TARGET | NODE_LINK_INSERT_TARGET_INVALID);
+  }
+
+  if (preview.group_input == nullptr || preview.group_output == nullptr) {
+    return;
+  }
+
+  rctf preview_bounds;
+  if (!node_shake_preview_bounds_get(preview, preview_bounds)) {
+    return;
+  }
+
+  bNodeLink *selink = nullptr;
+  float dist_best = FLT_MAX;
+  auto consider_link = [&](bNodeLink &link) {
+    if (!node_shake_preview_link_is_targetable(preview, link)) {
+      return;
+    }
+    float dist = FLT_MAX;
+    if (!node_link_intersection_distance_get(link, preview_bounds, dist)) {
+      return;
+    }
+    if (dist < dist_best) {
+      dist_best = dist;
+      selink = &link;
+    }
+  };
+
+  for (bNodeLink &link : node_tree.links) {
+    if (preview.links_to_hide.contains(&link) || node_link_is_hidden_or_dimmed(region.v2d, link)) {
+      continue;
+    }
+    consider_link(link);
+  }
+  for (bNodeLink &link : preview.bypass_links) {
+    if (bke::node_link_is_hidden(link)) {
+      continue;
+    }
+    consider_link(link);
+  }
+
+  if (selink == nullptr) {
+    return;
+  }
+
+  selink->flag |= NODE_LINK_INSERT_TARGET;
+  const bool valid = attach_enabled &&
+                     node_shake_insert_target_is_compatible(node_tree, preview, *selink);
+  if (!valid) {
+    selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
+  }
+
+  NodeShakeDetachPreview::InsertTarget target;
+  target.fromnode = selink->fromnode;
+  target.fromsock = selink->fromsock;
+  target.tonode = selink->tonode;
+  target.tosock = selink->tosock;
+  target.valid = valid;
+  preview.insert_target = target;
+}
+
 void node_insert_on_link_flags_set(SpaceNode &snode,
                                    const ARegion &region,
                                    const bool attach_enabled,
@@ -2632,19 +3226,29 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   node_insert_on_link_flags_clear(node_tree);
 
+  if (NodeShakeDetachPreview *preview = snode.runtime->shake_preview.get()) {
+    node_shake_preview_insert_flags_set(node_tree, *preview, region, attach_enabled);
+    return;
+  }
+
+  NodeInsertGroupCandidate group_candidate;
   bNode *node_to_insert = get_selected_node_for_insertion(node_tree);
-  if (!node_to_insert) {
+  const bool use_group_candidate = node_to_insert == nullptr &&
+                                   node_insert_group_candidate_get(node_tree, group_candidate);
+  if (!node_to_insert && !use_group_candidate) {
     return;
   }
   Vector<bNodeSocket *> already_linked_sockets;
-  for (bNodeSocket *socket : node_to_insert->input_sockets()) {
-    already_linked_sockets.extend(socket->directly_linked_sockets());
-  }
-  for (bNodeSocket *socket : node_to_insert->output_sockets()) {
-    already_linked_sockets.extend(socket->directly_linked_sockets());
-  }
-  if (!is_new_node && !already_linked_sockets.is_empty()) {
-    return;
+  if (node_to_insert != nullptr) {
+    for (bNodeSocket *socket : node_to_insert->input_sockets()) {
+      already_linked_sockets.extend(socket->directly_linked_sockets());
+    }
+    for (bNodeSocket *socket : node_to_insert->output_sockets()) {
+      already_linked_sockets.extend(socket->directly_linked_sockets());
+    }
+    if (!is_new_node && !already_linked_sockets.is_empty()) {
+      return;
+    }
   }
 
   /* Find link to select/highlight. */
@@ -2654,11 +3258,16 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     if (node_link_is_hidden_or_dimmed(region.v2d, link)) {
       continue;
     }
-    if (ELEM(node_to_insert, link.fromnode, link.tonode)) {
+    if (node_to_insert != nullptr && ELEM(node_to_insert, link.fromnode, link.tonode)) {
       /* Don't insert on a link that is connected to the node already. */
       continue;
     }
-    if (is_new_node && !already_linked_sockets.is_empty()) {
+    if (use_group_candidate &&
+        (group_candidate.nodes.contains(link.fromnode) || group_candidate.nodes.contains(link.tonode)))
+    {
+      continue;
+    }
+    if (node_to_insert != nullptr && is_new_node && !already_linked_sockets.is_empty()) {
       /* Only allow links coming from or going to the already linked socket after
        * link-drag-search. */
       bool is_linked_to_linked = false;
@@ -2673,24 +3282,11 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
       }
     }
 
-    std::array<float2, NODE_LINK_RESOL + 1> coords;
-    node_link_bezier_points_evaluated(link, coords);
     float dist = FLT_MAX;
-
-    /* Loop over link coords to find shortest dist to upper left node edge of a intersected line
-     * segment. */
-    for (int i = 0; i < NODE_LINK_RESOL; i++) {
-      /* Check if the node rectangle intersects the line from this point to next one. */
-      if (BLI_rctf_isect_segment(&node_to_insert->runtime->draw_bounds, coords[i], coords[i + 1]))
-      {
-        /* Store the shortest distance to the upper left edge of all intersections found so far. */
-        const float node_xy[] = {node_to_insert->runtime->draw_bounds.xmin,
-                                 node_to_insert->runtime->draw_bounds.ymax};
-
-        /* To be precise coords should be clipped by `select->draw_bounds`, but not done since
-         * there's no real noticeable difference. */
-        dist = min_ff(dist_squared_to_line_segment_v2(node_xy, coords[i], coords[i + 1]), dist);
-      }
+    const rctf &bounds = node_to_insert != nullptr ? node_to_insert->runtime->draw_bounds :
+                                                     group_candidate.bounds;
+    if (!node_link_intersection_distance_get(link, bounds, dist)) {
+      continue;
     }
 
     /* We want the link with the shortest distance to node center. */
@@ -2702,7 +3298,11 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   if (selink) {
     selink->flag |= NODE_LINK_INSERT_TARGET;
-    if (!attach_enabled || !node_can_be_inserted_on_link(node_tree, *node_to_insert, *selink)) {
+    const bool valid = node_to_insert != nullptr ?
+                           node_can_be_inserted_on_link(node_tree, *node_to_insert, *selink) :
+                           node_insert_group_can_be_inserted_on_link(
+                               node_tree, group_candidate, *selink);
+    if (!attach_enabled || !valid) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -2747,9 +3347,6 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   bNodeTree &node_tree = *snode.edittree;
   node_tree.ensure_topology_cache();
   bNode *node_to_insert = get_selected_node_for_insertion(node_tree);
-  if (!node_to_insert) {
-    return;
-  }
 
   /* Find link to insert on. */
   bNodeTree &ntree = *snode.edittree;
@@ -2764,6 +3361,37 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   }
   node_insert_on_link_flags_clear(node_tree);
   if (old_link == nullptr) {
+    return;
+  }
+
+  NodeInsertGroupCandidate group_candidate;
+  const bool use_group_candidate = node_to_insert == nullptr &&
+                                   node_insert_group_candidate_get(ntree, group_candidate);
+  if (!node_to_insert && !use_group_candidate) {
+    return;
+  }
+
+  if (use_group_candidate) {
+    if (!node_insert_group_can_be_inserted_on_link(ntree, group_candidate, *old_link)) {
+      return;
+    }
+
+    bNode *from_node = old_link->fromnode;
+    bNodeSocket *from_socket = old_link->fromsock;
+
+    old_link->fromnode = &group_candidate.output->owner_node();
+    old_link->fromsock = group_candidate.output;
+    BKE_ntree_update_tag_link_changed(&ntree);
+
+    if (!group_candidate.input->is_directly_linked()) {
+      bke::node_add_link(ntree,
+                         *from_node,
+                         *from_socket,
+                         group_candidate.input->owner_node(),
+                         *group_candidate.input);
+    }
+
+    BKE_main_ensure_invariants(bmain, ntree.id);
     return;
   }
 

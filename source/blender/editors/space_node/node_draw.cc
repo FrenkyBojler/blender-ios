@@ -4528,16 +4528,33 @@ static void node_draw_nodetree(const bContext &C,
   GPU_blend(GPU_BLEND_ALPHA);
   nodelink_batch_start(snode);
 
+  const NodeShakeDetachPreview *shake_preview = snode.runtime->shake_preview.get();
+  auto link_is_hidden_by_shake_preview = [&](const bNodeLink *link) {
+    return shake_preview != nullptr && shake_preview->links_to_hide.contains(link);
+  };
+
   for (const bNodeLink *link : ntree.all_links()) {
-    if (!bke::node_link_is_hidden(*link) && !bke::node_link_is_selected(*link)) {
+    if (!link_is_hidden_by_shake_preview(link) && !bke::node_link_is_hidden(*link) &&
+        !bke::node_link_is_selected(*link))
+    {
       node_draw_link(C, region.v2d, snode, *link, false);
     }
   }
 
   /* Draw selected node links after the unselected ones, so they are shown on top. */
   for (const bNodeLink *link : ntree.all_links()) {
-    if (!bke::node_link_is_hidden(*link) && bke::node_link_is_selected(*link)) {
+    if (!link_is_hidden_by_shake_preview(link) && !bke::node_link_is_hidden(*link) &&
+        bke::node_link_is_selected(*link))
+    {
       node_draw_link(C, region.v2d, snode, *link, true);
+    }
+  }
+
+  if (shake_preview != nullptr) {
+    for (const bNodeLink &link : shake_preview->bypass_links) {
+      if (!bke::node_link_is_hidden(link)) {
+        node_draw_link(C, region.v2d, snode, link, false);
+      }
     }
   }
 

@@ -9,6 +9,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_compute_context.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -82,6 +83,12 @@ void node_insert_on_frame_flag_clear(SpaceNode &snode);
  */
 void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node);
 void node_insert_on_link_flags_clear(bNodeTree &node_tree);
+
+bool node_shake_detach_is_enabled(const bNodeTree &node_tree);
+bool node_shake_preview_create(SpaceNode &snode, Span<bNode *> nodes);
+bool node_shake_preview_is_active(const SpaceNode &snode);
+void node_shake_preview_clear(SpaceNode &snode);
+bool node_shake_preview_apply(Main &bmain, SpaceNode &snode);
 
 /**
  * Draw a single node socket at default size.

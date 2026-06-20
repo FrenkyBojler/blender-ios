@@ -6023,6 +6023,64 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
                            "Automatically offset the following or previous nodes in a "
                            "chain when inserting a new node");
 
+  prop = RNA_def_property(srna, "node_use_shake_detach", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "node_shake_detach_flags", USER_NODE_SHAKE_DETACH_ENABLE);
+  RNA_def_property_ui_text(prop,
+                           "Shake Detach",
+                           "Detach nodes from connected links by shaking selected nodes while "
+                           "dragging them");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "node_use_shake_detach_shader", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "node_shake_detach_flags", USER_NODE_SHAKE_DETACH_SHADER);
+  RNA_def_property_ui_text(prop, "Shader Nodes", "Enable Shake Detach in shader node trees");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "node_use_shake_detach_geometry", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "node_shake_detach_flags", USER_NODE_SHAKE_DETACH_GEOMETRY);
+  RNA_def_property_ui_text(prop, "Geometry Nodes", "Enable Shake Detach in geometry node trees");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "node_use_shake_detach_compositor", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "node_shake_detach_flags", USER_NODE_SHAKE_DETACH_COMPOSIT);
+  RNA_def_property_ui_text(
+      prop, "Compositor Nodes", "Enable Shake Detach in compositor node trees");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "node_use_shake_detach_texture", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "node_shake_detach_flags", USER_NODE_SHAKE_DETACH_TEXTURE);
+  RNA_def_property_ui_text(prop, "Texture Nodes", "Enable Shake Detach in texture node trees");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "node_use_shake_detach_custom", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "node_shake_detach_flags", USER_NODE_SHAKE_DETACH_CUSTOM);
+  RNA_def_property_ui_text(prop,
+                           "Custom Nodes",
+                           "Enable Shake Detach in custom or add-on node tree types");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "node_shake_detach_sensitivity", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "node_shake_sensitivity");
+  RNA_def_property_range(prop, 1, 10);
+  RNA_def_property_ui_range(prop, 1, 10, 1, -1);
+  RNA_def_property_ui_text(
+      prop, "Shake Sensitivity", "How easily node dragging gestures trigger Shake Detach");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "node_shake_detach_time", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "node_shake_time");
+  RNA_def_property_range(prop, 150, 1000);
+  RNA_def_property_ui_range(prop, 150, 1000, 10, -1);
+  RNA_def_property_ui_text(
+      prop, "Shake Time", "Maximum time in milliseconds for the shake gesture");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
   /* Currently only used for insert offset (aka auto-offset),
    * maybe also be useful for later stuff though. */
   prop = RNA_def_property(srna, "node_margin", PROP_INT, PROP_PIXEL);

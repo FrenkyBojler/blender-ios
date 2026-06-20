@@ -6,6 +6,9 @@
  * \ingroup edtransform
  */
 
+#include <algorithm>
+#include <cmath>
+
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
@@ -16,6 +19,8 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_c.hh"
 #include "BLI_rect.hh"
+#include "BLI_span.hh"
+#include "BLI_time.hh"
 
 #include "BKE_context.hh"
 #include "BKE_main_invariants.hh"
@@ -34,6 +39,11 @@
 
 namespace blender::ed::transform {
 
+struct NodeShakeSample {
+  float2 mval;
+  double time;
+};
+
 struct TransCustomDataNode {
   ui::View2DEdgePanData edgepan_data{};
 
@@ -43,6 +53,10 @@ struct TransCustomDataNode {
   bool is_new_node = false;
 
   Map<bNode *, bNode *> old_parent_by_detached_node;
+
+  Vector<NodeShakeSample, 32> shake_samples;
+  bool shake_available = false;
+  bool shake_triggered = false;
 };
 
 /* -------------------------------------------------------------------- */
@@ -155,6 +169,7 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
 
   /* Custom data to enable edge panning during the node transform. */
   TransCustomDataNode *customdata = MEM_new<TransCustomDataNode>(__func__);
+  space_node::node_shake_preview_clear(*snode);
   view2d_edge_pan_init(t->context,
                        &customdata->edgepan_data,
                        NODE_EDGE_PAN_INSIDE_PAD,
@@ -165,6 +180,8 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
                        NODE_EDGE_PAN_ZOOM_INFLUENCE);
   customdata->viewrect_prev = customdata->edgepan_data.initial_rect;
   customdata->is_new_node = t->remove_on_cancel;
+  customdata->shake_available = space_node::node_shake_detach_is_enabled(*node_tree);
+  customdata->shake_samples.append({t->mval, BLI_time_now_seconds()});
 
   if (t->region) {
     space_node::node_insert_on_link_flags_set(
@@ -250,6 +267,135 @@ static void node_snap_grid_apply(TransInfo *t)
       copy_v2_v2(td.loc, snapped_target_location);
     }
   }
+}
+
+static Vector<bNode *> node_shake_transformed_nodes_get(TransInfo *t)
+{
+  Vector<bNode *> nodes;
+  FOREACH_TRANS_DATA_CONTAINER (t, tc) {
+    for (const int i : IndexRange(tc->data_len)) {
+      TransData &td = tc->data[i];
+      if (td.flag & TD_SKIP) {
+        continue;
+      }
+      if (bNode *node = static_cast<bNode *>(td.extra)) {
+        nodes.append(node);
+      }
+    }
+  }
+  return nodes;
+}
+
+static float node_shake_min_leg_distance()
+{
+  const float sensitivity = float(std::clamp<int>(U.node_shake_sensitivity, 1, 10) - 1) / 9.0f;
+  return 54.0f + (14.0f - 54.0f) * sensitivity;
+}
+
+static bool node_shake_detected_on_axis(const Span<NodeShakeSample> samples,
+                                        const int axis,
+                                        const float min_leg)
+{
+  float min_sample = samples.first().mval[axis];
+  float max_sample = samples.first().mval[axis];
+  for (const NodeShakeSample &sample : samples.drop_front(1)) {
+    min_sample = std::min(min_sample, sample.mval[axis]);
+    max_sample = std::max(max_sample, sample.mval[axis]);
+  }
+  const float axis_span = max_sample - min_sample;
+  if (axis_span < min_leg) {
+    return false;
+  }
+
+  float extreme = samples.first().mval[axis];
+  int direction = 0;
+  int reversals = 0;
+  float travel = 0.0f;
+  for (const NodeShakeSample &sample : samples.drop_front(1)) {
+    const float value = sample.mval[axis];
+    if (direction == 0) {
+      const float delta = value - extreme;
+      if (std::abs(delta) >= min_leg) {
+        direction = delta > 0.0f ? 1 : -1;
+        travel += std::abs(delta);
+        extreme = value;
+      }
+      continue;
+    }
+
+    if (direction > 0) {
+      if (value > extreme) {
+        travel += value - extreme;
+        extreme = value;
+      }
+      else if (extreme - value >= min_leg) {
+        reversals++;
+        direction = -1;
+        travel += extreme - value;
+        extreme = value;
+      }
+    }
+    else {
+      if (value < extreme) {
+        travel += extreme - value;
+        extreme = value;
+      }
+      else if (value - extreme >= min_leg) {
+        reversals++;
+        direction = 1;
+        travel += value - extreme;
+        extreme = value;
+      }
+    }
+  }
+
+  return reversals >= 2 && travel >= min_leg * 2.5f && travel >= axis_span * 1.6f;
+}
+
+static bool node_shake_detected(Span<NodeShakeSample> samples)
+{
+  const double time_limit = double(std::clamp<int>(U.node_shake_time, 150, 1000)) / 1000.0;
+  /* Keep long sample history, but only evaluate the configured gesture window. */
+  while (samples.size() > 1 && samples.last().time - samples.first().time > time_limit) {
+    samples = samples.drop_front(1);
+  }
+  if (samples.size() < 4) {
+    return false;
+  }
+
+  const float min_leg = node_shake_min_leg_distance();
+  return node_shake_detected_on_axis(samples, 0, min_leg) ||
+         node_shake_detected_on_axis(samples, 1, min_leg);
+}
+
+static bool node_shake_detector_update(TransCustomDataNode &customdata, TransInfo *t)
+{
+  if (!customdata.shake_available || customdata.shake_triggered || t->state == TRANS_CANCEL) {
+    return false;
+  }
+  if (t->mode != TFM_TRANSLATION || (t->con.mode & CON_APPLY)) {
+    return false;
+  }
+
+  const double now = BLI_time_now_seconds();
+  const float2 mval = t->mval;
+  if (customdata.shake_samples.is_empty() ||
+      math::distance(customdata.shake_samples.last().mval, mval) >= 2.0f)
+  {
+    customdata.shake_samples.append({mval, now});
+  }
+
+  constexpr double max_time_limit = 1.0;
+  while (customdata.shake_samples.size() > 1 &&
+         now - customdata.shake_samples.first().time > max_time_limit)
+  {
+    customdata.shake_samples.remove(0);
+  }
+  while (customdata.shake_samples.size() > 48) {
+    customdata.shake_samples.remove(0);
+  }
+
+  return node_shake_detected(customdata.shake_samples);
 }
 
 static void move_child_nodes(bNode &node, const float2 &delta)
@@ -357,11 +503,15 @@ static void flushTransNodes(TransInfo *t)
     }
 
     /* Handle intersection with noodles. */
-    if (tc->data_len == 1) {
-      space_node::node_insert_on_link_flags_set(
-          *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
+    if (node_shake_detector_update(*customdata, t)) {
+      Vector<bNode *> transformed_nodes = node_shake_transformed_nodes_get(t);
+      customdata->shake_triggered = space_node::node_shake_preview_create(*snode,
+                                                                          transformed_nodes);
+      customdata->shake_available = false;
     }
     if (t->region) {
+      space_node::node_insert_on_link_flags_set(
+          *snode, *t->region, t->modifiers & MOD_NODE_ATTACH, customdata->is_new_node);
       space_node::node_insert_on_frame_flag_set(*snode, *t->region, int2(t->mval));
     }
   }
@@ -381,6 +531,7 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   const TransCustomDataNode &customdata = *static_cast<TransCustomDataNode *>(t->custom.type.data);
 
   const bool canceled = (t->state == TRANS_CANCEL);
+  const bool shake_preview_active = space_node::node_shake_preview_is_active(*snode);
 
   if (canceled) {
     for (auto &&[node, parent] : customdata.old_parent_by_detached_node.items()) {
@@ -401,12 +552,16 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
 
   if (!canceled) {
     ED_node_post_apply_transform(C, snode->edittree);
-    if (t->modifiers & MOD_NODE_ATTACH) {
+    if (shake_preview_active) {
+      space_node::node_shake_preview_apply(*bmain, *snode);
+    }
+    else if (t->modifiers & MOD_NODE_ATTACH) {
       space_node::node_insert_on_link_flags(*bmain, *snode, customdata.is_new_node);
     }
   }
 
   space_node::node_insert_on_link_flags_clear(*ntree);
+  space_node::node_shake_preview_clear(*snode);
   space_node::node_insert_on_frame_flag_clear(*snode);
 
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_insert_offset", true);

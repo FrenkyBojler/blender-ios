@@ -1784,6 +1784,12 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->asset_flag |= USER_ASSETS_USE_ONLINE_ESSENTIALS;
   }
 
+  if (!USER_VERSION_ATLEAST(503, 5)) {
+    userdef->node_shake_detach_flags = USER_NODE_SHAKE_DETACH_ALL;
+    userdef->node_shake_sensitivity = 7;
+    userdef->node_shake_time = 600;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

@@ -8,8 +8,12 @@
 
 #pragma once
 
+#include <memory>
+#include <optional>
+
 #include "BLI_compute_context.hh"
 #include "BLI_enum_flags.hh"
+#include "BLI_set.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
@@ -266,6 +270,24 @@ struct bNodeLinkDrag {
   ui::View2DEdgePanData pan_data;
 };
 
+struct NodeShakeDetachPreview {
+  Set<const bNode *> nodes;
+  Set<const bNodeLink *> links_to_hide;
+  Vector<bNodeLink> bypass_links;
+
+  bNodeSocket *group_input = nullptr;
+  bNodeSocket *group_output = nullptr;
+
+  struct InsertTarget {
+    bNode *fromnode = nullptr;
+    bNodeSocket *fromsock = nullptr;
+    bNode *tonode = nullptr;
+    bNodeSocket *tosock = nullptr;
+    bool valid = false;
+  };
+  std::optional<InsertTarget> insert_target;
+};
+
 struct SpaceNode_Runtime {
   float aspect;
 
@@ -276,6 +298,9 @@ struct SpaceNode_Runtime {
 
   /** Temporary data for modal linking operator. */
   std::unique_ptr<bNodeLinkDrag> linkdrag;
+
+  /** Temporary link preview used after shake-detaching nodes during a transform. */
+  std::unique_ptr<NodeShakeDetachPreview> shake_preview;
 
   /* XXX hack for translate_attach op-macros to pass data from transform op to insert_offset op */
   /** Temporary data for node insert offset (in UI called Auto-offset). */

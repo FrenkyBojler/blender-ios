@@ -578,6 +578,30 @@ class USERPREF_PT_edit_node_editor(EditingPanel, CenterAlignMixIn, Panel):
         subrow.prop(edit, "node_margin", text="")
         subrow.active = edit.node_use_insert_offset
 
+        layout.separator()
+
+        if edit.node_use_shake_detach:
+            box = layout.box()
+            row = box.row()
+            row.use_property_split = False
+            row.prop(edit, "node_use_shake_detach")
+
+            col = box.column(heading="Enable In", align=True)
+            col.prop(edit, "node_use_shake_detach_shader")
+            col.prop(edit, "node_use_shake_detach_geometry")
+            col.prop(edit, "node_use_shake_detach_compositor")
+            col.prop(edit, "node_use_shake_detach_texture")
+            col.prop(edit, "node_use_shake_detach_custom")
+
+            col = box.column(align=True)
+            col.prop(edit, "node_shake_detach_sensitivity")
+            col.prop(edit, "node_shake_detach_time")
+        else:
+            col = layout.column(heading="Shake Detach")
+            col.prop(edit, "node_use_shake_detach", text="")
+
+        layout.separator()
+
         layout.prop(edit, "node_preview_resolution", text="Preview Resolution")
 
 

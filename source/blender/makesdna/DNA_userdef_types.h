@@ -202,6 +202,21 @@ enum eUserpref_GPU_Flag : char {
 };
 ENUM_OPERATORS(eUserpref_GPU_Flag)
 
+/** #UserDef.node_shake_detach_flags */
+enum eUserpref_NodeShakeDetach_Flag {
+  USER_NODE_SHAKE_DETACH_ENABLE = (1 << 0),
+  USER_NODE_SHAKE_DETACH_SHADER = (1 << 1),
+  USER_NODE_SHAKE_DETACH_GEOMETRY = (1 << 2),
+  USER_NODE_SHAKE_DETACH_COMPOSIT = (1 << 3),
+  USER_NODE_SHAKE_DETACH_TEXTURE = (1 << 4),
+  USER_NODE_SHAKE_DETACH_CUSTOM = (1 << 5),
+};
+
+#define USER_NODE_SHAKE_DETACH_ALL \
+  (USER_NODE_SHAKE_DETACH_ENABLE | USER_NODE_SHAKE_DETACH_SHADER | \
+   USER_NODE_SHAKE_DETACH_GEOMETRY | USER_NODE_SHAKE_DETACH_COMPOSIT | \
+   USER_NODE_SHAKE_DETACH_TEXTURE | USER_NODE_SHAKE_DETACH_CUSTOM)
+
 /** #UserDef.gpu_backend
  * NOTE: Keep in sync with GPUBackendType. */
 enum eUserPref_GPUBackendType : short {
@@ -1023,6 +1038,10 @@ struct UserDef {
   /** Node insert offset (aka auto-offset) margin, but might be useful for later stuff as well. */
   char node_margin = 40;
   char node_preview_res = 120;
+  short node_shake_detach_flags = USER_NODE_SHAKE_DETACH_ALL;
+  short node_shake_sensitivity = 7;
+  short node_shake_time = 600;
+  char _pad_node_shake[2] = {};
   eUserpref_Translation_Flags transopts = USER_TR_TOOLTIPS | USER_TR_IFACE | USER_TR_REPORTS |
                                           USER_TR_NEWDATANAME;
   short menuthreshold1 = 5, menuthreshold2 = 2;
