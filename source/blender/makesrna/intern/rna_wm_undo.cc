@@ -71,14 +71,16 @@ static int rna_UndoStep_type_get(PointerRNA *ptr)
   if (!us->type) {
     return 0;
   }
-  int index = 0;
-  for (const UndoType &ut : g_undo_types) {
-    if (&ut == us->type) {
-      return index;
+  int index = 0, type_index = 0;
+  BKE_undosys_type_foreach([&](const UndoType *ut) {
+    if (ut == us->type) {
+      type_index = index;
+      return false;
     }
     index++;
-  }
-  return 0;
+    return true;
+  });
+  return type_index;
 }
 
 static const EnumPropertyItem *rna_UndoStep_type_itemf(bContext * /*C*/,
@@ -87,15 +89,16 @@ static const EnumPropertyItem *rna_UndoStep_type_itemf(bContext * /*C*/,
                                                        bool *r_free)
 {
   EnumPropertyItem *item = nullptr;
-  EnumPropertyItem tmp = {0, "", 0, "", ""};
-  int a = 0, totitem = 0;
+  int totitem = 0, index = 0;
 
-  for (const UndoType *ut = static_cast<UndoType *>(g_undo_types.first); ut; ut = ut->next, a++) {
-    tmp.value = a;
+  BKE_undosys_type_foreach([&](const UndoType *ut) {
+    EnumPropertyItem tmp = {0, "", 0, "", ""};
+    tmp.value = index++;
     tmp.identifier = ut->identifier;
     tmp.name = ut->identifier;
     RNA_enum_item_add(&item, &totitem, &tmp);
-  }
+    return true;
+  });
 
   RNA_enum_item_end(&item, &totitem);
   *r_free = true;

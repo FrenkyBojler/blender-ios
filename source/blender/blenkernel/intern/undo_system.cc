@@ -68,7 +68,7 @@ const UndoType *BKE_UNDOSYS_TYPE_PARTICLE = nullptr;
 const UndoType *BKE_UNDOSYS_TYPE_SCULPT = nullptr;
 const UndoType *BKE_UNDOSYS_TYPE_TEXT = nullptr;
 
-ListBaseT<UndoType> g_undo_types = {nullptr, nullptr};
+static ListBaseT<UndoType> g_undo_types = {nullptr, nullptr};
 
 /* An unused function with public linkage just to ensure symbols from the blender_undo.cc are not
  * stripped. */
@@ -928,6 +928,16 @@ void BKE_undosys_type_free_all()
   while (UndoType *ut = static_cast<UndoType *>(BLI_pophead(&g_undo_types))) {
     MEM_delete(ut);
   }
+}
+
+bool BKE_undosys_type_foreach(FunctionRef<bool(const UndoType *ut)> fn)
+{
+  for (const UndoType &ut : g_undo_types) {
+    if (!fn(&ut)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** \} */

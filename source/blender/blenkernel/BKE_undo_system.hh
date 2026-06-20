@@ -8,6 +8,7 @@
  */
 
 #include "BLI_enum_flags.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_path_utils.hh"
 
 #include "DNA_ID.h"
@@ -354,8 +355,14 @@ UndoStep *BKE_undosys_step_same_type_prev(UndoStep *us);
 
 /* Type System. */
 
-/** All registered undo types. */
-extern ListBaseT<UndoType> g_undo_types;
+/**
+ * Run `fn` for each registered undo type, in registration order.
+ *
+ * `fn` returns `true` to keep looping, `false` to break.
+ *
+ * \return `false` if `fn` broke the loop, otherwise `true`.
+ */
+bool BKE_undosys_type_foreach(FunctionRef<bool(const UndoType *ut)> fn);
 
 /**
  * Similar to #WM_operatortype_append
