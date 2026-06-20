@@ -95,6 +95,11 @@ bool driver_get_target_property(const DriverTargetContext *driver_target_context
 void driver_variables_copy(ListBaseT<DriverVar> *dst_vars, const ListBaseT<DriverVar> *src_vars);
 
 /**
+ * Clear driver variables from the vars list.
+ */
+void driver_variables_clear(ChannelDriver *driver);
+
+/**
  * Compute channel values for a rotational Transform Channel driver variable.
  */
 void BKE_driver_target_matrix_to_rot_channels(

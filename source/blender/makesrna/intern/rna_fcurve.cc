@@ -509,6 +509,11 @@ static void rna_Driver_remove_variable(ChannelDriver *driver,
   dvar_ptr->invalidate();
 }
 
+static void rna_Driver_clear_variables(ChannelDriver *driver)
+{
+  driver_variables_clear(driver);
+}
+
 /* ****************************** */
 
 static void rna_FKeyframe_handle1_get(PointerRNA *ptr, float *values)
@@ -2211,6 +2216,9 @@ static void rna_def_channeldriver_variables(BlenderRNA *brna, PropertyRNA *cprop
       func, "variable", "DriverVariable", "", "Variable to remove from the driver");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
+
+  func = RNA_def_function(srna, "clear", "rna_Driver_clear_variables");
+  RNA_def_function_ui_description(func, "Remove all variables from the driver");
 }
 
 static void rna_def_channeldriver(BlenderRNA *brna)

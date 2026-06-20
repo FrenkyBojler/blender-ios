@@ -905,6 +905,14 @@ void driver_variables_copy(ListBaseT<DriverVar> *dst_vars, const ListBaseT<Drive
   }
 }
 
+void driver_variables_clear(ChannelDriver *driver)
+{
+  for (DriverVar &var : driver->variables) {
+    driver_free_variable_ex(driver, &var);
+  }
+  BLI_listbase_clear(&driver->variables);
+}
+
 void driver_change_variable_type(DriverVar *dvar, eDriverVar_Types type)
 {
   const DriverVarTypeInfo *dvti = get_dvar_typeinfo(type);
