@@ -1663,7 +1663,6 @@ static int foreach_libblock_link_finalize_cb(LibraryIDLinkCallbackData *cb_data)
 }
 
 void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lapp_context,
-                                                 Collection *active_collection,
                                                  ReportList *reports)
 {
   BLI_assert(ELEM(lapp_context->process_stage,
@@ -1702,7 +1701,7 @@ void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lap
 
   LooseDataInstantiateContext instantiate_context{};
   instantiate_context.lapp_context = lapp_context;
-  instantiate_context.active_collection = active_collection;
+  instantiate_context.active_collection = lapp_context->active_collection;
   loose_data_instantiate(&instantiate_context);
 }
 
@@ -1730,6 +1729,7 @@ void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
   BlendfileLinkAppendContext lapp_context{};
   lapp_context.params = &lapp_params;
   lapp_context.process_stage = BlendfileLinkAppendContext::ProcessStage::Instantiating;
+  lapp_context.active_collection = active_collection;
 
   for (ID &id : MainAllIDsIterator(*bmain)) {
     if (id.tag & ID_TAG_PRE_EXISTING) {
@@ -1739,14 +1739,12 @@ void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
     BlendfileLinkAppendContextItem *item = BKE_blendfile_link_append_context_item_add(
         &lapp_context, BKE_id_name(id), GS(id.name), nullptr);
 
-    /* Consider these new IDs as linked and packed. */
     item->new_id = &id;
-    item->new_id->flag |= ID_FLAG_LINKED_AND_PACKED;
     item->tag |= LINK_APPEND_TAG_INDIRECT;
     item->action = LINK_APPEND_ACT_COPY_LOCAL;
   }
 
-  BKE_blendfile_link_append_instantiate_loose(&lapp_context, active_collection, nullptr);
+  BKE_blendfile_link_append_instantiate_loose(&lapp_context, nullptr);
 
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 }

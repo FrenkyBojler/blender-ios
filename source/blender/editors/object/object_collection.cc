@@ -640,29 +640,34 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
   CTX_data_scene_set(temp_C, nullptr);
   CTX_data_ui_context_access_deny(temp_C, true);
 
+  /* Manually increment the operator undo depth to ensure that the import operator itself does not
+   * push an undo step. */
   wm->op_undo_depth++;
+
   wmOperatorStatus op_result = WM_operator_name_call_ptr(
       temp_C, ot, wm::OpCallContext::ExecDefault, &properties, nullptr);
+
   wm->op_undo_depth--;
 
   if (op_result == OPERATOR_FINISHED) {
     /* Create a real library to encapsulate our external archive library.
      * TODO: Adjust after determining what to do about the missing library check above. */
-    Library *reference_lib = BKE_id_new<Library>(bmain, collection_name);
-    reference_lib->flag |= LIBRARY_FLAG_IS_EXTERNAL;
-    id_us_ensure_real(&reference_lib->id);
-    BKE_library_filepath_set(bmain, reference_lib, filepath);
+    Library *external_lib = BKE_id_new<Library>(bmain, collection_name);
+    external_lib->flag |= LIBRARY_FLAG_IS_EXTERNAL;
+    id_us_ensure_real(&external_lib->id);
+    BKE_library_filepath_set(bmain, external_lib, filepath);
 
     /* Create an external archive library to serve as the namespace for all IDs imported from the
      * external file. The library is marked as both an archive (it will never be written out as a
      * separate .blend) and external (it originates outside Blender). */
-    Library *external_lib = bke::library::ensure_external_library(*bmain, *reference_lib);
+    Library *external_archive_lib = bke::library::ensure_external_archive_library(*bmain,
+                                                                                  *external_lib);
 
-    /* Tag everything so we can make local only the new datablock. */
+    /* Tag everything so we can make local only the new datablocks. */
     BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
 
     MainMergeReport r;
-    BKE_main_merge_as_library(bmain, &temp_main, external_lib, r);
+    BKE_main_merge_as_archive_library(*bmain, temp_main, *external_archive_lib, r);
 
     /* Temporarily remove the importer to allow collection edits. */
     collection->importer = nullptr;
@@ -715,7 +720,7 @@ static void COLLECTION_OT_importer_import(wmOperatorType *ot)
   ot->poll = collection_importer_import_poll;
 
   /* flags */
-  ot->flag = 0;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 static bool collection_exporter_common_check(const Collection *collection)

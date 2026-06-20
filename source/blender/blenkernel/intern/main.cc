@@ -564,22 +564,23 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
   BKE_main_merge(bmain_dst, nullptr, r_bmain_src, reports);
 }
 
-void BKE_main_merge_as_library(Main *bmain_dst,
-                               Main **r_bmain_src,
-                               Library *dst_external_library,
-                               MainMergeReport &reports)
+void BKE_main_merge_as_archive_library(Main &bmain_dst,
+                                       Main *&r_bmain_src,
+                                       Library &dst_external_library,
+                                       MainMergeReport &reports)
 {
-  BLI_assert(dst_external_library != nullptr);
-  BLI_assert(dst_external_library->flag & LIBRARY_FLAG_IS_ARCHIVE);
-  BLI_assert(dst_external_library->flag & LIBRARY_FLAG_IS_EXTERNAL);
+  BLI_assert(dst_external_library.flag & LIBRARY_FLAG_IS_ARCHIVE);
+  BLI_assert(dst_external_library.flag & LIBRARY_FLAG_IS_EXTERNAL);
 
-  Main *bmain_src = *r_bmain_src;
+  Main &bmain_src = *r_bmain_src;
   Vector<ID *> ids_to_move;
 
   /* Collect all non-Library IDs from the source Main. Library IDs are dropped: the destination
    * already has the authoritative external_library representing this import source. */
-  for (ID &id_iter : MainAllIDsIterator(*bmain_src)) {
+  for (ID &id_iter : MainAllIDsIterator(bmain_src)) {
     if (GS(id_iter.name) == ID_LI) {
+      BLI_assert_msg(false,
+                     "Unexpected Library ID in source Main when merging as archive library");
       continue;
     }
     ids_to_move.append(&id_iter);
@@ -589,20 +590,23 @@ void BKE_main_merge_as_library(Main *bmain_dst,
 
   /* Remove IDs from the source Main and assign them to the external library namespace. */
   for (ID *id : ids_to_move) {
-    BKE_libblock_management_main_remove(bmain_src, id);
-    id->lib = dst_external_library;
+    BKE_libblock_management_main_remove(&bmain_src, id);
+    id->lib = &dst_external_library;
+
+    /* Consider these IDs as linked and packed. */
+    id->flag |= ID_FLAG_LINKED_AND_PACKED;
   }
 
   /* Add all IDs into the destination Main under the external library. */
   for (ID *id : ids_to_move) {
     BLI_assert((id->tag & ID_TAG_NO_MAIN) != 0);
-    BKE_libblock_management_main_add(bmain_dst, id);
+    BKE_libblock_management_main_add(&bmain_dst, id);
   }
 
-  BLI_assert(BKE_main_namemap_validate(*bmain_dst));
+  BLI_assert(BKE_main_namemap_validate(bmain_dst));
 
-  BKE_main_free(bmain_src);
-  *r_bmain_src = nullptr;
+  BKE_main_free(&bmain_src);
+  r_bmain_src = nullptr;
 }
 
 bool BKE_main_is_empty(Main *bmain)

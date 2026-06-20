@@ -144,6 +144,12 @@ struct BlendfileLinkAppendContext {
   LibraryLink_Params *params = nullptr;
 
   /**
+   * Active collection to link/append into. This is only used for instantiating collections, and is
+   * not mandatory for linking/appending objects or other data-blocks.
+   */
+  Collection *active_collection;
+
+  /**
    * What is the current stage of the link/append process. Used mainly by the RNA wrappers for the
    * pre/post handlers currently.
    */
@@ -361,7 +367,6 @@ void BKE_blendfile_append(BlendfileLinkAppendContext *lapp_context, ReportList *
  * Instantiate loose data in the scene (e.g. add object to the active collection).
  */
 void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lapp_context,
-                                                 Collection *active_collection,
                                                  ReportList *reports);
 
 /**

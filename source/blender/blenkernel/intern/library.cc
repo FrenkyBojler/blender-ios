@@ -786,7 +786,7 @@ void bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
   pack_linked_ids(bmain, ids_to_pack);
 }
 
-static Library *add_external_library(Main &bmain, Library &reference_library)
+static Library *add_external_archive_library(Main &bmain, Library &reference_library)
 {
   BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL) != 0);
   /* Cannot copy libraries using generic ID copying functions, so create the copy manually. */
@@ -814,13 +814,14 @@ static Library *add_external_library(Main &bmain, Library &reference_library)
   return external_library;
 }
 
-Library *bke::library::ensure_external_library(Main &bmain, Library &reference_library)
+Library *bke::library::ensure_external_archive_library(Main &bmain, Library &external_library)
 {
-  BLI_assert(reference_library.flag & LIBRARY_FLAG_IS_EXTERNAL);
+  BLI_assert(external_library.flag & LIBRARY_FLAG_IS_EXTERNAL);
+  BLI_assert(external_library.runtime->archived_libraries.is_empty());
 
-  Library *archive_library = add_external_library(bmain, reference_library);
+  Library *archive_library = add_external_archive_library(bmain, external_library);
 
-  BLI_assert(reference_library.runtime->archived_libraries.contains(archive_library));
+  BLI_assert(external_library.runtime->archived_libraries.contains(archive_library));
   return archive_library;
 }
 
