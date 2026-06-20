@@ -275,6 +275,7 @@ struct CutOperationExecutor {
   /**
    * Finds the position where the brush (represented as an infinite cylinder aligned with the view)
    * intersects with a line segment.
+   * This code works under the assumption that there is going to be an intersection.
    */
   float3 find_projected_cut_boundary(const float3 &point_outside_cu,
                                      const float3 &point_inside_cu,
@@ -287,21 +288,9 @@ struct CutOperationExecutor {
     const float2 point_inside_re = ED_view3d_project_float_v2_m4(
         ctx_.region, point_inside_cu, transform_cu_to_re);
 
-    const float2 line_re = point_inside_re - point_outside_re;
-    const float2 brush_to_outside_re = point_outside_re - brush_pos_re;
-
-    /* Solve a quadratic equation to find the line-segment-circle intersection. */
-    const float a = math::dot(line_re, line_re);
-    const float b = 2.0f * math::dot(line_re, brush_to_outside_re);
-    const float c = math::dot(brush_to_outside_re, brush_to_outside_re) -
-                    brush_radius_re * brush_radius_re;
-
-    float d = b * b - 4.0f * a * c;
-    /* It shouldn't be possible to have no intersection (d < 0), so assume to be tangential. */
-    d = math::max(d, 0.0f);
-
-    /* Compute the intersection point via the factor "t" along the line segment. */
-    const float t = (-b - sqrtf(d)) / (2.0f * a);
+    /* Do the intersection in 2d space, but compute the intersection's position in 3d space. */
+    const float t = intersect_line_segment_sphere_2d(
+        point_outside_re, point_inside_re, brush_pos_re, brush_radius_re);
 
     const float3 line_cu = point_inside_cu - point_outside_cu;
     const float3 intersection_cu = point_outside_cu + t * line_cu;
@@ -309,7 +298,36 @@ struct CutOperationExecutor {
   }
 
   /**
+   * Finds the position where a line segment intersects a sphere, as seen in 2d space.
+   * Returns the factor "t" that describes how far along the line segment to travel (where 0 is
+   * the line segment's start and 1 is its end).
+   * This code works under the assumption that there is going to be an intersection.
+   */
+  float intersect_line_segment_sphere_2d(const float2 &line_segment_start,
+                                         const float2 &line_segment_end,
+                                         const float2 &sphere_position,
+                                         const float sphere_radius)
+  {
+    const float2 line_re = line_segment_end - line_segment_start;
+    const float2 brush_to_outside_re = line_segment_start - sphere_position;
+
+    /* Solve a quadratic equation to find the line-segment-circle intersection. */
+    const float a = math::dot(line_re, line_re);
+    const float b = 2.0f * math::dot(line_re, brush_to_outside_re);
+    const float c = math::dot(brush_to_outside_re, brush_to_outside_re) -
+                    sphere_radius * sphere_radius;
+
+    float d = b * b - 4.0f * a * c;
+    /* It shouldn't be possible to have no intersection (d < 0), so assume to be tangential. */
+    d = math::max(d, 0.0f);
+
+    const float t = (-b - sqrtf(d)) / (2.0f * a);
+    return t;
+  }
+
+  /**
    * Finds the position where the brush (represented as a sphere) intersects with a line segment.
+   * This code works under the assumption that there is going to be an intersection.
    */
   float3 find_spherical_cut_boundary(const float3 &point_outside_cu,
                                      const float3 &point_inside_cu,
