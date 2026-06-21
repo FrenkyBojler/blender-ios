@@ -11,6 +11,7 @@
 #include "BLI_math_vector.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_binary_search.hh"
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_solvers.hh"
 #include "BLI_set.hh"
@@ -163,12 +164,9 @@ static void calculate_splines_axis(Span<float> distances,
 /** Return the index of the spline segment that contains target_distance. */
 static int calculate_spline_segment(Span<float> knot_distances, float target_distance)
 {
-  for (const int k : IndexRange(knot_distances.size() - 1)) {
-    if (target_distance >= knot_distances[k] && target_distance <= knot_distances[k + 1]) {
-      return k;
-    }
-  }
-  return knot_distances.size() - 2;
+  const int segment_index = binary_search::last_if(
+      knot_distances, [&](const float value) { return value <= target_distance; });
+  return std::clamp(segment_index, 0, int(knot_distances.size()) - 2);
 }
 
 static void build_relax_phases(int num_verts, bool is_closed, Vector<RelaxPhase> &r_phases)
