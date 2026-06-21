@@ -186,17 +186,41 @@ static const char *gpu_shader_get_name(const BitMathOperation operation)
   return nullptr;
 }
 
+static void gpu_stack_exclude_hidden_inputs(GPUNodeStack *in, const BitMathOperation operation)
+{
+  switch (operation) {
+    case BitMathOperation::And:
+    case BitMathOperation::Or:
+    case BitMathOperation::Xor:
+      in[2].type = GPU_NONE;
+      return;
+    case BitMathOperation::Not:
+      in[1].type = GPU_NONE;
+      in[2].type = GPU_NONE;
+      return;
+    case BitMathOperation::Shift:
+    case BitMathOperation::Rotate:
+      in[1].type = GPU_NONE;
+      return;
+  }
+
+  BLI_assert_unreachable();
+}
+
 static int node_gpu_material(GPUMaterial *mat,
                              bNode *node,
                              bNodeExecData * /*execdata*/,
                              GPUNodeStack *in,
                              GPUNodeStack *out)
 {
-  const char *name = gpu_shader_get_name(BitMathOperation(node->custom1));
+  const BitMathOperation operation = BitMathOperation(node->custom1);
+  const char *name = gpu_shader_get_name(operation);
 
   if (name == nullptr) {
     return 0;
   }
+
+  gpu_stack_exclude_hidden_inputs(in, operation);
 
   return GPU_stack_link(mat, node, name, in, out);
 }
