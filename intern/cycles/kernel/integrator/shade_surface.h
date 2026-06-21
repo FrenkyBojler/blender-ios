@@ -391,9 +391,9 @@ ccl_device
 
   /* Evaluate BSDF. */
   BsdfEval bsdf_eval ccl_optional_struct_init;
-  float avg_roughness_squared = 0.0f;
+  float avg_roughness = 0.0f;
   const float bsdf_pdf = surface_shader_bsdf_eval(
-      kg, state, sd, ls.D, &bsdf_eval, ls.shader, avg_roughness_squared);
+      kg, state, sd, ls.D, &bsdf_eval, ls.shader, avg_roughness);
 
   Ray ray ccl_optional_struct_init;
 
@@ -433,7 +433,7 @@ ccl_device
 #ifdef __RAY_DIFFERENTIALS__
     /* Widen ray differences, with same logic as forward sampling to ensure
      * both MIS strategies converge to the same result. */
-    ray.dD = bsdf_widen_dD(INTEGRATOR_STATE(state, ray, dD), avg_roughness_squared);
+    ray.dD = bsdf_widen_dD(INTEGRATOR_STATE(state, ray, dD), avg_roughness);
 #endif
   }
 
@@ -522,7 +522,7 @@ ccl_device_forceinline int integrate_surface_bsdf_bssrdf_bounce(
   float bsdf_eta = 1.0f;
   float mis_pdf = 1.0f;
 
-  float bsdf_avg_roughness_squared = 0.0f;
+  float bsdf_avg_roughness = 0.0f;
 
 #if defined(__PATH_GUIDING__) && PATH_GUIDING_LEVEL >= 4
   if (kernel_data.integrator.use_surface_guiding &&
@@ -541,7 +541,7 @@ ccl_device_forceinline int integrate_surface_bsdf_bssrdf_bounce(
                                                       &bsdf_sampled_roughness,
                                                       &bsdf_eta,
                                                       rng_state,
-                                                      bsdf_avg_roughness_squared);
+                                                      bsdf_avg_roughness);
 
     if (bsdf_pdf == 0.0f || bsdf_eval_is_zero(&bsdf_eval)) {
       return LABEL_NONE;
@@ -561,7 +561,7 @@ ccl_device_forceinline int integrate_surface_bsdf_bssrdf_bounce(
                                                &bsdf_pdf,
                                                &bsdf_sampled_roughness,
                                                &bsdf_eta,
-                                               bsdf_avg_roughness_squared);
+                                               bsdf_avg_roughness);
 
     if (bsdf_pdf == 0.0f || bsdf_eval_is_zero(&bsdf_eval)) {
       return LABEL_NONE;
@@ -586,7 +586,7 @@ ccl_device_forceinline int integrate_surface_bsdf_bssrdf_bounce(
 
     /* Widen ray differences, with same logic as NEE sampling to ensure
      * both MIS strategies converge to the same result. */
-    const float dD = bsdf_widen_dD(INTEGRATOR_STATE(state, ray, dD), bsdf_avg_roughness_squared);
+    const float dD = bsdf_widen_dD(INTEGRATOR_STATE(state, ray, dD), bsdf_avg_roughness);
     INTEGRATOR_STATE_WRITE(state, ray, dD) = dD;
 #endif
   }
