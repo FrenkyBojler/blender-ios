@@ -604,6 +604,49 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
         }
       }
     }
+    else if (mode == EDGE_FLOW_CURVE) {
+      const int count = int(loop.verts.size());
+      const float3 start_co = p1->co;
+      const float3 end_co = p2->co;
+
+      /* Tangents of the loop's first and last edges. */
+      const float3 dir1_full = float3(loop.verts[1]->co) - start_co;
+      const float3 dir2_full = float3(loop.verts[count - 2]->co) - end_co;
+      const float3 dir1 = math::normalize(dir1_full);
+      const float3 dir2 = math::normalize(dir2_full);
+
+      float3 ctrl1;
+      float3 ctrl4;
+      if (use_rail) {
+        if (rail_mode == 0) {
+          ctrl1 = start_co + (dir1_full - dir1 * rail_start);
+          ctrl4 = end_co + (dir2_full - dir2 * rail_end);
+        }
+        else {
+          ctrl1 = start_co + dir1_full * rail_start;
+          ctrl4 = end_co + dir2_full * rail_end;
+        }
+      }
+      else {
+        ctrl1 = start_co;
+        ctrl4 = end_co;
+      }
+
+      const float scale = math::distance(ctrl1, ctrl4) * 0.5f * tension;
+      const float3 ctrl2 = ctrl1 + dir1 * scale;
+      const float3 ctrl3 = ctrl4 + dir2 * scale;
+
+      /* Resaample arc along spline and blend verts toward new positions. */
+      Array<float3> spline(1000);
+      edge_flow_sample_bezier(ctrl1, ctrl2, ctrl3, ctrl4, spline);
+      edge_flow_map_onto_spline(loop.verts, spline);
+
+      for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
+        float3 blended;
+        interp_v3_v3v3(blended, orig_cos[i], loop.verts[i]->co, mix);
+        copy_v3_v3(loop.verts[i]->co, blended);
+      }
+    }
   }
 }
 
