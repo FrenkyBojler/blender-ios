@@ -280,32 +280,29 @@ static Vector<Vertex> fisheye_frame_verts()
   verts.append({{-size, size, 0.0}, VCLASS_CAMERA_FISHEYE_FRAME});
   verts.append({{size, size, 0.0}, VCLASS_CAMERA_FISHEYE_FRAME});
 
-
   /*   verts.append({{-1.0f, -1.0f, 0.0}, VCLASS_NONE});
   verts.append({{1.0f, -1.0f, 0.0}, VCLASS_NONE}); */
- 
+
   return verts;
 }
-  
+
 static Vector<Vertex> fisheye_latitude_ring_verts()
 {
-    const float radius = 1.0f;
-    const int segments = 96;
-    Vector<Vertex> verts;
-    Vector<float2> ring = arc_vertices(radius, segments);
+  const float radius = 1.0f;
+  const int segments = 96;
+  Vector<Vertex> verts;
+  Vector<float2> ring = arc_vertices(radius, segments);
 
-      for (int i : IndexRange(segments)) {
+  for (int i : IndexRange(segments)) {
 
+    for (int j : IndexRange(2)) {
 
+      float2 cv = ring[(i + j) % segments];
 
-      for (int j : IndexRange(2)) {
-
-        float2 cv = ring[(i + j) % segments];
-
-        verts.append({{cv[0], -cv[1], 0.0f }, VCLASS_CAMERA_FISHEYE_HORIZON});
-      }
+      verts.append({{cv[0], -cv[1], 0.0f}, VCLASS_CAMERA_FISHEYE_HORIZON});
     }
-    return verts;
+  }
+  return verts;
 }
 
 static Vector<Vertex> fisheye_longitude_arc_verts()
@@ -313,22 +310,21 @@ static Vector<Vertex> fisheye_longitude_arc_verts()
   const float radius = 1.0f;
   const int segments = 96;
   Vector<Vertex> verts;
-  Vector<float2> arc = arc_vertices(radius, segments - 1, true);  
+  Vector<float2> arc = arc_vertices(radius, segments - 1, true);
 
-    for (int i : IndexRange(segments)) {
+  for (int i : IndexRange(segments)) {
 
-      if (i >= segments - 1) {
-        continue;
-      }
-
-      for (int j : IndexRange(2)) {
-
-        float2 cv = arc[(i + j) % segments];
-
-        verts.append({{0.0f, -cv[1], cv[0]}, VCLASS_CAMERA_FISHEYE_LONGITUDE});
-      }
+    if (i >= segments - 1) {
+      continue;
     }
 
+    for (int j : IndexRange(2)) {
+
+      float2 cv = arc[(i + j) % segments];
+
+      verts.append({{0.0f, -cv[1], cv[0]}, VCLASS_CAMERA_FISHEYE_LONGITUDE});
+    }
+  }
 
   return verts;
 }
@@ -1009,7 +1005,7 @@ ShapeCache::ShapeCache()
     camera_volume_wire = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
-    /*Fisheye longitude arc*/
+  /*Fisheye longitude arc*/
   {
 
     Vector<Vertex> verts = fisheye_longitude_arc_verts();
@@ -1027,19 +1023,19 @@ ShapeCache::ShapeCache()
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
 
-   /*Fisheye camera frame*/
+  /*Fisheye camera frame*/
   {
     Vector<Vertex> verts = fisheye_frame_verts();
 
-    camera_fisheye_frame = BatchPtr(
-        GPU_batch_create_ex(GPU_PRIM_LINE_STRIP, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    camera_fisheye_frame = BatchPtr(GPU_batch_create_ex(
+        GPU_PRIM_LINE_STRIP, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
 
   /*Fisheye camera tria */
   {
-    
+
     Vector<Vertex> verts = fisheye_tria_verts();
-        
+
     camera_fisheye_tria = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_TRIS, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
