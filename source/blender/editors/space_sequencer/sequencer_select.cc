@@ -1051,6 +1051,7 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
   }
 
   Vector<Strip *> strips;
+  Vector<Strip *> transitions;
   for (Strip &strip : *ed->current_strips()) {
     if (strip.channel != int(mouse_co[1])) {
       continue;
@@ -1061,28 +1062,34 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
     if (strip.right_handle(scene) < v2d->cur.xmin) {
       continue;
     }
+    if (!transitions.is_empty() && strip.input2 == nullptr) {
+      continue;
+    }
     const rctf body = strip_clickable_area_get(scene, sseq, v2d, &strip);
     if (!BLI_rctf_isect_pt_v(&body, mouse_co)) {
       continue;
     }
-    // TODO: The edge case of transitions right next to each other could cause unpredictable
-    // behaviour. This needs to be sorted as well.
-    // Eg. move Vector<Strip *> transition; after Vector<Strip *> strips;, and add another
-    // if (!transitions.is_empty()) continue;
-    // then at the end Vector<Strip *> &result = transitions.is_empty() ? strips : transitions;
-    // and then do the last sort and return with that result one
+    /* Transitions don't have adjacent handle selection. */
     if (strip.input2 != nullptr) {
-      Vector<Strip *> transition;
-      transition.append(&strip);
-      return transition;
+      transitions.append(&strip);
     }
-    strips.append(&strip);
+    else {
+      strips.append(&strip);
+    }
   }
 
-  std::ranges::sort(strips, [&](const Strip *strip1, const Strip *strip2) {
+  Vector<Strip *> &sorting = transitions.is_empty() ? strips : transitions;
+
+  std::ranges::sort(sorting, [&](const Strip *strip1, const Strip *strip2) {
     return strip_to_frame_distance(scene, sseq, v2d, strip1, mouse_co[0]) <
            strip_to_frame_distance(scene, sseq, v2d, strip2, mouse_co[0]);
   });
+
+  /* We only want the closest transition. */
+  if (!transitions.is_empty()) {
+    Vector<Strip *> transition{transitions[0]};
+    return transition;
+  }
 
   return strips;
 }
@@ -1121,8 +1128,6 @@ static eStripHandle strip_handle_under_cursor_get(const Scene *scene,
   return STRIP_HANDLE_NONE;
 }
 
-// TODO: Rare case of adjacent transition strips: I think I already marked this in
-// padded_strips_under_mouse_get, but check to make sure
 static bool is_mouse_over_both_handles_of_adjacent_strips(const Scene *scene,
                                                           const SpaceSeq *sseq,
                                                           Vector<Strip *> strips,
