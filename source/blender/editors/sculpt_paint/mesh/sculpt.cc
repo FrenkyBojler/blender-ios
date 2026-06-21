@@ -2739,6 +2739,7 @@ static IndexMask pbvh_gather_generic_cube(Object &ob,
         const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
         return node_in_box(cache.brush_local_mat, bounds);
       });
+
     case PAINT_FALLOFF_SHAPE_TUBE:
       return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
         if (ignore_ineffective && node_fully_masked_or_hidden(node)) {
@@ -2746,7 +2747,7 @@ static IndexMask pbvh_gather_generic_cube(Object &ob,
         }
         const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
         return node_in_box(
-            cache.brush_local_mat, bounds, float3(0.0f), float3(1.0f, 9999.0f, 1.0f));
+            cache.brush_local_mat, bounds, float3(0.0f), float3(1.0f, 1.0f, FLT_MAX));
       });
   }
 
@@ -2871,7 +2872,7 @@ static void calc_local_from_screen(const ViewContext &vc,
   mul_v3_m4v3(loc, ob.object_to_world().ptr(), center);
   const float zfac = ED_view3d_calc_zfac(vc.rv3d, loc);
 
-  ED_view3d_win_to_delta(vc.region, screen_dir, zfac, r_local_dir);
+  ED_view3d_win_to_delta(vc.region, screen_dir, zfac, r_local_dir, true);
   normalize_v3(r_local_dir);
 
   add_v3_v3(r_local_dir, ob.loc);
@@ -2880,6 +2881,7 @@ static void calc_local_from_screen(const ViewContext &vc,
 
 static void calc_brush_local_mat(const float rotation,
                                  const Object &ob,
+                                 const eBrushFalloffShape falloff_shape,
                                  float local_mat[4][4],
                                  float local_mat_inv[4][4])
 {
@@ -2912,21 +2914,44 @@ static void calc_brush_local_mat(const float rotation,
   calc_local_from_screen(
       *cache->vc, cache->location_symm, motion_normal_screen, motion_normal_local);
 
-  /* Calculate the movement direction for the local matrix.
-   * Note that there is a deliberate prioritization here: Our calculations are
-   * designed such that the _motion vector_ gets projected into the tangent space;
-   * in most cases this will be more intuitive than projecting the transverse
-   * direction (which is orthogonal to the motion direction and therefore less
-   * apparent to the user).
-   * The Y-axis of the brush-local frame has to lie in the intersection of the tangent plane
-   * and the motion plane. */
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
+    /* Calculate the movement direction for the local matrix.
+     * Note that there is a deliberate prioritization here: Our calculations are
+     * designed such that the _motion vector_ gets projected into the tangent space;
+     * in most cases this will be more intuitive than projecting the transverse
+     * direction (which is orthogonal to the motion direction and therefore less
+     * apparent to the user).
+     * The Y-axis of the brush-local frame has to lie in the intersection of the tangent plane
+     * and the motion plane. */
+    cross_v3_v3v3(v, cache->sculpt_normal, motion_normal_local);
+    normalize_v3_v3(mat[1], v);
+    /* Get other axes. */
+    cross_v3_v3v3(mat[0], mat[1], cache->sculpt_normal);
+    copy_v3_v3(mat[2], cache->sculpt_normal);
+  }
+  else if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
+    /* The primary difference is that instead of using the sculpt normal (calculated from the
+     * affected nodes) and the brush motion normal to calculate the motion direction, we calculate
+     * brush direction directly from the screen space motion. */
 
-  cross_v3_v3v3(v, cache->sculpt_normal, motion_normal_local);
-  normalize_v3_v3(mat[1], v);
+    float motion_dir_screen[2];
 
-  /* Get other axes. */
-  cross_v3_v3v3(mat[0], mat[1], cache->sculpt_normal);
-  copy_v3_v3(mat[2], cache->sculpt_normal);
+    /* Rotate motion_normal_screen clock-wise by 90 degrees. */
+    motion_dir_screen[0] = -motion_normal_screen[1];
+    motion_dir_screen[1] = motion_normal_screen[0];
+
+    /* Since the falloff shape is projected,  */
+    float motion_dir_local[3];
+    calc_local_from_screen(*cache->vc, cache->location_symm, motion_dir_screen, motion_dir_local);
+    normalize_v3_v3(mat[1], motion_dir_local);
+    normalize_v3_v3(mat[0], motion_normal_local);
+
+    /* We get the third axis by taking the cross product of the other two. */
+    cross_v3_v3v3(mat[2], mat[1], mat[0]);
+  }
+  else {
+    BLI_assert_unreachable();
+  }
 
   /* Set location. */
   copy_v3_v3(mat[3], cache->location_symm);
@@ -2985,8 +3010,11 @@ static void update_brush_local_mat(const Sculpt &sd, Object &ob)
   if (cache->mirror_symmetry_pass == 0 && cache->radial_symmetry_pass == 0) {
     const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
     const MTex *mask_tex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
-    calc_brush_local_mat(
-        mask_tex->rot, ob, cache->brush_local_mat.ptr(), cache->brush_local_mat_inv.ptr());
+    calc_brush_local_mat(mask_tex->rot,
+                         ob,
+                         eBrushFalloffShape(brush->falloff_shape),
+                         cache->brush_local_mat.ptr(),
+                         cache->brush_local_mat_inv.ptr());
   }
 }
 
@@ -6861,7 +6889,7 @@ void cube_tip_init(const Sculpt & /*sd*/, const Object &ob, const Brush &brush, 
   float unused[4][4];
 
   zero_m4(mat);
-  calc_brush_local_mat(0.0, ob, unused, mat);
+  calc_brush_local_mat(0.0, ob, eBrushFalloffShape(brush.falloff_shape), unused, mat);
 
   /* NOTE: we ignore the radius scaling done inside of calc_brush_local_mat to
    * duplicate prior behavior.
