@@ -109,7 +109,10 @@ rcti strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const St
 /* -------------------------------------------------------------------- */
 /** \name Draw Retiming Keys
  * \{ */
-
+// TODO: what if retiming is enabled?
+// The retiming keys should probably still be selectable even if there's a transition on them, eg
+// if you have retiming keys on the two strips selected and want to move the transition with them,
+// right?
 static void retiming_key_draw(const TimelineDrawContext &ctx,
                               const StripDrawContext &strip_ctx,
                               const SeqRetimingKey *key,

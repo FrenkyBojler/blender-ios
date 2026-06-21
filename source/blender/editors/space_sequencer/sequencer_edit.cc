@@ -887,6 +887,7 @@ static void slip_update_header(const Scene *scene,
   ED_area_status_text(area, msg);
 }
 
+// TODO: check to make sure transitions can't be slipped
 static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent *event)
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
@@ -1926,6 +1927,7 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
 }
 
+// TODO: check to make sure transitions can't be split
 static wmOperatorStatus sequencer_split_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -2072,6 +2074,7 @@ static bool sequencer_box_blade_poll(bContext *C)
   return sequencer_edit_poll(C) && sequencer_view_strips_poll(C);
 }
 
+// TODO: check. how does this act with transitions?
 static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);

@@ -951,6 +951,7 @@ static void select_linked_time(const Scene *scene,
  * `strip_clickable_areas_get` will pad this past strip bounds by 1/3 of the inner handle size,
  * making the full size 15 + 5 = 20px in frames for large strips, 1/4 + 1/12 = 1/3 of the strip
  * size for small ones. */
+// TODO
 static float inner_clickable_handle_size_get(const Scene *scene,
                                              const Strip *strip,
                                              const View2D *v2d)
@@ -1064,6 +1065,12 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
     if (!BLI_rctf_isect_pt_v(&body, mouse_co)) {
       continue;
     }
+    // TODO: The edge case of transitions right next to each other could cause unpredictable
+    // behaviour. This needs to be sorted as well.
+    // Eg. move Vector<Strip *> transition; after Vector<Strip *> strips;, and add another
+    // if (!transitions.is_empty()) continue;
+    // then at the end Vector<Strip *> &result = transitions.is_empty() ? strips : transitions;
+    // and then do the last sort and return with that result one
     if (strip.input2 != nullptr) {
       Vector<Strip *> transition;
       transition.append(&strip);
@@ -1080,6 +1087,8 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
   return strips;
 }
 
+// TODO: use this in the transform code for automatically removing them when they no longer
+// overlap. Maybe move to the helper function place
 static bool strips_are_adjacent(const Scene *scene, const Strip *strip1, const Strip *strip2)
 {
   const int s1_left = strip1->left_handle();
@@ -1112,6 +1121,8 @@ static eStripHandle strip_handle_under_cursor_get(const Scene *scene,
   return STRIP_HANDLE_NONE;
 }
 
+// TODO: Rare case of adjacent transition strips: I think I already marked this in
+// padded_strips_under_mouse_get, but check to make sure
 static bool is_mouse_over_both_handles_of_adjacent_strips(const Scene *scene,
                                                           const SpaceSeq *sseq,
                                                           Vector<Strip *> strips,
@@ -1169,6 +1180,7 @@ StripSelection pick_strip_and_handle(const Scene *scene,
   return selection;
 }
 
+// TODO: how it acts with transitions etc.
 wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
 {
   const View2D *v2d = ui::view2d_fromcontext(C);
@@ -1528,6 +1540,7 @@ static wmOperatorStatus sequencer_select_handle_invoke(bContext *C,
   return sequencer_select_handle_exec(C, op);
 }
 
+// TODO: transition selection
 void SEQUENCER_OT_select_handle(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -1747,6 +1760,7 @@ static wmOperatorStatus sequencer_select_linked_pick_invoke(bContext *C,
   return OPERATOR_FINISHED;
 }
 
+// TODO: transitions
 void SEQUENCER_OT_select_linked_pick(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -2264,6 +2278,7 @@ static wmOperatorStatus sequencer_box_select_invoke(bContext *C,
   return WM_gesture_box_invoke(C, op, event);
 }
 
+// TODO: what are the allowed selection states for the combinations of transition + normal strip?
 void SEQUENCER_OT_select_box(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -2352,6 +2367,7 @@ static bool rcti_in_lasso(const rcti rect, const Span<int2> mcoords)
   return false;
 }
 
+// TODO: strip and transition selection state
 static bool do_lasso_select_timeline(bContext *C,
                                      const Span<int2> mcoords,
                                      ARegion *region,
@@ -2543,6 +2559,7 @@ static bool check_circle_intersection_in_timeline(const rctf *rect,
 
   return ((dx * dx) / (x_radius * x_radius) + (dy * dy) / (y_radius * y_radius) <= 1.0f);
 }
+// TODO: how transition and strip selection state works
 static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 {
   const int radius = RNA_int_get(op->ptr, "radius");
