@@ -488,13 +488,18 @@ void RenderAsMovieExporter::export_strip(Main *bmain, const OTIOExportParams *ex
   }
   BLI_path_append(render_filepath, sizeof(render_filepath), render_filename);
 
-  seq::render_strip_full(bmain,
-                         scene_,
-                         strip_,
-                         get_scene_strip_resolution_percent(export_params->scene_strip_res),
-                         render_filepath,
-                         false);
+  const bool is_rendered = seq::render_strip_full(
+      bmain,
+      scene_,
+      strip_,
+      get_scene_strip_resolution_percent(export_params->scene_strip_res),
+      render_filepath,
+      false);
 
+  if (!is_rendered) {
+    export_with_missing_reference();
+    return;
+  }
   auto exporter = MovieStripExporter(strip_, scene_, track_, last_strip_end, render_filepath);
   exporter.export_strip(bmain, export_params);
   last_strip_end = exporter.last_strip_end;

@@ -75,8 +75,12 @@ void render_new_render_data(Main *bmain,
                             Render *render,
                             RenderData *r_context);
 StripElem *render_give_stripelem(const Scene *scene, const Strip *strip, int timeline_frame);
-/* Render and save an individual strip as a movie at `filepath`. */
-void render_strip_full(Main *bmain,
+
+/**
+ * Render and save an individual strip as a movie at `filepath`.
+ * \return true if render was successful
+ */
+bool render_strip_full(Main *bmain,
                        Scene *scene,
                        Strip *strip,
                        short resolution_percent,
