@@ -2729,15 +2729,28 @@ static IndexMask pbvh_gather_generic_cube(Object &ob,
     return {};
   }
   const bool ignore_ineffective = brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_MASK;
-  const IndexMask cube_mask = bke::pbvh::search_nodes(
-      pbvh, memory, [&](const bke::pbvh::Node &node) {
+
+  switch (brush.falloff_shape) {
+    case PAINT_FALLOFF_SHAPE_SPHERE:
+      return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
         if (ignore_ineffective && node_fully_masked_or_hidden(node)) {
           return false;
         }
         const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
         return node_in_box(cache.brush_local_mat, bounds);
       });
-  return cube_mask;
+    case PAINT_FALLOFF_SHAPE_TUBE:
+      return bke::pbvh::search_nodes(pbvh, memory, [&](const bke::pbvh::Node &node) {
+        if (ignore_ineffective && node_fully_masked_or_hidden(node)) {
+          return false;
+        }
+        const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
+        return node_in_box(
+            cache.brush_local_mat, bounds, float3(0.0f), float3(1.0f, 9999.0f, 1.0f));
+      });
+  }
+
+  BLI_assert_unreachable();
 }
 
 IndexMask gather_nodes(const bke::pbvh::Tree &pbvh,
@@ -6995,26 +7008,58 @@ template void scatter_data_bmesh<float3>(Span<float3>,
                                          const Set<BMVert *, 0> &,
                                          MutableSpan<float3>);
 
-void calc_local_positions(const Span<float3> vert_positions,
+void calc_local_positions(const SculptSession &ss,
+                          const Span<float3> vert_positions,
                           const Span<int> verts,
                           const float4x4 &mat,
+                          const eBrushFalloffShape falloff_shape,
                           const MutableSpan<float3> local_positions)
 {
   PRF_scope(ProfileCategory::Editor);
   BLI_assert(local_positions.size() == verts.size());
-  for (const int i : verts.index_range()) {
-    local_positions[i] = math::transform_point(mat, vert_positions[verts[i]]);
+  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
+    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
+                                           ss.filter_cache->view_normal;
+    float4 test_plane;
+    plane_from_point_normal_v3(test_plane, test_location, view_normal);
+    for (const int i : verts.index_range()) {
+      float3 projected;
+      closest_to_plane_normalized_v3(projected, test_plane, vert_positions[verts[i]]);
+      local_positions[i] = math::transform_point(mat, projected);
+    }
+  }
+  else {
+    for (const int i : verts.index_range()) {
+      local_positions[i] = math::transform_point(mat, vert_positions[verts[i]]);
+    }
   }
 }
 
-void calc_local_positions(const Span<float3> positions,
+void calc_local_positions(const SculptSession &ss,
+                          const Span<float3> positions,
                           const float4x4 &mat,
+                          const eBrushFalloffShape falloff_shape,
                           const MutableSpan<float3> local_positions)
 {
   PRF_scope(ProfileCategory::Editor);
   BLI_assert(local_positions.size() == positions.size());
-  for (const int i : positions.index_range()) {
-    local_positions[i] = math::transform_point(mat, positions[i]);
+  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
+    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
+                                           ss.filter_cache->view_normal;
+    float4 test_plane;
+    plane_from_point_normal_v3(test_plane, test_location, view_normal);
+    for (const int i : positions.index_range()) {
+      float3 projected;
+      closest_to_plane_normalized_v3(projected, test_plane, positions[i]);
+      local_positions[i] = math::transform_point(mat, projected);
+    }
+  }
+  else {
+    for (const int i : positions.index_range()) {
+      local_positions[i] = math::transform_point(mat, positions[i]);
+    }
   }
 }
 
@@ -7198,7 +7243,8 @@ void calc_cube_tip_factors_common_mesh_indexed(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   Vector<float3> local_positions_storage(verts.size());
   MutableSpan<float3> local_positions = local_positions_storage;
-  calc_local_positions(vert_positions, verts, mat, local_positions);
+  calc_local_positions(
+      ss, vert_positions, verts, mat, eBrushFalloffShape(brush.falloff_shape), local_positions);
 
   /* Find the cube distance. */
   calc_brush_cube_distances<float3>(brush, local_positions, distances);
@@ -7280,7 +7326,8 @@ void calc_cube_tip_factors_common_grids(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   Vector<float3> local_positions_storage(positions.size());
   MutableSpan<float3> local_positions = local_positions_storage;
-  calc_local_positions(positions, mat, local_positions);
+  calc_local_positions(
+      ss, positions, mat, eBrushFalloffShape(brush.falloff_shape), local_positions);
 
   /* Find the cube distance. */
   r_distances.resize(positions.size());
@@ -7360,7 +7407,8 @@ void calc_cube_tip_factors_common_bmesh(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   Vector<float3> local_positions_storage(verts.size());
   MutableSpan<float3> local_positions = local_positions_storage;
-  calc_local_positions(positions, mat, local_positions);
+  calc_local_positions(
+      ss, positions, mat, eBrushFalloffShape(brush.falloff_shape), local_positions);
 
   /* Find the cube distance. */
   r_distances.resize(verts.size());
