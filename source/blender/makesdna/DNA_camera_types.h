@@ -223,7 +223,7 @@ struct Camera {
 
   eCamera_SensorFit sensor_fit = {};
   eCamera_PanoType panorama_type = CAM_PANORAMA_FISHEYE_EQUISOLID;
-  char _pad2[10] = {};
+  char _pad2[6] = {};
 
   /* Fish-eye properties. */
   float fisheye_fov = M_PI;
@@ -235,7 +235,6 @@ struct Camera {
   float fisheye_polynomial_k2 = -3.3525322965709175e-06f;
   float fisheye_polynomial_k3 = 3.099275275886036e-06f;
   float fisheye_polynomial_k4 = -2.6064646454854524e-08f;
-  float fisheye_radius = 10.5f;
 
   /* Central cylindrical range properties. */
   float central_cylindrical_range_u_min = DEG2RADF(-180.0f);

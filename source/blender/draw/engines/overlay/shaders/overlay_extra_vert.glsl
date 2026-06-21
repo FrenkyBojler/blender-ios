@@ -48,7 +48,23 @@ void main()
   float camera_dist_sta = inst_data.z;
   float camera_dist_end = inst_data.w;
   float camera_distance_color = inst_data.x;
-  float fisheye_fov = camera_corner.x;
+  
+  const float fisheye_fov = inst_data.x;
+  const float fisheye_angle = inst_data.y;
+
+
+  float2 shift;
+  shift.x = inst_data.z;
+  shift.y = inst_data.w;
+
+
+
+  float2 aspect;
+  aspect.x = inst_data.y > 0 ? inst_data.y : 1.0f;
+  aspect.y = inst_data.y < 0 ? -inst_data.y : 1.0f;
+
+
+
   float3 empty_size = inst_data.xyz;
   float empty_scale = inst_data.w;
 
@@ -136,34 +152,31 @@ void main()
     /* This is a bit silly but we avoid scaling the object matrix on CPU (saving a float4x4 mul) */
     vpos *= empty_size;
   }
-  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV)) {
+  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FRAME)) {
+    /* Feel free to optimize this. I am not a math guy! */
+    const float calculated_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
+    const float calculated_radius = (1.0f * sin(fisheye_fov/2));
+    const float shifted_radius_x = (calculated_radius*2)*shift.x;
+    const float shifted_radius_y = (calculated_radius*2)*shift.y;
+
+
+    vpos.x = vpos.x > 0 ? calculated_radius + shifted_radius_x : -calculated_radius + shifted_radius_x;
+    vpos.y = vpos.y > 0 ? calculated_radius + shifted_radius_y : -calculated_radius + shifted_radius_y;
+    vpos.z = -1.0f + calculated_height;
+
+  }
+  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_LONGITUDE)) {
     /* Feel free to optimize this. I am not a math guy! */
 
-    if (-(asin(vpos.z / 1.0f)) < radians(90) - fisheye_fov / 2) {
-      float new_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
-      float new_radius = 1.0f * sin(fisheye_fov / 2);
-      vpos.z = -1.0f + new_height;
-      vpos.y = -new_radius;
-    }
-
-    int d = 0;
-
-    if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_90)) {
-      d += 90;
-    }
-
-    if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_180)) {
-      d += 180;
-    }
-
-    if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_45)) {
-      d += 45;
-    }
-
-    if (d > 0) {
-
-      float cosAngle = cos(radians(d));
-      float sinAngle = sin(radians(d));
+      if (-(asin(vpos.z / 1.0f)) < radians(90) - fisheye_fov / 2) {
+        float new_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
+        float new_radius = 1.0f * sin(fisheye_fov / 2);
+        vpos.z = -1.0f + new_height;
+        vpos.y = -new_radius;
+      }
+   
+      float cosAngle = cos(fisheye_angle);
+      float sinAngle = sin(fisheye_angle);
 
       float rotated_x;
       float rotated_y;
@@ -172,31 +185,32 @@ void main()
 
       vpos.x = rotated_x;
       vpos.y = rotated_y;
-    }
+ 
   }
-  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_EDGE)) {
+  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_HORIZON)) {
 
+    float calculated_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
+    float calculated_radius = 1.0f * sin(fisheye_fov / 2);
+    vpos.xy *= calculated_radius;
+    vpos.z = -1.0f + calculated_height;
+
+  }
+  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_TRIA)) {
     float radius = 1.0f;
+    float calculated_height = radius * (1.0 - cos(fisheye_fov / 2));
+    float calculated_radius = radius * sin(fisheye_fov / 2);
 
-    float new_height = radius * (1.0 - cos(fisheye_fov / 2));
+    const float shifted_radius_x = (calculated_radius*2)*shift.x;
+    const float shifted_radius_y = (calculated_radius*2)*shift.y;
 
-    float new_radius = radius * sin(fisheye_fov / 2);
 
-    vpos.x *= new_radius;
-    vpos.y *= new_radius;
-    vpos.z = -1.0f + new_height;
-    final_color.r = 1;
-    final_color.r = 0;
-    final_color.r = 0;
+    vpos.x += ((calculated_radius*2)*shift.x)*aspect.x;
+/*     vpos.y += ((calculated_radius*2)*shift.y)*aspect.y;*/
+    printf("aspect x: %f aspect y: %f\n",aspect.x,aspect.y);
+    vpos.y += (calculated_radius*aspect.y)+0.05f; 
+    vpos.z = -1.0f + calculated_height;
   }
-  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_DIRECTION)) {
-    float radius = 1.0f;
-    float new_height = radius * (1.0 - cos(fisheye_fov / 2));
-    float new_radius = radius * sin(fisheye_fov / 2);
-    vpos.y += new_radius;
-    vpos.z = -1.0f + new_height;
-  }
-  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_FOV_RING)) {
+  else if (flag_test(vclass, VCLASS_CAMERA_FISHEYE_LATITUDE)) {
 
     if (-(asin(vpos.z / 1.0f)) < radians(90) - fisheye_fov / 2) {
       float new_height = 1.0f * (1.0 - cos(fisheye_fov / 2));
@@ -204,20 +218,19 @@ void main()
 
       vpos.z = -1.0f + new_height;
 
-      if (vpos.x < 0.0f) {
-        vpos.x = -new_radius;
-      }
-      else {
-        vpos.x = new_radius;
-      }
 
-      if (vpos.y < 0.0f) {
-        vpos.y = -new_radius;
+
+
+      vpos.x = 0;
+      vpos.x = 0;
+/*       vpos.x = new_radius + (shift.x*2);
+      vpos.y = new_radiusshift.y*2;  */
+      
       }
-      else {
-        vpos.y = new_radius;
+      else
+      {
+        vpos *= 1.0f;
       }
-    }
   }
   else if (flag_test(vclass, VCLASS_EMPTY_AXES)) {
     float axis = vpos.z;

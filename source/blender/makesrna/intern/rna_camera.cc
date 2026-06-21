@@ -986,11 +986,6 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Field of View", "Field of view for the fisheye lens");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
 
-  prop = RNA_def_property(srna, "fisheye_radius", PROP_FLOAT, PROP_DISTANCE);
-  RNA_def_property_range(prop, 0.0f, 1000.0f);
-  RNA_def_property_ui_text(prop, "Fisheye Radius", "Radius of the fisheye sphere");
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Camera_update");
-
   prop = RNA_def_property(srna, "fisheye_lens", PROP_FLOAT, PROP_NONE);
   RNA_def_property_range(prop, 0.01, 100.0);
   RNA_def_property_ui_range(prop, 0.01, 15.0, 3, 2);

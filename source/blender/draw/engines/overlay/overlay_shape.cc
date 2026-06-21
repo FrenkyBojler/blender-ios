@@ -256,32 +256,65 @@ static Vector<Vertex> sphere_axes_circles(const float radius,
 
 /* Returns lines segment geometry forming 3 circles, one on each axis. */
 
-static Vector<Vertex> fisheye_direction_verts()
+static Vector<Vertex> fisheye_tria_verts()
 {
   Vector<Vertex> verts;
-
-  float x = 5.0f;
   float scale = 0.7f;
   float width = 0.21f * scale;
   float length = 0.2f * scale;
-  float margin = 0.1f;
+  float margin = 0.0f;
 
-  verts.append({{width, margin, 0.0}, VCLASS_CAMERA_FISHEYE_DIRECTION});
-  verts.append({{0.0, margin + length, 0.0}, VCLASS_CAMERA_FISHEYE_DIRECTION});
-  verts.append({{-width, margin, 0.0}, VCLASS_CAMERA_FISHEYE_DIRECTION});
+  verts.append({{width, margin, 0.0}, VCLASS_CAMERA_FISHEYE_TRIA});
+  verts.append({{0.0, margin + length, 0.0}, VCLASS_CAMERA_FISHEYE_TRIA});
+  verts.append({{-width, margin, 0.0}, VCLASS_CAMERA_FISHEYE_TRIA});
   return verts;
 }
 
-static Vector<Vertex> dome_sphere_axes()
+static Vector<Vertex> fisheye_frame_verts()
+{
+  Vector<Vertex> verts;
+  float size = 1.0f;
+  verts.append({{size, size, 0.0}, VCLASS_CAMERA_FISHEYE_FRAME});
+  verts.append({{size, -size, 0.0}, VCLASS_CAMERA_FISHEYE_FRAME});
+  verts.append({{-size, -size, 0.0}, VCLASS_CAMERA_FISHEYE_FRAME});
+  verts.append({{-size, size, 0.0}, VCLASS_CAMERA_FISHEYE_FRAME});
+  verts.append({{size, size, 0.0}, VCLASS_CAMERA_FISHEYE_FRAME});
+
+
+  /*   verts.append({{-1.0f, -1.0f, 0.0}, VCLASS_NONE});
+  verts.append({{1.0f, -1.0f, 0.0}, VCLASS_NONE}); */
+ 
+  return verts;
+}
+  
+static Vector<Vertex> fisheye_latitude_ring_verts()
+{
+    const float radius = 1.0f;
+    const int segments = 96;
+    Vector<Vertex> verts;
+    Vector<float2> ring = arc_vertices(radius, segments);
+
+      for (int i : IndexRange(segments)) {
+
+
+
+      for (int j : IndexRange(2)) {
+
+        float2 cv = ring[(i + j) % segments];
+
+        verts.append({{cv[0], -cv[1], 0.0f }, VCLASS_CAMERA_FISHEYE_HORIZON});
+      }
+    }
+    return verts;
+}
+
+static Vector<Vertex> fisheye_longitude_arc_verts()
 {
   const float radius = 1.0f;
   const int segments = 96;
-  VertexClass vclass;
-  Vector<float2> arc = arc_vertices(radius, segments - 1, true);
-  Vector<float2> ring = arc_vertices(radius, segments);
-
   Vector<Vertex> verts;
-  for (int axis : IndexRange(4)) {
+  Vector<float2> arc = arc_vertices(radius, segments - 1, true);  
+
     for (int i : IndexRange(segments)) {
 
       if (i >= segments - 1) {
@@ -292,57 +325,10 @@ static Vector<Vertex> dome_sphere_axes()
 
         float2 cv = arc[(i + j) % segments];
 
-        if (axis == 0) {
-
-          vclass = VCLASS_CAMERA_FISHEYE_FOV;
-        }
-        else if (axis == 1) {
-
-          vclass = VCLASS_CAMERA_FISHEYE_FOV | VCLASS_CAMERA_FISHEYE_FOV_90;
-        }
-        else if (axis == 2) {
-
-          vclass = VCLASS_CAMERA_FISHEYE_FOV | VCLASS_CAMERA_FISHEYE_FOV_180;
-        }
-        else if (axis == 3) {
-
-          vclass = VCLASS_CAMERA_FISHEYE_FOV | VCLASS_CAMERA_FISHEYE_FOV_90 |
-                   VCLASS_CAMERA_FISHEYE_FOV_180;
-        }
-
-        verts.append({{0.0f, -cv[1], cv[0]}, vclass});
+        verts.append({{0.0f, -cv[1], cv[0]}, VCLASS_CAMERA_FISHEYE_LONGITUDE});
       }
     }
-  }
- 
-  for (int i : IndexRange(segments)) {
-    for (int j : IndexRange(2)) {
-      float2 cv = ring[(i + j) % segments];
 
-      verts.append({{cv[0], cv[1], 0.0f}, VCLASS_CAMERA_FISHEYE_FOV_EDGE});
-    }
-  }
-
-  constexpr float ring_step = 10;
-
-  for (int r : IndexRange(35)) {
-
-    float angle = ((ring_step * (r + 1)) * (M_PI / 180)) / 2;
-
-    float height = -1.0 + (1.0f * (1.0 - std::cos(angle)));
-    float radius = 1.0f * std::sin(angle);
-
-    for (int i : IndexRange(segments)) {
-
-      if (i % 2) {
-        for (int j : IndexRange(2)) {
-          float2 cv = ring[(i + j) % segments];
-
-          verts.append({{cv[0] * radius, cv[1] * radius, height}, VCLASS_CAMERA_FISHEYE_FOV_RING});
-        }
-      }
-    }
-  }
 
   return verts;
 }
@@ -979,38 +965,6 @@ ShapeCache::ShapeCache()
     camera_frame = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
-
-  /* dome grid */
-  {
-
-    Vector<Vertex> verts = dome_sphere_axes();
-
-    fisheye_dome = BatchPtr(
-        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
-  }
-
-  /* Dome direction */
-  {
-    /*     const Vector<float2> triangle = {{-1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}};
-        Vector<Vertex> verts; */
-
-    Vector<Vertex> verts = fisheye_direction_verts();
-    /* Wire */
-    /*     Vector<Vertex> verts = fisheye_direction();
-
-        fisheye_direction = BatchPtr(
-            GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr,
-       GPU_BATCH_OWNS_VBO));
-     */
-    /*     verts.clear(); */
-    /* Triangle */
-    /*     for (const float2 &point : triangle) {
-          verts.append({{point.x, point.y, 1.0f}, VCLASS_CAMERA_FRAME});
-        } */
-    fisheye_direction = BatchPtr(
-        GPU_batch_create_ex(GPU_PRIM_TRIS, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
-  }
-
   /* camera tria */
   {
     const Vector<float2> triangle = {{-1.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}};
@@ -1054,6 +1008,40 @@ ShapeCache::ShapeCache()
     }
     camera_volume_wire = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+    /*Fisheye longitude arc*/
+  {
+
+    Vector<Vertex> verts = fisheye_longitude_arc_verts();
+
+    camera_fisheye_longitude = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+
+  /*Fisheye latitude ring*/
+  {
+
+    Vector<Vertex> verts = fisheye_latitude_ring_verts();
+
+    camera_fisheye_latitude = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+
+   /*Fisheye camera frame*/
+  {
+    Vector<Vertex> verts = fisheye_frame_verts();
+
+    camera_fisheye_frame = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINE_STRIP, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+
+  /*Fisheye camera tria */
+  {
+    
+    Vector<Vertex> verts = fisheye_tria_verts();
+        
+    camera_fisheye_tria = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_TRIS, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
   /* spheres */
   {

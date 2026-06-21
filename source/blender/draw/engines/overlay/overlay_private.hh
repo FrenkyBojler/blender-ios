@@ -374,15 +374,19 @@ class ShapeCache {
 
   BatchPtr camera_distances;
   BatchPtr camera_frame;
-  BatchPtr fisheye_dome;
-  BatchPtr fisheye_direction;
-  BatchPtr fisheye_direction_wire;
+
   BatchPtr fidirection;
   BatchPtr camera_tria_wire;
   BatchPtr camera_tria;
 
   BatchPtr camera_volume;
   BatchPtr camera_volume_wire;
+
+  BatchPtr camera_fisheye_frame;
+  BatchPtr camera_fisheye_longitude;
+  BatchPtr camera_fisheye_latitude;
+  BatchPtr camera_fisheye_tria;
+  BatchPtr camera_fisheye_tria_wire;
 
   BatchPtr sphere_low_detail;
 
