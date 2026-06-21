@@ -29,8 +29,8 @@ namespace blender {
 struct RelaxChainData {
   /** Ordered vertices along the chain path. */
   Vector<BMVert *> verts;
-  /** True if the path forms a closed loop. */
-  bool is_closed;
+  /** True if the path forms a closed chain. */
+  bool is_closed = false;
 };
 
 /**
@@ -261,8 +261,10 @@ static RelaxChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
     chain_data.verts = std::move(pre_chain);
   }
 
-  BMEdge *closing_edge = BM_edge_exists(chain_data.verts.first(), chain_data.verts.last());
-  chain_data.is_closed = closing_edge && BM_elem_flag_test(closing_edge, BM_ELEM_TAG);
+  if (chain_data.verts.size() > 2) {
+    BMEdge *closing_edge = BM_edge_exists(chain_data.verts.first(), chain_data.verts.last());
+    chain_data.is_closed = closing_edge && BM_elem_flag_test(closing_edge, BM_ELEM_TAG);
+  }
   return chain_data;
 }
 
