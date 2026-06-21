@@ -60,16 +60,6 @@ struct RelaxPhase {
   Vector<int> point_indices;
 };
 
-/**
- * Temporarly stores the calculated new position for a vertex.
- */
-struct PendingMove {
-  /** The vertex to be moved. */
-  BMVert *v;
-  /** The target position for the vertex. */
-  float3 new_pos;
-};
-
 enum { CUBIC = 0, LINEAR = 1 };
 
 /** Epsilon to prevent zero division. */
@@ -371,8 +361,7 @@ static void calculate_relax_splines(Span<BMVert *> verts,
 static void execute_relax_phase(Span<BMVert *> verts,
                                 const RelaxPhase &phase,
                                 int interpolation,
-                                bool regular,
-                                Vector<PendingMove> &r_moves)
+                                bool regular)
 {
   Vector<float> t_knots, t_points;
   calculate_relax_t(verts, phase, regular, t_knots, t_points);
@@ -412,7 +401,9 @@ static void execute_relax_phase(Span<BMVert *> verts,
     float3 current_pos(verts[v_index]->co);
     float3 final_pos = (current_pos + spline_pos) / 2.0f;
 
-    r_moves.append({verts[v_index], final_pos});
+    verts[v_index]->co[0] = final_pos.x;
+    verts[v_index]->co[1] = final_pos.y;
+    verts[v_index]->co[2] = final_pos.z;
   }
 }
 
@@ -431,20 +422,13 @@ void bmo_relax_edge_loops_exec(BMesh *bm, BMOperator *op)
 
   for (const int it : IndexRange(iterations)) {
     UNUSED_VARS(it);
-    Vector<PendingMove> pending_moves;
 
     for (RelaxChainData &chain : chains) {
       Vector<RelaxPhase> phases;
       build_relax_phases(chain.verts.size(), chain.is_closed, phases);
       for (const RelaxPhase &phase : phases) {
-        execute_relax_phase(chain.verts, phase, interpolation, regular, pending_moves);
+        execute_relax_phase(chain.verts, phase, interpolation, regular);
       }
-    }
-
-    for (const PendingMove &move : pending_moves) {
-      move.v->co[0] = move.new_pos.x;
-      move.v->co[1] = move.new_pos.y;
-      move.v->co[2] = move.new_pos.z;
     }
   }
 }
