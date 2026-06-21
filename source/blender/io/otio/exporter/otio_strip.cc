@@ -157,18 +157,19 @@ static bool img_seq_need_fallback(StripElem *se)
   return false;
 }
 
-static void path_append_sequence_number(const char *old_path,
-                                        char *path_out,
-                                        int frame_nr,
-                                        int padding)
+static void path_append_sequence_number(
+    const char *old_path, char *path_out, int frame_nr, int padding, bool prefix_period = true)
 {
   /* Copy old path. */
   BLI_strncpy(path_out, old_path, FILE_MAX);
 
   /* Remove and store the extension. */
   char ext[FILE_MAX];
-  BLI_strncpy(ext, BLI_path_extension(path_out), sizeof(ext));
-  BLI_path_extension_strip(path_out);
+  ext[0] = '\0';
+  if (BLI_path_extension(path_out)) {
+    BLI_strncpy(ext, BLI_path_extension(path_out), sizeof(ext));
+    BLI_path_extension_strip(path_out);
+  }
 
   /* create ### mask. */
   char mask[FILE_MAX];
@@ -181,7 +182,9 @@ static void path_append_sequence_number(const char *old_path,
     mask[curr] = '\0';
   }
 
-  BLI_strncat(path_out, ".", FILE_MAX);
+  if (prefix_period) {
+    BLI_strncat(path_out, ".", FILE_MAX);
+  }
   BLI_strncat(path_out, mask, FILE_MAX);
   BLI_strncat(path_out, ext, FILE_MAX);
 
@@ -476,8 +479,24 @@ void RenderAsMovieExporter::export_strip(Main *bmain, const OTIOExportParams *ex
     return;
   }
 
+  /* Create a unique filename for the strip containing the strip name, channel number and frame
+   * range. */
   char render_filename[FILE_MAX];
+  char temp[FILE_MAX];
+  temp[0] = '\0';
+  int padding = calculate_padding(strip_->right_handle(scene_) - 1);
   BLI_strncpy(render_filename, strip_->name + 2, sizeof(render_filename));
+  BLI_strncat(render_filename, ".C", sizeof(render_filename));
+  BLI_strncat(render_filename, std::to_string(strip_->channel).c_str(), sizeof(render_filename));
+  BLI_strncat(render_filename, ".", sizeof(render_filename));
+
+  BLI_strncat(temp, "[", sizeof(temp));
+  path_append_sequence_number(temp, temp, strip_->left_handle(), padding, false);
+  BLI_strncat(temp, "-", sizeof(temp));
+  path_append_sequence_number(temp, temp, strip_->right_handle(scene_) - 1, padding, false);
+  BLI_strncat(temp, "]", sizeof(temp));
+
+  BLI_strncat(render_filename, temp, sizeof(render_filename));
   BLI_strncat(render_filename, ".mp4", sizeof(render_filename));
 
   char render_filepath[FILE_MAX];
@@ -488,13 +507,13 @@ void RenderAsMovieExporter::export_strip(Main *bmain, const OTIOExportParams *ex
   }
   BLI_path_append(render_filepath, sizeof(render_filepath), render_filename);
 
+  short render_res = 100;
+  if (strip_->type == STRIP_TYPE_SCENE && !(strip_->flag & SEQ_SCENE_STRIPS) && strip_->scene) {
+    render_res = get_scene_strip_resolution_percent(export_params->scene_strip_res);
+  }
+
   const bool is_rendered = seq::render_strip_full(
-      bmain,
-      scene_,
-      strip_,
-      get_scene_strip_resolution_percent(export_params->scene_strip_res),
-      render_filepath,
-      false);
+      bmain, scene_, strip_, render_res, render_filepath, false);
 
   if (!is_rendered) {
     export_with_missing_reference();
