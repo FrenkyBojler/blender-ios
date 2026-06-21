@@ -245,7 +245,7 @@ Vector<Strip *> query_rendered_strips_sorted(const Scene *scene,
   Vector<Strip *> strips_vec = strips.extract_vector();
   /* Sort strips by channel. */
   std::ranges::sort(strips_vec, [](const Strip *a, const Strip *b) {
-    return (a->channel < b->channel) || (a->input2 == nullptr);
+    return (a->channel < b->channel) || (a->channel == b->channel && a->input2 == nullptr);
   });
   return strips_vec;
 }
