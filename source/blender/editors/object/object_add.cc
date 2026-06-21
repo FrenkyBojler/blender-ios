@@ -92,6 +92,7 @@
 #include "BKE_node.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
+#include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
@@ -3602,9 +3603,6 @@ static Object *convert_mesh_to_mesh(Base &base, ObjectConversionInfo &info, Base
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   Mesh *new_mesh = mesh_eval ? BKE_mesh_copy_for_eval(*mesh_eval) :
                                BKE_mesh_new_nomain(0, 0, 0, 0);
-  /* The evaluated mesh may not be a wrapper type (e.g. #ME_WRAPPER_TYPE_BMESH).
-   * Ensure mesh geometry otherwise the copy uses dummy sizes which don't
-   * represent the underlying mesh. */
   BKE_mesh_wrapper_ensure_mdata(new_mesh);
 
   BKE_object_material_from_eval_data(info.bmain, newob, &new_mesh->id);
@@ -4755,8 +4753,9 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
       }
     }
 
-    /* Ensure new object has consistent material data with its new obdata. */
     if (newob) {
+      BKE_sculptsession_free_pbvh(*newob);
+      /* Ensure new object has consistent material data with its new obdata. */
       BKE_object_materials_sync_length(bmain, newob, newob->data);
     }
 
