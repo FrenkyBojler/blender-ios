@@ -102,6 +102,11 @@ static const EnumPropertyItem io_otio_image_sequence_export_fallback[] = {
      "Create Symlinks",
      "Create Sequenced Symbolic Links that Point to Original Images"},
 #  endif
+    {static_cast<int>(io::otio::ImgSeqFallback::RENDER_MOVIE),
+     "IMG_SEQUENCE_RENDER_MOVIE",
+     ICON_NONE,
+     "Render Movie",
+     "Render and Link the Image Sequence as a Movie"},
     {static_cast<int>(io::otio::ImgSeqFallback::RENAME),
      "IMG_SEQUENCE_RENAME",
      ICON_NONE,
@@ -264,7 +269,7 @@ void WM_OT_otio_export(wmOperatorType *ot)
 #  ifndef WIN32
                static_cast<int>(io::otio::ImgSeqFallback::SYMLINK),
 #  else
-               static_cast<int>(io::otio::ImgSeqFallback::RENAME),
+               static_cast<int>(io::otio::ImgSeqFallback::RENDER_MOVIE),
 #  endif
                "Fallback Method",
                "Method to Use to Export Non-Sequenced Image Sequences");

@@ -37,6 +37,7 @@ enum class ExportOption {
 enum class ImgSeqFallback {
   RENAME,
   SYMLINK,
+  RENDER_MOVIE,
 };
 
 short get_scene_strip_resolution_percent(SceneStripRes resolution);

@@ -409,6 +409,12 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
       BLI_strncat(name_prefix, ".", sizeof(name_prefix));
 
       switch (export_params->img_sequence_fallback) {
+        case ImgSeqFallback::RENDER_MOVIE: {
+          auto exporter = RenderAsMovieExporter(strip_, scene_, track_, last_strip_end, filepath_);
+          exporter.export_strip(bmain, export_params);
+          last_strip_end = exporter.last_strip_end;
+          return;
+        }
         case ImgSeqFallback::RENAME:
           img_sequence_rename(se, target_url_base, img_count, padding);
           break;
