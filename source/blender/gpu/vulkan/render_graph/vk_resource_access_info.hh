@@ -38,6 +38,15 @@ struct VKImageAccess {
    * image load/store.
    */
   VKSubImageRange subimage;
+  /*
+   * Used for selecting image layout.
+   *
+   * If it is an input attachment image, we use VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL.
+   *
+   * TODO: we could use VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL with textures. However, there is
+   * a problem with a compute shader(s).
+   */
+  bool is_input_attachment = false;
 
   /** Determine the image layout for the vk_access_flags. */
   VkImageLayout to_vk_image_layout(bool supports_local_read) const;

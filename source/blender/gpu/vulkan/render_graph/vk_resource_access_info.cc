@@ -15,17 +15,17 @@ namespace blender::gpu::render_graph {
 
 VkImageLayout VKImageAccess::to_vk_image_layout(bool supports_local_read) const
 {
+  if (is_input_attachment) {
+    if (supports_local_read) {
+      return VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR;
+    }
+    return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  }
+
   if (vk_access_flags & (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT)) {
-    /* TODO: when read only use VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL */
     return VK_IMAGE_LAYOUT_GENERAL;
   }
 
-  if (supports_local_read && vk_access_flags & (VK_ACCESS_INPUT_ATTACHMENT_READ_BIT |
-                                                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-                                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT))
-  {
-    return VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR;
-  }
   if (vk_access_flags &
       (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT))
   {

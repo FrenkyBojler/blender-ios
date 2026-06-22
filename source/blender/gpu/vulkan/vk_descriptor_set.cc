@@ -222,7 +222,8 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_input_attachmen
     access_info.images.append({texture->vk_image_handle(),
                                resource_binding.access_mask,
                                to_vk_image_aspect_flag_bits(texture->device_format_get()),
-                               subimage});
+                               subimage,
+                               true});
   }
 }
 
@@ -386,7 +387,7 @@ void VKDescriptorSetUpdator::bind_input_attachment_resource(
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         sampler.vk_handle(),
         texture->image_view_get(resource_binding.arrayed, VKImageViewFlags::DEFAULT).vk_handle(),
-        VK_IMAGE_LAYOUT_GENERAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         resource_binding.location);
   }
 }
