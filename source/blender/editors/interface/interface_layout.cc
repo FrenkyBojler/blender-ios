@@ -2350,7 +2350,7 @@ void Layout::prop(PointerRNA *ptr,
 #ifdef UI_PROP_DECORATE
   if (ui_decorate.use_prop_decorate) {
     Button *but_decorate = ui_decorate.but ? block->next_but(ui_decorate.but) : block->first_but();
-    
+
     if (but_decorate) {
       /* Move temporarily last buts to avoid multiple reallocations while inserting decorators. */
       Vector<std::unique_ptr<Button>> tmp;
@@ -2362,16 +2362,16 @@ void Layout::prop(PointerRNA *ptr,
       Layout *layout_col = &ui_decorate.layout->column(false);
       layout_col->space_ = 0;
       layout_col->emboss_ = EmbossType::None;
-      
+
       int i;
       for (i = 0; i < ui_decorate.len && but_decorate; i++) {
         PointerRNA *ptr_dec = use_blank_decorator ? nullptr : &but_decorate->rnapoin;
         PropertyRNA *prop_dec = use_blank_decorator ? nullptr : but_decorate->rnaprop;
-        
+
         /* The icons are set in 'but_anim_flag' */
         layout_col->decorator(ptr_dec, prop_dec, but_decorate->rnaindex);
         but = block->buttons_ptrs.last().get();
-        
+
         if (!tmp.is_empty()) {
           block->buttons_ptrs.append(tmp.pop_last());
           but_decorate = block->buttons_ptrs.last().get();
@@ -2384,7 +2384,7 @@ void Layout::prop(PointerRNA *ptr,
         block->buttons_ptrs.append(tmp.pop_last());
       }
       BLI_assert(ELEM(i, 1, ui_decorate.len));
-      
+
       layout->flag_ &= ~ItemInternalFlag::PropDecorateNoPad;
     }
   }
