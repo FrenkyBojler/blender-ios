@@ -502,6 +502,7 @@ void BKE_vfont_char_build(const Curve &cu,
     return;
   }
   VChar *che = nullptr;
+  /* C0 control characters should not generate geometry. */
   if (charcode >= 32) {
     VCharPlaceHolder che_placeholder = {
         /*metrics*/ &vfd->metrics,
