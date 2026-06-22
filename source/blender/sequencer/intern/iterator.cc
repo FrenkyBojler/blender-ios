@@ -261,6 +261,23 @@ VectorSet<Strip *> query_unselected_strips(ListBaseT<Strip> *seqbase)
   return strips;
 }
 
+void query_strip_direct_effect_chain(Strip *strip,
+                                     ListBaseT<Strip> *seqbase,
+                                     VectorSet<Strip *> &r_strips)
+{
+  if (r_strips.contains(strip)) {
+    return; /* Strip is already in set, so all effects connected to it are as well. */
+  }
+  r_strips.add(strip);
+
+  /* Find all effect strips connected to #strip. */
+  for (Strip &strip_test : *seqbase) {
+    if (seq::relation_is_effect_of_strip(&strip_test, strip)) {
+      query_strip_direct_effect_chain(&strip_test, seqbase, r_strips);
+    }
+  }
+}
+
 void query_strip_effect_chain(Strip *strip,
                               ListBaseT<Strip> *seqbase,
                               VectorSet<Strip *> &r_strips)

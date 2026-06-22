@@ -106,6 +106,16 @@ VectorSet<Strip *> query_strips_recursive_at_frame(const Scene *scene,
                                                    int timeline_frame);
 
 /**
+ * Query the effect strips attached to a given reference \a strip, and recursively the effects
+ * attached to those effects. The result is placed in the return parameter \a r_strips.
+ * Unlike #query_strip_effect_chain this only recursively includes the effects attached to the
+ * reference \a strip, but doesn't include the inputs of the recursively included effects.
+ */
+void query_strip_direct_effect_chain(Strip *strip,
+                                     ListBaseT<Strip> *seqbase,
+                                     VectorSet<Strip *> &r_strips);
+
+/**
  * Recursively query the entire chain of effect strips directly or indirectly
  * attached to a given reference \a strip, placing result in return parameter \a r_strips.
  * This includes all effects of \a strip, strips used by another inputs and their effects,
