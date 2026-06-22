@@ -894,8 +894,15 @@ static void get_strip_text_color(const StripDrawContext &strip_ctx, uchar r_col[
   if (!active_or_selected) {
     r_col[0] = r_col[1] = r_col[2] = 0;
 
-    /* On muted and missing media/data-block strips: gray color, reduce opacity. */
-    if (strip_ctx.is_muted || strip_ctx.missing_data_block || strip_ctx.missing_media) {
+    /* On missing media/data-block strips: a blend between alert and text color. */
+    if (strip_ctx.missing_data_block || strip_ctx.missing_media) {
+      uchar col_alert[4];
+      ui::theme::get_color_4ubv(TH_REDALERT, col_alert);
+      ui::theme::get_color_blend_3ubv(TH_REDALERT, TH_TEXT_HI, col_alert[3] / 255.0f, r_col);
+    }
+
+    /* On muted strips: gray color, reduce opacity. */
+    if (strip_ctx.is_muted) {
       r_col[0] = r_col[1] = r_col[2] = 192;
       r_col[3] *= 0.66f;
     }
@@ -997,7 +1004,9 @@ static void draw_strip_icons(const TimelineDrawContext &ctx,
       rect.xmax = strip.right_handle - strip.handle_width;
       rect.ymin = strip.bottom;
       rect.ymax = strip.strip_content_top;
-      uchar col[4] = {112, 0, 0, 255};
+      uchar col[4], col_alert[4];
+      ui::theme::get_color_4ubv(TH_REDALERT, col_alert);
+      ui::theme::get_color_blend_3ubv(TH_REDALERT, TH_TEXT_HI, col_alert[3] / 255.0f, col);
       if (missing_data) {
         draw_icon_centered(ctx, rect, ICON_LIBRARY_DATA_BROKEN, col);
       }
@@ -1319,6 +1328,14 @@ static void draw_strips_background(const TimelineDrawContext &ctx,
       uchar muted_color[3] = {128, 128, 128};
       ui::theme::get_color_blend_shade_3ubv(col, muted_color, 0.5f, 0, col);
     }
+
+    /* Missing media. */
+    if (strip.missing_data_block || strip.missing_media) {
+      uchar alert_color[4];
+      ui::theme::get_color_4ubv(TH_REDALERT, alert_color);
+      ui::theme::get_color_blend_shade_3ubv(col, alert_color, alert_color[3] / 255.0f, -20, col);
+    }
+
     data.col_background = color_pack(col);
 
     const bool show_thumbnails = (ctx.sseq->timeline_overlay.flag &

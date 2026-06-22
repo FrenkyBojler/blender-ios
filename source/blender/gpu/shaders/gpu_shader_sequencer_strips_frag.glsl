@@ -123,18 +123,6 @@ void main()
    * make sure from now on alpha is premultiplied. */
   col.rgb *= col.a;
 
-  /* Missing media. */
-  if ((strip.flags & GPU_SEQ_FLAG_MISSING_TITLE) != 0) {
-    if (co.y > strip.strip_content_top) {
-      col = blend_color(col, float4(112.0f / 255.0f, 0.0f, 0.0f, 230.0f / 255.0f));
-    }
-  }
-  if ((strip.flags & GPU_SEQ_FLAG_MISSING_CONTENT) != 0) {
-    if (co.y <= strip.strip_content_top) {
-      col = blend_color(col, float4(64.0f / 255.0f, 0.0f, 0.0f, 230.0f / 255.0f));
-    }
-  }
-
   /* Locked. */
   if ((strip.flags & GPU_SEQ_FLAG_LOCKED) != 0) {
     if (co.y <= strip.strip_content_top) {
