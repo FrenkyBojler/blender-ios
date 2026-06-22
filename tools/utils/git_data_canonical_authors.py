@@ -1017,6 +1017,7 @@ def canonical_author_map() -> dict[str, str]:
             "Thomas Dinges <blender@dingto.org>",
             "Thomas Dinges <dingto>",
             "Thomas Dinges <thomasdinges@noreply.localhost>",
+            "blender <blender@MacBook-Pro-von-Thomas.local>",
         ),
         "Thomas Lachmann <tl@bunker-werk.net>": (
             "Thomas Lachmann <TL>",
