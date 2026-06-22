@@ -2941,9 +2941,8 @@ static void calc_brush_local_mat(const float rotation,
     motion_dir_screen[1] = motion_normal_screen[0];
 
     /* Since the falloff shape is projected,  */
-    float motion_dir_local[3];
-    calc_local_from_screen(*cache->vc, cache->location_symm, motion_dir_screen, motion_dir_local);
-    normalize_v3_v3(mat[1], motion_dir_local);
+    calc_local_from_screen(*cache->vc, cache->location_symm, motion_dir_screen, v);
+    normalize_v3_v3(mat[1], v);
     normalize_v3_v3(mat[0], motion_normal_local);
 
     /* We get the third axis by taking the cross product of the other two. */
