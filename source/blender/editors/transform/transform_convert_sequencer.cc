@@ -483,7 +483,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
     if (!strip->is_effect_with_inputs()) {
       continue;
     }
-    if (seq::effect_is_transition(strip)) {
+    if (seq::strip_is_transition(strip)) {
       continue;
     }
     /* If there is an effect strip without its inputs selected, prevent any x-direction movement,
@@ -517,7 +517,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
     bool can_clamp_holds = !(left_sel && right_sel) ||
                            (strip->len >= strip->right_handle(scene) - strip->left_handle());
     can_clamp_holds &= !seq::transform_single_image_check(strip);
-    if (seq::effect_is_transition(strip)) {
+    if (seq::strip_is_transition(strip)) {
       can_clamp_holds = false;
     }
 
@@ -746,14 +746,14 @@ static void flushTransSeq(TransInfo *t)
             }
           }
         }
-        if (!seq::effect_is_transition(strip)) {
+        if (!seq::strip_is_transition(strip)) {
           seq::strip_channel_set(strip, new_channel);
         }
 
         break;
       }
       case SEQ_LEFTSEL: { /* No vertical transform. */
-        if (seq::effect_is_transition(strip)) {
+        if (seq::strip_is_transition(strip)) {
           int offset = new_frame - strip->left_handle();
           strip->left_handle_set(scene, new_frame);
           strip->right_handle_set(scene, strip->right_handle(scene) - offset);
@@ -781,7 +781,7 @@ static void flushTransSeq(TransInfo *t)
         int old_enddisp = strip->right_handle(scene);
         int offset = new_frame - old_enddisp;
 
-        if (seq::effect_is_transition(strip)) {
+        if (seq::strip_is_transition(strip)) {
           strip->right_handle_set(scene, new_frame);
           strip->left_handle_set(scene, strip->left_handle() - offset);
           break;
@@ -795,7 +795,7 @@ static void flushTransSeq(TransInfo *t)
 
         Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
         for (Strip *e : effects) {
-          if (seq::effect_is_transition(e)) {
+          if (seq::strip_is_transition(e)) {
             // eh, these should be kept in the right order, but anyway
             if ((e->input1 == strip && (e->input2->flag & SEQ_LEFTSEL)) ||
                 (e->input2 == strip && (e->input1->flag & SEQ_LEFTSEL)))

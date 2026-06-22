@@ -15,6 +15,7 @@
 #include "BLI_listbase.hh"
 
 #include "SEQ_connect.hh"
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
@@ -245,7 +246,10 @@ Vector<Strip *> query_rendered_strips_sorted(const Scene *scene,
   Vector<Strip *> strips_vec = strips.extract_vector();
   /* Sort strips by channel. */
   std::ranges::sort(strips_vec, [](const Strip *a, const Strip *b) {
-    return (a->channel < b->channel) || (a->channel == b->channel && a->input2 == nullptr);
+    if (a->channel == b->channel) {
+      return seq::strip_is_transition(b);
+    }
+    return (a->channel < b->channel);
   });
   return strips_vec;
 }

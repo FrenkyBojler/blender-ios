@@ -56,8 +56,7 @@ bool transform_is_locked(const ListBaseT<SeqTimelineChannel> *channels, const St
 
 bool transform_strip_can_be_translated(const Strip *strip)
 {
-  // TMP? for now let's make it so you can only move it by manipulating the cut point
-  return !strip->is_effect_with_inputs();  // || (strip->input2 != nullptr);
+  return !strip->is_effect_with_inputs();
 }
 
 bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
@@ -71,7 +70,7 @@ bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
 bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
 {
   /* Transitions overlap their inputs, but can't overlap other strips. */
-  if (seq::effect_is_transition(test)) {
+  if (seq::strip_is_transition(test)) {
     // TODO: If strips overlap, and the transition is valid, this is already checked by the loop
     // below. This should only check if the transition is valid (eg. the strips haven't been moved
     // away)
@@ -127,7 +126,7 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
   }
   /* All other strip types. */
   else if ((strip->input1 == nullptr && strip->input2 == nullptr) ||
-           seq::effect_is_transition(strip))
+           seq::strip_is_transition(strip))
   {
     strip->start += delta;
     /* Only to make files usable in older versions. */

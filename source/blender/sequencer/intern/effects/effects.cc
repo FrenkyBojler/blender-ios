@@ -327,7 +327,7 @@ static float transition_fader_calc(const Scene *scene, const Strip *strip, float
 float effect_fader_calc(Scene *scene, Strip *strip, float timeline_frame)
 {
   if (strip->flag & SEQ_USE_EFFECT_DEFAULT_FADE) {
-    if (effect_is_transition(strip)) {
+    if (strip_is_transition(strip)) {
       return transition_fader_calc(scene, strip, timeline_frame);
     }
     return 1.0f;
@@ -375,7 +375,7 @@ bool strip_type_is_effect(StripType type)
          (type >= STRIP_TYPE_GAUSSIAN_BLUR && type <= STRIP_TYPE_COLORMIX);
 }
 
-bool effect_is_transition(const Strip *strip)
+bool strip_is_transition(const Strip *strip)
 {
   return (strip->input1 != nullptr) && (strip->input2 != nullptr);
 }

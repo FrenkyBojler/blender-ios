@@ -964,7 +964,7 @@ static float inner_clickable_handle_size_get(const Scene *scene,
 
 bool can_select_handle(const Scene *scene, const Strip *strip, const View2D *v2d)
 {
-  if (strip->is_effect_with_inputs() && !seq::effect_is_transition(strip)) {
+  if (strip->is_effect_with_inputs() && !seq::strip_is_transition(strip)) {
     return false;
   }
 
@@ -1063,7 +1063,7 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
     if (strip.right_handle(scene) < v2d->cur.xmin) {
       continue;
     }
-    if (!transitions.is_empty() && strip.input2 == nullptr) {
+    if (!transitions.is_empty() && seq::strip_is_transition(&strip)) {
       continue;
     }
     const rctf body = strip_clickable_area_get(scene, sseq, v2d, &strip);
@@ -1071,7 +1071,7 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
       continue;
     }
     /* Transitions don't have adjacent handle selection. */
-    if (seq::effect_is_transition(&strip)) {
+    if (seq::strip_is_transition(&strip)) {
       transitions.append(&strip);
     }
     else {
