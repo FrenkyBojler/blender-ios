@@ -19,6 +19,7 @@
 CCL_NAMESPACE_BEGIN
 
 #define GUIDING_FLT_LARGE 1.844E18f
+#define GUIDING_MAX_LIGHT_DISTANCE 1e6f
 
 /* Utilities. */
 
@@ -76,6 +77,11 @@ ccl_device_forceinline pgl_point3f guiding_point3f(const float3 v)
   return {v.x, v.y, v.z};
 }
 
+ccl_device_forceinline float3 make_float3(const pgl_vec3f v)
+{
+  return make_float3(v.x, v.y, v.z);
+}
+
 ccl_device_forceinline bool is_valid(const float3 v)
 {
   bool valid = true;
@@ -89,7 +95,7 @@ ccl_device_forceinline bool is_valid(const float3 v)
 }
 ccl_device_forceinline float3 clamp_position(const float3 p)
 {
-  return clamp(p,make_float3(-GUIDING_FLT_LARGE/5.0f), make_float3(GUIDING_FLT_LARGE/5.0f));
+  return clamp(p, make_float3(-GUIDING_FLT_LARGE / 5.0f), make_float3(GUIDING_FLT_LARGE / 5.0f));
 }
 
 #endif
@@ -493,7 +499,7 @@ ccl_device_forceinline void guiding_record_background(ccl_attr_maybe_unused Kern
   const float3 L_rgb = spectrum_to_rgb(L);
   const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
   const float3 ray_D = INTEGRATOR_STATE(state, ray, D);
-  float3 P = ray_P + (1e6f) * ray_D;
+  float3 P = ray_P + (GUIDING_MAX_LIGHT_DISTANCE)*ray_D;
   /* FIXME: ideally we should not generate postions that are close to floating point limits. */
   kernel_assert(is_valid(P));
   P = clamp_position(P);
@@ -523,25 +529,49 @@ ccl_device_forceinline void guiding_record_direct_light(
     return;
   }
   if (state->shadow_path.path_segment) {
+    /* Estimating the out-scattered radiance at the current path segment.
+     * Note: in the light linking caes this estimate is the incoming radiance.*/
     const Spectrum Lo = safe_divide_color(INTEGRATOR_STATE(state, shadow_path, throughput),
                                           INTEGRATOR_STATE(state, shadow_path, unlit_throughput));
-
     const float3 Lo_rgb = spectrum_to_rgb(Lo);
 
-    const float mis_weight = INTEGRATOR_STATE(state, shadow_path, guiding_mis_weight);
-
-    if (mis_weight == 0.0f) {
+    if (!(path_flag & PATH_RAY_SHADOW_FOR_LIGHT_LINKING)) {
       /* Scattered contribution of a next event estimation (i.e., a direct light estimate
        * scattered at the current path vertex towards the previous vertex). */
       openpgl::cpp::AddScatteredContribution(state->shadow_path.path_segment,
                                              guiding_vec3f(Lo_rgb));
     }
     else {
-      /* Dedicated shadow ray for BSDF sampled ray direction.
-       * The mis weight was already folded into the throughput, so need to divide it out. */
-      //openpgl::cpp::SetDirectContribution(state->shadow_path.path_segment,
-      //                                    guiding_vec3f(Lo_rgb / mis_weight));
-      //openpgl::cpp::SetMiWeight(state->shadow_path.path_segment, mis_weight);
+      /* The contribution comes from a light linking forward ray. We need to record this
+       * contribution as scattered contribution at the curren path segment. To be able to guide
+       * towards this light source we add a directional sample directly to the guiding
+       * training data storage. */
+      const float3 scattering_weight = make_float3(
+          state->shadow_path.path_segment->scatteringWeight);
+      openpgl::cpp::AddScatteredContribution(state->shadow_path.path_segment,
+                                             guiding_vec3f(scattering_weight * Lo_rgb));
+
+      /* Adding an additional training sample for the guiding cache in the direction of the linked
+       * light source. */
+      float dist = INTEGRATOR_STATE(state, shadow_ray, tmax);
+      openpgl::cpp::SampleData pgl_sample;
+      pgl_sample.direction = state->shadow_path.path_segment->directionIn;
+      pgl_sample.pdf = state->shadow_path.path_segment->pdfDirectionIn;
+      pgl_sample.position = state->shadow_path.path_segment->position;
+      pgl_sample.flags = state->shadow_path.path_segment->volumeScatter ?
+                             openpgl::cpp::SampleData::EInsideVolume :
+                             0;
+      pgl_sample.weight = safe_divide(reduce_max(Lo_rgb), pgl_sample.pdf);
+      if (!kernel_data.integrator.use_guiding_mis_weights) {
+        const float mis_weight = INTEGRATOR_STATE(
+            state, shadow_path, guiding_light_linking_mis_weight);
+        pgl_sample.weight = safe_divide(pgl_sample.weight, mis_weight);
+      }
+
+      /* Checking if the light source is an infinite one (e.g., background, sun). If so the
+       * distance is set to GUIDING_MAX_LIGHT_DISTANCE. Note: checking for FLT_MAX is not working.*/
+      pgl_sample.distance = dist > GUIDING_FLT_LARGE ? GUIDING_MAX_LIGHT_DISTANCE : dist;
+      kg->opgl_sample_data_storage->AddSample(pgl_sample);
     }
   }
 #endif

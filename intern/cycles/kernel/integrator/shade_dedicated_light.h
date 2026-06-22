@@ -209,24 +209,12 @@ ccl_device void shadow_linking_shade(KernelGlobals kg, IntegratorState state)
 
   INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, visibility) = INTEGRATOR_STATE(
       state, path, visibility);
-  INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, flag) = shadow_flag;
+  INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, flag) = shadow_flag |
+                                                            PATH_RAY_SHADOW_FOR_LIGHT_LINKING;
 
 #  if defined(__PATH_GUIDING__)
   if (kernel_data.integrator.train_guiding) {
-    LightType lt = (LightType)kernel_data_fetch(lights, isect.prim).type;
-    if(lt != LIGHT_SUN && lt != LIGHT_BACKGROUND) {
-      // we need to check if need to add the new segment her or only if the shadow path 
-      // goes through
-      guiding_record_light_surface_segment(kg, state, &isect);
-      // Need to check if we 
-      guiding_record_surface_emission(kg, state, safe_divide(light_eval, mis_weight), mis_weight);
-      //INTEGRATOR_STATE(shadow_state, shadow_path, guiding_mis_weight) = 0;
-    } else {
-      guiding_record_background(kg, state, safe_divide(light_eval, mis_weight), mis_weight);
-    }
-    // Adjust the unlit_throughput to disable recording direct light contributions at the end 
-    // of the additional shadow path.
-    INTEGRATOR_STATE_WRITE(shadow_state, shadow_path, unlit_throughput) = make_float3(0.f);
+    INTEGRATOR_STATE(shadow_state, shadow_path, guiding_light_linking_mis_weight) = mis_weight;
   }
 #  endif
 }
