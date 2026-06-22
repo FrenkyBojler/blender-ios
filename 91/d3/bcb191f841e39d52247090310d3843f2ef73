@@ -1,1 +1,2 @@
 Referenced by issue #160479, Regression: String to curve replaces new lines with placeholder characters
+Referenced by pull request #160520, Fix #160479: String to Curves renders placeholder at control characters
