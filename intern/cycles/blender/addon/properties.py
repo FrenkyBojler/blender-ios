@@ -1980,20 +1980,21 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
                 details = ""
                 if device.type == 'OPTIX':
-                    details = rpt_("Need NVIDIA driver version %s or newer") % optix_minimum_driver_version
+                    details = rpt_("Requires NVIDIA driver version %s or newer") % optix_minimum_driver_version
                 elif device.type == 'HIP':
                     if sys.platform[:3] == "win":
-                        details = rpt_("Need AMD Adrenalin driver %s or newer, or AMD Radeon Pro %s driver or newer") % (
+                        details = rpt_("Requires AMD Adrenalin driver %s or newer, or AMD Radeon Pro %s driver or newer") % (
                             hip_minimum_adrenalin_driver_version, hip_minimum_pro_driver_version)
                     elif sys.platform.startswith("linux"):
-                        details = rpt_("Need ROCm HIP Runtime %s or newer, or AMD driver version %s or newer") % (
+                        details = rpt_("Requires ROCm HIP Runtime %s or newer, or AMD driver version %s or newer") % (
                             hip_rocm_minimum_version, hip_minimum_linux_driver_version)
                 elif device.type == 'ONEAPI':
                     if sys.platform.startswith("win"):
-                        details = rpt_("Need Windows driver version %s or newer") % oneapi_minimum_windows_driver_version
+                        details = rpt_(
+                            "Requires Windows driver version %s or newer") % oneapi_minimum_windows_driver_version
                     elif sys.platform.startswith("linux"):
                         details = rpt_(
-                            "Need intel-level-zero-gpu or intel-compute-runtime version %s or newer") % oneapi_minimum_linux_driver_version
+                            "Requires intel-level-zero-gpu or intel-compute-runtime version %s or newer") % oneapi_minimum_linux_driver_version
 
                 if not details:
                     details = rpt_("Driver upgrade required")
