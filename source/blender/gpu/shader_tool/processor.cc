@@ -72,6 +72,9 @@ SourceProcessor::Result SourceProcessor::convert_msl()
 
   {
     Parser parser(str, error_handler);
+    if (error_handler.err.has_value()) {
+      return {str, metadata_, error_handler.err};
+    }
     parse_pragma_runtime_generated(parser);
     parse_includes(parser);
     lower_preprocessor(parser);
@@ -111,6 +114,9 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
 
   parse_builtins(str, filename);
   Parser parser(str, error_handler);
+  if (error_handler.err.has_value()) {
+    return {str, metadata_, error_handler.err};
+  }
 
   /* Preprocessor directive parsing & linting. */
   lint_pragma_once(parser, filename);
@@ -251,6 +257,9 @@ metadata::Source SourceProcessor::parse_include_and_symbols()
   str = disabled_code_mutation(str);
 
   Parser parser(str, error_handler);
+  if (error_handler.err.has_value()) {
+    return metadata_;
+  }
   parse_pragma_runtime_generated(parser);
   parse_includes(parser);
 

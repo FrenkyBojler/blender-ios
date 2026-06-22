@@ -387,6 +387,12 @@ struct ScopeStack {
 
 void ParserBase::build_token_to_scope_map()
 {
+  if (scope_ranges.empty()) {
+    /* Error case. */
+    token_scope.clear();
+    return;
+  }
+
   token_scope.clear();
   token_scope.resize(scope_ranges[0].size);
 
@@ -409,7 +415,6 @@ Token ParserBase::operator[](int i) const
 void ParserBase::update_string_view()
 {
   assert(this->scope_types.data() != nullptr);
-  assert(this->scope_types.size() > 0);
   this->scope_types_str = std::string_view(reinterpret_cast<char *>(this->scope_types.data()),
                                            this->scope_types.size());
 }

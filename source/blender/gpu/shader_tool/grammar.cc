@@ -1193,6 +1193,14 @@ void ParserBase::build_scope_tree(ErrorHandler &err_handler)
 
   lex.reset_template_tokens();
 
+  if (err_handler.err.has_value()) {
+    /* Avoid UB. */
+    scope_types = {};
+    scope_ranges = {};
+    scope_links.clear();
+    lex.clear();
+  }
+
   update_string_view();
 }
 
