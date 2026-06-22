@@ -373,6 +373,7 @@ BLI_INLINE float distort_remap(float fac, float min, float /*max*/, float minmax
   return fac;
 }
 
+/* this is a copy of BM_loop_calc_face_normal_safe */
 static float mesh_corner_normal_safe(const float3 &co_prev,
                                      const float3 &co,
                                      const float3 &co_next,
