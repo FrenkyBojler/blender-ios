@@ -175,16 +175,17 @@ struct ThumbnailCache {
     logical_time_ = 0;
   }
 
-  void remove_entry(const SourceKey &key)
+  bool remove_entry(const SourceKey &key)
   {
     SourceEntry *entry = map_.lookup_ptr(key);
     if (entry == nullptr) {
-      return;
+      return false;
     }
     for (const FrameEntry &thumb : entry->frames) {
       IMB_freeImBuf(thumb.thumb);
     }
     map_.remove_contained(key);
+    return true;
   }
 };
 
@@ -792,35 +793,42 @@ void thumbnail_cache_invalidate_strip(Scene *scene, const Strip *strip)
     return;
   }
 
-  std::scoped_lock lock(thumb_cache_mutex);
-  ThumbnailCache *cache = query_thumbnail_cache(scene);
-  if (cache != nullptr) {
-    if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
-      const StripElem *elem = strip->data->stripdata;
-      if (elem != nullptr) {
-        int paths_count = 1;
-        if (strip->type == STRIP_TYPE_IMAGE) {
-          /* Image strip has array of file names. */
-          paths_count = int(MEM_allocN_len(elem) / sizeof(*elem));
-        }
-        char filepath[FILE_MAX];
-        const char *basepath = ID_BLEND_PATH_FROM_GLOBAL(&scene->id);
-        for (int i = 0; i < paths_count; i++, elem++) {
-          BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, elem->filename);
-          BLI_path_abs(filepath, basepath);
-          cache->remove_entry(ThumbnailCache::SourceKey(filepath));
+  bool removed = false;
+  {
+    std::scoped_lock lock(thumb_cache_mutex);
+    ThumbnailCache *cache = query_thumbnail_cache(scene);
+    if (cache != nullptr) {
+      if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
+        const StripElem *elem = strip->data->stripdata;
+        if (elem != nullptr) {
+          int paths_count = 1;
+          if (strip->type == STRIP_TYPE_IMAGE) {
+            /* Image strip has array of file names. */
+            paths_count = int(MEM_allocN_len(elem) / sizeof(*elem));
+          }
+          char filepath[FILE_MAX];
+          const char *basepath = ID_BLEND_PATH_FROM_GLOBAL(&scene->id);
+          for (int i = 0; i < paths_count; i++, elem++) {
+            BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, elem->filename);
+            BLI_path_abs(filepath, basepath);
+            removed |= cache->remove_entry(ThumbnailCache::SourceKey(filepath));
+          }
         }
       }
+      else if (strip->type == STRIP_TYPE_MOVIECLIP && strip->clip) {
+        removed |= cache->remove_entry(ThumbnailCache::SourceKey(&strip->clip->id));
+      }
+      else if (strip->type == STRIP_TYPE_MASK && strip->mask) {
+        removed |= cache->remove_entry(ThumbnailCache::SourceKey(&strip->mask->id));
+      }
+      else if (strip->type == STRIP_TYPE_SCENE && strip->scene) {
+        removed |= cache->remove_entry(ThumbnailCache::SourceKey(&strip->scene->id));
+      }
     }
-    else if (strip->type == STRIP_TYPE_MOVIECLIP && strip->clip) {
-      cache->remove_entry(ThumbnailCache::SourceKey(&strip->clip->id));
-    }
-    else if (strip->type == STRIP_TYPE_MASK && strip->mask) {
-      cache->remove_entry(ThumbnailCache::SourceKey(&strip->mask->id));
-    }
-    else if (strip->type == STRIP_TYPE_SCENE && strip->scene) {
-      cache->remove_entry(ThumbnailCache::SourceKey(&strip->scene->id));
-    }
+  }
+
+  if (removed) {
+    WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, &scene->id);
   }
 }
 
