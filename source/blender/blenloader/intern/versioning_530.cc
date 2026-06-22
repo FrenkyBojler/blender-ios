@@ -97,23 +97,23 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
     for (Scene &scene : bmain->scenes) {
       if (scene.toolsettings) {
-        if (scene.toolsettings->snap_selection.exclude_active_edit_mode == 0) {
-          scene.toolsettings->snap_selection.exclude_active_edit_mode =
+        if (scene.toolsettings->snap_selection_exclude.active_edit_mode == 0) {
+          scene.toolsettings->snap_selection_exclude.active_edit_mode =
               (scene.toolsettings->snap_flag & SCE_SNAP_UNUSED_4) ? eSnapMode(short(0xffff)) :
                                                                     SCE_SNAP_TO_NONE;
         }
-        if (scene.toolsettings->snap_selection.exclude_edited_edit_mode == 0) {
-          scene.toolsettings->snap_selection.exclude_edited_edit_mode =
+        if (scene.toolsettings->snap_selection_exclude.edited_edit_mode == 0) {
+          scene.toolsettings->snap_selection_exclude.edited_edit_mode =
               (scene.toolsettings->snap_flag & SCE_SNAP_UNUSED_8) ? SCE_SNAP_TO_NONE :
                                                                     eSnapMode(short(0xffff));
         }
-        if (scene.toolsettings->snap_selection.exclude_non_edited_edit_mode == 0) {
-          scene.toolsettings->snap_selection.exclude_non_edited_edit_mode =
+        if (scene.toolsettings->snap_selection_exclude.non_edited_edit_mode == 0) {
+          scene.toolsettings->snap_selection_exclude.non_edited_edit_mode =
               (scene.toolsettings->snap_flag & SCE_SNAP_UNUSED_9) ? SCE_SNAP_TO_NONE :
                                                                     eSnapMode(short(0xffff));
         }
-        if (scene.toolsettings->snap_selection.exclude_non_selectable == 0) {
-          scene.toolsettings->snap_selection.exclude_non_selectable =
+        if (scene.toolsettings->snap_selection_exclude.non_selectable == 0) {
+          scene.toolsettings->snap_selection_exclude.non_selectable =
               (scene.toolsettings->snap_flag & SCE_SNAP_UNUSED_10) ? eSnapMode(short(0xffff)) :
                                                                      SCE_SNAP_TO_NONE;
         }

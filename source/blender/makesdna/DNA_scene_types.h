@@ -1936,10 +1936,10 @@ enum eSnapMode : short {
 ENUM_OPERATORS(eSnapMode)
 
 struct SnapSelection {
-  eSnapMode exclude_active_edit_mode;
-  eSnapMode exclude_edited_edit_mode;
-  eSnapMode exclude_non_edited_edit_mode;
-  eSnapMode exclude_non_selectable;
+  eSnapMode active_edit_mode;
+  eSnapMode edited_edit_mode;
+  eSnapMode non_edited_edit_mode;
+  eSnapMode non_selectable;
 };
 /**
  * \note The exact value here is used in an enum, any changes require versioning.
@@ -2441,7 +2441,7 @@ struct ToolSettings {
   uint8_t fix_to_cam_flag = FIX_TO_CAM_FLAG_USE_LOC | FIX_TO_CAM_FLAG_USE_ROT |
                             FIX_TO_CAM_FLAG_USE_SCALE; /* eFixToCam_Flags */
   char _pad8[7] = {};
-  struct SnapSelection snap_selection;
+  struct SnapSelection snap_selection_exclude;
 };
 
 /** \} */

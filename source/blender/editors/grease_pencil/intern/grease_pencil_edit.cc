@@ -3479,10 +3479,10 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
                 float3 hit_normal(0.0f);
 
                 transform::SnapObjectParams params{};
-                params.snap_selection.exclude_active_edit_mode = SCE_SNAP_TO_NONE;
-                params.snap_selection.exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
-                params.snap_selection.exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
-                params.snap_selection.exclude_non_selectable = SCE_SNAP_TO_NONE;
+                params.snap_selection_exclude.active_edit_mode = SCE_SNAP_TO_NONE;
+                params.snap_selection_exclude.edited_edit_mode = SCE_SNAP_TO_NONE;
+                params.snap_selection_exclude.non_edited_edit_mode = SCE_SNAP_TO_NONE;
+                params.snap_selection_exclude.non_selectable = SCE_SNAP_TO_NONE;
                 transform::SnapObjectContext *snap_context = thread_snap_contexts.local();
                 if (transform::snap_object_project_ray(snap_context,
                                                        depsgraph,

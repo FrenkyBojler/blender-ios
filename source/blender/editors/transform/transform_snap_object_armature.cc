@@ -44,7 +44,7 @@ eSnapMode snapArmature(SnapObjectContext *sctx,
   const bool is_editmode = arm->edbo != nullptr;
   const bool is_posemode = is_object_active && (ob_eval->mode & OB_MODE_POSE);
   const bool skip_selected = (is_editmode || is_posemode) &&
-                             (sctx->runtime.params.snap_selection.exclude_active_edit_mode &
+                             (sctx->runtime.params.snap_selection_exclude.active_edit_mode &
                               (SCE_SNAP_TO_EDGE | SCE_SNAP_TO_VERTEX)) == 0;
   ;
 

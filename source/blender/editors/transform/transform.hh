@@ -546,7 +546,7 @@ struct TransSnap {
   /* Part of source to snap to target. */
   eSnapSourceOP source_operation;
   /* Determines which objects are possible target. */
-  struct SnapSelection snap_selection;
+  struct SnapSelection snap_selection_exclude;
   short face_nearest_steps;
   eTSnap status;
   /* Snapped Element Type (currently for objects only). */

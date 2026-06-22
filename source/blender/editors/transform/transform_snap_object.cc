@@ -472,18 +472,18 @@ static eSnapMode snap_object_allowed_modes(const SnapObjectContext *sctx,
   if (!is_in_object_mode) {
     /* Handle target selection options that make sense for edit/pose mode. */
     if (is_active) {
-      allowed_mask &= ~params.snap_selection.exclude_active_edit_mode;
+      allowed_mask &= ~params.snap_selection_exclude.active_edit_mode;
     }
     if (is_edited) {
-      allowed_mask &= ~params.snap_selection.exclude_edited_edit_mode;
+      allowed_mask &= ~params.snap_selection_exclude.edited_edit_mode;
     }
     if (!is_selected) {
-      allowed_mask &= ~params.snap_selection.exclude_non_edited_edit_mode;
+      allowed_mask &= ~params.snap_selection_exclude.non_edited_edit_mode;
     }
   }
 
   if (!is_selectable) {
-    allowed_mask &= ~params.snap_selection.exclude_non_selectable;
+    allowed_mask &= ~params.snap_selection_exclude.non_selectable;
   }
 
   return allowed_mask;
@@ -505,7 +505,9 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   DupliList duplilist;
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
     sctx->runtime.snap_to_flag &= snap_object_allowed_modes(sctx, base_act, &base);
-
+    if (sctx->runtime.snap_to_flag == SCE_SNAP_TO_NONE) {
+      continue;
+    }
     const bool is_object_active = (&base == base_act);
     Object *obj_eval = DEG_get_evaluated(sctx->runtime.depsgraph, base.object);
     if (obj_eval->transflag & OB_DUPLI || bke::object_has_geometry_set_instances(*obj_eval)) {

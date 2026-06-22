@@ -435,14 +435,14 @@ static bool applyFaceProject(TransInfo *t,
   }
 
   SnapObjectParams snap_object_params{};
-  snap_object_params.snap_selection.exclude_active_edit_mode =
-      t->tsnap.snap_selection.exclude_active_edit_mode;
-  snap_object_params.snap_selection.exclude_edited_edit_mode =
-      t->tsnap.snap_selection.exclude_edited_edit_mode;
-  snap_object_params.snap_selection.exclude_non_edited_edit_mode =
-      t->tsnap.snap_selection.exclude_non_edited_edit_mode;
-  snap_object_params.snap_selection.exclude_non_selectable =
-      t->tsnap.snap_selection.exclude_non_selectable;
+  snap_object_params.snap_selection_exclude.active_edit_mode =
+      t->tsnap.snap_selection_exclude.active_edit_mode;
+  snap_object_params.snap_selection_exclude.edited_edit_mode =
+      t->tsnap.snap_selection_exclude.edited_edit_mode;
+  snap_object_params.snap_selection_exclude.non_edited_edit_mode =
+      t->tsnap.snap_selection_exclude.non_edited_edit_mode;
+  snap_object_params.snap_selection_exclude.non_selectable =
+      t->tsnap.snap_selection_exclude.non_selectable;
   snap_object_params.edit_mode_type = (t->flag & T_EDIT) != 0 ? SNAP_GEOM_EDIT : SNAP_GEOM_FINAL;
   snap_object_params.occlusion_test = SNAP_OCCLUSION_ALWAYS;
   snap_object_params.use_backface_culling = (t->tsnap.flag & SCE_SNAP_BACKFACE_CULLING) != 0;
@@ -506,14 +506,14 @@ static void applyFaceNearest(TransInfo *t, TransDataContainer *tc, TransData *td
   }
 
   SnapObjectParams snap_object_params{};
-  snap_object_params.snap_selection.exclude_active_edit_mode =
-      t->tsnap.snap_selection.exclude_active_edit_mode;
-  snap_object_params.snap_selection.exclude_edited_edit_mode =
-      t->tsnap.snap_selection.exclude_edited_edit_mode;
-  snap_object_params.snap_selection.exclude_non_edited_edit_mode =
-      t->tsnap.snap_selection.exclude_non_edited_edit_mode;
-  snap_object_params.snap_selection.exclude_non_selectable =
-      t->tsnap.snap_selection.exclude_non_selectable;
+  snap_object_params.snap_selection_exclude.active_edit_mode =
+      t->tsnap.snap_selection_exclude.active_edit_mode;
+  snap_object_params.snap_selection_exclude.edited_edit_mode =
+      t->tsnap.snap_selection_exclude.edited_edit_mode;
+  snap_object_params.snap_selection_exclude.non_edited_edit_mode =
+      t->tsnap.snap_selection_exclude.non_edited_edit_mode;
+  snap_object_params.snap_selection_exclude.non_selectable =
+      t->tsnap.snap_selection_exclude.non_selectable;
   snap_object_params.edit_mode_type = (t->flag & T_EDIT) != 0 ? SNAP_GEOM_EDIT : SNAP_GEOM_FINAL;
   snap_object_params.occlusion_test = SNAP_OCCLUSION_ALWAYS;
   snap_object_params.use_backface_culling = false;
@@ -639,10 +639,10 @@ void resetSnapping(TransInfo *t)
   t->tsnap.source_type = SCE_SNAP_TO_NONE;
   t->tsnap.target_type = SCE_SNAP_TO_NONE;
   t->tsnap.mode = SCE_SNAP_TO_NONE;
-  t->tsnap.snap_selection.exclude_active_edit_mode = SCE_SNAP_TO_NONE;
-  t->tsnap.snap_selection.exclude_edited_edit_mode = SCE_SNAP_TO_NONE;
-  t->tsnap.snap_selection.exclude_non_edited_edit_mode = SCE_SNAP_TO_NONE;
-  t->tsnap.snap_selection.exclude_non_selectable = SCE_SNAP_TO_NONE;
+  t->tsnap.snap_selection_exclude.active_edit_mode = SCE_SNAP_TO_NONE;
+  t->tsnap.snap_selection_exclude.edited_edit_mode = SCE_SNAP_TO_NONE;
+  t->tsnap.snap_selection_exclude.non_edited_edit_mode = SCE_SNAP_TO_NONE;
+  t->tsnap.snap_selection_exclude.non_selectable = SCE_SNAP_TO_NONE;
   t->tsnap.source_operation = SCE_SNAP_SOURCE_CLOSEST;
   t->tsnap.last = 0;
 
@@ -813,10 +813,10 @@ static eSnapMode snap_mode_from_spacetype(TransInfo *t)
 static void snap_target_select_from_spacetype_and_tool_settings(TransInfo *t)
 {
   /* `t->tsnap` fields are initialized to default 'snap to all' in resetSnapping. */
-  BLI_assert(t->tsnap.snap_selection.exclude_active_edit_mode == SCE_SNAP_TO_NONE);
-  BLI_assert(t->tsnap.snap_selection.exclude_edited_edit_mode == SCE_SNAP_TO_NONE);
-  BLI_assert(t->tsnap.snap_selection.exclude_non_edited_edit_mode == SCE_SNAP_TO_NONE);
-  BLI_assert(t->tsnap.snap_selection.exclude_non_selectable == SCE_SNAP_TO_NONE);
+  BLI_assert(t->tsnap.snap_selection_exclude.active_edit_mode == SCE_SNAP_TO_NONE);
+  BLI_assert(t->tsnap.snap_selection_exclude.edited_edit_mode == SCE_SNAP_TO_NONE);
+  BLI_assert(t->tsnap.snap_selection_exclude.non_edited_edit_mode == SCE_SNAP_TO_NONE);
+  BLI_assert(t->tsnap.snap_selection_exclude.non_selectable == SCE_SNAP_TO_NONE);
 
   if (ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE) && !(t->options & CTX_CAMERA)) {
     BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
@@ -838,7 +838,7 @@ static void snap_target_select_from_spacetype_and_tool_settings(TransInfo *t)
         /* Editing a mesh. */
         if ((t->flag & T_PROP_EDIT) != 0) {
           /* Exclude editmesh when using proportional edit. */
-          t->tsnap.snap_selection.exclude_edited_edit_mode = eSnapMode(short(0xffff));
+          t->tsnap.snap_selection_exclude.edited_edit_mode = eSnapMode(short(0xffff));
         }
         /* UV editing must never snap to the selection as this is what is transformed. */
       }
@@ -849,18 +849,18 @@ static void snap_target_select_from_spacetype_and_tool_settings(TransInfo *t)
     }
     else {
       /* Object or pose mode. */
-      t->tsnap.snap_selection.exclude_active_edit_mode = eSnapMode(short(0xffff));
+      t->tsnap.snap_selection_exclude.active_edit_mode = eSnapMode(short(0xffff));
     }
   }
 
   /* Use scene defaults only when transform is modal. */
   if (t->flag & T_MODAL) {
     ToolSettings *ts = t->settings;
-    t->tsnap.snap_selection.exclude_active_edit_mode = ts->snap_selection.exclude_active_edit_mode;
-    t->tsnap.snap_selection.exclude_edited_edit_mode = ts->snap_selection.exclude_edited_edit_mode;
-    t->tsnap.snap_selection.exclude_non_edited_edit_mode =
-        ts->snap_selection.exclude_non_edited_edit_mode;
-    t->tsnap.snap_selection.exclude_non_selectable = ts->snap_selection.exclude_non_selectable;
+    t->tsnap.snap_selection_exclude.active_edit_mode = ts->snap_selection_exclude.active_edit_mode;
+    t->tsnap.snap_selection_exclude.edited_edit_mode = ts->snap_selection_exclude.edited_edit_mode;
+    t->tsnap.snap_selection_exclude.non_edited_edit_mode =
+        ts->snap_selection_exclude.non_edited_edit_mode;
+    t->tsnap.snap_selection_exclude.non_selectable = ts->snap_selection_exclude.non_selectable;
   }
 }
 
@@ -1019,7 +1019,7 @@ void transform_snap_reset_from_mode(TransInfo *t, wmOperator *op)
     if ((prop = RNA_struct_find_property(op->ptr, "use_snap_self")) &&
         RNA_property_is_set(op->ptr, prop))
     {
-      t->tsnap.snap_selection.exclude_active_edit_mode = RNA_property_boolean_get(op->ptr, prop) ?
+      t->tsnap.snap_selection_exclude.active_edit_mode = RNA_property_boolean_get(op->ptr, prop) ?
                                                              SCE_SNAP_TO_NONE :
                                                              eSnapMode(short(0xffff));
     }
@@ -1027,7 +1027,7 @@ void transform_snap_reset_from_mode(TransInfo *t, wmOperator *op)
     if ((prop = RNA_struct_find_property(op->ptr, "use_snap_edit")) &&
         RNA_property_is_set(op->ptr, prop))
     {
-      t->tsnap.snap_selection.exclude_edited_edit_mode = RNA_property_boolean_get(op->ptr, prop) ?
+      t->tsnap.snap_selection_exclude.edited_edit_mode = RNA_property_boolean_get(op->ptr, prop) ?
                                                              SCE_SNAP_TO_NONE :
                                                              eSnapMode(short(0xffff));
     }
@@ -1035,7 +1035,7 @@ void transform_snap_reset_from_mode(TransInfo *t, wmOperator *op)
     if ((prop = RNA_struct_find_property(op->ptr, "use_snap_nonedit")) &&
         RNA_property_is_set(op->ptr, prop))
     {
-      t->tsnap.snap_selection.exclude_non_edited_edit_mode = RNA_property_boolean_get(op->ptr,
+      t->tsnap.snap_selection_exclude.non_edited_edit_mode = RNA_property_boolean_get(op->ptr,
                                                                                       prop) ?
                                                                  SCE_SNAP_TO_NONE :
                                                                  eSnapMode(short(0xffff));
@@ -1044,7 +1044,7 @@ void transform_snap_reset_from_mode(TransInfo *t, wmOperator *op)
     if ((prop = RNA_struct_find_property(op->ptr, "use_snap_selectable")) &&
         RNA_property_is_set(op->ptr, prop))
     {
-      t->tsnap.snap_selection.exclude_non_selectable = RNA_property_boolean_get(op->ptr, prop) ?
+      t->tsnap.snap_selection_exclude.non_selectable = RNA_property_boolean_get(op->ptr, prop) ?
                                                            eSnapMode(short(0xffff)) :
                                                            SCE_SNAP_TO_NONE;
     }
@@ -1634,14 +1634,14 @@ static eSnapMode snapObjectsTransform(
     TransInfo *t, const float mval[2], float *dist_px, float r_loc[3], float r_no[3])
 {
   SnapObjectParams snap_object_params{};
-  snap_object_params.snap_selection.exclude_active_edit_mode =
-      t->tsnap.snap_selection.exclude_active_edit_mode;
-  snap_object_params.snap_selection.exclude_edited_edit_mode =
-      t->tsnap.snap_selection.exclude_edited_edit_mode;
-  snap_object_params.snap_selection.exclude_non_edited_edit_mode =
-      t->tsnap.snap_selection.exclude_non_edited_edit_mode;
-  snap_object_params.snap_selection.exclude_non_selectable =
-      t->tsnap.snap_selection.exclude_non_selectable;
+  snap_object_params.snap_selection_exclude.active_edit_mode =
+      t->tsnap.snap_selection_exclude.active_edit_mode;
+  snap_object_params.snap_selection_exclude.edited_edit_mode =
+      t->tsnap.snap_selection_exclude.edited_edit_mode;
+  snap_object_params.snap_selection_exclude.non_edited_edit_mode =
+      t->tsnap.snap_selection_exclude.non_edited_edit_mode;
+  snap_object_params.snap_selection_exclude.non_selectable =
+      t->tsnap.snap_selection_exclude.non_selectable;
   snap_object_params.grid_size = (t->modifiers & MOD_PRECISION) ?
                                      t->snap_spatial[0] * t->snap_spatial_precision :
                                      t->snap_spatial[0];
@@ -1689,14 +1689,14 @@ bool peelObjectsTransform(TransInfo *t,
                           float *r_thickness)
 {
   SnapObjectParams snap_object_params{};
-  snap_object_params.snap_selection.exclude_active_edit_mode =
-      t->tsnap.snap_selection.exclude_active_edit_mode;
-  snap_object_params.snap_selection.exclude_edited_edit_mode =
-      t->tsnap.snap_selection.exclude_edited_edit_mode;
-  snap_object_params.snap_selection.exclude_non_edited_edit_mode =
-      t->tsnap.snap_selection.exclude_non_edited_edit_mode;
-  snap_object_params.snap_selection.exclude_non_selectable =
-      t->tsnap.snap_selection.exclude_non_selectable;
+  snap_object_params.snap_selection_exclude.active_edit_mode =
+      t->tsnap.snap_selection_exclude.active_edit_mode;
+  snap_object_params.snap_selection_exclude.edited_edit_mode =
+      t->tsnap.snap_selection_exclude.edited_edit_mode;
+  snap_object_params.snap_selection_exclude.non_edited_edit_mode =
+      t->tsnap.snap_selection_exclude.non_edited_edit_mode;
+  snap_object_params.snap_selection_exclude.non_selectable =
+      t->tsnap.snap_selection_exclude.non_selectable;
   snap_object_params.edit_mode_type = (t->flag & T_EDIT) != 0 ? SNAP_GEOM_EDIT : SNAP_GEOM_FINAL;
 
   ListBaseT<SnapObjectHitDepth> depths_peel = {nullptr};
