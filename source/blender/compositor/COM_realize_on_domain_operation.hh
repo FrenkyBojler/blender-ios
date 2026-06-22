@@ -22,8 +22,6 @@ class RealizeOnDomainOperation : public SimpleOperation {
  private:
   /* The target domain to realize the input on. */
   Domain target_domain_;
-  /* Arguments passed from execute to the gpu/cpu implementations */
-  struct Options;
 
  public:
   RealizeOnDomainOperation(Context &context, Domain target_domain, ResultType type);
@@ -48,8 +46,12 @@ class RealizeOnDomainOperation : public SimpleOperation {
   Domain compute_domain() override;
 
  private:
-  void realize_on_domain_gpu(const Options &options);
-  void realize_on_domain_cpu(const Options &options);
+  void realize_on_domain_gpu(Interpolation,
+                             const float3x3 &transformation,
+                             bool no_jacobian);
+  void realize_on_domain_cpu(Interpolation,
+                             const float3x3 &transformation,
+                             bool no_jacobian);
 };
 
 }  // namespace blender::compositor
