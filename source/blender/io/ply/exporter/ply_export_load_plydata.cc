@@ -7,6 +7,7 @@
  */
 
 #include "ply_export_load_plydata.hh"
+#include "IO_mesh_utils.hh"
 #include "IO_ply.hh"
 #include "ply_data.hh"
 
@@ -15,7 +16,6 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
-#include "BKE_object.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_color.hh"
 #include "BLI_hash.hh"
@@ -29,6 +29,7 @@
 
 #include "DNA_customdata_types.h"
 #include "DNA_layer_types.h"
+#include "DNA_object_types.h"
 
 #include "bmesh.hh"
 #include "tools/bmesh_triangulate.hh"
@@ -344,23 +345,9 @@ void load_plydata(PlyData &plyData, Depsgraph *depsgraph, const PLYExportParams 
 
     Object *obj_eval = DEG_get_evaluated(depsgraph, object);
 
-    /* Curves and NURBS surfaces need a new mesh when they're
-     * exported in the form of vertices and edges.
-     */
-    bool is_original_mesh_type = true;
-    Mesh *pre_modified_mesh = nullptr;
-    if (const ID *data_orig = obj_eval->runtime->data_orig) {
-      if (GS(data_orig->name) != ID_ME) {
-        is_original_mesh_type = false;
-        if (!export_params.apply_modifiers) {
-          pre_modified_mesh = BKE_mesh_new_from_object(
-              depsgraph, DEG_get_original(obj_eval), true, true, true);
-        }
-      }
-    }
-    const Mesh *mesh = export_params.apply_modifiers ? BKE_object_get_evaluated_mesh(obj_eval) :
-                       is_original_mesh_type         ? BKE_object_get_pre_modified_mesh(obj_eval) :
-                                                       pre_modified_mesh;
+    MeshCoerceForExport coerce;
+    const Mesh *mesh = mesh_coerce_for_export_begin(
+        coerce, depsgraph, obj_eval, export_params.apply_modifiers);
 
     /* Ensure data exists if currently in edit mode. */
     BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(mesh));
@@ -478,9 +465,7 @@ void load_plydata(PlyData &plyData, Depsgraph *depsgraph, const PLYExportParams 
     if (manually_free_mesh) {
       BKE_id_free(nullptr, manually_free_mesh);
     }
-    if (pre_modified_mesh) {
-      BKE_id_free(nullptr, pre_modified_mesh);
-    }
+    mesh_coerce_for_export_end(coerce);
   }
 
   DEG_OBJECT_ITER_END;
