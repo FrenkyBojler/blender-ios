@@ -481,15 +481,6 @@ void GLTexture::read(int mip, eGPUDataFormat type, void *data)
   BLI_assert(mip <= mipmaps_ || mip == 0);
   BLI_assert(validate_data_format(format_, type));
 
-  if (is_texture_view()) {
-    Texture *staging = gpu_texture_create(
-        "staging", w_, h_, d_, type_, mipmaps_, format_, GPU_TEXTURE_USAGE_HOST_READ, nullptr);
-    GPU_texture_copy(staging, this);
-    staging->read(mip, type, data);
-    GPU_texture_free(staging);
-    return;
-  }
-
   size_t texture_size = read_size_get(mip, type);
 
   GLTexture *texture = this;
