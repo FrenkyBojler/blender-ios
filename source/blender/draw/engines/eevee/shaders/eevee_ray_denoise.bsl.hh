@@ -29,6 +29,14 @@
 
 namespace eevee::raytracing::denoise {
 
+/* Below this roughness, do not filter across neighbors. */
+constexpr float neighbor_filter_roughness_threshold = 0.05f;
+
+bool closure_is_too_smooth_for_neighbor_filtering(float roughness)
+{
+  return roughness < neighbor_filter_roughness_threshold;
+}
+
 float4 bilinear_weights_from_subpixel_coord(float2 co)
 {
   /* From top left in clockwise order. */
@@ -317,6 +325,19 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
 
   filter_rotation[0] *= clamp(filter_radius, min_filter_radius, max_filter_radius);
   filter_rotation[1] *= clamp(filter_radius * aspect, min_filter_radius, max_filter_radius);
+
+  if (closure_is_too_smooth_for_neighbor_filtering(apparent_roughness)) {
+    float4 center_ray_data = imageLoad(srt.ray_data_img, center_sample_texel);
+    if (center_ray_data.w != 0.0f) {
+      float center_ray_time = imageLoad(srt.ray_time_img, center_sample_texel).r;
+      float4 center_ray_radiance = imageLoad(srt.ray_radiance_img, center_sample_texel);
+      float hit_depth = view.depth_view_to_screen(scene_z - center_ray_time);
+      imageStoreFast(srt.out_radiance_img, texel_fullres, float4(center_ray_radiance.rgb, 0.0f));
+      imageStoreFast(srt.out_variance_img, texel_fullres, float4(0.0f));
+      imageStoreFast(srt.out_hit_depth_img, texel_fullres, float4(hit_depth));
+      return;
+    }
+  }
 
   for (uint i = 0u; i < sample_count; i++) {
     float2 Xi = hammersley_2d(i, sample_count);
@@ -713,7 +734,7 @@ void bilateral_main([[resource_table]] DenoiseBilateral &srt,
   float3 in_radiance = imageLoadFast(srt.in_radiance_img, texel_fullres).rgb;
 
   bool is_background = (center_depth == 0.0f);
-  bool is_smooth = (roughness < 0.05f);
+  bool is_smooth = closure_is_too_smooth_for_neighbor_filtering(roughness);
   bool is_low_variance = (variance < 0.1f);
 
   /* Width of the box filter in pixels. */
