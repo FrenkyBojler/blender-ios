@@ -157,6 +157,27 @@ float3x3 tangent_basis(float3 N, float3 V)
   return float3x3(T1, T2, N);
 }
 
+/* Curve of the form `x/(1+x)`, going through `y_1` at `x=1`,
+ * with `scale` scaling the upper parabole.  */
+float soft_curve_upper(float x, float scale, float y_1)
+{
+  if (x >= y_1) {
+    return 1.0f;
+  }
+  x /= y_1;
+  return saturate((x + x * scale) / (x + scale));
+}
+
+/* Lower symmetric variant of `soft_curve_upper`. */
+float soft_curve_lower(float x, float scale, float y_1)
+{
+  if (x >= y_1) {
+    return 1.0f;
+  }
+  x /= y_1;
+  return saturate((x * scale) / (1.0f + scale - x));
+}
+
 /* Simple disk with origin, normal, and radius. */
 struct Disk {
   float3 O;
@@ -166,36 +187,33 @@ struct Disk {
 
 float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
 {
-  /* Dominant BxDF lobe direction. */
-  float D_length;
-  float3 D = normalize_and_get_length(inverse(Minv)[2], D_length);
+  /* Dominant BxDF lobe direction. Store reciprocal of vector length, it
+   * approximates the alpha used to sample the LTC matrix. */
+  float D_length_rcp;
+  float3 D = normalize_and_get_length_rcp(inverse(Minv)[2], D_length_rcp);
 
-  /* Vector on the disk plane, coplanar with D and L. Equals `T = cross(cross(L, D), disk.N)`. */
+  /* Vector on disk plane, coplanar with D and L; equal to `T = (L x D) x disk.N`. */
   float3 T = normalize(D * dot(disk.N, L) - L * dot(disk.N, D));
 
-  /* For line O + tT, find t where it intersects line sD; O + tT = sD. */
-  float t = safe_divide(dot(disk.O, D) * dot(T, D) - dot(disk.O, T), 1.0f - square(dot(T, D)));
-  if (t >= 0.0 && t < disk.radius) {
+  /* Find t for line O + tT, where it intersects line sD. */
+  float TD = dot(T, D);
+  float t = safe_divide(dot(disk.O, D) * TD - dot(disk.O, T), 1.0f - square(TD));
+  if (t > 0.0 && t < disk.radius) {
     /* If t lies within the disk, we do not need to attenuate. */
     return 1.0;
   }
 
-  /* Compute near point on the disk, along the line formed by T. Project
-   * these points onto the unit sphere. */
+  /* Compute nearest point on the disk and the line formed by T. Project this into
+   * LTC space. It bounds the LTC lobe. We use its z-component as attenuation factor. */
   float3 P = normalize(disk.O + disk.radius * T);
+  float attenuation = saturate(normalize(Minv * P).z);
 
-  /* Project disk point into LTC space. */
-  float attenuation = normalize(Minv * P).z;
-  /* Then fit to simple geometric curve */
-  attenuation = saturate(2.0f * attenuation / (1.0f + attenuation));
+  /* Attenuation approaches 1 slightly aggressively. */
+  attenuation = soft_curve_upper(attenuation, 0.15f, 0.5f);
+  /* Attenuation approaches 1 as LTC z vector lengthens,  which somewhat corresponds to alpha. */
+  attenuation += (1.0f - attenuation) * soft_curve_lower(D_length_rcp, 0.5f, 0.67f);
 
-  /* Curve: attenuation approaches 1 towards upper hemisphere. */
-  float curve_a = square(square(0.995f * (1.0f - saturate(dot(P, L) + dot(D, -L)))));
-  /* Curve: attenuation approaches 1 with higher alpha. */
-  D_length = saturate(1.0f / D_length);
-  float curve_b = 1.1f * D_length / (0.1f + D_length);
-  /* Mix attenuation to 1 by the above curves. */
-  return mix(mix(attenuation, 1.0, curve_a), 1.0, curve_b);
+  return attenuation;
 }
 
 float attenuate_quad(float3x3 Minv, float3 L, float3 verts[4])
