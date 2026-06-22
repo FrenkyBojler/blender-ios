@@ -112,6 +112,65 @@ struct DenoiseSpatial {
 
     return max(epsilon_weight, depth_weight * normal_weight);
   }
+
+  void upsample_no_denoise([[resource_table]] const gbuffer::Reader &reader,
+                           [[resource_table]] const Uniform &uni,
+                           ViewMatrices view,
+                           int2 texel_fullres,
+                           int2 texel_nearest,
+                           float2 bilinear_co,
+                           float3 &r_radiance,
+                           float &r_hit_time,
+                           float &r_weight_sum) const
+  {
+    float center_depth = texelFetch(depth_tx, texel_fullres, 0).r;
+    float2 center_uv = float2(texel_fullres) * uni.raytrace_buf.full_resolution_inv;
+    float3 center_N = reader.read_bin(texel_fullres, closure_index).N;
+    float3 center_P = view.point_screen_to_world(float3(center_uv, center_depth));
+
+    float4 interp4 = float4(bilinear_co, 1.0f - bilinear_co);
+    float4 bilinear_weights = interp4.zxzx * interp4.wwyy;
+
+    float4 bilateral_weights = float4(
+        sample_weight_get(reader, uni, view, center_N, center_P, texel_nearest + int2(0, 0)),
+        sample_weight_get(reader, uni, view, center_N, center_P, texel_nearest + int2(1, 0)),
+        sample_weight_get(reader, uni, view, center_N, center_P, texel_nearest + int2(0, 1)),
+        sample_weight_get(reader, uni, view, center_N, center_P, texel_nearest + int2(1, 1)));
+
+    float4 ray_pdf_inv = float4(imageLoad(ray_data_img, texel_nearest + int2(0, 0)).w,
+                                imageLoad(ray_data_img, texel_nearest + int2(1, 0)).w,
+                                imageLoad(ray_data_img, texel_nearest + int2(0, 1)).w,
+                                imageLoad(ray_data_img, texel_nearest + int2(1, 1)).w);
+
+    float4 ray_validity = float4(not(equal(ray_pdf_inv, float4(0.0f))));
+
+    float4 weights = ray_validity * bilinear_weights * bilateral_weights;
+    float weight_sum = dot(weights, float4(1.0f));
+    weights *= safe_rcp(weight_sum);
+
+    float3 radiance = colorspace::log_from_scene_linear(
+                          imageLoad(ray_radiance_img, texel_nearest + int2(0, 0)).rgb) *
+                      weights.x;
+    radiance += colorspace::log_from_scene_linear(
+                    imageLoad(ray_radiance_img, texel_nearest + int2(1, 0)).rgb) *
+                weights.y;
+    radiance += colorspace::log_from_scene_linear(
+                    imageLoad(ray_radiance_img, texel_nearest + int2(0, 1)).rgb) *
+                weights.z;
+    radiance += colorspace::log_from_scene_linear(
+                    imageLoad(ray_radiance_img, texel_nearest + int2(1, 1)).rgb) *
+                weights.w;
+
+    float4 ray_time = float4(imageLoad(ray_time_img, texel_nearest + int2(0, 0)).r,
+                             imageLoad(ray_time_img, texel_nearest + int2(1, 0)).r,
+                             imageLoad(ray_time_img, texel_nearest + int2(0, 1)).r,
+                             imageLoad(ray_time_img, texel_nearest + int2(1, 1)).r);
+    ray_time = mix(float4(1.0e10f), ray_time, ray_validity);
+
+    r_radiance = colorspace::scene_linear_from_log(radiance);
+    r_hit_time = min(min(ray_time.x, ray_time.y), min(ray_time.z, ray_time.w));
+    r_weight_sum = weight_sum;
+  }
 };
 
 void transmission_thickness_amend_closure(ClosureUndetermined &cl, float3 &V, Thickness thickness)
@@ -173,41 +232,19 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
     }
 
     /* Simple bilateral upsampling without any denoising. */
-    float center_depth = texelFetch(srt.depth_tx, texel_fullres, 0).r;
-    float2 center_uv = float2(texel_fullres) * uni.raytrace_buf.full_resolution_inv;
-    float3 center_N = reader.read_bin(texel_fullres, srt.closure_index).N;
-    float3 center_P = view.point_screen_to_world(float3(center_uv, center_depth));
-
-    float4 bilinear_weights = bilinear_weights_from_subpixel_coord(bilinear_co);
-
-    float4 bilateral_weights = float4(
-        srt.sample_weight_get(reader, uni, view, center_N, center_P, texel_nearest + int2(0, 1)),
-        srt.sample_weight_get(reader, uni, view, center_N, center_P, texel_nearest + int2(1, 1)),
-        srt.sample_weight_get(reader, uni, view, center_N, center_P, texel_nearest + int2(1, 0)),
-        srt.sample_weight_get(reader, uni, view, center_N, center_P, texel_nearest + int2(0, 0)));
-
-    float4 ray_pdf_inv = float4(imageLoad(srt.ray_data_img, texel_nearest + int2(0, 1)).w,
-                                imageLoad(srt.ray_data_img, texel_nearest + int2(1, 1)).w,
-                                imageLoad(srt.ray_data_img, texel_nearest + int2(1, 0)).w,
-                                imageLoad(srt.ray_data_img, texel_nearest + int2(0, 0)).w);
-    float4 ray_validity = float4(not(equal(ray_pdf_inv, float4(0.0f))));
-
-    float4 ray_radiance0 = imageLoad(srt.ray_radiance_img, texel_nearest + int2(0, 1));
-    float4 ray_radiance1 = imageLoad(srt.ray_radiance_img, texel_nearest + int2(1, 1));
-    float4 ray_radiance2 = imageLoad(srt.ray_radiance_img, texel_nearest + int2(1, 0));
-    float4 ray_radiance3 = imageLoad(srt.ray_radiance_img, texel_nearest + int2(0, 0));
-
-    float4 weights = ray_validity * bilinear_weights * bilateral_weights;
-
-    float4 radiance;
-    radiance = colorspace::log_from_scene_linear(ray_radiance0) * weights.x;
-    radiance += colorspace::log_from_scene_linear(ray_radiance1) * weights.y;
-    radiance += colorspace::log_from_scene_linear(ray_radiance2) * weights.z;
-    radiance += colorspace::log_from_scene_linear(ray_radiance3) * weights.w;
-    radiance *= safe_rcp(radiance.w);
-    radiance = colorspace::scene_linear_from_log(radiance);
-
-    imageStore(srt.out_radiance_img, texel_fullres, radiance);
+    float3 upsample_radiance;
+    float upsample_hit_time;
+    float upsample_weight_sum;
+    srt.upsample_no_denoise(reader,
+                            uni,
+                            view,
+                            texel_fullres,
+                            texel_nearest,
+                            bilinear_co,
+                            upsample_radiance,
+                            upsample_hit_time,
+                            upsample_weight_sum);
+    imageStore(srt.out_radiance_img, texel_fullres, float4(upsample_radiance, 0.0f));
     return;
   }
 
@@ -327,6 +364,28 @@ void spatial_main([[resource_table]] DenoiseSpatial &srt,
   filter_rotation[1] *= clamp(filter_radius * aspect, min_filter_radius, max_filter_radius);
 
   if (closure_is_too_smooth_for_neighbor_filtering(apparent_roughness)) {
+    if (srt.raytrace_resolution_scale > 1) {
+      float3 upsample_radiance;
+      float upsample_hit_time;
+      float upsample_weight_sum;
+      srt.upsample_no_denoise(reader,
+                              uni,
+                              view,
+                              texel_fullres,
+                              texel_nearest,
+                              bilinear_co,
+                              upsample_radiance,
+                              upsample_hit_time,
+                              upsample_weight_sum);
+      if (upsample_weight_sum != 0.0f) {
+        float hit_depth = view.depth_view_to_screen(scene_z - upsample_hit_time);
+        imageStoreFast(srt.out_radiance_img, texel_fullres, float4(upsample_radiance, 0.0f));
+        imageStoreFast(srt.out_variance_img, texel_fullres, float4(0.0f));
+        imageStoreFast(srt.out_hit_depth_img, texel_fullres, float4(hit_depth));
+        return;
+      }
+    }
+
     float4 center_ray_data = imageLoad(srt.ray_data_img, center_sample_texel);
     if (center_ray_data.w != 0.0f) {
       float center_ray_time = imageLoad(srt.ray_time_img, center_sample_texel).r;
