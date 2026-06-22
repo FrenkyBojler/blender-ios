@@ -1,2 +1,3 @@
 Referenced by pull request #160498, Fix: LibOverride packed bakes assert silently mutates operation field.
 Referenced by pull request #160500, Fix: LibOverride geonodes packed bakes comparison mistake.
+Referenced by commit e9994da7362e10b66b776de8f727936532d80407, Fix: LibOverride geonodes packed bakes comparison mistake.
