@@ -377,7 +377,12 @@ bool strip_type_is_effect(StripType type)
 
 bool strip_is_transition(const Strip *strip)
 {
-  return (strip->input1 != nullptr) && (strip->input2 != nullptr);
+  return (strip->input1 != nullptr) && (strip->input2 != nullptr) &&
+         ELEM(strip->type,
+              STRIP_TYPE_CROSS,
+              STRIP_TYPE_GAMCROSS,
+              STRIP_TYPE_WIPE,
+              STRIP_TYPE_COMPOSITOR);
 }
 
 }  // namespace blender::seq
