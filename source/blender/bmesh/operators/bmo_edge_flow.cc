@@ -418,8 +418,7 @@ static void edge_flow_blend_ends(const EdgeFlowLoop &loop, const Array<float3> &
 
 static void edge_flow_sample_bezier(const float3 &p1, const float3 &p2, const float3 &p3, const float3 &p4, MutableSpan<float3> r_result)
 {
-  const int n = int(r_result.size());
-  BLI_assert(n >= 2);
+  BLI_assert(r_result.size() >= 2);
   bke::curves::bezier::evaluate_segment(p1, p2, p3, p4, r_result);
 }
 
