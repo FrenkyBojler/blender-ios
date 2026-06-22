@@ -289,7 +289,9 @@ static void set_keys_to_transform(TransformFCurves &t_fcus,
   const float3 scale = math::to_scale(matrix);
   Rotation rotation_quat;
   rotation_quat.mode = ROT_MODE_QUAT;
-  const float4 quat = float4(math::to_quaternion(matrix));
+  float4 quat;
+  /* math::to_quaternion only works for unit scale matrices. */
+  mat4_to_quat(quat, matrix.ptr());
   rotation_quat.values.reinitialize(4);
   copy_qt_qt(rotation_quat.values.data(), quat);
   /* TODO pass reference rotation to avoid gimbal lock. */
@@ -407,13 +409,20 @@ static Map<AnimTransformable *, StringRefNull> generate_paste_mapping(
     const Map<StringRefNull, Array<FCurve *>> &clipboard_data)
 {
   Map<AnimTransformable *, StringRefNull> paste_map;
-  /* TODO: more sophisticated logic matching data in the world space buffer with transformables to
-   * paste on. */
 
-  const bool to_single = transformables.size();
   const bool from_single = clipboard_data.size();
+  const bool to_single = transformables.size();
   if (from_single && to_single) {
     paste_map.add(&transformables[0], *clipboard_data.keys().begin());
+    return paste_map;
+  }
+
+  /* Pasting the same data to all transformables. */
+  if (from_single && !to_single) {
+    StringRefNull source_name = *clipboard_data.keys().begin();
+    for (AnimTransformable &transformable : transformables) {
+      paste_map.add(&transformable, source_name);
+    }
     return paste_map;
   }
 

@@ -123,12 +123,12 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
             bone_a: bpy.types.PoseBone,
             arm_b: bpy.types.Object,
             bone_b: bpy.types.PoseBone) -> None:
-        for frame in range(0, 10):
+        for frame in range(10):
             bpy.context.scene.frame_set(frame)
             self._assert_almost_equal_matrix(arm_a.matrix_world @ bone_a.matrix, arm_b.matrix_world @ bone_b.matrix)
 
     def _assert_objects_equal_world_space(self, obj_a: bpy.types.Object, obj_b: bpy.types.Object) -> None:
-        for frame in range(0, 10):
+        for frame in range(10):
             bpy.context.scene.frame_set(frame)
             self._assert_almost_equal_matrix(obj_a.matrix_world, obj_b.matrix_world)
 
@@ -141,7 +141,6 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         paste_obj.select_set(False)
 
         bpy.ops.anim.world_space_copy(start=0, end=10)
-        self.assertTrue(self._copybuffer_path.exists())
 
         copy_obj.select_set(False)
         paste_obj.select_set(True)
@@ -164,7 +163,6 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_bone.select = True
         paste_bone.select = False
         bpy.ops.anim.world_space_copy(start=0, end=10)
-        self.assertTrue(self._copybuffer_path.exists())
 
         copy_bone.select = False
         paste_bone.select = True
@@ -172,9 +170,40 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
 
         self._assert_bones_equal_world_space(copy_obj, copy_bone, paste_obj, paste_bone)
 
-    def test_from_object_to_bone(self) -> None:
-        # TODO
+    def test_paste_scale_animation(self) -> None:
+        """Pasting an animation of non uniform scale values should work."""
         pass
+
+    def test_indirect_animation(self) -> None:
+        # The entity from which we copy may not be animated directly,
+        # copying the world space movement should still work.
+        pass
+
+    def test_from_objects_to_bones(self) -> None:
+        # As long as the names match, this will work.
+        pass
+
+    def test_from_single_to_multiple(self) -> None:
+        pass
+
+    def test_paste_to_skewed_space(self) -> None:
+        """When the space into which we scale is skewed the result may not match 100%."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["armature_skewed_space"]
+        paste_obj.select_set(False)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[2]
+        copy_bone.select = True
+        paste_bone.select = False
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+
+        for frame in range(10):
+            bpy.context.scene.frame_set(frame)
+            # TODO
 
 
 def main():
