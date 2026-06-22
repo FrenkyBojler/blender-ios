@@ -117,8 +117,7 @@ void RealizeOnDomainOperation::execute()
     }
   }
   else {
-    no_jacobian = (box &&
-                   (wh[0] < 1.1f || (wh[0] < 2.1f && is_int(transformation, 0))) &&
+    no_jacobian = (box && (wh[0] < 1.1f || (wh[0] < 2.1f && is_int(transformation, 0))) &&
                    (wh[1] < 1.1f || (wh[1] < 2.1f && is_int(transformation, 1))));
   }
 
@@ -228,8 +227,10 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(Interpolation interpolation
     }
   }
 
-  GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(input.domain().realization_options.extension_x));
-  GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(input.domain().realization_options.extension_y));
+  GPU_texture_extend_mode_x(
+      input, map_extension_mode_to_extend_mode(input.domain().realization_options.extension_x));
+  GPU_texture_extend_mode_y(
+      input, map_extension_mode_to_extend_mode(input.domain().realization_options.extension_y));
 
   input.bind_as_texture(shader, "input_tx");
 
