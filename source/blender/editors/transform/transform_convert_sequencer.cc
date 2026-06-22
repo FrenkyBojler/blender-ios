@@ -767,7 +767,7 @@ static void flushTransSeq(TransInfo *t)
    * will not be updated and we'll get false positives. */
   VectorSet transformed_strips = seq_transform_collection_from_transdata(tc);
   seq::iterator_set_expand(
-      seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
+      seqbase_active_get(t), transformed_strips, seq::query_strip_direct_effect_chain);
 
   for (Strip *strip : transformed_strips) {
     /* Test overlap, displays red outline. */
