@@ -11,12 +11,22 @@
 #include "gpu_context_private.hh"
 #include "gpu_work_in_flight_private.hh"
 
+#include "mtl_context.hh"
+
 namespace blender::gpu {
 
+/* The class is currently mostly empty, as GHOST_ContextMTL::max_command_buffer_count already
+ * imposes an upper limit of command buffers in flight. It is unclear if this class will provide
+ * any added benefit. */
 class MTLWorkInFlight : public WorkInFlight {
+  id<MTLSharedEvent> gpu_fence_ = nil;
+  size_t work_index_ = 0;
+  Vector<uint64_t> async_timeline_values_;
+  uint64_t current_signal_value_ = 0;
+
  public:
   MTLWorkInFlight(unsigned int max_in_flight);
-  ~MTLWorkInFlight() override = default;
+  ~MTLWorkInFlight() override;
 
   void reset() override;
   void begin_work() override;

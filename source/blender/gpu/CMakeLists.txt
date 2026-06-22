@@ -224,6 +224,7 @@ set(OPENGL_SRC
   opengl/gl_uniform_buffer.cc
   opengl/gl_vertex_array.cc
   opengl/gl_vertex_buffer.cc
+  opengl/gl_work_in_flight.cc
 
   opengl/gl_backend.hh
   opengl/gl_batch.hh
@@ -245,6 +246,7 @@ set(OPENGL_SRC
   opengl/gl_uniform_buffer.hh
   opengl/gl_vertex_array.hh
   opengl/gl_vertex_buffer.hh
+  opengl/gl_work_in_flight.hh
 )
 
 set(VULKAN_SRC

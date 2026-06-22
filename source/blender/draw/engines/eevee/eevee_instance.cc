@@ -704,6 +704,7 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
     }
 
     GPU_work_in_flight_end_work(samples_in_flight);
+    GPU_render_step();
 
 #if 0
     /* TODO(fclem) print progression. */

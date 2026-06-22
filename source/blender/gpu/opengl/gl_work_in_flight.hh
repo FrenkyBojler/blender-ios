@@ -10,19 +10,20 @@
 
 #include "BLI_vector.hh"
 
-#include "gpu_context_private.hh"
 #include "gpu_work_in_flight_private.hh"
-#include "vk_common.hh"
+
+#include <epoxy/gl.h>
 
 namespace blender::gpu {
 
-class VKWorkInFlight : public WorkInFlight {
+class GLWorkInFlight : public WorkInFlight {
   size_t work_index_ = 0;
-  Vector<TimelineValue> async_timeline_values_;
+  Vector<GLsync> async_fences_;
+  void delete_fences();
 
  public:
-  VKWorkInFlight(unsigned int max_in_flight);
-  ~VKWorkInFlight() override = default;
+  GLWorkInFlight(unsigned int max_in_flight);
+  ~GLWorkInFlight() override = default;
 
   void reset() override;
   void begin_work() override;
