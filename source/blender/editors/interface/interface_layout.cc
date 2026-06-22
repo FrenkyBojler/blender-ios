@@ -2356,7 +2356,7 @@ void Layout::prop(PointerRNA *ptr,
       Vector<std::unique_ptr<Button>> tmp;
       tmp.reserve(ui_decorate.len);
       while (but_decorate && but_decorate != block->buttons_ptrs.last().get()) {
-        tmp.append(block->buttons_ptrs.pop_lasxt());
+        tmp.append(block->buttons_ptrs.pop_last());
       }
       const bool use_blank_decorator = (flag & ITEM_R_FORCE_BLANK_DECORATE);
       Layout *layout_col = &ui_decorate.layout->column(false);
