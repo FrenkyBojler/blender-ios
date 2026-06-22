@@ -584,7 +584,7 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     if (!id) {
       uiDefIconTextBut(params.block,
                        ui::ButtonType::Label,
-                       icon_override.value_or(ICON_NONE),
+                       icon_override.value_or(ui::icon_from_idcode(int(T::id_type))),
                        "",
                        params.xmin,
                        params.ymin,
