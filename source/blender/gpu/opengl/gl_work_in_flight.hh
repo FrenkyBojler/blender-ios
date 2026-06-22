@@ -23,7 +23,7 @@ class GLWorkInFlight : public WorkInFlight {
 
  public:
   GLWorkInFlight(unsigned int max_in_flight);
-  ~GLWorkInFlight() override = default;
+  ~GLWorkInFlight() override;
 
   void reset() override;
   void begin_work() override;
