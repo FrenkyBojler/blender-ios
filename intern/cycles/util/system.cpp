@@ -281,19 +281,20 @@ size_t system_max_open_files()
 #endif
 }
 
-void system_max_open_files_ensure(int count)
+void system_max_open_files_ensure()
 {
-#if defined(_WIN32)
   /* The Windows maximum is 8192 open files. */
-  count = std::min(count, 8192);
-  if (_getmaxstdio() < count) {
-    _setmaxstdio(count);
+  constexpr int max_open_files = 8192;
+
+#if defined(_WIN32)
+  if (_getmaxstdio() < max_open_files) {
+    _setmaxstdio(max_open_files);
   }
 #else
   struct rlimit limit = {};
   if (getrlimit(RLIMIT_NOFILE, &limit) == 0) {
-    if (limit.rlim_cur < count) {
-      limit.rlim_cur = std::min(rlim_t(count), limit.rlim_max);
+    if (limit.rlim_cur < rlim_t(max_open_files)) {
+      limit.rlim_cur = std::min(rlim_t(max_open_files), limit.rlim_max);
       setrlimit(RLIMIT_NOFILE, &limit);
     }
   }

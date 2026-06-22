@@ -543,7 +543,6 @@ int main(const int argc, const char **argv)
   system_max_open_files_ensure();
   log_init(nullptr);
   path_init();
-
   options_parse(argc, argv);
 
 #ifdef WITH_CYCLES_STANDALONE_GUI

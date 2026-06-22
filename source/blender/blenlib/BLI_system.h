@@ -41,10 +41,10 @@ size_t BLI_system_memory_max_in_megabytes();
 int BLI_system_memory_max_in_megabytes_int();
 
 /**
- * Ensure the process can have at least #count files open simultaneously.
+ * Ensure the process can open many files simultaneously.
  * This should be called once on application startup, as it is not thread safe.
  */
-void BLI_system_max_open_files_ensure(int count = 2048);
+void BLI_system_max_open_files_ensure();
 
 /* For `getpid`. */
 #ifdef WIN32
