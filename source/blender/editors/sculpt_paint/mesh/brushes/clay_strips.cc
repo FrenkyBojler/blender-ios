@@ -361,6 +361,9 @@ float4x4 calc_local_matrix(const Brush &brush,
                            const float3 &plane_center,
                            const bool flip)
 {
+  /* TODO: the current calculations always behave as if Rake is enabled. Use similar logic to
+   * calc_brush_local_mat in sculpt.cc to fix the issue. */
+
   float4x4 mat = float4x4::identity();
   mat.x_axis() = math::cross(plane_normal, cache.grab_delta_symm);
   mat.y_axis() = math::cross(plane_normal, mat.x_axis());
