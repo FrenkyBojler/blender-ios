@@ -236,7 +236,7 @@ class BaseLimbRig(BaseRig):
         ctrl = self.bones.ctrl
         panel = self.script.panel_with_selected_check(self, [ctrl.master, *ctrl.fk])
 
-        self.make_property(self.prop_bone, 'FK_limb_follow', default=0.0, description='Isolate the rotation of the FK Limb from its direct parent by making it follow the main control of registered parent chain')
+        self.make_property(self.prop_bone, 'FK_limb_follow', default=0.0, description='Isolate the rotation of the FK Limb from its direct parent by making it follow the Root control orientation')
         panel.custom_prop(self.prop_bone, 'FK_limb_follow', text='FK Limb Isolation', slider=True)
 
     @stage.rig_bones
