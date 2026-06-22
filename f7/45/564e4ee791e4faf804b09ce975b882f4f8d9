@@ -2,3 +2,4 @@ Referenced by commit 512f631af64, Fix T43826: Sculpt grab anchored fails
 Referenced by issue #126155, UILayout template_palette is restricted to a Paint Mode only
 Referenced by pull request #158788, Fix #126155: Misleading UILayout.template_palette docs
 Referenced by issue #160390, UI: Mask context menu doesn't work if not in Object Mode
+Referenced by pull request #160504, Fix: "Curve" keymap active in the Image Editor
