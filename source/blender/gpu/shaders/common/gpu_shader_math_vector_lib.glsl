@@ -158,6 +158,25 @@ template float3 normalize_and_get_length<float3>(float3, float &);
 template float4 normalize_and_get_length<float4>(float4, float &);
 
 /**
+ * Return normalized version of the `vector` and the reciprocal of its length.
+ */
+template<typename VecT> VecT normalize_and_get_length_rcp(VecT vector, float &out_length_rcp)
+{
+  out_length_rcp = length_squared(vector);
+  constexpr float threshold = 1e-35f;
+  if (out_length_rcp > threshold) {
+    out_length_rcp = inversesqrt(out_length_rcp);
+    return vector * out_length_rcp;
+  }
+  /* Either the vector is small or one of its values contained `nan`. */
+  out_length_rcp = 0.0f;
+  return VecT(0.0f);
+}
+template float2 normalize_and_get_length_rcp<float2>(float2, float &);
+template float3 normalize_and_get_length_rcp<float3>(float3, float &);
+template float4 normalize_and_get_length_rcp<float4>(float4, float &);
+
+/**
  * Per component linear interpolation.
  */
 template<typename VecT> VecT interpolate(VecT a, VecT b, float t)
