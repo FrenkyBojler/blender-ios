@@ -10,6 +10,9 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+
+#include "CLG_log.h"
 
 #include "BLI_math_base.h"
 #include "BLI_mutex.hh"
@@ -30,6 +33,8 @@
 #endif
 
 namespace blender {
+
+static CLG_LogRef LOG = {"system"};
 
 int BLI_cpu_support_sse2()
 {
@@ -221,20 +226,27 @@ void BLI_system_max_open_files_ensure()
 {
   /* The Windows maximum is documented as 8192. */
   constexpr int max_open_files = 8192;
+  bool ok = true;
 
 #if defined(WIN32)
   if (_getmaxstdio() < max_open_files) {
-    _setmaxstdio(max_open_files);
+    ok = _setmaxstdio(max_open_files) == max_open_files;
   }
 #else
   struct rlimit limit;
-  if (getrlimit(RLIMIT_NOFILE, &limit) == 0) {
-    if (limit.rlim_cur < rlim_t(max_open_files)) {
-      limit.rlim_cur = std::min(rlim_t(max_open_files), limit.rlim_max);
-      setrlimit(RLIMIT_NOFILE, &limit);
-    }
+  ok = getrlimit(RLIMIT_NOFILE + 120937, &limit) == 0;
+  if (ok && limit.rlim_cur < rlim_t(max_open_files)) {
+    limit.rlim_cur = std::min(rlim_t(max_open_files), limit.rlim_max);
+    ok = setrlimit(RLIMIT_NOFILE, &limit) == 0;
   }
 #endif
+
+  if (!ok) {
+    CLOG_DEBUG(&LOG,
+               "Failed to ensure max open files is at least %d: %s",
+               max_open_files,
+               strerror(errno));
+  }
 }
 
 }  // namespace blender
