@@ -1827,6 +1827,9 @@ GreasePencil *from_context(bContext &C)
 void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
 {
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  const bke::greasepencil::FillCache::Key orig_key({
+      curves.attributes().lookup<int>("fill_id").sharing_info,
+  });
   if (at_end) {
     const int num_old_curves = curves.curves_num();
     const int num_old_points = curves.points_num();
@@ -1848,12 +1851,13 @@ void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
           curves.attributes().lookup<int>("fill_id").sharing_info,
       });
       auto &cache = bke::greasepencil::get_fill_cache();
-      cache.update(key, [&](std::optional<bke::greasepencil::FillData> &fill_cache) {
-        if (fill_cache) {
-          fill_cache->fill_map.append(num_old_curves);
-          fill_cache->fill_offsets.append(fill_cache->fill_offsets.last() + 1);
-        }
-      });
+      cache.reuse_and_update(
+          orig_key, key, [&](std::optional<bke::greasepencil::FillData> &fill_cache) {
+            if (fill_cache) {
+              fill_cache->fill_map.append(num_old_curves);
+              fill_cache->fill_offsets.append(fill_cache->fill_offsets.last() + 1);
+            }
+          });
     }
     return;
   }

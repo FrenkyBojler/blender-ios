@@ -36,7 +36,7 @@ template<int SnapshotsNum> struct CacheKeyRef {
   }
   friend bool operator==(const CacheKey<SnapshotsNum> &a, const CacheKeyRef &b)
   {
-    for (const int i : a.inputs.index_range()) {
+    for (const int i : IndexRange(SnapshotsNum)) {
       if (!(a.inputs[i] == b.inputs[i])) {
         return false;
       }
@@ -53,14 +53,15 @@ template<int SnapshotsNum> struct CacheKey {
   std::array<WeakImplicitSharingPtr, SnapshotsNum> inputs;
 
   CacheKey() = default;
-  CacheKey(const CacheKeyRef<SnapshotsNum> &other)
+  CacheKey(std::array<const ImplicitSharingInfo *, SnapshotsNum> input_ptrs)
   {
-    for (const int64_t i : IndexRange(other.inputs.size())) {
-      inputs[i] = WeakImplicitSharingPtr(other.inputs[i]);
+    for (const int64_t i : IndexRange(inputs.size())) {
+      inputs[i] = WeakImplicitSharingPtr(input_ptrs[i]);
       /* WeakImplicitSharingPtr constructor does not add a user. */
       inputs[i]->add_weak_user();
     }
   }
+  CacheKey(const CacheKeyRef<SnapshotsNum> &other) : CacheKey(other.inputs) {}
 
   uint64_t hash() const
   {
@@ -75,6 +76,12 @@ template<int SnapshotsNum> struct CacheKey {
   friend bool operator==(const CacheKey &a, const CacheKey &b)
   {
     return a.inputs == b.inputs;
+  }
+
+  bool is_expired() const
+  {
+    return std::ranges::any_of(
+        this->inputs, [&](const WeakImplicitSharingPtr &ptr) { return ptr->is_expired(); });
   }
 };
 
@@ -121,7 +128,7 @@ template<int KeySnapShotsNum, typename Value> class Cache : public CacheBase {
   };
 
   Mutex global_mutex_;
-  Map<Key, std::unique_ptr<Entry>> map_;
+  Map<Key, std::shared_ptr<Entry>> map_;
 
  public:
   Cache(const StringRef name) : CacheBase(name) {}
@@ -131,10 +138,7 @@ template<int KeySnapShotsNum, typename Value> class Cache : public CacheBase {
   {
     std::lock_guard lock{global_mutex_};
     map_.remove_if([&](const auto &item) {
-      if (std::ranges::any_of(item.key.inputs, [&](const WeakImplicitSharingPtr &ptr) {
-            return ptr->is_expired();
-          }))
-      {
+      if (item.key.is_expired()) {
         return true;
       }
       return false;
@@ -143,7 +147,7 @@ template<int KeySnapShotsNum, typename Value> class Cache : public CacheBase {
 
   Value &lookup_or_compute(const KeyRef &key, const FunctionRef<Value()> create_fn)
   {
-    Entry &value = this->ensure_entry(key);
+    Entry &value = *this->ensure_entry(key);
     if (value.versions_match(key)) {
       return value.value;
     }
@@ -156,25 +160,77 @@ template<int KeySnapShotsNum, typename Value> class Cache : public CacheBase {
     return value.value;
   }
 
-  void update(const KeyRef &key, const FunctionRef<void(Value &)> update_fn)
+  /**
+   * This function provides a way to update existing cache entries even when they have different
+   * implicit sharing info. This is useful for example if some operation makes a small logical
+   * change to the source data but it must be reallocated if it's shared.
+   *
+   * \param orig_key: The cache key used to find the existing cache data to update.
+   * \param key: A key reflecting the state of the data after the operation.
+   * \param update_fn: This function either updates existing cached data from the old state to the
+   * new state or fills in data from scratch if there is no existing cache. As an important
+   * optimization, if the existing cache is no longer accessible (i.e. only used by freed data) it
+   * will be moved rather than copied.
+   */
+  void reuse_and_update(const Key &orig_key,
+                        const KeyRef &key,
+                        const FunctionRef<void(Value &)> update_fn)
   {
-    Entry &value = this->ensure_entry(key);
-    if (value.versions_match(key)) {
+    std::shared_ptr<Entry> *existing_entry = this->lookup_entry_ptr(orig_key);
+    if (!existing_entry) {
+      std::shared_ptr<Entry> &value = this->ensure_entry(key);
+      if (value->versions_match(key)) {
+        return;
+      }
+      std::lock_guard lock{value->mutex};
+      if (value->versions_match(key)) {
+        return;
+      }
+      threading::isolate_task([&]() { update_fn(value->value); });
+      value->update_versions(key);
       return;
     }
-    std::lock_guard lock{value.mutex};
-    if (value.versions_match(key)) {
+
+    if (orig_key.is_expired() && existing_entry->use_count() == 1) {
+      Entry &value = **existing_entry;
+      {
+        std::lock_guard lock(global_mutex_);
+        map_.add_new(key, std::move(*existing_entry));
+      }
+      threading::isolate_task([&]() { update_fn(value.value); });
+      value.update_versions(key);
       return;
     }
-    threading::isolate_task([&]() { update_fn(value.value); });
-    value.update_versions(key);
+
+    std::shared_ptr<Entry> &value = this->ensure_entry(key);
+    if (value->versions_match(key)) {
+      return;
+    }
+    std::lock_guard lock(value->mutex);
+    if (value->versions_match(key)) {
+      return;
+    }
+    value->value = (*existing_entry)->value;
+    threading::isolate_task([&]() { update_fn(value->value); });
+    value->update_versions(key);
   }
 
  private:
-  Entry &ensure_entry(const KeyRef &key)
+  std::shared_ptr<Entry> *lookup_entry_ptr(const KeyRef &key)
   {
     std::lock_guard lock{global_mutex_};
-    return *map_.lookup_or_add_cb(key, [&]() { return std::make_unique<Entry>(); });
+    return map_.lookup_ptr_as(key);
+  }
+  std::shared_ptr<Entry> *lookup_entry_ptr(const Key &key)
+  {
+    std::lock_guard lock{global_mutex_};
+    return map_.lookup_ptr(key);
+  }
+
+  std::shared_ptr<Entry> &ensure_entry(const KeyRef &key)
+  {
+    std::lock_guard lock{global_mutex_};
+    return map_.lookup_or_add_cb_as(key, [&]() { return std::make_shared<Entry>(); });
   }
 
   void clear_all_keys()
