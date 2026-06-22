@@ -2603,8 +2603,8 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
 
 bool node_in_box(const float4x4 &mat,
                  const Bounds<float3> &bounds,
-                 const float3 brush_center,
-                 const float3 brush_half_lengths)
+                 const float3 &brush_center,
+                 const float3 &brush_half_lengths)
 {
   const float3 node_center = math::transform_point(mat, (bounds.max + bounds.min) * 0.5f);
   const float3 center_diff = brush_center - node_center;
@@ -2662,7 +2662,7 @@ bool node_in_box(const float4x4 &mat,
   return true;
 }
 
-bool node_in_box_positive_z(const Bounds<float3> &bounds, const float4x4 &mat)
+bool node_in_box_positive_z(const float4x4 &mat, const Bounds<float3> &bounds)
 {
   return node_in_box(mat, bounds, float3(0.0f, 0.0f, 0.5f), float3(1.0f, 1.0f, 0.5f));
 }
