@@ -4272,8 +4272,12 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
                 _defs_sequencer_mask_select.circle,
                 _defs_sequencer_mask_select.lasso,
             ),
-            # Mask Transform Tools
             _defs_sequencer_generic.cursor,
+            None,
+            _defs_sequencer_generic.translate,
+            _defs_sequencer_generic.rotate,
+            _defs_sequencer_generic.scale,
+            _defs_sequencer_generic.transform,
             None,
             _defs_sequencer_generic.sample,
             *_tools_annotate,

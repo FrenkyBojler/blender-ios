@@ -412,7 +412,20 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C,
     SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
     const int pivot_point = scene->toolsettings->sequencer_tool_settings->pivot_point;
 
-    if (pivot_point == V3D_AROUND_CURSOR) {
+    if (sseq->mode == SEQ_MODE_MASK) {
+      float pivot[2];
+      int width, height;
+      float aspx, aspy;
+      ED_mask_get_size(C, &width, &height);
+      ED_mask_get_aspect(C, &aspx, &aspy);
+      ED_mask_center_from_pivot_ex(
+          C, area, pivot_point, handles_as_knot_selected_only, pivot, &has_select);
+      
+      float maxdim = max_ff(static_cast<float>(width), static_cast<float>(height));
+      r_pivot[0] = (pivot[0] - 0.5f) * maxdim * aspx;
+      r_pivot[1] = (pivot[1] - 0.5f) * maxdim * aspy;
+    }
+    else if (pivot_point == V3D_AROUND_CURSOR) {
       const float2 cursor_pixel = seq::image_preview_unit_to_px(scene, sseq->cursor);
       copy_v2_v2(r_pivot, cursor_pixel);
 
@@ -433,6 +446,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C,
   else {
     BLI_assert_msg(0, "Unhandled space type!");
   }
+  // printf("r_pivot: %f | %f\n", r_pivot[0], r_pivot[1]);
   return has_select;
 }
 

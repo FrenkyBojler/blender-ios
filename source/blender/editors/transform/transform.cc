@@ -16,6 +16,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_mask.hh"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
@@ -23,6 +24,7 @@
 
 #include "ED_clip.hh"
 #include "ED_image.hh"
+#include "ED_sequencer.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 #include "ED_uvedit.hh"
@@ -131,6 +133,11 @@ void setTransformViewAspect(TransInfo *t, float r_aspect[3])
       const float2 aspect = seq::image_preview_unit_to_px(scene, r_aspect);
       copy_v2_v2(r_aspect, aspect);
     }
+    else if (t->options & CTX_MASK) {
+      Scene *scene = CTX_data_sequencer_scene(t->context);
+      ed::vse::get_aspect(scene, &r_aspect[0], &r_aspect[1]);
+      r_aspect[2] = 1.0f;
+    }
   }
   else if (t->spacetype == SPACE_CLIP) {
     SpaceClip *sclip = static_cast<SpaceClip *>(t->area->spacedata.first);
@@ -212,8 +219,23 @@ void convertViewVec(TransInfo *t, float r_vec[3], double dx, double dy)
   else if (ELEM(t->spacetype, SPACE_GRAPH, SPACE_NLA)) {
     convertViewVec2D(static_cast<View2D *>(t->view), r_vec, dx, dy);
   }
-  else if (ELEM(t->spacetype, SPACE_NODE, SPACE_SEQ)) {
+  else if (t->spacetype == SPACE_NODE) {
     convertViewVec2D(&t->region->v2d, r_vec, dx, dy);
+  }
+  else if (t->spacetype == SPACE_SEQ) {
+    if ((t->options & CTX_MASK) && !(t->options & CTX_CURSOR)) {
+      convertViewVec2D_mask(&t->region->v2d, r_vec, dx, dy);
+
+      Scene *scene = CTX_data_sequencer_scene(t->context);
+      int r_width, r_height;
+      BKE_render_resolution(&scene->r, false, &r_width, &r_height);
+      float maxdim = max_ff(r_width, r_height);
+      r_vec[0] /= maxdim;
+      r_vec[1] /= maxdim;
+    }
+    else {
+      convertViewVec2D(&t->region->v2d, r_vec, dx, dy);
+    }
   }
   else if (t->spacetype == SPACE_CLIP) {
     if (t->options & CTX_MASK) {

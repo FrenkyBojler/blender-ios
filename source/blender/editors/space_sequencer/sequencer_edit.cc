@@ -145,8 +145,8 @@ void mouse_position(Scene *scene, const ARegion *region, const int mval[2], floa
   
   ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
   BKE_render_resolution(&scene->r, false, &width, &height);
-  BKE_render_get_aspect(&scene->r, &aspx, &aspy);
   get_zoom(scene, region, &zoomx, &zoomy);
+  get_aspect(scene, &aspx, &aspy);
 
   r_co[0] = ((mval[0] - sx) / zoomx) / (width * aspx);
   r_co[1] = ((mval[1] - sy) / zoomy) / (height * aspy);
@@ -159,8 +159,8 @@ void point_position(Scene *scene, const ARegion *region, float x, float y, float
 
   ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
   BKE_render_resolution(&scene->r, false, &width, &height);
-  BKE_render_get_aspect(&scene->r, &aspx, &aspy);
   get_zoom(scene, region, &zoomx, &zoomy);
+  get_aspect(scene, &aspx, &aspy);
 
   *r_x = ((x - sx) / zoomx) / (width * aspx);
   *r_y = ((y - sy) / zoomy) / (height * aspy);
@@ -173,7 +173,7 @@ void point_position__reverse(Scene *scene, const ARegion *region, const float *c
 
   ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
   BKE_render_resolution(&scene->r, false, &width, &height);
-  BKE_render_get_aspect(&scene->r, &aspx, &aspy);
+  get_aspect(scene, &aspx, &aspy);
   get_zoom(scene, region, &zoomx, &zoomy);
 
   r_co[0] = co[0] * (width * aspx) * zoomx + static_cast<float>(sx);
@@ -189,6 +189,16 @@ void get_zoom(Scene *scene, const ARegion *region, float *r_zoomx, float *r_zoom
              float(BLI_rctf_size_x(&region->v2d.cur));
   *r_zoomy = float(BLI_rcti_size_y(&region->winrct) + 1) /
              float(BLI_rctf_size_y(&region->v2d.cur));
+}
+
+void get_aspect(Scene *scene, float *r_aspx, float *r_aspy)
+{
+  float aspx, aspy;
+  BKE_render_get_aspect(&scene->r, &aspx, &aspy);
+
+  /* y is always 1 */
+  *r_aspy = 1.0f;
+  *r_aspx = aspx / aspy;
 }
 
 bool check_show_imbuf(const SpaceSeq &sseq)

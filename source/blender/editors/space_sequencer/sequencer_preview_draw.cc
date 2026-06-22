@@ -273,7 +273,7 @@ static void sequencer_draw_maskedit(const bContext *C, Scene *scene, ARegion *re
       float aspx, aspy;
       int width, height;
       ED_mask_get_size(C, &width, &height);
-      BKE_render_get_aspect(&scene->r, &aspx, &aspy);
+      get_aspect(scene, &aspx, &aspy);
 
       ED_mask_draw_region(depsgraph,
                         mask,

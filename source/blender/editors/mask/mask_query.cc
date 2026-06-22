@@ -801,7 +801,7 @@ void ED_mask_get_aspect(const bContext *C, float *r_aspx, float *r_aspy)
       }
       case SPACE_SEQ: {
         Scene *scene = CTX_data_sequencer_scene(C);
-        BKE_render_get_aspect(&scene->r, r_aspx, r_aspy);
+        ed::vse::get_aspect(scene, r_aspx, r_aspy);
         break;
       }
       case SPACE_IMAGE: {
@@ -846,8 +846,8 @@ void ED_mask_pixelspace_factor(const bContext *C, float *r_scalex, float *r_scal
         int width, height;
 
         ui::view2d_scale_get(&region->v2d, r_scalex, r_scaley);
-        BKE_render_get_aspect(&scene->r, &aspx, &aspy);
         BKE_render_resolution(&scene->r, false, &width, &height);
+        ed::vse::get_aspect(scene, &aspx, &aspy);
 
         *r_scalex *= aspx * static_cast<float>(width);
         *r_scaley *= aspy * static_cast<float>(height);

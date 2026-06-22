@@ -29,6 +29,7 @@
 #include "BKE_mask.hh"
 #include "BKE_modifier.hh"
 #include "BKE_paint.hh"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
 #include "SEQ_transform.hh"
@@ -328,7 +329,13 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     }
   }
   else if (t->spacetype == SPACE_SEQ && region->regiontype == RGN_TYPE_PREVIEW) {
-    t->options |= CTX_SEQUENCER_IMAGE;
+    SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
+    if (sseq->mode == SEQ_MODE_VIEW) {
+      t->options |= CTX_SEQUENCER_IMAGE;
+    }
+    else if (sseq->mode == SEQ_MODE_MASK) {
+      t->options |= CTX_MASK;
+    }
 
     /* Needed for auto-keying transforms in preview during playback. */
     bScreen *animscreen = ED_screen_animation_playing(CTX_wm_manager(C));
@@ -968,9 +975,14 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
   }
   if (t->spacetype == SPACE_SEQ) {
     SpaceSeq *sseq = static_cast<SpaceSeq *>(t->area->spacedata.first);
-    const float2 cursor_pixel = seq::image_preview_unit_to_px(t->scene, sseq->cursor);
-    copy_v2_v2(cursor_local_buf, cursor_pixel);
-    cursor = cursor_local_buf;
+    if(sseq->mode == SEQ_MODE_MASK) {
+      cursor = sseq->cursor;
+    }
+    else {
+      const float2 cursor_pixel = seq::image_preview_unit_to_px(t->scene, sseq->cursor);
+      copy_v2_v2(cursor_local_buf, cursor_pixel);
+      cursor = cursor_local_buf;
+    }
   }
   else if (t->spacetype == SPACE_CLIP) {
     SpaceClip *space_clip = static_cast<SpaceClip *>(t->area->spacedata.first);
@@ -988,6 +1000,10 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
       else if (t->spacetype == SPACE_CLIP) {
         SpaceClip *space_clip = static_cast<SpaceClip *>(t->area->spacedata.first);
         BKE_mask_coord_from_movieclip(space_clip->clip, &space_clip->user, co, cursor);
+      }
+      else if (t->spacetype == SPACE_SEQ) {
+        Scene *scene = CTX_data_sequencer_scene(t->context);
+        BKE_mask_coord_from_sequence(scene, co, cursor);
       }
       else {
         BLI_assert_msg(0, "Shall not happen");
@@ -1007,6 +1023,7 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
       r_center[1] = cursor[1] * t->aspect[1];
     }
   }
+  // printf("cursor: %f| %f\nr_centre: %f | %f\n\n", cursor[0], cursor[1], r_center[0], r_center[1]);
 }
 
 void calculateCenterCursorGraph2D(TransInfo *t, float r_center[2])

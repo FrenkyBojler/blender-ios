@@ -54,6 +54,7 @@ void mouse_position(Scene *scene, const ARegion *region, const int mval[2], floa
 void point_position(Scene *scene, const ARegion *region, float x, float y, float *r_x, float *r_y);
 void point_position__reverse(Scene *scene, const ARegion *region, const float *co, float *r_co);
 void get_zoom(Scene *scene, const ARegion *region, float *r_zoomx, float *r_zoomy);
+void get_aspect(Scene *scene, float *r_aspx, float *r_aspy);
 
 /**
  * Are we displaying the seq output (not channels or histogram).

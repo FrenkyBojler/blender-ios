@@ -1205,7 +1205,7 @@ void BKE_mask_coord_from_image(Image *image, ImageUser *iuser, float r_co[2], co
   BKE_mask_coord_from_frame(r_co, co, frame_size);
 }
 
-void BKE_mask_coord_from_sequence(Scene *scene, float r_co[2], float co[2])
+void BKE_mask_coord_from_sequence(Scene *scene, float r_co[2], const float co[2])
 {
   int width, height;
   float frame_size[2];
@@ -1215,10 +1215,9 @@ void BKE_mask_coord_from_sequence(Scene *scene, float r_co[2], float co[2])
   frame_size[1] = static_cast<float>(height);
   // Mask coordinates use a bottom-left origin, while Space Sequence uses a center origin.
   // Add 0.5f to convert from center-origin to bottom-left-origin coordinates.
-  co[0] += 0.5f;
-  co[1] += 0.5f;
+  const float mask_co[2] = {co[0] + 0.5f, co[1] + 0.5f};
 
-  BKE_mask_coord_from_frame(r_co, co, frame_size);
+  BKE_mask_coord_from_frame(r_co, mask_co, frame_size);
 }
 
 void BKE_mask_coord_to_frame(float r_co[2], const float co[2], const float frame_size[2])
