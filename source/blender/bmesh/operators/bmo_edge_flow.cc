@@ -15,7 +15,8 @@
 #include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
 
-#include "BKE_curve.hh"
+#include "BKE_curves.hh"
+#include "BLI_length_parameterize.hh"
 
 #include "bmesh.hh"
 #include "intern/bmesh_operators_private.hh" /* own include */
@@ -326,9 +327,9 @@ static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, const f
     p1 = v1->co;
 
     /* Ignore curvature where the ring bends sharply back toward the moved vert. */
-    const float3 arm1 = p1 - p2;
-    const float3 spoke1 = center_co - p2;
-    if (angle_v3v3(arm1, spoke1) < min_angle) {
+    const float3 start_arm = p1 - p2;
+    const float3 start_spoke = center_co - p2;
+    if (angle_v3v3(start_arm, start_spoke) < min_angle) {
       p1 = p2 - (p3 - p2) * 0.5f;
     }
   }
@@ -347,9 +348,9 @@ static bool edge_flow_calc_spline_target(BMLoop *l, const float tension, const f
 
     p4 = v4->co;
 
-    const float3 arm2 = p4 - p3;
-    const float3 spoke2 = center_co - p3;
-    if (angle_v3v3(arm2, spoke2) < min_angle) {
+    const float3 end_arm = p4 - p3;
+    const float3 end_spoke = center_co - p3;
+    if (angle_v3v3(end_arm, end_spoke) < min_angle) {
       p4 = p3 - (p2 - p3) * 0.5f;
     }
   }
@@ -419,9 +420,7 @@ static void edge_flow_sample_bezier(const float3 &p1, const float3 &p2, const fl
 {
   const int n = int(r_result.size());
   BLI_assert(n >= 2);
-  for (int axis = 0; axis < 3; axis++) {
-    BKE_curve_forward_diff_bezier(p1[axis], p2[axis], p3[axis], p4[axis], &r_result[0][axis], n-1, sizeof(float3));
-  }
+  bke::curves::bezier::evaluate_segment(p1, p2, p3, p4, r_result);
 }
 
 static void edge_flow_map_onto_spline(Span<BMVert *> loop_verts, Span<float3> spline) 
@@ -432,27 +431,21 @@ static void edge_flow_map_onto_spline(Span<BMVert *> loop_verts, Span<float3> sp
   }
 
   /* Accumuate arc length along spline sample for points. */
-  Array<float> accum(spline.size());
-  accum[0] = 0.0f;
-  for (const int i : spline.index_range().drop_front(1)) {
-    accum[i] = accum[i - 1] + math::distance(spline[i], spline[i - 1]);
-  }
-  const float total = accum.last();
-  if (total == 0.0f) {
+  Array<float> lengths(length_parameterize::segments_num(spline.size(), false));
+  length_parameterize::accumulate_lengths<float3>(spline, false, lengths);
+  if (lengths.last() == 0.0f) {
     return;
   }
 
-  /* Place interior verts at target arc lengths. */
-  int cursor = 1;
-  for (const int k : IndexRange(count).drop_front(1).drop_back(1)) {
-    const float target = total * float(k) / float(count - 1);
-    while (cursor < accum.size() - 1 && accum[cursor] < target) {
-      cursor++;
-    }
+  Array<int> indices(count);
+  Array<float> factors(count);
+  length_parameterize::sample_uniform(lengths, true, indices, factors);
 
-    const float seg_len = accum[cursor] - accum[cursor - 1];
-    const float t = (seg_len > 0.0f) ? (target - accum[cursor - 1]) / seg_len : 0.0f;
-    copy_v3_v3(loop_verts[k]->co, math::interpolate(spline[cursor - 1], spline[cursor], t));
+  Array<float3> sampled(count);
+  length_parameterize::interpolate<float3>(spline, indices, factors, sampled);
+
+  for (const int k : IndexRange(count).drop_front(1).drop_back(1)) {
+    copy_v3_v3(loop_verts[k]->co, sampled[k]);
   }
 }
 
@@ -571,35 +564,23 @@ void bmo_edge_flow_exec(BMesh *bm, BMOperator *op)
     if (mode == EDGE_FLOW_LINEAR) {
       if (space_evenly) {
         const int count = int(loop.verts.size()) - 1;
-        float3 dir;
-        sub_v3_v3v3(dir, p2->co, p1->co);
+        const float3 dir = float3(p2->co) - float3(p1->co);
 
         for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
-          float3 co;
-          madd_v3_v3v3fl(co, p1->co, dir, float(i) / float(count));
-
-          float3 blended;
-          interp_v3_v3v3(blended, orig_cos[i], co, mix);
+          const float3 co = float3(p1->co) + dir * (float(i) / float(count));
+          const float3 blended = math::interpolate(float3(orig_cos[i]), co, mix);
           copy_v3_v3(loop.verts[i]->co, blended);
         }
       }
       else {
         /* space_evenly off flag */
-        float3 dir;
-        float3 dir_norm;
-        sub_v3_v3v3(dir, p2->co, p1->co);
-        normalize_v3_v3(dir_norm, dir);
+        const float3 dir_norm = math::normalize(float3(p2->co) - float3(p1->co));
 
         for (const int i : loop.verts.index_range().drop_front(1).drop_back(1)) {
-          float3 co;
-          sub_v3_v3v3(co, orig_cos[i], p1->co);
-          float dir_scalar = dot_v3v3(co, dir_norm);
-
-          float3 new_co;
-          madd_v3_v3v3fl(new_co, p1->co, dir_norm, dir_scalar);
-
-          float3 blended;
-          interp_v3_v3v3(blended, orig_cos[i], new_co, mix);
+          const float3 co = float3(orig_cos[i]) - float3(p1->co);
+          const float dir_scalar = math::dot(co, dir_norm);
+          const float3 new_co = float3(p1->co) + dir_norm * dir_scalar;
+          const float3 blended = math::interpolate(float3(orig_cos[i]), new_co, mix);
           copy_v3_v3(loop.verts[i]->co, blended);
         }
       }
