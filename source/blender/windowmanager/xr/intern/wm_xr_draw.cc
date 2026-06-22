@@ -678,6 +678,29 @@ static void wm_xr_panel_pointer_clear(wmXrPanel *panel)
   panel->panel_pointer.action_idname[0] = '\0';
 }
 
+static void wm_xr_ui_overlay_winmat_create(const float src_winmat[4][4], float r_winmat[4][4])
+{
+  const float m00 = src_winmat[0][0];
+  const float m11 = src_winmat[1][1];
+  if (m00 == 0.0f || m11 == 0.0f) {
+    copy_m4_m4(r_winmat, src_winmat);
+    return;
+  }
+
+  const float near_clip = 0.001f;
+  const float far_clip = 10000.0f;
+  const float right_minus_left = (2.0f * near_clip) / m00;
+  const float top_minus_bottom = (2.0f * near_clip) / m11;
+  const float right_plus_left = src_winmat[2][0] * right_minus_left;
+  const float top_plus_bottom = src_winmat[2][1] * top_minus_bottom;
+  const float left = 0.5f * (right_plus_left - right_minus_left);
+  const float right = 0.5f * (right_plus_left + right_minus_left);
+  const float bottom = 0.5f * (top_plus_bottom - top_minus_bottom);
+  const float top = 0.5f * (top_plus_bottom + top_minus_bottom);
+
+  perspective_m4(r_winmat, left, right, bottom, top, near_clip, far_clip);
+}
+
 static void wm_xr_panel_cursor_draw_overlay(const float viewmat[4][4],
                                             const float winmat[4][4],
                                             const wmXrSurfaceData *surface_data)
@@ -690,8 +713,10 @@ static void wm_xr_panel_cursor_draw_overlay(const float viewmat[4][4],
   gpu::Batch *sphere = GPU_batch_preset_sphere(3);
   GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_batch_uniform_4fv(sphere, "color", cursor_color);
+  float ui_winmat[4][4];
+  wm_xr_ui_overlay_winmat_create(winmat, ui_winmat);
   GPU_matrix_push_projection();
-  GPU_matrix_projection_set(winmat);
+  GPU_matrix_projection_set(ui_winmat);
   GPU_matrix_push();
   GPU_matrix_set(viewmat);
   GPU_depth_test(GPU_DEPTH_NONE);
@@ -726,7 +751,7 @@ static void wm_xr_draw_cached_panel_overlay(const float viewmat[4][4],
     }
 
     RegionView3D rv_tmp = {};
-    copy_m4_m4(rv_tmp.winmat, winmat);
+    wm_xr_ui_overlay_winmat_create(winmat, rv_tmp.winmat);
     copy_m4_m4(rv_tmp.viewmat, viewmat);
     ED_region_panels_draw_to_world_quad(
         &rv_tmp, panel->panel_obmat, &panel->panel_rect, panel->panel_offscreen);
