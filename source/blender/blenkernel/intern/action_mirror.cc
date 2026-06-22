@@ -224,7 +224,7 @@ static void action_flip_pchan(Object *ob_arm,
 
 /* Array of F-Curves, for convenient access. */
 #define FCURVE_CHANNEL_LEN (sizeof(fkc_pchan) / sizeof(FCurve_KeyCache))
-  FCurve *fcurve_array[FCURVE_CHANNEL_LEN];
+  Array<FCurve *> fcurve_array(FCURVE_CHANNEL_LEN);
   int fcurve_array_len = 0;
 
   for (int chan = 0; chan < FCURVE_CHANNEL_LEN; chan++) {

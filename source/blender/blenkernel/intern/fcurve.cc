@@ -756,7 +756,7 @@ bool BKE_fcurve_calc_range(const FCurve *fcu,
   return foundvert;
 }
 
-float *BKE_fcurves_calc_keyed_frames_ex(FCurve **fcurve_array,
+float *BKE_fcurves_calc_keyed_frames_ex(const Span<FCurve *> fcurve_array,
                                         int fcurve_array_len,
                                         const float interval,
                                         int *r_frames_len)
@@ -788,7 +788,7 @@ float *BKE_fcurves_calc_keyed_frames_ex(FCurve **fcurve_array,
   return frames;
 }
 
-float *BKE_fcurves_calc_keyed_frames(FCurve **fcurve_array,
+float *BKE_fcurves_calc_keyed_frames(const Span<FCurve *> fcurve_array,
                                      int fcurve_array_len,
                                      int *r_frames_len)
 {
