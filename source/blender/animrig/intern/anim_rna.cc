@@ -81,7 +81,7 @@ Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop)
 }
 
 constexpr const char *pose_bone_path_prefix = "pose.bones[\"";
-constexpr int pose_bone_path_prefix_length = strlen(pose_bone_path_prefix);
+constexpr int pose_bone_path_prefix_length = std::char_traits<char>::length(pose_bone_path_prefix);
 
 std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone)
 {
