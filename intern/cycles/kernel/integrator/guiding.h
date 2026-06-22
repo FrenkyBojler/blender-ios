@@ -93,7 +93,7 @@ ccl_device_forceinline bool is_valid(const float3 v)
   valid &= v.z > -GUIDING_FLT_LARGE && v.z < GUIDING_FLT_LARGE;
   return valid;
 }
-ccl_device_forceinline float3 clamp_position(const float3 p)
+ccl_device_forceinline float3 clamp_guiding_position(const float3 p)
 {
   return clamp(p, make_float3(-GUIDING_FLT_LARGE / 5.0f), make_float3(GUIDING_FLT_LARGE / 5.0f));
 }
@@ -127,9 +127,8 @@ ccl_device_forceinline void guiding_record_surface_segment(
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
     float3 p = sd->P;
-    /* FIXME: ideally we should not generate postions that are close to floating point limits. */
     kernel_assert(is_valid(p));
-    p = clamp_position(p);
+    p = clamp_guiding_position(p);
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(sd->wi));
     openpgl::cpp::SetVolumeScatter(state->guiding.path_segment, false);
@@ -229,9 +228,8 @@ ccl_device_forceinline void guiding_record_bssrdf_segment(ccl_attr_maybe_unused 
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    /* FIXME: ideally we should not generate postions that are close to floating point limits. */
     kernel_assert(is_valid(P));
-    float3 p = clamp_position(P);
+    float3 p = clamp_guiding_position(P);
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(wi));
     openpgl::cpp::SetVolumeScatter(state->guiding.path_segment, true);
@@ -332,9 +330,8 @@ ccl_device_forceinline void guiding_record_volume_segment(ccl_attr_maybe_unused 
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    /* FIXME: ideally we should not generate postions that are close to floating point limits. */
     kernel_assert(is_valid(P));
-    float3 p = clamp_position(P);
+    float3 p = clamp_guiding_position(P);
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(I));
     openpgl::cpp::SetVolumeScatter(state->guiding.path_segment, true);
@@ -462,9 +459,8 @@ ccl_device_forceinline void guiding_record_light_surface_segment(
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    /* FIXME: ideally we should not generate postions that are close to floating point limits. */
     kernel_assert(is_valid(P));
-    float3 p = clamp_position(P);
+    float3 p = clamp_guiding_position(P);
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(-ray_D));
     openpgl::cpp::SetNormal(state->guiding.path_segment, guiding_vec3f(-ray_D));
@@ -500,9 +496,8 @@ ccl_device_forceinline void guiding_record_background(ccl_attr_maybe_unused Kern
   const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
   const float3 ray_D = INTEGRATOR_STATE(state, ray, D);
   float3 P = ray_P + (GUIDING_MAX_LIGHT_DISTANCE)*ray_D;
-  /* FIXME: ideally we should not generate postions that are close to floating point limits. */
   kernel_assert(is_valid(P));
-  P = clamp_position(P);
+  P = clamp_guiding_position(P);
   const float3 normal = make_float3(0.0f, 0.0f, 1.0f);
 
   openpgl::cpp::PathSegment background_segment;
@@ -569,7 +564,8 @@ ccl_device_forceinline void guiding_record_direct_light(
       }
 
       /* Checking if the light source is an infinite one (e.g., background, sun). If so the
-       * distance is set to GUIDING_MAX_LIGHT_DISTANCE. Note: checking for FLT_MAX is not working.*/
+       * distance is set to GUIDING_MAX_LIGHT_DISTANCE.
+       * Note: checking for FLT_MAX is not working.*/
       pgl_sample.distance = dist > GUIDING_FLT_LARGE ? GUIDING_MAX_LIGHT_DISTANCE : dist;
       kg->opgl_sample_data_storage->AddSample(pgl_sample);
     }
