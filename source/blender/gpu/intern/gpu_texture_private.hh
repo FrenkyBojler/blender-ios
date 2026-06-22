@@ -903,4 +903,15 @@ static inline TextureFormat to_texture_format(const GPUVertFormat *format)
   return TextureFormat(format->attrs[0].type.format);
 }
 
+Texture *gpu_texture_create(const char *name,
+                            const int w,
+                            const int h,
+                            const int d,
+                            const GPUTextureType type,
+                            int mip_len,
+                            TextureFormat tex_format,
+                            eGPUTextureUsage usage,
+                            const void *pixels,
+                            eGPUDataFormat data_format = GPU_DATA_FLOAT);
+
 }  // namespace blender::gpu

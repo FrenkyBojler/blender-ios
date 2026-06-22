@@ -215,34 +215,16 @@ void Texture::update(eGPUDataFormat format, const void *data)
 
 /** \} */
 
-}  // namespace gpu
-
-/* -------------------------------------------------------------------- */
-/** \name C-API
- * \{ */
-
-using namespace blender::gpu;
-
-/* ------ Memory Management ------ */
-
-uint GPU_texture_memory_usage_get()
-{
-  /* TODO(fclem): Do that inside the new Texture class. */
-  return 0;
-}
-
-/* ------ Creation ------ */
-
-static inline gpu::Texture *gpu_texture_create(const char *name,
-                                               const int w,
-                                               const int h,
-                                               const int d,
-                                               const GPUTextureType type,
-                                               int mip_len,
-                                               TextureFormat tex_format,
-                                               eGPUTextureUsage usage,
-                                               const void *pixels,
-                                               eGPUDataFormat data_format = GPU_DATA_FLOAT)
+Texture *gpu_texture_create(const char *name,
+                            const int w,
+                            const int h,
+                            const int d,
+                            const GPUTextureType type,
+                            int mip_len,
+                            TextureFormat tex_format,
+                            eGPUTextureUsage usage,
+                            const void *pixels,
+                            eGPUDataFormat data_format)
 {
   BLI_assert(mip_len > 0);
   Texture *tex = GPUBackend::get()->texture_alloc(name);
@@ -276,8 +258,26 @@ static inline gpu::Texture *gpu_texture_create(const char *name,
   if (pixels) {
     tex->update(data_format, pixels);
   }
-  return reinterpret_cast<gpu::Texture *>(tex);
+  return reinterpret_cast<Texture *>(tex);
 }
+
+}  // namespace gpu
+
+/* -------------------------------------------------------------------- */
+/** \name C-API
+ * \{ */
+
+using namespace blender::gpu;
+
+/* ------ Memory Management ------ */
+
+uint GPU_texture_memory_usage_get()
+{
+  /* TODO(fclem): Do that inside the new Texture class. */
+  return 0;
+}
+
+/* ------ Creation ------ */
 
 gpu::Texture *GPU_texture_create_1d(const char *name,
                                     int width,
