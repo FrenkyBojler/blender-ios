@@ -139,14 +139,6 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue 
     device.functions.vkDestroyShaderModule(device.vk_handle(), vk_shader_module, nullptr);
   });
 
-  framebuffers_.remove_old(current_timeline, [&](VkFramebuffer vk_framebuffer) {
-    device.functions.vkDestroyFramebuffer(device.vk_handle(), vk_framebuffer, nullptr);
-  });
-
-  render_passes_.remove_old(current_timeline, [&](VkRenderPass vk_render_pass) {
-    device.functions.vkDestroyRenderPass(device.vk_handle(), vk_render_pass, nullptr);
-  });
-
   descriptor_pools_.remove_old(
       current_timeline, [&](std::pair<VkDescriptorPool, VKDescriptorPools *> descriptor_pool) {
         descriptor_pool.second->recycle(descriptor_pool.first);

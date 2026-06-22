@@ -262,16 +262,6 @@ static bool vk_instance_create_for_platform_checks(VkInstance *r_instance)
     return false;
   }
 
-  /* Work around: due to an error in vulkan loader it is not possible to create/destroy/create an
-   * instance. The first instance needs to be used. As GHOST provides more strict requirements we
-   * pass creating the instance here. This also means that OpenXR/USD/Hydra might not work in
-   * certain conditions as they create their own instance.
-   *
-   * Looking deeper in the situation it seems like on many systems both return the same
-   * handle/memory address.
-   */
-  return true;
-#if 0
   /* Initialize an vulkan 1.2 instance. */
   VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
   vk_application_info.pApplicationName = "Blender";
@@ -298,7 +288,7 @@ bool VKBackend::is_supported()
     CLOG_WARN(&LOG, "Unable to initialize a Vulkan 1.2 instance.");
     return false;
   }
-  CLOG_INFO(&LOG, 3, "initializing volk instance");
+  CLOG_TRACE(&LOG, "initializing volk instance");
   volkLoadInstanceOnly(vk_instance);
 
   /* Go over all the devices. */
@@ -351,7 +341,6 @@ bool VKBackend::is_supported()
              "No Vulkan device found that meets the minimum requirements. "
              "Updating GPU driver can improve compatibility.");
   return false;
-#endif
 }
 
 void VKBackend::supported_devices_print(FILE *fp)

@@ -52,6 +52,10 @@ VkPipeline VKPipelinePool::get_or_create_compute_pipeline(const VKComputeInfo &c
                                                           VkPipeline vk_pipeline_base,
                                                           StringRefNull name)
 {
+  bool created = false;
+  VkPipelineCache vk_pipeline_cache = is_static_shader ? vk_pipeline_cache_static_ :
+                                                         vk_pipeline_cache_non_static_;
+  return compute_.get_or_create(compute_info, vk_pipeline_cache, vk_pipeline_base, name, created);
 }
 
 template<>
@@ -99,6 +103,18 @@ VkPipeline VKPipelineMap<VKComputeInfo>::create(const VKComputeInfo &compute_inf
 
   double start_time = BLI_time_now_seconds();
   VkPipeline pipeline = VK_NULL_HANDLE;
+  device.functions.vkCreateComputePipelines(device.vk_handle(),
+                                            vk_pipeline_cache,
+                                            1,
+                                            &vk_compute_pipeline_create_info,
+                                            nullptr,
+                                            &pipeline);
+  double end_time = BLI_time_now_seconds();
+  debug::object_label(pipeline, name);
+  CLOG_DEBUG(&LOG,
+             "Compiled compute pipeline %s in %fms ",
+             name.c_str(),
+             (end_time - start_time) * 1000.0);
 
   return pipeline;
 }
@@ -137,12 +153,12 @@ static VkPipeline create_graphics_pipeline_no_libs(const VKGraphicsInfo &graphic
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
   double start_time = BLI_time_now_seconds();
-  vkCreateGraphicsPipelines(device.vk_handle(),
-                            vk_pipeline_cache,
-                            1,
-                            &builder.vk_graphics_pipeline_create_info,
-                            nullptr,
-                            &pipeline);
+  device.functions.vkCreateGraphicsPipelines(device.vk_handle(),
+                                             vk_pipeline_cache,
+                                             1,
+                                             &builder.vk_graphics_pipeline_create_info,
+                                             nullptr,
+                                             &pipeline);
   double end_time = BLI_time_now_seconds();
   debug::object_label(pipeline, name);
   CLOG_DEBUG(&LOG,
@@ -197,7 +213,7 @@ static VkPipeline create_graphics_pipeline_libs(const VKGraphicsInfo &graphics_i
       vk_pipeline_base,
       0};
   double start_link_time = BLI_time_now_seconds();
-  vkCreateGraphicsPipelines(
+  device.functions.vkCreateGraphicsPipelines(
       device.vk_handle(), vk_pipeline_cache, 1, &linking_pipeline_create_info, nullptr, &pipeline);
   double end_time = BLI_time_now_seconds();
   debug::object_label(pipeline, name);
@@ -492,12 +508,12 @@ VkPipeline VKPipelineMap<VKGraphicsInfo::VertexIn>::create(
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
   double start_time = BLI_time_now_seconds();
-  vkCreateGraphicsPipelines(device.vk_handle(),
-                            vk_pipeline_cache,
-                            1,
-                            &builder.vk_graphics_pipeline_create_info,
-                            nullptr,
-                            &pipeline);
+  device.functions.vkCreateGraphicsPipelines(device.vk_handle(),
+                                             vk_pipeline_cache,
+                                             1,
+                                             &builder.vk_graphics_pipeline_create_info,
+                                             nullptr,
+                                             &pipeline);
   double end_time = BLI_time_now_seconds();
   debug::object_label(pipeline, name);
   CLOG_TRACE(&LOG, "Compiled vertex input library in %fms ", (end_time - start_time) * 1000.0);
@@ -532,12 +548,12 @@ VkPipeline VKPipelineMap<VKGraphicsInfo::Shaders>::create(
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
   double start_time = BLI_time_now_seconds();
-  vkCreateGraphicsPipelines(device.vk_handle(),
-                            vk_pipeline_cache,
-                            1,
-                            &builder.vk_graphics_pipeline_create_info,
-                            nullptr,
-                            &pipeline);
+  device.functions.vkCreateGraphicsPipelines(device.vk_handle(),
+                                             vk_pipeline_cache,
+                                             1,
+                                             &builder.vk_graphics_pipeline_create_info,
+                                             nullptr,
+                                             &pipeline);
   double end_time = BLI_time_now_seconds();
   debug::object_label(pipeline, name);
   CLOG_TRACE(&LOG, "Compiled shaders library in %fms ", (end_time - start_time) * 1000.0);
@@ -573,12 +589,12 @@ VkPipeline VKPipelineMap<VKGraphicsInfo::FragmentOut>::create(
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
   double start_time = BLI_time_now_seconds();
-  vkCreateGraphicsPipelines(device.vk_handle(),
-                            vk_pipeline_cache,
-                            1,
-                            &builder.vk_graphics_pipeline_create_info,
-                            nullptr,
-                            &pipeline);
+  device.functions.vkCreateGraphicsPipelines(device.vk_handle(),
+                                             vk_pipeline_cache,
+                                             1,
+                                             &builder.vk_graphics_pipeline_create_info,
+                                             nullptr,
+                                             &pipeline);
   double end_time = BLI_time_now_seconds();
   debug::object_label(pipeline, name);
   CLOG_TRACE(&LOG, "Compiled fragment output library in %fms ", (end_time - start_time) * 1000.0);
@@ -595,8 +611,15 @@ void VKPipelinePool::discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pi
   /* vertex_input_libs_ and fragment_output_libs_ are NOT dependent on vk_pipeline_layout. */
 }
 
-void VKPipelinePool::free_data()
+void VKPipelinePool::free_data(const VKDevice &device)
 {
+  const VkDevice vk_device = device.vk_handle();
+
+  graphics_.free_data(vk_device, device.functions);
+  compute_.free_data(vk_device, device.functions);
+  vertex_input_libs_.free_data(vk_device, device.functions);
+  shaders_libs_.free_data(vk_device, device.functions);
+  fragment_output_libs_.free_data(vk_device, device.functions);
 
   device.functions.vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache_static_, nullptr);
   device.functions.vkDestroyPipelineCache(
@@ -696,8 +719,6 @@ void VKPipelinePool::read_from_disk()
   VkPipelineCache vk_pipeline_cache = VK_NULL_HANDLE;
   device.functions.vkCreatePipelineCache(
       device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache);
-  MEM_freeN(buffer);
-
 
   device.functions.vkMergePipelineCaches(
       device.vk_handle(), vk_pipeline_cache_static_, 1, &vk_pipeline_cache);
@@ -718,10 +739,9 @@ void VKPipelinePool::write_to_disk()
   size_t data_size;
   device.functions.vkGetPipelineCacheData(
       device.vk_handle(), vk_pipeline_cache_static_, &data_size, nullptr);
-  void *buffer = MEM_mallocN(data_size, __func__);
+  Vector<char> buffer(data_size);
   device.functions.vkGetPipelineCacheData(
-      device.vk_handle(), vk_pipeline_cache_static_, &data_size, buffer);
-
+      device.vk_handle(), vk_pipeline_cache_static_, &data_size, buffer.data());
 
   std::string cache_file = pipeline_cache_filepath_get();
   CLOG_INFO(&LOG, "Writing static pipeline cache to disk [%s].", cache_file.c_str());

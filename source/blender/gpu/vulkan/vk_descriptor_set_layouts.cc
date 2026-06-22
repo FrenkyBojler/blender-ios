@@ -91,32 +91,4 @@ void VKDescriptorSetLayouts::deinit()
   vk_descriptor_set_layouts_.clear();
 }
 
-static void align_size(VkDeviceSize &r_size, VkDeviceSize alignment)
-{
-  if (alignment > 1) {
-    r_size = (r_size + alignment - 1) & ~(alignment - 1);
-  }
-}
-VKDescriptorBufferLayout VKDescriptorSetLayouts::create_descriptor_buffer_layout(
-    const VKDevice &device,
-    const VKDescriptorSetLayoutInfo &info,
-    VkDescriptorSetLayout vk_descriptor_set_layout) const
-{
-  const VkPhysicalDeviceDescriptorBufferPropertiesEXT &properties =
-      device.physical_device_descriptor_buffer_properties_get();
-  VKDescriptorBufferLayout result = {};
-
-  device.functions.vkGetDescriptorSetLayoutSizeEXT(
-      device.vk_handle(), vk_descriptor_set_layout, &result.size);
-  align_size(result.size, properties.descriptorBufferOffsetAlignment);
-
-  result.binding_offsets.resize(info.bindings.size());
-  for (uint32_t binding : IndexRange(info.bindings.size())) {
-    device.functions.vkGetDescriptorSetLayoutBindingOffsetEXT(
-        device.vk_handle(), vk_descriptor_set_layout, binding, &result.binding_offsets[binding]);
-  }
-
-  return result;
-}
-
 }  // namespace blender::gpu

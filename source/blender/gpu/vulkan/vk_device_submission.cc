@@ -103,6 +103,12 @@ void VKDevice::wait_for_timeline(TimelineValue timeline)
   }
   VkSemaphoreWaitInfo vk_semaphore_wait_info = {
       VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO, nullptr, 0, 1, &vk_timeline_semaphore_, &timeline};
+  VkResult wait_result = functions.vkWaitSemaphores(
+      vk_device_, &vk_semaphore_wait_info, UINT64_MAX);
+  if (wait_result != VK_SUCCESS) {
+    CLOG_ERROR(
+        &LOG, "Vulkan: failed to wait for synchronization timeline [%s]", to_string(wait_result));
+  }
 }
 
 void VKDevice::wait_queue_idle()
@@ -236,11 +242,8 @@ void VKDevice::submission_runner(VKDevice *device)
 
       {
         std::scoped_lock lock_queue(*device->queue_mutex_);
-        device->functions.vkQueueSubmit(device->vk_queue_,
-                                        submit_infos.size(),
-                                        submit_infos.data(),
-                                        submit_task->signal_fence);
-
+        device->functions.vkQueueSubmit(
+            device->vk_queue_, 1, &vk_submit_info, submit_task->signal_fence);
       }
       if (submit_task->wait_for_submission != nullptr) {
         std::unique_lock<Mutex> lock(submit_task->wait_for_submission->is_submitted_mutex);

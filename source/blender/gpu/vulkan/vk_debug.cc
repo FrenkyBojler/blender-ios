@@ -279,7 +279,7 @@ void VKDebuggingTools::init_messenger(VkInstance vk_instance)
                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
   create_info.pfnUserCallback = messenger_callback;
   create_info.pUserData = this;
-  device.functions.vkCreateDebugUtilsMessenger(
+  volk::vkCreateDebugUtilsMessengerEXT(
       vk_instance, &create_info, nullptr, &vk_debug_utils_messenger);
 }
 
@@ -289,8 +289,7 @@ void VKDebuggingTools::destroy_messenger(VkInstance vk_instance)
     return;
   }
 
-  VKDevice &device = VKBackend::get().device;
-  device.functions.vkDestroyDebugUtilsMessenger(vk_instance, vk_debug_utils_messenger, nullptr);
+  volk::vkDestroyDebugUtilsMessengerEXT(vk_instance, vk_debug_utils_messenger, nullptr);
   vk_debug_utils_messenger = nullptr;
 }
 
