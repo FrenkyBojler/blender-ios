@@ -37,6 +37,7 @@
 #include "RNA_access.hh"
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
+#include "RNA_enum_types.hh"
 
 namespace blender {
 
@@ -164,7 +165,11 @@ void ED_screen_user_menu_item_add_operator(ListBaseT<bUserMenuItem> *lb,
   bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(
       BKE_blender_user_menu_item_add(lb, USER_MENU_TYPE_OPERATOR));
   umi_op->opcontext = int8_t(opcontext);
-  umi_op->icon = icon;
+
+  const char *icon_identifier = nullptr;
+  RNA_enum_identifier(rna_enum_icon_items, icon, &icon_identifier);
+  STRNCPY_UTF8(umi_op->icon_identifier, icon_identifier);
+
   if (!STREQ(ui_name, ot->name)) {
     STRNCPY_UTF8(umi_op->item.ui_name, ui_name);
   }
@@ -180,7 +185,11 @@ void ED_screen_user_menu_item_add_menu(ListBaseT<bUserMenuItem> *lb,
 {
   bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(
       BKE_blender_user_menu_item_add(lb, USER_MENU_TYPE_MENU));
-  umi_mt->icon = icon;
+
+  const char *icon_identifier = nullptr;
+  RNA_enum_identifier(rna_enum_icon_items, icon, &icon_identifier);
+  STRNCPY_UTF8(umi_mt->icon_identifier, icon_identifier);
+
   if (!STREQ(ui_name, mt->label)) {
     STRNCPY_UTF8(umi_mt->item.ui_name, ui_name);
   }
@@ -286,13 +295,16 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
                                                  std::nullopt;
       if (umi.type == USER_MENU_TYPE_OPERATOR) {
         bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(&umi);
+
+        int icon = ICON_NONE;
+        RNA_enum_value_from_identifier(rna_enum_icon_items, umi_op->icon_identifier, &icon);
+
         if (wmOperatorType *ot = WM_operatortype_find(umi_op->op_idname, false)) {
           if (ui_name) {
             ui_name = CTX_IFACE_(ot->translation_context, ui_name->c_str());
           }
           if (umi_op->op_prop_enum[0] == '\0') {
             ui::Layout &row = menu->layout->row(true);
-            int icon = umi_op->icon;
             bool add_operator = true;
             handle_operator_asset_reference_props(*C, *umi_op, row, ot, icon, add_operator);
             if (add_operator) {
@@ -306,7 +318,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
           else {
             /* umi_op->prop could be used to set other properties but it's currently unsupported.
              */
-            menu->layout->op_menu_enum(C, ot, umi_op->op_prop_enum, ui_name, umi_op->icon);
+            menu->layout->op_menu_enum(C, ot, umi_op->op_prop_enum, ui_name, icon);
           }
           is_empty = false;
         }
@@ -321,7 +333,9 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(&umi);
         MenuType *mt = WM_menutype_find(umi_mt->mt_idname, false);
         if (mt != nullptr) {
-          menu->layout->menu(mt, ui_name, umi_mt->icon);
+          int icon = ICON_NONE;
+          RNA_enum_value_from_identifier(rna_enum_icon_items, umi_mt->icon_identifier, &icon);
+          menu->layout->menu(mt, ui_name, icon);
           is_empty = false;
         }
         else {
