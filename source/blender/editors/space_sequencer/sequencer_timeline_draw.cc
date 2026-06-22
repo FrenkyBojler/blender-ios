@@ -165,7 +165,7 @@ static void strip_draw_context_set_text_overlay_visibility(const TimelineDrawCon
                                                            StripDrawContext &strip_ctx)
 {
   float threshold = 8 * UI_SCALE_FAC;
-  if (strip_ctx.strip->input2 != nullptr) {
+  if (seq::effect_is_transition(strip_ctx.strip)) {
     threshold = 40 * UI_SCALE_FAC;
   }
   else if (strip_hides_text_overlay_first(ctx, strip_ctx)) {
@@ -211,7 +211,7 @@ rctf strip_bounds_get(const Scene *scene,
   bounds.ymax = strip->channel + STRIP_OFSTOP;
 
   float pixely = BLI_rctf_size_y(&v2d->cur) / (BLI_rcti_size_y(&v2d->mask) + 1);
-  if (strip->input2 != nullptr) {
+  if (seq::effect_is_transition(strip)) {
     if (strip_header_poll(sseq, pixely, bounds.ymax - bounds.ymin)) {
       bounds.ymax -= strip_header_size_get(pixely);
     }
@@ -1311,7 +1311,7 @@ static void visible_strips_ordered_get(const TimelineDrawContext &ctx,
     StripDrawContext strip_ctx = strip_draw_context_get(ctx, strip);
     // tmp (doesn't support transitions on transitions when moving)
     if (flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::Overlap)) {
-      if (strip->input2 != nullptr) {
+      if (seq::effect_is_transition(strip)) {
         r_top_layer_transitions.append(strip_ctx);
       }
       else {
@@ -1319,7 +1319,7 @@ static void visible_strips_ordered_get(const TimelineDrawContext &ctx,
       }
     }
     else {
-      if (strip->input2 != nullptr) {
+      if (seq::effect_is_transition(strip)) {
         r_bottom_layer_transitions.append(strip_ctx);
       }
       else {
@@ -1532,9 +1532,6 @@ static void draw_strips_foreground(const TimelineDrawContext &ctx,
   GPU_blend(GPU_BLEND_ALPHA_PREMULT);
 
   for (const StripDrawContext &strip : strips) {
-    if (strip.strip->input2 != nullptr) {
-      continue;
-    }
     SeqStripDrawData &data = strips_batch.add_strip(strip.content_start,
                                                     strip.content_end,
                                                     strip.top,

@@ -71,7 +71,7 @@ bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
 bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
 {
   /* Transitions overlap their inputs, but can't overlap other strips. */
-  if (test->input2 != nullptr) {
+  if (seq::effect_is_transition(test)) {
     // TODO: If strips overlap, and the transition is valid, this is already checked by the loop
     // below. This should only check if the transition is valid (eg. the strips haven't been moved
     // away)
@@ -126,7 +126,9 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
     strip->handles_set(evil_scene, left_handle + delta, right_handle + delta);
   }
   /* All other strip types. */
-  else if ((strip->input1 == nullptr && strip->input2 == nullptr) || (strip->input2 != nullptr)) {
+  else if ((strip->input1 == nullptr && strip->input2 == nullptr) ||
+           seq::effect_is_transition(strip))
+  {
     strip->start += delta;
     /* Only to make files usable in older versions. */
     strip->startdisp = strip->left_handle();
