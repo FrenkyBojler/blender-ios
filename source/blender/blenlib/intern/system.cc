@@ -219,7 +219,7 @@ int BLI_system_memory_max_in_megabytes_int()
 
 void BLI_system_max_open_files_ensure()
 {
-  /* The Windows maximum is documneted as 8192. */
+  /* The Windows maximum is documented as 8192. */
   constexpr int max_open_files = 8192;
 
 #if defined(WIN32)
