@@ -161,21 +161,15 @@ float3x3 tangent_basis(float3 N, float3 V)
  * with `scale` scaling the upper parabole.  */
 float soft_curve_upper(float x, float scale, float y_1)
 {
-  if (x >= y_1) {
-    return 1.0f;
-  }
-  x /= y_1;
-  return saturate((x + x * scale) / (x + scale));
+  x = saturate(x / y_1);
+  return saturate((x * scale + x) / (scale + x));
 }
 
 /* Lower symmetric variant of `soft_curve_upper`. */
 float soft_curve_lower(float x, float scale, float y_1)
 {
-  if (x >= y_1) {
-    return 1.0f;
-  }
-  x /= y_1;
-  return saturate((x * scale) / (1.0f + scale - x));
+  x = saturate(x / y_1);
+  return saturate((x * scale) / (scale + 1.0f - x));
 }
 
 /* Simple disk with origin, normal, and radius. */
@@ -187,8 +181,7 @@ struct Disk {
 
 float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
 {
-  /* Dominant BxDF lobe direction. Store reciprocal of vector length, it
-   * approximates the alpha used to sample the LTC matrix. */
+  /* Dominant BxDF lobe direction. Store reciprocal of vector length for below. */
   float D_length_rcp;
   float3 D = normalize_and_get_length_rcp(inverse(Minv)[2], D_length_rcp);
 
@@ -210,8 +203,9 @@ float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
 
   /* Attenuation approaches 1 slightly aggressively. */
   attenuation = soft_curve_upper(attenuation, 0.15f, 0.5f);
-  /* Attenuation approaches 1 as LTC z vector lengthens,  which somewhat corresponds to alpha. */
-  attenuation += (1.0f - attenuation) * soft_curve_lower(D_length_rcp, 0.5f, 0.67f);
+  /* Attenuation approaches 1 as LTC z vector lengthens,  somewhat corresponding to alpha. */
+  /* TODO(not_mark): needs slightly better fitting to not be weirdly blobby! */
+  attenuation += (1.0f - attenuation) * soft_curve_lower(D_length_rcp, 0.35f, 0.67f);
 
   return attenuation;
 }
