@@ -16,6 +16,7 @@
 #include "util/path.h"
 #include "util/progress.h"
 #include "util/string.h"
+#include "util/system.h"
 #ifdef WITH_CYCLES_STANDALONE_GUI
 #  include "util/time.h"
 #  include "util/transform.h"
@@ -539,8 +540,10 @@ using namespace ccl;
 
 int main(const int argc, const char **argv)
 {
+  system_max_open_files_ensure();
   log_init(nullptr);
   path_init();
+
   options_parse(argc, argv);
 
 #ifdef WITH_CYCLES_STANDALONE_GUI

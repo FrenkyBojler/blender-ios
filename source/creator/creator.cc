@@ -395,6 +395,10 @@ int main(int argc,
   scalable_allocation_mode(TBBMALLOC_USE_HUGE_PAGES, 1);
 #endif
 
+  /* Set max open files to better handle production files that may use many
+   * open geometry or texture cache file handles. */
+  BLI_system_max_open_files_ensure();
+
   /* NOTE: Special exception for guarded allocator type switch:
    *       we need to perform switch from lock-free to fully
    *       guarded allocator before any allocation happened.

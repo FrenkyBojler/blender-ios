@@ -26,4 +26,8 @@ uint64_t system_self_process_id();
 
 size_t system_max_open_files();
 
+/* Ensure the process can have at least #count files open simultaneously.
+ * This should be called once on application startup, as it is not thread safe. */
+void system_max_open_files_ensure(int count = 2048);
+
 CCL_NAMESPACE_END

@@ -5,6 +5,8 @@
 #include "util/system.h"
 #include "util/string.h"
 
+#include <algorithm>
+
 #ifdef _WIN32
 #  include <cstdio>
 #  if (!defined(FREE_WINDOWS))
@@ -276,6 +278,25 @@ size_t system_max_open_files()
 #else
   struct rlimit limit = {};
   return (getrlimit(RLIMIT_NOFILE, &limit) == 0) ? limit.rlim_cur : SIZE_MAX;
+#endif
+}
+
+void system_max_open_files_ensure(int count)
+{
+#if defined(_WIN32)
+  /* The Windows maximum is 8192 open files. */
+  count = std::min(count, 8192);
+  if (_getmaxstdio() < count) {
+    _setmaxstdio(count);
+  }
+#else
+  struct rlimit limit = {};
+  if (getrlimit(RLIMIT_NOFILE, &limit) == 0) {
+    if (limit.rlim_cur < count) {
+      limit.rlim_cur = std::min(rlim_t(count), limit.rlim_max);
+      setrlimit(RLIMIT_NOFILE, &limit);
+    }
+  }
 #endif
 }
 

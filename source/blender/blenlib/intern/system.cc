@@ -6,6 +6,7 @@
  * \ingroup bli
  */
 
+#include <algorithm>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
@@ -24,6 +25,7 @@
 #  if defined(HAVE_EXECINFO_H)
 #    include <execinfo.h>
 #  endif
+#  include <sys/resource.h>
 #  include <unistd.h>
 #endif
 
@@ -213,6 +215,25 @@ int BLI_system_memory_max_in_megabytes_int()
   const size_t limit_megabytes = BLI_system_memory_max_in_megabytes();
   /* NOTE: The result will fit into integer. */
   return int(min_zz(limit_megabytes, size_t(INT_MAX)));
+}
+
+void BLI_system_max_open_files_ensure(int count)
+{
+#if defined(WIN32)
+  /* The Windows maximum is documneted as 8192. */
+  count = std::min(count, 8192);
+  if (_getmaxstdio() < count) {
+    _setmaxstdio(count);
+  }
+#else
+  struct rlimit limit;
+  if (getrlimit(RLIMIT_NOFILE, &limit) == 0) {
+    if (limit.rlim_cur < rlim_t(count)) {
+      limit.rlim_cur = std::min(rlim_t(count), limit.rlim_max);
+      setrlimit(RLIMIT_NOFILE, &limit);
+    }
+  }
+#endif
 }
 
 }  // namespace blender
