@@ -2184,7 +2184,7 @@ bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
       case ID_AC:
         return {true, ""};
       case ID_SCR:
-        return {false, "Screens do not support automatic previews"};
+        return {false, RPT_("Screens do not support automatic previews")};
       default:
         BLI_assert(!BKE_previewimg_id_get_p(id));
         return {false, RPT_("Data-block type does not support automatic previews")};
