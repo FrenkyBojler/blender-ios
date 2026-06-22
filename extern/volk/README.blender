@@ -1,7 +1,7 @@
 Project: volk
 URL: https://github.com/zeux/volk
 License: SPDX:MIT
-Copyright: "Copyright (c) 2018-2025 Arseny Kapoulkine"
-Upstream version: 43c29e655cb8117fd9cfb65ad9cefe2d40965102
-Local modifications: Place in `volk` namespace
+Copyright: "Copyright (c) 2018-2026 Arseny Kapoulkine"
+Upstream version: 3ca312a4f38baa63d8006b6905abbeeb89c8087d
+Local modifications:
 
