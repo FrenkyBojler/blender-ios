@@ -82,7 +82,7 @@ ccl_device_forceinline float3 make_float3(const pgl_vec3f v)
   return make_float3(v.x, v.y, v.z);
 }
 
-ccl_device_forceinline bool is_valid(const float3 v)
+ccl_device_forceinline bool is_guiding_valid(const float3 v)
 {
   bool valid = true;
   valid &= std::isfinite(v.x);
@@ -127,7 +127,7 @@ ccl_device_forceinline void guiding_record_surface_segment(
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
     float3 p = sd->P;
-    kernel_assert(is_valid(p));
+    kernel_assert(is_guiding_valid(p));
     p = clamp_guiding_position(p);
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(sd->wi));
@@ -228,7 +228,7 @@ ccl_device_forceinline void guiding_record_bssrdf_segment(ccl_attr_maybe_unused 
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    kernel_assert(is_valid(P));
+    kernel_assert(is_guiding_valid(P));
     float3 p = clamp_guiding_position(P);
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(wi));
@@ -330,7 +330,7 @@ ccl_device_forceinline void guiding_record_volume_segment(ccl_attr_maybe_unused 
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    kernel_assert(is_valid(P));
+    kernel_assert(is_guiding_valid(P));
     float3 p = clamp_guiding_position(P);
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(I));
@@ -459,7 +459,7 @@ ccl_device_forceinline void guiding_record_light_surface_segment(
   /* FIXME: investigate and fix why state->guiding.path_segment could be nullptr. */
   kernel_assert(state->guiding.path_segment != nullptr);
   if (state->guiding.path_segment != nullptr) {
-    kernel_assert(is_valid(P));
+    kernel_assert(is_guiding_valid(P));
     float3 p = clamp_guiding_position(P);
     openpgl::cpp::SetPosition(state->guiding.path_segment, guiding_point3f(p));
     openpgl::cpp::SetDirectionOut(state->guiding.path_segment, guiding_vec3f(-ray_D));
@@ -495,8 +495,8 @@ ccl_device_forceinline void guiding_record_background(ccl_attr_maybe_unused Kern
   const float3 L_rgb = spectrum_to_rgb(L);
   const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
   const float3 ray_D = INTEGRATOR_STATE(state, ray, D);
-  float3 P = ray_P + (GUIDING_MAX_LIGHT_DISTANCE)*ray_D;
-  kernel_assert(is_valid(P));
+  float3 P = ray_P + GUIDING_MAX_LIGHT_DISTANCE*ray_D;
+  kernel_assert(is_guiding_valid(P));
   P = clamp_guiding_position(P);
   const float3 normal = make_float3(0.0f, 0.0f, 1.0f);
 
