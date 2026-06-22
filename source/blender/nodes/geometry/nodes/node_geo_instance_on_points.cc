@@ -10,6 +10,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
+#include "BKE_instances_attributes.hh"
 
 #include "GEO_foreach_geometry.hh"
 #include "GEO_join_geometries.hh"
@@ -156,6 +157,23 @@ static std::unique_ptr<bke::Instances> add_instances_from_component(
   }
 
   bke::MutableAttributeAccessor dst_attributes = dst_component->attributes_for_write();
+
+  /* Write a stable per-instance ID equal to the source point index.
+   * This allows downstream nodes, render delegates, and per-instance f-curves
+   * to identify and track each instance across frames.
+   * Uses the standard name defined in #BKE_instances_attributes.hh. */
+  {
+    bke::SpanAttributeWriter<int> instance_id =
+        dst_attributes.lookup_or_add_for_write_only_span<int>(
+            bke::instances::ATTR_INSTANCE_ID, bke::AttrDomain::Instance);
+    if (instance_id) {
+      selection.foreach_index([&](const int64_t src_i, const int64_t dst_i) {
+        instance_id.span[dst_i] = int(src_i);
+      });
+      instance_id.finish();
+    }
+  }
+
   src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (ELEM(iter.name, "position", ".reference_index")) {
       return;

@@ -13,6 +13,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
+#include "BKE_instances_attributes.hh"
 
 #include "attribute_storage_access.hh"
 
