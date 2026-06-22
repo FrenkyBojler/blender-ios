@@ -52,7 +52,6 @@ void renderpass_clear_frag([[resource_table]] CryptomatteOutput &cryptomatte,
   render_passes.store_color(
       texel, uni.uniform_buf.render_pass.denoising_specular_albedo_id, clear_color);
   render_passes.store_value(texel, uni.uniform_buf.render_pass.shadow_id, 1.0f);
-  render_passes.store_value(texel, uni.uniform_buf.render_pass.denoising_depth_id, FLT_MAX);
   render_passes.store_value(texel, uni.uniform_buf.render_pass.denoising_roughness_id, 0.0f);
   /** NOTE: AO is done on its own pass. */
 

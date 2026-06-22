@@ -475,7 +475,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     data_.shadow_id = pass_index_get(EEVEE_RENDER_PASS_SHADOW);
     data_.ambient_occlusion_id = pass_index_get(EEVEE_RENDER_PASS_AO);
     data_.transparent_id = pass_index_get(EEVEE_RENDER_PASS_TRANSPARENT);
-    data_.denoising_depth_id = pass_index_get(EEVEE_RENDER_PASS_DENOISING_DEPTH);
+    data_.denoising_depth_id = (enabled_passes_ & EEVEE_RENDER_PASS_DENOISING_DEPTH) ? 0 : -1;
     data_.denoising_normal_id = pass_index_get(EEVEE_RENDER_PASS_DENOISING_NORMAL);
     data_.denoising_roughness_id = pass_index_get(EEVEE_RENDER_PASS_DENOISING_ROUGHNESS);
     data_.denoising_diffuse_albedo_id = pass_index_get(EEVEE_RENDER_PASS_DENOISING_DIFFUSE_ALBEDO);
@@ -547,6 +547,9 @@ void Film::init(const int2 &extent, const rcti *output_rect)
                                              (cryptomatte_array_len > 0) ? data_.extent : int2(1),
                                              (cryptomatte_array_len > 0) ? cryptomatte_array_len :
                                                                            1);
+    reset += denoising_depth_tx_.ensure_2d(
+        depth_format,
+        (enabled_passes_ & EEVEE_RENDER_PASS_DENOISING_DEPTH) ? data_.extent : int2(1));
 
     if (reset > 0) {
       data_.use_history = 0;
@@ -559,6 +562,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
       weight_tx_.current().clear(float4(0.0f));
       depth_tx_.clear(float4(0.0f));
       cryptomatte_tx_.clear(float4(0.0f));
+      denoising_depth_tx_.clear(float4(0.0f));
     }
   }
 }
@@ -662,6 +666,7 @@ void Film::init_pass(PassSimple &pass, gpu::Shader *sh)
   pass.bind_image("color_accum_img", &color_accum_tx_);
   pass.bind_image("value_accum_img", &value_accum_tx_);
   pass.bind_image("cryptomatte_img", &cryptomatte_tx_);
+  pass.bind_image("denoising_depth_img", &denoising_depth_tx_);
   pass.bind_resources(inst_.uniform_data);
 }
 
@@ -956,6 +961,8 @@ gpu::Texture *Film::get_pass_texture(eViewLayerEEVEEPassType pass_type, int laye
                           combined_tx_.current() :
                       (pass_type == EEVEE_RENDER_PASS_DEPTH) ?
                           depth_tx_ :
+                      (pass_type == EEVEE_RENDER_PASS_DENOISING_DEPTH) ?
+                          denoising_depth_tx_ :
                           (is_cryptomatte ? cryptomatte_tx_ :
                                             (is_value ? value_accum_tx_ : color_accum_tx_));
 

@@ -259,10 +259,6 @@ void combine_frag([[resource_table]] Combine &srt,
   }
   if (srt.render_passes_denoising_enabled) {
     const ViewMatrices view = views.get(0);
-    float depth = texelFetch(hiz.hiz_tx, texel, 0).r;
-    depth = -view.depth_screen_to_view(depth);
-    render_passes.store_value(texel, uni.uniform_buf.render_pass.denoising_depth_id, depth);
-
     average_normal = view.normal_world_to_view(average_normal);
     /* For compatibility with Cycles */
     average_normal.z *= -1.0f;
