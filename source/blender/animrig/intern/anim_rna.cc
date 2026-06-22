@@ -80,23 +80,25 @@ Vector<float> get_rna_values(PointerRNA *ptr, PropertyRNA *prop)
   return values;
 }
 
-constexpr const char *rna_path_prefix = "pose.bones[\"";
-constexpr int prefix_length = strlen(rna_path_prefix);
+constexpr const char *pose_bone_path_prefix = "pose.bones[\"";
+constexpr int pose_bone_path_prefix_length = strlen(pose_bone_path_prefix);
 
 std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone)
 {
   char name_esc[sizeof(pose_bone.name) * 2];
   BLI_str_escape(name_esc, pose_bone.name, sizeof(name_esc));
-  return fmt::format("{}{}\"]", rna_path_prefix, name_esc);
+  return fmt::format("{}{}\"]", pose_bone_path_prefix, name_esc);
 }
 
 std::optional<std::string> pose_bone_name_from_rna_path(const StringRefNull rna_path)
 {
-  if (rna_path.size() < prefix_length || !rna_path.startswith(rna_path_prefix)) {
+  if (rna_path.size() < pose_bone_path_prefix_length ||
+      !rna_path.startswith(pose_bone_path_prefix))
+  {
     return std::nullopt;
   }
 
-  const char *name_esc = rna_path.data() + prefix_length;
+  const char *name_esc = rna_path.data() + pose_bone_path_prefix_length;
   const char *name_esc_end = BLI_str_escape_find_quote(name_esc);
   if (!name_esc_end) {
     return std::nullopt;
