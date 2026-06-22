@@ -3691,12 +3691,22 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
       BLI_assert(cursor_sample_result.plane_normal && cursor_sample_result.plane_center);
-      brushes::do_clay_strips_brush(depsgraph,
-                                    sd,
-                                    ob,
-                                    node_mask,
-                                    *cursor_sample_result.plane_normal,
-                                    *cursor_sample_result.plane_center);
+      if (eBrushFalloffShape(brush.falloff_shape) == PAINT_FALLOFF_SHAPE_TUBE) {
+        brushes::do_clay_strips_brush(depsgraph,
+                                      sd,
+                                      ob,
+                                      node_mask,
+                                      ss.cache->view_normal_symm,
+                                      *cursor_sample_result.plane_center);
+      }
+      else {
+        brushes::do_clay_strips_brush(depsgraph,
+                                      sd,
+                                      ob,
+                                      node_mask,
+                                      *cursor_sample_result.plane_normal,
+                                      *cursor_sample_result.plane_center);
+      }
       break;
     case SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE:
       brushes::do_multiplane_scrape_brush(depsgraph, sd, ob, node_mask);
@@ -7091,9 +7101,11 @@ void calc_local_positions(const SculptSession &ss,
   }
 }
 
-void calc_local_positions(const Span<float3> vert_positions,
+void calc_local_positions(const SculptSession &ss,
+                          const Span<float3> vert_positions,
                           const Span<int> verts,
                           const float4x4 &mat,
+                          const eBrushFalloffShape falloff_shape,
                           const MutableSpan<float2> xy_positions,
                           const MutableSpan<float> z_positions)
 {
@@ -7101,16 +7113,35 @@ void calc_local_positions(const Span<float3> vert_positions,
   BLI_assert(xy_positions.size() == verts.size());
   BLI_assert(z_positions.size() == verts.size());
 
-  for (const int i : verts.index_range()) {
-    const float3 position = math::transform_point(mat, vert_positions[verts[i]]);
+  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
+    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
+                                           ss.filter_cache->view_normal;
+    float4 test_plane;
+    plane_from_point_normal_v3(test_plane, test_location, view_normal);
+    for (const int i : verts.index_range()) {
+      float3 projected;
+      closest_to_plane_normalized_v3(projected, test_plane, vert_positions[verts[i]]);
+      const float3 position = math::transform_point(mat, projected);
 
-    xy_positions[i] = position.xy();
-    z_positions[i] = position.z;
+      xy_positions[i] = position.xy();
+      z_positions[i] = position.z;
+    }
+  }
+  else {
+    for (const int i : verts.index_range()) {
+      const float3 position = math::transform_point(mat, vert_positions[verts[i]]);
+
+      xy_positions[i] = position.xy();
+      z_positions[i] = position.z;
+    }
   }
 }
 
-void calc_local_positions(const Span<float3> positions,
+void calc_local_positions(const SculptSession &ss,
+                          const Span<float3> positions,
                           const float4x4 &mat,
+                          const eBrushFalloffShape falloff_shape,
                           const MutableSpan<float2> xy_positions,
                           const MutableSpan<float> z_positions)
 {
@@ -7118,11 +7149,28 @@ void calc_local_positions(const Span<float3> positions,
   BLI_assert(xy_positions.size() == positions.size());
   BLI_assert(z_positions.size() == positions.size());
 
-  for (const int i : positions.index_range()) {
-    const float3 position = math::transform_point(mat, positions[i]);
+  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
+    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
+                                           ss.filter_cache->view_normal;
+    float4 test_plane;
+    plane_from_point_normal_v3(test_plane, test_location, view_normal);
+    for (const int i : positions.index_range()) {
+      float3 projected;
+      closest_to_plane_normalized_v3(projected, test_plane, positions[i]);
+      const float3 position = math::transform_point(mat, projected);
 
-    xy_positions[i] = position.xy();
-    z_positions[i] = position.z;
+      xy_positions[i] = position.xy();
+      z_positions[i] = position.z;
+    }
+  }
+  else {
+    for (const int i : positions.index_range()) {
+      const float3 position = math::transform_point(mat, positions[i]);
+
+      xy_positions[i] = position.xy();
+      z_positions[i] = position.z;
+    }
   }
 }
 

@@ -584,18 +584,22 @@ void calc_local_positions(const SculptSession &ss,
                           MutableSpan<float3> local_positions);
 
 /**
- * Transforms positions from object space positions to brush-local space. Splitting the XY and Z
- * components gives slightly better performance. Used by some brushes that only need the XY
- * components for certain calculations. Does not support tube falloff shape since the Z component
- * is required for the projection to the view plane.
+ * Transforms positions from object space positions to brush-local space and then splits the XY
+ * and Z components. This gives slightly better performance for brushes that only need the XY
+ * components for certain calculations. For tube falloff shape, positions are first projected onto
+ * the view plane.
  */
-void calc_local_positions(Span<float3> vert_positions,
+void calc_local_positions(const SculptSession &ss,
+                          Span<float3> vert_positions,
                           Span<int> verts,
                           const float4x4 &mat,
+                          eBrushFalloffShape falloff_shape,
                           MutableSpan<float2> xy_positions,
                           MutableSpan<float> z_positions);
-void calc_local_positions(Span<float3> positions,
+void calc_local_positions(const SculptSession &ss,
+                          Span<float3> positions,
                           const float4x4 &mat,
+                          eBrushFalloffShape falloff_shape,
                           MutableSpan<float2> xy_positions,
                           MutableSpan<float> z_positions);
 
