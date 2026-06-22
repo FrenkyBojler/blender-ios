@@ -13,7 +13,7 @@
 
 #include "BKE_modifier.hh"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 
 #include "BLT_translation.hh"
 
