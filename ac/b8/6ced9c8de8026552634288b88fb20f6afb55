@@ -1,2 +1,3 @@
 Referenced by pull request #160495, Fix: Crash accessing null pointer in library override property remove
 Referenced by pull request #160497, Fix: liboverride outliner tree ordering resets insertion point to null.
+Referenced by commit fa296937157d24e1465a6f25163ffbae10a4e5fe, Fix: liboverride outliner tree ordering resets insertion point to null.
