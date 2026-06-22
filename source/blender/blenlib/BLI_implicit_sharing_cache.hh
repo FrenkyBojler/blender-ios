@@ -178,16 +178,11 @@ template<int KeySnapShotsNum, typename Value> class Cache : public CacheBase {
   {
     std::shared_ptr<Entry> *existing_entry = this->lookup_entry_ptr(orig_key);
     if (!existing_entry) {
-      std::shared_ptr<Entry> &value = this->ensure_entry(key);
-      if (value->versions_match(key)) {
-        return;
-      }
-      std::lock_guard lock{value->mutex};
-      if (value->versions_match(key)) {
-        return;
-      }
-      threading::isolate_task([&]() { update_fn(value->value); });
-      value->update_versions(key);
+      this->lookup_or_compute(key, [&]() {
+        Value value;
+        update_fn(value);
+        return value;
+      });
       return;
     }
 
