@@ -1723,15 +1723,15 @@ if(WITH_UI_TESTS)
     test_render.interactive_rendering_cycles
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
-    test_searchable_menus.test_view3d_add
-    test_searchable_menus.test_modifier_add
-    test_searchable_menus.test_sequencer_add
-    test_searchable_menus.test_sequencer_modifier_add
-    test_searchable_menus.test_shader_node_add
-    test_searchable_menus.test_compositor_node_add
-    test_searchable_menus.test_geometry_node_add
-    test_searchable_menus.test_node_swap_search
-    test_searchable_menus.test_grease_pencil_layer_search
+    test_menu_search_and_exec.test_view3d_add
+    test_menu_search_and_exec.test_modifier_add
+    test_menu_search_and_exec.test_sequencer_add
+    test_menu_search_and_exec.test_sequencer_modifier_add
+    test_menu_search_and_exec.test_shader_node_add
+    test_menu_search_and_exec.test_compositor_node_add
+    test_menu_search_and_exec.test_geometry_node_add
+    test_menu_search_and_exec.test_node_swap_search
+    test_menu_search_and_exec.test_grease_pencil_layer_search
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
