@@ -106,7 +106,9 @@ else()
         # Disable nis module
         export py_cv_module_nis=n/a &&
         # Disable posix shmem module
-        export py_cv_module__posixshmem=n/a
+        export py_cv_module__posixshmem=n/a &&
+        export ac_cv_func_pipe2=no &&
+        export ac_cv_func_dup3=no
       )
       set(PYTHON_IOS_CFLAGS "-I${LIBDIR}/ffi/include -I${LIBDIR}/ssl/include -I${LIBDIR}/lzma/include")
     else()

@@ -112,8 +112,29 @@ index a97a755..07ce853 100644
  else
    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
  /* end confdefs.h.  */
+@@ -23537,14 +23560,14 @@
+ $as_echo "no" >&6; }
+ 	have_libb2=no
+ else
+-	LIBB2_CFLAGS=$pkg_cv_LIBB2_CFLAGS
+-	LIBB2_LIBS=$pkg_cv_LIBB2_LIBS
+-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+-$as_echo "yes" >&6; }
++#	LIBB2_CFLAGS=$pkg_cv_LIBB2_CFLAGS
++#	LIBB2_LIBS=$pkg_cv_LIBB2_LIBS
++        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
++$as_echo "no" >&6; }
+ 
+-    have_libb2=yes
++    have_libb2=no
+ 
+-$as_echo "#define HAVE_LIBB2 1" >>confdefs.h
++#$as_echo "#define HAVE_LIBB2 1" >>confdefs.h
+ 
+ 
+ fi
 
- --- a/Modules/posixmodule.c	2023-03-20 15:29:29
+--- a/Modules/posixmodule.c	2023-03-20 15:29:29
 +++ b/Modules/posixmodule.c	2023-06-14 14:36:27
 @@ -346,13 +346,22 @@
  #    define HAVE_WSPAWNV    1
@@ -177,7 +198,7 @@ index a97a755..07ce853 100644
 +_contextvars _contextvarsmodule.c
 +_csv _csv.c
 +_datetime _datetimemodule.c
-+_decimal _decimal/libmpdec/context.c _decimal/_decimal.c _decimal/libmpdec/basearith.c _decimal/libmpdec/constants.c _decimal/libmpdec/convolute.c _decimal/libmpdec/crt.c _decimal/libmpdec/difradix2.c _decimal/libmpdec/fnt.c _decimal/libmpdec/fourstep.c _decimal/libmpdec/io.c _decimal/libmpdec/mpalloc.c _decimal/libmpdec/mpdecimal.c _decimal/libmpdec/numbertheory.c _decimal/libmpdec/sixstep.c _decimal/libmpdec/transpose.c -I$(srcdir)/Modules/_decimal/  -I$(srcdir)/Modules/_decimal/libmpdec -DCONFIG_64 -DANSI
++_decimal _decimal/_decimal.c -I$(srcdir)/Modules/_decimal/ -I$(srcdir)/Modules/_decimal/libmpdec -DCONFIG_64 -DANSI $(LIBMPDEC_A) -lm
 +_heapq _heapqmodule.c
 +_json _json.c
 +_lsprof _lsprof.c rotatingtree.c
@@ -385,3 +406,12 @@ index 019fb4a..1ec0592 100644
 
  # Examples
  *static*
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -503,7 +503,8 @@ LIBRARY_OBJS=	\
+ 		$(LIBRARY_OBJS_OMIT_FROZEN) \
+ 		$(DEEPFREEZE_OBJS) \
+ 		Modules/getpath.o \
+-		Python/frozen.o
++		Python/frozen.o \
++		$(LIBMPDEC_OBJS)
