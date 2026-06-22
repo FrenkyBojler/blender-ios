@@ -434,8 +434,7 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
             if (node_fully_masked_or_hidden(node)) {
               return false;
             }
-            return node_in_box_positive_z(
-                mat, node.bounds(), float3(0.0f, 0.0f, 0.0f), float3(1.0f, 1.0f, 1.0f));
+            return node_in_box_positive_z(mat, node.bounds());
           });
       return {plane_mask, plane_center, plane_normal};
     }
