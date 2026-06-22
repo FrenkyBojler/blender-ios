@@ -399,35 +399,40 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
   float3 plane_center;
   float3 plane_normal;
 
+  const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush.falloff_shape);
+
   /* If using spherical falloff, plane normal and center are calculated using an estimate of the
    * shape of the affected mesh. If using projected falloff, we ignore the shape of the mesh
    * and treat it as a flat plane. */
-  if (eBrushFalloffShape(brush.falloff_shape) == PAINT_FALLOFF_SHAPE_SPHERE) {
-    const float displace = ss.cache->radius * brush_plane_offset_get(brush, ss) *
-                           (flip ? -1.0f : 1.0f);
+  switch (falloff_shape) {
+    case PAINT_FALLOFF_SHAPE_SPHERE: {
+      const float displace = ss.cache->radius * brush_plane_offset_get(brush, ss) *
+                             (flip ? -1.0f : 1.0f);
 
-    /* TODO: Test to see if the sqrt2 extra factor can be removed */
-    const float initial_radius_squared = math::square(ss.cache->radius * std::numbers::sqrt2);
+      /* TODO: Test to see if the sqrt2 extra factor can be removed */
+      const float initial_radius_squared = math::square(ss.cache->radius * std::numbers::sqrt2);
 
-    const bool use_original = !ss.cache->accum;
-    const IndexMask initial_node_mask = gather_nodes(pbvh,
-                                                     eBrushFalloffShape(brush.falloff_shape),
-                                                     use_original,
-                                                     ss.cache->location_symm,
-                                                     initial_radius_squared,
-                                                     ss.cache->view_normal_symm,
-                                                     memory);
+      const bool use_original = !ss.cache->accum;
+      const IndexMask initial_node_mask = gather_nodes(pbvh,
+                                                       falloff_shape,
+                                                       use_original,
+                                                       ss.cache->location_symm,
+                                                       initial_radius_squared,
+                                                       ss.cache->view_normal_symm,
+                                                       memory);
 
-    calc_brush_plane(depsgraph, brush, object, initial_node_mask, plane_normal, plane_center);
-    plane_normal = tilt_apply_to_normal(plane_normal, *ss.cache, brush.tilt_strength_factor);
-    plane_center += plane_normal * ss.cache->scale * displace;
-  }
-  else if (eBrushFalloffShape(brush.falloff_shape) == PAINT_FALLOFF_SHAPE_TUBE) {
-    plane_normal = ss.cache->view_normal_symm;
-    plane_center = ss.cache->location_symm;
-  }
-  else {
-    BLI_assert_unreachable();
+      calc_brush_plane(depsgraph, brush, object, initial_node_mask, plane_normal, plane_center);
+      plane_normal = tilt_apply_to_normal(plane_normal, *ss.cache, brush.tilt_strength_factor);
+      plane_center += plane_normal * ss.cache->scale * displace;
+      break;
+    }
+    case PAINT_FALLOFF_SHAPE_TUBE:
+      plane_normal = ss.cache->view_normal_symm;
+      plane_center = ss.cache->location_symm;
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
   }
 
   if (math::is_zero(ss.cache->grab_delta_symm) || math::is_zero(plane_normal)) {
@@ -437,7 +442,7 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
 
   const float4x4 mat = calc_local_matrix(brush, *ss.cache, plane_normal, plane_center, flip);
 
-  switch (eBrushFalloffShape(brush.falloff_shape)) {
+  switch (falloff_shape) {
     case PAINT_FALLOFF_SHAPE_SPHERE: {
       const IndexMask plane_mask = bke::pbvh::search_nodes(
           pbvh, memory, [&](const bke::pbvh::Node &node) {

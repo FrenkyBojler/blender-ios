@@ -2914,42 +2914,46 @@ static void calc_brush_local_mat(const float rotation,
   calc_local_from_screen(
       *cache->vc, cache->location_symm, motion_normal_screen, motion_normal_local);
 
-  if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
-    /* Calculate the movement direction for the local matrix.
-     * Note that there is a deliberate prioritization here: Our calculations are
-     * designed such that the _motion vector_ gets projected into the tangent space;
-     * in most cases this will be more intuitive than projecting the transverse
-     * direction (which is orthogonal to the motion direction and therefore less
-     * apparent to the user).
-     * The Y-axis of the brush-local frame has to lie in the intersection of the tangent plane
-     * and the motion plane. */
-    cross_v3_v3v3(v, cache->sculpt_normal, motion_normal_local);
-    normalize_v3_v3(mat[1], v);
-    /* Get other axes. */
-    cross_v3_v3v3(mat[0], mat[1], cache->sculpt_normal);
-    copy_v3_v3(mat[2], cache->sculpt_normal);
-  }
-  else if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
-    /* The primary difference is that instead of using the sculpt normal (calculated from the
-     * affected nodes) and the brush motion normal to calculate the motion direction, we calculate
-     * brush direction directly from the screen space motion. */
+  switch (falloff_shape) {
+    case PAINT_FALLOFF_SHAPE_SPHERE: {
+      /* Calculate the movement direction for the local matrix.
+       * Note that there is a deliberate prioritization here: Our calculations are
+       * designed such that the _motion vector_ gets projected into the tangent space;
+       * in most cases this will be more intuitive than projecting the transverse
+       * direction (which is orthogonal to the motion direction and therefore less
+       * apparent to the user).
+       * The Y-axis of the brush-local frame has to lie in the intersection of the tangent plane
+       * and the motion plane. */
+      cross_v3_v3v3(v, cache->sculpt_normal, motion_normal_local);
+      normalize_v3_v3(mat[1], v);
+      /* Get other axes. */
+      cross_v3_v3v3(mat[0], mat[1], cache->sculpt_normal);
+      copy_v3_v3(mat[2], cache->sculpt_normal);
+      break;
+    }
+    case PAINT_FALLOFF_SHAPE_TUBE: {
+      /* The primary difference is that instead of using the sculpt normal (calculated from the
+       * affected nodes) and the brush motion normal to calculate the motion direction, we
+       * calculate brush direction directly from the screen space motion. */
 
-    float motion_dir_screen[2];
+      float motion_dir_screen[2];
 
-    /* Rotate motion_normal_screen clock-wise by 90 degrees. */
-    motion_dir_screen[0] = -motion_normal_screen[1];
-    motion_dir_screen[1] = motion_normal_screen[0];
+      /* Rotate motion_normal_screen clock-wise by 90 degrees. */
+      motion_dir_screen[0] = -motion_normal_screen[1];
+      motion_dir_screen[1] = motion_normal_screen[0];
 
-    /* Since the falloff shape is projected,  */
-    calc_local_from_screen(*cache->vc, cache->location_symm, motion_dir_screen, v);
-    normalize_v3_v3(mat[1], v);
-    normalize_v3_v3(mat[0], motion_normal_local);
+      /* Since the falloff shape is projected,  */
+      calc_local_from_screen(*cache->vc, cache->location_symm, motion_dir_screen, v);
+      normalize_v3_v3(mat[1], v);
+      normalize_v3_v3(mat[0], motion_normal_local);
 
-    /* We get the third axis by taking the cross product of the other two. */
-    cross_v3_v3v3(mat[2], mat[1], mat[0]);
-  }
-  else {
-    BLI_assert_unreachable();
+      /* We get the third axis by taking the cross product of the other two. */
+      cross_v3_v3v3(mat[2], mat[1], mat[0]);
+      break;
+    }
+    default:
+      BLI_assert_unreachable();
+      break;
   }
 
   /* Set location. */
