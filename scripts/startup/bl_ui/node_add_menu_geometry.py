@@ -438,6 +438,7 @@ class NODE_MT_gn_instance_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeRealizeInstances", search_weight=1.0)
         self.node_operator(layout, "GeometryNodeRotateInstances")
         self.node_operator(layout, "GeometryNodeScaleInstances")
+        self.node_operator(layout, "GeometryNodeSetInstanceAnimationState")
         self.node_operator(layout, "GeometryNodeSetInstanceTransform")
         self.node_operator(layout, "GeometryNodeTranslateInstances")
         layout.separator()

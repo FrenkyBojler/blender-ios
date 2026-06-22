@@ -266,6 +266,7 @@ set(SRC
   nodes/node_geo_set_grid_background.cc
   nodes/node_geo_set_grid_transform.cc
   nodes/node_geo_set_id.cc
+  nodes/node_geo_set_instance_animation_state.cc
   nodes/node_geo_set_instance_transform.cc
   nodes/node_geo_set_material.cc
   nodes/node_geo_set_material_index.cc
