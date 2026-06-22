@@ -116,7 +116,6 @@ struct SnapObjectContext {
       float dist_px_sq;
       float dist_nearest_sq;
     };
-    eSnapMode allowed_mask;
   } ret;
 };
 

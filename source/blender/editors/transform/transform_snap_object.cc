@@ -248,7 +248,6 @@ eSnapMode SnapData::snap_edge_points_impl(SnapObjectContext *sctx,
     this->nearest_point.dist_sq = dist_px_sq_orig;
 
     eSnapMode snap_to = sctx->runtime.snap_to_flag;
-    snap_to &= sctx->ret.allowed_mask;
     int e_mode_len = ((snap_to & SCE_SNAP_TO_EDGE) != 0) +
                      ((snap_to & SCE_SNAP_TO_EDGE_ENDPOINT) != 0) +
                      ((snap_to & SCE_SNAP_TO_EDGE_MIDPOINT) != 0);
@@ -505,13 +504,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
 
   DupliList duplilist;
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
-    const eSnapMode allowed_mask = snap_object_allowed_modes(sctx, base_act, &base);
-    const eSnapMode prev_snap_to_flag = sctx->runtime.snap_to_flag;
-    sctx->runtime.snap_to_flag &= allowed_mask;
-    if (sctx->runtime.snap_to_flag == SCE_SNAP_TO_NONE) {
-      sctx->runtime.snap_to_flag = prev_snap_to_flag;
-      continue;
-    }
+    sctx->runtime.snap_to_flag &= snap_object_allowed_modes(sctx, base_act, &base);
 
     const bool is_object_active = (&base == base_act);
     Object *obj_eval = DEG_get_evaluated(sctx->runtime.depsgraph, base.object);
@@ -525,7 +518,6 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
             SCE_SNAP_TO_NONE)
         {
           ret = tmp;
-          sctx->ret.allowed_mask = allowed_mask;
         }
       }
       duplilist.clear();
@@ -538,10 +530,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
         SCE_SNAP_TO_NONE)
     {
       ret = tmp;
-      sctx->ret.allowed_mask = allowed_mask;
     }
-
-    sctx->runtime.snap_to_flag = prev_snap_to_flag;
   }
   return ret;
 }
@@ -898,8 +887,6 @@ static eSnapMode snap_polygon(SnapObjectContext *sctx, eSnapMode snap_to_flag)
     return SCE_SNAP_TO_NONE;
   }
 
-  snap_to_flag &= sctx->ret.allowed_mask;
-
   return snap_polygon_mesh(
       sctx, sctx->ret.ob, sctx->ret.data, sctx->ret.obmat, snap_to_flag, sctx->ret.index);
 }
@@ -1237,7 +1224,6 @@ static bool snap_object_context_runtime_init(SnapObjectContext *sctx,
   sctx->ret.ob = nullptr;
   sctx->ret.data = nullptr;
   sctx->ret.dist_px_sq = dist_px_sq;
-  sctx->ret.allowed_mask = eSnapMode(short(0xffff));
 
   return true;
 }
