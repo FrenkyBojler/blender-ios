@@ -387,16 +387,14 @@ static void execute_relax_phase(Span<BMVert *> verts,
     }
     else {
       const float dt = target_dist - axis_coeffs[0][seg].x;
-      const float dt2 = dt * dt;
-      const float dt3 = dt2 * dt;
 
       const SplineCoeffs &cx = axis_coeffs[0][seg];
       const SplineCoeffs &cy = axis_coeffs[1][seg];
       const SplineCoeffs &cz = axis_coeffs[2][seg];
 
-      spline_pos = float3(cx.a + cx.b * dt + cx.c * dt2 + cx.d * dt3,
-                          cy.a + cy.b * dt + cy.c * dt2 + cy.d * dt3,
-                          cz.a + cz.b * dt + cz.c * dt2 + cz.d * dt3);
+      spline_pos = float3(cx.a + dt * (cx.b + dt * (cx.c + dt * cx.d)),
+                          cy.a + dt * (cy.b + dt * (cy.c + dt * cy.d)),
+                          cz.a + dt * (cz.b + dt * (cz.c + dt * cz.d)));
     }
 
     int v_index = phase.point_indices[i];
