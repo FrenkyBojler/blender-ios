@@ -108,11 +108,6 @@ if platform.system() == "Darwin":
             "underwater_caustics.blend",
         ]
 
-BLOCKLIST_HIP = [
-    # MNEE does not work properly on RDNA2 GPUs.
-    'underwater_caustics.blend',
-]
-
 BLOCKLIST_GPU = [
     # Uninvestigated differences with GPU.
     'glass_mix_40964.blend',
@@ -192,6 +187,7 @@ def get_arguments(filepath, output_filepath, use_hwrt, osl, extra_args):
         "--enable-autoexec",
         "--debug-memory",
         "--debug-exit-on-error",
+        "--console-crash-handler",
         filepath,
         "-E", "CYCLES",
         "-o", output_filepath,
@@ -228,6 +224,8 @@ def get_arguments(filepath, output_filepath, use_hwrt, osl, extra_args):
         args.extend(['--python', os.path.join(basedir, "util", "render_bake.py")])
     elif subject == 'denoise_animation':
         args.extend(['--python', os.path.join(basedir, "util", "render_denoise.py")])
+    elif subject == 'updates':
+        args.extend(['--python', os.path.join(basedir, "util", "render_updates.py")])
     else:
         args.extend(["-f", "1"])
 
@@ -303,9 +301,6 @@ def main():
     if device == 'METAL-RT':
         blocklist += BLOCKLIST_METAL
         blocklist += BLOCKLIST_METAL_RT
-
-    if device in ('HIP', 'HIP-RT'):
-        blocklist += BLOCKLIST_HIP
 
     test_dir_name = Path(args.testdir).name
     report = CyclesReport('Cycles', test_dir_name, args.outdir, args.oiiotool, device, blocklist, args.osl == 'all')

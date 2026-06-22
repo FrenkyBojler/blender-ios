@@ -10,7 +10,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
 #include <fmt/format.h>
@@ -27,13 +27,13 @@
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -104,7 +104,7 @@ static void screen_copy_data(Main * /*bmain*/,
                              std::optional<Library *> owner_library,
                              ID *id_dst,
                              const ID *id_src,
-                             int /*flag*/)
+                             int flag)
 {
   /* Workspaces should always be local data currently. */
   BLI_assert(!owner_library || owner_library == nullptr);
@@ -161,6 +161,18 @@ static void screen_copy_data(Main * /*bmain*/,
   /* Cleanup: reset temp data. */
   for (ScrVert &sv_src : screen_src->vertbase) {
     sv_src.newv = nullptr;
+  }
+
+  screen_dst->active_region = nullptr;
+  screen_dst->animtimer = nullptr;
+  screen_dst->context = nullptr;
+  screen_dst->tool_tip = nullptr;
+
+  if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
+    BKE_previewimg_id_copy(&screen_dst->id, &screen_src->id);
+  }
+  else {
+    screen_dst->preview = nullptr;
   }
 }
 
@@ -1230,14 +1242,26 @@ void BKE_screen_header_alignment_reset(bScreen *screen)
   for (ScrArea &area : screen->areabase) {
     for (ARegion &region : area.regionbase) {
       if (ELEM(region.regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
-        if (ELEM(area.spacetype, SPACE_FILE, SPACE_USERPREF, SPACE_OUTLINER, SPACE_PROPERTIES)) {
+        if (ELEM(area.spacetype,
+                 SPACE_FILE,
+                 SPACE_USERPREF,
+                 SPACE_OUTLINER,
+                 SPACE_PROPERTIES,
+                 SPACE_PROJECT))
+        {
           region.alignment = RGN_ALIGN_TOP;
           continue;
         }
         region.alignment = alignment;
       }
       if (region.regiontype == RGN_TYPE_FOOTER) {
-        if (ELEM(area.spacetype, SPACE_FILE, SPACE_USERPREF, SPACE_OUTLINER, SPACE_PROPERTIES)) {
+        if (ELEM(area.spacetype,
+                 SPACE_FILE,
+                 SPACE_USERPREF,
+                 SPACE_OUTLINER,
+                 SPACE_PROPERTIES,
+                 SPACE_PROJECT))
+        {
           region.alignment = RGN_ALIGN_BOTTOM;
           continue;
         }

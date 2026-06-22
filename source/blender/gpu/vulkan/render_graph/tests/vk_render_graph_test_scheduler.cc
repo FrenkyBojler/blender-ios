@@ -27,8 +27,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_rendering_copy_buffer_end_rendering)
     access_info.images.append({image,
                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {},
-                               use_dynamic_rendering_local_read});
+                               {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -129,8 +128,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_end)
     access_info.images.append({image,
                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {},
-                               use_dynamic_rendering_local_read});
+                               {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -253,8 +251,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_copy_buffer_clear_attachments_end)
     access_info.images.append({image,
                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {},
-                               use_dynamic_rendering_local_read});
+                               {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -377,8 +374,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_clear_att
     access_info.images.append({image,
                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {},
-                               use_dynamic_rendering_local_read});
+                               {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -532,8 +528,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_copy_framebuffer_draw_end)
     access_info.images.append({image_attachment,
                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {},
-                               use_dynamic_rendering_local_read});
+                               {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -719,8 +714,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_update_draw_update_draw_update_draw_end
     access_info.images.append({image,
                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {},
-                               use_dynamic_rendering_local_read});
+                               {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -948,8 +942,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_copy_to_attachment_draw_end)
     access_info.images.append({image_attachment,
                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {},
-                               use_dynamic_rendering_local_read});
+                               {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1130,8 +1123,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_rendering_end_rendering_begin_rendering
     access_info.images.append({image,
                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {},
-                               use_dynamic_rendering_local_read});
+                               {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1178,8 +1170,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_rendering_end_rendering_begin_rendering
     access_info.images.append({image,
                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                VK_IMAGE_ASPECT_COLOR_BIT,
-                               {},
-                               use_dynamic_rendering_local_read});
+                               {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1309,8 +1300,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end)
         {image,
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
          VK_IMAGE_ASPECT_COLOR_BIT,
-         {},
-         use_dynamic_rendering_local_read});
+         {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1360,8 +1350,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end)
         {image,
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
          VK_IMAGE_ASPECT_COLOR_BIT,
-         {},
-         use_dynamic_rendering_local_read});
+         {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1503,8 +1492,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
         {image,
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
          VK_IMAGE_ASPECT_COLOR_BIT,
-         {},
-         use_dynamic_rendering_local_read});
+         {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1554,8 +1542,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
         {image,
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
          VK_IMAGE_ASPECT_COLOR_BIT,
-         {},
-         use_dynamic_rendering_local_read});
+         {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1618,7 +1605,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
       "VK_PIPELINE_STAGE_ALL_COMMANDS_BIT" +
           endl() +
-          " - image_barrier(src_access_mask=VK_ACCESS_TRANSFER_WRITE_BIT, "
+          " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, "
+          "VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, "
           "dst_access_mask=VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT, "
           "VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
           "VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, "
@@ -1728,8 +1716,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_dispatch_begin_draw_end_su
         {image,
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
          VK_IMAGE_ASPECT_COLOR_BIT,
-         {},
-         use_dynamic_rendering_local_read});
+         {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1781,8 +1768,7 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_dispatch_begin_draw_end_su
         {image,
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
          VK_IMAGE_ASPECT_COLOR_BIT,
-         {},
-         use_dynamic_rendering_local_read});
+         {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -1863,6 +1849,137 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_dispatch_begin_draw_end_su
   EXPECT_NE(log[10].find("new_layout=" + color_attachment_layout_str()), std::string::npos);
   /* Log[13]: final end_rendering. */
   EXPECT_NE(log[13].find("end_rendering"), std::string::npos);
+}
+
+/**
+ * Reproduces VUID-vkCmdBeginRendering-pRenderingInfo-09588 by testing the restart path in
+ * groups_build_commands() with a depth attachment that transitions to GENERAL layout during
+ * storage access, then needs to be transitioned back before vkCmdBeginRendering. */
+TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_restart_depth)
+{
+  VkHandle<VkImage> image(1u);
+  VkHandle<VkImageView> image_view(2u);
+  VkHandle<VkPipelineLayout> pipeline_layout(4u);
+  VkHandle<VkPipeline> pipeline(3u);
+
+  resources.add_image(image, false);
+
+  /* First scope: BEGIN(rendering depth) -> DRAW(storage=GENERAL) -> END. */
+  {
+    VKResourceAccessInfo access_info = {};
+    access_info.images.append(
+        {image, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, {}});
+    VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
+    begin_rendering.node_data.depth_attachment.sType =
+        VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    begin_rendering.node_data.depth_attachment.imageLayout =
+        VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+    begin_rendering.node_data.depth_attachment.imageView = image_view;
+    begin_rendering.node_data.depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    begin_rendering.node_data.depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    begin_rendering.node_data.vk_rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = 0;
+    begin_rendering.node_data.vk_rendering_info.layerCount = 1;
+    begin_rendering.node_data.vk_rendering_info.pDepthAttachment =
+        &begin_rendering.node_data.depth_attachment;
+
+    render_graph->add_node(begin_rendering);
+  }
+
+  {
+    VKResourceAccessInfo access_info = {};
+    /* Image accessed as shader storage, forcing GENERAL layout. */
+    access_info.images.append({image,
+                               VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
+                               VK_IMAGE_ASPECT_DEPTH_BIT,
+                               {}});
+    VKDrawNode::CreateInfo draw(access_info);
+    draw.node_data.first_instance = 0;
+    draw.node_data.first_vertex = 0;
+    draw.node_data.instance_count = 1;
+    draw.node_data.vertex_count = 4;
+    draw.node_data.graphics.pipeline_data.push_constants_range = IndexRange(0);
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_pipeline = pipeline;
+    draw.node_data.graphics.pipeline_data.vk_pipeline_layout = pipeline_layout;
+    draw.node_data.graphics.viewport.viewports.append(VkViewport{});
+    draw.node_data.graphics.viewport.scissors.append(VkRect2D{});
+    render_graph->add_node(draw);
+  }
+
+  {
+    VKEndRenderingNode::CreateInfo end_rendering = {};
+    render_graph->add_node(end_rendering);
+  }
+
+  /* Second scope: BEGIN(rendering depth) -> DRAW (storage=DEPTH_ATTACHMENT_OPTIMAL) -> END. */
+  {
+    VKResourceAccessInfo access_info = {};
+    access_info.images.append(
+        {image, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, {}});
+    VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
+    begin_rendering.node_data.depth_attachment.sType =
+        VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    begin_rendering.node_data.depth_attachment.imageLayout =
+        VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+    begin_rendering.node_data.depth_attachment.imageView = image_view;
+    begin_rendering.node_data.depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    begin_rendering.node_data.depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    begin_rendering.node_data.vk_rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = 0;
+    begin_rendering.node_data.vk_rendering_info.layerCount = 1;
+    begin_rendering.node_data.vk_rendering_info.pDepthAttachment =
+        &begin_rendering.node_data.depth_attachment;
+
+    render_graph->add_node(begin_rendering);
+  }
+
+  {
+    VKResourceAccessInfo access_info = {};
+    access_info.images.append(
+        {image, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, {}});
+    VKDrawNode::CreateInfo draw(access_info);
+    draw.node_data.first_instance = 0;
+    draw.node_data.first_vertex = 0;
+    draw.node_data.instance_count = 1;
+    draw.node_data.vertex_count = 4;
+    draw.node_data.graphics.pipeline_data.push_constants_range = IndexRange(0);
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_pipeline = pipeline;
+    draw.node_data.graphics.pipeline_data.vk_pipeline_layout = pipeline_layout;
+    draw.node_data.graphics.viewport.viewports.append(VkViewport{});
+    draw.node_data.graphics.viewport.scissors.append(VkRect2D{});
+    render_graph->add_node(draw);
+  }
+
+  {
+    VKEndRenderingNode::CreateInfo end_rendering = {};
+    render_graph->add_node(end_rendering);
+  }
+
+  submit(render_graph, command_buffer);
+
+  /* Verify there is a barrier transitioning GENERAL -> DEPTH_ATTACHMENT_OPTIMAL
+   * that appears after end_rendering of the first scope and before begin_rendering
+   * of the second scope. */
+  bool found_restart_barrier = false;
+  bool passed_first_scope_end = false;
+  for (const std::string &entry : log) {
+    if (entry == "end_rendering()") {
+      passed_first_scope_end = true;
+      continue;
+    }
+    if (passed_first_scope_end && entry.find("pipeline_barrier") != std::string::npos &&
+        entry.find("old_layout=VK_IMAGE_LAYOUT_GENERAL") != std::string::npos &&
+        entry.find("new_layout=VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL") != std::string::npos)
+    {
+      found_restart_barrier = true;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_restart_barrier)
+      << "Missing restart barrier to transition depth attachment from GENERAL layout back to "
+         "DEPTH_ATTACHMENT_OPTIMAL before begin_rendering.";
 }
 
 INSTANTIATE_TEST_SUITE_P(, VKRenderGraphTestScheduler, ::testing::Values(true, false));

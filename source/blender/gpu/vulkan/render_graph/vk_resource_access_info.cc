@@ -26,6 +26,14 @@ VkImageLayout VKImageAccess::to_vk_image_layout(bool supports_local_read) const
     return VK_IMAGE_LAYOUT_GENERAL;
   }
 
+  /* This condition is just in case if is_input_attachment flag is forgotten to be specified. */
+  if (supports_local_read && vk_access_flags & (VK_ACCESS_INPUT_ATTACHMENT_READ_BIT |
+                                                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT))
+  {
+    return VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR;
+  }
+
   if (vk_access_flags &
       (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT))
   {

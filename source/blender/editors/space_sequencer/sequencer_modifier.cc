@@ -6,8 +6,8 @@
  * \ingroup spseq
  */
 
-#include "BLI_listbase.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -346,7 +346,13 @@ void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  ot->prop = RNA_def_enum(ot->srna, "type", type_items, SEQ_MODIFIER_COPY_REPLACE, "Type", "");
+  ot->prop = RNA_def_enum(ot->srna,
+                          "type",
+                          type_items,
+                          SEQ_MODIFIER_COPY_REPLACE,
+                          "Type",
+                          "Whether to replace all modifiers on the selected strips or append to "
+                          "their existing modifier stack");
   prop = RNA_def_string(ot->srna,
                         "modifier",
                         nullptr,

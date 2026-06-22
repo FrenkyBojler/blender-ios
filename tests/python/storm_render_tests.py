@@ -87,6 +87,7 @@ BLOCKLIST_METAL = [
 # AMD seems to have similar limitations as Metal for transparency.
 BLOCKLIST_AMD = BLOCKLIST_METAL + [
     "volume_tricubic_interpolation.blend",
+    "holdout.blend",
 ]
 
 # Minor difference in texture coordinate for white noise hash.
@@ -192,6 +193,7 @@ def get_arguments(filepath, output_filepath, gpu_backend):
         "--factory-startup",
         "--enable-autoexec",
         "--debug-memory",
+        "--console-crash-handler",
         "--debug-exit-on-error"]
 
     if gpu_backend:

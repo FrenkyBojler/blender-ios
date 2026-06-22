@@ -20,8 +20,10 @@
 
 /* Hierarchical Z down-sampling. */
 #define HIZ_MIP_COUNT 7
-/* NOTE: The shader is written to update 5 mipmaps using LDS. */
-#define HIZ_GROUP_SIZE 32
+/* NOTE: The shader is written to update 5 mipmaps using LDS.
+ * Each thread actually update 4 LOD_0 pixels, which means the number of MIPLVL we cover is:
+ * `(log2(HIZ_GROUP_SIZE) + 1) + LOD_0 + LAST_GROUP_LVL = HIZ_MIP_COUNT` */
+#define HIZ_GROUP_SIZE 16
 
 /* Avoid too much overhead caused by resizing the light buffers too many time. */
 #define LIGHT_CHUNK 256
@@ -206,19 +208,6 @@
 #define UTIL_BSDF_LAYER 4
 #define UTIL_DISK_INTEGRAL_LAYER UTIL_SSS_TRANSMITTANCE_PROFILE_LAYER
 #define UTIL_DISK_INTEGRAL_COMP 3
-
-/* Could be somewhere else. */
-#ifdef GPU_SHADER
-#  if defined(GPU_FRAGMENT_SHADER)
-#    define UTIL_TEXEL float2(gl_FragCoord.xy)
-#  elif defined(GPU_COMPUTE_SHADER)
-#    define UTIL_TEXEL float2(gl_GlobalInvocationID.xy)
-#  elif defined(GPU_VERTEX_SHADER)
-#    define UTIL_TEXEL float2(gl_VertexID, 0)
-#  elif defined(GPU_LIBRARY_SHADER)
-#    define UTIL_TEXEL float2(0)
-#  endif
-#endif
 
 #define PREPASS_FRAG_OUT_NORMAL 0
 #define PREPASS_FRAG_OUT_OB_ID 1

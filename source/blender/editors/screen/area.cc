@@ -14,14 +14,14 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_linklist.h"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_linklist.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_rand.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -2204,7 +2204,7 @@ static void area_init_type_fallback(ScrArea *area, eSpace_Type space_type)
   }
   if (sl) {
     SpaceLink *sl_old = static_cast<SpaceLink *>(area->spacedata.first);
-    if (LIKELY(sl != sl_old)) {
+    if (sl != sl_old) [[likely]] {
       BLI_remlink(&area->spacedata, sl);
       BLI_addhead(&area->spacedata, sl);
 
@@ -3256,7 +3256,7 @@ static bool panel_add_check(const bContext *C,
     }
   }
 
-  if (LIKELY(panel_type->draw)) {
+  if (panel_type->draw) [[likely]] {
     if (panel_type->poll && !panel_type->poll(C, panel_type)) {
       return false;
     }
@@ -3625,8 +3625,10 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
 
   /* draw panels if they are large enough. */
   const bool has_category_tabs = ui::panel_category_tabs_is_visible(region);
-  const short min_draw_size = has_category_tabs ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
-                                                  std::min(region->runtime->type->prefsizex, 20);
+  const short min_draw_size = has_category_tabs ?
+                                  short(UI_PANEL_CATEGORY_MIN_WIDTH + ui::PANEL_MIN_DRAW_WIDTH) :
+                                  std::min(region->runtime->type->prefsizex,
+                                           ui::PANEL_MIN_DRAW_WIDTH);
   if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
     ui::panels_draw(C, region);
   }
@@ -3636,7 +3638,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
 
   /* Set in layout. */
   if (has_category_tabs && region->runtime->category) {
-    ui::panel_category_tabs_draw_all(region, region->runtime->category);
+    ui::panel_category_tabs_draw_all(C, region, region->runtime->category);
   }
 
   /* scrollers */
@@ -3745,7 +3747,7 @@ static bool panel_property_search(const bContext *C,
         block, ui::LayoutDirection::Horizontal, ui::LayoutType::Header, 0, 0, 0, 0, 0, style);
     panel_type->draw_header(C, panel);
   }
-  if (LIKELY(panel->type->draw != nullptr)) {
+  if (panel->type->draw != nullptr) [[likely]] {
     panel->layout = &ui::block_layout(
         block, ui::LayoutDirection::Vertical, ui::LayoutType::Panel, 0, 0, 0, 0, 0, style);
     panel_type->draw(C, panel);

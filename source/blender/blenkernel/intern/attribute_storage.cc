@@ -5,13 +5,15 @@
 #include "CLG_log.h"
 
 #include "BLI_array_utils.hh"
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_color_types.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_memory_counter.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_vector_set.hh"
+
+#include "PRF_profile.hh"
 
 #include "BLT_translation.hh"
 
@@ -375,6 +377,7 @@ void AttributeStorage::rename(const Map<Attribute *, StringRef> &renames)
 
 void AttributeStorage::resize(const AttrDomain domain, const int64_t new_size)
 {
+  PRF_scope_with_name("AttributeStorage::resize", ProfileCategory::Default);
   for (Attribute &attr : *this) {
     if (attr.domain() != domain) {
       continue;
