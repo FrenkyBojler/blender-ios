@@ -298,7 +298,7 @@ void AbstractGridView::scroll_active_into_view(bContext *C, bool scroll_active_t
         int target_row = (index / cols_per_row_) + 1;
         target_row += scroll_active_to_center ? count_rows_in_view / 2 : 0;
         const int cur_height = BLI_rctf_size_y(&v2d.cur);
-        v2d.cur.ymin = v2d.tot.ymax - target_row * style_.tile_height;
+        v2d.cur.ymin = v2d.tot.ymax - target_row * style_.tile_height - U.pixelsize;
         v2d.cur.ymax = v2d.cur.ymin + cur_height;
       }
     }
