@@ -411,8 +411,13 @@ void LookdevModule::sync_pass(PassSimple &pass,
 
   const DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_CULL_BACK;
 
-  GPUMaterial *gpumat = inst_.shaders.material_shader_get(
-      mat, mat->nodetree, MAT_PIPE_FORWARD, MAT_GEOM_MESH, false, inst_.materials.default_surface);
+  GPUMaterial *gpumat = inst_.shaders.material_shader_get(mat,
+                                                          mat->nodetree,
+                                                          MAT_PIPE_FORWARD,
+                                                          MAT_GEOM_MESH,
+                                                          false,
+                                                          inst_.materials.default_surface,
+                                                          inst_.use_strand_curves);
   pass.state_set(state);
   pass.material_set(*inst_.manager, gpumat, false, inst_.anisotropic_filtering);
   pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);

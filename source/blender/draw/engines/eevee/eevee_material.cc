@@ -149,8 +149,13 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
   blender::Material *default_mat = is_volume ? default_volume : default_surface;
 
   MaterialPass matpass = MaterialPass();
-  matpass.gpumat = inst_.shaders.material_shader_get(
-      blender_mat, ntree, pipeline_type, geometry_type, use_deferred_compilation, default_mat);
+  matpass.gpumat = inst_.shaders.material_shader_get(blender_mat,
+                                                     ntree,
+                                                     pipeline_type,
+                                                     geometry_type,
+                                                     use_deferred_compilation,
+                                                     default_mat,
+                                                     inst_.use_strand_curves);
 
   const bool is_forward = ELEM(pipeline_type,
                                MAT_PIPE_FORWARD,
@@ -169,13 +174,23 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     }
     case GPU_MAT_QUEUED:
       queued_shaders_count++;
-      matpass.gpumat = inst_.shaders.material_shader_get(
-          default_mat, default_mat->nodetree, pipeline_type, geometry_type, false, nullptr);
+      matpass.gpumat = inst_.shaders.material_shader_get(default_mat,
+                                                         default_mat->nodetree,
+                                                         pipeline_type,
+                                                         geometry_type,
+                                                         false,
+                                                         nullptr,
+                                                         inst_.use_strand_curves);
       break;
     case GPU_MAT_FAILED:
     default:
-      matpass.gpumat = inst_.shaders.material_shader_get(
-          error_mat_, error_mat_->nodetree, pipeline_type, geometry_type, false, nullptr);
+      matpass.gpumat = inst_.shaders.material_shader_get(error_mat_,
+                                                         error_mat_->nodetree,
+                                                         pipeline_type,
+                                                         geometry_type,
+                                                         false,
+                                                         nullptr,
+                                                         inst_.use_strand_curves);
       break;
   }
   /* Returned material should be ready to be drawn. */
@@ -391,12 +406,13 @@ Material MaterialModule::material_get(const ObjectHandle &ob_handle,
 ShaderGroups MaterialModule::default_materials_load(bool block_until_ready)
 {
   bool shaders_are_ready = true;
-  auto request_shader =
-      [&](blender::Material *mat, eMaterialPipeline pipeline, eMaterialGeometry geom) {
-        GPUMaterial *gpu_mat = inst_.shaders.material_shader_get(
-            mat, mat->nodetree, pipeline, geom, !block_until_ready, nullptr);
-        shaders_are_ready = shaders_are_ready && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
-      };
+  auto request_shader = [&](blender::Material *mat,
+                            eMaterialPipeline pipeline,
+                            eMaterialGeometry geom) {
+    GPUMaterial *gpu_mat = inst_.shaders.material_shader_get(
+        mat, mat->nodetree, pipeline, geom, !block_until_ready, nullptr, inst_.use_strand_curves);
+    shaders_are_ready = shaders_are_ready && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
+  };
 
   request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED, MAT_GEOM_MESH);
   request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_VELOCITY, MAT_GEOM_MESH);

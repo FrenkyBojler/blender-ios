@@ -933,7 +933,9 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
   return available_slots;
 }
 
-void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOutput *codegen_)
+void ShaderModule::material_create_info_amend(GPUMaterial *gpumat,
+                                              GPUCodegenOutput *codegen_,
+                                              bool use_strand_curves)
 {
   using namespace blender::gpu::shader;
 
@@ -1444,12 +1446,13 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.batch_resources_.clear();
   }
 
-  material_create_info_pipelines_amend(geometry_type, pipeline_type, info);
+  material_create_info_pipelines_amend(geometry_type, pipeline_type, use_strand_curves, info);
 }
 
 struct CallbackThunk {
   ShaderModule *shader_module;
   blender::Material *default_mat;
+  bool use_strand_curves;
 };
 
 /* WATCH: This can be called from another thread! Needs to not touch the shader module in any
@@ -1457,7 +1460,7 @@ struct CallbackThunk {
 static void codegen_callback(void *void_thunk, GPUMaterial *mat, GPUCodegenOutput *codegen)
 {
   CallbackThunk *thunk = static_cast<CallbackThunk *>(void_thunk);
-  thunk->shader_module->material_create_info_amend(mat, codegen);
+  thunk->shader_module->material_create_info_amend(mat, codegen, thunk->use_strand_curves);
 }
 
 static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
@@ -1508,7 +1511,8 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
                                                                  pipeline_type,
                                                                  geometry_type,
                                                                  false,
-                                                                 nullptr);
+                                                                 nullptr,
+                                                                 thunk->use_strand_curves);
     return GPU_material_get_pass(mat);
   }
 
@@ -1539,7 +1543,8 @@ GPUMaterial *ShaderModule::material_shader_get(blender::Material *blender_mat,
                                                eMaterialPipeline pipeline_type,
                                                eMaterialGeometry geometry_type,
                                                bool deferred_compilation,
-                                               blender::Material *default_mat)
+                                               blender::Material *default_mat,
+                                               bool use_strand_curves)
 {
   eMaterialDisplacement displacement_type = to_displacement_type(blender_mat->displacement_method);
   eMaterialThickness thickness_type = to_thickness_type(blender_mat->thickness_mode);
@@ -1550,7 +1555,7 @@ GPUMaterial *ShaderModule::material_shader_get(blender::Material *blender_mat,
   bool is_default_material = default_mat == nullptr;
   BLI_assert(blender_mat != default_mat);
 
-  CallbackThunk thunk = {this, default_mat};
+  CallbackThunk thunk = {this, default_mat, use_strand_curves};
 
   GPUMaterialFromNodeTreeResult material_from_tree = GPU_material_from_nodetree(
       blender_mat,
@@ -1565,7 +1570,7 @@ GPUMaterial *ShaderModule::material_shader_get(blender::Material *blender_mat,
       is_default_material ? nullptr : pass_replacement_cb);
   store_node_tree_errors(material_from_tree);
   return material_from_tree.material;
-}
+}  // namespace blender::eevee
 
 GPUMaterial *ShaderModule::world_shader_get(blender::World *blender_world,
                                             bNodeTree *nodetree,
@@ -1574,7 +1579,7 @@ GPUMaterial *ShaderModule::world_shader_get(blender::World *blender_world,
 {
   uint64_t shader_uuid = shader_uuid_from_material_type(pipeline_type, MAT_GEOM_WORLD);
 
-  CallbackThunk thunk = {this, nullptr};
+  CallbackThunk thunk = {this, nullptr, false};
 
   GPUMaterialFromNodeTreeResult material_from_tree = GPU_material_from_nodetree(
       nullptr,
@@ -1599,6 +1604,7 @@ GPUMaterial *ShaderModule::world_shader_get(blender::World *blender_world,
 
 void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geometry_type,
                                                         eMaterialPipeline pipeline_type,
+                                                        bool use_strand_curves,
                                                         gpu::shader::ShaderCreateInfo &r_info)
 {
   /* Pipeline states to compile during shader compilation. */
@@ -1659,9 +1665,11 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
   }
 
   /* Determine primitive type base on the geometry type. */
-  /* TODO: For curves we should use the correct one based on the scene settings. Currently it will
-   * assume it is set to strip or cylinder. */
-  constexpr GPUPrimType prim_type = GPU_PRIM_TRIS;
+  GPUPrimType prim_type = GPU_PRIM_TRIS;
+
+  if (geometry_type == MAT_GEOM_CURVES && use_strand_curves) {
+    prim_type = GPU_PRIM_LINE_STRIP;
+  }
 
   switch (pipeline_type) {
     case MAT_PIPE_PREPASS_DEFERRED: {

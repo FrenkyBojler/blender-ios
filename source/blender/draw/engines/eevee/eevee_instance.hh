@@ -181,6 +181,7 @@ class Instance : public DrawEngine {
   bool use_surfaces = true;
   bool use_curves = true;
   bool use_volumes = true;
+  bool use_strand_curves = false;
 
   GPUSamplerFiltering anisotropic_filtering = GPU_SAMPLER_FILTERING_DEFAULT;
 

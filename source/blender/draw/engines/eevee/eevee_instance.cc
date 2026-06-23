@@ -153,6 +153,9 @@ void Instance::init(const int2 &output_res,
   rv3d = rv3d_;
   manager = DRW_manager_get();
   update_eval_members();
+  /* Material shader precompilation needs to know the curve rendering mode
+   * before any material compilation occurs. */
+  use_strand_curves = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND);
 
   info_ = "";
 
@@ -289,6 +292,9 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   v3d = nullptr;
   rv3d = nullptr;
   update_eval_members();
+  /* Material pipeline precompilation needs to know whether curves are rendered
+   * as strands or ribbons before shader compilation begins. */
+  use_strand_curves = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND);
 
   is_light_bake = true;
   debug_mode = eDebugMode(G.debug_value);
