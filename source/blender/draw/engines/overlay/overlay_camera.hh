@@ -324,7 +324,8 @@ class Cameras : Overlay {
     const bool is_camera_view = (is_active && (rv3d->persp == RV3D_CAMOB));
     const bool is_equisolid = cam.panorama_type == CAM_PANORAMA_FISHEYE_EQUISOLID;
     const bool is_equidistant = cam.panorama_type == CAM_PANORAMA_FISHEYE_EQUIDISTANT;
-    const bool is_panoramic = cam.type == CAM_PANO && (is_equisolid || is_equidistant);
+    const bool is_mirrorball = cam.panorama_type == CAM_PANORAMA_MIRRORBALL;
+    const bool is_panoramic = cam.type == CAM_PANO && (is_equisolid || is_equidistant || is_mirrorball);
 
     const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
     const bool is_stereo3d_view = (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D);
@@ -403,7 +404,15 @@ class Cameras : Overlay {
       else {
         if (is_panoramic) {
 
-          data.fisheye_fov = cam.fisheye_fov;
+          if(is_mirrorball)
+          {
+            data.fisheye_fov = M_PI*2;
+          }
+          else
+          {
+             data.fisheye_fov = cam.fisheye_fov;
+          }
+         
           data.shift_x = cam.shiftx;
           data.shift_y = cam.shifty;
           data.aspect = aspect_ratio.x < aspect_ratio.y ? aspect_ratio.x : -aspect_ratio.y;
@@ -430,49 +439,7 @@ class Cameras : Overlay {
             data.matrix.y_axis() *= aspect_ratio.y;
           }
 
-          call_buffers_.fisheye_frame_buf.append(data, select_id);
-          /*
-
-                    data.shift_x = cam.shiftx;
-                    data.shift_y = shift.y;
-
-                    printf("SSHIFTO X:%f\n",shift.x);
-                    if(is_equidistant)
-                    {
-                    data.matrix.x_axis() *= cam.drawsize*aspect_ratio.x;
-                    data.matrix.y_axis() *= cam.drawsize*aspect_ratio.y;
-                    data.matrix.z_axis() *= cam.drawsize;
-                    call_buffers_.fisheye_frame_buf.append(data, select_id);
-                    }
-                    else
-                    {
-                    float4x4 matx;
-                    matx = data.matrix;
-                    data.matrix.x_axis() *= aspect_ratio.x;
-                    data.matrix.y_axis() *= aspect_ratio.y;
-
-                    data.matrix.x_axis() *= cam.drawsize*aspect_ratio.x;
-                    data.matrix.y_axis() *= cam.drawsize*aspect_ratio.y;
-                    data.matrix.z_axis() *= cam.drawsize;
-
-                    call_buffers_.fisheye_frame_buf.append(data, select_id);
-                    data.matrix = matx;
-                    }
-
-                    data.aspect = aspect_ratio.x < aspect_ratio.y ? aspect_ratio.x :
-             -aspect_ratio.y;
-
-
-                    data.matrix.x_axis() *= cam.drawsize;
-                    data.matrix.y_axis() *= cam.drawsize;
-                    data.matrix.z_axis() *= cam.drawsize;
-
-
-                    call_buffers_.fisheye_latitude_buf.append(data, select_id);           */
-
-          /*        (is_active ? call_buffers_.fisheye_tria_buf :
-                              call_buffers_.fisheye_tria_wire_buf)
-                     .append(data, select_id); */
+          call_buffers_.fisheye_frame_buf.append(data, select_id);         
         }
         else {
 
