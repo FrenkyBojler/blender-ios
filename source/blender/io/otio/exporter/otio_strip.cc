@@ -24,6 +24,7 @@
 
 #include "opentimelineio/anyDictionary.h"
 #include "opentimelineio/clip.h"
+#include "opentimelineio/effect.h"
 #include "opentimelineio/externalReference.h"
 #include "opentimelineio/freezeFrame.h"
 #include "opentimelineio/gap.h"
@@ -311,14 +312,55 @@ static void handle_speed_effect_strip(const Scene *scene,
 
   if (speed_factor != 0.0f) {
     auto ltw = SerializableObject::Retainer<LinearTimeWarp>(
-        new LinearTimeWarp(effect_strip->name + 2));
+        new LinearTimeWarp(effect_strip->name + 2, "Speed"));
     ltw->set_time_scalar(speed_factor);
     clip->effects().push_back(static_cast<SerializableObject::Retainer<otio::Effect>>(ltw.value));
   }
   else {
-    auto ff = SerializableObject::Retainer<FreezeFrame>(new FreezeFrame(effect_strip->name + 2));
+    auto ff = SerializableObject::Retainer<FreezeFrame>(
+        new FreezeFrame(effect_strip->name + 2, "Speed"));
     clip->effects().push_back(static_cast<SerializableObject::Retainer<otio::Effect>>(ff.value));
   }
+}
+
+template<typename T>
+static void handle_gaussian_blur_effect_strip(const Strip *effect_strip,
+                                              SerializableObject::Retainer<T> &clip)
+{
+  const GaussianBlurVars *blur = static_cast<const GaussianBlurVars *>(effect_strip->effectdata);
+
+  auto eff = SerializableObject::Retainer<otio::Effect>(
+      new otio::Effect(effect_strip->name + 2, "Gaussian Blur"));
+
+  AnyDictionary metadata;
+  metadata["name"] = "Gaussian Blur";
+  metadata["size_x"] = static_cast<double>(blur->size_x);
+  metadata["size_y"] = static_cast<double>(blur->size_y);
+  eff->metadata()["blender"] = metadata;
+
+  clip->effects().push_back(eff);
+}
+
+template<typename T>
+static void handle_glow_effect_strip(const Strip *effect_strip,
+                                     SerializableObject::Retainer<T> &clip)
+{
+  const GlowVars *glow = static_cast<const GlowVars *>(effect_strip->effectdata);
+
+  auto eff = SerializableObject::Retainer<otio::Effect>(
+      new otio::Effect(effect_strip->name + 2, "Glow"));
+
+  AnyDictionary metadata;
+  metadata["name"] = "Glow";
+  metadata["fMini"] = static_cast<double>(glow->fMini);
+  metadata["fClamp"] = static_cast<double>(glow->fClamp);
+  metadata["fBoost"] = static_cast<double>(glow->fBoost);
+  metadata["dDist"] = static_cast<double>(glow->dDist);
+  metadata["dQuality"] = static_cast<int64_t>(glow->dQuality);
+  metadata["bNoComp"] = static_cast<int64_t>(glow->bNoComp);
+  eff->metadata()["blender"] = metadata;
+
+  clip->effects().push_back(eff);
 }
 
 template<typename T>
@@ -336,6 +378,14 @@ void add_effects_to_clip(
     switch (effect_strip->type) {
       case STRIP_TYPE_SPEED:
         handle_speed_effect_strip(scene, strip, effect_strip, clip);
+        break;
+
+      case STRIP_TYPE_GAUSSIAN_BLUR:
+        handle_gaussian_blur_effect_strip(effect_strip, clip);
+        break;
+
+      case STRIP_TYPE_GLOW:
+        handle_glow_effect_strip(effect_strip, clip);
         break;
 
       default:
