@@ -1118,18 +1118,31 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
     float2 island_density = {0.0, 0.0};
     float area = 0.0;
+    float area_uv = 0.0;
 
     BMFace *efa;
     BMIter iter;
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
       const float face_area = BM_face_calc_area(efa);
-      const float2 face_density = BM_face_calc_density_uv(efa, offsets.uv, width, height);
-      island_density.x += face_area * face_density.x;
-      island_density.y += face_area * face_density.y;
+      if (use_uniform_scale) {
+        area_uv += BM_face_calc_area_uv(efa, offsets.uv);
+      }
+      else {
+        const float2 face_density = BM_face_calc_density_uv(efa, offsets.uv, width, height);
+        island_density.x += face_area * face_density.x;
+        island_density.y += face_area * face_density.y;
+      }
       area += face_area;
     }
-    density.x = (island_density.x / area) / scene->unit.scale_length;
-    density.y = (island_density.y / area) / scene->unit.scale_length;
+    if (use_uniform_scale) {
+      density.x = density.y = (area > 0.0f) ? sqrtf(area_uv * width * height / area) /
+                                                  scene->unit.scale_length :
+                                              0.0f;
+    }
+    else {
+      density.x = (island_density.x / area) / scene->unit.scale_length;
+      density.y = (island_density.y / area) / scene->unit.scale_length;
+    }
   }
   else {
     if (use_uniform_scale) {
@@ -1172,6 +1185,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       INIT_MINMAX2(bounds.min, bounds.max);
       float2 island_density = {0.0, 0.0};
       float area = 0.0;
+      float area_uv = 0.0;
 
       Set<BMFace *> processed_faces;
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
@@ -1181,18 +1195,31 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
         BMFace *f = element[j].l->f;
         if (processed_faces.add(f)) {
           const float face_area = BM_face_calc_area(f);
-          const float2 face_density = BM_face_calc_density_uv(f, offsets.uv, width, height);
-          island_density.x += face_area * face_density.x;
-          island_density.y += face_area * face_density.y;
+          if (use_uniform_scale) {
+            area_uv += BM_face_calc_area_uv(f, offsets.uv);
+          }
+          else {
+            const float2 face_density = BM_face_calc_density_uv(f, offsets.uv, width, height);
+            island_density.x += face_area * face_density.x;
+            island_density.y += face_area * face_density.y;
+          }
           area += face_area;
         }
       }
-      island_density.x = (island_density.x / area) / scene->unit.scale_length;
-      island_density.y = (island_density.y / area) / scene->unit.scale_length;
 
-      float2 scale = {density.x / island_density.x, density.y / island_density.y};
+      float2 scale;
       if (use_uniform_scale) {
-        scale.x = scale.y = (scale.x + scale.y) / 2.0f;
+        island_density.x = (area > 0.0f) ?
+                               sqrtf(area_uv * width * height / area) / scene->unit.scale_length :
+                               0.0f;
+        const float uniform_scale = (island_density.x > 0.0f) ? density.x / island_density.x :
+                                                                0.0f;
+        scale.x = scale.y = uniform_scale;
+      }
+      else {
+        island_density.x = (island_density.x / area) / scene->unit.scale_length;
+        island_density.y = (island_density.y / area) / scene->unit.scale_length;
+        scale = {density.x / island_density.x, density.y / island_density.y};
       }
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
@@ -1223,8 +1250,8 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
   ui::Layout &col = layout.column(true);
   col.prop(&ptr, "use_active_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(&ptr, "use_uniform_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_boolean_get(op->ptr, "use_active_object")) {
-    col.prop(&ptr, "use_uniform_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (RNA_boolean_get(op->ptr, "use_uniform_scale")) {
       col.prop(&ptr, "density_x", UI_ITEM_NONE, IFACE_("Texel Density"), ICON_NONE);
     }
