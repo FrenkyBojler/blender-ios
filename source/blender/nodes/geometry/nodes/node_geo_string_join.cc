@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_virtual_array.hh"
+
+#include "NOD_geometry_nodes_list.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_string_join_cc {
@@ -17,13 +21,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  auto strings = params.extract_input<GeoNodesMultiInput<std::string>>("Strings"_ustr);
+  const ListPtr<std::string> strings_list = params.extract_input<ListPtr<std::string>>("Delimiter"_ustr);
+  const VArray<std::string> strings = strings_list->varray();
+
   const std::string delim = params.extract_input<std::string>("Delimiter"_ustr);
 
   std::string output;
-  for (const int i : strings.values.index_range()) {
-    output += strings.values[i];
-    if (i < (strings.values.size() - 1)) {
+  for (const int i : strings.index_range()) {
+    output += strings[i];
+    if (i < (strings.size() - 1)) {
       output += delim;
     }
   }

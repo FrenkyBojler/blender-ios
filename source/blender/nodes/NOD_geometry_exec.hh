@@ -110,38 +110,19 @@ class GeoNodeExecParams {
     this->check_input_access(identifier);
 #endif
     const int index = this->get_input_index(identifier);
-    if constexpr (is_GeoNodesMultiInput_v<T>) {
-      using ValueT = typename T::value_type;
-      BLI_assert(node_.input_by_identifier(identifier)->is_multi_input());
-      if constexpr (std::is_same_v<ValueT, SocketValueVariant>) {
-        return params_.extract_input<T>(index);
-      }
-      else {
-        auto values_variants = params_.extract_input<GeoNodesMultiInput<SocketValueVariant>>(
-            index);
-        GeoNodesMultiInput<ValueT> values;
-        values.values.reserve(values_variants.values.size());
-        for (const int i : values_variants.values.index_range()) {
-          values.values.append(values_variants.values[i].extract<ValueT>());
-        }
-        return values;
-      }
+    SocketValueVariant value_variant = params_.extract_input<SocketValueVariant>(index);
+    if constexpr (std::is_same_v<T, SocketValueVariant>) {
+      return value_variant;
+    }
+    else if constexpr (std::is_enum_v<T>) {
+      return T(value_variant.extract<MenuValue>().value);
     }
     else {
-      SocketValueVariant value_variant = params_.extract_input<SocketValueVariant>(index);
-      if constexpr (std::is_same_v<T, SocketValueVariant>) {
-        return value_variant;
+      T value = value_variant.extract<T>();
+      if constexpr (std::is_same_v<T, GeometrySet>) {
+        this->check_input_geometry_set(identifier, value);
       }
-      else if constexpr (std::is_enum_v<T>) {
-        return T(value_variant.extract<MenuValue>().value);
-      }
-      else {
-        T value = value_variant.extract<T>();
-        if constexpr (std::is_same_v<T, GeometrySet>) {
-          this->check_input_geometry_set(identifier, value);
-        }
-        return value;
-      }
+      return value;
     }
   }
 
@@ -157,36 +138,19 @@ class GeoNodeExecParams {
     this->check_input_access(identifier);
 #endif
     const int index = this->get_input_index(identifier);
-    if constexpr (is_GeoNodesMultiInput_v<T>) {
-      using ValueT = typename T::value_type;
-      BLI_assert(node_.input_by_identifier(identifier)->is_multi_input());
-      if constexpr (std::is_same_v<ValueT, SocketValueVariant>) {
-        return params_.get_input<T>(index);
-      }
-      else {
-        auto values_variants = params_.get_input<GeoNodesMultiInput<SocketValueVariant>>(index);
-        Vector<ValueT> values(values_variants.values.size());
-        for (const int i : values_variants.values.index_range()) {
-          values[i] = values_variants.values[i].extract<ValueT>();
-        }
-        return values;
-      }
+    const SocketValueVariant &value_variant = params_.get_input<SocketValueVariant>(index);
+    if constexpr (std::is_same_v<T, SocketValueVariant>) {
+      return value_variant;
+    }
+    else if constexpr (std::is_enum_v<T>) {
+      return T(value_variant.get<MenuValue>().value);
     }
     else {
-      const SocketValueVariant &value_variant = params_.get_input<SocketValueVariant>(index);
-      if constexpr (std::is_same_v<T, SocketValueVariant>) {
-        return value_variant;
+      T value = value_variant.get<T>();
+      if constexpr (std::is_same_v<T, GeometrySet>) {
+        this->check_input_geometry_set(identifier, value);
       }
-      else if constexpr (std::is_enum_v<T>) {
-        return T(value_variant.get<MenuValue>().value);
-      }
-      else {
-        T value = value_variant.get<T>();
-        if constexpr (std::is_same_v<T, GeometrySet>) {
-          this->check_input_geometry_set(identifier, value);
-        }
-        return value;
-      }
+      return value;
     }
   }
 

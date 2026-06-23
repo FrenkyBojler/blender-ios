@@ -96,15 +96,8 @@ static void lazy_function_interface_from_node(const bNode &node,
     if (!socket->typeinfo->geometry_nodes_default_value) {
       continue;
     }
-    const CPPType *type;
-    if (socket->is_multi_input() && !is_muted) {
-      type = &CPPType::get<GeoNodesMultiInput<SocketValueVariant>>();
-    }
-    else {
-      type = &CPPType::get<SocketValueVariant>();
-    }
     r_lf_index_by_bsocket[socket->index_in_tree()] = r_inputs.append_and_get_index_as(
-        socket->name, *type, input_usage);
+        socket->name, CPPType::get<SocketValueVariant>(), input_usage);
   }
   for (const bNodeSocket *socket : node.output_sockets()) {
     if (!socket->is_available()) {
@@ -324,16 +317,18 @@ class LazyFunctionForMultiInput : public LazyFunction {
       inputs_.append({"Input", CPPType::get<SocketValueVariant>()});
       this->links.append(link);
     }
-    outputs_.append({"Output", CPPType::get<GeoNodesMultiInput<SocketValueVariant>>()});
+    outputs_.append({"Output", CPPType::get<SocketValueVariant>()});
   }
 
   void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
   {
-    void *output_ptr = params.get_output_data_ptr(0);
-    auto &values = *new (output_ptr) GeoNodesMultiInput<SocketValueVariant>();
+    Array<SocketValueVariant> list_values(inputs_.size());
     for (const int i : inputs_.index_range()) {
-      values.values.append(params.extract_input<SocketValueVariant>(i));
+      list_values[i] = params.extract_input<SocketValueVariant>(i);
     }
+    GListPtr list = GList::from_container(std::move(list_values));
+    void *output_ptr = params.get_output_data_ptr(0);
+    new (output_ptr) SocketValueVariant(SocketValueVariant::From(std::move(list)));
     params.output_set(0);
   }
 };

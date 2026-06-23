@@ -7,11 +7,14 @@
 #  include <openvdb/tools/Composite.h>
 #endif
 
+#include "BLI_virtual_array.hh"
+
 #include "BKE_volume_grid.hh"
 
 #include "GEO_volume_grid_resample.hh"
 
 #include "NOD_rna_define.hh"
+#include "NOD_geometry_nodes_list.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -86,18 +89,19 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const Operation operation = Operation(params.node().custom1);
 
-  auto grids = params.extract_input<GeoNodesMultiInput<bke::VolumeGrid<float>>>("Grid 2"_ustr);
+  const ListPtr<bke::VolumeGrid<float>> grids_list = params.extract_input<ListPtr<bke::VolumeGrid<float>>>("Grid 2"_ustr);
+  const VArraySpan<bke::VolumeGrid<float>> grids = grids_list->varray();
   Vector<bke::VolumeGrid<float>> operands;
   switch (operation) {
     case Operation::Intersect:
     case Operation::Union:
-      operands.extend(grids.values);
+      operands.extend(grids);
       break;
     case Operation::Difference:
       if (auto grid = params.extract_input<bke::VolumeGrid<float>>("Grid 1"_ustr)) {
         operands.append(std::move(grid));
       }
-      for (const bke::VolumeGrid<float> &grid : grids.values) {
+      for (const bke::VolumeGrid<float> &grid : grids) {
         if (grid) {
           operands.append(grid);
         }
