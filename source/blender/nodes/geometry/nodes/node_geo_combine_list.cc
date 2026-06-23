@@ -44,7 +44,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : items.index_range()) {
     const std::string identifier = ItemsAccessor::socket_identifier_for_item(items[i]);
     auto &input = b.add_input(data_type, UString(std::to_string(i)), UString(identifier));
-    input.structure_type(StructureType::Single);
+    input.structure_type(StructureType::Dynamic);
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
     input.optional_label(ELEM(data_type,
                               SOCK_OBJECT,
@@ -59,6 +59,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr)
+      .structure_type(StructureType::Dynamic)
       .custom_draw(socket_items::ui::draw_extend_socket_fn<ItemsAccessor>());
 
   b.add_output(data_type, "List"_ustr)
@@ -264,7 +265,9 @@ namespace blender::nodes {
 
 StructRNA **CombineListItemsAccessor::item_srna = &RNA_CombineListItem;
 
-void CombineListItemsAccessor::blend_write_item(BlendWriter * /*writer*/, const ItemT & /*item*/) {}
+void CombineListItemsAccessor::blend_write_item(BlendWriter * /*writer*/, const ItemT & /*item*/)
+{
+}
 
 void CombineListItemsAccessor::blend_read_data_item(BlendDataReader * /*reader*/, ItemT & /*item*/)
 {
