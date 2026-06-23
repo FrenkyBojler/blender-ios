@@ -1,2 +1,3 @@
 Referenced by issue #160432, Crash downloading asset using hover button after enabling online access
 Referenced by pull request #160519, Fix #160432: Crash downloading asset after enabling online acces
+Referenced by commit beb5e923a0b94c94e1fca42f98e467c0a5f0b122, Fix #160432: Crash downloading asset after enabling online acces
