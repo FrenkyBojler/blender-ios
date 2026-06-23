@@ -15,12 +15,27 @@ $PKG_CONFIG_PATH"
   )
 endif()
 
+if(WITH_APPLE_CROSSPLATFORM)
+  if(NOT EXISTS "${MESON_APPLE_CONFIGURATION_FILE}")
+    message(FATAL_ERROR "rubberband requires cross=compilation config file at: '${MESON_APPLE_CONFIGURATION_FILE}'")
+  endif()
+
+  set(CROSS_COMPILE_COMMANDS --cross-file ${MESON_APPLE_CONFIGURATION_FILE})
+  set(RUBBERBAND_PATCH ${PATCH_CMD} --verbose -p1 -d
+    ${BUILD_DIR}/rubberband/src/external_rubberband <
+    ${PATCH_DIR}/rubberband_ios.diff
+  )
+else()
+  set(CROSS_COMPILE_COMMANDS)
+  set(RUBBERBAND_PATCH)
+endif()
+
 ExternalProject_Add(external_rubberband
   URL file://${PACKAGE_DIR}/${RUBBERBAND_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${RUBBERBAND_HASH_TYPE}=${RUBBERBAND_HASH}
   PREFIX ${BUILD_DIR}/rubberband
-
+  PATCH_COMMAND ${RUBBERBAND_PATCH}
   CONFIGURE_COMMAND ${RUBBERBAND_CONFIGURE_ENV} &&
     ${CMAKE_COMMAND} -E env ${RUBBERBAND_PKG_ENV} ${MESON} setup
       --prefix ${LIBDIR}/rubberband
@@ -29,6 +44,7 @@ ExternalProject_Add(external_rubberband
       -Dauto_features=disabled
       -Ddefault_library=static
       -Dfft=fftw
+      ${CROSS_COMPILE_COMMANDS}
       ${BUILD_DIR}/rubberband/src/external_rubberband-build
       ${BUILD_DIR}/rubberband/src/external_rubberband
 
@@ -37,12 +53,15 @@ ExternalProject_Add(external_rubberband
   INSTALL_DIR ${LIBDIR}/rubberband
 )
 
-add_dependencies(
-  external_rubberband
-  external_fftw
-  # Needed for `MESON`.
-  external_python_site_packages
-)
+# NOTE: For Apple-crossplatform builds, we will rely on host python being built for cross-compilation
+if(NOT WITH_APPLE_CROSSPLATFORM)
+  add_dependencies(
+    external_rubberband
+    external_fftw
+    # Needed for `MESON`.
+    external_python_site_packages
+  )
+endif()
 
 if(WIN32)
   if(BUILD_MODE STREQUAL Release)
