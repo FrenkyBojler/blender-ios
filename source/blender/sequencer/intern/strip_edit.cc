@@ -138,7 +138,9 @@ void edit_update_muting(Editing *ed)
   }
 }
 
-static void sequencer_flag_users_for_removal(Scene *scene, ListBaseT<Strip> *seqbase, Strip *strip)
+static void sequencer_flag_users_for_removal(const Scene *scene,
+                                             ListBaseT<Strip> *seqbase,
+                                             Strip *strip)
 {
   for (Strip &user_strip : *seqbase) {
     /* Look in meta-strips for usage of strip. */
@@ -146,6 +148,7 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBaseT<Strip> *seq
       sequencer_flag_users_for_removal(scene, &user_strip.seqbase, strip);
     }
 
+    // TODO: I think this should be done in the delete function itself?
     /* Clear strip from modifiers. */
     for (StripModifierData &smd : user_strip.modifiers) {
       if (smd.mask_strip == strip) {
@@ -162,7 +165,7 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBaseT<Strip> *seq
   }
 }
 
-void edit_flag_for_removal(Scene *scene, ListBaseT<Strip> *seqbase, Strip *strip)
+void edit_flag_for_removal(const Scene *scene, ListBaseT<Strip> *seqbase, Strip *strip)
 {
   if (strip == nullptr || flag_is_set(strip->runtime->flag, StripRuntimeFlag::MarkForDelete)) {
     return;

@@ -8,6 +8,7 @@
  * \ingroup sequencer
  */
 
+#include "BLI_vector_set.hh"
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
@@ -25,6 +26,7 @@
 #include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
 #include "SEQ_edit.hh"
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
@@ -66,38 +68,84 @@ bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
            (strip1->left_handle() >= strip2->right_handle(scene))) == 0);
 }
 
+// TODO: rename to transform_test_invalid_overlap
 // TMP
 bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
 {
-  /* Transitions overlap their inputs, but can't overlap other strips. */
-  if (seq::strip_is_transition(test)) {
-    // TODO: If strips overlap, and the transition is valid, this is already checked by the loop
-    // below. This should only check if the transition is valid (eg. the strips haven't been moved
-    // away)
-    // Actually this idea doesn't work at all. If a transition strips input overlaps a strip, but
-    // the transition itself doesn't have invalid overlap, the input is drawn over the transition
-    // This should rather be changed to something like "transform_flag_invalid_overlap"
-    for (Strip &strip : *seqbasep) {
-      if (test->input1 == &strip || test->input2 == &strip) {
-        continue;
-      }
-      if (transform_test_overlap(scene, test, &strip)) {
-        return true;
-      }
+  for (Strip &strip : *seqbasep) {
+    /* Transitions overlap the strips they're applied on */
+    if ((strip.input1 == test || strip.input2 == test) && strip_is_transition(&strip)) {
+      continue;
     }
-  }
-  else {
-    for (Strip &strip : *seqbasep) {
-      if (strip.input1 == test || strip.input2 == test) {
-        continue;
-      }
-      if (transform_test_overlap(scene, test, &strip)) {
-        return true;
-      }
+    if (flag_is_set(strip.runtime->flag, seq::StripRuntimeFlag::MarkForDelete)) {
+      continue;
+    }
+    if (transform_test_overlap(scene, test, &strip)) {
+      return true;
     }
   }
 
   return false;
+}
+
+// TMP
+enum SeqInputSide {
+  SEQ_INPUT_LEFT = -1,
+  SEQ_INPUT_RIGHT = 1,
+};
+
+static Strip *effect_input_get(Strip *effect, SeqInputSide side)
+{
+  Strip *input = effect->input1;
+  if (effect->input2 && (effect->input2->left_handle() - effect->input1->left_handle()) * side > 0)
+  {
+    input = effect->input2;
+  }
+  return input;
+}
+
+void transform_set_overlap_flags(const Scene *scene,
+                                 ListBaseT<Strip> *seqbasep,
+                                 VectorSet<Strip *> &strips)
+{
+  // TODO: I guess this could iterate over strips, but this is probably better in case the function
+  // is used in a different context where this would matter.
+  for (Strip &strip : *seqbasep) {
+    strip.runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
+    strip.runtime->flag &= ~seq::StripRuntimeFlag::MarkForDelete;
+  }
+
+  for (Strip *strip : strips) {
+    if (seq::strip_is_transition(strip)) {
+      Strip *left = effect_input_get(strip, SEQ_INPUT_LEFT);
+      Strip *right = effect_input_get(strip, SEQ_INPUT_RIGHT);
+      if ((left->right_handle(scene) != right->left_handle()) || (left->channel != right->channel))
+      {
+        edit_flag_for_removal(scene, seqbasep, strip);
+      }
+    }
+  }
+
+  Editing *ed = seq::editing_get(scene);
+  for (Strip *strip : strips) {
+    if (flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::MarkForDelete)) {
+      continue;
+    }
+    if (!seq::strip_is_transition(strip)) {
+      if (transform_test_overlap(scene, seqbasep, strip)) {
+        strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
+        /* Transitions also need to be marked as overlapping so that the draw order is correct.
+         * Transitions can't have other transitions applied on them, so no need to do this
+         * recursively. */
+        Span<Strip *> effects = SEQ_lookup_effects_by_strip(ed, strip);
+        for (Strip *e : effects) {
+          if (seq::strip_is_transition(e)) {
+            e->runtime->flag |= seq::StripRuntimeFlag::Overlap;
+          }
+        }
+      }
+    }
+  }
 }
 
 /** \} */

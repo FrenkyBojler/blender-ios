@@ -283,6 +283,10 @@ static void seq_transform_cancel(TransInfo *t, Span<Strip *> transformed_strips)
   Scene *scene = CTX_data_sequencer_scene(t->context);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
 
+  for (Strip &strip : *seqbase) {
+    strip.runtime->flag &= ~seq::StripRuntimeFlag::MarkForDelete;
+  }
+
   if (t->remove_on_cancel) {
     for (Strip *strip : transformed_strips) {
       seq::edit_flag_for_removal(scene, seqbase, strip);
@@ -294,6 +298,8 @@ static void seq_transform_cancel(TransInfo *t, Span<Strip *> transformed_strips)
 
   vse::sync_active_scene_and_time_with_scene_strip(*t->context);
 
+  // TODO: I think this can be left as is. though, transform_seqbase_shuffle needs to work with
+  // transition chains
   for (Strip *strip : transformed_strips) {
     /* Handle pre-existing overlapping strips even when operator is canceled.
      * This is necessary for #SEQUENCER_OT_duplicate_move macro for example. */
@@ -355,6 +361,19 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
     return;
   }
 
+  /* First remove the marked strips from #transformed_strips to prevent dangling pointers.  */
+  transformed_strips.remove_if([](Strip *strip) {
+    return flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::MarkForDelete);
+  });
+
+  /* Then remove the actual strips. */
+  seq::edit_remove_flagged_strips(scene, seqbase_active_get(t));
+  vse::sync_active_scene_and_time_with_scene_strip(*t->context);  // TODO: check
+
+  // TODO: should expand and shuffle modes be some kind of special case where the transitions
+  // aren't removed?
+
+  /* Last, handle overlap. */
   TransSeq *ts = static_cast<TransSeq *>(tc->custom.type.data);
   ListBaseT<Strip> *seqbasep = seqbase_active_get(t);
   const bool use_sync_markers = ((static_cast<SpaceSeq *>(t->area->spacedata.first))->flag &
@@ -823,13 +842,7 @@ static void flushTransSeq(TransInfo *t)
   seq::iterator_set_expand(
       seqbase_active_get(t), transformed_strips, seq::query_strip_direct_effect_chain);
 
-  for (Strip *strip : transformed_strips) {
-    /* Test overlap, displays red outline. */
-    strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
-    if (seq::transform_test_overlap(scene, seqbasep, strip)) {
-      strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
-    }
-  }
+  seq::transform_set_overlap_flags(scene, seqbasep, transformed_strips);
 }
 
 static void recalcData_sequencer(TransInfo *t)

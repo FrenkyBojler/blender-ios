@@ -93,6 +93,9 @@ Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v
   Vector<Strip *> strips;
 
   for (Strip &strip : *ed->current_strips()) {
+    if (flag_is_set(strip.runtime->flag, seq::StripRuntimeFlag::MarkForDelete)) {
+      continue;
+    }
     if (min_ii(strip.left_handle(), strip.content_start()) > v2d->cur.xmax) {
       continue;
     }
