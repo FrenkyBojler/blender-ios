@@ -208,14 +208,18 @@ const ListBaseT<GPULayerAttr> *GPU_material_layer_attributes(const GPUMaterial *
 /* Requested Material Attributes and Textures */
 
 enum GPUType {
-  /* Float types */
   GPU_NONE,
   GPU_FLOAT,
+  GPU_INT,
   GPU_VEC2,
+  GPU_INT2,
   GPU_VEC3,
+  GPU_INT3,
   GPU_VEC4,
+  GPU_INT4,
   GPU_MAT3,
   GPU_MAT4,
+  GPU_BOOL,
 
   GPU_TEX1D_ARRAY,
   GPU_TEX2D,
