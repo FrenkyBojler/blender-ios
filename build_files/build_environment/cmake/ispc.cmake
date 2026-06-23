@@ -61,11 +61,11 @@ if(WITH_APPLE_CROSSPLATFORM)
   set(LLVM_TOOLS_BINARY_DIR ${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/llvm/bin)
 
   # Copy LLVM tools to build_ios path as lib dir is derived from tool dir and this erroneously links macOS libraries.
-  set(LLVM_CONFIG_EXECUTABLE_PATH_ORIG ${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/llvm/bin/llvm-config)
-  set(CLANG_EXECUTABLE_PATH_ORIG ${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/llvm/bin/clang)
-  set(CLANGPP_EXECUTABLE_PATH_ORIG ${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/llvm/bin/clang++)
-  set(LLVM_DIS_EXECUTABLE_PATH_ORIG ${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/llvm/bin/llvm-dis)
-  set(LLVM_AS_EXECUTABLE_PATH_ORIG ${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/llvm/bin/llvm-as)
+  set(LLVM_CONFIG_EXECUTABLE_PATH_ORIG ${LLVM_TOOLS_BINARY_DIR}/llvm-config)
+  set(CLANG_EXECUTABLE_PATH_ORIG ${LLVM_TOOLS_BINARY_DIR}/clang)
+  set(CLANGPP_EXECUTABLE_PATH_ORIG ${LLVM_TOOLS_BINARY_DIR}/clang++)
+  set(LLVM_DIS_EXECUTABLE_PATH_ORIG ${LLVM_TOOLS_BINARY_DIR}/llvm-dis)
+  set(LLVM_AS_EXECUTABLE_PATH_ORIG ${LLVM_TOOLS_BINARY_DIR}/llvm-as)
 
   set(LLVM_CONFIG_EXECUTABLE_PATH ${LIBDIR}/llvm/bin/llvm-config)
   set(CLANG_EXECUTABLE_PATH ${LIBDIR}/llvm/bin/clang)
@@ -94,6 +94,7 @@ if(WITH_APPLE_CROSSPLATFORM)
     -DISPC_IOS_SDK_PATH=${CMAKE_OSX_SYSROOT}
     # ISPC still needs to have access to MACOSX SDK when cross-compiling
     -DISPC_MACOS_SDK_PATH=${CMAKE_MACOSX_SYSROOT}
+    -DISPC_HOST_SLIM_BINARY=${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/build/ispc/src/external_ispc-build/bin/ispc-slim
 
     -DISPC_NO_DUMPS=On
     -DISPC_INCLUDE_EXAMPLES=Off
@@ -106,9 +107,6 @@ if(WITH_APPLE_CROSSPLATFORM)
     # LLVM settings (Auto detect fails)
     -DLLVM_FOUND=YES
     -DLLVM_VERSION=${LLVM_VERSION}
-    -DLLVM_VERSION_MAJOR=${LLVM_VERSION_MAJOR}
-    -DLLVM_VERSION_MINOR=${LLVM_VERSION_MINOR}
-    -DLLVM_VERSION_NUMBER=${LLVM_VERSION_NUMBER}
     -DLLVM_TARGETS_TO_BUILD=AArch64
 
     # Host Tools (Using freshly built tools for darwin_arm64)
