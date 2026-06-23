@@ -173,13 +173,13 @@ void VKDebuggingTools::deinit(VkInstance vk_instance)
 void object_label(VkObjectType vk_object_type, uint64_t object_handle, const char *name)
 {
   const VKDevice &device = VKBackend::get().device;
-  if (G.debug & G_DEBUG_GPU && vkSetDebugUtilsObjectNameEXT && object_handle != 0) {
+  if (G.debug & G_DEBUG_GPU && volk::vkSetDebugUtilsObjectNameEXT && object_handle != 0) {
     VkDebugUtilsObjectNameInfoEXT info = {};
     info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
     info.objectType = vk_object_type;
     info.objectHandle = object_handle;
     info.pObjectName = name;
-    vkSetDebugUtilsObjectNameEXT(device.vk_handle(), &info);
+    volk::vkSetDebugUtilsObjectNameEXT(device.vk_handle(), &info);
   }
 }
 
@@ -262,7 +262,7 @@ void VKDebuggingTools::init_messenger(VkInstance vk_instance)
     return;
   }
 
-  if (!vkCreateDebugUtilsMessengerEXT) {
+  if (!volk::vkCreateDebugUtilsMessengerEXT) {
     return;
   }
 
@@ -290,7 +290,7 @@ void VKDebuggingTools::destroy_messenger(VkInstance vk_instance)
   }
 
   volk::vkDestroyDebugUtilsMessengerEXT(vk_instance, vk_debug_utils_messenger, nullptr);
-  vk_debug_utils_messenger = nullptr;
+  vk_debug_utils_messenger = VK_NULL_HANDLE;
 }
 
 };  // namespace gpu::debug

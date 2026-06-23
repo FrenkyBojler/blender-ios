@@ -252,12 +252,10 @@ static bool vk_instance_create_for_platform_checks(VkInstance *r_instance)
   vk_restrict_loader_layers();
 
   VkResult vk_result = volkInitialize();
-  if (vk_result == VK_SUCCESS) {
-    CLOG_TRACE(&LOG, "found system vulkan loader");
-  }
-  else {
+  if (vk_result != VK_SUCCESS) {
     CLOG_ERROR(&LOG,
-               "Error initializing volk: VkResult=%d, most likely volk cannot find vulkan-1.dll",
+               "Error initializing Vulkan loader: VkResult=%d, most likely cannot find the Vulkan "
+               "Loader provided by GPU driver/OS.",
                vk_result);
     return false;
   }
@@ -288,7 +286,6 @@ bool VKBackend::is_supported()
     CLOG_WARN(&LOG, "Unable to initialize a Vulkan 1.2 instance.");
     return false;
   }
-  CLOG_TRACE(&LOG, "initializing volk instance");
   volkLoadInstanceOnly(vk_instance);
 
   /* Go over all the devices. */

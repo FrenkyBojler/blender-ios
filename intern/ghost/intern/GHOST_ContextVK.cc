@@ -925,6 +925,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
     device_vk.functions.vkWaitForFences(
         vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
   }
+  for (VkSwapchainKHR swapchain : submission_frame_data.discard_pile.swapchains) {
+    this->destroySwapchainPresentFences(swapchain);
+  }
   submission_frame_data.discard_pile.destroy(vk_device, device_vk.functions);
 
   const bool use_hdr_swapchain = hdr_info_ &&
@@ -975,7 +978,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
           submission_frame_data.acquire_semaphore,
           VK_NULL_HANDLE,
           &image_index);
-      if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
+      if (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
         recreateSwapchain(use_hdr_swapchain);
       }
     }
@@ -1097,9 +1100,19 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   VkResult present_result = VK_SUCCESS;
   {
     std::scoped_lock lock(device_vk.queue_mutex);
-    present_result = device_vk.functions.vkQueuePresentKHR(device_vk.generic_queue, &present_info);
-  }
+    VkSwapchainPresentFenceInfoEXT fence_info{VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT};
+    VkFence present_fence = VK_NULL_HANDLE;
+    if (device_vk.use_vk_ext_swapchain_maintenance_1) {
+      present_fence = this->getFence();
 
+      fence_info.swapchainCount = 1;
+      fence_info.pFences = &present_fence;
+
+      present_info.pNext = &fence_info;
+    }
+    present_result = device_vk.functions.vkQueuePresentKHR(device_vk.generic_queue, &present_info);
+    this->setPresentFence(swapchain_, present_fence);
+  }
   acquired_swapchain_image_index_.reset();
 
   if (ELEM(present_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
@@ -1743,7 +1756,6 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     surface_create_info.hwnd = hwnd_;
     VK_CHECK(volk::vkCreateWin32SurfaceKHR(
                  instance_vk.vk_instance, &surface_create_info, nullptr, &surface_),
-
              GHOST_kFailure);
 #elif defined(__APPLE__)
     VkMetalSurfaceCreateInfoEXT info = {};

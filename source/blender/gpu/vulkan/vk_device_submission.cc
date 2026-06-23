@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <mutex>
 #include <thread>
 
 #include "BLI_mutex.hh"
@@ -264,6 +265,10 @@ void VKDevice::submission_runner(VKDevice *device)
   CLOG_TRACE(&LOG, "Submission runner is being canceled");
 
   /* Clear command buffers and pool */
+  {
+    std::scoped_lock lock(*device->queue_mutex_);
+    device->functions.vkDeviceWaitIdle(device->vk_device_);
+  }
   command_buffers_in_use.remove_old(UINT64_MAX, [&](VkCommandBuffer vk_command_buffer) {
     command_buffers_unused.append(vk_command_buffer);
   });

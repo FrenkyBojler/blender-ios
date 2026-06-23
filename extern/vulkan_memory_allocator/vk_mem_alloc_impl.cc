@@ -15,9 +15,4 @@
     fprintf(stderr, "VMA: " format "\n", __VA_ARGS__); \
   } while (false)
 
-/*
- * Disabling internal asserts of VMA.
- */
-#define VMA_ASSERT(test)
-
 #include "vk_mem_alloc.h"

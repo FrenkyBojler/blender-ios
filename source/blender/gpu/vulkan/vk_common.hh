@@ -11,11 +11,11 @@
 #include <typeinfo>
 
 #ifdef _WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #  define VK_USE_PLATFORM_WIN32_KHR
 #endif
 
-#define VOLK_NAMESPACE volk
+#define VOLK_NAMESPACE
 #define VOLK_NO_DEVICE_PROTOTYPES
 #include "volk.h"
 
