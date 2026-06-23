@@ -30,6 +30,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_modelmat)
 #include "draw_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
+#include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 #include "workbench_shader_shared.hh"
 
@@ -193,16 +194,15 @@ struct GeometryShaderEmulator {
     float3 n1 = cross(v12, v10);
     float3 n2 = cross(v13, v12);
 
-#ifdef DEGENERATE_TRIS_WORKAROUND
+    /** WORKAROUND: Check for degenerate tris. */
     /* Check if area is null */
     float2 faces_area = float2(length_squared(n1), length_squared(n2));
-    bool2 degen_faces = lessThan(abs(faces_area), float2(DEGENERATE_TRIS_AREA_THRESHOLD));
+    bool2 degen_faces = equal(abs(faces_area), float2(0.0f));
 
     /* Both triangles are degenerate, abort. */
     if (all(degen_faces)) {
       return;
     }
-#endif
 
     float3 ls_light_direction = drw_normal_world_to_object(
         float3(srt.pass_data.light_direction_ws));
@@ -214,7 +214,6 @@ struct GeometryShaderEmulator {
     /* WATCH: maybe unpredictable in some cases. */
     bool is_manifold = any(notEqual(geom_in[0].lP, geom_in[3].lP));
 
-#ifdef DEGENERATE_TRIS_WORKAROUND
     if (srt.double_manifold == false) [[static_branch]] {
       /* If the mesh is known to be manifold and we don't use double count,
        * only create an quad if the we encounter a facing geom. */
@@ -227,7 +226,6 @@ struct GeometryShaderEmulator {
     backface.x = (degen_faces.x) ? !backface.y : backface.x;
     backface.y = (degen_faces.y) ? !backface.x : backface.y;
     is_manifold = (any(degen_faces)) ? false : is_manifold;
-#endif
 
     /* If both faces face the same direction it's not an outline edge. */
     if (backface.x == backface.y) {
