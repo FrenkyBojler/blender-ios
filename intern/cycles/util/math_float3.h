@@ -811,7 +811,7 @@ ccl_device_inline float2 map_to_sphere(const float3 co)
   float u;
   float v;
   if (l > 0.0f) {
-    if (UNLIKELY(co.x == 0.0f && co.y == 0.0f)) {
+    if (co.x == 0.0f && co.y == 0.0f) [[unlikely]] {
       u = 0.0f; /* Otherwise domain error. */
     }
     else {

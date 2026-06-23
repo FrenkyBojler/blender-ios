@@ -63,7 +63,7 @@ ccl_device bool ray_aligned_disk_intersect(const float3 ray_P,
   float disk_t;
   const float3 disk_N = normalize_len(ray_P - disk_P, &disk_t);
   const float div = dot(ray_D, disk_N);
-  if (UNLIKELY(div == 0.0f)) {
+  if (div == 0.0f) [[unlikely]] {
     return false;
   }
   /* Compute t to intersection point. */
@@ -203,7 +203,7 @@ ccl_device_forceinline bool ray_triangle_intersect(const float3 ray_P,
   const float3 Ng = Ng1 + Ng1;
   const float den = dot(Ng, ray_D);
   /* Avoid division by 0. */
-  if (UNLIKELY(den == 0.0f)) {
+  if (den == 0.0f) [[unlikely]] {
     return false;
   }
 

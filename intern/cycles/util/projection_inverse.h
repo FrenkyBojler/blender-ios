@@ -38,7 +38,7 @@ ccl_device_forceinline bool projection_inverse_impl(ccl_private float R[4][4],
       }
     }
 
-    if (UNLIKELY(pivotsize == 0.0f)) {
+    if (pivotsize == 0.0f) [[unlikely]] {
       return false;
     }
 
@@ -70,7 +70,7 @@ ccl_device_forceinline bool projection_inverse_impl(ccl_private float R[4][4],
   for (int i = 3; i >= 0; --i) {
     float f = M[i][i];
 
-    if (UNLIKELY(f == 0.0f)) {
+    if (f == 0.0f) [[unlikely]] {
       return false;
     }
 

@@ -723,7 +723,7 @@ ccl_device float volume_equiangular_sample(const ccl_private Ray *ccl_restrict r
 {
   const float delta = dot((coeffs.P - ray->P), ray->D);
   const float D = len(coeffs.P - ray->P - ray->D * delta);
-  if (UNLIKELY(D == 0.0f)) {
+  if (D == 0.0f) [[unlikely]] {
     *pdf = 0.0f;
     return 0.0f;
   }
@@ -733,7 +733,7 @@ ccl_device float volume_equiangular_sample(const ccl_private Ray *ccl_restrict r
   const float theta_a = atan2f(tmin - delta, D);
   const float theta_b = atan2f(tmax - delta, D);
   const float theta_d = theta_b - theta_a;
-  if (UNLIKELY(theta_d < 1e-6f)) {
+  if (theta_d < 1e-6f) [[unlikely]] {
     /* Use uniform sampling when `theta_d` is too small. */
     *pdf = safe_divide(1.0f, tmax - tmin);
     return mix(tmin, tmax, xi);
@@ -751,7 +751,7 @@ ccl_device float volume_equiangular_pdf(const ccl_private Ray *ccl_restrict ray,
 {
   const float delta = dot((coeffs.P - ray->P), ray->D);
   const float D = len(coeffs.P - ray->P - ray->D * delta);
-  if (UNLIKELY(D == 0.0f)) {
+  if (D == 0.0f) [[unlikely]] {
     return 0.0f;
   }
 
@@ -761,7 +761,7 @@ ccl_device float volume_equiangular_pdf(const ccl_private Ray *ccl_restrict ray,
   const float theta_a = atan2f(tmin - delta, D);
   const float theta_b = atan2f(tmax - delta, D);
   const float theta_d = theta_b - theta_a;
-  if (UNLIKELY(theta_d < 1e-6f)) {
+  if (theta_d < 1e-6f) [[unlikely]] {
     return safe_divide(1.0f, tmax - tmin);
   }
 

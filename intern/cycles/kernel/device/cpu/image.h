@@ -365,7 +365,7 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
     xy = make_float2(uv.val.x * info->width, uv.val.y * info->height);
   }
 
-  if (UNLIKELY(!info->data)) {
+  if (!info->data) [[unlikely]] {
     return zero_float4();
   }
 

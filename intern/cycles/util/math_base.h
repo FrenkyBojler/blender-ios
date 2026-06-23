@@ -603,7 +603,7 @@ ccl_device float compatible_powf(const float x, const float y)
 
 ccl_device float safe_powf(const float a, const float b)
 {
-  if (UNLIKELY(a < 0.0f && b != float_to_int(b))) {
+  if (a < 0.0f && b != float_to_int(b)) [[unlikely]] {
     return 0.0f;
   }
 
@@ -617,7 +617,7 @@ ccl_device float safe_divide(const float a, const float b)
 
 ccl_device float safe_logf(const float a, const float b)
 {
-  if (UNLIKELY(a <= 0.0f || b <= 0.0f)) {
+  if (a <= 0.0f || b <= 0.0f) [[unlikely]] {
     return 0.0f;
   }
 

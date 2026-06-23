@@ -414,7 +414,7 @@ ccl_device_inline dual2 map_to_sphere(const dual3 co)
   const dual1 l = dot(co, co);
   dual1 u, v;
   if (l.val > 0.0f) {
-    if (UNLIKELY(co.val.x == 0.0f && co.val.y == 0.0f)) {
+    if (co.val.x == 0.0f && co.val.y == 0.0f) [[unlikely]] {
       u = make_zero<dual1>(); /* Otherwise domain error. */
     }
     else {

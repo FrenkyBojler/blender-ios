@@ -47,8 +47,8 @@ ccl_device bool find_attr_offset(const ccl_global AttributeMap *attributes_map,
   AttributeMap attr_map = attributes_map[attr_offset];
 
   while (attr_map.id != id) {
-    if (UNLIKELY(attr_map.id == ATTR_STD_NONE)) {
-      if (UNLIKELY(attr_map.element == 0)) {
+    if (attr_map.id == ATTR_STD_NONE) [[unlikely]] {
+      if (attr_map.element == 0) [[unlikely]] {
         return false;
       }
       /* Chain jump to a different part of the table. */

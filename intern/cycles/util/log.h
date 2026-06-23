@@ -83,11 +83,11 @@ extern LogLevel LOG_LEVEL;
 #  define LOG_IF(level, condition) \
     if constexpr (level != LOG_LEVEL_DFATAL && level != LOG_LEVEL_DERROR && \
                   level != LOG_LEVEL_DWARNING) \
-      if (UNLIKELY(level <= LOG_LEVEL && (condition))) \
+      if (level <= LOG_LEVEL && (condition))) [[unlikely]] \
     LogMessage(level, __FILE__ ":" LOG_STRINGIFY(__LINE__), __func__).stream()
 #else
 #  define LOG_IF(level, condition) \
-    if (UNLIKELY(level <= LOG_LEVEL && (condition))) \
+    if (level <= LOG_LEVEL && (condition)) [[unlikely]] \
     LogMessage(level, __FILE__ ":" LOG_STRINGIFY(__LINE__), __func__).stream()
 #endif
 

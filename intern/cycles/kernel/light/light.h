@@ -212,7 +212,7 @@ ccl_device bool light_sample(KernelGlobals kg,
   else {
     const int light = ~prim;
 
-    if (UNLIKELY(light_select_reached_max_bounces(kg, light, bounce))) {
+    if (light_select_reached_max_bounces(kg, light, bounce)) [[unlikely]] {
       return false;
     }
 

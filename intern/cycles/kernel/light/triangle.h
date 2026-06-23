@@ -95,13 +95,13 @@ ccl_device_forceinline float triangle_light_pdf(KernelGlobals kg,
 
     /* distribution_pdf_triangles is calculated over triangle area, but we're not sampling over
      * its area */
-    if (UNLIKELY(solid_angle == 0.0f)) {
+    if (solid_angle == 0.0f) [[unlikely]] {
       return 0.0f;
     }
     pdf = 1.0f / solid_angle;
   }
   else {
-    if (UNLIKELY(area == 0.0f)) {
+    if (area == 0.0f) [[unlikely]] {
       return 0.0f;
     }
 
@@ -229,14 +229,14 @@ ccl_device_forceinline bool triangle_light_sample(KernelGlobals kg,
 
     /* distribution_pdf_triangles is calculated over triangle area, but we're sampling over solid
      * angle */
-    if (UNLIKELY(solid_angle == 0.0f)) {
+    if (solid_angle == 0.0f) [[unlikely]] {
       ls->pdf = 0.0f;
       return false;
     }
     ls->pdf = 1.0f / solid_angle;
   }
   else {
-    if (UNLIKELY(area == 0.0f)) {
+    if (area == 0.0f) [[unlikely]] {
       return 0.0f;
     }
 

@@ -39,7 +39,10 @@ struct AtomicHashSetLinearProbeFcn {
     idx += 1;  // linear probing
 
     // Avoid modulus because it's slow
-    return LIKELY(idx < capacity) ? idx : (idx - capacity);
+    if (idx < capacity) [[likely]] {
+      return idx;
+    }
+    return idx - capacity;
   }
 };
 
@@ -49,7 +52,10 @@ struct AtomicHashSetQuadraticProbeFcn {
     idx += numProbes;  // quadratic probing
 
     // Avoid modulus because it's slow
-    return LIKELY(idx < capacity) ? idx : (idx - capacity);
+    if (idx < capacity) [[likely]] {
+      return idx;
+    }
+    return idx - capacity;
   }
 };
 
@@ -164,7 +170,7 @@ class AtomicHashSet {
 
       /* Continue to next cell according to probe strategy. */
       ++numProbes;
-      if (UNLIKELY(numProbes >= capacity_)) {
+      if (numProbes >= capacity_) [[unlikely]] {
         // probed every cell...fail
         assert(false);
         return std::make_pair(kEmptyKey_, false);
@@ -179,7 +185,10 @@ class AtomicHashSet {
   {
     const size_t hashVal = hasher_(k);
     const size_t probe = hashVal & kAnchorMask_;
-    return LIKELY(probe < capacity_) ? probe : hashVal % capacity_;
+    if (probe < capacity_) [[likely]] {
+      return probe;
+    }
+    return hashVal % capacity_;
   }
 
 };  // AtomicHashSet

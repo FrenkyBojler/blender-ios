@@ -194,8 +194,8 @@ ccl_device_inline int intersection_find_attribute(KernelGlobals kg,
   AttributeMap attr_map = kernel_data_fetch(attributes_map, attr_offset);
 
   while (attr_map.id != id) {
-    if (UNLIKELY(attr_map.id == ATTR_STD_NONE)) {
-      if (UNLIKELY(attr_map.element == 0)) {
+    if (attr_map.id == ATTR_STD_NONE) [[unlikely]] {
+      if (attr_map.element == 0) [[unlikely]] {
         return (int)ATTR_STD_NOT_FOUND;
       }
       /* Chain jump to a different part of the table. */

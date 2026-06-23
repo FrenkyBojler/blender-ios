@@ -102,15 +102,6 @@
 
 /* macros */
 
-/* hints for branch prediction, only use in code that runs a _lot_ */
-#if defined(__GNUC__) && !defined(__KERNEL_GPU__)
-#  define LIKELY(x) __builtin_expect(!!(x), 1)
-#  define UNLIKELY(x) __builtin_expect(!!(x), 0)
-#else
-#  define LIKELY(x) (x)
-#  define UNLIKELY(x) (x)
-#endif
-
 #ifndef __KERNEL_GPU__
 #  include <cassert>
 #  define util_assert(statement) assert(statement)
@@ -118,7 +109,7 @@
 #  define util_assert(statement)
 #endif
 
-#define CONCAT_HELPER(a, ...) a##__VA_ARGS__
+#define CONCAT_HELPER(a, ...) a## __VA_ARGS__
 #define CONCAT(a, ...) CONCAT_HELPER(a, __VA_ARGS__)
 
 #if (defined __KERNEL_METAL__) && (__METAL_VERSION__ >= 320)
