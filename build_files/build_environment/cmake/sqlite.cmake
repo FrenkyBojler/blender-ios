@@ -32,10 +32,10 @@ if(UNIX)
     set(SQLITE_LDFLAGS -Wl,--as-needed)
   endif()
 
-if(WITH_APPLE_CROSSPLATFORM)
-  # Flags from configure environment.
-  set(SQLITE_LDFLAGS ${PLATFORM_LDFLAGS})
-endif()
+  if(WITH_APPLE_CROSSPLATFORM)
+    # Flags from configure environment.
+    set(SQLITE_LDFLAGS ${PLATFORM_LDFLAGS})
+  endif()
 
   set(SQLITE_CFLAGS "\
 -DSQLITE_SECURE_DELETE \
@@ -62,6 +62,11 @@ endif()
 
   if(WITH_APPLE_CROSSPLATFORM)
     set(SQLITE_CFLAGS "${SQLITE_CFLAGS} ${PLATFORM_CFLAGS} -DSQLITE_NOHAVE_SYSTEM=1")
+    set(SQLITE_CONFIGURE_ENV
+      ${SQLITE_CONFIGURE_ENV} &&
+      export CC=clang &&
+      export CXX=clang++
+    )
   endif()
 
   set(SQLITE_CONFIGURE_ENV
