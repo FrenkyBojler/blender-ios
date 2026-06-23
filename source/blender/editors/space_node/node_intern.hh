@@ -271,18 +271,21 @@ struct bNodeLinkDrag {
 };
 
 struct NodeShakeDetachPreview {
-  Set<const bNode *> nodes;
+  Set<bNode *> nodes;
   Set<const bNodeLink *> links_to_hide;
   Vector<bNodeLink> bypass_links;
 
   bNodeSocket *group_input = nullptr;
   bNodeSocket *group_output = nullptr;
+  bNode *group_input_node = nullptr;
+  bNode *group_output_node = nullptr;
 
   struct InsertTarget {
     bNode *fromnode = nullptr;
     bNodeSocket *fromsock = nullptr;
     bNode *tonode = nullptr;
     bNodeSocket *tosock = nullptr;
+    int multi_input_sort_id = 0;
     bool valid = false;
   };
   std::optional<InsertTarget> insert_target;

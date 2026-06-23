@@ -23,6 +23,7 @@
 #include "BLI_time.hh"
 
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
@@ -159,7 +160,7 @@ static VectorSet<bNode *> get_transformed_nodes(bNodeTree &node_tree)
   return nodes;
 }
 
-static void createTransNodeData(bContext * /*C*/, TransInfo *t)
+static void createTransNodeData(bContext *C, TransInfo *t)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(t->area->spacedata.first);
   bNodeTree *node_tree = snode->edittree;
@@ -180,7 +181,8 @@ static void createTransNodeData(bContext * /*C*/, TransInfo *t)
                        NODE_EDGE_PAN_ZOOM_INFLUENCE);
   customdata->viewrect_prev = customdata->edgepan_data.initial_rect;
   customdata->is_new_node = t->remove_on_cancel;
-  customdata->shake_available = space_node::node_shake_detach_is_enabled(*node_tree);
+  customdata->shake_available = BKE_id_is_editable(CTX_data_main(C), &node_tree->id) &&
+                                space_node::node_shake_detach_is_enabled(*node_tree);
   customdata->shake_samples.append({t->mval, BLI_time_now_seconds()});
 
   if (t->region) {
@@ -269,9 +271,9 @@ static void node_snap_grid_apply(TransInfo *t)
   }
 }
 
-static Vector<bNode *> node_shake_transformed_nodes_get(TransInfo *t)
+static VectorSet<bNode *> node_shake_transformed_nodes_get(TransInfo *t)
 {
-  Vector<bNode *> nodes;
+  VectorSet<bNode *> nodes;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     for (const int i : IndexRange(tc->data_len)) {
       TransData &td = tc->data[i];
@@ -279,11 +281,24 @@ static Vector<bNode *> node_shake_transformed_nodes_get(TransInfo *t)
         continue;
       }
       if (bNode *node = static_cast<bNode *>(td.extra)) {
-        nodes.append(node);
+        nodes.add(node);
       }
     }
   }
   return nodes;
+}
+
+static Vector<bNode *> node_shake_preview_nodes_get(TransInfo *t, bNodeTree &node_tree)
+{
+  VectorSet<bNode *> nodes = node_shake_transformed_nodes_get(t);
+
+  for (bNode *node : node_tree.all_nodes()) {
+    if ((node->flag & NODE_SELECT) || is_node_parent_select(node)) {
+      nodes.add(node);
+    }
+  }
+
+  return nodes.extract_vector();
 }
 
 static float node_shake_min_leg_distance()
@@ -419,6 +434,27 @@ static bool has_selected_parent(const bNode &node)
   return false;
 }
 
+static bool node_shake_detach_from_frames(bNodeTree &node_tree,
+                                          TransCustomDataNode &customdata,
+                                          const Span<bNode *> nodes)
+{
+  bool changed = false;
+  for (bNode *node : nodes) {
+    if (node == nullptr || node->parent == nullptr) {
+      continue;
+    }
+    if (has_selected_parent(*node)) {
+      continue;
+    }
+    if (!customdata.old_parent_by_detached_node.contains(node)) {
+      customdata.old_parent_by_detached_node.add(node, node->parent);
+    }
+    bke::node_detach_node(node_tree, *node);
+    changed = true;
+  }
+  return changed;
+}
+
 static void flushTransNodes(TransInfo *t)
 {
   const float dpi_fac = UI_SCALE_FAC;
@@ -504,9 +540,12 @@ static void flushTransNodes(TransInfo *t)
 
     /* Handle intersection with noodles. */
     if (node_shake_detector_update(*customdata, t)) {
-      Vector<bNode *> transformed_nodes = node_shake_transformed_nodes_get(t);
-      customdata->shake_triggered = space_node::node_shake_preview_create(*snode,
-                                                                          transformed_nodes);
+      Vector<bNode *> preview_nodes = node_shake_preview_nodes_get(t, *snode->edittree);
+      const bool link_preview_created = space_node::node_shake_preview_create(*snode,
+                                                                              preview_nodes);
+      const bool frame_detached = node_shake_detach_from_frames(
+          *snode->edittree, *customdata, preview_nodes);
+      customdata->shake_triggered = link_preview_created || frame_detached;
       customdata->shake_available = false;
     }
     if (t->region) {

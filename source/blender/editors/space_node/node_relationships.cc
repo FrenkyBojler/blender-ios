@@ -22,6 +22,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
@@ -56,16 +57,67 @@
 namespace blender {
 
 struct NodeInsertOfsData {
-  bNodeTree *ntree;
-  bNode *insert;      /* Inserted node. */
-  bNode *prev, *next; /* Previous/next node in the chain. */
+  bNodeTree *ntree = nullptr;
+  bNode *insert = nullptr; /* First inserted node, used as the frame attachment reference. */
+  bNode *prev = nullptr, *next = nullptr; /* Previous/next node in the chain. */
+  Vector<bNode *> insert_nodes;
+  std::optional<rctf> insert_bounds;
 
-  wmTimer *anim_timer;
+  wmTimer *anim_timer = nullptr;
 
-  float offset_x; /* Offset to apply to node chain. */
+  float offset_x = 0.0f; /* Offset to apply to node chain. */
 };
 
 namespace ed::space_node {
+
+static void node_insert_offset_data_create(SpaceNode &snode,
+                                           bNode &insert,
+                                           const Span<bNode *> insert_nodes,
+                                           const std::optional<rctf> insert_bounds,
+                                           bNode &prev,
+                                           bNode &next)
+{
+  if ((U.uiflag & USER_NODE_AUTO_OFFSET) == 0 || insert_nodes.is_empty()) {
+    return;
+  }
+
+  BLI_assert(snode.runtime->iofsd == nullptr);
+  if (snode.runtime->iofsd != nullptr) {
+    return;
+  }
+
+  NodeInsertOfsData *iofsd = MEM_new<NodeInsertOfsData>(__func__);
+  iofsd->insert = &insert;
+  iofsd->insert_nodes.extend(insert_nodes);
+  iofsd->insert_bounds = insert_bounds;
+  iofsd->prev = &prev;
+  iofsd->next = &next;
+
+  snode.runtime->iofsd = iofsd;
+}
+
+static void node_insert_offset_data_create(SpaceNode &snode,
+                                           bNode &insert,
+                                           bNode &prev,
+                                           bNode &next)
+{
+  Vector<bNode *, 1> insert_nodes;
+  insert_nodes.append(&insert);
+  node_insert_offset_data_create(snode, insert, insert_nodes, std::nullopt, prev, next);
+}
+
+static bool node_insert_bounds_get(const Span<bNode *> nodes, rctf &r_bounds)
+{
+  BLI_rctf_init_minmax(&r_bounds);
+  bool has_bounds = false;
+  for (const bNode *node : nodes) {
+    rctf node_bounds;
+    node_to_updated_rect(*node, node_bounds);
+    BLI_rctf_union(&r_bounds, &node_bounds);
+    has_bounds = true;
+  }
+  return has_bounds;
+}
 
 static void clear_picking_highlight(ListBaseT<bNodeLink> *links)
 {
@@ -2628,6 +2680,8 @@ struct NodeInsertGroupCandidate {
   VectorSet<bNode *> nodes;
   bNodeSocket *input = nullptr;
   bNodeSocket *output = nullptr;
+  bNode *input_node = nullptr;
+  bNode *output_node = nullptr;
   rctf bounds;
 };
 
@@ -2715,6 +2769,7 @@ static bool node_insert_group_candidate_get(bNodeTree &node_tree,
       }
       entry_node = node;
       r_candidate.input = main_input;
+      r_candidate.input_node = node;
     }
     if (!node_group_has_internal_output_link(*node, r_candidate.nodes)) {
       if (exit_node != nullptr) {
@@ -2722,13 +2777,15 @@ static bool node_insert_group_candidate_get(bNodeTree &node_tree,
       }
       exit_node = node;
       r_candidate.output = main_output;
+      r_candidate.output_node = node;
     }
   }
 
   if (!has_bounds || entry_node == nullptr || exit_node == nullptr) {
     return false;
   }
-  return r_candidate.input != nullptr && r_candidate.output != nullptr;
+  return r_candidate.input != nullptr && r_candidate.output != nullptr &&
+         r_candidate.input_node != nullptr && r_candidate.output_node != nullptr;
 }
 
 static int node_shake_detach_flag_for_tree_type(const int tree_type)
@@ -2759,6 +2816,9 @@ static bool node_link_sockets_are_compatible(const bNodeTree &ntree,
                                              const bNodeSocket &fromsock,
                                              const bNodeSocket &tosock)
 {
+  if (!fromsock.is_available() || !tosock.is_available()) {
+    return false;
+  }
   if (ntree.typeinfo->validate_link == nullptr) {
     return true;
   }
@@ -2832,9 +2892,8 @@ static std::optional<NodeShakeUpstreamSource> node_shake_find_upstream_source(
 
   bNodeLink &upstream_link = *upstream_links[0];
   if (!selected_nodes.contains(upstream_link.fromnode)) {
-    return NodeShakeUpstreamSource{upstream_link.fromnode,
-                                   upstream_link.fromsock,
-                                   upstream_link.flag};
+    return NodeShakeUpstreamSource{
+        upstream_link.fromnode, upstream_link.fromsock, upstream_link.flag};
   }
   std::optional<NodeShakeUpstreamSource> source = node_shake_find_upstream_source(
       *upstream_link.fromsock, selected_nodes, visited_outputs);
@@ -2874,7 +2933,8 @@ static void node_shake_preview_add_bypass_link(NodeShakeDetachPreview &preview,
                                                bNodeSocket &fromsock,
                                                bNode &tonode,
                                                bNodeSocket &tosock,
-                                               const eNodeLink_Flag flag)
+                                               const eNodeLink_Flag flag,
+                                               const int multi_input_sort_id)
 {
   if (&fromnode == &tonode || node_shake_preview_has_bypass_link(preview, fromsock, tosock) ||
       node_shake_tree_has_link(ntree, fromsock, tosock))
@@ -2891,6 +2951,7 @@ static void node_shake_preview_add_bypass_link(NodeShakeDetachPreview &preview,
   bypass.tonode = &tonode;
   bypass.tosock = &tosock;
   bypass.flag = flag & (NODE_LINK_VALID | NODE_LINK_MUTED);
+  bypass.multi_input_sort_id = multi_input_sort_id;
   preview.bypass_links.append(bypass);
 }
 
@@ -2945,7 +3006,8 @@ static bool node_shake_preview_build(bNodeTree &ntree,
                                          *source->socket,
                                          *link.tonode,
                                          *link.tosock,
-                                         node_shake_combine_link_flags(link.flag, source->flag));
+                                         node_shake_combine_link_flags(link.flag, source->flag),
+                                         link.multi_input_sort_id);
     }
   }
 
@@ -2959,6 +3021,12 @@ static bool node_shake_preview_build(bNodeTree &ntree,
     if (bNodeSocket *main_output = get_main_socket(ntree, node, SOCK_OUT)) {
       preview.group_output = main_output;
     }
+  }
+  if (preview.group_input != nullptr) {
+    preview.group_input_node = &preview.group_input->owner_node();
+  }
+  if (preview.group_output != nullptr) {
+    preview.group_output_node = &preview.group_output->owner_node();
   }
 
   return !preview.links_to_hide.is_empty() || !preview.bypass_links.is_empty();
@@ -3003,6 +3071,21 @@ static bNodeLink *node_find_link_by_sockets(bNodeTree &ntree,
   return nullptr;
 }
 
+static void node_link_multi_input_sort_id_set(bNodeTree &ntree, bNodeLink &link, const int sort_id)
+{
+  if (link.tosock == nullptr || !link.tosock->is_multi_input()) {
+    return;
+  }
+  for (bNodeLink &other_link : ntree.links) {
+    if (&other_link != &link && other_link.tosock == link.tosock &&
+        other_link.multi_input_sort_id >= sort_id)
+    {
+      other_link.multi_input_sort_id++;
+    }
+  }
+  link.multi_input_sort_id = sort_id;
+}
+
 static bool node_shake_insert_target_is_compatible(const bNodeTree &ntree,
                                                    const NodeShakeDetachPreview &preview,
                                                    const bNodeLink &target_link)
@@ -3022,12 +3105,14 @@ static bool node_shake_insert_target_is_compatible(const bNodeTree &ntree,
          node_link_sockets_are_compatible(ntree, *preview.group_output, *target_link.tosock);
 }
 
-static void node_shake_preview_apply_insert_target(bNodeTree &ntree,
+static void node_shake_preview_apply_insert_target(SpaceNode &snode,
+                                                   bNodeTree &ntree,
                                                    NodeShakeDetachPreview &preview,
                                                    Set<bNode *> &affected_nodes)
 {
   if (!preview.insert_target || !preview.insert_target->valid || preview.group_input == nullptr ||
-      preview.group_output == nullptr)
+      preview.group_output == nullptr || preview.group_input_node == nullptr ||
+      preview.group_output_node == nullptr)
   {
     return;
   }
@@ -3042,9 +3127,22 @@ static void node_shake_preview_apply_insert_target(bNodeTree &ntree,
     return;
   }
 
-  if (bNodeLink *old_link = node_find_link_by_sockets(
-          ntree, *target.fromsock, *target.tosock))
-  {
+  Vector<bNode *> insert_nodes;
+  for (bNode *node : preview.nodes) {
+    insert_nodes.append(node);
+  }
+  rctf insert_bounds;
+  const std::optional<rctf> bounds = node_insert_bounds_get(insert_nodes, insert_bounds) ?
+                                         std::optional<rctf>(insert_bounds) :
+                                         std::nullopt;
+  node_insert_offset_data_create(snode,
+                                 *preview.group_input_node,
+                                 insert_nodes,
+                                 bounds,
+                                 *target.fromnode,
+                                 *target.tonode);
+
+  if (bNodeLink *old_link = node_find_link_by_sockets(ntree, *target.fromsock, *target.tosock)) {
     affected_nodes.add(old_link->tonode);
     bke::node_remove_link(&ntree, *old_link);
   }
@@ -3052,20 +3150,24 @@ static void node_shake_preview_apply_insert_target(bNodeTree &ntree,
   bke::node_add_link(ntree,
                      *target.fromnode,
                      *target.fromsock,
-                     preview.group_input->owner_node(),
+                     *preview.group_input_node,
                      *preview.group_input);
-  bke::node_add_link(ntree,
-                     preview.group_output->owner_node(),
-                     *preview.group_output,
-                     *target.tonode,
-                     *target.tosock);
-  affected_nodes.add(&preview.group_input->owner_node());
+  bNodeLink &output_link = bke::node_add_link(ntree,
+                                              *preview.group_output_node,
+                                              *preview.group_output,
+                                              *target.tonode,
+                                              *target.tosock);
+  node_link_multi_input_sort_id_set(ntree, output_link, target.multi_input_sort_id);
+  affected_nodes.add(preview.group_input_node);
   affected_nodes.add(target.tonode);
 }
 
 bool node_shake_preview_apply(Main &bmain, SpaceNode &snode)
 {
   if (!node_shake_preview_is_active(snode) || snode.edittree == nullptr) {
+    return false;
+  }
+  if (!BKE_id_is_editable(&bmain, &snode.edittree->id)) {
     return false;
   }
 
@@ -3090,11 +3192,12 @@ bool node_shake_preview_apply(Main &bmain, SpaceNode &snode)
           ntree, *bypass.fromnode, *bypass.fromsock, *bypass.tonode, *bypass.tosock);
       new_link.flag &= ~(NODE_LINK_VALID | NODE_LINK_MUTED);
       new_link.flag |= bypass.flag & (NODE_LINK_VALID | NODE_LINK_MUTED);
+      node_link_multi_input_sort_id_set(ntree, new_link, bypass.multi_input_sort_id);
       affected_nodes.add(bypass.tonode);
     }
   }
 
-  node_shake_preview_apply_insert_target(ntree, preview, affected_nodes);
+  node_shake_preview_apply_insert_target(snode, ntree, preview, affected_nodes);
 
   ntree.ensure_topology_cache();
   for (bNode *node : affected_nodes) {
@@ -3117,7 +3220,8 @@ static bool node_link_intersection_distance_get(const bNodeLink &link,
   const float bounds_xy[] = {bounds.xmin, bounds.ymax};
   for (int i = 0; i < NODE_LINK_RESOL; i++) {
     if (BLI_rctf_isect_segment(&bounds, coords[i], coords[i + 1])) {
-      r_dist = min_ff(r_dist, dist_squared_to_line_segment_v2(bounds_xy, coords[i], coords[i + 1]));
+      r_dist = min_ff(r_dist,
+                      dist_squared_to_line_segment_v2(bounds_xy, coords[i], coords[i + 1]));
       intersects = true;
     }
   }
@@ -3140,6 +3244,12 @@ static bool node_shake_preview_link_is_targetable(const NodeShakeDetachPreview &
                                                   const bNodeLink &link)
 {
   if (ELEM(nullptr, link.fromnode, link.fromsock, link.tonode, link.tosock)) {
+    return false;
+  }
+  if (!flag_is_set(link.flag, NODE_LINK_VALID)) {
+    return false;
+  }
+  if (!link.fromsock->is_available() || !link.tosock->is_available()) {
     return false;
   }
   if (preview.nodes.contains(link.fromnode) || preview.nodes.contains(link.tonode)) {
@@ -3212,6 +3322,7 @@ static void node_shake_preview_insert_flags_set(bNodeTree &node_tree,
   target.fromsock = selink->fromsock;
   target.tonode = selink->tonode;
   target.tosock = selink->tosock;
+  target.multi_input_sort_id = selink->multi_input_sort_id;
   target.valid = valid;
   preview.insert_target = target;
 }
@@ -3262,8 +3373,8 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
       /* Don't insert on a link that is connected to the node already. */
       continue;
     }
-    if (use_group_candidate &&
-        (group_candidate.nodes.contains(link.fromnode) || group_candidate.nodes.contains(link.tonode)))
+    if (use_group_candidate && (group_candidate.nodes.contains(link.fromnode) ||
+                                group_candidate.nodes.contains(link.tonode)))
     {
       continue;
     }
@@ -3378,18 +3489,33 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 
     bNode *from_node = old_link->fromnode;
     bNodeSocket *from_socket = old_link->fromsock;
+    bNode *to_node = old_link->tonode;
 
-    old_link->fromnode = &group_candidate.output->owner_node();
+    const bool group_input_is_linked = group_candidate.input->is_directly_linked();
+
+    old_link->fromnode = group_candidate.output_node;
     old_link->fromsock = group_candidate.output;
     BKE_ntree_update_tag_link_changed(&ntree);
 
-    if (!group_candidate.input->is_directly_linked()) {
+    if (!group_input_is_linked) {
       bke::node_add_link(ntree,
                          *from_node,
                          *from_socket,
-                         group_candidate.input->owner_node(),
+                         *group_candidate.input_node,
                          *group_candidate.input);
     }
+
+    rctf insert_bounds;
+    const std::optional<rctf> bounds = node_insert_bounds_get(group_candidate.nodes.as_span(),
+                                                              insert_bounds) ?
+                                           std::optional<rctf>(insert_bounds) :
+                                           std::nullopt;
+    node_insert_offset_data_create(snode,
+                                   *group_candidate.input_node,
+                                   group_candidate.nodes.as_span(),
+                                   bounds,
+                                   *from_node,
+                                   *to_node);
 
     BKE_main_ensure_invariants(bmain, ntree.id);
     return;
@@ -3458,17 +3584,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     }
   }
 
-  /* Set up insert offset data, it needs stuff from here. */
-  if (U.uiflag & USER_NODE_AUTO_OFFSET) {
-    BLI_assert(snode.runtime->iofsd == nullptr);
-    NodeInsertOfsData *iofsd = MEM_new_zeroed<NodeInsertOfsData>(__func__);
-
-    iofsd->insert = node_to_insert;
-    iofsd->prev = from_node;
-    iofsd->next = to_node;
-
-    snode.runtime->iofsd = iofsd;
-  }
+  node_insert_offset_data_create(snode, *node_to_insert, *from_node, *to_node);
 
   BKE_main_ensure_invariants(bmain, ntree.id);
 }
@@ -3578,6 +3694,17 @@ static void node_offset_apply(bNode &node, const float offset_x)
   }
 }
 
+static void node_insert_offset_apply(NodeInsertOfsData &iofsd, const float offset_x)
+{
+  if (iofsd.insert_nodes.is_empty()) {
+    node_offset_apply(*iofsd.insert, offset_x);
+    return;
+  }
+  for (bNode *node : iofsd.insert_nodes) {
+    node_offset_apply(*node, offset_x);
+  }
+}
+
 #define NODE_INSOFS_ANIM_DURATION 0.25f
 
 /**
@@ -3608,7 +3735,14 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   bNode *init_parent = insert.parent; /* store old insert.parent for restoring later */
 
   const float min_margin = U.node_margin * UI_SCALE_FAC;
-  const float width = NODE_WIDTH(insert);
+  rctf totr_insert;
+  if (iofsd->insert_bounds.has_value()) {
+    totr_insert = *iofsd->insert_bounds;
+  }
+  else {
+    node_to_updated_rect(insert, totr_insert);
+  }
+  const float width = BLI_rctf_size_x(&totr_insert);
   const bool needs_alignment = (next->runtime->draw_bounds.xmin -
                                 prev->runtime->draw_bounds.xmax) < (width + (min_margin * 2.0f));
 
@@ -3616,11 +3750,6 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 
   /* NODE_TEST will be used later, so disable for all nodes */
   bke::node_tree_node_flag_set(*ntree, NODE_TEST, false);
-
-  /* `insert.draw_bounds` isn't updated yet,
-   * so `totr_insert` is used to get the correct world-space coords. */
-  rctf totr_insert;
-  node_to_updated_rect(insert, totr_insert);
 
   const float gap_left = totr_insert.xmin - prev->runtime->draw_bounds.xmax;
   const float gap_right = next->runtime->draw_bounds.xmin - totr_insert.xmax;
@@ -3672,7 +3801,7 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   if (dist < min_margin) {
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
 
-    node_offset_apply(insert, addval);
+    node_insert_offset_apply(*iofsd, addval);
 
     totr_insert.xmin += addval;
     totr_insert.xmax += addval;
@@ -3694,15 +3823,18 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
     /* enough room is available, but we want to ensure the min margin at the right */
     else {
       /* offset inserted node so that min margin is kept at the right */
-      node_offset_apply(insert, -addval);
+      node_insert_offset_apply(*iofsd, -addval);
     }
   }
 
   if (needs_alignment) {
     iofsd->offset_x = margin;
 
-    /* flag all parents of insert as offset to prevent them from being offset */
-    bke::node_parents_iterator(&insert, node_parents_offset_flag_enable_cb, nullptr);
+    /* Flag inserted nodes and their parents so the chain offset does not move them */
+    for (bNode *node : iofsd->insert_nodes) {
+      node->flag |= NODE_TEST;
+      bke::node_parents_iterator(node, node_parents_offset_flag_enable_cb, nullptr);
+    }
     /* iterate over entire chain and apply offsets */
     bke::node_chain_iterator(ntree,
                              right_alignment ? next : prev,
