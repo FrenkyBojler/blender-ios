@@ -1254,7 +1254,7 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
   col.prop(&ptr, "use_uniform_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   ui::Layout &density_col = layout.column(true);
   density_col.active_set(!RNA_boolean_get(op->ptr, "use_active_object"));
-  if(RNA_boolean_get(op->ptr, "use_uniform_scale")) {
+  if (RNA_boolean_get(op->ptr, "use_uniform_scale")) {
     density_col.prop(&ptr, "density_x", UI_ITEM_NONE, IFACE_("Texel Density"), ICON_NONE);
   }
   else {
@@ -1264,7 +1264,8 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
   density_col.prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   density_col.separator();
   ui::Layout &lock_col = layout.column(true);
-  lock_col.active_set(!RNA_boolean_get(op->ptr, "use_uniform_scale") && !RNA_boolean_get(op->ptr, "use_active_object"));
+  lock_col.active_set(!RNA_boolean_get(op->ptr, "use_uniform_scale") &&
+                      !RNA_boolean_get(op->ptr, "use_active_object"));
   lock_col.prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   ui::Layout &resolution_col = layout.column(true);
   resolution_col.active_set(!RNA_boolean_get(op->ptr, "use_active_object"));
