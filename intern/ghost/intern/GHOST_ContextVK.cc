@@ -1275,9 +1275,17 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
     }
   }
 
-  /* FIFO present mode is always available and we (should) prefer it as it will keep the main loop
-   * running along the monitor refresh rate. Mailbox and FIFO relaxed can generate a lot of frames
-   * that will never be displayed. */
+  /* FIFO_RELAXED is the next best option for low latency. Unlike strict FIFO it does not
+   * block vkAcquireNextImageKHR when a presentation queue is full, which prevents input
+   * processing from being delayed. */
+  for (const VkPresentModeKHR present_mode : presents) {
+    if (present_mode == VK_PRESENT_MODE_FIFO_RELAXED_KHR) {
+      *r_presentMode = present_mode;
+      return GHOST_kSuccess;
+    }
+  }
+
+  /* FIFO present mode is always available. */
   *r_presentMode = VK_PRESENT_MODE_FIFO_KHR;
   return GHOST_kSuccess;
 }
@@ -1468,10 +1476,10 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
     return GHOST_kFailure;
   }
 
-  /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
-   * actions that require low latency (paint cursor, UI resizing). MAILBOX prefers triple
-   * buffering. */
-  uint32_t image_count_requested = present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? 3 : 2;
+  /* Use 3 swapchain images (triple buffering) to ensure vkAcquireNextImageKHR rarely blocks.
+   * With only 2 images (double buffering), the CPU can be forced to wait for a vsync before
+   * acquiring the next image, which delays input processing and causes perceived input lag. */
+  uint32_t image_count_requested = 3;
   /* NOTE: maxImageCount == 0 means no limit. */
   if (capabilities.minImageCount != 0 && image_count_requested < capabilities.minImageCount) {
     image_count_requested = capabilities.minImageCount;
