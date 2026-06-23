@@ -1562,18 +1562,17 @@ void RNA_api_ui_layout(StructRNA *srna)
   func = RNA_def_function(srna, "textbox", "rna_uiItemTextBox");
   RNA_def_function_ui_description(func,
                                   "Exposes an RNA string property in the layout using a text-box "
-                                  "widget with multi-line support.\n"
-                                  "Text-box state will be stored in the current context region");
+                                  "widget with multi-line support. Text-box state will be stored "
+                                  "in the current context region.");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   api_ui_item_rna_common(func);
   parm = RNA_def_int(
-      func, "initial_visible_lines", 3, 1, INT_MAX, "", "Initial Visible Lines", 1, INT_MAX);
+      func, "initial_visible_lines", 3, 1, INT_MAX, "Initial Visible Lines", "", 1, INT_MAX);
   parm = RNA_def_string(
       func, "placeholder", nullptr, 0, "", "Hint describing the expected value when empty");
   RNA_def_property_clear_flag(parm, PROP_NEVER_NULL);
   api_ui_item_common_translation(func);
 
-  /* items */
   func = RNA_def_function(srna, "textbox_with_state", "rna_uiItemTextBoxWithState");
   RNA_def_function_ui_description(func,
                                   "Exposes an RNA string property in the layout using a text-box "
@@ -1582,8 +1581,8 @@ void RNA_api_ui_layout(StructRNA *srna)
   parm = RNA_def_pointer(func,
                          "textbox_state",
                          "TextboxState",
-                         "Pointer to a pre-allocated text-box state storage (builtin)",
-                         "");
+                         "",
+                         "Pointer to a pre-allocated text-box state storage (builtin)");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
   parm = RNA_def_string(
       func, "placeholder", nullptr, 0, "", "Hint describing the expected value when empty");
