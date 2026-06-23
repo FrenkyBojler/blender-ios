@@ -16,6 +16,11 @@ TEST_FILE = "world_space_copy_paste.blend"
 COPYBUFFER_NAME = "world_space_buffer.blend"
 
 
+def _deselect_all_bones(armature_ob: bpy.types.Object) -> None:
+    for bone in armature_ob.pose.bones:
+        bone.select = False
+
+
 class AbstractCopyPasteTest(unittest.TestCase):
 
     def setUp(self) -> None:
@@ -214,9 +219,8 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         bpy.ops.object.mode_set(mode='POSE')
         copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
         paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[2]
-        for bone in paste_obj.pose.bones:
-            # Deselect all bones to ensure we copy the right data.
-            bone.select = False
+        # Deselect all bones to ensure we copy the right data.
+        _deselect_all_bones(paste_obj)
         copy_bone.select = True
         paste_bone.select = False
         bpy.ops.anim.world_space_copy(start=0, end=10)
@@ -268,9 +272,6 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
             bpy.context.scene.frame_set(frame)
             self._assert_almost_equal_matrix(copy_obj.matrix_world, paste_obj.matrix_world @ paste_bone.matrix)
 
-    def test_from_single_to_multiple(self) -> None:
-        pass
-
     def test_pasting_to_connected_child(self) -> None:
         """When pasting to a bone that is connected, the location cannot be modified.
         As such, the location will not match when pasting to it. Rotation should still match though."""
@@ -299,9 +300,64 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
             self._assert_almost_equal_lists(copy_matrix.to_quaternion(), paste_matrix.to_quaternion())
             self.assertNotEqual(copy_matrix.to_translation(), paste_matrix.to_translation())
 
-
     def test_paste_to_constrained_bone(self) -> None:
-        """Depending on the constraint, the pasted bone may not be able to reach the required world space."""
+        """Depending on the constraint, the pasted bone may not be able to reach the required world space.
+        There is also the case where the transformation is additive, like the armature constraint. In
+        those cases, the pasting will not result in a correct transform."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_constrained_bone"]
+        paste_obj.select_set(True)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
+        copy_bone.select = True
+        _deselect_all_bones(paste_obj)
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+        copy_bone.select = False
+
+        # Copy Location Constraint
+        paste_bone_copy_loc: bpy.types.PoseBone = paste_obj.pose.bones["bone_copy_loc"]
+        paste_bone_limit_loc: bpy.types.PoseBone = paste_obj.pose.bones["bone_limit_loc"]
+        paste_bone_damped_track: bpy.types.PoseBone = paste_obj.pose.bones["bone_damped_track"]
+        paste_bone_child_of: bpy.types.PoseBone = paste_obj.pose.bones["bone_child_of"]
+        paste_bone_copy_loc.select = True
+        paste_bone_limit_loc.select = True
+        paste_bone_damped_track.select = True
+        paste_bone_child_of.select = True
+        # Pasting 1:n.
+        bpy.ops.anim.world_space_paste()
+
+        for frame in range(10):
+            bpy.context.scene.frame_set(frame)
+            copy_matrix: mathutils.Matrix = copy_obj.matrix_world @ copy_bone.matrix
+
+            # The copy location constraint overrides the location so this won't match.
+            paste_matrix_copy_loc: mathutils.Matrix = paste_obj.matrix_world @ paste_bone_copy_loc.matrix
+            self.assertNotEqual(copy_matrix.to_translation(), paste_matrix_copy_loc.to_translation())
+            self._assert_almost_equal_lists(copy_matrix.to_quaternion(), paste_matrix_copy_loc.to_quaternion())
+
+            # The location is constrained to be 0 on Y and Z so only the X axis will match.
+            paste_matrix_limit_loc: mathutils.Matrix = paste_obj.matrix_world @ paste_bone_limit_loc.matrix
+            self.assertNotEqual(copy_matrix.to_translation(), paste_matrix_limit_loc.to_translation())
+            self.assertAlmostEqual(copy_matrix.to_translation().x, paste_matrix_limit_loc.to_translation().x, 3)
+            self._assert_almost_equal_lists(copy_matrix.to_quaternion(), paste_matrix_limit_loc.to_quaternion())
+
+            # The damped track constraint overrides the rotation, so only location will match.
+            paste_matrix_damped_track: mathutils.Matrix = paste_obj.matrix_world @ paste_bone_damped_track.matrix
+            self._assert_almost_equal_lists(copy_matrix.to_translation(), paste_matrix_damped_track.to_translation())
+            self.assertNotEqual(copy_matrix.to_quaternion(), paste_matrix_damped_track.to_quaternion())
+
+            # The child of constraint is just not supported.
+            paste_matrix_child_of: mathutils.Matrix = paste_obj.matrix_world @ paste_bone_child_of.matrix
+            if frame > 1:
+                # Frame 0 and 1 contain no rotation, so the paste works there.
+                self.assertNotEqual(copy_matrix.to_translation(), paste_matrix_child_of.to_translation())
+                self.assertNotEqual(copy_matrix.to_quaternion(), paste_matrix_child_of.to_quaternion())
+            else:
+                self.assertEqual(copy_matrix.to_translation(), paste_matrix_child_of.to_translation())
+                self.assertEqual(copy_matrix.to_quaternion(), paste_matrix_child_of.to_quaternion())
 
 
 def main():

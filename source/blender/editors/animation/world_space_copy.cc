@@ -410,8 +410,8 @@ static Map<AnimTransformable *, StringRefNull> generate_paste_mapping(
 {
   Map<AnimTransformable *, StringRefNull> paste_map;
 
-  const bool from_single = clipboard_data.size();
-  const bool to_single = transformables.size();
+  const bool from_single = clipboard_data.size() == 1;
+  const bool to_single = transformables.size() == 1;
   if (from_single && to_single) {
     paste_map.add(&transformables[0], *clipboard_data.keys().begin());
     return paste_map;
