@@ -197,7 +197,7 @@ struct GeometryShaderEmulator {
     /** WORKAROUND: Check for degenerate tris. */
     /* Check if area is null */
     float2 faces_area = float2(length_squared(n1), length_squared(n2));
-    bool2 degen_faces = equal(abs(faces_area), float2(0.0f));
+    bool2 degen_faces = equal(faces_area, float2(0.0f));
 
     /* Both triangles are degenerate, abort. */
     if (all(degen_faces)) {
