@@ -83,6 +83,8 @@ float BM_face_calc_area_uv_signed(const BMFace *f, int cd_loop_uv_offset) ATTR_W
  */
 float BM_face_calc_area_uv(const BMFace *f, int cd_loop_uv_offset) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
+float2 BM_face_calc_density_uv(const BMFace *f, int cd_loop_uv_offset, int width, int height)
+    ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 /**
  * compute the perimeter of an ngon
  */

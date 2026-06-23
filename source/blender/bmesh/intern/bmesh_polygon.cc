@@ -266,6 +266,90 @@ float BM_face_calc_area_uv(const BMFace *f, int cd_loop_uv_offset)
   return fabsf(BM_face_calc_area_uv_signed(f, cd_loop_uv_offset));
 }
 
+static void bm_face_calc_tri_density_uv(const BMLoop *l0,
+                                        const BMLoop *l1,
+                                        const BMLoop *l2,
+                                        int cd_loop_uv_offset,
+                                        int width,
+                                        int height,
+                                        double2 &r_density,
+                                        double &r_area)
+{
+  const float3 p0 = l0->v->co;
+  const float3 p1 = l1->v->co;
+  const float3 p2 = l2->v->co;
+
+  const float *t0 = BM_ELEM_CD_GET_FLOAT_P(l0, cd_loop_uv_offset);
+  const float *t1 = BM_ELEM_CD_GET_FLOAT_P(l1, cd_loop_uv_offset);
+  const float *t2 = BM_ELEM_CD_GET_FLOAT_P(l2, cd_loop_uv_offset);
+
+  const float3 e1 = p1 - p0;
+  const float3 e2 = p2 - p0;
+
+  const float2 uvs1 = float2(t1) - float2(t0);
+  const float2 uvs2 = float2(t2) - float2(t0);
+
+  const float det = math::cross(uvs1, uvs2);
+  const float abs_det = math::abs(det);
+  if (abs_det > 1e-7f) {
+    const float3 tangent = e1 * uvs2.y - e2 * uvs1.y;
+    const float3 bitangent = e2 * uvs1.x - e1 * uvs2.x;
+
+    const float tangent_length = math::length(tangent);
+    const float bitangent_length = math::length(bitangent);
+
+    const float area = area_tri_v3(p0, p1, p2);
+
+    if (area > 1e-7f) {
+      if (tangent_length > 1e-6f * abs_det) {
+        r_density.x += area * ((width * abs_det) / tangent_length);
+      }
+      if (bitangent_length > 1e-6f * abs_det) {
+        r_density.y += area * ((height * abs_det) / bitangent_length);
+      }
+      r_area += area;
+    }
+  }
+}
+
+float2 BM_face_calc_density_uv(const BMFace *f, int cd_loop_uv_offset, int width, int height)
+{
+  const int len = f->len;
+  if (len < 3) {
+    return {0.0f, 0.0f};
+  }
+
+  double2 density = {0.0, 0.0};
+  double area_sum = 0.0;
+
+  if (len == 3) {
+    const BMLoop *l0 = BM_FACE_FIRST_LOOP(f);
+    bm_face_calc_tri_density_uv(
+        l0, l0->next, l0->next->next, cd_loop_uv_offset, width, height, density, area_sum);
+  }
+  else {
+    const int total_tri = len - 2;
+    Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops(len);
+    Array<std::array<uint, 3>, BM_DEFAULT_NGON_STACK_SIZE> index(total_tri);
+    BM_face_calc_tessellation(f, false, loops.data(), reinterpret_cast<uint(*)[3]>(index.data()));
+    for (int j = 0; j < total_tri; j++) {
+      bm_face_calc_tri_density_uv(loops[index[j][0]],
+                                  loops[index[j][1]],
+                                  loops[index[j][2]],
+                                  cd_loop_uv_offset,
+                                  width,
+                                  height,
+                                  density,
+                                  area_sum);
+    }
+  }
+
+  if (area_sum > 0.0) {
+    return {float(density.x / area_sum), float(density.y / area_sum)};
+  }
+  return {0.0f, 0.0f};
+}
+
 float BM_face_calc_perimeter(const BMFace *f)
 {
   const BMLoop *l_iter, *l_first;

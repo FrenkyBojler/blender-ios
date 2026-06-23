@@ -1116,20 +1116,20 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(active_object);
     BMesh *bm = em->bm;
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-    float uv_area = 0.0f;
-    float object_area = 0.0f;
+    float2 island_density = {0.0, 0.0};
+    float area = 0.0;
 
     BMFace *efa;
-    BMLoop *l;
-    BMIter iter, liter;
+    BMIter iter;
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-      BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-        uv_area += BM_face_calc_area_uv(l->f, offsets.uv);
-        object_area += BM_face_calc_area(l->f);
-      }
+      const float face_area = BM_face_calc_area(efa);
+      const float2 face_density = BM_face_calc_density_uv(efa, offsets.uv, width, height);
+      island_density.x += face_area * face_density.x;
+      island_density.y += face_area * face_density.y;
+      area += face_area;
     }
-    density.x = sqrt((width * width * uv_area) / object_area) / scene->unit.scale_length;
-    density.y = sqrt((height * height * uv_area) / object_area) / scene->unit.scale_length;
+    density.x = (island_density.x / area) / scene->unit.scale_length;
+    density.y = (island_density.y / area) / scene->unit.scale_length;
   }
   else {
     if (unit == UVTexelUnit::Inch) {
@@ -1157,30 +1157,35 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    float changed = false;
+    bool changed = false;
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
     const UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
     if (element_map == nullptr) {
       continue;
     }
 
-    Set<BMFace *> ed_faces;
     for (int i = 0; i < element_map->total_islands; i++) {
       UvElement *element = element_map->storage + element_map->island_indices[i];
       INIT_MINMAX2(bounds.min, bounds.max);
-      float uv_area = 0.0f;
-      float object_area = 0.0f;
+      float2 island_density = {0.0, 0.0};
+      float area = 0.0;
 
+      Set<BMFace *> processed_faces;
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         minmax_v2v2_v2(bounds.min, bounds.max, luv);
-        uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
-        object_area += BM_face_calc_area(element[j].l->f);
+
+        BMFace *f = element[j].l->f;
+        if (processed_faces.add(f)) {
+          const float face_area = BM_face_calc_area(f);
+          const float2 face_density = BM_face_calc_density_uv(f, offsets.uv, width, height);
+          island_density.x += face_area * face_density.x;
+          island_density.y += face_area * face_density.y;
+          area += face_area;
+        }
       }
-      float2 island_density = {0.0f, 0.0f};
-      island_density.x = sqrt((width * width * uv_area) / object_area) / scene->unit.scale_length;
-      island_density.y = sqrt((height * height * uv_area) / object_area) /
-                         scene->unit.scale_length;
+      island_density.x = (island_density.x / area) / scene->unit.scale_length;
+      island_density.y = (island_density.y / area) / scene->unit.scale_length;
 
       float2 scale = {density.x / island_density.x, density.y / island_density.y};
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
