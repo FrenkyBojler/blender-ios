@@ -312,7 +312,7 @@ float textbox_vertical_padding()
 
 TextboxState *textbox_ensure_state(ARegion *region,
                                    StringRefNull idname,
-                                   int initial_visible_lines)
+                                   const int initial_visible_lines)
 {
   for (uiTextboxStateLink &link : region->textbox_states) {
     if (link.idname == idname) {

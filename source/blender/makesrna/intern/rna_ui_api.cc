@@ -115,7 +115,7 @@ static void rna_uiItemTextBox(Layout *layout,
                               bContext *C,
                               PointerRNA *ptr,
                               const char *propname,
-                              int initial_visible_lines,
+                              const int initial_visible_lines,
                               const char *placeholder,
                               const char *text_ctxt,
                               bool translate)
@@ -158,9 +158,7 @@ static void rna_uiItemTextBoxWithState(Layout *layout,
     placeholder_opt = rna_translate_ui_text(placeholder, text_ctxt, nullptr, prop, translate);
   }
 
-  if (state_ptr && !RNA_pointer_is_null(state_ptr)) {
-    layout->textbox_with_state(ptr, propname, state_ptr->data_as<TextboxState>(), placeholder_opt);
-  }
+  layout->textbox_with_state(ptr, propname, state_ptr->data_as<TextboxState>(), placeholder_opt);
 }
 
 static void rna_uiItemR(Layout *layout,
@@ -1586,7 +1584,7 @@ void RNA_api_ui_layout(StructRNA *srna)
                          "TextboxState",
                          "Pointer to a pre-allocated text-box state storage (builtin)",
                          "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
   parm = RNA_def_string(
       func, "placeholder", nullptr, 0, "", "Hint describing the expected value when empty");
   RNA_def_property_clear_flag(parm, PROP_NEVER_NULL);

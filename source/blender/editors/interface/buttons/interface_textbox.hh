@@ -60,7 +60,7 @@ float textbox_vertical_padding();
 
 TextboxState *textbox_ensure_state(ARegion *region,
                                    StringRefNull idname,
-                                   int initial_visible_lines = 3);
+                                   const int initial_visible_lines = 3);
 
 }  // namespace ui
 }  // namespace blender

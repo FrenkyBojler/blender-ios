@@ -665,7 +665,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
                PointerRNA *ptr,
                StringRefNull propname,
                std::optional<StringRefNull> placeholder = std::nullopt,
-               int initial_visible_lines = 3);
+               const int initial_visible_lines = 3);
   /**
    * Adds a string property item as textbox, this will let multi-line text editing.
    * \param textbox_state: custom allocation for persistent textbox state.

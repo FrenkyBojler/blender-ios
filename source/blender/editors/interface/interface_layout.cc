@@ -2761,7 +2761,7 @@ void Layout::textbox(const bContext *C,
                      PointerRNA *ptr,
                      StringRefNull propname,
                      std::optional<StringRefNull> placeholder,
-                     int initial_visible_lines)
+                     const int initial_visible_lines)
 {
   TextboxState *textbox_state = textbox_ensure_state(
       CTX_wm_region(C),
