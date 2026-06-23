@@ -125,7 +125,11 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
             bone_b: bpy.types.PoseBone) -> None:
         for frame in range(10):
             bpy.context.scene.frame_set(frame)
-            self._assert_almost_equal_matrix(arm_a.matrix_world @ bone_a.matrix, arm_b.matrix_world @ bone_b.matrix)
+            try:
+                self._assert_almost_equal_matrix(arm_a.matrix_world @ bone_a.matrix, arm_b.matrix_world @ bone_b.matrix)
+            except:
+                print("Frame: ", frame)
+                raise
 
     def _assert_objects_equal_world_space(self, obj_a: bpy.types.Object, obj_b: bpy.types.Object) -> None:
         for frame in range(10):
@@ -172,38 +176,60 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
 
     def test_paste_scale_animation(self) -> None:
         """Pasting an animation of non uniform scale values should work."""
-        pass
-
-    def test_indirect_animation(self) -> None:
-        # The entity from which we copy may not be animated directly,
-        # copying the world space movement should still work.
-        pass
-
-    def test_from_objects_to_bones(self) -> None:
-        # As long as the names match, this will work.
-        pass
-
-    def test_from_single_to_multiple(self) -> None:
-        pass
-
-    def test_paste_to_skewed_space(self) -> None:
-        """When the space into which we scale is skewed the result may not match 100%."""
-        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_scale_anim"]
         copy_obj.select_set(True)
         bpy.context.view_layer.objects.active = copy_obj
-        paste_obj: bpy.types.Object = bpy.data.objects["armature_skewed_space"]
-        paste_obj.select_set(False)
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
+        paste_obj.select_set(True)
 
         bpy.ops.object.mode_set(mode='POSE')
         copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
-        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[2]
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[0]
         copy_bone.select = True
         paste_bone.select = False
         bpy.ops.anim.world_space_copy(start=0, end=10)
 
-        for frame in range(10):
-            bpy.context.scene.frame_set(frame)
-            # TODO
+        copy_bone.select = False
+        paste_bone.select = True
+        bpy.ops.anim.world_space_paste()
+
+        self._assert_bones_equal_world_space(copy_obj, copy_bone, paste_obj, paste_bone)
+
+    def test_paste_to_skewed_space(self) -> None:
+        """Pasting into a skewed space should also work."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_skewed_space"]
+        paste_obj.select_set(True)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[2]
+        for bone in paste_obj.pose.bones:
+            # Deselect all bones to ensure we copy the right data.
+            bone.select = False
+        copy_bone.select = True
+        paste_bone.select = False
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+
+        copy_bone.select = False
+        paste_bone.select = True
+        bpy.ops.anim.world_space_paste()
+
+        self._assert_bones_equal_world_space(copy_obj, copy_bone, paste_obj, paste_bone)
+
+    def test_indirect_animation(self) -> None:
+        """The entity from which we copy may not be animated directly,
+        copying the world space movement should still work."""
+        pass
+
+    def test_from_objects_to_bones(self) -> None:
+        """Copying from objects to bones works as long it is either 1:1 or the names match."""
+        pass
+
+    def test_from_single_to_multiple(self) -> None:
+        pass
 
 
 def main():
