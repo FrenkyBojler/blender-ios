@@ -1093,7 +1093,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   Object *active_object = CTX_data_active_object(C);
   const UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
   const bool use_active_object = RNA_boolean_get(op->ptr, "use_active_object");
-
+  const bool use_uniform_scale = RNA_boolean_get(op->ptr, "use_uniform_scale");
   const bool use_custom_resolution = RNA_boolean_get(op->ptr, "use_custom_resolution");
   float2 density = float2(RNA_float_get(op->ptr, "density_x"),
                           RNA_float_get(op->ptr, "density_y"));
@@ -1132,6 +1132,9 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     density.y = (island_density.y / area) / scene->unit.scale_length;
   }
   else {
+    if (use_uniform_scale) {
+      density.y = density.x;
+    }
     if (unit == UVTexelUnit::Inch) {
       density.x /= 0.0254;
       density.y /= 0.0254;
@@ -1188,6 +1191,9 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       island_density.y = (island_density.y / area) / scene->unit.scale_length;
 
       float2 scale = {density.x / island_density.x, density.y / island_density.y};
+      if (use_uniform_scale) {
+        scale.x = scale.y = (scale.x + scale.y) / 2.0f;
+      }
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         if (ELEM(lock, UVTexelLock::Y, UVTexelLock::None)) {
@@ -1218,8 +1224,14 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
   ui::Layout &col = layout.column(true);
   col.prop(&ptr, "use_active_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_boolean_get(op->ptr, "use_active_object")) {
-    col.prop(&ptr, "density_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col.prop(&ptr, "density_y", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(&ptr, "use_uniform_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    if (RNA_boolean_get(op->ptr, "use_uniform_scale")) {
+      col.prop(&ptr, "density_x", UI_ITEM_NONE, IFACE_("Texel Density"), ICON_NONE);
+    }
+    else {
+      col.prop(&ptr, "density_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col.prop(&ptr, "density_y", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    }
     col.prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   col.separator();
@@ -1311,6 +1323,7 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
       ot->srna, "unit", unit_items, int(UVTexelUnit::Meter), "Unit", "Custom density unit");
   RNA_def_enum(
       ot->srna, "lock", lock_items, int(UVTexelLock::None), "Lock Axis", "Lock axis scaling");
+  RNA_def_boolean(ot->srna, "use_uniform_scale", true, "Uniform Scale", "Scale UVs uniformly");
   RNA_def_boolean(
       ot->srna, "use_custom_resolution", false, "Custom Resolution", "Custom Texture Resolution");
   prop = RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
