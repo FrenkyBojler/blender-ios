@@ -7782,7 +7782,7 @@ class VIEW3D_PT_snapping(Panel):
         sub = row.row(align=True)
         sub.menu("VIEW3D_MT_snapping_presets", text=bpy.types.VIEW3D_MT_snapping_presets.bl_label)
         sub.operator("scene.snapping_preset_add", text="", icon='ADD')
-        sub.operator("scene.snapping_preset_add", text="", icon='REMOVE').remove_active = True
+        sub.operator("scene.snapping_preset_add", text="", icon='REMOVE')
 
         col = layout.column()
 
