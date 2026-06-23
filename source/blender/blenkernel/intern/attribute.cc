@@ -781,7 +781,7 @@ void BKE_attributes_active_index_validate(AttributeOwner &owner)
   bke::AttributeStorage *attributes = owner.get_storage();
 
   /* First try downwards. */
-  int index_check = *active_index - 1;
+  int index_check = *active_index;
   while (index_check >= 0) {
     bke::Attribute attribute_check = attributes->at_index(index_check);
     if (bke::allow_procedural_attribute_access(attribute_check.name())) {
