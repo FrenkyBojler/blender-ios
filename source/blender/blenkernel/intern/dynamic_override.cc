@@ -436,7 +436,8 @@ DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(Scene &scene, ID &owner_id)
   return rule_iddata_lookup_for_id(*dynamic_override, owner_id);
 }
 
-static DynamicOverrideRuleIDData &rule_iddata_add_for_id(DynamicOverride &dynamic_override,
+static DynamicOverrideRuleIDData &rule_iddata_add_for_id(Main &bmain,
+                                                         DynamicOverride &dynamic_override,
                                                          ID &target_id)
 {
   BLI_assert(!rule_iddata_lookup_for_id(dynamic_override, target_id));
@@ -461,12 +462,13 @@ static DynamicOverrideRuleIDData &rule_iddata_add_for_id(DynamicOverride &dynami
 
   DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
   DEG_id_tag_update(&target_id, ID_RECALC_DYNAMIC_OVERRIDE);
-  DEG_relations_tag_update(G_MAIN);
+  DEG_relations_tag_update(&bmain);
 
   return *rule_id_data;
 }
 
-DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(DynamicOverride &dynamic_override,
+DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(Main &bmain,
+                                                     DynamicOverride &dynamic_override,
                                                      ID &owner_id)
 {
   DynamicOverrideRuleIDData *existing_rule = rule_iddata_lookup_for_id(dynamic_override, owner_id);
@@ -474,7 +476,7 @@ DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(DynamicOverride &dynamic_ov
   if (existing_rule) {
     return *existing_rule;
   }
-  return rule_iddata_add_for_id(dynamic_override, owner_id);
+  return rule_iddata_add_for_id(bmain, dynamic_override, owner_id);
 }
 
 /**
@@ -601,6 +603,7 @@ DynamicOverrideRuleProperty *rule_rna_property_add(Main &bmain,
 
   DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
   DEG_id_tag_update(rule.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
+  DEG_relations_tag_update(&bmain);
 
   return rule_property;
 }

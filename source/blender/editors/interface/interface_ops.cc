@@ -1026,7 +1026,7 @@ static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator
   }
 
   DynamicOverrideRuleIDData &dynamic_override_rule = bke::dynoverride::rule_iddata_ensure_for_id(
-      *scene->dynamic_override, *owner_id);
+      *bmain, *scene->dynamic_override, *owner_id);
 
   RNAPath rna_path = {*rna_path_str};
   DynamicOverrideRuleProperty *dynamic_override_rule_property =
@@ -1108,7 +1108,7 @@ static wmOperatorStatus dynamic_override_remove_button_exec(bContext *C, wmOpera
   }
 
   DynamicOverrideRuleIDData &dynamic_override_rule = bke::dynoverride::rule_iddata_ensure_for_id(
-      *scene->dynamic_override, *owner_id);
+      *bmain, *scene->dynamic_override, *owner_id);
 
   RNAPath rna_path = {*rna_path_str};
   bke::dynoverride::rule_rna_property_lookup(dynamic_override_rule.base, rna_path);

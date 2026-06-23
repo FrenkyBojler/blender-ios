@@ -56,8 +56,14 @@ void rna_DynamicOverrideRuleProperty_update(Main * /*bmain*/, Scene * /*scene*/,
     return;
   }
   const DynamicOverrideRule *rule = static_cast<DynamicOverrideRule *>(ancestor->data);
+  DynamicOverride *dynoverride = id_cast<DynamicOverride *>(ptr->owner_id);
 
+  DEG_id_tag_update(&dynoverride->id, ID_RECALC_PARAMETERS);
   DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
+  /* TODO: Fixme - which ones are needed? */
+  DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_SYNC_TO_EVAL);
+  DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_PARAMETERS);
+  DEG_id_tag_update(rule->target_filter.target_id, ID_RECALC_TRANSFORM);
 }
 
 void rna_DynamicOverrideRuleProperty_is_muted_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -285,11 +291,12 @@ static void rna_DynamicOverride_rule_name_set(PointerRNA *ptr, const char *value
 }
 
 static PointerRNA rna_DynamicOverride_rule_iddata_ensure(PointerRNA self_ptr,
+                                                         Main *bmain,
                                                          ReportList * /*reports*/,
                                                          ID *target_id)
 {
   DynamicOverrideRuleIDData &result = bke::dynoverride::rule_iddata_ensure_for_id(
-      *self_ptr.data_as<DynamicOverride>(), *target_id);
+      *bmain, *self_ptr.data_as<DynamicOverride>(), *target_id);
 
   // WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
   return RNA_pointer_create_with_parent(self_ptr, RNA_DynamicOverrideRuleIDData, &result.base);
@@ -582,7 +589,7 @@ static void rna_def_dynamic_override_rules(BlenderRNA *brna, PropertyRNA *cprop)
   func = RNA_def_function(srna, "ensure_for_iddata", "rna_DynamicOverride_rule_iddata_ensure");
   RNA_def_function_ui_description(func,
                                   "Add a rule for the given owner ID, if it doesn't exist yet");
-  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_MAIN | FUNC_USE_REPORTS);
   parm = RNA_def_pointer(
       func,
       "rule",

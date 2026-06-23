@@ -36,7 +36,8 @@ namespace bke::dynoverride {
 DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(DynamicOverride &dynamic_override,
                                                      ID &id_owner);
 DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(Scene &scene, ID &owner_id);
-DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(DynamicOverride &dynamic_override,
+DynamicOverrideRuleIDData &rule_iddata_ensure_for_id(Main &bmain,
+                                                     DynamicOverride &dynamic_override,
                                                      ID &id_owner);
 
 DynamicOverrideRule *rule_lookup_by_name(DynamicOverride &dynamic_override, StringRef rule_name);
