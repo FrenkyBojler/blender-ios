@@ -396,21 +396,19 @@ enum ButtonFlag : int64_t {
 
   /** Property has some dynamic overrides applied to it. */
   BUT_DYNAMIC_OVERRIDDEN = int64_t(1) << 32,
-};
 
-enum {
   /**
    * This is used when `BUT_ACTIVATE_ON_INIT` is used, which is used to activate e.g. a search
    * box as soon as a popup opens. Usually, the text in the search box is selected by default.
    * However, sometimes this behavior is not desired, so it can be disabled with this flag.
    */
-  BUT2_ACTIVATE_ON_INIT_NO_SELECT = 1 << 0,
+  BUT_ACTIVATE_ON_INIT_NO_SELECT = int64_t(1) << 33,
   /**
    * Force the button as active in a semi-modal state. For example, text buttons can continuously
    * capture text input, while leaving the remaining UI interactive. Only supported well for text
    * buttons currently.
    */
-  BUT2_FORCE_SEMI_MODAL_ACTIVE = 1 << 1,
+  BUT_FORCE_SEMI_MODAL_ACTIVE = int64_t(1) << 34,
 };
 
 /** #Button.dragflag */
@@ -453,6 +451,8 @@ enum {
 #define UI_PANEL_CATEGORY_MIN_WIDTH ((U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT) ? 32.0f : 26.0f)
 /* Minimum width for a panel showing content and category tabs. */
 #define UI_PANEL_CATEGORY_MIN_SNAP_WIDTH 90.0f
+/* Minimum panel draw width. */
+static constexpr int PANEL_MIN_DRAW_WIDTH = 20;
 
 /* Both these margins should be ignored if the panel doesn't show a background (check
  * #panel_should_show_background()). */
@@ -1207,7 +1207,6 @@ bool button_active_drop_color(bContext *C);
 void button_flag_enable(Button *but, int64_t flag);
 void button_flag_disable(Button *but, int64_t flag);
 bool button_flag_is_set(Button *but, int64_t flag);
-void button_flag2_enable(Button *but, int flag);
 
 void button_drawflag_enable(Button *but, int flag);
 void button_drawflag_disable(Button *but, int flag);
@@ -1848,7 +1847,7 @@ bool search_item_add(SearchItems *items,
                      StringRef name,
                      void *poin,
                      int iconid,
-                     int but_flag,
+                     int64_t but_flag,
                      uint8_t name_prefix_offset);
 
 /**
