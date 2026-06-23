@@ -95,14 +95,14 @@ void VKTexture::copy_to(VKTexture &dst_texture,
   copy_image.node_data.src_image = vk_image_handle();
   copy_image.node_data.dst_image = dst_texture.vk_image_handle();
   copy_image.node_data.region.srcSubresource.aspectMask = vk_image_aspect;
-  copy_image.node_data.region.srcSubresource.mipLevel = mip_min_;
+  copy_image.node_data.region.srcSubresource.mipLevel = mip_levels.first() + mip_min_;
   copy_image.node_data.region.srcSubresource.layerCount = layer_count();
   copy_image.node_data.region.srcSubresource.baseArrayLayer = view_layer_start_;
   copy_image.node_data.region.dstSubresource.aspectMask = vk_image_aspect;
-  copy_image.node_data.region.dstSubresource.mipLevel = dst_texture.mip_min_;
+  copy_image.node_data.region.dstSubresource.mipLevel = mip_levels.first() + dst_texture.mip_min_;
   copy_image.node_data.region.dstSubresource.layerCount = dst_texture.layer_count();
   copy_image.node_data.region.dstSubresource.baseArrayLayer = dst_texture.view_layer_start_;
-  copy_image.node_data.region.extent = vk_extent_3d(mip_min_);
+  copy_image.node_data.region.extent = vk_extent_3d(mip_levels.first());
   copy_image.vk_image_aspect = vk_image_aspect;
 
   VKContext &context = *VKContext::get();
@@ -776,9 +776,7 @@ VkExtent3D VKTexture::vk_extent_3d(int mip_level) const
     extent[1] = 1;
     extent[2] = 1;
   }
-
-  VkExtent3D result{uint32_t(extent[0]), uint32_t(extent[1]), uint32_t(extent[2])};
-  return result;
+  return VkExtent3D{UNPACK3(extent)};
 }
 
 const VKImageView &VKTexture::image_view_get(const VKImageViewInfo &info)
