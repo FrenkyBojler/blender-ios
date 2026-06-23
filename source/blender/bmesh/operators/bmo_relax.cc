@@ -339,15 +339,15 @@ static void calculate_relax_splines(Span<BMVert *> verts,
                                     int interpolation,
                                     std::array<Vector<SplineCoeffs>, 3> &r_coeffs)
 {
-  const int n = knot_indices.size();
+  const int num_knots = knot_indices.size();
 
   if (interpolation == CUBIC) {
-    const int unique = is_closed ? n - 1 : n;
-    Array<float> coords_x(unique);
-    Array<float> coords_y(unique);
-    Array<float> coords_z(unique);
+    const int coords_size = is_closed ? num_knots - 1 : num_knots;
+    Array<float> coords_x(coords_size);
+    Array<float> coords_y(coords_size);
+    Array<float> coords_z(coords_size);
 
-    for (const int i : IndexRange(unique)) {
+    for (const int i : IndexRange(coords_size)) {
       const float *co = verts[knot_indices[i]]->co;
       coords_x[i] = co[0];
       coords_y[i] = co[1];
