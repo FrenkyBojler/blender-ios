@@ -146,7 +146,7 @@ static void rna_uiItemTextBoxWithState(Layout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
   if (!prop) {
-    RNA_warning_bare("UILayout.textbox(): property not found: %s.%s",
+    RNA_warning_bare("UILayout.textbox_with_state(): property not found: %s.%s",
                      RNA_struct_identifier(ptr->type),
                      propname);
     return;
