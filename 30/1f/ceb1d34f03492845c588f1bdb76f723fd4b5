@@ -3,3 +3,4 @@ Referenced by issue #159701, original mesh is not visible in edit mode under geo
 Referenced by pull request #159856, Fix #159701: Edit mesh not visible when object has a modifier
 Referenced by commit dd7832a20ebf9fa0c4dd81a2d72c7da95b3283be, Fix #159701: Edit mesh not visible when object has a modifier
 Referenced by pull request #160522, Fix #160521: Object modifier operators disabled for empty objects
+Referenced by commit 68e52a171a7a1825b90e6685f4f33fe3a9656769, Fix #160521: Object modifier operators disabled for empty objects
