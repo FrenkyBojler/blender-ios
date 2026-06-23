@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-06-22 07:24+0000\n"
 "PO-Revision-Date: 2026-04-06 09:16+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -7236,70 +7236,6 @@ msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
-msgid "Track"
-msgstr "Raide"
-
-
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
-
-
-msgid "Hooks"
-msgstr "Koukut"
-
-
-msgid "Math"
-msgstr "Matematiikka"
-
-
-msgid "Utilities"
-msgstr "Työkalut"
-
-
-msgid "Random Mask"
-msgstr "Satunnainen maski"
-
-
-msgid "Names"
-msgstr "Nimet"
-
-
-msgid "Read"
-msgstr "Lue"
-
-
-msgid "Write"
-msgstr "Kirjoita"
-
-
-msgid "Mesh Select Mode"
-msgstr "Muodon valintatila"
-
-
-msgid "Instances"
-msgstr "Instanssit"
-
-
-msgid "Import"
-msgstr "Tuo"
-
-
-msgid "Metaball"
-msgstr "Metapallo"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
-
-
-msgid "Linked"
-msgstr "Linkitetyt"
-
-
 msgid "Select More/Less"
 msgstr "Valitse enemmän/vähemmän"
 
@@ -7316,6 +7252,18 @@ msgid "Select Loops"
 msgstr "Valitse silmukat"
 
 
+msgid "Math"
+msgstr "Matematiikka"
+
+
+msgid "Utilities"
+msgstr "Työkalut"
+
+
+msgid "Metaball"
+msgstr "Metapallo"
+
+
 msgid "Light"
 msgstr "Valo"
 
@@ -7326,6 +7274,58 @@ msgstr "Valoluotain"
 
 msgid "Add Image"
 msgstr "Lisää kuva"
+
+
+msgid "Read"
+msgstr "Lue"
+
+
+msgid "Write"
+msgstr "Kirjoita"
+
+
+msgid "Track"
+msgstr "Raide"
+
+
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
+
+
+msgid "Instances"
+msgstr "Instanssit"
+
+
+msgid "Hooks"
+msgstr "Koukut"
+
+
+msgid "Import"
+msgstr "Tuo"
+
+
+msgid "Random Mask"
+msgstr "Satunnainen maski"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Names"
+msgstr "Nimet"
+
+
+msgid "Mesh Select Mode"
+msgstr "Muodon valintatila"
+
+
+msgid "Linked"
+msgstr "Linkitetyt"
+
+
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
 
 
 msgid "Basic"
