@@ -1674,7 +1674,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
    * result as soons as attributes are created. So in that case override it with -1
    */
   if (!name_ref) {
-    BLI_assert(mesh->attributes_active_index == 0 || mesh->attributes_active_index == -1);
+    BLI_assert(mesh->attributes_active_index == -1);
     mesh->attributes_active_index = -1;
   }
 
@@ -1969,11 +1969,7 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
 
   /* Must be an empty mesh. */
   BLI_assert(mesh.verts_num == 0);
-
-  /* new Mesh is created with this at 0, but if the conversion from BMesh potetnially adds
-   * some attributes we should make sure it is at -1 or it might point to an invalid internal
-   * attribute */
-  mesh.attributes_active_index = -1;
+  BLI_assert(mesh.attributes_active_index == -1);
 
   /* Just in case, clear the derived geometry caches from the input mesh. */
   BKE_mesh_runtime_clear_geometry(&mesh);

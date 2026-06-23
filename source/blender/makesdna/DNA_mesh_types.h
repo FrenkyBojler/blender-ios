@@ -203,7 +203,7 @@ struct Mesh {
    *
    * Set to -1 when none is active.
    */
-  int attributes_active_index = 0;
+  int attributes_active_index = -1;
 
   /**
    * This array represents the selection order when the user manually picks elements in edit-mode,
