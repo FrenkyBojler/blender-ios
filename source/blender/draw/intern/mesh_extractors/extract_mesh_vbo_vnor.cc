@@ -24,7 +24,7 @@ static void extract_vert_normals_mesh(const MeshRenderData &mr,
   const Span<float3> vert_normals = mr.mesh->vert_normals();
 
   Array<gpu::PackedNormal> converted(vert_normals.size());
-  convert_normals(vert_normals, converted.as_mutable_span());
+  gpu::convert_normals(vert_normals, converted.as_mutable_span());
   static_assert(sizeof(gpu::PackedNormal) == sizeof(int32_t));
   array_utils::gather(
       converted.as_span().cast<int32_t>(), mr.corner_verts, corners_data.cast<int32_t>());

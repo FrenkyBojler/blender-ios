@@ -128,7 +128,7 @@ GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_U16__GPU_FETCH_INT_TO_FLOAT_UNIT);
 static void test_vertex_buffer_fetch_mode__GPU_COMP_I10__GPU_FETCH_INT_TO_FLOAT_UNIT()
 {
   vertex_buffer_fetch_mode<VertAttrType::SNORM_10_10_10_2, PackedNormal>(
-      PackedNormal(321, -511, 511, 0));
+      PackedNormal(int4(321, -511, 511, 0)));
 }
 GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_I10__GPU_FETCH_INT_TO_FLOAT_UNIT);
 
