@@ -436,6 +436,9 @@ void BM_mesh_edgeloops_calc_order(BMesh * /*bm*/,
     add_v3_v3(cent, el_store->co);
   }
   mul_v3_fl(cent, 1.0f / float(tot));
+  if (!is_finite_v3(cent)) {
+    zero_v3(cent);
+  }
 
   /* Find the furthest out loop. */
   {
@@ -448,7 +451,9 @@ void BM_mesh_edgeloops_calc_order(BMesh * /*bm*/,
         el_store_best = &el_store;
       }
     }
-
+    if (el_store_best == nullptr) {
+      el_store_best = static_cast<BMEdgeLoopStore *>(eloops->first);
+    }
     BLI_remlink(eloops, el_store_best);
     BLI_addtail(&eloops_ordered, el_store_best);
   }
@@ -456,6 +461,7 @@ void BM_mesh_edgeloops_calc_order(BMesh * /*bm*/,
   /* not so efficient re-ordering */
   while (eloops->first) {
     BMEdgeLoopStore *el_store_best = nullptr;
+
     const float *co = (static_cast<BMEdgeLoopStore *>(eloops_ordered.last))->co;
     const float *no = (static_cast<BMEdgeLoopStore *>(eloops_ordered.last))->no;
     float len_best_sq = FLT_MAX;
@@ -484,6 +490,9 @@ void BM_mesh_edgeloops_calc_order(BMesh * /*bm*/,
       }
     }
 
+    if (el_store_best == nullptr) {
+      el_store_best = static_cast<BMEdgeLoopStore *>(eloops->first);
+    }
     BLI_remlink(eloops, el_store_best);
     BLI_addtail(&eloops_ordered, el_store_best);
   }
