@@ -115,10 +115,33 @@ static void rna_uiItemTextBox(Layout *layout,
                               bContext *C,
                               PointerRNA *ptr,
                               const char *propname,
-                              PointerRNA *state_ptr,
+                              int initial_visible_lines,
                               const char *placeholder,
                               const char *text_ctxt,
                               bool translate)
+{
+  PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
+
+  if (!prop) {
+    RNA_warning_bare("UILayout.textbox(): property not found: %s.%s",
+                     RNA_struct_identifier(ptr->type),
+                     propname);
+    return;
+  }
+  std::optional<StringRefNull> placeholder_opt = std::nullopt;
+  if (placeholder) {
+    placeholder_opt = rna_translate_ui_text(placeholder, text_ctxt, nullptr, prop, translate);
+  }
+  layout->textbox(C, ptr, propname, placeholder_opt, initial_visible_lines);
+}
+
+static void rna_uiItemTextBoxWithState(Layout *layout,
+                                       PointerRNA *ptr,
+                                       const char *propname,
+                                       PointerRNA *state_ptr,
+                                       const char *placeholder,
+                                       const char *text_ctxt,
+                                       bool translate)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
@@ -137,9 +160,6 @@ static void rna_uiItemTextBox(Layout *layout,
 
   if (state_ptr && !RNA_pointer_is_null(state_ptr)) {
     layout->textbox_with_state(ptr, propname, state_ptr->data_as<TextboxState>(), placeholder_opt);
-  }
-  else {
-    layout->textbox(C, ptr, propname, placeholder_opt);
   }
 }
 
@@ -1542,9 +1562,30 @@ void RNA_api_ui_layout(StructRNA *srna)
 
   /* items */
   func = RNA_def_function(srna, "textbox", "rna_uiItemTextBox");
+  RNA_def_function_ui_description(func,
+                                  "Exposes an RNA string property in the layout using a text-box "
+                                  "widget with multi-line support.\n"
+                                  "Text-box state will be stored in the active region");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   api_ui_item_rna_common(func);
-  parm = RNA_def_pointer(func, "textbox_state", "TextboxState", nullptr, "");
+  parm = RNA_def_int(
+      func, "initial_visible_lines", 3, 1, INT_MAX, "", "Initial Visible Lines", 1, INT_MAX);
+  parm = RNA_def_string(
+      func, "placeholder", nullptr, 0, "", "Hint describing the expected value when empty");
+  RNA_def_property_clear_flag(parm, PROP_NEVER_NULL);
+  api_ui_item_common_translation(func);
+
+  /* items */
+  func = RNA_def_function(srna, "textbox_with_state", "rna_uiItemTextBoxWithState");
+  RNA_def_function_ui_description(func,
+                                  "Exposes an RNA string property in the layout using a text-box "
+                                  "widget with multi-line support");
+  api_ui_item_rna_common(func);
+  parm = RNA_def_pointer(func,
+                         "textbox_state",
+                         "TextboxState",
+                         "Pointer to a pre-allocated text-box state storage (builtin)",
+                         "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   parm = RNA_def_string(
       func, "placeholder", nullptr, 0, "", "Hint describing the expected value when empty");
