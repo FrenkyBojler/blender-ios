@@ -763,12 +763,7 @@ bool VKTexture::allocate()
 
 VkExtent3D VKTexture::vk_extent_3d(int mip_level) const
 {
-  if (source_texture_) {
-    return unwrap(source_texture_)->vk_extent_3d(mip_level);
-  }
-
-  int extent[3] = {1, 1, 1};
-  mip_size_get(mip_level, extent);
+  uint3 extent = uint3(mip_size_get(mip_level));
   if (ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY, GPU_TEXTURE_2D_ARRAY)) {
     extent[2] = 1;
   }
