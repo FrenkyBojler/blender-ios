@@ -164,6 +164,29 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
 
         self._assert_objects_equal_world_space(copy_obj, paste_obj)
 
+    def test_paste_static_animation(self) -> None:
+        """Pasting static animation onto an entity that is not yet animated should not create new FCurves."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_no_anim"]
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
+        copy_obj.select_set(True)
+        paste_obj.select_set(False)
+
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+
+        copy_obj.select_set(False)
+        paste_obj.select_set(True)
+
+        bpy.ops.anim.world_space_paste()
+
+        paste_anim_data: bpy.types.AnimData = paste_obj.animation_data
+        assert paste_anim_data is not None
+        action: bpy.types.Action = paste_anim_data.action
+        # The action is created.
+        assert action is not None
+        channelbag = action.layers[0].strips[0].channelbags[0]
+        self.assertEqual(len(channelbag.fcurves), 0)
+
     def test_paste_pose_bone(self) -> None:
         """Tests that pasting to equally named bones in different armatures works."""
         copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]

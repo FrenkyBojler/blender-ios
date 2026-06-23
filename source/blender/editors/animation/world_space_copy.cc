@@ -243,15 +243,17 @@ struct PasteFCurve {
 };
 
 struct TransformFCurves {
-  Array<PasteFCurve, 3> loc;
+  /* The channelbag that houses those FCurves. */
+  blender::animrig::Channelbag *channelbag;
   eRotationModes rotation_mode;
-  Array<PasteFCurve, 4> rot;
+  Array<PasteFCurve, 3> location;
+  Array<PasteFCurve, 4> rotation;
   Array<PasteFCurve, 3> scale;
 
   TransformFCurves()
   {
-    loc.reinitialize(3);
-    rot.reinitialize(4);
+    location.reinitialize(3);
+    rotation.reinitialize(4);
     scale.reinitialize(3);
   }
 };
@@ -281,6 +283,65 @@ static void ensure_baked_fcurves(Main &bmain,
   }
 }
 
+/**
+ * Returns true if the FCurve keeps the property it targets at a constant value throughout time.
+ */
+static bool is_fcurve_flat(FCurve &fcurve)
+{
+  if (!fcurve.modifiers.is_empty()) {
+    /* Any modifiers count as potentially modifying values over time. */
+    return false;
+  }
+  if (fcurve.totvert == 0) {
+    return true;
+  }
+
+  if (!fcurve.bezt) {
+    /* FPoint is not yet supported. */
+    BLI_assert_unreachable();
+    return false;
+  }
+
+  if (fcurve.totvert == 1) {
+    if (fcurve.extend == FCURVE_EXTRAPOLATE_CONSTANT) {
+      /* Handles don't matter in this case. */
+      return true;
+    }
+    const BezTriple &key = fcurve.bezt[0];
+    return key.vec[1][1] == key.vec[0][1] && key.vec[1][1] == key.vec[2][1];
+  }
+
+  constexpr float threshold = 0.00001f;
+  const float reference_value = fcurve.bezt[0].vec[1][1];
+  for (int i = 0; i < fcurve.totvert; i++) {
+    if (fabsf(reference_value - fcurve.bezt[i].vec[1][1]) > threshold) {
+      return false;
+    }
+    if (fcurve.bezt[i].ipo != BEZT_IPO_BEZ) {
+      /* Handles have no effect. */
+      continue;
+    }
+    if (fabs(reference_value - fcurve.bezt[i].vec[0][1]) > threshold) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/* Remove any FCurves that have been created for pasting and remain static after pasting. */
+static void clean_baked_fcurves(MutableSpan<PasteFCurve> fcus,
+                                blender::animrig::Channelbag &channelbag)
+{
+  for (PasteFCurve &paste_fcurve : fcus) {
+    if (!paste_fcurve.created_on_paste) {
+      continue;
+    }
+    if (is_fcurve_flat(*paste_fcurve.fcurve)) {
+      channelbag.fcurve_remove(*paste_fcurve.fcurve);
+    }
+  }
+}
+
 static void set_keys_to_transform(TransformFCurves &t_fcus,
                                   const float4x4 &matrix,
                                   const int paste_index)
@@ -297,16 +358,16 @@ static void set_keys_to_transform(TransformFCurves &t_fcus,
   /* TODO pass reference rotation to avoid gimbal lock. */
   Rotation rotation = rotation_quat.converted_to_mode(t_fcus.rotation_mode);
 
-  for (const int i : t_fcus.loc.index_range()) {
-    PasteFCurve &pfcu = t_fcus.loc[i];
+  for (const int i : t_fcus.location.index_range()) {
+    PasteFCurve &pfcu = t_fcus.location[i];
     BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
     const int bezt_index = pfcu.paste_start_index + paste_index;
     BezTriple &key = pfcu.fcurve->bezt[bezt_index];
     BKE_fcurve_keyframe_move_value_with_handles(&key, location[i]);
   }
 
-  for (const int i : t_fcus.rot.index_range()) {
-    PasteFCurve &pfcu = t_fcus.rot[i];
+  for (const int i : t_fcus.rotation.index_range()) {
+    PasteFCurve &pfcu = t_fcus.rotation[i];
     BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
     const int bezt_index = pfcu.paste_start_index + paste_index;
     BezTriple &key = pfcu.fcurve->bezt[bezt_index];
@@ -461,13 +522,14 @@ static Array<TransformFCurves> build_fcurves_for_paste(
      */
     ar::assert_baklava_phase_1_invariants(paste_dna_action->wrap());
     ar::Channelbag &channelbag = ar::action_channelbag_ensure(*paste_dna_action, *owner_id);
-    TransformFCurves &fcus = fcurve_buffer[i];
-    fcus.rotation_mode = transformable->get_rotation_mode();
-    if (fcus.rotation_mode >= ROT_MODE_EUL) {
-      fcus.rot.reinitialize(3);
+    TransformFCurves &transform_fcurves = fcurve_buffer[i];
+    transform_fcurves.channelbag = &channelbag;
+    transform_fcurves.rotation_mode = transformable->get_rotation_mode();
+    if (transform_fcurves.rotation_mode >= ROT_MODE_EUL) {
+      transform_fcurves.rotation.reinitialize(3);
     }
     else {
-      fcus.rot.reinitialize(4);
+      transform_fcurves.rotation.reinitialize(4);
     }
     const std::string loc_path = transformable->rna_path_to_property(
         AnimTransformable::PropertyType::LOCATION);
@@ -480,20 +542,20 @@ static Array<TransformFCurves> build_fcurves_for_paste(
     for (FCurve *fcurve : channelbag.fcurves()) {
       StringRefNull fcurve_path(fcurve->rna_path);
       if (fcurve_path == loc_path) {
-        fcus.loc[fcurve->array_index].fcurve = fcurve;
+        transform_fcurves.location[fcurve->array_index].fcurve = fcurve;
       }
       else if (fcurve_path == rot_path) {
-        fcus.rot[fcurve->array_index].fcurve = fcurve;
+        transform_fcurves.rotation[fcurve->array_index].fcurve = fcurve;
       }
       else if (fcurve_path == scale_path) {
-        fcus.scale[fcurve->array_index].fcurve = fcurve;
+        transform_fcurves.scale[fcurve->array_index].fcurve = fcurve;
       }
     }
 
     /* Ensuring all FCurves exist. */
-    ensure_baked_fcurves(bmain, fcus.loc, channelbag, loc_path, range);
-    ensure_baked_fcurves(bmain, fcus.rot, channelbag, rot_path, range);
-    ensure_baked_fcurves(bmain, fcus.scale, channelbag, scale_path, range);
+    ensure_baked_fcurves(bmain, transform_fcurves.location, channelbag, loc_path, range);
+    ensure_baked_fcurves(bmain, transform_fcurves.rotation, channelbag, rot_path, range);
+    ensure_baked_fcurves(bmain, transform_fcurves.scale, channelbag, scale_path, range);
   }
   return fcurve_buffer;
 }
@@ -607,6 +669,11 @@ static void paste_world_space(Main &bmain,
       TransformFCurves &t_fcus = fcurve_buffer[i];
       set_keys_to_transform(t_fcus, local_matrix, key_index);
     }
+  }
+  for (TransformFCurves &transform_fcurves : fcurve_buffer) {
+    clean_baked_fcurves(transform_fcurves.location, *transform_fcurves.channelbag);
+    clean_baked_fcurves(transform_fcurves.rotation, *transform_fcurves.channelbag);
+    clean_baked_fcurves(transform_fcurves.scale, *transform_fcurves.channelbag);
   }
 
   DEG_graph_free(depsgraph);
