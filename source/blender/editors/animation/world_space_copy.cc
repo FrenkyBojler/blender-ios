@@ -258,6 +258,9 @@ struct TransformFCurves {
   }
 };
 
+/**
+ * \param range inclusive/exclusive
+ */
 static void ensure_baked_fcurves(Main &bmain,
                                  MutableSpan<PasteFCurve> fcus,
                                  blender::animrig::Channelbag &channelbag,
@@ -276,7 +279,8 @@ static void ensure_baked_fcurves(Main &bmain,
       paste_fcu.fcurve = &fcurve;
       paste_fcu.created_on_paste = true;
     }
-    ar::bake_fcurve(paste_fcu.fcurve, {range.min, range.max}, 1, ar::BakeCurveRemove::IN_RANGE);
+    ar::bake_fcurve(
+        paste_fcu.fcurve, {range.min, range.max - 1}, 1, ar::BakeCurveRemove::IN_RANGE);
     paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
         paste_fcu.fcurve->bezt, range.min, paste_fcu.fcurve->totvert, &has_key_on_frame);
     BLI_assert(has_key_on_frame);
@@ -311,7 +315,7 @@ static bool is_fcurve_flat(FCurve &fcurve)
     return key.vec[1][1] == key.vec[0][1] && key.vec[1][1] == key.vec[2][1];
   }
 
-  constexpr float threshold = 0.00001f;
+  constexpr float threshold = 0.0001f;
   const float reference_value = fcurve.bezt[0].vec[1][1];
   for (int i = 0; i < fcurve.totvert; i++) {
     if (fabsf(reference_value - fcurve.bezt[i].vec[1][1]) > threshold) {
@@ -324,22 +328,33 @@ static bool is_fcurve_flat(FCurve &fcurve)
     if (fabs(reference_value - fcurve.bezt[i].vec[0][1]) > threshold) {
       return false;
     }
+    if (fabs(reference_value - fcurve.bezt[i].vec[2][1]) > threshold) {
+      return false;
+    }
   }
   return true;
 }
 
 /* Remove any FCurves that have been created for pasting and remain static after pasting. */
-static void clean_baked_fcurves(MutableSpan<PasteFCurve> fcus,
+static void clean_baked_fcurves(AnimTransformable &transformable,
+                                AnimTransformable::PropertyType property_type,
+                                MutableSpan<PasteFCurve> fcurves,
                                 blender::animrig::Channelbag &channelbag)
 {
-  for (PasteFCurve &paste_fcurve : fcus) {
+  /* When we delete FCurves we have to flush the values to the transformable.
+   * Otherwise they are lost. */
+  TransformFloats values = transformable.get_property(property_type);
+  for (PasteFCurve &paste_fcurve : fcurves) {
     if (!paste_fcurve.created_on_paste) {
       continue;
     }
     if (is_fcurve_flat(*paste_fcurve.fcurve)) {
+      values[paste_fcurve.fcurve->array_index] = paste_fcurve.fcurve->bezt[0].vec[1][1];
       channelbag.fcurve_remove(*paste_fcurve.fcurve);
+      paste_fcurve.fcurve = nullptr;
     }
   }
+  transformable.set_property(property_type, values, AxisMutable::AXIS_MUTABLE_ALL);
 }
 
 static void set_keys_to_transform(TransformFCurves &t_fcus,
@@ -429,10 +444,12 @@ static void copy_world_space(Main &bmain,
        * different armatures. */
       fcurve->rna_path = BLI_strdupn(transformable.name().data(), transformable.name().size());
       fcurve->array_index = i;
+      const int vert_count = range.size();
+      BLI_assert(vert_count > 0);
       /* Using FPoint because we only need 2 floats per key, not the huge struct that
        * is BezTriple.  */
-      fcurve->fpt = MEM_new_array_uninitialized<FPoint>(range.size(), "world_space_copy_points");
-      fcurve->totvert = range.size();
+      fcurve->fpt = MEM_new_array_uninitialized<FPoint>(vert_count, "world_space_copy_points");
+      fcurve->totvert = vert_count;
       /* Could allocate space on the channelbag in big chunks instead of appending which is a
        * MEM_new every time. */
       channelbag.fcurve_append(*fcurve);
@@ -632,7 +649,7 @@ static void paste_world_space(Main &bmain,
   Vector<ID *> ids = get_unique_ids(pasteables);
   DEG_graph_build_from_ids(depsgraph, ids);
 
-  /* We need to first apply the transformation to those transformables that are not affected by any
+  /* We need to first apply the values to those transformables that are not affected by any
    * other transformables. This is why we need to sort using the depsgraph. */
   Vector<AnimTransformable *> sorted_transformables = depsgraph_sorted_transformables(depsgraph,
                                                                                       pasteables);
@@ -657,6 +674,7 @@ static void paste_world_space(Main &bmain,
     const int key_index = frame - range.min;
     for (const int i : sorted_transformables.index_range()) {
       AnimTransformable *transformable = sorted_transformables[i];
+      TransformFCurves &t_fcus = fcurve_buffer[i];
       const StringRefNull clipboard_name = paste_map.lookup(transformable);
       const Array<FCurve *> *fcurves = clipboard_data.lookup_ptr(clipboard_name);
       BLI_assert_msg(fcurves != nullptr,
@@ -666,14 +684,24 @@ static void paste_world_space(Main &bmain,
        * updated. This is potentially very slow. */
       DEG_evaluate_on_framechange(depsgraph, frame);
       const float4x4 local_matrix = world_to_local(*depsgraph, *transformable, world_matrix);
-      TransformFCurves &t_fcus = fcurve_buffer[i];
       set_keys_to_transform(t_fcus, local_matrix, key_index);
     }
   }
-  for (TransformFCurves &transform_fcurves : fcurve_buffer) {
-    clean_baked_fcurves(transform_fcurves.location, *transform_fcurves.channelbag);
-    clean_baked_fcurves(transform_fcurves.rotation, *transform_fcurves.channelbag);
-    clean_baked_fcurves(transform_fcurves.scale, *transform_fcurves.channelbag);
+  for (const int i : sorted_transformables.index_range()) {
+    AnimTransformable &transformable = *sorted_transformables[i];
+    TransformFCurves &transform_fcurves = fcurve_buffer[i];
+    clean_baked_fcurves(transformable,
+                        AnimTransformable::PropertyType::LOCATION,
+                        transform_fcurves.location,
+                        *transform_fcurves.channelbag);
+    clean_baked_fcurves(transformable,
+                        AnimTransformable::PropertyType::ROTATION,
+                        transform_fcurves.rotation,
+                        *transform_fcurves.channelbag);
+    clean_baked_fcurves(transformable,
+                        AnimTransformable::PropertyType::SCALE,
+                        transform_fcurves.scale,
+                        *transform_fcurves.channelbag);
   }
 
   DEG_graph_free(depsgraph);

@@ -145,7 +145,11 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
     def _assert_objects_equal_world_space(self, obj_a: bpy.types.Object, obj_b: bpy.types.Object) -> None:
         for frame in range(10):
             bpy.context.scene.frame_set(frame)
-            self._assert_almost_equal_matrix(obj_a.matrix_world, obj_b.matrix_world)
+            try:
+                self._assert_almost_equal_matrix(obj_a.matrix_world, obj_b.matrix_world)
+            except:
+                print("Frame: ", frame)
+                raise
 
     def test_paste_to_different_object(self) -> None:
         """Tests that pasting to a differently named object works in the simple 1:1 case."""
@@ -185,6 +189,8 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         # The action is created.
         assert action is not None
         channelbag = action.layers[0].strips[0].channelbags[0]
+        for fcurve in channelbag.fcurves:
+            print("Not removed FCurve: ", fcurve.data_path)
         self.assertEqual(len(channelbag.fcurves), 0)
 
     def test_paste_pose_bone(self) -> None:
