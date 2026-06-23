@@ -18,6 +18,9 @@
 
 #include "BKE_context.hh"
 
+#include "ED_sequencer.hh"
+
+#include "SEQ_edit.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_retiming.hh"
@@ -89,10 +92,20 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
   ListBaseT<Strip> *seqbasep = seq::active_seqbase_get(ed);
   seq::iterator_set_expand(seqbasep, transformed_strips, seq::query_strip_direct_effect_chain);
 
+  /* First remove the marked strips from #transformed_strips to prevent dangling pointers.  */
+  transformed_strips.remove_if([&](Strip *strip) {
+    return flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::MarkForDelete);
+  });
+
   VectorSet<Strip *> dependant;
   dependant.add_multiple(transformed_strips);
   dependant.remove_if([&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
 
+  /* Then remove the actual strips. */
+  seq::edit_remove_flagged_strips(scene, seqbasep);
+  vse::sync_active_scene_and_time_with_scene_strip(*t->context);  // TODO: check
+
+  /* Last, handle overlap. */
   if (seq_transform_check_overlap(transformed_strips)) {
     const bool use_sync_markers = ((static_cast<SpaceSeq *>(t->area->spacedata.first))->flag &
                                    SEQ_MARKER_TRANS) != 0;
@@ -251,14 +264,10 @@ static void recalcData_sequencer_retiming(TransInfo *t)
 
   /* Test overlap, displays red outline. */
   Editing *ed = seq::editing_get(t->scene);
-  seq::iterator_set_expand(
-      seq::active_seqbase_get(ed), transformed_strips, seq::query_strip_direct_effect_chain);
-  for (Strip *strip : transformed_strips) {
-    strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
-    if (seq::transform_test_overlap(t->scene, seq::active_seqbase_get(ed), strip)) {
-      strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
-    }
-  }
+  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
+  seq::iterator_set_expand(seqbase, transformed_strips, seq::query_strip_direct_effect_chain);
+
+  seq::transform_set_overlap_flags(t->scene, seqbase, transformed_strips);
 }
 
 TransConvertTypeInfo TransConvertType_SequencerRetiming = {
