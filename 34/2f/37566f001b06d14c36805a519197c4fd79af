@@ -1,3 +1,4 @@
 Referenced by pull request #155061, Fix: bpy.ops.render.render(write_still=True) broken after recent changes
 Referenced by commit 61478c9bd8efdb938dc0dde681debe4da8f33775, Fix: bpy.ops.render.render(write_still=True) broken after recent changes
 Referenced by pull request #160282, Fix #155121: Render: No error message if no file gets saved
+Referenced by commit 57d28c581aac27223d62cbd7f7820ca54b03a95f, Fix #155121: Render: No error message if no file gets saved
