@@ -1720,7 +1720,7 @@ void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
    */
   LibraryLink_Params lapp_params{};
   lapp_params.bmain = bmain;
-  lapp_params.flag = 0;
+  lapp_params.flag = FILE_LINK;
   lapp_params.id_tag_extra = 0;
   lapp_params.context.scene = scene;
   lapp_params.context.view_layer = view_layer;
@@ -1740,7 +1740,7 @@ void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
         &lapp_context, BKE_id_name(id), GS(id.name), nullptr);
 
     item->new_id = &id;
-    item->tag |= LINK_APPEND_TAG_INDIRECT;
+    item->tag = 0;
     item->action = LINK_APPEND_ACT_COPY_LOCAL;
   }
 

@@ -3539,9 +3539,15 @@ static BHead *read_libblock(FileData *fd,
       BKE_main_idmap_insert_id(main->id_map, id_target);
     }
     if (ID_IS_PACKED(id_target)) {
-      BLI_assert(id_target->deep_hash != IDHash::get_null());
-      fd->id_by_deep_hash->add_new(id_target->deep_hash, id_target);
-      BLI_assert(main->curlib);
+      if ((id_target->lib->flag & LIBRARY_FLAG_IS_EXTERNAL) != 0) {
+        /* External libraries should have a null deep hash. */
+        BLI_assert(id_target->deep_hash == IDHash::get_null());
+      }
+      else {
+        BLI_assert(id_target->deep_hash != IDHash::get_null());
+        fd->id_by_deep_hash->add_new(id_target->deep_hash, id_target);
+        BLI_assert(main->curlib);
+      }
     }
     if (fd->file_stat) {
       id->runtime->src_blend_modifification_time = fd->file_stat->st_mtime;
