@@ -95,7 +95,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
             params.node_tree, node, data_type, params.socket.name);
 
         params.update_and_connect_available_socket_by_identifier(
-            node, UString(fmt::format("Field_{}", item->identifier)));
+            node, UString(FieldToListItemsAccessor::input_socket_identifier_for_item(*item)));
       });
     }
   }

@@ -266,11 +266,8 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     const auto *item =
         socket_items::add_item_with_socket_type_and_name<CaptureAttributeItemsAccessor>(
             params.node_tree, node, type, params.socket.name);
-    /* The 0th item is "Value" compare to other nodes which would have "Value_0" */
-    const StringRef identifier = (item->identifier != 0) ?
-                                     fmt::format("Value_{}", item->identifier) :
-                                     "Value";
-    params.update_and_connect_available_socket_by_identifier(node, UString(identifier));
+    params.update_and_connect_available_socket_by_identifier(
+        node, UString(CaptureAttributeItemsAccessor::input_socket_identifier_for_item(*item)));
   });
 }
 
