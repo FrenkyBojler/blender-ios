@@ -335,14 +335,14 @@ static void calculate_relax_t(Span<BMVert *> verts,
 static void calculate_relax_splines(Span<BMVert *> verts,
                                     Span<int> knot_indices,
                                     Span<float> t_params,
+                                    bool is_closed,
                                     int interpolation,
                                     std::array<Vector<SplineCoeffs>, 3> &r_coeffs)
 {
   const int n = knot_indices.size();
-  const bool is_circular = knot_indices.first() == knot_indices.last();
 
   if (interpolation == CUBIC) {
-    const int unique = is_circular ? n - 1 : n;
+    const int unique = is_closed ? n - 1 : n;
     Array<float> coords_x(unique);
     Array<float> coords_y(unique);
     Array<float> coords_z(unique);
@@ -354,24 +354,27 @@ static void calculate_relax_splines(Span<BMVert *> verts,
       coords_z[i] = co[2];
     }
 
-    calculate_splines_axis(t_params, coords_x, is_circular, r_coeffs[0]);
-    calculate_splines_axis(t_params, coords_y, is_circular, r_coeffs[1]);
-    calculate_splines_axis(t_params, coords_z, is_circular, r_coeffs[2]);
+    calculate_splines_axis(t_params, coords_x, is_closed, r_coeffs[0]);
+    calculate_splines_axis(t_params, coords_y, is_closed, r_coeffs[1]);
+    calculate_splines_axis(t_params, coords_z, is_closed, r_coeffs[2]);
   }
 }
 
-static void execute_relax_phase(Span<BMVert *> verts,
-                                const RelaxPhase &phase,
-                                int interpolation,
-                                bool regular)
+static void execute_relax_phase(
+    Span<BMVert *> verts, const RelaxPhase &phase, bool is_closed, int interpolation, bool regular)
 {
+  if (phase.point_indices.is_empty()) {
+    return;
+  }
+
   Vector<float> t_knots, t_points;
   calculate_relax_t(verts, phase, regular, t_knots, t_points);
 
   std::array<Vector<SplineCoeffs>, 3> axis_coeffs;
 
   if (interpolation == CUBIC) {
-    calculate_relax_splines(verts, phase.knot_indices, t_knots, interpolation, axis_coeffs);
+    calculate_relax_splines(
+        verts, phase.knot_indices, t_knots, is_closed, interpolation, axis_coeffs);
   }
 
   for (const int i : phase.point_indices.index_range()) {
@@ -427,7 +430,7 @@ void bmo_relax_edge_loops_exec(BMesh *bm, BMOperator *op)
       Vector<RelaxPhase> phases;
       build_relax_phases(chain.verts.size(), chain.is_closed, phases);
       for (const RelaxPhase &phase : phases) {
-        execute_relax_phase(chain.verts, phase, interpolation, regular);
+        execute_relax_phase(chain.verts, phase, chain.is_closed, interpolation, regular);
       }
     }
   }
