@@ -84,17 +84,18 @@ ccl_device_forceinline float3 make_float3(const pgl_vec3f v)
 
 ccl_device_forceinline bool is_guiding_valid(const float3 v)
 {
+  const Interval<float3> interval = {make_float3(-GUIDING_FLT_LARGE),
+                                     make_float3(GUIDING_FLT_LARGE)};
   bool valid = true;
-  valid &= std::isfinite(v.x);
-  valid &= v.x > -GUIDING_FLT_LARGE && v.x < GUIDING_FLT_LARGE;
-  valid &= std::isfinite(v.y);
-  valid &= v.y > -GUIDING_FLT_LARGE && v.y < GUIDING_FLT_LARGE;
-  valid &= std::isfinite(v.z);
-  valid &= v.z > -GUIDING_FLT_LARGE && v.z < GUIDING_FLT_LARGE;
+  valid &= isfinite_safe(v);
+  valid &= interval.contains(v);
+
   return valid;
 }
 ccl_device_forceinline float3 clamp_guiding_position(const float3 p)
 {
+  /* Clamping to the range of +/- GUIDING_FLT_LARGE / 5.0 to avoid potential numerical problems on the OpenPGL side. 
+   * NOTE: The clamping is mainly a robustness fallback and might not be needed at all. */
   return clamp(p, make_float3(-GUIDING_FLT_LARGE / 5.0f), make_float3(GUIDING_FLT_LARGE / 5.0f));
 }
 
@@ -256,7 +257,7 @@ ccl_device_forceinline void guiding_record_bssrdf_weight(
 
   assert((INTEGRATOR_STATE(state, path, flag) & PATH_RAY_SHADOW_CATCHER_PASS) == 0);
 
-  /* Note albedo left out here, will be included in guiding_record_bssrdf_bounce. */
+  /* NOTE: Albedo left out here, will be included in guiding_record_bssrdf_bounce. */
   const float3 weight_rgb = spectrum_to_rgb(safe_divide_color(weight, albedo));
 
   kernel_assert(state->guiding.path_segment != nullptr);
@@ -495,7 +496,7 @@ ccl_device_forceinline void guiding_record_background(ccl_attr_maybe_unused Kern
   const float3 L_rgb = spectrum_to_rgb(L);
   const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
   const float3 ray_D = INTEGRATOR_STATE(state, ray, D);
-  float3 P = ray_P + GUIDING_MAX_LIGHT_DISTANCE*ray_D;
+  float3 P = ray_P + GUIDING_MAX_LIGHT_DISTANCE * ray_D;
   kernel_assert(is_guiding_valid(P));
   P = clamp_guiding_position(P);
   const float3 normal = make_float3(0.0f, 0.0f, 1.0f);
@@ -525,7 +526,7 @@ ccl_device_forceinline void guiding_record_direct_light(
   }
   if (state->shadow_path.path_segment) {
     /* Estimating the out-scattered radiance at the current path segment.
-     * Note: in the light linking caes this estimate is the incoming radiance.*/
+     * NOTE: in the light linking case this estimate is the incoming radiance.*/
     const Spectrum Lo = safe_divide_color(INTEGRATOR_STATE(state, shadow_path, throughput),
                                           INTEGRATOR_STATE(state, shadow_path, unlit_throughput));
     const float3 Lo_rgb = spectrum_to_rgb(Lo);
@@ -538,7 +539,7 @@ ccl_device_forceinline void guiding_record_direct_light(
     }
     else {
       /* The contribution comes from a light linking forward ray. We need to record this
-       * contribution as scattered contribution at the curren path segment. To be able to guide
+       * contribution as scattered contribution at the current path segment. To be able to guide
        * towards this light source we add a directional sample directly to the guiding
        * training data storage. */
       const float3 scattering_weight = make_float3(
@@ -565,7 +566,7 @@ ccl_device_forceinline void guiding_record_direct_light(
 
       /* Checking if the light source is an infinite one (e.g., background, sun). If so the
        * distance is set to GUIDING_MAX_LIGHT_DISTANCE.
-       * Note: checking for FLT_MAX is not working.*/
+       * NOTE: checking for FLT_MAX is not working.*/
       pgl_sample.distance = dist > GUIDING_FLT_LARGE ? GUIDING_MAX_LIGHT_DISTANCE : dist;
       kg->opgl_sample_data_storage->AddSample(pgl_sample);
     }
