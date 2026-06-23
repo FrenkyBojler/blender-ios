@@ -84,18 +84,20 @@ ccl_device_forceinline float3 make_float3(const pgl_vec3f v)
 
 ccl_device_forceinline bool is_guiding_valid(const float3 v)
 {
-  const Interval<float3> interval = {make_float3(-GUIDING_FLT_LARGE),
-                                     make_float3(GUIDING_FLT_LARGE)};
+  const Interval<float> interval = {-GUIDING_FLT_LARGE, GUIDING_FLT_LARGE};
   bool valid = true;
   valid &= isfinite_safe(v);
-  valid &= interval.contains(v);
+  valid &= interval.contains(v.x);
+  valid &= interval.contains(v.y);
+  valid &= interval.contains(v.z);
 
   return valid;
 }
 ccl_device_forceinline float3 clamp_guiding_position(const float3 p)
 {
-  /* Clamping to the range of +/- GUIDING_FLT_LARGE / 5.0 to avoid potential numerical problems on the OpenPGL side. 
-   * NOTE: The clamping is mainly a robustness fallback and might not be needed at all. */
+  /* Clamping to the range of +/- GUIDING_FLT_LARGE / 5.0 to avoid potential numerical problems on
+   * the OpenPGL side. NOTE: The clamping is mainly a robustness fallback and might not be needed
+   * at all. */
   return clamp(p, make_float3(-GUIDING_FLT_LARGE / 5.0f), make_float3(GUIDING_FLT_LARGE / 5.0f));
 }
 
