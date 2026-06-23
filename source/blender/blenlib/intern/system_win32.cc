@@ -687,7 +687,8 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
             L"&project=blender"
             L"&os=" + url_encode_wstring(get_os_info()) +
             L"&gpu=" + url_encode_wstring(data_ptr->gpu_name) +
-            L"&broken_version=" + url_encode_wstring(data_ptr->build_version);
+            L"&broken_version=" + url_encode_wstring(data_ptr->build_version) +
+            L"&utm_content=crash_dialog";
         /* clang-format on */
         ShellExecuteW(nullptr, L"open", link.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         return S_FALSE;
