@@ -125,11 +125,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
             bone_b: bpy.types.PoseBone) -> None:
         for frame in range(10):
             bpy.context.scene.frame_set(frame)
-            try:
-                self._assert_almost_equal_matrix(arm_a.matrix_world @ bone_a.matrix, arm_b.matrix_world @ bone_b.matrix)
-            except:
-                print("Frame: ", frame)
-                raise
+            self._assert_almost_equal_matrix(arm_a.matrix_world @ bone_a.matrix, arm_b.matrix_world @ bone_b.matrix)
 
     def _assert_objects_equal_world_space(self, obj_a: bpy.types.Object, obj_b: bpy.types.Object) -> None:
         for frame in range(10):
@@ -222,14 +218,49 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
     def test_indirect_animation(self) -> None:
         """The entity from which we copy may not be animated directly,
         copying the world space movement should still work."""
-        pass
+        copy_obj: bpy.types.Object = bpy.data.objects["indirect_motion_child"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
+        paste_obj.select_set(False)
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+
+        copy_obj.select_set(False)
+        paste_obj.select_set(True)
+        bpy.ops.anim.world_space_paste()
+
+        self._assert_objects_equal_world_space(copy_obj, paste_obj)
 
     def test_from_objects_to_bones(self) -> None:
-        """Copying from objects to bones works as long it is either 1:1 or the names match."""
-        pass
+        """Copying between objects and bones works as long it is either 1:1 or the names match."""
+        copy_obj: bpy.types.Object = bpy.data.objects["indirect_motion_parent"]
+        copy_obj.select_set(True)
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+        copy_obj.select_set(False)
+
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
+        bpy.context.view_layer.objects.active = paste_obj
+        paste_obj.select_set(True)
+        bpy.ops.object.mode_set(mode='POSE')
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[0]
+        paste_bone.select = True
+
+        bpy.ops.anim.world_space_paste()
+
+        for frame in range(10):
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_matrix(copy_obj.matrix_world, paste_obj.matrix_world @ paste_bone.matrix)
 
     def test_from_single_to_multiple(self) -> None:
         pass
+
+    def test_pasting_to_connected_child(self) -> None:
+        """When pasting to a bone that is connected, the location cannot be modified.
+        As such, the location will not match when pasting to it."""
+        pass
+
+    def test_paste_to_constrained_bone(self) -> None:
+        """Depending on the constraint, the pasted bone may not be able to reach the required world space."""
 
 
 def main():
