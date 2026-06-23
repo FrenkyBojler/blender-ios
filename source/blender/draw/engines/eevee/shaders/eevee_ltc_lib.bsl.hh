@@ -12,6 +12,7 @@
 #pragma once
 
 #include "eevee_defines.hh"
+#include "eevee_ltc_lut_lib.bsl.hh"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_matrix_construct_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
@@ -179,46 +180,27 @@ struct Disk {
   float radius;
 };
 
-float3x3 matrix_inverse_glm(float3x3 M)
+float3 inverse_z_and_determinant(float3x3 M, float &det)
 {
-  float3 i0 = cross(M[1], M[2]);
-  float3 i1 = cross(M[2], M[0]);
-  float3 i2 = cross(M[0], M[1]);
-
-  float3x3 adjoint = transpose(float3x3(i0, i1, i2));
-
-  float determinant = dot(M[0], cross(M[1], M[2]));
-
-  float3x3 Minv = adjoint;
-  Minv[0] *= (1.0f / determinant);
-  Minv[1] *= (1.0f / determinant);
-  Minv[2] *= (1.0f / determinant);
-  return Minv;
+  float3 adjoint_x = float3(+(M[1][1] * M[2][2] - M[2][1] * M[1][2]),
+                            -(M[0][1] * M[2][2] - M[2][1] * M[0][2]),
+                            +(M[0][1] * M[1][2] - M[1][1] * M[0][2]));
+  float3 adjoint_z = float3(+(M[1][0] * M[2][1] - M[2][0] * M[1][1]),
+                            -(M[0][0] * M[2][1] - M[2][0] * M[0][1]),
+                            +(M[0][0] * M[1][1] - M[1][0] * M[0][1]));
+  det = dot(adjoint_x, float3(M[0][0], M[1][0], M[2][0]));
+  return adjoint_z / det;
 }
 
-// float3 invert_matrix_z_and_get_determinant_rcp(float3x3 M, float3 &determinant_rcp)
-// {
-//   float3 D;
-
-//   return D;
-// }
-
-float spherical_attenuation(float3x3 Minv, float3 N, float3 V, float3 L, Disk disk)
+float spherical_attenuation(float3x3 Minv, float3 D, float3 L, Disk disk)
 {
-  /* Dominant BxDF lobe direction. */
-  /* TODO(not_mark): extract D and store in ClosureLight. */
-  float3 D = normalize(inverse(Minv)[2]);
+  /* Dominant BxDF lobe direction, and determinant(Minv). */
+  /* TODO(not_mark): extract and store in ClosureLight. */
+  // D = normalize(inverse(Minv)[2]);
 
   /* Vector on disk plane, coplanar with D and L. */
-  float3 T = D * dot(disk.N, L) - L * dot(disk.N, D);
+  float3 T = normalize(D * dot(disk.N, L) - L * dot(disk.N, D));
   // float3 T = cross(cross(L, D), disk.N); /* Equivalent. */
-
-  /* T could be length 0 when LD approaches 1, or LN, DN approaches 0. */
-  float T_length;
-  T = normalize_and_get_length(T, T_length);
-  if (T_length < 1e-5f) {
-    return 1.0f;
-  }
 
   /* Find t for line O + tT, where it intersects line sD. */
   float TD = dot(T, D);
@@ -237,14 +219,16 @@ float spherical_attenuation(float3x3 Minv, float3 N, float3 V, float3 L, Disk di
 
   /* Attenuation approaches 1 aggressively. */
   attenuation = soft_curve_upper(attenuation, 0.15f, 0.5f);
+
   /* Attenuation approaches 1 somewhat w.r.t. to alpha. */
-  /* TODO(not_mark): extract det and store in ClosureLight. */
-  attenuation += (1.0f - attenuation) * saturate(3.0f * determinant(Minv) / square(dot(N, V)));
+  /* TODO(not_mark): extract clamp_factor and store in ClosureLight. */
+  // float clamp_factor = Mdet / square(dot(N, V));
+  // attenuation += (1.0f - attenuation) * saturate(3.0f * clamp_factor);
 
   return saturate(attenuation);
 }
 
-float attenuate_quad(float3x3 Minv, float3 N, float3 V, float3 L, float3 verts[4])
+float attenuate_quad(float3x3 Minv, float3 D, float3 L, float3 verts[4])
 {
   float3 e0 = normalize(verts[1] - verts[0]);
   float3 e1 = normalize(verts[3] - verts[0]);
@@ -254,10 +238,10 @@ float attenuate_quad(float3x3 Minv, float3 N, float3 V, float3 L, float3 verts[4
       .N = cross(e0, e1),
       .radius = 0.5f * distance(verts[2], verts[0])};
 
-  return spherical_attenuation(Minv, N, V, L, encapsulating_disk);
+  return spherical_attenuation(Minv, D, L, encapsulating_disk);
 }
 
-float attenuate_disk(float3x3 Minv, float3 N, float3 V, float3 L, float3 verts[4])
+float attenuate_disk(float3x3 Minv, float3 D, float3 L, float3 verts[4])
 {
   float s;
   float3 e0 = normalize_and_get_length(verts[0] - verts[2], s);
@@ -267,16 +251,23 @@ float attenuate_disk(float3x3 Minv, float3 N, float3 V, float3 L, float3 verts[4
   detail::Disk encapsulating_disk = {
       .O = 0.5f * (verts[0] + verts[2]), .N = cross(e0, e1), .radius = 0.5f * max(s, t)};
 
-  return spherical_attenuation(Minv, N, V, L, encapsulating_disk);
+  return spherical_attenuation(Minv, D, L, encapsulating_disk);
 }
 }  // namespace detail
 
 /**
  * Evaluate contribution of rectangle light.
  */
-float evaluate_quad(
-    sampler2DArray util_tx, float3 corners[4], float3 N, float3 V, float3 L, float3x3 Minv)
+float evaluate_quad(sampler2DArray util_tx,
+                    float3 corners[4],
+                    float3 N,
+                    float3 V,
+                    float3 L,
+                    lut::LTCMatrixData ltc_mat)
 {
+  /* Inverse LTC matrix. */
+  float3x3 Minv = ltc_mat.unpack_Minv();
+
   /* Construct orthonormal basis around N. */
   float3x3 T = detail::tangent_basis(N, V);
 
@@ -285,8 +276,11 @@ float evaluate_quad(
 
   /* Attenuation to reduce leakage, in cases where the sphere approximation below
    * is not clipped consistently with a polygon/ellipse. */
-  float form_factor_attenuation = detail::attenuate_quad(Minv, N, V, L, corners);
-  // return form_factor_attenuation;
+  float4 clamp_params = ltc_mat.unpack_clamp_params();
+  float3 D = normalize(clamp_params.xyz);
+  float form_factor_attenuation = detail::attenuate_quad(Minv, D, L, corners);
+  return form_factor_attenuation;
+  // attenuation += (1.0f - attenuation) * saturate(3.0f * clamp_factor);
 
   /* Apply LTC inverse matrix. */
   corners[0] = normalize(Minv * corners[0]);
@@ -308,7 +302,7 @@ float evaluate_quad(
 
   /* Attenuate form_factor to reduce leakage, in cases where a sphere lies above the
    * horizon, but a polygon/ellipse should be clipped. This is a fitted function. */
-  form_factor *= form_factor_attenuation;
+  // form_factor *= form_factor_attenuation;
 
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
@@ -321,9 +315,16 @@ float evaluate_quad(
  *
  * disk_points are WS vectors from the shading point to the disk "bounding domain".
  */
-float evaluate_disk(
-    sampler2DArray util_tx, float3 N, float3 V, float3 Lv, float3x3 Minv, float3 disk_points[4])
+float evaluate_disk(sampler2DArray util_tx,
+                    float3 N,
+                    float3 V,
+                    float3 Lv,
+                    lut::LTCMatrixData ltc_mat,
+                    float3 disk_points[4])
 {
+  /* Inverse LTC matrix. */
+  float3x3 Minv = ltc_mat.unpack_Minv();
+
   /* Construct orthonormal basis around N. */
   float3x3 T = detail::tangent_basis(N, V);
 
@@ -349,7 +350,9 @@ float evaluate_disk(
 =======
   /* Attenuation to reduce leakage, in cases where the sphere approximation below
    * is not clipped consistently with a polygon/ellipse. */
-  float form_factor_attenuation = detail::attenuate_disk(Minv * R, N, V, Lv, disk_points);
+  float4 clamp_params = ltc_mat.unpack_clamp_params();
+  float form_factor_attenuation = detail::attenuate_disk(
+      Minv * R, clamp_params.xyz, Lv, disk_points);
 
 >>>>>>> 5408dca8f18 (Implemented disk light attenuation)
   /* Compute eigenvectors of new ellipse. */

@@ -24,7 +24,7 @@ struct BsdfEval {
 
 struct ClosureLight {
   /* LTC matrix. */
-  packed_float4 ltc_mat;
+  packed_uint4 ltc_mat;
   /* Shading normal. */
   packed_float3 N;
   /* Enum used as index to fetch which light intensity to use [0..3]. */
