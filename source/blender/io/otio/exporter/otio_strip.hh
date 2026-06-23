@@ -140,6 +140,21 @@ class RenderAsMovieExporter : public StripExporter {
   bool include_audio_ = false;
 };
 
+class GeneratorStripExporter : public StripExporter {
+ public:
+  GeneratorStripExporter(Strip *strip,
+                         Scene *scene,
+                         SerializableObject::Retainer<Track> &track,
+                         int last_strip_end = 0,
+                         const char *filepath = nullptr)
+      : StripExporter(strip, scene, track, last_strip_end, filepath) {};
+
+  void export_strip(Main * /*bmain*/,
+                    const OTIOExportParams * /*export_params*/,
+                    std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>>
+                        &single_input_effects) override;
+};
+
 template<typename T>
 void add_effects_to_clip(
     const Scene *scene,

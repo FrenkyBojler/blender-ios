@@ -28,6 +28,7 @@
 #include "opentimelineio/externalReference.h"
 #include "opentimelineio/freezeFrame.h"
 #include "opentimelineio/gap.h"
+#include "opentimelineio/generatorReference.h"
 #include "opentimelineio/imageSequenceReference.h"
 #include "opentimelineio/linearTimeWarp.h"
 #include "opentimelineio/missingReference.h"
@@ -111,6 +112,40 @@ static SerializableObject::Retainer<ExternalReference> create_external_reference
   external_reference->set_name(media_filename);
 
   return external_reference;
+}
+
+static void set_color_strip_params(const Strip *strip, AnyDictionary &params)
+{
+  const SolidColorVars *color = static_cast<SolidColorVars *>(strip->effectdata);
+
+  params["name"] = "Color";
+  params["col_r"] = static_cast<double>(color->col[0]);
+  params["col_g"] = static_cast<double>(color->col[1]);
+  params["col_b"] = static_cast<double>(color->col[2]);
+  params["width"] = static_cast<int64_t>(color->width);
+  params["height"] = static_cast<int64_t>(color->height);
+}
+
+static SerializableObject::Retainer<GeneratorReference> create_generator_reference(
+    const Strip *strip)
+{
+  auto generator_reference = SerializableObject::Retainer<GeneratorReference>(
+      new GeneratorReference());
+  AnyDictionary params;
+
+  switch (strip->type) {
+    case STRIP_TYPE_COLOR:
+      generator_reference->set_name("Color");
+      generator_reference->set_generator_kind("Color");
+      set_color_strip_params(strip, params);
+      break;
+
+    default:
+      break;
+  }
+
+  generator_reference->parameters()["blender"] = params;
+  return generator_reference;
 }
 
 static SerializableObject::Retainer<ImageSequenceReference> create_image_sequence_reference(
@@ -317,8 +352,8 @@ static void handle_speed_effect_strip(const Scene *scene,
     clip->effects().push_back(static_cast<SerializableObject::Retainer<otio::Effect>>(ltw.value));
   }
   else {
-    auto ff = SerializableObject::Retainer<FreezeFrame>(
-        new FreezeFrame(effect_strip->name + 2, "Speed"));
+    auto ff = SerializableObject::Retainer<FreezeFrame>(new FreezeFrame(effect_strip->name + 2));
+    ff->set_effect_name("Speed");
     clip->effects().push_back(static_cast<SerializableObject::Retainer<otio::Effect>>(ff.value));
   }
 }
@@ -675,6 +710,27 @@ void RenderAsMovieExporter::export_strip(
   last_strip_end = exporter.last_strip_end;
 
   UNUSED_VARS(include_audio_);
+}
+
+void GeneratorStripExporter::export_strip(
+    Main * /*bmain*/,
+    const OTIOExportParams * /*export_params*/,
+    std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects)
+{
+  add_gap_if_necessary();
+
+  float media_fps = scene_->frames_per_second();
+
+  TimeRange strip_source_range = get_strip_source_range(strip_, scene_, media_fps);
+  SerializableObject::Retainer<GeneratorReference> generator_reference =
+      create_generator_reference(strip_);
+  generator_reference->set_available_range(strip_source_range);
+
+  auto clip = otio::SerializableObject::Retainer<otio::Clip>(
+      new Clip(strip_->name + 2, generator_reference, strip_source_range));
+
+  add_effects_to_clip(scene_, strip_, clip, single_input_effects);
+  track_->append_child(clip);
 }
 
 }  // namespace blender::io::otio

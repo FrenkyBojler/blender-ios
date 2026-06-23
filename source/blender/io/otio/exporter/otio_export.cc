@@ -225,6 +225,11 @@ static void otio_export_recursive(Main *bmain,
           missing_reference_exporter.export_with_missing_reference(single_input_effects);
         }
       }
+      /* Color, Adjustment, Text, etc. Strips. */
+      else if (ELEM(strip->type, STRIP_TYPE_COLOR, STRIP_TYPE_ADJUSTMENT, STRIP_TYPE_TEXT)) {
+        strip_exporter = new GeneratorStripExporter(
+            strip, scene, inside_meta ? meta_video_track : track, last_strip_end);
+      }
 
       if (strip_exporter) {
         strip_exporter->export_strip(bmain, export_params, single_input_effects);
