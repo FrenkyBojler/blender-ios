@@ -591,7 +591,7 @@ static void rna_def_dynamic_override_rules(BlenderRNA *brna, PropertyRNA *cprop)
       "Newly created dynamic override rule for the given target ID, or the matching existing one");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);
-  parm = RNA_def_pointer(func, "target_id", "ID", "Target ID", "Datablock affected by the rule");
+  parm = RNA_def_pointer(func, "target_id", "ID", "Target ID", "Data-block affected by the rule");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "remove", "rna_DynamicOverride_rule_remove");

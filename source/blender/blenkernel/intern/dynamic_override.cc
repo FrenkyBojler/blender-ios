@@ -437,30 +437,30 @@ DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(Scene &scene, ID &owner_id)
 }
 
 static DynamicOverrideRuleIDData &rule_iddata_add_for_id(DynamicOverride &dynamic_override,
-                                                         ID &owner_id)
+                                                         ID &target_id)
 {
-  BLI_assert(!rule_iddata_lookup_for_id(dynamic_override, owner_id));
+  BLI_assert(!rule_iddata_lookup_for_id(dynamic_override, target_id));
 
   DynamicOverrideRuleIDData *rule_id_data = MEM_new<DynamicOverrideRuleIDData>(__func__);
   rule_id_data->runtime = MEM_new<bke::dynoverride::RuleIDDataRuntime>(__func__);
   rule_id_data->base.type = DynamicOverrideRuleType::IDData;
   rule_id_data->base.target_filter.type = DynamicOverrideRuleTargetFilterType::IDSingle;
-  rule_id_data->base.target_filter.target_id = &owner_id;
+  rule_id_data->base.target_filter.target_id = &target_id;
 
   /* Generate a unique name for this new rule. */
-  char id_full_name[MAX_ID_FULL_NAME];
-  BKE_id_full_name_get(id_full_name, &owner_id, 0);
-  const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(&owner_id);
+  const char *id_name = BKE_id_name(target_id);
+  const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(&target_id);
   std::string rule_name = fmt::format(
-      fmt::runtime(CTX_DATA_(BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE, "{} {} - Properties")),
-      id_full_name,
-      idtype->name);
+      fmt::runtime(CTX_DATA_(BLT_I18NCONTEXT_ID_DYNAMIC_OVERRIDE, "{} {}{} - Properties")),
+      id_name,
+      ID_IS_LINKED(&target_id) ? DATA_("linked ") : "",
+      DATA_(idtype->name));
   rule_name_set(dynamic_override, rule_id_data->base, rule_name);
 
   BLI_addtail(&dynamic_override.rules, rule_id_data);
 
   DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
-  DEG_id_tag_update(&owner_id, ID_RECALC_DYNAMIC_OVERRIDE);
+  DEG_id_tag_update(&target_id, ID_RECALC_DYNAMIC_OVERRIDE);
   DEG_relations_tag_update(G_MAIN);
 
   return *rule_id_data;

@@ -97,9 +97,8 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
 
             col = panel_body.column()
             col.active = not rule.is_muted
-            # Commented out for now, icon preview generation of all IDs at once seems to be utterly broken :(((
-            # ~ if isinstance(rule.target_filter, bpy.types.DynamicOverrideRuleTargetFilterIDSingle):
-                # ~ col.prop(rule.target_filter, "target_id")
+            if isinstance(rule.target_filter, bpy.types.DynamicOverrideRuleTargetFilterIDSingle):
+                col.prop(rule.target_filter, "target_id")
 
             if isinstance(rule, bpy.types.DynamicOverrideRuleIDData):
                 for prop in rule.properties:
