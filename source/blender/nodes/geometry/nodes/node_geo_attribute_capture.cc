@@ -263,8 +263,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
   params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {
     bNode &node = params.add_node("GeometryNodeCaptureAttribute"_ustr);
-    const auto *item = socket_items::add_item_with_socket_type_and_name<CaptureAttributeItemsAccessor>(
-        params.node_tree, node, type, params.socket.name);
+    const auto *item =
+        socket_items::add_item_with_socket_type_and_name<CaptureAttributeItemsAccessor>(
+            params.node_tree, node, type, params.socket.name);
     /* The 0th item is "Value" compare to other nodes which would have "Value_0" */
     const StringRef identifier = (item->identifier != 0) ?
                                      fmt::format("Value_{}", item->identifier) :
