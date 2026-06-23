@@ -193,17 +193,17 @@ struct GeometryShaderEmulator {
 
     float3 n1 = cross(v12, v10);
     float3 n2 = cross(v13, v12);
+    bool2 degen_faces;
+    { /** WORKAROUND: Check for degenerate tris. */
+      /* Check if area is null */
+      float2 faces_area = float2(length_squared(n1), length_squared(n2));
+      degen_faces = equal(faces_area, float2(0.0f));
 
-    /** WORKAROUND: Check for degenerate tris. */
-    /* Check if area is null */
-    float2 faces_area = float2(length_squared(n1), length_squared(n2));
-    bool2 degen_faces = equal(faces_area, float2(0.0f));
-
-    /* Both triangles are degenerate, abort. */
-    if (all(degen_faces)) {
-      return;
+      /* Both triangles are degenerate, abort. */
+      if (all(degen_faces)) {
+        return;
+      }
     }
-
     float3 ls_light_direction = drw_normal_world_to_object(
         float3(srt.pass_data.light_direction_ws));
 
@@ -214,19 +214,20 @@ struct GeometryShaderEmulator {
     /* WATCH: maybe unpredictable in some cases. */
     bool is_manifold = any(notEqual(geom_in[0].lP, geom_in[3].lP));
 
-    if (srt.double_manifold == false) [[static_branch]] {
-      /* If the mesh is known to be manifold and we don't use double count,
-       * only create an quad if the we encounter a facing geom. */
-      if ((degen_faces.x && backface.y) || (degen_faces.y && backface.x)) {
-        return;
+    { /** WORKAROUND: Treat degenerate tris as non-manifold edges. */
+      if (srt.double_manifold == false) [[static_branch]] {
+        /* If the mesh is known to be manifold and we don't use double count,
+         * only create an quad if the we encounter a facing geom. */
+        if ((degen_faces.x && backface.y) || (degen_faces.y && backface.x)) {
+          return;
+        }
       }
+
+      /* If one of the 2 triangles is degenerate, replace edge by a non-manifold one. */
+      backface.x = (degen_faces.x) ? !backface.y : backface.x;
+      backface.y = (degen_faces.y) ? !backface.x : backface.y;
+      is_manifold = (any(degen_faces)) ? false : is_manifold;
     }
-
-    /* If one of the 2 triangles is degenerate, replace edge by a non-manifold one. */
-    backface.x = (degen_faces.x) ? !backface.y : backface.x;
-    backface.y = (degen_faces.y) ? !backface.x : backface.y;
-    is_manifold = (any(degen_faces)) ? false : is_manifold;
-
     /* If both faces face the same direction it's not an outline edge. */
     if (backface.x == backface.y) {
       return;
