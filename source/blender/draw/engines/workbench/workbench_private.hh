@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_context.hh"
+#include "BKE_image_gpu.hh"
 
 #include "DNA_camera_types.h"
 #include "DNA_material_types.h"
@@ -50,31 +51,31 @@ class ShaderCache {
 
   ShaderCache();
 
-  GPUShader *prepass_get(eGeometryType geometry_type,
-                         ePipelineType pipeline_type,
-                         eLightingType lighting_type,
-                         eShaderType shader_type,
-                         bool clip)
+  gpu::Shader *prepass_get(eGeometryType geometry_type,
+                           ePipelineType pipeline_type,
+                           eLightingType lighting_type,
+                           eShaderType shader_type,
+                           bool clip)
   {
     return prepass_[int(geometry_type)][int(pipeline_type)][int(lighting_type)][int(shader_type)]
                    [clip]
                        .get();
   }
 
-  GPUShader *resolve_get(eLightingType lighting_type,
-                         bool cavity = false,
-                         bool curvature = false,
-                         bool shadow = false)
+  gpu::Shader *resolve_get(eLightingType lighting_type,
+                           bool cavity = false,
+                           bool curvature = false,
+                           bool shadow = false)
   {
     return resolve_[int(lighting_type)][cavity][curvature][shadow].get();
   }
 
-  GPUShader *shadow_get(bool depth_pass, bool manifold, bool cap = false)
+  gpu::Shader *shadow_get(bool depth_pass, bool manifold, bool cap = false)
   {
     return shadow_[depth_pass][manifold][cap].get();
   }
 
-  GPUShader *volume_get(bool smoke, int interpolation, bool coba, bool slice)
+  gpu::Shader *volume_get(bool smoke, int interpolation, bool coba, bool slice)
   {
     return volume_[smoke][interpolation][coba][slice].get();
   }
@@ -114,8 +115,8 @@ struct Material {
   Material() = default;
   Material(float3 color) : base_color(color), packed_data(Material::pack_data(0.0f, 0.4f, 1.0f)) {}
 
-  Material(::Object &ob, bool random = false);
-  Material(::Material &mat)
+  Material(blender::Object &ob, bool random = false);
+  Material(blender::Material &mat)
       : base_color(&mat.r), packed_data(Material::pack_data(mat.metallic, mat.roughness, mat.a))
   {
   }
@@ -181,6 +182,8 @@ struct SceneState {
   /* When r == -1.0 the shader uses the vertex color */
   Material material_attribute_color = Material(float3(-1.0f));
 
+  bool show_paint_bvh_debug = false;
+
   void init(const DRWContext *context, bool scene_updated, Object *camera_ob = nullptr);
 };
 
@@ -192,8 +195,8 @@ struct MaterialTexture {
   bool alpha_cutoff = false;
 
   MaterialTexture() = default;
-  MaterialTexture(Object *ob, int material_index);
-  MaterialTexture(::Image *image, ImageUser *user = nullptr);
+  MaterialTexture(Manager &manager, Object *ob, int material_index);
+  MaterialTexture(Manager &manager, blender::Image *image, ImageUser *user = nullptr);
 };
 
 struct SceneResources;
@@ -209,7 +212,8 @@ struct ObjectState {
   ObjectState(const DRWContext *draw_ctx,
               const SceneState &scene_state,
               const SceneResources &resources,
-              Object *ob);
+              Object *ob,
+              Manager &manager);
 };
 
 class CavityEffect {
@@ -257,7 +261,6 @@ struct SceneResources {
 
   CavityEffect cavity = {};
 
-  Texture missing_tx = "missing_tx";
   MaterialTexture missing_texture;
 
   Texture dummy_texture_tx = {"dummy_texture"};
@@ -270,6 +273,9 @@ struct SceneResources {
   {
     /* TODO(fclem): Auto destruction. */
     GPU_BATCH_DISCARD_SAFE(volume_cube_batch);
+    if (missing_texture.gpu.texture) {
+      GPU_texture_free(missing_texture.gpu.texture);
+    }
   }
 
   void init(const SceneState &scene_state, const DRWContext *ctx);
@@ -398,18 +404,18 @@ class ShadowPass {
     VisibilityBuf fail_visibility_buf_ = {};
 
    public:
-    ShadowView() : View("ShadowPass.View"){};
+    ShadowView() : View("ShadowPass.View") {};
 
     void setup(View &view, float3 light_direction, bool force_fail_method);
     bool debug_object_culling(Object *ob);
     void set_mode(PassType type);
 
    protected:
-    virtual void compute_visibility(ObjectBoundsBuf &bounds,
-                                    ObjectInfosBuf &infos,
-                                    uint resource_len,
-                                    bool debug_freeze) override;
-    virtual VisibilityBuf &get_visibility_buffer() override;
+    void compute_visibility(ObjectBoundsBuf &bounds,
+                            ObjectInfosBuf &infos,
+                            uint resource_len,
+                            bool debug_freeze) override;
+    VisibilityBuf &get_visibility_buffer() override;
   } view_ = {};
 
   bool enabled_;
@@ -456,6 +462,7 @@ class VolumePass {
 
   Texture dummy_shadow_tx_ = {"Volume.Dummy Shadow Tx"};
   Texture dummy_volume_tx_ = {"Volume.Dummy Volume Tx"};
+  Texture dummy_flag_tx_ = {"Volume.Dummy Flag Tx"};
   Texture dummy_coba_tx_ = {"Volume.Dummy Coba Tx"};
 
   gpu::Texture *stencil_tx_ = nullptr;

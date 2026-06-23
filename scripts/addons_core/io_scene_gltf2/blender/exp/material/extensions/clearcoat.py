@@ -10,16 +10,16 @@ from ...material import texture_info as gltf2_blender_gather_texture_info
 from ..search_node_tree import has_image_node_from_socket, get_socket, get_factor_from_socket
 
 
-def export_clearcoat(blender_material, export_settings):
+def export_clearcoat(bmat, export_settings):
     has_clearcoat_texture = False
     has_clearcoat_roughness_texture = False
 
     clearcoat_extension = {}
     clearcoat_roughness_slots = ()
 
-    clearcoat_socket = get_socket(blender_material.node_tree, blender_material.use_nodes, 'Coat Weight')
-    clearcoat_roughness_socket = get_socket(blender_material.node_tree, blender_material.use_nodes, 'Coat Roughness')
-    clearcoat_normal_socket = get_socket(blender_material.node_tree, blender_material.use_nodes, 'Coat Normal')
+    clearcoat_socket = get_socket(bmat.get_used_material().node_tree, 'Coat Weight')
+    clearcoat_roughness_socket = get_socket(bmat.get_used_material().node_tree, 'Coat Roughness')
+    clearcoat_normal_socket = get_socket(bmat.get_used_material().node_tree, 'Coat Normal')
 
     if clearcoat_socket.socket is not None and isinstance(
             clearcoat_socket.socket,
@@ -45,7 +45,7 @@ def export_clearcoat(blender_material, export_settings):
             path_ = {}
             path_['length'] = 1
             path_['path'] = "/materials/XXX/extensions/KHR_materials_clearcoat/clearcoatFactor"
-            export_settings['current_paths'][path] = path_, {}
+            export_settings['current_paths'][path] = path_
 
     if clearcoat_roughness_socket.socket is not None and isinstance(
             clearcoat_roughness_socket.socket,
@@ -58,7 +58,7 @@ def export_clearcoat(blender_material, export_settings):
         # Storing path for KHR_animation_pointer
         path_ = {}
         path_['length'] = 1
-        path_['path'] = "/materials/XXX/extensions/KHR_materials_clearcoat/clearcoatRoughnessFactor "
+        path_['path'] = "/materials/XXX/extensions/KHR_materials_clearcoat/clearcoatRoughnessFactor"
         export_settings['current_paths']["node_tree." +
                                          clearcoat_roughness_socket.socket.path_from_id() +
                                          ".default_value"] = path_

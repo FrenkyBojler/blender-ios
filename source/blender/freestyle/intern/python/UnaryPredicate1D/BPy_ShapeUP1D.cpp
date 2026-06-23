@@ -8,7 +8,7 @@
 
 #include "BPy_ShapeUP1D.h"
 
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
 using namespace Freestyle;
 
@@ -25,9 +25,9 @@ PyDoc_STRVAR(
     "\n"
     "   Builds a ShapeUP1D object.\n"
     "\n"
-    "   :arg first: The first Id component.\n"
+    "   :param first: The first Id component.\n"
     "   :type first: int\n"
-    "   :arg second: The second Id component.\n"
+    "   :param second: The second Id component.\n"
     "   :type second: int\n"
     "\n"
     ".. method:: __call__(inter)\n"
@@ -35,12 +35,11 @@ PyDoc_STRVAR(
     "   Returns true if the shape to which the Interface1D belongs to has the\n"
     "   same :class:`freestyle.types.Id` as the one specified by the user.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if Interface1D belongs to the shape of the\n"
     "      user-specified Id.\n"
     "   :rtype: bool\n");
-
 static int ShapeUP1D___init__(BPy_ShapeUP1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"first", "second", nullptr};

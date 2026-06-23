@@ -108,6 +108,7 @@ _km_hierarchy = [
         ]),
 
         ('Primitive Tool Modal Map', 'EMPTY', 'WINDOW', []),
+        ('Pen Tool Modal Map', 'EMPTY', 'WINDOW', []),
         ('Knife Tool Modal Map', 'EMPTY', 'WINDOW', []),
         ('Custom Normals Modal Map', 'EMPTY', 'WINDOW', []),
         ('Bevel Modal Map', 'EMPTY', 'WINDOW', []),
@@ -125,6 +126,7 @@ _km_hierarchy = [
         ('View3D Move Modal', 'EMPTY', 'WINDOW', []),
         ('View3D Zoom Modal', 'EMPTY', 'WINDOW', []),
         ('View3D Dolly Modal', 'EMPTY', 'WINDOW', []),
+        ('View3D VR Location Scouting Capture Review Modal', 'EMPTY', 'WINDOW', []),
 
         # toolbar and properties
         ('3D View Generic', 'VIEW_3D', 'WINDOW', [
@@ -207,7 +209,7 @@ _km_hierarchy = [
 
     ('Grease Pencil', 'EMPTY', 'WINDOW', [
         # Grease Pencil
-        ('Grease Pencil Paint Mode', 'EMPTY', 'WINDOW', []),
+        ('Grease Pencil Draw Mode', 'EMPTY', 'WINDOW', []),
         ('Grease Pencil Brush Stroke', 'EMPTY', 'WINDOW', []),
         ('Grease Pencil Edit Mode', 'EMPTY', 'WINDOW', []),
         ('Grease Pencil Sculpt Mode', 'EMPTY', 'WINDOW', []),
