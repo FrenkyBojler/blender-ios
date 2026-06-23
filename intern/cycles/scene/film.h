@@ -22,6 +22,8 @@ enum FilterType {
   FILTER_BOX,
   FILTER_GAUSSIAN,
   FILTER_BLACKMAN_HARRIS,
+  FILTER_MITCHELL_NETRAVALI,
+  FILTER_LANCZOS,
 
   FILTER_NUM_TYPES,
 };
@@ -38,6 +40,11 @@ class Film : public Node {
 
   NODE_SOCKET_API(FilterType, filter_type)
   NODE_SOCKET_API(float, filter_width)
+
+  /* Parameters for the Lanczos & Mitchell-Netravali pixel filters. */
+  NODE_SOCKET_API(float, filter_mitchell_netravali_b)
+  NODE_SOCKET_API(float, filter_mitchell_netravali_c)
+  NODE_SOCKET_API(float, filter_lanczos_a)
 
   NODE_SOCKET_API(float, mist_start)
   NODE_SOCKET_API(float, mist_depth)

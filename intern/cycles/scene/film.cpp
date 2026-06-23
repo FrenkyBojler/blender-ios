@@ -2,11 +2,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "scene/film.h"
+#include <functional>
+
 #include "device/device.h"
 #include "scene/background.h"
 #include "scene/bake.h"
 #include "scene/camera.h"
+#include "scene/film.h"
 #include "scene/integrator.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
@@ -40,22 +42,68 @@ static float filter_func_blackman_harris(float v, const float width)
   return 0.35875f - 0.48829f * cosf(v) + 0.14128f * cosf(2.0f * v) - 0.01168f * cosf(3.0f * v);
 }
 
-static vector<float> filter_table(FilterType type, float width)
+static float filter_func_mitchell_netravali(float v, const float b, const float c)
+{
+  const float v_abs = fabsf(v);
+  if (v_abs >= 2.0f) {
+    return 0.0f;
+  }
+  float v_sq = v * v;
+  float v_cb = v_sq * v;
+  if (v_abs < 1.0f) {
+    return ((12.0f - 9.0f * b - 6.0 * c) * v_cb + (-18.0f + 12.0f * b + 6.0f * c) * v_sq +
+            (6.0f - 2.0f * b)) /
+           6.0f;
+  }
+  return ((-b - 6.0f * c) * v_cb + (6.0f * b + 30.0f * c) * v_sq +
+          (-12.0f * b - 48.0f * c) * v_abs + (8.0f * b + 24.0f * c)) /
+         6.0f;
+}
+
+static float filter_func_lanczos(float v, const float a)
+{
+  const float v_abs = abs(v);
+  if (v_abs >= a) {
+    return 0.0f;
+  }
+  else if (v_abs <= 1e-6f) {
+    return 1.0f;
+  }
+  float v_pi = v * M_PI_F;
+  /* sinc(v) * sinc(v / a) */
+  return a * sinf(v_pi) * sinf(v_pi / a) / (v_pi * v_pi);
+}
+
+static vector<float> filter_table(
+    FilterType type, float width, float mn_b, float mn_c, float lncz_a)
 {
   vector<float> filter_table(FILTER_TABLE_SIZE);
-  float (*filter_func)(float, float) = nullptr;
+  std::function<float(float)> filter_func;
 
   switch (type) {
     case FILTER_BOX:
-      filter_func = filter_func_box;
+      width = 1.0f;
+      filter_func = [width](const float x) { return filter_func_box(x, width); };
       break;
     case FILTER_GAUSSIAN:
-      filter_func = filter_func_gaussian;
       width *= 3.0f;
+      filter_func = [width](const float x) { return filter_func_gaussian(x, width); };
       break;
     case FILTER_BLACKMAN_HARRIS:
-      filter_func = filter_func_blackman_harris;
       width *= 2.0f;
+      filter_func = [width](const float x) { return filter_func_blackman_harris(x, width); };
+      break;
+    case FILTER_MITCHELL_NETRAVALI:
+      /* Mitchell-Netravali filter kernel has a fixed window support of [-2, 2]. */
+      width = 4.0f;
+      filter_func = [mn_b, mn_c](const float x) {
+        return filter_func_mitchell_netravali(x, mn_b, mn_c);
+      };
+      break;
+    case FILTER_LANCZOS:
+      /* Lanczos filter kernel has a fixed window support of [-a, a]. */
+      width = 2.0f * lncz_a;
+      filter_func = [lncz_a](const float x) { return filter_func_lanczos(x, lncz_a); };
       break;
     default:
       assert(0);
@@ -72,13 +120,7 @@ static vector<float> filter_table(FilterType type, float width)
    * consider either making FILTER_TABLE_SIZE odd value or sample full filter.
    */
 
-  util_cdf_inverted(
-      FILTER_TABLE_SIZE,
-      0.0f,
-      width * 0.5f,
-      [filter_func, width](const float x) { return filter_func(x, width); },
-      true,
-      filter_table);
+  util_cdf_inverted(FILTER_TABLE_SIZE, 0.0f, width * 0.5f, filter_func, true, filter_table);
 
   return filter_table;
 }
@@ -99,6 +141,9 @@ NODE_DEFINE(Film)
 
   SOCKET_ENUM(filter_type, "Filter Type", filter_enum, FILTER_BOX);
   SOCKET_FLOAT(filter_width, "Filter Width", 1.0f);
+  SOCKET_FLOAT(filter_mitchell_netravali_b, "Filter Parameter B", 0.0f);
+  SOCKET_FLOAT(filter_mitchell_netravali_c, "Filter Parameter C", 0.5f);
+  SOCKET_FLOAT(filter_lanczos_a, "Kernel Size", 2.0f);
 
   SOCKET_FLOAT(mist_start, "Mist Start", 0.0f);
   SOCKET_FLOAT(mist_depth, "Mist Depth", 100.0f);
@@ -454,7 +499,11 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   }
 
   /* update filter table */
-  vector<float> table = filter_table(filter_type, filter_width);
+  vector<float> table = filter_table(filter_type,
+                                     filter_width,
+                                     filter_mitchell_netravali_b,
+                                     filter_mitchell_netravali_c,
+                                     filter_lanczos_a);
   scene->lookup_tables->remove_table(&filter_table_offset_);
   filter_table_offset_ = scene->lookup_tables->add_table(dscene, table);
   dscene->data.tables.filter_table_offset = (int)filter_table_offset_;

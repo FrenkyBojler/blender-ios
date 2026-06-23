@@ -47,6 +47,8 @@ enum_filter_types = (
     ('BOX', "Box", "Box filter"),
     ('GAUSSIAN', "Gaussian", "Gaussian filter"),
     ('BLACKMAN_HARRIS', "Blackman-Harris", "Blackman-Harris filter"),
+    ('MITCHELL_NETRAVALI', "Mitchell-Netravali", "Mitchell-Netravali filter"),
+    ('LANCZOS', "Lanczos", "Lanczos filter"),
 )
 
 enum_curve_shape = (
@@ -885,6 +887,27 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         min=0.01, max=10.0,
         default=1.5,
         subtype='PIXEL'
+    )
+
+    filter_mitchell_netravali_b: FloatProperty(
+        name="Filter Parameter B",
+        description="Parameter B of the Mitchell-Netravali filter",
+        min=0.0, max=1.0,
+        default=0.0,
+    )
+
+    filter_mitchell_netravali_c: FloatProperty(
+        name="Filter Parameter C",
+        description="Parameter C of the Mitchell-Netravali filter",
+        min=0.0, max=1.0,
+        default=0.5,
+    )
+
+    filter_lanczos_a: IntProperty(
+        name="Kernel Size",
+        description="Lanczos filter kernel size",
+        min=1, max=3,
+        default=2,
     )
 
     use_pixel_jitter: BoolProperty(

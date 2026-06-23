@@ -625,10 +625,15 @@ void BlenderSync::sync_film(blender::ViewLayer &b_view_layer,
   film->set_exposure(get_float(cscene, "film_exposure"));
   film->set_filter_type(
       (FilterType)get_enum(cscene, "pixel_filter_type", FILTER_NUM_TYPES, FILTER_BLACKMAN_HARRIS));
-  const float filter_width = (film->get_filter_type() == FILTER_BOX) ?
-                                 1.0f :
-                                 get_float(cscene, "filter_width");
-  film->set_filter_width(filter_width);
+  /* The filter width is adapted in filter_table depending on the pixel filter type. */
+  film->set_filter_width(get_float(cscene, "filter_width"));
+  if (film->get_filter_type() == FILTER_MITCHELL_NETRAVALI) {
+    film->set_filter_mitchell_netravali_b(get_float(cscene, "filter_mitchell_netravali_b"));
+    film->set_filter_mitchell_netravali_c(get_float(cscene, "filter_mitchell_netravali_c"));
+  }
+  else if (film->get_filter_type() == FILTER_LANCZOS) {
+    film->set_filter_lanczos_a((float)get_int(cscene, "filter_lanczos_a"));
+  }
 
   if (b_scene->world) {
     film->set_mist_start(b_scene->world->miststa);

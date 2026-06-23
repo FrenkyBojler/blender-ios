@@ -824,8 +824,13 @@ class CYCLES_RENDER_PT_film_pixel_filter(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(cscene, "pixel_filter_type", text="Type")
-        if cscene.pixel_filter_type != 'BOX':
+        if cscene.pixel_filter_type != 'BOX' and cscene.pixel_filter_type != 'MITCHELL_NETRAVALI' and cscene.pixel_filter_type != 'LANCZOS':
             col.prop(cscene, "filter_width", text="Width")
+        elif cscene.pixel_filter_type == 'MITCHELL_NETRAVALI':
+            col.prop(cscene, "filter_mitchell_netravali_b", text="Parameter B")
+            col.prop(cscene, "filter_mitchell_netravali_c", text="Parameter C")
+        elif cscene.pixel_filter_type == 'LANCZOS':
+            col.prop(cscene, "filter_lanczos_a", text="Kernel Size")
 
 
 class CYCLES_RENDER_PT_performance(CyclesButtonsPanel, Panel):
