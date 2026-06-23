@@ -1673,8 +1673,11 @@ VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene,
                 (first_start == second_start &&
                  first->right_handle(scene) > second->right_handle(scene));
     }
-    else if (first == seq::select_active_get(scene)) {
-      /* Other effects e.g. subtract make the active strip the second input for consistency. */
+    else if (first == seq::select_active_get(scene) ||
+             (ignore_active && first->channel < second->channel))
+    {
+      /* Other 2-input effects (blend-modes) make the active strip the second input. If neither
+       * strip is active (as in reassign inputs), make it the strip on the lower channel. */
       do_swap = true;
     }
     if (do_swap) {
