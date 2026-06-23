@@ -115,7 +115,17 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
                     equal = False
                     break
         if not equal:
-            raise AssertionError(f"Matrices don't match\n{a}\n{b}")
+            raise self.failureException(f"Matrices don't match\n{a}\n{b}")
+
+    def _assert_almost_equal_lists(self, a: list[float], b: list[float]):
+        equal = True
+        assert len(a) == len(b)
+        for i in range(len(a)):
+            if abs(a[i] - b[i]) > 0.001:
+                equal = False
+                break
+        if not equal:
+            raise self.failureException(f"Lists don't match\n{a}\n{b}")
 
     def _assert_bones_equal_world_space(
             self,
@@ -192,10 +202,12 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         self._assert_bones_equal_world_space(copy_obj, copy_bone, paste_obj, paste_bone)
 
     def test_paste_to_skewed_space(self) -> None:
-        """Pasting into a skewed space should also work."""
+        """Pasting into a skewed space will only correctly work for location.
+        The world matrix will not match since it will contain a skew that we cannot correct for since
+        bones store their transform data in separate loc/rot/scale values."""
         copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
-        copy_obj.select_set(True)
         bpy.context.view_layer.objects.active = copy_obj
+        copy_obj.select_set(True)
         paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_skewed_space"]
         paste_obj.select_set(True)
 
@@ -213,7 +225,12 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         paste_bone.select = True
         bpy.ops.anim.world_space_paste()
 
-        self._assert_bones_equal_world_space(copy_obj, copy_bone, paste_obj, paste_bone)
+        for frame in range(10):
+            bpy.context.scene.frame_set(frame)
+            copy_matrix: mathutils.Matrix = copy_obj.matrix_world @ copy_bone.matrix
+            paste_matrix: mathutils.Matrix = paste_obj.matrix_world @ paste_bone.matrix
+            self._assert_almost_equal_lists(copy_matrix.to_translation(), paste_matrix.to_translation())
+            # Rotation and scale will not match since they contain the skew.
 
     def test_indirect_animation(self) -> None:
         """The entity from which we copy may not be animated directly,
@@ -256,8 +273,32 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
 
     def test_pasting_to_connected_child(self) -> None:
         """When pasting to a bone that is connected, the location cannot be modified.
-        As such, the location will not match when pasting to it."""
-        pass
+        As such, the location will not match when pasting to it. Rotation should still match though."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_connected_child"]
+        paste_obj.select_set(True)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones["child"]
+
+        copy_bone.select = True
+        paste_bone.select = False
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+
+        copy_bone.select = False
+        paste_bone.select = True
+        bpy.ops.anim.world_space_paste()
+
+        for frame in range(10):
+            bpy.context.scene.frame_set(frame)
+            copy_matrix: mathutils.Matrix = copy_obj.matrix_world @ copy_bone.matrix
+            paste_matrix: mathutils.Matrix = paste_obj.matrix_world @ paste_bone.matrix
+            self._assert_almost_equal_lists(copy_matrix.to_quaternion(), paste_matrix.to_quaternion())
+            self.assertNotEqual(copy_matrix.to_translation(), paste_matrix.to_translation())
+
 
     def test_paste_to_constrained_bone(self) -> None:
         """Depending on the constraint, the pasted bone may not be able to reach the required world space."""
