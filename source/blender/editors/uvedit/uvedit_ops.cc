@@ -1093,7 +1093,6 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   Object *active_object = CTX_data_active_object(C);
   const UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
   const bool use_active_object = RNA_boolean_get(op->ptr, "use_active_object");
-  const bool use_uniform_scale = RNA_boolean_get(op->ptr, "use_uniform_scale");
   const bool use_custom_resolution = RNA_boolean_get(op->ptr, "use_custom_resolution");
   float2 density = float2(RNA_float_get(op->ptr, "density_x"),
                           RNA_float_get(op->ptr, "density_y"));
@@ -1112,6 +1111,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       height = tile->gen_y;
     }
   }
+  const bool use_uniform_scale = (lock != UVTexelLock::None) && width == height;
   if (use_active_object) {
     BMEditMesh *em = BKE_editmesh_from_object(active_object);
     BMesh *bm = em->bm;
@@ -1249,44 +1249,39 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
 
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
   ui::Layout &col = layout.column(true);
-  col.prop(&ptr, "use_active_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col.prop(&ptr, "use_uniform_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (!RNA_boolean_get(op->ptr, "use_active_object")) {
-    if (RNA_boolean_get(op->ptr, "use_uniform_scale")) {
-      col.prop(&ptr, "density_x", UI_ITEM_NONE, IFACE_("Texel Density"), ICON_NONE);
-    }
-    else {
-      col.prop(&ptr, "density_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col.prop(&ptr, "density_y", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    }
-    col.prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-  col.separator();
-  col.prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (!RNA_boolean_get(op->ptr, "use_active_object")) {
 
-    col.separator();
-    col.prop(&ptr, "use_custom_resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col.separator();
-    if (RNA_boolean_get(op->ptr, "use_custom_resolution")) {
-      col.prop(&ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col.prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    }
-    else {
-      const SpaceImage *sima = CTX_wm_space_image(C);
-      int width = 1024;
-      int height = 1024;
-      if (sima && sima->image) {
-        ImageTile *tile = BKE_image_get_tile(sima->image, sima->iuser.tile);
-        if (tile) {
-          width = tile->gen_x;
-          height = tile->gen_y;
-        }
+  col.prop(&ptr, "use_active_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &density_col = layout.column(true);
+  density_col.active_set(!RNA_boolean_get(op->ptr, "use_active_object"));
+  density_col.prop(&ptr, "density_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  density_col.prop(&ptr, "density_y", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  density_col.prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.separator();
+  ui::Layout &lock_col = layout.column(true);
+  lock_col.prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &resolution_col = layout.column(true);
+  resolution_col.active_set(!RNA_boolean_get(op->ptr, "use_active_object"));
+  resolution_col.separator();
+  resolution_col.prop(&ptr, "use_custom_resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  resolution_col.separator();
+  if (RNA_boolean_get(op->ptr, "use_custom_resolution")) {
+    resolution_col.prop(&ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    resolution_col.prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  else {
+    const SpaceImage *sima = CTX_wm_space_image(C);
+    int width = 1024;
+    int height = 1024;
+    if (sima && sima->image) {
+      ImageTile *tile = BKE_image_get_tile(sima->image, sima->iuser.tile);
+      if (tile) {
+        width = tile->gen_x;
+        height = tile->gen_y;
       }
-      col.alignment_set(ui::LayoutAlign::Right);
-      col.label("Width:  " + std::to_string(width) + " px", ICON_NONE);
-      col.label("Height:  " + std::to_string(height) + " px", ICON_NONE);
     }
+    resolution_col.alignment_set(ui::LayoutAlign::Right);
+    resolution_col.label("Width:  " + std::to_string(width) + " px", ICON_NONE);
+    resolution_col.label("Height:  " + std::to_string(height) + " px", ICON_NONE);
   }
 }
 
@@ -1350,9 +1345,8 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
       ot->srna, "unit", unit_items, int(UVTexelUnit::Meter), "Unit", "Custom density unit");
   RNA_def_enum(
       ot->srna, "lock", lock_items, int(UVTexelLock::None), "Lock Axis", "Lock axis scaling");
-  RNA_def_boolean(ot->srna, "use_uniform_scale", true, "Uniform Scale", "Scale UVs uniformly");
   RNA_def_boolean(
-      ot->srna, "use_custom_resolution", false, "Custom Resolution", "Custom Texture Resolution");
+      ot->srna, "use_custom_resolution", false, "Custom Resolution", "Custom Image Resolution");
   prop = RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
   RNA_def_property_subtype(prop, PROP_PIXEL);
   prop = RNA_def_int(ot->srna, "height", 1024, 1, INT_MAX, "Height", "Image height", 1, 16384);
