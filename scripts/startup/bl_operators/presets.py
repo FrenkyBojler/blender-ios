@@ -1071,6 +1071,41 @@ class AddPresetGpencilMaterial(AddPresetBase, Operator):
     preset_subdir = "gpencil_material"
 
 
+class AddPresetSnapping(AddPresetBase, Operator):
+    """Add or remove a Snapping Preset"""
+    bl_idname = "scene.snapping_preset_add"
+    bl_label = "Add Snapping Preset"
+    preset_menu = "VIEW3D_MT_snapping_presets"
+
+    preset_defines = [
+        "tool_settings = bpy.context.scene.tool_settings",
+    ]
+
+    preset_values = [
+        "tool_settings.snap_elements",
+        "tool_settings.snap_target",
+        "tool_settings.snap_elements_base",
+        "tool_settings.snap_elements_individual",
+        "tool_settings.use_snap_grid_absolute",
+        "tool_settings.use_snap_peel_object",
+        "tool_settings.use_snap_to_same_target",
+        "tool_settings.snap_face_nearest_steps",
+        "tool_settings.use_snap_align_rotation",
+        "tool_settings.use_snap_backface_culling",
+        "tool_settings.use_snap_self",
+        "tool_settings.use_snap_edit",
+        "tool_settings.use_snap_nonedit",
+        "tool_settings.use_snap_selectable",
+        "tool_settings.use_snap_translate",
+        "tool_settings.use_snap_rotate",
+        "tool_settings.use_snap_scale",
+        "tool_settings.snap_angle_increment_3d",
+        "tool_settings.snap_angle_increment_3d_precision",
+    ]
+
+    preset_subdir = "snapping"
+
+
 classes = (
     AddPresetCamera,
     AddPresetCloth,
@@ -1094,6 +1129,7 @@ classes = (
     AddPresetGpencilMaterial,
     AddPresetEEVEERaytracing,
     AddPresetColorManagementWhiteBalance,
+    AddPresetSnapping,
     ExecutePreset,
     WM_MT_operator_presets,
     WM_PT_operator_presets,

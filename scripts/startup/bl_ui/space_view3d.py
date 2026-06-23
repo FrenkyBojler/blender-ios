@@ -7759,6 +7759,13 @@ class VIEW3D_PT_overlay_weight_paint(Panel):
         col.prop(overlay, "show_paint_wire")
 
 
+class VIEW3D_MT_snapping_presets(Menu):
+    bl_label = "Presets"
+    preset_subdir = "snapping"
+    preset_operator = "script.execute_preset"
+    draw = Menu.draw_preset
+
+
 class VIEW3D_PT_snapping(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
@@ -7770,6 +7777,13 @@ class VIEW3D_PT_snapping(Panel):
         object_mode = 'OBJECT' if obj is None else obj.mode
 
         layout = self.layout
+
+        row = layout.row()
+        sub = row.row(align=True)
+        sub.menu("VIEW3D_MT_snapping_presets", text=bpy.types.VIEW3D_MT_snapping_presets.bl_label)
+        sub.operator("scene.snapping_preset_add", text="", icon='ADD')
+        sub.operator("scene.snapping_preset_add", text="", icon='REMOVE').remove_active = True
+
         col = layout.column()
 
         col.label(text="Snap Base")
@@ -9496,6 +9510,7 @@ classes = (
     VIEW3D_PT_overlay_bones,
     VIEW3D_PT_overlay_sculpt,
     VIEW3D_PT_overlay_sculpt_curves,
+    VIEW3D_MT_snapping_presets,
     VIEW3D_PT_snapping,
     VIEW3D_PT_sculpt_snapping,
     VIEW3D_PT_proportional_edit,
