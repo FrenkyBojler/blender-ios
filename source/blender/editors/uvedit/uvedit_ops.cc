@@ -1095,7 +1095,8 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   const bool use_active_object = RNA_boolean_get(op->ptr, "use_active_object");
 
   const bool use_custom_resolution = RNA_boolean_get(op->ptr, "use_custom_resolution");
-  float density = RNA_float_get(op->ptr, "density");
+  float2 density = float2(RNA_float_get(op->ptr, "density_x"),
+                          RNA_float_get(op->ptr, "density_y"));
   const UVTexelUnit unit = (UVTexelUnit)RNA_enum_get(op->ptr, "unit");
 
   int width = 1024;
@@ -1127,20 +1128,23 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
         object_area += BM_face_calc_area(l->f);
       }
     }
-    density = sqrt((width * height * uv_area) / object_area) / scene->unit.scale_length;
+    density.x = sqrt((width * width * uv_area) / object_area) / scene->unit.scale_length;
+    density.y = sqrt((height * height * uv_area) / object_area) / scene->unit.scale_length;
   }
   else {
     if (unit == UVTexelUnit::Inch) {
-      density /= 0.0254;
+      density.x /= 0.0254;
+      density.y /= 0.0254;
     }
     else if (unit == UVTexelUnit::Centimeter) {
-      density /= 0.01;
+      density.x /= 0.01;
+      density.y /= 0.01;
     }
     else if (unit == UVTexelUnit::Foot) {
-      density /= 0.3048;
+      density.x /= 0.3048;
+      density.y /= 0.3048;
     }
   }
-
   Bounds<float2> bounds;
   for (Object *obedit : objects) {
     if ((obedit == active_object) && use_active_object) {
@@ -1173,20 +1177,19 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
         uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
         object_area += BM_face_calc_area(element[j].l->f);
       }
-      float island_density = sqrt((width * height * uv_area) / object_area) /
-                             scene->unit.scale_length;
+      float2 island_density = {0.0f, 0.0f};
+      island_density.x = sqrt((width * width * uv_area) / object_area) / scene->unit.scale_length;
+      island_density.y = sqrt((height * height * uv_area) / object_area) /
+                         scene->unit.scale_length;
 
-      float scale = density / island_density;
-      if (ELEM(lock, UVTexelLock::X, UVTexelLock::Y)) {
-        scale *= scale;
-      }
+      float2 scale = {density.x / island_density.x, density.y / island_density.y};
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         if (ELEM(lock, UVTexelLock::Y, UVTexelLock::None)) {
-          luv[0] = (luv[0] - bounds.center().x) * scale + bounds.center().x;
+          luv[0] = (luv[0] - bounds.center().x) * scale.x + bounds.center().x;
         }
         if (ELEM(lock, UVTexelLock::X, UVTexelLock::None)) {
-          luv[1] = (luv[1] - bounds.center().y) * scale + bounds.center().y;
+          luv[1] = (luv[1] - bounds.center().y) * scale.y + bounds.center().y;
         }
         changed = true;
       }
@@ -1210,32 +1213,36 @@ static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
   ui::Layout &col = layout.column(true);
   col.prop(&ptr, "use_active_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_boolean_get(op->ptr, "use_active_object")) {
-    col.prop(&ptr, "density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(&ptr, "density_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(&ptr, "density_y", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  col.prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.separator();
   col.prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col.separator();
-  col.prop(&ptr, "use_custom_resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col.separator();
-  if (RNA_boolean_get(op->ptr, "use_custom_resolution")) {
-    col.prop(&ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col.prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-  else {
-    const SpaceImage *sima = CTX_wm_space_image(C);
-    int width = 1024;
-    int height = 1024;
-    if (sima && sima->image) {
-      ImageTile *tile = BKE_image_get_tile(sima->image, sima->iuser.tile);
-      if (tile) {
-        width = tile->gen_x;
-        height = tile->gen_y;
-      }
+  if (!RNA_boolean_get(op->ptr, "use_active_object")) {
+
+    col.separator();
+    col.prop(&ptr, "use_custom_resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.separator();
+    if (RNA_boolean_get(op->ptr, "use_custom_resolution")) {
+      col.prop(&ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col.prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
-    col.alignment_set(ui::LayoutAlign::Right);
-    col.label("Width:  " + std::to_string(width) + " px", ICON_NONE);
-    col.label("Height:  " + std::to_string(height) + " px", ICON_NONE);
+    else {
+      const SpaceImage *sima = CTX_wm_space_image(C);
+      int width = 1024;
+      int height = 1024;
+      if (sima && sima->image) {
+        ImageTile *tile = BKE_image_get_tile(sima->image, sima->iuser.tile);
+        if (tile) {
+          width = tile->gen_x;
+          height = tile->gen_y;
+        }
+      }
+      col.alignment_set(ui::LayoutAlign::Right);
+      col.label("Width:  " + std::to_string(width) + " px", ICON_NONE);
+      col.label("Height:  " + std::to_string(height) + " px", ICON_NONE);
+    }
   }
 }
 
@@ -1277,12 +1284,21 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
                   "Use Active Object",
                   "Use the active object's texel density");
   RNA_def_float(ot->srna,
-                "density",
+                "density_x",
                 1024.0f,
                 0.0f,
                 FLT_MAX,
-                "Texel Density",
-                "Custom texel density applied to the selected islands",
+                "Texel Density X",
+                "Custom texel density applied to the selected islands along the X axis",
+                0.0f,
+                FLT_MAX);
+  RNA_def_float(ot->srna,
+                "density_y",
+                1024.0f,
+                0.0f,
+                FLT_MAX,
+                "Y",
+                "Custom texel density applied to the selected islands along the Y axis",
                 0.0f,
                 FLT_MAX);
 
