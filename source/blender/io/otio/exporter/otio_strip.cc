@@ -25,10 +25,13 @@
 #include "opentimelineio/anyDictionary.h"
 #include "opentimelineio/clip.h"
 #include "opentimelineio/externalReference.h"
+#include "opentimelineio/freezeFrame.h"
 #include "opentimelineio/gap.h"
 #include "opentimelineio/imageSequenceReference.h"
+#include "opentimelineio/linearTimeWarp.h"
 #include "opentimelineio/missingReference.h"
 #include "opentimelineio/serializableObject.h"
+#include "opentimelineio/stack.h"
 #include "opentimelineio/track.h"
 
 #include "IO_otio.hh"
@@ -275,6 +278,80 @@ static void add_sound_strip_metadata(SerializableObject::Retainer<Clip> &clip, c
   clip->metadata()["blender"] = metadata;
 }
 
+template<typename T>
+static void handle_speed_effect_strip(const Scene *scene,
+                                      const Strip *strip,
+                                      const Strip *effect_strip,
+                                      SerializableObject::Retainer<T> &clip)
+{
+
+  float speed_factor = 1.0f;
+  const SpeedControlVars *speed = static_cast<const SpeedControlVars *>(effect_strip->effectdata);
+
+  switch (speed->speed_control_type) {
+    case SEQ_SPEED_STRETCH: {
+      const float source_len = strip->length(scene) - strip->startofs;
+      const float effect_len = effect_strip->right_handle(scene) - effect_strip->left_handle();
+      speed_factor = (effect_len != 0.0f) ? source_len / effect_len : 0.0f;
+      break;
+    }
+
+    case SEQ_SPEED_MULTIPLY:
+      speed_factor = speed->speed_fader;
+      break;
+
+    case SEQ_SPEED_LENGTH:
+    case SEQ_SPEED_FRAME_NUMBER:
+      speed_factor = 0.0f;
+      break;
+
+    default:
+      break;
+  }
+
+  if (speed_factor != 0.0f) {
+    auto ltw = SerializableObject::Retainer<LinearTimeWarp>(
+        new LinearTimeWarp(effect_strip->name + 2));
+    ltw->set_time_scalar(speed_factor);
+    clip->effects().push_back(static_cast<SerializableObject::Retainer<otio::Effect>>(ltw.value));
+  }
+  else {
+    auto ff = SerializableObject::Retainer<FreezeFrame>(new FreezeFrame(effect_strip->name + 2));
+    clip->effects().push_back(static_cast<SerializableObject::Retainer<otio::Effect>>(ff.value));
+  }
+}
+
+template<typename T>
+void add_effects_to_clip(
+    const Scene *scene,
+    Strip *strip,
+    SerializableObject::Retainer<T> &clip,
+    std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects)
+{
+  if (!single_input_effects.contains(strip)) {
+    return;
+  }
+
+  for (Strip *effect_strip : single_input_effects[strip]) {
+    switch (effect_strip->type) {
+      case STRIP_TYPE_SPEED:
+        handle_speed_effect_strip(scene, strip, effect_strip, clip);
+        break;
+
+      default:
+        break;
+    }
+  }
+}
+
+/* Force instantiate `add_effects_to_clip<Stack>` as compiler won't do it implicitly as it is being
+ * called from a different translation unit (`otio_export.cc`). */
+template void add_effects_to_clip(
+    const Scene *scene,
+    Strip *strip,
+    SerializableObject::Retainer<Stack> &clip,
+    std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects);
+
 void StripExporter::add_gap_if_necessary()
 {
   int space_between = strip_->left_handle() - last_strip_end - 1;
@@ -299,7 +376,8 @@ void StripExporter::add_gap_if_necessary(SerializableObject::Retainer<Track> &tr
   }
 }
 
-void StripExporter::export_with_missing_reference()
+void StripExporter::export_with_missing_reference(
+    std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects)
 {
   add_gap_if_necessary();
 
@@ -318,12 +396,16 @@ void StripExporter::export_with_missing_reference()
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, missing_reference, strip_source_range));
 
+  add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
 }
 
 /***** Handle Export for each strip type. *****/
 
-void MovieStripExporter::export_strip(Main *bmain, const OTIOExportParams * /*export_params*/)
+void MovieStripExporter::export_strip(
+    Main *bmain,
+    const OTIOExportParams * /*export_params*/,
+    std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects)
 {
   add_gap_if_necessary();
 
@@ -336,10 +418,14 @@ void MovieStripExporter::export_strip(Main *bmain, const OTIOExportParams * /*ex
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, external_reference, strip_source_range));
 
+  add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
 }
 
-void SoundStripExporter::export_strip(Main *bmain, const OTIOExportParams * /*export_params*/)
+void SoundStripExporter::export_strip(
+    Main *bmain,
+    const OTIOExportParams * /*export_params*/,
+    std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects)
 {
   add_gap_if_necessary();
 
@@ -353,11 +439,14 @@ void SoundStripExporter::export_strip(Main *bmain, const OTIOExportParams * /*ex
       new Clip(strip_->name + 2, external_reference, strip_source_range));
 
   add_sound_strip_metadata(clip, strip_);
-
+  add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
 }
 
-void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *export_params)
+void ImageStripExporter::export_strip(
+    Main *bmain,
+    const OTIOExportParams *export_params,
+    std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects)
 {
   float media_fps = scene_->frames_per_second();
 
@@ -371,18 +460,19 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
     auto clip = otio::SerializableObject::Retainer<otio::Clip>(
         new Clip(strip_->name + 2, external_reference, strip_source_range));
 
+    add_effects_to_clip(scene_, strip_, clip, single_input_effects);
     track_->append_child(clip);
   }
   else {
     /* Image Sequence. */
     if (!strip_->data || !strip_->data->stripdata) {
-      export_with_missing_reference();
+      export_with_missing_reference(single_input_effects);
       return;
     }
 
     if (export_params->img_sequence_export == ExportOption::RENDER_MOVIE) {
       auto exporter = RenderAsMovieExporter(strip_, scene_, track_, last_strip_end, filepath_);
-      exporter.export_strip(bmain, export_params);
+      exporter.export_strip(bmain, export_params, single_input_effects);
       last_strip_end = exporter.last_strip_end;
       return;
     }
@@ -411,7 +501,7 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
       switch (export_params->img_sequence_fallback) {
         case ImgSeqFallback::RENDER_MOVIE: {
           auto exporter = RenderAsMovieExporter(strip_, scene_, track_, last_strip_end, filepath_);
-          exporter.export_strip(bmain, export_params);
+          exporter.export_strip(bmain, export_params, single_input_effects);
           last_strip_end = exporter.last_strip_end;
           return;
         }
@@ -431,7 +521,7 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
     }
     else {
       if (!BLI_path_frame_get(se->filename, &start_frame_nr, &padding)) {
-        export_with_missing_reference();
+        export_with_missing_reference(single_input_effects);
         return;
       }
 
@@ -474,14 +564,19 @@ void ImageStripExporter::export_strip(Main *bmain, const OTIOExportParams *expor
     auto clip = SerializableObject::Retainer<Clip>(
         new Clip(strip_->name + 2, img_seq_ref, source_range));
 
+    add_effects_to_clip(scene_, strip_, clip, single_input_effects);
     track_->append_child(clip);
   }
 }
 
-void RenderAsMovieExporter::export_strip(Main *bmain, const OTIOExportParams *export_params)
+void RenderAsMovieExporter::export_strip(
+    Main *bmain,
+    const OTIOExportParams *export_params,
+    std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects)
+
 {
   if (!filepath_) {
-    export_with_missing_reference();
+    export_with_missing_reference(single_input_effects);
     return;
   }
 
@@ -522,11 +617,11 @@ void RenderAsMovieExporter::export_strip(Main *bmain, const OTIOExportParams *ex
       bmain, scene_, strip_, render_res, render_filepath, false);
 
   if (!is_rendered) {
-    export_with_missing_reference();
+    export_with_missing_reference(single_input_effects);
     return;
   }
   auto exporter = MovieStripExporter(strip_, scene_, track_, last_strip_end, render_filepath);
-  exporter.export_strip(bmain, export_params);
+  exporter.export_strip(bmain, export_params, single_input_effects);
   last_strip_end = exporter.last_strip_end;
 
   UNUSED_VARS(include_audio_);

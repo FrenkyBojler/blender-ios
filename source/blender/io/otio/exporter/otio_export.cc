@@ -91,12 +91,17 @@ static void otio_export_recursive(Main *bmain,
   /* Separate video and audio channels.
    * Use negative channel number as key in std::map to store the sound strips.
    */
-  auto compare_strip_start = [](const Strip *a, const Strip *b) { return a->start < b->start; };
-  std::map<int, std::set<Strip *, decltype(compare_strip_start)>> channels;
+  std::map<int, std::set<Strip *, CompareStripStart>> channels;
+  std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> single_input_effects;
 
   for (Strip &strip : *strips) {
     if (ELEM(strip.type, STRIP_TYPE_SOUND)) {
       channels[-strip.channel].insert(&strip);
+    }
+    else if (ELEM(strip.type, STRIP_TYPE_GAUSSIAN_BLUR, STRIP_TYPE_GLOW, STRIP_TYPE_SPEED)) {
+      if (strip.input1) {
+        single_input_effects[strip.input1].insert(&strip);
+      }
     }
     else {
       channels[strip.channel].insert(&strip);
@@ -175,8 +180,8 @@ static void otio_export_recursive(Main *bmain,
             StripExporter missing_reference_exporter_audio = StripExporter(
                 strip, scene, inside_meta ? meta_audio_track : track, last_strip_end);
 
-            missing_reference_exporter_video.export_with_missing_reference();
-            missing_reference_exporter_audio.export_with_missing_reference();
+            missing_reference_exporter_video.export_with_missing_reference(single_input_effects);
+            missing_reference_exporter_audio.export_with_missing_reference(single_input_effects);
           }
           else {
             auto primary_meta_stack = SerializableObject::Retainer<Stack>(new Stack());
@@ -195,9 +200,11 @@ static void otio_export_recursive(Main *bmain,
             last_strip_end = strip->right_handle(scene);
 
             if (!primary_meta_stack->children().empty()) {
+              add_effects_to_clip(scene, strip, primary_meta_stack, single_input_effects);
               meta_video_track->append_child(primary_meta_stack);
             }
             if (!secondary_meta_stack->children().empty()) {
+              add_effects_to_clip(scene, strip, secondary_meta_stack, single_input_effects);
               meta_audio_track->append_child(secondary_meta_stack);
             }
           }
@@ -215,12 +222,12 @@ static void otio_export_recursive(Main *bmain,
           auto missing_reference_exporter = StripExporter(
               strip, scene, inside_meta ? meta_video_track : track, last_strip_end);
 
-          missing_reference_exporter.export_with_missing_reference();
+          missing_reference_exporter.export_with_missing_reference(single_input_effects);
         }
       }
 
       if (strip_exporter) {
-        strip_exporter->export_strip(bmain, export_params);
+        strip_exporter->export_strip(bmain, export_params, single_input_effects);
         last_strip_end = strip_exporter->last_strip_end;
 
         delete strip_exporter;
