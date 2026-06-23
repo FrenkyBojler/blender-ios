@@ -1563,7 +1563,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(func,
                                   "Exposes an RNA string property in the layout using a text-box "
                                   "widget with multi-line support.\n"
-                                  "Text-box state will be stored in the active region");
+                                  "Text-box state will be stored in the current context region");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   api_ui_item_rna_common(func);
   parm = RNA_def_int(

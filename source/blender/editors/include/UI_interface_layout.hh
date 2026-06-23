@@ -659,7 +659,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
 
   /**
    * Adds a string property item as textbox, this will let multi-line text editing, textbox state
-   * will stored at the active region.
+   * will stored in the current context region.
    */
   void textbox(const bContext *C,
                PointerRNA *ptr,
