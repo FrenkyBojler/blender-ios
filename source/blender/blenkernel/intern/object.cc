@@ -1439,7 +1439,8 @@ bool BKE_object_supports_modifiers(const Object *ob)
               OB_LATTICE,
               OB_POINTCLOUD,
               OB_VOLUME,
-              OB_GREASE_PENCIL);
+              OB_GREASE_PENCIL,
+              OB_EMPTY);
 }
 
 bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
@@ -4426,7 +4427,8 @@ const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
   if (!edit_hints) {
     return nullptr;
   }
-  BLI_assert(edit_hints->mesh_cage->type() == bke::GeometryComponent::Type::Mesh);
+  BLI_assert(!edit_hints->mesh_cage ||
+             edit_hints->mesh_cage->type() == bke::GeometryComponent::Type::Mesh);
   const auto *mesh_component = static_cast<const MeshComponent *>(edit_hints->mesh_cage.get());
   if (!mesh_component) {
     return nullptr;
@@ -4451,7 +4453,8 @@ const Mesh *BKE_object_get_mesh_deform_eval(const Object *object)
   if (!edit_hints) {
     return nullptr;
   }
-  BLI_assert(edit_hints->mesh_deform->type() == bke::GeometryComponent::Type::Mesh);
+  BLI_assert(!edit_hints->mesh_deform ||
+             edit_hints->mesh_deform->type() == bke::GeometryComponent::Type::Mesh);
   const auto *mesh_component = static_cast<const MeshComponent *>(edit_hints->mesh_deform.get());
   if (!mesh_component) {
     return nullptr;
