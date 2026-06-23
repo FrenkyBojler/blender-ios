@@ -86,6 +86,7 @@ set(SRC
   gizmo/intern/wm_gizmo_intern.hh
   message_bus/intern/wm_message_bus_intern.hh
   message_bus/wm_message_bus.hh
+  ../editors/include/UI_view2d.hh
 )
 
 set(LIB

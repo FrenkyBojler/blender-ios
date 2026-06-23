@@ -181,6 +181,7 @@ wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEven
   {
     wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
     gesture->wait_for_input = wait_for_input;
+    view2d_edge_pan_init(C, &gesture->edge_pan_data, 2, 0, 1, 10, 0.5f, 0.5f);
   }
 
   /* Add modal handler. */
@@ -197,6 +198,7 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   rcti *rect = static_cast<rcti *>(gesture->customdata);
 
+  view2d_edge_pan_apply_event(C, &gesture->edge_pan_data, event);
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
       case GESTURE_MODAL_MOVE: {

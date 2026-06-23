@@ -116,6 +116,7 @@
 
 /* Include external gizmo API's. */
 #include "gizmo/WM_gizmo_api.hh"  // IWYU pragma: export
+#include "../editors/include/UI_view2d.hh"
 
 struct CLG_LogRef;
 
@@ -706,6 +707,7 @@ struct wmGesture {
 
   /** Free pointer to use for operator allocations (if set, its freed on exit). */
   wmGenericUserData user_data;
+  ui::View2DEdgePanData edge_pan_data;
 };
 
 /* ************** wmEvent ************************ */
