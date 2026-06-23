@@ -495,7 +495,12 @@ wmOperatorStatus ED_imbuf_sample_modal(bContext *C, wmOperator *op, const wmEven
       if (event->val == KM_RELEASE) {
         ScrArea *area = CTX_wm_area(C);
         ARegion *region = CTX_wm_region(C);
-        ED_area_tag_region_hud_size_update(area, region);
+
+        if (SpaceImage *sima = CTX_wm_space_image(C)) {
+          if (!ED_space_image_show_cache(sima)) {
+            ED_area_tag_region_hud_size_update(area, region);
+          }
+        }
         ED_imbuf_sample_exit(C, op);
         return OPERATOR_CANCELLED;
       }
