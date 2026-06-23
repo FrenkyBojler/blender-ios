@@ -1,1 +1,1 @@
-Referenced by issue #160568, Nodes: Memory leak in `test_geometry_node_add` with `GeometryNodeTransform` node
+Referenced by issue #160568, Nodes: Memory leak detected in `NODE_MT_add` search while adding `GeometryNodeTransform`
