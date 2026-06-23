@@ -56,7 +56,7 @@ static void filelist_readjob_essentials_asset_library(FileListReadJob *job_param
       job_params->current_main, asset_system::online_essentials_library_reference());
 
   {
-    blender::vse::VFSPath cachedir = *blender::vse::VFSPath::parse(
+    blender::vfs::VFSPath cachedir = *blender::vfs::VFSPath::parse(
         asset_system::online_essentials_cache_directory_path().c_str());
     cachedir.normalize();
     STRNCPY(filelist->filelist.root, cachedir.to_string().c_str());

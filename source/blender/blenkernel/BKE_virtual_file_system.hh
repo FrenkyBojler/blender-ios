@@ -21,7 +21,7 @@
 
 #include "BLI_enum_flags.hh"
 
-namespace blender::vse {
+namespace blender::vfs {
 
 class VFSBackend;
 
@@ -170,4 +170,4 @@ std::unique_ptr<VFSBackend> get_python_wrapper(const char *class_name) noexcept;
 
 /* \} */
 
-}  // namespace blender::vse
+}  // namespace blender::vfs

@@ -45,7 +45,7 @@ class VFSWebDAV:
             print(f"VFS WebDAV: request failed", flush=True)
             raise
 
-        print(f"VFS WebDAV: status={resp.status_code}, body={resp.text[:500]}", flush=True)
+        print(f"VFS WebDAV: status={resp.status_code}, body={resp.text}", flush=True)
 
         root = ET.fromstring(resp.text)
         entries: list[tuple[str, bool, float, float]] = []

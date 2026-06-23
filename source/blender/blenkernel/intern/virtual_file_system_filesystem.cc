@@ -21,20 +21,20 @@
 
 static CLG_LogRef LOG = {"vfs.local"};
 
-namespace blender::vse {
+namespace blender::vfs {
 
 /* -------------------------------------------------------------------- */
 /** \name FileSystemBackend - real POSIX/Windows local filesystem backend. */
 
 class FileSystemBackend final : public VFSBackend {
  public:
-   ~FileSystemBackend() = default;
-   VFSResult<std::vector<VFSEntry>> list_directory(const VFSPath &path) const override;
-   VFSResult<bool> create_directory(const VFSPath &path) const override;
-   VFSResult<bool> rename_item(const VFSPath &src, const VFSPath &dst) const override;
-   VFSResult<bool> exists(const VFSPath &path) const override;
-   VFSResult<bool> delete_item(const VFSPath &path) const override;
- };
+  ~FileSystemBackend() = default;
+  VFSResult<std::vector<VFSEntry>> list_directory(const VFSPath &path) const override;
+  VFSResult<bool> create_directory(const VFSPath &path) const override;
+  VFSResult<bool> rename_item(const VFSPath &src, const VFSPath &dst) const override;
+  VFSResult<bool> exists(const VFSPath &path) const override;
+  VFSResult<bool> delete_item(const VFSPath &path) const override;
+};
 
 #ifdef WIN32
 
@@ -242,4 +242,4 @@ std::unique_ptr<VFSBackend> get_file_system_backend() noexcept
   return std::make_unique<FileSystemBackend>();
 }
 
-}  // namespace blender::vse
+}  // namespace blender::vfs

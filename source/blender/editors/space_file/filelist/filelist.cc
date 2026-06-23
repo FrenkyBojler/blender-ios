@@ -245,7 +245,7 @@ void filelist_file_get_full_path(const FileList *filelist,
     return;
   }
 
-  const blender::vse::VFSPath &root = filelist_dir(filelist);
+  const blender::vfs::VFSPath &root = filelist_dir(filelist);
   BLI_path_join(r_filepath,
                 FILE_MAX_LIBEXTRA,
                 root.is_virtual() ? root.to_string().c_str() : root.path.c_str(),
@@ -1106,7 +1106,7 @@ const char *fileentry_uiname(const char *root, FileListInternEntry *entry, char 
   return BLI_strdup(name);
 }
 
-const blender::vse::VFSPath &filelist_dir(const FileList *filelist)
+const blender::vfs::VFSPath &filelist_dir(const FileList *filelist)
 {
   return filelist->vfs_path;
 }
@@ -1118,8 +1118,8 @@ bool filelist_is_dir(const FileList *filelist, const char *path)
 
 void filelist_setdir(FileList *filelist, blender::StringRefNull dirpath)
 {
-  std::optional<blender::vse::VFSPath> parsed = blender::vse::VFSPath::parse(dirpath.c_str());
-  blender::vse::VFSPath vfspath = std::move(*parsed);
+  std::optional<blender::vfs::VFSPath> parsed = blender::vfs::VFSPath::parse(dirpath.c_str());
+  blender::vfs::VFSPath vfspath = std::move(*parsed);
 
   if (!vfspath.is_virtual()) {
     /* Local path: resolve relative to the current blend file. */
@@ -2084,7 +2084,7 @@ bool filelist_islibrary(FileList *filelist, char *dir, char **r_group)
   if (filelist->asset_library) {
     return true;
   }
-  if (blender::vse::VFSPath::parse(filelist->filelist.root)->is_virtual()) {
+  if (blender::vfs::VFSPath::parse(filelist->filelist.root)->is_virtual()) {
     return false;
   }
   return BKE_blendfile_library_path_explode(filelist->filelist.root, dir, r_group, nullptr);

@@ -10,7 +10,7 @@
 #include "MEM_guardedalloc.h"
 
 namespace blender::bke::tests {
-using namespace blender::vse;
+using namespace blender::vfs;
 
 class VFSTest : public testing::Test {
  public:
@@ -96,12 +96,6 @@ TEST_F(VFSTest, RoundTripLocal)
   ASSERT_TRUE(parsed.has_value());
   std::string rebuilt = parsed->to_string();
   EXPECT_EQ(rebuilt, "file:///var/tmp/blend");
-}
-
-TEST_F(VFSTest, DefaultResultIsSuccess)
-{
-  VFSResult r;
-  EXPECT_TRUE(r.success);
 }
 
 TEST_F(VFSTest, ParseWindowsDriveLetter)

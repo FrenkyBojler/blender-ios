@@ -17,24 +17,24 @@
 
 static CLG_LogRef LOG = {"vfs.python"};
 
-namespace blender::vse {
+namespace blender::vfs {
 
 /* -------------------------------------------------------------------- */
 /** \name PythonBackend - generic Python-based VFS backend proxy. */
 
 class PythonBackend final : public VFSBackend {
  public:
-   explicit PythonBackend(std::string class_name) : class_name_(std::move(class_name)) {}
+  explicit PythonBackend(std::string class_name) : class_name_(std::move(class_name)) {}
 
-   VFSResult<std::vector<VFSEntry>> list_directory(const VFSPath &path) const override;
-   VFSResult<bool> create_directory(const VFSPath &path) const override;
-   VFSResult<bool> rename_item(const VFSPath &src, const VFSPath &dst) const override;
-   VFSResult<bool> exists(const VFSPath &path) const override;
-   VFSResult<bool> delete_item(const VFSPath &path) const override;
+  VFSResult<std::vector<VFSEntry>> list_directory(const VFSPath &path) const override;
+  VFSResult<bool> create_directory(const VFSPath &path) const override;
+  VFSResult<bool> rename_item(const VFSPath &src, const VFSPath &dst) const override;
+  VFSResult<bool> exists(const VFSPath &path) const override;
+  VFSResult<bool> delete_item(const VFSPath &path) const override;
 
-  private:
+ private:
 #ifdef WITH_PYTHON
-   std::string class_name_;
+  std::string class_name_;
 #endif
 };
 
@@ -594,4 +594,4 @@ std::unique_ptr<VFSBackend> get_python_wrapper(const char *class_name) noexcept
 #endif
 }
 
-}  // namespace blender::vse
+}  // namespace blender::vfs

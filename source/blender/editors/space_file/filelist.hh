@@ -125,7 +125,7 @@ void filelist_free(FileList *filelist);
  * Get the root VFSPath of the file list. To get the full path for a file, use
  * #filelist_file_get_full_path().
  */
-const blender::vse::VFSPath &filelist_dir(const FileList *filelist);
+const blender::vfs::VFSPath &filelist_dir(const FileList *filelist);
 bool filelist_is_dir(const FileList *filelist, const char *path);
 void filelist_setdir(FileList *filelist, blender::StringRefNull dirpath);
 

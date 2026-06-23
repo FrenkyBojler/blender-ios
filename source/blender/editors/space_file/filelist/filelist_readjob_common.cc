@@ -37,7 +37,7 @@
 #include "filelist_readjob.hh"
 
 namespace blender {
-using namespace blender::vse;
+using namespace blender::vfs;
 
 /* helper, could probably go in BKE actually? */
 static int groupname_to_code(const char *group)
@@ -680,7 +680,7 @@ void filelist_readjob_recursive_dir_add_items(const bool do_lib,
 
   /* Parse the root into a VFSPath. For local paths, root_fs is the bare filesystem path
    * (without "file://" prefix); for virtual paths it matches root. */
-  const std::optional<blender::vse::VFSPath> parsed_root = blender::vse::VFSPath::parse(
+  const std::optional<blender::vfs::VFSPath> parsed_root = blender::vfs::VFSPath::parse(
       filelist->filelist.root);
   const char *root = filelist->filelist.root;
   const char *root_fs = parsed_root ? parsed_root->path.c_str() : root;

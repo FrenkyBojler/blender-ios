@@ -195,8 +195,8 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
       }
       else {
         if (is_parent_dir) {
-          blender::vse::VFSPath vfspath = *blender::vse::VFSPath::parse(params->dir);
-          blender::vse::VFSPath parent = vfspath.parent();
+          blender::vfs::VFSPath vfspath = *blender::vfs::VFSPath::parse(params->dir);
+          blender::vfs::VFSPath parent = vfspath.parent();
           STRNCPY(params->dir, parent.to_string().c_str());
 
           if (params->recursion_level > 1) {
@@ -210,7 +210,7 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
           BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
           BLI_path_normalize_dir(params->dir, sizeof(params->dir));
         }
-        else if (blender::vse::VFSPath::parse(params->dir)->is_virtual()) {
+        else if (blender::vfs::VFSPath::parse(params->dir)->is_virtual()) {
           BLI_path_append_dir(params->dir, sizeof(params->dir), file->relpath);
         }
         else {
@@ -1893,7 +1893,7 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
   char filepath[FILE_MAX_LIBEXTRA];
   if (!(fileentry->typeflag & FILE_TYPE_DIR) && (operation == FILE_EXTERNAL_OPERATION_FOLDER_OPEN))
   {
-    const blender::vse::VFSPath &root = filelist_dir(sfile->files);
+    const blender::vfs::VFSPath &root = filelist_dir(sfile->files);
     BLI_strncpy(filepath, root.to_string().c_str(), sizeof(filepath));
   }
   else {
@@ -1907,7 +1907,7 @@ static wmOperatorStatus file_external_operation_exec(bContext *C, wmOperator *op
       ELEM(operation, FILE_EXTERNAL_OPERATION_FOLDER_OPEN, FILE_EXTERNAL_OPERATION_FOLDER_CMD))
   {
     /* Not a folder path, so for these operations use the root. */
-    const blender::vse::VFSPath &root = filelist_dir(sfile->files);
+    const blender::vfs::VFSPath &root = filelist_dir(sfile->files);
     if (BLI_file_external_operation_execute(root.to_string().c_str(), operation)) {
       WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
       return OPERATOR_FINISHED;
@@ -2030,7 +2030,7 @@ static void file_os_operations_menu_draw(const bContext *C_const, Menu *menu)
 
   char path[FILE_MAX_LIBEXTRA];
   filelist_file_get_full_path(sfile->files, fileentry, path);
-  const blender::vse::VFSPath &root = filelist_dir(sfile->files);
+  const blender::vfs::VFSPath &root = filelist_dir(sfile->files);
   const std::string root_str = root.to_string();
 
   ui::Layout &layout = *menu->layout;
@@ -2334,8 +2334,8 @@ static wmOperatorStatus file_parent_exec(bContext *C, wmOperator * /*unused*/)
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   if (params) {
-    blender::vse::VFSPath vfspath = *blender::vse::VFSPath::parse(params->dir);
-    blender::vse::VFSPath parent = vfspath.parent();
+    blender::vfs::VFSPath vfspath = *blender::vfs::VFSPath::parse(params->dir);
+    blender::vfs::VFSPath parent = vfspath.parent();
     STRNCPY(params->dir, parent.to_string().c_str());
     if (!parent.is_virtual()) {
       BLI_path_abs(params->dir, BKE_main_blendfile_path(bmain));
@@ -3313,11 +3313,23 @@ static bool file_delete_single(const FileList *files,
 {
   char filepath[FILE_MAX_LIBEXTRA];
   filelist_file_get_full_path(files, file, filepath);
-  if (BLI_delete_soft(filepath, r_error_message) != 0 || BLI_exists(filepath)) {
+  std::optional<vfs::VFSPath> vfs_path = vfs::VFSPath::parse(filepath);
+  if (!vfs_path.has_value()) {
     return false;
   }
+  std::unique_ptr<vfs::VFSBackend> vfs_backend = vfs_path->get_backend();
+  vfs::VFSResult<bool> result = vfs_backend->delete_item(vfs_path.value());
+  if (result.success) {
+    return true;
+  }
 
-  return true;
+  // Check if file doesn't exist anymore
+  vfs::VFSResult<bool> result_exists = vfs_backend->exists(vfs_path.value());
+  if (result_exists.success && result_exists.value.has_value() && result_exists.value.value()) {
+    return false;
+  }
+  // TODO: update r_error_message
+  return false;
 }
 
 static wmOperatorStatus file_delete_exec(bContext *C, wmOperator *op)

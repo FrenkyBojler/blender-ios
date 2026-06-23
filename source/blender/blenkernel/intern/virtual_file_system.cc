@@ -47,7 +47,7 @@ void vfs_trim_path(std::string &path) noexcept
 
 } /* namespace */
 
-namespace blender::vse {
+namespace blender::vfs {
 
 std::optional<VFSPath> VFSPath::parse(const char *input_nullable)
 {
@@ -257,4 +257,4 @@ std::unique_ptr<VFSBackend> VFSPath::get_backend() const
   return result;
 }
 
-}  // namespace blender::vse
+}  // namespace blender::vfs
