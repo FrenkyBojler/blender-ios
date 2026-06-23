@@ -1020,14 +1020,13 @@ struct Film {
       for (int i = 0; i < samples_len; i++) {
         FilmSample src = sample_get(i, texel_film);
         if (uni.uniform_buf.film.denoising_depth_id >= 0) {
-          /* TODO: Cycles averages over view space z. Do we want to match this? */
           float depth = reverse_z::read(texelFetch(depth_tx, src.texel, 0).x);
           if (depth == 1.0f) {
-            /* Match clear value of depth. TODO: Not easily possible to match Cycles. Use far plane
-             * instead? */
+            /* Match clear value of depth pass. */
             depth = 1e10f;
           }
           else {
+            /* Average over view space z. */
             [[resource_table]] const draw::View &views = this->views_;
             depth = depth_convert_to_scene(views.get(0), depth);
           }
