@@ -1,2 +1,3 @@
 Referenced by issue #160052, Performance regression with CUDA on a RTX 5070Ti in most benchmark scenes
 Referenced by pull request #160110, Fix: Cycles Blackwell performance and HIP MNEE issues
+Referenced by commit 406577e0d6c85e86dea40aa0c249627a5e506bf9, Fix #160052: Cycles: Performance regression with CUDA + Blackwell + BVH2
