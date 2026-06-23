@@ -1,11 +1,10 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
 #include "BLI_delaunay_2d.hh"
 #include "BLI_index_mask.hh"
-#include <iostream>
 
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
@@ -48,7 +47,7 @@ static const EnumPropertyItem mode_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::Mesh,
                        GeometryComponent::Type::Curve,
                        //  GeometryComponent::Type::GreasePencil, /* TODO */
@@ -56,18 +55,18 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "The geometries that are used to constrain the triangulation using the points, edges, "
           "and faces");
-  b.add_input<decl::Int>("Group ID")
-      .field_on_all()
+  b.add_input<decl::Int>("Group ID"_ustr)
+      .evaluated_geometry_field()
       .hide_value()
       .description(
           "An index used to group points together. Triangulation is done separately for each "
           "group");
-  b.add_input<decl::Menu>("Mode")
+  b.add_input<decl::Menu>("Mode"_ustr)
       .static_items(mode_items)
-      .default_value(int(TriangulationMode::Full));
-  b.add_output<decl::Geometry>("Mesh").propagate_all();
-  b.add_output<decl::Bool>("Intersection Points")
-      .field_on_all()
+      .default_value(MenuValue(TriangulationMode::Full));
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
+  b.add_output<decl::Bool>("Intersection Points"_ustr)
+      .anonymous_attribute_output()
       .description("A selection of newly created intersection points");
 }
 
@@ -123,6 +122,93 @@ struct CDTGeometryResult {
   }
 };
 
+Mesh *cdts_to_mesh(const Span<meshintersect::CDT_result<double>> results)
+{
+  /* Converting a single CDT result to a Mesh would be simple because the indices could be re-used.
+   * However, in the general case here we need to combine several CDT results into a single Mesh,
+   * which requires us to map the original indices to a new set of indices.
+   * In order to allow for parallelization when appropriate, this implementation starts by
+   * determining (for each domain) what range of indices in the final mesh data will be used for
+   * each CDT result. The index ranges are represented as offsets, which are referred to as "group
+   * offsets" to distinguish them from the other types of offsets we need to work with here.
+   * Since it's likely that most invocations will only have a single CDT result, it's important
+   * that case is made as optimal as feasible. */
+
+  Array<int> vert_groups_data(results.size() + 1);
+  Array<int> edge_groups_data(results.size() + 1);
+  Array<int> face_groups_data(results.size() + 1);
+  Array<int> loop_groups_data(results.size() + 1);
+  threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
+    for (const int i_result : results_range) {
+      const meshintersect::CDT_result<double> &result = results[i_result];
+      vert_groups_data[i_result] = result.vert.size();
+      edge_groups_data[i_result] = result.edge.size();
+      face_groups_data[i_result] = result.face.size();
+      int loop_len = 0;
+      for (const Vector<int> &face : result.face) {
+        loop_len += face.size();
+      }
+      loop_groups_data[i_result] = loop_len;
+    }
+  });
+
+  const OffsetIndices vert_groups = offset_indices::accumulate_counts_to_offsets(vert_groups_data);
+  const OffsetIndices edge_groups = offset_indices::accumulate_counts_to_offsets(edge_groups_data);
+  const OffsetIndices face_groups = offset_indices::accumulate_counts_to_offsets(face_groups_data);
+  const OffsetIndices loop_groups = offset_indices::accumulate_counts_to_offsets(loop_groups_data);
+
+  Mesh *mesh = BKE_mesh_new_nomain(vert_groups.total_size(),
+                                   edge_groups.total_size(),
+                                   face_groups.total_size(),
+                                   loop_groups.total_size());
+
+  MutableSpan<float3> all_positions = mesh->vert_positions_for_write();
+  MutableSpan<int2> all_edges = mesh->edges_for_write();
+  MutableSpan<int> all_face_offsets = mesh->face_offsets_for_write();
+  MutableSpan<int> all_corner_verts = mesh->corner_verts_for_write();
+
+  threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
+    for (const int i_result : results_range) {
+      const meshintersect::CDT_result<double> &result = results[i_result];
+      const IndexRange verts_range = vert_groups[i_result];
+      const IndexRange edges_range = edge_groups[i_result];
+      const IndexRange faces_range = face_groups[i_result];
+      const IndexRange loops_range = loop_groups[i_result];
+
+      MutableSpan<float3> positions = all_positions.slice(verts_range);
+      for (const int i : result.vert.index_range()) {
+        positions[i] = float3(float(result.vert[i].x), float(result.vert[i].y), 0.0f);
+      }
+
+      MutableSpan<int2> edges = all_edges.slice(edges_range);
+      for (const int i : result.edge.index_range()) {
+        edges[i] = int2(result.edge[i].first + verts_range.start(),
+                        result.edge[i].second + verts_range.start());
+      }
+
+      MutableSpan<int> face_offsets = all_face_offsets.slice(faces_range);
+      MutableSpan<int> corner_verts = all_corner_verts.slice(loops_range);
+      int i_face_corner = 0;
+      for (const int i_face : result.face.index_range()) {
+        face_offsets[i_face] = i_face_corner + loops_range.start();
+        for (const int i_corner : result.face[i_face].index_range()) {
+          corner_verts[i_face_corner] = result.face[i_face][i_corner] + verts_range.start();
+          i_face_corner++;
+        }
+      }
+    }
+  });
+
+  /* The delaunay triangulation doesn't seem to return all of the necessary all_edges, even in
+   * triangulation mode. */
+  bke::mesh_calc_edges(*mesh, true, false);
+  bke::mesh_smooth_set(*mesh, false);
+
+  mesh->tag_overlapping_none();
+
+  return mesh;
+}
+
 static Array<CDTGeometryResult> calculate_cdts(const Span<CDTGeometrySetInput> inputs,
                                                const CDT_output_type output_type)
 {
@@ -145,14 +231,14 @@ static Array<CDTGeometryResult> calculate_cdts(const Span<CDTGeometrySetInput> i
 
     const int total_dst_verts = result.cdt_result.vert_orig.size();
     const OffsetIndices src_points_by_component = input.points_by_components();
-    const Span<Vector<int>> verts_orig = result.cdt_result.vert_orig.as_span();
+    const Span<Vector<uint>> verts_orig = result.cdt_result.vert_orig.as_span();
 
     Array<int> dst_point_to_src_point(total_dst_verts, -1);
     Vector<int, 4> component_points_offsets;
     int64_t component_i = 0;
     int64_t count = 0;
     for (const int dst_point : verts_orig.index_range()) {
-      const Span<int> verts = verts_orig[dst_point].as_span();
+      const Span<uint> verts = verts_orig[dst_point].as_span();
       if (!verts.is_empty()) {
         /* Only use the first point and discard the rest of potentially merged vertices. */
         const int src_point = verts.first();
@@ -253,9 +339,9 @@ static std::optional<CDTGeometrySetInput> cdt_input_from_geometry_set(
           input.point_components.append(component_i);
           input.point_offsets.append(mesh.verts_num);
         }
-        if (mesh.loose_edges().count > 0) {
+        if (mesh.loose_edges().size() > 0) {
           input.edge_components.append(component_i);
-          input.edge_offsets.append(mesh.loose_edges().count);
+          input.edge_offsets.append(mesh.loose_edges().size());
         }
         if (mesh.faces_num > 0) {
           input.face_components.append(component_i);
@@ -369,13 +455,12 @@ static std::optional<CDTGeometrySetInput> cdt_input_from_geometry_set(
         const Span<int2> edges = mesh.edges();
         const int dst_points_start_offset = dst_points_range.start();
 
-        IndexMaskMemory memory;
-        const IndexMask loose_edges = IndexMask::from_bits(mesh.loose_edges().is_loose_bits,
-                                                           memory);
-        loose_edges.foreach_index(GrainSize(4096), [&](const int index, const int pos) {
-          dst_edges[pos] = {edges[index].x + dst_points_start_offset,
-                            edges[index].y + dst_points_start_offset};
-        });
+        mesh.loose_edges().foreach_index_optimized<int>(
+            [&](const int index, const int pos) {
+              dst_edges[pos] = {edges[index].x + dst_points_start_offset,
+                                edges[index].y + dst_points_start_offset};
+            },
+            exec_mode::grain_size(4096));
         break;
       }
       default:
@@ -731,15 +816,15 @@ static Mesh *cdts_to_mesh(const Span<CDTGeometryResult> results,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  Field<int> group_index = params.extract_input<Field<int>>("Group ID");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
+  Field<int> group_index = params.extract_input<Field<int>>("Group ID"_ustr);
 
-  const TriangulationMode mode = params.extract_input<TriangulationMode>("Mode");
+  const TriangulationMode mode = params.extract_input<TriangulationMode>("Mode"_ustr);
   const CDT_output_type output_type = get_cdt_output_type(mode);
 
-  const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
+  const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh"_ustr);
   std::optional<std::string> dst_intersection_points_attribute_id =
-      params.get_output_anonymous_attribute_id_if_needed("Intersection Points");
+      params.get_output_anonymous_attribute_id_if_needed("Intersection Points"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &sub_geometry) {
     Vector<CDTGeometrySetInput> cdt_inputs_by_group = cdt_inputs_from_groups(
@@ -754,14 +839,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     sub_geometry.keep_only({GeometryComponent::Type::Mesh});
   });
 
-  params.set_output("Mesh", std::move(geometry_set));
+  params.set_output("Mesh"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-
-  geo_node_type_base(&ntype, "GeometryNodeDelaunayTriangulation");
+  geo_node_type_base(&ntype, "GeometryNodeDelaunayTriangulation"_ustr);
   ntype.ui_name = "Delaunay Triangulation";
   ntype.ui_description =
       "Generate a triangulated mesh from a set of points in the X-Y plane. Uses edges and faces "
@@ -769,8 +853,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-
-  blender::bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);
+  ntype.default_width = bke::NodeWidth::_160;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
