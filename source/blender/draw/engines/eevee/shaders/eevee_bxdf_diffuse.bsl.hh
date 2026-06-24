@@ -57,7 +57,7 @@ ClosureLight bxdf_diffuse_light(ClosureUndetermined cl)
 {
   ClosureLight light;
   /* No transform, just plain cosine distribution. */
-  light.ltc_mat = eevee::lut::LTCMatrixData::identity();
+  light.ltc_data_packed = eevee::lut::LTCMatrixData::identity();
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;
@@ -143,7 +143,7 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 /*V*/, Thickn
    */
   ClosureLight light;
   /* No transform, just plain cosine distribution. */
-  light.ltc_mat = eevee::lut::LTCMatrixData::identity();
+  light.ltc_data_packed = eevee::lut::LTCMatrixData::identity();
   light.N = -cl.N;
   light.type = (thickness.value() != 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
   return light;

@@ -24,7 +24,7 @@ struct BsdfEval {
 
 struct ClosureLight {
   /* LTC matrix. */
-  packed_uint4 ltc_mat;
+  packed_uint4 ltc_data_packed;
   /* Shading normal. */
   packed_float3 N;
   /* Enum used as index to fetch which light intensity to use [0..3]. */
@@ -45,8 +45,19 @@ struct LightProbeRay {
   float perceptual_roughness;
 };
 
+/* Data used for LTC evaluations. */
+struct LtcData {
+  /* LTC inverse matrix. */
+  float3x3 Minv;
+  /* Dominant LTC lobe direction. */
+  float3 D;
+  /* Attenuate LTC lobe by this amount. */
+  float attenuation_factor;
+};
+
 /* -------------------------------------------------------------------- */
 /** \name Utils
+ *
  * \{ */
 
 /* Fresnel monochromatic, perfect mirror */

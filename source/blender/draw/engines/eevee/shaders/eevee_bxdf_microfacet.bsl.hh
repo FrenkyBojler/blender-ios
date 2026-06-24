@@ -419,7 +419,8 @@ ClosureLight bxdf_ggx_light_reflection([[resource_table]] const UtilityTexture &
   float cos_theta = dot(cl.N, V);
 
   ClosureLight light;
-  light.ltc_mat = eevee::lut::LTCMatrixData::sample_utility_tx(util_tx, cos_theta, cl.roughness);
+  light.ltc_data_packed = eevee::lut::LTCMatrixData::sample_utility_tx(
+      util_tx, cos_theta, cl.roughness);
   light.N = cl.N;
   light.type = LIGHT_SPECULAR;
   return light;
@@ -443,7 +444,7 @@ ClosureLight bxdf_ggx_light_transmission([[resource_table]] const UtilityTexture
   float cos_theta = dot(-cl.N, R);
 
   ClosureLight light;
-  light.ltc_mat = eevee::lut::LTCMatrixData::sample_utility_tx(
+  light.ltc_data_packed = eevee::lut::LTCMatrixData::sample_utility_tx(
       util_tx, cos_theta, perceptual_roughness);
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
@@ -455,7 +456,8 @@ ClosureLight bxdf_ggx_light_thin_glass_transmission(
 {
   float cos_theta = dot(cl.N, V);
   ClosureLight light;
-  light.ltc_mat = eevee::lut::LTCMatrixData::sample_utility_tx(util_tx, cos_theta, cl.roughness);
+  light.ltc_data_packed = eevee::lut::LTCMatrixData::sample_utility_tx(
+      util_tx, cos_theta, cl.roughness);
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
   return light;

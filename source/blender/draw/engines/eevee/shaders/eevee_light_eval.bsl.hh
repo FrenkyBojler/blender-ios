@@ -81,7 +81,7 @@ void eval_single_closure(sampler2DArray util_tx,
   if (attenuation < 1e-30f) {
     return;
   }
-  float ltc_result = light_ltc(util_tx, light, cl.N, V, lv, cl.ltc_mat, vertices);
+  float ltc_result = light_ltc(util_tx, light, cl.N, V, lv, cl.ltc_data_packed, vertices);
   float3 out_radiance = light.color * ltc_result;
   float visibility = shadow * attenuation;
   cl.light_shadowed += visibility * out_radiance;

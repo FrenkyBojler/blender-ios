@@ -13,6 +13,7 @@
 
 #include "eevee_defines.hh"
 #include "eevee_ltc_lut_lib.bsl.hh"
+#include "gpu_shader_compat.hh"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_matrix_construct_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
@@ -351,8 +352,7 @@ float evaluate_disk(sampler2DArray util_tx,
   /* Attenuation to reduce leakage, in cases where the sphere approximation below
    * is not clipped consistently with a polygon/ellipse. */
   float4 clamp_params = ltc_mat.unpack_clamp_params();
-  float form_factor_attenuation = detail::attenuate_disk(
-      Minv * R, clamp_params.xyz, Lv, disk_points);
+  float form_factor_attenuation = detail::attenuate_disk(Minv, clamp_params.xyz, Lv, disk_points);
 
 >>>>>>> 5408dca8f18 (Implemented disk light attenuation)
   /* Compute eigenvectors of new ellipse. */
@@ -436,7 +436,7 @@ float evaluate_disk(sampler2DArray util_tx,
   avg_dir = rotate * avg_dir;
   avg_dir = normalize(avg_dir);
 
-  /* L1, L2 are the extends of the front facing ellipse. */
+  /* L1, L2 are the extents of the front facing ellipse. */
   float L1 = inversesqrt(-e3 / e2);
   float L2 = inversesqrt(-e1 / e2);
 
@@ -445,7 +445,7 @@ float evaluate_disk(sampler2DArray util_tx,
 
   /* Attenuate form_factor to reduce leakage, in cases where a sphere lies above the
    * horizon, but a polygon/ellipse should be clipped. This is a fitted function. */
-  form_factor *= form_factor_attenuation;
+  // form_factor *= form_factor_attenuation;
 
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
