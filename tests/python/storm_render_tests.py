@@ -193,6 +193,7 @@ def get_arguments(filepath, output_filepath, gpu_backend):
         "--factory-startup",
         "--enable-autoexec",
         "--debug-memory",
+        "--console-crash-handler",
         "--debug-exit-on-error"]
 
     if gpu_backend:
@@ -260,7 +261,8 @@ def main():
             variation=args.gpu_backend,
             blocklist=blocklist +
             BLOCKLIST_HYDRA)
-        report.set_reference_dir("storm_hydra_renders")
+        report.set_reference_dir("storm_renders")
+        report.set_reference_override_dir("storm_hydra_renders")
         if args.gpu_backend == "vulkan":
             report.set_compare_engine('storm_hydra', 'opengl')
         else:
@@ -273,7 +275,7 @@ def main():
             variation=args.gpu_backend,
             blocklist=blocklist +
             BLOCKLIST_USD)
-        report.set_reference_dir("storm_usd_renders")
+        report.set_reference_dir("storm_renders")
         report.set_compare_engine('storm_hydra')
         if args.gpu_backend == "metal":
             report.set_compare_engine('storm_hydra', 'metal')

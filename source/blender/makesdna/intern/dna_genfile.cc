@@ -23,12 +23,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_ghash.h"
+#include "BLI_ghash.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_memarena.h"
+#include "BLI_memarena.hh"
 #include "BLI_set.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "DNA_genfile.h"
 #include "DNA_print.hh"
@@ -2023,6 +2023,16 @@ void PointersInDNA::gather_pointer_members_recursive(const SDNA_Struct &sdna_str
     }
     offset += get_member_size_in_bytes(&sdna_, &member);
   }
+}
+
+bool StructInfo::has_pointer_at_offset(const int64_t offset) const
+{
+  for (const PointerInfo &info : this->pointers) {
+    if (info.offset == offset) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace dna::pointers
