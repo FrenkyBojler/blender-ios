@@ -481,60 +481,61 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
     Vector<FCurve *> fcurves;
     if (adt && adt->action) {
       /* Get pointer to animviz settings for each target. */
-      bAnimVizSettings *avs = animviz_target_settings_get(&mpt);
+      bAnimVizSettings *avs = animviz_target_settings_get(mpt);
 
       /* For bones it is likely that all FCurves belong to a group named after the bone. Only
        * checking FCurves of a given group can improve performance when building the keylist. */
       if ((mpt.pchan) && (avs->path_viewflag & MOTIONPATH_VIEW_KFACT) == 0) {
-      if ((mpt.pchan) && (avs->path_viewflag & MOTIONPATH_VIEW_KFACT) == 0) {
-        Action &action = adt->action->wrap();
-        bActionGroup *agrp = nullptr;
-        Channelbag *cbag = channelbag_for_action_slot(action, adt->slot_handle);
-        agrp = cbag ? cbag->channel_group_find(mpt.pchan->name) : nullptr;
-        agrp = cbag ? cbag->channel_group_find(mpt.pchan->name) : nullptr;
+        if ((mpt.pchan) && (avs->path_viewflag & MOTIONPATH_VIEW_KFACT) == 0) {
+          Action &action = adt->action->wrap();
+          bActionGroup *agrp = nullptr;
+          Channelbag *cbag = channelbag_for_action_slot(action, adt->slot_handle);
+          agrp = cbag ? cbag->channel_group_find(mpt.pchan->name) : nullptr;
+          agrp = cbag ? cbag->channel_group_find(mpt.pchan->name) : nullptr;
 
-        if (agrp) {
-          fcurves = listbase_to_vector<FCurve>(agrp->channels);
-          action_group_to_keylist(adt, agrp, mpt.keylist, 0, {-FLT_MAX, FLT_MAX});
-          action_group_to_keylist(adt, agrp, mpt.keylist, 0, {-FLT_MAX, FLT_MAX});
+          if (agrp) {
+            fcurves = listbase_to_vector<FCurve>(agrp->channels);
+            action_group_to_keylist(adt, agrp, mpt.keylist, 0, {-FLT_MAX, FLT_MAX});
+            action_group_to_keylist(adt, agrp, mpt.keylist, 0, {-FLT_MAX, FLT_MAX});
+          }
+        }
+        else {
+          build_keylist_for_target(mpt, *mpt.keylist);
+          build_keylist_for_target(mpt, *mpt.keylist);
         }
       }
-      else {
-        build_keylist_for_target(mpt, *mpt.keylist);
-        build_keylist_for_target(mpt, *mpt.keylist);
+      ED_keylist_prepare_for_direct_access(mpt.keylist);
+    }
+
+    /* Calculate path over requested range. */
+    CLOG_INFO(&LOG,
+              "Calculating MotionPaths between frames %d - %d (%d frames)",
+              frame_range.min,
+              frame_range.max,
+              frame_range.max - frame_range.min + 1);
+
+    for (int frame = frame_range.min; frame < frame_range.max; frame++) {
+      /* Update relevant data for new frame. */
+      DEG_evaluate_on_framechange(depsgraph, frame);
+      /* Perform baking for targets. */
+      for (MPathTarget &target : targets) {
+        motionpath_bake_target(target, frame, depsgraph);
       }
     }
-    ED_keylist_prepare_for_direct_access(mpt.keylist);
-  }
 
-  /* Calculate path over requested range. */
-  CLOG_INFO(&LOG,
-            "Calculating MotionPaths between frames %d - %d (%d frames)",
-            frame_range.min,
-            frame_range.max,
-            frame_range.max - frame_range.min + 1);
+    /* Clear recalc flags from targets. */
+    for (MPathTarget &mpt : targets) {
+      /* Get pointer to animviz settings for each target. */
+      bAnimVizSettings *avs = animviz_target_settings_get(mpt);
 
-  for (int frame = frame_range.min; frame < frame_range.max; frame++) {
-    /* Update relevant data for new frame. */
-    DEG_evaluate_on_framechange(depsgraph, frame);
-    /* Perform baking for targets. */
-    for (MPathTarget &target : targets) {
-      motionpath_bake_target(target, frame, depsgraph);
+      /* Clear the flag requesting recalculation of targets. */
+      avs->recalc &= ~ANIMVIZ_RECALC_PATHS;
+
+      /* Clean temp data. */
+      ED_keylist_free(mpt.keylist);
+      DEG_id_tag_update(&mpt.ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
+      WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, mpt.ob);
     }
-  }
-
-  /* Clear recalc flags from targets. */
-  for (MPathTarget &mpt : targets) {
-    /* Get pointer to animviz settings for each target. */
-    bAnimVizSettings *avs = animviz_target_settings_get(&mpt);
-
-    /* Clear the flag requesting recalculation of targets. */
-    avs->recalc &= ~ANIMVIZ_RECALC_PATHS;
-
-    /* Clean temp data. */
-    ED_keylist_free(mpt.keylist);
-    DEG_id_tag_update(&mpt.ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
-    WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, mpt.ob);
   }
 }
 

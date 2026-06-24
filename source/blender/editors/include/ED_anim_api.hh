@@ -54,23 +54,12 @@ struct bAction;
 struct AnimKeylist;
 struct bMotionPath;
 
-namespace ui {
-struct Block;
-}
-
 struct PointerRNA;
 struct PropertyRNA;
 
-/* Motion path needing to be baked (target). */
-struct MPathTarget {
-  bMotionPath *mpath = nullptr; /* Motion path in question. */
-
-  AnimKeylist *keylist = nullptr; /* Temp, to know where the keyframes are. */
-
-  /* Original (Source Objects) */
-  Object *ob = nullptr;          /* Source Object */
-  bPoseChannel *pchan = nullptr; /* Source pose-channel (if applicable). */
-};
+namespace ui {
+struct Block;
+}
 
 namespace animrig {
 class Action;
@@ -1345,9 +1334,7 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene);
 /**
  * Populate the given vector with MPathTarget elements for the given object.
  * Will look for pose bones as well.
- * Will look for pose bones as well.
  */
-void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets);
 void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets);
 
 /** \} */
