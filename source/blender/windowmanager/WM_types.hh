@@ -115,8 +115,8 @@
 #include "wm_event_types.hh"        // IWYU pragma: export
 
 /* Include external gizmo API's. */
-#include "gizmo/WM_gizmo_api.hh"  // IWYU pragma: export
 #include "../editors/include/UI_view2d.hh"
+#include "gizmo/WM_gizmo_api.hh"  // IWYU pragma: export
 
 struct CLG_LogRef;
 
@@ -671,8 +671,8 @@ struct wmGesture {
   int modal_state;
   /** Optional, draw the active side of the straight-line gesture. */
   bool draw_active_side;
-  /** Latest mouse position relative to area. Currently only used by lasso drawing code. Also store view coordniates of
-   * initial mouse position for box select.
+  /** Latest mouse position relative to area. Currently only used by lasso drawing code. Also store
+   * view coordniates of initial mouse position for box select.
    */
   int2 mval;
 
