@@ -2321,7 +2321,8 @@ static void rna_def_strip_proxy(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "codec", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_strip_proxy_codec_items);
-  RNA_def_property_ui_text(prop, "Codec", "Codec to use for proxies");
+  RNA_def_property_ui_text(
+      prop, "Codec", "Video compression format used when encoding proxy files");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripProxy_update");
 }
 

@@ -155,10 +155,14 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   /* Note: we keep on using .avi extension for proxies,
    * but actual container can not be AVI, since it does not support
    * video rotation metadata. */
-  if (codec == 2)  // ProRes requires MOV (QuickTime)
+  if (codec == 2) {
+    /* ProRes requires MOV (QuickTime) container. */
     rv->of->oformat = av_guess_format("mov", nullptr, nullptr);
-  else  // all other codecs work in MP4
+  }
+  else {
+    /* All other codecs work in MP4. */
     rv->of->oformat = av_guess_format("mp4", nullptr, nullptr);
+  }
 
   rv->of->url = av_strdup(filepath);
 
@@ -212,17 +216,19 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   AVDictionary *codec_opts = nullptr;
 
   switch (codec) {
-    case 2: {  // ProRes
+    case 2: { /* ProRes */
       /* Quality maps to ProRes profiles */
-      if (quality <= 75)
-        rv->c->profile = 0;  // ProRes Proxy
-      else
-        rv->c->profile = 1;  // ProRes LT
+      if (quality <= 75) {
+        rv->c->profile = 0; /* ProRes Proxy */
+      }
+      else {
+        rv->c->profile = 1; /* ProRes LT */
+      }
       break;
     }
-    case 1: {  // MJPEG
-      /* Quality maps 1-100 to qscale 24-3.
-       * Values below 3 give huge file sizes, and above 24 is extremely blocky. */
+    case 1: { /* MJPEG /
+     /* Quality maps 1-100 to qscale 24-3.
+      * Values below 3 give huge file sizes, and above 24 is extremely blocky. */
       const int qscale_range_min = 24;
       const int qscale_range_max = 3;
 
@@ -241,7 +247,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
       rv->c->qmax = qscale;
       break;
     }
-    case 0:  // H.264
+    case 0: /* H.264 */
     default: {
       rv->c->gop_size = 10;
       rv->c->max_b_frames = 0;
