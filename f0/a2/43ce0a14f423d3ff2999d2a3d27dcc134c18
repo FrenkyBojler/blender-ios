@@ -1,0 +1,1 @@
+Referenced by issue #160523, Vulkan: the command builder doesn't store image layouts correctly for depth images.
