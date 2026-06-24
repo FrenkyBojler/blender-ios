@@ -96,21 +96,43 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
+    bool has_alphabet_sort_method = false;
+    bool has_skip_alphabet_sort_method = false;
     for (bScreen &screen : bmain->screens) {
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &space : area.spacedata) {
           if (space.spacetype == SPACE_OUTLINER) {
             SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&space);
-            for (Collection &collection : bmain->collections) {
-              int i = 0;
-              for (CollectionObject &cob : collection.gobject) {
-                cob.sort_index = (space_outliner->flag & SO_FLAG_UNUSED_4) ? i++ : -1;
-              }
-            }
             if (space_outliner->flag & SO_FLAG_UNUSED_4) {
-              space_outliner->flag &= ~SO_FLAG_UNUSED_4;
+              has_skip_alphabet_sort_method = true;
             }
-            space_outliner->sort_method = SO_SORT_CUSTOM;
+            else {
+              has_alphabet_sort_method = true;
+            }
+          }
+        }
+      }
+    }
+    for (Collection &collection : bmain->collections) {
+      int i = 0;
+      for (CollectionObject &cob : collection.gobject) {
+        cob.sort_index = (has_skip_alphabet_sort_method) ? i++ : -1;
+      }
+    }
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &space : area.spacedata) {
+          if (space.spacetype == SPACE_OUTLINER) {
+            SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&space);
+            if ((has_alphabet_sort_method && has_skip_alphabet_sort_method) &&
+                !(space_outliner->flag & SO_FLAG_UNUSED_4))
+            {
+              space_outliner->sort_method = SO_SORT_ALPHA;
+            }
+            else {
+              space_outliner->sort_method = SO_SORT_CUSTOM;
+            }
+            space_outliner->flag &= ~SO_FLAG_UNUSED_4;
           }
         }
       }
