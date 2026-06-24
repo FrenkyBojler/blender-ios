@@ -409,7 +409,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
 
         for frame in range(10):
             bpy.context.scene.frame_set(frame)
-            for bone_name in ["Bone", "Bone.001", "Bone.002"]:
+            for bone_name in ["a", "b", "c"]:
                 copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[bone_name]
                 paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[bone_name]
                 self._assert_almost_equal_matrix(

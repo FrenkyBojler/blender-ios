@@ -1,6 +1,7 @@
 /* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
 #include <iostream>
 
 #include "BLI_bounds.hh"
@@ -574,6 +575,7 @@ static Array<TransformFCurves> build_fcurves_for_paste(
     ensure_baked_fcurves(bmain, transform_fcurves.rotation, channelbag, rot_path, range);
     ensure_baked_fcurves(bmain, transform_fcurves.scale, channelbag, scale_path, range);
   }
+
   return fcurve_buffer;
 }
 
@@ -661,32 +663,40 @@ static void paste_world_space(Main &bmain,
 
   const Bounds<int> range = {int(clipboard_dna_action->frame_start),
                              int(clipboard_dna_action->frame_end)};
-  /* We have to ensure every frame of the affected range has a key. Otherwise inserting keys will
-   * modify the interpolation of the following frames. */
+  /* Building the FCurves with all their required keys beforehand to avoid constantly inserting
+   * keys into the bezt array. */
   Array<TransformFCurves> fcurve_buffer = build_fcurves_for_paste(
       bmain, sorted_transformables, range);
+  BLI_assert(fcurve_buffer.size() == sorted_transformables.size());
 
-  /* Since we potentially added FCurves, we have to rebuild the depsgraph. */
-  DEG_graph_build_from_ids(depsgraph, ids);
+  /* Since we potentially added FCurves, we have to rebuild the depsgraph relations. */
+  DEG_graph_tag_relations_update(depsgraph);
+  DEG_graph_relations_update(depsgraph);
 
-  for (int frame = range.min; frame < range.max; frame++) {
-    /* Assuming that all FCurves have the same vertex count and their keys on the same frames. */
-    const int key_index = frame - range.min;
-    for (const int i : sorted_transformables.index_range()) {
-      AnimTransformable *transformable = sorted_transformables[i];
-      TransformFCurves &t_fcus = fcurve_buffer[i];
+  for (const int i : sorted_transformables.index_range()) {
+    AnimTransformable *transformable = sorted_transformables[i];
+    TransformFCurves &transform_fcurves = fcurve_buffer[i];
+
+    /* This could be optimized by batching together transformables that don't have a relation. */
+    for (int frame = range.min; frame < range.max; frame++) {
+      DEG_evaluate_on_framechange(depsgraph, frame);
+      /* Assuming that all FCurves have the range baked on 1s. */
+      const int key_index = frame - range.min;
       const StringRefNull clipboard_name = paste_map.lookup(transformable);
       const Array<FCurve *> *fcurves = clipboard_data.lookup_ptr(clipboard_name);
       BLI_assert_msg(fcurves != nullptr,
                      "Only transformables with matching matrix data should iterated here");
       const float4x4 world_matrix = fcurves_to_matrix(*fcurves, key_index);
-      /* We need the depsgraph evaluation in the inner loop so the position of dependents is
-       * updated. This is potentially very slow. */
-      DEG_evaluate_on_framechange(depsgraph, frame);
       const float4x4 local_matrix = world_to_local(*depsgraph, *transformable, world_matrix);
-      set_keys_to_transform(t_fcus, local_matrix, key_index);
+      set_keys_to_transform(transform_fcurves, local_matrix, key_index);
     }
+    /* Action will have been created in `build_fcurves_for_paste`. */
+    bAction *paste_dna_action = BKE_animdata_from_id(transformable->owner_id())->action;
+    /* We have to update the action, otherwise the key values we just changed won't be visible to
+     * the next transformable. */
+    DEG_graph_id_tag_update(&bmain, depsgraph, &paste_dna_action->id, ID_RECALC_ANIMATION);
   }
+
   for (const int i : sorted_transformables.index_range()) {
     AnimTransformable &transformable = *sorted_transformables[i];
     TransformFCurves &transform_fcurves = fcurve_buffer[i];
