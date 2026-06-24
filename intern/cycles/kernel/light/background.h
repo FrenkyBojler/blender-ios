@@ -18,8 +18,9 @@ CCL_NAMESPACE_BEGIN
 /* Background Light */
 
 /* Clamp the ray differential so the background is not evaluated coarser than the importance map.
- * Otherwise a sharp feature like a sun blurs into neighboring pixels with low probability, which
- * is biased and very noisy. */
+ * At lower mip levels a sharp feature like the sun becomes bigger and blurred. This is not
+ * accounted for in the higher resolution importance map where the sun remains smaller, leading
+ * to noise. The blurring may also make shadows too soft and clamping reduces that bias. */
 ccl_device_forceinline float background_light_clamp_dD(KernelGlobals kg, const float dD)
 {
   return min(dD, kernel_data.background.map_dD);
