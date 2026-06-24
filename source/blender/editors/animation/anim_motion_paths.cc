@@ -109,10 +109,10 @@ void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets
 
 /* ........ */
 
-/* Converts the given point into camera space. */
-static void transform_mpath_point_to_active_camera(Depsgraph &depsgraph,
-                                                   Object &camera,
-                                                   bMotionPathVert &mpv)
+/* Converts the given point into NDC space. */
+static void transform_mpath_point_to_camera(Depsgraph &depsgraph,
+                                            Object &camera,
+                                            bMotionPathVert &mpv)
 {
   Object *cam_eval = DEG_get_evaluated(&depsgraph, &camera);
   /* Aka projection matrix. */
@@ -178,7 +178,7 @@ static void motionpaths_calc_bake_target(const MPathTarget &mpt,
   }
 
   if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA && camera) {
-    transform_mpath_point_to_active_camera(*depsgraph, *camera, mpv);
+    transform_mpath_point_to_camera(*depsgraph, *camera, mpv);
   }
 
   /* Tag if it's a keyframe. */
