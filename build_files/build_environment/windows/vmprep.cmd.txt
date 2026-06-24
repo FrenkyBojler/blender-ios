@@ -8,9 +8,24 @@ REM  # how to execute this script.
 REM  #
 REM  ###########################################################################
 
-REM Pass "unattended" as first argument to skip prompts and run silently
+REM Arguments (any order):
+REM   unattended              - skip prompts and run silently
+REM   <branchname>            - blender branch to use (default: main)
+REM Example: vmprep.cmd unattended blender-v5.2-release
 set UNATTENDED=0
-if "%1"=="unattended" set UNATTENDED=1
+set BRANCH=main
+
+:parse_args
+if "%1"=="unattended" (
+    set UNATTENDED=1
+    shift
+    goto :parse_args
+)
+if not "%1"=="" (
+    set BRANCH=%1
+    shift
+    goto :parse_args
+)
 
 echo ###########################################################################
 echo #
@@ -72,7 +87,7 @@ mkdir C:\t
 echo Obtaining Visual Studio build tools installer
 curl https://download.visualstudio.microsoft.com/download/pr/c2e2845d-bdff-44fc-ac00-3d488e9f5675/abdb87ff12fe1885ccc4964b4ab51da566549fd2096d7ceb1fdea907372f21d7/vs_BuildTools.exe -o c:\install\vs_BuildTools.exe
 echo Obtaining Visual studio blender installer configuration
-curl https://projects.blender.org/blender/blender/raw/branch/main/build_files/build_environment/windows/vsconfig -o c:\install\.vsconfig
+curl https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/vsconfig -o c:\install\.vsconfig
 echo Installing Visual Studio 2022 Build tools
 c:\install\vs_BuildTools.exe --wait --quiet --norestart --installPath c:\vs2022bt\ --config c:\install\.vsconfig
 
@@ -98,7 +113,7 @@ start /wait c:\install\vcredist_x64.exe /passive /norestart
 
 echo Obtaining cuda 12.8.0
 curl https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda_12.8.0_571.96_windows.exe  -o c:\install\cuda_12.8.0_571.96_windows.exe
-echo Installing cuda 12.8.0 silently
+echo Installing cuda 12.8.0
 start /wait c:\install\cuda_12.8.0_571.96_windows.exe -s -n nvcc_12.8 cudart_12.8 nvrtc_12.8 nvrtc_dev_12.8 nvjitlink_12.8 nvtx_12.8 thrust_12.8
 echo Copying to c:\tools\cuda\12.8.0\
 xcopy /E /I /Y "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8" "c:\tools\cuda\12.8.0"
@@ -117,19 +132,19 @@ echo Cloning Blender repository
 mkdir c:\blendergit
 cd c:\blendergit
 REM Git won't be in the path yet, use full path
-"C:\Program Files\Git\cmd\git.exe" clone https://projects.blender.org/blender/blender.git
+"C:\Program Files\Git\cmd\git.exe" clone --branch %BRANCH% https://projects.blender.org/blender/blender.git
 
 mkdir c:\db
 echo Obtaining vmbuild.cmd
-curl https://projects.blender.org/blender/blender/raw/branch/main/build_files/build_environment/windows/vmbuild.cmd.txt -o c:\db\vmbuild.cmd
+curl https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/vmbuild.cmd.txt -o c:\db\vmbuild.cmd
 echo Obtaining nuke.cmd
-curl https://projects.blender.org/blender/blender/raw/branch/main/build_files/build_environment/windows/nuke.cmd -o c:\db\nuke.cmd
+curl https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke.cmd -o c:\db\nuke.cmd
 echo Obtaining nuke_python.cmd
-curl https://projects.blender.org/blender/blender/raw/branch/main/build_files/build_environment/windows/nuke_python.cmd -o c:\db\nuke_python.cmd
+curl https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_python.cmd -o c:\db\nuke_python.cmd
 echo Obtaining nuke_embree.cmd
-curl https://projects.blender.org/blender/blender/raw/branch/main/build_files/build_environment/windows/nuke_embree.cmd -o c:\db\nuke_embree.cmd
+curl https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_embree.cmd -o c:\db\nuke_embree.cmd
 echo Obtaining nuke_shaderc.cmd
-curl https://projects.blender.org/blender/blender/raw/branch/main/build_files/build_environment/windows/nuke_shaderc.cmd -o c:\db\nuke_shaderc.cmd
+curl https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_shaderc.cmd -o c:\db\nuke_shaderc.cmd
 
 echo *******************************************************************
 echo ** Environment variables have changed, please close this console **
