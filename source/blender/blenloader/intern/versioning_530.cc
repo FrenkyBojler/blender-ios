@@ -20,6 +20,8 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 
+#include "SEQ_sequencer.hh"
+
 #include "readfile.hh"
 
 #include "versioning_common.hh"
@@ -91,6 +93,13 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           }
         }
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
+    for (Scene &scene : bmain->scenes) {
+      SequencerToolSettings *sequencer_tool_settings = seq::tool_settings_ensure(&scene);
+      sequencer_tool_settings->overlap_mode = SEQ_OVERLAP_OVERWRITE;
     }
   }
 
