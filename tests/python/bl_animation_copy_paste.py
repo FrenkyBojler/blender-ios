@@ -16,9 +16,9 @@ TEST_FILE = "world_space_copy_paste.blend"
 COPYBUFFER_NAME = "world_space_buffer.blend"
 
 
-def _deselect_all_bones(armature_ob: bpy.types.Object) -> None:
+def _set_select_all_bones(armature_ob: bpy.types.Object, select: bool) -> None:
     for bone in armature_ob.pose.bones:
-        bone.select = False
+        bone.select = select
 
 
 class AbstractCopyPasteTest(unittest.TestCase):
@@ -249,7 +249,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
         paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[2]
         # Deselect all bones to ensure we copy the right data.
-        _deselect_all_bones(paste_obj)
+        _set_select_all_bones(paste_obj, False)
         copy_bone.select = True
         paste_bone.select = False
         bpy.ops.anim.world_space_copy(start=0, end=10)
@@ -342,7 +342,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         bpy.ops.object.mode_set(mode='POSE')
         copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
         copy_bone.select = True
-        _deselect_all_bones(paste_obj)
+        _set_select_all_bones(paste_obj, False)
         bpy.ops.anim.world_space_copy(start=0, end=10)
         copy_bone.select = False
 
@@ -387,6 +387,34 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
             else:
                 self.assertEqual(copy_matrix.to_translation(), paste_matrix_child_of.to_translation())
                 self.assertEqual(copy_matrix.to_quaternion(), paste_matrix_child_of.to_quaternion())
+
+    def test_paste_to_bone_chain(self) -> None:
+        """When pasting to a dependent chain of bones, we have to paste in the correct order or the resulting world space would be incorrect."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_chain"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_chain"]
+        paste_obj.select_set(True)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        _set_select_all_bones(copy_obj, True)
+        _set_select_all_bones(paste_obj, False)
+
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+
+        _set_select_all_bones(copy_obj, False)
+        _set_select_all_bones(paste_obj, True)
+
+        bpy.ops.anim.world_space_paste()
+
+        for frame in range(10):
+            bpy.context.scene.frame_set(frame)
+            for bone_name in ["Bone", "Bone.001", "Bone.002"]:
+                copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[bone_name]
+                paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[bone_name]
+                self._assert_almost_equal_matrix(
+                    copy_obj.matrix_world @ copy_bone.matrix,
+                    paste_obj.matrix_world @ paste_bone.matrix)
 
 
 def main():
