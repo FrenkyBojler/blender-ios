@@ -3,7 +3,7 @@
 
 #include "gpu_backend.hh"
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 
 using namespace blender;
 using namespace blender::gpu;
