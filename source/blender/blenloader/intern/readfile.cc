@@ -4530,14 +4530,13 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
        * Proper fix involves first addressing #90610. */
       BKE_main_collections_parent_relations_rebuild(bfd->main);
 
-      /* Update invariants after re-generating overrides. */
-      BKE_main_ensure_invariants(*bfd->main);
-
       BKE_main_id_indirect_linked_update(*bfd->main);
 
       fd->reports->duration.lib_overrides = BLI_time_now_seconds() -
                                             fd->reports->duration.lib_overrides;
     }
+
+    BKE_main_ensure_invariants(*bfd->main);
 
     BKE_layer_collection_resync_allow(*bfd->main);
 

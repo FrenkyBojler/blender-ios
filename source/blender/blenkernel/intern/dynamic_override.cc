@@ -351,7 +351,9 @@ static void rule_write(BlendWriter &writer, DynamicOverrideRule &dynoverride_rul
       DynamicOverrideRuleIDData &rule = reinterpret_cast<DynamicOverrideRuleIDData &>(
           dynoverride_rule);
 
-      writer.write_struct(&rule);
+      writer.write_struct(&rule, [](BlendStructWriter &struct_writer) -> void {
+        struct_writer.runtime_ptr(offsetof(DynamicOverrideRuleIDData, runtime));
+      });
 
       if (rule.override_values) {
         IDP_BlendWrite(&writer, rule.override_values);
