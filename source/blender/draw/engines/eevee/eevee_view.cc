@@ -38,9 +38,18 @@ void ShadingView::sync()
 
   if (inst_.camera.is_panoramic()) {
     int64_t render_pixel_count = render_extent.x * int64_t(render_extent.y);
-    /* Some panoramic projections can heavily magnify one cubemap face. Keep each face close to
-     * the final film pixel density until per-projection face clipping is implemented. */
-    extent_ = int2(ceilf(sqrtf(float(render_pixel_count))));
+    /* Scale each face resolution proportional to its projected area in the final film. */
+    float total_area = 0.0f;
+    for (int i = 0; i < 6; i++) {
+      if (cam.panoramic_view_mask & (1u << uint(i))) {
+        const PanoramicFaceRect r = panoramic_face_rect_get(cam, i);
+        total_area += (r.max.x - r.min.x) * (r.max.y - r.min.y);
+      }
+    }
+    const PanoramicFaceRect rect = panoramic_face_rect_get(cam, face_id_);
+    const float face_area = (rect.max.x - rect.min.x) * (rect.max.y - rect.min.y);
+    const float scale = (total_area > 0.0f) ? (face_area / total_area) : (1.0f / 6.0f);
+    extent_ = int2(ceilf(sqrtf(float(render_pixel_count) * scale)));
     is_enabled_ = (cam.panoramic_view_mask & (1u << uint(face_id_))) != 0u;
   }
   else {
