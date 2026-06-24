@@ -60,8 +60,6 @@ struct RelaxPhase {
   Vector<int> point_indices;
 };
 
-enum { CUBIC = 0, LINEAR = 1 };
-
 /** Epsilon to prevent zero division. */
 constexpr float RELAX_EPSILON = 1e-8f;
 
@@ -340,24 +338,21 @@ static void calculate_relax_splines(Span<BMVert *> verts,
                                     std::array<Vector<SplineCoeffs>, 3> &r_coeffs)
 {
   const int num_knots = knot_indices.size();
+  const int coords_size = is_closed ? num_knots - 1 : num_knots;
+  Array<float> coords_x(coords_size);
+  Array<float> coords_y(coords_size);
+  Array<float> coords_z(coords_size);
 
-  if (interpolation == CUBIC) {
-    const int coords_size = is_closed ? num_knots - 1 : num_knots;
-    Array<float> coords_x(coords_size);
-    Array<float> coords_y(coords_size);
-    Array<float> coords_z(coords_size);
-
-    for (const int i : IndexRange(coords_size)) {
-      const float *co = verts[knot_indices[i]]->co;
-      coords_x[i] = co[0];
-      coords_y[i] = co[1];
-      coords_z[i] = co[2];
-    }
-
-    calculate_splines_axis(t_params, coords_x, is_closed, r_coeffs[0]);
-    calculate_splines_axis(t_params, coords_y, is_closed, r_coeffs[1]);
-    calculate_splines_axis(t_params, coords_z, is_closed, r_coeffs[2]);
+  for (const int i : IndexRange(coords_size)) {
+    const float *co = verts[knot_indices[i]]->co;
+    coords_x[i] = co[0];
+    coords_y[i] = co[1];
+    coords_z[i] = co[2];
   }
+
+  calculate_splines_axis(t_params, coords_x, is_closed, r_coeffs[0]);
+  calculate_splines_axis(t_params, coords_y, is_closed, r_coeffs[1]);
+  calculate_splines_axis(t_params, coords_z, is_closed, r_coeffs[2]);
 }
 
 static void execute_relax_phase(
@@ -372,7 +367,7 @@ static void execute_relax_phase(
 
   std::array<Vector<SplineCoeffs>, 3> axis_coeffs;
 
-  if (interpolation == CUBIC) {
+  if (interpolation == RELAX_EDGE_LOOPS_INTERP_CUBIC) {
     calculate_relax_splines(
         verts, phase.knot_indices, t_knots, is_closed, interpolation, axis_coeffs);
   }
@@ -382,7 +377,7 @@ static void execute_relax_phase(
     int seg = calculate_spline_segment(t_knots, target_dist);
     float3 spline_pos;
 
-    if (interpolation == LINEAR) {
+    if (interpolation == RELAX_EDGE_LOOPS_INTERP_LINEAR) {
       float factor = (target_dist - t_knots[seg]) / (t_knots[seg + 1] - t_knots[seg]);
       spline_pos = math::interpolate(float3(verts[phase.knot_indices[seg]]->co),
                                      float3(verts[phase.knot_indices[seg + 1]]->co),
@@ -416,9 +411,8 @@ void bmo_relax_edge_loops_exec(BMesh *bm, BMOperator *op)
   const int interpolation = BMO_slot_int_get(op->slots_in, "interpolation");
   const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
 
-  BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
-  BMO_slot_buffer_hflag_enable(
-      bm, op->slots_in, "geom", BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
+  BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, false);
+  BMO_slot_buffer_hflag_enable(bm, op->slots_in, "geom", BM_EDGE, BM_ELEM_TAG, false);
 
   Vector<RelaxChainData> chains;
   get_relax_input_chains(bm, chains);

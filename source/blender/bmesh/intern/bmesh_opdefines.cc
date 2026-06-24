@@ -226,6 +226,12 @@ static BMOpDefine bmo_recalc_face_normals_def = {
     /*type_flag*/ (BMO_OPTYPE_FLAG_UNTAN_MULTIRES | BMO_OPTYPE_FLAG_NORMALS_CALC),
 };
 
+static BMO_FlagSet bmo_enum_relax_edge_loops_interpolation_method[] = {
+    {RELAX_EDGE_LOOPS_INTERP_CUBIC, "CUBIC"},
+    {RELAX_EDGE_LOOPS_INTERP_LINEAR, "LINEAR"},
+    {0, nullptr},
+};
+
 /*
  * Relax.
  *
@@ -236,9 +242,12 @@ static BMOpDefine bmo_relax_edge_loops_def = {
     /*slot_types_in*/
     {
         /* Input geometry. */
-        {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
+        {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}},
         /* Method used for interpolation. */
-        {"interpolation", BMO_OP_SLOT_INT},
+        {"interpolation",
+         BMO_OP_SLOT_INT,
+         to_subtype_union(BMO_OP_SLOT_SUBTYPE_INT_ENUM),
+         bmo_enum_relax_edge_loops_interpolation_method},
         /* Number of relaxation passes. */
         {"iterations", BMO_OP_SLOT_INT},
         /* Distribute vertices at constant distances along the loop. */

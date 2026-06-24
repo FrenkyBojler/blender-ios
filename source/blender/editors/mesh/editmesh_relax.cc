@@ -61,7 +61,7 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
 
     if (!EDBM_op_callf(em,
                        op,
-                       "relax_edge_loops geom=%hvef interpolation=%i iterations=%i regular=%b",
+                       "relax_edge_loops geom=%he interpolation=%i iterations=%i regular=%b",
                        BM_ELEM_SELECT,
                        interpolation,
                        iterations,
