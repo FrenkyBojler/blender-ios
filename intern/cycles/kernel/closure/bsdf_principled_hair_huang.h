@@ -321,14 +321,9 @@ ccl_device_forceinline float bsdf_hair_huang_energy_scale(KernelGlobals kg,
   const int ofs = inv_table ? kernel_data.tables.ggx_glass_inv_E : kernel_data.tables.ggx_glass_E;
   const float z = sqrtf(fabsf((ior - 1.0f) / (ior + 1.0f)));
   const float y = mu_to_y_index(mu);
-  return 1.0f / lookup_table_read_3D(kg,
-                                     rough,
-                                     y,
-                                     z,
-                                     ofs,
-                                     GGX_GLASS_E_RES_ROUGH,
-                                     GGX_GLASS_E_RES_MU,
-                                     GGX_GLASS_E_RES_IOR);
+  return 1.0f /
+         lookup_table_read_3D(
+             kg, rough, y, z, ofs, GGX_GLASS_E_RES_ROUGH, GGX_GLASS_E_RES_MU, GGX_GLASS_E_RES_IOR);
 }
 
 /* Sample microfacets from a tilted mesonormal. */
