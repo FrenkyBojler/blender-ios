@@ -98,8 +98,7 @@ inline PanoramicFaceRect panoramic_face_rect_get(const CameraData &cam, int face
         case 0:
         case 1: {
           const float x_min = cos_half_fov / max_ff(sin_half_fov, 1.0e-8f);
-          const float y_extent = min_ff(
-              sqrtf(max_ff(square_f(tan_half_fov) - 1.0f, 0.0f)), 1.0f);
+          const float y_extent = min_ff(sqrtf(max_ff(square_f(tan_half_fov) - 1.0f, 0.0f)), 1.0f);
           rect.min = (face_id == 0) ? float2(x_min, -y_extent) : float2(-1.0f, -y_extent);
           rect.max = (face_id == 0) ? float2(1.0f, y_extent) : float2(-x_min, y_extent);
           break;
@@ -107,8 +106,7 @@ inline PanoramicFaceRect panoramic_face_rect_get(const CameraData &cam, int face
         case 2:
         case 3: {
           const float y_min = cos_half_fov / max_ff(sin_half_fov, 1.0e-8f);
-          const float x_extent = min_ff(
-              sqrtf(max_ff(square_f(tan_half_fov) - 1.0f, 0.0f)), 1.0f);
+          const float x_extent = min_ff(sqrtf(max_ff(square_f(tan_half_fov) - 1.0f, 0.0f)), 1.0f);
           rect.min = (face_id == 2) ? float2(-x_extent, -1.0f) : float2(-x_extent, y_min);
           rect.max = (face_id == 2) ? float2(x_extent, -y_min) : float2(x_extent, 1.0f);
           break;

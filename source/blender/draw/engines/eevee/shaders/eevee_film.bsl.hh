@@ -1209,13 +1209,17 @@ struct Film {
       /* Panoramic views use a single owning cubemap face per film texel. */
       panoramic_sample = sample_get(0, texel_film, panoramic_view_id_get());
       if (panoramic_sample.weight == 0.0f) {
+        /* TODO: Have a stencil mask of each subview to avoid computing weights for the whole
+         * screen for each. Using a mesh to draw the region is not recommended due to quad
+         * over-shading and the amount of tesselation needed. Using a mesh to mark the stencil
+         * might be beneficial (passthrough fragment shader). */
         copy_history(texel_film, out_color, out_depth);
         return;
       }
     }
 
     float weight_accum = use_panoramic_sample ? panoramic_sample.weight :
-                                                 weight_accumulation(texel_film);
+                                                weight_accumulation(texel_film);
     float film_weight = weight_load(texel_film);
     float weight_sum = film_weight + weight_accum;
     store_weight(texel_film, weight_sum);
