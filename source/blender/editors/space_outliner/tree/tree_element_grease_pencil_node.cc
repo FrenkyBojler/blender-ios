@@ -56,7 +56,7 @@ std::optional<BIFIconID> TreeElementGreasePencilNode::get_icon() const
 
     icon = ICON_GREASEPENCIL_LAYER_GROUP;
     if (group.color_tag != LAYERGROUP_COLOR_NONE) {
-      icon = ICON_LAYERGROUP_COLOR_01 + group.color_tag;
+      icon = ICON_LAYERGROUP_COLOR_01 + int(group.color_tag);
     }
   }
   return icon;
