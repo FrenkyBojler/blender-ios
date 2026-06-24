@@ -310,11 +310,13 @@ class LazyFunctionForGeometryNode : public LazyFunction {
 class LazyFunctionForMultiInput : public LazyFunction {
  public:
   Vector<const bNodeLink *> links;
+  std::optional<int> default_value_socket;
 
   LazyFunctionForMultiInput(const bNodeSocket &socket)
   {
     debug_name_ = "Multi Input";
     BLI_assert(socket.is_multi_input());
+    bool has_any_used_link = false;
     for (const bNodeLink *link : socket.directly_linked_links()) {
       if (link->is_muted() || !link->fromsock->is_available() ||
           link->fromnode->is_dangling_reroute())
@@ -322,8 +324,15 @@ class LazyFunctionForMultiInput : public LazyFunction {
         continue;
       }
       inputs_.append({"Input", CPPType::get<SocketValueVariant>()});
+      has_any_used_link = true;
       this->links.append(link);
     }
+
+    if (!has_any_used_link) {
+      this->default_value_socket = inputs_.append_and_get_index(
+          {"Default Value", CPPType::get<SocketValueVariant>()});
+    }
+
     outputs_.append({"Output", CPPType::get<GeoNodesMultiInput<SocketValueVariant>>()});
   }
 
@@ -3202,6 +3211,29 @@ struct GeometryNodesLazyFunctionBuilder {
     }
   }
 
+  void build_multi_input(const bNodeSocket &socket,
+                         lf::InputSocket &lf_socket,
+                         BuildGraphParams &graph_params)
+  {
+    BLI_assert(socket.is_multi_input());
+    auto &multi_input_lazy_function = scope_.construct<LazyFunctionForMultiInput>(socket);
+    lf::Node &lf_multi_input_node = graph_params.lf_graph.add_function(multi_input_lazy_function);
+    graph_params.lf_graph.add_link(lf_multi_input_node.output(0), lf_socket);
+    for (const int i : multi_input_lazy_function.links.index_range()) {
+      lf::InputSocket &lf_multi_input_socket = lf_multi_input_node.input(i);
+      const bNodeLink *link = multi_input_lazy_function.links[i];
+      graph_params.lf_input_by_multi_input_link.add(link, &lf_multi_input_socket);
+      mapping_->bsockets_by_lf_socket_map.add(&lf_multi_input_socket, &socket);
+      lf_multi_input_socket.set_default_value(socket.typeinfo->geometry_nodes_default_value);
+    }
+    if (multi_input_lazy_function.default_value_socket.has_value()) {
+      lf::InputSocket &lf_default_input_socket = lf_multi_input_node.input(
+          *multi_input_lazy_function.default_value_socket);
+      mapping_->bsockets_by_lf_socket_map.add(&lf_default_input_socket, &socket);
+      this->add_default_input(socket, lf_default_input_socket, graph_params);
+    }
+  }
+
   void build_geometry_node(const bNode &bnode, BuildGraphParams &graph_params)
   {
     auto &lazy_function = scope_.construct<LazyFunctionForGeometryNode>(bnode, *lf_graph_info_);
@@ -3215,17 +3247,7 @@ struct GeometryNodesLazyFunctionBuilder {
       lf::InputSocket &lf_socket = lf_node.input(lf_index);
 
       if (bsocket->is_multi_input()) {
-        auto &multi_input_lazy_function = scope_.construct<LazyFunctionForMultiInput>(*bsocket);
-        lf::Node &lf_multi_input_node = graph_params.lf_graph.add_function(
-            multi_input_lazy_function);
-        graph_params.lf_graph.add_link(lf_multi_input_node.output(0), lf_socket);
-        for (const int i : multi_input_lazy_function.links.index_range()) {
-          lf::InputSocket &lf_multi_input_socket = lf_multi_input_node.input(i);
-          const bNodeLink *link = multi_input_lazy_function.links[i];
-          graph_params.lf_input_by_multi_input_link.add(link, &lf_multi_input_socket);
-          mapping_->bsockets_by_lf_socket_map.add(&lf_multi_input_socket, bsocket);
-          lf_multi_input_socket.set_default_value(bsocket->typeinfo->geometry_nodes_default_value);
-        }
+        this->build_multi_input(*bsocket, lf_socket, graph_params);
       }
       else {
         this->add_to_socket_map(graph_params, *bsocket, lf_socket);
