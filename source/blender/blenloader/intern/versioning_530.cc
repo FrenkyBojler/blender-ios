@@ -108,9 +108,9 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
               }
             }
             if (space_outliner->flag & SO_FLAG_UNUSED_4) {
-              space_outliner->sort_method = SO_SORT_CUSTOM;
               space_outliner->flag &= ~SO_FLAG_UNUSED_4;
             }
+            space_outliner->sort_method = SO_SORT_CUSTOM;
           }
         }
       }
