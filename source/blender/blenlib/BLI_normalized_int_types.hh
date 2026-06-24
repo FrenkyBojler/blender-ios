@@ -8,7 +8,7 @@
  * \ingroup bli
  */
 
-#include "BLI_math_vector_types.hh"
+#include "BLI_math_vector.hh"
 
 namespace blender {
 
@@ -25,14 +25,22 @@ template<typename T, int X_SIZE, int Y_SIZE> struct IntPack<T, 2, X_SIZE, Y_SIZE
   T x : X_SIZE;
   T y : Y_SIZE;
 
-  operator VecT() const
-  {
-    return VecT(IntVecT(*this)) / VecT(x_max, y_max);
-  }
-
   operator IntVecT() const
   {
     return IntVecT(x, y);
+  }
+
+  static constexpr VecT max()
+  {
+    return VecT(x_max, y_max);
+  }
+
+  static constexpr VecT min()
+  {
+    if (is_signed) {
+      return VecT(-x_max, -y_max);
+    }
+    return VecT(0.0f, 0.0f);
   }
 };
 
@@ -51,14 +59,22 @@ struct IntPack<T, 4, X_SIZE, Y_SIZE, Z_SIZE, W_SIZE> {
   T z : Z_SIZE;
   T w : W_SIZE;
 
-  operator VecT() const
-  {
-    return VecT(IntVecT(*this)) / VecT(x_max, y_max, z_max, w_max);
-  }
-
   operator IntVecT() const
   {
     return IntVecT(x, y, z, w);
+  }
+
+  static constexpr VecT max()
+  {
+    return VecT(x_max, y_max, z_max, w_max);
+  }
+
+  static constexpr VecT min()
+  {
+    if constexpr (is_signed) {
+      return VecT(-x_max, -y_max, -z_max, -w_max);
+    }
+    return VecT(0.0f, 0.0f, 0.0f, 0.0f);
   }
 };
 
@@ -67,24 +83,11 @@ struct IntPack<T, 4, X_SIZE, Y_SIZE, Z_SIZE, W_SIZE> {
 template<typename T, int SIZE, int... ITEM_SIZE>
   requires(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>)
 struct NormalizedIntPacked : detail::IntPack<T, SIZE, ITEM_SIZE...> {
-  using VecT = VecBase<float, SIZE>;
-  using IntVecT = VecBase<T, SIZE>;
+  using IntPacked = detail::IntPack<T, SIZE, ITEM_SIZE...>;
+  using typename IntPacked::IntVecT;
+  using typename IntPacked::VecT;
 
   NormalizedIntPacked() = default;
-
-  NormalizedIntPacked(VecT value)
-  {
-    this->x = rescale_value(value.x, this->x_max);
-    if constexpr (SIZE > 1) {
-      this->y = rescale_value(value.y, this->y_max);
-    }
-    if constexpr (SIZE > 2) {
-      this->z = rescale_value(value.z, this->z_max);
-    }
-    if constexpr (SIZE > 3) {
-      this->w = rescale_value(value.w, this->w_max);
-    }
-  }
 
   NormalizedIntPacked(IntVecT value)
   {
@@ -100,14 +103,17 @@ struct NormalizedIntPacked : detail::IntPack<T, SIZE, ITEM_SIZE...> {
     }
   }
 
- private:
-  T rescale_value(float val, T max)
+  /* Adding rounding would be the standard compliant conversion.
+   * But this would introduce perf regression. */
+  NormalizedIntPacked(VecT val)
+      : NormalizedIntPacked(
+            IntVecT(math::clamp(val * IntPacked::max(), IntPacked::min(), IntPacked::max())))
   {
-    val *= max;
-#if 0 /* That would be the standard compliant conversion. But this introduce perf regression. */
-    val = std::round(val);
-#endif
-    return std::clamp(val, float(this->is_signed ? -max : 0), float(max));
+  }
+
+  operator VecT() const
+  {
+    return VecT(IntVecT(*this)) / IntPacked::max();
   }
 };
 
