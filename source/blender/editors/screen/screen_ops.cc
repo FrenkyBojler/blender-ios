@@ -6448,7 +6448,8 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   }
 
   if (scene_eval == nullptr) {
-    /* Happens when undo/redo system is used during playback, nothing meaningful we can do here. */
+    /* Happens when undo/redo system is used (or when the viewlayer was removed) during playback,
+     * nothing meaningful we can do here. */
   }
   else if (scene_eval->id.recalc & ID_RECALC_FRAME_CHANGE) {
     /* Ignore seek here, the audio will be updated to the scene frame after jump during next
@@ -6551,13 +6552,17 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
         break;
       case SCE_LOOP_MODE_BOUNCE:
         if (is_playing_forward) {
-          BKE_sound_stop_scene(scene_eval);
+          if (scene_eval != nullptr) {
+            BKE_sound_stop_scene(scene_eval);
+          }
           sad->flag |= ANIMPLAY_FLAG_REVERSE;
           scene->r.cfra = end_frame - 1;
         }
         else {
           sad->flag &= ~ANIMPLAY_FLAG_REVERSE;
-          BKE_sound_play_scene(scene_eval);
+          if (scene_eval != nullptr) {
+            BKE_sound_play_scene(scene_eval);
+          }
           scene->r.cfra = start_frame + 1;
         }
         CLAMP(scene->r.cfra, start_frame, end_frame);
@@ -6598,6 +6603,12 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
     if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
       return OPERATOR_FINISHED;
     }
+  }
+  else {
+    /* Stop playback in this case. Otherwise, the animation player will keep playing but no change
+     * in editors will take place (scene current frame will never have changed and
+     * #ED_update_for_newframe() is also skipped above). */
+    do_stop_playback = true;
   }
 
   for (wmWindow &window : wm->windows) {
@@ -6770,13 +6781,16 @@ static void stop_playback(bContext *C)
   Scene *scene = sad->scene;
 
   ViewLayer *view_layer = sad->view_layer;
-  Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-  BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+  Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
+
+  if (depsgraph != nullptr) {
+    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
+  }
+  Scene *scene_eval = (depsgraph != nullptr) ? DEG_get_evaluated_scene(depsgraph) : nullptr;
 
   /* Only stop sound playback, when playing forward, since there is no sound for reverse
    * playback. */
-  if ((sad->flag & ANIMPLAY_FLAG_REVERSE) == 0) {
+  if ((scene_eval != nullptr) && (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0) {
     BKE_sound_stop_scene(scene_eval);
   }
 
