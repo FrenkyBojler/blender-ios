@@ -317,9 +317,9 @@ class ExecutePreset(Operator):
 
 
 class AddPresetTextStripStyle(AddPresetBase, Operator):
-    """Add Text strip style and layout preset"""
+    """Add a Text strip style and layout preset"""
     bl_idname = "sequencer.text_strip_style_preset_add"
-    bl_label = "Add Text Strip Style Preset"
+    bl_label = "Add a Text Strip Style Preset"
     preset_menu = "STRIP_PT_effect_text_style_presets"
 
     preset_defines = [
@@ -361,9 +361,9 @@ class AddPresetTextStripStyle(AddPresetBase, Operator):
 
 
 class RemovePresetTextStripStyle(AddPresetBase, Operator):
-    """Remove Text strip style and layout preset"""
+    """Remove a Text strip style and layout preset"""
     bl_idname = "sequencer.text_strip_style_preset_remove"
-    bl_label = "Remove Text Strip Style Preset"
+    bl_label = "Remove a Text Strip Style Preset"
     preset_menu = "STRIP_PT_effect_text_style_presets"
     preset_subdir = "sequencer/text_style"
     remove_name: BoolProperty(
@@ -373,9 +373,9 @@ class RemovePresetTextStripStyle(AddPresetBase, Operator):
 
 
 class AddPresetRender(AddPresetBase, Operator):
-    """Add Render Preset"""
+    """Add a Render Preset"""
     bl_idname = "render.preset_add"
-    bl_label = "Add Render Preset"
+    bl_label = "Add a Render Preset"
     preset_menu = "RENDER_PT_format_presets"
 
     preset_defines = [
@@ -396,9 +396,9 @@ class AddPresetRender(AddPresetBase, Operator):
 
 
 class RemovePresetRender(AddPresetBase, Operator):
-    """Remove Render Preset"""
+    """Remove a Render Preset"""
     bl_idname = "render.preset_remove"
-    bl_label = "Remove Render Preset"
+    bl_label = "Remove a Render Preset"
     preset_menu = "RENDER_PT_format_presets"
     preset_subdir = "render"
     remove_name: BoolProperty(
@@ -408,9 +408,9 @@ class RemovePresetRender(AddPresetBase, Operator):
 
 
 class AddPresetCamera(AddPresetBase, Operator):
-    """Add Camera Preset"""
+    """Add a Camera Preset"""
     bl_idname = "camera.preset_add"
-    bl_label = "Add Camera Preset"
+    bl_label = "Add a Camera Preset"
     preset_menu = "CAMERA_PT_presets"
 
     preset_defines = [
@@ -439,9 +439,9 @@ class AddPresetCamera(AddPresetBase, Operator):
 
 
 class RemovePresetCamera(AddPresetBase, Operator):
-    """Remove Camera Preset"""
+    """Remove a Camera Preset"""
     bl_idname = "camera.preset_remove"
-    bl_label = "Remove Camera Preset"
+    bl_label = "Remove a Camera Preset"
     preset_menu = "CAMERA_PT_presets"
     preset_subdir = "camera"
     remove_name: BoolProperty(
@@ -451,9 +451,9 @@ class RemovePresetCamera(AddPresetBase, Operator):
 
 
 class AddPresetCameraSafeAreas(AddPresetBase, Operator):
-    """Add Safe Areas Preset"""
+    """Add a Safe Areas Preset"""
     bl_idname = "camera.safe_areas_preset_add"
-    bl_label = "Add Safe Area Preset"
+    bl_label = "Add a Safe Area Preset"
     preset_menu = "CAMERA_PT_safe_areas_presets"
 
     preset_defines = [
@@ -471,9 +471,9 @@ class AddPresetCameraSafeAreas(AddPresetBase, Operator):
 
 
 class RemovePresetCameraSafeAreas(AddPresetBase, Operator):
-    """Remove Safe Area Preset"""
+    """Remove a Safe Area Preset"""
     bl_idname = "camera.safe_areas_preset_remove"
-    bl_label = "Remove Safe Area Preset"
+    bl_label = "Remove a Safe Area Preset"
     preset_menu = "CAMERA_PT_safe_areas_presets"
     preset_subdir = "safe_areas"
     remove_name: BoolProperty(
@@ -483,9 +483,9 @@ class RemovePresetCameraSafeAreas(AddPresetBase, Operator):
 
 
 class AddPresetCloth(AddPresetBase, Operator):
-    """Add Cloth Preset"""
+    """Add a Cloth Preset"""
     bl_idname = "cloth.preset_add"
-    bl_label = "Add Cloth Preset"
+    bl_label = "Add a Cloth Preset"
     preset_menu = "CLOTH_PT_presets"
 
     preset_defines = [
@@ -525,9 +525,9 @@ class AddPresetCloth(AddPresetBase, Operator):
 
 
 class RemovePresetCloth(AddPresetBase, Operator):
-    """Remove Cloth Preset"""
+    """Remove a Cloth Preset"""
     bl_idname = "cloth.preset_remove"
-    bl_label = "Remove Cloth Preset"
+    bl_label = "Remove a Cloth Preset"
     preset_menu = "CLOTH_PT_presets"
     preset_subdir = "cloth"
     remove_name: BoolProperty(
@@ -537,9 +537,9 @@ class RemovePresetCloth(AddPresetBase, Operator):
 
 
 class AddPresetFluid(AddPresetBase, Operator):
-    """Add Fluid Preset"""
+    """Add a Fluid Preset"""
     bl_idname = "fluid.preset_add"
-    bl_label = "Add Fluid Preset"
+    bl_label = "Add a Fluid Preset"
     preset_menu = "FLUID_PT_presets"
 
     preset_defines = [
@@ -555,9 +555,9 @@ class AddPresetFluid(AddPresetBase, Operator):
 
 
 class RemovePresetFluid(AddPresetBase, Operator):
-    """Remove Fluid Preset"""
+    """Remove a Fluid Preset"""
     bl_idname = "fluid.preset_remove"
-    bl_label = "Remove Fluid Preset"
+    bl_label = "Remove a Fluid Preset"
     preset_menu = "FLUID_PT_presets"
     preset_subdir = "fluid"
     remove_name: BoolProperty(
@@ -567,9 +567,9 @@ class RemovePresetFluid(AddPresetBase, Operator):
 
 
 class AddPresetHairDynamics(AddPresetBase, Operator):
-    """Add Hair Dynamics Preset"""
+    """Add a Hair Dynamics Preset"""
     bl_idname = "particle.hair_dynamics_preset_add"
-    bl_label = "Add Hair Dynamics Preset"
+    bl_label = "Add a Hair Dynamics Preset"
     preset_menu = "PARTICLE_PT_hair_dynamics_presets"
 
     preset_defines = [
@@ -597,9 +597,9 @@ class AddPresetHairDynamics(AddPresetBase, Operator):
 
 
 class RemovePresetHairDynamics(AddPresetBase, Operator):
-    """Remove Hair Dynamics Preset"""
+    """Remove a Hair Dynamics Preset"""
     bl_idname = "particle.hair_dynamics_preset_remove"
-    bl_label = "Remove Hair Dynamics Preset"
+    bl_label = "Remove a Hair Dynamics Preset"
     preset_menu = "PARTICLE_PT_hair_dynamics_presets"
     preset_subdir = "hair_dynamics"
     remove_name: BoolProperty(
@@ -609,9 +609,9 @@ class RemovePresetHairDynamics(AddPresetBase, Operator):
 
 
 class AddPresetTextEditor(AddPresetBase, Operator):
-    """Add Text Editor Preset"""
+    """Add a Text Editor Preset"""
     bl_idname = "text_editor.preset_add"
-    bl_label = "Add Text Editor Preset"
+    bl_label = "Add a Text Editor Preset"
     preset_menu = "USERPREF_PT_text_editor_presets"
 
     preset_defines = [
@@ -627,9 +627,9 @@ class AddPresetTextEditor(AddPresetBase, Operator):
 
 
 class RemovePresetTextEditor(AddPresetBase, Operator):
-    """Remove Text Editor Preset"""
+    """Remove a Text Editor Preset"""
     bl_idname = "text_editor.preset_remove"
-    bl_label = "Remove Text Editor Preset"
+    bl_label = "Remove a Text Editor Preset"
     preset_menu = "USERPREF_PT_text_editor_presets"
     preset_subdir = "text_editor"
     remove_name: BoolProperty(
@@ -639,9 +639,9 @@ class RemovePresetTextEditor(AddPresetBase, Operator):
 
 
 class AddPresetTrackingCamera(AddPresetBase, Operator):
-    """Add Tracking Camera Intrinsics Preset"""
+    """Add a Tracking Camera Intrinsics Preset"""
     bl_idname = "clip.camera_preset_add"
-    bl_label = "Add Camera Preset"
+    bl_label = "Add a Camera Preset"
     preset_menu = "CLIP_PT_camera_presets"
 
     preset_defines = [
@@ -673,9 +673,9 @@ class AddPresetTrackingCamera(AddPresetBase, Operator):
 
 
 class RemovePresetTrackingCamera(AddPresetBase, Operator):
-    """Remove Tracking Camera Intrinsics Preset"""
+    """Remove a Tracking Camera Intrinsics Preset"""
     bl_idname = "clip.camera_preset_remove"
-    bl_label = "Remove Camera Preset"
+    bl_label = "Remove a Camera Preset"
     preset_menu = "CLIP_PT_camera_presets"
     preset_subdir = "tracking_camera"
     remove_name: BoolProperty(
@@ -685,9 +685,9 @@ class RemovePresetTrackingCamera(AddPresetBase, Operator):
 
 
 class AddPresetTrackingTrackColor(AddPresetBase, Operator):
-    """Add Clip Track Color Preset"""
+    """Add a Clip Track Color Preset"""
     bl_idname = "clip.track_color_preset_add"
-    bl_label = "Add Track Color Preset"
+    bl_label = "Add a Track Color Preset"
     preset_menu = "CLIP_PT_track_color_presets"
 
     preset_defines = [
@@ -703,9 +703,9 @@ class AddPresetTrackingTrackColor(AddPresetBase, Operator):
 
 
 class RemovePresetTrackingTrackColor(AddPresetBase, Operator):
-    """Remove Clip Track Color Preset"""
+    """Remove a Clip Track Color Preset"""
     bl_idname = "clip.track_color_preset_remove"
-    bl_label = "Remove Track Color Preset"
+    bl_label = "Remove a Track Color Preset"
     preset_menu = "CLIP_PT_track_color_presets"
     preset_subdir = "tracking_track_color"
     remove_name: BoolProperty(
@@ -715,9 +715,9 @@ class RemovePresetTrackingTrackColor(AddPresetBase, Operator):
 
 
 class AddPresetTrackingSettings(AddPresetBase, Operator):
-    """Add Motion tracking settings preset"""
+    """Add a Motion tracking settings preset"""
     bl_idname = "clip.tracking_settings_preset_add"
-    bl_label = "Add Tracking Settings Preset"
+    bl_label = "Add a Tracking Settings Preset"
     preset_menu = "CLIP_PT_tracking_settings_presets"
 
     preset_defines = [
@@ -745,9 +745,9 @@ class AddPresetTrackingSettings(AddPresetBase, Operator):
 
 
 class RemovePresetTrackingSettings(AddPresetBase, Operator):
-    """Remove Motion tracking settings preset"""
+    """Remove a Motion tracking settings preset"""
     bl_idname = "clip.tracking_settings_preset_remove"
-    bl_label = "Remove Tracking Settings Preset"
+    bl_label = "Remove a Tracking Settings Preset"
     preset_menu = "CLIP_PT_tracking_settings_presets"
     preset_subdir = "tracking_settings"
     remove_name: BoolProperty(
@@ -757,9 +757,9 @@ class RemovePresetTrackingSettings(AddPresetBase, Operator):
 
 
 class AddPresetEEVEERaytracing(AddPresetBase, Operator):
-    """Add EEVEE ray-tracing preset"""
+    """Add an EEVEE ray-tracing preset"""
     bl_idname = "render.eevee_raytracing_preset_add"
-    bl_label = "Add Raytracing Preset"
+    bl_label = "Add a Raytracing Preset"
     preset_menu = "RENDER_PT_eevee_raytracing_presets"
 
     preset_defines = [
@@ -791,9 +791,9 @@ class AddPresetEEVEERaytracing(AddPresetBase, Operator):
 
 
 class RemovePresetEEVEERaytracing(AddPresetBase, Operator):
-    """Remove EEVEE ray-tracing preset"""
+    """Remove an EEVEE ray-tracing preset"""
     bl_idname = "render.eevee_raytracing_preset_remove"
-    bl_label = "Remove Raytracing Preset"
+    bl_label = "Remove a Raytracing Preset"
     preset_menu = "RENDER_PT_eevee_raytracing_presets"
     preset_subdir = "eevee/raytracing"
     remove_name: BoolProperty(
@@ -803,9 +803,9 @@ class RemovePresetEEVEERaytracing(AddPresetBase, Operator):
 
 
 class AddPresetColorManagementWhiteBalance(AddPresetBase, Operator):
-    """Add White balance preset"""
+    """Add a White balance preset"""
     bl_idname = "render.color_management_white_balance_preset_add"
-    bl_label = "Add White Balance Preset"
+    bl_label = "Add a White Balance Preset"
     preset_menu = "RENDER_PT_color_management_white_balance_presets"
 
     preset_defines = [
@@ -821,9 +821,9 @@ class AddPresetColorManagementWhiteBalance(AddPresetBase, Operator):
 
 
 class RemovePresetColorManagementWhiteBalance(AddPresetBase, Operator):
-    """Remove White balance preset"""
+    """Remove a White balance preset"""
     bl_idname = "render.color_management_white_balance_preset_remove"
-    bl_label = "Remove White Balance Preset"
+    bl_label = "Remove a White Balance Preset"
     preset_menu = "RENDER_PT_color_management_white_balance_presets"
     preset_subdir = "color_management/white_balance"
     remove_name: BoolProperty(
@@ -833,9 +833,9 @@ class RemovePresetColorManagementWhiteBalance(AddPresetBase, Operator):
 
 
 class AddPresetNodeColor(AddPresetBase, Operator):
-    """Add Node Color Preset"""
+    """Add a Node Color Preset"""
     bl_idname = "node.node_color_preset_add"
-    bl_label = "Add Node Color Preset"
+    bl_label = "Add a Node Color Preset"
     preset_menu = "NODE_PT_node_color_presets"
 
     preset_defines = [
@@ -851,9 +851,9 @@ class AddPresetNodeColor(AddPresetBase, Operator):
 
 
 class RemovePresetNodeColor(AddPresetBase, Operator):
-    """Remove Node Color Preset"""
+    """Remove a Node Color Preset"""
     bl_idname = "node.node_color_preset_remove"
-    bl_label = "Remove Node Color Preset"
+    bl_label = "Remove a Node Color Preset"
     preset_menu = "NODE_PT_node_color_presets"
     preset_subdir = "node_color"
     remove_name: BoolProperty(
@@ -863,7 +863,7 @@ class RemovePresetNodeColor(AddPresetBase, Operator):
 
 
 class AddPresetInterfaceTheme(AddPresetBase, Operator):
-    """Interface theme preset"""
+    """Add an interface theme preset"""
     bl_idname = "wm.interface_theme_preset_add"
     bl_label = "Add Theme"
     preset_menu = "USERPREF_MT_interface_theme_presets"
@@ -951,7 +951,7 @@ class SavePresetInterfaceTheme(AddPresetBase, Operator):
 class AddPresetKeyconfig(AddPresetBase, Operator):
     """Add a custom keymap configuration to the preset list"""
     bl_idname = "wm.keyconfig_preset_add"
-    bl_label = "Add Custom Keymap Configuration"
+    bl_label = "Add a Custom Keymap Configuration"
     preset_menu = "USERPREF_MT_keyconfigs"
     preset_subdir = "keyconfig"
 
@@ -963,7 +963,7 @@ class AddPresetKeyconfig(AddPresetBase, Operator):
 class RemovePresetKeyconfig(AddPresetBase, Operator):
     """Remove a custom keymap configuration from the preset list"""
     bl_idname = "wm.keyconfig_preset_remove"
-    bl_label = "Remove Keymap Configuration"
+    bl_label = "Remove a Keymap Configuration"
     preset_menu = "USERPREF_MT_keyconfigs"
     preset_subdir = "keyconfig"
 
@@ -1000,7 +1000,7 @@ class RemovePresetKeyconfig(AddPresetBase, Operator):
 class AddPresetOperator(AddPresetBase, Operator):
     """Add an operator preset"""
     bl_idname = "wm.operator_preset_add"
-    bl_label = "Add Operator Preset"
+    bl_label = "Add an Operator Preset"
     preset_menu = "WM_MT_operator_presets"
 
     operator: StringProperty(
@@ -1044,7 +1044,7 @@ class AddPresetOperator(AddPresetBase, Operator):
 class RemovePresetOperator(AddPresetBase, Operator):
     """Remove an operator preset"""
     bl_idname = "wm.operator_preset_remove"
-    bl_label = "Remove Operator Preset"
+    bl_label = "Remove an Operator Preset"
     preset_menu = "WM_MT_operator_presets"
     operator: StringProperty(
         name="Operator",
@@ -1192,9 +1192,9 @@ class WM_OT_operator_presets_cleanup(Operator):
 
 
 class AddPresetGpencilBrush(AddPresetBase, Operator):
-    """Add Grease Pencil brush preset"""
+    """Add a Grease Pencil brush preset"""
     bl_idname = "scene.gpencil_brush_preset_add"
-    bl_label = "Add Grease Pencil Brush Preset"
+    bl_label = "Add a Grease Pencil Brush Preset"
     preset_menu = "VIEW3D_PT_gpencil_brush_presets"
 
     preset_defines = [
@@ -1226,8 +1226,9 @@ class AddPresetGpencilBrush(AddPresetBase, Operator):
 
 
 class RemovePresetGpencilBrush(AddPresetBase, Operator):
+    """Remove a Grease Pencil brush preset"""
     bl_idname = "scene.gpencil_brush_preset_remove"
-    bl_label = "Remove Grease Pencil Brush Preset"
+    bl_label = "Remove a Grease Pencil Brush Preset"
     preset_menu = "VIEW3D_PT_gpencil_brush_presets"
     preset_subdir = "gpencil_brush"
     remove_name: BoolProperty(
@@ -1237,9 +1238,9 @@ class RemovePresetGpencilBrush(AddPresetBase, Operator):
 
 
 class AddPresetGpencilMaterial(AddPresetBase, Operator):
-    """Add Grease Pencil material preset"""
+    """Add a Grease Pencil material preset"""
     bl_idname = "scene.gpencil_material_preset_add"
-    bl_label = "Add Grease Pencil Material Preset"
+    bl_label = "Add a Grease Pencil Material Preset"
     preset_menu = "MATERIAL_PT_gpencil_material_presets"
 
     preset_defines = [
@@ -1276,9 +1277,9 @@ class AddPresetGpencilMaterial(AddPresetBase, Operator):
 
 
 class RemovePresetGpencilMaterial(AddPresetBase, Operator):
-    """Remove Grease Pencil material preset"""
+    """Remove a Grease Pencil material preset"""
     bl_idname = "scene.gpencil_material_preset_remove"
-    bl_label = "Remove Grease Pencil Material Preset"
+    bl_label = "Remove a Grease Pencil Material Preset"
     preset_menu = "MATERIAL_PT_gpencil_material_presets"
     preset_subdir = "gpencil_material"
     remove_name: BoolProperty(

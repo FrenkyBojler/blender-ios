@@ -10,9 +10,9 @@ from bpy.props import BoolProperty
 
 
 class AddPresetIntegrator(AddPresetBase, Operator):
-    '''Add Integrator Preset'''
+    '''Add an Integrator Preset'''
     bl_idname = "render.cycles_integrator_preset_add"
-    bl_label = "Add Integrator Preset"
+    bl_label = "Add an Integrator Preset"
     preset_menu = "CYCLES_PT_integrator_presets"
 
     preset_defines = [
@@ -38,9 +38,9 @@ class AddPresetIntegrator(AddPresetBase, Operator):
 
 
 class RemovePresetIntegrator(AddPresetBase, Operator):
-    '''Remove Integrator Preset'''
+    '''Remove an Integrator Preset'''
     bl_idname = "render.cycles_integrator_preset_remove"
-    bl_label = "Remove Integrator Preset"
+    bl_label = "Remove an Integrator Preset"
     remove_name: BoolProperty(
         default=True,
         options={'HIDDEN', 'SKIP_SAVE'},
@@ -48,9 +48,9 @@ class RemovePresetIntegrator(AddPresetBase, Operator):
 
 
 class AddPresetSampling(AddPresetBase, Operator):
-    '''Add Sampling Preset'''
+    '''Add a Sampling Preset'''
     bl_idname = "render.cycles_sampling_preset_add"
-    bl_label = "Add Sampling Preset"
+    bl_label = "Add a Sampling Preset"
     preset_menu = "CYCLES_PT_sampling_presets"
 
     preset_defines = [
@@ -74,9 +74,9 @@ class AddPresetSampling(AddPresetBase, Operator):
 
 
 class RemovePresetSampling(AddPresetBase, Operator):
-    '''Remove Sampling Preset'''
+    '''Remove a Sampling Preset'''
     bl_idname = "render.cycles_sampling_preset_remove"
-    bl_label = "Remove Sampling Preset"
+    bl_label = "Remove a Sampling Preset"
     remove_name: BoolProperty(
         default=True,
         options={'HIDDEN', 'SKIP_SAVE'},
@@ -84,9 +84,9 @@ class RemovePresetSampling(AddPresetBase, Operator):
 
 
 class AddPresetViewportSampling(AddPresetBase, Operator):
-    '''Add Viewport Sampling Preset'''
+    '''Add a Viewport Sampling Preset'''
     bl_idname = "render.cycles_viewport_sampling_preset_add"
-    bl_label = "Add Viewport Sampling Preset"
+    bl_label = "Add a Viewport Sampling Preset"
     preset_menu = "CYCLES_PT_viewport_sampling_presets"
 
     preset_defines = [
@@ -110,9 +110,9 @@ class AddPresetViewportSampling(AddPresetBase, Operator):
 
 
 class RemovePresetViewportSampling(AddPresetBase, Operator):
-    '''Remove Viewport Sampling Preset'''
+    '''Remove a Viewport Sampling Preset'''
     bl_idname = "render.cycles_viewport_sampling_preset_remove"
-    bl_label = "Remove Viewport Sampling Preset"
+    bl_label = "Remove a Viewport Sampling Preset"
     remove_name: BoolProperty(
         default=True,
         options={'HIDDEN', 'SKIP_SAVE'},
@@ -120,9 +120,9 @@ class RemovePresetViewportSampling(AddPresetBase, Operator):
 
 
 class AddPresetPerformance(AddPresetBase, Operator):
-    '''Add Performance Preset'''
+    '''Add a Performance Preset'''
     bl_idname = "render.cycles_performance_preset_add"
-    bl_label = "Add Performance Preset"
+    bl_label = "Add a Performance Preset"
     preset_menu = "CYCLES_PT_performance_presets"
 
     preset_defines = [
@@ -144,9 +144,9 @@ class AddPresetPerformance(AddPresetBase, Operator):
 
 
 class RemovePresetPerformance(AddPresetBase, Operator):
-    '''Remove Performance Preset'''
+    '''Remove a Performance Preset'''
     bl_idname = "render.cycles_performance_preset_remove"
-    bl_label = "Remove Performance Preset"
+    bl_label = "Remove a Performance Preset"
     remove_name: BoolProperty(
         default=True,
         options={'HIDDEN', 'SKIP_SAVE'},
