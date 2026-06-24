@@ -23,6 +23,10 @@ TEST(normalized_int, roundtrip)
     EXPECT_EQ(float4(short4_norm(a)), a);
   }
   {
+    const float2 a(-1.0f, 1.0f / 32767.0f);
+    EXPECT_EQ(float2(short2_norm(a)), a);
+  }
+  {
     const float4 a(0.0f, 1.0f / 65535.0f, 64.0f / 65535.0f, 1.0f);
     EXPECT_EQ(float4(ushort4_norm(a)), a);
   }

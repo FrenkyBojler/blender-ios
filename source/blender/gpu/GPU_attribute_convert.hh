@@ -12,13 +12,11 @@
 
 namespace blender::gpu {
 
-using PackedNormal = int1010102_norm;
-
 template<typename GPUType> inline GPUType convert_normal(const float3 &src);
 
-template<> inline PackedNormal convert_normal(const float3 &src)
+template<> inline int1010102_norm convert_normal(const float3 &src)
 {
-  return PackedNormal(float4(src, 0.0f));
+  return int1010102_norm(float4(src, 0.0f));
 }
 
 template<> inline short4 convert_normal(const float3 &src)
