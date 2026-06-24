@@ -21,10 +21,8 @@ TEST_P(VKRenderGraphTestRender, begin_clear_attachments_end_read_back)
 
   {
     VKResourceAccessInfo access_info = {};
-    access_info.images.append({image,
-                               VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                               VK_IMAGE_ASPECT_COLOR_BIT,
-                               {}});
+    access_info.images.append(
+        {image, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT, {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -149,10 +147,8 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end)
 
   {
     VKResourceAccessInfo access_info = {};
-    access_info.images.append({image,
-                               VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                               VK_IMAGE_ASPECT_COLOR_BIT,
-                               {}});
+    access_info.images.append(
+        {image, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT, {}});
     VKBeginRenderingNode::CreateInfo begin_rendering(access_info);
     begin_rendering.node_data.color_attachments[0].sType =
         VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;

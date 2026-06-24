@@ -652,10 +652,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
         {color_texture.vk_image_handle(),
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
          VK_IMAGE_ASPECT_COLOR_BIT,
-         {uint32_t(attachment.mip),
-          1,
-          layer_base,
-          uint32_t(max_ii(layer_count - layer_base, 1))},
+         {uint32_t(attachment.mip), 1, layer_base, uint32_t(max_ii(layer_count - layer_base, 1))},
          /* Specify if it is an input attachment sampler. */
          supports_local_read});
     color_attachment_formats_.append(
