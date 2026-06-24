@@ -147,26 +147,21 @@ float4x4 world_to_local(const Depsgraph &depsgraph,
       }
       Bone *bone = pose_bone_eval->bone_get(*ob_eval);
       float4x4 object_local = ob_eval->world_to_object() * world_matrix;
-      float bone_local[4][4];
+      float4x4 bone_local = float4x4::identity();
       /* The function docstring tells me I cannot use this function the way I am using it here. But
        * it works. Either I am missing an edge case, or the description is wrong. */
-      BKE_armature_mat_pose_to_bone({pose_bone_eval, bone},
-                                    reinterpret_cast<const float (*)[4]>(object_local.base_ptr()),
-                                    bone_local);
-      return float4x4(bone_local);
+      BKE_armature_mat_pose_to_bone({pose_bone_eval, bone}, object_local.ptr(), bone_local.ptr());
+      return bone_local;
     }
 
     case AnimTransformable::Type::OBJECT: {
       Object *ob_eval = id_cast<Object *>(eval_id);
-      float4x4 parent_matrix;
+      float4x4 parent_matrix = float4x4::identity();
       if (ob_eval->parent) {
-        BKE_object_get_parent_matrix(
-            ob_eval, ob_eval->parent, reinterpret_cast<float (*)[4]>(parent_matrix.base_ptr()));
+        BKE_object_get_parent_matrix(ob_eval, ob_eval->parent, parent_matrix.ptr());
         parent_matrix = math::invert(parent_matrix);
       }
-      else {
-        parent_matrix = float4x4::identity();
-      }
+
       // TODO include delta transforms here
       float4x4 offset_matrix(ob_eval->parentinv);
       return parent_matrix * math::invert(offset_matrix) * world_matrix;
