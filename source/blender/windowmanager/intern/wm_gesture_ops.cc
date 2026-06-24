@@ -182,6 +182,11 @@ wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEven
     wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
     gesture->wait_for_input = wait_for_input;
     view2d_edge_pan_init(C, &gesture->edge_pan_data, 2, 0, 1, 10, 0.5f, 0.5f);
+    /* Store initial mouse positon in view space, later convert back to start position of box into region space during modal. */
+    const View2D *v2d = &gesture->edge_pan_data.region->v2d;
+    rcti *rect = static_cast<rcti *>(gesture->customdata);
+    gesture->mval.x = ui::view2d_region_to_view_x(v2d, rect->xmin);
+    gesture->mval.y = ui::view2d_region_to_view_y(v2d, rect->ymin);
   }
 
   /* Add modal handler. */
@@ -199,6 +204,10 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
   rcti *rect = static_cast<rcti *>(gesture->customdata);
 
   view2d_edge_pan_apply_event(C, &gesture->edge_pan_data, event);
+  const View2D *v2d = &gesture->edge_pan_data.region->v2d;
+  rect->xmin = ui::view2d_view_to_region_x(v2d, gesture->mval.x);
+  rect->ymin = ui::view2d_view_to_region_y(v2d, gesture->mval.y);
+
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
       case GESTURE_MODAL_MOVE: {
