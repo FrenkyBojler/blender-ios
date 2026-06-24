@@ -74,11 +74,6 @@ void Instance::init()
   DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
   int2 size = int2(GPU_texture_width(dtxl->color), GPU_texture_height(dtxl->color));
 
-  if (!samples_in_flight) {
-    /** Allow up to 3 samples in flight on the GPU. */
-    samples_in_flight = GPU_work_in_flight_create(3);
-  }
-
   draw::View &default_view = draw::View::default_get();
 
   Object *camera = nullptr;
@@ -283,6 +278,11 @@ void Instance::init(const int2 &output_res,
   needed_shaders = shader_request | DEFAULT_MATERIALS;
 
   skip_render_ = !is_loaded(needed_shaders) || !film.is_valid_render_extent();
+
+  if (!samples_in_flight) {
+    /** Allow up to 3 samples in flight on the GPU. */
+    samples_in_flight = GPU_work_in_flight_create(3);
+  }
 }
 
 void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)

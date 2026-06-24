@@ -13,6 +13,7 @@ namespace blender::gpu {
 GLWorkInFlight::GLWorkInFlight(unsigned int max_in_flight)
 {
   async_fences_.resize(max_in_flight);
+  async_fences_.fill(0);
 }
 
 GLWorkInFlight::~GLWorkInFlight()

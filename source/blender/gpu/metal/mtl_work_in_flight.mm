@@ -6,6 +6,8 @@
  * \ingroup gpu
  */
 
+#include "BLI_time.hh"
+
 #include "mtl_work_in_flight.hh"
 
 namespace blender::gpu {
@@ -16,6 +18,7 @@ MTLWorkInFlight::MTLWorkInFlight(unsigned int max_in_flight)
   BLI_assert(ctx);
   gpu_fence_ = [ctx->device newSharedEvent];
   async_timeline_values_.resize(max_in_flight);
+  async_timeline_values_.fill(0);
 }
 
 MTLWorkInFlight::~MTLWorkInFlight()
@@ -24,12 +27,6 @@ MTLWorkInFlight::~MTLWorkInFlight()
     [gpu_fence_ release];
     gpu_fence_ = nil;
   }
-}
-
-void VKWorkInFlight::reset()
-{
-  async_timeline_values_.fill(0);
-  work_index_ = 0;
 }
 
 void MTLWorkInFlight::reset()
