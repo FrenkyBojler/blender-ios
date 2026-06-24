@@ -1004,7 +1004,6 @@ static wmOperatorStatus pose_slide_modal(bContext *C, wmOperator *op, const wmEv
     /* Factor Change... */
     case MOUSEMOVE: /* Calculate new position. */
     {
-      do_pose_update = true;
       /* Reset numInput so the cursor movement can take over again. This allows to type in a number
        * and then continue sliding around from there. */
       initNumInput(&pso->num);
