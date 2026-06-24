@@ -205,7 +205,7 @@ void VKDevice::init_functions()
     functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayoutEXT);
   }
 
-  /* VK_KHR_mainentance4 */
+  /* VK_KHR_maintenance4 */
   if (extensions_.maintenance4) {
     functions.vkGetDeviceImageMemoryRequirements = LOAD_FUNCTION(
         vkGetDeviceImageMemoryRequirementsKHR);
