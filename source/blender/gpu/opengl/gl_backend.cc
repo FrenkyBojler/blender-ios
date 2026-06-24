@@ -312,6 +312,11 @@ void GLBackend::platform_init()
       std::cout << "Error: The OpenGL implementation doesn't support ARB_clip_control\n";
       support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
     }
+
+    if (!epoxy_has_gl_extension("GL_ARB_get_texture_sub_image")) {
+      std::cout << "Error: The OpenGL implementation doesn't support ARB_get_texture_sub_image\n";
+      support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
+    }
   }
 
   /* Compute shaders have some issues with those versions (see #94936). */
