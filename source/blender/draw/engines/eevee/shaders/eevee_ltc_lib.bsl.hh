@@ -217,13 +217,12 @@ float evaluate_disk(
   float3 V1 = 0.5f * (L_[1] - L_[2]);
   float3 V2 = 0.5f * (L_[1] - L_[0]);
 
-  /* Transform ellipse by Minv. */
+  /* Transform ellipse into LTC. */
   C = Minv * C;
   V1 = Minv * V1;
   V2 = Minv * V2;
 
   /* Compute eigenvectors of new ellipse. */
-
   float d11 = dot(V1, V1);
   float d22 = dot(V2, V2);
   float d12 = dot(V1, V2);
@@ -264,7 +263,7 @@ float evaluate_disk(
     V2 *= inversesqrt(inv_b);
   }
 
-  /* Now find front facing ellipse with same solid angle. */
+  /* Now find a front facing ellipse with the same solid angle. */
 
   float3 V3 = normalize(cross(V1, V2));
   if (dot(C, V3) < 0.0f) {
