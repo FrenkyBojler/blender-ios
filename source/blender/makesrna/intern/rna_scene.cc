@@ -4396,7 +4396,12 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem scale_overlap_modes[] = {
-      {SEQ_OVERLAP_EXPAND, "EXPAND", 0, "Expand", "Move strips so transformed strips fit"},
+      {SEQ_OVERLAP_RIPPLE,
+       "RIPPLE",
+       0,
+       "Ripple",
+       "Move strips over so transformed strips fit, inserting them in between strips if the "
+       "leftmost handle intersects"},
       {SEQ_OVERLAP_OVERWRITE,
        "OVERWRITE",
        0,

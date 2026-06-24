@@ -273,64 +273,103 @@ static VectorSet<Strip *> extract_standalone_strips(Span<Strip *> transformed_st
   return standalone_strips;
 }
 
-/* Query strips positioned after left edge of transformed strips bound-box. */
-static VectorSet<Strip *> query_right_side_strips(ListBaseT<Strip> *seqbase,
-                                                  Span<Strip *> source_strips,
-                                                  Span<Strip *> time_dependent_strips)
+static void strip_transform_handle_ripple(Scene *scene,
+                                          ListBaseT<Strip> *seqbasep,
+                                          Span<Strip *> source_strips)
 {
-  int minframe = MAXFRAME;
-  for (Strip *source : source_strips) {
-    minframe = min_ii(minframe, source->left_handle());
+  if (source_strips.is_empty()) {
+    return;
   }
 
-  VectorSet<Strip *> right_side_strips;
-  for (Strip &strip : *seqbase) {
-    if (!time_dependent_strips.is_empty() && time_dependent_strips.contains(&strip)) {
-      continue;
-    }
+  int start_frame = MAXFRAME;
+  int end_frame = -MAXFRAME;
+  for (Strip *source : source_strips) {
+    start_frame = math::min(start_frame, source->left_handle());
+    end_frame = math::max(end_frame, source->right_handle(scene));
+  }
+
+  /* Determine whether we insert `source_strips` into others, splitting them at `start_frame`. */
+  bool do_ripple_insert = false;
+  for (Strip &strip : *seqbasep) {
     if (source_strips.contains(&strip)) {
       continue;
     }
-
-    if (strip.left_handle() >= minframe) {
-      right_side_strips.add(&strip);
+    /* The split point does not intersect in time with this strip. */
+    if (strip.left_handle() >= start_frame || strip.right_handle(scene) <= start_frame) {
+      continue;
+    }
+    for (Strip *source : source_strips) {
+      if (strip.channel == source->channel) {
+        do_ripple_insert = true;
+        break;
+      }
+    }
+    if (do_ripple_insert) {
+      break;
     }
   }
-  return right_side_strips;
-}
 
-/* Offset all strips positioned after left edge of transformed strips bound-box by amount equal
- * to overlap of transformed strips. */
-static void strip_transform_handle_expand_to_fit(Scene *scene,
-                                                 ListBaseT<Strip> *seqbasep,
-                                                 Span<Strip *> transformed_strips,
-                                                 Span<Strip *> time_dependent_strips,
-                                                 bool use_sync_markers)
-{
-  ListBaseT<TimeMarker> *markers = &scene->markers;
+  int delta = 0;
+  if (do_ripple_insert) {
+    delta = end_frame - start_frame;
 
-  VectorSet<Strip *> right_side_strips = query_right_side_strips(
-      seqbasep, transformed_strips, time_dependent_strips);
-  right_side_strips.remove_if([](Strip *strip) { return (strip->flag & SEQ_SELECT) != 0; });
+    /* Split across all channels at `start_frame`.
+     * Collect candidates beforehand to avoid changes mid-iteration. */
+    Vector<Strip *> strips_to_split;
+    for (Strip &strip : *seqbasep) {
+      if (source_strips.contains(&strip)) {
+        continue;
+      }
+      if (strip.left_handle() >= start_frame || strip.right_handle(scene) <= start_frame) {
+        continue;
+      }
+      strips_to_split.append(&strip);
+    }
 
-  /* Temporarily move right side strips beyond timeline boundary. */
-  for (Strip *strip : right_side_strips) {
-    strip->channel += MAX_CHANNELS * 2;
+    /* Since this is a soft split with no data duplication, we can pass a nullptr `bmain`. */
+    Main *bmain = nullptr;
+    for (Strip *strip : strips_to_split) {
+      const char *error_msg = nullptr;
+      edit_strip_split(bmain, scene, seqbasep, strip, start_frame, SPLIT_SOFT, true, &error_msg);
+    }
+  }
+  else {
+    /* Ripple just enough to resolve overlaps, keeping strip group directly adjacent. */
+    for (Strip *source : source_strips) {
+      for (Strip &other : *seqbasep) {
+        if (source_strips.contains(&other)) {
+          continue;
+        }
+        if (!transform_test_overlap(scene, source, &other)) {
+          continue;
+        }
+        delta = math::max(delta, source->right_handle(scene) - other.left_handle());
+      }
+    }
   }
 
-  /* Shuffle transformed standalone strips. This is because transformed strips can overlap with
-   * strips on left side. */
-  VectorSet standalone_strips = extract_standalone_strips(transformed_strips);
-  transform_seqbase_shuffle_time(
-      standalone_strips, time_dependent_strips, seqbasep, scene, markers, use_sync_markers);
-
-  /* Move temporarily moved strips back to their original place and tag for shuffling. */
-  for (Strip *strip : right_side_strips) {
-    strip->channel -= MAX_CHANNELS * 2;
+  if (delta == 0) {
+    return;
   }
-  /* Shuffle again to displace strips on right side. Final effect shuffling is done in
-   * SEQ_transform_handle_overlap. */
-  transform_seqbase_shuffle_time(right_side_strips, seqbasep, scene, markers, use_sync_markers);
+
+  /* Translate all strips by `delta`, including any right-half strips created from splits above. */
+  for (Strip &strip : *seqbasep) {
+    if (source_strips.contains(&strip)) {
+      continue;
+    }
+    if (strip.left_handle() < start_frame) {
+      continue;
+    }
+    transform_translate_strip(scene, &strip, delta);
+  }
+
+  if (!scene->toolsettings->lock_markers) {
+    for (TimeMarker &marker : scene->markers) {
+      if (marker.frame >= start_frame) {
+        marker.frame += delta;
+      }
+    }
+  }
 }
 
 static VectorSet<Strip *> query_overwrite_targets(const Scene *scene,
@@ -478,9 +517,8 @@ void transform_handle_overlap(Scene *scene,
   const eSeqOverlapMode overlap_mode = tool_settings_overlap_mode_get(scene);
 
   switch (overlap_mode) {
-    case SEQ_OVERLAP_EXPAND:
-      strip_transform_handle_expand_to_fit(
-          scene, seqbasep, source_strips, time_dependent_strips, use_sync_markers);
+    case SEQ_OVERLAP_RIPPLE:
+      strip_transform_handle_ripple(scene, seqbasep, source_strips);
       break;
     case SEQ_OVERLAP_OVERWRITE:
       strip_transform_handle_overwrite(scene, seqbasep, source_strips);
