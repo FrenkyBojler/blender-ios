@@ -13,17 +13,17 @@
 namespace blender {
 
 namespace detail {
-template<typename T, int SIZE, int... ITEM_SIZE> struct NormalizedIntVec;
+template<typename T, int CompLen, int... CompBitCounts> struct NormalizedIntVec;
 
-template<typename T, int X_SIZE, int Y_SIZE> struct NormalizedIntVec<T, 2, X_SIZE, Y_SIZE> {
+template<typename T, int SizeX, int SizeY> struct NormalizedIntVec<T, 2, SizeX, SizeY> {
   using VecT = VecBase<float, 2>;
   using IntVecT = VecBase<T, 2>;
   constexpr static bool is_signed = std::is_signed<T>();
-  constexpr static T x_max = (1 << (X_SIZE - int(is_signed))) - 1;
-  constexpr static T y_max = (1 << (Y_SIZE - int(is_signed))) - 1;
+  constexpr static T x_max = (1 << (SizeX - int(is_signed))) - 1;
+  constexpr static T y_max = (1 << (SizeY - int(is_signed))) - 1;
 
-  T x : X_SIZE;
-  T y : Y_SIZE;
+  T x : SizeX;
+  T y : SizeY;
 
   NormalizedIntVec() = default;
   constexpr NormalizedIntVec(IntVecT value) : x(value.x), y(value.y) {}
@@ -47,20 +47,20 @@ template<typename T, int X_SIZE, int Y_SIZE> struct NormalizedIntVec<T, 2, X_SIZ
   }
 };
 
-template<typename T, int X_SIZE, int Y_SIZE, int Z_SIZE, int W_SIZE>
-struct NormalizedIntVec<T, 4, X_SIZE, Y_SIZE, Z_SIZE, W_SIZE> {
+template<typename T, int SizeX, int SizeY, int SizeZ, int SizeW>
+struct NormalizedIntVec<T, 4, SizeX, SizeY, SizeZ, SizeW> {
   using VecT = VecBase<float, 4>;
   using IntVecT = VecBase<T, 4>;
   constexpr static bool is_signed = std::is_signed<T>();
-  constexpr static T x_max = (1 << (X_SIZE - int(is_signed))) - 1;
-  constexpr static T y_max = (1 << (Y_SIZE - int(is_signed))) - 1;
-  constexpr static T z_max = (1 << (Z_SIZE - int(is_signed))) - 1;
-  constexpr static T w_max = (1 << (W_SIZE - int(is_signed))) - 1;
+  constexpr static T x_max = (1 << (SizeX - int(is_signed))) - 1;
+  constexpr static T y_max = (1 << (SizeY - int(is_signed))) - 1;
+  constexpr static T z_max = (1 << (SizeZ - int(is_signed))) - 1;
+  constexpr static T w_max = (1 << (SizeW - int(is_signed))) - 1;
 
-  T x : X_SIZE;
-  T y : Y_SIZE;
-  T z : Z_SIZE;
-  T w : W_SIZE;
+  T x : SizeX;
+  T y : SizeY;
+  T z : SizeZ;
+  T w : SizeW;
 
   NormalizedIntVec() = default;
   constexpr NormalizedIntVec(IntVecT value) : x(value.x), y(value.y), z(value.z), w(value.w) {}
@@ -86,10 +86,10 @@ struct NormalizedIntVec<T, 4, X_SIZE, Y_SIZE, Z_SIZE, W_SIZE> {
 
 }  // namespace detail
 
-template<typename T, int SIZE, int... ITEM_SIZE>
+template<typename T, int CompLen, int... CompBitCounts>
   requires(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>)
-struct NormalizedIntVecBase : detail::NormalizedIntVec<T, SIZE, ITEM_SIZE...> {
-  using IntPacked = detail::NormalizedIntVec<T, SIZE, ITEM_SIZE...>;
+struct NormalizedIntVecBase : detail::NormalizedIntVec<T, CompLen, CompBitCounts...> {
+  using IntPacked = detail::NormalizedIntVec<T, CompLen, CompBitCounts...>;
   using typename IntPacked::IntVecT;
   using typename IntPacked::VecT;
 
