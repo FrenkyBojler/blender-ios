@@ -2251,8 +2251,9 @@ static void rna_def_strip_transform(BlenderRNA *brna)
 }
 
 static const EnumPropertyItem rna_enum_strip_proxy_codec_items[] = {
-    {SEQ_PROXY_CODEC_H264, "H264", 0, "H.264", "Use H.264 (smaller proxies)"},
-    {SEQ_PROXY_CODEC_MJPEG, "MJPEG", 0, "MJPEG", "Use MJPEG (faster proxy playback)"},
+    {SEQ_PROXY_CODEC_H264, "H264", 0, "H.264", "Use H.264 (smallest size, lowest speed)"},
+    {SEQ_PROXY_CODEC_MJPEG, "MJPEG", 0, "MJPEG", "Use MJPEG (medium size, medium speed)"},
+    {SEQ_PROXY_CODEC_PRORES, "PRORES", 0, "ProRes", "Use ProRes (biggest size, highest speed)"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

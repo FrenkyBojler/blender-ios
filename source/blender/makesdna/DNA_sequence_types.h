@@ -113,6 +113,7 @@ ENUM_OPERATORS(eStripProxyBuildFlag);
 enum eStripProxyCodec {
   SEQ_PROXY_CODEC_H264 = 0,
   SEQ_PROXY_CODEC_MJPEG = 1,
+  SEQ_PROXY_CODEC_PRORES = 2,
 };
 
 enum eStripAlphaMode : uint8_t {
