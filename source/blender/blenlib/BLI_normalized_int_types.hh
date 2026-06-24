@@ -13,9 +13,9 @@
 namespace blender {
 
 namespace detail {
-template<typename T, int SIZE, int... ITEM_SIZE> struct IntPack;
+template<typename T, int SIZE, int... ITEM_SIZE> struct NormalizedIntVec;
 
-template<typename T, int X_SIZE, int Y_SIZE> struct IntPack<T, 2, X_SIZE, Y_SIZE> {
+template<typename T, int X_SIZE, int Y_SIZE> struct NormalizedIntVec<T, 2, X_SIZE, Y_SIZE> {
   using VecT = VecBase<float, 2>;
   using IntVecT = VecBase<T, 2>;
   constexpr static bool is_signed = std::is_signed<T>();
@@ -24,6 +24,9 @@ template<typename T, int X_SIZE, int Y_SIZE> struct IntPack<T, 2, X_SIZE, Y_SIZE
 
   T x : X_SIZE;
   T y : Y_SIZE;
+
+  NormalizedIntVec() = default;
+  constexpr NormalizedIntVec(IntVecT value) : x(value.x), y(value.y) {}
 
   operator IntVecT() const
   {
@@ -45,7 +48,7 @@ template<typename T, int X_SIZE, int Y_SIZE> struct IntPack<T, 2, X_SIZE, Y_SIZE
 };
 
 template<typename T, int X_SIZE, int Y_SIZE, int Z_SIZE, int W_SIZE>
-struct IntPack<T, 4, X_SIZE, Y_SIZE, Z_SIZE, W_SIZE> {
+struct NormalizedIntVec<T, 4, X_SIZE, Y_SIZE, Z_SIZE, W_SIZE> {
   using VecT = VecBase<float, 4>;
   using IntVecT = VecBase<T, 4>;
   constexpr static bool is_signed = std::is_signed<T>();
@@ -58,6 +61,9 @@ struct IntPack<T, 4, X_SIZE, Y_SIZE, Z_SIZE, W_SIZE> {
   T y : Y_SIZE;
   T z : Z_SIZE;
   T w : W_SIZE;
+
+  NormalizedIntVec() = default;
+  constexpr NormalizedIntVec(IntVecT value) : x(value.x), y(value.y), z(value.z), w(value.w) {}
 
   operator IntVecT() const
   {
@@ -82,32 +88,19 @@ struct IntPack<T, 4, X_SIZE, Y_SIZE, Z_SIZE, W_SIZE> {
 
 template<typename T, int SIZE, int... ITEM_SIZE>
   requires(std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>)
-struct NormalizedIntPacked : detail::IntPack<T, SIZE, ITEM_SIZE...> {
-  using IntPacked = detail::IntPack<T, SIZE, ITEM_SIZE...>;
+struct NormalizedIntVecBase : detail::NormalizedIntVec<T, SIZE, ITEM_SIZE...> {
+  using IntPacked = detail::NormalizedIntVec<T, SIZE, ITEM_SIZE...>;
   using typename IntPacked::IntVecT;
   using typename IntPacked::VecT;
 
-  NormalizedIntPacked() = default;
+  NormalizedIntVecBase() = default;
 
-  NormalizedIntPacked(IntVecT value)
-  {
-    this->x = value.x;
-    if constexpr (SIZE > 1) {
-      this->y = value.y;
-    }
-    if constexpr (SIZE > 2) {
-      this->z = value.z;
-    }
-    if constexpr (SIZE > 3) {
-      this->w = value.w;
-    }
-  }
+  NormalizedIntVecBase(IntVecT value) : IntPacked(value) {}
 
   /* Adding rounding would be the standard compliant conversion.
    * But this would introduce perf regression. */
-  NormalizedIntPacked(VecT val)
-      : NormalizedIntPacked(
-            IntVecT(math::clamp(val * IntPacked::max(), IntPacked::min(), IntPacked::max())))
+  NormalizedIntVecBase(VecT val)
+      : IntPacked(IntVecT(math::clamp(val * IntPacked::max(), IntPacked::min(), IntPacked::max())))
   {
   }
 
@@ -117,13 +110,13 @@ struct NormalizedIntPacked : detail::IntPack<T, SIZE, ITEM_SIZE...> {
   }
 };
 
-using char4_norm = NormalizedIntPacked<int32_t, 4, 8, 8, 8, 8>;
-using uchar4_norm = NormalizedIntPacked<uint32_t, 4, 8, 8, 8, 8>;
-using short2_norm = NormalizedIntPacked<int32_t, 2, 16, 16>;
-using ushort2_norm = NormalizedIntPacked<uint32_t, 2, 16, 16>;
-using short4_norm = NormalizedIntPacked<int32_t, 4, 16, 16, 16, 16>;
-using ushort4_norm = NormalizedIntPacked<uint32_t, 4, 16, 16, 16, 16>;
-using int1010102_norm = NormalizedIntPacked<int32_t, 4, 10, 10, 10, 2>;
-using uint1010102_norm = NormalizedIntPacked<uint32_t, 4, 10, 10, 10, 2>;
+using char4_norm = NormalizedIntVecBase<int32_t, 4, 8, 8, 8, 8>;
+using uchar4_norm = NormalizedIntVecBase<uint32_t, 4, 8, 8, 8, 8>;
+using short2_norm = NormalizedIntVecBase<int32_t, 2, 16, 16>;
+using ushort2_norm = NormalizedIntVecBase<uint32_t, 2, 16, 16>;
+using short4_norm = NormalizedIntVecBase<int32_t, 4, 16, 16, 16, 16>;
+using ushort4_norm = NormalizedIntVecBase<uint32_t, 4, 16, 16, 16, 16>;
+using int1010102_norm = NormalizedIntVecBase<int32_t, 4, 10, 10, 10, 2>;
+using uint1010102_norm = NormalizedIntVecBase<uint32_t, 4, 10, 10, 10, 2>;
 
 }  // namespace blender
