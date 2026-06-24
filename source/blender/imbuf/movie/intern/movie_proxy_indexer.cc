@@ -226,9 +226,9 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
       }
       break;
     }
-    case 1: { /* MJPEG /
-     /* Quality maps 1-100 to qscale 24-3.
-      * Values below 3 give huge file sizes, and above 24 is extremely blocky. */
+    case 1: { /* MJPEG */
+      /* Quality maps 1-100 to qscale 24-3.
+       * Values below 3 give huge file sizes, and above 24 is extremely blocky. */
       const int qscale_range_min = 24;
       const int qscale_range_max = 3;
 
