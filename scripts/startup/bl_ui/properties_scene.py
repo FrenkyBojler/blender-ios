@@ -108,7 +108,11 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
                     sub.active = not prop.is_muted
                     sub.prop(rule.override_values, prop.property_identifier)
                     sub_butts = row.row(align=True)
-                    sub_butts.prop(prop, "is_muted", icon='CHECKBOX_DEHLT' if prop.is_muted else 'CHECKBOX_HLT', icon_only=True)
+                    sub_butts.prop(
+                        prop,
+                        "is_muted",
+                        icon='CHECKBOX_DEHLT' if prop.is_muted else 'CHECKBOX_HLT',
+                        icon_only=True)
                     sub_butts.separator_spacer()
                     op = sub_butts.operator('UI_OT_dynoverride_remove_rule_property', text="", icon='X')
                     op.session_uid = dynoverride.session_uid
