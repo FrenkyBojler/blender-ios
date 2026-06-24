@@ -18,11 +18,13 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
+#include "DNA_vfont_types.h"
 
 #include "SEQ_render.hh"
 #include "SEQ_transform.hh"
 
 #include "opentimelineio/anyDictionary.h"
+#include "opentimelineio/anyVector.h"
 #include "opentimelineio/clip.h"
 #include "opentimelineio/effect.h"
 #include "opentimelineio/externalReference.h"
@@ -119,11 +121,61 @@ static void set_color_strip_params(const Strip *strip, AnyDictionary &params)
   const SolidColorVars *color = static_cast<SolidColorVars *>(strip->effectdata);
 
   params["name"] = "Color";
-  params["col_r"] = static_cast<double>(color->col[0]);
-  params["col_g"] = static_cast<double>(color->col[1]);
-  params["col_b"] = static_cast<double>(color->col[2]);
+  params["col"] = AnyVector{static_cast<double>(color->col[0]),
+                            static_cast<double>(color->col[1]),
+                            static_cast<double>(color->col[2])};
   params["width"] = static_cast<int64_t>(color->width);
   params["height"] = static_cast<int64_t>(color->height);
+}
+
+static void set_text_strip_params(const Strip *strip, AnyDictionary &params)
+{
+  const TextVars *text = static_cast<TextVars *>(strip->effectdata);
+
+  params["name"] = "Text";
+  params["text"] = std::string(text->text_ptr);
+  params["text_font.filepath"] = text->text_font ? std::string(text->text_font->filepath) : "";
+  params["text_blf_id"] = static_cast<int64_t>(text->text_blf_id);
+  params["text_size"] = static_cast<double>(text->text_size);
+  params["space_line"] = static_cast<double>(text->space_line);
+  params["abs_space_line"] = static_cast<double>(text->abs_space_line);
+  params["loc"] = AnyVector{static_cast<double>(text->loc[0]), static_cast<double>(text->loc[0])};
+  params["wrap_width"] = static_cast<double>(text->wrap_width);
+  params["box_margin"] = static_cast<double>(text->box_margin);
+  params["box_roundness"] = static_cast<double>(text->box_roundness);
+  params["shadow_angle"] = static_cast<double>(text->shadow_angle);
+  params["shadow_offset"] = static_cast<double>(text->shadow_offset);
+  params["shadow_blur"] = static_cast<double>(text->shadow_blur);
+  params["outline_witdh"] = static_cast<double>(text->outline_width);
+  params["flag"] = static_cast<int64_t>(text->flag);
+  params["align"] = static_cast<int64_t>(text->align);
+  params["cursor_offset"] = static_cast<int64_t>(text->cursor_offset);
+  params["selection_start_offset"] = static_cast<int64_t>(text->selection_start_offset);
+  params["selection_end_offset"] = static_cast<int64_t>(text->selection_end_offset);
+  params["anchor_x"] = static_cast<int64_t>(text->anchor_x);
+  params["anchor_y"] = static_cast<int64_t>(text->anchor_y);
+  params["textbox_state.visible_lines"] = static_cast<int64_t>(text->textbox_state.visible_lines);
+  params["textbox_state.scroll"] = static_cast<int64_t>(text->textbox_state.scroll);
+
+  params["color"] = AnyVector{static_cast<double>(text->color[0]),
+                              static_cast<double>(text->color[1]),
+                              static_cast<double>(text->color[2]),
+                              static_cast<double>(text->color[3])};
+
+  params["shadow_color"] = AnyVector{static_cast<double>(text->shadow_color[0]),
+                                     static_cast<double>(text->shadow_color[1]),
+                                     static_cast<double>(text->shadow_color[2]),
+                                     static_cast<double>(text->shadow_color[3])};
+
+  params["box_color"] = AnyVector{static_cast<double>(text->box_color[0]),
+                                  static_cast<double>(text->box_color[1]),
+                                  static_cast<double>(text->box_color[2]),
+                                  static_cast<double>(text->box_color[3])};
+
+  params["outline_color"] = AnyVector{static_cast<double>(text->outline_color[0]),
+                                      static_cast<double>(text->outline_color[1]),
+                                      static_cast<double>(text->outline_color[2]),
+                                      static_cast<double>(text->outline_color[3])};
 }
 
 static SerializableObject::Retainer<GeneratorReference> create_generator_reference(
@@ -138,6 +190,12 @@ static SerializableObject::Retainer<GeneratorReference> create_generator_referen
       generator_reference->set_name("Color");
       generator_reference->set_generator_kind("Color");
       set_color_strip_params(strip, params);
+      break;
+
+    case STRIP_TYPE_TEXT:
+      generator_reference->set_name("Text");
+      generator_reference->set_generator_kind("Text");
+      set_text_strip_params(strip, params);
       break;
 
     default:
