@@ -8,6 +8,10 @@ REM  # how to execute this script.
 REM  #
 REM  ###########################################################################
 
+REM Pass "unattended" as first argument to skip prompts and run silently
+set UNATTENDED=0
+if "%1"=="unattended" set UNATTENDED=1
+
 echo ###########################################################################
 echo #
 echo # This sets up a Virtual Machine for building the blender dependencies, No
@@ -57,7 +61,7 @@ echo # ******* WARNING *******
 echo #
 echo # hit ctrl-break right now to abort.. last chance
 echo #
-pause
+if %UNATTENDED%==0 pause
 
 echo create install folder
 mkdir c:\install
@@ -70,22 +74,22 @@ curl https://download.visualstudio.microsoft.com/download/pr/c2e2845d-bdff-44fc-
 echo Obtaining Visual studio blender installer configuration
 curl https://projects.blender.org/blender/blender/raw/branch/main/build_files/build_environment/windows/vsconfig -o c:\install\.vsconfig
 echo Installing Visual Studio 2022 Build tools
-c:\install\vs_BuildTools.exe --wait --passive --installPath c:\vs2022bt\ --config c:\install\.vsconfig
+c:\install\vs_BuildTools.exe --wait --quiet --norestart --installPath c:\vs2022bt\ --config c:\install\.vsconfig
 
 echo Obtaining git
 curl -L https://github.com/git-for-windows/git/releases/download/v2.38.0.windows.1/Git-2.38.0-64-bit.exe -o c:\install\Git-2.38.0-64-bit.exe
 echo Installing git
-start /wait c:\install\Git-2.38.0-64-bit.exe /silent
+start /wait c:\install\Git-2.38.0-64-bit.exe /verysilent /norestart
 
 echo Obtaining CMake
 curl -L https://github.com/Kitware/CMake/releases/download/v3.31.7/cmake-3.31.7-windows-x86_64.msi -o c:\install\cmake-3.31.7-windows-x86_64.msi
 echo Installing cmake
-start /wait msiexec /passive /ic:\install\cmake-3.31.7-windows-x86_64.msi ADD_CMAKE_TO_PATH="System"
+start /wait msiexec /quiet /norestart /i c:\install\cmake-3.31.7-windows-x86_64.msi ADD_CMAKE_TO_PATH="System"
 
 echo Obtaining meson
 curl -L https://github.com/mesonbuild/meson/releases/download/1.9.1/meson-1.9.1-64.msi -o c:\install\meson-1.9.1-64.msi
 echo Installing meson
-start /wait msiexec /passive /i	c:\install\meson-1.9.1-64.msi
+start /wait msiexec /quiet /norestart /i c:\install\meson-1.9.1-64.msi
 
 echo Obtaining Visual studio 2010 x64 redist
 curl https://download.microsoft.com/download/3/2/2/3224B87F-CFA0-4E70-BDA3-3DE650EFEBA5/vcredist_x64.exe  -o c:\install\vcredist_x64.exe
@@ -107,7 +111,7 @@ curl https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-2
 c:\install\7zr.exe x C:\install\AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe -oC:\install\
 mkdir C:\tools\rocm
 echo Installing Hip SDK 7.1.51803-d3a86bd04
-msiexec /i C:\install\Packages\Apps\ROCmSDKPackages\SDKCore\ROCm_SDK_Core.msi INSTALLDIR="C:\tools\rocm"
+start /wait msiexec /quiet /norestart /i C:\install\Packages\Apps\ROCmSDKPackages\SDKCore\ROCm_SDK_Core.msi INSTALLDIR="C:\tools\rocm"
 
 echo Cloning Blender repository
 mkdir c:\blendergit
