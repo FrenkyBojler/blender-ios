@@ -3,3 +3,4 @@ Referenced by pull request #160219, Fix #160201: Render Result image not updatin
 Referenced by commit 6e6cde6be1254973a23275a77724357f439f981c, Fix #160201: Render Result image not updating for compositing
 Referenced by issue #160263, 5.3a: Drawing doesn't work in Image Editor
 Referenced by issue #160394, ImBuf: Memory leak on image_mapping_udim.blend test
+Referenced by issue #160588, EEVEE: Volumes samples accumulation never stops in mr Elephant
