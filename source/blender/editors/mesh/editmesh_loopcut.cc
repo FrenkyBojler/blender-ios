@@ -161,7 +161,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
   const int cuts = RNA_int_get(op->ptr, "number_cuts");
   const float smoothness = RNA_float_get(op->ptr, "smoothness");
   const int smooth_falloff = RNA_enum_get(op->ptr, "falloff");
-  const bool use_curvature = RNA_boolean_get(op->ptr, "curve_preservation");
+  const bool use_preserve_curvature = RNA_boolean_get(op->ptr, "preserve_curvature");
 #ifdef BMW_EDGERING_NGON
   const bool use_only_quads = false;
 #else
@@ -188,7 +188,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
        * See #31939. */
       BM_mesh_esubdivide(em->bm,
                          BM_ELEM_SELECT,
-                         use_curvature ? 0.0f : smoothness,
+                         use_preserve_curvature ? 0.0f : smoothness,
                          smooth_falloff,
                          true,
                          0.0f,
@@ -761,9 +761,9 @@ void MESH_OT_loopcut(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(ot->srna,
-                        "curve_preservation",
+                        "preserve_curvature",
                         false,
-                        "Curve Preservation",
+                        "Preserve Curvature",
                         "Place new loop on spline curve through neighboring loops");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
@@ -773,7 +773,7 @@ void MESH_OT_loopcut(wmOperatorType *ot)
                        -1.0f,
                        1.0f,
                        "Tension",
-                       "Curve tension for curve preservation",
+                       "Curve tension for preserve curvature",
                        -1.0f,
                        1.0f);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
