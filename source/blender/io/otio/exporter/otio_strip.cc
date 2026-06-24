@@ -198,6 +198,12 @@ static SerializableObject::Retainer<GeneratorReference> create_generator_referen
       set_text_strip_params(strip, params);
       break;
 
+    case STRIP_TYPE_ADJUSTMENT:
+      generator_reference->set_name("Adjustment");
+      generator_reference->set_generator_kind("Adjustment");
+      params["name"] = "Adjustment";
+      break;
+
     default:
       break;
   }
