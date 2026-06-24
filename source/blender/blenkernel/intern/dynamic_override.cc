@@ -639,6 +639,7 @@ void rule_property_remove(Main &bmain,
 
   DEG_id_tag_update(&dynamic_override.id, ID_RECALC_PARAMETERS);
   DEG_id_tag_update(rule.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
+  DEG_relations_tag_update(&bmain);
 
   BKE_main_ensure_invariants(bmain, dynamic_override.id);
 }
