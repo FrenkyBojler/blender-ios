@@ -1,3 +1,11 @@
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup edanimation
+ */
+
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
@@ -5,8 +13,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_set.hh"
 
 #include "BKE_context.hh"
@@ -348,8 +356,8 @@ static bool convert_rotation_mode_channelbag(animrig::Channelbag &channelbag,
 
     const int evaluation_buffer_count = from_mode > ROT_MODE_QUAT ? 3 : 4;
     Array<FCurve *> evaluation_buffer(evaluation_buffer_count);
-    for (const int i : evaluation_buffer.index_range()) {
-      evaluation_buffer[i] = rotation_fcurves->get_fcurve_by_array_index(i);
+    for (const int buffer_index : evaluation_buffer.index_range()) {
+      evaluation_buffer[buffer_index] = rotation_fcurves->get_fcurve_by_array_index(buffer_index);
     }
 
     Bounds<float> range(rotation_mode_range.first, FLT_MAX);

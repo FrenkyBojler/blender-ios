@@ -282,11 +282,6 @@ class POSE_OT_convert_rotation(bpy.types.Operator):
         return {'FINISHED'}
 
 
-def draw_convert_rotation(self, _context):
-    self.layout.separator()
-    self.layout.operator(POSE_OT_convert_rotation.bl_idname)
-
-
 classes = [
     POSE_OT_convert_rotation
 ]
