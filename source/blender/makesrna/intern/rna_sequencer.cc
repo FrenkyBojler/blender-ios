@@ -2250,6 +2250,12 @@ static void rna_def_strip_transform(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_StripTransform_path");
 }
 
+static const EnumPropertyItem rna_enum_strip_proxy_codec_items[] = {
+    {SEQ_PROXY_CODEC_H264, "H264", 0, "H.264", "Use H.264 (smaller proxies)"},
+    {SEQ_PROXY_CODEC_MJPEG, "MJPEG", 0, "MJPEG", "Use MJPEG (faster proxy playback)"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void rna_def_strip_proxy(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2311,6 +2317,11 @@ static void rna_def_strip_proxy(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Proxy Custom File", "Use a custom file to read proxy data from");
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_preprocessed_update");
+
+  prop = RNA_def_property(srna, "codec", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_strip_proxy_codec_items);
+  RNA_def_property_ui_text(prop, "Codec", "Codec to use for proxies");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripProxy_update");
 }
 
 static void rna_def_color_balance(BlenderRNA *brna)

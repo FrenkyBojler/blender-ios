@@ -435,7 +435,8 @@ bool proxy_build_start(Main *bmain,
                                                                context->quality,
                                                                context->overwrite,
                                                                processed_paths,
-                                                               build_only_on_bad_performance);
+                                                               build_only_on_bad_performance,
+                                                               strip_new->data->proxy->codec);
       }
       if (!context->movie_proxy_builder) {
         MEM_delete(context);

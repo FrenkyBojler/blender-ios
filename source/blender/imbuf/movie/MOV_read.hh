@@ -174,7 +174,8 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
                                            int quality,
                                            const bool overwrite,
                                            Set<std::string> *processed_paths,
-                                           bool build_only_on_bad_performance);
+                                           bool build_only_on_bad_performance,
+                                           int codec = 0);
 
 /**
  * Will rebuild all used proxies at once.

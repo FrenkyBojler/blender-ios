@@ -135,7 +135,8 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
                                                    IMB_Proxy_Size proxy_size,
                                                    int width,
                                                    int height,
-                                                   int quality)
+                                                   int quality,
+                                                   int codec)
 {
   proxy_output_ctx *rv = MEM_new_zeroed<proxy_output_ctx>("alloc_proxy_output");
 
@@ -161,7 +162,15 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->st = avformat_new_stream(rv->of, nullptr);
   rv->st->id = 0;
 
-  rv->codec = avcodec_find_encoder(AV_CODEC_ID_H264);
+  switch (codec) {
+    case 1:
+      rv->codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
+      break;
+    case 0:
+    default:
+      rv->codec = avcodec_find_encoder(AV_CODEC_ID_H264);
+      break;
+  }
 
   rv->c = avcodec_alloc_context3(rv->codec);
 
@@ -175,8 +184,6 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
 
   rv->c->width = width;
   rv->c->height = height;
-  rv->c->gop_size = 10;
-  rv->c->max_b_frames = 0;
 
   const enum AVPixelFormat *pix_fmts = ffmpeg_get_pix_fmts(rv->c, rv->codec);
   if (pix_fmts) {
@@ -196,20 +203,52 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
   rv->st->time_base = st->time_base;
   rv->st->avg_frame_rate = st->avg_frame_rate;
 
-  /* This range matches #eFFMpegCrf. `crf_range_min` corresponds to lowest quality,
-   * `crf_range_max` to highest quality. */
-  const int crf_range_min = 32;
-  const int crf_range_max = 17;
-  int crf = round_fl_to_int((quality / 100.0f) * (crf_range_max - crf_range_min) + crf_range_min);
-
   AVDictionary *codec_opts = nullptr;
-  /* High quality preset value. */
-  av_dict_set_int(&codec_opts, "crf", crf, 0);
-  /* Prefer smaller file-size. Presets from `veryslow` to `veryfast` produce output with very
-   * similar file-size, but there is big difference in performance.
-   * In some cases `veryfast` preset will produce smallest file-size. */
-  av_dict_set(&codec_opts, "preset", "veryfast", 0);
-  av_dict_set(&codec_opts, "tune", "fastdecode", 0);
+
+  switch (codec) {
+    case 1: {  // MJPEG
+      /* Quality maps 1-100 to qscale 24-3.
+       * Values below 3 give huge file sizes, and above 24 is extremely blocky. */
+      const int qscale_range_min = 24;
+      const int qscale_range_max = 3;
+
+      int qscale = round_fl_to_int(
+          (1.0f - (quality / 100.0f)) * (qscale_range_min - qscale_range_max) + qscale_range_max);
+
+      if (qscale < qscale_range_max)
+        qscale = qscale_range_max;
+      if (qscale > qscale_range_min)
+        qscale = qscale_range_min;
+
+      rv->c->flags |= AV_CODEC_FLAG_QSCALE;
+      rv->c->global_quality = qscale * FF_QP2LAMBDA;
+
+      rv->c->qmin = qscale;
+      rv->c->qmax = qscale;
+      break;
+    }
+    case 0:  // H.264
+    default: {
+      rv->c->gop_size = 10;
+      rv->c->max_b_frames = 0;
+
+      /* This range matches #eFFMpegCrf. `crf_range_min` corresponds to lowest quality,
+       * `crf_range_max` to highest quality. */
+      const int crf_range_min = 32;
+      const int crf_range_max = 17;
+      int crf = round_fl_to_int((quality / 100.0f) * (crf_range_max - crf_range_min) +
+                                crf_range_min);
+
+      /* High quality preset value. */
+      av_dict_set_int(&codec_opts, "crf", crf, 0);
+      /* Prefer smaller file-size. Presets from `veryslow` to `veryfast` produce output with very
+       * similar file-size, but there is big difference in performance.
+       * In some cases `veryfast` preset will produce smallest file-size. */
+      av_dict_set(&codec_opts, "preset", "veryfast", 0);
+      av_dict_set(&codec_opts, "tune", "fastdecode", 0);
+      break;
+    }
+  }
 
   if (rv->codec->capabilities & AV_CODEC_CAP_OTHER_THREADS) {
     rv->c->thread_count = 0;
@@ -460,7 +499,8 @@ struct MovieProxyBuilder {
 static MovieProxyBuilder *proxy_builder_create(MovieReader *anim,
                                                int proxy_sizes_in_use,
                                                int quality,
-                                               bool build_only_on_bad_performance)
+                                               bool build_only_on_bad_performance,
+                                               int codec)
 {
   /* Never build proxies for un-seekable single frame files. */
   if (anim->never_seek_decode_one_frame) {
@@ -550,8 +590,14 @@ static MovieProxyBuilder *proxy_builder_create(MovieReader *anim,
       int height = context->iCodecCtx->height * proxy_fac[i];
       width += width % 2;
       height += height % 2;
-      context->proxy_ctx[i] = alloc_proxy_output_ffmpeg(
-          anim, context->iCodecCtx, context->iStream, proxy_sizes[i], width, height, quality);
+      context->proxy_ctx[i] = alloc_proxy_output_ffmpeg(anim,
+                                                        context->iCodecCtx,
+                                                        context->iStream,
+                                                        proxy_sizes[i],
+                                                        width,
+                                                        height,
+                                                        quality,
+                                                        codec);
       if (!context->proxy_ctx[i]) {
         proxy_sizes_in_use &= ~int(proxy_sizes[i]);
       }
@@ -799,7 +845,8 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
                                            int quality,
                                            const bool overwrite,
                                            Set<std::string> *processed_paths,
-                                           bool build_only_on_bad_performance)
+                                           bool build_only_on_bad_performance,
+                                           int codec)
 {
   int proxy_sizes_to_build = proxy_sizes_in_use;
 
@@ -846,7 +893,7 @@ MovieProxyBuilder *MOV_proxy_builder_start(MovieReader *anim,
 #ifdef WITH_FFMPEG
   if (anim->state == MovieReader::State::Valid) {
     context = proxy_builder_create(
-        anim, proxy_sizes_to_build, quality, build_only_on_bad_performance);
+        anim, proxy_sizes_to_build, quality, build_only_on_bad_performance, codec);
   }
 #else
   UNUSED_VARS(build_only_on_bad_performance);

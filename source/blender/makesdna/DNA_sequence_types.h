@@ -110,6 +110,11 @@ enum eStripProxyBuildFlag : uint16_t {
 };
 ENUM_OPERATORS(eStripProxyBuildFlag);
 
+enum eStripProxyCodec {
+  SEQ_PROXY_CODEC_H264 = 0,
+  SEQ_PROXY_CODEC_MJPEG = 1,
+};
+
 enum eStripAlphaMode : uint8_t {
   SEQ_ALPHA_STRAIGHT = 0,
   SEQ_ALPHA_PREMUL = 1,
@@ -297,7 +302,8 @@ struct StripProxy {
       SEQ_PROXY_IMAGE_SIZE_NONE; /* which proxy sizes to build. */
   eStripProxyBuildFlag build_flags = SEQ_PROXY_BUILD_FLAG_NONE;
   eStripProxyStorageFlag storage = SEQ_STORAGE_PROXY_NONE;
-  char _pad = 0;
+
+  char codec = SEQ_PROXY_CODEC_H264; /* Replaced the old 1-byte _pad with codec */
 };
 
 struct StripData {

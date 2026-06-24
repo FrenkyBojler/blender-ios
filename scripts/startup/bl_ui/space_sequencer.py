@@ -1743,6 +1743,7 @@ class SEQUENCER_PT_strip_proxy(SequencerButtonsPanel, Panel):
             layout.prop(proxy, "use_overwrite")
 
             col = layout.column()
+            col.prop(proxy, "codec", text="Codec")
             col.prop(proxy, "quality", text="Quality")
 
 
