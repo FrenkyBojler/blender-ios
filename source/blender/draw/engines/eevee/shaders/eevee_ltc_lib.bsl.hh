@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "eevee_bxdf_types.bsl.hh"
 #include "eevee_defines.hh"
 #include "eevee_ltc_lut_lib.bsl.hh"
 #include "gpu_shader_compat.hh"
@@ -259,35 +260,38 @@ float attenuate_disk(float3x3 Minv, float3 D, float3 L, float3 verts[4])
 /**
  * Evaluate contribution of rectangle light.
  */
-float evaluate_quad(sampler2DArray util_tx,
-                    float3 corners[4],
-                    float3 N,
-                    float3 V,
-                    float3 L,
-                    lut::LTCMatrixData ltc_mat)
+float evaluate_quad(
+    sampler2DArray util_tx, float3 corners[4], float3 N, float3 V, float3 L, LtcData ltc_data)
 {
-  /* Inverse LTC matrix. */
-  float3x3 Minv = ltc_mat.unpack_Minv();
+  // /* Inverse LTC matrix. */
+  // float3x3 Minv = ltc_mat.unpack_Minv();
 
   /* Construct orthonormal basis around N. */
   float3x3 T = detail::tangent_basis(N, V);
 
   /* Rotate area light into basis. */
-  Minv = Minv * transpose(T);
+  ltc_data.Minv = ltc_data.Minv * transpose(T);
+
+  /* Re-normalize by central value after rotation. This value
+   * is not currently packed. */
+  // float rcp = 1.0f / ltc_data.Minv[1][1];
+  // ltc_data.Minv[0] *= rcp;
+  // ltc_data.Minv[1] *= rcp;
+  // ltc_data.Minv[2] *= rcp;
 
   /* Attenuation to reduce leakage, in cases where the sphere approximation below
    * is not clipped consistently with a polygon/ellipse. */
-  float4 clamp_params = ltc_mat.unpack_clamp_params();
-  float3 D = normalize(clamp_params.xyz);
-  float form_factor_attenuation = detail::attenuate_quad(Minv, D, L, corners);
-  return form_factor_attenuation;
+  // float4 clamp_params = ltc_mat.unpack_clamp_params();
+  // float3 D = normalize(clamp_params.xyz);
+  // float form_factor_attenuation = detail::attenuate_quad(Minv, D, L, corners);
+  // return form_factor_attenuation;
   // attenuation += (1.0f - attenuation) * saturate(3.0f * clamp_factor);
 
   /* Apply LTC inverse matrix. */
-  corners[0] = normalize(Minv * corners[0]);
-  corners[1] = normalize(Minv * corners[1]);
-  corners[2] = normalize(Minv * corners[2]);
-  corners[3] = normalize(Minv * corners[3]);
+  corners[0] = normalize(ltc_data.Minv * corners[0]);
+  corners[1] = normalize(ltc_data.Minv * corners[1]);
+  corners[2] = normalize(ltc_data.Minv * corners[2]);
+  corners[3] = normalize(ltc_data.Minv * corners[3]);
 
   /* Approximation using a sphere of the same solid angle as the quad.
    * Finding the clipped sphere diffuse integral is easier than clipping the quad. */
@@ -316,21 +320,17 @@ float evaluate_quad(sampler2DArray util_tx,
  *
  * disk_points are WS vectors from the shading point to the disk "bounding domain".
  */
-float evaluate_disk(sampler2DArray util_tx,
-                    float3 N,
-                    float3 V,
-                    float3 Lv,
-                    lut::LTCMatrixData ltc_mat,
-                    float3 disk_points[4])
+float evaluate_disk(
+    sampler2DArray util_tx, float3 N, float3 V, float3 Lv, LtcData ltc_data, float3 disk_points[4])
 {
-  /* Inverse LTC matrix. */
-  float3x3 Minv = ltc_mat.unpack_Minv();
+  // /* Inverse LTC matrix. */
+  // float3x3 Minv = ltc_mat.unpack_Minv();
 
-  /* Construct orthonormal basis around N. */
-  float3x3 T = detail::tangent_basis(N, V);
+  // /* Construct orthonormal basis around N. */
+  // float3x3 T = detail::tangent_basis(N, V);
 
-  /* Rotate area light into basis. */
-  Minv = Minv * transpose(T);
+  // /* Rotate area light into basis. */
+  // ltc_data.Minv = ltc_data.Minv * transpose(T);
 
   /* Intermediate step: init ellipse. */
   float3 L_[3];
@@ -343,18 +343,16 @@ float evaluate_disk(sampler2DArray util_tx,
   float3 V2 = 0.5f * (L_[1] - L_[0]);
 
   /* Transform ellipse into LTC. */
-  C = Minv * C;
-  V1 = Minv * V1;
-  V2 = Minv * V2;
+  C = ltc_data.Minv * C;
+  V1 = ltc_data.Minv * V1;
+  V2 = ltc_data.Minv * V2;
 
-<<<<<<< HEAD
-=======
   /* Attenuation to reduce leakage, in cases where the sphere approximation below
    * is not clipped consistently with a polygon/ellipse. */
-  float4 clamp_params = ltc_mat.unpack_clamp_params();
-  float form_factor_attenuation = detail::attenuate_disk(Minv, clamp_params.xyz, Lv, disk_points);
+  // float4 clamp_params = ltc_mat.unpack_clamp_params();
+  // float form_factor_attenuation = detail::attenuate_disk(Minv, clamp_params.xyz, Lv,
+  // disk_points);
 
->>>>>>> 5408dca8f18 (Implemented disk light attenuation)
   /* Compute eigenvectors of new ellipse. */
   float d11 = dot(V1, V1);
   float d22 = dot(V2, V2);

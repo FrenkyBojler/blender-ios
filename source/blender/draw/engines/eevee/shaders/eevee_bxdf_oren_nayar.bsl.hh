@@ -70,12 +70,12 @@ LightProbeRay bxdf_oren_nayar_lightprobe(float3 N)
   return probe;
 }
 
-ClosureLight bxdf_oren_nayar_light(ClosureUndetermined cl)
+ClosureLight bxdf_oren_nayar_light(ClosureUndetermined cl, float3 V)
 {
   ClosureLight light;
   /* TODO(fclem): LTC fit. */
   /* No transform, just plain cosine distribution. */
-  light.ltc_data_packed = eevee::lut::LTCMatrixData::identity();
+  light.ltc_data_packed = eevee::lut::ltc::identity(cl.N, V);
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;

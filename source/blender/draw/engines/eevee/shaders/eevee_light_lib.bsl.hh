@@ -5,6 +5,7 @@
 #pragma once
 
 #include "draw_math_geom_lib.glsl"
+#include "eevee_bxdf_types.bsl.hh"
 #include "eevee_light_shared.hh"
 #include "eevee_ltc_lib.bsl.hh"
 #include "eevee_ltc_lut_lib.bsl.hh"
@@ -260,7 +261,7 @@ float light_ltc(sampler2DArray utility_tx,
                 float3 N,
                 float3 V,
                 LightVector lv,
-                uint4 ltc_mat,
+                uint4 ltc_data_pack,
                 LightVertices vertices)
 {
   if (is_sphere_light(light.type) && lv.dist < light.local().local.shape_radius) {
@@ -268,7 +269,7 @@ float light_ltc(sampler2DArray utility_tx,
     return 1.0f;
   }
 
-  eevee::lut::LTCMatrixData ltc_data = eevee::lut::LTCMatrixData::from(ltc_mat);
+  LtcData ltc_data = eevee::lut::ltc::unpack(ltc_data_pack);
   if (light.type == LIGHT_RECT) {
     return eevee::ltc::evaluate_quad(utility_tx, vertices.v, N, V, lv.L, ltc_data);
   }

@@ -53,11 +53,10 @@ LightProbeRay bxdf_diffuse_lightprobe(float3 N)
   return probe;
 }
 
-ClosureLight bxdf_diffuse_light(ClosureUndetermined cl)
+ClosureLight bxdf_diffuse_light(ClosureUndetermined cl, float3 V)
 {
   ClosureLight light;
-  /* No transform, just plain cosine distribution. */
-  light.ltc_data_packed = eevee::lut::LTCMatrixData::identity();
+  light.ltc_data_packed = eevee::lut::ltc::identity(cl.N, V);
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;
@@ -132,7 +131,7 @@ Ray bxdf_translucent_ray_amend(ClosureUndetermined cl, float3 /*V*/, Ray ray, Th
   return ray;
 }
 
-ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 /*V*/, Thickness thickness)
+ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness thickness)
 {
   /* A translucent sphere lit by a light outside the sphere transmits the
    * light uniformly over the sphere. To mimic this phenomenon, we use the light vector
@@ -143,7 +142,7 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 /*V*/, Thickn
    */
   ClosureLight light;
   /* No transform, just plain cosine distribution. */
-  light.ltc_data_packed = eevee::lut::LTCMatrixData::identity();
+  light.ltc_data_packed = eevee::lut::ltc::identity(-cl.N, V);
   light.N = -cl.N;
   light.type = (thickness.value() != 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
   return light;
