@@ -182,7 +182,7 @@ wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEven
     wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
     gesture->wait_for_input = wait_for_input;
     view2d_edge_pan_init(C, &gesture->edge_pan_data, 2, 0, 1, 10, 0.5f, 0.5f);
-    /* Store initial mouse positon in view space, later convert back to start position of box into
+    /* Store initial mouse position in view space, later convert back to start position of box into
      * region space during modal. */
     const View2D *v2d = &region->v2d;
     rcti *rect = static_cast<rcti *>(gesture->customdata);

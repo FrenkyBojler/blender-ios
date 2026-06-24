@@ -672,7 +672,7 @@ struct wmGesture {
   /** Optional, draw the active side of the straight-line gesture. */
   bool draw_active_side;
   /** Latest mouse position relative to area. Currently only used by lasso drawing code. Also store
-   * view coordniates of initial mouse position for box select.
+   * view coordinates of initial mouse position for box select.
    */
   int2 mval;
 
