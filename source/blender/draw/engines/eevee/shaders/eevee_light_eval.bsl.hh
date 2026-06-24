@@ -82,7 +82,7 @@ void eval_single_closure(sampler2DArray util_tx,
     return;
   }
 
-  LtcData ltc_data = eevee::lut::ltc::unpack(cl.ltc_matrix_pack, cl.ltc_data_pack);
+  LtcData ltc_data = eevee::lut::ltc::unpack(cl.ltc_matrix_packed, cl.ltc_data_packed);
   float ltc_result = light_ltc(util_tx, light, cl.N, V, lv, ltc_data, vertices);
 
   float3 out_radiance = light.color * ltc_result;

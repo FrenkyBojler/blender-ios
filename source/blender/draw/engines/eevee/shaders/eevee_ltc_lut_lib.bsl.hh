@@ -154,33 +154,20 @@ float4 pack_matrix_isotropic(float3x3 M)
  */
 packed_uint4 pack_matrix(LtcData ltc_data)
 {
-
-  // float4 v = detail::pack_matrix_isotropic(ltc_data.Minv);
-
   packed_uint4 ltc_matrix_packed;
   ltc_matrix_packed.x = packHalf2x16(ltc_data.Minv[0].xy);
   ltc_matrix_packed.y = packHalf2x16(float2(ltc_data.Minv[0].z, ltc_data.Minv[1].x));
   ltc_matrix_packed.z = packHalf2x16(float2(ltc_data.Minv[1].z, ltc_data.Minv[2].x));
   ltc_matrix_packed.w = packHalf2x16(ltc_data.Minv[2].yz);
   return ltc_matrix_packed;
-
-  // packed_uint4 ltc_data_packed;
-
-  // ltc_data_packed.x = packHalf2x16(v.xy);
-  // ltc_data_packed.y = packHalf2x16(v.zw);
-  // ltc_data_packed.z = packHalf2x16(octahedral_D);
-  // /* NOTE: attenuation_factor can be packed, leaving ~24b spare room. */
-  // ltc_data_packed.w = floatBitsToUint(ltc_data.attenuation_factor);
-
-  // return ltc_data_packed;
 }
 
 uint pack_data(LtcData ltc_data)
 {
   float2 octahedral_D = octahedral_uv_from_direction(ltc_data.D);
-
+  return packHalf2x16(octahedral_D);
   /* Pack as 11, 11, 10 instead. */
-  return packSnorm4x8(float4(octahedral_D, ltc_data.attenuation_factor, 0));
+  // return packSnorm4x8(float4(octahedral_D, ltc_data.attenuation_factor, 0));
 }
 
 void pack(LtcData ltc_data, packed_uint4 &ltc_matrix_packed, uint &ltc_data_packed)
@@ -207,11 +194,12 @@ LtcData unpack(packed_uint4 ltc_matrix_packed, uint ltc_data_packed)
   ltc_data.Minv[2].x = v2.y;
   ltc_data.Minv[2].yz = unpackHalf2x16(ltc_matrix_packed.w);
 
-  float4 v3 = unpackSnorm4x8(ltc_data_packed);
-  float2 octahedral_D = v3.xy;
+  ltc_data.D = octahedral_uv_to_direction(unpackHalf2x16(ltc_data_packed));
+  ltc_data.attenuation_factor = 0.0;
 
-  ltc_data.D = octahedral_uv_to_direction(octahedral_D);
-  ltc_data.attenuation_factor = v3.z;
+  // float4 v3 = unpackSnorm4x8(ltc_data_packed);
+  // ltc_data.D = octahedral_uv_to_direction(v3.xy);
+  // ltc_data.attenuation_factor = v3.z;
 
   return ltc_data;
 }
@@ -245,8 +233,8 @@ LtcData sample_utility_tx([[resource_table]] const UtilityTexture &util_tx,
 
   LtcData ltc_data;
   ltc_data.Minv = Minv;
-  ltc_data.D = detail::inverse_z(ltc_data.Minv);
-  ltc_data.attenuation_factor = 1.0f - saturate(3.0f * roughness);
+  ltc_data.D = normalize(detail::inverse_z(ltc_data.Minv));
+  ltc_data.attenuation_factor = saturate(3.0f * roughness);
   return ltc_data;
 }
 
@@ -272,7 +260,7 @@ LtcData identity(float3 N, float3 I)
 
   LtcData ltc_data;
   ltc_data.Minv = Minv;
-  ltc_data.D = detail::inverse_z(ltc_data.Minv);
+  ltc_data.D = normalize(detail::inverse_z(ltc_data.Minv));
   ltc_data.attenuation_factor = 0.0;
   return ltc_data;
 }

@@ -283,9 +283,9 @@ float evaluate_quad(
    * is not clipped consistently with a polygon/ellipse. */
   // float4 clamp_params = ltc_mat.unpack_clamp_params();
   // float3 D = normalize(clamp_params.xyz);
-  // float form_factor_attenuation = detail::attenuate_quad(Minv, D, L, corners);
-  // return form_factor_attenuation;
-  // attenuation += (1.0f - attenuation) * saturate(3.0f * clamp_factor);
+  float form_factor_attenuation = detail::attenuate_quad(ltc_data.Minv, ltc_data.D, L, corners);
+  form_factor_attenuation += (1.0f - form_factor_attenuation) * ltc_data.attenuation_factor;
+  return form_factor_attenuation;
 
   /* Apply LTC inverse matrix. */
   corners[0] = normalize(ltc_data.Minv * corners[0]);
@@ -307,7 +307,7 @@ float evaluate_quad(
 
   /* Attenuate form_factor to reduce leakage, in cases where a sphere lies above the
    * horizon, but a polygon/ellipse should be clipped. This is a fitted function. */
-  // form_factor *= form_factor_attenuation;
+  form_factor *= form_factor_attenuation;
 
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
