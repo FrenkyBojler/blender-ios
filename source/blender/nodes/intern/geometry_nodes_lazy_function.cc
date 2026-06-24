@@ -311,12 +311,14 @@ static void assign_socket_value_to(SocketValueVariant src, GMutablePointer dst)
     dst.type()->copy_assign(&src_ptr, dst.get());
     return;
   }
-  // if (src.is_volume_grid()) {
-  //   const auto src_ptr = src.get<bke::volume_grid::GVolumeGrid>();
-  //   BLI_assert(dst.type()->is<bke::volume_grid::GVolumeGrid>());
-  //   dst.type()->copy_assign(&src_ptr, dst.get());
-  //   return;
-  // }
+#ifdef WITH_OPENVDB
+  if (src.is_volume_grid()) {
+    const auto src_ptr = src.get<bke::volume_grid::GVolumeGrid>();
+    BLI_assert(dst.type()->is<bke::volume_grid::GVolumeGrid>());
+    dst.type()->copy_assign(&src_ptr, dst.get());
+    return;
+  }
+#endif /* WITH_OPENVDB */
   if (src.is_field()) {
     const auto src_ptr = src.get<GField>();
     BLI_assert(dst.type()->is<GField>());
