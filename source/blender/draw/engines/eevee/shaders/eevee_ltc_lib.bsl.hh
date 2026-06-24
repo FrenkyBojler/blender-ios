@@ -204,14 +204,14 @@ float evaluate_disk(
   /* Construct orthonormal basis around N. */
   float3x3 T = detail::tangent_basis(N, V);
 
-  /* Rotate area light in (T1, T2, R) basis. */
-  float3x3 R = transpose(T);
+  /* Rotate area light into basis. */
+  Minv = Minv * transpose(T);
 
   /* Intermediate step: init ellipse. */
   float3 L_[3];
-  L_[0] = R * disk_points[0];
-  L_[1] = R * disk_points[1];
-  L_[2] = R * disk_points[2];
+  L_[0] = disk_points[0];
+  L_[1] = disk_points[1];
+  L_[2] = disk_points[2];
 
   float3 C = 0.5f * (L_[0] + L_[2]);
   float3 V1 = 0.5f * (L_[1] - L_[2]);
