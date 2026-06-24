@@ -14,10 +14,10 @@
 #include "DNA_sequence_types.h"
 
 #include "BLI_bounds.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
@@ -38,7 +38,7 @@
 
 namespace blender::seq {
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Get
  * \{ */
 
@@ -257,7 +257,7 @@ void retiming_key_speed_set(const Scene *scene,
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Freeze Frame
  * \{ */
 
@@ -344,7 +344,7 @@ static void strip_retiming_cleanup_freeze_frame(SeqRetimingKey *key)
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Edit
  * \{ */
 
@@ -619,7 +619,7 @@ void retiming_remove_key(Strip *strip, SeqRetimingKey *key)
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Transition
  * \{ */
 
@@ -908,7 +908,7 @@ static void strip_retiming_key_offset(const Scene *scene,
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Set
  * \{ */
 
@@ -981,7 +981,7 @@ void retiming_key_frame_set(const Scene *scene, Strip *strip, SeqRetimingKey *ke
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Range
  * \{ */
 
@@ -1278,7 +1278,7 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
 
 /** \} */
 
-/*-------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 /** \name Retiming Selection
  * \{ */
 

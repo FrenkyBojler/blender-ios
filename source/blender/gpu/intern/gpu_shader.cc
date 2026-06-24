@@ -7,9 +7,9 @@
  */
 
 #include "BLI_colorspace.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 
 #include "CLG_log.h"
 
@@ -203,7 +203,7 @@ bool GPU_shader_create_info_check_error(const GPUShaderCreateInfo *_info, char r
   using namespace blender::gpu::shader;
   const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(_info);
   std::string error = info.check_error();
-  if (error.length() == 0) {
+  if (error.empty()) {
     return true;
   }
 
@@ -801,6 +801,11 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
   ShaderCreateInfo specialized_info = orig_info;
 
+  /* WORKAROUND: For BSL shaders, allow to disable costly builtins programmatically. */
+  if (bool(specialized_info.builtins_ & BuiltinBits::NO_VIEWPORT_INDEX)) {
+    specialized_info.builtins_ &= ~BuiltinBits::VIEWPORT_INDEX;
+  }
+
   if (!specialized_info.compilation_constants_.is_empty()) {
     auto predicate = [&](const ShaderCreateInfo::Resource &res) {
       return !res.conditions.evaluate(specialized_info.compilation_constants_);
@@ -873,7 +878,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
     Vector<StringRefNull> sources;
     standard_defines(sources);
-    sources.append("#define GPU_VERTEX_SHADER\n");
     if (!info.geometry_source_.is_empty()) {
       sources.append("#define USE_GEOMETRY_SHADER\n");
     }
@@ -898,7 +902,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
     Vector<StringRefNull> sources;
     standard_defines(sources);
-    sources.append("#define GPU_FRAGMENT_SHADER\n");
     if (!info.geometry_source_.is_empty()) {
       sources.append("#define USE_GEOMETRY_SHADER\n");
     }
@@ -947,7 +950,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
     Vector<StringRefNull> sources;
     standard_defines(sources);
-    sources.append("#define GPU_COMPUTE_SHADER\n");
     sources.append(defines);
     sources.append(layout);
     sources.append(resources);
