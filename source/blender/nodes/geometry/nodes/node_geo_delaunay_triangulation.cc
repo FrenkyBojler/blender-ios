@@ -564,7 +564,20 @@ static void gather_attributes_for_result_for_component(const AttributeAccessor &
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    const GAttributeReader src = iter.get(domain);
+    if (iter.is_builtin && !dst_attributes.is_builtin(iter.name)) {
+      return;
+    }
+    const GVArray src = *iter.get(domain);
+    const CommonVArrayInfo info = src.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src.type(), info.data));
+      /* NOTE: Important to fail when another component has added the attribute already, in case
+       * the single values are different. */
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
+
     /* We might not write to the full range, so ensure that we default initialize the attribute. */
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_span(
         iter.name, domain, iter.data_type, bke::AttributeInitDefaultValue());
@@ -572,7 +585,7 @@ static void gather_attributes_for_result_for_component(const AttributeAccessor &
       return;
     }
     bke::attribute_math::gather(
-        src.varray, dst_to_src_map, dst.span.slice(result_range).slice(component_range));
+        src, dst_to_src_map, dst.span.slice(result_range).slice(component_range));
     dst.finish();
   });
 }
