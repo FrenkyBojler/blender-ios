@@ -9,25 +9,11 @@
 
 #include "kernel/closure/bsdf_transparent.h"
 #include "kernel/closure/bsdf_util.h"
+#include "kernel/constants.h"
 #include "kernel/sample/mapping.h"
 #include "kernel/util/lookup_table.h"
 
 #include "util/math_fast.h"
-
-#define GGX_E_RES_ROUGH 32
-#define GGX_E_RES_MU 32
-
-#define GGX_GLASS_E_RES_ROUGH 32
-#define GGX_GLASS_E_RES_MU 32
-#define GGX_GLASS_E_RES_IOR 32
-
-#define GGX_GEN_SCHLICK_S_RES_ROUGH 32
-#define GGX_GEN_SCHLICK_S_RES_MU 32
-#define GGX_GEN_SCHLICK_S_RES_IOR 32
-
-#define GGX_GEN_SCHLICK_S_IOR_RES_ROUGH 32
-#define GGX_GEN_SCHLICK_S_IOR_RES_MU 32
-#define GGX_GEN_SCHLICK_S_IOR_RES_IOR 32
 
 CCL_NAMESPACE_BEGIN
 
@@ -486,7 +472,6 @@ ccl_device_inline void microfacet_ggx_preserve_energy(KernelGlobals kg,
       ofs = kernel_data.tables.ggx_glass_inv_E;
       avg_ofs = kernel_data.tables.ggx_glass_inv_Eavg;
     }
-    /* TODO: Bias mu towards more precision for low values. */
     const float z = ior_to_z_index(ior);
     E = lookup_table_read_3D(
         kg, rough, y, z, ofs, GGX_GLASS_E_RES_ROUGH, GGX_GLASS_E_RES_MU, GGX_GLASS_E_RES_IOR);
