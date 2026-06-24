@@ -16,6 +16,7 @@ class FLUID_PT_presets(PresetPanel, Panel):
     preset_subdir = "fluid"
     preset_operator = "script.execute_preset"
     preset_add_operator = "fluid.preset_add"
+    preset_remove_operator = "fluid.preset_remove"
 
 
 class PhysicButtonsPanel:

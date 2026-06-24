@@ -317,7 +317,7 @@ class ExecutePreset(Operator):
 
 
 class AddPresetTextStripStyle(AddPresetBase, Operator):
-    """Add or remove a text strip style and layout preset"""
+    """Add Text strip style and layout preset"""
     bl_idname = "sequencer.text_strip_style_preset_add"
     bl_label = "Add Text Strip Style Preset"
     preset_menu = "STRIP_PT_effect_text_style_presets"
@@ -360,8 +360,20 @@ class AddPresetTextStripStyle(AddPresetBase, Operator):
         return preset_values
 
 
+class RemovePresetTextStripStyle(AddPresetBase, Operator):
+    """Remove Text strip style and layout preset"""
+    bl_idname = "sequencer.text_strip_style_preset_remove"
+    bl_label = "Remove Text Strip Style Preset"
+    preset_menu = "STRIP_PT_effect_text_style_presets"
+    preset_subdir = "sequencer/text_style"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetRender(AddPresetBase, Operator):
-    """Add or remove a Render Preset"""
+    """Add Render Preset"""
     bl_idname = "render.preset_add"
     bl_label = "Add Render Preset"
     preset_menu = "RENDER_PT_format_presets"
@@ -383,8 +395,20 @@ class AddPresetRender(AddPresetBase, Operator):
     preset_subdir = "render"
 
 
+class RemovePresetRender(AddPresetBase, Operator):
+    """Remove Render Preset"""
+    bl_idname = "render.preset_remove"
+    bl_label = "Remove Render Preset"
+    preset_menu = "RENDER_PT_format_presets"
+    preset_subdir = "render"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetCamera(AddPresetBase, Operator):
-    """Add or remove a Camera Preset"""
+    """Add Camera Preset"""
     bl_idname = "camera.preset_add"
     bl_label = "Add Camera Preset"
     preset_menu = "CAMERA_PT_presets"
@@ -414,8 +438,20 @@ class AddPresetCamera(AddPresetBase, Operator):
         return preset_values
 
 
+class RemovePresetCamera(AddPresetBase, Operator):
+    """Remove Camera Preset"""
+    bl_idname = "camera.preset_remove"
+    bl_label = "Remove Camera Preset"
+    preset_menu = "CAMERA_PT_presets"
+    preset_subdir = "camera"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetCameraSafeAreas(AddPresetBase, Operator):
-    """Add or remove a Safe Areas Preset"""
+    """Add Safe Areas Preset"""
     bl_idname = "camera.safe_areas_preset_add"
     bl_label = "Add Safe Area Preset"
     preset_menu = "CAMERA_PT_safe_areas_presets"
@@ -434,8 +470,20 @@ class AddPresetCameraSafeAreas(AddPresetBase, Operator):
     preset_subdir = "safe_areas"
 
 
+class RemovePresetCameraSafeAreas(AddPresetBase, Operator):
+    """Remove Safe Area Preset"""
+    bl_idname = "camera.safe_areas_preset_remove"
+    bl_label = "Remove Safe Area Preset"
+    preset_menu = "CAMERA_PT_safe_areas_presets"
+    preset_subdir = "safe_areas"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetCloth(AddPresetBase, Operator):
-    """Add or remove a Cloth Preset"""
+    """Add Cloth Preset"""
     bl_idname = "cloth.preset_add"
     bl_label = "Add Cloth Preset"
     preset_menu = "CLOTH_PT_presets"
@@ -476,8 +524,20 @@ class AddPresetCloth(AddPresetBase, Operator):
     preset_subdir = "cloth"
 
 
+class RemovePresetCloth(AddPresetBase, Operator):
+    """Remove Cloth Preset"""
+    bl_idname = "cloth.preset_remove"
+    bl_label = "Remove Cloth Preset"
+    preset_menu = "CLOTH_PT_presets"
+    preset_subdir = "cloth"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetFluid(AddPresetBase, Operator):
-    """Add or remove a Fluid Preset"""
+    """Add Fluid Preset"""
     bl_idname = "fluid.preset_add"
     bl_label = "Add Fluid Preset"
     preset_menu = "FLUID_PT_presets"
@@ -494,8 +554,20 @@ class AddPresetFluid(AddPresetBase, Operator):
     preset_subdir = "fluid"
 
 
+class RemovePresetFluid(AddPresetBase, Operator):
+    """Remove Fluid Preset"""
+    bl_idname = "fluid.preset_remove"
+    bl_label = "Remove Fluid Preset"
+    preset_menu = "FLUID_PT_presets"
+    preset_subdir = "fluid"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetHairDynamics(AddPresetBase, Operator):
-    """Add or remove a Hair Dynamics Preset"""
+    """Add Hair Dynamics Preset"""
     bl_idname = "particle.hair_dynamics_preset_add"
     bl_label = "Add Hair Dynamics Preset"
     preset_menu = "PARTICLE_PT_hair_dynamics_presets"
@@ -524,8 +596,20 @@ class AddPresetHairDynamics(AddPresetBase, Operator):
     ]
 
 
+class RemovePresetHairDynamics(AddPresetBase, Operator):
+    """Remove Hair Dynamics Preset"""
+    bl_idname = "particle.hair_dynamics_preset_remove"
+    bl_label = "Remove Hair Dynamics Preset"
+    preset_menu = "PARTICLE_PT_hair_dynamics_presets"
+    preset_subdir = "hair_dynamics"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetTextEditor(AddPresetBase, Operator):
-    """Add or remove a Text Editor Preset"""
+    """Add Text Editor Preset"""
     bl_idname = "text_editor.preset_add"
     bl_label = "Add Text Editor Preset"
     preset_menu = "USERPREF_PT_text_editor_presets"
@@ -542,8 +626,20 @@ class AddPresetTextEditor(AddPresetBase, Operator):
     preset_subdir = "text_editor"
 
 
+class RemovePresetTextEditor(AddPresetBase, Operator):
+    """Remove Text Editor Preset"""
+    bl_idname = "text_editor.preset_remove"
+    bl_label = "Remove Text Editor Preset"
+    preset_menu = "USERPREF_PT_text_editor_presets"
+    preset_subdir = "text_editor"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetTrackingCamera(AddPresetBase, Operator):
-    """Add or remove a Tracking Camera Intrinsics Preset"""
+    """Add Tracking Camera Intrinsics Preset"""
     bl_idname = "clip.camera_preset_add"
     bl_label = "Add Camera Preset"
     preset_menu = "CLIP_PT_camera_presets"
@@ -576,8 +672,20 @@ class AddPresetTrackingCamera(AddPresetBase, Operator):
         return preset_values
 
 
+class RemovePresetTrackingCamera(AddPresetBase, Operator):
+    """Remove Tracking Camera Intrinsics Preset"""
+    bl_idname = "clip.camera_preset_remove"
+    bl_label = "Remove Camera Preset"
+    preset_menu = "CLIP_PT_camera_presets"
+    preset_subdir = "tracking_camera"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetTrackingTrackColor(AddPresetBase, Operator):
-    """Add or remove a Clip Track Color Preset"""
+    """Add Clip Track Color Preset"""
     bl_idname = "clip.track_color_preset_add"
     bl_label = "Add Track Color Preset"
     preset_menu = "CLIP_PT_track_color_presets"
@@ -594,8 +702,20 @@ class AddPresetTrackingTrackColor(AddPresetBase, Operator):
     preset_subdir = "tracking_track_color"
 
 
+class RemovePresetTrackingTrackColor(AddPresetBase, Operator):
+    """Remove Clip Track Color Preset"""
+    bl_idname = "clip.track_color_preset_remove"
+    bl_label = "Remove Track Color Preset"
+    preset_menu = "CLIP_PT_track_color_presets"
+    preset_subdir = "tracking_track_color"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetTrackingSettings(AddPresetBase, Operator):
-    """Add or remove a motion tracking settings preset"""
+    """Add Motion tracking settings preset"""
     bl_idname = "clip.tracking_settings_preset_add"
     bl_label = "Add Tracking Settings Preset"
     preset_menu = "CLIP_PT_tracking_settings_presets"
@@ -624,8 +744,20 @@ class AddPresetTrackingSettings(AddPresetBase, Operator):
     preset_subdir = "tracking_settings"
 
 
+class RemovePresetTrackingSettings(AddPresetBase, Operator):
+    """Remove Motion tracking settings preset"""
+    bl_idname = "clip.tracking_settings_preset_remove"
+    bl_label = "Remove Tracking Settings Preset"
+    preset_menu = "CLIP_PT_tracking_settings_presets"
+    preset_subdir = "tracking_settings"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetEEVEERaytracing(AddPresetBase, Operator):
-    """Add or remove an EEVEE ray-tracing preset"""
+    """Add EEVEE ray-tracing preset"""
     bl_idname = "render.eevee_raytracing_preset_add"
     bl_label = "Add Raytracing Preset"
     preset_menu = "RENDER_PT_eevee_raytracing_presets"
@@ -658,8 +790,20 @@ class AddPresetEEVEERaytracing(AddPresetBase, Operator):
     preset_subdir = "eevee/raytracing"
 
 
+class RemovePresetEEVEERaytracing(AddPresetBase, Operator):
+    """Remove EEVEE ray-tracing preset"""
+    bl_idname = "render.eevee_raytracing_preset_remove"
+    bl_label = "Remove Raytracing Preset"
+    preset_menu = "RENDER_PT_eevee_raytracing_presets"
+    preset_subdir = "eevee/raytracing"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetColorManagementWhiteBalance(AddPresetBase, Operator):
-    """Add or remove a white balance preset"""
+    """Add White balance preset"""
     bl_idname = "render.color_management_white_balance_preset_add"
     bl_label = "Add White Balance Preset"
     preset_menu = "RENDER_PT_color_management_white_balance_presets"
@@ -676,8 +820,20 @@ class AddPresetColorManagementWhiteBalance(AddPresetBase, Operator):
     preset_subdir = "color_management/white_balance"
 
 
+class RemovePresetColorManagementWhiteBalance(AddPresetBase, Operator):
+    """Remove White balance preset"""
+    bl_idname = "render.color_management_white_balance_preset_remove"
+    bl_label = "Remove White Balance Preset"
+    preset_menu = "RENDER_PT_color_management_white_balance_presets"
+    preset_subdir = "color_management/white_balance"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetNodeColor(AddPresetBase, Operator):
-    """Add or remove a Node Color Preset"""
+    """Add Node Color Preset"""
     bl_idname = "node.node_color_preset_add"
     bl_label = "Add Node Color Preset"
     preset_menu = "NODE_PT_node_color_presets"
@@ -694,8 +850,20 @@ class AddPresetNodeColor(AddPresetBase, Operator):
     preset_subdir = "node_color"
 
 
+class RemovePresetNodeColor(AddPresetBase, Operator):
+    """Remove Node Color Preset"""
+    bl_idname = "node.node_color_preset_remove"
+    bl_label = "Remove Node Color Preset"
+    preset_menu = "NODE_PT_node_color_presets"
+    preset_subdir = "node_color"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetInterfaceTheme(AddPresetBase, Operator):
-    """Add a custom theme to the preset list"""
+    """Interface theme preset"""
     bl_idname = "wm.interface_theme_preset_add"
     bl_label = "Add Theme"
     preset_menu = "USERPREF_MT_interface_theme_presets"
@@ -830,9 +998,9 @@ class RemovePresetKeyconfig(AddPresetBase, Operator):
 
 
 class AddPresetOperator(AddPresetBase, Operator):
-    """Add or remove an Operator Preset"""
+    """Add an operator preset"""
     bl_idname = "wm.operator_preset_add"
-    bl_label = "Operator Preset"
+    bl_label = "Add Operator Preset"
     preset_menu = "WM_MT_operator_presets"
 
     operator: StringProperty(
@@ -873,6 +1041,26 @@ class AddPresetOperator(AddPresetBase, Operator):
         return os.path.join("operator", "{:s}.{:s}".format(prefix.lower(), suffix))
 
 
+class RemovePresetOperator(AddPresetBase, Operator):
+    """Remove an operator preset"""
+    bl_idname = "wm.operator_preset_remove"
+    bl_label = "Remove Operator Preset"
+    preset_menu = "WM_MT_operator_presets"
+    operator: StringProperty(
+        name="Operator",
+        maxlen=64,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+    @property
+    def preset_subdir(self):
+        return AddPresetOperator.operator_path(self.operator)
+
+
 class WM_MT_operator_presets(Menu):
     bl_label = "Operator Presets"
 
@@ -896,6 +1084,7 @@ class WM_MT_operator_presets(Menu):
 class WM_PT_operator_presets(PresetPanel, Panel):
     bl_label = "Operator Presets"
     preset_add_operator = "wm.operator_preset_add"
+    preset_remove_operator = "wm.operator_preset_remove"
     preset_operator = "script.execute_preset"
 
     @property
@@ -904,6 +1093,10 @@ class WM_PT_operator_presets(PresetPanel, Panel):
 
     @property
     def preset_add_operator_properties(self):
+        return {"operator": self.operator}
+
+    @property
+    def preset_remove_operator_properties(self):
         return {"operator": self.operator}
 
     def draw(self, context):
@@ -999,7 +1192,7 @@ class WM_OT_operator_presets_cleanup(Operator):
 
 
 class AddPresetGpencilBrush(AddPresetBase, Operator):
-    """Add or remove Grease Pencil brush preset"""
+    """Add Grease Pencil brush preset"""
     bl_idname = "scene.gpencil_brush_preset_add"
     bl_label = "Add Grease Pencil Brush Preset"
     preset_menu = "VIEW3D_PT_gpencil_brush_presets"
@@ -1032,8 +1225,19 @@ class AddPresetGpencilBrush(AddPresetBase, Operator):
     preset_subdir = "gpencil_brush"
 
 
+class RemovePresetGpencilBrush(AddPresetBase, Operator):
+    bl_idname = "scene.gpencil_brush_preset_remove"
+    bl_label = "Remove Grease Pencil Brush Preset"
+    preset_menu = "VIEW3D_PT_gpencil_brush_presets"
+    preset_subdir = "gpencil_brush"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 class AddPresetGpencilMaterial(AddPresetBase, Operator):
-    """Add or remove Grease Pencil material preset"""
+    """Add Grease Pencil material preset"""
     bl_idname = "scene.gpencil_material_preset_add"
     bl_label = "Add Grease Pencil Material Preset"
     preset_menu = "MATERIAL_PT_gpencil_material_presets"
@@ -1071,29 +1275,58 @@ class AddPresetGpencilMaterial(AddPresetBase, Operator):
     preset_subdir = "gpencil_material"
 
 
+class RemovePresetGpencilMaterial(AddPresetBase, Operator):
+    """Remove Grease Pencil material preset"""
+    bl_idname = "scene.gpencil_material_preset_remove"
+    bl_label = "Remove Grease Pencil Material Preset"
+    preset_menu = "MATERIAL_PT_gpencil_material_presets"
+    preset_subdir = "gpencil_material"
+    remove_name: BoolProperty(
+        default=True,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+
 classes = (
     AddPresetCamera,
+    RemovePresetCamera,
     AddPresetCloth,
+    RemovePresetCloth,
     AddPresetFluid,
+    RemovePresetFluid,
     AddPresetHairDynamics,
+    RemovePresetHairDynamics,
     AddPresetInterfaceTheme,
     RemovePresetInterfaceTheme,
     SavePresetInterfaceTheme,
     AddPresetKeyconfig,
     RemovePresetKeyconfig,
     AddPresetNodeColor,
+    RemovePresetNodeColor,
     AddPresetOperator,
+    RemovePresetOperator,
     AddPresetTextStripStyle,
+    RemovePresetTextStripStyle,
     AddPresetRender,
+    RemovePresetRender,
     AddPresetCameraSafeAreas,
+    RemovePresetCameraSafeAreas,
     AddPresetTextEditor,
+    RemovePresetTextEditor,
     AddPresetTrackingCamera,
+    RemovePresetTrackingCamera,
     AddPresetTrackingSettings,
+    RemovePresetTrackingSettings,
     AddPresetTrackingTrackColor,
+    RemovePresetTrackingTrackColor,
     AddPresetGpencilBrush,
+    RemovePresetGpencilBrush,
     AddPresetGpencilMaterial,
+    RemovePresetGpencilMaterial,
     AddPresetEEVEERaytracing,
+    RemovePresetEEVEERaytracing,
     AddPresetColorManagementWhiteBalance,
+    RemovePresetColorManagementWhiteBalance,
     ExecutePreset,
     WM_MT_operator_presets,
     WM_PT_operator_presets,

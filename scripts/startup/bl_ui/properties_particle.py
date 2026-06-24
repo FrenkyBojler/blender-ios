@@ -103,6 +103,7 @@ class PARTICLE_PT_hair_dynamics_presets(PresetPanel, Panel):
     preset_subdir = "hair_dynamics"
     preset_operator = "script.execute_preset"
     preset_add_operator = "particle.hair_dynamics_preset_add"
+    preset_remove_operator = "particle.hair_dynamics_preset_remove"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
