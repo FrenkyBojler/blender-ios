@@ -13,8 +13,8 @@
 
 #include "GEO_volume_grid_resample.hh"
 
-#include "NOD_rna_define.hh"
 #include "NOD_geometry_nodes_list.hh"
+#include "NOD_rna_define.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -89,7 +89,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const Operation operation = Operation(params.node().custom1);
 
-  const ListPtr<bke::VolumeGrid<float>> grids_list = params.extract_input<ListPtr<bke::VolumeGrid<float>>>("Grid 2"_ustr);
+  const ListPtr<bke::VolumeGrid<float>> grids_list =
+      params.extract_input<ListPtr<bke::VolumeGrid<float>>>("Grid 2"_ustr);
   const VArraySpan<bke::VolumeGrid<float>> grids = grids_list->varray();
   Vector<bke::VolumeGrid<float>> operands;
   switch (operation) {

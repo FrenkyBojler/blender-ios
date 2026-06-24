@@ -147,7 +147,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  const ListPtr<GeometrySet> geometry_list = params.extract_input<ListPtr<GeometrySet>>("Mesh 2"_ustr);
+  const ListPtr<GeometrySet> geometry_list = params.extract_input<ListPtr<GeometrySet>>(
+      "Mesh 2"_ustr);
   const VArraySpan<GeometrySet> geometry_sets = geometry_list->varray();
   for (const GeometrySet &geometry : geometry_sets) {
     if (const Mesh *mesh = geometry.get_mesh()) {

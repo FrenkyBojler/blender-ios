@@ -7,10 +7,10 @@
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
-#include "NOD_geometry_nodes_list.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -113,7 +113,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     operands.append(std::move(grid));
   }
 
-  const ListPtr<bke::GVolumeGrid> grids_list = params.extract_input<ListPtr<bke::GVolumeGrid>>("Grid 2"_ustr);
+  const ListPtr<bke::GVolumeGrid> grids_list = params.extract_input<ListPtr<bke::GVolumeGrid>>(
+      "Grid 2"_ustr);
   const VArray<bke::GVolumeGrid> grids = grids_list->varray();
   for (const int i : grids.index_range()) {
     if (const auto &grid = grids[i]) {
