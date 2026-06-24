@@ -523,17 +523,9 @@ void slide_subjects_autokey(bContext *C,
     }
   }
 
-  Vector<Object *> objects;
-  for (SlideSubject &slide_subject : *slide_subjects) {
-    ID *owner_id = slide_subject.transformable->owner_id();
-    if (GS(owner_id->name) != ID_OB) {
-      continue;
-    }
-    objects.append(id_cast<Object *>(owner_id));
-  }
   /* This includes all motion paths for bones. Could be more fine grained in the future to avoid
    * needless updates to data that was not changed. */
-  ed::object::motion_paths_recalc(C, scene, ANIMVIZ_CALC_RANGE_CHANGED, objects);
+  ed::object::motion_paths_recalc_selected(C, scene, ANIMVIZ_CALC_RANGE_CHANGED, true);
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
 }
 
