@@ -161,6 +161,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
   const int cuts = RNA_int_get(op->ptr, "number_cuts");
   const float smoothness = RNA_float_get(op->ptr, "smoothness");
   const int smooth_falloff = RNA_enum_get(op->ptr, "falloff");
+  const bool use_curvature = RNA_boolean_get(op->ptr, "curve_preservation");
 #ifdef BMW_EDGERING_NGON
   const bool use_only_quads = false;
 #else
@@ -187,7 +188,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
        * See #31939. */
       BM_mesh_esubdivide(em->bm,
                          BM_ELEM_SELECT,
-                         smoothness,
+                         use_curvature ? 0.0f : smoothness,
                          smooth_falloff,
                          true,
                          0.0f,
@@ -199,6 +200,10 @@ static void ringsel_finish(bContext *C, wmOperator *op)
                          true,
                          use_only_quads,
                          0);
+
+      /** 
+       * Loop Cut Curve Preservation
+       */
 
       /* When used in a macro the tessellation will be recalculated anyway,
        * this is needed here because modifiers depend on updated tessellation, see #45920 */
@@ -753,6 +758,24 @@ void MESH_OT_loopcut(wmOperatorType *ot)
                        "Smoothness factor",
                        -SUBD_SMOOTH_MAX,
                        SUBD_SMOOTH_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(ot->srna,
+                        "curve_preservation",
+                        false,
+                        "Curve Preservation",
+                        "Place new loop on spline curve through neighboring loops");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_float(ot->srna,
+                       "curve_tension",
+                       0.0f,
+                       -1.0f,
+                       1.0f,
+                       "Tension",
+                       "Curve tension for curve preservation",
+                       -1.0f,
+                       1.0f);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   WM_operatortype_props_advanced_begin(ot);
