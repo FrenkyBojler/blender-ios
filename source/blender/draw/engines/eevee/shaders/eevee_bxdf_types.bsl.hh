@@ -23,8 +23,6 @@ struct BsdfEval {
 };
 
 struct ClosureLight {
-  /* LTC matrix. */
-  packed_uint4 ltc_data_packed;
   /* Shading normal. */
   packed_float3 N;
   /* Enum used as index to fetch which light intensity to use [0..3]. */
@@ -32,6 +30,10 @@ struct ClosureLight {
   /* Output both shadowed and unshadowed for shadow denoising. */
   packed_float3 light_shadowed;
   packed_float3 light_unshadowed;
+  /* LTC attenuation data. */
+  uint ltc_data_packed;
+  /* LTC matrix data. */
+  packed_uint4 ltc_matrix_packed;
 };
 
 /* Represent an approximation of a bunch of rays from a BSDF. */

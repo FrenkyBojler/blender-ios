@@ -261,7 +261,8 @@ float light_ltc(sampler2DArray utility_tx,
                 float3 N,
                 float3 V,
                 LightVector lv,
-                uint4 ltc_data_pack,
+                uint4 ltc_matrix_pack,
+                uint ltc_data_pack,
                 LightVertices vertices)
 {
   if (is_sphere_light(light.type) && lv.dist < light.local().local.shape_radius) {
@@ -269,7 +270,7 @@ float light_ltc(sampler2DArray utility_tx,
     return 1.0f;
   }
 
-  LtcData ltc_data = eevee::lut::ltc::unpack(ltc_data_pack);
+  LtcData ltc_data = eevee::lut::ltc::unpack(ltc_matrix_pack, ltc_data_pack);
   if (light.type == LIGHT_RECT) {
     return eevee::ltc::evaluate_quad(utility_tx, vertices.v, N, V, lv.L, ltc_data);
   }

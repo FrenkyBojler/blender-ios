@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "GPU_shader_shared_utils.hh"
 #include "eevee_bxdf_types.bsl.hh"
 #include "eevee_defines.hh"
 #include "eevee_octahedron_lib.bsl.hh"
@@ -151,63 +152,66 @@ float4 pack_matrix_isotropic(float3x3 M)
  * Matrix components are not normalized, and thus not bounded to [0, 1]. We store them
  * at half precision.
  */
-packed_uint4 pack(LtcData ltc_data)
+packed_uint4 pack_matrix(LtcData ltc_data)
 {
-  float4 v = detail::pack_matrix_isotropic(ltc_data.Minv);
+
+  // float4 v = detail::pack_matrix_isotropic(ltc_data.Minv);
+
+  packed_uint4 ltc_matrix_packed;
+  ltc_matrix_packed.x = packHalf2x16(ltc_data.Minv[0].xy);
+  ltc_matrix_packed.y = packHalf2x16(float2(ltc_data.Minv[0].z, ltc_data.Minv[1].x));
+  ltc_matrix_packed.z = packHalf2x16(float2(ltc_data.Minv[1].z, ltc_data.Minv[2].x));
+  ltc_matrix_packed.w = packHalf2x16(ltc_data.Minv[2].yz);
+  return ltc_matrix_packed;
+
+  // packed_uint4 ltc_data_packed;
+
+  // ltc_data_packed.x = packHalf2x16(v.xy);
+  // ltc_data_packed.y = packHalf2x16(v.zw);
+  // ltc_data_packed.z = packHalf2x16(octahedral_D);
+  // /* NOTE: attenuation_factor can be packed, leaving ~24b spare room. */
+  // ltc_data_packed.w = floatBitsToUint(ltc_data.attenuation_factor);
+
+  // return ltc_data_packed;
+}
+
+uint pack_data(LtcData ltc_data)
+{
   float2 octahedral_D = octahedral_uv_from_direction(ltc_data.D);
 
-  // /* Pack 3x3 positively bounded matrix. */
-  // float3 ltc_matrix_pack;
-  // {
-  //   /* :S Do you wannnnna build a precision issue? :S */
+  /* Pack as 11, 11, 10 instead. */
+  return packSnorm4x8(float4(octahedral_D, ltc_data.attenuation_factor, 0));
+}
 
-  //   /* Extract diagonal of matrix. */
-  //   float3 diagonal = float3(ltc_data.Minv[0][0], ltc_data.Minv[1][1], ltc_data.Minv[2][2]);
-  //   float diagonal_norm_rcp = inversesqrt(length_squared(diagonal));
-
-  //   /* Normalize matrix values by diagonal L2. */
-  //   /* NOTE(not_mark): this can be done in the lut fitting. */
-  //   ltc_data.Minv[0] *= diagonal_norm_rcp;
-  //   ltc_data.Minv[1] *= diagonal_norm_rcp;
-  //   ltc_data.Minv[2] *= diagonal_norm_rcp;
-
-  //   // /* Determine maximum component for matrix normalization. */
-  //   // uint ltc_matric_max_i = 0;
-  //   // float ltc_matrix_max = ltc_data.Minv[0][0];
-  //   // for (int i = 1; i < 9; ++i) [[unroll]] {
-  //   //   float f = ltc_data.Minv[i / 3][i % 3];
-  //   //   if (f > ltc_matrix_max) {
-  //   //     ltc_matrix_max = f;
-  //   //     ltc_matrix_max_i = i;
-  //   //   }
-  //   // }
-  // }
-
-  packed_uint4 ltc_data_packed;
-
-  ltc_data_packed.x = packHalf2x16(v.xy);
-  ltc_data_packed.y = packHalf2x16(v.zw);
-  ltc_data_packed.z = packHalf2x16(octahedral_D);
-  /* NOTE: attenuation_factor can be packed, leaving ~24b spare room. */
-  ltc_data_packed.w = floatBitsToUint(ltc_data.attenuation_factor);
-
-  return ltc_data_packed;
+void pack(LtcData ltc_data, packed_uint4 &ltc_matrix_packed, uint &ltc_data_packed)
+{
+  ltc_matrix_packed = pack_matrix(ltc_data);
+  ltc_data_packed = pack_data(ltc_data);
 }
 
 /**
  * Unpack LTC matrix inverse and associated data from uint4.
  */
-LtcData unpack(packed_uint4 ltc_data_packed)
+LtcData unpack(packed_uint4 ltc_matrix_packed, uint ltc_data_packed)
 {
-  float4 v = float4(unpackHalf2x16(ltc_data_packed.x), unpackHalf2x16(ltc_data_packed.y));
-  float2 octahedral_D = unpackHalf2x16(ltc_data_packed.z);
-
   LtcData ltc_data;
 
-  ltc_data.Minv = detail::unpack_matrix_isotropic(v);
+  float2 v1 = unpackHalf2x16(ltc_matrix_packed.y);
+  float2 v2 = unpackHalf2x16(ltc_matrix_packed.z);
+
+  ltc_data.Minv[0].xy = unpackHalf2x16(ltc_matrix_packed.x);
+  ltc_data.Minv[0].z = v1.x;
+  ltc_data.Minv[1].x = v1.y;
+  ltc_data.Minv[1].y = 1.0f;
+  ltc_data.Minv[1].z = v2.x;
+  ltc_data.Minv[2].x = v2.y;
+  ltc_data.Minv[2].yz = unpackHalf2x16(ltc_matrix_packed.w);
+
+  float4 v3 = unpackSnorm4x8(ltc_data_packed);
+  float2 octahedral_D = v3.xy;
+
   ltc_data.D = octahedral_uv_to_direction(octahedral_D);
-  /* NOTE: attenuation_factor can be packed, leaving ~24b spare room. */
-  ltc_data.attenuation_factor = uintBitsToFloat(ltc_data_packed.w);
+  ltc_data.attenuation_factor = v3.z;
 
   return ltc_data;
 }
@@ -215,10 +219,10 @@ LtcData unpack(packed_uint4 ltc_data_packed)
 /**
  * Sample a packed ltc matrix from the LUT.
  */
-packed_uint4 sample_utility_tx([[resource_table]] const UtilityTexture &util_tx,
-                               float3 N,
-                               float3 I,
-                               float roughness)
+LtcData sample_utility_tx([[resource_table]] const UtilityTexture &util_tx,
+                          float3 N,
+                          float3 I,
+                          float roughness)
 {
   /* Sample LTC table. */
   const float2 coords = detail::lut_coords_get(dot(N, I), roughness);
@@ -227,47 +231,32 @@ packed_uint4 sample_utility_tx([[resource_table]] const UtilityTexture &util_tx,
   /* Inverse LTC matrix. */
   float3x3 Minv = detail::unpack_matrix_isotropic(lut_pack);
 
-  // /* Construct orthonormal basis around N.  */
-  // float3x3 T = detail::tangent_basis(N, I);
+  /* Construct orthonormal basis around N.  */
+  float3x3 T = detail::tangent_basis(N, I);
 
-  // /* Rotate area light into basis. */
-  // Minv = Minv * transpose(T);
+  /* Rotate area light into basis. */
+  Minv = Minv * transpose(T);
 
-  // if (Minv[0][0] == 1.0f) {
-  //   // printf("It's true\n");
-  //   printf("%f, %f, %f - %f, %f, %f - %f, %f, %f\n",
-  //          Minv[0].x,
-  //          Minv[0].y,
-  //          Minv[0].z,
-  //          Minv[1].x,
-  //          Minv[1].y,
-  //          Minv[1].z,
-  //          Minv[2].x,
-  //          Minv[2].y,
-  //          Minv[2].z);
-  // }
-
-  // /* Re-normalize by central value after rotation. This value
-  //  * is not currently packed. */
-  // float rcp = 1.0f / Minv[1][1];
-  // Minv[0] *= rcp;
-  // Minv[1] *= rcp;
-  // Minv[2] *= rcp;
+  /* Normalize by central value after rotation. */
+  float rcp = 1.0f / Minv[1][1];
+  Minv[0] *= rcp;
+  Minv[1] *= rcp;
+  Minv[2] *= rcp;
 
   LtcData ltc_data;
   ltc_data.Minv = Minv;
   ltc_data.D = detail::inverse_z(ltc_data.Minv);
   ltc_data.attenuation_factor = 1.0f - saturate(3.0f * roughness);
-  return pack(ltc_data);
+  return ltc_data;
 }
 
 /**
  * Return a packed ltc matrix producing a cosine distribution.
  */
-packed_uint4 identity(float3 N, float3 I)
+LtcData identity(float3 N, float3 I)
 {
   /* Inverse LTC matrix. */
-  float3x3 Minv = mat3x3_diagonal(1.0f);
+  float3x3 Minv = mat3x3_identity();
 
   /* Construct orthonormal basis around N.  */
   float3x3 T = detail::tangent_basis(N, I);
@@ -285,6 +274,6 @@ packed_uint4 identity(float3 N, float3 I)
   ltc_data.Minv = Minv;
   ltc_data.D = detail::inverse_z(ltc_data.Minv);
   ltc_data.attenuation_factor = 0.0;
-  return pack(ltc_data);
+  return ltc_data;
 }
 }  // namespace eevee::lut::ltc

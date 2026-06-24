@@ -266,11 +266,11 @@ float evaluate_quad(
   // /* Inverse LTC matrix. */
   // float3x3 Minv = ltc_mat.unpack_Minv();
 
-  /* Construct orthonormal basis around N. */
-  float3x3 T = detail::tangent_basis(N, V);
+  // /* Construct orthonormal basis around N. */
+  // float3x3 T = detail::tangent_basis(N, V);
 
-  /* Rotate area light into basis. */
-  ltc_data.Minv = ltc_data.Minv * transpose(T);
+  // /* Rotate area light into basis. */
+  // ltc_data.Minv = ltc_data.Minv * transpose(T);
 
   /* Re-normalize by central value after rotation. This value
    * is not currently packed. */

@@ -56,7 +56,10 @@ LightProbeRay bxdf_diffuse_lightprobe(float3 N)
 ClosureLight bxdf_diffuse_light(ClosureUndetermined cl, float3 V)
 {
   ClosureLight light;
-  light.ltc_data_packed = eevee::lut::ltc::identity(cl.N, V);
+
+  LtcData ltc_data = eevee::lut::ltc::identity(cl.N, V);
+  eevee::lut::ltc::pack(ltc_data, light.ltc_matrix_packed, light.ltc_data_packed);
+
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;
@@ -141,8 +144,10 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness 
    * only focusing the light a tiny bit. Using the flipped normal is good enough approximation.
    */
   ClosureLight light;
-  /* No transform, just plain cosine distribution. */
-  light.ltc_data_packed = eevee::lut::ltc::identity(-cl.N, V);
+
+  LtcData ltc_data = eevee::lut::ltc::identity(-cl.N, V);
+  eevee::lut::ltc::pack(ltc_data, light.ltc_matrix_packed, light.ltc_data_packed);
+
   light.N = -cl.N;
   light.type = (thickness.value() != 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
   return light;

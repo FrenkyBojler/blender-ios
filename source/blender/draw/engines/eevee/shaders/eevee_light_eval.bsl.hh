@@ -81,7 +81,10 @@ void eval_single_closure(sampler2DArray util_tx,
   if (attenuation < 1e-30f) {
     return;
   }
-  float ltc_result = light_ltc(util_tx, light, cl.N, V, lv, cl.ltc_data_packed, vertices);
+
+  LtcData ltc_data = eevee::lut::ltc::unpack(cl.ltc_matrix_pack, cl.ltc_data_pack);
+  float ltc_result = light_ltc(util_tx, light, cl.N, V, lv, ltc_data, vertices);
+
   float3 out_radiance = light.color * ltc_result;
   float visibility = shadow * attenuation;
   cl.light_shadowed += visibility * out_radiance;
