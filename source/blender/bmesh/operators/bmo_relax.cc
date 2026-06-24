@@ -72,14 +72,14 @@ constexpr float RELAX_EPSILON = 1e-8f;
  */
 static void calculate_splines_axis(Span<float> distances,
                                    Span<float> coords,
-                                   const bool is_circular,
+                                   const bool is_closed,
                                    Vector<SplineCoeffs> &r_coeffs)
 {
   const int verts_num = coords.size();
   if (verts_num < 2) {
     return;
   }
-  const int num_segments = is_circular ? verts_num : verts_num - 1;
+  const int num_segments = is_closed ? verts_num : verts_num - 1;
   Array<float> segment_length(num_segments);
 
   for (const int i : IndexRange(num_segments)) {
@@ -96,7 +96,7 @@ static void calculate_splines_axis(Span<float> distances,
   /* The Thomas algorithm used in `BLI_tridiagonal_solve` can't properly solve
    * a cyclic tridiagonal system so in this case, we use the Sherman-Morrison formula
    * via `BLI_tridiagonal_solve_cyclic`. */
-  if (is_circular) {
+  if (is_closed) {
     Array<float> lower_diag(verts_num);
     Array<float> diag(verts_num);
     Array<float> upper_diag(verts_num);
@@ -140,7 +140,7 @@ static void calculate_splines_axis(Span<float> distances,
 
   /* Build polynomial coefficients for each segment. */
   for (const int i : IndexRange(num_segments)) {
-    const int i_next = is_circular ? math::mod_periodic(i + 1, verts_num) : i + 1;
+    const int i_next = is_closed ? math::mod_periodic(i + 1, verts_num) : i + 1;
 
     const float coeff_a = coords[i];
     const float coeff_b = ((coords[i_next] - coords[i]) / segment_length[i]) -
