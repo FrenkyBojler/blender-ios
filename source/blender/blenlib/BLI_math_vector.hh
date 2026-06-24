@@ -829,4 +829,41 @@ template<typename T, int Size>
                                                            const VecBase<T, Size> &v3,
                                                            const VecBase<T, Size> &v4);
 
+/**
+ * Kochanek-Bartels Hermite spline interpolation between p2 and p3.
+ *
+ * m0 = s_pos * (p2 - p1) + s_neg * (p3 - p2)
+ * m1 = s_pos * (p3 - p2) + s_neg * (p4 - p3)
+ * where s_pos = (1 + bias) * (1 - tension) * 0.5
+ *       s_neg = (1 - bias) * (1 - tension) * 0.5
+ *
+ * \param mu: Parametric position in [0, 1] between p2 and p3.
+ * \param tension: Curve tightness. 0 = Catmull-Rom, positive = tighter, negative = looser.
+ * \param bias: Tangent direction. 0 = even, positive = toward p1-p2, negative = toward p3-p4.
+ */
+template<typename T>
+[[nodiscard]] inline VecBase<T, 3> hermite_spline_interp(const VecBase<T, 3> &p1,
+                                                         const VecBase<T, 3> &p2,
+                                                         const VecBase<T, 3> &p3,
+                                                         const VecBase<T, 3> &p4,
+                                                         const T mu,
+                                                         const T tension,
+                                                         const T bias)
+{
+  const T mu2 = mu * mu;
+  const T mu3 = mu2 * mu;
+  const T s_pos = (T(1) + bias) * (T(1) - tension) * T(0.5);
+  const T s_neg = (T(1) - bias) * (T(1) - tension) * T(0.5);
+
+  const VecBase<T, 3> m0 = (p2 - p1) * s_pos + (p3 - p2) * s_neg;
+  const VecBase<T, 3> m1 = (p3 - p2) * s_pos + (p4 - p3) * s_neg;
+
+  const T h00 = T(2) * mu3 - T(3) * mu2 + T(1);
+  const T h10 = mu3 - T(2) * mu2 + mu;
+  const T h01 = -T(2) * mu3 + T(3) * mu2;
+  const T h11 = mu3 - mu2;
+
+  return h00 * p2 + h10 * m0 + h01 * p3 + h11 * m1;
+}
+
 }  // namespace blender::math
