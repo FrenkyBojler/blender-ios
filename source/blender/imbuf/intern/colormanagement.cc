@@ -26,26 +26,25 @@
 #include "IMB_filter.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_metadata.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_color.hh"
 #include "BLI_colorspace.hh"
 #include "BLI_fileops.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_color.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_task.hh"
-#include "BLI_threads.h"
+#include "BLI_threads.hh"
 #include "BLI_vector_set.hh"
 
 #include "BKE_appdir.hh"
@@ -77,6 +76,14 @@ static CLG_LogRef LOG = {"color_management"};
 /* -------------------------------------------------------------------- */
 /** \name Global declarations
  * \{ */
+
+static void processor_transform_apply_threaded(uchar *byte_buffer,
+                                               float *float_buffer,
+                                               int width,
+                                               int height,
+                                               int channels,
+                                               ColormanageProcessor *cm_processor,
+                                               bool predivide);
 
 static bool g_config_is_custom = false;
 
@@ -524,6 +531,9 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
   const ColorSpace *colorspace = g_config()->get_color_space(from_colorspace);
 
   if (colorspace && colorspace->is_data()) {
+    if (ibuf->float_data()) {
+      ibuf->float_buffer.colorspace = colorspace;
+    }
     return;
   }
 
@@ -543,14 +553,26 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
       }
     }
 
-    IMB_colormanagement_transform_float(ibuf->float_data_for_write(),
-                                        ibuf->x,
-                                        ibuf->y,
-                                        ibuf->channels,
-                                        from_colorspace,
-                                        to_colorspace,
-                                        predivide);
+    /* Clear colorspace to indicate it's scene linear. */
     ibuf->float_buffer.colorspace = nullptr;
+
+    if (from_colorspace[0] == '\0') {
+      return;
+    }
+
+    ColormanageProcessor cm_processor = ColormanageProcessor::colorspace_processor_new(
+        from_colorspace, to_colorspace);
+    if (cm_processor.is_noop()) {
+      return;
+    }
+
+    processor_transform_apply_threaded(nullptr,
+                                       ibuf->float_data_for_write(),
+                                       ibuf->x,
+                                       ibuf->y,
+                                       ibuf->channels,
+                                       &cm_processor,
+                                       predivide);
   }
 }
 
@@ -611,8 +633,8 @@ static StringRefNull colormanage_find_matching_view_name(const ocio::Display *di
     return "Standard";
   }
 
-  /* Try to find a similar name, so that we can match e.g. "ACES 2.0" and "ACES 2.0 - HDR
-   * 1000 when switching between SDR and HDR displays. */
+  /* Try to find a similar name, so that we can match e.g. "ACES 2.0" and "ACES 2.0 - HDR 1000"
+   * when switching between SDR and HDR displays. */
   for (const int view_index : IndexRange(display->get_num_views())) {
     const ocio::View *view = display->get_view_by_index(view_index);
     if (view->name().startswith(view_name) || view_name.startswith(view->name())) {
@@ -2210,9 +2232,7 @@ static ImBuf *imbuf_ensure_editable(ImBuf *ibuf, ImBuf *colormanaged_ibuf, bool 
 
   if (allocate_result) {
     /* Copy full image buffer. */
-    colormanaged_ibuf = IMB_dupImBuf(ibuf);
-    IMB_metadata_copy(colormanaged_ibuf, ibuf);
-    return colormanaged_ibuf;
+    return IMB_dupImBuf(ibuf);
   }
 
   return ibuf;
@@ -3632,7 +3652,7 @@ bool IMB_colormanagement_setup_glsl_draw_from_space(
   const float exposure = applied_view_settings->exposure;
   const float gamma = applied_view_settings->gamma;
 
-  /* TODO)sergey): Use designated initializer. */
+  /* TODO(@sergey): Use designated initializer. */
   ocio::GPUDisplayParameters display_parameters;
   display_parameters.from_colorspace = from_colorspace ? from_colorspace->name().c_str() :
                                                          global_role_scene_linear;
@@ -3716,7 +3736,7 @@ void IMB_colormanagement_finish_glsl_draw()
  * \{ */
 
 /* Calculate color in range 800..12000 using an approximation
- * a/x+bx+c for R and G and ((at + b)t + c)t + d) for B
+ * a/x+bx+c for R and G and ((at + b)t + c)t + d for B
  *
  * The result of this can be negative to support gamut wider than
  * than rec.709, just needs to be clamped. */

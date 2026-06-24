@@ -5,10 +5,10 @@
 #include "BKE_context.hh"
 
 #include "BLI_array.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_span.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -165,8 +165,8 @@ static void draw_interface_root_panel_content(DrawGroupInputsContext &ctx,
   bool found_image_input = false;
   bool found_mask_input = false;
   for (const bNodeTreeInterfaceItem *item : interface_panel.items()) {
-    switch (eNodeTreeInterfaceItemType(item->item_type)) {
-      case NODE_INTERFACE_PANEL: {
+    switch (item->item_type) {
+      case NodeTreeInterfaceItemType::Panel: {
         const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
         draw_interface_panel_as_panel(
             ctx.C,
@@ -183,7 +183,7 @@ static void draw_interface_root_panel_content(DrawGroupInputsContext &ctx,
             });
         break;
       }
-      case NODE_INTERFACE_SOCKET: {
+      case NodeTreeInterfaceItemType::Socket: {
         const auto &interface_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
         const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
         const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;

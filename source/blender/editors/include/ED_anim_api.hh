@@ -12,7 +12,7 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_enum_flags.hh"
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_screen_types.h"
@@ -76,6 +76,17 @@ namespace animrig {
 class Action;
 class Slot;
 }  // namespace animrig
+
+/* Motion path needing to be baked (target). */
+struct MPathTarget {
+  bMotionPath *mpath = nullptr; /* Motion path in question. */
+
+  AnimKeylist *keylist = nullptr; /* Temp, to know where the keyframes are. */
+
+  /* Original (Source Objects) */
+  Object *ob = nullptr;          /* Source Object */
+  bPoseChannel *pchan = nullptr; /* Source pose-channel (if applicable). */
+};
 
 /* ************************************************ */
 /* ANIMATION CHANNEL FILTERING */
@@ -1334,7 +1345,9 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene);
 /**
  * Populate the given vector with MPathTarget elements for the given object.
  * Will look for pose bones as well.
+ * Will look for pose bones as well.
  */
+void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets);
 void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets);
 
 /** \} */

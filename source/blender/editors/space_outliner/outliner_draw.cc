@@ -10,6 +10,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_key_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
@@ -18,14 +19,14 @@
 #include "DNA_sequence_types.h"
 #include "DNA_text_types.h"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -37,6 +38,8 @@
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
+#include "BKE_image.hh"
+#include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
@@ -992,6 +995,20 @@ static void namebutton_fn(bContext *C, TreeStoreElem *tselem, const char *oldnam
         case TSE_ACTION_SLOT: {
           WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Action Slot");
+          break;
+        }
+        case TSE_SHAPE_KEY_BLOCK: {
+          const Key *key = id_cast<Key *>(tselem->id);
+          KeyBlock *keyblock = static_cast<KeyBlock *>(te->directdata);
+          /* Outliner renaming already sets the new name to the KeyBlock. Restore the old name
+          before calling rename function which will ensure unique name. */
+          char newname[sizeof(keyblock->name)];
+          STRNCPY_UTF8(newname, keyblock->name);
+          STRNCPY_UTF8(keyblock->name, oldname);
+          BKE_keyblock_rename(key, keyblock, newname);
+          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
+          undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Shape Key");
           break;
         }
         default:
@@ -1972,6 +1989,7 @@ static void outliner_draw_overrides_rna_buts(ui::Block *block,
     {
       StringRefNull op_label = override_op_elem->get_override_operation_label();
       if (!op_label.is_empty()) {
+        StringRefNull op_tooltip = override_op_elem->get_override_operation_tooltip();
         uiDefBut(block,
                  ui::ButtonType::Label,
                  op_label,
@@ -1982,7 +2000,7 @@ static void outliner_draw_overrides_rna_buts(ui::Block *block,
                  nullptr,
                  0,
                  0,
-                 "");
+                 op_tooltip);
         continue;
       }
     }
@@ -2225,7 +2243,6 @@ static void outliner_buttons(const bContext *C,
                 1.0,
                 float(len),
                 "");
-  button_retval_set(bt, OL_NAMEBUTTON);
   /* Handle undo through the #template_id_cb set below. Default undo handling from the button
    * code (see #apply_but_undo) would not work here, as the new name is not yet applied to the
    * ID. */
@@ -2758,8 +2775,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         data.drag_id = tselem->id;
 
         ModifierData *md = static_cast<ModifierData *>(BLI_findlink(&ob->modifiers, tselem->nr));
-        if (const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(ModifierType(md->type)))
-        {
+        if (const ModifierTypeInfo *modifier_type = BKE_modifier_get_info(md->type)) {
           data.icon = modifier_type->icon;
         }
         else {
@@ -2907,6 +2923,10 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
       case TSE_GPENCIL_EFFECT:
         data.drag_id = tselem->id;
         data.icon = ICON_SHADERFX;
+        break;
+      case TSE_SHAPE_KEY_BLOCK:
+      case TSE_SHAPE_KEY_BASE:
+        data.icon = ICON_SHAPEKEY_DATA;
         break;
       default:
         data.icon = ICON_DOT;
@@ -3189,7 +3209,8 @@ static void outliner_draw_iconrow(ui::Block *block,
                 TSE_BONE_COLLECTION,
                 TSE_DEFGROUP,
                 TSE_ACTION_SLOT,
-                TSE_NLA_TRACK))
+                TSE_NLA_TRACK) &&
+          tselem->type != TSE_SHAPE_KEY_BLOCK)
       {
         outliner_draw_iconrow_doit(block, &te, xmax, offsx, ys, alpha_fac, active, 1);
       }
@@ -3478,6 +3499,17 @@ static void outliner_draw_tree_element(ui::Block *block,
         offsx += UI_UNIT_X + 4 * ufac;
       }
 
+      if ((lib_icon == ICON_NONE) && (GS(tselem->id->name) == ID_IM)) {
+        const Image *image = id_cast<Image *>(tselem->id);
+        if (BKE_image_has_packedfile(image)) {
+          ui::icon_draw_alpha(float(startx) + offsx + 2 * ufac,
+                              float(*starty) + 2 * ufac,
+                              ICON_PACKAGE,
+                              alpha_fac);
+          offsx += UI_UNIT_X + 4 * ufac;
+        }
+      }
+
       if (tselem->type == TSE_LAYER_COLLECTION) {
         const Collection *collection = id_cast<Collection *>(tselem->id);
         if (collection->importer) {
@@ -3486,7 +3518,7 @@ static void outliner_draw_tree_element(ui::Block *block,
           offsx += UI_UNIT_X + 4 * ufac;
         }
 
-        if (!BLI_listbase_is_empty(&collection->exporters)) {
+        if (!collection->exporters.is_empty()) {
           ui::icon_draw_alpha(
               float(startx) + offsx + 2 * ufac, float(*starty) + 2 * ufac, ICON_EXPORT, alpha_fac);
           offsx += UI_UNIT_X + 4 * ufac;
@@ -3621,7 +3653,7 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
     short color_tag = COLLECTION_COLOR_NONE;
 
     /* Only draw hierarchy lines for expanded collections and objects with children. */
-    if (TSELEM_OPEN(tselem, space_outliner) && !BLI_listbase_is_empty(&te.subtree)) {
+    if (TSELEM_OPEN(tselem, space_outliner) && !te.subtree.is_empty()) {
       if (tselem->type == TSE_LAYER_COLLECTION) {
         draw_hierarchy_line = true;
 

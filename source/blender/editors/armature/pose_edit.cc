@@ -8,9 +8,9 @@
  */
 
 #include "BLI_bounds.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -54,7 +54,7 @@ namespace blender {
 #undef DEBUG_TIME
 
 #ifdef DEBUG_TIME
-#  include "BLI_time_utildefines.h"
+#  include "BLI_time_utildefines.hh"
 #endif
 
 Object *ED_pose_object_from_context(bContext *C)
@@ -333,7 +333,7 @@ void POSE_OT_paths_calculate(wmOperatorType *ot)
 static bool pose_update_paths_poll(bContext *C)
 {
   if (ED_operator_posemode_exclusive(C)) {
-    Object *ob = CTX_data_active_object(C);
+    Object *ob = ed::object::context_active_object(C);
     return (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
   }
 
@@ -533,7 +533,7 @@ static wmOperatorStatus pose_flip_names_exec(bContext *C, wmOperator *op)
 
     ED_armature_bones_flip_names(bmain, arm, &bones_names, do_strip_numbers);
 
-    BLI_freelistN(&bones_names);
+    bones_names.free_no_destruct();
 
     /* Since we renamed stuff... */
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);

@@ -10,9 +10,9 @@
 #include "BKE_lib_id.hh"
 #include "BKE_node_runtime.hh"
 
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 namespace blender::nodes::decl {
 
@@ -24,8 +24,8 @@ namespace blender::nodes::decl {
 static bool field_types_are_compatible(const SocketDeclaration &input,
                                        const SocketDeclaration &output)
 {
-  if (output.output_field_dependency.field_type() == OutputSocketFieldType::FieldSource) {
-    if (input.input_field_type == InputSocketFieldType::None) {
+  if (output.structure_type == StructureType::Field) {
+    if (!ELEM(input.structure_type, StructureType::Field, StructureType::Dynamic)) {
       return false;
     }
   }

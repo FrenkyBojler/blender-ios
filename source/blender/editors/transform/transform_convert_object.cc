@@ -8,10 +8,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 #include "BKE_duplilist.hh"
@@ -862,8 +862,6 @@ static void autokeyframe_object(bContext *C,
 
 static void recalcData_objects(TransInfo *t)
 {
-  bool motionpath_update = false;
-
   if (t->state != TRANS_CANCEL) {
     transform_snap_project_individual_apply(t);
   }
@@ -888,7 +886,7 @@ static void recalcData_objects(TransInfo *t)
         autokeyframe_object(t->context, t->scene, ob, t->mode, t->data_len_all > 1);
       }
 
-      motionpath_update |= motionpath_need_update_object(t->scene, ob);
+      motionpath_need_update_object(t->scene, ob);
 
       /* Sets recalc flags fully, instead of flushing existing ones
        * otherwise proxies don't function correctly. */
@@ -943,7 +941,7 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
         pid.cache->flag |= PTCACHE_OUTDATED;
       }
     }
-    BLI_freelistN(&pidlist);
+    pidlist.free_no_destruct();
 
     /* Point-cache refresh. */
     if (BKE_ptcache_object_reset(t->scene, ob, PTCACHE_RESET_OUTDATED)) {
@@ -973,7 +971,7 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
     }
   }
 
-  if (motionpath_update) {
+  if (!canceled && motionpath_update) {
     /* Update motion paths once for all transformed objects. */
     const eAnimvizCalcRange range = canceled ? ANIMVIZ_CALC_RANGE_CURRENT_FRAME :
                                                ANIMVIZ_CALC_RANGE_CHANGED;

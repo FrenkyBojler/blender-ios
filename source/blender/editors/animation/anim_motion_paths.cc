@@ -11,12 +11,12 @@
 #include <cstdlib>
 
 #include "BLI_bounds.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_listbase_wrapper.hh"
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -24,6 +24,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
+#include "BKE_camera.h"
 #include "BKE_fcurve.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
@@ -65,8 +66,8 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
   /* Make a flat array of IDs for the DEG API. */
   Array<ID *> ids(targets.size());
   int current_id_index = 0;
-  for (const MPathTarget &target : targets) {
-    ids[current_id_index++] = &target.ob->id;
+  for (const MPathTarget &mpt : targets) {
+    ids[current_id_index++] = &mpt.ob->id;
   }
 
   /* Build graph from all requested IDs. */
@@ -81,10 +82,11 @@ void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets
   /* Object itself first. */
   if (ob->mpath) {
     /* New target for object. */
-    MPathTarget t;
-    t.mpath = ob->mpath;
-    t.ob = ob;
-    r_targets.append(t);
+    MPathTarget mpt;
+    mpt.mpath = ob->mpath;
+    mpt.ob = ob;
+
+    r_targets.append(mpt);
   }
 
   /* Bones. */
@@ -99,11 +101,11 @@ void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets
         continue;
       }
       /* New target for bone. */
-      MPathTarget t;
-      t.mpath = pchan.mpath;
-      t.ob = ob;
-      t.pchan = &pchan;
-      r_targets.append(t);
+      MPathTarget mpt;
+      mpt.mpath = pchan.mpath;
+      mpt.ob = ob;
+      mpt.pchan = &pchan;
+      r_targets.append(mpt);
     }
   }
 }
@@ -180,12 +182,12 @@ static void motionpath_bake_target(MPathTarget &target, const int cframe, Depsgr
 }
 
 /* Get pointer to animviz settings for the given target. */
-static bAnimVizSettings *animviz_target_settings_get(const MPathTarget *mpt)
+static bAnimVizSettings *animviz_target_settings_get(const MPathTarget &mpt)
 {
-  if (mpt->pchan != nullptr) {
-    return &mpt->ob->pose->avs;
+  if (mpt.pchan != nullptr) {
+    return &mpt.ob->pose->avs;
   }
-  return &mpt->ob->avs;
+  return &mpt.ob->avs;
 }
 
 void animviz_motionpath_compute_range(Object *ob, Scene *scene)
@@ -462,6 +464,8 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               const Bounds<int> frame_range)
 {
   using namespace blender::animrig;
+  BLI_assert_msg(!DEG_is_active(depsgraph),
+                 "Motion path calculation should always happen with a minimal depsgraph.");
 
   if (targets.is_empty() || frame_range.is_empty()) {
     return;
@@ -472,6 +476,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
 
     /* Build list of all keyframes in active action for object or pchan. */
     mpt.keylist = ED_keylist_create();
+    mpt.keylist = ED_keylist_create();
 
     Vector<FCurve *> fcurves;
     if (adt && adt->action) {
@@ -481,17 +486,21 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
       /* For bones it is likely that all FCurves belong to a group named after the bone. Only
        * checking FCurves of a given group can improve performance when building the keylist. */
       if ((mpt.pchan) && (avs->path_viewflag & MOTIONPATH_VIEW_KFACT) == 0) {
+      if ((mpt.pchan) && (avs->path_viewflag & MOTIONPATH_VIEW_KFACT) == 0) {
         Action &action = adt->action->wrap();
         bActionGroup *agrp = nullptr;
         Channelbag *cbag = channelbag_for_action_slot(action, adt->slot_handle);
+        agrp = cbag ? cbag->channel_group_find(mpt.pchan->name) : nullptr;
         agrp = cbag ? cbag->channel_group_find(mpt.pchan->name) : nullptr;
 
         if (agrp) {
           fcurves = listbase_to_vector<FCurve>(agrp->channels);
           action_group_to_keylist(adt, agrp, mpt.keylist, 0, {-FLT_MAX, FLT_MAX});
+          action_group_to_keylist(adt, agrp, mpt.keylist, 0, {-FLT_MAX, FLT_MAX});
         }
       }
       else {
+        build_keylist_for_target(mpt, *mpt.keylist);
         build_keylist_for_target(mpt, *mpt.keylist);
       }
     }

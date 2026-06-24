@@ -149,6 +149,10 @@ static bool draw_gpointer(CustomSocketDrawParams &params, const GPointer value)
     draw_data_block(params.layout, id_cast<const ID *>(*value.get<Image *>()));
     return true;
   }
+  if (value.is_type<Material *>()) {
+    draw_data_block(params.layout, id_cast<const ID *>(*value.get<Material *>()));
+    return true;
+  }
   if (value.is_type<VFont *>()) {
     draw_data_block(params.layout, id_cast<const ID *>(*value.get<VFont *>()));
     return true;
@@ -266,14 +270,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   const NodeGeometryViewer &storage = node_storage(*node);
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryViewerItem &item = storage.items[i];
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    const eNodeSocketDatatype socket_type = item.socket_type;
     const UString name = item.name ? UString(item.name) : ""_ustr;
     const std::string identifier = GeoViewerItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, UString(identifier))
                            .socket_name_ptr(
                                &tree->id, *GeoViewerItemsAccessor::item_srna, &item, "name");
     if (socket_type_supports_attributes(socket_type)) {
-      input_decl.field_on_all();
+      input_decl.evaluated_geometry_field();
     }
     input_decl.structure_type(StructureType::Dynamic);
     input_decl.custom_draw([](CustomSocketDrawParams &params) { draw_input_socket(params); });
@@ -299,7 +303,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
   bool has_potential_field_input = false;
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryViewerItem &item = storage.items[i];
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    const eNodeSocketDatatype socket_type = item.socket_type;
     if (socket_type == SOCK_GEOMETRY) {
       has_geometry_input = true;
     }

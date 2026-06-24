@@ -42,14 +42,14 @@
 #include "DNA_world_types.h"
 
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_math_rotation.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
+#include "BLI_threads.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLO_readfile.hh"
 
@@ -374,8 +374,7 @@ static void scene_free_markers(Scene *scene, bool do_id_user)
 {
   for (TimeMarker &marker : scene->markers.items_mutable()) {
     if (marker.prop != nullptr) {
-      IDP_FreePropertyContent_ex(marker.prop, do_id_user);
-      MEM_delete(marker.prop);
+      IDP_FreeProperty_ex(marker.prop, do_id_user);
     }
     MEM_delete(&marker);
   }
@@ -403,8 +402,8 @@ static void scene_free_data(ID *id)
   }
 
   scene_free_markers(scene, do_id_user);
-  BLI_freelistN(&scene->transform_spaces);
-  BLI_freelistN(&scene->r.views);
+  scene->transform_spaces.free_no_destruct();
+  scene->r.views.free_no_destruct();
 
   BKE_toolsettings_free(scene->toolsettings);
   scene->toolsettings = nullptr;
@@ -2494,7 +2493,7 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce)
   if (sce->set == nullptr) {
     return true;
   }
-  totscene = BLI_listbase_count(&bmain->scenes);
+  totscene = bmain->scenes.count();
 
   for (a = 0, sce_iter = sce; sce_iter->set; sce_iter = sce_iter->set, a++) {
     /* more iterations than scenes means we have a cycle */
@@ -3417,7 +3416,7 @@ int BKE_scene_multiview_num_videos_get(const RenderData *rd, const ImageFormatDa
 void BKE_scene_ppm_get(const RenderData *rd, double r_ppm[2])
 {
   /* Should not be zero, prevent divide by zero if it is. */
-  if (UNLIKELY(rd->ppm_base == 0.0f)) {
+  if (rd->ppm_base == 0.0f) [[unlikely]] {
     /* Zero PPM should be ignored. */
     r_ppm[0] = 0.0;
     r_ppm[1] = 0.0;

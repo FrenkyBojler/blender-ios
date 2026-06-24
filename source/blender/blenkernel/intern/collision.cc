@@ -16,10 +16,10 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_vector.h"
-#include "BLI_task.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_cloth.hh"
 #include "BKE_collection.hh"
@@ -1275,7 +1275,7 @@ ListBaseT<CollisionRelation> *BKE_collision_relations_create(Depsgraph *depsgrap
 void BKE_collision_relations_free(ListBaseT<CollisionRelation> *relations)
 {
   if (relations) {
-    BLI_freelistN(relations);
+    relations->free_no_destruct();
     MEM_delete(relations);
   }
 }
@@ -1294,7 +1294,7 @@ Object **BKE_collision_objects_create(Depsgraph *depsgraph,
     return nullptr;
   }
 
-  int maxnum = BLI_listbase_count(relations);
+  int maxnum = relations->count();
   int num = 0;
   Object **objects = MEM_new_array_zeroed<Object *>(maxnum, __func__);
 
