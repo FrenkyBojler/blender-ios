@@ -1,1 +1,2 @@
 Referenced by pull request #160318, Fix #160256: Cycles OptiX crash with OSL camera and shader raytrace
+Referenced by commit 1319a955eb3dba5c969fab47e36ec9f362cd8d09, Fix #160256: Cycles OptiX crash with OSL camera and shader raytrace
