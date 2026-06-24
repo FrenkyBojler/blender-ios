@@ -25,6 +25,9 @@
 
 namespace blender {
 
+struct DynamicOverride;
+struct DynamicOverrideRuleIDData;
+struct DynamicOverrideRuleProperty;
 struct ID;
 struct IDOverrideLibrary;
 struct IDOverrideLibraryProperty;
@@ -1078,6 +1081,16 @@ enum class eRNAOverrideStatus {
 };
 ENUM_OPERATORS(eRNAOverrideStatus)
 
+struct RNAOverrideStatus {
+  eRNAOverrideStatus status = {};
+
+  std::string rna_path = "";
+
+  DynamicOverride *dynoverride = nullptr;
+  DynamicOverrideRuleIDData *dynoverride_rule = nullptr;
+  DynamicOverrideRuleProperty *dynoverride_rule_property = nullptr;
+};
+
 /**
  * Check whether reference and local overridden data match (are the same),
  * with respect to given restrictive sets of properties.
@@ -1169,7 +1182,7 @@ IDOverrideLibraryPropertyOperation *RNA_property_override_property_operation_get
     bool *r_strict,
     bool *r_created);
 
-eRNAOverrideStatus RNA_property_override_status(
+RNAOverrideStatus RNA_property_override_status(
     Main *bmain, Scene *scene, PointerRNA *ptr, PropertyRNA *prop, int index);
 
 void RNA_struct_state_owner_set(const char *name);

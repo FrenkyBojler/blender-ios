@@ -10001,6 +10001,27 @@ Button *region_active_but_prop_get(const ARegion *region,
   return activebut;
 }
 
+Button *region_active_but_dynoverride_target_prop_get(const ARegion *region,
+                                                      PointerRNA *r_ptr,
+                                                      PropertyRNA **r_prop,
+                                                      int *r_index)
+{
+  Button *activebut = region_active_but_get(region);
+
+  if (activebut && activebut->rnapoin.data) {
+    *r_ptr = activebut->dynoverride_target_rnapoin;
+    *r_prop = activebut->dynoverride_target_rnaprop;
+    *r_index = activebut->dynoverride_target_rnaindex;
+  }
+  else {
+    *r_ptr = {};
+    *r_prop = nullptr;
+    *r_index = 0;
+  }
+
+  return activebut;
+}
+
 Button *context_active_but_prop_get(const bContext *C,
                                     PointerRNA *r_ptr,
                                     PropertyRNA **r_prop,
@@ -10008,6 +10029,16 @@ Button *context_active_but_prop_get(const bContext *C,
 {
   ARegion *region_popup = CTX_wm_region_popup(C);
   return region_active_but_prop_get(
+      region_popup ? region_popup : CTX_wm_region(C), r_ptr, r_prop, r_index);
+}
+
+Button *context_active_but_dynoverride_target_prop_get(const bContext *C,
+                                                       PointerRNA *r_ptr,
+                                                       PropertyRNA **r_prop,
+                                                       int *r_index)
+{
+  ARegion *region_popup = CTX_wm_region_popup(C);
+  return region_active_but_dynoverride_target_prop_get(
       region_popup ? region_popup : CTX_wm_region(C), r_ptr, r_prop, r_index);
 }
 
@@ -10101,7 +10132,7 @@ void context_update_anim_flag(const bContext *C)
     for (Block &block : region->runtime->uiblocks) {
       for (Button &but : block.buttons()) {
         button_anim_flag(&but, &anim_eval_context);
-        button_override_flag(CTX_data_main(C), CTX_data_scene(C), &but);
+        button_override_flag(but);
         if (button_is_decorator(&but)) {
           button_anim_decorate_update_from_flag(static_cast<ButtonDecorator *>(&but));
         }

@@ -18,6 +18,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_dynamic_override_types.h"
 #include "DNA_listBase.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -35,6 +36,7 @@
 
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
+#include "BKE_dynamic_override.hh"
 #include "BKE_idprop.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -1744,23 +1746,20 @@ static void menu_block_set_keymaps(const bContext *C, Block *block)
   }
 }
 
-void button_override_flag(Main *bmain, Scene *scene, Button *but)
+void button_override_flag(Button &but)
 {
-  const eRNAOverrideStatus override_status = RNA_property_override_status(
-      bmain, scene, &but->rnapoin, but->rnaprop, but->rnaindex);
-
-  if (flag_is_set(override_status, eRNAOverrideStatus::DynOverridden)) {
-    but->flag |= BUT_DYNAMIC_OVERRIDDEN;
+  if (flag_is_set(but.override_status.status, eRNAOverrideStatus::DynOverridden)) {
+    but.flag |= BUT_DYNAMIC_OVERRIDDEN;
   }
   else {
-    but->flag &= ~BUT_DYNAMIC_OVERRIDDEN;
+    but.flag &= ~BUT_DYNAMIC_OVERRIDDEN;
   }
 
-  if (flag_is_set(override_status, eRNAOverrideStatus::LibOverridden)) {
-    but->flag |= BUT_OVERRIDDEN;
+  if (flag_is_set(but.override_status.status, eRNAOverrideStatus::LibOverridden)) {
+    but.flag |= BUT_OVERRIDDEN;
   }
   else {
-    but->flag &= ~BUT_OVERRIDDEN;
+    but.flag &= ~BUT_OVERRIDDEN;
   }
 }
 
@@ -2084,6 +2083,49 @@ bool button_context_poll_operator(bContext *C, wmOperatorType *ot, const Button 
   return button_context_poll_operator_ex(C, but, &params);
 }
 
+void button_swap_rna_data_for_dynoverride(Button &but, const RNAOverrideStatus &override_status)
+{
+  if (!but.rnapoin.data || !but.rnaprop) {
+    return;
+  }
+
+  DynamicOverride *dynoverride = override_status.dynoverride;
+  DynamicOverrideRuleIDData *dynoverride_rule = override_status.dynoverride_rule;
+  DynamicOverrideRuleProperty *dynoverride_rule_property =
+      override_status.dynoverride_rule_property;
+
+  if (!dynoverride || !dynoverride_rule || !dynoverride_rule_property) {
+    return;
+  }
+
+  PointerRNA dynoverride_rule_ptr = RNA_pointer_create_id_subdata(
+      dynoverride->id, RNA_DynamicOverrideRuleIDData, dynoverride_rule);
+  PointerRNA dynoverride_rule_data_ptr = RNA_pointer_create_with_parent(
+      dynoverride_rule_ptr,
+      bke::dynoverride::rule_get_runtime_override_values_rna_struct(*dynoverride_rule),
+      dynoverride_rule);
+  PropertyRNA *dynoverride_prop = RNA_struct_find_property(
+      &dynoverride_rule_data_ptr,
+      bke::dynoverride::rule_property_rna_identifier(*dynoverride_rule_property).c_str());
+  if (!dynoverride_prop) {
+    return;
+  }
+  but.dynoverride_target_rnapoin = but.rnapoin;
+  but.dynoverride_target_rnaprop = but.rnaprop;
+  but.dynoverride_target_rnaindex = but.rnaindex;
+
+  but.rnapoin = dynoverride_rule_data_ptr;
+  but.rnaprop = dynoverride_prop;
+
+  button_flag_disable(&but, BUT_DISABLED);
+  const char *info;
+  if (!RNA_property_editable_info(&but.rnapoin, dynoverride_prop, &info)) {
+    button_disable(&but, info);
+  }
+
+  button_update(&but);
+}
+
 void block_end_ex(const bContext *C,
                   Main *bmain,
                   wmWindow *window,
@@ -2099,6 +2141,14 @@ void block_end_ex(const bContext *C,
   /* Extend button data. This needs to be done before the block updating. */
   for (Button &but : block->buttons()) {
     but_predefined_extra_operator_icons_add(&but);
+
+    but.override_status = RNA_property_override_status(
+        bmain, scene, &but.rnapoin, but.rnaprop, but.rnaindex);
+    /* For dynamically overridden RNA data, the 'active' button RNA data is replaced by the
+     * matching one from the dynamic override. */
+    if (flag_is_set(but.override_status.status, eRNAOverrideStatus::DynOverridden)) {
+      button_swap_rna_data_for_dynoverride(but, but.override_status);
+    }
   }
 
   block_update_from_old(C, block);
@@ -2127,7 +2177,7 @@ void block_end_ex(const bContext *C,
     const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
         depsgraph, (scene) ? BKE_scene_frame_get(scene) : 0.0f);
     button_anim_flag(&but, &anim_eval_context);
-    button_override_flag(bmain, scene, &but);
+    button_override_flag(but);
     if (button_is_decorator(&but)) {
       button_anim_decorate_update_from_flag(static_cast<ButtonDecorator *>(&but));
     }

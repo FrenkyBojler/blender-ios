@@ -2827,6 +2827,16 @@ Button *context_active_but_prop_get(const bContext *C,
                                     PointerRNA *r_ptr,
                                     PropertyRNA **r_prop,
                                     int *r_index);
+/**
+ * Similar to #context_active_but_get, but returns the original target data for dynamically
+ * overridden data.
+ *
+ * \return active button, NULL if none found or if it doesn't contain valid RNA data.
+ */
+Button *context_active_but_dynoverride_target_prop_get(const bContext *C,
+                                                       PointerRNA *r_ptr,
+                                                       PropertyRNA **r_prop,
+                                                       int *r_index);
 
 /**
  * As above, but for a specified region.
@@ -2837,6 +2847,15 @@ Button *region_active_but_prop_get(const ARegion *region,
                                    PointerRNA *r_ptr,
                                    PropertyRNA **r_prop,
                                    int *r_index);
+/**
+ * As above, but for a specified region.
+ *
+ * \return active button, NULL if none found or if it doesn't contain valid RNA data.
+ */
+Button *region_active_but_dynoverride_target_prop_get(const ARegion *region,
+                                                      PointerRNA *r_ptr,
+                                                      PropertyRNA **r_prop,
+                                                      int *r_index);
 
 void context_active_but_prop_handle(bContext *C, bool handle_undo);
 void context_active_but_clear(bContext *C, wmWindow *win, ARegion *region);

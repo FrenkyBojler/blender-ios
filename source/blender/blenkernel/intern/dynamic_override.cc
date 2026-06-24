@@ -426,13 +426,18 @@ DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(DynamicOverride &dynamic_ov
   return nullptr;
 }
 
-DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(Scene &scene, ID &owner_id)
+DynamicOverrideRuleIDData *rule_iddata_lookup_for_id(Scene &scene,
+                                                     ID &owner_id,
+                                                     DynamicOverride **r_dynamic_override)
 {
   DynamicOverride *dynamic_override = scene.dynamic_override;
   if (!dynamic_override) {
     return nullptr;
   }
 
+  if (r_dynamic_override) {
+    *r_dynamic_override = dynamic_override;
+  }
   return rule_iddata_lookup_for_id(*dynamic_override, owner_id);
 }
 
