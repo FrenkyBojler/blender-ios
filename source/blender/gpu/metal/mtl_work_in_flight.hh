@@ -15,9 +15,6 @@
 
 namespace blender::gpu {
 
-/* The class is currently mostly empty, as GHOST_ContextMTL::max_command_buffer_count already
- * imposes an upper limit of command buffers in flight. It is unclear if this class will provide
- * any added benefit. */
 class MTLWorkInFlight : public WorkInFlight {
   id<MTLSharedEvent> gpu_fence_ = nil;
   size_t work_index_ = 0;
