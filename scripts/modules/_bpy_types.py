@@ -1410,8 +1410,11 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
             if operator == "script.execute_preset":
                 props.menu_idname = self.bl_idname
 
-            if remove_operator:
-                props = row.operator(remove_operator, text="", icon='REMOVE')
+            if remove_operator or add_operator:
+                if remove_operator:
+                    props = row.operator(remove_operator, text="", icon='REMOVE')
+                else:
+                    props = row.operator(add_operator, text="", icon='REMOVE')
                 props.name = name
                 props.remove_name = True
                 if add_operator_props is not None:
