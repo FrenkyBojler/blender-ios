@@ -326,7 +326,8 @@ class LazyFunctionForMultiInput : public LazyFunction {
       this->links.append(link);
     }
 
-    if (this->links.is_empty()) {
+    const bool has_default_value = socket.flag & SOCK_HIDE_VALUE == 0;
+    if (this->links.is_empty() && has_default_value) {
       this->default_value_socket = inputs_.append_and_get_index(
           {"Default Value", CPPType::get<SocketValueVariant>()});
     }
