@@ -17,7 +17,6 @@ class RENDER_PT_format_presets(PresetPanel, Panel):
     preset_subdir = "render"
     preset_operator = "script.execute_preset"
     preset_add_operator = "render.preset_add"
-    preset_remove_operator = "render.preset_remove"
 
 
 class RENDER_PT_ffmpeg_presets(PresetPanel, Panel):

@@ -37,28 +37,24 @@ class CYCLES_PT_sampling_presets(CyclesPresetPanel):
     bl_label = "Sampling Presets"
     preset_subdir = "cycles/sampling"
     preset_add_operator = "render.cycles_sampling_preset_add"
-    preset_remove_operator = "render.cycles_sampling_preset_remove"
 
 
 class CYCLES_PT_viewport_sampling_presets(CyclesPresetPanel):
     bl_label = "Viewport Sampling Presets"
     preset_subdir = "cycles/viewport_sampling"
     preset_add_operator = "render.cycles_viewport_sampling_preset_add"
-    preset_remove_operator = "render.cycles_viewport_sampling_preset_remove"
 
 
 class CYCLES_PT_integrator_presets(CyclesPresetPanel):
     bl_label = "Integrator Presets"
     preset_subdir = "cycles/integrator"
     preset_add_operator = "render.cycles_integrator_preset_add"
-    preset_remove_operator = "render.cycles_integrator_preset_remove"
 
 
 class CYCLES_PT_performance_presets(CyclesPresetPanel):
     bl_label = "Performance Presets"
     preset_subdir = "cycles/performance"
     preset_add_operator = "render.cycles_performance_preset_add"
-    preset_remove_operator = "render.cycles_performance_preset_remove"
 
 
 class CyclesButtonsPanel:

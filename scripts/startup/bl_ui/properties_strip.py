@@ -39,7 +39,6 @@ class STRIP_PT_effect_text_style_presets(PresetPanel, Panel):
     preset_subdir = "sequencer/text_style"
     preset_operator = "script.execute_preset"
     preset_add_operator = "sequencer.text_strip_style_preset_add"
-    preset_remove_operator = "sequencer.text_strip_style_preset_remove"
 
 
 class STRIP_PT_color_tag_picker(StripColorTagPicker, Panel):

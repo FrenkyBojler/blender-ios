@@ -1776,7 +1776,6 @@ class VIEW3D_PT_gpencil_brush_presets(Panel, PresetPanel):
     preset_subdir = "gpencil_brush"
     preset_operator = "script.execute_preset"
     preset_add_operator = "scene.gpencil_brush_preset_add"
-    preset_remove_operator = "scene.gpencil_brush_preset_remove"
 
 
 class GreasePencilV3PaintPanel:

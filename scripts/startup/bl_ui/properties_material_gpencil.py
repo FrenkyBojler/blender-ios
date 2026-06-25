@@ -309,7 +309,6 @@ class MATERIAL_PT_gpencil_material_presets(PresetPanel, Panel):
     preset_subdir = "gpencil_material"
     preset_operator = "script.execute_preset"
     preset_add_operator = "scene.gpencil_material_preset_add"
-    preset_remove_operator = "scene.gpencil_material_preset_remove"
 
 
 classes = (

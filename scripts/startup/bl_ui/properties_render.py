@@ -190,7 +190,6 @@ class RENDER_PT_color_management_white_balance_presets(PresetPanel, Panel):
     preset_subdir = "color_management/white_balance"
     preset_operator = "script.execute_preset"
     preset_add_operator = "render.color_management_white_balance_preset_add"
-    preset_remove_operator = "render.color_management_white_balance_preset_remove"
 
 
 class RENDER_PT_color_management_white_balance(RenderButtonsPanel, Panel):
@@ -383,7 +382,6 @@ class RENDER_PT_eevee_raytracing_presets(PresetPanel, Panel):
     preset_subdir = "eevee/raytracing"
     preset_operator = "script.execute_preset"
     preset_add_operator = "render.eevee_raytracing_preset_add"
-    preset_remove_operator = "render.eevee_raytracing_preset_remove"
 
 
 class RENDER_PT_eevee_raytracing(RenderButtonsPanel, Panel):

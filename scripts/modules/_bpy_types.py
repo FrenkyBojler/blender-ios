@@ -1304,7 +1304,6 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
         display_name=None,
         add_operator=None,
         add_operator_props=None,
-        remove_operator=None,
         translate=True,
         recursive_paths=False,
     ):
@@ -1332,8 +1331,6 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
         :type add_operator: str | None
         :param add_operator_props: Properties to assign to the add/remove operator.
         :type add_operator_props: dict[str, Any] | None
-        :param remove_operator: Optional operator id used to remove entries.
-        :type remove_operator: str | None
         :param translate: Translate the displayed names.
         :type translate: bool
         :param recursive_paths: Add submenus for sub-directories instead of listing their contents.
@@ -1410,11 +1407,8 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
             if operator == "script.execute_preset":
                 props.menu_idname = self.bl_idname
 
-            if remove_operator or add_operator:
-                if remove_operator:
-                    props = row.operator(remove_operator, text="", icon='REMOVE')
-                else:
-                    props = row.operator(add_operator, text="", icon='REMOVE')
+            if add_operator:
+                props = row.operator(add_operator, text="", icon='REMOVE')
                 props.name = name
                 props.remove_name = True
                 if add_operator_props is not None:
@@ -1445,7 +1439,6 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
 
         Optionally:
         - preset_add_operator (string)
-        - preset_remove_operator (string)
         - preset_extensions (set of strings)
         - preset_operator_defaults (dict of keyword args)
 
@@ -1458,7 +1451,6 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
         props_default = getattr(self, "preset_operator_defaults", None)
         add_operator = getattr(self, "preset_add_operator", None)
         add_operator_props = getattr(self, "preset_add_operator_properties", None)
-        remove_operator = getattr(self, "preset_remove_operator", None)
         self.path_menu(
             bpy.utils.preset_paths(self.preset_subdir),
             self.preset_operator,
@@ -1466,7 +1458,6 @@ class Menu(_StructRNA, _GenericUI, metaclass=_RNAMeta):
             filter_ext=lambda ext: ext.lower() in ext_valid,
             add_operator=add_operator,
             add_operator_props=add_operator_props,
-            remove_operator=remove_operator,
             display_name=lambda name: bpy.path.display_name(name, title_case=False)
         )
 

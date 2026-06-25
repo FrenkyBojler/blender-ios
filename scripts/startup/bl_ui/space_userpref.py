@@ -1667,7 +1667,6 @@ class USERPREF_PT_text_editor_presets(PresetPanel, Panel):
     preset_subdir = "text_editor"
     preset_operator = "script.execute_preset"
     preset_add_operator = "text_editor.preset_add"
-    preset_remove_operator = "text_editor.preset_remove"
 
 
 class USERPREF_PT_file_paths_applications(FilePathsPanel, Panel):
