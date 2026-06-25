@@ -452,14 +452,18 @@ static void copy_world_space(Main &bmain,
 
   /* We are storing the world space matrix in separate FCurves so the data can be stored in a
    * blend file. */
+  Set<StringRefNull> added_names;
   Array<Array<FCurve *>> world_space_data(transformables.size());
   for (const int transformable_index : transformables.index_range()) {
     const AnimTransformable &transformable = transformables[transformable_index];
+    if (!added_names.add(transformable.name())) {
+      /* When copying bones from different armatures, we can get identical names which would create
+       * an invalid copy buffer. */
+      continue;
+    }
     Array<FCurve *> fcurves(12);
     for (const int i : fcurves.index_range()) {
       FCurve *fcurve = BKE_fcurve_create();
-      /* TODO this is not sufficient to identify a bone since they can have identical names in
-       * different armatures. */
       fcurve->rna_path = BLI_strdupn(transformable.name().data(), transformable.name().size());
       fcurve->array_index = i;
       const int vert_count = range.size();
@@ -477,6 +481,12 @@ static void copy_world_space(Main &bmain,
     world_space_data[transformable_index] = std::move(fcurves);
   }
 
+  if (added_names.size() != transformables.size()) {
+    BKE_report(&reports,
+               RPT_WARNING,
+               "Found duplicate names in selection. Not all selected were saved into clipboard.");
+  }
+
   Depsgraph *depsgraph = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
   Vector<ID *> ids = get_unique_ids(transformables);
   DEG_graph_build_from_ids(depsgraph, ids);
@@ -485,6 +495,10 @@ static void copy_world_space(Main &bmain,
     const int key_index = frame - range.min;
     DEG_evaluate_on_framechange(depsgraph, frame);
     for (const int transformable_index : transformables.index_range()) {
+      if (world_space_data[transformable_index].size() == 0) {
+        /* May be empty if skipped due to name collisions. */
+        continue;
+      }
       const AnimTransformable &transformable = transformables[transformable_index];
       const float4x4 world_matrix = get_world_space(*depsgraph, transformable);
       matrix_to_fcurves(world_matrix, world_space_data[transformable_index], frame, key_index);
