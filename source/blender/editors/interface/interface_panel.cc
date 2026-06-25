@@ -1413,7 +1413,7 @@ void draw_aligned_panel(const ARegion *region,
   }
 
   /* Draw the panel outline on non-transparent panels. */
-  if (panel_should_show_background(region, panel->type)) {
+  if (show_background) {
     panel_draw_border(panel, rect, &header_rect, panel_custom_data_active_get(panel));
   }
 }

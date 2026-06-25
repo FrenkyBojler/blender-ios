@@ -2285,12 +2285,14 @@ void block_draw(const bContext *C, Block *block)
     draw_menu_back(&style, block, &rect);
   }
   else if (block->panel) {
+    const bool show_panel_background = panel_should_show_background(region, block->panel->type) ||
+                                       region->regiontype == RGN_TYPE_XR;
     draw_aligned_panel(region,
                        &style,
                        block,
                        &rect,
                        panel_category_tabs_is_visible(region),
-                       panel_should_show_background(region, block->panel->type),
+                       show_panel_background,
                        region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE);
   }
   /* Shared layout panel backdrop style between redo region and popups. */

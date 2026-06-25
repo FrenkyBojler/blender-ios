@@ -3688,7 +3688,9 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
     v2d->scroll &= ~(V2D_SCROLL_HORIZONTAL | V2D_SCROLL_VERTICAL);
   }
 
-  ui::view2d_scrollers_draw(v2d, use_mask ? &mask : nullptr);
+  if (region->regiontype != RGN_TYPE_XR) {
+    ui::view2d_scrollers_draw(v2d, use_mask ? &mask : nullptr);
+  }
 }
 
 void ED_region_panels_ex(const bContext *C,
