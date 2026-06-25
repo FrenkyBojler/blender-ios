@@ -180,7 +180,11 @@ class AssetLibraryService {
   /** Returns whether there are any known asset libraries with unsaved catalog edits. */
   bool has_any_unsaved_catalogs() const;
 
-  /** See AssetLibrary::foreach_loaded(). */
+  /**
+   * See #AssetLibrary::foreach_loaded(). \a fn is invoked without holding the corresponding
+   * library mutexes, so loaded libraries must not be freed concurrently (libraries only get freed
+   * via #destroy() currently, so this is fine).
+   */
   void foreach_loaded_asset_library(FunctionRef<void(AssetLibrary &)> fn,
                                     bool include_all_library) const;
 

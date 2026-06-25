@@ -52,79 +52,81 @@ std::optional<eAssetImportMethod> AllAssetLibrary::import_method() const
   return {};
 }
 
-void AllAssetLibrary::rebuild_catalogs_from_nested(const bool reload_nested_catalogs)
+void AllAssetLibrary::rebuild_catalogs_from_nested_if_dirty()
 {
-  /* Only one thread should rebuild at a time. If another thread is already rebuilding, wait for it
-   * to finish and then skip rebuilding. The result would effectively be the same, so re-running
-   * would just be wasted work. Waiting (rather than returning early) ensures callers don't see
-   * partially rebuilt catalogs. */
-  std::unique_lock rebuild_lock{rebuild_mutex_, std::try_to_lock};
-  if (!rebuild_lock.owns_lock()) {
-    /* Another thread holds the lock and is rebuilding. Block until it is done, then return. */
-    rebuild_lock.lock();
-    return;
-  }
-
-  /* Start with empty catalog storage. Don't do this directly in #this.catalog_service to avoid
-   * race conditions. Rather build into a new service and replace the current one when done. */
-  std::unique_ptr<AssetCatalogService> new_catalog_service = std::make_unique<AssetCatalogService>(
-      AssetCatalogService::read_only_tag());
-
   const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
 
+  /* Lazily (re)build the merged catalog service, deduplicating concurrent rebuilds: only one
+   * thread merges at a time, others wait and receive its result. */
+  catalog_cache_mutex_.ensure([&]() {
+    /* Start with empty catalog storage. Don't do this directly in #this.catalog_service to avoid
+     * race conditions. Rather build into a new service and replace the current one when done. */
+    std::unique_ptr<AssetCatalogService> new_catalog_service =
+        std::make_unique<AssetCatalogService>(AssetCatalogService::read_only_tag());
+
+    AssetLibrary::foreach_loaded(
+        [&](AssetLibrary &nested) {
+          const bool is_online_lib = nested.remote_url().has_value();
+          if (is_online_lib && skip_remote_libraries) {
+            return;
+          }
+
+          new_catalog_service->add_from_existing(
+              nested.catalog_service(),
+              /*on_duplicate_items=*/[](const AssetCatalog &existing,
+                                        const AssetCatalog &to_be_ignored) {
+                if (existing.path == to_be_ignored.path) {
+                  CLOG_DEBUG(&LOG,
+                             "multiple definitions of catalog %s (path: %s), ignoring duplicate",
+                             existing.catalog_id.str().c_str(),
+                             existing.path.c_str());
+                }
+                else {
+                  /* This is bound to happen at some point, for example with the Online Essentials
+                   * catalogs diverging from this Blender version's bundled Essentials catalogs. */
+                  CLOG_INFO(&LOG,
+                            "multiple definitions of catalog %s with differing paths (%s vs. %s), "
+                            "ignoring second one",
+                            existing.catalog_id.str().c_str(),
+                            existing.path.c_str(),
+                            to_be_ignored.path.c_str());
+                }
+              });
+        },
+        false);
+
+    std::lock_guard lock{catalog_service_mutex_};
+    catalog_service_ = std::move(new_catalog_service);
+  });
+}
+
+void AllAssetLibrary::tag_catalogs_dirty()
+{
+  catalog_cache_mutex_.tag_dirty();
+}
+
+bool AllAssetLibrary::is_catalogs_dirty() const
+{
+  return catalog_cache_mutex_.is_dirty();
+}
+
+void AllAssetLibrary::refresh_catalogs()
+{
+  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+
+  /* Re-read nested catalog definitions from disk. */
   AssetLibrary::foreach_loaded(
       [&](AssetLibrary &nested) {
         const bool is_online_lib = nested.remote_url().has_value();
         if (is_online_lib && skip_remote_libraries) {
           return;
         }
-
-        if (reload_nested_catalogs) {
-          nested.catalog_service().reload_catalogs();
-        }
-
-        new_catalog_service->add_from_existing(
-            nested.catalog_service(),
-            /*on_duplicate_items=*/[](const AssetCatalog &existing,
-                                      const AssetCatalog &to_be_ignored) {
-              if (existing.path == to_be_ignored.path) {
-                CLOG_DEBUG(&LOG,
-                           "multiple definitions of catalog %s (path: %s), ignoring duplicate",
-                           existing.catalog_id.str().c_str(),
-                           existing.path.c_str());
-              }
-              else {
-                /* This is bound to happen at some point, for example with the Online Essentials
-                 * catalogs diverging from this Blender version's bundled Essentials catalogs. */
-                CLOG_INFO(&LOG,
-                          "multiple definitions of catalog %s with differing paths (%s vs. %s), "
-                          "ignoring second one",
-                          existing.catalog_id.str().c_str(),
-                          existing.path.c_str(),
-                          to_be_ignored.path.c_str());
-              }
-            });
+        nested.catalog_service().reload_catalogs();
       },
       false);
+  tag_catalogs_dirty();
 
-  std::lock_guard lock{catalog_service_mutex_};
-  catalog_service_ = std::move(new_catalog_service);
-  catalogs_dirty_ = false;
-}
-
-void AllAssetLibrary::tag_catalogs_dirty()
-{
-  catalogs_dirty_ = true;
-}
-
-bool AllAssetLibrary::is_catalogs_dirty() const
-{
-  return catalogs_dirty_;
-}
-
-void AllAssetLibrary::refresh_catalogs()
-{
-  this->rebuild_catalogs_from_nested(/*reload_nested_catalogs=*/true);
+  this->rebuild_catalogs_from_nested_if_dirty();
 }
 
 }  // namespace asset_system

@@ -8,18 +8,18 @@
 
 #pragma once
 
-#include <atomic>
-#include <mutex>
-
 #include "AS_asset_library.hh"
+
+#include "BLI_cache_mutex.hh"
 
 namespace blender::asset_system {
 
 class AllAssetLibrary : public AssetLibrary {
-  std::atomic<bool> catalogs_dirty_ = true;
-
-  /** Serializes #rebuild_catalogs_from_nested so only one thread rebuilds at a time. */
-  std::mutex rebuild_mutex_;
+  /**
+   * Guards the lazily (re)built merged catalog service in #catalog_service_. Deduplicates
+   * concurrent rebuilds: only one thread merges at a time, others wait for and receive its result.
+   */
+  CacheMutex catalog_cache_mutex_;
 
  public:
   AllAssetLibrary();
@@ -31,13 +31,17 @@ class AllAssetLibrary : public AssetLibrary {
   void refresh_catalogs() override;
 
   /**
-   * Update the available catalogs and catalog tree from the nested asset libraries. Completely
-   * recreates the catalog service (invalidating pointers to the previous one).
+   * Update the available catalog service and catalog tree from the nested asset libraries if
+   * #is_catalogs_dirty() is true. Completely recreates the catalog service (invalidating pointers
+   * to the previous one).
    *
-   * \param reload_nested_catalogs: Re-read catalog definitions of nested libraries from disk and
-   * merge them into the in-memory representations.
+   * \note This does not (re)load any catalog definition files from disk, it just rebuilds the all
+   *     library catalog service to reflect the in-memory state of nested catalog services. To
+   *     reload catalog definitions from disk, call #AssetCatalogService::reload_catalogs() for the
+   *     corresponding library (won't do anything for the "All" library, since that doesn't have
+   *     its own catalog definition file).
    */
-  void rebuild_catalogs_from_nested(bool reload_nested_catalogs);
+  void rebuild_catalogs_from_nested_if_dirty();
 
   void tag_catalogs_dirty();
   bool is_catalogs_dirty() const;

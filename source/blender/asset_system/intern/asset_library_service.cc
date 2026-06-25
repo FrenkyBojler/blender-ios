@@ -284,12 +284,12 @@ void AssetLibraryService::tag_all_library_catalogs_dirty()
 
 void AssetLibraryService::reload_all_library_catalogs_if_dirty()
 {
-  if (all_library_ && all_library_->is_catalogs_dirty()) {
-    /* Don't reload catalogs from nested libraries from disk, just reflect their currently known
-     * state in the "All" library. Loading catalog changes from disk is only done with a
+  if (all_library_) {
+    /* Don't reload catalogs from nested libraries from disk here, just reflect their currently
+     * known state in the "All" library. Loading catalog changes from disk is only done with a
      * #AS_asset_library_load()/#AssetLibraryService:get_asset_library() call. */
-    const bool reload_nested_catalogs = false;
-    all_library_->rebuild_catalogs_from_nested(reload_nested_catalogs);
+
+    all_library_->rebuild_catalogs_from_nested_if_dirty();
   }
 }
 
@@ -378,8 +378,9 @@ AssetLibrary *AssetLibraryService::get_asset_library_all(const Main *bmain)
     CLOG_DEBUG(&LOG, "get all lib (cached)");
   }
 
-  /* Don't reload catalogs, they've just been loaded above. */
-  all_library_->rebuild_catalogs_from_nested(/*reload_nested_catalogs=*/false);
+  /* Force a full rebuild of catalog data. */
+  all_library_->tag_catalogs_dirty();
+  all_library_->rebuild_catalogs_from_nested_if_dirty();
 
   return all_library_.get();
 }
