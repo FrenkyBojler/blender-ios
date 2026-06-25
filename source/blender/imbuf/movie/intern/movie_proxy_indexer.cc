@@ -288,7 +288,14 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     rv->c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
   }
 
-  rv->c->color_range = codec_ctx->color_range;
+  if (codec == 2) {
+    /* ProRes requires limited range. */
+    rv->c->color_range = AVCOL_RANGE_MPEG;
+  }
+  else {
+    /* Other codecs work with full range. */
+    rv->c->color_range = codec_ctx->color_range;
+  }
   rv->c->color_primaries = codec_ctx->color_primaries;
   rv->c->color_trc = codec_ctx->color_trc;
   rv->c->colorspace = codec_ctx->colorspace;
@@ -345,7 +352,7 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
                                          width,
                                          height,
                                          rv->c->pix_fmt,
-                                         codec_ctx->color_range == AVCOL_RANGE_JPEG,
+                                         rv->c->color_range == AVCOL_RANGE_JPEG,
                                          -1,
                                          SWS_FAST_BILINEAR);
   }
