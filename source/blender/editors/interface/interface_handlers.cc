@@ -13199,7 +13199,7 @@ void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers)
 
 /**
  * Returns true if the button is referencing \a srna.
- * \note This would fail to properly determinate if the Button is referencing \a srna if the
+ * \note This would fail to properly determine if the Button is referencing \a srna if the
  * reference is stored through an opaque type (like #Button::apply_func).
  */
 static bool button_references_srna(Button &button, const StructRNA *srna)
@@ -13254,7 +13254,7 @@ static bool button_references_srna(Button &button, const StructRNA *srna)
 
 /**
  * Return true if the #popup_block_handle have any reference the #srna_to_unreg but can't be
- * refreshed, when this happends its parent must be refreshed or the popup should be closed.
+ * refreshed, when this happens its parent must be refreshed or the popup should be closed.
  */
 static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
                                                         PopupBlockHandle *popup_block_handle,
@@ -13289,7 +13289,7 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
   }
   if (have_reference) {
     if (valid_for_refresh) {
-      /* This popup needs to be refreshed, close any sub-menu first. */
+      /* This popup needs to be refresh, close any sub-menu first. */
       Button *active_button = region_find_active_but(popup_block_handle->region);
       HandleButtonData *data = active_button ? active_button->active : nullptr;
       PopupBlockHandle *sub_handle = data ? data->menu : nullptr;
