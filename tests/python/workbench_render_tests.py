@@ -41,6 +41,9 @@ BLOCKLIST_AMD_VK = [
 def setup():
     import bpy
 
+    # Always enabled, the setting will be ignored if the system/backend doesn't support them.
+    bpy.context.preferences.system.use_rt_shadows = True
+
     for scene in bpy.data.scenes:
         if scene.get("Workbench_skip_setup", False):
             continue

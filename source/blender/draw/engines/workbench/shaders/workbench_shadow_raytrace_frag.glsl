@@ -1,0 +1,37 @@
+#include "infos/workbench_shadow_infos.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(workbench_shadow_raytrace)
+
+#include "draw_view_lib.glsl"
+
+void main()
+{
+  float depth = texture(depth_tx, screen_uv).r;
+  if (depth == 1.0f) {
+    gpu_discard_fragment();
+    return;
+  }
+
+  /* TODO: Skip ray query when dot(N, -pass_data.light_direction_ws) < 0. */
+
+  const float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
+  rayQueryEXT query;
+  rayQueryInitializeEXT(query,
+                        shadow_as,
+                        gl_RayFlagsTerminateOnFirstHitEXT,
+                        0xFF,
+                        P,
+                        0.01f,
+                        -pass_data.light_direction_ws,
+                        1000.0f);
+  rayQueryProceedEXT(query);
+
+  bool is_light_occluded = rayQueryGetIntersectionTypeEXT(query, true) !=
+                           gl_RayQueryCommittedIntersectionNoneEXT;
+
+  if (!is_light_occluded) {
+    /* Writing the stencil means the fragment is in shadow. */
+    gpu_discard_fragment();
+    return;
+  }
+}
