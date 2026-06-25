@@ -194,7 +194,7 @@ float ior_unpack(float ior_packed)
     return 1.0f;
   }
   return (ior_packed > ior_packed_eq_1) ? (ior_packed_gt_1_bias / (1.0f - ior_packed)) :
-                                           (ior_packed / ior_packed_lt_1_scale);
+                                          (ior_packed / ior_packed_lt_1_scale);
 }
 
 float thickness_pack(Thickness thickness)
