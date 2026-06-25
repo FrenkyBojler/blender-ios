@@ -2249,7 +2249,15 @@ static wmOperatorStatus sequencer_box_select_invoke(bContext *C,
     }
   }
 
-  return WM_gesture_box_invoke(C, op, event);
+  const wmOperatorStatus opstatus = WM_gesture_box_invoke(C, op, event);
+  wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
+
+  if (sseq->flag & SEQ_CLAMP_VIEW) {
+    gesture->edge_pan_data.limit = sequencer_clamp_view_bounds(C, region);
+  }
+
+  return opstatus;
 }
 
 void SEQUENCER_OT_select_box(wmOperatorType *ot)
