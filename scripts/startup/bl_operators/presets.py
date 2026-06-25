@@ -809,7 +809,7 @@ class SavePresetInterfaceTheme(AddPresetBase, Operator):
 class AddPresetKeyconfig(AddPresetBase, Operator):
     """Add a custom keymap configuration to the preset list"""
     bl_idname = "wm.keyconfig_preset_add"
-    bl_label = "AAdd Custom Keymap Configuratio"
+    bl_label = "Add Custom Keymap Configuration"
     preset_menu = "USERPREF_MT_keyconfigs"
     preset_subdir = "keyconfig"
 
