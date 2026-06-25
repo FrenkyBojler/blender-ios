@@ -492,6 +492,7 @@ class RemoteAssetListingDownloader:
 
         - Ensure asset/file counts are correct.
         - Ensure file paths are relative.
+        - Ensure file paths are Unix-style (forward slashes).
         """
 
         # TODO: include contact info of the asset library here.
@@ -521,17 +522,19 @@ class RemoteAssetListingDownloader:
             file_path = _str_to_path_multiplatform(file.path)
             sanitized_path = _path_make_relative_safe(file_path)
 
-            if file_path == sanitized_path:
+            if file_path != sanitized_path:
+                print((
+                    "Warning: file in {json_path!s} tries to escape the asset library ({file_path!s}). {report!s}"
+                ).format(
+                    json_path=json_path, file_path=file_path, report=report,
+                ))
+
+            sanitized_posix_path = sanitized_path.as_posix()
+            if sanitized_posix_path == file_path:
                 continue
 
-            print((
-                "Warning: file in {json_path!s} tries to escape the asset library ({file_path!s}). {report!s}"
-            ).format(
-                json_path=json_path, file_path=file_path, report=report,
-            ))
-
             bad_path = file.path
-            file.path = sanitized_path.as_posix()
+            file.path = sanitized_posix_path
             bad_to_good_paths[bad_path] = file.path
 
         # If any of the file paths were found to be bad, assets referencing them also need updating.

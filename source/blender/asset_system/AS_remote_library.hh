@@ -69,8 +69,9 @@ struct URLWithHash {
 /** Information of a single file of an online asset. */
 struct OnlineAssetFile {
   /**
-   * The path within the asset library this file should be downloaded to.
-   * Relative to the library root.
+   * The path within the asset library this file should be downloaded to. Can be assumed to be Unix
+   * style, #RemoteAssetListingDownloader ensures that (rewriting file paths if needed). Relative
+   * to the library root.
    */
   std::string path;
   int64_t size_in_bytes;
