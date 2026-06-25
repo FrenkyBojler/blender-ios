@@ -31,6 +31,7 @@ tabs_attr_infos = (
     ("show_properties_texture", "Texture", 'TEXTURE'),
     ("show_properties_strip", "Strip", 'SEQ_SEQUENCER'),
     ("show_properties_strip_modifier", "Strip Modifiers", 'SEQ_STRIP_MODIFIER'),
+    ("show_properties_scene_compositor_modifiers", "Scene Compositor Modifiers", 'NODE_COMPOSITING'),
 )
 
 

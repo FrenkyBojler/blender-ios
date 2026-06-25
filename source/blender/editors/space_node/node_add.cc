@@ -25,6 +25,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
@@ -1984,6 +1985,130 @@ void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type)
                  MAX_ID_NAME - 2,
                  "Name",
                  "");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name New Scene Compositor Modifier Node Group Operator.
+ * \{ */
+
+static void initialize_scene_compositor_modifier_node_group(const bContext *C,
+                                                            bNodeTree &node_tree)
+{
+  node_tree.tree_interface.add_socket(
+      "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  node_tree.tree_interface.add_socket(
+      "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+
+  bNode *output_node = bke::node_add_node(C, node_tree, "NodeGroupOutput"_ustr);
+  output_node->location[0] = 200.0f;
+  output_node->location[1] = 0.0f;
+
+  bNode *input_node = bke::node_add_node(C, node_tree, "NodeGroupInput"_ustr);
+  input_node->location[0] = -150.0f - input_node->width;
+  input_node->location[1] = 0.0f;
+  bke::node_set_active(node_tree, *input_node);
+
+  bNode *reroute_node = bke::node_add_node(C, node_tree, "NodeReroute"_ustr);
+  reroute_node->location[0] = 100.0f;
+  reroute_node->location[1] = -35.0f;
+
+  bNode *viewer_node = bke::node_add_node(C, node_tree, "CompositorNodeViewer"_ustr);
+  viewer_node->location[0] = 200.0f;
+  viewer_node->location[1] = -80.0f;
+
+  bke::node_add_link(node_tree,
+                     *input_node,
+                     *static_cast<bNodeSocket *>(input_node->outputs.first),
+                     *reroute_node,
+                     *static_cast<bNodeSocket *>(reroute_node->inputs.first));
+
+  bke::node_add_link(node_tree,
+                     *reroute_node,
+                     *static_cast<bNodeSocket *>(reroute_node->outputs.first),
+                     *output_node,
+                     *static_cast<bNodeSocket *>(output_node->inputs.first));
+
+  bke::node_add_link(node_tree,
+                     *reroute_node,
+                     *static_cast<bNodeSocket *>(reroute_node->outputs.first),
+                     *viewer_node,
+                     *static_cast<bNodeSocket *>(viewer_node->inputs.first));
+
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), node_tree);
+}
+
+static wmOperatorStatus new_scene_compositor_modifier_node_group_exec(bContext *C,
+                                                                      wmOperator * /*op*/)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+
+  bNodeTree *node_tree = bke::node_tree_add_tree(
+      bmain, "Scene Compositor Modifier", "CompositorNodeTree");
+  initialize_scene_compositor_modifier_node_group(C, *node_tree);
+
+  if (!node_tree->compositor_node_asset_traits) {
+    node_tree->compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
+  }
+  node_tree->compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_SCENE_MODIFIER;
+  bke::node_update_asset_metadata(*node_tree);
+  node_templateID_assign(C, node_tree);
+
+  SceneCompositorModifier *active_modifier = bke::compositor::get_active_modifier(scene);
+  if (!active_modifier) {
+    SceneCompositorModifier *modifier = bke::compositor::new_modifier(scene,
+                                                                      "Scene Compositor Modifier");
+    modifier->node_group = node_tree;
+  }
+
+  // TODO: Updates.
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_new_scene_compositor_modifier_node_group(wmOperatorType *operator_type)
+{
+  operator_type->name = "New Scene Compositor Modifier Node Group";
+  operator_type->idname = "NODE_OT_new_scene_compositor_modifier_node_group";
+  operator_type->description =
+      "Create a new compositor node group for a scene compositor modifier";
+
+  operator_type->exec = new_scene_compositor_modifier_node_group_exec;
+
+  operator_type->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Duplicate Scene Compositor Modifier Node Group Operator.
+ * \{ */
+
+static wmOperatorStatus duplicate_scene_compositor_modifier_node_group_exec(bContext *C,
+                                                                            wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+
+  Main *main = CTX_data_main(C);
+  bNodeTree *node_tree = reinterpret_cast<bNodeTree *>(
+      BKE_id_copy_ex(main, &modifier->node_group->id, nullptr, LIB_ID_COPY_ACTIONS));
+  node_templateID_assign(C, node_tree);
+
+  // TODO: Updates.
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_duplicate_scene_compositor_modifier_node_group(wmOperatorType *operator_type)
+{
+  operator_type->name = "Duplicate Scene Compositor Modifier Node Group";
+  operator_type->idname = "NODE_OT_duplicate_scene_compositor_modifier_node_group";
+  operator_type->description = "Duplicate the currently assigned compositing node group.";
+
+  operator_type->exec = duplicate_scene_compositor_modifier_node_group_exec;
+
+  operator_type->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */

@@ -29,6 +29,7 @@
 #include "DNA_world_types.h"
 
 #include "BKE_action.hh"
+#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_linestyle.h"
@@ -581,6 +582,18 @@ static bool buttons_context_path_strip_modifier(Scene *sequencer_scene, ButsCont
   return false;
 }
 
+static bool buttons_context_path_scene_compositor_modifier(ButsContextPath *path)
+{
+  Scene *scene = path->ptr[path->len - 1].data_as<Scene>();
+
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  if (modifier) {
+    path->ptr[path->len] = RNA_pointer_create_discrete(&scene->id, RNA_StripModifier, modifier);
+    path->len++;
+  }
+  return true;
+}
+
 #ifdef WITH_FREESTYLE
 static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *view_layer)
 {
@@ -647,7 +660,8 @@ static bool buttons_context_path(
               BCONTEXT_VIEW_LAYER,
               BCONTEXT_WORLD,
               BCONTEXT_STRIP,
-              BCONTEXT_STRIP_MODIFIER))
+              BCONTEXT_STRIP_MODIFIER,
+              BCONTEXT_SCENE_COMPOSITOR_MODIFIERS))
     {
       path->ptr[path->len] = RNA_pointer_create_discrete(nullptr, RNA_ViewLayer, view_layer);
       path->len++;
@@ -721,6 +735,9 @@ static bool buttons_context_path(
       break;
     case BCONTEXT_STRIP_MODIFIER:
       found = buttons_context_path_strip_modifier(sequencer_scene, path);
+      break;
+    case BCONTEXT_SCENE_COMPOSITOR_MODIFIERS:
+      found = buttons_context_path_scene_compositor_modifier(path);
       break;
     default:
       found = false;
@@ -932,6 +949,7 @@ const char *buttons_context_dir[] = {
     "volume",
     "strip",
     "strip_modifier",
+    "scene_compositor_modifiers",
     nullptr,
 };
 
@@ -1263,6 +1281,10 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     set_pointer_type(path, result, RNA_StripModifier);
     return CTX_RESULT_OK;
   }
+  if (CTX_data_equals(member, "scene_compositor_modifiers")) {
+    set_pointer_type(path, result, RNA_SceneCompositorModifier);
+    return CTX_RESULT_OK;
+  }
   return CTX_RESULT_MEMBER_NOT_FOUND;
 }
 
@@ -1298,7 +1320,8 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
               BCONTEXT_VIEW_LAYER,
               BCONTEXT_WORLD,
               BCONTEXT_STRIP,
-              BCONTEXT_STRIP_MODIFIER) &&
+              BCONTEXT_STRIP_MODIFIER,
+              BCONTEXT_SCENE_COMPOSITOR_MODIFIERS) &&
         ptr->type == RNA_Scene)
     {
       continue;

@@ -12,7 +12,13 @@
 #include "BLI_math_base.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_string_utils.hh"
 
+#include "BLT_translation.hh"
+
+#include "BKE_anim_data.hh"
+#include "BKE_animsys.h"
 #include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_cryptomatte.hh"
@@ -37,6 +43,10 @@
 #include "NOD_dependencies.hh"
 
 namespace blender::bke::compositor {
+
+/* --------------------------------------------------------------------
+ * Cache.
+ */
 
 Cache::~Cache()
 {
@@ -141,6 +151,107 @@ int64_t Cache::size()
   }
   return size;
 }
+
+/* --------------------------------------------------------------------
+ * Scene Compositor Modifiers.
+ */
+
+SceneCompositorModifier *get_modifier(const Scene *scene, const char *name)
+{
+  return static_cast<SceneCompositorModifier *>(BLI_findstring(
+      &(scene->compositor_modifiers), name, offsetof(SceneCompositorModifier, name)));
+}
+
+SceneCompositorModifier *get_active_modifier(const Scene *scene)
+{
+  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+    if (flag_is_set(modifier.flags, SceneCompositorModifierFlags::IsActive)) {
+      return &modifier;
+    }
+  }
+
+  return nullptr;
+}
+
+void set_active_modifier(const Scene *scene, SceneCompositorModifier *modifier)
+{
+  for (SceneCompositorModifier &other_modifier : scene->compositor_modifiers) {
+    other_modifier.flags &= ~SceneCompositorModifierFlags::IsActive;
+  }
+
+  /* Activate the active state of the modifier. */
+  modifier->flags |= SceneCompositorModifierFlags::IsActive;
+}
+
+void rename_modifier(Scene *scene,
+                     SceneCompositorModifier *modifier,
+                     const char *new_name,
+                     const bool update_animation_data)
+{
+  std::string old_name = modifier->name;
+  STRNCPY_UTF8(modifier->name, new_name);
+  BLI_uniquename(&scene->compositor_modifiers,
+                 modifier,
+                 CTX_DATA_(BLT_I18NCONTEXT_ID_SCENE, "Compositor Modifier"),
+                 '.',
+                 offsetof(SceneCompositorModifier, name),
+                 sizeof(modifier->name));
+
+  if (!update_animation_data) {
+    return;
+  }
+
+  /* Fix all the animation data which may link to this. */
+  AnimData *animation_data = BKE_animdata_from_id(&scene->id);
+  if (animation_data) {
+    BKE_animdata_fix_paths_rename(&scene->id,
+                                  animation_data,
+                                  nullptr,
+                                  "compositor_modifiers",
+                                  old_name.c_str(),
+                                  modifier->name,
+                                  0,
+                                  0,
+                                  /*verify_paths=*/true,
+                                  /*infix_is_name=*/true);
+  }
+}
+
+SceneCompositorModifier *new_modifier(Scene *scene, const char *name)
+{
+  SceneCompositorModifier *modifier = MEM_new<SceneCompositorModifier>(
+      "Scene Compositor Modifier");
+  rename_modifier(scene, modifier, name, false);
+  BLI_addtail(&scene->compositor_modifiers, modifier);
+  set_active_modifier(scene, modifier);
+  return modifier;
+}
+
+SceneCompositorModifier *copy_modifier(Scene *scene, SceneCompositorModifier *source_modifier)
+{
+  SceneCompositorModifier *new_modifier = MEM_dupalloc(source_modifier);
+  BLI_addtail(&scene->compositor_modifiers, new_modifier);
+  rename_modifier(scene, new_modifier, source_modifier->name, false);
+  return new_modifier;
+}
+
+void remove_modifier(Scene *scene, SceneCompositorModifier *modifier)
+{
+  BLI_remlink(&scene->compositor_modifiers, modifier);
+  MEM_delete(modifier);
+}
+
+void clear_modifiers(Scene *scene)
+{
+  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+    MEM_delete(&modifier);
+  }
+  BLI_listbase_clear(&scene->compositor_modifiers);
+}
+
+/* --------------------------------------------------------------------
+ * Query.
+ */
 
 /* Adds the pass names of the passes used by the given Render Layer node to the given used passes.
  * This essentially adds the pass names of the outputs that are logically linked. */
@@ -355,6 +466,10 @@ bool node_tree_has_linked_file_output(const bNodeTree *node_tree)
 
   return false;
 }
+
+/* --------------------------------------------------------------------
+ * Depsgraph.
+ */
 
 void add_depsgraph_relations(Scene &scene, DepsNodeHandle *compositor_output_depsgraph_node)
 {

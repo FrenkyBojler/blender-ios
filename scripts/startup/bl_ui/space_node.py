@@ -1113,6 +1113,7 @@ class NODE_PT_node_tree_properties(Panel):
             if body:
                 col = body.column(align=True)
                 col.prop(group, "is_strip_modifier")
+                col.prop(group, "allow_usage_in_scene_compositor_modifier")
 
 
 class NODE_PT_node_tree_animation(Panel):

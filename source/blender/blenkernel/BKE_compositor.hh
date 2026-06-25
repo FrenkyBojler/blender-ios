@@ -22,10 +22,15 @@ struct Scene;
 struct ViewLayer;
 struct ImBuf;
 struct bContext;
+struct SceneCompositorModifier;
 struct DepsNodeHandle;
 struct bNodeTree;
 
 namespace bke::compositor {
+
+/* --------------------------------------------------------------------
+ * Cache.
+ */
 
 struct Cache {
   struct FrameKey {
@@ -76,6 +81,42 @@ struct Cache {
   int64_t size();
 };
 
+/* --------------------------------------------------------------------
+ * Scene Compositor Modifiers.
+ */
+
+/* Gets the compositor modifier with the given name in the given scene. */
+SceneCompositorModifier *get_modifier(const Scene *scene, const char *name);
+
+/* Gets the active compositor modifier in the given scene. */
+SceneCompositorModifier *get_active_modifier(const Scene *scene);
+
+/* Sets the given compositor modifier in the given scene to be the active one. */
+void set_active_modifier(const Scene *scene, SceneCompositorModifier *modifier);
+
+/* Rename the given compositor modifier in the given scene to the given name. Animation data paths
+ * may be updated if update_animation_data is true. */
+void rename_modifier(Scene *scene,
+                     SceneCompositorModifier *modifier,
+                     const char *new_name,
+                     bool update_animation_data = true);
+
+/* Adds a new compositor modifier of the given name to the given scene. */
+SceneCompositorModifier *new_modifier(Scene *scene, const char *name);
+
+/* Copy the given compositor modifier in the given scene. */
+SceneCompositorModifier *copy_modifier(Scene *scene, SceneCompositorModifier *source_modifier);
+
+/* Removes the given compositor modifier from the given scene. */
+void remove_modifier(Scene *scene, SceneCompositorModifier *modifier);
+
+/* Removes all compositor modifiers from the given scene. */
+void clear_modifiers(Scene *scene);
+
+/* --------------------------------------------------------------------
+ * Query.
+ */
+
 /* Get the set of all passes used by the compositor for the given view layer, identified by their
  * pass names. This might be a superset of the passes actually supported by the render engine, in
  * which case, the compositor will return an invalid output and issue a warning. */
@@ -88,6 +129,10 @@ bool is_viewport_compositor_used(const bContext &context);
 /* Note: Links to the File Output node do not guarantee it will write a result to disk, e.g. if
  * Menu Switch nodes exists but it's a good estimation without evaluating the node tree. */
 bool node_tree_has_linked_file_output(const bNodeTree *node_tree);
+
+/* --------------------------------------------------------------------
+ * Depsgraph.
+ */
 
 /* Add the depsgraph relations needed by the compositor node tree of the given scene. A handle for
  * the compositor output depsgraph node is given to be the target of the relation. */

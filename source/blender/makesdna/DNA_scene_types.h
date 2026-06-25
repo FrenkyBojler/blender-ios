@@ -31,6 +31,7 @@
 #include "DNA_layer_types.h"
 #include "DNA_listBase.h"
 #include "DNA_scene_enums.h"
+#include "DNA_screen_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
 
@@ -2773,6 +2774,34 @@ struct TransformOrientationSlot {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Scene Compositor Modifier
+ * \{ */
+
+enum class SceneCompositorModifierFlags : uint8_t {
+  None = 0,
+  EnableForRender = (1 << 0),
+  EnableForPreview = (1 << 1),
+  IsActive = (1 << 3),
+  ShowNodeGroupSelector = (1 << 4),
+};
+ENUM_OPERATORS(SceneCompositorModifierFlags);
+
+struct SceneCompositorModifier {
+  struct SceneCompositorModifier *next = nullptr, *previous = nullptr;
+  char name[/*MAX_NAME*/ 64] = "";
+  struct bNodeTree *node_group = nullptr;
+  SceneCompositorModifierFlags flags = SceneCompositorModifierFlags::EnableForRender |
+                                       SceneCompositorModifierFlags::EnableForPreview |
+                                       SceneCompositorModifierFlags::ShowNodeGroupSelector;
+  char _pad0[1];
+  uiPanelDataExpansion ui_panel_data_expansion = UI_PANEL_DATA_EXPAND_ROOT;
+  char _pad1[4];
+  //  struct IDProperty *system_properties = nullptr;
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Scene ID-Block
  * \{ */
 
@@ -2842,6 +2871,8 @@ struct Scene {
 
   DNA_DEPRECATED struct bNodeTree *nodetree = nullptr;
   struct bNodeTree *compositing_node_group = nullptr;
+
+  ListBaseT<struct SceneCompositorModifier> compositor_modifiers = {nullptr, nullptr};
 
   /** Sequence editor data is allocated here. */
   struct Editing *ed = nullptr;
