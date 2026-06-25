@@ -121,9 +121,11 @@ void VKVertexBuffer::acquire_data()
   }
 
   /* Discard previous data if any. */
-  /* TODO: Use mapped memory. */
-  MEM_SAFE_DELETE(data_);
-  data_ = MEM_new_array_uninitialized<uchar>(this->size_alloc_get(), __func__);
+  if (buffer_.is_allocated()) {
+    buffer_.free();
+  }
+  allocate();
+  data_ = static_cast<uchar *>(buffer_.mapped_memory_get());
 }
 
 void VKVertexBuffer::resize_data()
@@ -143,7 +145,12 @@ void VKVertexBuffer::release_data()
     vk_buffer_view_ = VK_NULL_HANDLE;
   }
 
-  MEM_SAFE_DELETE(data_);
+  if (buffer_.is_mapped()) {
+    data_ = nullptr;
+  }
+  else {
+    MEM_SAFE_DELETE(data_);
+  }
 }
 
 void VKVertexBuffer::upload_data_direct(const VKBuffer &host_buffer)
@@ -193,7 +200,12 @@ void VKVertexBuffer::upload_data()
       upload_data_via_staging_buffer(context);
     }
     if (usage_ == GPU_USAGE_STATIC) {
-      MEM_SAFE_DELETE(data_);
+      if (buffer_.is_mapped()) {
+        data_ = nullptr;
+      }
+      else {
+        MEM_SAFE_DELETE(data_);
+      }
     }
     data_uploaded_ = true;
 
@@ -209,11 +221,17 @@ void VKVertexBuffer::allocate()
                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                        VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+  bool needs_host_access = (usage_ != GPU_USAGE_DEVICE_ONLY);
+
+  VmaAllocationCreateFlags vk_allocation_flags =
+      needs_host_access ? VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                              VMA_ALLOCATION_CREATE_MAPPED_BIT :
+                          VmaAllocationCreateFlags(0);
 
   buffer_.create(size_alloc_get(),
                  vk_buffer_usage,
                  VMA_MEMORY_USAGE_AUTO,
-                 VmaAllocationCreateFlags(0),
+                 vk_allocation_flags,
                  0.8f,
                  false,
                  "VertexBuffer");
