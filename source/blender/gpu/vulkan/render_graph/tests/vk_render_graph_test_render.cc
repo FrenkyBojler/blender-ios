@@ -108,7 +108,8 @@ TEST_P(VKRenderGraphTestRender, begin_clear_attachments_end_read_back)
       log[2]);
   EXPECT_EQ("end_rendering()", log[3]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
+      "VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_TRANSFER_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "

@@ -44,6 +44,17 @@ struct VKRenderGraphResource {
    */
   VkAccessFlags vk_access_flags;
 
+  /**
+   * Which pipeline stage(s) access the resource.
+   *
+   * When generating pipeline barriers of a resource, these stages are used as the destination
+   * stage mask. This allows barriers to only synchronize the relevant pipeline stages rather
+   * than using a worst-case ALL_GRAPHICS_BIT/ALL_COMMANDS_BIT barrier.
+   *
+   * When VK_PIPELINE_STAGE_NONE the node-level pipeline stage will be used as fallback.
+   */
+  VkPipelineStageFlags vk_pipeline_stages = VK_PIPELINE_STAGE_NONE;
+
   bool has_write_access() const
   {
     return vk_access_flags & VK_ACCESS_WRITE_MASK;

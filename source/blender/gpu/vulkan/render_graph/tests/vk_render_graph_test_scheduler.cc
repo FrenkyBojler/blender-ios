@@ -94,7 +94,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_rendering_copy_buffer_end_rendering)
             log[2]);
   EXPECT_EQ("end_rendering()", log[3]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
+      "VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -215,7 +216,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_end)
       log[3]);
   EXPECT_EQ("end_rendering()", log[4]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
+      "VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -336,7 +338,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_copy_buffer_clear_attachments_end)
       log[3]);
   EXPECT_EQ("end_rendering()", log[4]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
+      "VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -481,7 +484,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_clear_attachments_copy_buffer_clear_att
       log[4]);
   EXPECT_EQ("end_rendering()", log[5]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
+      "VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -1221,7 +1225,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_rendering_end_rendering_begin_rendering
     EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[5]);
     EXPECT_EQ("end_rendering()", log[6]);
     EXPECT_EQ(
-        "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+        "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
+        "VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
         "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
             endl() +
             " - image_barrier(src_access_mask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, "
@@ -1422,7 +1427,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end)
   EXPECT_EQ("draw(vertex_count=4, instance_count=1, first_vertex=0, first_instance=0)", log[6]);
   EXPECT_EQ("end_rendering()", log[7]);
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
+      "VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_SHADER_READ_BIT, "
@@ -1641,7 +1647,8 @@ TEST_P(VKRenderGraphTestScheduler, begin_draw_storage_end_begin_draw_end_subreso
   /* Transition between scopes: same-layout access-sync barrier. Must use the default layout
    * as oldLayout (not GENERAL) to match the actual image layout after suspend. */
   EXPECT_EQ(
-      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
+      "pipeline_barrier(src_stage_mask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, "
+      "VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, "
       "dst_stage_mask=VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT" +
           endl() +
           " - image_barrier(src_access_mask=VK_ACCESS_SHADER_READ_BIT, "

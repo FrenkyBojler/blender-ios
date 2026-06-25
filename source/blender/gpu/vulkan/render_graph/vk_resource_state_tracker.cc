@@ -90,7 +90,7 @@ void VKResourceStateTracker::add_swapchain_image(VkImage vk_image, const char *n
             false,
             {
                 VK_ACCESS_NONE,
-                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
             },
             name);
 }

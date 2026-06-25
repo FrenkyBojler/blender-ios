@@ -13,6 +13,36 @@
 
 namespace blender::gpu::render_graph {
 
+VkPipelineStageFlags to_vk_pipeline_stage(VkShaderStageFlags shader_stages)
+{
+  VkPipelineStageFlags result = VK_PIPELINE_STAGE_NONE;
+  if (shader_stages & VK_SHADER_STAGE_VERTEX_BIT) {
+    result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+  }
+  if (shader_stages & VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT) {
+    result |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
+  }
+  if (shader_stages & VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT) {
+    result |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+  }
+  if (shader_stages & VK_SHADER_STAGE_GEOMETRY_BIT) {
+    result |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+  }
+  if (shader_stages & VK_SHADER_STAGE_FRAGMENT_BIT) {
+    result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  }
+  if (shader_stages & VK_SHADER_STAGE_COMPUTE_BIT) {
+    result |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+  }
+  if (shader_stages & VK_SHADER_STAGE_MESH_BIT_EXT) {
+    result |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+  }
+  if (shader_stages & VK_SHADER_STAGE_TASK_BIT_EXT) {
+    result |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
+  }
+  return result;
+}
+
 VkImageLayout VKImageAccess::to_vk_image_layout(bool supports_local_read) const
 {
   if (vk_access_flags & (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT)) {
@@ -58,7 +88,8 @@ void VKResourceAccessInfo::build_links(VKResourceStateTracker &resources,
                                                resources.get_buffer_and_increase_stamp(
                                                    buffer_access.vk_buffer) :
                                                resources.get_buffer(buffer_access.vk_buffer);
-    links.buffers.append({versioned_resource, buffer_access.vk_access_flags});
+    links.buffers.append(
+        {versioned_resource, buffer_access.vk_access_flags, buffer_access.vk_pipeline_stages});
   }
 
   const bool supports_local_read = resources.use_dynamic_rendering_local_read;
@@ -70,10 +101,11 @@ void VKResourceAccessInfo::build_links(VKResourceStateTracker &resources,
                                                resources.get_image_and_increase_stamp(
                                                    image_access.vk_image) :
                                                resources.get_image(image_access.vk_image);
-    links.images.append({{versioned_resource, image_access.vk_access_flags},
-                         image_layout,
-                         image_access.vk_image_aspect,
-                         image_access.subimage});
+    links.images.append(
+        {{versioned_resource, image_access.vk_access_flags, image_access.vk_pipeline_stages},
+         image_layout,
+         image_access.vk_image_aspect,
+         image_access.subimage});
   }
 }
 

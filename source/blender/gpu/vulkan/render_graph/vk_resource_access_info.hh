@@ -26,6 +26,15 @@
 namespace blender::gpu::render_graph {
 class VKResourceStateTracker;
 
+/**
+ * Convert shader stage flags to pipeline stage flags.
+ *
+ * Shader stages (VK_SHADER_STAGE_*) and pipeline stages (VK_PIPELINE_STAGE_*) are distinct
+ * flag types but there is a direct mapping between shader stage bits and the corresponding
+ * pipeline stage bits (e.g. VK_SHADER_STAGE_VERTEX_BIT -> VK_PIPELINE_STAGE_VERTEX_SHADER_BIT).
+ */
+VkPipelineStageFlags to_vk_pipeline_stage(VkShaderStageFlags shader_stages);
+
 /** Struct describing the access to an image. */
 struct VKImageAccess {
   VkImage vk_image;
@@ -41,12 +50,26 @@ struct VKImageAccess {
 
   /** Determine the image layout for the vk_access_flags. */
   VkImageLayout to_vk_image_layout(bool supports_local_read) const;
+
+  /**
+   * Which pipeline stage(s) access the resource.
+   *
+   * When VK_PIPELINE_STAGE_NONE the node-level pipeline stage will be used as fallback.
+   */
+  VkPipelineStageFlags vk_pipeline_stages = VK_PIPELINE_STAGE_NONE;
 };
 
 /** Struct describing the access to a buffer. */
 struct VKBufferAccess {
   VkBuffer vk_buffer;
   VkAccessFlags vk_access_flags;
+
+  /**
+   * Which pipeline stage(s) access the resource.
+   *
+   * When VK_PIPELINE_STAGE_NONE the node-level pipeline stage will be used as fallback.
+   */
+  VkPipelineStageFlags vk_pipeline_stages = VK_PIPELINE_STAGE_NONE;
 };
 
 /** Struct describing all resource accesses a draw/dispatch node has. */

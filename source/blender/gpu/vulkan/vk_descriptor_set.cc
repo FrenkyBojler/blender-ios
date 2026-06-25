@@ -67,16 +67,19 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
 void VKDescriptorSetTracker::update_resource_access_info_binding_uniform_buffer(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
+    VkPipelineStageFlags vk_pipeline_stages,
     render_graph::VKResourceAccessInfo &access_info)
 {
   VKUniformBuffer &uniform_buffer = *state_manager.uniform_buffers_.get(resource_binding.binding);
   uniform_buffer.ensure_updated();
-  access_info.buffers.append({uniform_buffer.vk_handle(), resource_binding.access_mask});
+  access_info.buffers.append(
+      {uniform_buffer.vk_handle(), resource_binding.access_mask, vk_pipeline_stages});
 }
 
 void VKDescriptorSetTracker::update_resource_access_info_binding_storage_buffer(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
+    VkPipelineStageFlags vk_pipeline_stages,
     render_graph::VKResourceAccessInfo &access_info)
 {
   const BindSpaceStorageBuffers::Elem &elem = state_manager.storage_buffers_.get(
@@ -117,13 +120,14 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_storage_buffer(
     }
   }
   if (vk_buffer != VK_NULL_HANDLE) {
-    access_info.buffers.append({vk_buffer, resource_binding.access_mask});
+    access_info.buffers.append({vk_buffer, resource_binding.access_mask, vk_pipeline_stages});
   }
 }
 
 void VKDescriptorSetTracker::update_resource_access_info_binding_sampler(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
+    VkPipelineStageFlags vk_pipeline_stages,
     render_graph::VKResourceAccessInfo &access_info)
 {
   const BindSpaceTextures::Elem *elem_ptr = state_manager.textures_.get(resource_binding.binding);
@@ -147,7 +151,8 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_sampler(
     case BindSpaceTextures::Type::VertexBuffer: {
       VKVertexBuffer &vertex_buffer = *static_cast<VKVertexBuffer *>(elem.resource);
       vertex_buffer.ensure_updated();
-      access_info.buffers.append({vertex_buffer.vk_handle(), resource_binding.access_mask});
+      access_info.buffers.append(
+          {vertex_buffer.vk_handle(), resource_binding.access_mask, vk_pipeline_stages});
       break;
     }
     case BindSpaceTextures::Type::Texture: {
@@ -155,7 +160,8 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_sampler(
       if (texture->type_ == GPU_TEXTURE_BUFFER) {
         VKVertexBuffer &vertex_buffer = *texture->source_buffer_;
         vertex_buffer.ensure_updated();
-        access_info.buffers.append({vertex_buffer.vk_handle(), resource_binding.access_mask});
+        access_info.buffers.append(
+            {vertex_buffer.vk_handle(), resource_binding.access_mask, vk_pipeline_stages});
       }
       else {
         VKSubImageRange subimage = {};
@@ -170,7 +176,8 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_sampler(
         access_info.images.append({texture->vk_image_handle(),
                                    resource_binding.access_mask,
                                    to_vk_image_aspect_flag_bits(texture->device_format_get()),
-                                   subimage});
+                                   subimage,
+                                   vk_pipeline_stages});
       }
       break;
     }
@@ -183,6 +190,7 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_sampler(
 void VKDescriptorSetTracker::update_resource_access_info_binding_image(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
+    VkPipelineStageFlags vk_pipeline_stages,
     render_graph::VKResourceAccessInfo &access_info)
 {
   VKTexture &texture = *state_manager.images_.get(resource_binding.binding);
@@ -198,12 +206,14 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_image(
   access_info.images.append({texture.vk_image_handle(),
                              resource_binding.access_mask,
                              to_vk_image_aspect_flag_bits(texture.device_format_get()),
-                             subimage});
+                             subimage,
+                             vk_pipeline_stages});
 }
 
 void VKDescriptorSetTracker::update_resource_access_info_binding_input_attachment(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
+    VkPipelineStageFlags vk_pipeline_stages,
     render_graph::VKResourceAccessInfo &access_info)
 {
   const VKDevice &device = VKBackend::get().device;
@@ -232,41 +242,45 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_input_attachmen
     access_info.images.append({texture->vk_image_handle(),
                                resource_binding.access_mask,
                                to_vk_image_aspect_flag_bits(texture->device_format_get()),
-                               subimage});
+                               subimage,
+                               vk_pipeline_stages});
   }
 }
 
 void VKDescriptorSetTracker::update_resource_access_info_binding(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
+    VkPipelineStageFlags vk_pipeline_stages,
     render_graph::VKResourceAccessInfo &access_info)
 {
   switch (resource_binding.bind_type) {
     case VKBindType::UNIFORM_BUFFER: {
       update_resource_access_info_binding_uniform_buffer(
-          state_manager, resource_binding, access_info);
+          state_manager, resource_binding, vk_pipeline_stages, access_info);
       break;
     }
 
     case VKBindType::STORAGE_BUFFER: {
       update_resource_access_info_binding_storage_buffer(
-          state_manager, resource_binding, access_info);
+          state_manager, resource_binding, vk_pipeline_stages, access_info);
       break;
     }
 
     case VKBindType::SAMPLER: {
-      update_resource_access_info_binding_sampler(state_manager, resource_binding, access_info);
+      update_resource_access_info_binding_sampler(
+          state_manager, resource_binding, vk_pipeline_stages, access_info);
       break;
     }
 
     case VKBindType::IMAGE: {
-      update_resource_access_info_binding_image(state_manager, resource_binding, access_info);
+      update_resource_access_info_binding_image(
+          state_manager, resource_binding, vk_pipeline_stages, access_info);
       break;
     }
 
     case VKBindType::INPUT_ATTACHMENT: {
       update_resource_access_info_binding_input_attachment(
-          state_manager, resource_binding, access_info);
+          state_manager, resource_binding, vk_pipeline_stages, access_info);
       break;
     }
   }
@@ -281,11 +295,15 @@ void VKDescriptorSetTracker::update_resource_access_info(
   VKStateManager &state_manager = context.state_manager_get();
   const VKShaderInterface &shader_interface = shader.interface_get();
 
+  VkPipelineStageFlags vk_pipeline_stages = render_graph::to_vk_pipeline_stage(
+      shader_interface.descriptor_set_layout_info_get().vk_shader_stage_flags);
+
   for (const VKResourceBinding &resource_binding : shader_interface.resource_bindings_get()) {
     if (resource_binding.binding == -1) {
       continue;
     }
-    update_resource_access_info_binding(state_manager, resource_binding, access_info);
+    update_resource_access_info_binding(
+        state_manager, resource_binding, vk_pipeline_stages, access_info);
   }
 
   /* Bind uniform push constants to descriptor set. */
@@ -293,7 +311,8 @@ void VKDescriptorSetTracker::update_resource_access_info(
           VKPushConstants::StorageType::BUFFER &&
       push_constants_buffer.buffer != VK_NULL_HANDLE)
   {
-    access_info.buffers.append({push_constants_buffer.buffer, VK_ACCESS_UNIFORM_READ_BIT});
+    access_info.buffers.append(
+        {push_constants_buffer.buffer, VK_ACCESS_UNIFORM_READ_BIT, vk_pipeline_stages});
   }
 }
 

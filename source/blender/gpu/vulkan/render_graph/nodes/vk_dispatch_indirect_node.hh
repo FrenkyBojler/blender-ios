@@ -65,7 +65,9 @@ class VKDispatchIndirectNode
     create_info.resources.build_links(resources, links);
     ResourceWithStamp buffer_resource = resources.get_buffer(
         create_info.dispatch_indirect_node.buffer);
-    links.buffers.append({buffer_resource, VK_ACCESS_INDIRECT_COMMAND_READ_BIT});
+    links.buffers.append({buffer_resource,
+                          VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+                          VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT});
   }
 
   /**

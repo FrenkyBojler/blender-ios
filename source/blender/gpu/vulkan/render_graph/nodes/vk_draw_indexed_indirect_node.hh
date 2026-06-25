@@ -67,7 +67,9 @@ class VKDrawIndexedIndirectNode
     vk_vertex_buffer_bindings_build_links(resources, links, create_info.node_data.vertex_buffers);
     ResourceWithStamp buffer_resource = resources.get_buffer(
         create_info.node_data.indirect_buffer);
-    links.buffers.append({buffer_resource, VK_ACCESS_INDIRECT_COMMAND_READ_BIT});
+    links.buffers.append({buffer_resource,
+                          VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+                          VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT});
   }
 
   /**

@@ -652,10 +652,8 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
         {color_texture.vk_image_handle(),
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
          VK_IMAGE_ASPECT_COLOR_BIT,
-         {uint32_t(attachment.mip),
-          1,
-          layer_base,
-          uint32_t(max_ii(layer_count - layer_base, 1))}});
+         {uint32_t(attachment.mip), 1, layer_base, uint32_t(max_ii(layer_count - layer_base, 1))},
+         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT});
     color_attachment_formats_.append(
         (!extensions.dynamic_rendering_unused_attachments && vk_image_view == VK_NULL_HANDLE) ?
             VK_FORMAT_UNDEFINED :
@@ -737,7 +735,8 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
              static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT |
                                              VK_IMAGE_ASPECT_STENCIL_BIT) :
              static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT),
-         {uint32_t(attachment.mip), 1, uint32_t(max_ii(attachment.layer, 0)), 1}});
+         {uint32_t(attachment.mip), 1, uint32_t(max_ii(attachment.layer, 0)), 1},
+         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT});
     break;
   }
 

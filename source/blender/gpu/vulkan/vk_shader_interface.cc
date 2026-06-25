@@ -454,7 +454,14 @@ void VKShaderInterface::init_descriptor_set_layout_info(
     descriptor_set_layout_info_.vk_shader_stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
   }
   else {
-    descriptor_set_layout_info_.vk_shader_stage_flags = VK_SHADER_STAGE_ALL_GRAPHICS;
+    VkShaderStageFlags stages = VK_SHADER_STAGE_VERTEX_BIT;
+    if (!info.fragment_source_.is_empty() || !info.fragment_source_generated.empty()) {
+      stages |= VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
+    if (!info.geometry_source_.is_empty() || !info.geometry_source_generated.empty()) {
+      stages |= VK_SHADER_STAGE_GEOMETRY_BIT;
+    }
+    descriptor_set_layout_info_.vk_shader_stage_flags = stages;
   }
   for (int index : IndexRange(info.subpass_inputs_.size())) {
     UNUSED_VARS(index);

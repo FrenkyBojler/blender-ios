@@ -94,7 +94,7 @@ void vk_index_buffer_binding_build_links(VKResourceStateTracker &resources,
                                          const VKIndexBufferBinding &index_buffer_binding)
 {
   ResourceWithStamp resource = resources.get_buffer(index_buffer_binding.buffer);
-  links.buffers.append({resource, VK_ACCESS_INDEX_READ_BIT});
+  links.buffers.append({resource, VK_ACCESS_INDEX_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT});
 }
 
 void vk_index_buffer_binding_build_commands(VKCommandBufferInterface &command_buffer,
@@ -115,7 +115,8 @@ void vk_vertex_buffer_bindings_build_links(VKResourceStateTracker &resources,
        Span<VkBuffer>(vertex_buffers.buffer, vertex_buffers.buffer_count))
   {
     ResourceWithStamp resource = resources.get_buffer(vk_buffer);
-    links.buffers.append({resource, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT});
+    links.buffers.append(
+        {resource, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT});
   }
 }
 
