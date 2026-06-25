@@ -6,8 +6,6 @@
  * \ingroup RNA
  */
 
-#include "BKE_global.hh"
-
 #include "BLT_translation.hh"
 
 #include "DNA_node_types.h"
@@ -163,11 +161,9 @@ static bool rna_NodeSocket_unregister(Main *bmain, StructRNA *type)
   if (!st) {
     return false;
   }
-  if (!G.background) {
-    ui::refresh_for_srna_unregister(bmain, type);
-    ui::refresh_for_srna_unregister(bmain, st->ext_interface.srna);
-    ui::refresh_for_srna_unregister(bmain, st->ext_socket.srna);
-  }
+  ui::refresh_for_srna_unregister(bmain, type);
+  ui::refresh_for_srna_unregister(bmain, st->ext_interface.srna);
+  ui::refresh_for_srna_unregister(bmain, st->ext_socket.srna);
   RNA_struct_free_extension(type, &st->ext_socket);
   RNA_struct_free(&RNA_blender_rna_get(), type);
 

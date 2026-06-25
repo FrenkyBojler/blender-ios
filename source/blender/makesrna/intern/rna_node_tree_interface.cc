@@ -345,7 +345,7 @@ static void rna_NodeTreeInterfaceSocket_from_socket_custom(
   RNA_parameter_list_free(&list);
 }
 
-static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
+static StructRNA *rna_NodeTreeInterfaceSocket_register(Main *bmain,
                                                        ReportList * /*reports*/,
                                                        void *data,
                                                        const char *identifier,
@@ -383,6 +383,7 @@ static StructRNA *rna_NodeTreeInterfaceSocket_register(Main * /*bmain*/,
 
   /* if RNA type is already registered, unregister first */
   if (st->ext_interface.srna) {
+    ui::refresh_for_srna_unregister(bmain, st->ext_interface.srna);
     StructRNA *srna = st->ext_interface.srna;
     RNA_struct_free_extension(srna, &st->ext_interface);
     RNA_struct_free(&RNA_blender_rna_get(), srna);

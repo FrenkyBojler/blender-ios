@@ -51,6 +51,7 @@
 #include "BKE_screen.hh"
 #include "BKE_tracking.hh"
 #include "BKE_unit.hh"
+#include "BKE_global.hh"
 
 #include "BLT_translation.hh"
 
@@ -13330,6 +13331,9 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
 
 void refresh_for_srna_unregister(Main *bmain, StructRNA *srna_to_unreg)
 {
+  if (G.background) {
+    return;
+  }
   if (!srna_to_unreg) {
     return;
   }

@@ -11,7 +11,6 @@
 #include "DNA_ID.h"
 #include "DNA_material_types.h"
 
-#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 
@@ -708,9 +707,7 @@ IDProperty **rna_PropertyGroup_idprops(PointerRNA *ptr)
 
 bool rna_PropertyGroup_unregister(Main *bmain, StructRNA *type)
 {
-  if (!G.background) {
-    ui::refresh_for_srna_unregister(bmain, type);
-  }
+  ui::refresh_for_srna_unregister(bmain, type);
 #  ifdef WITH_PYTHON
   /* Ensure that a potential py object representing this RNA type is properly dereferenced. */
   BPY_free_srna_pytype(type);
