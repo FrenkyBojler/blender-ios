@@ -450,6 +450,8 @@ enum {
 #define UI_PANEL_CATEGORY_MIN_WIDTH ((U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT) ? 32.0f : 26.0f)
 /* Minimum width for a panel showing content and category tabs. */
 #define UI_PANEL_CATEGORY_MIN_SNAP_WIDTH 90.0f
+/* Minimum panel draw width. */
+static constexpr int PANEL_MIN_DRAW_WIDTH = 20;
 
 /* Both these margins should be ignored if the panel doesn't show a background (check
  * #panel_should_show_background()). */
@@ -621,7 +623,7 @@ inline char but_pointer_bit_max_index(ButPointerType pointer_type)
 /** Deduce the #ButPointerType matching \a T. */
 template<typename T> constexpr ButPointerType but_pointer_type_for()
 {
-  constexpr ButPointerType ptr_type = (std::is_floating_point_v<T>) ?
+  constexpr ButPointerType ptr_type = (std::is_same_v<T, float>) ?
                                           ButPointerType::Float :
                                       (std::is_integral_v<T> || std::is_enum_v<T>) ?
                                           (sizeof(T) == 1) ? ButPointerType::Char :
@@ -1914,11 +1916,21 @@ int search_items_find_index(const SearchItems *items, const char *name);
  * Adds a hint to the button which draws right aligned, grayed out and never clipped.
  */
 void button_hint_drawstr_set(Button *but, const char *string);
+void button_icon_scale_set(Button *but, float scale);
 void button_icon_indicator_number_set(Button *but, const int indicator_number);
 void button_icon_indicator_set(Button *but, const char *string);
 void button_icon_indicator_color_set(Button *but, const uchar color[4]);
 
 void button_node_link_set(Button *but, bNodeSocket *socket, const float draw_color[4]);
+
+/**
+ * Draw the button in a way that works as overlay, with a dark filled circle in the back and the
+ * icon in white on top. This ensures readable contrast even on varying backgrounds.
+ * Probably only works well for icon only buttons.
+ *
+ * Requires embossing to be enabled.
+ */
+void button_pushbutton_draw_as_overlay_set(Button *but, bool value);
 
 void button_number_step_size_set(Button *but, float step_size);
 void button_number_precision_set(Button *but, float precision);
