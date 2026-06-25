@@ -13,6 +13,8 @@
 
 #include "GEO_foreach_geometry.hh"
 
+#include "NOD_socket_usage_inference.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_delaunay_triangulation_cc {
@@ -97,11 +99,20 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Menu>("Type"_ustr)
       .static_items(triangulation_type_items)
       .default_value(MenuValue(TriangulationType::Triangles))
-      .optional_label();
+      .optional_label()
+      .usage_inference(
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
+            return params.menu_input_may_be("Mode"_ustr, int(TriangulationMode::Inside)) ||
+                   params.menu_input_may_be("Mode"_ustr, int(TriangulationMode::InsideWithHoles));
+          });
   b.add_input<decl::Menu>("Fill Rule"_ustr)
       .static_items(fill_rule_items)
       .default_value(MenuValue(FillRule::EvenOdd))
-      .optional_label();
+      .optional_label()
+      .usage_inference(
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
+            return params.menu_input_may_be("Mode"_ustr, int(TriangulationMode::InsideWithHoles));
+          });
   b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
   b.add_output<decl::Bool>("Intersection Points"_ustr)
       .anonymous_attribute_output()
