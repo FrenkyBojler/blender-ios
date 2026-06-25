@@ -46,9 +46,9 @@ class VKDispatchNode : public VKNodeInfo<VKNodeType::DISPATCH,
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
   template<typename Node, typename Storage>
-  static void set_node_data(Node &node, Storage & /* storage */, const CreateInfo &create_info)
+  static void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
-    node.dispatch = create_info.dispatch_node;
+    node.storage_index = storage.dispatch.append_and_get_index(create_info.dispatch_node);
   }
 
   /**

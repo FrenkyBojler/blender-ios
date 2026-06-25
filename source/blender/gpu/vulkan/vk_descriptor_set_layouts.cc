@@ -80,6 +80,23 @@ void VKDescriptorSetLayouts::update_layout_bindings(const VKDescriptorSetLayoutI
   }
 }
 
+VkDescriptorSetLayout VKDescriptorSetLayouts::get_or_create_empty()
+{
+  if (empty_layout_ == VK_NULL_HANDLE) {
+    std::scoped_lock mutex(mutex_);
+    if (empty_layout_ == VK_NULL_HANDLE) {
+      const VKDevice &device = VKBackend::get().device;
+      VkDescriptorSetLayoutCreateInfo info = {};
+      info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+      info.bindingCount = 0;
+      info.pBindings = nullptr;
+      vkCreateDescriptorSetLayout(device.vk_handle(), &info, nullptr, &empty_layout_);
+      BLI_assert(empty_layout_ != VK_NULL_HANDLE);
+    }
+  }
+  return empty_layout_;
+}
+
 void VKDescriptorSetLayouts::deinit()
 {
   std::scoped_lock mutex(mutex_);
@@ -88,6 +105,10 @@ void VKDescriptorSetLayouts::deinit()
     vkDestroyDescriptorSetLayout(device.vk_handle(), vk_descriptor_set_layout, nullptr);
   }
   vk_descriptor_set_layouts_.clear();
+  if (empty_layout_ != VK_NULL_HANDLE) {
+    vkDestroyDescriptorSetLayout(device.vk_handle(), empty_layout_, nullptr);
+    empty_layout_ = VK_NULL_HANDLE;
+  }
 }
 
 }  // namespace blender::gpu

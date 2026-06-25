@@ -58,6 +58,8 @@ struct VKRenderGraphStorage {
   Vector<VKDrawIndexedNode::Data, 1024> draw_indexed;
   Vector<VKDrawIndexedIndirectNode::Data, 1024> draw_indexed_indirect;
   Vector<VKDrawIndirectNode::Data, 1024> draw_indirect;
+  Vector<VKDispatchNode::Data, 1024> dispatch;
+  Vector<VKDispatchIndirectNode::Data, 1024> dispatch_indirect;
   Vector<uint8_t> push_constants;
 
   void reset()
@@ -72,6 +74,8 @@ struct VKRenderGraphStorage {
     draw_indexed.clear_and_shrink();
     draw_indexed_indirect.clear_and_shrink();
     draw_indirect.clear_and_shrink();
+    dispatch.clear_and_shrink();
+    dispatch_indirect.clear_and_shrink();
     push_constants.clear();
   }
 };
@@ -90,8 +94,6 @@ struct VKRenderGraphNode {
     VKClearColorImageNode::Data clear_color_image;
     VKClearDepthStencilImageNode::Data clear_depth_stencil_image;
     VKCopyBufferNode::Data copy_buffer;
-    VKDispatchNode::Data dispatch;
-    VKDispatchIndirectNode::Data dispatch_indirect;
     VKEndQueryNode::Data end_query;
     VKEndRenderingNode::Data end_rendering;
     VKFillBufferNode::Data fill_buffer;
@@ -264,8 +266,9 @@ struct VKRenderGraphNode {
         BUILD_COMMANDS(VKNodeType::RESET_QUERY_POOL, VKResetQueryPoolNode, reset_query_pool)
         BUILD_COMMANDS(VKNodeType::SYNCHRONIZATION, VKSynchronizationNode, synchronization)
         BUILD_COMMANDS(VKNodeType::UPDATE_MIPMAPS, VKUpdateMipmapsNode, update_mipmaps)
-        BUILD_COMMANDS(VKNodeType::DISPATCH, VKDispatchNode, dispatch)
-        BUILD_COMMANDS(VKNodeType::DISPATCH_INDIRECT, VKDispatchIndirectNode, dispatch_indirect)
+        BUILD_COMMANDS_STORAGE(VKNodeType::DISPATCH, VKDispatchNode, dispatch)
+        BUILD_COMMANDS_STORAGE(
+            VKNodeType::DISPATCH_INDIRECT, VKDispatchIndirectNode, dispatch_indirect)
         BUILD_COMMANDS_STORAGE(VKNodeType::DRAW, VKDrawNode, draw)
         BUILD_COMMANDS_STORAGE(VKNodeType::DRAW_INDEXED, VKDrawIndexedNode, draw_indexed)
         BUILD_COMMANDS_STORAGE(

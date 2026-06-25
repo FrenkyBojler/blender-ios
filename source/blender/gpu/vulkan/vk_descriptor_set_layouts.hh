@@ -86,6 +86,12 @@ class VKDescriptorSetLayouts : NonCopyable {
   Vector<VkDescriptorSetLayoutBinding> vk_descriptor_set_layout_bindings_;
   Mutex mutex_;
 
+  /**
+   * Empty descriptor set layout (0 bindings) for sets that have no resources.
+   * Created lazily and reused across all shaders.
+   */
+  VkDescriptorSetLayout empty_layout_ = VK_NULL_HANDLE;
+
  public:
   VKDescriptorSetLayouts();
   virtual ~VKDescriptorSetLayouts();
@@ -114,6 +120,12 @@ class VKDescriptorSetLayouts : NonCopyable {
   {
     return vk_descriptor_set_layouts_.size();
   }
+
+  /**
+   * Get or create an empty descriptor set layout (0 bindings).
+   * Used for descriptor sets that have no resources.
+   */
+  VkDescriptorSetLayout get_or_create_empty();
 
  private:
   void update_layout_bindings(const VKDescriptorSetLayoutInfo &info);

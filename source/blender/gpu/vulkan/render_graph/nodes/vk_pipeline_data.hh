@@ -43,7 +43,7 @@ struct StencilState {
 struct VKPipelineData {
   VkPipeline vk_pipeline;
   VkPipelineLayout vk_pipeline_layout;
-  VkDescriptorSet vk_descriptor_set;
+  VkDescriptorSet vk_descriptor_set[3];
 
   /** Range where the push constants are stored in the render graph storage */
   IndexRange push_constants_range;
@@ -94,7 +94,7 @@ struct VKPipelineDataGraphics {
 /** Resources bound for a compute/graphics pipeline. */
 struct VKBoundPipeline {
   VkPipeline vk_pipeline;
-  VkDescriptorSet vk_descriptor_set;
+  VkDescriptorSet vk_descriptor_set[3];
   VkPipelineLayout vk_pipeline_layout;
 };
 

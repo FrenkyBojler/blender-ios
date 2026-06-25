@@ -41,23 +41,37 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
 
   update_resource_access_info(context, access_info, push_constants_buffer);
 
-  /* Can we reuse previous descriptor set. */
-  const VkDescriptorSetLayout shader_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
-  if (!state_manager.is_dirty && vk_descriptor_set_layout_ == shader_descriptor_set_layout &&
-      shader.push_constants.layout_get().storage_type_get() !=
-          VKPushConstants::StorageType::BUFFER)
-  {
-    r_pipeline_data.vk_descriptor_set = descriptor_sets.vk_descriptor_set;
-    return;
-  }
-  vk_descriptor_set_layout_ = shader_descriptor_set_layout;
-  state_manager.is_dirty = false;
-
   VKDevice &device = VKBackend::get().device;
-  VkDescriptorSetLayout vk_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
-  descriptor_sets.allocate_new_descriptor_set(
-      device, context, shader, vk_descriptor_set_layout, r_pipeline_data);
-  descriptor_sets.bind_shader_resources(device, state_manager, shader, push_constants_buffer);
+  bool any_set_allocated = false;
+
+  for (int set_index = 0; set_index < VK_DESCRIPTOR_SET_NUM; set_index++) {
+    const VkDescriptorSetLayout shader_layout = shader.vk_descriptor_set_layout_get(set_index);
+    if (shader_layout == VK_NULL_HANDLE) {
+      continue;
+    }
+
+    /* Can we reuse previous descriptor set. */
+    if (!state_manager.is_dirty && vk_descriptor_set_layouts_[set_index] == shader_layout &&
+        shader.push_constants.layout_get().storage_type_get() !=
+            VKPushConstants::StorageType::BUFFER)
+    {
+      r_pipeline_data.vk_descriptor_set[set_index] = descriptor_sets_[set_index].vk_descriptor_set;
+      continue;
+    }
+
+    vk_descriptor_set_layouts_[set_index] = shader_layout;
+    any_set_allocated = true;
+
+    descriptor_sets_[set_index].allocate_new_descriptor_set(
+        device, context, shader, shader_layout);
+    r_pipeline_data.vk_descriptor_set[set_index] = descriptor_sets_[set_index].vk_descriptor_set;
+    descriptor_sets_[set_index].bind_shader_resources(
+        device, state_manager, shader, set_index, push_constants_buffer);
+  }
+
+  if (any_set_allocated) {
+    state_manager.is_dirty = false;
+  }
 }
 
 /* -------------------------------------------------------------------- */
@@ -296,7 +310,8 @@ void VKDescriptorSetTracker::update_resource_access_info(
   const VKShaderInterface &shader_interface = shader.interface_get();
 
   VkPipelineStageFlags vk_pipeline_stages = render_graph::to_vk_pipeline_stage(
-      shader_interface.descriptor_set_layout_info_get().vk_shader_stage_flags);
+      shader_interface.descriptor_set_layout_info_get(VK_DESCRIPTOR_SET_ENGINE)
+          .vk_shader_stage_flags);
 
   for (const VKResourceBinding &resource_binding : shader_interface.resource_bindings_get()) {
     if (resource_binding.binding == -1) {
@@ -320,8 +335,10 @@ void VKDescriptorSetTracker::update_resource_access_info(
 
 void VKDescriptorSetTracker::upload_descriptor_sets()
 {
-  descriptor_sets.upload_descriptor_sets();
-  vk_descriptor_set_layout_ = VK_NULL_HANDLE;
+  for (int i = 0; i < VK_DESCRIPTOR_SET_NUM; i++) {
+    descriptor_sets_[i].upload_descriptor_sets();
+    vk_descriptor_set_layouts_[i] = VK_NULL_HANDLE;
+  }
 }
 
 /* -------------------------------------------------------------------- */
@@ -500,11 +517,16 @@ void VKDescriptorSetUpdator::bind_push_constants(VKPushConstants &push_constants
 void VKDescriptorSetUpdator::bind_shader_resources(const VKDevice &device,
                                                    const VKStateManager &state_manager,
                                                    VKShader &shader,
+                                                   int set_index,
                                                    const VKBufferWithOffset &push_constants_buffer)
 {
   const VKShaderInterface &shader_interface = shader.interface_get();
   for (const VKResourceBinding &resource_binding : shader_interface.resource_bindings_get()) {
     if (resource_binding.binding == -1) {
+      continue;
+    }
+    /* Only bind resources belonging to this descriptor set. */
+    if (resource_binding.location.set != set_index) {
       continue;
     }
 
@@ -531,8 +553,10 @@ void VKDescriptorSetUpdator::bind_shader_resources(const VKDevice &device,
     }
   }
 
-  /* Bind uniform push constants to descriptor set. */
-  bind_push_constants(shader.push_constants, push_constants_buffer);
+  /* Bind uniform push constants to descriptor set (Draw set only). */
+  if (set_index == VK_DESCRIPTOR_SET_DRAW) {
+    bind_push_constants(shader.push_constants, push_constants_buffer);
+  }
 }
 
 /** \} */
@@ -545,14 +569,12 @@ void VKDescriptorSetPoolUpdator::allocate_new_descriptor_set(
     VKDevice & /*device*/,
     VKContext &context,
     VKShader &shader,
-    VkDescriptorSetLayout vk_descriptor_set_layout,
-    render_graph::VKPipelineData &r_pipeline_data)
+    VkDescriptorSetLayout vk_descriptor_set_layout)
 {
   /* Use descriptor pools/sets. */
   vk_descriptor_set = context.descriptor_pools_get().allocate(vk_descriptor_set_layout);
   BLI_assert(vk_descriptor_set != VK_NULL_HANDLE);
   debug::object_label(vk_descriptor_set, shader.name_get());
-  r_pipeline_data.vk_descriptor_set = vk_descriptor_set;
 }
 
 void VKDescriptorSetPoolUpdator::bind_buffer(VkDescriptorType vk_descriptor_type,

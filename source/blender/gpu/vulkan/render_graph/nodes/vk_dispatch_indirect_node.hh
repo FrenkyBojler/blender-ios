@@ -50,9 +50,10 @@ class VKDispatchIndirectNode
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
   template<typename Node, typename Storage>
-  static void set_node_data(Node &node, Storage & /* storage */, const CreateInfo &create_info)
+  static void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
-    node.dispatch_indirect = create_info.dispatch_indirect_node;
+    node.storage_index = storage.dispatch_indirect.append_and_get_index(
+        create_info.dispatch_indirect_node);
   }
 
   /**

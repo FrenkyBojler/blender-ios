@@ -62,20 +62,23 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
     command_buffer.bind_pipeline(vk_pipeline_bind_point, r_bound_pipeline.vk_pipeline);
   }
 
-  const bool descriptor_set_changed = assign_if_different(r_bound_pipeline.vk_descriptor_set,
-                                                          pipeline_data.vk_descriptor_set);
   const bool layout_changed = assign_if_different(r_bound_pipeline.vk_pipeline_layout,
                                                   pipeline_data.vk_pipeline_layout);
-  if ((descriptor_set_changed || layout_changed) &&
-      r_bound_pipeline.vk_descriptor_set != VK_NULL_HANDLE)
-  {
-    command_buffer.bind_descriptor_sets(vk_pipeline_bind_point,
-                                        pipeline_data.vk_pipeline_layout,
-                                        0,
-                                        1,
-                                        &r_bound_pipeline.vk_descriptor_set,
-                                        0,
-                                        nullptr);
+  for (int set_index = 0; set_index < 3; set_index++) {
+    if (assign_if_different(r_bound_pipeline.vk_descriptor_set[set_index],
+                            pipeline_data.vk_descriptor_set[set_index]) ||
+        layout_changed)
+    {
+      if (r_bound_pipeline.vk_descriptor_set[set_index] != VK_NULL_HANDLE) {
+        command_buffer.bind_descriptor_sets(vk_pipeline_bind_point,
+                                            pipeline_data.vk_pipeline_layout,
+                                            set_index,
+                                            1,
+                                            &r_bound_pipeline.vk_descriptor_set[set_index],
+                                            0,
+                                            nullptr);
+      }
+    }
   }
 
   if (!pipeline_data.push_constants_range.is_empty()) {

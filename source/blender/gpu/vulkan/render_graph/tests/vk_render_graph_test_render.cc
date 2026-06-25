@@ -174,7 +174,9 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end)
     draw.node_data.instance_count = 1;
     draw.node_data.vertex_count = 4;
     draw.node_data.graphics.pipeline_data.push_constants_range = IndexRange(0);
-    draw.node_data.graphics.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[2] = VK_NULL_HANDLE;
     draw.node_data.graphics.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.graphics.pipeline_data.vk_pipeline_layout = pipeline_layout;
     draw.node_data.graphics.viewport.viewports.append(VkViewport{});
@@ -264,7 +266,9 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered)
     draw.node_data.instance_count = 1;
     draw.node_data.vertex_count = 4;
     draw.node_data.graphics.pipeline_data.push_constants_range = IndexRange(0);
-    draw.node_data.graphics.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[2] = VK_NULL_HANDLE;
     draw.node_data.graphics.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.graphics.pipeline_data.vk_pipeline_layout = pipeline_layout;
     draw.node_data.graphics.viewport.viewports.append(VkViewport{});
@@ -394,7 +398,9 @@ TEST_P(VKRenderGraphTestRender, begin_draw_begin_draw_end__layered_input_attachm
     draw.node_data.instance_count = 1;
     draw.node_data.vertex_count = 4;
     draw.node_data.graphics.pipeline_data.push_constants_range = IndexRange(0);
-    draw.node_data.graphics.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[2] = VK_NULL_HANDLE;
     draw.node_data.graphics.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.graphics.pipeline_data.vk_pipeline_layout = pipeline_layout;
     draw.node_data.graphics.viewport.viewports.append(VkViewport{});
@@ -443,7 +449,9 @@ TEST_P(VKRenderGraphTestRender, begin_draw_begin_draw_end__layered_input_attachm
     draw.node_data.instance_count = 1;
     draw.node_data.vertex_count = 4;
     draw.node_data.graphics.pipeline_data.push_constants_range = IndexRange(0);
-    draw.node_data.graphics.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[2] = VK_NULL_HANDLE;
     draw.node_data.graphics.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.graphics.pipeline_data.vk_pipeline_layout = pipeline_layout;
     draw.node_data.graphics.viewport.viewports.append(VkViewport{});
@@ -521,7 +529,9 @@ TEST_P(VKRenderGraphTestRender, begin_draw_end__layered_depth)
     draw.node_data.instance_count = 1;
     draw.node_data.vertex_count = 4;
     draw.node_data.graphics.pipeline_data.push_constants_range = IndexRange(0);
-    draw.node_data.graphics.pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    draw.node_data.graphics.pipeline_data.vk_descriptor_set[2] = VK_NULL_HANDLE;
     draw.node_data.graphics.pipeline_data.vk_pipeline = pipeline;
     draw.node_data.graphics.pipeline_data.vk_pipeline_layout = pipeline_layout;
     draw.node_data.graphics.viewport.viewports.append(VkViewport{});

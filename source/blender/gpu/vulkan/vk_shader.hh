@@ -15,23 +15,25 @@
 #include "vk_backend.hh"
 #include "vk_context.hh"
 #include "vk_push_constants.hh"
+#include "vk_shader_interface.hh"
 #include "vk_shader_module.hh"
 #include "vk_vertex_attribute_object.hh"
 
 #include "shaderc/shaderc.hpp"
 
 namespace blender::gpu {
-class VKShaderInterface;
 
 class VKShader : public Shader {
  private:
   VKContext *context_ = nullptr;
 
   /**
-   * Not owning handle to the descriptor layout.
-   * The handle is owned by `VKDescriptorSetLayouts` of the device.
+   * Not owning handles to the descriptor layouts.
+   * The handles are owned by `VKDescriptorSetLayouts` of the device.
+   * Indexed by logical set (Engine=0, Pass=1, Draw=2).
    */
-  VkDescriptorSetLayout vk_descriptor_set_layout_ = VK_NULL_HANDLE;
+  VkDescriptorSetLayout vk_descriptor_set_layouts_[VK_DESCRIPTOR_SET_NUM] = {
+      VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE};
 
   /**
    * Base VkPipeline handle. This handle is used as template when building a variation of
@@ -124,12 +126,18 @@ class VKShader : public Shader {
    */
   bool has_descriptor_set() const
   {
-    return vk_descriptor_set_layout_ != VK_NULL_HANDLE;
+    for (int i = 0; i < VK_DESCRIPTOR_SET_NUM; i++) {
+      if (vk_descriptor_set_layouts_[i] != VK_NULL_HANDLE) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  VkDescriptorSetLayout vk_descriptor_set_layout_get() const
+  VkDescriptorSetLayout vk_descriptor_set_layout_get(int set) const
   {
-    return vk_descriptor_set_layout_;
+    BLI_assert(set >= 0 && set < VK_DESCRIPTOR_SET_NUM);
+    return vk_descriptor_set_layouts_[set];
   }
 
  private:

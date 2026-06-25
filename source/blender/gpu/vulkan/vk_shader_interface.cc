@@ -207,21 +207,38 @@ void VKShaderInterface::populate_resource_bindings(InitContext &ctx)
   const shader::ShaderCreateInfo &info = ctx.info;
   using namespace blender::gpu::shader;
 
-  Vector<ShaderCreateInfo::Resource> all_resources;
-  all_resources.extend(info.pass_resources_);
-  all_resources.extend(info.batch_resources_);
-  all_resources.extend(info.geometry_resources_);
+  /* Build 3 descriptor set layouts. */
+  /* Set 0 (Engine): No resources yet. */
+  init_descriptor_set_layout_info(info, VK_DESCRIPTOR_SET_ENGINE, {}, 0, false);
+
+  /* Set 1 (Pass): subpass inputs + PASS frequency resources. */
+  {
+    Vector<ShaderCreateInfo::Resource> pass_resources;
+    pass_resources.extend(info.pass_resources_);
+    init_descriptor_set_layout_info(
+        info, VK_DESCRIPTOR_SET_PASS, pass_resources, info.subpass_inputs_.size(), false);
+  }
+
+  /* Set 2 (Draw): BATCH + GEOMETRY resources + push constants buffer (if applicable). */
+  {
+    Vector<ShaderCreateInfo::Resource> draw_resources;
+    draw_resources.extend(info.batch_resources_);
+    draw_resources.extend(info.geometry_resources_);
+    init_descriptor_set_layout_info(info,
+                                    VK_DESCRIPTOR_SET_DRAW,
+                                    draw_resources,
+                                    0,
+                                    ctx.push_constants_storage_type ==
+                                        VKPushConstants::StorageType::BUFFER);
+  }
 
   int32_t input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_;
   const uint32_t resources_len = input_tot_len;
 
-  init_descriptor_set_layout_info(
-      info, resources_len, all_resources, ctx.push_constants_storage_type);
-
   resource_bindings_ = Array<VKResourceBinding>(resources_len);
   resource_bindings_.fill({});
 
-  uint32_t descriptor_set_location = 0;
+  /* Subpass inputs → Set 1 (Pass). */
   for (const ShaderCreateInfo::SubpassIn &subpass_in : info.subpass_inputs_) {
     const ShaderInput *input = ctx.supports_local_read ?
                                    texture_get(subpass_in.index) :
@@ -229,64 +246,108 @@ void VKShaderInterface::populate_resource_bindings(InitContext &ctx)
                                                     subpass_in.index);
     BLI_assert(input);
     BLI_assert(STREQ(input_name_get(input), "gpu_subpass_img_0"));
-    descriptor_set_location_update(input,
-                                   descriptor_set_location++,
-                                   VKBindType::INPUT_ATTACHMENT,
-                                   std::nullopt,
-                                   VKImageViewArrayed::DONT_CARE);
+    descriptor_set_location_update(
+        input,
+        VKDescriptorSet::Location(VK_DESCRIPTOR_SET_PASS,
+                                  ctx.descriptor_set_binding[VK_DESCRIPTOR_SET_PASS]++),
+        VKBindType::INPUT_ATTACHMENT,
+        std::nullopt,
+        VKImageViewArrayed::DONT_CARE);
   }
-  for (ShaderCreateInfo::Resource &res : all_resources) {
+
+  auto arrayed_from_resource = [](const ShaderCreateInfo::Resource &res) -> VKImageViewArrayed {
+    if (res.bind_type == ShaderCreateInfo::Resource::BindType::IMAGE) {
+      return ELEM(res.image.type,
+                  shader::ImageType::Float1DArray,
+                  shader::ImageType::Float2DArray,
+                  shader::ImageType::FloatCubeArray,
+                  shader::ImageType::Int1DArray,
+                  shader::ImageType::Int2DArray,
+                  shader::ImageType::IntCubeArray,
+                  shader::ImageType::Uint1DArray,
+                  shader::ImageType::Uint2DArray,
+                  shader::ImageType::UintCubeArray,
+                  shader::ImageType::AtomicUint2DArray,
+                  shader::ImageType::AtomicInt2DArray) ?
+                 VKImageViewArrayed::ARRAYED :
+                 VKImageViewArrayed::NOT_ARRAYED;
+    }
+    if (res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
+      return ELEM(res.sampler.type,
+                  shader::ImageType::Float1DArray,
+                  shader::ImageType::Float2DArray,
+                  shader::ImageType::FloatCubeArray,
+                  shader::ImageType::Int1DArray,
+                  shader::ImageType::Int2DArray,
+                  shader::ImageType::IntCubeArray,
+                  shader::ImageType::Uint1DArray,
+                  shader::ImageType::Uint2DArray,
+                  shader::ImageType::UintCubeArray,
+                  shader::ImageType::Shadow2DArray,
+                  shader::ImageType::ShadowCubeArray,
+                  shader::ImageType::Depth2DArray,
+                  shader::ImageType::DepthCubeArray,
+                  shader::ImageType::AtomicUint2DArray,
+                  shader::ImageType::AtomicInt2DArray) ?
+                 VKImageViewArrayed::ARRAYED :
+                 VKImageViewArrayed::NOT_ARRAYED;
+    }
+    return VKImageViewArrayed::DONT_CARE;
+  };
+
+  /* PASS frequency resources → Set 1 (Pass). */
+  for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
     const ShaderInput *input = shader_input_get(res);
     BLI_assert(input);
-    VKImageViewArrayed arrayed = VKImageViewArrayed::DONT_CARE;
-    if (res.bind_type == ShaderCreateInfo::Resource::BindType::IMAGE) {
-      arrayed = ELEM(res.image.type,
-                     shader::ImageType::Float1DArray,
-                     shader::ImageType::Float2DArray,
-                     shader::ImageType::FloatCubeArray,
-                     shader::ImageType::Int1DArray,
-                     shader::ImageType::Int2DArray,
-                     shader::ImageType::IntCubeArray,
-                     shader::ImageType::Uint1DArray,
-                     shader::ImageType::Uint2DArray,
-                     shader::ImageType::UintCubeArray,
-                     shader::ImageType::AtomicUint2DArray,
-                     shader::ImageType::AtomicInt2DArray) ?
-                    VKImageViewArrayed::ARRAYED :
-                    VKImageViewArrayed::NOT_ARRAYED;
-    }
-    else if (res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
-      arrayed = ELEM(res.sampler.type,
-                     shader::ImageType::Float1DArray,
-                     shader::ImageType::Float2DArray,
-                     shader::ImageType::FloatCubeArray,
-                     shader::ImageType::Int1DArray,
-                     shader::ImageType::Int2DArray,
-                     shader::ImageType::IntCubeArray,
-                     shader::ImageType::Uint1DArray,
-                     shader::ImageType::Uint2DArray,
-                     shader::ImageType::UintCubeArray,
-                     shader::ImageType::Shadow2DArray,
-                     shader::ImageType::ShadowCubeArray,
-                     shader::ImageType::Depth2DArray,
-                     shader::ImageType::DepthCubeArray,
-                     shader::ImageType::AtomicUint2DArray,
-                     shader::ImageType::AtomicInt2DArray) ?
-                    VKImageViewArrayed::ARRAYED :
-                    VKImageViewArrayed::NOT_ARRAYED;
-    }
-
+    VKImageViewArrayed arrayed = arrayed_from_resource(res);
     const VKBindType bind_type = to_bind_type(res.bind_type);
-    descriptor_set_location_update(input, descriptor_set_location++, bind_type, res, arrayed);
+    descriptor_set_location_update(
+        input,
+        VKDescriptorSet::Location(VK_DESCRIPTOR_SET_PASS,
+                                  ctx.descriptor_set_binding[VK_DESCRIPTOR_SET_PASS]++),
+        bind_type,
+        res,
+        arrayed);
   }
 
-  int32_t push_constant_descriptor_set_location = -1;
+  /* BATCH frequency resources → Set 2 (Draw). */
+  for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
+    const ShaderInput *input = shader_input_get(res);
+    BLI_assert(input);
+    VKImageViewArrayed arrayed = arrayed_from_resource(res);
+    const VKBindType bind_type = to_bind_type(res.bind_type);
+    descriptor_set_location_update(
+        input,
+        VKDescriptorSet::Location(VK_DESCRIPTOR_SET_DRAW,
+                                  ctx.descriptor_set_binding[VK_DESCRIPTOR_SET_DRAW]++),
+        bind_type,
+        res,
+        arrayed);
+  }
+
+  /* GEOMETRY frequency resources → Set 2 (Draw). */
+  for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+    const ShaderInput *input = shader_input_get(res);
+    BLI_assert(input);
+    VKImageViewArrayed arrayed = arrayed_from_resource(res);
+    const VKBindType bind_type = to_bind_type(res.bind_type);
+    descriptor_set_location_update(
+        input,
+        VKDescriptorSet::Location(VK_DESCRIPTOR_SET_DRAW,
+                                  ctx.descriptor_set_binding[VK_DESCRIPTOR_SET_DRAW]++),
+        bind_type,
+        res,
+        arrayed);
+  }
+
+  /* Push constants buffer fallback → Set 2 (Draw). */
+  VKDescriptorSet::Location push_constant_descriptor_set_location;
   if (ctx.push_constants_storage_type == VKPushConstants::StorageType::BUFFER) {
-    push_constant_descriptor_set_location = descriptor_set_location++;
+    push_constant_descriptor_set_location = VKDescriptorSet::Location(
+        VK_DESCRIPTOR_SET_DRAW, ctx.descriptor_set_binding[VK_DESCRIPTOR_SET_DRAW]++);
     const ShaderInput *push_constant_input = ubo_get("push_constants_fallback");
-    const int32_t push_constants_fallback_location = -1;
     descriptor_set_location_update(push_constant_input,
-                                   push_constants_fallback_location,
+                                   push_constant_descriptor_set_location,
                                    VKBindType::UNIFORM_BUFFER,
                                    std::nullopt,
                                    VKImageViewArrayed::DONT_CARE);
@@ -438,20 +499,25 @@ const ShaderInput *VKShaderInterface::shader_input_get(
 
 void VKShaderInterface::init_descriptor_set_layout_info(
     const shader::ShaderCreateInfo &info,
-    int64_t resources_len,
-    Span<shader::ShaderCreateInfo::Resource> all_resources,
-    VKPushConstants::StorageType push_constants_storage)
+    int set_index,
+    Span<shader::ShaderCreateInfo::Resource> resources,
+    int subpass_input_count,
+    bool add_push_constants_buffer)
 {
-  BLI_assert(descriptor_set_layout_info_.bindings.is_empty());
+  VKDescriptorSetLayoutInfo &layout_info = descriptor_set_layout_infos_[set_index];
+  BLI_assert(layout_info.bindings.is_empty());
   const VKExtensions &extensions = VKBackend::get().device.extensions_get();
   const bool supports_local_read = extensions.dynamic_rendering_local_read;
 
-  descriptor_set_layout_info_.bindings.reserve(resources_len);
+  layout_info.bindings.reserve(resources.size() + subpass_input_count +
+                               (add_push_constants_buffer ? 1 : 0));
+
+  /* Compute shader stage flags (same for all sets). */
   if (!(info.compute_source_.is_empty() && info.compute_source_generated.empty())) {
-    descriptor_set_layout_info_.vk_shader_stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+    layout_info.vk_shader_stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
   }
   else if (supports_local_read && !info.subpass_inputs_.is_empty()) {
-    descriptor_set_layout_info_.vk_shader_stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layout_info.vk_shader_stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
   }
   else {
     VkShaderStageFlags stages = VK_SHADER_STAGE_VERTEX_BIT;
@@ -461,21 +527,25 @@ void VKShaderInterface::init_descriptor_set_layout_info(
     if (!info.geometry_source_.is_empty() || !info.geometry_source_generated.empty()) {
       stages |= VK_SHADER_STAGE_GEOMETRY_BIT;
     }
-    descriptor_set_layout_info_.vk_shader_stage_flags = stages;
+    layout_info.vk_shader_stage_flags = stages;
   }
-  for (int index : IndexRange(info.subpass_inputs_.size())) {
+
+  /* Add subpass input bindings (set 1 - Pass). */
+  for (int index : IndexRange(subpass_input_count)) {
     UNUSED_VARS(index);
-    // TODO: clean up remove negation.
-    descriptor_set_layout_info_.bindings.append_n_times(
-        !extensions.dynamic_rendering_local_read ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
-                                                   VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-        info.subpass_inputs_.size());
+    layout_info.bindings.append(!extensions.dynamic_rendering_local_read ?
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
+                                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
   }
-  for (const shader::ShaderCreateInfo::Resource &res : all_resources) {
-    descriptor_set_layout_info_.bindings.append(to_vk_descriptor_type(res));
+
+  /* Add resource bindings for this set. */
+  for (const shader::ShaderCreateInfo::Resource &res : resources) {
+    layout_info.bindings.append(to_vk_descriptor_type(res));
   }
-  if (push_constants_storage == VKPushConstants::StorageType::BUFFER) {
-    descriptor_set_layout_info_.bindings.append(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
+  /* Add push constants buffer binding (set 2 - Draw). */
+  if (add_push_constants_buffer) {
+    layout_info.bindings.append(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   }
 }
 

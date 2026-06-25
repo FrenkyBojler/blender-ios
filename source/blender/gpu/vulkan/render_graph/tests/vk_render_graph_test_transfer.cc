@@ -406,7 +406,9 @@ TEST_F(VKRenderGraphTestTransfer, copy_buffer_to_image_dispatch_read_aliased_ima
   VKDispatchNode::CreateInfo dispatch_info(access_info);
   dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline;
   dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-  dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set;
+  dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+  dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+  dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set;
   dispatch_info.dispatch_node.group_count_x = 1;
   dispatch_info.dispatch_node.group_count_y = 1;
   dispatch_info.dispatch_node.group_count_z = 1;

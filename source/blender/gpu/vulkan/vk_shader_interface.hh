@@ -50,7 +50,7 @@ class VKShaderInterface : public ShaderInterface {
  private:
   /** Binding information for each shader input. */
   Array<VKResourceBinding> resource_bindings_;
-  VKDescriptorSetLayoutInfo descriptor_set_layout_info_;
+  VKDescriptorSetLayoutInfo descriptor_set_layout_infos_[VK_DESCRIPTOR_SET_NUM];
 
   VKPushConstants::Layout push_constants_layout_;
 
@@ -72,9 +72,10 @@ class VKShaderInterface : public ShaderInterface {
     return push_constants_layout_;
   }
 
-  const VKDescriptorSetLayoutInfo &descriptor_set_layout_info_get() const
+  const VKDescriptorSetLayoutInfo &descriptor_set_layout_info_get(int set) const
   {
-    return descriptor_set_layout_info_;
+    BLI_assert(set >= 0 && set < VK_DESCRIPTOR_SET_NUM);
+    return descriptor_set_layout_infos_[set];
   }
 
   shader::Type get_attribute_type(int location) const
@@ -102,6 +103,8 @@ class VKShaderInterface : public ShaderInterface {
     uint32_t name_buffer_offset = 0;
     VKPushConstants::StorageType push_constants_storage_type;
     bool supports_local_read = false;
+    /** Per-set descriptor set binding index. */
+    uint32_t descriptor_set_binding[VK_DESCRIPTOR_SET_NUM] = {0, 0, 0};
   };
 
   /**
@@ -125,9 +128,10 @@ class VKShaderInterface : public ShaderInterface {
   void populate_resource_bindings(InitContext &ctx);
 
   void init_descriptor_set_layout_info(const shader::ShaderCreateInfo &info,
-                                       int64_t resources_len,
+                                       int set_index,
                                        Span<shader::ShaderCreateInfo::Resource> resources,
-                                       VKPushConstants::StorageType push_constants_storage);
+                                       int subpass_input_count,
+                                       bool add_push_constants_buffer);
   /**
    * Retrieve the shader input for the given resource.
    *

@@ -23,7 +23,9 @@ TEST_F(VKRenderGraphTestCompute, dispatch_read_back)
   VKDispatchNode::CreateInfo dispatch_info(access_info);
   dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline;
   dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-  dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set;
+  dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+  dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+  dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set;
   dispatch_info.dispatch_node.group_count_x = 1;
   dispatch_info.dispatch_node.group_count_y = 1;
   dispatch_info.dispatch_node.group_count_z = 1;
@@ -57,7 +59,9 @@ TEST_F(VKRenderGraphTestCompute, dispatch_dispatch_read_back)
     VKDispatchNode::CreateInfo dispatch_info(access_info);
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline;
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set;
     dispatch_info.dispatch_node.group_count_x = 1;
     dispatch_info.dispatch_node.group_count_y = 1;
     dispatch_info.dispatch_node.group_count_z = 1;
@@ -69,7 +73,9 @@ TEST_F(VKRenderGraphTestCompute, dispatch_dispatch_read_back)
     VKDispatchNode::CreateInfo dispatch_info(access_info);
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline;
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set;
     dispatch_info.dispatch_node.group_count_x = 2;
     dispatch_info.dispatch_node.group_count_y = 2;
     dispatch_info.dispatch_node.group_count_z = 2;
@@ -116,7 +122,9 @@ TEST_F(VKRenderGraphTestCompute, dispatch_dispatch_read_back_with_changing_descr
     VKDispatchNode::CreateInfo dispatch_info(access_info);
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline;
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set_a;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set_a;
     dispatch_info.dispatch_node.group_count_x = 1;
     dispatch_info.dispatch_node.group_count_y = 1;
     dispatch_info.dispatch_node.group_count_z = 1;
@@ -128,7 +136,9 @@ TEST_F(VKRenderGraphTestCompute, dispatch_dispatch_read_back_with_changing_descr
     VKDispatchNode::CreateInfo dispatch_info(access_info);
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline;
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set_b;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set_b;
     dispatch_info.dispatch_node.group_count_x = 2;
     dispatch_info.dispatch_node.group_count_y = 2;
     dispatch_info.dispatch_node.group_count_z = 2;
@@ -178,7 +188,9 @@ TEST_F(VKRenderGraphTestCompute, dispatch_dispatch_read_back_with_changing_pipel
     VKDispatchNode::CreateInfo dispatch_info(access_info);
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline_a;
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set;
     dispatch_info.dispatch_node.group_count_x = 1;
     dispatch_info.dispatch_node.group_count_y = 1;
     dispatch_info.dispatch_node.group_count_z = 1;
@@ -190,7 +202,9 @@ TEST_F(VKRenderGraphTestCompute, dispatch_dispatch_read_back_with_changing_pipel
     VKDispatchNode::CreateInfo dispatch_info(access_info);
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline_b;
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set;
     dispatch_info.dispatch_node.group_count_x = 2;
     dispatch_info.dispatch_node.group_count_y = 2;
     dispatch_info.dispatch_node.group_count_z = 2;
@@ -241,7 +255,9 @@ TEST_F(VKRenderGraphTestCompute,
     VKDispatchNode::CreateInfo dispatch_info(access_info);
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline_a;
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set_a;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set_a;
     dispatch_info.dispatch_node.group_count_x = 1;
     dispatch_info.dispatch_node.group_count_y = 1;
     dispatch_info.dispatch_node.group_count_z = 1;
@@ -253,7 +269,9 @@ TEST_F(VKRenderGraphTestCompute,
     VKDispatchNode::CreateInfo dispatch_info(access_info);
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline = pipeline_b;
     dispatch_info.dispatch_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set = descriptor_set_b;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[0] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[1] = VK_NULL_HANDLE;
+    dispatch_info.dispatch_node.pipeline_data.vk_descriptor_set[2] = descriptor_set_b;
     dispatch_info.dispatch_node.group_count_x = 2;
     dispatch_info.dispatch_node.group_count_y = 2;
     dispatch_info.dispatch_node.group_count_z = 2;
@@ -305,7 +323,12 @@ TEST_F(VKRenderGraphTestCompute, dispatch_indirect_read_back)
   VKDispatchIndirectNode::CreateInfo dispatch_indirect_info(access_info);
   dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_pipeline = pipeline;
   dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_pipeline_layout = pipeline_layout;
-  dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set = descriptor_set;
+  dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set[0] =
+      VK_NULL_HANDLE;
+  dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set[1] =
+      VK_NULL_HANDLE;
+  dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set[2] =
+      descriptor_set;
   dispatch_indirect_info.dispatch_indirect_node.buffer = command_buffer;
   dispatch_indirect_info.dispatch_indirect_node.offset = 0;
   render_graph->add_node(dispatch_indirect_info);
@@ -338,7 +361,12 @@ TEST_F(VKRenderGraphTestCompute, dispatch_indirect_dispatch_indirect_read_back)
     dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_pipeline = pipeline;
     dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_pipeline_layout =
         pipeline_layout;
-    dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set = descriptor_set;
+    dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set[0] =
+        VK_NULL_HANDLE;
+    dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set[1] =
+        VK_NULL_HANDLE;
+    dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set[2] =
+        descriptor_set;
     dispatch_indirect_info.dispatch_indirect_node.buffer = command_buffer;
     dispatch_indirect_info.dispatch_indirect_node.offset = 0;
     render_graph->add_node(dispatch_indirect_info);
@@ -350,7 +378,12 @@ TEST_F(VKRenderGraphTestCompute, dispatch_indirect_dispatch_indirect_read_back)
     dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_pipeline = pipeline;
     dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_pipeline_layout =
         pipeline_layout;
-    dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set = descriptor_set;
+    dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set[0] =
+        VK_NULL_HANDLE;
+    dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set[1] =
+        VK_NULL_HANDLE;
+    dispatch_indirect_info.dispatch_indirect_node.pipeline_data.vk_descriptor_set[2] =
+        descriptor_set;
     dispatch_indirect_info.dispatch_indirect_node.buffer = command_buffer;
     dispatch_indirect_info.dispatch_indirect_node.offset = 12;
     render_graph->add_node(dispatch_indirect_info);

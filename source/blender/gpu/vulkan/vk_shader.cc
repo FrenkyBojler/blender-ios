@@ -359,7 +359,7 @@ static void print_resource(std::ostream &os,
                            const ShaderCreateInfo::Resource &res,
                            const ShaderCreateInfo &info)
 {
-  os << "layout(binding = " << uint32_t(location);
+  os << "layout(set = " << location.set << ", binding = " << uint32_t(location);
   if (res.bind_type == ShaderCreateInfo::Resource::BindType::IMAGE) {
     os << ", " << to_string(res.image.format);
   }
@@ -531,7 +531,9 @@ VKShader::~VKShader()
     vk_pipeline_layout = VK_NULL_HANDLE;
   }
   /* Unset not owning handles. */
-  vk_descriptor_set_layout_ = VK_NULL_HANDLE;
+  for (int i = 0; i < VK_DESCRIPTOR_SET_NUM; i++) {
+    vk_descriptor_set_layouts_[i] = VK_NULL_HANDLE;
+  }
 }
 
 void VKShader::build_shader_module(MutableSpan<StringRefNull> sources,
@@ -677,13 +679,31 @@ bool VKShader::finalize_shader_module(VKShaderModule &shader_module, const char 
 bool VKShader::finalize_pipeline_layout(VKDevice &device,
                                         const VKShaderInterface &shader_interface)
 {
-  const uint32_t layout_count = vk_descriptor_set_layout_ == VK_NULL_HANDLE ? 0 : 1;
+  /* Build an array of 3 descriptor set layouts. Use empty layouts for null entries. */
+  VkDescriptorSetLayout vk_layouts[VK_DESCRIPTOR_SET_NUM];
+  bool any_layout = false;
+  for (int i = 0; i < VK_DESCRIPTOR_SET_NUM; i++) {
+    if (vk_descriptor_set_layouts_[i] != VK_NULL_HANDLE) {
+      vk_layouts[i] = vk_descriptor_set_layouts_[i];
+      any_layout = true;
+    }
+    else {
+      vk_layouts[i] = device.descriptor_set_layouts_get().get_or_create_empty();
+    }
+  }
+
   VkPipelineLayoutCreateInfo pipeline_info = {};
   VkPushConstantRange push_constant_range = {};
   pipeline_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipeline_info.flags = 0;
-  pipeline_info.setLayoutCount = layout_count;
-  pipeline_info.pSetLayouts = &vk_descriptor_set_layout_;
+  if (any_layout) {
+    pipeline_info.setLayoutCount = VK_DESCRIPTOR_SET_NUM;
+    pipeline_info.pSetLayouts = vk_layouts;
+  }
+  else {
+    pipeline_info.setLayoutCount = 0;
+    pipeline_info.pSetLayouts = nullptr;
+  }
 
   /* Setup push constants. */
   const VKPushConstants::Layout &push_constants_layout =
@@ -711,19 +731,21 @@ bool VKShader::finalize_pipeline_layout(VKDevice &device,
 bool VKShader::finalize_descriptor_set_layouts(VKDevice &vk_device,
                                                const VKShaderInterface &shader_interface)
 {
-  bool created;
-  bool needed;
+  for (int set = 0; set < VK_DESCRIPTOR_SET_NUM; set++) {
+    bool created;
+    bool needed;
 
-  vk_descriptor_set_layout_ = vk_device.descriptor_set_layouts_get().get_or_create(
-      shader_interface.descriptor_set_layout_info_get(), created, needed);
-  if (created) {
-    debug::object_label(vk_descriptor_set_layout_, name_get());
+    vk_descriptor_set_layouts_[set] = vk_device.descriptor_set_layouts_get().get_or_create(
+        shader_interface.descriptor_set_layout_info_get(set), created, needed);
+    if (created) {
+      std::string label = name_get() + " (set " + std::to_string(set) + ")";
+      debug::object_label(vk_descriptor_set_layouts_[set], label.c_str());
+    }
+    if (needed && vk_descriptor_set_layouts_[set] == VK_NULL_HANDLE) {
+      return false;
+    }
   }
-  if (!needed) {
-    BLI_assert(vk_descriptor_set_layout_ == VK_NULL_HANDLE);
-    return true;
-  }
-  return vk_descriptor_set_layout_ != VK_NULL_HANDLE;
+  return true;
 }
 
 void VKShader::bind(const shader::SpecializationConstants *constants_state)
@@ -842,7 +864,8 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
       ss << "layout(push_constant, std430) uniform constants\n";
     }
     else if (push_constants_storage == VKPushConstants::StorageType::BUFFER) {
-      ss << "layout(binding = " << push_constants_layout.descriptor_set_location_get()
+      VKDescriptorSet::Location pc_location = push_constants_layout.descriptor_set_location_get();
+      ss << "layout(set = " << pc_location.set << ", binding = " << uint32_t(pc_location)
          << ", std140) uniform constants\n";
     }
     ss << "{\n";
@@ -1022,7 +1045,8 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
           typePrefix = ' ';
           break;
       }
-      ss << "layout(input_attachment_index = " << (input.index)
+      ss << "layout(set = " << VK_DESCRIPTOR_SET_PASS
+         << ", input_attachment_index = " << (input.index)
          << ", binding = " << (subpass_input_binding_index++) << ") uniform " << typePrefix
          << "subpassInput " << input_attachment_name << "; \n";
 
