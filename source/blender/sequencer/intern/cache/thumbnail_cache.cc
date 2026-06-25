@@ -206,12 +206,25 @@ static ThumbnailCache *query_thumbnail_cache(Scene *scene)
   return scene->ed->runtime->thumbnail_cache;
 }
 
+void image_size_to_thumb_size(int &r_width, int &r_height, int size)
+{
+  const float aspect = float(r_width) / float(r_height);
+  if (r_width > r_height) {
+    r_width = size;
+    r_height = std::max(1, round_fl_to_int(size / aspect));
+  }
+  else {
+    r_height = size;
+    r_width = std::max(1, round_fl_to_int(size * aspect));
+  }
+}
+
 bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip)
 {
   if (scene == nullptr || scene->ed == nullptr || strip == nullptr) {
     return false;
   }
-  if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
+  if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE) && strip->data) {
     const StripElem *se = strip->data->stripdata;
     if (se->orig_height == 0 || se->orig_width == 0) {
       return false;
@@ -224,7 +237,9 @@ bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip)
   if (strip->type == STRIP_TYPE_MASK && strip->mask) {
     return true;
   }
-  if (strip->type == STRIP_TYPE_SCENE && strip->scene && strip->scene != scene) {
+  if (strip->type == STRIP_TYPE_SCENE && (strip->flag & SEQ_SCENE_STRIPS) == 0 && strip->scene &&
+      strip->scene != scene)
+  {
     return true;
   }
   return false;

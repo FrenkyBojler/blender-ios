@@ -1329,19 +1329,6 @@ static Depsgraph *get_depsgraph_for_scene_strip(Main *bmain, Scene *scene, ViewL
   return depsgraph;
 }
 
-void image_size_to_thumb_size(int &r_width, int &r_height, int size)
-{
-  const float aspect = float(r_width) / float(r_height);
-  if (r_width > r_height) {
-    r_width = size;
-    r_height = std::max(1, round_fl_to_int(size / aspect));
-  }
-  else {
-    r_height = size;
-    r_width = std::max(1, round_fl_to_int(size * aspect));
-  }
-}
-
 /* Render a scene strip through the wireframe/solid offscreen viewport path (used for preview and
  * thumbnails). `scene` is the strip's scene; `display_scene` is the scene that drives the shading
  * (timeline edit scene). */
@@ -1605,18 +1592,6 @@ ImBuf *render_scene_strip_thumbnail(
     return nullptr; /* No scene, or recursion with sequencer scene. */
   }
 
-  Object *camera;
-  if (strip->scene_camera) {
-    camera = strip->scene_camera;
-  }
-  else {
-    BKE_scene_camera_switch_update(scene);
-    camera = scene->camera;
-  }
-  if (camera == nullptr) {
-    return nullptr;
-  }
-
   /* Render at thumbnail size. */
   int width, height;
   BKE_render_resolution(&scene->r, false, &width, &height);
@@ -1633,6 +1608,19 @@ ImBuf *render_scene_strip_thumbnail(
   /* Note: passed frame index already includes `strip->anim_startofs`. */
   const float frame = float(scene->r.sfra) + frame_index;
   BKE_scene_frame_set(scene, frame);
+
+  Object *camera;
+  if (strip->scene_camera) {
+    camera = strip->scene_camera;
+  }
+  else {
+    BKE_scene_camera_switch_update(scene);
+    camera = scene->camera;
+  }
+  if (camera == nullptr) {
+    return nullptr;
+  }
+
   /* Prevent rendering this scene's own sequencer, and enforce specific camera. */
   scene->r.scemode &= ~R_DOSEQ;
   scene->r.mode |= R_NO_CAMERA_SWITCH;
