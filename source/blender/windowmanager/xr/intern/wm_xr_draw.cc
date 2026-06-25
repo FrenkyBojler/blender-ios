@@ -1065,7 +1065,7 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
     }
     if (create_new) {
       panel->panel_offscreen = GPU_offscreen_create(
-          w, h, false, gpu::TextureFormat::UNORM_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, false, nullptr);
+          w, h, false, gpu::TextureFormat::SRGBA_8_8_8_8, GPU_TEXTURE_USAGE_SHADER_READ, false, nullptr);
     }
     if (!panel->panel_offscreen) {
       XR_PANELS_TRACE("panels_ws: offscreen create failed size=%dx%d", w, h);
