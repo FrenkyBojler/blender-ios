@@ -100,12 +100,12 @@ class AddPresetBase:
     def description(cls, context, properties):
         desc = cls.bl_label or (cls.__doc__.strip() if cls.__doc__ else "Preset")
 
-        if properties and desc.startswith("Add or Remove a ") or desc.startswith("Add or Remove an "):
+        if properties and desc.startswith("Add or remove a ") or desc.startswith("Add or remove an "):
             consonant = True
-            if desc.startswith("Add or Remove a "):
+            if desc.lower().startswith("Add or remove a "):
                 consonant = False
                 desc = desc[16:]
-            elif desc.startswith("Add or Remove an "):
+            elif desc.lower().startswith("Add or remove an "):
                 desc = desc[17:]
             remove_active = getattr(properties, "remove_active", False)
             remove_name = getattr(properties, "remove_name", False)
@@ -342,7 +342,7 @@ class ExecutePreset(Operator):
 
 
 class AddPresetTextStripStyle(AddPresetBase, Operator):
-    """Add or Remove a text strip style and layout preset"""
+    """Add or remove a text strip style and layout preset"""
     bl_idname = "sequencer.text_strip_style_preset_add"
     bl_label = ""
     preset_menu = "STRIP_PT_effect_text_style_presets"
@@ -386,7 +386,7 @@ class AddPresetTextStripStyle(AddPresetBase, Operator):
 
 
 class AddPresetRender(AddPresetBase, Operator):
-    """Add or Remove a Render Preset"""
+    """Add or remove a Render Preset"""
     bl_idname = "render.preset_add"
     bl_label = ""
     preset_menu = "RENDER_PT_format_presets"
@@ -409,7 +409,7 @@ class AddPresetRender(AddPresetBase, Operator):
 
 
 class AddPresetCamera(AddPresetBase, Operator):
-    """Add or Remove a Camera Preset"""
+    """Add or remove a Camera Preset"""
     bl_idname = "camera.preset_add"
     bl_label = ""
     preset_menu = "CAMERA_PT_presets"
@@ -440,7 +440,7 @@ class AddPresetCamera(AddPresetBase, Operator):
 
 
 class AddPresetCameraSafeAreas(AddPresetBase, Operator):
-    """Add or Remove a Safe Areas Preset"""
+    """Add or remove a Safe Areas Preset"""
     bl_idname = "camera.safe_areas_preset_add"
     bl_label = ""
     preset_menu = "CAMERA_PT_safe_areas_presets"
@@ -460,7 +460,7 @@ class AddPresetCameraSafeAreas(AddPresetBase, Operator):
 
 
 class AddPresetCloth(AddPresetBase, Operator):
-    """Add or Remove a Cloth Preset"""
+    """Add or remove a Cloth Preset"""
     bl_idname = "cloth.preset_add"
     bl_label = ""
     preset_menu = "CLOTH_PT_presets"
@@ -502,7 +502,7 @@ class AddPresetCloth(AddPresetBase, Operator):
 
 
 class AddPresetFluid(AddPresetBase, Operator):
-    """Add or Remove a Fluid Preset"""
+    """Add or remove a Fluid Preset"""
     bl_idname = "fluid.preset_add"
     bl_label = ""
     preset_menu = "FLUID_PT_presets"
@@ -520,7 +520,7 @@ class AddPresetFluid(AddPresetBase, Operator):
 
 
 class AddPresetHairDynamics(AddPresetBase, Operator):
-    """Add or Remove a Hair Dynamics Preset"""
+    """Add or remove a Hair Dynamics Preset"""
     bl_idname = "particle.hair_dynamics_preset_add"
     bl_label = ""
     preset_menu = "PARTICLE_PT_hair_dynamics_presets"
@@ -550,7 +550,7 @@ class AddPresetHairDynamics(AddPresetBase, Operator):
 
 
 class AddPresetTextEditor(AddPresetBase, Operator):
-    """Add or Remove a Text Editor Preset"""
+    """Add or remove a Text Editor Preset"""
     bl_idname = "text_editor.preset_add"
     bl_label = ""
     preset_menu = "USERPREF_PT_text_editor_presets"
@@ -568,7 +568,7 @@ class AddPresetTextEditor(AddPresetBase, Operator):
 
 
 class AddPresetTrackingCamera(AddPresetBase, Operator):
-    """Add or Remove a Tracking Camera Intrinsics Preset"""
+    """Add or remove a Tracking Camera Intrinsics Preset"""
     bl_idname = "clip.camera_preset_add"
     bl_label = ""
     preset_menu = "CLIP_PT_camera_presets"
@@ -602,7 +602,7 @@ class AddPresetTrackingCamera(AddPresetBase, Operator):
 
 
 class AddPresetTrackingTrackColor(AddPresetBase, Operator):
-    """Add or Remove a Clip Track Color Preset"""
+    """Add or remove a Clip Track Color Preset"""
     bl_idname = "clip.track_color_preset_add"
     bl_label = ""
     preset_menu = "CLIP_PT_track_color_presets"
@@ -620,7 +620,7 @@ class AddPresetTrackingTrackColor(AddPresetBase, Operator):
 
 
 class AddPresetTrackingSettings(AddPresetBase, Operator):
-    """Add or Remove a motion tracking settings preset"""
+    """Add or remove a motion tracking settings preset"""
     bl_idname = "clip.tracking_settings_preset_add"
     bl_label = ""
     preset_menu = "CLIP_PT_tracking_settings_presets"
@@ -650,7 +650,7 @@ class AddPresetTrackingSettings(AddPresetBase, Operator):
 
 
 class AddPresetEEVEERaytracing(AddPresetBase, Operator):
-    """Add or Remove an EEVEE ray-tracing preset"""
+    """Add or remove an EEVEE ray-tracing preset"""
     bl_idname = "render.eevee_raytracing_preset_add"
     bl_label = ""
     preset_menu = "RENDER_PT_eevee_raytracing_presets"
@@ -684,7 +684,7 @@ class AddPresetEEVEERaytracing(AddPresetBase, Operator):
 
 
 class AddPresetColorManagementWhiteBalance(AddPresetBase, Operator):
-    """Add or Remove a white balance preset"""
+    """Add or remove a white balance preset"""
     bl_idname = "render.color_management_white_balance_preset_add"
     bl_label = ""
     preset_menu = "RENDER_PT_color_management_white_balance_presets"
@@ -702,7 +702,7 @@ class AddPresetColorManagementWhiteBalance(AddPresetBase, Operator):
 
 
 class AddPresetNodeColor(AddPresetBase, Operator):
-    """Add or Remove a Node Color Preset"""
+    """Add or remove a Node Color Preset"""
     bl_idname = "node.node_color_preset_add"
     bl_label = ""
     preset_menu = "NODE_PT_node_color_presets"
@@ -722,7 +722,7 @@ class AddPresetNodeColor(AddPresetBase, Operator):
 class AddPresetInterfaceTheme(AddPresetBase, Operator):
     """Add a custom theme to the preset list"""
     bl_idname = "wm.interface_theme_preset_add"
-    bl_label = ""
+    bl_label = "Add Theme"
     preset_menu = "USERPREF_MT_interface_theme_presets"
     preset_subdir = "interface_theme"
 
@@ -735,7 +735,7 @@ class AddPresetInterfaceTheme(AddPresetBase, Operator):
 class RemovePresetInterfaceTheme(AddPresetBase, Operator):
     """Remove a custom theme from the preset list"""
     bl_idname = "wm.interface_theme_preset_remove"
-    bl_label = ""
+    bl_label = "Remove Theme"
     preset_menu = "USERPREF_MT_interface_theme_presets"
     preset_subdir = "interface_theme"
 
@@ -764,7 +764,7 @@ class RemovePresetInterfaceTheme(AddPresetBase, Operator):
 class SavePresetInterfaceTheme(AddPresetBase, Operator):
     """Save a custom theme in the preset list"""
     bl_idname = "wm.interface_theme_preset_save"
-    bl_label = ""
+    bl_label = "Save Theme"
     preset_menu = "USERPREF_MT_interface_theme_presets"
     preset_subdir = "interface_theme"
 
@@ -808,7 +808,7 @@ class SavePresetInterfaceTheme(AddPresetBase, Operator):
 class AddPresetKeyconfig(AddPresetBase, Operator):
     """Add a custom keymap configuration to the preset list"""
     bl_idname = "wm.keyconfig_preset_add"
-    bl_label = ""
+    bl_label = "AAdd Custom Keymap Configuratio"
     preset_menu = "USERPREF_MT_keyconfigs"
     preset_subdir = "keyconfig"
 
@@ -820,7 +820,7 @@ class AddPresetKeyconfig(AddPresetBase, Operator):
 class RemovePresetKeyconfig(AddPresetBase, Operator):
     """Remove a custom keymap configuration from the preset list"""
     bl_idname = "wm.keyconfig_preset_remove"
-    bl_label = ""
+    bl_label = "Remove Custom Keymap Configuration"
     preset_menu = "USERPREF_MT_keyconfigs"
     preset_subdir = "keyconfig"
 
@@ -855,7 +855,7 @@ class RemovePresetKeyconfig(AddPresetBase, Operator):
 
 
 class AddPresetOperator(AddPresetBase, Operator):
-    """Add or Remove an Operator Preset"""
+    """Add or remove an Operator Preset"""
     bl_idname = "wm.operator_preset_add"
     bl_label = ""
     preset_menu = "WM_MT_operator_presets"
@@ -1024,7 +1024,7 @@ class WM_OT_operator_presets_cleanup(Operator):
 
 
 class AddPresetGpencilBrush(AddPresetBase, Operator):
-    """Add or Remove Grease Pencil brush preset"""
+    """Add or remove Grease Pencil brush preset"""
     bl_idname = "scene.gpencil_brush_preset_add"
     bl_label = ""
     preset_menu = "VIEW3D_PT_gpencil_brush_presets"
@@ -1058,7 +1058,7 @@ class AddPresetGpencilBrush(AddPresetBase, Operator):
 
 
 class AddPresetGpencilMaterial(AddPresetBase, Operator):
-    """Add or Remove Grease Pencil material preset"""
+    """Add or remove Grease Pencil material preset"""
     bl_idname = "scene.gpencil_material_preset_add"
     bl_label = ""
     preset_menu = "MATERIAL_PT_gpencil_material_presets"
