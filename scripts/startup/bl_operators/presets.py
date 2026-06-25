@@ -97,42 +97,29 @@ class AddPresetBase:
     )
 
     @classmethod
-    def get_name(cls, context, properties):
-        name = (cls.__doc__.strip() if cls.__doc__ else "") or cls.bl_label or "Preset"
-        if name.startswith("Add or Remove "):
-            name = name[14:]
-        elif name.startswith("Add or remove "):
-            name = name[14:]
-        elif name.startswith("Add "):
-            name = name[4:]
-        elif name.startswith("Remove "):
-            name = name[7:]
-
-        if properties:
-            remove_active = getattr(properties, "remove_active", False)
-            remove_name = getattr(properties, "remove_name", False)
-            if remove_active or remove_name:
-                return "Remove " + name
-        return "Add " + name
-
-    @classmethod
     def description(cls, context, properties):
-        desc = (cls.__doc__.strip() if cls.__doc__ else "") or cls.bl_label or "Preset"
-        if desc.startswith("Add or Remove "):
-            desc = desc[14:]
-        elif desc.startswith("Add or remove "):
-            desc = desc[14:]
-        elif desc.startswith("Add "):
-            desc = desc[4:]
-        elif desc.startswith("Remove "):
-            desc = desc[7:]
+        desc = cls.bl_label or (cls.__doc__.strip() if cls.__doc__ else "Preset")
 
-        if properties:
+        if properties and desc.startswith("Add or Remove a ") or desc.startswith("Add or Remove an "):
+            consonant = True
+            if desc.startswith("Add or Remove a "):
+                consonant = False
+                desc = desc[16:]
+            elif desc.startswith("Add or Remove an "):
+                desc = desc[17:]
             remove_active = getattr(properties, "remove_active", False)
             remove_name = getattr(properties, "remove_name", False)
             if remove_active or remove_name:
-                return "Remove " + desc
-        return "Add " + desc
+                if consonant:
+                    return "Remove am " + desc
+                else:
+                    return "Remove a " + desc
+            else:
+                if consonant:
+                    return "Add an " + desc
+                else:
+                    return "Add a " + desc
+        return desc
 
     @staticmethod
     def as_filename(name):  # could reuse for other presets
