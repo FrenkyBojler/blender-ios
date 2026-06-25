@@ -4,6 +4,7 @@
 
 from mathutils import Quaternion, Vector
 from ...io.com import gltf2_io
+from ...io.com import gltf2_io_extensions
 from ...io.exp.user_extensions import export_user_extensions
 from ..com.extras import generate_extras
 from .cache import cached
@@ -85,7 +86,7 @@ def gather_joint_vnode(vnode, export_settings):
     node = gltf2_io.Node(
         camera=None,
         children=children,
-        extensions=None,
+        extensions=__gather_extensions(blender_bone, export_settings),
         extras=__gather_extras(blender_bone, export_settings),
         matrix=None,
         mesh=None,
@@ -109,3 +110,22 @@ def __gather_extras(blender_bone, export_settings):
     if export_settings['gltf_extras']:
         return generate_extras(blender_bone.bone)
     return None
+
+
+def __gather_extensions(blender_bone, export_settings):
+
+    extensions = {}
+
+    # Check visibility
+    # Only when not exporting full collection hierarchy
+    # Because for full collection => Blender manage it recursively,
+    # So we will have the correct export (and animation pointer ?)
+    if export_settings['gltf_hierarchy_full_collections'] is False:
+        if blender_bone.hide is True:
+            extensions["KHR_node_visibility"] = gltf2_io_extensions.Extension(
+                name="KHR_node_visibility",
+                extension={"visible": False},
+                required=True
+            )
+
+    return extensions if extensions else None
