@@ -776,6 +776,7 @@ set(GLSL_TEST_SRC
   tests/shaders/gpu_framebuffer_layer_viewport_test.glsl
   tests/shaders/gpu_framebuffer_subpass_input_test.glsl
   tests/shaders/gpu_push_constants_test.glsl
+  tests/shaders/gpu_ray_query_test.glsl
   tests/shaders/gpu_texture_test.glsl
   tests/shaders/gpu_texture_atomic_test.glsl
 )
@@ -954,6 +955,7 @@ if(WITH_GTESTS)
       tests/immediate_test.cc
       tests/index_buffer_test.cc
       tests/push_constants_test.cc
+      tests/ray_tracing_test.cc
       tests/shader_create_info_test.cc
       tests/shader_preprocess_test.cc
       tests/shader_test.cc
