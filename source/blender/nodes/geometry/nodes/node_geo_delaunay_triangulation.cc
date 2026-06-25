@@ -20,7 +20,7 @@ namespace blender::nodes::node_geo_delaunay_triangulation_cc {
 enum class TriangulationMode : int8_t {
   Full = 0,
   Inside = 1,
-  InsideWidthHoles = 2,
+  InsideWithHoles = 2,
 };
 
 static const EnumPropertyItem mode_items[] = {
@@ -34,7 +34,7 @@ static const EnumPropertyItem mode_items[] = {
      0,
      "Inside",
      "All triangles fully enclosed by constraint edges or faces"},
-    {int(TriangulationMode::InsideWidthHoles),
+    {int(TriangulationMode::InsideWithHoles),
      "INSIDE_WITH_HOLES",
      0,
      "Inside With Holes",
@@ -77,7 +77,7 @@ static CDT_output_type get_cdt_output_type(const TriangulationMode mode)
       return CDT_FULL;
     case TriangulationMode::Inside:
       return CDT_INSIDE;
-    case TriangulationMode::InsideWidthHoles:
+    case TriangulationMode::InsideWithHoles:
       return CDT_INSIDE_WITH_HOLES;
   }
   return CDT_FULL;
