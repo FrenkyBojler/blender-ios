@@ -556,8 +556,8 @@ int GPU_shader_get_sampler_binding(gpu::Shader *shader, const char *name)
 int GPU_shader_get_tlas_binding(gpu::Shader *shader, const char *name)
 {
   const ShaderInterface *interface = shader->interface;
-  const ShaderInput *ssbo = interface->tlas_get(name);
-  return ssbo ? ssbo->location : -1;
+  const ShaderInput *tlas = interface->tlas_get(name);
+  return tlas ? tlas->location : -1;
 }
 
 uint GPU_shader_get_attribute_len(const gpu::Shader *shader)

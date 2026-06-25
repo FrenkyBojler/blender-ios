@@ -1024,7 +1024,7 @@ struct ShaderCreateInfo {
           TEST_EQUAL(*this, b, image.name);
           break;
         case ACCELERATION_STRUCTURE:
-          TEST_EQUAL(*this, b, storagebuf.name);
+          TEST_EQUAL(*this, b, acceleration_structure.name);
           break;
       }
       return true;

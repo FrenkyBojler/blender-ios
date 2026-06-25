@@ -751,7 +751,7 @@ struct GHOST_InstanceVK {
       feature_struct_ptr.push_back(&host_image_copy);
     }
 
-    /* VK_KHR_acceletation_structure */
+    /* VK_KHR_acceleration_structure */
     VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
         nullptr,
