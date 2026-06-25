@@ -16,8 +16,10 @@
 
 #include "BLI_fnmatch.hh"
 #include "BLI_listbase.hh"
+#include "BLI_map.hh"
 #include "BLI_mempool.hh"
 #include "BLI_rect.hh"
+#include "BLI_set.hh"
 #include "BLI_string.hh"
 #include "BLI_utildefines.hh"
 
@@ -650,8 +652,9 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
     outliner_sort(&te_iter.subtree);
   }
 }
-
-static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
+static void outliner_sort_custom(ListBaseT<TreeElement> *lb,
+                                 Map<Collection *, int> &collection_index_map,
+                                 Set<CollectionObject *> &updated_cobs)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
   if (last_te == nullptr) {
@@ -666,7 +669,6 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
 
     if (totelem > 1) {
       Collection *collection = outliner_collection_from_tree_element(last_te->parent);
-      const bool is_parent_collection = (collection != nullptr);
       if (collection == nullptr) {
         for (TreeElement *parent_te = last_te->parent; parent_te; parent_te = parent_te->parent) {
           collection = outliner_collection_from_tree_element(parent_te);
@@ -713,16 +715,6 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
             std::stable_sort(tear + skip, tear + totelem, treesort_custom_fn);
           }
         }
-        int index = 0;
-        for (tTreeSort element : tear_vec) {
-          if (element.idcode == ID_OB) {
-            Object *ob = reinterpret_cast<Object *>(element.id);
-            CollectionObject *cob = collection_object_map.lookup_default(ob, nullptr);
-            if (cob != nullptr) {
-              cob->sort_index = index++;
-            }
-          }
-        }
 
         lb->clear_no_delete();
         tp = tear;
@@ -734,7 +726,46 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
   }
 
   for (TreeElement &te_iter : *lb) {
-    outliner_sort_custom(&te_iter.subtree);
+    if (te_iter.idcode == ID_OB) {
+      TreeStoreElem *tselem = TREESTORE(&te_iter);
+      if (tselem->type == TSE_SOME_ID) {
+        Object *ob = reinterpret_cast<Object *>(tselem->id);
+        Collection *collection = nullptr;
+        for (TreeElement *parent_te = &te_iter; parent_te; parent_te = parent_te->parent) {
+          collection = outliner_collection_from_tree_element(parent_te);
+          if (collection != nullptr) {
+            break;
+          }
+        }
+        if (collection != nullptr) {
+          CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
+          if (cob != nullptr && !updated_cobs.contains(cob)) {
+            int &index = collection_index_map.lookup_or_add(collection, 0);
+            cob->sort_index = index++;
+            updated_cobs.add(cob);
+          }
+        }
+      }
+    }
+    outliner_sort_custom(&te_iter.subtree, collection_index_map, updated_cobs);
+  }
+}
+
+static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
+{
+  Map<Collection *, int> collection_index_map;
+  Set<CollectionObject *> updated_cobs;
+  outliner_sort_custom(lb, collection_index_map, updated_cobs);
+
+  for (auto item : collection_index_map.items()) {
+    for (CollectionObject &cob : item.key->gobject) {
+      if (!updated_cobs.contains(&cob)) {
+        cob.sort_index = item.value++;
+        printf("Warning: Object '%s' in collection '%s' was not updated with a sort index.\n",
+               cob.ob->id.name + 2,
+               item.key->id.name + 2);
+      }
+    }
   }
 }
 
