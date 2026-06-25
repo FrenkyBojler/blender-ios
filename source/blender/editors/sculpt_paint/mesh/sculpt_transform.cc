@@ -70,7 +70,7 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
   ss.prev_pivot_scale = ss.pivot_scale;
 
   /* Pivot only transformations don't push undo steps */
-  if ((ts.transform_flag & SCE_XFORM_SCULPT_PIVOT) != 0) {
+  if (ts.transform_flag & SCE_XFORM_SCULPT_PIVOT) {
     return;
   }
 
