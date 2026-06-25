@@ -1696,18 +1696,18 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
   /* Activate draw callback. */
   if (g_xr_surface) {
     wmXrSurfaceData *surface_data = static_cast<wmXrSurfaceData *>(g_xr_surface->customdata);
-    if (surface_data && !surface_data->controller_draw_handle) {
-      if (surface_data->controller_art) {
-        surface_data->controller_draw_handle = ED_region_draw_cb_activate(
-            surface_data->controller_art, wm_xr_draw_controllers, xr, REGION_DRAW_POST_VIEW);
+    if (surface_data) {
+      if (surface_data->controller_draw_handle && surface_data->controller_art) {
+        ED_region_draw_cb_exit(surface_data->controller_art, surface_data->controller_draw_handle);
+        surface_data->controller_draw_handle = nullptr;
+      }
 
-        SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
-        ARegionType *panel_art = st ? BKE_regiontype_from_id(st, RGN_TYPE_XR) : nullptr;
-        if (panel_art) {
-          surface_data->panel_art = panel_art;
-          surface_data->panel_draw_handle = ED_region_draw_cb_activate(
-              panel_art, wm_xr_draw_panels_world_space, xr, REGION_DRAW_POST_VIEW);
-        }
+      SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
+      ARegionType *panel_art = st ? BKE_regiontype_from_id(st, RGN_TYPE_XR) : nullptr;
+      if (panel_art && !surface_data->panel_draw_handle) {
+        surface_data->panel_art = panel_art;
+        surface_data->panel_draw_handle = ED_region_draw_cb_activate(
+            panel_art, wm_xr_draw_panels_world_space, xr, REGION_DRAW_POST_VIEW);
       }
     }
   }

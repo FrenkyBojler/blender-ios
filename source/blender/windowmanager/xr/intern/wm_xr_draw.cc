@@ -745,16 +745,23 @@ static void wm_xr_draw_cached_panel_overlay(const float viewmat[4][4],
     return;
   }
 
-  for (const wmXrPanel *panel : ConstListBaseWrapper<wmXrPanel>(surface_data->panels)) {
-    if (!panel->panel_valid || panel->panel_offscreen == nullptr) {
-      continue;
-    }
+  for (const bool draw_controller_panels : {false, true}) {
+    for (const wmXrPanel *panel : ConstListBaseWrapper<wmXrPanel>(surface_data->panels)) {
+      if (!panel->panel_valid || panel->panel_offscreen == nullptr) {
+        continue;
+      }
+      const bool is_controller_panel = ELEM(
+          panel->mount_point, XR_PANEL_MOUNT_LEFT_HAND, XR_PANEL_MOUNT_RIGHT_HAND);
+      if (is_controller_panel != draw_controller_panels) {
+        continue;
+      }
 
-    RegionView3D rv_tmp = {};
-    wm_xr_ui_overlay_winmat_create(winmat, rv_tmp.winmat);
-    copy_m4_m4(rv_tmp.viewmat, viewmat);
-    ED_region_panels_draw_to_world_quad(
-        &rv_tmp, panel->panel_obmat, &panel->panel_rect, panel->panel_offscreen);
+      RegionView3D rv_tmp = {};
+      wm_xr_ui_overlay_winmat_create(winmat, rv_tmp.winmat);
+      copy_m4_m4(rv_tmp.viewmat, viewmat);
+      ED_region_panels_draw_to_world_quad(
+          &rv_tmp, panel->panel_obmat, &panel->panel_rect, panel->panel_offscreen);
+    }
   }
 }
 
@@ -1594,15 +1601,25 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 
   wm_xr_draw_viewport_buffers_to_active_framebuffer(xr_data->runtime, surface_data, draw_view);
 
-  if ((settings->draw_flags & V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
-    /* wm_xr_draw_cached_panel_overlay requires an inverted y-axis to function properly. */
-    for (uint i = 0; i < 4; ++i) {
-      viewmat[i][1] *= -1.0f;
-    }
-
-    wm_xr_draw_cached_panel_overlay(viewmat, winmat, surface_data);
-    wm_xr_panel_cursor_draw_overlay(viewmat, winmat, surface_data);
+  float overlay_viewmat[4][4];
+  copy_m4_m4(overlay_viewmat, viewmat);
+  /* XR overlays require an inverted y-axis to match the swapchain framebuffer convention. */
+  for (uint i = 0; i < 4; ++i) {
+    overlay_viewmat[i][1] *= -1.0f;
   }
+
+  if ((settings->draw_flags & V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
+    wm_xr_draw_cached_panel_overlay(overlay_viewmat, winmat, surface_data);
+    wm_xr_panel_cursor_draw_overlay(overlay_viewmat, winmat, surface_data);
+  }
+
+  GPU_matrix_push_projection();
+  GPU_matrix_projection_set(winmat);
+  GPU_matrix_push();
+  GPU_matrix_set(overlay_viewmat);
+  wm_xr_draw_controllers(nullptr, nullptr, xr_data);
+  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
 }
 
 bool wm_xr_passthrough_enabled(void *customdata)
