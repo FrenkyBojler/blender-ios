@@ -42,6 +42,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curveprofile.h"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
 #include "BKE_movieclip.hh"
 #include "BKE_paint.hh"
@@ -51,7 +52,6 @@
 #include "BKE_screen.hh"
 #include "BKE_tracking.hh"
 #include "BKE_unit.hh"
-#include "BKE_global.hh"
 
 #include "BLT_translation.hh"
 
@@ -13303,27 +13303,26 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
       ED_region_tag_redraw(popup_block_handle->region);
       return false;
     }
+    /* This popup can't be refreshed, try to refesh parent popup. */
     return true;
   }
 
   Button *active_button = region_find_active_but(popup_block_handle->region);
   HandleButtonData *data = active_button ? active_button->active : nullptr;
   PopupBlockHandle *sub_handle = data ? data->menu : nullptr;
-  if (!sub_handle) {
-    return false;
-  }
-  if (!popup_needs_update_for_unreg_srna_recursive(C, sub_handle, srna_to_unreg)) {
+
+  if (!sub_handle || !popup_needs_update_for_unreg_srna_recursive(C, sub_handle, srna_to_unreg)) {
+    /* There is no child popup referencing the rna type or it can be refresh, no need to refresh
+     * this popup. */
     return false;
   }
   if (!valid_for_refresh) {
     /* This popup can't be refreshed, try to refesh parent popup. */
     return true;
   }
-  if (active_button) {
-    CTX_wm_region_popup_set(C, popup_block_handle->region);
-    button_active_free(C, active_button);
-    CTX_wm_region_popup_set(C, nullptr);
-  }
+  CTX_wm_region_popup_set(C, popup_block_handle->region);
+  button_active_free(C, active_button);
+  CTX_wm_region_popup_set(C, nullptr);
   ED_region_tag_refresh_ui(popup_block_handle->region);
   ED_region_tag_redraw(popup_block_handle->region);
   return false;
