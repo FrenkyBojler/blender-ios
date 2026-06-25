@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(1)
       .description("The number of vertices in the mesh");
   b.add_input<decl::Vector>("Positions"_ustr).structure_type(StructureType::Field).hide_value();
-  b.add_input<decl::Int>("Edges"_ustr).structure_type(StructureType::List).hide_value();
+  b.add_input<decl::Int>("Loose Edges"_ustr).structure_type(StructureType::List).hide_value();
   b.add_input<decl::Int>("Faces"_ustr).structure_type(StructureType::List).hide_value();
 
   b.add_output<decl::Geometry>("Mesh"_ustr);
