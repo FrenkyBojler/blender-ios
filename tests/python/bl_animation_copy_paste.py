@@ -495,6 +495,23 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
             bpy.context.scene.frame_set(i + 10)
             self._assert_almost_equal_matrix(copy_matrices[i], paste_obj.matrix_world @ paste_bone.matrix)
 
+    def test_paste_with_delta_transform(self) -> None:
+        """Objects contain an extra matrix with the delta transform.
+        Pasting world spaces needs to take that into account."""
+        copy_obj: bpy.types.Object = bpy.data.objects["delta_transform_object"]
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_delta_transform_object"]
+        copy_obj.select_set(True)
+        paste_obj.select_set(False)
+
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+
+        copy_obj.select_set(False)
+        paste_obj.select_set(True)
+        bpy.ops.anim.world_space_paste(offset='NONE')
+
+        self._assert_objects_equal_world_space(copy_obj, paste_obj)
+
 
 class SingleFrameCopyPasteTest(AbstractCopyPasteTest):
 

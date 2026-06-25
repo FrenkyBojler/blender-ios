@@ -7,7 +7,9 @@
  */
 
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_string.hh"
 
 #include "DNA_action_types.h"
@@ -130,6 +132,34 @@ float4x4 get_world_space(const Depsgraph &depsgraph, const AnimTransformable &tr
   return float4x4::identity();
 }
 
+/* Creates a 4x4 matrix out of the object delta values. Maybe this exists already, I couldn't find
+ * it though. */
+static float4x4 object_to_delta_matrix(Object &obj)
+{
+  float delta_matrix[4][4];
+  float scale_mat[3][3];
+  float rotation_mat[3][3];
+  size_to_mat3(scale_mat, obj.dscale);
+
+  if (obj.rotmode > 0) {
+    eulO_to_mat3(rotation_mat, obj.drot, obj.rotmode);
+  }
+  else if (obj.rotmode == ROT_MODE_AXISANGLE) {
+    axis_angle_to_mat3(rotation_mat, obj.drotAxis, obj.drotAngle);
+  }
+  else {
+    float tquat[4];
+    normalize_qt_qt(tquat, obj.dquat);
+    quat_to_mat3(rotation_mat, tquat);
+  }
+
+  float mat[3][3];
+  mul_m3_m3m3(mat, rotation_mat, scale_mat);
+  copy_m4_m3(delta_matrix, mat);
+  copy_v3_v3(delta_matrix[3], obj.dloc);
+  return float4x4(delta_matrix);
+}
+
 float4x4 world_to_local(const Depsgraph &depsgraph,
                         const AnimTransformable &transformable,
                         const float4x4 &world_matrix)
@@ -158,13 +188,11 @@ float4x4 world_to_local(const Depsgraph &depsgraph,
       Object *ob_eval = id_cast<Object *>(eval_id);
       float4x4 parent_matrix = float4x4::identity();
       if (ob_eval->parent) {
-        BKE_object_get_parent_matrix(ob_eval, ob_eval->parent, parent_matrix.ptr());
-        parent_matrix = math::invert(parent_matrix);
+        parent_matrix = ob_eval->parent->world_to_object();
       }
 
-      // TODO include delta transforms here
-      float4x4 offset_matrix(ob_eval->parentinv);
-      return parent_matrix * math::invert(offset_matrix) * world_matrix;
+      float4x4 delta_matrix = object_to_delta_matrix(*ob_eval);
+      return parent_matrix * math::invert(delta_matrix) * world_matrix;
     }
   }
 
