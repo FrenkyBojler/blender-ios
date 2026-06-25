@@ -98,20 +98,21 @@ class AddPresetBase:
 
     @classmethod
     def description(cls, context, properties):
-        desc = cls.bl_label or (cls.__doc__.strip() if cls.__doc__ else "Preset")
-
-        if properties and desc.startswith("Add or remove a ") or desc.startswith("Add or remove an "):
+        desc = cls.bl_label or (cls.__doc__.strip() if cls.__doc__ else None)
+        contains_prefix = desc and (desc.lower().startswith("add or remove a ")
+                                    or desc.lower().startswith("add or remove an "))
+        if properties and contains_prefix:
             consonant = True
-            if desc.lower().startswith("Add or remove a "):
+            if desc.lower().startswith("add or remove a "):
                 consonant = False
                 desc = desc[16:]
-            elif desc.lower().startswith("Add or remove an "):
+            elif desc.lower().startswith("add or remove an "):
                 desc = desc[17:]
             remove_active = getattr(properties, "remove_active", False)
             remove_name = getattr(properties, "remove_name", False)
             if remove_active or remove_name:
                 if consonant:
-                    return "Remove am " + desc
+                    return "Remove an " + desc
                 else:
                     return "Remove a " + desc
             else:
