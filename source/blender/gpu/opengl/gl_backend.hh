@@ -166,6 +166,15 @@ class GLBackend : public GPUBackend {
     return new GLVertBuf();
   };
 
+  TopLevelAS *tlas_alloc(const char * /*name*/) override
+  {
+    return nullptr;
+  }
+  BottomLevelAS *blas_alloc(const char * /*name*/) override
+  {
+    return nullptr;
+  }
+
   GLSharedOrphanLists &shared_orphan_list_get()
   {
     return shared_orphan_list_;

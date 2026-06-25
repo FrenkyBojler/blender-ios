@@ -108,6 +108,13 @@ bool VKBuffer::create(size_t size_in_bytes,
 
   device.resources.add_buffer(vk_buffer_);
 
+  if (bool(create_info.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)) {
+    VkBufferDeviceAddressInfo vk_buffer_device_address_info = {
+        VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, vk_buffer_};
+    vk_device_address = vkGetBufferDeviceAddress(device.vk_handle(),
+                                                 &vk_buffer_device_address_info);
+  }
+
   if (debug_name) {
     debug::object_label(vk_buffer_, debug_name);
   }

@@ -85,6 +85,7 @@ set(SRC
   intern/gpu_pass.cc
   intern/gpu_platform.cc
   intern/gpu_query.cc
+  intern/gpu_ray_tracing.cc
   intern/gpu_select.cc
   intern/gpu_select_next.cc
   intern/gpu_select_pick.cc
@@ -148,6 +149,7 @@ set(SRC
   GPU_platform.hh
   GPU_platform_backend_enum.h
   GPU_primitive.hh
+  GPU_ray_tracing.hh
   GPU_select.hh
   GPU_shader.hh
   GPU_shader_builtin.hh
@@ -269,6 +271,7 @@ set(VULKAN_SRC
   vulkan/vk_pixel_buffer.cc
   vulkan/vk_push_constants.cc
   vulkan/vk_query.cc
+  vulkan/vk_ray_tracing.cc
   vulkan/render_graph/nodes/vk_pipeline_data.cc
   vulkan/render_graph/vk_command_buffer_wrapper.cc
   vulkan/render_graph/vk_command_builder.cc
@@ -322,8 +325,10 @@ set(VULKAN_SRC
   vulkan/vk_pixel_buffer.hh
   vulkan/vk_push_constants.hh
   vulkan/vk_query.hh
+  vulkan/vk_ray_tracing.hh
   vulkan/render_graph/nodes/vk_begin_query_node.hh
   vulkan/render_graph/nodes/vk_begin_rendering_node.hh
+  vulkan/render_graph/nodes/vk_build_acceleration_structure_node.hh
   vulkan/render_graph/nodes/vk_blit_image_node.hh
   vulkan/render_graph/nodes/vk_clear_attachments_node.hh
   vulkan/render_graph/nodes/vk_clear_color_image_node.hh
