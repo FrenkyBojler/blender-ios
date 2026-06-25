@@ -351,6 +351,12 @@ template<> bPoseChannel *AnimTransformable::data<bPoseChannel *>() const
   return static_cast<bPoseChannel *>(data_);
 }
 
+template<> Object *AnimTransformable::data<Object *>() const
+{
+  BLI_assert(type_ == Type::OBJECT);
+  return static_cast<Object *>(data_);
+}
+
 StringRefNull AnimTransformable::rna_path() const
 {
   return rna_path_from_id_;

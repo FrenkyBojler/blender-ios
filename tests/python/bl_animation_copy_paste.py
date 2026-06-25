@@ -471,6 +471,21 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
                 prev_value = key.co.y
 
 
+class SingleFrameCopyPasteTest(AbstractCopyPasteTest):
+
+    def test_copy_paste_same_frame(self) -> None:
+        """Easy case, pasting a single frame from one object to another."""
+        pass
+
+    def test_copy_paste_frame_offset(self) -> None:
+        """Test pasting data on a different frame than where it was copied from."""
+        pass
+
+    def test_paste_single_over_multiple(self) -> None:
+        """Pasting data from one frame over a frame range."""
+        pass
+
+
 def main():
     global args
     import argparse

@@ -801,9 +801,37 @@ void ANIM_OT_world_space_copy(wmOperatorType *ot)
       ot->srna, "end", 250, -INT_MAX, INT_MAX, "End", "End frame to copy from", 0, INT_MAX);
 }
 
+static bool has_constraints(const Span<AnimTransformable> transformables)
+{
+  for (const AnimTransformable &transformable : transformables) {
+    switch (transformable.type()) {
+      case AnimTransformable::Type::POSE_BONE: {
+        bPoseChannel *pose_bone = transformable.data<bPoseChannel *>();
+        if (!pose_bone->constraints.is_empty()) {
+          return true;
+        }
+        break;
+      }
+
+      case AnimTransformable::Type::OBJECT: {
+        Object *object = transformable.data<Object *>();
+        if (!object->constraints.is_empty()) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
 {
   Vector<AnimTransformable> transformables = selected_transformables_from_context(C);
+  if (has_constraints(transformables)) {
+    BKE_report(op->reports,
+               RPT_WARNING,
+               "Selection contains constraints. Perfect world space match cannot be guaranteed");
+  }
   paste_world_space(*CTX_data_main(C),
                     *CTX_data_scene(C),
                     *CTX_data_view_layer(C),
