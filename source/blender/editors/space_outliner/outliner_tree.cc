@@ -666,6 +666,16 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
 
     if (totelem > 1) {
       Collection *collection = outliner_collection_from_tree_element(last_te->parent);
+      const bool is_parent_collection = (collection != nullptr);
+      if (collection == nullptr) {
+        for (TreeElement *parent_te = last_te->parent; parent_te; parent_te = parent_te->parent) {
+          collection = outliner_collection_from_tree_element(parent_te);
+          if (collection != nullptr) {
+            break;
+          }
+        }
+      }
+
       if (collection != nullptr) {
         for (CollectionObject &cob : collection->gobject) {
           collection_object_map.add(cob.ob, &cob);
@@ -708,7 +718,9 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
           if (element.idcode == ID_OB) {
             Object *ob = reinterpret_cast<Object *>(element.id);
             CollectionObject *cob = collection_object_map.lookup_default(ob, nullptr);
-            cob->sort_index = index++;
+            if (cob != nullptr) {
+              cob->sort_index = index++;
+            }
           }
         }
 
