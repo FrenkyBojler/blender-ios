@@ -1780,7 +1780,7 @@ static void region_rect_recursive(
       {
         /* Update category tab width when #USER_UIFLAG2_PANEL_TABS_COMPACT flag is set/unset. */
         float aspect = BLI_rctf_size_y(&region->v2d.cur) /
-                             (BLI_rcti_size_y(&region->v2d.mask) + 1);
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
         if (IS_EQF(aspect, 0)) {
           aspect = 1.0f;
         }
