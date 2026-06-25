@@ -351,6 +351,16 @@ static inline Type to_type(const GPUType type)
       return Type::float3x3_t;
     case GPU_MAT4:
       return Type::float4x4_t;
+    case GPU_INT:
+      return Type::int_t;
+    case GPU_INT2:
+      return Type::int2_t;
+    case GPU_INT3:
+      return Type::int3_t;
+    case GPU_INT4:
+      return Type::int4_t;
+    case GPU_BOOL:
+      return Type::bool_t;
     default:
       BLI_assert_msg(0, "Error: Cannot convert GPUType to shader::Type.");
       return Type::float_t;
