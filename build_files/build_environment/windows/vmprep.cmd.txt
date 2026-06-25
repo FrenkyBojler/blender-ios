@@ -147,7 +147,7 @@ echo Obtaining nuke_shaderc.cmd
 curl https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_shaderc.cmd -o c:\db\nuke_shaderc.cmd
 
 echo *******************************************************************
-echo ** Environment variables have changed, please close this console **
-echo ** open "x64 Native Tools Command Prompt for VS 2019" and run    **
-echo ** "cd c:\db && vmbuild.cmd" to start a build.                   **
+echo ** Run "call C:\vs2022bt\VC\Auxiliary\Build\vcvars64.bat" to     **
+echo ** start "x64 Native Tools Command Prompt for VS 2019" and       **
+echo ** run "cd c:\db && vmbuild.cmd" to start a build.               **
 echo *******************************************************************
