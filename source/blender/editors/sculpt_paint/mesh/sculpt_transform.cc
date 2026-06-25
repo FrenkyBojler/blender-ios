@@ -56,7 +56,8 @@ namespace blender::ed::sculpt_paint {
 void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char *undo_name)
 {
   const Scene &scene = *CTX_data_scene(C);
-  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  ToolSettings &ts = *CTX_data_tool_settings(C);
+  Sculpt &sd = *(ts.sculpt);
   SculptSession &ss = *ob.runtime->sculpt_session;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
@@ -69,7 +70,7 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
   ss.prev_pivot_scale = ss.pivot_scale;
 
   /* Pivot only transformations don't push undo steps */
-  if (sd.transform_mode == SCULPT_TRANSFORM_MODE_PIVOT) {
+  if ((ts.transform_flag & SCE_XFORM_SCULPT_PIVOT) != 0) {
     return;
   }
 
@@ -570,48 +571,48 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
 
 void update_modal_transform(bContext *C, Object &ob)
 {
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  ToolSettings &ts = *CTX_data_tool_settings(C);
+  Sculpt &sd = *(ts.sculpt);
   SculptSession &ss = *ob.runtime->sculpt_session;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-  if (sd.transform_mode != SCULPT_TRANSFORM_MODE_PIVOT) {
+  if ((ts.transform_flag & SCE_XFORM_SCULPT_PIVOT) == 0) {
     vert_random_access_ensure(ob);
     BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
+
+    switch (sd.transform_mode) {
+      case SCULPT_TRANSFORM_MODE_ALL_VERTICES: {
+        sculpt_transform_all_vertices(*depsgraph, sd, ob);
+        break;
+      }
+      case SCULPT_TRANSFORM_MODE_RADIUS_ELASTIC: {
+        const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
+        float transform_radius;
+
+        if (BKE_brush_use_locked_size(&sd.paint, &brush)) {
+          transform_radius = BKE_brush_unprojected_radius_get(&sd.paint, &brush);
+        }
+        else {
+          ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+
+          transform_radius = paint_calc_object_space_radius(
+              vc, ss.init_pivot_pos, BKE_brush_radius_get(&sd.paint, &brush));
+        }
+
+        transform_radius_elastic(*depsgraph, sd, ob, transform_radius);
+        break;
+      }
+    }
   }
-
-  switch (sd.transform_mode) {
-    case SCULPT_TRANSFORM_MODE_ALL_VERTICES: {
-      sculpt_transform_all_vertices(*depsgraph, sd, ob);
-      break;
-    }
-    case SCULPT_TRANSFORM_MODE_RADIUS_ELASTIC: {
-      const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-      float transform_radius;
-
-      if (BKE_brush_use_locked_size(&sd.paint, &brush)) {
-        transform_radius = BKE_brush_unprojected_radius_get(&sd.paint, &brush);
-      }
-      else {
-        ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
-
-        transform_radius = paint_calc_object_space_radius(
-            vc, ss.init_pivot_pos, BKE_brush_radius_get(&sd.paint, &brush));
-      }
-
-      transform_radius_elastic(*depsgraph, sd, ob, transform_radius);
-      break;
-    }
-    case SCULPT_TRANSFORM_MODE_PIVOT: {
-      /* Intentional no-op */
-      break;
-    }
+  else {
+    /* Intentional no-op */
   }
 
   copy_v3_v3(ss.prev_pivot_pos, ss.pivot_pos);
   copy_v4_v4(ss.prev_pivot_rot, ss.pivot_rot);
   copy_v3_v3(ss.prev_pivot_scale, ss.pivot_scale);
 
-  if (sd.transform_mode != SCULPT_TRANSFORM_MODE_PIVOT) {
+  if ((ts.transform_flag & SCE_XFORM_SCULPT_PIVOT) == 0) {
     flush_update_step(C, UpdateType::Position);
   }
 }
@@ -631,10 +632,11 @@ void cancel_modal_transform(bContext *C, Object &ob)
 
 void end_transform(bContext *C, Object &ob)
 {
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  ToolSettings &ts = *CTX_data_tool_settings(C);
+  Sculpt &sd = *(ts.sculpt);
   SculptSession &ss = *ob.runtime->sculpt_session;
   /* Pivot only transformations don't push undo steps */
-  if (sd.transform_mode == SCULPT_TRANSFORM_MODE_PIVOT) {
+  if (ts.transform_flag & SCE_XFORM_SCULPT_PIVOT) {
     BLI_assert(ss.filter_cache == nullptr);
     finish_pivot_change(C, ob);
     return;

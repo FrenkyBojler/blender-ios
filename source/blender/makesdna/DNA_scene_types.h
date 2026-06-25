@@ -1485,7 +1485,6 @@ ENUM_OPERATORS(eSculptFlags)
 enum eSculptTransformMode : int {
   SCULPT_TRANSFORM_MODE_ALL_VERTICES = 0,
   SCULPT_TRANSFORM_MODE_RADIUS_ELASTIC = 1,
-  SCULPT_TRANSFORM_MODE_PIVOT = 2,
 };
 
 /** Sculpt. */
@@ -1857,6 +1856,7 @@ enum eTool_TransformFlag : int {
   SCE_XFORM_AXIS_ALIGN = (1 << 0),
   SCE_XFORM_DATA_ORIGIN = (1 << 1),
   SCE_XFORM_SKIP_CHILDREN = (1 << 2),
+  SCE_XFORM_SCULPT_PIVOT = (1 << 3),
 };
 ENUM_OPERATORS(eTool_TransformFlag)
 
