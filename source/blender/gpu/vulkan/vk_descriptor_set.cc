@@ -309,9 +309,13 @@ void VKDescriptorSetTracker::update_resource_access_info(
   VKStateManager &state_manager = context.state_manager_get();
   const VKShaderInterface &shader_interface = shader.interface_get();
 
-  VkPipelineStageFlags vk_pipeline_stages = render_graph::to_vk_pipeline_stage(
-      shader_interface.descriptor_set_layout_info_get(VK_DESCRIPTOR_SET_ENGINE)
-          .vk_shader_stage_flags);
+  VkPipelineStageFlags vk_pipeline_stages = render_graph::to_vk_pipeline_stage(0);
+  for (int set = 0; set < VK_DESCRIPTOR_SET_NUM; set++) {
+    const auto &layout_info = shader_interface.descriptor_set_layout_info_get(set);
+    for (const auto &binding : layout_info.bindings) {
+      vk_pipeline_stages |= render_graph::to_vk_pipeline_stage(binding.stage_flags);
+    }
+  }
 
   for (const VKResourceBinding &resource_binding : shader_interface.resource_bindings_get()) {
     if (resource_binding.binding == -1) {

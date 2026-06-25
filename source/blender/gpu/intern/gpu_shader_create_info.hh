@@ -968,6 +968,7 @@ struct ShaderCreateInfo {
     StringRefNull info_name;
     BindType bind_type;
     int slot;
+    gpu::ShaderStage stage = gpu::ShaderStage::ANY;
     Conditions conditions;
     union {
       Sampler sampler;
@@ -986,6 +987,7 @@ struct ShaderCreateInfo {
     {
       TEST_EQUAL(*this, b, bind_type);
       TEST_EQUAL(*this, b, slot);
+      TEST_EQUAL(*this, b, stage);
       switch (bind_type) {
         case UNIFORM_BUFFER:
           TEST_EQUAL(*this, b, uniformbuf.type_name);
@@ -1325,11 +1327,13 @@ struct ShaderCreateInfo {
                     StringRefNull type_name,
                     StringRefNull name,
                     Frequency freq = Frequency::PASS,
+                    gpu::ShaderStage stage = gpu::ShaderStage::ANY,
                     ConditionFn cond = nullptr)
   {
     Resource res(*this, Resource::BindType::UNIFORM_BUFFER, slot, cond);
     res.uniformbuf.name = name;
     res.uniformbuf.type_name = type_name;
+    res.stage = stage;
     resources_get_(freq).append(res);
     interface_names_size_ += name.size() + 1;
     return *static_cast<Self *>(this);
@@ -1340,12 +1344,14 @@ struct ShaderCreateInfo {
                     StringRefNull type_name,
                     StringRefNull name,
                     Frequency freq = Frequency::PASS,
+                    gpu::ShaderStage stage = gpu::ShaderStage::ANY,
                     ConditionFn cond = nullptr)
   {
     Resource res(*this, Resource::BindType::STORAGE_BUFFER, slot, cond);
     res.storagebuf.qualifiers = qualifiers;
     res.storagebuf.type_name = type_name;
     res.storagebuf.name = name;
+    res.stage = stage;
     resources_get_(freq).append(res);
     interface_names_size_ += name.size() + 1;
     return *static_cast<Self *>(this);
@@ -1357,6 +1363,7 @@ struct ShaderCreateInfo {
               ImageReadWriteType type,
               StringRefNull name,
               Frequency freq = Frequency::PASS,
+              gpu::ShaderStage stage = gpu::ShaderStage::ANY,
               ConditionFn cond = nullptr)
   {
     Resource res(*this, Resource::BindType::IMAGE, slot, cond);
@@ -1364,6 +1371,7 @@ struct ShaderCreateInfo {
     res.image.qualifiers = qualifiers;
     res.image.type = ImageType(type);
     res.image.name = name;
+    res.stage = stage;
     resources_get_(freq).append(res);
     interface_names_size_ += name.size() + 1;
     return *static_cast<Self *>(this);
@@ -1373,12 +1381,14 @@ struct ShaderCreateInfo {
                 ImageType type,
                 StringRefNull name,
                 Frequency freq = Frequency::PASS,
+                gpu::ShaderStage stage = gpu::ShaderStage::ANY,
                 GPUSamplerState sampler = GPUSamplerState::internal_sampler(),
                 ConditionFn cond = nullptr)
   {
     Resource res(*this, Resource::BindType::SAMPLER, slot, cond);
     res.sampler.type = type;
     res.sampler.name = name;
+    res.stage = stage;
     /* Produces ASAN errors for the moment. */
     // res.sampler.sampler = sampler;
     UNUSED_VARS(sampler);

@@ -38,6 +38,7 @@ std::string ParsedResource::serialize() const
     ss << ", ImageType::" << var_type;
     ss << ", \"" << var_name << "\"";
     ss << ", Frequency::" << res_frequency;
+    ss << ", gpu::ShaderStage::" << res_stage;
     ss << ", GPUSamplerState::internal_sampler()";
     ss << res_condition_lambda << ")";
   }
@@ -48,6 +49,7 @@ std::string ParsedResource::serialize() const
     ss << ", ImageReadWriteType::" << var_type;
     ss << ", \"" << var_name << "\"";
     ss << ", Frequency::" << res_frequency;
+    ss << ", gpu::ShaderStage::" << res_stage;
     ss << res_condition_lambda << ")";
   }
   else if (res_type == "uniform") {
@@ -55,6 +57,7 @@ std::string ParsedResource::serialize() const
     ss << ", \"" << var_type << "\"";
     ss << ", \"" << var_name << var_array << "\"";
     ss << ", Frequency::" << res_frequency;
+    ss << ", gpu::ShaderStage::" << res_stage;
     ss << res_condition_lambda << ")";
   }
   else if (res_type == "storage") {
@@ -63,6 +66,7 @@ std::string ParsedResource::serialize() const
     ss << ", \"" << var_type << "\"";
     ss << ", \"" << var_name << var_array << "\"";
     ss << ", Frequency::" << res_frequency;
+    ss << ", gpu::ShaderStage::" << res_stage;
     ss << res_condition_lambda << ")";
   }
   else if (res_type == "shared") {

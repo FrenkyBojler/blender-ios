@@ -89,6 +89,7 @@ VkPrimitiveTopology to_vk_primitive_topology(const GPUPrimType prim_type);
 VkCullModeFlags to_vk_cull_mode_flags(const GPUFaceCullTest cull_test);
 VkSamplerAddressMode to_vk_sampler_address_mode(const GPUSamplerExtendMode extend_mode);
 VkDescriptorType to_vk_descriptor_type(const shader::ShaderCreateInfo::Resource &resource);
+VkShaderStageFlags to_vk_shader_stage_flags(const gpu::ShaderStage stage);
 VkImageCreateFlags to_vk_image_create(const GPUTextureType texture_type,
                                       const GPUTextureFormatFlag format_flag,
                                       const eGPUTextureUsage usage);

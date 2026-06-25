@@ -819,6 +819,21 @@ static VkDescriptorType to_vk_descriptor_type_sampler(const shader::ImageType &i
   return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 }
 
+VkShaderStageFlags to_vk_shader_stage_flags(const gpu::ShaderStage stage)
+{
+  VkShaderStageFlags result = 0;
+  if (bool(stage & gpu::ShaderStage::VERTEX)) {
+    result |= VK_SHADER_STAGE_VERTEX_BIT;
+  }
+  if (bool(stage & gpu::ShaderStage::FRAGMENT)) {
+    result |= VK_SHADER_STAGE_FRAGMENT_BIT;
+  }
+  if (bool(stage & gpu::ShaderStage::COMPUTE)) {
+    result |= VK_SHADER_STAGE_COMPUTE_BIT;
+  }
+  return result;
+}
+
 VkDescriptorType to_vk_descriptor_type(const shader::ShaderCreateInfo::Resource &resource)
 {
   switch (resource.bind_type) {

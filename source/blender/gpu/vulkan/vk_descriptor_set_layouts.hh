@@ -36,14 +36,23 @@ class VKDevice;
  * Contains information to identify same descriptor set layouts.
  */
 struct VKDescriptorSetLayoutInfo {
-  using Bindings = Vector<VkDescriptorType>;
+  struct Binding {
+    VkDescriptorType type;
+    VkShaderStageFlags stage_flags;
+
+    bool operator==(const Binding &other) const
+    {
+      return type == other.type && stage_flags == other.stage_flags;
+    }
+  };
+
+  using Bindings = Vector<Binding>;
 
   Bindings bindings;
-  VkShaderStageFlags vk_shader_stage_flags;
 
   bool operator==(const VKDescriptorSetLayoutInfo &other) const
   {
-    return vk_shader_stage_flags == other.vk_shader_stage_flags && bindings == other.bindings;
+    return bindings == other.bindings;
   };
 };
 
@@ -57,9 +66,10 @@ struct VKDescriptorSetLayoutInfo {
 template<> struct DefaultHash<gpu::VKDescriptorSetLayoutInfo> {
   uint64_t operator()(const gpu::VKDescriptorSetLayoutInfo &key) const
   {
-    uint64_t hash = uint64_t(key.vk_shader_stage_flags);
-    for (VkDescriptorType vk_descriptor_type : key.bindings) {
-      hash = hash * 33 ^ uint64_t(vk_descriptor_type);
+    uint64_t hash = 0;
+    for (const gpu::VKDescriptorSetLayoutInfo::Binding &binding : key.bindings) {
+      hash = hash * 33 ^ uint64_t(binding.type);
+      hash = hash * 33 ^ uint64_t(binding.stage_flags);
     }
     return hash;
   }

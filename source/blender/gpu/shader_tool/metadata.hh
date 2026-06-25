@@ -112,6 +112,8 @@ struct ParsedResource {
   std::string res_type;
   /** For images, storage, uniforms and samplers. */
   std::string res_frequency = "PASS";
+  /** Shader stage visibility for this resource. */
+  std::string res_stage = "ANY";
   /** For images, storage, uniforms and samplers. */
   std::string res_slot;
   /** For images & storage. */

@@ -125,6 +125,8 @@
 #  define condition(cond) maybe_unused
 /* Set binding frequency of a resource (storage, uniform, image, sampler). */
 #  define frequency(freq) maybe_unused
+/* Set shader stage visibility of a resource. */
+#  define stage(stage) maybe_unused
 
 /* Make a structure layout or enum shared between CPU and GPU code.
  * Required for structs defining storage and uniform buffer layout. */

@@ -67,15 +67,13 @@ void VKDescriptorSetLayouts::update_layout_bindings(const VKDescriptorSetLayoutI
   vk_descriptor_set_layout_bindings_.reserve(info.bindings.size());
 
   uint32_t index = 0;
-  for (const VkDescriptorType &vk_descriptor_type : info.bindings) {
+  for (const VKDescriptorSetLayoutInfo::Binding &info_binding : info.bindings) {
     VkDescriptorSetLayoutBinding binding = {};
     binding.binding = index++;
     binding.descriptorCount = 1;
-    binding.descriptorType = vk_descriptor_type;
+    binding.descriptorType = info_binding.type;
     binding.pImmutableSamplers = VK_NULL_HANDLE;
-    binding.stageFlags = vk_descriptor_type == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT ?
-                             VkShaderStageFlags(VK_SHADER_STAGE_FRAGMENT_BIT) :
-                             info.vk_shader_stage_flags;
+    binding.stageFlags = info_binding.stage_flags;
     vk_descriptor_set_layout_bindings_.append(binding);
   }
 }

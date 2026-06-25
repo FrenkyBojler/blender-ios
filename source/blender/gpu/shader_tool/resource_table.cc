@@ -388,6 +388,9 @@ void SourceProcessor::lower_resource_table(Parser &parser)
       else if (type == "frequency") {
         resource.res_frequency = attribute[2].str();
       }
+      else if (type == "stage") {
+        resource.res_stage = attribute[2].str();
+      }
       else if (type == "resource_table") {
         resource.res_type = type;
       }

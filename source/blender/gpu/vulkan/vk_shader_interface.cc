@@ -512,40 +512,43 @@ void VKShaderInterface::init_descriptor_set_layout_info(
   layout_info.bindings.reserve(resources.size() + subpass_input_count +
                                (add_push_constants_buffer ? 1 : 0));
 
-  /* Compute shader stage flags (same for all sets). */
+  /* Compute default shader stage flags (used when a resource doesn't specify a stage). */
+  VkShaderStageFlags default_stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
   if (!(info.compute_source_.is_empty() && info.compute_source_generated.empty())) {
-    layout_info.vk_shader_stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+    default_stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
   }
   else if (supports_local_read && !info.subpass_inputs_.is_empty()) {
-    layout_info.vk_shader_stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    default_stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
   }
   else {
-    VkShaderStageFlags stages = VK_SHADER_STAGE_VERTEX_BIT;
     if (!info.fragment_source_.is_empty() || !info.fragment_source_generated.empty()) {
-      stages |= VK_SHADER_STAGE_FRAGMENT_BIT;
+      default_stage_flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
     }
     if (!info.geometry_source_.is_empty() || !info.geometry_source_generated.empty()) {
-      stages |= VK_SHADER_STAGE_GEOMETRY_BIT;
+      default_stage_flags |= VK_SHADER_STAGE_GEOMETRY_BIT;
     }
-    layout_info.vk_shader_stage_flags = stages;
   }
 
   /* Add subpass input bindings (set 1 - Pass). */
   for (int index : IndexRange(subpass_input_count)) {
     UNUSED_VARS(index);
-    layout_info.bindings.append(!extensions.dynamic_rendering_local_read ?
-                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
-                                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+    layout_info.bindings.append({!extensions.dynamic_rendering_local_read ?
+                                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
+                                     VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                                 VK_SHADER_STAGE_FRAGMENT_BIT});
   }
 
   /* Add resource bindings for this set. */
   for (const shader::ShaderCreateInfo::Resource &res : resources) {
-    layout_info.bindings.append(to_vk_descriptor_type(res));
+    VkShaderStageFlags stage_flags = (res.stage != ShaderStage::ANY) ?
+                                         to_vk_shader_stage_flags(res.stage) :
+                                         default_stage_flags;
+    layout_info.bindings.append({to_vk_descriptor_type(res), stage_flags});
   }
 
   /* Add push constants buffer binding (set 2 - Draw). */
   if (add_push_constants_buffer) {
-    layout_info.bindings.append(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    layout_info.bindings.append({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, default_stage_flags});
   }
 }
 
