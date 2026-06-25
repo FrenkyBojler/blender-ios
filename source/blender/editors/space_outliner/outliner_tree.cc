@@ -13,12 +13,12 @@
 
 #include "DNA_collection_types.h"
 
-#include "BLI_fnmatch.h"
-#include "BLI_listbase.h"
-#include "BLI_mempool.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_fnmatch.hh"
+#include "BLI_listbase.hh"
+#include "BLI_mempool.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
@@ -36,13 +36,13 @@
 #include "tree/tree_element.hh"
 
 #ifdef WIN32
-#  include "BLI_math_base.h" /* M_PI */
+#  include "BLI_math_base_c.hh" /* M_PI */
 #endif
 
 namespace blender::ed::outliner {
 
 /* prototypes */
-static int outliner_exclude_filter_get(const SpaceOutliner *space_outliner);
+static eSpaceOutliner_Filter outliner_exclude_filter_get(const SpaceOutliner *space_outliner);
 
 /* -------------------------------------------------------------------- */
 /** \name Persistent Data
@@ -132,7 +132,7 @@ static void check_persistent(
 
   /* add 1 element to treestore */
   tselem = static_cast<TreeStoreElem *>(BLI_mempool_alloc(space_outliner->treestore));
-  tselem->type = type;
+  tselem->type = eTreeStoreElemType(type);
   tselem->nr = type ? nr : 0;
   tselem->id = id;
   tselem->used = 0;
@@ -180,7 +180,7 @@ void outliner_free_tree_element(TreeElement *element, ListBaseT<TreeElement> *pa
 
 bool outliner_requires_rebuild_on_select_or_active_change(const SpaceOutliner *space_outliner)
 {
-  int exclude_flags = outliner_exclude_filter_get(space_outliner);
+  eSpaceOutliner_Filter exclude_flags = outliner_exclude_filter_get(space_outliner);
   /* Need to rebuild tree to re-apply filter if select/active changed while filtering based on
    * select/active. */
   return exclude_flags & (SO_FILTER_OB_STATE_SELECTED | SO_FILTER_OB_STATE_ACTIVE);
@@ -351,6 +351,9 @@ TreeElement *AbstractTreeDisplay::add_element(ListBaseT<TreeElement> *lb,
     /* pass */
   }
   else if (type == TSE_LINKED_OB) {
+    /* pass */
+  }
+  else if (type == TSE_SHAPE_KEY_BLOCK) {
     /* pass */
   }
   else if (type == TSE_SOME_ID) {
@@ -587,7 +590,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
   if (inside_armature_data || ELEM(last_tselem->type, TSE_DEFGROUP, TSE_ID_BASE) ||
       ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)))
   {
-    int totelem = BLI_listbase_count(lb);
+    int totelem = lb->count();
 
     if (totelem > 1) {
       tTreeSort *tear = MEM_new_array_uninitialized<tTreeSort>(totelem, "tree sort array");
@@ -630,7 +633,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
         }
       }
 
-      BLI_listbase_clear(lb);
+      lb->clear_no_delete();
       tp = tear;
       while (totelem--) {
         BLI_addtail(lb, tp->te);
@@ -655,7 +658,7 @@ static void outliner_collections_children_sort(ListBaseT<TreeElement> *lb)
 
   /* Sorting rules: only object lists. */
   if ((last_tselem->type == TSE_SOME_ID) && (last_te->idcode == ID_OB)) {
-    int totelem = BLI_listbase_count(lb);
+    int totelem = lb->count();
 
     if (totelem > 1) {
       tTreeSort *tear = MEM_new_array_uninitialized<tTreeSort>(totelem, "tree sort array");
@@ -672,7 +675,7 @@ static void outliner_collections_children_sort(ListBaseT<TreeElement> *lb)
 
       qsort(tear, totelem, sizeof(tTreeSort), treesort_child_not_in_collection);
 
-      BLI_listbase_clear(lb);
+      lb->clear_no_delete();
       tp = tear;
       while (totelem--) {
         BLI_addtail(lb, tp->te);
@@ -850,9 +853,9 @@ static void outliner_store_scrolling_position(SpaceOutliner *space_outliner,
   }
 }
 
-static int outliner_exclude_filter_get(const SpaceOutliner *space_outliner)
+static eSpaceOutliner_Filter outliner_exclude_filter_get(const SpaceOutliner *space_outliner)
 {
-  int exclude_filter = space_outliner->filter & ~SO_FILTER_OB_STATE;
+  eSpaceOutliner_Filter exclude_filter = space_outliner->filter & ~SO_FILTER_OB_STATE;
 
   if ((space_outliner->search_string[0] != 0) && ED_outliner_support_searching(space_outliner)) {
     exclude_filter |= SO_FILTER_SEARCH;
@@ -883,6 +886,9 @@ static int outliner_exclude_filter_get(const SpaceOutliner *space_outliner)
     case SO_FILTER_OB_SELECTABLE:
       exclude_filter |= SO_FILTER_OB_STATE_SELECTABLE;
       break;
+    case SO_FILTER_OB_ALL:
+    case SO_FILTER_OB_HIDDEN:
+      break;
   }
 
   return exclude_filter;
@@ -892,7 +898,7 @@ static bool outliner_element_visible_get(const Main &bmain,
                                          const Scene *scene,
                                          ViewLayer *view_layer,
                                          TreeElement *te,
-                                         const int exclude_filter)
+                                         const eSpaceOutliner_Filter exclude_filter)
 {
   if ((exclude_filter & SO_FILTER_ANY) == 0) {
     return true;
@@ -1071,7 +1077,7 @@ static int outliner_filter_subtree(SpaceOutliner *space_outliner,
                                    ViewLayer *view_layer,
                                    ListBaseT<TreeElement> *lb,
                                    const char *search_string,
-                                   const int exclude_filter)
+                                   const eSpaceOutliner_Filter exclude_filter)
 {
   TreeElement *te, *te_next;
   TreeStoreElem *tselem;
@@ -1129,7 +1135,7 @@ static int outliner_filter_subtree(SpaceOutliner *space_outliner,
   }
 
   /* if there are still items in the list, that means that there were still some matches */
-  return (BLI_listbase_is_empty(lb) == false);
+  return (lb->is_empty() == false);
 }
 
 static void outliner_filter_tree(const Main &bmain,
@@ -1140,7 +1146,7 @@ static void outliner_filter_tree(const Main &bmain,
   char search_buff[sizeof(SpaceOutliner::search_string) + 2];
   const char *search_string;
 
-  const int exclude_filter = outliner_exclude_filter_get(space_outliner);
+  const eSpaceOutliner_Filter exclude_filter = outliner_exclude_filter_get(space_outliner);
 
   if (exclude_filter == 0) {
     return;

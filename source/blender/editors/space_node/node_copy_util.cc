@@ -11,12 +11,12 @@
 #include "DNA_node_types.h"
 
 #include "BKE_anim_data.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_listbase_iterator.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_action.hh"
@@ -675,12 +675,12 @@ NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &
   NodeTreeInterfaceMapping result;
   for (const bNodeTreeInterfaceItem *io_item : group_tree.interface_items()) {
     switch (io_item->item_type) {
-      case NODE_INTERFACE_PANEL: {
+      case NodeTreeInterfaceItemType::Panel: {
         const auto *io_panel = reinterpret_cast<const bNodeTreeInterfacePanel *>(io_item);
         map_panel(result, params, group_node, *io_panel);
         break;
       }
-      case NODE_INTERFACE_SOCKET: {
+      case NodeTreeInterfaceItemType::Socket: {
         const auto *io_socket = reinterpret_cast<const bNodeTreeInterfaceSocket *>(io_item);
         map_socket(result, params, group_node, *io_socket);
       }
@@ -939,7 +939,7 @@ static bNode *create_proxy_input_node(const bNodeTreeInterfaceSocket &io_socket,
   // const nodes::StructureType structure_type = nodes::StructureType(
   //     src_socket.runtime->inferred_structure_type);
   const nodes::StructureType structure_type = io_socket.structure_type ==
-                                                      NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                                      NodeSocketInterfaceStructureType::Auto ?
                                                   nodes::StructureType::Dynamic :
                                                   nodes::StructureType(io_socket.structure_type);
 
@@ -1017,8 +1017,9 @@ static void replace_interface_socket(
                                                                anim_basepaths_for_group_tree;
   const bNodeTree &src_tree = is_input ? dst_tree : group_tree;
   const bNode *src_node = is_input ? group_node : group_output_node;
-  const bNodeSocket *src_socket = src_node ? bke::node_find_socket(
-                                                 *src_node, SOCK_IN, io_socket.identifier) :
+  const bNodeSocket *src_socket = src_node ? bke::node_find_socket(*src_node,
+                                                                   SOCK_IN,
+                                                                   UString(io_socket.identifier)) :
                                              nullptr;
 
   /* Create a proxy node if necessary. */
@@ -1117,7 +1118,7 @@ InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
   InterfaceProxyNodes interface_proxies;
   /* Loop over mapped items based on the interface socket order. */
   for (const bNodeTreeInterfaceItem *io_item : src_tree.interface_items()) {
-    if (io_item->item_type != NODE_INTERFACE_SOCKET) {
+    if (io_item->item_type != NodeTreeInterfaceItemType::Socket) {
       continue;
     }
     const auto &io_socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(*io_item);

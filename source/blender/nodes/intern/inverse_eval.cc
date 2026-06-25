@@ -24,7 +24,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -45,8 +45,8 @@ std::optional<SocketValueVariant> convert_single_socket_value(const bNodeSocket 
                                                               const bNodeSocket &new_socket,
                                                               const SocketValueVariant &old_value)
 {
-  const eNodeSocketDatatype old_type = eNodeSocketDatatype(old_socket.type);
-  const eNodeSocketDatatype new_type = eNodeSocketDatatype(new_socket.type);
+  const eNodeSocketDatatype old_type = old_socket.type;
+  const eNodeSocketDatatype new_type = new_socket.type;
   if (old_type == new_type) {
     return old_value;
   }
@@ -498,6 +498,8 @@ static bool set_socket_value(bContext &C,
       const float3 euler = float3(math::to_euler(rotation));
       return set_rna_property_float3(C, tree.id, default_value_rna_path, euler);
     }
+    default:
+      break;
   }
   return false;
 }
@@ -624,6 +626,8 @@ std::optional<SocketValueVariant> get_logged_socket_value(eval_log::NodeTreeLog 
       }
       break;
     }
+    default:
+      break;
   }
   return std::nullopt;
 }

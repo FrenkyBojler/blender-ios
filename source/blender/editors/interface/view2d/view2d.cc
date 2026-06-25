@@ -16,12 +16,12 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_link_utils.h"
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_memarena.h"
-#include "BLI_rect.h"
-#include "BLI_utildefines.h"
+#include "BLI_link_utils.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_memarena.hh"
+#include "BLI_rect.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -55,10 +55,10 @@ BLI_INLINE int clamp_float_to_int(const float f)
   const float min = float(INT_MIN);
   const float max = float(INT_MAX);
 
-  if (UNLIKELY(f < min)) {
+  if (f < min) [[unlikely]] {
     return min;
   }
-  if (UNLIKELY(f > max)) {
+  if (f > max) [[unlikely]] {
     return int(max);
   }
   return int(f);
@@ -315,7 +315,7 @@ void view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
       v2d->keepofs = V2D_LOCKOFS_Y;
 
       /* absolutely no scrollers allowed */
-      v2d->scroll = 0;
+      v2d->scroll = eView2D_Scroll{};
       break;
     }
     /* panels view, with horizontal/vertical align */

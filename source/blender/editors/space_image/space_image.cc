@@ -16,9 +16,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
-#include "BLI_threads.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_threads.hh"
 
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
@@ -1245,7 +1245,7 @@ static void image_space_subtype_set(ScrArea *area, int value)
     if (sima->mode != SI_MODE_UV) {
       sima->mode_prev = sima->mode;
     }
-    sima->mode = value;
+    sima->mode = eSpaceImage_Mode(value);
   }
   else {
     sima->mode = sima->mode_prev;

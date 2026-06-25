@@ -23,17 +23,17 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_bitmap.h"
+#include "BLI_bitmap.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_lasso_2d.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_bits.h"
-#include "BLI_math_geom.h"
-#include "BLI_rect.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_bits.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_rect.hh"
 #include "BLI_span.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_task.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -94,7 +94,7 @@
 
 #include "view3d_intern.hh" /* own include */
 
-// #include "BLI_time_utildefines.h"
+// #include "BLI_time_utildefines.hh"
 
 namespace blender {
 
@@ -130,7 +130,7 @@ ViewContext ED_view3d_viewcontext_init(bContext *C, Depsgraph *depsgraph)
 void ED_view3d_viewcontext_init_object(ViewContext *vc, Object *obact)
 {
   vc->obact = obact;
-  /* See public doc-string for rationale on checking the existing values first. */
+  /* See public docstring for rationale on checking the existing values first. */
   if (vc->obedit) {
     BLI_assert(BKE_object_is_in_editmode(obact));
     vc->obedit = obact;
@@ -456,7 +456,7 @@ static void view3d_userdata_lassoselect_init(LassoSelectUserData *r_data,
   r_data->mcoords = mcoords;
   r_data->sel_op = sel_op;
   /* SELECT by default, but can be changed if needed (only few cases use and respect this). */
-  r_data->select_flag = eBezTriple_Flag(SELECT);
+  r_data->select_flag = BEZT_FLAG_SELECT;
 
   /* runtime */
   r_data->pass = 0;
@@ -667,7 +667,7 @@ static bool do_pose_tag_select_op_exec(MutableSpan<Base *> bases, const eSelectO
 
     bool changed = false;
     for (bPoseChannel &pchan : ob_iter->pose->chanbase) {
-      Bone *bone = pchan.bone;
+      Bone *bone = pchan.bone_get(*ob_iter);
       if ((bone->flag & BONE_UNSELECTABLE) == 0) {
         const bool is_select = pchan.flag & POSE_SELECTED;
         const bool is_inside = pchan.runtime.flag & POSE_RUNTIME_IN_SELECTION_AREA;
@@ -954,7 +954,7 @@ static void do_lasso_select_curve__doSelect(void *user_data,
       data->is_changed = true;
     }
     else {
-      uint8_t *flag_p = (&bezt->f1) + beztindex;
+      eBezTriple_Flag *flag_p = (&bezt->f1) + beztindex;
       const bool is_select = *flag_p & SELECT;
       const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
@@ -991,7 +991,8 @@ static bool do_lasso_select_curve(const ViewContext *vc,
 
   /* Deselect items that were not added to selection (indicated by temp flag). */
   if (deselect_all) {
-    data.is_changed |= BKE_nurbList_flag_set_from_flag(nurbs, BEZT_FLAG_TEMP_TAG, SELECT);
+    data.is_changed |= BKE_nurbList_flag_set_from_flag(
+        nurbs, BEZT_FLAG_TEMP_TAG, BEZT_FLAG_SELECT);
   }
 
   if (data.is_changed) {
@@ -1164,7 +1165,7 @@ static void do_lasso_select_mball__doSelectElem(void *user_data,
                               data->mcoords, screen_co[0], screen_co[1], INT_MAX));
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
-    SET_FLAG_FROM_TEST(ml->flag, sel_op_result, SELECT);
+    SET_FLAG_FROM_TEST(ml->flag, sel_op_result, MB_SELECT);
     data->is_changed = true;
   }
 }
@@ -1802,7 +1803,7 @@ static bool object_mouse_select_menu(bContext *C,
   }
   if (base_count == 1) {
     Base *base = (static_cast<BaseRefWithDepth *>(base_ref_list.first))->base;
-    BLI_freelistN(&base_ref_list);
+    base_ref_list.free_no_destruct();
     *r_basact = base;
     return false;
   }
@@ -1840,7 +1841,7 @@ static bool object_mouse_select_menu(bContext *C,
   WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
-  BLI_freelistN(&base_ref_list);
+  base_ref_list.free_no_destruct();
   return true;
 }
 
@@ -2013,7 +2014,7 @@ static bool bone_mouse_select_menu(bContext *C,
       const uint hit_bone = (select_id & ~BONESEL_ANY) >> 16;
       bPoseChannel *pchan = static_cast<bPoseChannel *>(
           BLI_findlink(&bone_base->object->pose->chanbase, hit_bone));
-      if (pchan && !(pchan->bone->flag & BONE_UNSELECTABLE)) {
+      if (pchan && !(pchan->bone_get(*bone_base->object)->flag & BONE_UNSELECTABLE)) {
         bone_ptr = pchan;
       }
     }
@@ -2041,7 +2042,7 @@ static bool bone_mouse_select_menu(bContext *C,
     return false;
   }
   if (bone_count == 1) {
-    BLI_freelistN(&bone_ref_list);
+    bone_ref_list.free_no_destruct();
     return false;
   }
 
@@ -2088,7 +2089,7 @@ static bool bone_mouse_select_menu(bContext *C,
   WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
-  BLI_freelistN(&bone_ref_list);
+  bone_ref_list.free_no_destruct();
   return true;
 }
 
@@ -2266,37 +2267,6 @@ static int mixed_bones_object_selectbuffer_extended(const ViewContext *vc,
       vc, buffer, mval, select_filter, do_nearest, true, false);
 
   return hits;
-}
-
-/**
- * Compare result of `GPU_select`: #GPUSelectResult,
- * Needed for stable sorting, so cycling through all items near the cursor behaves predictably.
- */
-static int gpu_select_buffer_depth_id_cmp(const void *sel_a_p, const void *sel_b_p)
-{
-  GPUSelectResult *a = static_cast<GPUSelectResult *>(const_cast<void *>(sel_a_p));
-  GPUSelectResult *b = static_cast<GPUSelectResult *>(const_cast<void *>(sel_b_p));
-
-  if (a->depth < b->depth) {
-    return -1;
-  }
-  if (a->depth > b->depth) {
-    return 1;
-  }
-
-  /* Depths match, sort by id. */
-  /* NOTE: this is endianness-sensitive.
-   * GPUSelectResult values are always expected to be little-endian. */
-  uint sel_a = a->id;
-  uint sel_b = b->id;
-
-  if (sel_a < sel_b) {
-    return -1;
-  }
-  if (sel_a > sel_b) {
-    return 1;
-  }
-  return 0;
 }
 
 /**
@@ -2737,8 +2707,7 @@ static bool ed_object_select_pick(bContext *C,
 
   /* The next object's base to make active. */
   Base *basact = nullptr;
-  const eObjectMode object_mode = oldbasact ? static_cast<eObjectMode>(oldbasact->object->mode) :
-                                              OB_MODE_OBJECT;
+  const eObjectMode object_mode = oldbasact ? oldbasact->object->mode : OB_MODE_OBJECT;
   /* For the most part this is equivalent to `(object_mode & OB_MODE_POSE) != 0`
    * however this logic should also run with weight-paint + pose selection.
    * Without this, selection in weight-paint mode can de-select armatures which isn't useful,
@@ -3755,7 +3724,7 @@ static void view3d_userdata_boxselect_init(BoxSelectUserData *r_data,
 
   r_data->sel_op = sel_op;
   /* SELECT by default, but can be changed if needed (only few cases use and respect this). */
-  r_data->select_flag = eBezTriple_Flag(SELECT);
+  r_data->select_flag = BEZT_FLAG_SELECT;
 
   /* runtime */
   r_data->is_done = false;
@@ -3921,7 +3890,7 @@ static void do_nurbs_box_select__doSelect(void *user_data,
       bezt->f1 = bezt->f3 = bezt->f2;
     }
     else {
-      uint8_t *flag_p = (&bezt->f1) + beztindex;
+      eBezTriple_Flag *flag_p = (&bezt->f1) + beztindex;
       const bool is_select = *flag_p & SELECT;
       const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
@@ -3952,7 +3921,8 @@ static bool do_nurbs_box_select(const ViewContext *vc, const rcti *rect, const e
 
   /* Deselect items that were not added to selection (indicated by temp flag). */
   if (deselect_all) {
-    data.is_changed |= BKE_nurbList_flag_set_from_flag(nurbs, BEZT_FLAG_TEMP_TAG, SELECT);
+    data.is_changed |= BKE_nurbList_flag_set_from_flag(
+        nurbs, BEZT_FLAG_TEMP_TAG, BEZT_FLAG_SELECT);
   }
 
   BKE_curve_nurb_vert_active_validate(curve);
@@ -4249,7 +4219,7 @@ static bool do_meta_box_select(const ViewContext *vc, const rcti *rect, const eS
 
     const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
     if (sel_op_result != -1) {
-      SET_FLAG_FROM_TEST(ml->flag, sel_op_result, SELECT);
+      SET_FLAG_FROM_TEST(ml->flag, sel_op_result, MB_SELECT);
     }
     changed |= (flag_prev != ml->flag);
   }
@@ -4767,7 +4737,7 @@ static void view3d_userdata_circleselect_init(CircleSelectUserData *r_data,
   r_data->radius_squared = rad * rad;
 
   /* SELECT by default, but can be changed if needed (only few cases use and respect this). */
-  r_data->select_flag = eBezTriple_Flag(SELECT);
+  r_data->select_flag = BEZT_FLAG_SELECT;
 
   /* runtime */
   r_data->is_changed = false;
@@ -5105,7 +5075,8 @@ static bool nurbscurve_circle_select(const ViewContext *vc,
 
   /* Deselect items that were not added to selection (indicated by temp flag). */
   if (deselect_all) {
-    data.is_changed |= BKE_nurbList_flag_set_from_flag(nurbs, BEZT_FLAG_TEMP_TAG, SELECT);
+    data.is_changed |= BKE_nurbList_flag_set_from_flag(
+        nurbs, BEZT_FLAG_TEMP_TAG, BEZT_FLAG_SELECT);
   }
 
   BKE_curve_nurb_vert_active_validate(id_cast<Curve *>(vc->obedit->data));
@@ -5322,10 +5293,10 @@ static void do_circle_select_mball__doSelectElem(void *user_data,
 
   if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
     if (data->select) {
-      ml->flag |= SELECT;
+      ml->flag |= MB_SELECT;
     }
     else {
-      ml->flag &= ~SELECT;
+      ml->flag &= ~MB_SELECT;
     }
     data->is_changed = true;
   }
