@@ -25,6 +25,7 @@
 #include "BLI_vector.hh"
 
 #include "DNA_ID.h"
+#include "DNA_collection_types.h"
 
 #include "BKE_bpath.hh"
 #include "BKE_global.hh"
@@ -36,6 +37,7 @@
 #include "BKE_main.hh"
 #include "BKE_main_idmap.hh"
 #include "BKE_main_namemap.hh"
+#include "BKE_node.hh"
 #include "BKE_report.hh"
 
 #include "IMB_colormanagement.hh"
@@ -595,6 +597,18 @@ void BKE_main_merge_as_archive_library(Main &bmain_dst,
 
     /* Consider these IDs as linked and packed. */
     id->flag |= ID_FLAG_LINKED_AND_PACKED;
+
+    /* Need to tag embedded IDs as well. */
+    bNodeTree *ntree = bke::node_tree_from_id(id);
+    if (ntree != nullptr) {
+      ntree->id.flag |= ID_FLAG_LINKED_AND_PACKED;
+    }
+    if (GS(id->name) == ID_SCE) {
+      Collection *master_collection = (id_cast<Scene *>(id))->master_collection;
+      if (master_collection != nullptr) {
+        master_collection->id.flag |= ID_FLAG_LINKED_AND_PACKED;
+      }
+    }
   }
 
   /* Add all IDs into the destination Main under the external library. */

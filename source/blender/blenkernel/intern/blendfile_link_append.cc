@@ -1728,7 +1728,7 @@ void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
 
   BlendfileLinkAppendContext lapp_context{};
   lapp_context.params = &lapp_params;
-  lapp_context.process_stage = BlendfileLinkAppendContext::ProcessStage::Instantiating;
+  lapp_context.process_stage = BlendfileLinkAppendContext::ProcessStage::Linking;
   lapp_context.active_collection = active_collection;
 
   for (ID &id : MainAllIDsIterator(*bmain)) {

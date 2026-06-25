@@ -3858,7 +3858,7 @@ static int lib_override_sort_libraries_func(LibraryIDLinkCallbackData *cb_data)
     }
     Library *id_lib_valid = id->lib;
     if (id_lib_valid->flag & LIBRARY_FLAG_IS_ARCHIVE) {
-      BLI_assert(ID_IS_PACKED(id) || (id_lib_valid->flag & LIBRARY_FLAG_IS_EXTERNAL) != 0);
+      BLI_assert(ID_IS_PACKED(id));
       BLI_assert(id_lib_valid->archive_parent_library);
       id_lib_valid = id_lib_valid->archive_parent_library;
     }
