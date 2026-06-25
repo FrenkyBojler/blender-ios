@@ -76,92 +76,76 @@ static GroupedSpan<int> build_face_to_face_by_edge_map(const OffsetIndices<int> 
   return {OffsetIndices<int>(r_offsets), r_indices.as_span()};
 }
 
-static void interpolate_quad_positions(const Span<float3> base_positions,
-                                       const Span<float3> base_corner_normals,
-                                       const IndexRange base_face,
-                                       const Span<int> face_verts,
-                                       const Span<float3> src_positions,
-                                       const float height,
-                                       MutableSpan<float3> part_positions)
+static float4 bilinear_mix_factors_from_xy(const float2 xy)
 {
-  for (const int i : part_positions.index_range()) {
-    const float2 xy = src_positions[i].xy();
-    const float z = src_positions[i].z;
-    const float2 factor = (xy + 1.0f) * 0.5f;
-    const float4 mix_factors((1.0f - factor.x) * (1.0f - factor.y),
-                             factor.x * (1.0f - factor.y),
-                             factor.x * factor.y,
-                             (1.0f - factor.x) * factor.y);
-    const float3 new_face_interp = bke::attribute_math::mix4(mix_factors,
-                                                             base_positions[face_verts[0]],
-                                                             base_positions[face_verts[1]],
-                                                             base_positions[face_verts[2]],
-                                                             base_positions[face_verts[3]]);
-    const float3 normal = bke::attribute_math::mix4(mix_factors,
-                                                    base_corner_normals[base_face[0]],
-                                                    base_corner_normals[base_face[1]],
-                                                    base_corner_normals[base_face[2]],
-                                                    base_corner_normals[base_face[3]]);
-    const float3 new_position = new_face_interp + normal * height * z;
-    part_positions[i] = new_position;
-  }
+  const float2 factor = (xy + 1.0f) * 0.5f;
+  return {
+      (1.0f - factor.x) * (1.0f - factor.y),
+      factor.x * (1.0f - factor.y),
+      factor.x * factor.y,
+      (1.0f - factor.x) * factor.y,
+  };
+}
+static void interpolate_positions_quads(const Span<float3> base_positions,
+                                        const OffsetIndices<int> base_faces,
+                                        const Span<int> base_corner_verts,
+                                        const Span<float3> base_corner_normals,
+                                        const IndexMask &mask,
+                                        const Span<int> indices,
+                                        const Span<Span<float3>> mesh_positions,
+                                        const Span<float> heights,
+                                        const OffsetIndices<int> verts_by_part,
+                                        MutableSpan<float3> positions)
+{
+  mask.foreach_index([&](const int base_face_i) {
+    const IndexRange base_face = base_faces[base_face_i];
+    const Span<int> face_verts = base_corner_verts.slice(base_face);
+    const float height = heights[base_face_i];
+    const Span<float3> src_positions = mesh_positions[indices[base_face_i]];
+    MutableSpan<float3> part_positions = positions.slice(verts_by_part[base_face_i]);
+    for (const int i : part_positions.index_range()) {
+      const float z = src_positions[i].z;
+      const float4 mix_factors = bilinear_mix_factors_from_xy(src_positions[i].xy());
+      const float3 new_face_interp = bke::attribute_math::mix4(mix_factors,
+                                                               base_positions[face_verts[0]],
+                                                               base_positions[face_verts[1]],
+                                                               base_positions[face_verts[2]],
+                                                               base_positions[face_verts[3]]);
+      const float3 normal = math::normalize(
+          bke::attribute_math::mix4(mix_factors,
+                                    base_corner_normals[base_face[0]],
+                                    base_corner_normals[base_face[1]],
+                                    base_corner_normals[base_face[2]],
+                                    base_corner_normals[base_face[3]]));
+      const float3 new_position = new_face_interp + normal * height * z;
+      part_positions[i] = new_position;
+    }
+  });
 }
 
-static void interpolate_ngon_positions(const Span<float3> base_positions,
-                                       const Span<float3> base_face_normals,
-                                       const Span<float3> base_corner_normals,
-                                       const int base_face_i,
-                                       const IndexRange base_face,
-                                       const Span<int> face_verts,
-                                       const Span<float3> src_positions,
-                                       const float height,
-                                       MutableSpan<float3> part_positions)
+static void interpolate_positions_ngons(const Span<float3> base_positions,
+                                        const OffsetIndices<int> base_faces,
+                                        const Span<int> base_corner_verts,
+                                        const Span<float3> base_face_normals,
+                                        const Span<float3> base_corner_normals,
+                                        const Span<float> heights,
+                                        const IndexMask &mask,
+                                        const Span<int> indices,
+                                        const Span<Span<float3>> mesh_positions,
+                                        const OffsetIndices<int> verts_by_part,
+                                        MutableSpan<float3> positions)
 {
-  const float3x3 face_to_2d = math::axis_dominant_to_m3(base_face_normals[base_face_i]);
-  for (const int i : part_positions.index_range()) {
-    const float2 xy = src_positions[i].xy();
-    const float z = src_positions[i].z;
-  }
-}
-
-static void interpolate_positions(const Span<float3> base_positions,
-                                  const OffsetIndices<int> base_faces,
-                                  const Span<int> base_corner_verts,
-                                  const Span<float3> base_face_normals,
-                                  const Span<float3> base_corner_normals,
-                                  const Span<float> heights,
-                                  const IndexMask &base_face_selection,
-                                  const Span<int> indices,
-                                  const Span<Span<float3>> mesh_positions,
-                                  const OffsetIndices<int> verts_by_part,
-                                  MutableSpan<float3> positions)
-{
-  base_face_selection.foreach_index(
+  mask.foreach_index(
       [&](const int base_face_i) {
         const IndexRange base_face = base_faces[base_face_i];
         const Span<int> face_verts = base_corner_verts.slice(base_face);
         const float height = heights[base_face_i];
         const Span<float3> src_positions = mesh_positions[indices[base_face_i]];
         MutableSpan<float3> part_positions = positions.slice(verts_by_part[base_face_i]);
-        if (face_verts.size() == 4) {
-          interpolate_quad_positions(base_positions,
-                                     base_corner_normals,
-                                     base_face,
-                                     face_verts,
-                                     src_positions,
-                                     height,
-                                     part_positions);
-        }
-        else {
-          interpolate_ngon_positions(base_positions,
-                                     base_face_normals,
-                                     base_corner_normals,
-                                     base_face_i,
-                                     base_face,
-                                     face_verts,
-                                     src_positions,
-                                     height,
-                                     part_positions);
+        const float3x3 face_to_2d = math::axis_dominant_to_m3(base_face_normals[base_face_i]);
+        for (const int i : part_positions.index_range()) {
+          const float2 xy = src_positions[i].xy();
+          const float z = src_positions[i].z;
         }
       },
       exec_mode::grain_size(128));
@@ -192,6 +176,9 @@ Mesh *replace_faces(const Mesh &base,
   IndexMaskMemory memory;
   selection = array_utils::indices_in_range(selection, indices, meshes.index_range(), memory);
   const IndexMask unselected_faces = selection.complement(IndexMask(base.faces_num), memory);
+  const IndexMask quads = IndexMask::from_predicate(
+      selection, memory, [&](const int i) { return base_faces[i].size() == 4; });
+  const IndexMask ngons = quads.complement(selection, memory);
 
   Array<int> mesh_vert_nums(meshes.size());
   Array<int> mesh_face_nums(meshes.size());
@@ -225,7 +212,7 @@ Mesh *replace_faces(const Mesh &base,
   if (!verts_all_by_part_opt) {
     return BKE_mesh_copy_for_eval(base);
   }
-  const OffsetIndices<int> verts_by_part = *verts_all_by_part_opt;
+  const OffsetIndices<int> verts_all_by_part = *verts_all_by_part_opt;
 
   Array<int> edges_all_by_part_data(base_faces.size() + 1);
   array_utils::gather<int>(
@@ -261,21 +248,31 @@ Mesh *replace_faces(const Mesh &base,
 
   const int unselected_corners_num = offset_indices::sum_group_sizes(base_faces, unselected_faces);
 
-  Array<float3> positions(unselected_verts.size() + verts_by_part.total_size());
+  Array<float3> positions(unselected_verts.size() + verts_all_by_part.total_size());
   array_utils::gather(base_positions,
                       unselected_verts,
                       positions.as_mutable_span().take_front(unselected_verts.size()));
-  interpolate_positions(base_positions,
-                        base_faces,
-                        base_corner_verts,
-                        base_face_normals,
-                        base_corner_normals,
-                        heights,
-                        unselected_faces,
-                        indices,
-                        mesh_positions,
-                        verts_by_part,
-                        positions.as_mutable_span().take_back(faces_by_part.total_size()));
+  interpolate_positions_quads(base_positions,
+                              base_faces,
+                              base_corner_verts,
+                              base_corner_normals,
+                              quads,
+                              indices,
+                              mesh_positions,
+                              heights,
+                              verts_all_by_part,
+                              positions.as_mutable_span().take_back(faces_by_part.total_size()));
+  interpolate_positions_ngons(base_positions,
+                              base_faces,
+                              base_corner_verts,
+                              base_face_normals,
+                              base_corner_normals,
+                              heights,
+                              ngons,
+                              indices,
+                              mesh_positions,
+                              verts_all_by_part,
+                              positions.as_mutable_span().take_back(faces_by_part.total_size()));
 
   Array<int> face_to_face_map_offsets;
   Array<int> face_to_face_map_indices;
@@ -299,12 +296,12 @@ Mesh *replace_faces(const Mesh &base,
   AtomicDisjointSet disjoint_set(positions.size());
   selection.foreach_index(
       [&](const int base_face_i) {
-        const IndexRange part_verts = verts_by_part[base_face_i];
+        const IndexRange part_verts = verts_all_by_part[base_face_i];
         const Span<float3> face_positions = positions.as_span().slice(part_verts);
         const Span<int> neighbor_faces = base_face_to_face_map[base_face_i];
         for (const int neighbor_face : neighbor_faces) {
           if (selection_bits[neighbor_face]) {
-            const IndexRange neighbor_range = verts_by_part[neighbor_face];
+            const IndexRange neighbor_range = verts_all_by_part[neighbor_face];
             const Span<float3> neighbor_positions = mesh_positions[indices[neighbor_face]];
 
             // TODO: REPLACE QUADRATIC LOOP WITH ACCELERATION STRUCTURE
@@ -342,6 +339,7 @@ Mesh *replace_faces(const Mesh &base,
       },
       exec_mode::grain_size(128));
 
+  // TODO: THIS CONTAINS THE UNSELECTED VERTS MERGED_VERTS_NUM WILL BE MISLEADING
   Array<int> merged_verts(positions.size());
   const int merged_verts_num = disjoint_set.calc_reduced_ids(merged_verts);
 
@@ -401,7 +399,7 @@ Mesh *replace_faces(const Mesh &base,
   MutableSpan<int> new_corner_verts = result_corner_verts.take_back(new_corners_num);
   selection.foreach_index(
       [&](const int base_face_i) {
-        array_utils::gather(merged_verts.as_span().slice(verts_by_part[base_face_i]),
+        array_utils::gather(merged_verts.as_span().slice(verts_all_by_part[base_face_i]),
                             mesh_corner_verts[indices[base_face_i]],
                             new_corner_verts.slice(corners_by_part[base_face_i]));
       },
@@ -427,6 +425,26 @@ Mesh *replace_faces(const Mesh &base,
       },
       exec_mode::grain_size(512));
 
+  Array<int> verts_by_part_data(base_faces.size() + 1);
+  selection.foreach_index(
+      [&](const int base_face_i) {
+        const Span<int> merge_indices = merged_verts.as_span().slice(
+            verts_all_by_part[base_face_i]);
+        const IndexRange part_verts_all = verts_all_by_part[base_face_i];
+
+        int count = 0;
+        for (const int i : merge_indices.index_range()) {
+          if (merge_indices[i] != part_verts_all[i]) {
+            count++;
+          }
+        }
+        verts_by_part_data[base_face_i] = count;
+      },
+      exec_mode::grain_size(512));
+  index_mask::masked_fill<int>(verts_all_by_part_data, 0, unselected_faces);
+  const OffsetIndices<int> verts_by_part = offset_indices::accumulate_counts_to_offsets(
+      verts_by_part_data);
+
   bke::MutableAttributeAccessor result_attributes = result->attributes_for_write();
   base.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
     if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
@@ -449,6 +467,15 @@ Mesh *replace_faces(const Mesh &base,
           iter.name, iter.domain, iter.data_type);
       switch (iter.domain) {
         case bke::AttrDomain::Point: {
+          bke::attribute_math::to_static_type(src_attr.type(), [&]<typename T>() {
+            if constexpr (!std::is_same_v<T, std::string>) {
+              const Span<T> src_attr = src_span.typed<T>();
+              MutableSpan<T> dst_attr = dst_attr.span.template typed<T>();
+              quads.foreach_index([&](const int base_face_i) {
+                // for ()
+              });
+            }
+          });
           array_utils::gather(
               src_attr, unselected_verts, dst_attr.span.take_front(unselected_verts.size()));
           // TODO
