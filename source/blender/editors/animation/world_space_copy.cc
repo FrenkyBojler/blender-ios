@@ -590,29 +590,19 @@ static Array<TransformFCurves> build_fcurves_for_paste(
   return fcurve_buffer;
 }
 
-static void paste_world_space(Main &bmain,
-                              Scene &scene,
-                              ViewLayer &view_layer,
-                              ReportList &reports,
-                              const MutableSpan<AnimTransformable> transformables,
-                              const AnimationPasteOffset offset)
+static bAction *read_action_from_clipboard(Main *clipboard_bmain,
+                                           char filepath[FILE_MAX],
+                                           ReportList &reports)
 {
   namespace ar = blender::animrig;
-
-  char filepath[FILE_MAX];
-  BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), clipboard_name);
-  Main *clipboard_bmain = BKE_main_new();
-
   if (!BKE_copybuffer_read(clipboard_bmain, filepath, &reports, FILTER_ID_AC)) {
     BKE_report(&reports, RPT_ERROR, "No clipboard to read from");
-    BKE_main_free(clipboard_bmain);
-    return;
+    return nullptr;
   }
 
   if (clipboard_bmain->actions.is_empty()) {
     BKE_report(&reports, RPT_ERROR, "Clipboard data has no animation");
-    BKE_main_free(clipboard_bmain);
-    return;
+    return nullptr;
   }
 
   bAction *clipboard_dna_action = reinterpret_cast<bAction *>(clipboard_bmain->actions.first);
@@ -621,8 +611,7 @@ static void paste_world_space(Main &bmain,
       clipboard_action.strip_keyframe_data()[0]->channelbags().is_empty())
   {
     BKE_report(&reports, RPT_ERROR, "Clipboard data has no animation");
-    BKE_main_free(clipboard_bmain);
-    return;
+    return nullptr;
   }
 
   ar::Channelbag &channelbag = *clipboard_action.strip_keyframe_data()[0]->channelbags()[0];
@@ -637,7 +626,37 @@ static void paste_world_space(Main &bmain,
     for (FCurve *fcurve : fcurves) {
       if (fcurve == nullptr) {
         BKE_report(&reports, RPT_ERROR, "Clipboard contains incomplete animation data");
-        BKE_main_free(clipboard_bmain);
+        return nullptr;
+      }
+    }
+  }
+
+  return clipboard_dna_action;
+}
+
+static void paste_world_space(Main &bmain,
+                              Scene &scene,
+                              ViewLayer &view_layer,
+                              ReportList &reports,
+                              bAction *clipboard_dna_action,
+                              const MutableSpan<AnimTransformable> transformables,
+                              const AnimationPasteOffset offset)
+{
+  namespace ar = blender::animrig;
+
+  ar::Action &clipboard_action = clipboard_dna_action->wrap();
+  ar::Channelbag &channelbag = *clipboard_action.strip_keyframe_data()[0]->channelbags()[0];
+  Map<StringRefNull, Array<FCurve *>> clipboard_data;
+  for (FCurve *fcurve : channelbag.fcurves()) {
+    BLI_assert(fcurve != nullptr);
+    Array<FCurve *> &fcurves = clipboard_data.lookup_or_add(fcurve->rna_path, Array<FCurve *>(12));
+    fcurves[fcurve->array_index] = fcurve;
+  }
+
+  for (Array<FCurve *> &fcurves : clipboard_data.values()) {
+    for (FCurve *fcurve : fcurves) {
+      if (fcurve == nullptr) {
+        BKE_report(&reports, RPT_ERROR, "Clipboard contains incomplete animation data");
         return;
       }
     }
@@ -648,7 +667,6 @@ static void paste_world_space(Main &bmain,
 
   if (paste_map.size() == 0) {
     BKE_report(&reports, RPT_ERROR, "Cannot match selection to clipboard data");
-    BKE_main_free(clipboard_bmain);
     return;
   }
 
@@ -735,7 +753,6 @@ static void paste_world_space(Main &bmain,
   }
 
   DEG_graph_free(depsgraph);
-  BKE_main_free(clipboard_bmain);
 }
 
 /** \} */
@@ -870,18 +887,33 @@ static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
                RPT_WARNING,
                "Selection contains constraints. Perfect world space match cannot be guaranteed");
   }
+
+  char filepath[FILE_MAX];
+  BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), clipboard_name);
+  Main *clipboard_bmain = BKE_main_new();
+  bAction *clipboard_dna_action = read_action_from_clipboard(
+      clipboard_bmain, filepath, *op->reports);
+
+  if (!clipboard_dna_action) {
+    BKE_main_free(clipboard_bmain);
+    return OPERATOR_CANCELLED;
+  }
+
   const AnimationPasteOffset offset = AnimationPasteOffset(RNA_enum_get(op->ptr, "offset"));
   paste_world_space(*CTX_data_main(C),
                     *CTX_data_scene(C),
                     *CTX_data_view_layer(C),
                     *op->reports,
+                    clipboard_dna_action,
                     transformables,
                     offset);
+
   for (AnimTransformable &t : transformables) {
     DEG_id_tag_update(t.owner_id(), ID_RECALC_ANIMATION);
     WM_event_add_notifier(C, NC_OBJECT | ND_POSE, t.owner_id());
   }
 
+  BKE_main_free(clipboard_bmain);
   return OPERATOR_FINISHED;
 }
 
