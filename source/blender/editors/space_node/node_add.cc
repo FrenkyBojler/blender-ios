@@ -256,9 +256,9 @@ static wmOperatorStatus add_reroute_exec(bContext *C, wmOperator *op)
     /* Mute resulting link if all cut links were muted as well. */
     bke::node_link_set_mute(ntree,
                             link_from,
-                            !std::any_of(cuts.keys().begin(),
-                                         cuts.keys().end(),
-                                         [](const bNodeLink *link) { return !link->is_muted(); }));
+                            std::all_of(cuts.keys().begin(),
+                                        cuts.keys().end(),
+                                        [](const bNodeLink *link) { return link->is_muted(); }));
 
     /* Reconnect links from the original output socket to the new reroute. */
     for (bNodeLink *link : cuts.keys()) {
