@@ -436,6 +436,40 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         with self.assertRaises(RuntimeError):
             bpy.ops.anim.world_space_paste()
 
+    def test_paste_360deg_euler_rotation(self) -> None:
+        """Pasting euler rotations should result in a euler filtered result and not contain 360 degree jumps."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_euler"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_euler"]
+        paste_obj.select_set(True)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[0]
+        copy_bone.select = True
+        paste_bone.select = False
+
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+        copy_bone.select = False
+        paste_bone.select = True
+
+        bpy.ops.anim.world_space_paste()
+
+        paste_anim_data: bpy.types.AnimData = paste_obj.animation_data
+        assert paste_anim_data is not None
+        action: bpy.types.Action = paste_anim_data.action
+        # The action is created.
+        assert action is not None
+        channelbag = action.layers[0].strips[0].channelbags[0]
+        for fcurve in channelbag.fcurves:
+            prev_value = fcurve.evaluate(frame=0)
+            for key in fcurve.keyframe_points:
+                # The delta has to be less or equal than Pi which is a 180 degree rotation in radians.
+                # Any value larger than that can be offset by 2 Pi to be closer to the previous value.
+                self.assertLessEqual(abs(prev_value - key.co.y), 3.14)
+                prev_value = key.co.y
+
 
 def main():
     global args

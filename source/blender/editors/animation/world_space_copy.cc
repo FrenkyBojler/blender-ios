@@ -6,6 +6,7 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_rotation_c.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
@@ -354,25 +355,27 @@ static void clean_baked_fcurves(AnimTransformable &transformable,
       channelbag.fcurve_remove(*paste_fcurve.fcurve);
       paste_fcurve.fcurve = nullptr;
     }
+    if (paste_fcurve.fcurve) {
+      BKE_fcurve_handles_recalc(*paste_fcurve.fcurve);
+    }
   }
   transformable.set_property(property_type, values, AxisMutable::AXIS_MUTABLE_ALL);
 }
 
-static void set_keys_to_transform(TransformFCurves &t_fcus,
-                                  const float4x4 &matrix,
-                                  const int paste_index)
+static Rotation set_keys_to_transform(TransformFCurves &t_fcus,
+                                      const float4x4 &matrix,
+                                      const Rotation &reference_rotation,
+                                      const int paste_index)
 {
-  const float3 location = matrix.location();
-  const float3 scale = math::to_scale(matrix);
+  float3 location;
+  float3 scale;
   Rotation rotation_quat;
   rotation_quat.mode = ROT_MODE_QUAT;
-  float4 quat;
-  /* math::to_quaternion only works for unit scale matrices. */
-  mat4_to_quat(quat, matrix.ptr());
   rotation_quat.values.reinitialize(4);
-  copy_qt_qt(rotation_quat.values.data(), quat);
-  /* TODO pass reference rotation to avoid gimbal lock. */
-  Rotation rotation = rotation_quat.converted_to_mode(t_fcus.rotation_mode);
+  mat4_decompose(location, rotation_quat.values.data(), scale, matrix.ptr());
+
+  const Rotation rotation = rotation_quat.converted_to_mode(t_fcus.rotation_mode,
+                                                            &reference_rotation);
 
   for (const int i : t_fcus.location.index_range()) {
     PasteFCurve &pfcu = t_fcus.location[i];
@@ -397,6 +400,7 @@ static void set_keys_to_transform(TransformFCurves &t_fcus,
     BezTriple &key = pfcu.fcurve->bezt[bezt_index];
     BKE_fcurve_keyframe_move_value_with_handles(&key, scale[i]);
   }
+  return rotation;
 }
 
 /* -------------------------------------------------------------------- */
@@ -677,7 +681,9 @@ static void paste_world_space(Main &bmain,
     AnimTransformable *transformable = sorted_transformables[i];
     TransformFCurves &transform_fcurves = fcurve_buffer[i];
 
-    /* This could be optimized by batching together transformables that don't have a relation. */
+    /* This could be optimized by batching together transformables that don't have a relation to
+     * avoid a few depsgraph evaluations. */
+    Rotation previous_rotation = transformable->get_rotation();
     for (int frame = range.min; frame < range.max; frame++) {
       DEG_evaluate_on_framechange(depsgraph, frame);
       /* Assuming that all FCurves have the range baked on 1s. */
@@ -688,7 +694,8 @@ static void paste_world_space(Main &bmain,
                      "Only transformables with matching matrix data should iterated here");
       const float4x4 world_matrix = fcurves_to_matrix(*fcurves, key_index);
       const float4x4 local_matrix = world_to_local(*depsgraph, *transformable, world_matrix);
-      set_keys_to_transform(transform_fcurves, local_matrix, key_index);
+      previous_rotation = set_keys_to_transform(
+          transform_fcurves, local_matrix, previous_rotation, key_index);
     }
     /* Action will have been created in `build_fcurves_for_paste`. */
     bAction *paste_dna_action = BKE_animdata_from_id(transformable->owner_id())->action;
