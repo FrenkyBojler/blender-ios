@@ -1,1 +1,2 @@
 Referenced by issue #160653, Crash removing attributes in edit-mode
+Referenced by pull request #160340, Fix #160091: Remember active attribute by name during BMesh conversion
