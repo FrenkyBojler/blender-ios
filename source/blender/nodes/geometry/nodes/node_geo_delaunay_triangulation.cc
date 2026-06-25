@@ -23,23 +23,54 @@ enum class TriangulationMode : int8_t {
   InsideWithHoles = 2,
 };
 
-static const EnumPropertyItem mode_items[] = {
+enum class TriangulationType : int8_t {
+  Triangles = 0,
+  NGons = 1,
+};
+
+enum class FillRule : int8_t {
+  EvenOdd = 0,
+  NonZero = 1,
+};
+
+static const EnumPropertyItem triangulation_mode_items[] = {
     {int(TriangulationMode::Full),
      "FULL",
      0,
-     "Full",
-     "All triangles. The outer boundary is the convex hull of input points"},
+     N_("Full"),
+     N_("All triangles. The outer boundary is the convex hull of input points")},
     {int(TriangulationMode::Inside),
      "INSIDE",
      0,
-     "Inside",
-     "All triangles fully enclosed by constraint edges or faces"},
+     N_("Inside"),
+     N_("All triangles fully enclosed by constraint edges or faces")},
     {int(TriangulationMode::InsideWithHoles),
      "INSIDE_WITH_HOLES",
      0,
-     "Inside With Holes",
-     "Triangles fully enclosed by constraint edges or faces excluding triangles inside detected "
-     "holes"},
+     N_("Inside With Holes"),
+     N_("Triangles fully enclosed by constraint edges or faces excluding triangles inside "
+        "detected "
+        "holes")},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem triangulation_type_items[] = {
+    {int(TriangulationType::Triangles), "TRIANGLES", 0, N_("Triangles"), ""},
+    {int(TriangulationType::NGons), "NGONS", 0, N_("N-gons"), ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem fill_rule_items[] = {
+    {int(FillRule::EvenOdd),
+     "EVEN_ODD",
+     0,
+     N_("Even-Odd"),
+     N_("Alternate inside/outside based on crossing count")},
+    {int(FillRule::NonZero),
+     "NON_ZERO",
+     0,
+     N_("Non-Zero"),
+     N_("Overlapping curves with the same winding direction are filled as a union")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -60,8 +91,16 @@ static void node_declare(NodeDeclarationBuilder &b)
           "An index used to group points together. Triangulation is done separately for each "
           "group");
   b.add_input<decl::Menu>("Mode"_ustr)
-      .static_items(mode_items)
+      .static_items(triangulation_mode_items)
       .default_value(MenuValue(TriangulationMode::Full))
+      .optional_label();
+  b.add_input<decl::Menu>("Type"_ustr)
+      .static_items(triangulation_type_items)
+      .default_value(MenuValue(TriangulationType::Triangles))
+      .optional_label();
+  b.add_input<decl::Menu>("Fill Rule"_ustr)
+      .static_items(fill_rule_items)
+      .default_value(MenuValue(FillRule::EvenOdd))
       .optional_label();
   b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all();
   b.add_output<decl::Bool>("Intersection Points"_ustr)
@@ -70,15 +109,33 @@ static void node_declare(NodeDeclarationBuilder &b)
       .no_muted_links();
 }
 
-static CDT_output_type get_cdt_output_type(const TriangulationMode mode)
+static CDT_output_type get_cdt_output_type(const TriangulationMode mode,
+                                           const TriangulationType output_type,
+                                           const FillRule fill_rule)
 {
   switch (mode) {
     case TriangulationMode::Full:
       return CDT_FULL;
     case TriangulationMode::Inside:
-      return CDT_INSIDE;
+      if (output_type == TriangulationType::Triangles) {
+        return CDT_INSIDE;
+      }
+      return CDT_CONSTRAINTS_VALID_BMESH;
     case TriangulationMode::InsideWithHoles:
-      return CDT_INSIDE_WITH_HOLES;
+      switch (fill_rule) {
+        case FillRule::EvenOdd: {
+          if (output_type == TriangulationType::Triangles) {
+            return CDT_INSIDE_WITH_HOLES;
+          }
+          return CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES;
+        }
+        case FillRule::NonZero: {
+          if (output_type == TriangulationType::Triangles) {
+            return CDT_INSIDE_WITH_HOLES_NONZERO;
+          }
+          return CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO;
+        }
+      }
   }
   return CDT_FULL;
 }
@@ -733,7 +790,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<int> group_index = params.extract_input<Field<int>>("Group ID"_ustr);
 
   const TriangulationMode mode = params.extract_input<TriangulationMode>("Mode"_ustr);
-  const CDT_output_type output_type = get_cdt_output_type(mode);
+  const TriangulationType type = params.extract_input<TriangulationType>("Type"_ustr);
+  const FillRule fill_rule = params.extract_input<FillRule>("Fill Rule"_ustr);
+  const CDT_output_type output_type = get_cdt_output_type(mode, type, fill_rule);
 
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh"_ustr);
   std::optional<std::string> dst_intersection_points_attribute_id =
