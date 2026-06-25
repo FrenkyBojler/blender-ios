@@ -417,10 +417,7 @@ ClosureLight bxdf_ggx_light_reflection([[resource_table]] const UtilityTexture &
                                        float3 V)
 {
   ClosureLight light;
-
-  LtcData ltc_data = eevee::lut::ltc::sample_utility_tx(util_tx, cl.N, V, cl.roughness);
-  eevee::lut::ltc::pack(ltc_data, light.ltc_matrix_packed, light.ltc_data_packed);
-
+  eevee::lut::LTCData::sample_utility_tx(util_tx, cl.N, V, cl.roughness).pack_to(light);
   light.N = cl.N;
   light.type = LIGHT_SPECULAR;
   return light;
@@ -443,10 +440,7 @@ ClosureLight bxdf_ggx_light_transmission([[resource_table]] const UtilityTexture
   float3 R = refract(-V, cl.N, (thickness.value() != 0.0f) ? cl.ior : (1.0f / cl.ior));
 
   ClosureLight light;
-
-  LtcData ltc_data = eevee::lut::ltc::sample_utility_tx(util_tx, -cl.N, R, perceptual_roughness);
-  eevee::lut::ltc::pack(ltc_data, light.ltc_matrix_packed, light.ltc_data_packed);
-
+  eevee::lut::LTCData::sample_utility_tx(util_tx, -cl.N, R, perceptual_roughness).pack_to(light);
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
   return light;
@@ -456,10 +450,7 @@ ClosureLight bxdf_ggx_light_thin_glass_transmission(
     [[resource_table]] const UtilityTexture &util_tx, ClosureThinRefraction cl, float3 V)
 {
   ClosureLight light;
-
-  LtcData ltc_data = eevee::lut::ltc::sample_utility_tx(util_tx, cl.N, V, cl.roughness);
-  eevee::lut::ltc::pack(ltc_data, light.ltc_matrix_packed, light.ltc_data_packed);
-
+  eevee::lut::LTCData::sample_utility_tx(util_tx, -cl.N, -V, cl.roughness).pack_to(light);
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
   return light;

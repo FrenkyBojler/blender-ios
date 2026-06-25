@@ -82,8 +82,8 @@ void eval_single_closure(sampler2DArray util_tx,
     return;
   }
 
-  LtcData ltc_data = eevee::lut::ltc::unpack(cl.ltc_matrix_packed, cl.ltc_data_packed);
-  float ltc_result = light_ltc(util_tx, light, cl.N, V, lv, ltc_data, vertices);
+  lut::LTCData ltc_data = lut::LTCData::unpack_from(cl);
+  float ltc_result = light_ltc(util_tx, light, ltc_data, lv, vertices);
 
   float3 out_radiance = light.color * ltc_result;
   float visibility = shadow * attenuation;
@@ -163,9 +163,9 @@ template<bool is_transmission> struct EvalCtx {
     if (is_translucent_with_thickness) {
       /* This makes the LTC compute the solid angle of the light (still with the cosine term
        * applied but that still works great enough in practice). */
-      stack.cl[0].N = lv.L;
+      // stack.cl[0].N = lv.L;
       /* Adjust power because of the second lambertian distribution. */
-      attenuation *= M_1_PI;
+      // attenuation *= M_1_PI;
     }
 
     LightVertices light_shape_vertices = light_shape_corners(light, lv);

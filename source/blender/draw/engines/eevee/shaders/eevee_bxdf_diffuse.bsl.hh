@@ -56,10 +56,7 @@ LightProbeRay bxdf_diffuse_lightprobe(float3 N)
 ClosureLight bxdf_diffuse_light(ClosureUndetermined cl, float3 V)
 {
   ClosureLight light;
-
-  LtcData ltc_data = eevee::lut::ltc::identity(cl.N, V);
-  eevee::lut::ltc::pack(ltc_data, light.ltc_matrix_packed, light.ltc_data_packed);
-
+  eevee::lut::LTCData::identity(cl.N, V).pack_to(light);
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;
@@ -137,16 +134,18 @@ Ray bxdf_translucent_ray_amend(ClosureUndetermined cl, float3 /*V*/, Ray ray, Th
 ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness thickness)
 {
   /* A translucent sphere lit by a light outside the sphere transmits the
-   * light uniformly over the sphere. To mimic this phenomenon, we use the light vector
-   * as normal. This is done inside `light_eval_single`.
+   * light uniformly over the sphere. To mimic this phenomenon, the LTC evaluation
+   * does not clip lights below the horizon.
    *
    * For slab model, the approximation has little to no impact on the lighting in practice,
    * only focusing the light a tiny bit. Using the flipped normal is good enough approximation.
    */
+
   ClosureLight light;
 
-  LtcData ltc_data = eevee::lut::ltc::identity(-cl.N, V);
-  eevee::lut::ltc::pack(ltc_data, light.ltc_matrix_packed, light.ltc_data_packed);
+  eevee::lut::LTCData ltc_data = eevee::lut::LTCData::identity(-cl.N, V);
+  ltc_data.integral_type = LTCIntegralType::UnclippedDiffuseSphere;
+  ltc_data.pack_to(light);
 
   light.N = -cl.N;
   light.type = (thickness.value() != 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;

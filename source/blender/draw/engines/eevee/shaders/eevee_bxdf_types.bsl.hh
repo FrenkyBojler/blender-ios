@@ -22,6 +22,8 @@ struct BsdfEval {
   float weight;
 };
 
+enum class LTCIntegralType : uchar { ClippedDiffuseSphere = 0u, UnclippedDiffuseSphere = 1u };
+
 struct ClosureLight {
   /* Shading normal. */
   packed_float3 N;
@@ -30,10 +32,8 @@ struct ClosureLight {
   /* Output both shadowed and unshadowed for shadow denoising. */
   packed_float3 light_shadowed;
   packed_float3 light_unshadowed;
-  /* LTC attenuation data. */
-  uint ltc_data_packed;
-  /* LTC matrix data. */
-  packed_uint4 ltc_matrix_packed;
+  /* LTC evaluation data. */
+  uint ltc_data_packed[5]; /* WATCHME: how does this pack on metal? */
 };
 
 /* Represent an approximation of a bunch of rays from a BSDF. */
@@ -45,16 +45,6 @@ struct LightProbeRay {
    * Modulate blur level of spherical probe and blend between sphere probe and spherical harmonic
    * evaluation at higher roughness. */
   float perceptual_roughness;
-};
-
-/* Data used for LTC evaluations. */
-struct LtcData {
-  /* LTC inverse matrix. */
-  float3x3 Minv;
-  /* Dominant LTC lobe direction. */
-  float3 D;
-  /* Attenuate LTC lobe by this amount. */
-  float attenuation_factor;
 };
 
 /* -------------------------------------------------------------------- */

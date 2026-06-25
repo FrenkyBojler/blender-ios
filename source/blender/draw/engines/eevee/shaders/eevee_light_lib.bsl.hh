@@ -258,10 +258,8 @@ LightVertices light_shape_corners(LightData light, LightVector lv)
 
 float light_ltc(sampler2DArray utility_tx,
                 LightData light,
-                float3 N,
-                float3 V,
+                eevee::lut::LTCData ltc_data,
                 LightVector lv,
-                LtcData ltc_data,
                 LightVertices vertices)
 {
   if (is_sphere_light(light.type) && lv.dist < light.local().local.shape_radius) {
@@ -270,9 +268,9 @@ float light_ltc(sampler2DArray utility_tx,
   }
 
   if (light.type == LIGHT_RECT) {
-    return eevee::ltc::evaluate_quad(utility_tx, vertices.v, N, V, lv.L, ltc_data);
+    return eevee::ltc::evaluate_quad(utility_tx, vertices.v, lv.L, ltc_data);
   }
-  return eevee::ltc::evaluate_disk(utility_tx, N, V, lv.L, ltc_data, vertices.v);
+  return eevee::ltc::evaluate_disk(utility_tx, lv.L, ltc_data, vertices.v);
 }
 
 /** \} */
