@@ -210,15 +210,16 @@ const ListBaseT<GPULayerAttr> *GPU_material_layer_attributes(const GPUMaterial *
 enum GPUType {
   GPU_NONE,
   GPU_FLOAT,
-  GPU_INT,
   GPU_VEC2,
-  GPU_INT2,
   GPU_VEC3,
-  GPU_INT3,
   GPU_VEC4,
-  GPU_INT4,
   GPU_MAT3,
   GPU_MAT4,
+
+  GPU_INT,
+  GPU_INT2,
+  GPU_INT3,
+  GPU_INT4,
   GPU_BOOL,
 
   GPU_TEX1D_ARRAY,
@@ -240,12 +241,17 @@ constexpr int gpu_type_element_count(const GPUType type)
 {
   switch (type) {
     case GPU_FLOAT:
+    case GPU_INT:
+    case GPU_BOOL:
       return 1;
     case GPU_VEC2:
+    case GPU_INT2:
       return 2;
     case GPU_VEC3:
+    case GPU_INT3:
       return 3;
     case GPU_VEC4:
+    case GPU_INT4:
       return 4;
     case GPU_MAT3:
       return 9;
