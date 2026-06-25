@@ -224,6 +224,28 @@ static bool loopcut_find_control_points(BMVert *v, float3 &p1, float3 &p2, float
   return true;
 }
 
+/**
+ *  Compute spline position for new loopcut vertex v.
+ */
+static bool loopcut_calc_curve_target(BMVert *v, float mu, float tension, float3 &r_co) {
+  float3 p1, p2, p3, p4;
+  if (!loopcut_find_control_points(v, p1, p2, p3, p4)) {
+    return false;
+  }
+
+  const float d = math::distance(p2, p3) * 0.5f;
+  if (d < FLT_EPSILON || p1 == p2 || p3 == p4) {
+    return false;
+  }
+
+  /* Normalize arm lengths. */
+  p1 = p2 + d * math::normalize(p1 - p2);
+  p4 = p3 + d * math::normalize(p4 - p3);
+
+  r_co = math::hermite_spline_interp(p1, p2, p3, p4, mu, -tension, 0.0f);
+  return true;
+}
+
 static void ringsel_finish(bContext *C, wmOperator *op)
 {
   RingSelOpData *lcd = static_cast<RingSelOpData *>(op->customdata);
