@@ -3498,8 +3498,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           }
         }
         BLI_assert(rmd->region->sizex <= rmd->maxsize);
-        const int collapse_size = (rmd->region->regiontype == RGN_TYPE_UI &&
-                                   BKE_regiontype_uses_categories(rmd->region->runtime->type)) ?
+        const int collapse_size = BKE_regiontype_uses_category_tabs(rmd->region->runtime->type) ?
                                       (UI_PANEL_CATEGORY_MIN_WIDTH / aspect_x) * 0.75f :
                                       UI_UNIT_X / aspect_x;
         if (size_no_snap < collapse_size) {
