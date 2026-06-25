@@ -1095,10 +1095,6 @@ class WM_PT_operator_presets(PresetPanel, Panel):
     def preset_add_operator_properties(self):
         return {"operator": self.operator}
 
-    @property
-    def preset_remove_operator_properties(self):
-        return {"operator": self.operator}
-
     def draw(self, context):
         self.operator = context.active_operator.bl_idname
         PresetPanel.draw(self, context)

@@ -1698,7 +1698,7 @@ class CLIP_PT_camera_presets(PresetPanel, Panel):
     preset_subdir = "tracking_camera"
     preset_operator = "script.execute_preset"
     preset_add_operator = "clip.camera_preset_add"
-    preset_remove_operator = "clip.camera_preset_add_remove"
+    preset_remove_operator = "clip.camera_preset_remove"
 
 
 class CLIP_PT_track_color_presets(PresetPanel, Panel):
@@ -1707,7 +1707,7 @@ class CLIP_PT_track_color_presets(PresetPanel, Panel):
     preset_subdir = "tracking_track_color"
     preset_operator = "script.execute_preset"
     preset_add_operator = "clip.track_color_preset_add"
-    preset_remove_operator = "clip.track_color_preset_add_remove"
+    preset_remove_operator = "clip.track_color_preset_remove"
 
 
 class CLIP_PT_tracking_settings_presets(PresetPanel, Panel):
@@ -1716,7 +1716,7 @@ class CLIP_PT_tracking_settings_presets(PresetPanel, Panel):
     preset_subdir = "tracking_settings"
     preset_operator = "script.execute_preset"
     preset_add_operator = "clip.tracking_settings_preset_add"
-    preset_remove_operator = "clip.tracking_settings_preset_add_remove"
+    preset_remove_operator = "clip.tracking_settings_preset_remove"
 
 
 class CLIP_MT_stabilize_2d_context_menu(Menu):
