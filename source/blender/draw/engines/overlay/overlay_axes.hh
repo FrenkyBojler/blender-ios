@@ -77,7 +77,7 @@ class Axes : Overlay {
           ss->pivot_pos, math::Quaternion(ss->pivot_rot));
       // Delete this comment: note that this is incorrect since the sculpt pivot is specified as a
       // transform of the object origin
-      target = local_pivot_orientation;
+      target = target * local_pivot_orientation;
     }
 
     ExtraInstanceData data(target, res.object_wire_color(ob_ref, state), 1.0f);
