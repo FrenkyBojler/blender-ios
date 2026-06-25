@@ -205,11 +205,6 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   rcti *rect = static_cast<rcti *>(gesture->customdata);
 
-  view2d_edge_pan_apply_event(C, &gesture->edge_pan_data, event);
-  const View2D *v2d = &region->v2d;
-  rect->xmin = ui::view2d_view_to_region_x(v2d, gesture->mval.x);
-  rect->ymin = ui::view2d_view_to_region_y(v2d, gesture->mval.y);
-
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
       case GESTURE_MODAL_MOVE: {
@@ -246,6 +241,8 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
   else {
     switch (event->type) {
       case MOUSEMOVE: {
+        view2d_edge_pan_apply_event(C, &gesture->edge_pan_data, event);
+
         if (gesture->type == WM_GESTURE_CROSS_RECT && gesture->is_active == false) {
           rect->xmin = rect->xmax = event->xy[0] - gesture->winrct.xmin;
           rect->ymin = rect->ymax = event->xy[1] - gesture->winrct.ymin;
@@ -256,6 +253,12 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
                              (event->xy[1] - gesture->winrct.ymin) - rect->ymax);
         }
         else {
+          const ScrArea *area = CTX_wm_area(C);
+          if (area->spacetype != SPACE_VIEW3D) {
+            const View2D *v2d = &region->v2d;
+            rect->xmin = ui::view2d_view_to_region_x(v2d, gesture->mval.x);
+            rect->ymin = ui::view2d_view_to_region_y(v2d, gesture->mval.y);
+          }
           rect->xmax = event->xy[0] - gesture->winrct.xmin;
           rect->ymax = event->xy[1] - gesture->winrct.ymin;
         }
