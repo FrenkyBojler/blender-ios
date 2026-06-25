@@ -13271,23 +13271,23 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
     have_reference = true;
     valid_for_refresh = false;
   }
-  for (Block &block : popup_block_handle->region->runtime->uiblocks) {
-    for (Button &button : block.buttons()) {
-      have_reference = have_reference || button_references_srna(button, srna_to_unreg);
-      if (button.type == ButtonType::SearchMenu) {
-        const ButtonSearch &search_button = static_cast<const ButtonSearch &>(button);
-        if (search_button.active) {
-          /* Search buttons may reference menus/operators but we can't lookup in its items, close
-           * any popup with a search button active. */
-          have_reference = true;
-          valid_for_refresh = false;
+  [&]() {
+    for (Block &block : popup_block_handle->region->runtime->uiblocks) {
+      for (Button &button : block.buttons()) {
+        have_reference = have_reference || button_references_srna(button, srna_to_unreg);
+        if (button.type == ButtonType::SearchMenu) {
+          const ButtonSearch &search_button = static_cast<const ButtonSearch &>(button);
+          if (search_button.active) {
+            /* Search buttons may reference menus/operators but we can't lookup in its items, close
+             * any popup with a search button active. */
+            have_reference = true;
+            valid_for_refresh = false;
+            return;
+          }
         }
       }
-      if (have_reference && valid_for_refresh) {
-        break;
-      }
     }
-  }
+  }();
   if (have_reference) {
     if (valid_for_refresh) {
       /* This popup needs to be refresh, close any sub-menu first. */
@@ -13322,7 +13322,7 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
   if (active_button) {
     CTX_wm_region_popup_set(C, popup_block_handle->region);
     button_active_free(C, active_button);
-    CTX_wm_region_popup_set(C, popup_block_handle->region);
+    CTX_wm_region_popup_set(C, nullptr);
   }
   ED_region_tag_refresh_ui(popup_block_handle->region);
   ED_region_tag_redraw(popup_block_handle->region);

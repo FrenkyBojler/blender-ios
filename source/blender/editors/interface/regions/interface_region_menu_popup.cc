@@ -694,7 +694,7 @@ void popup_block_invoke_ex(bContext *C,
 void popup_block_invoke(
     bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, StructRNA *srna_owner)
 {
-  return popup_block_invoke_ex(C, func, arg, arg_free, true, srna_owner);
+  popup_block_invoke_ex(C, func, arg, arg_free, true, srna_owner);
 }
 
 void popup_block_ex(bContext *C,
