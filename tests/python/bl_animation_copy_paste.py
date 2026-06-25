@@ -33,6 +33,41 @@ class AbstractCopyPasteTest(unittest.TestCase):
         bpy.context.preferences.filepaths.temporary_directory = ""
         self._copybuffer_path = pathlib.Path(tempfile.gettempdir()) / COPYBUFFER_NAME
 
+    def _assert_almost_equal_matrix(self, a: mathutils.Matrix, b: mathutils.Matrix):
+        equal = True
+        for j in range(4):
+            for i in range(4):
+                if abs(a.row[i][j] - b.row[i][j]) > 0.001:
+                    equal = False
+                    break
+        if not equal:
+            raise self.failureException(f"Matrices don't match\n{a}\n{b}")
+
+    def _assert_almost_equal_lists(self, a: list[float], b: list[float]):
+        equal = True
+        assert len(a) == len(b)
+        for i in range(len(a)):
+            if abs(a[i] - b[i]) > 0.001:
+                equal = False
+                break
+        if not equal:
+            raise self.failureException(f"Lists don't match\n{a}\n{b}")
+
+    def _assert_bones_equal_world_space(
+            self,
+            arm_a: bpy.types.Object,
+            bone_a: bpy.types.PoseBone,
+            arm_b: bpy.types.Object,
+            bone_b: bpy.types.PoseBone) -> None:
+        for frame in range(10):
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_matrix(arm_a.matrix_world @ bone_a.matrix, arm_b.matrix_world @ bone_b.matrix)
+
+    def _assert_objects_equal_world_space(self, obj_a: bpy.types.Object, obj_b: bpy.types.Object) -> None:
+        for frame in range(10):
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_matrix(obj_a.matrix_world, obj_b.matrix_world)
+
 
 class WorldSpaceCopyTest(AbstractCopyPasteTest):
     """
@@ -111,45 +146,6 @@ class WorldSpaceCopyTest(AbstractCopyPasteTest):
 
 
 class WorldSpacePasteTest(AbstractCopyPasteTest):
-
-    def _assert_almost_equal_matrix(self, a: mathutils.Matrix, b: mathutils.Matrix):
-        equal = True
-        for j in range(4):
-            for i in range(4):
-                if abs(a.row[i][j] - b.row[i][j]) > 0.001:
-                    equal = False
-                    break
-        if not equal:
-            raise self.failureException(f"Matrices don't match\n{a}\n{b}")
-
-    def _assert_almost_equal_lists(self, a: list[float], b: list[float]):
-        equal = True
-        assert len(a) == len(b)
-        for i in range(len(a)):
-            if abs(a[i] - b[i]) > 0.001:
-                equal = False
-                break
-        if not equal:
-            raise self.failureException(f"Lists don't match\n{a}\n{b}")
-
-    def _assert_bones_equal_world_space(
-            self,
-            arm_a: bpy.types.Object,
-            bone_a: bpy.types.PoseBone,
-            arm_b: bpy.types.Object,
-            bone_b: bpy.types.PoseBone) -> None:
-        for frame in range(10):
-            bpy.context.scene.frame_set(frame)
-            self._assert_almost_equal_matrix(arm_a.matrix_world @ bone_a.matrix, arm_b.matrix_world @ bone_b.matrix)
-
-    def _assert_objects_equal_world_space(self, obj_a: bpy.types.Object, obj_b: bpy.types.Object) -> None:
-        for frame in range(10):
-            bpy.context.scene.frame_set(frame)
-            try:
-                self._assert_almost_equal_matrix(obj_a.matrix_world, obj_b.matrix_world)
-            except:
-                print("Frame: ", frame)
-                raise
 
     def test_paste_to_different_object(self) -> None:
         """Tests that pasting to a differently named object works in the simple 1:1 case."""
@@ -470,20 +466,90 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
                 self.assertLessEqual(abs(prev_value - key.co.y), 3.14)
                 prev_value = key.co.y
 
+    def test_paste_with_offset(self) -> None:
+        """It is possible to use the current frame as the starting point for pasting data."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
+        paste_obj.select_set(True)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[0]
+        copy_bone.select = True
+        paste_bone.select = False
+
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+        copy_matrices = []
+        for frame in range(10):
+            bpy.context.scene.frame_set(frame)
+            copy_matrices.append(copy_obj.matrix_world @ copy_bone.matrix)
+
+        copy_bone.select = False
+        paste_bone.select = True
+
+        bpy.context.scene.frame_set(10)
+        bpy.ops.anim.world_space_paste(offset='START')
+        for i in range(10):
+            bpy.context.scene.frame_set(i + 10)
+            self._assert_almost_equal_matrix(copy_matrices[i], paste_obj.matrix_world @ paste_bone.matrix)
+
 
 class SingleFrameCopyPasteTest(AbstractCopyPasteTest):
 
     def test_copy_paste_same_frame(self) -> None:
         """Easy case, pasting a single frame from one object to another."""
-        pass
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
+        paste_obj.select_set(True)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[0]
+        copy_bone.select = True
+        paste_bone.select = False
+
+        bpy.context.scene.frame_set(1)
+        # This copies frame 10 even though we are not currently on that frame.
+        bpy.ops.anim.world_space_copy(start=10, end=11)
+
+        copy_bone.select = False
+        paste_bone.select = True
+        bpy.ops.anim.world_space_paste(offset='NONE')
+
+        bpy.context.scene.frame_set(10)
+
+        self._assert_almost_equal_matrix(
+            copy_obj.matrix_world @ copy_bone.matrix,
+            paste_obj.matrix_world @ paste_bone.matrix)
 
     def test_copy_paste_frame_offset(self) -> None:
         """Test pasting data on a different frame than where it was copied from."""
-        pass
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_simple"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
+        paste_obj.select_set(True)
 
-    def test_paste_single_over_multiple(self) -> None:
-        """Pasting data from one frame over a frame range."""
-        pass
+        bpy.ops.object.mode_set(mode='POSE')
+        copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
+        paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[0]
+        copy_bone.select = True
+        paste_bone.select = False
+
+        bpy.context.scene.frame_set(10)
+        copy_matrix: mathutils.Matrix = copy_obj.matrix_world @ copy_bone.matrix
+        bpy.ops.anim.world_space_copy(start=10, end=11)
+
+        bpy.context.scene.frame_set(1)
+        copy_bone.select = False
+        paste_bone.select = True
+        bpy.ops.anim.world_space_paste(offset='START')
+
+        self._assert_almost_equal_matrix(copy_matrix, paste_obj.matrix_world @ paste_bone.matrix)
 
 
 def main():

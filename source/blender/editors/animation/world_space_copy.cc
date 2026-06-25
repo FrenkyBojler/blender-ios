@@ -42,6 +42,79 @@ namespace blender::ed::animrig {
 
 constexpr const char *clipboard_name = "world_space_buffer.blend";
 
+/* Stores which other AnimTransformables have to be applied before it. */
+struct TransformableRelations {
+  AnimTransformable *transformable = nullptr;
+  /* Other transformable_relations that need to be applied before this. */
+  Vector<TransformableRelations *> ancestors = {};
+  /* Indicates that this data has been processed. */
+  bool done = false;
+
+  bool can_insert()
+  {
+    if (done) {
+      /* Already applied. Don't apply twice. */
+      return false;
+    }
+    for (TransformableRelations *ancestor : ancestors) {
+      if (!ancestor->done) {
+        /* All ancestors must be applied before this transformable. */
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+/* Uniquely Identifies a component of the depsgraph. */
+struct DegComponentIdentifier {
+  ID *id = nullptr;
+  StringRef name;
+  eDepsObjectComponentType type;
+
+  bool operator==(const DegComponentIdentifier &other) const
+  {
+    return id == other.id && type == other.type && name == other.name;
+  }
+
+  uint64_t hash() const
+  {
+    return get_default_hash(id, type, name);
+  }
+};
+
+struct PasteFCurve {
+  FCurve *fcurve = nullptr;
+  /* Store info if that FCurve was created by this code. If yes, we can potentially remove it if
+   * the keys are all on the same value after pasting. */
+  bool created_on_paste = false;
+  /* The index into the bezt array from which to start pasting. */
+  int paste_start_index = 0;
+};
+
+struct TransformFCurves {
+  /* The channelbag that houses those FCurves. */
+  blender::animrig::Channelbag *channelbag;
+  eRotationModes rotation_mode;
+  Array<PasteFCurve, 3> location;
+  Array<PasteFCurve, 4> rotation;
+  Array<PasteFCurve, 3> scale;
+
+  TransformFCurves()
+  {
+    location.reinitialize(3);
+    rotation.reinitialize(4);
+    scale.reinitialize(3);
+  }
+};
+
+enum class AnimationPasteOffset {
+  /** Paste data to the same frames it was copied from. */
+  NONE,
+  /** Paste keys starting at current frame. */
+  CURRENT_FRAME,
+};
+
 static void matrix_to_fcurves(const float4x4 &matrix,
                               Span<FCurve *> fcurves,
                               const int frame,
@@ -97,47 +170,6 @@ static Vector<ID *> get_unique_ids(const Span<AnimTransformable> transformables)
   }
   return ids;
 }
-
-/* Stores which other AnimTransformables have to be applied before it. */
-struct TransformableRelations {
-  AnimTransformable *transformable = nullptr;
-  /* Other transformable_relations that need to be applied before this. */
-  Vector<TransformableRelations *> ancestors = {};
-  /* Indicates that this data has been processed. */
-  bool done = false;
-
-  bool can_insert()
-  {
-    if (done) {
-      /* Already applied. Don't apply twice. */
-      return false;
-    }
-    for (TransformableRelations *ancestor : ancestors) {
-      if (!ancestor->done) {
-        /* All ancestors must be applied before this transformable. */
-        return false;
-      }
-    }
-    return true;
-  }
-};
-
-/* Uniquely Identifies a component of the depsgraph. */
-struct DegComponentIdentifier {
-  ID *id = nullptr;
-  StringRef name;
-  eDepsObjectComponentType type;
-
-  bool operator==(const DegComponentIdentifier &other) const
-  {
-    return id == other.id && type == other.type && name == other.name;
-  }
-
-  uint64_t hash() const
-  {
-    return get_default_hash(id, type, name);
-  }
-};
 
 static DegComponentIdentifier transformable_to_deg_identifier(
     const AnimTransformable &transformable)
@@ -234,31 +266,6 @@ static Vector<AnimTransformable *> depsgraph_sorted_transformables(
 
   return sorted_transformables;
 }
-
-struct PasteFCurve {
-  FCurve *fcurve = nullptr;
-  /* Store info if that FCurve was created by this code. If yes, we can potentially remove it if
-   * the keys are all on the same value after pasting. */
-  bool created_on_paste = false;
-  /* The index into the bezt array from which to start pasting. */
-  int paste_start_index = 0;
-};
-
-struct TransformFCurves {
-  /* The channelbag that houses those FCurves. */
-  blender::animrig::Channelbag *channelbag;
-  eRotationModes rotation_mode;
-  Array<PasteFCurve, 3> location;
-  Array<PasteFCurve, 4> rotation;
-  Array<PasteFCurve, 3> scale;
-
-  TransformFCurves()
-  {
-    location.reinitialize(3);
-    rotation.reinitialize(4);
-    scale.reinitialize(3);
-  }
-};
 
 /**
  * \param range inclusive/exclusive
@@ -587,7 +594,8 @@ static void paste_world_space(Main &bmain,
                               Scene &scene,
                               ViewLayer &view_layer,
                               ReportList &reports,
-                              const MutableSpan<AnimTransformable> transformables)
+                              const MutableSpan<AnimTransformable> transformables,
+                              const AnimationPasteOffset offset)
 {
   namespace ar = blender::animrig;
 
@@ -665,8 +673,13 @@ static void paste_world_space(Main &bmain,
         &reports, RPT_ERROR, "Failed to figure out pasting order. Potential dependency cycle");
   }
 
-  const Bounds<int> range = {int(clipboard_dna_action->frame_start),
-                             int(clipboard_dna_action->frame_end)};
+  Bounds<int> range = {int(clipboard_dna_action->frame_start),
+                       int(clipboard_dna_action->frame_end)};
+  if (offset == AnimationPasteOffset::CURRENT_FRAME) {
+    const int paste_length = range.size();
+    const int start_frame = scene.r.cfra;
+    range = {start_frame, start_frame + paste_length};
+  }
   /* Building the FCurves with all their required keys beforehand to avoid constantly inserting
    * keys into the bezt array. */
   Array<TransformFCurves> fcurve_buffer = build_fcurves_for_paste(
@@ -785,7 +798,7 @@ static bool world_space_copy_poll(bContext *C)
 
 void ANIM_OT_world_space_copy(wmOperatorType *ot)
 {
-  ot->name = "Copy World Space";
+  ot->name = "Copy World Space Range";
   ot->idname = "ANIM_OT_world_space_copy";
   ot->description = "Copy animation from selected elements to the clipboard";
 
@@ -799,6 +812,31 @@ void ANIM_OT_world_space_copy(wmOperatorType *ot)
       ot->srna, "start", 0, -INT_MAX, INT_MAX, "Start", "Start frame to copy from", 0, INT_MAX);
   RNA_def_int(
       ot->srna, "end", 250, -INT_MAX, INT_MAX, "End", "End frame to copy from", 0, INT_MAX);
+}
+
+static wmOperatorStatus world_space_copy_current_exec(bContext *C, wmOperator *op)
+{
+  Vector<AnimTransformable> transformables = selected_transformables_from_context(C);
+  Scene *scene = CTX_data_scene(C);
+  const int current_frame = scene->r.cfra;
+  Bounds<int> range = {current_frame, current_frame + 1};
+  copy_world_space(
+      *CTX_data_main(C), *scene, *CTX_data_view_layer(C), *op->reports, transformables, range);
+  return OPERATOR_FINISHED;
+}
+
+void ANIM_OT_world_space_copy_current(wmOperatorType *ot)
+{
+  ot->name = "Copy World Space Current";
+  ot->idname = "ANIM_OT_world_space_copy_current";
+  ot->description =
+      "Copy the transforms of selected elements of the current frame to the clipboard";
+
+  ot->exec = world_space_copy_current_exec;
+  ot->poll = world_space_copy_poll;
+
+  /* No undo possible since this creates data outside the current blend file. */
+  ot->flag = OPTYPE_REGISTER;
 }
 
 static bool has_constraints(const Span<AnimTransformable> transformables)
@@ -832,11 +870,13 @@ static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
                RPT_WARNING,
                "Selection contains constraints. Perfect world space match cannot be guaranteed");
   }
+  const AnimationPasteOffset offset = AnimationPasteOffset(RNA_enum_get(op->ptr, "offset"));
   paste_world_space(*CTX_data_main(C),
                     *CTX_data_scene(C),
                     *CTX_data_view_layer(C),
                     *op->reports,
-                    transformables);
+                    transformables,
+                    offset);
   for (AnimTransformable &t : transformables) {
     DEG_id_tag_update(t.owner_id(), ID_RECALC_ANIMATION);
     WM_event_add_notifier(C, NC_OBJECT | ND_POSE, t.owner_id());
@@ -850,6 +890,20 @@ static bool world_space_paste_poll(bContext *C)
   return ED_operator_posemode(C) || ED_operator_objectmode(C);
 }
 
+const EnumPropertyItem rna_enum_animation_paste_offset_items[] = {
+    {int(AnimationPasteOffset::NONE),
+     "NONE",
+     0,
+     "No Offset",
+     "Paste data to the same frames they were copied from"},
+    {int(AnimationPasteOffset::CURRENT_FRAME),
+     "START",
+     0,
+     "Start at Current Frame",
+     "Paste data starting at current frame"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 void ANIM_OT_world_space_paste(wmOperatorType *ot)
 {
   ot->name = "Paste World Space";
@@ -860,6 +914,13 @@ void ANIM_OT_world_space_paste(wmOperatorType *ot)
   ot->poll = world_space_paste_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_enum(ot->srna,
+               "offset",
+               rna_enum_animation_paste_offset_items,
+               int(AnimationPasteOffset::NONE),
+               "Frame Offset",
+               "Paste time offset of keys");
 }
 
 /** \} */

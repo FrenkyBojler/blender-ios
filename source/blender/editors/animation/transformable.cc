@@ -413,6 +413,7 @@ void AnimTransformable::set_property(const PropertyType prop_type,
 
     case PropertyType::ROTATION: {
       const TransformFloatPtrs *rotation_array = get_rotation_array_from_mode(*rotation_mode_);
+      BLI_assert(rotation_array->size() == values.size());
       if (rotation_array->size() > values.size()) {
         /* Trying to set a rotation with different mode. Use `set_rotation` instead. */
         BLI_assert_unreachable();
