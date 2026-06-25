@@ -316,7 +316,6 @@ class LazyFunctionForMultiInput : public LazyFunction {
   {
     debug_name_ = "Multi Input";
     BLI_assert(socket.is_multi_input());
-    bool has_any_used_link = false;
     for (const bNodeLink *link : socket.directly_linked_links()) {
       if (link->is_muted() || !link->fromsock->is_available() ||
           link->fromnode->is_dangling_reroute())
@@ -324,11 +323,10 @@ class LazyFunctionForMultiInput : public LazyFunction {
         continue;
       }
       inputs_.append({"Input", CPPType::get<SocketValueVariant>()});
-      has_any_used_link = true;
       this->links.append(link);
     }
 
-    if (!has_any_used_link) {
+    if (this->links.is_empty()) {
       this->default_value_socket = inputs_.append_and_get_index(
           {"Default Value", CPPType::get<SocketValueVariant>()});
     }
