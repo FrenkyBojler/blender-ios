@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-06-22 07:24+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -18683,12 +18683,96 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
+msgid "Local View"
+msgstr "Lokale Ansicht"
+
+
+msgid "Viewpoint"
+msgstr "Ansicht"
+
+
+msgid "Navigation"
+msgstr "Navigation"
+
+
+msgid "Align View"
+msgstr "Ansicht ausrichten"
+
+
+msgid "Align View to Active"
+msgstr "Ansicht auf Aktiv ausrichten"
+
+
+msgid "View Regions"
+msgstr "Vierfenster Ansicht"
+
+
+msgid "Select More/Less"
+msgstr "Mehr/weniger anzeigen"
+
+
+msgid "Select Similar"
+msgstr "Ähnliche auswählen"
+
+
+msgid "Select All by Trait"
+msgstr "Alles nach Merkmal auswählen"
+
+
+msgid "Select Linked"
+msgstr "Verknüpfte auswählen"
+
+
+msgid "Select Loops"
+msgstr "Schleifen auswählen"
+
+
+msgid "Assign Material"
+msgstr "Material zuweisen"
+
+
+msgid "Math"
+msgstr "Mathematisch"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Light"
+msgstr "Licht"
+
+
+msgid "Light Probe"
+msgstr "Lichtsonde"
+
+
+msgid "Add Image"
+msgstr "Bild hinzufügen"
+
+
 msgid "Relations"
 msgstr "Beziehungen"
 
 
+msgid "Read"
+msgstr "Lesen"
+
+
+msgid "Sample"
+msgstr "Beispiel"
+
+
+msgid "Write"
+msgstr "Schreiben"
+
+
 msgid "Rigid Body"
 msgstr "Rigid Body"
+
+
+msgid "Primitives"
+msgstr "Grundkörper"
 
 
 msgid "Apply"
@@ -18723,6 +18807,10 @@ msgid "Convert"
 msgstr "Konvertieren"
 
 
+msgid "Instances"
+msgstr "Instanzen"
+
+
 msgid "Hooks"
 msgstr "Haken"
 
@@ -18731,8 +18819,8 @@ msgid "Vertex Group Locks"
 msgstr "Punktgruppen sperren"
 
 
-msgid "Math"
-msgstr "Mathematisch"
+msgid "Import"
+msgstr "Importieren"
 
 
 msgid "Random Mask"
@@ -18747,24 +18835,16 @@ msgid "In-Betweens"
 msgstr "Dazwischen"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Names"
 msgstr "Namen"
 
 
-msgid "Read"
-msgstr "Lesen"
-
-
-msgid "Sample"
-msgstr "Beispiel"
-
-
 msgid "Toggle Bone Options"
 msgstr "Knochen-Optionen umschalten"
-
-
-msgid "Write"
-msgstr "Schreiben"
 
 
 msgid "Enable Bone Options"
@@ -18775,10 +18855,6 @@ msgid "Disable Bone Options"
 msgstr "Knochen-Optionen ausschalten"
 
 
-msgid "Primitives"
-msgstr "Grundkörper"
-
-
 msgid "Mesh Select Mode"
 msgstr "Maschenauswahlmodus"
 
@@ -18787,16 +18863,8 @@ msgid "Face Data"
 msgstr "Flächendaten"
 
 
-msgid "Instances"
-msgstr "Instanzen"
-
-
 msgid "Merge"
 msgstr "Zusammenführen"
-
-
-msgid "Import"
-msgstr "Importieren"
 
 
 msgid "Special Characters"
@@ -18807,12 +18875,12 @@ msgid "Kerning"
 msgstr "Kerning"
 
 
-msgid "Metaball"
-msgstr "Metaball"
+msgid "Linked"
+msgstr "Verknüpft"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Pivot Point"
@@ -18831,62 +18899,6 @@ msgid "Mask Edit"
 msgstr "Maskenbearbeitung"
 
 
-msgid "Mirror"
-msgstr "Spiegeln"
-
-
-msgid "Local View"
-msgstr "Lokale Ansicht"
-
-
-msgid "Viewpoint"
-msgstr "Ansicht"
-
-
-msgid "Navigation"
-msgstr "Navigation"
-
-
-msgid "Linked"
-msgstr "Verknüpft"
-
-
-msgid "Align View"
-msgstr "Ansicht ausrichten"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Align View to Active"
-msgstr "Ansicht auf Aktiv ausrichten"
-
-
-msgid "View Regions"
-msgstr "Vierfenster Ansicht"
-
-
-msgid "Select More/Less"
-msgstr "Mehr/weniger anzeigen"
-
-
-msgid "Select Similar"
-msgstr "Ähnliche auswählen"
-
-
-msgid "Select All by Trait"
-msgstr "Alles nach Merkmal auswählen"
-
-
-msgid "Select Linked"
-msgstr "Verknüpfte auswählen"
-
-
-msgid "Select Loops"
-msgstr "Schleifen auswählen"
-
-
 msgid "Keying"
 msgstr "Schlüsselbilder"
 
@@ -18895,20 +18907,8 @@ msgid "Tracking"
 msgstr "Verfolgen"
 
 
-msgid "Assign Material"
-msgstr "Material zuweisen"
-
-
-msgid "Light"
-msgstr "Licht"
-
-
-msgid "Light Probe"
-msgstr "Lichtsonde"
-
-
-msgid "Add Image"
-msgstr "Bild hinzufügen"
+msgid "Mirror"
+msgstr "Spiegeln"
 
 
 msgid "Assets"
@@ -38732,6 +38732,42 @@ msgid "Active Palette Color"
 msgstr "Aktive Farbpalette"
 
 
+msgid "Measurement"
+msgstr "Messung"
+
+
+msgid "Curve Edit Mode"
+msgstr "Kurven-Bearbeitungsmodus"
+
+
+msgid "Transform Orientations"
+msgstr "Transformationsausrichtung"
+
+
+msgid "Drawing Plane"
+msgstr "Malfläche"
+
+
+msgid "Guides"
+msgstr "Hilfslinien"
+
+
+msgid "Quad View"
+msgstr "Vierfenster-Ansicht"
+
+
+msgid "Onion Skin"
+msgstr "Zwiebelhaut"
+
+
+msgid "Stereoscopy"
+msgstr "Stereoskopie"
+
+
+msgid "Auto-Masking"
+msgstr "Automatisches Maskieren"
+
+
 msgid "VR"
 msgstr "VR"
 
@@ -38768,48 +38804,12 @@ msgid "Overlays"
 msgstr "Überlagerungen"
 
 
-msgid "Guides"
-msgstr "Hilfslinien"
-
-
 msgid "Motion Tracking"
 msgstr "Bewegungsverfolgung"
 
 
 msgid "Mesh Edit Mode"
 msgstr "Maschenbearbeitungsmodus"
-
-
-msgid "Measurement"
-msgstr "Messung"
-
-
-msgid "Curve Edit Mode"
-msgstr "Kurven-Bearbeitungsmodus"
-
-
-msgid "Transform Orientations"
-msgstr "Transformationsausrichtung"
-
-
-msgid "Drawing Plane"
-msgstr "Malfläche"
-
-
-msgid "Quad View"
-msgstr "Vierfenster-Ansicht"
-
-
-msgid "Onion Skin"
-msgstr "Zwiebelhaut"
-
-
-msgid "Stereoscopy"
-msgstr "Stereoskopie"
-
-
-msgid "Auto-Masking"
-msgstr "Automatisches Maskieren"
 
 
 msgid "Chain Scaling"
@@ -39570,11 +39570,6 @@ msgstr "Drücken"
 msgctxt "Operator"
 msgid "Roll"
 msgstr "Rollen"
-
-
-msgctxt "Operator"
-msgid "Bone Size"
-msgstr "Knochengröße"
 
 
 msgctxt "Operator"
