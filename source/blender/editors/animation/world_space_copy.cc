@@ -277,6 +277,7 @@ static Vector<AnimTransformable *> depsgraph_sorted_transformables(
  * \param range inclusive/exclusive
  */
 static void ensure_baked_fcurves(Main &bmain,
+                                 const AnimTransformable &transformable,
                                  MutableSpan<PasteFCurve> fcus,
                                  blender::animrig::Channelbag &channelbag,
                                  const StringRefNull rna_path,
@@ -285,12 +286,16 @@ static void ensure_baked_fcurves(Main &bmain,
   namespace ar = blender::animrig;
 
   bool has_key_on_frame = false;
+  /* TODO use function on transformable once that is merged from rotation mode conversion PR. */
+  const StringRefNull group_name = transformable.type() == AnimTransformable::Type::POSE_BONE ?
+                                       transformable.name() :
+                                       "Object Transforms";
   /* Ensuring all FCurves exist. */
   for (const int i : fcus.index_range()) {
     PasteFCurve &paste_fcu = fcus[i];
     if (!paste_fcu.fcurve) {
-      /* TODO pass group name. */
-      FCurve &fcurve = channelbag.fcurve_ensure(&bmain, {rna_path, i, PROP_FLOAT, PROP_NONE});
+      FCurve &fcurve = channelbag.fcurve_ensure(&bmain,
+                                                {rna_path, i, PROP_FLOAT, PROP_NONE, group_name});
       paste_fcu.fcurve = &fcurve;
       paste_fcu.created_on_paste = true;
     }
@@ -581,7 +586,8 @@ static Array<TransformFCurves> build_fcurves_for_paste(
     }
     const std::string loc_path = transformable->rna_path_to_property(
         AnimTransformable::PropertyType::LOCATION);
-    /* This will fail if the rotation mode is animated to jump from e.g. euler to quaternion. */
+    /* TODO
+     * This will fail if the rotation mode is animated to jump from e.g. euler to quaternion */
     const std::string rot_path = transformable->rna_path_to_property(
         AnimTransformable::PropertyType::ROTATION);
     const std::string scale_path = transformable->rna_path_to_property(
@@ -601,9 +607,12 @@ static Array<TransformFCurves> build_fcurves_for_paste(
     }
 
     /* Ensuring all FCurves exist. */
-    ensure_baked_fcurves(bmain, transform_fcurves.location, channelbag, loc_path, range);
-    ensure_baked_fcurves(bmain, transform_fcurves.rotation, channelbag, rot_path, range);
-    ensure_baked_fcurves(bmain, transform_fcurves.scale, channelbag, scale_path, range);
+    ensure_baked_fcurves(
+        bmain, *transformable, transform_fcurves.location, channelbag, loc_path, range);
+    ensure_baked_fcurves(
+        bmain, *transformable, transform_fcurves.rotation, channelbag, rot_path, range);
+    ensure_baked_fcurves(
+        bmain, *transformable, transform_fcurves.scale, channelbag, scale_path, range);
   }
 
   return fcurve_buffer;
