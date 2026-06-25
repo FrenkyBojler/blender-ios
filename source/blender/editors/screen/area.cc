@@ -1775,8 +1775,7 @@ static void region_rect_recursive(
       }
     }
     else {
-      if (BKE_regiontype_uses_category_tabs(region->runtime->type))
-      {
+      if (BKE_regiontype_uses_category_tabs(region->runtime->type)) {
         /* Update category tab width when #USER_UIFLAG2_PANEL_TABS_COMPACT flag is set/unset. */
         const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                              (BLI_rcti_size_y(&region->v2d.mask) + 1);
