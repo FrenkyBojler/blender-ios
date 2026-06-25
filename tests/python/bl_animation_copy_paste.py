@@ -416,6 +416,26 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
                     copy_obj.matrix_world @ copy_bone.matrix,
                     paste_obj.matrix_world @ paste_bone.matrix)
 
+    def test_pasting_no_match(self) -> None:
+        """Matching goes by naming. If nothing can be matched no data is pasted and an error is raised."""
+        copy_obj: bpy.types.Object = bpy.data.objects["armature_chain_different_naming"]
+        copy_obj.select_set(True)
+        bpy.context.view_layer.objects.active = copy_obj
+        paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_chain"]
+        paste_obj.select_set(True)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        _set_select_all_bones(copy_obj, True)
+        _set_select_all_bones(paste_obj, False)
+
+        bpy.ops.anim.world_space_copy(start=0, end=10)
+
+        _set_select_all_bones(copy_obj, False)
+        _set_select_all_bones(paste_obj, True)
+
+        with self.assertRaises(RuntimeError):
+            bpy.ops.anim.world_space_paste()
+
 
 def main():
     global args
