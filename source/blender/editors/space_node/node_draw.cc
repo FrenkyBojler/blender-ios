@@ -26,14 +26,14 @@
 #include "BLI_bounds.hh"
 #include "BLI_convexhull_2d.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_color.h"
+#include "BLI_math_color_c.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -427,13 +427,13 @@ const char *node_socket_get_description(const bNodeSocket *socket)
 {
   if (socket->runtime->declaration == nullptr) {
     if (socket->description[0]) {
-      return socket->description;
+      return TIP_(socket->description);
     }
     return nullptr;
   }
   const nodes::SocketDeclaration &socket_decl = *socket->runtime->declaration;
   if (!socket_decl.description.empty()) {
-    return socket_decl.description.c_str();
+    return TIP_(socket_decl.description.c_str());
   }
   return nullptr;
 }
@@ -1233,7 +1233,7 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
                                                 int &locy)
 {
   /* Space at the top. */
-  locy -= NODE_DYS / 2;
+  locy -= NODE_ITEM_SPACING_Y * 2;
 
   /* Output sockets. */
   bool add_output_space = false;
@@ -1242,43 +1242,40 @@ static void node_update_basis_from_socket_lists(TreeDrawContext &tree_draw_ctx,
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
+    if (socket->is_visible() && add_output_space) {
+      locy -= NODE_ITEM_SPACING_Y;
+    }
     if (node_update_basis_socket(
             tree_draw_ctx, C, ntree, node, nullptr, nullptr, socket, block, locx, locy))
     {
-      if (socket->next && socket->next->is_available()) {
-        locy -= NODE_ITEM_SPACING_Y;
-      }
       add_output_space = true;
     }
-  }
-
-  if (add_output_space) {
-    locy -= NODE_DY / 4;
   }
 
   const bool add_button_space = node_update_basis_buttons(
       C, ntree, node, node.typeinfo->draw_buttons, block, locy);
 
   bool add_input_space = false;
+  const bool add_before_first_input = add_output_space && !add_button_space;
 
   /* Input sockets. */
   for (bNodeSocket *socket : node.input_sockets()) {
     /* Clear flag, conventional drawing does not support panels. */
     socket->flag &= ~SOCK_PANEL_COLLAPSED;
 
+    if (socket->is_visible() && (add_input_space || add_before_first_input)) {
+      locy -= NODE_ITEM_SPACING_Y;
+    }
     if (node_update_basis_socket(
             tree_draw_ctx, C, ntree, node, nullptr, socket, nullptr, block, locx, locy))
     {
-      if (socket->next) {
-        locy -= NODE_ITEM_SPACING_Y;
-      }
       add_input_space = true;
     }
   }
 
   /* Little bit of padding at the bottom. */
-  if (add_input_space || add_button_space) {
-    locy -= NODE_DYS / 2;
+  if (add_output_space || add_input_space || add_button_space) {
+    locy -= NODE_ITEM_SPACING_Y * 2;
   }
 }
 
@@ -2186,7 +2183,7 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
 
     Span<nodes::eval_log::NodeWarning> warnings;
     if (geo_tree_log) {
-      nodes::eval_log::NodeLog *node_log = geo_tree_log->nodes.lookup_ptr(node.identifier);
+      nodes::eval_log::NodeLog *node_log = geo_tree_log->find_node_log(node.identifier);
       if (node_log != nullptr) {
         warnings = node_log->warnings;
       }
@@ -2276,8 +2273,7 @@ static std::optional<std::chrono::nanoseconds> node_get_execution_time(
         }
       }
       else {
-        if (const nodes::eval_log::NodeLog *node_log = tree_log->nodes.lookup_ptr_as(
-                tnode->identifier))
+        if (const nodes::eval_log::NodeLog *node_log = tree_log->find_node_log(tnode->identifier))
         {
           found_node = true;
           run_time += node_log->execution_time;
@@ -2289,7 +2285,7 @@ static std::optional<std::chrono::nanoseconds> node_get_execution_time(
     }
     return std::nullopt;
   }
-  if (const nodes::eval_log::NodeLog *node_log = tree_log->nodes.lookup_ptr(node.identifier)) {
+  if (const nodes::eval_log::NodeLog *node_log = tree_log->find_node_log(node.identifier)) {
     return node_log->execution_time;
   }
   return std::nullopt;
@@ -2426,7 +2422,7 @@ static std::optional<NodeExtraInfoRow> node_get_accessed_attributes_row(
     }
   }
   geo_tree_log->ensure_used_named_attributes();
-  nodes::eval_log::NodeLog *node_log = geo_tree_log->nodes.lookup_ptr(node.identifier);
+  nodes::eval_log::NodeLog *node_log = geo_tree_log->find_node_log(node.identifier);
   if (node_log == nullptr) {
     return std::nullopt;
   }
@@ -2513,6 +2509,7 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
             GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT,
             NODE_EVALUATE_CLOSURE) ||
        StringRef(node.idname).startswith("GeometryNodeImport") ||
+       node.is_type("GeometryNodeClosureToList"_ustr) ||
        node.is_type("GeometryNodeFilterList"_ustr) ||
        node.is_type("GeometryNodeListGetItem"_ustr) ||
        node.is_type("GeometryNodeFieldToList"_ustr) ||
@@ -2529,7 +2526,7 @@ static Vector<NodeExtraInfoRow> node_get_extra_info(const bContext &C,
 
   if (tree_log) {
     tree_log->ensure_debug_messages();
-    const nodes::eval_log::NodeLog *node_log = tree_log->nodes.lookup_ptr(node.identifier);
+    const nodes::eval_log::NodeLog *node_log = tree_log->find_node_log(node.identifier);
     if (node_log != nullptr) {
       for (const StringRef message : node_log->debug_messages) {
         NodeExtraInfoRow row;
@@ -2822,7 +2819,8 @@ static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node
         const std::string description = node.typeinfo->ui_description_fn ?
                                             TIP_(node.typeinfo->ui_description_fn(node)) :
                                             TIP_(node.typeinfo->ui_description);
-        if (!description.empty()) {
+        const bool have_description = !description.empty();
+        if (have_description) {
           tooltip_text_field_add(
               data, std::move(description), "", ui::TIP_STYLE_NORMAL, ui::TIP_LC_NORMAL);
         }
@@ -2836,7 +2834,7 @@ static void node_header_custom_tooltip(const bNodeTree &ntree, const bNode &node
                                  "",
                                  ui::TIP_STYLE_MONO,
                                  ui::TIP_LC_DIMMED,
-                                 !description.empty());
+                                 have_description);
         }
       });
 }
@@ -2900,9 +2898,7 @@ static void node_draw_basis(const bContext &C,
       if (const nodes::eval_log::NodeTreeLog *tree_log = tree_draw_ctx.tree_logs.get_main_tree_log(
               node))
       {
-        if (const nodes::eval_log::NodeLog *node_log = tree_log->nodes.lookup_ptr_as(
-                node.identifier))
-        {
+        if (const nodes::eval_log::NodeLog *node_log = tree_log->find_node_log(node.identifier)) {
           if (node_log->image_preview) {
             node_draw_extra_info_panel(
                 C, tree_draw_ctx, snode, node, node_log->image_preview, block);
@@ -2978,6 +2974,8 @@ static void node_draw_basis(const bContext &C,
                                    0,
                                    0,
                                    "");
+    /* The operator already adds an undo step, so no need for the button to also add one. */
+    button_flag_disable(but, ui::BUT_UNDO);
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
@@ -3101,6 +3099,8 @@ static void node_draw_basis(const bContext &C,
                                    0.0f,
                                    "");
 
+    /* The operator already adds an undo step, so no need for the button to also add one. */
+    button_flag_disable(but, ui::BUT_UNDO);
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
@@ -3297,6 +3297,8 @@ static void node_draw_collapsed(const bContext &C,
                                    0.0f,
                                    "");
 
+    /* The operator already adds an undo step, so no need for the button to also add one. */
+    button_flag_disable(but, ui::BUT_UNDO);
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
