@@ -1779,11 +1779,11 @@ static void region_rect_recursive(
           BKE_regiontype_uses_categories(region->runtime->type))
       {
         /* Update category tab width when #USER_UIFLAG2_PANEL_TABS_COMPACT flag is set/unset. */
-        float aspect = BLI_rctf_size_y(&region->v2d.cur) /
-                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
-        if (IS_EQF(aspect, 0)) {
-          aspect = 1.0f;
-        }
+        float aspect = (region->v2d.flag & V2D_IS_INIT) ?
+                           (BLI_rctf_size_y(&region->v2d.cur) /
+                            (BLI_rcti_size_y(&region->v2d.mask) + 1)) :
+                           1.0f;
+
         const int tab_auto_snap_width = (UI_PANEL_CATEGORY_MIN_WIDTH + ui::PANEL_MIN_DRAW_WIDTH) *
                                         UI_SCALE_FAC / aspect;
         if (prefsizex < tab_auto_snap_width) {
