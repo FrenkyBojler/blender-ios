@@ -42,6 +42,12 @@ namespace blender::ed::animrig {
 
 constexpr const char *clipboard_name = "world_space_buffer.blend";
 
+/* Maps the name of the entity as stored in the clipboard to the 12 FCurves that make the world
+ * space matrix. */
+using ClipboardData = Map<StringRefNull, Array<FCurve *>>;
+/* For each transformable, maps to an entity name on the clipboard to read FCurves from. */
+using PasteMap = Map<AnimTransformable *, StringRefNull>;
+
 /* Stores which other AnimTransformables have to be applied before it. */
 struct TransformableRelations {
   AnimTransformable *transformable = nullptr;
@@ -494,11 +500,10 @@ static void copy_world_space(Main &bmain,
 }
 
 /* Build a map of the transformable name to the name in the clipboard to read from. */
-static Map<AnimTransformable *, StringRefNull> generate_paste_mapping(
-    const MutableSpan<AnimTransformable> transformables,
-    const Map<StringRefNull, Array<FCurve *>> &clipboard_data)
+static PasteMap generate_paste_mapping(const MutableSpan<AnimTransformable> transformables,
+                                       const ClipboardData &clipboard_data)
 {
-  Map<AnimTransformable *, StringRefNull> paste_map;
+  PasteMap paste_map;
 
   const bool from_single = clipboard_data.size() == 1;
   const bool to_single = transformables.size() == 1;
@@ -614,23 +619,6 @@ static bAction *read_action_from_clipboard(Main *clipboard_bmain,
     return nullptr;
   }
 
-  ar::Channelbag &channelbag = *clipboard_action.strip_keyframe_data()[0]->channelbags()[0];
-  Map<StringRefNull, Array<FCurve *>> clipboard_data;
-  for (FCurve *fcurve : channelbag.fcurves()) {
-    BLI_assert(fcurve != nullptr);
-    Array<FCurve *> &fcurves = clipboard_data.lookup_or_add(fcurve->rna_path, Array<FCurve *>(12));
-    fcurves[fcurve->array_index] = fcurve;
-  }
-
-  for (Array<FCurve *> &fcurves : clipboard_data.values()) {
-    for (FCurve *fcurve : fcurves) {
-      if (fcurve == nullptr) {
-        BKE_report(&reports, RPT_ERROR, "Clipboard contains incomplete animation data");
-        return nullptr;
-      }
-    }
-  }
-
   return clipboard_dna_action;
 }
 
@@ -638,15 +626,17 @@ static void paste_world_space(Main &bmain,
                               Scene &scene,
                               ViewLayer &view_layer,
                               ReportList &reports,
-                              bAction *clipboard_dna_action,
+                              bAction &clipboard_dna_action,
                               const MutableSpan<AnimTransformable> transformables,
                               const AnimationPasteOffset offset)
 {
   namespace ar = blender::animrig;
 
-  ar::Action &clipboard_action = clipboard_dna_action->wrap();
+  ar::Action &clipboard_action = clipboard_dna_action.wrap();
+  BLI_assert(clipboard_action.strip_keyframe_data_array_num == 1 &&
+             clipboard_action.strip_keyframe_data()[0]->channelbag_array_num == 1);
   ar::Channelbag &channelbag = *clipboard_action.strip_keyframe_data()[0]->channelbags()[0];
-  Map<StringRefNull, Array<FCurve *>> clipboard_data;
+  ClipboardData clipboard_data;
   for (FCurve *fcurve : channelbag.fcurves()) {
     BLI_assert(fcurve != nullptr);
     Array<FCurve *> &fcurves = clipboard_data.lookup_or_add(fcurve->rna_path, Array<FCurve *>(12));
@@ -662,8 +652,7 @@ static void paste_world_space(Main &bmain,
     }
   }
 
-  Map<AnimTransformable *, StringRefNull> paste_map = generate_paste_mapping(transformables,
-                                                                             clipboard_data);
+  PasteMap paste_map = generate_paste_mapping(transformables, clipboard_data);
 
   if (paste_map.size() == 0) {
     BKE_report(&reports, RPT_ERROR, "Cannot match selection to clipboard data");
@@ -689,10 +678,10 @@ static void paste_world_space(Main &bmain,
   if (sorted_transformables.size() != pasteables.size()) {
     BKE_report(
         &reports, RPT_ERROR, "Failed to figure out pasting order. Potential dependency cycle");
+    return;
   }
 
-  Bounds<int> range = {int(clipboard_dna_action->frame_start),
-                       int(clipboard_dna_action->frame_end)};
+  Bounds<int> range = {int(clipboard_action.frame_start), int(clipboard_action.frame_end)};
   if (offset == AnimationPasteOffset::CURRENT_FRAME) {
     const int paste_length = range.size();
     const int start_frame = scene.r.cfra;
@@ -904,13 +893,13 @@ static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
                     *CTX_data_scene(C),
                     *CTX_data_view_layer(C),
                     *op->reports,
-                    clipboard_dna_action,
+                    *clipboard_dna_action,
                     transformables,
                     offset);
 
-  for (AnimTransformable &t : transformables) {
-    DEG_id_tag_update(t.owner_id(), ID_RECALC_ANIMATION);
-    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, t.owner_id());
+  for (AnimTransformable &transformable : transformables) {
+    DEG_id_tag_update(transformable.owner_id(), ID_RECALC_ANIMATION);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, transformable.owner_id());
   }
 
   BKE_main_free(clipboard_bmain);
