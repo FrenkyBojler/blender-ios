@@ -97,7 +97,7 @@ class AddPresetBase:
     )
 
     @classmethod
-    def description(cls, context, properties):
+    def description(cls, _context, properties):
         desc = cls.bl_label or (cls.__doc__.strip() if cls.__doc__ else None)
         contains_prefix = desc and (desc.lower().startswith("add or remove a ")
                                     or desc.lower().startswith("add or remove an "))
