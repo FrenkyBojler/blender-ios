@@ -13,15 +13,16 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
+#include "BKE_layer.hh"
 
 #include "BLT_translation.hh"
 
@@ -39,14 +40,15 @@ namespace blender::ed::transform {
 eTfmMode transform_mode_really_used(bContext *C, eTfmMode mode)
 {
   if (mode == TFM_BONESIZE) {
-    Object *ob = CTX_data_active_object(C);
+    /* Use context here as `TransInfo` scene/view_layer members aren't yet initialized. */
+    Main &bmain = *CTX_data_main(C);
+    Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    BKE_view_layer_synced_ensure(bmain, scene, view_layer);
+    const Object *ob = BKE_view_layer_active_object_get(view_layer);
     BLI_assert(ob);
     if (ob->type != OB_ARMATURE) {
       return TFM_RESIZE;
-    }
-    bArmature *arm = static_cast<bArmature *>(ob->data);
-    if (arm->drawtype == ARM_DRAW_TYPE_ENVELOPE) {
-      return TFM_BONE_ENVELOPE_DIST;
     }
   }
 
@@ -261,7 +263,7 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
     float ctime = float(t->scene->r.cfra);
 
     /* Make a temporary bConstraintOb for using these limit constraints
-     * - They only care that cob->matrix is correctly set ;-).
+     * - They only care that cob->matrix is correctly set.
      * - Current space should be local.
      */
     unit_m4(cob.matrix);
@@ -270,7 +272,7 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
     /* Evaluate valid constraints. */
     for (con = td->con; con; con = con->next) {
       const bConstraintTypeInfo *cti = nullptr;
-      ListBase targets = {nullptr, nullptr};
+      ListBaseT<bConstraintTarget> targets = {nullptr, nullptr};
 
       /* Only consider constraint if enabled. */
       if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) {
@@ -282,7 +284,7 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
 
       /* Only use it if it's tagged for this purpose (and the right type). */
       if (con->type == CONSTRAINT_TYPE_LOCLIMIT) {
-        bLocLimitConstraint *data = (bLocLimitConstraint *)con->data;
+        bLocLimitConstraint *data = static_cast<bLocLimitConstraint *>(con->data);
 
         if ((data->flag2 & LIMIT_TRANSFORM) == 0) {
           continue;
@@ -290,7 +292,7 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
         cti = ctiLoc;
       }
       else if (con->type == CONSTRAINT_TYPE_DISTLIMIT) {
-        bDistLimitConstraint *data = (bDistLimitConstraint *)con->data;
+        bDistLimitConstraint *data = static_cast<bDistLimitConstraint *>(con->data);
 
         if ((data->flag & LIMITDIST_TRANSFORM) == 0) {
           continue;
@@ -338,7 +340,7 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
         }
 
         /* Free targets list. */
-        BLI_freelistN(&targets);
+        targets.free_no_destruct();
       }
     }
 
@@ -350,8 +352,8 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
 static void constraintob_from_transdata(bConstraintOb *cob, TransDataExtension *td_ext)
 {
   /* Make a temporary bConstraintOb for use by limit constraints
-   * - they only care that cob->matrix is correctly set ;-)
-   * - current space should be local
+   * - They only care that cob->matrix is correctly set.
+   * - Current space should be local
    */
   memset(cob, 0, sizeof(bConstraintOb));
   if (!td_ext) {
@@ -396,7 +398,7 @@ static void constraintRotLim(const TransInfo * /*t*/, TransData *td, TransDataEx
 
       /* We're only interested in Limit-Rotation constraints. */
       if (con->type == CONSTRAINT_TYPE_ROTLIMIT) {
-        bRotLimitConstraint *data = (bRotLimitConstraint *)con->data;
+        bRotLimitConstraint *data = static_cast<bRotLimitConstraint *>(con->data);
 
         /* Only use it if it's tagged for this purpose. */
         if ((data->flag2 & LIMIT_TRANSFORM) == 0) {
@@ -570,20 +572,20 @@ void headerRotation(TransInfo *t, char *str, const int str_size, float final)
 
     outputNumInput(&(t->num), c, t->scene->unit);
 
-    ofs += BLI_snprintf_rlen(
+    ofs += BLI_snprintf_utf8_rlen(
         str + ofs, str_size - ofs, IFACE_("Rotation: %s %s %s"), &c[0], t->con.text, t->proptext);
   }
   else {
-    ofs += BLI_snprintf_rlen(str + ofs,
-                             str_size - ofs,
-                             IFACE_("Rotation: %.2f%s %s"),
-                             RAD2DEGF(final),
-                             t->con.text,
-                             t->proptext);
+    ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                  str_size - ofs,
+                                  IFACE_("Rotation: %.2f%s %s"),
+                                  RAD2DEGF(final),
+                                  t->con.text,
+                                  t->proptext);
   }
 
   if (t->flag & T_PROP_EDIT_ALL) {
-    ofs += BLI_snprintf_rlen(
+    ofs += BLI_snprintf_utf8_rlen(
         str + ofs, str_size - ofs, IFACE_(" Proportional size: %.2f"), t->prop_size);
   }
 }
@@ -651,7 +653,7 @@ void ElementRotation_ex(const TransInfo *t,
     /* Extract and invert armature object matrix. */
 
     if ((td->flag & TD_NO_LOC) == 0) {
-      sub_v3_v3v3(vec, td->center, center);
+      sub_v3_v3v3(vec, td_ext->center_no_override, center);
 
       mul_m3_v3(tc->mat3, vec);  /* To Global space. */
       mul_m3_v3(mat, vec);       /* Applying rotation. */
@@ -660,7 +662,8 @@ void ElementRotation_ex(const TransInfo *t,
       add_v3_v3(vec, center);
       /* `vec` now is the location where the object has to be. */
 
-      sub_v3_v3v3(vec, vec, td->center); /* Translation needed from the initial location. */
+      /* Translation needed from the initial location. */
+      sub_v3_v3v3(vec, vec, td_ext->center_no_override);
 
       /* Special exception, see TD_PBONE_LOCAL_MTX definition comments. */
       if (td->flag & TD_PBONE_LOCAL_MTX_P) {
@@ -874,66 +877,66 @@ void headerResize(TransInfo *t, const float vec[3], char *str, const int str_siz
     outputNumInput(&(t->num), tvec, t->scene->unit);
   }
   else {
-    BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", vec[0]);
-    BLI_snprintf(&tvec[NUM_STR_REP_LEN], NUM_STR_REP_LEN, "%.4f", vec[1]);
-    BLI_snprintf(&tvec[NUM_STR_REP_LEN * 2], NUM_STR_REP_LEN, "%.4f", vec[2]);
+    BLI_snprintf_utf8(&tvec[0], NUM_STR_REP_LEN, "%.4f", vec[0]);
+    BLI_snprintf_utf8(&tvec[NUM_STR_REP_LEN], NUM_STR_REP_LEN, "%.4f", vec[1]);
+    BLI_snprintf_utf8(&tvec[NUM_STR_REP_LEN * 2], NUM_STR_REP_LEN, "%.4f", vec[2]);
   }
 
   if (t->con.mode & CON_APPLY) {
     switch (t->num.idx_max) {
       case 0:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 str_size - ofs,
-                                 IFACE_("Scale: %s%s %s"),
-                                 &tvec[0],
-                                 t->con.text,
-                                 t->proptext);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      str_size - ofs,
+                                      IFACE_("Scale: %s%s %s"),
+                                      &tvec[0],
+                                      t->con.text,
+                                      t->proptext);
         break;
       case 1:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 str_size - ofs,
-                                 IFACE_("Scale: %s : %s%s %s"),
-                                 &tvec[0],
-                                 &tvec[NUM_STR_REP_LEN],
-                                 t->con.text,
-                                 t->proptext);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      str_size - ofs,
+                                      IFACE_("Scale: %s : %s%s %s"),
+                                      &tvec[0],
+                                      &tvec[NUM_STR_REP_LEN],
+                                      t->con.text,
+                                      t->proptext);
         break;
       case 2:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 str_size - ofs,
-                                 IFACE_("Scale: %s : %s : %s%s %s"),
-                                 &tvec[0],
-                                 &tvec[NUM_STR_REP_LEN],
-                                 &tvec[NUM_STR_REP_LEN * 2],
-                                 t->con.text,
-                                 t->proptext);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      str_size - ofs,
+                                      IFACE_("Scale: %s : %s : %s%s %s"),
+                                      &tvec[0],
+                                      &tvec[NUM_STR_REP_LEN],
+                                      &tvec[NUM_STR_REP_LEN * 2],
+                                      t->con.text,
+                                      t->proptext);
         break;
     }
   }
   else {
     if (t->flag & T_2D_EDIT) {
-      ofs += BLI_snprintf_rlen(str + ofs,
-                               str_size - ofs,
-                               IFACE_("Scale X: %s   Y: %s%s %s"),
-                               &tvec[0],
-                               &tvec[NUM_STR_REP_LEN],
-                               t->con.text,
-                               t->proptext);
+      ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                    str_size - ofs,
+                                    IFACE_("Scale X: %s   Y: %s%s %s"),
+                                    &tvec[0],
+                                    &tvec[NUM_STR_REP_LEN],
+                                    t->con.text,
+                                    t->proptext);
     }
     else {
-      ofs += BLI_snprintf_rlen(str + ofs,
-                               str_size - ofs,
-                               IFACE_("Scale X: %s   Y: %s  Z: %s%s %s"),
-                               &tvec[0],
-                               &tvec[NUM_STR_REP_LEN],
-                               &tvec[NUM_STR_REP_LEN * 2],
-                               t->con.text,
-                               t->proptext);
+      ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                    str_size - ofs,
+                                    IFACE_("Scale X: %s   Y: %s  Z: %s%s %s"),
+                                    &tvec[0],
+                                    &tvec[NUM_STR_REP_LEN],
+                                    &tvec[NUM_STR_REP_LEN * 2],
+                                    t->con.text,
+                                    t->proptext);
     }
   }
 
   if (t->flag & T_PROP_EDIT_ALL) {
-    ofs += BLI_snprintf_rlen(
+    ofs += BLI_snprintf_utf8_rlen(
         str + ofs, str_size - ofs, IFACE_(" Proportional size: %.2f"), t->prop_size);
   }
 }
@@ -1250,7 +1253,8 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type)
     rv3d = static_cast<RegionView3D *>(t->region->regiondata);
   }
 
-  t->orient[O_DEFAULT].type = calc_orientation_from_type_ex(t->scene,
+  t->orient[O_DEFAULT].type = calc_orientation_from_type_ex(*t->bmain,
+                                                            t->scene,
                                                             t->view_layer,
                                                             v3d,
                                                             rv3d,
@@ -1273,6 +1277,13 @@ void transform_mode_rotation_axis_get(const TransInfo *t, float3 &r_axis)
   }
   else {
     r_axis = t->spacemtx[t->orient_axis];
+    /* For unconstrained rotation in the 3D viewport, flip the axis so the rotation direction
+     * matches the mouse movement in view space. */
+    if ((t->mode == TFM_ROTATION) && (t->con.mode & CON_APPLY) == 0 &&
+        (t->spacetype == SPACE_VIEW3D))
+    {
+      r_axis = -r_axis;
+    }
   }
 }
 

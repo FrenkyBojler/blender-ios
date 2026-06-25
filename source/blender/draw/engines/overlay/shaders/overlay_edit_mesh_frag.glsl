@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_edit_mesh_edge)
 
@@ -16,9 +16,7 @@ float edge_step(float dist)
   if (do_smooth_wire) {
     return smoothstep(LINE_SMOOTH_START, LINE_SMOOTH_END, dist);
   }
-  else {
-    return step(0.5f, dist);
-  }
+  return step(0.5f, dist);
 }
 
 void main()

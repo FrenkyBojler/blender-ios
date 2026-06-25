@@ -4,8 +4,10 @@
 
 #include "testing/testing.h"
 
-#include "BLI_math_color.h"
-#include "BLI_math_color_blend.h"
+#include "BLI_math_color_blend.hh"
+#include "BLI_math_color_c.hh"
+
+namespace blender {
 
 TEST(math_color, RGBToHSVRoundtrip)
 {
@@ -177,3 +179,5 @@ TEST(math_color, BlendModeConsistency_SoftLight)
   EXPECT_NEAR(fdst[1] * 255.0f, bdst[1], 1.0f);
   EXPECT_NEAR(fdst[2] * 255.0f, bdst[2], 1.0f);
 }
+
+}  // namespace blender

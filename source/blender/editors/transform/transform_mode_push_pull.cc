@@ -8,9 +8,9 @@
 
 #include <cstdlib>
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_task.hh"
 
 #include "BKE_unit.hh"
@@ -87,11 +87,11 @@ static void applyPushPull(TransInfo *t)
 
     outputNumInput(&(t->num), c, t->scene->unit);
 
-    SNPRINTF(str, IFACE_("Push/Pull: %s%s %s"), c, t->con.text, t->proptext);
+    SNPRINTF_UTF8(str, IFACE_("Push/Pull: %s%s %s"), c, t->con.text, t->proptext);
   }
   else {
     /* Default header print. */
-    SNPRINTF(str, IFACE_("Push/Pull: %.4f%s %s"), distance, t->con.text, t->proptext);
+    SNPRINTF_UTF8(str, IFACE_("Push/Pull: %.4f%s %s"), distance, t->con.text, t->proptext);
   }
 
   if (t->con.applyRot && t->con.mode & CON_APPLY) {

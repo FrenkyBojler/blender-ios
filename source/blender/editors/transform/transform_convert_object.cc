@@ -8,10 +8,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 #include "BKE_duplilist.hh"
@@ -76,7 +76,7 @@ static void freeTransObjectCustomData(TransInfo *t,
   if (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) {
     object::object_xform_skip_child_container_destroy(tdo->xcs);
   }
-  MEM_freeN(tdo);
+  MEM_delete(tdo);
 }
 
 /** \} */
@@ -298,15 +298,31 @@ static void ObjectToTransData(TransInfo *t, TransData *td, TransDataExtension *t
   }
 }
 
-static void trans_object_base_deps_flag_prepare(const Scene *scene, ViewLayer *view_layer)
+static void trans_object_base_deps_flag_prepare(const TransInfo *t,
+                                                const Scene *scene,
+                                                ViewLayer *view_layer)
 {
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    base->object->id.tag &= ~ID_TAG_DOIT;
+  if (t->options & CTX_OBMODE_XFORM_OBDATA) {
+    return;
+  }
+  BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    base.object->id.tag &= ~ID_TAG_DOIT;
   }
 }
 
-static void set_trans_object_base_deps_flag_cb(ID *id, eDepsObjectComponentType component)
+static void tag_trans_objects_with_geometry_dep_only_fn(ID *id, eDepsObjectComponentType component)
+{
+  /* Here we only handle object IDs. */
+  if (GS(id->name) != ID_OB) {
+    return;
+  }
+  if (component == DEG_OB_COMP_GEOMETRY) {
+    id->tag |= ID_TAG_DOIT;
+  }
+}
+
+static void tag_trans_objects_dep_fn(ID *id, eDepsObjectComponentType component)
 {
   /* Here we only handle object IDs. */
   if (GS(id->name) != ID_OB) {
@@ -318,27 +334,40 @@ static void set_trans_object_base_deps_flag_cb(ID *id, eDepsObjectComponentType 
   id->tag |= ID_TAG_DOIT;
 }
 
-static void flush_trans_object_base_deps_flag(Depsgraph *depsgraph, Object *object)
+static void flush_trans_object_base_deps_flag(const TransInfo *t, Object *object)
 {
+  if (t->options & CTX_OBMODE_XFORM_OBDATA) {
+    return;
+  }
   object->id.tag |= ID_TAG_DOIT;
-  DEG_foreach_dependent_ID_component(depsgraph,
-                                     &object->id,
-                                     DEG_OB_COMP_TRANSFORM,
-                                     DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
-                                     set_trans_object_base_deps_flag_cb);
+
+  DEG_foreach_dependent_ID_component(
+      t->depsgraph,
+      &object->id,
+      DEG_OB_COMP_TRANSFORM,
+      DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
+
+      /* When we transform parents while skipping children, we only traverse the GEOMETRY-dependent
+       * components. This avoids marking children as not participating in snapping but still marks
+       * objects with modifier dependencies.
+       * Unfortunately, some transform-dependent objects that are not children may also be skipped,
+       * such as constrained ones.
+       * See #121378 for details. */
+      (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) ? tag_trans_objects_with_geometry_dep_only_fn :
+                                                      tag_trans_objects_dep_fn);
 }
 
 static void trans_object_base_deps_flag_finish(const TransInfo *t,
                                                const Scene *scene,
                                                ViewLayer *view_layer)
 {
-
-  if ((t->options & CTX_OBMODE_XFORM_OBDATA) == 0) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      if (base->object->id.tag & ID_TAG_DOIT) {
-        base->flag_legacy |= BA_SNAP_FIX_DEPS_FIASCO;
-      }
+  if (t->options & CTX_OBMODE_XFORM_OBDATA) {
+    return;
+  }
+  BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (base.object->id.tag & ID_TAG_DOIT) {
+      base.flag_legacy |= BA_SNAP_FIX_DEPS_FIASCO;
     }
   }
 }
@@ -362,17 +391,17 @@ static void set_trans_object_base_flags(TransInfo *t)
     return;
   }
   /* Makes sure base flags and object flags are identical. */
-  BKE_scene_base_flag_to_objects(t->scene, t->view_layer);
+  BKE_scene_base_flag_to_objects(*t->bmain, t->scene, t->view_layer);
   /* Make sure depsgraph is here. */
   DEG_graph_relations_update(depsgraph);
   /* Clear all flags we need. It will be used to detect dependencies. */
-  trans_object_base_deps_flag_prepare(scene, view_layer);
+  trans_object_base_deps_flag_prepare(t, scene, view_layer);
   /* Traverse all bases and set all possible flags. */
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    base->flag_legacy &= ~(BA_WAS_SEL | BA_TRANSFORM_LOCKED_IN_PLACE);
-    if (BASE_SELECTED_EDITABLE(v3d, base)) {
-      Object *ob = base->object;
+  BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    base.flag_legacy &= ~(BA_WAS_SEL | BA_TRANSFORM_LOCKED_IN_PLACE);
+    if (BASE_SELECTED_EDITABLE(v3d, &base)) {
+      Object *ob = base.object;
       Object *parsel = ob->parent;
       /* If parent selected, deselect. */
       while (parsel != nullptr) {
@@ -390,14 +419,14 @@ static void set_trans_object_base_flags(TransInfo *t)
         /* Rotation around local centers are allowed to propagate. */
         if ((t->around == V3D_AROUND_LOCAL_ORIGINS) && ELEM(t->mode, TFM_ROTATION, TFM_TRACKBALL))
         {
-          base->flag_legacy |= BA_TRANSFORM_CHILD;
+          base.flag_legacy |= BA_TRANSFORM_CHILD;
         }
         else {
-          base->flag &= ~BASE_SELECTED;
-          base->flag_legacy |= BA_WAS_SEL;
+          base.flag &= ~BASE_SELECTED;
+          base.flag_legacy |= BA_WAS_SEL;
         }
       }
-      flush_trans_object_base_deps_flag(depsgraph, ob);
+      flush_trans_object_base_deps_flag(t, ob);
     }
   }
   /* Store temporary bits in base indicating that base is being modified
@@ -427,17 +456,15 @@ static int count_proportional_objects(TransInfo *t)
   int total = 0;
   ViewLayer *view_layer = t->view_layer;
   View3D *v3d = static_cast<View3D *>(t->view);
-  Main *bmain = CTX_data_main(t->context);
   Scene *scene = t->scene;
-  Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
   /* Clear all flags we need. It will be used to detect dependencies. */
-  trans_object_base_deps_flag_prepare(scene, view_layer);
+  trans_object_base_deps_flag_prepare(t, scene, view_layer);
   /* Rotations around local centers are allowed to propagate, so we take all objects. */
   if (!((t->around == V3D_AROUND_LOCAL_ORIGINS) && ELEM(t->mode, TFM_ROTATION, TFM_TRACKBALL))) {
     /* Mark all parents. */
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      if (BASE_SELECTED_EDITABLE(v3d, base) && BASE_SELECTABLE(v3d, base)) {
-        Object *parent = base->object->parent;
+    for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+      if (BASE_SELECTED_EDITABLE(v3d, &base) && BASE_SELECTABLE(v3d, &base)) {
+        Object *parent = base.object->parent;
         /* Flag all parents. */
         while (parent != nullptr) {
           parent->flag |= BA_TRANSFORM_PARENT;
@@ -446,27 +473,27 @@ static int count_proportional_objects(TransInfo *t)
       }
     }
     /* Mark all children. */
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+    for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
       /* All base not already selected or marked that is editable. */
-      if ((base->object->flag & (BA_TRANSFORM_CHILD | BA_TRANSFORM_PARENT)) == 0 &&
-          (base->flag & BASE_SELECTED) == 0 &&
-          (BASE_EDITABLE(v3d, base) && BASE_SELECTABLE(v3d, base)))
+      if ((base.object->flag & (BA_TRANSFORM_CHILD | BA_TRANSFORM_PARENT)) == 0 &&
+          (base.flag & BASE_SELECTED) == 0 &&
+          (BASE_EDITABLE(v3d, &base) && BASE_SELECTABLE(v3d, &base)))
       {
-        mark_children(base->object);
+        mark_children(base.object);
       }
     }
   }
   /* Flush changed flags to all dependencies. */
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    Object *ob = base->object;
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    Object *ob = base.object;
     /* If base is not selected, not a parent of selection or not a child of
      * selection and it is editable and selectable.
      */
     if ((ob->flag & (BA_TRANSFORM_CHILD | BA_TRANSFORM_PARENT)) == 0 &&
-        (base->flag & BASE_SELECTED) == 0 &&
-        (BASE_EDITABLE(v3d, base) && BASE_SELECTABLE(v3d, base)))
+        (base.flag & BASE_SELECTED) == 0 &&
+        (BASE_EDITABLE(v3d, &base) && BASE_SELECTABLE(v3d, &base)))
     {
-      flush_trans_object_base_deps_flag(depsgraph, ob);
+      flush_trans_object_base_deps_flag(t, ob);
       total += 1;
     }
   }
@@ -482,15 +509,14 @@ static void clear_trans_object_base_flags(TransInfo *t)
   Scene *scene = t->scene;
   ViewLayer *view_layer = t->view_layer;
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    if (base->flag_legacy & BA_WAS_SEL) {
-      object::base_select(base, object::BA_SELECT);
+  BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (base.flag_legacy & BA_WAS_SEL) {
+      object::base_select(&base, object::BA_SELECT);
     }
 
-    base->flag_legacy &= ~(BA_WAS_SEL | BA_SNAP_FIX_DEPS_FIASCO | BA_TEMP_TAG |
-                           BA_TRANSFORM_CHILD | BA_TRANSFORM_PARENT |
-                           BA_TRANSFORM_LOCKED_IN_PLACE);
+    base.flag_legacy &= ~(BA_WAS_SEL | BA_SNAP_FIX_DEPS_FIASCO | BA_TEMP_TAG | BA_TRANSFORM_CHILD |
+                          BA_TRANSFORM_PARENT | BA_TRANSFORM_LOCKED_IN_PLACE);
   }
 }
 
@@ -518,10 +544,10 @@ static void createTransObject(bContext *C, TransInfo *t)
     tc->data_len += count_proportional_objects(t);
   }
 
-  td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransOb");
-  tx = tc->data_ext = MEM_calloc_arrayN<TransDataExtension>(tc->data_len, "TransObExtension");
+  td = tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransOb");
+  tx = tc->data_ext = MEM_new_array_zeroed<TransDataExtension>(tc->data_len, "TransObExtension");
 
-  TransDataObject *tdo = MEM_callocN<TransDataObject>(__func__);
+  TransDataObject *tdo = MEM_new_zeroed<TransDataObject>(__func__);
   t->custom.type.data = tdo;
   t->custom.type.free_cb = freeTransObjectCustomData;
 
@@ -536,7 +562,7 @@ static void createTransObject(bContext *C, TransInfo *t)
     td->protectflag = ob->protectflag;
     tx->rotOrder = ob->rotmode;
 
-    if (base->flag & BA_TRANSFORM_CHILD) {
+    if (base->flag_legacy & BA_TRANSFORM_CHILD) {
       td->flag |= TD_NOCENTER;
       td->flag |= TD_NO_LOC;
     }
@@ -547,7 +573,7 @@ static void createTransObject(bContext *C, TransInfo *t)
     }
 
     if (t->options & CTX_OBMODE_XFORM_OBDATA) {
-      ID *id = static_cast<ID *>(ob->data);
+      ID *id = ob->data;
       if (!id || id->lib) {
         td->flag |= TD_SKIP;
       }
@@ -576,15 +602,15 @@ static void createTransObject(bContext *C, TransInfo *t)
     ViewLayer *view_layer = t->view_layer;
     View3D *v3d = static_cast<View3D *>(t->view);
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      Object *ob = base->object;
+    BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
+    for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+      Object *ob = base.object;
 
       /* If base is not selected, not a parent of selection
        * or not a child of selection and it is editable and selectable. */
       if ((ob->flag & (BA_TRANSFORM_CHILD | BA_TRANSFORM_PARENT)) == 0 &&
-          (base->flag & BASE_SELECTED) == 0 && BASE_EDITABLE(v3d, base) &&
-          BASE_SELECTABLE(v3d, base))
+          (base.flag & BASE_SELECTED) == 0 && BASE_EDITABLE(v3d, &base) &&
+          BASE_SELECTABLE(v3d, &base))
       {
         td->protectflag = ob->protectflag;
         tx->rotOrder = ob->rotmode;
@@ -610,14 +636,14 @@ static void createTransObject(bContext *C, TransInfo *t)
     ViewLayer *view_layer = t->view_layer;
     View3D *v3d = static_cast<View3D *>(t->view);
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      Object *ob = base->object;
+    BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
+    for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+      Object *ob = base.object;
 
       /* If base is not selected, not a parent of selection
        * or not a child of selection and it is editable and selectable. */
-      if ((base->flag_legacy & BA_WAS_SEL) && (base->flag & BASE_SELECTED) == 0 &&
-          BASE_EDITABLE(v3d, base) && BASE_SELECTABLE(v3d, base))
+      if ((base.flag_legacy & BA_WAS_SEL) && (base.flag & BASE_SELECTED) == 0 &&
+          BASE_EDITABLE(v3d, &base) && BASE_SELECTABLE(v3d, &base))
       {
 
         Object *ob_parent = ob->parent;
@@ -646,10 +672,11 @@ static void createTransObject(bContext *C, TransInfo *t)
 
 #define BASE_XFORM_INDIRECT(base) \
 \
-  ((base->flag_legacy & BA_WAS_SEL) && (base->flag & BASE_SELECTED) == 0)
+  (((base)->flag_legacy & BA_WAS_SEL) && ((base)->flag & BASE_SELECTED) == 0)
 
     Set<Object *> objects_in_transdata;
-    GHash *objects_parent_root = BLI_ghash_ptr_new_ex(__func__, tc->data_len);
+    Map<Object *, Object *> objects_parent_root;
+    objects_parent_root.reserve(tc->data_len);
     td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
       if ((td->flag & TD_SKIP) == 0) {
@@ -660,14 +687,14 @@ static void createTransObject(bContext *C, TransInfo *t)
     Scene *scene = t->scene;
     ViewLayer *view_layer = t->view_layer;
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      Object *ob = base->object;
+    BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
+    for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+      Object *ob = base.object;
       if (ob->parent != nullptr) {
         if (ob->parent && !objects_in_transdata.contains(ob->parent) &&
             !objects_in_transdata.contains(ob))
         {
-          if ((base->flag_legacy & BA_WAS_SEL) && (base->flag & BASE_SELECTED) == 0) {
+          if ((base.flag_legacy & BA_WAS_SEL) && (base.flag & BASE_SELECTED) == 0) {
             Base *base_parent = BKE_view_layer_base_find(view_layer, ob->parent);
             if (base_parent && !BASE_XFORM_INDIRECT(base_parent)) {
               Object *ob_parent_recurse = ob->parent;
@@ -682,8 +709,9 @@ static void createTransObject(bContext *C, TransInfo *t)
                 if (ob_parent_recurse) {
                   object::object_xform_skip_child_container_item_ensure(
                       tdo->xcs, ob, ob_parent_recurse, object::XFORM_OB_SKIP_CHILD_PARENT_APPLY);
-                  BLI_ghash_insert(objects_parent_root, ob, ob_parent_recurse);
-                  base->flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+                  objects_parent_root.add(ob, ob_parent_recurse);
+                  base.flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+                  base.flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
                 }
               }
             }
@@ -692,10 +720,10 @@ static void createTransObject(bContext *C, TransInfo *t)
       }
     }
 
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      Object *ob = base->object;
+    for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+      Object *ob = base.object;
 
-      if (BASE_XFORM_INDIRECT(base) || objects_in_transdata.contains(ob)) {
+      if (BASE_XFORM_INDIRECT(&base) || objects_in_transdata.contains(ob)) {
         /* Pass. */
       }
       else if (ob->parent != nullptr) {
@@ -704,11 +732,11 @@ static void createTransObject(bContext *C, TransInfo *t)
           if (BASE_XFORM_INDIRECT(base_parent) || objects_in_transdata.contains(ob->parent)) {
             object::object_xform_skip_child_container_item_ensure(
                 tdo->xcs, ob, nullptr, object::XFORM_OB_SKIP_CHILD_PARENT_IS_XFORM);
-            base->flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+            base.flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+            base.flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
           }
           else {
-            Object *ob_parent_recurse = static_cast<Object *>(
-                BLI_ghash_lookup(objects_parent_root, ob->parent));
+            Object *ob_parent_recurse = objects_parent_root.lookup_default(ob->parent, nullptr);
             if (ob_parent_recurse) {
               object::object_xform_skip_child_container_item_ensure(
                   tdo->xcs,
@@ -720,7 +748,6 @@ static void createTransObject(bContext *C, TransInfo *t)
         }
       }
     }
-    BLI_ghash_free(objects_parent_root, nullptr, nullptr);
 
 #undef BASE_XFORM_INDIRECT
   }
@@ -757,6 +784,7 @@ static bool motionpath_need_update_object(Scene *scene, Object *ob)
 /* Given the transform mode `tmode` return a Vector of RNA paths that were possibly modified during
  * that transformation. */
 static Vector<RNAPath> get_affected_rna_paths_from_transform_mode(
+    const Main &bmain,
     const eTfmMode tmode,
     Scene *scene,
     ViewLayer *view_layer,
@@ -769,7 +797,7 @@ static Vector<RNAPath> get_affected_rna_paths_from_transform_mode(
   /* Handle the cases where we always need to key location, regardless of
    * transform mode. */
   if (scene->toolsettings->transform_pivot_point == V3D_AROUND_ACTIVE) {
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(bmain, scene, view_layer);
     if (ob != BKE_view_layer_active_object_get(view_layer)) {
       rna_paths.append({"location"});
     }
@@ -819,11 +847,12 @@ static void autokeyframe_object(bContext *C,
 {
   Vector<RNAPath> rna_paths;
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  const StringRef rotation_path = animrig::get_rotation_mode_path(eRotationModes(ob->rotmode));
+  const StringRefNull rotation_path = animrig::get_rotation_mode_path(eRotationModes(ob->rotmode));
 
   if (animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTNEEDED)) {
+    const Main *bmain = CTX_data_main(C);
     rna_paths = get_affected_rna_paths_from_transform_mode(
-        tmode, scene, view_layer, ob, rotation_path, transforming_more_than_one_object);
+        *bmain, tmode, scene, view_layer, ob, rotation_path, transforming_more_than_one_object);
   }
   else {
     rna_paths = {{"location"}, {rotation_path}, {"scale"}};
@@ -833,8 +862,6 @@ static void autokeyframe_object(bContext *C,
 
 static void recalcData_objects(TransInfo *t)
 {
-  bool motionpath_update = false;
-
   if (t->state != TRANS_CANCEL) {
     transform_snap_project_individual_apply(t);
   }
@@ -859,18 +886,12 @@ static void recalcData_objects(TransInfo *t)
         autokeyframe_object(t->context, t->scene, ob, t->mode, t->data_len_all > 1);
       }
 
-      motionpath_update |= motionpath_need_update_object(t->scene, ob);
+      motionpath_need_update_object(t->scene, ob);
 
       /* Sets recalc flags fully, instead of flushing existing ones
        * otherwise proxies don't function correctly. */
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
     }
-  }
-
-  if (motionpath_update) {
-    /* Update motion paths once for all transformed objects. */
-    object::motion_paths_recalc_selected(
-        t->context, t->scene, object::OBJECT_PATH_CALC_RANGE_CURRENT_FRAME);
   }
 
   if (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) {
@@ -905,7 +926,7 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
   for (int i = 0; i < tc->data_len; i++) {
     TransData *td = tc->data + i;
     TransDataExtension *td_ext = tc->data_ext + i;
-    ListBase pidlist;
+    ListBaseT<PTCacheID> pidlist;
     ob = static_cast<Object *>(td->extra);
 
     if (td->flag & TD_SKIP) {
@@ -914,13 +935,13 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
 
     /* Flag object caches as outdated. */
     BKE_ptcache_ids_from_object(&pidlist, ob, t->scene, MAX_DUPLI_RECUR);
-    LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
-      if (pid->type != PTCACHE_TYPE_PARTICLES) {
+    for (PTCacheID &pid : pidlist) {
+      if (pid.type != PTCACHE_TYPE_PARTICLES) {
         /* Particles don't need reset on geometry change. */
-        pid->cache->flag |= PTCACHE_OUTDATED;
+        pid.cache->flag |= PTCACHE_OUTDATED;
       }
     }
-    BLI_freelistN(&pidlist);
+    pidlist.free_no_destruct();
 
     /* Point-cache refresh. */
     if (BKE_ptcache_object_reset(t->scene, ob, PTCACHE_RESET_OUTDATED)) {
@@ -950,12 +971,9 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
     }
   }
 
-  if (motionpath_update) {
+  if (!canceled && motionpath_update) {
     /* Update motion paths once for all transformed objects. */
-    const object::eObjectPathCalcRange range = canceled ?
-                                                   object::OBJECT_PATH_CALC_RANGE_CURRENT_FRAME :
-                                                   object::OBJECT_PATH_CALC_RANGE_CHANGED;
-    object::motion_paths_recalc_selected(C, t->scene, range);
+    object::motion_paths_recalc_selected(C, t->scene, ANIMVIZ_CALC_RANGE_CHANGED);
   }
 
   clear_trans_object_base_flags(t);

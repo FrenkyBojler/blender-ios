@@ -25,7 +25,6 @@ class VKBuffer : public NonCopyable {
   size_t alloc_size_in_bytes_ = 0;
   VkBuffer vk_buffer_ = VK_NULL_HANDLE;
   VmaAllocation allocation_ = VK_NULL_HANDLE;
-  VkMemoryPropertyFlags vk_memory_property_flags_;
   TimelineValue async_timeline_ = 0;
   /** Has a previous allocation failed. Will skip reallocations. */
   bool allocation_failed_ = false;
@@ -47,10 +46,11 @@ class VKBuffer : public NonCopyable {
    */
   bool create(size_t size,
               VkBufferUsageFlags buffer_usage,
-              VkMemoryPropertyFlags required_flags,
-              VkMemoryPropertyFlags preferred_flags,
+              VmaMemoryUsage vma_memory_usage,
               VmaAllocationCreateFlags vma_allocation_flags,
-              bool export_memory = false);
+              float priority,
+              bool export_memory = false,
+              const char *debug_name = "VKBuffer");
   void clear(VKContext &context, uint32_t clear_value);
   void update_immediately(const void *data) const;
   void update_sub_immediately(size_t start_offset, size_t data_size, const void *data) const;
@@ -98,6 +98,11 @@ class VKBuffer : public NonCopyable {
     return size_in_bytes_;
   }
 
+  inline int64_t allocated_size_in_bytes() const
+  {
+    return alloc_size_in_bytes_;
+  }
+
   VkBuffer vk_handle() const
   {
     return vk_buffer_;
@@ -124,6 +129,18 @@ class VKBuffer : public NonCopyable {
    * Get allocated device memory.
    */
   VkDeviceMemory export_memory_get(size_t &memory_size);
+
+  /**
+   * Flush the mapped memory after writing to it on the host. Only has an effect if the memory is
+   * not host coherent.
+   */
+  void flush_mapped_memory();
+
+  /**
+   * Invalidates the mapped memory after writing to it on the device. Only has an effect if the
+   * memory is not host coherent.
+   */
+  void invalidate_mapped_memory();
 
  private:
   /** Check if this buffer is mapped. */
@@ -153,7 +170,7 @@ inline bool VKBuffer::is_allocated() const
  * Used for de-interleaved vertex input buffers and immediate mode buffers.
  */
 struct VKBufferWithOffset {
-  const VkBuffer buffer;
+  VkBuffer buffer;
   VkDeviceSize offset;
 };
 

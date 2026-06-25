@@ -28,18 +28,21 @@ PyDoc_STRVAR(
     "type of the initial curve vertices. A :class:`Chain` is a\n"
     "specialization of a Curve.\n"
     "\n"
-    ".. method:: __init__()\n"
-    "            __init__(brother)\n"
-    "            __init__(id)\n"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(brother)``\n"
+    "   - ``__init__(id)``\n"
     "\n"
     "   Builds a :class:`FrsCurve` using a default constructor,\n"
     "   copy constructor or from an :class:`Id`.\n"
     "\n"
-    "   :arg brother: A Curve object.\n"
+    "   :param brother: A Curve object.\n"
     "   :type brother: :class:`Curve`\n"
-    "   :arg id: An Id object.\n"
-    "   :type id: :class:`Id`");
-
+    "   :param id: An Id object.\n"
+    "   :type id: :class:`Id`\n");
 static int FrsCurve_init(BPy_FrsCurve *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -75,9 +78,8 @@ PyDoc_STRVAR(
     "\n"
     "   Adds a single vertex at the end of the Curve.\n"
     "\n"
-    "   :arg vertex: A vertex object.\n"
-    "   :type vertex: :class:`SVertex` | :class:`CurvePoint`");
-
+    "   :param vertex: A vertex object.\n"
+    "   :type vertex: :class:`SVertex` | :class:`CurvePoint`\n");
 static PyObject *FrsCurve_push_vertex_back(BPy_FrsCurve *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"vertex", nullptr};
@@ -107,9 +109,8 @@ PyDoc_STRVAR(
     "\n"
     "   Adds a single vertex at the front of the Curve.\n"
     "\n"
-    "   :arg vertex: A vertex object.\n"
-    "   :type vertex: :class:`SVertex` | :class:`CurvePoint`");
-
+    "   :param vertex: A vertex object.\n"
+    "   :type vertex: :class:`SVertex` | :class:`CurvePoint`\n");
 static PyObject *FrsCurve_push_vertex_front(BPy_FrsCurve *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"vertex", nullptr};
@@ -169,8 +170,7 @@ PyDoc_STRVAR(
     FrsCurve_is_empty_doc,
     "True if the Curve doesn't have any Vertex yet.\n"
     "\n"
-    ":type: bool");
-
+    ":type: bool\n");
 static PyObject *FrsCurve_is_empty_get(BPy_FrsCurve *self, void * /*closure*/)
 {
   return PyBool_from_bool(self->c->empty());
@@ -181,8 +181,7 @@ PyDoc_STRVAR(
     FrsCurve_segments_size_doc,
     "The number of segments in the polyline constituting the Curve.\n"
     "\n"
-    ":type: int");
-
+    ":type: int\n");
 static PyObject *FrsCurve_segments_size_get(BPy_FrsCurve *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->c->nSegments());

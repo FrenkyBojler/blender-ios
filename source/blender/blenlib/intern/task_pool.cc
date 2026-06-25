@@ -17,10 +17,10 @@
 
 #include "DNA_listBase.h"
 
-#include "BLI_assert.h"
-#include "BLI_mempool.h"
-#include "BLI_task.h"
-#include "BLI_threads.h"
+#include "BLI_assert.hh"
+#include "BLI_mempool.hh"
+#include "BLI_task_c.hh"
+#include "BLI_threads.hh"
 #include "BLI_vector.hh"
 
 #ifdef WITH_TBB
@@ -28,6 +28,10 @@
 #  include <tbb/task_arena.h>
 #  include <tbb/task_group.h>
 #endif
+
+namespace blender {
+
+struct ThreadSlot;
 
 /**
  * Task
@@ -58,7 +62,7 @@ class Task {
         freedata(pool, taskdata);
       }
       else {
-        MEM_freeN(taskdata);
+        MEM_delete_void(taskdata);
       }
     }
   }
@@ -165,10 +169,10 @@ struct TaskPool {
   std::unique_ptr<TBBTaskGroup> tbb_group;
 #endif
   volatile bool is_suspended = false;
-  blender::Vector<Task> suspended_tasks;
+  Vector<Task> suspended_tasks;
 
   /* Background task pool. */
-  ListBase background_threads;
+  ListBaseT<ThreadSlot> background_threads;
   ThreadQueue *background_queue;
   volatile bool background_is_canceling = false;
 
@@ -551,3 +555,5 @@ void *BLI_task_pool_user_data(TaskPool *pool)
 {
   return pool->userdata;
 }
+
+}  // namespace blender

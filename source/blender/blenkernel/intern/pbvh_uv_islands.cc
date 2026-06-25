@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_map.hh"
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 #include "BLI_ordered_edge.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
+
+#include "PRF_profile.hh"
 
 #include "pbvh_uv_islands.hh"
 
@@ -106,30 +108,26 @@ static void mesh_data_init_edges(MeshData &mesh_data)
   mesh_data.edges.reserve(mesh_data.corner_tris.size() * 2);
   Map<OrderedEdge, int> eh;
   eh.reserve(mesh_data.corner_tris.size() * 3);
-  for (int64_t i = 0; i < mesh_data.corner_tris.size(); i++) {
-    const int3 &tri = mesh_data.corner_tris[i];
-    Vector<int, 3> edges;
+  for (int64_t tri_index = 0; tri_index < mesh_data.corner_tris.size(); tri_index++) {
+    const int3 &tri = mesh_data.corner_tris[tri_index];
+    Vector<int, 3> tri_edges;
     for (int j = 0; j < 3; j++) {
       int v1 = mesh_data.corner_verts[tri[j]];
       int v2 = mesh_data.corner_verts[tri[(j + 1) % 3]];
 
-      int64_t edge_index;
-      eh.add_or_modify(
-          {v1, v2},
-          [&](int *value) {
-            edge_index = mesh_data.edges.size();
-            *value = edge_index + 1;
-            mesh_data.edges.append({v1, v2});
-            mesh_data.vert_to_edge_map.add(edge_index, v1, v2);
-          },
-          [&](int *value) {
-            edge_index = *value - 1;
-            *value = edge_index;
-          });
+      int64_t edge_index = mesh_data.edges.size();
+      const bool is_new_edge = eh.add({v1, v2}, edge_index);
+      if (is_new_edge) {
+        mesh_data.edges.append({v1, v2});
+        mesh_data.vert_to_edge_map.add(edge_index, v1, v2);
+      }
+      else {
+        edge_index = eh.lookup({v1, v2});
+      }
 
-      edges.append(edge_index);
+      tri_edges.append(edge_index);
     }
-    mesh_data.primitive_to_edge_map.add(edges, i);
+    mesh_data.primitive_to_edge_map.add(tri_edges, tri_index);
   }
   /* Build edge to neighboring triangle map. */
   mesh_data.edge_to_primitive_map = EdgeToPrimitiveMap(mesh_data.edges.size());
@@ -195,6 +193,7 @@ static int mesh_data_init_primitive_uv_island_ids(MeshData &mesh_data)
 
 static void mesh_data_init(MeshData &mesh_data)
 {
+  PRF_scope(ProfileCategory::Editor);
   mesh_data_init_edges(mesh_data);
   mesh_data.uv_island_len = mesh_data_init_primitive_uv_island_ids(mesh_data);
 }
@@ -404,15 +403,6 @@ bool UVIsland::has_shared_edge(const MeshData &mesh_data, const int primitive_i)
   return false;
 }
 
-void UVIsland::extend_border(const UVPrimitive &primitive)
-{
-  for (const UVPrimitive &prim : uv_primitives) {
-    if (prim.has_shared_edge(primitive)) {
-      this->append(primitive);
-    }
-  }
-}
-
 static UVPrimitive *add_primitive(const MeshData &mesh_data,
                                   UVIsland &uv_island,
                                   const int primitive_i)
@@ -438,6 +428,7 @@ static UVPrimitive *add_primitive(const MeshData &mesh_data,
 
 void UVIsland::extract_borders()
 {
+  PRF_scope(ProfileCategory::Editor);
   /* Lookup all borders of the island. */
   Vector<UVBorderEdge> edges;
   for (UVPrimitive &prim : uv_primitives) {
@@ -569,6 +560,10 @@ struct Fan {
     int previous_primitive = stop_primitive;
     while (true) {
       bool stop = false;
+      if (!mesh_data.is_edge_manifold(current_edge)) {
+        flags.is_manifold = false;
+        break;
+      }
       for (const int other_primitive_i : mesh_data.edge_to_primitive_map[current_edge]) {
         if (stop) {
           break;
@@ -1037,6 +1032,7 @@ void UVIsland::extend_border(const MeshData &mesh_data,
                              const UVIslandsMask &mask,
                              const short island_index)
 {
+  PRF_scope(ProfileCategory::Editor);
   reset_extendability_flags(*this);
 
   int64_t border_index = 0;
@@ -1141,6 +1137,7 @@ std::optional<UVBorder> UVBorder::extract_from_edges(Vector<UVBorderEdge> &edges
   float2 first_uv = starting_border_edge->get_uv_vertex(0)->uv;
   float2 current_uv = starting_border_edge->get_uv_vertex(1)->uv;
   while (current_uv != first_uv) {
+    bool edge_added = false;
     for (UVBorderEdge &border_edge : edges) {
       if (border_edge.tag == true) {
         continue;
@@ -1152,12 +1149,18 @@ std::optional<UVBorder> UVBorder::extract_from_edges(Vector<UVBorderEdge> &edges
           border_edge.tag = true;
           current_uv = border_edge.get_uv_vertex(1)->uv;
           border.edges.append(border_edge);
+          edge_added = true;
           break;
         }
       }
       if (i != 2) {
         break;
       }
+    }
+    if (!edge_added) {
+      /* TODO Add a user-facing warning to notify users that the model's UVs are invalid for
+       * texture painting and should be fixed for optimal results. */
+      break;
     }
   }
   return border;
@@ -1242,7 +1245,7 @@ float2 UVBorderCorner::uv(float factor, float min_uv_distance)
 
 bool UVBorderCorner::connected_in_mesh() const
 {
-  return first->get_uv_vertex(1) == second->get_uv_vertex(0);
+  return first->get_uv_vertex(1)->vertex == second->get_uv_vertex(0)->vertex;
 }
 
 void UVBorderCorner::print_debug() const
@@ -1432,6 +1435,7 @@ float UVBorderEdge::length() const
 
 UVIslands::UVIslands(const MeshData &mesh_data)
 {
+  PRF_scope(ProfileCategory::Editor);
   islands.reserve(mesh_data.uv_island_len);
 
   for (const int64_t uv_island_id : IndexRange(mesh_data.uv_island_len)) {
@@ -1448,6 +1452,7 @@ UVIslands::UVIslands(const MeshData &mesh_data)
 
 void UVIslands::extract_borders()
 {
+  PRF_scope(ProfileCategory::Editor);
   for (UVIsland &island : islands) {
     island.extract_borders();
   }
@@ -1455,6 +1460,7 @@ void UVIslands::extract_borders()
 
 void UVIslands::extend_borders(const MeshData &mesh_data, const UVIslandsMask &islands_mask)
 {
+  PRF_scope(ProfileCategory::Editor);
   ushort index = 0;
   for (UVIsland &island : islands) {
     island.extend_border(mesh_data, islands_mask, index++);
@@ -1491,7 +1497,7 @@ UVIslandsMask::Tile::Tile(float2 udim_offset, ushort2 tile_resolution)
 bool UVIslandsMask::Tile::contains(const float2 uv) const
 {
   const float2 tile_uv = uv - udim_offset;
-  return IN_RANGE(tile_uv.x, 0.0, 1.0f) && IN_RANGE(tile_uv.y, 0.0f, 1.0f);
+  return IN_RANGE_INCL(tile_uv.x, 0.0f, 1.0f) && IN_RANGE_INCL(tile_uv.y, 0.0f, 1.0f);
 }
 
 float UVIslandsMask::Tile::get_pixel_size_in_uv_space() const
@@ -1504,6 +1510,7 @@ static void add_uv_island(const MeshData &mesh_data,
                           const UVIsland &uv_island,
                           int16_t island_index)
 {
+  PRF_scope(ProfileCategory::Editor);
   for (const UVPrimitive &uv_primitive : uv_island.uv_primitives) {
     const int3 &tri = mesh_data.corner_tris[uv_primitive.primitive_i];
 
@@ -1542,6 +1549,7 @@ static void add_uv_island(const MeshData &mesh_data,
 
 void UVIslandsMask::add(const MeshData &mesh_data, const UVIslands &uv_islands)
 {
+  PRF_scope(ProfileCategory::Editor);
   for (Tile &tile : tiles) {
     for (const int i : uv_islands.islands.index_range()) {
       add_uv_island(mesh_data, tile, uv_islands.islands[i], i);
@@ -1604,6 +1612,7 @@ static bool dilate_y(UVIslandsMask::Tile &islands_mask)
 
 static void dilate_tile(UVIslandsMask::Tile &tile, int max_iterations)
 {
+  PRF_scope(ProfileCategory::Editor);
   int index = 0;
   while (index < max_iterations) {
     bool changed = dilate_x(tile);
@@ -1617,6 +1626,7 @@ static void dilate_tile(UVIslandsMask::Tile &tile, int max_iterations)
 
 void UVIslandsMask::dilate(int max_iterations)
 {
+  PRF_scope(ProfileCategory::Editor);
   for (Tile &tile : tiles) {
     dilate_tile(tile, max_iterations);
   }
@@ -1625,11 +1635,12 @@ void UVIslandsMask::dilate(int max_iterations)
 bool UVIslandsMask::Tile::is_masked(const uint16_t island_index, const float2 uv) const
 {
   float2 local_uv = uv - udim_offset;
-  if (local_uv.x < 0.0f || local_uv.y < 0.0f || local_uv.x >= 1.0f || local_uv.y >= 1.0f) {
+  if (local_uv.x < 0.0f || local_uv.y < 0.0f || local_uv.x > 1.0f || local_uv.y > 1.0f) {
     return false;
   }
   float2 pixel_pos_f = local_uv * float2(mask_resolution.x, mask_resolution.y);
-  ushort2 pixel_pos = ushort2(pixel_pos_f.x, pixel_pos_f.y);
+  ushort2 pixel_pos = ushort2(clamp_i(pixel_pos_f.x, 0, mask_resolution.x - 1),
+                              clamp_i(pixel_pos_f.y, 0, mask_resolution.y - 1));
   uint64_t offset = pixel_pos.y * mask_resolution.x + pixel_pos.x;
   return mask[offset] == island_index;
 }

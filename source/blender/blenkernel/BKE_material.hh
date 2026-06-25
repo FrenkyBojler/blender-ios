@@ -10,15 +10,23 @@
  */
 
 #include <optional>
+#include <utility>
 
+namespace blender {
+
+struct Depsgraph;
 struct ID;
 struct Main;
 struct Material;
 struct Object;
 struct Scene;
 struct bNode;
-struct Depsgraph;
+struct bNodeTree;
 struct MaterialGPencilStyle;
+
+namespace bke {
+class MutableAttributeAccessor;
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Module
@@ -40,7 +48,27 @@ void BKE_object_materials_sync_length(Main *bmain, Object *ob, ID *id);
 void BKE_objects_materials_sync_length_all(Main *bmain, ID *id);
 
 void BKE_object_material_resize(Main *bmain, Object *ob, short totcol, bool do_id_user);
+
+/**
+ * Remap object and object-data material indices.
+ * Objects that don't have materials are skipped.
+ *
+ * \param remap: An array sizes by `ob->totcol`.
+ *
+ * \note Object data may reference materials outside the range of `remap`:
+ * these are left as-is.
+ */
 void BKE_object_material_remap(Object *ob, const unsigned int *remap);
+
+/**
+ * Remap the "material_index" attribute (when present).
+ *
+ * See #BKE_object_material_remap for details.
+ */
+void BKE_material_attr_indices_remap(bke::MutableAttributeAccessor attributes,
+                                     const unsigned int *remap,
+                                     int remap_num);
+
 /**
  * Calculate a material remapping from \a ob_src to \a ob_dst.
  *
@@ -125,7 +153,8 @@ MaterialGPencilStyle *BKE_gpencil_material_settings(Object *ob, short act);
 
 void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma, const Object *ob);
 void BKE_texpaint_slots_refresh_object(Scene *scene, Object *ob);
-bNode *BKE_texpaint_slot_material_find_node(Material *ma, short texpaint_slot);
+std::pair<bNodeTree *, bNode *> BKE_texpaint_slot_material_find_node(Material *ma,
+                                                                     short texpaint_slot);
 
 /** \} */
 
@@ -206,10 +235,10 @@ void BKE_id_material_eval_ensure_default_slot(ID *id);
 
 /**
  * \param r_col: current value.
- * \param col: new value.
  * \param fac: Zero for is no change.
+ * \param col: new value.
  */
-void ramp_blend(int type, float r_col[3], float fac, const float col[3]);
+void ramp_blend(int type, float r_col[4], float fac, const float col[4]);
 
 /** \} */
 
@@ -239,3 +268,5 @@ void BKE_material_defaults_free_gpu();
 void BKE_material_eval(Depsgraph *depsgraph, Material *material);
 
 /** \} */
+
+}  // namespace blender

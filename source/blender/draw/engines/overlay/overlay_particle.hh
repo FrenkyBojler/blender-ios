@@ -43,7 +43,7 @@ class Particles : Overlay {
  public:
   void begin_sync(Resources &res, const State &state) final
   {
-    enabled_ = state.is_space_v3d();
+    enabled_ = state.is_space_v3d() && !state.skip_particles;
 
     if (!enabled_) {
       return;
@@ -210,7 +210,7 @@ class Particles : Overlay {
         sub.push_constant("ucolor", float4(ma ? float3(&ma->r) : float3(0.6f), part->draw_size));
       };
 
-      blender::gpu::Batch *geom = nullptr;
+      gpu::Batch *geom = nullptr;
       const int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
       switch (draw_as) {
         case PART_DRAW_PATH:

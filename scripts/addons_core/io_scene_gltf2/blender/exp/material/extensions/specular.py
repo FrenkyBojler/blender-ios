@@ -11,11 +11,11 @@ from ..search_node_tree import \
     get_factor_from_socket
 
 
-def export_specular(blender_material, export_settings):
+def export_specular(bmat, export_settings):
     specular_extension = {}
 
-    specular_socket = get_socket(blender_material.node_tree, blender_material.use_nodes, 'Specular IOR Level')
-    speculartint_socket = get_socket(blender_material.node_tree, blender_material.use_nodes, 'Specular Tint')
+    specular_socket = get_socket(bmat.get_used_material().node_tree, 'Specular IOR Level')
+    speculartint_socket = get_socket(bmat.get_used_material().node_tree, 'Specular Tint')
 
     if specular_socket.socket is None or speculartint_socket.socket is None:
         return None, {}, {}
@@ -96,7 +96,7 @@ def export_specular(blender_material, export_settings):
 
          # Storing path for KHR_animation_pointer
         path_ = {}
-        path_['length'] = 1
+        path_['length'] = 3
         path_['path'] = "/materials/XXX/extensions/KHR_materials_specular/specularColorFactor"
         export_settings['current_paths']["node_tree." + speculartint_socket.socket.path_from_id() +
                                          ".default_value"] = path_
@@ -112,7 +112,7 @@ def export_specular(blender_material, export_settings):
 
         if path is not None:
             path_ = {}
-            path_['length'] = 1
+            path_['length'] = 3
             path_['path'] = "/materials/XXX/extensions/KHR_materials_specular/specularColorFactor"
             export_settings['current_paths'][path] = path_
 
