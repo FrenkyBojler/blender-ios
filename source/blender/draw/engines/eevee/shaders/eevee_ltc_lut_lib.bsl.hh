@@ -107,18 +107,19 @@ struct LTCData {
    */
   static LTCData sample_utility_tx([[resource_table]] const UtilityTexture &util_tx,
                                    float3 N,
-                                   float3 I,
+                                   float3 V,
+                                   float cos_theta,
                                    float roughness)
   {
     /* Sample LTC table. */
-    const float2 coords = detail::get_isotropic_coords(abs(dot(N, I)), roughness);
+    const float2 coords = detail::get_isotropic_coords(cos_theta, roughness);
     float4 lut_pack = util_tx.sample_lut(coords, UTIL_LTC_MAT_LAYER);
 
     /* Full inverse LTC matrix. */
     float3x3 Minv = detail::unpack_isotropic_matrix(lut_pack);
 
     /* Rotate LTC matrix into orthonormal basis around N. */
-    float3x3 T = detail::tangent_basis(N, I);
+    float3x3 T = detail::tangent_basis(N, V);
     Minv = Minv * transpose(T);
 
     LTCData ltc_data;
@@ -131,10 +132,10 @@ struct LTCData {
   /**
    * Return a packed ltc matrix producing a cosine distribution.
    */
-  static LTCData identity(float3 N, float3 I)
+  static LTCData identity(float3 N, float3 V)
   {
     /* Construct orthonormal basis around N.  */
-    float3x3 T = detail::tangent_basis(N, I);
+    float3x3 T = detail::tangent_basis(N, V);
 
     /* Rotate LTC identity into basis. */
     float3x3 Minv = transpose(T);

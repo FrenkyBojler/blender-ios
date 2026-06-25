@@ -416,8 +416,10 @@ ClosureLight bxdf_ggx_light_reflection([[resource_table]] const UtilityTexture &
                                        ClosureReflection cl,
                                        float3 V)
 {
+  float cos_theta = dot(cl.N, V);
+
   ClosureLight light;
-  eevee::lut::LTCData::sample_utility_tx(util_tx, cl.N, V, cl.roughness).pack_to(light);
+  eevee::lut::LTCData::sample_utility_tx(util_tx, cl.N, V, cos_theta, cl.roughness).pack_to(light);
   light.N = cl.N;
   light.type = LIGHT_SPECULAR;
   return light;
@@ -430,17 +432,24 @@ ClosureLight bxdf_ggx_light_transmission([[resource_table]] const UtilityTexture
 {
   float perceptual_roughness = bxdf_ggx_perceived_roughness_transmission(cl.roughness, cl.ior);
 
+  float3 V_;
   if (thickness.value() != 0.0f) {
     float3 L = bxdf_ggx_dominant_direction_transmission(cl.N, V, cl.ior, perceptual_roughness);
     cl.N = -thickness.shape_intersect(cl.N, L).hit_N;
-    V = -L;
+    V_ = -L;
   }
+  else {
+    V_ = V;
+  }
+
   /* Ad-hoc solution to reuse the reflection LUT. To be eventually replaced by own precomputed
    * table. */
-  float3 R = refract(-V, cl.N, (thickness.value() != 0.0f) ? cl.ior : (1.0f / cl.ior));
+  float3 R = refract(-V_, cl.N, (thickness.value() != 0.0f) ? cl.ior : (1.0f / cl.ior));
+  float cos_theta = dot(-cl.N, R);
 
   ClosureLight light;
-  eevee::lut::LTCData::sample_utility_tx(util_tx, -cl.N, R, perceptual_roughness).pack_to(light);
+  eevee::lut::LTCData::sample_utility_tx(util_tx, -cl.N, V, cos_theta, perceptual_roughness)
+      .pack_to(light);
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
   return light;
@@ -449,8 +458,11 @@ ClosureLight bxdf_ggx_light_transmission([[resource_table]] const UtilityTexture
 ClosureLight bxdf_ggx_light_thin_glass_transmission(
     [[resource_table]] const UtilityTexture &util_tx, ClosureThinRefraction cl, float3 V)
 {
+  float cos_theta = dot(cl.N, V);
+
   ClosureLight light;
-  eevee::lut::LTCData::sample_utility_tx(util_tx, -cl.N, -V, cl.roughness).pack_to(light);
+  eevee::lut::LTCData::sample_utility_tx(util_tx, -cl.N, V, cos_theta, cl.roughness)
+      .pack_to(light);
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
   return light;
