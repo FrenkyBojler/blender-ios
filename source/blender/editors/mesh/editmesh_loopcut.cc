@@ -156,6 +156,74 @@ static void ringsel_find_edge(RingSelOpData *lcd, const int previewlines)
   }
 }
 
+/**
+ * Gather the four spline control points for new loop cut vertex. 
+ * p2 and p3 are original endpoints, p1 and p4 are one quad past p2 and p3 to calculate the curve tangents.
+ */
+static bool loopcut_find_control_points(BMVert *v, float3 &p1, float3 &p2, float3 &p3, float3 &p4) {
+  /* Split edge halves; far vert is original vert. */
+  BMEdge *e_cross[2] = {nullptr, nullptr};
+  int cross_count = 0;
+
+  BMIter e_iter;
+  BMEdge *e;
+  BM_ITER_ELEM(e, &e_iter, v, BM_EDGES_OF_VERT) {
+    if (!BM_elem_flag_test(BM_edge_other_vert(e, v), BM_ELEM_SELECT)) {
+      if (cross_count < 2) {
+        e_cross[cross_count] = e;
+      }
+      cross_count++;
+    }
+  }
+  if (cross_count != 2) {
+    return false;
+  }
+
+  BMVert *vA = BM_edge_other_vert(e_cross[0], v);
+  BMVert *vB = BM_edge_other_vert(e_cross[1], v);
+  p2 = vA->co;
+  p3 = vB->co;
+  
+  /* Walk one quad past v_end to next ring vert. Anchor / opposite are p2 / p3 for phantom. */
+  auto walk = [&](BMEdge *edge, BMVert *v_end, const float3 &anchor, const float3 &opposite, float3 &r_outer) -> bool {
+    if (edge->l == nullptr) {
+      return false;
+    }
+
+    if (BM_edge_is_boundary(edge)) {
+      /* Collinear phantom. */
+      r_outer = anchor + (anchor - opposite);
+      return true;
+    }
+
+    /* Anchor loop at v_end. prev->radial_prev->prev steps past v_end. */
+    BMLoop *l = edge->l;
+    if (l->v != v_end) {
+      l = l->radial_next;
+    }
+    if (l->v != v_end || l->f->len != 4) {
+      return false;
+    }
+
+    BMLoop *l_step = l->prev->radial_prev->prev;
+    if (l_step->f->len != 4) {
+      return false;
+    }
+    BMVert *v_outer = BM_edge_other_vert(l_step->e, v_end);
+    if (v_outer == nullptr || v_outer == v) {
+      return false;
+    }
+    r_outer = v_outer->co;
+    return true;
+  };
+
+  if (!walk(e_cross[0], vA, p2, p3, p1) || !walk(e_cross[1], vB, p3, p2, p4)) {
+    return false;
+  }
+
+  return true;
+}
+
 static void ringsel_finish(bContext *C, wmOperator *op)
 {
   RingSelOpData *lcd = static_cast<RingSelOpData *>(op->customdata);
