@@ -191,7 +191,7 @@ static void motionpaths_calc_bake_target(const MPathTarget &mpt,
   else {
     mpv.flag &= ~MOTIONPATH_VERT_KEY;
   }
-  mpv->flag |= MOTIONPATH_VERT_EVALUATED;
+  mpv.flag |= MOTIONPATH_VERT_EVALUATED;
 
   /* Incremental update on evaluated object if possible, for fast updating
    * while dragging in transform. */
@@ -317,8 +317,9 @@ static bool update_callback(
 
   /* World-space object location. */
   copy_v3_v3(mpv.co, ob_eval->object_to_world().location());
-  if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA) {
-    transform_mpath_point_to_active_camera(dg, mpv);
+  Scene *scene = DEG_get_input_scene(&dg);
+  if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA && scene->camera) {
+    transform_mpath_point_to_camera(dg, *scene->camera, mpv);
   }
 
   mpv.flag |= MOTIONPATH_VERT_EVALUATED;
@@ -369,8 +370,9 @@ static bool update_callback_pose_bone(
 
   /* Result must be in world-space. */
   mul_m4_v3(ob_eval->object_to_world().ptr(), mpv.co);
-  if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA) {
-    transform_mpath_point_to_active_camera(dg, mpv);
+  Scene *scene = DEG_get_input_scene(&dg);
+  if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA && scene->camera) {
+    transform_mpath_point_to_camera(dg, *scene->camera, mpv);
   }
 
   mpv.flag |= MOTIONPATH_VERT_EVALUATED;
@@ -492,7 +494,6 @@ void animviz_tag_for_motion_path_eval(wmWindow &window,
 }
 
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
-  Scene *scene,
                               MutableSpan<MPathTarget> targets,
                               const Bounds<int> frame_range)
 {
@@ -503,7 +504,7 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
   if (targets.is_empty() || frame_range.is_empty()) {
     return;
   }
-
+  Scene *scene = DEG_get_input_scene(depsgraph);
   for (MPathTarget &mpt : targets) {
     AnimData *adt = BKE_animdata_from_id(&mpt.ob->id);
 
@@ -547,15 +548,15 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
               frame_range.max,
               frame_range.max - frame_range.min + 1);
 
-  for (int frame = frame_range.min; frame < frame_range.max; frame++) {
-    /* Update relevant data for new frame. */
-    DEG_evaluate_on_framechange(depsgraph, frame);
+    for (int frame = frame_range.min; frame < frame_range.max; frame++) {
+      /* Update relevant data for new frame. */
+      DEG_evaluate_on_framechange(depsgraph, frame);
 
-    /* Perform baking for targets. */
-    for (const MPathTarget &target : targets) {
-      motionpaths_calc_bake_target(target, frame, depsgraph, scene->camera);
+      /* Perform baking for targets. */
+      for (const MPathTarget &target : targets) {
+        motionpaths_calc_bake_target(target, frame, depsgraph, scene->camera);
+      }
     }
-  }
 
     /* Clear recalc flags from targets. */
     for (MPathTarget &mpt : targets) {
