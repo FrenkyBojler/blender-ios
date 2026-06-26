@@ -12,9 +12,9 @@
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
 
 #include "BKE_context.hh"
 
@@ -210,12 +210,11 @@ static void recalcData_sequencer_retiming(TransInfo *t)
 {
   const TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   const TransData *td = nullptr;
-  const TransData2D *td2d = nullptr;
   int i;
 
   VectorSet<Strip *> transformed_strips;
 
-  for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i++, td++, td2d++) {
+  for (i = 0, td = tc->data; i < tc->data_len; i++, td++) {
     const TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
     Strip *strip = tdseq->strip;
 

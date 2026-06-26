@@ -14,9 +14,9 @@
 #include <string>
 #include <type_traits>
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_span.hh"
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
 #include "DNA_vec_types.h"
 
@@ -527,5 +527,19 @@ struct PyC_StringEnum {
  * unlike regular Python function calls, does not enforce string keys.
  */
 [[nodiscard]] bool PyC_Dict_CheckKeysAreStrings(PyObject *dict);
+
+/**
+ * Create a `memoryview` from the contents of `info`,
+ * similar to #PyMemoryView_FromBuffer.
+ *
+ * Unlike #PyMemoryView_FromBuffer the returned `memoryview` takes ownership of `info->buf`:
+ * when the last reference to the `memoryview`
+ * (or any `memoryview` derived from it via `cast()` / slicing) is released,
+ * the buffer is freed with #MEM_delete_void.
+ *
+ * \return A new `memoryview` reference, or null with an exception set on failure.
+ * `info->buf` is freed even when the function returns null.
+ */
+[[nodiscard]] PyObject *PyC_MemoryView_FromBufferOwned(const Py_buffer *info);
 
 }  // namespace blender
