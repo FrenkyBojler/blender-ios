@@ -142,7 +142,7 @@ bke::CurvesGeometry grease_pencil_remove_points_and_split(const bke::CurvesGeome
       const Span<bool> curve_points_to_delete = points_to_delete.as_span().slice(points);
       const bool curve_cyclic = src_cyclic[curve_i];
 
-      /* Note, these ranges start at zero and needed to be shifted by `points.first()` */
+      /* Note: These ranges start at zero and need to be shifted by `points.first()` */
       const Vector<IndexRange> ranges_to_keep = array_utils::find_all_ranges(
           curve_points_to_delete, false);
 
@@ -165,10 +165,10 @@ bke::CurvesGeometry grease_pencil_remove_points_and_split(const bke::CurvesGeome
     }
 
     IndexMaskMemory memory;
-    /* Get all the curves that where split off of the original geometry. */
+    /* Get all the curves that were split off of the original geometry. */
     const IndexMask non_original_curves = IndexMask::from_predicate(
         dst_to_src_curve.index_range(), memory, [&](const int64_t dst_curve_index) {
-          /* Don't make non-filled curves into filled. */
+          /* Skip non-filled curves. */
           if (dst_fill_ids.span[dst_curve_index] == 0) {
             return false;
           }
