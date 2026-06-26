@@ -1038,18 +1038,20 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
   BLI_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
   me_final->key = mesh->key;
 
-  /* NOTE(@ideasman42): Workaround limitation in geometry nodes
-   * where the result *might* contain mapping data, but also may not...
-   * if not, depending on the nodes used.
-   * When it doesn't - the cage isn't actually a cage,
+  /* NOTE(@ideasman42): Workaround for geometry-nodes
+   * where the result might contain mapping data, but also may not (depending on the nodes used).
+   * When it doesn't `me_cage` isn't a usable cage which can map back to the original elements,
    * causing various problems with transform & selection. See: #160540.
    *
-   * For now, detect this and replace the mesh with a thin edit-mesh wrapper,
-   * although ideally geometry-nodes would be able to handle this. */
+   * Detect this and replace the mesh with a thin edit-mesh wrapper,
+   * although there may be a more elegant solution in the future because
+   * ideally - it would be possible to know which modifier index is guaranteed
+   * to produce a usable cage instead of replacing it with a place-holder which
+   * at least lets the user see an editable mesh (with no modifiers applied). */
   if (me_cage && !BKE_editmesh_eval_orig_map_available(*me_cage, mesh) &&
       !(CustomData_has_layer(&me_cage->vert_data, CD_ORIGINDEX) &&
         CustomData_has_layer(&me_cage->edge_data, CD_ORIGINDEX) &&
-        CustomData_has_layer(&me_cage->face_data, CD_ORIGINDEX))) [[unlikely]]
+        CustomData_has_layer(&me_cage->face_data, CD_ORIGINDEX)))
   {
     /* Only node-groups have this problem, assert this doesn't happen with other modifiers. */
     BLI_assert(BKE_modifiers_findby_type(&obedit, eModifierType_Nodes));
@@ -1058,7 +1060,7 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
       BKE_id_free(nullptr, me_cage);
     }
     me_cage = BKE_mesh_wrapper_from_editmesh(mesh->runtime->edit_mesh, &dataMask, mesh);
-    /* An empty `positions` array, needed because #BKE_mesh_wrapper_vert_coords
+    /* A non-empty `positions` array is needed because #BKE_mesh_wrapper_vert_coords
      * is expected to be able to return vertex coordinates.
      * Otherwise crazy-space calculation crashes, see: #160540. */
     if (me_cage->runtime->edit_mesh->bm->totvert &&
