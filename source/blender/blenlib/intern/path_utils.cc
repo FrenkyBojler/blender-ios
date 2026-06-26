@@ -1025,11 +1025,9 @@ bool BLI_path_frame_get(const char *path, int *r_frame, int *r_digits_len)
   }
 
   /* Only consider numbers inside the range of valid framenumbers (ints). */
-  /* No need to trim the string, `strtol` ignores non-digits. */
-  errno = 0;
-  char *str_end = nullptr;
-  const long num = strtol(c, &str_end, 10);
-  if ((errno == ERANGE) || ((num < INT_MIN) || (num > INT_MAX))) {
+  /* No need to trim the string, `strtoll` ignores non-digits. */
+  const long long num = strtoll(c, nullptr, 10);
+  if (num > INT_MAX) {
     return false;
   }
 
@@ -1057,16 +1055,10 @@ void BLI_path_frame_strip(char *path, char *r_ext, const size_t ext_maxncpy)
   }
   c++;
 
-  if (digits_len == 0) {
-    return;
-  }
-
   /* Dont strip numbers outside the range of valid framenumbers (ints). */
-  /* No need to trim the string, `strtol` ignores non-digits. */
-  errno = 0;
-  char *str_end = nullptr;
-  const long num = strtol(c, &str_end, 10);
-  if ((errno == ERANGE) || ((num < INT_MIN) || (num > INT_MAX))) {
+  /* No need to trim the string, `strtoll` ignores non-digits. */
+  const long long num = strtoll(c, nullptr, 10);
+  if (num > INT_MAX) {
     return;
   }
 
