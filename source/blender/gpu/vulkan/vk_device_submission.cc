@@ -276,7 +276,7 @@ void VKDevice::submission_runner(VKDevice *device)
   CLOG_TRACE(&LOG, "Submission runner finished");
 }
 
-void VKDevice::init_submission_pool()
+void VKDevice::init_submission_thread()
 {
   CLOG_TRACE(&LOG, "Create submission thread");
   submission_thread_should_exit_ = false;
@@ -292,7 +292,7 @@ void VKDevice::init_submission_pool()
   submission_thread_ = std::thread(VKDevice::submission_runner, this);
 }
 
-void VKDevice::deinit_submission_pool()
+void VKDevice::deinit_submission_thread()
 {
   CLOG_TRACE(&LOG, "Stopping submission thread");
   submission_thread_should_exit_ = true;
