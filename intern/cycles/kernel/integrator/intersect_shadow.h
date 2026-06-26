@@ -118,7 +118,7 @@ ccl_device bool integrate_intersect_shadow_transparent(KernelGlobals kg,
    * have available in the integrator state. */
   const uint max_transparent_hits = integrate_shadow_max_transparent_hits(kg, state);
   uint num_hits = 0;
-  float3 throughput = make_float3(1.0f);
+  float3 throughput = one_float3();
   scene_intersect_shadow_all(
       kg, state, ray, visibility, max_transparent_hits, &num_hits, &throughput);
 

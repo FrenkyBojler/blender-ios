@@ -224,7 +224,7 @@ ccl_device_inline float3 intersection_curve_shadow_transparency(
   const int offset = intersection_find_attribute(kg, object, ATTR_STD_SHADOW_TRANSPARENCY);
   if (offset == ATTR_STD_NOT_FOUND) {
     /* If no shadow transparency attribute, assume opaque. */
-    return make_zero<float3>();
+    return zero_float3();
   }
 
   /* Interpolate transparency between curve keys. */

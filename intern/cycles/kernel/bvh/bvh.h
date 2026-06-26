@@ -124,7 +124,7 @@ ccl_device_intersect void scene_intersect_shadow_all(KernelGlobals kg,
    * ray in the scene_intersect_shadow_all_optix(). */
   if (!intersection_ray_valid(ray)) {
     *num_recorded_hits = 0;
-    *throughput = make_float3(1.0f);
+    *throughput = one_float3();
     return;
   }
 #  endif

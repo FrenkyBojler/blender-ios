@@ -138,7 +138,7 @@ ccl_device void kernel_curve_shadow_transparency_evaluate(
   }
 
   /* Write output. */
-  output[offset] = rgb_to_rgbe(saturate(surface_shader_transparency(&sd))).f;
+  output[offset] = rgb_to_rgbe(saturate(spectrum_to_rgb(surface_shader_transparency(&sd)))).f;
 #endif
 }
 
