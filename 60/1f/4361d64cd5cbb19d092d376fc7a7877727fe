@@ -1,1 +1,1 @@
-Referenced by issue #160397, GPU rendering of older 3.6 files is incorrect in 5.2
+Referenced by issue #160397, Shadows no longer render properly with Cycles Metal GPU rendering on macOS 14
