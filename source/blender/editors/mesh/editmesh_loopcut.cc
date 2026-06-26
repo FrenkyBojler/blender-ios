@@ -246,6 +246,36 @@ static bool loopcut_calc_curve_target(BMVert *v, float mu, float tension, float3
   return true;
 }
 
+/**
+ * Move each loopcut vert onto spline target. Find all targets first, then copy to positions.
+ */
+static void loopcut_apply_curvature(BMesh *bm, int cuts, float tension) {
+  Vector<BMVert *> verts;
+  Vector<float3> targets;
+
+  BMVert *v; 
+  BMIter iter;
+  BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+    if (!BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+      continue;
+    }
+
+    const float mu = 0.5f;
+
+    float3 co; 
+    if (loopcut_calc_curve_target(v, mu, tension, co)) {
+      verts.append(v);
+      targets.append(co);
+    }
+
+    for (const int i : verts.index_range()) {
+      copy_v3_v3(verts[i]->co, targets[i]);
+    }
+
+    BM_mesh_normals_update(bm);
+  }
+}
+
 static void ringsel_finish(bContext *C, wmOperator *op)
 {
   RingSelOpData *lcd = static_cast<RingSelOpData *>(op->customdata);
@@ -292,9 +322,10 @@ static void ringsel_finish(bContext *C, wmOperator *op)
                          use_only_quads,
                          0);
 
-      /** 
-       * Loop Cut Curve Preservation
-       */
+      if (use_preserve_curvature && seltype == SUBDIV_SELECT_LOOPCUT) {
+        const float tension = RNA_float_get(op->ptr, "curve_tension");
+        loopcut_apply_curvature(em->bm, cuts, tension);
+      }
 
       /* When used in a macro the tessellation will be recalculated anyway,
        * this is needed here because modifiers depend on updated tessellation, see #45920 */
