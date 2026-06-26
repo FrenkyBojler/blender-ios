@@ -239,14 +239,14 @@ struct Layout : public Item, NonCopyable, NonMovable {
   /**
    * Sets when to split property's label into a separate button when adding new property buttons.
    */
-  void use_property_split_set(bool value);
+  void use_property_split_set(bool is_sep);
 
   [[nodiscard]] bool use_property_decorate() const;
   /**
    * Sets when to add an extra button to insert keyframes next to new property buttons added in the
    * layout.
    */
-  void use_property_decorate_set(bool is_sep);
+  void use_property_decorate_set(bool is_decorate);
 
   [[nodiscard]] int width() const;
 
@@ -659,12 +659,13 @@ struct Layout : public Item, NonCopyable, NonMovable {
 
   /**
    * Adds a string property item as textbox, this will let multi-line text editing, textbox state
-   * will be persistent at runtime.
+   * will stored in the current context region.
    */
   void textbox(const bContext *C,
                PointerRNA *ptr,
                StringRefNull propname,
-               std::optional<StringRefNull> placeholder = std::nullopt);
+               std::optional<StringRefNull> placeholder = std::nullopt,
+               const int initial_visible_lines = 3);
   /**
    * Adds a string property item as textbox, this will let multi-line text editing.
    * \param textbox_state: custom allocation for persistent textbox state.

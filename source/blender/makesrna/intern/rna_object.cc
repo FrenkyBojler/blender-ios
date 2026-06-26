@@ -15,7 +15,7 @@
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -292,8 +292,8 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include <fmt/format.h>
 
 #  include "BLI_bounds.hh"
-#  include "BLI_listbase.h"
-#  include "BLI_string.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_string.hh"
 
 #  include "DNA_ID.h"
 #  include "DNA_constraint_types.h"
@@ -304,8 +304,8 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include "DNA_material_types.h"
 #  include "DNA_node_types.h"
 
-#  include "BLI_math_matrix.h"
-#  include "BLI_math_vector.h"
+#  include "BLI_math_matrix_c.hh"
+#  include "BLI_math_vector_c.hh"
 
 #  include "BKE_armature.hh"
 #  include "BKE_brush.hh"
@@ -835,9 +835,9 @@ static void rna_Object_dup_collection_set(PointerRNA *ptr,
 
   /* Must not let this be set if the object belongs in this group already,
    * thus causing a cycle/infinite-recursion leading to crashes on load #25298. */
-  if (BKE_collection_has_object_recursive(grp, ob) == 0) {
+  if (BKE_collection_has_object_recursive_instanced(grp, ob) == 0) {
     if (ob->type == OB_EMPTY) {
-      id_us_min(&ob->instance_collection->id);
+      id_us_min(id_cast<ID *>(ob->instance_collection));
       ob->instance_collection = grp;
       id_us_plus(&ob->instance_collection->id);
     }
@@ -846,11 +846,10 @@ static void rna_Object_dup_collection_set(PointerRNA *ptr,
     }
   }
   else {
-    BKE_report(
-        nullptr,
-        RPT_ERROR,
-        "Cannot set instance-collection as object belongs in collection being instanced, thus "
-        "causing a cycle");
+    BKE_report(nullptr,
+               RPT_ERROR,
+               "Cannot set instance-collection as object belongs (directly or indirectly) in "
+               "collection being instanced, thus causing a dependency cycle");
   }
 }
 
@@ -1831,9 +1830,9 @@ bool rna_Object_modifiers_override_apply(Main *bmain,
      * modifier).
      *
      * Try to handle this by finding already existing one here. */
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(mod_src->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(mod_src->type);
     if (mti->flags & eModifierTypeFlag_Single) {
-      mod_dst = BKE_modifiers_findby_type(ob_dst, ModifierType(mod_src->type));
+      mod_dst = BKE_modifiers_findby_type(ob_dst, mod_src->type);
     }
 
     if (mod_dst == nullptr) {
@@ -2942,6 +2941,14 @@ static void rna_def_object_visibility(StructRNA *srna)
       "Only render shadows and reflections on this object, for compositing renders into real "
       "footage. Objects with this setting are considered to already exist in the footage, "
       "objects without it are synthetic objects being composited into it.");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
+
+  prop = RNA_def_property(srna, "visible_raycast", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "visibility_flag", OB_HIDE_RAYCAST);
+  RNA_def_property_ui_text(
+      prop,
+      "Raycast Visibility",
+      "Object visibility to raycast rays. Implicitly false for Blended materials.");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
 }
 

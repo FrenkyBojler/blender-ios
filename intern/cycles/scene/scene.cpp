@@ -455,9 +455,6 @@ bool Scene::need_global_attribute(AttributeStandard std) const
   if (std == ATTR_STD_UV) {
     return Pass::contains(passes, PASS_UV);
   }
-  if (std == ATTR_STD_MOTION_VERTEX_POSITION) {
-    return need_motion() != MOTION_NONE;
-  }
   if (std == ATTR_STD_VOLUME_VELOCITY || std == ATTR_STD_VOLUME_VELOCITY_X ||
       std == ATTR_STD_VOLUME_VELOCITY_Y || std == ATTR_STD_VOLUME_VELOCITY_Z)
   {
@@ -609,7 +606,8 @@ void Scene::update_kernel_features()
   }
 
   dscene.data.integrator.use_caustics = false;
-  if (device->info.has_mnee && has_caustics_caster && has_caustics_receiver && has_caustics_light)
+  if (device->info.has_mnee() && has_caustics_caster && has_caustics_receiver &&
+      has_caustics_light)
   {
     dscene.data.integrator.use_caustics = true;
     kernel_features |= KERNEL_FEATURE_MNEE;

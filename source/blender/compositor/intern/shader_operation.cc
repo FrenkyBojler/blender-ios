@@ -8,8 +8,8 @@
 
 #include <fmt/format.h>
 
-#include "BLI_assert.h"
-#include "BLI_listbase.h"
+#include "BLI_assert.hh"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_math_vector_types.hh"
@@ -491,9 +491,11 @@ void ShaderOperation::populate_results_for_node(const bNode &node)
 
     /* If any of the nodes linked to the output are not part of the shader operation but are part
      * of the execution schedule, then an output result needs to be populated for it. */
-    const bool is_operation_output = is_output_linked_to_node_conditioned(
-        *output, [&](const bNode &node) {
-          return schedule_.nodes.contains(&node) && !compile_unit_.contains(&node);
+    const bool is_operation_output = is_output_linked_to_input_conditioned(
+        *output, [&](const bNodeSocket &input) {
+          return schedule_.nodes.contains(&input.owner_node()) &&
+                 !schedule_.unneeded_inputs.contains(&input) &&
+                 !compile_unit_.contains(&input.owner_node());
         });
 
     /* If the output is used as the node preview, then an output result needs to be populated for
