@@ -15,6 +15,8 @@ namespace blender::draw::overlay {
 struct Engine : public DrawEngine::Pointer {
   DrawEngine *create_instance() final;
 
+  void draw_in_front_of_passepartout();
+
   static void free_static();
 };
 

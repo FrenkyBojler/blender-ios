@@ -1366,6 +1366,9 @@ static void drw_callbacks_post_scene_view3d(DRWContext &draw_ctx)
   GPU_depth_test(GPU_DEPTH_NONE);
   DRW_draw_region_info(draw_ctx.evil_C, region);
 
+  /* Draw "in front" images after the passepartout so they appear on top of it. */
+  draw_ctx.view_data_active->overlay.draw_in_front_of_passepartout();
+
   /* Annotations - temporary drawing buffer (screen-space). */
   /* XXX: Or should we use a proper draw/overlay engine for this case? */
   if (((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) && (do_annotations)) {

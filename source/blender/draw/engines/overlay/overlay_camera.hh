@@ -249,7 +249,6 @@ class Cameras : Overlay {
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit_only(background_scene_ps_, view);
-    manager.submit_only(foreground_scene_ps_, view);
   }
 
   void draw_background_images(Framebuffer &framebuffer, Manager &manager, View &view)
@@ -262,13 +261,15 @@ class Cameras : Overlay {
     manager.submit_only(background_ps_, view);
   }
 
-  void draw_in_front(Framebuffer &framebuffer, Manager &manager, View &view)
+  /* Draws "in front" images. Called after the passepartout so they appear on top. */
+  void draw_foreground_images(Framebuffer &framebuffer, Manager &manager, View &view)
   {
     if (!images_enabled_) {
       return;
     }
 
     GPU_framebuffer_bind(framebuffer);
+    manager.submit_only(foreground_scene_ps_, view);
     manager.submit_only(foreground_ps_, view);
   }
 

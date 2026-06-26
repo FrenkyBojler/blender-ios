@@ -815,6 +815,18 @@ void Instance::draw(Manager &manager)
   }
 }
 
+void Instance::draw_in_front_of_passepartout(Manager &manager)
+{
+  if (state.is_depth_only_drawing) {
+    return;
+  }
+  View &view = View::default_get();
+  regular.cameras.draw_foreground_images(resources.overlay_output_color_only_fb, manager, view);
+  infront.cameras.draw_foreground_images(resources.overlay_output_color_only_fb, manager, view);
+  regular.empties.draw_in_front_images(resources.overlay_output_color_only_fb, manager, view);
+  infront.empties.draw_in_front_images(resources.overlay_output_color_only_fb, manager, view);
+}
+
 void Instance::draw_node(Manager &manager, View &view)
 {
   /* Don't clear background for the node editor. The node editor draws the background and we
@@ -974,11 +986,6 @@ void Instance::draw_v3d(Manager &manager, View &view)
     draw_color_only(infront, resources.overlay_color_only_fb);
 
     /* TODO(fclem): Split overlay and rename draw functions. */
-    regular.empties.draw_in_front_images(resources.overlay_color_only_fb, manager, view);
-    infront.empties.draw_in_front_images(resources.overlay_color_only_fb, manager, view);
-    regular.cameras.draw_in_front(resources.overlay_color_only_fb, manager, view);
-    infront.cameras.draw_in_front(resources.overlay_color_only_fb, manager, view);
-
     origins.draw_color_only(resources.overlay_color_only_fb, manager, view);
   }
 

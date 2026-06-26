@@ -19,6 +19,14 @@ DrawEngine *Engine::create_instance()
   return new Instance();
 }
 
+void Engine::draw_in_front_of_passepartout()
+{
+  if (instance == nullptr || !instance->used) {
+    return;
+  }
+  static_cast<Instance *>(instance)->draw_in_front_of_passepartout(*DRW_manager_get());
+}
+
 void Engine::free_static()
 {
   ShaderModule::module_free();

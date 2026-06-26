@@ -128,6 +128,7 @@ class Instance : public DrawEngine {
   void object_sync(ObjectRef &ob_ref, Manager &manager) final;
   void end_sync() final;
   void draw(Manager &manager) final;
+  void draw_in_front_of_passepartout(Manager &manager);
 
  private:
   bool object_is_selected(const ObjectRef &ob_ref);
