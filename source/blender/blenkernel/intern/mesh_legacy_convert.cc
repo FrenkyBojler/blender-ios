@@ -752,6 +752,10 @@ void BKE_mesh_convert_mfaces_to_mpolys(Mesh *mesh)
   BKE_mesh_legacy_convert_polys_to_offsets(mesh);
   mesh->attribute_storage.wrap().remove(".corner_vert");
   mesh->attribute_storage.wrap().remove(".corner_edge");
+  /* The face and corner domains may have changed size during the conversion above,
+   * ensure attribute storage is in sync, see: #159680. */
+  mesh->attribute_storage.wrap().resize(bke::AttrDomain::Face, mesh->faces_num);
+  mesh->attribute_storage.wrap().resize(bke::AttrDomain::Corner, mesh->corners_num);
   bke::mesh_convert_customdata_to_storage(*mesh);
 
   mesh_ensure_tessellation_customdata(mesh);
@@ -2471,7 +2475,7 @@ void mesh_freestyle_marks_to_generic(Mesh &mesh)
       static_assert(char(FREESTYLE_FACE_MARK) == char(true));
       Attribute::ArrayData array_data{};
       array_data.data = data;
-      array_data.size = mesh.edges_num;
+      array_data.size = mesh.faces_num;
       sharing_info->add_user();
       array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
       mesh.attribute_storage.wrap().add(

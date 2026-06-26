@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-06-22 07:24+0000\n"
 "PO-Revision-Date: 2026-06-02 05:12+0000\n"
 "Last-Translator: Fadli Birdie Zeinda <justbirdie00@gmail.com>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -15740,20 +15740,16 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "Apply"
-msgstr "Tetapkan"
+msgid "Navigation"
+msgstr "Navigasi"
 
 
-msgid "Track"
-msgstr "Lacak"
+msgid "Select Linked"
+msgstr "Seleksi yang Terhubung"
 
 
-msgid "Asset"
-msgstr "Aset"
-
-
-msgid "Hooks"
-msgstr "Kait"
+msgid "Assign Material"
+msgstr "Tugaskan Bahan"
 
 
 msgid "Math"
@@ -15764,68 +15760,8 @@ msgid "Utilities"
 msgstr "Utilitas"
 
 
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Sample"
-msgstr "Sampel"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Contoh-contoh"
-
-
-msgid "Merge"
-msgstr "Menggabungkan"
-
-
-msgid "Import"
-msgstr "Impor"
-
-
 msgid "Metaball"
 msgstr "Metabola"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Snap"
-msgstr "Jepret"
-
-
-msgid "Mirror"
-msgstr "Cermin"
-
-
-msgid "Navigation"
-msgstr "Navigasi"
-
-
-msgid "Linked"
-msgstr "Terkoleksi"
-
-
-msgid "Layout"
-msgstr "Tata Letak"
-
-
-msgid "Select Linked"
-msgstr "Seleksi yang Terhubung"
-
-
-msgid "Tracking"
-msgstr "Pelacakan"
-
-
-msgid "Assign Material"
-msgstr "Tugaskan Bahan"
 
 
 msgid "Light"
@@ -15838,6 +15774,70 @@ msgstr "Probe Cahaya"
 
 msgid "Add Image"
 msgstr "Tambah Gambar"
+
+
+msgid "Sample"
+msgstr "Sampel"
+
+
+msgid "Apply"
+msgstr "Tetapkan"
+
+
+msgid "Track"
+msgstr "Lacak"
+
+
+msgid "Asset"
+msgstr "Aset"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
+
+
+msgid "Hooks"
+msgstr "Kait"
+
+
+msgid "Import"
+msgstr "Impor"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Names"
+msgstr "Nama"
+
+
+msgid "Merge"
+msgstr "Menggabungkan"
+
+
+msgid "Linked"
+msgstr "Terkoleksi"
+
+
+msgid "Layout"
+msgstr "Tata Letak"
+
+
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Tracking"
+msgstr "Pelacakan"
+
+
+msgid "Mirror"
+msgstr "Cermin"
 
 
 msgid "Animals"
@@ -26042,11 +26042,6 @@ msgstr "Preset Brush"
 msgctxt "Operator"
 msgid "Push"
 msgstr "Dorong"
-
-
-msgctxt "Operator"
-msgid "Bone Size"
-msgstr "Ukuran Tulang"
 
 
 msgctxt "Operator"

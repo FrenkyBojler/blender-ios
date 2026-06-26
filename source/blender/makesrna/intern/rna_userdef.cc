@@ -322,6 +322,19 @@ static void rna_userdef_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *
   USERDEF_TAG_DIRTY;
 }
 
+static void rna_userdef_update_compact_tabs(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_userdef_update(bmain, scene, ptr);
+  auto *wm = static_cast<wmWindowManager *>(bmain->wm.first);
+  if (!wm) {
+    return;
+  }
+  for (wmWindow &win : wm->windows) {
+    /* Notify regions so they can update its category tab width when showing only tabs. */
+    WM_event_add_notifier_ex(wm, &win, NC_SCREEN | NA_EDITED, nullptr);
+  }
+}
+
 static void rna_userdef_theme_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   /* Recreate gizmos when changing themes. */
@@ -612,6 +625,8 @@ static void rna_userdef_use_online_access_set(PointerRNA *ptr, bool value)
     }
   }
 
+  const eUserPref_Flag old_flag = userdef->flag;
+
   if (value) {
     userdef->flag |= USER_INTERNET_ALLOW;
     G.f |= G_FLAG_INTERNET_ALLOW;
@@ -619,6 +634,12 @@ static void rna_userdef_use_online_access_set(PointerRNA *ptr, bool value)
   else {
     userdef->flag &= ~USER_INTERNET_ALLOW;
     G.f &= ~G_FLAG_INTERNET_ALLOW;
+  }
+
+  if (old_flag != userdef->flag) {
+    /* Also clear the "User pressed 'Continue Offline' once"-flag when toggling internet access.
+     * Otherwise users are forever stuck with the 'Continue Offline' choice. */
+    userdef->extension_flag &= ~USER_EXTENSION_FLAG_ONLINE_ACCESS_HANDLED;
   }
 
   /* Once the user edits this option (even to set it to the value it was)
@@ -6238,7 +6259,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       prop,
       "Compact Sidebar Tabs",
       "Display sidebar tabs in a compact size that shows icons when available");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_update_compact_tabs");
 
   prop = RNA_def_property(srna, "viewport_aa", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_userdef_viewport_aa_items);

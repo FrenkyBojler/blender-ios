@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-06-22 07:24+0000\n"
 "PO-Revision-Date: 2026-02-14 01:12+0000\n"
 "Last-Translator: Timo Hoetmer <timo@timohoetmer.nl>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -5747,6 +5747,30 @@ msgid "Dots"
 msgstr "Stippen"
 
 
+msgid "Local View"
+msgstr "Lokale Scherm"
+
+
+msgid "Navigation"
+msgstr "Navigatie"
+
+
+msgid "Select Similar"
+msgstr "Selecteer Vergelijkbaar"
+
+
+msgid "Select Linked"
+msgstr "Selecteer Aaneengesloten"
+
+
+msgid "Light"
+msgstr "Licht"
+
+
+msgid "Add Image"
+msgstr "Voeg Afbeelding Toe"
+
+
 msgid "Relations"
 msgstr "Relaties"
 
@@ -5771,28 +5795,16 @@ msgid "Hooks"
 msgstr "Haken"
 
 
+msgid "Import"
+msgstr "Importeren"
+
+
 msgid "Clear Transform"
 msgstr "Maak Transformatie Leeg"
 
 
 msgid "Names"
 msgstr "Namen"
-
-
-msgid "Import"
-msgstr "Importeren"
-
-
-msgid "Mirror"
-msgstr "Spiegel"
-
-
-msgid "Local View"
-msgstr "Lokale Scherm"
-
-
-msgid "Navigation"
-msgstr "Navigatie"
 
 
 msgid "Linked"
@@ -5803,20 +5815,8 @@ msgid "Layout"
 msgstr "Indeling"
 
 
-msgid "Select Similar"
-msgstr "Selecteer Vergelijkbaar"
-
-
-msgid "Select Linked"
-msgstr "Selecteer Aaneengesloten"
-
-
-msgid "Light"
-msgstr "Licht"
-
-
-msgid "Add Image"
-msgstr "Voeg Afbeelding Toe"
+msgid "Mirror"
+msgstr "Spiegel"
 
 
 msgctxt "MovieClip"
