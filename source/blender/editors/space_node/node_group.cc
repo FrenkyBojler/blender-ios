@@ -641,7 +641,6 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   gnode->id = id_cast<ID *>(ngroup);
 
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(nodes_to_group)) {
-    const float test = U.scale_factor;
     gnode->location[0] = nearest_node_grid_coord(bounds->center()[0]);
     gnode->location[1] = nearest_node_grid_coord(bounds->center()[1]);
   }
