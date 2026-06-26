@@ -6,7 +6,6 @@
  * \ingroup sequencer
  */
 
-#include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_math_base_c.hh"
 #include "BLI_math_bits.hh"
@@ -727,19 +726,6 @@ ImBuf *thumbnail_cache_get(const bContext *C,
   return res;
 }
 
-static void collect_scene_strips_recursive(const ListBaseT<Strip> *seqbase,
-                                           Set<const Strip *> &r_strips)
-{
-  for (const Strip &strip : *seqbase) {
-    if (strip.type == STRIP_TYPE_META) {
-      collect_scene_strips_recursive(&strip.seqbase, r_strips);
-    }
-    else if (strip.type == STRIP_TYPE_SCENE) {
-      r_strips.add(&strip);
-    }
-  }
-}
-
 void thumbnail_cache_update_scene_thumbs(const bContext *C, Scene *scene)
 {
   if (scene == nullptr || scene->ed == nullptr) {
@@ -766,15 +752,18 @@ void thumbnail_cache_update_scene_thumbs(const bContext *C, Scene *scene)
     more_pending = !cache->scene_requests_.is_empty();
   }
 
-  /* Validate that the requested scene strip still exists. */
-  Set<const Strip *> scene_strips;
-  collect_scene_strips_recursive(&scene->ed->seqbase, scene_strips);
+  /* The strip pointer in the thumbnail request might be stale at this point.
+   * Before accessing it, validate that we still have that scene strip. */
+  Main *bmain = CTX_data_main(C);
+  Scene *scene_from_uid = reinterpret_cast<Scene *>(
+      BKE_libblock_find_session_uid(bmain, ID_SCE, key.id_session_uid));
+  Span<const Strip *> scene_strips = lookup_strips_by_scene(scene->ed, scene_from_uid);
+
   bool rendered_thumb = false;
   if (strip != nullptr && scene_strips.contains(strip) && strip->type == STRIP_TYPE_SCENE &&
       strip->scene != nullptr)
   {
     /* Render the strip thumbnail, outside of the cache lock. */
-    Main *bmain = CTX_data_main(C);
     ImBuf *thumb = render_scene_strip_thumbnail(
         bmain, scene, strip, float(frame_index), THUMB_SIZE);
     if (thumb != nullptr) {
