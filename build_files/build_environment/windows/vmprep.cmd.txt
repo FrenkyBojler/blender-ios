@@ -116,10 +116,10 @@ curl https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/
 echo Installing cuda 12.8.0
 start /wait c:\install\cuda_12.8.0_571.96_windows.exe -s -n nvcc_12.8 cudart_12.8 nvrtc_12.8 nvrtc_dev_12.8 nvjitlink_12.8 nvtx_12.8 thrust_12.8 curand_12.8 curand_dev_12.8
 echo Moving to c:\tools\cuda\12.8.0\
-robocopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8" "c:\tools\cuda\12.8.0" /E /MOVE /NJH /NJS /NP
+robocopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8" "c:\tools\cuda\12.8.0" /E /MOVE /NJH /NJS /NP /NFL /NDL
 
 echo Obtaining 7zr
-curl https://www.7-zip.org/a/7zr.exe -o c:\install\7zr.exe
+curl -L https://github.com/ip7z/7zip/releases/download/26.02/7zr.exe -o c:\install\7zr.exe
 
 echo Obtaining Hip SDK 7.1.51803-d3a86bd04
 curl https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe -o c:\install\AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe
@@ -131,8 +131,8 @@ start /wait msiexec /quiet /norestart /i C:\install\Packages\Apps\ROCmSDKPackage
 echo Cloning Blender repository
 mkdir c:\blendergit
 cd c:\blendergit
-REM Git won't be in the path yet, use full path
-"C:\Program Files\Git\cmd\git.exe" clone --branch %BRANCH% https://projects.blender.org/blender/blender.git
+SET PATH=%PATH%;C:\Program Files\Git\cmd
+clone --branch %BRANCH% https://projects.blender.org/blender/blender.git
 
 mkdir c:\db
 echo Obtaining vmbuild.cmd
