@@ -2526,7 +2526,9 @@ static void rna_property_update(
     /* End message bus. */
   }
 
-  if (!is_rna || (prop->flag & PROP_IDPROPERTY)) {
+  const bool is_idprop = prop->flag & PROP_IDPROPERTY;
+  const bool use_deg_update = !(prop->flag & PROP_NO_DEG_UPDATE);
+  if (!is_rna || (is_idprop && use_deg_update)) {
 
     /* Disclaimer: this logic is not applied consistently, causing some confusing behavior.
      *
@@ -4971,7 +4973,7 @@ void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA 
     }
     IDP_AppendArray(idprop, item);
     /* IDP_AppendArray does a shallow copy (memcpy), only free memory. */
-    // IDP_FreePropertyContent(item);
+    // IDP_FreeProperty(item);
     MEM_delete(item);
     rna_idproperty_touch(idprop);
   }
@@ -4989,7 +4991,7 @@ void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA 
       }
       IDP_AppendArray(idprop, item);
       /* #IDP_AppendArray does a shallow copy (memcpy), only free memory. */
-      // IDP_FreePropertyContent(item);
+      // IDP_FreeProperty(item);
       MEM_delete(item);
     }
   }
