@@ -668,12 +668,17 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb,
     int totelem = lb->count();
 
     if (totelem > 1) {
+      if (last_te->parent == nullptr) {
+        return;
+      }
       Collection *collection = outliner_collection_from_tree_element(last_te->parent);
       if (collection == nullptr) {
         for (TreeElement *parent_te = last_te->parent; parent_te; parent_te = parent_te->parent) {
-          collection = outliner_collection_from_tree_element(parent_te);
-          if (collection != nullptr) {
-            break;
+          if (parent_te) {
+            collection = outliner_collection_from_tree_element(parent_te);
+            if (collection != nullptr) {
+              break;
+            }
           }
         }
       }
@@ -732,9 +737,11 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb,
         Object *ob = reinterpret_cast<Object *>(tselem->id);
         Collection *collection = nullptr;
         for (TreeElement *parent_te = &te_iter; parent_te; parent_te = parent_te->parent) {
-          collection = outliner_collection_from_tree_element(parent_te);
-          if (collection != nullptr) {
-            break;
+          if (parent_te) {
+            collection = outliner_collection_from_tree_element(parent_te);
+            if (collection != nullptr) {
+              break;
+            }
           }
         }
         if (collection != nullptr) {
