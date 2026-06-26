@@ -22,6 +22,7 @@
 #include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_cryptomatte.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -230,15 +231,25 @@ SceneCompositorModifier *new_modifier(Scene *scene, const char *name)
 SceneCompositorModifier *copy_modifier(Scene *scene, SceneCompositorModifier *source_modifier)
 {
   SceneCompositorModifier *new_modifier = MEM_dupalloc(source_modifier);
+  if (source_modifier->node_group) {
+    id_us_plus(&new_modifier->node_group->id);
+  }
   BLI_addtail(&scene->compositor_modifiers, new_modifier);
   rename_modifier(scene, new_modifier, source_modifier->name, false);
+  set_active_modifier(scene, new_modifier);
   return new_modifier;
 }
 
 void remove_modifier(Scene *scene, SceneCompositorModifier *modifier)
 {
+  if (modifier->node_group) {
+    id_us_min(&modifier->node_group->id);
+  }
   BLI_remlink(&scene->compositor_modifiers, modifier);
   MEM_delete(modifier);
+  if (!scene->compositor_modifiers.is_empty()) {
+    set_active_modifier(scene, &*scene->compositor_modifiers.begin());
+  }
 }
 
 void clear_modifiers(Scene *scene)

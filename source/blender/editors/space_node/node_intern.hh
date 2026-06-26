@@ -497,12 +497,16 @@ void NODE_OT_duplicate_scene_compositor_modifier_node_group(wmOperatorType *oper
 
 /* `node_scene_compositor_modifiers.cc` */
 
-void NODE_OT_scene_compositor_modifier_add(wmOperatorType *operator_type);
+void NODE_OT_add_scene_compositor_modifier(wmOperatorType *operator_type);
 void NODE_OT_remove_scene_compositor_modifier(wmOperatorType *operator_type);
 void NODE_OT_move_scene_compositor_modifier(wmOperatorType *operator_type);
 void NODE_OT_duplicate_scene_compositor_modifier(wmOperatorType *operator_type);
 void NODE_OT_scene_compositor_modifier_move_to_index(wmOperatorType *operator_type);
 void NODE_OT_set_active_scene_compositor_modifier(wmOperatorType *operator_type);
+
+/* `node_add_scene_compositor_modifier_assets.cc` */
+
+void node_scene_compositor_modifier_add_asset_register();
 
 /* `node_group.cc` */
 

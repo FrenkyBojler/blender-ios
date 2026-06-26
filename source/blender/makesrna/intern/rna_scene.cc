@@ -3123,6 +3123,7 @@ static void rna_SceneCompositorModifier_name_set(PointerRNA *ptr, const char *va
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   SceneCompositorModifier *modifier = ptr->data_as<SceneCompositorModifier>();
   bke::compositor::rename_modifier(scene, modifier, value);
+  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
 }
 
 static void rna_SceneCompositorModifier_is_active_set(PointerRNA *ptr, bool is_active)
@@ -3135,6 +3136,7 @@ static void rna_SceneCompositorModifier_is_active_set(PointerRNA *ptr, bool is_a
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   SceneCompositorModifier *modifier = ptr->data_as<SceneCompositorModifier>();
   bke::compositor::set_active_modifier(scene, modifier);
+  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
 }
 
 static bool rna_SceneCompositorModifier_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
@@ -3163,13 +3165,14 @@ static void rna_SceneCompositorModifier_node_group_update(Main *bmain,
   DEG_relations_tag_update(bmain);
 
   // compositor_nodes_update_interface(*sequencer_scene, *cmd);
+  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
 }
 
 static SceneCompositorModifier *rna_SceneCompositorModifiers_new(ID *scene_id, const char *name)
 {
   Scene *scene = id_cast<Scene *>(scene_id);
   SceneCompositorModifier *modifier = bke::compositor::new_modifier(scene, name);
-  WM_main_add_notifier(NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
   return modifier;
 }
 
@@ -3187,6 +3190,7 @@ static void rna_SceneCompositorModifiers_remove(ID *scene_id,
   bke::compositor::remove_modifier(scene, modifier);
   modifier_ptr->invalidate();
   // rna_Scene_compositor_update(bmain, scene, ptr);
+  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
 }
 
 static void rna_SceneCompositorModifiers_clear(ID *scene_id, Main * /*bmain*/)
@@ -3195,6 +3199,7 @@ static void rna_SceneCompositorModifiers_clear(ID *scene_id, Main * /*bmain*/)
   bke::compositor::clear_modifiers(scene);
 
   // rna_Scene_compositor_update(bmain, scene, ptr);
+  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
 }
 
 static PointerRNA rna_SceneCompositorModifiers_active_get(PointerRNA *ptr)
@@ -3213,6 +3218,7 @@ static void rna_SceneCompositorModifiers_active_set(PointerRNA *ptr,
   bke::compositor::set_active_modifier(scene, modifier);
 
   // rna_Scene_compositor_update(bmain, scene, ptr);
+  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
 }
 
 }  // namespace blender

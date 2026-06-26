@@ -96,7 +96,8 @@ static void draw_modifier_panel_header(const bContext * /*C*/, Panel *panel)
 
   constexpr int number_of_buttons = 3;
   const int available_space_for_name = (panel->sizex / UI_UNIT_X) - number_of_buttons;
-  if (available_space_for_name > 5) {
+  const bool is_panel_drawn_for_first_time = panel->sizex == 0;
+  if (is_panel_drawn_for_first_time || available_space_for_name > 5) {
     name_row.prop(modifier_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
   }
   else {

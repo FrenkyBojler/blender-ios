@@ -10122,9 +10122,10 @@ static void rna_def_composite_nodetree(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Scene Compositor Modifier",
                            "The node group can be used as a scene compositor modifier");
-  RNA_def_property_boolean_funcs(prop,
-                                 "rna_CompositorNodeTree_is_strip_modifier_get",
-                                 "rna_CompositorNodeTree_is_strip_modifier_set");
+  RNA_def_property_boolean_funcs(
+      prop,
+      "rna_CompositorNodeTree_allow_usage_in_scene_compositor_modifier_get",
+      "rna_CompositorNodeTree_allow_usage_in_scene_compositor_modifier_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 }
 

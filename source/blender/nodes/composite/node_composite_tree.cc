@@ -12,6 +12,7 @@
 
 #include "BLI_listbase.hh"
 
+#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
@@ -77,10 +78,14 @@ static void composite_get_from_context(const bContext *C,
   }
 
   Scene *scene = CTX_data_scene(C);
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  if (!modifier || !modifier->node_group || ID_MISSING(modifier->node_group)) {
+    return;
+  }
 
-  *r_from = nullptr;
+  *r_from = &scene->id;
   *r_id = &scene->id;
-  *r_ntree = scene->compositing_node_group;
+  *r_ntree = modifier->node_group;
 }
 
 static void foreach_nodeclass(void *calldata, bke::bNodeClassCallback func)

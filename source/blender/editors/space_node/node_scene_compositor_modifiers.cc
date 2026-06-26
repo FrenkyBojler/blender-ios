@@ -34,11 +34,11 @@ static wmOperatorStatus add_scene_compositor_modifier_exec(bContext *C, wmOperat
 {
   Scene *scene = CTX_data_scene(C);
   bke::compositor::new_modifier(scene, "Scene Compositor Modifier");
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
   return OPERATOR_FINISHED;
 }
 
-void NODE_OT_scene_compositor_modifier_add(wmOperatorType *operator_type)
+void NODE_OT_add_scene_compositor_modifier(wmOperatorType *operator_type)
 {
   operator_type->name = "Add Scene Compositor Modifier";
   operator_type->idname = "NODE_OT_add_scene_compositor_modifier";
@@ -66,6 +66,7 @@ static wmOperatorStatus remove_scene_compositor_modifier_exec(bContext *C, wmOpe
   bke::compositor::remove_modifier(scene, modifier);
 
   // TODO: Updates.
+  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -124,6 +125,7 @@ static wmOperatorStatus move_scene_compositor_modifier_exec(bContext *C, wmOpera
   }
 
   // TODO: Updates.
+  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -175,10 +177,10 @@ static wmOperatorStatus duplicate_scene_compositor_modifier_exec(bContext *C, wm
     return OPERATOR_CANCELLED;
   }
 
-  SceneCompositorModifier *new_modifier = bke::compositor::copy_modifier(scene, modifier);
-  bke::compositor::set_active_modifier(scene, new_modifier);
+  bke::compositor::copy_modifier(scene, modifier);
 
   // TODO: Updates.
+  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -209,16 +211,14 @@ void NODE_OT_duplicate_scene_compositor_modifier(wmOperatorType *operator_type)
 static wmOperatorStatus move_scene_compositor_modifier_to_index_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-
   const std::string name = RNA_string_get(op->ptr, "name");
-  const int new_index = RNA_int_get(op->ptr, "index");
-
   SceneCompositorModifier *modifier = bke::compositor::get_modifier(scene, name.c_str());
   if (!modifier) {
     return OPERATOR_CANCELLED;
   }
 
   const int current_index = BLI_findindex(&scene->compositor_modifiers, modifier);
+  const int new_index = RNA_int_get(op->ptr, "index");
   const bool successful = BLI_listbase_move_index(
       &scene->compositor_modifiers, current_index, new_index);
   if (!successful) {
@@ -226,6 +226,7 @@ static wmOperatorStatus move_scene_compositor_modifier_to_index_exec(bContext *C
   }
 
   // TODO: Updates.
+  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -233,7 +234,6 @@ static wmOperatorStatus move_scene_compositor_modifier_to_index_invoke(bContext 
                                                                        wmOperator *op,
                                                                        const wmEvent * /*event*/)
 {
-  BLI_assert(RNA_struct_property_is_set(op->ptr, "name"));
   return move_scene_compositor_modifier_to_index_exec(C, op);
 }
 
@@ -272,9 +272,7 @@ void NODE_OT_scene_compositor_modifier_move_to_index(wmOperatorType *operator_ty
 static wmOperatorStatus set_active_scene_compositor_modifier_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-
   const std::string name = RNA_string_get(op->ptr, "name");
-
   SceneCompositorModifier *modifier = bke::compositor::get_modifier(scene, name.c_str());
   if (!modifier) {
     return OPERATOR_CANCELLED;
@@ -282,6 +280,7 @@ static wmOperatorStatus set_active_scene_compositor_modifier_exec(bContext *C, w
   bke::compositor::set_active_modifier(scene, modifier);
 
   // TODO: Updates.
+  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
   return OPERATOR_FINISHED;
 }
 

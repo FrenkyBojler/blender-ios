@@ -104,7 +104,7 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_new_scene_compositor_modifier_node_group);
   WM_operatortype_append(NODE_OT_duplicate_scene_compositor_modifier_node_group);
 
-  WM_operatortype_append(NODE_OT_scene_compositor_modifier_add);
+  WM_operatortype_append(NODE_OT_add_scene_compositor_modifier);
   WM_operatortype_append(NODE_OT_remove_scene_compositor_modifier);
   WM_operatortype_append(NODE_OT_move_scene_compositor_modifier);
   WM_operatortype_append(NODE_OT_duplicate_scene_compositor_modifier);
@@ -131,6 +131,8 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_sockets_sync);
 
   WM_operatortype_append(NODE_OT_link_drag_operation_test);
+
+  node_scene_compositor_modifier_add_asset_register();
 
   for (bke::bNodeType *ntype : bke::node_types_get()) {
     if (ntype->register_operators) {
