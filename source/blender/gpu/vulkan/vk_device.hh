@@ -10,8 +10,8 @@
 
 #include <atomic>
 
-#include "BLI_task.h"
-#include "BLI_threads.h"
+#include "BLI_task_c.hh"
+#include "BLI_threads.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
@@ -166,6 +166,7 @@ class VKDevice : public NonCopyable {
    * building at a time (background_serial).
    */
   TaskPool *submission_pool_ = nullptr;
+  std::atomic<bool> submission_runner_should_exit_ = false;
   /**
    * All created render graphs.
    */

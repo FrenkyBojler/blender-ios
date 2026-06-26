@@ -155,6 +155,10 @@ def gather_material(bmat, export_settings):
         pbr_metallic_roughness=pbr_metallic_roughness
     )
 
+    if export_settings['gltf_extras'] and export_settings['gltf_export_anim_pointer']:
+        export_settings['KHR_animation_pointer']['extras']['materials'][bmat.id]['glTF_extras'] = material
+        export_settings['material_identifiers'][bmat.id]['gltf'] = material
+
     uvmap_infos = {}
     udim_infos = {}
 
@@ -214,8 +218,8 @@ def gather_material(bmat, export_settings):
     # This will be used when trying to export some KHR_animation_pointer
 
     if len(export_settings['current_paths']) > 0 and bmat.used == "ORIGINAL":
-        export_settings['KHR_animation_pointer']['materials'][bmat.id] = {}
-        export_settings['KHR_animation_pointer']['materials'][bmat.id]['paths'] = export_settings['current_paths'].copy()
+        export_settings['KHR_animation_pointer'][None]['materials'][bmat.id] = {}
+        export_settings['KHR_animation_pointer'][None]['materials'][bmat.id]['paths'] = export_settings['current_paths'].copy()
 
     export_settings['current_paths'] = {}
 
@@ -375,7 +379,13 @@ def __gather_normal_texture(bmat, export_settings):
             path_['path'] = export_settings['current_texture_transform'][k]['path'].replace(
                 "YYY", "normalTexture/extensions")
             path_['vector_type'] = export_settings['current_texture_transform'][k]['vector_type']
-            export_settings['current_paths'][k] = path_
+            if k in export_settings['current_paths']:
+                if 'additional' not in export_settings['current_paths'][k]:
+                    export_settings['current_paths'][k]['additional'] = []
+                if path_['path'] != export_settings['current_paths'][k]['path']:
+                    export_settings['current_paths'][k]['additional'].append(path_['path'])
+            else:
+                export_settings['current_paths'][k] = path_
 
     export_settings['current_texture_transform'] = {}
 
@@ -384,7 +394,13 @@ def __gather_normal_texture(bmat, export_settings):
             path_ = {}
             path_['length'] = export_settings['current_normal_scale'][k]['length']
             path_['path'] = export_settings['current_normal_scale'][k]['path'].replace("YYY", "normalTexture")
-            export_settings['current_paths'][k] = path_
+            if k in export_settings['current_paths']:
+                if 'additional' not in export_settings['current_paths'][k]:
+                    export_settings['current_paths'][k]['additional'] = []
+                if path_['path'] != export_settings['current_paths'][k]['path']:
+                    export_settings['current_paths'][k]['additional'].append(path_['path'])
+            else:
+                export_settings['current_paths'][k] = path_
 
     export_settings['current_normal_scale'] = {}
 
@@ -445,7 +461,13 @@ def __gather_orm_texture(bmat, export_settings):
             path_['path'] = export_settings['current_texture_transform'][k]['path'].replace(
                 "YYY", "occlusionTexture/extensions")
             path_['vector_type'] = export_settings['current_texture_transform'][k]['vector_type']
-            export_settings['current_paths'][k] = path_
+            if k in export_settings['current_paths']:
+                if 'additional' not in export_settings['current_paths'][k]:
+                    export_settings['current_paths'][k]['additional'] = []
+                if path_['path'] != export_settings['current_paths'][k]['path']:
+                    export_settings['current_paths'][k]['additional'].append(path_['path'])
+            else:
+                export_settings['current_paths'][k] = path_
 
         # This case can't happen because we are going to keep only 1 UVMap
         export_settings['log'].warning("This case should not happen, please report a bug")
@@ -455,7 +477,13 @@ def __gather_orm_texture(bmat, export_settings):
             path_['path'] = export_settings['current_texture_transform'][k]['path'].replace(
                 "YYY", "pbrMetallicRoughness/metallicRoughnessTexture/extensions")
             path_['vector_type'] = export_settings['current_texture_transform'][k]['vector_type']
-            export_settings['current_paths'][k] = path_
+            if k in export_settings['current_paths']:
+                if 'additional' not in export_settings['current_paths'][k]:
+                    export_settings['current_paths'][k]['additional'] = []
+                if path_['path'] != export_settings['current_paths'][k]['path']:
+                    export_settings['current_paths'][k]['additional'].append(path_['path'])
+            else:
+                export_settings['current_paths'][k] = path_
 
     export_settings['current_texture_transform'] = {}
 
@@ -478,7 +506,13 @@ def __gather_occlusion_texture(bmat, orm_texture, export_settings):
             path_['length'] = export_settings['current_occlusion_strength'][k]['length']
             path_['path'] = export_settings['current_occlusion_strength'][k]['path']
             path_['reverse'] = export_settings['current_occlusion_strength'][k]['reverse']
-            export_settings['current_paths'][k] = path_
+            if k in export_settings['current_paths']:
+                if 'additional' not in export_settings['current_paths'][k]:
+                    export_settings['current_paths'][k]['additional'] = []
+                if path_['path'] != export_settings['current_paths'][k]['path']:
+                    export_settings['current_paths'][k]['additional'].append(path_['path'])
+            else:
+                export_settings['current_paths'][k] = path_
 
     export_settings['current_occlusion_strength'] = {}
 
@@ -489,7 +523,13 @@ def __gather_occlusion_texture(bmat, orm_texture, export_settings):
             path_['path'] = export_settings['current_texture_transform'][k]['path'].replace(
                 "YYY", "occlusionTexture/extensions")
             path_['vector_type'] = export_settings['current_texture_transform'][k]['vector_type']
-            export_settings['current_paths'][k] = path_
+            if k in export_settings['current_paths']:
+                if 'additional' not in export_settings['current_paths'][k]:
+                    export_settings['current_paths'][k]['additional'] = []
+                if path_['path'] != export_settings['current_paths'][k]['path']:
+                    export_settings['current_paths'][k]['additional'].append(path_['path'])
+            else:
+                export_settings['current_paths'][k] = path_
 
     export_settings['current_texture_transform'] = {}
 
@@ -546,14 +586,17 @@ def __export_unlit(bmat, export_settings):
         )
     )
 
+    if export_settings['gltf_extras'] and export_settings['gltf_export_anim_pointer']:
+        export_settings['KHR_animation_pointer']['extras']['materials'][bmat.id]['glTF_extras'] = material
+
     export_user_extensions('gather_material_unlit_hook', export_settings, material, bmat.get_used_material())
 
     # Now we have exported the material itself, we need to store some additional data
     # This will be used when trying to export some KHR_animation_pointer
 
     if len(export_settings['current_paths']) > 0 and bmat.used == "ORIGINAL":
-        export_settings['KHR_animation_pointer']['materials'][bmat.id] = {}
-        export_settings['KHR_animation_pointer']['materials'][id(
+        export_settings['KHR_animation_pointer'][None]['materials'][bmat.id] = {}
+        export_settings['KHR_animation_pointer'][None]['materials'][id(
             bmat.get_used_material())]['paths'] = export_settings['current_paths'].copy()
 
     export_settings['current_paths'] = {}
@@ -607,8 +650,8 @@ def get_final_material(mesh, blender_material, attr_indices, base_material, uvma
     material = __get_final_material_with_indices(blender_material, base_material, caching_indices, export_settings)
 
     # We need to set the material paths info with the real final material (material with all texCoord, etc.. set)
-    if id(blender_material) in export_settings['KHR_animation_pointer']['materials']:
-        export_settings['KHR_animation_pointer']['materials'][id(blender_material)]['glTF_material'] = material
+    if id(blender_material) in export_settings['KHR_animation_pointer'][None]['materials']:
+        export_settings['KHR_animation_pointer'][None]['materials'][id(blender_material)]['glTF_material'] = material
 
     return material
 

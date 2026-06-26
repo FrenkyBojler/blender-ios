@@ -11,9 +11,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_math_rotation.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8_symbols.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8_symbols.hh"
 
 #include "BLT_translation.hh"
 
@@ -153,11 +153,11 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "DNA_node_types.h"
 #  include "DNA_vfont_types.h"
 
-#  include "BLI_iterator.h"
-#  include "BLI_listbase.h"
+#  include "BLI_iterator.hh"
+#  include "BLI_listbase.hh"
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
-#  include "BLI_string_utf8.h"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
 #  include "BLI_string_utils.hh"
 
 #  include "BKE_anim_data.hh"
@@ -801,7 +801,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
 
   /* check channel increment or decrement */
   const int channel_delta = (value >= strip->channel) ? 1 : -1;
-  seq::strip_channel_set(strip, value);
+  strip->channel_set(value);
 
   if (seq::transform_test_overlap(scene, seqbase, strip)) {
     seq::transform_seqbase_shuffle_ex(seqbase, strip, scene, channel_delta);
