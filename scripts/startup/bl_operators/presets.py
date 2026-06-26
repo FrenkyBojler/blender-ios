@@ -865,7 +865,7 @@ class AddPresetKeyconfig(AddPresetBase, Operator):
 class RemovePresetKeyconfig(AddPresetBase, Operator):
     """Remove a custom keymap configuration from the preset list"""
     bl_idname = "wm.keyconfig_preset_remove"
-    bl_label = "Remove Custom Keymap Configuration"
+    bl_label = "Remove Keymap Configuration"
     preset_menu = "USERPREF_MT_keyconfigs"
     preset_subdir = "keyconfig"
 
