@@ -2717,14 +2717,12 @@ static IndexMask pbvh_gather_generic(Object &ob,
 
 static IndexMask pbvh_gather_generic_cube(Object &ob,
                                           const Brush &brush,
+                                          const float4x4 &brush_local_mat,
                                           const bool use_original,
                                           IndexMaskMemory &memory)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
-  SculptSession &ss = *ob.runtime->sculpt_session;
-  StrokeCache &cache = *ss.cache;
-
-  if (math::is_zero(cache.brush_local_mat)) {
+  if (math::is_zero(brush_local_mat)) {
     BLI_assert_msg(0, "Unable to calculate cube test with empty 'brush_local_mat'");
     return {};
   }
@@ -2737,7 +2735,7 @@ static IndexMask pbvh_gather_generic_cube(Object &ob,
           return false;
         }
         const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
-        return node_in_box(cache.brush_local_mat, bounds);
+        return node_in_box(brush_local_mat, bounds);
       });
 
     case PAINT_FALLOFF_SHAPE_TUBE:
@@ -2746,8 +2744,9 @@ static IndexMask pbvh_gather_generic_cube(Object &ob,
           return false;
         }
         const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
-        return node_in_box(
-            cache.brush_local_mat, bounds, float3(0.0f), float3(1.0f, 1.0f, FLT_MAX));
+        /* Use a large value for the Z axis to ensure that the cylinder extends infinitely in that
+         * direction. */
+        return node_in_box(brush_local_mat, bounds, float3(0.0f), float3(1.0f, 1.0f, FLT_MAX));
       });
   }
 
@@ -2882,6 +2881,7 @@ static void calc_local_from_screen(const ViewContext &vc,
 static void calc_brush_local_mat(const float rotation,
                                  const Object &ob,
                                  const eBrushFalloffShape falloff_shape,
+                                 const float3 &sculpt_normal,
                                  float local_mat[4][4],
                                  float local_mat_inv[4][4])
 {
@@ -2924,11 +2924,11 @@ static void calc_brush_local_mat(const float rotation,
        * apparent to the user).
        * The Y-axis of the brush-local frame has to lie in the intersection of the tangent plane
        * and the motion plane. */
-      cross_v3_v3v3(v, cache->sculpt_normal, motion_normal_local);
+      cross_v3_v3v3(v, sculpt_normal, motion_normal_local);
       normalize_v3_v3(mat[1], v);
       /* Get other axes. */
-      cross_v3_v3v3(mat[0], mat[1], cache->sculpt_normal);
-      copy_v3_v3(mat[2], cache->sculpt_normal);
+      cross_v3_v3v3(mat[0], mat[1], sculpt_normal);
+      copy_v3_v3(mat[2], sculpt_normal);
       break;
     }
     case PAINT_FALLOFF_SHAPE_TUBE: {
@@ -2970,6 +2970,17 @@ static void calc_brush_local_mat(const float rotation,
   copy_m4_m4(local_mat_inv, tmat);
   /* Return inverse (for converting from model-space coords to local area coords). */
   invert_m4_m4(local_mat, tmat);
+}
+
+static void calc_brush_local_mat(const float rotation,
+                                 const Object &ob,
+                                 const eBrushFalloffShape falloff_shape,
+                                 float local_mat[4][4],
+                                 float local_mat_inv[4][4])
+{
+  const StrokeCache *cache = ob.runtime->sculpt_session->cache;
+  calc_brush_local_mat(
+      rotation, ob, falloff_shape, cache->sculpt_normal_symm, local_mat, local_mat_inv);
 }
 
 float3 tilt_apply_to_normal(const Object &object,
@@ -3390,6 +3401,7 @@ static bool brush_type_needs_all_pbvh_nodes(const Brush &brush)
 
 /** Calculates the nodes that a brush will influence. */
 static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgraph,
+                                                        const Sculpt &sd,
                                                         Object &ob,
                                                         const Brush &brush,
                                                         IndexMaskMemory &memory)
@@ -3425,10 +3437,45 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
   }
   /* TODO: Test if gather_generic_cube is good enough for the case above. If true, move the
    * following above radius_scale definition. */
-  else if (!math::is_zero(ss.cache->brush_local_mat) &&
-           BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt))
-  {
-    return {pbvh_gather_generic_cube(ob, brush, use_original, memory), std::nullopt, std::nullopt};
+  else if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
+    float3 sculpt_normal = float3(0.0f);
+    if (brush.falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
+      /* Calculate sculpt normal from a estimate of the surface normal. */
+      const float initial_radius_squared = math::square(ss.cache->radius * std::numbers::sqrt2);
+      const IndexMask initial_node_mask = gather_nodes(pbvh,
+                                                       eBrushFalloffShape(brush.falloff_shape),
+                                                       use_original,
+                                                       ss.cache->location_symm,
+                                                       initial_radius_squared,
+                                                       ss.cache->view_normal_symm,
+                                                       memory);
+      sculpt_normal = calc_sculpt_normal(depsgraph, sd, ob, initial_node_mask);
+
+      if (math::is_zero(sculpt_normal)) {
+        /* The brush local matrix is degenerate: return an empty index mask. */
+        return {IndexMask(), std::nullopt, std::nullopt};
+      }
+    }
+
+    if (math::is_zero(ss.cache->grab_delta_symm)) {
+      /* The brush local matrix is degenerate: return an empty index mask. */
+      return {IndexMask(), std::nullopt, std::nullopt};
+    }
+
+    float4x4 brush_local_mat, brush_local_mat_inv;
+    calc_brush_local_mat(mask_tex->rot,
+                         ob,
+                         eBrushFalloffShape(brush.falloff_shape),
+                         sculpt_normal,
+                         brush_local_mat.ptr(),
+                         brush_local_mat_inv.ptr());
+
+    return {
+        pbvh_gather_generic_cube(ob, brush, brush_local_mat, use_original, memory),
+        std::nullopt,
+        std::nullopt,
+    };
   }
 
   return {pbvh_gather_generic(ob, brush, use_original, radius_scale, memory),
@@ -3569,7 +3616,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
 
   const brushes::CursorSampleResult cursor_sample_result = calc_brush_node_mask(
-      depsgraph, ob, brush, memory);
+      depsgraph, sd, ob, brush, memory);
   const IndexMask node_mask = cursor_sample_result.node_mask;
 
   /* Only act if some verts are inside the brush area. */
