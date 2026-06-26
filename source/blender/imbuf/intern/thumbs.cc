@@ -334,6 +334,10 @@ static ImBuf *thumb_create_ex(const char *file_path,
                               ImBuf *img,
                               const ThumbCancellationToken *cancel_token = nullptr)
 {
+  if (thumb_cancel_requested(cancel_token)) {
+    return nullptr;
+  }
+
   /* Just in case these folders got deleted somehow. */
   IMB_thumb_makedirs();
 
@@ -377,10 +381,6 @@ static ImBuf *thumb_create_ex(const char *file_path,
       {
         /* only load if we didn't give an image */
         if (img == nullptr) {
-          if (thumb_cancel_requested(cancel_token)) {
-            return nullptr;
-          }
-
           switch (source) {
             case THB_SOURCE_IMAGE:
               img = IMB_thumb_load_image(file_path, tsize, nullptr);
@@ -603,6 +603,10 @@ ImBuf *IMB_thumb_manage(const char *file_or_lib_path,
                         ThumbSource source,
                         const ThumbCancellationToken *cancel_token)
 {
+  if (thumb_cancel_requested(cancel_token)) {
+    return nullptr;
+  }
+
   if (source == THB_SOURCE_DIRECT) {
     const eFileAttributes file_attributes = BLI_file_attributes(file_or_lib_path);
     /* Don't trigger download files from online drives. Maybe less of a problem for

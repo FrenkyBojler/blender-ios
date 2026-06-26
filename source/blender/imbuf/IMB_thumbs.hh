@@ -48,23 +48,24 @@ enum ThumbSource : int8_t {
 };
 
 struct ThumbCancellationToken {
+ private:
+  std::atomic<bool> is_cancelled_ = false;
+
+ public:
   void cancel()
   {
-    is_cancelled_.store(true, std::memory_order_relaxed);
+    is_cancelled_.store(true, std::memory_order_release);
   }
 
   void reset()
   {
-    is_cancelled_.store(false, std::memory_order_relaxed);
+    is_cancelled_.store(false, std::memory_order_release);
   }
 
   bool is_cancelled() const
   {
-    return is_cancelled_.load(std::memory_order_relaxed);
+    return is_cancelled_.load(std::memory_order_acquire);
   }
-
- private:
-  std::atomic<bool> is_cancelled_ = false;
 };
 
 /**
@@ -114,9 +115,9 @@ void IMB_thumb_delete(const char *file_or_lib_path, ThumbSize size);
  *                          the thumbnail to be created/managed.
  */
 ImBuf *IMB_thumb_manage(const char *file_or_lib_path,
-                       ThumbSize size,
-                       ThumbSource source,
-                       const ThumbCancellationToken *cancel_token = nullptr);
+                        ThumbSize size,
+                        ThumbSource source,
+                        const ThumbCancellationToken *cancel_token = nullptr);
 
 /**
  * Create the necessary directories to store the thumbnails.

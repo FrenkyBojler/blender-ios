@@ -547,6 +547,10 @@ static int filelist_intern_free_main_files(FileList *filelist)
 static void filelist_cache_preview_runf(TaskPool *__restrict pool, void *taskdata)
 {
   FileListEntryCache *cache = static_cast<FileListEntryCache *>(BLI_task_pool_user_data(pool));
+  if (cache->previews_cancel_token.is_cancelled()) {
+    return;
+  }
+
   FileListEntryPreviewTaskData *preview_taskdata = static_cast<FileListEntryPreviewTaskData *>(
       taskdata);
   FileListEntryPreview *preview = preview_taskdata->preview;
@@ -578,10 +582,6 @@ static void filelist_cache_preview_runf(TaskPool *__restrict pool, void *taskdat
   }
   else if (preview->flags & FILE_TYPE_OBJECT_IO) {
     source = THB_SOURCE_OBJECT_IO;
-  }
-
-  if (cache->previews_cancel_token.is_cancelled()) {
-    return;
   }
 
   IMB_thumb_path_lock(preview->filepath);
