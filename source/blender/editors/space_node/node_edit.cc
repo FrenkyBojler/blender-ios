@@ -1721,6 +1721,24 @@ void NODE_OT_delete(wmOperatorType *ot)
 /** \name Node Delete with Reconnect Operator
  * \{ */
 
+/**
+ * Remove the node's #ui::Block in the active region when deleting a node to avoid events in the
+ * same queue to access to any button referencing data that is going to be freed.
+ */
+static void node_delete_ui_block_free(const bContext *C, bNode &node)
+{
+  const ARegion *region = CTX_wm_region(C);
+  if (!region) {
+    return;
+  }
+  const std::string node_block_name = "node_" + std::string(node.name);
+  if (ui::Block **block = region->runtime->block_name_map.lookup_ptr_as(node_block_name)) {
+    BLI_remlink(&region->runtime->uiblocks, *block);
+    region->runtime->block_name_map.remove_as(node_block_name);
+    ui::block_free(C, *block);
+  }
+}
+
 static wmOperatorStatus node_delete_reconnect_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
@@ -1733,6 +1751,7 @@ static wmOperatorStatus node_delete_reconnect_exec(bContext *C, wmOperator * /*o
 
   for (bNode &node : snode->edittree->nodes.items_mutable()) {
     if (node.flag & SELECT) {
+      node_delete_ui_block_free(C, node);
       bke::node_internal_relink(*snode->edittree, node);
       bke::node_remove_node(bmain, *snode->edittree, node, true);
 
