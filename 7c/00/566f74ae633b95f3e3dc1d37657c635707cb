@@ -1,2 +1,3 @@
 Referenced by issue #160568, Nodes: Memory leak detected in `NODE_MT_add` search while adding `GeometryNodeTransform`
 Referenced by issue #160653, Crash removing attributes in edit-mode
+Referenced by issue #160700, Memory leak adding a freestyle thickness modifier
