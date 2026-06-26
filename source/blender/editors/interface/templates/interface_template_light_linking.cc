@@ -11,6 +11,7 @@
 
 #include <fmt/format.h>
 
+#include "BLI_assert.h"
 #include "BLI_listbase.h"
 
 #include "BLT_translation.hh"
@@ -18,8 +19,10 @@
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_collection.hh"
 #include "BKE_context.hh"
 #include "BKE_light_linking.h"
+#include "BKE_scene.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -72,14 +75,66 @@ class CollectionDropTarget {
   }
 };
 
+class CollectionInsertDropTarget : public CollectionDropTarget {
+  Main &bmain_;
+
+ public:
+  bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const
+  {
+    if (!CollectionDropTarget::can_drop(drag, r_disabled_hint)) {
+      return false;
+    }
+
+    const wmDragID *drag_id = static_cast<wmDragID *>(drag.ids.first);
+    BLI_assert(drag_id);
+
+    /* Allow insertion if the ID is already in the target collection.
+     * This is to support reordering within the target collection. */
+    const ID_Type id_type = GS(drag_id->id->name);
+    switch (id_type) {
+      case ID_OB: {
+        const Object *drag_object = id_cast<const Object *>(drag_id->id);
+        if (BKE_collection_has_object(&get_collection(), drag_object)) {
+          return true;
+        }
+        break;
+      }
+      case ID_GR: {
+        const Collection *drag_collection = id_cast<const Collection *>(drag_id->id);
+        if (BKE_collection_has_collection(&get_collection(), drag_collection)) {
+          return true;
+        }
+        break;
+      }
+      default:
+        return false;
+    }
+
+    if (BKE_scene_find_from_collection(&bmain_, &get_collection()) != nullptr) {
+      *r_disabled_hint = "Can not modify collection that is used by a scene";
+      return false;
+    }
+
+    return true;
+  }
+
+  CollectionInsertDropTarget(Main &bmain, Collection &collection)
+      : CollectionDropTarget(collection), bmain_(bmain)
+  {
+  }
+};
+
 /**
  * Drop target for the view (when dropping into empty space of the view), not for an item.
  */
 class InsertCollectionDropTarget : public DropTargetInterface {
-  CollectionDropTarget collection_target_;
+  CollectionInsertDropTarget collection_target_;
 
  public:
-  InsertCollectionDropTarget(Collection &collection) : collection_target_(collection) {}
+  InsertCollectionDropTarget(Main &bmain, Collection &collection)
+      : collection_target_(bmain, collection)
+  {
+  }
 
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override
   {
@@ -194,10 +249,7 @@ class ItemDragController : public AbstractViewItemDragController {
   ID &id_;
 
  public:
-  explicit ItemDragController(AbstractView &view, ID &id)
-      : AbstractViewItemDragController(view), id_(id)
-  {
-  }
+  ItemDragController(AbstractView &view, ID &id) : AbstractViewItemDragController(view), id_(id) {}
 
   std::optional<eWM_DragDataType> get_drag_type() const override
   {
@@ -316,11 +368,12 @@ class CollectionViewItem : public BasicTreeViewItem {
 
 class CollectionView : public AbstractTreeView {
   Layout &context_layout_;
+  Main &bmain_;
   Collection &collection_;
 
  public:
-  CollectionView(Layout &context_layout, Collection &collection)
-      : context_layout_(context_layout), collection_(collection)
+  CollectionView(Layout &context_layout, Main &bmain, Collection &collection)
+      : context_layout_(context_layout), bmain_(bmain), collection_(collection)
   {
   }
 
@@ -347,7 +400,7 @@ class CollectionView : public AbstractTreeView {
 
   std::unique_ptr<DropTargetInterface> create_drop_target() override
   {
-    return std::make_unique<InsertCollectionDropTarget>(collection_);
+    return std::make_unique<InsertCollectionDropTarget>(bmain_, collection_);
   }
 };
 
@@ -400,7 +453,8 @@ void template_light_linking_collection(Layout *layout,
   AbstractTreeView *tree_view = block_add_view(
       *block,
       "Light Linking Collection Tree View",
-      std::make_unique<light_linking::CollectionView>(*context_layout, *collection));
+      std::make_unique<light_linking::CollectionView>(
+          *context_layout, *CTX_data_main(C), *collection));
   tree_view->set_context_menu_title("Light Linking");
   tree_view->set_default_rows(5);
 
