@@ -1,1 +1,2 @@
 Referenced by commit bd380743e8ce149587f01a82b10dac4daa18dbac, Revert "Fix #159520: Layered depth images could use color attachment layout"
+Referenced by issue #137983, Release note tools: List of bug fixes per release override
