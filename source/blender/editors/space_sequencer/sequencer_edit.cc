@@ -2553,9 +2553,13 @@ static wmOperatorStatus sequencer_delete_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  seq::prefetch_stop(scene);
+  VectorSet<Strip *> selected = selected_strips_from_context(C);
 
-  for (Strip *strip : selected_strips_from_context(C)) {
+  if (selected.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  for (Strip *strip : selected) {
     seq::edit_flag_for_removal(scene, seqbasep, strip);
     if (delete_data) {
       sequencer_delete_strip_data(C, strip);
