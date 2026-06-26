@@ -334,7 +334,6 @@ static void calculate_relax_splines(Span<BMVert *> verts,
                                     Span<int> knot_indices,
                                     Span<float> t_params,
                                     bool is_closed,
-                                    int interpolation,
                                     std::array<Vector<SplineCoeffs>, 3> &r_coeffs)
 {
   const int num_knots = knot_indices.size();
@@ -368,8 +367,7 @@ static void execute_relax_phase(
   std::array<Vector<SplineCoeffs>, 3> axis_coeffs;
 
   if (interpolation == RELAX_EDGE_LOOPS_INTERP_CUBIC) {
-    calculate_relax_splines(
-        verts, phase.knot_indices, t_knots, is_closed, interpolation, axis_coeffs);
+    calculate_relax_splines(verts, phase.knot_indices, t_knots, is_closed, axis_coeffs);
   }
 
   for (const int i : phase.point_indices.index_range()) {
