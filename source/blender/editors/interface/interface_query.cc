@@ -8,12 +8,12 @@
  * Utilities to inspect the interface, extract information.
  */
 
-#include "BLI_listbase.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "DNA_screen_types.h"
 
@@ -791,7 +791,9 @@ Button *region_find_active_but(ARegion *region)
   return nullptr;
 }
 
-Button *region_find_first_but_test_flag(ARegion *region, int flag_include, int flag_exclude)
+Button *region_find_first_but_test_flag(ARegion *region,
+                                        int64_t flag_include,
+                                        int64_t flag_exclude)
 {
   for (Block &block : region->runtime->uiblocks) {
     for (Button &but : block.buttons()) {

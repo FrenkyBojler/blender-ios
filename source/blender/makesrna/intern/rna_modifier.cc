@@ -17,7 +17,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -849,9 +849,9 @@ static const EnumPropertyItem grease_pencil_build_time_mode_items[] = {
 #  include "DNA_object_force_types.h"
 #  include "DNA_particle_types.h"
 
-#  include "BLI_listbase.h"
-#  include "BLI_string.h"
-#  include "BLI_string_utf8.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
 
 #  include "BKE_bake_geometry_nodes_modifier.hh"
 #  include "BKE_cachefile.hh"
@@ -870,7 +870,7 @@ static const EnumPropertyItem grease_pencil_build_time_mode_items[] = {
 #  include "BKE_ocean.h"
 #  include "BKE_particle.h"
 
-#  include "BLI_sort_utils.h"
+#  include "BLI_sort_utils.hh"
 #  include "BLI_string_utils.hh"
 
 #  include "DEG_depsgraph.hh"
@@ -2206,8 +2206,10 @@ void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffCon
                StringRefNull(nmd_bake_b->packed->blob_files[i].name)) ||
               (nmd_bake_a->packed->blob_files[i].data() !=
                nmd_bake_b->packed->blob_files[i].data()))
+          {
             is_different = true;
-          break;
+            break;
+          }
         }
       }
       if (!is_different) {
@@ -2280,7 +2282,7 @@ bool rna_NodesModifierBake_override_apply(Main *bmain,
    * #override_remove_button_exec), to revert the overridden changes. */
   BLI_assert_msg((((opop->operation == LIBOVERRIDE_OP_CUSTOM) && !removed_opop) ||
                   ((opop->operation == LIBOVERRIDE_OP_REPLACE) &&
-                   (removed_opop && (removed_opop->operation = LIBOVERRIDE_OP_CUSTOM)))),
+                   (removed_opop && (removed_opop->operation == LIBOVERRIDE_OP_CUSTOM)))),
                  "Unsupported RNA override operation on Nodes modifier bakes collection");
 #  endif
 

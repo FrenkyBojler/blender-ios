@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-06-22 07:24+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -8498,6 +8498,34 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
+msgid "Local View"
+msgstr "Lokalni pogled"
+
+
+msgid "Navigation"
+msgstr "Navigacija"
+
+
+msgid "Align View"
+msgstr "Poravnaj pogled"
+
+
+msgid "Select Linked"
+msgstr "Izaberi povezano"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Metaball"
+msgstr "Meta lopta"
+
+
+msgid "Light"
+msgstr "Svetlost"
+
+
 msgid "Relations"
 msgstr "Odnosi"
 
@@ -8526,8 +8554,8 @@ msgid "Hooks"
 msgstr "Udice"
 
 
-msgid "Math"
-msgstr "Matematika"
+msgid "Import"
+msgstr "Uvoz"
 
 
 msgid "Clear Transform"
@@ -8540,6 +8568,10 @@ msgstr "U međuvremenu"
 
 msgid "Propagate"
 msgstr "Prenesi"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Names"
@@ -8566,56 +8598,20 @@ msgid "Merge"
 msgstr "Sjedini"
 
 
-msgid "Import"
-msgstr "Uvoz"
-
-
 msgid "Special Characters"
 msgstr "Specijalni znaci"
-
-
-msgid "Metaball"
-msgstr "Meta lopta"
 
 
 msgid "Bone Roll"
 msgstr "Rolna kostiju"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Snap"
-msgstr "Lepljenje"
-
-
-msgid "Mirror"
-msgstr "Ogledalo"
-
-
-msgid "UV Mapping"
-msgstr "UV Mapiranje"
-
-
-msgid "Local View"
-msgstr "Lokalni pogled"
-
-
-msgid "Navigation"
-msgstr "Navigacija"
-
-
 msgid "Linked"
 msgstr "Povezano"
 
 
-msgid "Align View"
-msgstr "Poravnaj pogled"
-
-
-msgid "Select Linked"
-msgstr "Izaberi povezano"
+msgid "Snap"
+msgstr "Lepljenje"
 
 
 msgid "Keying"
@@ -8626,8 +8622,12 @@ msgid "Tracking"
 msgstr "Praćenje"
 
 
-msgid "Light"
-msgstr "Svetlost"
+msgid "Mirror"
+msgstr "Ogledalo"
+
+
+msgid "UV Mapping"
+msgstr "UV Mapiranje"
 
 
 msgid "Basic"
@@ -19066,12 +19066,12 @@ msgid "Restrict"
 msgstr "Ograniči"
 
 
-msgid "Motion Tracking"
-msgstr "Praćenje pokreta"
-
-
 msgid "Transform Orientations"
 msgstr "Transformacija orijentacija"
+
+
+msgid "Motion Tracking"
+msgstr "Praćenje pokreta"
 
 
 msgid "Bone Constraints"
