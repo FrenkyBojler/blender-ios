@@ -40,7 +40,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     for (BaseSocketDeclarationBuilder *socket : sockets) {
       socket->default_input_type(NODE_DEFAULT_INPUT_INDEX_FIELD);
-      socket->structure_type(StructureType::Field);
       socket->evaluated_geometry_field({target_geo.index()});
     }
   }
@@ -57,7 +56,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     for (BaseSocketDeclarationBuilder *socket : sockets) {
       socket->default_input_type(NODE_DEFAULT_INPUT_INDEX_FIELD);
-      socket->structure_type(StructureType::Field);
       socket->evaluated_geometry_field({source_geo.index()});
     }
   }
