@@ -726,10 +726,20 @@ ImBuf *thumbnail_cache_get(const bContext *C,
   return res;
 }
 
-void thumbnail_cache_update_scene_thumbs(const bContext *C, Scene *scene)
+bool thumbnail_cache_has_pending_scene_requests(Scene *scene)
 {
   if (scene == nullptr || scene->ed == nullptr) {
-    return;
+    return false;
+  }
+  std::scoped_lock lock(thumb_cache_mutex);
+  ThumbnailCache *cache = query_thumbnail_cache(scene);
+  return cache != nullptr && !cache->scene_requests_.is_empty();
+}
+
+bool thumbnail_cache_update_scene_thumbs(const bContext *C, Scene *scene)
+{
+  if (scene == nullptr || scene->ed == nullptr) {
+    return false;
   }
 
   /* Pop a single scene strip thumbnail request out of the queue (we are rendering
@@ -742,7 +752,7 @@ void thumbnail_cache_update_scene_thumbs(const bContext *C, Scene *scene)
     std::scoped_lock lock(thumb_cache_mutex);
     ThumbnailCache *cache = query_thumbnail_cache(scene);
     if (cache == nullptr || cache->scene_requests_.is_empty()) {
-      return;
+      return false;
     }
     auto first_request = cache->scene_requests_.begin();
     strip = first_request->scene_strip;
@@ -786,9 +796,7 @@ void thumbnail_cache_update_scene_thumbs(const bContext *C, Scene *scene)
     }
   }
 
-  if (rendered_thumb || more_pending) {
-    WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, &scene->id);
-  }
+  return rendered_thumb || more_pending;
 }
 
 void thumbnail_cache_invalidate_strip(Scene *scene, const Strip *strip)

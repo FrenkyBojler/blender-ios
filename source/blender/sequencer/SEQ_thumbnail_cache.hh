@@ -41,12 +41,14 @@ ImBuf *thumbnail_cache_get(const bContext *C,
                            const Strip *strip,
                            float timeline_frame);
 
+bool thumbnail_cache_has_pending_scene_requests(Scene *scene);
+
 /**
- * Update scene thumbnail requests. This must be called on the main thread, outside of DRW lock.
- * This renders one pending scene strip thumbnail (to keep UI responsive), and schedules a redraw
- * if more requests remain.
+ * Update scene thumbnail requests. This must be called on the main thread, outside of region
+ * drawing (e.g. from the area refresh callback). It renders at most one pending scene strip
+ * thumbnail to keep the UI responsive.
  */
-void thumbnail_cache_update_scene_thumbs(const bContext *C, Scene *scene);
+bool thumbnail_cache_update_scene_thumbs(const bContext *C, Scene *scene);
 
 /**
  * If total amount of resident thumbnails is too large, try to remove oldest-used ones to
