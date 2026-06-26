@@ -1437,7 +1437,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     for (CollectionObject &cob : data.to->gobject) {
       cobs.append(&cob);
     }
-    std::ranges::sort(cobs, [](const CollectionObject *a, const CollectionObject *b) {
+    std::ranges::stable_sort(cobs, [](const CollectionObject *a, const CollectionObject *b) {
       return a->sort_index < b->sort_index;
     });
   }

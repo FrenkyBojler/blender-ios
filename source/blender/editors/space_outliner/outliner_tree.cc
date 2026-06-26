@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <optional>
+#include <utility>
 
 #include "MEM_guardedalloc.h"
 
@@ -653,7 +654,7 @@ static void outliner_sort(ListBaseT<TreeElement> *lb)
   }
 }
 static void outliner_sort_custom(ListBaseT<TreeElement> *lb,
-                                 Map<Collection *, int> &collection_index_map,
+                                 Map<std::pair<Collection *, Object *>, int> &collection_index_map,
                                  Set<CollectionObject *> &updated_cobs)
 {
   TreeElement *last_te = static_cast<TreeElement *>(lb->last);
@@ -745,9 +746,10 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb,
           }
         }
         if (collection != nullptr) {
-          CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
+          CollectionObject *cob = collection_object_map.lookup(ob);
           if (cob != nullptr && !updated_cobs.contains(cob)) {
-            int &index = collection_index_map.lookup_or_add(collection, 0);
+            Object *parent_ob = ob->parent;
+            int &index = collection_index_map.lookup_or_add({collection, parent_ob}, 0);
             cob->sort_index = index++;
             updated_cobs.add(cob);
           }
@@ -760,20 +762,9 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb,
 
 static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
 {
-  Map<Collection *, int> collection_index_map;
+  Map<std::pair<Collection *, Object *>, int> collection_index_map;
   Set<CollectionObject *> updated_cobs;
   outliner_sort_custom(lb, collection_index_map, updated_cobs);
-
-  for (auto item : collection_index_map.items()) {
-    for (CollectionObject &cob : item.key->gobject) {
-      if (!updated_cobs.contains(&cob)) {
-        cob.sort_index = item.value++;
-        printf("Warning: Object '%s' in collection '%s' was not updated with a sort index.\n",
-               cob.ob->id.name + 2,
-               item.key->id.name + 2);
-      }
-    }
-  }
 }
 
 /** \} */
