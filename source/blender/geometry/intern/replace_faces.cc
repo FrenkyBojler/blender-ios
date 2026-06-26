@@ -248,31 +248,34 @@ Mesh *replace_faces(const Mesh &base,
 
   const int unselected_corners_num = offset_indices::sum_group_sizes(base_faces, unselected_faces);
 
-  Array<float3> positions(unselected_verts.size() + verts_all_by_part.total_size());
+  Array<float3> vert_all_xy(verts_all_by_part.total_size());
+  Array<float3> positions_all(unselected_verts.size() + verts_all_by_part.total_size());
   array_utils::gather(base_positions,
                       unselected_verts,
-                      positions.as_mutable_span().take_front(unselected_verts.size()));
-  interpolate_positions_quads(base_positions,
-                              base_faces,
-                              base_corner_verts,
-                              base_corner_normals,
-                              quads,
-                              indices,
-                              mesh_positions,
-                              heights,
-                              verts_all_by_part,
-                              positions.as_mutable_span().take_back(faces_by_part.total_size()));
-  interpolate_positions_ngons(base_positions,
-                              base_faces,
-                              base_corner_verts,
-                              base_face_normals,
-                              base_corner_normals,
-                              heights,
-                              ngons,
-                              indices,
-                              mesh_positions,
-                              verts_all_by_part,
-                              positions.as_mutable_span().take_back(faces_by_part.total_size()));
+                      positions_all.as_mutable_span().take_front(unselected_verts.size()));
+  interpolate_positions_quads(
+      base_positions,
+      base_faces,
+      base_corner_verts,
+      base_corner_normals,
+      quads,
+      indices,
+      mesh_positions,
+      heights,
+      verts_all_by_part,
+      positions_all.as_mutable_span().take_back(faces_by_part.total_size()));
+  interpolate_positions_ngons(
+      base_positions,
+      base_faces,
+      base_corner_verts,
+      base_face_normals,
+      base_corner_normals,
+      heights,
+      ngons,
+      indices,
+      mesh_positions,
+      verts_all_by_part,
+      positions_all.as_mutable_span().take_back(faces_by_part.total_size()));
 
   Array<int> face_to_face_map_offsets;
   Array<int> face_to_face_map_indices;
@@ -293,11 +296,11 @@ Mesh *replace_faces(const Mesh &base,
   index_mask::build_reverse_map<int>(unselected_verts, base_vert_to_unselected);
 
   // TODO: PROTECT AGAINST MERGING VERTICES IN THE SAME PART
-  AtomicDisjointSet disjoint_set(positions.size());
+  AtomicDisjointSet disjoint_set(positions_all.size());
   selection.foreach_index(
       [&](const int base_face_i) {
         const IndexRange part_verts = verts_all_by_part[base_face_i];
-        const Span<float3> face_positions = positions.as_span().slice(part_verts);
+        const Span<float3> face_positions = positions_all.as_span().slice(part_verts);
         const Span<int> neighbor_faces = base_face_to_face_map[base_face_i];
         for (const int neighbor_face : neighbor_faces) {
           if (selection_bits[neighbor_face]) {
@@ -340,7 +343,7 @@ Mesh *replace_faces(const Mesh &base,
       exec_mode::grain_size(128));
 
   // TODO: THIS CONTAINS THE UNSELECTED VERTS MERGED_VERTS_NUM WILL BE MISLEADING
-  Array<int> merged_verts(positions.size());
+  Array<int> merged_verts(positions_all.size());
   const int merged_verts_num = disjoint_set.calc_reduced_ids(merged_verts);
 
   // TODO: EDGE MERGING
@@ -356,8 +359,9 @@ Mesh *replace_faces(const Mesh &base,
   array_utils::gather(
       base_positions, unselected_verts, result_positions.take_front(unselected_verts.size()));
   // TODO: AVERAGE POSITIONS
-  array_utils::gather(
-      positions.as_span(), merged_verts.as_span(), result_positions.take_back(merged_verts_num));
+  array_utils::gather(positions_all.as_span(),
+                      merged_verts.as_span(),
+                      result_positions.take_back(merged_verts_num));
 
   // TODO: EDGES
   MutableSpan<int2> result_edges = result->edges_for_write();
