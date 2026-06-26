@@ -61,6 +61,7 @@ all_test_cases = [
     ('test_insert_group_with_sockets', {'GROUP_INSERT'}),
     ('test_ungroup_multiple', {'NODE_GROUP'}),
     ('test_ungroup_proxy_nodes', {'NODE_GROUP'}),
+    ('test_viewer_node', {}),
 ]
 
 
