@@ -4719,7 +4719,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
 
 PointerRNA RNA_property_pointer_get_default(Main &bmain, PointerRNA & /*ptr*/, PropertyRNA &prop)
 {
-  BLI_assert(RNA_property_type(prop) == PROP_POINTER);
+  BLI_assert(RNA_property_type(&prop) == PROP_POINTER);
   auto *pprop = reinterpret_cast<PointerPropertyRNA *>(&prop);
 
   if (RNA_struct_is_a(pprop->pointer_type, RNA_ID)) {
