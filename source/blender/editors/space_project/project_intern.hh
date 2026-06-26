@@ -24,6 +24,4 @@ std::optional<int> project_ui_asset_libraries_index_from_user_library(
 
 void project_asset_panel_register(ARegionType &region_type);
 
-void project_asset_panel_draw(const bContext *C, Panel *panel);
-
 }  // namespace blender

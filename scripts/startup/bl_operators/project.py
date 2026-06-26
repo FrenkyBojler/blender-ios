@@ -25,6 +25,7 @@ PROJECT_DIR = ".blender_project"
 PROJECT_CONFIG = "project.toml"
 
 PROJECT_DEFAULT_NAME = "Untitled Project"
+ASSET_DEFAULT_NAME = "Untitled Asset"
 
 
 # -------------------------------------------------------------
@@ -33,33 +34,40 @@ PROJECT_DEFAULT_NAME = "Untitled Project"
 # Types that define the schema for reading/writing project config TOML files.
 
 @dataclass
+class AssetLibrary:
+    name: str
+    path: str
+    use_relative_path: bool | None
+    import_method: str | None  # Or an enum class type.
+
+
+@dataclass
 class ProjectConfig:
     name: str
-    asset_libraries: dict
+    asset_libraries: list[AssetLibrary] | None = None
 
     @staticmethod
     def new_from_project(project):
         """Create a ProjectConfig object from an existing real project."""
-        asset_dict = {}
+        asset_list = []
         if project.asset_libraries is not None:
             for asset in project.asset_libraries:
-                asset_data = {}
-                asset_data["path"] = asset.path
-                asset_data["use_relative_path"] = asset.use_relative_path
-                asset_data["import_method"] = asset.import_method
-                asset_dict[asset.name] = asset_data
-        return ProjectConfig(name=project.name, asset_libraries=asset_dict)
+                asset_data = AssetLibrary(asset.name, asset.path, asset.use_relative_path, asset.import_method)
+                asset_list.append(asset_data)
+        return ProjectConfig(name=project.name, asset_libraries=asset_list)
 
     def populate_project(self, project):
         """Fills in an existing real project's data from this ProjectConfig object."""
+        if self.asset_libraries is None:
+            return
 
         # Populate the project asset libraries (if any)
-        for asset_name, asset_data in self.asset_libraries.items():
-            lib = project.asset_libraries.new(name=asset_name, directory=asset_data["path"])
-            if "import_method" in asset_data:
-                lib.import_method = asset_data["import_method"]
-            if "use_relative_path" in asset_data:
-                lib.use_relative_path = asset_data["use_relative_path"]
+        for asset_lib in self.asset_libraries:
+            lib = project.asset_libraries.new(name=asset_lib.name, directory=asset_lib.path)
+            if asset_lib.import_method:
+                lib.import_method = asset_lib.import_method
+            if asset_lib.use_relative_path:
+                lib.use_relative_path = asset_lib.use_relative_path
 
 
 # -------------------------------------------------------------
@@ -95,7 +103,6 @@ def save_project(project, report=None):
 
     import cattrs
     import tomli_w
-    import tempfile
     from pathlib import Path
 
     if project is None:
@@ -467,16 +474,18 @@ class PROJECT_OT_AssetLibraryAdd(Operator):
 
     def execute(self, context):
         if self.directory == "":
-            self.report({'ERROR'}, "Cannot create a project with an empty directory path.")
+            self.report({'ERROR'}, "Cannot create an assset library with an empty directory path.")
             return {'CANCELLED'}
 
-        if not bpy.path.is_subdir(path=self.directory, directory=bpy.data.project.root_path):
-            self.report({'ERROR'}, "New project directory must be a parent of the currently open blend file.")
-            return {'CANCELLED'}
-
-        # Create an initial names from the folder name
+        # Create an initial name from the folder name
+        #
+        # If the folder name contains no valid unicode (resulting in an empty
+        # string after processing), we fallback to a default.
         asset_library_path = os.path.normpath(self.directory)
-        asset_name = os.path.basename(asset_library_path).title()
+        asset_name = os.path.basename(asset_library_path).title() \
+            .encode('utf-8', 'surrogateescape') \
+            .decode('utf-8', 'ignore') \
+            or data_(ASSET_DEFAULT_NAME)
 
         # Replace base path with {project_root} if it is within the project folder.
         root_path = bpy.data.project.root_path

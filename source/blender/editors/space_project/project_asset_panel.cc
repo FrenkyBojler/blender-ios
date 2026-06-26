@@ -119,7 +119,7 @@ struct ProjectAssetLibraryListItem : public AssetLibraryListItemCommon {
   }
 };
 
-void project_asset_panel_draw(const bContext *C, Panel *panel)
+static void project_asset_panel_draw(const bContext *C, Panel *panel)
 {
   Vector<AnyAssetLibraryDefinition> libraries = project_ui_asset_libraries();
   bke::BlenderProject *project = BKE_blender_project_get(CTX_data_main(C));
@@ -145,7 +145,8 @@ void project_asset_panel_draw(const bContext *C, Panel *panel)
   ui::Layout &sub = col.row(true);
   const bool active_idx_in_range = active_asset_library >= 0 &&
                                    active_asset_library < libraries.size();
-  const bool is_custom_library = libraries[active_asset_library].type == ASSET_LIBRARY_CUSTOM;
+  const bool is_custom_library = active_idx_in_range &&
+                                 libraries[active_asset_library].type == ASSET_LIBRARY_CUSTOM;
   sub.enabled_set(active_idx_in_range && is_custom_library);
   PointerRNA props = sub.op("project.asset_library_remove", "", ICON_REMOVE);
   RNA_int_set(&props, "index", active_asset_library);
@@ -159,6 +160,12 @@ void project_asset_panel_draw(const bContext *C, Panel *panel)
   draw_active_library_settings(layout, libraries[active_asset_library]);
 }
 
+static bool project_asset_panel_poll(const bContext *C, PanelType * /*panel_type*/)
+{
+  bke::BlenderProject *project = BKE_blender_project_get(CTX_data_main(C));
+  return project != nullptr;
+}
+
 void project_asset_panel_register(ARegionType &region_type)
 {
   PanelType *panel_type = MEM_new_zeroed<PanelType>(__func__);
@@ -170,6 +177,7 @@ void project_asset_panel_register(ARegionType &region_type)
   panel_type->space_type = SPACE_PROJECT;
   panel_type->region_type = RGN_TYPE_WINDOW;
   panel_type->draw = project_asset_panel_draw;
+  panel_type->poll = project_asset_panel_poll;
   panel_type->order = 10; /* Make sure the category are put after the other base categoies. */
   BLI_addtail(&region_type.paneltypes, panel_type);
 }
