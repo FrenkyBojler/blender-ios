@@ -24,6 +24,67 @@ from modules.test_helpers import set_view3d_context_override, generate_stroke
 args = None
 
 
+@staticmethod
+def compare_drawing(evaluated_drawing, expected_drawing):
+    if len(evaluated_drawing.attributes.items()) != len(expected_drawing.attributes.items()):
+        print("Attribute count doesn't match")
+        return False
+
+    for a_idx, attribute in evaluated_drawing.attributes.items():
+        expected_attribute = expected_drawing.attributes[a_idx]
+    
+        if len(attribute.data.items()) != len(expected_attribute.data.items()):
+            print("Attribute data length doesn't match")
+            return False
+    
+        value_attr_name = (
+            'vector' if attribute.data_type == 'FLOAT_VECTOR' or
+            attribute.data_type == 'FLOAT2' else
+            'color' if attribute.data_type == 'FLOAT_COLOR' else 'value'
+        )
+    
+        for v_idx, attribute_value in attribute.data.items():
+            if getattr(
+                    attribute_value,
+                    value_attr_name) != getattr(
+                    expected_attribute.data[v_idx],
+                    value_attr_name):
+                print("Attribute '{}' values do not match".format(attribute.name))
+                return False
+
+    return True
+
+
+@staticmethod compare_layer(evaluated_layer, expected_layer):
+    if len(evaluated_layer.frames.items()) != len(expected_layer.frames.items()):
+        print("Number of frames doesn't match")
+        return false
+
+    for a_idx, frame in evaluated_layer.frames.items():
+        expected_frame = expected_layer.frames[a_idx]
+
+        if !compare_drawing(frame.drawing, expected_frame.drawing):
+            return False
+
+    return True
+
+
+@staticmethod
+def compare_greasepencil(evaluated_greasepencil, expected_greasepencil):
+    if len(evaluated_greasepencil.layers.items()) != len(expected_greasepencil.layers.items()):
+        print("Number of layers does not match")
+        return False;
+
+    for a_idx, layer in evaluated_greasepencil.layers.items():
+        expected_layer = expected_greasepencil.layers[a_idx]
+
+        if !compare_layer(layer, expected_layer):
+            return False
+
+    return True
+
+
+
 
 class GreasePencilPaintTests(unittest.TestCase):
     """
@@ -56,7 +117,9 @@ class GreasePencilPaintTests(unittest.TestCase):
         with bpy.context.temp_override(**context_override):
             bpy.ops.grease_pencil.brush_stroke(stroke=generate_stroke(context_override))
         #compare with expected
-        self.assertTrue(True, "Drawing doesn't match")
+
+        result = compare_greasepencil(data, bpy.data.objects['Expected'].data)
+        self.assertTrue(result, "Drawing doesn't match")
         self.cleanup()
 
         #self._activate_brush("Add Weight")
