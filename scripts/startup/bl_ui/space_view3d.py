@@ -7766,17 +7766,6 @@ class VIEW3D_PT_snapping_presets(PresetPanel, Panel):
     preset_operator = 'script.execute_preset'
     preset_add_operator = 'view3d.snapping_preset_add'
 
-    @staticmethod
-    def post_cb(context, filepath):
-        obj = context.active_object
-        is_object_mode = obj is None or obj.mode != 'EDIT'
-        if is_object_mode:
-            tool_settings = context.scene.tool_settings
-            tool_settings.use_snap_self = True
-            tool_settings.use_snap_edit = True
-            tool_settings.use_snap_nonedit = True
-            tool_settings.snap_face_nearest_steps = 1
-
 
 class VIEW3D_PT_snapping(Panel):
     bl_space_type = 'VIEW_3D'

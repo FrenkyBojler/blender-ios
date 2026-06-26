@@ -1081,7 +1081,6 @@ class AddPresetSnapping(AddPresetBase, Operator):
     ]
 
     preset_values = [
-        "tool_settings.snap_elements",
         "tool_settings.snap_target",
         "tool_settings.snap_elements_base",
         "tool_settings.snap_elements_individual",

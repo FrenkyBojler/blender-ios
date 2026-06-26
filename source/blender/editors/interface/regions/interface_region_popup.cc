@@ -465,11 +465,21 @@ static void block_region_popup_window_listener(const wmRegionListenerParams *par
     case NC_WINDOW: {
       switch (wmn->action) {
         case NA_EDITED: {
-          /* window resize */
-          ED_region_tag_refresh_ui(region);
+          /* Keep centered on window resizing. Only refresh if it's centered popup. */
+          Block *block = static_cast<Block *>(region->runtime->uiblocks.first);
+          if (block && block->bounds_type == BLOCK_BOUNDS_POPUP_CENTER) {
+            ED_region_tag_refresh_ui(region);
+          }
           break;
         }
       }
+      break;
+    }
+    case NC_SCENE:
+    case NC_WM: {
+      /* Refresh popup/popover UI on scene or window manager notifiers (e.g. settings/presets
+       * change). */
+      ED_region_tag_refresh_ui(region);
       break;
     }
   }
@@ -966,6 +976,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
   type.draw = block_region_draw;
   type.layout = block_region_refresh;
   type.regionid = RGN_TYPE_TEMPORARY;
+  type.listener = block_region_popup_window_listener;
   region->runtime->type = &type;
 
   region_handlers_add(&region->runtime->handlers);
@@ -1003,11 +1014,6 @@ PopupBlockHandle *popup_block_create(bContext *C,
 
   if (can_refresh) {
     CTX_wm_region_popup_set(C, region_popup_prev);
-  }
-
-  /* keep centered on window resizing */
-  if (block->bounds_type == BLOCK_BOUNDS_POPUP_CENTER) {
-    type.listener = block_region_popup_window_listener;
   }
 
   return handle;
