@@ -34,15 +34,6 @@ static const EnumPropertyItem prop_interpolation_items[] = {
     {0, nullptr},
 };
 
-static const EnumPropertyItem prop_iterations_items[] = {
-    {1, "1", 0, "1", "One"},
-    {3, "3", 0, "3", "Three"},
-    {5, "5", 0, "5", "Five"},
-    {10, "10", 0, "10", "Ten"},
-    {25, "25", 0, "25", "Twenty-five"},
-    {0, nullptr},
-};
-
 static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
 {
   const Main *bmain = CTX_data_main(C);
@@ -52,7 +43,7 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
       *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
-  const int iterations = RNA_enum_get(op->ptr, "iterations");
+  const int iterations = RNA_int_get(op->ptr, "iterations");
   const bool regular = RNA_boolean_get(op->ptr, "regular");
   bool changed = false;
 
@@ -107,12 +98,15 @@ void MESH_OT_relax_edge_loops(wmOperatorType *ot)
                0,
                "Interpolation",
                "Algorithm used for interpolation");
-  RNA_def_enum(ot->srna,
-               "iterations",
-               prop_iterations_items,
-               1,
-               "Iterations",
-               "Number of times the loop is relaxed");
+  RNA_def_int(ot->srna,
+              "iterations",
+              1,
+              1,
+              25,
+              "Iterations",
+              "Number of times the loop is relaxed",
+              1,
+              25);
   RNA_def_boolean(ot->srna,
                   "regular",
                   true,
