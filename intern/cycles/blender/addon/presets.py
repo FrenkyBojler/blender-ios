@@ -9,7 +9,6 @@ from bpy.types import Operator
 
 
 class AddPresetIntegrator(AddPresetBase, Operator):
-    '''Add or remove an Integrator Preset'''
     bl_idname = "render.cycles_integrator_preset_add"
     bl_label = ""
     preset_menu = "CYCLES_PT_integrator_presets"
@@ -35,9 +34,14 @@ class AddPresetIntegrator(AddPresetBase, Operator):
 
     preset_subdir = "cycles/integrator"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove an Integrator Preset"
+        return "Add an Integrator Preset"
+
 
 class AddPresetSampling(AddPresetBase, Operator):
-    '''Add or remove a Sampling Preset'''
     bl_idname = "render.cycles_sampling_preset_add"
     bl_label = ""
     preset_menu = "CYCLES_PT_sampling_presets"
@@ -61,9 +65,14 @@ class AddPresetSampling(AddPresetBase, Operator):
 
     preset_subdir = "cycles/sampling"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Sampling Preset"
+        return "Add a Sampling Preset"
+
 
 class AddPresetViewportSampling(AddPresetBase, Operator):
-    '''Add or remove a Viewport Sampling Preset'''
     bl_idname = "render.cycles_viewport_sampling_preset_add"
     bl_label = ""
     preset_menu = "CYCLES_PT_viewport_sampling_presets"
@@ -87,9 +96,14 @@ class AddPresetViewportSampling(AddPresetBase, Operator):
 
     preset_subdir = "cycles/viewport_sampling"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Viewport Sampling Preset"
+        return "Add a Viewport Sampling Preset"
+
 
 class AddPresetPerformance(AddPresetBase, Operator):
-    '''Add or remove a Performance Preset'''
     bl_idname = "render.cycles_performance_preset_add"
     bl_label = ""
     preset_menu = "CYCLES_PT_performance_presets"
@@ -110,6 +124,12 @@ class AddPresetPerformance(AddPresetBase, Operator):
     ]
 
     preset_subdir = "cycles/performance"
+
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Performance Preset"
+        return "Add a Performance Preset"
 
 
 classes = (

@@ -96,32 +96,6 @@ class AddPresetBase:
         options={'HIDDEN', 'SKIP_SAVE'},
     )
 
-    @classmethod
-    def description(cls, _context, properties):
-        desc = cls.bl_label or (cls.__doc__.strip() if cls.__doc__ else None)
-        contains_prefix = desc and (desc.lower().startswith("add or remove a ")
-                                    or desc.lower().startswith("add or remove an "))
-        if properties and contains_prefix:
-            consonant = True
-            if desc.lower().startswith("add or remove a "):
-                consonant = False
-                desc = desc[16:]
-            elif desc.lower().startswith("add or remove an "):
-                desc = desc[17:]
-            remove_active = getattr(properties, "remove_active", False)
-            remove_name = getattr(properties, "remove_name", False)
-            if remove_active or remove_name:
-                if consonant:
-                    return "Remove an " + desc
-                else:
-                    return "Remove a " + desc
-            else:
-                if consonant:
-                    return "Add an " + desc
-                else:
-                    return "Add a " + desc
-        return desc
-
     @staticmethod
     def as_filename(name):  # could reuse for other presets
 
@@ -343,7 +317,6 @@ class ExecutePreset(Operator):
 
 
 class AddPresetTextStripStyle(AddPresetBase, Operator):
-    """Add or remove a text strip style and layout preset"""
     bl_idname = "sequencer.text_strip_style_preset_add"
     bl_label = ""
     preset_menu = "STRIP_PT_effect_text_style_presets"
@@ -353,6 +326,12 @@ class AddPresetTextStripStyle(AddPresetBase, Operator):
     ]
 
     preset_subdir = "sequencer/text_style"
+
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a text strip style and layout preset"
+        return "Add a text strip style and layout preset"
 
     @property
     def preset_values(self):
@@ -387,7 +366,6 @@ class AddPresetTextStripStyle(AddPresetBase, Operator):
 
 
 class AddPresetRender(AddPresetBase, Operator):
-    """Add or remove a Render Preset"""
     bl_idname = "render.preset_add"
     bl_label = ""
     preset_menu = "RENDER_PT_format_presets"
@@ -408,9 +386,14 @@ class AddPresetRender(AddPresetBase, Operator):
 
     preset_subdir = "render"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Render Preset"
+        return "Add a Render Preset"
+
 
 class AddPresetCamera(AddPresetBase, Operator):
-    """Add or remove a Camera Preset"""
     bl_idname = "camera.preset_add"
     bl_label = ""
     preset_menu = "CAMERA_PT_presets"
@@ -420,6 +403,12 @@ class AddPresetCamera(AddPresetBase, Operator):
     ]
 
     preset_subdir = "camera"
+
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Camera Preset"
+        return "Add a Camera Preset"
 
     use_focal_length: BoolProperty(
         name="Include Focal Length",
@@ -441,7 +430,6 @@ class AddPresetCamera(AddPresetBase, Operator):
 
 
 class AddPresetCameraSafeAreas(AddPresetBase, Operator):
-    """Add or remove a Safe Areas Preset"""
     bl_idname = "camera.safe_areas_preset_add"
     bl_label = ""
     preset_menu = "CAMERA_PT_safe_areas_presets"
@@ -459,9 +447,14 @@ class AddPresetCameraSafeAreas(AddPresetBase, Operator):
 
     preset_subdir = "safe_areas"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Safe Areas Preset"
+        return "Add a Safe Areas Preset"
+
 
 class AddPresetCloth(AddPresetBase, Operator):
-    """Add or remove a Cloth Preset"""
     bl_idname = "cloth.preset_add"
     bl_label = ""
     preset_menu = "CLOTH_PT_presets"
@@ -501,9 +494,14 @@ class AddPresetCloth(AddPresetBase, Operator):
 
     preset_subdir = "cloth"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Cloth Preset"
+        return "Add a Cloth Preset"
+
 
 class AddPresetFluid(AddPresetBase, Operator):
-    """Add or remove a Fluid Preset"""
     bl_idname = "fluid.preset_add"
     bl_label = ""
     preset_menu = "FLUID_PT_presets"
@@ -519,9 +517,14 @@ class AddPresetFluid(AddPresetBase, Operator):
 
     preset_subdir = "fluid"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Fluid Preset"
+        return "Add a Fluid Preset"
+
 
 class AddPresetHairDynamics(AddPresetBase, Operator):
-    """Add or remove a Hair Dynamics Preset"""
     bl_idname = "particle.hair_dynamics_preset_add"
     bl_label = ""
     preset_menu = "PARTICLE_PT_hair_dynamics_presets"
@@ -549,9 +552,14 @@ class AddPresetHairDynamics(AddPresetBase, Operator):
         "settings.pin_stiffness",
     ]
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Hair Dynamics Preset"
+        return "Add a Hair Dynamics Preset"
+
 
 class AddPresetTextEditor(AddPresetBase, Operator):
-    """Add or remove a Text Editor Preset"""
     bl_idname = "text_editor.preset_add"
     bl_label = ""
     preset_menu = "USERPREF_PT_text_editor_presets"
@@ -567,9 +575,14 @@ class AddPresetTextEditor(AddPresetBase, Operator):
 
     preset_subdir = "text_editor"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Text Editor Preset"
+        return "Add a Text Editor Preset"
+
 
 class AddPresetTrackingCamera(AddPresetBase, Operator):
-    """Add or remove a Tracking Camera Intrinsics Preset"""
     bl_idname = "clip.camera_preset_add"
     bl_label = ""
     preset_menu = "CLIP_PT_camera_presets"
@@ -587,6 +600,12 @@ class AddPresetTrackingCamera(AddPresetBase, Operator):
         default=True,
     )
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Tracking Camera Intrinsics Preset"
+        return "Add a Tracking Camera Intrinsics Preset"
+
     @property
     def preset_values(self):
         preset_values = [
@@ -603,7 +622,6 @@ class AddPresetTrackingCamera(AddPresetBase, Operator):
 
 
 class AddPresetTrackingTrackColor(AddPresetBase, Operator):
-    """Add or remove a Clip Track Color Preset"""
     bl_idname = "clip.track_color_preset_add"
     bl_label = ""
     preset_menu = "CLIP_PT_track_color_presets"
@@ -619,9 +637,14 @@ class AddPresetTrackingTrackColor(AddPresetBase, Operator):
 
     preset_subdir = "tracking_track_color"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Clip Track Color Preset"
+        return "Add a Clip Track Color Preset"
+
 
 class AddPresetTrackingSettings(AddPresetBase, Operator):
-    """Add or remove a motion tracking settings preset"""
     bl_idname = "clip.tracking_settings_preset_add"
     bl_label = ""
     preset_menu = "CLIP_PT_tracking_settings_presets"
@@ -649,9 +672,14 @@ class AddPresetTrackingSettings(AddPresetBase, Operator):
 
     preset_subdir = "tracking_settings"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a motion tracking settings preset"
+        return "Add a motion tracking settings preset"
+
 
 class AddPresetEEVEERaytracing(AddPresetBase, Operator):
-    """Add or remove an EEVEE ray-tracing preset"""
     bl_idname = "render.eevee_raytracing_preset_add"
     bl_label = ""
     preset_menu = "RENDER_PT_eevee_raytracing_presets"
@@ -683,9 +711,14 @@ class AddPresetEEVEERaytracing(AddPresetBase, Operator):
 
     preset_subdir = "eevee/raytracing"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove an EEVEE ray-tracing preset"
+        return "Add an EEVEE ray-tracing preset"
+
 
 class AddPresetColorManagementWhiteBalance(AddPresetBase, Operator):
-    """Add or remove a white balance preset"""
     bl_idname = "render.color_management_white_balance_preset_add"
     bl_label = ""
     preset_menu = "RENDER_PT_color_management_white_balance_presets"
@@ -701,9 +734,14 @@ class AddPresetColorManagementWhiteBalance(AddPresetBase, Operator):
 
     preset_subdir = "color_management/white_balance"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a white balance preset"
+        return "Add a white balance preset"
+
 
 class AddPresetNodeColor(AddPresetBase, Operator):
-    """Add or remove a Node Color Preset"""
     bl_idname = "node.node_color_preset_add"
     bl_label = ""
     preset_menu = "NODE_PT_node_color_presets"
@@ -718,6 +756,12 @@ class AddPresetNodeColor(AddPresetBase, Operator):
     ]
 
     preset_subdir = "node_color"
+
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Node Color Preset"
+        return "Add a Node Color Preset"
 
 
 class AddPresetInterfaceTheme(AddPresetBase, Operator):
@@ -856,7 +900,6 @@ class RemovePresetKeyconfig(AddPresetBase, Operator):
 
 
 class AddPresetOperator(AddPresetBase, Operator):
-    """Add or remove an Operator Preset"""
     bl_idname = "wm.operator_preset_add"
     bl_label = ""
     preset_menu = "WM_MT_operator_presets"
@@ -870,6 +913,12 @@ class AddPresetOperator(AddPresetBase, Operator):
     preset_defines = [
         "op = bpy.context.active_operator",
     ]
+
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove an Operator Preset"
+        return "Add an Operator Preset"
 
     @property
     def preset_subdir(self):
@@ -1025,7 +1074,6 @@ class WM_OT_operator_presets_cleanup(Operator):
 
 
 class AddPresetGpencilBrush(AddPresetBase, Operator):
-    """Add or remove Grease Pencil brush preset"""
     bl_idname = "scene.gpencil_brush_preset_add"
     bl_label = ""
     preset_menu = "VIEW3D_PT_gpencil_brush_presets"
@@ -1057,9 +1105,14 @@ class AddPresetGpencilBrush(AddPresetBase, Operator):
 
     preset_subdir = "gpencil_brush"
 
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove Grease Pencil brush preset"
+        return "Add Grease Pencil brush preset"
+
 
 class AddPresetGpencilMaterial(AddPresetBase, Operator):
-    """Add or remove Grease Pencil material preset"""
     bl_idname = "scene.gpencil_material_preset_add"
     bl_label = ""
     preset_menu = "MATERIAL_PT_gpencil_material_presets"
@@ -1095,6 +1148,12 @@ class AddPresetGpencilMaterial(AddPresetBase, Operator):
     ]
 
     preset_subdir = "gpencil_material"
+
+    @classmethod
+    def description(_cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove Grease Pencil material preset"
+        return "Add Grease Pencil material preset"
 
 
 classes = (
