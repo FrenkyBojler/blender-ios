@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 
 namespace blender {
@@ -44,6 +45,26 @@ enum ThumbSource : int8_t {
    * Does _not_ use the thumbnail standard.
    */
   THB_SOURCE_DIRECT,
+};
+
+struct ThumbCancellationToken {
+  void cancel()
+  {
+    is_cancelled_.store(true, std::memory_order_relaxed);
+  }
+
+  void reset()
+  {
+    is_cancelled_.store(false, std::memory_order_relaxed);
+  }
+
+  bool is_cancelled() const
+  {
+    return is_cancelled_.load(std::memory_order_relaxed);
+  }
+
+ private:
+  std::atomic<bool> is_cancelled_ = false;
 };
 
 /**
@@ -92,7 +113,10 @@ void IMB_thumb_delete(const char *file_or_lib_path, ThumbSize size);
  * \param file_or_lib_path: File path or library-ID path (e.g. `/a/b.blend/Material/MyMaterial`) to
  *                          the thumbnail to be created/managed.
  */
-ImBuf *IMB_thumb_manage(const char *file_or_lib_path, ThumbSize size, ThumbSource source);
+ImBuf *IMB_thumb_manage(const char *file_or_lib_path,
+                       ThumbSize size,
+                       ThumbSource source,
+                       const ThumbCancellationToken *cancel_token = nullptr);
 
 /**
  * Create the necessary directories to store the thumbnails.
