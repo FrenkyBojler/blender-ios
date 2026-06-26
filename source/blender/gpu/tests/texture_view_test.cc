@@ -267,7 +267,7 @@ static void test_texture_view_mip_layer_test()
           GPU_DEVICE_ATI | GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL))
   {
     GTEST_SKIP()
-        << "GL Texture Views are quite broken in all drivers. Only Nvidia passes this tesst.";
+        << "GL Texture Views are quite broken in all drivers. Only Nvidia passes this test.";
   }
 
   GPU_render_begin();
