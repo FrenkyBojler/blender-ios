@@ -148,7 +148,7 @@ static wmOperatorStatus light_linking_link_exec(bContext *C, wmOperator *op)
                 RPT_ERROR,
                 "Cannot link to light linking collection '%s' that is used by scene '%s'",
                 collection->id.name + 2,
-                scene->id.name + 2);
+                collection_scene->id.name + 2);
     return OPERATOR_CANCELLED;
   }
 

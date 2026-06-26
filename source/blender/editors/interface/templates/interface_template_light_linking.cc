@@ -85,34 +85,42 @@ class CollectionInsertDropTarget : public CollectionDropTarget {
       return false;
     }
 
-    const wmDragID *drag_id = static_cast<wmDragID *>(drag.ids.first);
-    BLI_assert(drag_id);
+    bool have_ids_outside_collection = false;
+    for (const wmDragID &drag_id : drag.ids) {
+      const ID *id = drag_id.id;
 
-    /* Allow insertion if the ID is already in the target collection.
-     * This is to support reordering within the target collection. */
-    const ID_Type id_type = GS(drag_id->id->name);
-    switch (id_type) {
-      case ID_OB: {
-        const Object *drag_object = id_cast<const Object *>(drag_id->id);
-        if (BKE_collection_has_object(&get_collection(), drag_object)) {
-          return true;
+      /* Allow insertion if the ID is already in the target collection.
+       * This is to support reordering within the target collection. */
+      const ID_Type id_type = GS(id->name);
+      switch (id_type) {
+        case ID_OB: {
+          const Object *drag_object = id_cast<const Object *>(id);
+          if (!BKE_collection_has_object(&get_collection(), drag_object)) {
+            have_ids_outside_collection = true;
+          }
+          break;
         }
+        case ID_GR: {
+          const Collection *drag_collection = id_cast<const Collection *>(id);
+          if (!BKE_collection_has_collection(&get_collection(), drag_collection)) {
+            have_ids_outside_collection = true;
+          }
+          break;
+        }
+        default:
+          break;
+      }
+
+      if (have_ids_outside_collection) {
         break;
       }
-      case ID_GR: {
-        const Collection *drag_collection = id_cast<const Collection *>(drag_id->id);
-        if (BKE_collection_has_collection(&get_collection(), drag_collection)) {
-          return true;
-        }
-        break;
-      }
-      default:
-        return false;
     }
 
-    if (BKE_scene_find_from_collection(&bmain_, &get_collection()) != nullptr) {
-      *r_disabled_hint = "Can not modify collection that is used by a scene";
-      return false;
+    if (have_ids_outside_collection) {
+      if (BKE_scene_find_from_collection(&bmain_, &get_collection()) != nullptr) {
+        *r_disabled_hint = "Can not modify collection that is used by a scene";
+        return false;
+      }
     }
 
     return true;
