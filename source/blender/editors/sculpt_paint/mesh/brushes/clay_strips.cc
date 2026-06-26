@@ -422,7 +422,6 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
                                                        memory);
 
       calc_brush_plane(depsgraph, brush, object, initial_node_mask, plane_normal, plane_center);
-      plane_normal = tilt_apply_to_normal(plane_normal, *ss.cache, brush.tilt_strength_factor);
       plane_center += plane_normal * ss.cache->scale * displace;
       break;
     }
@@ -434,6 +433,8 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
       BLI_assert_unreachable();
       break;
   }
+
+  plane_normal = tilt_apply_to_normal(plane_normal, *ss.cache, brush.tilt_strength_factor);
 
   if (math::is_zero(ss.cache->grab_delta_symm) || math::is_zero(plane_normal)) {
     /* The brush local matrix is degenerate: return an empty index mask. */
