@@ -1053,7 +1053,7 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
         CustomData_has_layer(&me_cage->edge_data, CD_ORIGINDEX) &&
         CustomData_has_layer(&me_cage->face_data, CD_ORIGINDEX)))
   {
-    /* Only node-groups have this problem, assert this doesn't happen with other modifiers. */
+    /* This problem only occurs with node-groups, assert it doesn't happen with other modifiers. */
     BLI_assert(BKE_modifiers_findby_type(&obedit, eModifierType_Nodes));
 
     if (me_cage != me_final) {
