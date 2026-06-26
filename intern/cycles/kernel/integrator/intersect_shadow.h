@@ -125,8 +125,12 @@ ccl_device bool integrate_intersect_shadow_transparent(KernelGlobals kg,
   const bool opaque_hit = is_zero(throughput);
 
   /* Computed throughput from baked shadow transparency, where we can bypass recording
-   * intersections and shader evaluation. */
-  INTEGRATOR_STATE_WRITE(state, shadow_path, throughput) *= throughput;
+   * intersections and shader evaluation.
+   * The hypothesis here is that the majority of the shadow rays do not hit anything, and the
+   * kernel is memory-bound. Try to avoid unnecessary access and writes to the global memory. */
+  if (!isequal(throughput, one_float3())) {
+    INTEGRATOR_STATE_WRITE(state, shadow_path, throughput) *= throughput;
+  }
 
   if (!opaque_hit) {
     const uint num_recorded_hits = min(num_hits, (uint)INTEGRATOR_SHADOW_ISECT_SIZE);
