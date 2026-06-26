@@ -1072,10 +1072,9 @@ class AddPresetGpencilMaterial(AddPresetBase, Operator):
 
 
 class AddPresetSnapping(AddPresetBase, Operator):
-    """Add or remove a Snapping Preset"""
-    bl_idname = "scene.snapping_preset_add"
-    bl_label = "Add Snapping Preset"
-    preset_menu = "VIEW3D_MT_snapping_presets"
+    bl_idname = "view3d.snapping_preset_add"
+    bl_label = ""
+    preset_menu = "VIEW3D_PT_snapping_presets"
 
     preset_defines = [
         "tool_settings = bpy.context.scene.tool_settings",
@@ -1103,7 +1102,13 @@ class AddPresetSnapping(AddPresetBase, Operator):
         "tool_settings.snap_angle_increment_3d_precision",
     ]
 
-    preset_subdir = "snapping"
+    preset_subdir = "snapping/view_3d"
+
+    @classmethod
+    def description(cls, _context, properties):
+        if properties.remove_active or properties.remove_name:
+            return "Remove a Snapping Preset"
+        return "Add a Snapping Preset"
 
 
 classes = (

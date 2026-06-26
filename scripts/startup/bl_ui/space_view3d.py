@@ -29,6 +29,7 @@ from bpy.app.translations import (
     pgettext_rpt as rpt_,
     contexts as i18n_contexts,
 )
+from bl_ui.utils import PresetPanel
 
 
 def _toggle_xray_operator(layout, context, text=None):
@@ -7759,11 +7760,22 @@ class VIEW3D_PT_overlay_weight_paint(Panel):
         col.prop(overlay, "show_paint_wire")
 
 
-class VIEW3D_MT_snapping_presets(Menu):
-    bl_label = "Presets"
-    preset_subdir = "snapping"
-    preset_operator = "script.execute_preset"
-    draw = Menu.draw_preset
+class VIEW3D_PT_snapping_presets(PresetPanel, Panel):
+    bl_label = 'Snapping Presets'
+    preset_subdir = 'snapping/view_3d'
+    preset_operator = 'script.execute_preset'
+    preset_add_operator = 'view3d.snapping_preset_add'
+
+    @staticmethod
+    def post_cb(context, filepath):
+        obj = context.active_object
+        is_object_mode = obj is None or obj.mode != 'EDIT'
+        if is_object_mode:
+            tool_settings = context.scene.tool_settings
+            tool_settings.use_snap_self = True
+            tool_settings.use_snap_edit = True
+            tool_settings.use_snap_nonedit = True
+            tool_settings.snap_face_nearest_steps = 1
 
 
 class VIEW3D_PT_snapping(Panel):
@@ -7779,10 +7791,8 @@ class VIEW3D_PT_snapping(Panel):
         layout = self.layout
 
         row = layout.row()
-        sub = row.row(align=True)
-        sub.menu("VIEW3D_MT_snapping_presets", text=bpy.types.VIEW3D_MT_snapping_presets.bl_label)
-        sub.operator("scene.snapping_preset_add", text="", icon='ADD')
-        sub.operator("scene.snapping_preset_add", text="", icon='REMOVE')
+        row.label(text="Snapping")
+        VIEW3D_PT_snapping_presets.draw_panel_header(row)
 
         col = layout.column()
 
@@ -9510,7 +9520,7 @@ classes = (
     VIEW3D_PT_overlay_bones,
     VIEW3D_PT_overlay_sculpt,
     VIEW3D_PT_overlay_sculpt_curves,
-    VIEW3D_MT_snapping_presets,
+    VIEW3D_PT_snapping_presets,
     VIEW3D_PT_snapping,
     VIEW3D_PT_sculpt_snapping,
     VIEW3D_PT_proportional_edit,

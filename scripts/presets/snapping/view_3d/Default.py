@@ -1,7 +1,6 @@
 import bpy
 tool_settings = bpy.context.scene.tool_settings
 
-tool_settings.snap_elements = {'INCREMENT'}
 tool_settings.snap_target = 'CLOSEST'
 tool_settings.snap_elements_base = {'INCREMENT'}
 tool_settings.snap_elements_individual = set()
