@@ -246,23 +246,19 @@ float attenuate_disk(float3x3 Minv, float3 L, float3 verts[4])
  */
 float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 L, lut::LTCData ltc_data)
 {
-  /* Compute form factor attenuation, use below. */
-  float form_factor_attenuation = detail::attenuate_quad(ltc_data.Minv, L, corners);
-  form_factor_attenuation += (1.0f - form_factor_attenuation) * ltc_data.attenuation_factor;
-
-  /* Apply LTC inverse matrix. */
-  corners[0] = normalize(ltc_data.Minv * corners[0]);
-  corners[1] = normalize(ltc_data.Minv * corners[1]);
-  corners[2] = normalize(ltc_data.Minv * corners[2]);
-  corners[3] = normalize(ltc_data.Minv * corners[3]);
+  /* Init quad, transformed into LTC space. */
+  float3 V0 = normalize(ltc_data.Minv * corners[0]);
+  float3 V1 = normalize(ltc_data.Minv * corners[1]);
+  float3 V2 = normalize(ltc_data.Minv * corners[2]);
+  float3 V3 = normalize(ltc_data.Minv * corners[3]);
 
   /* Approximation using a sphere of the same solid angle as the quad.
    * Finding the clipped sphere diffuse integral is easier than clipping the quad. */
   float3 avg_dir;
-  avg_dir = detail::edge_integral_vec(corners[0], corners[1]);
-  avg_dir += detail::edge_integral_vec(corners[1], corners[2]);
-  avg_dir += detail::edge_integral_vec(corners[2], corners[3]);
-  avg_dir += detail::edge_integral_vec(corners[3], corners[0]);
+  avg_dir = detail::edge_integral_vec(V0, V1);
+  avg_dir += detail::edge_integral_vec(V1, V2);
+  avg_dir += detail::edge_integral_vec(V2, V3);
+  avg_dir += detail::edge_integral_vec(V3, V0);
 
   float form_factor_inv = inversesqrt(dot(avg_dir, avg_dir));
   float avg_dir_z = (avg_dir * form_factor_inv).z;
@@ -271,18 +267,19 @@ float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 L, lut::LT
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
 
-  float sphere_integral;
   if (ltc_data.integral_type == LTCIntegralType::ClippedDiffuseSphere) {
     /* Attenuate form factor to reduce backside leakage, in cases where a sphere lies above the
      * horizon, but is not clipped consistently with a polygon/ellipse. */
-    form_factor *= form_factor_attenuation;
-    sphere_integral = detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
+    // float form_factor_attenuation = detail::attenuate_quad(ltc_data.Minv, L, corners);
+    // form_factor_attenuation += (1.0f - form_factor_attenuation) * ltc_data.attenuation_factor;
+    // form_factor *= form_factor_attenuation;
+    return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
   }
   else { /* LTCIntegralType::UnclippedDiffuseSphere */
-    sphere_integral = M_1_PI;
+    avg_dir_z = abs(avg_dir_z);
+    return form_factor *
+           detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor) /*  * 0.5f */;
   }
-
-  return form_factor * sphere_integral;
 }
 
 /**
@@ -392,24 +389,21 @@ float evaluate_disk(sampler2DArray util_tx,
   /* Find the sphere and compute lighting. */
   float form_factor = saturate(L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2)));
 
-  /* Attenuate form factor to reduce leakage, in cases where a sphere lies above the
-   * horizon, but is not clipped consistently with a polygon/ellipse. */
-  float form_factor_attenuation = detail::attenuate_disk(ltc_data.Minv, Lv, disk_points);
-  form_factor_attenuation += (1.0f - form_factor_attenuation) * ltc_data.attenuation_factor;
-
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
-
-  float sphere_integral;
   if (ltc_data.integral_type == LTCIntegralType::ClippedDiffuseSphere) {
-    form_factor *= form_factor_attenuation;
-    sphere_integral = detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
+    /* Attenuate form factor to reduce leakage, in cases where a sphere lies above the
+     * horizon, but is not clipped consistently with a polygon/ellipse. */
+    // float form_factor_attenuation = detail::attenuate_disk(ltc_data.Minv, Lv, disk_points);
+    // form_factor_attenuation += (1.0f - form_factor_attenuation) * ltc_data.attenuation_factor;
+    // form_factor *= form_factor_attenuation;
+    return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
   }
   else { /* LTCIntegralType::UnclippedDiffuseSphere */
-    sphere_integral = M_1_PI;
+    avg_dir.z = abs(avg_dir.z);
+    return form_factor *
+           detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor) /* * 0.5f */;
   }
-
-  return form_factor * sphere_integral;
 }
 
 }  // namespace eevee::ltc

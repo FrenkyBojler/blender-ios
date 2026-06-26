@@ -111,14 +111,14 @@ struct LTCData {
                                    float cos_theta,
                                    float roughness)
   {
-    /* Sample LTC table. */
+    /* Sample 4 components from isotropic LTC LUT. */
     const float2 coords = detail::get_isotropic_coords(cos_theta, roughness);
     float4 lut_pack = util_tx.sample_lut(coords, UTIL_LTC_MAT_LAYER);
 
-    /* Full inverse LTC matrix. */
+    /* Expand components to full inverse LTC matrix. */
     float3x3 Minv = detail::unpack_isotropic_matrix(lut_pack);
 
-    /* Rotate LTC matrix into orthonormal basis around N. */
+    /* Rotate into orthonormal basis around N. */
     float3x3 T = detail::tangent_basis(N, V);
     Minv = Minv * transpose(T);
 
@@ -134,16 +134,30 @@ struct LTCData {
    */
   static LTCData identity(float3 N, float3 V)
   {
-    /* Construct orthonormal basis around N.  */
+    /* Rotate into orthonormal basis around N. */
     float3x3 T = detail::tangent_basis(N, V);
-
-    /* Rotate LTC identity into basis. */
     float3x3 Minv = transpose(T);
 
     LTCData ltc_data;
     ltc_data.Minv = Minv;
     ltc_data.attenuation_factor = 0.0;
     ltc_data.integral_type = LTCIntegralType::ClippedDiffuseSphere;
+    return ltc_data;
+  }
+
+  /**
+   * Return a packed ltc matrix producing a cosine distribution, that attenuates the
+   * solid angle of the light.
+   */
+  static LTCData identity_translucency()
+  {
+    /* Rotate LTC identity into basis. */
+    float3x3 Minv = mat3x3_identity();
+
+    LTCData ltc_data;
+    ltc_data.Minv = Minv;
+    ltc_data.attenuation_factor = 0.0;
+    ltc_data.integral_type = LTCIntegralType::UnclippedDiffuseSphere;
     return ltc_data;
   }
 };

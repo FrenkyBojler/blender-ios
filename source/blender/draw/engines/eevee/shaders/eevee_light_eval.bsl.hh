@@ -83,6 +83,9 @@ void eval_single_closure(sampler2DArray util_tx,
   }
 
   lut::LTCData ltc_data = lut::LTCData::unpack_from(cl);
+  /* Rotate LTC matrix into orthonormal basis around N. */
+  // float3x3 T = eevee::lut::detail::tangent_basis(cl.N, V);
+  // ltc_data.Minv = ltc_data.Minv * transpose(T);
   float ltc_result = light_ltc(util_tx, light, ltc_data, lv, vertices);
 
   float3 out_radiance = light.color * ltc_result;
@@ -129,13 +132,12 @@ template<bool is_transmission> struct EvalCtx {
                                          (stack.cl[0].type == LIGHT_TRANSLUCENT_WITH_THICKNESS);
 
     float attenuation = light_attenuation_surface(light, is_directional, lv);
-    // float facing = light_attenuation_facing(light, lv.L, lv.dist, stack.cl[0].N,
-    // is_transmission);
+    float facing = light_attenuation_facing(light, lv.L, lv.dist, stack.cl[0].N, is_transmission);
 
     if (!is_translucent_with_thickness) {
       /* Only do attenuation for this case, since we integrate the whole sphere for translucency.
        * Moreover, stack.cl[0].N is overwritten for is_translucent_with_thickness. */
-      // attenuation *= facing;
+      attenuation *= facing;
     }
 
     if (attenuation < LIGHT_ATTENUATION_THRESHOLD) {
@@ -160,13 +162,13 @@ template<bool is_transmission> struct EvalCtx {
                            ray_step_count);
     }
 
-    if (is_translucent_with_thickness) {
-      /* This makes the LTC compute the solid angle of the light (still with the cosine term
-       * applied but that still works great enough in practice). */
-      // stack.cl[0].N = lv.L;
-      /* Adjust power because of the second lambertian distribution. */
-      // attenuation *= M_1_PI;
-    }
+    // if (is_translucent_with_thickness) {
+    //   /* This makes the LTC compute the solid angle of the light (still with the cosine term
+    //    * applied but that still works great enough in practice). */
+    //   stack.cl[0].N = lv.L;
+    //   /* Adjust power because of the second lambertian distribution. */
+    //   attenuation *= M_1_PI;
+    // }
 
     LightVertices light_shape_vertices = light_shape_corners(light, lv);
 
