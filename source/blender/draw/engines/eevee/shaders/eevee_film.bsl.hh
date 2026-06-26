@@ -481,8 +481,9 @@ struct Film {
   int panoramic_view_id_get()
   {
     [[resource_table]] const Uniform &uni = this->uniforms;
+    [[resource_table]] const draw::View &views = this->views_;
 
-    const ViewMatrices view = views_.get(0);
+    const ViewMatrices view = views.get(0);
     const float4x4 face_mat = view.viewmat * uni.uniform_buf.camera.viewinv;
     const float3 direction = normalize(transpose(to_float3x3(face_mat)) *
                                        float3(0.0f, 0.0f, -1.0f));
