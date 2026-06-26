@@ -26,6 +26,7 @@ args = None
 
 @staticmethod
 def compare_drawing(evaluated_drawing, expected_drawing):
+
     if len(evaluated_drawing.attributes.items()) != len(expected_drawing.attributes.items()):
         print("Attribute count doesn't match")
         return False
@@ -50,12 +51,15 @@ def compare_drawing(evaluated_drawing, expected_drawing):
                     expected_attribute.data[v_idx],
                     value_attr_name):
                 print("Attribute '{}' values do not match".format(attribute.name))
+                print(getattr(attribute_value, value_attr_name))
+                print(getattr(expected_attribute.data[v_idx], value_attr_name))
                 return False
 
     return True
 
 
-@staticmethod compare_layer(evaluated_layer, expected_layer):
+@staticmethod
+def compare_layer(evaluated_layer, expected_layer):
     if len(evaluated_layer.frames.items()) != len(expected_layer.frames.items()):
         print("Number of frames doesn't match")
         return false
@@ -63,7 +67,7 @@ def compare_drawing(evaluated_drawing, expected_drawing):
     for a_idx, frame in evaluated_layer.frames.items():
         expected_frame = expected_layer.frames[a_idx]
 
-        if !compare_drawing(frame.drawing, expected_frame.drawing):
+        if False == compare_drawing(frame.drawing, expected_frame.drawing):
             return False
 
     return True
@@ -78,7 +82,7 @@ def compare_greasepencil(evaluated_greasepencil, expected_greasepencil):
     for a_idx, layer in evaluated_greasepencil.layers.items():
         expected_layer = expected_greasepencil.layers[a_idx]
 
-        if !compare_layer(layer, expected_layer):
+        if False == compare_layer(layer, expected_layer):
             return False
 
     return True
@@ -97,14 +101,13 @@ class GreasePencilPaintTests(unittest.TestCase):
 
 
     def prepare(self):
-        data = bpy.data.grease_pencils.new("empty_test")
-        obj = bpy.data.objects.new("empty_test", data)
+        self.data = bpy.data.grease_pencils.new("empty_test")
+        obj = bpy.data.objects.new("empty_test", self.data)
         bpy.context.collection.objects.link(obj)
-        layer = data.layers.new("layer")
+        layer = self.data.layers.new("layer")
         frame = layer.frames.new(0)
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.mode_set(mode='PAINT_GREASE_PENCIL')
 
     def cleanup(self):
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -112,13 +115,15 @@ class GreasePencilPaintTests(unittest.TestCase):
 
     def test_stroke_generates_correct_drawing(self):
         self.prepare()
+        bpy.ops.object.mode_set(mode='PAINT_GREASE_PENCIL')
         context_override = bpy.context.copy()
         set_view3d_context_override(context_override)
         with bpy.context.temp_override(**context_override):
             bpy.ops.grease_pencil.brush_stroke(stroke=generate_stroke(context_override))
         #compare with expected
+        bpy.ops.object.mode_set(mode='OBJECT')
 
-        result = compare_greasepencil(data, bpy.data.objects['Expected'].data)
+        result = compare_greasepencil(self.data, bpy.data.objects['Expected'].data)
         self.assertTrue(result, "Drawing doesn't match")
         self.cleanup()
 
