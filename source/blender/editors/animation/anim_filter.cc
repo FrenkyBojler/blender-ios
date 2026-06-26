@@ -222,7 +222,7 @@ static bool actedit_get_context(bAnimContext *ac, SpaceAction *saction)
       /* update scene-pointer (no need to check for pinning yet, as not implemented) */
       saction->ads.source = reinterpret_cast<ID *>(ac->scene);
 
-      ac->datatype = ANIMCONT_CHANNEL;
+      ac->datatype = ANIMCONT_DOPESHEET;
       ac->data = &saction->ads;
       return true;
 
@@ -549,7 +549,8 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
   { \
     if ((id)->adt) { \
       if (!(filter_mode & ANIMFILTER_CURVE_VISIBLE) || \
-          !((id)->adt->flag & ADT_CURVES_NOT_VISIBLE)) { \
+          !((id)->adt->flag & ADT_CURVES_NOT_VISIBLE)) \
+      { \
         if (filter_mode & ANIMFILTER_ANIMDATA) { \
           adtOk \
         } \
