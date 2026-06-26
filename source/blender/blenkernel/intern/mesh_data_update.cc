@@ -1053,7 +1053,9 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
         CustomData_has_layer(&me_cage->edge_data, CD_ORIGINDEX) &&
         CustomData_has_layer(&me_cage->face_data, CD_ORIGINDEX)))
   {
-    /* This problem only occurs with node-groups, assert it doesn't happen with other modifiers. */
+    /* This problem only occurs with node-groups, assert it doesn't happen with other modifiers.
+     * The assert is imperfect as it's possible nodes were not used to calculate `me_cage`,
+     * nevertheless it will catch errors where modifier nodes aren't used at all. */
     BLI_assert(BKE_modifiers_findby_type(&obedit, eModifierType_Nodes));
 
     if (me_cage != me_final) {
