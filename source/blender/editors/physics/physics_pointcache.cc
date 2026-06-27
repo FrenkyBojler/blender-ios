@@ -24,6 +24,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "ED_particle.hh"
+#include "ED_undo.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -87,6 +88,7 @@ static bool ptcache_add_remove_poll(bContext *C)
 }
 
 struct PointCacheJob {
+  bContext *C;
   wmWindowManager *wm;
   void *owner;
   bool *stop, *do_update;
@@ -159,6 +161,7 @@ static void ptcache_job_endjob(void *customdata)
 
   WM_main_add_notifier(NC_SCENE | ND_FRAME, scene);
   WM_main_add_notifier(NC_OBJECT | ND_POINTCACHE, job->baker->pid.owner_id);
+  ED_undo_push(job->C, "Point cache");
 }
 
 static void ptcache_free_bake(PointCache *cache)
@@ -216,6 +219,7 @@ static wmOperatorStatus ptcache_bake_invoke(bContext *C, wmOperator *op, const w
   bool all = STREQ(op->type->idname, "PTCACHE_OT_bake_all");
 
   PointCacheJob *job = MEM_new_uninitialized<PointCacheJob>("PointCacheJob");
+  job->C = C;
   job->wm = CTX_wm_manager(C);
   job->baker = ptcache_baker_create(C, op, all);
   job->baker->bake_job = job;

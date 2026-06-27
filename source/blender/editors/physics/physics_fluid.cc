@@ -36,6 +36,7 @@
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -63,6 +64,7 @@ namespace blender {
 
 struct FluidJob {
   /* from wmJob */
+  bContext *C;
   void *owner;
   bool *stop, *do_update;
   float *progress;
@@ -239,6 +241,7 @@ static void fluid_job_free(void *customdata)
 static FluidJob *fluid_job_create(bContext *C, wmOperator *op)
 {
   FluidJob *job = MEM_new_uninitialized<FluidJob>("FluidJob");
+  job->C = C;
   char error_msg[256] = "\0";
 
   if (!fluid_job_init(C, job, op, error_msg, sizeof(error_msg))) {
@@ -368,6 +371,7 @@ static void fluid_bake_endjob(void *customdata)
                       "Fluid: %s complete (%.2fs)",
                       CTX_RPT_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, job->name),
                       BLI_time_now_seconds() - job->start);
+    ED_undo_push(job->C, "Fluid bake");
   }
   else {
     if (fds->error[0] != '\0') {
@@ -484,6 +488,7 @@ static void fluid_free_endjob(void *customdata)
                       "Fluid: %s complete (%.2fs)",
                       CTX_RPT_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, job->name),
                       BLI_time_now_seconds() - job->start);
+    ED_undo_push(job->C, "Fluid bake");
   }
   else {
     if (fds->error[0] != '\0') {

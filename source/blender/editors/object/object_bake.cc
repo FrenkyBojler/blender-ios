@@ -41,6 +41,7 @@
 #include "WM_types.hh"
 
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 #include "ED_uvedit.hh"
 
 #include "object_intern.hh"
@@ -85,6 +86,7 @@ struct MultiresBakerJobData {
 
 /* data passing to multires-baker job */
 struct MultiresBakeJob {
+  bContext *C;
   Scene *scene;
   ListBaseT<MultiresBakerJobData> data;
   /** Clear the images before baking */
@@ -345,6 +347,7 @@ static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
   Scene *scene = CTX_data_scene(C);
 
   /* backup scene settings, so their changing in UI would take no effect on baker */
+  bkj->C = C;
   bkj->scene = scene;
   bkj->bake_margin = scene->r.bake.margin;
   if (scene->r.bake.type == R_BAKE_NORMALS) {
@@ -428,6 +431,12 @@ static void multiresbake_startjob(void *bkv, wmJobWorkerStatus *worker_status)
   }
 }
 
+static void multiresbake_endjob(void *customdata)
+{
+  MultiresBakeJob *bkj = static_cast<MultiresBakeJob *>(customdata);
+  ED_undo_push(bkj->C, "Bake multires object");
+}
+
 static void multiresbake_freejob(void *bkv)
 {
   MultiresBakeJob *bkj = static_cast<MultiresBakeJob *>(bkv);
@@ -475,7 +484,7 @@ static wmOperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
                               WM_JOB_TYPE_OBJECT_BAKE_TEXTURE);
   WM_jobs_customdata_set(wm_job, bkr, multiresbake_freejob);
   WM_jobs_timer(wm_job, 0.5, NC_IMAGE, 0); /* TODO: only draw bake image, can we enforce this. */
-  WM_jobs_callbacks(wm_job, multiresbake_startjob, nullptr, nullptr, nullptr);
+  WM_jobs_callbacks(wm_job, multiresbake_startjob, nullptr, nullptr, multiresbake_endjob);
 
   G.is_break = false;
 

@@ -29,6 +29,7 @@
 #include "WM_types.hh"
 
 #include "ED_clip.hh"
+#include "ED_undo.hh"
 
 #include "clip_intern.hh"
 
@@ -37,6 +38,7 @@ namespace blender {
 /********************** solve camera operator *********************/
 
 struct SolveCameraJob {
+  bContext *C;
   wmWindowManager *wm = nullptr;
   Scene *scene = nullptr;
   MovieClip *clip = nullptr;
@@ -66,6 +68,7 @@ static bool solve_camera_initjob(
   /* Could fail if footage uses images with different sizes. */
   BKE_movieclip_get_size(clip, &sc->user, &width, &height);
 
+  scj->C = C;
   scj->wm = CTX_wm_manager(C);
   scj->clip = clip;
   scj->scene = scene;
@@ -103,6 +106,12 @@ static void solve_camera_startjob(void *scv, wmJobWorkerStatus *worker_status)
                                     &worker_status->progress,
                                     scj->stats_message,
                                     sizeof(scj->stats_message));
+}
+
+static void solve_camera_endjob(void *pjv)
+{
+  SolveCameraJob *scj = static_cast<SolveCameraJob *>(pjv);
+  ED_undo_push(scj->C, "Solve Camera");
 }
 
 static void solve_camera_freejob(void *scv)

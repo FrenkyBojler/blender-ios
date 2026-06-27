@@ -52,6 +52,7 @@
 #include "ED_render.hh"
 #include "ED_screen.hh"
 #include "ED_util.hh"
+#include "ED_undo.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -72,6 +73,7 @@ namespace blender {
 static bool render_break(void *rjv);
 
 struct RenderJob : public RenderJobBase {
+  bContext *C;
   Main *main;
   ViewLayer *view_layer;
   ViewLayer *single_layer;
@@ -804,6 +806,8 @@ static void render_endjob(void *rjv)
     WM_locked_interface_set(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
     DEG_tag_on_visible_update(G_MAIN, false);
   }
+  
+  ED_undo_push(rj->C, "Render");
 }
 
 /* called by render, check job 'stop' value or the global */
@@ -1017,6 +1021,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* job custom data */
   rj = MEM_new<RenderJob>("render job");
+  rj->C = C;
   rj->main = bmain;
   rj->scene = scene;
   rj->current_scene = rj->scene;

@@ -93,6 +93,7 @@
 #include "ED_object.hh"
 #include "ED_object_vgroup.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "ANIM_bone_collections.hh"
 
@@ -3153,6 +3154,7 @@ static bool ocean_bake_poll(bContext *C)
 
 struct OceanBakeJob {
   /* from wmJob */
+  bContext *C;
   Object *owner;
   bool *stop, *do_update;
   float *progress;
@@ -3223,6 +3225,7 @@ static void oceanbake_endjob(void *customdata)
 
   Object *ob = oj->owner;
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
+  ED_undo_push(oj->C, "Bake ocean");
 }
 
 static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
@@ -3305,6 +3308,7 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_SIM_OCEAN);
   OceanBakeJob *oj = MEM_new_zeroed<OceanBakeJob>("ocean bake job");
+  oj->C = C;
   oj->owner = ob;
   oj->ocean = ocean;
   oj->och = och;

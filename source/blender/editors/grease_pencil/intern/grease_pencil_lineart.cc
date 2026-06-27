@@ -27,6 +27,7 @@
 #include "RNA_define.hh"
 
 #include "ED_grease_pencil.hh"
+#include "ED_undo.hh"
 #include "ED_view3d.hh"
 
 #include "DEG_depsgraph.hh"
@@ -345,6 +346,7 @@ static void lineart_bake_endjob(void *customdata)
     Object *ob = bj->objects[object];
     WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, ob);
   }
+  ED_undo_push(bj->C, "Line");
 }
 
 static void lineart_bake_job_free(void *customdata)

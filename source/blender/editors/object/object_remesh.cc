@@ -48,6 +48,7 @@
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"
 #include "ED_space_api.hh"
+#include "ED_undo.hh"
 #include "ED_view3d.hh"
 
 #include "RNA_access.hh"
@@ -657,6 +658,7 @@ enum eSymmetryAxes {
 
 struct QuadriFlowJob {
   /* from wmJob */
+  bContext *C;
   Object *owner;
   wmJobWorkerStatus *worker_status;
 
@@ -939,6 +941,7 @@ static void quadriflow_end_job(void *customdata)
       bke::mesh_apply_spatial_organization(*id_cast<Mesh *>(ob->data));
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       BKE_reportf(reports, RPT_INFO, "QuadriFlow: Remeshing completed");
+      ED_undo_push(qj->C, "QuadriFlow");
       break;
     case QUADRIFLOW_STATUS_FAIL:
       BKE_reportf(reports, RPT_ERROR, "QuadriFlow: Remeshing failed");
@@ -959,6 +962,7 @@ static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
 {
   QuadriFlowJob *job = MEM_new_uninitialized<QuadriFlowJob>("QuadriFlowJob");
 
+  job->C = C;
   job->op = op;
   job->owner = CTX_data_active_object(C);
   job->scene = CTX_data_scene(C);

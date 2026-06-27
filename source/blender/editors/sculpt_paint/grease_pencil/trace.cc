@@ -35,6 +35,7 @@
 #include "ED_numinput.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -324,6 +325,8 @@ static void trace_end_job(void *customdata)
     WM_main_add_notifier(NC_OBJECT | NA_ADDED, nullptr);
     WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, trace_job.scene);
   }
+  
+  ED_undo_push(trace_job.C, "Trace image");
 }
 
 static void trace_free_job(void *customdata)

@@ -24,6 +24,7 @@
 #include "WM_types.hh"
 
 #include "ED_clip.hh"
+#include "ED_undo.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -38,6 +39,7 @@ namespace blender {
 /********************** Track operator *********************/
 
 struct TrackMarkersJob {
+  bContext *C;
   AutoTrackContext *context; /* Tracking context */
   int sfra, efra, lastfra;   /* Start, end and recently tracked frames */
   int backwards;             /* Backwards tracking flag */
@@ -128,6 +130,7 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
 
   track_init_markers(sc, clip, framenr, &frames_limit);
 
+  tmj->C = C;
   tmj->sfra = framenr;
   tmj->clip = clip;
   tmj->backwards = backwards;
@@ -275,6 +278,8 @@ static void track_markers_endjob(void *tmv)
 
   DEG_id_tag_update(&tmj->clip->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_SCENE | ND_FRAME, tmj->scene);
+
+  ED_undo_push(tmj->C, "Track markers");
 }
 
 static void track_markers_freejob(void *tmv)

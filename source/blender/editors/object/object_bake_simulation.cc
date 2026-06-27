@@ -17,6 +17,7 @@
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "DNA_array_utils.hh"
 #include "DNA_modifier_types.h"
@@ -65,6 +66,7 @@ static bool simulate_to_frame_poll(bContext *C)
 struct SimulateToFrameJob {
   wmWindowManager *wm;
   Main *bmain;
+  bContext *C;
   Depsgraph *depsgraph;
   Scene *scene;
   Vector<Object *> objects;
@@ -138,6 +140,7 @@ static void simulate_to_frame_endjob(void *customdata)
   WM_locked_interface_set(job.wm, false);
   G.is_rendering = false;
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, nullptr);
+  ED_undo_push(job.C, "Calculate simulation to frame");
 }
 
 static wmOperatorStatus simulate_to_frame_invoke(bContext *C,
@@ -152,6 +155,7 @@ static wmOperatorStatus simulate_to_frame_invoke(bContext *C,
   SimulateToFrameJob *job = MEM_new<SimulateToFrameJob>(__func__);
   job->wm = wm;
   job->bmain = bmain;
+  job->C = C;
   job->depsgraph = depsgraph;
   job->scene = scene;
   job->start_frame = scene->r.sfra;
@@ -228,6 +232,7 @@ struct NodeBakeRequest {
 struct BakeGeometryNodesJob {
   wmWindowManager *wm;
   Main *bmain;
+  bContext *C;
   Depsgraph *depsgraph;
   Scene *scene;
   Vector<NodeBakeRequest> bake_requests;
@@ -465,6 +470,7 @@ static void bake_geometry_nodes_endjob(void *customdata)
     }
     BKE_report(job.op->reports, RPT_ERROR, job.error_message.c_str());
   }
+  ED_undo_push(job.C, "Bake geometry");
 }
 
 static void clear_data_block_references(NodesModifierBake &bake)
@@ -582,6 +588,7 @@ static wmOperatorStatus start_bake_job(bContext *C,
   BakeGeometryNodesJob *job = MEM_new<BakeGeometryNodesJob>(__func__);
   job->wm = CTX_wm_manager(C);
   job->bmain = CTX_data_main(C);
+  job->C = C;
   job->depsgraph = CTX_data_depsgraph_pointer(C);
   job->scene = CTX_data_scene(C);
   job->bake_requests = std::move(requests);
@@ -1186,8 +1193,6 @@ void OBJECT_OT_simulation_nodes_cache_calculate_to_frame(wmOperatorType *ot)
   ot->modal = simulate_to_frame_modal;
   ot->poll = simulate_to_frame_poll;
 
-  ot->flag = OPTYPE_UNDO;
-
   RNA_def_boolean(ot->srna,
                   "selected",
                   false,
@@ -1205,8 +1210,6 @@ void OBJECT_OT_simulation_nodes_cache_bake(wmOperatorType *ot)
   ot->invoke = bake_simulation_invoke;
   ot->modal = bake_simulation_modal;
   ot->poll = bake_simulation_poll;
-
-  ot->flag = OPTYPE_UNDO;
 
   RNA_def_boolean(ot->srna, "selected", false, "Selected", "Bake cache on all selected objects");
 }

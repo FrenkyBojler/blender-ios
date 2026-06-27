@@ -41,6 +41,7 @@
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -290,6 +291,7 @@ void DPAINT_OT_output_toggle(wmOperatorType *ot)
 
 struct DynamicPaintBakeJob {
   /* from wmJob */
+  bContext *C;
   void *owner;
   bool *stop, *do_update;
   float *progress;
@@ -331,6 +333,7 @@ static void dpaint_bake_endjob(void *customdata)
     /* Show bake info */
     WM_global_reportf(
         RPT_INFO, "DynamicPaint: Bake complete! (%.2f)", BLI_time_now_seconds() - job->start);
+    ED_undo_push(job->C, "DynamicPaint");
   }
   else {
     if (strlen(canvas->error)) { /* If an error occurred */
@@ -493,6 +496,7 @@ static wmOperatorStatus dynamicpaint_bake_exec(bContext *C, wmOperator *op)
   canvas->flags |= MOD_DPAINT_BAKING;
 
   DynamicPaintBakeJob *job = MEM_new_uninitialized<DynamicPaintBakeJob>("DynamicPaintBakeJob");
+  job->C = C;
   job->bmain = CTX_data_main(C);
   job->scene = scene_eval;
   job->depsgraph = depsgraph;

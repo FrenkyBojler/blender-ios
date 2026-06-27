@@ -51,6 +51,7 @@
 
 #include "ED_clip.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 
 #include "UI_interface.hh"
 
@@ -1188,6 +1189,7 @@ void CLIP_OT_change_frame(wmOperatorType *ot)
  * \{ */
 
 struct ProxyJob {
+  bContext *C;
   Scene *scene;
   Main *main;
   MovieClip *clip;
@@ -1522,6 +1524,8 @@ static void proxy_endjob(void *pjv)
   }
 
   WM_main_add_notifier(NC_MOVIECLIP | ND_DISPLAY, pj->clip);
+
+  ED_undo_push(pj->C, "Proxy building");
 }
 
 static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/)
@@ -1545,6 +1549,7 @@ static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/
                        WM_JOB_TYPE_CLIP_BUILD_PROXY);
 
   pj = MEM_new<ProxyJob>("proxy rebuild job");
+  pj->C = C;
   pj->scene = scene;
   pj->main = CTX_data_main(C);
   pj->clip = clip;

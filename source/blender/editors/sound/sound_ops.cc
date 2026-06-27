@@ -56,6 +56,7 @@
 
 #include "ED_sound.hh"
 #include "ED_util.hh"
+#include "ED_undo.hh"
 
 namespace blender {
 
@@ -343,6 +344,7 @@ static bool sound_mixdown_progress(float progress, void *data)
 }
 
 struct SoundMixdownJobData {
+  bContext *C;
   wmWindowManager *wm = nullptr;
   bool interface_locked = false;
 
@@ -408,6 +410,8 @@ static void sound_mixdown_endjob(void *customdata)
   if (!mixdown_job_data->succeeded) {
     WM_global_report(RPT_ERROR, mixdown_job_data->error_message.c_str());
   }
+
+  ED_undo_push(mixdown_job_data->C, "Mixdown");
 }
 #endif
 
@@ -438,6 +442,7 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
   SoundMixdownJobData *mixdown_job_data = MEM_new<SoundMixdownJobData>(__func__);
+  mixdown_job_data->C = C;
   mixdown_job_data->wm = wm;
   mixdown_job_data->scene_eval = scene_eval;
   mixdown_job_data->filepath = filepath;

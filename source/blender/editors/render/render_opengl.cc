@@ -57,6 +57,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 #include "ED_view3d_offscreen.hh"
+#include "ED_undo.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -95,6 +96,7 @@ static CLG_LogRef LOG = {"render"};
 #define MAX_SCHEDULED_FRAMES 8
 
 struct OGLRender : public RenderJobBase {
+  bContext *C;
   Main *bmain = nullptr;
   Render *re = nullptr;
   WorkSpace *workspace = nullptr;
@@ -790,6 +792,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender = MEM_new<OGLRender>("OGLRender");
   op->customdata = oglrender;
 
+  oglrender->C = C;
   oglrender->ofs = ofs;
   oglrender->sizex = sizex;
   oglrender->sizey = sizey;
@@ -1337,6 +1340,12 @@ static void opengl_render_startjob(void *customdata, wmJobWorkerStatus *worker_s
   }
 }
 
+static void opengl_render_endjob(void *customdata)
+{
+  OGLRender *oglrender = static_cast<OGLRender *>(customdata);
+  ED_undo_push(oglrender->C, "OpenGL render");
+}
+
 static void opengl_render_freejob(void *customdata)
 {
   /* End the render here, as the modal handler might be called with the window out of focus. */
@@ -1381,7 +1390,7 @@ static wmOperatorStatus screen_opengl_render_invoke(bContext *C,
 
     WM_jobs_customdata_set(wm_job, oglrender, opengl_render_freejob);
     WM_jobs_timer(wm_job, 0.01f, NC_SCENE | ND_RENDER_RESULT, 0);
-    WM_jobs_callbacks(wm_job, opengl_render_startjob, nullptr, nullptr, nullptr);
+    WM_jobs_callbacks(wm_job, opengl_render_startjob, nullptr, nullptr, opengl_render_endjob);
     WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
 

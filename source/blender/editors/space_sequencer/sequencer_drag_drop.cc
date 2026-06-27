@@ -36,6 +36,7 @@
 
 #include "ED_screen.hh"
 #include "ED_transform.hh"
+#include "ED_undo.hh"
 
 #include "IMB_imbuf_types.hh"
 
