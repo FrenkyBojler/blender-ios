@@ -262,18 +262,23 @@ static void loopcut_apply_curvature(BMesh *bm, int cuts, float tension) {
 
     const float mu = 0.5f;
 
-    float3 co; 
+    float3 co;
     if (loopcut_calc_curve_target(v, mu, tension, co)) {
       verts.append(v);
       targets.append(co);
     }
-
-    for (const int i : verts.index_range()) {
-      copy_v3_v3(verts[i]->co, targets[i]);
-    }
-
-    BM_mesh_normals_update(bm);
   }
+
+  if (verts.is_empty()) {
+    return;
+  }
+
+  for (const int i : verts.index_range()) {
+    copy_v3_v3(verts[i]->co, targets[i]);
+  }
+
+  /* ringsel_finish() runs EDBM_update with calc_normals=false, so refresh here. */
+  BM_mesh_normals_update(bm);
 }
 
 static void ringsel_finish(bContext *C, wmOperator *op)
@@ -322,6 +327,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
                          use_only_quads,
                          0);
 
+      /* TODO: Add multicut behavior handling. */
       if (use_preserve_curvature && seltype == SUBDIV_SELECT_LOOPCUT) {
         const float tension = RNA_float_get(op->ptr, "curve_tension");
         loopcut_apply_curvature(em->bm, cuts, tension);
