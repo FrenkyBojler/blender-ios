@@ -21,7 +21,6 @@
 #include "WM_types.hh"
 
 #include "ED_screen.hh"
-#include "ED_undo.hh"
 
 #include "MEM_guardedalloc.h"
 
