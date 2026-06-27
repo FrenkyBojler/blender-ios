@@ -2359,20 +2359,6 @@ void block_draw(const bContext *C, Block *block)
     }
   }
 
-  if (region->regiontype == RGN_TYPE_XR) {
-    std::fprintf(stderr,
-                 "panels_ws_ui: draw block=%p region=%p buttons total=%d drawn=%d hidden=%d out_of_view=%d too_wide=%d invalid=%d\n",
-                 block,
-                 region,
-                 xr_buttons_total,
-                 xr_buttons_drawn,
-                 xr_buttons_hidden,
-                 xr_buttons_out_of_view,
-                 xr_buttons_too_wide,
-                 xr_buttons_invalid);
-    std::fflush(stderr);
-  }
-
   widgetbase_draw_cache_end();
   BLF_batch_draw_end();
   block_views_draw_overlays(region, block);

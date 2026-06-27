@@ -970,6 +970,12 @@ PopupBlockHandle *popup_block_create(bContext *C,
 
   region_handlers_add(&region->runtime->handlers);
 
+  ARegion *source_region = butregion ? butregion : CTX_wm_region(C);
+  if (source_region != nullptr && source_region->regiontype == RGN_TYPE_XR) {
+    blender::WM_xr_temp_region_register(
+        region, CTX_wm_window(C), CTX_wm_area(C), source_region);
+  }
+
   /* Note that this will be set in the code-path that typically calls refreshing
    * (that loops over #Screen::regionbase and refreshes regions tagged with #RGN_REFRESH_UI).
    * Whereas this only runs on initial creation.

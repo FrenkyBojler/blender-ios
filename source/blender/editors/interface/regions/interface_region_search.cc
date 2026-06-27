@@ -10,6 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include <cstdio>
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
@@ -1001,6 +1002,11 @@ static ARegion *searchbox_create_generic_ex(bContext *C,
   type.listener = searchbox_region_listen_fn;
   type.regionid = RGN_TYPE_TEMPORARY;
   region->runtime->type = &type;
+
+  if (butregion != nullptr && butregion->regiontype == RGN_TYPE_XR) {
+    blender::WM_xr_temp_region_register(
+        region, CTX_wm_window(C), CTX_wm_area(C), butregion);
+  }
 
   /* Create search-box data. */
   uiSearchboxData *data = MEM_new<uiSearchboxData>(__func__);

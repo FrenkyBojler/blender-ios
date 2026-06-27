@@ -118,6 +118,16 @@ class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_vis
         self.draw_ex(context, session_settings, False)  # Pass session settings instead of 3D view.
 
 
+class VIEW3D_PT_vr_session_view_object_type_visibility_world_space(
+        VIEW3D_PT_vr_world_space_panel, VIEW3D_PT_object_type_visibility):
+    bl_label = VIEW3D_PT_vr_session_view_object_type_visibility.bl_label
+    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
+
+    def draw(self, context):
+        session_settings = context.window_manager.xr_session_settings
+        self.draw_ex(context, session_settings, False)  # Pass session settings instead of 3D view.
+
+
 # Location Scouting.
 class VIEW3D_UL_vr_captures(UIList):
     def draw_item(self, context, layout, _data, item, icon, _active_data, _active_propname, index):
@@ -407,7 +417,7 @@ class VIEW3D_PT_vr_session_view_world_space(VIEW3D_PT_vr_world_space_panel, Pane
         col = col.row(align=True, heading=" ")
         col.scale_x = 2.0
         col.popover(
-            panel="VIEW3D_PT_vr_session_view_object_type_visibility",
+            panel="VIEW3D_PT_vr_session_view_object_type_visibility_world_space",
             icon_value=session_settings.icon_from_show_object_viewport,
             text="",
         )
@@ -506,6 +516,7 @@ classes = (
     VIEW3D_PT_vr_location_scouting_captures,
     VIEW3D_PT_vr_location_scouting_viewfinder,
     VIEW3D_PT_vr_location_scouting_viewfinder_passepartout,
+    VIEW3D_PT_vr_session_view_object_type_visibility_world_space,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
     VIEW3D_PT_vr_viewport_feedback,

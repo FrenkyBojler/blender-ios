@@ -27,6 +27,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include <cstdio>
+
 #include "DNA_userdef_types.h"
 
 #include "BLI_listbase.hh"
@@ -294,6 +296,13 @@ PopupBlockHandle *popover_panel_create(bContext *C,
   /* Create popup block. */
   PopupBlockHandle *handle = popup_block_create(
       C, butregion, but, nullptr, block_func_POPOVER, pup, block_free_func_POPOVER, true);
+
+  if (handle != nullptr && handle->region != nullptr && butregion != nullptr &&
+      butregion->regiontype == RGN_TYPE_XR)
+  {
+    blender::WM_xr_temp_region_register(
+        handle->region, CTX_wm_window(C), CTX_wm_area(C), butregion);
+  }
 
   /* Add handlers. If attached to a button, the button will already
    * add a modal handler and pass on events. */

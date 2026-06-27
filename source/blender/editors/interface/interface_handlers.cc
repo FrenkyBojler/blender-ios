@@ -10190,25 +10190,6 @@ static int handle_button_over(bContext *C, const wmEvent *event, ARegion *region
     const bool for_tooltip = true;
     Button *but = button_find_mouse_over_ex(
         region, event->xy, labeledit, for_tooltip, nullptr, nullptr);
-    if (region->regiontype == RGN_TYPE_XR) {
-      std::fprintf(stderr,
-                   "panels_ws_ui: handle_button_over xy=(%d,%d) but=%p active_before=%p\n",
-                   event->xy[0],
-                   event->xy[1],
-                   but,
-                   region_find_active_but(region));
-      if (but != nullptr) {
-        std::fprintf(stderr,
-                     "panels_ws_ui: hover hit rect=(%.3f, %.3f)-(%.3f, %.3f) type=%d str=%s\n",
-                     but->rect.xmin,
-                     but->rect.ymin,
-                     but->rect.xmax,
-                     but->rect.ymax,
-                     int(but->type),
-                     but->str.c_str());
-      }
-      std::fflush(stderr);
-    }
     if (but) {
       button_activate_init(C, region, but, BUTTON_ACTIVATE_OVER);
 

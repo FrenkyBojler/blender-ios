@@ -1050,21 +1050,6 @@ void panels_draw(const bContext *C, ARegion *region)
   /* Draw in reverse order, because #Blocks are added in reverse order
    * and we need child panels to draw on top. */
   for (Block &block : region->runtime->uiblocks.items_reversed()) {
-    if (region->regiontype == RGN_TYPE_XR) {
-      std::fprintf(stderr,
-                   "panels_ws_ui: block panel=%p active=%d dragging=%d search_only=%d endblock=%d buttons=%d rect=(%.3f, %.3f)-(%.3f, %.3f)\n",
-                   block.panel,
-                   int(block.active),
-                   int(block.panel ? panel_is_dragging(block.panel) : false),
-                   int(block_is_search_only(&block)),
-                   int(block.endblock),
-                   int(block.buttons().size()),
-                   block.rect.xmin,
-                   block.rect.ymin,
-                   block.rect.xmax,
-                   block.rect.ymax);
-      std::fflush(stderr);
-    }
     if (block.active && block.panel && !panel_is_dragging(block.panel) &&
         !block_is_search_only(&block))
     {

@@ -31,6 +31,7 @@ struct wmWindowManager;
 struct wmXrActionSet;
 struct wmXrController;
 struct wmXrData;
+struct wmXrPanel;
 
 namespace gpu {
 class Texture;
@@ -173,6 +174,19 @@ struct wmXrPanelPointerState {
   char action_idname[128];
 };
 
+struct wmXrTempRegion {
+  wmXrTempRegion *next, *prev;
+
+  struct ARegion *region;
+  struct GPUOffScreen *offscreen;
+
+  rcti region_rect;
+
+  float z_offset;
+
+  bool valid;
+};
+
 struct wmXrPanel {
   wmXrPanel *next, *prev;
   struct GPUOffScreen *panel_offscreen;
@@ -190,6 +204,7 @@ struct wmXrPanel {
   bool panel_cursor_visible;
   int panel_region_xy[2];
   float panel_cursor_world[3];
+  ListBaseT<wmXrTempRegion> temporary_regions;
   wmXrPanelPointerState panel_pointer;
 };
 

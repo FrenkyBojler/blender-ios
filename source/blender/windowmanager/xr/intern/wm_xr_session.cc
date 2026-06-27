@@ -1898,6 +1898,14 @@ static void wm_xr_session_surface_free_data(wmSurface *surface)
   }
 
   while (wmXrPanel *panel = static_cast<wmXrPanel *>(BLI_pophead(&data->panels))) {
+    while (wmXrTempRegion *temp_region = static_cast<wmXrTempRegion *>(
+               BLI_pophead(&panel->temporary_regions)))
+    {
+      if (temp_region->offscreen) {
+        GPU_offscreen_free(temp_region->offscreen);
+      }
+      MEM_delete(temp_region);
+    }
     if (panel->panel_offscreen) {
       GPU_offscreen_free(panel->panel_offscreen);
     }

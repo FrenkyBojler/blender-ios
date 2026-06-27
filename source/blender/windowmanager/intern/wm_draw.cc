@@ -1084,6 +1084,9 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
     if (!region.runtime->visible) {
       continue;
     }
+    if (WM_xr_temp_region_is_registered(&region)) {
+      continue;
+    }
     CTX_wm_region_popup_set(C, &region);
 
     GPU_debug_group_begin("Menu");

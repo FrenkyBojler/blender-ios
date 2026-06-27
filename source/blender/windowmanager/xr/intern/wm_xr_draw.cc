@@ -94,6 +94,36 @@ struct wmXrPanelHostContextOverride {
   }
 };
 
+struct wmXrTempRegionContextOverride {
+  bContext *C;
+  wmWindow *prev_win;
+  ScrArea *prev_area;
+  ARegion *prev_region;
+  ARegion *prev_region_popup;
+
+  wmXrTempRegionContextOverride(bContext *context, const wmXrPanel *panel, ARegion *popup_region)
+      : C(context)
+  {
+    prev_win = CTX_wm_window(C);
+    prev_area = CTX_wm_area(C);
+    prev_region = CTX_wm_region(C);
+    prev_region_popup = CTX_wm_region_popup(C);
+
+    CTX_wm_window_set(C, panel->panel_host_win);
+    CTX_wm_area_set(C, panel->panel_host_area);
+    CTX_wm_region_set(C, popup_region);
+    CTX_wm_region_popup_set(C, popup_region);
+  }
+
+  ~wmXrTempRegionContextOverride()
+  {
+    CTX_wm_window_set(C, prev_win);
+    CTX_wm_area_set(C, prev_area);
+    CTX_wm_region_set(C, prev_region);
+    CTX_wm_region_popup_set(C, prev_region_popup);
+  }
+};
+
 static wmXrPanel *wm_xr_panel_find(wmXrSurfaceData *surface_data,
                                    const wmWindow *win,
                                    const ScrArea *area,
@@ -114,11 +144,317 @@ static wmXrPanel *wm_xr_panel_find(wmXrSurfaceData *surface_data,
   return nullptr;
 }
 
+static wmXrPanel *wm_xr_panel_find_by_host(wmXrSurfaceData *surface_data,
+                                           const wmWindow *win,
+                                           const ScrArea *area,
+                                           const ARegion *region)
+{
+  if (surface_data == nullptr || win == nullptr || area == nullptr || region == nullptr) {
+    return nullptr;
+  }
+
+  if (surface_data->active_panel != nullptr && surface_data->active_panel->panel_host_win == win &&
+      surface_data->active_panel->panel_host_area == area &&
+      surface_data->active_panel->panel_host_region == region)
+  {
+    return surface_data->active_panel;
+  }
+
+  wmXrPanel *match = nullptr;
+  for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(surface_data->panels)) {
+    if (panel->panel_host_win != win || panel->panel_host_area != area ||
+        panel->panel_host_region != region)
+    {
+      continue;
+    }
+    if (match != nullptr) {
+      return nullptr;
+    }
+    match = panel;
+  }
+
+  return match;
+}
+
+static wmXrTempRegion *wm_xr_temp_region_find(wmXrPanel *panel, const ARegion *region)
+{
+  if (panel == nullptr || region == nullptr) {
+    return nullptr;
+  }
+
+  for (wmXrTempRegion *temp_region : ListBaseWrapper<wmXrTempRegion>(panel->temporary_regions)) {
+    if (temp_region->region == region) {
+      return temp_region;
+    }
+  }
+
+  return nullptr;
+}
+
+static wmXrTempRegion *wm_xr_temp_region_find_any(wmXrSurfaceData *surface_data,
+                                                  const ARegion *region,
+                                                  wmXrPanel **r_panel)
+{
+  if (r_panel != nullptr) {
+    *r_panel = nullptr;
+  }
+  if (surface_data == nullptr || region == nullptr) {
+    return nullptr;
+  }
+
+  for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(surface_data->panels)) {
+    if (wmXrTempRegion *temp_region = wm_xr_temp_region_find(panel, region)) {
+      if (r_panel != nullptr) {
+        *r_panel = panel;
+      }
+      return temp_region;
+    }
+  }
+
+  return nullptr;
+}
+
+static bool wm_xr_temp_region_rect_update(const wmWindow *win, wmXrTempRegion *temp_region)
+{
+  if (win == nullptr || temp_region == nullptr || temp_region->region == nullptr) {
+    return false;
+  }
+
+  rcti clipped_rect = temp_region->region->winrct;
+  const rcti window_bounds = {
+      0, std::max(0, int(win->sizex) - 1), 0, std::max(0, int(win->sizey) - 1)};
+  if (!BLI_rcti_isect(&clipped_rect, &window_bounds, &clipped_rect)) {
+    temp_region->valid = false;
+    return false;
+  }
+
+  temp_region->region_rect = clipped_rect;
+  return true;
+}
+
+static bool wm_xr_temp_region_offscreen_ensure(wmXrTempRegion *temp_region,
+                                               const int px_width,
+                                               const int px_height)
+{
+  if (temp_region == nullptr || px_width <= 0 || px_height <= 0) {
+    return false;
+  }
+
+  if (temp_region->offscreen != nullptr) {
+    if (GPU_offscreen_width(temp_region->offscreen) == px_width &&
+        GPU_offscreen_height(temp_region->offscreen) == px_height)
+    {
+      return true;
+    }
+
+    GPU_offscreen_free(temp_region->offscreen);
+    temp_region->offscreen = nullptr;
+  }
+
+  temp_region->offscreen = GPU_offscreen_create(px_width,
+                                                px_height,
+                                                false,
+                                                gpu::TextureFormat::SRGBA_8_8_8_8,
+                                                GPU_TEXTURE_USAGE_SHADER_READ,
+                                                false,
+                                                nullptr);
+  return temp_region->offscreen != nullptr;
+}
+
+static void wm_xr_temp_region_draw_direct(const bContext *C,
+                                          const wmXrPanel *panel,
+                                          ARegion *region)
+{
+  if (C == nullptr || panel == nullptr || region == nullptr || region->runtime == nullptr ||
+      region->runtime->type == nullptr || region->runtime->type->draw == nullptr)
+  {
+    return;
+  }
+
+  region->runtime->do_draw |= RGN_DRAWING;
+  wmPartialViewport(&region->runtime->drawrct, &region->winrct, &region->runtime->drawrct);
+  wmOrtho2_region_pixelspace(region);
+  ui::theme::theme_set(panel->panel_host_area ? panel->panel_host_area->spacetype : 0,
+                       region->runtime->type->regionid);
+  /* Temporary popups depend on their own region draw callback; using the generic region path
+   * regressed into uniform background-only output in XR. */
+  region->runtime->type->draw(const_cast<bContext *>(C), region);
+  ED_region_pixelspace(region);
+  region->runtime->drawrct = rcti{};
+  region->runtime->do_draw &= ~RGN_DRAWING;
+}
+
+static bool wm_xr_temp_region_cache_update(const bContext *C,
+                                           wmXrPanel *panel,
+                                           wmXrTempRegion *temp_region)
+{
+  if (C == nullptr || panel == nullptr || temp_region == nullptr || temp_region->region == nullptr ||
+      panel->panel_host_win == nullptr)
+  {
+    return false;
+  }
+
+  ARegion *region = temp_region->region;
+  if (region->runtime == nullptr || region->runtime->type == nullptr) {
+    return false;
+  }
+  if (!wm_xr_temp_region_rect_update(panel->panel_host_win, temp_region)) {
+    return false;
+  }
+
+  const int px_width = BLI_rcti_size_x(&temp_region->region_rect) + 1;
+  const int px_height = BLI_rcti_size_y(&temp_region->region_rect) + 1;
+  if (px_width <= 0 || px_height <= 0) {
+    return false;
+  }
+
+  bContext *mutable_C = const_cast<bContext *>(C);
+  wmXrTempRegionContextOverride context_override(mutable_C, panel, region);
+  rcti winrct_prev = region->winrct;
+  const int winx_prev = region->winx;
+  const int winy_prev = region->winy;
+  region->winx = px_width;
+  region->winy = px_height;
+  region->runtime->visible = true;
+
+  if (region->runtime->type != nullptr && region->runtime->type->layout != nullptr) {
+    wmViewport(&region->winrct);
+    region->runtime->type->layout(mutable_C, region);
+  }
+
+  if (!wm_xr_temp_region_offscreen_ensure(temp_region, px_width, px_height)) {
+    region->winrct = winrct_prev;
+    region->winx = winx_prev;
+    region->winy = winy_prev;
+    return false;
+  }
+
+  GPU_offscreen_bind(temp_region->offscreen, false);
+  gpu::FrameBuffer *framebuffer = nullptr;
+  gpu::Texture *color_texture = nullptr;
+  gpu::Texture *depth_texture = nullptr;
+  GPU_offscreen_viewport_data_get(
+      temp_region->offscreen, &framebuffer, &color_texture, &depth_texture);
+  if (framebuffer != nullptr) {
+    GPU_framebuffer_viewport_reset(framebuffer);
+  }
+  GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
+  GPU_scissor_test(true);
+  GPU_scissor(0, 0, px_width, px_height);
+  GPU_matrix_push_projection();
+  GPU_matrix_push();
+  wmOrtho2_region_pixelspace(region);
+  ui::blocklist_update_window_matrix(mutable_C, &region->runtime->uiblocks);
+  ui::blocklist_update_view_for_buttons(mutable_C, &region->runtime->uiblocks);
+  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
+  wm_xr_temp_region_draw_direct(mutable_C, panel, region);
+  GPU_scissor_test(false);
+  GPU_offscreen_unbind(temp_region->offscreen, false);
+  if (color_texture != nullptr) {
+    GPU_texture_mipmap_mode(color_texture, false, false);
+  }
+  region->winrct = winrct_prev;
+  region->winx = winx_prev;
+  region->winy = winy_prev;
+
+  temp_region->valid = true;
+  temp_region->z_offset = 1.0f;
+  return true;
+}
+
+static void wm_xr_temp_region_draw_to_world_quad(const float viewmat[4][4],
+                                                 const float winmat[4][4],
+                                                 const wmXrPanel *panel,
+                                                 const wmXrTempRegion *temp_region)
+{
+  if (panel == nullptr || temp_region == nullptr || !temp_region->valid ||
+      temp_region->region == nullptr || panel->panel_host_region == nullptr)
+  {
+    return;
+  }
+
+  gpu::Texture *color_texture = temp_region->offscreen ?
+                                    GPU_offscreen_color_texture(temp_region->offscreen) :
+                                    nullptr;
+  if (color_texture == nullptr) {
+    return;
+  }
+
+  const int px_width = BLI_rcti_size_x(&temp_region->region_rect) + 1;
+  const int px_height = BLI_rcti_size_y(&temp_region->region_rect) + 1;
+  const int offset_x = temp_region->region_rect.xmin - panel->panel_host_region->winrct.xmin;
+  const int offset_y = temp_region->region_rect.ymin - panel->panel_host_region->winrct.ymin;
+
+  float obmat[4][4];
+  copy_m4_m4(obmat, panel->panel_obmat);
+  madd_v3_v3fl(obmat[3], panel->panel_obmat[0], float(offset_x));
+  madd_v3_v3fl(obmat[3], panel->panel_obmat[1], float(offset_y));
+  madd_v3_v3fl(obmat[3], panel->panel_obmat[2], temp_region->z_offset);
+
+  GPU_color_mask(true, true, true, true);
+  GPU_blend(GPU_BLEND_ALPHA);
+  GPU_face_culling(GPU_CULL_NONE);
+  GPU_depth_test(GPU_DEPTH_NONE);
+  GPU_depth_mask(false);
+
+  GPU_matrix_push_projection();
+  GPU_matrix_projection_set(winmat);
+  GPU_matrix_push();
+  GPU_matrix_set(viewmat);
+  GPU_matrix_mul(obmat);
+
+  float q0[3] = {0.0f, 0.0f, 0.0f};
+  float q1[3] = {float(px_width), 0.0f, 0.0f};
+  float q2[3] = {float(px_width), float(px_height), 0.0f};
+  float q3[3] = {0.0f, float(px_height), 0.0f};
+
+  GPUVertFormat *fmt = immVertexFormat();
+  uint a_pos = GPU_vertformat_attr_add(fmt, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+  uint a_uv = GPU_vertformat_attr_add(fmt, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
+  immBindTexture("image", color_texture);
+  immUniformColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+  immBegin(GPU_PRIM_TRI_FAN, 4);
+  immAttr2f(a_uv, 0.0f, 0.0f);
+  immVertex3fv(a_pos, q0);
+  immAttr2f(a_uv, 1.0f, 0.0f);
+  immVertex3fv(a_pos, q1);
+  immAttr2f(a_uv, 1.0f, 1.0f);
+  immVertex3fv(a_pos, q2);
+  immAttr2f(a_uv, 0.0f, 1.0f);
+  immVertex3fv(a_pos, q3);
+  immEnd();
+
+  immUnbindProgram();
+  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
+}
+
+static void wm_xr_temp_regions_clear(wmXrPanel *panel)
+{
+  if (panel == nullptr) {
+    return;
+  }
+
+  while (wmXrTempRegion *temp_region = static_cast<wmXrTempRegion *>(panel->temporary_regions.first))
+  {
+    BLI_remlink(&panel->temporary_regions, temp_region);
+    if (temp_region->offscreen != nullptr) {
+      GPU_offscreen_free(temp_region->offscreen);
+    }
+    MEM_delete(temp_region);
+  }
+}
+
 static void wm_xr_panel_free(wmXrSurfaceData *surface_data, wmXrPanel *panel)
 {
   if (surface_data == nullptr || panel == nullptr) {
     return;
   }
+  wm_xr_temp_regions_clear(panel);
   if (panel->panel_offscreen != nullptr) {
     GPU_offscreen_free(panel->panel_offscreen);
   }
@@ -127,6 +463,87 @@ static void wm_xr_panel_free(wmXrSurfaceData *surface_data, wmXrPanel *panel)
   }
   BLI_remlink(&surface_data->panels, panel);
   MEM_delete(panel);
+}
+
+bool WM_xr_temp_region_register(ARegion *region, wmWindow *win, ScrArea *area, ARegion *xr_region)
+{
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  if (surface_data == nullptr || region == nullptr || win == nullptr || area == nullptr ||
+      xr_region == nullptr || xr_region->regiontype != RGN_TYPE_XR)
+  {
+    return false;
+  }
+
+  if (wm_xr_temp_region_find_any(surface_data, region, nullptr) != nullptr) {
+    return true;
+  }
+
+  wmXrPanel *panel = wm_xr_panel_find_by_host(surface_data, win, area, xr_region);
+  if (panel == nullptr) {
+    return false;
+  }
+
+  wmXrTempRegion *temp_region = MEM_new_zeroed<wmXrTempRegion>(__func__);
+  temp_region->region = region;
+  BLI_addtail(&panel->temporary_regions, temp_region);
+  panel->panel_dirty = true;
+  ED_region_tag_redraw(region);
+  if (region->runtime != nullptr) {
+    region->runtime->do_draw |= RGN_REFRESH_UI;
+  }
+
+  return true;
+}
+
+void WM_xr_temp_region_unregister(ARegion *region)
+{
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  if (surface_data == nullptr || region == nullptr) {
+    return;
+  }
+
+  wmXrPanel *panel = nullptr;
+  wmXrTempRegion *temp_region = wm_xr_temp_region_find_any(surface_data, region, &panel);
+  if (temp_region == nullptr || panel == nullptr) {
+    return;
+  }
+
+  BLI_remlink(&panel->temporary_regions, temp_region);
+  panel->panel_dirty = true;
+  if (temp_region->offscreen != nullptr) {
+    GPU_offscreen_free(temp_region->offscreen);
+  }
+  MEM_delete(temp_region);
+}
+
+bool WM_xr_temp_region_is_registered(const ARegion *region)
+{
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  if (surface_data == nullptr || region == nullptr) {
+    return false;
+  }
+
+  return wm_xr_temp_region_find_any(surface_data, region, nullptr) != nullptr;
+}
+
+void WM_xr_temp_region_tag_dirty(ARegion *region)
+{
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  if (surface_data == nullptr || region == nullptr) {
+    return;
+  }
+
+  wmXrPanel *panel = nullptr;
+  wmXrTempRegion *temp_region = wm_xr_temp_region_find_any(surface_data, region, &panel);
+  if (panel == nullptr || temp_region == nullptr) {
+    return;
+  }
+
+  panel->panel_dirty = true;
+  ED_region_tag_redraw(region);
+  if (region->runtime != nullptr) {
+    region->runtime->do_draw |= RGN_REFRESH_UI;
+  }
 }
 
 void WM_xr_surface_panel_mount_set(wmXrData *xr, eWMXrPanelMountPoint mount_point)
@@ -761,6 +1178,12 @@ static void wm_xr_draw_cached_panel_overlay(const float viewmat[4][4],
       copy_m4_m4(rv_tmp.viewmat, viewmat);
       ED_region_panels_draw_to_world_quad(
           &rv_tmp, panel->panel_obmat, &panel->panel_rect, panel->panel_offscreen);
+
+      for (const wmXrTempRegion *temp_region :
+           ConstListBaseWrapper<wmXrTempRegion>(panel->temporary_regions))
+      {
+        wm_xr_temp_region_draw_to_world_quad(viewmat, winmat, panel, temp_region);
+      }
     }
   }
 }
@@ -1899,6 +2322,14 @@ void wm_xr_draw_panels_world_space(const bContext *C, ARegion * /*region*/, void
     panel->panel_host_region = xr_region;
     wm_xr_panel_mount_update(panel, xr);
     wm_xr_panel_cache_update(C, panel);
+
+    if (!BLI_listbase_is_empty(&panel->temporary_regions)) {
+      for (wmXrTempRegion *temp_region :
+           ListBaseWrapper<wmXrTempRegion>(panel->temporary_regions))
+      {
+        wm_xr_temp_region_cache_update(C, panel, temp_region);
+      }
+    }
   }
   if (!found_host) {
     CLOG_ERROR(&LOG, "panels_ws: XR panel host not registered");

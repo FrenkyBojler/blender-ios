@@ -10,11 +10,14 @@
  * \note Most logic is now in 'interface_region_*.c'
  */
 
-#include "BLI_listbase.hh"
+#include <cstdio>
+
+#include "BLI_listbase.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
+#include "WM_api.hh"
 #include "wm_draw.hh"
 
 #include "ED_screen.hh"
@@ -43,6 +46,8 @@ void region_temp_remove(bContext *C, bScreen *screen, ARegion *region)
   if (win) {
     wm_draw_region_clear(win, region);
   }
+
+  blender::WM_xr_temp_region_unregister(region);
 
   ED_region_exit(C, region);
   BKE_area_region_free(nullptr, region); /* nullptr: no space-type. */
