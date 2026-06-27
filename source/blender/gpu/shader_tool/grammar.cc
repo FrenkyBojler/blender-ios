@@ -23,6 +23,8 @@ static std::string to_string(TokenType type)
       return "Word";
     case Number:
       return "Number";
+    case Default:
+      return "default";
     case TemplateOpen:
       return "<";
     case TemplateClose:
@@ -338,6 +340,7 @@ struct ScopeParser {
         case Inline:    /* For MSL / C++. */
         case Number:    /* For C++ bit-flags. */
         case Star:      /* For C++ pointers. */
+        case Default:   /* For C++ constructor. */
         case Comma:     /* For C++ constructor. */
         case Equal:     /* For C++ operator. */
         case Word:
@@ -555,6 +558,7 @@ struct ScopeParser {
           close_scope(curr.prev(), ScopeType::Assignment);
           return;
         case This:
+        case Default: /* For C++ constructor. */
         case Word:
         case Number:
         case EXPRESSION_TOKENS:
@@ -621,7 +625,8 @@ struct ScopeParser {
           break;
         case Using:
         case This:
-        case Case: /* For switch cases. */
+        case Case:    /* For switch cases. */
+        case Default: /* For switch cases. */
         case Comma:
         case Break:
         case Const:
