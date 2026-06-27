@@ -38,6 +38,7 @@
 #include "ED_image.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_sequencer.hh"
 #include "ED_space_api.hh"
 #include "ED_uvedit.hh"
 
@@ -343,11 +344,17 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   }
 
   setTransformViewAspect(t, t->aspect);
-
   if (op && (prop = RNA_struct_find_property(op->ptr, "center_override")) &&
       RNA_property_is_set(op->ptr, prop))
   {
     RNA_property_float_get_array(op->ptr, prop, t->center_global);
+    // printf("Global Center: %f | %f\n", t->center_global[0], t->center_global[1]);
+    
+    if (t->spacetype == SPACE_SEQ && t->options & CTX_MASK) {
+      float2 unit_center = seq::image_preview_unit_from_px(t->scene, t->center_global);
+      BKE_mask_coord_from_sequence(t->scene, unit_center, unit_center);
+      copy_v2_v2(t->center_global, unit_center);
+    }
     mul_v3_v3(t->center_global, t->aspect);
     t->flag |= T_OVERRIDE_CENTER;
   }
@@ -931,6 +938,7 @@ void restoreTransObjects(TransInfo *t)
 void calculateCenter2D(TransInfo *t)
 {
   BLI_assert(!is_zero_v3(t->aspect));
+  // printf("center: %f | %f\n", t->center_global[0], t->center_global[1]);
   projectFloatView(t, t->center_global, t->center2d);
 }
 

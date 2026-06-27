@@ -378,12 +378,29 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
     adr[1] = out[1];
   }
   else if (t->spacetype == SPACE_SEQ) { /* XXX not tested yet, but should work. */
-    int out[2] = {0, 0};
-    if (t->view) {
-      ui::view2d_view_to_region(static_cast<View2D *>(t->view), vec[0], vec[1], &out[0], &out[1]);
+    if ((t->options & CTX_MASK)) {
+      Scene *scene = t->scene;
+      if(scene) {
+        float2 v = {vec[0] / t->aspect[0], vec[1] / t->aspect[1]};
+        BKE_mask_coord_to_sequence(scene, v, v);
+        ed::vse::point_position__reverse(scene, t->region, v, v);
+
+        adr[0] = v[0];
+        adr[1] = v[1];
+      }
+      else {
+        adr[0] = 0;
+        adr[1] = 0;
+      }
     }
-    adr[0] = out[0];
-    adr[1] = out[1];
+    else {
+      int out[2] = {0, 0};
+      if (t->view) {
+        ui::view2d_view_to_region(static_cast<View2D *>(t->view), vec[0], vec[1], &out[0], &out[1]);
+      }
+      adr[0] = out[0];
+      adr[1] = out[1];
+    }
   }
   else if (t->spacetype == SPACE_CLIP) {
     SpaceClip *sc = static_cast<SpaceClip *>(t->area->spacedata.first);
@@ -436,6 +453,8 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
       adr[1] = 0;
     }
   }
+  printf("vec: %f | %f\n", vec[0], vec[1]);
+  printf("adr: %d | %d\n", adr[0], adr[1]);
 }
 void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 {
@@ -526,6 +545,7 @@ void removeAspectRatio(TransInfo *t, float vec[2])
 
 static void viewRedrawForce(const bContext *C, TransInfo *t)
 {
+  // printf("Force Redraw!\n");
   if (t->options & CTX_GPENCIL_STROKES) {
     if (t->obedit_type == OB_GREASE_PENCIL) {
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);

@@ -495,6 +495,7 @@ void ED_mask_mouse_pos(const bContext *C, const int mval[2], float r_co[2])
         Scene *scene = CTX_data_sequencer_scene(C);
         ed::vse::mouse_position(scene, region, mval, r_co);
         BKE_mask_coord_from_sequence(scene, r_co, r_co);
+        // printf("Space Co: %f | %f\n", r_co[0], r_co[1]);
         break;
       }
       case SPACE_IMAGE: {
@@ -699,9 +700,35 @@ void ED_mask_center_from_pivot_ex(const bContext *C,
       C, min, max, false, handles_as_knot_selected_only);
 
   switch (mode) {
-    case V3D_AROUND_CURSOR:
-      ED_mask_cursor_location_get(area, r_center);
+    case V3D_AROUND_CURSOR: {
+      float cursor[2];
+      ED_mask_cursor_location_get(area, cursor);
+      switch (area->spacetype) {
+        case SPACE_CLIP: {
+          SpaceClip *space_clip = static_cast<SpaceClip *>(area->spacedata.first);
+          BKE_mask_coord_from_movieclip(space_clip->clip, &space_clip->user, r_center, cursor);
+          break;
+        }
+        case SPACE_SEQ: {
+          Scene *scene = CTX_data_sequencer_scene(C);
+          // Mask coordinates use a bottom-left origin, while Space Sequence uses a center origin.
+          // Subtract 0.5f to convert from bottom-left-origin to center-origin coordinates.
+          cursor[0] -= 0.5f;
+          cursor[1] -= 0.5f;
+          BKE_mask_coord_from_sequence(scene, r_center, cursor);
+          break;
+        }
+        case SPACE_IMAGE: {
+          SpaceImage *space_image = static_cast<SpaceImage *>(area->spacedata.first);
+          BKE_mask_coord_from_image(space_image->image, &space_image->iuser, r_center, cursor);
+          break;
+        }
+        default:
+        BLI_assert(0);
+        break;
+      }
       break;
+    }
     default:
       mid_v2_v2v2(r_center, min, max);
       break;
@@ -848,9 +875,10 @@ void ED_mask_pixelspace_factor(const bContext *C, float *r_scalex, float *r_scal
         ui::view2d_scale_get(&region->v2d, r_scalex, r_scaley);
         BKE_render_resolution(&scene->r, false, &width, &height);
         ed::vse::get_aspect(scene, &aspx, &aspy);
+        float maxdim = max_ff(static_cast<float>(width), static_cast<float>(height));
 
-        *r_scalex *= aspx * static_cast<float>(width);
-        *r_scaley *= aspy * static_cast<float>(height);
+        *r_scalex *= aspx * maxdim;
+        *r_scaley *= aspy * maxdim;
         break;
       }
       case SPACE_IMAGE: {

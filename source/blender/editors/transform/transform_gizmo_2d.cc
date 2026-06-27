@@ -26,6 +26,7 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
+#include "BKE_mask.hh"
 
 #include "RNA_access.hh"
 
@@ -266,40 +267,58 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     }
   }
   else if (area->spacetype == SPACE_SEQ) {
-    Scene *scene = CTX_data_sequencer_scene(C);
-    Editing *ed = seq::editing_get(scene);
-    ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
-    ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
-    VectorSet strips = seq::query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
-    strips.remove_if([&](Strip *strip) { return (strip->flag & SEQ_SELECT) == 0; });
-    int selected_strips = strips.size();
-    if (selected_strips > 0) {
-      has_select = true;
-      const Bounds<float2> box = seq::image_transform_bounding_box_from_strips_get(scene, strips);
-      copy_v2_v2(r_min, box.min);
-      copy_v2_v2(r_max, box.max);
+    const SpaceSeq *sseq = static_cast<const SpaceSeq *>(area->spacedata.first);
+    if (sseq->mode == SEQ_MODE_MASK) {
+      float min[2], max[2];
+      int width, height;
+      float aspx, aspy;
+      ED_mask_get_size(C, &width, &height);
+      ED_mask_get_aspect(C, &aspx, &aspy);
+      has_select = ED_mask_selected_minmax(C, min, max, false, false);
+
+      float maxdim = max_ff(static_cast<float>(width), static_cast<float>(height));
+      r_min[0] = (min[0] - 0.5f) * maxdim * aspx;
+      r_min[1] = (min[1] - 0.5f) * maxdim * aspy;
+
+      r_max[0] = (max[0] - 0.5f) * maxdim * aspx;
+      r_max[1] = (max[1] - 0.5f) * maxdim * aspy;
     }
-    if (selected_strips > 1) {
-      /* Don't draw the cage as transforming multiple strips isn't currently very useful as it
-       * doesn't behave as one would expect.
-       *
-       * This is because our current transform system doesn't support shearing which would make the
-       * scaling transforms of the bounding box behave weirdly.
-       * In addition to this, the rotation of the bounding box can not currently be hooked up
-       * properly to read the result from the transform system (when transforming multiple strips).
-       */
-      const int pivot_point = scene->toolsettings->sequencer_tool_settings->pivot_point;
-      if (pivot_point == V3D_AROUND_CURSOR) {
-        SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
-        const float2 cursor_pixel = seq::image_preview_unit_to_px(scene, sseq->cursor);
-        copy_v2_v2(r_center, cursor_pixel);
+    else {
+      Scene *scene = CTX_data_sequencer_scene(C);
+      Editing *ed = seq::editing_get(scene);
+      ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
+      ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
+      VectorSet strips = seq::query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
+      strips.remove_if([&](Strip *strip) { return (strip->flag & SEQ_SELECT) == 0; });
+      int selected_strips = strips.size();
+      if (selected_strips > 0) {
+        has_select = true;
+        const Bounds<float2> box = seq::image_transform_bounding_box_from_strips_get(scene, strips);
+        copy_v2_v2(r_min, box.min);
+        copy_v2_v2(r_max, box.max);
       }
-      else {
-        mid_v2_v2v2(r_center, r_min, r_max);
+      if (selected_strips > 1) {
+        /* Don't draw the cage as transforming multiple strips isn't currently very useful as it
+        * doesn't behave as one would expect.
+        *
+        * This is because our current transform system doesn't support shearing which would make the
+        * scaling transforms of the bounding box behave weirdly.
+        * In addition to this, the rotation of the bounding box can not currently be hooked up
+        * properly to read the result from the transform system (when transforming multiple strips).
+        */
+        const int pivot_point = scene->toolsettings->sequencer_tool_settings->pivot_point;
+        if (pivot_point == V3D_AROUND_CURSOR) {
+          SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
+          const float2 cursor_pixel = seq::image_preview_unit_to_px(scene, sseq->cursor);
+          copy_v2_v2(r_center, cursor_pixel);
+        }
+        else {
+          mid_v2_v2v2(r_center, r_min, r_max);
+        }
+        zero_v2(r_min);
+        zero_v2(r_max);
+        return has_select;
       }
-      zero_v2(r_min);
-      zero_v2(r_max);
-      return has_select;
     }
   }
 
@@ -309,6 +328,7 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
   }
 
   mid_v2_v2v2(r_center, r_min, r_max);
+  // printf("r_centre: %f | %f\n", r_center[0], r_center[1]);
   return has_select;
 }
 
@@ -316,6 +336,11 @@ static int gizmo2d_calc_transform_orientation(const bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area->spacetype != SPACE_SEQ) {
+    return V3D_ORIENT_GLOBAL;
+  }
+
+  SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
+  if (sseq->mode == SEQ_MODE_MASK) {
     return V3D_ORIENT_GLOBAL;
   }
 
@@ -340,6 +365,13 @@ static float gizmo2d_calc_rotation(const bContext *C)
   if (area->spacetype != SPACE_SEQ) {
     return 0.0f;
   }
+
+  /*
+  const SpaceSeq *sseq = static_cast<const SpaceSeq *>(area->spacedata.first);
+  if (sseq->mode == SEQ_MODE_MASK) {
+    return 0.0f;
+  }
+  */
 
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
@@ -392,7 +424,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C,
   if (area->spacetype == SPACE_IMAGE) {
     const Main *bmain = CTX_data_main(C);
     Scene *scene = CTX_data_scene(C);
-    const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
+    SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
     ViewLayer *view_layer = CTX_data_view_layer(C);
     switch (sima->mode) {
       case SI_MODE_UV:
@@ -402,6 +434,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C,
       case SI_MODE_MASK:
         ED_mask_center_from_pivot_ex(
             C, area, sima->around, handles_as_knot_selected_only, r_pivot, &has_select);
+        BKE_mask_coord_to_image(sima->image, &sima->iuser, r_pivot, r_pivot);
         break;
       default:
         break;
@@ -412,35 +445,44 @@ static bool gizmo2d_calc_transform_pivot(const bContext *C,
     SpaceSeq *sseq = static_cast<SpaceSeq *>(area->spacedata.first);
     const int pivot_point = scene->toolsettings->sequencer_tool_settings->pivot_point;
 
-    if (sseq->mode == SEQ_MODE_MASK) {
-      float pivot[2];
-      int width, height;
-      float aspx, aspy;
-      ED_mask_get_size(C, &width, &height);
-      ED_mask_get_aspect(C, &aspx, &aspy);
-      ED_mask_center_from_pivot_ex(
-          C, area, pivot_point, handles_as_knot_selected_only, pivot, &has_select);
-      
-      float maxdim = max_ff(static_cast<float>(width), static_cast<float>(height));
-      r_pivot[0] = (pivot[0] - 0.5f) * maxdim * aspx;
-      r_pivot[1] = (pivot[1] - 0.5f) * maxdim * aspy;
-    }
-    else if (pivot_point == V3D_AROUND_CURSOR) {
+    if (pivot_point == V3D_AROUND_CURSOR) {
       const float2 cursor_pixel = seq::image_preview_unit_to_px(scene, sseq->cursor);
       copy_v2_v2(r_pivot, cursor_pixel);
 
-      Editing *ed = seq::editing_get(scene);
-      ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
-      ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
-      VectorSet strips = seq::query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
-      strips.remove_if([&](Strip *strip) { return (strip->flag & SEQ_SELECT) == 0; });
-      has_select = !strips.is_empty();
+      if(sseq->mode == SEQ_MODE_MASK) {
+        /* Run the minmax function purely to extract the boolean */
+        float2 dummy_min, dummy_max;
+        has_select = ED_mask_selected_minmax(C, dummy_min, dummy_max, false, false);
+      }
+      else {
+        Editing *ed = seq::editing_get(scene);
+        ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
+        ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
+        VectorSet strips = seq::query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
+        strips.remove_if([&](Strip *strip) { return (strip->flag & SEQ_SELECT) == 0; });
+        has_select = !strips.is_empty();
+      }
     }
     else if (pivot_point == V3D_AROUND_CENTER_BOUNDS) {
       has_select = gizmo2d_calc_bounds(C, r_pivot, nullptr, nullptr);
     }
     else {
-      has_select = seq_get_strip_pivot_median(scene, r_pivot);
+      if (sseq->mode == SEQ_MODE_MASK) {
+        float pivot[2];
+        int width, height;
+        float aspx, aspy;
+        ED_mask_get_size(C, &width, &height);
+        ED_mask_get_aspect(C, &aspx, &aspy);
+        ED_mask_center_from_pivot_ex(
+            C, area, pivot_point, handles_as_knot_selected_only, pivot, &has_select);
+
+        float maxdim = max_ff(static_cast<float>(width), static_cast<float>(height));
+        r_pivot[0] = (pivot[0] - 0.5f) * maxdim * aspx;
+        r_pivot[1] = (pivot[1] - 0.5f) * maxdim * aspy;
+      }
+      else {
+        has_select = seq_get_strip_pivot_median(scene, r_pivot);
+      }
     }
   }
   else {
