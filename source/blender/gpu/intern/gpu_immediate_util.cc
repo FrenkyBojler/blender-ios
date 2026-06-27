@@ -233,6 +233,31 @@ static void imm_draw_circle_partial(GPUPrimType prim_type,
   immEnd();
 }
 
+static void imm_draw_circle_partial_aspect(GPUPrimType prim_type,
+                                           uint pos,
+                                           float x,
+                                           float y,
+                                           float radius_x,
+                                           float radius_y,
+                                           int nsegments,
+                                           float start,
+                                           float sweep)
+{
+  /* shift & reverse angle, increase 'nsegments' to match gluPartialDisk */
+  const float radius = radius_x;
+  const float angle_start = -DEG2RADF(start) + float(M_PI_2);
+  const float angle_end = -(DEG2RADF(sweep) - angle_start);
+  nsegments += 1;
+  immBegin(prim_type, nsegments);
+  for (int i = 0; i < nsegments; i++) {
+    const float angle = interpf(angle_start, angle_end, (float(i) / float(nsegments - 1)));
+    const float angle_sin = sinf(angle);
+    const float angle_cos = cosf(angle);
+    immVertex2f(pos, x + radius_x * angle_cos, y + radius_y * angle_sin);
+  }
+  immEnd();
+}
+
 static void imm_draw_circle_partial_3d(GPUPrimType prim_type,
                                        uint pos,
                                        float x,
@@ -261,6 +286,19 @@ void imm_draw_circle_partial_wire_2d(
     uint pos, float x, float y, float radius, int nsegments, float start, float sweep)
 {
   imm_draw_circle_partial(GPU_PRIM_LINE_STRIP, pos, x, y, radius, nsegments, start, sweep);
+}
+
+void imm_draw_circle_partial_aspect_wire_2d(uint pos,
+                                            float x,
+                                            float y,
+                                            float radius_x,
+                                            float radius_y,
+                                            int nsegments,
+                                            float start,
+                                            float sweep)
+{
+  imm_draw_circle_partial_aspect(
+      GPU_PRIM_LINE_STRIP, pos, x, y, radius_x, radius_y, nsegments, start, sweep);
 }
 
 void imm_draw_circle_partial_wire_3d(

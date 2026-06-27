@@ -73,6 +73,15 @@ void imm_draw_circle_wire_aspect_2d(
 void imm_draw_circle_fill_aspect_2d(
     uint shdr_pos, float x, float y, float radius_x, float radius_y, int nsegments);
 
+void imm_draw_circle_partial_wire_aspect_2d(uint shdr_pos,
+                                            float x,
+                                            float y,
+                                            float radius_x,
+                                            float radius_y,
+                                            int nsegments,
+                                            float start,
+                                            float end);
+
 /**
  * Use this version when #GPUVertFormat has a vec3 position.
  */
@@ -89,6 +98,14 @@ void imm_draw_circle_fill_aspect_3d(
  */
 void imm_draw_circle_partial_wire_2d(
     uint pos, float x, float y, float radius, int nsegments, float start, float sweep);
+void imm_draw_circle_partial_aspect_wire_2d(uint pos,
+                                            float x,
+                                            float y,
+                                            float radius_x,
+                                            float radius_y,
+                                            int nsegments,
+                                            float start,
+                                            float sweep);
 void imm_draw_circle_partial_wire_3d(
     uint pos, float x, float y, float z, float radius, int nsegments, float start, float sweep);
 

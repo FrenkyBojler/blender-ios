@@ -1244,109 +1244,6 @@ void ED_draw_composition_guides(uint shdr_pos,
     immEnd();
   }
 
-  /* Draw Dome Master Composition Guides  */
-
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) ||
-      (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS))
-  {
-    constexpr int directions = 36;
-    constexpr float steps = M_PI * 2 / directions;
-    constexpr float rings = 9;
-
-    const float w = rect->xmax - rect->xmin;
-    const float h = rect->ymax - rect->ymin;
-    const float xmid = rect->xmin + 0.5f * w;
-    const float ymid = rect->ymin + 0.5f * h;
-    const float radius_x = w / 2;
-    const float radius_y = h / 2;
-    float angle, x1, y1, x2, y2;
-
-    if (flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) {
-      float smallest_radius_x, smallest_radius_y, current_radius_x, current_radius_y;
-      const float radius_x_step = radius_x / rings;
-      const float radius_y_step = radius_y / rings;
-
-      for (int i = 1; i < rings + 1; i++) {
-
-        current_radius_x = i * radius_x_step;
-        current_radius_y = i * radius_y_step;
-
-        if (i == 1) {
-          smallest_radius_x = current_radius_x;
-          smallest_radius_y = current_radius_y;
-        }
-
-        imm_draw_circle_wire_aspect_2d(
-            shdr_pos, xmid, ymid, current_radius_x, current_radius_y, 100);
-      }
-
-      immBegin(GPU_PRIM_LINES, directions * 2);
-
-      for (int i = 0; i < directions; i++) {
-        angle = steps * i;
-        x2 = xmid + radius_x * cos(angle);
-        y2 = ymid + radius_y * sin(angle);
-        if (i == 0 || i == 9 || i == 9 * 2 || i == 9 * 3) {
-          x1 = xmid;
-          y1 = ymid;
-        }
-        else {
-          x1 = xmid + smallest_radius_x * cos(angle);
-          y1 = ymid + smallest_radius_y * sin(angle);
-        }
-        immVertex2f(shdr_pos, x1, y1);
-        immVertex2f(shdr_pos, x2, y2);
-      }
-
-      immEnd();
-    }
-
-    if (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS) {
-      const uiStyle *style = ui::style_get();
-      const uiFontStyle *fstyle = &style->widget;
-      const int fontid = fstyle->uifont_id;
-      constexpr float direction_offset = 10.0f;
-      constexpr float direction_big = 12.0f;
-      constexpr float direction_small = 8.0f;
-
-      ED_composition_guides_dome_master_draw_names_helper(
-          "N", xmid, rect->ymax + direction_offset, fontid, direction_big);
-
-      angle = steps * 13.5f;
-      x1 = xmid + radius_x * cos(angle);
-      y1 = ymid + radius_y * sin(angle);
-      ED_composition_guides_dome_master_draw_names_helper(
-          "N/E", x1 - direction_offset, y1 + direction_offset, fontid, direction_small);
-
-      ED_composition_guides_dome_master_draw_names_helper(
-          "E", rect->xmin - direction_offset, ymid, fontid, direction_big);
-
-      angle = steps * 22.5f;
-      x1 = xmid + radius_x * cos(angle);
-      y1 = ymid + radius_y * sin(angle);
-      ED_composition_guides_dome_master_draw_names_helper(
-          "S/E", x1 - direction_offset, y1 - direction_offset, fontid, direction_small);
-
-      ED_composition_guides_dome_master_draw_names_helper(
-          "S", xmid, rect->ymin - direction_offset, fontid, direction_big);
-
-      angle = steps * 31.5f;
-      x1 = xmid + radius_x * cos(angle);
-      y1 = ymid + radius_y * sin(angle);
-      ED_composition_guides_dome_master_draw_names_helper(
-          "S/W", x1 + direction_offset, y1 - direction_offset, fontid, direction_small);
-
-      ED_composition_guides_dome_master_draw_names_helper(
-          "W", rect->xmax + direction_offset, ymid, fontid, direction_big);
-
-      angle = steps * 4.5f;
-      x1 = xmid + radius_x * cos(angle);
-      y1 = ymid + radius_y * sin(angle);
-      ED_composition_guides_dome_master_draw_names_helper(
-          "N/W", x1 + direction_offset, y1 + direction_offset, fontid, direction_small);
-    }
-  }
-
   if (flag & COMPOSITION_GUIDES_THIRDS) {
     drawviewborder_grid3(shdr_pos, *rect, 1.0f / 3.0f);
   }
@@ -1369,6 +1266,220 @@ void ED_draw_composition_guides(uint shdr_pos,
 
   if (flag & COMPOSITION_GUIDES_HARMONY_TRI_B) {
     drawviewborder_triangle(shdr_pos, *rect, true, 'B');
+  }
+}
+
+void ED_draw_dome_master_composition_guides(uint shdr_pos,
+                                            eCompositionGuideFlags flag,
+                                            const rctf *rect,
+                                            const float color[4])
+{
+
+  immUniformColor4fv(color);
+
+  constexpr int directions = 36;
+  constexpr float steps = M_PI * 2 / directions;
+  constexpr float rings = 9;
+
+  const float w = rect->xmax - rect->xmin;
+  const float h = rect->ymax - rect->ymin;
+  const float xmid = rect->xmin + 0.5f * w;
+  const float ymid = rect->ymin + 0.5f * h;
+  const float radius_x = w / 2;
+  const float radius_y = h / 2;
+  float angle, x1, y1, x2, y2;
+  const float radius_x_step = radius_x / rings;
+  const float radius_y_step = radius_y / rings;
+
+  imm_draw_circle_wire_aspect_2d(shdr_pos, xmid, ymid, radius_x, radius_y, 365);
+
+  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_HORIZON)) {
+
+    float angle = 120.23;
+    imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
+                                           xmid,
+                                           ymid + (radius_y * 0.49),
+                                           radius_x * .77,
+                                           radius_y * 1.05,
+                                           100,
+                                           81.36,
+                                           197.31);
+
+    imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
+                                           xmid,
+                                           ymid + (radius_y * 0.26),
+                                           radius_x * .97,
+                                           radius_y * 1.1,
+                                           100,
+                                           90.89,
+                                           178.26);
+  }
+
+  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_BACK)) {
+
+    float angle = 30.23;
+    imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
+                                           xmid,
+                                           ymid - (radius_y * 0.83),
+                                           radius_x * 1.980,
+                                           radius_y * 1.05,
+                                           100,
+                                           -angle,
+                                           angle * 2);
+  }
+
+  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_FRONT)) {
+
+    int cord_size = 8;
+    float cords[cord_size][2] = {
+        {8, -38.7f},
+        {7, -37.3f},
+        {6, -36.2f},
+        {5, -36.3f},
+        {4, -40.0f},
+        {3, -52.0f},
+        {2.67f, -60.0f},
+        {2.3f, -90.0f},
+    };
+
+    immBegin(GPU_PRIM_LINES, directions * 2);
+    float x, y;
+
+    for (int i = 0; i < cord_size; i++) {
+
+      if (i == 0) {
+        angle = DEG2RAD(-40);
+        x = xmid + radius_x * cos(angle);
+        y = ymid + radius_y * sin(angle);
+      }
+      else {
+        angle = DEG2RAD(cords[i - 1][1]);
+        x = xmid + (radius_x_step * cords[i - 1][0]) * cos(angle);
+        y = ymid + (radius_y_step * cords[i - 1][0]) * sin(angle);
+      }
+
+      immVertex2f(shdr_pos, x, y);
+      angle = DEG2RAD(cords[i][1]);
+      x = xmid + (radius_x_step * cords[i][0]) * cos(angle);
+      y = ymid + (radius_y_step * cords[i][0]) * sin(angle);
+      immVertex2f(shdr_pos, x, y);
+    }
+
+    for (int i = 0; i < cord_size; i++) {
+
+      if (i == 0) {
+        angle = DEG2RAD(-140);
+        x = xmid + radius_x * cos(angle);
+        y = ymid + radius_y * sin(angle);
+      }
+      else {
+        angle = DEG2RAD(-180 + (cords[i - 1][1] * -1));
+        x = xmid + (radius_x_step * cords[i - 1][0]) * cos(angle);
+        y = ymid + (radius_y_step * cords[i - 1][0]) * sin(angle);
+      }
+
+      immVertex2f(shdr_pos, x, y);
+      angle = DEG2RAD(-180 + (cords[i][1] * -1));
+      x = xmid + (radius_x_step * cords[i][0]) * cos(angle);
+      y = ymid + (radius_y_step * cords[i][0]) * sin(angle);
+      immVertex2f(shdr_pos, x, y);
+    }
+
+    immEnd();
+  }
+
+  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER)) {
+
+    float angle = 28.40;
+    imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
+                                           xmid,
+                                           ymid - (radius_y * 1.26),
+                                           radius_x * 1.980,
+                                           radius_y * 1.05,
+                                           100,
+                                           -angle,
+                                           angle * 2);
+  }
+
+  if (flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) {
+    float current_radius_x, current_radius_y;
+
+    for (int i = 1; i < rings; i++) {
+
+      current_radius_x = i * radius_x_step;
+      current_radius_y = i * radius_y_step;
+
+      imm_draw_circle_wire_aspect_2d(
+          shdr_pos, xmid, ymid, current_radius_x, current_radius_y, 100);
+    }
+
+    immBegin(GPU_PRIM_LINES, directions * 2);
+
+    for (int i = 0; i < directions; i++) {
+      angle = steps * i;
+      x2 = xmid + radius_x * cos(angle);
+      y2 = ymid + radius_y * sin(angle);
+      if (i == 0 || i == 9 || i == 9 * 2 || i == 9 * 3) {
+        x1 = xmid;
+        y1 = ymid;
+      }
+      else {
+        x1 = xmid + radius_x_step * cos(angle);
+        y1 = ymid + radius_y_step * sin(angle);
+      }
+      immVertex2f(shdr_pos, x1, y1);
+      immVertex2f(shdr_pos, x2, y2);
+    }
+
+    immEnd();
+  }
+
+  if (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS) {
+    const uiStyle *style = ui::style_get();
+    const uiFontStyle *fstyle = &style->widget;
+    const int fontid = fstyle->uifont_id;
+    constexpr float direction_offset = 10.0f;
+    constexpr float direction_big = 12.0f;
+    constexpr float direction_small = 8.0f;
+
+    ED_composition_guides_dome_master_draw_names_helper(
+        "N", xmid, rect->ymax + direction_offset, fontid, direction_big);
+
+    angle = steps * 13.5f;
+    x1 = xmid + radius_x * cos(angle);
+    y1 = ymid + radius_y * sin(angle);
+    ED_composition_guides_dome_master_draw_names_helper(
+        "N/E", x1 - direction_offset, y1 + direction_offset, fontid, direction_small);
+
+    ED_composition_guides_dome_master_draw_names_helper(
+        "E", rect->xmin - direction_offset, ymid, fontid, direction_big);
+
+    angle = steps * 22.5f;
+    x1 = xmid + radius_x * cos(angle);
+    y1 = ymid + radius_y * sin(angle);
+    ED_composition_guides_dome_master_draw_names_helper(
+        "S/E", x1 - direction_offset, y1 - direction_offset, fontid, direction_small);
+
+    ED_composition_guides_dome_master_draw_names_helper(
+        "S", xmid, rect->ymin - direction_offset, fontid, direction_big);
+
+    ED_composition_guides_dome_master_draw_names_helper(
+        "FRONT", xmid, rect->ymin - direction_offset * 2.3, fontid, direction_big);
+
+    angle = steps * 31.5f;
+    x1 = xmid + radius_x * cos(angle);
+    y1 = ymid + radius_y * sin(angle);
+    ED_composition_guides_dome_master_draw_names_helper(
+        "S/W", x1 + direction_offset, y1 - direction_offset, fontid, direction_small);
+
+    ED_composition_guides_dome_master_draw_names_helper(
+        "W", rect->xmax + direction_offset, ymid, fontid, direction_big);
+
+    angle = steps * 4.5f;
+    x1 = xmid + radius_x * cos(angle);
+    y1 = ymid + radius_y * sin(angle);
+    ED_composition_guides_dome_master_draw_names_helper(
+        "N/W", x1 + direction_offset, y1 + direction_offset, fontid, direction_small);
   }
 }
 
