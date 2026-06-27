@@ -373,7 +373,7 @@ class NodeSwapOperator(NodeOperator):
     @staticmethod
     def transfer_links(tree, old_node, new_node, is_input):
         is_reroute = old_node.bl_idname == "NodeReroute"
-        
+
         both_math_nodes = (old_node.bl_idname in math_nodes) and (new_node.bl_idname in math_nodes)
         both_switch_nodes = (old_node.bl_idname in switch_nodes) and (new_node.bl_idname in switch_nodes)
 
@@ -498,7 +498,7 @@ class NodeSwapOperator(NodeOperator):
             return node.enum_definition.enum_items
         if switch_type == "GeometryNodeIndexSwitch":
             return node.index_switch_items
-        
+
         return None
 
     def transfer_switch_data(self, old_node, new_node):
@@ -510,8 +510,9 @@ class NodeSwapOperator(NodeOperator):
             if old_selector_value == '':
                 old_selector_value = 0
             else:
-                old_selector_value = next(i for i, item in enumerate(old_switch_items) if item.name == old_selector_value) 
-        
+                old_selector_value = next(i for i, item in enumerate(
+                    old_switch_items) if item.name == old_selector_value)
+
         if new_node.bl_idname in {"GeometryNodeMenuSwitch", "GeometryNodeIndexSwitch"}:
             new_switch_items.clear()
 
