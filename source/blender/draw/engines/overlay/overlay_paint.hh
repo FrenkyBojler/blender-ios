@@ -124,8 +124,9 @@ class Paints : Overlay {
         }
         return &sub;
       };
-      weight_opaque_ps_ = weight_subpass(
-          "Opaque", DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH);
+      weight_opaque_ps_ = weight_subpass("Opaque",
+                                         DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL |
+                                             DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ALPHA);
       weight_masked_transparency_ps_ = weight_subpass(
           "Masked Transparency",
           DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_BLEND_ALPHA);
