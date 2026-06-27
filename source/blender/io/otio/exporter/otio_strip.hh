@@ -155,6 +155,12 @@ class GeneratorStripExporter : public StripExporter {
                         &single_input_effects) override;
 };
 
+void attach_foreign_metadata_scene(const Scene *scene,
+                                   SerializableObject::Retainer<Timeline> &timeline);
+
+template<typename T>
+void attach_foreign_metadata_strip(const Strip *strip, SerializableObject::Retainer<T> &clip);
+
 template<typename T>
 void add_effects_to_clip(
     const Scene *scene,

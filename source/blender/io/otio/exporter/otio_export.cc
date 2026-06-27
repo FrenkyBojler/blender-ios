@@ -143,6 +143,7 @@ static void export_transition(const Strip *strip,
   }
 
   transition->metadata()["blender"] = metadata;
+  attach_foreign_metadata_strip(strip, transition);
   track->append_child(transition);
   last_strip_end = strip->right_handle(scene);
 }
@@ -301,10 +302,12 @@ static void otio_export_recursive(Main *bmain,
             last_strip_end = strip->right_handle(scene);
 
             if (!primary_meta_stack->children().empty()) {
+              attach_foreign_metadata_strip(strip, primary_meta_stack);
               add_effects_to_clip(scene, strip, primary_meta_stack, single_input_effects);
               meta_video_track->append_child(primary_meta_stack);
             }
             if (!secondary_meta_stack->children().empty()) {
+              attach_foreign_metadata_strip(strip, secondary_meta_stack);
               add_effects_to_clip(scene, strip, secondary_meta_stack, single_input_effects);
               meta_audio_track->append_child(secondary_meta_stack);
             }
@@ -407,6 +410,7 @@ void otio_export_job_start(void *custom_data, wmJobWorkerStatus *worker_status)
                         0,
                         scene->r.efra);
 
+  attach_foreign_metadata_scene(scene, timeline);
   export_scene_markers(scene, main_stack);
 
   timeline->set_tracks(main_stack);

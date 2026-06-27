@@ -8,6 +8,7 @@
 
 #include <cstring>
 
+#include "BKE_idprop.hh"
 #include "BKE_main.hh"
 
 #include "BLI_fileops.hh"
@@ -26,6 +27,7 @@
 #include "opentimelineio/anyDictionary.h"
 #include "opentimelineio/anyVector.h"
 #include "opentimelineio/clip.h"
+#include "opentimelineio/deserialization.h"
 #include "opentimelineio/effect.h"
 #include "opentimelineio/externalReference.h"
 #include "opentimelineio/freezeFrame.h"
@@ -36,7 +38,9 @@
 #include "opentimelineio/missingReference.h"
 #include "opentimelineio/serializableObject.h"
 #include "opentimelineio/stack.h"
+#include "opentimelineio/timeline.h"
 #include "opentimelineio/track.h"
+#include "opentimelineio/transition.h"
 
 #include "IO_otio.hh"
 #include "otio_strip.hh"
@@ -361,6 +365,54 @@ static void img_sequence_create_symlinks(const StripElem *se,
 
 #endif
 
+template<typename T>
+static void attach_foreign_metadata(IDProperty *idp, SerializableObject::Retainer<T> &clip)
+{
+  if (!idp || idp->type != IDP_GROUP) {
+    return;
+  }
+
+  IDProperty *otio_group = IDP_GetPropertyFromGroup(idp, "otio_metadata");
+  if (!otio_group) {
+    return;
+  }
+
+  IDP_foreach_property(otio_group, IDP_TYPE_FILTER_STRING, [&](IDProperty *prop) {
+    if (strcmp(prop->name, "blender") || !prop->data.pointer) {
+      return;
+    }
+    std::any dict = AnyDictionary();
+    if (deserialize_json_from_string(
+            static_cast<const char *>(prop->data.pointer), &dict, nullptr))
+    {
+      try {
+        AnyDictionary metadata = std::any_cast<AnyDictionary>(dict);
+        clip->metadata()[prop->name] = metadata;
+      }
+      catch (const std::bad_any_cast & /*e*/) {
+        return;
+      }
+    }
+  });
+}
+
+void attach_foreign_metadata_scene(const Scene *scene,
+                                   SerializableObject::Retainer<Timeline> &timeline)
+{
+  attach_foreign_metadata(scene->id.system_properties, timeline);
+}
+
+template<typename T>
+void attach_foreign_metadata_strip(const Strip *strip, SerializableObject::Retainer<T> &clip)
+{
+  attach_foreign_metadata(strip->system_properties, clip);
+}
+
+template void attach_foreign_metadata_strip(const Strip *strip,
+                                            SerializableObject::Retainer<Stack> &clip);
+template void attach_foreign_metadata_strip(const Strip *strip,
+                                            SerializableObject::Retainer<Transition> &clip);
+
 static void add_sound_strip_metadata(SerializableObject::Retainer<Clip> &clip, const Strip *strip)
 {
   if (!strip->sound) {
@@ -384,7 +436,6 @@ static void handle_speed_effect_strip(const Scene *scene,
                                       const Strip *effect_strip,
                                       SerializableObject::Retainer<T> &clip)
 {
-
   float speed_factor = 1.0f;
   const SpeedControlVars *speed = static_cast<const SpeedControlVars *>(effect_strip->effectdata);
 
@@ -413,11 +464,13 @@ static void handle_speed_effect_strip(const Scene *scene,
     auto ltw = SerializableObject::Retainer<LinearTimeWarp>(
         new LinearTimeWarp(effect_strip->name + 2, "Speed"));
     ltw->set_time_scalar(speed_factor);
+    attach_foreign_metadata_strip(effect_strip, ltw);
     clip->effects().push_back(static_cast<SerializableObject::Retainer<otio::Effect>>(ltw.value));
   }
   else {
     auto ff = SerializableObject::Retainer<FreezeFrame>(new FreezeFrame(effect_strip->name + 2));
     ff->set_effect_name("Speed");
+    attach_foreign_metadata_strip(effect_strip, ff);
     clip->effects().push_back(static_cast<SerializableObject::Retainer<otio::Effect>>(ff.value));
   }
 }
@@ -436,6 +489,7 @@ static void handle_gaussian_blur_effect_strip(const Strip *effect_strip,
   metadata["size_x"] = static_cast<double>(blur->size_x);
   metadata["size_y"] = static_cast<double>(blur->size_y);
   eff->metadata()["blender"] = metadata;
+  attach_foreign_metadata_strip(effect_strip, eff);
 
   clip->effects().push_back(eff);
 }
@@ -458,6 +512,7 @@ static void handle_glow_effect_strip(const Strip *effect_strip,
   metadata["dQuality"] = static_cast<int64_t>(glow->dQuality);
   metadata["bNoComp"] = static_cast<int64_t>(glow->bNoComp);
   eff->metadata()["blender"] = metadata;
+  attach_foreign_metadata_strip(effect_strip, eff);
 
   clip->effects().push_back(eff);
 }
@@ -545,6 +600,7 @@ void StripExporter::export_with_missing_reference(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, missing_reference, strip_source_range));
 
+  attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
 }
@@ -567,6 +623,7 @@ void MovieStripExporter::export_strip(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, external_reference, strip_source_range));
 
+  attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
 }
@@ -587,6 +644,7 @@ void SoundStripExporter::export_strip(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, external_reference, strip_source_range));
 
+  attach_foreign_metadata_strip(strip_, clip);
   add_sound_strip_metadata(clip, strip_);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
@@ -609,6 +667,7 @@ void ImageStripExporter::export_strip(
     auto clip = otio::SerializableObject::Retainer<otio::Clip>(
         new Clip(strip_->name + 2, external_reference, strip_source_range));
 
+    attach_foreign_metadata_strip(strip_, clip);
     add_effects_to_clip(scene_, strip_, clip, single_input_effects);
     track_->append_child(clip);
   }
@@ -713,6 +772,7 @@ void ImageStripExporter::export_strip(
     auto clip = SerializableObject::Retainer<Clip>(
         new Clip(strip_->name + 2, img_seq_ref, source_range));
 
+    attach_foreign_metadata_strip(strip_, clip);
     add_effects_to_clip(scene_, strip_, clip, single_input_effects);
     track_->append_child(clip);
   }
@@ -793,6 +853,7 @@ void GeneratorStripExporter::export_strip(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, generator_reference, strip_source_range));
 
+  attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
 }
