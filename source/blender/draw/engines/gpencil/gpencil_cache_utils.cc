@@ -390,7 +390,12 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
   if (is_masked || has_layer_fx || (layer.blend_mode != GP_LAYER_BLEND_NONE) ||
       (layer_opacity < 1.0f))
   {
-    DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_STENCIL_EQUAL;
+    /* Skip stencil optimization for layers with VFX: effects like glow, shadow, and rim extend
+     * pixels beyond the geometry footprint, which would be clipped by STENCIL_EQUAL. */
+    DRWState state = DRW_STATE_WRITE_COLOR;
+    if (!has_layer_fx) {
+      state |= DRW_STATE_STENCIL_EQUAL;
+    }
     switch (layer.blend_mode) {
       case GP_LAYER_BLEND_NONE:
         state |= DRW_STATE_BLEND_ALPHA_PREMUL;
