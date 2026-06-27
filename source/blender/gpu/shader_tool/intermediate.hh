@@ -345,6 +345,8 @@ inline std::ostream &operator<<(std::ostream &out, const std::vector<int> &v)
   return out;
 }
 
+class ParserException : public std::exception {};
+
 /* Structure holding an intermediate form of the source code.
  * It is made for fast traversal and mutation of source code. */
 template<typename LexerFn, typename ParserFn>
@@ -356,6 +358,17 @@ struct IntermediateForm : MutableString, Parser<LexerFn, ParserFn> {
   IntermediateForm(const std::string_view input, ErrorHandler &report_error)
       : MutableString(input), report_error(report_error)
   {
+    parse(report_error);
+  }
+
+  IntermediateForm(ErrorHandler &report_error) : MutableString(""), report_error(report_error)
+  {
+    parse(report_error);
+  }
+
+  void set_str(const std::string_view input)
+  {
+    str_ = input;
     parse(report_error);
   }
 
@@ -396,6 +409,9 @@ struct IntermediateForm : MutableString, Parser<LexerFn, ParserFn> {
   {
     this->lexical_analysis(str_);
     this->semantic_analysis(report_error);
+    if (report_error.err.has_value()) {
+      throw ParserException();
+    }
   }
 
   void debug_print()
