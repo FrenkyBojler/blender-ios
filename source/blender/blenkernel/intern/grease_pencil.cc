@@ -250,6 +250,16 @@ static void grease_pencil_free_data(ID *id)
   grease_pencil->runtime = nullptr;
 }
 
+static void grease_pencil_layer_shaderfx_id_walk(void *user_data,
+                                                  Object * /*object*/,
+                                                  ID **id_pointer,
+                                                  const LibraryForeachIDCallbackFlag cb_flag)
+{
+  LibraryForeachIDData *data = static_cast<LibraryForeachIDData *>(user_data);
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, BKE_lib_query_foreachid_process(data, id_pointer, cb_flag));
+}
+
 static void grease_pencil_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
@@ -266,6 +276,13 @@ static void grease_pencil_foreach_id(ID *id, LibraryForeachIDData *data)
   for (const bke::greasepencil::Layer *layer : grease_pencil->layers()) {
     if (layer->parent) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, layer->parent, IDWALK_CB_USER);
+    }
+    for (const ShaderFxData &fx : layer->shader_fx) {
+      const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx.type));
+      if (fxi->foreach_ID_link) {
+        fxi->foreach_ID_link(
+            const_cast<ShaderFxData *>(&fx), nullptr, grease_pencil_layer_shaderfx_id_walk, data);
+      }
     }
   }
 }

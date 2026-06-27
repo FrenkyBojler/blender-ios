@@ -89,6 +89,9 @@ static const EnumPropertyItem rna_enum_glow_blend_modes_items[] = {
 #  include "BLI_string.hh"
 #  include "BLI_string_utf8.hh"
 
+#  include "DNA_grease_pencil_types.h"
+
+#  include "BKE_grease_pencil.hh"
 #  include "BKE_lib_id.hh"
 #  include "BKE_shader_fx.hh"
 
@@ -135,35 +138,75 @@ static void rna_ShaderFx_name_set(PointerRNA *ptr, const char *value)
   ShaderFxData *gmd = static_cast<ShaderFxData *>(ptr->data);
   char oldname[sizeof(gmd->name)];
 
-  /* make a copy of the old name first */
   STRNCPY(oldname, gmd->name);
-
-  /* copy the new name into the name slot */
   STRNCPY_UTF8(gmd->name, value);
 
-  /* make sure the name is truly unique */
   if (ptr->owner_id) {
-    Object *ob = id_cast<Object *>(ptr->owner_id);
-    BKE_shaderfx_unique_name(&ob->shader_fx, gmd);
+    if (GS(ptr->owner_id->name) == ID_GP) {
+      GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ptr->owner_id);
+      for (bke::greasepencil::Layer *layer : grease_pencil->layers_for_write()) {
+        bool found = false;
+        for (ShaderFxData &fx : layer->shader_fx) {
+          if (&fx == gmd) {
+            BKE_shaderfx_unique_name(&layer->shader_fx, gmd);
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          const StringRefNull layer_name = layer->name();
+          std::string layer_name_esc(layer_name.size() * 2 + 1, '\0');
+          BLI_str_escape(layer_name_esc.data(), layer_name.c_str(), layer_name_esc.size());
+          const std::string prefix = fmt::format(
+              "layers[\"{}\"].shader_effects", layer_name_esc.c_str());
+          BKE_animdata_fix_paths_rename_all(ptr->owner_id, prefix.c_str(), oldname, gmd->name);
+          return;
+        }
+      }
+    }
+    else {
+      Object *ob = id_cast<Object *>(ptr->owner_id);
+      BKE_shaderfx_unique_name(&ob->shader_fx, gmd);
+    }
   }
 
-  /* fix all the animation data which may link to this */
   BKE_animdata_fix_paths_rename_all(nullptr, "shader_effects", oldname, gmd->name);
 }
 
 static std::optional<std::string> rna_ShaderFx_path(const PointerRNA *ptr)
 {
-  const ShaderFxData *gmd = static_cast<ShaderFxData *>(ptr->data);
+  const ShaderFxData *gmd = static_cast<const ShaderFxData *>(ptr->data);
   char name_esc[sizeof(gmd->name) * 2];
-
   BLI_str_escape(name_esc, gmd->name, sizeof(name_esc));
+
+  if (ptr->owner_id && GS(ptr->owner_id->name) == ID_GP) {
+    const GreasePencil *grease_pencil = reinterpret_cast<const GreasePencil *>(ptr->owner_id);
+    for (const bke::greasepencil::Layer *layer : grease_pencil->layers()) {
+      for (const ShaderFxData &fx : layer->shader_fx) {
+        if (&fx == gmd) {
+          const StringRefNull layer_name = layer->name();
+          std::string layer_name_esc(layer_name.size() * 2 + 1, '\0');
+          BLI_str_escape(layer_name_esc.data(), layer_name.c_str(), layer_name_esc.size());
+          return fmt::format(
+              "layers[\"{}\"].shader_effects[\"{}\"]", layer_name_esc.c_str(), name_esc);
+        }
+      }
+    }
+    return std::nullopt;
+  }
+
   return fmt::format("shader_effects[\"{}\"]", name_esc);
 }
 
 static void rna_ShaderFx_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
-  WM_main_add_notifier(NC_OBJECT | ND_SHADERFX, ptr->owner_id);
+  if (ptr->owner_id && GS(ptr->owner_id->name) == ID_GP) {
+    WM_main_add_notifier(NC_GPENCIL | ND_DATA, ptr->owner_id);
+  }
+  else {
+    WM_main_add_notifier(NC_OBJECT | ND_SHADERFX, ptr->owner_id);
+  }
 }
 
 static void rna_ShaderFx_dependency_update(Main *bmain, Scene *scene, PointerRNA *ptr)
