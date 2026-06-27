@@ -113,8 +113,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     operands.append(std::move(grid));
   }
 
-  const ListPtr<bke::GVolumeGrid> grids_list = params.extract_input<ListPtr<bke::GVolumeGrid>>(
-      "Grid 2"_ustr);
+  const auto grids_list = params.extract_input<ListPtr<bke::GVolumeGrid>>("Grid 2"_ustr);
   const VArray<bke::GVolumeGrid> grids = grids_list->varray();
   for (const int i : grids.index_range()) {
     if (const auto &grid = grids[i]) {

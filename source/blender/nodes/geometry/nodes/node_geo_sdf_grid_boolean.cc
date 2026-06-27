@@ -89,8 +89,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const Operation operation = Operation(params.node().custom1);
 
-  const ListPtr<bke::VolumeGrid<float>> grids_list =
-      params.extract_input<ListPtr<bke::VolumeGrid<float>>>("Grid 2"_ustr);
+  const auto grids_list = params.extract_input<ListPtr<bke::VolumeGrid<float>>>("Grid 2"_ustr);
   const VArraySpan<bke::VolumeGrid<float>> grids = grids_list->varray();
   Vector<bke::VolumeGrid<float>> operands;
   switch (operation) {

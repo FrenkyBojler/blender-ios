@@ -296,12 +296,15 @@ class LazyFunctionForGeometryNode : public LazyFunction {
   }
 };
 
-static void assign_socket_value_to(SocketValueVariant src, GMutablePointer dst)
+static void try_assign_socket_value_to(SocketValueVariant src, GMutablePointer dst)
 {
+  if (dst.type()->is<SocketValueVariant>()) {
+    dst.type()->move_assign(&src, dst.get());
+    return;
+  }
   if (src.is_single()) {
     const GPointer src_ptr = src.get_single_ptr();
     BLI_assert(src_ptr.type() == dst.type());
-    // TODO: should use move?..
     dst.type()->copy_assign(src_ptr.get(), dst.get());
     return;
   }
@@ -325,8 +328,34 @@ static void assign_socket_value_to(SocketValueVariant src, GMutablePointer dst)
     dst.type()->copy_assign(&src_ptr, dst.get());
     return;
   }
+}
+
+static const CPPType &socket_structure_cpp_type(const bNodeSocket &socket)
+{
+  if (socket.runtime->declaration == nullptr) {
+    return *socket.typeinfo->base_cpp_type;
+  }
+
+  switch (socket.runtime->declaration->structure_type) {
+    using enum StructureType;
+    case Single:
+      return *socket.typeinfo->base_cpp_type;
+    case Dynamic:
+      return CPPType::get<SocketValueVariant>();
+    case Field:
+      return CPPType::get<fn::GField>();
+    case List:
+      return CPPType::get<GListPtr>();
+    case Grid:
+#ifdef WITH_OPENVDB
+      return CPPType::get<bke::volume_grid::GVolumeGrid>();
+#else  /* WITH_OPENVDB */
+      break;
+#endif /* WITH_OPENVDB */
+  }
 
   BLI_assert_unreachable();
+  return *socket.typeinfo->base_cpp_type;
 }
 
 /**
@@ -339,7 +368,7 @@ class LazyFunctionForMultiInput : public LazyFunction {
   Vector<const bNodeLink *> links;
 
   LazyFunctionForMultiInput(const bNodeSocket &socket)
-      : base_type_(*socket.typeinfo->base_cpp_type)
+      : base_type_(socket_structure_cpp_type(socket))
   {
     debug_name_ = "Multi Input";
     BLI_assert(socket.is_multi_input());
@@ -360,7 +389,7 @@ class LazyFunctionForMultiInput : public LazyFunction {
     GArray<> list_values(base_type_, inputs_.size());
     for (const int i : inputs_.index_range()) {
       SocketValueVariant value = params.extract_input<SocketValueVariant>(i);
-      assign_socket_value_to(std::move(value), GMutablePointer(base_type_, list_values[i]));
+      try_assign_socket_value_to(std::move(value), GMutablePointer(base_type_, list_values[i]));
     }
     GListPtr list = GList::from_garray(std::move(list_values));
     void *output_ptr = params.get_output_data_ptr(0);

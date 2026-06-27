@@ -55,7 +55,9 @@ class StringJointFunction : public MultiFunction {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  auto strings = params.extract_input<GListPtr>("Strings"_ustr);
+  auto strings_list = params.extract_input<GListPtr>("Strings"_ustr);
+  const VArray<std::string> strings = strings_list->varray();
+
   const std::string delim = params.extract_input<std::string>("Delimiter"_ustr);
 
   if (index_value_variant.is_single()) {
