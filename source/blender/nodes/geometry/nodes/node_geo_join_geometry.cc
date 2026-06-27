@@ -25,8 +25,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const ListPtr<GeometrySet> geometries_list = params.extract_input<ListPtr<GeometrySet>>(
-      "Geometry"_ustr);
+  const auto geometries_list = params.extract_input<ListPtr<GeometrySet>>("Geometry"_ustr);
   Array<GeometrySet> geometries = VArraySpan<GeometrySet>(geometries_list->varray());
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Geometry"_ustr);

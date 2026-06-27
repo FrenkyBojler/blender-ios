@@ -31,7 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const ListPtr<BundlePtr> bundles_list = params.extract_input<ListPtr<BundlePtr>>("Bundle"_ustr);
+  const auto bundles_list = params.extract_input<ListPtr<BundlePtr>>("Bundle"_ustr);
   const VArray<BundlePtr> bundles = bundles_list->varray();
 
   if (bundles.is_empty()) {

@@ -21,8 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const ListPtr<std::string> strings_list = params.extract_input<ListPtr<std::string>>(
-      "Strings"_ustr);
+  const auto strings_list = params.extract_input<ListPtr<std::string>>("Strings"_ustr);
   const VArray<std::string> strings = strings_list->varray();
 
   const std::string delim = params.extract_input<std::string>("Delimiter"_ustr);
