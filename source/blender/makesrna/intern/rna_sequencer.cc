@@ -4722,7 +4722,7 @@ static void rna_def_echo_modifier(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "EchoModifierData");
   RNA_def_struct_ui_text(srna, "EchoModifier", "Tooltip");
 
-  prop = RNA_def_property(srna, "delay", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "delay", PROP_FLOAT, PROP_TIME_ABSOLUTE);
   RNA_def_property_float_sdna(prop, nullptr, "delay");
   RNA_def_property_range(prop, 0.05, 5.0);
   RNA_def_property_ui_range(prop, 0.05f, 5.0f, 0.2f, -1);
