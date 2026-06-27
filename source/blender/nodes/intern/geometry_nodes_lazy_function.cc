@@ -296,7 +296,7 @@ class LazyFunctionForGeometryNode : public LazyFunction {
   }
 };
 
-static void assign_socket_value_to(SocketValueVariant src, GMutablePointer dst)
+static void try_assign_socket_value_to(SocketValueVariant src, GMutablePointer dst)
 {
   if (dst.type()->is<SocketValueVariant>()) {
     dst.type()->move_assign(&src, dst.get());
@@ -328,8 +328,6 @@ static void assign_socket_value_to(SocketValueVariant src, GMutablePointer dst)
     dst.type()->copy_assign(&src_ptr, dst.get());
     return;
   }
-
-  BLI_assert_unreachable();
 }
 
 static const CPPType &socket_structure_cpp_type(const bNodeSocket &socket)
@@ -391,7 +389,7 @@ class LazyFunctionForMultiInput : public LazyFunction {
     GArray<> list_values(base_type_, inputs_.size());
     for (const int i : inputs_.index_range()) {
       SocketValueVariant value = params.extract_input<SocketValueVariant>(i);
-      assign_socket_value_to(std::move(value), GMutablePointer(base_type_, list_values[i]));
+      try_assign_socket_value_to(std::move(value), GMutablePointer(base_type_, list_values[i]));
     }
     GListPtr list = GList::from_garray(std::move(list_values));
     void *output_ptr = params.get_output_data_ptr(0);
