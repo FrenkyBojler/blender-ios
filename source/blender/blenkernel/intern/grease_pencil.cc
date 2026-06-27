@@ -4684,6 +4684,15 @@ static void read_layer(BlendDataReader *reader,
     BLO_read_string(reader, &mask.layer_name);
   }
 
+  /* Read per-layer shader effects. */
+  BLO_read_struct_list(reader, ShaderFxData, &node->shader_fx);
+  for (ShaderFxData &fx : node->shader_fx) {
+    fx.error = nullptr;
+    if (BKE_shaderfx_get_info(ShaderFxType(fx.type)) == nullptr) {
+      fx.type = eShaderFxType_None;
+    }
+  }
+
   /* NOTE: Ideally this should be cleared on write, to reduce false 'changes' detection in memfile
    * undo system. This is not easily doable currently though, since modifying to actual data during
    * write is not an option (a shallow copy of the #Layer data would be needed then). */
@@ -4750,6 +4759,8 @@ static void write_layer(BlendWriter *writer, GreasePencilLayer *node)
   for (GreasePencilLayerMask &mask : node->masks) {
     writer->write_string(mask.layer_name);
   }
+
+  BKE_shaderfx_blend_write(writer, &node->shader_fx);
 }
 
 static void write_layer_tree_group(BlendWriter *writer, GreasePencilLayerTreeGroup *node)
