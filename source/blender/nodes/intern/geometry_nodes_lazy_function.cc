@@ -303,9 +303,8 @@ static void assign_socket_value_to(SocketValueVariant src, GMutablePointer dst)
     return;
   }
   if (src.is_single()) {
-    GPointer src_ptr = src.get_single_ptr();
+    const GPointer src_ptr = src.get_single_ptr();
     BLI_assert(src_ptr.type() == dst.type());
-    // TODO: should use move?..
     dst.type()->copy_assign(src_ptr.get(), dst.get());
     return;
   }
