@@ -1183,6 +1183,9 @@ class SEQUENCER_MT_strip(Menu):
                 elif strip_type == 'IMAGE':
                     layout.separator()
                     layout.operator("sequencer.rendersize")
+                elif strip_type == 'IMAGE_ID':
+                    layout.separator()
+                    layout.operator("sequencer.rendersize")
                     layout.operator("sequencer.images_separate")
                 elif strip_type == 'META':
                     layout.separator()
@@ -1372,6 +1375,9 @@ class SEQUENCER_MT_context_menu(Menu):
                 layout.operator("sequencer.rendersize")
                 if has_selection:
                     layout.operator("sequencer.images_separate")
+            elif strip_type == 'IMAGE_ID':
+                layout.separator()
+                layout.operator("sequencer.rendersize")
 
         if has_selection:
             layout.separator()

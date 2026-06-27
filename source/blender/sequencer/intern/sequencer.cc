@@ -745,7 +745,7 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
           ctx.bmain, reinterpret_cast<ID *>(image_old), USER_DUP_LINKED_ID, LIB_ID_COPY_DEFAULT));
     }
     if ((ctx.copy_flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-      id_us_plus(&strip_new->clip->id);
+      id_us_plus(&strip_new->image_id->id);
     }
   }
   else if (strip->type == STRIP_TYPE_MASK) {

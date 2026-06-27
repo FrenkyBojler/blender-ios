@@ -2730,14 +2730,16 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
 
         /* New strip. */
         StripData *data_new = strip_new->data;
-
-        /* New stripdata, only one element now. */
-        /* Note this assume all elements (images) have the same dimension,
-         * since we only copy the name here. */
-        se_new = static_cast<StripElem *>(
-            MEM_realloc_uninitialized(data_new->stripdata, sizeof(*se_new)));
-        STRNCPY_UTF8(se_new->filename, se->filename);
-        data_new->stripdata = se_new;
+        
+        if(strip->type == STRIP_TYPE_IMAGE) {
+          /* New stripdata, only one element now. */
+          /* Note this assume all elements (images) have the same dimension,
+          * since we only copy the name here. */
+          se_new = static_cast<StripElem *>(
+          MEM_realloc_uninitialized(data_new->stripdata, sizeof(*se_new)));
+          STRNCPY_UTF8(se_new->filename, se->filename);
+          data_new->stripdata = se_new;
+        }
 
         if (step > 1) {
           strip_new->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
@@ -3253,7 +3255,10 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *active_strip = seq::select_active_get(scene);
+
   StripElem *se = nullptr;
+  Image *img = nullptr;
+  int orig_width, orig_height = 0;
 
   if (active_strip == nullptr || active_strip->data == nullptr) {
     return OPERATOR_CANCELLED;
@@ -3262,25 +3267,53 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
   switch (active_strip->type) {
     case STRIP_TYPE_IMAGE:
       se = seq::render_give_stripelem(scene, active_strip, scene->r.cfra);
+      if (se == nullptr) {
+        return OPERATOR_CANCELLED;
+      }
+      
+      orig_width = se->orig_width;
+      orig_height = se->orig_height;
+
       break;
     case STRIP_TYPE_MOVIE:
       se = active_strip->data->stripdata;
+      if (se == nullptr) {
+        return OPERATOR_CANCELLED;
+      }
+
+      orig_width = se->orig_width;
+      orig_height = se->orig_height;
+
       break;
+    case STRIP_TYPE_IMAGE_ID:
+      img = active_strip->image_id;
+      if(img == nullptr) {
+        return OPERATOR_CANCELLED;
+      }
+
+      if (active_strip->image_id != nullptr) {
+        void *lock;
+        ImBuf *ibuf = BKE_image_acquire_ibuf(active_strip->image_id, nullptr, &lock);
+        if (ibuf) {
+          orig_width = ibuf->x;
+          orig_height = ibuf->y;
+          BKE_image_release_ibuf(active_strip->image_id, ibuf, lock);
+        }
+      }
+
+      break;
+      
     default:
       return OPERATOR_CANCELLED;
   }
 
-  if (se == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
-
   /* Prevent setting the render size if values aren't initialized. */
-  if (se->orig_width <= 0 || se->orig_height <= 0) {
+  if (orig_width <= 0 || orig_height <= 0) {
     return OPERATOR_CANCELLED;
   }
 
-  scene->r.xsch = se->orig_width;
-  scene->r.ysch = se->orig_height;
+  scene->r.xsch = orig_width;
+  scene->r.ysch = orig_height;
 
   active_strip->data->transform->scale_x = active_strip->data->transform->scale_y = 1.0f;
   active_strip->data->transform->xofs = active_strip->data->transform->yofs = 0.0f;
