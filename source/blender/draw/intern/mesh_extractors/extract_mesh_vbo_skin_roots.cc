@@ -15,6 +15,7 @@ namespace blender::draw {
 struct SkinRootData {
   float size;
   float3 local_pos;
+  GPU_VERTEX_FORMAT_FUNC(SkinRootData, size, local_pos);
 };
 
 gpu::VertBufPtr extract_skin_roots(const MeshRenderData &mr)
@@ -22,13 +23,8 @@ gpu::VertBufPtr extract_skin_roots(const MeshRenderData &mr)
   /* Exclusively for edit mode. */
   BLI_assert(mr.bm);
 
-  static const GPUVertFormat format = []() {
-    GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "size", gpu::VertAttrType::SFLOAT_32);
-    GPU_vertformat_attr_add(&format, "local_pos", gpu::VertAttrType::SFLOAT_32_32_32);
-    return format;
-  }();
-
+  const GPUVertFormat &format = SkinRootData::format();
+  
   Vector<SkinRootData> skin_roots;
   const int offset = CustomData_get_offset(&mr.bm->vdata, CD_MVERT_SKIN);
   BMIter iter;
