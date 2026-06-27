@@ -24,6 +24,9 @@ static inline Language language_from_filename(const std::string &filename)
   if (filename.ends_with(".bsl.hh")) {
     return Language::BSL;
   }
+  if (filename.ends_with("_infos.hh")) {
+    return Language::INFO;
+  }
   if (filename.ends_with(".hh")) {
     return Language::CPP;
   }
@@ -52,6 +55,7 @@ class SourceProcessor {
  private:
   const std::string source_;
   const std::string filepath_;
+  const std::string filename;
   metadata::Source metadata_;
 
   Language language_;
@@ -71,7 +75,10 @@ class SourceProcessor {
 
  public:
   SourceProcessor(const std::string &source, const std::string &filepath, Language language)
-      : source_(source), filepath_(filepath), language_(language)
+      : source_(source),
+        filepath_(filepath),
+        filename(filepath_.substr(filepath_.find_last_of('/') + 1)),
+        language_(language)
   {
   }
 
@@ -106,9 +113,10 @@ class SourceProcessor {
   }
 
  private:
+  Result convert_info();
   Result convert_glsl();
   Result convert_msl();
-  Result convert_bsl(metadata::Source external_sources_symbols);
+  Result convert_bsl_legacy(metadata::Source external_sources_symbols);
 
   /* --- Cleanup --- */
 

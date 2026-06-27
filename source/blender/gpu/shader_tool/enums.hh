@@ -23,6 +23,8 @@ enum class Language {
   GLSL,
   /* Blender Shading Language. */
   BSL,
+  /* Legacy Create Info files. */
+  INFO,
   /* Same as GLSL but enable partial C++ feature support like template, references,
    * include system, etc ... */
   BLENDER_GLSL,

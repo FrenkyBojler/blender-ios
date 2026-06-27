@@ -29,8 +29,6 @@ SourceProcessor::Result SourceProcessor::convert_glsl()
 {
   metadata_ = {};
 
-  const string filename = filepath_.substr(filepath_.find_last_of('/') + 1);
-
   string str = this->source_;
 
   str = remove_comments(str);
@@ -56,7 +54,6 @@ SourceProcessor::Result SourceProcessor::convert_glsl()
 SourceProcessor::Result SourceProcessor::convert_msl()
 {
   metadata_ = {};
-  const string filename = filepath_.substr(filepath_.find_last_of('/') + 1);
 
   string str = this->source_;
 
@@ -85,7 +82,8 @@ SourceProcessor::Result SourceProcessor::convert_msl()
   return {str, metadata_, error_handler.err};
 }
 
-SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_sources_symbols)
+SourceProcessor::Result SourceProcessor::convert_bsl_legacy(
+    metadata::Source external_sources_symbols)
 {
   metadata_ = {};
 
@@ -102,8 +100,6 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
     symbol.definition_line = 0;
   }
 
-  const string filename = filepath_.substr(filepath_.find_last_of('/') + 1);
-
   string str = remove_comments(this->source_);
 
   Parser parser(error_handler);
@@ -119,7 +115,6 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
     parse_pragma_runtime_generated(parser);
     parse_includes(parser);
     parse_defines(parser);
-    parse_legacy_create_info(parser);
     parse_library_functions(parser);
 
     lower_preprocessor(parser);
@@ -227,13 +222,54 @@ SourceProcessor::Result SourceProcessor::convert_bsl(metadata::Source external_s
   return {str, metadata_, error_handler.err};
 }
 
+SourceProcessor::Result SourceProcessor::convert_info()
+{
+  metadata_ = {};
+
+  string str = remove_comments(this->source_);
+
+  Parser parser(error_handler);
+  try {
+    parser.set_str(str);
+
+    disabled_code_mutation(parser);
+    /* Legacy GLSL compat.  */
+    threadgroup_variables_parse_and_remove(parser);
+    parse_builtins(parser, filename);
+    /* Preprocessor directive parsing & linting. */
+    lint_pragma_once(parser, filename);
+    parse_pragma_runtime_generated(parser);
+    parse_includes(parser);
+    parse_defines(parser);
+    parse_legacy_create_info(parser);
+
+    lower_preprocessor(parser);
+
+    /* Cleanup to make output more human readable and smaller for runtime. */
+    cleanup_whitespace(parser);
+    cleanup_empty_lines(parser);
+    cleanup_line_directives(parser);
+
+    str = parser.result_get();
+  }
+  catch (ParserException &e) {
+    /* Output the current source state for inspection. */
+    return {parser.result_get(), metadata_, error_handler.err};
+  }
+
+  str = line_directive_prefix(filename) + str;
+  return {str, metadata_, error_handler.err};
+}
+
 SourceProcessor::Result SourceProcessor::convert(metadata::Source external_sources_symbols)
 {
   switch (language_) {
+    case Language::INFO:
+      return convert_info();
     case Language::CPP:
     case Language::BSL:
     case Language::BLENDER_GLSL:
-      return convert_bsl(external_sources_symbols);
+      return convert_bsl_legacy(external_sources_symbols);
     case Language::MSL:
       return convert_msl();
     case Language::GLSL:
@@ -251,8 +287,6 @@ SourceProcessor::Result SourceProcessor::convert(metadata::Source external_sourc
 metadata::Source SourceProcessor::parse_include_and_symbols()
 {
   metadata_ = {};
-
-  const string filename = filepath_.substr(filepath_.find_last_of('/') + 1);
 
   string str = remove_comments(this->source_);
 
@@ -508,7 +542,6 @@ static std::string_view str_view_exclusive(Token tok)
 
 void SourceProcessor::parse_includes(Parser &parser)
 {
-  const string filename = filepath_.substr(filepath_.find_last_of('/') + 1);
   parser().foreach_match<true>("#A\"", [&](const vector<Token> &tokens) {
     if (tokens[1].str() != "include") {
       return;
@@ -546,6 +579,7 @@ void SourceProcessor::parse_includes(Parser &parser)
     }
     metadata_.dependencies.emplace_back(dependency_name);
   });
+  parser.apply_mutations();
 }
 
 bool SourceProcessor::has_pragma(Parser &parser, string_view pragma_str)
