@@ -2346,7 +2346,7 @@ void Layout::prop(PointerRNA *ptr,
       button_flag_enable(but, BUT_FORCE_SEMI_MODAL_ACTIVE);
     }
     if (ELEM(but->type, ButtonType::Text) && (flag & ITEM_R_TEXT_BUT_LABEL_STYLE)) {
-      button_flag2_enable(but, BUT2_TEXT_LABEL_STYLE);
+      button_flag_enable(but, BUT_TEXT_LABEL_STYLE);
     }
   }
 
