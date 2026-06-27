@@ -44,7 +44,7 @@ class SequencerCrossfadeSounds(Operator):
         scene = context.sequencer_scene
         strip1 = None
         strip2 = None
-        for strip in scene.sequence_editor.strips_all:
+        for strip in scene.sequence_editor.strips:
             if strip.select and strip.type == 'SOUND':
                 if strip1 is None:
                     strip1 = strip
@@ -59,17 +59,12 @@ class SequencerCrossfadeSounds(Operator):
         if strip1.frame_final_start > strip2.frame_final_start:
             strip1, strip2 = strip2, strip1
         if strip1.frame_final_end > strip2.frame_final_start:
-            tempcfra = scene.frame_current
-            scene.frame_current = strip2.frame_final_start
-            strip1.keyframe_insert("volume")
-            scene.frame_current = strip1.frame_final_end
+            strip1.keyframe_insert("volume", frame=strip2.frame_final_start)
             strip1.volume = 0
-            strip1.keyframe_insert("volume")
-            strip2.keyframe_insert("volume")
-            scene.frame_current = strip2.frame_final_start
+            strip1.keyframe_insert("volume", frame=strip1.frame_final_end)
+            strip2.keyframe_insert("volume", frame=strip1.frame_final_end)
             strip2.volume = 0
-            strip2.keyframe_insert("volume")
-            scene.frame_current = tempcfra
+            strip2.keyframe_insert("volume", frame=strip2.frame_final_start)
             return {'FINISHED'}
 
         self.report({'ERROR'}, "The selected strips don't overlap")
@@ -133,7 +128,7 @@ class SequencerDeinterlaceSelectedMovies(Operator):
 
     def execute(self, context):
         scene = context.sequencer_scene
-        for strip in scene.sequence_editor.strips_all:
+        for strip in scene.sequence_editor.strips:
             if strip.select and strip.type == 'MOVIE':
                 strip.use_deinterlace = True
 
@@ -168,7 +163,7 @@ class SequencerFadesClear(Operator):
         fcurve_map = {
             curve.data_path: curve
             for curve in fcurves
-            if curve.data_path.startswith("sequence_editor.strips_all")
+            if curve.data_path.startswith("sequence_editor.strips")
         }
         for strip in context.selected_strips:
             for animated_property in _animated_properties_get(strip):

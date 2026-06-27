@@ -33,15 +33,15 @@ elseif(APPLE)
   endif()
 elseif(UNIX)
   set(ISPC_EXTRA_ARGS_UNIX
-    -DCMAKE_C_COMPILER=${LIBDIR}/llvm/bin/clang
-    -DCMAKE_CXX_COMPILER=${LIBDIR}/llvm/bin/clang++
+    -DCMAKE_C_COMPILER=gcc
+    -DCMAKE_CXX_COMPILER=g++
     -DARM_ENABLED=${BLENDER_PLATFORM_ARM}
     -DFLEX_EXECUTABLE=${LIBDIR}/flex/bin/flex
   )
 endif()
 
 macro(copy_host_tool_apple
-  TOOL_SOURCE 
+  TOOL_SOURCE
   TOOL_DEST)
 
   if(EXISTS ${TOOL_SOURCE})
@@ -54,7 +54,7 @@ endmacro()
 
 if(WITH_APPLE_CROSSPLATFORM)
   # NOTE: Crosscompile currently limited due to missing curses and tinfo libs for iOS.
-  #       These libs are not part of the build process, but instead we opt to statically 
+  #       These libs are not part of the build process, but instead we opt to statically
   #       link and resolve indirectly via other dependencies in the project.
   # TODO: Add curses and tinfo as dependencies for ispc and build locally.
 
@@ -106,7 +106,7 @@ if(WITH_APPLE_CROSSPLATFORM)
 
     # LLVM settings (Auto detect fails)
     -DLLVM_FOUND=YES
-    -DLLVM_VERSION=${LLVM_VERSION}
+    # -DLLVM_VERSION=${LLVM_VERSION}
     -DLLVM_TARGETS_TO_BUILD=AArch64
 
     # Host Tools (Using freshly built tools for darwin_arm64)
@@ -138,20 +138,19 @@ if(WITH_APPLE_CROSSPLATFORM)
   )
 else()
   set(ISPC_EXTRA_ARGS
-    -DISPC_NO_DUMPS=On
     -DISPC_INCLUDE_EXAMPLES=Off
     -DISPC_INCLUDE_TESTS=Off
     -DISPC_INCLUDE_RT=Off
+    -DISPC_INCLUDE_UTILS=Off
+    -DISPC_LIBRARY=Off
     -DLLVM_CONFIG_EXECUTABLE=${LIBDIR}/llvm/bin/llvm-config
     -DLLVM_DIR=${LIBDIR}/llvm/lib/cmake/llvm/
-    -DLLVM_LIBRARY_DIR=${LIBDIR}/llvm/lib
     -DCLANG_EXECUTABLE=${LIBDIR}/llvm/bin/clang
     -DCLANGPP_EXECUTABLE=${LIBDIR}/llvm/bin/clang++
     -DISPC_INCLUDE_TESTS=Off
-    -DCLANG_LIBRARY_DIR=${LIBDIR}/llvm/lib
-    -DCLANG_INCLUDE_DIRS=${LIBDIR}/llvm/include
     -DPython3_ROOT_DIR=${LIBDIR}/python/
     -DPython3_EXECUTABLE=${PYTHON_BINARY}
+    -DGIT_BINARY=GIT_BINARY-NOTFOUND # Prevent any git checks
     ${ISPC_EXTRA_ARGS_WIN}
     ${ISPC_EXTRA_ARGS_APPLE}
     ${ISPC_EXTRA_ARGS_UNIX}
