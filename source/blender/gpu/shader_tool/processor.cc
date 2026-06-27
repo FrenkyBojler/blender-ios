@@ -23,6 +23,7 @@ namespace blender::gpu::shader {
 using namespace std;
 using namespace shader::parser;
 using namespace metadata;
+using namespace shader::parser::ast;
 
 SourceProcessor::Result SourceProcessor::convert_glsl()
 {
@@ -593,12 +594,29 @@ void SourceProcessor::lower_namesless_parameters(Parser &parser)
     }
     int i = 0;
     tok.scope().foreach_scope(ScopeType::FunctionArg, [&](Scope arg) {
-      if (arg.token_count() == 1 || arg.back().prev() == Const || arg.back() == '&' ||
+      if (arg.token_count() == 1 || arg.back().prev() == TokenType::Const || arg.back() == '&' ||
           arg.back() == '>')
       {
         /* Append a name for nameless argument. */
         parser.replace(arg.back().str_index_last_no_whitespace() + 1,
                        arg.back().str_index_last(),
+                       " _" + std::to_string(i++));
+      }
+    });
+  });
+}
+
+void SourceProcessor::lower_namesless_parameters_ast(Parser &parser)
+{
+  parser.root().foreach_recursive<FuncDecl>([&](FuncDecl fn) {
+    int i = 0;
+    fn.arguments().foreach<FuncArg>([&](FuncArg arg) {
+      if (!arg.identifier().is_valid()) {
+        bool is_ref = arg.is_reference();
+        Token arg_back(is_ref ? arg.declarator().reference().back() : arg.back());
+        /* Append a name for nameless argument. */
+        parser.replace(arg_back.str_index_last_no_whitespace() + 1,
+                       arg_back.str_index_last(),
                        " _" + std::to_string(i++));
       }
     });
@@ -673,6 +691,7 @@ void SourceProcessor::lower_preprocessor(Parser &parser)
       parser.erase(tokens.front(), tokens[1].next());
     }
   });
+  parser.apply_mutations();
 }
 
 /* Support for BLI swizzle syntax. */
@@ -689,6 +708,27 @@ void SourceProcessor::lower_swizzle_methods(Parser &parser)
       /* `.xyz()` -> `.xyz` */
       /* Keep character count the same. Replace parenthesis by spaces. */
       parser.erase(tokens[2], tokens[3]);
+    }
+  });
+}
+
+void SourceProcessor::lower_swizzle_methods_ast(Parser &parser)
+{
+  /* Change C++ swizzle functions into plain swizzle. */
+  /** IMPORTANT: This prevent the usage of any method with a swizzle name. */
+  parser.root().foreach_recursive<FuncCall>([&](FuncCall call) {
+    ast::FuncParamList params = call.parameters();
+    if (call.front().prev() != Dot || !params.is_empty()) {
+      return;
+    }
+
+    string_view method_name = call.identifier().str();
+    if (method_name.length() > 1 && method_name.length() <= 4 &&
+        (method_name.find_first_not_of("xyzw") == string::npos ||
+         method_name.find_first_not_of("rgba") == string::npos))
+    {
+      /* `.xyz()` -> `.xyz  ` */
+      parser.erase(params);
     }
   });
 }
@@ -1347,6 +1387,41 @@ void SourceProcessor::lower_implicit_return_types(Parser &parser)
   });
 }
 
+void SourceProcessor::lower_implicit_return_types_ast(Parser &parser)
+{
+  parser.root().foreach_recursive<FuncDecl>([&](FuncDecl func) {
+    func.body().foreach_recursive<ReturnStmt>([&](ReturnStmt stmt) {
+      Expr expr = stmt.expression();
+      if (!expr.is_valid()) {
+        return;
+      }
+      InitializerList list;
+      Node node = expr.child_first();
+      if (node == NodeType::InitializerList) {
+        list = node;
+      }
+      else if (node == NodeType::Constructor) {
+        list = node.child_first();
+      }
+      else {
+        return;
+      }
+
+      const string type_str(func.return_type().str());
+      if (list.child_first() == NodeType::DesignatedInitializer) {
+        /* `return {1, 2};` > `T tmp = T{1, 2}; return tmp;`
+         * This syntax allow to support designated initializer. */
+        parser.replace(
+            stmt, "{" + type_str + " _tmp" + string(list.str()) + "; return _tmp;}", true);
+      }
+      else {
+        /* Regular initializer list. Keep it simple. */
+        parser.insert_before(list.front(), type_str);
+      }
+    });
+  });
+}
+
 void SourceProcessor::lower_initializer_implicit_types(Parser &parser)
 {
   auto process_scope = [&](Scope s) {
@@ -1359,6 +1434,32 @@ void SourceProcessor::lower_initializer_implicit_types(Parser &parser)
 
   parser().foreach_scope(ScopeType::FunctionArg, process_scope);
   parser().foreach_scope(ScopeType::Function, process_scope);
+  parser.apply_mutations();
+}
+
+void SourceProcessor::lower_initializer_implicit_types_ast(Parser &parser)
+{
+  parser.root().foreach_recursive<VarDecl>([&](VarDecl decl) {
+    decl.foreach<Declarator>([&](Declarator var) {
+      InitializerList init_list = var.initializer_list();
+      if (init_list.is_valid()) {
+        /* Insert assignment. */
+        parser.insert_before(init_list.front(), " = " + string(decl.type().str()));
+        return;
+      }
+
+      AssignStmt assign = var.initial_value();
+      if (assign.is_valid()) {
+        InitializerList init_list = assign.initializer_list();
+        if (init_list.is_valid()) {
+          /* Insert type. */
+          parser.insert_before(init_list.front(), string(decl.type().str()));
+          return;
+        }
+      }
+    });
+  });
+
   parser.apply_mutations();
 }
 
@@ -1453,6 +1554,55 @@ void SourceProcessor::lower_aggregate_initializers(Parser &parser)
       /* TODO: Lint for vector/matrix type (unsafe aggregate). */
     });
   } while (parser.apply_mutations());
+}
+
+/* Support for **full** aggregate initialization.
+ * They are converted to default constructor for GLSL. */
+void SourceProcessor::lower_aggregate_initializers_ast(Parser &parser)
+{
+  unordered_set<string> builtin_types = {
+      "float2",   "float3",   "float4",   "float2x2", "float2x3", "float2x4",
+      "float3x2", "float3x3", "float3x4", "float4x2", "float4x3", "float4x4",
+      "float2x2", "float3x3", "float4x4", "int2",     "int3",     "int4",
+      "uint2",    "uint3",    "uint4",    "bool2",    "bool3",    "bool4",
+  };
+
+  /* Transform aggregate to compatibility macro. */
+  parser.root().foreach_recursive<InitializerList>([&](InitializerList list) {
+    IdType type(list.prev());
+    if (!type.is_valid()) {
+      return;
+    }
+    /* Lint unsafe use with vector types. */
+    if (builtin_types.contains(string(type.str()))) {
+      report_error(type.front(),
+                   "Aggregate is error prone for built-in vector and matrix types, use "
+                   "constructors instead");
+    }
+    /* Call generated default ctor for empty bracket initializer. */
+    if (list.is_empty()) {
+      parser.insert_after(type.back(), "_ctor_");
+      parser.replace(list, "()", true);
+      return;
+    }
+    /* Lint for nested aggregates. */
+    list.foreach_recursive<InitializerList>([&](InitializerList nested_list) {
+      if (!IdType(nested_list.prev()).is_valid()) {
+        report_error(nested_list.front(), "Nested anonymous aggregate is not supported");
+      }
+    });
+    /* `A{1,}` -> `_agg(A,1)` */
+    parser.insert_before(type.front(), "_ctor(");
+    parser.insert_after(type.back(), ",");
+    parser.erase(list.front());
+    if (list.back().prev() == ',') {
+      parser.erase(list.back().prev());
+    }
+    parser.insert_before(list.back(), " _rotc()");
+    parser.erase(list.back());
+  });
+
+  parser.apply_mutations();
 }
 
 /* Auto detect array length, and lower to GLSL compatible syntax.
@@ -1706,7 +1856,7 @@ string SourceProcessor::matrix_constructor_mutation(const string &str)
 void SourceProcessor::lower_reference_arguments(Parser &parser)
 {
   auto add_mutation = [&](Token type, Token arg_name, Token last_tok) {
-    if (type.prev() == Const) {
+    if (type.prev() == TokenType::Const) {
       parser.replace(type.prev(), last_tok, string(type.str()) + " " + string(arg_name.str()));
     }
     else {

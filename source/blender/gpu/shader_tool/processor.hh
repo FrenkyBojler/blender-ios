@@ -175,6 +175,7 @@ class SourceProcessor {
   void lower_maybe_unused(Parser &parser);
   /* Lower parameters that have no name (invalid in GLSL). */
   void lower_namesless_parameters(Parser &parser);
+  void lower_namesless_parameters_ast(Parser &parser);
   /**
    * Given our code-style, we don't need the disambiguation.
    * Example: `x.template foo<int>()` > `x.foo<int>()`
@@ -218,6 +219,7 @@ class SourceProcessor {
   /* Support for BLI swizzle syntax.
    * Examples `a.xy()` --> `a.xy`. */
   void lower_swizzle_methods(Parser &parser);
+  void lower_swizzle_methods_ast(Parser &parser);
   /* Support for binary literals.
    * Examples `0b1001` --> `0x9`. */
   void lower_binary_literals(Parser &parser);
@@ -257,10 +259,12 @@ class SourceProcessor {
   void lower_resource_access_functions(Parser &parser);
   /* Lower enums to constants. */
   void lower_enums(Parser &parser);
+  void lower_enums_ast(Parser &parser);
   /* Merge attribute scopes. They are equivalent in the C++ standard.
    * This allow to simplify parsing later on.
    * `[[a]] [[b]]` > `[[a, b]]` */
   void lower_attribute_sequences(Parser &parser);
+  void lower_attribute_sequences_ast(Parser &parser);
   /* Lint host shared structure for padding and alignment.
    * Remove the [[host_shared]] attribute. */
   void lower_host_shared_structures(Parser &parser);
@@ -273,13 +277,16 @@ class SourceProcessor {
   void lower_comma_separated_declarations(Parser &parser);
   /* Example: `return {1, 2};` --> `T tmp = T{1, 2}; return tmp;`. */
   void lower_implicit_return_types(Parser &parser);
+  void lower_implicit_return_types_ast(Parser &parser);
   /* Example: `int a{1};` --> `int a = int{1};`. */
   void lower_initializer_implicit_types(Parser &parser);
+  void lower_initializer_implicit_types_ast(Parser &parser);
   /* Example: `T a{.a=1};` --> `T a; a.a=1;`. */
   void lower_designated_initializers(Parser &parser);
   /* Support for **full** aggregate initialization.
    * They are converted to default constructor for GLSL. */
   void lower_aggregate_initializers(Parser &parser);
+  void lower_aggregate_initializers_ast(Parser &parser);
   /* Auto detect array length, and lower to GLSL compatible syntax.
    * TODO(fclem): GLSL 4.3 already supports initializer list. So port the old GLSL syntax to
    * initializer list instead. */
@@ -327,6 +334,8 @@ class SourceProcessor {
   void lower_gather_component(Parser &parser);
   /* Lower test expect clauses to SSBO assignments. */
   void lower_tests(Parser &parser);
+  /* Lower resource pragmas to macros (breaks BSL parsing). */
+  void lower_resource_macro_placeholder_ast(Parser &parser);
 
   /* --- Legacy passes for GLSL --- */
 
