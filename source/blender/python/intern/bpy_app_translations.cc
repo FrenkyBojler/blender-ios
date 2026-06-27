@@ -17,7 +17,7 @@
 
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BPY_extern.hh"
 #include "bpy_app_translations.hh"
@@ -32,7 +32,7 @@
 #ifdef WITH_INTERNATIONAL
 #  include "BLI_map.hh"
 #  include "BLI_string_ref.hh"
-#  include "BLI_string_utf8.h"
+#  include "BLI_string_utf8.hh"
 #endif
 
 namespace blender {
@@ -495,7 +495,9 @@ PyDoc_STRVAR(
     app_translations_locale_doc,
     "The actual locale currently in use (will always return an empty string when Blender "
     "is built without "
-    "internationalization support).");
+    "internationalization support).\n"
+    "\n"
+    ":type: str\n");
 static PyObject *app_translations_locale_get(PyObject * /*self*/, void * /*userdata*/)
 {
   return PyUnicode_FromString(BLT_lang_get());
@@ -505,7 +507,9 @@ static PyObject *app_translations_locale_get(PyObject * /*self*/, void * /*userd
 PyDoc_STRVAR(
     /* Wrap. */
     app_translations_locales_doc,
-    "All locales currently known by Blender (i.e. available as translations).");
+    "All locales currently known by Blender (i.e. available as translations).\n"
+    "\n"
+    ":type: list[str]\n");
 static PyObject *app_translations_locales_get(PyObject * /*self*/, void * /*userdata*/)
 {
   PyObject *ret;
