@@ -2,7 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array.hh"
+#include "BLI_virtual_array.hh"
+
 #include "BKE_instances.hh"
+
+#include "NOD_geometry_nodes_list.hh"
 
 #include "node_geometry_util.hh"
 
@@ -18,14 +23,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeoNodesMultiInput<GeometrySet> geometries =
-      params.extract_input<GeoNodesMultiInput<GeometrySet>>("Geometry"_ustr);
-  auto instances = std::make_unique<bke::Instances>(geometries.values.size());
+  const ListPtr<GeometrySet> geometries_list = params.extract_input<ListPtr<GeometrySet>>(
+      "Geometry"_ustr);
+  Array<GeometrySet> geometries = VArraySpan<GeometrySet>(geometries_list->varray());
+  auto instances = std::make_unique<bke::Instances>(geometries.size());
 
   MutableSpan<int> handles = instances->reference_handles_for_write();
 
-  for (const int i : geometries.values.index_range()) {
-    GeometrySet &geometry = geometries.values[i];
+  for (const int i : geometries.index_range()) {
+    GeometrySet &geometry = geometries[i];
     geometry.ensure_owns_direct_data();
     handles[i] = instances->add_reference(std::move(geometry));
   }

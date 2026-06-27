@@ -5,7 +5,11 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
+#include "BLI_virtual_array.hh"
+
 #include "NOD_geometry_nodes_bundle.hh"
+
+#include "NOD_geometry_nodes_list.hh"
 
 #include "node_geometry_util.hh"
 #include "shader/node_shader_util.hh"
@@ -27,18 +31,18 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeoNodesMultiInput<BundlePtr> bundles = params.extract_input<GeoNodesMultiInput<BundlePtr>>(
-      "Bundle"_ustr);
+  const ListPtr<BundlePtr> bundles_list = params.extract_input<ListPtr<BundlePtr>>("Bundle"_ustr);
+  const VArray<BundlePtr> bundles = bundles_list->varray();
 
-  if (bundles.values.is_empty()) {
+  if (bundles.is_empty()) {
     params.set_default_remaining_outputs();
     return;
   }
 
   BundlePtr output_bundle;
   int bundle_i = 0;
-  for (; bundle_i < bundles.values.size(); bundle_i++) {
-    BundlePtr &bundle = bundles.values[bundle_i];
+  for (; bundle_i < bundles.size(); bundle_i++) {
+    BundlePtr bundle = bundles[bundle_i];
     if (bundle) {
       output_bundle = std::move(bundle);
       bundle_i++;
@@ -51,8 +55,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   Bundle &mutable_output_bundle = output_bundle.ensure_mutable_inplace();
 
   VectorSet<BundleKey> overridden_keys;
-  for (; bundle_i < bundles.values.size(); bundle_i++) {
-    BundlePtr &bundle = bundles.values[bundle_i];
+  for (; bundle_i < bundles.size(); bundle_i++) {
+    BundlePtr bundle = bundles[bundle_i];
     if (!bundle) {
       continue;
     }

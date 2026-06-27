@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array.hh"
+#include "BLI_virtual_array.hh"
+
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
 
@@ -16,6 +19,8 @@
 #include "GEO_join_geometries.hh"
 #include "GEO_mesh_boolean.hh"
 #include "GEO_randomize.hh"
+
+#include "NOD_geometry_nodes_list.hh"
 
 #include "node_geometry_util.hh"
 
@@ -142,10 +147,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  GeoNodesMultiInput<GeometrySet> geometry_sets =
-      params.extract_input<GeoNodesMultiInput<GeometrySet>>("Mesh 2"_ustr);
-
-  for (const GeometrySet &geometry : geometry_sets.values) {
+  const ListPtr<GeometrySet> geometry_list = params.extract_input<ListPtr<GeometrySet>>(
+      "Mesh 2"_ustr);
+  const VArraySpan<GeometrySet> geometry_sets = geometry_list->varray();
+  for (const GeometrySet &geometry : geometry_sets) {
     if (const Mesh *mesh = geometry.get_mesh()) {
       meshes.append(mesh);
       transforms.append(float4x4::identity());
@@ -259,7 +264,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<GeometrySet> all_geometries;
   all_geometries.append(set_a);
-  all_geometries.extend(geometry_sets.values);
+  all_geometries.extend(geometry_sets);
 
   const std::array types_to_join = {GeometryComponent::Type::Edit};
   GeometrySet result_geometry = geometry::join_geometries(

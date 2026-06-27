@@ -53,6 +53,7 @@
 #include "BKE_node_tree_zones.hh"
 #include "BKE_scene.hh"
 #include "BKE_type_conversions.hh"
+#include "BKE_volume_grid.hh"
 
 #include "ED_node.hh"
 
@@ -87,7 +88,6 @@ static void lazy_function_interface_from_node(const bNode &node,
                                               Vector<lf::Output> &r_outputs,
                                               MutableSpan<int> r_lf_index_by_bsocket)
 {
-  const bool is_muted = node.is_muted();
   const lf::ValueUsage input_usage = lf::ValueUsage::Used;
   for (const bNodeSocket *socket : node.input_sockets()) {
     if (!socket->is_available()) {
@@ -96,15 +96,8 @@ static void lazy_function_interface_from_node(const bNode &node,
     if (!socket->typeinfo->geometry_nodes_default_value) {
       continue;
     }
-    const CPPType *type;
-    if (socket->is_multi_input() && !is_muted) {
-      type = &CPPType::get<GeoNodesMultiInput<SocketValueVariant>>();
-    }
-    else {
-      type = &CPPType::get<SocketValueVariant>();
-    }
     r_lf_index_by_bsocket[socket->index_in_tree()] = r_inputs.append_and_get_index_as(
-        socket->name, *type, input_usage);
+        socket->name, CPPType::get<SocketValueVariant>(), input_usage);
   }
   for (const bNodeSocket *socket : node.output_sockets()) {
     if (!socket->is_available()) {
@@ -303,15 +296,50 @@ class LazyFunctionForGeometryNode : public LazyFunction {
   }
 };
 
+static void assign_socket_value_to(SocketValueVariant src, GMutablePointer dst)
+{
+  if (src.is_single()) {
+    const GPointer src_ptr = src.get_single_ptr();
+    BLI_assert(src_ptr.type() == dst.type());
+    // TODO: should use move?..
+    dst.type()->copy_assign(src_ptr.get(), dst.get());
+    return;
+  }
+  if (src.is_list()) {
+    const auto src_ptr = src.get<GListPtr>();
+    BLI_assert(dst.type()->is<GListPtr>());
+    dst.type()->copy_assign(&src_ptr, dst.get());
+    return;
+  }
+#ifdef WITH_OPENVDB
+  if (src.is_volume_grid()) {
+    const auto src_ptr = src.get<bke::volume_grid::GVolumeGrid>();
+    BLI_assert(dst.type()->is<bke::volume_grid::GVolumeGrid>());
+    dst.type()->copy_assign(&src_ptr, dst.get());
+    return;
+  }
+#endif /* WITH_OPENVDB */
+  if (src.is_field()) {
+    const auto src_ptr = src.get<GField>();
+    BLI_assert(dst.type()->is<GField>());
+    dst.type()->copy_assign(&src_ptr, dst.get());
+    return;
+  }
+
+  BLI_assert_unreachable();
+}
+
 /**
  * Used to gather all inputs of a multi-input socket. A separate node is necessary because
  * multi-inputs are not supported in lazy-function graphs.
  */
 class LazyFunctionForMultiInput : public LazyFunction {
  public:
+  const CPPType &base_type_;
   Vector<const bNodeLink *> links;
 
   LazyFunctionForMultiInput(const bNodeSocket &socket)
+      : base_type_(*socket.typeinfo->base_cpp_type)
   {
     debug_name_ = "Multi Input";
     BLI_assert(socket.is_multi_input());
@@ -324,16 +352,19 @@ class LazyFunctionForMultiInput : public LazyFunction {
       inputs_.append({"Input", CPPType::get<SocketValueVariant>()});
       this->links.append(link);
     }
-    outputs_.append({"Output", CPPType::get<GeoNodesMultiInput<SocketValueVariant>>()});
+    outputs_.append({"Output", CPPType::get<SocketValueVariant>()});
   }
 
   void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
   {
-    void *output_ptr = params.get_output_data_ptr(0);
-    auto &values = *new (output_ptr) GeoNodesMultiInput<SocketValueVariant>();
+    GArray<> list_values(base_type_, inputs_.size());
     for (const int i : inputs_.index_range()) {
-      values.values.append(params.extract_input<SocketValueVariant>(i));
+      SocketValueVariant value = params.extract_input<SocketValueVariant>(i);
+      assign_socket_value_to(std::move(value), GMutablePointer(base_type_, list_values[i]));
     }
+    GListPtr list = GList::from_garray(std::move(list_values));
+    void *output_ptr = params.get_output_data_ptr(0);
+    new (output_ptr) SocketValueVariant(SocketValueVariant::From(std::move(list)));
     params.output_set(0);
   }
 };

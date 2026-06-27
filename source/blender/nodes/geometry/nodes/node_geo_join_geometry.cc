@@ -2,7 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array.hh"
+#include "BLI_virtual_array.hh"
+
 #include "GEO_join_geometries.hh"
+
+#include "NOD_geometry_nodes_list.hh"
 
 #include "node_geometry_util.hh"
 
@@ -20,16 +25,17 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeoNodesMultiInput<GeometrySet> geometries =
-      params.extract_input<GeoNodesMultiInput<GeometrySet>>("Geometry"_ustr);
+  const ListPtr<GeometrySet> geometries_list = params.extract_input<ListPtr<GeometrySet>>(
+      "Geometry"_ustr);
+  Array<GeometrySet> geometries = VArraySpan<GeometrySet>(geometries_list->varray());
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Geometry"_ustr);
 
-  for (GeometrySet &geometry : geometries.values) {
+  for (GeometrySet &geometry : geometries) {
     GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry);
   }
 
-  GeometrySet geometry_set_result = geometry::join_geometries(geometries.values, attribute_filter);
+  GeometrySet geometry_set_result = geometry::join_geometries(geometries, attribute_filter);
 
   params.set_output("Geometry"_ustr, std::move(geometry_set_result));
 }
