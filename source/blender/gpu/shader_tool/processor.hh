@@ -30,14 +30,16 @@ enum class Language {
 
 static inline Language language_from_filename(const std::string &filename)
 {
-  if (filename.find(".msl") != std::string::npos) {
+  if (filename.ends_with(".msl")) {
     return Language::MSL;
   }
-  if (filename.find(".glsl") != std::string::npos || filename.find(".bsl.hh") != std::string::npos)
-  {
+  if (filename.ends_with(".glsl")) {
     return Language::GLSL;
   }
-  if (filename.find(".hh") != std::string::npos) {
+  if (filename.ends_with(".bsl.hh")) {
+    return Language::BSL;
+  }
+  if (filename.ends_with(".hh")) {
     return Language::CPP;
   }
   return Language::UNKNOWN;
