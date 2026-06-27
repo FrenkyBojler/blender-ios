@@ -6,11 +6,13 @@
 # -----------------------------------------------------------------------------
 # Build `shader_tool` executable.
 set(SRC
+  ast.cc
   attribute.cc
   enum.cc
   flow_control.cc
   function.cc
   grammar.cc
+  grammar_bsl.cc
   intermediate.cc
   metadata.cc
   namespace.cc
