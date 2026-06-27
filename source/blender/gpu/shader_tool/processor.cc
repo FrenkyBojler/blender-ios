@@ -1205,6 +1205,7 @@ void SourceProcessor::lower_tests(Parser &parser)
         return;
       }
       Scope test_body = toks[6].scope();
+      parser.erase(toks[0], toks[5]);
       test_body.foreach_match("A(..)", [&](Tokens toks) {
         if (toks[0].str().starts_with("EXPECT_")) {
           int id = test_id;
