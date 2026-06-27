@@ -2730,13 +2730,13 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
 
         /* New strip. */
         StripData *data_new = strip_new->data;
-        
-        if(strip->type == STRIP_TYPE_IMAGE) {
+
+        if (strip->type == STRIP_TYPE_IMAGE) {
           /* New stripdata, only one element now. */
           /* Note this assume all elements (images) have the same dimension,
-          * since we only copy the name here. */
+           * since we only copy the name here. */
           se_new = static_cast<StripElem *>(
-          MEM_realloc_uninitialized(data_new->stripdata, sizeof(*se_new)));
+              MEM_realloc_uninitialized(data_new->stripdata, sizeof(*se_new)));
           STRNCPY_UTF8(se_new->filename, se->filename);
           data_new->stripdata = se_new;
         }
@@ -3270,7 +3270,7 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
       if (se == nullptr) {
         return OPERATOR_CANCELLED;
       }
-      
+
       orig_width = se->orig_width;
       orig_height = se->orig_height;
 
@@ -3287,7 +3287,7 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
       break;
     case STRIP_TYPE_IMAGE_ID:
       img = active_strip->image_id;
-      if(img == nullptr) {
+      if (img == nullptr) {
         return OPERATOR_CANCELLED;
       }
 
@@ -3302,7 +3302,7 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
       }
 
       break;
-      
+
     default:
       return OPERATOR_CANCELLED;
   }
