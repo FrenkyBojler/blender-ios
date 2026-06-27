@@ -346,7 +346,7 @@ static void lineart_bake_endjob(void *customdata)
     Object *ob = bj->objects[object];
     WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, ob);
   }
-  ED_undo_push(bj->C, "Line");
+  ED_undo_push(bj->C, "Lineart");
 }
 
 static void lineart_bake_job_free(void *customdata)
