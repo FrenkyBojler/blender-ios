@@ -2510,6 +2510,10 @@ void template_strip_modifiers(Layout *layout, bContext *C);
  */
 void template_shader_fx(Layout *layout, bContext *C);
 /**
+ * Like #template_shader_fx but for the active Grease Pencil layer's per-layer effects.
+ */
+void template_layer_shader_fx(Layout *layout, bContext *C);
+/**
  * Check if the constraint panels don't match the data and rebuild the panels if so.
  */
 void template_constraints(Layout *layout, bContext *C, bool use_bone_constraints);

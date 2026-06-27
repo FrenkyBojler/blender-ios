@@ -170,6 +170,7 @@ void Instance::begin_sync()
   this->cfra = int(DEG_get_ctime(draw_ctx->depsgraph));
   this->simplify_antialias = GPENCIL_SIMPLIFY_AA(draw_ctx->scene);
   this->use_layer_fb = false;
+  this->use_layer_vfx_fb = false;
   this->use_object_fb = false;
   this->use_mask_fb = false;
 
@@ -464,6 +465,13 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 
     tLayer *tgp_layer = grease_pencil_layer_cache_add(
         this, ob, layer, info.onion_id, is_layer_used_as_mask, tgp_ob);
+
+    /* Per-layer FX: only for real frames, not onion skins. */
+    if (info.onion_id == 0 && !layer.shader_fx.is_empty()) {
+      vfx_layer_sync(layer, ob, tgp_ob, tgp_layer);
+      this->use_layer_vfx_fb = true;
+    }
+
     PassSimple &pass = *tgp_layer->geom_ps;
     last_pass = &pass;
 
@@ -697,6 +705,15 @@ void Instance::acquire_resources()
                           GPU_ATTACHMENT_TEXTURE(this->reveal_layer_tx));
   }
 
+  if (this->use_layer_vfx_fb) {
+    this->color_layer_vfx_tx.acquire_2d(size, format_color);
+    this->reveal_layer_vfx_tx.acquire_2d(size, format_reveal);
+
+    this->layer_vfx_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
+                              GPU_ATTACHMENT_TEXTURE(this->color_layer_vfx_tx),
+                              GPU_ATTACHMENT_TEXTURE(this->reveal_layer_vfx_tx));
+  }
+
   if (this->use_object_fb) {
     this->color_object_tx.acquire_2d(size, format_color);
     this->reveal_object_tx.acquire_2d(size, format_reveal);
@@ -750,6 +767,8 @@ void Instance::release_resources()
   this->reveal_tx.release();
   this->color_layer_tx.release();
   this->reveal_layer_tx.release();
+  this->color_layer_vfx_tx.release();
+  this->reveal_layer_vfx_tx.release();
   this->color_object_tx.release();
   this->reveal_object_tx.release();
   this->mask_depth_tx.release();
@@ -838,6 +857,12 @@ void Instance::draw_object(View &view, tObject *ob)
     }
 
     manager->submit(*layer->geom_ps, view);
+
+    /* Per-layer VFX: ping-pong between layer_fb and layer_vfx_fb, then blit back. */
+    for (tVfx *vfx = layer->vfx.first; vfx; vfx = vfx->next) {
+      GPU_framebuffer_bind(*(vfx->target_fb));
+      manager->submit(*vfx->vfx_ps);
+    }
 
     if (layer->blend_ps) {
       GPU_framebuffer_bind(fb_object);

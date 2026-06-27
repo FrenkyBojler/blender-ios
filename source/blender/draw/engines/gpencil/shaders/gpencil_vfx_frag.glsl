@@ -32,6 +32,16 @@ void main()
   }
 }
 
+#elif defined(BLIT)
+
+/* Direct copy of both OIT buffers. Used to normalize per-layer FX ping-pong back to layer_fb. */
+void main()
+{
+  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(color_buf, 0).xy);
+  frag_color = texture(color_buf, screen_uv);
+  fragRevealage = texture(reveal_buf, screen_uv);
+}
+
 #elif defined(COLORIZE)
 
 #  define sepia_mat \

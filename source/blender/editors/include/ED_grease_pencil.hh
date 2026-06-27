@@ -67,6 +67,7 @@ void ED_operatortypes_grease_pencil();
 void ED_operatortypes_grease_pencil_draw();
 void ED_operatortypes_grease_pencil_frames();
 void ED_operatortypes_grease_pencil_layers();
+void ED_operatortypes_grease_pencil_layer_shader_fx();
 void ED_operatortypes_grease_pencil_select();
 void ED_operatortypes_grease_pencil_edit();
 void ED_operatortypes_grease_pencil_join();

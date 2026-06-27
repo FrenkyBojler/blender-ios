@@ -7,6 +7,7 @@
  */
 #include "DNA_camera_types.h"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_shader_fx_types.h"
 #include "DNA_view3d_types.h"
 
@@ -60,7 +61,12 @@ PassSimple &Instance::vfx_pass_create(
 
   vfx_swapchain_.swap();
 
-  BLI_LINKS_APPEND(&tgp_ob->vfx, &tgp_vfx);
+  if (tgp_ob != nullptr) {
+    BLI_LINKS_APPEND(&tgp_ob->vfx, &tgp_vfx);
+  }
+  else if (active_layer_vfx_ != nullptr) {
+    BLI_LINKS_APPEND(active_layer_vfx_, &tgp_vfx);
+  }
 
   return pass;
 }
@@ -635,6 +641,96 @@ void Instance::vfx_sync(Object *ob, tObject *tgp_ob)
 
     this->use_object_fb = true;
     this->use_layer_fb = true;
+  }
+}
+
+void Instance::vfx_layer_sync(const bke::greasepencil::Layer &layer,
+                              Object *ob,
+                              tObject * /*tgp_ob*/,
+                              tLayer *tgp_layer)
+{
+  tgp_layer->vfx = {};
+
+  if (layer.shader_fx.is_empty() || this->simplify_fx) {
+    return;
+  }
+
+  const bool is_edit_mode = ELEM(
+      ob->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL, OB_MODE_WEIGHT_GREASE_PENCIL);
+
+  /* Route vfx_pass_create calls into tgp_layer->vfx instead of tgp_ob->vfx. */
+  active_layer_vfx_ = &tgp_layer->vfx;
+
+  /* Ping-pong between layer_fb (current, holds geometry) and layer_vfx_fb (next). */
+  vfx_swapchain_.next().fb = &layer_vfx_fb;
+  vfx_swapchain_.next().color_tx = &color_layer_vfx_tx;
+  vfx_swapchain_.next().reveal_tx = &reveal_layer_vfx_tx;
+  vfx_swapchain_.current().fb = &layer_fb;
+  vfx_swapchain_.current().color_tx = &color_layer_tx;
+  vfx_swapchain_.current().reveal_tx = &reveal_layer_tx;
+
+  for (ShaderFxData &fx : layer.shader_fx) {
+    if (effect_is_active(&fx, is_edit_mode, this->is_viewport)) {
+      /* Pass nullptr for tgp_ob: vfx_pass_create will use active_layer_vfx_ instead. */
+      switch (fx.type) {
+        case eShaderFxType_Blur:
+          vfx_blur_sync(reinterpret_cast<BlurShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Colorize:
+          vfx_colorize_sync(reinterpret_cast<ColorizeShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Flip:
+          vfx_flip_sync(reinterpret_cast<FlipShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Pixel:
+          vfx_pixelize_sync(reinterpret_cast<PixelShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Rim:
+          vfx_rim_sync(reinterpret_cast<RimShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Shadow:
+          vfx_shadow_sync(reinterpret_cast<ShadowShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Glow:
+          vfx_glow_sync(reinterpret_cast<GlowShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Swirl:
+          vfx_swirl_sync(reinterpret_cast<SwirlShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Wave:
+          vfx_wave_sync(reinterpret_cast<WaveShaderFxData *>(&fx), ob, nullptr);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  active_layer_vfx_ = nullptr;
+
+  if (tgp_layer->vfx.first == nullptr) {
+    return;
+  }
+
+  /* Count passes to determine if a blit is needed to get result back into layer_fb.
+   * An odd pass count means the final result is in layer_vfx_fb rather than layer_fb. */
+  int pass_count = 0;
+  for (tVfx *vfx = tgp_layer->vfx.first; vfx; vfx = vfx->next) {
+    pass_count++;
+  }
+
+  if (pass_count % 2 == 1) {
+    /* Result is in layer_vfx_fb; blit it back to layer_fb so blend_ps can read from it. */
+    vfx_swapchain_.next().fb = &layer_fb;
+    vfx_swapchain_.next().color_tx = &color_layer_tx;
+    vfx_swapchain_.next().reveal_tx = &reveal_layer_tx;
+
+    active_layer_vfx_ = &tgp_layer->vfx;
+    gpu::Shader *sh = ShaderCache::get().fx_blit.get();
+    DRWState state = DRW_STATE_WRITE_COLOR;
+    auto &grp = vfx_pass_create("Layer FX Blit", state, sh, nullptr);
+    grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+    active_layer_vfx_ = nullptr;
   }
 }
 

@@ -24,6 +24,7 @@ set(SRC
   intern/grease_pencil_geom.cc
   intern/grease_pencil_image_render.cc
   intern/grease_pencil_join_selection.cc
+  intern/grease_pencil_layer_shader_fx.cc
   intern/grease_pencil_layers.cc
   intern/grease_pencil_lineart.cc
   intern/grease_pencil_material.cc

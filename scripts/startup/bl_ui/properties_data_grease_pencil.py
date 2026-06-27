@@ -334,6 +334,60 @@ class DATA_PT_grease_pencil_layer_display(LayerDataButtonsPanel, GreasePencil_La
     bl_options = {'DEFAULT_CLOSED'}
 
 
+_SHADERFX_BASE_PROPS = frozenset({
+    'name', 'type', 'show_expanded', 'show_viewport', 'show_render', 'show_in_editmode',
+})
+
+
+class DATA_PT_grease_pencil_layer_effects(LayerDataButtonsPanel, Panel):
+    bl_label = "Effects"
+    bl_parent_id = "DATA_PT_grease_pencil_layers"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        grease_pencil = context.grease_pencil
+        layer = grease_pencil.layers.active
+
+        layout.operator_menu_enum(
+            "grease_pencil.layer_shaderfx_add", "type", text="Add Effect", icon='ADD',
+        )
+
+        for fx in layer.shader_effects:
+            box = layout.box()
+
+            # Header row.
+            row = box.row(align=False)
+            row.prop(fx, "show_expanded", text="", emboss=False,
+                     icon='DISCLOSURE_TRI_DOWN' if fx.show_expanded else 'DISCLOSURE_TRI_RIGHT')
+            row.label(text="", icon='SHADERFX')
+            row.prop(fx, "name", text="")
+
+            sub = row.row(align=True)
+            sub.prop(fx, "show_viewport", text="")
+            sub.prop(fx, "show_render", text="")
+
+            sub = row.row(align=True)
+            op = sub.operator("grease_pencil.layer_shaderfx_move", text="", icon='TRIA_UP')
+            op.shaderfx = fx.name
+            op.direction = 'UP'
+            op = sub.operator("grease_pencil.layer_shaderfx_move", text="", icon='TRIA_DOWN')
+            op.shaderfx = fx.name
+            op.direction = 'DOWN'
+
+            op = row.operator("grease_pencil.layer_shaderfx_remove", text="", icon='X')
+            op.shaderfx = fx.name
+
+            # Settings body (all type-specific properties).
+            if fx.show_expanded:
+                col = box.column()
+                col.use_property_split = True
+                col.use_property_decorate = False
+                for prop in fx.bl_rna.properties:
+                    if prop.identifier not in _SHADERFX_BASE_PROPS and not prop.is_readonly:
+                        col.prop(fx, prop.identifier)
+
+
 class DATA_PT_grease_pencil_layer_group_display(Panel):
     bl_label = "Display"
     bl_space_type = 'PROPERTIES'
@@ -516,6 +570,7 @@ classes = (
     DATA_PT_grease_pencil_layer_adjustments,
     DATA_PT_grease_pencil_layer_relations,
     DATA_PT_grease_pencil_layer_display,
+    DATA_PT_grease_pencil_layer_effects,
     DATA_PT_grease_pencil_layer_group_display,
     DATA_PT_grease_pencil_onion_skinning,
     DATA_PT_grease_pencil_onion_skinning_custom_colors,

@@ -31,6 +31,7 @@
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_modifier.hh"
+#include "BKE_shader_fx.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
@@ -1433,6 +1434,8 @@ Layer::Layer()
   this->masks.clear_no_delete();
   this->active_mask_index = 0;
 
+  this->shader_fx.clear_no_delete();
+
   this->runtime = MEM_new<LayerRuntime>(__func__);
 }
 
@@ -1465,6 +1468,8 @@ Layer::Layer(const Layer &other) : Layer()
 
   this->set_view_layer_name(other.viewlayername);
 
+  BKE_shaderfx_copy(&this->shader_fx, &other.shader_fx);
+
   /* NOTE: We do not duplicate the frame storage since it is only needed for writing to file. */
   this->runtime->frames_ = other.runtime->frames_;
   this->runtime->sorted_keys_cache_ = other.runtime->sorted_keys_cache_;
@@ -1488,6 +1493,10 @@ Layer::~Layer()
 
   MEM_SAFE_DELETE(this->parsubstr);
   MEM_SAFE_DELETE(this->viewlayername);
+
+  while (ShaderFxData *fx = static_cast<ShaderFxData *>(BLI_pophead(&this->shader_fx))) {
+    BKE_shaderfx_free(fx);
+  }
 
   MEM_delete(this->runtime);
   this->runtime = nullptr;
@@ -2344,6 +2353,8 @@ void BKE_grease_pencil_copy_layer_parameters(const bke::greasepencil::Layer &src
   copy_v3_v3(dst.scale, src.scale);
 
   dst.set_view_layer_name(src.viewlayername);
+
+  BKE_shaderfx_copy(&dst.shader_fx, &src.shader_fx);
 }
 
 void BKE_grease_pencil_copy_layer_group_parameters(const bke::greasepencil::LayerGroup &src,

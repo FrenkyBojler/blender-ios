@@ -13,6 +13,7 @@
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_listBase.h"
+#include "DNA_shader_fx_types.h"
 
 #include "BLI_bounds_types.hh"
 #include "BLI_enum_flags.hh"
@@ -375,6 +376,8 @@ struct GreasePencilLayer {
   char _pad3[4] = {};
   /** Name of the view layer used to filter render output. */
   char *viewlayername = nullptr;
+  /** Per-layer shader effects (eShaderFxType). */
+  ListBaseT<ShaderFxData> shader_fx = {nullptr, nullptr};
   /**
    * Runtime struct pointer.
    */

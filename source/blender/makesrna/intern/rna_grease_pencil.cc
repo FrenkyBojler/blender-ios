@@ -1269,6 +1269,13 @@ static void rna_def_grease_pencil_layer(BlenderRNA *brna)
   RNA_def_property_float_funcs(
       prop, "rna_GreasePencilLayer_matrix_parent_inverse_get", nullptr, nullptr);
 
+  /* Per-layer shader effects. */
+  prop = RNA_def_property(srna, "shader_effects", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "shader_fx", nullptr);
+  RNA_def_property_struct_type(prop, "ShaderFx");
+  RNA_def_property_ui_text(prop, "Shader Effects", "Effects applied to this layer");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_grease_pencil_update");
+
   RNA_api_grease_pencil_layer(srna);
 }
 

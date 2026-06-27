@@ -10,8 +10,11 @@
 
 #include "BLI_listbase.hh"
 
+#include "BKE_grease_pencil.hh"
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.hh"
+
+#include "DNA_grease_pencil_types.h"
 
 #include "ED_object.hh"
 
@@ -71,6 +74,57 @@ void template_shader_fx(Layout * /*layout*/, bContext *C)
 
       PointerRNA *fx_ptr = MEM_new<PointerRNA>(__func__);
       *fx_ptr = RNA_pointer_create_discrete(&ob->id, RNA_ShaderFx, &fx);
+      panel_custom_data_set(panel, fx_ptr);
+
+      panel = panel->next;
+    }
+  }
+}
+
+void template_layer_shader_fx(Layout * /*layout*/, bContext *C)
+{
+  ARegion *region = CTX_wm_region(C);
+  Object *ob = ed::object::context_active_object(C);
+  if (!ob || ob->type != OB_GREASE_PENCIL) {
+    return;
+  }
+  GreasePencil *grease_pencil = id_cast<GreasePencil *>(ob->data);
+  bke::greasepencil::Layer *layer = grease_pencil->get_active_layer();
+  if (!layer) {
+    return;
+  }
+
+  ListBaseT<ShaderFxData> *shaderfx = &layer->shader_fx;
+
+  const bool panels_match = panel_list_matches_data(region, shaderfx, shaderfx_panel_id);
+
+  if (!panels_match) {
+    panels_free_instanced(C, region);
+    for (ShaderFxData &fx : *shaderfx) {
+      char panel_idname[MAX_NAME];
+      shaderfx_panel_id(&fx, panel_idname);
+
+      PointerRNA *fx_ptr = MEM_new<PointerRNA>(__func__);
+      *fx_ptr = RNA_pointer_create_discrete(&grease_pencil->id, RNA_ShaderFx, &fx);
+
+      panel_add_instanced(C, region, &region->panels, panel_idname, fx_ptr);
+    }
+  }
+  else {
+    Panel *panel = static_cast<Panel *>(region->panels.first);
+    for (ShaderFxData &fx : *shaderfx) {
+      const ShaderFxTypeInfo *fxi = BKE_shaderfx_get_info(ShaderFxType(fx.type));
+      if (fxi->panel_register == nullptr) {
+        continue;
+      }
+
+      while ((panel->type == nullptr) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
+        panel = panel->next;
+        BLI_assert(panel != nullptr);
+      }
+
+      PointerRNA *fx_ptr = MEM_new<PointerRNA>(__func__);
+      *fx_ptr = RNA_pointer_create_discrete(&grease_pencil->id, RNA_ShaderFx, &fx);
       panel_custom_data_set(panel, fx_ptr);
 
       panel = panel->next;
