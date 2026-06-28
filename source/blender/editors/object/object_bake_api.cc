@@ -37,6 +37,7 @@
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -334,7 +335,6 @@ static void bake_targets_refresh(BakeTargets *targets)
 
     if (ima) {
       BKE_image_partial_update_mark_full_update(ima);
-      BKE_image_free_gputextures(ima);
       DEG_id_tag_update(&ima->id, 0);
     }
   }

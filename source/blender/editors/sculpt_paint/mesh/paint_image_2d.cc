@@ -26,6 +26,7 @@
 #include "BKE_colorband.hh"
 #include "BKE_context.hh"
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_report.hh"
@@ -1732,7 +1733,7 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
 
   if (final) {
     if (s->image && !(s->sima && s->sima->lock)) {
-      BKE_image_free_gputextures(s->image);
+      BKE_image_partial_update_mark_full_update(s->image);
     }
 
     /* compositor listener deals with updating */

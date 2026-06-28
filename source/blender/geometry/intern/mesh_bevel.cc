@@ -5182,8 +5182,8 @@ static void bevel_build_edge_polygons(BevelState &state, const int edge_index)
     return;
   }
 
-  BevVert *bv1 = state.vert_hash.lookup(v1_idx);
-  BevVert *bv2 = state.vert_hash.lookup(v2_idx);
+  BevVert *bv1 = state.vert_hash.lookup_default(v1_idx, nullptr);
+  BevVert *bv2 = state.vert_hash.lookup_default(v2_idx, nullptr);
   if (!bv1 || !bv2) {
     return;
   }
@@ -7503,7 +7503,9 @@ static std::optional<Mesh *> build_output_mesh(const BevelState &state,
     dst_face_offsets[n_surv_faces + nf] = n_surv_corners + new_face_offs[nf];
   }
   /* Sentinel at the end (Blender stores offsets as face_offsets[face_num] = corners_num). */
-  dst_face_offsets[n_surv_faces + n_new_faces] = n_surv_corners + new_face_offs[n_new_faces];
+  if (!dst_face_offsets.is_empty()) {
+    dst_face_offsets[n_surv_faces + n_new_faces] = n_surv_corners + new_face_offs[n_new_faces];
+  }
 
   const OffsetIndices<int> dst_faces(dst_face_offsets);
 
@@ -7753,6 +7755,9 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   const timeit::TimePoint start_time = timeit::Clock::now();
 #endif
   BevelState state(src_mesh, params, selection);
+  if (state.bevel_affected_vertices.size() == 0) {
+    return std::nullopt;
+  }
   state.initialize_profile_data();
   state.uv_init();
 
@@ -7765,8 +7770,10 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
   /* Phase 1: construct BevVerts and build initial boundaries. */
   state.bevel_affected_vertices.foreach_index([&](const int v) {
     construct::bevel_vert_construct(state, v);
-    BevVert *bv = state.vert_hash.lookup(v);
-    construct::build_boundary(state, bv, true);
+    BevVert *bv = state.vert_hash.lookup_default(v, nullptr);
+    if (bv) {
+      construct::build_boundary(state, bv, true);
+    }
   });
 
 #ifdef DEBUG_TIME
@@ -7789,7 +7796,10 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
 
   /* Phase 3: UV connectivity and vmesh construction (depends on final BoundVert positions). */
   state.bevel_affected_vertices.foreach_index([&](const int v) {
-    BevVert *bv = state.vert_hash.lookup(v);
+    BevVert *bv = state.vert_hash.lookup_default(v, nullptr);
+    if (!bv) {
+      return;
+    }
     construct::determine_uv_vert_connectivity(state, v);
     /* Record the number of new faces before build_vmesh so that all faces it creates can
      * be tagged as #NewFaceKind::VERTEX_FACE for the #BevelAttributeOutputs output field. */

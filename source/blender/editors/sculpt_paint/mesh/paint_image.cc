@@ -37,6 +37,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh"
@@ -727,7 +728,7 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
   BKE_paint_brushes_validate(&bmain, &imapaint.paint);
 
   if (U.glreslimit != 0) {
-    BKE_image_free_all_gputextures(&bmain);
+    BKE_image_free_all_gpu_texture_caches(&bmain);
   }
   BKE_image_paint_set_mipmap(&bmain, false);
 
@@ -762,7 +763,7 @@ void ED_object_texture_paint_mode_exit_ex(Main &bmain, Scene &scene, Object &ob)
   ob.mode &= ~OB_MODE_TEXTURE_PAINT;
 
   if (U.glreslimit != 0) {
-    BKE_image_free_all_gputextures(&bmain);
+    BKE_image_free_all_gpu_texture_caches(&bmain);
   }
   BKE_image_paint_set_mipmap(&bmain, true);
   toggle_paint_cursor(scene, false);

@@ -252,6 +252,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "BKE_global.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_image.hh"
+#  include "BKE_image_gpu.hh"
 #  include "BKE_main.hh"
 #  include "BKE_mesh_runtime.hh"
 #  include "BKE_object.hh"
@@ -320,6 +321,19 @@ static void rna_userdef_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *
 {
   WM_main_add_notifier(NC_WINDOW, nullptr);
   USERDEF_TAG_DIRTY;
+}
+
+static void rna_userdef_update_compact_tabs(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  rna_userdef_update(bmain, scene, ptr);
+  auto *wm = static_cast<wmWindowManager *>(bmain->wm.first);
+  if (!wm) {
+    return;
+  }
+  for (wmWindow &win : wm->windows) {
+    /* Notify regions so they can update its category tab width when showing only tabs. */
+    WM_event_add_notifier_ex(wm, &win, NC_SCREEN | NA_EDITED, nullptr);
+  }
 }
 
 static void rna_userdef_theme_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -801,7 +815,7 @@ static void rna_userdef_window_csd_params_update(Main *bmain, Scene *scene, Poin
 
 static void rna_userdef_gl_texture_limit_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  BKE_image_free_all_gputextures(bmain);
+  BKE_image_free_all_gpu_texture_caches(bmain);
   rna_userdef_update(bmain, scene, ptr);
 }
 
@@ -2967,7 +2981,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Major Grid Lines", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  prop = RNA_def_property(srna, "grid_axis_brightness", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "grid_axis_brightness", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "grid_axis_brightness");
   RNA_def_property_float_default(prop, 0.46);
   RNA_def_property_ui_text(prop, "Grid Axis Brightness", "Brightness of the grid axis lines");
@@ -6246,7 +6260,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       prop,
       "Compact Sidebar Tabs",
       "Display sidebar tabs in a compact size that shows icons when available");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_update_compact_tabs");
 
   prop = RNA_def_property(srna, "viewport_aa", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_userdef_viewport_aa_items);

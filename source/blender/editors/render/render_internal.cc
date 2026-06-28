@@ -34,6 +34,7 @@
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -232,37 +233,6 @@ static void get_render_operator_frame_range(wmOperator *render_operator,
   }
 }
 
-/* When rendering an animation, saving files is required, either through scene saving or through
- * a compositor File Output node. */
-static bool disable_save_output_allowed(const bool is_animation, Scene &scene, ReportList *reports)
-{
-  const bool save_output = (scene.r.mode & R_SAVE_OUTPUT) != 0;
-  const bool do_compositing = (scene.r.scemode & R_DOCOMP) != 0;
-  const bool do_sequencer = RE_seq_render_active(&scene, &scene.r);
-
-  if (is_animation && do_sequencer && !save_output) {
-    BKE_report(reports, RPT_ERROR, "Render output disabled in Output properties");
-    return false;
-  }
-
-  if (is_animation && !save_output && !do_compositing) {
-    BKE_report(reports, RPT_ERROR, "Render output and compositing disabled in Output properties");
-    return false;
-  }
-
-  if (is_animation && !save_output && do_compositing) {
-    if (!bke::compositor::node_tree_has_linked_file_output(scene.compositing_node_group)) {
-      BKE_report(reports,
-                 RPT_ERROR,
-                 "Render output disabled in Output properties and no active compositing File "
-                 "Output nodes");
-      return false;
-    }
-  }
-
-  return true;
-}
-
 /* executes blocking render */
 static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
 {
@@ -321,7 +291,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!disable_save_output_allowed(is_animation, *scene, op->reports)) {
+  if (!RE_disable_save_output_allowed(is_animation, *scene, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1004,7 +974,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
-  if (!disable_save_output_allowed(is_animation, *scene, op->reports)) {
+  if (!RE_disable_save_output_allowed(is_animation, *scene, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
