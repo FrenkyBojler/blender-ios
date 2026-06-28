@@ -1420,7 +1420,8 @@ static std::unique_ptr<TooltipData> tooltip_data_from_custom_func(bContext *C, B
 static ARegion *tooltip_create_with_data(bContext *C,
                                          std::unique_ptr<TooltipData> data_uptr,
                                          const float init_position[2],
-                                         const rcti *init_rect_overlap)
+                                         const rcti *init_rect_overlap,
+                                         ARegion *source_region)
 {
   wmWindow *win = CTX_wm_window(C);
   const int2 win_size = WM_window_native_pixel_size(win);
@@ -1436,6 +1437,9 @@ static ARegion *tooltip_create_with_data(bContext *C,
   type.free = tooltip_region_free_cb;
   type.regionid = RGN_TYPE_TEMPORARY;
   region->runtime->type = &type;
+  if (source_region != nullptr) {
+    WM_xr_temp_region_register(region, CTX_wm_window(C), CTX_wm_area(C), source_region);
+  }
   /* Move ownership to region data. The region type free callback puts it back into a unique
    * pointer for save freeing. */
   region->regiondata = data_uptr.release();
@@ -1742,8 +1746,11 @@ ARegion *tooltip_create_from_button_or_extra_icon(
     init_position[1] -= (UI_POPUP_MARGIN / 2);
   }
 
+  ARegion *source_region = butregion ? butregion :
+                                      (CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) :
+                                                                CTX_wm_region(C));
   ARegion *region = tooltip_create_with_data(
-      C, std::move(data), init_position, is_no_overlap ? &init_rect : nullptr);
+      C, std::move(data), init_position, is_no_overlap ? &init_rect : nullptr, source_region);
 
   return region;
 }
@@ -1777,7 +1784,24 @@ ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
     }
   }
 
-  return tooltip_create_with_data(C, std::move(data), init_position, nullptr);
+  return tooltip_create_with_data(C, std::move(data), init_position, nullptr, CTX_wm_region(C));
+}
+
+ARegion *tooltip_create_from_panel_category(bContext *C,
+                                            const std::string &category_name,
+                                            const int x,
+                                            const int y)
+{
+  std::unique_ptr<TooltipData> data = std::make_unique<TooltipData>();
+  tooltip_text_field_add(*data, category_name, {}, TIP_STYLE_HEADER, TIP_LC_VALUE, false);
+  const float init_position[2] = {float(x) + 61.0f * UI_SCALE_FAC,
+                                  float(y) + 32.0f * UI_SCALE_FAC};
+  const rcti overlap_rect_fl = {x - int(25.0f * UI_SCALE_FAC),
+                                x + int(28.0f * UI_SCALE_FAC),
+                                y - int(31.0f * UI_SCALE_FAC),
+                                y + int(round(20.7f * UI_SCALE_FAC))};
+  return tooltip_create_with_data(
+      C, std::move(data), init_position, &overlap_rect_fl, CTX_wm_region(C));
 }
 
 static void tooltip_from_image(Image &ima, TooltipData &data)
@@ -2008,7 +2032,8 @@ ARegion *tooltip_create_from_search_item_generic(bContext *C,
   init_position[0] = win->runtime->eventstate->xy[0];
   init_position[1] = item_rect->ymin + searchbox_region->winrct.ymin - (UI_POPUP_MARGIN / 2);
 
-  return tooltip_create_with_data(C, std::move(data), init_position, nullptr);
+  return tooltip_create_with_data(
+      C, std::move(data), init_position, nullptr, const_cast<ARegion *>(searchbox_region));
 }
 
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region)
