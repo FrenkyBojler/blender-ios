@@ -60,8 +60,14 @@ struct NormalizedIntVec<T, 4, SizeX, SizeY, SizeZ, SizeW> {
   T x : SizeX;
   T y : SizeY;
   T z : SizeZ;
-  T w : SizeW;
-
+#if defined(_MSC_VER) && !defined(__clang__) && _MSC_VER >= 1944 && _MSC_VER < 1950
+  // Workaround for MSVC 17.14 ICE: use constexpr to indirectly reference SizeW
+  // Does not make a whole lot of sense, but it sidesteps the ICE. 
+  constexpr static T SizeW_workaround = SizeW;
+  T w : SizeW_workaround;
+#else
+  T z : SizeW;
+#endif
   NormalizedIntVec() = default;
   constexpr NormalizedIntVec(IntVecT value) : x(value.x), y(value.y), z(value.z), w(value.w) {}
 
