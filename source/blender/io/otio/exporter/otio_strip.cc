@@ -617,6 +617,47 @@ template void add_effects_to_clip(
     SerializableObject::Retainer<Stack> &clip,
     std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects);
 
+template<typename T>
+static void add_strip_metadata_transform(const Strip *strip, SerializableObject::Retainer<T> &clip)
+{
+  if (!strip->data || !strip->data->transform) {
+    return;
+  }
+  const StripTransform *transform = strip->data->transform;
+  AnyDictionary metadata;
+
+  metadata["xofs"] = static_cast<double>(transform->xofs);
+  metadata["yofs"] = static_cast<double>(transform->yofs);
+  metadata["scale_x"] = static_cast<double>(transform->scale_x);
+  metadata["scale_y"] = static_cast<double>(transform->scale_y);
+  metadata["rotation"] = static_cast<double>(transform->rotation);
+  metadata["origin"] = AnyVector{static_cast<double>(transform->origin[0]),
+                                 static_cast<double>(transform->origin[1])};
+  metadata["filter"] = static_cast<int64_t>(transform->filter);
+  metadata["flipx"] = static_cast<bool>(strip->flag & SEQ_FLIPX);
+  metadata["flipy"] = static_cast<bool>(strip->flag & SEQ_FLIPY);
+
+  try {
+    std::any_cast<AnyDictionary &>(clip->metadata()["blender"])["transform"] = metadata;
+  }
+  catch (const std::bad_any_cast & /*e*/) {
+    return;
+  }
+}
+
+template<typename T>
+void add_strip_metadata_common(const Strip *strip, SerializableObject::Retainer<T> &clip)
+{
+  if (!clip->metadata().has_key("blender")) {
+    clip->metadata()["blender"] = AnyDictionary();
+  }
+  add_strip_metadata_transform(strip, clip);
+}
+
+/* Force instantiate `add_strip_metadata_common<Stack>`. */
+template void add_strip_metadata_common(const Strip *strip,
+                                        SerializableObject::Retainer<Stack> &clip);
+
 void StripExporter::add_gap_if_necessary()
 {
   int space_between = strip_->left_handle() - last_strip_end - 1;
@@ -661,6 +702,7 @@ void StripExporter::export_with_missing_reference(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, missing_reference, strip_source_range));
 
+  add_strip_metadata_common(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
@@ -684,6 +726,7 @@ void MovieStripExporter::export_strip(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, external_reference, strip_source_range));
 
+  add_strip_metadata_common(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
@@ -705,6 +748,7 @@ void SoundStripExporter::export_strip(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, external_reference, strip_source_range));
 
+  add_strip_metadata_common(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
   add_sound_strip_metadata(clip, strip_);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
@@ -728,6 +772,7 @@ void ImageStripExporter::export_strip(
     auto clip = otio::SerializableObject::Retainer<otio::Clip>(
         new Clip(strip_->name + 2, external_reference, strip_source_range));
 
+    add_strip_metadata_common(strip_, clip);
     attach_foreign_metadata_strip(strip_, clip);
     add_effects_to_clip(scene_, strip_, clip, single_input_effects);
     track_->append_child(clip);
@@ -833,6 +878,7 @@ void ImageStripExporter::export_strip(
     auto clip = SerializableObject::Retainer<Clip>(
         new Clip(strip_->name + 2, img_seq_ref, source_range));
 
+    add_strip_metadata_common(strip_, clip);
     attach_foreign_metadata_strip(strip_, clip);
     add_effects_to_clip(scene_, strip_, clip, single_input_effects);
     track_->append_child(clip);
@@ -914,6 +960,7 @@ void GeneratorStripExporter::export_strip(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, generator_reference, strip_source_range));
 
+  add_strip_metadata_common(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);

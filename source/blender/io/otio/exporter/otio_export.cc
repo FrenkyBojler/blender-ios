@@ -302,11 +302,13 @@ static void otio_export_recursive(Main *bmain,
             last_strip_end = strip->right_handle(scene);
 
             if (!primary_meta_stack->children().empty()) {
+              add_strip_metadata_common(strip, primary_meta_stack);
               attach_foreign_metadata_strip(strip, primary_meta_stack);
               add_effects_to_clip(scene, strip, primary_meta_stack, single_input_effects);
               meta_video_track->append_child(primary_meta_stack);
             }
             if (!secondary_meta_stack->children().empty()) {
+              add_strip_metadata_common(strip, secondary_meta_stack);
               attach_foreign_metadata_strip(strip, secondary_meta_stack);
               add_effects_to_clip(scene, strip, secondary_meta_stack, single_input_effects);
               meta_audio_track->append_child(secondary_meta_stack);
