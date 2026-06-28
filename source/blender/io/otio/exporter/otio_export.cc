@@ -330,7 +330,17 @@ static void otio_export_recursive(Main *bmain,
         }
       }
       /* Color, Adjustment, Text, etc. Strips. */
-      else if (ELEM(strip->type, STRIP_TYPE_COLOR, STRIP_TYPE_ADJUSTMENT, STRIP_TYPE_TEXT)) {
+      else if (ELEM(strip->type,
+                    STRIP_TYPE_COLOR,
+                    STRIP_TYPE_ADJUSTMENT,
+                    STRIP_TYPE_TEXT,
+                    STRIP_TYPE_ADD,
+                    STRIP_TYPE_SUB,
+                    STRIP_TYPE_MUL,
+                    STRIP_TYPE_ALPHAOVER,
+                    STRIP_TYPE_ALPHAUNDER,
+                    STRIP_TYPE_COLORMIX))
+      {
         strip_exporter = new GeneratorStripExporter(
             strip, scene, inside_meta ? meta_video_track : track, last_strip_end);
       }

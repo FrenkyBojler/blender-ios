@@ -189,7 +189,17 @@ static SerializableObject::Retainer<GeneratorReference> create_generator_referen
       new GeneratorReference());
   AnyDictionary params;
 
+  auto add_effect_params_common = [](const Strip *strip, AnyDictionary &params) {
+    if (strip->input1) {
+      params["input1"] = std::string(strip->input1->name);
+    }
+    if (strip->input2) {
+      params["input2"] = std::string(strip->input2->name);
+    }
+  };
+
   switch (strip->type) {
+    /* Zero input effect strips. */
     case STRIP_TYPE_COLOR:
       generator_reference->set_name("Color");
       generator_reference->set_generator_kind("Color");
@@ -207,6 +217,57 @@ static SerializableObject::Retainer<GeneratorReference> create_generator_referen
       generator_reference->set_generator_kind("Adjustment");
       params["name"] = "Adjustment";
       break;
+
+    /* Two input effect strips. */
+    case STRIP_TYPE_ADD:
+      generator_reference->set_name("Add");
+      generator_reference->set_generator_kind("Add");
+      params["name"] = "Add";
+      add_effect_params_common(strip, params);
+      break;
+
+    case STRIP_TYPE_SUB:
+      generator_reference->set_name("Subtract");
+      generator_reference->set_generator_kind("Subtract");
+      params["name"] = "Subtract";
+      add_effect_params_common(strip, params);
+      break;
+
+    case STRIP_TYPE_MUL:
+      generator_reference->set_name("Multiply");
+      generator_reference->set_generator_kind("Multiply");
+      params["name"] = "Multiply";
+      add_effect_params_common(strip, params);
+      break;
+
+    case STRIP_TYPE_ALPHAOVER:
+      generator_reference->set_name("Alpha Over");
+      generator_reference->set_generator_kind("Alpha Over");
+      params["name"] = "Alpha Over";
+      params["default_fade"] = static_cast<bool>(strip->flag & SEQ_USE_EFFECT_DEFAULT_FADE);
+      params["effect_fader"] = static_cast<double>(strip->effect_fader);
+      add_effect_params_common(strip, params);
+      break;
+
+    case STRIP_TYPE_ALPHAUNDER:
+      generator_reference->set_name("Alpha Under");
+      generator_reference->set_generator_kind("Alpha Under");
+      params["name"] = "Alpha Under";
+      params["default_fade"] = static_cast<bool>(strip->flag & SEQ_USE_EFFECT_DEFAULT_FADE);
+      params["effect_fader"] = static_cast<double>(strip->effect_fader);
+      add_effect_params_common(strip, params);
+      break;
+
+    case STRIP_TYPE_COLORMIX: {
+      generator_reference->set_name("Color Mix");
+      generator_reference->set_generator_kind("Color Mix");
+      params["name"] = "Color Mix";
+      const ColorMixVars *mix = static_cast<ColorMixVars *>(strip->effectdata);
+      params["blend_effect"] = static_cast<int64_t>(mix->blend_effect);
+      params["blend_factor"] = static_cast<double>(mix->factor);
+      add_effect_params_common(strip, params);
+      break;
+    }
 
     default:
       break;
