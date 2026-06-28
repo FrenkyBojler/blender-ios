@@ -488,6 +488,48 @@ std::string make_anonymous_attribute_socket_inspection_string(StringRef node_nam
   return fmt::format(fmt::runtime(TIP_("\"{}\" from {}")), socket_name, node_name);
 }
 
+class GVVectorArray_For_Plain_Array : public GVVectorArray {
+ private:
+  const GSpan data_;
+  const int slices_num_;
+  const int slice_size_;
+
+ public:
+  GVVectorArray_For_Plain_Array(const GSpan data, const int slices_num) : GVVectorArray_For_Plain_Array(data, slices_num, data.type())
+  {
+    BLI_assert(data.size() % slices_num == 0);
+  }
+
+  GVVectorArray_For_Plain_Array(const GSpan data, const int slices_num, const CPPType &type) :
+    GVVectorArray(type, slices_num),
+    data_(data),
+    slices_num_(slices_num),
+    slice_size_(data.size() / slices_num)
+  {
+    BLI_assert(data.size() % slices_num == 0);
+  }
+
+ protected:
+  int64_t get_vector_size_impl(int64_t /*index*/) const final
+  {
+    return slice_size_;
+  }
+
+  void get_vector_element_impl(int64_t index,
+                               int64_t index_in_vector,
+                               void *r_value) const final
+  {
+    BLI_assert(IndexRange(slices_num_).contains(index));
+    BLI_assert(IndexRange(slice_size_).contains(index_in_vector));
+    return this->type().copy_construct(data_[index * slice_size_ + index_in_vector], r_value);
+  }
+
+  bool is_single_vector_impl() const final
+  {
+    return false;
+  }
+};
+
 static void execute_multi_function_on_value_variant__single(
     const MultiFunction &fn,
     const Span<SocketValueVariant *> input_values,
@@ -500,12 +542,39 @@ static void execute_multi_function_on_value_variant__single(
   mf::ContextBuilder context;
   context.user_data(user_data);
 
+  ResourceScope scope;
+
   for (const int i : input_values.index_range()) {
+    const int input_index = params.next_param_index();
+    const mf::ParamType param_type = fn.param_type(input_index);
+
     SocketValueVariant &input_variant = *input_values[i];
+    if (param_type.data_type().is_vector()) {
+      const CPPType &cpp_type = param_type.data_type().vector_base_type();
+      auto values = input_variant.get<GListPtr>();
+      if (values->cpp_type() == cpp_type) {
+        auto &list_data = scope.add_value(GVArraySpan(values->varray()));
+        auto &value = scope.add_value(GVVectorArray_For_Plain_Array(list_data, list_data.size(), cpp_type));
+        params.add_readonly_vector_input(value);
+        continue;
+      }
+
+      const VArray list_data = values->varray().typed<SocketValueVariant>();
+      auto &list_values = scope.add_value(GArray<>(cpp_type, list_data.size()));
+      for (const int list_item : list_data.index_range()) {
+        const GPointer item_value = list_data[list_item].get_single_ptr();
+        BLI_assert(item_value.type() == cpp_type);
+        cpp_type.copy_assign(item_value.get(), list_values[list_item]);
+      }
+
+      auto &value = scope.add_value(GVVectorArray_For_Plain_Array(list_values.as_span(), list_data.size(), cpp_type));
+      params.add_readonly_vector_input(value);
+      continue;
+    }
+    
+    const CPPType &cpp_type = param_type.data_type().single_type();
     input_variant.convert_to_single();
     const void *value = input_variant.get_single_ptr_raw();
-    const mf::ParamType param_type = fn.param_type(params.next_param_index());
-    const CPPType &cpp_type = param_type.data_type().single_type();
     params.add_readonly_single_input(GPointer{cpp_type, value});
   }
   for (const int i : output_values.index_range()) {
@@ -571,8 +640,34 @@ static void execute_multi_function_on_value_variant__field(
   bool any_input_is_field = false;
   bool any_input_is_volume_grid = false;
   bool any_input_is_list = false;
+
   for (const int i : input_values.index_range()) {
     const SocketValueVariant &value = *input_values[i];
+
+    const bool is_varying_input = fn.signature().params[i].type.data_type().is_vector();
+    BLI_assert(is_varying_input <= value.is_list());
+    if (is_varying_input) {
+      const auto list_value = value.get<GListPtr>();
+      if (list_value->cpp_type().is<GField>()) {
+        any_input_is_field = true;
+      }/* else if (list_value->cpp_type().is<GVolumeGrid>()) {
+        any_input_is_volume_grid = true;
+      } */else if (list_value->cpp_type().is<GListPtr>()) {
+        any_input_is_list = true;
+      } else if (list_value->cpp_type().is<SocketValueVariant>()) {
+        for (const SocketValueVariant &sub_value : VArraySpan<SocketValueVariant>(list_value->varray().typed<SocketValueVariant>())) {
+          if (sub_value.is_field()) {
+            any_input_is_field = true;
+          }/* else if (sub_value.is_grid()) {
+            any_input_is_volume_grid = true;
+          } */else if (sub_value.is_list()) {
+            any_input_is_list = true;
+          }
+        }
+      }
+      continue;
+    }
+
     if (value.is_context_dependent_field()) {
       any_input_is_field = true;
     }
