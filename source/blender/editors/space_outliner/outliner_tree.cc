@@ -490,22 +490,22 @@ static bool treesort_alpha_ob(const tTreeSort &x1, const tTreeSort &x2)
   return BLI_strcasecmp_natural(x1.name, x2.name) < 0;
 }
 
-static int get_sort_index(const auto &x, 
-                          const auto &object_map, 
-                          const auto &child_map) 
+static int get_sort_index(const auto &x, const auto &object_map, const auto &child_map)
 {
   if (x.idcode == ID_OB) {
-    auto *ob = reinterpret_cast<Object *>(x.id);
-    auto *cob = object_map.lookup_default(ob, nullptr);
+    Object *ob = reinterpret_cast<Object *>(x.id);
+    CollectionObject *cob = object_map.lookup_default(ob, nullptr);
     if (cob && cob->sort_index >= 0) {
       return cob->sort_index;
     }
   }
-  else if (x.idcode == ID_GR) {
-    auto *child_col = reinterpret_cast<Collection *>(x.id);
-    auto *cc = child_map.lookup_default(child_col, nullptr);
-    if (cc && cc->sort_index >= 0) {
-      return cc->sort_index;
+  else {
+    Collection *child_col = outliner_collection_from_tree_element(x.te);
+    if (child_col != nullptr) {
+      CollectionChild *cc = child_map.lookup_default(child_col, nullptr);
+      if (cc && cc->sort_index >= 0) {
+        return cc->sort_index;
+      }
     }
   }
   return INT_MAX;
@@ -518,8 +518,8 @@ static bool treesort_custom(const tTreeSort &x1,
                             Map<Object *, CollectionObject *> &collection_object_map,
                             Map<Collection *, CollectionChild *> &collection_child_map)
 {
-  const bool x1_valid = ELEM(x1.idcode, ID_OB, ID_GR);
-  const bool x2_valid = ELEM(x2.idcode, ID_OB, ID_GR);
+  const bool x1_valid = (x1.idcode == ID_OB) || outliner_is_collection_tree_element(x1.te);
+  const bool x2_valid = (x2.idcode == ID_OB) || outliner_is_collection_tree_element(x2.te);
 
   if (!x1_valid || !x2_valid) {
     return false;
@@ -697,11 +697,13 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
             collection_object_map.add_new(ob, cob);
           }
         }
-        else if (te.idcode == ID_GR) {
-          Collection *child_col = id_cast<Collection *>(tselem->id);
-          CollectionChild *cc = BKE_collection_child_find(collection, child_col);
-          if (cc != nullptr) {
-            collection_child_map.add_new(child_col, cc);
+        else {
+          Collection *child_col = outliner_collection_from_tree_element(&te);
+          if (child_col != nullptr) {
+            CollectionChild *cc = BKE_collection_child_find(collection, child_col);
+            if (cc != nullptr) {
+              collection_child_map.add_new(child_col, cc);
+            }
           }
         }
         tp++;
@@ -722,11 +724,13 @@ static void outliner_sort_custom(ListBaseT<TreeElement> *lb)
             cob->sort_index = index++;
           }
         }
-        else if (element.idcode == ID_GR) {
-          Collection *child_col = reinterpret_cast<Collection *>(element.id);
-          CollectionChild *cc = collection_child_map.lookup_default(child_col, nullptr);
-          if (cc != nullptr) {
-            cc->sort_index = index++;
+        else {
+          Collection *child_col = outliner_collection_from_tree_element(element.te);
+          if (child_col != nullptr) {
+            CollectionChild *cc = collection_child_map.lookup_default(child_col, nullptr);
+            if (cc != nullptr) {
+              cc->sort_index = index++;
+            }
           }
         }
       }
