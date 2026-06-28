@@ -6700,7 +6700,7 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
                            "Dome Master Unidirectional Safe Area for Backseats",
                            "Display Safe Area for Unidirectional Projection");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
-  }
+}
 
 static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
 {
