@@ -7013,9 +7013,7 @@ void calc_local_positions(const Span<float3> positions,
 {
   PRF_scope(ProfileCategory::Editor);
   BLI_assert(local_positions.size() == positions.size());
-  for (const int i : positions.index_range()) {
-    local_positions[i] = math::transform_point(mat, positions[i]);
-  }
+  math::transform_points(positions, mat, local_positions, false);
 }
 
 void calc_local_positions(const Span<float3> vert_positions,
