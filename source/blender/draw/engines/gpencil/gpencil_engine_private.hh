@@ -77,6 +77,12 @@ struct tVfx {
   gpu::FrameBuffer **target_fb = nullptr;
 };
 
+/* Named linked-list type for tVfx chains. Required so both tObject and tLayer can share the
+ * same vfx_pass_create routing pointer without an anonymous-struct type mismatch. */
+struct tVfxList {
+  tVfx *first = nullptr, *last = nullptr;
+};
+
 /* Temporary gpencil layer reflection used by the gpencil::Instance. */
 struct tLayer {
   /** Single linked-list. */
@@ -92,6 +98,10 @@ struct tLayer {
   int layer_id;
   /** True if this pass is part of the onion skinning. */
   bool is_onion;
+  /** Layer name — matched against fx->layer_name for per-layer effect routing. */
+  char layer_name[64];
+  /** Per-layer VFX passes (effects with layer_name filter targeting this layer). */
+  tVfxList vfx;
 };
 
 /* Temporary object reflection used by the gpencil::Instance. */
@@ -103,9 +113,7 @@ struct tObject {
     tLayer *first, *last;
   } layers;
 
-  struct {
-    tVfx *first, *last;
-  } vfx;
+  tVfxList vfx;
 
   /* Distance to camera. Used for sorting. */
   float camera_z;
@@ -157,10 +165,12 @@ struct Instance final : public DrawEngine {
   TextureFromPool depth_tx = {"depth_tx"};
   TextureFromPool color_tx = {"color_tx"};
   TextureFromPool color_layer_tx = {"color_layer_tx"};
+  TextureFromPool color_layer_vfx_tx = {"color_layer_vfx_tx"};
   TextureFromPool color_object_tx = {"color_object_tx"};
   /* Revealage is 1 - alpha */
   TextureFromPool reveal_tx = {"reveal_tx"};
   TextureFromPool reveal_layer_tx = {"reveal_layer_tx"};
+  TextureFromPool reveal_layer_vfx_tx = {"reveal_layer_vfx_tx"};
   TextureFromPool reveal_object_tx = {"reveal_object_tx"};
   /* Mask texture */
   TextureFromPool mask_depth_tx = {"mask_depth_tx"};
@@ -176,6 +186,7 @@ struct Instance final : public DrawEngine {
   Framebuffer gpencil_pass_fb = {"gpencil_pass_fb"};
   Framebuffer snapshot_fb = {"snapshot_fb"};
   Framebuffer layer_fb = {"layer_fb"};
+  Framebuffer layer_vfx_fb = {"layer_vfx_fb"};
   Framebuffer object_fb = {"object_fb"};
   Framebuffer mask_fb = {"mask_fb"};
   Framebuffer smaa_edge_fb = {"smaa_edge_fb"};
@@ -281,6 +292,7 @@ struct Instance final : public DrawEngine {
   bool use_lights;
   /* Do we need additional frame-buffers? */
   bool use_layer_fb;
+  bool use_layer_vfx_fb;
   bool use_object_fb;
   bool use_mask_fb;
   /* The viewport compositor needs the combined pass, so we need to render to it. */
@@ -368,12 +380,17 @@ struct Instance final : public DrawEngine {
 
   SwapChain<VfxFramebufferRef, 2> vfx_swapchain_;
 
+  /** When non-null, vfx_pass_create appends here instead of to a tObject's vfx list.
+   *  Used by vfx_layer_sync to route per-layer FX into tLayer->vfx. */
+  tVfxList *active_layer_vfx_ = nullptr;
+
   PassSimple &vfx_pass_create(const char *name,
                               DRWState state,
                               gpu::Shader *sh,
                               tObject *tgp_ob,
                               GPUSamplerState sampler = GPUSamplerState::internal_sampler());
 
+  void vfx_layer_sync(Object *ob, tObject *tgp_ob, tLayer *tgp_layer, bool is_edit_mode);
   void vfx_blur_sync(BlurShaderFxData *fx, Object *ob, tObject *tgp_ob);
   void vfx_colorize_sync(ColorizeShaderFxData *fx, Object *ob, tObject *tgp_ob);
   void vfx_flip_sync(FlipShaderFxData *fx, Object *ob, tObject *tgp_ob);

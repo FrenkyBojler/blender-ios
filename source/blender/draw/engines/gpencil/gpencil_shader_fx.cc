@@ -7,6 +7,7 @@
  */
 #include "DNA_camera_types.h"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_shader_fx_types.h"
 #include "DNA_view3d_types.h"
 
@@ -60,7 +61,12 @@ PassSimple &Instance::vfx_pass_create(
 
   vfx_swapchain_.swap();
 
-  BLI_LINKS_APPEND(&tgp_ob->vfx, &tgp_vfx);
+  if (tgp_ob != nullptr) {
+    BLI_LINKS_APPEND(&tgp_ob->vfx, &tgp_vfx);
+  }
+  else if (active_layer_vfx_ != nullptr) {
+    BLI_LINKS_APPEND(active_layer_vfx_, &tgp_vfx);
+  }
 
   return pass;
 }
@@ -565,11 +571,143 @@ void Instance::vfx_swirl_sync(SwirlShaderFxData *fx, Object * /*ob*/, tObject *t
   grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
+void Instance::vfx_layer_sync(Object *ob, tObject * /*tgp_ob*/, tLayer *tgp_layer, bool is_edit_mode)
+{
+  tgp_layer->vfx = {};
+
+  if (this->simplify_fx) {
+    return;
+  }
+
+  /* Check early if any per-layer effects exist on this object at all. */
+  bool any_layer_fx = false;
+  for (const ShaderFxData &fx : ob->shader_fx) {
+    if (fx.layer_name[0] != '\0' &&
+        effect_is_active(const_cast<ShaderFxData *>(&fx), is_edit_mode, this->is_viewport))
+    {
+      any_layer_fx = true;
+      break;
+    }
+  }
+  if (!any_layer_fx) {
+    return;
+  }
+
+  /* Resolve the bke layer once for group membership tests. */
+  const GreasePencil *grease_pencil = reinterpret_cast<const GreasePencil *>(ob->data);
+  const bke::greasepencil::Layer *gp_layer = nullptr;
+  for (const bke::greasepencil::Layer *l : grease_pencil->layers()) {
+    if (l->name() == tgp_layer->layer_name) {
+      gp_layer = l;
+      break;
+    }
+  }
+
+  /* Per-layer ping-pong: current = layer_fb (source), next = layer_vfx_fb (target). */
+  vfx_swapchain_.current().fb = &layer_fb;
+  vfx_swapchain_.current().color_tx = &color_layer_tx;
+  vfx_swapchain_.current().reveal_tx = &reveal_layer_tx;
+  vfx_swapchain_.next().fb = &layer_vfx_fb;
+  vfx_swapchain_.next().color_tx = &color_layer_vfx_tx;
+  vfx_swapchain_.next().reveal_tx = &reveal_layer_vfx_tx;
+
+  active_layer_vfx_ = &tgp_layer->vfx;
+
+  for (ShaderFxData &fx : ob->shader_fx) {
+    if (fx.layer_name[0] == '\0') {
+      continue;
+    }
+    if (!effect_is_active(&fx, is_edit_mode, this->is_viewport)) {
+      continue;
+    }
+
+    bool matches = false;
+    if (gp_layer != nullptr) {
+      if (fx.flag & eShaderFxFlag_UseLayerGroupFilter) {
+        const bke::greasepencil::LayerGroup *filter_group = nullptr;
+        for (const bke::greasepencil::LayerGroup *group : grease_pencil->layer_groups()) {
+          if (group->name() == fx.layer_name) {
+            filter_group = group;
+            break;
+          }
+        }
+        if (filter_group != nullptr) {
+          matches = gp_layer->is_child_of(*filter_group);
+        }
+      }
+      else {
+        matches = (gp_layer->name() == fx.layer_name);
+      }
+    }
+
+    const bool invert = (fx.flag & eShaderFxFlag_InvertLayerFilter) != 0;
+    if (matches == invert) {
+      continue;
+    }
+
+    switch (fx.type) {
+      case eShaderFxType_Blur:
+        vfx_blur_sync(reinterpret_cast<BlurShaderFxData *>(&fx), ob, nullptr);
+        break;
+      case eShaderFxType_Colorize:
+        vfx_colorize_sync(reinterpret_cast<ColorizeShaderFxData *>(&fx), ob, nullptr);
+        break;
+      case eShaderFxType_Flip:
+        vfx_flip_sync(reinterpret_cast<FlipShaderFxData *>(&fx), ob, nullptr);
+        break;
+      case eShaderFxType_Pixel:
+        vfx_pixelize_sync(reinterpret_cast<PixelShaderFxData *>(&fx), ob, nullptr);
+        break;
+      case eShaderFxType_Rim:
+        vfx_rim_sync(reinterpret_cast<RimShaderFxData *>(&fx), ob, nullptr);
+        break;
+      case eShaderFxType_Shadow:
+        vfx_shadow_sync(reinterpret_cast<ShadowShaderFxData *>(&fx), ob, nullptr);
+        break;
+      case eShaderFxType_Glow:
+        vfx_glow_sync(reinterpret_cast<GlowShaderFxData *>(&fx), ob, nullptr);
+        break;
+      case eShaderFxType_Swirl:
+        vfx_swirl_sync(reinterpret_cast<SwirlShaderFxData *>(&fx), ob, nullptr);
+        break;
+      case eShaderFxType_Wave:
+        vfx_wave_sync(reinterpret_cast<WaveShaderFxData *>(&fx), ob, nullptr);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /* Normalize ping-pong parity: after an odd number of passes, the result is in layer_vfx_fb.
+   * Add a blit pass to copy it back to layer_fb so blend_ps always reads from layer_fb. */
+  int pass_count = 0;
+  for (tVfx *v = tgp_layer->vfx.first; v != nullptr; v = v->next) {
+    pass_count++;
+  }
+  if (pass_count % 2 == 1) {
+    gpu::Shader *sh = ShaderCache::get().fx_blit.get();
+    auto &grp = vfx_pass_create("Fx Layer Blit", DRW_STATE_WRITE_COLOR, sh, nullptr);
+    grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+  }
+
+  active_layer_vfx_ = nullptr;
+}
+
 void Instance::vfx_sync(Object *ob, tObject *tgp_ob)
 {
   const bool is_edit_mode = ELEM(
       ob->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL, OB_MODE_WEIGHT_GREASE_PENCIL);
 
+  /* Sync per-layer VFX for every layer first. */
+  for (tLayer *tgp_layer = tgp_ob->layers.first; tgp_layer != nullptr;
+       tgp_layer = tgp_layer->next)
+  {
+    if (!tgp_layer->is_onion) {
+      vfx_layer_sync(ob, tgp_ob, tgp_layer, is_edit_mode);
+    }
+  }
+
+  /* Object-level VFX swapchain: current = object_fb (source), next = layer_fb (target). */
   vfx_swapchain_.next().fb = &layer_fb;
   vfx_swapchain_.next().color_tx = &color_layer_tx;
   vfx_swapchain_.next().reveal_tx = &reveal_layer_tx;
@@ -580,6 +718,10 @@ void Instance::vfx_sync(Object *ob, tObject *tgp_ob)
   /* If simplify enabled, nothing more to do. */
   if (!this->simplify_fx) {
     for (ShaderFxData &fx : ob->shader_fx) {
+      /* Skip effects that target a specific layer — handled by vfx_layer_sync. */
+      if (fx.layer_name[0] != '\0') {
+        continue;
+      }
       if (effect_is_active(&fx, is_edit_mode, this->is_viewport)) {
         switch (fx.type) {
           case eShaderFxType_Blur:

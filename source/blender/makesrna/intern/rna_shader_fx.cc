@@ -717,6 +717,22 @@ void RNA_def_shader_fx(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Expanded", "Set effect expansion in the user interface");
   RNA_def_property_ui_icon(prop, ICON_RIGHTARROW, 1);
 
+  /* layer influence */
+  prop = RNA_def_property(srna, "layer_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "layer_name");
+  RNA_def_property_ui_text(prop, "Layer", "Layer name used to limit the effect influence");
+  RNA_def_property_update(prop, NC_OBJECT | ND_SHADERFX, "rna_ShaderFx_update");
+
+  prop = RNA_def_property(srna, "invert_layer_filter", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", eShaderFxFlag_InvertLayerFilter);
+  RNA_def_property_ui_text(prop, "Invert Layer", "Invert layer filter");
+  RNA_def_property_update(prop, NC_OBJECT | ND_SHADERFX, "rna_ShaderFx_update");
+
+  prop = RNA_def_property(srna, "use_layer_group_filter", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", eShaderFxFlag_UseLayerGroupFilter);
+  RNA_def_property_ui_text(prop, "Use Layer Group", "Filter by layer group instead of individual layer");
+  RNA_def_property_update(prop, NC_OBJECT | ND_SHADERFX, "rna_ShaderFx_update");
+
   /* types */
   rna_def_shader_fx_blur(brna);
   rna_def_shader_fx_colorize(brna);

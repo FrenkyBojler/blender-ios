@@ -86,6 +86,34 @@ static void set_shaderfx_expand_flag(const bContext * /*C*/, Panel *panel, short
 
 void shaderfx_panel_end(ui::Layout &layout, PointerRNA *ptr)
 {
+  /* Layer influence filter — shown at the bottom of every effect. */
+  if (ptr->owner_id && GS(ptr->owner_id->name) == ID_OB) {
+    PointerRNA ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, RNA_Object, ptr->owner_id);
+    PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
+    const bool use_layer_group = RNA_boolean_get(ptr, "use_layer_group_filter");
+
+    layout.separator();
+    layout.use_property_split_set(true);
+
+    ui::Layout &row = layout.row(true);
+    row.use_property_decorate_set(false);
+    if (use_layer_group) {
+      row.prop_search(ptr,
+                      "layer_name",
+                      &obj_data_ptr,
+                      "layer_groups",
+                      IFACE_("Group"),
+                      ICON_GREASEPENCIL_LAYER_GROUP);
+    }
+    else {
+      row.prop_search(
+          ptr, "layer_name", &obj_data_ptr, "layers", std::nullopt, ICON_OUTLINER_DATA_GP_LAYER);
+    }
+    ui::Layout &sub = row.row(true);
+    sub.prop(ptr, "use_layer_group_filter", UI_ITEM_NONE, "", ICON_GREASEPENCIL_LAYER_GROUP);
+    sub.prop(ptr, "invert_layer_filter", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
+  }
+
   ShaderFxData *fx = static_cast<ShaderFxData *>(ptr->data);
   if (fx->error) {
     ui::Layout &row = layout.row(false);

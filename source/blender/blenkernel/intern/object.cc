@@ -225,6 +225,7 @@ static void object_copy_data(Main *bmain,
   for (ShaderFxData &fx : ob_src->shader_fx) {
     ShaderFxData *nfx = BKE_shaderfx_new(fx.type);
     STRNCPY(nfx->name, fx.name);
+    STRNCPY(nfx->layer_name, fx.layer_name);
     BKE_shaderfx_copydata_ex(&fx, nfx, flag_subdata);
     BLI_addtail(&ob_dst->shader_fx, nfx);
   }

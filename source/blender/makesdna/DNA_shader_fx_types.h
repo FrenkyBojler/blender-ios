@@ -26,6 +26,8 @@ ENUM_OPERATORS(ShaderFxMode)
 enum ShaderFxFlag : short {
   /* This fx has been inserted in local override, and hence can be fully edited. */
   eShaderFxFlag_OverrideLibrary_Local = (1 << 0),
+  eShaderFxFlag_InvertLayerFilter = (1 << 1),
+  eShaderFxFlag_UseLayerGroupFilter = (1 << 2),
 };
 ENUM_OPERATORS(ShaderFxFlag)
 
@@ -113,6 +115,8 @@ struct ShaderFxData {
   /* An "expand" bit for each of the constraint's (sub)panels (uiPanelDataExpansion). */
   short ui_expand_flag = 0;
   char name[/*MAX_NAME*/ 64] = "";
+  /** Limit effect to strokes on this layer (empty = all layers). */
+  char layer_name[/*MAX_NAME*/ 64] = "";
 
   char *error = nullptr;
 };
