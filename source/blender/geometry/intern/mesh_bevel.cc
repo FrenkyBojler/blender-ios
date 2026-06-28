@@ -1120,8 +1120,8 @@ static bool point_between_edges(
   dir1 = math::normalize(dir1);
   dir2 = math::normalize(dir2);
   dirco = math::normalize(dirco);
-  float ang11 = angle_normalized_v3v3(dir1, dir2);
-  float ang1co = angle_normalized_v3v3(dir1, dirco);
+  float ang11 = float(math::angle_between(dir1, dir2));
+  float ang1co = float(math::angle_between(dir1, dirco));
   float3 no = math::cross(dir1, dir2);
   if (math::dot(no, emesh.src_face_normals[f]) < 0.0f) {
     ang11 = float(M_PI * 2.0) - ang11;
@@ -1157,7 +1157,7 @@ static float3 offset_meet(const ExtendableMesh &emesh,
     dir2p = v_co - emesh.vert_position(geom::edge_other_vert(emesh, e2prev->e, v));
   }
 
-  float ang = angle_v3v3(dir1, dir2);
+  float ang = float(math::angle_between(math::normalize(dir1), math::normalize(dir2)));
   float3 norm_perp1;
   float3 meetco;
   if (ang < BEVEL_EPSILON_ANG) {
@@ -1284,8 +1284,7 @@ static float3 offset_meet(const ExtendableMesh &emesh,
           float3 dropco = math::closest_to_plane_normalized(plane, meetco);
           /* Don't drop to faces next to the in-plane edge. */
           if (e_in_plane) {
-            float ang = math::safe_acos(math::dot(
-                math::normalize(no), math::normalize(emesh.src_face_normals[e_in_plane->fnext])));
+            float ang = float(math::angle_between(no, emesh.src_face_normals[e_in_plane->fnext]));
             if ((math::abs(ang) < BEVEL_SMALL_ANG) ||
                 (math::abs(ang - float(M_PI)) < BEVEL_SMALL_ANG))
             {
@@ -1406,7 +1405,7 @@ static float3 avg4(const NewVert *v0, const NewVert *v1, const NewVert *v2, cons
 /** Returns true when `d1` and `d2` are parallel or anti-parallel. */
 static bool nearly_parallel(const float3 &d1, const float3 &d2)
 {
-  const float ang = math::safe_acos(math::dot(math::normalize(d1), math::normalize(d2)));
+  const float ang = float(math::angle_between(math::normalize(d1), math::normalize(d2)));
   return (math::abs(ang) < BEVEL_EPSILON_ANG) ||
          (math::abs(ang - float(M_PI)) < BEVEL_EPSILON_ANG);
 }
@@ -1426,7 +1425,7 @@ static bool make_unit_square_map(const float3 &va,
   if (math::is_zero(va_vmid) || math::is_zero(vb_vmid)) {
     return false;
   }
-  if (math::abs(math::safe_acos(math::dot(math::normalize(va_vmid), math::normalize(vb_vmid))) -
+  if (math::abs(float(math::angle_between(math::normalize(va_vmid), math::normalize(vb_vmid))) -
                 float(M_PI)) <= BEVEL_EPSILON_ANG)
   {
     return false;
@@ -6218,7 +6217,7 @@ static BoundVert *pipe_test(const BevelState &state, BevVert *bv)
 
       dir1 = math::normalize(bv_co - co_v1);
       dir3 = math::normalize(co_v3 - bv_co);
-      if (acosf(math::clamp(math::dot(dir1, dir3), -1.0f, 1.0f)) < geom::BEVEL_EPSILON_ANG) {
+      if (float(math::angle_between(dir1, dir3)) < geom::BEVEL_EPSILON_ANG) {
         epipe = v1->ebev;
         break;
       }
@@ -6512,7 +6511,7 @@ static VMesh square_out_adj_vmesh(BevelState &state, BevVert *bv)
   bndv = vm.boundstart;
   for (int i = 0; i < n_bndv; i++) {
     if (odd) {
-      float ang = 0.5f * math::safe_acos(math::dot(math::normalize(bndv->nv.co - co2),
+      float ang = 0.5f * float(math::angle_between(math::normalize(bndv->nv.co - co2),
                                                    math::normalize(bndv->next->nv.co - co2)));
       float finalfrac;
       if (ang > geom::BEVEL_SMALL_ANG) {
@@ -6619,8 +6618,7 @@ static int tri_corner_test(const BevelState &state, const BevVert *bv)
     if (e.fprev >= 0 && e.fnext >= 0) {
       const float3 no_prev = emesh.src_face_normals[e.fprev];
       const float3 no_next = emesh.src_face_normals[e.fnext];
-      const float dot = math::dot(no_prev, no_next);
-      ang = acosf(math::clamp(dot, -1.0f, 1.0f));
+      ang = float(math::angle_between(no_prev, no_next));
       /* Negate for concave (the dihedral is > π). */
       if (math::dot(math::cross(no_prev, no_next),
                     emesh.src_positions[bv->v] - state.face_center(e.fprev)) < 0.0f)
