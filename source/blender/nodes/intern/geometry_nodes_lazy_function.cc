@@ -391,9 +391,10 @@ class LazyFunctionForMultiInput : public LazyFunction {
       SocketValueVariant value = params.extract_input<SocketValueVariant>(i);
       try_assign_socket_value_to(std::move(value), GMutablePointer(base_type_, list_values[i]));
     }
+
     GListPtr list = GList::from_garray(std::move(list_values));
     void *output_ptr = params.get_output_data_ptr(0);
-    new (output_ptr) SocketValueVariant(SocketValueVariant::From(std::move(list)));
+    new (output_ptr) SocketValueVariant (SocketValueVariant::From(std::move(list)));
     params.output_set(0);
   }
 };
@@ -488,6 +489,30 @@ std::string make_anonymous_attribute_socket_inspection_string(StringRef node_nam
   return fmt::format(fmt::runtime(TIP_("\"{}\" from {}")), socket_name, node_name);
 }
 
+class GVVectorArray_ForEmpty : public GVVectorArray {
+ public:
+  GVVectorArray_ForEmpty(const CPPType &type) : GVVectorArray(type, 0){}
+
+ protected:
+  int64_t get_vector_size_impl(int64_t /*index*/) const final
+  {
+    BLI_assert_unreachable();
+    return 0;
+  }
+
+  void get_vector_element_impl(int64_t /*index*/,
+                               int64_t /*index_in_vector*/,
+                               void */*r_value*/) const final
+  {
+    BLI_assert_unreachable();
+  }
+
+  bool is_single_vector_impl() const final
+  {
+    return false;
+  }
+};
+
 class GVVectorArray_For_Plain_Array : public GVVectorArray {
  private:
   const GSpan data_;
@@ -552,6 +577,13 @@ static void execute_multi_function_on_value_variant__single(
     if (param_type.data_type().is_vector()) {
       const CPPType &cpp_type = param_type.data_type().vector_base_type();
       auto values = input_variant.get<GListPtr>();
+
+      if (values->size() == 0) {
+        auto &value = scope.add_value(GVVectorArray_ForEmpty(cpp_type));
+        params.add_readonly_vector_input(value);
+        continue;
+      }
+
       if (values->cpp_type() == cpp_type) {
         auto &list_data = scope.add_value(GVArraySpan(values->varray()));
         auto &value = scope.add_value(GVVectorArray_For_Plain_Array(list_data, list_data.size(), cpp_type));
@@ -562,9 +594,7 @@ static void execute_multi_function_on_value_variant__single(
       const VArray list_data = values->varray().typed<SocketValueVariant>();
       auto &list_values = scope.add_value(GArray<>(cpp_type, list_data.size()));
       for (const int list_item : list_data.index_range()) {
-        const GPointer item_value = list_data[list_item].get_single_ptr();
-        BLI_assert(item_value.type() == cpp_type);
-        cpp_type.copy_assign(item_value.get(), list_values[list_item]);
+        cpp_type.copy_assign(list_data[list_item].get_single_ptr_raw(), list_values[list_item]);
       }
 
       auto &value = scope.add_value(GVVectorArray_For_Plain_Array(list_values.as_span(), list_data.size(), cpp_type));
@@ -577,6 +607,7 @@ static void execute_multi_function_on_value_variant__single(
     const void *value = input_variant.get_single_ptr_raw();
     params.add_readonly_single_input(GPointer{cpp_type, value});
   }
+
   for (const int i : output_values.index_range()) {
     if (output_values[i] == nullptr) {
       params.add_ignored_single_output("");

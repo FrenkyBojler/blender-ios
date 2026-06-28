@@ -208,7 +208,14 @@ inline void ParamsBuilder::add_readonly_vector_input(const GVVectorArray &ref,
                                                      StringRef expected_name)
 {
   this->assert_current_param_type(ParamType::ForVectorInput(ref.type()), expected_name);
-  BLI_assert(ref.size() >= min_array_size_);
+  BLI_assert(([&]() {
+    for (const int element_i : IndexRange(ref.size())) {
+      if (ref.get_vector_size(element_i) < min_array_size_) {
+        return false;
+      }
+    }
+    return true;
+  }()));
   actual_params_.append_unchecked_as(std::in_place_type<const GVVectorArray *>, &ref);
 }
 

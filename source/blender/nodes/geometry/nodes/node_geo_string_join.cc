@@ -32,6 +32,7 @@ class StringJointFunction : public mf::MultiFunction {
     static mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder("join(string...)", signature);
+      builder.single_input<std::string>("Delimiter");
       builder.vector_input<std::string>("Inputs");
       builder.single_output<std::string>("Result");
       return signature;
@@ -41,10 +42,18 @@ class StringJointFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    const VVectorArray<std::string> &strings = params.readonly_vector_input<std::string>(0, "Inputs");
-    MutableSpan<std::string> result = params.uninitialized_single_output<std::string>(1, "Result");
+    const VArray<std::string> delimiters = params.readonly_single_input<std::string>(0, "Delimiter");
+    const VVectorArray<std::string> &strings = params.readonly_vector_input<std::string>(1, "Inputs");
+    MutableSpan<std::string> result = params.uninitialized_single_output<std::string>(2, "Result");
 
     const int elements_num = strings.size();
+
+    if (elements_num == 0) {
+      mask.foreach_index_optimized<int>([&](const int i) {
+        new (&result[i]) std::string ("");
+      }, exec_mode::serial);
+      return;
+    }
 
     if (elements_num == 1) {
       mask.foreach_index_optimized<int>([&](const int i) {
@@ -55,9 +64,11 @@ class StringJointFunction : public mf::MultiFunction {
     
     mask.foreach_index([&](const int i) {
       std::string buffer;
-      for (const int element_i : IndexRange(elements_num)) {
-        buffer += strings.get_vector_element(element_i, i);
+      const std::string delimiter = delimiters[i];
+      for (const int element_i : IndexRange(elements_num).drop_back(1)) {
+        buffer += strings.get_vector_element(element_i, i) + delimiter;
       }
+      buffer += strings.get_vector_element(elements_num - 1, i);
       new (&result[i]) std::string (std::move(buffer));
     }, exec_mode::serial);
   }
@@ -69,7 +80,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   auto strings_list = params.extract_input<bke::SocketValueVariant>("Strings"_ustr);
 
   std::string error_message;
-
   const static StringJointFunction func;
 
   bke::SocketValueVariant output_value;
@@ -85,7 +95,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Value"_ustr, std::move(output_value));
+  params.set_output("String"_ustr, std::move(output_value));
 }
 
 static void node_register()
