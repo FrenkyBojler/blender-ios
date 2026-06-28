@@ -43,6 +43,7 @@
 #include "BLF_api.hh"
 #include "BLT_translation.hh"
 
+#include "WM_types.hh"
 #include "transform.hh"
 #include "transform_constraints.hh"
 #include "transform_convert.hh"
@@ -795,6 +796,7 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
       }
       return t->vod != nullptr;
     case TFM_MODAL_STRIP_CLAMP:
+    case TFM_MODAL_STRIP_ASYMMETRIC:
       if (t->spacetype != SPACE_SEQ) {
         return false;
       }
@@ -856,6 +858,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
       {TFM_MODAL_PASSTHROUGH_NAVIGATE, "PASSTHROUGH_NAVIGATE", 0, "Navigate", ""},
       {TFM_MODAL_NODE_FRAME, "NODE_FRAME", 0, "Attach/Detach Frame", ""},
       {TFM_MODAL_STRIP_CLAMP, "STRIP_CLAMP_TOGGLE", 0, "Clamp Strips", ""},
+      {TFM_MODAL_STRIP_ASYMMETRIC, "STRIP_ASYMMETRIC", 0, "Asymmetric Transitions", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1406,6 +1409,10 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
         break;
       case TFM_MODAL_STRIP_CLAMP:
         t->modifiers ^= MOD_STRIP_CLAMP_HOLDS;
+        t->redraw |= TREDRAW_HARD;
+        break;
+      case TFM_MODAL_STRIP_ASYMMETRIC:
+        t->modifiers ^= MOD_STRIP_ASYMMETRIC;
         t->redraw |= TREDRAW_HARD;
         break;
       default:

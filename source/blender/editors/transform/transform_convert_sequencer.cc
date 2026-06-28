@@ -57,6 +57,8 @@ struct TransDataSeq {
   int flag;
   /** One of #SEQ_SELECT, #SEQ_LEFTSEL and #SEQ_RIGHTSEL. */
   short sel_flag;
+  /** Initial location of the opposite handle for transition strips. */
+  int opposite_handle;
 };
 
 /**
@@ -180,6 +182,8 @@ static TransData *SeqToTransData(Scene *scene,
 {
   int start_left;
 
+  tdsq->opposite_handle = 0;
+
   switch (sel_flag) {
     case SEQ_SELECT:
       /* Use seq_tx_get_final_left() and an offset here
@@ -191,9 +195,11 @@ static TransData *SeqToTransData(Scene *scene,
     case SEQ_LEFTSEL:
       start_left = strip->left_handle();
       td2d->loc[0] = start_left;
+      tdsq->opposite_handle = strip->right_handle(scene);
       break;
     case SEQ_RIGHTSEL:
       td2d->loc[0] = strip->right_handle(scene);
+      tdsq->opposite_handle = strip->left_handle();
       break;
   }
 
@@ -756,6 +762,38 @@ static void flush_strip_flags(TransInfo *t,
   }
 }
 
+static void flush_transition_transforms(TransInfo *t,
+                                        TransData *td,
+                                        float offset_clamped[2],
+                                        std::optional<int> &r_left_new,
+                                        std::optional<int> &r_right_new)
+{
+  const TransDataSeq *tdsq = static_cast<TransDataSeq *>(td->extra);
+
+  /* Location before the start of the transform. */
+  const int x_old = round_fl_to_int(td->iloc[0]);
+  /* Clamped offset from #x_old. */
+  const int x_offset = round_fl_to_int(offset_clamped[0]);
+
+  // TODO: Should you be able to move the transition by selecting both handles? Currently it's
+  // allowed
+
+  int opposite_new = tdsq->opposite_handle;
+  if (!(t->modifiers & MOD_STRIP_ASYMMETRIC)) {
+    opposite_new -= x_offset;
+  }
+  switch (tdsq->sel_flag) {
+    case SEQ_LEFTSEL:
+      r_left_new = x_old + x_offset;
+      r_right_new = r_right_new.value_or(opposite_new);
+      break;
+    case SEQ_RIGHTSEL:
+      r_right_new = x_old + x_offset;
+      r_left_new = r_left_new.value_or(opposite_new);
+      break;
+  }
+}
+
 /* Flushes the translation and channel updates. Possible updates to the handle locations are
  * returned and handled outside this function. This is to avoid unexpected handle clamping when
  * both handles are selected and the `new_frame` is right of the old one. See #126191. */
@@ -770,85 +808,68 @@ static void flush_strip_transforms(TransInfo *t,
   const TransDataSeq *tdsq = static_cast<TransDataSeq *>(td->extra);
   Strip *strip = tdsq->strip;
 
+  if (seq::strip_is_transition(strip)) {
+    flush_transition_transforms(t, td, offset_clamped, r_left_new, r_right_new);
+    return;
+  }
+
   /* Location before the start of the transform. */
   const int x_old = round_fl_to_int(td->iloc[0]);
   /* Clamped offset from #x_old. */
   const int x_offset = round_fl_to_int(offset_clamped[0]);
 
-  switch (tdsq->sel_flag) {
-    case SEQ_SELECT: {
-      const int new_channel = round_fl_to_int(td->iloc[1] + offset_clamped[1]);
+  if (tdsq->sel_flag == SEQ_SELECT) {
+    const int new_channel = round_fl_to_int(td->iloc[1] + offset_clamped[1]);
+    const int delta_x = (x_old + x_offset) - strip->left_handle();
 
-      if (seq::transform_strip_can_be_translated(strip)) {
-        const int delta_x = (x_old + x_offset) - strip->left_handle();
+    seq::strip_channel_set(strip, new_channel);
 
-        seq::transform_translate_strip(scene, strip, delta_x);
+    if (!seq::transform_strip_can_be_translated(strip)) {
+      return;
+    }
 
-        // TODO: i think this doesn't respect the modifications to the flag tho
-        // really you need to iterate again like this
-        // for (int a = 0; a < tc->data_len; a++, td++) {
-        // rather than with a lookup.
-        // Though, check.
-        /* Move attached transitions with the strips if both transition inputs are selected. */
-        Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
-        for (Strip *e : effects) {
-          /* Only the transitions' second input moves the transitions. This is to prevent moving
-           * them twice. */
-          if (e->input2 == strip && seq::strip_is_transition(e)) {
-            // TODO: well, could be both right and left handles selected. should still do the same
-            // move. though if simultaneous strip + handle selection is removed later, this won't
-            // be an issue
-            if (e->input1->flag & SEQ_SELECT) {
-              seq::transform_translate_strip(scene, e, delta_x);
-              seq::strip_channel_set(e, new_channel);
-            }
-          }
+    seq::transform_translate_strip(scene, strip, delta_x);
+
+    // TODO: i think this doesn't respect the modifications to the flag tho
+    // really you need to iterate again like this
+    // for (int a = 0; a < tc->data_len; a++, td++) {
+    // rather than with a lookup.
+    // Though, check.
+    /* Move attached transitions with the strips if both transition inputs are selected. */
+    Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
+    for (Strip *e : effects) {
+      /* Only the transitions' second input moves the transitions. This is to prevent moving
+       * them twice. */
+      if (e->input2 == strip && seq::strip_is_transition(e)) {
+        // TODO: well, could be both right and left handles selected. should still do the same
+        // move. though if simultaneous strip + handle selection is removed later, this won't
+        // be an issue
+        if (e->input1->flag & SEQ_SELECT) {
+          seq::transform_translate_strip(scene, e, delta_x);
+          seq::strip_channel_set(e, new_channel);
         }
       }
-      if (!seq::strip_is_transition(strip)) {
-        seq::strip_channel_set(strip, new_channel);
-      }
-
-      break;
     }
-    case SEQ_LEFTSEL: { /* No vertical transform. */
-      r_left_new = x_old + x_offset;
+  }
+  else if (tdsq->sel_flag == SEQ_LEFTSEL) {
+    r_left_new = x_old + x_offset;
+  }
+  else if (tdsq->sel_flag == SEQ_RIGHTSEL) {
+    r_right_new = x_old + x_offset;
 
-      // TODO: I guess I need to store the original value of the opposite handle first (like was
-      // done for start_offset). Else switching asymmetric transitions on and off won't work
-      // correctly.
-
-      // if (seq::strip_is_transition(strip) && !(t->modifiers & MOD_STRIP_ASYMMETRIC)) {
-      //   r_right_new = right_old - x_offset;
-      //   break;
-      // }
-      break;
-    }
-    case SEQ_RIGHTSEL: { /* No vertical transform. */
-      r_right_new = x_old + x_offset;
-
-      // if (seq::strip_is_transition(strip) && !(t->modifiers & MOD_STRIP_ASYMMETRIC)) {
-      //   left_new = left_old - x_offset;
-      //   break;
-      // }
-
-      /* Move the transition with the cut point if adjacent handles are selected. This is only done
-       * for the right handle to avoid moving it twice. */
-
-      const int delta_x = *r_right_new - strip->right_handle(scene);
-      Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
-      for (Strip *e : effects) {
-        if (seq::strip_is_transition(e)) {
-          // TODO: eh, these should be kept in the right order, but anyway
-          if ((e->input1 == strip && (e->input2->flag & SEQ_LEFTSEL)) ||
-              (e->input2 == strip && (e->input1->flag & SEQ_LEFTSEL)))
-          {
-            seq::transform_translate_strip(scene, e, delta_x);
-          }
+    /* Move the transition with the cut point if adjacent handles are selected. This is only done
+     * for the right handle to avoid moving it twice. */
+    const int delta_x = *r_right_new - strip->right_handle(scene);
+    Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
+    for (Strip *e : effects) {
+      if (seq::strip_is_transition(e)) {
+        // TODO: eh, these should be kept in the right order, but anyway
+        if ((e->input1 == strip && (e->input2->flag & SEQ_LEFTSEL)) ||
+            (e->input2 == strip && (e->input1->flag & SEQ_LEFTSEL)))
+        {
+          seq::transform_translate_strip(scene, e, delta_x);
         }
       }
-
-      break;
     }
   }
 }
