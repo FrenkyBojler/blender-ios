@@ -618,6 +618,28 @@ template void add_effects_to_clip(
     std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects);
 
 template<typename T>
+static void add_strip_metadata_crop(const Strip *strip, SerializableObject::Retainer<T> &clip)
+{
+  if (!strip->data || !strip->data->crop) {
+    return;
+  }
+  const StripCrop *crop = strip->data->crop;
+  AnyDictionary metadata;
+
+  metadata["top"] = static_cast<int64_t>(crop->top);
+  metadata["bottom"] = static_cast<int64_t>(crop->bottom);
+  metadata["left"] = static_cast<int64_t>(crop->left);
+  metadata["right"] = static_cast<int64_t>(crop->right);
+
+  try {
+    std::any_cast<AnyDictionary &>(clip->metadata()["blender"])["crop"] = metadata;
+  }
+  catch (const std::bad_any_cast & /*e*/) {
+    return;
+  }
+}
+
+template<typename T>
 static void add_strip_metadata_transform(const Strip *strip, SerializableObject::Retainer<T> &clip)
 {
   if (!strip->data || !strip->data->transform) {
@@ -646,12 +668,33 @@ static void add_strip_metadata_transform(const Strip *strip, SerializableObject:
 }
 
 template<typename T>
+static void add_strip_metadata_compositing(const Strip *strip,
+                                           SerializableObject::Retainer<T> &clip)
+{
+  AnyDictionary metadata;
+
+  metadata["blend_mode"] = static_cast<int64_t>(strip->blend_mode);
+  metadata["blend_opacity"] = static_cast<double>(strip->blend_opacity);
+
+  try {
+    std::any_cast<AnyDictionary &>(clip->metadata()["blender"])["compositing"] = metadata;
+  }
+  catch (const std::bad_any_cast & /*e*/) {
+    return;
+  }
+}
+
+template<typename T>
 void add_strip_metadata_common(const Strip *strip, SerializableObject::Retainer<T> &clip)
 {
   if (!clip->metadata().has_key("blender")) {
     clip->metadata()["blender"] = AnyDictionary();
   }
-  add_strip_metadata_transform(strip, clip);
+  if (strip->type != STRIP_TYPE_SOUND) {
+    add_strip_metadata_transform(strip, clip);
+    add_strip_metadata_crop(strip, clip);
+    add_strip_metadata_compositing(strip, clip);
+  }
 }
 
 /* Force instantiate `add_strip_metadata_common<Stack>`. */
