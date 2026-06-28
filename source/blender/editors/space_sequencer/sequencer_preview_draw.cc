@@ -255,10 +255,11 @@ static void sequencer_draw_borders_overlay(const SpaceSeq &sseq,
                                &rect,
                                sseq.preview_overlay.composition_guide_color);
 
-    ED_draw_dome_master_composition_guides(shdr_pos,
-                                           sseq.preview_overlay.composition_guide_flags_dome_master,
-                                           &rect,
-                                           sseq.preview_overlay.composition_guide_color);
+    ED_draw_dome_master_composition_guides(
+        shdr_pos,
+        sseq.preview_overlay.composition_guide_flags_dome_master,
+        &rect,
+        sseq.preview_overlay.composition_guide_color);
   }
 
   immUnbindProgram();

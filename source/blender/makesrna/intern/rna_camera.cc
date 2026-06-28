@@ -978,8 +978,10 @@ void RNA_def_camera(BlenderRNA *brna)
 
   prop = RNA_def_property(
       srna, "show_composition_dome_master_directions", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "composition_guide_flags_dome_master", COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "composition_guide_flags_dome_master",
+                                COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS);
   RNA_def_property_ui_text(
       prop, "Dome Master Directions", "Display cardinal directions of the dome");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
@@ -1064,10 +1066,8 @@ void RNA_def_camera(BlenderRNA *brna)
                            "Display Safe Area for Unidirectional Projection");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
 
-  prop = RNA_def_property(srna,
-                          "show_composition_dome_master_unidirectional_sweetspot_back",
-                          PROP_BOOLEAN,
-                          PROP_NONE);
+  prop = RNA_def_property(
+      srna, "show_composition_dome_master_unidirectional_sweetspot_back", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_dome_master",

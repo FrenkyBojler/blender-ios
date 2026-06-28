@@ -1290,24 +1290,20 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
   float angle, x1, y1, x2, y2;
   const float radius_x_step = radius_x / rings;
   const float radius_y_step = radius_y / rings;
-  float sweetspot_radius = 0.02*radius_y;
+  float sweetspot_radius = 0.02 * radius_y;
 
-
-
-  if((flag & COMPOSITION_GUIDES_DOME_MASTER_GRID)
-    || (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_HORIZON)
-    || (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_FRONT)  
-    || (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_BACK)
-    || (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER)    
-    || (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_FRONT)
-    || (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_CENTER)
-    || (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_BACK)
-    || (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS)
-  )
+  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) ||
+      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_HORIZON) ||
+      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_FRONT) ||
+      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_BACK) ||
+      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER) ||
+      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_FRONT) ||
+      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_CENTER) ||
+      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_BACK) ||
+      (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS))
   {
     imm_draw_circle_wire_aspect_2d(shdr_pos, xmid, ymid, radius_x, radius_y, 365);
   }
-  
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_HORIZON)) {
 
@@ -1405,17 +1401,14 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_FRONT)) {
     imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .73), sweetspot_radius, 32);
-
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_CENTER)) {
     imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .54), sweetspot_radius, 32);
-
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_BACK)) {
     imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .43), sweetspot_radius, 32);
-
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER)) {
@@ -1465,7 +1458,7 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
   }
 
   if (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS) {
-  
+
     const uiStyle *style = ui::style_get();
     const uiFontStyle *fstyle = &style->widget;
     const int fontid = fstyle->uifont_id;
@@ -1512,7 +1505,6 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
     ED_composition_guides_dome_master_draw_names_helper(
         "N/W", x1 + direction_offset, y1 + direction_offset, fontid, direction_small);
   }
-  
 }
 
 /** \} */

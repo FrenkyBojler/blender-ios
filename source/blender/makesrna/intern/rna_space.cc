@@ -6599,11 +6599,6 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Harmonious Triangle B", "Display harmony B composition guide");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
-
-
-
-
-
   prop = RNA_def_property(srna, "composition_guide_color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, nullptr, "preview_overlay.composition_guide_color");
   RNA_def_property_ui_text(
@@ -6732,10 +6727,8 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
                            "Display Safe Area for Unidirectional Projection");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
-  prop = RNA_def_property(srna,
-                          "show_composition_dome_master_unidirectional_sweetspot_back",
-                          PROP_BOOLEAN,
-                          PROP_NONE);
+  prop = RNA_def_property(
+      srna, "show_composition_dome_master_unidirectional_sweetspot_back", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "preview_overlay.composition_guide_flags_dome_master",
