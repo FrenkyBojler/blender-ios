@@ -564,7 +564,7 @@ void StripExporter::add_gap_if_necessary()
     auto gap = SerializableObject::Retainer<Gap>(new Gap(gap_duration));
     track_->append_child(gap);
   }
-  last_strip_end = strip_->right_handle(scene_);
+  last_strip_end = strip_->right_handle(scene_) - 1;
 }
 
 void StripExporter::add_gap_if_necessary(SerializableObject::Retainer<Track> &track,
