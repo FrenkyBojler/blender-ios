@@ -102,6 +102,11 @@ static inline bool is_ubo_supported_type(const GPUType type)
     case GPU_MAT4:
       return true;
     case GPU_NONE:
+    case GPU_INT:
+    case GPU_INT2:
+    case GPU_INT3:
+    case GPU_INT4:
+    case GPU_BOOL:
     case GPU_MAT3:
     case GPU_TEX1D_ARRAY:
     case GPU_TEX2D:
