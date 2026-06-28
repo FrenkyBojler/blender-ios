@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <limits>
+#include <numbers>
+
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_math_matrix.hh"
@@ -192,17 +195,52 @@ static float4x4 build_point_matrix(const float3 &location,
   return matrix;
 }
 
-static void fill_mesh_positions(const int main_point_num,
-                                const int profile_point_num,
-                                const Span<float3> main_positions,
+static float4x4 build_point_matrix_miter_scale(const float3 &location_prev,
+                                               const float3 &location,
+                                               const float3 &location_next,
+                                               const float3 &tangent,
+                                               const float3 &normal,
+                                               const float miter_scale_limit)
+{
+  float4x4 matrix = float4x4::identity();
+  matrix.x_axis() = tangent;
+  /* Normal and tangent may not be orthogonal in case of custom normals. */
+  matrix.y_axis() = math::normalize(math::cross(normal, tangent));
+  matrix.z_axis() = normal;
+  matrix.location() = location;
+
+  /* Scale the profile plane along the corner bisector so the swept profile keeps a constant
+   * apparent width through bends (a miter join). The two incoming/outgoing segment directions and
+   * the bisector all lie in the profile plane, which is perpendicular to the sweep direction. */
+  const float3 segment_in = location - location_prev;
+  const float3 segment_out = location_next - location;
+  if (math::length_squared(segment_in) > 1e-12f && math::length_squared(segment_out) > 1e-12f) {
+    const float3 dir_in = math::normalize(segment_in);
+    const float3 dir_out = math::normalize(segment_out);
+    const float cos_turn = math::dot(dir_in, dir_out);
+    if (cos_turn < 1.0f - 1e-5f) {
+      /* Scale by 1 / cos(half the turn angle) so the cross-section measured perpendicular to each
+       * segment stays the same width as the un-mitered profile. */
+      const float scale = math::min(math::sqrt(2.0f / (1.0f + cos_turn)), miter_scale_limit);
+      const float3 bisector = math::normalize(dir_out - dir_in);
+      matrix.x_axis() += (scale - 1.0f) * math::dot(matrix.x_axis(), bisector) * bisector;
+      matrix.y_axis() += (scale - 1.0f) * math::dot(matrix.y_axis(), bisector) * bisector;
+    }
+  }
+  return matrix;
+}
+
+static void fill_mesh_positions(const Span<float3> main_positions,
                                 const Span<float3> profile_positions,
                                 const Span<float3> tangents,
                                 const Span<float3> normals,
                                 const Span<float> scales,
+                                const bool main_cyclic,
+                                const float miter_scale_limit,
                                 MutableSpan<float3> mesh_positions)
 {
-  if (profile_point_num == 1) {
-    for (const int i_ring : IndexRange(main_point_num)) {
+  if (profile_positions.size() == 1) {
+    for (const int i_ring : main_positions.index_range()) {
       float4x4 point_matrix = build_point_matrix(
           main_positions[i_ring], normals[i_ring], tangents[i_ring]);
       if (!scales.is_empty()) {
@@ -212,15 +250,31 @@ static void fill_mesh_positions(const int main_point_num,
     }
   }
   else {
-    for (const int i_ring : IndexRange(main_point_num)) {
-      float4x4 point_matrix = build_point_matrix(
-          main_positions[i_ring], normals[i_ring], tangents[i_ring]);
+    for (const int i_ring : main_positions.index_range()) {
+      /* Open curve endpoints have no real previous/next point, so they get no miter scaling. */
+      const bool is_open_endpoint = !main_cyclic &&
+                                    (i_ring == 0 || i_ring == main_positions.size() - 1);
+      float4x4 point_matrix;
+      if (is_open_endpoint) {
+        point_matrix = build_point_matrix(
+            main_positions[i_ring], normals[i_ring], tangents[i_ring]);
+      }
+      else {
+        const int i_ring_prev = i_ring == 0 ? main_positions.size() - 1 : i_ring - 1;
+        const int i_ring_next = i_ring == main_positions.size() - 1 ? 0 : i_ring + 1;
+        point_matrix = build_point_matrix_miter_scale(main_positions[i_ring_prev],
+                                                      main_positions[i_ring],
+                                                      main_positions[i_ring_next],
+                                                      normals[i_ring],
+                                                      tangents[i_ring],
+                                                      miter_scale_limit);
+      }
       if (!scales.is_empty()) {
         point_matrix = math::scale(point_matrix, float3(scales[i_ring]));
       }
 
-      const int ring_vert_start = i_ring * profile_point_num;
-      for (const int i_profile : IndexRange(profile_point_num)) {
+      const int ring_vert_start = i_ring * profile_positions.size();
+      for (const int i_profile : profile_positions.index_range()) {
         mesh_positions[ring_vert_start + i_profile] = math::transform_point(
             point_matrix, profile_positions[i_profile]);
       }
@@ -493,6 +547,7 @@ static void foreach_curve_combination(const CurvesInfo &info,
 static void build_mesh_positions(const CurvesInfo &curves_info,
                                  const ResultOffsets &offsets,
                                  const VArray<float> &scales,
+                                 const float miter_scale_limit,
                                  Vector<std::byte> &eval_buffer,
                                  Mesh &mesh)
 {
@@ -528,13 +583,13 @@ static void build_mesh_positions(const CurvesInfo &curves_info,
     eval_scales = evaluate_attribute(scales, curves_info.main, eval_buffer).typed<float>();
   }
   foreach_curve_combination(curves_info, offsets, [&](const CombinationInfo &info) {
-    fill_mesh_positions(info.main_points.size(),
-                        info.profile_points.size(),
-                        main_positions.slice(info.main_points),
+    fill_mesh_positions(main_positions.slice(info.main_points),
                         profile_positions.slice(info.profile_points),
                         tangents.slice(info.main_points),
                         normals.slice(info.main_points),
                         eval_scales.is_empty() ? eval_scales : eval_scales.slice(info.main_points),
+                        info.main_cyclic,
+                        miter_scale_limit,
                         positions.slice(info.vert_range));
   });
 }
@@ -834,8 +889,15 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
                           const CurvesGeometry &profile,
                           const VArray<float> &scales,
                           const bool fill_caps,
-                          const AttributeFilter &attribute_filter)
+                          const AttributeFilter &attribute_filter,
+                          const float miter_limit_angle)
 {
+  /* Convert the limit turn angle to the maximum allowed miter scale factor (`1 / cos(angle / 2)`).
+   * At or past a 180 degree turn there is effectively no clamp. */
+  const float miter_scale_limit = miter_limit_angle >= std::numbers::pi_v<float> ?
+                                      std::numeric_limits<float>::max() :
+                                      1.0f / math::cos(miter_limit_angle / 2.0f);
+
   const CurvesInfo curves_info = get_curves_info(main, profile);
 
   const ResultOffsets offsets = calculate_result_offsets(curves_info, fill_caps);
@@ -892,7 +954,7 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
   /* Make sure curve attributes can be interpolated. */
   main.ensure_can_interpolate_to_evaluated();
 
-  build_mesh_positions(curves_info, offsets, scales, eval_buffer, *mesh);
+  build_mesh_positions(curves_info, offsets, scales, miter_scale_limit, eval_buffer, *mesh);
 
   mesh->tag_overlapping_none();
   if (!offsets.any_single_point_main) {
