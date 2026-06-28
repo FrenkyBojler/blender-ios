@@ -387,11 +387,30 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
   }
 
   /* Check if any object-level effect targets this layer via layer_name filter.
-   * These effects will run on the isolated layer buffer before compositing. */
+   * Must mirror the match logic in vfx_layer_sync exactly so use_layer_vfx_fb is set
+   * whenever vfx_layer_sync will actually create passes for this layer. */
   bool has_layer_fx = false;
   if (onion_id == 0) {
     for (const ShaderFxData &fx : ob->shader_fx) {
-      if (fx.layer_name[0] != '\0' && STREQ(fx.layer_name, layer.name().c_str())) {
+      if (fx.layer_name[0] == '\0') {
+        continue;
+      }
+      bool matches = false;
+      if (fx.flag & eShaderFxFlag_UseLayerGroupFilter) {
+        for (const bke::greasepencil::LayerGroup *group : grease_pencil.layer_groups()) {
+          if (group->name() == fx.layer_name) {
+            matches = layer.is_child_of(*group);
+            break;
+          }
+        }
+      }
+      else {
+        matches = STREQ(fx.layer_name, layer.name().c_str());
+      }
+      if (fx.flag & eShaderFxFlag_InvertLayerFilter) {
+        matches = !matches;
+      }
+      if (matches) {
         has_layer_fx = true;
         inst->use_layer_vfx_fb = true;
         break;
