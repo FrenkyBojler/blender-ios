@@ -682,27 +682,62 @@ static void view2d_edge_pan_loc_compensate(TransInfo *t, float r_offset[2])
   }
 }
 
-static void flush_strip_flags(TransInfo *t,
+static void get_strip_offsets(TransInfo *t,
                               TransData *td,
                               const float edge_pan_offset[2],
+                              float r_offset[2],
                               float r_offset_clamped[2])
+{
+  /* Apply extra offset caused by edge panning. */
+  add_v2_v2(td->loc, edge_pan_offset);
+
+  sub_v2_v2v2(r_offset, td->loc, td->iloc);
+  copy_v2_v2(r_offset_clamped, r_offset);
+
+  if (t->state != TRANS_CANCEL) {
+    transform_convert_sequencer_clamp(t, r_offset_clamped);
+  }
+}
+
+// TODO: this offset could instead be returned directly from #flush_strip_transforms. It would be
+// then checked each time to make sure each offset is the same, and a flag would be set if they
+// aren't the same. If the flag is set, the animation data wouldn't be offset at all. This can be
+// the case if the user has eg. added a keymap for "scaling" strips.
+static int get_delta_offset(TransInfo *t, TransData *td, const float edge_pan_offset[2])
+{
+  Scene *scene = CTX_data_sequencer_scene(t->context);
+
+  const TransDataSeq *tdsq = static_cast<TransDataSeq *>(td->extra);
+  Strip *strip = tdsq->strip;
+
+  float offset[2];
+  float offset_clamped[2];
+  get_strip_offsets(t, td, edge_pan_offset, offset, offset_clamped);
+
+  const int new_frame = round_fl_to_int(td->iloc[0] + offset_clamped[0]);
+
+  switch (tdsq->sel_flag) {
+    case SEQ_SELECT:
+    case SEQ_LEFTSEL:
+      return new_frame - strip->left_handle();
+    case SEQ_RIGHTSEL:
+      return new_frame - strip->right_handle(scene);
+  }
+
+  return 0;
+}
+
+static void flush_strip_flags(TransInfo *t,
+                              TransData *td,
+                              const float offset[2],
+                              const float offset_clamped[2])
 {
   Scene *scene = CTX_data_sequencer_scene(t->context);
 
   TransDataSeq *tdsq = static_cast<TransDataSeq *>(td->extra);
   Strip *strip = tdsq->strip;
 
-  /* Apply extra offset caused by edge panning. */
-  add_v2_v2(td->loc, edge_pan_offset);
-
-  float offset[2];
-  sub_v2_v2v2(offset, td->loc, td->iloc);
-  copy_v2_v2(r_offset_clamped, offset);
-
-  if (t->state != TRANS_CANCEL) {
-    transform_convert_sequencer_clamp(t, r_offset_clamped);
-  }
-  const int new_frame = round_fl_to_int(td->iloc[0] + r_offset_clamped[0]);
+  const int new_frame = round_fl_to_int(td->iloc[0] + offset_clamped[0]);
 
   /* Compute handle clamping state to be drawn. */
   if (tdsq->sel_flag & SEQ_LEFTSEL) {
@@ -712,10 +747,10 @@ static void flush_strip_flags(TransInfo *t,
     strip->runtime->flag &= ~seq::StripRuntimeFlag::ClampedRH;
   }
   if (!seq::transform_single_image_check(strip) && !strip->is_effect()) {
-    if (r_offset_clamped[0] > offset[0] && new_frame == strip->content_start()) {
+    if (offset_clamped[0] > offset[0] && new_frame == strip->content_start()) {
       strip->runtime->flag |= seq::StripRuntimeFlag::ClampedLH;
     }
-    else if (r_offset_clamped[0] < offset[0] && new_frame == strip->content_end(scene)) {
+    else if (offset_clamped[0] < offset[0] && new_frame == strip->content_end(scene)) {
       strip->runtime->flag |= seq::StripRuntimeFlag::ClampedRH;
     }
   }
@@ -735,7 +770,9 @@ static void flush_strip_transforms(TransInfo *t,
   const TransDataSeq *tdsq = static_cast<TransDataSeq *>(td->extra);
   Strip *strip = tdsq->strip;
 
+  /* Location before the start of the transform. */
   const int x_old = round_fl_to_int(td->iloc[0]);
+  /* Clamped offset from #x_old. */
   const int x_offset = round_fl_to_int(offset_clamped[0]);
 
   switch (tdsq->sel_flag) {
@@ -743,9 +780,9 @@ static void flush_strip_transforms(TransInfo *t,
       const int new_channel = round_fl_to_int(td->iloc[1] + offset_clamped[1]);
 
       if (seq::transform_strip_can_be_translated(strip)) {
-        const int transform_offset = (x_old + x_offset) - strip->left_handle();
+        const int delta_x = (x_old + x_offset) - strip->left_handle();
 
-        seq::transform_translate_strip(scene, strip, transform_offset);
+        seq::transform_translate_strip(scene, strip, delta_x);
 
         // TODO: i think this doesn't respect the modifications to the flag tho
         // really you need to iterate again like this
@@ -759,9 +796,10 @@ static void flush_strip_transforms(TransInfo *t,
            * them twice. */
           if (e->input2 == strip && seq::strip_is_transition(e)) {
             // TODO: well, could be both right and left handles selected. should still do the same
-            // move
+            // move. though if simultaneous strip + handle selection is removed later, this won't
+            // be an issue
             if (e->input1->flag & SEQ_SELECT) {
-              seq::transform_translate_strip(scene, e, transform_offset);
+              seq::transform_translate_strip(scene, e, delta_x);
               seq::strip_channel_set(e, new_channel);
             }
           }
@@ -775,7 +813,6 @@ static void flush_strip_transforms(TransInfo *t,
     }
     case SEQ_LEFTSEL: { /* No vertical transform. */
       r_left_new = x_old + x_offset;
-      printf("%s, old: %i, offset: %i, new: %i\n", strip->name, x_old, x_offset, *r_left_new);
 
       // TODO: I guess I need to store the original value of the opposite handle first (like was
       // done for start_offset). Else switching asymmetric transitions on and off won't work
@@ -789,7 +826,6 @@ static void flush_strip_transforms(TransInfo *t,
     }
     case SEQ_RIGHTSEL: { /* No vertical transform. */
       r_right_new = x_old + x_offset;
-      printf("%s, old: %i, offset: %i, new: %i\n", strip->name, x_old, x_offset, *r_right_new);
 
       // if (seq::strip_is_transition(strip) && !(t->modifiers & MOD_STRIP_ASYMMETRIC)) {
       //   left_new = left_old - x_offset;
@@ -798,7 +834,8 @@ static void flush_strip_transforms(TransInfo *t,
 
       /* Move the transition with the cut point if adjacent handles are selected. This is only done
        * for the right handle to avoid moving it twice. */
-      const int transform_offset = *r_right_new - strip->right_handle(scene);
+
+      const int delta_x = *r_right_new - strip->right_handle(scene);
       Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
       for (Strip *e : effects) {
         if (seq::strip_is_transition(e)) {
@@ -806,7 +843,7 @@ static void flush_strip_transforms(TransInfo *t,
           if ((e->input1 == strip && (e->input2->flag & SEQ_LEFTSEL)) ||
               (e->input2 == strip && (e->input1->flag & SEQ_LEFTSEL)))
           {
-            seq::transform_translate_strip(scene, e, transform_offset);
+            seq::transform_translate_strip(scene, e, delta_x);
           }
         }
       }
@@ -828,23 +865,30 @@ static void flushTransSeq(TransInfo *t)
   float edge_pan_offset[2] = {0.0f, 0.0f};
   view2d_edge_pan_loc_compensate(t, edge_pan_offset);
 
-  int x_offset = 0;
-
-  printf("\nstart flush\n");
+  /* Update animation for effects. This must be done before the strip positions are flushed. */
+  if (tc->data_len != 0) {
+    TransSeq *ts = static_cast<TransSeq *>(TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data);
+    /* Offset the animation data based on the first strip's delta offset. The offset is assumed to
+     * be the same for all strips because of the clamping. */
+    const int delta = get_delta_offset(t, tc->data, edge_pan_offset);
+    for (Strip *strip : ts->time_dependent_strips) {
+      seq::offset_animdata(scene, strip, delta);
+    }
+  }
 
   /* Flush to 2D vector from internally used 3D vector. */
   for (int a = 0; a < tc->data_len; a++, td++) {
     TransData *td1 = td;
     TransData *td2 = nullptr;
 
-    TransDataSeq *tdsq1 = static_cast<TransDataSeq *>(td1->extra);
+    Strip *strip = static_cast<TransDataSeq *>(td1->extra)->strip;
 
     /* If both the left and right handles for the same strip are selected, they are next to each
      * other in #tc. In this case get the #TransData for both handles (#td1 and #td2). */
-    if ((a + 1) < tc->data_len) {
+    if (a + 1 < tc->data_len) {
       TransData *td_tmp = td + 1;
       Strip *strip_tmp = static_cast<TransDataSeq *>(td_tmp->extra)->strip;
-      if (strip_tmp == tdsq1->strip) {
+      if (strip_tmp == strip) {
         td2 = td_tmp;
         a++;
         td++;
@@ -854,18 +898,17 @@ static void flushTransSeq(TransInfo *t)
     std::optional<int> left_new{};
     std::optional<int> right_new{};
 
-    float offset_clamped[2];
-    // TODO: flush_strip_flags could be split into get_strip_offsets and flush_strip_flags
-    flush_strip_flags(t, td1, edge_pan_offset, offset_clamped);
+    float offset[2], offset_clamped[2];
+    get_strip_offsets(t, td1, edge_pan_offset, offset, offset_clamped);
+    flush_strip_flags(t, td1, offset, offset_clamped);
     flush_strip_transforms(t, td1, offset_clamped, left_new, right_new);
 
     if (td2 != nullptr) {
-      float offset_clamped[2];
-      flush_strip_flags(t, td2, edge_pan_offset, offset_clamped);
+      get_strip_offsets(t, td2, edge_pan_offset, offset, offset_clamped);
+      flush_strip_flags(t, td2, offset, offset_clamped);
       flush_strip_transforms(t, td2, offset_clamped, left_new, right_new);
     }
 
-    Strip *strip = tdsq1->strip;
     if (left_new && right_new) {
       strip->handles_set(scene, *left_new, *right_new);
     }
@@ -875,15 +918,6 @@ static void flushTransSeq(TransInfo *t)
     else if (right_new) {
       strip->right_handle_set(scene, *right_new);
     }
-
-    x_offset = round_fl_to_int(offset_clamped[0]);  // TODO: eh
-  }
-
-  TransSeq *ts = static_cast<TransSeq *>(TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data);
-
-  /* Update animation for effects. */
-  for (Strip *strip : ts->time_dependent_strips) {
-    seq::offset_animdata(scene, strip, x_offset);
   }
 
   /* Need to do the overlap check in a new loop otherwise adjacent strips
