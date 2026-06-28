@@ -1435,6 +1435,7 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
   }
 
   if (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS) {
+    printf("yes directions \n");
     const uiStyle *style = ui::style_get();
     const uiFontStyle *fstyle = &style->widget;
     const int fontid = fstyle->uifont_id;
@@ -1480,6 +1481,9 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
     y1 = ymid + radius_y * sin(angle);
     ED_composition_guides_dome_master_draw_names_helper(
         "N/W", x1 + direction_offset, y1 + direction_offset, fontid, direction_small);
+  }
+  else {
+    printf("NO DIRECTIONS \n");
   }
 }
 

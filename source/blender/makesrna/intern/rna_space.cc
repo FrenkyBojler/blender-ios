@@ -6632,7 +6632,75 @@ static void rna_def_space_sequencer_preview_overlay(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Composition Guides", "Display composition guides over the preview");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
-}
+
+  /* Dome Master Guides */
+
+  prop = RNA_def_property(
+      srna, "show_composition_dome_master_directions", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "preview_overlay.composition_guide_flags",
+                                COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS);
+  RNA_def_property_ui_text(
+      prop, "Dome Master Directions", "Display cardinal directions of the dome");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna, "show_composition_dome_master_grid", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "preview_overlay.composition_guide_flags",
+                                COMPOSITION_GUIDES_DOME_MASTER_GRID);
+  RNA_def_property_ui_text(prop, "Dome Master Grid", "Display a grid representing the fulldome");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(
+      srna, "show_composition_dome_master_unidirectional_safearea_front", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "preview_overlay.composition_guide_flags",
+                                COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_FRONT);
+  RNA_def_property_ui_text(prop,
+                           "Dome Master Unidirectional Safe Area for Front Seats",
+                           "Display Safe Area for Unidirectional Projection");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna,
+                          "show_composition_dome_master_unidirectional_safearea_center",
+                          PROP_BOOLEAN,
+                          PROP_NONE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "preview_overlay.composition_guide_flags",
+                                COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER);
+  RNA_def_property_ui_text(prop,
+                           "Dome Master Unidirectional Safe Area for Center Seats",
+                           "Display Safe Area for Unidirectional Projection");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(
+      srna, "show_composition_dome_master_unidirectional_safearea_back", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "preview_overlay.composition_guide_flags",
+                                COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_BACK);
+  RNA_def_property_ui_text(prop,
+                           "Dome Master Unidirectional Safe Area for Backseats",
+                           "Display Safe Area for Unidirectional Projection");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+
+  prop = RNA_def_property(srna,
+                          "show_composition_dome_master_unidirectional_safearea_horizon",
+                          PROP_BOOLEAN,
+                          PROP_NONE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "preview_overlay.composition_guide_flags",
+                                COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_HORIZON);
+  RNA_def_property_ui_text(prop,
+                           "Dome Master Unidirectional Safe Area for Backseats",
+                           "Display Safe Area for Unidirectional Projection");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
+  }
 
 static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
 {

@@ -475,19 +475,19 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
         self.draw_panel(self.layout, context.camera)
 
     @classmethod
-    def draw_panel(cls, layout, camera):
+    def draw_panel(cls, layout, camera, test=None):
         layout.use_property_split = True
 
-        if camera.type == "PANO" and (
-                camera.panorama_type == "FISHEYE_EQUISOLID" or camera.panorama_type == "FISHEYE_EQUIDISTANT"):
-            col = layout.column(heading="Dome Master", align=True)
-            col.prop(camera, "show_composition_dome_master_directions", text="Directions")
-            col.prop(camera, "show_composition_dome_master_grid", text="Grid")
-            col.prop(camera, "show_composition_dome_master_unidirectional_safearea_front", text="Frontseat Safe Area")
-            col.prop(camera, "show_composition_dome_master_unidirectional_safearea_center", text="Centerseat Safe Area")
-            col.prop(camera, "show_composition_dome_master_unidirectional_safearea_back", text="Backseat Safe Area")
-            col.prop(camera, "show_composition_dome_master_unidirectional_safearea_horizon", text="Horizon Safe Area")
+        is_fisheye = False
+        compact = False
+
+        if not hasattr(camera, "type"):
+            compact = True
         else:
+            is_fisheye = camera.type == "PANO" and (
+                camera.panorama_type == "FISHEYE_EQUISOLID" or camera.panorama_type == "FISHEYE_EQUIDISTANT")
+
+        if compact:
             layout.prop(camera, "show_composition_thirds")
             col = layout.column(heading="Center", align=True)
             col.prop(camera, "show_composition_center")
@@ -501,6 +501,51 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
             col = layout.column(heading="Harmony", align=True)
             col.prop(camera, "show_composition_harmony_tri_a", text="Triangle A")
             col.prop(camera, "show_composition_harmony_tri_b", text="Triangle B")
+
+        if compact or is_fisheye:
+
+            container = None
+
+            if is_fisheye:
+                container = layout
+            else:
+                box = layout.panel("dome_master_composition_guides_panel")
+                box[0].label(text="Dome Master Guides")
+
+                if box[1] is not None:
+                    container = box[1]
+
+            if container is not None:
+
+                container.prop(camera, "show_composition_dome_master_directions", text="Directions")
+                container.prop(camera, "show_composition_dome_master_grid", text="Grid")
+
+                panel_col = container.column(align=True)
+                row = panel_col.row()
+                row.alignment = "RIGHT"
+                row.label(text="Unidirectional")
+                row.separator()
+
+                panel_col = container.column(heading="Frontseat", align=True)
+                panel_col.prop(camera, "show_composition_dome_master_unidirectional_safearea_front", text="Safe Area")
+
+                panel_col = container.column(heading="Centerseat", align=True)
+                panel_col.prop(
+                    camera,
+                    "show_composition_dome_master_unidirectional_safearea_center",
+                    text="Centerseat Safe Area")
+
+                panel_col = container.column(heading="Backseat", align=True)
+                panel_col.prop(
+                    camera,
+                    "show_composition_dome_master_unidirectional_safearea_back",
+                    text="Backseat Safe Area")
+
+                panel_col = container.column(heading="Horizon", align=True)
+                panel_col.prop(
+                    camera,
+                    "show_composition_dome_master_unidirectional_safearea_horizon",
+                    text="Horizon Safe Area")
 
         col = layout.column()
         col.prop(camera, "composition_guide_color", text="Color")

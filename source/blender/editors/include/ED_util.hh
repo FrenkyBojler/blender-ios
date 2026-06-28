@@ -147,6 +147,7 @@ void ED_slider_property_label_set(tSlider *slider, const char *property_label);
 
 /* Composition Guides */
 enum eCompositionGuideFlags : short;
+enum eDomeMasterCompositionGuideFlags : short;
 
 void ED_draw_composition_guides(uint shdr_pos,
                                 eCompositionGuideFlags flag,
