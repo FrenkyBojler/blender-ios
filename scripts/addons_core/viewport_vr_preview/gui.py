@@ -235,6 +235,14 @@ VR_TEMP_UI_ITEMS = (
 )
 
 
+def draw_vr_temp_ui_tooltip_samples(layout, context):
+    wm = context.window_manager
+
+    col = layout.column(align=True)
+    col.operator("view3d.vr_temp_ui_tooltip", text="Tooltip Button", icon='INFO')
+    col.prop_search(wm, "vr_temp_ui_search_object", bpy.data, "objects", text="Object Search")
+
+
 class VIEW3D_OT_vr_temp_ui_report(Operator):
     bl_idname = "view3d.vr_temp_ui_report"
     bl_label = "XR Temp UI Action"
@@ -247,6 +255,19 @@ class VIEW3D_OT_vr_temp_ui_report(Operator):
 
     def execute(self, _context):
         self.report({'INFO'}, self.message)
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_temp_ui_tooltip(Operator):
+    bl_idname = "view3d.vr_temp_ui_tooltip"
+    bl_label = "XR Tooltip Sample"
+    bl_description = (
+        "Tooltip-focused XR temporary UI test button. Hover this control in the main panel, "
+        "popovers, popups, and props popups to verify tooltip regions stay in world space."
+    )
+
+    def execute(self, _context):
+        self.report({'INFO'}, "Tooltip sample pressed")
         return {'FINISHED'}
 
 
@@ -320,6 +341,41 @@ class VIEW3D_OT_vr_temp_ui_dialog(Operator):
         return {'FINISHED'}
 
 
+class VIEW3D_OT_vr_temp_ui_props_popup(Operator):
+    bl_idname = "view3d.vr_temp_ui_props_popup"
+    bl_label = "XR Props Popup Test"
+    bl_description = "Open an invoke_props_popup temporary region from world-space UI"
+
+    name: bpy.props.StringProperty(
+        name="Name",
+        default="XR Props Popup",
+    )
+    choice: bpy.props.EnumProperty(
+        name="Choice",
+        items=VR_TEMP_UI_ITEMS,
+        default='TWO',
+    )
+    enabled: bpy.props.BoolProperty(
+        name="Enabled",
+        default=True,
+    )
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_popup(self, event)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "name")
+        layout.prop(self, "choice")
+        layout.prop(self, "enabled")
+        layout.separator()
+        draw_vr_temp_ui_tooltip_samples(layout, context)
+
+    def execute(self, _context):
+        self.report({'INFO'}, f"Props popup choice: {self.choice}")
+        return {'FINISHED'}
+
+
 class VIEW3D_OT_vr_temp_ui_popup(Operator):
     bl_idname = "view3d.vr_temp_ui_popup"
     bl_label = "XR Popup Test"
@@ -343,6 +399,7 @@ class VIEW3D_OT_vr_temp_ui_popup(Operator):
         layout.prop(self, "name")
         layout.prop(self, "show_extra")
         layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Nested Enum Menu")
+        layout.popover(panel="VIEW3D_PT_vr_temp_ui_popover_world_space", text="Nested Popover")
 
     def execute(self, _context):
         self.report({'INFO'}, f"Popup confirmed: {self.name}")
@@ -359,6 +416,23 @@ class VIEW3D_OT_vr_temp_ui_confirm(Operator):
 
     def execute(self, _context):
         self.report({'INFO'}, "Confirm dialog accepted")
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_temp_ui_popup_menu(Operator):
+    bl_idname = "view3d.vr_temp_ui_popup_menu"
+    bl_label = "XR Python Popup Menu Test"
+    bl_description = "Open a Python-defined popup_menu temporary region from world-space UI"
+
+    def invoke(self, context, _event):
+        def draw(menu, _context):
+            layout = menu.layout
+            props = layout.operator("view3d.vr_temp_ui_report", text="Popup Menu Action")
+            props.message = "Popup menu action"
+            layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
+            layout.menu("VIEW3D_MT_vr_temp_ui_submenu", text="Nested Menu")
+
+        context.window_manager.popup_menu(draw, title="XR Popup Menu", icon='INFO')
         return {'FINISHED'}
 
 
@@ -394,6 +468,7 @@ class VIEW3D_PT_vr_temp_ui_popover_world_space(VIEW3D_PT_vr_world_space_panel, P
         layout.operator("view3d.vr_temp_ui_search", text="Search Popup")
         layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
         layout.menu("VIEW3D_MT_vr_temp_ui_submenu", text="Nested Menu")
+        layout.operator("view3d.vr_temp_ui_props_popup", text="Props Popup")
 
 
 # Landmarks.
@@ -673,13 +748,14 @@ class VIEW3D_PT_vr_temp_ui_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     bl_xr_panel_mount_point = 'HEAD_FOLLOW'
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
         layout.label(text="Menu / Popover")
         row = layout.row(align=True)
         row.menu("VIEW3D_MT_vr_temp_ui_menu", text="Menu")
         row.popover(panel="VIEW3D_PT_vr_temp_ui_popover_world_space", text="Popover")
+        row.operator("view3d.vr_temp_ui_popup_menu", text="Popup Menu")
 
         layout.separator()
 
@@ -688,8 +764,14 @@ class VIEW3D_PT_vr_temp_ui_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
         col.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
         col.operator("view3d.vr_temp_ui_search", text="Search Popup")
         col.operator("view3d.vr_temp_ui_dialog", text="Dialog")
+        col.operator("view3d.vr_temp_ui_props_popup", text="Props Popup")
         col.operator("view3d.vr_temp_ui_popup", text="Popup")
         col.operator("view3d.vr_temp_ui_confirm", text="Confirm")
+
+        layout.separator()
+
+        layout.label(text="Tooltip / Search Cases")
+        draw_vr_temp_ui_tooltip_samples(layout, context)
 
 
 """
@@ -712,11 +794,14 @@ classes = (
     VIEW3D_PT_vr_location_scouting_viewfinder_passepartout,
     VIEW3D_PT_vr_session_view_object_type_visibility_world_space,
     VIEW3D_OT_vr_temp_ui_report,
+    VIEW3D_OT_vr_temp_ui_tooltip,
     VIEW3D_OT_vr_temp_ui_enum,
     VIEW3D_OT_vr_temp_ui_search,
     VIEW3D_OT_vr_temp_ui_dialog,
+    VIEW3D_OT_vr_temp_ui_props_popup,
     VIEW3D_OT_vr_temp_ui_popup,
     VIEW3D_OT_vr_temp_ui_confirm,
+    VIEW3D_OT_vr_temp_ui_popup_menu,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
     VIEW3D_PT_vr_viewport_feedback,
@@ -757,6 +842,9 @@ def register():
         name="Show Location Scouting Captures",
         default=True
     )
+    bpy.types.WindowManager.vr_temp_ui_search_object = bpy.props.StringProperty(
+        name="XR Temp UI Object Search"
+    )
 
 
 def unregister():
@@ -767,3 +855,4 @@ def unregister():
     del bpy.types.View3DShading.vr_show_controllers
     del bpy.types.View3DShading.vr_show_landmarks
     del bpy.types.View3DShading.vr_show_captures
+    del bpy.types.WindowManager.vr_temp_ui_search_object
