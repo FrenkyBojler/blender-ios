@@ -1873,12 +1873,12 @@ bool supports_tip_roundness(const Brush &brush)
               SCULPT_BRUSH_TYPE_LAYER,
               SCULPT_BRUSH_TYPE_NUDGE,
               SCULPT_BRUSH_TYPE_PAINT,
+              SCULPT_BRUSH_TYPE_PINCH,
               SCULPT_BRUSH_TYPE_PLANE,
               SCULPT_BRUSH_TYPE_ROTATE,
               SCULPT_BRUSH_TYPE_SCENE_PROJECT,
-              SCULPT_BRUSH_TYPE_SLIDE_RELAX,
-              SCULPT_BRUSH_TYPE_SMOOTH) ||
-         ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_THUMB);
+              SCULPT_BRUSH_TYPE_SLIDE_RELAX) ||
+         ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_THUMB);
 }
 bool supports_hardness(const Brush &brush)
 {
