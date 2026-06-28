@@ -54,17 +54,6 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-static void calc_local_positions(const float4x4 &mat,
-                                 const Span<int> verts,
-                                 const Span<float3> positions,
-                                 const MutableSpan<float3> local_positions)
-{
-  PRF_scope(ProfileCategory::Editor);
-  for (const int i : verts.index_range()) {
-    local_positions[i] = math::transform_point(mat, positions[verts[i]]);
-  }
-}
-
 /**
  * Computes the local distances. For vertices above the plane,
  * the z-distances are divided by `height`, effectively scaling the
@@ -77,19 +66,36 @@ static void calc_local_positions(const float4x4 &mat,
  *
  * The effect of `depth` on vertices below the plane is analogous.
  */
-static void calc_local_distances(const float height,
+static void calc_local_distances(const Brush &brush,
+                                 const float height,
                                  const float depth,
                                  const MutableSpan<float3> local_positions,
                                  const MutableSpan<float> distances)
 {
   PRF_scope(ProfileCategory::Editor);
+  const float roundness = brush.tip_roundness;
+  const float roundness_rcp = math::safe_rcp(roundness);
+  const float hardness = 1.0f - roundness;
+  const float2 hardness_vec(hardness);
+  const float2 zero(0.0f);
+
   if (height != 0.0f) {
     const float height_rcp = math::rcp(height);
 
     for (const int i : local_positions.index_range()) {
       const float3 &position = local_positions[i];
       if (position.z >= 0.0f) {
-        distances[i] = math::length(float3(position.x, position.y, position.z * height_rcp));
+        float2 xy_position = math::abs(float2(position.x, position.y));
+
+        /* Position is outside brush radius on the XY plane. */
+        if (math::reduce_max(xy_position) > 1.0f) {
+          distances[i] = 1.0f;
+          continue;
+        }
+
+        const float2 excess = math::max(xy_position - hardness_vec, zero);
+
+        distances[i] = math::length(float3(excess.x, excess.y, position.z * height_rcp));
       }
     }
   }
@@ -107,7 +113,17 @@ static void calc_local_distances(const float height,
     for (const int i : local_positions.index_range()) {
       const float3 &position = local_positions[i];
       if (position.z < 0.0f) {
-        distances[i] = math::length(float3(position.x, position.y, position.z * depth_rcp));
+        float2 xy_position = math::abs(float2(position.x, position.y));
+
+        /* Position is outside brush radius on the XY plane. */
+        if (math::reduce_max(xy_position) > 1.0f) {
+          distances[i] = 1.0f;
+          continue;
+        }
+
+        const float2 excess = math::max(xy_position - hardness_vec, zero);
+
+        distances[i] = math::length(float3(excess.x, excess.y, position.z * depth_rcp));
       }
     }
   }
@@ -222,11 +238,11 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.positions.resize(verts.size());
   const MutableSpan<float3> local_positions = tls.positions;
-  calc_local_positions(mat, verts, position_data.eval, local_positions);
+  calc_local_positions(position_data.eval, verts, mat, local_positions);
 
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_local_distances(height, depth, local_positions, distances);
+  calc_local_distances(brush, height, depth, local_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
@@ -279,11 +295,11 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(positions.size());
   const MutableSpan<float3> local_positions = tls.local_positions;
-  math::transform_points(positions, mat, local_positions, false);
+  calc_local_positions(positions, mat, local_positions);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_local_distances(height, depth, local_positions, distances);
+  calc_local_distances(brush, height, depth, local_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
@@ -334,11 +350,11 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(positions.size());
   const MutableSpan<float3> local_positions = tls.local_positions;
-  math::transform_points(positions, mat, local_positions, false);
+  calc_local_positions(positions, mat, local_positions);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_local_distances(height, depth, local_positions, distances);
+  calc_local_distances(brush, height, depth, local_positions, distances);
   filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
@@ -512,7 +528,9 @@ CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
         if (node_fully_masked_or_hidden(node)) {
           return false;
         }
-        return node_in_sphere(node, plane_center, ss.cache->radius_squared, use_original);
+        /* TODO: Replace with node_in_box. */
+        return node_in_sphere(
+            node, plane_center, ss.cache->radius_squared * M_SQRT2, use_original);
       });
 
   return {plane_mask, plane_center, plane_normal};
