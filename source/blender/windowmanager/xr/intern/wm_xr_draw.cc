@@ -176,6 +176,34 @@ static wmXrPanel *wm_xr_panel_find_by_host(wmXrSurfaceData *surface_data,
   return match;
 }
 
+static wmXrPanel *wm_xr_panel_find_by_host_region(wmXrSurfaceData *surface_data,
+                                                  const wmWindow *win,
+                                                  const ARegion *region)
+{
+  if (surface_data == nullptr || win == nullptr || region == nullptr) {
+    return nullptr;
+  }
+
+  if (surface_data->active_panel != nullptr && surface_data->active_panel->panel_host_win == win &&
+      surface_data->active_panel->panel_host_region == region)
+  {
+    return surface_data->active_panel;
+  }
+
+  wmXrPanel *match = nullptr;
+  for (wmXrPanel *panel : ListBaseWrapper<wmXrPanel>(surface_data->panels)) {
+    if (panel->panel_host_win != win || panel->panel_host_region != region) {
+      continue;
+    }
+    if (match != nullptr) {
+      return nullptr;
+    }
+    match = panel;
+  }
+
+  return match;
+}
+
 static wmXrTempRegion *wm_xr_temp_region_find(wmXrPanel *panel, const ARegion *region)
 {
   if (panel == nullptr || region == nullptr) {
@@ -209,6 +237,42 @@ static wmXrTempRegion *wm_xr_temp_region_find_any(wmXrSurfaceData *surface_data,
       }
       return temp_region;
     }
+  }
+
+  return nullptr;
+}
+
+/* Resolves XR ownership once when a temporary region is created. 
+ * The source may be the XR host region itself, another already-registered XR temp region,
+ * or the currently active XR panel for operator-driven popup chains.
+ */
+static wmXrPanel *wm_xr_panel_find_by_source_region(wmXrSurfaceData *surface_data,
+                                                    wmWindow *win,
+                                                    ScrArea *area,
+                                                    ARegion *source_region)
+{
+  if (surface_data == nullptr || source_region == nullptr) {
+    return nullptr;
+  }
+
+  if (source_region->regiontype == RGN_TYPE_XR) {
+    if (area == nullptr) {
+      return wm_xr_panel_find_by_host_region(surface_data, win, source_region);
+    }
+    return wm_xr_panel_find_by_host(surface_data, win, area, source_region);
+  }
+
+  wmXrPanel *panel = nullptr;
+  wm_xr_temp_region_find_any(surface_data, source_region, &panel);
+  if (panel != nullptr) {
+    return panel;
+  }
+
+  if (area != nullptr && surface_data->active_panel != nullptr &&
+      surface_data->active_panel->panel_host_win == win &&
+      surface_data->active_panel->panel_host_area == area)
+  {
+    return surface_data->active_panel;
   }
 
   return nullptr;
@@ -468,8 +532,7 @@ static void wm_xr_panel_free(wmXrSurfaceData *surface_data, wmXrPanel *panel)
 bool WM_xr_temp_region_register(ARegion *region, wmWindow *win, ScrArea *area, ARegion *xr_region)
 {
   wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
-  if (surface_data == nullptr || region == nullptr || win == nullptr || area == nullptr ||
-      xr_region == nullptr || xr_region->regiontype != RGN_TYPE_XR)
+  if (surface_data == nullptr || region == nullptr || win == nullptr || xr_region == nullptr)
   {
     return false;
   }
@@ -478,7 +541,7 @@ bool WM_xr_temp_region_register(ARegion *region, wmWindow *win, ScrArea *area, A
     return true;
   }
 
-  wmXrPanel *panel = wm_xr_panel_find_by_host(surface_data, win, area, xr_region);
+  wmXrPanel *panel = wm_xr_panel_find_by_source_region(surface_data, win, area, xr_region);
   if (panel == nullptr) {
     return false;
   }
@@ -1832,7 +1895,9 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
                                         KM_RELEASE,
                                         win_xy);
     wm_xr_panel_pointer_clear(panel);
-    surface_data->active_panel = nullptr;
+    /* Keep the active XR panel alive through release handling so any popup opened by the
+     * dispatched mouse-release event can still inherit XR ownership. Hover updates clear it
+     * naturally once the controller leaves the panel. */
     ED_region_tag_redraw(panel->panel_host_region);
     panel->panel_frame_tag++;
     panel->panel_dirty = true;

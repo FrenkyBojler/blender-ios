@@ -16,6 +16,7 @@ from bpy.app.translations import (
 )
 from bpy.types import (
     Menu,
+    Operator,
     Panel,
     UIList,
 )
@@ -224,6 +225,175 @@ class VIEW3D_PT_vr_location_scouting_viewfinder_passepartout(VRButtonsPanel, Pan
 
         layout.prop(session_settings, "viewfinder_passepartout_overscan", text="Overscan")
         layout.prop(session_settings, "viewfinder_passepartout_opacity", text="Opacity")
+
+
+VR_TEMP_UI_ITEMS = (
+    ('ONE', "One", "First temporary UI test item"),
+    ('TWO', "Two", "Second temporary UI test item"),
+    ('THREE', "Three", "Third temporary UI test item"),
+    ('FOUR', "Four", "Fourth temporary UI test item"),
+)
+
+
+class VIEW3D_OT_vr_temp_ui_report(Operator):
+    bl_idname = "view3d.vr_temp_ui_report"
+    bl_label = "XR Temp UI Action"
+    bl_description = "Simple action used by XR temporary UI test menus"
+
+    message: bpy.props.StringProperty(
+        name="Message",
+        default="XR temporary UI action",
+    )
+
+    def execute(self, _context):
+        self.report({'INFO'}, self.message)
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_temp_ui_enum(Operator):
+    bl_idname = "view3d.vr_temp_ui_enum"
+    bl_label = "XR Enum Menu Test"
+    bl_description = "Open an enum-menu temporary region from world-space UI"
+
+    choice: bpy.props.EnumProperty(
+        name="Choice",
+        items=VR_TEMP_UI_ITEMS,
+        default='ONE',
+    )
+
+    def execute(self, _context):
+        self.report({'INFO'}, f"Enum menu choice: {self.choice}")
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_temp_ui_search(Operator):
+    bl_idname = "view3d.vr_temp_ui_search"
+    bl_label = "XR Search Popup Test"
+    bl_description = "Open a search-popup temporary region from world-space UI"
+    bl_property = "choice"
+
+    choice: bpy.props.EnumProperty(
+        name="Search",
+        items=VR_TEMP_UI_ITEMS,
+    )
+
+    def invoke(self, context, _event):
+        context.window_manager.invoke_search_popup(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, _context):
+        self.report({'INFO'}, f"Search popup choice: {self.choice}")
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_temp_ui_dialog(Operator):
+    bl_idname = "view3d.vr_temp_ui_dialog"
+    bl_label = "XR Dialog Test"
+    bl_description = "Open a dialog temporary region from world-space UI"
+
+    name: bpy.props.StringProperty(
+        name="Name",
+        default="XR Dialog",
+    )
+    amount: bpy.props.FloatProperty(
+        name="Amount",
+        default=0.5,
+        min=0.0,
+        max=1.0,
+    )
+    enabled: bpy.props.BoolProperty(
+        name="Enabled",
+        default=True,
+    )
+
+    def invoke(self, context, _event):
+        return context.window_manager.invoke_props_dialog(self, width=240)
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.prop(self, "name")
+        layout.prop(self, "amount")
+        layout.prop(self, "enabled")
+
+    def execute(self, _context):
+        self.report({'INFO'}, f"Dialog submitted: {self.name}")
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_temp_ui_popup(Operator):
+    bl_idname = "view3d.vr_temp_ui_popup"
+    bl_label = "XR Popup Test"
+    bl_description = "Open a popup temporary region from world-space UI"
+
+    name: bpy.props.StringProperty(
+        name="Label",
+        default="XR Popup",
+    )
+    show_extra: bpy.props.BoolProperty(
+        name="Show Extra Option",
+        default=False,
+    )
+
+    def invoke(self, context, _event):
+        return context.window_manager.invoke_popup(self, width=240)
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.label(text="Popup Content")
+        layout.prop(self, "name")
+        layout.prop(self, "show_extra")
+        layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Nested Enum Menu")
+
+    def execute(self, _context):
+        self.report({'INFO'}, f"Popup confirmed: {self.name}")
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_temp_ui_confirm(Operator):
+    bl_idname = "view3d.vr_temp_ui_confirm"
+    bl_label = "XR Confirm Test"
+    bl_description = "Open a confirm temporary region from world-space UI"
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+    def execute(self, _context):
+        self.report({'INFO'}, "Confirm dialog accepted")
+        return {'FINISHED'}
+
+
+class VIEW3D_MT_vr_temp_ui_submenu(Menu):
+    bl_label = "XR Temp Submenu"
+
+    def draw(self, _context):
+        layout = self.layout
+        props = layout.operator("view3d.vr_temp_ui_report", text="Submenu Action A")
+        props.message = "Submenu action A"
+        props = layout.operator("view3d.vr_temp_ui_report", text="Submenu Action B")
+        props.message = "Submenu action B"
+
+
+class VIEW3D_MT_vr_temp_ui_menu(Menu):
+    bl_label = "XR Temp Menu"
+
+    def draw(self, _context):
+        layout = self.layout
+        props = layout.operator("view3d.vr_temp_ui_report", text="Menu Action")
+        props.message = "Menu action"
+        layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
+        layout.menu("VIEW3D_MT_vr_temp_ui_submenu", text="Nested Menu")
+
+
+class VIEW3D_PT_vr_temp_ui_popover_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
+    bl_label = "XR Temp Popover"
+    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.label(text="Popover Content")
+        layout.operator("view3d.vr_temp_ui_search", text="Search Popup")
+        layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
+        layout.menu("VIEW3D_MT_vr_temp_ui_submenu", text="Nested Menu")
 
 
 # Landmarks.
@@ -498,6 +668,30 @@ class VIEW3D_PT_vr_actionmaps_world_space(VIEW3D_PT_vr_world_space_panel, Panel)
         col.prop(scene, "vr_actions_enable_huawei", text="Huawei")
 
 
+class VIEW3D_PT_vr_temp_ui_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
+    bl_label = "Temp UI Tests"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.label(text="Menu / Popover")
+        row = layout.row(align=True)
+        row.menu("VIEW3D_MT_vr_temp_ui_menu", text="Menu")
+        row.popover(panel="VIEW3D_PT_vr_temp_ui_popover_world_space", text="Popover")
+
+        layout.separator()
+
+        layout.label(text="Popup Variants")
+        col = layout.column(align=True)
+        col.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
+        col.operator("view3d.vr_temp_ui_search", text="Search Popup")
+        col.operator("view3d.vr_temp_ui_dialog", text="Dialog")
+        col.operator("view3d.vr_temp_ui_popup", text="Popup")
+        col.operator("view3d.vr_temp_ui_confirm", text="Confirm")
+
+
 """
 class VIEW3D_PT_vr_viewport_feedback_world_space(VIEW3D_PT_vr_viewport_feedback):
     bl_region_type = 'XR'
@@ -517,6 +711,12 @@ classes = (
     VIEW3D_PT_vr_location_scouting_viewfinder,
     VIEW3D_PT_vr_location_scouting_viewfinder_passepartout,
     VIEW3D_PT_vr_session_view_object_type_visibility_world_space,
+    VIEW3D_OT_vr_temp_ui_report,
+    VIEW3D_OT_vr_temp_ui_enum,
+    VIEW3D_OT_vr_temp_ui_search,
+    VIEW3D_OT_vr_temp_ui_dialog,
+    VIEW3D_OT_vr_temp_ui_popup,
+    VIEW3D_OT_vr_temp_ui_confirm,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
     VIEW3D_PT_vr_viewport_feedback,
@@ -524,10 +724,14 @@ classes = (
     VIEW3D_UL_vr_landmarks,
     VIEW3D_UL_vr_captures,
     VIEW3D_MT_vr_landmark_menu,
+    VIEW3D_MT_vr_temp_ui_submenu,
+    VIEW3D_MT_vr_temp_ui_menu,
     VIEW3D_PT_vr_session_world_space,
     VIEW3D_PT_vr_session_view_world_space,
+    VIEW3D_PT_vr_temp_ui_popover_world_space,
     VIEW3D_PT_vr_landmarks_world_space,
     VIEW3D_PT_vr_actionmaps_world_space,
+    VIEW3D_PT_vr_temp_ui_world_space,
 )
 
 

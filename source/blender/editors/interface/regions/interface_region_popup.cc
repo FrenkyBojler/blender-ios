@@ -970,8 +970,10 @@ PopupBlockHandle *popup_block_create(bContext *C,
 
   region_handlers_add(&region->runtime->handlers);
 
-  ARegion *source_region = butregion ? butregion : CTX_wm_region(C);
-  if (source_region != nullptr && source_region->regiontype == RGN_TYPE_XR) {
+  ARegion *source_region = butregion ? butregion :
+                                      (CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) :
+                                                                CTX_wm_region(C));
+  if (source_region != nullptr) {
     blender::WM_xr_temp_region_register(
         region, CTX_wm_window(C), CTX_wm_area(C), source_region);
   }
