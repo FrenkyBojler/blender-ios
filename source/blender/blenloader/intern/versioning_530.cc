@@ -113,10 +113,21 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
       }
     }
-    for (Collection &collection : bmain->collections) {
-      int i = 0;
+    auto version_collection_fn = [&](Collection &collection) {
+      int index = 0;
+      for (CollectionChild &child : collection.children) {
+        child.sort_index = index++;
+      }
       for (CollectionObject &cob : collection.gobject) {
-        cob.sort_index = (has_skip_alphabet_sort_method) ? i++ : -1;
+        cob.sort_index = (has_skip_alphabet_sort_method) ? index++ : -1;
+      }
+    };
+    for (Collection &collection : bmain->collections) {
+      version_collection_fn(collection);
+    }
+    for (Scene &scene : bmain->scenes) {
+      if (scene.master_collection != nullptr) {
+        version_collection_fn(*scene.master_collection);
       }
     }
     for (bScreen &screen : bmain->screens) {

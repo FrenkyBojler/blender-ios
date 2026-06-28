@@ -132,7 +132,7 @@ struct CollectionChild {
   struct Collection *collection = nullptr;
 
   CollectionLightLinking light_linking;
-  int _pad = {};
+  int sort_index = -1;
 };
 
 /* Collection IO property storage and access. */

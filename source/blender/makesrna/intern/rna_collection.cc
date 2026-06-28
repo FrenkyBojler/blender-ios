@@ -451,7 +451,7 @@ static void rna_CollectionLightLinking_update(Main *bmain, Scene * /*scene*/, Po
   DEG_relations_tag_update(bmain);
 }
 
-static void rna_CollectionObject_sort_index_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+static void rna_Collection_sort_index_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   Collection *collection = id_cast<Collection *>(ptr->owner_id);
   if (collection != nullptr) {
@@ -782,7 +782,7 @@ static void rna_def_collection_object(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "sort_index");
   RNA_def_property_ui_text(
       prop, "Sort Index", "Custom sort index of the object in the collection");
-  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_CollectionObject_sort_index_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_Collection_sort_index_update");
 
   /* Light Linking. */
   prop = RNA_def_property(srna, "light_linking", PROP_POINTER, PROP_NONE);
@@ -804,6 +804,13 @@ static void rna_def_collection_child(BlenderRNA *brna)
       srna, "Collection Child", "Child collection with its collection related settings");
 
   RNA_define_lib_overridable(true);
+
+  /* Sort Index. */
+  prop = RNA_def_property(srna, "sort_index", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "sort_index");
+  RNA_def_property_ui_text(
+      prop, "Sort Index", "Custom sort index of the collection in the parent collection");
+  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_Collection_sort_index_update");
 
   /* Light Linking. */
   prop = RNA_def_property(srna, "light_linking", PROP_POINTER, PROP_NONE);
