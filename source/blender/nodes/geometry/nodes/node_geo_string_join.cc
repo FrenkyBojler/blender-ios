@@ -17,12 +17,17 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  auto &delimiter = b.add_input<decl::String>("Delimiter"_ustr).structure_type(StructureType::Dynamic);
-  auto &strings = b.add_input<decl::String>("Strings"_ustr).structure_type(StructureType::Dynamic).multi_input().hide_value();
+  auto &delimiter =
+      b.add_input<decl::String>("Delimiter"_ustr).structure_type(StructureType::Dynamic);
+  auto &strings = b.add_input<decl::String>("Strings"_ustr)
+                      .structure_type(StructureType::Dynamic)
+                      .multi_input()
+                      .hide_value();
   const std::array<int, 2> input_deps = {delimiter.index(), strings.index()};
-  b.add_output<decl::String>("String"_ustr).align_with_previous()
-        .inferred_structure_type(input_deps)
-        .propagate_references(input_deps);
+  b.add_output<decl::String>("String"_ustr)
+      .align_with_previous()
+      .inferred_structure_type(input_deps)
+      .propagate_references(input_deps);
 }
 
 class StringJointFunction : public mf::MultiFunction {
@@ -42,35 +47,38 @@ class StringJointFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    const VArray<std::string> delimiters = params.readonly_single_input<std::string>(0, "Delimiter");
-    const VVectorArray<std::string> &strings = params.readonly_vector_input<std::string>(1, "Inputs");
+    const VArray<std::string> delimiters = params.readonly_single_input<std::string>(0,
+                                                                                     "Delimiter");
+    const VVectorArray<std::string> &strings = params.readonly_vector_input<std::string>(1,
+                                                                                         "Inputs");
     MutableSpan<std::string> result = params.uninitialized_single_output<std::string>(2, "Result");
 
     const int elements_num = strings.size();
 
     if (elements_num == 0) {
-      mask.foreach_index_optimized<int>([&](const int i) {
-        new (&result[i]) std::string ("");
-      }, exec_mode::serial);
+      mask.foreach_index_optimized<int>([&](const int i) { new (&result[i]) std::string(""); },
+                                        exec_mode::serial);
       return;
     }
 
     if (elements_num == 1) {
-      mask.foreach_index_optimized<int>([&](const int i) {
-        new (&result[i]) std::string (strings.get_vector_element(0, i));
-      }, exec_mode::serial);
+      mask.foreach_index_optimized<int>(
+          [&](const int i) { new (&result[i]) std::string(strings.get_vector_element(0, i)); },
+          exec_mode::serial);
       return;
     }
-    
-    mask.foreach_index([&](const int i) {
-      std::string buffer;
-      const std::string delimiter = delimiters[i];
-      for (const int element_i : IndexRange(elements_num).drop_back(1)) {
-        buffer += strings.get_vector_element(element_i, i) + delimiter;
-      }
-      buffer += strings.get_vector_element(elements_num - 1, i);
-      new (&result[i]) std::string (std::move(buffer));
-    }, exec_mode::serial);
+
+    mask.foreach_index(
+        [&](const int i) {
+          std::string buffer;
+          const std::string delimiter = delimiters[i];
+          for (const int element_i : IndexRange(elements_num).drop_back(1)) {
+            buffer += strings.get_vector_element(element_i, i) + delimiter;
+          }
+          buffer += strings.get_vector_element(elements_num - 1, i);
+          new (&result[i]) std::string(std::move(buffer));
+        },
+        exec_mode::serial);
   }
 };
 
@@ -84,11 +92,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   bke::SocketValueVariant output_value;
   if (!execute_multi_function_on_value_variant(
-          func,
-          {&delim, &strings_list},
-          {&output_value},
-          params.user_data(),
-          error_message))
+          func, {&delim, &strings_list}, {&output_value}, params.user_data(), error_message))
   {
     params.set_default_remaining_outputs();
     params.error_message_add(NodeWarningType::Error, std::move(error_message));

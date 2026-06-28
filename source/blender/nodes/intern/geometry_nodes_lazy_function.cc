@@ -394,7 +394,7 @@ class LazyFunctionForMultiInput : public LazyFunction {
 
     GListPtr list = GList::from_garray(std::move(list_values));
     void *output_ptr = params.get_output_data_ptr(0);
-    new (output_ptr) SocketValueVariant (SocketValueVariant::From(std::move(list)));
+    new (output_ptr) SocketValueVariant(SocketValueVariant::From(std::move(list)));
     params.output_set(0);
   }
 };
@@ -491,7 +491,7 @@ std::string make_anonymous_attribute_socket_inspection_string(StringRef node_nam
 
 class GVVectorArray_ForEmpty : public GVVectorArray {
  public:
-  GVVectorArray_ForEmpty(const CPPType &type) : GVVectorArray(type, 0){}
+  GVVectorArray_ForEmpty(const CPPType &type) : GVVectorArray(type, 0) {}
 
  protected:
   int64_t get_vector_size_impl(int64_t /*index*/) const final
@@ -502,7 +502,7 @@ class GVVectorArray_ForEmpty : public GVVectorArray {
 
   void get_vector_element_impl(int64_t /*index*/,
                                int64_t /*index_in_vector*/,
-                               void */*r_value*/) const final
+                               void * /*r_value*/) const final
   {
     BLI_assert_unreachable();
   }
@@ -520,16 +520,17 @@ class GVVectorArray_For_Plain_Array : public GVVectorArray {
   const int slice_size_;
 
  public:
-  GVVectorArray_For_Plain_Array(const GSpan data, const int slices_num) : GVVectorArray_For_Plain_Array(data, slices_num, data.type())
+  GVVectorArray_For_Plain_Array(const GSpan data, const int slices_num)
+      : GVVectorArray_For_Plain_Array(data, slices_num, data.type())
   {
     BLI_assert(data.size() % slices_num == 0);
   }
 
-  GVVectorArray_For_Plain_Array(const GSpan data, const int slices_num, const CPPType &type) :
-    GVVectorArray(type, slices_num),
-    data_(data),
-    slices_num_(slices_num),
-    slice_size_(data.size() / slices_num)
+  GVVectorArray_For_Plain_Array(const GSpan data, const int slices_num, const CPPType &type)
+      : GVVectorArray(type, slices_num),
+        data_(data),
+        slices_num_(slices_num),
+        slice_size_(data.size() / slices_num)
   {
     BLI_assert(data.size() % slices_num == 0);
   }
@@ -540,9 +541,7 @@ class GVVectorArray_For_Plain_Array : public GVVectorArray {
     return slice_size_;
   }
 
-  void get_vector_element_impl(int64_t index,
-                               int64_t index_in_vector,
-                               void *r_value) const final
+  void get_vector_element_impl(int64_t index, int64_t index_in_vector, void *r_value) const final
   {
     BLI_assert(IndexRange(slices_num_).contains(index));
     BLI_assert(IndexRange(slice_size_).contains(index_in_vector));
@@ -586,7 +585,8 @@ static void execute_multi_function_on_value_variant__single(
 
       if (values->cpp_type() == cpp_type) {
         auto &list_data = scope.add_value(GVArraySpan(values->varray()));
-        auto &value = scope.add_value(GVVectorArray_For_Plain_Array(list_data, list_data.size(), cpp_type));
+        auto &value = scope.add_value(
+            GVVectorArray_For_Plain_Array(list_data, list_data.size(), cpp_type));
         params.add_readonly_vector_input(value);
         continue;
       }
@@ -597,11 +597,12 @@ static void execute_multi_function_on_value_variant__single(
         cpp_type.copy_assign(list_data[list_item].get_single_ptr_raw(), list_values[list_item]);
       }
 
-      auto &value = scope.add_value(GVVectorArray_For_Plain_Array(list_values.as_span(), list_data.size(), cpp_type));
+      auto &value = scope.add_value(
+          GVVectorArray_For_Plain_Array(list_values.as_span(), list_data.size(), cpp_type));
       params.add_readonly_vector_input(value);
       continue;
     }
-    
+
     const CPPType &cpp_type = param_type.data_type().single_type();
     input_variant.convert_to_single();
     const void *value = input_variant.get_single_ptr_raw();
@@ -681,17 +682,22 @@ static void execute_multi_function_on_value_variant__field(
       const auto list_value = value.get<GListPtr>();
       if (list_value->cpp_type().is<GField>()) {
         any_input_is_field = true;
-      }/* else if (list_value->cpp_type().is<GVolumeGrid>()) {
-        any_input_is_volume_grid = true;
-      } */else if (list_value->cpp_type().is<GListPtr>()) {
+      } /* else if (list_value->cpp_type().is<GVolumeGrid>()) {
+         any_input_is_volume_grid = true;
+       } */
+      else if (list_value->cpp_type().is<GListPtr>()) {
         any_input_is_list = true;
-      } else if (list_value->cpp_type().is<SocketValueVariant>()) {
-        for (const SocketValueVariant &sub_value : VArraySpan<SocketValueVariant>(list_value->varray().typed<SocketValueVariant>())) {
+      }
+      else if (list_value->cpp_type().is<SocketValueVariant>()) {
+        for (const SocketValueVariant &sub_value :
+             VArraySpan<SocketValueVariant>(list_value->varray().typed<SocketValueVariant>()))
+        {
           if (sub_value.is_field()) {
             any_input_is_field = true;
-          }/* else if (sub_value.is_grid()) {
-            any_input_is_volume_grid = true;
-          } */else if (sub_value.is_list()) {
+          } /* else if (sub_value.is_grid()) {
+             any_input_is_volume_grid = true;
+           } */
+          else if (sub_value.is_list()) {
             any_input_is_list = true;
           }
         }
