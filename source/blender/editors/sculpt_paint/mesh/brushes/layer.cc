@@ -14,6 +14,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
@@ -35,6 +36,7 @@ struct LocalData {
   Vector<float3> persistent_positions;
   Vector<float3> persistent_normals;
   Vector<float3> positions;
+  Vector<float3> local_positions;
   Vector<float> factors;
   Vector<float> distances;
   Vector<float> masks;
@@ -124,6 +126,7 @@ BLI_NOINLINE static void calc_translations(const Span<float3> base_positions,
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
+                       const float4x4 &mat,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
                        const bool use_persistent_base,
@@ -152,11 +155,27 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_brush_distances(
-      ss, orig_data.positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
-  apply_hardness_to_distances(cache, distances);
-  calc_brush_strength_factors(cache, brush, distances, factors);
+
+  float radius = cache.radius;
+  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    tls.local_positions.resize(orig_data.positions.size());
+    MutableSpan<float3> local_positions = tls.local_positions;
+    calc_local_positions(orig_data.positions, mat, local_positions);
+    calc_brush_cube_distances<float3>(brush, local_positions, distances);
+    radius = 1.0f;
+  }
+  else {
+    calc_brush_distances(
+        ss, orig_data.positions, eBrushFalloffShape(brush.falloff_shape), distances);
+  }
+
+  filter_distances_with_radius(radius, distances, factors);
+  apply_hardness_to_distances(radius, cache.hardness, distances);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -224,6 +243,7 @@ static void calc_faces(const Depsgraph &depsgraph,
 static void calc_grids(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
+                       const float4x4 &mat,
                        Object &object,
                        const bool use_persistent_base,
                        const Span<float3> persistent_base_positions,
@@ -250,11 +270,27 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_brush_distances(
-      ss, orig_data.positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
-  apply_hardness_to_distances(cache, distances);
-  calc_brush_strength_factors(cache, brush, distances, factors);
+
+  float radius = cache.radius;
+  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    tls.local_positions.resize(orig_data.positions.size());
+    MutableSpan<float3> local_positions = tls.local_positions;
+    calc_local_positions(orig_data.positions, mat, local_positions);
+    calc_brush_cube_distances<float3>(brush, local_positions, distances);
+    radius = 1.0f;
+  }
+  else {
+    calc_brush_distances(
+        ss, orig_data.positions, eBrushFalloffShape(brush.falloff_shape), distances);
+  }
+
+  filter_distances_with_radius(radius, distances, factors);
+  apply_hardness_to_distances(radius, cache.hardness, distances);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
@@ -323,6 +359,7 @@ static void calc_grids(const Depsgraph &depsgraph,
 static void calc_bmesh(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
+                       const float4x4 &mat,
                        Object &object,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls,
@@ -349,10 +386,26 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
-  calc_brush_distances(ss, orig_positions, eBrushFalloffShape(brush.falloff_shape), distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
-  apply_hardness_to_distances(cache, distances);
-  calc_brush_strength_factors(cache, brush, distances, factors);
+
+  float radius = cache.radius;
+  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    tls.local_positions.resize(orig_positions.size());
+    MutableSpan<float3> local_positions = tls.local_positions;
+    calc_local_positions(orig_positions, mat, local_positions);
+    calc_brush_cube_distances<float3>(brush, local_positions, distances);
+    radius = 1.0f;
+  }
+  else {
+    calc_brush_distances(ss, orig_positions, eBrushFalloffShape(brush.falloff_shape), distances);
+  }
+
+  filter_distances_with_radius(radius, distances, factors);
+  apply_hardness_to_distances(radius, cache.hardness, distances);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               radius,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -397,6 +450,10 @@ void do_layer_brush(const Depsgraph &depsgraph,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
+
+  float4x4 mat;
+  ed::sculpt_paint::cube_tip_init(sd, object, brush, mat.ptr());
+
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *id_cast<Mesh *>(object.data);
@@ -438,6 +495,7 @@ void do_layer_brush(const Depsgraph &depsgraph,
             calc_faces(depsgraph,
                        sd,
                        brush,
+                       mat,
                        attribute_data,
                        vert_normals,
                        use_persistent_base,
@@ -489,6 +547,7 @@ void do_layer_brush(const Depsgraph &depsgraph,
             calc_grids(depsgraph,
                        sd,
                        brush,
+                       mat,
                        object,
                        use_persistent_base,
                        persistent_position,
@@ -510,7 +569,7 @@ void do_layer_brush(const Depsgraph &depsgraph,
       node_mask.foreach_index(
           [&](const int i) {
             LocalData &tls = all_tls.local();
-            calc_bmesh(depsgraph, sd, brush, object, nodes[i], tls, displacement);
+            calc_bmesh(depsgraph, sd, brush, mat, object, nodes[i], tls, displacement);
             bke::pbvh::update_node_bounds_bmesh(nodes[i]);
           },
           exec_mode::grain_size(1));
