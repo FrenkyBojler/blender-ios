@@ -25,6 +25,8 @@
 #include "pbvh_pixels_rasterize.hh"
 #include "pbvh_uv_islands.hh"
 
+#include <algorithm>
+
 namespace blender {
 
 namespace bke::pbvh::pixels {
@@ -164,6 +166,38 @@ struct UVPrimitiveLookup {
   }
 };
 
+static void build_pixel_row_runs(UDIMTilePixels &tile_data)
+{
+  const int n = tile_data.pixel_rows.size();
+
+  /* Sort pixel rows by (y, x), to group contiguous pixel rows runs from adjacent triangles.
+   * Stable sort for deterministic results with overlapping triangles.
+   *
+   * TODO: overlapping triangles break runs? */
+  std::ranges::stable_sort(tile_data.pixel_rows,
+                           [](const PackedPixelRow &a, const PackedPixelRow &b) {
+                             if (a.start_image_coordinate.y != b.start_image_coordinate.y) {
+                               return a.start_image_coordinate.y < b.start_image_coordinate.y;
+                             }
+                             return a.start_image_coordinate.x < b.start_image_coordinate.x;
+                           });
+
+  /* Compute run starts. */
+  tile_data.pixel_row_run_starts.clear();
+  tile_data.pixel_row_run_starts.append(0);
+  for (int i = 1; i < n; i++) {
+    const PackedPixelRow &prev = tile_data.pixel_rows[i - 1];
+    const PackedPixelRow &cur = tile_data.pixel_rows[i];
+    const bool contiguous = cur.start_image_coordinate.y == prev.start_image_coordinate.y &&
+                            cur.start_image_coordinate.x ==
+                                prev.start_image_coordinate.x + prev.num_pixels;
+    if (!contiguous) {
+      tile_data.pixel_row_run_starts.append(i);
+    }
+  }
+  tile_data.pixel_row_run_starts.append(n);
+}
+
 static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
                              const uv_islands::UVIslandsMask &uv_masks,
                              const UVPrimitiveLookup &uv_prim_lookup,
@@ -240,6 +274,8 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
     if (tile_data.pixel_rows.is_empty()) {
       continue;
     }
+
+    build_pixel_row_runs(tile_data);
 
     BLI_assert(pixel_node.uv_primitives.delta_barycentric_coords.size() ==
                pixel_node.uv_primitives.tri_indices.size());
