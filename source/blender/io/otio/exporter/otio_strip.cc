@@ -696,6 +696,24 @@ static void add_strip_metadata_compositing(const Strip *strip,
 }
 
 template<typename T>
+static void add_strip_metadata_color(const Strip *strip, SerializableObject::Retainer<T> &clip)
+{
+  AnyDictionary metadata;
+
+  metadata["saturation"] = static_cast<double>(strip->sat);
+  metadata["multiply"] = static_cast<double>(strip->mul);
+  metadata["multiply_alpha"] = static_cast<bool>(strip->flag & SEQ_MULTIPLY_ALPHA);
+  metadata["convert_to_float"] = static_cast<bool>(strip->flag & SEQ_MAKE_FLOAT);
+
+  try {
+    std::any_cast<AnyDictionary &>(clip->metadata()["blender"])["color"] = metadata;
+  }
+  catch (const std::bad_any_cast & /*e*/) {
+    return;
+  }
+}
+
+template<typename T>
 void add_strip_metadata_common(const Strip *strip, SerializableObject::Retainer<T> &clip)
 {
   if (!clip->metadata().has_key("blender")) {
@@ -708,6 +726,7 @@ void add_strip_metadata_common(const Strip *strip, SerializableObject::Retainer<
     add_strip_metadata_transform(strip, clip);
     add_strip_metadata_crop(strip, clip);
     add_strip_metadata_compositing(strip, clip);
+    add_strip_metadata_color(strip, clip);
   }
 }
 
