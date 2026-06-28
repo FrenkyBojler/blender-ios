@@ -20,6 +20,9 @@ template<typename VecT> bool is_zero(VecT vec)
 template bool is_zero<float2>(float2);
 template bool is_zero<float3>(float3);
 template bool is_zero<float4>(float4);
+template bool is_zero<int2>(int2);
+template bool is_zero<int3>(int3);
+template bool is_zero<int4>(int4);
 
 /**
  * Return true if any component is equal to zero.
