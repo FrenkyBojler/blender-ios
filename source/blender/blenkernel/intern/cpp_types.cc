@@ -16,6 +16,8 @@
 #include "NOD_geometry_nodes_values.hh"
 #include "NOD_menu_value.hh"
 
+#include "FN_field.hh"
+
 #include "DNA_meshdata_types.h"
 
 namespace blender {
@@ -49,6 +51,8 @@ void BKE_cpp_types_init()
   BLI_CPP_TYPE_REGISTER(nodes::BundlePtr, CPPTypeFlags::EqualityComparable);
   BLI_CPP_TYPE_REGISTER(nodes::ClosurePtr, CPPTypeFlags::EqualityComparable);
   BLI_CPP_TYPE_REGISTER(nodes::GListPtr, CPPTypeFlags::EqualityComparable);
+  BLI_CPP_TYPE_REGISTER(nodes::GListPtr, CPPTypeFlags::EqualityComparable);
+  BLI_CPP_TYPE_REGISTER(fn::GField, CPPTypeFlags::None);
 
   BLI_CPP_TYPE_REGISTER(bke::GeometryNodesReferenceSet, CPPTypeFlags::None);
   BLI_CPP_TYPE_REGISTER(bke::SocketValueVariant, CPPTypeFlags::Printable);
