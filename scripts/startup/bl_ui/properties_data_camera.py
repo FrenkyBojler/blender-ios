@@ -528,18 +528,27 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
 
                 panel_col = container.column(heading="Frontseat", align=True)
                 panel_col.prop(camera, "show_composition_dome_master_unidirectional_safearea_front", text="Safe Area")
+                panel_col.prop(camera, "show_composition_dome_master_unidirectional_sweetspot_front", text="Sweetspot")
 
                 panel_col = container.column(heading="Centerseat", align=True)
                 panel_col.prop(
                     camera,
                     "show_composition_dome_master_unidirectional_safearea_center",
-                    text="Centerseat Safe Area")
+                    text="Safe Area")
+                panel_col.prop(
+                    camera,
+                    "show_composition_dome_master_unidirectional_sweetspot_center",
+                    text="Sweetspot")
 
                 panel_col = container.column(heading="Backseat", align=True)
                 panel_col.prop(
                     camera,
                     "show_composition_dome_master_unidirectional_safearea_back",
-                    text="Backseat Safe Area")
+                    text="Safe Area")
+                panel_col.prop(
+                    camera,
+                    "show_composition_dome_master_unidirectional_sweetspot_back",
+                    text="Sweetspot")
 
                 panel_col = container.column(heading="Horizon", align=True)
                 panel_col.prop(

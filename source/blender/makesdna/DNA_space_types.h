@@ -304,10 +304,12 @@ struct SpaceNla {
  * \{ */
 
 enum eCompositionGuideFlags : short;
+enum eCompositionGuideFlagsDomeMaster : short;
 struct SequencerPreviewOverlay {
   eSpaceSeq_SequencerPreviewOverlay_Flag flag = {};
   eCompositionGuideFlags composition_guide_flags = {};
-  char _pad[2] = {};
+  eCompositionGuideFlagsDomeMaster composition_guide_flags_dome_master = {};
+  char _pad[8] = {};
 
   /* Compositional guide overlay color */
   float composition_guide_color[4] = {0.5f, 0.5f, 0.5f, 1.0f};

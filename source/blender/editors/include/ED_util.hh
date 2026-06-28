@@ -147,6 +147,7 @@ void ED_slider_property_label_set(tSlider *slider, const char *property_label);
 
 /* Composition Guides */
 enum eCompositionGuideFlags : short;
+enum eCompositionGuideFlagsDomeMaster : short;
 
 void ED_draw_composition_guides(uint shdr_pos,
                                 eCompositionGuideFlags flag,
@@ -154,7 +155,7 @@ void ED_draw_composition_guides(uint shdr_pos,
                                 const float color[4]);
 
 void ED_draw_dome_master_composition_guides(uint shdr_pos,
-                                            eCompositionGuideFlags flag,
+                                            eCompositionGuideFlagsDomeMaster flag,
                                             const rctf *rect,
                                             const float color[4]);
 
