@@ -17,11 +17,13 @@
 #include "BLI_colorspace.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.hh"
+#include "BLI_math_base.hh"
 #include "BLI_math_color_blend.hh"
 #include "BLI_math_color_c.hh"
 #include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_task_c.hh"
 #ifdef DEBUG_PIXEL_NODES
 #  include "BLI_hash_c.hh"
 #endif
@@ -145,20 +147,6 @@ static void fetch_image_buffers(ImageData &image_data,
         return processor;
       });
     }
-  }
-}
-
-static void calc_pixel_row_positions(const float3 P_start,
-                                     const float3 P_delta,
-                                     const MutableSpan<float3> positions,
-                                     IndexRange range)
-{
-  PRF_scope(ProfileCategory::Editor);
-  BLI_assert(range.size() == positions.size());
-
-  const float3 start = P_start + P_delta * range.start();
-  for (const int i : positions.index_range()) {
-    positions[i] = start + P_delta * i;
   }
 }
 
@@ -370,8 +358,6 @@ static void paint_blend_pixels(const PaintBlendSettings &settings,
 }
 
 struct PaintLocalData {
-  Vector<float3> pixel_positions;
-  Vector<float> distances;
   Vector<float> factors;
 
   Vector<float4> paint_blend_pixels;
@@ -511,10 +497,15 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
     threading::EnumerableThreadSpecific<PaintLocalData> all_factor_tls;
 
+    /* Precompute brush falloff for the fused factor pass. */
+    const BrushFactorSettings falloff_settings(cache, brush);
+
     /* Parallelize over contiguous runs containing one or more per-triangle pixel rows. */
     const int num_runs = tile_data.pixel_row_run_starts.size() - 1;
     threading::parallel_for(IndexRange(num_runs), 32, [&](const IndexRange task_range) {
       PaintLocalData &tls = all_factor_tls.local();
+      const int thread_id = BLI_task_parallel_thread_id(nullptr);
+
       for (const int run_i : task_range) {
         const int run_begin = tile_data.pixel_row_run_starts[run_i];
         const int run_end = tile_data.pixel_row_run_starts[run_i + 1];
@@ -529,11 +520,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
         /* Resize temporary data to match run size. */
         tls.factors.resize(run_size);
-        tls.pixel_positions.resize(run_size);
-        tls.distances.resize(run_size);
         const MutableSpan<float> factors = tls.factors;
-        const MutableSpan<float3> positions = tls.pixel_positions;
-        const MutableSpan<float> distances = tls.distances;
 
         /* Tracking for active subset of run with nonzero factors. */
         int run_active_begin = -1;
@@ -559,42 +546,25 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
               brush_bounds.intersects_segment(P_start, P_start + P_delta * tri_row_size))
           {
             /* Compute brush factors per triangle. */
-            const MutableSpan<float> tri_factors = factors.slice(tri_row_offset, tri_row_size);
-            const MutableSpan<float3> tri_positions = positions.slice(tri_row_offset,
-                                                                      tri_row_size);
-            const MutableSpan<float> tri_distances = distances.slice(tri_row_offset, tri_row_size);
-
-            tri_factors.fill(1.0f);
-            calc_pixel_row_positions(P_start, P_delta, tri_positions, IndexRange(tri_row_size));
-            calc_brush_distances(
-                ss, tri_positions, eBrushFalloffShape(brush.falloff_shape), tri_distances);
-            filter_distances_with_radius(cache.radius, tri_distances, tri_factors);
-            apply_hardness_to_distances(cache, tri_distances);
-            calc_brush_strength_factors(cache, brush, tri_distances, tri_factors);
-            calc_brush_texture_factors(ss, brush, tri_positions, tri_factors);
-            scale_factors(tri_factors, cache.bstrength);
+            const IndexRange tri_active = calc_brush_factors(
+                falloff_settings,
+                ss,
+                brush,
+                thread_id,
+                tri_row_size,
+                [&](const int i) { return P_start + P_delta * i; },
+                factors.slice(tri_row_offset, tri_row_size));
 
             /* Track which subset of the run has non-zero factors. */
-            int tri_active_begin = -1;
-            int tri_active_end = -1;
-            for (int i = 0; i < tri_row_size; i++) {
-              if (tri_factors[i] != 0.0f) {
-                if (tri_active_begin < 0) {
-                  tri_active_begin = i;
-                }
-                tri_active_end = i;
-              }
-            }
-
-            if (tri_active_begin >= 0) {
+            if (!tri_active.is_empty()) {
               if (run_active_begin < 0) {
-                run_active_begin = tri_row_offset + tri_active_begin;
+                run_active_begin = tri_row_offset + int(tri_active.first());
               }
               else if (tri_skip_start >= 0) {
                 factors.slice(tri_skip_start, tri_row_offset - tri_skip_start).fill(0.0f);
                 tri_skip_start = -1;
               }
-              run_active_end = tri_row_offset + tri_active_end;
+              run_active_end = tri_row_offset + int(tri_active.last());
             }
           }
           else {

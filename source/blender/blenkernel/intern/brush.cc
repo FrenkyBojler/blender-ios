@@ -1485,123 +1485,24 @@ void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
   BLI_assert(factors.size() == distances.size());
 
   const float radius_rcp = math::rcp(brush_radius);
-  switch (preset) {
-    case BRUSH_CURVE_CUSTOM: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-          continue;
-        }
-        factors[i] *= BKE_curvemapping_evaluateF(cumap, 0, distance * radius_rcp);
+  if (preset == BRUSH_CURVE_CUSTOM) {
+    for (const int i : distances.index_range()) {
+      const float distance = distances[i];
+      if (distance >= brush_radius) {
+        factors[i] = 0.0f;
+        continue;
       }
-      break;
+      factors[i] *= BKE_curvemapping_evaluateF(cumap, 0, distance * radius_rcp);
     }
-    case BRUSH_CURVE_SHARP: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-          continue;
-        }
-        const float factor = 1.0f - distance * radius_rcp;
-        factors[i] *= factor * factor;
-      }
-      break;
+    return;
+  }
+  for (const int i : distances.index_range()) {
+    const float distance = distances[i];
+    if (distance >= brush_radius) {
+      factors[i] = 0.0f;
+      continue;
     }
-    case BRUSH_CURVE_SMOOTH: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-          continue;
-        }
-        const float factor = 1.0f - distance * radius_rcp;
-        factors[i] *= 3.0f * factor * factor - 2.0f * factor * factor * factor;
-      }
-      break;
-    }
-    case BRUSH_CURVE_SMOOTHER: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-          continue;
-        }
-        const float factor = 1.0f - distance * radius_rcp;
-        factors[i] *= pow3f(factor) * (factor * (factor * 6.0f - 15.0f) + 10.0f);
-      }
-      break;
-    }
-    case BRUSH_CURVE_ROOT: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-          continue;
-        }
-        const float factor = 1.0f - distance * radius_rcp;
-        factors[i] *= sqrtf(factor);
-      }
-      break;
-    }
-    case BRUSH_CURVE_LIN: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-          continue;
-        }
-        const float factor = 1.0f - distance * radius_rcp;
-        factors[i] *= factor;
-      }
-      break;
-    }
-    case BRUSH_CURVE_CONSTANT: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-        }
-      }
-      break;
-    }
-    case BRUSH_CURVE_SPHERE: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-          continue;
-        }
-        const float factor = 1.0f - distance * radius_rcp;
-        factors[i] *= sqrtf(2 * factor - factor * factor);
-      }
-      break;
-    }
-    case BRUSH_CURVE_POW4: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-          continue;
-        }
-        const float factor = 1.0f - distance * radius_rcp;
-        factors[i] *= factor * factor * factor * factor;
-      }
-      break;
-    }
-    case BRUSH_CURVE_INVSQUARE: {
-      for (const int i : distances.index_range()) {
-        const float distance = distances[i];
-        if (distance >= brush_radius) {
-          factors[i] = 0.0f;
-          continue;
-        }
-        const float factor = 1.0f - distance * radius_rcp;
-        factors[i] *= factor * (2.0f - factor);
-      }
-      break;
-    }
+    factors[i] *= BKE_brush_curve_preset_factor(preset, 1.0f - distance * radius_rcp);
   }
 }
 
@@ -1623,37 +1524,11 @@ float BKE_brush_curve_strength(const eBrushCurvePreset preset,
   p = p / brush_radius;
   p = 1.0f - p;
 
-  switch (preset) {
-    case BRUSH_CURVE_CUSTOM:
-      strength = BKE_curvemapping_evaluateF(cumap, 0, 1.0f - p);
-      break;
-    case BRUSH_CURVE_SHARP:
-      strength = p * p;
-      break;
-    case BRUSH_CURVE_SMOOTH:
-      strength = 3.0f * p * p - 2.0f * p * p * p;
-      break;
-    case BRUSH_CURVE_SMOOTHER:
-      strength = pow3f(p) * (p * (p * 6.0f - 15.0f) + 10.0f);
-      break;
-    case BRUSH_CURVE_ROOT:
-      strength = sqrtf(p);
-      break;
-    case BRUSH_CURVE_LIN:
-      strength = p;
-      break;
-    case BRUSH_CURVE_CONSTANT:
-      strength = 1.0f;
-      break;
-    case BRUSH_CURVE_SPHERE:
-      strength = sqrtf(2 * p - p * p);
-      break;
-    case BRUSH_CURVE_POW4:
-      strength = p * p * p * p;
-      break;
-    case BRUSH_CURVE_INVSQUARE:
-      strength = p * (2.0f - p);
-      break;
+  if (preset == BRUSH_CURVE_CUSTOM) {
+    strength = BKE_curvemapping_evaluateF(cumap, 0, 1.0f - p);
+  }
+  else {
+    strength = BKE_brush_curve_preset_factor(preset, p);
   }
 
   return strength;

@@ -10,6 +10,7 @@
  * General operations for brushes.
  */
 
+#include <cmath>
 #include <optional>
 
 #include "BLI_math_vector_types.hh"
@@ -105,6 +106,34 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset);
 
 namespace bke::brush {
 void common_pressure_curves_init(Brush &brush);
+}
+
+/** Brush distance falloff curves */
+inline float BKE_brush_curve_preset_factor(const eBrushCurvePreset preset, const float f)
+{
+  switch (preset) {
+    case BRUSH_CURVE_SHARP:
+      return f * f;
+    case BRUSH_CURVE_SMOOTH:
+      return 3.0f * f * f - 2.0f * f * f * f;
+    case BRUSH_CURVE_SMOOTHER:
+      return f * f * f * (f * (f * 6.0f - 15.0f) + 10.0f);
+    case BRUSH_CURVE_ROOT:
+      return std::sqrt(f);
+    case BRUSH_CURVE_LIN:
+      return f;
+    case BRUSH_CURVE_CONSTANT:
+      return 1.0f;
+    case BRUSH_CURVE_SPHERE:
+      return std::sqrt(2.0f * f - f * f);
+    case BRUSH_CURVE_POW4:
+      return f * f * f * f;
+    case BRUSH_CURVE_INVSQUARE:
+      return f * (2.0f - f);
+    case BRUSH_CURVE_CUSTOM:
+      break;
+  }
+  return f;
 }
 
 /**

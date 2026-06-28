@@ -7,7 +7,9 @@
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_bit_span.hh"
+#include "BLI_math_base.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
@@ -15,9 +17,13 @@
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
+#include "BKE_brush.hh"
+#include "BKE_colortools.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "DNA_brush_enums.h"
+#include "DNA_object_enums.h"
+#include "DNA_texture_types.h"
 
 #include "PRF_profile.hh"
 
@@ -407,6 +413,155 @@ void calc_brush_texture_factors(const SculptSession &ss,
                                 const Brush &brush,
                                 Span<float3> positions,
                                 MutableSpan<float> factors);
+
+/**
+ * Settings for #calc_brush_factors, to be cached once in advance and stored
+ * on the stack.
+ */
+struct BrushFactorSettings {
+  BrushFactorSettings(const StrokeCache &cache, const Brush &brush)
+      : shape(eBrushFalloffShape(brush.falloff_shape)),
+        center(cache.location_symm),
+        radius(cache.radius),
+        radius_rcp(math::rcp(cache.radius)),
+        strength(cache.bstrength),
+        hardness(cache.hardness),
+        hardness_threshold(cache.hardness * cache.radius),
+        hardness_inv_rcp((cache.hardness != 1.0f) ? math::rcp(1.0f - cache.hardness) : 0.0f),
+        curve_preset(eBrushCurvePreset(brush.curve_distance_falloff_preset)),
+        curve_custom(brush.curve_distance_falloff),
+        tube_normal(cache.view_normal_symm),
+        mask_texture(BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT))
+  {
+  }
+
+  eBrushFalloffShape shape;
+
+  float3 center;
+  float radius;
+  float radius_rcp;
+
+  float strength;
+
+  float hardness;
+  float hardness_threshold;
+  float hardness_inv_rcp;
+
+  eBrushCurvePreset curve_preset;
+  const CurveMapping *curve_custom;
+
+  float3 tube_normal;
+
+  const MTex *mask_texture;
+};
+
+/**
+ * Combined version of calc brush functions above, with a single loop and inlining.
+ * This improves performance for texture painting.
+ */
+
+inline float brush_falloff_distance(const BrushFactorSettings &settings, const float3 &position)
+{
+  const float3 relative = position - settings.center;
+  if (settings.shape == PAINT_FALLOFF_SHAPE_TUBE) {
+    /* In-plane distance: drop the component along the falloff plane normal. */
+    const float3 in_plane = relative -
+                            settings.tube_normal * math::dot(settings.tube_normal, relative);
+    return math::length(in_plane);
+  }
+  return math::length(relative);
+}
+
+inline float brush_falloff_factor(const BrushFactorSettings &settings,
+                                  const float3 &position,
+                                  float &r_distance)
+{
+  const float distance = brush_falloff_distance(settings, position);
+  /* Radius cutoff uses the original distance. */
+  const bool inside = distance < settings.radius;
+
+  float d = distance;
+  if (settings.hardness != 0.0f) {
+    if (settings.hardness == 1.0f) {
+      d = (d < settings.hardness_threshold) ? 0.0f : settings.radius;
+    }
+    else if (d < settings.hardness_threshold) {
+      d = 0.0f;
+    }
+    else {
+      d = ((d * settings.radius_rcp - settings.hardness) * settings.hardness_inv_rcp) *
+          settings.radius;
+    }
+  }
+  r_distance = d;
+
+  /* Also drop anything the hardness remap pushed to or over the radius. */
+  if (!inside || d >= settings.radius) {
+    return 0.0f;
+  }
+  const float normalized = d * settings.radius_rcp;
+  if (settings.curve_preset == BRUSH_CURVE_CUSTOM) {
+    return BKE_curvemapping_evaluateF(settings.curve_custom, 0, normalized);
+  }
+  return BKE_brush_curve_preset_factor(settings.curve_preset, 1.0f - normalized);
+}
+
+template<typename PositionFn>
+void calc_brush_falloff_factors(const BrushFactorSettings &settings,
+                                const IndexRange range,
+                                const PositionFn position_fn,
+                                const MutableSpan<float> factors,
+                                const MutableSpan<float> r_distances)
+{
+  PRF_scope(ProfileCategory::Editor);
+  if (r_distances.is_empty()) {
+    for (const int i : range) {
+      float distance;
+      factors[i] *= brush_falloff_factor(settings, position_fn(i), distance);
+    }
+  }
+  else {
+    for (const int i : range) {
+      factors[i] *= brush_falloff_factor(settings, position_fn(i), r_distances[i]);
+    }
+  }
+}
+
+template<typename PositionFn>
+IndexRange calc_brush_factors(const BrushFactorSettings &settings,
+                              const SculptSession &ss,
+                              const Brush &brush,
+                              const int thread_id,
+                              const int size,
+                              const PositionFn position_fn,
+                              const MutableSpan<float> factors)
+{
+  PRF_scope(ProfileCategory::Editor);
+  const bool has_texture = settings.mask_texture->tex != nullptr;
+
+  int active_begin = -1;
+  int active_end = -1;
+  for (const int i : IndexRange(size)) {
+    const float3 position = position_fn(i);
+    float distance;
+    float factor = brush_falloff_factor(settings, position, distance) * settings.strength;
+    if (has_texture && factor != 0.0f) {
+      float texture_value;
+      float4 texture_rgba;
+      sculpt_apply_texture(ss, brush, position, thread_id, &texture_value, texture_rgba);
+      factor *= texture_value;
+    }
+    factors[i] = factor;
+    if (factor != 0.0f) {
+      if (active_begin < 0) {
+        active_begin = i;
+      }
+      active_end = i;
+    }
+  }
+  return (active_begin < 0) ? IndexRange() :
+                              IndexRange(active_begin, active_end - active_begin + 1);
+}
 
 /**
  * Many brushes end up calculating translations from the original positions. Instead of applying
