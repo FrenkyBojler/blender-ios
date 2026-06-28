@@ -151,8 +151,15 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   orig_position_data_gather_bmesh(*ss.bm_log, verts, orig_positions, orig_normals);
 
   if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
-    calc_cube_tip_factors_common_from_orig_data_bmesh(
-        depsgraph, brush, object, mat, orig_positions, orig_normals, node, tls.factors, tls.distances);
+    calc_cube_tip_factors_common_from_orig_data_bmesh(depsgraph,
+                                                      brush,
+                                                      object,
+                                                      mat,
+                                                      orig_positions,
+                                                      orig_normals,
+                                                      node,
+                                                      tls.factors,
+                                                      tls.distances);
   }
   else {
     calc_factors_common_from_orig_data_bmesh(
