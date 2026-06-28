@@ -41,7 +41,7 @@ echo # Then run it using %USERPROFILE%/vmprep.cmd
 echo #
 echo # This will install :
 echo # - Visual Studio 2022 17.14.14 Buildtools with the required workloads in
-echo #   the c:\vs2022bt\ folder
+echo #   the C:\vs2022bt\ folder
 echo # - Meson 1.9.1
 echo # - Visual Studio 2010 X64 redist (required for the yaml binary)
 echo # - Git 2.38.0
@@ -51,14 +51,14 @@ echo # - HIP 7.1.51803
 echo #
 echo # Additionally this will also create and populate the following folders :
 echo #
-echo # - c:\install\    - This is a temporary folder with installation files
+echo # - C:\install\    - This is a temporary folder with installation files
 echo #                    needed by this script.
-echo # - c:\t\          - This is a temporary folder for the python dependencies
+echo # - C:\t\          - This is a temporary folder for the python dependencies
 echo #                    to build in, as they would have build issues if the
 echo #                    default user profile path is used as it is too long.
-echo # - c:\blendergit\blender
+echo # - C:\blendergit\blender
 echo #                  - This is the blender source repository
-echo # - c:\db          - This is the build folder for the dependencies
+echo # - C:\db          - This is the build folder for the dependencies
 echo #                    it has a short name to sidestep any long path issues.
 echo ###########################################################################
 echo #
@@ -79,81 +79,89 @@ echo #
 if %UNATTENDED%==0 pause
 
 echo Create install folder
-mkdir c:\install
+mkdir C:\install
 
 echo Create shortly named temp folder
-mkdir c:\t
+mkdir C:\t
 
 echo Obtaining Visual Studio 2022 Buildtools installer
-curl -s https://download.visualstudio.microsoft.com/download/pr/c2e2845d-bdff-44fc-ac00-3d488e9f5675/abdb87ff12fe1885ccc4964b4ab51da566549fd2096d7ceb1fdea907372f21d7/vs_BuildTools.exe -o c:\install\vs_BuildTools.exe
+curl -s https://download.visualstudio.microsoft.com/download/pr/c2e2845d-bdff-44fc-ac00-3d488e9f5675/abdb87ff12fe1885ccc4964b4ab51da566549fd2096d7ceb1fdea907372f21d7/vs_BuildTools.exe -o C:\install\vs_BuildTools.exe
 echo Obtaining Visual Studio 2022 Buildtools installer configuration
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/vsconfig -o c:\install\.vsconfig
+curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/vsconfig -o C:\install\.vsconfig
 echo Installing Visual Studio 2022 Buildtools installer
-c:\install\vs_BuildTools.exe --wait --quiet --norestart --installPath c:\vs2022bt\ --config c:\install\.vsconfig
+C:\install\vs_BuildTools.exe --wait --quiet --norestart --installPath C:\vs2022bt\ --config C:\install\.vsconfig
 
 echo Obtaining Git
-curl -s -L https://github.com/git-for-windows/git/releases/download/v2.38.0.windows.1/Git-2.38.0-64-bit.exe -o c:\install\Git-2.38.0-64-bit.exe
+curl -s -L https://github.com/git-for-windows/git/releases/download/v2.38.0.windows.1/Git-2.38.0-64-bit.exe -o C:\install\Git-2.38.0-64-bit.exe
 echo Installing Git
-start /wait c:\install\Git-2.38.0-64-bit.exe /verysilent /norestart
+start /wait C:\install\Git-2.38.0-64-bit.exe /verysilent /norestart
 echo Adding Git to PATH
-SET PATH=%PATH%;c:\Program Files\Git\cmd
+set PATH=%PATH%;C:\Program Files\Git\cmd
 
 echo Obtaining CMake
-curl -s -L https://github.com/Kitware/CMake/releases/download/v3.31.7/cmake-3.31.7-windows-x86_64.msi -o c:\install\cmake-3.31.7-windows-x86_64.msi
+curl -s -L https://github.com/Kitware/CMake/releases/download/v3.31.7/cmake-3.31.7-windows-x86_64.msi -o C:\install\cmake-3.31.7-windows-x86_64.msi
 echo Installing CMake
-start /wait msiexec /quiet /norestart /i c:\install\cmake-3.31.7-windows-x86_64.msi ADD_CMAKE_TO_PATH="System"
+start /wait msiexec /quiet /norestart /i C:\install\cmake-3.31.7-windows-x86_64.msi ADD_CMAKE_TO_PATH="System"
+echo Adding CMake to PATH
+set PATH=%PATH%;C:\Program Files\CMake\bin
 
 echo Obtaining Meson
-curl -s -L https://github.com/mesonbuild/meson/releases/download/1.9.1/meson-1.9.1-64.msi -o c:\install\meson-1.9.1-64.msi
+curl -s -L https://github.com/mesonbuild/meson/releases/download/1.9.1/meson-1.9.1-64.msi -o C:\install\meson-1.9.1-64.msi
 echo Installing Meson
-start /wait msiexec /quiet /norestart /i c:\install\meson-1.9.1-64.msi
+start /wait msiexec /quiet /norestart /i C:\install\meson-1.9.1-64.msi
+echo Adding Meson to PATH
+set PATH=%PATH%;C:\Program Files\Meson\
 
 echo Obtaining Visual studio 2010 x64 redist
-curl -s https://download.microsoft.com/download/3/2/2/3224B87F-CFA0-4E70-BDA3-3DE650EFEBA5/vcredist_x64.exe -o c:\install\vcredist_x64.exe
+curl -s https://download.microsoft.com/download/3/2/2/3224B87F-CFA0-4E70-BDA3-3DE650EFEBA5/vcredist_x64.exe -o C:\install\vcredist_x64.exe
 echo Installing Visual studio 2010 x64 redist
-start /wait c:\install\vcredist_x64.exe /passive /norestart
+start /wait C:\install\vcredist_x64.exe /passive /norestart
 
 echo Obtaining CUDA 12.8.0
-curl -s https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda_12.8.0_571.96_windows.exe -o c:\install\cuda_12.8.0_571.96_windows.exe
+curl -s https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda_12.8.0_571.96_windows.exe -o C:\install\cuda_12.8.0_571.96_windows.exe
 echo Installing CUDA 12.8.0
-start /wait c:\install\cuda_12.8.0_571.96_windows.exe -s -n nvcc_12.8 cudart_12.8 nvrtc_12.8 nvrtc_dev_12.8 nvjitlink_12.8 nvtx_12.8 thrust_12.8 curand_12.8 curand_dev_12.8
-echo Moving CUDA 12.8.0 install to c:\tools\cuda\12.8.0\
-robocopy "c:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8" "c:\tools\cuda\12.8.0" /E /MOVE /NJH /NJS /NP /NFL /NDL
-setx CUDA_PATH=c:\tools\cuda\12.8.0
-setx CUDA_PATH_V12_8=c:\tools\cuda\12.8.0
+start /wait C:\install\cuda_12.8.0_571.96_windows.exe -s -n nvcc_12.8 cudart_12.8 nvrtc_12.8 nvrtc_dev_12.8 nvjitlink_12.8 nvtx_12.8 thrust_12.8 curand_12.8 curand_dev_12.8
+echo Moving CUDA 12.8.0 install to C:\tools\cuda\12.8.0\
+robocopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8" "C:\tools\cuda\12.8.0" /E /MOVE /NJH /NJS /NP /NFL /NDL
+echo Setting system wide values for CUDA_PATH and CUDA_PATH_V12_8
+setx CUDA_PATH "C:\tools\cuda\12.8.0" /M > nul
+setx CUDA_PATH_V12_8 "C:\tools\cuda\12.8.0" /M > nul
 
 echo Obtaining 7zr
-curl -s -L https://github.com/ip7z/7zip/releases/download/26.02/7zr.exe -o c:\install\7zr.exe
+curl -s -L https://github.com/ip7z/7zip/releases/download/26.02/7zr.exe -o C:\install\7zr.exe
 echo Adding 7zr to PATH
-SET PATH=%PATH%;c:\install
+SET PATH=%PATH%;C:\install
 
 echo Obtaining HIP SDK 7.1.51803-d3a86bd04
-curl -s https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe -o c:\install\AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe
+curl -s https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe -o C:\install\AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe
 echo Extracting HIP SDK 7.1.51803-d3a86bd04 installer
-7zr.exe x c:\install\AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe -oc:\install\ -y > nul
-mkdir c:\tools\rocm
+7zr.exe x C:\install\AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe -oC:\install\ -y > nul
+mkdir C:\tools\rocm
 echo Installing HIP SDK 7.1.51803-d3a86bd04
-start /wait msiexec /quiet /norestart /i c:\install\Packages\Apps\ROCmSDKPackages\SDKCore\ROCm_SDK_Core.msi INSTALLDIR="c:\tools\rocm"
+start /wait msiexec /quiet /norestart /i C:\install\Packages\Apps\ROCmSDKPackages\SDKCore\ROCm_SDK_Core.msi INSTALLDIR="C:\tools\rocm"
+echo Setting system wide values for HIP_PATH and HIP_PATH_71
+setx HIP_PATH "C:\tools\rocm\7.1" /M > nul
+setx HIP_PATH_71 "C:\tools\rocm\7.1" /M > nul
 
 echo Cloning Blender repository
-mkdir c:\blendergit
-cd c:\blendergit
+mkdir C:\blendergit
+cd C:\blendergit
 git clone --quiet --branch %BRANCH% https://projects.blender.org/blender/blender.git
 
-mkdir c:\db
+mkdir C:\db
 echo Obtaining vmbuild.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/vmbuild.cmd.txt -o c:\db\vmbuild.cmd
+curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/vmbuild.cmd.txt -o C:\db\vmbuild.cmd
 echo Obtaining nuke.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke.cmd -o c:\db\nuke.cmd
+curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke.cmd -o C:\db\nuke.cmd
 echo Obtaining nuke_python.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_python.cmd -o c:\db\nuke_python.cmd
+curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_python.cmd -o C:\db\nuke_python.cmd
 echo Obtaining nuke_embree.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_embree.cmd -o c:\db\nuke_embree.cmd
+curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_embree.cmd -o C:\db\nuke_embree.cmd
 echo Obtaining nuke_shaderc.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_shaderc.cmd -o c:\db\nuke_shaderc.cmd
+curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_shaderc.cmd -o C:\db\nuke_shaderc.cmd
 
 echo *******************************************************************
-echo ** Run "call c:\vs2022bt\VC\Auxiliary\Build\vcvars64.bat" to     **
-echo ** start "x64 Native Tools Command Prompt for VS 2019" and       **
-echo ** run "cd c:\db && vmbuild.cmd" to start a build.               **
+echo ** Run "call C:\vs2022bt\VC\Auxiliary\Build\vcvars64.bat" to     **
+echo ** start "x64 Native Tools Command Prompt for VS 2022" and       **
+echo ** run "cd C:\db && vmbuild.cmd" to start a build.               **
 echo *******************************************************************
