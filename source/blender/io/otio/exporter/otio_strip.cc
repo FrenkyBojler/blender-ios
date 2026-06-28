@@ -474,23 +474,6 @@ template void attach_foreign_metadata_strip(const Strip *strip,
 template void attach_foreign_metadata_strip(const Strip *strip,
                                             SerializableObject::Retainer<Transition> &clip);
 
-static void add_sound_strip_metadata(SerializableObject::Retainer<Clip> &clip, const Strip *strip)
-{
-  if (!strip->sound) {
-    return;
-  }
-
-  AnyDictionary metadata;
-  /* Cast all floats as doubles as OTIO does not support floats and writes them as null in the
-   * file. */
-  metadata["volume"] = static_cast<double>(strip->volume);
-  metadata["speed_factor"] = static_cast<double>(strip->speed_factor);
-  metadata["pan"] = static_cast<double>(strip->pan);
-  metadata["sound_offset"] = static_cast<double>(strip->sound_offset);
-
-  clip->metadata()["blender"] = metadata;
-}
-
 template<typename T>
 static void handle_speed_effect_strip(const Scene *scene,
                                       const Strip *strip,
@@ -618,6 +601,34 @@ template void add_effects_to_clip(
     std::unordered_map<Strip *, std::set<Strip *, CompareStripChannel>> &single_input_effects);
 
 template<typename T>
+static void add_strip_metadata_sound(const Strip *strip, SerializableObject::Retainer<T> &clip)
+{
+  if (!strip->sound) {
+    return;
+  }
+
+  AnyDictionary metadata;
+  /* Cast all floats as doubles as OTIO does not support floats and writes them as null in the
+   * file. */
+  metadata["volume"] = static_cast<double>(strip->volume);
+  metadata["speed_factor"] = static_cast<double>(strip->speed_factor);
+  metadata["pan"] = static_cast<double>(strip->pan);
+  metadata["sound_offset"] = static_cast<double>(strip->sound_offset);
+  metadata["preserve_pitch"] = static_cast<bool>(strip->flag & SEQ_AUDIO_PITCH_CORRECTION);
+  metadata["display_waveforms"] = static_cast<bool>(strip->flag & SEQ_AUDIO_DRAW_WAVEFORM);
+  if (strip->sound) {
+    metadata["mono"] = static_cast<bool>(strip->sound->flags & SOUND_FLAGS_MONO);
+  }
+
+  try {
+    std::any_cast<AnyDictionary &>(clip->metadata()["blender"])["sound"] = metadata;
+  }
+  catch (const std::bad_any_cast & /*e*/) {
+    return;
+  }
+}
+
+template<typename T>
 static void add_strip_metadata_crop(const Strip *strip, SerializableObject::Retainer<T> &clip)
 {
   if (!strip->data || !strip->data->crop) {
@@ -690,7 +701,10 @@ void add_strip_metadata_common(const Strip *strip, SerializableObject::Retainer<
   if (!clip->metadata().has_key("blender")) {
     clip->metadata()["blender"] = AnyDictionary();
   }
-  if (strip->type != STRIP_TYPE_SOUND) {
+  if (strip->type == STRIP_TYPE_SOUND) {
+    add_strip_metadata_sound(strip, clip);
+  }
+  else {
     add_strip_metadata_transform(strip, clip);
     add_strip_metadata_crop(strip, clip);
     add_strip_metadata_compositing(strip, clip);
@@ -793,7 +807,6 @@ void SoundStripExporter::export_strip(
 
   add_strip_metadata_common(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
-  add_sound_strip_metadata(clip, strip_);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
 }
