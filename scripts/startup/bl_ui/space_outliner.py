@@ -573,6 +573,7 @@ class OUTLINER_PT_options_filter(Panel):
             row.label(icon='BLANK1')
             row.prop(space, "use_filter_object_others", text="Others")
 
+
 class OUTLINER_PT_options_object_data(Panel):
     bl_space_type = 'OUTLINER'
     bl_region_type = 'HEADER'
@@ -590,7 +591,6 @@ class OUTLINER_PT_options_object_data(Panel):
         layout = self.layout
 
         layout.active = space.use_filter_object and space.use_filter_object_content
-        layout.use_property_split = True
         panel_column = layout.column(align=True)
         panel_column.use_property_split = False
         panel_column.use_property_decorate = False
