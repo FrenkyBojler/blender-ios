@@ -16,6 +16,7 @@
 #include "BLI_vector.hh"
 
 #include "BKE_context.hh"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mask.hh"
@@ -215,6 +216,9 @@ bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip)
   if (strip->type == STRIP_TYPE_MASK && strip->mask) {
     return true;
   }
+  if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id) {
+    return true;
+  }
   return false;
 }
 
@@ -241,6 +245,9 @@ static ThumbnailCache::SourceKey get_key_from_strip(Scene *scene,
     case STRIP_TYPE_MOVIECLIP:
       BLI_assert(strip->clip);
       return ThumbnailCache::SourceKey(&strip->clip->id);
+    case STRIP_TYPE_IMAGE_ID:
+      BLI_assert(strip->image_id);
+      return ThumbnailCache::SourceKey(&strip->image_id->id);
     case STRIP_TYPE_MASK:
       BLI_assert(strip->mask);
       return ThumbnailCache::SourceKey(&strip->mask->id);
@@ -514,7 +521,7 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
               get_id_copy(job->cache_, request, cur_id_copy, cur_id_uid));
           if (clip != nullptr) {
             MovieClipUser clip_user = {};
-            BKE_movieclip_user_set_frame(&clip_user, request.frame_index + clip->start_frame);
+            BKE_movieclip_user_set_frame(&clip_user, request.frame_index + 1);
             const short build_sizes = clip->proxy.build_size_flag & 0x0F;
             if ((clip->flag & MCLIP_USE_PROXY) && build_sizes != 0) {
               /* Find the lowest proxy resolution available, or fall back to full. */
@@ -524,6 +531,19 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
             }
             thumb = BKE_movieclip_get_ibuf_flag(
                 clip, &clip_user, MovieClipFlag(clip->flag), MovieClipCacheFlag::SkipCache);
+            if (thumb != nullptr) {
+              seq_imbuf_assign_spaces(job->scene_, thumb);
+            }
+          }
+        }
+        else if (request.strip_type == STRIP_TYPE_IMAGE_ID) {
+          /* Load thumbnail for a movie clip. */
+          Image *img = reinterpret_cast<Image *>(
+              get_id_copy(job->cache_, request, cur_id_copy, cur_id_uid));
+          if (img != nullptr) {
+            ImageUser user = {};
+            user.framenr = request.frame_index + 1;
+            thumb = BKE_image_acquire_ibuf(img, &user, nullptr);
             if (thumb != nullptr) {
               seq_imbuf_assign_spaces(job->scene_, thumb);
             }
@@ -637,6 +657,9 @@ static ImBuf *query_thumbnail(ThumbnailCache &cache,
     if (strip->type == STRIP_TYPE_MOVIECLIP && strip->clip != nullptr) {
       source_id = &strip->clip->id;
     }
+    else if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id != nullptr) {
+      source_id = &strip->image_id->id;
+    }
     else if (strip->type == STRIP_TYPE_MASK && strip->mask != nullptr) {
       source_id = &strip->mask->id;
     }
@@ -681,7 +704,7 @@ ImBuf *thumbnail_cache_get(const bContext *C,
 
   const ThumbnailCache::SourceKey key = get_key_from_strip(scene, strip, timeline_frame);
   int frame_index = give_frame_index(scene, strip, timeline_frame);
-  if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_MOVIECLIP)) {
+  if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_MOVIECLIP, STRIP_TYPE_IMAGE_ID)) {
     frame_index += strip->anim_startofs;
   }
 
@@ -726,6 +749,9 @@ void thumbnail_cache_invalidate_strip(Scene *scene, const Strip *strip)
     }
     else if (strip->type == STRIP_TYPE_MOVIECLIP && strip->clip) {
       cache->remove_entry(ThumbnailCache::SourceKey(&strip->clip->id));
+    }
+    else if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id) {
+      cache->remove_entry(ThumbnailCache::SourceKey(&strip->image_id->id));
     }
     else if (strip->type == STRIP_TYPE_MASK && strip->mask) {
       cache->remove_entry(ThumbnailCache::SourceKey(&strip->mask->id));

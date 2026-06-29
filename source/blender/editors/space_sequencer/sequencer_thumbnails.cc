@@ -7,6 +7,7 @@
  */
 
 #include "BKE_context.hh"
+#include "BKE_image.hh"
 
 #include "BLI_array.hh"
 
@@ -66,6 +67,17 @@ static void strip_get_thumb_image_dimensions(const Strip *strip,
   else if (strip->type == STRIP_TYPE_MOVIECLIP && strip->clip) {
     image_width = strip->clip->lastsize[0];
     image_height = strip->clip->lastsize[1];
+  }
+  else if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id) {
+    if (strip->image_id != nullptr) {
+      void *lock;
+      ImBuf *ibuf = BKE_image_acquire_ibuf(strip->image_id, nullptr, &lock);
+      if (ibuf) {
+        image_width = ibuf->x;
+        image_height = ibuf->y;
+        BKE_image_release_ibuf(strip->image_id, ibuf, lock);
+      }
+    }
   }
 
   /* Fix the dimensions to be max SEQ_THUMB_SIZE for x or y. */
