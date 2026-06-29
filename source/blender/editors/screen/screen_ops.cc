@@ -6552,17 +6552,13 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
         break;
       case SCE_LOOP_MODE_BOUNCE:
         if (is_playing_forward) {
-          if (scene_eval != nullptr) {
-            BKE_sound_stop_scene(scene_eval);
-          }
+          BKE_sound_stop_scene(scene_eval);
           sad->flag |= ANIMPLAY_FLAG_REVERSE;
           scene->r.cfra = end_frame - 1;
         }
         else {
           sad->flag &= ~ANIMPLAY_FLAG_REVERSE;
-          if (scene_eval != nullptr) {
-            BKE_sound_play_scene(scene_eval);
-          }
+          BKE_sound_play_scene(scene_eval);
           scene->r.cfra = start_frame + 1;
         }
         CLAMP(scene->r.cfra, start_frame, end_frame);
@@ -6781,7 +6777,9 @@ static void stop_playback(bContext *C)
   Scene *scene = sad->scene;
 
   ViewLayer *view_layer = sad->view_layer;
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
+  Depsgraph *depsgraph = BKE_scene_has_view_layer(scene, view_layer) ?
+                             BKE_scene_get_depsgraph(scene, view_layer) :
+                             nullptr;
 
   if (depsgraph != nullptr) {
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
@@ -6790,13 +6788,16 @@ static void stop_playback(bContext *C)
 
   /* Only stop sound playback, when playing forward, since there is no sound for reverse
    * playback. */
-  if ((scene_eval != nullptr) && (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0) {
+  if ((sad->flag & ANIMPLAY_FLAG_REVERSE) == 0) {
     BKE_sound_stop_scene(scene_eval);
   }
 
   ED_screen_animation_timer(C, scene, view_layer, 0, 0, 0);
   ED_scene_fps_average_clear(scene);
-  BKE_callback_exec_id_depsgraph(bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_POST);
+  if (depsgraph != nullptr) {
+    BKE_callback_exec_id_depsgraph(
+        bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_POST);
+  }
 
   /* Send a fake mouse-move event so that the active button (the one the mouse hovers over) is
    * updated for the change in playback buttons (Pause button disappearing, Reverse/Normal playback

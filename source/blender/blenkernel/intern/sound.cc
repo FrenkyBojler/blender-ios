@@ -1091,6 +1091,9 @@ static void sound_start_play_scene(Scene *scene)
 
 void BKE_sound_play_scene(Scene *scene)
 {
+  if (scene == nullptr) {
+    return;
+  }
   std::lock_guard lock(g_state.sound_device_mutex);
   sound_device_use_begin();
   sound_verify_evaluated_id(&scene->id);
@@ -1139,6 +1142,9 @@ void BKE_sound_play_scene(Scene *scene)
 
 void BKE_sound_stop_scene(Scene *scene)
 {
+  if (scene == nullptr) {
+    return;
+  }
   std::lock_guard lock(g_state.sound_device_mutex);
   BLI_assert(g_state.sound_device);
   if (scene->runtime->audio.playback_handle) {
