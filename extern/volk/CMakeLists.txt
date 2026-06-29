@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
 )
 
 set(INC_SYS
-  ${VULKAN_INCLUDE_DIRS}
 )
 
 # volk.c is not a translation unit, it is included by volk.h but we 
@@ -26,6 +25,8 @@ set(SRC
 )
 
 set(LIB
+  PUBLIC bf::dependencies::optional::vulkan
 )
 
 blender_add_lib(extern_volk "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::extern::volk ALIAS extern_volk)
