@@ -361,26 +361,30 @@ static void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
     total_size += expected_points[i].size();
   }
 
-  const VArray<float2> points = *dst_curves.attributes().lookup<float2>(".positions_2d",
-                                                                        bke::AttrDomain::Point);
-
   EXPECT_EQ(points.size(), total_size);
   if (points.size() != total_size) {
     return;
   }
 
-  // for (const int polygon_id : points_by_polygon.index_range()) {
-  //   const IndexRange vert_ids = points_by_polygon[polygon_id];
+  for (const int polygon_id : points_by_polygon.index_range()) {
+    const IndexRange vert_ids = points_by_polygon[polygon_id];
 
-  //   for (const int i : vert_ids) {
-  //     const float2 &point = points[i];
-  //     const int j = i - vert_ids.first();
-  //     const float2 &expected_point = expected_points[polygon_id][j];
+    const Span<float2> expected_sub_points = expected_points[polygon_id];
 
-  //     EXPECT_NEAR(point[0], expected_point[0], 1e-4);
-  //     EXPECT_NEAR(point[1], expected_point[1], 1e-4);
-  //   }
-  // }
+    EXPECT_EQ(expected_sub_points.size(), vert_ids.size());
+    if (expected_sub_points.size() != vert_ids.size()) {
+      return;
+    }
+
+    for (const int i : vert_ids) {
+      const float2 &point = points[i];
+      const int j = i - vert_ids.first();
+      const float2 &expected_point = expected_sub_points[j];
+
+      EXPECT_NEAR(point[0], expected_point[0], 1e-4);
+      EXPECT_NEAR(point[1], expected_point[1], 1e-4);
+    }
+  }
 }
 
 static bke::CurvesGeometry test_curve_boolean(const ed::greasepencil::carver::Operation opt,
@@ -424,7 +428,7 @@ TEST_F(GreasePencilBooleanTest, Squares)
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
         Operation::Intersect, src_curves, fill_ids, clipping_fills);
 
-    const Array<Vector<float2>> expected_points = {{{2, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    const Array<Vector<float2>> expected_points = {{{2, 1}, {2, 2}, {1, 2}, {1, 1}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
@@ -434,7 +438,7 @@ TEST_F(GreasePencilBooleanTest, Squares)
         Operation::Union, src_curves, fill_ids, clipping_fills);
 
     const Array<Vector<float2>> expected_points = {
-        {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 3}, {3, 3}, {3, 1}, {2, 1}}};
+        {{1, 2}, {0, 2}, {0, 0}, {2, 0}, {2, 1}, {3, 1}, {3, 3}, {1, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
@@ -444,7 +448,7 @@ TEST_F(GreasePencilBooleanTest, Squares)
         Operation::Difference, src_curves, fill_ids, clipping_fills);
 
     const Array<Vector<float2>> expected_points = {
-        {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+        {{1, 2}, {0, 2}, {0, 0}, {2, 0}, {2, 1}, {1, 1}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
@@ -476,8 +480,8 @@ TEST_F(GreasePencilBooleanTest, Simple)
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
         Operation::Intersect, src_curves, fill_ids, clipping_fills);
 
-    const Array<Vector<float2>> expected_points = {{{5, 3}, {6, 4}, {6, 3}},
-                                                   {{2, 3}, {2, 4}, {3, 3}}};
+    const Array<Vector<float2>> expected_points = {{{6, 3}, {5, 3}, {6, 4}},
+                                                   {{3, 3}, {2, 3}, {2, 4}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
@@ -487,8 +491,8 @@ TEST_F(GreasePencilBooleanTest, Simple)
         Operation::Union, src_curves, fill_ids, clipping_fills);
 
     const Array<Vector<float2>> expected_points = {
-        {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}},
-        {{3, 3}, {4, 2}, {5, 3}}};
+        {{2, 3}, {0, 3}, {0, 6}, {8, 6}, {8, 3}, {6, 3}, {6, 0}, {2, 0}},
+        {{5, 3}, {3, 3}, {4, 2}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
@@ -497,11 +501,9 @@ TEST_F(GreasePencilBooleanTest, Simple)
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
         Operation::Difference, src_curves, fill_ids, clipping_fills);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{8, 3}, {8, 6}, {0, 6}, {0, 3}, {2, 3}, {2, 0}, {6, 0}, {6, 3}},
-    //     {{3, 3}, {4, 2}, {5, 3}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{2, 3}, {0, 3}, {0, 6}, {8, 6}, {8, 3}, {6, 3}, {6, 4}, {5, 3}, {3, 3}, {2, 4}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
   }
@@ -533,12 +535,12 @@ TEST_F(GreasePencilBooleanTest, Complex)
         Operation::Intersect, src_curves, fill_ids, clipping_fills);
 
     const Array<Vector<float2>> expected_points = {
-        {{12.3455, 1.47273}, {12.2, 1.8}, {12.4851, 1.67327}, {12.5663, 1.40964}},
-        {{6.71134, 3.08247}, {6.95349, 4.13178}, {7.32258, 3.96774}, {7, 3}},
-        {{9.30137, 8.32192}, {9.45361, 7.97938}, {10.4135, 8.40602}, {10.3267, 8.68812}},
-        {{7.79641, 7.78443}, {7.65714, 7.18095}, {8.52174, 7.56522}, {8.7027, 8.10811}},
-        {{10.3333, 6}, {10.5059, 5.61176}, {11.2479, 5.69421}, {11.1538, 6}},
-        {{7.38462, 6}, {7.21053, 5.24561}, {7.76923, 5.30769}, {8, 6}}};
+        {{12.5662, 1.4096}, {12.3454, 1.4727}, {12.2, 1.8}, {12.4851, 1.6732}},
+        {{7, 3}, {6.7113, 3.0824}, {6.9534, 4.1317}, {7.3225, 3.9677}},
+        {{7.7964, 7.7844}, {8.7027, 8.1081}, {8.5217, 7.5652}, {7.6571, 7.1809}},
+        {{9.3013, 8.3219}, {10.3267, 8.6881}, {10.4135, 8.4060}, {9.4536, 7.9793}},
+        {{7.3846, 6}, {8, 6}, {7.7692, 5.3076}, {7.2105, 5.2456}},
+        {{10.3333, 6}, {11.1538, 6}, {11.2479, 5.6942}, {10.5058, 5.6117}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
@@ -548,28 +550,28 @@ TEST_F(GreasePencilBooleanTest, Complex)
         Operation::Union, src_curves, fill_ids, clipping_fills);
 
     const Array<Vector<float2>> expected_points = {
-        {{14, 1},
-         {12.4851, 1.67327},
-         {11.2479, 5.69421},
-         {14, 6},
-         {11.1538, 6},
-         {10.4135, 8.40602},
-         {14, 10},
-         {10.3267, 8.68812},
-         {9, 13},
-         {7.79641, 7.78443},
-         {0, 5},
-         {6.71134, 3.08247},
-         {6, 0},
-         {7, 3},
-         {12.3455, 1.47273},
+        {{12.4851, 1.6732},
+         {14, 1},
+         {12.5662, 1.4096},
          {13, 0},
-         {12.5663, 1.40964}},
-        {{8.7027, 8.10811}, {9, 9}, {9.30137, 8.32192}},
-        {{8.52174, 7.56522}, {8, 6}, {10.3333, 6}, {9.45361, 7.97938}},
-        {{5, 6}, {7.38462, 6}, {7.65714, 7.18095}},
-        {{7.76923, 5.30769}, {7.32258, 3.96774}, {12.2, 1.8}, {10.5059, 5.61176}},
-        {{5, 5}, {6.95349, 4.13178}, {7.21053, 5.24561}}};
+         {12.3454, 1.4727},
+         {7, 3},
+         {6, 0},
+         {6.7113, 3.0824},
+         {0, 5},
+         {7.7964, 7.7844},
+         {9, 13},
+         {10.3267, 8.6881},
+         {14, 10},
+         {10.4135, 8.4060},
+         {11.1538, 6},
+         {14, 6},
+         {11.2479, 5.6942}},
+        {{8.7027, 8.1081}, {9.3013, 8.3219}, {9, 9}},
+        {{9.4536, 7.9793}, {8.5217, 7.5652}, {8, 6}, {10.3333, 6}},
+        {{7.6571, 7.1809}, {5, 6}, {7.3846, 6}},
+        {{10.5058, 5.6117}, {7.7692, 5.3076}, {7.3225, 3.9677}, {12.2, 1.8}},
+        {{7.2105, 5.2456}, {5, 5}, {6.9534, 4.1317}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
@@ -579,21 +581,21 @@ TEST_F(GreasePencilBooleanTest, Complex)
         Operation::Difference, src_curves, fill_ids, clipping_fills);
 
     const Array<Vector<float2>> expected_points = {
-        {{14, 1}, {12.4851, 1.67327}, {12.5663, 1.40964}},
-        {{7, 3}, {7.32258, 3.96774}, {12.2, 1.8}, {12.3455, 1.47273}},
-        {{0, 5},
-         {7.79641, 7.78443},
-         {7.65714, 7.18095},
+        {{12.4851, 1.6732}, {14, 1}, {12.5662, 1.4096}},
+        {{12.3454, 1.4727}, {7, 3}, {7.3225, 3.9677}, {12.2, 1.8}},
+        {{6.7113, 3.0824},
+         {0, 5},
+         {7.7964, 7.7844},
+         {7.6571, 7.1809},
          {5, 6},
-         {7.38462, 6},
-         {7.21053, 5.24561},
+         {7.3846, 6},
+         {7.2105, 5.2456},
          {5, 5},
-         {6.95349, 4.13178},
-         {6.71134, 3.08247}},
-        {{14, 10}, {10.4135, 8.40602}, {10.3267, 8.68812}},
-        {{8.7027, 8.10811}, {8.52174, 7.56522}, {9.45361, 7.97938}, {9.30137, 8.32192}},
-        {{14, 6}, {11.2479, 5.69421}, {11.1538, 6}},
-        {{8, 6}, {7.76923, 5.30769}, {10.5059, 5.61176}, {10.3333, 6}}};
+         {6.9534, 4.1317}},
+        {{8.7027, 8.1081}, {9.3013, 8.3219}, {9.4536, 7.9793}, {8.5217, 7.5652}},
+        {{10.3267, 8.6881}, {14, 10}, {10.4135, 8.4060}},
+        {{8, 6}, {10.3333, 6}, {10.5058, 5.6117}, {7.7692, 5.3076}},
+        {{11.1538, 6}, {14, 6}, {11.2479, 5.6942}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
@@ -855,10 +857,9 @@ TEST_F(GreasePencilBooleanTest, Square_With_Hole)
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
         Operation::Difference, src_curves, fill_ids, clipping_fills);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{5, 2}, {5, 0}, {0, 0}, {0, 5}, {2, 5}, {2, 4}, {1, 4}, {1, 1}, {4, 1}, {4, 2}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
   }
@@ -900,10 +901,10 @@ TEST_F(GreasePencilBooleanTest, Squares_With_Holes)
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
         Operation::Difference, src_curves, fill_ids, clipping_fills);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{5, 2}, {5, 0}, {0, 0}, {0, 5}, {2, 5}, {2, 4}, {1, 4}, {1, 1}, {4, 1}, {4, 2}},
+        {{3, 5}, {5, 5}, {5, 3}, {4, 3}, {4, 4}, {3, 4}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
   }
@@ -944,10 +945,9 @@ TEST_F(GreasePencilBooleanTest, Multiple_Shapes)
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
         Operation::Intersect, src_curves, fill_ids, clipping_fills);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {{{3, 7}, {5, 7}, {5, 3}, {3, 3}},
+                                                   {{3, 5}, {7, 5}, {7, 3}, {3, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("2 Subjects Intersection", "polygon", src_curves, dst_curves, clipping_fills);
   }
@@ -956,10 +956,10 @@ TEST_F(GreasePencilBooleanTest, Multiple_Shapes)
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
         Operation::Difference, src_curves, fill_ids, clipping_fills);
 
-    /* TODO. */
-    // const Array<Vector<float2>> expected_points = {
-    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
-    // expect_boolean_result_coord(dst_curves, expected_points);
+    const Array<Vector<float2>> expected_points = {
+        {{5, 3}, {5, 2}, {0, 2}, {0, 7}, {3, 7}, {3, 3}},
+        {{7, 3}, {7, 0}, {2, 0}, {2, 5}, {3, 5}, {3, 3}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
 
     draw_results("2 Subjects Difference", "polygon", src_curves, dst_curves, clipping_fills);
   }
