@@ -112,8 +112,6 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-#include "WM_api.hh"
-
 #include "BLO_read_write.hh"
 
 namespace blender {
@@ -5021,16 +5019,6 @@ void node_remove_node(
   /* Free node itself. */
   node_free_node(&ntree, node);
   node_rebuild_id_vector(ntree);
-
-  auto *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  if (!wm) {
-    return;
-  }
-  bContext *C = CTX_create();
-  CTX_data_main_set(C, bmain);
-  CTX_wm_manager_set(C, wm);
-  WM_event_handling_break(*C);
-  CTX_free(C);
 }
 
 static void free_localized_node_groups(bNodeTree *ntree)
