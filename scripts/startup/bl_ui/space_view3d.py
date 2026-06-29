@@ -15,6 +15,8 @@ from bl_ui.properties_paint_common import (
     brush_basic_grease_pencil_weight_settings,
     brush_basic_grease_pencil_vertex_settings,
     BrushAssetShelf,
+    brush_has_falloff_settings,
+    brush_has_tip_settings,
 )
 from bl_ui.properties_grease_pencil_common import (
     AnnotationDataPanel,
@@ -100,7 +102,10 @@ class VIEW3D_HT_tool_header(Header):
             if tool_mode == 'PAINT_TEXTURE':
                 layout.popover("VIEW3D_PT_tools_mask_texture")
             layout.popover("VIEW3D_PT_tools_brush_stroke")
-            layout.popover("VIEW3D_PT_tools_brush_tip")
+            if brush and brush_has_tip_settings(context, brush):
+                layout.popover("VIEW3D_PT_tools_brush_tip")
+            if brush and brush_has_falloff_settings(context, brush):
+                layout.popover("VIEW3D_PT_tools_brush_falloff")
             layout.popover("VIEW3D_PT_tools_brush_display")
 
         # NOTE: general mode options should be added to `draw_mode_settings`.
@@ -456,8 +461,8 @@ class _draw_tool_settings_context_mode:
         if brush.gpencil_sculpt_brush_type in {'THICKNESS', 'STRENGTH', 'PINCH', 'TWIST'}:
             layout.row().prop(brush, "direction", expand=True, text="")
 
-        # Brush tip
-        layout.popover("VIEW3D_PT_tools_brush_tip")
+        # Brush falloff
+        layout.popover("VIEW3D_PT_tools_brush_falloff")
 
         return True
 
@@ -581,7 +586,7 @@ class _draw_tool_settings_context_mode:
 
         if curves_tool == 'COMB':
             layout.prop(brush, "falloff_shape", expand=True)
-            layout.popover("VIEW3D_PT_tools_brush_tip", text="Brush Tip")
+            layout.popover("VIEW3D_PT_tools_brush_falloff", text="Brush Falloff")
             layout.popover("VIEW3D_PT_curves_sculpt_parameter_falloff", text="Curve Falloff")
         elif curves_tool == 'ADD':
             layout.prop(brush, "falloff_shape", expand=True)
@@ -592,26 +597,26 @@ class _draw_tool_settings_context_mode:
             layout.prop(brush, "direction", expand=True, text="")
             layout.prop(brush, "falloff_shape", expand=True)
             layout.popover("VIEW3D_PT_curves_sculpt_grow_shrink_scaling", text="Scaling")
-            layout.popover("VIEW3D_PT_tools_brush_tip")
+            layout.popover("VIEW3D_PT_tools_brush_falloff")
         elif curves_tool == 'SNAKE_HOOK':
             layout.prop(brush, "falloff_shape", expand=True)
-            layout.popover("VIEW3D_PT_tools_brush_tip")
+            layout.popover("VIEW3D_PT_tools_brush_falloff")
         elif curves_tool == 'DELETE':
             layout.prop(brush, "falloff_shape", expand=True)
         elif curves_tool == 'SELECTION_PAINT':
             layout.prop(brush, "direction", expand=True, text="")
             layout.prop(brush, "falloff_shape", expand=True)
-            layout.popover("VIEW3D_PT_tools_brush_tip")
+            layout.popover("VIEW3D_PT_tools_brush_falloff")
         elif curves_tool == 'PINCH':
             layout.prop(brush, "direction", expand=True, text="")
             layout.prop(brush, "falloff_shape", expand=True)
-            layout.popover("VIEW3D_PT_tools_brush_tip")
+            layout.popover("VIEW3D_PT_tools_brush_falloff")
         elif curves_tool == 'SMOOTH':
             layout.prop(brush, "falloff_shape", expand=True)
-            layout.popover("VIEW3D_PT_tools_brush_tip")
+            layout.popover("VIEW3D_PT_tools_brush_falloff")
         elif curves_tool == 'PUFF':
             layout.prop(brush, "falloff_shape", expand=True)
-            layout.popover("VIEW3D_PT_tools_brush_tip")
+            layout.popover("VIEW3D_PT_tools_brush_falloff")
         elif curves_tool == 'DENSITY':
             layout.prop(brush, "falloff_shape", expand=True)
             row = layout.row(align=True)
@@ -623,10 +628,10 @@ class _draw_tool_settings_context_mode:
             row = layout.row(align=True)
             row.enabled = brush.curves_sculpt_settings.density_mode != 'REMOVE'
             row.prop(brush.curves_sculpt_settings, "density_add_attempts", text="Count Max")
-            layout.popover("VIEW3D_PT_tools_brush_tip")
+            layout.popover("VIEW3D_PT_tools_brush_falloff")
             layout.popover("VIEW3D_PT_curves_sculpt_add_shape", text="Curve Shape")
         elif curves_tool == 'SLIDE':
-            layout.popover("VIEW3D_PT_tools_brush_tip")
+            layout.popover("VIEW3D_PT_tools_brush_falloff")
 
         return True
 
