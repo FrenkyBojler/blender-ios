@@ -762,6 +762,9 @@ static void outliner_sort_custom(Main *bmain,
             }
             else {
               cob->sort_index = index++;
+              if (cob->ob->parent == nullptr) {
+                cob->parented_sort_index = -1;
+              }
             }
           }
         }
