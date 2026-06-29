@@ -34,8 +34,7 @@ struct ShaderCreateInfo;
 }  // namespace gpu
 
 /** Opaque type hiding #gpu::shader::ShaderCreateInfo */
-/* Hardware limit is 16. Position attribute is always needed so we reduce to 15.
- * This makes sure the GPUVertexFormat name buffer does not overflow. */
+/* Hardware limit is 16 for meshes until we use a vertex pull mechanism. */
 constexpr static int GPU_MAX_ATTR = 15;
 
 /* -------------------------------------------------------------------- */
