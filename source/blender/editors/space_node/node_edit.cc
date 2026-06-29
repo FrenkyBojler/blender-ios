@@ -1695,7 +1695,6 @@ static wmOperatorStatus node_delete_exec(bContext *C, wmOperator * /*op*/)
   }
 
   ED_node_set_active_viewer_key(snode);
-  WM_event_handling_break(C);
   BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
@@ -1742,7 +1741,6 @@ static wmOperatorStatus node_delete_reconnect_exec(bContext *C, wmOperator * /*o
       WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
     }
   }
-  WM_event_handling_break(C);
   BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
