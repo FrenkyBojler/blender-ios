@@ -12,6 +12,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_index_range.hh"
+#include "BLI_span.hh"
 
 namespace blender {
 
@@ -67,6 +68,30 @@ template<typename T = int64_t> class DisjointSet {
     T root1 = this->find_root(x);
     T root2 = this->find_root(y);
     return root1 == root2;
+  }
+
+  /**
+   * Get an identifier for each element so that two elements get the same identifier exactly when
+   * they are in the same set. This is deterministic and does not depend on the order of joins. The
+   * ids are ordered by their first occurrence. Consequently, `result[0]` is always zero (unless
+   * there are no elements).
+   * \return The total number of unique IDs.
+   */
+  int calc_reduced_ids(MutableSpan<int> result) const
+  {
+    BLI_assert(result.size() == parents_.size());
+    Array<int> root_to_id(parents_.size(), -1);
+    int count = 0;
+    for (const int64_t i : parents_.index_range()) {
+      const T root = this->find_root(T(i));
+      int &id = root_to_id[root];
+      if (id == -1) {
+        id = count;
+        count++;
+      }
+      result[i] = id;
+    }
+    return count;
   }
 
   /**

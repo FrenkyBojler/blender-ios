@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <algorithm>
+
 #include "BKE_attribute.hh"
 #include "BKE_attribute_enums.hh"
 #include "BKE_attribute_filters.hh"
@@ -13,6 +15,8 @@
 #include "BKE_mesh_mapping.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_atomic_disjoint_set.hh"
+#include "BLI_disjoint_set.hh"
+#include "BLI_enumerable_thread_specific.hh"
 #include "BLI_execution_mode.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdtree.hh"
@@ -22,8 +26,10 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_sort.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
+#include "BLI_vector.hh"
 #include "FN_field_evaluation.hh"
 #include "GEO_mesh_copy_selection.hh"
 #include "GEO_mesh_replace_faces.hh"
@@ -157,62 +163,195 @@ static int merge_verts(const Span<float3> base_positions,
                        const GroupedSpan<int> base_face_to_face_map,
                        const IndexMask &selection,
                        const Span<int> base_vert_to_unselected,
-                       const Span<int> indices,
-                       const Span<Span<float3>> mesh_positions,
                        const OffsetIndices<int> verts_all_by_part,
+                       const int unselected_verts_num,
                        const Span<float3> positions_all,
                        const float threshold_sq,
                        MutableSpan<int> merged_verts)
 {
-  // TODO: PROTECT AGAINST MERGING VERTICES IN THE SAME PART
   BitVector<> selection_bits(base_faces.size());
   selection.to_bits(selection_bits);
-  AtomicDisjointSet disjoint_set(positions_all.size());
+
+  /* Phase 1: find all candidate merges in parallel. Each candidate joins a vertex of the current
+   * part to a vertex of a different part (or a base mesh vertex); vertices of the same part are
+   * not compared. */
+  threading::EnumerableThreadSpecific<Vector<int2>> candidates_by_thread;
   selection.foreach_index(
       [&](const int base_face_i) {
-        const IndexRange part_verts = verts_all_by_part[base_face_i];
+        Vector<int2> &candidates = candidates_by_thread.local();
+        const IndexRange part_verts = verts_all_by_part[base_face_i].shift(unselected_verts_num);
         const Span<float3> face_positions = positions_all.slice(part_verts);
         const Span<int> neighbor_faces = base_face_to_face_map[base_face_i];
         for (const int neighbor_face : neighbor_faces) {
           if (selection_bits[neighbor_face]) {
-            const IndexRange neighbor_range = verts_all_by_part[neighbor_face];
-            const Span<float3> neighbor_positions = mesh_positions[indices[neighbor_face]];
+            const IndexRange neighbor_range = verts_all_by_part[neighbor_face].shift(
+                unselected_verts_num);
+            const Span<float3> neighbor_positions = positions_all.slice(neighbor_range);
 
             // TODO: REPLACE QUADRATIC LOOP WITH ACCELERATION STRUCTURE
 
             for (const int i : face_positions.index_range()) {
               const float3 &position = face_positions[i];
-              const int part_vert = part_verts[i];
               for (const int neighbor_i : neighbor_positions.index_range()) {
-                const float3 &neighbor_position = neighbor_positions[neighbor_i];
-                if (math::distance_squared(position, neighbor_position) > threshold_sq) {
+                if (math::distance_squared(position, neighbor_positions[neighbor_i]) >
+                    threshold_sq) {
                   continue;
                 }
-                const int vert_neighbor = neighbor_range[neighbor_i];
-                disjoint_set.join(part_vert, vert_neighbor);
+                candidates.append(int2(part_verts[i], neighbor_range[neighbor_i]));
               }
             }
           }
           else {
+            const Span<int> neighbor_face_verts = base_corner_verts.slice(
+                base_faces[neighbor_face]);
             for (const int i : face_positions.index_range()) {
               const float3 &position = face_positions[i];
-              const int part_vert = part_verts[i];
-              const Span<int> neighbor_face_verts = base_corner_verts.slice(
-                  base_faces[neighbor_face]);
               for (const int neighbor_vert : neighbor_face_verts) {
-                const float3 &neighbor_position = base_positions[neighbor_vert];
-                if (math::distance_squared(position, neighbor_position) > threshold_sq) {
+                if (math::distance_squared(position, base_positions[neighbor_vert]) > threshold_sq)
+                {
                   continue;
                 }
-                const int vert_base_new = base_vert_to_unselected[neighbor_vert];
-                disjoint_set.join(part_vert, vert_base_new);
+                candidates.append(int2(part_verts[i], base_vert_to_unselected[neighbor_vert]));
               }
             }
           }
         }
       },
       exec_mode::grain_size(128));
+
+  int merges = 0;
+  for (const Vector<int2> &local : candidates_by_thread) {
+    merges += local.size();
+  }
+  Vector<int2> candidates;
+  candidates.reserve(merges);
+  for (const Vector<int2> &local : candidates_by_thread) {
+    candidates.extend_unchecked(local);
+  }
+
+  /* Sort so the result is deterministic. */
+  parallel_sort(candidates,
+                [](const int2 a, const int2 b) { return a.x < b.x || (a.x == b.x && a.y < b.y); });
+
+  /* Skip merges that would place two vertices of the same part - or two unselected base vertices -
+   * in one group. Each group's membership is a per-root singly linked list of the part index for
+   * part vertices, or -1 for every unselected base vertex, so a group can contain at most one of
+   * each part and at most one base vertex. */
+  Array<int> vert_parts(positions_all.size(), -1);
+  selection.foreach_index(
+      [&](const int base_face_i) {
+        const IndexRange part_verts = verts_all_by_part[base_face_i].shift(unselected_verts_num);
+        vert_parts.as_mutable_span().slice(part_verts).fill(base_face_i);
+      },
+      exec_mode::grain_size(512));
+
+  Array<int> list_head(positions_all.size());
+  Array<int> list_next(positions_all.size(), -1);
+  threading::parallel_for(positions_all.index_range(), 4096, [&](const IndexRange range) {
+    array_utils::fill_index_range<int>(list_head.as_mutable_span().slice(range), range.start());
+  });
+
+  const auto same_part = [&](const int root_a, const int root_b) {
+    for (int a = list_head[root_a]; a != -1; a = list_next[a]) {
+      for (int b = list_head[root_b]; b != -1; b = list_next[b]) {
+        if (vert_parts[a] == vert_parts[b]) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  DisjointSet<int> disjoint_set(positions_all.size());
+  for (const int2 candidate : candidates) {
+    const int root_a = disjoint_set.find_root(candidate.x);
+    const int root_b = disjoint_set.find_root(candidate.y);
+    if (root_a == root_b) {
+      continue;
+    }
+    if (same_part(root_a, root_b)) {
+      continue;
+    }
+    const int survivor = disjoint_set.join(candidate.x, candidate.y);
+    const int absorbed = survivor == root_a ? root_b : root_a;
+    /* Append the absorbed group's label list onto the surviving root's. */
+    int tail = list_head[survivor];
+    while (list_next[tail] != -1) {
+      tail = list_next[tail];
+    }
+    list_next[tail] = list_head[absorbed];
+  }
+
   return disjoint_set.calc_reduced_ids(merged_verts);
+}
+
+static int merge_edges(const Span<int2> base_edges,
+                       const IndexMask &unselected_edges,
+                       const Span<int> base_vert_to_unselected,
+                       const IndexMask &selection,
+                       const Span<int> indices,
+                       const Span<Span<int2>> mesh_edges,
+                       const OffsetIndices<int> verts_all_by_part,
+                       const OffsetIndices<int> edges_all_by_part,
+                       const Span<int> merged_verts,
+                       const int merged_verts_num,
+                       MutableSpan<int2> edges_merged,
+                       MutableSpan<int> merged_edges)
+{
+  const int unselected_edges_num = unselected_edges.size();
+
+  /* Canonicalize every edge to the pair of merged vertices it connects. The index space matches
+   * the disjoint set and `merged_edges`: unselected base edges first, then part edges grouped by
+   * part. Because the vertex ids are already the merged (result) vertex ids, `edges_merged` is
+   * also the final result edge-vertex pair for each edge. Two edges are duplicates exactly when
+   * they share this canonical vertex pair, so no geometric test or transitive closure is needed
+   * here; the disjoint set only collapses the (possibly more than two) edges that share a pair. */
+  unselected_edges.foreach_index(
+      [&](const int edge, const int pos) {
+        const int2 verts = base_edges[edge];
+        edges_merged[pos] = int2(merged_verts[base_vert_to_unselected[verts[0]]],
+                                 merged_verts[base_vert_to_unselected[verts[1]]]);
+      },
+      exec_mode::grain_size(4096));
+  selection.foreach_index(
+      [&](const int base_face_i) {
+        const Span<int2> part_edges = mesh_edges[indices[base_face_i]];
+        const int vert_offset = verts_all_by_part[base_face_i].start();
+        const IndexRange part_edge_range = edges_all_by_part[base_face_i];
+        MutableSpan<int2> dst = edges_merged.slice(unselected_edges_num + part_edge_range.start(),
+                                                   part_edge_range.size());
+        for (const int i : part_edges.index_range()) {
+          const int2 verts = part_edges[i];
+          dst[i] = int2(merged_verts[vert_offset + verts[0]],
+                        merged_verts[vert_offset + verts[1]]);
+        }
+      },
+      exec_mode::grain_size(128));
+
+  /* Group edges by an incident merged vertex so that duplicates can be discovered locally and in
+   * parallel, avoiding a global edge set. Keying on the merged vertex handles part-to-part,
+   * part-to-base, and base-to-base merges uniformly. */
+  Array<int> vert_to_edge_offsets;
+  Array<int> vert_to_edge_indices;
+  const GroupedSpan<int> vert_to_edge_map = bke::mesh::build_vert_to_edge_map(
+      edges_merged, merged_verts_num, vert_to_edge_offsets, vert_to_edge_indices);
+
+  AtomicDisjointSet disjoint_set(edges_merged.size());
+  threading::parallel_for(IndexRange(merged_verts_num), 1024, [&](const IndexRange range) {
+    for (const int vert : range) {
+      const Span<int> incident_edges = vert_to_edge_map[vert];
+      for (const int i : incident_edges.index_range()) {
+        const int other_i = bke::mesh::edge_other_vert(edges_merged[incident_edges[i]], vert);
+        for (const int j : incident_edges.index_range().drop_front(i + 1)) {
+          const int other_j = bke::mesh::edge_other_vert(edges_merged[incident_edges[j]], vert);
+          if (other_i == other_j) {
+            disjoint_set.join(incident_edges[i], incident_edges[j]);
+          }
+        }
+      }
+    }
+  });
+  return disjoint_set.calc_reduced_ids(merged_edges);
 }
 
 Mesh *replace_faces(const Mesh &base,
@@ -249,6 +388,7 @@ Mesh *replace_faces(const Mesh &base,
   Array<int> mesh_edge_nums(meshes.size());
   Array<int> mesh_corner_nums(meshes.size());
   Array<Span<float3>> mesh_positions(meshes.size());
+  Array<Span<int2>> mesh_edges(meshes.size());
   Array<OffsetIndices<int>> mesh_faces(meshes.size());
   Array<Span<int>> mesh_corner_verts(meshes.size());
   Array<Span<int>> mesh_corner_edges(meshes.size());
@@ -258,13 +398,10 @@ Mesh *replace_faces(const Mesh &base,
     mesh_face_nums[i] = meshes[i]->faces_num;
     mesh_corner_nums[i] = meshes[i]->corners_num;
     mesh_positions[i] = meshes[i]->vert_positions();
+    mesh_edges[i] = meshes[i]->edges();
     mesh_faces[i] = meshes[i]->faces();
     mesh_corner_verts[i] = meshes[i]->corner_verts();
     mesh_corner_edges[i] = meshes[i]->corner_edges();
-  }
-
-  Array<IndexMask> mesh_boundary_verts(meshes.size());
-  for (const int i : meshes.index_range()) {
   }
 
   Array<int> verts_all_by_part_data(base_faces.size() + 1);
@@ -326,7 +463,7 @@ Mesh *replace_faces(const Mesh &base,
       mesh_positions,
       heights,
       verts_all_by_part,
-      positions_all.as_mutable_span().take_back(faces_by_part.total_size()));
+      positions_all.as_mutable_span().take_back(verts_all_by_part.total_size()));
   interpolate_positions_ngons(
       base_positions,
       base_faces,
@@ -338,7 +475,7 @@ Mesh *replace_faces(const Mesh &base,
       indices,
       mesh_positions,
       verts_all_by_part,
-      positions_all.as_mutable_span().take_back(faces_by_part.total_size()));
+      positions_all.as_mutable_span().take_back(verts_all_by_part.total_size()));
 
   Array<int> face_to_face_map_offsets;
   Array<int> face_to_face_map_indices;
@@ -359,36 +496,48 @@ Mesh *replace_faces(const Mesh &base,
   index_mask::build_reverse_map<int>(unselected_verts, base_vert_to_unselected);
 
   Array<int> merged_verts(positions_all.size());
-  // TODO: THIS CONTAINS THE UNSELECTED VERTS MERGED_VERTS_NUM WILL BE MISLEADING
   const int merged_verts_num = merge_verts(base_positions,
                                            base_faces,
                                            base_corner_verts,
                                            base_face_to_face_map,
                                            selection,
                                            base_vert_to_unselected,
-                                           indices,
-                                           mesh_positions,
                                            verts_all_by_part,
+                                           unselected_verts.size(),
                                            positions_all,
                                            threshold_sq,
                                            merged_verts);
 
-  // TODO: EDGE MERGING
-  Array<int> merged_edges(edges_all_by_part.total_size());
-  const int merged_edges_num = 0;
+  /* Full edge index space, matching `merged_verts`: unselected base edges, then part edges.
+   * `edges_merged` holds each edge's result vertex pair; `merged_edges` maps to the result edge.
+   */
+  Array<int2> edges_merged(unselected_edges.size() + edges_all_by_part.total_size());
+  Array<int> merged_edges(unselected_edges.size() + edges_all_by_part.total_size());
+  const int merged_edges_num = merge_edges(base_edges,
+                                           unselected_edges,
+                                           base_vert_to_unselected,
+                                           selection,
+                                           indices,
+                                           mesh_edges,
+                                           verts_all_by_part,
+                                           edges_all_by_part,
+                                           merged_verts,
+                                           merged_verts_num,
+                                           edges_merged,
+                                           merged_edges);
 
-  Mesh *result = BKE_mesh_new_nomain(unselected_verts.size() + merged_verts_num,
-                                     unselected_edges.size() + merged_edges_num,
+  /* The result uses the merged index space directly: vertex and edge ids are the reduced ids from
+   * the disjoint sets, so every reference is just mapped through `merged_verts` / `merged_edges`.
+   * Faces and corners keep the simple "unselected faces, then part faces" layout. */
+  Mesh *result = BKE_mesh_new_nomain(merged_verts_num,
+                                     merged_edges_num,
                                      unselected_faces.size() + faces_by_part.total_size(),
                                      unselected_corners_num + corners_by_part.total_size());
 
-  MutableSpan<float3> result_positions = result->vert_positions_for_write();
-  array_utils::gather(
-      base_positions, unselected_verts, result_positions.take_front(unselected_verts.size()));
+  /* Scatter every source position to its merged vertex. */
   // TODO: AVERAGE POSITIONS
-  array_utils::gather(positions_all.as_span(),
-                      merged_verts.as_span(),
-                      result_positions.take_back(merged_verts_num));
+  MutableSpan<float3> result_positions = result->vert_positions_for_write();
+  array_utils::scatter(positions_all.as_span(), merged_verts.as_span(), result_positions);
 
   MutableSpan<int> result_face_offsets = result->face_offsets_for_write();
   if (!unselected_faces.is_empty()) {
@@ -416,69 +565,49 @@ Mesh *replace_faces(const Mesh &base,
   MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
   MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
 
-  /* Copy unselected vertices and map corner vertex references and edge vertex references. */
-  mesh_gather_elements_and_remap_verts(base_faces,
-                                       result_faces,
-                                       base_vert_to_unselected,
-                                       unselected_edges,
-                                       unselected_faces,
-                                       base_edges,
-                                       base_corner_verts,
-                                       result_edges.take_front(unselected_edges.size()),
-                                       result_corner_verts.take_front(unselected_corners_num));
+  const int unselected_verts_num = unselected_verts.size();
+  const int unselected_edges_num = unselected_edges.size();
 
-  // TODO: EDGES FROM PART MESHES
-
-  MutableSpan<int> new_corner_verts = result_corner_verts.take_back(new_corners_num);
-  selection.foreach_index(
-      [&](const int base_face_i) {
-        array_utils::gather(merged_verts.as_span().slice(verts_all_by_part[base_face_i]),
-                            mesh_corner_verts[indices[base_face_i]],
-                            new_corner_verts.slice(corners_by_part[base_face_i]));
-      },
-      exec_mode::grain_size(512));
-
-  // TODO: ONLY IF THE SELECTION ISN'T FULL
   Array<int> base_edge_to_unselected(base.edges_num);
   index_mask::build_reverse_map<int>(unselected_edges, base_edge_to_unselected);
 
-  /* Copy unselected edges and map corner edges references. */
-  mesh_gather_elements_and_remap_edges(base_faces,
-                                       result_faces,
-                                       base_edge_to_unselected,
-                                       unselected_faces,
-                                       base_corner_edges,
-                                       result_corner_edges);
+  /* Scatter each edge's merged vertex pair to its merged edge. Duplicate edges write the same
+   * pair to the same index. */
+  array_utils::scatter(edges_merged.as_span(), merged_edges.as_span(), result_edges);
 
-  MutableSpan<int> new_corner_edges = result_corner_edges.take_back(new_corners_num);
-  selection.foreach_index(
-      [&](const int base_face_i) {
-        array_utils::gather(merged_edges.as_span().slice(edges_all_by_part[base_face_i]),
-                            mesh_corner_edges[indices[base_face_i]],
-                            new_corner_edges.slice(corners_by_part[base_face_i]));
-      },
-      exec_mode::grain_size(512));
-
-  /* Cound the number of non-merged vertices per part. */
-  Array<int> verts_by_part_data(base_faces.size() + 1);
-  selection.foreach_index(
-      [&](const int base_face_i) {
-        const Span<int> merge_indices = merged_verts.as_span().slice(
-            verts_all_by_part[base_face_i]);
-        const IndexRange part_verts_all = verts_all_by_part[base_face_i];
-
-        int count = 0;
-        for (const int i : merge_indices.index_range()) {
-          if (merge_indices[i] != part_verts_all[i]) {
-            count++;
-          }
+  /* Corners of the unselected faces, remapped into the merged index space. Every vertex and edge
+   * of an unselected face is itself unselected, so the reverse maps are always valid here. */
+  unselected_faces.foreach_index(
+      [&](const int base_face_i, const int pos) {
+        const IndexRange src = base_faces[base_face_i];
+        const IndexRange dst = result_faces[pos];
+        for (const int i : src.index_range()) {
+          result_corner_verts[dst[i]] =
+              merged_verts[base_vert_to_unselected[base_corner_verts[src[i]]]];
+          result_corner_edges[dst[i]] =
+              merged_edges[base_edge_to_unselected[base_corner_edges[src[i]]]];
         }
-        verts_by_part_data[base_face_i] = count;
       },
       exec_mode::grain_size(512));
-  index_mask::masked_fill<int>(verts_all_by_part_data, 0, unselected_faces);
-  const OffsetIndices<int> verts_by_part = offset_indices::accumulate_counts_to_offsets(
-      verts_by_part_data);
+
+  /* Corners of the part faces, mapped through this part's slice of the merged spaces. */
+  selection.foreach_index(
+      [&](const int base_face_i) {
+        const Span<int> verts_map = merged_verts.as_span().slice(
+            unselected_verts_num + verts_all_by_part[base_face_i].start(),
+            verts_all_by_part[base_face_i].size());
+        const Span<int> edges_map = merged_edges.as_span().slice(
+            unselected_edges_num + edges_all_by_part[base_face_i].start(),
+            edges_all_by_part[base_face_i].size());
+        const IndexRange corners = corners_by_part[base_face_i];
+        array_utils::gather(verts_map,
+                            mesh_corner_verts[indices[base_face_i]],
+                            result_corner_verts.take_back(new_corners_num).slice(corners));
+        array_utils::gather(edges_map,
+                            mesh_corner_edges[indices[base_face_i]],
+                            result_corner_edges.take_back(new_corners_num).slice(corners));
+      },
+      exec_mode::grain_size(512));
 
   bke::MutableAttributeAccessor result_attributes = result->attributes_for_write();
   base.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -502,23 +631,23 @@ Mesh *replace_faces(const Mesh &base,
           iter.name, iter.domain, iter.data_type);
       switch (iter.domain) {
         case bke::AttrDomain::Point: {
-          bke::attribute_math::to_static_type(src_attr.type(), [&]<typename T>() {
-            if constexpr (!std::is_same_v<T, std::string>) {
-              const Span<T> src_attr = src_span.typed<T>();
-              MutableSpan<T> dst_attr = dst_attr.span.template typed<T>();
-              quads.foreach_index([&](const int base_face_i) {
-                // for ()
-              });
-            }
-          });
-          array_utils::gather(
-              src_attr, unselected_verts, dst_attr.span.take_front(unselected_verts.size()));
+          // bke::attribute_math::to_static_type(src_attr.type(), [&]<typename T>() {
+          //   if constexpr (!std::is_same_v<T, std::string>) {
+          //     const Span<T> src_attr = src_span.typed<T>();
+          //     MutableSpan<T> dst_attr = dst_attr.span.template typed<T>();
+          //     quads.foreach_index([&](const int base_face_i) {
+          //       // for ()
+          //     });
+          //   }
+          // });
+          // array_utils::gather(
+          //     src_attr, unselected_verts, dst_attr.span.take_front(unselected_verts.size()));
           // TODO
           break;
         }
         case bke::AttrDomain::Edge: {
-          array_utils::gather(
-              src_attr, unselected_edges, dst_attr.span.take_front(unselected_edges.size()));
+          // array_utils::gather(
+          //     src_attr, unselected_edges, dst_attr.span.take_front(unselected_edges.size()));
           // TODO
           break;
         }
@@ -548,39 +677,6 @@ Mesh *replace_faces(const Mesh &base,
       dst_attr.finish();
     }
   });
-
-  // Build the position of every single vertex on the new face meshes. For quads, it might be best
-  // to do this with a transform per face. The transform should move 0,0,0 to the first corner of
-  // the base face, and 1,1,0 to the third corner. Alternatively we coudl just always do quad
-  // interpolation of the mesh vertices based on their location in the XY space. The height should
-  // come from multiplying the mesh vertex Z position with a height input for the each selected
-  // face. For N-gons, we can use the triangulation and do a UV style interpolation from the base
-  // face location in the same triangulation of a standard N-gon shape to the new positions. The
-  // height mixing would be the same.
-
-  // With a disjoint set of all the vertices, including original vertices. The set will have to be
-  // sized to include unselected original vertices too. For each face, find the neighboring base
-  // face or new face meshes. For each neighbor edge, build a kdtree of the vertices in the face
-  // and the neighboring vertices. Merge the vertices of neighbors within the threshold. We only
-  // ever want to merge vertices of boundary edges with existing vertices of the base mesh or
-  // boundary vertices of neighboring mesh parts; we should never merge vertices within a part.
-  // This implies only the vertices that are candidates for merging should be added to the KDtree.
-
-  // For building edges, it's crucial we don't use a VectorSet for the entire result mesh's edges.
-  // Ideally we'd avoid nested containers with bad allocation patterns as well. We need to make
-  // sure we don't duplicate an existing mesh edge, but we can do that by searching through the
-  // neighboring edges of the base vertices we're connecting to, rather than building a full
-  // VectorSet. Also we never need to deduplicate edges that are added in each part, because we
-  // never merged vertices within a part.
-
-  // Building faces is simple, we just copy over the faces from the part meshes, remapping the
-  // vertex indices and setting the indices for the newly created edges or existing edges.
-
-  // Attribute merging. When there is only a single input mesh this should end up as a single or
-  // multiple calls to attribute_math::gather, i.e. just an index-based copy. That should also be
-  // the case for attributes that only exist on one of the input meshes (i.e. no mixing is
-  // necessary). For attributes that exist on multiple input meshes (including the base mesh), it
-  // gets more complicated.
 
   return result;
 }
