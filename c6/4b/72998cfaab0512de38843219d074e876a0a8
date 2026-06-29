@@ -1,2 +1,3 @@
 Referenced by issue #66283, Crash during animation playback
 Referenced by issue #160596, Crash stopping animation playback after deleting the view-layer
+Referenced by pull request #160809, Fix #160596: Crash stopping playback after deleting the view-layer
