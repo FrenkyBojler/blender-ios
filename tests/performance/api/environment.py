@@ -127,7 +127,8 @@ class TestEnvironment:
             git_hash: str,
             install_dir: pathlib.Path,
             update_submodules: bool = True,
-            force: bool = False) -> bool:
+            force: bool = False,
+            print_log_on_failure: bool = False) -> bool:
         # Build Blender revision
         if not self.build_dir.exists():
             sys.stderr.write('\n\nError: no build set up, run `./benchmark init --build` first\n')
@@ -168,8 +169,9 @@ class TestEnvironment:
         except KeyboardInterrupt as e:
             raise e
         except:
-            for line in captured_lines:
-                sys.stdout.write(line)
+            if print_log_on_failure:
+                for line in captured_lines:
+                    sys.stdout.write(line)
             return False
 
         self._init_default_blender_executable()

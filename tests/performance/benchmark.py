@@ -496,7 +496,8 @@ def cmd_build(env: api.TestEnvironment, argv: list):
                 print(f'Building {revision}...')
 
                 try:
-                    env.build(git_hash, install_dir, not args.no_submodules, args.force)
+                    env.build(git_hash, install_dir, not args.no_submodules, args.force,
+                              print_log_on_failure=True)
                 except KeyboardInterrupt:
                     raise
                 except Exception:
