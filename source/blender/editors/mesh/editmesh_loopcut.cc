@@ -160,29 +160,76 @@ static void ringsel_find_edge(RingSelOpData *lcd, const int previewlines)
  * Gather the four spline control points for new loop cut vertex. 
  * p2 and p3 are original endpoints, p1 and p4 are one quad past p2 and p3 to calculate the curve tangents.
  */
-static bool loopcut_find_control_points(BMVert *v, float3 &p1, float3 &p2, float3 &p3, float3 &p4) {
+static bool loopcut_find_control_points(BMVert *v, int cuts, float3 &p1, float3 &p2, float3 &p3, float3 &p4, int &r_idx, int &r_span) {
   /* Split edge halves; far vert is original vert. */
-  BMEdge *e_cross[2] = {nullptr, nullptr};
-  int cross_count = 0;
+  BMEdge *e_rail[2] = {nullptr, nullptr};
+  int rail_count = 0;
 
   BMIter e_iter;
   BMEdge *e;
   BM_ITER_ELEM(e, &e_iter, v, BM_EDGES_OF_VERT) {
-    if (!BM_elem_flag_test(BM_edge_other_vert(e, v), BM_ELEM_SELECT)) {
-      if (cross_count < 2) {
-        e_cross[cross_count] = e;
+    if (!BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+      if (rail_count < 2) {
+        e_rail[rail_count] = e;
       }
-      cross_count++;
+      rail_count++;
     }
   }
-  if (cross_count != 2) {
+  if (rail_count != 2) {
     return false;
   }
 
-  BMVert *vA = BM_edge_other_vert(e_cross[0], v);
-  BMVert *vB = BM_edge_other_vert(e_cross[1], v);
-  p2 = vA->co;
-  p3 = vB->co;
+  /* Walk along rail through selected chain until unselected ring vert is reached. */
+  auto walk_chain = [&](BMEdge *e_start, BMVert *&r_end, BMEdge *&r_last, int &r_steps) -> bool {
+    BMVert *curr = v;
+    BMEdge *e = e_start;
+    int steps = 0;
+
+    while (true) {
+      BMVert *nv = BM_edge_other_vert(e, curr);
+      if (nv == nullptr) {
+        return false;
+      }
+
+      if (!BM_elem_flag_test(nv, BM_ELEM_SELECT)) {
+        r_end = nv;
+        r_last = e;
+        r_steps = steps;
+        return true;
+      }
+
+      BMEdge *e_next = nullptr;
+      int nv_rail_count = 0;
+      BMIter iter;
+      BMEdge *ne;
+      BM_ITER_ELEM(ne, &iter, nv, BM_EDGES_OF_VERT) {
+        if (!BM_elem_flag_test(ne, BM_ELEM_SELECT)) {
+          nv_rail_count++;
+          if (ne != e) {
+            e_next = ne;
+          }
+        }
+      }
+      if (nv_rail_count != 2 || e_next == nullptr) {
+        return false;
+      }
+
+      curr = nv;
+      e = e_next;
+      if (++steps > cuts) {
+        return false;
+      }
+    }
+  };
+
+  BMVert *endA, *endB;
+  BMEdge *lastA, *lastB;
+  int stepsA, stepsB;
+  if (!walk_chain(e_rail[0], endA, lastA, stepsA) || !walk_chain(e_rail[1], endB, lastB, stepsB)) {
+    return false;
+  }
+  p2 = endA->co;
+  p3 = endB->co;
   
   /* Walk one quad past v_end to next ring vert. Anchor / opposite are p2 / p3 for phantom. */
   auto walk = [&](BMEdge *edge, BMVert *v_end, const float3 &anchor, const float3 &opposite, float3 &r_outer) -> bool {
@@ -210,26 +257,29 @@ static bool loopcut_find_control_points(BMVert *v, float3 &p1, float3 &p2, float
       return false;
     }
     BMVert *v_outer = BM_edge_other_vert(l_step->e, v_end);
-    if (v_outer == nullptr || v_outer == v) {
+    if (v_outer == nullptr || BM_elem_flag_test(v_outer, BM_ELEM_SELECT)) {
       return false;
     }
     r_outer = v_outer->co;
     return true;
   };
 
-  if (!walk(e_cross[0], vA, p2, p3, p1) || !walk(e_cross[1], vB, p3, p2, p4)) {
+  if (!walk(lastA, endA, p2, p3, p1) || !walk(lastB, endB, p3, p2, p4)) {
     return false;
   }
 
+  r_idx = stepsA + 1;
+  r_span = stepsA + stepsB + 1;
   return true;
 }
 
 /**
  *  Compute spline position for new loopcut vertex v.
  */
-static bool loopcut_calc_curve_target(BMVert *v, float mu, float tension, float3 &r_co) {
+static bool loopcut_calc_curve_target(BMVert *v, int cuts, float tension, float3 &r_co) {
   float3 p1, p2, p3, p4;
-  if (!loopcut_find_control_points(v, p1, p2, p3, p4)) {
+  int idx, span;
+  if (!loopcut_find_control_points(v, cuts, p1, p2, p3, p4, idx, span)) {
     return false;
   }
 
@@ -242,6 +292,7 @@ static bool loopcut_calc_curve_target(BMVert *v, float mu, float tension, float3
   p1 = p2 + d * math::normalize(p1 - p2);
   p4 = p3 + d * math::normalize(p4 - p3);
 
+  const float mu = float(idx) / float(span + 1);
   r_co = math::hermite_spline_interp(p1, p2, p3, p4, mu, -tension, 0.0f);
   return true;
 }
@@ -260,10 +311,8 @@ static void loopcut_apply_curvature(BMesh *bm, int cuts, float tension) {
       continue;
     }
 
-    const float mu = 0.5f;
-
     float3 co;
-    if (loopcut_calc_curve_target(v, mu, tension, co)) {
+    if (loopcut_calc_curve_target(v, cuts, tension, co)) {
       verts.append(v);
       targets.append(co);
     }
@@ -277,7 +326,6 @@ static void loopcut_apply_curvature(BMesh *bm, int cuts, float tension) {
     copy_v3_v3(verts[i]->co, targets[i]);
   }
 
-  /* ringsel_finish() runs EDBM_update with calc_normals=false, so refresh here. */
   BM_mesh_normals_update(bm);
 }
 
@@ -327,7 +375,6 @@ static void ringsel_finish(bContext *C, wmOperator *op)
                          use_only_quads,
                          0);
 
-      /* TODO: Add multicut behavior handling. */
       if (use_preserve_curvature && seltype == SUBDIV_SELECT_LOOPCUT) {
         const float tension = RNA_float_get(op->ptr, "curve_tension");
         loopcut_apply_curvature(em->bm, cuts, tension);
