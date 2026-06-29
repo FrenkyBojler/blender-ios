@@ -89,13 +89,8 @@ echo Obtaining Visual Studio 2022 Buildtools installer
 curl -s https://download.visualstudio.microsoft.com/download/pr/c2e2845d-bdff-44fc-ac00-3d488e9f5675/abdb87ff12fe1885ccc4964b4ab51da566549fd2096d7ceb1fdea907372f21d7/vs_BuildTools.exe -o C:\install\vs_BuildTools.exe
 echo Obtaining Visual Studio 2022 Buildtools installer configuration
 curl -s https://projects.blender.org/%TEMP_WIP_BRANCH%/build_files/build_environment/windows/vsconfig_arm64 -o C:\install\.vsconfig
-echo Installing Visual Studio 2022 Build Tools...
-IF EXIST "C:\vs2022bt\Common7\Tools\VsDevCmd.bat" (
-    echo Installation found. Ensuring Visual Studio 2022 Build Tools components...
-    C:\install\vs_BuildTools.exe modify --installPath C:\vs2022bt\ --config C:\install\.vsconfig --quiet --norestart --wait
-) ELSE (
-    C:\install\vs_BuildTools.exe --wait --quiet --norestart --installPath C:\vs2022bt\ --config C:\install\.vsconfig
-)
+echo Installing Visual Studio 2022 Buildtools installer
+C:\install\vs_BuildTools.exe --wait --quiet --norestart --installPath C:\vs2022bt\ --config C:\install\.vsconfig
 
 echo Obtaining Git
 curl -s -L https://github.com/git-for-windows/git/releases/download/v2.54.0.windows.1/Git-2.54.0-arm64.exe -o C:\install\Git-2.54.0-arm64.exe
