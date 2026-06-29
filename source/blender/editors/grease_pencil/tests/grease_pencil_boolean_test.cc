@@ -24,7 +24,7 @@
 #include <type_traits>
 
 /* Should tests draw their output to an HTML file? */
-#define DO_DRAW 1
+#define DO_DRAW 0
 
 namespace blender::ed::greasepencil::tests {
 
@@ -195,11 +195,7 @@ static bool draw_append = false; /* Will be set to true after first call. */
 
 static std::ofstream get_file_stream()
 {
-#ifdef WIN32
   constexpr const char *drawfile = "./boolean_curves_test_draw.html";
-#else
-  constexpr const char *drawfile = "/tmp/boolean_curves_test_draw.html";
-#endif
 
   std::ofstream f;
   if (draw_append) {
