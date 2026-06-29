@@ -67,17 +67,15 @@ struct TransDataSeq {
 struct TransSeq {
   TransDataSeq *tdseq;
   /* Maximum delta allowed along x and y before clamping selected strips/handles. Always active. */
-  rcti offset_clamp;
+  rcti hard_clamp;
   /* Maximum delta before clamping handles to the bounds of underlying content. May be disabled. */
-  int hold_clamp_min, hold_clamp_max;
+  int content_clamp_min, content_clamp_max;
 
-  // TODO: this naming is confusing. Maybe: symmetric_hard_clamp and symmetric_content_clamp.
-  // offset_clamp could then be renamed to hard_clamp and hold_clamp to content_clamp
   /* Maximum x-axis delta allowed for transitions when symmetric handle mode is enabled.*/
-  int symmetric_clamp_min, symmetric_clamp_max;
+  int symmetric_hard_clamp_min, symmetric_hard_clamp_max;
   /* Maximum x-axis delta before clamping transitions to the bounds of underlying content when
    * symmetric handle mode is enabled. May be disabled. */
-  int symmetric_offset_clamp_min, symmetric_offset_clamp_max;
+  int symmetric_content_clamp_min, symmetric_content_clamp_max;
 
   /* Initial rect of the view2d, used for computing offset during edge panning. */
   rctf initial_v2d_cur;
@@ -523,31 +521,31 @@ static bool create_non_transition_clamp_data(TransInfo *t, const Scene *scene, S
       /* Ensure that this strip's left handle cannot pass its right handle. */
       if (!(left_sel && right_sel)) {
         int offset = (strip->right_handle(scene) - 1) - strip->left_handle();
-        ts->offset_clamp.xmax = min_ii(ts->offset_clamp.xmax, offset);
+        ts->hard_clamp.xmax = min_ii(ts->hard_clamp.xmax, offset);
       }
 
       if (can_clamp_holds) {
         /* Ensure that the left handle's frame is greater than or equal to the content start. */
-        ts->hold_clamp_min = max_ii(ts->hold_clamp_min, -strip->startofs);
+        ts->content_clamp_min = max_ii(ts->content_clamp_min, -strip->startofs);
       }
     }
     if (right_sel) {
       if (!(left_sel && right_sel)) {
         /* Ensure that this strip's right handle cannot pass its left handle. */
         int offset = (strip->left_handle() + 1) - strip->right_handle(scene);
-        ts->offset_clamp.xmin = max_ii(ts->offset_clamp.xmin, offset);
+        ts->hard_clamp.xmin = max_ii(ts->hard_clamp.xmin, offset);
       }
 
       if (can_clamp_holds) {
         /* Ensure that the right handle's frame is less than or equal to the content end. */
-        ts->hold_clamp_max = min_ii(ts->hold_clamp_max, strip->endofs);
+        ts->content_clamp_max = min_ii(ts->content_clamp_max, strip->endofs);
       }
     }
     return true;
   }
   /* No handles are selected. Update y-axis channel clamping data. */
-  ts->offset_clamp.ymin = max_ii(ts->offset_clamp.ymin, 1 - strip->channel);
-  ts->offset_clamp.ymax = min_ii(ts->offset_clamp.ymax, seq::MAX_CHANNELS - strip->channel);
+  ts->hard_clamp.ymin = max_ii(ts->hard_clamp.ymin, 1 - strip->channel);
+  ts->hard_clamp.ymax = min_ii(ts->hard_clamp.ymax, seq::MAX_CHANNELS - strip->channel);
   return false;
 }
 
@@ -577,28 +575,30 @@ static void create_transition_clamp_data(TransInfo *t, const Scene *scene, Strip
   const int left_cutpoint_offset = (right_input->left_handle() - 1) - strip->left_handle();
   const int left_content_offset = right_input->content_start() - strip->left_handle();
   if (left_sel) {
-    ts->offset_clamp.xmin = max_ii(ts->offset_clamp.xmin, left_edge_offset);
-    ts->offset_clamp.xmax = min_ii(ts->offset_clamp.xmax, left_cutpoint_offset);
-    ts->hold_clamp_min = max_ii(ts->hold_clamp_min, left_content_offset);
+    ts->hard_clamp.xmin = max_ii(ts->hard_clamp.xmin, left_edge_offset);
+    ts->hard_clamp.xmax = min_ii(ts->hard_clamp.xmax, left_cutpoint_offset);
+    ts->content_clamp_min = max_ii(ts->content_clamp_min, left_content_offset);
   }
   else if (right_sel) {
-    ts->symmetric_clamp_max = min_ii(ts->symmetric_clamp_max, -left_edge_offset);
-    ts->symmetric_clamp_min = max_ii(ts->symmetric_clamp_min, -left_cutpoint_offset);
-    ts->symmetric_offset_clamp_max = min_ii(ts->symmetric_offset_clamp_max, -left_content_offset);
+    ts->symmetric_hard_clamp_max = min_ii(ts->symmetric_hard_clamp_max, -left_edge_offset);
+    ts->symmetric_hard_clamp_min = max_ii(ts->symmetric_hard_clamp_min, -left_cutpoint_offset);
+    ts->symmetric_content_clamp_max = min_ii(ts->symmetric_content_clamp_max,
+                                             -left_content_offset);
   }
 
   const int right_edge_offset = right_input->right_handle(scene) - strip->right_handle(scene);
   const int right_cutpoint_offset = (right_input->left_handle() + 1) - strip->right_handle(scene);
   const int right_content_offset = left_input->content_end(scene) - strip->right_handle(scene);
   if (right_sel) {
-    ts->offset_clamp.xmax = min_ii(ts->offset_clamp.xmax, right_edge_offset);
-    ts->offset_clamp.xmin = max_ii(ts->offset_clamp.xmin, right_cutpoint_offset);
-    ts->hold_clamp_max = min_ii(ts->hold_clamp_max, right_content_offset);
+    ts->hard_clamp.xmax = min_ii(ts->hard_clamp.xmax, right_edge_offset);
+    ts->hard_clamp.xmin = max_ii(ts->hard_clamp.xmin, right_cutpoint_offset);
+    ts->content_clamp_max = min_ii(ts->content_clamp_max, right_content_offset);
   }
   else if (left_sel) {
-    ts->symmetric_clamp_min = max_ii(ts->symmetric_clamp_min, -right_edge_offset);
-    ts->symmetric_clamp_max = min_ii(ts->symmetric_clamp_max, -right_cutpoint_offset);
-    ts->symmetric_offset_clamp_min = max_ii(ts->symmetric_offset_clamp_min, -right_content_offset);
+    ts->symmetric_hard_clamp_min = max_ii(ts->symmetric_hard_clamp_min, -right_edge_offset);
+    ts->symmetric_hard_clamp_max = min_ii(ts->symmetric_hard_clamp_max, -right_cutpoint_offset);
+    ts->symmetric_content_clamp_min = max_ii(ts->symmetric_content_clamp_min,
+                                             -right_content_offset);
   }
 }
 
@@ -608,7 +608,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   const Editing *ed = seq::editing_get(scene);
 
   /* Prevent snaps and change in `values` past `offset_clamp` for all selected strips. */
-  BLI_rcti_init(&ts->offset_clamp, INT_MIN, INT_MAX, -seq::MAX_CHANNELS, seq::MAX_CHANNELS);
+  BLI_rcti_init(&ts->hard_clamp, INT_MIN, INT_MAX, -seq::MAX_CHANNELS, seq::MAX_CHANNELS);
 
   // TODO: this could be merged into the lower loop, right?
   // TODO: maybe #seq_transform_collection_from_transdata here?
@@ -625,20 +625,20 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
     if (!(strip->input1->flag & SEQ_SELECT) &&
         (!strip->input2 || !(strip->input2->flag & SEQ_SELECT)))
     {
-      ts->offset_clamp.xmin = 0;
-      ts->offset_clamp.xmax = 0;
+      ts->hard_clamp.xmin = 0;
+      ts->hard_clamp.xmax = 0;
     }
   }
 
   /* Try to clamp handles by default. */
   t->modifiers |= MOD_STRIP_CLAMP_HOLDS;
-  ts->hold_clamp_min = INT_MIN;
-  ts->hold_clamp_max = INT_MAX;
+  ts->content_clamp_min = INT_MIN;
+  ts->content_clamp_max = INT_MAX;
 
-  ts->symmetric_clamp_min = INT_MIN;
-  ts->symmetric_clamp_max = INT_MAX;
-  ts->symmetric_offset_clamp_min = INT_MIN;
-  ts->symmetric_offset_clamp_max = INT_MAX;
+  ts->symmetric_hard_clamp_min = INT_MIN;
+  ts->symmetric_hard_clamp_max = INT_MAX;
+  ts->symmetric_content_clamp_min = INT_MIN;
+  ts->symmetric_content_clamp_max = INT_MAX;
 
   bool only_handles_selected = true;
 
@@ -652,8 +652,8 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
       has_transition = true;
       if (has_non_transition) {
         /* Invalid selection state. */
-        ts->offset_clamp.xmin = 0;
-        ts->offset_clamp.xmax = 0;
+        ts->hard_clamp.xmin = 0;
+        ts->hard_clamp.xmax = 0;
         break;
       }
       create_transition_clamp_data(t, scene, strip);
@@ -662,8 +662,8 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
       has_non_transition = true;
       if (has_transition) {
         /* Invalid selection state. */
-        ts->offset_clamp.xmin = 0;
-        ts->offset_clamp.xmax = 0;
+        ts->hard_clamp.xmin = 0;
+        ts->hard_clamp.xmax = 0;
         break;
       }
       only_handles_selected &= create_non_transition_clamp_data(t, scene, strip);
@@ -674,8 +674,8 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
    * are handles, since currently it is possible to select whole strips and handles at the same
    * time. This should be removed for 5.0 when we make this behavior impossible. */
   if (only_handles_selected) {
-    ts->offset_clamp.ymin = 0;
-    ts->offset_clamp.ymax = 0;
+    ts->hard_clamp.ymin = 0;
+    ts->hard_clamp.ymax = 0;
   }
 }
 
@@ -1128,7 +1128,7 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
   bool clamped = false;
 
   /* Unconditional channel, retiming key, and handle clamping. Should never be ignored. */
-  if (BLI_rcti_clamp_pt_v(&ts->offset_clamp, val)) {
+  if (BLI_rcti_clamp_pt_v(&ts->hard_clamp, val)) {
     r_val[0] = float(val[0]);
     r_val[1] = float(val[1]);
     clamped = true;
@@ -1147,16 +1147,16 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
 
   /* Optional clamping of handles to underlying holds. Can be disabled by the user. */
   if (t->modifiers & MOD_STRIP_CLAMP_HOLDS) {
-    clamp_x(ts->hold_clamp_min, ts->hold_clamp_max);
+    clamp_x(ts->content_clamp_min, ts->content_clamp_max);
   }
 
   // TODO: I think that should rather be MOD_STRIP_SYMMETRIC with the logic switched around
   /* Clamping of symmetric transitions. */
   if ((t->modifiers & MOD_STRIP_ASYMMETRIC) == 0) {
-    clamp_x(ts->symmetric_clamp_min, ts->symmetric_clamp_max);
+    clamp_x(ts->symmetric_hard_clamp_min, ts->symmetric_hard_clamp_max);
     /* Optional clamping of handles to content range of inputs. Can be disabled by the user. */
     if (t->modifiers & MOD_STRIP_CLAMP_HOLDS) {
-      clamp_x(ts->symmetric_offset_clamp_min, ts->symmetric_offset_clamp_max);
+      clamp_x(ts->symmetric_content_clamp_min, ts->symmetric_content_clamp_max);
     }
   }
 
