@@ -161,14 +161,31 @@ bool VKTopLevelAS::build()
   }
 
   /* Update the instances buffer. */
-  /* Make a copy of the instances data as the update render graph takes ownership and needs to
-   * be a guarded allocation. */
-  /* TODO: only use udpate_render_graph for buffers < 64Kb. */
-  BLI_assert(instances_buffer_size < 65536);
   if (instances_buffer_size != 0) {
-    void *copy_of_data = MEM_new_uninitialized(instances_buffer_size, __func__);
-    memcpy(copy_of_data, instances_.data(), instances_buffer_size);
-    instances_buffer_.update_render_graph(context, copy_of_data);
+    if (instances_buffer_size < 65536) {
+      /* Only use udpate_render_graph for buffers < 64Kb. */
+      /* Make a copy of the instances data as the update render graph takes ownership and needs to
+       * be a guarded allocation. */
+      void *copy_of_data = MEM_new_uninitialized(instances_buffer_size, __func__);
+      memcpy(copy_of_data, instances_.data(), instances_buffer_size);
+      instances_buffer_.update_render_graph(context, copy_of_data);
+    }
+    else {
+      /* Create a staging buffer otherwise. */
+      VKStagingBuffer staging_buffer(instances_buffer_, VKStagingBuffer::Direction::HostToDevice);
+      VKBuffer &buffer = staging_buffer.host_buffer_get();
+      if (buffer.is_allocated()) {
+        staging_buffer.host_buffer_get().update_immediately(instances_.data());
+        staging_buffer.copy_to_device(context);
+      }
+      else {
+        buffer_.clear(context, 0u);
+        CLOG_ERROR(
+            &LOG,
+            "Unable to upload data to TLAS buffer via a staging buffer as the staging buffer "
+            "could not be allocated.");
+      }
+    }
   }
 
   build_acceleration_structure_info_.src_buffers.add(instances_buffer_.vk_handle());
