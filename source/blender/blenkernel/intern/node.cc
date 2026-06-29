@@ -2863,7 +2863,7 @@ bNodeSocketType *node_socket_type_find(const StringRef idname)
 {
   bNodeSocketType *const *value = get_socket_type_map().lookup_key_ptr_as(UString(idname));
   if (!value) {
-    return &bke::NodeSocketTypeUndefined;
+    return nullptr;
   }
   return *value;
 }
