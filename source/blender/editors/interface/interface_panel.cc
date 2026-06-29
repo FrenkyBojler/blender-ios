@@ -847,7 +847,13 @@ static void panel_calculate_size_recursive(ARegion *region, Panel *panel)
     if (width != 0) {
       panel->sizex = width;
     }
-    if (height != 0 || !panel_is_closed(panel)) {
+    if (region->regiontype == RGN_TYPE_XR) {
+      /* XR panels are re-rendered from fresh layouts and don't need to preserve the previous
+       * open height for desktop panel collapse animation. Keeping the old closed height leaves a
+       * visual gap until another interaction forces the stack to repack. */
+      panel->sizey = height;
+    }
+    else if (height != 0 || !panel_is_closed(panel)) {
       panel->sizey = height;
     }
 
@@ -862,6 +868,7 @@ static void panel_calculate_size_recursive(ARegion *region, Panel *panel)
       panel->runtime_flag |= PANEL_ANIM_ALIGN;
     }
   }
+
 }
 
 void panel_end(Panel *panel, int width, int height)
@@ -2052,7 +2059,13 @@ void panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
   /* Re-align, possibly with animation. */
   Panel *panel;
   if (panels_need_realign(area, region, &panel)) {
-    if (panel) {
+    if (region->regiontype == RGN_TYPE_XR) {
+      /* XR panels are rendered through an offscreen region and don't reliably benefit from the
+       * deferred timer-driven alignment path. Apply the new stacked offsets immediately so panel
+       * collapse/expand updates are visible without needing a later drag/reorder interaction. */
+      uiAlignPanelStep(region, 1.0f, false);
+    }
+    else if (panel) {
       panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
     }
     else {
@@ -2171,21 +2184,31 @@ static void panel_drag_collapse(const bContext *C,
     window_to_block_fl(region, &block, &xy_a_block[0], &xy_a_block[1]);
     window_to_block_fl(region, &block, &xy_b_block[0], &xy_b_block[1]);
 
+    bool layout_panel_changed = false;
     for (LayoutPanelHeader &header : panel->runtime->layout_panels.headers) {
       rctf rect = block.rect;
       rect.ymin = block.rect.ymax + header.start_y;
       rect.ymax = block.rect.ymax + header.end_y;
 
       if (BLI_rctf_isect_segment(&rect, xy_a_block, xy_b_block)) {
+        const bool was_open = RNA_boolean_get(&header.open_owner_ptr, header.open_prop_name.c_str());
+        const bool is_open = !dragcol_data->was_first_open;
+        if (was_open == is_open) {
+          continue;
+        }
         RNA_boolean_set(
-            &header.open_owner_ptr, header.open_prop_name.c_str(), !dragcol_data->was_first_open);
+            &header.open_owner_ptr, header.open_prop_name.c_str(), is_open);
         RNA_property_update(
             const_cast<bContext *>(C),
             &header.open_owner_ptr,
             RNA_struct_find_property(&header.open_owner_ptr, header.open_prop_name.c_str()));
+        layout_panel_changed = true;
         ED_region_tag_redraw(region);
         ED_region_tag_refresh_ui(region);
       }
+    }
+    if (layout_panel_changed) {
+      panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
     }
 
     if (panel->type && (panel->type->flag & PANEL_TYPE_NO_HEADER)) {
@@ -2294,6 +2317,9 @@ static void handle_layout_panel_header(
   const bool new_state = layout_panel_toggle_open(C, header);
   ED_region_tag_redraw(CTX_wm_region(C));
   ED_region_tag_refresh_ui(CTX_wm_region(C));
+  /* Layout-panel open state changes alter the owning panel's effective height, so make it
+   * follow the same realign path as other panel layout changes. */
+  panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
   WM_tooltip_clear(C, CTX_wm_window(C));
 
   if (event_type == LEFTMOUSE) {

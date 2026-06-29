@@ -1008,8 +1008,8 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
        * drag-reorder order persists, just like it does for regular screen regions. */
       ED_region_panels_layout(mutable_C, xr_region);
 
-      const int content_width = std::max(1, int(std::ceil(BLI_rctf_size_x(&xr_region->v2d.tot))));
-      const int content_height = std::max(1, int(std::ceil(BLI_rctf_size_y(&xr_region->v2d.tot))));
+      int content_width = std::max(1, int(std::ceil(BLI_rctf_size_x(&xr_region->v2d.tot))));
+      int content_height = std::max(1, int(std::ceil(BLI_rctf_size_y(&xr_region->v2d.tot))));
       XR_PANELS_TRACE("panels_ws: panel content size=%dx%d v2d_tot=(%.3f, %.3f)-(%.3f, %.3f)",
                       content_width,
                       content_height,
@@ -1035,6 +1035,8 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
         ED_region_panels_exit_active_state(mutable_C, xr_region);
         ui::blocklist_free(mutable_C, xr_region);
         ED_region_panels_layout(mutable_C, xr_region);
+        content_width = std::max(1, int(std::ceil(BLI_rctf_size_x(&xr_region->v2d.tot))));
+        content_height = std::max(1, int(std::ceil(BLI_rctf_size_y(&xr_region->v2d.tot))));
       }
       BLI_rcti_init(&panel_rect, 0, content_width - 1, 0, content_height - 1);
       XR_PANELS_TRACE("panels_ws: layout done xr_region=%p rect=(%d,%d)-(%d,%d) panel_instances_after_layout=%d",
