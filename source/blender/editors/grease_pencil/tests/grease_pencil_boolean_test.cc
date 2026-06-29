@@ -347,9 +347,9 @@ static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
 static void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
                                         const Array<Vector<float2>> &expected_points)
 {
-  /* TODO */
-
-  // const OffsetIndices<int> points_by_polygon = OffsetIndices<int>((*result).point_offsets);
+  const VArray<float2> positions = *dst_curves.attributes().lookup<float2>(".positions_2d",
+                                                                           bke::AttrDomain::Point);
+  const OffsetIndices<int> points_by_curve = dst_curves.points_by_curve();
 
   EXPECT_EQ(dst_curves.curves_num(), expected_points.size());
   if (dst_curves.curves_num() != expected_points.size()) {
@@ -361,28 +361,27 @@ static void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
     total_size += expected_points[i].size();
   }
 
-  EXPECT_EQ(points.size(), total_size);
-  if (points.size() != total_size) {
+  EXPECT_EQ(positions.size(), total_size);
+  if (positions.size() != total_size) {
     return;
   }
 
-  for (const int polygon_id : points_by_polygon.index_range()) {
-    const IndexRange vert_ids = points_by_polygon[polygon_id];
+  for (const int curve_i : points_by_curve.index_range()) {
+    const IndexRange points = points_by_curve[curve_i];
 
-    const Span<float2> expected_sub_points = expected_points[polygon_id];
+    const Span<float2> expected_sub_points = expected_points[curve_i];
 
-    EXPECT_EQ(expected_sub_points.size(), vert_ids.size());
-    if (expected_sub_points.size() != vert_ids.size()) {
+    EXPECT_EQ(expected_sub_points.size(), points.size());
+    if (expected_sub_points.size() != points.size()) {
       return;
     }
 
-    for (const int i : vert_ids) {
-      const float2 &point = points[i];
-      const int j = i - vert_ids.first();
-      const float2 &expected_point = expected_sub_points[j];
+    for (const int i : points.index_range()) {
+      const float2 &point = positions[points[i]];
+      const float2 &expected_point = expected_sub_points[i];
 
-      EXPECT_NEAR(point[0], expected_point[0], 1e-4);
-      EXPECT_NEAR(point[1], expected_point[1], 1e-4);
+      EXPECT_NEAR(point.x, expected_point.x, 1e-4);
+      EXPECT_NEAR(point.y, expected_point.y, 1e-4);
     }
   }
 }
