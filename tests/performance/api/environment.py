@@ -122,14 +122,19 @@ class TestEnvironment:
         submodule_key = ",".join([l.split()[0] for l in log_lines])
         return submodule_key
 
-    def build(self, git_hash: str, install_dir: pathlib.Path, update_submodules: bool = True) -> bool:
+    def build(
+            self,
+            git_hash: str,
+            install_dir: pathlib.Path,
+            update_submodules: bool = True,
+            force: bool = False) -> bool:
         # Build Blender revision
         if not self.build_dir.exists():
             sys.stderr.write('\n\nError: no build set up, run `./benchmark init --build` first\n')
             sys.exit(1)
 
         # Skip if build with same hash is already done.
-        if install_dir.resolve() != self.install_dir.resolve():
+        if not force and install_dir.resolve() != self.install_dir.resolve():
             complete_txt = pathlib.Path(install_dir) / "complete.txt"
             if complete_txt.is_file():
                 if complete_txt.read_text().strip() == git_hash:
@@ -151,14 +156,20 @@ class TestEnvironment:
         jobs = str(multiprocessing.cpu_count())
         cmake_options = list(self.cmake_options)
         cmake_options += [f"-DCMAKE_INSTALL_PREFIX={install_dir}"]
+        captured_lines = []
         try:
-            self.call([self.cmake_executable, self.blender_dir, '.'] + cmake_options, self.build_dir)
-            self.call([self.cmake_executable, '--build', '.', '-j', jobs, '--target', 'install'], self.build_dir)
+            lines = self.call([self.cmake_executable, self.blender_dir, '.'] + cmake_options, self.build_dir)
+            captured_lines.extend(lines)
+            lines = self.call([self.cmake_executable, '--build', '.', '-j',
+                              jobs, '--target', 'install'], self.build_dir)
+            captured_lines.extend(lines)
             if complete_txt:
                 complete_txt.write_text(git_hash)
         except KeyboardInterrupt as e:
             raise e
         except:
+            for line in captured_lines:
+                sys.stdout.write(line)
             return False
 
         self._init_default_blender_executable()

@@ -456,6 +456,56 @@ def cmd_bisect(env: api.TestEnvironment, argv: list):
     print(f'\nRegression introduced by commit `{bisect.first_bad}`: `{title}`')
 
 
+def cmd_build(env: api.TestEnvironment, argv: list):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config', nargs='?', default=None)
+    parser.add_argument('--force', action='store_true',
+                        help="Rebuild all revisions even if already built")
+    parser.add_argument(
+        '--no-submodules',
+        action='store_true',
+        help="Skip updating submodules when checking out revisions.")
+    args = parser.parse_args(argv)
+
+    configs = env.get_configs(args.config)
+
+    for config in configs:
+        built_revisions = set()
+
+        for row in config.queue.rows(use_revision_columns(config)):
+            for entry in row:
+                revision = entry.revision
+                git_hash = entry.git_hash
+
+                if len(entry.executable):
+                    continue
+
+                if git_hash in built_revisions and not args.force:
+                    continue
+
+                if not args.force:
+                    built_revisions.add(git_hash)
+
+                git_hash = env.resolve_git_hash(git_hash)
+
+                if config.benchmark_type == "comparison":
+                    install_dir = config.builds_dir / revision
+                else:
+                    install_dir = env.install_dir
+
+                print(f'Building {revision}...')
+
+                try:
+                    env.build(git_hash, install_dir, not args.no_submodules, args.force)
+                except KeyboardInterrupt:
+                    raise
+                except Exception:
+                    print(f'Build failed for {revision}!')
+                    sys.exit(1)
+
+    sys.exit(0)
+
+
 def cmd_graph(argv: list):
     # Create graph from a given JSON results file.
     parser = argparse.ArgumentParser()
@@ -492,9 +542,11 @@ def main():
              '  reset [<config>] [<test>]            Clear tests results in configuration\n'
              '  status [<config>] [<test>]           List configurations and their tests\n'
              '  \n'
+             '  build [--force] [<config>]           Build all revisions in configuration\n'
+             '  \n'
              '  graph a.json b.json... -o out.html   Create graph from results in JSON files\n'
              '  \n'
-             '  bisect                                Find commit that introduced a regression'
+             '  bisect                               Find commit that introduced a regression'
              ' between dates\n')
 
     parser = argparse.ArgumentParser(
@@ -538,6 +590,8 @@ def main():
         cmd_bisect(env, argv)
     elif args.command == 'status':
         cmd_status(env, argv)
+    elif args.command == 'build':
+        cmd_build(env, argv)
     elif args.command == 'help':
         parser.print_usage()
     else:
