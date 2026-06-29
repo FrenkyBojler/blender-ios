@@ -41,7 +41,7 @@ struct CryptomatteOutput {
 };
 
 struct Cryptomatte {
-  [[image(8, read_write, SFLOAT_32_32_32_32)]] image2DArray cryptomatte_img;
+  [[image(7, read_write, SFLOAT_32_32_32_32)]] image2DArray cryptomatte_img;
 
   void clear_samples(FilmSample dst)
   {
