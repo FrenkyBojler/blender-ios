@@ -8,7 +8,6 @@
 
 #include <chrono>
 #include <condition_variable>
-#include <mutex>
 #include <thread>
 
 #include "BLI_mutex.hh"
