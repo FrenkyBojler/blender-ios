@@ -2417,8 +2417,8 @@ static void sequencer_report_duplicates(wmOperator *op, ListBaseT<Strip> *duplic
     report += fmt::format("{}{} {}",
                           sep,
                           num_images,
-                          (num_images > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_MC)) :
-                                             RPT_(BKE_idtype_idcode_to_name(ID_MC)));
+                          (num_images > 1) ? RPT_(BKE_idtype_idcode_to_name_plural(ID_IM)) :
+                                             RPT_(BKE_idtype_idcode_to_name(ID_IM)));
     sep = ", ";
   }
   if (num_masks) {
