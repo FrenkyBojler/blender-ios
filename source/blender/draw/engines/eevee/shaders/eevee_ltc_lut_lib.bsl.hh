@@ -144,22 +144,6 @@ struct LTCData {
     ltc_data.integral_type = LTCIntegralType::ClippedDiffuseSphere;
     return ltc_data;
   }
-
-  /**
-   * Return a packed ltc matrix producing a cosine distribution, that attenuates the
-   * solid angle of the light.
-   */
-  static LTCData identity_translucency()
-  {
-    /* Rotate LTC identity into basis. */
-    float3x3 Minv = mat3x3_identity();
-
-    LTCData ltc_data;
-    ltc_data.Minv = Minv;
-    ltc_data.attenuation_factor = 0.0;
-    ltc_data.integral_type = LTCIntegralType::UnclippedDiffuseSphere;
-    return ltc_data;
-  }
 };
 
 }  // namespace eevee::lut

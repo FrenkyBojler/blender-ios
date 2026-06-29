@@ -83,9 +83,6 @@ void eval_single_closure(sampler2DArray util_tx,
   }
 
   lut::LTCData ltc_data = lut::LTCData::unpack_from(cl);
-  /* Rotate LTC matrix into orthonormal basis around N. */
-  // float3x3 T = eevee::lut::detail::tangent_basis(cl.N, V);
-  // ltc_data.Minv = ltc_data.Minv * transpose(T);
   float ltc_result = light_ltc(util_tx, light, ltc_data, lv, vertices);
 
   float3 out_radiance = light.color * ltc_result;

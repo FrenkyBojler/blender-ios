@@ -145,9 +145,10 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness 
   light.N = -cl.N;
   light.type = (thickness.value() != 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
 
-  eevee::lut::LTCData ltc_data = (light.type == LIGHT_TRANSLUCENT_WITH_THICKNESS) ?
-                                     eevee::lut::LTCData::identity_translucency() :
-                                     eevee::lut::LTCData::identity(light.N, V);
+  eevee::lut::LTCData ltc_data = eevee::lut::LTCData::identity(light.N, V);
+  if (thickness.value() != 0.0f) {
+    ltc_data.integral_type = LTCIntegralType::UnclippedDiffuseSphere;
+  }
   ltc_data.pack_to(light);
 
   return light;

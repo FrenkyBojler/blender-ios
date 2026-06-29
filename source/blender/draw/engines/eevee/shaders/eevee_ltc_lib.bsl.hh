@@ -172,21 +172,6 @@ float3 inverse_z_direction(float3x3 M)
   return normalize(adjoint_z);
 }
 
-// /**
-//  * Compute the 3rd column of the inverse of 3x3 matrix M.
-//  */
-// float3 inverse_z(float3x3 M)
-// {
-//   float3 adjoint_x = float3(+(M[1][1] * M[2][2] - M[2][1] * M[1][2]),
-//                             -(M[0][1] * M[2][2] - M[2][1] * M[0][2]),
-//                             +(M[0][1] * M[1][2] - M[1][1] * M[0][2]));
-//   float3 adjoint_z = float3(+(M[1][0] * M[2][1] - M[2][0] * M[1][1]),
-//                             -(M[0][0] * M[2][1] - M[2][0] * M[0][1]),
-//                             +(M[0][0] * M[1][1] - M[1][0] * M[0][1]));
-//   float det_rcp = 1.0f / dot(adjoint_x, float3(M[0][0], M[1][0], M[2][0]));
-//   return adjoint_z * det_rcp;
-// }
-
 float spherical_attenuation(float3x3 Minv, float3 L, Disk disk)
 {
   /* Dominant BxDF lobe direction, and determinant(Minv). */
@@ -276,9 +261,7 @@ float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 L, lut::LT
     return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
   }
   else { /* LTCIntegralType::UnclippedDiffuseSphere */
-    avg_dir_z = abs(avg_dir_z);
-    return form_factor *
-           detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor) /*  * 0.5f */;
+    return form_factor * M_1_PI;
   }
 }
 
@@ -400,9 +383,7 @@ float evaluate_disk(sampler2DArray util_tx,
     return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
   }
   else { /* LTCIntegralType::UnclippedDiffuseSphere */
-    avg_dir.z = abs(avg_dir.z);
-    return form_factor *
-           detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor) /* * 0.5f */;
+    return form_factor * M_1_PI;
   }
 }
 
