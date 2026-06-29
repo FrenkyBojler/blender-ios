@@ -160,6 +160,7 @@ struct SpaceProperties {
   /** Runtime. */
   int pathflag = 0, dataicon = 0;
   ID *pinid = nullptr;
+  char pin_bonename[/*MAXBONENAME*/ 64] = "";
 
   void *texuser = nullptr;
 

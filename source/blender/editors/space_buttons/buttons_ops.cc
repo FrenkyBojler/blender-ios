@@ -122,6 +122,30 @@ static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
   PointerRNA new_id_ptr = RNA_id_pointer_create(new_id);
   RNA_pointer_set(&sbuts_ptr, "pin_id", new_id_ptr);
 
+  if (sbuts->flag & SB_PIN_CONTEXT && ELEM(sbuts->mainb, BCONTEXT_BONE_CONSTRAINT, BCONTEXT_BONE)) {
+    PointerRNA ptr = CTX_data_pointer_get_type(C, "pose_bone", RNA_PoseBone);
+    if (!ptr.data) {
+      ptr = CTX_data_pointer_get_type(C, "edit_bone", RNA_EditBone);
+    }
+    if (!ptr.data) {
+      ptr = CTX_data_pointer_get_type(C, "bone", RNA_Bone);
+    }
+
+    if (ptr.data) {
+      char namebuf[MAXBONENAME];
+      const char *bname = RNA_struct_name_get_alloc(&ptr, namebuf, sizeof(namebuf), nullptr);
+      if (bname) {
+        STRNCPY(sbuts->pin_bonename, bname);
+
+        if (bname != namebuf) {
+          MEM_delete(bname);
+        }
+      }
+    }
+  } else {
+    sbuts->pin_bonename[0] = '\0';
+  }
+
   ED_area_tag_redraw(CTX_wm_area(C));
 
   return OPERATOR_FINISHED;

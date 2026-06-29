@@ -29,6 +29,7 @@
 #include "DNA_world_types.h"
 
 #include "BKE_action.hh"
+#include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_linestyle.h"
@@ -48,6 +49,7 @@
 #include "ED_buttons.hh"
 #include "ED_physics.hh"
 #include "ED_screen.hh"
+#include "ED_armature.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -377,23 +379,38 @@ static bool buttons_context_path_material(ButsContextPath *path)
   return false;
 }
 
-static bool buttons_context_path_bone(ButsContextPath *path)
+static bool buttons_context_path_bone(ButsContextPath *path, const char *pin_bonename)
 {
   /* if we have an armature, get the active bone */
   if (buttons_context_path_data(path, OB_ARMATURE)) {
     bArmature *arm = static_cast<bArmature *>(path->ptr[path->len - 1].data);
 
     if (arm->edbo) {
-      if (arm->act_edbone) {
-        EditBone *edbo = arm->act_edbone;
+      EditBone *edbo = nullptr;
+      if (pin_bonename && pin_bonename[0]) {
+        edbo = ED_armature_ebone_find_name(arm->edbo, pin_bonename);
+      }
+      if (!edbo) {
+        edbo = arm->act_edbone;
+      }
+
+      if (edbo) {
         path->ptr[path->len] = RNA_pointer_create_discrete(&arm->id, RNA_EditBone, edbo);
         path->len++;
         return true;
       }
     }
     else {
-      if (arm->act_bone) {
-        path->ptr[path->len] = RNA_pointer_create_discrete(&arm->id, RNA_Bone, arm->act_bone);
+      Bone *bone = nullptr;
+      if (pin_bonename && pin_bonename[0]) {
+        bone = BKE_armature_find_bone_name(arm, pin_bonename);
+      }
+      if (!bone) {
+        bone = arm->act_bone;
+      }
+
+      if (bone) {
+        path->ptr[path->len] = RNA_pointer_create_discrete(&arm->id, RNA_Bone, bone);
         path->len++;
         return true;
       }
@@ -404,7 +421,7 @@ static bool buttons_context_path_bone(ButsContextPath *path)
   return false;
 }
 
-static bool buttons_context_path_pose_bone(ButsContextPath *path)
+static bool buttons_context_path_pose_bone(ButsContextPath *path, const char *pin_bonename)
 {
   PointerRNA *ptr = &path->ptr[path->len - 1];
 
@@ -424,9 +441,11 @@ static bool buttons_context_path_pose_bone(ButsContextPath *path)
     if (arm->edbo) {
       return false;
     }
+    const char *bname = pin_bonename && pin_bonename[0] ? pin_bonename :
+                       arm->act_bone ? arm->act_bone->name : nullptr;
 
-    if (arm->act_bone) {
-      bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, arm->act_bone->name);
+    if (bname) {
+      bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bname);
       if (pchan) {
         path->ptr[path->len] = RNA_pointer_create_discrete(&ob->id, RNA_PoseBone, pchan);
         path->len++;
@@ -618,6 +637,7 @@ static bool buttons_context_path(
 
   *path = {};
   path->flag = flag;
+  const char *pin_bonename = (sbuts->flag & SB_PIN_CONTEXT) ? sbuts->pin_bonename : nullptr;
 
   /* If some ID datablock is pinned, set the root pointer. */
   if (sbuts->pinid) {
@@ -708,13 +728,13 @@ static bool buttons_context_path(
           C, path, static_cast<ButsContextTexture *>(sbuts->texuser));
       break;
     case BCONTEXT_BONE:
-      found = buttons_context_path_bone(path);
+      found = buttons_context_path_bone(path, pin_bonename);
       if (!found) {
         found = buttons_context_path_data(path, OB_ARMATURE);
       }
       break;
     case BCONTEXT_BONE_CONSTRAINT:
-      found = buttons_context_path_pose_bone(path);
+      found = buttons_context_path_pose_bone(path, pin_bonename);
       break;
     case BCONTEXT_STRIP:
       found = buttons_context_path_strip(path);
