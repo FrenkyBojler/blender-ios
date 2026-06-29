@@ -715,7 +715,7 @@ static void outliner_sort_custom(Main *bmain,
   if (collection != nullptr) {
     int totelem = lb->count();
 
-    if (totelem > 1) {
+    if (totelem >= 1) {
       Vector<tTreeSort> tear_vec(totelem);
       tTreeSort *tear = tear_vec.data();
       tTreeSort *tp = tear;
@@ -762,9 +762,6 @@ static void outliner_sort_custom(Main *bmain,
             }
             else {
               cob->sort_index = index++;
-              if (cob->ob->parent == nullptr) {
-                cob->parented_sort_index = -1;
-              }
             }
           }
         }
@@ -786,7 +783,7 @@ static void outliner_sort_custom(Main *bmain,
       }
     }
   }
-
+ 
   for (TreeElement &te_iter : *lb) {
     outliner_sort_custom(bmain, scene, &te_iter.subtree, sort_maps);
   }

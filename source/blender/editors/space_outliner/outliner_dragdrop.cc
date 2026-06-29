@@ -556,7 +556,8 @@ static wmOperatorStatus parent_clear_invoke(bContext *C, wmOperator * /*op*/, co
     if (GS(drag_id.id->name) == ID_OB) {
       Object *object = id_cast<Object *>(drag_id.id);
 
-      object::parent_clear(object,
+      object::parent_clear(bmain,
+                           object,
                            (event->modifier & KM_ALT) ? object::CLEAR_PARENT_ALL :
                                                         object::CLEAR_PARENT_KEEP_TRANSFORM);
     }

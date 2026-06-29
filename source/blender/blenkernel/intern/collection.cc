@@ -1453,6 +1453,20 @@ CollectionObject *BKE_collection_object_find_in(Collection *collection, Object *
   return nullptr;
 }
 
+void BKE_collection_object_parented_sort_index_reset(Main *bmain, Object *ob)
+{
+  if (ELEM(nullptr, bmain, ob)) {
+    return;
+  }
+  Collection *collection = nullptr;
+  while ((collection = BKE_collection_object_find(bmain, nullptr, collection, ob))) {
+    CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
+    if (cob != nullptr) {
+      cob->parented_sort_index = -1;
+    }
+  }
+}
+
 static bool collection_object_add(Main *bmain,
                                   Collection *collection,
                                   Object *ob,
