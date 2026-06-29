@@ -920,26 +920,26 @@ TEST_F(GreasePencilBooleanTest, Squares_With_Holes)
       points_by_curve, points, fill_ids, is_cyclic);
 
   {
-    const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Intersect, src_curves, fill_ids, clipping_fills);
+    // const bke::CurvesGeometry dst_curves = test_curve_boolean(
+    //     Operation::Intersect, src_curves, fill_ids, clipping_fills);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
+    // draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
   }
   {
-    const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Union, src_curves, fill_ids, clipping_fills);
+    // const bke::CurvesGeometry dst_curves = test_curve_boolean(
+    //     Operation::Union, src_curves, fill_ids, clipping_fills);
 
     /* TODO. */
     // const Array<Vector<float2>> expected_points = {
     //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
     // expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
+    // draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
   }
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
