@@ -783,7 +783,7 @@ static void outliner_sort_custom(Main *bmain,
       }
     }
   }
- 
+
   for (TreeElement &te_iter : *lb) {
     outliner_sort_custom(bmain, scene, &te_iter.subtree, sort_maps);
   }
