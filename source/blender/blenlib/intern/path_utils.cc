@@ -1058,15 +1058,18 @@ void BLI_path_frame_strip(char *path, char *r_ext, const size_t ext_maxncpy)
   /* Dont strip numbers outside the range of valid framenumbers (ints). */
   /* No need to trim the string, `strtoll` ignores non-digits. */
   const long long num = strtoll(c, nullptr, 10);
-  if (num > INT_MAX) {
-    return;
-  }
+  const bool replace = num <= INT_MAX;
 
   BLI_strncpy(r_ext, file_ext, ext_maxncpy);
 
   /* Replace the number with the suffix and terminate the string. */
   while (digits_len--) {
-    *c++ = '#';
+    if (replace) {
+      *c++ = '#';
+    }
+    else {
+      *c++;
+    }
   }
   *c = '\0';
 }
