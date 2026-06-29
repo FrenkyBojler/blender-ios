@@ -22,8 +22,8 @@
 
 #include "eevee_shadow.hh"
 
-#include "BLI_assert.h"
-#include "BLI_math_bits.h"
+#include "BLI_assert.hh"
+#include "BLI_math_bits.hh"
 #include <fmt/format.h>
 
 namespace blender::eevee {
@@ -1009,6 +1009,18 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.additional_info("eevee_PreviousLayerRadiance");
   }
 
+  if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD) &&
+      !ELEM(geometry_type, MAT_GEOM_WORLD, MAT_GEOM_VOLUME))
+  {
+    /* While only needed for the AO node, we always bind the hiz globally for these pipelines.
+     * To ensure no user textures will reuse the slot binding, we add the info unconditionally. */
+    info.additional_info("eevee_HiZ");
+  }
+
+  /** IMPORTANT: All additional_info containing resources should go before
+   * add_pipeline_create_info. This ensure all resource slot are correctly reserved inside the
+   * SlotAllocator. */
+
   SlotAllocator slots = add_pipeline_create_info(
       info, pipeline_type, geometry_type, use_shader_to_rgba);
 
@@ -1325,7 +1337,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     Vector<StringRefNull> dependencies = {};
     if (use_vertex_displacement) {
       dependencies.append("eevee_geom_types_lib.bsl.hh");
-      dependencies.append("eevee_nodetree_lib.glsl");
+      dependencies.append("eevee_nodetree_lib.bsl.hh");
       dependencies.extend(codegen.displacement.dependencies);
     }
 
@@ -1336,10 +1348,9 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     Vector<StringRefNull> dependencies;
     if (use_ao_node) {
       dependencies.append("eevee_fast_gi.bsl.hh");
-      info.additional_info("eevee_HiZ");
     }
     dependencies.append("eevee_geom_types_lib.bsl.hh");
-    dependencies.append("eevee_nodetree_lib.glsl");
+    dependencies.append("eevee_nodetree_lib.bsl.hh");
 
     for (const auto &graph : codegen.material_functions) {
       frag_gen << graph.serialized;
@@ -1356,6 +1367,10 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       dependencies.extend(codegen.displacement.dependencies);
       frag_gen << "}\n\n";
     }
+
+    /* Improve error logging. */
+    frag_gen << "#line 1 \"" __FILE__ "\"\n";
+    frag_gen << "#line " STRINGIFY(__LINE__) "\n";
 
     frag_gen << "Closure nodetree_surface(float closure_rand)\n";
     frag_gen << "{\n";
@@ -1377,16 +1392,15 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         frag_gen << "return 0.0;\n";
       }
       else {
-        if (info.additional_infos_.first_index_of_try({"draw_object_infos"}) == -1) {
-          info.additional_info("draw_object_infos");
-        }
         /* TODO(fclem): Should use `to_scale` but the gpu_shader_math_matrix_lib.glsl isn't
          * included everywhere yet. */
+        frag_gen << "ObjectMatrices obj = object_matrices_get();\n";
         frag_gen << "float3 ob_scale;\n";
-        frag_gen << "ob_scale.x = length(drw_modelmat()[0].xyz);\n";
-        frag_gen << "ob_scale.y = length(drw_modelmat()[1].xyz);\n";
-        frag_gen << "ob_scale.z = length(drw_modelmat()[2].xyz);\n";
-        frag_gen << "float3 ls_dimensions = safe_rcp(abs(drw_object_infos().orco_mul.xyz));\n";
+        frag_gen << "ob_scale.x = length(obj.model[0].xyz);\n";
+        frag_gen << "ob_scale.y = length(obj.model[1].xyz);\n";
+        frag_gen << "ob_scale.z = length(obj.model[2].xyz);\n";
+        frag_gen << "ObjectInfos infos = object_infos_get();\n";
+        frag_gen << "float3 ls_dimensions = safe_rcp(abs(infos.orco_mul.xyz));\n";
         frag_gen << "float3 ws_dimensions = ob_scale * ls_dimensions;\n";
         /* Choose the minimum axis so that cuboids are better represented. */
         frag_gen << "return reduce_min(ws_dimensions);\n";

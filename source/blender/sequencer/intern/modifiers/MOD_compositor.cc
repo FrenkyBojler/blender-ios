@@ -11,7 +11,6 @@
 #include "BLT_translation.hh"
 
 #include "COM_domain.hh"
-#include "COM_realize_on_domain_operation.hh"
 #include "COM_result.hh"
 #include "COM_utilities.hh"
 
@@ -32,6 +31,8 @@
 #include "NOD_composite.hh"
 #include "NOD_compositor_nodes_caller_ui.hh"
 #include "NOD_compositor_nodes_srna.hh"
+
+#include "PRF_profile.hh"
 
 #include "SEQ_modifier.hh"
 #include "SEQ_select.hh"
@@ -226,7 +227,7 @@ static std::optional<int> get_socket_dimension(const bNodeTreeInterfaceSocket *s
   if (socket_type == SOCK_VECTOR) {
     return static_cast<bNodeSocketValueVector *>(socket->socket_data)->dimensions;
   }
-  else if (socket_type == SOCK_INT_VECTOR) {
+  if (socket_type == SOCK_INT_VECTOR) {
     return static_cast<bNodeSocketValueIntVector *>(socket->socket_data)->dimensions;
   }
   return {};
@@ -251,7 +252,7 @@ class CompositorModifierContext : public CompositorContext {
       : CompositorContext(cache_manager, mod_context.render_data, mod_context.strip),
         mod_context_(mod_context),
         modifier_data_(modifier_data),
-        image_buffer_(mod_context.image),
+        image_buffer_(mod_context.result.image),
         mask_(*this, compositor::ResultType::Color, compositor::ResultPrecision::Full),
         timeline_frame_(mod_context.timeline_frame)
   {
@@ -278,30 +279,7 @@ class CompositorModifierContext : public CompositorContext {
 
   void write_viewer(compositor::Result &viewer_result) override
   {
-    using namespace compositor;
-
-    /* Realize the transforms if needed. */
-    const InputDescriptor input_descriptor = {ResultType::Color,
-                                              InputRealizationMode::OperationDomain};
-    SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
-        *this, viewer_result, input_descriptor, viewer_result.domain());
-
-    if (realization_operation) {
-      Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
-      realize_input.share_data(viewer_result);
-      realization_operation->map_input_to_result(&realize_input);
-      realization_operation->evaluate();
-
-      Result &realized_viewer_result = realization_operation->get_result();
-      this->write_output(realized_viewer_result, *image_buffer_);
-      realized_viewer_result.release();
-      viewer_was_written_ = true;
-      delete realization_operation;
-      return;
-    }
-
-    this->write_output(viewer_result, *image_buffer_);
-    viewer_was_written_ = true;
+    write_viewer_impl(viewer_result, *image_buffer_);
   }
 
   void evaluate()
@@ -384,7 +362,10 @@ class CompositorModifierContext : public CompositorContext {
       inputs.append(std::unique_ptr<Result>(input_result));
     }
 
-    node_group_operation.evaluate();
+    {
+      PRF_scope_with_name("SeqCompositorEvaluate", ProfileCategory::Draw);
+      node_group_operation.evaluate();
+    }
     this->write_outputs(node_group, node_group_operation, *this->image_buffer_);
   }
 
@@ -392,6 +373,7 @@ class CompositorModifierContext : public CompositorContext {
    * path we do a more efficient approach than rendering into a full ImBuf. */
   void render_mask_input(const ModifierApplyContext &context, int timeline_frame)
   {
+    PRF_scope_with_name("SeqRenderMaskInput", ProfileCategory::Draw);
     const StripModifierData &smd = this->modifier_data_->modifier;
     if (smd.mask_input_type == STRIP_MASK_INPUT_STRIP && smd.mask_strip) {
       this->mask_buffer_ = seq_render_strip(&context.render_data,
@@ -449,6 +431,7 @@ static void compositor_modifier_init_data(StripModifierData *strip_modifier_data
 static void compositor_modifier_apply(ModifierApplyContext &context,
                                       StripModifierData *strip_modifier_data)
 {
+  PRF_scope_with_name("SeqModCompositor", ProfileCategory::Draw);
   SequencerCompositorModifierData *modifier_data =
       reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
   if (!modifier_data->node_group) {
@@ -471,7 +454,7 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
     render_end_gpu(context.render_data);
   }
 
-  context.result_translation += com_mod_context.get_result_translation();
+  context.result.translation += com_mod_context.get_result_translation();
 }
 
 static PointerRNA *modifier_panel_get_property_pointers(Panel *panel)

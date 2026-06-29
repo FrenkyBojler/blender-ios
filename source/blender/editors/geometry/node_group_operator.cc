@@ -8,9 +8,9 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_listbase.h"
-#include "BLI_rect.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_rect.hh"
+#include "BLI_string_utf8.hh"
 
 #include "DNA_key_types.h"
 #include "ED_curves.hh"
@@ -84,15 +84,15 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include "PRF_profile.hh"
+
 #include <xxhash.h>
 
 #include "geometry_intern.hh"
 
 #include <fmt/format.h>
 
-namespace blender {
-
-namespace ed::geometry {
+namespace blender::ed::geometry {
 
 using asset_system::AssetRepresentation;
 
@@ -894,7 +894,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   if (!active_object) {
     return OPERATOR_CANCELLED;
   }
-  const eObjectMode mode = eObjectMode(active_object->mode);
+  const eObjectMode mode = active_object->mode;
 
   const bNodeTree *node_tree_orig = get_node_group(*C, *op->type, op->reports);
   if (!node_tree_orig) {
@@ -1304,6 +1304,7 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
     case SOCK_COLLECTION:
     case SOCK_MATERIAL:
     case SOCK_FONT:
+    case SOCK_SOUND:
     case SOCK_OBJECT: {
       RNA_def_string(srna, "value", nullptr, 0, name.c_str(), description.c_str());
       make_common_value_props(*srna);
@@ -1690,6 +1691,7 @@ static void show_error_reports(const bContext &C, RegistrationData::Errors error
 
 void register_node_group_operators(const bContext &C)
 {
+  PRF_scope(ProfileCategory::Core);
   wmWindowManager &wm = *CTX_wm_manager(&C);
   Main &bmain = *CTX_data_main(&C);
   RegistrationData &registration_data = get_registration_data();
@@ -1874,7 +1876,7 @@ static GeometryNodeAssetTraitFlag asset_flag_for_context(const ObjectType type,
 
 GeometryNodeAssetTraitFlag asset_flag_for_context(const Object &active_object)
 {
-  return asset_flag_for_context(ObjectType(active_object.type), eObjectMode(active_object.mode));
+  return asset_flag_for_context(active_object.type, active_object.mode);
 }
 
 /**
@@ -2028,8 +2030,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     layout.op(ot, std::nullopt, ICON_NONE, wm::OpCallContext::InvokeRegionWin, UI_ITEM_NONE);
   }
 
-  const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                         eObjectMode(active_object->mode));
+  const Set<StringRef> builtin_menus = get_builtin_menus(active_object->type, active_object->mode);
 
   for (const std::unique_ptr<RegistrationData::TypeTreeItem> &child : node->children) {
     if (!menu_operators_poll(*C, *child)) {
@@ -2128,8 +2129,7 @@ void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bConte
     return;
   }
   const RegistrationData &data = get_registration_data();
-  const Set<StringRef> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
-                                                         eObjectMode(active_object->mode));
+  const Set<StringRef> builtin_menus = get_builtin_menus(active_object->type, active_object->mode);
   for (const std::unique_ptr<RegistrationData::TypeTreeItem> &root : data.menu_path_tree_roots) {
     if (builtin_menus.contains_as(root->name)) {
       continue;
@@ -2148,5 +2148,4 @@ void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bConte
 
 /** \} */
 
-}  // namespace ed::geometry
-}  // namespace blender
+}  // namespace blender::ed::geometry
