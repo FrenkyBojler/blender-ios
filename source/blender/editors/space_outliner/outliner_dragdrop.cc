@@ -7,6 +7,7 @@
  */
 
 #include <cstring>
+#include <variant>
 
 #include "MEM_guardedalloc.h"
 
@@ -555,7 +556,8 @@ static wmOperatorStatus parent_clear_invoke(bContext *C, wmOperator * /*op*/, co
     if (GS(drag_id.id->name) == ID_OB) {
       Object *object = id_cast<Object *>(drag_id.id);
 
-      object::parent_clear(object,
+      object::parent_clear(bmain,
+                           object,
                            (event->modifier & KM_ALT) ? object::CLEAR_PARENT_ALL :
                                                         object::CLEAR_PARENT_KEEP_TRANSFORM);
     }
@@ -1209,6 +1211,17 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     return false;
   }
 
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  if (((space_outliner->filter &
+        (SO_FILTER_NO_COLLECTION | SO_FILTER_NO_OBJECT | SO_FILTER_NO_OB_MESH |
+         SO_FILTER_NO_OB_LAMP | SO_FILTER_NO_OB_CAMERA | SO_FILTER_NO_OB_EMPTY)) != 0) ||
+      (space_outliner->filter_state != SO_FILTER_OB_ALL))
+  {
+    if (GS(id->name) == ID_GR && insert_type != TE_INSERT_INTO) {
+      return false;
+    }
+  }
+
   /* Get collection to drag out of. */
   ID *parent = drag_id->from_parent;
   Collection *from_collection = collection_parent_from_ID(parent);
@@ -1221,7 +1234,6 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
   /* If dragging an object and custom sort is off, only allow dropping INTO the collection.
    * If dragging a collection, block dropping it onto itself. */
   if (GS(id->name) == ID_OB) {
-    SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
     if (space_outliner->sort_method != SO_SORT_CUSTOM) {
       insert_type = TE_INSERT_INTO;
     }
@@ -1231,15 +1243,12 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
       }
     }
 
-    if (te == collection_te) {
+    if (te == collection_te && space_outliner->sort_method != SO_SORT_CUSTOM) {
       insert_type = TE_INSERT_INTO;
     }
   }
   else if (GS(id->name) == ID_GR) {
-    if (te != collection_te) {
-      insert_type = TE_INSERT_INTO;
-    }
-    else if (id == &to_collection->id) {
+    if (id == &to_collection->id) {
       return false;
     }
   }
@@ -1249,6 +1258,27 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
       !ELEM(insert_type, TE_INSERT_AFTER, TE_INSERT_BEFORE))
   {
     return false;
+  }
+
+  if (ELEM(insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER)) {
+    TreeElement *parent_te = outliner_find_parent_element(
+        &space_outliner->runtime->tree, nullptr, te);
+    if (parent_te != nullptr && parent_te->idcode == ID_OB) {
+      Object *parent_ob = id_cast<Object *>(TREESTORE(parent_te)->id);
+      for (wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first); drag_id;
+           drag_id = drag_id->next)
+      {
+        if (GS(drag_id->id->name) == ID_OB) {
+          Object *object = id_cast<Object *>(drag_id->id);
+          if (object->parent != parent_ob) {
+            return false;
+          }
+        }
+        else {
+          return false;
+        }
+      }
+    }
   }
 
   data->from = from_collection;
@@ -1403,19 +1433,29 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   }
 
   wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
-  const bool dragging_collection = (GS(drag_id->id->name) == ID_GR);
 
   Collection *relative = nullptr;
   bool relative_after = false;
 
-  if (ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER) && dragging_collection) {
+  bool is_parented_object = false;
+  TreeElement *parent_te = nullptr;
+
+  if (ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER)) {
 
     relative = data.to;
     relative_after = (data.insert_type == TE_INSERT_AFTER);
 
-    TreeElement *parent_te = outliner_find_parent_element(
-        &space_outliner->runtime->tree, nullptr, data.te);
-    data.to = (parent_te) ? outliner_collection_from_tree_element(parent_te) : nullptr;
+    parent_te = outliner_find_parent_element(&space_outliner->runtime->tree, nullptr, data.te);
+    data.to = nullptr;
+    for (TreeElement *te_parent = parent_te; te_parent != nullptr; te_parent = te_parent->parent) {
+      data.to = outliner_collection_from_tree_element(te_parent);
+      if (data.to != nullptr) {
+        break;
+      }
+    }
+    if (parent_te && parent_te->idcode == ID_OB) {
+      is_parented_object = true;
+    }
   }
 
   if (!data.to) {
@@ -1426,20 +1466,51 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     TREESTORE(data.te)->flag &= ~TSE_CLOSED;
   }
 
-  Vector<CollectionObject *> cobs;
-  Vector<CollectionObject *> dragged_cobs;
+  Vector<std::variant<Object *, Collection *>> items;
+  Vector<std::variant<Object *, Collection *>> dragged_items;
   bool is_custom_sort_move = false;
 
-  /* Only use custom sort for objects, not for collections. Collections aren't in the
-   * collection's gobject list and don't have sort_index values. */
-  if (space_outliner->sort_method == SO_SORT_CUSTOM && !dragging_collection) {
+  /* Use custom sort for both objects and collections. */
+  if (space_outliner->sort_method == SO_SORT_CUSTOM) {
     is_custom_sort_move = true;
-    for (CollectionObject &cob : data.to->gobject) {
-      cobs.append(&cob);
+    if (is_parented_object) {
+      for (TreeElement &te : parent_te->subtree) {
+        if (te.idcode == ID_OB) {
+          Object *ob = id_cast<Object *>(TREESTORE(&te)->id);
+          items.append(ob);
+        }
+      }
     }
-    std::ranges::sort(cobs, [](const CollectionObject *a, const CollectionObject *b) {
-      return a->sort_index < b->sort_index;
-    });
+    else {
+      for (CollectionObject &cob : data.to->gobject) {
+        items.append(cob.ob);
+      }
+      for (CollectionChild &child : data.to->children) {
+        items.append(child.collection);
+      }
+    }
+    auto get_sort_index = [&](const std::variant<Object *, Collection *> &item) -> int {
+      if (std::holds_alternative<Object *>(item)) {
+        Object *ob = std::get<Object *>(item);
+        CollectionObject *cob = BKE_collection_object_find_in(data.to, ob);
+        if (cob == nullptr) {
+          Collection *other_col = BKE_collection_object_find(bmain, scene, nullptr, ob);
+          if (other_col != nullptr) {
+            cob = BKE_collection_object_find_in(other_col, ob);
+          }
+        }
+        return cob ? (is_parented_object ? cob->parented_sort_index : cob->sort_index) : 0;
+      }
+      else {
+        CollectionChild *child = BKE_collection_child_find(data.to, std::get<Collection *>(item));
+        return child ? child->sort_index : 0;
+      }
+    };
+    std::ranges::stable_sort(items,
+                             [&](const std::variant<Object *, Collection *> &a,
+                                 const std::variant<Object *, Collection *> &b) {
+                               return get_sort_index(a) < get_sort_index(b);
+                             });
   }
 
   if (relative_after) {
@@ -1464,11 +1535,10 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
       }
 
       if (is_custom_sort_move) {
-        CollectionObject *cob = BKE_collection_object_find_in(data.to, object);
-        if (cob) {
-          dragged_cobs.append(cob);
-          cobs.remove_if([&](CollectionObject *item) { return item == cob; });
-        }
+        items.remove_if([&](const std::variant<Object *, Collection *> &item) {
+          return std::holds_alternative<Object *>(item) && std::get<Object *>(item) == object;
+        });
+        dragged_items.append(object);
       }
     }
     else if (GS(drag_id.id->name) == ID_GR) {
@@ -1477,6 +1547,14 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
 
       if (collection != from) {
         BKE_collection_move(bmain, data.to, from, relative, relative_after, collection);
+      }
+
+      if (is_custom_sort_move) {
+        items.remove_if([&](const std::variant<Object *, Collection *> &item) {
+          return std::holds_alternative<Collection *>(item) &&
+                 std::get<Collection *>(item) == collection;
+        });
+        dragged_items.append(collection);
       }
     }
 
@@ -1487,22 +1565,63 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   }
 
   if (is_custom_sort_move) {
-    int insert_index = cobs.size();
+    int insert_index = items.size();
 
-    if (is_object_element(data.te)) {
-      TreeStoreElem *drop_tselem = TREESTORE(data.te);
-      Object *relative_ob = reinterpret_cast<Object *>(drop_tselem->id);
-      CollectionObject *rel_cob = BKE_collection_object_find_in(data.to, relative_ob);
-      const int found_index = cobs.as_span().first_index_try(rel_cob);
-      if (found_index != -1) {
-        insert_index = (data.insert_type == TE_INSERT_AFTER) ? found_index + 1 : found_index;
+    auto is_relative = [&](const std::variant<Object *, Collection *> &item) {
+      if (is_object_element(data.te)) {
+        return std::holds_alternative<Object *>(item) &&
+               std::get<Object *>(item) == reinterpret_cast<Object *>(TREESTORE(data.te)->id);
+      }
+      if (is_collection_element(data.te)) {
+        return std::holds_alternative<Collection *>(item) &&
+               std::get<Collection *>(item) ==
+                   reinterpret_cast<Collection *>(TREESTORE(data.te)->id);
+      }
+      return false;
+    };
+
+    int found_index = -1;
+    for (const int i : items.index_range()) {
+      if (is_relative(items[i])) {
+        found_index = i;
+        break;
       }
     }
+    if (found_index != -1) {
+      insert_index = (data.insert_type == TE_INSERT_AFTER) ? found_index + 1 : found_index;
+    }
 
-    cobs.insert(insert_index, dragged_cobs.as_span());
+    items.insert(insert_index, dragged_items.as_span());
 
-    for (const int i : cobs.index_range()) {
-      cobs[i]->sort_index = i;
+    for (const int i : items.index_range()) {
+      std::visit(
+          [&](auto &&item) {
+            using T = std::decay_t<decltype(item)>;
+            if constexpr (std::is_same_v<T, Object *>) {
+              CollectionObject *cob = BKE_collection_object_find_in(data.to, item);
+              if (cob == nullptr) {
+                Collection *other_col = BKE_collection_object_find(bmain, scene, nullptr, item);
+                if (other_col != nullptr) {
+                  cob = BKE_collection_object_find_in(other_col, item);
+                }
+              }
+              if (cob != nullptr) {
+                if (is_parented_object) {
+                  cob->parented_sort_index = i;
+                }
+                else {
+                  cob->sort_index = i;
+                }
+              }
+            }
+            else if constexpr (std::is_same_v<T, Collection *>) {
+              CollectionChild *child = BKE_collection_child_find(data.to, item);
+              if (child != nullptr) {
+                child->sort_index = i;
+              }
+            }
+          },
+          items[i]);
     }
   }
   /* Update dependency graph. */

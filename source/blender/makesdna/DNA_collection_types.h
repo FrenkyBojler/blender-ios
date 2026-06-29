@@ -125,6 +125,8 @@ struct CollectionObject {
 
   CollectionLightLinking light_linking;
   int sort_index = -1;
+  int parented_sort_index = -1;
+  char _pad[4] = {};
 };
 
 struct CollectionChild {
@@ -132,7 +134,7 @@ struct CollectionChild {
   struct Collection *collection = nullptr;
 
   CollectionLightLinking light_linking;
-  int _pad = {};
+  int sort_index = -1;
 };
 
 /* Collection IO property storage and access. */

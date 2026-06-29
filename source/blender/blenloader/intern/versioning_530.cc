@@ -9,9 +9,11 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase_iterator.hh"
+#include "BLI_map.hh"
 #include "BLI_sys_types.hh"
 
 #include "BKE_collection.hh"
@@ -31,8 +33,71 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-void do_versions_after_linking_530(FileData * /*fd*/, Main * /*bmain*/)
+void do_versions_after_linking_530(FileData * /*fd*/, Main *bmain)
 {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
+    bool has_alphabet_sort_method = false;
+    bool has_skip_alphabet_sort_method = false;
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &space : area.spacedata) {
+          if (space.spacetype == SPACE_OUTLINER) {
+            SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&space);
+            if (space_outliner->flag & SO_FLAG_UNUSED_4) {
+              has_skip_alphabet_sort_method = true;
+            }
+            else {
+              has_alphabet_sort_method = true;
+            }
+          }
+        }
+      }
+    }
+    auto version_collection_fn = [&](Collection &collection) {
+      Map<Object *, int> parent_child_indices;
+      int index = 0;
+      for (CollectionChild &child : collection.children) {
+        child.sort_index = index++;
+      }
+      for (CollectionObject &cob : collection.gobject) {
+        cob.sort_index = (has_skip_alphabet_sort_method) ? index++ : -1;
+        if (has_skip_alphabet_sort_method && cob.ob != nullptr && cob.ob->parent != nullptr) {
+          int &child_index = parent_child_indices.lookup_or_add(cob.ob->parent, 0);
+          cob.parented_sort_index = child_index++;
+        }
+        else {
+          cob.parented_sort_index = -1;
+        }
+      }
+    };
+    for (Collection &collection : bmain->collections) {
+      version_collection_fn(collection);
+    }
+    for (Scene &scene : bmain->scenes) {
+      if (scene.master_collection != nullptr) {
+        version_collection_fn(*scene.master_collection);
+      }
+    }
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &space : area.spacedata) {
+          if (space.spacetype == SPACE_OUTLINER) {
+            SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&space);
+            if ((has_alphabet_sort_method && has_skip_alphabet_sort_method) &&
+                !(space_outliner->flag & SO_FLAG_UNUSED_4))
+            {
+              space_outliner->sort_method = SO_SORT_ALPHA;
+            }
+            else {
+              space_outliner->sort_method = SO_SORT_CUSTOM;
+            }
+            space_outliner->flag &= ~SO_FLAG_UNUSED_4;
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -83,27 +148,18 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 4)) {
-
     for (bScreen &screen : bmain->screens) {
       for (ScrArea &area : screen.areabase) {
-        for (SpaceLink &space : area.spacedata) {
-          if (space.spacetype == SPACE_OUTLINER) {
-            SpaceOutliner *space_outliner = reinterpret_cast<SpaceOutliner *>(&space);
-            for (Collection &collection : bmain->collections) {
-              int i = 0;
-              for (CollectionObject &cob : collection.gobject) {
-                cob.sort_index = (space_outliner->flag & SO_FLAG_UNUSED_4) ? i++ : -1;
-              }
-            }
-            if (space_outliner->flag & SO_FLAG_UNUSED_4) {
-              space_outliner->sort_method = SO_SORT_CUSTOM;
-              space_outliner->flag &= ~SO_FLAG_UNUSED_4;
-            }
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype == SPACE_ACTION) {
+            SpaceAction *saction = reinterpret_cast<SpaceAction *>(&sl);
+            saction->cache_display |= TIME_CACHE_COMPOSITOR;
           }
         }
       }
     }
   }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
