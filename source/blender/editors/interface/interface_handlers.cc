@@ -5378,14 +5378,21 @@ static int do_but_TEX(
         if (!but_extra_operator_icon_mouse_over_get(but, data->region, event)) {
           HandleButtonData *data = but->active;
           button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
-          if (event->type == LEFTMOUSE && but->type == ButtonType::TextBox) {
-            /* Text-box buttons allows to scroll its content even when they are not in text-edit
-             * state, let the user to place the text cursor under the mouse and to immediately
-             * start selecting text without requiring to activate the text-box with an extra click.
-             */
-            textedit_set_cursor_pos(but, data->region, float2(event->xy));
-            but->selsta = but->selend = data->text_edit.sel_pos_init = but->pos;
-            button_activate_state(C, but, BUTTON_STATE_TEXT_SELECTING);
+          if (but->type == ButtonType::TextBox) {
+            ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
+            if (event->type == LEFTMOUSE && textbox->state->visible_lines > 1) {
+              /* Text-box buttons allows to scroll its content even when they are not in text-edit
+               * state, let the user to place the text cursor under the mouse and to immediately
+               * start selecting text without requiring to activate the text-box with an extra
+               * click.
+               */
+              textedit_set_cursor_pos(but, data->region, float2(event->xy));
+              but->selsta = but->selend = data->text_edit.sel_pos_init = but->pos;
+              button_activate_state(C, but, BUTTON_STATE_TEXT_SELECTING);
+            }
+            else {
+              textbox_scroll_to_cursor(textbox);
+            }
           }
         }
         return WM_UI_HANDLER_BREAK;
