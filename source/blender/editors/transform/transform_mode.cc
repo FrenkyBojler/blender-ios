@@ -13,12 +13,12 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
@@ -49,10 +49,6 @@ eTfmMode transform_mode_really_used(bContext *C, eTfmMode mode)
     BLI_assert(ob);
     if (ob->type != OB_ARMATURE) {
       return TFM_RESIZE;
-    }
-    bArmature *arm = id_cast<bArmature *>(ob->data);
-    if (arm->drawtype == ARM_DRAW_TYPE_ENVELOPE) {
-      return TFM_BONE_ENVELOPE_DIST;
     }
   }
 

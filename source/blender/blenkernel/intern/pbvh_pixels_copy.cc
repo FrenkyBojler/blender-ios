@@ -4,8 +4,8 @@
 
 #include "BLI_array.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
@@ -324,7 +324,7 @@ struct Rows {
         if (source == first_source) {
           continue;
         }
-        int pixel_index = sy * resolution.y + sx;
+        int pixel_index = sy * resolution.x + sx;
         if (pixels[pixel_index].type != PixelType::Brush) {
           continue;
         }

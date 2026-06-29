@@ -8,20 +8,20 @@
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_index_range.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -555,7 +555,7 @@ static wmOperatorStatus grease_pencil_delete_exec(bContext *C, wmOperator *op)
         changed = true;
       }
       else if (selection_domain == bke::AttrDomain::Point) {
-        curves = geometry::remove_points_and_split(curves, elements_to_delete);
+        curves = geometry::grease_pencil_remove_points_and_split(curves, elements_to_delete);
         info.drawing.tag_topology_changed();
         changed = true;
       }
@@ -2288,7 +2288,7 @@ static bool grease_pencil_separate_selected(bContext &C,
     /* Copy strokes to new CurvesGeometry. */
     drawing_dst->strokes_for_write() = bke::curves_copy_point_selection(
         curves_src, selected_points, {});
-    curves_src = geometry::remove_points_and_split(curves_src, selected_points);
+    curves_src = geometry::grease_pencil_remove_points_and_split(curves_src, selected_points);
 
     info.drawing.tag_topology_changed();
     drawing_dst->tag_topology_changed();
@@ -2715,7 +2715,7 @@ static wmOperatorStatus grease_pencil_copy_strokes_exec(bContext *C, wmOperator 
     }
     else if (selection_domain == bke::AttrDomain::Point) {
       const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
-      copied_curves = geometry::remove_points_and_split(
+      copied_curves = geometry::grease_pencil_remove_points_and_split(
           curves, selected_points.complement(curves.points_range(), memory));
       num_elements_copied += copied_curves.points_num();
     }
@@ -4057,7 +4057,7 @@ static wmOperatorStatus grease_pencil_texture_gradient_exec(bContext *C, wmOpera
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
-  return OPERATOR_RUNNING_MODAL;
+  return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus grease_pencil_texture_gradient_modal(bContext *C,

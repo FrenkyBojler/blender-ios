@@ -20,13 +20,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_time.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_time.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -1374,9 +1374,6 @@ static Image *image_open_single(Main *bmain,
   ima = BKE_image_load_exists_in_lib(bmain, owner_library, range->filepath, &exists);
 
   if (!ima) {
-    if (op->customdata) {
-      MEM_delete(static_cast<ImageOpenData *>(op->customdata));
-    }
     BKE_reportf(op->reports,
                 RPT_ERROR,
                 "Cannot read '%s': %s",
@@ -1464,6 +1461,8 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   ranges.free_no_destruct();
 
   if (ima == nullptr) {
+    op->customdata = nullptr;
+    MEM_delete(iod);
     return OPERATOR_CANCELLED;
   }
 
