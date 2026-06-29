@@ -194,6 +194,7 @@ class VKRenderGraph : public NonCopyable {
   ADD_NODE(VKDrawIndexedIndirectNode)
   ADD_NODE(VKDrawIndirectNode)
   ADD_NODE(VKResetQueryPoolNode)
+  ADD_NODE(VKWriteTimestampNode)
   ADD_NODE(VKUpdateBufferNode)
   ADD_NODE(VKUpdateMipmapsNode)
   ADD_NODE(VKSynchronizationNode)

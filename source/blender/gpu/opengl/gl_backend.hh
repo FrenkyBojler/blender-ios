@@ -34,6 +34,7 @@
 #include "gl_storage_buffer.hh"
 #include "gl_texture.hh"
 #include "gl_texture_pool.hh"
+#include "gl_timestamp_query_pool.hh"
 #include "gl_uniform_buffer.hh"
 #include "gl_vertex_buffer.hh"
 #include "gl_work_in_flight.hh"
@@ -144,6 +145,11 @@ class GLBackend : public GPUBackend {
   QueryPool *querypool_alloc() override
   {
     return new GLQueryPool();
+  };
+
+  TimestampQueryPool *timestamp_query_pool_alloc(unsigned int num_queries_max) override
+  {
+    return new GLTimestampQueryPool(num_queries_max);
   };
 
   Shader *shader_alloc(const char *name) override

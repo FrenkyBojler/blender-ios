@@ -71,6 +71,10 @@ class DummyBackend : public GPUBackend {
   {
     return nullptr;
   }
+  TimestampQueryPool *timestamp_query_pool_alloc(unsigned int /*num_queries_max*/) override
+  {
+    return nullptr;
+  }
   Shader *shader_alloc(const char * /*name*/) override
   {
     return nullptr;

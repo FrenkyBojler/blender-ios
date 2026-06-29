@@ -1811,6 +1811,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     optional_device_extensions.append(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
     optional_device_extensions.append(VK_KHR_COPY_COMMANDS_2_EXTENSION_NAME);
     optional_device_extensions.append(VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME);
 #if 0
     /* VK_EXT_host_image_copy isn't supported by Renderdoc and also isn't working as expected. */
     optional_device_extensions.append(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);

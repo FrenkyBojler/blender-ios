@@ -33,6 +33,7 @@
 #include "vk_storage_buffer.hh"
 #include "vk_texture.hh"
 #include "vk_texture_pool.hh"
+#include "vk_timestamp_query_pool.hh"
 #include "vk_uniform_buffer.hh"
 #include "vk_vertex_buffer.hh"
 #include "vk_work_in_flight.hh"
@@ -621,6 +622,9 @@ void VKBackend::detect_workarounds(VKDevice &device)
       VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
   extensions.vertex_input_dynamic_state = device.supports_extension(
       VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
+  extensions.calibrated_timestamps =
+      device.supports_extension(VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME) ||
+      device.supports_extension(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME);
 #if 0
   extensions.host_image_copy = device.supports_extension(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
 #endif
@@ -822,6 +826,11 @@ PixelBuffer *VKBackend::pixelbuf_alloc(size_t size)
 QueryPool *VKBackend::querypool_alloc()
 {
   return new VKQueryPool();
+}
+
+TimestampQueryPool *VKBackend::timestamp_query_pool_alloc(unsigned int num_queries_max)
+{
+  return new VKTimestampQueryPool(num_queries_max);
 }
 
 Shader *VKBackend::shader_alloc(const char *name)

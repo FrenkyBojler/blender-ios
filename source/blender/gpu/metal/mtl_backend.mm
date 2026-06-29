@@ -23,6 +23,7 @@
 #include "mtl_shader.hh"
 #include "mtl_storage_buffer.hh"
 #include "mtl_texture_pool.hh"
+#include "mtl_timestamp_query_pool.hh"
 #include "mtl_uniform_buffer.hh"
 #include "mtl_vertex_buffer.hh"
 #include "mtl_work_in_flight.hh"
@@ -93,6 +94,11 @@ PixelBuffer *MTLBackend::pixelbuf_alloc(size_t size)
 QueryPool *MTLBackend::querypool_alloc()
 {
   return new MTLQueryPool();
+};
+
+TimestampQueryPool *MTLBackend::timestamp_query_pool_alloc(unsigned int num_queries_max)
+{
+  return new MTLTimestampQueryPool(num_queries_max);
 };
 
 Shader *MTLBackend::shader_alloc(const char *name)

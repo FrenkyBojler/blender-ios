@@ -106,6 +106,11 @@ struct VKExtensions {
    */
   bool host_image_copy = false;
 
+  /**
+   * Does the device support VK_KHR_calibrated_timestamps
+   */
+  bool calibrated_timestamps = false;
+
   /** Log enabled features and extensions. */
   void log() const;
 };
@@ -270,6 +275,11 @@ class VKDevice : public NonCopyable {
     /* Extension: VK_KHR_maintenance4 */
     PFN_vkGetDeviceImageMemoryRequirements vkGetDeviceImageMemoryRequirements = nullptr;
     PFN_vkGetDeviceBufferMemoryRequirements vkGetDeviceBufferMemoryRequirements = nullptr;
+
+    /* Extension: VK_KHR_calibrated_timestamps */
+    PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsKHR
+        vkGetPhysicalDeviceCalibrateableTimeDomains = nullptr;
+    PFN_vkGetCalibratedTimestampsKHR vkGetCalibratedTimestamps = nullptr;
 
 #ifdef _WIN32
     /* Extension: VK_KHR_external_memory_win32 */

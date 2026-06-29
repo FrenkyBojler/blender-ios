@@ -28,6 +28,7 @@ class FrameBuffer;
 class IndexBuf;
 class PixelBuffer;
 class QueryPool;
+class TimestampQueryPool;
 class Shader;
 class ShaderCompiler;
 class Texture;
@@ -68,6 +69,7 @@ class GPUBackend {
   virtual IndexBuf *indexbuf_alloc() = 0;
   virtual PixelBuffer *pixelbuf_alloc(size_t size) = 0;
   virtual QueryPool *querypool_alloc() = 0;
+  virtual TimestampQueryPool *timestamp_query_pool_alloc(unsigned int num_queries_max) = 0;
   virtual Shader *shader_alloc(const char *name) = 0;
   virtual Texture *texture_alloc(const char *name) = 0;
   virtual TexturePool *texturepool_alloc() = 0;

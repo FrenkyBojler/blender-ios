@@ -54,15 +54,12 @@
 #include "eevee_volume.hh"
 #include "eevee_world.hh"
 
-namespace blender::gpu {
-class WorkInFlight;
-}  // namespace blender::gpu
-
 namespace blender::eevee {
 
 using UniformDataBuf = draw::UniformBuffer<UniformData>;
 using PipelineInfoBuf = draw::UniformBuffer<PipelineInfoData>;
 using RaytraceDataBuf = draw::UniformBuffer<RayTraceData>;
+class WorkInFlight;
 
 /* Combines data from several modules to avoid wasting binding slots. */
 struct UniformDataModule {
@@ -189,7 +186,7 @@ class Instance : public DrawEngine {
   GPUSamplerFiltering anisotropic_filtering = GPU_SAMPLER_FILTERING_DEFAULT;
 
   /** For limiting number of submitted samples in flight on the GPU. */
-  gpu::WorkInFlight *samples_in_flight = nullptr;
+  WorkInFlight *samples_in_flight = nullptr;
 
   /** Debug mode from debug value. */
   eDebugMode debug_mode = eDebugMode::DEBUG_NONE;

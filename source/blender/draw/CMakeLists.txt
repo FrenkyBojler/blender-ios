@@ -123,6 +123,7 @@ set(SRC
   engines/eevee/eevee_view.cc
   engines/eevee/eevee_volume.cc
   engines/eevee/eevee_world.cc
+  engines/eevee/eevee_work_in_flight.cc
   engines/workbench/workbench_effect_antialiasing.cc
   engines/workbench/workbench_effect_cavity.cc
   engines/workbench/workbench_effect_dof.cc
@@ -220,6 +221,7 @@ set(SRC
   engines/eevee/eevee_view.hh
   engines/eevee/eevee_volume.hh
   engines/eevee/eevee_world.hh
+  engines/eevee/eevee_work_in_flight.hh
   engines/external/external_engine.h
   engines/gpencil/gpencil_engine.hh
   engines/gpencil/gpencil_engine_private.hh

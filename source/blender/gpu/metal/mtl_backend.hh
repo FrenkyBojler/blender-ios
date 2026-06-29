@@ -64,6 +64,7 @@ class MTLBackend : public GPUBackend {
   IndexBuf *indexbuf_alloc() override;
   PixelBuffer *pixelbuf_alloc(size_t size) override;
   QueryPool *querypool_alloc() override;
+  TimestampQueryPool *timestamp_query_pool_alloc(unsigned int num_queries_max) override;
   Shader *shader_alloc(const char *name) override;
   Texture *texture_alloc(const char *name) override;
   TexturePool *texturepool_alloc() override;

@@ -53,7 +53,8 @@ void VKExtensions::log() const
              " - [%c] memory priority\n"
              " - [%c] pageable device local memory\n"
              " - [%c] shader stencil export\n"
-             " - [%c] vertex input dynamic state",
+             " - [%c] vertex input dynamic state\n",
+             " - [%c] calibrated timestamps",
              shader_output_viewport_index ? 'X' : ' ',
              shader_output_layer ? 'X' : ' ',
              fragment_shader_barycentric ? 'X' : ' ',
@@ -69,7 +70,8 @@ void VKExtensions::log() const
              memory_priority ? 'X' : ' ',
              pageable_device_local_memory ? 'X' : ' ',
              GPU_stencil_export_support() ? 'X' : ' ',
-             vertex_input_dynamic_state ? 'X' : ' ');
+             vertex_input_dynamic_state ? 'X' : ' ',
+             calibrated_timestamps ? 'X' : ' ');
 }
 
 void VKWorkarounds::log() const
@@ -209,6 +211,18 @@ void VKDevice::init_functions()
         vkGetDeviceImageMemoryRequirementsKHR);
     functions.vkGetDeviceBufferMemoryRequirements = LOAD_FUNCTION(
         vkGetDeviceBufferMemoryRequirementsKHR);
+  }
+
+  /* VK_KHR_calibrated_timestamps */
+  if (supports_extension(VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME)) {
+    functions.vkGetPhysicalDeviceCalibrateableTimeDomains = LOAD_FUNCTION(
+        vkGetPhysicalDeviceCalibrateableTimeDomainsKHR);
+    functions.vkGetCalibratedTimestamps = LOAD_FUNCTION(vkGetCalibratedTimestampsKHR);
+  }
+  else if (supports_extension(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME)) {
+    functions.vkGetPhysicalDeviceCalibrateableTimeDomains = LOAD_FUNCTION(
+        vkGetPhysicalDeviceCalibrateableTimeDomainsEXT);
+    functions.vkGetCalibratedTimestamps = LOAD_FUNCTION(vkGetCalibratedTimestampsEXT);
   }
 
   if (extensions_.external_memory) {

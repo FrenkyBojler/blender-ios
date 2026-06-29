@@ -101,6 +101,7 @@ set(SRC
   intern/gpu_texture.cc
   intern/gpu_texture_mipmap.cc
   intern/gpu_texture_pool.cc
+  intern/gpu_timestamp_query_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
   intern/gpu_vertex_format.cc
@@ -157,6 +158,7 @@ set(SRC
   GPU_storage_buffer.hh
   GPU_texture.hh
   GPU_texture_pool.hh
+  GPU_timestamp_query_pool.hh
   GPU_uniform_buffer.hh
   GPU_vertex_buffer.hh
   GPU_vertex_format.hh
@@ -191,6 +193,7 @@ set(SRC
   intern/gpu_storage_buffer_private.hh
   intern/gpu_texture_pool_private.hh
   intern/gpu_texture_private.hh
+  intern/gpu_timestamp_query_pool_private.hh
   intern/gpu_uniform_buffer_private.hh
   intern/gpu_vertex_format_private.hh
   intern/gpu_work_in_flight_private.hh
@@ -221,6 +224,7 @@ set(OPENGL_SRC
   opengl/gl_storage_buffer.cc
   opengl/gl_texture.cc
   opengl/gl_texture_pool.cc
+  opengl/gl_timestamp_query_pool.cc
   opengl/gl_uniform_buffer.cc
   opengl/gl_vertex_array.cc
   opengl/gl_vertex_buffer.cc
@@ -243,6 +247,7 @@ set(OPENGL_SRC
   opengl/gl_storage_buffer.hh
   opengl/gl_texture.hh
   opengl/gl_texture_pool.hh
+  opengl/gl_timestamp_query_pool.hh
   opengl/gl_uniform_buffer.hh
   opengl/gl_vertex_array.hh
   opengl/gl_vertex_buffer.hh
@@ -296,6 +301,7 @@ set(VULKAN_SRC
   vulkan/vk_streaming_buffer.cc
   vulkan/vk_texture.cc
   vulkan/vk_texture_pool.cc
+  vulkan/vk_timestamp_query_pool.cc
   vulkan/vk_to_string.cc
   vulkan/vk_uniform_buffer.cc
   vulkan/vk_vertex_attribute_object.cc
@@ -353,6 +359,7 @@ set(VULKAN_SRC
   vulkan/render_graph/nodes/vk_synchronization_node.hh
   vulkan/render_graph/nodes/vk_update_buffer_node.hh
   vulkan/render_graph/nodes/vk_update_mipmaps_node.hh
+  vulkan/render_graph/nodes/vk_write_timestamp_node.hh
   vulkan/render_graph/vk_command_buffer_wrapper.hh
   vulkan/render_graph/vk_command_builder.hh
   vulkan/render_graph/vk_render_graph.hh
@@ -375,6 +382,7 @@ set(VULKAN_SRC
   vulkan/vk_streaming_buffer.hh
   vulkan/vk_texture.hh
   vulkan/vk_texture_pool.hh
+  vulkan/vk_timestamp_query_pool.hh
   vulkan/vk_to_string.hh
   vulkan/vk_uniform_buffer.hh
   vulkan/vk_vertex_attribute_object.hh
@@ -404,6 +412,7 @@ set(METAL_SRC
   metal/mtl_texture.mm
   metal/mtl_texture_pool.mm
   metal/mtl_texture_util.mm
+  metal/mtl_timestamp_query_pool.mm
   metal/mtl_uniform_buffer.mm
   metal/mtl_vertex_buffer.mm
   metal/mtl_work_in_flight.mm
@@ -433,6 +442,7 @@ set(METAL_SRC
   metal/mtl_storage_buffer.hh
   metal/mtl_texture.hh
   metal/mtl_texture_pool.hh
+  metal/mtl_timestamp_query_pool.hh
   metal/mtl_uniform_buffer.hh
   metal/mtl_vertex_buffer.hh
   metal/mtl_work_in_flight.hh

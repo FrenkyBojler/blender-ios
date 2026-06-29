@@ -44,6 +44,7 @@ enum class VKNodeType {
   SYNCHRONIZATION,
   UPDATE_BUFFER,
   UPDATE_MIPMAPS,
+  WRITE_TIMESTAMP,
 };
 
 BLI_INLINE std::ostream &operator<<(std::ostream &os, const VKNodeType node_type)
@@ -120,6 +121,9 @@ BLI_INLINE std::ostream &operator<<(std::ostream &os, const VKNodeType node_type
       break;
     case VKNodeType::UPDATE_MIPMAPS:
       os << "UPDATE_MIPMAPS";
+      break;
+    case VKNodeType::WRITE_TIMESTAMP:
+      os << "WRITE_TIMESTAMP";
       break;
   }
   return os;
