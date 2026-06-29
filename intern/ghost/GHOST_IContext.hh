@@ -87,6 +87,9 @@ class GHOST_IContext {
   virtual GHOST_TSuccess getVulkanSwapChainFormat(
       GHOST_VulkanSwapChainData *r_swap_chain_data) = 0;
 
+  virtual bool isVulkanDeviceExtensionEnabled(const char * /*extension_name*/) const { return false; }
+  virtual bool isVulkanInstanceExtensionEnabled(const char * /*extension_name*/) const { return false; }
+
   /**
    * Set the pre and post callbacks for vulkan swap-chain in the given context.
    *

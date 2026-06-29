@@ -778,6 +778,16 @@ struct GHOST_InstanceVK {
  */
 static std::optional<GHOST_InstanceVK> vulkan_instance;
 
+bool GHOST_ContextVK::isVulkanDeviceExtensionEnabled(const char *extension_name) const
+{
+  return is_device_extension_enabled(extension_name);
+}
+
+bool GHOST_ContextVK::isVulkanInstanceExtensionEnabled(const char *extension_name) const
+{
+  return is_instance_extension_enabled(extension_name);
+}
+
 bool GHOST_ContextVK::is_instance_extension_enabled(blender::StringRefNull extension_name)
 {
   if (!vulkan_instance.has_value()) {

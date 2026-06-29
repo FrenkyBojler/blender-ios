@@ -565,7 +565,7 @@ inline IntelGpuArch get_intel_gpu_arch(uint32_t device_id)
   }
 }
 
-void VKBackend::detect_workarounds(VKDevice &device)
+void VKBackend::detect_workarounds(VKDevice &device, GHOST_IContext *ghost_context)
 {
   VKWorkarounds workarounds;
   VKExtensions extensions;
@@ -601,33 +601,33 @@ void VKBackend::detect_workarounds(VKDevice &device)
   extensions.shader_output_viewport_index =
       device.physical_device_vulkan_12_features_get().shaderOutputViewportIndex;
   extensions.wide_lines = device.physical_device_features_get().wideLines;
-  extensions.fragment_shader_barycentric = device.supports_extension(
+  extensions.fragment_shader_barycentric = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-  extensions.dynamic_rendering_local_read = device.supports_extension(
+  extensions.dynamic_rendering_local_read = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
-  extensions.dynamic_rendering_unused_attachments = device.supports_extension(
+  extensions.dynamic_rendering_unused_attachments = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   extensions.logic_ops = device.physical_device_features_get().logicOp;
-  extensions.maintenance4 = device.supports_extension(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
-  extensions.memory_priority = device.supports_extension(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
-  extensions.pageable_device_local_memory = device.supports_extension(
+  extensions.maintenance4 = ghost_context->isVulkanDeviceExtensionEnabled(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
+  extensions.memory_priority = ghost_context->isVulkanDeviceExtensionEnabled(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+  extensions.pageable_device_local_memory = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
-  extensions.graphics_pipeline_library = device.supports_extension(
+  extensions.graphics_pipeline_library = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
-  extensions.line_rasterization = device.supports_extension(
+  extensions.line_rasterization = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME);
-  extensions.extended_dynamic_state = device.supports_extension(
+  extensions.extended_dynamic_state = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
-  extensions.vertex_input_dynamic_state = device.supports_extension(
+  extensions.vertex_input_dynamic_state = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
 #if 0
-  extensions.host_image_copy = device.supports_extension(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
+  extensions.host_image_copy = ghost_context->isVulkanDeviceExtensionEnabled(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
 #endif
 #ifdef _WIN32
-  extensions.external_memory = device.supports_extension(
+  extensions.external_memory = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
 #elif not defined(__APPLE__)
-  extensions.external_memory = device.supports_extension(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+  extensions.external_memory = ghost_context->isVulkanDeviceExtensionEnabled(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
 #else
   extensions.external_memory = false;
 #endif
@@ -689,15 +689,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
 #ifdef _WIN32
   if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
     IntelGpuArch gpu_arch = get_intel_gpu_arch(device.physical_device_properties_get().deviceID);
-
-    /* Intel Gen9 iGPUs (Intel 7th to 10th Gen Processor Graphics driver) show a black screen at
-     * application startup when using VK_EXT_vertex_input_dynamic_state.
-     *
-     * See #147721
-     */
-    if (gpu_arch == IntelGpuArch::Gen9AndOlder) {
-      extensions.vertex_input_dynamic_state = false;
-    }
 
     /* Using the texture pool causes varying issues on older Intel iGPUs.
      * Note: Gen12 iGPUs are partly covered by the Intel 11th to 14th Gen Processor Graphics driver
@@ -904,7 +895,7 @@ void VKBackend::render_step(bool force_resource_release)
   }
 }
 
-void VKBackend::capabilities_init(VKDevice &device)
+void VKBackend::capabilities_init(VKDevice &device, GHOST_IContext *ghost_context)
 {
   const VkPhysicalDeviceProperties &properties = device.physical_device_properties_get();
   const VkPhysicalDeviceLimits &limits = properties.limits;
@@ -912,7 +903,8 @@ void VKBackend::capabilities_init(VKDevice &device)
   /* Reset all capabilities from previous context. */
   GCaps = {};
   GCaps.geometry_shader_support = true;
-  GCaps.stencil_export_support = device.supports_extension(
+  /* Use VK_EXT_shader_stencil_export. */
+  GCaps.stencil_export_support = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
 
   GCaps.max_texture_size = max_ii(limits.maxImageDimension1D, limits.maxImageDimension2D);
@@ -946,7 +938,7 @@ void VKBackend::capabilities_init(VKDevice &device)
   GCaps.extensions_len = vk_extension_count;
   GCaps.extension_get = vk_extension_get;
 
-  detect_workarounds(device);
+  detect_workarounds(device, ghost_context);
 }
 
 }  // namespace gpu

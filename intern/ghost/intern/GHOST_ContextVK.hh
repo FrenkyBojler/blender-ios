@@ -218,7 +218,12 @@ class GHOST_ContextVK : public GHOST_Context {
   {
     return true;
   }
+  /**
+   * check if extnesion is enable or not and return the result
+   */
 
+  bool isVulkanDeviceExtensionEnabled(const char *extension_name) const override;
+  bool isVulkanInstanceExtensionEnabled(const char *extension_name) const override;
   /**
    * \brief Is the given extension name enabled on instance level?
    *

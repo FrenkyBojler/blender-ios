@@ -153,7 +153,7 @@ void VKDevice::init(GHOST_IContext *ghost_context)
   init_physical_device_memory_properties();
   init_physical_device_features();
   VKBackend::platform_init(*this);
-  VKBackend::capabilities_init(*this);
+  VKBackend::capabilities_init(*this, ghost_context);
   init_functions();
   init_debug_callbacks();
   vma_pools.init(*this);
