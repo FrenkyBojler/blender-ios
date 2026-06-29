@@ -13288,12 +13288,14 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
       }
     }
   }();
+
+  Button *active_button = region_find_active_but(popup_block_handle->region);
+  HandleButtonData *data = active_button ? active_button->active : nullptr;
+  PopupBlockHandle *sub_handle = data ? data->menu : nullptr;
+
   if (have_reference) {
     if (valid_for_refresh) {
       /* This popup needs to be refresh, close any sub-menu first. */
-      Button *active_button = region_find_active_but(popup_block_handle->region);
-      HandleButtonData *data = active_button ? active_button->active : nullptr;
-      PopupBlockHandle *sub_handle = data ? data->menu : nullptr;
       if (sub_handle) {
         CTX_wm_region_popup_set(C, popup_block_handle->region);
         button_active_free(C, active_button);
@@ -13307,25 +13309,23 @@ static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
     return true;
   }
 
-  Button *active_button = region_find_active_but(popup_block_handle->region);
-  HandleButtonData *data = active_button ? active_button->active : nullptr;
-  PopupBlockHandle *sub_handle = data ? data->menu : nullptr;
-
-  if (!sub_handle || !popup_needs_update_for_unreg_srna_recursive(C, sub_handle, srna_to_unreg)) {
+  if (!(sub_handle && popup_needs_update_for_unreg_srna_recursive(C, sub_handle, srna_to_unreg))) {
     /* There is no child popup referencing the rna type or it can be refresh, no need to refresh
      * this popup. */
     return false;
   }
-  if (!valid_for_refresh) {
-    /* This popup can't be refreshed, try to refesh parent popup. */
-    return true;
+
+  if (valid_for_refresh) {
+    CTX_wm_region_popup_set(C, popup_block_handle->region);
+    button_active_free(C, active_button);
+    CTX_wm_region_popup_set(C, nullptr);
+    ED_region_tag_refresh_ui(popup_block_handle->region);
+    ED_region_tag_redraw(popup_block_handle->region);
+    return false;
   }
-  CTX_wm_region_popup_set(C, popup_block_handle->region);
-  button_active_free(C, active_button);
-  CTX_wm_region_popup_set(C, nullptr);
-  ED_region_tag_refresh_ui(popup_block_handle->region);
-  ED_region_tag_redraw(popup_block_handle->region);
-  return false;
+
+  /* This popup can't be refreshed, try to refesh parent popup. */
+  return true;
 }
 
 void refresh_for_srna_unregister(Main *bmain, StructRNA *srna_to_unreg)
