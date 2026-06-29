@@ -1741,6 +1741,7 @@ static wmOperatorStatus node_delete_reconnect_exec(bContext *C, wmOperator * /*o
       WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
     }
   }
+
   BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
