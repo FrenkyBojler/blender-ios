@@ -77,6 +77,51 @@ struct tVfx {
   gpu::FrameBuffer **target_fb = nullptr;
 };
 
+/* List of VFX passes. */
+struct tVfxList {
+  tVfx *first = nullptr, *last = nullptr;
+};
+
+inline bool shaderfx_is_active(const ShaderFxData &fx, const bool is_edit, const bool is_viewport)
+{
+  if (((fx.mode & eShaderFxMode_Editmode) == 0) && is_edit && is_viewport) {
+    return false;
+  }
+
+  return ((fx.mode & eShaderFxMode_Realtime) && is_viewport) ||
+         ((fx.mode & eShaderFxMode_Render) && !is_viewport);
+}
+
+inline bool shaderfx_has_layer_filter(const ShaderFxData &fx)
+{
+  return fx.layer_name[0] != '\0';
+}
+
+inline bool shaderfx_layer_filter_matches(const ShaderFxData &fx,
+                                          const GreasePencil &grease_pencil,
+                                          const bke::greasepencil::Layer &layer)
+{
+  if (!shaderfx_has_layer_filter(fx)) {
+    return false;
+  }
+
+  bool matches = false;
+  if (fx.flag & eShaderFxFlag_UseLayerGroupFilter) {
+    for (const bke::greasepencil::LayerGroup *group : grease_pencil.layer_groups()) {
+      if (group->name() == fx.layer_name) {
+        matches = layer.is_child_of(*group);
+        break;
+      }
+    }
+  }
+  else {
+    matches = layer.name() == fx.layer_name;
+  }
+
+  const bool invert = (fx.flag & eShaderFxFlag_InvertLayerFilter) != 0;
+  return matches != invert;
+}
+
 /* Temporary gpencil layer reflection used by the gpencil::Instance. */
 struct tLayer {
   /** Single linked-list. */
@@ -92,6 +137,9 @@ struct tLayer {
   int layer_id;
   /** True if this pass is part of the onion skinning. */
   bool is_onion;
+  const bke::greasepencil::Layer *layer;
+  /** Filtered VFX passes targeting this layer. */
+  tVfxList vfx;
 };
 
 /* Temporary object reflection used by the gpencil::Instance. */
@@ -103,9 +151,7 @@ struct tObject {
     tLayer *first, *last;
   } layers;
 
-  struct {
-    tVfx *first, *last;
-  } vfx;
+  tVfxList vfx;
 
   /* Distance to camera. Used for sorting. */
   float camera_z;
@@ -157,10 +203,12 @@ struct Instance final : public DrawEngine {
   TextureFromPool depth_tx = {"depth_tx"};
   TextureFromPool color_tx = {"color_tx"};
   TextureFromPool color_layer_tx = {"color_layer_tx"};
+  TextureFromPool color_layer_vfx_tx = {"color_layer_vfx_tx"};
   TextureFromPool color_object_tx = {"color_object_tx"};
   /* Revealage is 1 - alpha */
   TextureFromPool reveal_tx = {"reveal_tx"};
   TextureFromPool reveal_layer_tx = {"reveal_layer_tx"};
+  TextureFromPool reveal_layer_vfx_tx = {"reveal_layer_vfx_tx"};
   TextureFromPool reveal_object_tx = {"reveal_object_tx"};
   /* Mask texture */
   TextureFromPool mask_depth_tx = {"mask_depth_tx"};
@@ -176,6 +224,7 @@ struct Instance final : public DrawEngine {
   Framebuffer gpencil_pass_fb = {"gpencil_pass_fb"};
   Framebuffer snapshot_fb = {"snapshot_fb"};
   Framebuffer layer_fb = {"layer_fb"};
+  Framebuffer layer_vfx_fb = {"layer_vfx_fb"};
   Framebuffer object_fb = {"object_fb"};
   Framebuffer mask_fb = {"mask_fb"};
   Framebuffer smaa_edge_fb = {"smaa_edge_fb"};
@@ -281,6 +330,7 @@ struct Instance final : public DrawEngine {
   bool use_lights;
   /* Do we need additional frame-buffers? */
   bool use_layer_fb;
+  bool use_layer_vfx_fb;
   bool use_object_fb;
   bool use_mask_fb;
   /* The viewport compositor needs the combined pass, so we need to render to it. */
@@ -372,17 +422,50 @@ struct Instance final : public DrawEngine {
                               DRWState state,
                               gpu::Shader *sh,
                               tObject *tgp_ob,
+                              tVfxList *vfx_list = nullptr,
                               GPUSamplerState sampler = GPUSamplerState::internal_sampler());
 
-  void vfx_blur_sync(BlurShaderFxData *fx, Object *ob, tObject *tgp_ob);
-  void vfx_colorize_sync(ColorizeShaderFxData *fx, Object *ob, tObject *tgp_ob);
-  void vfx_flip_sync(FlipShaderFxData *fx, Object *ob, tObject *tgp_ob);
-  void vfx_rim_sync(RimShaderFxData *fx, Object *ob, tObject *tgp_ob);
-  void vfx_pixelize_sync(PixelShaderFxData *fx, Object *ob, tObject *tgp_ob);
-  void vfx_shadow_sync(ShadowShaderFxData *fx, Object *ob, tObject *tgp_ob);
-  void vfx_glow_sync(GlowShaderFxData *fx, Object *ob, tObject *tgp_ob);
-  void vfx_wave_sync(WaveShaderFxData *fx, Object *ob, tObject *tgp_ob);
-  void vfx_swirl_sync(SwirlShaderFxData *fx, Object *ob, tObject *tgp_ob);
+  void vfx_layer_sync(Object *ob, tLayer *tgp_layer, bool is_edit_mode);
+  void vfx_shaderfx_sync(ShaderFxData *fx,
+                         Object *ob,
+                         tObject *tgp_ob,
+                         tVfxList *vfx_list = nullptr);
+  void vfx_blur_sync(BlurShaderFxData *fx,
+                     Object *ob,
+                     tObject *tgp_ob,
+                     tVfxList *vfx_list);
+  void vfx_colorize_sync(ColorizeShaderFxData *fx,
+                         Object *ob,
+                         tObject *tgp_ob,
+                         tVfxList *vfx_list);
+  void vfx_flip_sync(FlipShaderFxData *fx,
+                     Object *ob,
+                     tObject *tgp_ob,
+                     tVfxList *vfx_list);
+  void vfx_rim_sync(RimShaderFxData *fx,
+                    Object *ob,
+                    tObject *tgp_ob,
+                    tVfxList *vfx_list);
+  void vfx_pixelize_sync(PixelShaderFxData *fx,
+                         Object *ob,
+                         tObject *tgp_ob,
+                         tVfxList *vfx_list);
+  void vfx_shadow_sync(ShadowShaderFxData *fx,
+                       Object *ob,
+                       tObject *tgp_ob,
+                       tVfxList *vfx_list);
+  void vfx_glow_sync(GlowShaderFxData *fx,
+                     Object *ob,
+                     tObject *tgp_ob,
+                     tVfxList *vfx_list);
+  void vfx_wave_sync(WaveShaderFxData *fx,
+                     Object *ob,
+                     tObject *tgp_ob,
+                     tVfxList *vfx_list);
+  void vfx_swirl_sync(SwirlShaderFxData *fx,
+                      Object *ob,
+                      tObject *tgp_ob,
+                      tVfxList *vfx_list);
 
   void vfx_sync(Object *ob, tObject *tgp_ob);
 

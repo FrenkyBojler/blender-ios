@@ -49,7 +49,7 @@ tObject *gpencil_object_cache_add(Instance *inst,
   tObject *tgp_ob = static_cast<tObject *>(BLI_memblock_alloc(inst->gp_object_pool));
 
   tgp_ob->layers.first = tgp_ob->layers.last = nullptr;
-  tgp_ob->vfx.first = tgp_ob->vfx.last = nullptr;
+  tgp_ob->vfx = {};
   tgp_ob->camera_z = dot_v3v3(inst->camera_z_axis, ob->object_to_world().location());
   tgp_ob->is_drawmode3d = is_stroke_order_3d;
 
@@ -341,6 +341,8 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
   tgp_layer->mask_bits = nullptr;
   tgp_layer->mask_invert_bits = nullptr;
   tgp_layer->blend_ps = nullptr;
+  tgp_layer->layer = &layer;
+  tgp_layer->vfx = {};
 
   /* Masking: Go through mask list and extract valid masks in a bitmap. */
   if (is_masked) {
@@ -382,9 +384,36 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
     is_masked = valid_mask;
   }
 
-  /* Blending: Force blending for masked layer. */
-  if (is_masked || (layer.blend_mode != GP_LAYER_BLEND_NONE) || (layer_opacity < 1.0f)) {
-    DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_STENCIL_EQUAL;
+  /* Filtered effects are applied to each matching layer. */
+  bool has_layer_fx = false;
+  if (onion_id == 0 && !inst->simplify_fx) {
+    const bool is_edit_mode = ELEM(
+        ob->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL, OB_MODE_WEIGHT_GREASE_PENCIL);
+    for (const ShaderFxData &fx : ob->shader_fx) {
+      if (!shaderfx_has_layer_filter(fx)) {
+        continue;
+      }
+      if (!shaderfx_is_active(fx, is_edit_mode, inst->is_viewport)) {
+        continue;
+      }
+      if (!shaderfx_layer_filter_matches(fx, grease_pencil, layer)) {
+        continue;
+      }
+      has_layer_fx = true;
+      inst->use_layer_vfx_fb = true;
+      break;
+    }
+  }
+  /* Blending: force blending for masked layers, per-layer VFX, blend modes, or low opacity. */
+  if (is_masked || has_layer_fx || (layer.blend_mode != GP_LAYER_BLEND_NONE) ||
+      (layer_opacity < 1.0f))
+  {
+    /* Skip stencil for layers with VFX: effects like glow and shadow extend pixels beyond
+     * the geometry footprint, which STENCIL_EQUAL would clip. */
+    DRWState state = DRW_STATE_WRITE_COLOR;
+    if (!has_layer_fx) {
+      state |= DRW_STATE_STENCIL_EQUAL;
+    }
     switch (layer.blend_mode) {
       case GP_LAYER_BLEND_NONE:
         state |= DRW_STATE_BLEND_ALPHA_PREMUL;

@@ -50,6 +50,7 @@ class ShaderCache {
   StaticShader mask_invert = {"gpencil_mask_invert"};
   /* Effects. */
   StaticShader fx_composite = {"gpencil_fx_composite"};
+  StaticShader fx_blit = {"gpencil_fx_blit"};
   StaticShader fx_colorize = {"gpencil_fx_colorize"};
   StaticShader fx_blur = {"gpencil_fx_blur"};
   StaticShader fx_glow = {"gpencil_fx_glow"};

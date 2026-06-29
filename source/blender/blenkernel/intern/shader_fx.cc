@@ -193,6 +193,7 @@ void BKE_shaderfx_copydata_ex(ShaderFxData *fx, ShaderFxData *target, const int 
   target->mode = fx->mode;
   target->flag = fx->flag;
   target->ui_expand_flag = fx->ui_expand_flag;
+  STRNCPY_UTF8(target->layer_name, fx->layer_name);
 
   if (fxi->copy_data) {
     fxi->copy_data(fx, target);

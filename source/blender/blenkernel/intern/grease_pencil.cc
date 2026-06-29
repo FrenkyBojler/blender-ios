@@ -72,6 +72,7 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_shader_fx_types.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -4401,6 +4402,17 @@ void GreasePencil::rename_node(Main &bmain,
       }
       if (dst_layer_name && STREQ(dst_layer_name, old_name.c_str())) {
         BLI_strncpy(dst_layer_name, node.name().c_str(), dst_layer_name_maxncpy);
+      }
+    }
+
+    /* Update shader effect layer/group name filters. */
+    for (ShaderFxData &fx : object.shader_fx) {
+      if (!STREQ(fx.layer_name, old_name.c_str())) {
+        continue;
+      }
+      const bool is_group_filter = (fx.flag & eShaderFxFlag_UseLayerGroupFilter) != 0;
+      if (is_group_filter == node.is_group()) {
+        BLI_strncpy(fx.layer_name, node.name().c_str(), sizeof(fx.layer_name));
       }
     }
   }

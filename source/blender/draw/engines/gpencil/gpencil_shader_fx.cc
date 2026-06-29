@@ -7,6 +7,7 @@
  */
 #include "DNA_camera_types.h"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_shader_fx_types.h"
 #include "DNA_view3d_types.h"
 
@@ -22,28 +23,13 @@
 
 namespace blender::draw::gpencil {
 
-/* verify if this fx is active */
-static bool effect_is_active(ShaderFxData *fx, bool is_edit, bool is_viewport)
-{
-  if (fx == nullptr) {
-    return false;
-  }
-
-  if (((fx->mode & eShaderFxMode_Editmode) == 0) && (is_edit) && (is_viewport)) {
-    return false;
-  }
-
-  if (((fx->mode & eShaderFxMode_Realtime) && (is_viewport == true)) ||
-      ((fx->mode & eShaderFxMode_Render) && (is_viewport == false)))
-  {
-    return true;
-  }
-
-  return false;
-}
-
 PassSimple &Instance::vfx_pass_create(
-    const char *name, DRWState state, gpu::Shader *sh, tObject *tgp_ob, GPUSamplerState sampler)
+    const char *name,
+    DRWState state,
+    gpu::Shader *sh,
+    tObject *tgp_ob,
+    tVfxList *vfx_list,
+    GPUSamplerState sampler)
 {
   UNUSED_VARS(name);
 
@@ -60,12 +46,16 @@ PassSimple &Instance::vfx_pass_create(
 
   vfx_swapchain_.swap();
 
-  BLI_LINKS_APPEND(&tgp_ob->vfx, &tgp_vfx);
+  BLI_assert(tgp_ob != nullptr || vfx_list != nullptr);
+  BLI_LINKS_APPEND(vfx_list != nullptr ? vfx_list : &tgp_ob->vfx, &tgp_vfx);
 
   return pass;
 }
 
-void Instance::vfx_blur_sync(BlurShaderFxData *fx, Object *ob, tObject *tgp_ob)
+void Instance::vfx_blur_sync(BlurShaderFxData *fx,
+                             Object *ob,
+                             tObject *tgp_ob,
+                             tVfxList *vfx_list)
 {
   if ((fx->samples == 0.0f) || (fx->radius[0] == 0.0f && fx->radius[1] == 0.0f)) {
     return;
@@ -103,25 +93,28 @@ void Instance::vfx_blur_sync(BlurShaderFxData *fx, Object *ob, tObject *tgp_ob)
 
   DRWState state = DRW_STATE_WRITE_COLOR;
   if (blur_size[0] > 0.0f) {
-    auto &grp = vfx_pass_create("Fx Blur H", state, sh, tgp_ob);
+    auto &grp = vfx_pass_create("Fx Blur H", state, sh, tgp_ob, vfx_list);
     grp.push_constant("offset", float2(blur_size[0] * c, blur_size[0] * s));
     grp.push_constant("samp_count", max_ii(1, min_ii(fx->samples, blur_size[0])));
     grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
   if (blur_size[1] > 0.0f) {
-    auto &grp = vfx_pass_create("Fx Blur V", state, sh, tgp_ob);
+    auto &grp = vfx_pass_create("Fx Blur V", state, sh, tgp_ob, vfx_list);
     grp.push_constant("offset", float2(-blur_size[1] * s, blur_size[1] * c));
     grp.push_constant("samp_count", max_ii(1, min_ii(fx->samples, blur_size[1])));
     grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 }
 
-void Instance::vfx_colorize_sync(ColorizeShaderFxData *fx, Object * /*ob*/, tObject *tgp_ob)
+void Instance::vfx_colorize_sync(ColorizeShaderFxData *fx,
+                                 Object * /*ob*/,
+                                 tObject *tgp_ob,
+                                 tVfxList *vfx_list)
 {
   gpu::Shader *sh = ShaderCache::get().fx_colorize.get();
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = vfx_pass_create("Fx Colorize", state, sh, tgp_ob);
+  auto &grp = vfx_pass_create("Fx Colorize", state, sh, tgp_ob, vfx_list);
   grp.push_constant("low_color", float3(fx->low_color));
   grp.push_constant("high_color", float3(fx->high_color));
   grp.push_constant("factor", fx->factor);
@@ -129,7 +122,10 @@ void Instance::vfx_colorize_sync(ColorizeShaderFxData *fx, Object * /*ob*/, tObj
   grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-void Instance::vfx_flip_sync(FlipShaderFxData *fx, Object * /*ob*/, tObject *tgp_ob)
+void Instance::vfx_flip_sync(FlipShaderFxData *fx,
+                             Object * /*ob*/,
+                             tObject *tgp_ob,
+                             tVfxList *vfx_list)
 {
   float axis_flip[2];
   axis_flip[0] = (fx->flag & FX_FLIP_HORIZONTAL) ? -1.0f : 1.0f;
@@ -138,14 +134,17 @@ void Instance::vfx_flip_sync(FlipShaderFxData *fx, Object * /*ob*/, tObject *tgp
   gpu::Shader *sh = ShaderCache::get().fx_transform.get();
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = vfx_pass_create("Fx Flip", state, sh, tgp_ob);
+  auto &grp = vfx_pass_create("Fx Flip", state, sh, tgp_ob, vfx_list);
   grp.push_constant("axis_flip", float2(axis_flip));
   grp.push_constant("wave_offset", float2(0.0f, 0.0f));
   grp.push_constant("swirl_radius", 0.0f);
   grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-void Instance::vfx_rim_sync(RimShaderFxData *fx, Object *ob, tObject *tgp_ob)
+void Instance::vfx_rim_sync(RimShaderFxData *fx,
+                            Object *ob,
+                            tObject *tgp_ob,
+                            tVfxList *vfx_list)
 {
   float4x4 winmat, persmat;
   float offset[2] = {float(fx->offset[0]), float(fx->offset[1])};
@@ -169,7 +168,7 @@ void Instance::vfx_rim_sync(RimShaderFxData *fx, Object *ob, tObject *tgp_ob)
 
   {
     DRWState state = DRW_STATE_WRITE_COLOR;
-    auto &grp = vfx_pass_create("Fx Rim H", state, sh, tgp_ob);
+    auto &grp = vfx_pass_create("Fx Rim H", state, sh, tgp_ob, vfx_list);
     grp.push_constant("blur_dir", float2(blur_size[0] * vp_size_inv[0], 0.0f));
     grp.push_constant("uv_offset", float2(offset));
     grp.push_constant("samp_count", max_ii(1, min_ii(fx->samples, blur_size[0])));
@@ -199,7 +198,7 @@ void Instance::vfx_rim_sync(RimShaderFxData *fx, Object *ob, tObject *tgp_ob)
 
     zero_v2(offset);
 
-    auto &grp = vfx_pass_create("Fx Rim V", state, sh, tgp_ob);
+    auto &grp = vfx_pass_create("Fx Rim V", state, sh, tgp_ob, vfx_list);
     grp.push_constant("blur_dir", float2(0.0f, blur_size[1] * vp_size_inv[1]));
     grp.push_constant("uv_offset", float2(offset));
     grp.push_constant("rim_color", float3(fx->rim_rgb));
@@ -218,7 +217,10 @@ void Instance::vfx_rim_sync(RimShaderFxData *fx, Object *ob, tObject *tgp_ob)
   }
 }
 
-void Instance::vfx_pixelize_sync(PixelShaderFxData *fx, Object *ob, tObject *tgp_ob)
+void Instance::vfx_pixelize_sync(PixelShaderFxData *fx,
+                                 Object *ob,
+                                 tObject *tgp_ob,
+                                 tVfxList *vfx_list)
 {
   float4x4 persmat, winmat;
   float ob_center[3], pixsize_uniform[2];
@@ -258,7 +260,7 @@ void Instance::vfx_pixelize_sync(PixelShaderFxData *fx, Object *ob, tObject *tgp
     GPUSamplerState sampler = (use_antialiasing) ? GPUSamplerState::internal_sampler() :
                                                    GPUSamplerState::default_sampler();
 
-    auto &grp = vfx_pass_create("Fx Pixelize X", state, sh, tgp_ob, sampler);
+    auto &grp = vfx_pass_create("Fx Pixelize X", state, sh, tgp_ob, vfx_list, sampler);
     grp.push_constant("target_pixel_size", float2(pixsize_uniform));
     grp.push_constant("target_pixel_offset", float2(ob_center));
     grp.push_constant("accum_offset", float2(pixel_size[0], 0.0f));
@@ -271,7 +273,7 @@ void Instance::vfx_pixelize_sync(PixelShaderFxData *fx, Object *ob, tObject *tgp
     GPUSamplerState sampler = (use_antialiasing) ? GPUSamplerState::internal_sampler() :
                                                    GPUSamplerState::default_sampler();
     copy_v2_fl2(pixsize_uniform, vp_size_inv[0], pixel_size[1]);
-    auto &grp = vfx_pass_create("Fx Pixelize Y", state, sh, tgp_ob, sampler);
+    auto &grp = vfx_pass_create("Fx Pixelize Y", state, sh, tgp_ob, vfx_list, sampler);
     grp.push_constant("target_pixel_size", float2(pixsize_uniform));
     grp.push_constant("accum_offset", float2(0.0f, pixel_size[1]));
     int samp_count = (pixel_size[1] / vp_size_inv[1] > 3.0) ? 2 : 1;
@@ -280,7 +282,10 @@ void Instance::vfx_pixelize_sync(PixelShaderFxData *fx, Object *ob, tObject *tgp
   }
 }
 
-void Instance::vfx_shadow_sync(ShadowShaderFxData *fx, Object *ob, tObject *tgp_ob)
+void Instance::vfx_shadow_sync(ShadowShaderFxData *fx,
+                               Object *ob,
+                               tObject *tgp_ob,
+                               tVfxList *vfx_list)
 {
   const bool use_obj_pivot = (fx->flag & FX_SHADOW_USE_OBJECT) != 0;
   const bool use_wave = (fx->flag & FX_SHADOW_USE_WAVE) != 0;
@@ -361,7 +366,7 @@ void Instance::vfx_shadow_sync(ShadowShaderFxData *fx, Object *ob, tObject *tgp_
 
   {
     DRWState state = DRW_STATE_WRITE_COLOR;
-    auto &grp = vfx_pass_create("Fx Shadow H", state, sh, tgp_ob);
+    auto &grp = vfx_pass_create("Fx Shadow H", state, sh, tgp_ob, vfx_list);
     grp.push_constant("blur_dir", float2(blur_dir));
     grp.push_constant("wave_dir", float2(wave_dir));
     grp.push_constant("wave_offset", float2(wave_ofs));
@@ -384,7 +389,7 @@ void Instance::vfx_shadow_sync(ShadowShaderFxData *fx, Object *ob, tObject *tgp_
 
   {
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA_PREMUL;
-    auto &grp = vfx_pass_create("Fx Shadow V", state, sh, tgp_ob);
+    auto &grp = vfx_pass_create("Fx Shadow V", state, sh, tgp_ob, vfx_list);
     grp.push_constant("shadow_color", float4(fx->shadow_rgba));
     grp.push_constant("blur_dir", float2(blur_dir));
     grp.push_constant("wave_offset", float2(wave_ofs));
@@ -397,7 +402,10 @@ void Instance::vfx_shadow_sync(ShadowShaderFxData *fx, Object *ob, tObject *tgp_
   }
 }
 
-void Instance::vfx_glow_sync(GlowShaderFxData *fx, Object * /*ob*/, tObject *tgp_ob)
+void Instance::vfx_glow_sync(GlowShaderFxData *fx,
+                             Object * /*ob*/,
+                             tObject *tgp_ob,
+                             tVfxList *vfx_list)
 {
   const bool use_glow_under = (fx->flag & FX_GLOW_USE_ALPHA) != 0;
   const float s = sin(fx->rotation);
@@ -421,7 +429,7 @@ void Instance::vfx_glow_sync(GlowShaderFxData *fx, Object * /*ob*/, tObject *tgp
   }
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = vfx_pass_create("Fx Glow H", state, sh, tgp_ob);
+  auto &grp = vfx_pass_create("Fx Glow H", state, sh, tgp_ob, vfx_list);
   grp.push_constant("offset", float2(fx->blur[0] * c, fx->blur[0] * s));
   grp.push_constant("samp_count", max_ii(1, min_ii(fx->samples, fx->blur[0])));
   grp.push_constant("threshold", float4(ref_col));
@@ -456,7 +464,7 @@ void Instance::vfx_glow_sync(GlowShaderFxData *fx, Object * /*ob*/, tObject *tgp
   }
 
   {
-    auto &grp = vfx_pass_create("Fx Glow V", state, sh, tgp_ob);
+    auto &grp = vfx_pass_create("Fx Glow V", state, sh, tgp_ob, vfx_list);
     grp.push_constant("offset", float2(-fx->blur[1] * s, fx->blur[1] * c));
     grp.push_constant("samp_count", max_ii(1, min_ii(fx->samples, fx->blur[0])));
     grp.push_constant("threshold", float4{-1.0f, -1.0f, -1.0f, -1.0});
@@ -467,7 +475,10 @@ void Instance::vfx_glow_sync(GlowShaderFxData *fx, Object * /*ob*/, tObject *tgp
   }
 }
 
-void Instance::vfx_wave_sync(WaveShaderFxData *fx, Object *ob, tObject *tgp_ob)
+void Instance::vfx_wave_sync(WaveShaderFxData *fx,
+                             Object *ob,
+                             tObject *tgp_ob,
+                             tVfxList *vfx_list)
 {
   float4x4 winmat, persmat;
   float wave_center[3];
@@ -512,7 +523,7 @@ void Instance::vfx_wave_sync(WaveShaderFxData *fx, Object *ob, tObject *tgp_ob)
   gpu::Shader *sh = ShaderCache::get().fx_transform.get();
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = vfx_pass_create("Fx Wave", state, sh, tgp_ob);
+  auto &grp = vfx_pass_create("Fx Wave", state, sh, tgp_ob, vfx_list);
   grp.push_constant("axis_flip", float2(1.0f, 1.0f));
   grp.push_constant("wave_dir", float2(wave_dir));
   grp.push_constant("wave_offset", float2(wave_ofs));
@@ -521,7 +532,10 @@ void Instance::vfx_wave_sync(WaveShaderFxData *fx, Object *ob, tObject *tgp_ob)
   grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-void Instance::vfx_swirl_sync(SwirlShaderFxData *fx, Object * /*ob*/, tObject *tgp_ob)
+void Instance::vfx_swirl_sync(SwirlShaderFxData *fx,
+                              Object * /*ob*/,
+                              tObject *tgp_ob,
+                              tVfxList *vfx_list)
 {
   if (fx->object == nullptr) {
     return;
@@ -556,7 +570,7 @@ void Instance::vfx_swirl_sync(SwirlShaderFxData *fx, Object * /*ob*/, tObject *t
   gpu::Shader *sh = ShaderCache::get().fx_transform.get();
 
   DRWState state = DRW_STATE_WRITE_COLOR;
-  auto &grp = vfx_pass_create("Fx Flip", state, sh, tgp_ob);
+  auto &grp = vfx_pass_create("Fx Flip", state, sh, tgp_ob, vfx_list);
   grp.push_constant("axis_flip", float2(1.0f, 1.0f));
   grp.push_constant("wave_offset", float2(0.0f, 0.0f));
   grp.push_constant("swirl_center", float2(swirl_center));
@@ -565,10 +579,105 @@ void Instance::vfx_swirl_sync(SwirlShaderFxData *fx, Object * /*ob*/, tObject *t
   grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
+void Instance::vfx_shaderfx_sync(ShaderFxData *fx,
+                                 Object *ob,
+                                 tObject *tgp_ob,
+                                 tVfxList *vfx_list)
+{
+  switch (fx->type) {
+    case eShaderFxType_Blur:
+      vfx_blur_sync(reinterpret_cast<BlurShaderFxData *>(fx), ob, tgp_ob, vfx_list);
+      break;
+    case eShaderFxType_Colorize:
+      vfx_colorize_sync(reinterpret_cast<ColorizeShaderFxData *>(fx), ob, tgp_ob, vfx_list);
+      break;
+    case eShaderFxType_Flip:
+      vfx_flip_sync(reinterpret_cast<FlipShaderFxData *>(fx), ob, tgp_ob, vfx_list);
+      break;
+    case eShaderFxType_Pixel:
+      vfx_pixelize_sync(reinterpret_cast<PixelShaderFxData *>(fx), ob, tgp_ob, vfx_list);
+      break;
+    case eShaderFxType_Rim:
+      vfx_rim_sync(reinterpret_cast<RimShaderFxData *>(fx), ob, tgp_ob, vfx_list);
+      break;
+    case eShaderFxType_Shadow:
+      vfx_shadow_sync(reinterpret_cast<ShadowShaderFxData *>(fx), ob, tgp_ob, vfx_list);
+      break;
+    case eShaderFxType_Glow:
+      vfx_glow_sync(reinterpret_cast<GlowShaderFxData *>(fx), ob, tgp_ob, vfx_list);
+      break;
+    case eShaderFxType_Swirl:
+      vfx_swirl_sync(reinterpret_cast<SwirlShaderFxData *>(fx), ob, tgp_ob, vfx_list);
+      break;
+    case eShaderFxType_Wave:
+      vfx_wave_sync(reinterpret_cast<WaveShaderFxData *>(fx), ob, tgp_ob, vfx_list);
+      break;
+    default:
+      break;
+  }
+}
+
+void Instance::vfx_layer_sync(Object *ob, tLayer *tgp_layer, bool is_edit_mode)
+{
+  tgp_layer->vfx = {};
+
+  if (this->simplify_fx) {
+    return;
+  }
+
+  if (tgp_layer->layer == nullptr) {
+    return;
+  }
+
+  const GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<GreasePencil>(*ob);
+
+  /* Per-layer ping-pong: current = layer_fb (source), next = layer_vfx_fb (target). */
+  vfx_swapchain_.current().fb = &layer_fb;
+  vfx_swapchain_.current().color_tx = &color_layer_tx;
+  vfx_swapchain_.current().reveal_tx = &reveal_layer_tx;
+  vfx_swapchain_.next().fb = &layer_vfx_fb;
+  vfx_swapchain_.next().color_tx = &color_layer_vfx_tx;
+  vfx_swapchain_.next().reveal_tx = &reveal_layer_vfx_tx;
+
+  for (ShaderFxData &fx : ob->shader_fx) {
+    if (!shaderfx_has_layer_filter(fx)) {
+      continue;
+    }
+    if (!shaderfx_is_active(fx, is_edit_mode, this->is_viewport)) {
+      continue;
+    }
+    if (!shaderfx_layer_filter_matches(fx, grease_pencil, *tgp_layer->layer)) {
+      continue;
+    }
+    vfx_shaderfx_sync(&fx, ob, nullptr, &tgp_layer->vfx);
+  }
+
+  /* Normalize ping-pong parity: after an odd number of passes, the result is in layer_vfx_fb.
+   * Add a blit pass to copy it back to layer_fb so blend_ps always reads from layer_fb. */
+  int pass_count = 0;
+  for (tVfx *v = tgp_layer->vfx.first; v != nullptr; v = v->next) {
+    pass_count++;
+  }
+  if (pass_count % 2 == 1) {
+    gpu::Shader *sh = ShaderCache::get().fx_blit.get();
+    auto &grp = vfx_pass_create(
+        "Fx Layer Blit", DRW_STATE_WRITE_COLOR, sh, nullptr, &tgp_layer->vfx);
+    grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+  }
+}
+
 void Instance::vfx_sync(Object *ob, tObject *tgp_ob)
 {
   const bool is_edit_mode = ELEM(
       ob->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL, OB_MODE_WEIGHT_GREASE_PENCIL);
+
+  for (tLayer *tgp_layer = tgp_ob->layers.first; tgp_layer != nullptr;
+       tgp_layer = tgp_layer->next)
+  {
+    if (!tgp_layer->is_onion) {
+      vfx_layer_sync(ob, tgp_layer, is_edit_mode);
+    }
+  }
 
   vfx_swapchain_.next().fb = &layer_fb;
   vfx_swapchain_.next().color_tx = &color_layer_tx;
@@ -580,38 +689,11 @@ void Instance::vfx_sync(Object *ob, tObject *tgp_ob)
   /* If simplify enabled, nothing more to do. */
   if (!this->simplify_fx) {
     for (ShaderFxData &fx : ob->shader_fx) {
-      if (effect_is_active(&fx, is_edit_mode, this->is_viewport)) {
-        switch (fx.type) {
-          case eShaderFxType_Blur:
-            vfx_blur_sync(reinterpret_cast<BlurShaderFxData *>(&fx), ob, tgp_ob);
-            break;
-          case eShaderFxType_Colorize:
-            vfx_colorize_sync(reinterpret_cast<ColorizeShaderFxData *>(&fx), ob, tgp_ob);
-            break;
-          case eShaderFxType_Flip:
-            vfx_flip_sync(reinterpret_cast<FlipShaderFxData *>(&fx), ob, tgp_ob);
-            break;
-          case eShaderFxType_Pixel:
-            vfx_pixelize_sync(reinterpret_cast<PixelShaderFxData *>(&fx), ob, tgp_ob);
-            break;
-          case eShaderFxType_Rim:
-            vfx_rim_sync(reinterpret_cast<RimShaderFxData *>(&fx), ob, tgp_ob);
-            break;
-          case eShaderFxType_Shadow:
-            vfx_shadow_sync(reinterpret_cast<ShadowShaderFxData *>(&fx), ob, tgp_ob);
-            break;
-          case eShaderFxType_Glow:
-            vfx_glow_sync(reinterpret_cast<GlowShaderFxData *>(&fx), ob, tgp_ob);
-            break;
-          case eShaderFxType_Swirl:
-            vfx_swirl_sync(reinterpret_cast<SwirlShaderFxData *>(&fx), ob, tgp_ob);
-            break;
-          case eShaderFxType_Wave:
-            vfx_wave_sync(reinterpret_cast<WaveShaderFxData *>(&fx), ob, tgp_ob);
-            break;
-          default:
-            break;
-        }
+      if (shaderfx_has_layer_filter(fx)) {
+        continue;
+      }
+      if (shaderfx_is_active(fx, is_edit_mode, this->is_viewport)) {
+        vfx_shaderfx_sync(&fx, ob, tgp_ob);
       }
     }
   }
