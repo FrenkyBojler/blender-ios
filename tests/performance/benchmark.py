@@ -480,11 +480,10 @@ def cmd_build(env: api.TestEnvironment, argv: list):
                 if len(entry.executable):
                     continue
 
-                if git_hash in built_revisions and not args.force:
+                if git_hash in built_revisions:
                     continue
 
-                if not args.force:
-                    built_revisions.add(git_hash)
+                built_revisions.add(git_hash)
 
                 git_hash = env.resolve_git_hash(git_hash)
 
