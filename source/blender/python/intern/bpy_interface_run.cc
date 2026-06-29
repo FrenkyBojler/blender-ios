@@ -29,6 +29,7 @@
 
 #include "DNA_text_types.h"
 
+#include "BPY_extern.hh"
 #include "BPY_extern_run.hh"
 
 #include "bpy_capi_utils.hh"
@@ -286,6 +287,8 @@ static bool bpy_run_string_impl(bContext *C,
     return ok;
   }
 
+  bContext *prev_ctx = BPY_context_get();
+
   /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
   bpy_context_set_allow_null(C, &gilstate);
 
@@ -317,6 +320,7 @@ static bool bpy_run_string_impl(bContext *C,
 
   PyC_MainModule_Restore(main_mod);
 
+  BPY_context_update(prev_ctx);
   bpy_context_clear(C, &gilstate);
 
   return ok;
@@ -399,6 +403,8 @@ static bool bpy_run_string_exec_with_locals_acquire_gil(
   PyGILState_STATE gilstate;
   /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
 
+  bContext *prev_ctx = BPY_context_get();
+
   bpy_context_set_allow_null(C, &gilstate);
 
   PyObject *main_mod_backup = PyC_MainModule_Backup();
@@ -415,6 +421,7 @@ static bool bpy_run_string_exec_with_locals_acquire_gil(
   }
 
   PyC_MainModule_Restore(main_mod_backup);
+  BPY_context_update(prev_ctx);
   bpy_context_clear(C, &gilstate);
 
   return ok;
@@ -529,6 +536,8 @@ bool BPY_run_string_as_number(bContext *C,
     return ok;
   }
 
+  bContext *prev_ctx = BPY_context_get();
+
   PyGILState_STATE gilstate;
   /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
   bpy_context_set_allow_null(C, &gilstate);
@@ -539,6 +548,7 @@ bool BPY_run_string_as_number(bContext *C,
     run_string_handle_error(err_info);
   }
 
+  BPY_context_update(prev_ctx);
   bpy_context_clear(C, &gilstate);
 
   return ok;
@@ -558,6 +568,8 @@ bool BPY_run_string_as_string_and_len(bContext *C,
     return ok;
   }
 
+  bContext *prev_ctx = BPY_context_get();
+
   PyGILState_STATE gilstate;
   /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
   bpy_context_set_allow_null(C, &gilstate);
@@ -568,6 +580,7 @@ bool BPY_run_string_as_string_and_len(bContext *C,
     run_string_handle_error(err_info);
   }
 
+  BPY_context_update(prev_ctx);
   bpy_context_clear(C, &gilstate);
 
   return ok;
@@ -594,6 +607,8 @@ bool BPY_run_string_as_string_and_len_or_none(bContext *C,
     return ok;
   }
 
+  bContext *prev_ctx = BPY_context_get();
+
   PyGILState_STATE gilstate;
   /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
   bpy_context_set_allow_null(C, &gilstate);
@@ -605,6 +620,7 @@ bool BPY_run_string_as_string_and_len_or_none(bContext *C,
     run_string_handle_error(err_info);
   }
 
+  BPY_context_update(prev_ctx);
   bpy_context_clear(C, &gilstate);
 
   return ok;
@@ -631,6 +647,8 @@ bool BPY_run_string_as_intptr(bContext *C,
     return ok;
   }
 
+  bContext *prev_ctx = BPY_context_get();
+
   PyGILState_STATE gilstate;
   /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See docstring. */
   bpy_context_set_allow_null(C, &gilstate);
@@ -640,7 +658,7 @@ bool BPY_run_string_as_intptr(bContext *C,
   if (ok == false) {
     run_string_handle_error(err_info);
   }
-
+  BPY_context_update(prev_ctx);
   bpy_context_clear(C, &gilstate);
 
   return ok;
