@@ -825,6 +825,69 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
   draw_divider_end();
 }
 
+TEST_F(GreasePencilBooleanTest, Square_With_Hole)
+{
+  draw_divider_start("Square With Hole");
+
+  const Array<float2> points = {{0, 0},
+                                {0, 5},
+                                {5, 5},
+                                {5, 0},
+
+                                {1, 1},
+                                {1, 4},
+                                {4, 4},
+                                {4, 1},
+
+                                {2, 2},
+                                {2, 7},
+                                {7, 7},
+                                {7, 2}};
+  const Array<int> points_by_curve = {0, 4, 8, 12};
+  const Array<bool> is_cyclic = {true, true, true};
+  const Array<int> fill_ids = {1, 1, 2};
+  const IndexRange clipping_fills = IndexRange::from_begin_end(1, 2);
+
+  const bke::CurvesGeometry src_curves = create_test_curves(
+      points_by_curve, points, fill_ids, is_cyclic);
+
+  {
+    // const bke::CurvesGeometry dst_curves = test_curve_boolean(
+    //     Operation::Intersect, src_curves, fill_ids, clipping_fills);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    // draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
+  }
+  {
+    // const bke::CurvesGeometry dst_curves = test_curve_boolean(
+    //     Operation::Union, src_curves, fill_ids, clipping_fills);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    // draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
+  }
+  {
+    const bke::CurvesGeometry dst_curves = test_curve_boolean(
+        Operation::Difference, src_curves, fill_ids, clipping_fills);
+
+    /* TODO. */
+    // const Array<Vector<float2>> expected_points = {
+    //     {{2, 0}, {0, 0}, {0, 2}, {1, 2}, {1, 1}, {2, 1}}};
+    // expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
+  }
+  draw_divider_end();
+}
+
+
 TEST_F(GreasePencilBooleanTest, Squares_With_Holes)
 {
   draw_divider_start("Squares With Holes");
