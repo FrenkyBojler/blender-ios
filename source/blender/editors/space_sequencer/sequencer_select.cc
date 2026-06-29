@@ -2744,8 +2744,9 @@ static bool select_grouped_data(VectorSet<Strip *> strips,
   }
   else if (act_strip->type == STRIP_TYPE_IMAGE_ID) {
     Image *img = act_strip->image_id;
-    select_matching(
-      [&](Strip *strip) { return strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id == img; });
+    select_matching([&](Strip *strip) {
+      return strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id == img;
+    });
   }
   else if (act_strip->type == STRIP_TYPE_MASK) {
     Mask *mask = act_strip->mask;
