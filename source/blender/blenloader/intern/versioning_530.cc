@@ -120,6 +120,7 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
       for (CollectionObject &cob : collection.gobject) {
         cob.sort_index = (has_skip_alphabet_sort_method) ? index++ : -1;
+        cob.parented_sort_index = -1;
       }
     };
     for (Collection &collection : bmain->collections) {

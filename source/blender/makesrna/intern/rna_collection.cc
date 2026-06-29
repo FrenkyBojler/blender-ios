@@ -784,6 +784,18 @@ static void rna_def_collection_object(BlenderRNA *brna)
       prop, "Sort Index", "Custom sort index of the object in the collection");
   RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_Collection_sort_index_update");
 
+  /* Sort Index Child. */
+  prop = RNA_def_property(srna, "parented_sort_index", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "parented_sort_index");
+  RNA_def_property_ui_text(
+      prop, "Sort Index Child", "Custom sort index of the object as a child of the object");
+  RNA_def_property_update(prop, NC_SCENE | ND_LAYER, "rna_Collection_sort_index_update");
+
+  /* Object. */
+  prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "ob");
+  RNA_def_property_ui_text(prop, "Object", "Object in the collection");
+
   /* Light Linking. */
   prop = RNA_def_property(srna, "light_linking", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
