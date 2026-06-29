@@ -579,12 +579,13 @@ void Instance::vfx_layer_sync(Object *ob, tObject * /*tgp_ob*/, tLayer *tgp_laye
     return;
   }
 
-  /* Check early if any per-layer effects exist on this object at all. */
+  /* Only IndividualLayerMask effects are routed per-layer. Skip early if none are active. */
   bool any_layer_fx = false;
   for (const ShaderFxData &fx : ob->shader_fx) {
-    if (fx.layer_name[0] != '\0' &&
-        effect_is_active(const_cast<ShaderFxData *>(&fx), is_edit_mode, this->is_viewport))
-    {
+    if (!(fx.flag & eShaderFxFlag_IndividualLayerMask)) {
+      continue;
+    }
+    if (effect_is_active(const_cast<ShaderFxData *>(&fx), is_edit_mode, this->is_viewport)) {
       any_layer_fx = true;
       break;
     }
@@ -593,7 +594,7 @@ void Instance::vfx_layer_sync(Object *ob, tObject * /*tgp_ob*/, tLayer *tgp_laye
     return;
   }
 
-  /* Resolve the bke layer once for group membership tests. */
+  /* Resolve the bke layer for filter matching. */
   const GreasePencil *grease_pencil = reinterpret_cast<const GreasePencil *>(ob->data);
   const bke::greasepencil::Layer *gp_layer = nullptr;
   for (const bke::greasepencil::Layer *l : grease_pencil->layers()) {
@@ -614,34 +615,38 @@ void Instance::vfx_layer_sync(Object *ob, tObject * /*tgp_ob*/, tLayer *tgp_laye
   active_layer_vfx_ = &tgp_layer->vfx;
 
   for (ShaderFxData &fx : ob->shader_fx) {
-    if (fx.layer_name[0] == '\0') {
+    if (!(fx.flag & eShaderFxFlag_IndividualLayerMask)) {
       continue;
     }
     if (!effect_is_active(&fx, is_edit_mode, this->is_viewport)) {
       continue;
     }
 
-    bool matches = false;
-    if (gp_layer != nullptr) {
+    /* Determine whether this effect targets this layer. */
+    bool in_scope = false;
+    if (fx.layer_name[0] == '\0') {
+      /* No filter: individual mode applies to every layer. */
+      in_scope = true;
+    }
+    else if (gp_layer != nullptr) {
+      bool matches = false;
       if (fx.flag & eShaderFxFlag_UseLayerGroupFilter) {
-        const bke::greasepencil::LayerGroup *filter_group = nullptr;
+        /* Group filter: check group membership. */
         for (const bke::greasepencil::LayerGroup *group : grease_pencil->layer_groups()) {
           if (group->name() == fx.layer_name) {
-            filter_group = group;
+            matches = gp_layer->is_child_of(*group);
             break;
           }
         }
-        if (filter_group != nullptr) {
-          matches = gp_layer->is_child_of(*filter_group);
-        }
       }
       else {
+        /* Direct layer name filter. */
         matches = (gp_layer->name() == fx.layer_name);
       }
+      const bool invert = (fx.flag & eShaderFxFlag_InvertLayerFilter) != 0;
+      in_scope = (matches != invert);
     }
-
-    const bool invert = (fx.flag & eShaderFxFlag_InvertLayerFilter) != 0;
-    if (matches == invert) {
+    if (!in_scope) {
       continue;
     }
 
@@ -693,12 +698,143 @@ void Instance::vfx_layer_sync(Object *ob, tObject * /*tgp_ob*/, tLayer *tgp_laye
   active_layer_vfx_ = nullptr;
 }
 
+void Instance::vfx_joint_sync(Object *ob, tObject *tgp_ob, bool is_edit_mode)
+{
+  if (this->simplify_fx) {
+    return;
+  }
+
+  /* Skip if no non-individual filtered effect is active. */
+  bool any_joint_fx = false;
+  for (const ShaderFxData &fx : ob->shader_fx) {
+    if (fx.flag & eShaderFxFlag_IndividualLayerMask) {
+      continue;
+    }
+    if (fx.layer_name[0] == '\0') {
+      continue;
+    }
+    if (effect_is_active(const_cast<ShaderFxData *>(&fx), is_edit_mode, this->is_viewport)) {
+      any_joint_fx = true;
+      break;
+    }
+  }
+  if (!any_joint_fx) {
+    return;
+  }
+
+  /* Process each contiguous run of joint-member layers as an independent group.
+   * Treating runs separately preserves layer stacking order when joint members are
+   * non-contiguous (e.g. an inverted single-layer filter leaves a gap layer between
+   * joint members, which would otherwise composite on top of it). */
+  for (tLayer *layer = tgp_ob->layers.first; layer != nullptr; layer = layer->next) {
+    if (!layer->is_joint_member) {
+      continue;
+    }
+
+    /* Extend to the end of this contiguous run. */
+    tLayer *run_first = layer;
+    tLayer *run_last = layer;
+    while (run_last->next != nullptr && run_last->next->is_joint_member) {
+      run_last = run_last->next;
+    }
+
+    run_first->is_joint_first = true;
+    run_last->is_joint_last = true;
+
+    /* Ping-pong: current = joint_fb (source after accumulation), next = layer_vfx_fb (target).
+     * Reset at the start of each run so swapchain state from previous runs doesn't carry over. */
+    vfx_swapchain_.current().fb = &joint_fb;
+    vfx_swapchain_.current().color_tx = &color_joint_tx;
+    vfx_swapchain_.current().reveal_tx = &reveal_joint_tx;
+    vfx_swapchain_.next().fb = &layer_vfx_fb;
+    vfx_swapchain_.next().color_tx = &color_layer_vfx_tx;
+    vfx_swapchain_.next().reveal_tx = &reveal_layer_vfx_tx;
+
+    active_layer_vfx_ = &run_last->joint_vfx;
+
+    for (ShaderFxData &fx : ob->shader_fx) {
+      if (fx.flag & eShaderFxFlag_IndividualLayerMask) {
+        continue;
+      }
+      if (fx.layer_name[0] == '\0') {
+        continue;
+      }
+      if (!effect_is_active(&fx, is_edit_mode, this->is_viewport)) {
+        continue;
+      }
+
+      switch (fx.type) {
+        case eShaderFxType_Blur:
+          vfx_blur_sync(reinterpret_cast<BlurShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Colorize:
+          vfx_colorize_sync(reinterpret_cast<ColorizeShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Flip:
+          vfx_flip_sync(reinterpret_cast<FlipShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Pixel:
+          vfx_pixelize_sync(reinterpret_cast<PixelShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Rim:
+          vfx_rim_sync(reinterpret_cast<RimShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Shadow:
+          vfx_shadow_sync(reinterpret_cast<ShadowShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Glow:
+          vfx_glow_sync(reinterpret_cast<GlowShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Swirl:
+          vfx_swirl_sync(reinterpret_cast<SwirlShaderFxData *>(&fx), ob, nullptr);
+          break;
+        case eShaderFxType_Wave:
+          vfx_wave_sync(reinterpret_cast<WaveShaderFxData *>(&fx), ob, nullptr);
+          break;
+        default:
+          break;
+      }
+    }
+
+    /* Parity normalization: ensure the result of this run sits in joint_fb so
+     * joint_blend_ps reads color_joint_tx / reveal_joint_tx correctly. */
+    int pass_count = 0;
+    for (tVfx *v = run_last->joint_vfx.first; v != nullptr; v = v->next) {
+      pass_count++;
+    }
+    if (pass_count % 2 == 1) {
+      gpu::Shader *sh = ShaderCache::get().fx_blit.get();
+      auto &grp = vfx_pass_create("Fx Joint Blit", DRW_STATE_WRITE_COLOR, sh, nullptr);
+      grp.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+    }
+
+    active_layer_vfx_ = nullptr;
+
+    /* Composite this run's joint_fb into fb_object without stencil clipping so that
+     * VFX (e.g. glow) that spread beyond geometry boundaries are preserved. */
+    run_last->joint_blend_ps = std::make_unique<PassSimple>("GPencil Joint Blend");
+    PassSimple &jpass = *run_last->joint_blend_ps;
+    jpass.init();
+    jpass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA_PREMUL);
+    jpass.shader_set(ShaderCache::get().layer_blend.get());
+    jpass.push_constant("blend_mode", int(GP_LAYER_BLEND_NONE));
+    jpass.push_constant("blend_opacity", 1.0f);
+    jpass.bind_texture("color_buf", &this->color_joint_tx);
+    jpass.bind_texture("reveal_buf", &this->reveal_joint_tx);
+    jpass.bind_texture("mask_buf", &this->dummy_tx);
+    jpass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+
+    /* Advance past this run; the for-loop increment will step to run_last->next. */
+    layer = run_last;
+  }
+}
+
 void Instance::vfx_sync(Object *ob, tObject *tgp_ob)
 {
   const bool is_edit_mode = ELEM(
       ob->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL, OB_MODE_WEIGHT_GREASE_PENCIL);
 
-  /* Sync per-layer VFX for every layer first. */
+  /* Sync per-layer VFX (IndividualLayerMask effects) for every layer. */
   for (tLayer *tgp_layer = tgp_ob->layers.first; tgp_layer != nullptr;
        tgp_layer = tgp_layer->next)
   {
@@ -706,6 +842,9 @@ void Instance::vfx_sync(Object *ob, tObject *tgp_ob)
       vfx_layer_sync(ob, tgp_ob, tgp_layer, is_edit_mode);
     }
   }
+
+  /* Sync joint-mask VFX (!IndividualLayerMask + filter set). */
+  vfx_joint_sync(ob, tgp_ob, is_edit_mode);
 
   /* Object-level VFX swapchain: current = object_fb (source), next = layer_fb (target). */
   vfx_swapchain_.next().fb = &layer_fb;
@@ -718,7 +857,11 @@ void Instance::vfx_sync(Object *ob, tObject *tgp_ob)
   /* If simplify enabled, nothing more to do. */
   if (!this->simplify_fx) {
     for (ShaderFxData &fx : ob->shader_fx) {
-      /* Skip effects that target a specific layer — handled by vfx_layer_sync. */
+      /* Skip per-layer effects — handled by vfx_layer_sync. */
+      if (fx.flag & eShaderFxFlag_IndividualLayerMask) {
+        continue;
+      }
+      /* Skip layer-filtered effects without individual mode — no merged-group path. */
       if (fx.layer_name[0] != '\0') {
         continue;
       }

@@ -733,6 +733,15 @@ void RNA_def_shader_fx(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Use Layer Group", "Filter by layer group instead of individual layer");
   RNA_def_property_update(prop, NC_OBJECT | ND_SHADERFX, "rna_ShaderFx_update");
 
+  prop = RNA_def_property(srna, "use_individual_layer_mask", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", eShaderFxFlag_IndividualLayerMask);
+  RNA_def_property_ui_text(prop,
+                           "Individual Layer Mask",
+                           "Apply the effect to each matching layer individually. "
+                           "When disabled for a group filter, all layers in the group are "
+                           "merged into one buffer first and the effect runs once on the result");
+  RNA_def_property_update(prop, NC_OBJECT | ND_SHADERFX, "rna_ShaderFx_update");
+
   /* types */
   rna_def_shader_fx_blur(brna);
   rna_def_shader_fx_colorize(brna);

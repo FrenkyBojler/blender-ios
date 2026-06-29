@@ -28,6 +28,10 @@ enum ShaderFxFlag : short {
   eShaderFxFlag_OverrideLibrary_Local = (1 << 0),
   eShaderFxFlag_InvertLayerFilter = (1 << 1),
   eShaderFxFlag_UseLayerGroupFilter = (1 << 2),
+  /* When set, the effect is applied to each matching layer individually (per-layer isolation).
+   * When unset with a group filter, all group members are merged into one buffer first and the
+   * effect runs once on the combined result. Has no effect on direct layer filters. */
+  eShaderFxFlag_IndividualLayerMask = (1 << 3),
 };
 ENUM_OPERATORS(ShaderFxFlag)
 

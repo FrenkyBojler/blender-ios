@@ -171,6 +171,7 @@ void Instance::begin_sync()
   this->simplify_antialias = GPENCIL_SIMPLIFY_AA(draw_ctx->scene);
   this->use_layer_fb = false;
   this->use_layer_vfx_fb = false;
+  this->use_joint_fb = false;
   this->use_object_fb = false;
   this->use_mask_fb = false;
 
@@ -707,6 +708,15 @@ void Instance::acquire_resources()
                               GPU_ATTACHMENT_TEXTURE(this->reveal_layer_vfx_tx));
   }
 
+  if (this->use_joint_fb) {
+    this->color_joint_tx.acquire_2d(size, format_color);
+    this->reveal_joint_tx.acquire_2d(size, format_reveal);
+
+    this->joint_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
+                          GPU_ATTACHMENT_TEXTURE(this->color_joint_tx),
+                          GPU_ATTACHMENT_TEXTURE(this->reveal_joint_tx));
+  }
+
   if (this->use_object_fb) {
     this->color_object_tx.acquire_2d(size, format_color);
     this->reveal_object_tx.acquire_2d(size, format_reveal);
@@ -762,6 +772,8 @@ void Instance::release_resources()
   this->reveal_layer_tx.release();
   this->color_layer_vfx_tx.release();
   this->reveal_layer_vfx_tx.release();
+  this->color_joint_tx.release();
+  this->reveal_joint_tx.release();
   this->color_object_tx.release();
   this->reveal_object_tx.release();
   this->mask_depth_tx.release();
@@ -841,6 +853,12 @@ void Instance::draw_object(View &view, tObject *ob)
       draw_mask(view, ob, layer);
     }
 
+    /* Joint mask: clear the accumulation buffer before the first contributing layer. */
+    if (layer->is_joint_first) {
+      GPU_framebuffer_bind(this->joint_fb);
+      GPU_framebuffer_multi_clear(this->joint_fb, clear_cols);
+    }
+
     if (layer->blend_ps) {
       GPU_framebuffer_bind(this->layer_fb);
       GPU_framebuffer_multi_clear(this->layer_fb, clear_cols);
@@ -858,8 +876,22 @@ void Instance::draw_object(View &view, tObject *ob)
     }
 
     if (layer->blend_ps) {
-      GPU_framebuffer_bind(fb_object);
+      /* Joint members accumulate into joint_fb; all other layers composite to fb_object. */
+      gpu::FrameBuffer *blend_target = layer->is_joint_member ? this->joint_fb : fb_object;
+      GPU_framebuffer_bind(blend_target);
       manager->submit(*layer->blend_ps);
+    }
+
+    /* Joint mask: after the last contributing layer, apply joint VFX then composite to scene. */
+    if (layer->is_joint_last) {
+      for (tVfx *vfx = layer->joint_vfx.first; vfx; vfx = vfx->next) {
+        GPU_framebuffer_bind(*(vfx->target_fb));
+        manager->submit(*vfx->vfx_ps);
+      }
+      if (layer->joint_blend_ps) {
+        GPU_framebuffer_bind(fb_object);
+        manager->submit(*layer->joint_blend_ps);
+      }
     }
   }
 

@@ -100,8 +100,18 @@ struct tLayer {
   bool is_onion;
   /** Layer name — matched against fx->layer_name for per-layer effect routing. */
   char layer_name[64];
-  /** Per-layer VFX passes (effects with layer_name filter targeting this layer). */
+  /** Per-layer VFX passes (IndividualLayerMask effects targeting this layer). */
   tVfxList vfx;
+  /** True when a joint-mask effect targets this layer — blend goes to joint_fb. */
+  bool is_joint_member = false;
+  /** First joint member: clear joint_fb before blending. */
+  bool is_joint_first = false;
+  /** Last joint member: apply joint VFX then composite to fb_object. */
+  bool is_joint_last = false;
+  /** VFX passes that run on the joint buffer (populated only on the last member). */
+  tVfxList joint_vfx = {};
+  /** Composites joint_fb result to fb_object (last member only). */
+  ::std::unique_ptr<PassSimple> joint_blend_ps;
 };
 
 /* Temporary object reflection used by the gpencil::Instance. */
@@ -166,11 +176,13 @@ struct Instance final : public DrawEngine {
   TextureFromPool color_tx = {"color_tx"};
   TextureFromPool color_layer_tx = {"color_layer_tx"};
   TextureFromPool color_layer_vfx_tx = {"color_layer_vfx_tx"};
+  TextureFromPool color_joint_tx = {"color_joint_tx"};
   TextureFromPool color_object_tx = {"color_object_tx"};
   /* Revealage is 1 - alpha */
   TextureFromPool reveal_tx = {"reveal_tx"};
   TextureFromPool reveal_layer_tx = {"reveal_layer_tx"};
   TextureFromPool reveal_layer_vfx_tx = {"reveal_layer_vfx_tx"};
+  TextureFromPool reveal_joint_tx = {"reveal_joint_tx"};
   TextureFromPool reveal_object_tx = {"reveal_object_tx"};
   /* Mask texture */
   TextureFromPool mask_depth_tx = {"mask_depth_tx"};
@@ -187,6 +199,7 @@ struct Instance final : public DrawEngine {
   Framebuffer snapshot_fb = {"snapshot_fb"};
   Framebuffer layer_fb = {"layer_fb"};
   Framebuffer layer_vfx_fb = {"layer_vfx_fb"};
+  Framebuffer joint_fb = {"joint_fb"};
   Framebuffer object_fb = {"object_fb"};
   Framebuffer mask_fb = {"mask_fb"};
   Framebuffer smaa_edge_fb = {"smaa_edge_fb"};
@@ -293,6 +306,7 @@ struct Instance final : public DrawEngine {
   /* Do we need additional frame-buffers? */
   bool use_layer_fb;
   bool use_layer_vfx_fb;
+  bool use_joint_fb;
   bool use_object_fb;
   bool use_mask_fb;
   /* The viewport compositor needs the combined pass, so we need to render to it. */
@@ -391,6 +405,7 @@ struct Instance final : public DrawEngine {
                               GPUSamplerState sampler = GPUSamplerState::internal_sampler());
 
   void vfx_layer_sync(Object *ob, tObject *tgp_ob, tLayer *tgp_layer, bool is_edit_mode);
+  void vfx_joint_sync(Object *ob, tObject *tgp_ob, bool is_edit_mode);
   void vfx_blur_sync(BlurShaderFxData *fx, Object *ob, tObject *tgp_ob);
   void vfx_colorize_sync(ColorizeShaderFxData *fx, Object *ob, tObject *tgp_ob);
   void vfx_flip_sync(FlipShaderFxData *fx, Object *ob, tObject *tgp_ob);

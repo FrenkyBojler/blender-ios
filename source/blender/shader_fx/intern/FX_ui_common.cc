@@ -112,6 +112,11 @@ void shaderfx_panel_end(ui::Layout &layout, PointerRNA *ptr)
     ui::Layout &sub = row.row(true);
     sub.prop(ptr, "use_layer_group_filter", UI_ITEM_NONE, "", ICON_GREASEPENCIL_LAYER_GROUP);
     sub.prop(ptr, "invert_layer_filter", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
+
+    ui::Layout &individual_row = layout.row(true);
+    individual_row.use_property_decorate_set(false);
+    individual_row.prop(
+        ptr, "use_individual_layer_mask", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   ShaderFxData *fx = static_cast<ShaderFxData *>(ptr->data);

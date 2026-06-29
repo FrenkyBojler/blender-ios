@@ -386,40 +386,84 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
     is_masked = valid_mask;
   }
 
-  /* Check if any object-level effect targets this layer via layer_name filter.
-   * Must mirror the match logic in vfx_layer_sync exactly so use_layer_vfx_fb is set
-   * whenever vfx_layer_sync will actually create passes for this layer. */
+  /* Check which effect mode applies to this layer:
+   *  - IndividualLayerMask ON:  per-layer VFX (layer_vfx_fb ping-pong).
+   *    No filter → all layers. Direct/group filter → matching layers.
+   *  - IndividualLayerMask OFF + filter set: joint-mask VFX (joint_fb accumulation).
+   *    Matching layers blend into one buffer; effect applied once to the merged result.
+   *  - IndividualLayerMask OFF + no filter: object-level VFX (unchanged behaviour). */
   bool has_layer_fx = false;
+  bool is_joint_member = false;
   if (onion_id == 0) {
     for (const ShaderFxData &fx : ob->shader_fx) {
-      if (fx.layer_name[0] == '\0') {
-        continue;
-      }
-      bool matches = false;
-      if (fx.flag & eShaderFxFlag_UseLayerGroupFilter) {
-        for (const bke::greasepencil::LayerGroup *group : grease_pencil.layer_groups()) {
-          if (group->name() == fx.layer_name) {
-            matches = layer.is_child_of(*group);
-            break;
+      const bool individual = (fx.flag & eShaderFxFlag_IndividualLayerMask) != 0;
+
+      if (individual) {
+        /* --- Individual path --- */
+        if (fx.layer_name[0] == '\0') {
+          has_layer_fx = true;
+          inst->use_layer_vfx_fb = true;
+        }
+        else if (fx.flag & eShaderFxFlag_UseLayerGroupFilter) {
+          for (const bke::greasepencil::LayerGroup *group : grease_pencil.layer_groups()) {
+            if (group->name() == fx.layer_name) {
+              bool in_group = layer.is_child_of(*group);
+              if (fx.flag & eShaderFxFlag_InvertLayerFilter) {
+                in_group = !in_group;
+              }
+              if (in_group) {
+                has_layer_fx = true;
+                inst->use_layer_vfx_fb = true;
+              }
+              break;
+            }
+          }
+        }
+        else {
+          bool matches = STREQ(fx.layer_name, layer.name().c_str());
+          if (fx.flag & eShaderFxFlag_InvertLayerFilter) {
+            matches = !matches;
+          }
+          if (matches) {
+            has_layer_fx = true;
+            inst->use_layer_vfx_fb = true;
           }
         }
       }
-      else {
-        matches = STREQ(fx.layer_name, layer.name().c_str());
+      else if (fx.layer_name[0] != '\0') {
+        /* --- Joint path: filter set, no individual flag --- */
+        bool in_scope = false;
+        if (fx.flag & eShaderFxFlag_UseLayerGroupFilter) {
+          for (const bke::greasepencil::LayerGroup *group : grease_pencil.layer_groups()) {
+            if (group->name() == fx.layer_name) {
+              in_scope = layer.is_child_of(*group);
+              if (fx.flag & eShaderFxFlag_InvertLayerFilter) {
+                in_scope = !in_scope;
+              }
+              break;
+            }
+          }
+        }
+        else {
+          in_scope = STREQ(fx.layer_name, layer.name().c_str());
+          if (fx.flag & eShaderFxFlag_InvertLayerFilter) {
+            in_scope = !in_scope;
+          }
+        }
+        if (in_scope) {
+          is_joint_member = true;
+          inst->use_joint_fb = true;
+          inst->use_layer_vfx_fb = true;
+        }
       }
-      if (fx.flag & eShaderFxFlag_InvertLayerFilter) {
-        matches = !matches;
-      }
-      if (matches) {
-        has_layer_fx = true;
-        inst->use_layer_vfx_fb = true;
-        break;
-      }
+      /* else: no filter, not individual → object-level, nothing to mark here. */
     }
   }
+  tgp_layer->is_joint_member = is_joint_member;
 
-  /* Blending: Force blending for masked layer or when per-layer effects target this layer. */
-  if (is_masked || has_layer_fx || (layer.blend_mode != GP_LAYER_BLEND_NONE) ||
+  /* Blending: force blending for masked layers, per-layer VFX, joint-mask members,
+   * non-default blend mode, or low opacity. */
+  if (is_masked || has_layer_fx || is_joint_member || (layer.blend_mode != GP_LAYER_BLEND_NONE) ||
       (layer_opacity < 1.0f))
   {
     /* Skip stencil for layers with VFX: effects like glow and shadow extend pixels beyond
