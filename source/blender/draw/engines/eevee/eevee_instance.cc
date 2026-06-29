@@ -728,12 +728,9 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
   this->render_read_result(render_layer, view_name);
 
   if (!is_viewport()) {
-    char time_string[32];
-    double current_time = BLI_time_now_seconds();
-    BLI_timecode_string_from_time_simple(
-        time_string, sizeof(time_string), current_time - start_time);
+    double time_elapsed = BLI_time_now_seconds() - start_time;
     std::string message = fmt::format(
-        "Rendered {} samples in {} seconds", sampling.sample_index(), time_string);
+        "Rendered {} samples in {:.6f} seconds", sampling.sample_index(), time_elapsed);
     CLOG_INFO(&Instance::log, message.c_str());
   }
 
