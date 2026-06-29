@@ -299,6 +299,10 @@ static void ensure_baked_fcurves(Main &bmain,
       paste_fcu.fcurve = &fcurve;
       paste_fcu.created_on_paste = true;
     }
+    if (!paste_fcu.fcurve->bezt) {
+      /* Avoid crashes with sampled FCurves. */
+      continue;
+    }
     ar::bake_fcurve(
         paste_fcu.fcurve, {range.min, range.max - 1}, 1, ar::BakeCurveRemove::IN_RANGE);
     paste_fcu.paste_start_index = BKE_fcurve_bezt_binarysearch_index(
@@ -322,7 +326,6 @@ static bool is_fcurve_flat(FCurve &fcurve)
 
   if (!fcurve.bezt) {
     /* FPoint is not yet supported. */
-    BLI_assert_unreachable();
     return false;
   }
 
@@ -369,6 +372,7 @@ static void clean_baked_fcurves(AnimTransformable &transformable,
       continue;
     }
     if (is_fcurve_flat(*paste_fcurve.fcurve)) {
+      BLI_assert(paste_fcurve.fcurve->bezt != nullptr);
       values[paste_fcurve.fcurve->array_index] = paste_fcurve.fcurve->bezt[0].vec[1][1];
       channelbag.fcurve_remove(*paste_fcurve.fcurve);
       paste_fcurve.fcurve = nullptr;
@@ -398,6 +402,9 @@ static Rotation set_keys_to_transform(TransformFCurves &t_fcus,
   for (const int i : t_fcus.location.index_range()) {
     PasteFCurve &pfcu = t_fcus.location[i];
     BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
+    if (!pfcu.fcurve->bezt) {
+      continue;
+    }
     const int bezt_index = pfcu.paste_start_index + paste_index;
     BezTriple &key = pfcu.fcurve->bezt[bezt_index];
     BKE_fcurve_keyframe_move_value_with_handles(&key, location[i]);
@@ -406,6 +413,9 @@ static Rotation set_keys_to_transform(TransformFCurves &t_fcus,
   for (const int i : t_fcus.rotation.index_range()) {
     PasteFCurve &pfcu = t_fcus.rotation[i];
     BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
+    if (!pfcu.fcurve->bezt) {
+      continue;
+    }
     const int bezt_index = pfcu.paste_start_index + paste_index;
     BezTriple &key = pfcu.fcurve->bezt[bezt_index];
     BKE_fcurve_keyframe_move_value_with_handles(&key, rotation.values[i]);
@@ -414,6 +424,9 @@ static Rotation set_keys_to_transform(TransformFCurves &t_fcus,
   for (const int i : t_fcus.scale.index_range()) {
     PasteFCurve &pfcu = t_fcus.scale[i];
     BLI_assert(pfcu.paste_start_index + paste_index < pfcu.fcurve->totvert);
+    if (!pfcu.fcurve->bezt) {
+      continue;
+    }
     const int bezt_index = pfcu.paste_start_index + paste_index;
     BezTriple &key = pfcu.fcurve->bezt[bezt_index];
     BKE_fcurve_keyframe_move_value_with_handles(&key, scale[i]);
@@ -618,7 +631,7 @@ static Array<TransformFCurves> build_fcurves_for_paste(
         bmain, *transformable, transform_fcurves.rotation, channelbag, rot_path, range);
     ensure_baked_fcurves(
         bmain, *transformable, transform_fcurves.scale, channelbag, scale_path, range);
-    if (rotation_mode_fcurve) {
+    if (rotation_mode_fcurve && rotation_mode_fcurve->bezt) {
       /* We have to ensure the whole range uses the same rotation mode, otherwise it wouldn't be
        * guaranteed that the rotation FCurves will be used over the full range. Changing euler to
        * quaternion would change which FCurves are read from. */
