@@ -269,7 +269,7 @@ bool VKTopLevelAS::build()
   /* TODO: Only create when size differs from previous allocation. */
   VKBuffer device_scratch_space;
   device_scratch_space.create(
-      align_allocation_size(
+      ceil_to_multiple_ul(
           do_update ? vk_acceleration_structure_build_sizes_info.updateScratchSize :
                       vk_acceleration_structure_build_sizes_info.buildScratchSize,
           acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment),
@@ -284,7 +284,7 @@ bool VKTopLevelAS::build()
 
   build_geometry_infos.scratchData.deviceAddress = device_scratch_space.device_address_get();
   node_data.vk_acceleration_structure_build_geometry_info.scratchData.deviceAddress =
-      align_memory_address(
+      ceil_to_multiple_ul(
           device_scratch_space.device_address_get(),
           acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment);
   node_data.vk_acceleration_structure_build_geometry_info.dstAccelerationStructure =
@@ -485,7 +485,7 @@ bool VKBottomLevelAS::build()
   /* Create scratch space for building */
   VKBuffer device_scratch_space;
   device_scratch_space.create(
-      align_allocation_size(
+      ceil_to_multiple_ul(
           vk_acceleration_structure_build_sizes_info.buildScratchSize,
           acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
@@ -499,7 +499,7 @@ bool VKBottomLevelAS::build()
 
   build_geometry_infos.scratchData.deviceAddress = device_scratch_space.device_address_get();
   node_data.vk_acceleration_structure_build_geometry_info.scratchData.deviceAddress =
-      align_memory_address(
+      ceil_to_multiple_ul(
           device_scratch_space.device_address_get(),
           acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment);
   node_data.vk_acceleration_structure_build_geometry_info.dstAccelerationStructure =

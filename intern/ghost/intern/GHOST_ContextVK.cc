@@ -758,7 +758,7 @@ struct GHOST_InstanceVK {
         device.features_acceleration_structure.accelerationStructure,
         VK_FALSE,
         VK_FALSE,
-        device.features_acceleration_structure.accelerationStructureHostCommands,
+        VK_FALSE,
         VK_FALSE};
     if (device.extensions.is_enabled(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&acceleration_structure);

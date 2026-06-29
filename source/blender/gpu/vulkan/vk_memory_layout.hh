@@ -18,26 +18,6 @@
 namespace blender::gpu {
 
 /**
- * Return the next aligned memory address of the given memory address using the given alignment.
- * Also supports an alignment of 0 or 1.
- */
-static inline VkDeviceSize align_memory_address(VkDeviceSize memory_address,
-                                                VkDeviceSize alignment)
-{
-  return alignment < 2 ? memory_address : (memory_address + alignment - 1) & ~(alignment - 1);
-}
-
-/**
- * Return the needed allocation size for the given allocation_size parameter. It reseves additional
- * space to ensure that provided alignment can happen.
- */
-static inline VkDeviceSize align_allocation_size(VkDeviceSize allocation_size,
-                                                 VkDeviceSize alignment)
-{
-  return alignment < 2 ? allocation_size : allocation_size + alignment;
-}
-
-/**
  * Information about alignment/components and memory size for types when using std140 layout.
  */
 struct Std140 {
@@ -102,7 +82,7 @@ template<typename LayoutT>
 static void align(const shader::Type &type, const int32_t array_size, uint32_t *r_offset)
 {
   uint32_t alignment = LayoutT::element_alignment(type, array_size != 0);
-  *r_offset = align_memory_address(*r_offset, alignment);
+  *r_offset = ceil_to_multiple_ul(*r_offset, alignment);
 }
 
 /**

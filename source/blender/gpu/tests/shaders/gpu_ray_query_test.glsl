@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-// TODO: we should include a library that will map the vulkan extension to `gpu_*` attributes.
-// This allows metal to map to their internal functions.
-// See https://github.com/KhronosGroup/GLSL/blob/main/extensions/ext/GLSL_EXT_ray_query.txt
-
 #include "infos/gpu_shader_test_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(gpu_ray_query_test)

@@ -228,8 +228,12 @@ void memoryBarrierImage() {}
 void memoryBarrierBuffer() {}
 void groupMemoryBarrier() {}
 
-/* Ray Queries */
-/* TODO: Use our own API abstraction. */
+/**
+ * Ray Queries.
+ * See https://github.com/KhronosGroup/GLSL/blob/main/extensions/ext/GLSL_EXT_ray_query.txt
+ */
+
+/* TODO: Use our own API abstraction for Metal compatibility. */
 
 struct rayQueryEXT {};
 struct accelerationStructureEXT {};

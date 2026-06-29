@@ -30,7 +30,7 @@ uchar *VKImmediate::begin()
   const size_t bytes_needed = vertex_buffer_size(&vertex_format, vertex_len + add_vertex);
   size_t offset_alignment = GPU_storage_buffer_alignment();
   VKBuffer &buffer = ensure_space(bytes_needed, offset_alignment);
-  buffer_offset_ = align_memory_address(buffer_offset_, offset_alignment);
+  buffer_offset_ = ceil_to_multiple_ul(buffer_offset_, offset_alignment);
 
   current_subbuffer_len_ = bytes_needed;
   uchar *data = static_cast<uchar *>(buffer.mapped_memory_get());
@@ -116,7 +116,7 @@ static VkDeviceSize new_buffer_size(VkDeviceSize sub_buffer_size)
 
 VKBuffer &VKImmediate::ensure_space(VkDeviceSize bytes_needed, VkDeviceSize offset_alignment)
 {
-  VkDeviceSize bytes_required = align_allocation_size(bytes_needed, offset_alignment);
+  VkDeviceSize bytes_required = ceil_to_multiple_ul(bytes_needed, offset_alignment);
 
   /* Last used buffer still has space. */
   if (active_buffer_.has_value() && buffer_bytes_free() >= bytes_required) {
