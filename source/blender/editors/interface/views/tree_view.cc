@@ -1169,7 +1169,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
 
   Layout *row = &overlap.row(false);
   /* Enable emboss for mouse hover highlight. */
-  row->emboss_set(EmbossType::Emboss);
+  row->emboss_set(item.is_interactive_ ? EmbossType::Emboss : EmbossType::None);
   /* Every item gets one! Other buttons can be overlapped on top. */
   item.add_treerow_button(block_);
 
