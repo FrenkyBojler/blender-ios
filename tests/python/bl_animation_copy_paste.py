@@ -185,8 +185,6 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         # The action is created.
         assert action is not None
         channelbag = action.layers[0].strips[0].channelbags[0]
-        for fcurve in channelbag.fcurves:
-            print("Not removed FCurve: ", fcurve.data_path)
         self.assertEqual(len(channelbag.fcurves), 0)
 
     def test_paste_pose_bone(self) -> None:

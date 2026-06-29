@@ -83,7 +83,7 @@ class AnimTransformable {
   /* This is the path from the owner ID to the struct that the AnimTransformable represents. Has to
    * be created in the constructor. For structs that are an ID this is an empty string. */
   std::string rna_path_from_id_;
-  char *name_;
+  StringRefNull name_;
 
   /* We are assuming here that the ground truth of transforms is store in separate loc rot scale
    * and not in a matrix, thus skew is not supported. */

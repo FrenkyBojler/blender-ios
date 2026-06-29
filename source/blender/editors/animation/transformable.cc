@@ -109,11 +109,11 @@ Array<float> property_interpolated(const Span<float> a, const Span<float> b, con
 
 float4x4 get_world_space(const Depsgraph &depsgraph, const AnimTransformable &transformable)
 {
-  ID *eval_id = DEG_get_evaluated_id(&depsgraph, transformable.owner_id());
-  BLI_assert(eval_id);
+  ID *evaluated_id = DEG_get_evaluated_id(&depsgraph, transformable.owner_id());
+  BLI_assert(evaluated_id);
   switch (transformable.type()) {
     case AnimTransformable::Type::POSE_BONE: {
-      Object *ob_eval = id_cast<Object *>(eval_id);
+      Object *ob_eval = id_cast<Object *>(evaluated_id);
       bPoseChannel *pose_bone_eval = BKE_pose_channel_find_name(ob_eval->pose,
                                                                 transformable.name().data());
       if (!pose_bone_eval) {
@@ -123,7 +123,7 @@ float4x4 get_world_space(const Depsgraph &depsgraph, const AnimTransformable &tr
       return ob_eval->object_to_world() * float4x4(pose_bone_eval->pose_mat);
     }
     case AnimTransformable::Type::OBJECT: {
-      Object *ob_eval = id_cast<Object *>(eval_id);
+      Object *ob_eval = id_cast<Object *>(evaluated_id);
       return ob_eval->object_to_world();
     }
   }
@@ -164,11 +164,11 @@ float4x4 world_to_local(const Depsgraph &depsgraph,
                         const AnimTransformable &transformable,
                         const float4x4 &world_matrix)
 {
-  ID *eval_id = DEG_get_evaluated_id(&depsgraph, transformable.owner_id());
-  BLI_assert(eval_id);
+  ID *evaluated_id = DEG_get_evaluated_id(&depsgraph, transformable.owner_id());
+  BLI_assert(evaluated_id);
   switch (transformable.type()) {
     case AnimTransformable::Type::POSE_BONE: {
-      Object *ob_eval = id_cast<Object *>(eval_id);
+      Object *ob_eval = id_cast<Object *>(evaluated_id);
       bPoseChannel *pose_bone_eval = BKE_pose_channel_find_name(ob_eval->pose,
                                                                 transformable.name().data());
       if (!pose_bone_eval) {
@@ -185,7 +185,7 @@ float4x4 world_to_local(const Depsgraph &depsgraph,
     }
 
     case AnimTransformable::Type::OBJECT: {
-      Object *ob_eval = id_cast<Object *>(eval_id);
+      Object *ob_eval = id_cast<Object *>(evaluated_id);
       float4x4 parent_matrix = float4x4::identity();
       if (ob_eval->parent) {
         parent_matrix = ob_eval->parent->world_to_object();

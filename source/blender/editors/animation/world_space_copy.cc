@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <iostream>
-
 #include "BLI_bounds.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_matrix_c.hh"
@@ -56,7 +54,7 @@ struct TransformableRelations {
   /* Indicates that this data has been processed. */
   bool done = false;
 
-  bool can_insert()
+  bool all_ancestors_done()
   {
     if (done) {
       /* Already applied. Don't apply twice. */
@@ -254,7 +252,7 @@ static Vector<AnimTransformable *> depsgraph_sorted_transformables(
   while (true) {
     bool inserted_any = false;
     for (TransformableRelations &relations : transformable_relations) {
-      if (!relations.can_insert()) {
+      if (!relations.all_ancestors_done()) {
         continue;
       }
       sorted_transformables.append(relations.transformable);
@@ -735,6 +733,7 @@ static void paste_world_space(Main &bmain,
   if (sorted_transformables.size() != pasteables.size()) {
     BKE_report(
         &reports, RPT_ERROR, "Failed to figure out pasting order. Potential dependency cycle");
+    DEG_graph_free(depsgraph);
     return;
   }
 
