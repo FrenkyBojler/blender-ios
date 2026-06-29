@@ -15,6 +15,9 @@ REM Example: vmprep.cmd unattended blender-v5.2-release
 set UNATTENDED=0
 set BRANCH=main
 
+REM THIS IS ONLY USED FOR WIP TESTING THIS BRANCH
+set TEMP_WIP_BRANCH=bartvdbraak/blender/raw/branch/windows-vmprep-improvements
+
 :parse_args
 if "%1"=="unattended" (
     set UNATTENDED=1
@@ -87,7 +90,7 @@ mkdir C:\t
 echo Obtaining Visual Studio 2022 Buildtools installer
 curl -s https://download.visualstudio.microsoft.com/download/pr/c2e2845d-bdff-44fc-ac00-3d488e9f5675/abdb87ff12fe1885ccc4964b4ab51da566549fd2096d7ceb1fdea907372f21d7/vs_BuildTools.exe -o C:\install\vs_BuildTools.exe
 echo Obtaining Visual Studio 2022 Buildtools installer configuration
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/vsconfig_x64_vs2022 -o C:\install\.vsconfig
+curl -s https://projects.blender.org/%TEMP_WIP_BRANCH%/build_files/build_environment/windows/vsconfig_x64_vs2022 -o C:\install\.vsconfig
 echo Installing Visual Studio 2022 Buildtools installer
 C:\install\vs_BuildTools.exe --wait --quiet --norestart --installPath C:\vs2022bt\ --config C:\install\.vsconfig
 
@@ -150,7 +153,7 @@ git clone --quiet --branch %BRANCH% https://projects.blender.org/blender/blender
 
 mkdir C:\db
 echo Obtaining vmbuild.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/vmbuild_x64.cmd.txt -o C:\db\vmbuild.cmd
+curl -s https://projects.blender.org/%TEMP_WIP_BRANCH%/build_files/build_environment/windows/vmbuild_x64.cmd.txt -o C:\db\vmbuild.cmd
 echo Obtaining nuke.cmd
 curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke.cmd -o C:\db\nuke.cmd
 echo Obtaining nuke_python.cmd
