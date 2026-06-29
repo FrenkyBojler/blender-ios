@@ -134,6 +134,7 @@ class AnimTransformable {
    * Returns a string to the given property type.
    */
   std::string rna_path_to_property(PropertyType prop_type) const;
+  std::string rna_path_to_rotation_mode() const;
 
   /**
    * Returns a copy of the rotation in the mode the transformable is currently in.

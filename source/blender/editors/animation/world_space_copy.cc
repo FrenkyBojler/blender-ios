@@ -586,12 +586,13 @@ static Array<TransformFCurves> build_fcurves_for_paste(
     }
     const std::string loc_path = transformable->rna_path_to_property(
         AnimTransformable::PropertyType::LOCATION);
-    /* TODO
-     * This will fail if the rotation mode is animated to jump from e.g. euler to quaternion */
     const std::string rot_path = transformable->rna_path_to_property(
         AnimTransformable::PropertyType::ROTATION);
     const std::string scale_path = transformable->rna_path_to_property(
         AnimTransformable::PropertyType::SCALE);
+    const std::string rotation_mode_path = transformable->rna_path_to_rotation_mode();
+
+    FCurve *rotation_mode_fcurve = nullptr;
 
     for (FCurve *fcurve : channelbag.fcurves()) {
       StringRefNull fcurve_path(fcurve->rna_path);
@@ -604,6 +605,10 @@ static Array<TransformFCurves> build_fcurves_for_paste(
       else if (fcurve_path == scale_path) {
         transform_fcurves.scale[fcurve->array_index].fcurve = fcurve;
       }
+      else if (fcurve_path == rotation_mode_path) {
+        BLI_assert(rotation_mode_fcurve == nullptr);
+        rotation_mode_fcurve = fcurve;
+      }
     }
 
     /* Ensuring all FCurves exist. */
@@ -613,6 +618,22 @@ static Array<TransformFCurves> build_fcurves_for_paste(
         bmain, *transformable, transform_fcurves.rotation, channelbag, rot_path, range);
     ensure_baked_fcurves(
         bmain, *transformable, transform_fcurves.scale, channelbag, scale_path, range);
+    if (rotation_mode_fcurve) {
+      /* We have to ensure the whole range uses the same rotation mode, otherwise it wouldn't be
+       * guaranteed that the rotation FCurves will be used over the full range. Changing euler to
+       * quaternion would change which FCurves are read from. */
+      const eRotationModes current_mode = transformable->get_rotation_mode();
+      ar::bake_fcurve(
+          rotation_mode_fcurve, {range.min, range.max - 1}, 1, ar::BakeCurveRemove::IN_RANGE);
+      bool has_key_on_frame;
+      const int range_start_index = BKE_fcurve_bezt_binarysearch_index(
+          rotation_mode_fcurve->bezt, range.min, rotation_mode_fcurve->totvert, &has_key_on_frame);
+      BLI_assert(has_key_on_frame);
+      for (int frame = range.min; frame < range.max; frame++) {
+        BKE_fcurve_keyframe_move_value_with_handles(
+            &rotation_mode_fcurve->bezt[range_start_index + frame - range.min], current_mode);
+      }
+    }
   }
 
   return fcurve_buffer;
