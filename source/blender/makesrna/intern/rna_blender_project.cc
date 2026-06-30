@@ -155,24 +155,24 @@ static bUserAssetLibrary *rna_BlenderProject_asset_library_new(const bContext *C
 {
   bUserAssetLibrary *new_library;
   Main *bmain = CTX_data_main(C);
-  bke::BlenderProject *project = BKE_blender_project_get(bmain);
-  new_library = ED_userpref_asset_library_new(
-      C, name ? name : "", directory ? directory : "", bUserAssetLibraryAddType::Local, true);
 
-  int project_asset_index = -1;
-  for (bUserAssetLibrary &library : U.asset_libraries) {
-    if (library.flag & ASSET_LIBRARY_PROJECT_DEFINED) {
-      project_asset_index++;
+  BKE_blender_project_write_callback(bmain, [&](bke::BlenderProject *project) {
+    new_library = ED_userpref_asset_library_new(
+        C, name ? name : "", directory ? directory : "", bUserAssetLibraryAddType::Local, true);
+
+    int project_asset_index = -1;
+    for (bUserAssetLibrary &library : U.asset_libraries) {
+      if (library.flag & ASSET_LIBRARY_PROJECT_DEFINED) {
+        project_asset_index++;
+      }
+      if (&library == new_library) {
+        break;
+      }
     }
-    if (&library == new_library) {
-      break;
-    }
-  }
 
-  bke::with_blender_project_write_lock(
-      [&] { project->active_asset_library = project_asset_index; });
-
-  project_mark_dirty(project);
+    project->active_asset_library = project_asset_index;
+    project->is_dirty = true;
+  });
   /* Force full redraw of all windows. (No notifier to redraw just the project asset windows yet)
    */
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -185,25 +185,26 @@ static void rna_BlenderProject_asset_library_remove(bContext *C,
 {
   bUserAssetLibrary *library = static_cast<bUserAssetLibrary *>(ptr->data);
   Main *bmain = CTX_data_main(C);
-  bke::BlenderProject *project = BKE_blender_project_get(bmain);
 
-  if (BLI_findindex(&U.asset_libraries, library) == -1) {
-    BKE_report(reports, RPT_ERROR, "Asset Library not found");
-    return;
-  }
-
-  ED_userpref_asset_library_remove(C, library);
-
-  int count_remaining = 0;
-  for (bUserAssetLibrary &library : U.asset_libraries) {
-    if (library.flag & ASSET_LIBRARY_PROJECT_DEFINED) {
-      count_remaining++;
+  BKE_blender_project_write_callback(bmain, [&](bke::BlenderProject *project) {
+    if (BLI_findindex(&U.asset_libraries, library) == -1) {
+      BKE_report(reports, RPT_ERROR, "Asset Library not found");
+      return;
     }
-  }
-  CLAMP(project->active_asset_library, 0, count_remaining - 1);
 
-  ptr->invalidate();
-  project_mark_dirty(project);
+    ED_userpref_asset_library_remove(C, library);
+
+    int count_remaining = 0;
+    for (bUserAssetLibrary &library : U.asset_libraries) {
+      if (library.flag & ASSET_LIBRARY_PROJECT_DEFINED) {
+        count_remaining++;
+      }
+    }
+    CLAMP(project->active_asset_library, 0, count_remaining - 1);
+
+    ptr->invalidate();
+    project->is_dirty = true;
+  });
   /* Force full redraw of all windows.(No notifier to redraw just the project asset windows yet) */
   WM_main_add_notifier(NC_WINDOW, nullptr);
 }
