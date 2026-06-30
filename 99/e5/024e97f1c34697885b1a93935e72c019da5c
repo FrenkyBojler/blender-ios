@@ -9,3 +9,4 @@ Referenced by issue #102333, Regression: Context based keyboard shortcuts missin
 Referenced by issue #102242, Regression: Underline shortcut keys not working/appearing in sub-menu
 Referenced by pull request #159303, UI: Support refreshing sub-menus
 Referenced by commit 3f1a36263f32a9ed15957eda76e72c2ef0bbfff8, UI: Support refreshing sub-menus
+Referenced by commit af6bd4bba474784551e3865b27150ee3210d0fd3, UI: Support refreshing sub-menus
