@@ -726,8 +726,7 @@ static void item_free(bNodeTreeInterfaceItem &item, const bool do_id_user)
       MEM_SAFE_DELETE(socket.default_attribute_name);
       MEM_SAFE_DELETE(socket.identifier);
       if (socket.properties) {
-        IDP_FreePropertyContent_ex(socket.properties, do_id_user);
-        MEM_delete(socket.properties);
+        IDP_FreeProperty_ex(socket.properties, do_id_user);
       }
       break;
     }
@@ -896,7 +895,11 @@ using namespace blender::bke::node_interface;
 
 bke::bNodeSocketType *bNodeTreeInterfaceSocket::socket_typeinfo() const
 {
-  return bke::node_socket_type_find(socket_type);
+  bke::bNodeSocketType *value = bke::node_socket_type_find(socket_type);
+  if (!value) {
+    return &bke::NodeSocketTypeUndefined;
+  }
+  return value;
 }
 
 ColorGeometry4f bNodeTreeInterfaceSocket::socket_color() const
