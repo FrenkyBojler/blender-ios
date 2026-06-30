@@ -13,6 +13,7 @@
 #include "BLI_string_utils.hh"
 
 #include "BKE_idprop.hh"
+#include "BKE_context.hh"
 #include "BLT_translation.hh"
 
 #include "UI_tree_view.hh"
@@ -31,9 +32,10 @@ namespace blender::ui::id_properties {
 
 class IDPropertyView : public AbstractTreeView {
  public:
+  ARegion *region_;
   const char *data_path_;
-  IDPropertyView(PointerRNA *prop_ptr, const char *data_path)
-      : data_path_(data_path), prop_ptr_(prop_ptr)
+  IDPropertyView(ARegion *region, PointerRNA *prop_ptr, const char *data_path)
+      : region_(region), data_path_(data_path), prop_ptr_(prop_ptr)
   {
     is_flat_ = true;
     user_properties_ = RNA_struct_idprops(prop_ptr_, false);
@@ -174,7 +176,9 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   bool supports_renaming() const override
   {
-    return true;
+    const IDPropertyView &view = static_cast<IDPropertyView &>(get_tree_view());
+    const ARegion *region = view.region_;
+    return region && (region->regiontype != RGN_TYPE_UI);
   }
 
   bool rename(const bContext &C, StringRefNull new_name) override
@@ -241,6 +245,11 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
+    const IDPropertyView &view = static_cast<IDPropertyView &>(get_tree_view());
+    const ARegion *region = view.region_;
+    if (region && region->regiontype == RGN_TYPE_UI) {
+      return nullptr;
+    }
     return std::make_unique<IDPropertyDragController>(
         static_cast<IDPropertyView &>(get_tree_view()), user_properties_, property_);
   }
@@ -274,7 +283,7 @@ void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, const char 
   Block *block = layout->block();
 
   ui::AbstractTreeView *tree_view = block_add_view(
-      *block, "IDProperty Tree View", std::make_unique<IDPropertyView>(ptr, data_path));
+      *block, "IDProperty Tree View", std::make_unique<IDPropertyView>(CTX_wm_region(C), ptr, data_path));
   tree_view->set_context_menu_title("ID Property");
   tree_view->set_default_rows(4);
 
@@ -357,11 +366,11 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
   PointerRNA propui_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
 
   const bool is_number = ELEM(srna, RNA_IDPropertyUIDataInt, RNA_IDPropertyUIDataFloat);
-  const bool is_number_or_boolean = is_number || srna == RNA_IDPropertyUIDataBool;
+  const bool supports_default_value = srna != RNA_IDPropertyUIDataID;
   const bool is_array = active_prop->type == IDP_ARRAY;
 
   /* Draw `ui_data` of active IDProperty. */
-  if (is_number_or_boolean) {
+  if (supports_default_value) {
     if (is_array) {
       layout->prop(&prop_ptr, "length", UI_ITEM_NONE, "Length", ICON_NONE);
       layout->prop(&propui_ptr, "default_array", ui::ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
