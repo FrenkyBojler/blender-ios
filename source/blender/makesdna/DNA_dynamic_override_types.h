@@ -27,9 +27,12 @@ enum class DynamicOverrideRuleTargetFilterType : int8_t {
 
 struct DynamicOverrideRuleTargetFilter {
   DynamicOverrideRuleTargetFilterType type = {};
-  int8_t _pad[7] = {};
+  int8_t _pad[5] = {};
 
   /* Type-specific data. */
+
+  /** Type of the `target_id`. */
+  short id_type = ID_OB;
 
   /** For DynamicOverrideRuleTargetFilterType::IDSingle, the affected ID. */
   ID *target_id = nullptr;

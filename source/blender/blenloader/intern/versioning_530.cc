@@ -9,6 +9,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
+#include "DNA_dynamic_override_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase_iterator.hh"
@@ -30,8 +31,18 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-void do_versions_after_linking_530(FileData * /*fd*/, Main * /*bmain*/)
+void do_versions_after_linking_530(FileData * /*fd*/, Main *bmain)
 {
+
+  /* Temp for WIP dev testing files, to be removed. */
+  {
+    for (DynamicOverride &dynoverride : bmain->dynamic_overrides) {
+      for (DynamicOverrideRule &rule : dynoverride.rules) {
+        rule.target_filter.id_type = GS(rule.target_filter.target_id->name);
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

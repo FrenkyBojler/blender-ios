@@ -98,7 +98,9 @@ class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
             col = panel_body.column()
             col.active = not rule.is_muted
             if isinstance(rule.target_filter, bpy.types.DynamicOverrideRuleTargetFilterIDSingle):
-                col.prop(rule.target_filter, "target_id")
+                row = col.row()
+                label_text = iface_("Target {}")
+                row.prop(rule.target_filter, "target_id", text=label_text.format(rule.target_filter.bl_rna.properties['id_type'].enum_items[rule.target_filter.id_type].name))
 
             if isinstance(rule, bpy.types.DynamicOverrideRuleIDData):
                 for prop in rule.properties:
