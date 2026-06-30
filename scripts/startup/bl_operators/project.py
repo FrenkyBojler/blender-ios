@@ -40,34 +40,40 @@ class VariableType(Enum):
     STRING = 'STRING'
 
 
+class VariableSubtype(Enum):
+    NONE = 'NONE'
+    FILEPATH = 'FILEPATH'
+
+
 @dataclass
 class ProjectVariable:
     name: str
     type: VariableType
     value: int | str | float
     description: str
+    subtype: VariableSubtype | None = None
 
     @staticmethod
     def new_from_real(project_variable):
         """Create a ProjectVariable config object from an existing real project variable."""
-        match project_variable.type:
-            case 'INTEGER':
-                value = project_variable.value_int
-            case 'FLOAT':
-                value = project_variable.value_float
-            case 'STRING':
-                value = project_variable.value_string
+        subtype = None
+        if project_variable.type == 'STRING':
+            subtype = VariableSubtype(project_variable.subtype)
+
         return ProjectVariable(
             name=project_variable.name,
             type=VariableType(project_variable.type),
-            value=value,
+            value=project_variable.value,
             description=project_variable.description,
+            subtype=subtype,
         )
 
     def add_as_real(self, variables):
         """Adds this as a real variable to the given real project variables list."""
         variable = variables.new(name=self.name, type=self.type.value)
         variable.value = self.value
+        if self.subtype is not None and self.type == VariableType.STRING:
+            variable.subtype = self.subtype
         variable.description = self.description
 
     def __post_init__(self):
@@ -82,6 +88,7 @@ class ProjectVariable:
                 "Invalid variable name '{:s}': variable names must not start with a digit, and "
                 "must contain only alphanumeric characters and underscores.")
 
+        # Check that value matches the declared variable type.
         match (self.type, self.value):
             case (VariableType.INTEGER, int()):
                 pass
@@ -89,10 +96,24 @@ class ProjectVariable:
                 pass
             case (VariableType.STRING, str()):
                 pass
-            case (VariableType.FILEPATH, str()):
-                pass
             case _:
                 raise ValueError("Actual and declared type of project variable '{:s}' do not match.".format(self.name))
+
+        # Check that value matches the declared variable type.
+        match (self.type, self.subtype):
+            case (VariableType.INTEGER, None):
+                pass
+            case (VariableType.FLOAT, None):
+                pass
+            case (VariableType.STRING, None) | (VariableType.STRING, VariableSubtype.NONE) \
+                    | (VariableType.STRING, VariableSubtype.FILEPATH):
+                pass
+            case _:
+                raise ValueError("Invalid subtype '{:s}' for variable type '{:s}' of variable '{:s}'.".format(
+                    self.type.value,
+                    self.subtype.value,
+                    self.name,
+                ))
 
 
 @dataclass
