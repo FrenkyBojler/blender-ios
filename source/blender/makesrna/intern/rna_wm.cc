@@ -11,7 +11,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_string_utf8_symbols.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string_utf8_symbols.hh"
 
 #include "BLT_translation.hh"
 
@@ -32,10 +33,10 @@
 
 #  include "DNA_userdef_types.h"
 
-#  include "BLI_listbase.h"
-#  include "BLI_math_vector.h"
-#  include "BLI_string.h"
-#  include "BLI_string_utf8.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_math_vector_c.hh"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
 
 #  include "BKE_keyconfig.h"
 #  include "BKE_main.hh"
@@ -1523,10 +1524,46 @@ static void rna_WindowManager_operators_begin(CollectionPropertyIterator *iter, 
   rna_iterator_listbase_begin(iter, ptr, &wm->runtime->operators, nullptr);
 }
 
+static void rna_WindowManager_reports_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  rna_iterator_listbase_begin(iter, ptr, &wm->runtime->reports.list, nullptr);
+}
+
+static int rna_Report_session_uid_get(PointerRNA *ptr)
+{
+  const Report *report = static_cast<const Report *>(ptr->data);
+  return report->session_uid;
+}
+
+static int rna_Report_type_get(PointerRNA *ptr)
+{
+  const Report *report = static_cast<const Report *>(ptr->data);
+  return report->type;
+}
+
+static void rna_Report_message_get(PointerRNA *ptr, char *value)
+{
+  const Report *report = static_cast<const Report *>(ptr->data);
+  strcpy(value, report->message);
+}
+
+static int rna_Report_message_length(PointerRNA *ptr)
+{
+  const Report *report = static_cast<const Report *>(ptr->data);
+  return report->len;
+}
+
 static void rna_WindowManager_keyconfigs_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
   rna_iterator_listbase_begin(iter, ptr, &wm->runtime->keyconfigs, nullptr);
+}
+
+static bool rna_WindowManager_is_event_handling_break_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  return wm->runtime->break_events_handling;
 }
 
 static PointerRNA rna_WindowManager_xr_session_state_get(PointerRNA *ptr)
@@ -1541,6 +1578,12 @@ static PointerRNA rna_WindowManager_xr_session_state_get(PointerRNA *ptr)
 #  endif
 
   return RNA_pointer_create_with_parent(*ptr, RNA_XrSessionState, state);
+}
+
+static PointerRNA rna_WindowManager_undo_stack_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_UndoStack, wm->runtime->undo_stack);
 }
 
 #  ifdef WITH_PYTHON
@@ -1590,7 +1633,7 @@ static wmOperatorStatus rna_operator_exec_cb(bContext *C, wmOperator *op)
 
   RNA_parameter_list_free(&list);
 
-  if (UNLIKELY(has_error)) {
+  if (has_error) [[unlikely]] {
     /* A modal handler may have been added, ensure this is removed, see: #113479. */
     WM_event_remove_modal_handler_all(op, false);
   }
@@ -1647,7 +1690,7 @@ static wmOperatorStatus rna_operator_invoke_cb(bContext *C, wmOperator *op, cons
 
   RNA_parameter_list_free(&list);
 
-  if (UNLIKELY(has_error)) {
+  if (has_error) [[unlikely]] {
     /* A modal handler may have been added, ensure this is removed, see: #113479. */
     WM_event_remove_modal_handler_all(op, false);
   }
@@ -2396,6 +2439,7 @@ static void rna_def_operator_filelist_element(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Operator File List Element", "");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_FILENAME);
+  RNA_def_property_string_maxlength(prop, FILE_MAX);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   RNA_def_property_ui_text(prop, "Name", "Name of a file or directory within a file list");
 }
@@ -2893,6 +2937,33 @@ static void rna_def_wm_keyconfigs(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_api_keyconfigs(srna);
 }
 
+static void rna_def_report(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "Report", nullptr);
+  RNA_def_struct_sdna(srna, "Report");
+  RNA_def_struct_ui_text(srna, "Report", "Report entry");
+
+  prop = RNA_def_property(srna, "session_uid", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_int_funcs(prop, "rna_Report_session_uid_get", nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Session UID", "Unique per-session report identifier");
+
+  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_enum_items(prop, rna_enum_wm_report_items);
+  RNA_def_property_enum_funcs(prop, "rna_Report_type_get", nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Type", "Report type (severity)");
+
+  prop = RNA_def_property(srna, "message", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_string_funcs(
+      prop, "rna_Report_message_get", "rna_Report_message_length", nullptr);
+  RNA_def_property_ui_text(prop, "Message", "Report message text");
+}
+
 static void rna_def_windowmanager(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2919,6 +2990,19 @@ static void rna_def_windowmanager(BlenderRNA *brna)
                                     nullptr);
   RNA_def_property_ui_text(prop, "Operators", "Operator registry");
 
+  prop = RNA_def_property(srna, "reports", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Report");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_WindowManager_reports_begin",
+                                    "rna_iterator_listbase_next",
+                                    "rna_iterator_listbase_end",
+                                    "rna_iterator_listbase_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_ui_text(prop, "Reports", "Collection of reports");
+
   prop = RNA_def_property(srna, "windows", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "Window");
   RNA_def_property_ui_text(prop, "Windows", "Open windows");
@@ -2937,6 +3021,13 @@ static void rna_def_windowmanager(BlenderRNA *brna)
                                     nullptr);
   RNA_def_property_ui_text(prop, "Key Configurations", "Registered key configurations");
   rna_def_wm_keyconfigs(brna, prop);
+
+  prop = RNA_def_property(srna, "undo_stack", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "UndoStack");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Undo Stack", "Read-only access to the undo stack");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_WindowManager_undo_stack_get", nullptr, nullptr, nullptr);
 
   prop = RNA_def_property(srna, "xr_session_settings", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "xr.session_settings");
@@ -2960,6 +3051,14 @@ static void rna_def_windowmanager(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Extensions Blocked", "Number of installed extensions which are blocked");
   RNA_def_property_update(prop, 0, "rna_WindowManager_extensions_statusbar_update");
+
+  prop = RNA_def_property(srna, "is_event_handling_break", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_WindowManager_is_event_handling_break_get", nullptr);
+  RNA_def_property_ui_text(
+      prop,
+      "Event Handling Break",
+      "Remaining events in the queue are delayed until the next main loop iteration");
 
   RNA_api_wm(srna);
   RNA_api_asset_library_loading_status(srna);
@@ -3345,6 +3444,7 @@ void RNA_def_wm(BlenderRNA *brna)
   rna_def_popovermenu(brna);
   rna_def_piemenu(brna);
   rna_def_window(brna);
+  rna_def_report(brna);
   rna_def_windowmanager(brna);
   rna_def_keyconfig_prefs(brna);
   rna_def_keyconfig(brna);

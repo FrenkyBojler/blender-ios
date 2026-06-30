@@ -47,8 +47,8 @@
 #define __MEM_GUARDEDALLOC_H__
 
 /* Needed for uintptr_t and attributes, exception, don't use BLI anywhere else in `MEM_*` */
-#include "../../source/blender/blenlib/BLI_compiler_attrs.h"
-#include "../../source/blender/blenlib/BLI_sys_types.h"
+#include "../../source/blender/blenlib/BLI_compiler_attrs.hh"
+#include "../../source/blender/blenlib/BLI_sys_types.hh"
 
 #include <cstring>
 
@@ -187,7 +187,7 @@ extern void *(*mem_new_array_zeroed_aligned)(
  *
  * These functions allow to control the behavior of the guarded allocator, and to retrieve (debug)
  * information about allocated memory.
- */
+ * \{ */
 
 /**
  * Print a list of the names and sizes of all allocated memory

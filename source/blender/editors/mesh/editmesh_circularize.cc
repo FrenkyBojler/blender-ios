@@ -10,7 +10,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
 #include "BKE_object.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLT_translation.hh"
 
 #include <numbers>
@@ -42,6 +42,7 @@ static const EnumPropertyItem prop_fit_method_items[] = {
 
 static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -58,7 +59,7 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
   RNA_boolean_get_array(op->ptr, "lock", lock);
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   bool changed = false;
 
   for (Object *obedit : objects) {

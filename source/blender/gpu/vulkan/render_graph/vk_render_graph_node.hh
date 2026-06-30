@@ -62,16 +62,16 @@ struct VKRenderGraphStorage {
 
   void reset()
   {
-    begin_rendering.clear_and_shrink();
-    clear_attachments.clear_and_shrink();
-    blit_image.clear_and_shrink();
-    copy_buffer_to_image.clear_and_shrink();
-    copy_image.clear_and_shrink();
-    copy_image_to_buffer.clear_and_shrink();
-    draw.clear_and_shrink();
-    draw_indexed.clear_and_shrink();
-    draw_indexed_indirect.clear_and_shrink();
-    draw_indirect.clear_and_shrink();
+    begin_rendering.clear();
+    clear_attachments.clear();
+    blit_image.clear();
+    copy_buffer_to_image.clear();
+    copy_image.clear();
+    copy_image_to_buffer.clear();
+    draw.clear();
+    draw_indexed.clear();
+    draw_indexed_indirect.clear();
+    draw_indirect.clear();
     push_constants.clear();
   }
 };
@@ -103,9 +103,9 @@ struct VKRenderGraphNode {
   };
 
   struct {
-    /* Range where the input/output buffers are stored inside #VKRenderGraph.buffer_links_.*/
+    /** Range where the input/output buffers are stored inside #VKRenderGraph.buffer_links_. */
     IndexRange buffers;
-    /* Range where the input/output images are stored inside #VKRenderGraph.image_links_.*/
+    /** Range where the input/output images are stored inside #VKRenderGraph.image_links_. */
     IndexRange images;
   } links;
 

@@ -11,7 +11,7 @@
 #include "BLI_array.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_image_types.h"
@@ -38,6 +38,11 @@ struct PackedPixelRow {
   ushort uv_primitive_index;
 };
 
+struct PackedPixelRowPosition {
+  float3 start;
+  float3 delta;
+};
+
 /**
  * Node pixel data containing the pixels for a single UDIM tile.
  */
@@ -54,17 +59,23 @@ struct UDIMTilePixels {
 
   Vector<PackedPixelRow> pixel_rows;
 
+  /**
+   * Encoded 3D position data corresponding to each element of `pixel_rows`.
+   *
+   * Needs to be re-calculated when underlying mesh position data changes.
+   */
+  Vector<PackedPixelRowPosition> pixel_row_positions;
+
   UDIMTilePixels()
   {
     flags.dirty = false;
     BLI_rcti_init_minmax(&dirty_region);
   }
 
-  void mark_dirty(const PackedPixelRow &pixel_row)
+  void mark_dirty(const Bounds<int2> &bounds)
   {
-    int2 start_image_coord(pixel_row.start_image_coordinate.x, pixel_row.start_image_coordinate.y);
-    BLI_rcti_do_minmax_v(&dirty_region, start_image_coord);
-    BLI_rcti_do_minmax_v(&dirty_region, start_image_coord + int2(pixel_row.num_pixels + 1, 0));
+    BLI_rcti_do_minmax_v(&dirty_region, bounds.min);
+    BLI_rcti_do_minmax_v(&dirty_region, bounds.max);
     flags.dirty = true;
   }
 
@@ -85,29 +96,34 @@ struct UDIMTileUndo {
 /**
  * Contains triangle/pixel data used during texture painting.
  */
-struct NodeData {
+struct PixelNode {
   struct {
+    /* Indicates whether the node data was painted to */
     bool dirty : 1;
+
+    /* Indicates whether the node data should be rebuilt */
+    bool rebuild : 1;
   } flags;
 
-  Vector<UDIMTilePixels> tiles;
-  Vector<UDIMTileUndo> undo_regions;
+  Vector<UDIMTilePixels, 0> tiles;
+  Vector<UDIMTileUndo, 0> undo_regions;
 
   struct {
     /** Corresponding index into triangles */
-    Vector<int> tri_indices;
+    Vector<int, 0> tri_indices;
 
     /**
      * Delta barycentric coordinates between 2 neighboring UVs in the U direction.
      *
      * Only the first two coordinates are stored. The third should be recalculated
      */
-    Vector<float2> delta_barycentric_coords;
+    Vector<float2, 0> delta_barycentric_coords;
   } uv_primitives;
 
-  NodeData()
+  PixelNode()
   {
     flags.dirty = false;
+    flags.rebuild = true;
   }
 
   UDIMTilePixels *find_tile_data(const image::ImageTileWrapper &image_tile)
@@ -147,8 +163,8 @@ struct NodeData {
                    ImBuf &image_buffer)
   {
     if (tile.flags.dirty) {
-      if (image_buffer.planes == 8) {
-        image_buffer.planes = 32;
+      if (image_buffer.color_mode == ImColorMode::BW) {
+        image_buffer.color_mode = ImColorMode::RGBA;
         BKE_image_partial_update_mark_full_update(&image);
       }
       else {
@@ -173,12 +189,7 @@ struct NodeData {
     tiles.clear();
     uv_primitives.tri_indices.clear();
     uv_primitives.delta_barycentric_coords.clear();
-  }
-
-  static void free_func(void *instance)
-  {
-    NodeData *node_data = static_cast<NodeData *>(instance);
-    MEM_delete(node_data);
+    undo_regions.clear();
   }
 };
 
@@ -273,7 +284,7 @@ struct CopyPixelTile {
 
   void copy_pixels(ImBuf &tile_buffer, IndexRange group_range) const
   {
-    if (tile_buffer.float_buffer.data) {
+    if (tile_buffer.float_data()) {
       image::ImageBufferAccessor<float4> accessor(tile_buffer);
       copy_pixels<float4>(accessor, group_range);
     }
@@ -336,25 +347,26 @@ struct CopyPixelTiles {
 /**
  * Storage for texture painting on bke::pbvh::Tree level.
  */
-struct PBVHData {
+struct PixelData {
+  struct {
+    bool dirty : 1;
+  } flags;
+
   /* Per UVPRimitive contains the paint data. */
   Array<int3> vert_tris;
 
   /** Per ImageTile the pixels to copy to fix non-manifold bleeding. */
   CopyPixelTiles tiles_copy_pixels;
 
-  void clear_data()
-  {
-    this->vert_tris = {};
-  }
+  Vector<PixelNode> nodes;
 };
 
-NodeData &node_data_get(bke::pbvh::Node &node);
 void mark_image_dirty(bke::pbvh::Node &node,
+                      PixelNode &pixel_node,
                       Image &image,
                       Map<image::TileNumber, ImBuf *> &buffers);
-PBVHData &data_get(bke::pbvh::Tree &pbvh);
-void collect_dirty_tiles(bke::pbvh::Node &node, Vector<image::TileNumber> &r_dirty_tiles);
+PixelData &data_get(bke::pbvh::Tree &pbvh);
+void collect_dirty_tiles(PixelNode &pixel_node, Vector<image::TileNumber> &r_dirty_tiles);
 
 void copy_pixels(bke::pbvh::Tree &pbvh,
                  Map<image::TileNumber, ImBuf *> &buffers,

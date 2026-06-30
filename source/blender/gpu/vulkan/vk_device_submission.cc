@@ -11,7 +11,6 @@
 #include <thread>
 
 #include "BLI_mutex.hh"
-#include "BLI_task.h"
 
 #include "vk_device.hh"
 #include "vk_to_string.hh"
@@ -55,13 +54,6 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
                                             VkSemaphore signal_semaphore,
                                             VkFence signal_fence)
 {
-  if (render_graph->is_empty()) {
-    render_graph->reset();
-    BLI_thread_queue_push(
-        unused_render_graphs_, render_graph, BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL);
-    return timeline_value_;
-  }
-
   /* Syncing input flags. */
   /* When we wait for completion/submission we must submit to device. */
   submit_to_device |= wait_for_completion;
@@ -138,12 +130,10 @@ render_graph::VKRenderGraph *VKDevice::render_graph_new()
   return render_graph;
 }
 
-void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
+void VKDevice::submission_runner(VKDevice *device)
 {
   CLOG_TRACE(&LOG, "Submission runner has started");
-  UNUSED_VARS(task_data);
 
-  VKDevice *device = static_cast<VKDevice *>(BLI_task_pool_user_data(pool));
   VkCommandPool vk_command_pool = VK_NULL_HANDLE;
   VkCommandPoolCreateInfo vk_command_pool_create_info = {
       VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -162,7 +152,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
   uint64_t num_nodes = 0;
 
   CLOG_TRACE(&LOG, "Submission runner initialized");
-  while (!BLI_task_pool_current_canceled(pool)) {
+  while (!device->submission_thread_should_exit_) {
     VKRenderGraphSubmitTask *submit_task = static_cast<VKRenderGraphSubmitTask *>(
         BLI_thread_queue_pop_timeout(device->submitted_render_graphs_, 1));
     if (submit_task == nullptr) {
@@ -286,10 +276,10 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
   CLOG_TRACE(&LOG, "Submission runner finished");
 }
 
-void VKDevice::init_submission_pool()
+void VKDevice::init_submission_thread()
 {
-  CLOG_TRACE(&LOG, "Create submission pool");
-  submission_pool_ = BLI_task_pool_create_background_serial(this, TASK_PRIORITY_HIGH);
+  CLOG_TRACE(&LOG, "Create submission thread");
+  submission_thread_should_exit_ = false;
   submitted_render_graphs_ = BLI_thread_queue_init();
   unused_render_graphs_ = BLI_thread_queue_init();
 
@@ -299,18 +289,15 @@ void VKDevice::init_submission_pool()
       VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, &vk_semaphore_type_create_info, 0};
   vkCreateSemaphore(vk_device_, &vk_semaphore_create_info, nullptr, &vk_timeline_semaphore_);
 
-  BLI_task_pool_push(submission_pool_, VKDevice::submission_runner, nullptr, false, nullptr);
+  submission_thread_ = std::thread(VKDevice::submission_runner, this);
 }
 
-void VKDevice::deinit_submission_pool()
+void VKDevice::deinit_submission_thread()
 {
-  CLOG_TRACE(&LOG, "Cancelling submission pool");
-  BLI_task_pool_cancel(submission_pool_);
+  CLOG_TRACE(&LOG, "Stopping submission thread");
+  submission_thread_should_exit_ = true;
   CLOG_TRACE(&LOG, "Waiting for completion");
-  BLI_task_pool_work_and_wait(submission_pool_);
-  CLOG_TRACE(&LOG, "Freeing submission pool");
-  BLI_task_pool_free(submission_pool_);
-  submission_pool_ = nullptr;
+  submission_thread_.join();
 
   while (!BLI_thread_queue_is_empty(submitted_render_graphs_)) {
     VKRenderGraphSubmitTask *submit_task = static_cast<VKRenderGraphSubmitTask *>(

@@ -6,8 +6,8 @@
  * \ingroup render
  */
 
-#include "BLI_assert.h"
-#include "BLI_math_geom.h"
+#include "BLI_assert.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_vector.hh"
@@ -221,8 +221,8 @@ class TextureMarginMap {
    */
   void lookup_pixels(ImBuf *ibuf, char *mask, int maxPolygonSteps)
   {
-    float4 *ibuf_ptr_fl = reinterpret_cast<float4 *>(ibuf->float_buffer.data);
-    uchar4 *ibuf_ptr_ch = reinterpret_cast<uchar4 *>(ibuf->byte_buffer.data);
+    float4 *ibuf_ptr_fl = reinterpret_cast<float4 *>(ibuf->float_data_for_write());
+    uchar4 *ibuf_ptr_ch = reinterpret_cast<uchar4 *>(ibuf->byte_data_for_write());
     size_t pixel_index = 0;
     for (int y = 0; y < h_; y++) {
       for (int x = 0; x < w_; x++) {
