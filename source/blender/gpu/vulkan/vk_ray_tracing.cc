@@ -23,8 +23,6 @@ namespace blender::gpu {
 
 VKTopLevelAS::VKTopLevelAS(const char *name) : TopLevelAS(name), max_primitive_count_(0)
 {
-  build_acceleration_structure_info_.dst_acceleration_structure = VK_NULL_HANDLE;
-
   render_graph::VKBuildAccelerationStructureNode::Data &node_data =
       build_acceleration_structure_info_.node_data;
 
@@ -188,7 +186,7 @@ bool VKTopLevelAS::build()
     }
   }
 
-  build_acceleration_structure_info_.src_buffers.add(instances_buffer_.vk_handle());
+  build_acceleration_structure_info_.src_buffers.add(instances_buffer_.resource());
 
   render_graph::VKBuildAccelerationStructureNode::Data &node_data =
       build_acceleration_structure_info_.node_data;
@@ -234,7 +232,7 @@ bool VKTopLevelAS::build()
   /* Determine acceleration structure + scratch space */
   VkAccelerationStructureBuildSizesInfoKHR vk_acceleration_structure_build_sizes_info = {
       VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
-  device.functions.vkGetAccelerationStructureBuildSizes(
+  device.functions.vkGetAccelerationStructureBuildSizesKHR(
       device.vk_handle(),
       VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
       &build_geometry_infos,
@@ -264,10 +262,10 @@ bool VKTopLevelAS::build()
       vk_acceleration_structure_build_sizes_info.accelerationStructureSize,
       VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
       0};
-  device.functions.vkCreateAccelerationStructure(device.vk_handle(),
-                                                 &vk_acceleration_structure_create_info,
-                                                 nullptr,
-                                                 &vk_acceleration_structure_);
+  device.functions.vkCreateAccelerationStructureKHR(device.vk_handle(),
+                                                    &vk_acceleration_structure_create_info,
+                                                    nullptr,
+                                                    &vk_acceleration_structure_);
   BLI_assert(vk_acceleration_structure_ != VK_NULL_HANDLE);
   debug::object_label(vk_acceleration_structure_, name_get());
 
@@ -278,7 +276,7 @@ bool VKTopLevelAS::build()
       nullptr,
       vk_acceleration_structure_,
   };
-  vk_device_address_ = device.functions.vkGetAccelerationStructureDeviceAddress(
+  vk_device_address_ = device.functions.vkGetAccelerationStructureDeviceAddressKHR(
       device.vk_handle(), &vk_acceleration_structure_device_address_info);
   BLI_assert(vk_device_address_ != 0);
 
@@ -306,7 +304,7 @@ bool VKTopLevelAS::build()
           acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment);
   node_data.vk_acceleration_structure_build_geometry_info.dstAccelerationStructure =
       vk_acceleration_structure_;
-  build_acceleration_structure_info_.dst_acceleration_structure = buffer_.vk_handle();
+  build_acceleration_structure_info_.dst_acceleration_structure = buffer_.resource();
 
   render_graph::VKRenderGraph &render_graph = context.render_graph();
   render_graph.add_node(build_acceleration_structure_info_);
@@ -333,8 +331,6 @@ bool VKTopLevelAS::bind(int slot)
 
 VKBottomLevelAS::VKBottomLevelAS(const char *name) : BottomLevelAS(name)
 {
-  build_acceleration_structure_info_.dst_acceleration_structure = VK_NULL_HANDLE;
-
   render_graph::VKBuildAccelerationStructureNode::Data &node_data =
       build_acceleration_structure_info_.node_data;
   node_data.vk_acceleration_structure_build_geometry_info = {
@@ -423,8 +419,8 @@ bool VKBottomLevelAS::add_geometry(IndexBuf &index_buffer_, VertBuf &vertex_buff
       {num_primitives, 0, index_buffer.index_base_get(), 0});
   max_primitive_count_per_geometry_.append(num_primitives);
 
-  build_acceleration_structure_info_.src_buffers.add(index_buffer.vk_handle());
-  build_acceleration_structure_info_.src_buffers.add(vertex_buffer.vk_handle());
+  build_acceleration_structure_info_.src_buffers.add(index_buffer.resource());
+  build_acceleration_structure_info_.src_buffers.add(vertex_buffer.resource());
 
   return true;
 }
@@ -455,7 +451,7 @@ bool VKBottomLevelAS::build()
   /* Determine acceleration structure + scratch space */
   VkAccelerationStructureBuildSizesInfoKHR vk_acceleration_structure_build_sizes_info = {
       VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
-  device.functions.vkGetAccelerationStructureBuildSizes(
+  device.functions.vkGetAccelerationStructureBuildSizesKHR(
       device.vk_handle(),
       VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
       &build_geometry_infos,
@@ -482,10 +478,10 @@ bool VKBottomLevelAS::build()
       vk_acceleration_structure_build_sizes_info.accelerationStructureSize,
       VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
       0};
-  device.functions.vkCreateAccelerationStructure(device.vk_handle(),
-                                                 &vk_acceleration_structure_create_info,
-                                                 nullptr,
-                                                 &vk_acceleration_structure_);
+  device.functions.vkCreateAccelerationStructureKHR(device.vk_handle(),
+                                                    &vk_acceleration_structure_create_info,
+                                                    nullptr,
+                                                    &vk_acceleration_structure_);
   BLI_assert(vk_acceleration_structure_ != VK_NULL_HANDLE);
   debug::object_label(vk_acceleration_structure_, name_get());
 
@@ -495,7 +491,7 @@ bool VKBottomLevelAS::build()
       nullptr,
       vk_acceleration_structure_,
   };
-  vk_device_address_ = device.functions.vkGetAccelerationStructureDeviceAddress(
+  vk_device_address_ = device.functions.vkGetAccelerationStructureDeviceAddressKHR(
       device.vk_handle(), &vk_acceleration_structure_device_address_info);
   BLI_assert(vk_device_address_ != 0);
 
@@ -521,7 +517,7 @@ bool VKBottomLevelAS::build()
           acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment);
   node_data.vk_acceleration_structure_build_geometry_info.dstAccelerationStructure =
       vk_acceleration_structure_;
-  build_acceleration_structure_info_.dst_acceleration_structure = buffer_.vk_handle();
+  build_acceleration_structure_info_.dst_acceleration_structure = buffer_.resource();
 
   VKContext &context = *VKContext::get();
   render_graph::VKRenderGraph &render_graph = context.render_graph();

@@ -77,6 +77,15 @@ template<typename HandleType> struct VKResourceWithHandle {
   {
     return vk_handle;
   }
+
+  bool operator==(const VKResourceWithHandle<HandleType> &other) const
+  {
+    return other.resource_handle == resource_handle && other.vk_handle == vk_handle;
+  }
+  uint64_t hash() const
+  {
+    return get_default_hash(resource_handle, vk_handle);
+  }
 };
 
 VkImageAspectFlags to_vk_image_aspect_flag_bits(const TextureFormat format);

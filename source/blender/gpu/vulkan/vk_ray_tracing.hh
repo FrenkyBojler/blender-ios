@@ -48,9 +48,9 @@ class VKTopLevelAS : public TopLevelAS {
     return vk_acceleration_structure_;
   }
 
-  VkBuffer vk_buffer() const
+  const VKResourceWithHandle<VkBuffer> &vk_buffer() const  // TODO: Rename?
   {
-    return buffer_.vk_handle();
+    return buffer_.resource();
   }
 
   VkDeviceAddress vk_device_address() const
@@ -85,9 +85,9 @@ class VKBottomLevelAS : public BottomLevelAS {
     return vk_acceleration_structure_;
   }
 
-  VkBuffer vk_buffer() const
+  const VKResourceWithHandle<VkBuffer> &vk_buffer() const  // TODO: Rename?
   {
-    return buffer_.vk_handle();
+    return buffer_.resource();
   }
 
   VkDeviceAddress vk_device_address() const

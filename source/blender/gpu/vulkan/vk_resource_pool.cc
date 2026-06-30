@@ -156,7 +156,7 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue 
 
   acceleration_structures_.remove_old(
       current_timeline, [&](VkAccelerationStructureKHR vk_acceleration_structure) {
-        device.functions.vkDestroyAccelerationStructure(
+        device.functions.vkDestroyAccelerationStructureKHR(
             device.vk_handle(), vk_acceleration_structure, nullptr);
       });
 }

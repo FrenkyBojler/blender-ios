@@ -360,7 +360,7 @@ void VKCommandBufferWrapper::build_acceleration_structure(
     const VkAccelerationStructureBuildRangeInfoKHR *p_build_range_infos)
 {
   const VKDevice &device = VKBackend::get().device;
-  device.functions.vkCmdBuildAccelerationStructures(
+  device.functions.vkCmdBuildAccelerationStructuresKHR(
       vk_command_buffer_, 1, p_infos, &p_build_range_infos);
 }
 
