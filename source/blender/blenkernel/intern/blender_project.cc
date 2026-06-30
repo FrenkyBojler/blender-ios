@@ -9,11 +9,14 @@
 #include <mutex>
 #include <shared_mutex>
 
+#include "RNA_types.hh"
+
 #include "BKE_blender_project.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 
 #include "BLI_function_ref.hh"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
 
 namespace blender {
@@ -83,16 +86,43 @@ StringRefNull BlenderProject::get_root_path() const
   return StringRefNull(this->root_path_);
 }
 
-ProjectVariable *BlenderProject::new_variable()
+IDProperty *BlenderProject::new_variable(StringRef name, eIDPropertyType type)
 {
-  this->variables.append(std::make_unique<ProjectVariable>());
+  IDProperty *prop = nullptr;
+  switch (type) {
+    case eIDPropertyType::IDP_INT: {
+      prop = IDP_NewInt(0, name, eIDPropertyFlag(0));
+      break;
+    }
+
+    case eIDPropertyType::IDP_FLOAT: {
+      IDPropertyTemplate value;
+      value.f = 0.0f;
+      prop = IDP_New(eIDPropertyType::IDP_FLOAT, &value, name, eIDPropertyFlag(0));
+      break;
+    }
+
+    case eIDPropertyType::IDP_STRING: {
+      prop = IDP_NewString("", name, eIDPropertyFlag(0));
+      break;
+    }
+
+    default:
+      /* Other IDProperty types not yet supported by project variables. */
+      BLI_assert_unreachable();
+  }
+
+  IDP_ui_data_ensure(prop);
+  prop->ui_data->description = BLI_strdup("");
+
+  this->variables.append(std::unique_ptr<IDProperty, idprop::IDPropertyDeleter>(prop));
 
   this->is_dirty = true;
 
   return this->variables.last().get();
 }
 
-int BlenderProject::remove_variable(ProjectVariable *var)
+int BlenderProject::remove_variable(IDProperty *var)
 {
   for (int i = 0; i < this->variables.size(); i++) {
     if (this->variables[i].get() == var) {

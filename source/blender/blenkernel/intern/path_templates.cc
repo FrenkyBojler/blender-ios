@@ -12,6 +12,7 @@
 
 #include "BKE_blender_project.hh"
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_path_templates.hh"
@@ -282,20 +283,31 @@ void BKE_add_template_variables_general(bke::path_templates::VariableMap &variab
     variables.add_string("project_name", project->get_name());
     variables.add_filepath("project_root", project->get_root_path());
 
-    for (const std::unique_ptr<bke::ProjectVariable> &var : project->variables) {
+    for (const std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> &var :
+         project->variables)
+    {
       switch (var->type) {
-        case bke::ProjectVarType::INTEGER:
-          variables.add_integer(var->name.c_str(), var->value_int);
+        case eIDPropertyType::IDP_STRING: {
+          if (var->ui_data->rna_subtype == PropertySubType::PROP_FILEPATH) {
+            variables.add_filepath(var->name, IDP_string_get(var.get()));
+          }
+          else {
+            variables.add_string(var->name, IDP_string_get(var.get()));
+          }
           break;
-        case bke::ProjectVarType::FLOAT:
-          variables.add_float(var->name.c_str(), var->value_float);
+        }
+
+        case eIDPropertyType::IDP_INT:
+          variables.add_integer(var->name, IDP_int_get(var.get()));
           break;
-        case bke::ProjectVarType::STRING:
-          variables.add_string(var->name.c_str(), var->value_string.c_str());
+
+        case eIDPropertyType::IDP_FLOAT:
+          variables.add_float(var->name, IDP_float_get(var.get()));
           break;
-        case bke::ProjectVarType::FILEPATH:
-          variables.add_filepath(var->name.c_str(), var->value_string.c_str());
-          break;
+
+        default:
+          /* Other data types not yet supported by project variables. */
+          BLI_assert_unreachable();
       }
     }
   }

@@ -17,33 +17,15 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_ID.h"
+
+#include "BKE_idprop.hh"
+
 namespace blender {
 
 struct Main;
 
 namespace bke {
-
-enum class ProjectVarType {
-  INTEGER = 0,
-  FLOAT = 1,
-  STRING = 2,
-  FILEPATH = 3,
-};
-
-struct ProjectVariable {
-  std::string name;
-  std::string description;
-  ProjectVarType type;
-
-  /* For INTEGER type. */
-  int32_t value_int;
-
-  /* For FLOAT type. */
-  float value_float;
-
-  /* For STRING and FILEPATH types. */
-  std::string value_string;
-};
 
 /**
  * A Blender project.
@@ -66,7 +48,7 @@ class BlenderProject {
   std::string root_path_;
 
  public:
-  Vector<std::unique_ptr<ProjectVariable>> variables;
+  Vector<std::unique_ptr<IDProperty, idprop::IDPropertyDeleter>> variables;
   int active_variable_index = 0;
 
   /**
@@ -98,7 +80,7 @@ class BlenderProject {
   StringRefNull get_name() const;
   StringRefNull get_root_path() const;
 
-  ProjectVariable *new_variable();
+  IDProperty *new_variable(StringRef name, eIDPropertyType type);
 
   /**
    * Remove the given variable.
@@ -106,7 +88,7 @@ class BlenderProject {
    * Returns the index that the removed variable had, or -1 if the variable
    * wasn't found.
    */
-  int remove_variable(ProjectVariable *var);
+  int remove_variable(IDProperty *var);
 
   /**
    * Move the variable at from_index to to_index.

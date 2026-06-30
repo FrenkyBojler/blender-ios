@@ -38,7 +38,6 @@ class VariableType(Enum):
     INTEGER = 'INTEGER'
     FLOAT = 'FLOAT'
     STRING = 'STRING'
-    FILEPATH = 'FILEPATH'
 
 
 @dataclass
@@ -58,8 +57,6 @@ class ProjectVariable:
                 value = project_variable.value_float
             case 'STRING':
                 value = project_variable.value_string
-            case 'FILEPATH':
-                value = project_variable.value_string
         return ProjectVariable(
             name=project_variable.name,
             type=VariableType(project_variable.type),
@@ -67,19 +64,10 @@ class ProjectVariable:
             description=project_variable.description,
         )
 
-    def populate_real(self, variable):
-        """Fills in an existing real project variable with this object's data."""
-        variable.name = self.name
-        variable.type = self.type.value
-        match self.type:
-            case VariableType.INTEGER:
-                variable.value_int = self.value
-            case VariableType.FLOAT:
-                variable.value_float = self.value
-            case VariableType.STRING:
-                variable.value_string = self.value
-            case VariableType.FILEPATH:
-                variable.value_string = self.value
+    def add_as_real(self, variables):
+        """Adds this as a real variable to the given real project variables list."""
+        variable = variables.new(name=self.name, type=self.type.value)
+        variable.value = self.value
         variable.description = self.description
 
     def __post_init__(self):
@@ -124,8 +112,7 @@ class ProjectConfig:
         """Fills in an existing real project's data from this ProjectConfig object."""
         if self.variables is not None:
             for config_var in self.variables:
-                var = bpy.data.project.variables.new()
-                config_var.populate_real(var)
+                config_var.add_as_real(bpy.data.project.variables)
 
     def __post_init__(self):
         """Validation of invariants that cattrs doesn't check."""
@@ -535,7 +522,6 @@ class PROJECT_OT_AddVariable(Operator):
             ('INTEGER', "Integer Variable", ""),
             ('FLOAT', "Float Variable", ""),
             ('STRING', "String Variable", ""),
-            ('FILEPATH', "Filepath Variable", ""),
         ],
     )
 
@@ -544,8 +530,7 @@ class PROJECT_OT_AddVariable(Operator):
         return bpy.data.project is not None
 
     def execute(self, context):
-        var = bpy.data.project.variables.new()
-        var.type = self.variable_type
+        var = bpy.data.project.variables.new(name="tmp_name", type=self.variable_type)
         match self.variable_type:
             case 'INTEGER':
                 var.name = "integer_variable"
@@ -553,8 +538,8 @@ class PROJECT_OT_AddVariable(Operator):
                 var.name = "float_variable"
             case 'STRING':
                 var.name = "string_variable"
-            case 'FILEPATH':
-                var.name = "filepath_variable"
+            case _:
+                assert (False)
 
         return {'FINISHED'}
 

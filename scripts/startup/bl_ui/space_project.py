@@ -73,7 +73,6 @@ class PROJECT_MT_add_variable(Menu):
         layout.operator("project.add_variable", text="Float", icon='NONE').variable_type = 'FLOAT'
         layout.separator()
         layout.operator("project.add_variable", text="String", icon='NONE').variable_type = 'STRING'
-        layout.operator("project.add_variable", text="Filepath", icon='NONE').variable_type = 'FILEPATH'
 
 
 # -------------------------------------------------------------
@@ -230,13 +229,11 @@ class PROJECT_UL_variables(bpy.types.UIList):
         col.active = False
         match item.type:
             case 'INTEGER':
-                col.label(text=str(item.value_int))
+                col.label(text=str(item.value))
             case 'FLOAT':
-                col.label(text="{:.3f}".format(item.value_float))
+                col.label(text="{:.3f}".format(item.value))
             case 'STRING':
-                col.label(text=str(item.value_string))
-            case 'FILEPATH':
-                col.label(text=str(item.value_string))
+                col.label(text=str(item.value))
 
 
 class PROJECT_PT_variables(Panel):
@@ -278,17 +275,11 @@ class PROJECT_PT_variables(Panel):
 
         if project.active_variable_index >= 0 and project.active_variable_index < len(project.variables):
             var = project.variables[project.active_variable_index]
-            col.prop(var, "name")
             col.prop(var, "type")
-            match var.type:
-                case 'INTEGER':
-                    col.prop(var, "value_int")
-                case 'FLOAT':
-                    col.prop(var, "value_float")
-                case 'STRING':
-                    col.prop(var, "value_string")
-                case 'FILEPATH':
-                    col.prop(var, "value_string")
+            if var.type == 'STRING':
+                col.prop(var, "subtype")
+            col.prop(var, "name")
+            col.prop(var, "value")
             col.prop(var, "description")
 
 

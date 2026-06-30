@@ -25,14 +25,24 @@
 namespace blender {
 
 const EnumPropertyItem rna_enum_project_variable_type_items[] = {
-    {int(bke::ProjectVarType::INTEGER), "INTEGER", 0, "Integer", "An integer variable"},
-    {int(bke::ProjectVarType::FLOAT), "FLOAT", 0, "Float", "A floating point variable"},
-    {int(bke::ProjectVarType::STRING), "STRING", 0, "String", "An string variable"},
-    {int(bke::ProjectVarType::FILEPATH), "FILEPATH", 0, "Filepath", "A filepath variable"},
+    {int(eIDPropertyType::IDP_STRING), "STRING", 0, "String", "A string variable"},
+    {int(eIDPropertyType::IDP_INT), "INTEGER", 0, "Integer", "An integer variable"},
+    {int(eIDPropertyType::IDP_FLOAT), "FLOAT", 0, "Float", "A floating point variable"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-}
+const EnumPropertyItem rna_enum_project_variable_string_subtype_items[] = {
+    {int(PropertySubType::PROP_NONE), "NONE", 0, "None", "A standard string"},
+    {int(PropertySubType::PROP_FILEPATH),
+     "FILEPATH",
+     0,
+     "Filepath",
+     "A string interpreted as a filepath. Will be used as-is (unescaped) when substituted into "
+     "part of a filepath"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+}  // namespace blender
 
 #ifdef RNA_RUNTIME
 
@@ -76,29 +86,37 @@ static void rna_ProjectVariable_update(Main * /*bmain*/, Scene * /*scene*/, Poin
 
 /* --------------------------------------------------------- */
 
+static StructRNA *rna_ProjectVariable_refine(PointerRNA *ptr)
+{
+  IDProperty *prop = ptr->data_as<IDProperty>();
+
+  switch (prop->type) {
+    case eIDPropertyType::IDP_STRING:
+      return RNA_ProjectVariableString;
+    case eIDPropertyType::IDP_INT:
+      return RNA_ProjectVariableInteger;
+    case eIDPropertyType::IDP_FLOAT:
+      return RNA_ProjectVariableFloat;
+    default:
+      return RNA_UnknownType;
+  }
+}
+
 static int rna_ProjectVariable_type_get(PointerRNA *ptr)
 {
   int var_type;
   with_blender_project_read_lock([&] {
-    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    var_type = int(var->type);
+    const IDProperty *prop = ptr->data_as<IDProperty>();
+    var_type = int(prop->type);
   });
   return var_type;
-}
-
-static void rna_ProjectVariable_type_set(PointerRNA *ptr, int value)
-{
-  with_blender_project_write_lock([&] {
-    ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    var->type = ProjectVarType(value);
-  });
 }
 
 static void rna_ProjectVariable_name_get(PointerRNA *ptr, char *value)
 {
   with_blender_project_read_lock([&] {
-    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    strcpy(value, var->name.c_str());
+    const IDProperty *var = ptr->data_as<IDProperty>();
+    strcpy(value, var->name);
   });
 }
 
@@ -106,8 +124,8 @@ static int rna_ProjectVariable_name_length(PointerRNA *ptr)
 {
   int name_length;
   with_blender_project_read_lock([&] {
-    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    name_length = var->name.size();
+    const IDProperty *var = ptr->data_as<IDProperty>();
+    name_length = strlen(var->name);
   });
   return name_length;
 }
@@ -137,29 +155,34 @@ static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
     BlenderProject *project = ptr->parent().data_as<BlenderProject>();
     BLI_assert(project != nullptr);
 
-    ProjectVariable *var = ptr->data_as<ProjectVariable>();
+    IDProperty *var = ptr->data_as<IDProperty>();
 
-    if (var->name == new_name) {
-      return;
-    }
-
-    auto check_name_is_used = [&](const StringRef name) -> bool {
-      for (const std::unique_ptr<ProjectVariable> &other_var : project->variables) {
-        if (other_var->name == name) {
+    auto check_name_is_used = [&](const StringRefNull name) -> bool {
+      for (const std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> &other_var :
+           project->variables)
+      {
+        if (other_var.get() == var) {
+          /* Skip this var itself. */
+          continue;
+        }
+        if (STREQ(other_var->name, name.c_str())) {
           return true;
         }
       }
       return false;
     };
-    var->name = BLI_uniquename_cb(check_name_is_used, '_', new_name);
+
+    var->name[0] = '\0';
+    BLI_uniquename_cb(
+        check_name_is_used, new_name.c_str(), '_', var->name, sizeof(IDProperty::name));
   });
 }
 
 static void rna_ProjectVariable_description_get(PointerRNA *ptr, char *value)
 {
   with_blender_project_read_lock([&] {
-    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    strcpy(value, var->description.c_str());
+    const IDProperty *var = ptr->data_as<IDProperty>();
+    strcpy(value, var->ui_data->description);
   });
 }
 
@@ -167,8 +190,8 @@ static int rna_ProjectVariable_description_length(PointerRNA *ptr)
 {
   int description_length;
   with_blender_project_read_lock([&] {
-    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    description_length = var->description.size();
+    const IDProperty *var = ptr->data_as<IDProperty>();
+    description_length = strlen(var->ui_data->description);
   });
   return description_length;
 }
@@ -176,72 +199,89 @@ static int rna_ProjectVariable_description_length(PointerRNA *ptr)
 static void rna_ProjectVariable_description_set(PointerRNA *ptr, const char *value)
 {
   with_blender_project_write_lock([&] {
-    ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    var->description.clear();
-    var->description.append(value);
+    IDProperty *var = ptr->data_as<IDProperty>();
+    MEM_delete(var->ui_data->description);
+    var->ui_data->description = BLI_strdup(value);
   });
 }
 
-static int rna_ProjectVariable_value_int_get(PointerRNA *ptr)
+static int rna_ProjectVariableInteger_value_get(PointerRNA *ptr)
 {
   int value_int;
   with_blender_project_read_lock([&] {
-    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    value_int = var->value_int;
+    const IDProperty *var = ptr->data_as<IDProperty>();
+    value_int = IDP_int_get(var);
   });
   return value_int;
 }
 
-static void rna_ProjectVariable_value_int_set(PointerRNA *ptr, int value)
+static void rna_ProjectVariableInteger_value_set(PointerRNA *ptr, int value)
 {
   with_blender_project_write_lock([&] {
-    ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    var->value_int = value;
+    IDProperty *var = ptr->data_as<IDProperty>();
+    IDP_int_set(var, value);
   });
 }
 
-static float rna_ProjectVariable_value_float_get(PointerRNA *ptr)
+static float rna_ProjectVariableFloat_value_get(PointerRNA *ptr)
 {
   float value_float;
   with_blender_project_read_lock([&] {
-    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    value_float = var->value_float;
+    const IDProperty *var = ptr->data_as<IDProperty>();
+    value_float = IDP_float_get(var);
   });
   return value_float;
 }
 
-static void rna_ProjectVariable_value_float_set(PointerRNA *ptr, float value)
+static void rna_ProjectVariableFloat_value_set(PointerRNA *ptr, float value)
 {
   with_blender_project_write_lock([&] {
-    ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    var->value_float = value;
+    IDProperty *var = ptr->data_as<IDProperty>();
+    IDP_float_set(var, value);
   });
 }
 
-static void rna_ProjectVariable_value_string_get(PointerRNA *ptr, char *value)
+static void rna_ProjectVariableString_value_get(PointerRNA *ptr, char *value)
 {
   with_blender_project_read_lock([&] {
-    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    strcpy(value, var->value_string.c_str());
+    const IDProperty *var = ptr->data_as<IDProperty>();
+    strcpy(value, IDP_string_get(var));
   });
 }
 
-static int rna_ProjectVariable_value_string_length(PointerRNA *ptr)
+static int rna_ProjectVariableString_value_length(PointerRNA *ptr)
 {
   int string_length;
   with_blender_project_read_lock([&] {
-    const ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    string_length = var->value_string.size();
+    const IDProperty *var = ptr->data_as<IDProperty>();
+    string_length = var->len - 1;
   });
   return string_length;
 }
 
-static void rna_ProjectVariable_value_string_set(PointerRNA *ptr, const char *value)
+static void rna_ProjectVariableString_value_set(PointerRNA *ptr, const char *value)
 {
   with_blender_project_write_lock([&] {
-    ProjectVariable *var = ptr->data_as<ProjectVariable>();
-    var->value_string.clear();
-    var->value_string.append(value);
+    IDProperty *var = ptr->data_as<IDProperty>();
+    IDP_AssignString(var, value);
+  });
+}
+
+static int rna_ProjectVariableString_subtype_get(PointerRNA *ptr)
+{
+  int var_type;
+  with_blender_project_read_lock([&] {
+    const IDProperty *prop = ptr->data_as<IDProperty>();
+    var_type = int(prop->ui_data->rna_subtype);
+  });
+  return var_type;
+}
+
+static void rna_ProjectVariableString_subtype_set(PointerRNA *ptr, int value)
+{
+  with_blender_project_write_lock([&] {
+    IDProperty *prop = ptr->data_as<IDProperty>();
+    prop->ui_data->rna_subtype = value;
   });
 }
 
@@ -338,7 +378,7 @@ static void rna_iterator_BlenderProject_variables_begin(CollectionPropertyIterat
     rna_iterator_array_begin(iter,
                              ptr,
                              (void *)project->variables.begin(),
-                             sizeof(std::unique_ptr<ProjectVariable>),
+                             sizeof(std::unique_ptr<IDProperty, idprop::IDPropertyDeleter>),
                              project->variables.size(),
                              0,
                              nullptr);
@@ -349,7 +389,7 @@ static int rna_iterator_BlenderProject_variables_length(PointerRNA *ptr)
 {
   int variables_length;
   bke::with_blender_project_read_lock([&] {
-    const bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
+    const bke::BlenderProject *project = ptr->data_as<bke::BlenderProject>();
     variables_length = project->variables.size();
   });
   return variables_length;
@@ -363,10 +403,10 @@ static PointerRNA rna_iterator_BlenderProject_variables_get(CollectionPropertyIt
 
     ArrayIterator *internal = &iter->internal.array;
 
-    std::unique_ptr<ProjectVariable> *var_ptr_ptr =
-        reinterpret_cast<std::unique_ptr<ProjectVariable> *>(internal->ptr);
+    std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> *var_ptr_ptr =
+        reinterpret_cast<std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> *>(internal->ptr);
 
-    ProjectVariable *var_ptr = var_ptr_ptr->get();
+    IDProperty *var_ptr = var_ptr_ptr->get();
 
     variable = RNA_pointer_create_with_parent(iter->parent, RNA_ProjectVariable, var_ptr);
   });
@@ -390,22 +430,18 @@ static PointerRNA rna_ProjectVariables_new(BlenderProject *project,
   PointerRNA variable;
   bke::with_blender_project_write_lock([&] {
     auto check_name_is_used = [&](const StringRef name) -> bool {
-      for (const std::unique_ptr<ProjectVariable> &other_var : project->variables) {
-        if (other_var->name == name) {
+      for (const std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> &other_var :
+           project->variables)
+      {
+        if (StringRef(other_var->name) == name) {
           return true;
         }
       }
       return false;
     };
-    std::string unique_name = BLI_uniquename_cb(check_name_is_used, '.', name);
+    std::string unique_name = BLI_uniquename_cb(check_name_is_used, '_', name);
 
-    ProjectVariable *new_var = project->new_variable();
-    new_var->name = unique_name;
-    new_var->description = std::string();
-    new_var->type = bke::ProjectVarType(type);
-    new_var->value_int = 0;
-    new_var->value_float = 0.0;
-    new_var->value_string = std::string();
+    IDProperty *new_var = project->new_variable(unique_name, eIDPropertyType(type));
 
     project->active_variable_index = project->variables.size() - 1;
 
@@ -423,10 +459,13 @@ void rna_ProjectVariables_remove(BlenderProject *project,
                                  ReportList *reports,
                                  PointerRNA *variable_ptr)
 {
-  BLI_assert(variable_ptr->type == RNA_ProjectVariable);
+  BLI_assert(ELEM(variable_ptr->type,
+                  RNA_ProjectVariableString,
+                  RNA_ProjectVariableInteger,
+                  RNA_ProjectVariableFloat));
 
   bke::with_blender_project_write_lock([&] {
-    ProjectVariable *var = static_cast<ProjectVariable *>(variable_ptr->data);
+    IDProperty *var = variable_ptr->data_as<IDProperty>();
 
     const int removed_index = project->remove_variable(var);
 
@@ -494,12 +533,77 @@ static void rna_BlenderProject_is_dirty_set(PointerRNA *ptr, bool value)
 
 namespace blender {
 
+static void rna_def_project_variable_string(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "ProjectVariableString", "ProjectVariable");
+  RNA_def_struct_ui_text(srna, "String Project Variable", "A project variable of type string");
+
+  prop = RNA_def_property(srna, "value", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Value", "The variable's string/path value");
+  RNA_def_property_string_funcs(prop,
+                                "rna_ProjectVariableString_value_get",
+                                "rna_ProjectVariableString_value_length",
+                                "rna_ProjectVariableString_value_set");
+  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
+
+  prop = RNA_def_property(srna, "subtype", PROP_ENUM, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Subtype", "The string variable's subtype");
+  RNA_def_property_enum_items(prop, rna_enum_project_variable_string_subtype_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_ProjectVariableString_subtype_get",
+                              "rna_ProjectVariableString_subtype_set",
+                              nullptr);
+}
+
+static void rna_def_project_variable_integer(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "ProjectVariableInteger", "ProjectVariable");
+  RNA_def_struct_ui_text(srna, "Integer Project Variable", "A project variable of type integer");
+
+  prop = RNA_def_property(srna, "value", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Value", "The variable's integer value");
+  RNA_def_property_int_funcs(prop,
+                             "rna_ProjectVariableInteger_value_get",
+                             "rna_ProjectVariableInteger_value_set",
+                             nullptr);
+  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
+}
+
+static void rna_def_project_variable_float(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "ProjectVariableFloat", "ProjectVariable");
+  RNA_def_struct_ui_text(srna, "Float Project Variable", "A project variable of type float");
+
+  prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Value", "The variable's float value");
+  RNA_def_property_float_funcs(
+      prop, "rna_ProjectVariableFloat_value_get", "rna_ProjectVariableFloat_value_set", nullptr);
+  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
+}
+
 void rna_def_project_variable(BlenderRNA *brna)
 {
-  StructRNA *srna = RNA_def_struct(brna, "ProjectVariable", nullptr);
-  RNA_def_struct_ui_text(srna, "Blender Project Variable", "");
-
+  StructRNA *srna;
   PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "ProjectVariable", nullptr);
+  RNA_def_struct_ui_text(srna, "Blender Project Variable", "");
+  RNA_def_struct_refine_func(srna, "rna_ProjectVariable_refine");
+
+  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Type", "The variable's data type");
+  RNA_def_property_enum_items(prop, rna_enum_project_variable_type_items);
+  RNA_def_property_enum_funcs(prop, "rna_ProjectVariable_type_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_struct_name_property(srna, prop);
@@ -522,32 +626,10 @@ void rna_def_project_variable(BlenderRNA *brna)
                                 "rna_ProjectVariable_description_set");
   RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
 
-  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Type", "The variable's data type");
-  RNA_def_property_enum_items(prop, rna_enum_project_variable_type_items);
-  RNA_def_property_enum_funcs(
-      prop, "rna_ProjectVariable_type_get", "rna_ProjectVariable_type_set", nullptr);
-  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
-
-  prop = RNA_def_property(srna, "value_int", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Value", "The variable's integer value");
-  RNA_def_property_int_funcs(
-      prop, "rna_ProjectVariable_value_int_get", "rna_ProjectVariable_value_int_set", nullptr);
-  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
-
-  prop = RNA_def_property(srna, "value_float", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Value", "The variable's floating point value");
-  RNA_def_property_float_funcs(
-      prop, "rna_ProjectVariable_value_float_get", "rna_ProjectVariable_value_float_set", nullptr);
-  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
-
-  prop = RNA_def_property(srna, "value_string", PROP_STRING, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Value", "The variable's string/path value");
-  RNA_def_property_string_funcs(prop,
-                                "rna_ProjectVariable_value_string_get",
-                                "rna_ProjectVariable_value_string_length",
-                                "rna_ProjectVariable_value_string_set");
-  RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
+  /* Define ProjectVariable subtypes. */
+  rna_def_project_variable_string(brna);
+  rna_def_project_variable_integer(brna);
+  rna_def_project_variable_float(brna);
 }
 
 static void rna_def_ProjectVariables(BlenderRNA *brna, PropertyRNA *cprop)
@@ -567,10 +649,11 @@ static void rna_def_ProjectVariables(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_ui_description(func, "Add a new variable to the project");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "name", "Variable", 0, "Name", "Name of the new variable");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_enum(func,
                       "type",
                       rna_enum_project_variable_type_items,
-                      int(bke::ProjectVarType::STRING),
+                      int(eIDPropertyType::IDP_STRING),
                       "Variable Type",
                       "The data type of the variable");
   parm = RNA_def_pointer(
