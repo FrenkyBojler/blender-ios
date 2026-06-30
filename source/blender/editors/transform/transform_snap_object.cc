@@ -460,8 +460,7 @@ static eSnapMode snap_object_allowed_modes(const SnapObjectContext *sctx,
 
   /* Get attributes of potential target. */
   const bool is_active = (base_act == base);
-  const bool is_selected = (base->flag & BASE_SELECTED) || (base->flag_legacy & BA_WAS_SEL);
-  const bool is_edited = (base->object->mode & OB_MODE_EDIT);
+  const bool is_editmode = (base->object->mode & OB_MODE_EDIT);
   const bool is_selectable = (base->flag & BASE_SELECTABLE);
   /* Get attributes of state. */
   const bool is_in_object_mode = (base_act == nullptr) ||
@@ -474,10 +473,10 @@ static eSnapMode snap_object_allowed_modes(const SnapObjectContext *sctx,
     if (is_active) {
       allowed_mask &= ~params.snap_selection_exclude.active_edit_mode;
     }
-    if (is_edited) {
+    else if (is_editmode) {
       allowed_mask &= ~params.snap_selection_exclude.edited_edit_mode;
     }
-    if (!is_selected) {
+    else {
       allowed_mask &= ~params.snap_selection_exclude.non_edited_edit_mode;
     }
   }
@@ -487,6 +486,20 @@ static eSnapMode snap_object_allowed_modes(const SnapObjectContext *sctx,
   }
 
   return allowed_mask;
+}
+
+static eSnapMode snap_object_allowed_modes_for_ob(const SnapObjectContext *sctx,
+                                                  const Object *ob_eval,
+                                                  Depsgraph *depsgraph,
+                                                  eSnapMode snap_to_flag)
+{
+  ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
+  Base *base_act = BKE_view_layer_active_base_get(view_layer);
+  Base *base = BKE_view_layer_base_find(view_layer,
+                                        const_cast<Object *>(DEG_get_original(ob_eval)));
+  eSnapMode ret = base ? (snap_to_flag & snap_object_allowed_modes(sctx, base_act, base)) :
+                         snap_to_flag;
+  return ret;
 }
 
 /**
@@ -501,11 +514,12 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   ViewLayer *view_layer = DEG_get_input_view_layer(sctx->runtime.depsgraph);
   BKE_view_layer_synced_ensure(*DEG_get_bmain(sctx->runtime.depsgraph), scene, view_layer);
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
-
+  const eSnapMode snap_to_flag = sctx->runtime.snap_to_flag;
   DupliList duplilist;
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
-    sctx->runtime.snap_to_flag &= snap_object_allowed_modes(sctx, base_act, &base);
-    if (sctx->runtime.snap_to_flag == SCE_SNAP_TO_NONE) {
+    const eSnapMode allowed_modes = snap_to_flag &
+                                    snap_object_allowed_modes(sctx, base_act, &base);
+    if (allowed_modes == SCE_SNAP_TO_NONE) {
       continue;
     }
     const bool is_object_active = (&base == base_act);
@@ -889,8 +903,20 @@ static eSnapMode snap_polygon(SnapObjectContext *sctx, eSnapMode snap_to_flag)
     return SCE_SNAP_TO_NONE;
   }
 
-  return snap_polygon_mesh(
-      sctx, sctx->ret.ob, sctx->ret.data, sctx->ret.obmat, snap_to_flag, sctx->ret.index);
+  eSnapMode allowed_modes = snap_object_allowed_modes_for_ob(
+      sctx, sctx->ret.ob, sctx->runtime.depsgraph, snap_to_flag);
+  if (allowed_modes == SCE_SNAP_TO_NONE) {
+    return SCE_SNAP_TO_NONE;
+  }
+
+  const eSnapMode prev_snap_to_flag = sctx->runtime.snap_to_flag;
+  sctx->runtime.snap_to_flag = allowed_modes;
+
+  eSnapMode elem = snap_polygon_mesh(
+      sctx, sctx->ret.ob, sctx->ret.data, sctx->ret.obmat, allowed_modes, sctx->ret.index);
+
+  sctx->runtime.snap_to_flag = prev_snap_to_flag;
+  return elem;
 }
 
 static eSnapMode snap_edge_points(SnapObjectContext *sctx, const float dist_px_sq_orig)
@@ -899,8 +925,20 @@ static eSnapMode snap_edge_points(SnapObjectContext *sctx, const float dist_px_s
     return SCE_SNAP_TO_EDGE;
   }
 
-  return snap_edge_points_mesh(
+  eSnapMode allowed_modes = snap_object_allowed_modes_for_ob(
+      sctx, sctx->ret.ob, sctx->runtime.depsgraph, sctx->runtime.snap_to_flag);
+  if (allowed_modes == SCE_SNAP_TO_NONE) {
+    return SCE_SNAP_TO_NONE;
+  }
+
+  const eSnapMode prev_snap_to_flag = sctx->runtime.snap_to_flag;
+  sctx->runtime.snap_to_flag = allowed_modes;
+
+  eSnapMode elem = snap_edge_points_mesh(
       sctx, sctx->ret.ob, sctx->ret.data, sctx->ret.obmat, dist_px_sq_orig, sctx->ret.index);
+
+  sctx->runtime.snap_to_flag = prev_snap_to_flag;
+  return elem;
 }
 
 eSnapMode snap_object_center(SnapObjectContext *sctx,
@@ -914,8 +952,16 @@ eSnapMode snap_object_center(SnapObjectContext *sctx,
     return SCE_SNAP_TO_NONE;
   }
 
+  eSnapMode allowed_modes = snap_object_allowed_modes_for_ob(
+      sctx, sctx->ret.ob, sctx->runtime.depsgraph, snap_to_flag);
+  if (allowed_modes == SCE_SNAP_TO_NONE) {
+    return SCE_SNAP_TO_NONE;
+  }
+
+  const eSnapMode prev_snap_to_flag = sctx->runtime.snap_to_flag;
+  sctx->runtime.snap_to_flag = allowed_modes;
   /* For now only vertex supported. */
-  if ((snap_to_flag & SCE_SNAP_TO_POINT) == 0) {
+  if ((allowed_modes & SCE_SNAP_TO_POINT) == 0) {
     return SCE_SNAP_TO_NONE;
   }
 
@@ -925,8 +971,10 @@ eSnapMode snap_object_center(SnapObjectContext *sctx,
 
   if (nearest2d.snap_point(float3(0.0f))) {
     nearest2d.register_result(sctx, ob_eval, static_cast<const ID *>(ob_eval->data));
+    sctx->runtime.snap_to_flag = prev_snap_to_flag;
     return SCE_SNAP_TO_POINT;
   }
+  sctx->runtime.snap_to_flag = prev_snap_to_flag;
 
   return SCE_SNAP_TO_NONE;
 }
