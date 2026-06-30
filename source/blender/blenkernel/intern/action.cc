@@ -41,7 +41,7 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_armature.hh"
 #include "BKE_asset.hh"
 #include "BKE_constraint.h"
@@ -744,7 +744,7 @@ IDTypeInfo IDType_ID_AC = {
     .main_listbase_index = INDEX_ID_AC,
     .struct_size = sizeof(bAction),
     .name = "Action",
-    .name_plural = "actions",
+    .name_plural = N_("actions"),
     .translation_context = BLT_I18NCONTEXT_ID_ACTION,
     .flags = IDTYPE_FLAGS_NO_ANIMDATA,
     .asset_type_info = &bke::AssetType_AC,
