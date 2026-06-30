@@ -46,26 +46,11 @@ set(OPENVDB_EXTRA_ARGS
 )
 
 if(WITH_APPLE_CROSSPLATFORM) 
-  # IOS_FIXME: Think we can remove this now Boost has been removed
-  file(GLOB Boost_LIBRARIES
-    "${LIBDIR}/boost/lib/*.dylib"
-  )
-
   set(OPENVDB_EXTRA_ARGS
     ${OPENVDB_EXTRA_ARGS}
     #-DCMAKE_POLICY_DEFAULT_CMP0144:STRING=NEW 
     # TEMP: Disable python module as library discovery fails.
     -DOPENVDB_BUILD_PYTHON_MODULE=OFF
-
-    # Boost
-    -DBoost_ROOT=${LIBDIR}/boost
-    #-DBoost_FOUND=YES
-    #-DBoost_VERSION=${BOOST_VERSION}
-    -DBoost_INCLUDE_DIR=${LIBDIR}/boost/include/
-    #-DBoost_LIBRARIES=${Boost_LIBRARIES}
-    #-DBoost_LIBRARY_DIRS=${LIBDIR}/boost/lib/
-    -DBoost_DEBUG=ON
-    #-DBoost_LIB_PREFIX=lib
   )
 endif()
 
