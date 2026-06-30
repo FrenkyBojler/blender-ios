@@ -496,7 +496,6 @@ set(TOMLI_W_VERSION 1.2.0)
 # When this numpy version is bumped, please also change the limit value set for variable `install_requires`
 # in build_files/utils/make_bpy_wheel.py
 set(NUMPY_VERSION 2.3.4)
-set(NUMPY_SHORT_VERSION 2.3)
 set(NUMPY_URI https://github.com/numpy/numpy/releases/download/v${NUMPY_VERSION}/numpy-${NUMPY_VERSION}.tar.gz)
 set(NUMPY_HASH 8717ed1828a8a390c454c6636e91c46a)
 set(NUMPY_HASH_TYPE MD5)
@@ -666,15 +665,6 @@ set(FFTW_COPYRIGHT [=[
 Copyright (c) 2003, 2007-14 Matteo Frigo.
 Copyright (c) 2003, 2007-14 Massachusetts Institute of Technology
 ]=])
-
-set(ICONV_VERSION 1.16)
-set(ICONV_URI http://ftp.gnu.org/pub/gnu/libiconv/libiconv-${ICONV_VERSION}.tar.gz)
-set(ICONV_HASH 7d2a800b952942bb2880efb00cfd524c)
-set(ICONV_HASH_TYPE MD5)
-set(ICONV_FILE libiconv-${ICONV_VERSION}.tar.gz)
-set(ICONV_HOMEPAGE https://www.gnu.org/software/libiconv/)
-set(ICONV_LICENSE SPDX:LGPL-2.1-or-later)
-set(ICONV_COPYRIGHT "Copyright (C) 1998, 2022 Free Software Foundation, Inc.")
 
 set(SNDFILE_VERSION 1.2.2)
 set(SNDFILE_NAME libsndfile)
