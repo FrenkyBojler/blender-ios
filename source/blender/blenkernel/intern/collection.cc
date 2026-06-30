@@ -1467,6 +1467,30 @@ void BKE_collection_object_parented_sort_index_reset(Main *bmain, Object *ob)
   }
 }
 
+void BKE_collection_object_parent_clear_sort_index_reset(Main *bmain, Object *ob)
+{
+  if (bmain == nullptr || ob == nullptr) {
+    return;
+  }
+  Collection *collection = nullptr;
+  while ((collection = BKE_collection_object_find(bmain, nullptr, collection, ob))) {
+    CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
+    if (cob != nullptr) {
+      cob->parented_sort_index = -1;
+      if (ob->parent != nullptr) {
+        for (Object *parent_iter = ob->parent; parent_iter != nullptr;
+             parent_iter = parent_iter->parent)
+        {
+          if (BKE_collection_object_find_in(collection, parent_iter) != nullptr) {
+            cob->sort_index = -1;
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
 static bool collection_object_add(Main *bmain,
                                   Collection *collection,
                                   Object *ob,

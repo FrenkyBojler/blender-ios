@@ -389,6 +389,9 @@ void parent_clear(Main *bmain, Object *ob, const int type)
     return;
   }
   uint flags = ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION;
+  if (type != CLEAR_PARENT_INVERSE) {
+    BKE_collection_object_parent_clear_sort_index_reset(bmain, ob);
+  }
   switch (type) {
     case CLEAR_PARENT_ALL: {
       /* for deformers, remove corresponding modifiers to prevent
@@ -415,10 +418,6 @@ void parent_clear(Main *bmain, Object *ob, const int type)
        * is cleared. In other words: nothing to do here! */
       break;
     }
-  }
-
-  if (type != CLEAR_PARENT_INVERSE) {
-    BKE_collection_object_parented_sort_index_reset(bmain, ob);
   }
 
   /* Always clear parentinv matrix for sake of consistency, see #41950. */

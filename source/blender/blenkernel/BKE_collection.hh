@@ -279,6 +279,7 @@ void BKE_collection_object_move(
 CollectionObject *BKE_collection_object_find_in(Collection *collection, Object *ob);
 
 void BKE_collection_object_parented_sort_index_reset(Main *bmain, Object *ob);
+void BKE_collection_object_parent_clear_sort_index_reset(Main *bmain, Object *ob);
 
 /**
  * Remove object from all collections of scene
