@@ -1408,6 +1408,13 @@ ID *buttons_context_id_path(const bContext *C)
         continue;
       }
     }
+    /* For Bone tab, pin the Object (the armature owner) instead of the Armature data-block.
+     * The path for the Bone tab is: Object → Armature → Bone */
+    if (sbuts->mainb == BCONTEXT_BONE && sbuts->flag & SB_PIN_CONTEXT) {
+      if (ELEM(ptr->type, RNA_Bone, RNA_EditBone) && ptr->data) {
+        return ptr->parent().owner_id;
+      }
+    }
 
     if (ptr->owner_id) {
       return ptr->owner_id;
