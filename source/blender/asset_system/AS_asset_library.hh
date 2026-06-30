@@ -125,11 +125,25 @@ class AssetLibrary {
    * Execute \a fn for every asset library that is loaded and enabled. The asset library is passed
    * to the \a fn call.
    *
+   * \note Libraries may note be freed during the iteration.
+   *
    * \param include_all_library: When true, \a fn will also be executed for the "All" asset
    *   library. This is just a combination of the other ones, so usually iterating over it is
    *   redundant.
    */
   static void foreach_loaded(FunctionRef<void(AssetLibrary &)> fn, bool include_all_library);
+
+  /**
+   * (Re-)download the remote listing for this library.
+   *
+   * This only has an effect for asset libraries that are themselves a remote library, or contain
+   * one (such as the "Essentials" library if it includes online essentials, or the "All" if there
+   * are any remote libraries included).
+   *
+   * The "Allow Online Access" option will be enforced internally, but probably some check to give
+   * a user message should be done at a higher level.
+   */
+  virtual void force_remote_listing_download() const;
 
   /**
    * Get the #AssetLibraryReference referencing this library. This can fail for custom libraries,
