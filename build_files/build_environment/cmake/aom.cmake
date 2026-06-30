@@ -21,21 +21,9 @@ if(WITH_APPLE_CROSSPLATFORM)
   # Disable optimizations on iPad.
   set(AOM_EXTRA_ARGS
     ${AOM_EXTRA_ARGS}
-    -DAOM_TARGET_CPU=generic
+    -DAOM_TARGET_CPU=arm64
     -DENABLE_DOCS=0
-  )
-endif()
-
-if(WIN32 AND NOT BLENDER_PLATFORM_WINDOWS_ARM)
-  set(AOM_EXTRA_ARGS ${AOM_EXTRA_ARGS}-DCMAKE_ASM_NASM_COMPILER=)
-endif()
-
-if(WITH_APPLE_CROSSPLATFORM)
-  # Disable optimizations on iPad.
-  set(AOM_EXTRA_ARGS
-    ${AOM_EXTRA_ARGS}
-    -DAOM_TARGET_CPU=generic
-    -DENABLE_DOCS=0
+    -DBUILD_SHARED_LIBS=OFF
   )
 endif()
 
