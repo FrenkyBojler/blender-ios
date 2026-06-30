@@ -662,11 +662,12 @@ Mesh *replace_faces(const Mesh &base,
           break;
         }
         case bke::AttrDomain::Corner: {
-          array_utils::copy_group_to_group(base_faces,
-                                           result_faces,
-                                           unselected_faces,
-                                           src_span,
-                                           dst_attr.span.take_front(unselected_corners_num));
+          bke::attribute_math::gather_group_to_group(
+              base_faces,
+              result_faces,
+              unselected_faces,
+              src_span,
+              dst_attr.span.take_front(unselected_corners_num));
           // TODO
           break;
         }
