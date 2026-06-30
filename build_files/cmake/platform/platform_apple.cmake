@@ -69,7 +69,7 @@ if(WITH_APPLE_CROSSPLATFORM)
     endif()
   endforeach()
 
-  message(STATUS " \n---------------------------\n CROSS COMPILE TOOLS:\n\nDetect CMake configuration for host-tools-build (datatoc, datatoc_icon, makesdna, makesrna, msgformat, glsl_preprocess) \n\nInheriting CMAKE_ARGS:\n${CMAKE_ARGS}\n")
+  message(STATUS " \n---------------------------\n CROSS COMPILE TOOLS:\n\nDetect CMake configuration for host-tools-build (datatoc, datatoc_icon, makesdna, makesrna, msgformat, shader_tool) \n\nInheriting CMAKE_ARGS:\n${CMAKE_ARGS}\n")
 
 
   # Run host build process to ensure host tools are up to date. (creating build_darwin_tools folder)
@@ -84,6 +84,8 @@ if(WITH_APPLE_CROSSPLATFORM)
   # That might still be a better option though. See "debug_size_" in BLI_vector.hh for an example of this.
   set(CMAKE_TOOLS_ARGS "${CMAKE_TOOLS_ARGS} -DCMAKE_C_FLAGS=\"-DWITH_CROSSCOMPILED_TOOLS -DWITH_APPLE_CROSSPLATFORM\"")
   set(CMAKE_TOOLS_ARGS "${CMAKE_TOOLS_ARGS} -DCMAKE_CXX_FLAGS=\"-DWITH_CROSSCOMPILED_TOOLS -DWITH_APPLE_CROSSPLATFORM\"")
+  # Explicitly set paths for BLAS and LAPACK.
+  set(CMAKE_TOOLS_ARGS "${CMAKE_TOOLS_ARGS} -DBLA_VENDOR=Apple -DBLAS_Accelerate_LIBRARY=/System/Library/Frameworks/Accelerate.framework -DLAPACK_Accelerate_LIBRARY=/System/Library/Frameworks/Accelerate.framework")
 
   get_filename_component(CMAKE_BIN_DIRECTORY "${CMAKE_COMMAND}" DIRECTORY)
   add_custom_target(blender_cross_tools_compile
