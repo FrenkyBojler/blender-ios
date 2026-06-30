@@ -540,7 +540,12 @@ void *GPU_texture_read(Texture *texture, eGPUDataFormat data_format, int mip_lev
     size += 8;
   }
 
-  void *data = MEM_new_uninitialized(size, __func__);
+  int64_t alignment = MEM_MIN_CPP_ALIGNMENT;
+  if (data_format == GPU_DATA_FLOAT) {
+    /* See #IMBUF_FLOAT_ALIGNMENT. */
+    alignment = 16;
+  }
+  void *data = MEM_new_uninitialized_aligned(size, alignment, __func__);
   GPU_texture_read(texture, data_format, mip_level, data);
   return data;
 }
