@@ -791,6 +791,9 @@ class ZoneOperator:
         "NodeClosureInput": (
             n_("Wrap nodes inside a closure that can be executed at a different part of the node-tree")
         ),
+        "CompositorNodeRepeatInput": (
+            n_("Execute compositor nodes with a fixed number of repetitions")
+        ),
     }
 
     @classmethod

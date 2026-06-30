@@ -427,6 +427,18 @@ class NodeMenu(Menu):
         return props
 
     @classmethod
+    def compositor_repeat_zone(cls, layout, label):
+        props = layout.operator(cls.zone_operator_id, text=iface_(label), translate=False)
+        props.input_node_type = "CompositorNodeRepeatInput"
+        props.output_node_type = "CompositorNodeRepeatOutput"
+        props.add_default_geometry_link = False
+
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
+
+        return props
+
+    @classmethod
     def draw_root_assets(cls, layout):
         if cls.draw_assets:
             layout.menu_contents(cls.root_asset_menu)

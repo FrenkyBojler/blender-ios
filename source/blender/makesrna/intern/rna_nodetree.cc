@@ -644,6 +644,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_common.hh"
 #  include "NOD_composite.hh"
 #  include "NOD_compositor_file_output.hh"
+#  include "NOD_cmp_repeat.hh"
 #  include "NOD_fn_format_string.hh"
 #  include "NOD_geo_bake.hh"
 #  include "NOD_geo_bundle.hh"
@@ -698,6 +699,7 @@ using nodes::FormatStringItemsAccessor;
 using nodes::GeoViewerItemsAccessor;
 using nodes::IndexSwitchItemsAccessor;
 using nodes::MenuSwitchItemsAccessor;
+using nodes::CompositorRepeatItemsAccessor;
 using nodes::RaycastSampleAttributeItemsAccessor;
 using nodes::RepeatItemsAccessor;
 using nodes::SeparateBundleItemsAccessor;
@@ -7579,6 +7581,68 @@ static void def_closure_input(BlenderRNA *brna, StructRNA *srna)
   def_common_zone_input(brna, srna);
 }
 
+static void def_cmp_repeat_input(BlenderRNA *brna, StructRNA *srna)
+{
+  RNA_def_struct_sdna_from(srna, "NodeCompositorRepeatInput", "storage");
+
+  def_common_zone_input(brna, srna);
+}
+
+static void rna_def_cmp_repeat_item(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "CompositorRepeatItem", nullptr);
+  RNA_def_struct_ui_text(srna, "Compositor Repeat Item", "");
+  RNA_def_struct_sdna(srna, "NodeRepeatItem");
+
+  rna_def_node_item_array_socket_item_common(srna, "CompositorRepeatItemsAccessor", true);
+}
+
+static void rna_def_cmp_repeat_items(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "CompositorRepeatOutputItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Items", "Collection of compositor repeat items");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "CompositorRepeatItem", "CompositorRepeatItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "CompositorRepeatItem", "CompositorRepeatItemsAccessor");
+}
+
+static void def_cmp_repeat_output(BlenderRNA *brna, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  rna_def_cmp_repeat_item(brna);
+  rna_def_cmp_repeat_items(brna);
+
+  RNA_def_struct_sdna_from(srna, "NodeCompositorRepeatOutput", "storage");
+
+  prop = RNA_def_property(srna, "repeat_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "items", "items_num");
+  RNA_def_property_struct_type(prop, "CompositorRepeatItem");
+  RNA_def_property_ui_text(prop, "Items", "");
+  RNA_def_property_srna(prop, "CompositorRepeatOutputItems");
+
+  prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "active_index");
+  RNA_def_property_ui_text(prop, "Active Item Index", "Index of the active item");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "active_item", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "CompositorRepeatItem");
+  RNA_def_property_pointer_funcs(prop,
+                                 "rna_Node_ItemArray_active_get<CompositorRepeatItemsAccessor>",
+                                 "rna_Node_ItemArray_active_set<CompositorRepeatItemsAccessor>",
+                                 nullptr,
+                                 nullptr);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NO_DEG_UPDATE);
+  RNA_def_property_ui_text(prop, "Active Item", "The active repeat item");
+  RNA_def_property_update(prop, NC_NODE, nullptr);
+}
+
 static void rna_def_geo_simulation_state_item(BlenderRNA *brna)
 {
   PropertyRNA *prop;
@@ -10502,6 +10566,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodePosterize");
   define("CompositorNode", "CompositorNodePremulKey");
   define("CompositorNode", "CompositorNodeRelativeToPixel");
+  define("CompositorNode", "CompositorNodeRepeatInput", def_cmp_repeat_input);
+  define("CompositorNode", "CompositorNodeRepeatOutput", def_cmp_repeat_output);
   define("CompositorNode", "CompositorNodeRGB");
   define("CompositorNode", "CompositorNodeRGBToBW");
   define("CompositorNode", "CompositorNodeRLayers", def_cmp_render_layers);

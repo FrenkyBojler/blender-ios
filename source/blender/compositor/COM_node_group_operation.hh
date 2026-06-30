@@ -158,6 +158,14 @@ class NodeGroupOperation : public Operation {
   void map_pixel_operation_inputs_to_their_results(PixelOperation *operation,
                                                    CompileState &compile_state);
 
+  /* Evaluate a compositor repeat zone for N iterations. N is read from the "Iterations" input of
+   * the zone input node. The zone body is compiled and re-evaluated N times, feeding each
+   * iteration's image result as the next iteration's image input. All body and output nodes of
+   * the zone are added to handled_nodes so the main execute() loop skips them. */
+  void evaluate_repeat_zone(const bNode &zone_input_node,
+                             CompileState &compile_state,
+                             Set<const bNode *> &handled_nodes);
+
   /* Cancels the evaluation by freeing the results of the operations that were already evaluated,
    * that's because later operations that use the already allocated results will not be evaluated,
    * so they consequently will not release the results that they use and we need to free them

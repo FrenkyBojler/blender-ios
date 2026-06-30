@@ -91,6 +91,7 @@ set(SRC
   nodes/node_composite_posterize.cc
   nodes/node_composite_relative_to_pixel.cc
   nodes/node_composite_render_layers.cc
+  nodes/node_composite_repeat.cc
   nodes/node_composite_rgb_curves.cc
   nodes/node_composite_rgb_to_bw.cc
   nodes/node_composite_rotate.cc
@@ -115,6 +116,7 @@ set(SRC
   node_composite_tree.cc
   node_composite_util.cc
 
+  include/NOD_cmp_repeat.hh
   include/NOD_compositor_file_output.hh
   node_composite_util.hh
 )

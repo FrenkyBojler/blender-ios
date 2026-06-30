@@ -3543,6 +3543,29 @@ struct NodeGeometryRepeatOutput {
 #endif
 };
 
+struct NodeCompositorRepeatInput {
+  DNA_DEFINE_CXX_METHODS(NodeCompositorRepeatInput)
+
+  /** bNode.identifier of the corresponding output node. */
+  int32_t output_node_id = 0;
+};
+
+struct NodeCompositorRepeatOutput {
+  DNA_DEFINE_CXX_METHODS(NodeCompositorRepeatOutput)
+
+  NodeRepeatItem *items = nullptr;
+  int items_num = 0;
+  int active_index = 0;
+  /** Identifier to give to the next repeat item. */
+  int next_identifier = 0;
+  char _pad[4] = {};
+
+#ifdef __cplusplus
+  blender::Span<NodeRepeatItem> items_span() const;
+  blender::MutableSpan<NodeRepeatItem> items_span();
+#endif
+};
+
 struct NodeGeometryForeachGeometryElementInput {
   DNA_DEFINE_CXX_METHODS(NodeGeometryForeachGeometryElementInput)
 

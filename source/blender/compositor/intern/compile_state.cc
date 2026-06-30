@@ -47,6 +47,16 @@ void CompileState::map_node_to_pixel_operation(const bNode &node, PixelOperation
   pixel_operations_.add_new(&node, operations);
 }
 
+NodeOperation *CompileState::get_node_operation(const bNode &node) const
+{
+  return node_operations_.lookup_default(&node, nullptr);
+}
+
+PixelOperation *CompileState::get_pixel_operation(const bNode &node) const
+{
+  return pixel_operations_.lookup_default(&node, nullptr);
+}
+
 Result &CompileState::get_result_from_output_socket(const bNodeSocket &output)
 {
   /* The output belongs to a node that was compiled into a standard node operation, so return a
@@ -59,8 +69,25 @@ Result &CompileState::get_result_from_output_socket(const bNodeSocket &output)
   /* Otherwise, the output belongs to a node that was compiled into a pixel operation, so retrieve
    * the internal identifier of that output and return a reference to the result from that
    * operation using the retrieved identifier. */
+  BLI_assert_msg(pixel_operations_.contains(&output.owner_node()),
+                 "Node not found in node_operations_ or pixel_operations_: check that all "
+                 "nodes linked to body pixel node inputs are imported into the body compile state");
   PixelOperation *operation = pixel_operations_.lookup(&output.owner_node());
   return operation->get_result(operation->get_output_identifier_from_output_socket(output));
+}
+
+Result *CompileState::try_get_result_from_output_socket(const bNodeSocket &output)
+{
+  if (node_operations_.contains(&output.owner_node())) {
+    NodeOperation *operation = node_operations_.lookup(&output.owner_node());
+    return &operation->get_result(output.identifier);
+  }
+  if (pixel_operations_.contains(&output.owner_node())) {
+    PixelOperation *operation = pixel_operations_.lookup(&output.owner_node());
+    return &operation->get_result(
+        operation->get_output_identifier_from_output_socket(output));
+  }
+  return nullptr;
 }
 
 void CompileState::add_node_to_pixel_compile_unit(const bNode &node)
@@ -188,6 +215,14 @@ bool CompileState::is_pixel_node_single_value(const bNode &node)
       return false;
     }
 
+    /* If the source node hasn't been compiled yet (e.g. it's a body node whose operation
+     * will be created later in the evaluation loop), conservatively treat it as non-single-value
+     * so that we don't incorrectly merge incompatible nodes into the same pixel operation. */
+    if (!node_operations_.contains(&output->owner_node()) &&
+        !pixel_operations_.contains(&output->owner_node())) {
+      return false;
+    }
+
     const Result &result = get_result_from_output_socket(*output);
     if (!result.is_single_value()) {
       return false;
@@ -248,6 +283,14 @@ Domain CompileState::compute_pixel_node_domain(const bNode &node)
         node_domain = pixel_compile_unit_domain_.value();
         current_domain_priority = input_descriptor.domain_priority;
       }
+      continue;
+    }
+
+    /* If the source node hasn't been compiled yet, skip it as a domain contributor — we can't
+     * compute the domain from a result that doesn't exist yet. The node will either be handled
+     * separately or its contribution defaults to the identity domain. */
+    if (!node_operations_.contains(&output->owner_node()) &&
+        !pixel_operations_.contains(&output->owner_node())) {
       continue;
     }
 

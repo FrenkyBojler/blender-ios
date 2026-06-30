@@ -85,6 +85,24 @@ class RepeatZoneType : public bke::bNodeZoneType {
   }
 };
 
+class CompositorRepeatZoneType : public bke::bNodeZoneType {
+ public:
+  CompositorRepeatZoneType()
+  {
+    this->input_idname = "CompositorNodeRepeatInput"_ustr;
+    this->output_idname = "CompositorNodeRepeatOutput"_ustr;
+    this->input_type = CMP_NODE_REPEAT_INPUT;
+    this->output_type = CMP_NODE_REPEAT_OUTPUT;
+    this->theme_id = TH_NODE_ZONE_REPEAT;
+  }
+
+  const int &get_corresponding_output_id(const bNode &input_bnode) const override
+  {
+    BLI_assert(input_bnode.type_legacy == this->input_type);
+    return static_cast<NodeCompositorRepeatInput *>(input_bnode.storage)->output_node_id;
+  }
+};
+
 class ForeachGeometryElementZoneType : public bke::bNodeZoneType {
  public:
   ForeachGeometryElementZoneType()
@@ -126,10 +144,12 @@ static void register_zone_types()
 {
   static SimulationZoneType simulation_zone_type;
   static RepeatZoneType repeat_zone_type;
+  static CompositorRepeatZoneType compositor_repeat_zone_type;
   static ForeachGeometryElementZoneType foreach_geometry_element_zone_type;
   static ClosureZoneType closure_zone_type;
   bke::register_node_zone_type(simulation_zone_type);
   bke::register_node_zone_type(repeat_zone_type);
+  bke::register_node_zone_type(compositor_repeat_zone_type);
   bke::register_node_zone_type(foreach_geometry_element_zone_type);
   bke::register_node_zone_type(closure_zone_type);
 }

@@ -308,6 +308,8 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
             label="Switch Stereo View")
         layout.separator()
         self.node_operator(layout, "CompositorNodeRelativeToPixel")
+        layout.separator()
+        self.compositor_repeat_zone(layout, label="Repeat")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 

@@ -156,9 +156,21 @@ class CompileState {
    * compiled into in the pixel_operations_ map. */
   void map_node_to_pixel_operation(const bNode &node, PixelOperation *operation);
 
+  /* Return the node operation compiled for the given node, or null if not compiled yet. Used to
+   * re-import already-evaluated operations into a sub-compile-state (e.g. repeat zones). */
+  NodeOperation *get_node_operation(const bNode &node) const;
+
+  /* Return the pixel operation compiled for the given node, or null if not compiled yet. Used to
+   * re-import already-evaluated operations into a sub-compile-state (e.g. repeat zones). */
+  PixelOperation *get_pixel_operation(const bNode &node) const;
+
   /* Returns a reference to the result of the operation corresponding to the given output that the
    * given output's node was compiled to. */
   Result &get_result_from_output_socket(const bNodeSocket &output);
+
+  /* Returns a pointer to the result for the given output, or nullptr if the node has not been
+   * compiled into any operation yet. Used in body evaluation where some sources may be absent. */
+  Result *try_get_result_from_output_socket(const bNodeSocket &output);
 
   /* Add the given node to the compile unit. And if the domain of the compile unit is not yet
    * determined or was determined to be an identity domain, update it to the computed domain for
