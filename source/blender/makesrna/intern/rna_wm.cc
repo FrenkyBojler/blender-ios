@@ -1791,6 +1791,33 @@ static std::string rna_operator_description_cb(bContext *C,
   return result;
 }
 
+struct bContext *BPY_context_get();
+
+static std::string rna_operator_label_cb(wmOperatorType *ot, PointerRNA *prop_ptr)
+{
+  extern FunctionRNA *rna_Operator_label_func;
+
+  bContext *C = BPY_context_get();
+  ParameterList list;
+  FunctionRNA *func;
+  void *ret;
+
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, ot->rna_ext.srna, nullptr); /* dummy */
+  func = rna_Operator_label_func; /* RNA_struct_find_function(&ptr, "label"); */
+
+  RNA_parameter_list_create(&list, &ptr, func);
+  RNA_parameter_set_lookup(&list, "context", &C);
+  RNA_parameter_set_lookup(&list, "properties", prop_ptr);
+  ot->rna_ext.call(C, &ptr, func, &list);
+
+  RNA_parameter_get_lookup(&list, "result", &ret);
+  std::string result = ret ? std::string(static_cast<const char *>(ret)) : "";
+
+  RNA_parameter_list_free(&list);
+
+  return result;
+}
+
 static bool rna_Operator_unregister(Main *bmain, StructRNA *type);
 
 /* `bpy_operator_wrap.cc` */
@@ -1809,7 +1836,7 @@ static StructRNA *rna_Operator_register(Main *bmain,
   const char *error_prefix = "Registering operator class:";
   wmOperatorType dummy_ot = {nullptr};
   wmOperator dummy_operator = {nullptr};
-  bool have_function[8];
+  bool have_function[9];
 
   struct {
     char idname[OP_MAX_TYPENAME];
@@ -1927,6 +1954,7 @@ static StructRNA *rna_Operator_register(Main *bmain,
   dummy_ot.ui = (have_function[5]) ? rna_operator_draw_cb : nullptr;
   dummy_ot.cancel = (have_function[6]) ? rna_operator_cancel_cb : nullptr;
   dummy_ot.get_description = (have_function[7]) ? rna_operator_description_cb : nullptr;
+  dummy_ot.get_name = (have_function[8]) ? rna_operator_label_cb : nullptr;
   WM_operatortype_append_ptr(BPY_RNA_operator_wrapper, static_cast<void *>(&dummy_ot));
 
   /* update while blender is running */
