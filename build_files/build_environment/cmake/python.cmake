@@ -195,6 +195,8 @@ ${LIBDIR}/ssl/lib64/pkgconfig:${LIBDIR}/lzma/lib/pkgconfig:${LIBDIR}/zlib/share/
     # Use flags documented by ./configure for other libs.
     export BZIP2_CFLAGS=-I${LIBDIR}/bzip2/include
     export BZIP2_LIBS=${LIBDIR}/bzip2/lib/${LIBPREFIX}bz2${LIBEXT}
+
+    export TCLTK_CFLAGS=""
   )
 
   if(APPLE)
