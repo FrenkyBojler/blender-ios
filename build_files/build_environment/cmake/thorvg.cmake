@@ -5,6 +5,16 @@
 set(THORVG_EXTRA_ARGS
 )
 
+if(WITH_APPLE_CROSSPLATFORM)
+  if(NOT EXISTS "${MESON_APPLE_CONFIGURATION_FILE}")
+    message(FATAL_ERROR "thorvg requires cross=compilation config file at: '${MESON_APPLE_CONFIGURATION_FILE}'")
+  endif()
+
+  set(CROSS_COMPILE_COMMANDS --cross-file ${MESON_APPLE_CONFIGURATION_FILE})
+else()
+  set(CROSS_COMPILE_COMMANDS)
+endif()
+
 ExternalProject_Add(external_thorvg
   URL file://${PACKAGE_DIR}/${THORVG_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
@@ -18,6 +28,7 @@ ExternalProject_Add(external_thorvg
       ${MESON_BUILD_TYPE}
       --default-library static
       --libdir lib
+      ${CROSS_COMPILE_COMMANDS}
       ${BUILD_DIR}/thorvg/src/external_thorvg-build
       ${BUILD_DIR}/thorvg/src/external_thorvg
 
@@ -27,12 +38,14 @@ ExternalProject_Add(external_thorvg
   INSTALL_DIR ${LIBDIR}/thorvg
 )
 
+if(NOT WITH_APPLE_CROSSPLATFORM)
 add_dependencies(
   external_thorvg
   external_python
   # Needed for `MESON`.
   external_python_site_packages
 )
+endif()
 
 
 if(WIN32)
