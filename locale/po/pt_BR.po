@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e65907bec1c9')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-06-29 10:51+0000\n"
 "PO-Revision-Date: 2026-04-13 10:12+0000\n"
 "Last-Translator: Gilberto Rodrigues <gilbertorodrigues@outlook.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -21188,12 +21188,96 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
+msgid "Mirror"
+msgstr "Espelhar"
+
+
+msgid "Snap"
+msgstr "Atrair"
+
+
+msgid "UV Mapping"
+msgstr "Mapeamento UV"
+
+
+msgid "Local View"
+msgstr "Visão local"
+
+
+msgid "Viewpoint"
+msgstr "Ponto de visualização"
+
+
+msgid "Navigation"
+msgstr "Navegação"
+
+
+msgid "Align View"
+msgstr "Alinhar visualização"
+
+
+msgid "Align View to Active"
+msgstr "Alinhar vista para o ativo"
+
+
+msgid "View Regions"
+msgstr "Visualizar Regiões"
+
+
+msgid "Math"
+msgstr "Matemática"
+
+
+msgid "Select More/Less"
+msgstr "Selecionar mais ou menos"
+
+
+msgid "Select Similar"
+msgstr "Selecionar por similaridades"
+
+
+msgid "Select All by Trait"
+msgstr "Selecionar todos por características..."
+
+
+msgid "Select Linked"
+msgstr "Selecionar vinculados(as)"
+
+
+msgid "Select Loops"
+msgstr "Selecionar anéis"
+
+
+msgid "Metaball"
+msgstr "Meta-esfera"
+
+
+msgid "Light"
+msgstr "Luz"
+
+
+msgid "Light Probe"
+msgstr "Sonda de Luz"
+
+
+msgid "Instances"
+msgstr "Instâncias"
+
+
+msgid "Add Image"
+msgstr "Adicionar Imagem"
+
+
 msgid "Relations"
 msgstr "Relações"
 
 
 msgid "Rigid Body"
 msgstr "Corpo rígido"
+
+
+msgid "Import"
+msgstr "Importar"
 
 
 msgid "Apply"
@@ -21228,8 +21312,8 @@ msgid "Hooks"
 msgstr "Ganchos"
 
 
-msgid "Math"
-msgstr "Matemática"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Random Mask"
@@ -21272,104 +21356,24 @@ msgid "Face Data"
 msgstr "Dados das faces"
 
 
-msgid "Instances"
-msgstr "Instâncias"
-
-
 msgid "Merge"
 msgstr "Fundir"
-
-
-msgid "Import"
-msgstr "Importar"
-
-
-msgid "Special Characters"
-msgstr "Caracteres especiais"
-
-
-msgid "Metaball"
-msgstr "Meta-esfera"
-
-
-msgid "Bone Roll"
-msgstr "Rolagem dos ossos"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Pivot Point"
-msgstr "Pontos de pivô"
-
-
-msgid "Snap"
-msgstr "Atrair"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Tipo de decaimento para edição proporcional"
-
-
-msgid "Mirror"
-msgstr "Espelhar"
-
-
-msgid "UV Mapping"
-msgstr "Mapeamento UV"
-
-
-msgid "Local View"
-msgstr "Visão local"
-
-
-msgid "Viewpoint"
-msgstr "Ponto de visualização"
-
-
-msgid "Navigation"
-msgstr "Navegação"
 
 
 msgid "Linked"
 msgstr "Vinculando"
 
 
-msgid "Align View"
-msgstr "Alinhar visualização"
-
-
 msgid "Layout"
 msgstr "Organizar"
 
 
-msgid "Align View to Active"
-msgstr "Alinhar vista para o ativo"
+msgid "Special Characters"
+msgstr "Caracteres especiais"
 
 
-msgid "View Regions"
-msgstr "Visualizar Regiões"
-
-
-msgid "Select More/Less"
-msgstr "Selecionar mais ou menos"
-
-
-msgid "Select Similar"
-msgstr "Selecionar por similaridades"
-
-
-msgid "Select All by Trait"
-msgstr "Selecionar todos por características..."
-
-
-msgid "Select Linked"
-msgstr "Selecionar vinculados(as)"
-
-
-msgid "Select Loops"
-msgstr "Selecionar anéis"
+msgid "Bone Roll"
+msgstr "Rolagem dos ossos"
 
 
 msgid "Keying"
@@ -21380,16 +21384,12 @@ msgid "Tracking"
 msgstr "Rastreamento"
 
 
-msgid "Light"
-msgstr "Luz"
+msgid "Pivot Point"
+msgstr "Pontos de pivô"
 
 
-msgid "Light Probe"
-msgstr "Sonda de Luz"
-
-
-msgid "Add Image"
-msgstr "Adicionar Imagem"
+msgid "Proportional Editing Falloff"
+msgstr "Tipo de decaimento para edição proporcional"
 
 
 msgid "Basic"
@@ -48593,11 +48593,6 @@ msgstr "Rolagem"
 
 
 msgctxt "Operator"
-msgid "Bone Size"
-msgstr "Tamanho dos ossos"
-
-
-msgctxt "Operator"
 msgid "Bone Envelope"
 msgstr "Envelopes de ossos"
 
@@ -66968,6 +66963,10 @@ msgid "Strings"
 msgstr "Fios"
 
 
+msgid "Top Right"
+msgstr "Topo à Direita"
+
+
 msgid "Text Box Width"
 msgstr "Largura da caixa de texto"
 
@@ -66978,10 +66977,6 @@ msgstr "Altura da caixa de texto"
 
 msgid "Edge Crease"
 msgstr "Vincos de arestas"
-
-
-msgid "Top Right"
-msgstr "Topo à Direita"
 
 
 msgid "Rotate islands for best fit"
