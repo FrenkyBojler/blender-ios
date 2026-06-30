@@ -118,6 +118,7 @@ BLOCKLIST_NVIDIA_GL = [
     "shadow_min_pool_size.blend",
 ]
 
+
 def uses_any_lit_material(scene):
     import bpy
 
@@ -141,36 +142,28 @@ def uses_any_lit_material(scene):
 
     scene_materials = set()
 
-    # 1. Gather all materials used by objects in the current scene
+    # Gather all materials used by objects in the current scene
     for obj in scene.objects:
         # Check if the object type can hold materials (Meshes, Curves, etc.)
         if hasattr(obj.data, "materials"):
+            if not obj.data.materials:
+                return True  # No material slot, object uses the default material which is lit
             for mat in obj.data.materials:
                 if mat is not None:
                     scene_materials.add(mat)
-
-    lit_materials = []
+                else:
+                    return True  # Empty material slot, object uses the default material which is lit
 
     for mat in scene_materials:
-        is_lit = False
-
         # Check if the material uses the node system
         if mat.node_tree:
             for node in mat.node_tree.nodes:
                 if node.type in lit_node_types:
-                    is_lit = True
-                    break  # We found one, no need to check the rest of the nodes
+                    return True  # We found one, no need to check the rest of the nodes
         else:
-            # If use_nodes is False, Blender defaults to a basic lit surface
-            is_lit = True
+            return True  # If use_nodes is False, Blender defaults to a basic lit surface
 
-        if is_lit:
-            lit_materials.append(mat.name)
-
-    if lit_materials:
-        return True
-    else:
-        return False
+    return False
 
 
 def setup():
