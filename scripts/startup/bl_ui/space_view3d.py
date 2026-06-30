@@ -3878,23 +3878,23 @@ class VIEW3D_MT_add_object(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        props = layout.operator("wm.tool_set_by_id", text="Add Cube")
+        props = layout.operator("wm.tool_set_by_id", text="Add Cube", icon="MESH_CUBE")
         props.name = "builtin.primitive_cube_add"
         props.space_type = 'VIEW_3D'
 
-        props = layout.operator("wm.tool_set_by_id", text="Add Cylinder")
+        props = layout.operator("wm.tool_set_by_id", text="Add Cylinder", icon="MESH_CYLINDER")
         props.name = "builtin.primitive_cylinder_add"
         props.space_type = 'VIEW_3D'
 
-        props = layout.operator("wm.tool_set_by_id", text="Add Cone")
+        props = layout.operator("wm.tool_set_by_id", text="Add Cone", icon="MESH_CONE")
         props.name = "builtin.primitive_cone_add"
         props.space_type = 'VIEW_3D'
 
-        props = layout.operator("wm.tool_set_by_id", text="Add UV Sphere")
+        props = layout.operator("wm.tool_set_by_id", text="Add UV Sphere", icon="MESH_UVSPHERE")
         props.name = "builtin.primitive_uv_sphere_add"
         props.space_type = 'VIEW_3D'
 
-        props = layout.operator("wm.tool_set_by_id", text="Add Ico Sphere")
+        props = layout.operator("wm.tool_set_by_id", text="Add Ico Sphere", icon="MESH_ICOSPHERE")
         props.name = "builtin.primitive_ico_sphere_add"
         props.space_type = 'VIEW_3D'
 
