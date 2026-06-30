@@ -265,10 +265,9 @@ void RE_ClearResult(struct Render *re);
 struct RenderStats *RE_GetStats(struct Render *re);
 
 /**
- * Caller is responsible for allocating `rect` in correct size!
+ * Caller is responsible for allocating `dst` in correct size!
  */
-void RE_ResultGet32(struct Render *re, unsigned int *rect);
-void RE_ResultGetFloat(struct Render *re, float *rect);
+void RE_ResultGet32(Render *re, uint8_t *dst);
 
 bool RE_ResultIsMultiView(struct RenderResult *rr);
 
@@ -481,6 +480,10 @@ void RE_GetWindowMatrixWithOverscan(bool is_ortho,
 
 struct Scene *RE_GetScene(struct Render *re);
 void RE_SetScene(struct Render *re, struct Scene *sce);
+
+/* When rendering an animation, saving files is required, either through scene saving or through
+ * a compositor File Output node. */
+bool RE_disable_save_output_allowed(const bool is_animation, Scene &scene, ReportList *reports);
 
 bool RE_is_rendering_allowed(const Main &bmain,
                              struct Scene *scene,

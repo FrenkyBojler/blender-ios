@@ -16,6 +16,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -23,6 +24,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
+#include "BKE_camera.h"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
 
@@ -56,19 +58,9 @@ struct MPathTarget {
   /* Original (Source Objects) */
   Object *ob;          /* Source Object */
   bPoseChannel *pchan; /* Source pose-channel (if applicable). */
-
-  /* "Evaluated" Copies (these come from the background evaluated copy
-   * that provide all the coordinates we want to save off). */
-  Object *ob_eval; /* Evaluated Object. */
 };
 
 /* ........ */
-
-/* Update scene for current frame. */
-static void motionpaths_calc_update_scene(Depsgraph *depsgraph)
-{
-  BKE_scene_graph_update_for_newframe(depsgraph);
-}
 
 Depsgraph *animviz_depsgraph_build(Main *bmain,
                                    Scene *scene,
@@ -88,8 +80,6 @@ Depsgraph *animviz_depsgraph_build(Main *bmain,
   /* Build graph from all requested IDs. */
   DEG_graph_build_from_ids(depsgraph, ids);
 
-  /* Update once so we can access pointers of evaluated animation data. */
-  motionpaths_calc_update_scene(depsgraph);
   return depsgraph;
 }
 
@@ -113,14 +103,19 @@ void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget *> &r_targe
   if ((ob->pose) && (ob->pose->avs.recalc & ANIMVIZ_RECALC_PATHS)) {
     bArmature *arm = id_cast<bArmature *>(ob->data);
     for (bPoseChannel &pchan : ob->pose->chanbase) {
-      if ((pchan.bone) && ANIM_bonecoll_is_visible_pchan(arm, &pchan) && (pchan.mpath)) {
-        /* New target for bone. */
-        mpt = MEM_new_zeroed<MPathTarget>("MPathTarget PoseBone");
-        mpt->mpath = pchan.mpath;
-        mpt->ob = ob;
-        mpt->pchan = &pchan;
-        r_targets.append(mpt);
+      if (!pchan.mpath) {
+        continue;
       }
+      Bone *bone = pchan.bone_get(*ob);
+      if (!bone || !ANIM_bone_in_visible_collection(arm, bone)) {
+        continue;
+      }
+      /* New target for bone. */
+      mpt = MEM_new_zeroed<MPathTarget>("MPathTarget PoseBone");
+      mpt->mpath = pchan.mpath;
+      mpt->ob = ob;
+      mpt->pchan = &pchan;
+      r_targets.append(mpt);
     }
   }
 }
@@ -155,7 +150,7 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
     /* Get the relevant cache vert to write to. */
     bMotionPathVert *mpv = mpath->points + (cframe - mpath->start_frame);
 
-    Object *ob_eval = mpt->ob_eval;
+    Object *ob_eval = DEG_get_evaluated(depsgraph, mpt->ob);
 
     /* Lookup evaluated pose channel, here because the depsgraph
      * evaluation can change them so they are not cached in mpt. */
@@ -184,9 +179,21 @@ static void motionpaths_calc_bake_targets(const Span<MPathTarget *> targets,
 
     if (mpath->flag & MOTIONPATH_FLAG_BAKE_CAMERA && camera) {
       Object *cam_eval = DEG_get_evaluated(depsgraph, camera);
-      /* Convert point to camera space. */
-      float3 co_camera_space = math::transform_point(cam_eval->world_to_object(), float3(mpv->co));
-      copy_v3_v3(mpv->co, co_camera_space);
+      /* Aka projection matrix. */
+      float4x4 window_matrix;
+      Scene *scene = DEG_get_input_scene(depsgraph);
+      BKE_camera_multiview_window_matrix(&scene->r, cam_eval, nullptr, window_matrix.ptr());
+      /* World to Object is the view matrix. */
+      float4x4 perspective_matrix = window_matrix * cam_eval->world_to_object();
+      const float4 co_clip_space = perspective_matrix *
+                                   float4(mpv->co[0], mpv->co[1], mpv->co[2], 1.0);
+      /* Storing the verts in NDC space which contains lens effects like sensor offset. See
+       * `overlay_motion_path.hh/motion_path_sync`. Negative w values are behind the camera, thus
+       * can't be correctly projected into the scene. Using abs(w) is consistent with
+       * `project_point` in shader code. */
+      const float3 co_ndc_space = float3(co_clip_space) /
+                                  math::max(math::abs(co_clip_space.w), 0.0001f);
+      copy_v3_v3(mpv->co, co_ndc_space);
     }
 
     float mframe = float(cframe);
@@ -404,33 +411,38 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene)
   ED_keylist_free(keylist);
 }
 
+static void build_keylist_for_target(MPathTarget &target, AnimKeylist &keylist)
+{
+  /* For object level motion paths this is a nullptr in which case the filtering is ignored. */
+  bPoseChannel *pose_bone = target.pchan;
+  for (FCurve *fcu : animrig::fcurves_for_assigned_action(target.ob->adt)) {
+    if (pose_bone &&
+        !animrig::fcurve_matches_collection_path(*fcu, "pose.bones[", pose_bone->name))
+    {
+      continue;
+    }
+    /* When only updating a subset of the motion path we could pass a range here to improve
+     * performance. */
+    fcurve_to_keylist(target.ob->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, true);
+  }
+}
+
 void animviz_calc_motionpaths(Depsgraph *depsgraph,
-                              Main *bmain,
                               Scene *scene,
                               MutableSpan<MPathTarget *> targets,
-                              eAnimvizCalcRange range,
-                              bool restore)
+                              eAnimvizCalcRange range)
 {
   using namespace blender::animrig;
+  BLI_assert_msg(!DEG_is_active(depsgraph),
+                 "Motion path calculation should always happen with a minimal depsgraph.");
 
   if (targets.is_empty()) {
     return;
   }
 
-  const int cfra = scene->r.cfra;
   /* The frame range to calculate. Inclusive/Exclusive. */
   Bounds<int> frame_range = {INT_MAX, INT_MIN};
   switch (range) {
-    case ANIMVIZ_CALC_RANGE_CURRENT_FRAME:
-      frame_range = motionpath_get_global_framerange(targets);
-      if (frame_range.is_empty()) {
-        return;
-      }
-      if (!frame_range.contains(cfra)) {
-        return;
-      }
-      frame_range = {cfra, cfra + 1};
-      break;
     case ANIMVIZ_CALC_RANGE_CHANGED:
       /* Nothing to do here, will be handled later when iterating through the targets. */
       break;
@@ -442,27 +454,9 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
       break;
   }
 
-  /* Get copies of objects/bones to get the calculated results from
-   * (for copy-on-evaluation), so that we actually get some results.
-   */
-
-  /* TODO: Create a copy of background depsgraph that only contain these entities,
-   * and only evaluates them.
-   *
-   * For until that is done we force dependency graph to not be active, so we don't lose unkeyed
-   * changes during updating the motion path.
-   * This still doesn't include unkeyed changes to the path itself, but allows to have updates in
-   * an environment when auto-keying and pose paste is used. */
-
-  const bool is_active_depsgraph = DEG_is_active(depsgraph);
-  if (is_active_depsgraph) {
-    DEG_make_inactive(depsgraph);
-  }
-
   for (MPathTarget *mpt : targets) {
-    mpt->ob_eval = DEG_get_evaluated(depsgraph, mpt->ob);
 
-    AnimData *adt = BKE_animdata_from_id(&mpt->ob_eval->id);
+    AnimData *adt = BKE_animdata_from_id(&mpt->ob->id);
 
     /* Build list of all keyframes in active action for object or pchan. */
     mpt->keylist = ED_keylist_create();
@@ -472,9 +466,8 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
       /* Get pointer to animviz settings for each target. */
       bAnimVizSettings *avs = animviz_target_settings_get(mpt);
 
-      /* It is assumed that keyframes for bones are all grouped in a single group
-       * unless an option is set to always use the whole action.
-       */
+      /* For bones it is likely that all FCurves belong to a group named after the bone. Only
+       * checking FCurves of a given group can improve performance when building the keylist. */
       if ((mpt->pchan) && (avs->path_viewflag & MOTIONPATH_VIEW_KFACT) == 0) {
         Action &action = adt->action->wrap();
         bActionGroup *agrp = nullptr;
@@ -487,16 +480,14 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
         }
       }
       else {
-        Action &action = adt->action->wrap();
-        fcurves = Vector<FCurve *>(
-            channelbag_for_action_slot(action, adt->slot_handle)->fcurves());
-        action_to_keylist(adt, adt->action, mpt->keylist, 0, {-FLT_MAX, FLT_MAX});
+        build_keylist_for_target(*mpt, *mpt->keylist);
       }
     }
     ED_keylist_prepare_for_direct_access(mpt->keylist);
 
     if (range == ANIMVIZ_CALC_RANGE_CHANGED) {
-      const Bounds<int> target_bounds = motionpath_calculate_update_range(mpt, adt, fcurves, cfra);
+      const Bounds<int> target_bounds = motionpath_calculate_update_range(
+          mpt, adt, fcurves, scene->r.cfra);
       if (!target_bounds.is_empty()) {
         frame_range.min = min_ii(frame_range.min, target_bounds.min);
         frame_range.max = max_ii(frame_range.max, target_bounds.max);
@@ -516,31 +507,12 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
             frame_range.max,
             frame_range.max - frame_range.min + 1);
 
-  for (scene->r.cfra = frame_range.min; scene->r.cfra < frame_range.max; scene->r.cfra++) {
-    if (range == ANIMVIZ_CALC_RANGE_CURRENT_FRAME) {
-      /* For current frame, only update tagged. */
-      BKE_scene_graph_update_tagged(depsgraph, bmain);
-    }
-    else {
-      /* Update relevant data for new frame. */
-      motionpaths_calc_update_scene(depsgraph);
-    }
+  for (int frame = frame_range.min; frame < frame_range.max; frame++) {
+    /* Update relevant data for new frame. */
+    DEG_evaluate_on_framechange(depsgraph, frame);
 
     /* Perform baking for targets. */
-    motionpaths_calc_bake_targets(targets, scene->r.cfra, depsgraph, scene->camera);
-  }
-
-  /* Reset original environment. */
-  /* NOTE: We don't always need to reevaluate the main scene, as the depsgraph
-   * may be a temporary one that works on a subset of the data.
-   * We always have to restore the current frame though. */
-  scene->r.cfra = cfra;
-  if (range != ANIMVIZ_CALC_RANGE_CURRENT_FRAME && restore) {
-    motionpaths_calc_update_scene(depsgraph);
-  }
-
-  if (is_active_depsgraph) {
-    DEG_make_active(depsgraph);
+    motionpaths_calc_bake_targets(targets, frame, depsgraph, scene->camera);
   }
 
   /* Clear recalc flags from targets. */
