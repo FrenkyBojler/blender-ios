@@ -17,6 +17,8 @@
 
 #include <fmt/format.h>
 
+#include "fast_float.h"
+
 #include "BLI_listbase.hh"
 #include "BLI_math_base_c.hh"
 #include "BLI_set.hh"
@@ -2437,7 +2439,9 @@ void IDP_TryConvertProperty(IDProperty *src,
       }
       case IDP_UI_DATA_TYPE_STRING: {
         if (const char *str = IDP_string_get(src)) {
-          val.append(std::stod(str));
+          double value = 0.0f;
+          fast_float::from_chars(str, str + strlen(str), value);
+          val.append(value);
           return val;
         }
         break;

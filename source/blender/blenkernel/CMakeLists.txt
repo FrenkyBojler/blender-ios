@@ -612,6 +612,7 @@ set(LIB
   PRIVATE bf::dependencies::optional::fftw3
   PRIVATE bf::dependencies::optional::opensubdiv
   PRIVATE bf::dependencies::optional::audaspace
+  PRIVATE bf::extern::fast_float
 )
 
 if(WITH_BINRELOC)
