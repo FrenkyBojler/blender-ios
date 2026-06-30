@@ -46,10 +46,10 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#include "ED_armature.hh"
 #include "ED_buttons.hh"
 #include "ED_physics.hh"
 #include "ED_screen.hh"
-#include "ED_armature.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -441,11 +441,17 @@ static bool buttons_context_path_pose_bone(ButsContextPath *path, const char *pi
     if (arm->edbo) {
       return false;
     }
-    const char *bname = pin_bonename && pin_bonename[0] ? pin_bonename :
-                       arm->act_bone ? arm->act_bone->name : nullptr;
 
-    if (bname) {
-      bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bname);
+    const char *bonename = nullptr;
+    if (pin_bonename && pin_bonename[0]) {
+      bonename = pin_bonename;
+    }
+    else if (arm->act_bone) {
+      bonename = arm->act_bone->name;
+    }
+
+    if (bonename) {
+      bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bonename);
       if (pchan) {
         path->ptr[path->len] = RNA_pointer_create_discrete(&ob->id, RNA_PoseBone, pchan);
         path->len++;
