@@ -1825,8 +1825,9 @@ static void rna_idproperty_ui_float_limits_update(Main * /*bmain*/,
     ui_data->soft_max = ui_data->max;
     return;
   }
+
+  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->min, ui_data->max);
   ui_data->soft_min = std::clamp(ui_data->soft_min, ui_data->min, ui_data->soft_max);
-  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->soft_min, ui_data->max);
 }
 
 static void rna_idproperty_ui_int_limits_update(Main * /*bmain*/,
@@ -1843,8 +1844,9 @@ static void rna_idproperty_ui_int_limits_update(Main * /*bmain*/,
     ui_data->soft_max = ui_data->max;
     return;
   }
+
+  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->min, ui_data->max);
   ui_data->soft_min = std::clamp(ui_data->soft_min, ui_data->min, ui_data->soft_max);
-  ui_data->soft_max = std::clamp(ui_data->soft_max, ui_data->soft_min, ui_data->max);
 }
 
 static const EnumPropertyItem *rna_idproperty_ui_float_subtype_itemf(bContext * /*C*/,
