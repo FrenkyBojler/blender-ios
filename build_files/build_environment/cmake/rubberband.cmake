@@ -21,12 +21,16 @@ if(WITH_APPLE_CROSSPLATFORM)
   endif()
 
   set(CROSS_COMPILE_COMMANDS --cross-file ${MESON_APPLE_CONFIGURATION_FILE})
+else()
+  set(CROSS_COMPILE_COMMANDS)
+endif()
+
+if(APPLE)
   set(RUBBERBAND_PATCH ${PATCH_CMD} --verbose -p1 -d
     ${BUILD_DIR}/rubberband/src/external_rubberband <
     ${PATCH_DIR}/rubberband_ios.diff
-  )
+    )
 else()
-  set(CROSS_COMPILE_COMMANDS)
   set(RUBBERBAND_PATCH)
 endif()
 
