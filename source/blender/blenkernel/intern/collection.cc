@@ -1463,7 +1463,6 @@ void BKE_collection_object_parented_sort_index_reset(Main *bmain, Object *ob)
     CollectionObject *cob = BKE_collection_object_find_in(collection, ob);
     if (cob != nullptr) {
       cob->parented_sort_index = -1;
-      DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_HIERARCHY);
     }
   }
 }
