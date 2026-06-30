@@ -323,7 +323,8 @@ else()
         ar = 'ar'
         strip = 'strip'
         ld = 'ld'
-        pkgconfig = 'pkg-config'
+        pkg-config = 'pkg-config'
+        cython = '${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/python/bin/cython'
 
         [built-in options]
         c_args = [
