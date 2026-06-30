@@ -61,6 +61,26 @@ MINLINE void blend_color_mix_byte(uchar dst[4], const uchar src1[4], const uchar
   }
 }
 
+MINLINE void blend_color_mix_byte(uchar dst[4],
+                                  const uchar src1[4],
+                                  const uchar src2[4],
+                                  const float factor)
+{
+#  if BLI_HAVE_SSE2
+  const __m128 a = simd_rgba_uchar_to_float_unnormalized(src1);
+  const __m128 b = simd_rgba_uchar_to_float_unnormalized(src2);
+  simd_rgba_float_to_uchar_unnormalized(
+      dst,
+      _mm_add_ps(_mm_mul_ps(a, _mm_set1_ps(1.0f - factor)), _mm_mul_ps(b, _mm_set1_ps(factor))));
+#  else
+  for (int i = 0; i < 4; i++) {
+    dst[i] = uchar(
+        std::min(std::max(float(src1[i]) * (1.0f - factor) + float(src2[i]) * factor + 0.5f, 0.0f),
+                 255.0f));
+  }
+#  endif
+}
+
 MINLINE void blend_color_add_byte(uchar dst[4], const uchar src1[4], const uchar src2[4])
 {
   if (src2[3] != 0) {

@@ -9,6 +9,7 @@
  */
 
 #include "BLI_math_inline.hh"
+#include "BLI_simd.hh"
 
 namespace blender {
 
@@ -151,6 +152,12 @@ MINLINE void rgb_uchar_to_float(float r_col[3], const unsigned char col_ub[3]);
 MINLINE void rgba_uchar_to_float(float r_col[4], const unsigned char col_ub[4]);
 MINLINE void rgb_float_to_uchar(unsigned char r_col[3], const float col_f[3]);
 MINLINE void rgba_float_to_uchar(unsigned char r_col[4], const float col_f[4]);
+
+#if BLI_HAVE_SSE2
+/** Convert with same rounding same as above, but leaving in 0..255 range. */
+inline __m128 simd_rgba_uchar_to_float_unnormalized(const unsigned char col[4]);
+inline void simd_rgba_float_to_uchar_unnormalized(unsigned char r_col[4], __m128 value);
+#endif
 
 /**
  * Compute luminance using Rec.709 primaries, for sRGB and linear Rec.709.

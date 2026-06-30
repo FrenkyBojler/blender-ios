@@ -7,6 +7,7 @@
 #include "BLI_array.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_listbase.hh"
+#include "BLI_math_color_blend.hh"
 #include "BLI_math_geom_c.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
@@ -487,6 +488,71 @@ struct Rows {
     }
   }
 };
+
+void CopyPixelTile::copy_pixels_float(ImBuf &tile_buffer, const IndexRange group_range) const
+{
+  const int64_t width = tile_buffer.x;
+  const int channels = tile_buffer.channels ? tile_buffer.channels : 4;
+  float *data = tile_buffer.float_data_for_write();
+  const float *src = data;
+
+  for (const int64_t group_index : group_range) {
+    const CopyPixelGroup &group = groups[group_index];
+    CopyPixelCommand copy_command(group);
+    for (const DeltaCopyPixelCommand &item : Span<const DeltaCopyPixelCommand>(
+             &command_deltas[group.start_delta_index], group.num_deltas))
+    {
+      copy_command.apply(item);
+
+      const int64_t offset_1 = (int64_t(copy_command.source_1.y) * width +
+                                copy_command.source_1.x) *
+                               channels;
+      const int64_t offset_2 = (int64_t(copy_command.source_2.y) * width +
+                                copy_command.source_2.x) *
+                               channels;
+      const int64_t offset_dst = (int64_t(copy_command.destination.y) * width +
+                                  copy_command.destination.x) *
+                                 channels;
+      const float factor = copy_command.mix_factor;
+      const float one_minus_factor = 1.0f - factor;
+      for (int c = 0; c < channels; c++) {
+        data[offset_dst + c] = src[offset_1 + c] * one_minus_factor + src[offset_2 + c] * factor;
+      }
+    }
+  }
+}
+
+void CopyPixelTile::copy_pixels_byte(ImBuf &tile_buffer, const IndexRange group_range) const
+{
+  const int64_t width = tile_buffer.x;
+  /* Ensure the buffer is writable once, then read and write through the raw pointer to avoid the
+   * per-pixel sharing-info check in #ImBuf::byte_data_for_write. Source and destination are the
+   * same buffer. */
+  uchar *data = tile_buffer.byte_data_for_write();
+  const uchar *src = data;
+
+  for (const int64_t group_index : group_range) {
+    const CopyPixelGroup &group = groups[group_index];
+    CopyPixelCommand copy_command(group);
+    for (const DeltaCopyPixelCommand &item : Span<const DeltaCopyPixelCommand>(
+             &command_deltas[group.start_delta_index], group.num_deltas))
+    {
+      copy_command.apply(item);
+
+      const int64_t offset_1 = (int64_t(copy_command.source_1.y) * width +
+                                copy_command.source_1.x) *
+                               4;
+      const int64_t offset_2 = (int64_t(copy_command.source_2.y) * width +
+                                copy_command.source_2.x) *
+                               4;
+      const int64_t offset_dst = (int64_t(copy_command.destination.y) * width +
+                                  copy_command.destination.x) *
+                                 4;
+      blend_color_mix_byte(
+          data + offset_dst, src + offset_1, src + offset_2, copy_command.mix_factor);
+    }
+  }
+}
 
 void CopyPixelTile::build_seam_tile_map(const int2 resolution)
 {

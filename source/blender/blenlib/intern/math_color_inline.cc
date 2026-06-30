@@ -152,6 +152,27 @@ MINLINE void rgba_float_to_uchar(uchar r_col[4], const float col_f[4])
   unit_float_to_uchar_clamp_v4(r_col, col_f);
 }
 
+#if BLI_HAVE_SSE2
+
+inline __m128 simd_rgba_uchar_to_float_unnormalized(const uchar col[4])
+{
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i packed = _mm_cvtsi32_si128(int(*reinterpret_cast<const uint32_t *>(col)));
+  return _mm_cvtepi32_ps(_mm_unpacklo_epi16(_mm_unpacklo_epi8(packed, zero), zero));
+}
+
+inline void simd_rgba_float_to_uchar_unnormalized(uchar r_col[4], __m128 value)
+{
+  const __m128i zero = _mm_setzero_si128();
+  value = _mm_add_ps(value, _mm_set1_ps(0.5f));
+  value = _mm_min_ps(_mm_max_ps(value, _mm_setzero_ps()), _mm_set1_ps(255.0f));
+  const __m128i ints = _mm_cvttps_epi32(value);
+  *reinterpret_cast<uint32_t *>(r_col) = uint32_t(
+      _mm_cvtsi128_si32(_mm_packus_epi16(_mm_packs_epi32(ints, zero), zero)));
+}
+
+#endif
+
 MINLINE void rgba_uchar_args_set(
     uchar col[4], const uchar r, const uchar g, const uchar b, const uchar a)
 {

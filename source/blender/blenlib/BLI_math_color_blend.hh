@@ -21,6 +21,11 @@ namespace blender {
 MINLINE void blend_color_mix_byte(unsigned char dst[4],
                                   const unsigned char src1[4],
                                   const unsigned char src2[4]);
+/** Straight per-channel mix of two byte colors by #factor in [0, 1]. */
+MINLINE void blend_color_mix_byte(unsigned char dst[4],
+                                  const unsigned char src1[4],
+                                  const unsigned char src2[4],
+                                  float factor);
 MINLINE void blend_color_add_byte(unsigned char dst[4],
                                   const unsigned char src1[4],
                                   const unsigned char src2[4]);

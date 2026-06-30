@@ -204,15 +204,6 @@ struct CopyPixelCommand {
   {
   }
 
-  template<typename T>
-  void mix_source_and_write_destination(image::ImageBufferAccessor<T> &tile_buffer) const
-  {
-    float4 source_color_1 = tile_buffer.read_pixel(source_1);
-    float4 source_color_2 = tile_buffer.read_pixel(source_2);
-    float4 destination_color = source_color_1 * (1.0f - mix_factor) + source_color_2 * mix_factor;
-    tile_buffer.write_pixel(destination, destination_color);
-  }
-
   void apply(const DeltaCopyPixelCommand &item)
   {
     destination.x += 1;
@@ -264,12 +255,10 @@ struct CopyPixelTile {
   void copy_pixels(ImBuf &tile_buffer, IndexRange group_range) const
   {
     if (tile_buffer.float_data()) {
-      image::ImageBufferAccessor<float4> accessor(tile_buffer);
-      copy_pixels<float4>(accessor, group_range);
+      copy_pixels_float(tile_buffer, group_range);
     }
     else {
-      image::ImageBufferAccessor<int> accessor(tile_buffer);
-      copy_pixels<int>(accessor, group_range);
+      copy_pixels_byte(tile_buffer, group_range);
     }
   }
 
@@ -286,20 +275,8 @@ struct CopyPixelTile {
   }
 
  private:
-  template<typename T>
-  void copy_pixels(image::ImageBufferAccessor<T> &image_buffer, IndexRange group_range) const
-  {
-    for (const int64_t group_index : group_range) {
-      const CopyPixelGroup &group = groups[group_index];
-      CopyPixelCommand copy_command(group);
-      for (const DeltaCopyPixelCommand &item : Span<const DeltaCopyPixelCommand>(
-               &command_deltas[group.start_delta_index], group.num_deltas))
-      {
-        copy_command.apply(item);
-        copy_command.mix_source_and_write_destination<T>(image_buffer);
-      }
-    }
-  }
+  void copy_pixels_float(ImBuf &tile_buffer, IndexRange group_range) const;
+  void copy_pixels_byte(ImBuf &tile_buffer, IndexRange group_range) const;
 };
 
 struct CopyPixelTiles {
