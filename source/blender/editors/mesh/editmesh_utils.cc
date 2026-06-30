@@ -2010,6 +2010,7 @@ bool BMBVH_EdgeVisible(const BMBVHTree *tree,
   sub_v3_v3v3(dir2, origin, co2);
   sub_v3_v3v3(dir3, origin, co3);
 
+  /* This prevents the ray shooting behind the camera. */
   float dist1 = len_v3(dir1);
   float dist2 = len_v3(dir2);
   float dist3 = len_v3(dir3);
