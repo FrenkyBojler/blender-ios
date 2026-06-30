@@ -73,21 +73,24 @@ void DepsgraphRelationBuilder::build_scene_compositor(Scene *scene)
   if (built_map_.check_is_built_and_tag(scene, BuilderMap::TAG_SCENE_COMPOSITOR)) {
     return;
   }
-  if (scene->compositing_node_group == nullptr) {
-    return;
-  }
 
   ComponentKey compositor_key(&scene->id, NodeType::COMPOSITOR);
-  const OperationKey node_output_key(
-      &scene->compositing_node_group->id, NodeType::NTREE_OUTPUT, OperationCode::NTREE_OUTPUT);
-  this->add_relation(node_output_key, compositor_key, "NTree Output -> Compositor");
+  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+    if (!modifier.node_group) {
+      continue;
+    }
 
-  /* TODO(sergey): Trace as a scene compositor. */
-  build_nodetree(scene->compositing_node_group);
+    const OperationKey node_output_key(
+        &modifier.node_group->id, NodeType::NTREE_OUTPUT, OperationCode::NTREE_OUTPUT);
+    this->add_relation(node_output_key, compositor_key, "NTree Output -> Compositor");
 
-  DepsNodeHandle handle = this->create_node_handle(node_output_key);
-  bke::compositor::add_depsgraph_relations(*scene,
-                                           reinterpret_cast<blender::DepsNodeHandle *>(&handle));
+    /* TODO(sergey): Trace as a scene compositor. */
+    build_nodetree(modifier.node_group);
+
+    DepsNodeHandle handle = this->create_node_handle(node_output_key);
+    bke::compositor::add_depsgraph_relations(
+        *scene, *modifier.node_group, reinterpret_cast<blender::DepsNodeHandle *>(&handle));
+  }
 }
 
 }  // namespace blender::deg

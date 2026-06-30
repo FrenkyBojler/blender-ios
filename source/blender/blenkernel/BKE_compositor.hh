@@ -85,11 +85,25 @@ struct Cache {
  * Scene Compositor Modifiers.
  */
 
+enum class ExecutionMode : uint8_t {
+  /* The compositor is executing for a final render. */
+  Render,
+  /* The compositor is executing for a preview, like the interactive compositor or the viewport
+   * compositor. */
+  Preview,
+};
+
+/* Returns true if the given scene has any enabled modifier for the given execution mode. */
+bool has_any_enabled_modifier(const Scene &scene, ExecutionMode mode);
+
 /* Gets the compositor modifier with the given name in the given scene. */
 SceneCompositorModifier *get_modifier(const Scene *scene, const char *name);
 
 /* Gets the active compositor modifier in the given scene. */
 SceneCompositorModifier *get_active_modifier(const Scene *scene);
+
+/* Returns true if the given modifier is enabled for the given execution mode. */
+bool is_modifier_enabled(const SceneCompositorModifier &modifier, ExecutionMode mode);
 
 /* Sets the given compositor modifier in the given scene to be the active one. */
 void set_active_modifier(const Scene *scene, SceneCompositorModifier *modifier);
@@ -117,26 +131,27 @@ void clear_modifiers(Scene *scene);
  * Query.
  */
 
-/* Get the set of all passes used by the compositor for the given view layer, identified by their
- * pass names. This might be a superset of the passes actually supported by the render engine, in
- * which case, the compositor will return an invalid output and issue a warning. */
-Set<std::string> get_used_passes(const Scene &scene, const ViewLayer *view_layer);
+/* Get the set of all passes used by the compositor for the given view layer and execution mode,
+ * identified by their pass names. This might be a superset of the passes actually supported by the
+ * render engine, in which case, the compositor will return an invalid output and issue a
+ * warning. */
+Set<std::string> get_used_passes(const Scene &scene,
+                                 const ViewLayer *view_layer,
+                                 ExecutionMode mode);
 
 /* Checks if the viewport compositor is currently being used. This is similar to
  * DRWContext::is_viewport_compositor_enabled but checks all 3D views. */
 bool is_viewport_compositor_used(const bContext &context);
 
-/* Note: Links to the File Output node do not guarantee it will write a result to disk, e.g. if
- * Menu Switch nodes exists but it's a good estimation without evaluating the node tree. */
-bool node_tree_has_linked_file_output(const bNodeTree *node_tree);
-
 /* --------------------------------------------------------------------
  * Depsgraph.
  */
 
-/* Add the depsgraph relations needed by the compositor node tree of the given scene. A handle for
- * the compositor output depsgraph node is given to be the target of the relation. */
-void add_depsgraph_relations(Scene &scene, DepsNodeHandle *compositor_output_depsgraph_node);
+/* Add the depsgraph relations needed by the given compositor node group in the given scene. A
+ * handle for the compositor output depsgraph node is given to be the target of the relation. */
+void add_depsgraph_relations(Scene &scene,
+                             const bNodeTree &node_group,
+                             DepsNodeHandle *compositor_output_depsgraph_node);
 
 }  // namespace bke::compositor
 }  // namespace blender

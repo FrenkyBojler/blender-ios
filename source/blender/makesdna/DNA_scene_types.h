@@ -2779,10 +2779,17 @@ struct TransformOrientationSlot {
 
 enum class SceneCompositorModifierFlags : uint8_t {
   None = 0,
+  /* The modifier is enabled for final render compositing. */
   EnableForRender = (1 << 0),
+  /* The modifier is enabled for preview compositing, like the interactive compositor or the
+   * viewport compositor. */
   EnableForPreview = (1 << 1),
-  IsActive = (1 << 3),
-  ShowNodeGroupSelector = (1 << 4),
+  /* The modifier is the currently active one in the modifier stack. Only one modifier can be
+     marked as active in the stack. One modifier is guaranteed to be active at all time. */
+  IsActive = (1 << 2),
+  /* Show the node group selector in the modifier, this can be disabled for assets for instance to
+   * make the modifier look more like a built-in modifier. */
+  ShowNodeGroupSelector = (1 << 3),
 };
 ENUM_OPERATORS(SceneCompositorModifierFlags);
 
@@ -2870,9 +2877,9 @@ struct Scene {
   char _pad3[1] = {};
 
   DNA_DEPRECATED struct bNodeTree *nodetree = nullptr;
-  struct bNodeTree *compositing_node_group = nullptr;
+  DNA_DEPRECATED struct bNodeTree *compositing_node_group = nullptr;
 
-  ListBaseT<struct SceneCompositorModifier> compositor_modifiers = {nullptr, nullptr};
+  ListBaseT<SceneCompositorModifier> compositor_modifiers = {nullptr, nullptr};
 
   /** Sequence editor data is allocated here. */
   struct Editing *ed = nullptr;

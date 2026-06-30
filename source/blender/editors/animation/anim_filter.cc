@@ -549,7 +549,8 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
   { \
     if ((id)->adt) { \
       if (!(filter_mode & ANIMFILTER_CURVE_VISIBLE) || \
-          !((id)->adt->flag & ADT_CURVES_NOT_VISIBLE)) { \
+          !((id)->adt->flag & ADT_CURVES_NOT_VISIBLE)) \
+      { \
         if (filter_mode & ANIMFILTER_ANIMDATA) { \
           adtOk \
         } \
@@ -3440,7 +3441,6 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
 
   /* filter data contained under object first */
   BEGIN_ANIMFILTER_SUBCHANNELS (EXPANDED_SCEC(sce)) {
-    bNodeTree *ntree = sce->compositing_node_group;
     World *wo = sce->world;
     Editing *ed = sce->ed;
 
@@ -3455,9 +3455,14 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
     }
 
     /* nodetree */
-    if ((ntree) && !(ac->filters.flag & ADS_FILTER_NONTREE)) {
-      tmp_items += animdata_filter_ds_nodetree(
-          ac, &tmp_data, reinterpret_cast<ID *>(sce), ntree, filter_mode);
+    if (!(ac->filters.flag & ADS_FILTER_NONTREE)) {
+      for (SceneCompositorModifier &modifier : sce->compositor_modifiers) {
+        if (!modifier.node_group) {
+          continue;
+        }
+        tmp_items += animdata_filter_ds_nodetree(
+            ac, &tmp_data, reinterpret_cast<ID *>(sce), modifier.node_group, filter_mode);
+      }
     }
 
     /* VSE strip node trees. */

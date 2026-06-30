@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_compositor.hh"
 #include "BLI_listbase.hh"
 
 #include "GPU_capabilities.hh"
@@ -180,7 +181,8 @@ static bool is_compositing_possible(const Scene *scene)
     return false;
   }
 
-  if (!scene->compositing_node_group) {
+  if (!bke::compositor::has_any_enabled_modifier(*scene, bke::compositor::ExecutionMode::Preview))
+  {
     return false;
   }
 

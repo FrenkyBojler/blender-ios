@@ -29,6 +29,7 @@
 #include "BLI_threads.hh"
 
 #include "BKE_brush.hh"
+#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_icons.hh"
 #include "BKE_main.hh"
@@ -106,23 +107,45 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
   }
 }
 
+static bool is_any_compositor_modifier_user_modified(const DEGEditorUpdateContext *update_context)
+{
+  const Scene *scene = DEG_get_evaluated(update_context->depsgraph, update_context->scene);
+  for (const SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+    if (!bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Preview)) {
+      continue;
+    }
+
+    if ((modifier.node_group->id.recalc & ID_RECALC_NTREE_OUTPUT) &&
+        DEG_id_is_user_modified(update_context->depsgraph, &modifier.node_group->id))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 static void update_compositor(const DEGEditorUpdateContext *update_context)
 {
   const Scene *scene = DEG_get_evaluated(update_context->depsgraph, update_context->scene);
-  const bNodeTree *node_tree = scene->compositing_node_group;
-  if (!node_tree) {
-    return;
+
+  const bool is_user_modified = is_any_compositor_modifier_user_modified(update_context);
+  if (is_user_modified) {
+    update_context->scene->runtime->compositor.cache.clear_frames();
   }
 
-  if (node_tree->id.recalc & ID_RECALC_NTREE_OUTPUT) {
-    if (DEG_id_is_user_modified(update_context->depsgraph, &node_tree->id)) {
-      update_context->scene->runtime->compositor.cache.clear_frames();
+  for (const SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+    if (!bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Preview)) {
+      continue;
     }
 
-    ED_node_compositor_job(update_context->bmain,
-                           update_context->scene,
-                           update_context->view_layer,
-                           DEG_id_is_user_modified(update_context->depsgraph, &node_tree->id));
+    if (modifier.node_group->id.recalc & ID_RECALC_NTREE_OUTPUT) {
+      ED_node_compositor_job(update_context->bmain,
+                             update_context->scene,
+                             update_context->view_layer,
+                             is_user_modified);
+      return;
+    }
   }
 }
 

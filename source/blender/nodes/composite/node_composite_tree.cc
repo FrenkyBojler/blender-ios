@@ -202,10 +202,12 @@ void ntreeCompositTagRender(Scene *scene)
   for (Scene *sce_iter = static_cast<Scene *>(G_MAIN->scenes.first); sce_iter;
        sce_iter = static_cast<Scene *>(sce_iter->id.next))
   {
-    if (sce_iter->compositing_node_group) {
-      for (bNode *node : sce_iter->compositing_node_group->all_nodes()) {
-        if (node->id == (ID *)scene) {
-          BKE_ntree_update_tag_node_property(sce_iter->compositing_node_group, node);
+    for (const SceneCompositorModifier &modifier : sce_iter->compositor_modifiers) {
+      if (modifier.node_group) {
+        for (bNode *node : modifier.node_group->all_nodes()) {
+          if (node->id == (ID *)scene) {
+            BKE_ntree_update_tag_node_property(modifier.node_group, node);
+          }
         }
       }
     }

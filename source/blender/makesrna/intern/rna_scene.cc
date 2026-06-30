@@ -1253,22 +1253,40 @@ static bool rna_Scene_compositing_node_group_poll(PointerRNA * /*ptr*/, PointerR
   return ntree->type == NTREE_COMPOSIT;
 }
 
-static void rna_Scene_compositing_node_group_set(PointerRNA *ptr,
+static PointerRNA rna_Scene_compositing_node_group_get(PointerRNA *scene_ptr)
+{
+  Scene *scene = scene_ptr->data_as<Scene>();
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  if (!modifier) {
+    return RNA_pointer_create_with_parent(*scene_ptr, RNA_NodeTree, nullptr);
+  }
+  return RNA_pointer_create_with_parent(*scene_ptr, RNA_NodeTree, modifier->node_group);
+}
+
+static void rna_Scene_compositing_node_group_set(PointerRNA *scene_ptr,
                                                  const PointerRNA value,
                                                  ReportList *reports)
 {
-  Scene *scene = static_cast<Scene *>(ptr->data);
-  bNodeTree *ntree = static_cast<bNodeTree *>(value.data);
-  if (ntree && ntree->type != NTREE_COMPOSIT) {
-    BKE_reportf(
-        reports, RPT_ERROR, "Node tree '%s' is not a compositing node group.", ntree->id.name + 2);
+  Scene *scene = scene_ptr->data_as<Scene>();
+  bNodeTree *node_tree = value.data_as<bNodeTree>();
+  if (node_tree && node_tree->type != NTREE_COMPOSIT) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Node tree '%s' is not a compositing node group.",
+                node_tree->id.name + 2);
     return;
   }
-  if (scene->compositing_node_group) {
-    id_us_min(&scene->compositing_node_group->id);
+
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  if (!modifier) {
+    bke::compositor::new_modifier(scene, "Scene Compositor Modifier");
   }
-  scene->compositing_node_group = ntree;
-  id_us_plus(&scene->compositing_node_group->id);
+
+  if (modifier->node_group) {
+    id_us_min(&modifier->node_group->id);
+  }
+  modifier->node_group = node_tree;
+  id_us_plus(&modifier->node_group->id);
 }
 
 static std::optional<std::string> rna_SceneEEVEE_path(const PointerRNA * /*ptr*/)
@@ -1964,17 +1982,20 @@ void rna_Scene_use_freestyle_update(Main *bmain, Scene * /*scene*/, PointerRNA *
   BKE_ntree_update(*bmain);
 }
 
-void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *scene_ptr)
 {
-  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  Scene *scene = id_cast<Scene *>(scene_ptr->owner_id);
 
-  if (scene->compositing_node_group) {
-    bNodeTree *ntree = reinterpret_cast<bNodeTree *>(scene->compositing_node_group);
-    DEG_id_tag_update(&ntree->id, ID_RECALC_NTREE_OUTPUT);
-    WM_main_add_notifier(NC_NODE | NA_EDITED, &ntree->id);
-    WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
-    BKE_main_ensure_invariants(*bmain, ntree->id);
+  Vector<ID *> node_groups;
+  for (const SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+    if (bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Preview)) {
+      node_groups.append(&modifier.node_group->id);
+      DEG_id_tag_update(&modifier.node_group->id, ID_RECALC_NTREE_OUTPUT);
+      WM_main_add_notifier(NC_NODE | NA_EDITED, &modifier.node_group->id);
+      WM_main_add_notifier(NC_SCENE | ND_NODES, &modifier.node_group->id);
+    }
   }
+  BKE_main_ensure_invariants(*bmain, node_groups);
 }
 
 void rna_Scene_use_view_map_cache_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
@@ -3154,18 +3175,31 @@ static bool rna_SceneCompositorModifier_node_group_poll(PointerRNA * /*ptr*/, Po
   return true;
 }
 
+void rna_SceneCompositorModifier_compositor_update(Main *bmain,
+                                                   Scene * /*scene*/,
+                                                   PointerRNA *modifier_ptr)
+{
+  Scene *scene = id_cast<Scene *>(modifier_ptr->owner_id);
+  SceneCompositorModifier *modifier = modifier_ptr->data_as<SceneCompositorModifier>();
+
+  if (bke::compositor::is_modifier_enabled(*modifier, bke::compositor::ExecutionMode::Preview)) {
+    DEG_id_tag_update(&modifier->node_group->id, ID_RECALC_NTREE_OUTPUT);
+    WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+    BKE_main_ensure_invariants(*bmain, modifier->node_group->id);
+  }
+}
+
 static void rna_SceneCompositorModifier_node_group_update(Main *bmain,
                                                           Scene *scene,
                                                           PointerRNA *ptr)
 {
-  rna_Scene_compositor_update(bmain, scene, ptr);
+  rna_SceneCompositorModifier_compositor_update(bmain, scene, ptr);
 
   /* Tag depsgraph relations for an update since the modifier could now be referencing a different
    * node tree. */
   DEG_relations_tag_update(bmain);
 
   // compositor_nodes_update_interface(*sequencer_scene, *cmd);
-  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
 }
 
 static SceneCompositorModifier *rna_SceneCompositorModifiers_new(ID *scene_id, const char *name)
@@ -3177,7 +3211,7 @@ static SceneCompositorModifier *rna_SceneCompositorModifiers_new(ID *scene_id, c
 }
 
 static void rna_SceneCompositorModifiers_remove(ID *scene_id,
-                                                Main * /*bmain*/,
+                                                Main *bmain,
                                                 ReportList *reports,
                                                 PointerRNA *modifier_ptr)
 {
@@ -3189,17 +3223,16 @@ static void rna_SceneCompositorModifiers_remove(ID *scene_id,
   }
   bke::compositor::remove_modifier(scene, modifier);
   modifier_ptr->invalidate();
-  // rna_Scene_compositor_update(bmain, scene, ptr);
-  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+  rna_SceneCompositorModifier_compositor_update(bmain, scene, modifier_ptr);
 }
 
-static void rna_SceneCompositorModifiers_clear(ID *scene_id, Main * /*bmain*/)
+static void rna_SceneCompositorModifiers_clear(ID *scene_id, Main *bmain)
 {
   Scene *scene = id_cast<Scene *>(scene_id);
   bke::compositor::clear_modifiers(scene);
 
-  // rna_Scene_compositor_update(bmain, scene, ptr);
-  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
+  rna_Scene_compositor_update(bmain, scene, &scene_ptr);
 }
 
 static PointerRNA rna_SceneCompositorModifiers_active_get(PointerRNA *ptr)
@@ -3217,8 +3250,10 @@ static void rna_SceneCompositorModifiers_active_set(PointerRNA *ptr,
   SceneCompositorModifier *modifier = value.data_as<SceneCompositorModifier>();
   bke::compositor::set_active_modifier(scene, modifier);
 
-  // rna_Scene_compositor_update(bmain, scene, ptr);
-  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+  if (bke::compositor::is_modifier_enabled(*modifier, bke::compositor::ExecutionMode::Preview)) {
+    DEG_id_tag_update(&modifier->node_group->id, ID_RECALC_NTREE_OUTPUT);
+    WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+  }
 }
 
 }  // namespace blender
@@ -8916,14 +8951,16 @@ static void rna_def_compositor_modifier(BlenderRNA *brna)
       prop, nullptr, "flags", uint8_t(SceneCompositorModifierFlags::EnableForRender));
   RNA_def_property_ui_text(prop, "Render", "Use modifier during render");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_RENDER_ON, 1);
-  RNA_def_property_update(prop, NC_SCENE | ND_COMPO_RESULT, "rna_Scene_compositor_update");
+  RNA_def_property_update(
+      prop, NC_SCENE | ND_COMPO_RESULT, "rna_SceneCompositorModifier_compositor_update");
 
   prop = RNA_def_property(srna, "enable_for_preview", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "flags", uint8_t(SceneCompositorModifierFlags::EnableForPreview));
   RNA_def_property_ui_text(prop, "Preview", "Use modifier during preview");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_ON, 1);
-  RNA_def_property_update(prop, NC_SCENE | ND_COMPO_RESULT, "rna_Scene_compositor_update");
+  RNA_def_property_update(
+      prop, NC_SCENE | ND_COMPO_RESULT, "rna_SceneCompositorModifier_compositor_update");
 
   prop = RNA_def_property(srna, "is_active", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
@@ -8931,7 +8968,8 @@ static void rna_def_compositor_modifier(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_SceneCompositorModifier_is_active_set");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Is Active", "This modifier is active");
-  RNA_def_property_update(prop, NC_SCENE | ND_COMPO_RESULT, "rna_Scene_compositor_update");
+  RNA_def_property_update(
+      prop, NC_SCENE | ND_COMPO_RESULT, "rna_SceneCompositorModifier_compositor_update");
 
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
@@ -9356,17 +9394,21 @@ void RNA_def_scene(BlenderRNA *brna)
 
   /* Nodes (Compositing) */
   prop = RNA_def_property(srna, "compositing_node_group", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "compositing_node_group");
   RNA_def_property_struct_type(prop, "NodeTree");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Node Tree", "Compositor Nodes");
   RNA_def_property_update(prop, 0, "rna_Scene_compositor_update");
   RNA_def_property_pointer_funcs(prop,
-                                 nullptr,
+                                 "rna_Scene_compositing_node_group_get",
                                  "rna_Scene_compositing_node_group_set",
                                  nullptr,
                                  "rna_Scene_compositing_node_group_poll");
+  RNA_def_property_deprecated(prop,
+                              "Returns and sets the node group of the active scene compositor "
+                              "modifier. Creates a new modifier if none exists.",
+                              500,
+                              600);
 
   /* Todo(#140111): Remove in 6.0. */
   prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);

@@ -1755,8 +1755,9 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Duplicate Compositing Node Tree Operator
+/** \name Duplicate Compositing Modifier Node Tree Operator
  * \{ */
+
 static wmOperatorStatus duplicate_and_assign_node_tree(bContext *C, bNodeTree *source_node_tree)
 {
   Main *bmain = CTX_data_main(C);
@@ -1774,28 +1775,6 @@ static wmOperatorStatus duplicate_and_assign_node_tree(bContext *C, bNodeTree *s
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus duplicate_compositing_node_group_exec(bContext *C, wmOperator * /*op*/)
-{
-  Scene *scene = CTX_data_scene(C);
-  return duplicate_and_assign_node_tree(C, scene->compositing_node_group);
-}
-
-void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot)
-{
-  ot->name = "New Compositing Node Group";
-  ot->idname = "NODE_OT_duplicate_compositing_node_group";
-  ot->description = "Duplicate the currently assigned compositing node group.";
-
-  ot->exec = duplicate_compositing_node_group_exec;
-
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Duplicate Compositing Modifier Node Tree Operator
- * \{ */
 static wmOperatorStatus duplicate_compositing_modifier_node_group_exec(bContext *C,
                                                                        wmOperator * /*op*/)
 {

@@ -7,6 +7,7 @@
 
 #include <fmt/format.h>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_base.hh"
@@ -157,6 +158,17 @@ int64_t Cache::size()
  * Scene Compositor Modifiers.
  */
 
+bool has_any_enabled_modifier(const Scene &scene, const ExecutionMode mode)
+{
+  for (SceneCompositorModifier &modifier : scene.compositor_modifiers) {
+    if (is_modifier_enabled(modifier, mode)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 SceneCompositorModifier *get_modifier(const Scene *scene, const char *name)
 {
   return static_cast<SceneCompositorModifier *>(BLI_findstring(
@@ -172,6 +184,23 @@ SceneCompositorModifier *get_active_modifier(const Scene *scene)
   }
 
   return nullptr;
+}
+
+bool is_modifier_enabled(const SceneCompositorModifier &modifier, const ExecutionMode mode)
+{
+  if (!modifier.node_group) {
+    return false;
+  }
+
+  switch (mode) {
+    case ExecutionMode::Render:
+      return flag_is_set(modifier.flags, SceneCompositorModifierFlags::EnableForRender);
+    case ExecutionMode::Preview:
+      return flag_is_set(modifier.flags, SceneCompositorModifierFlags::EnableForPreview);
+  }
+
+  BLI_assert_unreachable();
+  return false;
 }
 
 void set_active_modifier(const Scene *scene, SceneCompositorModifier *modifier)
@@ -282,6 +311,7 @@ static void add_passes_used_by_render_layer_node(const bNode *node, Set<std::str
   }
 }
 
+// TODO: Update for compositor modifiers.
 /* Adds the pass names of the passes used by the given Group Input node to the given used passes.
  * The Group Input node only uses the combined pass for the first input, while the rest are
  * ignored. */
@@ -408,19 +438,26 @@ static void add_used_passes_recursive(const bNodeTree *node_tree,
   }
 }
 
-Set<std::string> get_used_passes(const Scene &scene, const ViewLayer *view_layer)
+Set<std::string> get_used_passes(const Scene &scene,
+                                 const ViewLayer *view_layer,
+                                 const ExecutionMode mode)
 {
   Set<std::string> used_passes;
   Set<const bNodeTree *> node_trees_already_searched;
-  add_used_passes_recursive(
-      scene.compositing_node_group, view_layer, true, node_trees_already_searched, used_passes);
+  for (const SceneCompositorModifier &modifier : scene.compositor_modifiers) {
+    if (!is_modifier_enabled(modifier, mode)) {
+      continue;
+    }
+    add_used_passes_recursive(
+        modifier.node_group, view_layer, true, node_trees_already_searched, used_passes);
+  }
   return used_passes;
 }
 
 bool is_viewport_compositor_used(const bContext &context)
 {
   const Scene *scene = CTX_data_scene(&context);
-  if (!scene->compositing_node_group) {
+  if (!has_any_enabled_modifier(*scene, ExecutionMode::Preview)) {
     return false;
   }
 
@@ -448,44 +485,16 @@ bool is_viewport_compositor_used(const bContext &context)
   return false;
 }
 
-bool node_tree_has_linked_file_output(const bNodeTree *node_tree)
-{
-  if (node_tree == nullptr) {
-    return false;
-  }
-
-  node_tree->ensure_topology_cache();
-  for (const bNode *node : node_tree->nodes_by_type("CompositorNodeOutputFile"_ustr)) {
-    if (!node->is_muted()) {
-      for (const bNodeSocket &input : node->inputs) {
-        if (input.is_directly_linked()) {
-          return true;
-        }
-      }
-    }
-  }
-
-  for (const bNode *node : node_tree->group_nodes()) {
-    if (node->is_muted() || !node->id) {
-      continue;
-    }
-
-    if (node_tree_has_linked_file_output(reinterpret_cast<const bNodeTree *>(node->id))) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 /* --------------------------------------------------------------------
  * Depsgraph.
  */
 
-void add_depsgraph_relations(Scene &scene, DepsNodeHandle *compositor_output_depsgraph_node)
+void add_depsgraph_relations(Scene &scene,
+                             const bNodeTree &node_group,
+                             DepsNodeHandle *compositor_output_depsgraph_node)
 {
   nodes::EvalDependencies evaluation_dependencies = nodes::gather_eval_dependencies_recursive(
-      *scene.compositing_node_group);
+      node_group);
 
   for (ID *id : evaluation_dependencies.ids.values()) {
     switch (ID_Type(GS(id->name))) {

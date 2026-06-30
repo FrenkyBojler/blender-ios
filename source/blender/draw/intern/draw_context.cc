@@ -27,6 +27,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_curves.h"
@@ -2256,7 +2257,9 @@ bool DRWContext::is_viewport_compositor_enabled() const
     return false;
   }
 
-  if (!this->scene->compositing_node_group) {
+  if (!bke::compositor::has_any_enabled_modifier(*this->scene,
+                                                 bke::compositor::ExecutionMode::Preview))
+  {
     return false;
   }
 

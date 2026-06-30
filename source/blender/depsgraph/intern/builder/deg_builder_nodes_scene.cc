@@ -69,9 +69,6 @@ void DepsgraphNodeBuilder::build_scene_compositor(Scene *scene)
   if (built_map_.check_is_built_and_tag(scene, BuilderMap::TAG_SCENE_COMPOSITOR)) {
     return;
   }
-  if (scene->compositing_node_group == nullptr) {
-    return;
-  }
 
   add_operation_node(&scene->id,
                      NodeType::COMPOSITOR,
@@ -81,7 +78,9 @@ void DepsgraphNodeBuilder::build_scene_compositor(Scene *scene)
                         * considered a no-op. */
                      });
 
-  build_nodetree(scene->compositing_node_group);
+  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+    build_nodetree(modifier.node_group);
+  }
 }
 
 }  // namespace blender::deg

@@ -2531,8 +2531,8 @@ static void rna_ConsoleLine_body_set(PointerRNA *ptr, const char *value)
   ConsoleLine *ci = static_cast<ConsoleLine *>(ptr->data);
   size_t len = strlen(value);
 
-  if ((len >= size_t(ci->len_alloc)) || (len * 2 < size_t(ci->len_alloc)))
-  { /* allocate a new string */
+  if ((len >= size_t(ci->len_alloc)) ||
+      (len * 2 < size_t(ci->len_alloc))) { /* allocate a new string */
     MEM_delete(ci->line);
     ci->line = MEM_new_array_uninitialized<char>(len + 1, "rna_consoleline");
     ci->len_alloc = int(len + 1);
@@ -3073,12 +3073,14 @@ static void rna_SpaceNodeEditor_path_pop(SpaceNode *snode, bContext *C)
 }
 
 static void rna_SpaceNodeEditor_show_backdrop_update(Main * /*bmain*/,
-                                                     Scene *scene,
-                                                     PointerRNA * /*ptr*/)
+                                                     Scene * /*scene*/,
+                                                     PointerRNA *space_node_ptr)
 {
-  if (scene->compositing_node_group) {
-    DEG_id_tag_update(&scene->compositing_node_group->id, ID_RECALC_NTREE_OUTPUT);
+  const SpaceNode *space_node = space_node_ptr->data_as<SpaceNode>();
+  if (space_node->nodetree && space_node->nodetree->type == NTREE_COMPOSIT) {
+    DEG_id_tag_update(&space_node->nodetree->id, ID_RECALC_NTREE_OUTPUT);
   }
+
   WM_main_add_notifier(NC_NODE | NA_EDITED, nullptr);
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }
