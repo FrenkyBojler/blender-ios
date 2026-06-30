@@ -22,7 +22,11 @@ if(WIN32)
   )
   set(NUMPY_CONF ${CMAKE_BINARY_DIR}/fix_path.bat)
 else()
-  set(NUMPY_CONF export CYTHON=${LIBDIR}/python/bin/cython)
+  if(WITH_APPLE_CROSSPLATFORM)
+    set(NUMPY_CONF export CYTHON=${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/python/bin/cython)
+  else()
+    set(NUMPY_CONF export CYTHON=${LIBDIR}/python/bin/cython)
+  endif()
 endif()
 
 ExternalProject_Add(external_numpy
