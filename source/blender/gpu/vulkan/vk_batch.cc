@@ -6,6 +6,9 @@
  * \ingroup gpu
  */
 
+#include "GPU_batch.hh"
+
+#include "vk_backend.hh"
 #include "vk_batch.hh"
 
 #include "render_graph/nodes/vk_pipeline_data.hh"
@@ -19,20 +22,29 @@
 
 namespace blender::gpu {
 
+void VKBatch::upload_data()
+{
+  VKIndexBuffer *index_buffer = index_buffer_get();
+  if (index_buffer) {
+    index_buffer->upload_data();
+  }
+  for (int v = 0; v < GPU_BATCH_VBO_MAX_LEN; v++) {
+    VKVertexBuffer *vbo = vertex_buffer_get(v);
+    if (vbo) {
+      vbo->upload();
+    }
+  }
+}
+
 void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int instance_count)
 {
   VKContext &context = *VKContext::get();
   render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
-  VKVertexAttributeObject vao;
-  vao.update_bindings(context, *this);
 
   VKIndexBuffer *index_buffer = index_buffer_get();
   const bool draw_indexed = index_buffer != nullptr;
 
-  /* Upload geometry */
-  if (draw_indexed) {
-    index_buffer->upload_data();
-  }
+  upload_data();
   VKFrameBuffer &framebuffer = *context.active_framebuffer_get();
   framebuffer.rendering_ensure(context);
 
@@ -46,8 +58,33 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
 
     draw_indexed.node_data.index_buffer.buffer = index_buffer->vk_handle();
     draw_indexed.node_data.index_buffer.index_type = index_buffer->vk_index_type();
-    vao.bind(draw_indexed.node_data.vertex_buffers);
-    context.update_pipeline_data(framebuffer, prim_type, vao, draw_indexed.node_data.graphics);
+
+    VKVertexAttributeBatchCache &cache = context.vertex_attribute_batch_cache_;
+    VKVertexInputDescriptionPool::Key vertex_input_key = cache.try_get(this->shader, verts);
+
+    if (vertex_input_key != VKVertexInputDescriptionPool::invalid_key) {
+      /* Cache hit: use cached vertex buffers and key directly. */
+      draw_indexed.node_data.vertex_buffers = *cache.vertex_buffers_get();
+      if (VKBackend::get().device.extensions_get().vertex_input_dynamic_state) {
+        draw_indexed.node_data.graphics.vertex_input_description = vertex_input_key;
+      }
+    }
+    else {
+      /* Cache miss: build vertex attribute object. */
+      VKVertexAttributeObject vao;
+      vao.update_bindings(context, *this);
+      vao.bind(draw_indexed.node_data.vertex_buffers);
+      vertex_input_key = VKBackend::get().device.vertex_input_descriptions.get_or_insert(
+          vao.vertex_input);
+      cache.update(this->shader, verts, vertex_input_key, draw_indexed.node_data.vertex_buffers);
+
+      if (VKBackend::get().device.extensions_get().vertex_input_dynamic_state) {
+        draw_indexed.node_data.graphics.vertex_input_description = vertex_input_key;
+      }
+    }
+
+    context.update_pipeline_data(
+        framebuffer, prim_type, vertex_input_key, draw_indexed.node_data.graphics);
 
     context.render_graph().add_node(draw_indexed);
   }
@@ -58,8 +95,32 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     draw.node_data.first_vertex = vertex_first;
     draw.node_data.first_instance = instance_first;
 
-    vao.bind(draw.node_data.vertex_buffers);
-    context.update_pipeline_data(framebuffer, prim_type, vao, draw.node_data.graphics);
+    VKVertexAttributeBatchCache &cache = context.vertex_attribute_batch_cache_;
+    VKVertexInputDescriptionPool::Key vertex_input_key = cache.try_get(this->shader, verts);
+
+    if (vertex_input_key != VKVertexInputDescriptionPool::invalid_key) {
+      /* Cache hit: use cached vertex buffers and key directly. */
+      draw.node_data.vertex_buffers = *cache.vertex_buffers_get();
+      if (VKBackend::get().device.extensions_get().vertex_input_dynamic_state) {
+        draw.node_data.graphics.vertex_input_description = vertex_input_key;
+      }
+    }
+    else {
+      /* Cache miss: build vertex attribute object. */
+      VKVertexAttributeObject vao;
+      vao.update_bindings(context, *this);
+      vao.bind(draw.node_data.vertex_buffers);
+      vertex_input_key = VKBackend::get().device.vertex_input_descriptions.get_or_insert(
+          vao.vertex_input);
+      cache.update(this->shader, verts, vertex_input_key, draw.node_data.vertex_buffers);
+
+      if (VKBackend::get().device.extensions_get().vertex_input_dynamic_state) {
+        draw.node_data.graphics.vertex_input_description = vertex_input_key;
+      }
+    }
+
+    context.update_pipeline_data(
+        framebuffer, prim_type, vertex_input_key, draw.node_data.graphics);
 
     context.render_graph().add_node(draw);
   }
@@ -86,20 +147,15 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
 {
   VKContext &context = *VKContext::get();
   render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
-  VKVertexAttributeObject vao;
-  vao.update_bindings(context, *this);
 
-  VKIndexBuffer *index_buffer = index_buffer_get();
-  const bool draw_indexed = index_buffer != nullptr;
-
-  /* Upload geometry */
-  if (draw_indexed) {
-    index_buffer->upload_data();
-  }
+  upload_data();
   VKFrameBuffer &framebuffer = *context.active_framebuffer_get();
   framebuffer.rendering_ensure(context);
 
-  if (draw_indexed) {
+  VKVertexAttributeBatchCache &cache = context.vertex_attribute_batch_cache_;
+
+  VKIndexBuffer *index_buffer = index_buffer_get();
+  if (index_buffer) {
     render_graph::VKDrawIndexedIndirectNode::CreateInfo draw_indexed_indirect(
         resource_access_info);
     draw_indexed_indirect.node_data.indirect_buffer = indirect_buffer;
@@ -109,9 +165,31 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
 
     draw_indexed_indirect.node_data.index_buffer.buffer = index_buffer->vk_handle();
     draw_indexed_indirect.node_data.index_buffer.index_type = index_buffer->vk_index_type();
-    vao.bind(draw_indexed_indirect.node_data.vertex_buffers);
+
+    VKVertexInputDescriptionPool::Key vertex_input_key = cache.try_get(this->shader, verts);
+
+    if (vertex_input_key != VKVertexInputDescriptionPool::invalid_key) {
+      draw_indexed_indirect.node_data.vertex_buffers = *cache.vertex_buffers_get();
+      if (VKBackend::get().device.extensions_get().vertex_input_dynamic_state) {
+        draw_indexed_indirect.node_data.graphics.vertex_input_description = vertex_input_key;
+      }
+    }
+    else {
+      VKVertexAttributeObject vao;
+      vao.update_bindings(context, *this);
+      vao.bind(draw_indexed_indirect.node_data.vertex_buffers);
+      vertex_input_key = VKBackend::get().device.vertex_input_descriptions.get_or_insert(
+          vao.vertex_input);
+      cache.update(
+          this->shader, verts, vertex_input_key, draw_indexed_indirect.node_data.vertex_buffers);
+
+      if (VKBackend::get().device.extensions_get().vertex_input_dynamic_state) {
+        draw_indexed_indirect.node_data.graphics.vertex_input_description = vertex_input_key;
+      }
+    }
+
     context.update_pipeline_data(
-        framebuffer, prim_type, vao, draw_indexed_indirect.node_data.graphics);
+        framebuffer, prim_type, vertex_input_key, draw_indexed_indirect.node_data.graphics);
 
     context.render_graph().add_node(draw_indexed_indirect);
   }
@@ -122,8 +200,29 @@ void VKBatch::multi_draw_indirect(const VkBuffer indirect_buffer,
     draw.node_data.draw_count = count;
     draw.node_data.stride = stride;
 
-    vao.bind(draw.node_data.vertex_buffers);
-    context.update_pipeline_data(framebuffer, prim_type, vao, draw.node_data.graphics);
+    VKVertexInputDescriptionPool::Key vertex_input_key = cache.try_get(this->shader, verts);
+
+    if (vertex_input_key != VKVertexInputDescriptionPool::invalid_key) {
+      draw.node_data.vertex_buffers = *cache.vertex_buffers_get();
+      if (VKBackend::get().device.extensions_get().vertex_input_dynamic_state) {
+        draw.node_data.graphics.vertex_input_description = vertex_input_key;
+      }
+    }
+    else {
+      VKVertexAttributeObject vao;
+      vao.update_bindings(context, *this);
+      vao.bind(draw.node_data.vertex_buffers);
+      vertex_input_key = VKBackend::get().device.vertex_input_descriptions.get_or_insert(
+          vao.vertex_input);
+      cache.update(this->shader, verts, vertex_input_key, draw.node_data.vertex_buffers);
+
+      if (VKBackend::get().device.extensions_get().vertex_input_dynamic_state) {
+        draw.node_data.graphics.vertex_input_description = vertex_input_key;
+      }
+    }
+
+    context.update_pipeline_data(
+        framebuffer, prim_type, vertex_input_key, draw.node_data.graphics);
 
     context.render_graph().add_node(draw);
   }

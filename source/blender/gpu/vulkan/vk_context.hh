@@ -10,10 +10,13 @@
 
 #include "BLI_enum_flags.hh"
 
+#include "GPU_batch.hh"
+
 #include "gpu_context_private.hh"
 
 #include "GHOST_Types.hh"
 
+#include "render_graph/nodes/vk_pipeline_data.hh"
 #include "render_graph/vk_render_graph.hh"
 #include "vk_buffer_pool.hh"
 #include "vk_common.hh"
@@ -21,11 +24,11 @@
 #include "vk_descriptor_pools.hh"
 #include "vk_resource_pool.hh"
 #include "vk_streaming_buffer.hh"
+#include "vk_vertex_input_description.hh"
 
 namespace blender::gpu {
 class VKFrameBuffer;
 class VKVertexAttributeObject;
-class VKBatch;
 class VKStateManager;
 class VKShader;
 class VKThreadData;
@@ -40,8 +43,82 @@ enum RenderGraphFlushFlags {
 };
 ENUM_OPERATORS(RenderGraphFlushFlags);
 
+/* -------------------------------------------------------------------- */
+/** \name Vertex Attribute Cache Entries
+ * \{ */
+
+/**
+ * \brief Vertex attribute cache entry for batch drawing.
+ *
+ */
+struct VKVertexAttributeBatchCache {
+  void *shader_ptr = nullptr;
+  void *vbo_ptrs[GPU_BATCH_VBO_MAX_LEN] = {};
+  VKVertexInputDescriptionPool::Key vertex_input_key = VKVertexInputDescriptionPool::invalid_key;
+  render_graph::VKVertexBufferBindings vertex_buffers = {};
+  bool is_valid = false;
+
+  /* Statistics. */
+  int total_calls = 0;
+  int total_hits = 0;
+
+  /**
+   * Check if the previous draw used the same shader and VBOs.
+   * \returns the cached vertex_input_key on hit, invalid_key on miss.
+   */
+  template<typename T> VKVertexInputDescriptionPool::Key try_get(void *shader_ptr, T *vbo_ptrs)
+  {
+    total_calls++;
+    if (!is_valid) {
+      return VKVertexInputDescriptionPool::invalid_key;
+    }
+    if (shader_ptr != this->shader_ptr) {
+      return VKVertexInputDescriptionPool::invalid_key;
+    }
+    for (int i = 0; i < GPU_BATCH_VBO_MAX_LEN; i++) {
+      if (reinterpret_cast<const void *>(vbo_ptrs[i]) != this->vbo_ptrs[i]) {
+        return VKVertexInputDescriptionPool::invalid_key;
+      }
+    }
+    total_hits++;
+    return vertex_input_key;
+  }
+
+  /**
+   * Return a pointer to the cached vertex_buffers on a hit, or nullptr on miss.
+   */
+  const render_graph::VKVertexBufferBindings *vertex_buffers_get() const
+  {
+    return is_valid ? &vertex_buffers : nullptr;
+  }
+
+  void update(void *shader_ptr,
+              void *vbo_ptrs,
+              VKVertexInputDescriptionPool::Key key,
+              const render_graph::VKVertexBufferBindings &buffers)
+  {
+    this->is_valid = true;
+    this->shader_ptr = shader_ptr;
+    void **vbo_ptrs_casted = static_cast<void **>(vbo_ptrs);
+    for (int i = 0; i < GPU_BATCH_VBO_MAX_LEN; i++) {
+      this->vbo_ptrs[i] = vbo_ptrs_casted[i];
+    }
+    this->vertex_input_key = key;
+    this->vertex_buffers = buffers;
+  }
+
+  void reset()
+  {
+    total_calls = 0;
+    total_hits = 0;
+  }
+};
+
+/** \} */
+
 class VKContext : public Context, NonCopyable {
   friend class VKDevice;
+  friend class VKBatch;
 
  private:
   VkExtent2D vk_extent_ = {};
@@ -53,6 +130,14 @@ class VKContext : public Context, NonCopyable {
 
   /* Reusable data. Stored inside context to limit reallocations. */
   render_graph::VKResourceAccessInfo access_info_ = {};
+
+  /**
+   * \brief Stores last used vertex buffer from previous batch draw.
+   *
+   * On consecutive calls has a potential to skips the full VAO rebuild and vertex input
+   * for instance meshes.
+   */
+  VKVertexAttributeBatchCache vertex_attribute_batch_cache_;
 
   std::optional<std::reference_wrapper<VKThreadData>> thread_data_;
   std::optional<std::reference_wrapper<render_graph::VKRenderGraph>> render_graph_;
@@ -142,6 +227,17 @@ class VKContext : public Context, NonCopyable {
   void update_pipeline_data(const VKFrameBuffer &framebuffer,
                             GPUPrimType primitive,
                             VKVertexAttributeObject &vao,
+                            render_graph::VKPipelineDataGraphics &r_pipeline_data);
+
+  /**
+   * Update pipeline data with a pre-computed vertex input description key.
+   *
+   * Skips the vertex input description pool lookup, making it suitable for
+   * cache hits where the key was already computed in a previous draw call.
+   */
+  void update_pipeline_data(const VKFrameBuffer &framebuffer,
+                            GPUPrimType primitive,
+                            VKVertexInputDescriptionPool::Key vertex_input_key,
                             render_graph::VKPipelineDataGraphics &r_pipeline_data);
 
   void sync_backbuffer();

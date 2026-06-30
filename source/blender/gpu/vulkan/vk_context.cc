@@ -12,6 +12,8 @@
 
 #include "gpu_capabilities_private.hh"
 
+#include "CLG_log.h"
+
 #include "vk_backend.hh"
 #include "vk_context.hh"
 #include "vk_debug.hh"
@@ -22,8 +24,11 @@
 #include "vk_state_manager.hh"
 #include "vk_texture.hh"
 #include "vk_vertex_attribute_object.hh"
+#include "vk_vertex_input_description.hh"
 
 namespace blender::gpu {
+
+static CLG_LogRef LOG = {"gpu.vulkan"};
 
 VKContext::VKContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
     : push_constants_pool(VKBufferPool("PushConstants",
@@ -114,6 +119,8 @@ void VKContext::sync_backbuffer()
 
 void VKContext::activate()
 {
+  vertex_attribute_batch_cache_.reset();
+
   /* Make sure no other context is already bound to this thread. */
   BLI_assert(is_active_ == false);
   /* Make sure the active GHOST context matches the one this GPU Context was created for. */
@@ -146,6 +153,16 @@ void VKContext::activate()
 void VKContext::deactivate()
 {
   flush_render_graph(RenderGraphFlushFlags(0));
+
+  VKVertexAttributeBatchCache &cache = vertex_attribute_batch_cache_;
+  if (cache.total_calls > 0) {
+    CLOG_INFO(&LOG,
+              "Vertex attribute batch cache: %d calls, %d hits (%.1f%% hit rate)",
+              cache.total_calls,
+              cache.total_hits,
+              cache.total_calls > 0 ? (100.0 * cache.total_hits / cache.total_calls) : 0.0);
+  }
+
   immDeactivate();
   thread_data_.reset();
 
@@ -305,7 +322,7 @@ void VKContext::rendering_end()
 
 void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
                                      GPUPrimType primitive,
-                                     VKVertexAttributeObject &vao,
+                                     VKVertexInputDescriptionPool::Key vertex_input_key,
                                      render_graph::VKPipelineDataGraphics &r_pipeline_data)
 {
   VKShader &vk_shader = unwrap(*shader);
@@ -360,17 +377,26 @@ void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
                                      VK_FRONT_FACE_CLOCKWISE;
   }
 
-  VKVertexInputDescriptionPool::Key vertex_input_description_key =
-      device.vertex_input_descriptions.get_or_insert(vao.vertex_input);
   if (extensions.vertex_input_dynamic_state) {
-    r_pipeline_data.vertex_input_description = vertex_input_description_key;
+    r_pipeline_data.vertex_input_description = vertex_input_key;
   }
 
   update_pipeline_data(
       vk_shader,
       vk_shader.ensure_and_get_graphics_pipeline(
-          primitive, vertex_input_description_key, state_manager, framebuffer, constants_state_),
+          primitive, vertex_input_key, state_manager, framebuffer, constants_state_),
       r_pipeline_data.pipeline_data);
+}
+
+void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
+                                     GPUPrimType primitive,
+                                     VKVertexAttributeObject &vao,
+                                     render_graph::VKPipelineDataGraphics &r_pipeline_data)
+{
+  VKDevice &device = VKBackend::get().device;
+  VKVertexInputDescriptionPool::Key vertex_input_key =
+      device.vertex_input_descriptions.get_or_insert(vao.vertex_input);
+  update_pipeline_data(framebuffer, primitive, vertex_input_key, r_pipeline_data);
 }
 
 void VKContext::update_pipeline_data(render_graph::VKPipelineData &r_pipeline_data)

@@ -24,6 +24,8 @@ class VKBatch : public Batch {
                            intptr_t stride) override;
   void multi_draw_indirect(VkBuffer indirect_buf, int count, intptr_t offset, intptr_t stride);
 
+  void upload_data();
+
   VKVertexBuffer *vertex_buffer_get(int index);
   VKIndexBuffer *index_buffer_get();
 };
