@@ -12,8 +12,8 @@
 #include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 
-#include "BKE_idprop.hh"
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BLT_translation.hh"
 
 #include "UI_tree_view.hh"
@@ -218,7 +218,8 @@ class IDPropertyItem : public AbstractTreeViewItem {
     const std::string prop_name = "[\"" + std::string(property_->name) + "\"]";
 
     const bool is_array = (property_->type == IDP_ARRAY) || !IDP_ui_data_supported(property_);
-    const bool is_color = ELEM(property_->ui_data->rna_subtype, PROP_COLOR, PROP_COLOR_GAMMA);
+    const bool is_color = property_->ui_data &&
+                          ELEM(property_->ui_data->rna_subtype, PROP_COLOR, PROP_COLOR_GAMMA);
 
     if (is_array && !is_color) {
       /* Use edit value operator to tweak array and python properties. */
@@ -283,7 +284,9 @@ void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, const char 
   Block *block = layout->block();
 
   ui::AbstractTreeView *tree_view = block_add_view(
-      *block, "IDProperty Tree View", std::make_unique<IDPropertyView>(CTX_wm_region(C), ptr, data_path));
+      *block,
+      "IDProperty Tree View",
+      std::make_unique<IDPropertyView>(CTX_wm_region(C), ptr, data_path));
   tree_view->set_context_menu_title("ID Property");
   tree_view->set_default_rows(4);
 
