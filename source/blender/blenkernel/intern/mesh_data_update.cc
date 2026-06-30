@@ -829,7 +829,33 @@ static GeometrySet editbmesh_calc_modifiers(Depsgraph &depsgraph,
     }
 
     if (i == cageIndex) {
-      cage_mesh = geometry_set.get_component_ptr(GeometryComponent::Type::Mesh);
+      GeometryComponentPtr cage_mesh_at_index = geometry_set.get_component_ptr(
+          GeometryComponent::Type::Mesh);
+
+      /* NOTE(@ideasman42): Workaround for geometry-nodes where the cage mesh may not have
+       * the mapping data needed to relate it back to the original elements,
+       * causing problems with transform & selection. See: !160540.
+       *
+       * Detect this and replace the cage with a thin edit-mesh wrapper, so at least
+       * the user sees an editable mesh (with no modifiers applied). Ideally it would be
+       * possible to know which modifier index is guaranteed to produce a usable cage
+       * instead of this place-holder. */
+      if (cage_mesh_at_index) {
+        const Mesh *me_cage = static_cast<const MeshComponent *>(cage_mesh_at_index.get())->get();
+        if (me_cage && !BKE_editmesh_eval_orig_map_available(*me_cage, &mesh_input) &&
+            !(CustomData_has_layer(&me_cage->vert_data, CD_ORIGINDEX) &&
+              CustomData_has_layer(&me_cage->edge_data, CD_ORIGINDEX) &&
+              CustomData_has_layer(&me_cage->face_data, CD_ORIGINDEX)))
+        {
+          /* This only occurs with node-groups, assert it doesn't happen with other modifiers. */
+          BLI_assert(BKE_modifiers_findby_type(&ob, eModifierType_Nodes));
+
+          /* Leaving the cage as-is (initialized on entry). */
+        }
+        else {
+          cage_mesh = cage_mesh_at_index;
+        }
+      }
     }
   }
 
