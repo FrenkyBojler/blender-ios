@@ -43,7 +43,7 @@
 #include "opentimelineio/transition.h"
 
 #include "IO_otio.hh"
-#include "otio_strip.hh"
+#include "otio_export_strip.hh"
 
 namespace blender::io::otio {
 
@@ -439,7 +439,7 @@ static void attach_foreign_metadata(IDProperty *idp, SerializableObject::Retaine
   }
 
   IDP_foreach_property(otio_group, IDP_TYPE_FILTER_STRING, [&](IDProperty *prop) {
-    if (strcmp(prop->name, "blender") || !prop->data.pointer) {
+    if (strcmp(prop->name, "blender") != 0 || !prop->data.pointer) {
       return;
     }
     std::any dict = AnyDictionary();
@@ -859,13 +859,6 @@ void ImageStripExporter::export_strip(
       return;
     }
 
-    if (export_params->img_sequence_export == ExportOption::RENDER_MOVIE) {
-      auto exporter = RenderAsMovieExporter(strip_, scene_, track_, last_strip_end, filepath_);
-      exporter.export_strip(bmain, export_params, single_input_effects);
-      last_strip_end = exporter.last_strip_end;
-      return;
-    }
-
     StripElem *se = strip_->data->stripdata;
     size_t img_count = MEM_allocN_len(se) / sizeof(*se);
 
@@ -888,18 +881,18 @@ void ImageStripExporter::export_strip(
       BLI_strncat(name_prefix, ".", sizeof(name_prefix));
 
       switch (export_params->img_sequence_fallback) {
-        case ImgSeqFallback::RENDER_MOVIE: {
+        case ImgSeqFallback::RenderMovie: {
           auto exporter = RenderAsMovieExporter(strip_, scene_, track_, last_strip_end, filepath_);
           exporter.export_strip(bmain, export_params, single_input_effects);
           last_strip_end = exporter.last_strip_end;
           return;
         }
-        case ImgSeqFallback::RENAME:
+        case ImgSeqFallback::Rename:
           img_sequence_rename(se, target_url_base, img_count, padding);
           break;
 
 #ifndef WIN32
-        case ImgSeqFallback::SYMLINK:
+        case ImgSeqFallback::Symlink:
           img_sequence_create_symlinks(se, target_url_base, img_count, padding);
           break;
 #endif

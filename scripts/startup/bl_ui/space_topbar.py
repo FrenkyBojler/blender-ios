@@ -414,8 +414,9 @@ class TOPBAR_MT_file_export(Menu):
             self.layout.operator("wm.ply_export", text="Stanford PLY (.ply)")
         if bpy.app.build_options.io_stl:
             self.layout.operator("wm.stl_export", text="STL (.stl)")
-        # Todo (Bipin): Wrap OTIO operator with build_options check
-        self.layout.operator("wm.otio_export", text="OpenTimelineIO (.otio)")
+
+        if bpy.app.build_options.otio:
+            self.layout.operator("wm.otio_export", text="OpenTimelineIO (.otio)")
 
 
 class TOPBAR_MT_file_external_data(Menu):
