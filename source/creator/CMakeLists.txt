@@ -1043,9 +1043,9 @@ elseif(WIN32)
 
   if(WITH_VULKAN_BACKEND)
     windows_install_shared_manifest(
-	    FILES ${LIBDIR}/vulkan/bin/vulkan-1.dll
-	    ALL
-	  )
+      FILES ${LIBDIR}/vulkan/bin/vulkan-1.dll
+      ALL
+    )
   endif()
 
   # 4.1 FFTW libs need to be installed, in 4.2 FFTW got turned into a static lib
@@ -1773,7 +1773,7 @@ elseif(APPLE)
       DESTINATION ${TARGETDIR_LIB}
     )
   endif()
-  
+
   # Python.
   if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
     # Copy the python libraries into the install directory.
