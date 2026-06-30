@@ -493,7 +493,13 @@ static eSnapMode snap_object_allowed_modes_for_ob(const SnapObjectContext *sctx,
                                                   Depsgraph *depsgraph,
                                                   eSnapMode snap_to_flag)
 {
+  if (depsgraph == nullptr) {
+    return snap_to_flag;
+  }
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
+  if (view_layer == nullptr) {
+    return snap_to_flag;
+  }
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
   Base *base = BKE_view_layer_base_find(view_layer,
                                         const_cast<Object *>(DEG_get_original(ob_eval)));
@@ -1203,8 +1209,9 @@ static bool snap_object_context_runtime_init(SnapObjectContext *sctx,
   sctx->runtime.snap_to_flag = snap_to_flag;
   sctx->runtime.params = *params;
   sctx->runtime.params.occlusion_test = occlusion_test;
-  sctx->runtime.occlusion_test_edit = (snap_to_flag & SCE_SNAP_TO_FACE) ? SNAP_OCCLUSION_ALWAYS :
-                                                                          occlusion_test;
+  sctx->runtime.occlusion_test_edit = (snap_to_flag & (SCE_SNAP_TO_FACE | SCE_SNAP_TO_VOLUME)) ?
+                                          SNAP_OCCLUSION_ALWAYS :
+                                          occlusion_test;
   sctx->runtime.has_occlusion_plane = false;
   sctx->runtime.has_occlusion_plane_in_front = false;
   sctx->runtime.object_index = 0;
@@ -1347,7 +1354,7 @@ bool snap_object_project_ray_all(SnapObjectContext *sctx,
                                         depsgraph,
                                         nullptr,
                                         v3d,
-                                        SCE_SNAP_TO_FACE,
+                                        SCE_SNAP_TO_VOLUME,
                                         params->occlusion_test,
                                         params,
                                         ray_start,
@@ -1515,7 +1522,11 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
       }
 
       if (snap_to_flag & SCE_SNAP_TO_FACE) {
-        retval |= SCE_SNAP_TO_FACE;
+        eSnapMode allowed_modes = snap_object_allowed_modes_for_ob(
+            sctx, sctx->ret.ob, sctx->runtime.depsgraph, SCE_SNAP_TO_FACE);
+        if (allowed_modes & SCE_SNAP_TO_FACE) {
+          retval |= SCE_SNAP_TO_FACE;
+        }
       }
     }
   }
