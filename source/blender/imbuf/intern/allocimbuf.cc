@@ -165,10 +165,11 @@ void *imb_alloc_pixels(
     return nullptr;
   }
 
-  size_t size = size_t(x) * size_t(y) * size_t(channels) * typesize;
+  size_t size = size_t(x) * size_t(y) * size_t(channels);
   return initialize_pixels ?
-             MEM_new_zeroed(size, alloc_name) :
-             MEM_new_uninitialized_aligned(size, IMBUF_FLOAT_ALIGNMENT, alloc_name);
+             MEM_new_array_zeroed_aligned(size, typesize, IMBUF_FLOAT_ALIGNMENT, alloc_name) :
+             MEM_new_array_uninitialized_aligned(
+                 size, typesize, IMBUF_FLOAT_ALIGNMENT, alloc_name);
 }
 
 bool IMB_alloc_float_pixels(ImBuf *ibuf, const uint channels, bool initialize_pixels)

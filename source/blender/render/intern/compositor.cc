@@ -155,8 +155,10 @@ class Context : public compositor::Context {
       render_result->have_combined = true;
 
       if (result.is_single_value()) {
-        float *data = MEM_new_array_uninitialized<float>(
-            4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
+        float *data = MEM_new_array_uninitialized_aligned<float>(4 * size_t(render_result->rectx) *
+                                                                     size_t(render_result->recty),
+                                                                 IMBUF_FLOAT_ALIGNMENT,
+                                                                 __func__);
         image_buffer->assign_float_data(data);
         IMB_rectfill(image_buffer, result.get_single_value<compositor::Color>());
       }
@@ -173,8 +175,10 @@ class Context : public compositor::Context {
               .colorspace = nullptr};
         }
         else {
-          float *data = MEM_new_array_uninitialized<float>(
-              4 * size_t(render_result->rectx) * size_t(render_result->recty), __func__);
+          float *data = MEM_new_array_uninitialized_aligned<float>(
+              4 * size_t(render_result->rectx) * size_t(render_result->recty),
+              IMBUF_FLOAT_ALIGNMENT,
+              __func__);
           image_buffer->assign_float_data(data);
           std::memcpy(image_buffer->float_data_for_write(),
                       result.cpu_data().data(),
