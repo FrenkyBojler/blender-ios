@@ -42,6 +42,7 @@ if(WITH_APPLE_CROSSPLATFORM)
   #       (Set DPXR_ENABLE_METAL_SUPPORT=ON in usd.cmake for WITH_APPLE_CROSSPLATFORM platform)
   set(WITH_HYDRA  OFF CACHE BOOL "Auto disabled due to lack of HgI/Hydra Storm for Metal on iOS" FORCE)
   set(WITH_CYCLES_OSL OFF CACHE BOOL "Support for build time compilation of OSL Shaders not supported yet on iOS" FORCE)
+  set(WITH_XR_OPENXR OFF CACHE BOOL "Auto disabled due to lack of openxr support" FORCE)
 
   # --- Cross compile host tools ----
 
@@ -208,8 +209,8 @@ else()
   set(CROSSCOMPILE_HOST_LIBDIR "${CMAKE_SOURCE_DIR}/lib/macos_arm64")
   if(NOT PYTHON_VERSION)
 	# IOS_FIXME: This is not great why is PYTHON_VERSION not defined here?
-	message("WARNING Manually defining Python Version to 3.11 for iOS build")
-	set(PYTHON_EXECUTABLE "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python3.11")
+	message("WARNING Manually defining Python Version to 3.13 for iOS build")
+	set(PYTHON_EXECUTABLE "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python3.13")
   else()
     set(PYTHON_EXECUTABLE "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python${PYTHON_VERSION}")
   endif()
