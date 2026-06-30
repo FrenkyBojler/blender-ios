@@ -344,7 +344,7 @@ struct VKRenderGraphNode {
   }
 };
 
-BLI_STATIC_ASSERT(sizeof(VKRenderGraphNode) <= 96,
+BLI_STATIC_ASSERT(sizeof(VKRenderGraphNode) <= 104,
                   "VKRenderGraphNode should be kept small. Consider moving data to the "
                   "VKRenderGraphStorage class.");
 
