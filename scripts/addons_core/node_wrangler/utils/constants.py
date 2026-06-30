@@ -40,13 +40,6 @@ rl_outputs = (
     RL_entry('use_pass_uv', 'UV', 'UV', True, True),
     RL_entry('use_pass_vector', 'Speed', 'Vector', False, True),
     RL_entry('use_pass_z', 'Z', 'Depth', True, True),
-    RL_entry('store_denoising_passes', 'Denoising Depth', 'Denoising Depth', True, True),
-    RL_entry('store_denoising_passes', 'Denoising Normal', 'Denoising Normal', True, True),
-    RL_entry('store_denoising_passes', 'Denoising Vector', 'Denoising Vector', True, False),
-    RL_entry('store_denoising_passes', 'Denoising Roughness', 'Denoising Roughness', True, False),
-    RL_entry('store_denoising_passes', 'Denoising Albedo', 'Denoising Albedo', False, True),
-    RL_entry('store_denoising_passes', 'Denoising Diffuse Albedo', 'Denoising Diffuse Albedo', True, False),
-    RL_entry('store_denoising_passes', 'Denoising Specular Albedo', 'Denoising Specular Albedo', True, False),
 )
 
 # list of blend types of "Mix" nodes in a form that can be used as 'items' for EnumProperty.
