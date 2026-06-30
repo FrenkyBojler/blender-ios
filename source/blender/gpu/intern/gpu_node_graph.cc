@@ -413,6 +413,7 @@ static GPUMaterialAttribute *gpu_node_graph_add_attribute(GPUNodeGraph *graph,
     num_attributes++;
   }
 
+  /* Add new requested attribute if it's within GPU limits. */
   if (attr == nullptr && num_attributes < GPU_MAX_ATTR) {
     attr = MEM_new_zeroed<GPUMaterialAttribute>(__func__);
     attr->is_default_color = is_default_color;
@@ -626,6 +627,7 @@ GPUNodeLink *GPU_uniform_attribute(GPUMaterial *mat,
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
   GPUUniformAttr *attr = gpu_node_graph_add_uniform_attribute(graph, name, use_dupli);
 
+  /* Dummy fallback if out of slots. */
   if (attr == nullptr) {
     *r_hash = 0;
     static const float zero_data[GPU_MAX_CONSTANT_DATA] = {0.0f};
