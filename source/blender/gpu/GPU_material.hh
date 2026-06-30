@@ -292,6 +292,23 @@ constexpr GPUType gpu_float_type_from_element_count(const int count)
   return GPU_NONE;
 }
 
+constexpr GPUType gpu_int_type_from_element_count(const int count)
+{
+  switch (count) {
+    case 1:
+      return GPU_INT;
+    case 2:
+      return GPU_INT2;
+    case 3:
+      return GPU_INT3;
+    case 4:
+      return GPU_INT4;
+  }
+
+  BLI_assert_unreachable();
+  return GPU_NONE;
+}
+
 enum GPUDefaultValue {
   GPU_DEFAULT_0 = 0,
   GPU_DEFAULT_1,

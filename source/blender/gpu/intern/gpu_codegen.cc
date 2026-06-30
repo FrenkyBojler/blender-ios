@@ -92,13 +92,43 @@ static std::ostream &operator<<(std::ostream &stream, const Span<float> &span)
   return stream;
 }
 
+/* Print data constructor (i.e: int2(1, 1)). */
+static std::ostream &operator<<(std::ostream &stream, const Span<int> &span)
+{
+  stream << gpu_int_type_from_element_count(span.size()) << "(";
+  for (const int &element : span) {
+    stream << element;
+    if (&element != &span.last()) {
+      stream << ", ";
+    }
+  }
+  stream << ")";
+  return stream;
+}
+
 /* Trick type to change overload and keep a somewhat nice syntax. */
 struct GPUConstant : public GPUInput {};
 
 static std::ostream &operator<<(std::ostream &stream, const GPUConstant *input)
 {
-  stream << Span<float>(input->vec, gpu_type_element_count(input->type));
-  return stream;
+  switch (input->type) {
+    case GPU_FLOAT:
+    case GPU_VEC2:
+    case GPU_VEC3:
+    case GPU_VEC4:
+      return stream << Span<float>(input->vec, gpu_type_element_count(input->type));
+    case GPU_INT:
+    case GPU_INT2:
+    case GPU_INT3:
+    case GPU_INT4:
+      return stream << Span<int>(reinterpret_cast<const int *>(input->vec),
+                                 gpu_type_element_count(input->type));
+    case GPU_BOOL:
+      return stream << "bool(" << (*reinterpret_cast<const int *>(input->vec) != 0) << ")";
+    default:
+      BLI_assert(0);
+      return stream;
+  }
 }
 
 namespace gpu::shader {
