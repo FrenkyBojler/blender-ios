@@ -27,7 +27,9 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 
 float4 closure_to_rgba_shadow(Closure /*cl*/)
 {
-  return float4(0.0f);
+  float3 transmittance = g_transmittance;
+  closure_weights_reset(0.0f);
+  return float4(0.0f, 0.0f, 0.0f, saturate(1.0f - average(transmittance)));
 }
 
 namespace eevee {
@@ -45,6 +47,7 @@ struct SurfShadow {
 void surf_shadow([[resource_table]] PipelineConstants &pipe,
                  [[resource_table]] SurfShadow &srt,
                  [[resource_table]] const Uniform &uni,
+                 [[resource_table]] const draw::View &views,
                  [[resource_table]] const Sampling &sampling,
                  [[resource_table]] const UtilityTexture & /*util_tx*/,
                  [[front_facing]] const bool front_face,
@@ -62,7 +65,8 @@ void surf_shadow([[resource_table]] PipelineConstants &pipe,
   }
 
   if (pipe.use_transparency) [[static_branch]] {
-    init_globals(uni, front_face);
+    const ViewMatrices view = views.get(shadow_iface.shadow_view_id);
+    init_globals(uni, view, front_face);
 
     nodetree_surface(0.0f);
 

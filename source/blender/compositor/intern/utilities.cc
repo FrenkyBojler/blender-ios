@@ -4,7 +4,7 @@
 
 #include <optional>
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -180,6 +180,7 @@ static std::optional<ImplicitInputType> get_implicit_input(
     case NodeDefaultInputType::NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
     case NodeDefaultInputType::NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD:
     case NodeDefaultInputType::NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
+    case NodeDefaultInputType::NODE_DEFAULT_INPUT_SELF_OBJECT:
       break;
   }
 

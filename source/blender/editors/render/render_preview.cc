@@ -21,12 +21,12 @@
 #endif
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_rect.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_rect.hh"
 #include "BLI_set.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -70,7 +70,7 @@
 #include "BKE_texture.h"
 #include "BKE_world.h"
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -104,7 +104,7 @@ namespace blender {
 
 #ifndef NDEBUG
 /* Used for database init assert(). */
-#  include "BLI_threads.h"
+#  include "BLI_threads.hh"
 #endif
 
 static void icon_copy_rect(const ImBuf *ibuf, uint w, uint h, uint *rect);
@@ -366,11 +366,11 @@ static World *preview_get_localized_world(ShaderPreview *sp, World *world)
   return sp->worldcopy;
 }
 
-World *ED_preview_prepare_world_simple(Main *pr_main)
+World *ED_preview_prepare_world_simple(Main *bmain)
 {
   using namespace blender::bke;
 
-  World *world = BKE_world_add(pr_main, "SimpleWorld");
+  World *world = BKE_world_add(bmain, "SimpleWorld");
   bNodeTree *ntree = world->nodetree;
 
   bNode *background = node_add_node(nullptr, *ntree, "ShaderNodeBackground"_ustr);
@@ -1725,7 +1725,7 @@ class PreviewLoadJob {
   std::mutex todo_queue_mutex_;
 
   /** Push the RequestedPreview to the 'todo' queue, ensuring it is only queued once. */
-  void todo_queue_push(RequestedPreview *preview);
+  void todo_queue_push(RequestedPreview *request);
   /** Pop an item off the 'todo' queue, waiting at most wait_time_msec for an item to appear. */
   RequestedPreview *todo_queue_pop(int wait_time_msec);
 
@@ -2171,9 +2171,23 @@ bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
                 RPT_("Scenes without a camera do not support previews")};
       case ID_BR:
         return {false, RPT_("Brushes do not support automatic previews")};
+      case ID_MA:
+        return {true, ""};
+      case ID_TE:
+        return {true, ""};
+      case ID_WO:
+        return {true, ""};
+      case ID_LA:
+        return {true, ""};
+      case ID_IM:
+        return {true, ""};
+      case ID_AC:
+        return {true, ""};
+      case ID_SCR:
+        return {false, RPT_("Screens do not support automatic previews")};
       default:
-        return {BKE_previewimg_id_get_p(id) != nullptr,
-                RPT_("Data-block type does not support automatic previews")};
+        BLI_assert(!BKE_previewimg_id_get_p(id));
+        return {false, RPT_("Data-block type does not support automatic previews")};
     }
   }();
 
@@ -2187,6 +2201,11 @@ bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
 void ED_preview_icon_render(
     const bContext *C, Scene *scene, PreviewImage *prv_img, ID *id, eIconSizes icon_size)
 {
+  /* Check if the ID supports the auto-generated previews at all. */
+  if (!ED_preview_id_is_supported(id)) {
+    return;
+  }
+
   /* Deferred loading of previews from the file system. */
   if (prv_img->runtime->deferred_loading_data) {
     if (BKE_previewimg_is_rendering(prv_img, icon_size)) {
