@@ -592,6 +592,9 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                 },
                 exec_mode::grain_size(256));
 
+            meshintersect::CDT_result<double> result = delaunay_2d_calc(input,
+                                                                        CDT_INSIDE_WITH_HOLES);
+
             Map<int, int> vert_id_to_intersection_point;
             const float3x3 invert_axis_mat = math::invert(axis_mat);
             const float3 depth_point = positions[points_by_curve[fill.first()].first()];
@@ -608,13 +611,9 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
               vert_id_to_intersection_point.add(vert, intersection_point_results[pos].size());
 
               const float2 co = float2(result.vert[vert]);
-
               intersection_point_results[pos].append(invert_axis_mat * float3(co.x, co.y, 0.0f) +
                                                      depth_direction);
             }
-
-            meshintersect::CDT_result<double> result = delaunay_2d_calc(input,
-                                                                        CDT_INSIDE_WITH_HOLES);
 
             auto vert_to_point = [&](const int vert) {
               /* The points is a newly added intersection point. */
