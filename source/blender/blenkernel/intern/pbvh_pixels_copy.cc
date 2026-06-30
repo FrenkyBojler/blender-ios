@@ -584,23 +584,21 @@ void copy_pixels(bke::pbvh::Tree &pbvh,
     }
   }
 
-  /* Apply pixel copy for each group. */
-  threading::parallel_for(active_groups.index_range(), 1, [&](IndexRange range) {
-    for (const int64_t i : range) {
-      const IndexRange group_range = active_groups[i];
-
-      /* Push undo tiles affected by these group before editing, just like painting. */
-      for (const CopyPixelGroup &group : tile.groups.as_span().slice(group_range)) {
-        if (group.num_deltas > 0) {
-          push_undo_tiles(group.start_destination.x + 1,
-                          group.start_destination.x + group.num_deltas,
-                          group.start_destination.y);
-        }
+  /* Apply the pixel copies. This is intentionally serial: the work per brush step is a thin band
+   * along the seams of the painted region, which is small enough that the task spawning overhead
+   * of a parallel loop dominates (measured several times slower threaded than serial). */
+  for (const IndexRange group_range : active_groups) {
+    /* Push undo tiles affected by these groups before editing, just like painting. */
+    for (const CopyPixelGroup &group : tile.groups.as_span().slice(group_range)) {
+      if (group.num_deltas > 0) {
+        push_undo_tiles(group.start_destination.x + 1,
+                        group.start_destination.x + group.num_deltas,
+                        group.start_destination.y);
       }
-
-      tile.copy_pixels(*tile_buffer, group_range);
     }
-  });
+
+    tile.copy_pixels(*tile_buffer, group_range);
+  }
 }
 
 }  // namespace blender::bke::pbvh::pixels
