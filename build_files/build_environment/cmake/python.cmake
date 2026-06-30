@@ -112,13 +112,13 @@ else()
         # Disable posix shmem module
         export py_cv_module__posixshmem=n/a &&
         export ac_cv_func_pipe2=no &&
-        export ac_cv_func_dup3=no
+        export ac_cv_func_dup3=no &&
+        export py_cv_module__curses=n/a &&
+        export py_cv_module__curses_panel=n/a
       )
-      set(PYTHON_IOS_CFLAGS "-I${LIBDIR}/ffi/include -I${LIBDIR}/ssl/include -I${LIBDIR}/lzma/include")
     else()
       set(CROSS_COMPILE_FLAGS "")
       set(CROSS_COMPILE_FUNC_CONFIGS "")
-      set(PYTHON_IOS_CFLAGS "")
     endif()
 
     # Disable functions that can be in 10.13 sdk but aren't available on 10.9 target.
@@ -155,7 +155,7 @@ else()
     set(PYTHON_BINARY ${CMAKE_DEPS_CROSSCOMPILE_BUILDDIR}/deps_arm64/Release/python/bin/python${PYTHON_SHORT_VERSION})
     set(PYTHON_CONFIGURE_EXTRA_ARGS
       ${PYTHON_CONFIGURE_EXTRA_ARGS}
-      --with-force-crosscompile
+      --with-force-crosscompile=yes
       --with-static-libpython=yes
       --disable-test-modules
       --enable-test-modules=no
@@ -166,12 +166,13 @@ else()
     set(PYTHON_BINARY ${LIBDIR}/python/bin/python${PYTHON_SHORT_VERSION})
   endif()
 
-  set(PYTHON_CFLAGS "${PLATFORM_CFLAGS} ${PYTHON_IOS_CFLAGS} ")
+  set(PYTHON_CFLAGS "${PLATFORM_CFLAGS} ")
   # We need to add the zlib static lib path here as even if python itself links the static zlib correctly,
   # the "_sqlite" cpython library needs to know where to get it from.
   set(PYTHON_LDFLAGS "-L${LIBDIR}/zlib/lib ${PLATFORM_LDFLAGS} ")
 
   set(PYTHON_CONFIGURE_EXTRA_ARGS
+    ${PYTHON_CONFIGURE_EXTRA_ARGS}
     # Using pkg-config is supported for most libs besides bzip2, so make sure it is on.
     --with-pkg-config=yes
     --enable-loadable-sqlite-extensions
