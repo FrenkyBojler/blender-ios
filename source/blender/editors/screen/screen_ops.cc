@@ -7233,7 +7233,7 @@ static void SCREEN_OT_project_setup_show(wmOperatorType *ot)
 
   prop = RNA_def_string(ot->srna,
                         "section",
-                        nullptr,
+                        "General",
                         MAX_NAME,
                         "Active Section",
                         "Section to activate in Project Setup");
