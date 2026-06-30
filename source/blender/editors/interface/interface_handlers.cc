@@ -3842,7 +3842,14 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
 
   if (is_num_but) {
     BLI_assert(text_edit.is_str_dynamic == false);
-    button_convert_to_unit_alt_name(but, text_edit.edit_string, text_edit.max_string_size);
+    /* When an input field contains a driver, the edit string is the driver's Python expression.
+     * Editing the field then corrupts string literals when unit symbols are converted to names.
+     * Degree units arcminute/arcsecond and Imperial units feet/inch match '/" quotation marks.
+     * Skip conversion on drivers so the expression string is left untouched and uncorrupted.
+     * See #86538. */
+    if (!button_anim_expression_get(but, nullptr, 0)) {
+      button_convert_to_unit_alt_name(but, text_edit.edit_string, text_edit.max_string_size);
+    }
 
     numedit_begin_set_values(but, data);
   }
