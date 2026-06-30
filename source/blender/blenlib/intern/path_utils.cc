@@ -1046,6 +1046,8 @@ void BLI_path_frame_strip(char *path, char *r_ext, const size_t ext_maxncpy)
 
   char *file = const_cast<char *>(BLI_path_basename(path));
   char *file_ext = const_cast<char *>(BLI_path_extension_or_end(file));
+  BLI_strncpy(r_ext, file_ext, ext_maxncpy);
+
   char *c = file_ext;
 
   /* Find start of number (if there is one). */
@@ -1055,22 +1057,21 @@ void BLI_path_frame_strip(char *path, char *r_ext, const size_t ext_maxncpy)
   }
   c++;
 
-  /* Dont strip numbers outside the range of valid framenumbers (ints). */
   /* No need to trim the string, `strtoll` ignores non-digits. */
   const long long num = strtoll(c, nullptr, 10);
-  const bool replace = num <= INT_MAX;
-
-  BLI_strncpy(r_ext, file_ext, ext_maxncpy);
-
-  /* Replace the number with the suffix and terminate the string. */
-  while (digits_len--) {
-    if (replace) {
+  if (num <= INT_MAX) {
+    /* Replace the number with the suffix. */
+    while (digits_len--) {
       *c++ = '#';
     }
-    else {
-      *c++;
-    }
   }
+  else {
+    /* Dont strip numbers outside the range of valid framenumbers (ints). So go back to where we
+     * were before finding the start of the number. */
+    c += digits_len;
+  }
+
+  /* Terminate the string. */
   *c = '\0';
 }
 
