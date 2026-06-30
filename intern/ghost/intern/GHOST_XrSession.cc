@@ -1054,12 +1054,14 @@ static void init_passthrough_extension_functions(XrInstance instance)
 
 void GHOST_XrSession::enablePassthrough()
 {
+  oxr_->passthrough_supported = false;
+
   if (!context_->isExtensionEnabled(XR_FB_PASSTHROUGH_EXTENSION_NAME)) {
-    oxr_->passthrough_supported = false;
     return;
   }
 
   if (oxr_->passthrough_layer.layerHandle != XR_NULL_HANDLE) {
+    oxr_->passthrough_supported = true;
     return; /* Already initialized. */
   }
 
