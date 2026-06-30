@@ -592,36 +592,36 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                 },
                 exec_mode::grain_size(256));
 
-                Map<int, int> vert_id_to_intersection_point;
-          const float3x3 invert_axis_mat = math::invert(axis_mat);
-          const float3 depth_point = positions[points_by_curve[fill.first()].first()];
-          float2 pos2d;
-          mul_v2_m3v3(pos2d, axis_mat.ptr(), depth_point);
-          const float3 depth_direction = depth_point - invert_axis_mat * float3(pos2d, 0.0f);
+            Map<int, int> vert_id_to_intersection_point;
+            const float3x3 invert_axis_mat = math::invert(axis_mat);
+            const float3 depth_point = positions[points_by_curve[fill.first()].first()];
+            float2 pos2d;
+            mul_v2_m3v3(pos2d, axis_mat.ptr(), depth_point);
+            const float3 depth_direction = depth_point - invert_axis_mat * float3(pos2d, 0.0f);
 
-          for (const int vert : result.vert.index_range()) {
-            /* The point already exists. */
-            if (!result.vert_orig[vert].is_empty()) {
-              continue;
+            for (const int vert : result.vert.index_range()) {
+              /* The point already exists. */
+              if (!result.vert_orig[vert].is_empty()) {
+                continue;
+              }
+
+              vert_id_to_intersection_point.add(vert, intersection_point_results[pos].size());
+
+              const float2 co = float2(result.vert[vert]);
+
+              intersection_point_results[pos].append(invert_axis_mat * float3(co.x, co.y, 0.0f) +
+                                                     depth_direction);
             }
-
-            vert_id_to_intersection_point.add(vert, intersection_point_results[pos].size());
-
-            const float2 co = float2(result.vert[vert]);
-
-            intersection_point_results[pos].append(invert_axis_mat * float3(co.x, co.y, 0.0f) +
-                                                   depth_direction);
-          }
 
             meshintersect::CDT_result<double> result = delaunay_2d_calc(input,
                                                                         CDT_INSIDE_WITH_HOLES);
 
             auto vert_to_point = [&](const int vert) {
               /* The points is a newly added intersection point. */
-            if (result.vert_orig[vert].is_empty()) {
-              const int inter = vert_id_to_intersection_point.lookup(vert);
-              return -(inter + 1);
-            }
+              if (result.vert_orig[vert].is_empty()) {
+                const int inter = vert_id_to_intersection_point.lookup(vert);
+                return -(inter + 1);
+              }
               /* Just get the first point if there are multiple at the same position. */
               return int(result.vert_orig[vert].first());
             };
@@ -631,9 +631,8 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
               const int3 tri = int3(vert_to_point(result.face[i][0]),
                                     vert_to_point(result.face[i][1]),
                                     vert_to_point(result.face[i][2]));
-              
-                triangle_results[pos].append(tri);
-              
+
+              triangle_results[pos].append(tri);
             }
 
             BLI_memarena_clear(pf_arena);
