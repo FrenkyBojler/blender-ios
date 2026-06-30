@@ -225,6 +225,9 @@ void ImBuf::assign_float_data(float *data)
 {
   this->float_buffer = {};
   if (data) {
+    if (this->channels == 4) {
+      BLI_assert(uintptr_t(data) % IMBUF_FLOAT_ALIGNMENT == 0);
+    }
     this->float_buffer.data = data;
     this->float_buffer.sharing_info = ImplicitSharingPtr<>(
         implicit_sharing::info_for_mem_free(data));
@@ -251,6 +254,9 @@ void ImBuf::assign_float_data(const float *data, ImplicitSharingPtr<> sharing_pt
 {
   BLI_assert(data != nullptr);
   BLI_assert(sharing_ptr.get() != nullptr);
+  if (this->channels == 4) {
+    BLI_assert(uintptr_t(data) % IMBUF_FLOAT_ALIGNMENT == 0);
+  }
   this->float_buffer.data = data;
   this->float_buffer.sharing_info = std::move(sharing_ptr);
 }
