@@ -15,6 +15,7 @@
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
+#include "DNA_effect_types.h"
 #include "DNA_listBase.h"
 #include "DNA_sequence_types.h"
 #include "DNA_windowmanager_enums.h"
@@ -181,6 +182,7 @@ void channel_draw_context_init(const bContext *C,
 
 void slip_modal_keymap(wmKeyConfig *keyconf);
 VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene,
+                                               StripType effect_type,
                                                int num_inputs,
                                                bool ignore_active = false);
 const char *effect_inputs_validate(int have_inputs, int num_inputs);

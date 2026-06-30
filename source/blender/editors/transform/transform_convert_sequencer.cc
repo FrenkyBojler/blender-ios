@@ -913,7 +913,7 @@ static void flush_strip_transforms(TransInfo *t,
     const int new_channel = round_fl_to_int(td->iloc[1] + offset_clamped[1]);
     const int delta_x = (x_old + x_offset) - strip->left_handle();
 
-    seq::strip_channel_set(strip, new_channel);
+    strip->channel_set(new_channel);
 
     if (!seq::transform_strip_can_be_translated(strip)) {
       return;
@@ -927,7 +927,7 @@ static void flush_strip_transforms(TransInfo *t,
     // rather than with a lookup.
     // Though, check.
     /* Move attached transitions with the strips if both transition inputs are selected. */
-    Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
+    Span<Strip *> effects = seq::lookup_effects_by_strip(seq::editing_get(scene), strip);
     for (Strip *e : effects) {
       /* Only the transitions' second input moves the transitions. This is to prevent moving
        * them twice. */
@@ -937,7 +937,7 @@ static void flush_strip_transforms(TransInfo *t,
         // be an issue
         if (e->input1->flag & SEQ_SELECT) {
           seq::transform_translate_strip(scene, e, delta_x);
-          seq::strip_channel_set(e, new_channel);
+          e->channel_set(new_channel);
         }
       }
     }
@@ -951,7 +951,7 @@ static void flush_strip_transforms(TransInfo *t,
     /* Move the transition with the cut point if adjacent handles are selected. This is only done
      * for the right handle to avoid moving it twice. */
     const int delta_x = *r_right_new - strip->right_handle(scene);
-    Span<Strip *> effects = seq::SEQ_lookup_effects_by_strip(seq::editing_get(scene), strip);
+    Span<Strip *> effects = seq::lookup_effects_by_strip(seq::editing_get(scene), strip);
     for (Strip *e : effects) {
       if (seq::strip_is_transition(e)) {
         // TODO: eh, these should be kept in the right order, but anyway
