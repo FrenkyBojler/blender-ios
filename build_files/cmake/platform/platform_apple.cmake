@@ -46,7 +46,7 @@ if(WITH_APPLE_CROSSPLATFORM)
 
   # --- Cross compile host tools ----
 
-  # Enable cross-compiled tools (glsl_preprocess, makesdna, makesrna etc.)
+  # Enable cross-compiled tools (shader_tool, makesdna, makesrna etc.)
   set(WITH_CROSSCOMPILED_TOOLS ON CACHE BOOL "" FORCE)
 
   # Fetch Cmake arguments for host build process, ensuring these are consistent with what is
@@ -100,29 +100,29 @@ if(WITH_APPLE_CROSSPLATFORM)
   add_executable(msgfmt IMPORTED GLOBAL)
   add_executable(datatoc IMPORTED GLOBAL)
   #add_executable(datatoc_icon IMPORTED GLOBAL)
-  add_executable(glsl_preprocess IMPORTED GLOBAL)
+  add_executable(shader_tool IMPORTED GLOBAL)
   add_dependencies(makesdna blender_cross_tools_compile)
   add_dependencies(makesrna blender_cross_tools_compile)
   add_dependencies(msgfmt blender_cross_tools_compile)
   add_dependencies(datatoc blender_cross_tools_compile)
   #add_dependencies(datatoc_icon blender_cross_tools_compile)
-  add_dependencies(glsl_preprocess blender_cross_tools_compile)
+  add_dependencies(shader_tool blender_cross_tools_compile)
   message(STATUS "Host tools will be generated in: ${CROSSCOMPILE_TOOLDIR}")
   set_property(TARGET makesdna PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/makesdna")
   set_property(TARGET makesrna PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/makesrna")
   set_property(TARGET msgfmt PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/msgfmt")
   set_property(TARGET datatoc PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/datatoc")
   #set_property(TARGET datatoc_icon PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/datatoc_icon")
-  set_property(TARGET glsl_preprocess PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/glsl_preprocess")
+  set_property(TARGET shader_tool PROPERTY IMPORTED_LOCATION "${CROSSCOMPILE_TOOLDIR}/bin/shader_tool")
   message(STATUS "makesdna: ${CROSSCOMPILE_TOOLDIR}/bin/makesdna")
   message(STATUS "makesrna: ${CROSSCOMPILE_TOOLDIR}/bin/makesrna")
   message(STATUS "msgfmt: ${CROSSCOMPILE_TOOLDIR}/bin/msgfmt")
   message(STATUS "datatoc: ${CROSSCOMPILE_TOOLDIR}/bin/datatoc")
   #message(STATUS "datatoc_icon: ${CROSSCOMPILE_TOOLDIR}/bin/datatoc_icon")
-  message(STATUS "glsl_preprocess: ${CROSSCOMPILE_TOOLDIR}/bin/glsl_preprocess")
+  message(STATUS "shader_tool: ${CROSSCOMPILE_TOOLDIR}/bin/shader_tool")
   message(STATUS "\n---------------------------\n")
 else()
-  # Disable cross-compiled tools (glsl_preprocess, makesdna, makesrna etc.) if building on host.
+  # Disable cross-compiled tools (shader_tool, makesdna, makesrna etc.) if building on host.
   set(WITH_CROSSCOMPILED_TOOLS OFF CACHE BOOL "" FORCE)
 endif()
 
