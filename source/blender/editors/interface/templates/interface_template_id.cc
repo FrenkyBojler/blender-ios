@@ -19,9 +19,9 @@
 #include "BKE_packedFile.hh"
 #include "BKE_screen.hh"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_string_search.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -148,7 +148,7 @@ static bool id_search_add(const bContext *C, TemplateID *template_ui, SearchItem
                        name_ui,
                        id,
                        iconid,
-                       has_sep_char ? int(BUT_HAS_SEP_CHAR) : 0,
+                       has_sep_char ? int64_t(BUT_HAS_SEP_CHAR) : 0,
                        name_prefix_offset))
   {
     return false;
@@ -775,6 +775,7 @@ static void template_ui_make_local(bContext &C, TemplateID &template_ui)
 
       /* Reassign to get proper updates/notifiers. */
       idptr = RNA_property_pointer_get(&template_ui.ptr, template_ui.prop);
+      undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local");
     }
   }
   if (undo_push_label) {
@@ -790,7 +791,7 @@ static void template_ui_override(bContext &C, TemplateID &template_ui)
   PointerRNA idptr = RNA_property_pointer_get(&template_ui.ptr, template_ui.prop);
   ID *id = static_cast<ID *>(idptr.data);
 
-  const char *undo_push_label;
+  const char *undo_push_label = nullptr;
 
   if (!(id && ID_IS_OVERRIDE_LIBRARY(id))) {
     return;
@@ -806,7 +807,10 @@ static void template_ui_override(bContext &C, TemplateID &template_ui)
     RNA_property_pointer_set(&template_ui.ptr, template_ui.prop, idptr, nullptr);
     RNA_property_update(&C, &template_ui.ptr, template_ui.prop);
 
-    ED_undo_push(&C, CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local"));
+    undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local");
+  }
+  if (undo_push_label != nullptr) {
+    ED_undo_push(&C, undo_push_label);
     WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
   }
 }
