@@ -2,3 +2,4 @@ Referenced by issue #153195, Serious Performance Issue with Auto Smooth Modifier
 Referenced by issue #160339, Crash while editing mesh with Array modifier
 Referenced by pull request #160349, Fix #160339: Edit mode crash with array modifier
 Referenced by commit 53c556d261b048da31143004f56cb0747f71cba3, Fix #160339: Edit mode crash with array modifier
+Referenced by pull request #160540, Fix #160535: Crash transforming vertices with geometry nodes, a deform modifier and "Cage" enabled
