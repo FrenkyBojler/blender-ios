@@ -6430,7 +6430,9 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
   Scene *scene = sad->scene;
   ViewLayer *view_layer = sad->view_layer;
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
+  Depsgraph *depsgraph = BKE_scene_has_view_layer(scene, view_layer) ?
+                             BKE_scene_get_depsgraph(scene, view_layer) :
+                             nullptr;
   Scene *scene_eval = (depsgraph != nullptr) ? DEG_get_evaluated_scene(depsgraph) : nullptr;
   wmWindowManager *wm = CTX_wm_manager(C);
   int sync;
