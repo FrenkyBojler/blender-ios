@@ -843,6 +843,11 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
       /* try to keep showing shading related buttons */
       sbuts->mainb = buttons_shading_new_context(C, flag);
     }
+    else if (sbuts->mainb == BCONTEXT_BONE_CONSTRAINT && (flag & (1 << BCONTEXT_BONE))) {
+      /* When switching from pose mode to edit mode while pinning bone constraints,
+       * try bone tabs before falling back to the generic object tab. */
+      sbuts->mainb = BCONTEXT_BONE;
+    }
     else if (flag & BCONTEXT_OBJECT) {
       sbuts->mainb = BCONTEXT_OBJECT;
     }
@@ -1409,10 +1414,11 @@ ID *buttons_context_id_path(const bContext *C)
       }
     }
     /* For Bone tab, pin the Object (the armature owner) instead of the Armature data-block.
-     * The path for the Bone tab is: Object → Armature → Bone */
+     * The path for the Bone tab is: Object → Armature → Bone
+     * And the owner_id of the PoseBone is the same as the owner_id of the Object.*/
     if (sbuts->mainb == BCONTEXT_BONE && sbuts->flag & SB_PIN_CONTEXT) {
-      if (ELEM(ptr->type, RNA_Bone, RNA_EditBone) && ptr->data) {
-        return ptr->parent().owner_id;
+      if (ELEM(ptr->type, RNA_Bone, RNA_EditBone, RNA_Armature) && ptr->data) {
+        continue;
       }
     }
 
