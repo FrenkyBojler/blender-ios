@@ -1734,13 +1734,12 @@ static bke::bNodeSocketType *make_socket_type_rgba()
   bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_RGBA, PROP_NONE);
   socktype->base_cpp_type = &CPPType::get<ColorGeometry4f>();
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
-    *static_cast<ColorGeometry4f *>(
-        r_value) = (static_cast<bNodeSocketValueRGBA *>(const_cast<void *>(socket_value)))->value;
+    const float *data = static_cast<const bNodeSocketValueRGBA *>(socket_value)->value;
+    *static_cast<ColorGeometry4f *>(r_value) = ColorGeometry4f(data[0], data[1], data[2], data[3]);
   };
   socktype->get_geometry_nodes_cpp_value = [](const void *socket_value) {
-    const ColorGeometry4f value =
-        (static_cast<bNodeSocketValueRGBA *>(const_cast<void *>(socket_value)))->value;
-    return SocketValueVariant(value);
+    const float *data = static_cast<const bNodeSocketValueRGBA *>(socket_value)->value;
+    return SocketValueVariant(ColorGeometry4f(data[0], data[1], data[2], data[3]));
   };
   static SocketValueVariant default_value{ColorGeometry4f(0, 0, 0, 0)};
   socktype->geometry_nodes_default_value = &default_value;
