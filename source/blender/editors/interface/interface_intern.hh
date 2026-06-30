@@ -22,6 +22,7 @@
 
 #include "DNA_listBase.h"
 
+#include "RNA_access.hh"
 #include "RNA_types.hh"
 
 #include "UI_interface.hh"
@@ -307,10 +308,20 @@ struct Button : NonMovable {
 
   MenuStepFunc menu_step_func = nullptr;
 
+  RNAOverrideStatus override_status = {};
+
   /* RNA data */
   PointerRNA rnapoin = {};
   PropertyRNA *rnaprop = nullptr;
   int rnaindex = 0;
+
+  /* Store originally defined RNA data for this button, when the active RNA data has been
+   * overridden to the dynamic override matching property. */
+  struct {
+    PointerRNA rnapoin = {};
+    PropertyRNA *rnaprop = nullptr;
+    int rnaindex = 0;
+  } dynoverride_target;
 
   BIFIconID drag_preview_icon_id;
   void *dragpoin = nullptr;
@@ -984,7 +995,7 @@ bool button_supports_cycling(const Button *but) ATTR_WARN_UNUSED_RESULT;
 int button_is_pushed_ex(Button *but, double *value) ATTR_WARN_UNUSED_RESULT;
 int button_is_pushed(Button *but) ATTR_WARN_UNUSED_RESULT;
 
-void button_override_flag(Main *bmain, Scene *scene, Button *but);
+void button_override_flag(Button &but);
 
 void block_bounds_calc(Block *block);
 

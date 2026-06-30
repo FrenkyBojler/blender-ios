@@ -1808,17 +1808,17 @@ IDOverrideLibraryPropertyOperation *RNA_property_override_property_operation_get
       op, operation, nullptr, nullptr, {}, {}, index, index, strict, r_strict, r_created);
 }
 
-eRNAOverrideStatus RNA_property_override_status(
+RNAOverrideStatus RNA_property_override_status(
     Main *bmain, Scene *scene, PointerRNA *ptr, PropertyRNA *prop, const int index)
 {
-  eRNAOverrideStatus override_status = eRNAOverrideStatus{};
+  RNAOverrideStatus override_status;
 
   if (!ptr || !prop || !ptr->owner_id) {
     return override_status;
   }
 
   if (RNA_property_dynamic_overridable_get(ptr, prop)) {
-    override_status |= eRNAOverrideStatus::DynOverridable;
+    override_status.status |= eRNAOverrideStatus::DynOverridable;
     if (!scene) {
       return override_status;
     }
@@ -1827,11 +1827,19 @@ eRNAOverrideStatus RNA_property_override_status(
     if (!rna_path) {
       return override_status;
     }
-    DynamicOverrideRuleIDData *rule = bke::dynoverride::rule_iddata_lookup_for_id(*scene,
-                                                                                  *owner_id);
+    DynamicOverride *dynoverride = nullptr;
+    DynamicOverrideRuleIDData *rule = bke::dynoverride::rule_iddata_lookup_for_id(
+        *scene, *owner_id, &dynoverride);
     RNAPath p{*rna_path};
-    if (rule && bke::dynoverride::rule_rna_property_lookup(rule->base, p)) {
-      override_status |= eRNAOverrideStatus::DynOverridden;
+    if (rule) {
+      DynamicOverrideRuleProperty *rule_prop = bke::dynoverride::rule_rna_property_lookup(
+          rule->base, p);
+      if (rule_prop) {
+        override_status.status |= eRNAOverrideStatus::DynOverridden;
+        override_status.dynoverride = dynoverride;
+        override_status.dynoverride_rule = rule;
+        override_status.dynoverride_rule_property = rule_prop;
+      }
     }
   }
 
@@ -1840,18 +1848,18 @@ eRNAOverrideStatus RNA_property_override_status(
   }
 
   if (RNA_property_overridable_get(ptr, prop) && RNA_property_editable_flag(ptr, prop)) {
-    override_status |= eRNAOverrideStatus::LibOverridable;
+    override_status.status |= eRNAOverrideStatus::LibOverridable;
   }
 
   IDOverrideLibraryPropertyOperation *opop = RNA_property_override_property_operation_find(
       bmain, ptr, prop, index, false, nullptr);
   if (opop != nullptr) {
-    override_status |= eRNAOverrideStatus::LibOverridden;
+    override_status.status |= eRNAOverrideStatus::LibOverridden;
     if (opop->flag & LIBOVERRIDE_OP_FLAG_MANDATORY) {
-      override_status |= eRNAOverrideStatus::LibOverrideMandatory;
+      override_status.status |= eRNAOverrideStatus::LibOverrideMandatory;
     }
     if (opop->flag & LIBOVERRIDE_OP_FLAG_LOCKED) {
-      override_status |= eRNAOverrideStatus::LibOverrideLocked;
+      override_status.status |= eRNAOverrideStatus::LibOverrideLocked;
     }
   }
 

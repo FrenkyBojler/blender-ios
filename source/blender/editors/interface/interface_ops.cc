@@ -535,10 +535,11 @@ static bool override_add_button_poll(bContext *C)
 
   context_active_but_prop_get(C, &ptr, &prop, &index);
 
-  const eRNAOverrideStatus override_status = RNA_property_override_status(
+  const RNAOverrideStatus override_status = RNA_property_override_status(
       CTX_data_main(C), CTX_data_scene(C), &ptr, prop, index);
 
-  return (ptr.data && prop && flag_is_set(override_status, eRNAOverrideStatus::LibOverridable));
+  return (ptr.data && prop &&
+          flag_is_set(override_status.status, eRNAOverrideStatus::LibOverridable));
 }
 
 static wmOperatorStatus override_add_button_exec(bContext *C, wmOperator *op)
@@ -605,11 +606,11 @@ static bool override_remove_button_poll(bContext *C)
 
   context_active_but_prop_get(C, &ptr, &prop, &index);
 
-  const eRNAOverrideStatus override_status = RNA_property_override_status(
+  const RNAOverrideStatus override_status = RNA_property_override_status(
       CTX_data_main(C), CTX_data_scene(C), &ptr, prop, index);
 
   return (ptr.data && ptr.owner_id && prop &&
-          flag_is_set(override_status, eRNAOverrideStatus::LibOverridden));
+          flag_is_set(override_status.status, eRNAOverrideStatus::LibOverridden));
 }
 
 static wmOperatorStatus override_remove_button_exec(bContext *C, wmOperator *op)
@@ -990,11 +991,12 @@ static bool dynamic_override_add_button_poll(bContext *C)
 
   context_active_but_prop_get(C, &ptr, &prop, &index);
 
-  const eRNAOverrideStatus override_status = RNA_property_override_status(
+  const RNAOverrideStatus override_status = RNA_property_override_status(
       CTX_data_main(C), CTX_data_scene(C), &ptr, prop, index);
 
-  return (ptr.data && prop && flag_is_set(override_status, eRNAOverrideStatus::DynOverridable) &&
-          !flag_is_set(override_status, eRNAOverrideStatus::DynOverridden));
+  return (ptr.data && prop &&
+          flag_is_set(override_status.status, eRNAOverrideStatus::DynOverridable) &&
+          !flag_is_set(override_status.status, eRNAOverrideStatus::DynOverridden));
 }
 
 static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator *op)
@@ -1074,14 +1076,12 @@ static bool dynamic_override_edit_button_poll(bContext *C)
 
   PointerRNA ptr;
   PropertyRNA *prop;
-  int index;
+  int unused_index;
 
-  context_active_but_prop_get(C, &ptr, &prop, &index);
+  Button *but = context_active_but_dynoverride_target_prop_get(C, &ptr, &prop, &unused_index);
 
-  const eRNAOverrideStatus override_status = RNA_property_override_status(
-      CTX_data_main(C), CTX_data_scene(C), &ptr, prop, index);
-
-  return (ptr.data && prop && flag_is_set(override_status, eRNAOverrideStatus::DynOverridden));
+  return (ptr.data && prop &&
+          flag_is_set(but->override_status.status, eRNAOverrideStatus::DynOverridden));
 }
 
 static wmOperatorStatus dynamic_override_remove_button_exec(bContext *C, wmOperator *op)
@@ -1096,7 +1096,7 @@ static wmOperatorStatus dynamic_override_remove_button_exec(bContext *C, wmOpera
   PropertyRNA *prop;
   int unused_index;
 
-  context_active_but_prop_get(C, &ptr, &prop, &unused_index);
+  context_active_but_dynoverride_target_prop_get(C, &ptr, &prop, &unused_index);
 
   ID *owner_id = ptr.owner_id;
   BLI_assert(owner_id != nullptr);

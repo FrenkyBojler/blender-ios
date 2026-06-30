@@ -592,9 +592,9 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       PointerRNA *ptr = &but->rnapoin;
       PropertyRNA *prop = but->rnaprop;
 
-      const eRNAOverrideStatus override_status = RNA_property_override_status(
+      const RNAOverrideStatus override_status = RNA_property_override_status(
           CTX_data_main(C), CTX_data_scene(C), ptr, prop, -1);
-      const bool is_dynamic_overridable = flag_is_set(override_status,
+      const bool is_dynamic_overridable = flag_is_set(override_status.status,
                                                       eRNAOverrideStatus::DynOverridable);
 
       if (is_dynamic_overridable) {
@@ -650,10 +650,11 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     const bool is_array_component = (is_array && but->rnaindex != -1);
     const bool is_whole_array = (is_array && but->rnaindex == -1);
 
-    const eRNAOverrideStatus override_status = RNA_property_override_status(
+    const RNAOverrideStatus override_status = RNA_property_override_status(
         CTX_data_main(C), CTX_data_scene(C), ptr, prop, -1);
-    const bool is_overridable = flag_is_set(override_status, eRNAOverrideStatus::LibOverridable);
-    const bool is_dynamic_overridable = flag_is_set(override_status,
+    const bool is_overridable = flag_is_set(override_status.status,
+                                            eRNAOverrideStatus::LibOverridable);
+    const bool is_dynamic_overridable = flag_is_set(override_status.status,
                                                     eRNAOverrideStatus::DynOverridable);
 
     /* Set the (button_pointer, button_prop)

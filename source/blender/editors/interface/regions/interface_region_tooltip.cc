@@ -29,6 +29,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_dynamic_override_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_fileops.hh"
@@ -43,6 +44,7 @@
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_paint.hh"
@@ -1188,6 +1190,21 @@ static std::unique_ptr<TooltipData> tooltip_data_from_button_or_extra_icon(
                                {},
                                TIP_STYLE_NORMAL,
                                TIP_LC_VALUE);
+      }
+    }
+
+    if (but->flag & BUT_DYNAMIC_OVERRIDDEN) {
+      if (but->override_status.dynoverride_rule && but->override_status.dynoverride_rule_property)
+      {
+        tooltip_text_field_add(
+            *data,
+            fmt::format(
+                fmt::runtime(TIP_("Dynamic override of: '{}' data-block, {}")),
+                BKE_id_name(*but->override_status.dynoverride_rule->base.target_filter.target_id),
+                but->override_status.dynoverride_rule_property->rna_path),
+            {},
+            TIP_STYLE_NORMAL,
+            TIP_LC_NORMAL);
       }
     }
 
