@@ -19,7 +19,6 @@
 #include "GPU_capabilities.hh"
 #include "gpu_capabilities_private.hh"
 #include "gpu_platform_private.hh"
-#include "gpu_util_intel.hh"
 
 #include "vk_batch.hh"
 #include "vk_context.hh"
@@ -629,7 +628,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
 
 #ifdef _WIN32
   if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
-    IntelGpuArch gpu_arch = get_intel_gpu_arch(device.physical_device_properties_get().deviceID);
+    IntelGpuArch gpu_arch = GPU_intel_get_arch(device.physical_device_properties_get().deviceID);
 
     /* Intel Gen9 iGPUs (Intel 7th to 10th Gen Processor Graphics driver) show a black screen at
      * application startup when using VK_EXT_vertex_input_dynamic_state.

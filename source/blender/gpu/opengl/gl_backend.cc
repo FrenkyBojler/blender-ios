@@ -28,7 +28,6 @@
 
 #include "gpu_capabilities_private.hh"
 #include "gpu_platform_private.hh"
-#include "gpu_util_intel.hh"
 
 #include "gl_debug.hh"
 
@@ -562,7 +561,7 @@ static void detect_workarounds()
       if (BLI_windows_get_directx_intel_driver_info(
               device_luid, &driver_version_minor, &driver_version_major, &device_id))
       {
-        gpu_arch = get_intel_gpu_arch(device_id);
+        gpu_arch = GPU_intel_get_arch(device_id);
       }
     }
 

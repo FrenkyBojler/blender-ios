@@ -103,4 +103,16 @@ Span<uint8_t> GPU_platform_luid();
  * if LUID is defined. */
 uint32_t GPU_platform_luid_node_mask();
 
+/* Intel GPU architecture. */
+enum class IntelGpuArch : uint32_t {
+  Gen9AndOlder,
+  Gen11,
+  Gen12,
+  Xe = Gen12,
+  Xe2,
+  Xe3AndNewer,
+};
+
+IntelGpuArch GPU_intel_get_arch(uint32_t device_id);
+
 }  // namespace blender
