@@ -213,7 +213,10 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
     const std::string prop_name = "[\"" + std::string(property_->name) + "\"]";
 
-    if ((property_->type == IDP_ARRAY) || !IDP_ui_data_supported(property_)) {
+    const bool is_array = (property_->type == IDP_ARRAY) || !IDP_ui_data_supported(property_);
+    const bool is_color = ELEM(property_->ui_data->rna_subtype, PROP_COLOR, PROP_COLOR_GAMMA);
+
+    if (is_array && !is_color) {
       /* Use edit value operator to tweak array and python properties. */
       const IDPropertyView &view = static_cast<IDPropertyView &>(get_tree_view());
       PointerRNA op_ptr = sub.op("WM_OT_properties_edit_value", "Edit value", ICON_NONE);

@@ -2279,10 +2279,10 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
     }
     case IDP_UI_DATA_TYPE_FLOAT: {
       IDPropertyUIDataFloat *src_float = reinterpret_cast<IDPropertyUIDataFloat *>(src);
+      src_float->base.rna_subtype = 0;
       switch (dst_type) {
         case IDP_UI_DATA_TYPE_FLOAT:
           /* Reset subtype */
-          src_float->base.rna_subtype = 0;
           if (is_array) {
             src_float->default_array_len = default_array_len;
             src_float->default_array = MEM_new_array_zeroed<double>(
