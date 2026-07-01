@@ -1329,8 +1329,8 @@ static Depsgraph *get_depsgraph_for_scene_strip(Main *bmain, Scene *scene, ViewL
   return depsgraph;
 }
 
-/* Render a scene strip through the wireframe/solid offscreen viewport path (used for preview and
- * thumbnails). `scene` is the strip's scene; `display_scene` is the scene that drives the shading
+/* Render a scene strip through the offscreen viewport path (used for preview and thumbnails).
+ * `scene` is the strip's scene; `display_scene` is the scene that drives the shading
  * (timeline edit scene). */
 static ImBuf *render_scene_strip_viewport(const Scene *display_scene,
                                           Scene *scene,
