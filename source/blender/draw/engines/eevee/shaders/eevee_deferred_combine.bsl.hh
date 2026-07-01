@@ -22,7 +22,11 @@ struct Combine {
   [[specialization_constant(false)]] bool render_pass_specular_light_enabled;
   [[specialization_constant(false)]] bool render_pass_normal_enabled;
   [[specialization_constant(false)]] bool render_pass_position_enabled;
-  [[specialization_constant(false)]] bool render_passes_denoising_enabled;
+  [[specialization_constant(false)]] bool render_passes_denoising_depth_enabled;
+  [[specialization_constant(false)]] bool render_passes_denoising_normal_enabled;
+  [[specialization_constant(false)]] bool render_passes_denoising_roughness_enabled;
+  [[specialization_constant(false)]] bool render_passes_denoising_diffuse_albedo_enabled;
+  [[specialization_constant(false)]] bool render_passes_denoising_specular_albedo_enabled;
   [[specialization_constant(false)]] bool use_albedo_roughness_weighting;
   [[specialization_constant(false)]] bool use_radiance_feedback;
   [[specialization_constant(true)]] bool use_split_radiance;
@@ -144,7 +148,10 @@ void combine_frag([[resource_table]] Combine &srt,
 
         average_normal += cl.N * closure_weight;
 
-        if (srt.render_passes_denoising_enabled) {
+        if (srt.render_passes_denoising_diffuse_albedo_enabled ||
+            srt.render_passes_denoising_specular_albedo_enabled ||
+            srt.render_passes_denoising_roughness_enabled)
+        {
           /* These two values are equivalent between Cycles and EEVEE:
            * - Cycles: sqrtf(bsdf_get_specular_roughness_squared(sc))
            * - EEVEE: square(closure_apparent_roughness_get(cl)) */
@@ -165,7 +172,9 @@ void combine_frag([[resource_table]] Combine &srt,
             diffuse_color += cl.color;
             diffuse_direct += closure_direct_light * cl.color;
             diffuse_indirect += closure_indirect_light * cl.color;
-            if (srt.render_passes_denoising_enabled && !srt.use_albedo_roughness_weighting) {
+            if (srt.render_passes_denoising_diffuse_albedo_enabled &&
+                !srt.use_albedo_roughness_weighting)
+            {
               diffuse_albedo += cl.color;
             }
             break;
@@ -175,7 +184,9 @@ void combine_frag([[resource_table]] Combine &srt,
             specular_color += cl.color;
             specular_direct += closure_direct_light * cl.color;
             specular_indirect += closure_indirect_light * cl.color;
-            if (srt.render_passes_denoising_enabled && !srt.use_albedo_roughness_weighting) {
+            if (srt.render_passes_denoising_specular_albedo_enabled &&
+                !srt.use_albedo_roughness_weighting)
+            {
               specular_albedo += cl.color;
             }
             break;
@@ -242,7 +253,7 @@ void combine_frag([[resource_table]] Combine &srt,
     render_passes.store_color(
         texel, uni.uniform_buf.render_pass.specular_light_id, float4(specular_light, 1.0f));
   }
-  if (srt.render_pass_normal_enabled || srt.render_passes_denoising_enabled) {
+  if (srt.render_pass_normal_enabled || srt.render_passes_denoising_normal_enabled) {
     float normal_len = length(average_normal);
     /* Normalize or fallback to default normal. */
     average_normal = (normal_len < 1e-5f) ? gbuf.surface_N() : (average_normal / normal_len);
@@ -257,21 +268,25 @@ void combine_frag([[resource_table]] Combine &srt,
     float3 P = view.point_screen_to_world(float3(v_out.screen_uv, depth));
     render_passes.store_color(texel, uni.uniform_buf.render_pass.position_id, float4(P, 1.0f));
   }
-  if (srt.render_passes_denoising_enabled) {
+  if (srt.render_passes_denoising_normal_enabled) {
     const ViewMatrices view = views.get(0);
     average_normal = view.normal_world_to_view(average_normal);
     /* For compatibility with Cycles */
     average_normal.z *= -1.0f;
     render_passes.store_color(
         texel, uni.uniform_buf.render_pass.denoising_normal_id, float4(average_normal, 1.0f));
-
+  }
+  if (srt.render_passes_denoising_diffuse_albedo_enabled) {
     render_passes.store_color(texel,
                               uni.uniform_buf.render_pass.denoising_diffuse_albedo_id,
                               float4(diffuse_albedo, 1.0f));
+  }
+  if (srt.render_passes_denoising_specular_albedo_enabled) {
     render_passes.store_color(texel,
                               uni.uniform_buf.render_pass.denoising_specular_albedo_id,
                               float4(specular_albedo, 1.0f));
-
+  }
+  if (srt.render_passes_denoising_roughness_enabled) {
     if (sum_weight > 0.0f) {
       average_roughness /= sum_weight;
     }

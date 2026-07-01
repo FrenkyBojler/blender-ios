@@ -1000,7 +1000,17 @@ void DeferredLayer::end_sync(bool is_first_pass,
       pass.specialize_constant(sh, "render_pass_normal_enabled", rbuf_data.normal_id != -1);
       pass.specialize_constant(sh, "render_pass_position_enabled", rbuf_data.position_id != -1);
       pass.specialize_constant(
-          sh, "render_passes_denoising_enabled", rbuf_data.denoising_depth_id != -1);
+          sh, "render_passes_denoising_depth_enabled", rbuf_data.denoising_depth_id != -1);
+      pass.specialize_constant(
+          sh, "render_passes_denoising_normal_enabled", rbuf_data.denoising_normal_id != -1);
+      pass.specialize_constant(
+          sh, "render_passes_denoising_roughness_enabled", rbuf_data.denoising_roughness_id != -1);
+      pass.specialize_constant(sh,
+                               "render_passes_denoising_diffuse_albedo_enabled",
+                               rbuf_data.denoising_diffuse_albedo_id != -1);
+      pass.specialize_constant(sh,
+                               "render_passes_denoising_specular_albedo_enabled",
+                               rbuf_data.denoising_specular_albedo_id != -1);
       pass.specialize_constant(sh,
                                "use_albedo_roughness_weighting",
                                (inst_.view_layer->eevee.denoising_pass_flags &
