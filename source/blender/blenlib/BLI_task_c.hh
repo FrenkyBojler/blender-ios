@@ -47,6 +47,10 @@ int BLI_task_scheduler_num_threads();
  * pool with smaller tasks. When other threads are busy they will continue
  * working on their own tasks, if not they will join in, no new threads will
  * be launched.
+ *
+ * Note: task cancellation used to be exposed too, but at least with TBB
+ * it has several non-intuitive repercussions (#152467, #143662); avoid re-adding
+ * it again.
  * \{ */
 
 enum eTaskPriority {
