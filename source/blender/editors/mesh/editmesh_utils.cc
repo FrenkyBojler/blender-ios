@@ -332,7 +332,17 @@ void EDBM_mesh_make_from_mesh(Object *ob,
   EDBM_selectmode_flush(mesh->runtime->edit_mesh.get());
 
   if (!active_attribute_name.empty()) {
-    BKE_attributes_active_set(owner, active_attribute_name);
+    /* Because of various reasons attributes_active_index can be 0 while it should logically be -1
+     * one reason is that the DNA default is 0, another reason is converted older files or meshes
+     * converted from other objects (that also have a default of 0 for their index).
+     * Fixing would require quite extensive changes. Since the plan is to store the active
+     * attribute evenutually it's better to just catch it  for now and fix that properly then. */
+    if (bke::allow_procedural_attribute_access(active_attribute_name)) {
+      BKE_attributes_active_set(owner, active_attribute_name);
+    }
+    else {
+      mesh->attributes_active_index = -1;
+    }
   }
   else {
     /* 0 can happen for newly crated meshes */
