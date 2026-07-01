@@ -6577,6 +6577,7 @@ void wm_event_add_xrevent(wmWindow *win, wmXrActionData *actiondata, short val)
   event.custom = EVT_DATA_XR;
   event.customdata = actiondata;
   event.customdata_free = true;
+  copy_v3_v3(event.cval, actiondata->controller_loc);
 
   WM_event_add(win, &event);
 }
