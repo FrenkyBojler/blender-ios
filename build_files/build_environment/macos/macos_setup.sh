@@ -65,12 +65,6 @@ EOF
   [[ "${CONFIRM}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
 fi
 
-# sudo upfront, keepalive bg loop so no repeat prompts
-sudo -v
-( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null ) &
-SUDO_KEEPALIVE_PID=$!
-trap 'kill "${SUDO_KEEPALIVE_PID}" 2>/dev/null || true' EXIT
-
 # Homebrew
 install_homebrew() {
   if command -v brew >/dev/null 2>&1; then
@@ -175,9 +169,21 @@ install_cmake() {
   echo "[cmake]: CMake ${VERSION} installed: $("${BIN_DIR}/cmake" --version | head -1)"
 }
 
+install_brew_packages() {
+  echo "[brew]:  Installing:"
+  printf '  - %s\n' "${BREW_PACKAGES[@]}"
+  brew install -y "${BREW_PACKAGES[@]}"
+}
+
+sudo_keepalive() {
+  sudo -v
+  ( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null ) &
+  SUDO_KEEPALIVE_PID=$!
+  trap 'kill "${SUDO_KEEPALIVE_PID}" 2>/dev/null || true' EXIT
+}
+
 install_homebrew
+sudo_keepalive
 install_xcode "${XCODE_VERSION}"
 install_cmake "${CMAKE_VERSION}"
-echo "[brew]:  Installing:"
-printf '  - %s\n' "${BREW_PACKAGES[@]}"
-brew install -y "${BREW_PACKAGES[@]}"
+install_brew_packages
