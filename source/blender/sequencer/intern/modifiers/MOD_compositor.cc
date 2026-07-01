@@ -61,7 +61,7 @@ void compositor_nodes_update_interface(Main &bmain,
   }
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &sequencer_scene.id, RNA_SequencerCompositorModifierProperties, &cmd);
-  RNA_sync_system_properties(bmain, properties_ptr, *cmd.modifier.system_properties);
+  RNA_ensure_and_sync_system_properties(bmain, properties_ptr, *cmd.modifier.system_properties);
 
   DEG_id_tag_update(&sequencer_scene.id, ID_RECALC_SEQUENCER_STRIPS);
 }

@@ -6310,7 +6310,10 @@ static void update_idprop_id(Main &bmain,
   fill_new();
 }
 
-void RNA_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprops)
+static void sync_system_properties(Main &bmain,
+                                   PointerRNA &ptr,
+                                   IDProperty &idprops,
+                                   const bool ensure)
 {
   BLI_assert(idprops.type == IDP_GROUP);
   Set<IDProperty *> used_props;
@@ -6328,8 +6331,10 @@ void RNA_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprop
     const StringRefNull identifier = RNA_property_identifier(&rna_prop);
     IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier);
     if (!idprop) {
-      idprop = bke::idprop::create_group(identifier).release();
-      IDP_AddToGroup(&idprops, idprop);
+      if (ensure) {
+        idprop = bke::idprop::create_group(identifier).release();
+        IDP_AddToGroup(&idprops, idprop);
+      }
     }
 
     used_props.add_new(idprop);
@@ -6380,7 +6385,7 @@ void RNA_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprop
             continue;
           }
           PointerRNA prop_ptr = RNA_property_pointer_get(&ptr, &rna_prop);
-          RNA_sync_system_properties(bmain, prop_ptr, *idprop);
+          sync_system_properties(bmain, prop_ptr, *idprop, ensure);
         }
         break;
       }
@@ -6398,6 +6403,16 @@ void RNA_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprop
       IDP_FreeFromGroup(&idprops, &prop);
     }
   }
+}
+
+void RNA_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprops)
+{
+  sync_system_properties(bmain, ptr, idprops, false);
+}
+
+void RNA_ensure_and_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprops)
+{
+  sync_system_properties(bmain, ptr, idprops, true);
 }
 
 /* Standard iterator functions */
