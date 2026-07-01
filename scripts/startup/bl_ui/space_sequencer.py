@@ -1139,12 +1139,13 @@ class SEQUENCER_MT_strip(Menu):
             layout.menu("SEQUENCER_MT_strip_retiming")
             layout.separator()
 
-            with operator_context(layout, 'EXEC_REGION_WIN'):
-                props = layout.operator("sequencer.split", text="Split", text_ctxt=i18n_contexts.id_sequence)
-                props.type = 'SOFT'
+            op = layout.operator("sequencer.split", text="Split", text_ctxt=i18n_contexts.id_sequence)
+            op.use_cursor_position = True
+            op.side = 'RIGHT'
+            op.type = 'SOFT'
 
-                props = layout.operator("sequencer.split", text="Hold Split", text_ctxt=i18n_contexts.id_sequence)
-                props.type = 'HARD'
+            op = layout.operator("sequencer.split", text="Split at Current Frame", text_ctxt=i18n_contexts.id_sequence)
+            op.type = 'SOFT'
 
             layout.separator()
 
@@ -1323,9 +1324,17 @@ class SEQUENCER_MT_context_menu(Menu):
 
         if has_selection:
             layout.separator()
-            layout.operator("sequencer.split", text="Split", text_ctxt=i18n_contexts.id_sequence).type = 'SOFT'
-            layout.operator("sequencer.snap").keep_offset = True
+            op = layout.operator("sequencer.split", text="Split", text_ctxt=i18n_contexts.id_sequence)
+            op.use_cursor_position = True
+            op.side = 'RIGHT'
+            op.type = 'SOFT'
+
+            op = layout.operator("sequencer.split", text="Split at Current Frame", text_ctxt=i18n_contexts.id_sequence)
+            op.type = 'SOFT'
+
+            layout.separator()
             layout.operator("sequencer.slip", text="Slip Strips").use_cursor_position = False
+            layout.operator("sequencer.snap").keep_offset = True
 
         layout.separator()
         layout.operator("sequencer.gap_insert")

@@ -1998,16 +1998,25 @@ static void sequencer_split_ui(bContext * /*C*/, wmOperator *op)
   layout.prop(op->ptr, "frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "side", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout.separator();
-
-  layout.prop(op->ptr, "use_cursor_position", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
     layout.prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   layout.separator();
 
+  layout.prop(op->ptr, "ignore_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "ignore_connections", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
+static bool sequencer_split_depends_on_cursor(bContext & /*C*/,
+                                              wmOperatorType & /*ot*/,
+                                              PointerRNA *ptr)
+{
+  if (!ptr) {
+    return true;
+  }
+
+  return RNA_boolean_get(ptr, "use_cursor_position");
 }
 
 void SEQUENCER_OT_split(wmOperatorType *ot)
@@ -2022,6 +2031,7 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
   ot->exec = sequencer_split_exec;
   ot->poll = sequencer_edit_poll;
   ot->ui = sequencer_split_ui;
+  ot->depends_on_cursor = sequencer_split_depends_on_cursor;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -2052,11 +2062,13 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
                "Type",
                "The type of split operation to perform on strips");
 
-  RNA_def_boolean(ot->srna,
+  prop = RNA_def_boolean(ot->srna,
                   "use_cursor_position",
                   false,
                   "Use Cursor Position",
                   "Split at position of the cursor instead of current frame");
+
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_enum(ot->srna,
                       "side",
