@@ -12,6 +12,7 @@
 
 #include "vk_common.hh"
 
+#include "render_graph/vk_resource_state_tracker.hh"
 #include "vk_descriptor_pools.hh"
 #include "vk_immediate.hh"
 
@@ -81,7 +82,8 @@ class VKDiscardPool {
  private:
   TimelineResources<VkImage> swapchain_images_;
   TimelineResources<std::pair<VkImage, VmaAllocation>> images_;
-  TimelineResources<std::pair<VkBuffer, VmaAllocation>> buffers_;
+  TimelineResources<std::pair<ResourceHandle, VmaAllocation>> buffers_;
+  TimelineResources<VmaAllocation> allocations_;
   TimelineResources<VkImageView> image_views_;
   TimelineResources<VkBufferView> buffer_views_;
   TimelineResources<VkShaderModule> shader_modules_;
@@ -98,8 +100,9 @@ class VKDiscardPool {
 
   void discard_swapchain_image(VkImage vk_image);
   void discard_image(VkImage vk_image, VmaAllocation vma_allocation);
+  void discard_allocation(VmaAllocation vma_allocation);
   void discard_image_view(VkImageView vk_image_view);
-  void discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocation);
+  void discard_buffer(ResourceHandle buffer_handle, VmaAllocation vma_allocation);
   void discard_buffer_view(VkBufferView vk_buffer_view);
   void discard_shader_module(VkShaderModule vk_shader_module);
   void discard_pipeline(VkPipeline vk_pipeline);
@@ -116,14 +119,14 @@ class VKDiscardPool {
    *
    * All moved items will receive a new timeline.
    *
-   * Function must be externally synced (
+   * Function must be externally synced:
    *
-   * <source>
+   * \code{.cc}
    * {
    *   std::scoped_lock lock(pool.mutex_get()));
    *   pool.move_data(src_pool, timeline);
    * }
-   * </source>
+   * \endcode
    */
   void move_data(VKDiscardPool &src_pool, TimelineValue timeline);
   inline Mutex &mutex_get()

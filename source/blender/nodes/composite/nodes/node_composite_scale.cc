@@ -235,9 +235,10 @@ class ScaleOperation : public NodeOperation {
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
-      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+        return Interpolation::Anisotropic;
     }
 
     return Interpolation::Nearest;
@@ -391,7 +392,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeScale", CMP_NODE_SCALE);
+  cmp_node_type_base(&ntype, "CompositorNodeScale"_ustr, CMP_NODE_SCALE);
   ntype.ui_name = "Scale";
   ntype.ui_description = "Change the size of the image";
   ntype.enum_name_legacy = "SCALE";

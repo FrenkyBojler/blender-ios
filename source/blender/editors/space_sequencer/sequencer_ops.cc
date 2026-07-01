@@ -107,6 +107,7 @@ void sequencer_operatortypes()
   WM_operatortype_append(SEQUENCER_OT_select_lasso);
   WM_operatortype_append(SEQUENCER_OT_select_circle);
   WM_operatortype_append(SEQUENCER_OT_select_grouped);
+  WM_operatortype_append(SEQUENCER_OT_select_by_type);
 
   /* `sequencer_add.cc` */
   WM_operatortype_append(SEQUENCER_OT_scene_strip_add);
@@ -119,7 +120,7 @@ void sequencer_operatortypes()
   WM_operatortype_append(SEQUENCER_OT_effect_strip_add);
   WM_operatortype_append(SEQUENCER_OT_add_scene_strip_from_scene_asset);
 
-  /* sequencer_modifiers.c */
+  /* sequencer_modifier.cc */
   WM_operatortype_append(SEQUENCER_OT_strip_modifier_add);
   WM_operatortype_append(SEQUENCER_OT_strip_modifier_remove);
   WM_operatortype_append(SEQUENCER_OT_strip_modifier_move);
@@ -140,6 +141,8 @@ void sequencer_operatortypes()
 
   /* `sequencer_channels_edit.cc` */
   WM_operatortype_append(SEQUENCER_OT_rename_channel);
+
+  sequencer_strip_modifier_add_asset_register();
 }
 
 void sequencer_keymap(wmKeyConfig *keyconf)

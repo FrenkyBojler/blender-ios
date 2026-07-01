@@ -131,7 +131,8 @@ class VKCommandBufferInterface {
   virtual void reset_query_pool(VkQueryPool vk_query_pool,
                                 uint32_t first_query,
                                 uint32_t query_count) = 0;
-  /* Dynamic states*/
+  /* Dynamic states. */
+
   virtual void set_viewport(const Vector<VkViewport> viewports) = 0;
   virtual void set_scissor(const Vector<VkRect2D> scissors) = 0;
   virtual void set_line_width(const float line_width) = 0;
@@ -155,9 +156,12 @@ class VKCommandBufferInterface {
 class VKCommandBufferWrapper : public VKCommandBufferInterface {
  private:
   VkCommandBuffer vk_command_buffer_ = VK_NULL_HANDLE;
+  const VolkDeviceTable *functions = nullptr;
 
  public:
-  VKCommandBufferWrapper(VkCommandBuffer vk_command_buffer, const VKExtensions &extensions);
+  VKCommandBufferWrapper(VkCommandBuffer vk_command_buffer,
+                         const VolkDeviceTable &functions,
+                         const VKExtensions &extensions);
 
   void begin_recording() override;
   void end_recording() override;

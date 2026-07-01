@@ -19,6 +19,7 @@ void VKDiscardPool::deinit(VKDevice &device)
 
 void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
 {
+  src_pool.allocations_.update_timeline(timeline);
   src_pool.buffer_views_.update_timeline(timeline);
   src_pool.buffers_.update_timeline(timeline);
   src_pool.image_views_.update_timeline(timeline);
@@ -28,6 +29,7 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
   src_pool.pipeline_layouts_.update_timeline(timeline);
   src_pool.descriptor_pools_.update_timeline(timeline);
   src_pool.swapchain_images_.update_timeline(timeline);
+  allocations_.extend(std::move(src_pool.allocations_));
   buffer_views_.extend(std::move(src_pool.buffer_views_));
   buffers_.extend(std::move(src_pool.buffers_));
   image_views_.extend(std::move(src_pool.image_views_));
@@ -51,16 +53,22 @@ void VKDiscardPool::discard_image(VkImage vk_image, VmaAllocation vma_allocation
   images_.append_timeline(timeline_, std::pair(vk_image, vma_allocation));
 }
 
+void VKDiscardPool::discard_allocation(VmaAllocation vma_allocation)
+{
+  std::scoped_lock mutex(mutex_);
+  allocations_.append_timeline(timeline_, vma_allocation);
+}
+
 void VKDiscardPool::discard_image_view(VkImageView vk_image_view)
 {
   std::scoped_lock mutex(mutex_);
   image_views_.append_timeline(timeline_, vk_image_view);
 }
 
-void VKDiscardPool::discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocation)
+void VKDiscardPool::discard_buffer(ResourceHandle buffer_handle, VmaAllocation vma_allocation)
 {
   std::scoped_lock mutex(mutex_);
-  buffers_.append_timeline(timeline_, std::pair(vk_buffer, vma_allocation));
+  buffers_.append_timeline(timeline_, std::pair(buffer_handle, vma_allocation));
 }
 
 void VKDiscardPool::discard_buffer_view(VkBufferView vk_buffer_view)
@@ -99,33 +107,36 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, TimelineValue 
   swapchain_images_.remove_old(current_timeline,
                                [&](VkImage vk_image) { device.resources.remove_image(vk_image); });
   image_views_.remove_old(current_timeline, [&](VkImageView vk_image_view) {
-    vkDestroyImageView(device.vk_handle(), vk_image_view, nullptr);
+    device.functions.vkDestroyImageView(device.vk_handle(), vk_image_view, nullptr);
   });
 
+  allocations_.remove_old(current_timeline, [&](VmaAllocation vma_allocation) {
+    vmaFreeMemory(device.mem_allocator_get(), vma_allocation);
+  });
   images_.remove_old(current_timeline, [&](std::pair<VkImage, VmaAllocation> image_allocation) {
     device.resources.remove_image(image_allocation.first);
     vmaDestroyImage(device.mem_allocator_get(), image_allocation.first, image_allocation.second);
   });
   buffer_views_.remove_old(current_timeline, [&](VkBufferView vk_buffer_view) {
-    vkDestroyBufferView(device.vk_handle(), vk_buffer_view, nullptr);
+    device.functions.vkDestroyBufferView(device.vk_handle(), vk_buffer_view, nullptr);
   });
 
-  buffers_.remove_old(current_timeline, [&](std::pair<VkBuffer, VmaAllocation> buffer_allocation) {
-    device.resources.remove_buffer(buffer_allocation.first);
-    vmaDestroyBuffer(
-        device.mem_allocator_get(), buffer_allocation.first, buffer_allocation.second);
-  });
+  buffers_.remove_old(
+      current_timeline, [&](std::pair<ResourceHandle, VmaAllocation> buffer_allocation) {
+        VkBuffer vk_buffer = device.resources.remove_buffer(buffer_allocation.first);
+        vmaDestroyBuffer(device.mem_allocator_get(), vk_buffer, buffer_allocation.second);
+      });
 
   pipelines_.remove_old(current_timeline, [&](VkPipeline vk_pipeline) {
-    vkDestroyPipeline(device.vk_handle(), vk_pipeline, nullptr);
+    device.functions.vkDestroyPipeline(device.vk_handle(), vk_pipeline, nullptr);
   });
 
   pipeline_layouts_.remove_old(current_timeline, [&](VkPipelineLayout vk_pipeline_layout) {
-    vkDestroyPipelineLayout(device.vk_handle(), vk_pipeline_layout, nullptr);
+    device.functions.vkDestroyPipelineLayout(device.vk_handle(), vk_pipeline_layout, nullptr);
   });
 
   shader_modules_.remove_old(current_timeline, [&](VkShaderModule vk_shader_module) {
-    vkDestroyShaderModule(device.vk_handle(), vk_shader_module, nullptr);
+    device.functions.vkDestroyShaderModule(device.vk_handle(), vk_shader_module, nullptr);
   });
 
   descriptor_pools_.remove_old(
@@ -158,6 +169,9 @@ std::ostream &operator<<(std::ostream &os, const VKDiscardPool &discard_pool)
     return os;
   }
   os << "  Discardable resources: ";
+  if (!discard_pool.allocations_.is_empty()) {
+    os << "VmaAllocation=" << discard_pool.allocations_.size() << " ";
+  }
   if (!discard_pool.images_.is_empty()) {
     os << "VkImage=" << discard_pool.images_.size() << " ";
   }
