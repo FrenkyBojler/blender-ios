@@ -2063,10 +2063,10 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
                "The type of split operation to perform on strips");
 
   prop = RNA_def_boolean(ot->srna,
-                  "use_cursor_position",
-                  false,
-                  "Use Cursor Position",
-                  "Split at position of the cursor instead of current frame");
+                         "use_cursor_position",
+                         false,
+                         "Use Cursor Position",
+                         "Split at position of the cursor instead of current frame");
 
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
