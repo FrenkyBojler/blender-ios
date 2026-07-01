@@ -628,14 +628,15 @@ void VKBackend::detect_workarounds(VKDevice &device)
 
 #ifdef _WIN32
   if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
-    IntelGpuArch gpu_arch = GPU_intel_get_arch(device.physical_device_properties_get().deviceID);
+    GPUIntelGpuArch gpu_arch = GPU_platform_get_intel_arch(
+        device.physical_device_properties_get().deviceID);
 
     /* Intel Gen9 iGPUs (Intel 7th to 10th Gen Processor Graphics driver) show a black screen at
      * application startup when using VK_EXT_vertex_input_dynamic_state.
      *
      * See #147721
      */
-    if (gpu_arch == IntelGpuArch::Gen9AndOlder) {
+    if (gpu_arch == GPUIntelGpuArch::Gen9AndOlder) {
       extensions.vertex_input_dynamic_state = false;
     }
 
@@ -649,7 +650,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
      * - When using the texture pool without the image cache, memory leaks happen on Gen11 and
      * Gen12 GPUs (#157777).
      */
-    if (gpu_arch <= IntelGpuArch::Gen12) {
+    if (gpu_arch <= GPUIntelGpuArch::Gen12) {
       GCaps.texture_pool_workaround = true;
     }
   }

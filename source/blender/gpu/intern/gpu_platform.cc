@@ -201,7 +201,7 @@ uint32_t GPU_platform_luid_node_mask()
   return GPG.device_luid_node_mask;
 }
 
-IntelGpuArch GPU_intel_get_arch(uint32_t device_id)
+GPUIntelGpuArch GPU_platform_get_intel_arch(uint32_t device_id)
 {
   /* Source for device IDs:
    * https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/include/pci_ids/iris_pci_ids.h
@@ -227,11 +227,11 @@ IntelGpuArch GPU_intel_get_arch(uint32_t device_id)
     case 0x8700:  // Kaby Lake/Coffee Lake
     case 0x3E00:  // Coffee Lake/Whiskey Lake
     case 0x9B00:  // Comet Lake
-      return IntelGpuArch::Gen9AndOlder;
+      return GPUIntelGpuArch::Gen9AndOlder;
     case 0x8A00:  // Ice Lake
     case 0x4500:  // Elkhart Lake
     case 0x4E00:  // Jasper Lake
-      return IntelGpuArch::Gen11;
+      return GPUIntelGpuArch::Gen11;
     case 0x9A00:  // Tiger Lake
     case 0x4C00:  // Rocket Lake
     case 0x4900:  // DG1
@@ -241,14 +241,14 @@ IntelGpuArch GPU_intel_get_arch(uint32_t device_id)
     case 0xA700:  // Raptor Lake
     case 0x7D00:  // Meteor Lake / Arrow Lake
     case 0xB600:  // Meteor Lake / Arrow Lake
-      return IntelGpuArch::Xe;
+      return GPUIntelGpuArch::Xe;
     case 0x6400:  // Lunar Lake
     case 0xE200:  // Battlemage
-      return IntelGpuArch::Xe2;
+      return GPUIntelGpuArch::Xe2;
     case 0xB000:  // Panther Lake
     case 0xFD00:  // Wildcat Lake
     default:
-      return IntelGpuArch::Xe3AndNewer;
+      return GPUIntelGpuArch::Xe3AndNewer;
   }
 }
 

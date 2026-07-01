@@ -553,7 +553,7 @@ static void detect_workarounds()
        GPU_type_matches(GPU_DEVICE_INTEL_UHD, GPU_OS_ANY, GPU_DRIVER_ANY)))
   {
     int driver_version_minor = 0, driver_version_major = 0;
-    IntelGpuArch gpu_arch = IntelGpuArch::Gen9AndOlder;
+    GPUIntelGpuArch gpu_arch = GPUIntelGpuArch::Gen9AndOlder;
     if (epoxy_has_gl_extension("GL_EXT_memory_object_win32")) {
       uint64_t device_luid = 0;
       glGetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, reinterpret_cast<GLubyte *>(&device_luid));
@@ -561,7 +561,7 @@ static void detect_workarounds()
       if (BLI_windows_get_directx_intel_driver_info(
               device_luid, &driver_version_minor, &driver_version_major, &device_id))
       {
-        gpu_arch = GPU_intel_get_arch(device_id);
+        gpu_arch = GPU_platform_get_intel_arch(device_id);
       }
     }
 
@@ -575,7 +575,7 @@ static void detect_workarounds()
     }
 
     /* glTextureView was fixed for Intel Xe2+ with driver version 101.8801. */
-    if (gpu_arch <= IntelGpuArch::Gen12 || driver_version_major < 101 ||
+    if (gpu_arch <= GPUIntelGpuArch::Gen12 || driver_version_major < 101 ||
         (driver_version_major == 101 && driver_version_minor < 8801))
     {
       GCaps.texture_pool_workaround = true;
