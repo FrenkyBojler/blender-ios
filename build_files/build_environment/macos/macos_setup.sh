@@ -7,7 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Versions and packages
-XCODE_VERSIONS=("15")
+XCODE_VERSION="15"
 CMAKE_VERSION="3.31.12"
 
 BREW_PACKAGES=(
@@ -51,7 +51,7 @@ if [[ "${ASSUME_YES}" != "1" ]]; then
 WARNING
 This script installs/modifies system-wide stuff:
   - Homebrew (+ shellenv in ~/.zprofile)
-  - Xcode: ${XCODE_VERSIONS[*]} (with Metal Toolchain)
+  - Xcode ${XCODE_VERSION} (with Metal Toolchain)
   - CMake ${CMAKE_VERSION}
   - Brew packages: ${BREW_PACKAGES[*]}
 
@@ -82,21 +82,13 @@ install_homebrew() {
 
 # Xcode
 install_xcode() {
-    local VERSIONS=("$@")
-    local LATEST
-    LATEST=$(printf '%s\n' "${VERSIONS[@]}" | sort -V | tail -1)
+    local VERSION="$1"
+    local XIP="${XIP_LOCATION}/Xcode_${VERSION}.xip"
+    local APP="/Applications/Xcode-${VERSION}.app"
+    local MAJOR="${VERSION%%.*}"
+    local DL_URL="https://developer.apple.com/services-account/download?path=/Developer_Tools/Xcode_${MAJOR}/Xcode_${MAJOR}.xip"
 
-    for VERSION in "${VERSIONS[@]}"; do
-        local XIP="${XIP_LOCATION}/Xcode_${VERSION}.xip"
-        local APP="/Applications/Xcode-${VERSION}.app"
-        local MAJOR="${VERSION%%.*}"
-        local DL_URL="https://developer.apple.com/services-account/download?path=/Developer_Tools/Xcode_${MAJOR}/Xcode_${MAJOR}.xip"
-
-        if [ -d "${APP}" ]; then
-            echo "Xcode ${VERSION} already installed"
-            continue
-        fi
-
+    if [ ! -d "${APP}" ]; then
         if [ ! -f "${XIP}" ]; then
             echo "Missing ${XIP}"
             echo "Grab it (Apple account needed):"
@@ -113,17 +105,18 @@ install_xcode() {
         cd /tmp && xip -x "${XIP}"
         sudo mv /tmp/Xcode.app "${APP}"
         rm -f "${XIP}"
-
         echo "Xcode ${VERSION} installed"
-    done
+    else
+        echo "Xcode ${VERSION} already installed"
+    fi
 
-    sudo xcode-select -s "/Applications/Xcode-${LATEST}.app/Contents/Developer"
+    sudo xcode-select -s "${APP}/Contents/Developer"
     sudo xcodebuild -license accept
     sudo xcodebuild -runFirstLaunch
     if xcodebuild -downloadComponent 2>&1 | grep -qv "invalid option"; then
-      sudo xcodebuild -downloadComponent MetalToolchain
+        sudo xcodebuild -downloadComponent MetalToolchain
     else
-      echo "Xcode ${LATEST} doesn't support MetalToolchain download. Skip."
+        echo "Xcode ${VERSION} no support MetalToolchain download. Skip."
     fi
 }
 
@@ -142,7 +135,6 @@ install_cmake() {
 
     sudo rm -f "${BIN_DIR}/cmake"
     sudo rm -rf /Applications/CMake.app
-
     sudo mkdir -p "${BIN_DIR}"
     sudo chown root:wheel "${BIN_DIR}"
     sudo chmod 755 "${BIN_DIR}"
@@ -160,6 +152,6 @@ install_cmake() {
 }
 
 install_homebrew
-install_xcode "${XCODE_VERSIONS[@]}"
+install_xcode "${XCODE_VERSION}"
 install_cmake "${CMAKE_VERSION}"
 brew install "${BREW_PACKAGES[@]}"
