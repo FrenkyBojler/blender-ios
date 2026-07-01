@@ -131,42 +131,32 @@ install_xcode() {
 # CMake
 install_cmake() {
   local VERSION="${1:?Usage: install_cmake <version>}"
-  local DMG_NAME="cmake-${VERSION}-macos-universal.dmg"
-  local TMP_PATH="/tmp/${DMG_NAME}"
-  local MOUNT_POINT="/Volumes/CMake"
-  local BIN_DIR="/usr/local/bin"
 
-  if "${BIN_DIR}/cmake" --version 2>/dev/null | grep -q "${VERSION}"; then
-    echo "[cmake]: CMake ${VERSION} already installed"
+  if command -v cmake >/dev/null 2>&1 && cmake --version | grep -q "${VERSION}"; then
+    echo "[cmake]: CMake ${VERSION} already here"
     return 0
   fi
 
-  echo "[cmake]: Removing old install"
-  sudo rm -f "${BIN_DIR}/cmake"
-  sudo rm -rf /Applications/CMake.app
-  sudo mkdir -p "${BIN_DIR}"
-  sudo chown root:wheel "${BIN_DIR}"
-  sudo chmod 755 "${BIN_DIR}"
+  echo "[cmake]: Setup local tap"
+  brew tap-new "${USER}/local-tap" 2>/dev/null || true
+  brew tap homebrew/core --force
 
-  echo "[cmake]: Downloading ${VERSION}"
-  curl -L "https://github.com/Kitware/CMake/releases/download/v${VERSION}/${DMG_NAME}" -o "${TMP_PATH}"
+  echo "[cmake]: Extract CMake ${VERSION} into local tap"
+  brew extract --version="${VERSION}" cmake "${USER}/local-tap"
 
-  echo "[cmake]: Mounting dmg"
-  hdiutil attach "${TMP_PATH}" -mountpoint "${MOUNT_POINT}"
-  sudo cp -R "${MOUNT_POINT}/CMake.app" /Applications/
-  sudo ln -sf /Applications/CMake.app/Contents/bin/* "${BIN_DIR}/"
+  echo "[cmake]: Install CMake ${VERSION}"
+  brew install "${USER}/local-tap/cmake@${VERSION}"
+  brew link --overwrite --force "${USER}/local-tap/cmake@${VERSION}"
 
-  echo "[cmake]: Unmounting, cleanup"
-  hdiutil detach "${MOUNT_POINT}"
-  rm -f "${TMP_PATH}"
-
-  echo "[cmake]: CMake ${VERSION} installed: $("${BIN_DIR}/cmake" --version | head -1)"
+  echo "[cmake]: CMake ${VERSION} installed"
 }
 
 install_brew_packages() {
   echo "[brew]:  Installing:"
   printf '  - %s\n' "${BREW_PACKAGES[@]}"
   brew install -y "${BREW_PACKAGES[@]}"
+
+  echo "[brew]:  Packages installed"
 }
 
 sudo_keepalive() {
