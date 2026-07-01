@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # macOS build environment setup for Blender dependencies
-# Combines: Homebrew, Xcode, CMake, brew packages
+# Combines: Homebrew, Xcode (with Metal), CMake, brew packages
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,7 +45,7 @@ cat <<EOF
 WARNING
 This script installs/modifies system-wide stuff:
   - Homebrew (+ shellenv in ~/.zprofile)
-  - Xcode: ${XCODE_VERSIONS[*]}
+  - Xcode: ${XCODE_VERSIONS[*]} (with Metal Toolchain)
   - CMake ${CMAKE_VERSION}
   - Brew packages: ${BREW_PACKAGES[*]}
 
