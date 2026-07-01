@@ -71,13 +71,21 @@ trap 'kill "${SUDO_KEEPALIVE_PID}" 2>/dev/null || true' EXIT
 # Homebrew
 install_homebrew() {
     if command -v brew >/dev/null 2>&1; then
-        echo "Homebrew already installed"
+        echo "[brew]: Homebrew already installed"
         return 0
     fi
+    echo "[brew]: Installing Homebrew..."
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    echo >> "${HOME}/.zprofile"
-    echo 'eval "$(/opt/homebrew/bin/brew shellenv zsh)"' >> "${HOME}/.zprofile"
-    eval "$(/opt/homebrew/bin/brew shellenv zsh)"
+    local SHELLENV_LINE='eval "$(/opt/homebrew/bin/brew shellenv zsh)"'
+    if grep -qxF "${SHELLENV_LINE}" "${HOME}/.zprofile" 2>/dev/null; then
+        echo "[brew]: .zprofile already set"
+    else
+        echo "[brew]: Adding shellenv to .zprofile"
+        echo >> "${HOME}/.zprofile"
+        echo "${SHELLENV_LINE}" >> "${HOME}/.zprofile"
+    fi
+    eval "${SHELLENV_LINE}"
+    echo "[brew]: Homebrew installed"
 }
 
 # Xcode
@@ -90,33 +98,42 @@ install_xcode() {
 
     if [ ! -d "${APP}" ]; then
         if [ ! -f "${XIP}" ]; then
-            echo "Missing ${XIP}"
-            echo "Grab it (Apple account needed):"
-            echo "  ${DL_URL}"
-            echo "Put file at: ${XIP}"
-            echo "Waiting..."
+            echo "[xcode]: Missing ${XIP}"
+            echo "[xcode]: Download URL (Apple account needed):"
+            echo "[xcode]:  ${DL_URL}"
+            echo "[xcode]: Save file here: ${XIP}"
+            echo "[xcode]: Waiting for file..."
             until [ -f "${XIP}" ]; do
                 sleep 5
             done
-            echo "Found. Continuing."
+            echo "[xcode]: Found file. Continuing."
         fi
 
+        echo "[xcode]: Extracting xip..."
         rm -rf /tmp/Xcode.app
         cd /tmp && xip -x "${XIP}"
+
+        echo "[xcode]: Moving to ${APP}"
         sudo mv /tmp/Xcode.app "${APP}"
         rm -f "${XIP}"
-        echo "Xcode ${VERSION} installed"
+        echo "[xcode]: Xcode ${VERSION} installed"
     else
-        echo "Xcode ${VERSION} already installed"
+        echo "[xcode]: Xcode ${VERSION} already installed"
     fi
 
+    echo "[xcode]: Selecting Xcode ${VERSION}"
     sudo xcode-select -s "${APP}/Contents/Developer"
     sudo xcodebuild -license accept
+    echo "[xcode]: Running first launch"
     sudo xcodebuild -runFirstLaunch
+
+    echo "[xcode]: Checking MetalToolchain support"
     if xcodebuild -downloadComponent 2>&1 | grep -qv "invalid option"; then
+        echo "[xcode]: Downloading MetalToolchain"
         sudo xcodebuild -downloadComponent MetalToolchain
+        echo "[xcode]: MetalToolchain installed"
     else
-        echo "Xcode ${VERSION} no support MetalToolchain download. Skip."
+        echo "[xcode]: Xcode ${VERSION} no support MetalToolchain download. Skip."
     fi
 }
 
@@ -129,29 +146,35 @@ install_cmake() {
     local BIN_DIR="/usr/local/bin"
 
     if "${BIN_DIR}/cmake" --version 2>/dev/null | grep -q "${VERSION}"; then
-        echo "CMake ${VERSION} already installed"
+        echo "[cmake]: CMake ${VERSION} already installed"
         return 0
     fi
 
+    echo "[cmake]: Removing old install"
     sudo rm -f "${BIN_DIR}/cmake"
     sudo rm -rf /Applications/CMake.app
     sudo mkdir -p "${BIN_DIR}"
     sudo chown root:wheel "${BIN_DIR}"
     sudo chmod 755 "${BIN_DIR}"
 
+    echo "[cmake]: Downloading ${VERSION}"
     curl -L "https://github.com/Kitware/CMake/releases/download/v${VERSION}/${DMG_NAME}" -o "${TMP_PATH}"
 
+    echo "[cmake]: Mounting dmg"
     hdiutil attach "${TMP_PATH}" -mountpoint "${MOUNT_POINT}"
     sudo cp -R "${MOUNT_POINT}/CMake.app" /Applications/
     sudo ln -sf /Applications/CMake.app/Contents/bin/* "${BIN_DIR}/"
 
+    echo "[cmake]: Unmounting, cleanup"
     hdiutil detach "${MOUNT_POINT}"
     rm -f "${TMP_PATH}"
 
-    echo "CMake ${VERSION} installed: $("${BIN_DIR}/cmake" --version | head -1)"
+    echo "[cmake]: CMake ${VERSION} installed: $("${BIN_DIR}/cmake" --version | head -1)"
 }
 
 install_homebrew
 install_xcode "${XCODE_VERSION}"
 install_cmake "${CMAKE_VERSION}"
+echo "[brew]: Installing:"
+printf '  - %s\n' "${BREW_PACKAGES[@]}"
 brew install "${BREW_PACKAGES[@]}"
