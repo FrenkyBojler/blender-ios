@@ -214,76 +214,6 @@ static const IndexMask &group_point_mask(const GroupMasks &group, const SourceCo
   return group.points;
 }
 
-static Array<TriangulationResult> calculate_cdts(
-    const Span<GroupMasks> group_masks,
-    const Span<meshintersect::CDT_input<double>> inputs,
-    const CDT_output_type output_type)
-{
-  Array<meshintersect::CDT_result<double>> outputs(inputs.size());
-  threading::parallel_for(
-      inputs.index_range(),
-      1024,
-      [&](const IndexRange range) {
-        for (const int i : range) {
-          outputs[i] = meshintersect::delaunay_2d_calc(inputs[i], output_type);
-        }
-      },
-      threading::individual_task_sizes([&](const int i) { return inputs[i].vert.size(); }));
-
-  Array<TriangulationResult> geometry_results(outputs.size());
-  for (const int result_i : geometry_results.index_range()) {
-    const GroupMasks &group = group_masks[result_i];
-
-    TriangulationResult result;
-    result.cdt_result = std::move(outputs[result_i]);
-    result.point_source_domains = group.point_source_domains;
-
-    const int total_dst_verts = result.cdt_result.vert_orig.size();
-    const OffsetIndices src_points_by_component = group.points_by_component();
-    const Span<Vector<uint>> verts_orig = result.cdt_result.vert_orig.as_span();
-
-    Array<int> dst_point_to_src_point(total_dst_verts, -1);
-    Vector<int, 4> component_points_offsets;
-    int64_t component_i = 0;
-    int64_t count = 0;
-    for (const int dst_point : verts_orig.index_range()) {
-      const Span<uint> verts = verts_orig[dst_point].as_span();
-      if (!verts.is_empty()) {
-        /* Only use the first point and discard the rest of potentially merged vertices. The index
-         * refers to a position in the concatenated CDT input vertex array. */
-        const int src_point = verts.first();
-        if (!src_points_by_component[component_i].contains(src_point)) {
-          BLI_assert(component_i + 1 < group.point_source_domains.size());
-          BLI_assert(src_points_by_component[component_i + 1].contains(src_point));
-          component_i++;
-          component_points_offsets.append(count);
-          count = 0;
-        }
-        const IndexRange src_range = src_points_by_component[component_i];
-        const int local_point = src_point - int(src_range.start());
-        /* Map the local point back to its index in the original geometry through the mask. */
-        const IndexMask &mask = group_point_mask(group, group.point_source_domains[component_i]);
-        dst_point_to_src_point[dst_point] = int(mask[local_point]);
-        count++;
-      }
-      else {
-        result.intersection_points = IndexRange::from_begin_end(dst_point, verts_orig.size());
-        break;
-      }
-    }
-    component_points_offsets.append(count);
-    /* Append one more element to account for the final offset. */
-    component_points_offsets.append(0);
-    offset_indices::accumulate_counts_to_offsets(component_points_offsets.as_mutable_span());
-
-    result.component_points_offsets = std::move(component_points_offsets);
-    result.src_point_by_dst_point = std::move(dst_point_to_src_point);
-    geometry_results[result_i] = std::move(result);
-  }
-
-  return geometry_results;
-}
-
 static void gather_2d_positions(const Span<float3> src_positions,
                                 const IndexMask &mask,
                                 MutableSpan<double2> dst_positions)
@@ -295,222 +225,13 @@ static void gather_2d_positions(const Span<float3> src_positions,
       exec_mode::grain_size(8192));
 }
 
-/* Build the CDT input for a single group by gathering positions, edges, and faces from the
- * original geometry through the group's masks. Fills #GroupMasks::point_offsets and
- * #GroupMasks::point_source_domains so the result can be mapped back to the original points. */
-static std::optional<meshintersect::CDT_input<double>> cdt_input_from_group(
-    const Mesh *mesh,
-    const bke::CurvesGeometry *curves,
-    const PointCloud *pointcloud,
-    GroupMasks &group)
+static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
+                                                      const bke::CurvesGeometry *curves,
+                                                      const PointCloud *pointcloud,
+                                                      const Field<int> &group_index,
+                                                      const CDT_output_type output_type)
 {
   IndexMaskMemory memory;
-  IndexMask face_curves;
-  IndexMask edge_curves;
-  int64_t curve_segment_total = 0;
-  if (curves && !group.curves.is_empty()) {
-    const VArray<bool> cyclic = curves->cyclic();
-    face_curves = IndexMask::from_bools(group.curves, cyclic, memory);
-    const OffsetIndices<int> points_by_curve = curves->evaluated_points_by_curve();
-    face_curves = IndexMask::from_predicate(
-        face_curves, memory, [&](const int curve) { return points_by_curve[curve].size() > 2; });
-    edge_curves = face_curves.complement(group.curves, memory);
-  }
-
-  /* Gather the point sources (and the offsets describing their place in the CDT vertex array) in a
-   * fixed order: mesh vertices, curve evaluated points, then point cloud points. */
-  int mesh_point_source = -1;
-  int curve_point_source = -1;
-  auto add_point_source = [&](const SourceComponent domain, const int64_t count, int &r_index) {
-    r_index = int(group.point_source_domains.append_and_get_index(domain));
-    group.point_offsets.append(int(count));
-  };
-  int unused_index = -1;
-  if (mesh && !group.mesh_verts.is_empty()) {
-    add_point_source(SourceComponent::Mesh, group.mesh_verts.size(), mesh_point_source);
-  }
-  if (curves && !group.curve_points.is_empty()) {
-    add_point_source(SourceComponent::Curve, group.curve_points.size(), curve_point_source);
-  }
-  if (pointcloud && !group.points.is_empty()) {
-    add_point_source(SourceComponent::PointCloud, group.points.size(), unused_index);
-  }
-  if (group.point_source_domains.is_empty()) {
-    return std::nullopt;
-  }
-
-  /* Edge sources, in the same fixed order. */
-  Vector<SourceComponent, 2> edge_source_domains;
-  Vector<int, 3> edge_offsets;
-  if (mesh && !group.mesh_loose_edges.is_empty()) {
-    edge_source_domains.append(SourceComponent::Mesh);
-    edge_offsets.append(group.mesh_loose_edges.size());
-  }
-  if (curve_segment_total > 0) {
-    edge_source_domains.append(SourceComponent::Curve);
-    edge_offsets.append(int(curve_segment_total));
-  }
-
-  /* Face sources, in the same fixed order. */
-  Vector<SourceComponent, 2> face_source_domains;
-  Vector<int, 3> face_offsets;
-  if (mesh && !group.mesh_faces.is_empty()) {
-    face_source_domains.append(SourceComponent::Mesh);
-    face_offsets.append(group.mesh_faces.size());
-  }
-  if (!face_curves.is_empty()) {
-    face_source_domains.append(SourceComponent::Curve);
-    face_offsets.append(face_curves.size());
-  }
-
-  group.point_offsets.append(0);
-  edge_offsets.append(0);
-  face_offsets.append(0);
-  const OffsetIndices<int> points_by_source = offset_indices::accumulate_counts_to_offsets(
-      group.point_offsets);
-  const OffsetIndices<int> edges_by_source = offset_indices::accumulate_counts_to_offsets(
-      edge_offsets);
-  const OffsetIndices<int> faces_by_source = offset_indices::accumulate_counts_to_offsets(
-      face_offsets);
-
-  meshintersect::CDT_input<double> cdt_input;
-  cdt_input.vert.reinitialize(points_by_source.total_size());
-  cdt_input.edge.reinitialize(edges_by_source.total_size());
-  cdt_input.face.reinitialize(faces_by_source.total_size());
-
-  /* Add 2D points. */
-  for (const int source_i : group.point_source_domains.index_range()) {
-    const IndexRange dst_range = points_by_source[source_i];
-    MutableSpan<double2> dst_positions_2d = cdt_input.vert.as_mutable_span().slice(dst_range);
-    switch (group.point_source_domains[source_i]) {
-      case SourceComponent::Mesh:
-        gather_2d_positions(mesh->vert_positions(), group.mesh_verts, dst_positions_2d);
-        break;
-      case SourceComponent::Curve:
-        gather_2d_positions(curves->evaluated_positions(), group.curve_points, dst_positions_2d);
-        break;
-      case SourceComponent::PointCloud:
-        gather_2d_positions(pointcloud->positions(), group.points, dst_positions_2d);
-        break;
-    }
-  }
-
-  /* Map from original point indices to their destination indices in the CDT vertex array,
-   * for remapping edge and face constraints. */
-  Array<int> mesh_vert_to_dst;
-  if (mesh && (!group.mesh_loose_edges.is_empty() || !group.mesh_faces.is_empty())) {
-    mesh_vert_to_dst.reinitialize(mesh->verts_num);
-    index_mask::build_reverse_map<int>(group.mesh_verts, mesh_vert_to_dst);
-  }
-  Array<int> curve_point_to_dst;
-  if (curves && (curve_segment_total > 0 || !face_curves.is_empty())) {
-    curve_point_to_dst.reinitialize(curves->evaluated_points_num());
-    index_mask::build_reverse_map<int>(group.curve_points, curve_point_to_dst);
-  }
-
-  /* Add edge constraints. */
-  for (const int source_i : edge_source_domains.index_range()) {
-    MutableSpan<std::pair<int, int>> dst_edges = cdt_input.edge.as_mutable_span().slice(
-        edges_by_source[source_i]);
-    switch (edge_source_domains[source_i]) {
-      case SourceComponent::Mesh: {
-        const Span<int2> edges = mesh->edges();
-        const int dst_point_offset = points_by_source[mesh_point_source].start();
-        group.mesh_loose_edges.foreach_index_optimized<int>(
-            [&](const int index, const int pos) {
-              dst_edges[pos] = {mesh_vert_to_dst[edges[index][0]] + dst_point_offset,
-                                mesh_vert_to_dst[edges[index][1]] + dst_point_offset};
-            },
-            exec_mode::grain_size(4096));
-        break;
-      }
-      case SourceComponent::Curve: {
-        const OffsetIndices<int> points_by_curve = curves->evaluated_points_by_curve();
-
-        Array<int> segment_offsets(edge_curves.size() + 1);
-        edge_curves.foreach_index_optimized<int>(
-            [&](const int curve, const int pos) {
-              /* No need for #bke::curves::segments_num because these curves are known to be
-               * non-cyclic. Cyclic curves are processed as faces. */
-              segment_offsets[pos] = points_by_curve[curve].size() - 1;
-            },
-            exec_mode::grain_size(4096));
-        const OffsetIndices<int> edges_by_curve = offset_indices::accumulate_counts_to_offsets(
-            segment_offsets.as_mutable_span());
-
-        const int dst_point_offset = points_by_source[curve_point_source].start();
-        edge_curves.foreach_index_optimized<int>(
-            [&](const int curve, const int pos) {
-              const IndexRange points = points_by_curve[curve];
-              MutableSpan<std::pair<int, int>> dst_edges_by_curve = dst_edges.slice(
-                  edges_by_curve[pos]);
-              for (const int point : points.index_range().drop_back(1)) {
-                dst_edges_by_curve[point] = {curve_point_to_dst[points[point]] + dst_point_offset,
-                                             curve_point_to_dst[points[point] + 1] +
-                                                 dst_point_offset};
-              }
-            },
-            exec_mode::grain_size(4096));
-        break;
-      }
-      case SourceComponent::PointCloud:
-        break;
-    }
-  }
-
-  /* Add face constraints. */
-  for (const int source_i : face_source_domains.index_range()) {
-    MutableSpan<Vector<int>> dst_faces = cdt_input.face.as_mutable_span().slice(
-        faces_by_source[source_i]);
-    switch (face_source_domains[source_i]) {
-      case SourceComponent::Mesh: {
-        const int dst_point_offset = points_by_source[mesh_point_source].start();
-        const OffsetIndices faces = mesh->faces();
-        const Span<int> corner_verts = mesh->corner_verts();
-        group.mesh_faces.foreach_index(
-            [&](const int index, const int pos) {
-              const IndexRange face = faces[index];
-              Vector<int> &dst_face = dst_faces[pos];
-              dst_face.reinitialize(face.size());
-              for (const int i : face.index_range()) {
-                dst_face[i] = mesh_vert_to_dst[corner_verts[face[i]]] + dst_point_offset;
-              }
-            },
-            exec_mode::grain_size(2048));
-        break;
-      }
-      case SourceComponent::Curve: {
-        const int dst_point_offset = points_by_source[curve_point_source].start();
-        const OffsetIndices<int> points_by_curve = curves->evaluated_points_by_curve();
-        threading::parallel_for(face_curves.index_range(), 1024, [&](const IndexRange range) {
-          for (const int i : range) {
-            const int curve = face_curves[i];
-            const IndexRange points = points_by_curve[curve];
-            Vector<int> &dst_face = dst_faces[i];
-            dst_face.reinitialize(points.size());
-            for (const int j : points.index_range()) {
-              dst_face[j] = curve_point_to_dst[points[j]] + dst_point_offset;
-            }
-          }
-        });
-        break;
-      }
-      case SourceComponent::PointCloud:
-        break;
-    }
-  }
-
-  return cdt_input;
-}
-
-static Vector<meshintersect::CDT_input<double>> cdt_inputs_from_groups(
-    const Mesh *mesh,
-    const bke::CurvesGeometry *curves,
-    const PointCloud *pointcloud,
-    const Field<int> &group_index,
-    IndexMaskMemory &memory,
-    Vector<GroupMasks> &r_group_masks)
-{
   Vector<IndexMask> mesh_masks;
   Vector<IndexMask> curve_masks;
   Vector<IndexMask> point_masks;
@@ -564,52 +285,328 @@ static Vector<meshintersect::CDT_input<double>> cdt_inputs_from_groups(
     mesh_corner_verts = mesh->corner_verts();
   }
 
-  Vector<meshintersect::CDT_input<double>> inputs;
-  for (const int group_id : all_group_ids) {
-    GroupMasks group;
+  Array<TriangulationResult> results(all_group_ids.size());
+  threading::parallel_for(
+      results.index_range(),
+      1024,
+      [&](const IndexRange range) {
+        for (const int i : range) {
+          const int group_id = all_group_ids[i];
+          GroupMasks group;
 
-    if (mesh) {
-      const int index = mesh_ids.index_of_try(group_id);
-      if (index != -1) {
-        group.mesh_verts = mesh_masks[index];
-        /* A loose edge or face belongs to the group only if all of its vertices do. */
-        BitVector<> vert_in_group(mesh->verts_num);
-        group.mesh_verts.to_bits(vert_in_group);
-        group.mesh_loose_edges = IndexMask::from_predicate(
-            mesh->loose_edges(), memory, [&](const int64_t edge) {
-              return vert_in_group[mesh_edges[edge][0]] && vert_in_group[mesh_edges[edge][1]];
+          IndexMaskMemory memory;
+          if (mesh) {
+            const int index = mesh_ids.index_of_try(group_id);
+            if (index != -1) {
+              group.mesh_verts = mesh_masks[index];
+              /* A loose edge or face belongs to the group only if all of its vertices do. */
+              BitVector<> vert_in_group(mesh->verts_num);
+              group.mesh_verts.to_bits(vert_in_group);
+              group.mesh_loose_edges = IndexMask::from_predicate(
+                  mesh->loose_edges(), memory, [&](const int64_t edge) {
+                    return vert_in_group[mesh_edges[edge][0]] &&
+                           vert_in_group[mesh_edges[edge][1]];
+                  });
+              group.mesh_faces = IndexMask::from_predicate(
+                  mesh_faces.index_range(), memory, [&](const int64_t face) {
+                    return std::ranges::all_of(
+                        mesh_corner_verts.slice(mesh_faces[face]),
+                        [&](const int vert) { return vert_in_group[vert]; });
+                  });
+            }
+          }
+          if (curves) {
+            const int index = curve_ids.index_of_try(group_id);
+            if (index != -1) {
+              group.curves = curve_masks[index];
+              group.curve_points = IndexMask::from_ranges(
+                  curves->evaluated_points_by_curve(), group.curves, memory);
+            }
+          }
+          if (pointcloud) {
+            const int index = point_ids.index_of_try(group_id);
+            if (index != -1) {
+              group.points = point_masks[index];
+            }
+          }
+
+          IndexMask face_curves;
+          IndexMask edge_curves;
+          int64_t curve_segment_total = 0;
+          if (curves && !group.curves.is_empty()) {
+            const VArray<bool> cyclic = curves->cyclic();
+            face_curves = IndexMask::from_bools(group.curves, cyclic, memory);
+            const OffsetIndices<int> points_by_curve = curves->evaluated_points_by_curve();
+            face_curves = IndexMask::from_predicate(face_curves, memory, [&](const int curve) {
+              return points_by_curve[curve].size() > 2;
             });
-        group.mesh_faces = IndexMask::from_predicate(
-            mesh_faces.index_range(), memory, [&](const int64_t face) {
-              return std::ranges::all_of(mesh_corner_verts.slice(mesh_faces[face]),
-                                         [&](const int vert) { return vert_in_group[vert]; });
-            });
-      }
-    }
-    if (curves) {
-      const int index = curve_ids.index_of_try(group_id);
-      if (index != -1) {
-        group.curves = curve_masks[index];
-        group.curve_points = IndexMask::from_ranges(
-            curves->evaluated_points_by_curve(), group.curves, memory);
-      }
-    }
-    if (pointcloud) {
-      const int index = point_ids.index_of_try(group_id);
-      if (index != -1) {
-        group.points = point_masks[index];
-      }
-    }
+            edge_curves = face_curves.complement(group.curves, memory);
+          }
 
-    std::optional<meshintersect::CDT_input<double>> input = cdt_input_from_group(
-        mesh, curves, pointcloud, group);
-    if (input) {
-      inputs.append(std::move(*input));
-      r_group_masks.append(std::move(group));
-    }
-  }
+          /* Gather the point sources (and the offsets describing their place in the CDT vertex
+           * array) in a fixed order: mesh vertices, curve evaluated points, then point cloud
+           * points. */
+          int mesh_point_source = -1;
+          int curve_point_source = -1;
+          auto add_point_source =
+              [&](const SourceComponent domain, const int64_t count, int &r_index) {
+                r_index = int(group.point_source_domains.append_and_get_index(domain));
+                group.point_offsets.append(int(count));
+              };
+          int unused_index = -1;
+          if (mesh && !group.mesh_verts.is_empty()) {
+            add_point_source(SourceComponent::Mesh, group.mesh_verts.size(), mesh_point_source);
+          }
+          if (curves && !group.curve_points.is_empty()) {
+            add_point_source(
+                SourceComponent::Curve, group.curve_points.size(), curve_point_source);
+          }
+          if (pointcloud && !group.points.is_empty()) {
+            add_point_source(SourceComponent::PointCloud, group.points.size(), unused_index);
+          }
+          if (group.point_source_domains.is_empty()) {
+            continue;
+          }
 
-  return inputs;
+          /* Edge sources, in the same fixed order. */
+          Vector<SourceComponent, 2> edge_source_domains;
+          Vector<int, 3> edge_offsets;
+          if (mesh && !group.mesh_loose_edges.is_empty()) {
+            edge_source_domains.append(SourceComponent::Mesh);
+            edge_offsets.append(group.mesh_loose_edges.size());
+          }
+          if (curve_segment_total > 0) {
+            edge_source_domains.append(SourceComponent::Curve);
+            edge_offsets.append(int(curve_segment_total));
+          }
+
+          /* Face sources, in the same fixed order. */
+          Vector<SourceComponent, 2> face_source_domains;
+          Vector<int, 3> face_offsets;
+          if (mesh && !group.mesh_faces.is_empty()) {
+            face_source_domains.append(SourceComponent::Mesh);
+            face_offsets.append(group.mesh_faces.size());
+          }
+          if (!face_curves.is_empty()) {
+            face_source_domains.append(SourceComponent::Curve);
+            face_offsets.append(face_curves.size());
+          }
+
+          group.point_offsets.append(0);
+          edge_offsets.append(0);
+          face_offsets.append(0);
+          const OffsetIndices<int> points_by_source = offset_indices::accumulate_counts_to_offsets(
+              group.point_offsets);
+          const OffsetIndices<int> edges_by_source = offset_indices::accumulate_counts_to_offsets(
+              edge_offsets);
+          const OffsetIndices<int> faces_by_source = offset_indices::accumulate_counts_to_offsets(
+              face_offsets);
+
+          meshintersect::CDT_input<double> cdt_input;
+          cdt_input.vert.reinitialize(points_by_source.total_size());
+          cdt_input.edge.reinitialize(edges_by_source.total_size());
+          cdt_input.face.reinitialize(faces_by_source.total_size());
+
+          /* Add 2D points. */
+          for (const int source_i : group.point_source_domains.index_range()) {
+            const IndexRange dst_range = points_by_source[source_i];
+            MutableSpan<double2> dst_positions_2d = cdt_input.vert.as_mutable_span().slice(
+                dst_range);
+            switch (group.point_source_domains[source_i]) {
+              case SourceComponent::Mesh:
+                gather_2d_positions(mesh->vert_positions(), group.mesh_verts, dst_positions_2d);
+                break;
+              case SourceComponent::Curve:
+                gather_2d_positions(
+                    curves->evaluated_positions(), group.curve_points, dst_positions_2d);
+                break;
+              case SourceComponent::PointCloud:
+                gather_2d_positions(pointcloud->positions(), group.points, dst_positions_2d);
+                break;
+            }
+          }
+
+          /* Map from original point indices to their destination indices in the CDT vertex array,
+           * for remapping edge and face constraints. */
+          Array<int> mesh_vert_to_dst;
+          if (mesh && (!group.mesh_loose_edges.is_empty() || !group.mesh_faces.is_empty())) {
+            mesh_vert_to_dst.reinitialize(mesh->verts_num);
+            index_mask::build_reverse_map<int>(group.mesh_verts, mesh_vert_to_dst);
+          }
+          Array<int> curve_point_to_dst;
+          if (curves && (curve_segment_total > 0 || !face_curves.is_empty())) {
+            curve_point_to_dst.reinitialize(curves->evaluated_points_num());
+            index_mask::build_reverse_map<int>(group.curve_points, curve_point_to_dst);
+          }
+
+          /* Add edge constraints. */
+          for (const int source_i : edge_source_domains.index_range()) {
+            MutableSpan<std::pair<int, int>> dst_edges = cdt_input.edge.as_mutable_span().slice(
+                edges_by_source[source_i]);
+            switch (edge_source_domains[source_i]) {
+              case SourceComponent::Mesh: {
+                const Span<int2> edges = mesh->edges();
+                const int dst_point_offset = points_by_source[mesh_point_source].start();
+                group.mesh_loose_edges.foreach_index_optimized<int>(
+                    [&](const int index, const int pos) {
+                      dst_edges[pos] = {mesh_vert_to_dst[edges[index][0]] + dst_point_offset,
+                                        mesh_vert_to_dst[edges[index][1]] + dst_point_offset};
+                    },
+                    exec_mode::grain_size(4096));
+                break;
+              }
+              case SourceComponent::Curve: {
+                const OffsetIndices<int> points_by_curve = curves->evaluated_points_by_curve();
+
+                Array<int> segment_offsets(edge_curves.size() + 1);
+                edge_curves.foreach_index_optimized<int>(
+                    [&](const int curve, const int pos) {
+                      /* No need for #bke::curves::segments_num because these curves are known to
+                       * be non-cyclic. Cyclic curves are processed as faces. */
+                      segment_offsets[pos] = points_by_curve[curve].size() - 1;
+                    },
+                    exec_mode::grain_size(4096));
+                const OffsetIndices<int> edges_by_curve =
+                    offset_indices::accumulate_counts_to_offsets(
+                        segment_offsets.as_mutable_span());
+
+                const int dst_point_offset = points_by_source[curve_point_source].start();
+                edge_curves.foreach_index_optimized<int>(
+                    [&](const int curve, const int pos) {
+                      const IndexRange points = points_by_curve[curve];
+                      MutableSpan<std::pair<int, int>> dst_edges_by_curve = dst_edges.slice(
+                          edges_by_curve[pos]);
+                      for (const int point : points.index_range().drop_back(1)) {
+                        dst_edges_by_curve[point] = {
+                            curve_point_to_dst[points[point]] + dst_point_offset,
+                            curve_point_to_dst[points[point] + 1] + dst_point_offset};
+                      }
+                    },
+                    exec_mode::grain_size(4096));
+                break;
+              }
+              case SourceComponent::PointCloud:
+                break;
+            }
+          }
+
+          /* Add face constraints. */
+          for (const int source_i : face_source_domains.index_range()) {
+            MutableSpan<Vector<int>> dst_faces = cdt_input.face.as_mutable_span().slice(
+                faces_by_source[source_i]);
+            switch (face_source_domains[source_i]) {
+              case SourceComponent::Mesh: {
+                const int dst_point_offset = points_by_source[mesh_point_source].start();
+                const OffsetIndices faces = mesh->faces();
+                const Span<int> corner_verts = mesh->corner_verts();
+                group.mesh_faces.foreach_index(
+                    [&](const int index, const int pos) {
+                      const IndexRange face = faces[index];
+                      Vector<int> &dst_face = dst_faces[pos];
+                      dst_face.reinitialize(face.size());
+                      for (const int i : face.index_range()) {
+                        dst_face[i] = mesh_vert_to_dst[corner_verts[face[i]]] + dst_point_offset;
+                      }
+                    },
+                    exec_mode::grain_size(2048));
+                break;
+              }
+              case SourceComponent::Curve: {
+                const int dst_point_offset = points_by_source[curve_point_source].start();
+                const OffsetIndices<int> points_by_curve = curves->evaluated_points_by_curve();
+                threading::parallel_for(
+                    face_curves.index_range(), 1024, [&](const IndexRange range) {
+                      for (const int i : range) {
+                        const int curve = face_curves[i];
+                        const IndexRange points = points_by_curve[curve];
+                        Vector<int> &dst_face = dst_faces[i];
+                        dst_face.reinitialize(points.size());
+                        for (const int j : points.index_range()) {
+                          dst_face[j] = curve_point_to_dst[points[j]] + dst_point_offset;
+                        }
+                      }
+                    });
+                break;
+              }
+              case SourceComponent::PointCloud:
+                break;
+            }
+          }
+
+          results[i].cdt_result = meshintersect::delaunay_2d_calc(cdt_input, output_type);
+
+          results[i].point_source_domains = group.point_source_domains;
+
+          const int total_dst_verts = results[i].cdt_result.vert_orig.size();
+          const OffsetIndices src_points_by_component = group.points_by_component();
+          const Span<Vector<uint>> verts_orig = results[i].cdt_result.vert_orig.as_span();
+
+          Array<int> dst_point_to_src_point(total_dst_verts, -1);
+          Vector<int, 4> component_points_offsets;
+          int64_t component_i = 0;
+          int64_t count = 0;
+          for (const int dst_point : verts_orig.index_range()) {
+            const Span<uint> verts = verts_orig[dst_point].as_span();
+            if (!verts.is_empty()) {
+              /* Only use the first point and discard the rest of potentially merged vertices. The
+               * index refers to a position in the concatenated CDT input vertex array. */
+              const int src_point = verts.first();
+              if (!src_points_by_component[component_i].contains(src_point)) {
+                BLI_assert(component_i + 1 < group.point_source_domains.size());
+                BLI_assert(src_points_by_component[component_i + 1].contains(src_point));
+                component_i++;
+                component_points_offsets.append(count);
+                count = 0;
+              }
+              const IndexRange src_range = src_points_by_component[component_i];
+              const int local_point = src_point - int(src_range.start());
+              /* Map the local point back to its index in the original geometry through the mask.
+               */
+              const IndexMask &mask = group_point_mask(group,
+                                                       group.point_source_domains[component_i]);
+              dst_point_to_src_point[dst_point] = int(mask[local_point]);
+              count++;
+            }
+            else {
+              results[i].intersection_points = IndexRange::from_begin_end(dst_point,
+                                                                          verts_orig.size());
+              break;
+            }
+          }
+          component_points_offsets.append(count);
+          /* Append one more element to account for the final offset. */
+          component_points_offsets.append(0);
+          offset_indices::accumulate_counts_to_offsets(component_points_offsets.as_mutable_span());
+
+          results[i].component_points_offsets = std::move(component_points_offsets);
+          results[i].src_point_by_dst_point = std::move(dst_point_to_src_point);
+        }
+      },
+      threading::individual_task_sizes([&](const int i) {
+        const int group_id = all_group_ids[i];
+        int size = 0;
+        if (mesh) {
+          const int index = mesh_ids.index_of_try(group_id);
+          if (index != -1) {
+            size += mesh_masks[index].size();
+          }
+        }
+        if (curves) {
+          const int index = curve_ids.index_of_try(group_id);
+          if (index != -1) {
+            size += curve_masks[index].size();
+          }
+        }
+        if (pointcloud) {
+          const int index = point_ids.index_of_try(group_id);
+          if (index != -1) {
+            size += point_masks[index].size();
+          }
+        }
+        return size;
+      }));
+
+  return results;
 }
 
 static void gather_attributes_for_result_for_component(const AttributeAccessor &src_attributes,
@@ -812,14 +809,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     const Curves *curves_id = geometry.get_curves();
     const bke::CurvesGeometry *curves = curves_id ? &curves_id->geometry.wrap() : nullptr;
     const PointCloud *pointcloud = geometry.get_pointcloud();
-    IndexMaskMemory memory;
-    Vector<GroupMasks> group_masks;
-    Vector<meshintersect::CDT_input<double>> cdt_inputs = cdt_inputs_from_groups(
-        mesh, curves, pointcloud, group_index, memory, group_masks);
-
-    Array<TriangulationResult> geometry_results = calculate_cdts(
-        group_masks, cdt_inputs, output_type);
-
+    Array<TriangulationResult> geometry_results = calc_triangulations(
+        mesh, curves, pointcloud, group_index, output_type);
     Mesh *result_mesh = cdts_to_mesh(
         geometry_results, geometry, dst_intersection_points_attribute_id, attribute_filter);
 
