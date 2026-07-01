@@ -186,6 +186,8 @@ class TOPBAR_MT_file(Menu):
         save_incremental.incremental = True
         save_incremental.show_save_modified_images_dialog = True
 
+        layout.operator("screen.project_setup_show", text="Project Setup...", icon='PROJECT')
+
         layout.separator()
 
         layout.operator_context = 'INVOKE_AREA'
@@ -546,10 +548,6 @@ class TOPBAR_MT_edit(Menu):
         # Should move elsewhere (impacts outliner & 3D view).
         tool_settings = context.tool_settings
         layout.prop(tool_settings, "lock_object_mode")
-
-        layout.separator()
-
-        layout.operator("screen.project_setup_show", text="Project Setup...", icon='PROJECT')
 
         layout.separator()
 
