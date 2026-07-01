@@ -25,12 +25,17 @@ BREW_PACKAGES=(
 
 # XIP location resolve order: env/flag > script dir
 XIP_LOCATION="${XIP_LOCATION:-${SCRIPT_DIR}}"
+ASSUME_YES="${ASSUME_YES:-0}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --xip-location)
             XIP_LOCATION="$2"
             shift 2
+            ;;
+        -y|--yes)
+            ASSUME_YES=1
+            shift
             ;;
         *)
             echo "Unknown arg: $1"
@@ -40,7 +45,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Warning prompt
-cat <<EOF
+if [[ "${ASSUME_YES}" != "1" ]]; then
+    cat <<EOF
 ############################################################
 WARNING
 This script installs/modifies system-wide stuff:
@@ -52,8 +58,15 @@ This script installs/modifies system-wide stuff:
 Recommended ONLY on a fresh system / VM.
 ############################################################
 EOF
-read -r -p "Continue? [y/N] " CONFIRM
-[[ "${CONFIRM}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
+    read -r -p "Continue? [y/N] " CONFIRM
+    [[ "${CONFIRM}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
+fi
+
+# sudo upfront, keepalive bg loop so no repeat prompts
+sudo -v
+( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null & )
+SUDO_KEEPALIVE_PID=$!
+trap 'kill "${SUDO_KEEPALIVE_PID}" 2>/dev/null || true' EXIT
 
 # Homebrew
 install_homebrew() {
@@ -61,7 +74,7 @@ install_homebrew() {
         echo "Homebrew already installed"
         return 0
     fi
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     echo >> "${HOME}/.zprofile"
     echo 'eval "$(/opt/homebrew/bin/brew shellenv zsh)"' >> "${HOME}/.zprofile"
     eval "$(/opt/homebrew/bin/brew shellenv zsh)"
