@@ -6,12 +6,15 @@
 #include "BLI_index_mask.hh"
 
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
+#include "BKE_instances.hh"
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
 
 #include "FN_field.hh"
 
 #include "GEO_foreach_geometry.hh"
+#include "GEO_join_geometries.hh"
 
 #include "NOD_socket_usage_inference.hh"
 
@@ -296,13 +299,11 @@ static void gather_2d_positions(const Span<float3> src_positions,
  * original geometry through the group's masks. Fills #GroupMasks::point_offsets and
  * #GroupMasks::point_source_domains so the result can be mapped back to the original points. */
 static std::optional<meshintersect::CDT_input<double>> cdt_input_from_group(
-    const GeometrySet &geometry_set, GroupMasks &group)
+    const Mesh *mesh,
+    const bke::CurvesGeometry *curves,
+    const PointCloud *pointcloud,
+    GroupMasks &group)
 {
-  const Mesh *mesh = geometry_set.get_mesh();
-  const Curves *curves_id = geometry_set.get_curves();
-  const bke::CurvesGeometry *curves = curves_id ? &curves_id->geometry.wrap() : nullptr;
-  const PointCloud *pointcloud = geometry_set.get_pointcloud();
-
   IndexMaskMemory memory;
   IndexMask face_curves;
   IndexMask edge_curves;
@@ -503,16 +504,13 @@ static std::optional<meshintersect::CDT_input<double>> cdt_input_from_group(
 }
 
 static Vector<meshintersect::CDT_input<double>> cdt_inputs_from_groups(
-    const GeometrySet &geometry_set,
+    const Mesh *mesh,
+    const bke::CurvesGeometry *curves,
+    const PointCloud *pointcloud,
     const Field<int> &group_index,
     IndexMaskMemory &memory,
     Vector<GroupMasks> &r_group_masks)
 {
-  const Mesh *mesh = geometry_set.get_mesh();
-  const Curves *curves_id = geometry_set.get_curves();
-  const bke::CurvesGeometry *curves = curves_id ? &curves_id->geometry.wrap() : nullptr;
-  const PointCloud *pointcloud = geometry_set.get_pointcloud();
-
   Vector<IndexMask> mesh_masks;
   Vector<IndexMask> curve_masks;
   Vector<IndexMask> point_masks;
@@ -533,7 +531,7 @@ static Vector<meshintersect::CDT_input<double>> cdt_inputs_from_groups(
         mesh_evaluator->get_evaluated<int>(0), memory, mesh_ids);
   }
   if (curves && !curves->is_empty()) {
-    const bke::GeometryFieldContext context{*curves_id, bke::AttrDomain::Curve};
+    const bke::GeometryFieldContext context{*curves, bke::AttrDomain::Curve};
     curve_evaluator.emplace(context, curves->curves_num());
     curve_evaluator->add(group_index);
     curve_evaluator->evaluate();
@@ -603,8 +601,8 @@ static Vector<meshintersect::CDT_input<double>> cdt_inputs_from_groups(
       }
     }
 
-    std::optional<meshintersect::CDT_input<double>> input = cdt_input_from_group(geometry_set,
-                                                                                 group);
+    std::optional<meshintersect::CDT_input<double>> input = cdt_input_from_group(
+        mesh, curves, pointcloud, group);
     if (input) {
       inputs.append(std::move(*input));
       r_group_masks.append(std::move(group));
@@ -745,11 +743,11 @@ static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
   });
 
   MutableAttributeAccessor dst_attributes = mesh->attributes_for_write();
-  threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
-    for (const int i_result : results_range) {
-      const IndexRange verts_range = vert_groups[i_result];
+  threading::parallel_for(results.index_range(), 1024, [&](const IndexRange range) {
+    for (const int result_i : range) {
+      const IndexRange verts_range = vert_groups[result_i];
 
-      const TriangulationResult &result = results[i_result];
+      const TriangulationResult &result = results[result_i];
       const OffsetIndices dst_points_range_by_component = result.dst_points_range_by_component();
       const Span<int> src_point_by_dst_point = result.src_point_by_dst_point.as_span();
       for (const int component_i : result.point_source_domains.index_range()) {
@@ -770,14 +768,14 @@ static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
   });
 
   if (dst_intersection_points_attribute_id) {
-    if (SpanAttributeWriter<bool> dst_intersection_points =
+    if (SpanAttributeWriter dst_intersection_points =
             dst_attributes.lookup_or_add_for_write_span<bool>(
                 *dst_intersection_points_attribute_id, AttrDomain::Point))
     {
       threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
-        for (const int i_result : results_range) {
-          const IndexRange verts_range = vert_groups[i_result];
-          const IndexRange intersection_points = results[i_result].intersection_points;
+        for (const int result_i : results_range) {
+          const IndexRange verts_range = vert_groups[result_i];
+          const IndexRange intersection_points = results[result_i].intersection_points;
           dst_intersection_points.span.slice(verts_range).slice(intersection_points).fill(true);
         }
       });
@@ -797,7 +795,7 @@ static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
+  GeometrySet geometry = params.extract_input<GeometrySet>("Geometry"_ustr);
   Field<int> group_index = params.extract_input<Field<int>>("Group ID"_ustr);
 
   const TriangulationMode mode = params.extract_input<TriangulationMode>("Mode"_ustr);
@@ -809,23 +807,28 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::optional<std::string> dst_intersection_points_attribute_id =
       params.get_output_anonymous_attribute_id_if_needed("Intersection Points"_ustr);
 
-  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &sub_geometry) {
+  geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
+    const Mesh *mesh = geometry.get_mesh();
+    const Curves *curves_id = geometry.get_curves();
+    const bke::CurvesGeometry *curves = curves_id ? &curves_id->geometry.wrap() : nullptr;
+    const PointCloud *pointcloud = geometry.get_pointcloud();
     IndexMaskMemory memory;
     Vector<GroupMasks> group_masks;
     Vector<meshintersect::CDT_input<double>> cdt_inputs = cdt_inputs_from_groups(
-        sub_geometry, group_index, memory, group_masks);
+        mesh, curves, pointcloud, group_index, memory, group_masks);
 
     Array<TriangulationResult> geometry_results = calculate_cdts(
         group_masks, cdt_inputs, output_type);
 
-    Mesh *mesh = cdts_to_mesh(
-        geometry_results, sub_geometry, dst_intersection_points_attribute_id, attribute_filter);
+    Mesh *result_mesh = cdts_to_mesh(
+        geometry_results, geometry, dst_intersection_points_attribute_id, attribute_filter);
 
-    sub_geometry.replace_mesh(mesh);
-    sub_geometry.keep_only({GeometryComponent::Type::Mesh});
+    geometry.replace_mesh(result_mesh);
+
+    geometry.keep_only({GeometryComponent::Type::Mesh});
   });
 
-  params.set_output("Mesh"_ustr, std::move(geometry_set));
+  params.set_output("Mesh"_ustr, std::move(geometry));
 }
 
 static void node_register()
