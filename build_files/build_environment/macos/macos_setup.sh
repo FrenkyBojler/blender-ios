@@ -54,13 +54,11 @@ if [[ "${ASSUME_YES}" != "1" ]]; then
   cat <<EOF
 ############################################################
 WARNING
-This script installs/modifies system-wide stuff:
+This script will install software on your system:
   - Homebrew (+ shellenv in ~/.zprofile)
   - Xcode ${XCODE_VERSION} (with Metal Toolchain)
   - CMake ${CMAKE_VERSION}
   - Brew packages: ${BREW_PACKAGES[*]}
-
-Recommended ONLY on a fresh system / VM.
 ############################################################
 EOF
   read -r -p "Continue? [y/N] " CONFIRM
