@@ -35,7 +35,7 @@ VKTopLevelAS::VKTopLevelAS(const char *name) : TopLevelAS(name), max_primitive_c
       VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
       VK_NULL_HANDLE,
       VK_NULL_HANDLE,
-      1,
+      0,
       nullptr,
       nullptr,
       0};
@@ -53,9 +53,9 @@ VKTopLevelAS::~VKTopLevelAS()
   }
 }
 
-std::optional<InstanceID> VKTopLevelAS::add_instance(const BottomLevelAS &blas_,
-                                                     const float4x4 &mat,
-                                                     const uint8_t mask)
+InstanceID VKTopLevelAS::add_instance(const BottomLevelAS &blas_,
+                                      const float4x4 &mat,
+                                      const uint8_t mask)
 {
   BLI_assert_msg(vk_acceleration_structure_ == VK_NULL_HANDLE,
                  "Adding instances to an existing acceleration structure isn't supported. "
@@ -66,10 +66,10 @@ std::optional<InstanceID> VKTopLevelAS::add_instance(const BottomLevelAS &blas_,
   const VkPhysicalDeviceAccelerationStructurePropertiesKHR &acceleration_structure_properties =
       device.physical_device_acceleration_structure_properties_get();
   if (max_primitive_count_ == acceleration_structure_properties.maxInstanceCount) {
-    CLOG_WARN(&LOG,
-              "Cannot add instance to top level acceleration structure as the number of "
-              "instances is larger than the GPU can handle.");
-    return std::nullopt;
+    CLOG_ERROR(&LOG,
+               "Cannot add instance to top level acceleration structure as the number of "
+               "instances is larger than the GPU can handle.");
+    return {-1};
   }
 
   InstanceID instance_id = {max_primitive_count_};
@@ -91,11 +91,11 @@ std::optional<InstanceID> VKTopLevelAS::add_instance(const BottomLevelAS &blas_,
   return instance_id;
 }
 
-bool VKTopLevelAS::update_instance(InstanceID instance_id, const float4x4 &mat, uint8_t mask)
+void VKTopLevelAS::update_instance(InstanceID instance_id, const float4x4 &mat, uint8_t mask)
 {
   BLI_assert(instance_id.id < max_primitive_count_);
-  if (instance_id.id >= max_primitive_count_) {
-    return false;
+  if (instance_id.id < 0 || instance_id.id >= max_primitive_count_) {
+    return;
   }
 
   VkAccelerationStructureInstanceKHR &instance = instances_[instance_id.id];
@@ -115,10 +115,9 @@ bool VKTopLevelAS::update_instance(InstanceID instance_id, const float4x4 &mat, 
   instance.mask = mask;
 
   is_dirty_ = true;
-  return true;
 }
 
-bool VKTopLevelAS::build()
+void VKTopLevelAS::build()
 {
   VKDevice &device = VKBackend::get().device;
   const VkPhysicalDeviceAccelerationStructurePropertiesKHR &acceleration_structure_properties =
@@ -126,7 +125,7 @@ bool VKTopLevelAS::build()
 
   const bool do_update = vk_acceleration_structure_ != VK_NULL_HANDLE;
   if (do_update && !is_dirty_) {
-    return true;
+    return;
   }
 
   build_acceleration_structure_info_.src_buffers.clear_and_keep_capacity();
@@ -138,7 +137,7 @@ bool VKTopLevelAS::build()
       CLOG_ERROR(&LOG,
                  "Cannot add blas to top level acceleration structure as the blas "
                  "doesn't have a device address.");
-      return false;
+      return;
     }
     instance.accelerationStructureReference = blas.vk_device_address();
     build_acceleration_structure_info_.src_buffers.add(blas.vk_buffer());
@@ -226,7 +225,7 @@ bool VKTopLevelAS::build()
                   VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
       do_update ? old_acceleration_structure : VK_NULL_HANDLE,
       VK_NULL_HANDLE,
-      1,
+      uint32_t(node_data.vk_acceleration_structure_geometries.size()),
       node_data.vk_acceleration_structure_geometries.data(),
       nullptr,
       0};
@@ -314,15 +313,12 @@ bool VKTopLevelAS::build()
     context.discard_pool.discard_acceleration_structure(old_acceleration_structure);
   }
   is_dirty_ = false;
-
-  return true;
 }
 
-bool VKTopLevelAS::bind(int slot)
+void VKTopLevelAS::bind(int slot)
 {
   VKContext &context = *VKContext::get();
   context.state_manager_get().toplevelas_bind(*this, slot);
-  return true;
 }
 
 /** \} */
@@ -343,7 +339,7 @@ VKBottomLevelAS::VKBottomLevelAS(const char *name) : BottomLevelAS(name)
       VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
       VK_NULL_HANDLE,
       VK_NULL_HANDLE,
-      1,
+      0,
       nullptr,
       nullptr,
       0};
@@ -361,18 +357,21 @@ VKBottomLevelAS::~VKBottomLevelAS()
   }
 }
 
-bool VKBottomLevelAS::add_geometry(IndexBuf &index_buffer_, VertBuf &vertex_buffer_)
+void VKBottomLevelAS::add_geometry(IndexBuf &index_buffer_, VertBuf &vertex_buffer_)
 {
   BLI_assert_msg(vk_acceleration_structure_ == VK_NULL_HANDLE,
                  "Updating an existing acceleration structure isn't implemented.");
+
   VKDevice &device = VKBackend::get().device;
   const VkPhysicalDeviceAccelerationStructurePropertiesKHR &acceleration_structure_properties =
       device.physical_device_acceleration_structure_properties_get();
-  if (1 > acceleration_structure_properties.maxGeometryCount) {
-    CLOG_WARN(&LOG,
-              "Cannot add geometry to bottom level acceleration structure as the number of "
-              "geometries is larger than the GPU can handle.");
-    return false;
+  if (build_acceleration_structure_info_.node_data.vk_acceleration_structure_geometries.size() >=
+      acceleration_structure_properties.maxGeometryCount)
+  {
+    CLOG_ERROR(&LOG,
+               "Cannot add geometry to bottom level acceleration structure as the number of "
+               "geometries is larger than the GPU can handle.");
+    return;
   }
 
   VKVertexBuffer &vertex_buffer = unwrap(vertex_buffer_);
@@ -384,20 +383,20 @@ bool VKBottomLevelAS::add_geometry(IndexBuf &index_buffer_, VertBuf &vertex_buff
     CLOG_ERROR(&LOG,
                "Cannot add geometry to bottom level acceleration structure as the vertex buffer "
                "doesn't have a device address. This could be an out of memory issue.");
-    return false;
+    return;
   }
   if (!index_buffer.has_device_address()) {
     CLOG_ERROR(&LOG,
                "Cannot add geometry to bottom level acceleration structure as the index buffer "
                "doesn't have a device address. This could be an out of memory issue.");
-    return false;
+    return;
   }
   const VkFormat vertex_format = vertex_buffer.to_vk_format();
   if (vertex_format == VK_FORMAT_UNDEFINED) {
     CLOG_ERROR(&LOG,
                "Cannot add geometry to bottom level acceleration structure as the format of the "
                "vertex buffer cannot be determined.");
-    return false;
+    return;
   }
 
   build_acceleration_structure_info_.node_data.vk_acceleration_structure_geometries.append(
@@ -423,11 +422,9 @@ bool VKBottomLevelAS::add_geometry(IndexBuf &index_buffer_, VertBuf &vertex_buff
 
   build_acceleration_structure_info_.src_buffers.add(index_buffer.resource());
   build_acceleration_structure_info_.src_buffers.add(vertex_buffer.resource());
-
-  return true;
 }
 
-bool VKBottomLevelAS::build()
+void VKBottomLevelAS::build()
 {
   BLI_assert(vk_acceleration_structure_ == VK_NULL_HANDLE);
   VKDevice &device = VKBackend::get().device;
@@ -445,7 +442,7 @@ bool VKBottomLevelAS::build()
       VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
       VK_NULL_HANDLE,
       VK_NULL_HANDLE,
-      1,
+      uint32_t(node_data.vk_acceleration_structure_geometries.size()),
       node_data.vk_acceleration_structure_geometries.data(),
       nullptr,
       0};
@@ -524,8 +521,6 @@ bool VKBottomLevelAS::build()
   VKContext &context = *VKContext::get();
   render_graph::VKRenderGraph &render_graph = context.render_graph();
   render_graph.add_node(build_acceleration_structure_info_);
-
-  return true;
 }
 
 /** \} */

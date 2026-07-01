@@ -40,17 +40,14 @@ class TopLevelAS {
  public:
   virtual ~TopLevelAS() = default;
 
-  /* NOTE: Returns nullopt if the TLAS surpasses the max number of allowed instances.
-   * https://vulkan.gpuinfo.org/displayextensionproperty.php?extensionname=VK_KHR_acceleration_structure&extensionproperty=maxInstanceCount&platform=all
-   */
-  virtual std::optional<InstanceID> add_instance(const BottomLevelAS &blas,
-                                                 const float4x4 &mat,
-                                                 uint8_t mask = 0xFF) = 0;
-  virtual bool update_instance(InstanceID instance_id,
+  virtual InstanceID add_instance(const BottomLevelAS &blas,
+                                  const float4x4 &mat,
+                                  uint8_t mask = 0xFF) = 0;
+  virtual void update_instance(InstanceID instance_id,
                                const float4x4 &mat,
                                uint8_t mask = 0xFF) = 0;
-  virtual bool build() = 0;
-  virtual bool bind(int slot) = 0;
+  virtual void build() = 0;
+  virtual void bind(int slot) = 0;
 };
 
 /**
@@ -78,8 +75,8 @@ class BottomLevelAS {
    *
    * index_buffer must use GPU_PRIM_TRIS.
    */
-  virtual bool add_geometry(IndexBuf &index_buffer, VertBuf &vertex_buffer) = 0;
-  virtual bool build() = 0;
+  virtual void add_geometry(IndexBuf &index_buffer, VertBuf &vertex_buffer) = 0;
+  virtual void build() = 0;
 };
 }  // namespace blender::gpu
 

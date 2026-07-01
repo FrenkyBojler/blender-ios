@@ -927,7 +927,11 @@ void VKBackend::capabilities_init(VKDevice &device)
   GCaps.geometry_shader_support = true;
   GCaps.stencil_export_support = device.supports_extension(
       VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
-  GCaps.ray_query_support = device.supports_extension(VK_KHR_RAY_QUERY_EXTENSION_NAME);
+  GCaps.ray_query_support =
+      device.supports_extension(VK_KHR_RAY_QUERY_EXTENSION_NAME) &&
+      device.physical_device_acceleration_structure_properties_get().maxGeometryCount > 0 &&
+      device.physical_device_acceleration_structure_properties_get().maxPrimitiveCount > 0 &&
+      device.physical_device_acceleration_structure_properties_get().maxInstanceCount > 0;
 
   GCaps.max_texture_size = max_ii(limits.maxImageDimension1D, limits.maxImageDimension2D);
   GCaps.max_texture_3d_size = min_uu(limits.maxImageDimension3D, INT_MAX);

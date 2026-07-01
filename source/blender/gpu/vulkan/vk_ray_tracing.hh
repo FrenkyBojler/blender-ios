@@ -35,12 +35,10 @@ class VKTopLevelAS : public TopLevelAS {
  public:
   VKTopLevelAS(const char *name);
   ~VKTopLevelAS();
-  std::optional<InstanceID> add_instance(const BottomLevelAS &blas,
-                                         const float4x4 &mat,
-                                         uint8_t mask) override;
-  bool update_instance(InstanceID instance_id, const float4x4 &mat, uint8_t mask) override;
-  bool build() override;
-  bool bind(int slot) override;
+  InstanceID add_instance(const BottomLevelAS &blas, const float4x4 &mat, uint8_t mask) override;
+  void update_instance(InstanceID instance_id, const float4x4 &mat, uint8_t mask) override;
+  void build() override;
+  void bind(int slot) override;
 
   VkAccelerationStructureKHR vk_acceleration_structure() const
   {
@@ -76,8 +74,8 @@ class VKBottomLevelAS : public BottomLevelAS {
   VKBottomLevelAS(const char *name);
   ~VKBottomLevelAS();
 
-  bool add_geometry(IndexBuf &index_buffer, VertBuf &vertex_buffer) override;
-  bool build() override;
+  void add_geometry(IndexBuf &index_buffer, VertBuf &vertex_buffer) override;
+  void build() override;
 
   VkAccelerationStructureKHR vk_acceleration_structure() const
   {

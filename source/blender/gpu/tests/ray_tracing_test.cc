@@ -115,7 +115,7 @@ static void test_ray_tracing_empty_tlas()
   SUPPORTS_RAY_QUERY()
 
   TopLevelASPtr tlas(GPU_ray_tracing_tlas_alloc(__func__));
-  EXPECT_TRUE(tlas->build());
+  tlas->build();
 
   Vector<Ray> rays;
   /* All rays from inside the cube should hit the cube. */
@@ -145,13 +145,13 @@ static void test_ray_tracing_inside_cube()
   IndexBufPtr index_buf = build_indices();
 
   BottomLevelASPtr blas(GPU_ray_tracing_blas_alloc(__func__));
-  EXPECT_TRUE(blas->add_geometry(*index_buf, *vertex_buf));
-  EXPECT_TRUE(blas->build());
+  blas->add_geometry(*index_buf, *vertex_buf);
+  blas->build();
 
   TopLevelASPtr tlas(GPU_ray_tracing_tlas_alloc(__func__));
   float4x4 identity = float4x4::identity();
-  EXPECT_TRUE(tlas->add_instance(*blas, identity).has_value());
-  EXPECT_TRUE(tlas->build());
+  tlas->add_instance(*blas, identity);
+  tlas->build();
 
   Vector<Ray> rays;
   /* All rays from inside the cube should hit the cube. */
@@ -181,8 +181,8 @@ static void test_ray_tracing_instance_mask()
   IndexBufPtr index_buf = build_indices();
 
   BottomLevelASPtr blas(GPU_ray_tracing_blas_alloc(__func__));
-  EXPECT_TRUE(blas->add_geometry(*index_buf, *vertex_buf));
-  EXPECT_TRUE(blas->build());
+  blas->add_geometry(*index_buf, *vertex_buf);
+  blas->build();
 
   TopLevelASPtr tlas(GPU_ray_tracing_tlas_alloc(__func__));
   float4x4 mat_x_neg = math::from_location<float4x4>(float3(-2.0f, 0.0f, 0.0f));
@@ -191,13 +191,13 @@ static void test_ray_tracing_instance_mask()
   float4x4 mat_y_pos = math::from_location<float4x4>(float3(0.0f, 2.0f, 0.0f));
   float4x4 mat_z_neg = math::from_location<float4x4>(float3(0.0f, 0.0f, -2.0f));
   float4x4 mat_z_pos = math::from_location<float4x4>(float3(0.0f, 0.0f, 2.0f));
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_x_neg, 0x01).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_x_pos, 0x02).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_y_neg, 0x04).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_y_pos, 0x08).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_z_neg, 0x10).has_value());
-  EXPECT_TRUE(tlas->add_instance(*blas, mat_z_pos, 0x20).has_value());
-  EXPECT_TRUE(tlas->build());
+  tlas->add_instance(*blas, mat_x_neg, 0x01);
+  tlas->add_instance(*blas, mat_x_pos, 0x02);
+  tlas->add_instance(*blas, mat_y_neg, 0x04);
+  tlas->add_instance(*blas, mat_y_pos, 0x08);
+  tlas->add_instance(*blas, mat_z_neg, 0x10);
+  tlas->add_instance(*blas, mat_z_pos, 0x20);
+  tlas->build();
 
   Vector<Ray> rays;
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), true});
@@ -281,8 +281,8 @@ static void test_ray_tracing_instance_update()
   IndexBufPtr index_buf = build_indices();
 
   BottomLevelASPtr blas(GPU_ray_tracing_blas_alloc(__func__));
-  EXPECT_TRUE(blas->add_geometry(*index_buf, *vertex_buf));
-  EXPECT_TRUE(blas->build());
+  blas->add_geometry(*index_buf, *vertex_buf);
+  blas->build();
 
   TopLevelASPtr tlas(GPU_ray_tracing_tlas_alloc(__func__));
   float4x4 mat_x_neg = math::from_location<float4x4>(float3(-2.0f, 0.0f, 0.0f));
@@ -291,8 +291,8 @@ static void test_ray_tracing_instance_update()
   float4x4 mat_y_pos = math::from_location<float4x4>(float3(0.0f, 2.0f, 0.0f));
   float4x4 mat_z_neg = math::from_location<float4x4>(float3(0.0f, 0.0f, -2.0f));
   float4x4 mat_z_pos = math::from_location<float4x4>(float3(0.0f, 0.0f, 2.0f));
-  InstanceID instance_id = tlas->add_instance(*blas, mat_x_neg).value();
-  EXPECT_TRUE(tlas->build());
+  InstanceID instance_id = tlas->add_instance(*blas, mat_x_neg);
+  tlas->build();
 
   Vector<Ray> rays;
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), true});
@@ -303,8 +303,8 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_x_pos));
-  EXPECT_TRUE(tlas->build());
+  tlas->update_instance(instance_id, mat_x_pos);
+  tlas->build();
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(1.0f, 0.0f, 0.0f), true});
@@ -314,8 +314,8 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_y_neg));
-  EXPECT_TRUE(tlas->build());
+  tlas->update_instance(instance_id, mat_y_neg);
+  tlas->build();
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(1.0f, 0.0f, 0.0f), false});
@@ -325,8 +325,8 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_y_pos));
-  EXPECT_TRUE(tlas->build());
+  tlas->update_instance(instance_id, mat_y_pos);
+  tlas->build();
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(1.0f, 0.0f, 0.0f), false});
@@ -336,8 +336,8 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_z_neg));
-  EXPECT_TRUE(tlas->build());
+  tlas->update_instance(instance_id, mat_z_neg);
+  tlas->build();
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(1.0f, 0.0f, 0.0f), false});
@@ -347,8 +347,8 @@ static void test_ray_tracing_instance_update()
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(0.0f, 0.0f, 1.0f), false});
   hit_test(*tlas, rays);
 
-  ASSERT_TRUE(tlas->update_instance(instance_id, mat_z_pos));
-  EXPECT_TRUE(tlas->build());
+  tlas->update_instance(instance_id, mat_z_pos);
+  tlas->build();
   rays.clear();
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(-1.0f, 0.0f, 0.0f), false});
   rays.append({float3(0.0f, 0.0f, 0.0f), float3(1.0f, 0.0f, 0.0f), false});
