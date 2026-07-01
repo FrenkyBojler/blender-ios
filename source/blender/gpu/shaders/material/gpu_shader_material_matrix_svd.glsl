@@ -101,17 +101,15 @@ void jacobi_svd_3x3(float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
   A = A / scale;
   U = mat3x3_identity();
   V = mat3x3_identity();
-
   float max_diag_entry = max(max(abs(A[0][0]), abs(A[1][1])), abs(A[2][2]));
 
   /* The main Jacobi SVD iteration. Sweep until converged or max_sweeps is reached. */
-  bool finished = false;
-  for (int sweep_count = 0; sweep_count < max_sweeps && !finished; sweep_count++) {
-    finished = true;
-    const float threshold = max(zero_threshold, convergence_epsilon * max_diag_entry);
+  for (int i = 0; i < max_sweeps; i++) {
+    bool finished = true;
 
     for (int p = 1; p < 3; p++) {
       for (int q = 0; q < p; q++) {
+        const float threshold = max(zero_threshold, convergence_epsilon * max_diag_entry);
 
         /* Skip pairs already converged. */
         if (abs(A[q][p]) > threshold || abs(A[p][q]) > threshold) {
@@ -129,9 +127,13 @@ void jacobi_svd_3x3(float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
           A = jacobi_rotate_right_3x3(A, p, q, j_right);
           V = jacobi_rotate_right_3x3(V, p, q, j_right);
 
-          max_diag_entry = max(max_diag_entry, max(abs(A[p][p]), abs(A[q][q])));
+          max_diag_entry = max(max(abs(A[0][0]), abs(A[1][1])), abs(A[2][2]));
         }
       }
+    }
+
+    if (finished) {
+      break;
     }
   }
 
