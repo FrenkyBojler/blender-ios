@@ -166,8 +166,9 @@ sudo_keepalive() {
   trap 'kill "${SUDO_KEEPALIVE_PID}" 2>/dev/null || true' EXIT
 }
 
-install_homebrew
 sudo_keepalive
+install_homebrew
+sudo_keepalive # it might get flushed while installing homebrew
 install_xcode "${XCODE_VERSION}"
 install_cmake "${CMAKE_VERSION}"
 install_brew_packages
