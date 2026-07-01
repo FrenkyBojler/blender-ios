@@ -87,7 +87,7 @@ install_homebrew() {
 
 # Xcode
 install_xcode() {
-  local VERSION="$1"
+  local VERSION="${1:?Usage: install_xcode <version>}"
   local XIP="${XIP_LOCATION}/Xcode_${VERSION}.xip"
   local APP="/Applications/Xcode-${VERSION}.app"
   local MAJOR="${VERSION%%.*}"
