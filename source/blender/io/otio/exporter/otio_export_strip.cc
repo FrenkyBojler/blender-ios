@@ -16,6 +16,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
+#include "CLG_log.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
@@ -388,6 +389,7 @@ static void img_sequence_rename(StripElem *se, const char *dirpath, int img_coun
     BLI_path_join(new_path, sizeof(new_path), dirpath, se->filename);
 
     std::rename(old_path, new_path);
+    CLOG_INFO_NOCHECK(&LOG, "Rename '%s' -> '%s'", old_path, new_path);
   }
 }
 
@@ -405,6 +407,7 @@ static void img_sequence_create_symlinks(const StripElem *se,
 
   /* Create `BL_links` directory if it does not exist. */
   if (!BLI_dir_create_recursive(BL_links_path)) {
+    CLOG_ERROR(&LOG, "Unable to Create Directory '%s'", BL_links_path);
     return;
   }
 
@@ -421,6 +424,7 @@ static void img_sequence_create_symlinks(const StripElem *se,
     BLI_path_join(symlink_target, sizeof(symlink_target), "..", se->filename);
 
     BLI_create_symlink(symlink_path, symlink_target);
+    CLOG_INFO_NOCHECK(&LOG, "Created Symlink '%s' -> '%s'", symlink_path, symlink_target);
   }
 }
 
@@ -449,8 +453,10 @@ static void attach_foreign_metadata(IDProperty *idp, SerializableObject::Retaine
       try {
         AnyDictionary metadata = std::any_cast<AnyDictionary>(dict);
         clip->metadata()[prop->name] = metadata;
+        CLOG_INFO(&LOG, "Attached Foreign Metadata with Key : '%s' to '%s' Clip", prop->name, clip->name().c_str());
       }
       catch (const std::bad_any_cast & /*e*/) {
+        CLOG_ERROR(&LOG, "Unable to Cast Foreign Metadata with Key : '%s' to AnyDictionary while attaching to '%s' Clip", prop->name, clip->name().c_str());
         return;
       }
     }
@@ -855,6 +861,7 @@ void ImageStripExporter::export_strip(
   else {
     /* Image Sequence. */
     if (!strip_->data || !strip_->data->stripdata) {
+      CLOG_ERROR(&LOG, "Exporting the Image (Sequence) Strip '%s' with Missing Reference...", strip_->name + 2);
       export_with_missing_reference(single_input_effects);
       return;
     }
@@ -880,21 +887,31 @@ void ImageStripExporter::export_strip(
       BLI_path_extension_strip(name_prefix);
       BLI_strncat(name_prefix, ".", sizeof(name_prefix));
 
+      CLOG_WARN(&LOG, "The Strip '%s' contains Image Sequence with Non-Sequenced Image Names", strip_->name + 2);
+
       switch (export_params->img_sequence_fallback) {
         case ImgSeqFallback::RenderMovie: {
+          CLOG_INFO(&LOG, "Exporting the Image (Sequence) Strip '%s' as a Rendered Movie...", strip_->name + 2);
+
           auto exporter = RenderAsMovieExporter(strip_, scene_, track_, last_strip_end, filepath_);
           exporter.export_strip(bmain, export_params, single_input_effects);
           last_strip_end = exporter.last_strip_end;
           return;
         }
-        case ImgSeqFallback::Rename:
+        case ImgSeqFallback::Rename: {
+          CLOG_INFO(&LOG, "Renaming the Images of the Image (Sequence) Strip '%s'...", strip_->name + 2);
+
           img_sequence_rename(se, target_url_base, img_count, padding);
           break;
+        }
 
 #ifndef WIN32
-        case ImgSeqFallback::Symlink:
+        case ImgSeqFallback::Symlink: {
+          CLOG_INFO(&LOG, "Creating Symbolic Links (Symlinks) for Images in the Image (Sequence) Strip '%s'...", strip_->name + 2);
+
           img_sequence_create_symlinks(se, target_url_base, img_count, padding);
           break;
+        }
 #endif
 
         default:
@@ -903,6 +920,7 @@ void ImageStripExporter::export_strip(
     }
     else {
       if (!BLI_path_frame_get(se->filename, &start_frame_nr, &padding)) {
+        CLOG_ERROR(&LOG, "Exporting the Image (Sequence) Strip '%s' with Missing Reference...", strip_->name + 2);
         export_with_missing_reference(single_input_effects);
         return;
       }
@@ -997,13 +1015,17 @@ void RenderAsMovieExporter::export_strip(
     render_res = get_scene_strip_resolution_percent(export_params->scene_strip_res);
   }
 
+  CLOG_INFO(&LOG, "Rendering Strip '%s'... ", strip_->name + 2);
   const bool is_rendered = seq::render_strip_full(
       bmain, scene_, strip_, render_res, render_filepath, false);
 
   if (!is_rendered) {
+    CLOG_ERROR(&LOG, "Strip Rendering Failed...Exporting with Missing Reference...");
     export_with_missing_reference(single_input_effects);
     return;
   }
+  CLOG_INFO(&LOG, "Strip Rendered as Movie to '%s'", render_filepath);
+
   auto exporter = MovieStripExporter(strip_, scene_, track_, last_strip_end, render_filepath);
   exporter.export_strip(bmain, export_params, single_input_effects);
   last_strip_end = exporter.last_strip_end;

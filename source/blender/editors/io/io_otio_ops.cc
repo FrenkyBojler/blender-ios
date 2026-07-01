@@ -46,11 +46,7 @@
 
 #  include "UI_interface_layout.hh"
 
-#  include "CLG_log.h"
-
 namespace blender {
-
-static CLG_LogRef LOG = {"io.otio"};
 
 static const EnumPropertyItem io_otio_scene_strip_resolution[] = {
     {static_cast<int>(io::otio::SceneStripRes::Percent100),

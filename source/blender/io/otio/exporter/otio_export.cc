@@ -171,10 +171,14 @@ static void otio_export_recursive(Main *bmain,
     /* Append all the strips of this channel in the track. */
     for (Strip *strip : strips) {
       if (transition_effects.contains(strip)) {
+        CLOG_INFO(&LOG, "Exporting Transition '%s'...", transition_effects[strip]->name + 2);
         export_transition(transition_effects[strip],
                           scene,
                           inside_meta ? meta_video_track : track,
                           last_strip_end);
+      }
+      else {
+        CLOG_INFO(&LOG, "Exporting Strip '%s'...", strip->name + 2);
       }
 
       StripExporter *strip_exporter = nullptr;
@@ -216,6 +220,8 @@ static void otio_export_recursive(Main *bmain,
         ListBaseT<Strip> *seqbase = seq::get_seqbase_from_strip(strip, &r_channels, &r_offset);
 
         if (!seqbase) {
+          CLOG_WARN(&LOG, "No seqbase in Meta Strip / Sequencer Strip '%s' ", strip->name + 2);
+
           StripExporter missing_reference_exporter_video = StripExporter(
               strip, scene, inside_meta ? meta_video_track : track, last_strip_end);
 
