@@ -2366,7 +2366,13 @@ static wmOperatorStatus constraint_add_exec(bContext *C,
     pchan = nullptr;
   }
   else {
-    pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
+    /* When there is a pinned bone and focus on the Properties editor, returns that;
+     * otherwise falls back to the scene's active pose bone.*/
+    pchan = static_cast<bPoseChannel *>(
+        CTX_data_pointer_get_type(C, "pose_bone", RNA_PoseBone).data);
+    if (!pchan) {
+      pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
+    }
 
     /* ensure not to confuse object/pose adding */
     if (pchan == nullptr) {
