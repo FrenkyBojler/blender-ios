@@ -120,7 +120,11 @@ install_xcode() {
     sudo xcode-select -s "/Applications/Xcode-${LATEST}.app/Contents/Developer"
     sudo xcodebuild -license accept
     sudo xcodebuild -runFirstLaunch
-    sudo xcodebuild -downloadComponent MetalToolchain
+    if xcodebuild -downloadComponent 2>&1 | grep -qv "invalid option"; then
+      sudo xcodebuild -downloadComponent MetalToolchain
+    else
+      echo "Xcode ${LATEST} doesn't support MetalToolchain download. Skip."
+    fi
 }
 
 # CMake
