@@ -549,8 +549,11 @@ class TOPBAR_MT_edit(Menu):
 
         layout.separator()
 
-        layout.operator("screen.userpref_show", text="Preferences...", icon='PREFERENCES')
         layout.operator("screen.project_setup_show", text="Project Setup...", icon='PROJECT')
+
+        layout.separator()
+
+        layout.operator("screen.userpref_show", text="Preferences...", icon='PREFERENCES')
 
 
 class TOPBAR_MT_window(Menu):
