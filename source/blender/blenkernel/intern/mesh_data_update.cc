@@ -676,6 +676,48 @@ static MutableSpan<float3> mesh_wrapper_vert_coords_ensure_for_write(Mesh *mesh)
   return {};
 }
 
+static void save_cage_mesh(Object &ob,
+                           const GeometrySet &geometry,
+                           const Mesh &mesh_input,
+                           GeometryComponentPtr &saved_component)
+{
+  const Mesh *mesh = geometry.get_mesh();
+  if (!mesh) {
+    return;
+  }
+  /* NOTE(@ideasman42): Workaround for geometry-nodes where the cage mesh may not have
+   * the mapping data needed to relate it back to the original elements,
+   * causing problems with transform & selection. See: !160540.
+   *
+   * Detect this and replace the cage with a thin edit-mesh wrapper, so at least
+   * the user sees an editable mesh (with no modifiers applied). Ideally it would be
+   * possible to know which modifier index is guaranteed to produce a usable cage
+   * instead of this place-holder. */
+  if (!BKE_editmesh_eval_orig_map_available(*mesh, &mesh_input) &&
+      !(CustomData_has_layer(&mesh->vert_data, CD_ORIGINDEX) &&
+        CustomData_has_layer(&mesh->edge_data, CD_ORIGINDEX) &&
+        CustomData_has_layer(&mesh->face_data, CD_ORIGINDEX)))
+  {
+    /* This only occurs with node-groups, assert it doesn't happen with other modifiers. */
+    BLI_assert(BKE_modifiers_findby_type(&ob, eModifierType_Nodes));
+    UNUSED_VARS_NDEBUG(ob);
+
+    /* A non-empty `positions` array is needed because #BKE_mesh_wrapper_vert_coords
+     * is expected to be able to return vertex coordinates.
+     * Otherwise crazy-space calculation crashes, see: #160540. */
+    const Mesh *me_cage = static_cast<const MeshComponent *>(saved_component.get())->get();
+    if (me_cage->runtime->edit_mesh->bm->totvert &&
+        me_cage->runtime->edit_data->vert_positions.is_empty())
+    {
+      me_cage->runtime->edit_data->vert_positions = BM_mesh_vert_coords_alloc(
+          mesh_input.runtime->edit_mesh->bm);
+    }
+    return;
+  }
+
+  saved_component = geometry.get_component_ptr(GeometryComponent::Type::Mesh);
+}
+
 static GeometrySet editbmesh_calc_modifiers(Depsgraph &depsgraph,
                                             const Scene &scene,
                                             Object &ob,
@@ -688,9 +730,6 @@ static GeometrySet editbmesh_calc_modifiers(Depsgraph &depsgraph,
    * along with final mesh if undeformed / orco coordinates are requested
    * for texturing. */
   Mesh *mesh_orco = nullptr;
-
-  /* Add the cage mesh to the geometry set after evaluating all modifiers in it's removed. */
-  GeometryComponentPtr cage_mesh;
 
   /* Modifier evaluation modes. */
   const int required_mode = eModifierMode_Realtime | eModifierMode_Editmode;
@@ -719,9 +758,9 @@ static GeometrySet editbmesh_calc_modifiers(Depsgraph &depsgraph,
       BKE_mesh_wrapper_from_editmesh(mesh_input.runtime->edit_mesh, &final_datamask, &mesh_input));
 
   int cageIndex = BKE_modifiers_get_cage_index(&scene, &ob, nullptr, true);
-  if (cageIndex == -1) {
-    cage_mesh = geometry_set.get_component_ptr(GeometryComponent::Type::Mesh);
-  }
+
+  /* Add the cage mesh to the geometry set after evaluating all modifiers in case it's removed. */
+  GeometryComponentPtr cage_mesh = geometry_set.get_component_ptr(GeometryComponent::Type::Mesh);
 
   /* The mesh from edit mode should not have any original index layers already, since those
    * are added during evaluation when necessary and are redundant on an original mesh. */
@@ -829,33 +868,7 @@ static GeometrySet editbmesh_calc_modifiers(Depsgraph &depsgraph,
     }
 
     if (i == cageIndex) {
-      GeometryComponentPtr cage_mesh_at_index = geometry_set.get_component_ptr(
-          GeometryComponent::Type::Mesh);
-
-      /* NOTE(@ideasman42): Workaround for geometry-nodes where the cage mesh may not have
-       * the mapping data needed to relate it back to the original elements,
-       * causing problems with transform & selection. See: !160540.
-       *
-       * Detect this and replace the cage with a thin edit-mesh wrapper, so at least
-       * the user sees an editable mesh (with no modifiers applied). Ideally it would be
-       * possible to know which modifier index is guaranteed to produce a usable cage
-       * instead of this place-holder. */
-      if (cage_mesh_at_index) {
-        const Mesh *me_cage = static_cast<const MeshComponent *>(cage_mesh_at_index.get())->get();
-        if (me_cage && !BKE_editmesh_eval_orig_map_available(*me_cage, &mesh_input) &&
-            !(CustomData_has_layer(&me_cage->vert_data, CD_ORIGINDEX) &&
-              CustomData_has_layer(&me_cage->edge_data, CD_ORIGINDEX) &&
-              CustomData_has_layer(&me_cage->face_data, CD_ORIGINDEX)))
-        {
-          /* This only occurs with node-groups, assert it doesn't happen with other modifiers. */
-          BLI_assert(BKE_modifiers_findby_type(&ob, eModifierType_Nodes));
-
-          /* Leaving the cage as-is (initialized on entry). */
-        }
-        else {
-          cage_mesh = cage_mesh_at_index;
-        }
-      }
+      save_cage_mesh(ob, geometry_set, mesh_input, cage_mesh);
     }
   }
 
