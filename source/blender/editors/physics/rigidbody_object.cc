@@ -94,20 +94,10 @@ static bool operator_rigidbody_add_selected_poll(bContext *C)
     return false;
   }
 
-  blender::Vector<PointerRNA> selected_objects;
-  CTX_data_selected_objects(C, &selected_objects);
-
-  if (selected_objects.is_empty()) {
-    return false;
-  }
-
-  Object *ob = static_cast<Object *>(selected_objects.first().data);
-
-  if (ED_operator_object_active_editable_ex(C, ob)) {
-    return (ob && ob->type == OB_MESH);
-  }
-
-  return false;
+  /* Dont check objects in the selection at this point. While the active might not be suitable,
+   * other still could. And checking on the (whole) selection should not be done in a poll for
+   * performance reasons. */
+  return true;
 }
 
 /* ----------------- */
@@ -242,6 +232,10 @@ static wmOperatorStatus rigidbody_objects_add_exec(bContext *C, wmOperator *op)
     /* done */
     return OPERATOR_FINISHED;
   }
+
+  BKE_report(op->reports,
+             RPT_ERROR_INVALID_INPUT,
+             "No Rigid Bodies added (no compatible objects were found)");
   return OPERATOR_CANCELLED;
 }
 
