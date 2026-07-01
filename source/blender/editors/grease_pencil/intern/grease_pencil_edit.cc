@@ -2078,7 +2078,8 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
 
     if (has_active_key && is_key_inserted) {
       /* Move geometry to a new drawing in target layer. */
-      Drawing &drawing_dst = *grease_pencil.get_drawing_at(layer_dst, info.frame_number);
+      Drawing &drawing_dst = *grease_pencil.get_drawing_at(
+          layer_dst, is_key_inserted ? scene->r.cfra : info.frame_number);
       drawing_dst.strokes_for_write() = bke::curves_copy_curve_selection(
           curves_src, selected_strokes, {});
 
