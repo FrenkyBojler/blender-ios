@@ -13,6 +13,7 @@
 
 #include "BLI_fileops.hh"
 #include "BLI_math_base.h"
+#include "BLI_listbase_iterator.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -719,8 +720,113 @@ static void add_strip_metadata_color(const Strip *strip, SerializableObject::Ret
   }
 }
 
+static void add_modifier_metadata_to_container(AnyDictionary &metadata, AnyVector &container, StripModifierData &smd) {
+  AnyDictionary parent;
+  parent["data"] = metadata;
+  parent["name"] = std::string(smd.name);
+  parent["type"] = static_cast<int64_t>(smd.type);
+  parent["mute"] = static_cast<bool>(smd.flag & STRIP_MODIFIER_FLAG_MUTE);
+
+  container.push_back(parent);
+}
+
+static void add_modifier_metadata_brightness_contrast(StripModifierData &smd, AnyVector &container)
+{
+  const BrightContrastModifierData *bcmd = reinterpret_cast<BrightContrastModifierData *>(&smd);
+  AnyDictionary metadata;
+  metadata["bright"] = static_cast<double>(bcmd->bright);
+  metadata["contrast"] = static_cast<double>(bcmd->contrast);
+
+  add_modifier_metadata_to_container(metadata, container, smd);
+}
+
+static void add_modifier_metadata_color_balance(StripModifierData &smd, AnyVector &container)
+{
+  const ColorBalanceModifierData *cbmd = reinterpret_cast<ColorBalanceModifierData *>(&smd);
+  AnyDictionary metadata;
+  metadata["color_multiply"] = static_cast<double>(cbmd->color_multiply);
+  metadata["method"] = static_cast<int64_t>(cbmd->color_balance.method);
+  metadata["flag"] = static_cast<int64_t>(cbmd->color_balance.flag);
+  metadata["lift"] = AnyVector {static_cast<double>(cbmd->color_balance.lift[0]), static_cast<double>(cbmd->color_balance.lift[1]), static_cast<double>(cbmd->color_balance.lift[2])};
+  metadata["gamma"] = AnyVector {static_cast<double>(cbmd->color_balance.gamma[0]), static_cast<double>(cbmd->color_balance.gamma[1]), static_cast<double>(cbmd->color_balance.gamma[2])};
+  metadata["gain"] = AnyVector {static_cast<double>(cbmd->color_balance.gain[0]), static_cast<double>(cbmd->color_balance.gain[1]), static_cast<double>(cbmd->color_balance.gain[2])};
+  metadata["slope"] = AnyVector {static_cast<double>(cbmd->color_balance.slope[0]), static_cast<double>(cbmd->color_balance.slope[1]), static_cast<double>(cbmd->color_balance.slope[2])};
+  metadata["offset"] = AnyVector {static_cast<double>(cbmd->color_balance.offset[0]), static_cast<double>(cbmd->color_balance.offset[1]), static_cast<double>(cbmd->color_balance.offset[2])};
+  metadata["power"] = AnyVector {static_cast<double>(cbmd->color_balance.power[0]), static_cast<double>(cbmd->color_balance.power[1]), static_cast<double>(cbmd->color_balance.power[2])};
+
+  add_modifier_metadata_to_container(metadata, container, smd);
+}
+
+static void add_modifier_metadata_tonemap(StripModifierData &smd, AnyVector &container)
+{
+  const SequencerTonemapModifierData *tmd = reinterpret_cast<SequencerTonemapModifierData *>(&smd);
+  AnyDictionary metadata;
+  metadata["key"] = static_cast<double>(tmd->key);
+  metadata["offsset"] = static_cast<double>(tmd->offset);
+  metadata["gamma"] = static_cast<double>(tmd->gamma);
+  metadata["intensity"] = static_cast<double>(tmd->intensity);
+  metadata["contrast"] = static_cast<double>(tmd->contrast);
+  metadata["adaptation"] = static_cast<double>(tmd->adaptation);
+  metadata["correction"] = static_cast<double>(tmd->correction);
+  metadata["type"] = static_cast<int64_t>(tmd->type);
+
+  add_modifier_metadata_to_container(metadata, container, smd);
+}
+
+static void add_modifier_metadata_white_balance(StripModifierData &smd, AnyVector &container)
+{
+  const WhiteBalanceModifierData *wbmd = reinterpret_cast<WhiteBalanceModifierData *>(&smd);
+  AnyDictionary metadata;
+  metadata["white_value"] = AnyVector {static_cast<double>(wbmd->white_value[0]), static_cast<double>(wbmd->white_value[1]), static_cast<double>(wbmd->white_value[2])};
+
+  add_modifier_metadata_to_container(metadata, container, smd);
+}
+
 template<typename T>
-void add_strip_metadata_common(const Strip *strip, SerializableObject::Retainer<T> &clip)
+static void add_strip_metadata_modifiers(const Strip *strip, SerializableObject::Retainer<T> &clip)
+{
+  if (!clip->metadata().has_key("blender")) {
+    clip->metadata()["blender"] = AnyDictionary();
+  }
+
+  AnyVector container;
+
+  for(StripModifierData &smd : strip->modifiers) {
+    switch (smd.type) {
+      case eSeqModifierType_BrightContrast:
+        add_modifier_metadata_brightness_contrast(smd, container);
+        break;
+
+      case eSeqModifierType_ColorBalance:
+        add_modifier_metadata_color_balance(smd, container);
+        break;
+
+      case eSeqModifierType_Tonemap:
+        add_modifier_metadata_tonemap(smd, container);
+        break;
+
+      case eSeqModifierType_WhiteBalance:
+        add_modifier_metadata_white_balance(smd, container);
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  try {
+    AnyDictionary &bDict = std::any_cast<AnyDictionary &>(clip->metadata()["blender"]);
+    if (!bDict.has_key("modifiers")) {
+      bDict["modifiers"] = container;
+    }
+  }
+  catch (const std::bad_any_cast & /*e*/) {
+    return;
+  }
+}
+
+template<typename T>
+void add_strip_metadata(const Strip *strip, SerializableObject::Retainer<T> &clip)
 {
   if (!clip->metadata().has_key("blender")) {
     clip->metadata()["blender"] = AnyDictionary();
@@ -734,10 +840,11 @@ void add_strip_metadata_common(const Strip *strip, SerializableObject::Retainer<
     add_strip_metadata_compositing(strip, clip);
     add_strip_metadata_color(strip, clip);
   }
+  add_strip_metadata_modifiers(strip, clip);
 }
 
-/* Force instantiate `add_strip_metadata_common<Stack>`. */
-template void add_strip_metadata_common(const Strip *strip,
+/* Force instantiate `add_strip_metadata<Stack>`. */
+template void add_strip_metadata(const Strip *strip,
                                         SerializableObject::Retainer<Stack> &clip);
 
 void StripExporter::add_gap_if_necessary()
@@ -784,7 +891,7 @@ void StripExporter::export_with_missing_reference(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, missing_reference, strip_source_range));
 
-  add_strip_metadata_common(strip_, clip);
+  add_strip_metadata(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
@@ -808,7 +915,7 @@ void MovieStripExporter::export_strip(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, external_reference, strip_source_range));
 
-  add_strip_metadata_common(strip_, clip);
+  add_strip_metadata(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
@@ -830,7 +937,7 @@ void SoundStripExporter::export_strip(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, external_reference, strip_source_range));
 
-  add_strip_metadata_common(strip_, clip);
+  add_strip_metadata(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
@@ -853,7 +960,7 @@ void ImageStripExporter::export_strip(
     auto clip = otio::SerializableObject::Retainer<otio::Clip>(
         new Clip(strip_->name + 2, external_reference, strip_source_range));
 
-    add_strip_metadata_common(strip_, clip);
+    add_strip_metadata(strip_, clip);
     attach_foreign_metadata_strip(strip_, clip);
     add_effects_to_clip(scene_, strip_, clip, single_input_effects);
     track_->append_child(clip);
@@ -964,7 +1071,7 @@ void ImageStripExporter::export_strip(
     auto clip = SerializableObject::Retainer<Clip>(
         new Clip(strip_->name + 2, img_seq_ref, source_range));
 
-    add_strip_metadata_common(strip_, clip);
+    add_strip_metadata(strip_, clip);
     attach_foreign_metadata_strip(strip_, clip);
     add_effects_to_clip(scene_, strip_, clip, single_input_effects);
     track_->append_child(clip);
@@ -1050,7 +1157,7 @@ void GeneratorStripExporter::export_strip(
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, generator_reference, strip_source_range));
 
-  add_strip_metadata_common(strip_, clip);
+  add_strip_metadata(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
   add_effects_to_clip(scene_, strip_, clip, single_input_effects);
   track_->append_child(clip);
