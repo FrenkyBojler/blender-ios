@@ -6332,6 +6332,7 @@ static void sync_system_properties(Main &bmain,
     IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier);
     if (!idprop) {
       if (ensure) {
+        /* Create an invalid property, to be filled correctly later by the code for each type. */
         idprop = bke::idprop::create_group(identifier).release();
         IDP_AddToGroup(&idprops, idprop);
       }
