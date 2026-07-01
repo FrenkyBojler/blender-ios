@@ -66,7 +66,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_anim_path.h"
 #include "BKE_anim_visualization.h"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_armature.hh"
 #include "BKE_asset.hh"
 #include "BKE_bpath.hh"
@@ -1075,6 +1075,8 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   if (ob->lightprobe_cache) {
     BKE_lightprobe_cache_blend_read(reader, ob->lightprobe_cache);
   }
+
+  BKE_object_material_active_index_sanitize(ob);
 }
 
 static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
@@ -4412,9 +4414,6 @@ const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
   BLI_assert(!DEG_is_original(&object->id));
   BLI_assert(object->type == OB_MESH);
 
-  const Mesh &mesh = *id_cast<const Mesh *>(object->data);
-  BLI_assert(mesh.runtime->edit_mesh != nullptr);
-  UNUSED_VARS_NDEBUG(mesh);
   const GeometrySet *geometry_set = object->runtime->geometry_set_eval;
   if (!geometry_set) {
     return nullptr;
