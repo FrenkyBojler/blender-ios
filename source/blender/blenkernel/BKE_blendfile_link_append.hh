@@ -144,10 +144,10 @@ struct BlendfileLinkAppendContext {
   LibraryLink_Params *params = nullptr;
 
   /**
-   * Active collection to link/append into. This is only used for instantiating collections, and is
+   * Target collection to link/append into. This is only used for instantiating collections, and is
    * not mandatory for linking/appending objects or other data-blocks.
    */
-  Collection *active_collection;
+  Collection *target_collection = nullptr;
 
   /**
    * What is the current stage of the link/append process. Used mainly by the RNA wrappers for the
@@ -370,7 +370,7 @@ void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lap
                                                  ReportList *reports);
 
 /**
- * Instantiate loose data from IDs already present in \a bmain into \a active_collection.
+ * Instantiate loose data from IDs already present in \a bmain into \a target_collection.
  *
  * This is the bmain-based counterpart of #BKE_blendfile_link_append_instantiate_loose.
  * It operates on IDs that have already been merged into \a bmain, and only processes
@@ -384,7 +384,7 @@ void BKE_blendfile_link_append_instantiate_loose(BlendfileLinkAppendContext *lap
 void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
                                                             Scene *scene,
                                                             ViewLayer *view_layer,
-                                                            Collection *active_collection,
+                                                            Collection *target_collection,
                                                             ReportList *reports);
 
 /**
