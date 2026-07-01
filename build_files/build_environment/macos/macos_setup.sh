@@ -124,14 +124,8 @@ install_xcode() {
   echo "[xcode]: Running first launch"
   sudo xcodebuild -runFirstLaunch
 
-  echo "[xcode]: Checking MetalToolchain support"
-  if xcodebuild -downloadComponent 2>&1 | grep -qv "invalid option"; then
-    echo "[xcode]: Downloading MetalToolchain"
-    sudo xcodebuild -downloadComponent MetalToolchain
-    echo "[xcode]: MetalToolchain installed"
-  else
-    echo "[xcode]: Xcode ${VERSION} has MetalToolchain embedded. Skip downloading."
-  fi
+  echo "[xcode]: Ensure MetalToolchain"
+  sudo xcodebuild -downloadComponent MetalToolchain || true
 }
 
 # CMake
