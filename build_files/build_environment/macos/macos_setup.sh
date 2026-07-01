@@ -72,6 +72,7 @@ install_homebrew() {
     return 0
   fi
   echo "[brew]:  Installing Homebrew..."
+  sudo -v
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   local SHELLENV_LINE='eval "$(/opt/homebrew/bin/brew shellenv zsh)"'
   if grep -qxF "${SHELLENV_LINE}" "${HOME}/.zprofile" 2>/dev/null; then
@@ -159,16 +160,7 @@ install_brew_packages() {
   echo "[brew]:  Packages installed"
 }
 
-sudo_keepalive() {
-  sudo -v
-  ( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null ) &
-  SUDO_KEEPALIVE_PID=$!
-  trap 'kill "${SUDO_KEEPALIVE_PID}" 2>/dev/null || true' EXIT
-}
-
-sudo_keepalive
 install_homebrew
-sudo_keepalive # it might get flushed while installing homebrew
 install_xcode "${XCODE_VERSION}"
 install_cmake "${CMAKE_VERSION}"
 install_brew_packages
