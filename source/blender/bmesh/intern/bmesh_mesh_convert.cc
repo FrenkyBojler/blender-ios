@@ -1965,7 +1965,7 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   /* Must be an empty mesh. */
   BLI_assert(mesh.verts_num == 0);
 
-  /* new Mesh is created with this at 0, but if the conversion from BMesh potetnially adds
+  /* new Mesh is created with this at 0, but if the conversion from BMesh potentially adds
    * some attributes we should make sure it is at -1 or it might point to an invalid internal
    * attribute */
   mesh.attributes_active_index = -1;
