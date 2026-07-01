@@ -156,6 +156,15 @@ class GHOST_Context : public GHOST_IContext {
     return GHOST_kFailure;
   }
 
+  bool isVulkanDeviceExtensionEnabled(const char * /*extension_name*/) const override
+  {
+    return false;
+  };
+  bool isVulkanInstanceExtensionEnabled(const char * /*extension_name*/) const override
+  {
+    return false;
+  }
+
   /** \copydoc #GHOST_IContext::setVulkanSwapBuffersCallbacks */
   virtual GHOST_TSuccess setVulkanSwapBuffersCallbacks(
       std::function<void(const GHOST_VulkanSwapChainData *, bool)> /*swap_buffer_draw_callback*/,

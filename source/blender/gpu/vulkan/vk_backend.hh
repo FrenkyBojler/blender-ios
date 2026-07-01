@@ -106,7 +106,7 @@ class VKBackend : public GPUBackend {
   static void capabilities_init(VKDevice &device, GHOST_IContext *ghost_context);
 
  private:
-  static void detect_workarounds(VKDevice &device, GHOST_IContext *ghost_context);
+  static void detect_workarounds(VKDevice &device, const GHOST_IContext *ghost_context);
   static void platform_init();
   static void platform_exit();
 

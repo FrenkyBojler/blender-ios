@@ -565,7 +565,7 @@ inline IntelGpuArch get_intel_gpu_arch(uint32_t device_id)
   }
 }
 
-void VKBackend::detect_workarounds(VKDevice &device, GHOST_IContext *ghost_context)
+void VKBackend::detect_workarounds(VKDevice &device, const GHOST_IContext *ghost_context)
 {
   VKWorkarounds workarounds;
   VKExtensions extensions;
@@ -608,8 +608,10 @@ void VKBackend::detect_workarounds(VKDevice &device, GHOST_IContext *ghost_conte
   extensions.dynamic_rendering_unused_attachments = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   extensions.logic_ops = device.physical_device_features_get().logicOp;
-  extensions.maintenance4 = ghost_context->isVulkanDeviceExtensionEnabled(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
-  extensions.memory_priority = ghost_context->isVulkanDeviceExtensionEnabled(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+  extensions.maintenance4 = ghost_context->isVulkanDeviceExtensionEnabled(
+      VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
+  extensions.memory_priority = ghost_context->isVulkanDeviceExtensionEnabled(
+      VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
   extensions.pageable_device_local_memory = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
   extensions.graphics_pipeline_library = ghost_context->isVulkanDeviceExtensionEnabled(
@@ -627,7 +629,8 @@ void VKBackend::detect_workarounds(VKDevice &device, GHOST_IContext *ghost_conte
   extensions.external_memory = ghost_context->isVulkanDeviceExtensionEnabled(
       VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
 #elif not defined(__APPLE__)
-  extensions.external_memory = ghost_context->isVulkanDeviceExtensionEnabled(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+  extensions.external_memory = ghost_context->isVulkanDeviceExtensionEnabled(
+      VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
 #else
   extensions.external_memory = false;
 #endif
@@ -637,16 +640,6 @@ void VKBackend::detect_workarounds(VKDevice &device, GHOST_IContext *ghost_conte
       GPU_type_matches(GPU_DEVICE_APPLE, GPU_OS_MAC, GPU_DRIVER_ANY))
   {
     workarounds.not_aligned_pixel_formats = true;
-  }
-
-  /* During testing graphics pipeline library feature it was detected that it would crash on
-   * official AMD drivers.
-   */
-  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) &&
-      bool(G.debug & G_DEBUG_GPU))
-  {
-    extensions.graphics_pipeline_library = false;
-    extensions.vertex_input_dynamic_state = false;
   }
 
   /* Disable vertex input dynamic state for Qualcomm devices (#153414).
@@ -689,6 +682,15 @@ void VKBackend::detect_workarounds(VKDevice &device, GHOST_IContext *ghost_conte
 #ifdef _WIN32
   if (GPU_type_matches(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD, GPU_OS_WIN, GPU_DRIVER_OFFICIAL)) {
     IntelGpuArch gpu_arch = get_intel_gpu_arch(device.physical_device_properties_get().deviceID);
+
+    /* Intel Gen9 iGPUs (Intel 7th to 10th Gen Processor Graphics driver) show a black screen at
+     * application startup when using VK_EXT_vertex_input_dynamic_state.
+     *
+     * See #147721
+     */
+    if (gpu_arch == IntelGpuArch::Gen9AndOlder) {
+      extensions.vertex_input_dynamic_state = false;
+    }
 
     /* Using the texture pool causes varying issues on older Intel iGPUs.
      * Note: Gen12 iGPUs are partly covered by the Intel 11th to 14th Gen Processor Graphics driver
