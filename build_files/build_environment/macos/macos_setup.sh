@@ -64,7 +64,7 @@ fi
 
 # sudo upfront, keepalive bg loop so no repeat prompts
 sudo -v
-( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null & )
+( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null ) &
 SUDO_KEEPALIVE_PID=$!
 trap 'kill "${SUDO_KEEPALIVE_PID}" 2>/dev/null || true' EXIT
 
