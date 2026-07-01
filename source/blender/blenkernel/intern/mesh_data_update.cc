@@ -705,11 +705,11 @@ static void save_cage_mesh(Object &ob,
     /* A non-empty `positions` array is needed because #BKE_mesh_wrapper_vert_coords
      * is expected to be able to return vertex coordinates.
      * Otherwise crazy-space calculation crashes, see: #160540. */
-    const Mesh *me_cage = static_cast<const MeshComponent *>(saved_component.get())->get();
-    if (me_cage->runtime->edit_mesh->bm->totvert &&
-        me_cage->runtime->edit_data->vert_positions.is_empty())
+    const Mesh &mesh_cage = *static_cast<const MeshComponent *>(saved_component.get())->get();
+    if (mesh_cage.runtime->edit_mesh->bm->totvert &&
+        mesh_cage.runtime->edit_data->vert_positions.is_empty())
     {
-      me_cage->runtime->edit_data->vert_positions = BM_mesh_vert_coords_alloc(
+      mesh_cage.runtime->edit_data->vert_positions = BM_mesh_vert_coords_alloc(
           mesh_input.runtime->edit_mesh->bm);
     }
     return;
