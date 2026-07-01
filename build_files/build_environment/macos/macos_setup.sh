@@ -4,6 +4,11 @@
 # Combines: Homebrew, Xcode (with Metal Toolchain), CMake, brew packages
 set -euo pipefail
 
+if [ "$(uname -m)" != "arm64" ]; then
+  echo "Only ARM64 is supported"
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Versions and packages
