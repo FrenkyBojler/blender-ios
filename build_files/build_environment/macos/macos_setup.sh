@@ -12,7 +12,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Versions and packages
-XCODE_VERSION="15"
+XCODE_VERSION="26.1.1"
 CMAKE_VERSION="3.31.12"
 
 BREW_PACKAGES=(
