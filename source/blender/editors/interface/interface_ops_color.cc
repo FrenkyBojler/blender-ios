@@ -180,12 +180,13 @@ static void colorspaces_menu_draw(const bContext *C, Menu *menu)
   }
 
   for (const ColorSpace *cs : colorspaces_at_this_level) {
-    colorspaces_menu_add_button(col,
-                                ptr,
-                                prop,
-                                IMB_colormanagement_colorspace_get_name(cs),
-                                IFACE_(IMB_colormanagement_colorspace_get_name(cs)),
-                                TIP_(IMB_colormanagement_colorspace_get_description(cs)));
+    colorspaces_menu_add_button(
+        col,
+        ptr,
+        prop,
+        IMB_colormanagement_colorspace_get_name(cs),
+        CTX_IFACE_(BLT_I18NCONTEXT_COLOR_MANAGEMENT, IMB_colormanagement_colorspace_get_name(cs)),
+        TIP_(IMB_colormanagement_colorspace_get_description(cs)));
   }
 
   if (!parent_path) {
