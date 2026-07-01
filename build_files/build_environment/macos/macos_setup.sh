@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
 # macOS build environment setup for Blender dependencies
-# Combines: Homebrew, Xcode (with Metal), CMake, brew packages
+# Combines: Homebrew, Xcode (with Metal Toolchain), CMake, brew packages
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Versions and packages
-XCODE_VERSIONS=("15.0")
+XCODE_VERSIONS=("15")
 CMAKE_VERSION="3.31.12"
 
 BREW_PACKAGES=(
@@ -102,8 +102,11 @@ install_xcode() {
             echo "Grab it (Apple account needed):"
             echo "  ${DL_URL}"
             echo "Put file at: ${XIP}"
-            echo "Then re-run script."
-            exit 1
+            echo "Waiting..."
+            until [ -f "${XIP}" ]; do
+                sleep 5
+            done
+            echo "Found. Continuing."
         fi
 
         rm -rf /tmp/Xcode.app
