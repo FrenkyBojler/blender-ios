@@ -67,6 +67,9 @@ struct ThumbnailCache {
     /* Used for strips that are IDs. We store the session UID so it stays valid
      * across undo/redo. */
     unsigned int id_session_uid = 0;
+    /* Hash of any extra data that needs to be part of source key (e.g. camera for scene
+     * strips). */
+    unsigned int extra_bits = 0;
 
     bool is_valid() const
     {
@@ -75,16 +78,9 @@ struct ThumbnailCache {
 
     uint64_t hash() const
     {
-      return get_default_hash(path, id_session_uid);
+      return get_default_hash(path, id_session_uid, extra_bits);
     }
-    friend bool operator==(const SourceKey &a, const SourceKey &b) = default;
-    bool operator<(const SourceKey &o) const
-    {
-      if (path != o.path) {
-        return path < o.path;
-      }
-      return id_session_uid < o.id_session_uid;
-    }
+    friend auto operator<=>(const SourceKey &a, const SourceKey &b) = default;
   };
 
   struct FrameEntry {
@@ -244,7 +240,21 @@ bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip)
   return false;
 }
 
-static ThumbnailCache::SourceKey get_key_from_strip(Scene *scene,
+static ThumbnailCache::SourceKey get_key_from_scene_strip(const Strip *strip)
+{
+  BLI_assert(strip->type == STRIP_TYPE_SCENE);
+  BLI_assert(strip->scene);
+  ThumbnailCache::SourceKey key = ThumbnailCache::SourceKey(&strip->scene->id);
+  if (strip->scene_camera != nullptr) {
+    key.extra_bits = key.extra_bits * 33 ^ strip->scene_camera->id.session_uid;
+  }
+  if (strip->scene_view_layer_name != nullptr) {
+    key.extra_bits = key.extra_bits * 33 ^ uint32_t(hash_string(strip->scene_view_layer_name));
+  }
+  return key;
+}
+
+static ThumbnailCache::SourceKey get_key_from_strip(const Scene *scene,
                                                     const Strip *strip,
                                                     float timeline_frame)
 {
@@ -271,8 +281,7 @@ static ThumbnailCache::SourceKey get_key_from_strip(Scene *scene,
       BLI_assert(strip->mask);
       return ThumbnailCache::SourceKey(&strip->mask->id);
     case STRIP_TYPE_SCENE:
-      BLI_assert(strip->scene);
-      return ThumbnailCache::SourceKey(&strip->scene->id);
+      return get_key_from_scene_strip(strip);
     default:
       break;
   }
@@ -834,7 +843,7 @@ void thumbnail_cache_invalidate_strip(Scene *scene, const Strip *strip)
         removed |= cache->remove_entry(ThumbnailCache::SourceKey(&strip->mask->id));
       }
       else if (strip->type == STRIP_TYPE_SCENE && strip->scene) {
-        removed |= cache->remove_entry(ThumbnailCache::SourceKey(&strip->scene->id));
+        removed |= cache->remove_entry(get_key_from_scene_strip(strip));
       }
     }
   }
