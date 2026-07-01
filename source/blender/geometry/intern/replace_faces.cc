@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <algorithm>
-
 #include "BKE_attribute.hh"
 #include "BKE_attribute_enums.hh"
 #include "BKE_attribute_filters.hh"
@@ -34,6 +32,7 @@
 #include "GEO_mesh_copy_selection.hh"
 #include "GEO_mesh_replace_faces.hh"
 #include "GEO_mesh_selection.hh"
+#include <algorithm>
 
 namespace blender::geometry {
 
@@ -172,9 +171,9 @@ static int merge_verts(const Span<float3> base_positions,
   BitVector<> selection_bits(base_faces.size());
   selection.to_bits(selection_bits);
 
-  /* Phase 1: find all candidate merges in parallel. Each candidate joins a vertex of the current
-   * part to a vertex of a different part (or a base mesh vertex); vertices of the same part are
-   * not compared. */
+  /* Find all candidate merges in parallel. Each candidate joins a vertex of the current part to a
+   * vertex of a different part (or a base mesh vertex); vertices of the same part are not
+   * compared. */
   threading::EnumerableThreadSpecific<Vector<int2>> candidates_by_thread;
   selection.foreach_index(
       [&](const int base_face_i) {
