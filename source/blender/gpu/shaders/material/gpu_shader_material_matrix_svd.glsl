@@ -86,7 +86,7 @@ void jacobi_svd_2x2(float3x3 matrix, int p, int q, out float2x2 j_left, out floa
 void jacobi_svd_3x3(float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
 {
   constexpr float convergence_epsilon = 2.0f * FLT_EPSILON;
-  constexpr float zero_threshold = FLT_MIN;
+  const float zero_threshold = FLT_MIN;
   /* Cap on Jacobi sweeps: most inputs converge in ~11 sweeps, but 80 is the
    * smallest cap at which abs max error reaches ~6.6e-6. */
   constexpr int max_sweeps = 80;
@@ -98,7 +98,7 @@ void jacobi_svd_3x3(float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
     scale = 1.0f;
   }
 
-  A = A / scale;
+  A = A * (1.0f / scale);
   U = mat3x3_identity();
   V = mat3x3_identity();
   float max_diag_entry = max(max(abs(A[0][0]), abs(A[1][1])), abs(A[2][2]));
