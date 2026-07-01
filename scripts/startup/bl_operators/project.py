@@ -37,8 +37,8 @@ ASSET_DEFAULT_NAME = "Untitled Asset"
 class AssetLibrary:
     name: str
     path: str
-    use_relative_path: bool | None
-    import_method: str | None  # Or an enum class type.
+    use_relative_path: bool
+    import_method: str
 
 
 @dataclass
@@ -49,8 +49,9 @@ class ProjectConfig:
     @staticmethod
     def new_from_project(project):
         """Create a ProjectConfig object from an existing real project."""
-        asset_list = []
-        if project.asset_libraries is not None:
+        asset_list = None
+        if len(project.asset_libraries) > 0:
+            asset_list = []
             for asset in project.asset_libraries:
                 asset_data = AssetLibrary(asset.name, asset.path, asset.use_relative_path, asset.import_method)
                 asset_list.append(asset_data)
@@ -152,7 +153,7 @@ def save_project(project, report=None):
         raise ProjectSaveException
 
     # Create a project config dict from the current project.
-    converter = cattrs.Converter()
+    converter = cattrs.Converter(omit_if_default=True)
     config = ProjectConfig.new_from_project(project)
     config_dict = converter.unstructure(config, ProjectConfig)
 
