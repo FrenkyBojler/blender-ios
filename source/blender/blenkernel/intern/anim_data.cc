@@ -1010,10 +1010,10 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
   }
 
   auto &&[old_key, new_key] = RNA_generate_keys_for_path_rename(old_infix ? old_infix : "",
-                                                         new_infix ? new_infix : "",
-                                                         oldSubscript,
-                                                         newSubscript,
-                                                         infix_is_name);
+                                                                new_infix ? new_infix : "",
+                                                                oldSubscript,
+                                                                newSubscript,
+                                                                infix_is_name);
   bool is_self_changed = false;
 
   /* Active action and temp action. */

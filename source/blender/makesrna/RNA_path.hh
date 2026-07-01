@@ -340,10 +340,11 @@ std::string RNA_path_property_py(const PointerRNA *ptr, PropertyRNA *prop, int i
  * quoted) or not.
  * \return A pair of old & new std::string keys.
  */
-std::pair<std::string, std::string> RNA_generate_keys_for_path_rename(const StringRefNull old_infix,
-                                                               const StringRefNull new_infix,
-                                                               int old_subscript,
-                                                               int new_subscript,
-                                                               bool infix_is_name);
+std::pair<std::string, std::string> RNA_generate_keys_for_path_rename(
+    const StringRefNull old_infix,
+    const StringRefNull new_infix,
+    int old_subscript,
+    int new_subscript,
+    bool infix_is_name);
 
 }  // namespace blender
