@@ -12,8 +12,8 @@
 #include "BKE_main.hh"
 
 #include "BLI_fileops.hh"
-#include "BLI_math_base.h"
 #include "BLI_listbase_iterator.hh"
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -454,10 +454,17 @@ static void attach_foreign_metadata(IDProperty *idp, SerializableObject::Retaine
       try {
         AnyDictionary metadata = std::any_cast<AnyDictionary>(dict);
         clip->metadata()[prop->name] = metadata;
-        CLOG_INFO(&LOG, "Attached Foreign Metadata with Key : '%s' to '%s' Clip", prop->name, clip->name().c_str());
+        CLOG_INFO(&LOG,
+                  "Attached Foreign Metadata with Key : '%s' to '%s' Clip",
+                  prop->name,
+                  clip->name().c_str());
       }
       catch (const std::bad_any_cast & /*e*/) {
-        CLOG_ERROR(&LOG, "Unable to Cast Foreign Metadata with Key : '%s' to AnyDictionary while attaching to '%s' Clip", prop->name, clip->name().c_str());
+        CLOG_ERROR(&LOG,
+                   "Unable to Cast Foreign Metadata with Key : '%s' to AnyDictionary while "
+                   "attaching to '%s' Clip",
+                   prop->name,
+                   clip->name().c_str());
         return;
       }
     }
@@ -720,7 +727,10 @@ static void add_strip_metadata_color(const Strip *strip, SerializableObject::Ret
   }
 }
 
-static void add_modifier_metadata_to_container(AnyDictionary &metadata, AnyVector &container, StripModifierData &smd) {
+static void add_modifier_metadata_to_container(AnyDictionary &metadata,
+                                               AnyVector &container,
+                                               StripModifierData &smd)
+{
   AnyDictionary parent;
   parent["data"] = metadata;
   parent["name"] = std::string(smd.name);
@@ -747,12 +757,29 @@ static void add_modifier_metadata_color_balance(StripModifierData &smd, AnyVecto
   metadata["color_multiply"] = static_cast<double>(cbmd->color_multiply);
   metadata["method"] = static_cast<int64_t>(cbmd->color_balance.method);
   metadata["flag"] = static_cast<int64_t>(cbmd->color_balance.flag);
-  metadata["lift"] = AnyVector {static_cast<double>(cbmd->color_balance.lift[0]), static_cast<double>(cbmd->color_balance.lift[1]), static_cast<double>(cbmd->color_balance.lift[2])};
-  metadata["gamma"] = AnyVector {static_cast<double>(cbmd->color_balance.gamma[0]), static_cast<double>(cbmd->color_balance.gamma[1]), static_cast<double>(cbmd->color_balance.gamma[2])};
-  metadata["gain"] = AnyVector {static_cast<double>(cbmd->color_balance.gain[0]), static_cast<double>(cbmd->color_balance.gain[1]), static_cast<double>(cbmd->color_balance.gain[2])};
-  metadata["slope"] = AnyVector {static_cast<double>(cbmd->color_balance.slope[0]), static_cast<double>(cbmd->color_balance.slope[1]), static_cast<double>(cbmd->color_balance.slope[2])};
-  metadata["offset"] = AnyVector {static_cast<double>(cbmd->color_balance.offset[0]), static_cast<double>(cbmd->color_balance.offset[1]), static_cast<double>(cbmd->color_balance.offset[2])};
-  metadata["power"] = AnyVector {static_cast<double>(cbmd->color_balance.power[0]), static_cast<double>(cbmd->color_balance.power[1]), static_cast<double>(cbmd->color_balance.power[2])};
+  metadata["lift"] = AnyVector{static_cast<double>(cbmd->color_balance.lift[0]),
+                               static_cast<double>(cbmd->color_balance.lift[1]),
+                               static_cast<double>(cbmd->color_balance.lift[2])};
+
+  metadata["gamma"] = AnyVector{static_cast<double>(cbmd->color_balance.gamma[0]),
+                                static_cast<double>(cbmd->color_balance.gamma[1]),
+                                static_cast<double>(cbmd->color_balance.gamma[2])};
+
+  metadata["gain"] = AnyVector{static_cast<double>(cbmd->color_balance.gain[0]),
+                               static_cast<double>(cbmd->color_balance.gain[1]),
+                               static_cast<double>(cbmd->color_balance.gain[2])};
+
+  metadata["slope"] = AnyVector{static_cast<double>(cbmd->color_balance.slope[0]),
+                                static_cast<double>(cbmd->color_balance.slope[1]),
+                                static_cast<double>(cbmd->color_balance.slope[2])};
+
+  metadata["offset"] = AnyVector{static_cast<double>(cbmd->color_balance.offset[0]),
+                                 static_cast<double>(cbmd->color_balance.offset[1]),
+                                 static_cast<double>(cbmd->color_balance.offset[2])};
+
+  metadata["power"] = AnyVector{static_cast<double>(cbmd->color_balance.power[0]),
+                                static_cast<double>(cbmd->color_balance.power[1]),
+                                static_cast<double>(cbmd->color_balance.power[2])};
 
   add_modifier_metadata_to_container(metadata, container, smd);
 }
@@ -777,7 +804,9 @@ static void add_modifier_metadata_white_balance(StripModifierData &smd, AnyVecto
 {
   const WhiteBalanceModifierData *wbmd = reinterpret_cast<WhiteBalanceModifierData *>(&smd);
   AnyDictionary metadata;
-  metadata["white_value"] = AnyVector {static_cast<double>(wbmd->white_value[0]), static_cast<double>(wbmd->white_value[1]), static_cast<double>(wbmd->white_value[2])};
+  metadata["white_value"] = AnyVector{static_cast<double>(wbmd->white_value[0]),
+                                      static_cast<double>(wbmd->white_value[1]),
+                                      static_cast<double>(wbmd->white_value[2])};
 
   add_modifier_metadata_to_container(metadata, container, smd);
 }
@@ -791,7 +820,7 @@ static void add_strip_metadata_modifiers(const Strip *strip, SerializableObject:
 
   AnyVector container;
 
-  for(StripModifierData &smd : strip->modifiers) {
+  for (StripModifierData &smd : strip->modifiers) {
     switch (smd.type) {
       case eSeqModifierType_BrightContrast:
         add_modifier_metadata_brightness_contrast(smd, container);
@@ -844,8 +873,7 @@ void add_strip_metadata(const Strip *strip, SerializableObject::Retainer<T> &cli
 }
 
 /* Force instantiate `add_strip_metadata<Stack>`. */
-template void add_strip_metadata(const Strip *strip,
-                                        SerializableObject::Retainer<Stack> &clip);
+template void add_strip_metadata(const Strip *strip, SerializableObject::Retainer<Stack> &clip);
 
 void StripExporter::add_gap_if_necessary()
 {
@@ -968,7 +996,9 @@ void ImageStripExporter::export_strip(
   else {
     /* Image Sequence. */
     if (!strip_->data || !strip_->data->stripdata) {
-      CLOG_ERROR(&LOG, "Exporting the Image (Sequence) Strip '%s' with Missing Reference...", strip_->name + 2);
+      CLOG_ERROR(&LOG,
+                 "Exporting the Image (Sequence) Strip '%s' with Missing Reference...",
+                 strip_->name + 2);
       export_with_missing_reference(single_input_effects);
       return;
     }
@@ -994,11 +1024,15 @@ void ImageStripExporter::export_strip(
       BLI_path_extension_strip(name_prefix);
       BLI_strncat(name_prefix, ".", sizeof(name_prefix));
 
-      CLOG_WARN(&LOG, "The Strip '%s' contains Image Sequence with Non-Sequenced Image Names", strip_->name + 2);
+      CLOG_WARN(&LOG,
+                "The Strip '%s' contains Image Sequence with Non-Sequenced Image Names",
+                strip_->name + 2);
 
       switch (export_params->img_sequence_fallback) {
         case ImgSeqFallback::RenderMovie: {
-          CLOG_INFO(&LOG, "Exporting the Image (Sequence) Strip '%s' as a Rendered Movie...", strip_->name + 2);
+          CLOG_INFO(&LOG,
+                    "Exporting the Image (Sequence) Strip '%s' as a Rendered Movie...",
+                    strip_->name + 2);
 
           auto exporter = RenderAsMovieExporter(strip_, scene_, track_, last_strip_end, filepath_);
           exporter.export_strip(bmain, export_params, single_input_effects);
@@ -1006,7 +1040,8 @@ void ImageStripExporter::export_strip(
           return;
         }
         case ImgSeqFallback::Rename: {
-          CLOG_INFO(&LOG, "Renaming the Images of the Image (Sequence) Strip '%s'...", strip_->name + 2);
+          CLOG_INFO(
+              &LOG, "Renaming the Images of the Image (Sequence) Strip '%s'...", strip_->name + 2);
 
           img_sequence_rename(se, target_url_base, img_count, padding);
           break;
@@ -1014,7 +1049,10 @@ void ImageStripExporter::export_strip(
 
 #ifndef WIN32
         case ImgSeqFallback::Symlink: {
-          CLOG_INFO(&LOG, "Creating Symbolic Links (Symlinks) for Images in the Image (Sequence) Strip '%s'...", strip_->name + 2);
+          CLOG_INFO(&LOG,
+                    "Creating Symbolic Links (Symlinks) for Images in the Image (Sequence) Strip "
+                    "'%s'...",
+                    strip_->name + 2);
 
           img_sequence_create_symlinks(se, target_url_base, img_count, padding);
           break;
@@ -1027,7 +1065,9 @@ void ImageStripExporter::export_strip(
     }
     else {
       if (!BLI_path_frame_get(se->filename, &start_frame_nr, &padding)) {
-        CLOG_ERROR(&LOG, "Exporting the Image (Sequence) Strip '%s' with Missing Reference...", strip_->name + 2);
+        CLOG_ERROR(&LOG,
+                   "Exporting the Image (Sequence) Strip '%s' with Missing Reference...",
+                   strip_->name + 2);
         export_with_missing_reference(single_input_effects);
         return;
       }

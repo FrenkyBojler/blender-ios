@@ -11,16 +11,16 @@
 #  include <cerrno>
 #  include <cstring>
 
-#  include "DNA_space_enums.h"
 #  include "DNA_sequence_types.h"
+#  include "DNA_space_enums.h"
 #  include "DNA_windowmanager_enums.h"
 
 #  include "BKE_context.hh"
 #  include "BKE_file_handler.hh"
 #  include "BKE_report.hh"
 
-#  include "BLI_path_utils.hh"
 #  include "BLI_listbase.h"
+#  include "BLI_path_utils.hh"
 #  include "BLI_string_utf8.h"
 
 #  include "BLT_translation.hh"
@@ -190,7 +190,7 @@ bool wm_otio_export_poll(bContext *C)
   if (!scene || !editing || BLI_listbase_is_empty(&editing->seqbase)) {
     return false;
   }
-  
+
   return true;
 }
 
