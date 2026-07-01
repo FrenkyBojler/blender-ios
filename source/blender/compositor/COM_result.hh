@@ -729,8 +729,7 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
       case Interpolation::Anisotropic:
         BLI_assert(type_ == ResultType::Color);
         if (jacobian.has_value()) {
-          EWASamplingData sampling_data = EWASamplingData{
-              *this, extension_mode_x, extension_mode_y};
+          EWASamplingData sampling_data = EWASamplingData{*this, extension_mode_x, extension_mode_y};
           BLI_ewa_filter(size.x,
                          size.y,
                          false,
@@ -741,10 +740,8 @@ BLI_INLINE_METHOD T Result::sample(const float2 &coordinates,
                          sample_ewa_read_callback,
                          &sampling_data,
                          output,
-                         extension_mode_x == Extension::Clip &&
-                             extension_mode_y == Extension::Clip);
-        }
-        else {
+                         extension_mode_x == Extension::Clip && extension_mode_y == Extension::Clip);
+        } else {
           math::interpolate_bilinear_wrapmode_fl(buffer,
                                                  output,
                                                  size.x,
