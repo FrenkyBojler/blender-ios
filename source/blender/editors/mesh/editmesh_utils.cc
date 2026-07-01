@@ -335,7 +335,8 @@ void EDBM_mesh_make_from_mesh(Object *ob,
     BKE_attributes_active_set(owner, active_attribute_name);
   }
   else {
-    BLI_assert(mesh->attributes_active_index == -1);
+    /* 0 can happen for newly crated meshes */
+    BLI_assert(mesh->attributes_active_index == -1 || mesh->attributes_active_index == 0);
   }
 }
 
