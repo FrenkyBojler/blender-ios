@@ -168,10 +168,14 @@ class GLBackend : public GPUBackend {
 
   TopLevelAS *tlas_alloc(const char * /*name*/) override
   {
+    /* OpenGL doesn't support Ray Queries. */
+    BLI_assert_unreachable();
     return nullptr;
   }
   BottomLevelAS *blas_alloc(const char * /*name*/) override
   {
+    /* OpenGL doesn't support Ray Queries. */
+    BLI_assert_unreachable();
     return nullptr;
   }
 

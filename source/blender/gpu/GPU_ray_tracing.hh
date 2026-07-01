@@ -38,8 +38,11 @@ class TopLevelAS {
   }
 
  public:
-  virtual ~TopLevelAS() {}
+  virtual ~TopLevelAS() = default;
 
+  /* NOTE: Returns nullopt if the TLAS surpasses the max number of allowed instances.
+   * https://vulkan.gpuinfo.org/displayextensionproperty.php?extensionname=VK_KHR_acceleration_structure&extensionproperty=maxInstanceCount&platform=all
+   */
   virtual std::optional<InstanceID> add_instance(const BottomLevelAS &blas,
                                                  const float4x4 &mat,
                                                  uint8_t mask = 0xFF) = 0;
@@ -66,9 +69,8 @@ class BottomLevelAS {
   }
 
  public:
-  virtual ~BottomLevelAS() {}
+  virtual ~BottomLevelAS() = default;
 
- public:
   /**
    * Add geometry to the BLAS.
    *

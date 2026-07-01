@@ -73,6 +73,7 @@ std::optional<InstanceID> VKTopLevelAS::add_instance(const BottomLevelAS &blas_,
   }
 
   InstanceID instance_id = {max_primitive_count_};
+  /* The API order is row major. Transpose the matrix. */
   instances_.append({
       {{{mat.x.x, mat.y.x, mat.z.x, mat.w.x},
         {mat.x.y, mat.y.y, mat.z.y, mat.w.y},
@@ -98,6 +99,7 @@ bool VKTopLevelAS::update_instance(InstanceID instance_id, const float4x4 &mat, 
   }
 
   VkAccelerationStructureInstanceKHR &instance = instances_[instance_id.id];
+  /* The API order is row major. Transpose the matrix. */
   instance.transform.matrix[0][0] = mat.x.x;
   instance.transform.matrix[0][1] = mat.y.x;
   instance.transform.matrix[0][2] = mat.z.x;
