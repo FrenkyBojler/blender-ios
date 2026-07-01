@@ -1226,8 +1226,9 @@ TEST(path_utils, FrameGet)
 
   /* Check int overflow scenario. */
   PATH_FRAME_GET("1234567890.png", 1234567890, 10, true);
-  PATH_FRAME_GET("12345678901.png", -1, 0, false);
+  PATH_FRAME_GET("12345678901.png", -1, 11, false);
 
+  PATH_FRAME_GET("nonum.abc", -1, 0, false);
   PATH_FRAME_GET("", -1, -1, false);
 }
 #undef PATH_FRAME_GET

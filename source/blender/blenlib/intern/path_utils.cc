@@ -1024,6 +1024,8 @@ bool BLI_path_frame_get(const char *path, int *r_frame, int *r_digits_len)
     return false;
   }
 
+  *r_digits_len = digits_len;
+
   /* Only consider numbers inside the range of valid framenumbers (ints). */
   /* No need to trim the string, `strtoll` ignores non-digits. */
   const long long num = strtoll(c, nullptr, 10);
@@ -1032,7 +1034,6 @@ bool BLI_path_frame_get(const char *path, int *r_frame, int *r_digits_len)
   }
 
   *r_frame = int(num);
-  *r_digits_len = digits_len;
   return true;
 }
 
