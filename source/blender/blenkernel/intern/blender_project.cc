@@ -10,7 +10,7 @@
 #include <shared_mutex>
 
 #include "BKE_preferences.h"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 
 #include "BKE_blender_project.hh"
 #include "BKE_global.hh"
