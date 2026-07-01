@@ -5400,9 +5400,7 @@ static int do_but_TEX(
       }
     }
     else if (event->type == LEFTMOUSE && event->val == KM_DBL_CLICK &&
-             but->type == ButtonType::Text &&
-             ELEM(but->emboss, EmbossType::None, EmbossType::NoneOrStatus) &&
-             static_cast<ButtonText *>(but)->use_label_style)
+             but->type == ButtonType::Text && static_cast<ButtonText *>(but)->use_label_style)
     {
       button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
       return WM_UI_HANDLER_BREAK;
