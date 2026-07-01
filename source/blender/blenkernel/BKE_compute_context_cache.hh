@@ -32,6 +32,9 @@ class ComputeContextCache {
       data_block_contexts_cache_;
   Map<std::pair<const ComputeContext *, int>, const ModifierComputeContext *>
       modifier_contexts_cache_;
+  Map<std::pair<const ComputeContext *, std::string>,
+      const SceneCompositorModifierComputeContext *>
+      scene_compositor_modifier_contexts_cache_;
   Map<const ComputeContext *, const OperatorComputeContext *> operator_contexts_cache_;
   Map<const ComputeContext *, const ShaderComputeContext *> shader_contexts_cache_;
   Map<std::pair<const ComputeContext *, int32_t>, const GroupNodeComputeContext *>
@@ -55,6 +58,9 @@ class ComputeContextCache {
   const ModifierComputeContext &for_modifier(const ComputeContext *parent,
                                              const NodesModifierData &nmd);
   const ModifierComputeContext &for_modifier(const ComputeContext *parent, int modifier_uid);
+
+  const SceneCompositorModifierComputeContext &for_modifier(
+      const ComputeContext *parent, const SceneCompositorModifier &modifier);
 
   const OperatorComputeContext &for_operator(const ComputeContext *parent);
   const OperatorComputeContext &for_operator(const ComputeContext *parent, const bNodeTree &tree);

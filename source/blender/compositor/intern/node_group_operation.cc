@@ -89,7 +89,7 @@ void NodeGroupOperation::execute()
   const ScopedNodeGroupTimer node_group_timer{compute_context_,
                                               this->context().nodes_evaluation_log()};
   const Schedule schedule = compute_schedule(this->context(),
-                                             node_group_,
+                                             this->node_group(),
                                              *this,
                                              needed_output_types_,
                                              instance_key_,
@@ -120,10 +120,15 @@ void NodeGroupOperation::execute()
   this->allocate_default_remaining_outputs();
 }
 
+const bNodeTree &NodeGroupOperation::node_group() const
+{
+  return node_group_;
+}
+
 void NodeGroupOperation::evaluate_node(const bNode &node, CompileState &compile_state)
 {
   NodeOperation *operation = this->get_node_operation(node);
-  operation->set_instance_key(bke::node_instance_key(instance_key_, &node_group_, &node));
+  operation->set_instance_key(bke::node_instance_key(instance_key_, &this->node_group(), &node));
   operation->set_compute_context(compute_context_);
 
   /* Only compute previews if the node group is currently being viewed. */

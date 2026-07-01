@@ -5,6 +5,7 @@
 #include <cstring>
 #include <string>
 
+#include "BKE_compositor.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_utils.hh"
@@ -204,13 +205,20 @@ class Context : public compositor::Context {
       return false;
     }
 
-    /* Node tree is not time depend, so no need to cache. */
-    const bNodeTree *original_node_tree = DEG_get_original(&input_data_.node_tree);
-    if (!original_node_tree->runtime->eval_dependencies->time_dependent) {
-      return false;
+    /* Only cache if any of the modifiers are time dependent. */
+    for (const SceneCompositorModifier &modifier : input_data_.scene.compositor_modifiers) {
+      if (!bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Preview))
+      {
+        continue;
+      }
+
+      const bNodeTree *original_node_tree = DEG_get_original(modifier.node_group);
+      if (original_node_tree->runtime->eval_dependencies->time_dependent) {
+        return true;
+      }
     }
 
-    return true;
+    return false;
   }
 
   void write_viewer_image(const compositor::Result &viewer_result)
@@ -683,87 +691,105 @@ class Context : public compositor::Context {
         std::make_unique<nodes::eval_log::NodesEvalLog>();
 
     using namespace compositor;
-    const NodeGroupOutputTypes needed_outputs = this->needed_outputs();
-    const bNodeTree &node_group = input_data_.node_tree;
-    const bke::DataBlockComputeContext compute_context(nullptr, this->get_scene().id);
-    NodeGroupOperation node_group_operation(*this,
-                                            node_group,
-                                            needed_outputs,
-                                            node_group.active_viewer_key,
-                                            bke::NODE_INSTANCE_KEY_BASE,
-                                            compute_context);
+    const NodeGroupOutputTypes needed_outputs = this->needed_outputs() |
+                                                NodeGroupOutputTypes::GroupOutputNode;
 
-    /* Set the reference count for the outputs, only the first color output is actually needed,
-     * while the rest are ignored. */
-    const bool is_group_output_needed = flag_is_set(needed_outputs,
-                                                    NodeGroupOutputTypes::GroupOutputNode);
-    node_group.ensure_interface_cache();
-    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
-      const bool is_first_output = output_socket == node_group.interface_outputs().first();
-      Result &output_result = node_group_operation.get_result(output_socket->identifier);
-      const bool is_color = output_result.type() == ResultType::Color;
-      const bool is_needed = is_group_output_needed && is_first_output && is_color;
-      output_result.set_reference_count(is_needed ? 1 : 0);
-    }
+    const bke::DataBlockComputeContext scene_compute_context(nullptr, this->get_scene().id);
 
-    /* Map the inputs to the operation. */
-    Vector<std::unique_ptr<Result>> inputs;
-    for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
-      Result *input_result = new Result(
-          this->create_result(ResultType::Color, ResultPrecision::Full));
-      if (input_socket == node_group.interface_inputs()[0]) {
-        /* First socket is the combined pass. */
-        Result combined_pass = this->get_pass(&this->get_scene(), 0, "Image");
-        if (combined_pass.is_allocated()) {
-          input_result->share_data(combined_pass);
-        }
-        else {
+    const bke::compositor::ExecutionMode execution_mode =
+        this->render_context() ? bke::compositor::ExecutionMode::Render :
+                                 bke::compositor::ExecutionMode::Preview;
+    std::unique_ptr<NodeGroupOperation> last_operation;
+    for (const SceneCompositorModifier &modifier : input_data_.scene.compositor_modifiers) {
+      if (!bke::compositor::is_modifier_enabled(modifier, execution_mode)) {
+        continue;
+      }
+
+      const bke::SceneCompositorModifierComputeContext modifier_compute_context(
+          &scene_compute_context, modifier);
+
+      const bNodeTree &node_group = *modifier.node_group;
+      NodeGroupOperation *modifier_operation = new NodeGroupOperation(*this,
+                                                                      node_group,
+                                                                      needed_outputs,
+                                                                      node_group.active_viewer_key,
+                                                                      bke::NODE_INSTANCE_KEY_BASE,
+                                                                      modifier_compute_context);
+
+      /* Set the reference count for the outputs, only the first color output is actually needed,
+       * while the rest are ignored. */
+      const bool is_group_output_needed = flag_is_set(needed_outputs,
+                                                      NodeGroupOutputTypes::GroupOutputNode);
+      node_group.ensure_interface_cache();
+      for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
+        const bool is_first_output = output_socket == node_group.interface_outputs().first();
+        Result &output_result = modifier_operation->get_result(output_socket->identifier);
+        const bool is_color = output_result.type() == ResultType::Color;
+        const bool is_needed = is_group_output_needed && is_first_output && is_color;
+        output_result.set_reference_count(is_needed ? 1 : 0);
+      }
+
+      /* Map the inputs to the operation. */
+      Vector<std::unique_ptr<Result>> temporary_inputs;
+      for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
+        /* Only the first socket is supported. */
+        if (input_socket != node_group.interface_inputs().first()) {
+          Result *input_result = new Result(
+              this->create_result(ResultType::Color, ResultPrecision::Full));
           input_result->allocate_invalid();
+          modifier_operation->map_input_to_result(input_socket->identifier, input_result);
+          temporary_inputs.append(std::unique_ptr<Result>(input_result));
+          continue;
         }
-        combined_pass.release();
-      }
-      else {
-        /* The rest of the sockets are not supported. */
-        input_result->allocate_invalid();
+
+        /* If a last operation exists, link its output. */
+        if (last_operation) {
+          const bNodeTreeInterfaceSocket *last_operation_output =
+              last_operation->node_group().interface_outputs().first();
+          Result &output_result = last_operation->get_result(last_operation_output->identifier);
+          modifier_operation->map_input_to_result(input_socket->identifier, &output_result);
+          continue;
+        }
+
+        /* Otherwise, we link the combined pass. */
+        Result *combined_pass = new Result(this->get_pass(&this->get_scene(), 0, "Image"));
+        modifier_operation->map_input_to_result(input_socket->identifier, combined_pass);
+        temporary_inputs.append(std::unique_ptr<Result>(combined_pass));
       }
 
-      node_group_operation.map_input_to_result(input_socket->identifier, input_result);
-      inputs.append(std::unique_ptr<Result>(input_result));
+      modifier_operation->evaluate();
+
+      last_operation.reset(modifier_operation);
     }
 
-    node_group_operation.evaluate();
+    /* Write the output of the last operation. */
+    const bNodeTreeInterfaceSocket *last_operation_output =
+        last_operation->node_group().interface_outputs()[0];
+    Result &output_result = last_operation->get_result(last_operation_output->identifier);
 
-    /* Write the outputs of the operation. */
-    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
-      Result &output_result = node_group_operation.get_result(output_socket->identifier);
-      if (!output_result.should_compute()) {
-        continue;
-      }
-
-      if (this->is_canceled()) {
-        output_result.release();
-        continue;
-      }
-
-      /* Realize the output on the compositing domain if needed. */
-      const Domain compositing_domain = this->get_compositing_domain();
-      const InputDescriptor input_descriptor = {ResultType::Color,
-                                                InputRealizationMode::OperationDomain};
-      SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
-          *this, output_result, input_descriptor, compositing_domain);
-      if (realization_operation) {
-        realization_operation->map_input_to_result(&output_result);
-        realization_operation->evaluate();
-        Result &realized_output_result = realization_operation->get_result();
-        this->write_output(realized_output_result);
-        realized_output_result.release();
-        delete realization_operation;
-        continue;
-      }
-
-      this->write_output(output_result);
+    if (this->is_canceled()) {
       output_result.release();
+      return;
     }
+
+    /* Realize the output on the compositing domain if needed. */
+    const Domain compositing_domain = this->get_compositing_domain();
+    const InputDescriptor input_descriptor = {ResultType::Color,
+                                              InputRealizationMode::OperationDomain};
+    SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+        *this, output_result, input_descriptor, compositing_domain);
+    if (realization_operation) {
+      realization_operation->map_input_to_result(&output_result);
+      realization_operation->evaluate();
+      Result &realized_output_result = realization_operation->get_result();
+      this->write_output(realized_output_result);
+      realized_output_result.release();
+      delete realization_operation;
+      return;
+    }
+
+    this->write_output(output_result);
+    output_result.release();
   }
 };
 

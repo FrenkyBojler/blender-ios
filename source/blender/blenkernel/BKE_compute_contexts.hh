@@ -27,6 +27,7 @@ namespace blender {
 struct bNode;
 struct bNodeTree;
 struct NodesModifierData;
+struct SceneCompositorModifier;
 struct ID;
 
 namespace nodes {
@@ -80,6 +81,25 @@ class ModifierComputeContext : public ComputeContext {
   const NodesModifierData *nmd() const
   {
     return nmd_;
+  }
+
+ private:
+  ComputeContextHash compute_hash() const override;
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+class SceneCompositorModifierComputeContext : public ComputeContext {
+ private:
+  /** The modifier data that this context is for. */
+  const SceneCompositorModifier &modifier_;
+
+ public:
+  SceneCompositorModifierComputeContext(const ComputeContext *parent,
+                                        const SceneCompositorModifier &modifier);
+
+  const SceneCompositorModifier &modifier() const
+  {
+    return modifier_;
   }
 
  private:

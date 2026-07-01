@@ -367,6 +367,12 @@ static void scene_copy_data(Main *bmain,
 
   BKE_scene_copy_data_eevee(scene_dst, scene_src);
 
+  scene_dst->compositor_modifiers.clear_no_delete();
+  for (const SceneCompositorModifier &modifier : scene_src->compositor_modifiers) {
+    SceneCompositorModifier *new_modifier = MEM_dupalloc(&modifier);
+    BLI_addtail(&scene_dst->compositor_modifiers, new_modifier);
+  }
+
   scene_dst->runtime = MEM_new<SceneRuntime>(__func__);
 }
 
@@ -442,6 +448,8 @@ static void scene_free_data(ID *id)
     IDP_FreeProperty(scene->display.shading.prop);
     scene->display.shading.prop = nullptr;
   }
+
+  scene->compositor_modifiers.free_no_destruct();
 
   /* These are freed on `do_versions`. */
   BLI_assert(scene->layer_properties == nullptr);
@@ -862,6 +870,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->clip, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->gpd, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->r.bake.cage_object, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->compositing_node_group, IDWALK_CB_USER);
 
   for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, modifier.node_group, IDWALK_CB_USER);
@@ -1300,6 +1309,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   BKE_screen_view3d_shading_blend_write(writer, &sce->display.shading);
 
+  writer->write_struct_list(&sce->compositor_modifiers);
+
   /* Freed on `do_versions()`. */
   BLI_assert(sce->layer_properties == nullptr);
 }
@@ -1541,6 +1552,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_struct(reader, IDProperty, &sce->layer_properties);
   IDP_BlendDataRead(reader, &sce->layer_properties);
+
+  BLO_read_struct_list(reader, SceneCompositorModifier, &sce->compositor_modifiers);
 }
 
 /* patch for missing scene IDs, can't be in do-versions */

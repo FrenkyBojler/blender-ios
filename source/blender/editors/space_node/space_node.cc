@@ -28,6 +28,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_asset.hh"
+#include "BKE_compositor.hh"
 #include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
@@ -336,7 +337,8 @@ std::optional<nodes::FoundNestedNodeID> find_nested_node_id_in_root(
   return found;
 }
 
-std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &snode)
+std::optional<ObjectAndModifier> get_geometry_nodes_modifier_for_node_editor(
+    const SpaceNode &snode)
 {
   if (snode.node_tree_sub_type != SNODE_GEOMETRY_MODIFIER) {
     return std::nullopt;
@@ -384,7 +386,8 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
                                                 const Object &object,
                                                 const NodesModifierData &nmd)
 {
-  const std::optional<ObjectAndModifier> object_and_modifier = get_modifier_for_node_editor(snode);
+  const std::optional<ObjectAndModifier> object_and_modifier =
+      get_geometry_nodes_modifier_for_node_editor(snode);
   if (!object_and_modifier) {
     return false;
   }
@@ -393,6 +396,39 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
     return false;
   }
   return object_and_modifier->nmd->modifier.persistent_uid == nmd.modifier.persistent_uid;
+}
+
+struct SceneAndCompositorModifier {
+  const Scene *scene = nullptr;
+  const SceneCompositorModifier *modifier = nullptr;
+};
+
+static std::optional<SceneAndCompositorModifier> get_scene_compositor_modifier_for_node_editor(
+    const SpaceNode &space_node)
+{
+  if (space_node.node_tree_sub_type != SNODE_COMPOSITOR_SCENE) {
+    return std::nullopt;
+  }
+
+  if (!space_node.id) {
+    return std::nullopt;
+  }
+
+  if (GS(space_node.id->name) != ID_SCE) {
+    return std::nullopt;
+  }
+
+  const Scene *scene = id_cast<Scene *>(space_node.id);
+  if (space_node.flag & SNODE_PIN) {
+    for (const SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+      if (modifier.node_group == space_node.nodetree) {
+        return SceneAndCompositorModifier(scene, &modifier);
+      }
+    }
+    return std::nullopt;
+  }
+
+  return SceneAndCompositorModifier(scene, bke::compositor::get_active_modifier(scene));
 }
 
 const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,
@@ -494,7 +530,7 @@ static const ComputeContext *get_node_editor_root_compute_context(
     switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
       case SNODE_GEOMETRY_MODIFIER: {
         std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
-            ed::space_node::get_modifier_for_node_editor(snode);
+            ed::space_node::get_geometry_nodes_modifier_for_node_editor(snode);
         if (!object_and_modifier) {
           return nullptr;
         }
@@ -511,11 +547,14 @@ static const ComputeContext *get_node_editor_root_compute_context(
   if (snode.nodetree->type == NTREE_COMPOSIT) {
     switch (SpaceNodeCompositorNodesType(snode.node_tree_sub_type)) {
       case SNODE_COMPOSITOR_SCENE: {
-        const Scene *scene = reinterpret_cast<Scene *>(snode.id);
-        if (!scene) {
+        std::optional<SceneAndCompositorModifier> scene_and_modifier =
+            ed::space_node::get_scene_compositor_modifier_for_node_editor(snode);
+        if (!scene_and_modifier) {
           return nullptr;
         }
-        return &compute_context_cache.for_data_block(nullptr, scene->id);
+        const bke::DataBlockComputeContext &scene_context = compute_context_cache.for_data_block(
+            nullptr, scene_and_modifier->scene->id);
+        return &compute_context_cache.for_modifier(&scene_context, *scene_and_modifier->modifier);
       }
       case SNODE_COMPOSITOR_SEQUENCER: {
         return nullptr;

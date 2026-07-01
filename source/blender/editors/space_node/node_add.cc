@@ -2050,6 +2050,8 @@ static wmOperatorStatus new_scene_compositor_modifier_node_group_exec(bContext *
   active_modifier->node_group = node_group;
 
   // TODO: Updates.
+  DEG_relations_tag_update(bmain);
+  BKE_main_ensure_invariants(*bmain, active_modifier->node_group->id);
   WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
   return OPERATOR_FINISHED;
 }

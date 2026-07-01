@@ -1355,12 +1355,10 @@ static void do_render_compositor(Render *re)
         compositor::RenderContext compositor_render_context;
         compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         for (RenderView &rv : re->result->views) {
-          bNodeTree *ntree = re->pipeline_scene_eval->compositing_node_group;
           RE_compositor_execute(render::CompositorInputData(*re,
                                                             *re->main,
                                                             *re->pipeline_scene_eval,
                                                             re->r,
-                                                            *ntree,
                                                             rv.name,
                                                             &compositor_render_context,
                                                             needed_outputs,

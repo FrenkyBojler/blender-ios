@@ -78,6 +78,22 @@ void ModifierComputeContext::print_current_in_line(std::ostream &stream) const
   }
 }
 
+SceneCompositorModifierComputeContext::SceneCompositorModifierComputeContext(
+    const ComputeContext *parent, const SceneCompositorModifier &modifier)
+    : ComputeContext(parent), modifier_(modifier)
+{
+}
+
+ComputeContextHash SceneCompositorModifierComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "SCENE_COMPOSITOR_MODIFIER", modifier_.name);
+}
+
+void SceneCompositorModifierComputeContext::print_current_in_line(std::ostream &stream) const
+{
+  stream << "Scene Compositor Modifier: " << modifier_.name;
+}
+
 NodeComputeContext::NodeComputeContext(const ComputeContext *parent,
                                        int32_t node_id,
                                        const bNodeTree *tree)
@@ -305,6 +321,15 @@ const ModifierComputeContext &ComputeContextCache::for_modifier(const ComputeCon
   return *modifier_contexts_cache_.lookup_or_add_cb(std::pair{parent, modifier_uid}, [&]() {
     return &this->for_any_uncached<ModifierComputeContext>(parent, modifier_uid);
   });
+}
+
+const SceneCompositorModifierComputeContext &ComputeContextCache::for_modifier(
+    const ComputeContext *parent, const SceneCompositorModifier &modifier)
+{
+  return *scene_compositor_modifier_contexts_cache_.lookup_or_add_cb(
+      std::pair{parent, modifier.name}, [&]() {
+        return &this->for_any_uncached<SceneCompositorModifierComputeContext>(parent, modifier);
+      });
 }
 
 const OperatorComputeContext &ComputeContextCache::for_operator(const ComputeContext *parent)

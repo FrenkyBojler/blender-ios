@@ -129,6 +129,9 @@ class NodeGroupOperation : public Operation {
   /* Compile and evaluate the node group. */
   void execute() override;
 
+  /* Compile and evaluate the node group. */
+  const bNodeTree &node_group() const;
+
  private:
   /* Compile the given node into a node operation, map each input to the result of the output
    * linked to it, update the compile state, add the newly created operation to the operations
