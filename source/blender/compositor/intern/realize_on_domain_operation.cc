@@ -66,7 +66,6 @@ struct RealizeOnDomainOperation::Options {
   Extension extension_mode_x;
   Extension extension_mode_y;
   float3x3 transformation;
-  bool no_jacobian; /* indicates derivatives of 1 texel can be used */
 };
 
 void RealizeOnDomainOperation::execute()
@@ -116,19 +115,18 @@ void RealizeOnDomainOperation::execute()
   float2 wh = hypot_fast(options.transformation[0].xy(), options.transformation[1].xy());
 
   /* select faster interpolation if possible */
-  bool box = options.interpolation == Interpolation::Bilinear ||
-    options.interpolation == Interpolation::Anisotropic;
-  if (wh[0] < 1.1f && wh[1] < 1.1f) {
-    options.no_jacobian = true;
-    if (box && /* also cubic or sync or other interpolating filter */
-        is_int(options.transformation, 0) && is_int(options.transformation, 1)) {
-      options.interpolation = Interpolation::Nearest;
-    }
-  } else {
-    options.no_jacobian =
-      (box &&
-       (wh[0] < 1.1f || (wh[0] < 2.1f && is_int(options.transformation, 0))) &&
-       (wh[1] < 1.1f || (wh[1] < 2.1f && is_int(options.transformation, 1))));
+  if ((options.interpolation == Interpolation::Bilinear ||
+       options.interpolation == Interpolation::Anisotropic) &&
+      wh[0] < 1.1f && wh[1] < 1.1f && is_int(options.transformation, 0) &&
+      is_int(options.transformation, 1))
+  {
+    options.interpolation = Interpolation::Nearest;
+  }
+  else if (options.interpolation == Interpolation::Anisotropic &&
+           (wh[0] < 1.1f || (wh[0] < 2.1f && is_int(options.transformation, 0))) &&
+           (wh[1] < 1.1f || (wh[1] < 2.1f && is_int(options.transformation, 1))))
+  {
+    options.interpolation = Interpolation::Bilinear;
   }
 
   /* Transform from pixel centers rather than pixel corners */
@@ -185,7 +183,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const Options &options)
     case ResultType::Quaternion:
       if (options.interpolation == Interpolation::Bicubic)
         shader_name = "compositor_realize_on_domain_bicubic_float4";
-      else if (options.interpolation == Interpolation::Anisotropic && !options.no_jacobian)
+      else if (options.interpolation == Interpolation::Anisotropic)
         shader_name = "compositor_realize_on_domain_anisotropic_float4";
       else
         shader_name = "compositor_realize_on_domain_float4";
@@ -231,7 +229,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const Options &options)
     /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
      * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
      * interpolation. */
-    if (options.interpolation == Interpolation::Anisotropic && !options.no_jacobian) {
+    if (options.interpolation == Interpolation::Anisotropic) {
       GPU_texture_anisotropic_filter(input, true);
       GPU_texture_mipmap_mode(input, true, true);
     }
@@ -272,22 +270,6 @@ static void realize_on_domain(const Result &input,
   });
 }
 
-template<typename T>
-static void realize_on_domain_no_jacobian(const Result &input,
-                                          Result &output,
-                                          const Interpolation &interpolation,
-                                          const Extension &extension_mode_x,
-                                          const Extension &extension_mode_y,
-                                          const float3x3 &transformation)
-{
-  parallel_for(output.domain().data_size, [&](const int2 texel) {
-    const float2 coordinates = math::transform_point(transformation, float2(texel));
-    T sample = input.sample<T>(
-        coordinates, interpolation, extension_mode_x, extension_mode_y);
-    output.store_pixel(texel, sample);
-  });
-}
-
 void RealizeOnDomainOperation::realize_on_domain_cpu(const Options &options)
 {
   Result &input = this->get_input();
@@ -306,21 +288,12 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const Options &options)
                       float4x4,
                       nodes::MenuValue,
                       math::Quaternion>([&]<typename T>() {
-        if (options.no_jacobian) {
-          realize_on_domain_no_jacobian<T>(input,
-                                           output,
-                                           options.interpolation,
-                                           options.extension_mode_x,
-                                           options.extension_mode_y,
-                                           options.transformation);
-        } else {
-          realize_on_domain<T>(input,
-                               output,
-                               options.interpolation,
-                               options.extension_mode_x,
-                               options.extension_mode_y,
-                               options.transformation);
-        }
+        realize_on_domain<T>(input,
+                             output,
+                             options.interpolation,
+                             options.extension_mode_x,
+                             options.extension_mode_y,
+                             options.transformation);
       });
 }
 
