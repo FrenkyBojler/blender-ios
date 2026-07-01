@@ -703,21 +703,19 @@ class TipPanel(BrushPanel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        if mode == 'SCULPT' and brush.sculpt_capabilities.has_hardness:
+        if brush.sculpt_capabilities.has_hardness:
             row = layout.row(align=True)
             row.prop(brush, "hardness", slider=True)
             if brush.sculpt_capabilities.has_hardness_pressure:
                 row.prop(brush, "invert_hardness_pressure", text="")
                 row.prop(brush, "use_hardness_pressure", text="")
 
-        if mode == 'SCULPT' and brush.sculpt_brush_type in {'CLAY_STRIPS', 'PAINT'}:
+        if brush.sculpt_brush_type in {'CLAY_STRIPS', 'PAINT'}:
             if brush.sculpt_capabilities.has_hardness:
                 layout.separator()
             row = layout.row(align=True)
-            row.prop(brush, "tip_roundness")
-
-            row = layout.row(align=True)
-            row.prop(brush, "tip_scale_x")
+            layout.prop(brush, "tip_roundness")
+            layout.prop(brush, "tip_scale_x")
 
 
 class FalloffPanel(BrushPanel):
