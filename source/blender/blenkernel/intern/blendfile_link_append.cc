@@ -1720,7 +1720,7 @@ void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
                                                             Scene *scene,
                                                             ViewLayer *view_layer,
                                                             Collection *target_collection,
-                                                            ReportList * /*reports*/)
+                                                            ReportList *reports)
 {
   if (!scene) {
     return;
@@ -1755,7 +1755,7 @@ void BKE_blendfile_link_append_instantiate_loose_from_bmain(Main *bmain,
     item->action = LINK_APPEND_ACT_COPY_LOCAL;
   }
 
-  BKE_blendfile_link_append_instantiate_loose(&lapp_context, nullptr);
+  BKE_blendfile_link_append_instantiate_loose(&lapp_context, reports);
 
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 }
