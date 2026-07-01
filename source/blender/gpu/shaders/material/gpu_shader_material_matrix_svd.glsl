@@ -106,8 +106,7 @@ void jacobi_svd_3x3(float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
 
   /* The main Jacobi SVD iteration. Sweep until converged or max_sweeps is reached. */
   bool finished = false;
-  int sweep_count = 0;
-  while (!finished && sweep_count < max_sweeps) {
+  for (int sweep_count = 0; sweep_count < max_sweeps && !finished; sweep_count++) {
     finished = true;
     const float threshold = max(zero_threshold, convergence_epsilon * max_diag_entry);
 
@@ -134,8 +133,6 @@ void jacobi_svd_3x3(float3x3 A, out float3x3 U, out float3 S, out float3x3 V)
         }
       }
     }
-
-    sweep_count++;
   }
 
   /* A is now diagonal. Extract singular values, force S >= 0, update sign into U. */
