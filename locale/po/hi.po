@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e65907bec1c9')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-06-29 10:51+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -2586,8 +2586,28 @@ msgid "Placement"
 msgstr "नियोजन"
 
 
+msgid "Mirror"
+msgstr "दर्पण"
+
+
+msgid "Snap"
+msgstr "स्नैप"
+
+
+msgid "Math"
+msgstr "गणित"
+
+
+msgid "Light"
+msgstr "प्रकाश"
+
+
 msgid "Rigid Body"
 msgstr "कठोर-पदार्थ"
+
+
+msgid "Import"
+msgstr "आयात करें"
 
 
 msgid "Apply"
@@ -2614,8 +2634,8 @@ msgid "Hooks"
 msgstr "खूँटी"
 
 
-msgid "Math"
-msgstr "गणित"
+msgid "UV"
+msgstr "यूवी"
 
 
 msgid "Names"
@@ -2634,32 +2654,12 @@ msgid "Merge"
 msgstr "विलय करें"
 
 
-msgid "Import"
-msgstr "आयात करें"
-
-
 msgid "Bone Roll"
 msgstr "हड्डी पंजी"
 
 
-msgid "UV"
-msgstr "यूवी"
-
-
-msgid "Snap"
-msgstr "स्नैप"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
-
-
 msgid "Keying"
 msgstr "कुंजीयन"
-
-
-msgid "Light"
-msgstr "प्रकाश"
 
 
 msgid "Basic"
