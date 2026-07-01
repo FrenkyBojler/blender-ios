@@ -346,7 +346,7 @@ void load_plydata(PlyData &plyData, Depsgraph *depsgraph, const PLYExportParams 
     Object *obj_eval = DEG_get_evaluated(depsgraph, object);
 
     MeshCoerceForExport coerce;
-    const Mesh *mesh = mesh_coerce_for_export_begin(
+    const Mesh *mesh = mesh_coerce_for_export_setup(
         coerce, depsgraph, obj_eval, export_params.apply_modifiers);
 
     /* Ensure data exists if currently in edit mode. */

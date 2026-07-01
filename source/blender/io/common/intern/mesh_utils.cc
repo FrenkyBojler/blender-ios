@@ -16,7 +16,7 @@
 
 namespace blender::io {
 
-const Mesh *mesh_coerce_for_export_begin(MeshCoerceForExport &coerce,
+const Mesh *mesh_coerce_for_export_setup(MeshCoerceForExport &coerce,
                                          Depsgraph *depsgraph,
                                          Object *obj_eval,
                                          const bool apply_modifiers)
