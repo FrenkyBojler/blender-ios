@@ -29,13 +29,13 @@ BREW_PACKAGES=(
 )
 
 # XIP location resolve order: env/flag > script dir
-XIP_LOCATION="${XIP_LOCATION:-${SCRIPT_DIR}}"
+XCODE_XIP_DIR="${XCODE_XIP_DIR:-${SCRIPT_DIR}}"
 ASSUME_YES="${ASSUME_YES:-0}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --xip-location)
-      XIP_LOCATION="$2"
+    --xcode-xip-dir)
+      XCODE_XIP_DIR="$2"
       shift 2
       ;;
     -y|--yes)
@@ -88,7 +88,7 @@ install_homebrew() {
 # Xcode
 install_xcode() {
   local VERSION="${1:?Usage: install_xcode <version>}"
-  local XIP="${XIP_LOCATION}/Xcode_${VERSION}.xip"
+  local XIP="${XCODE_XIP_DIR}/Xcode_${VERSION}.xip"
   local APP="/Applications/Xcode-${VERSION}.app"
   local MAJOR="${VERSION%%.*}"
   local DL_URL="https://developer.apple.com/services-account/download?path=/Developer_Tools/Xcode_${MAJOR}/Xcode_${MAJOR}.xip"
