@@ -33,17 +33,22 @@ const Mesh *mesh_coerce_for_export_begin(MeshCoerceForExport &coerce,
       }
     }
   }
-  coerce.mesh = apply_modifiers       ? BKE_object_get_evaluated_mesh(obj_eval) :
-                is_original_mesh_type ? BKE_object_get_pre_modified_mesh(obj_eval) :
-                                        coerce.owned;
+  if (apply_modifiers) {
+    coerce.mesh = BKE_object_get_evaluated_mesh(obj_eval);
+  }
+  else {
+    coerce.mesh = is_original_mesh_type ? BKE_object_get_pre_modified_mesh(obj_eval) :
+                                          coerce.owned;
+  }
+
   return coerce.mesh;
 }
 
-void mesh_coerce_for_export_end(MeshCoerceForExport &coerce)
+MeshCoerceForExport::~MeshCoerceForExport()
 {
-  if (coerce.owned) {
-    BKE_id_free(nullptr, coerce.owned);
-    coerce.owned = nullptr;
+  if (owned) {
+    BKE_id_free(nullptr, owned);
+    owned = nullptr;
   }
 }
 

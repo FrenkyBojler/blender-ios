@@ -24,9 +24,10 @@ struct MeshCoerceForExport {
   const Mesh *mesh = nullptr;
   /**
    * Mesh converted from a non-mesh, or null.
-   * Freed by #mesh_coerce_for_export_end.
    */
   Mesh *owned = nullptr;
+
+  ~MeshCoerceForExport();
 };
 
 /**
@@ -40,11 +41,6 @@ const Mesh *mesh_coerce_for_export_begin(MeshCoerceForExport &coerce,
                                          Depsgraph *depsgraph,
                                          Object *obj_eval,
                                          bool apply_modifiers);
-
-/**
- * Free any temporary mesh allocated by #mesh_coerce_for_export_begin.
- */
-void mesh_coerce_for_export_end(MeshCoerceForExport &coerce);
 
 }  // namespace io
 }  // namespace blender

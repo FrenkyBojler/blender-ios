@@ -159,8 +159,6 @@ void export_frame(Depsgraph *depsgraph,
       data.normal = math::normal_tri(data.vertices[0], data.vertices[1], data.vertices[2]);
       writer->write_triangle(data);
     }
-
-    mesh_coerce_for_export_end(coerce);
   }
   DEG_OBJECT_ITER_END;
 }

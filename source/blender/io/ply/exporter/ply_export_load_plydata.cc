@@ -465,7 +465,6 @@ void load_plydata(PlyData &plyData, Depsgraph *depsgraph, const PLYExportParams 
     if (manually_free_mesh) {
       BKE_id_free(nullptr, manually_free_mesh);
     }
-    mesh_coerce_for_export_end(coerce);
   }
 
   DEG_OBJECT_ITER_END;
