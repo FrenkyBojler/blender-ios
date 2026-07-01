@@ -2664,6 +2664,102 @@ template<typename T> void remove_faces_in_holes(CDT_state<T> *cdt_state)
   }
 }
 
+/**
+ * Topology cleanup can leave #CDTFace::symedge pointing at a half-edge whose links were
+ * invalidated, or leave an orphaned non-outer face without any live half-edge. Preserve valid
+ * representatives and repair stale/missing ones from the live half-edges before walking or
+ * outputting faces.
+ *
+ * Call again after each dissolve pass, before anything walks `symedge` chains:
+ * a dissolve only reads a face's `symedge` once, so a later dissolve in the
+ * same pass can invalidate an already-visited face's reference.
+ *
+ * Examples of a dissolve pass include:
+ * - #remove_outer_edges_until_constraints
+ * - #remove_non_constraint_edges_leave_valid_bmesh
+ * - #remove_non_constraint_edges
+ * Any function that removes edges via #dissolve_symedge.
+ */
+template<typename T>
+bool face_symedge_representation_is_valid(const CDTArrangement<T> *cdt, const CDTFace<T> *f)
+{
+  const SymEdge<T> *se_start = f->symedge;
+  if (se_start == nullptr || se_start->next == nullptr || se_start->face != f) {
+    return false;
+  }
+
+  const int max_steps = int(cdt->edges.size()) * 2;
+  const SymEdge<T> *se = se_start;
+  int count = 0;
+  do {
+    if (se == nullptr || se->next == nullptr || se->face != f) {
+      return false;
+    }
+    se = se->next;
+    count++;
+    if (count > max_steps) {
+      return false;
+    }
+  } while (se != se_start);
+
+  return true;
+}
+
+template<typename T> void refresh_face_symedge_representatives(CDTArrangement<T> *cdt)
+{
+  for (CDTFace<T> *f : cdt->faces) {
+    if (!f->deleted && !face_symedge_representation_is_valid(cdt, f)) {
+      f->symedge = nullptr;
+    }
+  }
+  for (CDTEdge<T> *e : cdt->edges) {
+    if (is_deleted_edge(e)) {
+      continue;
+    }
+    for (SymEdge<T> &se : e->symedges) {
+      if (se.next != nullptr && se.face != nullptr && !se.face->deleted &&
+          se.face->symedge == nullptr)
+      {
+        se.face->symedge = &se;
+      }
+    }
+  }
+  for (CDTFace<T> *f : cdt->faces) {
+    if (!f->deleted && f != cdt->outer_face && f->symedge == nullptr) {
+      /* Without a live #SymEdge, a non-outer face has no walkable boundary loop and cannot be
+       * emitted by #get_cdt_output. */
+      f->deleted = true;
+    }
+  }
+}
+
+#ifndef NDEBUG
+template<typename T>
+void validate_face_symedge_representatives(const CDTArrangement<T> *cdt, const int verts_size)
+{
+  for (const CDTFace<T> *f : cdt->faces) {
+    if (f->deleted || f == cdt->outer_face) {
+      continue;
+    }
+    const SymEdge<T> *se_start = f->symedge;
+    BLI_assert(se_start != nullptr);
+    const SymEdge<T> *se = se_start;
+    int count = 0;
+    do {
+      BLI_assert(se != nullptr);
+      BLI_assert(se->next != nullptr);
+      BLI_assert(se->face == f);
+      BLI_assert(se->vert != nullptr);
+      BLI_assert(se->vert->index >= 0);
+      BLI_assert(se->vert->index < verts_size);
+      se = se->next;
+      count++;
+      BLI_assert(count <= int(cdt->edges.size()) * 2);
+    } while (se != se_start);
+  }
+}
+#endif
+
 /* #CDTFace::visit_index sentinels used by the hole-detection flood-fill.
  * The fill assigns a region number in `[0, num_regions)` to every non-deleted face it visits.
  * `outer_face` is pre-set to #VISIT_INDEX_OUTER_FACE and skipped.
@@ -3110,17 +3206,7 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type outpu
     return;
   }
 
-  /* Make sure all non-deleted faces have a symedge. */
-  for (CDTEdge<T> *e : cdt->edges) {
-    if (!is_deleted_edge(e)) {
-      if (e->symedges[0].face->symedge == nullptr) {
-        e->symedges[0].face->symedge = &e->symedges[0];
-      }
-      if (e->symedges[1].face->symedge == nullptr) {
-        e->symedges[1].face->symedge = &e->symedges[1];
-      }
-    }
-  }
+  refresh_face_symedge_representatives(cdt);
 
   /* Determine if hole detection is needed and which winding rule to use. */
   if (output_uses_evenodd_holes(output_type)) {
@@ -3141,6 +3227,7 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type outpu
   }
   else if (ELEM(output_type, CDT_INSIDE_WITH_HOLES, CDT_INSIDE_WITH_HOLES_NONZERO)) {
     remove_outer_edges_until_constraints(cdt_state);
+    refresh_face_symedge_representatives(cdt);
     remove_faces_in_holes(cdt_state);
   }
   else if (ELEM(output_type,
@@ -3149,8 +3236,11 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type outpu
   {
     remove_outer_edges_until_constraints(cdt_state);
     remove_non_constraint_edges_leave_valid_bmesh(cdt_state);
+    refresh_face_symedge_representatives(cdt);
     remove_faces_in_holes(cdt_state);
   }
+
+  refresh_face_symedge_representatives(cdt);
 }
 
 template<typename T>
@@ -3179,6 +3269,9 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
   if (nv <= 0) {
     return result;
   }
+#ifndef NDEBUG
+  validate_face_symedge_representatives(cdt, verts_size);
+#endif
   /* Now we can set vert_to_output_map for merged verts,
    * and also add the input indices of merged verts to the input_ids
    * list of the merge target if they were an original input id. */

@@ -3308,6 +3308,108 @@ template<typename T> void square_o_test()
   }
 }
 
+/**
+ * Stress tests bug, see: #160787.
+ */
+template<typename T> void fill_curve_degenerate_interior_faces_test()
+{
+  const int grid_size = 10;
+  const int cells_num = grid_size - 1;
+  const int boundary_num = 4 * grid_size - 4;
+  const int interior_faces_num = cells_num * cells_num;
+  const int verts_num = boundary_num + 2 * interior_faces_num;
+  const int faces_num = 1 + interior_faces_num;
+  const double min = -0.5;
+  const double max = 0.5;
+  const double step = 1.0 / double(cells_num);
+
+  Array<VecBase<T, 2>> verts(verts_num);
+  Array<Vector<int>> faces(faces_num);
+
+  int vert_index = 0;
+  auto add_vert = [&](const double x, const double y) {
+    verts[vert_index++] = VecBase<T, 2>(T(x), T(y));
+  };
+
+  for (int i = 0; i < grid_size; i++) {
+    add_vert(min, min + i * step);
+  }
+  for (int i = 1; i < grid_size; i++) {
+    add_vert(min + i * step, max);
+  }
+  for (int i = 1; i < grid_size; i++) {
+    add_vert(max, max - i * step);
+  }
+  for (int i = 1; i < grid_size - 1; i++) {
+    add_vert(max - i * step, min);
+  }
+  for (int i = 0; i < boundary_num; i++) {
+    faces[0].append(i);
+  }
+
+  int face_index = 1;
+  for (int x = 0; x < cells_num; x++) {
+    for (int y = 0; y < cells_num; y++) {
+      const double cx = min + (x + 0.5) * step;
+      const double cy = min + (y + 0.5) * step;
+      const int first_vert = vert_index;
+      add_vert(cx, cy);
+      add_vert(cx, cy);
+      faces[face_index].append(first_vert);
+      faces[face_index].append(first_vert + 1);
+      face_index++;
+    }
+  }
+
+  BLI_assert(vert_index == verts_num);
+  BLI_assert(face_index == faces_num);
+
+  CDT_input<T> in;
+  in.vert = verts;
+  in.face = faces;
+  in.epsilon = T(0.00001);
+  in.need_ids = false;
+
+  CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
+  EXPECT_EQ(out.vert.size(), 117);
+  EXPECT_EQ(out.edge.size(), 36);
+  EXPECT_EQ(out.face.size(), 0);
+}
+
+/**
+ * Single self-intersecting 7-sided polygon (one repeated vertex) plus two stray points that
+ * don't belong to a face, `need_ids = false`, #CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES.
+ *
+ * Regression test: `remove_faces_in_holes` crashed on a `symedge` invalidated by an earlier
+ * dissolve pass. See `refresh_face_symedge_representatives` for why.
+ *
+ * See: #160787
+ */
+template<typename T> void stale_symedge_before_remove_faces_in_holes_test()
+{
+  const char *spec = R"(9 0 1
+  0.7 1.0
+  -1.0 -0.66667
+  0.7 -1.0
+  -1.0 1.0
+  1.0 1.0
+  -1.0 -0.66667
+  0.3 -0.3
+  0.0 -0.3
+  0.0 0.0
+  0 1 2 3 4 5 6
+  )";
+  CDT_input<T> in = fill_input_from_string<T>(spec);
+  in.need_ids = false;
+  CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
+  EXPECT_EQ(out.vert.size(), 12);
+  EXPECT_EQ(out.edge.size(), 18);
+  EXPECT_EQ(out.face.size(), 6);
+  if (DO_DRAW) {
+    graph_draw<T>("StaleSymedgeBeforeRemoveFacesInHoles", out.vert, out.edge, out.face);
+  }
+}
+
 TEST(delaunay_d, Empty)
 {
   empty_test<double>();
@@ -3576,6 +3678,16 @@ TEST(delaunay_d, SharedSplitBoundary)
 TEST(delaunay_d, SquareO)
 {
   square_o_test<double>();
+}
+
+TEST(delaunay_d, FillCurveDegenerateInteriorFaces)
+{
+  fill_curve_degenerate_interior_faces_test<double>();
+}
+
+TEST(delaunay_d, StaleSymedgeBeforeRemoveFacesInHoles)
+{
+  stale_symedge_before_remove_faces_in_holes_test<double>();
 }
 
 #  ifdef WITH_GMP
