@@ -4,4 +4,4 @@ Referenced by pull request #160349, Fix #160339: Edit mode crash with array modi
 Referenced by commit 53c556d261b048da31143004f56cb0747f71cba3, Fix #160339: Edit mode crash with array modifier
 Referenced by pull request #160540, Fix #160535: Crash transforming vertices with geometry nodes, a deform modifier and "Cage" enabled
 Referenced by issue #160535, Crash transforming vertices with geometry nodes, a deform modifier and "Cage" enabled
-Referenced by pull request #160844, WIP: Fix #160535: Crash transforming a mesh with geometry nodes & cage deform
+Referenced by pull request #160844, Fix #160535: Crash transforming a mesh with geometry nodes & cage deform
