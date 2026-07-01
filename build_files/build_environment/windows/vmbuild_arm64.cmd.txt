@@ -9,6 +9,8 @@ REM # Download this and give it the right extension.
 REM ###########################################################################
 set CMAKE_GENERATOR_INSTANCE=c:\vs2022bt\
 set CMAKE_GENERATOR=Visual Studio 17 2022
+set CMAKE_C_COMPILER=C:\Program Files\LLVM\bin\clang-cl.exe
+set CMAKE_CXX_COMPILER=C:\Program Files\LLVM\bin\clang-cl.exe
 set NODEBUG=
 set TMPDIR=c:\t\
 set PERL=c:\db\build\downloads\perl\perl\bin\perl.exe
