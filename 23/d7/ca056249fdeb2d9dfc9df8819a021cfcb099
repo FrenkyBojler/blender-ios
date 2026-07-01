@@ -1,0 +1,1 @@
+Referenced by issue #160930, Freestyle crash on exit: EXCEPTION_ACCESS_VIOLATION in NodeGroup::destroy (5.2 LTS Beta, tbbmalloc.dll)
