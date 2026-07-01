@@ -31,10 +31,10 @@
 
 #include "BLO_read_write.hh"
 
+#include "DNA_userdef_types.h"
+
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-
-#include "DNA_userdef_types.h"
 
 namespace blender {
 
