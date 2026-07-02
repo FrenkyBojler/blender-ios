@@ -18,9 +18,13 @@
 #include "BLI_string.h"
 
 #include "CLG_log.h"
+
+#include "DNA_ID.h"
+#include "DNA_color_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
+#include "DNA_vec_types.h"
 #include "DNA_vfont_types.h"
 
 #include "SEQ_render.hh"
@@ -811,6 +815,134 @@ static void add_modifier_metadata_white_balance(StripModifierData &smd, AnyVecto
   add_modifier_metadata_to_container(metadata, container, smd);
 }
 
+static void add_modifier_metadata_pitch(StripModifierData &smd, AnyVector &container)
+{
+  const PitchModifierData *pmd = reinterpret_cast<PitchModifierData *>(&smd);
+  AnyDictionary metadata;
+  metadata["mode"] = static_cast<int64_t>(pmd->mode);
+  metadata["semitones"] = static_cast<int64_t>(pmd->semitones);
+  metadata["cents"] = static_cast<int64_t>(pmd->cents);
+  metadata["quality"] = static_cast<int64_t>(pmd->quality);
+  metadata["ratio"] = static_cast<double>(pmd->ratio);
+  metadata["preserve_formant"] = static_cast<bool>(pmd->preserve_formant);
+
+  add_modifier_metadata_to_container(metadata, container, smd);
+}
+
+static void add_modifier_metadata_echo(StripModifierData &smd, AnyVector &container)
+{
+  const EchoModifierData *emd = reinterpret_cast<EchoModifierData *>(&smd);
+  AnyDictionary metadata;
+  metadata["delay"] = static_cast<double>(emd->delay);
+  metadata["feedback"] = static_cast<double>(emd->feedback);
+  metadata["mix"] = static_cast<double>(emd->mix);
+
+  add_modifier_metadata_to_container(metadata, container, smd);
+}
+
+static AnyDictionary serialize_curveMapping(const CurveMapping *cmp)
+{
+  AnyDictionary root;
+  root["flag"] = static_cast<int64_t>(cmp->flag);
+  root["preset"] = static_cast<int64_t>(cmp->preset);
+  root["tone"] = static_cast<int64_t>(cmp->tone);
+  root["cur"] = static_cast<int64_t>(cmp->cur);
+  root["curr"] = AnyVector{static_cast<double>(cmp->curr.xmin),
+                           static_cast<double>(cmp->curr.xmax),
+                           static_cast<double>(cmp->curr.ymin),
+                           static_cast<double>(cmp->curr.ymax)};
+
+  root["clipr"] = AnyVector{static_cast<double>(cmp->clipr.xmin),
+                            static_cast<double>(cmp->clipr.xmax),
+                            static_cast<double>(cmp->clipr.ymin),
+                            static_cast<double>(cmp->clipr.ymax)};
+
+  root["black"] = AnyVector{static_cast<double>(cmp->black[0]),
+                            static_cast<double>(cmp->black[1]),
+                            static_cast<double>(cmp->black[2])};
+
+  root["white"] = AnyVector{static_cast<double>(cmp->white[0]),
+                            static_cast<double>(cmp->white[1]),
+                            static_cast<double>(cmp->white[2])};
+
+  root["bwmul"] = AnyVector{static_cast<double>(cmp->bwmul[0]),
+                            static_cast<double>(cmp->bwmul[1]),
+                            static_cast<double>(cmp->bwmul[2])};
+
+  root["sample"] = AnyVector{static_cast<double>(cmp->sample[0]),
+                             static_cast<double>(cmp->sample[1]),
+                             static_cast<double>(cmp->sample[2])};
+
+  AnyVector curve_maps;
+  for (int c = 0; c < 4; ++c) {
+    const CurveMap &cm = cmp->cm[c];
+    AnyDictionary cm_dict;
+
+    cm_dict["totpoint"] = static_cast<int64_t>(cm.totpoint);
+    cm_dict["default_handle_type"] = static_cast<int64_t>(cm.default_handle_type);
+    cm_dict["range"] = static_cast<double>(cm.range);
+    cm_dict["mintable"] = static_cast<double>(cm.mintable);
+    cm_dict["maxtable"] = static_cast<double>(cm.maxtable);
+    cm_dict["ext_in"] = AnyVector{static_cast<double>(cm.ext_in[0]),
+                                  static_cast<double>(cm.ext_in[1])};
+    cm_dict["ext_out"] = AnyVector{static_cast<double>(cm.ext_out[0]),
+                                   static_cast<double>(cm.ext_out[1])};
+    cm_dict["premul_ext_in"] = AnyVector{static_cast<double>(cm.premul_ext_in[0]),
+                                         static_cast<double>(cm.premul_ext_out[1])};
+
+    AnyVector curve;
+    curve.reserve(cm.totpoint);
+    for (int i = 0; i < cm.totpoint; ++i) {
+      AnyDictionary point;
+      point["x"] = static_cast<double>(cm.curve[i].x);
+      point["y"] = static_cast<double>(cm.curve[i].y);
+      point["flag"] = static_cast<double>(cm.curve[i].flag);
+      point["shorty"] = static_cast<double>(cm.curve[i].shorty);
+
+      curve.push_back(point);
+    }
+    cm_dict["curve"] = curve;
+    curve_maps.push_back((cm_dict));
+  }
+
+  root["curve_maps"] = curve_maps;
+  return root;
+}
+
+static void add_modifier_metadata_curves(StripModifierData &smd, AnyVector &container)
+{
+  AnyDictionary metadata;
+  switch (smd.type) {
+    case eSeqModifierType_Curves: {
+      const CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(&smd);
+      metadata = serialize_curveMapping(&cmd->curve_mapping);
+      break;
+    }
+
+    case eSeqModifierType_HueCorrect: {
+      const HueCorrectModifierData *hcmd = reinterpret_cast<HueCorrectModifierData *>(&smd);
+      metadata = serialize_curveMapping(&hcmd->curve_mapping);
+      break;
+    }
+
+    case eSeqModifierType_SoundEqualizer: {
+      const SoundEqualizerModifierData *semd = reinterpret_cast<SoundEqualizerModifierData *>(
+          &smd);
+      AnyVector graphics;
+      for (const EQCurveMappingData &cmd : semd->graphics) {
+        graphics.push_back(serialize_curveMapping(&cmd.curve_mapping));
+      }
+      metadata["graphics"] = graphics;
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  add_modifier_metadata_to_container(metadata, container, smd);
+}
+
 template<typename T>
 static void add_strip_metadata_modifiers(const Strip *strip, SerializableObject::Retainer<T> &clip)
 {
@@ -836,6 +968,20 @@ static void add_strip_metadata_modifiers(const Strip *strip, SerializableObject:
 
       case eSeqModifierType_WhiteBalance:
         add_modifier_metadata_white_balance(smd, container);
+        break;
+
+      case eSeqModifierType_Curves:
+      case eSeqModifierType_HueCorrect:
+      case eSeqModifierType_SoundEqualizer:
+        add_modifier_metadata_curves(smd, container);
+        break;
+
+      case eSeqModifierType_Pitch:
+        add_modifier_metadata_pitch(smd, container);
+        break;
+
+      case eSeqModifierType_Echo:
+        add_modifier_metadata_echo(smd, container);
         break;
 
       default:
