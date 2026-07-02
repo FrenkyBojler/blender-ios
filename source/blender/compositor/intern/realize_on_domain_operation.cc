@@ -60,21 +60,10 @@ static inline bool is_int(const float3x3 &m, int n)
          compare_ff(m[2][n], rintf(m[2][n]), 1e-1);
 }
 
-/* Data passed to the cpu and gpu implementations */
-struct RealizeOnDomainOperation::Options {
-  Interpolation interpolation;
-  Extension extension_mode_x;
-  Extension extension_mode_y;
-  float3x3 transformation;
-};
-
 void RealizeOnDomainOperation::execute()
 {
   Result &input = this->get_input();
-  Options options;
-  options.interpolation = input.domain().realization_options.interpolation;
-  options.extension_mode_x = input.domain().realization_options.extension_x;
-  options.extension_mode_y = input.domain().realization_options.extension_y;
+  RealizationOptions options = input.domain().realization_options;
   const Domain domain = this->compute_domain();
 
   /* Translate the input such that it is centered in the virtual compositing space. */
@@ -109,56 +98,54 @@ void RealizeOnDomainOperation::execute()
                                                          output_center_translation);
 
   /* Get the transformation from the output space to the input space */
-  options.transformation = math::invert(input_transformation) * output_transformation;
+  float3x3 transformation = math::invert(input_transformation) * output_transformation;
 
   /* compute derivatives of input location and convert to rectangle */
-  float2 wh = hypot_fast(options.transformation[0].xy(), options.transformation[1].xy());
+  float2 wh = hypot_fast(transformation[0].xy(), transformation[1].xy());
 
   /* select faster interpolation if possible */
   if ((options.interpolation == Interpolation::Bilinear ||
        options.interpolation == Interpolation::Anisotropic) &&
-      wh[0] < 1.1f && wh[1] < 1.1f && is_int(options.transformation, 0) &&
-      is_int(options.transformation, 1))
+      wh[0] < 1.1f && wh[1] < 1.1f && is_int(transformation, 0) && is_int(transformation, 1))
   {
     options.interpolation = Interpolation::Nearest;
   }
   else if (options.interpolation == Interpolation::Anisotropic &&
-           (wh[0] < 1.1f || (wh[0] < 2.1f && is_int(options.transformation, 0))) &&
-           (wh[1] < 1.1f || (wh[1] < 2.1f && is_int(options.transformation, 1))))
+           (wh[0] < 1.1f || (wh[0] < 2.1f && is_int(transformation, 0))) &&
+           (wh[1] < 1.1f || (wh[1] < 2.1f && is_int(transformation, 1))))
   {
     options.interpolation = Interpolation::Bilinear;
   }
 
   /* Transform from pixel centers rather than pixel corners */
-  options.transformation *= math::from_location<float3x3>(float2(0.5f));
+  transformation *= math::from_location<float3x3>(float2(0.5f));
   /* Transform to normalized coordinates */
   float2 scale = 1.0f / float2(input.domain().data_size);
-  options.transformation = math::from_scale<float3x3>(scale) * options.transformation;
+  transformation = math::from_scale<float3x3>(scale) * transformation;
   wh *= scale;
 
   /* Don't make the input image smaller than 2 pixels, to avoid aliasing and moire patterns */
   if (wh.x > 0.5f) {
-    options.transformation = math::from_scale<float3x3>(float2(0.5f / wh.x, 1.0f)) *
-                             options.transformation;
+    transformation = math::from_scale<float3x3>(float2(0.5f / wh.x, 1.0f)) * transformation;
     wh.x = 0.5f;
   }
   if (wh.y > 0.5f) {
-    options.transformation = math::from_scale<float3x3>(float2(1.0f, 0.5f / wh.y)) *
-                             options.transformation;
+    transformation = math::from_scale<float3x3>(float2(1.0f, 0.5f / wh.y)) * transformation;
     wh.y = 0.5f;
   }
 
   this->get_result().allocate_texture(domain);
 
   if (this->context().use_gpu()) {
-    this->realize_on_domain_gpu(options);
+    this->realize_on_domain_gpu(options, transformation);
   }
   else {
-    this->realize_on_domain_cpu(options);
+    this->realize_on_domain_cpu(options, transformation);
   }
 }
 
-void RealizeOnDomainOperation::realize_on_domain_gpu(const Options &options)
+void RealizeOnDomainOperation::realize_on_domain_gpu(const RealizationOptions &options,
+                                                     const float3x3 &transformation)
 {
   Result &input = this->get_input();
 
@@ -223,7 +210,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const Options &options)
   gpu::Shader *shader = this->context().get_shader(shader_name);
   GPU_shader_bind(shader);
 
-  GPU_shader_uniform_mat3_as_mat4(shader, "transformation", options.transformation.ptr());
+  GPU_shader_uniform_mat3_as_mat4(shader, "transformation", transformation.ptr());
 
   if (!GPU_texture_has_integer_format(input)) {
     /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
@@ -238,8 +225,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const Options &options)
     }
   }
 
-  GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(options.extension_mode_x));
-  GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(options.extension_mode_y));
+  GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(options.extension_x));
+  GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(options.extension_y));
 
   input.bind_as_texture(shader, "input_tx");
 
@@ -256,21 +243,20 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const Options &options)
 template<typename T>
 static void realize_on_domain(const Result &input,
                               Result &output,
-                              const Interpolation &interpolation,
-                              const Extension &extension_mode_x,
-                              const Extension &extension_mode_y,
+                              const RealizationOptions &options,
                               const float3x3 &transformation)
 {
   const float2x2 jacobian(transformation);
   parallel_for(output.domain().data_size, [&](const int2 texel) {
     const float2 coordinates = math::transform_point(transformation, float2(texel));
     T sample = input.sample<T>(
-        coordinates, interpolation, extension_mode_x, extension_mode_y, jacobian);
+        coordinates, options.interpolation, options.extension_x, options.extension_y, jacobian);
     output.store_pixel(texel, sample);
   });
 }
 
-void RealizeOnDomainOperation::realize_on_domain_cpu(const Options &options)
+void RealizeOnDomainOperation::realize_on_domain_cpu(const RealizationOptions &options,
+                                                     const float3x3 &transformation)
 {
   Result &input = this->get_input();
   Result &output = this->get_result();
@@ -287,14 +273,8 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const Options &options)
                       bool,
                       float4x4,
                       nodes::MenuValue,
-                      math::Quaternion>([&]<typename T>() {
-        realize_on_domain<T>(input,
-                             output,
-                             options.interpolation,
-                             options.extension_mode_x,
-                             options.extension_mode_y,
-                             options.transformation);
-      });
+                      math::Quaternion>(
+          [&]<typename T>() { realize_on_domain<T>(input, output, options, transformation); });
 }
 
 Domain RealizeOnDomainOperation::compute_domain()
