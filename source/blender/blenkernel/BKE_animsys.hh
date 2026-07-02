@@ -11,6 +11,7 @@
 #include "DNA_listBase.h"
 
 #include "BLI_bit_vector.hh"
+#include "BLI_map.hh"
 #include "BLI_span.hh"
 #include "BLI_sys_types.hh" /* for bool */
 
@@ -22,6 +23,7 @@ struct AnimData;
 struct BlendDataReader;
 struct BlendWriter;
 struct Depsgraph;
+struct DriverTarget;
 struct FCurve;
 struct ID;
 struct KS_Path;
@@ -201,6 +203,28 @@ void BKE_animdata_fix_paths_rename_all(ID *ref_id,
                                        const char *prefix,
                                        const char *oldName,
                                        const char *newName);
+
+using DriverMap = Map<ID *, Vector<DriverTarget *>>;
+/**
+ * Build a map from an ID to all the `DriverTarget`s where it is being used.
+ */
+DriverMap BKE_animdata_build_driver_target_map(Main &bmain);
+
+/**
+ * Search and replace `old_infix` with `new_infix` for all rna paths that reference the given ID
+ * and match the prefix.
+ *
+ * \param prefix does not have to be the full prefix of the rna path. E.g. if the full path is
+ * `pose.bones["foo"]` then passing `bones` as a prefix will still work.
+ * \param old_infix, new_infix: the full search and replace string pair. This has to be in the form
+ * of the rna path and will be replaced as given. E.g. bone names should be escaped and
+ * surrounded by `[""]`
+ */
+void BKE_animdata_fix_paths(ID &id,
+                            StringRef prefix,
+                            StringRef old_infix,
+                            StringRef new_infix,
+                            const DriverMap &driver_map);
 
 /**
  * Remove any animation data (F-Curves from Actions, and drivers) that have an
