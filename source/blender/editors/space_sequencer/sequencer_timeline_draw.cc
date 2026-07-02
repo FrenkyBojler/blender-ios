@@ -1498,7 +1498,9 @@ static void strip_data_highlight_flags_set(const StripDrawContext &strip,
   const Strip *act_strip = seq::select_active_get(ctx.scene);
   const Strip *special_preview = special_preview_get();
   /* Highlight if strip is an input of an active strip, or if the strip is solo preview. */
-  if (act_strip != nullptr && (act_strip->flag & SEQ_SELECT) != 0) {
+  if (act_strip != nullptr && (act_strip->flag & SEQ_SELECT) != 0 &&
+      !seq::strip_is_transition(act_strip))
+  {
     if (act_strip->input1 == strip.strip || act_strip->input2 == strip.strip) {
       data.flags |= GPU_SEQ_FLAG_HIGHLIGHT;
     }
