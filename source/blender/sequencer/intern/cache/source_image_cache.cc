@@ -8,7 +8,6 @@
 
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
-#include "BLI_struct_equality_utils.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_scene_types.h"
