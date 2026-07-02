@@ -12,8 +12,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_base.h"
-#include "BLI_string.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_string.hh"
 
 #include "BLT_translation.hh"
 
@@ -25,7 +25,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
@@ -732,7 +732,8 @@ static bool can_delete_fcurve(FCurve *fcu, Object *ob)
       if (BLI_str_quoted_substr(fcu->rna_path, "pose.bones[", bone_name, sizeof(bone_name))) {
         pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
         /* Delete if bone is selected. */
-        if ((pchan) && (pchan->bone)) {
+        if ((pchan) && (pchan->bone_get(*ob))) {
+          /* TODO(Sybren): use bone_is_selected() to avoid treating invisible bone as selected. */
           if (pchan->flag & POSE_SELECTED) {
             can_delete = true;
           }
@@ -966,11 +967,11 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
     pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
 
     /* skip if bone is not selected */
-    if ((pchan) && (pchan->bone)) {
+    if ((pchan) && (pchan->bone_get(*ob))) {
       bArmature *arm = id_cast<bArmature *>(ob->data);
 
       /* Only selected bones should be affected. */
-      if (!animrig::bone_is_selected(arm, pchan)) {
+      if (!animrig::bone_is_selected(arm, {pchan, pchan->bone_get(*ob)})) {
         return false;
       }
     }
@@ -1305,6 +1306,8 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
         }
       }
       else {
+        /* This special case exists because we have to allow drivers and clearing the
+         * PROP_ANIMATABLE flag from the properties would prevent that. */
         BKE_report(op->reports,
                    RPT_ERROR,
                    "This property cannot be animated as it will not get updated correctly");

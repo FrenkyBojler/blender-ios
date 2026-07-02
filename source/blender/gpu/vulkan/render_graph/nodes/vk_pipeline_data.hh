@@ -80,6 +80,30 @@ struct VKViewportData {
   {
     return !(*this == other);
   }
+
+  void reset()
+  {
+    viewports.clear();
+    scissors.clear();
+  }
+
+  /**
+   * Assign operator to reuse memory.
+   *
+   * Has been added to improve the performance of larger scenes where the viewport is often
+   * switched. Without a custom assign operator calling `assign_if_different` inside
+   * `vk_pipeline_dynamic_graphics_build_commands` would construct a temp VKViewportData with
+   * unneeded frees/allocs and reallocs.
+   */
+  VKViewportData &operator=(const VKViewportData &other)
+  {
+    viewports.clear();
+    scissors.clear();
+    viewports.extend(other.viewports);
+    scissors.extend(other.scissors);
+
+    return *this;
+  }
 };
 
 struct VKPipelineDataGraphics {
@@ -89,21 +113,33 @@ struct VKPipelineDataGraphics {
   std::optional<float> line_width;
   std::optional<StencilState> stencil_state;
   std::optional<VkFrontFace> front_face;
+
+  void reset()
+  {
+    pipeline_data = {};
+    viewport.reset();
+    vertex_input_description.reset();
+    line_width.reset();
+    stencil_state.reset();
+    front_face.reset();
+  }
 };
 
 /** Resources bound for a compute/graphics pipeline. */
 struct VKBoundPipeline {
   VkPipeline vk_pipeline;
   VkDescriptorSet vk_descriptor_set;
+  VkPipelineLayout vk_pipeline_layout;
 };
 
 struct VKIndexBufferBinding {
-  VkBuffer buffer;
+  VKResourceWithHandle<VkBuffer> buffer;
   VkIndexType index_type;
 
   bool operator==(const VKIndexBufferBinding &other) const
   {
-    return buffer == other.buffer && index_type == other.index_type;
+    return buffer.resource_handle == other.buffer.resource_handle &&
+           index_type == other.index_type;
   }
   bool operator!=(const VKIndexBufferBinding &other) const
   {
@@ -113,6 +149,7 @@ struct VKIndexBufferBinding {
 
 struct VKVertexBufferBindings {
   uint32_t buffer_count;
+  ResourceHandle resource_handles[16];
   VkBuffer buffer[16];
   VkDeviceSize offset[16];
 

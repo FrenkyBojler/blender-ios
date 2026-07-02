@@ -12,7 +12,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_fcurve_driver.h"
@@ -33,12 +33,12 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_alloca.h"
-#include "BLI_dynstr.h"
-#include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_alloca.hh"
+#include "BLI_dynstr.hh"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -237,8 +237,7 @@ bool BKE_animdata_id_is_animated(const ID *id)
     }
   }
 
-  return !BLI_listbase_is_empty(&adt->drivers) || !BLI_listbase_is_empty(&adt->nla_tracks) ||
-         !BLI_listbase_is_empty(&adt->overrides);
+  return !adt->drivers.is_empty() || !adt->nla_tracks.is_empty() || !adt->overrides.is_empty();
 }
 
 void BKE_animdata_foreach_id(AnimData *adt, LibraryForeachIDData *data)
@@ -320,7 +319,7 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
   dadt->driver_array = nullptr;
 
   /* don't copy overrides */
-  BLI_listbase_clear(&dadt->overrides);
+  dadt->overrides.clear_no_delete();
 
   const bool is_main = (flag & LIB_ID_CREATE_NO_MAIN) == 0;
   if (is_main) {
@@ -790,6 +789,14 @@ static bool fcurves_path_rename_fix(ID *owner_id,
      * (i.e. F-Curve is first of a bone's F-Curves;
      * hence renaming this should also trigger rename) */
     if (fcu->rna_path != old_path) {
+      /* If the path changed, make sure to update the fcurve flags to the new property type. See
+       * #157234. We assume that the property type didn't change if the path is the same. */
+      PointerRNA ptr = RNA_id_pointer_create(owner_id);
+      PointerRNA resolved_ptr;
+      PropertyRNA *resolved_prop;
+      if (RNA_path_resolve(&ptr, fcu->rna_path, &resolved_ptr, &resolved_prop)) {
+        animrig::update_autoflags_fcurve_direct(fcu, RNA_property_type(resolved_prop));
+      }
       bActionGroup *agrp = fcu->grp;
       is_changed = true;
       if (oldName != nullptr && (agrp != nullptr) && STREQ(oldName, agrp->name)) {
@@ -928,7 +935,6 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
                                       int newSubscript,
                                       bool verify_paths)
 {
-  char *oldN, *newN;
   char *result;
 
   /* if no action, no need to proceed */
@@ -939,38 +945,18 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
     return old_path;
   }
 
-  /* Name sanitation logic - copied from BKE_animdata_fix_paths_rename() */
-  if ((oldName != nullptr) && (newName != nullptr)) {
-    /* pad the names with [" "] so that only exact matches are made */
-    const size_t name_old_len = strlen(oldName);
-    const size_t name_new_len = strlen(newName);
-    char *name_old_esc = static_cast<char *>(
-        BLI_array_alloca(name_old_esc, (name_old_len * 2) + 1));
-    char *name_new_esc = static_cast<char *>(
-        BLI_array_alloca(name_new_esc, (name_new_len * 2) + 1));
-
-    BLI_str_escape(name_old_esc, oldName, (name_old_len * 2) + 1);
-    BLI_str_escape(name_new_esc, newName, (name_new_len * 2) + 1);
-    oldN = BLI_sprintfN("[\"%s\"]", name_old_esc);
-    newN = BLI_sprintfN("[\"%s\"]", name_new_esc);
-  }
-  else {
-    oldN = BLI_sprintfN("[%d]", oldSubscript);
-    newN = BLI_sprintfN("[%d]", newSubscript);
-  }
+  auto &&[old_key, new_key] = RNA_generate_keys_for_path_rename(
+      oldName ? oldName : "", newName ? newName : "", oldSubscript, newSubscript, true);
 
   /* fix given path */
   if (G.debug & G_DEBUG) {
-    printf("%s | %s  | oldpath = %p ", oldN, newN, old_path);
+    printf("%s | %s  | oldpath = %p ", old_key.c_str(), new_key.c_str(), old_path);
   }
-  result = rna_path_rename_fix(owner_id, prefix, oldN, newN, old_path, verify_paths);
+  result = rna_path_rename_fix(
+      owner_id, prefix, old_key.c_str(), new_key.c_str(), old_path, verify_paths);
   if (G.debug & G_DEBUG) {
     printf("path rename result = %p\n", result);
   }
-
-  /* free the temp names */
-  MEM_delete(oldN);
-  MEM_delete(newN);
 
   /* return the resulting path - may be the same path again if nothing changed */
   return result;
@@ -986,46 +972,23 @@ void BKE_action_fix_paths_rename(ID *owner_id,
                                  int newSubscript,
                                  bool verify_paths)
 {
-  char *oldN, *newN;
-
   /* if no action, no need to proceed */
   if (ELEM(nullptr, owner_id, act)) {
     return;
   }
 
-  /* Name sanitation logic - copied from BKE_animdata_fix_paths_rename() */
-  if ((oldName != nullptr) && (newName != nullptr)) {
-    /* pad the names with [" "] so that only exact matches are made */
-    const size_t name_old_len = strlen(oldName);
-    const size_t name_new_len = strlen(newName);
-    char *name_old_esc = static_cast<char *>(
-        BLI_array_alloca(name_old_esc, (name_old_len * 2) + 1));
-    char *name_new_esc = static_cast<char *>(
-        BLI_array_alloca(name_new_esc, (name_new_len * 2) + 1));
-
-    BLI_str_escape(name_old_esc, oldName, (name_old_len * 2) + 1);
-    BLI_str_escape(name_new_esc, newName, (name_new_len * 2) + 1);
-    oldN = BLI_sprintfN("[\"%s\"]", name_old_esc);
-    newN = BLI_sprintfN("[\"%s\"]", name_new_esc);
-  }
-  else {
-    oldN = BLI_sprintfN("[%d]", oldSubscript);
-    newN = BLI_sprintfN("[%d]", newSubscript);
-  }
+  auto &&[old_key, new_key] = RNA_generate_keys_for_path_rename(
+      oldName ? oldName : "", newName ? newName : "", oldSubscript, newSubscript, true);
 
   /* fix paths in action */
   fcurves_path_rename_fix(owner_id,
                           prefix,
                           oldName,
                           newName,
-                          oldN,
-                          newN,
+                          old_key.c_str(),
+                          new_key.c_str(),
                           animrig::fcurves_for_action_slot(act->wrap(), slot_handle),
                           verify_paths);
-
-  /* free the temp names */
-  MEM_delete(oldN);
-  MEM_delete(newN);
 
   DEG_id_tag_update(&act->id, ID_RECALC_ANIMATION);
 }
@@ -1041,37 +1004,18 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
                                    bool verify_paths,
                                    bool infix_is_name)
 {
-  char *oldN, *newN;
   /* If no AnimData, no need to proceed. */
   if (ELEM(nullptr, owner_id, adt)) {
     return;
   }
-  bool is_self_changed = false;
-  /* Name sanitation logic - shared with BKE_action_fix_paths_rename(). */
-  if ((old_infix != nullptr) && (new_infix != nullptr)) {
-    if (infix_is_name) {
-      /* Pad the names with [" "] so that only exact matches are made. */
-      const size_t name_old_len = strlen(old_infix);
-      const size_t name_new_len = strlen(new_infix);
-      char *name_old_esc = static_cast<char *>(
-          BLI_array_alloca(name_old_esc, (name_old_len * 2) + 1));
-      char *name_new_esc = static_cast<char *>(
-          BLI_array_alloca(name_new_esc, (name_new_len * 2) + 1));
 
-      BLI_str_escape(name_old_esc, old_infix, (name_old_len * 2) + 1);
-      BLI_str_escape(name_new_esc, new_infix, (name_new_len * 2) + 1);
-      oldN = BLI_sprintfN("[\"%s\"]", name_old_esc);
-      newN = BLI_sprintfN("[\"%s\"]", name_new_esc);
-    }
-    else {
-      oldN = BLI_strdup(old_infix);
-      newN = BLI_strdup(new_infix);
-    }
-  }
-  else {
-    oldN = BLI_sprintfN("[%d]", oldSubscript);
-    newN = BLI_sprintfN("[%d]", newSubscript);
-  }
+  auto &&[old_key, new_key] = RNA_generate_keys_for_path_rename(old_infix ? old_infix : "",
+                                                                new_infix ? new_infix : "",
+                                                                oldSubscript,
+                                                                newSubscript,
+                                                                infix_is_name);
+  bool is_self_changed = false;
+
   /* Active action and temp action. */
   if (adt->action != nullptr && adt->slot_handle != animrig::Slot::unassigned) {
     rename_paths_action(adt->action,
@@ -1080,8 +1024,8 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
                         prefix,
                         old_infix,
                         new_infix,
-                        oldN,
-                        newN,
+                        old_key.c_str(),
+                        new_key.c_str(),
                         verify_paths);
   }
   if (adt->tmpact) {
@@ -1091,25 +1035,35 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
                         prefix,
                         old_infix,
                         new_infix,
-                        oldN,
-                        newN,
+                        old_key.c_str(),
+                        new_key.c_str(),
                         verify_paths);
   }
   /* Drivers - Drivers are really F-Curves */
-  is_self_changed |= drivers_path_rename_fix(
-      owner_id, ref_id, prefix, old_infix, new_infix, oldN, newN, &adt->drivers, verify_paths);
+  is_self_changed |= drivers_path_rename_fix(owner_id,
+                                             ref_id,
+                                             prefix,
+                                             old_infix,
+                                             new_infix,
+                                             old_key.c_str(),
+                                             new_key.c_str(),
+                                             &adt->drivers,
+                                             verify_paths);
   /* NLA Data - Animation Data for Strips */
   for (NlaTrack &nlt : adt->nla_tracks) {
-    is_self_changed |= nlastrips_path_rename_fix(
-        owner_id, prefix, old_infix, new_infix, oldN, newN, &nlt.strips, verify_paths);
+    is_self_changed |= nlastrips_path_rename_fix(owner_id,
+                                                 prefix,
+                                                 old_infix,
+                                                 new_infix,
+                                                 old_key.c_str(),
+                                                 new_key.c_str(),
+                                                 &nlt.strips,
+                                                 verify_paths);
   }
   /* Tag owner ID if it */
   if (is_self_changed) {
     DEG_id_tag_update(owner_id, ID_RECALC_SYNC_TO_EVAL);
   }
-  /* free the temp names */
-  MEM_delete(oldN);
-  MEM_delete(newN);
 }
 
 /* Remove FCurves with Prefix  -------------------------------------- */
@@ -1248,8 +1202,7 @@ static bool nlastrips_apply_all_curves_cb(ID *id,
 {
   for (NlaStrip &strip : *strips) {
     if (strip.act) {
-      BLI_assert_msg(BLI_listbase_is_empty(&strip.act->curves),
-                     "Legacy Actions are not supported here");
+      BLI_assert_msg(strip.act->curves.is_empty(), "Legacy Actions are not supported here");
       const Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(strip.act->wrap(),
                                                                         strip.action_slot_handle);
       if (!fcurves_apply_cb(id, fcurves, func)) {
@@ -1275,8 +1228,7 @@ static bool nlastrips_apply_all_curves_cb(ID *id,
 static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallback func)
 {
   if (adt->action) {
-    BLI_assert_msg(BLI_listbase_is_empty(&adt->action->curves),
-                   "Legacy Actions are not supported here");
+    BLI_assert_msg(adt->action->curves.is_empty(), "Legacy Actions are not supported here");
     if (!fcurves_apply_cb(
             id, animrig::fcurves_for_action_slot(adt->action->wrap(), adt->slot_handle), func))
     {
@@ -1285,8 +1237,7 @@ static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallba
   }
 
   if (adt->tmpact) {
-    BLI_assert_msg(BLI_listbase_is_empty(&adt->tmpact->curves),
-                   "Legacy Actions are not supported here");
+    BLI_assert_msg(adt->tmpact->curves.is_empty(), "Legacy Actions are not supported here");
     if (!fcurves_apply_cb(
             id, animrig::fcurves_for_action_slot(adt->tmpact->wrap(), adt->tmp_slot_handle), func))
     {
