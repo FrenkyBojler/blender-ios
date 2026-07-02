@@ -4043,6 +4043,16 @@ void BKE_object_foreach_display_point(Object *ob,
       }
     }
   }
+  else if (ob->type == OB_POINTCLOUD) {
+    PointCloud &pointcloud = *id_cast<PointCloud *>(ob->data);
+    const Span<float3> positions = pointcloud.positions();
+    threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
+      for (const int i : range) {
+        mul_v3_m4v3(co, obmat, positions[i]);
+        func_cb(co, user_data);
+      }
+    });
+  }
 }
 
 void BKE_scene_foreach_display_point(Depsgraph *depsgraph,
