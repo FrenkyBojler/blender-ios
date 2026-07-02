@@ -65,6 +65,13 @@ class PROPERTIES_HT_header(Header):
 
         layout.separator_spacer()
 
+        row = layout.row(align=True)
+        row.operator(
+            "buttons.toggle_pin",
+            text="",
+            icon='PINNED' if view.use_pin_id else 'UNPINNED',
+            depress=view.use_pin_id)
+        row.popover(panel="PROPERTIES_PT_context", text="")
         layout.popover(panel="PROPERTIES_PT_options", text="")
 
 

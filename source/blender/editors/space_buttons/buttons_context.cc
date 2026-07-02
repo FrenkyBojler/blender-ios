@@ -1341,13 +1341,6 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 
     first = false;
   }
-
-  ui::Layout &pin_row = row.row(false);
-  pin_row.alignment_set(ui::LayoutAlign::Right);
-  pin_row.separator_spacer();
-  pin_row.emboss_set(ui::EmbossType::None);
-  pin_row.op(
-      "BUTTONS_OT_toggle_pin", "", (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED);
 }
 
 void buttons_context_register(ARegionType *art)
@@ -1359,7 +1352,7 @@ void buttons_context_register(ARegionType *art)
   pt->poll = buttons_panel_context_poll;
   pt->draw = buttons_panel_context_draw;
   pt->flag = PANEL_TYPE_NO_HEADER | PANEL_TYPE_NO_SEARCH;
-  BLI_addtail(&art->paneltypes, pt);
+  WM_paneltype_add(pt);
 }
 
 ID *buttons_context_id_path(const bContext *C)
