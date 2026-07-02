@@ -930,6 +930,12 @@ static void get_strip_text_color(const StripDrawContext &strip_ctx, uchar r_col[
   const Strip *strip = strip_ctx.strip;
   const bool active_or_selected = (strip->flag & SEQ_SELECT) || strip_ctx.is_active_strip;
 
+  if (seq::strip_is_transition(strip)) {
+    r_col[0] = r_col[1] = r_col[2] = 0;
+    r_col[3] = active_or_selected ? 255 : 150;
+    return;
+  }
+
   /* Text: white when selected/active, black otherwise. */
   r_col[0] = r_col[1] = r_col[2] = r_col[3] = 255;
 
@@ -1745,8 +1751,6 @@ static void draw_seq_transitions(const TimelineDrawContext &ctx,
   ui::view2d_view_ortho(ctx.v2d);
   GPU_blend(GPU_BLEND_ALPHA);
   for (const StripDrawContext &strip_ctx : strips) {
-    draw_handle_transform_text(ctx, strip_ctx, STRIP_HANDLE_LEFT);
-    draw_handle_transform_text(ctx, strip_ctx, STRIP_HANDLE_RIGHT);
     draw_seq_text_overlay(ctx, strip_ctx);
   }
 
