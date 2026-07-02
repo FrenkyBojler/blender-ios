@@ -891,7 +891,7 @@ static void file_draw_special_image(const FileDirEntry *file,
     ui::theme::get_color_4fv(TH_ICON_FOLDER, document_img_col);
   }
   else {
-    uiWidgetColors wcol = ui::theme::theme_get()->tui.wcol_list_item;
+    const uiWidgetColors wcol = ui::theme::theme_get()->tui.wcol_list_item;
     rgba_uchar_to_float(document_img_col, wcol.item);
   }
 
@@ -990,7 +990,7 @@ static void file_draw_indicator_icons(const FileList *files,
   const bool is_link = (file->attributes & FILE_ATTR_ANY_LINK);
   const bool is_loading = filelist_file_is_preview_pending(files, file);
 
-  uiWidgetColors wcol = ui::theme::theme_get()->tui.wcol_list_item;
+  const uiWidgetColors wcol = ui::theme::theme_get()->tui.wcol_list_item;
   const uchar *icon_color = wcol.item;
   const uchar icon_color_lightness = srgb_to_grayscale_byte(icon_color);
   const bool show_icon_border = (icon_color_lightness > 96);
@@ -1447,7 +1447,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   ui::FontStyleAlign align;
   bool do_drag;
   uchar text_col[4];
-  uiWidgetColors wcol = ui::theme::theme_get()->tui.wcol_list_item;
+  const uiWidgetColors wcol = ui::theme::theme_get()->tui.wcol_list_item;
   const bool draw_columnheader = (params->display == FILE_VERTICALDISPLAY);
   const float thumb_icon_aspect = std::min(64.0f / float(params->thumbnail_size), 4.0f);
 
