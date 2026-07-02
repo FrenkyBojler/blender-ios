@@ -2080,9 +2080,9 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
       /* If we inserted new key frame on target layer, then it means target layer/drawing was newly
        * created, so we move strokes to that drawing instead, otherwise insert to their original
        * frames. */
-      const int use_frame_number = is_key_inserted ? scene->r.cfra : info.frame_number;
+      const int frame_number_dst = is_key_inserted ? scene->r.cfra : info.frame_number;
       /* Move geometry to a new drawing in target layer. */
-      Drawing &drawing_dst = *grease_pencil.get_drawing_at(layer_dst, use_frame_number);
+      Drawing &drawing_dst = *grease_pencil.get_drawing_at(layer_dst, frame_number_dst);
       drawing_dst.strokes_for_write() = bke::curves_copy_curve_selection(
           curves_src, selected_strokes, {});
 
