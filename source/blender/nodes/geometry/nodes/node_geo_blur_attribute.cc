@@ -372,14 +372,27 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
   {
   }
 
+  static AttrDomain get_source_domain(const bke::GeometryFieldContext &context)
+  {
+    if (context.type() == GeometryComponent::Type::Mesh) {
+      if (ELEM(context.domain(), AttrDomain::Point, AttrDomain::Edge, AttrDomain::Face)) {
+        return context.domain();
+      }
+    }
+    return AttrDomain::Point;
+  }
+
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask & /*mask*/) const final
   {
-    const int64_t domain_size = context.attributes()->domain_size(context.domain());
+    const AttributeAccessor attributes = *context.attributes();
+    const AttrDomain source_domain = get_source_domain(context);
+    const int64_t domain_size = attributes.domain_size(source_domain);
 
     GArray<> buffer_a(*type_, domain_size);
 
-    FieldEvaluator evaluator(context, domain_size);
+    bke::GeometryFieldContext field_context(context, source_domain);
+    FieldEvaluator evaluator(field_context, domain_size);
 
     evaluator.add_with_destination(value_field_, buffer_a.as_mutable_span());
     evaluator.add(weight_field_);
@@ -400,20 +413,16 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
     GSpan result_buffer = buffer_a.as_span();
     switch (context.type()) {
       case GeometryComponent::Type::Mesh:
-        if (ELEM(context.domain(), AttrDomain::Point, AttrDomain::Edge, AttrDomain::Face)) {
-          if (const Mesh *mesh = context.mesh()) {
-            result_buffer = blur_on_mesh(
-                *mesh, context.domain(), iterations_, neighbor_weights, buffer_a, buffer_b);
-          }
+        if (const Mesh *mesh = context.mesh()) {
+          result_buffer = blur_on_mesh(
+              *mesh, source_domain, iterations_, neighbor_weights, buffer_a, buffer_b);
         }
         break;
       case GeometryComponent::Type::Curve:
       case GeometryComponent::Type::GreasePencil:
-        if (context.domain() == AttrDomain::Point) {
-          if (const bke::CurvesGeometry *curves = context.curves_or_strokes()) {
-            result_buffer = blur_on_curves(
-                *curves, iterations_, neighbor_weights, buffer_a, buffer_b);
-          }
+        if (const bke::CurvesGeometry *curves = context.curves_or_strokes()) {
+          result_buffer = blur_on_curves(
+              *curves, iterations_, neighbor_weights, buffer_a, buffer_b);
         }
         break;
       default:
@@ -422,9 +431,11 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
 
     BLI_assert(ELEM(result_buffer.data(), buffer_a.data(), buffer_b.data()));
     if (result_buffer.data() == buffer_a.data()) {
-      return GVArray::from_garray(std::move(buffer_a));
+      return attributes.adapt_domain(
+          GVArray::from_garray(std::move(buffer_a)), source_domain, context.domain());
     }
-    return GVArray::from_garray(std::move(buffer_b));
+    return attributes.adapt_domain(
+        GVArray::from_garray(std::move(buffer_b)), source_domain, context.domain());
   }
 
   void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const override
