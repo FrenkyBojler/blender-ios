@@ -171,7 +171,11 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
 
   switch (codec) {
     case 2:
-      rv->codec = avcodec_find_encoder(AV_CODEC_ID_PRORES);
+      /* Try to bypass the slower prores_ks encoder. */
+      rv->codec = avcodec_find_encoder_by_name("prores");
+      if (!rv->codec) {
+        rv->codec = avcodec_find_encoder(AV_CODEC_ID_PRORES);
+      }
       break;
     case 1:
       rv->codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
@@ -277,7 +281,8 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
     rv->c->thread_count = MOV_thread_count();
   }
 
-  if (rv->codec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
+  /* ProRes requires slice-threading for stability, for other codecs frame threading is faster. */
+  if ((rv->codec->capabilities & AV_CODEC_CAP_FRAME_THREADS) && (codec != 2)) {
     rv->c->thread_type = FF_THREAD_FRAME;
   }
   else if (rv->codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
@@ -391,6 +396,15 @@ static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx,
   if (ctx->sws_ctx && frame &&
       (frame->data[0] || frame->data[1] || frame->data[2] || frame->data[3]))
   {
+    /* Unreference the previous frame buffer and allocate a new one, so the encoder thread can
+     * finish reading the previous frame while the scaler writes the next frame into a new memory
+     * block. */
+    av_frame_unref(ctx->frame);
+    ctx->frame->format = ctx->c->pix_fmt;
+    ctx->frame->width = ctx->c->width;
+    ctx->frame->height = ctx->c->height;
+    av_frame_get_buffer(ctx->frame, ffmpeg_get_buffer_alignment());
+
     ffmpeg_sws_scale_frame(ctx->sws_ctx, ctx->frame, frame);
   }
 
@@ -438,9 +452,14 @@ static void add_to_proxy_output_ffmpeg(proxy_output_ctx *ctx,
     }
 
     packet->stream_index = ctx->st->index;
+    if (ctx->codec->id == AV_CODEC_ID_PRORES) {
+      packet->dts = packet->pts;
+    }
     av_packet_rescale_ts(packet, ctx->c->time_base, ctx->st->time_base);
 #  ifdef FFMPEG_USE_DURATION_WORKAROUND
-    my_guess_pkt_duration(ctx->of, ctx->st, packet);
+    if (ctx->codec->id != AV_CODEC_ID_PRORES) {
+      my_guess_pkt_duration(ctx->of, ctx->st, packet);
+    }
 #  endif
 
     int write_ret = av_interleaved_write_frame(ctx->of, packet);
