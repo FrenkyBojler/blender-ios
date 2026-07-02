@@ -51,8 +51,8 @@
 
 namespace blender::seq {
 
-void compositor_nodes_update_interface(Scene &sequencer_scene,
-                                       SequencerCompositorModifierData &cmd)
+void compositor_modifier_nodes_update_interface(Scene &sequencer_scene,
+                                                SequencerCompositorModifierData &cmd)
 {
   if (!cmd.modifier.system_properties) {
     cmd.modifier.system_properties =

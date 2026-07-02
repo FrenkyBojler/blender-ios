@@ -456,7 +456,7 @@ class NodeTreeMainUpdater {
             StripModifierData *md = pair.second;
 
             if (md->type == eSeqModifierType_Compositor) {
-              seq::compositor_nodes_update_interface(
+              seq::compositor_modifier_nodes_update_interface(
                   *scene, *reinterpret_cast<SequencerCompositorModifierData *>(md));
             }
           }
