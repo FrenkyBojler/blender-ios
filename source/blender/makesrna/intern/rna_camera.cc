@@ -1077,6 +1077,39 @@ void RNA_def_camera(BlenderRNA *brna)
                            "Display Safe Area for Unidirectional Projection");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
 
+  prop = RNA_def_property(
+      srna, "show_composition_dome_master_unidirectional_zenit_front", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "composition_guide_flags_dome_master",
+                                COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_FRONT);
+  RNA_def_property_ui_text(prop,
+                           "Dome Master Unidirectional Safe Area for Horizon",
+                           "Display Safe Area for Unidirectional Projection");
+  RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
+
+  prop = RNA_def_property(
+      srna, "show_composition_dome_master_unidirectional_zenit_center", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "composition_guide_flags_dome_master",
+                                COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_CENTER);
+  RNA_def_property_ui_text(prop,
+                           "Dome Master Unidirectional Safe Area for Horizon",
+                           "Display Safe Area for Unidirectional Projection");
+  RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
+
+  prop = RNA_def_property(
+      srna, "show_composition_dome_master_unidirectional_zenit_back", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "composition_guide_flags_dome_master",
+                                COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_BACK);
+  RNA_def_property_ui_text(prop,
+                           "Dome Master Unidirectional Safe Area for Horizon",
+                           "Display Safe Area for Unidirectional Projection");
+  RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
+
   /* Panoramic settings. */
   prop = RNA_def_property(srna, "panorama_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, panorama_type_items);

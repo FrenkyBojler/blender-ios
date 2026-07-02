@@ -118,6 +118,8 @@ struct tSlider {
   /** Reduces factor delta from mouse movement. */
   bool precision;
 };
+float2 calculate_radial_point(float2 center, float2 radius, float2 points);
+Vector<float2> calculate_radial_points(float2 center, float2 radius, Vector<float2> points);
 
 static void draw_overshoot_triangle(const uint8_t color[4],
                                     const bool facing_right,
@@ -1269,6 +1271,28 @@ void ED_draw_composition_guides(uint shdr_pos,
   }
 }
 
+float2 calculate_radial_point(float2 center, float2 radius, float2 point)
+{
+  float angle = DEG2RAD(point.x);
+  float offset = 90 - point.y;
+  float2 calced_radius = {((radius.x / 90) * offset), ((radius.y / 90) * offset)};
+
+  point.x = center.x + calced_radius.x * cos(angle);
+  point.y = center.y + calced_radius.y * sin(angle);
+
+  return point;
+}
+
+Vector<float2> calculate_radial_points(float2 center, float2 radius, Vector<float2> points)
+{
+
+  for (int i = 0; i < points.size(); i++) {
+    points[i] = calculate_radial_point(center, radius, points[i]);
+  }
+
+  return points;
+}
+
 void ED_draw_dome_master_composition_guides(uint shdr_pos,
                                             eCompositionGuideFlagsDomeMaster flag,
                                             const rctf *rect,
@@ -1285,24 +1309,29 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
   const float h = rect->ymax - rect->ymin;
   const float xmid = rect->xmin + 0.5f * w;
   const float ymid = rect->ymin + 0.5f * h;
+  float2 center = {xmid, ymid};
   const float radius_x = w / 2;
   const float radius_y = h / 2;
+  float2 radius = {radius_x, radius_y};
   float angle, x1, y1, x2, y2;
   const float radius_x_step = radius_x / rings;
   const float radius_y_step = radius_y / rings;
   float sweetspot_radius = 0.02 * radius_y;
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) ||
-      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_HORIZON) ||
-      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_FRONT) ||
-      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_BACK) ||
-      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER) ||
-      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_FRONT) ||
-      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_CENTER) ||
-      (flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_BACK) ||
-      (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS))
-  {
+  if (flag != eCompositionGuideFlagsDomeMaster{}) {
     imm_draw_circle_wire_aspect_2d(shdr_pos, xmid, ymid, radius_x, radius_y, 365);
+  }
+
+  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_FRONT)) {
+    imm_draw_cross_2d(shdr_pos, xmid, ymid - (radius_y * .112), .08 * radius_y, .08 * radius_y);
+  }
+
+  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_CENTER)) {
+    imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .052), .08 * radius_y, .08 * radius_y);
+  }
+
+  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_BACK)) {
+    imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .442), .08 * radius_y, .08 * radius_y);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_HORIZON)) {
@@ -1328,75 +1357,24 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_BACK)) {
 
-    float angle = 30.23;
-    imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
-                                           xmid,
-                                           ymid - (radius_y * 0.83),
-                                           radius_x * 1.980,
-                                           radius_y * 1.05,
-                                           100,
-                                           -angle,
-                                           angle * 2);
+    float r = -5.0f;
+    Vector<float2> points = calculate_radial_points(
+        center, radius, Vector<float2>{{-r, 0.0f}, {90.0f, 56.0f}, {-180 + r, 0}});
+
+    imm_draw_quadratic_curve(shdr_pos, 100, points[0], points[1], points[2]);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_FRONT)) {
 
-    int cord_size = 8;
-    float cords[cord_size][2] = {
-        {8, -38.7f},
-        {7, -37.3f},
-        {6, -36.2f},
-        {5, -36.3f},
-        {4, -40.0f},
-        {3, -52.0f},
-        {2.67f, -60.0f},
-        {2.3f, -90.0f},
-    };
+    Vector<float2> points = calculate_radial_points(
+        center, radius, Vector<float2>{{-40.0f, 0.0f}, {-25.0f, 38.f}, {-90.0f, 68.0f}});
 
-    immBegin(GPU_PRIM_LINES, directions * 2);
-    float x, y;
+    imm_draw_quadratic_curve(shdr_pos, 50, points[0], points[1], points[2]);
 
-    for (int i = 0; i < cord_size; i++) {
+    points = calculate_radial_points(
+        center, radius, Vector<float2>{{-90.0f, 68.0f}, {-155.0f, 38.f}, {-140.0f, 0.0f}});
 
-      if (i == 0) {
-        angle = DEG2RAD(-40);
-        x = xmid + radius_x * cos(angle);
-        y = ymid + radius_y * sin(angle);
-      }
-      else {
-        angle = DEG2RAD(cords[i - 1][1]);
-        x = xmid + (radius_x_step * cords[i - 1][0]) * cos(angle);
-        y = ymid + (radius_y_step * cords[i - 1][0]) * sin(angle);
-      }
-
-      immVertex2f(shdr_pos, x, y);
-      angle = DEG2RAD(cords[i][1]);
-      x = xmid + (radius_x_step * cords[i][0]) * cos(angle);
-      y = ymid + (radius_y_step * cords[i][0]) * sin(angle);
-      immVertex2f(shdr_pos, x, y);
-    }
-
-    for (int i = 0; i < cord_size; i++) {
-
-      if (i == 0) {
-        angle = DEG2RAD(-140);
-        x = xmid + radius_x * cos(angle);
-        y = ymid + radius_y * sin(angle);
-      }
-      else {
-        angle = DEG2RAD(-180 + (cords[i - 1][1] * -1));
-        x = xmid + (radius_x_step * cords[i - 1][0]) * cos(angle);
-        y = ymid + (radius_y_step * cords[i - 1][0]) * sin(angle);
-      }
-
-      immVertex2f(shdr_pos, x, y);
-      angle = DEG2RAD(-180 + (cords[i][1] * -1));
-      x = xmid + (radius_x_step * cords[i][0]) * cos(angle);
-      y = ymid + (radius_y_step * cords[i][0]) * sin(angle);
-      immVertex2f(shdr_pos, x, y);
-    }
-
-    immEnd();
+    imm_draw_quadratic_curve(shdr_pos, 50, points[0], points[1], points[2]);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_FRONT)) {
@@ -1413,15 +1391,11 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER)) {
 
-    float angle = 28.40;
-    imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
-                                           xmid,
-                                           ymid - (radius_y * 1.26),
-                                           radius_x * 1.980,
-                                           radius_y * 1.05,
-                                           100,
-                                           -angle,
-                                           angle * 2);
+    float r = 19.8f;
+    Vector<float2> points = calculate_radial_points(
+        center, radius, Vector<float2>{{-r, 0.0f}, {-90.0f, 83.9f}, {-180 + r, 0}});
+
+    imm_draw_quadratic_curve(shdr_pos, 100, points[0], points[1], points[2]);
   }
 
   if (flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) {

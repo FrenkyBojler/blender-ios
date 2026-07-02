@@ -188,6 +188,20 @@ static void imm_draw_circle(GPUPrimType prim_type,
   }
 }
 
+static void imm_draw_cross(
+    GPUPrimType prim_type, uint pos, float x, float y, float radius_x, float radius_y)
+{
+  /* shift & reverse angle, increase 'nsegments' to match gluPartialDisk */
+  const float half_radius_x = radius_x / 2;
+  const float half_radius_y = radius_y / 2;
+
+  immBegin(prim_type, 4);
+  immVertex2f(pos, x + half_radius_x, y);
+  immVertex2f(pos, x - half_radius_x, y);
+  immVertex2f(pos, x, y + half_radius_y);
+  immVertex2f(pos, x, y - half_radius_y);
+  immEnd();
+}
 void imm_draw_circle_wire_2d(uint shdr_pos, float x, float y, float radius, int nsegments)
 {
   imm_draw_circle(GPU_PRIM_LINE_LOOP, shdr_pos, x, y, radius, radius, nsegments);
@@ -196,6 +210,11 @@ void imm_draw_circle_wire_2d(uint shdr_pos, float x, float y, float radius, int 
 void imm_draw_circle_fill_2d(uint shdr_pos, float x, float y, float radius, int nsegments)
 {
   imm_draw_circle(GPU_PRIM_TRI_FAN, shdr_pos, x, y, radius, radius, nsegments);
+}
+
+void imm_draw_cross_2d(uint shdr_pos, float x, float y, float radius_x, float radius_y)
+{
+  imm_draw_cross(GPU_PRIM_LINES, shdr_pos, x, y, radius_x, radius_y);
 }
 
 void imm_draw_circle_wire_aspect_2d(
@@ -244,7 +263,7 @@ static void imm_draw_circle_partial_aspect(GPUPrimType prim_type,
                                            float sweep)
 {
   /* shift & reverse angle, increase 'nsegments' to match gluPartialDisk */
-  const float radius = radius_x;
+  /*  const float radius = radius_x; */
   const float angle_start = -DEG2RADF(start) + float(M_PI_2);
   const float angle_end = -(DEG2RADF(sweep) - angle_start);
   nsegments += 1;
@@ -731,6 +750,29 @@ void imm_draw_cylinder_fill_3d(
       immVertex3fv(pos, v4);
       immVertex3fv(pos, v1);
     }
+  }
+  immEnd();
+}
+
+/* Curve Drawing */
+
+void imm_draw_quadratic_curve(uint pos, int segments, float2 start, float2 handler, float2 end)
+{
+  immBegin(GPU_PRIM_LINES, segments);
+  for (int i = 0; i <= segments; i++) {
+    float t = (float)i / (float)segments;
+
+    /* Calculate Quadratic Bezier */
+
+    float u = 1.0f - t;
+    float tt = t * t;
+    float uu = u * u;
+
+    float2 p;
+    p.x = uu * start.x + 2 * u * t * handler.x + tt * end.x;
+    p.y = uu * start.y + 2 * u * t * handler.y + tt * end.y;
+
+    immVertex2f(pos, p.x, p.y);
   }
   immEnd();
 }

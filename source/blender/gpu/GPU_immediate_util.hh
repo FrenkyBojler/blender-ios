@@ -46,6 +46,19 @@ void immRecti_fast_with_color(
 void imm_cpack(uint x);
 
 /**
+ * Draw a cross given \a radius.
+ * The cross is centered at \a x, \a y and drawn in the XY plane.
+ *
+ * \param shdr_pos: The vertex attribute number for position.
+ * \param x: Horizontal center.
+ * \param y: Vertical center.
+ * \param radius_x: The x length of the crowss.
+ * \param radius_y: The y length of the crowss.
+ */
+
+void imm_draw_cross_2d(uint shdr_pos, float x, float y, float radius_x, float radius_y);
+
+/**
  * Draw a circle outline with the given \a radius.
  * The circle is centered at \a x, \a y and drawn in the XY plane.
  *
@@ -66,6 +79,7 @@ void imm_draw_circle_wire_2d(uint shdr_pos, float x, float y, float radius, int 
  * \param radius: The circle's radius.
  * \param nsegments: The number of segments to use in drawing (more = smoother).
  */
+
 void imm_draw_circle_fill_2d(uint shdr_pos, float x, float y, float radius, int nsegments);
 
 void imm_draw_circle_wire_aspect_2d(
@@ -108,6 +122,21 @@ void imm_draw_circle_partial_aspect_wire_2d(uint pos,
                                             float sweep);
 void imm_draw_circle_partial_wire_3d(
     uint pos, float x, float y, float z, float radius, int nsegments, float start, float sweep);
+
+/*
+Draw A Curve
+**/
+
+/* Vector<float2> generateCurvePoints(int segments, float2 P0, float2 P1, float2 P2) {
+    std::vector<float2> curve;
+    for (int i = 0; i <= segments; i++) {
+        float t = (float)i / (float)segments;
+        curve.push_back(calculateQuadraticBezier(t, P0, P1, P2));
+    }
+    return curve;
+} */
+
+void imm_draw_quadratic_curve(uint pos, int segments, float2 start, float2 handler, float2 end);
 
 /**
  * Draw a filled arc with the given inner and outer radius.
