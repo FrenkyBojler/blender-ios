@@ -2428,7 +2428,8 @@ static void lib_link_scenes_check_set(Main *bmain)
 static void library_filedata_release(Library *lib)
 {
   if (lib->runtime->filedata) {
-    BLI_assert(lib->runtime->versionfile != 0);
+    /* External libraries have no version info. */
+    BLI_assert(lib->runtime->versionfile != 0 || (lib->flag & LIBRARY_FLAG_IS_EXTERNAL));
     BLI_assert_msg(!lib->runtime->is_filedata_owner || (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0,
                    "Packed Archive libraries should never own their filedata");
     if (lib->runtime->is_filedata_owner) {
@@ -3416,6 +3417,21 @@ static BHead *read_libblock(FileData *fd,
 {
   const bool do_partial_undo = (fd->skip_flags & BLO_READ_SKIP_UNDO_OLD_MAIN) == 0;
 
+  auto process_packed_id = [&fd, &main](ID &id) -> void {
+    if (!ID_IS_PACKED(&id)) {
+      return;
+    }
+    BLI_assert(main->curlib);
+    if ((id.lib->flag & LIBRARY_FLAG_IS_EXTERNAL) != 0) {
+      /* External libraries should have a null deep hash. */
+      BLI_assert(id.deep_hash == IDHash::get_null());
+    }
+    else {
+      BLI_assert(id.deep_hash != IDHash::get_null());
+      fd->id_by_deep_hash->add_new(id.deep_hash, &id);
+    }
+  };
+
   /* First attempt to restore existing datablocks for undo.
    * When datablocks are changed but still exist, we restore them at the old
    * address and inherit recalc flags for the dependency graph. */
@@ -3429,11 +3445,7 @@ static BHead *read_libblock(FileData *fd,
         if (main->id_map != nullptr) {
           BKE_main_idmap_insert_id(main->id_map, id_old);
         }
-        if (ID_IS_PACKED(id_old)) {
-          BLI_assert(id_old->deep_hash != IDHash::get_null());
-          fd->id_by_deep_hash->add_new(id_old->deep_hash, id_old);
-          BLI_assert(main->curlib);
-        }
+        process_packed_id(*id_old);
       }
 
       return blo_bhead_next(fd, bhead);
@@ -3538,17 +3550,7 @@ static BHead *read_libblock(FileData *fd,
     if (main->id_map != nullptr) {
       BKE_main_idmap_insert_id(main->id_map, id_target);
     }
-    if (ID_IS_PACKED(id_target)) {
-      if ((id_target->lib->flag & LIBRARY_FLAG_IS_EXTERNAL) != 0) {
-        /* External libraries should have a null deep hash. */
-        BLI_assert(id_target->deep_hash == IDHash::get_null());
-      }
-      else {
-        BLI_assert(id_target->deep_hash != IDHash::get_null());
-        fd->id_by_deep_hash->add_new(id_target->deep_hash, id_target);
-        BLI_assert(main->curlib);
-      }
-    }
+    process_packed_id(*id_target);
     if (fd->file_stat) {
       id->runtime->src_blend_modifification_time = fd->file_stat->st_mtime;
     }
@@ -4477,8 +4479,11 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
        *  - In case it is a reference library for archived ones, its runtime #archived_libraries
        *    vector will not be empty, and it must be kept, even if no data is directly linked from
        *    it anymore.
+       *  - External libraries never have versionfile info, so always skip them here.
        */
-      if (lib.runtime->versionfile == 0 && lib.runtime->archived_libraries.is_empty()) {
+      if (lib.runtime->versionfile == 0 && lib.runtime->archived_libraries.is_empty() &&
+          (lib.flag & LIBRARY_FLAG_IS_EXTERNAL) == 0)
+      {
 #ifndef NDEBUG
         ID *id_iter;
         FOREACH_MAIN_ID_BEGIN (bfd->main, id_iter) {
