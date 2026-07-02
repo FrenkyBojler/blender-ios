@@ -3255,7 +3255,6 @@ class _defs_sequencer_generic:
                 row = layout.row()
                 row.prop(props, "type", expand=True)
                 col = layout.column()
-                col.prop(props, "ignore_selection", expand=True)
                 col.prop(props, "ignore_connections", expand=True)
 
             # Box Blade properties.
