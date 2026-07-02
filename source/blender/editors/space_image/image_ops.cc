@@ -3165,8 +3165,6 @@ static wmOperatorStatus image_clipboard_paste_exec(bContext *C, wmOperator *op)
   WM_cursor_wait(true);
   ImBuf *ibuf = WM_clipboard_image_get();
   if (ibuf) {
-    ED_undo_push_op(C, op);
-
     Main *bmain = CTX_data_main(C);
     SpaceImage *sima = CTX_wm_space_image(C);
     Image *ima = BKE_image_add_from_imbuf(bmain, ibuf, "Clipboard");
@@ -3175,6 +3173,7 @@ static wmOperatorStatus image_clipboard_paste_exec(bContext *C, wmOperator *op)
     ED_space_image_set(bmain, sima, ima, false);
     BKE_image_signal(bmain, ima, (sima) ? &sima->iuser : nullptr, IMA_SIGNAL_USER_NEW_IMAGE);
     WM_event_add_notifier(C, NC_IMAGE | NA_ADDED, ima);
+    ED_undo_push_op(C, op);
     changed = true;
   }
   WM_cursor_wait(false);
