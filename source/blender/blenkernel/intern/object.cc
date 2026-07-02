@@ -4048,8 +4048,7 @@ void BKE_object_foreach_display_point(Object *ob,
     const Span<float3> positions = pointcloud.positions();
     threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
       for (const int i : range) {
-        mul_v3_m4v3(co, obmat, positions[i]);
-        func_cb(co, user_data);
+        func_cb(math::transform_point(float4x4(obmat), positions[i]), user_data);
       }
     });
   }
