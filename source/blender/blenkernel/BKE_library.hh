@@ -115,7 +115,7 @@ void main_cleanup_parent_archives(Main &bmain);
 Library *ensure_archive_library(
     Main &bmain, ID &id, Library &reference_library, const IDHash &id_deep_hash, bool &is_new);
 
-Library *ensure_external_archive_library(Main &bmain, Library &external_library);
+Library *create_external_archive_library(Main &bmain, Library &external_library);
 
 };  // namespace bke::library
 
