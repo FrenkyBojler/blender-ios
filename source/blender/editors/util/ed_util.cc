@@ -472,7 +472,6 @@ void ED_spacedata_id_remap_single(ScrArea *area, SpaceLink *sl, ID *old_id, ID *
   }
 }
 
-
 float2 ED_calculate_radial_point(float2 center, float2 radius, float2 point)
 {
   float angle = DEG2RAD(point.x);
