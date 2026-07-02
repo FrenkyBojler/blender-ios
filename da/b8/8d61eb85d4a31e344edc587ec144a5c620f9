@@ -1,3 +1,4 @@
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by pull request #157041, Fix: crash when pasting pose without objects in buffer
 Referenced by pull request #160527, Author and credits scripts: Improve collation and deduplication
+Referenced by commit 299dc536889687994fa955b97017c567aca72323, AUTHORS: Sort individuals and add 60 new authors
