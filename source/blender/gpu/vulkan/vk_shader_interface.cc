@@ -202,6 +202,13 @@ void VKShaderInterface::populate_builtins()
   }
 }
 
+static int32_t shader_input_index(const ShaderInput *shader_inputs,
+                                  const ShaderInput *shader_input)
+{
+  int32_t index = (shader_input - shader_inputs);
+  return index;
+}
+
 void VKShaderInterface::populate_resource_bindings(InitContext &ctx)
 {
   const shader::ShaderCreateInfo &info = ctx.info;
@@ -235,7 +242,8 @@ void VKShaderInterface::populate_resource_bindings(InitContext &ctx)
                                    std::nullopt,
                                    VKImageViewArrayed::DONT_CARE);
   }
-  for (ShaderCreateInfo::Resource &res : all_resources) {
+
+  auto process_resource = [&](const ShaderCreateInfo::Resource &res, bool is_pass_resource) {
     const ShaderInput *input = shader_input_get(res);
     BLI_assert(input);
     VKImageViewArrayed arrayed = VKImageViewArrayed::DONT_CARE;
@@ -278,6 +286,18 @@ void VKShaderInterface::populate_resource_bindings(InitContext &ctx)
 
     const VKBindType bind_type = to_bind_type(res.bind_type);
     descriptor_set_location_update(input, descriptor_set_location++, bind_type, res, arrayed);
+    int32_t index = shader_input_index(inputs_, input);
+    resource_bindings_[index].is_pass_resource = is_pass_resource;
+  };
+
+  for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
+    process_resource(res, true);
+  }
+  for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
+    process_resource(res, false);
+  }
+  for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+    process_resource(res, false);
   }
 
   int32_t push_constant_descriptor_set_location = -1;
@@ -305,13 +325,6 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
   populate_shader_inputs(ctx);
   populate_builtins();
   populate_resource_bindings(ctx);
-}
-
-static int32_t shader_input_index(const ShaderInput *shader_inputs,
-                                  const ShaderInput *shader_input)
-{
-  int32_t index = (shader_input - shader_inputs);
-  return index;
 }
 
 void VKShaderInterface::descriptor_set_location_update(

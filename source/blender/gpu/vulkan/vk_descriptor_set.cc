@@ -8,7 +8,9 @@
 
 #include "vk_descriptor_set.hh"
 #include "vk_buffer.hh"
+#include "vk_framebuffer.hh"
 #include "vk_index_buffer.hh"
+#include "vk_render_scope_access.hh"
 #include "vk_shader.hh"
 #include "vk_shader_interface.hh"
 #include "vk_state_manager.hh"
@@ -67,17 +69,32 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
 void VKDescriptorSetTracker::update_resource_access_info_binding_uniform_buffer(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
-    render_graph::VKResourceAccessInfo &access_info)
+    render_graph::VKResourceAccessInfo &access_info,
+    VKRenderScopeAccess *render_scope_access)
 {
   VKUniformBuffer &uniform_buffer = *state_manager.uniform_buffers_.get(resource_binding.binding);
   uniform_buffer.ensure_updated();
-  access_info.buffers.append({uniform_buffer.resource(), resource_binding.access_mask});
+  VKResourceWithHandle<VkBuffer> buffer = uniform_buffer.resource();
+  if (resource_binding.is_pass_resource && render_scope_access) {
+    render_scope_access->buffers.add_or_modify(
+        buffer.resource_handle,
+        [access_mask = resource_binding.access_mask](VkAccessFlags *value) {
+          *value = access_mask;
+        },
+        [access_mask = resource_binding.access_mask](VkAccessFlags *value) {
+          *value |= access_mask;
+        });
+  }
+  else {
+    access_info.buffers.append({buffer, resource_binding.access_mask});
+  }
 }
 
 void VKDescriptorSetTracker::update_resource_access_info_binding_storage_buffer(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
-    render_graph::VKResourceAccessInfo &access_info)
+    render_graph::VKResourceAccessInfo &access_info,
+    VKRenderScopeAccess *render_scope_access)
 {
   const BindSpaceStorageBuffers::Elem &elem = state_manager.storage_buffers_.get(
       resource_binding.binding);
@@ -117,7 +134,19 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_storage_buffer(
     }
   }
   if (resource.vk_handle != VK_NULL_HANDLE) {
-    access_info.buffers.append({resource.resource_handle, resource_binding.access_mask});
+    if (resource_binding.is_pass_resource && render_scope_access) {
+      render_scope_access->buffers.add_or_modify(
+          resource.resource_handle,
+          [access_mask = resource_binding.access_mask](VkAccessFlags *value) {
+            *value = access_mask;
+          },
+          [access_mask = resource_binding.access_mask](VkAccessFlags *value) {
+            *value |= access_mask;
+          });
+    }
+    else {
+      access_info.buffers.append({resource.resource_handle, resource_binding.access_mask});
+    }
   }
 }
 
@@ -239,18 +268,19 @@ void VKDescriptorSetTracker::update_resource_access_info_binding_input_attachmen
 void VKDescriptorSetTracker::update_resource_access_info_binding(
     const VKStateManager &state_manager,
     const VKResourceBinding &resource_binding,
-    render_graph::VKResourceAccessInfo &access_info)
+    render_graph::VKResourceAccessInfo &access_info,
+    VKRenderScopeAccess *render_scope_access)
 {
   switch (resource_binding.bind_type) {
     case VKBindType::UNIFORM_BUFFER: {
       update_resource_access_info_binding_uniform_buffer(
-          state_manager, resource_binding, access_info);
+          state_manager, resource_binding, access_info, render_scope_access);
       break;
     }
 
     case VKBindType::STORAGE_BUFFER: {
       update_resource_access_info_binding_storage_buffer(
-          state_manager, resource_binding, access_info);
+          state_manager, resource_binding, access_info, render_scope_access);
       break;
     }
 
@@ -281,11 +311,18 @@ void VKDescriptorSetTracker::update_resource_access_info(
   VKStateManager &state_manager = context.state_manager_get();
   const VKShaderInterface &shader_interface = shader.interface_get();
 
+  VKRenderScopeAccess *render_scope_access = nullptr;
+  VKFrameBuffer *framebuffer = context.active_framebuffer_get();
+  if (framebuffer) {
+    render_scope_access = &framebuffer->render_scope_access_get();
+  }
+
   for (const VKResourceBinding &resource_binding : shader_interface.resource_bindings_get()) {
     if (resource_binding.binding == -1) {
       continue;
     }
-    update_resource_access_info_binding(state_manager, resource_binding, access_info);
+    update_resource_access_info_binding(
+        state_manager, resource_binding, access_info, render_scope_access);
   }
 
   /* Bind uniform push constants to descriptor set. */

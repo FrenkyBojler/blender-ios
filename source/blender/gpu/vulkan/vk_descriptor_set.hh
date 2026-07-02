@@ -22,6 +22,7 @@
 
 namespace blender::gpu {
 struct VKResourceBinding;
+struct VKRenderScopeAccess;
 class VKStateManager;
 class VKDevice;
 class VKPushConstants;
@@ -192,11 +193,13 @@ class VKDescriptorSetTracker {
                                           const VKBufferWithOffset &push_constants_buffer);
   static void update_resource_access_info_binding(const VKStateManager &state_manager,
                                                   const VKResourceBinding &resource_binding,
-                                                  render_graph::VKResourceAccessInfo &access_info);
+                                                  render_graph::VKResourceAccessInfo &access_info,
+                                                  VKRenderScopeAccess *render_scope_access);
   static void update_resource_access_info_binding_uniform_buffer(
       const VKStateManager &state_manager,
       const VKResourceBinding &resource_binding,
-      render_graph::VKResourceAccessInfo &access_info);
+      render_graph::VKResourceAccessInfo &access_info,
+      VKRenderScopeAccess *render_scope_access);
   static void update_resource_access_info_binding_image(
       const VKStateManager &state_manager,
       const VKResourceBinding &resource_binding,
@@ -208,7 +211,8 @@ class VKDescriptorSetTracker {
   static void update_resource_access_info_binding_storage_buffer(
       const VKStateManager &state_manager,
       const VKResourceBinding &resource_binding,
-      render_graph::VKResourceAccessInfo &access_info);
+      render_graph::VKResourceAccessInfo &access_info,
+      VKRenderScopeAccess *render_scope_access);
   static void update_resource_access_info_binding_input_attachment(
       const VKStateManager &state_manager,
       const VKResourceBinding &resource_binding,
