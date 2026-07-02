@@ -236,8 +236,9 @@ MTLContext::MTLContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_contex
 
   /* Register present callback. */
   this->ghost_context_->metalRegisterPresentCallback(&present);
+#ifndef WITH_APPLE_CROSSPLATFORM
   this->ghost_context_->metalRegisterXrBlitCallback(&xr_blit);
-
+#endif
   /* Create FrameBuffer handles. */
   MTLFrameBuffer *mtl_front_left = new MTLFrameBuffer(this, "front_left");
   MTLFrameBuffer *mtl_back_left = new MTLFrameBuffer(this, "back_left");
