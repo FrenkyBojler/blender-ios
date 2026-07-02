@@ -2926,9 +2926,9 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   return nullptr;
 }
 
-static void propagate_for_nodes(const Span<const bNode *> nodes,
-                                const bool left_to_right,
-                                MutableSpan<bool> mask_to_propagate)
+static void expand_nodes_mask_in_dirrection(const Span<const bNode *> nodes,
+                                            const bool left_to_right,
+                                            MutableSpan<bool> mask_to_propagate)
 {
   for (const bNode *node : nodes) {
     const Span<const bNodeSocket *> sockets = left_to_right ? node->input_sockets() :
@@ -2963,22 +2963,19 @@ static void shift_nodes(bNodeTree &tree,
                         const float value)
 {
   const Span<bNode *> nodes = tree.all_nodes();
-
   Array<bool> shift_mask(nodes.size(), false);
 
   const Span<const bNode *> sorted_nodes = left_to_right ? tree.toposort_left_to_right() :
                                                            tree.toposort_right_to_left();
   shift_mask[start_node.index()] = true;
-  propagate_for_nodes(
+  expand_nodes_mask_in_dirrection(
       sorted_nodes.drop_front(sorted_nodes.first_index(&start_node)), left_to_right, shift_mask);
 
-  threading::parallel_for(shift_mask.index_range(), 1024, [&](const IndexRange range) {
-    for (const int index : range) {
-      if (shift_mask[index]) {
-        nodes[index]->runtime->anim_ofsx = value;
-      }
+  for (const int index : nodes.index_range()) {
+    if (shift_mask[index]) {
+      nodes[index]->runtime->anim_ofsx = value;
     }
-  });
+  }
 }
 
 static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd, const bool right_alignment)
