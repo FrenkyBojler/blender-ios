@@ -119,6 +119,7 @@
 
 #include "NOD_composite.hh"
 
+#include "GHOST_ISystem.hh"
 #include "GHOST_ISystemPaths.hh"
 #include "GHOST_IWindow.hh"
 
@@ -1045,7 +1046,8 @@ bool WM_file_read(bContext *C,
   WM_cursor_wait(true);
 
 #ifdef WITH_APPLE_CROSSPLATFORM
-  GHOST_startSecurityScopedFileAccess(filepath);
+  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  system->startSecurityScopedFileAccess(filepath);
 #endif
 
   /* First try to append data from exotic file formats. */
@@ -1159,7 +1161,7 @@ bool WM_file_read(bContext *C,
   BLI_assert(BKE_main_namemap_validate(*CTX_data_main(C)));
 
 #ifdef WITH_APPLE_CROSSPLATFORM
-  GHOST_stopSecurityScopedFileAccess(filepath);
+  system->stopSecurityScopedFileAccess(filepath);
 #endif
 
   return success;

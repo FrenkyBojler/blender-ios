@@ -3519,6 +3519,7 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   wmWindow *win = data->window;
   const bool is_num_but = ELEM(but->type, ButtonType::Num, ButtonType::NumSlider);
   bool no_zero_strip = false;
+  GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
 
   MEM_SAFE_DELETE(text_edit.edit_string);
 
@@ -3652,14 +3653,14 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
    */
   rcti button_pixel_rect;
   ARegion *region = CTX_wm_region(C);
-  ui_but_to_pixelrect(&button_pixel_rect, region, but->block, but);
+  button_to_pixelrect(&button_pixel_rect, region, but->block, but);
   GHOST_Rect text_box(button_pixel_rect.xmin + region->winrct.xmin,
                       button_pixel_rect.ymin + region->winrct.ymin,
                       button_pixel_rect.xmax + region->winrct.xmin,
                       button_pixel_rect.ymax + region->winrct.ymin);
 
   /* IOS_FIXME - Is this the right place to get the font? */
-  uiFontStyle fstyle = UI_style_get()->widget;
+  uiFontStyle fstyle = style_get()->widget;
 
   GHOST_KeyboardProperties keyboard_properties;
   keyboard_properties.keyboard_type = is_num_but ?
@@ -3681,13 +3682,12 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   keyboard_properties.tip_text = but->tip.data();
   keyboard_properties.text_string = text_edit.edit_string;
 
-  GHOST_popupOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin), keyboard_properties);
+  ghost_system->popupOnScreenKeyboard(static_cast<GHOST_IWindow *>(win->runtime->ghostwin), keyboard_properties);
 #endif
 
   WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
 
   /* Temporarily turn off window auto-focus on platforms that support it. */
-  GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
   ghost_system->setAutoFocus(false);
 
 #ifdef WITH_INPUT_IME
@@ -3701,14 +3701,15 @@ static void ui_textedit_end(bContext *C, Button *but, HandleButtonData *data)
 {
   TextEdit &text_edit = data->text_edit;
   wmWindow *win = data->window;
+  GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
 
   ED_workspace_status_text(C, nullptr);
 
 #if (WITH_APPLE_CROSSPLATFORM)
   /* Hide keyboard and retrieve keyboard text */
-  GHOST_hideOnScreenKeyboard(static_cast<GHOST_WindowHandle>(win->ghostwin));
-  const char *keyboard_string = GHOST_getKeyboardInput(
-      static_cast<GHOST_WindowHandle>(win->ghostwin));
+  ghost_system->hideOnScreenKeyboard(static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
+    const char *keyboard_string = ghost_system->getKeyboardInput(
+                                                         static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
 
   /*
    * IOS_FIXME:
@@ -3772,7 +3773,6 @@ static void ui_textedit_end(bContext *C, Button *but, HandleButtonData *data)
   WM_cursor_modal_restore(win);
 
   /* Turn back on the auto-focusing of windows. */
-  GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
   ghost_system->setAutoFocus(true);
 
   /* Free text undo history text blocks. */
@@ -4190,8 +4190,9 @@ static int ui_do_but_textedit(
 #if (WITH_APPLE_CROSSPLATFORM)
       case EVT_TEXTEDIT: {
         if (but) {
-          const char *keyboard_string = GHOST_getKeyboardInput(
-              static_cast<GHOST_WindowHandle>(win->ghostwin));
+          GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
+          const char *keyboard_string = ghost_system->getKeyboardInput(
+                                                                 static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
           if (but->active->text_edit.edit_string) {
             ui_textedit_string_set(but, but->active->text_edit, keyboard_string);
           }

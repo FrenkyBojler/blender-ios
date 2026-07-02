@@ -116,10 +116,6 @@ char **environ = nullptr;
 
 BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
 
-void WM_main_entry(bContext *C);
-int GHOST_iosmain(int argc, const char **argv);
-void GHOST_iosfinalize(bContext *C);
-
 /* -------------------------------------------------------------------- */
 /** \name GMP Allocator Workaround
  * \{ */
@@ -169,6 +165,10 @@ void gmp_blender_init_allocator()
 /** \} */
 
 namespace blender {
+
+void WM_main_entry(bContext *C);
+int GHOST_iosmain(int argc, const char **argv);
+void GHOST_iosfinalize(bContext *C);
 
 /* -------------------------------------------------------------------- */
 /** \name Local Application State
@@ -331,7 +331,7 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #ifdef WITH_APPLE_CROSSPLATFORM
 int main(int argc, const char **argv)
 {
-  return GHOST_iosmain(argc, argv);
+  return blender::GHOST_iosmain(argc, argv);
 }
 
 int main_ios_callback(int argc, const char **argv)
