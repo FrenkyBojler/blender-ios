@@ -24,7 +24,9 @@
 
 #include "BKE_action.hh"
 #include "BKE_animsys.h"
+#include "BKE_compositor.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
@@ -1295,6 +1297,19 @@ static void make_common_fallback_props(StructRNA &srna,
                         r_generated);
 }
 
+static void set_scene_compositor_modifier_property_update_function(PropertyRNA *property)
+{
+  RNA_def_property_update_runtime(
+      property, [](Main * /*bmain*/, Scene * /*scene*/, PointerRNA *property_ptr) {
+        const SceneCompositorModifier *modifier = bke::compositor::get_modifier_from_property(
+            *property_ptr);
+        if (modifier->node_group) {
+          DEG_id_tag_update(&modifier->node_group->id, ID_RECALC_NTREE_OUTPUT);
+        }
+      });
+  RNA_def_property_update_notifier(property, NC_SCENE | ND_MODIFIER);
+}
+
 static bke::bNodeSocketType *make_socket_type_bool()
 {
   bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_BOOLEAN, PROP_NONE);
@@ -1350,6 +1365,16 @@ static bke::bNodeSocketType *make_socket_type_bool()
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        const auto *data = static_cast<const bNodeSocketValueBoolean *>(socket.socket_data);
+        PropertyRNA *property = RNA_def_boolean(
+            &srna, "value", data->value, socket.name, socket.description);
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 
@@ -1413,6 +1438,24 @@ static bke::bNodeSocketType *make_socket_type_rotation()
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        const auto *data = static_cast<const bNodeSocketValueRotation *>(socket.socket_data);
+        PropertyRNA *property = RNA_def_float_rotation(&srna,
+                                                       "value",
+                                                       3,
+                                                       data->value_euler,
+                                                       -FLT_MAX,
+                                                       FLT_MAX,
+                                                       socket.name,
+                                                       socket.description,
+                                                       -FLT_MAX,
+                                                       FLT_MAX);
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 
@@ -1567,6 +1610,24 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        const auto *data = static_cast<const bNodeSocketValueFloat *>(socket.socket_data);
+        PropertyRNA *property = RNA_def_float(&srna,
+                                              "value",
+                                              data->value,
+                                              -FLT_MAX,
+                                              FLT_MAX,
+                                              socket.name,
+                                              socket.description,
+                                              data->min,
+                                              data->max);
+        RNA_def_property_subtype(property, PropertySubType(data->subtype));
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 
@@ -1627,6 +1688,24 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        const auto *data = static_cast<const bNodeSocketValueInt *>(socket.socket_data);
+        PropertyRNA *property = RNA_def_int(&srna,
+                                            "value",
+                                            data->value,
+                                            INT32_MIN,
+                                            INT32_MAX,
+                                            socket.name,
+                                            socket.description,
+                                            data->min,
+                                            data->max);
+        RNA_def_property_subtype(property, PropertySubType(data->subtype));
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 
@@ -1690,6 +1769,25 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        const auto *data = static_cast<const bNodeSocketValueVector *>(socket.socket_data);
+        PropertyRNA *property = RNA_def_float_vector(&srna,
+                                                     "value",
+                                                     data->dimensions,
+                                                     data->value,
+                                                     -FLT_MAX,
+                                                     FLT_MAX,
+                                                     socket.name,
+                                                     socket.description,
+                                                     data->min,
+                                                     data->max);
+        RNA_def_property_subtype(property, PropertySubType(data->subtype));
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 
@@ -1726,6 +1824,25 @@ static bke::bNodeSocketType *make_socket_type_int_vector(PropertySubType subtype
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        const auto *data = static_cast<const bNodeSocketValueIntVector *>(socket.socket_data);
+        PropertyRNA *property = RNA_def_int_vector(&srna,
+                                                   "value",
+                                                   data->dimensions,
+                                                   data->value,
+                                                   INT_MIN,
+                                                   INT_MAX,
+                                                   socket.name,
+                                                   socket.description,
+                                                   data->min,
+                                                   data->max);
+        RNA_def_property_subtype(property, PropertySubType(data->subtype));
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 
@@ -1785,6 +1902,24 @@ static bke::bNodeSocketType *make_socket_type_rgba()
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        const auto *data = static_cast<const bNodeSocketValueRGBA *>(socket.socket_data);
+        PropertyRNA *property = RNA_def_float_color(&srna,
+                                                    "value",
+                                                    4,
+                                                    data->value,
+                                                    -FLT_MAX,
+                                                    FLT_MAX,
+                                                    socket.name,
+                                                    socket.description,
+                                                    0.0f,
+                                                    1.0f);
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 
@@ -1840,6 +1975,21 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        const auto *data = static_cast<const bNodeSocketValueString *>(socket.socket_data);
+        PropertyRNA *property = RNA_def_string(&srna,
+                                               "value",
+                                               data->value[0] ? data->value : nullptr,
+                                               0,
+                                               socket.name,
+                                               socket.description);
+        RNA_def_property_subtype(property, PropertySubType(data->subtype));
+        set_scene_compositor_modifier_property_update_function(property);
+      };
 
   return socktype;
 }
@@ -1926,6 +2076,23 @@ static bke::bNodeSocketType *make_socket_type_menu()
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData &r_generated) {
+        const auto *data = static_cast<const bNodeSocketValueMenu *>(socket.socket_data);
+        bool default_value_found = false;
+        const EnumPropertyItem *items = enum_property_items_from_menu_node_socket(
+            data, default_value_found, r_generated);
+        PropertyRNA *property = RNA_def_enum(&srna,
+                                             "value",
+                                             items,
+                                             default_value_found ? data->value : 0,
+                                             socket.name,
+                                             socket.description);
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 
@@ -1967,6 +2134,15 @@ static bke::bNodeSocketType *make_socket_type_object()
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        PropertyRNA *property = RNA_def_pointer_runtime(
+            &srna, "value", RNA_Object, socket.name, socket.description);
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 
@@ -2190,6 +2366,15 @@ static bke::bNodeSocketType *make_socket_type_font()
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
   };
+  socktype->make_scene_compositor_modifier_input_srna =
+      [](const bNodeTree & /*tree*/,
+         StructRNA &srna,
+         const bNodeTreeInterfaceSocket &socket,
+         nodes::GeneratedTreeSrnaData & /*r_generated*/) {
+        PropertyRNA *property = RNA_def_pointer_runtime(
+            &srna, "value", RNA_VectorFont, socket.name, socket.description);
+        set_scene_compositor_modifier_property_update_function(property);
+      };
   return socktype;
 }
 

@@ -25,7 +25,7 @@ class NODE_MT_add_scene_compositor_modifier(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator( "node.add_scene_compositor_modifier", text="Add Modifier", icon='ADD')
+        layout.operator("node.add_scene_compositor_modifier", text="Add Modifier", icon='ADD')
         layout.menu_contents("NODE_MT_add_scene_compositor_modifier_root_catalogs")
 
 
@@ -54,4 +54,3 @@ if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
-

@@ -249,7 +249,7 @@ static wmOperatorStatus add_scene_compositor_modifier_node_group_asset_exec(bCon
   id_us_plus(&node_group->id);
   modifier->flags &= ~SceneCompositorModifierFlags::ShowNodeGroupSelector;
 
-  // compositor::compositor_nodes_update_interface(*scene, *cmd);
+  bke::compositor::update_modifier_node_group_interface(*scene, *modifier);
 
   // TODO: Updates.
   return OPERATOR_FINISHED;

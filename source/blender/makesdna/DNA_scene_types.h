@@ -2797,13 +2797,13 @@ struct SceneCompositorModifier {
   struct SceneCompositorModifier *next = nullptr, *previous = nullptr;
   char name[/*MAX_NAME*/ 64] = "";
   struct bNodeTree *node_group = nullptr;
+  struct IDProperty *system_properties = nullptr;
   SceneCompositorModifierFlags flags = SceneCompositorModifierFlags::EnableForRender |
                                        SceneCompositorModifierFlags::EnableForPreview |
                                        SceneCompositorModifierFlags::ShowNodeGroupSelector;
   char _pad0[1];
   uiPanelDataExpansion ui_panel_data_expansion = UI_PANEL_DATA_EXPAND_ROOT;
   char _pad1[4];
-  //  struct IDProperty *system_properties = nullptr;
 };
 
 /** \} */

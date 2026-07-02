@@ -5,8 +5,8 @@
 #include <cstring>
 #include <string>
 
-#include "BKE_compositor.hh"
 #include "BLI_listbase.hh"
+#include "BLI_math_euler.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_utils.hh"
 #include "BLI_threads.hh"
@@ -16,6 +16,10 @@
 
 #include "DNA_node_types.h"
 
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
+#include "BKE_compositor.hh"
 #include "BKE_cryptomatte.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
@@ -39,6 +43,7 @@
 #include "COM_realize_on_domain_operation.hh"
 #include "COM_render_context.hh"
 #include "COM_result.hh"
+#include "COM_utilities.hh"
 
 #include "NOD_dependencies.hh"
 #include "NOD_eval_log.hh"
@@ -680,6 +685,125 @@ class Context : public compositor::Context {
     return true;
   }
 
+  compositor::Result *get_input_from_rna(PointerRNA &input_ptr,
+                                         const bNodeTreeInterfaceSocket &input_socket)
+  {
+    compositor::Result *result = new compositor::Result(
+        this->create_result(compositor::get_node_interface_socket_result_type(input_socket)));
+    result->allocate_single_value();
+    switch (input_socket.socket_typeinfo()->type) {
+      case SOCK_FLOAT: {
+        const float value = RNA_float_get(&input_ptr, "value");
+        result->set_single_value(value);
+        break;
+      }
+      case SOCK_VECTOR: {
+        switch (static_cast<bNodeSocketValueVector *>(input_socket.socket_data)->dimensions) {
+          case 2: {
+            float2 value;
+            RNA_float_get_array(&input_ptr, "value", value);
+            result->set_single_value(value);
+            break;
+          }
+          case 3: {
+            float3 value;
+            RNA_float_get_array(&input_ptr, "value", value);
+            result->set_single_value(value);
+            break;
+          }
+          case 4: {
+            float4 value;
+            RNA_float_get_array(&input_ptr, "value", value);
+            result->set_single_value(value);
+            break;
+          }
+          default:
+            BLI_assert_unreachable();
+        }
+        break;
+      }
+      case SOCK_RGBA: {
+        ColorGeometry4f value;
+        RNA_float_get_array(&input_ptr, "value", value);
+        result->set_single_value(value);
+        break;
+      }
+      case SOCK_BOOLEAN: {
+        const bool value = RNA_boolean_get(&input_ptr, "value");
+        result->set_single_value(value);
+        break;
+      }
+      case SOCK_INT: {
+        const int value = RNA_int_get(&input_ptr, "value");
+        result->set_single_value(value);
+        break;
+      }
+      case SOCK_ROTATION: {
+        float3 value_euler;
+        RNA_float_get_array(&input_ptr, "value", value_euler);
+        math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
+        result->set_single_value(value_rotation);
+        break;
+      }
+      case SOCK_MENU: {
+        const nodes::MenuValue value = nodes::MenuValue(RNA_enum_get(&input_ptr, "value"));
+        result->set_single_value(value);
+        break;
+      }
+      case SOCK_STRING: {
+        const std::string value = RNA_string_get(&input_ptr, "value");
+        result->set_single_value(value);
+        break;
+      }
+      case SOCK_INT_VECTOR: {
+        switch (static_cast<bNodeSocketValueIntVector *>(input_socket.socket_data)->dimensions) {
+          case 2: {
+            int2 value;
+            RNA_int_get_array(&input_ptr, "value", value);
+            result->set_single_value(value);
+            break;
+          }
+          case 3: {
+            int3 value;
+            RNA_int_get_array(&input_ptr, "value", value);
+            result->set_single_value(value);
+            break;
+          }
+          default:
+            BLI_assert_unreachable();
+        }
+        break;
+      }
+      case SOCK_OBJECT: {
+        Object *value = RNA_pointer_get(&input_ptr, "value").data_as<Object>();
+        result->set_single_value(value);
+        break;
+      }
+      case SOCK_FONT: {
+        VFont *value = RNA_pointer_get(&input_ptr, "value").data_as<VFont>();
+        result->set_single_value(value);
+        break;
+      }
+      case SOCK_IMAGE:
+      case SOCK_COLLECTION:
+      case SOCK_TEXTURE:
+      case SOCK_MATERIAL:
+      case SOCK_SCENE:
+      case SOCK_TEXT_ID:
+      case SOCK_MASK:
+      case SOCK_SOUND:
+      case SOCK_GEOMETRY:
+      case SOCK_MATRIX:
+      case SOCK_BUNDLE:
+      case SOCK_CLOSURE:
+      case SOCK_SHADER:
+      case SOCK_CUSTOM:
+        break;
+    }
+
+    return result;
+  }
+
   void evaluate()
   {
     if (this->write_frame_cache()) {
@@ -729,14 +853,19 @@ class Context : public compositor::Context {
         output_result.set_reference_count(is_needed ? 1 : 0);
       }
 
+      PointerRNA modifier_ptr = RNA_pointer_create_discrete(
+          const_cast<ID *>(&this->get_scene().id),
+          RNA_SceneCompositorModifier,
+          const_cast<SceneCompositorModifier *>(&modifier));
+      PointerRNA modifier_properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
+      PointerRNA modifier_inputs_ptr = RNA_pointer_get(&modifier_properties_ptr, "inputs");
+
       /* Map the inputs to the operation. */
       Vector<std::unique_ptr<Result>> temporary_inputs;
       for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
-        /* Only the first socket is supported. */
         if (input_socket != node_group.interface_inputs().first()) {
-          Result *input_result = new Result(
-              this->create_result(ResultType::Color, ResultPrecision::Full));
-          input_result->allocate_invalid();
+          PointerRNA input_ptr = RNA_pointer_get(&modifier_inputs_ptr, input_socket->identifier);
+          Result *input_result = this->get_input_from_rna(input_ptr, *input_socket);
           modifier_operation->map_input_to_result(input_socket->identifier, input_result);
           temporary_inputs.append(std::unique_ptr<Result>(input_result));
           continue;

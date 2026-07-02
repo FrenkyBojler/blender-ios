@@ -25,6 +25,7 @@ struct bContext;
 struct SceneCompositorModifier;
 struct DepsNodeHandle;
 struct bNodeTree;
+struct PointerRNA;
 
 namespace bke::compositor {
 
@@ -126,6 +127,13 @@ void remove_modifier(Scene *scene, SceneCompositorModifier *modifier);
 
 /* Removes all compositor modifiers from the given scene. */
 void clear_modifiers(Scene *scene);
+
+/* Gets the modifier that the given property belongs to. */
+const SceneCompositorModifier *get_modifier_from_property(const PointerRNA &property_ptr);
+
+/* Update the system properties of the modifier. Should be call whenever the node group of the
+ * modifier changes or the interface of the assigned node group changes. */
+void update_modifier_node_group_interface(Scene &scene, SceneCompositorModifier &modifier);
 
 /* --------------------------------------------------------------------
  * Query.

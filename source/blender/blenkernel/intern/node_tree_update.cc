@@ -21,6 +21,7 @@
 #include "DNA_sequence_types.h"
 
 #include "BKE_anim_data.hh"
+#include "BKE_compositor.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
@@ -41,6 +42,7 @@
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_srna.hh"
 #include "NOD_node_declaration.hh"
+#include "NOD_scene_compositor_modifier_inputs_srna.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_sync_sockets.hh"
@@ -219,6 +221,7 @@ using TreeNodePair = std::pair<bNodeTree *, bNode *>;
 using ObjectModifierPair = std::pair<Object *, ModifierData *>;
 using NodeSocketPair = std::pair<bNode *, bNodeSocket *>;
 using StripModifierPair = std::pair<Scene *, StripModifierData *>;
+using SceneCompositorModifierPair = std::pair<Scene *, SceneCompositorModifier *>;
 
 /**
  * Cache common data about node trees from the #Main database that is expensive to retrieve on
@@ -231,6 +234,8 @@ struct NodeTreeRelations {
   std::optional<MultiValueMap<bNodeTree *, TreeNodePair>> group_node_users_;
   std::optional<MultiValueMap<bNodeTree *, ObjectModifierPair>> modifiers_users_;
   std::optional<MultiValueMap<bNodeTree *, StripModifierPair>> strip_modifier_users_;
+  std::optional<MultiValueMap<bNodeTree *, SceneCompositorModifierPair>>
+      scene_compositor_modifier_users_;
 
  public:
   NodeTreeRelations(Main *bmain) : bmain_(bmain) {}
@@ -329,6 +334,25 @@ struct NodeTreeRelations {
     }
   }
 
+  void ensure_scene_compositor_modifier_users()
+  {
+    if (scene_compositor_modifier_users_.has_value()) {
+      return;
+    }
+    scene_compositor_modifier_users_.emplace();
+    if (bmain_ == nullptr) {
+      return;
+    }
+
+    for (Scene &scene : bmain_->scenes) {
+      for (SceneCompositorModifier &modifier : scene.compositor_modifiers) {
+        if (modifier.node_group && !ID_MISSING(modifier.node_group)) {
+          scene_compositor_modifier_users_->add(modifier.node_group, {&scene, &modifier});
+        }
+      }
+    }
+  }
+
   Span<ObjectModifierPair> get_modifier_users(bNodeTree *ntree)
   {
     BLI_assert(modifiers_users_.has_value());
@@ -339,6 +363,12 @@ struct NodeTreeRelations {
   {
     BLI_assert(strip_modifier_users_.has_value());
     return strip_modifier_users_->lookup(ntree);
+  }
+
+  Span<SceneCompositorModifierPair> get_scene_compositor_modifier_users(bNodeTree *ntree)
+  {
+    BLI_assert(scene_compositor_modifier_users_.has_value());
+    return scene_compositor_modifier_users_->lookup(ntree);
   }
 
   Span<TreeNodePair> get_group_node_users(bNodeTree *ntree)
@@ -459,6 +489,13 @@ class NodeTreeMainUpdater {
               seq::compositor_nodes_update_interface(
                   *scene, *reinterpret_cast<SequencerCompositorModifierData *>(md));
             }
+          }
+
+          relations_.ensure_scene_compositor_modifier_users();
+          for (const SceneCompositorModifierPair &pair :
+               relations_.get_scene_compositor_modifier_users(ntree))
+          {
+            compositor::update_modifier_node_group_interface(*pair.first, *pair.second);
           }
         }
       }
@@ -645,6 +682,8 @@ class NodeTreeMainUpdater {
       else if (ntree.type == NTREE_COMPOSIT) {
         ntree.runtime->compositor_nodes_srna_data =
             nodes::create_compositor_nodes_rna_for_strip_modifier(ntree);
+        ntree.runtime->scene_compositor_modifier_srna_data =
+            nodes::create_scene_compositor_modifier_inputs_srna(ntree);
       }
     }
 

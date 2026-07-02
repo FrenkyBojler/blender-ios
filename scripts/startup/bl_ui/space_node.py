@@ -153,9 +153,15 @@ class NODE_HT_header(Header):
                     row.template_ID(snode, "node_tree", new="node.new_scene_compositor_modifier_node_group")
                 elif active_modifier:
                     if active_modifier.node_group:
-                        row.template_ID(active_modifier, "node_group", new="node.duplicate_scene_compositor_modifier_node_group")
+                        row.template_ID(
+                            active_modifier,
+                            "node_group",
+                            new="node.duplicate_scene_compositor_modifier_node_group")
                     else:
-                        row.template_ID(active_modifier, "node_group", new="node.new_scene_compositor_modifier_node_group")
+                        row.template_ID(
+                            active_modifier,
+                            "node_group",
+                            new="node.new_scene_compositor_modifier_node_group")
                 else:
                     row.template_ID(snode, "node_tree", new="node.new_scene_compositor_modifier_node_group")
             elif snode.node_tree_sub_type == 'SEQUENCER':

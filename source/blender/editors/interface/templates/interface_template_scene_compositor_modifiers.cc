@@ -26,6 +26,9 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#include "NOD_caller_ui.hh"
+#include "NOD_socket_usage_inference.hh"
+
 #include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -150,6 +153,135 @@ static void set_modifier_expand_flag(const bContext * /*C*/, Panel *panel, short
   modifier->ui_panel_data_expansion = uiPanelDataExpansion(expand_flag);
 }
 
+/* Drawing the properties manually with #ui::Layout::prop instead of #uiDefAutoButsRNA allows using
+ * the node socket identifier for the property names, since they are unique, but also having
+ * the correct label displayed in the UI. */
+static void draw_property_for_socket(
+    const bContext &C,
+    ui::Layout &layout,
+    const bNodeTreeInterfaceSocket &socket,
+    PointerRNA &input_ptr,
+    const bNodeTree &node_group,
+    Array<nodes::socket_usage_inference::SocketUsage> &input_usages)
+{
+  if (!input_usages[node_group.interface_input_index(socket)].is_visible) {
+    /* The input is not used currently, but it would be used if any menu input is changed.
+     * By convention, the input is hidden in this case instead of just grayed out. */
+    return;
+  }
+
+  ui::Layout &row = layout.row(true);
+  row.use_property_decorate_set(true);
+  row.active_set(input_usages[node_group.interface_input_index(socket)].is_used);
+
+  const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
+  const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+
+  if (!typeinfo->make_scene_compositor_modifier_input_srna) {
+    return;
+  }
+
+  std::string name = socket.name ? IFACE_(socket.name) : "";
+
+  switch (type) {
+    case SOCK_OBJECT: {
+      /* Use #ui::Layout::prop_search to draw pointer properties because #ui::Layout::prop would
+       * not have enough information about what type of ID to select for editing the values. This
+       * is because pointer IDProperties contain no information about their type. */
+      Main *bmain = CTX_data_main(&C);
+      PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
+      row.prop_search(&input_ptr, "value", &bmain_ptr, "objects", name, ICON_OBJECT_DATA);
+      break;
+    }
+    case SOCK_MENU: {
+      if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
+        /* Use a single space when the name is empty to work around a bug with expanded enums. Also
+         * see #ui_item_enum_expand_exec. */
+        row.prop(&input_ptr,
+                 "value",
+                 ui::ITEM_R_EXPAND,
+                 StringRef(name).is_empty() ? " " : name,
+                 ICON_NONE);
+      }
+      else {
+        row.prop(&input_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
+      }
+      break;
+    }
+    case SOCK_FONT: {
+      template_id(&row,
+                  &C,
+                  &input_ptr,
+                  "value",
+                  nullptr,
+                  "FONT_OT_open",
+                  "FONT_OT_unlink",
+                  ui::TEMPLATE_ID_FILTER_ALL,
+                  false,
+                  name);
+      break;
+    }
+    default: {
+      row.prop(&input_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
+      break;
+    }
+  }
+}
+
+static void draw_modifier_inputs(const bContext &C, PointerRNA &modifier_ptr, ui::Layout &layout)
+{
+  SceneCompositorModifier &modifier = *modifier_ptr.data_as<SceneCompositorModifier>();
+  PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
+
+  modifier.node_group->ensure_interface_cache();
+  Array<nodes::socket_usage_inference::SocketUsage> input_usages;
+  input_usages.reinitialize(modifier.node_group->interface_inputs().size());
+  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+      *modifier.node_group, properties_ptr, input_usages);
+
+  for (const bNodeTreeInterfaceItem *item : modifier.node_group->tree_interface.root_panel.items())
+  {
+    switch (item->item_type) {
+      case NodeTreeInterfaceItemType::Panel: {
+        const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
+        nodes::draw_interface_panel_as_panel(
+            C,
+            layout,
+            &properties_ptr,
+            sub_interface_panel,
+            [&](const bNodeTreeInterfaceSocket &socket) {
+              return input_usages[modifier.node_group->interface_input_index(socket)].is_visible;
+            },
+            [&](const bNodeTreeInterfaceSocket &socket) {
+              return input_usages[modifier.node_group->interface_input_index(socket)].is_used;
+            },
+            [&](ui::Layout &layout,
+                const bNodeTreeInterfaceSocket &socket,
+                PointerRNA *input_ptr,
+                const std::optional<StringRef> /*parent_name*/) {
+              draw_property_for_socket(
+                  C, layout, socket, *input_ptr, *modifier.node_group, input_usages);
+            });
+        break;
+      }
+      case NodeTreeInterfaceItemType::Socket: {
+        const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
+        if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
+          if (&socket == modifier.node_group->interface_inputs().first()) {
+          }
+          else if (!(socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
+            PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+            PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, socket.identifier);
+            draw_property_for_socket(
+                C, layout, socket, input_ptr, *modifier.node_group, input_usages);
+          }
+        }
+        break;
+      }
+    }
+  }
+}
+
 static void draw_modifier_panel(const bContext *C, Panel *panel)
 {
   PointerRNA *modifier_ptr = ui::panel_custom_data_get(panel);
@@ -165,6 +297,10 @@ static void draw_modifier_panel(const bContext *C, Panel *panel)
                                     "node.new_scene_compositor_modifier_node_group" :
                                     "node.duplicate_scene_compositor_modifier_node_group";
     template_id(&layout, C, modifier_ptr, "node_group", operator_name, nullptr, nullptr);
+  }
+
+  if (modifier.node_group && !ID_MISSING(modifier.node_group)) {
+    draw_modifier_inputs(*C, *modifier_ptr, layout);
   }
 }
 

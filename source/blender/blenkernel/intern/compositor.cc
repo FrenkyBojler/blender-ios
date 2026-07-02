@@ -18,20 +18,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_anim_data.hh"
-#include "BKE_animsys.h"
-#include "BKE_compositor.hh"
-#include "BKE_context.hh"
-#include "BKE_cryptomatte.hh"
-#include "BKE_lib_id.hh"
-#include "BKE_node.hh"
-#include "BKE_node_legacy_types.hh"
-#include "BKE_node_runtime.hh"
-
-#include "DEG_depsgraph_build.hh"
-
-#include "WM_api.hh"
-
 #include "DNA_layer_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_enums.h"
@@ -39,6 +25,25 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
+
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
+#include "BKE_anim_data.hh"
+#include "BKE_animsys.h"
+#include "BKE_compositor.hh"
+#include "BKE_context.hh"
+#include "BKE_cryptomatte.hh"
+#include "BKE_idprop.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+#include "BKE_node_runtime.hh"
+
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+
+#include "WM_api.hh"
 
 #include "IMB_imbuf.hh"
 
@@ -287,6 +292,44 @@ void clear_modifiers(Scene *scene)
     MEM_delete(&modifier);
   }
   BLI_listbase_clear(&scene->compositor_modifiers);
+}
+
+const SceneCompositorModifier *get_modifier_from_property(const PointerRNA &property_ptr)
+{
+  const std::optional<AncestorPointerRNA> modifier_ptr =
+      RNA_struct_search_closest_ancestor_by_type(&property_ptr, RNA_SceneCompositorModifier);
+  if (modifier_ptr.has_value()) {
+    return static_cast<const SceneCompositorModifier *>(modifier_ptr->data);
+  }
+
+  const Scene *scene = id_cast<const Scene *>(property_ptr.owner_id);
+  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+    bool found = false;
+    IDP_foreach_property(modifier.system_properties, 0, [&](IDProperty *id_property) {
+      if (id_property == property_ptr.data) {
+        found = true;
+      }
+    });
+    if (found) {
+      return &modifier;
+    }
+  }
+  return nullptr;
+}
+
+void update_modifier_node_group_interface(Scene &scene, SceneCompositorModifier &modifier)
+{
+  if (!modifier.system_properties) {
+    modifier.system_properties =
+        bke::idprop::create_group("SceneCompositorModifierProperties").release();
+  }
+  PointerRNA properties_ptr = RNA_pointer_create_discrete(
+      &scene.id, RNA_SceneCompositorModifierProperties, &modifier);
+  RNA_sync_system_properties(properties_ptr, *modifier.system_properties);
+
+  if (modifier.node_group) {
+    DEG_id_tag_update(&modifier.node_group->id, ID_RECALC_NTREE_OUTPUT);
+  }
 }
 
 /* --------------------------------------------------------------------
