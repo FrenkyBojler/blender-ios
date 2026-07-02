@@ -6,6 +6,10 @@
  * \ingroup sequencer
  */
 
+#include <optional>
+
+#include "BLI_math_rotation.hh"
+
 #include "BKE_node_runtime.hh"
 
 #include "PRF_profile.hh"
@@ -21,9 +25,192 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 
+#include "NOD_compositor_nodes_srna.hh"
+
+#include "RNA_access.hh"
+
 #include "compositor.hh"
 
 namespace blender::seq {
+
+template<typename T>
+static void set_float_array(PointerRNA *input_props_ptr, compositor::Result &result)
+{
+  T value;
+  RNA_float_get_array(input_props_ptr, "value", value);
+  result.set_single_value(value);
+}
+
+template<typename T>
+static void set_int_array(PointerRNA *input_props_ptr, compositor::Result &result)
+{
+  T value;
+  RNA_int_get_array(input_props_ptr, "value", value);
+  result.set_single_value(value);
+}
+
+static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
+                                            const eNodeSocketDatatype socket_type,
+                                            compositor::Result &result,
+                                            const std::optional<int> dimensions)
+{
+  using namespace nodes;
+  switch (socket_type) {
+    case SOCK_FLOAT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const float value = RNA_float_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_VECTOR: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        switch (dimensions.value_or(3)) {
+          case 2: {
+            set_float_array<float2>(input_props_ptr, result);
+            break;
+          }
+          case 3: {
+            set_float_array<float3>(input_props_ptr, result);
+            break;
+          }
+          case 4: {
+            set_float_array<float4>(input_props_ptr, result);
+            break;
+          }
+          default:
+            BLI_assert_unreachable();
+        }
+      }
+      break;
+    }
+    case SOCK_RGBA: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        ColorGeometry4f value;
+        RNA_float_get_array(input_props_ptr, "value", value);
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_BOOLEAN: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const bool value = RNA_boolean_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_INT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const int value = RNA_int_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_ROTATION: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        float3 value_euler;
+        RNA_float_get_array(input_props_ptr, "value", value_euler);
+        math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
+        result.set_single_value(value_rotation);
+      }
+      break;
+    }
+    case SOCK_MENU: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const MenuValue value = MenuValue(RNA_enum_get(input_props_ptr, "value"));
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_STRING: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const std::string value = RNA_string_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_INT_VECTOR: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        switch (dimensions.value_or(2)) {
+          case 2: {
+            set_int_array<int2>(input_props_ptr, result);
+            break;
+          }
+          case 3: {
+            set_int_array<int3>(input_props_ptr, result);
+            break;
+          }
+          default:
+            BLI_assert_unreachable();
+        }
+      }
+      break;
+    }
+    case SOCK_OBJECT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        Object *value = RNA_pointer_get(input_props_ptr, "value").data_as<Object>();
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_FONT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        VFont *value = RNA_pointer_get(input_props_ptr, "value").data_as<VFont>();
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_IMAGE:
+    case SOCK_COLLECTION:
+    case SOCK_TEXTURE:
+    case SOCK_MATERIAL:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND:
+    case SOCK_GEOMETRY:
+    case SOCK_MATRIX:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
+    case SOCK_SHADER:
+    case SOCK_CUSTOM:
+      break;
+  }
+}
+
+static std::optional<int> get_socket_dimension(const bNodeTreeInterfaceSocket *socket,
+                                               const eNodeSocketDatatype socket_type)
+{
+  if (socket_type == SOCK_VECTOR) {
+    return static_cast<bNodeSocketValueVector *>(socket->socket_data)->dimensions;
+  }
+  if (socket_type == SOCK_INT_VECTOR) {
+    return static_cast<bNodeSocketValueIntVector *>(socket->socket_data)->dimensions;
+  }
+  return {};
+}
+
+void set_input_result_from_rna(PointerRNA &inputs_ptr,
+                               const bNodeTreeInterfaceSocket &socket,
+                               const eNodeSocketDatatype socket_type,
+                               compositor::Result &result)
+{
+  PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, socket.identifier);
+  result.allocate_single_value();
+  set_single_input_from_rna_value(
+      &input_props_ptr, socket_type, result, get_socket_dimension(&socket, socket_type));
+}
 
 compositor::ResultPrecision CompositorContext::get_precision() const
 {
