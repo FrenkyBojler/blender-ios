@@ -838,6 +838,9 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
       auto *modifier_data = reinterpret_cast<SequencerCompositorModifierData *>(&smd);
       FOREACHID_PROCESS_IDSUPER(data, modifier_data->node_group, IDWALK_CB_USER);
     }
+    IDP_foreach_property(smd.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+      BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+    });
   }
 
   if (strip->type == STRIP_TYPE_TEXT && strip->effectdata) {
