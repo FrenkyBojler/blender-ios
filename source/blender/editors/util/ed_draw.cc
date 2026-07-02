@@ -1280,22 +1280,21 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
   float angle, x1, y1, x2, y2;
   const float radius_x_step = radius_x / rings;
   const float radius_y_step = radius_y / rings;
-  float sweetspot_radius = 0.02 * radius_y;
-
+  float bullet_size = radius_y > radius_x ? radius_y * 0.08 : radius_x * 0.08;
   if (flag != eCompositionGuideFlagsDomeMaster{}) {
     imm_draw_circle_wire_aspect_2d(shdr_pos, xmid, ymid, radius_x, radius_y, 365);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_FRONT)) {
-    imm_draw_cross_2d(shdr_pos, xmid, ymid - (radius_y * .112), .08 * radius_y, .08 * radius_y);
+    imm_draw_cross_2d(shdr_pos, xmid, ymid - (radius_y * .112), bullet_size, bullet_size);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_CENTER)) {
-    imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .052), .08 * radius_y, .08 * radius_y);
+    imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .052), bullet_size, bullet_size);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_BACK)) {
-    imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .442), .08 * radius_y, .08 * radius_y);
+    imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .442), bullet_size, bullet_size);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_HORIZON)) {
@@ -1342,15 +1341,15 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_FRONT)) {
-    imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .73), sweetspot_radius, 32);
+    imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .73), bullet_size, 32);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_CENTER)) {
-    imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .54), sweetspot_radius, 32);
+    imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .54), bullet_size, 32);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_BACK)) {
-    imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .43), sweetspot_radius, 32);
+    imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .43), bullet_size, 32);
   }
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER)) {
