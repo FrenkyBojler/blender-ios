@@ -70,8 +70,9 @@ class PROPERTIES_HT_header(Header):
             "buttons.toggle_pin",
             text="",
             icon='PINNED' if view.use_pin_id else 'UNPINNED',
-            depress=view.use_pin_id)
-        row.popover(panel="PROPERTIES_PT_context", text="")
+            depress=view.use_pin_id,
+        )
+        row.popover(panel="PROPERTIES_PT_context_popover", text="")
         layout.popover(panel="PROPERTIES_PT_options", text="")
 
 
