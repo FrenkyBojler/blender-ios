@@ -3247,16 +3247,24 @@ class _defs_sequencer_generic:
     @ToolDef.from_fn
     def blade():
         def draw_settings(_context, layout, tool):
-            props = tool.operator_properties("sequencer.split")
-            row = layout.row()
-            row.prop(props, "type", expand=True)
+            # Split properties.
+            header, panel = layout.panel("SEQUENCER_PT_tool_split", default_closed=False)
+            header.label(text="Split")
+            if panel:
+                props = tool.operator_properties("sequencer.split")
+                row = layout.row()
+                row.prop(props, "type", expand=True)
+                layout.prop(props, "ignore_connections", expand=True)
 
-            layout.separator()
-
-            props = tool.operator_properties("sequencer.box_blade")
-            layout.prop(props, "remove_gaps", expand=True)
-            layout.prop(props, "ignore_selection", expand=True)
-            layout.prop(props, "ignore_connections", expand=True)
+            # Box Blade properties.
+            header, panel = layout.panel("SEQUENCER_PT_tool_box_blade", default_closed=False)
+            header.label(text="Box Blade")
+            if panel:
+                props = tool.operator_properties("sequencer.box_blade")
+                col = layout.column(heading="Box Blade")
+                col.prop(props, "remove_gaps", expand=True)
+                col.prop(props, "ignore_selection", expand=True)
+                col.prop(props, "ignore_connections", expand=True)
         return dict(
             idname="builtin.blade",
             label="Blade",
