@@ -1401,7 +1401,7 @@ void ED_draw_fulldome_composition_guides(uint shdr_pos,
     const int fontid = fstyle->uifont_id;
     constexpr float direction_offset = -5.0f;
 
-    float scale = (radius_x > radius_y ? radius_x : radius_y) / 250;   
+    float scale = (radius_x > radius_y ? radius_x : radius_y) / 250;
     float big_font = 12.0f * scale;
     float small_font = 8.0f * scale;
 
@@ -1419,7 +1419,7 @@ void ED_draw_fulldome_composition_guides(uint shdr_pos,
                           {180, "W", big_font},
                           {225, "S/W", small_font},
                           {270, "S", big_font},
-                          {270, "Front", big_font,direction_offset*2},
+                          {270, "Front", big_font, direction_offset * 2},
                           {315, "S/W", small_font}};
 
     for (int i = 0; i < cDirs.size(); i++) {

@@ -588,18 +588,11 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   if (ca && (v3d->flag2 & V3D_SHOW_CAMERA_GUIDES)) {
     GPU_blend(GPU_BLEND_ALPHA);
 
-    if (ca->type == CAM_PANO && (ca->panorama_type == CAM_PANORAMA_FISHEYE_EQUISOLID ||
-                                 ca->panorama_type == CAM_PANORAMA_FISHEYE_EQUIDISTANT))
-    {
-      ED_draw_fulldome_composition_guides(shdr_pos,
-                                          ca->composition_guide_flags_fulldome,
-                                          &viewborder,
-                                          ca->composition_guide_color);
-    }
-    else {
-      ED_draw_composition_guides(
-          shdr_pos, ca->composition_guide_flags, &viewborder, ca->composition_guide_color);
-    }
+    ED_draw_composition_guides(
+        shdr_pos, ca->composition_guide_flags, &viewborder, ca->composition_guide_color);
+    ED_draw_fulldome_composition_guides(
+        shdr_pos, ca->composition_guide_flags_fulldome, &viewborder, ca->composition_guide_color);
+
     if (ca->flag & CAM_SHOW_SAFE_MARGINS) {
       rctf margins_rect{};
       margins_rect.xmin = x1;
