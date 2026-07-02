@@ -1,2 +1,3 @@
 Referenced by issue #160720, Crash deleting an object's data ID in the outliner
 Referenced by pull request #160794, Fix #160720: Crash deleting an object's data ID in the outliner
+Referenced by commit 77a2baabf1b58018ac0565aaf9a25b6773a7818f, Fix #160720: Crash deleting an object's data ID in the outliner
