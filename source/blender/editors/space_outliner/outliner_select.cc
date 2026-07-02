@@ -1208,7 +1208,7 @@ eOLDrawState tree_element_active_state_get(const TreeViewContext &tvc,
 
 static eOLDrawState tree_element_shapekey_state_get(const TreeElement *te)
 {
-  if (const Object *ob = id_cast<const Object *>(
+  if (const Object *ob = id_cast<Object *>(
           outliner_search_back(const_cast<TreeElement *>(te), ID_OB)))
   {
     if (ob->shapenr == te->index + 1) {
