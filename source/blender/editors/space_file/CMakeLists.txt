@@ -14,18 +14,6 @@ set(INC
 set(INC_SYS
 )
 
-if(WITH_APPLE_CROSSPLATFORM)
-  set(FSMENU_SRC
-    fsmenu_system.mm
-  )
-else()
-  set(FSMENU_SRC
-    fsmenu_system.cc
-  )
-endif()
-
-
-
 set(SRC
   asset_catalog_tree_view.cc
   file_context.cc
@@ -54,9 +42,15 @@ if(WIN32)
     fsmenu_system_win32.cc
   )
 elseif(APPLE)
-  list(APPEND SRC
-    fsmenu_system_macos.mm
-  )
+  if(WITH_APPLE_CROSSPLATFORM)
+    list(APPEND SRC
+      fsmenu_system_ios.mm
+    )
+  else()
+    list(APPEND SRC
+      fsmenu_system_macos.mm
+    )
+  endif()
 else() # Generic UNIX
   list(APPEND SRC
     fsmenu_system_unix.cc
