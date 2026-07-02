@@ -172,6 +172,7 @@ struct wmXrPanelPointerState {
   bool pressed;
   char subaction_path[64];
   char action_idname[128];
+  struct ARegion *region;
 };
 
 struct wmXrTempRegion {
@@ -200,8 +201,10 @@ struct wmXrPanel {
   struct wmWindow *panel_host_win;
   struct ScrArea *panel_host_area;
   struct ARegion *panel_host_region;
+  struct ARegion *panel_hover_region;
   bool panel_hovered;
   bool panel_cursor_visible;
+  int panel_window_xy[2];
   int panel_region_xy[2];
   float panel_cursor_world[3];
   ListBaseT<wmXrTempRegion> temporary_regions;

@@ -309,6 +309,9 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
   if (win->runtime->eventstate) {
     MEM_delete(win->runtime->eventstate);
   }
+  if (win->runtime->eventstate_simulate) {
+    MEM_delete(win->runtime->eventstate_simulate);
+  }
   if (win->runtime->event_last_handled) {
     MEM_delete(win->runtime->event_last_handled);
   }
@@ -3059,6 +3062,10 @@ void WM_init_input_devices()
 
 void WM_cursor_warp(wmWindow *win, int x, int y)
 {
+  if (G.f & G_FLAG_EVENT_SIMULATE) {
+    return;
+  }
+
   /* This function requires access to the GHOST System Handle (`g_system`). */
   if (!(win && win->runtime->ghostwin)) {
     return;

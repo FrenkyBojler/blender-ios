@@ -430,6 +430,19 @@ void WM_cursor_set(wmWindow *win, int curs)
     return; /* Cursor is already set. */
   }
 
+  // #region debug-point C:cursor-set-during-simulated-dispatch
+  if (G.f & G_FLAG_EVENT_SIMULATE) {
+    fprintf(stderr,
+            "[DEBUG][xr-input-interference][C] WM_cursor_set during simulated dispatch: "
+            "win=%p new_cursor=%d old_cursor=%d modal_cursor=%d last_cursor=%d\n",
+            win,
+            curs,
+            win->cursor,
+            win->modalcursor,
+            win->lastcursor);
+  }
+  // #endregion
+
   win->cursor = curs;
 
   if (curs < 0 || curs >= WM_CURSOR_NUM) {
@@ -478,6 +491,18 @@ bool WM_cursor_modal_is_set_ok(const wmWindow *win)
 
 void WM_cursor_modal_set(wmWindow *win, int val)
 {
+  // #region debug-point D:modal-cursor-set-during-simulated-dispatch
+  if (G.f & G_FLAG_EVENT_SIMULATE) {
+    fprintf(stderr,
+            "[DEBUG][xr-input-interference][D] WM_cursor_modal_set during simulated dispatch: "
+            "win=%p new_modal=%d cursor=%d last_cursor=%d\n",
+            win,
+            val,
+            win->cursor,
+            win->lastcursor);
+  }
+  // #endregion
+
   if (win->lastcursor == 0) {
     win->lastcursor = win->cursor;
   }
@@ -516,6 +541,10 @@ void WM_cursor_grab_enable(wmWindow *win,
                            const rcti *wrap_region,
                            const bool hide)
 {
+  if (G.f & G_FLAG_EVENT_SIMULATE) {
+    return;
+  }
+
   int _wrap_region_buf[4];
   int *wrap_region_screen = nullptr;
 
@@ -571,6 +600,10 @@ void WM_cursor_grab_enable(wmWindow *win,
 
 void WM_cursor_grab_disable(wmWindow *win, const int mouse_ungrab_xy[2])
 {
+  if (G.f & G_FLAG_EVENT_SIMULATE) {
+    return;
+  }
+
   if ((G.debug & G_DEBUG) == 0) {
     if (win && win->runtime->ghostwin) {
       GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);

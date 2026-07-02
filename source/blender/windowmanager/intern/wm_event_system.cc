@@ -179,6 +179,22 @@ static bool screen_temp_region_exists(const ARegion *region)
   return false;
 }
 
+static bool screen_area_exists(const bScreen *screen, const ScrArea *area)
+{
+  if (screen == nullptr || area == nullptr) {
+    return false;
+  }
+  return BLI_findindex(&screen->areabase, area) != -1;
+}
+
+static bool area_region_exists(const ScrArea *area, const ARegion *region)
+{
+  if (area == nullptr || region == nullptr) {
+    return false;
+  }
+  return BLI_findindex(&area->regionbase, region) != -1;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -200,46 +216,133 @@ wmEvent *WM_event_add(wmWindow *win, const wmEvent *event_to_add)
   return wm_event_add_intern(win, event_to_add);
 }
 
+struct wmEventSimulateTarget {
+  ScrArea *area;
+  ARegion *region;
+};
+
+struct wmEventDispatchState {
+  wmEvent *eventstate;
+  uint64_t *eventstate_prev_press_time_ms;
+  char *event_queue_check_click;
+  char *event_queue_check_drag;
+  char *event_queue_check_drag_handled;
+};
+
+static wmEventDispatchState wm_event_dispatch_state_default_get(wmWindow *win);
+static wmEventDispatchState wm_event_dispatch_state_simulate_get(wmWindow *win);
+
+static wmEvent *wm_event_add_simulate_with_dispatch_state(
+    wmWindow *win, const wmEvent *event_to_add, const wmEventDispatchState &dispatch_state)
+{
+  wmEvent *event = WM_event_add(win, event_to_add);
+  wmEvent *eventstate = dispatch_state.eventstate;
+
+  BLI_assert(eventstate != nullptr);
+  if (eventstate == nullptr) {
+    return event;
+  }
+
+  /* Logic for setting previous value is documented on the #wmEvent struct,
+   * see #wm_event_add_ghostevent for the implementation of logic this follows. */
+  if (event->type == MOUSEMOVE) {
+    copy_v2_v2_int(eventstate->prev_xy, eventstate->xy);
+    copy_v2_v2_int(event->prev_xy, eventstate->xy);
+    copy_v2_v2_int(eventstate->xy, event->xy);
+  }
+  else if (ISKEYBOARD_OR_BUTTON(event->type)) {
+    copy_v2_v2_int(eventstate->xy, event->xy);
+    /* Dummy time for simulated events. */
+    const uint64_t event_time_ms = UINT64_MAX;
+    wm_event_state_update_and_click_set_ex(event,
+                                           event_time_ms,
+                                           eventstate,
+                                           dispatch_state.eventstate_prev_press_time_ms,
+                                           ISKEYBOARD(event->type),
+                                           false);
+  }
+
+  return event;
+}
+
 wmEvent *WM_event_add_simulate(wmWindow *win, const wmEvent *event_to_add)
 {
   if ((G.f & G_FLAG_EVENT_SIMULATE) == 0) {
     BLI_assert_unreachable();
     return nullptr;
   }
-  wmEvent *event = WM_event_add(win, event_to_add);
 
-  /* Logic for setting previous value is documented on the #wmEvent struct,
-   * see #wm_event_add_ghostevent for the implementation of logic this follows. */
-  copy_v2_v2_int(win->runtime->eventstate->xy, event->xy);
-
-  if (event->type == MOUSEMOVE) {
-    copy_v2_v2_int(win->runtime->eventstate->prev_xy, win->runtime->eventstate->xy);
-    copy_v2_v2_int(event->prev_xy, win->runtime->eventstate->xy);
-  }
-  else if (ISKEYBOARD_OR_BUTTON(event->type)) {
-    /* Dummy time for simulated events. */
-    const uint64_t event_time_ms = UINT64_MAX;
-    uint64_t eventstate_prev_press_time_ms = 0;
-    wm_event_state_update_and_click_set_ex(event,
-                                           event_time_ms,
-                                           win->runtime->eventstate,
-                                           &eventstate_prev_press_time_ms,
-                                           ISKEYBOARD(event->type),
-                                           false);
-  }
-  return event;
+  return wm_event_add_simulate_with_dispatch_state(
+      win, event_to_add, wm_event_dispatch_state_default_get(win));
 }
-
-struct wmEventSimulateTarget {
-  ScrArea *area;
-  ARegion *region;
-};
 
 static wmEventSimulateTarget *wm_event_simulate_target_get(const wmEvent *event)
 {
   return (event->custom == EVT_DATA_SIMULATE_TARGET) ?
              static_cast<wmEventSimulateTarget *>(event->customdata) :
              nullptr;
+}
+
+static bool wm_event_simulate_target_is_valid(const wmWindow *win,
+                                              const wmEventSimulateTarget *event_target)
+{
+  if (win == nullptr || event_target == nullptr) {
+    return false;
+  }
+
+  bScreen *screen = WM_window_get_active_screen(const_cast<wmWindow *>(win));
+  bool is_xr_offscreen_area = false;
+#ifdef WITH_XR_OPENXR
+  if (const bContext *xr_context = WM_xr_session_context_get(
+          &static_cast<wmWindowManager *>(G_MAIN->wm.first)->xr))
+  {
+    is_xr_offscreen_area = (event_target->area == CTX_wm_area(const_cast<bContext *>(xr_context)));
+  }
+#endif
+
+  if (!is_xr_offscreen_area && !screen_area_exists(screen, event_target->area)) {
+    return false;
+  }
+  if (area_region_exists(event_target->area, event_target->region)) {
+    return true;
+  }
+  return screen_temp_region_exists(event_target->region);
+}
+
+static wmEventDispatchState wm_event_dispatch_state_default_get(wmWindow *win)
+{
+  return {
+      win->runtime->eventstate,
+      &win->runtime->eventstate_prev_press_time_ms,
+      &win->event_queue_check_click,
+      &win->event_queue_check_drag,
+      &win->event_queue_check_drag_handled,
+  };
+}
+
+static wmEvent *wm_event_simulate_state_ensure(wmWindow *win)
+{
+  if (win->runtime->eventstate_simulate == nullptr) {
+    win->runtime->eventstate_simulate = MEM_new<wmEvent>("window simulate event state");
+    if (win->runtime->eventstate != nullptr) {
+      *win->runtime->eventstate_simulate = *win->runtime->eventstate;
+    }
+    else {
+      *win->runtime->eventstate_simulate = wmEvent{};
+    }
+  }
+  return win->runtime->eventstate_simulate;
+}
+
+static wmEventDispatchState wm_event_dispatch_state_simulate_get(wmWindow *win)
+{
+  return {
+      wm_event_simulate_state_ensure(win),
+      &win->runtime->eventstate_prev_press_time_ms_simulate,
+      &win->runtime->event_queue_check_click_simulate,
+      &win->runtime->event_queue_check_drag_simulate,
+      &win->runtime->event_queue_check_drag_handled_simulate,
+  };
 }
 
 static void wm_event_custom_free(wmEvent *event)
@@ -939,6 +1042,31 @@ static eHandlerActionFlag wm_handler_ui_call(bContext *C,
   if (event->type == EVT_FILESELECT) {
     return WM_HANDLER_CONTINUE;
   }
+
+#ifdef WITH_XR_OPENXR
+  bContext *xr_context = WM_xr_session_context_get(&CTX_wm_manager(C)->xr);
+  ScrArea *xr_offscreen_area = xr_context ? CTX_wm_area(xr_context) : nullptr;
+  const bool is_xr_offscreen_handler = (handler->context.area != nullptr &&
+                                        handler->context.area == xr_offscreen_area);
+
+  // #region debug-point A:desktop-event-into-xr-ui
+  if ((G.f & G_FLAG_EVENT_SIMULATE) == 0 && is_xr_offscreen_handler) {
+    fprintf(stderr,
+            "[DEBUG][xr-input-interference][A] desktop event reached XR UI handler: "
+            "event_type=%d event_val=%d handler_area=%p handler_region=%p handler_popup=%p "
+            "ctx_area=%p ctx_region=%p ctx_popup=%p\n",
+            int(event->type),
+            int(event->val),
+            handler->context.area,
+            handler->context.region,
+            handler->context.region_popup,
+            area,
+            region,
+            region_popup);
+    return WM_HANDLER_CONTINUE;
+  }
+  // #endregion
+#endif
 
   /* We set context to where UI handler came from. */
   if (handler->context.area) {
@@ -3705,7 +3833,8 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
 /* This calls handlers twice - to solve (double-)click events. */
 static eHandlerActionFlag wm_handlers_do(bContext *C,
                                          wmEvent *event,
-                                         ListBaseT<wmEventHandler> *handlers)
+                                         ListBaseT<wmEventHandler> *handlers,
+                                         const wmEventDispatchState *dispatch_state_override)
 {
   eHandlerActionFlag action = wm_handlers_do_intern(C, CTX_wm_window(C), event, handlers);
 
@@ -3714,6 +3843,13 @@ static eHandlerActionFlag wm_handlers_do(bContext *C,
   if (win == nullptr) {
     return action;
   }
+
+  const wmEventDispatchState dispatch_state = dispatch_state_override ?
+                                                  *dispatch_state_override :
+                                                  wm_event_dispatch_state_default_get(win);
+  char &event_queue_check_click = *dispatch_state.event_queue_check_click;
+  char &event_queue_check_drag = *dispatch_state.event_queue_check_drag;
+  char &event_queue_check_drag_handled = *dispatch_state.event_queue_check_drag_handled;
 
   if (ISMOUSE_MOTION(event->type)) {
     /* Test for #KM_PRESS_DRAG events. */
@@ -3724,11 +3860,11 @@ static eHandlerActionFlag wm_handlers_do(bContext *C,
      * Operators can return `OPERATOR_FINISHED | OPERATOR_PASS_THROUGH` which results
      * in `action` setting #WM_HANDLER_HANDLED, but not #WM_HANDLER_BREAK. */
     if ((action & WM_HANDLER_BREAK) == 0 || wm_action_not_handled(action)) {
-      if (win->event_queue_check_drag) {
+      if (event_queue_check_drag) {
         if ((event->flag & WM_EVENT_FORCE_DRAG_THRESHOLD) ||
             WM_event_drag_test(event, event->prev_press_xy))
         {
-          win->event_queue_check_drag_handled = true;
+          event_queue_check_drag_handled = true;
           const int direction = WM_event_drag_direction(event);
 
           /* Intentionally leave `event->xy` as-is, event users are expected to use
@@ -3754,19 +3890,19 @@ static eHandlerActionFlag wm_handlers_do(bContext *C,
           event->val = prev_val;
           event->type = prev_type;
 
-          win->event_queue_check_click = false;
+          event_queue_check_click = false;
           if (!((action & WM_HANDLER_BREAK) == 0 || wm_action_not_handled(action))) {
             /* Only disable when handled as other handlers may use this drag event. */
             CLOG_DEBUG(WM_LOG_EVENTS, "Canceling CLICK_DRAG: drag was generated & handled");
-            win->event_queue_check_drag = false;
+            event_queue_check_drag = false;
           }
         }
       }
     }
     else {
-      if (win->event_queue_check_drag) {
+      if (event_queue_check_drag) {
         CLOG_DEBUG(WM_LOG_EVENTS, "Canceling CLICK_DRAG: motion event was handled");
-        win->event_queue_check_drag = false;
+        event_queue_check_drag = false;
       }
     }
   }
@@ -3780,16 +3916,16 @@ static eHandlerActionFlag wm_handlers_do(bContext *C,
 
       if (event->val == KM_PRESS) {
         if ((event->flag & WM_EVENT_IS_REPEAT) == 0) {
-          win->event_queue_check_click = true;
+          event_queue_check_click = true;
 
           CLOG_DEBUG(WM_LOG_EVENTS, "Detecting CLICK_DRAG: press event detected");
-          win->event_queue_check_drag = true;
+          event_queue_check_drag = true;
 
-          win->event_queue_check_drag_handled = false;
+          event_queue_check_drag_handled = false;
         }
       }
       else if (event->val == KM_RELEASE) {
-        if (win->event_queue_check_drag) {
+        if (event_queue_check_drag) {
           if ((event->prev_press_type != event->type) &&
               (ISKEYMODIFIER(event->type) || (event->type == event->prev_press_keymodifier)))
           {
@@ -3797,7 +3933,7 @@ static eHandlerActionFlag wm_handlers_do(bContext *C,
           }
           else {
             CLOG_DEBUG(WM_LOG_EVENTS, "Canceling CLICK_DRAG (release event didn't match press)");
-            win->event_queue_check_drag = false;
+            event_queue_check_drag = false;
           }
         }
       }
@@ -3805,13 +3941,13 @@ static eHandlerActionFlag wm_handlers_do(bContext *C,
       if (event->val == KM_RELEASE) {
         if (event->prev_press_type == event->type) {
           if (event->prev_val == KM_PRESS) {
-            if (win->event_queue_check_click) {
+            if (event_queue_check_click) {
               if (WM_event_drag_test(event, event->prev_press_xy)) {
-                win->event_queue_check_click = false;
-                if (win->event_queue_check_drag) {
+                event_queue_check_click = false;
+                if (event_queue_check_drag) {
                   CLOG_DEBUG(WM_LOG_EVENTS,
                              "Canceling CLICK_DRAG (key-release exceeds drag threshold)");
-                  win->event_queue_check_drag = false;
+                  event_queue_check_drag = false;
                 }
               }
               else {
@@ -3845,13 +3981,13 @@ static eHandlerActionFlag wm_handlers_do(bContext *C,
       }
     }
     else {
-      win->event_queue_check_click = false;
+      event_queue_check_click = false;
 
-      if (win->event_queue_check_drag) {
+      if (event_queue_check_drag) {
         CLOG_DEBUG(WM_LOG_EVENTS,
                    "Canceling CLICK_DRAG (button event was handled: value=%d)",
                    event->val);
-        win->event_queue_check_drag = false;
+        event_queue_check_drag = false;
       }
     }
   }
@@ -3863,13 +3999,20 @@ static eHandlerActionFlag wm_handlers_do(bContext *C,
     }
     else {
       if (ISKEYMODIFIER(event->prev_type)) {
-        win->event_queue_check_click = false;
+        event_queue_check_click = false;
       }
     }
   }
 
   wm_event_handler_return_value_check(C, event, action);
   return action;
+}
+
+static eHandlerActionFlag wm_handlers_do(bContext *C,
+                                         wmEvent *event,
+                                         ListBaseT<wmEventHandler> *handlers)
+{
+  return wm_handlers_do(C, event, handlers, nullptr);
 }
 
 /** \} */
@@ -4169,7 +4312,10 @@ static void wm_event_handle_xrevent(wmWindowManager *wm,
 }
 #endif /* WITH_XR_OPENXR */
 
-static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *event, ARegion *region)
+static eHandlerActionFlag wm_event_do_region_handlers(bContext *C,
+                                                      wmEvent *event,
+                                                      ARegion *region,
+                                                      const wmEventDispatchState *dispatch_state_override)
 {
   if (region->runtime->type->do_lock) {
     /* If the region is locked, we ignore the events. Handling them can trigger depsgraph
@@ -4194,7 +4340,15 @@ static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *even
   }
 
   return wm_handlers_do(
-      C, event, static_cast<ListBaseT<wmEventHandler> *>(&region->runtime->handlers));
+      C,
+      event,
+      static_cast<ListBaseT<wmEventHandler> *>(&region->runtime->handlers),
+      dispatch_state_override);
+}
+
+static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *event, ARegion *region)
+{
+  return wm_event_do_region_handlers(C, event, region, nullptr);
 }
 
 /**
@@ -4271,13 +4425,20 @@ void wm_event_do_handlers(bContext *C)
       }
 
       eHandlerActionFlag action = WM_HANDLER_CONTINUE;
+      wmEventSimulateTarget *event_simulate_target = wm_event_simulate_target_get(event);
+      const wmEventDispatchState dispatch_state = (event_simulate_target != nullptr) ?
+                                                      wm_event_dispatch_state_simulate_get(&win) :
+                                                      wm_event_dispatch_state_default_get(&win);
+      char &event_queue_check_click = *dispatch_state.event_queue_check_click;
+      char &event_queue_check_drag = *dispatch_state.event_queue_check_drag;
+      char &event_queue_check_drag_handled = *dispatch_state.event_queue_check_drag_handled;
 
       /* Force handling drag if a key is pressed even if the drag threshold has not been met.
        * Needed so tablet actions (which typically use a larger threshold) can click-drag
        * then press keys - activating the drag action early.
        * Limit to mouse-buttons drag actions interrupted by pressing any non-mouse button.
        * Otherwise pressing two keys on the keyboard will interpret this as a drag action. */
-      if (win.event_queue_check_drag) {
+      if (event_simulate_target == nullptr && event_queue_check_drag) {
         if ((event->val == KM_PRESS) && ((event->flag & WM_EVENT_IS_REPEAT) == 0) &&
             ISKEYBOARD_OR_BUTTON(event->type) && ISMOUSE_BUTTON(event->prev_press_type))
         {
@@ -4285,9 +4446,9 @@ void wm_event_do_handlers(bContext *C)
           event->flag |= WM_EVENT_FORCE_DRAG_THRESHOLD;
         }
       }
-      const bool event_queue_check_drag_prev = win.event_queue_check_drag;
+      const bool event_queue_check_drag_prev = event_queue_check_drag;
 
-      {
+      if (event_simulate_target == nullptr) {
         const bool is_consecutive = WM_event_consecutive_gesture_test(event);
         if (win.event_queue_consecutive_gesture_type != EVENT_NONE) {
           if (event->type == win.event_queue_consecutive_gesture_type) {
@@ -4327,7 +4488,6 @@ void wm_event_do_handlers(bContext *C)
       }
 
       CTX_wm_window_set(C, &win);
-      wmEventSimulateTarget *event_simulate_target = wm_event_simulate_target_get(event);
 
 #ifdef WITH_XR_OPENXR
       if (event->type == EVT_XR_ACTION) {
@@ -4338,6 +4498,14 @@ void wm_event_do_handlers(bContext *C)
         continue;
       }
 #endif
+
+      if (event_simulate_target != nullptr &&
+          !wm_event_simulate_target_is_valid(&win, event_simulate_target))
+      {
+        BLI_remlink(&win.runtime->event_queue, event);
+        wm_event_free_last_handled(&win, event);
+        continue;
+      }
 
       if (event_simulate_target == nullptr) {
         /* Clear tool-tip on mouse move. */
@@ -4478,22 +4646,26 @@ void wm_event_do_handlers(bContext *C)
        * press in tool key-map can override click in editor key-map. */
       if (ISMOUSE_BUTTON(event->type) && event->val == KM_PRESS && !wm_action_not_handled(action))
       {
-        win.event_queue_check_click = false;
+        event_queue_check_click = false;
       }
 
       /* If the drag even was handled, don't attempt to keep re-handing the same
        * drag event on every cursor motion, see: #87511. */
-      if (win.event_queue_check_drag_handled) {
-        win.event_queue_check_drag = false;
-        win.event_queue_check_drag_handled = false;
+      if (event_queue_check_drag_handled) {
+        event_queue_check_drag = false;
+        event_queue_check_drag_handled = false;
       }
 
-      if (event_queue_check_drag_prev && (win.event_queue_check_drag == false)) {
+      if (event_simulate_target == nullptr && event_queue_check_drag_prev &&
+          (event_queue_check_drag == false))
+      {
         wm_region_tag_draw_on_gizmo_delay_refresh_for_tweak(&win);
       }
 
       /* Update previous mouse position for following events to use. */
-      copy_v2_v2_int(win.runtime->eventstate->prev_xy, event->xy);
+      if (dispatch_state.eventstate != nullptr) {
+        copy_v2_v2_int(dispatch_state.eventstate->prev_xy, event->xy);
+      }
 
       /* Un-link and free here, Blender-quit then frees all. */
       BLI_remlink(&win.runtime->event_queue, event);
@@ -5364,17 +5536,13 @@ void WM_event_add_simulate_region(
     return;
   }
 
-  const int g_flag_prev = G.f;
-  G.f |= G_FLAG_EVENT_SIMULATE;
-
   wmEvent event_copy = *event;
   event_copy.custom = EVT_DATA_SIMULATE_TARGET;
   event_copy.customdata = MEM_new<wmEventSimulateTarget>(
       __func__, wmEventSimulateTarget{area, region});
   event_copy.customdata_free = true;
-  WM_event_add_simulate(win, &event_copy);
-
-  G.f = g_flag_prev;
+  wm_event_add_simulate_with_dispatch_state(
+      win, &event_copy, wm_event_dispatch_state_simulate_get(win));
 }
 
 static eHandlerActionFlag wm_handlers_do_modal_region_targeted_intern(
@@ -5409,7 +5577,8 @@ static eHandlerActionFlag wm_handlers_do_modal_region_targeted_intern(
     else if (handler_base->type == WM_HANDLER_TYPE_OP) {
       wmEventHandler_Op *handler = reinterpret_cast<wmEventHandler_Op *>(handler_base);
       is_compatible = (handler->context.area == nullptr || handler->context.area == area) &&
-                      (handler->context.region == region ||
+                      (handler->context.region == nullptr || handler->context.region == region ||
+                       handler->context.region_type == -1 ||
                        handler->context.region_type == region->regiontype);
       if (is_compatible && !handler->is_fileselect) {
         action |= wm_handler_operator_call(
@@ -5429,8 +5598,16 @@ static eHandlerActionFlag wm_handlers_do_modal_region_targeted_intern(
 }
 
 static eHandlerActionFlag wm_handlers_do_modal_region_targeted(
-    bContext *C, wmWindow *win, wmEvent *event, ScrArea *area, ARegion *region)
+    bContext *C,
+    wmWindow *win,
+    wmEvent *event,
+    ScrArea *area,
+    ARegion *region,
+    const wmEventDispatchState &dispatch_state)
 {
+  char &event_queue_check_click = *dispatch_state.event_queue_check_click;
+  char &event_queue_check_drag = *dispatch_state.event_queue_check_drag;
+  char &event_queue_check_drag_handled = *dispatch_state.event_queue_check_drag_handled;
   eHandlerActionFlag action = wm_handlers_do_modal_region_targeted_intern(C, win, event, area, region);
 
   if (CTX_wm_window(C) == nullptr) {
@@ -5439,11 +5616,11 @@ static eHandlerActionFlag wm_handlers_do_modal_region_targeted(
 
   if (ISMOUSE_MOTION(event->type)) {
     if ((action & WM_HANDLER_BREAK) == 0 || wm_action_not_handled(action)) {
-      if (win->event_queue_check_drag) {
+      if (event_queue_check_drag) {
         if ((event->flag & WM_EVENT_FORCE_DRAG_THRESHOLD) ||
             WM_event_drag_test(event, event->prev_press_xy))
         {
-          win->event_queue_check_drag_handled = true;
+          event_queue_check_drag_handled = true;
           const int direction = WM_event_drag_direction(event);
 
           const short prev_val = event->val;
@@ -5465,47 +5642,47 @@ static eHandlerActionFlag wm_handlers_do_modal_region_targeted(
           event->val = prev_val;
           event->type = prev_type;
 
-          win->event_queue_check_click = false;
+          event_queue_check_click = false;
           if (!((action & WM_HANDLER_BREAK) == 0 || wm_action_not_handled(action))) {
-            win->event_queue_check_drag = false;
+            event_queue_check_drag = false;
           }
         }
       }
     }
-    else if (win->event_queue_check_drag) {
-      win->event_queue_check_drag = false;
+    else if (event_queue_check_drag) {
+      event_queue_check_drag = false;
     }
   }
   else if (ISKEYBOARD_OR_BUTTON(event->type)) {
     if (wm_action_not_handled(action)) {
       if (event->val == KM_PRESS) {
         if ((event->flag & WM_EVENT_IS_REPEAT) == 0) {
-          win->event_queue_check_click = true;
-          win->event_queue_check_drag = true;
-          win->event_queue_check_drag_handled = false;
+          event_queue_check_click = true;
+          event_queue_check_drag = true;
+          event_queue_check_drag_handled = false;
         }
       }
       else if (event->val == KM_RELEASE) {
-        if (win->event_queue_check_drag) {
+        if (event_queue_check_drag) {
           if ((event->prev_press_type != event->type) &&
               (ISKEYMODIFIER(event->type) || (event->type == event->prev_press_keymodifier)))
           {
             /* Support releasing modifier keys without canceling the drag event. */
           }
           else {
-            win->event_queue_check_drag = false;
+            event_queue_check_drag = false;
           }
         }
       }
 
       if (event->val == KM_RELEASE) {
         if (event->prev_press_type == event->type && event->prev_val == KM_PRESS &&
-            win->event_queue_check_click)
+            event_queue_check_click)
         {
           if (WM_event_drag_test(event, event->prev_press_xy)) {
-            win->event_queue_check_click = false;
-            if (win->event_queue_check_drag) {
-              win->event_queue_check_drag = false;
+            event_queue_check_click = false;
+            if (event_queue_check_drag) {
+              event_queue_check_drag = false;
             }
           }
           else {
@@ -5530,9 +5707,9 @@ static eHandlerActionFlag wm_handlers_do_modal_region_targeted(
       }
     }
     else {
-      win->event_queue_check_click = false;
-      if (win->event_queue_check_drag) {
-        win->event_queue_check_drag = false;
+      event_queue_check_click = false;
+      if (event_queue_check_drag) {
+        event_queue_check_drag = false;
       }
     }
   }
@@ -5548,6 +5725,7 @@ static eHandlerActionFlag wm_event_do_simulate_region_ex(
     return WM_HANDLER_CONTINUE;
   }
 
+  const wmEventDispatchState dispatch_state = wm_event_dispatch_state_simulate_get(win);
   wmEvent event_copy = *event;
   const int g_flag_prev = G.f;
   G.f |= G_FLAG_EVENT_SIMULATE;
@@ -5613,23 +5791,23 @@ static eHandlerActionFlag wm_event_do_simulate_region_ex(
   }
 
   eHandlerActionFlag modal_action = wm_handlers_do_modal_region_targeted(
-      C, win, &event_copy, area, region);
+      C, win, &event_copy, area, region, dispatch_state);
   eHandlerActionFlag region_action = WM_HANDLER_CONTINUE;
   eHandlerActionFlag area_action = WM_HANDLER_CONTINUE;
   eHandlerActionFlag window_action = WM_HANDLER_CONTINUE;
   if ((modal_action & WM_HANDLER_BREAK) == 0) {
-    region_action = wm_event_do_region_handlers(C, &event_copy, region);
+    region_action = wm_event_do_region_handlers(C, &event_copy, region, &dispatch_state);
   }
   if (((modal_action | region_action) & WM_HANDLER_BREAK) == 0) {
     CTX_wm_region_set(C, nullptr);
     wm_region_mouse_co(C, &event_copy);
-    area_action = wm_handlers_do(C, &event_copy, &area->handlers);
+    area_action = wm_handlers_do(C, &event_copy, &area->handlers, &dispatch_state);
   }
   if (((modal_action | region_action | area_action) & WM_HANDLER_BREAK) == 0) {
     CTX_wm_area_set(C, area);
     CTX_wm_region_set(C, region);
     wm_region_mouse_co(C, &event_copy);
-    window_action = wm_handlers_do(C, &event_copy, &win->runtime->handlers);
+    window_action = wm_handlers_do(C, &event_copy, &win->runtime->handlers, &dispatch_state);
   }
   const eHandlerActionFlag action = eHandlerActionFlag(
       modal_action | region_action | area_action | window_action);
