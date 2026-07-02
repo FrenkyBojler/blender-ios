@@ -3254,14 +3254,18 @@ class _defs_sequencer_generic:
                 props = tool.operator_properties("sequencer.split")
                 row = layout.row()
                 row.prop(props, "type", expand=True)
-                layout.prop(props, "ignore_connections", expand=True)
+                col = layout.column()
+                col.prop(props, "ignore_selection", expand=True)
+                col.prop(props, "ignore_connections", expand=True)
 
             # Box Blade properties.
             header, panel = layout.panel("SEQUENCER_PT_tool_box_blade", default_closed=False)
             header.label(text="Box Blade")
             if panel:
                 props = tool.operator_properties("sequencer.box_blade")
-                col = layout.column(heading="Box Blade")
+                row = layout.row()
+                row.prop(props, "type", expand=True)
+                col = layout.column()
                 col.prop(props, "remove_gaps", expand=True)
                 col.prop(props, "ignore_selection", expand=True)
                 col.prop(props, "ignore_connections", expand=True)
