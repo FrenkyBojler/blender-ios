@@ -118,8 +118,6 @@ struct tSlider {
   /** Reduces factor delta from mouse movement. */
   bool precision;
 };
-float2 calculate_radial_point(float2 center, float2 radius, float2 points);
-Vector<float2> calculate_radial_points(float2 center, float2 radius, Vector<float2> points);
 
 static void draw_overshoot_triangle(const uint8_t color[4],
                                     const bool facing_right,
@@ -1271,28 +1269,6 @@ void ED_draw_composition_guides(uint shdr_pos,
   }
 }
 
-float2 calculate_radial_point(float2 center, float2 radius, float2 point)
-{
-  float angle = DEG2RAD(point.x);
-  float offset = 90 - point.y;
-  float2 calced_radius = {((radius.x / 90) * offset), ((radius.y / 90) * offset)};
-
-  point.x = center.x + calced_radius.x * cos(angle);
-  point.y = center.y + calced_radius.y * sin(angle);
-
-  return point;
-}
-
-Vector<float2> calculate_radial_points(float2 center, float2 radius, Vector<float2> points)
-{
-
-  for (int i = 0; i < points.size(); i++) {
-    points[i] = calculate_radial_point(center, radius, points[i]);
-  }
-
-  return points;
-}
-
 void ED_draw_dome_master_composition_guides(uint shdr_pos,
                                             eCompositionGuideFlagsDomeMaster flag,
                                             const rctf *rect,
@@ -1358,7 +1334,7 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_BACK)) {
 
     float r = -5.0f;
-    Vector<float2> points = calculate_radial_points(
+    Vector<float2> points = ED_calculate_radial_points(
         center, radius, Vector<float2>{{-r, 0.0f}, {90.0f, 56.0f}, {-180 + r, 0}});
 
     imm_draw_quadratic_curve(shdr_pos, 100, points[0], points[1], points[2]);
@@ -1366,12 +1342,12 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
 
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_FRONT)) {
 
-    Vector<float2> points = calculate_radial_points(
+    Vector<float2> points = ED_calculate_radial_points(
         center, radius, Vector<float2>{{-40.0f, 0.0f}, {-25.0f, 38.f}, {-90.0f, 68.0f}});
 
     imm_draw_quadratic_curve(shdr_pos, 50, points[0], points[1], points[2]);
 
-    points = calculate_radial_points(
+    points = ED_calculate_radial_points(
         center, radius, Vector<float2>{{-90.0f, 68.0f}, {-155.0f, 38.f}, {-140.0f, 0.0f}});
 
     imm_draw_quadratic_curve(shdr_pos, 50, points[0], points[1], points[2]);
@@ -1392,7 +1368,7 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
   if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER)) {
 
     float r = 19.8f;
-    Vector<float2> points = calculate_radial_points(
+    Vector<float2> points = ED_calculate_radial_points(
         center, radius, Vector<float2>{{-r, 0.0f}, {-90.0f, 83.9f}, {-180 + r, 0}});
 
     imm_draw_quadratic_curve(shdr_pos, 100, points[0], points[1], points[2]);

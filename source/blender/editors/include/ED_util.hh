@@ -163,6 +163,10 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
 void ED_composition_guides_dome_master_draw_names_helper(
     std::string str, float x, float y, int fontid, float fontsize);
 
+float2 ED_calculate_radial_point(float2 center, float2 radius, float2 points);
+Vector<float2> ED_calculate_radial_points(float2 center, float2 radius, Vector<float2> points);
+
+
 /* ************** XXX OLD CRUFT WARNING ************* */
 
 /**

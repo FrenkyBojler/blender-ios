@@ -472,4 +472,27 @@ void ED_spacedata_id_remap_single(ScrArea *area, SpaceLink *sl, ID *old_id, ID *
   }
 }
 
+
+float2 ED_calculate_radial_point(float2 center, float2 radius, float2 point)
+{
+  float angle = DEG2RAD(point.x);
+  float offset = 90 - point.y;
+  float2 calced_radius = {((radius.x / 90) * offset), ((radius.y / 90) * offset)};
+
+  point.x = center.x + calced_radius.x * cos(angle);
+  point.y = center.y + calced_radius.y * sin(angle);
+
+  return point;
+}
+
+Vector<float2> ED_calculate_radial_points(float2 center, float2 radius, Vector<float2> points)
+{
+
+  for (int i = 0; i < points.size(); i++) {
+    points[i] = ED_calculate_radial_point(center, radius, points[i]);
+  }
+
+  return points;
+}
+
 }  // namespace blender
