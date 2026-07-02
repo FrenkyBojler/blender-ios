@@ -998,7 +998,7 @@ static void namebutton_fn(bContext *C, TreeStoreElem *tselem, const char *oldnam
           break;
         }
         case TSE_SHAPE_KEY_BLOCK: {
-          const Key *key = id_cast<Key *>(tselem->id);
+          Key *key = id_cast<Key *>(tselem->id);
           KeyBlock *keyblock = static_cast<KeyBlock *>(te->directdata);
           /* Outliner renaming already sets the new name to the KeyBlock. Restore the old name
           before calling rename function which will ensure unique name. */

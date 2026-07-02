@@ -1349,6 +1349,22 @@ void BKE_animdata_fix_paths(ID &id,
   }
 }
 
+static std::string str_escape(StringRefNull str)
+{
+  const size_t max_result_size = size_t(str.size()) * 2 + 1;
+  std::string result;
+  result.resize(max_result_size);
+  const size_t result_size = BLI_str_escape(result.data(), str.c_str(), max_result_size);
+  result.resize(result_size);
+  return result;
+}
+
+std::string BKE_animdata_string_escape_for_rename(const StringRefNull string)
+{
+  std::string old_name_esc = str_escape(string);
+  return fmt::format("[\"{}\"]", old_name_esc);
+}
+
 /* Remove FCurves with Prefix  -------------------------------------- */
 
 /** Remove F-Curves from the listbase when their RNA path starts with `prefix`. */

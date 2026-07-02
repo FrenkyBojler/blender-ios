@@ -231,6 +231,11 @@ void BKE_animdata_fix_paths(ID &id,
                             const DriverMap &driver_map);
 
 /**
+ * TODO replace with internal function once available.
+ */
+std::string BKE_animdata_string_escape_for_rename(const StringRefNull string);
+
+/**
  * Remove any animation data (F-Curves from Actions, and drivers) that have an
  * RNA path starting with `prefix`.
  *

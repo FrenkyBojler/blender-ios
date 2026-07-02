@@ -607,13 +607,13 @@ void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll,
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(armature->id,
                          "collections",
-                         fmt::format("[\"{}\"]", old_name),
-                         fmt::format("[\"{}\"]", bcoll->name),
+                         BKE_animdata_string_escape_for_rename(old_name),
+                         BKE_animdata_string_escape_for_rename(bcoll->name),
                          driver_map);
   BKE_animdata_fix_paths(armature->id,
                          "collections_all",
-                         fmt::format("[\"{}\"]", old_name),
-                         fmt::format("[\"{}\"]", bcoll->name),
+                         BKE_animdata_string_escape_for_rename(old_name),
+                         BKE_animdata_string_escape_for_rename(bcoll->name),
                          driver_map);
 }
 
