@@ -227,6 +227,7 @@ static void gather_2d_positions(const Span<float3> src_positions,
 
 static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
                                                       const bke::CurvesGeometry *curves,
+                                                      const fn::FieldContext *curves_field_context,
                                                       const PointCloud *pointcloud,
                                                       const Field<int> &group_index,
                                                       const CDT_output_type output_type)
@@ -252,8 +253,7 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
         mesh_evaluator->get_evaluated<int>(0), memory, mesh_ids);
   }
   if (curves && !curves->is_empty()) {
-    const bke::GeometryFieldContext context{*curves, bke::AttrDomain::Curve};
-    curve_evaluator.emplace(context, curves->curves_num());
+    curve_evaluator.emplace(*curves_field_context, curves->curves_num());
     curve_evaluator->add(group_index);
     curve_evaluator->evaluate();
     curve_masks = IndexMask::from_group_ids(
@@ -653,23 +653,26 @@ static void gather_attributes_for_result_for_component(const AttributeAccessor &
   });
 }
 
-static AttributeAccessor src_attributes_for_domain(const GeometrySet &geometry_set,
+static AttributeAccessor src_attributes_for_domain(const Mesh *mesh,
+                                                   const bke::CurvesGeometry *curves,
+                                                   const PointCloud *pointcloud,
                                                    const SourceComponent domain)
 {
   switch (domain) {
     case SourceComponent::Mesh:
-      return geometry_set.get_mesh()->attributes();
+      return mesh->attributes();
     case SourceComponent::Curve:
-      return geometry_set.get_curves()->geometry.wrap().attributes();
+      return curves->attributes();
     case SourceComponent::PointCloud:
-      return geometry_set.get_pointcloud()->attributes();
+      return pointcloud->attributes();
   }
-  BLI_assert_unreachable();
-  return geometry_set.get_mesh()->attributes();
+  return mesh->attributes();
 }
 
 static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
-                          const GeometrySet &geometry_set,
+                          const Mesh *mesh,
+                          const bke::CurvesGeometry *curves,
+                          const PointCloud *pointcloud,
                           const std::optional<std::string> dst_intersection_points_attribute_id,
                           const AttributeFilter &attribute_filter)
 {
@@ -697,15 +700,15 @@ static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
   const OffsetIndices corner_groups = offset_indices::accumulate_counts_to_offsets(
       corner_groups_data);
 
-  Mesh *mesh = BKE_mesh_new_nomain(vert_groups.total_size(),
-                                   edge_groups.total_size(),
-                                   face_groups.total_size(),
-                                   corner_groups.total_size());
+  Mesh *dst_mesh = BKE_mesh_new_nomain(vert_groups.total_size(),
+                                       edge_groups.total_size(),
+                                       face_groups.total_size(),
+                                       corner_groups.total_size());
 
-  MutableSpan<float3> all_positions = mesh->vert_positions_for_write();
-  MutableSpan<int2> all_edges = mesh->edges_for_write();
-  MutableSpan<int> all_face_offsets = mesh->face_offsets_for_write();
-  MutableSpan<int> all_corner_verts = mesh->corner_verts_for_write();
+  MutableSpan<float3> all_positions = dst_mesh->vert_positions_for_write();
+  MutableSpan<int2> all_edges = dst_mesh->edges_for_write();
+  MutableSpan<int> all_face_offsets = dst_mesh->face_offsets_for_write();
+  MutableSpan<int> all_corner_verts = dst_mesh->corner_verts_for_write();
 
   threading::parallel_for(results.index_range(), 1024, [&](const IndexRange results_range) {
     for (const int i_result : results_range) {
@@ -739,7 +742,7 @@ static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
     }
   });
 
-  MutableAttributeAccessor dst_attributes = mesh->attributes_for_write();
+  MutableAttributeAccessor dst_attributes = dst_mesh->attributes_for_write();
   threading::parallel_for(results.index_range(), 1024, [&](const IndexRange range) {
     for (const int result_i : range) {
       const IndexRange verts_range = vert_groups[result_i];
@@ -751,7 +754,8 @@ static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
         const SourceComponent domain = result.point_source_domains[component_i];
         const IndexRange dst_range = dst_points_range_by_component[component_i];
 
-        const AttributeAccessor src_attributes = src_attributes_for_domain(geometry_set, domain);
+        const AttributeAccessor src_attributes = src_attributes_for_domain(
+            mesh, curves, pointcloud, domain);
         gather_attributes_for_result_for_component(
             src_attributes,
             bke::AttrDomain::Point,
@@ -782,12 +786,12 @@ static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
 
   /* The delaunay triangulation doesn't seem to return all of the necessary all_edges, even in
    * triangulation mode. */
-  bke::mesh_calc_edges(*mesh, true, false);
-  bke::mesh_smooth_set(*mesh, false);
+  bke::mesh_calc_edges(*dst_mesh, true, false);
+  bke::mesh_smooth_set(*dst_mesh, false);
 
-  mesh->tag_overlapping_none();
+  dst_mesh->tag_overlapping_none();
 
-  return mesh;
+  return dst_mesh;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -805,16 +809,82 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.get_output_anonymous_attribute_id_if_needed("Intersection Points"_ustr);
 
   geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
-    const Mesh *mesh = geometry.get_mesh();
-    const Curves *curves_id = geometry.get_curves();
-    const bke::CurvesGeometry *curves = curves_id ? &curves_id->geometry.wrap() : nullptr;
-    const PointCloud *pointcloud = geometry.get_pointcloud();
-    Array<TriangulationResult> geometry_results = calc_triangulations(
-        mesh, curves, pointcloud, group_index, output_type);
-    Mesh *result_mesh = cdts_to_mesh(
-        geometry_results, geometry, dst_intersection_points_attribute_id, attribute_filter);
+    {
+      const Mesh *mesh = geometry.get_mesh();
+      const Curves *curves_id = geometry.get_curves();
+      const bke::CurvesGeometry *curves = curves_id ? &curves_id->geometry.wrap() : nullptr;
+      const PointCloud *pointcloud = geometry.get_pointcloud();
+      std::optional<bke::CurvesFieldContext> curves_field_context;
+      if (curves) {
+        curves_field_context.emplace(bke::CurvesFieldContext(*curves, bke::AttrDomain::Curve));
+      }
+      Array<TriangulationResult> geometry_results = calc_triangulations(
+          mesh,
+          curves,
+          curves_field_context.has_value() ? &*curves_field_context : nullptr,
+          pointcloud,
+          group_index,
+          output_type);
+      Mesh *result_mesh = cdts_to_mesh(geometry_results,
+                                       mesh,
+                                       curves,
+                                       pointcloud,
 
-    geometry.replace_mesh(result_mesh);
+                                       dst_intersection_points_attribute_id,
+                                       attribute_filter);
+      geometry.replace_mesh(result_mesh);
+    }
+
+    if (geometry.has_grease_pencil()) {
+      using namespace blender::bke::greasepencil;
+      const GreasePencil &grease_pencil = *geometry.get_grease_pencil();
+      Vector<Mesh *> mesh_by_layer(grease_pencil.layers().size(), nullptr);
+      for (const int layer_index : grease_pencil.layers().index_range()) {
+        const Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
+        if (drawing == nullptr) {
+          continue;
+        }
+        const bke::CurvesGeometry &curves = drawing->strokes();
+        if (curves.is_empty()) {
+          continue;
+        }
+        bke::GreasePencilLayerFieldContext drawing_field_context(
+            grease_pencil, bke::AttrDomain::Curve, layer_index);
+        Array<TriangulationResult> geometry_results = calc_triangulations(
+            nullptr, &curves, &drawing_field_context, nullptr, group_index, output_type);
+        mesh_by_layer[layer_index] = cdts_to_mesh(geometry_results,
+                                                  nullptr,
+                                                  &curves,
+
+                                                  nullptr,
+                                                  dst_intersection_points_attribute_id,
+                                                  attribute_filter);
+      }
+      if (!mesh_by_layer.is_empty()) {
+        auto instances = std::make_unique<bke::Instances>(mesh_by_layer.size());
+        MutableSpan<int> handles = instances->reference_handles_for_write();
+        instances->transforms_for_write().fill(float4x4::identity());
+        for (const int i : mesh_by_layer.index_range()) {
+          Mesh *mesh = mesh_by_layer[i];
+          if (!mesh) {
+            /* Add an empty reference so the number of layers and instances match.
+             * This makes it easy to reconstruct the layers afterwards and keep their attributes.
+             * Although in this particular case we don't propagate the attributes. */
+            handles[i] = instances->add_reference(bke::InstanceReference());
+            continue;
+          }
+          GeometrySet temp_set = GeometrySet::from_mesh(mesh);
+          handles[i] = instances->add_reference(bke::InstanceReference{temp_set});
+        }
+        auto &dst_component = geometry.get_component_for_write<InstancesComponent>();
+        GeometrySet new_instances = geometry::join_geometries(
+            {GeometrySet::from_instances(dst_component.release()),
+             GeometrySet::from_instances(std::move(instances))},
+            {});
+        dst_component.replace(
+            new_instances.get_component_for_write<InstancesComponent>().release());
+      }
+    }
 
     geometry.keep_only({GeometryComponent::Type::Mesh});
   });
