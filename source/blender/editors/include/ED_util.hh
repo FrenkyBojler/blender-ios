@@ -161,7 +161,6 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
 
 /* Helper Fucntion for drawing Directions of DOme Master Composition Guides */
 
-
 float2 ED_calculate_radial_point(float2 center, float2 radius, float2 points);
 Vector<float2> ED_calculate_radial_points(float2 center, float2 radius, Vector<float2> points);
 

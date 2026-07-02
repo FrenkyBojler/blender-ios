@@ -1195,8 +1195,6 @@ static void drawviewborder_triangle(uint shdr_pos, rctf rect, const bool golden,
   immEnd();
 }
 
-
-
 void ED_draw_composition_guides(uint shdr_pos,
                                 eCompositionGuideFlags flag,
                                 const rctf *rect,
@@ -1413,18 +1411,16 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
       float offset = direction_offset;
     };
 
-    Vector<cDir> cDirs =
-    { {0, "E", big_font},
-      {45, "N/E", small_font},
-      {90, "N", big_font},
-      {135, "N/W", small_font},
-      {180, "W", big_font},
-      {225, "S/W", small_font},
-      {270, "S", big_font},
-      {315, "S/W", small_font} };
+    Vector<cDir> cDirs = {{0, "E", big_font},
+                          {45, "N/E", small_font},
+                          {90, "N", big_font},
+                          {135, "N/W", small_font},
+                          {180, "W", big_font},
+                          {225, "S/W", small_font},
+                          {270, "S", big_font},
+                          {315, "S/W", small_font}};
 
-    for (int i = 0; i < cDirs.size(); i++)
-    {
+    for (int i = 0; i < cDirs.size(); i++) {
 
       float2 point = ED_calculate_radial_point(
           center, radius, float2{cDirs[i].angle, cDirs[i].offset});
@@ -1432,13 +1428,12 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
       const char *direction = cDirs[i].t.c_str();
       float direction_size_x, direction_size_y;
       BLF_size(fontid, cDirs[i].size * UI_SCALE_FAC);
-      BLF_width_and_height(fontid, direction, sizeof(direction), &direction_size_x, &direction_size_y);
+      BLF_width_and_height(
+          fontid, direction, sizeof(direction), &direction_size_x, &direction_size_y);
 
       BLF_position(fontid, point.x - direction_size_x / 2, point.y - direction_size_y / 2, 0.0f);
       BLF_draw(fontid, direction, sizeof(direction));
-
     }
-
   }
 }
 
