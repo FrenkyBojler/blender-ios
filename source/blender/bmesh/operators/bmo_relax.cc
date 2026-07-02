@@ -11,7 +11,6 @@
 #include "BLI_math_vector.hh"
 
 #include "BLI_array_utils.hh"
-#include "BLI_binary_search.hh"
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_solvers.hh"
 #include "BLI_set.hh"
@@ -147,14 +146,6 @@ static void calculate_splines_axis(Span<float> distances,
     const float coeff_d = (c_vals[i_next] - c_vals[i]) / (3.0f * segment_length[i]);
     r_coeffs.append({coeff_a, coeff_b, coeff_c, coeff_d, distances[i]});
   }
-}
-
-/** Return the index of the spline segment that contains target_distance. */
-static int calculate_spline_segment(Span<float> knot_distances, float target_distance)
-{
-  const int segment_index = binary_search::last_if(
-      knot_distances, [&](const float value) { return value <= target_distance; });
-  return std::clamp(segment_index, 0, int(knot_distances.size()) - 2);
 }
 
 static void build_relax_phases(int num_verts, bool is_closed, Vector<RelaxPhase> &r_phases)
@@ -364,39 +355,46 @@ static void execute_relax_phase(
   Vector<float> t_knots, t_points;
   calculate_relax_t(verts, phase, regular, t_knots, t_points);
 
-  std::array<Vector<SplineCoeffs>, 3> axis_coeffs;
+  const Span<float> accumulated_lengths = Span<float>(t_knots).drop_front(1);
 
-  if (interpolation == RELAX_EDGE_LOOPS_INTERP_CUBIC) {
-    calculate_relax_splines(verts, phase.knot_indices, t_knots, is_closed, axis_coeffs);
-  }
+  const int num_points = phase.point_indices.size();
+  Array<int> segment_indices(num_points);
+  Array<float> factors(num_points);
+  length_parameterize::sample_at_lengths(accumulated_lengths, t_points, segment_indices, factors);
 
-  for (const int i : phase.point_indices.index_range()) {
-    float target_dist = t_points[i];
-    int seg = calculate_spline_segment(t_knots, target_dist);
-    float3 spline_pos;
+  Array<float3> sampled_positions(num_points);
 
-    if (interpolation == RELAX_EDGE_LOOPS_INTERP_LINEAR) {
-      float factor = (target_dist - t_knots[seg]) / (t_knots[seg + 1] - t_knots[seg]);
-      spline_pos = math::interpolate(float3(verts[phase.knot_indices[seg]]->co),
-                                     float3(verts[phase.knot_indices[seg + 1]]->co),
-                                     factor);
+  if (interpolation == RELAX_EDGE_LOOPS_INTERP_LINEAR) {
+    Array<float3> knot_positions(phase.knot_indices.size());
+    for (const int i : phase.knot_indices.index_range()) {
+      knot_positions[i] = verts[phase.knot_indices[i]]->co;
     }
-    else {
-      const float dt = target_dist - axis_coeffs[0][seg].x;
+
+    length_parameterize::interpolate<float3>(
+        knot_positions, segment_indices, factors, sampled_positions);
+  }
+  else {
+    std::array<Vector<SplineCoeffs>, 3> axis_coeffs;
+    calculate_relax_splines(verts, phase.knot_indices, t_knots, is_closed, axis_coeffs);
+
+    for (const int i : IndexRange(num_points)) {
+      const int seg = segment_indices[i];
+      const float dt = t_points[i] - axis_coeffs[0][seg].x;
 
       const SplineCoeffs &cx = axis_coeffs[0][seg];
       const SplineCoeffs &cy = axis_coeffs[1][seg];
       const SplineCoeffs &cz = axis_coeffs[2][seg];
 
-      spline_pos = float3(cx.a + dt * (cx.b + dt * (cx.c + dt * cx.d)),
-                          cy.a + dt * (cy.b + dt * (cy.c + dt * cy.d)),
-                          cz.a + dt * (cz.b + dt * (cz.c + dt * cz.d)));
+      sampled_positions[i] = float3(cx.a + dt * (cx.b + dt * (cx.c + dt * cx.d)),
+                                    cy.a + dt * (cy.b + dt * (cy.c + dt * cy.d)),
+                                    cz.a + dt * (cz.b + dt * (cz.c + dt * cz.d)));
     }
+  }
 
-    int v_index = phase.point_indices[i];
-    float3 current_pos(verts[v_index]->co);
-    float3 final_pos = (current_pos + spline_pos) / 2.0f;
-
+  for (const int i : IndexRange(num_points)) {
+    const int v_index = phase.point_indices[i];
+    const float3 current_pos(verts[v_index]->co);
+    const float3 final_pos = (current_pos + sampled_positions[i]) / 2.0f;
     verts[v_index]->co[0] = final_pos.x;
     verts[v_index]->co[1] = final_pos.y;
     verts[v_index]->co[2] = final_pos.z;
