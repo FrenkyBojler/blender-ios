@@ -1,3 +1,4 @@
 Referenced by issue #159398, bl_icon_value is now broken for panels
 Referenced by pull request #159519, Fix #159517: Horizontal drag to toggle properties is broken in outliner
 Referenced by commit 3cfd00328a599ecd5f3f094735ab7ac321862b9e, Fix #159517: Horizontal drag to toggle properties is broken in outliner
+Referenced by issue #137983, Release note tools: List of bug fixes per release override
