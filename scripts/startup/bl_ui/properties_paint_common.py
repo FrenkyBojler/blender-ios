@@ -585,6 +585,17 @@ class StrokePanel(BrushPanel):
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")
             row.prop(brush, "use_pressure_spacing", toggle=True, text="")
+            if not self.is_popover:
+                UnifiedPaintPanel.prop_custom_pressure(
+                    layout,
+                    context,
+                    row,
+                    brush,
+                    pressure_name="use_pressure_spacing",
+                    curve_visibility_name="show_spacing_curve",
+                    custom_curve_name="curve_spacing",
+                )
+                col = layout.column()
 
         if brush.stroke_method in {'LINE', 'CURVE'}:
             row = col.row(align=True)

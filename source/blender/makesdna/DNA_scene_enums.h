@@ -79,6 +79,7 @@ enum PaintCurveVisibilityFlags : int {
   PAINT_CURVE_SHOW_JITTER = (1 << 2),
   PAINT_CURVE_SHOW_HARDNESS = (1 << 3),
   PAINT_CURVE_SHOW_AUTO_SMOOTH = (1 << 4),
+  PAINT_CURVE_SHOW_SPACING = (1 << 5),
 };
 ENUM_OPERATORS(PaintCurveVisibilityFlags)
 
