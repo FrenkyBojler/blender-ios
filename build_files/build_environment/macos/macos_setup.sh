@@ -13,8 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Versions and packages
 XCODE_VERSION="26.1.1"
-CMAKE_VERSION="3.31.12"
-
+CMAKE_VERSION="3.31.6" # Last CMake 3.x published to Homebrew
 BREW_PACKAGES=(
   autoconf
   automake
@@ -55,8 +54,8 @@ if [[ "${ASSUME_YES}" != "1" ]]; then
 ############################################################
 WARNING
 This script will install software on your system:
-  - Homebrew (+ shellenv in ~/.zprofile)
   - Xcode ${XCODE_VERSION} (with Metal Toolchain)
+  - Homebrew (+ shellenv in ~/.zprofile)
   - CMake ${CMAKE_VERSION}
   - Brew packages: ${BREW_PACKAGES[*]}
 ############################################################
@@ -126,7 +125,10 @@ install_xcode() {
   sudo xcodebuild -runFirstLaunch
 
   echo "[xcode]: Ensure MetalToolchain"
-  sudo xcodebuild -downloadComponent MetalToolchain || true
+  for i in 1 2 3; do
+    sudo xcodebuild -downloadComponent MetalToolchain && break || true
+    sleep 10
+  done
 }
 
 # CMake
@@ -160,7 +162,7 @@ install_brew_packages() {
   echo "[brew]:  Packages installed"
 }
 
-install_homebrew
 install_xcode "${XCODE_VERSION}"
+install_homebrew
 install_cmake "${CMAKE_VERSION}"
 install_brew_packages
