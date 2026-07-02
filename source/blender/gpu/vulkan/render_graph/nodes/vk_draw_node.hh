@@ -38,6 +38,7 @@ struct VKDrawData {
 
 struct VKDrawCreateInfo {
   const VKResourceAccessInfo &resources;
+  VKRenderScopeAccess *render_scope_access = nullptr;
   VKDrawCreateInfo(const VKResourceAccessInfo &resources) : resources(resources) {}
 };
 
@@ -74,7 +75,8 @@ class VKDrawNode : public VKDrawNodeInfo<VKNodeType::DRAW,
                    Data &data) override
   {
     create_info.resources.build_links(resources, links);
-    vk_vertex_buffer_bindings_build_links(resources, links, data.vertex_buffers);
+    vk_vertex_buffer_bindings_update_render_scope(*create_info.render_scope_access,
+                                                  data.vertex_buffers);
   }
 
   /**

@@ -265,6 +265,22 @@ class VKRenderGraph : public NonCopyable {
   }
 
   /**
+   * Append buffer links to an already-finalized node.
+   *
+   * Used to consolidate vertex/index/indirect buffer accesses from multiple draw calls
+   * onto the BEGIN_RENDERING node.
+   */
+  void append_buffer_links(NodeHandle handle, Span<VKRenderGraphBuffer> new_links);
+
+  /**
+   * Expose the resource state tracker for external use (e.g., VKFrameBuffer).
+   */
+  VKResourceStateTracker &resources_get()
+  {
+    return resources_;
+  }
+
+  /**
    * To reduce small allocations the caller can copy push constants inside the render graph.
    * The returned index range can than be used by the command builder to retrieve the push
    * constants.

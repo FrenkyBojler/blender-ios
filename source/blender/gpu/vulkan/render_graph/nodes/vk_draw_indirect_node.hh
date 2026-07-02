@@ -37,6 +37,7 @@ struct VKDrawIndirectData {
 
 struct VKDrawIndirectCreateInfo {
   const VKResourceAccessInfo &resources;
+  VKRenderScopeAccess *render_scope_access = nullptr;
   VKDrawIndirectCreateInfo(const VKResourceAccessInfo &resources) : resources(resources) {}
 };
 
@@ -73,9 +74,12 @@ class VKDrawIndirectNode : public VKDrawNodeInfo<VKNodeType::DRAW_INDIRECT,
                    Data &data) override
   {
     create_info.resources.build_links(resources, links);
-    vk_vertex_buffer_bindings_build_links(resources, links, data.vertex_buffers);
-    ResourceWithStamp buffer_resource = resources.get_buffer(data.indirect_buffer);
-    links.buffers.append({buffer_resource, VK_ACCESS_INDIRECT_COMMAND_READ_BIT});
+    vk_vertex_buffer_bindings_update_render_scope(*create_info.render_scope_access,
+                                                  data.vertex_buffers);
+    create_info.render_scope_access->buffers.add_or_modify(
+        data.indirect_buffer.resource_handle,
+        [](VkAccessFlags *value) { *value = VK_ACCESS_INDIRECT_COMMAND_READ_BIT; },
+        [](VkAccessFlags *value) { *value |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT; });
   }
 
   /**

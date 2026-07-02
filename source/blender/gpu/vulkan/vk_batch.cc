@@ -63,6 +63,7 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     context.update_pipeline_data(framebuffer, prim_type, vao, node.data.graphics);
 
     render_graph::VKDrawIndexedNode::CreateInfo create_info(resource_access_info);
+    create_info.render_scope_access = &framebuffer.render_scope_access_get();
     node.finalize(graph, create_info);
   }
   else {
@@ -77,6 +78,7 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     context.update_pipeline_data(framebuffer, prim_type, vao, node.data.graphics);
 
     render_graph::VKDrawNode::CreateInfo create_info(resource_access_info);
+    create_info.render_scope_access = &framebuffer.render_scope_access_get();
     node.finalize(graph, create_info);
   }
 }
@@ -129,6 +131,7 @@ void VKBatch::multi_draw_indirect(const VKStorageBuffer &indirect_buffer,
     context.update_pipeline_data(framebuffer, prim_type, vao, node.data.graphics);
 
     render_graph::VKDrawIndexedIndirectNode::CreateInfo create_info(resource_access_info);
+    create_info.render_scope_access = &framebuffer.render_scope_access_get();
     node.finalize(graph, create_info);
   }
   else {
@@ -143,6 +146,7 @@ void VKBatch::multi_draw_indirect(const VKStorageBuffer &indirect_buffer,
     context.update_pipeline_data(framebuffer, prim_type, vao, node.data.graphics);
 
     render_graph::VKDrawIndirectNode::CreateInfo create_info(resource_access_info);
+    create_info.render_scope_access = &framebuffer.render_scope_access_get();
     node.finalize(graph, create_info);
   }
 }

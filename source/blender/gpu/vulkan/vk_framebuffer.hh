@@ -18,6 +18,7 @@
 #include "render_graph/vk_render_graph.hh"
 #include "vk_common.hh"
 #include "vk_image_view.hh"
+#include "vk_render_scope_access.hh"
 
 namespace blender::gpu {
 class VKContext;
@@ -28,6 +29,19 @@ class VKFrameBuffer : public FrameBuffer {
   bool srgb_;
   bool enabled_srgb_;
   bool is_rendering_ = false;
+
+  /**
+   * Accumulated vertex/index/indirect buffer accesses for the current rendering scope.
+   * Populated by draw node `build_links` and transferred to the BEGIN_RENDERING node's
+   * buffer links at `rendering_end()`.
+   */
+  VKRenderScopeAccess render_scope_access_;
+
+  /**
+   * Handle to the BEGIN_RENDERING node for this scope.
+   * Used at `rendering_end()` to append accumulated buffer links.
+   */
+  render_graph::NodeHandle begin_rendering_handle_ = -1;
 
   VkFormat depth_attachment_format_ = VK_FORMAT_UNDEFINED;
   VkFormat stencil_attachment_format_ = VK_FORMAT_UNDEFINED;
@@ -131,6 +145,11 @@ class VKFrameBuffer : public FrameBuffer {
    * lower attachment slots will be counted as they are required resources in render-passes.
    */
   int color_attachments_resource_size() const;
+
+  VKRenderScopeAccess &render_scope_access_get()
+  {
+    return render_scope_access_;
+  }
 
  private:
   /* Clearing attachments */

@@ -8,6 +8,9 @@
 
 #pragma once
 
+#include "BLI_map.hh"
+
+#include "vk_render_scope_access.hh"
 #include "vk_vertex_input_description.hh"
 
 namespace blender::gpu::render_graph {
@@ -221,17 +224,17 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
                                      VkPipelineBindPoint vk_pipeline_bind_point,
                                      VkShaderStageFlags vk_shader_stage_flags);
 
-void vk_index_buffer_binding_build_links(VKResourceStateTracker &resources,
-                                         VKRenderGraphLinks &links,
-                                         const VKIndexBufferBinding &index_buffer_binding);
 void vk_index_buffer_binding_build_commands(VKCommandBufferInterface &command_buffer,
                                             const VKIndexBufferBinding &index_buffer_binding,
                                             VKIndexBufferBinding &r_bound_index_buffer);
-void vk_vertex_buffer_bindings_build_links(VKResourceStateTracker &resources,
-                                           VKRenderGraphLinks &links,
-                                           const VKVertexBufferBindings &vertex_buffers);
 void vk_vertex_buffer_bindings_build_commands(VKCommandBufferInterface &command_buffer,
                                               const VKVertexBufferBindings &vertex_buffer_bindings,
                                               VKVertexBufferBindings &r_bound_vertex_buffers);
+
+void vk_vertex_buffer_bindings_update_render_scope(VKRenderScopeAccess &render_scope_access,
+                                                   const VKVertexBufferBindings &vertex_buffers);
+
+void vk_index_buffer_binding_update_render_scope(VKRenderScopeAccess &render_scope_access,
+                                                 const VKIndexBufferBinding &index_buffer_binding);
 
 }  // namespace blender::gpu::render_graph

@@ -62,6 +62,21 @@ void VKRenderGraph::memstats() const
 #undef PRINT_STORAGE
 }
 
+void VKRenderGraph::append_buffer_links(NodeHandle handle, Span<VKRenderGraphBuffer> new_links)
+{
+  std::scoped_lock lock(resources_.mutex);
+  int64_t start = links_.buffers.size();
+  links_.buffers.extend(new_links);
+  VKRenderGraphNode &node = nodes_[handle];
+  if (node.links.buffers.is_empty()) {
+    node.links.buffers = IndexRange::from_begin_size(start, new_links.size());
+  }
+  else {
+    node.links.buffers = IndexRange::from_begin_end(node.links.buffers.start(),
+                                                    start + new_links.size());
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

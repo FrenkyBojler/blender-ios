@@ -41,6 +41,7 @@ struct VKDrawIndexedData {
 
 struct VKDrawIndexedCreateInfo {
   const VKResourceAccessInfo &resources;
+  VKRenderScopeAccess *render_scope_access = nullptr;
   VKDrawIndexedCreateInfo(const VKResourceAccessInfo &resources) : resources(resources) {}
 };
 
@@ -78,9 +79,11 @@ class VKDrawIndexedNode : public VKDrawNodeInfo<VKNodeType::DRAW_INDEXED,
   {
     create_info.resources.build_links(resources, links);
     if (data.index_buffer.buffer != VK_NULL_HANDLE) {
-      vk_index_buffer_binding_build_links(resources, links, data.index_buffer);
+      vk_index_buffer_binding_update_render_scope(*create_info.render_scope_access,
+                                                  data.index_buffer);
     }
-    vk_vertex_buffer_bindings_build_links(resources, links, data.vertex_buffers);
+    vk_vertex_buffer_bindings_update_render_scope(*create_info.render_scope_access,
+                                                  data.vertex_buffers);
   }
 
   /**

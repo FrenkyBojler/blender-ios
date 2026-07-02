@@ -89,14 +89,6 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
   }
 }
 
-void vk_index_buffer_binding_build_links(VKResourceStateTracker &resources,
-                                         VKRenderGraphLinks &links,
-                                         const VKIndexBufferBinding &index_buffer_binding)
-{
-  ResourceWithStamp resource = resources.get_buffer(index_buffer_binding.buffer);
-  links.buffers.append({resource, VK_ACCESS_INDEX_READ_BIT});
-}
-
 void vk_index_buffer_binding_build_commands(VKCommandBufferInterface &command_buffer,
                                             const VKIndexBufferBinding &index_buffer_binding,
                                             VKIndexBufferBinding &r_bound_index_buffer)
@@ -107,16 +99,26 @@ void vk_index_buffer_binding_build_commands(VKCommandBufferInterface &command_bu
   }
 }
 
-void vk_vertex_buffer_bindings_build_links(VKResourceStateTracker &resources,
-                                           VKRenderGraphLinks &links,
-                                           const VKVertexBufferBindings &vertex_buffers)
+void vk_vertex_buffer_bindings_update_render_scope(VKRenderScopeAccess &render_scope_access,
+                                                   const VKVertexBufferBindings &vertex_buffers)
 {
   for (const ResourceHandle resource_handle :
        Span<ResourceHandle>(vertex_buffers.resource_handles, vertex_buffers.buffer_count))
   {
-    ResourceWithStamp resource = resources.get_buffer(resource_handle);
-    links.buffers.append({resource, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT});
+    render_scope_access.buffers.add_or_modify(
+        resource_handle,
+        [](VkAccessFlags *value) { *value = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT; },
+        [](VkAccessFlags *value) { *value |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT; });
   }
+}
+
+void vk_index_buffer_binding_update_render_scope(VKRenderScopeAccess &render_scope_access,
+                                                 const VKIndexBufferBinding &index_buffer_binding)
+{
+  render_scope_access.buffers.add_or_modify(
+      index_buffer_binding.buffer.resource_handle,
+      [](VkAccessFlags *value) { *value = VK_ACCESS_INDEX_READ_BIT; },
+      [](VkAccessFlags *value) { *value |= VK_ACCESS_INDEX_READ_BIT; });
 }
 
 void vk_vertex_buffer_bindings_build_commands(VKCommandBufferInterface &command_buffer,

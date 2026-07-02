@@ -741,7 +741,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     break;
   }
 
-  context.render_graph().add_node(begin_rendering);
+  begin_rendering_handle_ = context.render_graph().add_node(begin_rendering);
 }
 
 void VKFrameBuffer::rendering_ensure(VKContext &context)
@@ -756,6 +756,8 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
 
   const VKExtensions &extensions = VKBackend::get().device.extensions_get();
   is_rendering_ = true;
+  render_scope_access_.buffers.clear();
+  begin_rendering_handle_ = -1;
   rendering_ensure_dynamic_rendering(context, extensions);
   dirty_attachments_ = false;
   dirty_state_ = false;
@@ -783,9 +785,24 @@ void VKFrameBuffer::rendering_end(VKContext &context)
   }
 
   if (is_rendering_) {
+    /* Transfer accumulated vertex/index/indirect buffer accesses to the
+     * BEGIN_RENDERING node. This consolidates read-only buffer dependencies
+     * from all draw calls in the scope into a single node. */
+    if (!render_scope_access_.buffers.is_empty()) {
+      Vector<render_graph::VKRenderGraphBuffer> buffer_links;
+      for (const auto &[handle, access_flags] : render_scope_access_.buffers.items()) {
+        render_graph::ResourceWithStamp resource =
+            context.render_graph().resources_get().get_buffer(handle);
+        buffer_links.append({resource, access_flags});
+      }
+      context.render_graph().append_buffer_links(begin_rendering_handle_, buffer_links);
+      render_scope_access_.buffers.clear();
+    }
+
     render_graph::VKEndRenderingNode::CreateInfo end_rendering = {};
     context.render_graph().add_node(end_rendering);
     is_rendering_ = false;
+    begin_rendering_handle_ = -1;
   }
 }
 

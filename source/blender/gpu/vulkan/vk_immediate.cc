@@ -97,6 +97,7 @@ void VKImmediate::end()
     context.update_pipeline_data(framebuffer, prim_type, vertex_attributes_, node.data.graphics);
 
     render_graph::VKDrawNode::CreateInfo draw(resource_access_info);
+    draw.render_scope_access = &framebuffer.render_scope_access_get();
     node.finalize(graph, draw);
   }
 
