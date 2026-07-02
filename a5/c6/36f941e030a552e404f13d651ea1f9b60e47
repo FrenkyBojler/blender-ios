@@ -1,3 +1,4 @@
 Referenced by issue #149784, 5.0: Candidates for corrective releases
 Referenced by issue #160879, Grease Pencil: Crash when moving multiframe strokes to new layer
 Referenced by pull request #160907, Fix #160879: Grease Pencil: Move to new layer fix for multiframe
+Referenced by commit 413ed771285661bc8206e635cbd2dc995be10037, Fix #160879: Grease Pencil: Move to new layer fix for multiframe
