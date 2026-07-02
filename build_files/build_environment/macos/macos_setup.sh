@@ -127,6 +127,7 @@ install_xcode() {
   echo "[xcode]: Ensure MetalToolchain"
   for i in 1 2 3; do
     sudo xcodebuild -downloadComponent MetalToolchain && break || true
+    echo "[xcode]: Download failed. Retrying.. ($i)"
     sleep 10
   done
 }
