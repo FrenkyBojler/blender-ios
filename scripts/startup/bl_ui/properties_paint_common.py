@@ -843,6 +843,16 @@ def brush_settings(layout, context, brush, popover=False):
             if capabilities.has_hardness_pressure:
                 row.prop(brush, "invert_hardness_pressure", text="")
                 row.prop(brush, "use_hardness_pressure", text="")
+                if not popover:
+                    UnifiedPaintPanel.prop_custom_pressure(
+                        layout,
+                        context,
+                        row,
+                        brush,
+                        pressure_name="use_hardness_pressure",
+                        curve_visibility_name="show_hardness_curve",
+                        custom_curve_name="curve_hardness",
+                    )
 
         if capabilities.has_tip_roundness:
             layout.prop(brush, "tip_roundness", slider=True)
@@ -851,7 +861,7 @@ def brush_settings(layout, context, brush, popover=False):
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:
             pressure_name = "use_inverse_smooth_pressure" if capabilities.has_auto_smooth_pressure else None
-            UnifiedPaintPanel.prop_unified(
+            unified_row = UnifiedPaintPanel.prop_unified(
                 layout,
                 context,
                 brush,
@@ -859,6 +869,16 @@ def brush_settings(layout, context, brush, popover=False):
                 pressure_name=pressure_name,
                 slider=True,
             )
+            if capabilities.has_auto_smooth_pressure and not popover:
+                UnifiedPaintPanel.prop_custom_pressure(
+                    layout,
+                    context,
+                    unified_row,
+                    brush,
+                    pressure_name="use_inverse_smooth_pressure",
+                    curve_visibility_name="show_auto_smooth_curve",
+                    custom_curve_name="curve_auto_smooth",
+                )
 
         # topology_rake_factor
         if (

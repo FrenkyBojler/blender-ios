@@ -244,6 +244,8 @@ struct Brush {
   struct CurveMapping *curve_size = nullptr;
   struct CurveMapping *curve_strength = nullptr;
   struct CurveMapping *curve_jitter = nullptr;
+  struct CurveMapping *curve_hardness = nullptr;
+  struct CurveMapping *curve_auto_smooth = nullptr;
 
   /** Opacity. */
   float alpha = 1.0f; /* brush strength/intensity probably variable should be renamed? */

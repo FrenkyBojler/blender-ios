@@ -812,6 +812,10 @@ static void rna_def_paint(BlenderRNA *brna)
       srna, "show_size_curve", "Show Size Curve", PAINT_CURVE_SHOW_SIZE);
   rna_def_paint_curve_visibility_flag(
       srna, "show_jitter_curve", "Show Jitter Curve", PAINT_CURVE_SHOW_JITTER);
+  rna_def_paint_curve_visibility_flag(
+      srna, "show_hardness_curve", "Show Hardness Curve", PAINT_CURVE_SHOW_HARDNESS);
+  rna_def_paint_curve_visibility_flag(
+      srna, "show_auto_smooth_curve", "Show Auto-Smooth Curve", PAINT_CURVE_SHOW_AUTO_SMOOTH);
 
   /* Unified Paint Settings */
   prop = RNA_def_property(srna, "unified_paint_settings", PROP_POINTER, PROP_NONE);
