@@ -162,6 +162,7 @@ void ED_draw_fulldome_composition_guides(uint shdr_pos,
 /* Helper Fucntion for drawing Directions of DOme Master Composition Guides */
 
 float2 ED_calculate_radial_point(float2 center, float2 radius, float2 points);
+float2 ED_calculate_radius_by_lattitude(float2 center, float latitude);
 Vector<float2> ED_calculate_radial_points(float2 center, float2 radius, Vector<float2> points);
 
 /* ************** XXX OLD CRUFT WARNING ************* */

@@ -472,11 +472,17 @@ void ED_spacedata_id_remap_single(ScrArea *area, SpaceLink *sl, ID *old_id, ID *
   }
 }
 
+float2 ED_calculate_radius_by_lattitude(float2 radius, float lattitude)
+{
+  return float2{((radius.x / 90) * lattitude), ((radius.y / 90) * lattitude)};
+}
+
 float2 ED_calculate_radial_point(float2 center, float2 radius, float2 point)
 {
   float angle = DEG2RAD(point.x);
   float offset = 90 - point.y;
-  float2 calced_radius = {((radius.x / 90) * offset), ((radius.y / 90) * offset)};
+  float2 calced_radius = ED_calculate_radius_by_lattitude(radius, offset);
+  /* {((radius.x / 90) * offset), ((radius.y / 90) * offset)}; */
 
   point.x = center.x + calced_radius.x * cos(angle);
   point.y = center.y + calced_radius.y * sin(angle);

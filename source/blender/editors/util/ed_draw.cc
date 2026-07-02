@@ -1266,53 +1266,49 @@ void ED_draw_fulldome_composition_guides(uint shdr_pos,
   immUniformColor4fv(color);
 
   constexpr int directions = 36;
-  constexpr float steps = M_PI * 2 / directions;
   constexpr float rings = 9;
 
-  const float w = rect->xmax - rect->xmin;
-  const float h = rect->ymax - rect->ymin;
-  const float xmid = rect->xmin + 0.5f * w;
-  const float ymid = rect->ymin + 0.5f * h;
-  float2 center = {xmid, ymid};
-  const float radius_x = w / 2;
-  const float radius_y = h / 2;
-  float2 radius = {radius_x, radius_y};
-  float angle, x1, y1, x2, y2;
-  const float radius_x_step = radius_x / rings;
-  const float radius_y_step = radius_y / rings;
-  float bullet_size = radius_y > radius_x ? radius_y * 0.08 : radius_x * 0.08;
+  float2 dimensions = {rect->xmax - rect->xmin, rect->ymax - rect->ymin};
+  float2 center = {rect->xmin + 0.5f * dimensions.x, rect->ymin + 0.5f * dimensions.y};
+  float2 radius = {dimensions.x / 2, dimensions.y / 2};
+
+  float bullet_size = radius.x > radius.y ? radius.y * 0.08 : radius.x * 0.08;
   if (flag != eCompositionGuideFlagsFulldome{}) {
-    imm_draw_circle_wire_aspect_2d(shdr_pos, xmid, ymid, radius_x, radius_y, 365);
+    imm_draw_circle_wire_aspect_2d(shdr_pos, center.x, center.y, radius.x, radius.y, 365);
   }
 
   if ((flag & COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_ZENIT_FRONT)) {
-    imm_draw_cross_2d(shdr_pos, xmid, ymid - (radius_y * .112), bullet_size, bullet_size);
+
+    float2 point = ED_calculate_radial_point(center, radius, float2{-90.0f, 80.0f});
+    imm_draw_cross_2d(shdr_pos, point.x, point.y, bullet_size, bullet_size);
   }
 
   if ((flag & COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_ZENIT_CENTER)) {
-    imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .052), bullet_size, bullet_size);
+    float2 point = ED_calculate_radial_point(center, radius, float2{-90.0f, 95.0f});
+    imm_draw_cross_2d(shdr_pos, point.x, point.y, bullet_size, bullet_size);
   }
 
   if ((flag & COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_ZENIT_BACK)) {
-    imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .442), bullet_size, bullet_size);
+    float2 point = ED_calculate_radial_point(center, radius, float2{-90.0f, 130.0f});
+    imm_draw_cross_2d(shdr_pos, point.x, point.y, bullet_size, bullet_size);
   }
 
   if ((flag & COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SAFEAREA_HORIZON)) {
 
     imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
-                                           xmid,
-                                           ymid + (radius_y * 0.49),
-                                           radius_x * .77,
-                                           radius_y * 1.05,
+                                           center.x,
+                                           center.y + (radius.y * 0.49),
+                                           radius.x * .77,
+                                           radius.y * 1.05,
                                            100,
                                            81.36,
                                            197.31);
 
     imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
-                                           xmid,
-                                           ymid + (radius_y * 0.26),
-                                           radius_x * .97,
-                                           radius_y * 1.1,
+                                           center.x,
+                                           center.y + (center.y * 0.26),
+                                           radius.x * .97,
+                                           radius.y * 1.1,
                                            100,
                                            90.89,
                                            178.26);
@@ -1341,15 +1337,19 @@ void ED_draw_fulldome_composition_guides(uint shdr_pos,
   }
 
   if ((flag & COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SWEETSPOT_FRONT)) {
-    imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .73), bullet_size, 32);
+
+    float2 point = ED_calculate_radial_point(center, radius, float2{-90.0f, 24.0f});
+    imm_draw_circle_wire_2d(shdr_pos, point.x, point.y, bullet_size * .5, 32);
   }
 
   if ((flag & COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SWEETSPOT_CENTER)) {
-    imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .54), bullet_size, 32);
+    float2 point = ED_calculate_radial_point(center, radius, float2{-90.0f, 41.0f});
+    imm_draw_circle_wire_2d(shdr_pos, point.x, point.y, bullet_size * .5, 32);
   }
 
   if ((flag & COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SWEETSPOT_BACK)) {
-    imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .43), bullet_size, 32);
+    float2 point = ED_calculate_radial_point(center, radius, float2{-90.0f, 51.0f});
+    imm_draw_circle_wire_2d(shdr_pos, point.x, point.y, bullet_size * .5, 32);
   }
 
   if ((flag & COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SAFEAREA_CENTER)) {
@@ -1362,33 +1362,22 @@ void ED_draw_fulldome_composition_guides(uint shdr_pos,
   }
 
   if (flag & COMPOSITION_GUIDES_FULLDOME_GRID) {
-    float current_radius_x, current_radius_y;
 
     for (int i = 1; i < rings; i++) {
-
-      current_radius_x = i * radius_x_step;
-      current_radius_y = i * radius_y_step;
+      float2 current_radius = ED_calculate_radius_by_lattitude(radius, i * 10);
 
       imm_draw_circle_wire_aspect_2d(
-          shdr_pos, xmid, ymid, current_radius_x, current_radius_y, 100);
+          shdr_pos, center.x, center.y, current_radius.x, current_radius.y, 100);
     }
 
     immBegin(GPU_PRIM_LINES, directions * 2);
 
     for (int i = 0; i < directions; i++) {
-      angle = steps * i;
-      x2 = xmid + radius_x * cos(angle);
-      y2 = ymid + radius_y * sin(angle);
-      if (i == 0 || i == 9 || i == 9 * 2 || i == 9 * 3) {
-        x1 = xmid;
-        y1 = ymid;
-      }
-      else {
-        x1 = xmid + radius_x_step * cos(angle);
-        y1 = ymid + radius_y_step * sin(angle);
-      }
-      immVertex2f(shdr_pos, x1, y1);
-      immVertex2f(shdr_pos, x2, y2);
+      float angle = i * 10;
+      float2 current_position = ED_calculate_radial_point(center, radius, float2{angle, 0.0f});
+
+      immVertex2f(shdr_pos, current_position.x, current_position.y);
+      immVertex2f(shdr_pos, center.x, center.y);
     }
 
     immEnd();
@@ -1401,7 +1390,7 @@ void ED_draw_fulldome_composition_guides(uint shdr_pos,
     const int fontid = fstyle->uifont_id;
     constexpr float direction_offset = -5.0f;
 
-    float scale = (radius_x > radius_y ? radius_x : radius_y) / 250;
+    float scale = (radius.x > radius.y ? radius.x : radius.y) / 250;
     float big_font = 12.0f * scale;
     float small_font = 8.0f * scale;
 
