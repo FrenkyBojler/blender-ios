@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'bc0a0ff2c0ce')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e65907bec1c9')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-18 11:20+0000\n"
+"POT-Creation-Date: 2026-06-29 10:51+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -1268,6 +1268,18 @@ msgid "Armatures active edit bone"
 msgstr "Aktiven Bearbeitungsknochen verankern"
 
 
+msgid "Asset Library"
+msgstr "Bestand-Bibliothek"
+
+
+msgid "Current File"
+msgstr "Aktuelle Datei"
+
+
+msgid "Custom"
+msgstr "Benutzerdefiniert"
+
+
 msgid "Asset Data"
 msgstr "Vermögenssdaten"
 
@@ -1304,6 +1316,18 @@ msgid "A description of the asset to be displayed for the user"
 msgstr "Eine Beschreibung des Vermögens wird für den Benutzer angezeigt"
 
 
+msgid "Link"
+msgstr "Verknüpfen"
+
+
+msgid "Append"
+msgstr "Anfügen"
+
+
+msgid "Pack"
+msgstr "Packen"
+
+
 msgid "Tags"
 msgstr "Schilder"
 
@@ -1314,18 +1338,6 @@ msgstr "Benutzerdefiniertes Schild (Namenskürzel) für das Vermögen, verwendet
 
 msgid "Asset Metadata"
 msgstr "Asset-Metadaten"
-
-
-msgid "Asset Library"
-msgstr "Bestand-Bibliothek"
-
-
-msgid "Current File"
-msgstr "Aktuelle Datei"
-
-
-msgid "Custom"
-msgstr "Benutzerdefiniert"
 
 
 msgid "ID Name"
@@ -4050,6 +4062,10 @@ msgstr "Vereinfachen"
 
 msgid "Number of simplify steps (large values reduce fill accuracy)"
 msgstr "Anzahl von Vereinfachungsschritten (große Werte reduzieren die Füllgenauigkeit)"
+
+
+msgid "Pixel"
+msgstr "Pixel"
 
 
 msgid "Threshold to consider color transparent for filling"
@@ -9952,16 +9968,8 @@ msgid "Asset Select Parameters"
 msgstr "Asset Auswahl-Parameter"
 
 
-msgid "Link"
-msgstr "Verknüpfen"
-
-
-msgid "Append"
-msgstr "Anfügen"
-
-
-msgid "Pack"
-msgstr "Packen"
+msgid "Unassigned"
+msgstr "Unbestimmt"
 
 
 msgid "Float2 Attribute Value"
@@ -11016,6 +11024,14 @@ msgid "Use Curve"
 msgstr "Kurve verwenden"
 
 
+msgid "Dynamic"
+msgstr "Dynamisch"
+
+
+msgid "Single"
+msgstr "Einzelner"
+
+
 msgid "Items"
 msgstr "Gegenstände"
 
@@ -11144,6 +11160,10 @@ msgstr "Fußzeile"
 
 msgid "XR"
 msgstr "XR"
+
+
+msgid "Scrubbing"
+msgstr "Schruppen"
 
 
 msgid "Gizmos"
@@ -11621,10 +11641,6 @@ msgstr "Lokal"
 
 msgid "Global"
 msgstr "Global"
-
-
-msgid "Dynamic"
-msgstr "Dynamisch"
 
 
 msgid "Color Type"
@@ -13901,14 +13917,6 @@ msgid "Movie File"
 msgstr "Filmdatei"
 
 
-msgid "Use Proxy / Timecode"
-msgstr "Stellvertreter / Zeitcode verwenden"
-
-
-msgid "Use a preview proxy and/or timecode index for this clip"
-msgstr "Einen Vorschaustellvertreter und/oder Zeitcodeindex für diesen Clip verwenden"
-
-
 msgid "Create proxy images in a custom directory (default is movie location)"
 msgstr "Proxy-Bilder in einem benutzerdefinierten Verzeichnis erstellen (Standard ist das Filmverzeichnis)"
 
@@ -14545,10 +14553,6 @@ msgstr "Aktiver Objektinstanz-Index"
 
 msgid "Degrees"
 msgstr "Grad"
-
-
-msgid "Pixel"
-msgstr "Pixel"
 
 
 msgid "Angular Velocity"
@@ -18703,10 +18707,6 @@ msgid "Viewpoint"
 msgstr "Ansicht"
 
 
-msgid "Math"
-msgstr "Mathematisch"
-
-
 msgid "Navigation"
 msgstr "Navigation"
 
@@ -18721,6 +18721,10 @@ msgstr "Ansicht auf Aktiv ausrichten"
 
 msgid "View Regions"
 msgstr "Vierfenster Ansicht"
+
+
+msgid "Math"
+msgstr "Mathematisch"
 
 
 msgid "Select More/Less"
@@ -18743,16 +18747,16 @@ msgid "Select Loops"
 msgstr "Schleifen auswählen"
 
 
+msgid "Assign Material"
+msgstr "Material zuweisen"
+
+
 msgid "Read"
 msgstr "Lesen"
 
 
 msgid "Sample"
 msgstr "Beispiel"
-
-
-msgid "Assign Material"
-msgstr "Material zuweisen"
 
 
 msgid "Write"
@@ -18787,12 +18791,12 @@ msgid "Relations"
 msgstr "Beziehungen"
 
 
-msgid "Import"
-msgstr "Importieren"
-
-
 msgid "Rigid Body"
 msgstr "Rigid Body"
+
+
+msgid "Import"
+msgstr "Importieren"
 
 
 msgid "Apply"
@@ -18827,12 +18831,12 @@ msgid "Convert"
 msgstr "Konvertieren"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Hooks"
 msgstr "Haken"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Vertex Group Locks"
@@ -18877,6 +18881,10 @@ msgstr "Flächendaten"
 
 msgid "Merge"
 msgstr "Zusammenführen"
+
+
+msgid "Linked"
+msgstr "Verknüpft"
 
 
 msgid "Layout"
@@ -22017,14 +22025,6 @@ msgid "JPEG quality of proxy images"
 msgstr "JPEG Qualität des Stellvertreterbildes"
 
 
-msgid "Timecode"
-msgstr "Zeitcode"
-
-
-msgid "Record Run No Gaps"
-msgstr "Unbenutzte Knoten freigeben"
-
-
 msgid "Proxy Render Size"
 msgstr "Proxy-Rendergröße"
 
@@ -23463,10 +23463,6 @@ msgid "Join Geometry"
 msgstr "Geometrie verbinden"
 
 
-msgid "Single"
-msgstr "Einzelner"
-
-
 msgid "Material Selection"
 msgstr "Materialauswahl"
 
@@ -24445,10 +24441,6 @@ msgstr "Typ der Gruppenbuchse"
 
 msgid "Hide Value"
 msgstr "Wert verbergen"
-
-
-msgid "Linked"
-msgstr "Verknüpft"
 
 
 msgid "Is Output"
@@ -26997,15 +26989,6 @@ msgstr "Vorgeladene Einzelbilder von der Festplatte für schnelleres Abspielen/V
 
 
 msgctxt "Operator"
-msgid "Rebuild Proxy and Timecode Indices"
-msgstr "Stellvertreter und Zeitcode-Indicies erneuern"
-
-
-msgid "Rebuild all selected proxies and timecode indices in the background"
-msgstr "Alle ausgwählten Stellvertreter und Zeitcode-Indecies im Hintergrund erneuern"
-
-
-msgctxt "Operator"
 msgid "Refine Markers"
 msgstr "Marker verfeinern"
 
@@ -29198,6 +29181,11 @@ msgstr "Zum vorherigen/nächsten Schlüsselbild springen"
 
 msgid "Next Keyframe"
 msgstr "Nächstes Schlüsselbild"
+
+
+msgctxt "Operator"
+msgid "Local View"
+msgstr "Lokale Ansicht"
 
 
 msgid "By Values Over Cursor Value"
@@ -37390,11 +37378,6 @@ msgid "ICO Sphere"
 msgstr "ICO Kugel"
 
 
-msgctxt "Operator"
-msgid "Local View"
-msgstr "Lokale Ansicht"
-
-
 msgid "Toggle display of selected object(s) separately and centered in view"
 msgstr "Separate Anzeige ausgewählter Objekte in Ansicht zentriert ein/aus"
 
@@ -38877,10 +38860,6 @@ msgid "Mask Display"
 msgstr "Marker anzeigen"
 
 
-msgid "Proxy/Timecode"
-msgstr "Proxy/Zeitcode"
-
-
 msgid "Stabilization"
 msgstr "Stabilisation"
 
@@ -39517,20 +39496,8 @@ msgid "Collection Colors"
 msgstr "Farbsammlung"
 
 
-msgid "Axis & Gizmo Colors"
-msgstr "Achsen- & Gizmofarben"
-
-
-msgid "Icon Colors"
-msgstr "Symbolfarbe"
-
-
 msgid "Shaded"
 msgstr "Schattiert"
-
-
-msgid "Styles"
-msgstr "Stile"
 
 
 msgid "Menu Item"
@@ -39611,11 +39578,6 @@ msgstr "Drücken"
 msgctxt "Operator"
 msgid "Roll"
 msgstr "Rollen"
-
-
-msgctxt "Operator"
-msgid "Bone Size"
-msgstr "Knochengröße"
 
 
 msgctxt "Operator"
@@ -39782,6 +39744,10 @@ msgstr "Posen-Optionen"
 
 msgid "Action Maps"
 msgstr "Aktionskarten"
+
+
+msgid "Passepartout"
+msgstr "Hauptschlüssel"
 
 
 msgid "VR Session"
@@ -40490,6 +40456,10 @@ msgstr "Bearbeitungsmethoden"
 
 msgid "System & OpenGL"
 msgstr "System & OpenGL"
+
+
+msgid "Styles"
+msgstr "Stile"
 
 
 msgid "Save on Exit"
@@ -47767,6 +47737,10 @@ msgid "Collection of OpenXR user paths"
 msgstr "Sammlung von OpenXR Benutzerpfaden"
 
 
+msgid "Cancel"
+msgstr "Abbrechen"
+
+
 msgid "WorkSpace UI Tags"
 msgstr "Arbeitsplatz UI Tags"
 
@@ -48409,6 +48383,11 @@ msgstr "Reflektierend"
 
 msgid "Refractive"
 msgstr "Lichtbrechend"
+
+
+msgctxt "Operator"
+msgid "Clear"
+msgstr "Entfernen"
 
 
 msgid "Surfaces"
@@ -49127,10 +49106,6 @@ msgid "Add Image"
 msgstr "Bild hinzufügen"
 
 
-msgid "Passepartout"
-msgstr "Hauptschlüssel"
-
-
 msgid "Golden"
 msgstr "Golden"
 
@@ -49441,11 +49416,6 @@ msgstr "Spline:"
 
 msgid "Parenting:"
 msgstr "Kindbeziehung:"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "Entfernen"
 
 
 msgid "Animation:"
@@ -50243,11 +50213,6 @@ msgstr "Unverzerrt bauen:"
 
 
 msgctxt "Operator"
-msgid "Build Proxy / Timecode"
-msgstr "Baue Proxy / Zeitcode"
-
-
-msgctxt "Operator"
 msgid "Build Proxy"
 msgstr "Proxy erzeugen"
 
@@ -50666,11 +50631,6 @@ msgid "Go to Parent"
 msgstr "Gehe zum Elternteil"
 
 
-msgctxt "Operator"
-msgid "New Folder"
-msgstr "Neuer Ordner"
-
-
 msgid "Asset Details"
 msgstr "Asset Dtails"
 
@@ -50738,6 +50698,11 @@ msgstr "Erhöhe Nummer"
 msgctxt "Operator"
 msgid "Decrease Number"
 msgstr "Vermindere Nummer"
+
+
+msgctxt "Operator"
+msgid "New Folder"
+msgstr "Neuer Ordner"
 
 
 msgid "Asset Catalog:"
@@ -51511,10 +51476,6 @@ msgstr "Marker der Szene duplizieren..."
 msgctxt "Operator"
 msgid "Duplicate Marker to Scene"
 msgstr "Marker der Szene duplizieren"
-
-
-msgid "Scrubbing"
-msgstr "Schruppen"
 
 
 msgid "Limit to Frame Range"
@@ -53423,6 +53384,11 @@ msgid "Basis"
 msgstr "Basis"
 
 
+msgctxt "Key"
+msgid "Key"
+msgstr "Taste"
+
+
 msgid "AOV"
 msgstr "AOV"
 
@@ -53602,10 +53568,6 @@ msgstr "GP_Palette"
 
 msgid "Hidden %d"
 msgstr "Ausgeblendet %d"
-
-
-msgid "Eevee material conversion problem. Error in console"
-msgstr "Eevee Materialumwandlungsproblem. Fehler in der Konsole"
 
 
 msgid "Unable to make version backup: filename too short"
@@ -53826,10 +53788,6 @@ msgstr "Aktives Objekt ist kein ausgewählter Anker"
 
 msgid "Separated bones"
 msgstr "Getrennte Knochen"
-
-
-msgid "Cancel"
-msgstr "Abbrechen"
 
 
 msgid "Programming error: missing clear transform function or keying set name"
@@ -54765,16 +54723,16 @@ msgid "No vertex selected"
 msgstr "Keine Ecke ausgewählt"
 
 
+msgid "No edges selected"
+msgstr "Keine Kante ausgewählt"
+
+
 msgid "Invalid selection order"
 msgstr "Ungültige Auswahlreihenfolge"
 
 
 msgid "Selection not supported in object mode"
 msgstr "Wird im Skulpturmodus nicht unterstützt"
-
-
-msgid "No edges selected"
-msgstr "Keine Kante ausgewählt"
 
 
 msgid "No faces filled"
@@ -54855,10 +54813,6 @@ msgstr "Aktives Objekt ist keine selektierte Masche"
 
 msgid "No mesh data to join"
 msgstr "Keine Maschendaten zum verknüpfen"
-
-
-msgid "Unassigned"
-msgstr "Unbestimmt"
 
 
 msgid "SoundTrack"
@@ -56735,11 +56689,6 @@ msgid "Image not packed"
 msgstr "Bild nicht verpackt"
 
 
-msgctxt "Key"
-msgid "Key"
-msgstr "Taste"
-
-
 msgid "unable to load text"
 msgstr "Text kann nicht geladen werden"
 
@@ -57270,6 +57219,10 @@ msgid "Density Max"
 msgstr "Max. Dichte"
 
 
+msgid "Inverted"
+msgstr "Invertiert"
+
+
 msgid "Delimiter"
 msgstr "Trennzeichen"
 
@@ -57374,12 +57327,12 @@ msgid "Scale Mode"
 msgstr "Skalierungsmodus"
 
 
-msgid "Inverted"
-msgstr "Invertiert"
-
-
 msgid "Strings"
 msgstr "Strings"
+
+
+msgid "Top Right"
+msgstr "Oben rechts"
 
 
 msgid "Text Box Width"
@@ -57400,10 +57353,6 @@ msgstr "Rest"
 
 msgid "Edge Crease"
 msgstr "Kantenfalte"
-
-
-msgid "Top Right"
-msgstr "Oben rechts"
 
 
 msgid "No named attributes used"

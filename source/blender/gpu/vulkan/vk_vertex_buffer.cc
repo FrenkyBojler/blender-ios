@@ -60,7 +60,8 @@ void VKVertexBuffer::ensure_buffer_view()
   buffer_view_info.range = buffer_.size_in_bytes();
 
   const VKDevice &device = VKBackend::get().device;
-  vkCreateBufferView(device.vk_handle(), &buffer_view_info, nullptr, &vk_buffer_view_);
+  device.functions.vkCreateBufferView(
+      device.vk_handle(), &buffer_view_info, nullptr, &vk_buffer_view_);
   debug::object_label(vk_buffer_view_, "VertexBufferView");
 }
 
@@ -210,9 +211,13 @@ void VKVertexBuffer::allocate()
                                        VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-  buffer_.create(
-      size_alloc_get(), vk_buffer_usage, VMA_MEMORY_USAGE_AUTO, VmaAllocationCreateFlags(0), 0.8f);
-  debug::object_label(buffer_.vk_handle(), "VertexBuffer");
+  buffer_.create(size_alloc_get(),
+                 vk_buffer_usage,
+                 VMA_MEMORY_USAGE_AUTO,
+                 VmaAllocationCreateFlags(0),
+                 0.8f,
+                 false,
+                 "VertexBuffer");
 }
 
 }  // namespace gpu

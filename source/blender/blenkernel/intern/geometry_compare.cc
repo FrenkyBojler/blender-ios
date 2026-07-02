@@ -6,7 +6,7 @@
 #include <numeric>
 
 #include "BLI_array.hh"
-#include "BLI_math_base.h"
+#include "BLI_math_base_c.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_span.hh"
 
@@ -984,7 +984,7 @@ std::optional<GeoMismatch> compare_meshes(const Mesh &mesh1,
     }
   }
   /* Skip the test for edges, since a lot of tests actually have different edge indices.
-   *TODO: remove this once those tests have been updated. */
+   * TODO: remove this once those tests have been updated. */
   for (const int sorted_i : corners.from_sorted1.index_range()) {
     if (corners.from_sorted1[sorted_i] != corners.from_sorted2[sorted_i]) {
       return GeoMismatch::Indices;

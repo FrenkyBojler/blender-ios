@@ -9,11 +9,11 @@
 #include "AS_asset_representation.hh"
 
 #include "BKE_node_socket_value.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_stack.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "DNA_ID.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -80,7 +80,7 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
   for (bNodeTreePath &path : snode->treepath.items_mutable()) {
     MEM_delete(&path);
   }
-  BLI_listbase_clear(&snode->treepath);
+  snode->treepath.clear_no_delete();
 
   if (ntree) {
     bNodeTreePath *path = MEM_new<bNodeTreePath>("node tree path");
@@ -199,7 +199,7 @@ void ED_node_tree_pop(ARegion *region, SpaceNode *snode)
 
 int ED_node_tree_depth(SpaceNode *snode)
 {
-  return BLI_listbase_count(&snode->treepath);
+  return snode->treepath.count();
 }
 
 bNodeTree *ED_node_tree_get(SpaceNode *snode, int level)
@@ -675,7 +675,7 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 static void node_free(SpaceLink *sl)
 {
   SpaceNode *snode = reinterpret_cast<SpaceNode *>(sl);
-  BLI_freelistN(&snode->treepath);
+  snode->treepath.free_no_destruct();
   MEM_delete(snode->runtime);
 }
 
@@ -830,6 +830,8 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
             node_area_tag_tree_recalc(snode, area);
           }
         }
+
+        ED_area_tag_redraw(area);
       }
       break;
 
@@ -1315,7 +1317,7 @@ static void node_region_listener(const wmRegionListenerParams *params)
       ED_region_tag_redraw(region);
       break;
     case NC_OBJECT:
-      if (wmn->data == ND_OB_SHADING) {
+      if (wmn->data == ND_OB_SHADING || wmn->data == ND_TRANSFORM) {
         ED_region_tag_redraw(region);
       }
       break;
@@ -1432,7 +1434,7 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
     /* nasty DNA logic for SpaceNode:
      * ideally should be handled by editor code, but would be bad level call
      */
-    BLI_freelistN(&snode->treepath);
+    snode->treepath.free_no_destruct();
 
     /* XXX Untested in case new_id != nullptr... */
     snode->id = new_id;

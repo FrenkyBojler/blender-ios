@@ -16,10 +16,10 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_enums.h"
 
-#include "BLI_assert.h"
-#include "BLI_listbase.h"
+#include "BLI_assert.hh"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
@@ -145,7 +145,7 @@ static bool any_child_to_select(const Set<bPoseChannel *> &pose_bones, const bAr
 {
   for (bPoseChannel *pose_bone : pose_bones) {
     const Bone *bone = pose_bone->bone_get(armature);
-    if (!BLI_listbase_is_empty(&bone->childbase)) {
+    if (!bone->childbase.is_empty()) {
       return true;
     }
   }

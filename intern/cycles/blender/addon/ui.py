@@ -930,7 +930,9 @@ class CYCLES_RENDER_PT_performance_texture_cache(CyclesButtonsPanel, Panel):
 
         row = col.split(factor=0.4)
         row.label()
-        row.operator("render.generate_texture_cache", text="Generate All")
+        sub = row.row(align=True)
+        sub.operator("render.generate_texture_cache", text="Generate")
+        sub.operator("render.clear_texture_cache", text="Clear")
 
         prefs = context.preferences
         if prefs.experimental.use_cycles_debug and prefs.view.show_developer_ui:
@@ -1528,6 +1530,7 @@ class CYCLES_OBJECT_PT_visibility_ray_visibility(CyclesButtonsPanel, Panel):
         if ob.type != 'LIGHT':
             sub = col.column()
             sub.prop(ob, "visible_shadow", text="Shadow")
+            sub.prop(ob, "visible_raycast", text="Raycast")
 
 
 class CYCLES_OBJECT_PT_visibility_culling(CyclesButtonsPanel, Panel):
