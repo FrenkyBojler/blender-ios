@@ -33,6 +33,7 @@
 #include "BKE_screen.hh"
 #include "BKE_sound.hh"
 
+#include "DNA_view2d_types.h"
 #include "ED_anim_api.hh"
 #include "ED_markers.hh"
 #include "ED_mask.hh"
@@ -218,6 +219,13 @@ rctf strip_bounds_get(const Scene *scene,
     if (strip_header_poll(sseq, pixely, bounds.ymax - bounds.ymin)) {
       bounds.ymax -= strip_header_size_get(pixely);
     }
+    float retiming_size = (retiming_key_size() + RETIMING_KEY_PIXEL_OFFSET) * pixely;
+    if ((can_draw_retiming(scene, sseq, v2d, strip->input1) ||
+         can_draw_retiming(scene, sseq, v2d, strip->input2)) &&
+        (bounds.ymax - bounds.ymin >= retiming_size * 2.0f))
+    {
+      bounds.ymin += retiming_size;
+    }
     /* Draw transitions fully inside strips. */
     bounds.ymax -= pixely;
     bounds.ymin += pixely;
@@ -234,16 +242,6 @@ static void strip_draw_context_set_strip_content_visibility(const TimelineDrawCo
   }
 
   strip_ctx.can_draw_strip_content = ((strip_ctx.top - strip_ctx.bottom) / ctx.pixely) > threshold;
-}
-
-static void strip_draw_context_set_retiming_overlay_visibility(const TimelineDrawContext &ctx,
-                                                               StripDrawContext &strip_ctx)
-{
-  float2 threshold{15 * UI_SCALE_FAC, 25 * UI_SCALE_FAC};
-  strip_ctx.can_draw_retiming_overlay = (strip_ctx.top - strip_ctx.bottom) / ctx.pixely >=
-                                        threshold.y;
-  strip_ctx.can_draw_retiming_overlay &= strip_ctx.strip_length / ctx.pixelx >= threshold.x;
-  strip_ctx.can_draw_retiming_overlay &= retiming_overlay_enabled(ctx.sseq);
 }
 
 static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, Strip *strip)
@@ -278,7 +276,6 @@ static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, S
 
   strip_draw_context_set_text_overlay_visibility(ctx, strip_ctx);
   strip_draw_context_set_strip_content_visibility(ctx, strip_ctx);
-  strip_draw_context_set_retiming_overlay_visibility(ctx, strip_ctx);
   strip_ctx.strip_is_too_small = (!strip_ctx.can_draw_text_overlay &&
                                   !strip_ctx.can_draw_strip_content);
   strip_ctx.is_active_strip = strip == select_active_get(scene);

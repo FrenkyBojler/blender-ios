@@ -30,6 +30,7 @@
 #include "UI_view2d.hh"
 
 #include "SEQ_retiming.hh"
+#include "SEQ_sequencer.hh"
 
 #include "sequencer_intern.hh"
 #include "sequencer_quads_batch.hh"
@@ -46,32 +47,62 @@ bool retiming_overlay_enabled(const SpaceSeq *sseq)
          (sseq->flag & SEQ_SHOW_OVERLAY);
 }
 
-static bool can_draw_retiming(const TimelineDrawContext &ctx, const StripDrawContext &strip_ctx)
+static bool get_retiming_overlay_visibility(const Scene *scene,
+                                            const SpaceSeq *sseq,
+                                            const View2D *v2d,
+                                            const Strip *strip)
 {
-  if (ctx.ed == nullptr) {
+  float2 threshold{15 * UI_SCALE_FAC, 25 * UI_SCALE_FAC};
+  // TODO: maybe pixely could be a function like get_pixely(v2d);
+  float pixelx = BLI_rctf_size_x(&v2d->cur) / (BLI_rcti_size_x(&v2d->mask) + 1);
+  float pixely = BLI_rctf_size_y(&v2d->cur) / (BLI_rcti_size_y(&v2d->mask) + 1);
+
+  float top = strip->channel + STRIP_OFSTOP;
+  float bottom = strip->channel + STRIP_OFSBOTTOM;
+  float length = strip->right_handle(scene) - strip->left_handle();
+
+  bool visibility = (top - bottom) / pixely >= threshold.y;
+  visibility &= length / pixelx >= threshold.x;
+  visibility &= retiming_overlay_enabled(sseq);
+  return visibility;
+}
+
+bool can_draw_retiming(const Scene *scene,
+                       const SpaceSeq *sseq,
+                       const View2D *v2d,
+                       const Strip *strip)
+{
+  Editing *ed = seq::editing_get(scene);
+
+  if (ed == nullptr) {
     return false;
   }
 
-  if (!retiming_overlay_enabled(ctx.sseq)) {
+  if (!retiming_overlay_enabled(sseq)) {
     return false;
   }
 
-  if (!strip_ctx.can_draw_retiming_overlay) {
+  if (!get_retiming_overlay_visibility(scene, sseq, v2d, strip)) {
     return false;
   }
 
-  if (!seq::retiming_is_allowed(strip_ctx.strip)) {
+  if (!seq::retiming_is_allowed(strip)) {
     return false;
   }
 
-  if (!seq::retiming_show_keys(strip_ctx.strip)) {
+  if (!seq::retiming_show_keys(strip)) {
     return false;
   }
 
   return true;
 }
 
-static inline float retiming_key_size()
+static bool can_draw_retiming(const TimelineDrawContext &ctx, const StripDrawContext &strip_ctx)
+{
+  return can_draw_retiming(ctx.scene, ctx.sseq, ctx.v2d, strip_ctx.strip);
+}
+
+float retiming_key_size()
 {
   /* Pixel size of whole retiming key, from left side to right side or top to bottom. */
   return 10.0f * U.pixelsize;
@@ -79,8 +110,8 @@ static inline float retiming_key_size()
 
 static inline float retiming_key_center(const View2D *v2d, const Strip *strip)
 {
-  return (ui::view2d_view_to_region_y(v2d, strip->channel + STRIP_OFSBOTTOM) + 4 +
-          retiming_key_size() / 2);
+  return (ui::view2d_view_to_region_y(v2d, strip->channel + STRIP_OFSBOTTOM) +
+          RETIMING_KEY_PIXEL_OFFSET + retiming_key_size() / 2);
 }
 
 // TMP
@@ -109,10 +140,6 @@ rcti strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const St
 /* -------------------------------------------------------------------- */
 /** \name Draw Retiming Keys
  * \{ */
-// TODO: what if retiming is enabled?
-// The retiming keys should probably still be selectable even if there's a transition on them, eg
-// if you have retiming keys on the two strips selected and want to move the transition with them,
-// right?
 static void retiming_key_draw(const TimelineDrawContext &ctx,
                               const StripDrawContext &strip_ctx,
                               const SeqRetimingKey *key,

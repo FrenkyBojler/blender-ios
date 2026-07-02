@@ -105,7 +105,6 @@ struct StripDrawContext {
   float strip_length;
 
   bool can_draw_text_overlay;
-  bool can_draw_retiming_overlay;
   bool can_draw_strip_content;
   bool strip_is_too_small; /* Shorthand for (!can_draw_text_overlay && !can_draw_strip_content). */
   bool is_active_strip;
@@ -407,6 +406,8 @@ wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op)
 wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op);
 
 /* `sequencer_retiming_draw.cc` */
+constexpr int RETIMING_KEY_PIXEL_OFFSET = 4;
+
 void sequencer_retiming_draw_segments(const TimelineDrawContext &ctx,
                                       const StripDrawContext &strip_ctx);
 void sequencer_retiming_keys_draw(const TimelineDrawContext &ctx, Span<StripDrawContext> strips);
@@ -414,6 +415,11 @@ void sequencer_retiming_speed_labels_draw(const TimelineDrawContext &ctx,
                                           const StripDrawContext &strip_ctx);
 rcti strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip);
 bool retiming_overlay_enabled(const SpaceSeq *sseq);
+bool can_draw_retiming(const Scene *scene,
+                       const SpaceSeq *sseq,
+                       const View2D *v2d,
+                       const Strip *strip);
+float retiming_key_size();
 
 /* `sequencer_text_edit.cc` */
 bool sequencer_text_editing_active_poll(bContext *C);
