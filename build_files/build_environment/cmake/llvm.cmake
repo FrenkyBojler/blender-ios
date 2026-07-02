@@ -53,7 +53,10 @@ set(LLVM_EXTRA_ARGS
 set(LLVM_PATCH
   ${PATCH_CMD} -p 1 -d
     ${BUILD_DIR}/llvm/src/external_llvm <
-    ${PATCH_DIR}/llvm.diff
+    ${PATCH_DIR}/llvm.diff &&
+  ${PATCH_CMD} -p 1 -d
+    ${BUILD_DIR}/llvm/src/external_llvm <
+    ${PATCH_DIR}/llvm_cuda.diff
 )
 
 if(WIN32)
