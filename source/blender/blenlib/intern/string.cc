@@ -365,7 +365,7 @@ std::string BLI_str_escape(StringRef str)
   if (str.is_empty()) {
     return {};
   }
-  const size_t max_result_size = size_t(str.size() * 2 + 1);
+  const size_t max_result_size = size_t(str.size()) * 2 + 1;
   std::string result;
   result.resize(max_result_size);
   const size_t result_size = BLI_str_escape(result.data(), str, max_result_size);
