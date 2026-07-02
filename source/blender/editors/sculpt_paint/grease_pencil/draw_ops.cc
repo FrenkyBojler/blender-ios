@@ -1321,7 +1321,6 @@ struct FillToolTargetInfo {
 };
 
 static Vector<FillToolTargetInfo> ensure_editable_drawings(const Scene &scene,
-                                                           const GreasePencil &eval_grease_pencil,
                                                            GreasePencil &grease_pencil,
                                                            bke::greasepencil::Layer &target_layer)
 {
@@ -1373,11 +1372,11 @@ static Vector<FillToolTargetInfo> ensure_editable_drawings(const Scene &scene,
       MutableDrawingInfo target = {*target_drawing, target_layer_index, frame_number, 1.0f};
 
       Vector<DrawingInfo> sources;
-      for (const Layer *source_layer : eval_grease_pencil.layers()) {
-        if (const Drawing *source_drawing = eval_grease_pencil.get_drawing_at(*source_layer,
-                                                                              frame_number))
+      for (const Layer *source_layer : grease_pencil.layers()) {
+        if (const Drawing *source_drawing = grease_pencil.get_drawing_at(*source_layer,
+                                                                         frame_number))
         {
-          const int source_layer_index = *eval_grease_pencil.get_layer_index(*source_layer);
+          const int source_layer_index = *grease_pencil.get_layer_index(*source_layer);
           sources.append({*source_drawing, source_layer_index, frame_number, 0});
         }
       }
@@ -1538,13 +1537,10 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   }
 
   wmWindow &win = *CTX_wm_window(&C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
-  const ViewContext view_context = ED_view3d_viewcontext_init(&C, depsgraph);
+  const ViewContext view_context = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(&C));
   const Scene &scene = *CTX_data_scene(&C);
   Object &object = *CTX_data_active_object(&C);
-  Object &object_eval = *DEG_get_evaluated(depsgraph, &object);
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
-  const GreasePencil &eval_grease_pencil = *id_cast<GreasePencil *>(object_eval.data);
   auto &op_data = *static_cast<GreasePencilFillOpData *>(op.customdata);
   const ToolSettings &ts = *CTX_data_tool_settings(&C);
   Brush &brush = *BKE_paint_brush(&ts.gp_paint->paint);
@@ -1564,7 +1560,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   }
   /* Add drawings in the active layer if autokey is enabled. */
   Vector<FillToolTargetInfo> target_drawings = ensure_editable_drawings(
-      scene, eval_grease_pencil, grease_pencil, *grease_pencil.get_active_layer());
+      scene, grease_pencil, *grease_pencil.get_active_layer());
 
   const VArray<bool> boundary_layers = get_fill_boundary_layers(
       grease_pencil, eGP_FillLayerModes(brush.gpencil_settings->fill_layer_mode));
