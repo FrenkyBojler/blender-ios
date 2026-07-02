@@ -2926,16 +2926,24 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   return nullptr;
 }
 
-static void propagate_for_nodes(const Span<const bNode *> nodes,
-                                const bool left_to_right,
-                                MutableSpan<bool> mask_to_propagate)
+static void expand_nodes_mask_in_dirrection(const Span<const bNode *> nodes,
+                                            const bool left_to_right,
+                                            MutableSpan<bool> mask_to_propagate)
 {
   for (const bNode *node : nodes) {
     const Span<const bNodeSocket *> sockets = left_to_right ? node->input_sockets() :
                                                               node->output_sockets();
     bool &node_value = mask_to_propagate[node->index()];
     for (const bNodeSocket *socket : sockets) {
-      for (const bNodeSocket *other_socket : socket->directly_linked_sockets()) {
+      for (const bNodeLink *link : socket->directly_linked_links()) {
+        if (!(link->tosock->is_visible() && link->fromsock->is_visible())) {
+          continue;
+        }
+        if ((link->flag & NODE_LINK_VALID) == 0) {
+          continue;
+        }
+
+        const bNodeSocket *other_socket = left_to_right ? link->fromsock : link->tosock;
         const bNode &other_node = other_socket->owner_node();
         node_value |= mask_to_propagate[other_node.index()];
         if (node_value) {
@@ -2956,13 +2964,12 @@ static void shift_nodes(bNodeTree &tree,
                         const float value)
 {
   const Span<bNode *> nodes = tree.all_nodes();
-
   Array<bool> shift_mask(nodes.size(), false);
 
   const Span<const bNode *> sorted_nodes = left_to_right ? tree.toposort_left_to_right() :
                                                            tree.toposort_right_to_left();
   shift_mask[start_node.index()] = true;
-  propagate_for_nodes(
+  expand_nodes_mask_in_dirrection(
       sorted_nodes.drop_front(sorted_nodes.first_index(&start_node)), left_to_right, shift_mask);
 
   const auto first_parent_if = [](const bNode &node, auto &&func) -> const bNode * {
@@ -3034,13 +3041,11 @@ static void shift_nodes(bNodeTree &tree,
     }
   });
 
-  threading::parallel_for(shift_mask.index_range(), 1024, [&](const IndexRange range) {
-    for (const int index : range) {
-      if (shift_mask[index]) {
-        nodes[index]->runtime->anim_ofsx = value;
-      }
+  for (const int index : nodes.index_range()) {
+    if (shift_mask[index]) {
+      nodes[index]->runtime->anim_ofsx = value;
     }
-  });
+  }
 }
 
 static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd, const bool right_alignment)
@@ -3064,7 +3069,8 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd, const bool r
   const float min_margin = U.node_margin * UI_SCALE_FAC;
 
   const bool need_offset_insert = back_gap < min_margin;
-  const bool need_offset_side = (back_gap + front_gap) < min_margin * 2;
+  const bool need_offset_side = (front_gap < min_margin) ||
+                                (back_gap + front_gap) < min_margin * 2;
 
   if (!(need_offset_insert || need_offset_side)) {
     return false;
