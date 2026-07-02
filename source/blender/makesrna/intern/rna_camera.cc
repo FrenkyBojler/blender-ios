@@ -978,14 +978,14 @@ void RNA_def_camera(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_composition_fulldome_directions", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
-      prop, nullptr, "composition_guide_flags_fulldome", COMPOSITION_GUIDES_fulldome_DIRECTIONS);
+      prop, nullptr, "composition_guide_flags_fulldome", COMPOSITION_GUIDES_FULLDOME_DIRECTIONS);
   RNA_def_property_ui_text(
       prop, "Dome Master Directions", "Display cardinal directions of the dome");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
 
   prop = RNA_def_property(srna, "show_composition_fulldome_grid", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
-      prop, nullptr, "composition_guide_flags_fulldome", COMPOSITION_GUIDES_fulldome_GRID);
+      prop, nullptr, "composition_guide_flags_fulldome", COMPOSITION_GUIDES_FULLDOME_GRID);
   RNA_def_property_ui_text(prop, "Dome Master Grid", "Display a grid representing the fulldome");
   RNA_def_property_update(prop, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, nullptr);
 
@@ -994,7 +994,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SAFEAREA_FRONT);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SAFEAREA_FRONT);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Front Seats",
                            "Display Safe Area for Unidirectional Projection");
@@ -1005,7 +1005,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SAFEAREA_CENTER);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SAFEAREA_CENTER);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Center Seats",
                            "Display Safe Area for Unidirectional Projection");
@@ -1016,7 +1016,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SAFEAREA_BACK);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SAFEAREA_BACK);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Backseats",
                            "Display Safe Area for Unidirectional Projection");
@@ -1027,7 +1027,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SAFEAREA_HORIZON);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SAFEAREA_HORIZON);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Horizon",
                            "Display Safe Area for Unidirectional Projection");
@@ -1038,7 +1038,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SWEETSPOT_FRONT);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SWEETSPOT_FRONT);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Horizon",
                            "Display Safe Area for Unidirectional Projection");
@@ -1049,7 +1049,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SWEETSPOT_CENTER);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SWEETSPOT_CENTER);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Horizon",
                            "Display Safe Area for Unidirectional Projection");
@@ -1060,7 +1060,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SWEETSPOT_BACK);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_SWEETSPOT_BACK);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Horizon",
                            "Display Safe Area for Unidirectional Projection");
@@ -1071,7 +1071,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_ZENIT_FRONT);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_ZENIT_FRONT);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Horizon",
                            "Display Safe Area for Unidirectional Projection");
@@ -1082,7 +1082,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_ZENIT_CENTER);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_ZENIT_CENTER);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Horizon",
                            "Display Safe Area for Unidirectional Projection");
@@ -1093,7 +1093,7 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop,
                                 nullptr,
                                 "composition_guide_flags_fulldome",
-                                COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_ZENIT_BACK);
+                                COMPOSITION_GUIDES_FULLDOME_UNIDIRECTIONAL_ZENIT_BACK);
   RNA_def_property_ui_text(prop,
                            "Dome Master Unidirectional Safe Area for Horizon",
                            "Display Safe Area for Unidirectional Projection");
