@@ -209,6 +209,10 @@ using DriverMap = Map<ID *, Vector<DriverTarget *>>;
  * Build a map from an ID to all the `DriverTarget`s where it is being used.
  */
 DriverMap BKE_animdata_build_driver_target_map(Main &bmain);
+/**
+ * Convenience function in places where Main is not available. Uses `G.main`.
+ */
+DriverMap BKE_animdata_build_driver_target_map();
 
 /**
  * Search and replace `old_infix` with `new_infix` for all rna paths that reference the given ID

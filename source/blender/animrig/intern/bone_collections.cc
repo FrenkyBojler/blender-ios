@@ -604,8 +604,17 @@ void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll,
 
   /* Bone collections can be reached via .collections (4.0+) and .collections_all (4.1+).
    * Animation data from 4.0 should have been versioned to only use `.collections_all`. */
-  BKE_animdata_fix_paths_rename_all(&armature->id, "collections", old_name, bcoll->name);
-  BKE_animdata_fix_paths_rename_all(&armature->id, "collections_all", old_name, bcoll->name);
+  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  BKE_animdata_fix_paths(armature->id,
+                         "collections",
+                         fmt::format("[\"{}\"]", old_name),
+                         fmt::format("[\"{}\"]", bcoll->name),
+                         driver_map);
+  BKE_animdata_fix_paths(armature->id,
+                         "collections_all",
+                         fmt::format("[\"{}\"]", old_name),
+                         fmt::format("[\"{}\"]", bcoll->name),
+                         driver_map);
 }
 
 void ANIM_armature_bonecoll_remove_from_index(bArmature *armature, int index)

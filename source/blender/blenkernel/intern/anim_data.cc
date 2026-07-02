@@ -1309,6 +1309,11 @@ DriverMap BKE_animdata_build_driver_target_map(Main &bmain)
   return map;
 }
 
+DriverMap BKE_animdata_build_driver_target_map()
+{
+  return BKE_animdata_build_driver_target_map(*G.main);
+}
+
 void BKE_animdata_fix_paths(ID &id,
                             StringRef prefix,
                             StringRef old_infix,
@@ -1336,7 +1341,7 @@ void BKE_animdata_fix_paths(ID &id,
   for (FCurve &fcurve : adt->drivers) {
     std::optional<std::string> fixed_path = rna_path_rename_fix(
         id, prefix, old_infix, new_infix, fcurve.rna_path);
-    if (fixed_path.has_value()) {
+    if (!fixed_path.has_value()) {
       continue;
     }
     MEM_delete(fcurve.rna_path);
