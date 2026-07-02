@@ -42,8 +42,8 @@ static StructureType ensure_supported_structure_type(const bNodeSocket &socket,
   return ensure_supported_structure_type(eNodeSocketDatatype(socket.type), structure_type);
 }
 
-static StructureType ensure_supported_structure_type(
-    const bNodeTreeInterfaceSocket &io_socket, const StructureType structure_type)
+static StructureType ensure_supported_structure_type(const bNodeTreeInterfaceSocket &io_socket,
+                                                     const StructureType structure_type)
 {
   const bke::bNodeSocketType *socket_type = io_socket.socket_typeinfo();
   if (!socket_type) {

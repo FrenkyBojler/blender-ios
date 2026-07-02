@@ -39,9 +39,7 @@ static bNode &add_field_boolean_node(bNodeTree &tree)
   return *bke::node_add_node(nullptr, tree, "GeometryNodeInputNamedAttribute"_ustr);
 }
 
-static bNode &add_switch_node(Main &bmain,
-                              bNodeTree &tree,
-                              const eNodeSocketDatatype socket_type)
+static bNode &add_switch_node(Main &bmain, bNodeTree &tree, const eNodeSocketDatatype socket_type)
 {
   bNode &node = *bke::node_add_node(nullptr, tree, "GeometryNodeSwitch"_ustr);
   NodeSwitch &storage = *static_cast<NodeSwitch *>(node.storage);
