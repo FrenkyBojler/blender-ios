@@ -231,6 +231,7 @@ DLSSDenoiser::~DLSSDenoiser()
   tex_specular_albedo_.destroy();
   tex_normal_roughness_.destroy();
   tex_motion_.destroy();
+  tex_specular_motion_.destroy();
   tex_output_.destroy();
 
   if (!NVSDK_NGX_CUDA) {
@@ -339,6 +340,7 @@ bool DLSSDenoiser::denoise_create_if_needed(DenoiseContext &context)
   tex_specular_albedo_.destroy();
   tex_normal_roughness_.destroy();
   tex_motion_.destroy();
+  tex_specular_motion_.destroy();
   tex_output_.destroy();
 
   if (context.buffer_params.width <= 128 || context.buffer_params.height <= 96) {
@@ -404,6 +406,8 @@ bool DLSSDenoiser::denoise_create_if_needed(DenoiseContext &context)
   tex_normal_roughness_.init(
       cuda_device, context.buffer_params.width, context.buffer_params.height, 4);
   tex_motion_.init(cuda_device, context.buffer_params.width, context.buffer_params.height, 2);
+  tex_specular_motion_.init(
+      cuda_device, context.buffer_params.width, context.buffer_params.height, 2);
 
   tex_output_.init(
       cuda_device, context.denoised_buffer_params.width, context.denoised_buffer_params.height, 4);
@@ -493,12 +497,15 @@ bool DLSSDenoiser::denoise_filter_guiding_preprocess(DenoiseContext &context)
   const int pass_specular_albedo = context.buffer_params.get_pass_offset(
       PASS_DENOISING_SPECULAR_ALBEDO);
   const int pass_roughness = context.buffer_params.get_pass_offset(PASS_DENOISING_ROUGHNESS);
+  const int pass_specular_motion = context.buffer_params.get_pass_offset(
+      PASS_DENOISING_SPECULAR_MOTION);
 
   const DeviceKernelArguments args(&tex_depth_.surface_handle,
                                    &tex_diffuse_albedo_.surface_handle,
                                    &tex_specular_albedo_.surface_handle,
                                    &tex_normal_roughness_.surface_handle,
                                    &tex_motion_.surface_handle,
+                                   &tex_specular_motion_.surface_handle,
                                    &context.render_buffers->buffer.device_pointer,
                                    &buffer_params.offset,
                                    &buffer_params.stride,
@@ -510,6 +517,7 @@ bool DLSSDenoiser::denoise_filter_guiding_preprocess(DenoiseContext &context)
                                    &context.pass_denoising_normal,
                                    &pass_roughness,
                                    &context.pass_motion,
+                                   &pass_specular_motion,
                                    &buffer_params.full_x,
                                    &buffer_params.full_y,
                                    &buffer_params.width,
@@ -538,8 +546,6 @@ bool DLSSDenoiser::denoise_run(const DenoiseContext &context, const DenoisePass 
 
   params->Set(NVSDK_NGX_Parameter_Jitter_Offset_X, context.pixel_jitter.x);
   params->Set(NVSDK_NGX_Parameter_Jitter_Offset_Y, context.pixel_jitter.y);
-  params->Set(NVSDK_NGX_Parameter_MV_Scale_X, -1.0f);
-  params->Set(NVSDK_NGX_Parameter_MV_Scale_Y, -1.0f);
 
   params->Set(NVSDK_NGX_Parameter_Color, &tex_color_.texture_handle);
   params->Set(NVSDK_NGX_Parameter_Depth, &tex_depth_.texture_handle);
@@ -548,6 +554,7 @@ bool DLSSDenoiser::denoise_run(const DenoiseContext &context, const DenoisePass 
   params->Set(NVSDK_NGX_Parameter_GBuffer_Normals, &tex_normal_roughness_.texture_handle);
   params->Set(NVSDK_NGX_Parameter_GBuffer_Roughness, &tex_normal_roughness_.texture_handle);
   params->Set(NVSDK_NGX_Parameter_MotionVectors, &tex_motion_.texture_handle);
+  params->Set(NVSDK_NGX_Parameter_GBuffer_SpecularMvec, &tex_specular_motion_.texture_handle);
   params->Set(NVSDK_NGX_Parameter_Output, &tex_output_.surface_handle);
 
   params->Set(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Width,

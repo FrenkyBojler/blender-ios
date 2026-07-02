@@ -59,6 +59,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
                              cudaSurfaceObject_t specular_albedo_surface,
                              cudaSurfaceObject_t normal_roughness_surface,
                              cudaSurfaceObject_t motion_surface,
+                             cudaSurfaceObject_t specular_motion_surface,
                              const ccl_global float *render_buffer,
                              const int render_offset,
                              const int render_stride,
@@ -70,6 +71,7 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
                              const int render_pass_normal,
                              const int render_pass_roughness,
                              const int render_pass_motion,
+                             const int render_pass_specular_motion,
                              const int full_x,
                              const int full_y,
                              const int width,
@@ -154,10 +156,21 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
     const ccl_global float *motion_in = buffer + render_pass_motion;
 
     float2 motion_value;
-    motion_value.x = -motion_in[0] * pixel_scale;
-    motion_value.y = -motion_in[1] * pixel_scale;
+    motion_value.x = motion_in[0] * pixel_scale;
+    motion_value.y = motion_in[1] * pixel_scale;
 
     surf2Dwrite(motion_value, motion_surface, x * sizeof(float2), y);
+  }
+
+  /* Specular motion pass. */
+  if (render_pass_specular_motion != PASS_UNUSED) {
+    const ccl_global float *motion_in = buffer + render_pass_specular_motion;
+
+    float2 motion_value;
+    motion_value.x = motion_in[0] * pixel_scale;
+    motion_value.y = motion_in[1] * pixel_scale;
+
+    surf2Dwrite(motion_value, specular_motion_surface, x * sizeof(float2), y);
   }
 }
 ccl_gpu_kernel_postfix
