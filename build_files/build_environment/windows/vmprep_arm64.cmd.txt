@@ -120,6 +120,12 @@ start /wait C:\install\LLVM-20.1.8-woa64.exe /S
 echo Adding LLVM to PATH
 set PATH=%PATH%;C:\Program Files\LLVM\bin
 
+REM This is needed on certain Windows installations (see https://github.com/python/cpython/pull/152919)
+echo Obtaining NuGet
+curl -s -L https://aka.ms/nugetclidl -o C:\install\nuget.exe
+echo Initialize NuGet with package source
+start /wait C:\install\nuget.exe sources add -Name nuget.org -Source https://api.nuget.org/v3/index.json >nul 2>nul
+
 echo Cloning Blender repository
 mkdir C:\blendergit
 cd C:\blendergit
