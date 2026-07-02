@@ -1161,7 +1161,8 @@ void accumulate_or_display_frag([[resource_table]] const FilmDisplay &srt,
           imageLoadFast(cryptomatte.cryptomatte_img, int3(texel_film, film.display_id)).r);
     }
     else /* PASS_STORAGE_DENOISING_DEPTH */ {
-      frag_out.color = imageLoadFast(film.denoising_depth_img, texel_film);
+      frag_out.color.rgb = imageLoadFast(film.denoising_depth_img, texel_film).rrr;
+      frag_out.color.a = 1.0f;
     }
   }
   else {
