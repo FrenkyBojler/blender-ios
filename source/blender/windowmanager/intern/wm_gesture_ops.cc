@@ -188,6 +188,8 @@ wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEven
     rcti *rect = static_cast<rcti *>(gesture->customdata);
     gesture->mval.x = ui::view2d_region_to_view_x(v2d, rect->xmin);
     gesture->mval.y = ui::view2d_region_to_view_y(v2d, rect->ymin);
+
+    gesture->is_active = !wait_for_input;
   }
 
   /* Add modal handler. */
@@ -254,7 +256,7 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
         }
         else {
           const ScrArea *area = CTX_wm_area(C);
-          if (gesture->is_active && ELEM(area->spacetype, SPACE_IMAGE, SPACE_VIEW3D)) {
+          if (gesture->is_active && !ELEM(area->spacetype, SPACE_IMAGE, SPACE_VIEW3D)) {
             const View2D *v2d = &region->v2d;
             rect->xmin = ui::view2d_view_to_region_x(v2d, gesture->mval.x);
             rect->ymin = ui::view2d_view_to_region_y(v2d, gesture->mval.y);
