@@ -4,7 +4,9 @@
 
 #include "testing/testing.h"
 
+#include "BLI_math_base_c.hh"
 #include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_vector_types.hh"
 
 namespace blender {
@@ -150,4 +152,40 @@ TEST(math_geom, CrossPoly)
   EXPECT_EQ(cross_poly_v2(tri_ccw_2d, 3), 2);
 }
 
+/**
+ * Regression for #160753: perspective snap on long loose edges.
+ *
+ * When part of a thin world-space AABB is behind the camera, projected AABB
+ * culling must not report a bogus pixel distance (which rejected snap targets).
+ */
+TEST(math_geom, DistSquaredToProjectedAabb_LooseEdgeBehindCamera)
+{
+  const float winsize[2] = {1920.0f, 1080.0f};
+  const float mval[2] = {964.0f, 491.0f};
+
+  /* Long thin bound-box of a subdivided loose edge chain (meters). */
+  const float bbmin[3] = {0.0f, -0.01f, -0.01f};
+  const float bbmax[3] = {25.0f, 0.01f, 0.01f};
+
+  /* View close to the edge start, rotated in perspective (matches reporter setup). */
+  float viewmat[4][4];
+  unit_m4(viewmat);
+  translate_m4(viewmat, -2.0f, -6.0f, 2.5f);
+  rotate_m4(viewmat, 'Z', 0.35f);
+  rotate_m4(viewmat, 'X', -0.65f);
+
+  /* Perspective projection. */
+  float winmat[4][4];
+  perspective_m4(winmat, -0.8f, 0.8f, -0.45f, 0.45f, 0.1f, 1000.0f);
+
+  /* Full world-to-screen matrix passed to snap boundbox culling. */
+  float persmat[4][4];
+  mul_m4_m4m4(persmat, winmat, viewmat);
+
+  const float dist_sq = dist_squared_to_projected_aabb_simple(persmat, winsize, mval, bbmin, bbmax);
+
+  /* Snap boundbox culling uses a 30px threshold (see SNAP_MIN_DISTANCE). */
+  const float snap_threshold_sq = square_f(30.0f);
+  EXPECT_LE(dist_sq, snap_threshold_sq);
+}
 }  // namespace blender
