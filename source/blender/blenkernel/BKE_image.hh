@@ -207,8 +207,14 @@ ImBuf *BKE_image_acquire_ibuf(Image *ima, ImageUser *iuser, void **r_lock);
  * Identical to BKE_image_acquire_ibuf but assumes the caller will use the GPU data of the image
  * buffer if it exists without the need to make it available on the host. This essentially skips
  * GPU data reading to the host and is thus more performant.
+ *
+ * If #r_load_failed is provided, it is set to true when the image is known to have failed
+ * loading when the #ImBuf is null, as opposed to not having been loaded yet.
  */
-ImBuf *BKE_image_acquire_ibuf_gpu(Image *ima, ImageUser *iuser, void **r_lock);
+ImBuf *BKE_image_acquire_ibuf_gpu(Image *ima,
+                                  ImageUser *iuser,
+                                  void **r_lock,
+                                  bool *r_load_failed = nullptr);
 
 /**
  * Return image buffer for given image, user, pass, and view.
@@ -332,6 +338,10 @@ void BKE_image_ensure_viewer_views(const RenderData *rd, Image *ima, ImageUser *
  */
 void BKE_image_user_frame_calc(Image *ima, ImageUser *iuser, int cfra);
 int BKE_image_user_frame_get(const ImageUser *iuser, int cfra, bool *r_is_in_range);
+/**
+ * Test if two image users resolve to the same image buffer.
+ */
+bool BKE_image_user_match(const ImageUser &a, const ImageUser &b);
 void BKE_image_user_file_path(const ImageUser *iuser, const Image *ima, char *filepath);
 void BKE_image_user_file_path_ex(const Main *bmain,
                                  const ImageUser *iuser,
