@@ -1,0 +1,1 @@
+Referenced by pull request #161005, Cleanup: return 0 instead of implictly-casted false
