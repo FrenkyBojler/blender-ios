@@ -12,7 +12,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Versions and packages
-XCODE_VERSION="26.1.1"
+XCODE_VERSION="26.1.1" # This version should be aligned with the Xcode version configured in build_files/config/pipeline_config.yaml
 CMAKE_VERSION="3.31.6" # Last CMake 3.x published to Homebrew
 BREW_PACKAGES=(
   autoconf
