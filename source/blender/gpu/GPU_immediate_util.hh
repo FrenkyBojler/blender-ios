@@ -127,15 +127,6 @@ void imm_draw_circle_partial_wire_3d(
 Draw A Curve
 **/
 
-/* Vector<float2> generateCurvePoints(int segments, float2 P0, float2 P1, float2 P2) {
-    std::vector<float2> curve;
-    for (int i = 0; i <= segments; i++) {
-        float t = (float)i / (float)segments;
-        curve.push_back(calculateQuadraticBezier(t, P0, P1, P2));
-    }
-    return curve;
-} */
-
 void imm_draw_quadratic_curve(uint pos, int segments, float2 start, float2 handler, float2 end);
 
 /**

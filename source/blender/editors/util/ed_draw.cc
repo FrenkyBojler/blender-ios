@@ -1195,17 +1195,7 @@ static void drawviewborder_triangle(uint shdr_pos, rctf rect, const bool golden,
   immEnd();
 }
 
-void ED_composition_guides_dome_master_draw_names_helper(
-    std::string str, float x, float y, int fontid, float fontsize)
-{
-  const char *direction = str.c_str();
-  float direction_size_x, direction_size_y;
-  BLF_size(fontid, fontsize * UI_SCALE_FAC);
-  BLF_width_and_height(fontid, direction, sizeof(direction), &direction_size_x, &direction_size_y);
 
-  BLF_position(fontid, x - direction_size_x / 2, y - direction_size_y / 2, 0.0f);
-  BLF_draw(fontid, direction, sizeof(direction));
-}
 
 void ED_draw_composition_guides(uint shdr_pos,
                                 eCompositionGuideFlags flag,
@@ -1412,48 +1402,43 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
     const uiStyle *style = ui::style_get();
     const uiFontStyle *fstyle = &style->widget;
     const int fontid = fstyle->uifont_id;
-    constexpr float direction_offset = 10.0f;
-    constexpr float direction_big = 12.0f;
-    constexpr float direction_small = 8.0f;
+    constexpr float direction_offset = -10.0f;
+    constexpr float big_font = 12.0f;
+    constexpr float small_font = 8.0f;
 
-    ED_composition_guides_dome_master_draw_names_helper(
-        "N", xmid, rect->ymax + direction_offset, fontid, direction_big);
+    struct cDir {
+      float angle;
+      std::string t;
+      float size;
+      float offset = direction_offset;
+    };
 
-    angle = steps * 13.5f;
-    x1 = xmid + radius_x * cos(angle);
-    y1 = ymid + radius_y * sin(angle);
-    ED_composition_guides_dome_master_draw_names_helper(
-        "N/E", x1 - direction_offset, y1 + direction_offset, fontid, direction_small);
+    Vector<cDir> cDirs =
+    { {0, "E", big_font},
+      {45, "N/E", small_font},
+      {90, "N", big_font},
+      {135, "N/W", small_font},
+      {180, "W", big_font},
+      {225, "S/W", small_font},
+      {270, "S", big_font},
+      {315, "S/W", small_font} };
 
-    ED_composition_guides_dome_master_draw_names_helper(
-        "E", rect->xmin - direction_offset, ymid, fontid, direction_big);
+    for (int i = 0; i < cDirs.size(); i++)
+    {
 
-    angle = steps * 22.5f;
-    x1 = xmid + radius_x * cos(angle);
-    y1 = ymid + radius_y * sin(angle);
-    ED_composition_guides_dome_master_draw_names_helper(
-        "S/E", x1 - direction_offset, y1 - direction_offset, fontid, direction_small);
+      float2 point = ED_calculate_radial_point(
+          center, radius, float2{cDirs[i].angle, cDirs[i].offset});
 
-    ED_composition_guides_dome_master_draw_names_helper(
-        "S", xmid, rect->ymin - direction_offset, fontid, direction_big);
+      const char *direction = cDirs[i].t.c_str();
+      float direction_size_x, direction_size_y;
+      BLF_size(fontid, cDirs[i].size * UI_SCALE_FAC);
+      BLF_width_and_height(fontid, direction, sizeof(direction), &direction_size_x, &direction_size_y);
 
-    ED_composition_guides_dome_master_draw_names_helper(
-        "FRONT", xmid, rect->ymin - direction_offset * 2.3, fontid, direction_big);
+      BLF_position(fontid, point.x - direction_size_x / 2, point.y - direction_size_y / 2, 0.0f);
+      BLF_draw(fontid, direction, sizeof(direction));
 
-    angle = steps * 31.5f;
-    x1 = xmid + radius_x * cos(angle);
-    y1 = ymid + radius_y * sin(angle);
-    ED_composition_guides_dome_master_draw_names_helper(
-        "S/W", x1 + direction_offset, y1 - direction_offset, fontid, direction_small);
+    }
 
-    ED_composition_guides_dome_master_draw_names_helper(
-        "W", rect->xmax + direction_offset, ymid, fontid, direction_big);
-
-    angle = steps * 4.5f;
-    x1 = xmid + radius_x * cos(angle);
-    y1 = ymid + radius_y * sin(angle);
-    ED_composition_guides_dome_master_draw_names_helper(
-        "N/W", x1 + direction_offset, y1 + direction_offset, fontid, direction_small);
   }
 }
 
