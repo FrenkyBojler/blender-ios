@@ -2,3 +2,4 @@ Referenced by issue #157630, Regression: Context menus not working
 Referenced by issue #160071, Select linked doesn't work on curves
 Referenced by pull request #160126, Fix #160071: Select linked doesn't work on curves
 Referenced by commit 76313f262ea0511ff4f3b5ab332b540bb540e64d, Fix #160071: Select linked doesn't work on curves
+Referenced by issue #160076, GP: New Deselect Linked missing from the menus
