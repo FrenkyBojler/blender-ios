@@ -970,6 +970,12 @@ float dist_squared_to_projected_aabb(DistProjectedAABBPrecalc *data,
   if (w_a != 1.0f) {
     /* Perspective Projection. */
     float w_b = w_a + data->pmat[main_axis][3] * scale;
+    if (w_a <= 0.0f || w_b <= 0.0f) {
+      /* AABB edge is on or behind the camera: dividing by non-positive `w` gives bogus
+       * screen coords and a false pixel distance. Return zero to force a precise test 
+       * (BVH callback / per-element hit test). #160753 */
+      return 0.0f;
+    }
     va2d[0] /= w_a;
     va2d[1] /= w_a;
     vb2d[0] /= w_b;
