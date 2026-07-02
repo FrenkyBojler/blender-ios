@@ -8882,12 +8882,13 @@ def km_sequencer_tool_blade(_params):
              {"properties": [
                  ("side", 'NO_CHANGE'),
                  ("use_cursor_position", True),
-                 ("ignore_connections", True),
+                 ("ignore_selection", True),
              ]}),
             ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'CLICK', "alt": True},
              {"properties": [
                  ("side", 'NO_CHANGE'),
                  ("use_cursor_position", True),
+                 ("ignore_selection", True),
                  ("ignore_connections", True),
              ]}),
             # Box Blade
