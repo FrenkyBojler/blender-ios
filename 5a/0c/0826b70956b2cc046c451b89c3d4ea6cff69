@@ -4,3 +4,4 @@ Referenced by issue #148969, Sequencer - Impossible to add Image/sequence with m
 Referenced by issue #150903, VSE: Crash when adding Image ID Data Block
 Referenced by issue #155176, VSE: Dragging image from blender's file browser into timeline uses absolute path (5.0+ regression)
 Referenced by pull request #160035, Fix #156442: VSE sequence detection fails with 11 consecutive numbers
+Referenced by commit 2ba42ef636fc282b6cc30a988d95ffd6501aa72b, Fix #156442: VSE sequence detection fails with 11 consecutive numbers
