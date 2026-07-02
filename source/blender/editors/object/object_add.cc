@@ -2773,8 +2773,8 @@ static void make_object_duplilist_real(bContext *C,
     return;
   }
 
-  /* Filter out generated mesh sub-components specifically for Font objects
-   * to avoid duplicates. For other object types, we keep the instances.
+  /* Filter out generated mesh sub-components for Font and Surface objects to
+   * avoid creating duplicate real objects for a single visible instance.
    */
   DupliList filtered_duplilist;
   for (DupliObject &dob : duplilist) {
