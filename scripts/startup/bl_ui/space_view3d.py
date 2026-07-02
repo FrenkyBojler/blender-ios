@@ -1249,6 +1249,7 @@ class ShowHideMenu:
         layout = self.layout
 
         layout.operator("{:s}.reveal".format(self._operator_name))
+        layout.separator()
         layout.operator("{:s}.hide".format(self._operator_name), text="Hide Selected").unselected = False
         layout.operator("{:s}.hide".format(self._operator_name), text="Hide Unselected").unselected = True
 
@@ -2102,8 +2103,8 @@ class VIEW3D_MT_edit_lattice_context_menu(Menu):
         layout = self.layout
 
         layout.menu("VIEW3D_MT_mirror")
-        layout.operator_menu_enum("lattice.flip", "axis")
         layout.menu("VIEW3D_MT_snap")
+        layout.operator_menu_enum("lattice.flip", "axis")
 
         layout.separator()
 
@@ -2921,10 +2922,6 @@ class VIEW3D_MT_object_rigid_body(Menu):
 
         layout.separator()
 
-        layout.operator("rigidbody.objects_remove", text="Remove")
-
-        layout.separator()
-
         layout.operator("rigidbody.shape_change", text="Change Shape")
         layout.operator("rigidbody.mass_calculate", text="Calculate Mass")
         layout.operator("rigidbody.object_settings_copy", text="Copy from Active")
@@ -2934,6 +2931,10 @@ class VIEW3D_MT_object_rigid_body(Menu):
         layout.separator()
 
         layout.operator("rigidbody.connect", text="Connect")
+
+        layout.separator()
+
+        layout.operator("rigidbody.objects_remove", text="Remove", icon='X')
 
 
 class VIEW3D_MT_object_clear(Menu):
@@ -3004,7 +3005,7 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             if not obj.data.dof.focus_object:
                 if view and view.camera == obj and view.region_3d.view_perspective == 'CAMERA':
-                    props = layout.operator("ui.eyedropper_depth", text="DOF Distance (Pick)")
+                    props = layout.operator("ui.eyedropper_depth", text="Pick DOF Distance")
                 else:
                     props = layout.operator("wm.context_modal_mouse", text="Adjust Focus Distance")
                     props.data_path_iter = "selected_editable_objects"
@@ -3172,6 +3173,8 @@ class VIEW3D_MT_object_context_menu(Menu):
         layout.menu("VIEW3D_MT_snap")
         layout.menu("VIEW3D_MT_object_parent")
         layout.operator_context = 'INVOKE_REGION_WIN'
+
+        layout.separator()
 
         if view and view.local_view:
             layout.operator("view3d.localview_remove_from")
@@ -4233,7 +4236,7 @@ class VIEW3D_MT_pose(Menu):
 
         layout.menu("VIEW3D_MT_transform_armature")
 
-        layout.menu("VIEW3D_MT_pose_transform")
+        layout.menu("VIEW3D_MT_pose_transform", text="Clear")
         layout.menu("VIEW3D_MT_pose_apply")
 
         layout.menu("VIEW3D_MT_snap")
@@ -4556,7 +4559,7 @@ class VIEW3D_MT_edit_mesh(Menu):
         layout.menu("VIEW3D_MT_edit_mesh_normals")
         layout.menu("VIEW3D_MT_edit_mesh_shading")
         layout.menu("VIEW3D_MT_edit_mesh_weights")
-        layout.operator("mesh.attribute_set")
+        layout.operator("mesh.attribute_set", text="Set Attribute...")
         layout.operator_menu_enum("mesh.sort_elements", "type", text="Sort Elements")
 
         layout.separator()
@@ -4566,7 +4569,7 @@ class VIEW3D_MT_edit_mesh(Menu):
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_edit_mesh_delete")
+        layout.menu("VIEW3D_MT_edit_mesh_delete", icon='X')
 
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
@@ -5268,8 +5271,8 @@ def draw_curve(self, _context):
 
     layout.separator()
 
+    layout.operator("curve.duplicate_move", text="Duplicate", icon='DUPLICATE')
     layout.operator("curve.spin")
-    layout.operator("curve.duplicate_move", icon='DUPLICATE')
 
     layout.separator()
 
@@ -5371,7 +5374,10 @@ class VIEW3D_MT_edit_curve_context_menu(Menu):
         layout.operator("curve.subdivide")
         layout.operator("curve.extrude_move")
         layout.operator("curve.make_segment")
-        layout.operator("curve.duplicate_move", icon='DUPLICATE')
+
+        layout.separator()
+
+        layout.operator("curve.duplicate_move", text="Duplicate", icon='DUPLICATE')
 
         layout.separator()
 
@@ -5405,12 +5411,12 @@ class VIEW3D_MT_edit_curve_context_menu(Menu):
         layout.separator()
 
         # Remove
+        layout.operator("curve.separate")
         layout.operator("curve.split")
         layout.operator("curve.decimate")
-        layout.operator("curve.separate")
         layout.operator("curve.dissolve_verts")
-        layout.operator("curve.delete", text="Delete Segment").type = 'SEGMENT'
-        layout.operator("curve.delete", text="Delete Point").type = 'VERT'
+        layout.operator("curve.delete", text="Delete Segments").type = 'SEGMENT'
+        layout.operator("curve.delete", text="Delete Points", icon='X').type = 'VERT'
 
 
 class VIEW3D_MT_edit_curve_delete(Menu):
@@ -5560,7 +5566,7 @@ class VIEW3D_MT_edit_font_context_menu(Menu):
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_edit_font")
+        layout.menu("VIEW3D_MT_edit_font", icon='X')
 
 
 class VIEW3D_MT_edit_meta(Menu):
@@ -5592,6 +5598,7 @@ class VIEW3D_MT_edit_meta_showhide(Menu):
         layout = self.layout
 
         layout.operator("mball.reveal_metaelems")
+        layout.separator()
         layout.operator("mball.hide_metaelems", text="Hide Selected").unselected = False
         layout.operator("mball.hide_metaelems", text="Hide Unselected").unselected = True
 
@@ -5634,14 +5641,19 @@ class VIEW3D_MT_edit_armature(Menu):
 
         layout.separator()
 
+        layout.operator("armature.subdivide", text="Subdivide")
         layout.operator("armature.extrude_move")
         layout.operator("armature.click_extrude")
-
         if arm.use_mirror_x:
             layout.operator("armature.extrude_forked")
 
+        layout.separator()
+
         layout.operator("armature.duplicate_move", icon='DUPLICATE')
-        layout.operator("armature.duplicate_rename")
+        layout.operator("armature.duplicate_rename", text="Duplicate and Rename...")
+
+        layout.separator()
+
         layout.operator("armature.fill")
 
         layout.separator()
@@ -5651,7 +5663,6 @@ class VIEW3D_MT_edit_armature(Menu):
 
         layout.separator()
 
-        layout.operator("armature.subdivide", text="Subdivide")
         layout.operator("armature.switch_direction", text="Switch Direction")
 
         layout.separator()
@@ -5664,9 +5675,6 @@ class VIEW3D_MT_edit_armature(Menu):
         layout.operator_context = 'INVOKE_DEFAULT'
         layout.operator("armature.move_to_collection", text="Move to Bone Collection")
         layout.menu("VIEW3D_MT_bone_collections")
-
-        layout.separator()
-
         layout.menu("VIEW3D_MT_edit_armature_parent")
 
         layout.separator()
@@ -5675,7 +5683,7 @@ class VIEW3D_MT_edit_armature(Menu):
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_edit_armature_delete")
+        layout.menu("VIEW3D_MT_edit_armature_delete", icon='X')
 
 
 class VIEW3D_MT_armature_context_menu(Menu):
@@ -5690,11 +5698,14 @@ class VIEW3D_MT_armature_context_menu(Menu):
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         # Add
-        layout.operator("armature.subdivide", text="Subdivide")
-        layout.operator("armature.duplicate_move", text="Duplicate", icon='DUPLICATE')
         layout.operator("armature.extrude_move")
         if arm.use_mirror_x:
             layout.operator("armature.extrude_forked")
+        layout.operator("armature.subdivide", text="Subdivide")
+
+        layout.separator()
+
+        layout.operator("armature.duplicate_move", text="Duplicate", icon='DUPLICATE')
 
         layout.separator()
 
@@ -5862,25 +5873,27 @@ class VIEW3D_MT_edit_greasepencil(Menu):
 
         layout.separator()
 
-        layout.operator("grease_pencil.duplicate_move", text="Duplicate", icon='DUPLICATE')
-
-        layout.separator()
-
-        layout.operator("grease_pencil.stroke_split", text="Split")
         layout.operator("grease_pencil.copy", text="Copy", icon='COPYDOWN')
         layout.operator("grease_pencil.paste", text="Paste", icon='PASTEDOWN').type = 'ACTIVE'
         layout.operator("grease_pencil.paste", text="Paste by Layer").type = 'LAYER'
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_edit_greasepencil_showhide")
-        layout.operator_menu_enum("grease_pencil.separate", "mode", text="Separate")
-        layout.menu("VIEW3D_MT_edit_greasepencil_cleanup")
-        layout.operator("grease_pencil.outline", text="Outline")
+        layout.operator("grease_pencil.duplicate_move", text="Duplicate", icon='DUPLICATE')
 
         layout.separator()
 
-        layout.menu("VIEW3D_MT_edit_greasepencil_delete")
+        layout.operator("grease_pencil.stroke_split", text="Split")
+        layout.operator_menu_enum("grease_pencil.separate", "mode", text="Separate")
+
+        layout.separator()
+
+        layout.menu("VIEW3D_MT_edit_greasepencil_showhide")
+        layout.menu("VIEW3D_MT_edit_greasepencil_cleanup")
+
+        layout.separator()
+
+        layout.menu("VIEW3D_MT_edit_greasepencil_delete", icon='X')
 
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
@@ -5991,14 +6004,16 @@ class VIEW3D_MT_edit_curves(Menu):
         layout.separator()
 
         layout.operator("curves.duplicate_move", icon='DUPLICATE')
-        layout.operator("curves.extrude_move")
 
         layout.separator()
 
-        layout.operator("curves.attribute_set")
         layout.operator_menu_enum("curves.curve_type_set", "type")
         layout.operator("curves.cyclic_toggle")
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
+
+        layout.separator()
+
+        layout.operator("curves.attribute_set", text="Set Attribute...")
 
         layout.separator()
 
