@@ -615,19 +615,26 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
     }
   }
 
-  /* Ensure that any properties from when this operator was "last used" are cleared. Save them for
-   * restoration later. Otherwise properties from a regular File->Import may contaminate this
-   * collection import. */
-  IDProperty *last_properties = ot->last_properties;
-  ot->last_properties = nullptr;
-
   Main *bmain = CTX_data_main(C);
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
   RNA_string_set(&properties, "filepath", filepath);
 
-  /* TODO: Check if there is already a library for this collection. If one exists then an import
-   * has already occurred. Should we drop the existing library and then allow it to be created anew
-   * below? */
+  /* TODO: If there is already a library for this collection, then an import has already occurred.
+   * Return early until "reload" is implemented in the future. */
+  for (Library *lib = static_cast<Library *>(bmain->libraries.first); lib;
+       lib = static_cast<Library *>(lib->id.next))
+  {
+    if (STREQ(lib->id.name + 2, collection_name)) {
+      BKE_reportf(op->reports,
+                  RPT_WARNING,
+                  "Collection '%s' has already been imported from '%s'",
+                  collection_name,
+                  filepath);
+
+      IDP_FreeProperty(op_props);
+      return OPERATOR_CANCELLED;
+    }
+  }
 
   wmWindowManager *wm = CTX_wm_manager(C);
 
@@ -639,6 +646,12 @@ static wmOperatorStatus collection_importer_import_exec(bContext *C, wmOperator 
   CTX_wm_window_set(temp_C, CTX_wm_window(C));
   CTX_data_scene_set(temp_C, nullptr);
   CTX_data_ui_context_access_deny(temp_C, true);
+
+  /* Ensure that any properties from when this operator was "last used" are cleared. Save them for
+   * restoration later. Otherwise properties from a regular File->Import may contaminate this
+   * collection import. */
+  IDProperty *last_properties = ot->last_properties;
+  ot->last_properties = nullptr;
 
   /* Manually increment the operator undo depth to ensure that the import operator itself does not
    * push an undo step. */
