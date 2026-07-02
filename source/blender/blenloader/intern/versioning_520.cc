@@ -28,6 +28,7 @@
 #include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_sys_types.hh"
+#include "BLI_timeit.hh"
 
 #include "BKE_anim_visualization.h"
 #include "BKE_animsys.hh"
@@ -112,6 +113,7 @@ static void version_geometry_nodes_properties(FileData &fd,
   IDP_AddToGroup(system_props, inputs);
 
   const std::string inputs_path_prefix = fmt::format("modifiers[\"{}\"]", nmd.modifier.name);
+  DriverMap driver_map = BKE_animdata_build_driver_target_map(bmain);
   for (const bNodeTreeInterfaceSocket *input : ntree.interface_inputs()) {
     const StringRefNull identifier = input->identifier;
     IDProperty *old_value_prop = IDP_GetPropertyFromGroup(old_props, identifier);
@@ -142,15 +144,8 @@ static void version_geometry_nodes_properties(FileData &fd,
 
     const std::string old_value_path = fmt::format("[\"{}\"]", identifier);
     const std::string new_value_path = fmt::format(".properties.inputs.{}.value", identifier);
-    BKE_animdata_fix_paths_rename_all_ex(&bmain,
-                                         &object.id,
-                                         inputs_path_prefix.c_str(),
-                                         old_value_path.c_str(),
-                                         new_value_path.c_str(),
-                                         0,
-                                         0,
-                                         false,
-                                         false);
+    BKE_animdata_fix_paths(
+        object.id, inputs_path_prefix, old_value_path, new_value_path, driver_map);
 
     if (IDOverrideLibrary *override_library = object.id.override_library) {
       for (IDOverrideLibraryProperty &prop : override_library->properties) {
@@ -458,6 +453,7 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 16)) {
+    SCOPED_TIMER("version geo nodes");
     for (Object &object : bmain->objects) {
       for (ModifierData &md : object.modifiers) {
         if (md.type == eModifierType_Nodes) {

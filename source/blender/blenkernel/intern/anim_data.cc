@@ -1120,17 +1120,6 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
   MEM_delete(newN);
 }
 
-/**
- * Returns a 0 terminated heap allocated char * string.
- */
-static char *string_to_heap_char_p(const std::string &string)
-{
-  char *heap_string = MEM_new_array_uninitialized<char>(string.size() + 1, "fixed_rna_path");
-  strcpy(heap_string, string.c_str());
-  heap_string[string.size()] = '\0';
-  return heap_string;
-}
-
 static std::optional<std::string> rna_path_rename_fix(ID &owner_id,
                                                       const StringRef prefix,
                                                       const StringRef old_infix,
@@ -1170,13 +1159,10 @@ static std::optional<std::string> rna_path_rename_fix(ID &owner_id,
   modified_path.append(new_infix);
   modified_path.append(old_path.substr(postfix_offset));
 
-  /* Only return the modified path if it now resolves to a property. */
-  if (check_rna_path_is_valid(&owner_id, modified_path.c_str())) {
-    return modified_path;
-  }
-
-  /* The old path doesn't need to be changed. */
-  return std::nullopt;
+  /* We assume that this is the correct path without doing another call to
+   * `check_rna_path_is_valid`. If this turns out to be an issue, we have to make the check
+   * optional because versioning code may fail the check but still require the new path. */
+  return modified_path;
 }
 
 /* Fix all targets that point to the given ID. */
@@ -1199,7 +1185,7 @@ static bool driver_target_path_fix(ID &owner_id,
       continue;
     }
     MEM_delete(target->rna_path);
-    target->rna_path = string_to_heap_char_p(*fixed_path);
+    target->rna_path = BLI_sprintfN("%s", fixed_path->c_str());
     is_changed = true;
   }
 
@@ -1226,15 +1212,13 @@ static bool fcurves_path_rename_fix(ID &id,
       continue;
     }
     MEM_delete(fcu->rna_path);
-    fcu->rna_path = string_to_heap_char_p(*fixed_path);
-    ;
+    fcu->rna_path = BLI_sprintfN("%s", fixed_path->c_str());
     is_changed = true;
     PointerRNA ptr = RNA_id_pointer_create(&id);
     PointerRNA resolved_ptr;
     PropertyRNA *resolved_prop;
     if (!RNA_path_resolve(&ptr, fcu->rna_path, &resolved_ptr, &resolved_prop)) {
-      /* `rna_path_rename_fix` should only return a path if the path resolves. */
-      BLI_assert_unreachable();
+      /* This can happen in versioning code */
       continue;
     }
     /* If the path changed, make sure to update the fcurve flags to the new property type. See
@@ -1356,9 +1340,8 @@ void BKE_animdata_fix_paths(ID &id,
       continue;
     }
     MEM_delete(fcurve.rna_path);
-    fcurve.rna_path = string_to_heap_char_p(*fixed_path);
+    fcurve.rna_path = BLI_sprintfN("%s", fixed_path->c_str());
   }
-  /* TODO handle multi user cases. */
 }
 
 /* Remove FCurves with Prefix  -------------------------------------- */
