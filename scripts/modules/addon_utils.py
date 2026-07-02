@@ -423,9 +423,30 @@ def enable(module_name, *, default_set=False, persistent=False, refresh_handled=
 
         mod.__addon_enabled__ = False
         mtime_orig = getattr(mod, "__time__", 0)
+
+        # For package add-ons, check the latest mtime of any .py file
+        # in the package directory — not just __init__.py. Otherwise
+        # a change to a sub-module goes unnoticed and never reloads.
+        mod_dir = os.path.dirname(mod_file)
         mtime_new = os.path.getmtime(mod_file)
+        if os.path.basename(mod_file).startswith("__init__."):
+            try:
+                for entry in os.scandir(mod_dir):
+                    if entry.is_file() and entry.name.endswith(".py"):
+                        mtime_new = max(mtime_new, entry.stat().st_mtime)
+            except OSError:
+                pass
+
         if mtime_orig != mtime_new:
             print("module changed on disk:", repr(mod_file), "reloading...")
+
+            # Clear sub-module cache so multi-file add-ons actually
+            # reload.  Without this, ``from .submodule import ...``
+            # hits ``sys.modules`` and returns stale code.
+            prefix = module_name + "."
+            for name in list(sys.modules):
+                if name.startswith(prefix):
+                    del sys.modules[name]
 
             try:
                 importlib.reload(mod)
@@ -452,6 +473,16 @@ def enable(module_name, *, default_set=False, persistent=False, refresh_handled=
 
         # 1) try import
         try:
+            # Remove module so ``import_module`` does a full re-read
+            # from disk instead of returning the cached version.
+            # Also clear sub-modules so multi-file add-ons reload properly.
+            if module_name in sys.modules:
+                prefix = module_name + "."
+                for name in list(sys.modules):
+                    if name.startswith(prefix):
+                        del sys.modules[name]
+                del sys.modules[module_name]
+
             # Use instead of `__import__` so that sub-modules can eventually be supported.
             # This is also documented to be the preferred way to import modules.
             mod = importlib.import_module(module_name)
