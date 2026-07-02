@@ -1227,6 +1227,8 @@ def km_markers(params):
         op_panel("TOPBAR_PT_name_marker", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, [("keep_open", False)]),
         ("marker.move", {"type": 'G', "value": 'PRESS'}, None),
         ("marker.camera_bind", {"type": 'B', "value": 'PRESS', "ctrl": True}, None),
+        ("marker.clipboard_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
+        ("marker.clipboard_paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
     ])
 
     return keymap

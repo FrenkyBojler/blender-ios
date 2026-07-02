@@ -19,11 +19,17 @@
 #include "BLI_string_utf8.hh"
 #include "BLI_utildefines.hh"
 
+#include "BLI_path_utils.hh"
 #include "BLT_translation.hh"
 
+#include "BKE_appdir.hh"
+#include "BKE_blender_copybuffer.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -2127,6 +2133,232 @@ static void MARKER_OT_camera_bind(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Copy
+ * \{ */
+
+static void markers_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepath_maxncpy)
+{
+  BLI_path_join(filepath, filepath_maxncpy, BKE_tempdir_base(), "copybuffer_markers.blend");
+}
+
+static bool markers_write_copy_paste_file(Main *bmain_src,
+                                          Scene *scene_src,
+                                          const char *filepath,
+                                          ReportList &reports)
+
+{
+  using namespace bke::blendfile;
+
+  PartialWriteContext copy_buffer{*bmain_src};
+  const char *scene_name = "copybuffer_markers_scene";
+
+  /* Add a dummy empty scene to the temporary Main copy buffer. */
+  Scene *scene_dst = reinterpret_cast<Scene *>(
+      copy_buffer.id_create(ID_SCE,
+                            scene_name,
+                            nullptr,
+                            {(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+                              PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
+
+  /* Copy selected markers to dummy scene. */
+  TimeMarker *marker_new;
+  for (TimeMarker &marker : scene_src->markers) {
+    if (marker.flag & SELECT) {
+      marker_new = MEM_dupalloc(&marker);
+      marker_new->prev = marker_new->next = nullptr;
+
+      BLI_addtail(&scene_dst->markers, marker_new);
+    }
+  }
+
+  auto add_scene_ids_dependencies_cb = [&copy_buffer,
+                                        scene_dst](LibraryIDLinkCallbackData *cb_data) -> int {
+    ID *id_src = *cb_data->id_pointer;
+
+    /* Embedded or null IDs usages can be ignored here. */
+    if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
+      return IDWALK_RET_NOP;
+    }
+    if (!id_src) {
+      return IDWALK_RET_NOP;
+    }
+
+    /* Copy over the dummy scene. */
+    if (id_src == &scene_dst->id) {
+      return IDWALK_RET_NOP;
+    }
+
+    /* The only IDs here should be markers bound to camera. */
+    BLI_assert(GS(id_src->name) == ID_OB);
+
+    Object *ob_src = id_cast<Object *>(id_src);
+    BLI_assert(ob_src->type == OB_CAMERA);
+
+    *cb_data->id_pointer = copy_buffer.id_add(
+        id_src, {PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES});
+    return IDWALK_RET_NOP;
+  };
+  BKE_library_foreach_ID_link(
+      nullptr, &scene_dst->id, add_scene_ids_dependencies_cb, nullptr, IDWALK_NOP);
+
+  BLI_assert(copy_buffer.is_valid());
+
+  const bool retval = copy_buffer.write_as_copypaste_buffer(filepath, reports);
+
+  return retval;
+}
+
+wmOperatorStatus markers_clipboard_copy_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return OPERATOR_CANCELLED;
+  }
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
+
+  TimeMarker *selected = ED_markers_get_first_selected(markers);
+  if (!selected) {
+    return OPERATOR_CANCELLED;
+  }
+
+  char filepath[FILE_MAX];
+  markers_copybuffer_filepath_get(filepath, sizeof(filepath));
+  bool success = markers_write_copy_paste_file(bmain, scene, filepath, *op->reports);
+  if (!success) {
+    BKE_report(op->reports, RPT_ERROR, "Could not create the copy paste file!");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* We are all done! */
+  BKE_report(op->reports, RPT_INFO, "Copied the selected timeline markers to internal clipboard");
+  return OPERATOR_FINISHED;
+}
+
+void MARKER_OT_clipboard_copy(wmOperatorType *ot)
+{
+  ot->name = "Copy to Clipboard";
+  ot->description = "Copy the selected timeline markers to the internal clipboard";
+  ot->idname = "MARKER_OT_clipboard_copy";
+
+  ot->exec = markers_clipboard_copy_exec;
+  ot->poll = operator_markers_region_active;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Paste
+ * \{ */
+
+static StringRef scene_lib_filepath(const Scene &scene)
+{
+  if (scene.id.lib && scene.id.lib->runtime) {
+    return scene.id.lib->runtime->filepath_abs;
+  }
+  return "";
+}
+
+static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op)
+{
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene_dst = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene_dst) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (scene_dst->toolsettings->lock_markers) {
+    BKE_report(op->reports, RPT_ERROR, "Scene has locked markers");
+    return OPERATOR_CANCELLED;
+  }
+
+  char filepath[FILE_MAX];
+  markers_copybuffer_filepath_get(filepath, sizeof(filepath));
+  Main *bmain_src = BKE_main_new();
+  if (!BKE_copybuffer_read(bmain_src, filepath, op->reports, FILTER_ID_SCE)) {
+    BKE_report(op->reports, RPT_ERROR, "No data to paste");
+    BKE_main_free(bmain_src);
+    return OPERATOR_CANCELLED;
+  }
+
+  Scene *scene_src = nullptr;
+  /* Find the scene we pasted that contains the markers. It should be tagged. */
+  for (Scene &scene_iter : bmain_src->scenes) {
+    if (scene_iter.id.flag & ID_FLAG_CLIPBOARD_MARK) {
+      scene_src = &scene_iter;
+      break;
+    }
+  }
+
+  if (!scene_src) {
+    BKE_report(op->reports, RPT_ERROR, "No clipboard scene to paste timeline markers from");
+    BKE_main_free(bmain_src);
+    return OPERATOR_CANCELLED;
+  }
+
+  const int num_markers_to_paste = scene_src->markers.count();
+  if (num_markers_to_paste == 0) {
+    BKE_report(op->reports, RPT_INFO, "No timeline markers to paste");
+    BKE_main_free(bmain_src);
+    return OPERATOR_CANCELLED;
+  }
+
+  deselect_markers(&scene_dst->markers);
+
+  /* Make sure we have all data IDs we need in bmain_dst. Remap the IDs if we already have them.
+   * This has to happen BEFORE we move the markers over to scene_dst. their ID mapping will not be
+   * correct otherwise. */
+  Main *bmain_dst = CTX_data_main(C);
+  MainMergeReport merge_reports = {};
+  /* We need to ensure that the source 'clipboard marked' main Scene is always merged into
+   * destination Main, even in case there would be a name collision with an existing ID (see also
+   * #158049). */
+  Set<ID *> force_merge_ids = {id_cast<ID *>(scene_src)};
+  /* NOTE: BKE_main_merge will free bmain_src! */
+  BKE_main_merge(bmain_dst, &force_merge_ids, &bmain_src, merge_reports);
+
+  TimeMarker *marker_new;
+  for (TimeMarker &marker : scene_src->markers) {
+    marker_new = MEM_dupalloc(&marker);
+    marker_new->prev = marker_new->next = nullptr;
+
+    BLI_addtail(&scene_dst->markers, marker_new);
+  }
+
+  /* BKE_main_merge will copy the scene_src and its action into bmain_dst. Remove them as
+   * we merge the data from these manually.
+   */
+  BKE_id_delete(bmain_dst, scene_src);
+
+  DEG_relations_tag_update(bmain_dst);
+  WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
+
+  BKE_reportf(op->reports, RPT_INFO, "%d timeline markers pasted", num_markers_to_paste);
+
+  return OPERATOR_FINISHED;
+}
+
+void MARKER_OT_clipboard_paste(wmOperatorType *ot)
+{
+  ot->name = "Paste from Clipboard";
+  ot->description =
+      "Paste timeline markers from the internal clipboard to the active animation editor";
+  ot->idname = "MARKER_OT_clipboard_paste";
+
+  ot->exec = markers_clipboard_paste_exec;
+  ot->poll = operator_markers_region_active;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Registration
  * \{ */
 
@@ -2143,6 +2375,8 @@ void ED_operatortypes_marker()
   WM_operatortype_append(MARKER_OT_rename);
   WM_operatortype_append(MARKER_OT_make_links_scene);
   WM_operatortype_append(MARKER_OT_camera_bind);
+  WM_operatortype_append(MARKER_OT_clipboard_copy);
+  WM_operatortype_append(MARKER_OT_clipboard_paste);
 }
 
 void ED_keymap_marker(wmKeyConfig *keyconf)

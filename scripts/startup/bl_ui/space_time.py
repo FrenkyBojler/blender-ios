@@ -196,6 +196,11 @@ def marker_menu_generic(layout, context):
 
     layout.separator()
 
+    layout.operator("marker.clipboard_copy")
+    layout.operator("marker.clipboard_paste")
+
+    layout.separator()
+
     layout.operator("marker.delete", text="Delete Marker")
 
     if len(bpy.data.scenes) > 10:
