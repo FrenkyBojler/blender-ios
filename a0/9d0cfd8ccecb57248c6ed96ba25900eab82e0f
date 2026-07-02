@@ -9,4 +9,4 @@ Referenced by commit 6058dbe4be514b19f24aa9206cebf6621d17cd10, Fix #150131: Sele
 Referenced by pull request #151128, Fix #150131: Selection state of edit bone root/tip not preserved
 Referenced by pull request #157039, Fix #156995: Pose library applies to bones hidden by collection
 Referenced by commit d004adafc2e7324b0eaccbde17bb4de08b1b202a, Fix #156995: Pose library applies to bones hidden by collection
-Referenced by issue #160955, Hollow dot indicators (○) in Bone Collections disappear in Edit Mode and the hidden state erroneously propagates back to Pose Mode
+Referenced by issue #160955, Blender 5.0+ Hollow dot indicators (○) in Bone Collections do not behave properly
