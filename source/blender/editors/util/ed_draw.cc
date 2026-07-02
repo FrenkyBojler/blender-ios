@@ -1306,7 +1306,7 @@ void ED_draw_fulldome_composition_guides(uint shdr_pos,
 
     imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
                                            center.x,
-                                           center.y + (center.y * 0.26),
+                                           center.y + (radius.y * 0.26),
                                            radius.x * .97,
                                            radius.y * 1.1,
                                            100,
