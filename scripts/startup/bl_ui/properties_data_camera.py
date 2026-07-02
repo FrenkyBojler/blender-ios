@@ -487,83 +487,71 @@ class DATA_PT_camera_display_composition_guides(CameraButtonsPanel, Panel):
             is_fisheye = camera.type == "PANO" and (
                 camera.panorama_type == "FISHEYE_EQUISOLID" or camera.panorama_type == "FISHEYE_EQUIDISTANT")
 
-        if compact:
-            layout.prop(camera, "show_composition_thirds")
-            col = layout.column(heading="Center", align=True)
-            col.prop(camera, "show_composition_center")
-            col.prop(camera, "show_composition_center_diagonal", text="Diagonal")
+        layout.prop(camera, "show_composition_thirds")
+        col = layout.column(heading="Center", align=True)
+        col.prop(camera, "show_composition_center")
+        col.prop(camera, "show_composition_center_diagonal", text="Diagonal")
 
-            col = layout.column(heading="Golden", align=True)
-            col.prop(camera, "show_composition_golden", text="Ratio")
-            col.prop(camera, "show_composition_golden_tria_a", text="Triangle A")
-            col.prop(camera, "show_composition_golden_tria_b", text="Triangle B")
+        col = layout.column(heading="Golden", align=True)
+        col.prop(camera, "show_composition_golden", text="Ratio")
+        col.prop(camera, "show_composition_golden_tria_a", text="Triangle A")
+        col.prop(camera, "show_composition_golden_tria_b", text="Triangle B")
 
-            col = layout.column(heading="Harmony", align=True)
-            col.prop(camera, "show_composition_harmony_tri_a", text="Triangle A")
-            col.prop(camera, "show_composition_harmony_tri_b", text="Triangle B")
+        col = layout.column(heading="Harmony", align=True)
+        col.prop(camera, "show_composition_harmony_tri_a", text="Triangle A")
+        col.prop(camera, "show_composition_harmony_tri_b", text="Triangle B")
 
-        if compact or is_fisheye:
+        box = layout.panel("fulldome_composition_guides_panel", default_closed=True)
+        box[0].label(text="Fulldome Guides")
 
-            container = None
+        if box[1]:
+            box[1].prop(camera, "show_composition_fulldome_directions", text="Directions")
+            box[1].prop(camera, "show_composition_fulldome_grid", text="Grid")
 
-            if is_fisheye:
-                container = layout
-            else:
-                box = layout.panel("dome_master_composition_guides_panel")
-                box[0].label(text="Dome Master Guides")
+            panel_col = box[1].column(align=True)
+            row = panel_col.row()
+            row.alignment = "RIGHT"
+            row.label(text="Unidirectional")
+            row.separator()
 
-                if box[1] is not None:
-                    container = box[1]
+            panel_col = box[1].column(heading="Frontseat", align=True)
+            panel_col.prop(camera, "show_composition_fulldome_unidirectional_safearea_front", text="Safe Area")
+            panel_col.prop(camera, "show_composition_fulldome_unidirectional_sweetspot_front", text="Sweetspot")
+            panel_col.prop(camera, "show_composition_fulldome_unidirectional_zenit_front", text="Zenit")
 
-            if container is not None:
+            panel_col = box[1].column(heading="Centerseat", align=True)
+            panel_col.prop(
+                camera,
+                "show_composition_fulldome_unidirectional_safearea_center",
+                text="Safe Area")
+            panel_col.prop(
+                camera,
+                "show_composition_fulldome_unidirectional_sweetspot_center",
+                text="Sweetspot")
+            panel_col.prop(
+                camera,
+                "show_composition_fulldome_unidirectional_zenit_center",
+                text="Zenit")
 
-                container.prop(camera, "show_composition_dome_master_directions", text="Directions")
-                container.prop(camera, "show_composition_dome_master_grid", text="Grid")
+            panel_col = box[1].column(heading="Backseat", align=True)
+            panel_col.prop(
+                camera,
+                "show_composition_fulldome_unidirectional_safearea_back",
+                text="Safe Area")
+            panel_col.prop(
+                camera,
+                "show_composition_fulldome_unidirectional_sweetspot_back",
+                text="Sweetspot")
+            panel_col.prop(
+                camera,
+                "show_composition_fulldome_unidirectional_zenit_back",
+                text="Zenit")
 
-                panel_col = container.column(align=True)
-                row = panel_col.row()
-                row.alignment = "RIGHT"
-                row.label(text="Unidirectional")
-                row.separator()
-
-                panel_col = container.column(heading="Frontseat", align=True)
-                panel_col.prop(camera, "show_composition_dome_master_unidirectional_safearea_front", text="Safe Area")
-                panel_col.prop(camera, "show_composition_dome_master_unidirectional_sweetspot_front", text="Sweetspot")
-                panel_col.prop(camera, "show_composition_dome_master_unidirectional_zenit_front", text="Zenit")
-
-                panel_col = container.column(heading="Centerseat", align=True)
-                panel_col.prop(
-                    camera,
-                    "show_composition_dome_master_unidirectional_safearea_center",
-                    text="Safe Area")
-                panel_col.prop(
-                    camera,
-                    "show_composition_dome_master_unidirectional_sweetspot_center",
-                    text="Sweetspot")
-                panel_col.prop(
-                    camera,
-                    "show_composition_dome_master_unidirectional_zenit_center",
-                    text="Zenit")
-
-                panel_col = container.column(heading="Backseat", align=True)
-                panel_col.prop(
-                    camera,
-                    "show_composition_dome_master_unidirectional_safearea_back",
-                    text="Safe Area")
-                panel_col.prop(
-                    camera,
-                    "show_composition_dome_master_unidirectional_sweetspot_back",
-                    text="Sweetspot")
-                panel_col.prop(
-                    camera,
-                    "show_composition_dome_master_unidirectional_zenit_back",
-                    text="Zenit")
-
-                panel_col = container.column(heading="Horizon", align=True)
-                panel_col.prop(
-                    camera,
-                    "show_composition_dome_master_unidirectional_safearea_horizon",
-                    text="Horizon Safe Area")
+            panel_col = box[1].column(heading="Horizon", align=True)
+            panel_col.prop(
+                camera,
+                "show_composition_fulldome_unidirectional_safearea_horizon",
+                text="Horizon Safe Area")
 
         col = layout.column()
         col.prop(camera, "composition_guide_color", text="Color")

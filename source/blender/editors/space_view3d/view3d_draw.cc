@@ -591,10 +591,10 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
     if (ca->type == CAM_PANO && (ca->panorama_type == CAM_PANORAMA_FISHEYE_EQUISOLID ||
                                  ca->panorama_type == CAM_PANORAMA_FISHEYE_EQUIDISTANT))
     {
-      ED_draw_dome_master_composition_guides(shdr_pos,
-                                             ca->composition_guide_flags_dome_master,
-                                             &viewborder,
-                                             ca->composition_guide_color);
+      ED_draw_fulldome_composition_guides(shdr_pos,
+                                          ca->composition_guide_flags_fulldome,
+                                          &viewborder,
+                                          ca->composition_guide_color);
     }
     else {
       ED_draw_composition_guides(

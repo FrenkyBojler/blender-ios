@@ -1257,10 +1257,10 @@ void ED_draw_composition_guides(uint shdr_pos,
   }
 }
 
-void ED_draw_dome_master_composition_guides(uint shdr_pos,
-                                            eCompositionGuideFlagsDomeMaster flag,
-                                            const rctf *rect,
-                                            const float color[4])
+void ED_draw_fulldome_composition_guides(uint shdr_pos,
+                                         eCompositionGuideFlagsFulldome flag,
+                                         const rctf *rect,
+                                         const float color[4])
 {
 
   immUniformColor4fv(color);
@@ -1281,23 +1281,23 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
   const float radius_x_step = radius_x / rings;
   const float radius_y_step = radius_y / rings;
   float bullet_size = radius_y > radius_x ? radius_y * 0.08 : radius_x * 0.08;
-  if (flag != eCompositionGuideFlagsDomeMaster{}) {
+  if (flag != eCompositionGuideFlagsFulldome{}) {
     imm_draw_circle_wire_aspect_2d(shdr_pos, xmid, ymid, radius_x, radius_y, 365);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_FRONT)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_ZENIT_FRONT)) {
     imm_draw_cross_2d(shdr_pos, xmid, ymid - (radius_y * .112), bullet_size, bullet_size);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_CENTER)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_ZENIT_CENTER)) {
     imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .052), bullet_size, bullet_size);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_ZENIT_BACK)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_ZENIT_BACK)) {
     imm_draw_cross_2d(shdr_pos, xmid, ymid + (radius_y * .442), bullet_size, bullet_size);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_HORIZON)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SAFEAREA_HORIZON)) {
 
     imm_draw_circle_partial_aspect_wire_2d(shdr_pos,
                                            xmid,
@@ -1318,7 +1318,7 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
                                            178.26);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_BACK)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SAFEAREA_BACK)) {
 
     float r = -5.0f;
     Vector<float2> points = ED_calculate_radial_points(
@@ -1327,7 +1327,7 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
     imm_draw_quadratic_curve(shdr_pos, 100, points[0], points[1], points[2]);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_FRONT)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SAFEAREA_FRONT)) {
 
     Vector<float2> points = ED_calculate_radial_points(
         center, radius, Vector<float2>{{-40.0f, 0.0f}, {-25.0f, 38.f}, {-90.0f, 68.0f}});
@@ -1340,19 +1340,19 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
     imm_draw_quadratic_curve(shdr_pos, 50, points[0], points[1], points[2]);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_FRONT)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SWEETSPOT_FRONT)) {
     imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .73), bullet_size, 32);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_CENTER)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SWEETSPOT_CENTER)) {
     imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .54), bullet_size, 32);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SWEETSPOT_BACK)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SWEETSPOT_BACK)) {
     imm_draw_circle_wire_2d(shdr_pos, xmid, ymid - (radius_y * .43), bullet_size, 32);
   }
 
-  if ((flag & COMPOSITION_GUIDES_DOME_MASTER_UNIDIRECTIONAL_SAFEAREA_CENTER)) {
+  if ((flag & COMPOSITION_GUIDES_fulldome_UNIDIRECTIONAL_SAFEAREA_CENTER)) {
 
     float r = 19.8f;
     Vector<float2> points = ED_calculate_radial_points(
@@ -1361,7 +1361,7 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
     imm_draw_quadratic_curve(shdr_pos, 100, points[0], points[1], points[2]);
   }
 
-  if (flag & COMPOSITION_GUIDES_DOME_MASTER_GRID) {
+  if (flag & COMPOSITION_GUIDES_fulldome_GRID) {
     float current_radius_x, current_radius_y;
 
     for (int i = 1; i < rings; i++) {
@@ -1394,14 +1394,18 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
     immEnd();
   }
 
-  if (flag & COMPOSITION_GUIDES_DOME_MASTER_DIRECTIONS) {
+  if (flag & COMPOSITION_GUIDES_fulldome_DIRECTIONS) {
 
     const uiStyle *style = ui::style_get();
     const uiFontStyle *fstyle = &style->widget;
     const int fontid = fstyle->uifont_id;
-    constexpr float direction_offset = -10.0f;
-    constexpr float big_font = 12.0f;
-    constexpr float small_font = 8.0f;
+
+    float scaler = radius_x > radius_y ? radius_x : radius_y;
+    float scale = scaler / 250;
+
+    constexpr float direction_offset = -5.0f;
+    float big_font = 12.0f * scale;
+    float small_font = 8.0f * scale;
 
     struct cDir {
       float angle;
@@ -1417,6 +1421,7 @@ void ED_draw_dome_master_composition_guides(uint shdr_pos,
                           {180, "W", big_font},
                           {225, "S/W", small_font},
                           {270, "S", big_font},
+                          {270, "Front", big_font, direction_offset * 2},
                           {315, "S/W", small_font}};
 
     for (int i = 0; i < cDirs.size(); i++) {
