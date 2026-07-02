@@ -179,10 +179,10 @@ static void build_relax_phases(int num_verts, bool is_closed, Vector<RelaxPhase>
     const int point_start = !extend && j == 1 ? 2 : 1;
 
     if (extend) {
-      int old_last = vert_indices.last();
-      int old_first = vert_indices.first();
-      vert_indices.insert(0, old_last);
-      vert_indices.append(old_first);
+      const int last_vert = vert_indices.last();
+      const int first_vert = vert_indices.first();
+      vert_indices.insert(0, last_vert);
+      vert_indices.append(first_vert);
     }
 
     RelaxPhase phase;
@@ -190,7 +190,7 @@ static void build_relax_phases(int num_verts, bool is_closed, Vector<RelaxPhase>
       phase.knot_indices.append(vert_indices[i]);
     }
     for (int i = point_start; i < vert_indices.size(); i += 2) {
-      int val = vert_indices[i];
+      const int val = vert_indices[i];
       if (phase.point_indices.is_empty() || val != phase.point_indices.first()) {
         phase.point_indices.append(val);
       }
