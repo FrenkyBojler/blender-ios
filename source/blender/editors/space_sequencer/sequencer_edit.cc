@@ -2233,10 +2233,10 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
           (strip->left_handle() > rect_frames[0]))
       {
         if (ignore_connections) {
-          seq::query_strip_effect_chain(strip, &ed->seqbase, to_offset);
+          seq::query_strip_effect_chain(strip, ed, to_offset);
         }
         else {
-          seq::query_strip_connected_and_effect_chain(strip, &ed->seqbase, to_offset);
+          seq::query_strip_connected_and_effect_chain(strip, ed, to_offset);
         }
       }
     }
@@ -2890,8 +2890,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
    * Strip is moved within the same edit, no need to re-generate the UID. */
   VectorSet<Strip *> strips_to_move;
   strips_to_move.add_multiple(selected);
-  seq::iterator_set_expand(
-      active_seqbase, strips_to_move, seq::query_strip_connected_and_effect_chain);
+  seq::iterator_set_expand(ed, strips_to_move, seq::query_strip_connected_and_effect_chain);
 
   for (Strip *strip : strips_to_move) {
     seq::relations_invalidate_cache(scene, strip);
@@ -4218,6 +4217,27 @@ static wmOperatorStatus sequencer_strip_color_tag_set_exec(bContext *C, wmOperat
   return OPERATOR_FINISHED;
 }
 
+static std::string sequencer_strip_color_tag_set_get_name(wmOperatorType *ot,
+                                                          PointerRNA *properties)
+{
+  const int color = RNA_enum_get(properties, "color");
+  if (color == STRIP_COLOR_NONE) {
+    return TIP_("Remove Color Tag");
+  }
+  return CTX_IFACE_(ot->translation_context, ot->name);
+}
+
+static std::string sequencer_strip_color_tag_set_get_description(bContext * /*C*/,
+                                                                 wmOperatorType *ot,
+                                                                 PointerRNA *properties)
+{
+  const int color = RNA_enum_get(properties, "color");
+  if (color == STRIP_COLOR_NONE) {
+    return TIP_("Remove color tag from the selected strips");
+  }
+  return ot->description ? CTX_IFACE_(ot->translation_context, ot->description) : "";
+}
+
 void SEQUENCER_OT_strip_color_tag_set(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -4228,6 +4248,8 @@ void SEQUENCER_OT_strip_color_tag_set(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = sequencer_strip_color_tag_set_exec;
   ot->poll = sequencer_edit_poll;
+  ot->get_name = sequencer_strip_color_tag_set_get_name;
+  ot->get_description = sequencer_strip_color_tag_set_get_description;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
