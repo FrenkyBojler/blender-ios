@@ -1064,6 +1064,7 @@ void StripExporter::export_with_missing_reference(
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, missing_reference, strip_source_range));
+  clip->set_enabled(!(strip_->flag & SEQ_MUTE));
 
   add_strip_metadata(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
@@ -1088,6 +1089,7 @@ void MovieStripExporter::export_strip(
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, external_reference, strip_source_range));
+  clip->set_enabled(!(strip_->flag & SEQ_MUTE));
 
   add_strip_metadata(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
@@ -1110,6 +1112,7 @@ void SoundStripExporter::export_strip(
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, external_reference, strip_source_range));
+  clip->set_enabled(!(strip_->flag & SEQ_MUTE));
 
   add_strip_metadata(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
@@ -1133,6 +1136,7 @@ void ImageStripExporter::export_strip(
 
     auto clip = otio::SerializableObject::Retainer<otio::Clip>(
         new Clip(strip_->name + 2, external_reference, strip_source_range));
+    clip->set_enabled(!(strip_->flag & SEQ_MUTE));
 
     add_strip_metadata(strip_, clip);
     attach_foreign_metadata_strip(strip_, clip);
@@ -1256,6 +1260,7 @@ void ImageStripExporter::export_strip(
 
     auto clip = SerializableObject::Retainer<Clip>(
         new Clip(strip_->name + 2, img_seq_ref, source_range));
+    clip->set_enabled(!(strip_->flag & SEQ_MUTE));
 
     add_strip_metadata(strip_, clip);
     attach_foreign_metadata_strip(strip_, clip);
@@ -1342,6 +1347,7 @@ void GeneratorStripExporter::export_strip(
 
   auto clip = otio::SerializableObject::Retainer<otio::Clip>(
       new Clip(strip_->name + 2, generator_reference, strip_source_range));
+  clip->set_enabled(!(strip_->flag & SEQ_MUTE));
 
   add_strip_metadata(strip_, clip);
   attach_foreign_metadata_strip(strip_, clip);
