@@ -442,8 +442,7 @@ class NodeTreeMainUpdater {
             ModifierData *md = pair.second;
 
             if (md->type == eModifierType_Nodes) {
-              MOD_nodes_update_interface(
-                  *bmain_, object, reinterpret_cast<NodesModifierData *>(md));
+              MOD_nodes_update_interface(object, reinterpret_cast<NodesModifierData *>(md));
             }
           }
         }
@@ -455,7 +454,7 @@ class NodeTreeMainUpdater {
 
             if (md->type == eSeqModifierType_Compositor) {
               seq::compositor_nodes_update_interface(
-                  *bmain_, *scene, *reinterpret_cast<SequencerCompositorModifierData *>(md));
+                  *scene, *reinterpret_cast<SequencerCompositorModifierData *>(md));
             }
           }
         }

@@ -664,7 +664,6 @@ void RNA_def_property_pointer_funcs_runtime(PropertyRNA *prop,
                                             PointerPropertyGetFunc getfunc,
                                             PointerPropertySetFunc setfunc,
                                             PointerPropertyTypeFunc typefunc);
-void RNA_def_property_pointer_default_runtime(PropertyRNA *prop, uint32_t id_session_uid);
 
 void RNA_def_property_translation_context(PropertyRNA *prop, const char *context);
 

@@ -613,7 +613,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
                               PropertyRNA *prop,
                               PointerRNA ptr_value,
                               ReportList *reports) ATTR_NONNULL(1, 2);
-PointerRNA RNA_property_pointer_get_default(Main &bmain, PointerRNA &ptr, PropertyRNA &prop);
+PointerRNA RNA_property_pointer_get_default(PointerRNA *ptr, PropertyRNA *prop) ATTR_NONNULL(1, 2);
 
 void RNA_property_collection_begin(PointerRNA *ptr,
                                    PropertyRNA *prop,
@@ -683,12 +683,12 @@ RawPropertyType RNA_property_raw_type(PropertyRNA *prop);
  * Update the system properties (IDProperties) for a specific RNA type, converting so that
  * properties match the current RNA definition.
  */
-void RNA_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprops);
+void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
 /**
  * Similar to #RNA_ensure_and_sync_system_properties, but also creates backing properties for data
  * that is un-set, rather than just correcting the values of out-of-sync properties.
  */
-void RNA_ensure_and_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprops);
+void RNA_ensure_and_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
 
 /* to create ID property groups */
 void RNA_property_pointer_add(PointerRNA *ptr, PropertyRNA *prop);
