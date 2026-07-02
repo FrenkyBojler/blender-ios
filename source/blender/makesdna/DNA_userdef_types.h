@@ -1244,6 +1244,7 @@ struct UserDef {
   short pie_menu_threshold = 12;
 
   eUserpref_SeqEditorFlags sequencer_editor_flag = USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT;
+  int sequencer_default_strip_len = 25;
 
   eUserpref_FactorDisplay factor_display_type = USER_FACTOR_AS_FACTOR;
 
@@ -1252,7 +1253,7 @@ struct UserDef {
   eUserpref_RenderDisplayType render_display_type = USER_RENDER_DISPLAY_WINDOW;
   eUserpref_TempSpaceDisplayType filebrowser_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
   eUserpref_TempSpaceDisplayType preferences_display_type = USER_TEMP_SPACE_DISPLAY_WINDOW;
-  char _pad18[7] = {};
+  char _pad18[3] = {};
 
   eUserpref_SeqProxySetup sequencer_proxy_setup = USER_SEQ_PROXY_SETUP_AUTOMATIC;
   short _pad1 = {};

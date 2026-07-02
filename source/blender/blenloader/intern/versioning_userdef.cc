@@ -1780,6 +1780,10 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->asset_flag |= USER_ASSETS_USE_ONLINE_ESSENTIALS;
   }
 
+  if (!USER_VERSION_ATLEAST(503, 5)) {
+    userdef->sequencer_default_strip_len = 25;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

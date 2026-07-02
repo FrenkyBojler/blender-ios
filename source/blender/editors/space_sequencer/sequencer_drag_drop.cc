@@ -667,7 +667,7 @@ static void image_drop_on_enter(wmDropBox *drop, wmDrag * /*drag*/)
   }
 
   SeqDropCoords *coords = static_cast<SeqDropCoords *>(drop->draw_data);
-  coords->strip_length = DEFAULT_IMG_STRIP_LENGTH;
+  coords->strip_length = U.sequencer_default_strip_len;
   coords->num_channels = 1;
 }
 
