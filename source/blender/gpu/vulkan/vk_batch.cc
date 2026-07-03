@@ -31,6 +31,21 @@ void VKBatch::ensure_data_uploaded() const
   }
 }
 
+void VKBatch::update_pipeline_data(VKContext &context,
+                                   render_graph::VKVertexBufferBindings &r_vertex_buffer_bindings,
+                                   render_graph::VKPipelineDataGraphics &r_graphics)
+{
+  std::lock_guard lock(vao_mutex_);
+  if ((flag & GPU_BATCH_DIRTY) || last_shader_interface_ != context.shader->interface) {
+    vertex_attribute_object_.update_bindings(context, *this);
+    last_shader_interface_ = context.shader->interface;
+    flag &= ~GPU_BATCH_DIRTY;
+  }
+  vertex_attribute_object_.bind(r_vertex_buffer_bindings);
+  VKFrameBuffer &framebuffer = *context.active_framebuffer_get();
+  context.update_pipeline_data(framebuffer, prim_type, vertex_attribute_object_, r_graphics);
+}
+
 void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int instance_count)
 {
   ensure_data_uploaded();
@@ -38,9 +53,6 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
   VKContext &context = *VKContext::get();
   render_graph::VKRenderGraph &graph = context.render_graph();
   render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
-
-  VKVertexAttributeObject vao;
-  vao.update_bindings(context, *this);
 
   VKIndexBuffer *index_buffer = index_buffer_get();
   const bool draw_indexed = index_buffer != nullptr;
@@ -59,8 +71,8 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
 
     node.data.index_buffer.buffer = index_buffer->resource();
     node.data.index_buffer.index_type = index_buffer->vk_index_type();
-    vao.bind(node.data.vertex_buffers);
-    context.update_pipeline_data(framebuffer, prim_type, vao, node.data.graphics);
+
+    update_pipeline_data(context, node.data.vertex_buffers, node.data.graphics);
 
     render_graph::VKDrawIndexedNode::CreateInfo create_info(resource_access_info);
     node.finalize(graph, create_info);
@@ -73,8 +85,7 @@ void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int i
     node.data.first_vertex = vertex_first;
     node.data.first_instance = instance_first;
 
-    vao.bind(node.data.vertex_buffers);
-    context.update_pipeline_data(framebuffer, prim_type, vao, node.data.graphics);
+    update_pipeline_data(context, node.data.vertex_buffers, node.data.graphics);
 
     render_graph::VKDrawNode::CreateInfo create_info(resource_access_info);
     node.finalize(graph, create_info);
@@ -106,9 +117,6 @@ void VKBatch::multi_draw_indirect(const VKStorageBuffer &indirect_buffer,
   render_graph::VKRenderGraph &graph = context.render_graph();
   render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
 
-  VKVertexAttributeObject vao;
-  vao.update_bindings(context, *this);
-
   VKIndexBuffer *index_buffer = index_buffer_get();
   const bool draw_indexed = index_buffer != nullptr;
 
@@ -125,8 +133,8 @@ void VKBatch::multi_draw_indirect(const VKStorageBuffer &indirect_buffer,
 
     node.data.index_buffer.buffer = index_buffer->resource();
     node.data.index_buffer.index_type = index_buffer->vk_index_type();
-    vao.bind(node.data.vertex_buffers);
-    context.update_pipeline_data(framebuffer, prim_type, vao, node.data.graphics);
+
+    update_pipeline_data(context, node.data.vertex_buffers, node.data.graphics);
 
     render_graph::VKDrawIndexedIndirectNode::CreateInfo create_info(resource_access_info);
     node.finalize(graph, create_info);
@@ -139,8 +147,7 @@ void VKBatch::multi_draw_indirect(const VKStorageBuffer &indirect_buffer,
     node.data.draw_count = count;
     node.data.stride = stride;
 
-    vao.bind(node.data.vertex_buffers);
-    context.update_pipeline_data(framebuffer, prim_type, vao, node.data.graphics);
+    update_pipeline_data(context, node.data.vertex_buffers, node.data.graphics);
 
     render_graph::VKDrawIndirectNode::CreateInfo create_info(resource_access_info);
     node.finalize(graph, create_info);

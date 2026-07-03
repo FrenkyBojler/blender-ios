@@ -10,12 +10,30 @@
 
 #include "vk_index_buffer.hh"
 #include "vk_storage_buffer.hh"
+#include "vk_vertex_attribute_object.hh"
 #include "vk_vertex_buffer.hh"
 
+#include "BLI_mutex.hh"
 #include "GPU_batch.hh"
 
 namespace blender::gpu {
+
+class ShaderInterface;
+
 class VKBatch : public Batch {
+ private:
+  VKVertexAttributeObject vertex_attribute_object_;
+  const ShaderInterface *last_shader_interface_ = nullptr;
+  Mutex vao_mutex_;
+
+  /**
+   * Ensure that the cached vertex attribute object is up to date for the current
+   * shader, then binds its vertex buffers and updates pipeline data.
+   */
+  void update_pipeline_data(VKContext &context,
+                            render_graph::VKVertexBufferBindings &r_vertex_buffer_bindings,
+                            render_graph::VKPipelineDataGraphics &r_graphics);
+
  public:
   void draw(int vertex_first, int vertex_count, int instance_first, int instance_count) override;
   void draw_indirect(StorageBuf *indirect_buf, intptr_t offset) override;

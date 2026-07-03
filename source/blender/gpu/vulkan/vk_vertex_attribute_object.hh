@@ -33,7 +33,7 @@ class VKVertexAttributeObject {
   /* Used for batches. */
   Vector<VKVertexBuffer *> vbos;
   /* Used for immediate mode. */
-  Vector<VKBufferWithOffset> buffers;
+  Vector<VKBufferWithOffset, 16> buffers;
 
   VKVertexAttributeObject();
   void clear();

@@ -26,8 +26,8 @@ namespace blender::gpu {
  * \note Building descriptions are done in #VKVertexAttributeObject.
  */
 struct VKVertexInputDescription {
-  Vector<VkVertexInputBindingDescription2EXT> bindings;
-  Vector<VkVertexInputAttributeDescription2EXT> attributes;
+  Vector<VkVertexInputBindingDescription2EXT, 16> bindings;
+  Vector<VkVertexInputAttributeDescription2EXT, 16> attributes;
 
   VKVertexInputDescription() = default;
 
