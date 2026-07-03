@@ -590,8 +590,19 @@ class USERPREF_PT_edit_sequence_editor(EditingPanel, CenterAlignMixIn, Panel):
         edit = prefs.edit
 
         layout.prop(edit, "connect_strips_by_default")
-        layout.prop(edit, "default_strip_len")
-
+        
+        # Default Strip Length        
+        sub = layout.column(align=True)
+        
+        split = sub.split(factor=0.4, align=False)
+        split.alignment = 'RIGHT'
+        split.label(text="Default Strip Length")
+        
+        row = split.row(align=True)
+        row.use_property_split = False
+        
+        from bpy.utils import smpte_from_frame
+        row.prop(edit, "default_strip_len", text=smpte_from_frame(edit.default_strip_len))
 
 class USERPREF_PT_edit_misc(EditingPanel, CenterAlignMixIn, Panel):
     bl_label = "Miscellaneous"

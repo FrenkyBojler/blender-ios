@@ -1244,7 +1244,7 @@ struct UserDef {
   short pie_menu_threshold = 12;
 
   eUserpref_SeqEditorFlags sequencer_editor_flag = USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT;
-  int sequencer_default_strip_len = 25;
+  int sequencer_default_strip_len = 24;
 
   eUserpref_FactorDisplay factor_display_type = USER_FACTOR_AS_FACTOR;
 
