@@ -524,8 +524,6 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
   float *ibuf_float_data = ibuf->float_data_for_write();
   uchar *texibuf_byte_data = texibuf->byte_data_for_write();
   float *texibuf_float_data = texibuf->float_data_for_write();
-  const uchar *oldtexibuf_byte_data = oldtexibuf->byte_data();
-  const float *oldtexibuf_float_data = oldtexibuf->float_data();
   for (y = origy; y < h; y++) {
     for (x = origx; x < w; x++) {
       /* sample texture and multiply with brush color */
@@ -558,7 +556,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
 
         /* read from old texture buffer */
         if (use_texture_old) {
-          const float *otf = oldtexibuf_float_data +
+          const float *otf = oldtexibuf->float_data() +
                              ((y - origy + yt) * oldtexibuf->x + (x - origx + xt)) * 4;
           copy_v4_v4(rgba, otf);
         }
@@ -579,7 +577,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
 
         /* read from old texture buffer */
         if (use_texture_old) {
-          const uchar *ot = oldtexibuf_byte_data +
+          const uchar *ot = oldtexibuf->byte_data() +
                             ((y - origy + yt) * oldtexibuf->x + (x - origx + xt)) * 4;
           crgba[0] = ot[0];
           crgba[1] = ot[1];
