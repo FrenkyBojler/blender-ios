@@ -7,9 +7,9 @@
  */
 
 #include "BLI_colorspace.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 
 #include "CLG_log.h"
 
@@ -241,6 +241,10 @@ std::string GPU_shader_preprocess_source(StringRefNull original,
 
   for (auto builtin : metadata.builtins) {
     info.builtins(gpu::shader::convert_builtin_bit(builtin));
+  }
+  /* WORKAROUND: We have an extra check in place on Metal for clip distances (see #160847). */
+  if (bool(info.builtins_ & shader::BuiltinBits::CLIP_DISTANCES)) {
+    info.define("USE_WORLD_CLIP_PLANES");
   }
   return processed_str;
 };

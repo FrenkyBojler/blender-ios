@@ -15,15 +15,15 @@
 
 #include "BLI_array.hh"
 #include "BLI_disjoint_set.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_stack.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
@@ -781,7 +781,10 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     }
 
     if (reroute_type == nullptr) {
-      continue;
+      const int root_node_index = reroute_nodes[reroute_root_i];
+      const bNode &root_reroute = *all_nodes[root_node_index];
+      const bNodeSocket *root_socket = static_cast<const bNodeSocket *>(root_reroute.inputs.first);
+      reroute_type = root_socket->typeinfo;
     }
 
     const int reroute_index = reroute_nodes[reroute_i];

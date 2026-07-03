@@ -20,17 +20,17 @@
 #include "BKE_screen.hh"
 
 #include "BLI_array_utils.hh"
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_bounds.hh"
 #include "BLI_color_types.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.hh"
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
@@ -2054,8 +2054,8 @@ static bool remove_points_and_split_from_drawings(
     if (Drawing *drawing = get_current_drawing_or_duplicate_for_autokey(
             scene, grease_pencil, info.layer_index))
     {
-      drawing->strokes_for_write() = geometry::remove_points_and_split(drawing->strokes(),
-                                                                       points_to_remove);
+      drawing->strokes_for_write() = geometry::grease_pencil_remove_points_and_split(
+          drawing->strokes(), points_to_remove);
       drawing->tag_topology_changed();
       changed = true;
     }

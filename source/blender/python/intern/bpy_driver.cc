@@ -14,10 +14,10 @@
 
 #include "DNA_anim_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_fcurve_driver.h"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
