@@ -1,2 +1,3 @@
 Referenced by issue #161049, Vulkan assertion failure when closing/hiding the splash screen
 Referenced by pull request #161052, Fix #161049: Vulkan assertion failure when closing/hiding the splash screen
+Referenced by commit 60a476b09ff45865b6cea339a0b8b5477ee29284, Revert "Vulkan: Cache latest used access info"
