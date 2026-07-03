@@ -178,6 +178,7 @@ class VKDescriptorSetTracker {
   VkDescriptorSetLayout vk_descriptor_set_layout_ = VK_NULL_HANDLE;
 
   /** Cache for resource access info, to avoid re-iterating all bindings when nothing changed. */
+  VKStateManager *cached_access_info_state_manager = nullptr;
   uint64_t cached_access_info_generation_ = UINT64_MAX;
   const VKShaderInterface *cached_access_info_shader_interface_ = nullptr;
   Vector<render_graph::VKBufferAccess> cached_access_info_buffers_;

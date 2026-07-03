@@ -42,7 +42,8 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
 
   /* Reuse cached resource access info when bindings and shader haven't changed. */
   const VKShaderInterface &shader_interface = shader.interface_get();
-  if (state_manager.bindings_generation == cached_access_info_generation_ &&
+  if (cached_access_info_state_manager == &state_manager &&
+      state_manager.bindings_generation == cached_access_info_generation_ &&
       &shader_interface == cached_access_info_shader_interface_)
   {
     access_info.buffers.extend(cached_access_info_buffers_);
@@ -50,6 +51,7 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
   }
   else {
     update_resource_access_info(context, access_info, push_constants_buffer);
+    cached_access_info_state_manager = &state_manager;
     cached_access_info_generation_ = state_manager.bindings_generation;
     cached_access_info_shader_interface_ = &shader_interface;
     cached_access_info_buffers_.clear();
