@@ -1,1 +1,2 @@
 Referenced by pull request #161005, Cleanup: return 0 instead of implictly-casted false
+Referenced by commit 6249640bb272c64b93099d3605d4b432276a2048, Cleanup: return 0 instead of implictly-casted false
