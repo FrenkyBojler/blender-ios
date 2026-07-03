@@ -147,6 +147,14 @@ struct wmXrRuntimeData {
   /* XR-specific Blender context. */
   bContext *b_context;
 
+  /* Desktop window that XR session was started from. */
+  wmWindow *session_root_win;
+  /* Virtual offscreen window that owns XR interaction state. */
+  wmWindow *session_win;
+  /* Dedicated XR temp screen/layout owned by the virtual window. */
+  bScreen *offscreen_screen;
+  WorkSpaceLayout *offscreen_layout;
+
   /* Owning pointer to the XR offscreen area. Must be freed on XR session exit. */
   ScrArea *offscreen_area;
   bool offscreen_area_initialized;

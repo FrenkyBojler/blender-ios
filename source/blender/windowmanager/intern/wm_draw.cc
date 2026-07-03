@@ -1666,6 +1666,9 @@ void wm_draw_update(bContext *C)
 #endif
 
   for (wmWindow &win : wm->windows) {
+    if (win.runtime == nullptr || win.runtime->is_virtual || win.runtime->ghostwin == nullptr) {
+      continue;
+    }
 #ifdef WIN32
     const GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win.runtime->ghostwin);
     const GHOST_TWindowState state = ghost_window->getState();
@@ -1706,7 +1709,7 @@ void wm_draw_update(bContext *C)
    * events, handlers and notifiers (see #WM_main). */
   if (wm->runtime->windrawable == nullptr && GPU_context_active_get() == nullptr) {
     for (wmWindow &win : wm->windows.items_reversed()) {
-      if (win.runtime->ghostwin) {
+      if (win.runtime != nullptr && !win.runtime->is_virtual && win.runtime->ghostwin != nullptr) {
         wm_window_make_drawable(wm, &win);
         break;
       }

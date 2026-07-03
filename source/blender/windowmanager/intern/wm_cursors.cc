@@ -417,6 +417,11 @@ void WM_cursor_set(wmWindow *win, int curs)
     return;
   }
 
+  if (win->runtime == nullptr || win->runtime->is_virtual || win->runtime->ghostwin == nullptr) {
+    win->cursor = curs;
+    return;
+  }
+
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
 
   if (curs == WM_CURSOR_NONE) {

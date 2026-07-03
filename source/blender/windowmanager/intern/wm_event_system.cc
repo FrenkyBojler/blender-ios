@@ -4570,11 +4570,13 @@ void wm_event_do_handlers(bContext *C)
           /* NOTE: setting sub-window active should be done here,
            * after modal handlers have been done. */
           if (event->type == MOUSEMOVE) {
-            /* State variables in screen, cursors.
-             * Also used in `wm_draw.cc`, fails for modal handlers though. */
-            ED_screen_set_active_region(C, &win, event->xy);
-            /* For regions having custom cursors. */
-            wm_paintcursor_test(C, event);
+            if (win.runtime == nullptr || !win.runtime->is_virtual) {
+              /* State variables in screen, cursors.
+               * Also used in `wm_draw.cc`, fails for modal handlers though. */
+              ED_screen_set_active_region(C, &win, event->xy);
+              /* For regions having custom cursors. */
+              wm_paintcursor_test(C, event);
+            }
           }
 #ifdef WITH_INPUT_NDOF
           else if (event->type == NDOF_MOTION) {

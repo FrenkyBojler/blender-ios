@@ -12,6 +12,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_context.hh"
 #include "BKE_file_handler.hh"
 #include "BKE_screen.hh"
 
@@ -24,6 +25,7 @@
 #include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 
+#include "WM_api.hh"
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
@@ -31,6 +33,24 @@ namespace blender {
 
 /* see WM_types.hh */
 using wmOpCallContext = wm::OpCallContext;
+
+static bScreen *rna_ui_panel_owner_screen_get(const bContext *C)
+{
+  bScreen *screen = CTX_wm_screen(C);
+  if (screen == nullptr || !screen->temp) {
+    return screen;
+  }
+
+  if (wmWindowManager *wm = CTX_wm_manager(C)) {
+    for (wmWindow *win = static_cast<wmWindow *>(wm->windows.first); win != nullptr; win = win->next) {
+      bScreen *candidate = WM_window_get_active_screen(win);
+      if (candidate != nullptr && !candidate->temp) {
+        return candidate;
+      }
+    }
+  }
+  return screen;
+}
 
 /* clang-format off */
 const EnumPropertyItem rna_enum_operator_context_items[] = {
@@ -143,7 +163,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   FunctionRNA *func;
 
   PointerRNA ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, panel->type->rna_ext.srna, panel);
+      &rna_ui_panel_owner_screen_get(C)->id, panel->type->rna_ext.srna, panel);
   func = rna_Panel_draw_func; /* RNA_struct_find_function(&ptr, "draw"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -161,7 +181,7 @@ static void panel_draw_header(const bContext *C, Panel *panel)
   FunctionRNA *func;
 
   PointerRNA ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, panel->type->rna_ext.srna, panel);
+      &rna_ui_panel_owner_screen_get(C)->id, panel->type->rna_ext.srna, panel);
   func = rna_Panel_draw_header_func; /* RNA_struct_find_function(&ptr, "draw_header"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -179,7 +199,7 @@ static void panel_draw_header_preset(const bContext *C, Panel *panel)
   FunctionRNA *func;
 
   PointerRNA ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, panel->type->rna_ext.srna, panel);
+      &rna_ui_panel_owner_screen_get(C)->id, panel->type->rna_ext.srna, panel);
   func = rna_Panel_draw_header_preset_func;
 
   RNA_parameter_list_create(&list, &ptr, func);

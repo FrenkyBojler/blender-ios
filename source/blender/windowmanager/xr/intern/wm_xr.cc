@@ -16,9 +16,14 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
+#include "BKE_workspace.hh"
 
 #include "DNA_scene_types.h"
+#include "DNA_workspace_types.h"
 #include "DNA_windowmanager_types.h"
+
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "ED_screen.hh"
 #include "UI_interface_c.hh"
@@ -33,6 +38,7 @@
 
 #include "WM_api.hh"
 
+#include "wm_window.hh"
 #include "wm_xr_intern.hh"
 
 namespace blender {
@@ -41,13 +47,69 @@ struct wmXrErrorHandlerData {
   wmWindowManager *wm;
 };
 
+static wmWindow *wm_xr_session_virtual_window_create(bContext *C, wmWindowManager *wm)
+{
+  wmWindow *root_win = CTX_wm_window(C);
+  if (root_win == nullptr) {
+    return nullptr;
+  }
+
+  Main *bmain = CTX_data_main(C);
+  wmWindow *xr_win = wm_window_new(bmain, wm, nullptr, false);
+  xr_win->runtime->is_virtual = true;
+  xr_win->scene = root_win->scene;
+  BLI_strncpy(xr_win->view_layer_name, root_win->view_layer_name, sizeof(xr_win->view_layer_name));
+
+  WorkSpace *workspace = WM_window_get_active_workspace(root_win);
+  WorkSpaceLayout *layout = WM_window_get_active_layout(root_win);
+  if (workspace != nullptr) {
+    BKE_workspace_active_set(xr_win->workspace_hook, workspace);
+    if (layout != nullptr) {
+      BKE_workspace_active_layout_set(xr_win->workspace_hook, xr_win->winid, workspace, layout);
+    }
+  }
+
+  xr_win->runtime->eventstate = MEM_new<wmEvent>("xr virtual window eventstate");
+  if (root_win->runtime->eventstate != nullptr) {
+    *xr_win->runtime->eventstate = *root_win->runtime->eventstate;
+  }
+  else {
+    *xr_win->runtime->eventstate = wmEvent{};
+  }
+
+  return xr_win;
+}
+
+static bScreen *wm_xr_session_virtual_screen_create(wmWindow *xr_win,
+                                                    ScrArea *xr_area,
+                                                    WorkSpaceLayout **r_layout)
+{
+  bScreen *screen = MEM_new<bScreen>(__func__);
+  screen->temp = true;
+  screen->winid = xr_win->winid;
+  screen->do_draw = true;
+  screen->do_refresh = true;
+  screen->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
+  BLI_addtail(&screen->areabase, xr_area);
+
+  WorkSpaceLayout *layout = MEM_new<WorkSpaceLayout>(__func__);
+  layout->screen = screen;
+  BLI_strncpy(layout->name, "XR", sizeof(layout->name));
+  *r_layout = layout;
+  return screen;
+}
+
 /* -------------------------------------------------------------------- */
 
 static void wm_xr_error_handler(const GHOST_XrError *error)
 {
   wmXrErrorHandlerData *handler_data = static_cast<wmXrErrorHandlerData *>(error->customdata);
   wmWindowManager *wm = handler_data->wm;
-  wmWindow *xr_root_win = wm->xr.runtime ? CTX_wm_window(wm->xr.runtime->b_context) : nullptr;
+  wmWindow *xr_root_win = nullptr;
+  if (wm->xr.runtime != nullptr) {
+    xr_root_win = wm->xr.runtime->session_root_win ? wm->xr.runtime->session_root_win :
+                                                     CTX_wm_window(wm->xr.runtime->b_context);
+  }
 
   BKE_reports_clear(&wm->runtime->reports);
   WM_global_report(RPT_ERROR, error->user_message);
@@ -138,13 +200,53 @@ bool wm_xr_init(bContext *C)
 
       /* Create a minimal XR-specific context. */
       wm->xr.runtime->b_context = CTX_create();
+      wm->xr.runtime->session_root_win = CTX_wm_window(C);
+      wm->xr.runtime->session_win = wm_xr_session_virtual_window_create(C, wm);
+      if (wm->xr.runtime->session_win == nullptr) {
+        CTX_free(wm->xr.runtime->b_context);
+        MEM_SAFE_DELETE(wm->xr.runtime);
+        GHOST_XrContextDestroy(ghost_context);
+        return false;
+      }
 
       /* Base Main and WM pointers. */
       CTX_wm_manager_set(wm->xr.runtime->b_context, CTX_wm_manager(C));
       CTX_data_main_set(wm->xr.runtime->b_context, CTX_data_main(C));
 
       /* Create the XR offscreen area (independent of any bScreen). */
-      wm->xr.runtime->offscreen_area = ED_area_offscreen_create(CTX_wm_window(C), SPACE_VIEW3D);
+      wm->xr.runtime->offscreen_area = ED_area_offscreen_create(wm->xr.runtime->session_win,
+                                                                SPACE_VIEW3D);
+      if (wm->xr.runtime->offscreen_area != nullptr) {
+        wm->xr.runtime->offscreen_screen = wm_xr_session_virtual_screen_create(
+            wm->xr.runtime->session_win,
+            wm->xr.runtime->offscreen_area,
+            &wm->xr.runtime->offscreen_layout);
+      }
+      if (wm->xr.runtime->offscreen_area == nullptr || wm->xr.runtime->offscreen_screen == nullptr ||
+          wm->xr.runtime->offscreen_layout == nullptr)
+      {
+        if (wm->xr.runtime->offscreen_layout != nullptr) {
+          MEM_delete(wm->xr.runtime->offscreen_layout);
+          wm->xr.runtime->offscreen_layout = nullptr;
+        }
+        if (wm->xr.runtime->offscreen_screen != nullptr) {
+          MEM_delete(wm->xr.runtime->offscreen_screen);
+          wm->xr.runtime->offscreen_screen = nullptr;
+        }
+        ED_area_offscreen_free(wm, wm->xr.runtime->session_win, wm->xr.runtime->offscreen_area);
+        wm->xr.runtime->offscreen_area = nullptr;
+        BLI_remlink(&wm->windows, wm->xr.runtime->session_win);
+        wm_window_free(wm->xr.runtime->b_context, wm, wm->xr.runtime->session_win);
+        wm->xr.runtime->session_win = nullptr;
+        CTX_free(wm->xr.runtime->b_context);
+        MEM_SAFE_DELETE(wm->xr.runtime);
+        GHOST_XrContextDestroy(ghost_context);
+        return false;
+      }
+      if (WorkSpace *workspace = WM_window_get_active_workspace(wm->xr.runtime->session_root_win)) {
+        BKE_workspace_active_set(wm->xr.runtime->session_win->workspace_hook, workspace);
+      }
+      wm->xr.runtime->session_win->workspace_hook->act_layout = wm->xr.runtime->offscreen_layout;
       if (wm->xr.runtime->offscreen_area != nullptr) {
         ARegion *xr_region = BKE_area_find_region_type(wm->xr.runtime->offscreen_area, RGN_TYPE_UI);
         if (xr_region != nullptr) {
@@ -217,10 +319,13 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
   /* Free remaining runtime data. */
   if (*runtime != nullptr) {
     ScrArea *xr_offscreen_area = (*runtime)->offscreen_area;
+    bScreen *xr_offscreen_screen = (*runtime)->offscreen_screen;
+    WorkSpaceLayout *xr_offscreen_layout = (*runtime)->offscreen_layout;
     BLI_assert(xr_offscreen_area);
 
     wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-    wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
+    wmWindow *xr_win = (*runtime)->session_win ? (*runtime)->session_win :
+                                               wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
     bContext *xr_context = (*runtime)->b_context;
 
     CTX_wm_window_set(xr_context, xr_win);
@@ -238,7 +343,27 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     CTX_wm_region_set(xr_context, nullptr);
 
     WM_event_remove_handlers_by_area(&xr_win->runtime->handlers, xr_offscreen_area);
+    if (xr_offscreen_screen != nullptr) {
+      CTX_wm_screen_set(xr_context, xr_offscreen_screen);
+      WM_tooltip_clear(xr_context, xr_win);
+      BLI_remlink(&xr_offscreen_screen->areabase, xr_offscreen_area);
+    }
     ED_area_offscreen_free(wm, xr_win, xr_offscreen_area);
+    (*runtime)->offscreen_area = nullptr;
+
+    if ((*runtime)->session_win != nullptr) {
+      BLI_remlink(&wm->windows, (*runtime)->session_win);
+      wm_window_free(xr_context, wm, (*runtime)->session_win);
+      (*runtime)->session_win = nullptr;
+    }
+    if (xr_offscreen_layout != nullptr) {
+      MEM_delete(xr_offscreen_layout);
+      (*runtime)->offscreen_layout = nullptr;
+    }
+    if (xr_offscreen_screen != nullptr) {
+      MEM_delete(xr_offscreen_screen);
+      (*runtime)->offscreen_screen = nullptr;
+    }
 
     CTX_free((*runtime)->b_context);
 

@@ -235,8 +235,14 @@ static void wm_xr_session_draw_data_populate(wmXrData *xr_data, wmXrDrawData *r_
 wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
                                                     const wmXrRuntimeData *runtime_data)
 {
+  if (runtime_data->session_win != nullptr &&
+      BLI_findindex(&wm->windows, runtime_data->session_win) != -1)
+  {
+    return runtime_data->session_win;
+  }
   /* Try to obtain the XR root window (the window the XR session was started in). */
-  wmWindow *xr_win = CTX_wm_window(runtime_data->b_context);
+  wmWindow *xr_win = runtime_data->session_root_win ? runtime_data->session_root_win :
+                                                      CTX_wm_window(runtime_data->b_context);
   if (xr_win && BLI_findindex(&wm->windows, xr_win) != -1) {
     /* Root XR window is still valid, use it. */
     return xr_win;

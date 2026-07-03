@@ -502,7 +502,9 @@ static bool wm_window_is_last_main_window(wmWindowManager *wm, wmWindow *win)
   for (win_other = static_cast<wmWindow *>(wm->windows.first); win_other;
        win_other = win_other->next)
   {
-    if (win_other != win && win_other->parent == nullptr && !WM_window_is_temp_screen(win_other)) {
+    if (win_other != win && win_other->runtime != nullptr && !win_other->runtime->is_virtual &&
+        win_other->parent == nullptr && !WM_window_is_temp_screen(win_other))
+    {
       return false;
     }
   }
@@ -1220,6 +1222,9 @@ void wm_window_ghostwindows_ensure(wmWindowManager *wm)
   }
 
   for (wmWindow &win : wm->windows) {
+    if (win.runtime != nullptr && win.runtime->is_virtual) {
+      continue;
+    }
     wm_window_ghostwindow_ensure(wm, &win, false);
   }
 }
@@ -1229,6 +1234,9 @@ void wm_window_ghostwindows_remove_invalid(bContext *C, wmWindowManager *wm)
   BLI_assert(G.background == false);
 
   for (wmWindow &win : wm->windows.items_mutable()) {
+    if (win.runtime != nullptr && win.runtime->is_virtual) {
+      continue;
+    }
     if (win.runtime->ghostwin == nullptr) {
       wm_window_close(C, wm, &win);
     }
@@ -1446,7 +1454,12 @@ wmWindow *WM_window_open(bContext *C,
 wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog)
 {
   rcti rect;
-  WM_window_dpi_set_userdef(CTX_wm_window(C));
+  wmWindow *context_win = CTX_wm_window(C);
+  if (context_win != nullptr && context_win->runtime != nullptr && !context_win->runtime->is_virtual &&
+      context_win->runtime->ghostwin != nullptr)
+  {
+    WM_window_dpi_set_userdef(context_win);
+  }
   eWindowAlignment align;
   rctf *stored_bounds = stored_window_bounds(eSpace_Type(space_type));
   const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 150.0f) &&
@@ -1526,6 +1539,10 @@ wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
 wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op)
 {
   wmWindow *win_src = CTX_wm_window(C);
+  if (win_src != nullptr && win_src->runtime != nullptr && win_src->runtime->is_virtual) {
+    BKE_report(op->reports, RPT_ERROR, "Cannot duplicate a virtual offscreen window");
+    return OPERATOR_CANCELLED;
+  }
 
   bool ok = (wm_window_copy_test(C, win_src, true, false) != nullptr);
   if (!ok) {
@@ -1537,7 +1554,13 @@ wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op)
 
 wmOperatorStatus wm_window_fullscreen_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
-  GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(CTX_wm_window(C)->runtime->ghostwin);
+  wmWindow *win = CTX_wm_window(C);
+  if (win == nullptr || win->runtime == nullptr || win->runtime->is_virtual ||
+      win->runtime->ghostwin == nullptr)
+  {
+    return OPERATOR_CANCELLED;
+  }
+  GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
 
   if (G.background) {
     return OPERATOR_CANCELLED;
