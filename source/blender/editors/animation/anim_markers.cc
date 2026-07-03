@@ -2341,10 +2341,20 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
   /* NOTE: BKE_main_merge will free bmain_src! */
   BKE_main_merge(bmain_dst, &force_merge_ids, &bmain_src, merge_reports);
 
+  /* Copy markers across scenes. */
+  int overlapping_markers = 0;
   TimeMarker *marker_new;
   for (TimeMarker &marker : scene_src->markers) {
     marker_new = MEM_dupalloc(&marker);
     marker_new->prev = marker_new->next = nullptr;
+
+    /* Keep track of the number of overlapping markers, to report to user later. */
+    for (TimeMarker &existing_marker : scene_dst->markers) {
+      if (existing_marker.frame == marker_new->frame) {
+        overlapping_markers++;
+        break;
+      }
+    }
 
     BLI_addtail(&scene_dst->markers, marker_new);
   }
@@ -2358,7 +2368,16 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
-  BKE_reportf(op->reports, RPT_INFO, "%d timeline markers pasted", num_markers_to_paste);
+  if (overlapping_markers > 0) {
+    BKE_reportf(op->reports,
+                RPT_WARNING,
+                "%d timeline markers pasted (%d overlap with existing markers)",
+                overlapping_markers,
+                num_markers_to_paste);
+  }
+  else {
+    BKE_reportf(op->reports, RPT_INFO, "%d timeline markers pasted", num_markers_to_paste);
+  }
 
   return OPERATOR_FINISHED;
 }
