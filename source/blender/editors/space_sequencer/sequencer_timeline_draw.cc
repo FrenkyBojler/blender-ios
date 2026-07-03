@@ -203,11 +203,14 @@ static bool strip_header_poll(const SpaceSeq *sseq, float pixely, float strip_he
   return has_space && overlays_enabled;
 }
 
-rctf strip_bounds_get(const Scene *scene,
-                      const SpaceSeq *sseq,
-                      const View2D *v2d,
-                      const Strip *strip)
+static rctf strip_bounds_get(const Scene *scene,
+                             const SpaceSeq *sseq,
+                             const View2D *v2d,
+                             const Strip *strip,
+                             bool &r_has_retiming_region_offset)
 {
+  r_has_retiming_region_offset = false;
+
   rctf bounds;
   bounds.xmin = strip->left_handle();
   bounds.xmax = strip->right_handle(scene);
@@ -224,6 +227,7 @@ rctf strip_bounds_get(const Scene *scene,
          can_draw_retiming(scene, sseq, v2d, strip->input2)) &&
         (bounds.ymax - bounds.ymin >= retiming_size * 2.0f))
     {
+      r_has_retiming_region_offset = true;
       bounds.ymin += retiming_size;
     }
     /* Draw transitions fully inside strips. */
@@ -231,6 +235,28 @@ rctf strip_bounds_get(const Scene *scene,
     bounds.ymin += pixely;
   }
   return bounds;
+}
+
+rctf strip_bounds_get(const Scene *scene,
+                      const SpaceSeq *sseq,
+                      const View2D *v2d,
+                      const Strip *strip)
+{
+  bool _;
+  return strip_bounds_get(scene, sseq, v2d, strip, _);
+}
+
+bool strip_overlaps_retiming_region(const Scene *scene,
+                                    const SpaceSeq *sseq,
+                                    const View2D *v2d,
+                                    const Strip *strip)
+{
+  if (seq::strip_is_transition(strip)) {
+    bool has_retiming_region_offset;
+    strip_bounds_get(scene, sseq, v2d, strip, has_retiming_region_offset);
+    return !has_retiming_region_offset;
+  }
+  return false;
 }
 
 static void strip_draw_context_set_strip_content_visibility(const TimelineDrawContext &ctx,

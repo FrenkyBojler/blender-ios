@@ -444,6 +444,10 @@ rctf strip_bounds_get(const Scene *scene,
                       const SpaceSeq *sseq,
                       const View2D *v2d,
                       const Strip *strip);
+bool strip_overlaps_retiming_region(const Scene *scene,
+                                    const SpaceSeq *sseq,
+                                    const View2D *v2d,
+                                    const Strip *strip);
 
 /* `sequencer_clipboard.cc` */
 wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
