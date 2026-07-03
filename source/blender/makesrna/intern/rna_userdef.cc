@@ -5921,13 +5921,10 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
       "Connect newly added movie strips by default if they have multiple channels");
 
   prop = RNA_def_property(srna, "default_strip_len", PROP_INT, PROP_TIME);
-  RNA_def_property_int_sdna(
-      prop, nullptr, "sequencer_default_strip_len");
+  RNA_def_property_int_sdna(prop, nullptr, "sequencer_default_strip_len");
   RNA_def_property_range(prop, 1, MAXFRAME);
   RNA_def_property_ui_text(
-      prop,
-      "Default Strip Length",
-      "Default length for newly created strips");
+      prop, "Default Strip Length", "Default length for newly created strips");
 
   /* duplication linking */
   prop = RNA_def_property(srna, "use_duplicate_mesh", PROP_BOOLEAN, PROP_NONE);
