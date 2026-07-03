@@ -2210,6 +2210,16 @@ static bool markers_write_copy_paste_file(Main *bmain_src,
 
 wmOperatorStatus markers_clipboard_copy_exec(bContext *C, wmOperator *op)
 {
+  /* If the area is the dopesheet, AND it is configured to show pose/action markers, cancel. */
+  ScrArea *area = CTX_wm_area(C);
+  if (area->spacetype == SPACE_ACTION) {
+    const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
+    if (saction->flag & SACTION_POSEMARKERS_SHOW) {
+      BKE_report(op->reports, RPT_ERROR, "Copying pose markers is not supported.");
+      return OPERATOR_CANCELLED;
+    }
+  }
+
   Main *bmain = CTX_data_main(C);
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
@@ -2265,6 +2275,16 @@ static StringRef scene_lib_filepath(const Scene &scene)
 
 static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op)
 {
+  /* If the area is the dopesheet, AND it is configured to show pose/action markers, cancel. */
+  ScrArea *area = CTX_wm_area(C);
+  if (area->spacetype == SPACE_ACTION) {
+    const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
+    if (saction->flag & SACTION_POSEMARKERS_SHOW) {
+      BKE_report(op->reports, RPT_ERROR, "Pasting pose markers is not supported.");
+      return OPERATOR_CANCELLED;
+    }
+  }
+
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene_dst = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene_dst) {
