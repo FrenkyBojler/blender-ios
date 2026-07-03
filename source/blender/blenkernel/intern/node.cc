@@ -1091,10 +1091,6 @@ static void write_node_socket_default_value_without_subtype(const void *address,
 
 static void pixel_subtype_forward_compat(BlendWriter *writer, const bNodeSocket &sock)
 {
-  if (BLO_write_is_undo(writer)) {
-    return;
-  }
-
   bNodeSocket *sock_copy = MEM_dupalloc(&sock);
   node_socket_copy(sock_copy, &sock, LIB_ID_CREATE_NO_USER_REFCOUNT);
   STRNCPY(sock_copy->idname, subtype_pixel_to_none().lookup(sock.idname).data());
@@ -1228,7 +1224,8 @@ void write_node_socket_default_value_at_address(const void *address,
 static void write_node_socket(BlendWriter *writer, const bNodeSocket *sock)
 {
   /* Todo(#140111): Forward compatibility support for pixel subtype will be removed in 6.0. */
-  if (forward_compat::subtype_pixel_to_none().contains(sock->idname)) {
+  if (!BLO_write_is_undo(writer) && forward_compat::subtype_pixel_to_none().contains(sock->idname))
+  {
     forward_compat::pixel_subtype_forward_compat(writer, *sock);
     return;
   }
