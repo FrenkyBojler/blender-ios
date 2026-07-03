@@ -1096,12 +1096,12 @@ static void pixel_subtype_forward_compat(BlendWriter *writer, const bNodeSocket 
   }
 
   bNodeSocket *sock_copy = MEM_dupalloc(&sock);
-  node_socket_copy(sock_copy, &sock, 0);
+  node_socket_copy(sock_copy, &sock, LIB_ID_CREATE_NO_USER_REFCOUNT);
   STRNCPY(sock_copy->idname, subtype_pixel_to_none().lookup(sock.idname).data());
   writer->write_struct_at_address(&sock, sock_copy);
 
-  if (sock.prop) {
-    IDP_BlendWrite(writer, sock.prop);
+  if (sock_copy->prop) {
+    IDP_BlendWrite(writer, sock_copy->prop);
   }
 
   /* This property should only be used for group node "interface" sockets. */
