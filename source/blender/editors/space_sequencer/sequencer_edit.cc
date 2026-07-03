@@ -1860,15 +1860,57 @@ static int sequence_split_side_for_exec_get(wmOperator *op)
   return split_side;
 }
 
+VectorSet<Strip *> split_candidates_get(
+    Scene *scene, int split_frame, int split_channel, bool split_at_cursor, bool all_channels)
+{
+  Editing *ed = seq::editing_get(scene);
+  ListBaseT<Strip> *seqbase = ed->current_strips();
+  const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
+
+  VectorSet<Strip *> candidates;
+
+  if (split_at_cursor && !all_channels) {
+    /* Single strip under the cursor. Even if it is locked, keep it so we can report the error. */
+    for (Strip &strip : *seqbase) {
+      if (strip.channel == split_channel && seq::strip_splits_frame(scene, &strip, split_frame)) {
+        candidates.add(&strip);
+        return candidates;
+      }
+    }
+  }
+
+  if (!all_channels) {
+    /* Splitting at the current frame: strips selected there take priority. */
+    for (Strip &strip : *seqbase) {
+      if ((strip.flag & SEQ_SELECT) && seq::strip_splits_frame(scene, &strip, split_frame)) {
+        candidates.add(&strip);
+      }
+    }
+    if (!candidates.is_empty()) {
+      return candidates;
+    }
+  }
+
+  /* Split every strip under the split frame. */
+  for (Strip &strip : *seqbase) {
+    if (seq::strip_splits_frame(scene, &strip, split_frame) &&
+        !seq::transform_is_locked(channels, &strip))
+    {
+      candidates.add(&strip);
+    }
+  }
+  return candidates;
+}
+
 static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   bool changed = false;
-  bool strip_selected = false;
 
-  const bool use_cursor_position = RNA_boolean_get(op->ptr, "use_cursor_position");
+  const bool split_at_cursor = RNA_boolean_get(op->ptr, "use_cursor_position");
+  const bool all_channels = RNA_boolean_get(op->ptr, "all_channels");
 
   const int split_frame = RNA_struct_property_is_set(op->ptr, "frame") ?
                               RNA_int_get(op->ptr, "frame") :
@@ -1877,70 +1919,94 @@ static wmOperatorStatus sequencer_split_exec(bContext *C, wmOperator *op)
 
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   const int split_side = sequence_split_side_for_exec_get(op);
-  const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
-  const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+
+  /* Ignoring connections makes no sense with all channels, but playhead split should always ignore
+   * in other cases (it uses the selection). For cursor split, leave it up to the user (alt). */
+  const bool ignore_connections =
+      !all_channels &&
+      (!split_at_cursor || (split_at_cursor && RNA_boolean_get(op->ptr, "ignore_connections")));
 
   seq::prefetch_stop(scene);
 
-  for (Strip &strip : ed->current_strips()->items_reversed()) {
-    if (use_cursor_position && strip.channel != split_channel) {
-      continue;
+  VectorSet<Strip *> candidates = split_candidates_get(
+      scene, split_frame, split_channel, split_at_cursor, all_channels);
+
+  Set<int> channels_split;
+  /* XXX TODO: We might be able to keep the reverse iteration here */
+  while (!candidates.is_empty()) {
+    Strip *strip = candidates[0];
+
+    /* The split call re-creates every strip in teh chain, so drop its members from `candidates`
+     * to avoid splitting them twice and keep `candidates` free of dangling pointers. */
+    VectorSet<Strip *> chain;
+    chain.add(strip);
+    seq::iterator_set_expand(ed->current_strips(),
+                             chain,
+                             ignore_connections ? seq::query_strip_effect_chain :
+                                                  seq::query_strip_connected_and_effect_chain);
+    Vector<int> chain_channels;
+    for (Strip *strip_chain : chain) {
+      candidates.remove(strip_chain);
+      if (seq::strip_splits_frame(scene, strip_chain, split_frame)) {
+        chain_channels.append(strip_chain->channel);
+      }
     }
 
-    if (ignore_selection || strip.flag & SEQ_SELECT) {
-      const char *error_msg = nullptr;
-      if (seq::edit_strip_split(bmain,
-                                scene,
-                                ed->current_strips(),
-                                &strip,
-                                split_frame,
-                                method,
-                                ignore_connections,
-                                &error_msg) != nullptr)
-      {
-        changed = true;
+    const char *error_msg = nullptr;
+    if (seq::edit_strip_split(bmain,
+                              scene,
+                              ed->current_strips(),
+                              strip,
+                              split_frame,
+                              method,
+                              ignore_connections,
+                              &error_msg) != nullptr)
+    {
+      changed = true;
+      for (const int channel : chain_channels) {
+        channels_split.add(channel);
       }
-      if (error_msg != nullptr) {
-        BKE_report(op->reports, RPT_ERROR, error_msg);
-      }
+    }
+    if (error_msg != nullptr) {
+      BKE_report(op->reports, RPT_ERROR, error_msg);
     }
   }
 
   if (changed) { /* Got new strips? */
-    if (ignore_selection) {
-      if (use_cursor_position) {
-        for (Strip &strip : *seq::active_seqbase_get(ed)) {
-          if (strip.right_handle(scene) == split_frame && strip.channel == split_channel) {
-            strip_selected = strip.flag & STRIP_ALLSEL;
-          }
+    if (split_side == seq::SIDE_NO_CHANGE) {
+      /* Make sure new strips created by the split match the selection state of the original. */
+      for (Strip &strip_right : *seq::active_seqbase_get(ed)) {
+        if (strip_right.left_handle() != split_frame ||
+            !channels_split.contains(strip_right.channel))
+        {
+          continue;
         }
-        if (!strip_selected) {
-          for (Strip &strip : *seq::active_seqbase_get(ed)) {
-            if (strip.left_handle() == split_frame && strip.channel == split_channel) {
-              strip.flag &= ~STRIP_ALLSEL;
-            }
-          }
-        }
-      }
-    }
-    else {
-      if (split_side != seq::SIDE_BOTH) {
-        for (Strip &strip : *seq::active_seqbase_get(ed)) {
-          if (split_side == seq::SIDE_LEFT) {
-            if (strip.left_handle() >= split_frame) {
-              strip.flag &= ~STRIP_ALLSEL;
-            }
-          }
-          else {
-            if (strip.right_handle(scene) <= split_frame) {
-              strip.flag &= ~STRIP_ALLSEL;
-            }
+        /* At this point we found our duplicated strip `strip_right`. Find its neighbor. */
+        for (Strip &strip_left : *seq::active_seqbase_get(ed)) {
+          if (strip_left.channel == strip_right.channel &&
+              strip_left.right_handle(scene) == split_frame)
+          {
+            /* Found our `strip_left`. Duplicate selection state. */
+            strip_right.flag = (strip_right.flag & ~STRIP_ALLSEL) |
+                               (strip_left.flag & STRIP_ALLSEL);
           }
         }
       }
     }
-  }
-  if (changed) {
+    else if (split_side != seq::SIDE_BOTH) {
+      for (Strip &strip : *seq::active_seqbase_get(ed)) {
+        if (split_side == seq::SIDE_LEFT) {
+          if (strip.left_handle() >= split_frame) {
+            strip.flag &= ~STRIP_ALLSEL;
+          }
+        }
+        else {
+          if (strip.right_handle(scene) <= split_frame) {
+            strip.flag &= ~STRIP_ALLSEL;
+          }
+        }
+      }
+    }
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     return OPERATOR_FINISHED;
   }
@@ -1965,11 +2031,11 @@ static wmOperatorStatus sequencer_split_invoke(bContext *C, wmOperator *op, cons
       split_side = seq::SIDE_BOTH;
     }
   }
-  float mouseloc[2];
-  if (v2d) {
+  if (v2d && RNA_boolean_get(op->ptr, "use_cursor_position")) {
+    float mouseloc[2];
     ui::view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
-    if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
-      split_frame = round_fl_to_int(mouseloc[0]);
+    split_frame = round_fl_to_int(mouseloc[0]);
+    if (!RNA_boolean_get(op->ptr, "all_channels")) {
       Strip *strip = strip_under_mouse_get(scene, v2d, event->mval);
       if (strip == nullptr || split_frame == strip->left_handle() ||
           split_frame == strip->right_handle(scene))
@@ -2000,14 +2066,15 @@ static void sequencer_split_ui(bContext * /*C*/, wmOperator *op)
 
   layout.separator();
 
-  layout.prop(op->ptr, "use_cursor_position", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (RNA_boolean_get(op->ptr, "use_cursor_position")) {
-    layout.prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "all_channels", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  /* Ignoring connections only makes sense when we split at the mouse cursor.
+   * If splitting at the playhead, we either split selected strips (default) or on all channels.
+   * Also, if `all_channels` is set, it makes no sense to ignore connections. */
+  if (RNA_boolean_get(op->ptr, "use_cursor_position") && !RNA_boolean_get(op->ptr, "all_channels"))
+  {
+    layout.prop(op->ptr, "ignore_connections", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-
-  layout.separator();
-
-  layout.prop(op->ptr, "ignore_connections", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void SEQUENCER_OT_split(wmOperatorType *ot)
@@ -2036,15 +2103,19 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
               "Frame where selected strips will be split",
               INT_MIN,
               INT_MAX);
-  RNA_def_int(ot->srna,
-              "channel",
-              0,
-              INT_MIN,
-              INT_MAX,
-              "Channel",
-              "Channel in which strip will be cut",
-              INT_MIN,
-              INT_MAX);
+
+  prop = RNA_def_int(ot->srna,
+                     "channel",
+                     0,
+                     INT_MIN,
+                     INT_MAX,
+                     "Channel",
+                     "Initial channel used for the split, which may propagate to channels of "
+                     "effects, connections, or all other channels",
+                     INT_MIN,
+                     INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
   RNA_def_enum(ot->srna,
                "type",
                prop_split_types,
@@ -2055,8 +2126,15 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
   RNA_def_boolean(ot->srna,
                   "use_cursor_position",
                   false,
-                  "Use Cursor Position",
-                  "Split at position of the cursor instead of current frame");
+                  "Split at Cursor",
+                  "Split at the position of the mouse cursor instead of the current frame");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  RNA_def_boolean(ot->srna,
+                  "all_channels",
+                  false,
+                  "All Channels",
+                  "Split all strips that exist at the split frame, regardless of selection");
 
   prop = RNA_def_enum(ot->srna,
                       "side",
@@ -2066,15 +2144,6 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
                       "The side that remains selected after splitting");
 
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-
-  prop = RNA_def_boolean(
-      ot->srna,
-      "ignore_selection",
-      false,
-      "Ignore Selection",
-      "Make cut even if strip is not selected preserving selection state after cut");
-
-  RNA_def_property_flag(prop, PROP_HIDDEN);
 
   RNA_def_boolean(ot->srna,
                   "ignore_connections",
@@ -2102,6 +2171,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
   scene->ed->runtime->show_transform_preview = false;
+  scene->ed->runtime->box_blade_preview.is_active = false;
 
   View2D *v2d = ui::view2d_fromcontext(C);
   rctf box_rect;
@@ -2281,8 +2351,28 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   wmOperatorStatus gesture_return = WM_gesture_box_modal(C, op, event);
-  if (OPERATOR_CANCELLED == gesture_return) {
+  if (gesture_return == OPERATOR_CANCELLED) {
     scene->ed->runtime->show_transform_preview = false;
+    scene->ed->runtime->box_blade_preview.is_active = false;
+  }
+
+  if (gesture_return == OPERATOR_RUNNING_MODAL) {
+    rctf box_rect;
+    WM_operator_properties_border_to_rctf(op, &box_rect);
+    ui::view2d_region_to_view_rctf(v2d, &box_rect, &box_rect);
+    auto &preview = scene->ed->runtime->box_blade_preview;
+    preview.rect = box_rect;
+    preview.remove_gaps = RNA_boolean_get(op->ptr, "remove_gaps");
+    preview.ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+    preview.ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
+    preview.is_active = true;
+
+    /* Region event handlers don't run during the gesture, keep the tooltip updated here. */
+    sequencer_blade_tooltip_show(C);
+  }
+  else if (ELEM(gesture_return, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    /* The tooltip would otherwise stick around until the next cursor motion. */
+    WM_tooltip_clear(C, CTX_wm_window(C));
   }
 
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
@@ -2300,6 +2390,16 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
   return gesture_return;
 }
 
+static void sequencer_box_blade_cancel(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (scene->ed != nullptr) {
+    scene->ed->runtime->show_transform_preview = false;
+    scene->ed->runtime->box_blade_preview.is_active = false;
+  }
+  WM_gesture_box_cancel(C, op);
+}
+
 void SEQUENCER_OT_box_blade(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -2313,6 +2413,7 @@ void SEQUENCER_OT_box_blade(wmOperatorType *ot)
   ot->modal = sequencer_box_blade_modal;
   ot->poll = sequencer_box_blade_poll;
   ot->ui = sequencer_box_blade_ui;
+  ot->cancel = sequencer_box_blade_cancel;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

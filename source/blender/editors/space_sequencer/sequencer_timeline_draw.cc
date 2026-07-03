@@ -25,6 +25,7 @@
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
@@ -50,7 +51,9 @@
 
 #include "SEQ_channels.hh"
 #include "SEQ_connect.hh"
+#include "SEQ_edit.hh"
 #include "SEQ_effects.hh"
+#include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
@@ -62,6 +65,7 @@
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
@@ -2022,6 +2026,346 @@ void draw_timeline_seq_display(const bContext *C, ARegion *region)
   else {
     region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
   }
+}
+
+static bool blade_paint_cursor_poll(bContext *C)
+{
+  ScrArea *area = CTX_wm_area(C);
+  const bToolRef *tref = area->runtime.tool;
+  if (tref == nullptr || !STREQ(tref->idname, "builtin.blade")) {
+    return false;
+  }
+  Scene *scene = CTX_data_sequencer_scene(C);
+  return scene != nullptr && seq::editing_get(scene) != nullptr;
+}
+
+static void blade_box_draw(Scene *scene, const ARegion *region)
+{
+  const Editing *ed = seq::editing_get(scene);
+  const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
+  const View2D *v2d = &region->v2d;
+  ListBaseT<Strip> *seqbase = ed->current_strips();
+
+  /* Keep in sync with `sequencer_box_blade_exec()`. */
+  const auto &data = ed->runtime->box_blade_preview;
+  const rctf box_rect = data.rect;
+  const int2 rect_frames = {round_fl_to_int(box_rect.xmin), round_fl_to_int(box_rect.xmax)};
+
+  const float2 region_offset = {float(region->winrct.xmin), float(region->winrct.ymin)};
+
+  uchar col[4];
+  ui::theme::get_color_3ubv(TH_GIZMO_PRIMARY, col);
+
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+  GPU_blend(GPU_BLEND_ALPHA);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+  if (data.remove_gaps) {
+    const int channel_min = max_ii(int(box_rect.ymin), 1);
+    const int channel_max = min_ii(int(box_rect.ymax), seq::MAX_CHANNELS);
+    /* Slightly brighten all channels that the box touches. */
+    immUniformColor4ub(255, 255, 255, 15);
+    for (int channel = channel_min; channel <= channel_max; channel++) {
+      float y_bottom = ui::view2d_view_to_region_y(v2d, channel);
+      float y_top = ui::view2d_view_to_region_y(v2d, channel + 1);
+      immRectf(pos,
+               region_offset.x,
+               y_bottom + region_offset.y,
+               region_offset.x + region->winx,
+               y_top + region_offset.y);
+    }
+  }
+
+  /* Gather the strips the cut propagates to, like the split preview does. */
+  VectorSet<Strip *> targets;
+  for (Strip &candidate : *seqbase) {
+    if (!data.ignore_selection && (candidate.flag & SEQ_SELECT) == 0) {
+      continue;
+    }
+    if (seq::transform_is_locked(channels, &candidate)) {
+      continue;
+    }
+    rctf strip_rect = strip_bounds_get(scene, &candidate);
+    if (!BLI_rctf_isect(&strip_rect, &box_rect, nullptr)) {
+      continue;
+    }
+    if (targets.contains(&candidate)) {
+      continue;
+    }
+    VectorSet<Strip *> chain;
+    chain.add(&candidate);
+    seq::iterator_set_expand(seqbase,
+                             chain,
+                             data.ignore_connections ?
+                                 seq::query_strip_effect_chain :
+                                 seq::query_strip_connected_and_effect_chain);
+    bool locked = false;
+    for (Strip *strip : chain) {
+      if (seq::transform_is_locked(channels, strip)) {
+        locked = true;
+        break;
+      }
+    }
+    if (locked) {
+      continue;
+    }
+    for (Strip *strip : chain) {
+      targets.add(strip);
+    }
+  }
+
+  immUniformColor4ub(col[0], col[1], col[2], 60);
+  for (const Strip *strip : targets) {
+    const float xmin = max_ff(strip->left_handle(), rect_frames[0]);
+    const float xmax = min_ff(strip->right_handle(scene), rect_frames[1]);
+    if (xmin >= xmax) {
+      continue;
+    }
+    const rctf bounds = strip_bounds_get(scene, strip);
+    float x1, y1, x2, y2;
+    ui::view2d_view_to_region_fl(v2d, xmin, bounds.ymin, &x1, &y1);
+    ui::view2d_view_to_region_fl(v2d, xmax, bounds.ymax, &x2, &y2);
+    immRectf(pos,
+             x1 + region_offset.x,
+             y1 + region_offset.y,
+             x2 + region_offset.x,
+             y2 + region_offset.y);
+  }
+
+  immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
+}
+
+static void blade_split_draw(Scene *scene,
+                             const ARegion *region,
+                             const wmWindow *win,
+                             const int2 &xy)
+{
+  const View2D *v2d = &region->v2d;
+  const Editing *ed = seq::editing_get(scene);
+  const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
+
+  const int mval[2] = {xy.x - region->winrct.xmin, xy.y - region->winrct.ymin};
+  float mouse_co[2];
+  ui::view2d_region_to_view(v2d, mval[0], mval[1], &mouse_co[0], &mouse_co[1]);
+  const int split_frame = round_fl_to_int(mouse_co[0]);
+  const int split_channel = int(mouse_co[1]);
+
+  const uint8_t modifier = win->runtime->eventstate->modifier;
+  const bool all_channels = (modifier & KM_SHIFT) != 0;
+  const bool ignore_connections = !all_channels && (modifier & KM_ALT) != 0;
+
+  const Strip *strip = strip_under_mouse_get(scene, v2d, mval);
+  if (!all_channels) {
+    /* Keep in sync with `sequencer_split_invoke()`. */
+    if (strip == nullptr || split_frame == strip->left_handle() ||
+        split_frame == strip->right_handle(scene))
+    {
+      return;
+    }
+  }
+
+  VectorSet<Strip *> candidates = split_candidates_get(
+      scene, split_frame, split_channel, true, all_channels);
+
+  /* Expand to the strips each split propagates to, skip chains that fail to split. */
+  VectorSet<Strip *> targets;
+  for (Strip *candidate : candidates) {
+    if (targets.contains(candidate)) {
+      continue;
+    }
+    VectorSet<Strip *> chain;
+    chain.add(candidate);
+    seq::iterator_set_expand(ed->current_strips(),
+                             chain,
+                             ignore_connections ? seq::query_strip_effect_chain :
+                                                  seq::query_strip_connected_and_effect_chain);
+    bool locked = false;
+    for (Strip *strip : chain) {
+      if (seq::transform_is_locked(channels, strip)) {
+        locked = true;
+        break;
+      }
+    }
+    if (locked) {
+      continue;
+    }
+    for (Strip *strip : chain) {
+      if (seq::strip_splits_frame(scene, strip, split_frame)) {
+        targets.add(strip);
+      }
+    }
+  }
+
+  if (targets.is_empty()) {
+    return;
+  }
+
+  /* Paint cursors draw in window space, not region space. */
+  const float2 region_offset = {float(region->winrct.xmin), float(region->winrct.ymin)};
+
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+  /* Same width as the snapping indicator, see #drawSnapping. */
+  auto draw_lines = [&](const float expand) {
+    for (const Strip *strip : targets) {
+      const rctf bounds = strip_bounds_get(scene, strip);
+      float x, y_bottom, y_top;
+      ui::view2d_view_to_region_fl(v2d, split_frame, bounds.ymin, &x, &y_bottom);
+      ui::view2d_view_to_region_fl(v2d, split_frame, bounds.ymax, &x, &y_top);
+      immRectf(pos,
+               x + region_offset.x - expand,
+               y_bottom + region_offset.y - (expand - 1.0f),
+               x + region_offset.x + expand,
+               y_top + region_offset.y + (expand - 1.0f));
+    }
+  };
+
+  /* Draw dark outline underneath so the line is visible on light strips too. */
+  GPU_blend(GPU_BLEND_ALPHA);
+  immUniformColor4f(0.0f, 0.0f, 0.0f, 0.8f);
+  draw_lines(2.0f);
+  immUniformThemeColor(TH_GIZMO_PRIMARY);
+  draw_lines(1.0f);
+  GPU_blend(GPU_BLEND_NONE);
+
+  immUnbindProgram();
+}
+
+static void blade_paint_cursor_draw(bContext *C,
+                                    const int2 &xy,
+                                    const float2 & /*tilt*/,
+                                    void * /*customdata*/)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Editing *ed = seq::editing_get(scene);
+  ARegion *region = CTX_wm_region(C);
+  wmWindow *win = CTX_wm_window(C);
+
+  if (ed->runtime->box_blade_preview.is_active) {
+    blade_box_draw(scene, region);
+  }
+  else {
+    blade_split_draw(scene, region, win, xy);
+  }
+}
+
+void sequencer_blade_cursor_ensure(wmWindowManager *wm)
+{
+  /* Paint cursors don't survive window-manager swaps on file load, so instead of storing the
+   * handle, remove any previous instance and register again. */
+  WM_paint_cursor_remove_by_type(wm, reinterpret_cast<void *>(blade_paint_cursor_draw), nullptr);
+  /* XXX TODO: Pass most state as customdata rather than place it in runtime? */
+  WM_paint_cursor_activate(
+      SPACE_SEQ, RGN_TYPE_WINDOW, blade_paint_cursor_poll, blade_paint_cursor_draw, nullptr);
+}
+
+static void box_blade_number_str_get(Scene *scene,
+                                     Editing *ed,
+                                     bool display_seconds,
+                                     char *r_number_str,
+                                     size_t r_number_str_maxncpy)
+{
+  const rctf box_rect = ed->runtime->box_blade_preview.rect;
+  const int2 rect_frames = {round_fl_to_int(box_rect.xmin), round_fl_to_int(box_rect.xmax)};
+
+  char str_start[64], str_end[64], str_duration[64];
+  ED_get_current_time_str(scene, display_seconds, rect_frames[0], str_start, sizeof(str_start));
+  ED_get_current_time_str(scene, display_seconds, rect_frames[1], str_end, sizeof(str_end));
+  ED_get_current_time_str(
+      scene, display_seconds, rect_frames[1] - rect_frames[0], str_duration, sizeof(str_duration));
+
+  BLI_snprintf_utf8_rlen(
+      r_number_str, r_number_str_maxncpy, "%s -> %s (%s)", str_start, str_end, str_duration);
+}
+
+/* Shown without delay & re-created on every cursor move, unlike regular tooltips. */
+/* XXX TODO: Can we keep it around between draws? (Probably not, nor worth it) */
+static ARegion *blade_tooltip_init(
+    bContext *C, ARegion *region, int * /*pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Editing *ed = seq::editing_get(scene);
+  wmWindow *win = CTX_wm_window(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
+  const wmEvent *event = win->runtime->eventstate;
+
+  const bool display_seconds = (sseq->flag & SEQ_DRAWFRAMES) == 0;
+
+  *r_exit_on_event = false;
+
+  char number_str[256];
+  /* Box blade. */
+  if (ed->runtime->box_blade_preview.is_active) {
+    box_blade_number_str_get(scene, ed, display_seconds, number_str, sizeof(number_str));
+  }
+  /* Regular blade. */
+  else {
+    const View2D *v2d = &region->v2d;
+    const int mval[2] = {event->xy[0] - region->winrct.xmin, event->xy[1] - region->winrct.ymin};
+    float mouse_co[2];
+    ui::view2d_region_to_view(v2d, mval[0], mval[1], &mouse_co[0], &mouse_co[1]);
+    const int split_frame = round_fl_to_int(mouse_co[0]);
+
+    /* Always show tooltip if `Shift` is pressed, but if not, check for strip under the cursor: */
+    if ((event->modifier & KM_SHIFT) == 0) {
+      const Strip *strip = strip_under_mouse_get(scene, v2d, mval);
+
+      if (strip == nullptr || split_frame == strip->left_handle() ||
+          split_frame == strip->right_handle(scene))
+      {
+        return nullptr;
+      }
+    }
+    ED_get_current_time_str(scene, display_seconds, split_frame, number_str, sizeof(number_str));
+  }
+
+  /* Offset the tooltip to the right to avoid covering the split line. */
+  const float right_offset = UI_SCALE_FAC * 55.0f;
+  const float init_position[2] = {float(event->xy[0]) + right_offset, float(event->xy[1])};
+
+  return ui::tooltip_create_from_func_and_pos(
+      C,
+      [&](ui::TooltipData &data) {
+        ui::tooltip_text_field_add(
+            data, std::string(number_str), {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_MAIN);
+      },
+      init_position);
+}
+
+void sequencer_blade_tooltip_show(bContext *C)
+{
+  WM_tooltip_immediate_init(
+      C, CTX_wm_window(C), CTX_wm_area(C), CTX_wm_region(C), blade_tooltip_init);
+}
+
+static int blade_tooltip_ui_handler(bContext *C, const wmEvent *event, void * /*user_data*/)
+{
+  if (blade_paint_cursor_poll(C)) {
+    if (event->type == MOUSEMOVE || ISKEYMODIFIER(event->type)) {
+      sequencer_blade_tooltip_show(C);
+    }
+    else if (ISMOUSE_BUTTON(event->type) || ISMOUSE_WHEEL(event->type)) {
+      /* Clicking or zooming destroys the tooltip, and it is only cleared
+       * on cursor motion otherwise, see #wm_event_do_handlers. */
+      WM_tooltip_clear(C, CTX_wm_window(C));
+    }
+  }
+  return WM_UI_HANDLER_CONTINUE;
+}
+
+void sequencer_blade_tooltip_ensure(ARegion *region)
+{
+  /* Region init can run more than once, keep a single instance of the handler. */
+  WM_event_remove_ui_handler(
+      &region->runtime->handlers, blade_tooltip_ui_handler, nullptr, nullptr, false);
+  WM_event_add_ui_handler(nullptr,
+                          &region->runtime->handlers,
+                          blade_tooltip_ui_handler,
+                          nullptr,
+                          nullptr,
+                          eWM_EventHandlerFlag(0));
 }
 
 }  // namespace blender::ed::vse

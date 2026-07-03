@@ -462,6 +462,10 @@ static void sequencer_main_region_init(wmWindowManager *wm, ARegion *region)
   ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Sequencer", SPACE_SEQ, RGN_TYPE_WINDOW);
 
   WM_event_add_dropbox_handler(&region->runtime->handlers, lb);
+
+  /* XXX TODO: Hacky.... */
+  sequencer_blade_cursor_ensure(wm);
+  sequencer_blade_tooltip_ensure(region);
 }
 
 /* Strip editing timeline. */

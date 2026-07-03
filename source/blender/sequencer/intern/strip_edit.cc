@@ -315,9 +315,7 @@ static void seq_split_set_left_hold_offset(Main *bmain,
   strip->left_handle_set(scene, timeline_frame);
 }
 
-static bool seq_edit_split_intersect_check(const Scene *scene,
-                                           const Strip *strip,
-                                           const int timeline_frame)
+bool strip_splits_frame(const Scene *scene, const Strip *strip, const int timeline_frame)
 {
   return timeline_frame > strip->left_handle() && timeline_frame < strip->right_handle(scene);
 }
@@ -329,7 +327,7 @@ static void seq_edit_split_handle_strip_offsets(Main *bmain,
                                                 const int timeline_frame,
                                                 const eSplitMethod method)
 {
-  if (seq_edit_split_intersect_check(scene, right_strip, timeline_frame)) {
+  if (strip_splits_frame(scene, right_strip, timeline_frame)) {
     switch (method) {
       case SPLIT_SOFT:
         right_strip->left_handle_set(scene, timeline_frame);
@@ -340,7 +338,7 @@ static void seq_edit_split_handle_strip_offsets(Main *bmain,
     }
   }
 
-  if (seq_edit_split_intersect_check(scene, left_strip, timeline_frame)) {
+  if (strip_splits_frame(scene, left_strip, timeline_frame)) {
     switch (method) {
       case SPLIT_SOFT:
         left_strip->right_handle_set(scene, timeline_frame);
@@ -358,14 +356,14 @@ static bool seq_edit_split_effect_inputs_intersect(const Scene *scene,
 {
   bool input_does_intersect = false;
   if (strip->input1) {
-    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input1, timeline_frame);
+    input_does_intersect |= strip_splits_frame(scene, strip->input1, timeline_frame);
     if (strip->input1->is_effect()) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
           scene, strip->input1, timeline_frame);
     }
   }
   if (strip->input2) {
-    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input2, timeline_frame);
+    input_does_intersect |= strip_splits_frame(scene, strip->input2, timeline_frame);
     if (strip->input2->is_effect()) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
           scene, strip->input2, timeline_frame);
@@ -388,7 +386,7 @@ static bool seq_edit_split_operation_permitted_check(const Scene *scene,
     if (!strip->is_effect()) {
       continue;
     }
-    if (!seq_edit_split_intersect_check(scene, strip, timeline_frame)) {
+    if (!strip_splits_frame(scene, strip, timeline_frame)) {
       continue;
     }
     if (strip->effect_num_inputs_get() <= 1) {
@@ -415,7 +413,7 @@ Strip *edit_strip_split(Main *bmain,
                         const bool ignore_connections,
                         const char **r_error)
 {
-  if (!seq_edit_split_intersect_check(scene, strip, timeline_frame)) {
+  if (!strip_splits_frame(scene, strip, timeline_frame)) {
     return nullptr;
   }
 

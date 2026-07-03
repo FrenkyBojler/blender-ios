@@ -3151,9 +3151,13 @@ def km_sequencer(params):
          {"properties": [("linked_time", True), ("extend", True)]}),
         ("sequencer.select", {"type": params.select_mouse, "value": 'CLICK', "ctrl": True},
          {"properties": [("side_of_frame", True)]}),
-        ("sequencer.select", {"type": params.select_mouse, "value": 'PRESS', "alt": True},
+        # XXX TODO: TEMP-FIX for blade tool on alt-click , ctrl-click needs some treatment too.
+        # Better fix is needed than binding to click rather than press (which is what this does)
+        ("sequencer.select", {"type": params.select_mouse, "value": params.select_mouse_value_fallback, "alt": True},
          {"properties": [("deselect_all", True), ("ignore_connections", True)]}),
-        ("sequencer.select", {"type": params.select_mouse, "value": 'PRESS', "alt": True, "shift": True},
+        # XXX TODO
+        ("sequencer.select",
+         {"type": params.select_mouse, "value": params.select_mouse_value_fallback, "alt": True, "shift": True},
          {"properties": [("toggle", True), ("ignore_connections", True)]}),
         ("sequencer.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("sequencer.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
@@ -3246,7 +3250,8 @@ def km_sequencer(params):
              )
         ),
         op_menu("SEQUENCER_MT_add", {"type": 'A', "value": 'PRESS', "shift": True}),
-        op_menu("SEQUENCER_MT_change", {"type": 'C', "value": 'PRESS', "shift": True}),
+        op_menu("SEQUENCER_MT_change", {"type": 'C', "value": 'PRESS', "shift": True, "ctrl": True}),
+        op_tool("builtin.blade", {"type": 'C', "value": 'PRESS', "shift": True}),
         op_menu_pie("SEQUENCER_MT_view_pie", {"type": 'ACCENT_GRAVE', "value": 'PRESS'}),
         ("sequencer.slip", {"type": 'S', "value": 'PRESS'}, {"properties": [("use_cursor_position", False)]}),
         ("wm.context_set_int", {"type": 'O', "value": 'PRESS'},
@@ -8877,21 +8882,33 @@ def km_sequencer_tool_blade(_params):
         "Sequencer Tool: Blade",
         {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
         {"items": [
+            # Split.
             ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'CLICK'},
              {"properties": [
-                 ("type", 'SOFT'),
                  ("side", 'NO_CHANGE'),
                  ("use_cursor_position", True),
-                 ("ignore_selection", True),
              ]}),
             ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'CLICK', "alt": True},
              {"properties": [
-                 ("type", 'SOFT'),
                  ("side", 'NO_CHANGE'),
                  ("use_cursor_position", True),
-                 ("ignore_selection", True),
                  ("ignore_connections", True),
              ]}),
+            # XXX TODO: should or should not be click?
+            ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'CLICK', "shift": True},
+             {"properties": [
+                 ("side", 'NO_CHANGE'),
+                 ("use_cursor_position", True),
+                 ("all_channels", True),
+             ]}),
+            # XXX TODO: should or should not be click?
+            ("sequencer.split", {"type": 'LEFTMOUSE', "value": 'CLICK', "shift": True, "alt": True},
+             {"properties": [
+                 ("side", 'NO_CHANGE'),
+                 ("use_cursor_position", True),
+                 ("all_channels", True),
+             ]}),
+            # Box Blade.
             ("sequencer.box_blade", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, {"properties": []}),
             ("sequencer.box_blade", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "shift": True},
              {"properties": [

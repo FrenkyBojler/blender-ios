@@ -3246,17 +3246,38 @@ class _defs_sequencer_generic:
 
     @ToolDef.from_fn
     def blade():
-        def draw_settings(_context, layout, tool):
-            props = tool.operator_properties("sequencer.split")
-            row = layout.row()
-            row.prop(props, "type", expand=True)
+        def draw_settings(context, layout, tool, *, extra=False):
+            # It's possible to unhide VSE tool settings, and we can't draw panels in there.
+            # Instead, show just the first split option, and the rest of the options in an extra "..."
+            region_is_header = context.region.type == 'TOOL_HEADER'
+            if region_is_header and not extra:
+                props = tool.operator_properties("sequencer.split")
+                row = layout.row()
+                row.prop(props, "type", text="Split", expand=True)
+                layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
+                return
 
-            layout.separator()
+            # Split properties.
+            if not extra:
+                header, panel = layout.panel("SEQUENCER_PT_tool_split", default_closed=False)
+                header.label(text="Split")
+                if panel:
+                    props = tool.operator_properties("sequencer.split")
+                    row = layout.row()
+                    row.prop(props, "type", expand=True)
+                    col = layout.column()
 
-            props = tool.operator_properties("sequencer.box_blade")
-            layout.prop(props, "remove_gaps", expand=True)
-            layout.prop(props, "ignore_selection", expand=True)
-            layout.prop(props, "ignore_connections", expand=True)
+            # Box Blade properties.
+            header, panel = layout.panel("SEQUENCER_PT_tool_box_blade", default_closed=False)
+            header.label(text="Box Blade")
+            if panel:
+                props = tool.operator_properties("sequencer.box_blade")
+                row = layout.row()
+                row.prop(props, "type", expand=True)
+                col = layout.column()
+                col.prop(props, "remove_gaps", expand=True)
+                col.prop(props, "ignore_selection", expand=True)
+                col.prop(props, "ignore_connections", expand=True)
         return dict(
             idname="builtin.blade",
             label="Blade",

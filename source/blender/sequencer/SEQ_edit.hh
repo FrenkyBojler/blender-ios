@@ -60,6 +60,15 @@ enum eSplitMethod {
 };
 
 /**
+ * Test if this strip can be split at the given frame.
+ *
+ * \param timeline_frame: absolute frame in the timeline
+ * \return true if \a timeline_frame exists in the strip's (start_frame, end_frame) range,
+ * i.e., exclusive start and end.
+ */
+bool strip_splits_frame(const Scene *scene, const Strip *strip, const int timeline_frame);
+
+/**
  * Split Strip at timeline_frame in two.
  *
  * \param strip: Strip to be split

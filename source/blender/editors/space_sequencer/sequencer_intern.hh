@@ -49,6 +49,7 @@ struct wmEvent;
 struct wmKeyConfig;
 struct wmOperator;
 struct wmOperatorType;
+struct wmWindowManager;
 
 namespace ed::asset {
 struct AssetItemTree;
@@ -140,6 +141,10 @@ float strip_handle_draw_size_get(const Scene *scene, const Strip *strip, float p
 void draw_timeline_seq(const bContext *C, const ARegion *region);
 void sequencer_scrubbing_region_draw(const bContext *C, ARegion *region);
 void draw_timeline_seq_display(const bContext *C, ARegion *region);
+/* XXX TODO: Any better way than re-registering here? */
+void sequencer_blade_cursor_ensure(wmWindowManager *wm);
+void sequencer_blade_tooltip_ensure(ARegion *region);
+void sequencer_blade_tooltip_show(bContext *C);
 
 /* `sequencer_preview_draw.cc` */
 
@@ -206,6 +211,12 @@ bool sequencer_view_strips_poll(bContext *C);
  * \return collection of strips (`Strip`)
  */
 VectorSet<Strip *> all_strips_from_context(bContext *C);
+
+/* XXX TODO: Make local to split code, remove from this header */
+/** Get strips that the split operator would attempt to split at \a `split_frame` before
+ * effect/connected strip expansion in #seq::edit_strip_split.  */
+VectorSet<Strip *> split_candidates_get(
+    Scene *scene, int split_frame, int split_channel, bool split_at_cursor, bool all_channels);
 
 /* Externals. */
 
