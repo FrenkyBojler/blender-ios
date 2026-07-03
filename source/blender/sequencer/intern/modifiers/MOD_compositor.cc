@@ -179,9 +179,11 @@ class CompositorModifierContext : public CompositorContext {
         }
       }
       else if (valid_socket_type) {
+        /* Remaining inputs read their value from the exposed RNA property. */
         set_input_result_from_rna(inputs_ptr, *input_socket, socket_type, *input_result);
       }
       else {
+        /* Unsupported sockets. */
         input_result->allocate_invalid();
       }
 

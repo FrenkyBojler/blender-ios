@@ -1998,6 +1998,9 @@ static void rna_CompositorEffect_node_group_update(Main *bmain, Scene *scene, Po
   /* The sequencer stores a cached mapping between compositor node trees and strips that use them,
    * so we need to invalidate the cache since the node tree changed. */
   seq::strip_lookup_invalidate(ed);
+
+  Strip *strip = ptr->data_as<Strip>();
+  seq::compositor_effect_nodes_update_interface(*sequencer_scene, *strip);
 }
 
 static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -2055,6 +2058,58 @@ static PointerRNA rna_SequencerCompositorModifierProperties_get(PointerRNA *ptr)
   }
   return RNA_pointer_create_discrete(
       ptr->owner_id, RNA_SequencerCompositorModifierProperties, cmd);
+}
+
+static StructRNA *rna_SequencerCompositorEffectProperties_refine(PointerRNA *ptr)
+{
+  auto *comp = ptr->data_as<CompositorEffectVars>();
+  if (!comp->node_group || ID_MISSING(comp->node_group)) {
+    return RNA_SequencerCompositorEffectPropertiesEmpty;
+  }
+  BLI_assert(comp->node_group->runtime->compositor_effect_nodes_srna_data);
+  return comp->node_group->runtime->compositor_effect_nodes_srna_data->properties_struct;
+}
+
+static std::optional<std::string> rna_SequencerCompositorEffectProperties_path(
+    const PointerRNA * /*ptr*/)
+{
+  return "properties";
+}
+
+static IDProperty **rna_SequencerCompositorEffect_idprops(PointerRNA *ptr)
+{
+  auto *comp = ptr->data_as<CompositorEffectVars>();
+  return &comp->system_properties;
+}
+
+static PointerRNA rna_SequencerCompositorEffectProperties_get(PointerRNA *ptr)
+{
+  Strip *strip = ptr->data_as<Strip>();
+  CompositorEffectVars *comp = static_cast<CompositorEffectVars *>(strip->effectdata);
+  if (!comp || !comp->node_group) {
+    return PointerRNA_NULL;
+  }
+  return RNA_pointer_create_discrete(ptr->owner_id, RNA_SequencerCompositorEffectProperties, comp);
+}
+
+static void rna_SequencerCompositorEffect_input_usages(
+    ID *id, Strip *strip, bool **r_used, int *r_used_num, bool **r_visible, int *r_visible_num)
+{
+  Scene *scene = reinterpret_cast<Scene *>(id);
+  Vector<bool> used, visible;
+  seq::compositor_effect_nodes_input_usages(*scene, *strip, used, visible);
+
+  *r_used_num = int(used.size());
+  *r_visible_num = int(visible.size());
+  *r_used = used.is_empty() ? nullptr : MEM_new_array_uninitialized<bool>(used.size(), __func__);
+  *r_visible = visible.is_empty() ? nullptr :
+                                    MEM_new_array_uninitialized<bool>(visible.size(), __func__);
+  for (const int i : used.index_range()) {
+    (*r_used)[i] = used[i];
+  }
+  for (const int i : visible.index_range()) {
+    (*r_visible)[i] = visible[i];
+  }
 }
 
 static int rna_ColorStrip_width_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
@@ -3790,6 +3845,22 @@ static void rna_def_glow(StructRNA *srna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 }
 
+static void rna_def_compositor_effect_nodes_properties(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "SequencerCompositorEffectProperties", nullptr);
+  RNA_def_struct_ui_text(srna, "Sequencer Compositor Effect Properties", "");
+  RNA_def_struct_refine_func(srna, "rna_SequencerCompositorEffectProperties_refine");
+  RNA_def_struct_system_idprops_func(srna, "rna_SequencerCompositorEffect_idprops");
+  RNA_def_struct_path_func(srna, "rna_SequencerCompositorEffectProperties_path");
+
+  srna = RNA_def_struct(brna, "SequencerCompositorEffectPropertiesEmpty", nullptr);
+  RNA_def_struct_ui_text(srna, "Sequencer Compositor Effect Empty Properties", "");
+  RNA_def_struct_system_idprops_func(srna, "rna_SequencerCompositorEffect_idprops");
+  RNA_def_struct_path_func(srna, "rna_SequencerCompositorEffectProperties_path");
+}
+
 static void rna_def_compositor_effect(StructRNA *srna)
 {
   RNA_def_struct_sdna_from(srna, "CompositorEffectVars", "effectdata");
@@ -3799,6 +3870,26 @@ static void rna_def_compositor_effect(StructRNA *srna)
       prop, nullptr, nullptr, nullptr, "rna_Compositor_node_group_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_CompositorEffect_node_group_update");
+
+  prop = RNA_def_property(srna, "properties", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "SequencerCompositorEffectProperties");
+  RNA_def_property_ui_text(prop, "Properties", "");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_SequencerCompositorEffectProperties_get", nullptr, nullptr, nullptr);
+
+  FunctionRNA *func = RNA_def_function(
+      srna, "evaluate_input_usages", "rna_SequencerCompositorEffect_input_usages");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+  RNA_def_function_ui_description(
+      func,
+      "Calculate usage of each node group input, in interface order. For each input, "
+      "returns whether it currently affects the output and whether it should be visible");
+  PropertyRNA *parm = RNA_def_boolean_array(
+      func, "used", 1, nullptr, "", "Whether input affects the output");
+  RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_OUTPUT);
+  parm = RNA_def_boolean_array(
+      func, "visible", 1, nullptr, "", "Whether input should be visible in the UI");
+  RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_OUTPUT);
 }
 
 static void rna_def_solid_color(StructRNA *srna)
@@ -4201,6 +4292,8 @@ static void rna_def_effects(BlenderRNA *brna)
 {
   StructRNA *srna;
   EffectInfo *effect;
+
+  rna_def_compositor_effect_nodes_properties(brna);
 
   for (effect = def_effects; effect->struct_name[0] != '\0'; effect++) {
     srna = RNA_def_struct(brna, effect->struct_name, "EffectStrip");
