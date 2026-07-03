@@ -101,7 +101,7 @@ class DATA_PT_rigify(bpy.types.Panel):
         obj = verify_armature_obj(C.object)
 
         if metarig_needs_upgrade(obj):
-            layout.label(text="This metarig requires upgrading to Bone Collections", icon='ERROR')
+            layout.label(text="This metarig requires upgrading to Bone Collections", icon='STATUS_ERROR')
             layout.operator("armature.rigify_upgrade_layers", text="Upgrade Metarig")
             return
 
@@ -140,23 +140,23 @@ class DATA_PT_rigify(bpy.types.Panel):
                 show_upgrade_face = True
 
         if show_warning:
-            layout.label(text=WARNING, icon='WARNING')
+            layout.label(text=WARNING, icon='STATUS_WARNING')
 
         enable_generate = not (show_not_updatable or show_update_metarig)
 
         if show_not_updatable:
             layout.label(text="WARNING: This metarig contains deprecated Rigify rig-types and "
-                              "cannot be upgraded automatically.", icon='WARNING')
+                              "cannot be upgraded automatically.", icon='STATUS_WARNING')
             text = iface_("({:s} on bone {:s})").format(old_rig, old_bone)
             layout.label(text=text, translate=False)
         elif show_update_metarig:
             layout.label(text="This metarig contains old rig-types that can be automatically "
-                              "upgraded to benefit from new rigify features.", icon='WARNING')
+                              "upgraded to benefit from new rigify features.", icon='STATUS_WARNING')
             text = iface_("({:s} on bone {:s})").format(old_rig, old_bone)
             layout.label(text=text, translate=False)
             layout.operator("pose.rigify_upgrade_types", text="Upgrade Metarig")
         elif show_upgrade_face:
-            layout.label(text="This metarig uses the old face rig.", icon='INFO')
+            layout.label(text="This metarig uses the old face rig.", icon='STATUS_INFO')
             layout.operator("pose.rigify_upgrade_face")
 
         # Rig type field
@@ -360,7 +360,7 @@ class DATA_PT_rigify_collection_list(bpy.types.Panel):
 
         if ROOT_COLLECTION not in arm.collections_all:
             text = iface_("The '{:s}' collection will be added upon generation").format(ROOT_COLLECTION)
-            layout.label(text=text, translate=False, icon='INFO')
+            layout.label(text=text, translate=False, icon='STATUS_INFO')
 
 
 # noinspection PyPep8Naming
@@ -906,7 +906,7 @@ class BONE_PT_rigify_buttons(bpy.types.Panel):
                 row = layout.row()
                 box = row.box()
                 text = rpt_("ERROR: type \"{:s}\" does not exist!").format(rig_name)
-                box.label(text=text, icon='ERROR', translate=False)
+                box.label(text=text, icon='STATUS_ERROR', translate=False)
             else:
                 if hasattr(rig.Rig, 'parameters_ui'):
                     rig = rig.Rig
