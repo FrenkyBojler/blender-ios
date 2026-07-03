@@ -285,6 +285,14 @@ static bool wm_xr_temp_region_rect_update(const wmWindow *win, wmXrTempRegion *t
   }
 
   rcti clipped_rect = temp_region->region->winrct;
+  if (win->runtime != nullptr && win->runtime->is_virtual) {
+    if (BLI_rcti_size_x(&clipped_rect) <= 0 || BLI_rcti_size_y(&clipped_rect) <= 0) {
+      temp_region->valid = false;
+      return false;
+    }
+    temp_region->region_rect = clipped_rect;
+    return true;
+  }
   const rcti window_bounds = {
       0, std::max(0, int(win->sizex) - 1), 0, std::max(0, int(win->sizey) - 1)};
   if (!BLI_rcti_isect(&clipped_rect, &window_bounds, &clipped_rect)) {

@@ -42,6 +42,17 @@ namespace blender::ui {
 /** \name Utility Functions
  * \{ */
 
+static const wmEvent *ui_window_eventstate_source_get(const wmWindow *win)
+{
+  if (win == nullptr || win->runtime == nullptr) {
+    return nullptr;
+  }
+  if (win->runtime->is_virtual && win->runtime->eventstate_simulate != nullptr) {
+    return win->runtime->eventstate_simulate;
+  }
+  return win->runtime->eventstate;
+}
+
 void popup_translate(ARegion *region, const int mdiff[2])
 {
   BLI_rcti_translate(&region->winrct, UNPACK2(mdiff));
@@ -955,7 +966,9 @@ PopupBlockHandle *popup_block_create(bContext *C,
   handle->popup_create_vars.arg_free = arg_free;
   handle->popup_create_vars.but = but;
   handle->popup_create_vars.butregion = but ? butregion : nullptr;
-  copy_v2_v2_int(handle->popup_create_vars.event_xy, window->runtime->eventstate->xy);
+  if (const wmEvent *eventstate = ui_window_eventstate_source_get(window)) {
+    copy_v2_v2_int(handle->popup_create_vars.event_xy, eventstate->xy);
+  }
 
   /* create area region */
   ARegion *region = region_temp_add(CTX_wm_screen(C));

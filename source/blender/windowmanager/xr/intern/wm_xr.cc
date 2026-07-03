@@ -58,6 +58,12 @@ static wmWindow *wm_xr_session_virtual_window_create(bContext *C, wmWindowManage
   wmWindow *xr_win = wm_window_new(bmain, wm, nullptr, false);
   xr_win->runtime->is_virtual = true;
   xr_win->scene = root_win->scene;
+  xr_win->posx = root_win->posx;
+  xr_win->posy = root_win->posy;
+  xr_win->sizex = root_win->sizex;
+  xr_win->sizey = root_win->sizey;
+  xr_win->windowstate = root_win->windowstate;
+  xr_win->active = root_win->active;
   BLI_strncpy(xr_win->view_layer_name, root_win->view_layer_name, sizeof(xr_win->view_layer_name));
 
   WorkSpace *workspace = WM_window_get_active_workspace(root_win);
