@@ -20,16 +20,16 @@ const VKVertexAttributeObject &VKVertexAttributeObjectCache::get_or_create(
     VKVertexInputDescriptionPool &pool)
 {
   for (int index : IndexRange(CACHE_LEN)) {
-    if (entries_[index].shader_key == shader_key) {
-      return entries_[index].vao;
+    if (keys_[index] == shader_key) {
+      return values_[index];
     }
   }
 
   int slot = write_index_;
   write_index_ = (write_index_ + 1) % CACHE_LEN;
 
-  VKVertexAttributeObject &vao = entries_[slot].vao;
-  entries_[slot].shader_key = shader_key;
+  VKVertexAttributeObject &vao = values_[slot];
+  keys_[slot] = shader_key;
   vao.update_bindings(context, batch);
   vao.update_vertex_input_key(pool);
   return vao;
@@ -38,8 +38,8 @@ const VKVertexAttributeObject &VKVertexAttributeObjectCache::get_or_create(
 void VKVertexAttributeObjectCache::clear()
 {
   for (int index : IndexRange(CACHE_LEN)) {
-    entries_[index].shader_key = 0;
-    entries_[index].vao.clear();
+    keys_[index] = 0;
+    values_[index].clear();
   }
   write_index_ = 0;
 }

@@ -45,12 +45,8 @@ class VKVertexAttributeObjectCache {
   void clear();
 
  private:
-  struct Entry {
-    VKShaderInterface::Key shader_key = 0;
-    VKVertexAttributeObject vao;
-  };
-
-  Entry entries_[CACHE_LEN];
+  VKShaderInterface::Key keys_[CACHE_LEN];
+  VKVertexAttributeObject values_[CACHE_LEN];
   int write_index_ = 0;
 };
 
