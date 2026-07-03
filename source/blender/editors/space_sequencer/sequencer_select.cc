@@ -1211,8 +1211,28 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   }
 
   const bool was_retiming = seq::retiming_keys_are_selected(scene);
+  bool can_select_retiming_key = true;
 
   MouseCoords mouse_co(v2d, RNA_int_get(op->ptr, "mouse_x"), RNA_int_get(op->ptr, "mouse_y"));
+
+  /* If there isn't enough space the transition is drawn over the retiming keys. If the mouse is
+   * over a transition, don't select retiming keys. */
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const bool deselect = RNA_boolean_get(op->ptr, "deselect");
+  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
+  const bool toggle = RNA_boolean_get(op->ptr, "toggle");
+  const bool center = RNA_boolean_get(op->ptr, "center");
+
+  StripSelection selection;
+  if (region->regiontype == RGN_TYPE_PREVIEW) {
+    selection.strip1 = strip_select_from_preview(C, mouse_co.region, toggle, extend, center);
+  }
+  else {
+    selection = pick_strip_and_handle(scene, sseq, v2d, mouse_co.view);
+    if (selection.strip1 && seq::strip_is_transition(selection.strip1)) {
+      can_select_retiming_key = false;
+    }
+  }
 
   /* Check to see if the mouse cursor intersects with the retiming box; if so, `strip_key_owner` is
    * set. If the cursor intersects with a retiming key, `key` will be set too. */
@@ -1220,7 +1240,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   SeqRetimingKey *key = retiming_mouseover_key_get(scene, v2d, mouse_co.region, &strip_key_owner);
 
   if (strip_key_owner != nullptr && retiming_overlay_enabled(CTX_wm_space_seq(C)) &&
-      seq::retiming_show_keys(strip_key_owner))
+      seq::retiming_show_keys(strip_key_owner) && can_select_retiming_key)
   {
     /* If no key was found, the mouse cursor may still intersect with a "fake key" that has not
      * been realized yet. */
@@ -1257,20 +1277,6 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   if (was_retiming) {
     seq::retiming_selection_clear(ed);
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
-  }
-
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const bool deselect = RNA_boolean_get(op->ptr, "deselect");
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
-  const bool toggle = RNA_boolean_get(op->ptr, "toggle");
-  const bool center = RNA_boolean_get(op->ptr, "center");
-
-  StripSelection selection;
-  if (region->regiontype == RGN_TYPE_PREVIEW) {
-    selection.strip1 = strip_select_from_preview(C, mouse_co.region, toggle, extend, center);
-  }
-  else {
-    selection = pick_strip_and_handle(scene, sseq, v2d, mouse_co.view);
   }
 
   /* NOTE: `side_of_frame` and `linked_time` functionality is designed to be shared on one
@@ -1497,11 +1503,13 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  /* Ignore clicks on retiming keys. */
-  Strip *strip_key_test = nullptr;
-  SeqRetimingKey *key = retiming_mouseover_key_get(scene, v2d, mouse_co.region, &strip_key_test);
-  if (key != nullptr) {
-    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+  /* Ignore clicks on retiming keys, unless the transition strip is drawn on top. */
+  if (!seq::strip_is_transition(selection.strip1)) {
+    Strip *strip_key_test = nullptr;
+    SeqRetimingKey *key = retiming_mouseover_key_get(scene, v2d, mouse_co.region, &strip_key_test);
+    if (key != nullptr) {
+      return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+    }
   }
 
   if (element_already_selected(selection)) {
