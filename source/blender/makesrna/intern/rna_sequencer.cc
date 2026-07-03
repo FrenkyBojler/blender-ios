@@ -2046,6 +2046,44 @@ static int rna_ColorStrip_height_default(PointerRNA *ptr, PropertyRNA * /*prop*/
   return scene->r.ysch;
 }
 
+static bool rna_strip_has_mask_modifier(const Strip *strip, const Mask *mask)
+{
+  if (mask == nullptr) {
+    return false;
+  }
+
+  for (StripModifierData *smd = static_cast<StripModifierData *>(strip->modifiers.first); 
+       smd != nullptr; 
+       smd = smd->next) 
+  {
+    if (smd->type == eSeqModifierType_Mask) {
+      if (smd->mask_id == mask) {
+        return true; 
+      }
+    }
+  }
+
+  return false;
+}
+
+static void rna_Strip_mask_update(Main * /*bmain*/, Scene *scene, PointerRNA *ptr)
+{
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  Mask *active_mask = strip->mask; 
+
+  if (active_mask && !rna_strip_has_mask_modifier(strip, active_mask)) {
+    StripModifierData *new_smd = rna_Strip_modifier_new(
+        &scene->id, strip, nullptr, "Mask", eSeqModifierType_Mask);
+
+    if (new_smd != nullptr) {
+      new_smd->mask_id = active_mask;
+      new_smd->mask_input_type = STRIP_MASK_INPUT_ID; 
+    }
+  }
+
+  seq::relations_invalidate_cache_raw(scene, strip);
+}
+
 }  // namespace blender
 
 #else
@@ -2850,7 +2888,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "Mask");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Mask", "Mask data-block associated with this strip");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_mask_update");
 
   RNA_api_strip(srna);
 }

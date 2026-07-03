@@ -99,6 +99,10 @@ class SEQUENCER_HT_header(Header):
             if strip:
                 row = layout.row(align=True)
                 row.template_ID(strip, "mask", new="mask.new")
+            else:
+                row = layout.row()
+                row.enabled = False
+                row.label(text="Select strip(s) to add mask", icon='MOD_MASK')
 
         scene = context.sequencer_scene
         tool_settings = scene.tool_settings if scene else None

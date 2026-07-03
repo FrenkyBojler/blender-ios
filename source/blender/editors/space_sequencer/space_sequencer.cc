@@ -38,6 +38,7 @@
 #include "SEQ_channels.hh"
 #include "SEQ_offscreen.hh"
 #include "SEQ_preview_cache.hh"
+// #include "SEQ_relations.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_thumbnail_cache.hh"
@@ -1049,6 +1050,10 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
     switch(wmn->action) {
       case NA_EDITED:
       case NA_ADDED:
+        // Scene *scene = const_cast<Scene *>(params->scene);
+        // Editing *ed = seq::editing_get(scene);
+        // Strip *active_strip = ed->act_strip;
+        // seq::relations_invalidate_cache_raw(scene, active_strip);
         ED_region_tag_redraw(region);
         break;
     }
