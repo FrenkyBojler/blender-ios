@@ -182,14 +182,6 @@ wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEven
     wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
     gesture->wait_for_input = wait_for_input;
     view2d_edge_pan_init(C, &gesture->edge_pan_data, 2, 0, 1, 10, 0.5f, 0.5f);
-    /* Store initial mouse position in view space, later convert back to start position of box into
-     * region space during modal. */
-    const View2D *v2d = &region->v2d;
-    rcti *rect = static_cast<rcti *>(gesture->customdata);
-    gesture->mval.x = ui::view2d_region_to_view_x(v2d, rect->xmin);
-    gesture->mval.y = ui::view2d_region_to_view_y(v2d, rect->ymin);
-
-    gesture->is_active = !wait_for_input;
   }
 
   /* Add modal handler. */
@@ -243,7 +235,18 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
   else {
     switch (event->type) {
       case MOUSEMOVE: {
-        view2d_edge_pan_apply_event(C, &gesture->edge_pan_data, event);
+        /* Grab lower-left corner in view space before edge pan shifts, then shift rect by pixel
+         * delta afterwards. This keeps the rect anchored to the view as it scrolls.  */
+        const ScrArea *area = CTX_wm_area(C);
+        if (area->spacetype != SPACE_VIEW3D) {
+          const View2D *v2d = &region->v2d;
+          const float anchor_x = ui::view2d_region_to_view_x(v2d, rect->xmin);
+          const float anchor_y = ui::view2d_region_to_view_y(v2d, rect->ymin);
+          view2d_edge_pan_apply_event(C, &gesture->edge_pan_data, event);
+          const int pan_dx = int(ui::view2d_view_to_region_x(v2d, anchor_x)) - rect->xmin;
+          const int pan_dy = int(ui::view2d_view_to_region_y(v2d, anchor_y)) - rect->ymin;
+          BLI_rcti_translate(rect, pan_dx, pan_dy);
+        }
 
         if (gesture->type == WM_GESTURE_CROSS_RECT && gesture->is_active == false) {
           rect->xmin = rect->xmax = event->xy[0] - gesture->winrct.xmin;
@@ -255,12 +258,6 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
                              (event->xy[1] - gesture->winrct.ymin) - rect->ymax);
         }
         else {
-          const ScrArea *area = CTX_wm_area(C);
-          if (gesture->is_active && !ELEM(area->spacetype, SPACE_IMAGE, SPACE_VIEW3D)) {
-            const View2D *v2d = &region->v2d;
-            rect->xmin = ui::view2d_view_to_region_x(v2d, gesture->mval.x);
-            rect->ymin = ui::view2d_view_to_region_y(v2d, gesture->mval.y);
-          }
           rect->xmax = event->xy[0] - gesture->winrct.xmin;
           rect->ymax = event->xy[1] - gesture->winrct.ymin;
         }
