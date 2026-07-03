@@ -2653,13 +2653,15 @@ static wmOperatorStatus sequencer_ripple_delete_exec(bContext *C, wmOperator *op
 
   seq::prefetch_stop(scene);
 
-  rctf selection_bounds;
-  BLI_rctf_init_minmax(&selection_bounds);
+  rcti selection_bounds;
+  BLI_rcti_init_minmax(&selection_bounds);
   for (Strip *strip : selected) {
-    const rctf strip_bounds = strip_bounds_get(scene, strip);
-    BLI_rctf_union(&selection_bounds, &strip_bounds);
+    const rcti strip_bounds = strip_int_bounds_get(scene, strip);
+    BLI_rcti_union(&selection_bounds, &strip_bounds);
   }
-  const int delta = int(selection_bounds.xmax - selection_bounds.xmin);
+
+  /* This is the amount we will ripple everything left by. */
+  const int offset = selection_bounds.xmax - selection_bounds.xmin;
 
   Vector<Strip *> shifted;
   for (Strip &strip : *seqbasep) {
@@ -2667,13 +2669,13 @@ static wmOperatorStatus sequencer_ripple_delete_exec(bContext *C, wmOperator *op
       continue;
     }
     if (!all_channels) {
-      const rctf strip_bounds = strip_bounds_get(scene, &strip);
-      if (!BLI_rctf_isect_rect_y(&selection_bounds, &strip_bounds, nullptr)) {
+      const rcti strip_bounds = strip_int_bounds_get(scene, &strip);
+      if (!BLI_rcti_isect_rect_y(&selection_bounds, &strip_bounds, nullptr)) {
         continue;
       }
     }
     if (strip.left_handle() > selection_bounds.xmin) {
-      seq::transform_translate_strip(scene, &strip, -delta);
+      seq::transform_translate_strip(scene, &strip, -offset);
       seq::relations_invalidate_cache(scene, &strip);
       shifted.append(&strip);
     }
@@ -2682,7 +2684,7 @@ static wmOperatorStatus sequencer_ripple_delete_exec(bContext *C, wmOperator *op
   if (ripple_markers && !scene->toolsettings->lock_markers) {
     for (TimeMarker &marker : scene->markers) {
       if (marker.frame > selection_bounds.xmin) {
-        marker.frame -= delta;
+        marker.frame -= offset;
       }
     }
   }
