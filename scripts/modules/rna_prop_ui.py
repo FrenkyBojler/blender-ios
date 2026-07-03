@@ -125,6 +125,7 @@ def rna_idprop_ui_create(
 
     item.property_overridable_library_set(prop_path, overridable)
 
+
 def draw_property(layout, key, value, rna_properties, rna_item, context_member):
     is_rna = (key in rna_properties)
     to_dict = getattr(value, "to_dict", None)

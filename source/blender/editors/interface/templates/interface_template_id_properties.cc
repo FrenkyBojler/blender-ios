@@ -275,9 +275,7 @@ void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, const char 
   Block *block = layout->block();
 
   ui::AbstractTreeView *tree_view = block_add_view(
-      *block,
-      "IDProperty Tree View",
-      std::make_unique<IDPropertyView>(ptr, data_path));
+      *block, "IDProperty Tree View", std::make_unique<IDPropertyView>(ptr, data_path));
   tree_view->set_context_menu_title("ID Property");
   tree_view->set_default_rows(4);
 
