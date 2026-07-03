@@ -32,27 +32,27 @@ namespace blender::ui::id_properties {
 class IDPropertyView : public AbstractTreeView {
  public:
   const char *data_path_;
-  IDPropertyView(PointerRNA *prop_ptr, const char *data_path)
-      : data_path_(data_path), prop_ptr_(prop_ptr)
+  IDPropertyView(PointerRNA *dataptr, const char *data_path)
+      : data_path_(data_path), dataptr_(dataptr)
   {
     is_flat_ = true;
-    user_properties_ = RNA_struct_idprops(prop_ptr_, false);
+    user_properties_ = RNA_struct_idprops(dataptr_, false);
   }
 
   void build_tree() override;
 
  private:
-  PointerRNA *prop_ptr_;
+  PointerRNA *dataptr_;
   IDProperty *user_properties_;
 };
 
 struct DragDropData {
   IDProperty *user_properties_;
-  IDProperty *prop_;
+  IDProperty *idprop_;
 
   DragDropData() = default;
-  DragDropData(IDProperty *user_properties, IDProperty *prop)
-      : user_properties_(user_properties), prop_(prop)
+  DragDropData(IDProperty *user_properties, IDProperty *idprop)
+      : user_properties_(user_properties), idprop_(idprop)
   {
   }
 };
@@ -62,8 +62,8 @@ class IDPropertyDragController : public ui::AbstractViewItemDragController {
   DragDropData drag_data_;
 
  public:
-  IDPropertyDragController(IDPropertyView &view, IDProperty *user_properties, IDProperty *prop)
-      : AbstractViewItemDragController(view), drag_data_(user_properties, prop)
+  IDPropertyDragController(IDPropertyView &view, IDProperty *user_properties, IDProperty *idprop)
+      : AbstractViewItemDragController(view), drag_data_(user_properties, idprop)
   {
   }
 
@@ -88,8 +88,8 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
   IDPropertyDropTarget(ui::AbstractTreeViewItem &item,
                        ui::DropBehavior behavior,
                        IDProperty *user_properties,
-                       IDProperty *prop)
-      : TreeViewItemDropTarget(item, behavior), drop_data_(user_properties, prop)
+                       IDProperty *idprop)
+      : TreeViewItemDropTarget(item, behavior), drop_data_(user_properties, idprop)
   {
   }
 
@@ -106,8 +106,8 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
   {
     const DragDropData *drag_data = static_cast<DragDropData *>(drag_info.drag_data.poin);
-    const StringRef drag_name = drag_data->prop_->name;
-    const StringRef drop_name = drop_data_.prop_->name;
+    const StringRef drag_name = drag_data->idprop_->name;
+    const StringRef drop_name = drop_data_.idprop_->name;
 
     switch (drag_info.drop_location) {
       case ui::DropLocation::Into:
@@ -129,8 +129,8 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
   {
     DragDropData *drag_data = static_cast<DragDropData *>(drag_info.drag_data.poin);
     ListBaseT<IDProperty> &idprop_list = drag_data->user_properties_->data.group;
-    IDProperty *drag_idprop = drag_data->prop_;
-    IDProperty *drop_target = drop_data_.prop_;
+    IDProperty *drag_idprop = drag_data->idprop_;
+    IDProperty *drop_target = drop_data_.idprop_;
 
     BLI_remlink(&idprop_list, drag_idprop);
 
@@ -159,17 +159,17 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
 
 class IDPropertyItem : public AbstractTreeViewItem {
  private:
-  PointerRNA *prop_ptr_;
+  PointerRNA *dataptr_;
   IDProperty *user_properties_;
-  IDProperty *property_;
+  IDProperty *idprop_;
   int index_;
 
  public:
-  IDPropertyItem(PointerRNA *prop_ptr, IDProperty *property, int index)
-      : prop_ptr_(prop_ptr), property_(property), index_(index)
+  IDPropertyItem(PointerRNA *dataptr, IDProperty *idprop, int index)
+      : dataptr_(dataptr), idprop_(idprop), index_(index)
   {
-    label_ = property_->name;
-    user_properties_ = RNA_struct_idprops(prop_ptr_, false);
+    label_ = idprop_->name;
+    user_properties_ = RNA_struct_idprops(dataptr_, false);
   }
 
   bool supports_renaming() const override
@@ -179,53 +179,53 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   bool rename(const bContext &C, StringRefNull new_name) override
   {
-    user_properties_->data.children_map->children.remove_contained(property_);
-    STRNCPY(property_->name, new_name.c_str());
+    user_properties_->data.children_map->children.remove_contained(idprop_);
+    STRNCPY(idprop_->name, new_name.c_str());
     BLI_uniquename(&user_properties_->data.group,
-                   property_,
+                   idprop_,
                    "prop",
                    '.',
                    offsetof(IDProperty, name),
-                   sizeof(property_->name));
+                   sizeof(idprop_->name));
     ED_undo_push(&const_cast<bContext &>(C), new_name.c_str());
     /* Update children map after rename, otherwise ends up with dirty idprop list. */
-    user_properties_->data.children_map->children.add_new(property_);
+    user_properties_->data.children_map->children.add_new(idprop_);
     WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
     return true;
   }
 
   void build_row(ui::Layout &row) override
   {
-    uiItemL_ex(&row, property_->name, ICON_NONE, false, false);
+    uiItemL_ex(&row, idprop_->name, ICON_NONE, false, false);
 
     ui::Layout &sub = row.row(false);
 
     /* Use different emboss for widget style to color buttons when keyframe/drivers are present. */
     const EmbossType emboss = [&]() -> EmbossType {
-      if (ELEM(property_->type, IDP_INT, IDP_FLOAT, IDP_DOUBLE)) {
+      if (ELEM(idprop_->type, IDP_INT, IDP_FLOAT, IDP_DOUBLE)) {
         return EmbossType::NoneOrStatus;
       }
       return EmbossType::Emboss;
     }();
 
     sub.emboss_set(emboss);
-    sub.alignment_set(property_->type == IDP_BOOLEAN ? LayoutAlign::Right : LayoutAlign::Expand);
+    sub.alignment_set(idprop_->type == IDP_BOOLEAN ? LayoutAlign::Right : LayoutAlign::Expand);
 
-    const std::string prop_name = "[\"" + std::string(property_->name) + "\"]";
+    const std::string prop_name = "[\"" + std::string(idprop_->name) + "\"]";
 
-    const bool is_array = (property_->type == IDP_ARRAY) || !IDP_ui_data_supported(property_);
-    const bool is_color = property_->ui_data &&
-                          ELEM(property_->ui_data->rna_subtype, PROP_COLOR, PROP_COLOR_GAMMA);
+    const bool is_array = (idprop_->type == IDP_ARRAY) || !IDP_ui_data_supported(idprop_);
+    const bool is_color = idprop_->ui_data &&
+                          ELEM(idprop_->ui_data->rna_subtype, PROP_COLOR, PROP_COLOR_GAMMA);
 
     if (is_array && !is_color) {
       /* Use edit value operator to tweak array and python properties. */
       const IDPropertyView &view = static_cast<IDPropertyView &>(get_tree_view());
       PointerRNA op_ptr = sub.op("WM_OT_properties_edit_value", "Edit value", ICON_NONE);
       RNA_string_set(&op_ptr, "data_path", view.data_path_);
-      RNA_string_set(&op_ptr, "property_name", property_->name);
+      RNA_string_set(&op_ptr, "property_name", idprop_->name);
     }
     else {
-      sub.prop(prop_ptr_, prop_name, UI_ITEM_NONE, "", ICON_NONE);
+      sub.prop(dataptr_, prop_name, UI_ITEM_NONE, "", ICON_NONE);
     }
   }
 
@@ -243,13 +243,13 @@ class IDPropertyItem : public AbstractTreeViewItem {
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
     return std::make_unique<IDPropertyDragController>(
-        static_cast<IDPropertyView &>(get_tree_view()), user_properties_, property_);
+        static_cast<IDPropertyView &>(get_tree_view()), user_properties_, idprop_);
   }
 
   std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override
   {
     return std::make_unique<IDPropertyDropTarget>(
-        *this, ui::DropBehavior::Reorder, user_properties_, property_);
+        *this, ui::DropBehavior::Reorder, user_properties_, idprop_);
   }
 };
 
@@ -260,22 +260,22 @@ void IDPropertyView::build_tree()
   }
 
   int index = 0;
-  for (IDProperty &id_property : user_properties_->data.group) {
-    this->add_tree_item<IDPropertyItem>(prop_ptr_, &id_property, index);
+  for (IDProperty &idprop : user_properties_->data.group) {
+    this->add_tree_item<IDPropertyItem>(dataptr_, &idprop, index);
     index++;
   }
 }
 
-void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, const char *data_path)
+void template_tree(ui::Layout *layout, bContext *C, PointerRNA *dataptr, const char *data_path)
 {
-  if (ptr == nullptr) {
+  if (dataptr == nullptr) {
     return;
   }
 
   Block *block = layout->block();
 
   ui::AbstractTreeView *tree_view = block_add_view(
-      *block, "IDProperty Tree View", std::make_unique<IDPropertyView>(ptr, data_path));
+      *block, "IDProperty Tree View", std::make_unique<IDPropertyView>(dataptr, data_path));
   tree_view->set_context_menu_title("ID Property");
   tree_view->set_default_rows(4);
 
@@ -309,12 +309,13 @@ void idproperty_python_prop_add_fn(bContext * /*C*/, void *but_arg1, void * /*ar
   IDP_ReplaceInGroup_ex(user_properties, python_prop, active_prop, 0);
 }
 
-void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, PointerRNA *ptr)
+void draw_id_properties_value(ui::Layout *layout, PointerRNA *dataptr)
 {
+  ID *id = dataptr->owner_id;
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
 
-  IDProperty *user_properties = RNA_struct_idprops(ptr, false);
+  IDProperty *user_properties = RNA_struct_idprops(dataptr, false);
 
   IDProperty *active_prop = static_cast<IDProperty *>(
       BLI_findlink(&user_properties->data.group, user_properties->idprop_active_index));

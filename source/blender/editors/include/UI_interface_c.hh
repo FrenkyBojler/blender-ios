@@ -2766,8 +2766,8 @@ void template_collection_importer(Layout *layout, bContext *C);
 void template_collection_exporters(Layout *layout, bContext *C);
 
 namespace id_properties {
-void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, const char *data_path);
-void draw_id_properties_value(ui::Layout *layout, bContext *C, ID *id, PointerRNA *ptr);
+void template_tree(ui::Layout *layout, bContext *C, PointerRNA *dataptr, const char *data_path);
+void draw_id_properties_value(ui::Layout *layout, PointerRNA *dataptr);
 }  // namespace id_properties
 }  // namespace ui
 

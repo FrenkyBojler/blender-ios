@@ -201,7 +201,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         ui_data = rna_item.id_properties_ui(key)
     except Exception:
         # To draw enum button for changing the idproperty type
-        layout.draw_id_properties_value(rna_item.id_data, rna_item)
+        layout.draw_id_properties_value(rna_item)
         return
 
     if not rna_item.id_properties_ui(key).exists():
@@ -209,7 +209,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         prop.rna_path = context_member
         prop.property_name = key
     else:
-        layout.draw_id_properties_value(rna_item.id_data, rna_item)
+        layout.draw_id_properties_value(rna_item)
 
 
 class PropertyPanel:
