@@ -10,7 +10,6 @@
  * Also some operator reports utility functions.
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fmt/format.h>
@@ -291,16 +290,7 @@ static bool wm_event_simulate_target_is_valid(const wmWindow *win,
   }
 
   bScreen *screen = WM_window_get_active_screen(const_cast<wmWindow *>(win));
-  bool is_xr_offscreen_area = false;
-#ifdef WITH_XR_OPENXR
-  if (const bContext *xr_context = WM_xr_session_context_get(
-          &static_cast<wmWindowManager *>(G_MAIN->wm.first)->xr))
-  {
-    is_xr_offscreen_area = (event_target->area == CTX_wm_area(const_cast<bContext *>(xr_context)));
-  }
-#endif
-
-  if (!is_xr_offscreen_area && !screen_area_exists(screen, event_target->area)) {
+  if (!screen_area_exists(screen, event_target->area)) {
     return false;
   }
   if (area_region_exists(event_target->area, event_target->region)) {
@@ -1042,31 +1032,6 @@ static eHandlerActionFlag wm_handler_ui_call(bContext *C,
   if (event->type == EVT_FILESELECT) {
     return WM_HANDLER_CONTINUE;
   }
-
-#ifdef WITH_XR_OPENXR
-  bContext *xr_context = WM_xr_session_context_get(&CTX_wm_manager(C)->xr);
-  ScrArea *xr_offscreen_area = xr_context ? CTX_wm_area(xr_context) : nullptr;
-  const bool is_xr_offscreen_handler = (handler->context.area != nullptr &&
-                                        handler->context.area == xr_offscreen_area);
-
-  // #region debug-point A:desktop-event-into-xr-ui
-  if ((G.f & G_FLAG_EVENT_SIMULATE) == 0 && is_xr_offscreen_handler) {
-    fprintf(stderr,
-            "[DEBUG][xr-input-interference][A] desktop event reached XR UI handler: "
-            "event_type=%d event_val=%d handler_area=%p handler_region=%p handler_popup=%p "
-            "ctx_area=%p ctx_region=%p ctx_popup=%p\n",
-            int(event->type),
-            int(event->val),
-            handler->context.area,
-            handler->context.region,
-            handler->context.region_popup,
-            area,
-            region,
-            region_popup);
-    return WM_HANDLER_CONTINUE;
-  }
-  // #endregion
-#endif
 
   /* We set context to where UI handler came from. */
   if (handler->context.area) {
@@ -5813,42 +5778,6 @@ static eHandlerActionFlag wm_event_do_simulate_region_ex(
   }
   const eHandlerActionFlag action = eHandlerActionFlag(
       modal_action | region_action | area_action | window_action);
-  std::fprintf(stderr,
-               "panels_ws_input: simulate region area=%p region=%p region_type=%d event_type=%d val=%d mval_pre=(%d,%d) mval_post=(%d,%d) region_handlers=%d(ui=%d op=%d km=%d) area_handlers=%d modal_handlers=%d(ui=%d op=%d km=%d op_area_match=%d op_area_other=%d first_modal_op=%s first_modal_area=%p first_modal_region=%p first_modal_region_type=%d) win_handlers=%d(ui=%d op=%d km=%d) action_modal=%d action_region=%d action_area=%d action_window=%d action=%d\n",
-               area,
-               region,
-               int(region->regiontype),
-               int(event_copy.type),
-               int(event_copy.val),
-               pre_mval[0],
-               pre_mval[1],
-               event_copy.mval[0],
-               event_copy.mval[1],
-               BLI_listbase_count(&region->runtime->handlers),
-               region_ui,
-               region_op,
-               region_keymap,
-               BLI_listbase_count(&area->handlers),
-               BLI_listbase_count(&win->runtime->modalhandlers),
-               modal_ui,
-               modal_op,
-               modal_keymap,
-               modal_op_area_match,
-               modal_op_area_other,
-               first_modal_op_idname ? first_modal_op_idname : "<none>",
-               first_modal_op_area,
-               first_modal_op_region,
-               int(first_modal_op_region_type),
-               BLI_listbase_count(&win->runtime->handlers),
-               win_ui,
-               win_op,
-               win_keymap,
-               int(modal_action),
-               int(region_action),
-               int(area_action),
-               int(window_action),
-               int(action));
-  std::fflush(stderr);
 
   G.f = g_flag_prev;
   return action;
