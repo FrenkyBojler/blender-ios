@@ -18,6 +18,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "SEQ_channels.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_utils.hh"
@@ -119,7 +120,8 @@ static void otio_export_recursive(Main *bmain,
                                   SerializableObject::Retainer<Stack> *secondary_stack,
                                   ListBaseT<Strip> *strips,
                                   int _last_strip_end,
-                                  int stack_end)
+                                  int stack_end,
+                                  const ListBaseT<SeqTimelineChannel> *channel_listbase)
 {
   bool inside_meta = secondary_stack != nullptr;
 
@@ -150,6 +152,13 @@ static void otio_export_recursive(Main *bmain,
 
   /* Iterate through the channels and strips to create OTIO timeine. */
   for (auto [original_channel, strips] : channels) {
+    bool is_enabled = true;
+    if (channel_listbase) {
+      const SeqTimelineChannel *ch = seq::channel_get_by_index(channel_listbase, original_channel);
+      if (ch && ch->is_muted()) {
+        is_enabled = false;
+      }
+    }
 
     const std::string track_type = original_channel < 0 ? Track::Kind::audio : Track::Kind::video;
 
@@ -165,6 +174,10 @@ static void otio_export_recursive(Main *bmain,
 
     auto meta_audio_track = SerializableObject::Retainer<Track>(
         new Track("", track_source_range, Track::Kind::audio));
+
+    track->set_enabled(is_enabled);
+    meta_video_track->set_enabled(is_enabled);
+    meta_audio_track->set_enabled(is_enabled);
 
     int last_strip_end = _last_strip_end;
 
@@ -243,7 +256,8 @@ static void otio_export_recursive(Main *bmain,
                                 &secondary_meta_stack,
                                 seqbase,
                                 strip->left_handle() - 1,
-                                strip->right_handle(scene));
+                                strip->right_handle(scene),
+                                r_channels);
 
           last_strip_end = strip->right_handle(scene);
 
@@ -362,7 +376,8 @@ void otio_export_job_start(void *custom_data, wmJobWorkerStatus *worker_status)
                         nullptr,
                         seqbase,
                         0,
-                        scene->r.efra);
+                        scene->r.efra,
+                        &editing->channels);
 
   attach_foreign_metadata_scene(scene, timeline);
   export_scene_markers(scene, main_stack);
