@@ -125,48 +125,10 @@ def rna_idprop_ui_create(
 
     item.property_overridable_library_set(prop_path, overridable)
 
-
-def draw(layout, context, context_member, property_type, *, use_edit=True):
-    rna_item, context_member = rna_idprop_context_value(context, context_member, property_type)
-    # poll should really get this...
-    if not rna_item:
-        return
-
-    if rna_item.id_data.library is not None:
-        use_edit = False
-    is_lib_override = rna_item.id_data.override_library and rna_item.id_data.override_library.reference
-
-    assert isinstance(rna_item, property_type)
-
-    items = list(rna_item.items())
-
-    rna_properties = {prop.identifier for prop in rna_item.bl_rna.properties if prop.is_runtime} if items else None
-
-    row = layout.row()
-    row.template_id_properties_tree(rna_item, data_path=context_member)
-
-    if context.area.type != 'PROPERTIES':
-        return
-
-    col = row.column(align=True)
-    col.operator("wm.properties_add", text="", icon='ADD').data_path = context_member
-
-    if len(items) <= 0:
-        return
-
-    idprop_group = rna_item.id_properties_ensure()
-    active_prop = items[idprop_group.idprop_active_index]
-    key = active_prop[0]
-    value = active_prop[1]
+def draw_property(layout, key, value, rna_properties, rna_item, context_member):
     is_rna = (key in rna_properties)
     to_dict = getattr(value, "to_dict", None)
     to_list = getattr(value, "to_list", None)
-
-    props = col.operator("wm.properties_remove", text="", icon='REMOVE')
-    props.data_path = context_member
-    props.property_name = key
-
-    is_datablock = value is None or isinstance(value, bpy.types.ID)
 
     if to_dict:
         value = to_dict()
@@ -191,6 +153,47 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         props.property_name = key
     else:
         value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
+
+
+def draw(layout, context, context_member, property_type, *, use_edit=True):
+    rna_item, context_member = rna_idprop_context_value(context, context_member, property_type)
+    # poll should really get this...
+    if not rna_item:
+        return
+
+    if rna_item.id_data.library is not None:
+        use_edit = False
+    is_lib_override = rna_item.id_data.override_library and rna_item.id_data.override_library.reference
+
+    assert isinstance(rna_item, property_type)
+
+    items = list(rna_item.items())
+
+    rna_properties = {prop.identifier for prop in rna_item.bl_rna.properties if prop.is_runtime} if items else None
+
+    if context.area.type != 'PROPERTIES':
+        for key, value in items:
+            draw_property(layout, key, value, rna_properties, rna_item, context_member)
+        return
+
+    # Tree View drawing with ui data in properties editor
+    row = layout.row()
+    row.template_id_properties_tree(rna_item, data_path=context_member)
+
+    col = row.column(align=True)
+    col.operator("wm.properties_add", text="", icon='ADD').data_path = context_member
+
+    if len(items) <= 0:
+        return
+
+    idprop_group = rna_item.id_properties_ensure()
+    active_prop = items[idprop_group.idprop_active_index]
+
+    props = col.operator("wm.properties_remove", text="", icon='REMOVE')
+    props.data_path = context_member
+    props.property_name = active_prop[0]
+
+    draw_property(layout, active_prop[0], active_prop[1], rna_properties, rna_item, context_member)
 
     try:
         # id_properties_ui throws error for unsupported/python types.
