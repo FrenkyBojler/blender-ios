@@ -647,8 +647,8 @@ void VKDescriptorSetPoolUpdator::bind_acceleration_structure(
     VkAccelerationStructureKHR vk_acceleration_structure,
     VKDescriptorSet::Location location)
 {
-  /* NOTE: These structures will be bound during upload to ensure they have correct device
-   * addresses. */
+  /* NOTE: These structures will be bound during upload_descriptor_sets, to ensure they have
+   * correct device addresses. */
   vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                     nullptr,
                                     vk_descriptor_set,
