@@ -43,6 +43,7 @@ Desktop.ini
 # in-source lib downloads and staging
 /build_files/build_environment/downloads/
 /build_files/build_environment/windows/build/
+!/build_files/build_environment/windows/.vsconfig*
 
 # in-source buildbot signing configuration
 /build_files/buildbot/codesign/config_server.py
