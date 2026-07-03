@@ -64,10 +64,8 @@ class Context : public compositor::Context {
         main_(main),
         scene_(scene),
         info_message_(info_message),
-        active_compute_context_hash_(scene->compositing_node_group ?
-                                         bke::compositor::compute_active_compute_context_hash(
-                                             *scene, *scene->compositing_node_group) :
-                                         ComputeContextHash())
+        active_compute_context_hash_(bke::compositor::compute_active_compute_context_hash(
+            *scene, *scene->compositing_node_group))
   {
     this->set_info_message("");
   }

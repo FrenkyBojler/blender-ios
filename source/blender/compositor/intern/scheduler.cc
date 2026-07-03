@@ -47,9 +47,9 @@ static bool has_file_output_recursive(const bNodeTree &node_group)
   return false;
 }
 
-/* Checks if the node group with the given instance key has a Viewer node in it or in one of its
- * descendants. Only nodes of node groups whose instance key match that of the given active node
- * group instance key are considered active. */
+/* Checks if the node group with the given compute context has a Viewer node in it or in one
+ * of its descendants. Only nodes of node groups whose compute context match that of the given
+ * active compute context hash are considered active. */
 static bool has_viewer_recursive(const bNodeTree &node_group,
                                  const ComputeContext &compute_context,
                                  const ComputeContextHash &active_compute_context_hash)
@@ -472,9 +472,9 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &outp
       /* If any of the links is not between two pixel nodes, it means that the node outputs
        * a buffer through this output and so we increment the number of output buffers. */
       if (!is_pixel_node(node) ||
-          is_output_linked_to_input_conditioned(
-              *output,
-              [&](const bNodeSocket &input) { return !is_pixel_node(input.owner_node()); }))
+          is_output_linked_to_input_conditioned(*output, [&](const bNodeSocket &input) {
+            return !is_pixel_node(input.owner_node());
+          }))
       {
         number_of_output_buffers++;
       }
