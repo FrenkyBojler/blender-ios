@@ -2489,15 +2489,20 @@ template<typename T> void dissolve_symedge(CDT_state<T> *cdt_state, SymEdge<T> *
 
 /**
  * Remove all non-constraint edges.
+ *
+ * \return true if any edge was dissolved.
  */
-template<typename T> void remove_non_constraint_edges(CDT_state<T> *cdt_state)
+template<typename T> bool remove_non_constraint_edges(CDT_state<T> *cdt_state)
 {
+  bool has_dissolve = false;
   for (CDTEdge<T> *e : cdt_state->cdt.edges) {
     SymEdge<T> *se = &e->symedges[0];
     if (!is_deleted_edge(e) && !is_constrained_edge(e)) {
       dissolve_symedge(cdt_state, se);
+      has_dissolve = true;
     }
   }
+  return has_dissolve;
 }
 
 /*
@@ -2541,12 +2546,15 @@ template<typename T> struct EdgeToSort {
   }
 };
 
-template<typename T> void remove_non_constraint_edges_leave_valid_bmesh(CDT_state<T> *cdt_state)
+/**
+ * \return true if any edge was dissolved.
+ */
+template<typename T> bool remove_non_constraint_edges_leave_valid_bmesh(CDT_state<T> *cdt_state)
 {
   CDTArrangement<T> *cdt = &cdt_state->cdt;
   size_t nedges = cdt->edges.size();
   if (nedges == 0) {
-    return;
+    return false;
   }
   Vector<EdgeToSort<T>> dissolvable_edges;
   dissolvable_edges.reserve(cdt->edges.size());
@@ -2564,6 +2572,7 @@ template<typename T> void remove_non_constraint_edges_leave_valid_bmesh(CDT_stat
   std::ranges::sort(dissolvable_edges, [](const EdgeToSort<T> &a, const EdgeToSort<T> &b) -> bool {
     return (a.len_squared < b.len_squared);
   });
+  bool has_dissolve = false;
   for (EdgeToSort<T> &ets : dissolvable_edges) {
     CDTEdge<T> *e = ets.e;
     SymEdge<T> *se = &e->symedges[0];
@@ -2586,12 +2595,18 @@ template<typename T> void remove_non_constraint_edges_leave_valid_bmesh(CDT_stat
 
     if (dissolve) {
       dissolve_symedge(cdt_state, se);
+      has_dissolve = true;
     }
   }
+  return has_dissolve;
 }
 
-template<typename T> void remove_outer_edges_until_constraints(CDT_state<T> *cdt_state)
+/**
+ * \return true if any edge was dissolved.
+ */
+template<typename T> bool remove_outer_edges_until_constraints(CDT_state<T> *cdt_state)
 {
+  bool has_dissolve = false;
   int visit = ++cdt_state->visit_count;
 
   cdt_state->cdt.outer_face->visit_index = visit;
@@ -2635,11 +2650,18 @@ template<typename T> void remove_outer_edges_until_constraints(CDT_state<T> *cdt
       se = static_cast<SymEdge<T> *>(BLI_linklist_pop(&to_dissolve));
       if (se->next != nullptr) {
         dissolve_symedge(cdt_state, se);
+        has_dissolve = true;
       }
     }
   }
+  return has_dissolve;
 }
 
+/**
+ * \note Regarding edge dissolving and the need to call #refresh_face_symedge_representatives
+ * after dissolving edges: this function only invalidates `symedges` of the faces it deletes.
+ * There is no need to refresh `symedges` afterwards.
+ */
 template<typename T> void remove_faces_in_holes(CDT_state<T> *cdt_state)
 {
   CDTArrangement<T> *cdt = &cdt_state->cdt;
@@ -3216,31 +3238,42 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type outpu
     detect_holes_with_fillrule_nonzero(cdt_state);
   }
 
+  bool has_dissolve = false;
   if (output_type == CDT_CONSTRAINTS) {
-    remove_non_constraint_edges(cdt_state);
+    has_dissolve |= remove_non_constraint_edges(cdt_state);
   }
   else if (output_type == CDT_CONSTRAINTS_VALID_BMESH) {
-    remove_non_constraint_edges_leave_valid_bmesh(cdt_state);
+    has_dissolve |= remove_non_constraint_edges_leave_valid_bmesh(cdt_state);
   }
   else if (output_type == CDT_INSIDE) {
-    remove_outer_edges_until_constraints(cdt_state);
+    has_dissolve |= remove_outer_edges_until_constraints(cdt_state);
   }
   else if (ELEM(output_type, CDT_INSIDE_WITH_HOLES, CDT_INSIDE_WITH_HOLES_NONZERO)) {
-    remove_outer_edges_until_constraints(cdt_state);
-    refresh_face_symedge_representatives(cdt);
+    has_dissolve |= remove_outer_edges_until_constraints(cdt_state);
+    if (has_dissolve) {
+      refresh_face_symedge_representatives(cdt);
+      has_dissolve = false;
+    }
+    /* No need to set `has_dissolve`, see doc-string. */
     remove_faces_in_holes(cdt_state);
   }
   else if (ELEM(output_type,
                 CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES,
                 CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES_NONZERO))
   {
-    remove_outer_edges_until_constraints(cdt_state);
-    remove_non_constraint_edges_leave_valid_bmesh(cdt_state);
-    refresh_face_symedge_representatives(cdt);
+    has_dissolve |= remove_outer_edges_until_constraints(cdt_state);
+    has_dissolve |= remove_non_constraint_edges_leave_valid_bmesh(cdt_state);
+    if (has_dissolve) {
+      refresh_face_symedge_representatives(cdt);
+      has_dissolve = false;
+    }
+    /* No need to set `has_dissolve`, see doc-string. */
     remove_faces_in_holes(cdt_state);
   }
 
-  refresh_face_symedge_representatives(cdt);
+  if (has_dissolve) {
+    refresh_face_symedge_representatives(cdt);
+  }
 }
 
 template<typename T>
