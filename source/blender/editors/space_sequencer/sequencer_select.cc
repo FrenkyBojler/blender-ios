@@ -2254,7 +2254,9 @@ static wmOperatorStatus sequencer_box_select_invoke(bContext *C,
   const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   if (sseq->flag & SEQ_CLAMP_VIEW) {
-    gesture->edge_pan_data.limit = sequencer_clamp_view_bounds(C, region);
+    const rctf view_bounds = sequencer_clamp_view_bounds(C, region);
+    gesture->edge_pan_data.limit.ymin = view_bounds.ymin;
+    gesture->edge_pan_data.limit.ymax = view_bounds.ymax;
   }
 
   return opstatus;
