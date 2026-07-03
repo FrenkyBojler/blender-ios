@@ -438,6 +438,7 @@ class ShadowPass {
 
   PassSimple raytrace_ps_ = {"Shadow.RayQuery"};
   gpu::TopLevelASPtr shadow_as_;
+  gpu::Texture *gbuffer_normal_ref;
 
   /* [PassType][Is Manifold][Is Cap] */
   PassMain::Sub *passes_[PassType::MAX][2][2] = {{{nullptr}}};
@@ -459,6 +460,7 @@ class ShadowPass {
             View &view,
             SceneResources &resources,
             gpu::Texture &depth_stencil_tx,
+            gpu::Texture &normal_tx,
             /* Needed when there are opaque "In Front" objects in the scene */
             bool force_fail_method);
 

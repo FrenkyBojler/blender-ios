@@ -12,7 +12,10 @@ void main()
     return;
   }
 
-  /* TODO: Skip ray query when dot(N, -pass_data.light_direction_ws) < 0. */
+  if (dot(texture(normal_tx, screen_uv).xyz, pass_data.light_direction_ws) >= 0.0f) {
+    /* We already know the fragment is in shadow. No need to query. */
+    return;
+  }
 
   const float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
   rayQueryEXT query;

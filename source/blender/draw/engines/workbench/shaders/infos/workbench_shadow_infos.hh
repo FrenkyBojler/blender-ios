@@ -32,6 +32,7 @@
 GPU_SHADER_CREATE_INFO(workbench_shadow_raytrace)
 UNIFORM_BUF(1, ShadowPassData, pass_data)
 SAMPLER(2, sampler2DDepth, depth_tx)
+SAMPLER(3, sampler2D, normal_tx)
 ACCELERATION_STRUCTURE(0, shadow_as)
 TYPEDEF_SOURCE("workbench_shader_shared.hh")
 FRAGMENT_SOURCE("workbench_shadow_raytrace_frag.glsl")

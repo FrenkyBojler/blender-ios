@@ -356,6 +356,7 @@ void ShadowPass::sync(SceneResources &resources)
     raytrace_ps_.state_stencil(0xFF, 0xFF, 0xFF);
     raytrace_ps_.shader_set(ShaderCache::get().shadow_raytrace.get());
     raytrace_ps_.bind_texture("depth_tx", &resources.depth_tx);
+    raytrace_ps_.bind_texture("normal_tx", &gbuffer_normal_ref);
     raytrace_ps_.bind_ubo("pass_data", pass_data_);
     raytrace_ps_.bind_tlas("shadow_as", shadow_as_.get());
     raytrace_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
@@ -468,6 +469,7 @@ void ShadowPass::draw(Manager &manager,
                       View &view,
                       SceneResources &resources,
                       gpu::Texture &depth_stencil_tx,
+                      gpu::Texture &normal_tx,
                       bool force_fail_method)
 {
   if (!enabled_) {
@@ -475,6 +477,7 @@ void ShadowPass::draw(Manager &manager,
   }
 
   if (use_raytracing_) {
+    gbuffer_normal_ref = &normal_tx;
     fb_.ensure(GPU_ATTACHMENT_TEXTURE(&depth_stencil_tx));
     fb_.bind();
     manager.submit(raytrace_ps_, view);
