@@ -114,7 +114,7 @@ echo Adding Meson to PATH
 set PATH=%PATH%;C:\Program Files\Meson
 
 echo Obtaining LLVM
-curl -s -L https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/LLVM-20.1.8-woa64.exe -o C:\install\LLVM-20.1.0-woa64.exe
+curl -s -L https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.8/LLVM-20.1.8-woa64.exe -o C:\install\LLVM-20.1.8-woa64.exe
 echo Installing LLVM
 start /wait C:\install\LLVM-20.1.8-woa64.exe /S
 echo Adding LLVM to PATH
