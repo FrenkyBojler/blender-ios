@@ -238,6 +238,27 @@ static eViewLayerEEVEEPassType enabled_passes(const ViewLayer *view_layer)
                      view_layer->cryptomatte_flag & VIEW_LAYER_CRYPTOMATTE_MATERIAL,
                      EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL);
 
+  SET_FLAG_FROM_TEST(result,
+                     view_layer->eevee.enabled_denoising_pass_categories &
+                         EEVEE_DENOISING_PASS_CATEGORY_ALL,
+                     EEVEE_RENDER_PASS_DENOISING_DEPTH);
+  SET_FLAG_FROM_TEST(result,
+                     view_layer->eevee.enabled_denoising_pass_categories &
+                         EEVEE_DENOISING_PASS_CATEGORY_ALL,
+                     EEVEE_RENDER_PASS_DENOISING_NORMAL);
+  SET_FLAG_FROM_TEST(result,
+                     view_layer->eevee.enabled_denoising_pass_categories &
+                         EEVEE_DENOISING_PASS_CATEGORY_ALL,
+                     EEVEE_RENDER_PASS_DENOISING_ROUGHNESS);
+  SET_FLAG_FROM_TEST(result,
+                     view_layer->eevee.enabled_denoising_pass_categories &
+                         EEVEE_DENOISING_PASS_CATEGORY_ALL,
+                     EEVEE_RENDER_PASS_DENOISING_DIFFUSE_ALBEDO);
+  SET_FLAG_FROM_TEST(result,
+                     view_layer->eevee.enabled_denoising_pass_categories &
+                         EEVEE_DENOISING_PASS_CATEGORY_ALL,
+                     EEVEE_RENDER_PASS_DENOISING_SPECULAR_ALBEDO);
+
   return result;
 }
 
