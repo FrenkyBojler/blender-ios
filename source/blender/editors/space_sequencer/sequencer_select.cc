@@ -302,6 +302,16 @@ rctf strip_bounds_get(const Scene *scene, const Strip *strip)
   return bounds;
 }
 
+rcti strip_int_bounds_get(const Scene *scene, const Strip *strip)
+{
+  rcti bounds;
+  bounds.xmin = strip->left_handle();
+  bounds.xmax = strip->right_handle(scene);
+  bounds.ymin = strip->channel;
+  bounds.ymax = strip->channel;
+  return bounds;
+}
+
 Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel)
 {
   /* sel: 0==unselected, 1==selected, -1==don't care. */
@@ -2804,7 +2814,6 @@ static bool select_grouped_visual_overlap(const Scene *scene,
                                           Strip *act_strip)
 {
   Editing *ed = seq::editing_get(scene);
-  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   VectorSet<Strip *> strips_to_select;
 
   for (Strip *strip : strips) {
@@ -2819,7 +2828,7 @@ static bool select_grouped_visual_overlap(const Scene *scene,
     strips_to_select.add(strip);
   }
 
-  seq::iterator_set_expand(seqbase, strips_to_select, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(ed, strips_to_select, seq::query_strip_effect_chain);
 
   const bool changed = !strips_to_select.is_empty();
   if (changed) {
