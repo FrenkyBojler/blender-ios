@@ -1164,7 +1164,7 @@ static void get_compositor_group_output_extra_info(blender::nodes::NodeExtraInfo
   if (group_outputs.size() > 1) {
     blender::nodes::NodeExtraInfoRow row;
     row.text = IFACE_("Ignored Outputs");
-    row.icon = ICON_WARNING_LARGE;
+    row.icon = ICON_WARNING;
     row.tooltip = TIP_("Only the first output is considered while the rest are ignored");
     parameters.rows.append(std::move(row));
     return;

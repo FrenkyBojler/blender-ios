@@ -140,18 +140,18 @@ class DATA_PT_rigify(bpy.types.Panel):
                 show_upgrade_face = True
 
         if show_warning:
-            layout.label(text=WARNING, icon='ERROR')
+            layout.label(text=WARNING, icon='WARNING')
 
         enable_generate = not (show_not_updatable or show_update_metarig)
 
         if show_not_updatable:
             layout.label(text="WARNING: This metarig contains deprecated Rigify rig-types and "
-                              "cannot be upgraded automatically.", icon='ERROR')
+                              "cannot be upgraded automatically.", icon='WARNING')
             text = iface_("({:s} on bone {:s})").format(old_rig, old_bone)
             layout.label(text=text, translate=False)
         elif show_update_metarig:
             layout.label(text="This metarig contains old rig-types that can be automatically "
-                              "upgraded to benefit from new rigify features.", icon='ERROR')
+                              "upgraded to benefit from new rigify features.", icon='WARNING')
             text = iface_("({:s} on bone {:s})").format(old_rig, old_bone)
             layout.label(text=text, translate=False)
             layout.operator("pose.rigify_upgrade_types", text="Upgrade Metarig")

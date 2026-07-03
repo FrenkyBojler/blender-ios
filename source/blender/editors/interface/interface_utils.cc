@@ -635,10 +635,10 @@ int icon_from_id(const ID *id)
 int icon_from_report_type(int type)
 {
   if (type & RPT_ERROR_ALL) {
-    return ICON_CANCEL;
+    return ICON_ERROR_FILLED;
   }
   if (type & RPT_WARNING_ALL) {
-    return ICON_ERROR;
+    return ICON_WARNING_FILLED;
   }
   if (type & RPT_INFO_ALL) {
     return ICON_INFO;

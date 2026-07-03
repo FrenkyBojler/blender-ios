@@ -284,7 +284,7 @@ def addon_draw_item_expanded(
     if item_warnings:
         # Only for legacy add-ons.
         col_a.label(text="Warning")
-        col_b.label(text=item_warnings[0], icon='ERROR')
+        col_b.label(text=item_warnings[0], icon='WARNING')
         if len(item_warnings) > 1:
             for value in item_warnings[1:]:
                 col_a.label(text="")
@@ -316,7 +316,7 @@ def addons_panel_draw_missing_with_extension_impl(
         missing_modules  # `set[str]`
 ):
     layout_header, layout_panel = layout.panel("builtin_addons", default_closed=True)
-    layout_header.label(text="Missing Built-in Add-ons", icon='ERROR')
+    layout_header.label(text="Missing Built-in Add-ons", icon='WARNING')
 
     if layout_panel is None:
         return
@@ -354,7 +354,7 @@ def addons_panel_draw_missing_with_extension_impl(
         pkg_manifest_remote = repo_cache_store.refresh_remote_from_directory(directory=repo.directory, error_fn=print)
         if pkg_manifest_remote is None:
             row = box.row()
-            row.label(text="Blender's extension repository must be refreshed!", icon='ERROR')
+            row.label(text="Blender's extension repository must be refreshed!", icon='WARNING_FILLED')
             # Ideally this would only sync one repository, but there is no operator to do this
             # and this one corner-case doesn't justify adding a new operator.
             rowsub = row.row()
@@ -411,7 +411,7 @@ def addons_panel_draw_missing_impl(
         missing_modules,  # `set[str]`
 ):
     layout_header, layout_panel = layout.panel("missing_script_files", default_closed=True)
-    layout_header.label(text="Missing Add-ons", icon='ERROR')
+    layout_header.label(text="Missing Add-ons", icon='WARNING')
 
     if layout_panel is None:
         return
@@ -582,7 +582,7 @@ def addons_panel_draw_items(
         sub.label(text=" " + item_name, translate=False)
 
         if item_warnings:
-            sub.label(icon='ERROR')
+            sub.label(icon='WARNING')
         elif USE_SHOW_ADDON_TYPE_AS_ICON:
             sub.label(icon=addon_type_icon[addon_type])
 
@@ -1096,7 +1096,7 @@ class display_errors:
         box_header = layout.box()
         # Don't clip longer names.
         row = box_header.split(factor=0.9)
-        row.label(text="Repository Alert:", icon='ERROR')
+        row.label(text="Repository Alert:", icon='WARNING_FILLED')
         rowsub = row.row(align=True)
         rowsub.alignment = 'RIGHT'
         rowsub.operator("extensions.status_clear_errors", text="", icon='X', emboss=False)
@@ -1346,7 +1346,7 @@ def extension_draw_item(
     # is enabled or not, which is useful to show - when they may be considering removing/updating
     # extensions based on them being used or not.
     if pkg_block or item_warnings:
-        sub.label(text=item.name, icon='ERROR', translate=False)
+        sub.label(text=item.name, icon='WARNING', translate=False)
     else:
         sub.label(text=item.name, translate=False)
 

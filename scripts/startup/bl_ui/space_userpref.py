@@ -684,7 +684,7 @@ class USERPREF_PT_animation_timeline_advanced(AnimationPanel, CenterAlignMixIn, 
         row = layout.row(align=False)
         row.active = edit.use_negative_frames
         row.alignment = 'RIGHT'
-        row.label(icon="ERROR", text="Negative frames can cause issues with audio playback and exporters.")
+        row.label(icon='WARNING', text="Negative frames can cause issues with audio playback and exporters.")
 
 
 # -----------------------------------------------------------------------------
@@ -2606,7 +2606,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
             sub.label(text="{:s}: {:s}".format(iface_(bl_info["category"]), iface_(bl_info["name"])))
 
             if bl_info["warning"]:
-                sub.label(icon='ERROR')
+                sub.label(icon='WARNING')
 
             # icon showing support level.
             sub.label(icon=self._support_icon_mapping.get(bl_info["support"], 'QUESTION'))
@@ -2636,7 +2636,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                 if value := bl_info["warning"]:
                     split = colsub.row().split(factor=0.15)
                     split.label(text="Warning:")
-                    split.label(text="  " + iface_(value), icon='ERROR')
+                    split.label(text="  " + iface_(value), icon='WARNING')
                 del value
 
                 user_addon = USERPREF_PT_addons.is_user_addon(mod, user_addon_paths)

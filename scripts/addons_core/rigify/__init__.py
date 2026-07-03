@@ -319,7 +319,7 @@ def check_feature_set_error(_feature_set: RigifyFeatureSets, info: dict, layout:
                 rpt_("This feature set requires Blender {:s} or newer to work properly.")
                 .format(".".join(str(x) for x in info['blender']))
             )
-            sub.label(icon='ERROR', text=text, translate=False)
+            sub.label(icon='WARNING', text=text, translate=False)
 
     for dep_link in info.get("dependencies", []):
         if not feature_set_list.get_module_by_link_safe(dep_link):
@@ -332,7 +332,7 @@ def check_feature_set_error(_feature_set: RigifyFeatureSets, info: dict, layout:
                 sub.alert = True
                 sub.label(
                     text="This feature set depends on the following feature set to work properly:",
-                    icon='ERROR'
+                    icon='WARNING'
                 )
                 sub_split = col.split(factor=0.8)
                 sub = sub_split.row()
@@ -389,7 +389,7 @@ def draw_feature_set_prefs(layout: bpy.types.UILayout, _context: bpy.types.Conte
     if 'warning' in info:
         split = col.row().split(factor=split_factor)
         split.label(text="Warning:")
-        split.label(text="  " + info['warning'], icon='ERROR')
+        split.label(text="  " + info['warning'], icon='WARNING')
 
     split = col.row().split(factor=split_factor)
     split.label(text="Internet:")

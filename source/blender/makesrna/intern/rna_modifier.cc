@@ -558,8 +558,8 @@ const EnumPropertyItem rna_enum_shrinkwrap_face_cull_items[] = {
 };
 
 const EnumPropertyItem rna_enum_node_warning_type_items[] = {
-    {int(nodes::NodeWarningType::Error), "ERROR", ICON_CANCEL, "Error", ""},
-    {int(nodes::NodeWarningType::Warning), "WARNING", ICON_ERROR, "Warning", ""},
+    {int(nodes::NodeWarningType::Error), "ERROR", ICON_ERROR_FILLED, "Error", ""},
+    {int(nodes::NodeWarningType::Warning), "WARNING", ICON_WARNING_FILLED, "Warning", ""},
     {int(nodes::NodeWarningType::Info), "INFO", ICON_INFO, "Info", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };

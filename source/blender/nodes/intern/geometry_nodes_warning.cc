@@ -17,14 +17,14 @@ int node_warning_type_icon(const NodeWarningType type)
 {
   switch (type) {
     case NodeWarningType::Error:
-      return ICON_CANCEL;
+      return ICON_ERROR_FILLED;
     case NodeWarningType::Warning:
-      return ICON_ERROR;
+      return ICON_WARNING_FILLED;
     case NodeWarningType::Info:
       return ICON_INFO;
   }
   BLI_assert_unreachable();
-  return ICON_ERROR;
+  return ICON_ERROR_FILLED;
 }
 
 int node_warning_type_severity(const NodeWarningType type)

@@ -315,7 +315,7 @@ class VIEW3D_PT_vr_viewport_feedback(VRButtonsPanel, Panel):
         view3d = context.space_data
 
         col = layout.column(align=True)
-        col.label(icon='ERROR', text="Note:")
+        col.label(icon='WARNING', text="Note:")
         col.label(text="Settings here may have a significant")
         col.label(text="performance impact!")
 

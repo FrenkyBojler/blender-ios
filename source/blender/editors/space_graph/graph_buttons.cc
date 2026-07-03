@@ -981,11 +981,11 @@ static void graph_draw_driver_settings_panel(ui::Layout &layout,
 
     if (driver->flag & DRIVER_FLAG_PYTHON_BLOCKED) {
       /* TODO: Add button to enable? */
-      error_col.label(RPT_("Python restricted for security"), ICON_ERROR);
+      error_col.label(RPT_("Python restricted for security"), ICON_WARNING);
       error_col.label(RPT_("Slow Python expression"), ICON_INFO);
     }
     else if (driver->flag & DRIVER_FLAG_INVALID) {
-      error_col.label(RPT_("ERROR: Invalid Python expression"), ICON_CANCEL);
+      error_col.label(RPT_("ERROR: Invalid Python expression"), ICON_ERROR);
     }
     else if (!BKE_driver_has_simple_expression(driver)) {
       error_col.label(RPT_("Slow Python expression"), ICON_INFO);
@@ -998,10 +998,10 @@ static void graph_draw_driver_settings_panel(ui::Layout &layout,
 
       if (bpy_data_expr_error) {
         error_col.label(RPT_("TIP: Use variables instead of bpy.data paths (see below)"),
-                        ICON_ERROR);
+                        ICON_WARNING);
       }
       if (bpy_ctx_expr_error) {
-        error_col.label(RPT_("TIP: bpy.context is not safe for renderfarm usage"), ICON_ERROR);
+        error_col.label(RPT_("TIP: bpy.context is not safe for renderfarm usage"), ICON_WARNING);
       }
     }
   }
