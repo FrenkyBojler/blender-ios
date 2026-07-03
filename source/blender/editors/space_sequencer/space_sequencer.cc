@@ -532,6 +532,7 @@ static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
     view_clamped.ymin = strip_boundbox.ymin;
     view_clamped.ymax = min_ff(strip_boundbox.ymax, strip_boundbox.ymin + range_y);
   }
+
   v2d->cur = view_clamped;
 }
 

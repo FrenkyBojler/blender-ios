@@ -195,7 +195,6 @@ wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEven
 wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
-  const ARegion *region = CTX_wm_region(C);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   rcti *rect = static_cast<rcti *>(gesture->customdata);
 
@@ -239,6 +238,7 @@ wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent
          * delta afterwards. This keeps the rect anchored to the view as it scrolls.  */
         const ScrArea *area = CTX_wm_area(C);
         if (area->spacetype != SPACE_VIEW3D) {
+          const ARegion *region = CTX_wm_region(C);
           const View2D *v2d = &region->v2d;
           const float anchor_x = ui::view2d_region_to_view_x(v2d, rect->xmin);
           const float anchor_y = ui::view2d_region_to_view_y(v2d, rect->ymin);
