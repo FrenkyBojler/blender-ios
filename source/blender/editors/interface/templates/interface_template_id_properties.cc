@@ -12,7 +12,6 @@
 #include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 
-#include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BLT_translation.hh"
 
@@ -32,10 +31,9 @@ namespace blender::ui::id_properties {
 
 class IDPropertyView : public AbstractTreeView {
  public:
-  ARegion *region_;
   const char *data_path_;
-  IDPropertyView(ARegion *region, PointerRNA *prop_ptr, const char *data_path)
-      : region_(region), data_path_(data_path), prop_ptr_(prop_ptr)
+  IDPropertyView(PointerRNA *prop_ptr, const char *data_path)
+      : data_path_(data_path), prop_ptr_(prop_ptr)
   {
     is_flat_ = true;
     user_properties_ = RNA_struct_idprops(prop_ptr_, false);
@@ -176,9 +174,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   bool supports_renaming() const override
   {
-    const IDPropertyView &view = static_cast<IDPropertyView &>(get_tree_view());
-    const ARegion *region = view.region_;
-    return region && (region->regiontype != RGN_TYPE_UI);
+    return true;
   }
 
   bool rename(const bContext &C, StringRefNull new_name) override
@@ -246,11 +242,6 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
-    const IDPropertyView &view = static_cast<IDPropertyView &>(get_tree_view());
-    const ARegion *region = view.region_;
-    if (region && region->regiontype == RGN_TYPE_UI) {
-      return nullptr;
-    }
     return std::make_unique<IDPropertyDragController>(
         static_cast<IDPropertyView &>(get_tree_view()), user_properties_, property_);
   }
@@ -286,7 +277,7 @@ void template_tree(ui::Layout *layout, bContext *C, PointerRNA *ptr, const char 
   ui::AbstractTreeView *tree_view = block_add_view(
       *block,
       "IDProperty Tree View",
-      std::make_unique<IDPropertyView>(CTX_wm_region(C), ptr, data_path));
+      std::make_unique<IDPropertyView>(ptr, data_path));
   tree_view->set_context_menu_title("ID Property");
   tree_view->set_default_rows(4);
 
