@@ -48,32 +48,28 @@ if "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
 )
 
 if %UNATTENDED%==1 goto skip_confirm
-echo ###########################################################################
-echo #
-echo # Sets up system requirements to build Blender library dependencies.
-echo # Intended to be run as Administrator in command prompt on a fresh install 
-echo # of Windows, either ARM64 or x64 (detected architecture is %ARCH%)
-echo #
-echo # It will download and install software, including:
-echo # - Visual Studio Build Tools %VSBT_VER% with required components
-echo #   in the C:\vs%VSBT_YEAR%bt\ folder
-echo # - Git
-echo # - CMake
-echo # - Meson
-echo #
-echo # The following directories will be created
-echo # - C:\install\           - Installer files used by this script
-echo # - C:\t\                 - Temp directory used in Python deps building
-echo # - C:\blendergit\blender - This is the blender source repository
-echo # - C:\db                 - This is the build directory
-echo # 
-echo # The following scripts will be downloaded into C:\db from %BRANCH% branch:
-echo # - vmbuild.cmd           - Script to initialize build
-echo # - nuke.cmd              - Nuke scripts for when rebuilding libraries
-echo # 
-echo ###########################################################################
-echo #
-set /p CONFIRM=# Type DANGER to continue (CTRL-break or CTRL-C to abort..)
+echo **********************************************************************
+echo ** Sets up system to build Blender library dependencies.            **
+echo ** Needs to be run as Administrator in command prompt on a fresh    **
+echo ** Windows install for ARM64 or x64.                                **
+echo **                                                                  **
+echo ** The following software will be installed                         **
+echo ** - Visual Studio Build Tools                                      **
+echo ** - Git, CMake, Meson                                              **
+echo ** - LLVM (ARM64 only)                                              **
+echo ** - CUDA, ROCm (x64 only)                                          **
+echo **                                                                  **
+echo ** The following directories will be created                        **
+echo ** - C:\install\           - Installer files used by this script    **
+echo ** - C:\t\                 - Temp directory used in building Python **
+echo ** - C:\blendergit\blender - This is the blender source repository  **
+echo ** - C:\db                 - This is the build directory            **
+echo **                                                                  **
+echo ** The following scripts will be downloaded into C:\db              **
+echo ** - vmbuild.cmd           - Script to initialize build             **
+echo ** - nuke.cmd              - Nuke scripts for rebuilding libraries  **
+echo **
+set /p CONFIRM=** Enter DANGER to continue: 
 if not "%CONFIRM%"=="DANGER" (echo Aborted. & goto :EOF)
 :skip_confirm
 
@@ -177,8 +173,16 @@ echo Cloning Blender repository
 git clone --quiet --branch %BRANCH% https://projects.blender.org/%REPO%.git
 
 mkdir C:\db
+echo Downloading build and nuke scripts
 curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/vmbuild.cmd      -o C:\db\vmbuild.cmd
 curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke.cmd         -o C:\db\nuke.cmd
 curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_python.cmd  -o C:\db\nuke_python.cmd
 curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_embree.cmd  -o C:\db\nuke_embree.cmd
 curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_shaderc.cmd -o C:\db\nuke_shaderc.cmd
+echo Done
+
+echo **********************************************************************
+echo ** Run "call C:\vs2022bt\VC\Auxiliary\Build\vcvarsarm64.bat" or     **
+echo ** Open "%ARCH% Native Tools Command Prompt for VS %VSYEAR%"        **
+echo ** Then run "cd C:\db && vmbuild.cmd" to start a build.             **
+echo **********************************************************************
