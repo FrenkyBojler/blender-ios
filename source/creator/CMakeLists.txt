@@ -1741,6 +1741,7 @@ elseif(APPLE)
     set_target_properties(blender PROPERTIES
       XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
       XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
+      XCODE_ATTRIBUTE_DEAD_CODE_STRIPPING "NO"
     )
 
   else()
@@ -1827,6 +1828,37 @@ elseif(APPLE)
     endif()
   endif()
 
+  if(WITH_VULKAN_BACKEND)
+    install(
+      FILES ${VULKAN_LIBRARY}
+      DESTINATION ${TARGETDIR_LIB}
+    )
+  endif()
+
+  # Python.
+  if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
+    # Copy the python libraries into the install directory.
+    install_dir(
+      ${PYTHON_LIBPATH}/python${PYTHON_VERSION}
+      ${TARGETDIR_VER}/python/lib
+    )
+
+    # Install Python executable.
+    install(
+      PROGRAMS ${PYTHON_EXECUTABLE}
+      DESTINATION ${TARGETDIR_VER}/python/bin
+    )
+
+    # Needed for `distutils/pip`.
+    # Get the last part of the include dir, will be `python{version}{abiflag}`.
+    get_filename_component(_py_inc_suffix ${PYTHON_INCLUDE_DIR} NAME)
+    install(
+      FILES ${PYTHON_INCLUDE_DIR}/pyconfig.h
+      DESTINATION ${TARGETDIR_VER}/python/include/${_py_inc_suffix}
+    )
+    unset(_py_inc_suffix)
+  endif()
+
   if(PLATFORM_BUNDLED_LIBRARIES AND TARGETDIR_LIB)
     install(
       FILES ${PLATFORM_BUNDLED_LIBRARIES}
@@ -1860,37 +1892,6 @@ elseif(APPLE)
         execute_process(COMMAND codesign -s \"\${EXTRACT_CODESIGN_IDENTITY}\" --options runtime -f \${f})
       endforeach()")
     endif()
-  endif()
-
-  if(WITH_VULKAN_BACKEND)
-    install(
-      FILES ${VULKAN_LIBRARY}
-      DESTINATION ${TARGETDIR_LIB}
-    )
-  endif()
-
-  # Python.
-  if(WITH_PYTHON AND NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
-    # Copy the python libraries into the install directory.
-    install_dir(
-      ${PYTHON_LIBPATH}/python${PYTHON_VERSION}
-      ${TARGETDIR_VER}/python/lib
-    )
-
-    # Install Python executable.
-    install(
-      PROGRAMS ${PYTHON_EXECUTABLE}
-      DESTINATION ${TARGETDIR_VER}/python/bin
-    )
-
-    # Needed for `distutils/pip`.
-    # Get the last part of the include dir, will be `python{version}{abiflag}`.
-    get_filename_component(_py_inc_suffix ${PYTHON_INCLUDE_DIR} NAME)
-    install(
-      FILES ${PYTHON_INCLUDE_DIR}/pyconfig.h
-      DESTINATION ${TARGETDIR_VER}/python/include/${_py_inc_suffix}
-    )
-    unset(_py_inc_suffix)
   endif()
 
   if(WITH_PYTHON_MODULE AND TARGETDIR_BPY)
