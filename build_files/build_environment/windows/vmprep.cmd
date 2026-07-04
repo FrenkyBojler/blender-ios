@@ -179,12 +179,8 @@ echo Cloning Blender repository
 git clone --quiet --branch %BRANCH% https://projects.blender.org/%REPO%.git
 
 mkdir C:\db
-echo Downloading build and nuke scripts
-curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/vmbuild.cmd      -o C:\db\vmbuild.cmd
-curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke.cmd         -o C:\db\nuke.cmd
-curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_python.cmd  -o C:\db\nuke_python.cmd
-curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_embree.cmd  -o C:\db\nuke_embree.cmd
-curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_shaderc.cmd -o C:\db\nuke_shaderc.cmd
+echo Copying build and nuke scripts
+copy /y C:\blendergit\blender\build_files\build_environment\windows\*.cmd C:\db\ > nul
 echo Done
 
 echo **********************************************************************
