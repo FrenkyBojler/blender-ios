@@ -40,7 +40,7 @@ static bContext *C = nullptr;
 
 /* Implemented in wm.cc. */
 void WM_main_loop_body(bContext *C);
-}
+}  // namespace blender
 
 int main_ios_callback(int argc, const char **argv);
 
@@ -114,8 +114,8 @@ int main_ios_callback(int argc, const char **argv);
   }
 
   /* Run the main loop to handle all events. */
-    if (blender::C) {
-        blender::WM_main_loop_body(blender::C);
+  if (blender::C) {
+    blender::WM_main_loop_body(blender::C);
   }
 
   if (system->current_active_window_) {
@@ -140,7 +140,8 @@ int main_ios_callback(int argc, const char **argv);
     return;
   }
 
-  system->pushEvent(std::make_unique<GHOST_Event>(system->getMilliSeconds(), GHOST_kEventWindowSize, system->current_active_window_));
+  system->pushEvent(std::make_unique<GHOST_Event>(
+      system->getMilliSeconds(), GHOST_kEventWindowSize, system->current_active_window_));
 }
 
 @end
@@ -160,7 +161,7 @@ void GHOST_iosfinalize(bContext *CTX)
 {
   C = CTX;
 }
-}
+}  // namespace blender
 
 #pragma mark KeyMap, mouse converters
 
@@ -517,7 +518,8 @@ GHOST_IWindow *GHOST_SystemIOS::createWindow(const char *title,
       GHOST_ASSERT(window_manager_, "m_windowManager not initialized");
       window_manager_->addWindow(window);
       window_manager_->setActiveWindow(window);
-      pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowActivate, window));
+      pushEvent(
+          std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowActivate, window));
       pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowSize, window));
     }
     else {
@@ -585,7 +587,8 @@ GHOST_TSuccess GHOST_SystemIOS::setCursorPosition(int32_t x, int32_t y)
   if (!window)
     return GHOST_kFailure;
 
-  pushEvent(std::make_unique<GHOST_EventCursor>(getMilliSeconds(), GHOST_kEventCursorMove, window, x, y, window->getTabletData()));
+  pushEvent(std::make_unique<GHOST_EventCursor>(
+      getMilliSeconds(), GHOST_kEventCursorMove, window, x, y, window->getTabletData()));
   outside_loop_event_processed_ = true;
 
   return GHOST_kSuccess;
@@ -669,18 +672,22 @@ GHOST_TSuccess GHOST_SystemIOS::handleWindowEvent(GHOST_TEventType eventType,
     case GHOST_kEventWindowActivate:
       window_manager_->setActiveWindow(window);
       window->loadCursor(window->getCursorVisibility(), window->getCursorShape());
-      pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowActivate, window));
+      pushEvent(
+          std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowActivate, window));
       break;
     case GHOST_kEventWindowDeactivate:
       window_manager_->setWindowInactive(window);
-      pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowDeactivate, window));
+      pushEvent(
+          std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowDeactivate, window));
       break;
     case GHOST_kEventWindowUpdate:
       if (native_pixel_) {
         window->setNativePixelSize();
-        pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventNativeResolutionChange, window));
+        pushEvent(std::make_unique<GHOST_Event>(
+            getMilliSeconds(), GHOST_kEventNativeResolutionChange, window));
       }
-      pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowUpdate, window));
+      pushEvent(
+          std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowUpdate, window));
       break;
     case GHOST_kEventWindowMove:
       pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowMove, window));
@@ -690,20 +697,22 @@ GHOST_TSuccess GHOST_SystemIOS::handleWindowEvent(GHOST_TEventType eventType,
         // Enforce only one resize message per event loop
         // (coalescing all the live resize messages)
         window->updateDrawingContext();
-        pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowSize, window));
+        pushEvent(
+            std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowSize, window));
         // Mouse up event is trapped by the resizing event loop,
         // so send it anyway to the window manager.
         pushEvent(std::make_unique<GHOST_EventButton>(getMilliSeconds(),
-                                        GHOST_kEventButtonUp,
-                                        window,
-                                        GHOST_kButtonMaskLeft,
-                                        GHOST_TABLET_DATA_NONE));
+                                                      GHOST_kEventButtonUp,
+                                                      window,
+                                                      GHOST_kButtonMaskLeft,
+                                                      GHOST_TABLET_DATA_NONE));
       }
       break;
     case GHOST_kEventNativeResolutionChange:
 
       if (native_pixel_) {
-        pushEvent(std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventNativeResolutionChange, window));
+        pushEvent(std::make_unique<GHOST_Event>(
+            getMilliSeconds(), GHOST_kEventNativeResolutionChange, window));
       }
 
     default:
@@ -780,7 +789,8 @@ GHOST_TSuccess GHOST_SystemIOS::handleDraggingEvent(GHOST_TEventType eventType,
     case GHOST_kEventDraggingUpdated:
     case GHOST_kEventDraggingExited:
       window->clientToScreenIntern(mouseX, mouseY, mouseX, mouseY);
-      pushEvent(std::make_unique<GHOST_EventDragnDrop>(getMilliSeconds(), eventType, draggedObjectType, window, mouseX, mouseY, nullptr));
+      pushEvent(std::make_unique<GHOST_EventDragnDrop>(
+          getMilliSeconds(), eventType, draggedObjectType, window, mouseX, mouseY, nullptr));
       break;
 
     case GHOST_kEventDraggingDropDone: {
@@ -862,7 +872,8 @@ GHOST_TSuccess GHOST_SystemIOS::handleDraggingEvent(GHOST_TEventType eventType,
           break;
       }
 
-      pushEvent(std::make_unique<GHOST_EventDragnDrop>(getMilliSeconds(), eventType, draggedObjectType, window, mouseX, mouseY, eventData));
+      pushEvent(std::make_unique<GHOST_EventDragnDrop>(
+          getMilliSeconds(), eventType, draggedObjectType, window, mouseX, mouseY, eventData));
 
       break;
     }
@@ -912,9 +923,9 @@ bool GHOST_SystemIOS::handleOpenDocumentRequest(void *filepathStr)
     temp_buff[filenameTextSize] = '\0';
 
     pushEvent(std::make_unique<GHOST_EventString>(getMilliSeconds(),
-                                    GHOST_kEventOpenMainFile,
-                                    current_active_window_,
-                                    static_cast<GHOST_TEventDataPtr>(temp_buff)));
+                                                  GHOST_kEventOpenMainFile,
+                                                  current_active_window_,
+                                                  static_cast<GHOST_TEventDataPtr>(temp_buff)));
   }
   return YES;
 }

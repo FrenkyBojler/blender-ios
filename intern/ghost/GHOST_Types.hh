@@ -1439,7 +1439,6 @@ struct GHOST_KeyboardProperties {
 
   /* Initial string. */
   const char *text_string;
-
 };
 
 #endif

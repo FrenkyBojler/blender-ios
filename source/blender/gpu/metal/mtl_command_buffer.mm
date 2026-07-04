@@ -12,7 +12,6 @@
 #  include "intern/GHOST_ContextMTL.hh"
 #endif
 
-
 #include "mtl_backend.hh"
 #include "mtl_command_buffer.hh"
 #include "mtl_common.hh"

@@ -3682,7 +3682,8 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   keyboard_properties.tip_text = but->tip.data();
   keyboard_properties.text_string = text_edit.edit_string;
 
-  ghost_system->popupOnScreenKeyboard(static_cast<GHOST_IWindow *>(win->runtime->ghostwin), keyboard_properties);
+  ghost_system->popupOnScreenKeyboard(static_cast<GHOST_IWindow *>(win->runtime->ghostwin),
+                                      keyboard_properties);
 #endif
 
   WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
@@ -3708,8 +3709,8 @@ static void ui_textedit_end(bContext *C, Button *but, HandleButtonData *data)
 #if (WITH_APPLE_CROSSPLATFORM)
   /* Hide keyboard and retrieve keyboard text */
   ghost_system->hideOnScreenKeyboard(static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
-    const char *keyboard_string = ghost_system->getKeyboardInput(
-                                                         static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
+  const char *keyboard_string = ghost_system->getKeyboardInput(
+      static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
 
   /*
    * IOS_FIXME:
@@ -4192,7 +4193,7 @@ static int ui_do_but_textedit(
         if (but) {
           GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
           const char *keyboard_string = ghost_system->getKeyboardInput(
-                                                                 static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
+              static_cast<GHOST_IWindow *>(win->runtime->ghostwin));
           if (but->active->text_edit.edit_string) {
             ui_textedit_string_set(but, but->active->text_edit, keyboard_string);
           }
