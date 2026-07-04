@@ -314,7 +314,7 @@ else()
       # Note: Cmake will issue a developer warning about the use of triple quotes but the code seems OK.
       set(MESON_APPLE_CONFIGURATION_FILE ${BUILD_DIR}/apple_cp/meson_apple_cross_config.ini)
       set(MESON_APPLE_CP_CONTENTS
-        """
+        "" "
         [binaries]
         c = 'clang'
         cpp = 'clang++'
@@ -366,7 +366,7 @@ else()
         cpu_family = 'aarch64'
         cpu = 'arm64'
         endian = 'little'
-        """
+        " ""
       )
       file(WRITE ${MESON_APPLE_CONFIGURATION_FILE} ${MESON_APPLE_CP_CONTENTS})
 
