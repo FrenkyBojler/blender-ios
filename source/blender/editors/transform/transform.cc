@@ -29,7 +29,6 @@
 
 #include "ANIM_keyframing.hh"
 
-#include "SEQ_retiming.hh"
 #include "SEQ_transform.hh"
 
 #include "WM_api.hh"
@@ -799,7 +798,7 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
       if (t->spacetype != SPACE_SEQ) {
         return false;
       }
-      if (seq::retiming_keys_are_selected(t->scene)) {
+      if (t->data_type == &TransConvertType_SequencerRetiming) {
         return false;
       }
       break;

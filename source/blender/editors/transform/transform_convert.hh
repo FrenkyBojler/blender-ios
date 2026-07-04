@@ -426,7 +426,8 @@ struct TransSeq {
   /* Maximum delta allowed along x and y before clamping selected strips/handles. Always active. */
   rcti offset_clamp;
   /* Maximum delta before clamping handles to the bounds of underlying content. May be disabled. */
-  int hold_clamp_min, hold_clamp_max;
+  int hold_clamp_min = INT_MIN;
+  int hold_clamp_max = INT_MAX;
 
   /* Initial rect of the view2d, used for computing offset during edge panning. */
   rctf initial_v2d_cur;
@@ -434,8 +435,6 @@ struct TransSeq {
 
   /* Strips that aren't selected, but their position entirely depends on transformed strips. */
   VectorSet<Strip *> time_dependent_strips;
-
-  TransSeq();
 };
 
 bool seq_transform_check_overlap(Span<Strip *> transformed_strips);

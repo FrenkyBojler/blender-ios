@@ -44,13 +44,6 @@ namespace blender::ed::transform {
 #define STRIP_EDGE_PAN_DELAY 1.0f
 #define STRIP_EDGE_PAN_ZOOM_INFLUENCE 0.5f
 
-TransSeq::TransSeq()
-{
-  BLI_rcti_init(&offset_clamp, INT_MIN, INT_MAX, -seq::MAX_CHANNELS, seq::MAX_CHANNELS);
-  hold_clamp_min = INT_MIN;
-  hold_clamp_max = INT_MAX;
-}
-
 namespace {
 
 /** Used for sequencer transform. */
