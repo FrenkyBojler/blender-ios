@@ -678,46 +678,6 @@ class SmoothStrokePanel(BrushPanel):
         col.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
 
 
-class TipPanel(BrushPanel):
-    bl_label = "Tip"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    @classmethod
-    def poll(cls, context):
-        if not super().poll(context):
-            return False
-        settings = cls.paint_settings_from_active_tool(context)
-        if not (settings and settings.brush):
-            return False
-        return brush_has_tip_settings(context, settings.brush)
-
-    def draw(self, context):
-        layout = self.layout
-        settings = self.paint_settings_from_active_tool(context)
-        mode = self.get_brush_mode(context)
-        brush = settings.brush
-
-        if brush is None:
-            return
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        if brush.sculpt_capabilities.has_hardness:
-            row = layout.row(align=True)
-            row.prop(brush, "hardness", slider=True)
-            if brush.sculpt_capabilities.has_hardness_pressure:
-                row.prop(brush, "invert_hardness_pressure", text="")
-                row.prop(brush, "use_hardness_pressure", text="")
-
-        if brush.sculpt_brush_type in {'CLAY_STRIPS', 'PAINT'}:
-            if brush.sculpt_capabilities.has_hardness:
-                layout.separator()
-            row = layout.row(align=True)
-            layout.prop(brush, "tip_roundness")
-            layout.prop(brush, "tip_scale_x")
-
-
 class FalloffPanel(BrushPanel):
     bl_label = "Falloff"
     bl_options = {'DEFAULT_CLOSED'}
@@ -1405,6 +1365,7 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
                 col.prop(brush, "use_original_normal", text="Normal")
                 col.prop(brush, "use_original_plane", text="Plane")
 
+        brush_tip_settings(container, brush)
         draw_auto_masking_panel(container, brush)
 
         if capabilities.has_color and popover:
@@ -1479,6 +1440,30 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
     # Sculpt Curves
     elif mode == 'SCULPT_CURVES':
         container.prop(brush, "curves_sculpt_brush_type")
+
+
+def brush_tip_settings(layout, brush):
+    header, panel = layout.panel("brush_tip_panel", default_closed=True)
+    header.label(text="Brush Tip")
+
+    if panel is None:
+        return
+
+    parent = panel
+
+    if brush.sculpt_capabilities.has_hardness:
+        row = parent.row(align=True)
+        row.prop(brush, "hardness", slider=True)
+        if brush.sculpt_capabilities.has_hardness_pressure:
+            row.prop(brush, "invert_hardness_pressure", text="")
+            row.prop(brush, "use_hardness_pressure", text="")
+
+    if brush.sculpt_capabilities.has_tip_roundness:
+        if brush.sculpt_capabilities.has_hardness:
+            parent.separator()
+        row = parent.row(align=True)
+        parent.prop(brush, "tip_roundness")
+        parent.prop(brush, "tip_scale_x")
 
 
 def draw_auto_masking_panel(layout, brush):

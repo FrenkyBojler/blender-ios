@@ -22,7 +22,6 @@ from bl_ui.properties_paint_common import (
     ColorPalettePanel,
     StrokePanel,
     SmoothStrokePanel,
-    TipPanel,
     FalloffPanel,
     DisplayPanel,
     brush_texture_settings,
@@ -875,14 +874,6 @@ class VIEW3D_PT_tools_weight_gradient(Panel, View3DPaintPanel):
                 use_negative_slope=True,
                 show_presets=True,
             )
-
-
-class VIEW3D_PT_tools_brush_tip(Panel, View3DPaintPanel, TipPanel):
-    bl_context = ".paint_common"  # dot on purpose (access from topbar)
-    bl_parent_id = "VIEW3D_PT_tools_brush_settings"
-    bl_label = "Brush Tip"
-    bl_options = {'DEFAULT_CLOSED'}
-    bl_ui_units_x = 12
 
 
 class VIEW3D_PT_tools_brush_falloff(Panel, View3DPaintPanel, FalloffPanel):
@@ -2373,7 +2364,6 @@ classes = (
     VIEW3D_PT_tools_mask_texture,
     VIEW3D_PT_tools_brush_stroke,
     VIEW3D_PT_tools_brush_stroke_smooth_stroke,
-    VIEW3D_PT_tools_brush_tip,
     VIEW3D_PT_tools_brush_falloff,
     VIEW3D_PT_tools_brush_falloff_frontface,
     VIEW3D_PT_tools_brush_falloff_normal,

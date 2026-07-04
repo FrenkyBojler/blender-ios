@@ -102,8 +102,6 @@ class VIEW3D_HT_tool_header(Header):
             if tool_mode == 'PAINT_TEXTURE':
                 layout.popover("VIEW3D_PT_tools_mask_texture")
             layout.popover("VIEW3D_PT_tools_brush_stroke")
-            if brush and brush_has_tip_settings(context, brush):
-                layout.popover("VIEW3D_PT_tools_brush_tip")
             if brush and brush_has_falloff_settings(context, brush):
                 layout.popover("VIEW3D_PT_tools_brush_falloff")
             layout.popover("VIEW3D_PT_tools_brush_display")
