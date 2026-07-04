@@ -1083,10 +1083,13 @@ static void id_mark_as_asset_menu_items(const bContext &C, Layout &layout)
 
 static void id_reload_lib_menu_item(const bContext &C, Layout &layout)
 {
-  const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(&C, "id", RNA_ID).data);
-  if (!(id && id->lib)) {
+  PointerRNA idptr = CTX_data_pointer_get_type(&C, "id", RNA_ID);
+
+  ID *id = static_cast<ID *>(idptr.data);
+  if (!(id && ID_IS_LINKED(id))) {
     return;
   }
+  const int idtype = RNA_type_to_ID_code(idptr.type);
   Library *lib = id->lib;
   PointerRNA opptr = layout.op("wm.lib_reload", "Refresh Library", ICON_FILE_REFRESH);
   RNA_string_set(&opptr, "library", lib->id.name + 2);
@@ -1102,6 +1105,93 @@ static void id_reload_lib_menu_item(const bContext &C, Layout &layout)
 
   RNA_string_set(&opptr, "directory", dir);
   RNA_string_set(&opptr, "filename", filename);
+
+  if (ID_IS_PACKED(id)) {
+    button_disable(layout.block()->buttons_ptrs.last().get(), N_("Data-block is packet"));
+  }
+
+  ID *idfrom = idptr.owner_id;
+  Button *but = nullptr;
+
+  PointerRNA ptr = CTX_data_pointer_get(&C, "template_id_ptr");
+  std::optional<StringRefNull> prop_name = CTX_data_string_get(&C, "template_id_prop");
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, prop_name->c_str());
+
+  if (ID_IS_LINKED(id)) {
+    const bool disabled = !BKE_idtype_idcode_is_localizable(GS(id->name));
+
+    if (!ID_IS_PACKED(id)) {
+      but = layout.button("Pack", ICON_PACKAGE, nullptr, TIP_("Pack library data-block"));
+      button_func_set(but, [id, ptr = ptr, prop](bContext &C) mutable {
+        bke::library::pack_linked_id_hierarchy(*CTX_data_main(&C), *id);
+
+        PointerRNA idptr = RNA_id_pointer_create(id->newid);
+        RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
+        RNA_property_update(&C, &ptr, prop);
+
+        BKE_main_id_newptr_and_tag_clear(CTX_data_main(&C));
+      });
+    }
+
+    if (ID_IS_PACKED(id)) {
+      but = layout.button("Unpack",
+                          ICON_PACKAGE,
+                          nullptr,
+                          TIP_("Packed library data-block, click to unpack and make local"));
+    }
+    else if (id->tag & ID_TAG_INDIRECT) {
+      but = layout.button("Create Override",
+                          ICON_LIBRARY_DATA_INDIRECT,
+                          nullptr,
+                          TIP_("Indirect library data-block, cannot be made local, "
+                               "Shift + Click to create a library override hierarchy"));
+    }
+    else {
+      but = layout.button("Make local",
+                          ICON_LIBRARY_DATA_DIRECT,
+                          nullptr,
+                          TIP_("Direct linked library data-block, click to make local, "
+                               "Shift + Click to create a library override"));
+    }
+
+    if (disabled) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
+    /* When displaying the material selector for objects, the material slot may be assigned to
+     * the object data instead of the object. In that case disable the button if the object
+     * data is non-editable. Otherwise the button does nothing. */
+    else if (Object *object;
+             (GS(idfrom->name) == ID_OB) && (object = id_cast<Object *>(idfrom)) &&
+             (idtype == ID_MA) &&
+             /* Trying to assign to linked/packed object data. */
+             (object->data && ID_IS_LINKED(object->data)) &&
+             /* Means material is assigned to the object data, not the object. */
+             (object->matbits && (object->matbits[math::max(object->actcol - 1, 0)] == 0)))
+    {
+      button_disable(but,
+                     N_("Material is assigned to the object data, which is linked/packed "
+                        "and therefore not editable. Change to link this material slot to the "
+                        "object instead, or make the object data local."));
+    }
+    else {
+      button_func_set(but,
+                      [template_ui = TemplateID{.ptr = ptr, .prop = prop}](bContext &C) mutable {
+                        template_ui_make_local(C, template_ui);
+                      });
+    }
+  }
+  else if (ID_IS_OVERRIDE_LIBRARY(id)) {
+    but = layout.button(
+        "Make fully local",
+        ICON_LIBRARY_DATA_OVERRIDE,
+        nullptr,
+        TIP_("Library override of linked data-block, click to make fully local, "
+             "Shift + Click to clear the library override and toggle if it can be edited"));
+    button_func_set(but,
+                    [template_ui = TemplateID{.ptr = ptr, .prop = prop}](bContext &C) mutable {
+                      template_ui_override(C, template_ui);
+                    });
+  }
 
   layout.separator();
 }
