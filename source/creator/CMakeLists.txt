@@ -1891,6 +1891,15 @@ elseif(APPLE)
         message(\"Signing \${f} with signing identity: '\${EXTRACT_CODESIGN_IDENTITY}'\")
         execute_process(COMMAND codesign -s \"\${EXTRACT_CODESIGN_IDENTITY}\" --options runtime -f \${f})
       endforeach()")
+      # Ensure numpy so is signed
+      install(CODE "
+      ${EXTRACT_CODESIGN_IDENTITY_CMD}
+      file(GLOB_RECURSE _signing_libraries ${CMAKE_INSTALL_PREFIX}/${TARGETDIR_VER}/python/lib/python${PYTHON_VERSION}/site-packages/numpy/*.so)
+      foreach(f \${_signing_libraries})
+        message(\"Signing \${f} with signing identity: '\${EXTRACT_CODESIGN_IDENTITY}'\")
+        execute_process(COMMAND codesign -s \"\${EXTRACT_CODESIGN_IDENTITY}\" --options runtime -f \${f})
+      endforeach()
+      ")
     endif()
   endif()
 
