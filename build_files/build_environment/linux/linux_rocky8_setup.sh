@@ -9,9 +9,14 @@ set -euo pipefail
 
 ASSUME_YES="${ASSUME_YES:-0}"
 SKIP_BLENDER_PACKAGES="${SKIP_BLENDER_PACKAGES:-0}"
+VERBOSE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -v|--verbose)
+      VERBOSE=1
+      shift
+      ;;
     -y|--yes)
       ASSUME_YES=1
       shift
@@ -32,7 +37,6 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-# Current architecture
 ARCH=$(uname -i)
 
 if [[ "${ASSUME_YES}" != "1" ]]; then
@@ -55,22 +59,30 @@ EOF
   [[ "${CONFIRM}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
 fi
 
+dnf() {
+  if [[ "${VERBOSE}" == "1" ]]; then
+    command dnf "$@"
+  else
+    command dnf "$@" > /dev/null
+  fi
+}
+
 # Repos
 enable_repos() {
   echo "[repos]: Enabling config-manager, versionlock, powertools, epel"
 
   # Required by config manager command below to enable powertools
-  dnf -y -q install 'dnf-command(config-manager)'
+  dnf -y install 'dnf-command(config-manager)'
 
   # Required for version locking CUDA installation
-  dnf -y -q install 'dnf-command(versionlock)'
+  dnf -y install 'dnf-command(versionlock)'
 
   # Packages `ninja-build` and `meson` are not available unless CBR or PowerTools repositories are enabled.
   # See: https://wiki.rockylinux.org/rocky/repo/#notes-on-unlisted-repositories
   dnf config-manager --set-enabled powertools
 
   # Required by epel-release has the patchelf and rubygem-asciidoctor packages
-  dnf -y -q install epel-release
+  dnf -y install epel-release
 
   echo "[repos]: Done"
 }
@@ -83,16 +95,16 @@ install_gcc() {
   #
   # NOTE: Keep this separate from the packages install, since otherwise
   # older tool-chain will be installed.
-  dnf -y -q install scl-utils
-  dnf -y -q install scl-utils-build
+  dnf -y install scl-utils
+  dnf -y install scl-utils-build
 
   # Currently this is defined by the VFX platform (CY2026), see: https://vfxplatform.com
-  dnf -y -q install gcc-toolset-14
+  dnf -y install gcc-toolset-14
 
   # Set gcc-toolset-14 as default shell env, so nvcc/other tools building
   # against it don't need to be invoked with `scl enable` manually.
   echo "[gcc]:   Enabling gcc-toolset-14 by default via /etc/profile.d"
-tee /etc/profile.d/enablegcc14.sh > /dev/null <<'PROFEOF'
+  tee /etc/profile.d/enablegcc14.sh > /dev/null <<'PROFEOF'
 #!/bin/bash
 set +u
 source scl_source enable gcc-toolset-14
@@ -124,7 +136,7 @@ install_cuda() {
   dnf versionlock add 'cuda-*-12-8*'
 
   echo "[cuda]:  Installing CUDA 12.8"
-  dnf install -y -q cuda-toolkit-12-8
+  dnf -y install cuda-toolkit-12-8
 
   echo "[cuda]:  CUDA 12.8 Installed"
 }
@@ -166,11 +178,11 @@ exclude=rock-dkms
 gpgkey=https://repo.radeon.com/rocm/rocm.gpg.key
 EOF
 
-  dnf -y -q update
+  dnf -y makecache
 
   echo "[rocm]:  Installing ROCm 7.2.1"
 
-  dnf -y -q install hipcc7.2.1 hip-devel7.2.1 rocm-llvm7.2.1 rocm-core7.2.1 rocm-device-libs7.2.1
+  dnf -y install hipcc7.2.1 hip-devel7.2.1 rocm-llvm7.2.1 rocm-core7.2.1 rocm-device-libs7.2.1
   update-alternatives --set rocm /opt/rocm-7.2.1
 
   echo "[rocm]:  ROCm 7.2.1 installed"
@@ -276,7 +288,7 @@ install_packages() {
       mesa-libGL
   )
 
-  dnf -y -q install "${PACKAGES_FOR_LIBS[@]}"
+  dnf -y install "${PACKAGES_FOR_LIBS[@]}"
 
   if [[ "${SKIP_BLENDER_PACKAGES}" != "1" ]]; then
     # Additional packages needed for building Blender
@@ -293,19 +305,19 @@ install_packages() {
         libXt-devel
         libXxf86vm-devel
     )
-    dnf -y -q install "${PACKAGES_FOR_BLENDER[@]}"
+    dnf -y install "${PACKAGES_FOR_BLENDER[@]}"
   else
     echo "[pkgs]:  Skipping Blender GUI packages (--no-blender-packages)"
   fi
 
   # Dependencies for pip
-  dnf -y -q install python3 python3-pip python3-devel
+  dnf -y install python3 python3-pip python3-devel
 
   # Dependencies for asound
-  dnf -y -q install alsa-lib-devel pulseaudio-libs-devel
+  dnf -y install alsa-lib-devel pulseaudio-libs-devel
 
   # Required for `WITH_JACK` build option
-  dnf -y -q install jack-audio-connection-kit-devel
+  dnf -y install jack-audio-connection-kit-devel
 
   echo "[pkgs]:  Packages installed"
 }
