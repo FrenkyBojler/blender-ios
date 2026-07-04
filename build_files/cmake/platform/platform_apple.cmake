@@ -210,12 +210,21 @@ else()
   # When building for iOS we use the MacOS version of Python from the macos libs dir
   set(CROSSCOMPILE_HOST_LIBDIR "${CMAKE_SOURCE_DIR}/lib/macos_arm64")
   if(NOT PYTHON_VERSION)
-	# IOS_FIXME: This is not great why is PYTHON_VERSION not defined here?
-	message("WARNING Manually defining Python Version to 3.13 for iOS build")
-	set(PYTHON_EXECUTABLE "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python3.13")
+    set(PYTHON_VERSION 3.13)
+    # IOS_FIXME: This is not great why is PYTHON_VERSION not defined here?
+    message("WARNING Manually defining Python Version to 3.13 for iOS build")
+    set(PYTHON_EXECUTABLE "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python3.13")
   else()
     set(PYTHON_EXECUTABLE "${CROSSCOMPILE_HOST_LIBDIR}/python/bin/python${PYTHON_VERSION}")
   endif()
+
+  set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}")
+  set(PYTHON_LIBPATH "${LIBDIR}/python/lib")
+
+  set(PYTHON_LIBRARIES
+    "${LIBDIR}/python/lib/libpython${PYTHON_VERSION}.a"
+  )
+
   if(NOT EXISTS ${PYTHON_EXECUTABLE})
     message(
       FATAL_ERROR
