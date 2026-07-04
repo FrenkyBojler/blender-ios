@@ -833,10 +833,6 @@ static void socket_set_subtype(bNodeTreeInterfaceSocket &socket, const PropertyS
 
 static void pixel_subtype_forward_compat(BlendWriter *writer, bNodeTreeInterfaceItem &item)
 {
-  if (BLO_write_is_undo(writer)) {
-    return;
-  }
-
   /* The Pixel subtype is written as None subtype to ensure forward compatibility. */
   bNodeTreeInterfaceSocket &socket = get_item_as<bNodeTreeInterfaceSocket>(item);
   const Map<StringRef, StringRef> &subtype_pixel_to_none_map = subtype_pixel_to_none();
@@ -870,7 +866,7 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
                          NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY);
 
       /* Todo(#140111): Forward compatible writing of Pixel subtype. To be removed in 6.0. */
-      if (subtype_pixel_to_none().contains(socket.socket_type)) {
+      if (BLO_write_is_undo(writer) && subtype_pixel_to_none().contains(socket.socket_type)) {
         pixel_subtype_forward_compat(writer, item);
       }
       else {

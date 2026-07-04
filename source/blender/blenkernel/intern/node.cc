@@ -1094,32 +1094,40 @@ static void pixel_subtype_forward_compat(BlendWriter *writer, const bNodeSocket 
   bNodeSocket *sock_copy = MEM_dupalloc(&sock);
   node_socket_copy(sock_copy, &sock, LIB_ID_CREATE_NO_USER_REFCOUNT);
   STRNCPY(sock_copy->idname, subtype_pixel_to_none().lookup(sock.idname).data());
-  writer->write_struct_at_address(&sock, sock_copy);
-
-  if (sock_copy->prop) {
-    IDP_BlendWrite(writer, sock_copy->prop);
-  }
 
   /* This property should only be used for group node "interface" sockets. */
   BLI_assert(sock_copy->default_attribute_name == nullptr);
 
-  if (sock_copy->default_value != nullptr) {
-    switch (sock_copy->type) {
+  // todo(habib): doc
+  void *default_value_copy = sock_copy->default_value;
+  IDProperty *prop_copy = sock_copy->prop;
+  sock_copy->default_value = sock.default_value;
+  sock_copy->prop = sock.prop;  // todo(habib): test with prop sockets
+  writer->write_struct_at_address(&sock, sock_copy);
+  sock_copy->default_value = default_value_copy;
+  sock_copy->prop = prop_copy;
+
+  if (sock.prop) {
+    IDP_BlendWrite(writer, sock.prop);
+  }
+
+  if (sock.default_value != nullptr) {
+    switch (sock->type) {
       case SOCK_FLOAT:
         write_node_socket_default_value_without_subtype<bNodeSocketValueFloat>(
-            sock.default_value, writer, sock_copy->default_value);
+            sock.default_value, writer, sock.default_value);
         break;
       case SOCK_VECTOR:
         write_node_socket_default_value_without_subtype<bNodeSocketValueVector>(
-            sock.default_value, writer, sock_copy->default_value);
+            sock.default_value, writer, sock.default_value);
         break;
       case SOCK_INT:
         write_node_socket_default_value_without_subtype<bNodeSocketValueInt>(
-            sock.default_value, writer, sock_copy->default_value);
+            sock.default_value, writer, sock.default_value);
         break;
       case SOCK_INT_VECTOR:
         write_node_socket_default_value_without_subtype<bNodeSocketValueIntVector>(
-            sock.default_value, writer, sock_copy->default_value);
+            sock.default_value, writer, sock.default_value);
         break;
       default:
         BLI_assert_unreachable();
