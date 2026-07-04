@@ -412,7 +412,7 @@ class DATA_PT_rigify_collection_ui(bpy.types.Panel):
         active_bcoll_idx = arm.collections.active_index
 
         if active_bcoll_idx < 0:
-            layout.label(text="Click a button to select a collection:", icon="INFO")
+            layout.label(text="Click a button to select a collection:", icon='STATUS_INFO')
 
         box = layout.box()
         last_row = max(row_table.keys())
@@ -422,7 +422,7 @@ class DATA_PT_rigify_collection_ui(bpy.types.Panel):
             row_items = row_table[row_id]
 
             if row_id == 1 and not has_buttons:
-                row.label(text="Click to assign the button here:", icon="INFO")
+                row.label(text="Click to assign the button here:", icon='STATUS_INFO')
 
             grid = row.grid_flow(row_major=True, columns=len(row_items), even_columns=True)
             for bcoll_id in row_items:
