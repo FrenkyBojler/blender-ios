@@ -1088,7 +1088,7 @@ static void id_reload_lib_menu_item(const bContext &C, Layout &layout)
     return;
   }
   Library *lib = id->lib;
-  PointerRNA opptr = layout.op("wm.lib_reload", "Reload Library", ICON_FILE_REFRESH);
+  PointerRNA opptr = layout.op("wm.lib_reload", "Refresh Library", ICON_FILE_REFRESH);
   RNA_string_set(&opptr, "library", lib->id.name + 2);
 
   char dir[FILE_MAXDIR], filename[FILE_MAX];
