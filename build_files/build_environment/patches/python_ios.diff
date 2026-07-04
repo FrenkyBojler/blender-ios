@@ -37,7 +37,7 @@
 
 --- a/configure	2023-06-14 10:39:22
 +++ b/configure	2023-06-14 11:05:42
-@@ -1066,6 +1066,7 @@
+@@ -1131,6 +1131,7 @@
  with_ssl_default_suites
  with_builtin_hashlib_hashes
  enable_test_modules
@@ -45,14 +45,13 @@
  '
        ac_precious_vars='build_alias
  host_alias
-@@ -1573,7 +1574,23 @@
-     cross_compiling=yes
+@@ -1648,6 +1649,22 @@
    fi
  fi
-+
+ 
 +# Force enable cross-compilation to take crosscompile path even if host and build are the same.
 +{ $as_echo_n "checking for --with-force-crosscompile... " >&6; }
- 
++
 +if test "${with_force_crosscompile+set}" = set; then
 +  withval=$with_force_crosscompile
 +else
@@ -69,8 +68,8 @@
  ac_tool_prefix=
  test -n "$host_alias" && ac_tool_prefix=$host_alias-
  
-@@ -3832,6 +3849,9 @@
- 	*-*-wasi)
+@@ -4067,6 +4084,9 @@
+ 	*-*-wasi*)
  	    ac_sys_system=WASI
  	    ;;
 +    *-apple-darwin*)
@@ -79,19 +78,43 @@
  	*)
  		# for now, limit cross builds to known configurations
  		MACHDEP="unknown"
-@@ -3885,7 +3905,10 @@
+@@ -4531,7 +4551,10 @@
  	wasm32-*-* | wasm64-*-*)
- 		_host_cpu=$host_cpu
+ 		_host_ident=$host_cpu
  		;;
 -	*)
 +    *-apple-darwin*)
-+        _host_cpu=arm
++        _host_ident=arm
 +        ;;
 +    *)
  		# for now, limit cross builds to known configurations
  		MACHDEP="unknown"
  		as_fn_error $? "cross build not supported for $host" "$LINENO" 5
-@@ -28823,14 +28846,14 @@
+@@ -14432,7 +14455,14 @@
+ 
+ 
+ 
++if test "x$ac_sys_system" = xDarwin && test "$cross_compiling" = yes
++then :
++    ac_cv_func_ffi_prep_cif_var=yes
++    ac_cv_func_ffi_prep_closure_loc=yes
++    ac_cv_func_ffi_closure_alloc=yes
++fi
+ 
++
+ have_libffi=missing
+ if test "x$ac_sys_system" = xDarwin
+ then :
+@@ -14483,7 +14513,7 @@
+ fi
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ffi_ffi_call" >&5
+ printf "%s\n" "$ac_cv_lib_ffi_ffi_call" >&6; }
+-if test "x$ac_cv_lib_ffi_ffi_call" = xyes
++if test "x$ac_cv_lib_ffi_ffi_call" = xyes && test "$cross_compiling" = no
+ then :
+ 
+                 have_libffi=yes
+@@ -28823,14 +28853,14 @@
  printf "%s\n" "no" >&6; }
  	have_libb2=no
  else
@@ -373,10 +396,12 @@ index 019fb4a..1ec0592 100644
  *static*
 --- a/Makefile.pre.in
 +++ b/Makefile.pre.in
-@@ -503,7 +503,8 @@ LIBRARY_OBJS=	\
+@@ -503,7 +503,10 @@ LIBRARY_OBJS=	\
  		$(LIBRARY_OBJS_OMIT_FROZEN) \
  		$(DEEPFREEZE_OBJS) \
  		Modules/getpath.o \
 -		Python/frozen.o
 +		Python/frozen.o \
-+		$(LIBMPDEC_OBJS)
++		$(LIBMPDEC_OBJS) \
++       $(LIBHACL_SHA2_OBJS) \
++       $(LIBEXPAT_OBJS)
