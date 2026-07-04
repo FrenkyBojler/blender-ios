@@ -79,7 +79,8 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
 {
   const TransData *const td = tc->data;
   Scene *scene = t->scene;
-  const Editing *ed = seq::editing_get(t->scene);
+  Editing *ed = seq::editing_get(t->scene);
+  ListBaseT<Strip> *seqbasep = seq::active_seqbase_get(ed);
 
   /* Handle overlapping strips. */
 
@@ -89,8 +90,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
     transformed_strips.add(strip);
   }
 
-  ListBaseT<Strip> *seqbasep = seq::active_seqbase_get(ed);
-  seq::iterator_set_expand(seqbasep, transformed_strips, seq::query_strip_direct_effect_chain);
+  seq::iterator_set_expand(ed, transformed_strips, seq::query_strip_direct_effect_chain);
 
   /* First remove the marked strips from #transformed_strips to prevent dangling pointers.  */
   transformed_strips.remove_if([&](Strip *strip) {
@@ -265,8 +265,8 @@ static void recalcData_sequencer_retiming(TransInfo *t)
   /* Test overlap, displays red outline. */
   Editing *ed = seq::editing_get(t->scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
-  seq::iterator_set_expand(seqbase, transformed_strips, seq::query_strip_direct_effect_chain);
 
+  seq::iterator_set_expand(ed, transformed_strips, seq::query_strip_direct_effect_chain);
   seq::transform_set_overlap_flags(t->scene, seqbase, transformed_strips);
 }
 
