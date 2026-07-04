@@ -153,10 +153,47 @@ TEST(math_geom, CrossPoly)
 }
 
 /**
+ * Single-plane segment clipping keeps output points valid on success and rejects segments
+ * entirely behind the clipping plane.
+ */
+TEST(math_geom, ClipSegmentV3Plane)
+{
+  /* Plane x = 0, with positive x in front. */
+  const float plane[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+  float r_p1[3], r_p2[3];
+
+  {
+    /* Crossing the plane: clip the behind endpoint to x = 0. */
+    const float p1[3] = {-1.0f, 0.0f, 0.0f};
+    const float p2[3] = {1.0f, 0.0f, 0.0f};
+    const float expect_p1[3] = {0.0f, 0.0f, 0.0f};
+    EXPECT_TRUE(clip_segment_v3_plane(p1, p2, plane, r_p1, r_p2));
+    EXPECT_V3_NEAR(expect_p1, r_p1, 1e-6f);
+    EXPECT_V3_NEAR(p2, r_p2, 1e-6f);
+  }
+
+  {
+    /* Parallel and in front of the plane: keep the segment unchanged. */
+    const float p1[3] = {1.0f, -1.0f, 0.0f};
+    const float p2[3] = {1.0f, 1.0f, 0.0f};
+    EXPECT_TRUE(clip_segment_v3_plane(p1, p2, plane, r_p1, r_p2));
+    EXPECT_V3_NEAR(p1, r_p1, 1e-6f);
+    EXPECT_V3_NEAR(p2, r_p2, 1e-6f);
+  }
+
+  {
+    /* Parallel and behind the plane: reject the segment. */
+    const float p1[3] = {-1.0f, -1.0f, 0.0f};
+    const float p2[3] = {-1.0f, 1.0f, 0.0f};
+    EXPECT_FALSE(clip_segment_v3_plane(p1, p2, plane, r_p1, r_p2));
+  }
+}
+
+/**
  * Regression for #160753: perspective snap on long loose edges.
  *
  * When part of a thin world-space AABB is behind the camera, projected AABB
- * culling must not report a bogus pixel distance (which rejected snap targets).
+ * culling must not return a bogus distance in the hundreds of pixels.
  */
 TEST(math_geom, DistSquaredToProjectedAabb_LooseEdgeBehindCamera)
 {
@@ -182,10 +219,56 @@ TEST(math_geom, DistSquaredToProjectedAabb_LooseEdgeBehindCamera)
   float persmat[4][4];
   mul_m4_m4m4(persmat, winmat, viewmat);
 
-  const float dist_sq = dist_squared_to_projected_aabb_simple(persmat, winsize, mval, bbmin, bbmax);
+  const float dist_sq = dist_squared_to_projected_aabb_simple(
+      persmat, winsize, mval, bbmin, bbmax);
 
-  /* Snap boundbox culling uses a 30px threshold (see SNAP_MIN_DISTANCE). */
+  /* The selected AABB edge may not be safe to project while other corners remain visible;
+   * returning a conservative distance avoids a false snap rejection. */
   const float snap_threshold_sq = square_f(30.0f);
   EXPECT_LE(dist_sq, snap_threshold_sq);
+}
+
+/**
+ * Near frustum data is computed once in #dist_squared_to_projected_aabb_precalc.
+ */
+TEST(math_geom, DistSquaredToProjectedAabb_PrecalcNearPlane)
+{
+  const float winsize[2] = {1920.0f, 1080.0f};
+  const float mval[2] = {960.0f, 540.0f};
+
+  /* Keep the view matrix simple so known points can be tested against the near plane. */
+  float viewmat[4][4];
+  unit_m4(viewmat);
+
+  /* Build a perspective frustum with near plane at 0.1 and far plane at 1000. */
+  const float near_clip = 0.1f;
+  float winmat[4][4];
+  perspective_m4(winmat, -0.8f, 0.8f, -0.45f, 0.45f, near_clip, 1000.0f);
+
+  float persmat[4][4];
+  mul_m4_m4m4(persmat, winmat, viewmat);
+
+  DistProjectedAABBPrecalc precalc;
+  dist_squared_to_projected_aabb_precalc(&precalc, persmat, winsize, mval);
+
+  /* A matrix built from a perspective frustum should be detected as perspective. */
+  EXPECT_TRUE(precalc.is_persp);
+
+  /* The stored near plane should separate clipped points from visible points. */
+  const float behind_near[3] = {0.0f, 0.0f, 0.0f};
+  const float on_near[3] = {0.0f, 0.0f, -near_clip};
+  const float in_front_of_near[3] = {0.0f, 0.0f, -1.0f};
+  EXPECT_LT(plane_point_side_v3(precalc.near_plane, behind_near), 0.0f);
+  EXPECT_NEAR(plane_point_side_v3(precalc.near_plane, on_near), 0.0f, 1e-5f);
+  EXPECT_GT(plane_point_side_v3(precalc.near_plane, in_front_of_near), 0.0f);
+
+  /* Orthographic-like matrix: projected `w` is constant, so no perspective near clip is needed. */
+  float ortho_winmat[4][4];
+  unit_m4(ortho_winmat);
+  ortho_winmat[0][0] = 1.0f / 960.0f;
+  ortho_winmat[1][1] = 1.0f / 540.0f;
+  mul_m4_m4m4(persmat, ortho_winmat, viewmat);
+  dist_squared_to_projected_aabb_precalc(&precalc, persmat, winsize, mval);
+  EXPECT_FALSE(precalc.is_persp);
 }
 }  // namespace blender

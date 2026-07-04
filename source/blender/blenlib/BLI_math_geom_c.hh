@@ -283,6 +283,10 @@ struct DistProjectedAABBPrecalc {
   float ray_inv_dir[3];
   float pmat[4][4];
   float mval[2];
+  /** Frustum near clip plane. */
+  float near_plane[4];
+  /** True when perspective `w` depends on the input coordinate. */
+  bool is_persp;
 };
 /**
  * \param projmat: Projection Matrix (usually perspective
