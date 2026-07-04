@@ -290,7 +290,7 @@ class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel)
         col.prop(view, "use_translate_new_dataname", text="New Data")
 
         layout.prop(view, "date_format")
-        layout.prop(view, "time_format", text="Time")
+        layout.prop(view, "time_format", text="Time", text_ctxt=i18n_contexts.editor_preferences)
 
 
 class USERPREF_PT_interface_accessibility(InterfacePanel, CenterAlignMixIn, Panel):
@@ -1556,7 +1556,7 @@ class ThemeGenericClassGenerator:
         from bpy.types import Theme
 
         for theme_area in Theme.bl_rna.properties["theme_area"].enum_items_static:
-            if theme_area.identifier in {'USER_INTERFACE', 'STYLE', 'BONE_COLOR_SETS'}:
+            if theme_area.identifier in {'USER_INTERFACE', 'STYLE', 'BONE_COLOR_SETS', 'PROJECT'}:
                 continue
 
             panel_id = "USERPREF_PT_theme_" + theme_area.identifier.lower()
@@ -2718,9 +2718,10 @@ class USERPREF_PT_assets(AssetsPanel, Panel):
             # Either online access is allowed, or the warning has already been dismissed. No need to draw.
             return
 
-        has_online_library = any(
-            library.enabled and library.use_remote_url for library in prefs.filepaths.asset_libraries
-        )
+        has_online_essentials = prefs.asset_libraries.use_online_essentials
+        has_online_library = has_online_essentials or any(
+            library.enabled and library.use_remote_url for library in prefs.filepaths.asset_libraries)
+
         if not has_online_library:
             # No online libraries, so no need to draw.
             return

@@ -9,11 +9,11 @@
 #include "AS_asset_representation.hh"
 
 #include "BKE_node_socket_value.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_stack.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "DNA_ID.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -830,6 +830,8 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
             node_area_tag_tree_recalc(snode, area);
           }
         }
+
+        ED_area_tag_redraw(area);
       }
       break;
 
@@ -1315,7 +1317,7 @@ static void node_region_listener(const wmRegionListenerParams *params)
       ED_region_tag_redraw(region);
       break;
     case NC_OBJECT:
-      if (wmn->data == ND_OB_SHADING) {
+      if (wmn->data == ND_OB_SHADING || wmn->data == ND_TRANSFORM) {
         ED_region_tag_redraw(region);
       }
       break;

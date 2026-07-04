@@ -6,7 +6,7 @@
 
 #include "node_shader_util.hh"
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_c.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -101,6 +101,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   PanelDeclarationBuilder &sss = b.add_panel("Subsurface"_ustr).default_closed(true);
   sss.add_layout([](ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr) {
     layout.prop(ptr, "subsurface_method", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    /* Not used by Thin Wall. Infer the value from Subsurface Radius. */
+    const bNode &node = *ptr->data_as<bNode>();
+    const bNodeSocket &radius_socket = *bke::node_find_socket(
+        node, SOCK_IN, "Subsurface Radius"_ustr);
+    if (radius_socket.is_inactive()) {
+      layout.active_set(false);
+    }
   });
   sss.add_input<decl::Float>("Subsurface Weight"_ustr)
       .default_value(0.0f)
@@ -400,12 +407,16 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat,
     flag |= GPU_MATFLAG_TRANSLUCENT;
   }
 
+  const bool refraction_might_be_tinted = use_refract && in[SOCK_BASE_COLOR_ID].might_be_tinted();
+
   if (might_have_tinted_specular(
-          in[SOCK_BASE_COLOR_ID], in[SOCK_METALLIC_ID], in[SOCK_SPECULAR_TINT_ID]))
+          in[SOCK_BASE_COLOR_ID], in[SOCK_METALLIC_ID], in[SOCK_SPECULAR_TINT_ID]) ||
+      /* Multiscatter GGX can tint the reflection lobe. See `bsdf_lut`. */
+      (refraction_might_be_tinted && node->custom1 == SHD_GLOSSY_MULTI_GGX))
   {
     flag |= GPU_MATFLAG_REFLECTION_MAYBE_COLORED;
   }
-  if (use_refract && in[SOCK_BASE_COLOR_ID].might_be_tinted()) {
+  if (refraction_might_be_tinted) {
     flag |= GPU_MATFLAG_REFRACTION_MAYBE_COLORED;
   }
   if (use_coat && in[SOCK_COAT_TINT_ID].might_be_tinted()) {

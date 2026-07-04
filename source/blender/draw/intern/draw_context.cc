@@ -12,16 +12,16 @@
 
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_sys_types.h"
-#include "BLI_task.h"
-#include "BLI_threads.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_sys_types.hh"
+#include "BLI_task_c.hh"
+#include "BLI_threads.hh"
 
 #include "BLF_api.hh"
 
@@ -107,7 +107,7 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "BLI_time.h"
+#include "BLI_time.hh"
 
 #include "DRW_select_buffer.hh"
 
@@ -684,11 +684,15 @@ static bool supports_handle_ranges(DupliObject *dupli, Object *parent, const DRW
   }
 
   if (ob_type == OB_MESH) {
-    /* Hair drawing doesn't support handle ranges. */
     for (ParticleSystem &psys : ob->particlesystem) {
       const int draw_as = (psys.part->draw_as == PART_DRAW_REND) ? psys.part->ren_as :
                                                                    psys.part->draw_as;
-      if (draw_as == PART_DRAW_PATH && DRW_object_is_visible_psys_in_active_context(ob, &psys)) {
+      if (!ELEM(draw_as, PART_DRAW_NOT, PART_DRAW_OB, PART_DRAW_GR) &&
+          DRW_object_is_visible_psys_in_active_context(ob, &psys))
+      {
+        /* Particles don't support handle ranges.
+         * Objects and Group particles are the only exceptions,
+         * since they're generated as regular instances by the Depsgraph. */
         return false;
       }
     }

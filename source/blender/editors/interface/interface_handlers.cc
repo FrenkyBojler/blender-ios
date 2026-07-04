@@ -23,25 +23,27 @@
 #include "DNA_screen_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_array_utils.h"
-#include "BLI_linklist.h"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_rect.h"
-#include "BLI_sort_utils.h"
-#include "BLI_string.h"
-#include "BLI_string_cursor_utf8.h"
-#include "BLI_string_utf8.h"
-#include "BLI_time.h"
-#include "BLI_utildefines.h"
+#include "BLI_array_utils_c.hh"
+#include "BLI_linklist.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_sort_utils.hh"
+#include "BLI_string.hh"
+#include "BLI_string_cursor_utf8.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
+#include "BLI_utildefines.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_blender_undo.hh"
 #include "BKE_brush.hh"
 #include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curveprofile.h"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
 #include "BKE_movieclip.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
@@ -3299,40 +3301,42 @@ static void textedit_set_cursor_pos(Button *but, const ARegion *region, const fl
 
   if (ELEM(but->type, ButtonType::Text, ButtonType::SearchMenu)) {
     if (but->flag & UI_HAS_ICON) {
-      startx += UI_ICON_SIZE / aspect;
+      startx += UI_ICON_SIZE;
     }
   }
   if (!(but->drawflag & BUT_NO_TEXT_PADDING)) {
     if (right_aligned) {
-      startx += U.pixelsize / aspect;
-      endx -= UI_TEXT_MARGIN_X * U.widget_unit / aspect;
+      startx += U.pixelsize;
+      endx -= UI_TEXT_MARGIN_X * U.widget_unit;
     }
     else {
-      startx += UI_TEXT_MARGIN_X * U.widget_unit / aspect;
-      endx -= U.pixelsize / aspect;
+      startx += UI_TEXT_MARGIN_X * U.widget_unit;
+      endx -= U.pixelsize;
     }
   }
   else if (right_aligned) {
-    endx -= U.pixelsize / aspect;
+    endx -= U.pixelsize;
   }
   else {
-    startx += U.pixelsize / aspect;
+    startx += U.pixelsize;
   }
 
-  if (right_aligned) {
-    int width = BLF_width(fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs));
-    const float align_x_ofs = endx - startx - width;
-    startx += max_ff(0.0f, align_x_ofs);
-  }
-
-  /* Transform startx to screen space. */
+  /* Transform startx and endx to screen space. */
   block_to_window_fl(region, but->block, &startx, &starty_dummy);
+  block_to_window_fl(region, but->block, &endx, &starty_dummy);
 
   fontscale(&fstyle.points, aspect);
 
   fontstyle_set(&fstyle);
 
   button_text_password_hide(password_str, but, false);
+
+  /* Compute shift due to right-alignment after password filter. */
+  if (right_aligned) {
+    int width = BLF_width(fstyle.uifont_id, str + but->ofs, strlen(str + but->ofs));
+    const float align_x_ofs = endx - startx - width;
+    startx += max_ff(0.0f, align_x_ofs);
+  }
 
   /* mouse dragged outside the widget to the left */
   if (xy.x < startx) {
@@ -3854,7 +3858,7 @@ static void textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   /* set cursor pos to the end of the text */
   but->editstr = text_edit.edit_string;
   but->pos = len;
-  if (bool(but->flag2 & BUT2_ACTIVATE_ON_INIT_NO_SELECT)) {
+  if (bool(but->flag & BUT_ACTIVATE_ON_INIT_NO_SELECT)) {
     but->selsta = len;
   }
   else {
@@ -4695,7 +4699,7 @@ static void numedit_begin(Button *but, HandleButtonData *data)
         }
 
         /* Can happen at extreme values. */
-        if (UNLIKELY(softmin == softmax)) {
+        if (softmin == softmax) [[unlikely]] {
           if (data->origvalue > 0.0) {
             softmin = nextafterf(softmin, -FLT_MAX);
           }
@@ -4917,7 +4921,7 @@ static void block_open_begin(bContext *C, Button *but, HandleButtonData *data)
 #endif
 
   /* Force new region handler to run, in case that needs to activate some state (e.g. to handle
-   * #BUT2_FORCE_SEMI_MODAL_ACTIVE). */
+   * #BUT_FORCE_SEMI_MODAL_ACTIVE). */
   WM_event_add_mousemove(data->window);
 
   /* this makes adjacent blocks auto open from now on */
@@ -5397,6 +5401,12 @@ static int do_but_TEX(
         return WM_UI_HANDLER_BREAK;
       }
     }
+    else if (event->type == LEFTMOUSE && event->val == KM_DBL_CLICK &&
+             but->type == ButtonType::Text && static_cast<ButtonText *>(but)->use_label_style)
+    {
+      button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
+      return WM_UI_HANDLER_BREAK;
+    }
     else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
       if (but->type == ButtonType::SearchMenu) {
         /* Disable value cycling for search buttons. This causes issues because the search data is
@@ -5427,6 +5437,7 @@ static int do_but_TEXTBOX(bContext *C,
                           const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
+  const bool is_disabled = textbox->flag & BUT_DISABLED || data->disable_force;
 
   switch (data->state) {
     case BUTTON_STATE_TEXT_EDITING:
@@ -5468,7 +5479,16 @@ static int do_but_TEXTBOX(bContext *C,
           }
           break;
         }
-        if (win->cursor != WM_CURSOR_TEXT_EDIT) {
+        /* Set text-edit cursor only if the button is not disabled, otherwise reset the mouse
+         * cursor. */
+        if (is_disabled) {
+          if (win->cursor != WM_CURSOR_DEFAULT) {
+            WM_cursor_modal_restore(win);
+            WM_cursor_set(win, WM_CURSOR_DEFAULT);
+            data->changed_cursor = false;
+          }
+        }
+        else if (win->cursor != WM_CURSOR_TEXT_EDIT) {
           WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
           data->changed_cursor = true;
         }
@@ -5550,6 +5570,10 @@ static int do_but_TEXTBOX(bContext *C,
     }
     default:
       break;
+  }
+  /* When disabled text-box buttons only can be scrolled/resized. */
+  if (is_disabled) {
+    return WM_UI_HANDLER_CONTINUE;
   }
   /* Handle regular text buttons events. */
   return do_but_TEX(C, block, textbox, data, event);
@@ -6403,7 +6427,7 @@ static int do_but_NUM(
           double precision = (roundf(log10f(data->value) + UI_PROP_SCALE_LOG_SNAP_OFFSET) - 1.0f) +
                              log10f(number_but->step_size);
           /* Non-finite when `data->value` is zero. */
-          if (UNLIKELY(!isfinite(precision))) {
+          if (!isfinite(precision)) [[unlikely]] {
             precision = -FLT_MAX; /* Ignore this value. */
           }
           value_step = powf(10.0f, max_ff(precision, -number_but->precision));
@@ -8967,6 +8991,15 @@ static int do_button(bContext *C, Block *block, Button *but, const wmEvent *even
   /* If `but->pointype` is set, `but->poin` should be too. */
   BLI_assert(!bool(but->pointype) || but->poin);
 
+  /* Let disabled text-box buttons to be scrolled/resized. */
+  if (is_disabled && but->type == ButtonType::TextBox) {
+    if (do_but_TEXTBOX(C, block, static_cast<ButtonTextBox *>(but), data, event) ==
+        WM_UI_HANDLER_BREAK)
+    {
+      return WM_UI_HANDLER_BREAK;
+    }
+  }
+
   /* Only hard-coded stuff here, button interactions with configurable
    * keymaps are handled using operators (see #keymap_ui). */
 
@@ -9699,6 +9732,9 @@ static void button_activate_init(bContext *C,
   }
 }
 
+static int popup_handler(bContext *C, const wmEvent *event, void *userdata);
+static void popup_handler_remove(bContext *C, void *userdata);
+
 static void button_activate_exit(
     bContext *C, Button *but, HandleButtonData *data, const bool mousemove, const bool onfree)
 {
@@ -10310,7 +10346,7 @@ static void with_but_active_as_semi_modal(bContext *C,
 
 /**
  * Calls \a fn for all buttons that are either already semi-modal active or should be made to be
- * because the #BUT2_FORCE_SEMI_MODAL_ACTIVE flag is set. During the \a fn call, the button will
+ * because the #BUT_FORCE_SEMI_MODAL_ACTIVE flag is set. During the \a fn call, the button will
  * appear to be the active button, i.e. #region_find_active_but() will return this button.
  */
 static void foreach_semi_modal_but_as_active(bContext *C,
@@ -10322,7 +10358,7 @@ static void foreach_semi_modal_but_as_active(bContext *C,
 
   for (Block &block : region->runtime->uiblocks) {
     for (Button &but : block.buttons()) {
-      if ((but.flag2 & BUT2_FORCE_SEMI_MODAL_ACTIVE) || but.semi_modal_state) {
+      if ((but.flag & BUT_FORCE_SEMI_MODAL_ACTIVE) || but.semi_modal_state) {
         with_but_active_as_semi_modal(C, region, &but, [&]() { fn(&but); });
       }
     }
@@ -13174,6 +13210,197 @@ void popup_handlers_remove(ListBaseT<wmEventHandler> *handlers, PopupBlockHandle
 void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers)
 {
   WM_event_free_ui_handler_all(C, handlers, popup_handler, popup_handler_remove);
+}
+
+/**
+ * Returns true if the button is referencing \a srna.
+ * \note This would fail to properly determine if the Button is referencing \a srna if the
+ * reference is stored through an opaque type (like #Button::apply_func).
+ */
+static bool button_references_srna(Button &button, const StructRNA *srna)
+{
+  if (RNA_struct_is_a(button.rnapoin.type, srna)) {
+    return true;
+  }
+  if (button.opptr && RNA_struct_is_a(button.opptr->type, srna)) {
+    return true;
+  }
+  if (MenuType *mt = button_menutype_get(&button); mt && RNA_struct_is_a(mt->rna_ext.srna, srna)) {
+    return true;
+  }
+  if (PanelType *pt = button_paneltype_get(&button); pt && RNA_struct_is_a(pt->rna_ext.srna, srna))
+  {
+    return true;
+  }
+  if (wmOperatorType *ot = button_operatortype_get_from_enum_menu(&button, nullptr);
+      ot && RNA_struct_is_a(ot->rna_ext.srna, srna))
+  {
+    return true;
+  }
+  if (button.type == ButtonType::SearchMenu) {
+    const ButtonSearch &search_button = static_cast<const ButtonSearch &>(button);
+    if (RNA_struct_is_a(search_button.rnasearchpoin.type, srna)) {
+      return true;
+    }
+  }
+
+  if (button.type == ButtonType::Decorator) {
+    const ButtonDecorator &decorator_button = static_cast<const ButtonDecorator &>(button);
+    if (RNA_struct_is_a(decorator_button.decorated_rnapoin.type, srna)) {
+      return true;
+    }
+  }
+  for (ButtonExtraOpIcon &extra_op_icon : button.extra_op_icons) {
+    if (RNA_struct_is_a(extra_op_icon.optype_params->optype->rna_ext.srna, srna)) {
+      return true;
+    }
+  }
+  if (button.context) {
+    for (const bContextStoreEntry &entry : button.context->entries) {
+      if (const PointerRNA *ptr = std::get_if<PointerRNA>(&entry.value)) {
+        if (RNA_struct_is_a(ptr->type, srna)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Return true if the #popup_block_handle have any reference the #srna_to_unreg but can't be
+ * refreshed, when this happens its parent must be refreshed or the popup should be closed.
+ */
+static bool popup_needs_update_for_unreg_srna_recursive(bContext *C,
+                                                        PopupBlockHandle *popup_block_handle,
+                                                        StructRNA *srna_to_unreg)
+{
+  bool have_reference = false;
+
+  bool valid_for_refresh = popup_block_handle->can_refresh;
+
+  if (popup_block_handle->srna_owner &&
+      RNA_struct_is_a(popup_block_handle->srna_owner, srna_to_unreg))
+  {
+    have_reference = true;
+    valid_for_refresh = false;
+  }
+  [&]() {
+    for (Block &block : popup_block_handle->region->runtime->uiblocks) {
+      for (Button &button : block.buttons()) {
+        have_reference = have_reference || button_references_srna(button, srna_to_unreg);
+        if (button.type == ButtonType::SearchMenu) {
+          const ButtonSearch &search_button = static_cast<const ButtonSearch &>(button);
+          if (search_button.active) {
+            /* Search buttons may reference menus/operators but we can't lookup in its items, close
+             * any popup with a search button active. */
+            have_reference = true;
+            valid_for_refresh = false;
+            return;
+          }
+        }
+      }
+    }
+  }();
+
+  Button *active_button = region_find_active_but(popup_block_handle->region);
+  HandleButtonData *data = active_button ? active_button->active : nullptr;
+  PopupBlockHandle *sub_handle = data ? data->menu : nullptr;
+
+  if (have_reference) {
+    if (valid_for_refresh) {
+      /* This popup needs to be refresh, close any sub-menu first. */
+      if (sub_handle) {
+        CTX_wm_region_popup_set(C, popup_block_handle->region);
+        button_active_free(C, active_button);
+        CTX_wm_region_popup_set(C, nullptr);
+      }
+      ED_region_tag_refresh_ui(popup_block_handle->region);
+      ED_region_tag_redraw(popup_block_handle->region);
+      return false;
+    }
+    /* This popup can't be refreshed, try to refesh parent popup. */
+    return true;
+  }
+
+  if (!(sub_handle && popup_needs_update_for_unreg_srna_recursive(C, sub_handle, srna_to_unreg))) {
+    /* There is no child popup referencing the rna type or it can be refresh, no need to refresh
+     * this popup. */
+    return false;
+  }
+
+  if (valid_for_refresh) {
+    CTX_wm_region_popup_set(C, popup_block_handle->region);
+    button_active_free(C, active_button);
+    CTX_wm_region_popup_set(C, nullptr);
+    ED_region_tag_refresh_ui(popup_block_handle->region);
+    ED_region_tag_redraw(popup_block_handle->region);
+    return false;
+  }
+
+  /* This popup can't be refreshed, try to refesh parent popup. */
+  return true;
+}
+
+void refresh_for_srna_unregister(Main *bmain, StructRNA *srna_to_unreg)
+{
+  if (G.background) {
+    return;
+  }
+  if (!srna_to_unreg) {
+    return;
+  }
+  bContext *C = CTX_create();
+  CTX_data_main_set(C, bmain);
+  auto refresh_or_remove_handler = [&](wmEventHandler &handler_base,
+                                       ListBaseT<wmEventHandler> &handlers) {
+    if (handler_base.type == WM_HANDLER_TYPE_UI && !bool(handler_base.flag & WM_HANDLER_DO_FREE)) {
+      wmEventHandler_UI *handler = reinterpret_cast<wmEventHandler_UI *>(&handler_base);
+      if (handler->handle_fn != popup_handler) {
+        return;
+      }
+      PopupBlockHandle *popup_block_handle = static_cast<PopupBlockHandle *>(handler->user_data);
+      if (!popup_needs_update_for_unreg_srna_recursive(C, popup_block_handle, srna_to_unreg)) {
+        return;
+      }
+      if (handler->remove_fn) {
+        handler->remove_fn(C, handler->user_data);
+      }
+      BLI_remlink(&handlers, handler);
+      wm_event_free_handler(&handler->head);
+    }
+  };
+
+  for (wmWindowManager &wm : bmain->wm) {
+    CTX_wm_manager_set(C, &wm);
+    for (wmWindow &win : wm.windows) {
+      CTX_wm_window_set(C, &win);
+      /* Close any active popup referencing the StructRNA. */
+      for (wmEventHandler &handler_base : win.runtime->modalhandlers.items_mutable()) {
+        refresh_or_remove_handler(handler_base, win.runtime->modalhandlers);
+      }
+      for (wmEventHandler &handler_base : win.runtime->handlers.items_mutable()) {
+        refresh_or_remove_handler(handler_base, win.runtime->handlers);
+      }
+      /* Close any active menu referencing the StructRNA. */
+      bScreen *screen = WM_window_get_active_screen(&win);
+      if (screen && screen->active_region) {
+        CTX_wm_region_set(C, screen->active_region);
+        Button *active_button = region_find_active_but(screen->active_region);
+        HandleButtonData *data = (active_button) ? active_button->active : nullptr;
+        PopupBlockHandle *sub_handle = (data) ? data->menu : nullptr;
+        if (sub_handle &&
+            popup_needs_update_for_unreg_srna_recursive(C, sub_handle, srna_to_unreg))
+        {
+          button_active_free(C, active_button);
+          ED_region_tag_refresh_ui(screen->active_region);
+          ED_region_tag_redraw(screen->active_region);
+        }
+        CTX_wm_region_set(C, nullptr);
+      }
+    }
+  }
+  CTX_free(C);
 }
 
 bool textbutton_activate_rna(const bContext *C,

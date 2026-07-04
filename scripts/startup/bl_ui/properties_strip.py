@@ -94,7 +94,7 @@ class STRIP_PT_strip(StripButtonsPanel, Panel):
         elif strip_type == 'META':
             icon_header = 'SEQ_STRIP_META'
         else:
-            icon_header = 'SEQ_SEQUENCER'
+            icon_header = 'SEQ_STRIP'
 
         row = layout.row(align=True)
         row.use_property_decorate = False
@@ -313,7 +313,7 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
         elif strip_type == 'TEXT':
             layout = self.layout
             col = layout.column()
-            col.textbox(strip, "text", textbox_state=strip.textbox_state)
+            col.textbox_with_state(strip, "text", textbox_state=strip.textbox_state)
             layout.prop(strip, "wrap_width", text="Wrap Width")
 
         col = layout.column(align=True)

@@ -181,6 +181,7 @@ void channel_draw_context_init(const bContext *C,
 
 void slip_modal_keymap(wmKeyConfig *keyconf);
 VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene,
+                                               StripType effect_type,
                                                int num_inputs,
                                                bool ignore_active = false);
 const char *effect_inputs_validate(int have_inputs, int num_inputs);
@@ -229,6 +230,7 @@ void SEQUENCER_OT_reassign_inputs(wmOperatorType *ot);
 void SEQUENCER_OT_swap_inputs(wmOperatorType *ot);
 void SEQUENCER_OT_duplicate(wmOperatorType *ot);
 void SEQUENCER_OT_delete(wmOperatorType *ot);
+void SEQUENCER_OT_ripple_delete(wmOperatorType *ot);
 void SEQUENCER_OT_offset_clear(wmOperatorType *ot);
 void SEQUENCER_OT_images_separate(wmOperatorType *ot);
 void SEQUENCER_OT_meta_toggle(wmOperatorType *ot);
@@ -267,9 +269,19 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 /* `sequencer_select.cc` */
 
 /**
- *  Returns box bounds of strip in view-space.
+ *  Returns real-valued box bounds of strip in view-space.
+ *
+ * \note Strips are slightly shorter than their containing channels:
+ * their height starts at `STRIP_OFSBOTTOM` and ends at `STRIP_OFSTOP`.
+ * For a strip's channel and frame extents (rather than the size),
+ * see #strip_int_bounds_get.
  */
 rctf strip_bounds_get(const Scene *scene, const Strip *strip);
+/**
+ *  Returns the extents of the strip along channels and frames.
+ */
+rcti strip_int_bounds_get(const Scene *scene, const Strip *strip);
+
 Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel);
 void recurs_sel_strip(Strip *strip_meta);
 
@@ -288,6 +300,7 @@ void SEQUENCER_OT_select_lasso(wmOperatorType *ot);
 void SEQUENCER_OT_select_circle(wmOperatorType *ot);
 void SEQUENCER_OT_select_inverse(wmOperatorType *ot);
 void SEQUENCER_OT_select_grouped(wmOperatorType *ot);
+void SEQUENCER_OT_select_by_type(wmOperatorType *ot);
 
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2]);
 void sequencer_select_do_updates(const bContext *C, Scene *scene);

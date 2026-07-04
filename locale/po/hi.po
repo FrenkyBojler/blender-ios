@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'8764d33c658b')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e65907bec1c9')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-01 07:36+0000\n"
+"POT-Creation-Date: 2026-06-29 10:51+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -4961,6 +4961,10 @@ msgid "Relationship Lines"
 msgstr "संबंध रेखाएँ"
 
 
+msgid "Cancel"
+msgstr "रद्द करें"
+
+
 msgctxt "WindowManager"
 msgid "Object Mode"
 msgstr "वस्तु रूप"
@@ -5789,10 +5793,6 @@ msgstr "\"%s\" संपत्ति एनिमेटेड किया ज�
 
 msgid "Same bone selected..."
 msgstr "एक ही हड्डी का चयन किया..."
-
-
-msgid "Cancel"
-msgstr "रद्द करें"
 
 
 msgctxt "Curve"

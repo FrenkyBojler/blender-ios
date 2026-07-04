@@ -183,8 +183,12 @@ float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 N, float3 
   avg_dir += detail::edge_integral_vec(corners[2], corners[3]);
   avg_dir += detail::edge_integral_vec(corners[3], corners[0]);
 
-  float form_factor = length(avg_dir);
-  float avg_dir_z = (avg_dir / form_factor).z;
+  float form_factor_inv = inversesqrt(dot(avg_dir, avg_dir));
+  float avg_dir_z = (avg_dir * form_factor_inv).z;
+
+  float form_factor = saturate(1.0f / form_factor_inv);
+  /* The form factor should always be finite. Check that the previous saturate works as filter. */
+  // assert(!isnan(form_factor) && !isinf(form_factor));
 
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
 }
@@ -200,26 +204,25 @@ float evaluate_disk(
   /* Construct orthonormal basis around N. */
   float3x3 T = detail::tangent_basis(N, V);
 
-  /* Rotate area light in (T1, T2, R) basis. */
-  float3x3 R = transpose(T);
+  /* Rotate area light into basis. */
+  Minv = Minv * transpose(T);
 
   /* Intermediate step: init ellipse. */
   float3 L_[3];
-  L_[0] = R * disk_points[0];
-  L_[1] = R * disk_points[1];
-  L_[2] = R * disk_points[2];
+  L_[0] = disk_points[0];
+  L_[1] = disk_points[1];
+  L_[2] = disk_points[2];
 
   float3 C = 0.5f * (L_[0] + L_[2]);
   float3 V1 = 0.5f * (L_[1] - L_[2]);
   float3 V2 = 0.5f * (L_[1] - L_[0]);
 
-  /* Transform ellipse by Minv. */
+  /* Transform ellipse into LTC. */
   C = Minv * C;
   V1 = Minv * V1;
   V2 = Minv * V2;
 
   /* Compute eigenvectors of new ellipse. */
-
   float d11 = dot(V1, V1);
   float d22 = dot(V2, V2);
   float d12 = dot(V1, V2);
@@ -260,7 +263,7 @@ float evaluate_disk(
     V2 *= inversesqrt(inv_b);
   }
 
-  /* Now find front facing ellipse with same solid angle. */
+  /* Now find a front facing ellipse with the same solid angle. */
 
   float3 V3 = normalize(cross(V1, V2));
   if (dot(C, V3) < 0.0f) {
@@ -301,11 +304,13 @@ float evaluate_disk(
   avg_dir = normalize(avg_dir);
 
   /* L1, L2 are the extends of the front facing ellipse. */
-  float L1 = sqrt(-e2 / e3);
-  float L2 = sqrt(-e2 / e1);
+  float L1 = inversesqrt(-e3 / e2);
+  float L2 = inversesqrt(-e1 / e2);
 
   /* Find the sphere and compute lighting. */
-  float form_factor = max(0.0f, L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2)));
+  float form_factor = saturate(L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2)));
+  /* The form factor should always be finite. Check that the previous saturate works as filter. */
+  // assert(!isnan(form_factor) && !isinf(form_factor));
   return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
 }
 

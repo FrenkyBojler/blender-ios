@@ -12,9 +12,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 
@@ -339,8 +339,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
   }
 
   VectorSet transformed_strips = seq_transform_collection_from_transdata(tc);
-  seq::iterator_set_expand(
-      seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(ed, transformed_strips, seq::query_strip_direct_effect_chain);
 
   for (Strip *strip : transformed_strips) {
     strip->runtime->flag &= ~(seq::StripRuntimeFlag::ClampedLH | seq::StripRuntimeFlag::ClampedRH);
@@ -409,6 +408,8 @@ static Strip *effect_base_input_get(Strip *effect, SeqInputSide side)
 static void query_time_dependent_strips_strips(TransInfo *t,
                                                VectorSet<Strip *> &time_dependent_strips)
 {
+  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seqbase_active_get(t);
 
   /* Query dependent strips where used strips do not have handles selected.
@@ -418,7 +419,7 @@ static void query_time_dependent_strips_strips(TransInfo *t,
   VectorSet<Strip *> strips_no_handles = query_selected_strips_no_handles(seqbase);
   time_dependent_strips.add_multiple(strips_no_handles);
 
-  seq::iterator_set_expand(seqbase, strips_no_handles, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(ed, strips_no_handles, seq::query_strip_effect_chain);
   bool strip_added = true;
 
   while (strip_added) {
@@ -445,7 +446,7 @@ static void query_time_dependent_strips_strips(TransInfo *t,
    * With single input effect, it is less likely desirable to move animation. */
 
   VectorSet selected_strips = seq::query_selected_strips(seqbase);
-  seq::iterator_set_expand(seqbase, selected_strips, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(ed, selected_strips, seq::query_strip_effect_chain);
   for (Strip *strip : selected_strips) {
     /* Check only 2 input effects. */
     if (strip->input1 == nullptr || strip->input2 == nullptr) {
@@ -722,7 +723,7 @@ static void flushTransSeq(TransInfo *t)
             max_offset = offset;
           }
         }
-        seq::strip_channel_set(strip, new_channel);
+        strip->channel_set(new_channel);
         break;
       }
       case SEQ_LEFTSEL: { /* No vertical transform. */
@@ -767,7 +768,7 @@ static void flushTransSeq(TransInfo *t)
    * will not be updated and we'll get false positives. */
   VectorSet transformed_strips = seq_transform_collection_from_transdata(tc);
   seq::iterator_set_expand(
-      seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
+      seq::editing_get(scene), transformed_strips, seq::query_strip_direct_effect_chain);
 
   for (Strip *strip : transformed_strips) {
     /* Test overlap, displays red outline. */

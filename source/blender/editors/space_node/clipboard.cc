@@ -4,8 +4,8 @@
 
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_appdir.hh"
 #include "BKE_blender_copybuffer.hh"
@@ -102,7 +102,7 @@ static int node_copy_local(bNodeTree &from_tree,
   }
 
   if (node_map.is_empty()) {
-    return false;
+    return 0;
   }
 
   for (bNode *new_node : node_map.values()) {
