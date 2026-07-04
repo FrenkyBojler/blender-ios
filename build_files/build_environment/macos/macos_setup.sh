@@ -148,10 +148,12 @@ install_cmake() {
   echo "[cmake]: Extract CMake ${VERSION} into local tap"
   brew extract --version="${VERSION}" cmake "${USER}/local-tap"
 
-  if brew list --formula | grep -qx "cmake"; then
-    echo "[cmake]: Unlink existing cmake"
-    brew unlink cmake
-  fi
+  for pkg in $(brew list --formula | grep -E '^cmake($|@)'); do
+    if [ "${pkg}" != "cmake@${VERSION}" ]; then
+      echo "[cmake]: Unlink ${pkg}"
+      brew unlink "${pkg}"
+    fi
+  done
 
   echo "[cmake]: Install CMake ${VERSION}"
   brew install "${USER}/local-tap/cmake@${VERSION}"
