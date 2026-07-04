@@ -617,23 +617,15 @@ static wmOperatorStatus gizmo_tweak_invoke(bContext *C, wmOperator *op, const wm
       continue;
     }
 
-    if (kmi.propvalue == TWEAK_MODAL_SNAP_ON && kmi.val == KM_PRESS) {
-      if ((ELEM(kmi.type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event->modifier & KM_CTRL)) ||
-          (ELEM(kmi.type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && (event->modifier & KM_SHIFT)) ||
-          (ELEM(kmi.type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event->modifier & KM_ALT)) ||
-          ((kmi.type == EVT_OSKEY) && (event->modifier & KM_OSKEY)))
-      {
-        mtweak->flag |= WM_GIZMO_TWEAK_SNAP;
-      }
+    if (kmi.propvalue == TWEAK_MODAL_SNAP_ON &&
+        WM_event_modifier_flag_match_kmi_press(event->modifier, &kmi))
+    {
+      mtweak->flag |= WM_GIZMO_TWEAK_SNAP;
     }
-    else if (kmi.propvalue == TWEAK_MODAL_PRECISION_ON && kmi.val == KM_PRESS) {
-      if ((ELEM(kmi.type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event->modifier & KM_CTRL)) ||
-          (ELEM(kmi.type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && (event->modifier & KM_SHIFT)) ||
-          (ELEM(kmi.type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event->modifier & KM_ALT)) ||
-          ((kmi.type == EVT_OSKEY) && (event->modifier & KM_OSKEY)))
-      {
-        mtweak->flag |= WM_GIZMO_TWEAK_PRECISE;
-      }
+    else if (kmi.propvalue == TWEAK_MODAL_PRECISION_ON &&
+             WM_event_modifier_flag_match_kmi_press(event->modifier, &kmi))
+    {
+      mtweak->flag |= WM_GIZMO_TWEAK_PRECISE;
     }
   }
 
