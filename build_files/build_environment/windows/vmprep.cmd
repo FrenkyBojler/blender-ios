@@ -78,11 +78,11 @@ if not "%CONFIRM%"=="DANGER" (echo Aborted. & goto :EOF)
 mkdir C:\install
 mkdir C:\t
 
-echo Obtaining VS Buildtools installer
+echo Obtaining Visual Studio Build Tools %VSBT_VER% installer
 curl -s %VSBT_URL% -o C:\install\vs_BuildTools.exe
-echo Obtaining VS Buildtools config
+echo Obtaining Visual Studio Build Tools %VSBT_VER% config
 curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/.vsconfig_%ARCH% -o C:\install\.vsconfig
-echo Installing VS Buildtools
+echo Installing Visual Studio Build Tools %VSBT_VER%
 C:\install\vs_BuildTools.exe --wait --quiet --norestart --installPath C:\vs%VSBT_YEAR%bt\ --config C:\install\.vsconfig
 
 if "%ARCH%"=="arm64" goto arm_deps
@@ -118,6 +118,8 @@ echo Obtaining NuGet CLI
 curl -s -L https://aka.ms/nugetclidl -o C:\install\nuget.exe
 echo Initializing NuGet with source
 start /wait C:\install\nuget.exe sources add -Name nuget.org -Source https://api.nuget.org/v3/index.json >nul 2>nul
+
+set VCVARS_PATH=C:\vs%VSBT_YEAR%bt\VC\Auxiliary\Build\vcvarsarm64.bat
 goto common
 
 :x64_deps
@@ -166,6 +168,8 @@ echo Installing ROCm from HIP SDK %HIP_FULL%
 start /wait msiexec /quiet /norestart /i C:\install\Packages\Apps\ROCmSDKPackages\SDKCore\ROCm_SDK_Core.msi INSTALLDIR="C:\tools\rocm"
 setx HIP_PATH "C:\tools\rocm\%HIP_VER%" /M > nul
 setx HIP_PATH_71 "C:\tools\rocm\%HIP_VER%" /M > nul
+
+set VCVARS_PATH=C:\vs%VSBT_YEAR%bt\VC\Auxiliary\Build\vcvarsx64.bat
 goto common
 
 :common
@@ -184,7 +188,7 @@ curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/buil
 echo Done
 
 echo **********************************************************************
-echo ** Run "call C:\vs2022bt\VC\Auxiliary\Build\vcvarsarm64.bat" or
+echo ** Run "call %VCVARS_PATH%" or
 echo ** Open "%ARCH% Native Tools Command Prompt for VS %VSBT_YEAR%"
 echo ** Then run "cd C:\db && vmbuild.cmd" to start a build.
 echo **********************************************************************
