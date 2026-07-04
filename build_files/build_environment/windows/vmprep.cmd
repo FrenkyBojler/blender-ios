@@ -28,9 +28,14 @@ set 7ZIP_URL=https://github.com/ip7z/7zip/releases/download/26.02/7zr.exe
 
 set UNATTENDED=0
 set BRANCH=main
+set REPO=blender/blender
 
+REM Usage examples: vmprep.cmd 
+REM                 vmprep.cmd unattended repo myuser/blender my-branch
+REM                 vmprep.cmd repo blender/blender blender-v5.2-release
 :parse_args
 if "%1"=="unattended" (set UNATTENDED=1& shift & goto :parse_args)
+if "%1"=="repo" (set REPO=%2& shift & shift & goto :parse_args)
 if not "%1"=="" (set BRANCH=%1& shift & goto :parse_args)
 
 if "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
@@ -38,7 +43,7 @@ if "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
 ) else if "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
   set ARCH=x64
 ) else (
-  echo Not supported: %PROCESSOR_ARCHITECTURE%
+  echo CPU architecture not supported: %PROCESSOR_ARCHITECTURE%
   goto :EOF
 )
 
@@ -78,7 +83,7 @@ mkdir C:\t
 echo Obtaining VS Buildtools installer
 curl -s %VSBT_URL% -o C:\install\vs_BuildTools.exe
 echo Obtaining VS Buildtools config
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/.vsconfig_%ARCH% -o C:\install\.vsconfig
+curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/.vsconfig_%ARCH% -o C:\install\.vsconfig
 echo Installing VS Buildtools
 C:\install\vs_BuildTools.exe --wait --quiet --norestart --installPath C:\vs%VSBT_YEAR%bt\ --config C:\install\.vsconfig
 
@@ -88,63 +93,78 @@ goto x64_deps
 :arm_deps
 echo Obtaining Git %GIT_VER_ARM%
 curl -s -L https://github.com/git-for-windows/git/releases/download/v%GIT_VER_ARM%.windows.1/Git-%GIT_VER_ARM%-arm64.exe -o C:\install\git.exe
+echo Installing Git %GIT_VER_ARM%
 start /wait C:\install\git.exe /verysilent /norestart
 set PATH=%PATH%;C:\Program Files\Git\cmd
 
 echo Obtaining CMake %CMAKE_VER_ARM%
 curl -s -L https://github.com/Kitware/CMake/releases/download/v%CMAKE_VER_ARM%/cmake-%CMAKE_VER_ARM%-windows-arm64.msi -o C:\install\cmake.msi
+echo Installing CMake %CMAKE_VER_ARM%
 start /wait msiexec /quiet /norestart /i C:\install\cmake.msi ADD_CMAKE_TO_PATH="System"
 set PATH=%PATH%;C:\Program Files\CMake\bin
 
 echo Obtaining Meson %MESON_VER_ARM%
 curl -s -L https://github.com/mesonbuild/meson/releases/download/%MESON_VER_ARM%/meson-%MESON_VER_ARM%-64.msi -o C:\install\meson.msi
+echo Installing Meson %MESON_VER_ARM%
 start /wait msiexec /quiet /norestart /i C:\install\meson.msi
 set PATH=%PATH%;C:\Program Files\Meson
 
 echo Obtaining LLVM %LLVM_VER_ARM%
 curl -s -L https://github.com/llvm/llvm-project/releases/download/llvmorg-%LLVM_VER_ARM%/LLVM-%LLVM_VER_ARM%-woa64.exe -o C:\install\llvm.exe
+echo Installing LLVM %LLVM_VER_ARM%
 start /wait C:\install\llvm.exe /S
 set PATH=%PATH%;C:\Program Files\LLVM\bin
 
 REM NuGet may be initialized without sources (see https://github.com/python/cpython/pull/152919)
+echo Obtaining NuGet CLI
 curl -s -L https://aka.ms/nugetclidl -o C:\install\nuget.exe
+echo Initializing NuGet with source
 start /wait C:\install\nuget.exe sources add -Name nuget.org -Source https://api.nuget.org/v3/index.json >nul 2>nul
 goto common
 
 :x64_deps
 echo Obtaining Git %GIT_VER_X64%
 curl -s -L https://github.com/git-for-windows/git/releases/download/v%GIT_VER_X64%.windows.1/Git-%GIT_VER_X64%-64-bit.exe -o C:\install\git.exe
+echo Installing Git %GIT_VER_X64%
 start /wait C:\install\git.exe /verysilent /norestart
 set PATH=%PATH%;C:\Program Files\Git\cmd
 
 echo Obtaining CMake %CMAKE_VER_X64%
 curl -s -L https://github.com/Kitware/CMake/releases/download/v%CMAKE_VER_X64%/cmake-%CMAKE_VER_X64%-windows-x86_64.msi -o C:\install\cmake.msi
+echo Installing CMake %CMAKE_VER_X64%
 start /wait msiexec /quiet /norestart /i C:\install\cmake.msi ADD_CMAKE_TO_PATH="System"
 set PATH=%PATH%;C:\Program Files\CMake\bin
 
 echo Obtaining Meson %MESON_VER_X64%
 curl -s -L https://github.com/mesonbuild/meson/releases/download/%MESON_VER_X64%/meson-%MESON_VER_X64%-64.msi -o C:\install\meson.msi
+echo Installing Meson %MESON_VER_X64%
 start /wait msiexec /quiet /norestart /i C:\install\meson.msi
 set PATH=%PATH%;C:\Program Files\Meson\
 
 echo Obtaining VS2010 redist
 curl -s %VCREDIST_URL% -o C:\install\vcredist_x64.exe
+echo Installing VS2010 redist
 start /wait C:\install\vcredist_x64.exe /passive /norestart
 
 echo Obtaining CUDA %CUDA_VER%
 curl -s https://developer.download.nvidia.com/compute/cuda/%CUDA_VER%/local_installers/cuda_%CUDA_VER%_%CUDA_BUILD%_windows.exe -o C:\install\cuda.exe
+echo Installing CUDA %CUDA_VER%
 start /wait C:\install\cuda.exe -s -n nvcc_12.8 cudart_12.8 nvrtc_12.8 nvrtc_dev_12.8 nvjitlink_12.8 nvtx_12.8 thrust_12.8 curand_12.8 curand_dev_12.8
+echo Moving CUDA %CUDA_VER%
 robocopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v%CUDA_VER%" "C:\tools\cuda\%CUDA_VER%" /E /MOVE /NJH /NJS /NP /NFL /NDL
 setx CUDA_PATH "C:\tools\cuda\%CUDA_VER%" /M > nul
 setx CUDA_PATH_V12_8 "C:\tools\cuda\%CUDA_VER%" /M > nul
 
+echo Obtaining 7-Zip
 curl -s -L %7ZIP_URL% -o C:\install\7zr.exe
 set PATH=%PATH%;C:\install
 
 echo Obtaining HIP SDK %HIP_FULL%
 curl -s %HIP_URL% -o C:\install\hip.exe
+echo Extracting HIP SDK %HIP_FULL%
 7zr.exe x C:\install\hip.exe -oC:\install\ -y > nul
 mkdir C:\tools\rocm
+echo Installing ROCm from HIP SDK %HIP_FULL%
 start /wait msiexec /quiet /norestart /i C:\install\Packages\Apps\ROCmSDKPackages\SDKCore\ROCm_SDK_Core.msi INSTALLDIR="C:\tools\rocm"
 setx HIP_PATH "C:\tools\rocm\%HIP_VER%" /M > nul
 setx HIP_PATH_71 "C:\tools\rocm\%HIP_VER%" /M > nul
@@ -153,13 +173,12 @@ goto common
 :common
 mkdir C:\blendergit
 cd C:\blendergit
-git clone --quiet --branch %BRANCH% https://projects.blender.org/blender/blender.git
+echo Cloning Blender repository
+git clone --quiet --branch %BRANCH% https://projects.blender.org/%REPO%.git
 
 mkdir C:\db
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/vmbuild.cmd      -o C:\db\vmbuild.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke.cmd         -o C:\db\nuke.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_python.cmd  -o C:\db\nuke_python.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_embree.cmd  -o C:\db\nuke_embree.cmd
-curl -s https://projects.blender.org/blender/blender/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_shaderc.cmd -o C:\db\nuke_shaderc.cmd
-
-echo Done. Arch: %ARCH%
+curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/vmbuild.cmd      -o C:\db\vmbuild.cmd
+curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke.cmd         -o C:\db\nuke.cmd
+curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_python.cmd  -o C:\db\nuke_python.cmd
+curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_embree.cmd  -o C:\db\nuke_embree.cmd
+curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/build_environment/windows/nuke_shaderc.cmd -o C:\db\nuke_shaderc.cmd
