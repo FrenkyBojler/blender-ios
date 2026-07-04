@@ -8,15 +8,15 @@ set VSBT_YEAR=2022
 set VSBT_URL=https://download.visualstudio.microsoft.com/download/pr/c2e2845d-bdff-44fc-ac00-3d488e9f5675/abdb87ff12fe1885ccc4964b4ab51da566549fd2096d7ceb1fdea907372f21d7/vs_BuildTools.exe
 
 set GIT_VER_X64=2.38.0
-set GIT_VER_ARM=2.54.0
+set GIT_VER_ARM64=2.54.0
 
 set CMAKE_VER_X64=3.31.7
-set CMAKE_VER_ARM=3.31.12
+set CMAKE_VER_ARM64=3.31.12
 
 set MESON_VER_X64=1.9.1
-set MESON_VER_ARM=1.11.0
+set MESON_VER_ARM64=1.11.0
 
-set LLVM_VER_ARM=20.1.8
+set LLVM_VER_ARM64=20.1.8
 
 set CUDA_VER=12.8
 set CUDA_FULL_VER=12.8.0
@@ -50,27 +50,28 @@ if "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
 
 if %UNATTENDED%==1 goto skip_confirm
 echo **********************************************************************
-echo ** Sets up system to build Blender library dependencies.            **
-echo ** Needs to be run as Administrator in command prompt on a fresh    **
-echo ** Windows install for ARM64 or x64.                                **
-echo **                                                                  **
-echo ** The following software will be installed                         **
-echo ** - Visual Studio Build Tools                                      **
-echo ** - Git, CMake, Meson                                              **
-echo ** - LLVM (ARM64 only)                                              **
-echo ** - CUDA, ROCm (x64 only)                                          **
-echo **                                                                  **
-echo ** The following directories will be created                        **
-echo ** - C:\install\           - Installer files used by this script    **
-echo ** - C:\t\                 - Temp directory used in building Python **
-echo ** - C:\blendergit\blender - This is the blender source repository  **
-echo ** - C:\db                 - This is the build directory            **
-echo **                                                                  **
-echo ** The following scripts will be downloaded into C:\db              **
-echo ** - vmbuild.cmd           - Script to initialize build             **
-echo ** - nuke.cmd              - Nuke scripts for rebuilding libraries  **
+echo ** Sets up system to build Blender library dependencies.
+echo ** Should to be run as Administrator in command prompt on a fresh
+echo ** Windows install for ARM64 or x64.
+echo **
+echo ** The following software will be installed
+echo ** - Visual Studio Build Tools
+echo ** - Git, CMake, Meson
+echo ** - LLVM (ARM64 only)
+echo ** - CUDA, ROCm (x64 only)
+echo **
+echo ** The following directories will be created
+echo ** - C:\install\           - Installer files used by this script
+echo ** - C:\t\                 - Temp directory used in building Python
+echo ** - C:\blendergit\blender - This is the blender source repository
+echo ** - C:\db                 - This is the build directory
+echo **
+echo ** The following scripts will be downloaded into C:\db
+echo ** - vmbuild.cmd           - Script to initialize build
+echo ** - nuke.cmd              - Nuke scripts for rebuilding libraries
 echo **
 set /p CONFIRM=** Enter DANGER to continue: 
+echo **********************************************************************
 if not "%CONFIRM%"=="DANGER" (echo Aborted. & goto :EOF)
 :skip_confirm
 
@@ -88,27 +89,27 @@ if "%ARCH%"=="arm64" goto arm_deps
 goto x64_deps
 
 :arm_deps
-echo Obtaining Git %GIT_VER_ARM%
-curl -s -L https://github.com/git-for-windows/git/releases/download/v%GIT_VER_ARM%.windows.1/Git-%GIT_VER_ARM%-arm64.exe -o C:\install\git.exe
-echo Installing Git %GIT_VER_ARM%
+echo Obtaining Git %GIT_VER_ARM64%
+curl -s -L https://github.com/git-for-windows/git/releases/download/v%GIT_VER_ARM64%.windows.1/Git-%GIT_VER_ARM64%-arm64.exe -o C:\install\git.exe
+echo Installing Git %GIT_VER_ARM64%
 start /wait C:\install\git.exe /verysilent /norestart
 set PATH=%PATH%;C:\Program Files\Git\cmd
 
-echo Obtaining CMake %CMAKE_VER_ARM%
-curl -s -L https://github.com/Kitware/CMake/releases/download/v%CMAKE_VER_ARM%/cmake-%CMAKE_VER_ARM%-windows-arm64.msi -o C:\install\cmake.msi
-echo Installing CMake %CMAKE_VER_ARM%
+echo Obtaining CMake %CMAKE_VER_ARM64%
+curl -s -L https://github.com/Kitware/CMake/releases/download/v%CMAKE_VER_ARM64%/cmake-%CMAKE_VER_ARM64%-windows-arm64.msi -o C:\install\cmake.msi
+echo Installing CMake %CMAKE_VER_ARM64%
 start /wait msiexec /quiet /norestart /i C:\install\cmake.msi ADD_CMAKE_TO_PATH="System"
 set PATH=%PATH%;C:\Program Files\CMake\bin
 
-echo Obtaining Meson %MESON_VER_ARM%
-curl -s -L https://github.com/mesonbuild/meson/releases/download/%MESON_VER_ARM%/meson-%MESON_VER_ARM%-64.msi -o C:\install\meson.msi
-echo Installing Meson %MESON_VER_ARM%
+echo Obtaining Meson %MESON_VER_ARM64%
+curl -s -L https://github.com/mesonbuild/meson/releases/download/%MESON_VER_ARM64%/meson-%MESON_VER_ARM64%-64.msi -o C:\install\meson.msi
+echo Installing Meson %MESON_VER_ARM64%
 start /wait msiexec /quiet /norestart /i C:\install\meson.msi
 set PATH=%PATH%;C:\Program Files\Meson
 
-echo Obtaining LLVM %LLVM_VER_ARM%
-curl -s -L https://github.com/llvm/llvm-project/releases/download/llvmorg-%LLVM_VER_ARM%/LLVM-%LLVM_VER_ARM%-woa64.exe -o C:\install\llvm.exe
-echo Installing LLVM %LLVM_VER_ARM%
+echo Obtaining LLVM %LLVM_VER_ARM64%
+curl -s -L https://github.com/llvm/llvm-project/releases/download/llvmorg-%LLVM_VER_ARM64%/LLVM-%LLVM_VER_ARM64%-woa64.exe -o C:\install\llvm.exe
+echo Installing LLVM %LLVM_VER_ARM64%
 start /wait C:\install\llvm.exe /S
 set PATH=%PATH%;C:\Program Files\LLVM\bin
 
@@ -183,7 +184,7 @@ curl -s https://projects.blender.org/%REPO%/raw/branch/%BRANCH%/build_files/buil
 echo Done
 
 echo **********************************************************************
-echo ** Run "call C:\vs2022bt\VC\Auxiliary\Build\vcvarsarm64.bat" or     **
-echo ** Open "%ARCH% Native Tools Command Prompt for VS %VSBT_YEAR%"              **
-echo ** Then run "cd C:\db && vmbuild.cmd" to start a build.             **
+echo ** Run "call C:\vs2022bt\VC\Auxiliary\Build\vcvarsarm64.bat" or
+echo ** Open "%ARCH% Native Tools Command Prompt for VS %VSBT_YEAR%"
+echo ** Then run "cd C:\db && vmbuild.cmd" to start a build.
 echo **********************************************************************
