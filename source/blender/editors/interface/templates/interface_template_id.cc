@@ -20,6 +20,7 @@
 #include "BKE_screen.hh"
 
 #include "BLI_listbase.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_string_search.hh"
 #include "BLI_string_utf8.hh"
 
@@ -1057,7 +1058,7 @@ static Button *template_id_def_new_but(Block *block,
   return but;
 }
 
-static void mark_as_asset_items(const bContext &C, Layout &layout)
+static void id_mark_as_asset_menu_items(const bContext &C, Layout &layout)
 {
   if (!ed::asset::can_mark_single_from_context(&C)) {
     return;
@@ -1080,6 +1081,31 @@ static void mark_as_asset_items(const bContext &C, Layout &layout)
   layout.separator();
 }
 
+static void id_reload_lib_menu_item(const bContext &C, Layout &layout)
+{
+  const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(&C, "id", RNA_ID).data);
+  if (!(id && id->lib)) {
+    return;
+  }
+  Library *lib = id->lib;
+  PointerRNA opptr = layout.op("wm.lib_reload", "Reload Library", ICON_FILE_REFRESH);
+  RNA_string_set(&opptr, "library", lib->id.name + 2);
+
+  char dir[FILE_MAXDIR], filename[FILE_MAX];
+
+  BLI_path_split_dir_file(
+      lib->runtime->filepath_abs, dir, sizeof(dir), filename, sizeof(filename));
+
+  /* We assume if both paths in lib are not the same then `lib->filepath` was relative. */
+  RNA_boolean_set(
+      &opptr, "relative_path", BLI_path_cmp(lib->runtime->filepath_abs, lib->filepath) != 0);
+
+  RNA_string_set(&opptr, "directory", dir);
+  RNA_string_set(&opptr, "filename", filename);
+
+  layout.separator();
+}
+
 static void template_id_material_menu_draw(const bContext *C, Menu *menu)
 {
   Layout &layout = *menu->layout;
@@ -1094,7 +1120,7 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
   }
   if (const PointerRNA *idptr_ptr = layout.context_ptr_get("id", RNA_Material)) {
     PointerRNA idptr = *idptr_ptr;
-    mark_as_asset_items(*C, layout);
+    id_mark_as_asset_menu_items(*C, layout);
 
     layout.prop(&idptr, "use_fake_user", UI_ITEM_NONE, "Fake User", ICON_NONE);
 
@@ -1106,6 +1132,8 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
     RNA_boolean_set(&opptr, "obdata_animation", false);
 
     layout.separator();
+
+    id_reload_lib_menu_item(*C, layout);
 
     opptr = layout.op("object.material_slot_add", "Duplicate into New Slot", ICON_DUPLICATE);
     RNA_boolean_set(&opptr, "duplicate_active_material", true);
