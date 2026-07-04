@@ -20,10 +20,13 @@ if "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
 
 set CMAKE_GENERATOR_INSTANCE=c:\vs2022bt\
 set CMAKE_GENERATOR=Visual Studio 17 2022
-set NODEBUG=
 set TMPDIR=c:\t\
 set PERL=c:\db\build\downloads\perl\perl\bin\perl.exe
 set path=%path%;c:\db\build\downloads\perl\perl\bin\
+
+REM Usage: vmbuild.cmd
+REM        vmbuild.cmd nodebug
+if /i "%1"=="nodebug" set NODEBUG=1
 
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format o"') do set START=%%i
 call c:\blendergit\blender\build_files\build_environment\windows\build_deps.cmd 2022 %ARCH%
