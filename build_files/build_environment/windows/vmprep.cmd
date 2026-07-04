@@ -18,13 +18,14 @@ set MESON_VER_ARM=1.11.0
 
 set LLVM_VER_ARM=20.1.8
 
-set CUDA_VER=12.8.0
+set CUDA_VER=12.8
+set CUDA_FULL_VER=12.8.0
 set CUDA_BUILD=571.96
 set HIP_VER=7.1
 set HIP_FULL=7.1.51803
 set VCREDIST_URL=https://download.microsoft.com/download/3/2/2/3224B87F-CFA0-4E70-BDA3-3DE650EFEBA5/vcredist_x64.exe
 set HIP_URL=https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-26.Q1-Win11-For-HIP.exe
-set 7ZIP_URL=https://github.com/ip7z/7zip/releases/download/26.02/7zr.exe
+set SEVENZIP_URL=https://github.com/ip7z/7zip/releases/download/26.02/7zr.exe
 
 set UNATTENDED=0
 set BRANCH=main
@@ -143,16 +144,16 @@ echo Installing VS2010 redist
 start /wait C:\install\vcredist_x64.exe /passive /norestart
 
 echo Obtaining CUDA %CUDA_VER%
-curl -s https://developer.download.nvidia.com/compute/cuda/%CUDA_VER%/local_installers/cuda_%CUDA_VER%_%CUDA_BUILD%_windows.exe -o C:\install\cuda.exe
+curl -s https://developer.download.nvidia.com/compute/cuda/%CUDA_FULL_VER%/local_installers/cuda_%CUDA_FULL_VER%_%CUDA_BUILD%_windows.exe -o C:\install\cuda.exe
 echo Installing CUDA %CUDA_VER%
-start /wait C:\install\cuda.exe -s -n nvcc_12.8 cudart_12.8 nvrtc_12.8 nvrtc_dev_12.8 nvjitlink_12.8 nvtx_12.8 thrust_12.8 curand_12.8 curand_dev_12.8
+start /wait C:\install\cuda.exe -s -n nvcc_%CUDA_VER% cudart_%CUDA_VER% nvrtc_%CUDA_VER% nvrtc_dev_%CUDA_VER% nvjitlink_%CUDA_VER% nvtx_%CUDA_VER% thrust_%CUDA_VER% curand_%CUDA_VER% curand_dev_%CUDA_VER%
 echo Moving CUDA %CUDA_VER%
 robocopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v%CUDA_VER%" "C:\tools\cuda\%CUDA_VER%" /E /MOVE /NJH /NJS /NP /NFL /NDL
 setx CUDA_PATH "C:\tools\cuda\%CUDA_VER%" /M > nul
 setx CUDA_PATH_V12_8 "C:\tools\cuda\%CUDA_VER%" /M > nul
 
 echo Obtaining 7-Zip
-curl -s -L %7ZIP_URL% -o C:\install\7zr.exe
+curl -s -L %SEVENZIP_URL% -o C:\install\7zr.exe
 set PATH=%PATH%;C:\install
 
 echo Obtaining HIP SDK %HIP_FULL%
@@ -183,6 +184,6 @@ echo Done
 
 echo **********************************************************************
 echo ** Run "call C:\vs2022bt\VC\Auxiliary\Build\vcvarsarm64.bat" or     **
-echo ** Open "%ARCH% Native Tools Command Prompt for VS %VSYEAR%"        **
+echo ** Open "%ARCH% Native Tools Command Prompt for VS %VSBT_YEAR%"              **
 echo ** Then run "cd C:\db && vmbuild.cmd" to start a build.             **
 echo **********************************************************************
