@@ -974,22 +974,25 @@ float dist_squared_to_projected_aabb(DistProjectedAABBPrecalc *data,
   float w_a = mul_project_m4_v3_zfac(data->pmat, va);
   if (w_a != 1.0f) {
     /* Perspective Projection. */
+    const float clip_near = data->clip_near;
     float w_b = w_a + data->pmat[main_axis][3] * scale;
-    if (w_a <= data->clip_near && w_b <= data->clip_near) {
+
+    if (w_a <= clip_near && w_b <= clip_near) {
       /* Both points are behind the near plane. Return zero to
        * force a precise test (BVH callback / per-element hit test). */
       return 0.0f;
     }
-    if (w_a <= data->clip_near || w_b <= data->clip_near) {
+
+    if (w_a <= clip_near || w_b <= clip_near) {
       /* One point is behind the near plane. Interpolate the point to the near plane. */
-      const float fac = (data->clip_near - w_a) / (w_b - w_a);
-      if (w_a <= data->clip_near) {
+      const float fac = (clip_near - w_a) / (w_b - w_a);
+      if (w_a <= clip_near) {
         interp_v2_v2v2(va2d, va2d, vb2d, fac);
-        w_a = data->clip_near;
+        w_a = clip_near;
       }
       else {
         interp_v2_v2v2(vb2d, va2d, vb2d, fac);
-        w_b = data->clip_near;
+        w_b = clip_near;
       }
     }
     va2d[0] /= w_a;
