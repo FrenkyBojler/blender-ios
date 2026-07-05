@@ -54,9 +54,6 @@ ImageData::~ImageData()
 
   BLI_assert(buffers.size() <= image->tiles.count());
   for (ImBuf *buffer : buffers.values()) {
-    if (buffer) {
-      buffer->gpu.flag &= ~IMB_GPU_DISABLE_MIPMAP_UPDATE;
-    }
     BKE_image_release_ibuf(image, buffer, nullptr);
   }
   buffers.clear();
@@ -88,9 +85,6 @@ static void fetch_image_buffers(ImageData &image_data,
       tile_user.tile = tile.tile_number;
 
       ImBuf *ibuf = BKE_image_acquire_ibuf(image_data.image, &tile_user, nullptr);
-      if (ibuf) {
-        ibuf->gpu.flag |= IMB_GPU_DISABLE_MIPMAP_UPDATE;
-      }
       return ibuf;
     });
 
