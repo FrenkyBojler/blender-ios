@@ -6331,6 +6331,9 @@ static void sync_system_properties(PointerRNA &ptr, IDProperty &idprops, const b
         idprop = bke::idprop::create_group(identifier).release();
         IDP_AddToGroup(&idprops, idprop);
       }
+      else {
+        continue;
+      }
     }
 
     used_props.add_new(idprop);
