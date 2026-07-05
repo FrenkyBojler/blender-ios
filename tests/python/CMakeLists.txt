@@ -1734,6 +1734,10 @@ if(WITH_UI_TESTS)
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
     test_bpy_types.unregister_referenced_type
+    test_info_reports.test_info_report_filters
+    test_info_reports.test_info_report_selection_modes
+    test_info_reports.test_info_report_delete
+    test_info_reports.test_info_report_operator_poll
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
