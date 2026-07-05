@@ -205,7 +205,8 @@ template<typename CoordT> inline void kdtree_balance(KDTree<CoordT> *tree)
  */
 template<typename CoordT, typename Func, typename ChildFunc, typename OrderFunc>
 inline void kdtree_foreach_node(const KDTree<CoordT> &tree,
-                                Func &&func ChildFunc &&visite_child,
+                                Func &&func ChildFunc,
+                                &&visite_child,
                                 OrderFunc &&left_is_first)
 {
   const Span<KDTreeNode<CoordT>> nodes(tree.nodes, tree.nodes_len);
@@ -247,7 +248,7 @@ inline void kdtree_foreach_node(const KDTree<CoordT> &tree,
 }
 
 template<typename CoordT, typename Func, typename ChildFunc>
-inline void kdtree_foreach_node(const KDTree<CoordT> &tree, Func &&func ChildFunc &&visite_child)
+inline void kdtree_foreach_node(const KDTree<CoordT> &tree, Func &&func, ChildFunc &&visite_child)
 {
   kdtree_foreach_node(
       tree, func, visite_child, [](const KDTreeNode<CoordT> & /*node*/) { return true; });
