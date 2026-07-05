@@ -273,5 +273,3 @@ def test_info_report_operator_poll():
             bpy.ops.info.report_copy.poll(),
             "report_copy unavailable",
         )
-
-        
