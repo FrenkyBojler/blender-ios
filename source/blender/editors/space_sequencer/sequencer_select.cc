@@ -343,6 +343,9 @@ Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int l
     sel = SEQ_SELECT;
   }
   for (Strip &strip : *ed->current_strips()) {
+    if (seq::strip_is_transition(&strip)) {
+      continue;
+    }
     if ((&strip != test) && (test->channel == strip.channel) &&
         ((sel == -1) || (sel && (strip.flag & SEQ_SELECT)) ||
          (sel == 0 && (strip.flag & SEQ_SELECT) == 0)))
@@ -1706,6 +1709,9 @@ static bool select_linked_internal(Scene *scene)
     if ((strip.flag & SEQ_SELECT) == 0) {
       continue;
     }
+    if (seq::strip_is_transition(&strip)) {
+      continue;
+    }
     /* Only get unselected neighbors. */
     Strip *neighbor = find_neighboring_strip(scene, &strip, seq::SIDE_LEFT, 0);
     if (neighbor) {
@@ -1739,6 +1745,9 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
 
   for (Strip &strip : *seq::active_seqbase_get(ed)) {
     if ((strip.flag & SEQ_SELECT) != selection_filter) {
+      continue;
+    }
+    if (seq::strip_is_transition(&strip)) {
       continue;
     }
     Strip *neighbor = find_neighboring_strip(
@@ -1966,6 +1975,9 @@ static wmOperatorStatus sequencer_select_handles_exec(bContext *C, wmOperator *o
   Editing *ed = seq::editing_get(scene);
   int sel_side = RNA_enum_get(op->ptr, "side");
   for (Strip &strip : *ed->current_strips()) {
+    if (seq::strip_is_transition(&strip)) {
+      continue;
+    }
     if (strip.flag & SEQ_SELECT) {
       Strip *l_neighbor = find_neighboring_strip(scene, &strip, seq::SIDE_LEFT, -1);
       Strip *r_neighbor = find_neighboring_strip(scene, &strip, seq::SIDE_RIGHT, -1);
