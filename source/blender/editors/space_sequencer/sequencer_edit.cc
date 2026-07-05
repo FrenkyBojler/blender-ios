@@ -3006,6 +3006,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
     channel_min = min_ii(strip->channel, channel_min);
     meta_start_frame = min_ii(strip->left_handle(), meta_start_frame);
     meta_end_frame = max_ii(strip->right_handle(scene), meta_end_frame);
+    strip->flag &= ~STRIP_ALLSEL;
   }
 
   ListBaseT<SeqTimelineChannel> *channels_cur = seq::channels_displayed_get(ed);
@@ -3068,7 +3069,12 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
 
   seq::prefetch_stop(scene);
 
+  /* Replace current selection with former meta strip's contents. */
+  deselect_all_strips(scene);
+
   for (Strip &strip : active_strip->seqbase) {
+    strip.flag &= ~STRIP_ALLSEL;
+    strip.flag |= SEQ_SELECT;
     seq::relations_invalidate_cache(scene, &strip);
   }
 
