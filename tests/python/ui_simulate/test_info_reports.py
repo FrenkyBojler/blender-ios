@@ -60,7 +60,6 @@ def _setup_info_area():
         area.type = 'INFO'
 
     yield
-    yield
 
     _register_info_report_generator()
 
@@ -76,10 +75,6 @@ def _setup_info_area():
         pass
 
     yield
-    yield
-    yield
-    yield
-
     return e, t, window, area
 
 
@@ -101,8 +96,6 @@ def _select_reports(area, action, t):
         result = bpy.ops.info.select_all(action=action)
 
     t.assertEqual(result, {'FINISHED'}, f"{action} selection should complete")
-
-    yield
     yield
 
 
@@ -117,8 +110,6 @@ def _copy_reports(area, t):
             result = bpy.ops.info.report_copy()
 
     t.assertEqual(result, {'FINISHED'}, "Copy reports should complete")
-
-    yield
     yield
 
 
@@ -133,8 +124,6 @@ def _delete_reports(area, t):
             result = bpy.ops.info.report_delete()
 
     t.assertEqual(result, {'FINISHED'}, "Delete reports should complete")
-
-    yield
     yield
 
 
@@ -178,7 +167,6 @@ def test_info_report_filters():
             )
 
         yield
-        yield
 
         # The current build does not expose the Info report list through
         # Python in a way that can be asserted reliably here, so this test
@@ -208,14 +196,7 @@ def test_info_report_selection_modes():
     )
 
     yield
-    yield
-
-    cases = [
-        ("SELECT", True),
-        ("DESELECT", False),
-    ]
-
-    for action, should_have_content in cases:
+    for action in ("SELECT", "DESELECT"):
         yield from _select_reports(area, action, t)
         yield from _copy_reports(area, t)
 
@@ -240,14 +221,8 @@ def test_info_report_delete():
         operator=True,
     )
 
-    yield
-    yield
-
     yield from _select_reports(area, 'SELECT', t)
     yield from _delete_reports(area, t)
-
-    yield
-    yield
 
     yield from _select_reports(area, 'SELECT', t)
     yield from _delete_reports(area, t)
