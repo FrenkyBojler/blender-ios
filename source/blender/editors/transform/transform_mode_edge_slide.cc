@@ -56,6 +56,11 @@ struct EdgeSlideData {
     Vector<BMVert *> continuations;
   };
   Vector<CloneNeighborData> clone_neighbor_data;
+  
+  struct CloneChainEdge {
+    BMVert *v1, *v2;
+  };
+  Vector<CloneChainEdge> clone_chain_edges;
 
   int mval_start[2], mval_end[2];
   int curr_sv_index;
@@ -983,11 +988,18 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
     Set<BMVert *> keep_nb_set;
     Set<BMVert *> other_nb_set;
     for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
+      /* Chain verts of parallel selected loops can appear as side neighbors. 
+       * Keep them out of the neighbor sets as tagging a chain vert would make 
+       * every face of that vert's own loop pass the separation filter below. */
       for (BMVert *nb : nd.neighbors[keep_side]) {
-        keep_nb_set.add(nb);
+        if (!orig_to_clone.contains(nb)) {
+          keep_nb_set.add(nb);
+        }
       }
       for (BMVert *nb : nd.neighbors[1 - keep_side]) {
-        other_nb_set.add(nb);
+        if (!orig_to_clone.contains(nb)) {
+          other_nb_set.add(nb);
+        }
       }
     }
 
@@ -1041,13 +1053,26 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
           if (nd.continuations.contains(l->v)) {
             has_endpoint_keep_nb = true;
           }
+          else if (nd.neighbors[1 - keep_side].contains(l->v)) {
+            /* A face containing one of this vert's own other-side neighbors lies on the other
+             * side of the chain at this vert. With multiple parallel loops selected, another 
+             * loop's tagged keep-side neighbors may sit in this face and would wrongly accept it. */
+            has_endpoint_keep_nb = true;
+          }
           else if (BM_elem_flag_test(l->v, BM_ELEM_TAG)) {
             has_tagged_keep_nb = true;
           }
           else {
             for (BMVert *nb : nd.neighbors[keep_side]) {
               if (l->v == nb) {
-                has_endpoint_keep_nb = true;
+                if (orig_to_clone.contains(nb)) {
+                  /* The keep-side neighbor is a chain vert of a parallel selected loop;
+                   * the face between the two loops is a regular keep-side face of this vert. */
+                  has_tagged_keep_nb = true;
+                }
+                else {
+                  has_endpoint_keep_nb = true;
+                }
                 break;
               }
             }
@@ -1089,28 +1114,19 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
     }
 
     /* Create band faces from original vertices to the separated vertices. */
-    for (int i = 0; i < int(sld->clone_neighbor_data.size()); i++) {
-      BMVert *v_orig1 = sld->clone_neighbor_data[i].v;
-      BMVert *v_sep1 = orig_to_sep.lookup_default(v_orig1, nullptr);
-      if (!v_sep1) {
+    for (const EdgeSlideData::CloneChainEdge &ce : sld->clone_chain_edges) {
+      BMVert *v_sep1 = orig_to_sep.lookup_default(ce.v1, nullptr);
+      BMVert *v_sep2 = orig_to_sep.lookup_default(ce.v2, nullptr);
+
+      if (!v_sep1 || !v_sep2) {
         continue;
       }
-      for (int j = i + 1; j < int(sld->clone_neighbor_data.size()); j++) {
-        BMVert *v_orig2 = sld->clone_neighbor_data[j].v;
-        if (!BM_edge_exists(v_orig1, v_orig2)) {
-          continue;
-        }
-        BMVert *v_sep2 = orig_to_sep.lookup_default(v_orig2, nullptr);
-        if (!v_sep2) {
-          continue;
-        }
-        BMVert *quad[4] = {v_orig1, v_sep1, v_sep2, v_orig2};
-        BM_face_create_verts(bm, quad, 4, nullptr, BM_CREATE_NOP, true);
-      }
+
+      BMVert *quad[4] = {ce.v1, v_sep1, v_sep2, ce.v2};
+      BM_face_create_verts(bm, quad, 4, nullptr, BM_CREATE_NOP, true);
     }
 
-    /* At chain endpoints, we need to replace the edge connecting the endpoint and neighbor to the
-     * adjacent face. */
+    /* At chain endpoints, we need to replace the edge connecting the endpoint and neighbor to the adjacent face. */
     for (const EdgeSlideData::CloneNeighborData &nd : sld->clone_neighbor_data) {
       BMVert *v_orig = nd.v;
       BMVert *v_sep = orig_to_sep.lookup_default(v_orig, nullptr);
@@ -1327,6 +1343,7 @@ static void initEdgeSlide_ex(TransInfo *t,
 
             if (v1 && v2) {
               BM_edge_create(bm, v1, v2, e, BM_CREATE_NOP);
+              sld->clone_chain_edges.append({e->v1, e->v2});
             }
           }
         }
