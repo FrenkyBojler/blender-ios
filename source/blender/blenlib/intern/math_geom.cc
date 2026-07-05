@@ -872,18 +872,10 @@ void dist_squared_to_projected_aabb_precalc(DistProjectedAABBPrecalc *precalc,
                                   FLT_MAX;
   }
 
-  /* Perspective projection makes `w` depend on the input coordinate. Orthographic
-   * projection keeps `w` constant, so these coefficients should be zero. */
-  precalc->is_persp = (precalc->pmat[0][3] != 0.0f) || (precalc->pmat[1][3] != 0.0f) ||
-                      (precalc->pmat[2][3] != 0.0f);
-
-  if (precalc->is_persp) {
-    planes_from_projmat(
-        precalc->pmat, nullptr, nullptr, nullptr, nullptr, precalc->near_plane, nullptr);
-  }
-  else {
-    zero_v4(precalc->near_plane);
-  }
+  const float clip_near_denominator = precalc->pmat[2][2] - 1.0f;
+  precalc->clip_near = (clip_near_denominator != 0.0f) ?
+                           (precalc->pmat[3][2] / clip_near_denominator) :
+                           0.0f;
 }
 
 float dist_squared_to_projected_aabb(DistProjectedAABBPrecalc *data,
@@ -968,40 +960,42 @@ float dist_squared_to_projected_aabb(DistProjectedAABBPrecalc *data,
     va[main_axis] = local_bvmax[main_axis];
     vb[main_axis] = local_bvmin[main_axis];
   }
+  float scale = fabsf(local_bvmax[main_axis] - local_bvmin[main_axis]);
 
-  float va2d[2], vb2d[2];
-  if (data->is_persp) {
-    float va_clip[3], vb_clip[3];
-    /* Trim the selected AABB edge to the frustum near plane before projecting. */
-    if (clip_segment_v3_plane(va, vb, data->near_plane, va_clip, vb_clip)) {
-      copy_v3_v3(va, va_clip);
-      copy_v3_v3(vb, vb_clip);
-    }
-    else {
-      /* If the selected edge is fully clipped, other parts of the AABB may still be visible.
-       * Return a conservative distance so this box is not rejected by this approximation. */
+  float va2d[2] = {
+      (dot_m4_v3_row_x(data->pmat, va) + data->pmat[3][0]),
+      (dot_m4_v3_row_y(data->pmat, va) + data->pmat[3][1]),
+  };
+  float vb2d[2] = {
+      (va2d[0] + data->pmat[main_axis][0] * scale),
+      (va2d[1] + data->pmat[main_axis][1] * scale),
+  };
+
+  float w_a = mul_project_m4_v3_zfac(data->pmat, va);
+  if (w_a != 1.0f) {
+    /* Perspective Projection. */
+    float w_b = w_a + data->pmat[main_axis][3] * scale;
+    if (w_a <= data->clip_near && w_b <= data->clip_near) {
+      /* Both points are behind the near plane. Return zero to
+       * force a precise test (BVH callback / per-element hit test). */
       return 0.0f;
     }
-
-    /* After near-plane clipping, both endpoints should be safe for perspective divide. */
-
-    float w_a = mul_project_m4_v3_zfac(data->pmat, va);
-    float w_b = mul_project_m4_v3_zfac(data->pmat, vb);
-    if (w_a <= 0.0f || w_b <= 0.0f) {
-      /* Keep this defensive guard close to the divide below. */
-      return 0.0f;
+    if (w_a <= data->clip_near || w_b <= data->clip_near) {
+      /* One point is behind the near plane. Interpolate the point to the near plane. */
+      const float fac = (data->clip_near - w_a) / (w_b - w_a);
+      if (w_a <= data->clip_near) {
+        interp_v2_v2v2(va2d, va2d, vb2d, fac);
+        w_a = data->clip_near;
+      }
+      else {
+        interp_v2_v2v2(vb2d, va2d, vb2d, fac);
+        w_b = data->clip_near;
+      }
     }
-    mul_v2_m4v3(va2d, data->pmat, va);
     va2d[0] /= w_a;
     va2d[1] /= w_a;
-
-    mul_v2_m4v3(vb2d, data->pmat, vb);
     vb2d[0] /= w_b;
     vb2d[1] /= w_b;
-  }
-  else {
-    mul_v2_m4v3(va2d, data->pmat, va);
-    mul_v2_m4v3(vb2d, data->pmat, vb);
   }
 
   float dvec[2], edge[2], lambda, rdist_sq;
@@ -3566,12 +3560,7 @@ bool clip_segment_v3_plane(
   div = dot_v3v3(dp, plane);
 
   if (div == 0.0f) {
-    /* Parallel: keep segments on the plane or in front of it, reject segments behind it. */
-    if (plane_point_side_v3(plane, p1) < 0.0f) {
-      return false;
-    }
-    copy_v3_v3(r_p1, p1);
-    copy_v3_v3(r_p2, p2);
+    /* parallel */
     return true;
   }
 

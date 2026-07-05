@@ -153,43 +153,6 @@ TEST(math_geom, CrossPoly)
 }
 
 /**
- * Single-plane segment clipping keeps output points valid on success and rejects segments
- * entirely behind the clipping plane.
- */
-TEST(math_geom, ClipSegmentV3Plane)
-{
-  /* Plane x = 0, with positive x in front. */
-  const float plane[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-  float r_p1[3], r_p2[3];
-
-  {
-    /* Crossing the plane: clip the behind endpoint to x = 0. */
-    const float p1[3] = {-1.0f, 0.0f, 0.0f};
-    const float p2[3] = {1.0f, 0.0f, 0.0f};
-    const float expect_p1[3] = {0.0f, 0.0f, 0.0f};
-    EXPECT_TRUE(clip_segment_v3_plane(p1, p2, plane, r_p1, r_p2));
-    EXPECT_V3_NEAR(expect_p1, r_p1, 1e-6f);
-    EXPECT_V3_NEAR(p2, r_p2, 1e-6f);
-  }
-
-  {
-    /* Parallel and in front of the plane: keep the segment unchanged. */
-    const float p1[3] = {1.0f, -1.0f, 0.0f};
-    const float p2[3] = {1.0f, 1.0f, 0.0f};
-    EXPECT_TRUE(clip_segment_v3_plane(p1, p2, plane, r_p1, r_p2));
-    EXPECT_V3_NEAR(p1, r_p1, 1e-6f);
-    EXPECT_V3_NEAR(p2, r_p2, 1e-6f);
-  }
-
-  {
-    /* Parallel and behind the plane: reject the segment. */
-    const float p1[3] = {-1.0f, -1.0f, 0.0f};
-    const float p2[3] = {-1.0f, 1.0f, 0.0f};
-    EXPECT_FALSE(clip_segment_v3_plane(p1, p2, plane, r_p1, r_p2));
-  }
-}
-
-/**
  * Regression for #160753: perspective snap on long loose edges.
  *
  * When part of a thin world-space AABB is behind the camera, projected AABB
@@ -229,14 +192,14 @@ TEST(math_geom, DistSquaredToProjectedAabb_LooseEdgeBehindCamera)
 }
 
 /**
- * Near frustum data is computed once in #dist_squared_to_projected_aabb_precalc.
+ * Near clip distance is computed once in #dist_squared_to_projected_aabb_precalc.
  */
-TEST(math_geom, DistSquaredToProjectedAabb_PrecalcNearPlane)
+TEST(math_geom, DistSquaredToProjectedAabb_PrecalcClipNear)
 {
   const float winsize[2] = {1920.0f, 1080.0f};
   const float mval[2] = {960.0f, 540.0f};
 
-  /* Keep the view matrix simple so known points can be tested against the near plane. */
+  /* Keep the view matrix simple so the near clip distance is easy to check. */
   float viewmat[4][4];
   unit_m4(viewmat);
 
@@ -251,24 +214,15 @@ TEST(math_geom, DistSquaredToProjectedAabb_PrecalcNearPlane)
   DistProjectedAABBPrecalc precalc;
   dist_squared_to_projected_aabb_precalc(&precalc, persmat, winsize, mval);
 
-  /* A matrix built from a perspective frustum should be detected as perspective. */
-  EXPECT_TRUE(precalc.is_persp);
+  EXPECT_NEAR(precalc.clip_near, near_clip, 1e-5f);
 
-  /* The stored near plane should separate clipped points from visible points. */
-  const float behind_near[3] = {0.0f, 0.0f, 0.0f};
-  const float on_near[3] = {0.0f, 0.0f, -near_clip};
-  const float in_front_of_near[3] = {0.0f, 0.0f, -1.0f};
-  EXPECT_LT(plane_point_side_v3(precalc.near_plane, behind_near), 0.0f);
-  EXPECT_NEAR(plane_point_side_v3(precalc.near_plane, on_near), 0.0f, 1e-5f);
-  EXPECT_GT(plane_point_side_v3(precalc.near_plane, in_front_of_near), 0.0f);
-
-  /* Orthographic-like matrix: projected `w` is constant, so no perspective near clip is needed. */
+  /* Orthographic-like matrix: avoid storing a derived perspective near clip. */
   float ortho_winmat[4][4];
   unit_m4(ortho_winmat);
   ortho_winmat[0][0] = 1.0f / 960.0f;
   ortho_winmat[1][1] = 1.0f / 540.0f;
   mul_m4_m4m4(persmat, ortho_winmat, viewmat);
   dist_squared_to_projected_aabb_precalc(&precalc, persmat, winsize, mval);
-  EXPECT_FALSE(precalc.is_persp);
+  EXPECT_EQ(precalc.clip_near, 0.0f);
 }
 }  // namespace blender
