@@ -2984,23 +2984,21 @@ static void shift_nodes(bNodeTree &tree,
   };
 
   Array<bool> frames_mask(nodes.size(), false);
-  threading::parallel_for(nodes.index_range(), 1024, [&](const IndexRange range) {
-    for (const int index : range) {
-      if (!shift_mask[index]) {
-        continue;
+  for (const int index : nodes.index_range()) {
+    if (!shift_mask[index]) {
+      continue;
+    }
+
+    first_parent_if(*nodes[index], [&](const bNode &node) {
+      const int index = node.index();
+      if (frames_mask[index]) {
+        return true;
       }
 
-      first_parent_if(*nodes[index], [&](const bNode &node) {
-        const int index = node.index();
-        if (frames_mask[index]) {
-          return true;
-        }
-
-        frames_mask[index] = true;
-        return false;
-      });
-    }
-  });
+      frames_mask[index] = true;
+      return false;
+    });
+  }
 
   first_parent_if(to_exclude_from_shift, [&](const bNode &node) {
     const int index = node.index();
@@ -3008,38 +3006,34 @@ static void shift_nodes(bNodeTree &tree,
     return false;
   });
 
-  threading::parallel_for(nodes.index_range(), 1024, [&](const IndexRange range) {
-    for (const int index : range) {
+  for (const int index : nodes.index_range()) {
+    if (frames_mask[index]) {
+      continue;
+    }
+
+    const bNode *first_parent = first_parent_if(
+        *nodes[index], [&](const bNode &node) { return frames_mask[node.index()]; });
+    if (first_parent == nullptr) {
+      continue;
+    }
+
+    first_parent_if(*nodes[index], [&](const bNode &node) {
+      const int index = node.index();
       if (frames_mask[index]) {
-        continue;
+        return true;
       }
+      frames_mask[index] = true;
+      return false;
+    });
+  }
 
-      const bNode *first_parent = first_parent_if(
-          *nodes[index], [&](const bNode &node) { return frames_mask[node.index()]; });
-      if (first_parent == nullptr) {
-        continue;
-      }
-
-      first_parent_if(*nodes[index], [&](const bNode &node) {
-        const int index = node.index();
-        if (frames_mask[index]) {
-          return true;
-        }
-        frames_mask[index] = true;
-        return false;
-      });
+  for (const int index : nodes.index_range()) {
+    const bNode &node = *nodes[index];
+    if (node.parent == nullptr) {
+      continue;
     }
-  });
-
-  threading::parallel_for(shift_mask.index_range(), 1024, [&](const IndexRange range) {
-    for (const int index : range) {
-      const bNode &node = *nodes[index];
-      if (node.parent == nullptr) {
-        continue;
-      }
-      shift_mask[index] |= frames_mask[node.parent->index()];
-    }
-  });
+    shift_mask[index] |= frames_mask[node.parent->index()];
+  }
 
   for (const int index : nodes.index_range()) {
     if (shift_mask[index]) {
