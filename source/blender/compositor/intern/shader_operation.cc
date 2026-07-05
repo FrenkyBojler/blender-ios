@@ -190,7 +190,8 @@ void ShaderOperation::link_node_input_unavailable(const bNodeSocket &input)
   zero_v4(stack.vec);
   GPUNodeLink *link = GPU_constant(stack.vec);
 
-  GPU_link(material_, "set_float", link, &stack.link);
+  const ResultType type = get_node_socket_result_type(&input);
+  GPU_link(material_, get_set_function_name(type), link, &stack.link);
 }
 
 /* Initializes the vector value of the given GPU node stack from the default value of the given
@@ -204,15 +205,14 @@ static void initialize_input_stack_value(const bNodeSocket &input, GPUNodeStack 
       break;
     }
     case SOCK_INT: {
-      /* GPUMaterial doesn't support int, so it is stored as a float. */
       const int value = input.default_value_typed<bNodeSocketValueInt>()->value;
-      stack.vec[0] = int(value);
+      memcpy(&stack.vec[0], &value, sizeof(int));
       break;
     }
     case SOCK_BOOLEAN: {
-      /* GPUMaterial doesn't support bool, so it is stored as a float. */
       const bool value = input.default_value_typed<bNodeSocketValueBoolean>()->value;
-      stack.vec[0] = float(value);
+      const int ival = int(value);
+      memcpy(&stack.vec[0], &ival, sizeof(int));
       break;
     }
     case SOCK_VECTOR: {
@@ -221,10 +221,8 @@ static void initialize_input_stack_value(const bNodeSocket &input, GPUNodeStack 
       break;
     }
     case SOCK_INT_VECTOR: {
-      /* GPUMaterial doesn't support int[23], so it is stored as a float[23]. */
       const int3 value = int3(input.default_value_typed<bNodeSocketValueIntVector>()->value);
-      const float3 float_value = float3(value);
-      copy_v3_v3(stack.vec, float_value);
+      memcpy(&stack.vec, &value, sizeof(int3));
       break;
     }
     case SOCK_RGBA: {
@@ -233,9 +231,8 @@ static void initialize_input_stack_value(const bNodeSocket &input, GPUNodeStack 
       break;
     }
     case SOCK_MENU: {
-      /* GPUMaterial doesn't support int, so it is stored as a float. */
       const int32_t value = input.default_value_typed<bNodeSocketValueMenu>()->value;
-      stack.vec[0] = int(value);
+      memcpy(&stack.vec[0], &value, sizeof(int32_t));
       break;
     }
     case SOCK_ROTATION: {
@@ -281,25 +278,19 @@ static const char *get_set_function_name(const ResultType type)
     case ResultType::Color:
       return "set_color";
     case ResultType::Int:
-      /* GPUMaterial doesn't support int, so it is passed as a float. */
-      return "set_float";
+      return "set_int";
     case ResultType::Int2:
-      /* GPUMaterial doesn't support int2, so it is passed as a float2. */
-      return "set_float2";
+      return "set_int2";
     case ResultType::Int3:
-      /* GPUMaterial doesn't support int3, so it is passed as a float3. */
-      return "set_float3";
+      return "set_int3";
     case ResultType::Int4:
-      /* GPUMaterial doesn't support int4, so it is passed as a float4. */
-      return "set_float4";
+      return "set_int4";
     case ResultType::Bool:
-      /* GPUMaterial doesn't support bool, so it is passed as a float. */
-      return "set_float";
+      return "set_bool";
     case ResultType::Float4x4:
       return "set_float4x4";
     case ResultType::Menu:
-      /* GPUMaterial doesn't support int, so it is passed as a float. */
-      return "set_float";
+      return "set_int";
     case ResultType::Quaternion:
       return "set_quaternion";
     case ResultType::String:
@@ -714,31 +705,19 @@ static const char *glsl_store_expression_from_result_type(ResultType type)
     case ResultType::Color:
       return "value";
     case ResultType::Int:
-      /* GPUMaterial doesn't support int, so it is passed as a float, and we need to convert it
-       * back to int before writing it. */
-      return "ivec4(int(value))";
+      return "ivec4(value)";
     case ResultType::Int2:
-      /* GPUMaterial doesn't support int2, so it is passed as a float2, and we need to convert it
-       * back to int2 before writing it. */
-      return "ivec4(ivec2(value), 0, 0)";
+      return "ivec4(value, 0, 0)";
     case ResultType::Int3:
-      /* GPUMaterial doesn't support int3, so it is passed as a float3, and we need to convert it
-       * back to int3 before writing it. */
-      return "ivec4(ivec3(value), 0)";
+      return "ivec4(value, 0)";
     case ResultType::Int4:
-      /* GPUMaterial doesn't support int4, so it is passed as a float4, and we need to convert it
-       * back to int4 before writing it. */
       return "ivec4(value)";
     case ResultType::Bool:
-      /* GPUMaterial doesn't support bool, so it is passed as a float and stored as an int, and we
-       * need to convert it back to bool and then to an int before writing it. */
-      return "ivec4(bool(value))";
+      return "ivec4(int(value))";
     case ResultType::Float4x4:
       return "value";
     case ResultType::Menu:
-      /* GPUMaterial doesn't support int, so it is passed as a float, and we need to convert it
-       * back to int before writing it. */
-      return "ivec4(int(value))";
+      return "ivec4(value)";
     case ResultType::Quaternion:
       return "value";
     case ResultType::String:
@@ -801,20 +780,14 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   const std::string store_float3_function_header = "void store_float3(const uint id, vec3 value)";
   const std::string store_float4_function_header = "void store_float4(const uint id, vec4 value)";
   const std::string store_color_function_header = "void store_color(const uint id, vec4 value)";
-  /* GPUMaterial doesn't support int, so it is passed as a float. */
-  const std::string store_int_function_header = "void store_int(const uint id, float value)";
-  /* GPUMaterial doesn't support int2, so it is passed as a float2. */
-  const std::string store_int2_function_header = "void store_int2(const uint id, vec2 value)";
-  /* GPUMaterial doesn't support int3, so it is passed as a float3. */
-  const std::string store_int3_function_header = "void store_int3(const uint id, vec3 value)";
-  /* GPUMaterial doesn't support int4, so it is passed as a float4. */
-  const std::string store_int4_function_header = "void store_int4(const uint id, vec4 value)";
-  /* GPUMaterial doesn't support bool, so it is passed as a float. */
-  const std::string store_bool_function_header = "void store_bool(const uint id, float value)";
+  const std::string store_int_function_header = "void store_int(const uint id, int value)";
+  const std::string store_int2_function_header = "void store_int2(const uint id, ivec2 value)";
+  const std::string store_int3_function_header = "void store_int3(const uint id, ivec3 value)";
+  const std::string store_int4_function_header = "void store_int4(const uint id, ivec4 value)";
+  const std::string store_bool_function_header = "void store_bool(const uint id, bool value)";
   const std::string store_float4x4_function_header =
       "void store_float4x4(const uint id, float4x4 value)";
-  /* GPUMaterial doesn't support int, so it is passed as a float. */
-  const std::string store_menu_function_header = "void store_menu(const uint id, float value)";
+  const std::string store_menu_function_header = "void store_menu(const uint id, int value)";
   const std::string store_quaternion_function_header =
       "void store_quaternion(const uint id, vec4 value)";
 
@@ -975,25 +948,19 @@ static const char *glsl_type_from_result_type(ResultType type)
     case ResultType::Color:
       return "vec4";
     case ResultType::Int:
-      /* GPUMaterial doesn't support int, so it is passed as a float. */
-      return "float";
+      return "int";
     case ResultType::Int2:
-      /* GPUMaterial doesn't support int2, so it is passed as a float2. */
-      return "vec2";
+      return "ivec2";
     case ResultType::Int3:
-      /* GPUMaterial doesn't support int3, so it is passed as a float3. */
-      return "vec3";
+      return "ivec3";
     case ResultType::Int4:
-      /* GPUMaterial doesn't support int4, so it is passed as a float4. */
-      return "vec4";
+      return "ivec4";
     case ResultType::Bool:
-      /* GPUMaterial doesn't support bool, so it is passed as a float. */
-      return "float";
+      return "bool";
     case ResultType::Float4x4:
       return "float4x4";
     case ResultType::Menu:
-      /* GPUMaterial doesn't support int, so it is passed as a float. */
-      return "float";
+      return "int";
     case ResultType::Quaternion:
       return "vec4";
     case ResultType::String:
