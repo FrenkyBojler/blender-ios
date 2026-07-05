@@ -643,38 +643,41 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
   bool only_handles_selected = true;
 
-  bool has_transition = false;
+  bool has_transition_handles = false;
   bool has_non_transition = false;
   for (Strip *strip : strips) {
     if (seq::transform_is_locked(seq::channels_displayed_get(ed), strip)) {
       continue;
     }
-    if (seq::strip_is_transition(strip)) {
-      has_transition = true;
+    if (seq::strip_is_transition(strip) && (strip->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0) {
+      has_transition_handles = true;
       if (has_non_transition) {
-        /* Invalid selection state. */
-        ts->hard_clamp.xmin = 0;
-        ts->hard_clamp.xmax = 0;
         break;
       }
       create_transition_clamp_data(t, scene, strip);
     }
     else {
       has_non_transition = true;
-      if (has_transition) {
-        /* Invalid selection state. */
-        ts->hard_clamp.xmin = 0;
-        ts->hard_clamp.xmax = 0;
+      if (has_transition_handles) {
         break;
       }
       only_handles_selected &= create_non_transition_clamp_data(t, scene, strip);
     }
   }
 
+  /* Non-transitions and transition handles can't be selected at the same time. Other code should
+   * prevent this invalid selection state, but prevent movement in case it ends up in such state.
+   */
+  const bool invalid_selection = has_transition_handles && has_non_transition;
+  if (invalid_selection) {
+    ts->hard_clamp.xmin = 0;
+    ts->hard_clamp.xmax = 0;
+  }
+
   /* TODO(john): This ensures that y-axis movement is restricted only if all of the selected items
    * are handles, since currently it is possible to select whole strips and handles at the same
    * time. This should be removed for 5.0 when we make this behavior impossible. */
-  if (only_handles_selected) {
+  if (only_handles_selected || invalid_selection) {
     ts->hard_clamp.ymin = 0;
     ts->hard_clamp.ymax = 0;
   }
