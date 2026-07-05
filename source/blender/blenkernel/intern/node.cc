@@ -124,9 +124,6 @@ static CLG_LogRef LOG = {"node"};
 namespace bke {
 
 /* Forward declaration. */
-void write_node_socket_default_value_at_address(const void *address,
-                                                BlendWriter *writer,
-                                                const bNodeSocket *sock);
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock);
 
 /* Fallback types for undefined tree, nodes, sockets. */
@@ -1080,14 +1077,11 @@ static const Map<StringRef, StringRef> &subtype_pixel_to_none()
 }
 
 template<typename ValueType>
-static void write_node_socket_default_value_without_subtype(const void *address,
-                                                            BlendWriter *writer,
-                                                            const void *default_value)
+static void write_default_value_none_subtype(BlendWriter *writer, const void *default_value)
 {
   ValueType value = *static_cast<const ValueType *>(default_value);
   value.subtype = PROP_NONE;
-  // todo(habib): remove address argument
-  writer->write_struct_at_address_cast<ValueType>(address, &value);
+  writer->write_struct_at_address_cast<ValueType>(default_value, &value);
 }
 
 static void pixel_subtype_forward_compat(BlendWriter *writer, const bNodeSocket &sock)
@@ -1099,11 +1093,13 @@ static void pixel_subtype_forward_compat(BlendWriter *writer, const bNodeSocket 
   /* This property should only be used for group node "interface" sockets. */
   BLI_assert(sock_copy->default_attribute_name == nullptr);
 
-  // todo(habib): doc
+  /* Write a shallow copy of sock to ensure modified #sock->default_value is written at desired
+   * original address, see also #write_default_value_none_subtype. This is safe because sockets
+   * with Pixel and None subtypes share the same data. */
   void *default_value_copy = sock_copy->default_value;
   IDProperty *prop_copy = sock_copy->prop;
   sock_copy->default_value = sock.default_value;
-  sock_copy->prop = sock.prop;  // todo(habib): test with prop sockets
+  sock_copy->prop = sock.prop;
   writer->write_struct_at_address(&sock, sock_copy);
   sock_copy->default_value = default_value_copy;
   sock_copy->prop = prop_copy;
@@ -1115,20 +1111,16 @@ static void pixel_subtype_forward_compat(BlendWriter *writer, const bNodeSocket 
   if (sock.default_value != nullptr) {
     switch (sock.type) {
       case SOCK_FLOAT:
-        write_node_socket_default_value_without_subtype<bNodeSocketValueFloat>(
-            sock.default_value, writer, sock.default_value);
+        write_default_value_none_subtype<bNodeSocketValueFloat>(writer, sock.default_value);
         break;
       case SOCK_VECTOR:
-        write_node_socket_default_value_without_subtype<bNodeSocketValueVector>(
-            sock.default_value, writer, sock.default_value);
+        write_default_value_none_subtype<bNodeSocketValueVector>(writer, sock.default_value);
         break;
       case SOCK_INT:
-        write_node_socket_default_value_without_subtype<bNodeSocketValueInt>(
-            sock.default_value, writer, sock.default_value);
+        write_default_value_none_subtype<bNodeSocketValueInt>(writer, sock.default_value);
         break;
       case SOCK_INT_VECTOR:
-        write_node_socket_default_value_without_subtype<bNodeSocketValueIntVector>(
-            sock.default_value, writer, sock.default_value);
+        write_default_value_none_subtype<bNodeSocketValueIntVector>(writer, sock.default_value);
         break;
       default:
         BLI_assert_unreachable();
@@ -1144,76 +1136,67 @@ static void pixel_subtype_forward_compat(BlendWriter *writer, const bNodeSocket 
 
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock)
 {
-  write_node_socket_default_value_at_address(sock->default_value, writer, sock);
-}
-
-void write_node_socket_default_value_at_address(const void *address,
-                                                BlendWriter *writer,
-                                                const bNodeSocket *sock)
-{
   if (sock->default_value == nullptr) {
     return;
   }
 
   switch (sock->type) {
     case SOCK_FLOAT:
-      writer->write_struct_at_address_cast<bNodeSocketValueFloat>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueFloat>(sock->default_value);
       break;
     case SOCK_VECTOR:
-      writer->write_struct_at_address_cast<bNodeSocketValueVector>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueVector>(sock->default_value);
       break;
     case SOCK_RGBA:
-      writer->write_struct_at_address_cast<bNodeSocketValueRGBA>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueRGBA>(sock->default_value);
       break;
     case SOCK_BOOLEAN:
-      writer->write_struct_at_address_cast<bNodeSocketValueBoolean>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueBoolean>(sock->default_value);
       break;
     case SOCK_INT:
-      writer->write_struct_at_address_cast<bNodeSocketValueInt>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueInt>(sock->default_value);
       break;
     case SOCK_STRING:
-      writer->write_struct_at_address_cast<bNodeSocketValueString>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueString>(sock->default_value);
       break;
     case SOCK_OBJECT:
-      writer->write_struct_at_address_cast<bNodeSocketValueObject>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueObject>(sock->default_value);
       break;
     case SOCK_IMAGE:
-      writer->write_struct_at_address_cast<bNodeSocketValueImage>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueImage>(sock->default_value);
       break;
     case SOCK_COLLECTION:
-      writer->write_struct_at_address_cast<bNodeSocketValueCollection>(address,
-                                                                       sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueCollection>(sock->default_value);
       break;
     case SOCK_TEXTURE:
-      writer->write_struct_at_address_cast<bNodeSocketValueTexture>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueTexture>(sock->default_value);
       break;
     case SOCK_MATERIAL:
-      writer->write_struct_at_address_cast<bNodeSocketValueMaterial>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueMaterial>(sock->default_value);
       break;
     case SOCK_FONT:
-      writer->write_struct_at_address_cast<bNodeSocketValueFont>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueFont>(sock->default_value);
       break;
     case SOCK_SCENE:
-      writer->write_struct_at_address_cast<bNodeSocketValueScene>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueScene>(sock->default_value);
       break;
     case SOCK_TEXT_ID:
-      writer->write_struct_at_address_cast<bNodeSocketValueText>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueText>(sock->default_value);
       break;
     case SOCK_MASK:
-      writer->write_struct_at_address_cast<bNodeSocketValueMask>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueMask>(sock->default_value);
       break;
     case SOCK_SOUND:
-      writer->write_struct_at_address_cast<bNodeSocketValueSound>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueSound>(sock->default_value);
       break;
     case SOCK_ROTATION:
-      writer->write_struct_at_address_cast<bNodeSocketValueRotation>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueRotation>(sock->default_value);
       break;
     case SOCK_MENU:
-      writer->write_struct_at_address_cast<bNodeSocketValueMenu>(address, sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueMenu>(sock->default_value);
       break;
     case SOCK_INT_VECTOR:
-      writer->write_struct_at_address_cast<bNodeSocketValueIntVector>(address,
-                                                                      sock->default_value);
+      writer->write_struct_cast<bNodeSocketValueIntVector>(sock->default_value);
       break;
     case SOCK_MATRIX:
       /* Matrix sockets currently have no default value. */
