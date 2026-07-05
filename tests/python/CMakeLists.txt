@@ -1733,6 +1733,7 @@ if(WITH_UI_TESTS)
     test_render.interactive_rendering_cycles
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
+    test_bpy_types.unregister_referenced_type
     test_pie_menus.test_object_mode_pie_edit
     test_pie_menus.test_snap_pie_cursor_to_world_origin
     test_pie_menus.test_pivot_pie_cursor
