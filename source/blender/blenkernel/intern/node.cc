@@ -1086,6 +1086,7 @@ static void write_node_socket_default_value_without_subtype(const void *address,
 {
   ValueType value = *static_cast<const ValueType *>(default_value);
   value.subtype = PROP_NONE;
+  // todo(habib): remove address argument
   writer->write_struct_at_address_cast<ValueType>(address, &value);
 }
 
@@ -1112,7 +1113,7 @@ static void pixel_subtype_forward_compat(BlendWriter *writer, const bNodeSocket 
   }
 
   if (sock.default_value != nullptr) {
-    switch (sock->type) {
+    switch (sock.type) {
       case SOCK_FLOAT:
         write_node_socket_default_value_without_subtype<bNodeSocketValueFloat>(
             sock.default_value, writer, sock.default_value);
