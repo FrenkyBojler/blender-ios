@@ -1697,6 +1697,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
    * hint is within. */
   int hint_index = 0;
   int first_tri_index = get_tri_for_point(pos_hint[hint_index]);
+  int index_to_fill = 0;
 
   /* Get the first triangle that is touching the bounding box. */
   auto get_first_boundary_tri = [&]() {
@@ -1721,17 +1722,25 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     first_tri_index = get_first_boundary_tri();
   }
 
-  if (internal_gaps && gap_factor > 0.0f) {
-    add_weights_for_tri(tri_adjacency.as_span(),
-                        tri_edges.as_span(),
-                        edge_weights.as_span(),
-                        tri_max_weight.as_span(),
-                        is_source_edge.as_span(),
-                        first_tri_index,
-                        hint_index,
-                        tri_hint_index.as_mutable_span(),
-                        tri_weights.as_mutable_span());
+  /* Check if a fill region created by the hint touches the boundary. */
+  auto does_hint_touch_boundary = [&](const int hint_index) {
+    for (const int tri_index : result.face.index_range()) {
+      if (tri_hint_index[tri_index] != hint_index) {
+        continue;
+      }
+      for (const int j : IndexRange(3)) {
+        const int next_tri = tri_adjacency[tri_index][j];
 
+        if (next_tri == NULL_INDEX) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
+  if (internal_gaps && gap_factor > 0.0f) {
     /* Create segmentation of the geometry until all triangles have full or nearly full weights.
      * the `gap_factor` is the factor that a triangle can be within and be considered full. */
     Set<int> not_full_tris;
@@ -1759,8 +1768,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
       return max_not_weight_tri_index;
     };
 
-    int hint_tri_index = get_next_max_tri_index();
-    hint_index++;
+    int hint_tri_index = get_first_boundary_tri();
 
     while (hint_tri_index != NULL_INDEX) {
       add_weights_for_tri(tri_adjacency.as_span(),
@@ -1780,6 +1788,22 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
         return tri_weights[tri_index] >= tri_max_weight[tri_index] * gap_factor;
       });
     }
+
+    index_to_fill = tri_hint_index[first_tri_index];
+
+    /* Add the mouse if the fill would touch the boundary. */
+    if (!invert && does_hint_touch_boundary(index_to_fill)) {
+      add_weights_for_tri(tri_adjacency.as_span(),
+                          tri_edges.as_span(),
+                          edge_weights.as_span(),
+                          tri_max_weight.as_span(),
+                          is_source_edge.as_span(),
+                          first_tri_index,
+                          hint_index,
+                          tri_hint_index.as_mutable_span(),
+                          tri_weights.as_mutable_span());
+      index_to_fill = hint_index;
+    }
   }
   else {
     int hint_tri_index = get_first_boundary_tri();
@@ -1794,19 +1818,21 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
                         tri_weights.as_mutable_span());
 
     hint_index++;
-  }
 
-  if (!invert) {
-    /* Add the mouse fill again to make sure it as highest priority. */
-    add_weights_for_tri(tri_adjacency.as_span(),
-                        tri_edges.as_span(),
-                        edge_weights.as_span(),
-                        tri_max_weight.as_span(),
-                        is_source_edge.as_span(),
-                        first_tri_index,
-                        hint_index,
-                        tri_hint_index.as_mutable_span(),
-                        tri_weights.as_mutable_span());
+    if (!invert) {
+      /* Add the mouse fill again to make sure it as highest priority. */
+      add_weights_for_tri(tri_adjacency.as_span(),
+                          tri_edges.as_span(),
+                          edge_weights.as_span(),
+                          tri_max_weight.as_span(),
+                          is_source_edge.as_span(),
+                          first_tri_index,
+                          hint_index,
+                          tri_hint_index.as_mutable_span(),
+                          tri_weights.as_mutable_span());
+    }
+
+    index_to_fill = hint_index;
   }
 
   Array<bool> tri_to_fill(result.face.size(), false);
@@ -1814,7 +1840,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
   if (invert) {
     threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
       for (const int64_t tri_index : range) {
-        if (tri_hint_index[tri_index] != 0) {
+        if (tri_hint_index[tri_index] != index_to_fill) {
           tri_to_fill[tri_index] = true;
         }
       }
@@ -1823,7 +1849,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
   else {
     threading::parallel_for(result.face.index_range(), 512, [&](const IndexRange range) {
       for (const int64_t tri_index : range) {
-        if (tri_hint_index[tri_index] == hint_index) {
+        if (tri_hint_index[tri_index] == index_to_fill) {
           tri_to_fill[tri_index] = true;
         }
       }
