@@ -53,6 +53,7 @@ struct EdgeSlideData {
   struct CloneNeighborData {
     BMVert *v;
     Vector<BMVert *> neighbors[2];
+    Vector<BMVert *> continuations;
   };
   Vector<CloneNeighborData> clone_neighbor_data;
 
@@ -1037,7 +1038,10 @@ void transform_mode_edge_slide_clone_confirm(TransInfo *t)
         BMLoop *l;
         BMIter l_iter;
         BM_ITER_ELEM (l, &l_iter, f, BM_LOOPS_OF_FACE) {
-          if (BM_elem_flag_test(l->v, BM_ELEM_TAG)) {
+          if (nd.continuations.contains(l->v)) {
+            has_endpoint_keep_nb = true;
+          }
+          else if (BM_elem_flag_test(l->v, BM_ELEM_TAG)) {
             has_tagged_keep_nb = true;
           }
           else {
@@ -1247,12 +1251,30 @@ static void initEdgeSlide_ex(TransInfo *t,
           EdgeSlideData::CloneNeighborData neighbor_data;
           neighbor_data.v = v;
 
-          const float3 dir0 = !math::is_zero(sv.dir_side[0]) ? math::normalize(sv.dir_side[0]) :
-                                                               float3(0);
-          const float3 dir1 = !math::is_zero(sv.dir_side[1]) ? math::normalize(sv.dir_side[1]) :
-                                                               float3(0);
+          const float3 dir0 = !math::is_zero(sv.dir_side[0]) ? math::normalize(sv.dir_side[0]) : float3(0);
+          const float3 dir1 = !math::is_zero(sv.dir_side[1]) ? math::normalize(sv.dir_side[1]) : float3(0);
+
           BMEdge *ne;
           BMIter ne_iter;
+
+          /* Identify the direction the chain exits and if a vert is an open chain. */
+          float3 dir_chain_out(0);
+          {
+            BMVert *v_chain_prev = nullptr;
+            int selected_edges = 0;
+            BM_ITER_ELEM (ne, &ne_iter, v, BM_EDGES_OF_VERT) {
+              if (BM_elem_flag_test(ne, BM_ELEM_SELECT)) {
+                selected_edges++;
+                v_chain_prev = BM_edge_other_vert(ne, v);
+              }
+            }
+            if (selected_edges == 1) {
+              const float3 vec = float3(v->co) - float3(v_chain_prev->co);
+              if (!math::is_zero(vec)) {
+                dir_chain_out = math::normalize(vec);
+              }
+            }
+          }
 
           BM_ITER_ELEM (ne, &ne_iter, v, BM_EDGES_OF_VERT) {
             if (BM_elem_flag_test(ne, BM_ELEM_SELECT)) {
@@ -1263,8 +1285,12 @@ static void initEdgeSlide_ex(TransInfo *t,
             const float3 edge_dir = math::normalize(float3(other->co) - float3(v->co));
             const float dot0 = math::dot(edge_dir, dir0);
             const float dot1 = math::dot(edge_dir, dir1);
+            const float dot_out = math::dot(edge_dir, dir_chain_out);
 
-            if (dot0 > 0.0f && dot0 >= dot1) {
+            if (dot_out > 0.0f && dot_out > dot0 && dot_out > dot1) {
+              neighbor_data.continuations.append(other);
+            }
+            else if (dot0 > 0.0f && dot0 >= dot1) {
               neighbor_data.neighbors[0].append(other);
             }
             else if (dot1 > 0.0f && dot1 > dot0) {
