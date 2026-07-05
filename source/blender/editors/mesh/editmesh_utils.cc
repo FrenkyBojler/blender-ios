@@ -16,9 +16,9 @@
 
 #include "BLI_array.hh"
 #include "BLI_kdtree.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -284,7 +284,7 @@ bool EDBM_op_call_silentf(BMEditMesh *em, const char *fmt, ...)
 static int object_shapenr_basis_index_ensured(const Object *ob)
 {
   const Mesh *mesh = id_cast<const Mesh *>(ob->data);
-  if (UNLIKELY((ob->shapenr == 0) && (mesh->key && !mesh->key->block.is_empty()))) {
+  if ((ob->shapenr == 0) && (mesh->key && !mesh->key->block.is_empty())) [[unlikely]] {
     return 1;
   }
   return ob->shapenr;
@@ -334,7 +334,7 @@ void EDBM_mesh_load_ex(Main *bmain, Object *ob, bool free_data)
 
   /* Workaround for #42360, 'ob->shapenr' should be 1 in this case.
    * however this isn't synchronized between objects at the moment. */
-  if (UNLIKELY((ob->shapenr == 0) && (object_shapenr_basis_index_ensured(ob) > 0))) {
+  if ((ob->shapenr == 0) && (object_shapenr_basis_index_ensured(ob) > 0)) [[unlikely]] {
     bm->shapenr = 1;
   }
 
@@ -1952,10 +1952,14 @@ BMElem *EDBM_elem_from_index_any_multi(const Main &bmain,
 /** \name BMesh BVH API
  * \{ */
 
-static BMFace *edge_ray_cast(
-    const BMBVHTree *tree, const float co[3], const float dir[3], float *r_hitout, const BMEdge *e)
+static BMFace *edge_ray_cast(const BMBVHTree *tree,
+                             const float co[3],
+                             const float dir[3],
+                             float *r_hitout,
+                             const BMEdge *e,
+                             float *r_dist)
 {
-  BMFace *f = BKE_bmbvh_ray_cast(tree, co, dir, 0.0f, nullptr, r_hitout, nullptr);
+  BMFace *f = BKE_bmbvh_ray_cast(tree, co, dir, 0.0f, r_dist, r_hitout, nullptr);
 
   if (f && BM_edge_in_face(e, f)) {
     return nullptr;
@@ -2000,11 +2004,16 @@ bool BMBVH_EdgeVisible(const BMBVHTree *tree,
   scale_point(co1, co2, 0.99);
   scale_point(co3, co2, 0.99);
 
-  /* OK, idea is to generate rays going from the camera origin to the
-   * three points on the edge (v1, mid, v2). */
+  /* OK, idea is to generate rays going from the three points on the edge (v1, mid, v2) to the
+   * camera origin. */
   sub_v3_v3v3(dir1, origin, co1);
   sub_v3_v3v3(dir2, origin, co2);
   sub_v3_v3v3(dir3, origin, co3);
+
+  /* This prevents the ray shooting behind the camera. */
+  float dist1 = len_v3(dir1);
+  float dist2 = len_v3(dir2);
+  float dist3 = len_v3(dir3);
 
   normalize_v3_length(dir1, epsilon);
   normalize_v3_length(dir2, epsilon);
@@ -2021,11 +2030,11 @@ bool BMBVH_EdgeVisible(const BMBVHTree *tree,
   normalize_v3(dir3);
 
   /* do three samplings: left, middle, right */
-  f = edge_ray_cast(tree, co1, dir1, nullptr, e);
-  if (f && !edge_ray_cast(tree, co2, dir2, nullptr, e)) {
+  f = edge_ray_cast(tree, co1, dir1, nullptr, e, &dist1);
+  if (f && !edge_ray_cast(tree, co2, dir2, nullptr, e, &dist2)) {
     return true;
   }
-  if (f && !edge_ray_cast(tree, co3, dir3, nullptr, e)) {
+  if (f && !edge_ray_cast(tree, co3, dir3, nullptr, e, &dist3)) {
     return true;
   }
   if (!f) {

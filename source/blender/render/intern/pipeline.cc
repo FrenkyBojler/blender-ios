@@ -27,22 +27,22 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 #include "BLI_set.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_threads.h"
-#include "BLI_time.h"
-#include "BLI_timecode.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_threads.hh"
+#include "BLI_time.hh"
+#include "BLI_timecode.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h" /* <------ should this be here?, needed for sequencer update */
+#include "BKE_animsys.hh" /* <------ should this be here?, needed for sequencer update */
 #include "BKE_callbacks.hh"
 #include "BKE_camera.h"
 #include "BKE_colortools.hh"
@@ -190,11 +190,13 @@ static bool default_break(void * /*arg*/)
   return G.is_break == true;
 }
 
-static void stats_update(void * /*arg*/, RenderStats *rs)
+static void stats_update(void *arg, RenderStats *rs)
 {
   if (rs->infostr == nullptr) {
     return;
   }
+
+  Render *re = static_cast<Render *>(arg);
 
   /* Compositor calls this from multiple threads, mutex lock to ensure we don't
    * get garbled output. */
@@ -212,7 +214,7 @@ static void stats_update(void * /*arg*/, RenderStats *rs)
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
-  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
+  render_callback_exec_string(re, G_MAIN, BKE_CB_EVT_RENDER_STATS, rs->infostr);
 
   if (show_info) {
     fflush(stdout);
@@ -259,7 +261,7 @@ bool RE_HasSingleLayer(Render *re)
 }
 
 RenderResult *RE_MultilayerConvert(
-    ExrHandle *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
+    ExrReadHandle *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
 {
   return render_result_new_from_exr(exrhandle, colorspace, predivide, rectx, recty);
 }
@@ -944,6 +946,7 @@ void RE_display_init(Render *re)
   re->display->progress_cb = float_nothing;
   re->display->test_break_cb = default_break;
   re->display->stats_draw_cb = stats_update;
+  re->display->sdh = re;
 }
 
 void RE_display_ensure_gpu_context(Render *re)
@@ -1280,14 +1283,15 @@ static void do_render_compositor(Render *re)
         compositor::RenderContext compositor_render_context;
         compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         for (RenderView &rv : re->result->views) {
-          RE_compositor_execute(*re,
-                                *re->main,
-                                *re->pipeline_scene_eval,
-                                re->r,
-                                *ntree,
-                                rv.name,
-                                &compositor_render_context,
-                                needed_outputs);
+          RE_compositor_execute(render::CompositorInputData(*re,
+                                                            *re->main,
+                                                            *re->pipeline_scene_eval,
+                                                            re->r,
+                                                            *ntree,
+                                                            rv.name,
+                                                            &compositor_render_context,
+                                                            needed_outputs,
+                                                            false));
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
       }
@@ -1676,6 +1680,35 @@ static bool is_compositing_possible_on_gpu(Scene *scene, ReportList *reports)
   if (width > 8192 || height > 8192) {
     BKE_report(reports, RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
     return false;
+  }
+
+  return true;
+}
+
+bool RE_disable_save_output_allowed(const bool is_animation, Scene &scene, ReportList *reports)
+{
+  const bool save_output = (scene.r.mode & R_SAVE_OUTPUT) != 0;
+  const bool do_compositing = (scene.r.scemode & R_DOCOMP) != 0;
+  const bool do_sequencer = RE_seq_render_active(&scene, &scene.r);
+
+  if (is_animation && do_sequencer && !save_output) {
+    BKE_report(reports, RPT_ERROR, "Render output disabled in Output properties");
+    return false;
+  }
+
+  if (is_animation && !save_output && !do_compositing) {
+    BKE_report(reports, RPT_ERROR, "Render output and compositing disabled in Output properties");
+    return false;
+  }
+
+  if (is_animation && !save_output && do_compositing) {
+    if (!bke::compositor::node_tree_has_linked_file_output(scene.compositing_node_group)) {
+      BKE_report(reports,
+                 RPT_ERROR,
+                 "Render output disabled in Output properties and no active compositing File "
+                 "Output nodes");
+      return false;
+    }
   }
 
   return true;

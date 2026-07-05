@@ -8,9 +8,9 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_listbase.h"
-#include "BLI_rect.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_rect.hh"
+#include "BLI_string_utf8.hh"
 
 #include "DNA_key_types.h"
 #include "ED_curves.hh"
@@ -83,6 +83,8 @@
 #include "AS_asset_catalog_path.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
+
+#include "PRF_profile.hh"
 
 #include <xxhash.h>
 
@@ -1498,14 +1500,14 @@ void ui_template_node_operator_registration_errors(ui::Layout &layout,
   }
   ui::Layout &col = layout.column(false);
   if (errors_for_type->is_builtin_operator) {
-    col.label(TIP_("Operator is already registered"), ICON_ERROR);
+    col.label(TIP_("Operator is already registered"), ICON_STATUS_ERROR);
   }
   if (errors_for_type->duplicate_count != 0) {
     col.label(fmt::format(fmt::runtime(TIP_("Duplicates: {}")), errors_for_type->duplicate_count),
-              ICON_ERROR);
+              ICON_STATUS_ERROR);
   }
   for (const std::string &error : errors_for_type->idname_validation_errors) {
-    col.label(error, ICON_ERROR);
+    col.label(error, ICON_STATUS_ERROR);
   }
 }
 
@@ -1689,6 +1691,7 @@ static void show_error_reports(const bContext &C, RegistrationData::Errors error
 
 void register_node_group_operators(const bContext &C)
 {
+  PRF_scope(ProfileCategory::Core);
   wmWindowManager &wm = *CTX_wm_manager(&C);
   Main &bmain = *CTX_data_main(&C);
   RegistrationData &registration_data = get_registration_data();

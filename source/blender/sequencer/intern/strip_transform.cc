@@ -13,12 +13,12 @@
 #include "DNA_sequence_types.h"
 
 #include "BLI_bounds.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 
 #include "BLF_api.hh"
 
@@ -113,7 +113,7 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
   }
 
   offset_animdata(evil_scene, strip, delta);
-  Span<Strip *> effects = SEQ_lookup_effects_by_strip(evil_scene->ed, strip);
+  Span<Strip *> effects = lookup_effects_by_strip(evil_scene->ed, strip);
   strip_time_update_effects_strip_range(evil_scene, effects);
   time_update_meta_strip_range(evil_scene, lookup_meta_by_strip(evil_scene->ed, strip));
 }
@@ -126,7 +126,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
   const int orig_channel = test->channel;
   BLI_assert(ELEM(channel_delta, -1, 1));
 
-  strip_channel_set(test, test->channel + channel_delta);
+  test->channel_set(test->channel + channel_delta);
 
   const ListBaseT<SeqTimelineChannel> *channels = channels_displayed_get(editing_get(evil_scene));
   SeqTimelineChannel *channel = channel_get_by_index(channels, test->channel);
@@ -143,7 +143,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
       break;
     }
 
-    strip_channel_set(test, test->channel + channel_delta);
+    test->channel_set(test->channel + channel_delta);
     channel = channel_get_by_index(channels, test->channel);
   }
 
@@ -157,7 +157,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
       }
     }
 
-    strip_channel_set(test, orig_channel);
+    test->channel_set(orig_channel);
 
     new_frame = new_frame + (test->start - test->left_handle()); /* adjust by the startdisp */
     transform_translate_strip(evil_scene, test, new_frame - test->start);
@@ -436,16 +436,16 @@ static void strip_transform_handle_overwrite_split(Scene *scene,
 /* Trim strips by adjusting handle position.
  * This is bit more complicated in case overlap happens on effect. */
 static void strip_transform_handle_overwrite_trim(Scene *scene,
-                                                  ListBaseT<Strip> *seqbasep,
                                                   const Strip *transformed,
                                                   Strip *target,
                                                   const eOvelapDescrition overlap)
 {
-  VectorSet targets = query_by_reference(target, seqbasep, query_strip_effect_chain);
+  Editing *ed = seq::editing_get(scene);
+  VectorSet targets = query_by_reference(target, ed, query_strip_effect_chain);
 
   /* Expand collection by adding all target's children, effects and their children. */
   if (target->is_effect()) {
-    iterator_set_expand(seqbasep, targets, query_strip_effect_chain);
+    iterator_set_expand(ed, targets, query_strip_effect_chain);
   }
 
   /* Trim all non effects, that have influence on effect length which is overlapping. */
@@ -490,7 +490,7 @@ static void strip_transform_handle_overwrite(Scene *scene,
         strip_transform_handle_overwrite_split(scene, seqbasep, transformed, target);
       }
       else if (ELEM(overlap, STRIP_OVERLAP_LEFT_SIDE, STRIP_OVERLAP_RIGHT_SIDE)) {
-        strip_transform_handle_overwrite_trim(scene, seqbasep, transformed, target, overlap);
+        strip_transform_handle_overwrite_trim(scene, transformed, target, overlap);
       }
     }
   }
@@ -579,11 +579,6 @@ void transform_offset_after_frame(Scene *scene,
       }
     }
   }
-}
-
-void strip_channel_set(Strip *strip, int channel)
-{
-  strip->channel = math::clamp(channel, 1, MAX_CHANNELS);
 }
 
 /** \} */
@@ -692,8 +687,12 @@ Array<float2> image_transform_quad_get(const Scene *scene, const Strip *strip)
   constexpr int num_corners = 4;
   const float2 image_size = image_transform_raw_size_get(scene, strip);
 
-  /* Raw quad before any rotation/scaling or text anchoring is applied. */
-  const StripCrop *crop = strip->data->crop;
+  /* Raw quad before any rotation/scaling or text anchoring is applied.
+   *
+   * NOTE: For text strips, crops should only affect their visible result and not their bounding
+   * box. Text effects can stray outside, so crop works on the full render buffer. */
+  const StripCrop no_crop{};
+  const StripCrop *crop = (strip->type == STRIP_TYPE_TEXT) ? &no_crop : strip->data->crop;
   float2 quad[num_corners]{
       {(image_size.x / 2) - crop->right, (image_size.y / 2) - crop->top},     /* Top right. */
       {(image_size.x / 2) - crop->right, (-image_size.y / 2) + crop->bottom}, /* Bottom right. */

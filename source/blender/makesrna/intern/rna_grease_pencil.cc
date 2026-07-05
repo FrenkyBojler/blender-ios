@@ -49,10 +49,10 @@ const EnumPropertyItem rna_enum_stroke_depth_order_items[] = {
 #  include "BKE_global.hh"
 #  include "BKE_grease_pencil.hh"
 
-#  include "BLI_listbase.h"
+#  include "BLI_listbase.hh"
 #  include "BLI_math_matrix.hh"
 #  include "BLI_span.hh"
-#  include "BLI_string.h"
+#  include "BLI_string.hh"
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
@@ -352,10 +352,8 @@ static std::optional<std::string> tree_node_name_path(bke::greasepencil::TreeNod
 {
   using namespace bke::greasepencil;
   BLI_assert(!node.name().is_empty());
-  const size_t name_length = node.name().size();
-  std::string name_esc(name_length * 2, '\0');
-  BLI_str_escape(name_esc.data(), node.name().c_str(), name_length * 2);
-  return fmt::format("{}[\"{}\"]", prefix, name_esc.c_str());
+  std::string name_esc = BLI_str_escape(node.name());
+  return fmt::format("{}[\"{}\"]", prefix, name_esc);
 }
 
 static StructRNA *rna_GreasePencilTreeNode_refine(PointerRNA *ptr)

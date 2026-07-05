@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'8764d33c658b')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e65907bec1c9')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-01 07:36+0000\n"
+"POT-Creation-Date: 2026-06-29 10:51+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -619,16 +619,16 @@ msgid "Active Bone"
 msgstr "Aktivna kost"
 
 
+msgid "Custom"
+msgstr "Prilagođeno"
+
+
 msgid "Description"
 msgstr "Opis"
 
 
 msgid "Link"
 msgstr "Veza"
-
-
-msgid "Custom"
-msgstr "Prilagođeno"
 
 
 msgid "ID Name"
@@ -22335,6 +22335,10 @@ msgid "Operator Properties"
 msgstr "Osobine operatora"
 
 
+msgid "Cancel"
+msgstr "Odustani"
+
+
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "Prozor"
@@ -23916,10 +23920,6 @@ msgstr "Bez aktivne zbirke ključeva"
 
 msgid "Cannot remove built in keying set"
 msgstr "Ne mogu da uklonim ugrađenu zbirku ključeva"
-
-
-msgid "Cancel"
-msgstr "Odustani"
 
 
 msgid "No keyframes to slide between"
