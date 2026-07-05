@@ -283,7 +283,6 @@ rctf strip_bounds_get(const Scene *scene, const Strip *strip);
 rcti strip_int_bounds_get(const Scene *scene, const Strip *strip);
 
 Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel);
-void recurs_sel_strip(Strip *strip_meta);
 
 void SEQUENCER_OT_select_all(wmOperatorType *ot);
 void SEQUENCER_OT_select(wmOperatorType *ot);
