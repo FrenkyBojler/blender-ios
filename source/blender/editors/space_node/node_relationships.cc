@@ -2926,9 +2926,9 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   return nullptr;
 }
 
-static void expand_nodes_mask_in_dirrection(const Span<const bNode *> nodes,
-                                            const bool left_to_right,
-                                            MutableSpan<bool> mask_to_propagate)
+static void expand_nodes_mask_in_direction(const Span<const bNode *> nodes,
+                                           const bool left_to_right,
+                                           MutableSpan<bool> mask_to_propagate)
 {
   for (const bNode *node : nodes) {
     const Span<const bNodeSocket *> sockets = left_to_right ? node->input_sockets() :
@@ -2958,7 +2958,7 @@ static void expand_nodes_mask_in_dirrection(const Span<const bNode *> nodes,
 }
 
 static void shift_nodes(bNodeTree &tree,
-                        const bNode &toexclude_from_shift,
+                        const bNode &to_exclude_from_shift,
                         const bNode &start_node,
                         const bool left_to_right,
                         const float value)
@@ -2969,7 +2969,7 @@ static void shift_nodes(bNodeTree &tree,
   const Span<const bNode *> sorted_nodes = left_to_right ? tree.toposort_left_to_right() :
                                                            tree.toposort_right_to_left();
   shift_mask[start_node.index()] = true;
-  expand_nodes_mask_in_dirrection(
+  expand_nodes_mask_in_direction(
       sorted_nodes.drop_front(sorted_nodes.first_index(&start_node)), left_to_right, shift_mask);
 
   const auto first_parent_if = [](const bNode &node, auto &&func) -> const bNode * {
@@ -3002,7 +3002,7 @@ static void shift_nodes(bNodeTree &tree,
     }
   });
 
-  first_parent_if(toexclude_from_shift, [&](const bNode &node) {
+  first_parent_if(to_exclude_from_shift, [&](const bNode &node) {
     const int index = node.index();
     frames_mask[index] = false;
     return false;
