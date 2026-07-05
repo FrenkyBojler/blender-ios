@@ -198,6 +198,62 @@ template<typename CoordT> inline void kdtree_balance(KDTree<CoordT> *tree)
 }
 
 /**
+ * Main way to go over nodes of the tree.
+ * \param func: main loop body with ability to terminate early.
+ * \param visite_child: predicate if node child should be visited or not.
+ * \param left_first: optionaly control order of visiting children.
+ */
+template<typename CoordT, typename Func, typename ChildFunc, typename OrderFunc>
+inline void kdtree_foreach_node(const KDTree<CoordT> &tree,
+                                Func &&func ChildFunc &&visite_child,
+                                OrderFunc &&left_is_first)
+{
+  const Span<KDTreeNode<CoordT>> nodes(tree.nodes, tree.nodes_len);
+
+#ifndef NDEBUG
+  BLI_assert(tree.is_balanced == true);
+#endif
+
+  if (tree.root == detail::kd_node_unset) [[unlikely]] {
+    return;
+  }
+
+  Stack<uint, detail::kd_stack_init> stack;
+  stack.push(tree.root);
+
+  while (!stack.is_empty()) {
+    const KDTreeNode<CoordT> &node = nodes[stack.pop()];
+    if (func(node) == false) {
+      break;
+    }
+
+    if (!ELEM(detail::kd_node_unset, node.left, node.right) && left_is_first(node)) {
+      if (node.right != detail::kd_node_unset && visite_child(node, nodes[node.right])) {
+        stack.push(node.right);
+      }
+      if (node.left != detail::kd_node_unset && visite_child(node, nodes[node.left])) {
+        stack.push(node.left);
+      }
+      continue;
+    }
+
+    if (node.left != detail::kd_node_unset && visite_child(node, nodes[node.left])) {
+      stack.push(node.left);
+    }
+    if (node.right != detail::kd_node_unset && visite_child(node, nodes[node.right])) {
+      stack.push(node.right);
+    }
+  }
+}
+
+template<typename CoordT, typename Func, typename ChildFunc>
+inline void kdtree_foreach_node(const KDTree<CoordT> &tree, Func &&func ChildFunc &&visite_child)
+{
+  kdtree_foreach_node(
+      tree, func, visite_child, [](const KDTreeNode<CoordT> & /*node*/) { return true; });
+}
+
+/**
  * A version of #kdtree_find_nearest which runs a callback
  * to filter out values.
  *
@@ -210,9 +266,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
                                   KDTreeNearest<CoordT> *r_nearest,
                                   Filter &&filter_cb)
 {
-  const KDTreeNode<CoordT> *nodes = tree->nodes;
-  const KDTreeNode<CoordT> *min_node = nullptr;
-  typename KDTree<CoordT>::ValueType min_dist = FLT_MAX, cur_dist;
+  using ValueType = KDTree<CoordT>::ValueType;
 
 #ifndef NDEBUG
   BLI_assert(tree->is_balanced == true);
@@ -222,77 +276,57 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
     return -1;
   }
 
-  const auto node_test_nearest = [&](const KDTreeNode<CoordT> *node) -> bool {
-    const auto dist_sq = detail::distance_squared((node)->co, co);
-    if (dist_sq >= min_dist) {
-      return false;
-    }
-    const int result = filter_cb((node)->index, (node)->co, dist_sq);
-    if (result == 1) {
-      min_dist = dist_sq;
-      min_node = node;
-      return false;
-    }
+  ValueType min_sq_dist = std::numeric_limits<ValueType>::max();
+  int min_node_index = -1;
 
-    if (result == 0) {
-      /* pass */
-      return false;
-    }
-
-    BLI_assert(result == -1);
-    return true;
-  };
-
-  Stack<uint, detail::kd_stack_init> stack;
-  stack.push(tree->root);
-
-  while (!stack.is_empty()) {
-    const KDTreeNode<CoordT> *node = &nodes[stack.pop()];
-
-    cur_dist = detail::axis_get(node->co, node->d) - detail::axis_get(co, node->d);
-
-    if (cur_dist < 0.0f) {
-      cur_dist = -cur_dist * cur_dist;
-
-      if (-cur_dist < min_dist) {
-        if (node_test_nearest(node)) {
-          break;
+  kdtree_foreach_node(
+      *tree,
+      [&](const KDTreeNode<CoordT> &node) {
+        const auto dist_sq = detail::distance_squared(node.co, co);
+        if (dist_sq >= min_sq_dist) {
+          return false;
         }
 
-        if (node->left != detail::kd_node_unset) {
-          stack.push(node->left);
+        switch (filter_cb(node.index, node.co, dist_sq)) {
+          case 0:
+            return false;
+          case 1: {
+            min_sq_dist = dist_sq;
+            min_node_index = math::distance(&tree->nodes, &node);
+            return false;
+          }
+          case -1:
+            return true;
         }
-      }
-      if (node->right != detail::kd_node_unset) {
-        stack.push(node->right);
-      }
-    }
-    else {
-      cur_dist = cur_dist * cur_dist;
-
-      if (cur_dist < min_dist) {
-        if (node_test_nearest(node)) {
-          break;
+        BLI_assert_unreachable();
+        return {};
+      },
+      [&](const KDTreeNode<CoordT> &node, const KDTreeNode<CoordT> &child) {
+        const ValueType max_dist = detail::axis_get(node.co, node.d) -
+                                   detail::axis_get(co, node.d);
+        if (math::square(max_dist) <= min_sq_dist) {
+          return true;
         }
 
-        if (node->right != detail::kd_node_unset) {
-          stack.push(node->right);
-        }
-      }
-      if (node->left != detail::kd_node_unset) {
-        stack.push(node->left);
-      }
-    }
-  }
+        const ValueType child_dist = detail::axis_get(node.co, node.d) -
+                                     detail::axis_get(child.co, node.d);
+        const bool coord_sign = math::sign(max_dist);
+        const bool child_sign = math::sign(child_dist);
+        const bool is_same_space_half = coord_sign == child_sign;
+        return is_same_space_half;
+      },
+      [&](const KDTreeNode<CoordT> &node) {
+        return detail::axis_get(node.co, node.d) < detail::axis_get(co, node.d);
+      });
 
-  if (min_node) {
+  if (min_node_index != -1) {
     if (r_nearest) {
-      r_nearest->index = min_node->index;
-      r_nearest->dist = sqrtf(min_dist);
-      r_nearest->co = min_node->co;
+      r_nearest->index = tree->nodes[min_node_index].index;
+      r_nearest->dist = math::sqrt(min_sq_dist);
+      r_nearest->co = tree->nodes[min_node_index].co;
     }
 
-    return min_node->index;
+    return tree->nodes[min_node_index].index;
   }
   return -1;
 }
@@ -496,23 +530,16 @@ static void nearest_add_in_range(KDTreeNearest<CoordT> **r_nearest,
 
 }  // namespace detail
 
-/**
- * Range search returns number of points nearest_len, with results in nearest
- *
- * \param r_nearest: Allocated array of nearest nearest_len (caller is responsible for freeing).
- */
-template<typename CoordT, typename Func>
-inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
-                                                   const CoordT &co,
-                                                   KDTreeNearest<CoordT> **r_nearest,
-                                                   const typename KDTree<CoordT>::ValueType range,
-                                                   Func &&len_sq_fn)
+template<typename CoordT, typename Func, typename DistFn>
+inline int kdtree_foreach_node_in_range(const KDTree<CoordT> *tree,
+                                        const CoordT &co,
+                                        const typename KDTree<CoordT>::ValueType range,
+                                        Func &&func,
+                                        DistFn &&len_sq_fn)
 {
+  using ValueType = KDTree<CoordT>::ValueType;
   const KDTreeNode<CoordT> *nodes = tree->nodes;
-  KDTreeNearest<CoordT> *nearest = nullptr;
-  const typename KDTree<CoordT>::ValueType range_sq = range * range;
-  typename KDTree<CoordT>::ValueType dist_sq;
-  uint nearest_len = 0, nearest_len_capacity = 0;
+  const typename ValueType range_sq = range * range;
 
 #ifndef NDEBUG
   BLI_assert(tree->is_balanced == true);
@@ -528,21 +555,26 @@ inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
   while (!stack.is_empty()) {
     const KDTreeNode<CoordT> *node = &nodes[stack.pop()];
 
-    if (detail::axis_get(co, node->d) + range < detail::axis_get(node->co, node->d)) {
+    const ValueType delta = detail::axis_get(node->co, node->d);
+    const ValueType node_value = detail::axis_get(co, node->d);
+
+    if (node_value + range < delta) {
       if (node->left != detail::kd_node_unset) {
         stack.push(node->left);
       }
     }
-    else if (detail::axis_get(co, node->d) - range > detail::axis_get(node->co, node->d)) {
+    else if (node_value - range > delta) {
       if (node->right != detail::kd_node_unset) {
         stack.push(node->right);
       }
     }
     else {
-      dist_sq = len_sq_fn(co, node->co);
+      const ValueType dist_sq = len_sq_fn(co, node->co);
       if (dist_sq <= range_sq) {
-        detail::nearest_add_in_range<CoordT>(
-            &nearest, nearest_len++, &nearest_len_capacity, node->index, dist_sq, node->co);
+        if (func(node->index, node->co, dist_sq) == false) {
+          break;
+        }
+        range_sq = dist_sq;
       }
 
       if (node->left != detail::kd_node_unset) {
@@ -553,6 +585,33 @@ inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
       }
     }
   }
+}
+
+/**
+ * Range search returns number of points nearest_len, with results in nearest
+ *
+ * \param r_nearest: Allocated array of nearest nearest_len (caller is responsible for freeing).
+ */
+template<typename CoordT, typename Func>
+inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
+                                                   const CoordT &co,
+                                                   KDTreeNearest<CoordT> **r_nearest,
+                                                   const typename KDTree<CoordT>::ValueType range,
+                                                   Func &&len_sq_fn)
+{
+  KDTreeNearest<CoordT> *nearest = nullptr;
+  uint nearest_len = 0;
+  uint nearest_len_capacity = 0;
+
+  kdtree_foreach_node_in_range(
+      tree,
+      co,
+      range,
+      [&](const uint index, const CoordT &coord, const auto dist) {
+        detail::nearest_add_in_range<CoordT>(
+            &nearest, nearest_len++, &nearest_len_capacity, index, dist, coord);
+      },
+      len_sq_fn);
 
   if (nearest_len) {
     qsort(nearest, nearest_len, sizeof(KDTreeNearest<CoordT>), detail::nearest_cmp_dist<CoordT>);
@@ -590,50 +649,9 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
                                    typename KDTree<CoordT>::ValueType range,
                                    Fn &&search_cb)
 {
-  const KDTreeNode<CoordT> *nodes = tree->nodes;
-
-  typename KDTree<CoordT>::ValueType range_sq = range * range, dist_sq;
-
-#ifndef NDEBUG
-  BLI_assert(tree->is_balanced == true);
-#endif
-
-  if (tree->root == detail::kd_node_unset) [[unlikely]] {
-    return;
-  }
-
-  Stack<uint, detail::kd_stack_init> stack;
-  stack.push(tree->root);
-
-  while (!stack.is_empty()) {
-    const KDTreeNode<CoordT> *node = &nodes[stack.pop()];
-
-    if (detail::axis_get(co, node->d) + range < detail::axis_get(node->co, node->d)) {
-      if (node->left != detail::kd_node_unset) {
-        stack.push(node->left);
-      }
-    }
-    else if (detail::axis_get(co, node->d) - range > detail::axis_get(node->co, node->d)) {
-      if (node->right != detail::kd_node_unset) {
-        stack.push(node->right);
-      }
-    }
-    else {
-      dist_sq = detail::distance_squared(node->co, co);
-      if (dist_sq <= range_sq) {
-        if (search_cb(node->index, node->co, dist_sq) == false) {
-          break;
-        }
-      }
-
-      if (node->left != detail::kd_node_unset) {
-        stack.push(node->left);
-      }
-      if (node->right != detail::kd_node_unset) {
-        stack.push(node->right);
-      }
-    }
-  }
+  kdtree_foreach_node_in_range(tree, co, range, search_cb, [](const CoordT &a, const CoordT &b) {
+    return detail::distance_squared(a, b);
+  });
 }
 
 namespace detail {
