@@ -180,6 +180,52 @@ void ShaderOperation::link_node_inputs(const bNode &node)
   }
 }
 
+static const char *get_set_function_name(const ResultType type)
+{
+  switch (type) {
+    case ResultType::Float:
+      return "set_float";
+    case ResultType::Float2:
+      return "set_float2";
+    case ResultType::Float3:
+      return "set_float3";
+    case ResultType::Float4:
+      return "set_float4";
+    case ResultType::Color:
+      return "set_color";
+    case ResultType::Int:
+      return "set_int";
+    case ResultType::Int2:
+      return "set_int2";
+    case ResultType::Int3:
+      return "set_int3";
+    case ResultType::Int4:
+      return "set_int4";
+    case ResultType::Bool:
+      return "set_bool";
+    case ResultType::Float4x4:
+      return "set_float4x4";
+    case ResultType::Menu:
+      return "set_int";
+    case ResultType::Quaternion:
+      return "set_quaternion";
+    case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
 void ShaderOperation::link_node_input_unavailable(const bNodeSocket &input)
 {
   ShaderNode &node = *shader_nodes_.lookup(&input.owner_node());
@@ -262,52 +308,6 @@ static void initialize_input_stack_value(const bNodeSocket &input, GPUNodeStack 
       BLI_assert_unreachable();
       break;
   }
-}
-
-static const char *get_set_function_name(const ResultType type)
-{
-  switch (type) {
-    case ResultType::Float:
-      return "set_float";
-    case ResultType::Float2:
-      return "set_float2";
-    case ResultType::Float3:
-      return "set_float3";
-    case ResultType::Float4:
-      return "set_float4";
-    case ResultType::Color:
-      return "set_color";
-    case ResultType::Int:
-      return "set_int";
-    case ResultType::Int2:
-      return "set_int2";
-    case ResultType::Int3:
-      return "set_int3";
-    case ResultType::Int4:
-      return "set_int4";
-    case ResultType::Bool:
-      return "set_bool";
-    case ResultType::Float4x4:
-      return "set_float4x4";
-    case ResultType::Menu:
-      return "set_int";
-    case ResultType::Quaternion:
-      return "set_quaternion";
-    case ResultType::String:
-    case ResultType::Object:
-    case ResultType::Image:
-    case ResultType::Font:
-    case ResultType::Scene:
-    case ResultType::Text:
-    case ResultType::Mask:
-      /* Single only types do not support GPU code path. */
-      BLI_assert(Result::is_single_value_only_type(type));
-      BLI_assert_unreachable();
-      break;
-  }
-
-  BLI_assert_unreachable();
-  return nullptr;
 }
 
 void ShaderOperation::link_node_input_constant(const bNodeSocket &input)
