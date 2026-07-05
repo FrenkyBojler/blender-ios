@@ -46,10 +46,17 @@ struct CameraParams {
   /* lens */
   bool is_ortho = false;
   bool is_perspective = false;
-  bool is_fisheye_equidistant = false;
-  bool is_fisheye_equisolid = false;
+  bool is_equirectangular = false;
+  bool is_equiangular = false;
+  bool is_mirrorball = false;
+  bool is_equidistant = false;
+  bool is_equisolid = false;
+  bool is_polynomal = false;  
+  bool is_cylindrical = false;
+  
   float lens = 0.0f;
-  float fisheye_fov = 0.0f; 
+  float fisheye_fov = 0.0f;
+  float fisheye_lens = 0.0f;
   float ortho_scale = 1.0f;
   float zoom = 1.0f;
 
@@ -66,6 +73,26 @@ struct CameraParams {
   /* clipping */
   float clip_start = 0.1f;
   float clip_end = 100.0f;
+
+  /* Polynomal */
+  float k0;
+  float k1;
+  float k2;
+  float k3;
+  float k4;
+
+  /* Equirectangular */
+  float latitude_min;
+  float latitude_max;
+  float longitude_min;
+  float longitude_max;
+
+  /* Centered Cylindrical */
+  float cylindrical_height_min;
+  float cylindrical_height_max;
+  float cylindrical_longitude_min;
+  float cylindrical_longitude_max;
+  float cylindrical_radius;
 
   /* computed viewplane */
   float ycor = 0.0f;

@@ -383,6 +383,22 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
                 "Orthographic Scale",
             ],
         )
+        self.node_operator_with_outputs(
+            context,
+            layout,
+            "GeometryNodeCameraPanoramicInfo",
+            [
+                "Projection Matrix",
+                "Focal Length",
+                "Sensor",
+                "Shift",
+                "Clip Start",
+                "Clip End",
+                "Focus Distance",
+                "Is Orthographic",
+                "Orthographic Scale",
+            ],
+        )
         self.node_operator(layout, "GeometryNodeBoneInfo")
         self.node_operator(layout, "GeometryNodeCollectionChildren")
         self.node_operator(layout, "GeometryNodeCollectionInfo")

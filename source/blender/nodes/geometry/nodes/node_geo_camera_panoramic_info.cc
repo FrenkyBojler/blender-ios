@@ -13,24 +13,74 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_camera_info_cc {
+namespace blender::nodes::node_geo_camera_panoramic_info_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
-
-  b.add_output<decl::Matrix>("Projection Matrix"_ustr).description("Camera projection matrix");
-  b.add_output<decl::Float>("Focal Length"_ustr).description("Perspective camera focal length");
+  b.add_output<decl::Float>("Field of View"_ustr).description("Panoramic camera field of view");
+  b.add_output<decl::Float>("Fisheye Lens"_ustr).description("Panoramic camera Lens");
   b.add_output<decl::Vector>("Sensor"_ustr).dimensions(2).description("Size of the camera sensor");
   b.add_output<decl::Vector>("Shift"_ustr).dimensions(2).description("Camera shift");
   b.add_output<decl::Float>("Clip Start"_ustr).description("Camera near clipping distance");
   b.add_output<decl::Float>("Clip End"_ustr).description("Camera far clipping distance");
   b.add_output<decl::Float>("Focus Distance"_ustr)
       .description("Distance to the focus point for depth of field");
-  b.add_output<decl::Bool>("Is Orthographic"_ustr)
-      .description("Whether the camera is using orthographic projection");
-  b.add_output<decl::Float>("Orthographic Scale"_ustr)
-      .description("Orthographic camera scale (similar to zoom)");
+
+  
+  {
+    auto &p = b.add_panel("Types"_ustr).default_closed(true);
+    p.add_output<decl::Bool>("Is Equirectangular"_ustr);     
+    p.add_output<decl::Bool>("Is Equiangular"_ustr);
+    p.add_output<decl::Bool>("Is Mirrorball"_ustr);
+    p.add_output<decl::Bool>("Is Equisolid"_ustr);
+    p.add_output<decl::Bool>("Is Equidistant"_ustr);
+    p.add_output<decl::Bool>("Is Polynomal"_ustr);
+    p.add_output<decl::Bool>("Is Cylindrical"_ustr);
+
+  }
+
+  {
+      auto &p = b.add_panel("Equirectangular"_ustr).default_closed(true);
+      p.add_output<decl::Float>("Latitude Min"_ustr)
+    .description("Latitude Min");
+
+      p.add_output<decl::Float>("Latitude Max"_ustr)
+    .description("Latitude Max");
+
+      p.add_output<decl::Float>("Longitude Min"_ustr)
+    .description("Longitude Max");
+      p.add_output<decl::Float>("Longitude Max"_ustr)
+    .description("Longitude Max");
+  }
+  
+   {
+       auto &p = b.add_panel("Central Cylindrical"_ustr).default_closed(true);
+       p.add_output<decl::Float>("Height Min"_ustr)
+      .description("Height Min");
+       p.add_output<decl::Float>("Height Max"_ustr)
+      .description("Height Min");
+       p.add_output<decl::Float>("Longitude Min(Cylindrical)"_ustr)
+      .description("Longitude Max");
+       p.add_output<decl::Float>("Longitude Max(Cylindrical)"_ustr)
+      .description("Longitude Max");
+       p.add_output<decl::Float>("Cylinder Radius"_ustr)
+      .description("Longitude Max");
+  }
+
+    {
+       auto &p = b.add_panel("Polynomal"_ustr).default_closed(true);
+       p.add_output<decl::Float>("K0"_ustr)
+       .description("K0");
+       p.add_output<decl::Float>("K1"_ustr)
+       .description("K1");
+       p.add_output<decl::Float>("K2"_ustr)
+       .description("K2");
+       p.add_output<decl::Float>("K3"_ustr)
+       .description("K3");
+       p.add_output<decl::Float>("K4"_ustr)
+       .description("K4");
+    } 
 
   b.add_input<decl::Object>("Camera"_ustr).optional_label();
 }
@@ -42,7 +92,7 @@ static CameraParams get_camera_parameters(const Scene &scene, const Object &came
   BKE_camera_params_from_object(&camera_params, &camera_object);
   BKE_camera_params_compute_viewplane(
       &camera_params, scene.r.xsch, scene.r.ysch, scene.r.xasp, scene.r.yasp);
-  BKE_camera_params_compute_matrix(&camera_params);
+  /* BKE_camera_params_compute_matrix(&camera_params); */
   return camera_params;
 }
 
@@ -113,25 +163,52 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const CameraParams camera_params = get_camera_parameters(*scene, *camera_obj);
-  const float4x4 projection_matrix(camera_params.winmat);
   const float focus_distance = BKE_camera_object_dof_distance(camera_obj);
   const float2 sensor_size = compute_sensor_size(*scene, camera_params);
   const float2 lens_shift = compute_lens_shift(*scene, camera_params);
 
-  params.set_output("Projection Matrix"_ustr, projection_matrix);
-  params.set_output("Focal Length"_ustr, camera_params.lens);
+  /* Mostly Used*/
+  params.set_output("Field of View"_ustr, camera_params.fisheye_fov); 
+  params.set_output("Fisheye Lens"_ustr, camera_params.fisheye_lens); 
   params.set_output("Sensor"_ustr, float3{sensor_size, 0.0f});
   params.set_output("Shift"_ustr, float3{lens_shift, 0.0f});
   params.set_output("Clip Start"_ustr, camera_params.clip_start);
   params.set_output("Clip End"_ustr, camera_params.clip_end);
   params.set_output("Focus Distance"_ustr, focus_distance);
-  params.set_output("Is Orthographic"_ustr, camera_params.is_ortho);
-  params.set_output("Orthographic Scale"_ustr, camera_params.ortho_scale);
+
+  /* Panoramic Types */
+  params.set_output("Is Equirectangular"_ustr, camera_params.is_equirectangular);
+  params.set_output("Is Equiangular"_ustr, camera_params.is_equiangular);
+  params.set_output("Is Mirrorball"_ustr, camera_params.is_mirrorball);
+  params.set_output("Is Equidistant"_ustr, camera_params.is_equidistant);
+  params.set_output("Is Equisolid"_ustr, camera_params.is_equisolid);
+  params.set_output("Is Polynomal"_ustr, camera_params.is_polynomal);
+  params.set_output("Is Cylindrical"_ustr, camera_params.is_cylindrical); 
+  
+  /* Polynonmal */
+  params.set_output("K0"_ustr, camera_params.k0);
+  params.set_output("K1"_ustr, camera_params.k1);
+  params.set_output("K2"_ustr, camera_params.k2);
+  params.set_output("K3"_ustr, camera_params.k3);
+  params.set_output("K4"_ustr, camera_params.k4);
+    
+  /* Equirectangular */
+  params.set_output("Latitude Min"_ustr, camera_params.latitude_min);
+  params.set_output("Latitude Max"_ustr, camera_params.latitude_max);
+  params.set_output("Longitude Min"_ustr, camera_params.longitude_min);
+  params.set_output("Longitude Max"_ustr, camera_params.longitude_max); 
+
+  /* Central Cylindrical */
+  params.set_output("Height Min"_ustr, camera_params.cylindrical_height_min);
+  params.set_output("Height Max"_ustr, camera_params.cylindrical_height_max);
+  params.set_output("Longitude Min(Cylindrical)"_ustr, camera_params.cylindrical_longitude_min);
+  params.set_output("Longitude Max(Cylindrical)"_ustr, camera_params.cylindrical_longitude_max);
+
 }
 
 using namespace blender::compositor;
 
-class CameraInfoOperation : public NodeOperation {
+class CameraPanoramicInfoOperation : public NodeOperation {
  public:
   using NodeOperation::NodeOperation;
 
@@ -151,18 +228,6 @@ class CameraInfoOperation : public NodeOperation {
 
     const Scene &scene = this->context().get_scene();
     const CameraParams camera_parameters = get_camera_parameters(scene, *camera_object);
-
-    Result &projection_matrix_result = this->get_result("Projection Matrix");
-    if (projection_matrix_result.should_compute()) {
-      projection_matrix_result.allocate_single_value();
-      projection_matrix_result.set_single_value(float4x4(camera_parameters.winmat));
-    }
-
-    Result &focal_length_result = this->get_result("Focal Length");
-    if (focal_length_result.should_compute()) {
-      focal_length_result.allocate_single_value();
-      focal_length_result.set_single_value(camera_parameters.lens);
-    }
 
     const float2 sensor_size = compute_sensor_size(scene, camera_parameters);
     Result &sensor_result = this->get_result("Sensor");
@@ -197,32 +262,21 @@ class CameraInfoOperation : public NodeOperation {
       focus_distance_result.set_single_value(focus_distance);
     }
 
-    Result &is_orthographic_result = this->get_result("Is Orthographic");
-    if (is_orthographic_result.should_compute()) {
-      is_orthographic_result.allocate_single_value();
-      is_orthographic_result.set_single_value(camera_parameters.is_ortho);
-    }
-
-    Result &orthographic_scale_result = this->get_result("Orthographic Scale");
-    if (orthographic_scale_result.should_compute()) {
-      orthographic_scale_result.allocate_single_value();
-      orthographic_scale_result.set_single_value(camera_parameters.ortho_scale);
-    }
   }
 };
 
 static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
-  return new CameraInfoOperation(context, node);
+  return new CameraPanoramicInfoOperation(context, node);
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_cmp_node_type_base(&ntype, "GeometryNodeCameraInfo"_ustr);
-  ntype.ui_name = "Camera Info";
-  ntype.ui_description = "Retrieve information from a camera object";
+  geo_cmp_node_type_base(&ntype, "GeometryNodeCameraPanoramicInfo"_ustr);
+  ntype.ui_name = "Camera Panoramic Info";
+  ntype.ui_description = "Retrieve information from a panoramic camera object";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;

@@ -382,20 +382,39 @@ void BKE_camera_params_from_object(CameraParams *params, const Object *cam_ob)
       params->is_ortho = true;
     }
     else if (cam->type == CAM_PANO) {
-      if (cam->panorama_type == CAM_PANORAMA_FISHEYE_EQUISOLID)
-      {
-        params->is_fisheye_equisolid = true;
-        
+   
+
+      if (cam->panorama_type == CAM_PANORAMA_EQUIRECTANGULAR) {
+        params->is_equirectangular = true;
       }
-      else if(cam->panorama_type == CAM_PANORAMA_FISHEYE_EQUIDISTANT)
+      if (cam->panorama_type == CAM_PANORAMA_EQUIANGULAR_CUBEMAP_FACE) {
+        params->is_equiangular = true;
+      }
+      else
       {
-        params->is_fisheye_equidistant = true;
+        params->is_equiangular = false;
+      }
+      if (cam->panorama_type == CAM_PANORAMA_MIRRORBALL) {
+        params->is_mirrorball = true;
+      }
+else if (cam->panorama_type == CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL) {
+        params->is_polynomal = true;
       }
       
+      else if (cam->panorama_type == CAM_PANORAMA_FISHEYE_EQUISOLID) {
+        params->is_equisolid = true;
+      }
+      else if (cam->panorama_type == CAM_PANORAMA_FISHEYE_EQUIDISTANT) {
+        params->is_equidistant = true;
+      }
+      else if (cam->panorama_type == CAM_PANORAMA_CENTRAL_CYLINDRICAL) {
+        params->is_cylindrical = true;
+      }
     }
 
     params->lens = cam->lens;
-    params->fisheye_fov = cam->fisheye_fov; 
+    params->fisheye_lens = cam->fisheye_lens;
+    params->fisheye_fov = cam->fisheye_fov;
     params->ortho_scale = cam->ortho_scale;
 
     params->shiftx = cam->shiftx;
@@ -407,6 +426,26 @@ void BKE_camera_params_from_object(CameraParams *params, const Object *cam_ob)
 
     params->clip_start = cam->clip_start;
     params->clip_end = cam->clip_end;
+
+    params->k0 = cam->fisheye_polynomial_k0;
+    params->k1 = cam->fisheye_polynomial_k1;
+    params->k2 = cam->fisheye_polynomial_k2;
+    params->k3 = cam->fisheye_polynomial_k3;
+    params->k4 = cam->fisheye_polynomial_k4;
+
+    params->latitude_min = cam->latitude_min;
+    params->latitude_max = cam->latitude_max;
+
+    params->longitude_min = cam->longitude_min;
+    params->longitude_max = cam->longitude_max;
+
+    params->cylindrical_height_min = cam->central_cylindrical_range_v_min;
+    params->cylindrical_height_max = cam->central_cylindrical_range_v_max;
+
+    params->cylindrical_longitude_min = cam->central_cylindrical_range_u_min;
+    params->cylindrical_longitude_max = cam->central_cylindrical_range_u_max;
+
+    params->cylindrical_radius = cam->central_cylindrical_radius;
   }
   else if (cam_ob->type == OB_LAMP) {
     /* light object */

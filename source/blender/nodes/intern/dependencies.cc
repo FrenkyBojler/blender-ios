@@ -252,6 +252,18 @@ static bool needs_scene_render_params(const bNodeTree &ntree)
       return true;
     }
   }
+
+  /*   for (const bNode *node : ntree.nodes_by_type("GeometryNodeCameraPanoramicInfo"_ustr)) {
+      if (node->is_muted()) {
+        continue;
+      }
+      const bNodeSocket &projection_matrix_socket = *node->output_by_identifier(
+          "Projection Matrix"_ustr);
+      if (projection_matrix_socket.is_logically_linked()) {
+        return true;
+      }
+    } */
+
   return false;
 }
 
