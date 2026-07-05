@@ -166,20 +166,90 @@ class SEQUENCER_MT_editor_menus(Menu):
     def draw(self, context):
         layout = self.layout
         st = context.space_data
-        has_sequencer, _has_preview = _space_view_types(st)
+        has_sequencer, has_preview = _space_view_types(st)
 
         layout.menu("SEQUENCER_MT_view")
-        layout.menu("SEQUENCER_MT_select")
+
+        if has_preview and st.mode == 'MASK':
+            layout.menu("MASK_MT_select")
+        else:
+            layout.menu("SEQUENCER_MT_select")
 
         if has_sequencer and context.sequencer_scene:
             if st.show_markers:
                 layout.menu("SEQUENCER_MT_marker")
             layout.menu("SEQUENCER_MT_add")
 
-        layout.menu("SEQUENCER_MT_strip")
+        if not has_preview or st.mode != 'MASK':
+            layout.menu("SEQUENCER_MT_strip")
 
-        if st.view_type in {'SEQUENCER', 'PREVIEW'}:
+        if st.view_type == 'SEQUENCER':
             layout.menu("SEQUENCER_MT_image")
+        elif st.view_type == 'PREVIEW':
+            if st.mode == 'MASK':
+                layout.menu("MASK_MT_add")
+                layout.menu("MASK_MT_mask")
+            else:
+                layout.menu("SEQUENCER_MT_image")
+
+class SEQUENCER_MT_mask_context_menu(Menu):
+    bl_label = "Mask"
+
+    @classmethod
+    def poll(cls, context):
+        st = context.space_data
+        return st.mode == 'MASK' and st.view_type == 'PREVIEW'
+
+    def draw(self, context):
+        layout = self.layout
+        from .properties_mask_common import draw_mask_context_menu
+        draw_mask_context_menu(layout, context)
+
+
+# -----------------------------------------------------------------------------
+# Mask (similar code in space_clip.py, keep in sync)
+
+from bl_ui.properties_mask_common import (
+    MASK_PT_mask,
+    MASK_PT_layers,
+    MASK_PT_spline,
+    MASK_PT_point,
+    MASK_PT_animation,
+    MASK_PT_display,
+)
+
+
+class SEQUENCE_PT_mask(MASK_PT_mask, Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Mask"
+
+
+class SEQUENCE_PT_mask_layers(MASK_PT_layers, Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Mask"
+
+
+class SEQUENCE_PT_active_mask_spline(MASK_PT_spline, Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Mask"
+
+
+class SEQUENCE_PT_active_mask_point(MASK_PT_point, Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Mask"
+
+
+class SEQUENCE_PT_mask_animation(MASK_PT_animation, Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Mask"
+
+
+# --- end mask ---
 
 
 class SEQUENCER_PT_gizmo_display(Panel):
@@ -2112,6 +2182,7 @@ classes = (
     SEQUENCER_MT_view_pie,
     SEQUENCER_MT_preview_view_pie,
     SEQUENCER_MT_modifier_add,
+    SEQUENCER_MT_mask_context_menu,
 
     SEQUENCER_PT_active_tool,
 
@@ -2143,6 +2214,12 @@ classes = (
     SEQUENCER_PT_snapping,
     SEQUENCER_PT_preview_snapping,
     SEQUENCER_PT_sequencer_snapping,
+
+    SEQUENCE_PT_mask,
+    SEQUENCE_PT_mask_layers,
+    SEQUENCE_PT_active_mask_spline,
+    SEQUENCE_PT_active_mask_point,
+    SEQUENCE_PT_mask_animation,
 )
 
 if __name__ == "__main__":  # only for live edit.

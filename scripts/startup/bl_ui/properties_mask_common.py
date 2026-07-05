@@ -36,6 +36,17 @@ def draw_mask_context_menu(layout, _context):
     layout.operator("mask.delete")
 
 
+def get_active_mask(context):
+    st = context.space_data
+    
+    # If we are in the Sequencer, grab it from the Strip else from the Space.
+    if st.type == 'SEQUENCE_EDITOR':
+        strip = getattr(context, "active_strip", None)
+        return getattr(strip, "mask", None) if strip else None
+    else:
+        return getattr(st, "mask", None)
+
+
 class MASK_UL_layers(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         # assert(isinstance(item, bpy.types.MaskLayer)
@@ -57,15 +68,14 @@ class MASK_PT_mask:
     @classmethod
     def poll(cls, context):
         space_data = context.space_data
-        return space_data.mask and space_data.mode == 'MASK'
+        return get_active_mask(context) and space_data.mode == 'MASK'
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        sc = context.space_data
-        mask = sc.mask
+        mask = get_active_mask(context)
 
         col = layout.column(align=True)
         col.prop(mask, "frame_start")
@@ -81,15 +91,14 @@ class MASK_PT_layers:
     @classmethod
     def poll(cls, context):
         space_data = context.space_data
-        return space_data.mask and space_data.mode == 'MASK'
+        return get_active_mask(context) and space_data.mode == 'MASK'
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        sc = context.space_data
-        mask = sc.mask
+        mask = get_active_mask(context)
         active_layer = mask.layers.active
 
         rows = 4 if active_layer else 1
@@ -139,7 +148,7 @@ class MASK_PT_spline:
     @classmethod
     def poll(cls, context):
         sc = context.space_data
-        mask = sc.mask
+        mask = get_active_mask(context)
 
         if mask and sc.mode == 'MASK':
             return mask.layers.active and mask.layers.active.splines.active
@@ -151,8 +160,7 @@ class MASK_PT_spline:
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        sc = context.space_data
-        mask = sc.mask
+        mask = get_active_mask(context)
         spline = mask.layers.active.splines.active
 
         col = layout.column()
@@ -174,7 +182,7 @@ class MASK_PT_point:
     @classmethod
     def poll(cls, context):
         sc = context.space_data
-        mask = sc.mask
+        mask = get_active_mask(context)
 
         if mask and sc.mode == 'MASK':
             mask_layer_active = mask.layers.active
@@ -190,8 +198,7 @@ class MASK_PT_point:
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        sc = context.space_data
-        mask = sc.mask
+        mask = get_active_mask(context)
         point = mask.layers.active.splines.active_point
         parent = point.parent
 
@@ -237,7 +244,7 @@ class MASK_PT_animation:
     @classmethod
     def poll(cls, context):
         space_data = context.space_data
-        return space_data.mask and space_data.mode == 'MASK'
+        return get_active_mask(context) and space_data.mode == 'MASK'
 
     def draw(self, context):
         layout = self.layout
@@ -245,8 +252,7 @@ class MASK_PT_animation:
         layout.use_property_decorate = False
 
         # poll() ensures this is not None.
-        sc = context.space_data
-        mask = sc.mask
+        mask = get_active_mask(context)
 
         col = layout.column(align=True)
         anim.draw_action_and_slot_selector_for_id(col, mask)
@@ -261,7 +267,7 @@ class MASK_PT_display:
     @classmethod
     def poll(cls, context):
         space_data = context.space_data
-        return space_data.mask and space_data.mode == 'MASK'
+        return get_active_mask(context) and space_data.mode == 'MASK'
 
     def draw(self, context):
         layout = self.layout
@@ -293,7 +299,7 @@ class MASK_PT_transforms:
     @classmethod
     def poll(cls, context):
         space_data = context.space_data
-        return space_data.mask and space_data.mode == 'MASK'
+        return get_active_mask(context) and space_data.mode == 'MASK'
 
     def draw(self, _context):
         layout = self.layout
@@ -313,7 +319,7 @@ class MASK_PT_tools:
     @classmethod
     def poll(cls, context):
         space_data = context.space_data
-        return space_data.mask and space_data.mode == 'MASK'
+        return get_active_mask(context) and space_data.mode == 'MASK'
 
     def draw(self, _context):
         layout = self.layout
@@ -391,7 +397,7 @@ class MASK_MT_move_to_layer(Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
-        mask = context.space_data.mask
+        mask = get_active_mask(context)
 
         layout.operator("mask.move_to_layer", text="New Layer", icon='ADD').add_new_layer = True
 
@@ -419,8 +425,10 @@ class MASK_MT_visibility(Menu):
 class MASK_MT_transform(Menu):
     bl_label = "Transform"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
+        if context.space_data.type == 'SEQUENCE_EDITOR':
+            layout.operator_context = 'INVOKE_REGION_PREVIEW'
 
         layout.operator("transform.translate")
         layout.operator("transform.rotate")

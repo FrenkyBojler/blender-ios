@@ -3402,6 +3402,8 @@ def km_sequencer_preview(params):
         ("anim.keyframe_insert_menu", {"type": 'K', "value": 'PRESS'}, {"properties": [("always_prompt", True)]}),
         ("anim.keyframe_delete_vse", {"type": 'I', "value": 'PRESS', "alt": True}, None),
 
+        # Context Menus.
+        *_template_items_context_menu("SEQUENCER_MT_mask_context_menu", params.context_menu_event),
         *_template_items_context_menu("SEQUENCER_MT_preview_context_menu", params.context_menu_event),
     ])
 
