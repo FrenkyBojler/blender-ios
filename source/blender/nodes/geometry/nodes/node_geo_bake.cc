@@ -549,12 +549,14 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
       const_cast<NodesModifierData *>(r_ctx.nmd));
   r_ctx.bake_rna = RNA_pointer_create_with_parent(
       modifier_ptr, RNA_NodesModifierBake, const_cast<NodesModifierBake *>(r_ctx.bake));
+  bool found_runtime_cache = false;
   if (r_ctx.nmd->runtime->cache) {
     const bke::bake::ModifierCache &cache = *r_ctx.nmd->runtime->cache;
     std::lock_guard lock{cache.mutex};
     if (const std::unique_ptr<bke::bake::BakeNodeCache> *node_cache_ptr =
             cache.bake_cache_by_id.lookup_ptr(bake_id->id))
     {
+      found_runtime_cache = true;
       const bke::bake::BakeNodeCache &node_cache = **node_cache_ptr;
       if (!node_cache.bake.frames.is_empty()) {
         const int first_frame = node_cache.bake.frames.first()->frame.frame();
@@ -565,6 +567,7 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
     else if (const std::unique_ptr<bke::bake::SimulationNodeCache> *node_cache_ptr =
                  cache.simulation_cache_by_id.lookup_ptr(bake_id->id))
     {
+      found_runtime_cache = true;
       const bke::bake::SimulationNodeCache &node_cache = **node_cache_ptr;
       if (!node_cache.bake.frames.is_empty() &&
           node_cache.cache_status == bke::bake::CacheStatus::Baked)
@@ -573,6 +576,12 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
         const int last_frame = node_cache.bake.frames.last()->frame.frame();
         r_ctx.baked_range = IndexRange(first_frame, last_frame - first_frame + 1);
       }
+    }
+  }
+  if (!found_runtime_cache) {
+    if (const Main *bmain = CTX_data_main(C)) {
+      r_ctx.baked_range = bke::bake::get_node_baked_frame_range(
+          *bmain, *r_ctx.object, *r_ctx.nmd, r_ctx.bake->id);
     }
   }
   const Scene *scene = CTX_data_scene(C);

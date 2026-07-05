@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <algorithm>
 #include <sstream>
 
 #include "BKE_bake_geometry_nodes_modifier.hh"
@@ -12,6 +13,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 
+#include "BLI_fileops.hh"
 #include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
@@ -178,6 +180,55 @@ static IndexRange fix_frame_range(const int start, const int end)
   return IndexRange(start, num_frames);
 }
 
+static void grow_frame_range(const SubFrame frame,
+                             std::optional<SubFrame> &r_min_frame,
+                             std::optional<SubFrame> &r_max_frame)
+{
+  if (!r_min_frame || frame < *r_min_frame) {
+    r_min_frame = frame;
+  }
+  if (!r_max_frame || *r_max_frame < frame) {
+    r_max_frame = frame;
+  }
+}
+
+static std::optional<IndexRange> frame_range_from_bounds(const std::optional<SubFrame> min_frame,
+                                                         const std::optional<SubFrame> max_frame)
+{
+  if (!min_frame || !max_frame) {
+    return std::nullopt;
+  }
+  return IndexRange::from_begin_end_inclusive(min_frame->frame(), max_frame->frame());
+}
+
+static std::optional<IndexRange> find_baked_frame_range_in_meta_dir(const StringRefNull meta_dir)
+{
+  if (!BLI_is_dir(meta_dir.c_str())) {
+    return std::nullopt;
+  }
+
+  direntry *dir_entries = nullptr;
+  const int dir_entries_num = BLI_filelist_dir_contents(meta_dir.c_str(), &dir_entries);
+  BLI_SCOPED_DEFER([&]() { BLI_filelist_free(dir_entries, dir_entries_num); });
+
+  std::optional<SubFrame> min_frame;
+  std::optional<SubFrame> max_frame;
+  for (const int i : IndexRange(dir_entries_num)) {
+    const direntry &dir_entry = dir_entries[i];
+    const StringRefNull dir_entry_path = dir_entry.path;
+    if (!dir_entry_path.endswith(".json")) {
+      continue;
+    }
+    const std::optional<SubFrame> frame = bake::file_name_to_frame(dir_entry.relname);
+    if (!frame) {
+      continue;
+    }
+    grow_frame_range(*frame, min_frame, max_frame);
+  }
+
+  return frame_range_from_bounds(min_frame, max_frame);
+}
+
 std::optional<IndexRange> get_node_bake_frame_range(const Scene &scene,
                                                     const Object & /*object*/,
                                                     const NodesModifierData &nmd,
@@ -194,6 +245,40 @@ std::optional<IndexRange> get_node_bake_frame_range(const Scene &scene,
     return fix_frame_range(scene.simulation_frame_start, scene.simulation_frame_end);
   }
   return fix_frame_range(scene.r.sfra, scene.r.efra);
+}
+
+std::optional<IndexRange> get_node_baked_frame_range(const Main &bmain,
+                                                     const Object &object,
+                                                     const NodesModifierData &nmd,
+                                                     const int node_id)
+{
+  const NodesModifierBake *bake = nmd.find_bake(node_id);
+  if (bake == nullptr) {
+    return std::nullopt;
+  }
+  if (bake->packed) {
+    if (bake->packed->meta_files_num == 0) {
+      return std::nullopt;
+    }
+    std::optional<SubFrame> min_frame;
+    std::optional<SubFrame> max_frame;
+    for (const NodesModifierBakeFile &meta_file :
+         Span{bake->packed->meta_files, bake->packed->meta_files_num})
+    {
+      const std::optional<SubFrame> frame = bake::file_name_to_frame(meta_file.name);
+      if (!frame) {
+        return std::nullopt;
+      }
+      grow_frame_range(*frame, min_frame, max_frame);
+    }
+    return frame_range_from_bounds(min_frame, max_frame);
+  }
+
+  const std::optional<BakePath> bake_path = get_node_bake_path(bmain, object, nmd, node_id);
+  if (!bake_path) {
+    return std::nullopt;
+  }
+  return find_baked_frame_range_in_meta_dir(bake_path->meta_dir);
 }
 
 /**

@@ -863,7 +863,10 @@ static void timeline_cache_draw_compositor(const Vector<IndexRange> cached_frame
   GPU_matrix_pop();
 }
 
-void timeline_draw_cache(const SpaceAction *saction, const Object *ob, const Scene *scene)
+void timeline_draw_cache(const SpaceAction *saction,
+                         const Object *ob,
+                         const Scene *scene,
+                         const Main *bmain)
 {
   if (!flag_is_set(saction->cache_display, TIME_CACHE_DISPLAY)) {
     return;
@@ -925,40 +928,57 @@ void timeline_draw_cache(const SpaceAction *saction, const Object *ob, const Sce
       if (nmd->node_group == nullptr || ID_MISSING(nmd->node_group)) {
         continue;
       }
-      if (!nmd->runtime->cache) {
-        continue;
-      }
       if (nmd->node_group->nested_node_refs_num == 0) {
         /* Skip when there are no bake nodes or simulations. */
         continue;
       }
-      const bke::bake::ModifierCache &modifier_cache = *nmd->runtime->cache;
-      {
-        std::lock_guard lock{modifier_cache.mutex};
-        for (const auto item : modifier_cache.simulation_cache_by_id.items()) {
-          const bke::bake::SimulationNodeCache &node_cache = *item.value;
-          if (node_cache.bake.frames.is_empty()) {
-            all_simulations_baked = false;
-            continue;
+      Set<int> runtime_bake_ids;
+      if (nmd->runtime->cache) {
+        const bke::bake::ModifierCache &modifier_cache = *nmd->runtime->cache;
+        {
+          std::lock_guard lock{modifier_cache.mutex};
+          for (const auto item : modifier_cache.simulation_cache_by_id.items()) {
+            runtime_bake_ids.add(item.key);
+            const bke::bake::SimulationNodeCache &node_cache = *item.value;
+            if (node_cache.bake.frames.is_empty()) {
+              all_simulations_baked = false;
+              continue;
+            }
+            if (node_cache.cache_status != bke::bake::CacheStatus::Baked) {
+              all_simulations_baked = false;
+            }
+            cache_ranges.append({node_cache.bake.frame_range(), node_cache.cache_status});
           }
-          if (node_cache.cache_status != bke::bake::CacheStatus::Baked) {
-            all_simulations_baked = false;
+          for (const auto item : modifier_cache.bake_cache_by_id.items()) {
+            runtime_bake_ids.add(item.key);
+            const NodesModifierBake *bake = nmd->find_bake(item.key);
+            if (!bake) {
+              continue;
+            }
+            if (bake->bake_mode == NODES_MODIFIER_BAKE_MODE_STILL) {
+              continue;
+            }
+            const bke::bake::BakeNodeCache &node_cache = *item.value;
+            if (node_cache.bake.frames.is_empty()) {
+              continue;
+            }
+            cache_ranges.append({node_cache.bake.frame_range(), bke::bake::CacheStatus::Baked});
           }
-          cache_ranges.append({node_cache.bake.frame_range(), node_cache.cache_status});
         }
-        for (const auto item : modifier_cache.bake_cache_by_id.items()) {
-          const NodesModifierBake *bake = nmd->find_bake(item.key);
-          if (!bake) {
+      }
+      if (bmain) {
+        for (const NodesModifierBake &bake : Span{nmd->bakes, nmd->bakes_num}) {
+          if (runtime_bake_ids.contains(bake.id)) {
             continue;
           }
-          if (bake->bake_mode == NODES_MODIFIER_BAKE_MODE_STILL) {
+          if (bake.bake_mode == NODES_MODIFIER_BAKE_MODE_STILL) {
             continue;
           }
-          const bke::bake::BakeNodeCache &node_cache = *item.value;
-          if (node_cache.bake.frames.is_empty()) {
-            continue;
+          if (const std::optional<IndexRange> baked_range = bke::bake::get_node_baked_frame_range(
+                  *bmain, *ob, *nmd, bake.id))
+          {
+            cache_ranges.append({*baked_range, bke::bake::CacheStatus::Baked});
           }
-          cache_ranges.append({node_cache.bake.frame_range(), bke::bake::CacheStatus::Baked});
         }
       }
     }

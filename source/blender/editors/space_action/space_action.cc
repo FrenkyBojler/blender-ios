@@ -305,12 +305,13 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
   const SpaceAction *saction = CTX_wm_space_action(C);
   const Scene *scene = CTX_data_scene(C);
   const Object *obact = CTX_data_active_object(C);
+  const Main *bmain = CTX_data_main(C);
   View2D *v2d = &region->v2d;
 
   /* caches */
   GPU_matrix_push_projection();
   ui::view2d_view_orthoSpecial(region, v2d, true);
-  timeline_draw_cache(saction, obact, scene);
+  timeline_draw_cache(saction, obact, scene, bmain);
   GPU_matrix_pop_projection();
 
   /* scrubbing region */

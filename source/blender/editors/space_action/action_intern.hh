@@ -15,6 +15,7 @@ namespace blender {
 struct bAnimListElem;
 struct ARegion;
 struct ARegionType;
+struct Main;
 struct Object;
 struct Scene;
 struct SpaceAction;
@@ -48,7 +49,10 @@ void draw_channel_strips(bAnimContext *ac,
                          ARegion *region,
                          ListBaseT<bAnimListElem> *anim_data);
 
-void timeline_draw_cache(const SpaceAction *saction, const Object *ob, const Scene *scene);
+void timeline_draw_cache(const SpaceAction *saction,
+                         const Object *ob,
+                         const Scene *scene,
+                         const Main *bmain);
 
 /* ***************************************** */
 /* `action_select.cc` */
