@@ -1230,6 +1230,7 @@ static wmOperatorStatus sequencer_select_transition_exec(bContext *C,
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   if (seq::retiming_selection_clear(ed)) {
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
@@ -1243,6 +1244,15 @@ static wmOperatorStatus sequencer_select_transition_exec(bContext *C,
   const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
 
   const bool already_selected = element_already_selected(selection);
+
+  /* If the transition handle is already selected before dragging, don't deselect it after
+   * dragging. */
+  if (selection.handle != STRIP_HANDLE_NONE && already_selected) {
+    sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
+  }
+  else {
+    sseq->flag |= SPACE_SEQ_DESELECT_STRIP_HANDLE;
+  }
 
   /* Clicking on already selected element falls on modal operation.
    * All strips are deselected on mouse button release unless extend mode is used. */
@@ -1266,7 +1276,9 @@ static wmOperatorStatus sequencer_select_transition_exec(bContext *C,
   sequencer_select_strip_impl(ed, strip, handle, extend, deselect, toggle);
 
   /* Select connected transitions. */
-  sequencer_select_connected_strips(selection);
+  if (!ignore_connections) {
+    sequencer_select_connected_strips(selection);
+  }
 
   sequencer_select_do_updates(C, scene);
   sequencer_select_set_active(scene, strip);
