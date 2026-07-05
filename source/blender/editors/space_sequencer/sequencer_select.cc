@@ -95,6 +95,24 @@ bool deselect_all_strips(const Scene *scene)
   return changed;
 }
 
+static void deselect_transition_handles(ListBaseT<Strip> *seqbase)
+{
+  for (Strip &strip : *seqbase) {
+    if (seq::strip_is_transition(&strip)) {
+      strip.flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
+    }
+  }
+}
+
+static void deselect_non_transitions(ListBaseT<Strip> *seqbase)
+{
+  for (Strip &strip : *seqbase) {
+    if (!seq::strip_is_transition(&strip)) {
+      strip.flag &= ~STRIP_ALLSEL;
+    }
+  }
+}
+
 Strip *strip_under_mouse_get(const Scene *scene,
                              const SpaceSeq *sseq,
                              const View2D *v2d,
@@ -456,6 +474,10 @@ static wmOperatorStatus sequencer_de_select_all_exec(bContext *C, wmOperator *op
     deselect_all_strips(scene);
   }
   for (Strip *strip : strips) {
+    /* Transition handles and normal strips should not be selected at the same time. */
+    if (seq::strip_is_transition(strip)) {
+      strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
+    }
     switch (action) {
       case SEL_SELECT:
         strip->flag |= SEQ_SELECT;
@@ -1197,7 +1219,55 @@ StripSelection pick_strip_and_handle(const Scene *scene,
   return selection;
 }
 
-// TODO: how it acts with transitions etc.
+static wmOperatorStatus sequencer_select_transition_exec(bContext *C,
+                                                         wmOperator *op,
+                                                         StripSelection selection)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Editing *ed = seq::editing_get(scene);
+
+  if (seq::retiming_selection_clear(ed)) {
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  }
+
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const bool deselect = RNA_boolean_get(op->ptr, "deselect");
+  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
+  const bool toggle = RNA_boolean_get(op->ptr, "toggle");
+  const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+  const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
+
+  const bool already_selected = element_already_selected(selection);
+
+  /* Clicking on already selected element falls on modal operation.
+   * All strips are deselected on mouse button release unless extend mode is used. */
+  if (already_selected && wait_to_deselect_others && !toggle && !ignore_connections) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  Strip *strip = selection.strip1;
+  eStripHandle handle = selection.handle;
+  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
+
+  if (deselect_all || (!extend && !deselect && !toggle)) {
+    deselect_all_strips(scene);
+  }
+  else if (ELEM(handle, STRIP_HANDLE_LEFT, STRIP_HANDLE_RIGHT)) {
+    /* Transition handles and normal strips must not be selected at the same time. */
+    deselect_non_transitions(seqbase);
+  }
+
+  /* Do actual selection. */
+  sequencer_select_strip_impl(ed, strip, handle, extend, deselect, toggle);
+
+  /* Select connected transitions. */
+  sequencer_select_connected_strips(selection);
+
+  sequencer_select_do_updates(C, scene);
+  sequencer_select_set_active(scene, strip);
+  return OPERATOR_FINISHED;
+}
+
 wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
 {
   const View2D *v2d = ui::view2d_fromcontext(C);
@@ -1220,19 +1290,14 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     }
   }
 
-  const bool was_retiming = seq::retiming_keys_are_selected(scene);
-  bool can_select_retiming_key = true;
+  const bool toggle = RNA_boolean_get(op->ptr, "toggle");
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const bool center = RNA_boolean_get(op->ptr, "center");
 
   MouseCoords mouse_co(v2d, RNA_int_get(op->ptr, "mouse_x"), RNA_int_get(op->ptr, "mouse_y"));
 
   /* If there isn't enough space the transition is drawn over the retiming keys. If the mouse is
    * over a transition, don't select retiming keys. */
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const bool deselect = RNA_boolean_get(op->ptr, "deselect");
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
-  const bool toggle = RNA_boolean_get(op->ptr, "toggle");
-  const bool center = RNA_boolean_get(op->ptr, "center");
-
   StripSelection selection;
   if (region->regiontype == RGN_TYPE_PREVIEW) {
     selection.strip1 = strip_select_from_preview(C, mouse_co.region, toggle, extend, center);
@@ -1240,9 +1305,11 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   else {
     selection = pick_strip_and_handle(scene, sseq, v2d, mouse_co.view);
     if (selection.strip1 && seq::strip_is_transition(selection.strip1)) {
-      can_select_retiming_key = false;
+      return sequencer_select_transition_exec(C, op, selection);
     }
   }
+
+  const bool was_retiming = seq::retiming_keys_are_selected(scene);
 
   /* Check to see if the mouse cursor intersects with the retiming box; if so, `strip_key_owner` is
    * set. If the cursor intersects with a retiming key, `key` will be set too. */
@@ -1250,7 +1317,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   SeqRetimingKey *key = retiming_mouseover_key_get(scene, v2d, mouse_co.region, &strip_key_owner);
 
   if (strip_key_owner != nullptr && retiming_overlay_enabled(CTX_wm_space_seq(C)) &&
-      seq::retiming_show_keys(strip_key_owner) && can_select_retiming_key)
+      seq::retiming_show_keys(strip_key_owner))
   {
     /* If no key was found, the mouse cursor may still intersect with a "fake key" that has not
      * been realized yet. */
@@ -1288,6 +1355,13 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     seq::retiming_selection_clear(ed);
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   }
+
+  /* We should only reach here if no transition selection is happening.
+   * Transition handles and normal strips must not be selected at the same time. */
+  deselect_transition_handles(seq::active_seqbase_get(ed));
+
+  const bool deselect = RNA_boolean_get(op->ptr, "deselect");
+  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
 
   /* NOTE: `side_of_frame` and `linked_time` functionality is designed to be shared on one
    * keymap, therefore both properties can be true at the same time. */
