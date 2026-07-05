@@ -65,7 +65,7 @@ static void node_declare(NodeDeclarationBuilder &b)
        p.add_output<decl::Float>("Longitude Max(Cylindrical)"_ustr)
       .description("Longitude Max");
        p.add_output<decl::Float>("Cylinder Radius"_ustr)
-      .description("Longitude Max");
+      .description("Radius of the Cylinder");
   }
 
     {
@@ -203,6 +203,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Height Max"_ustr, camera_params.cylindrical_height_max);
   params.set_output("Longitude Min(Cylindrical)"_ustr, camera_params.cylindrical_longitude_min);
   params.set_output("Longitude Max(Cylindrical)"_ustr, camera_params.cylindrical_longitude_max);
+  params.set_output("Cylinder Radius"_ustr, camera_params.cylindrical_radius);
 
 }
 
