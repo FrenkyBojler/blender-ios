@@ -2166,6 +2166,9 @@ static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
     if (strip.channel >= seq::MAX_CHANNELS) [[unlikely]] {
       continue;
     }
+    if (seq::strip_is_transition(&strip)) {
+      continue;
+    }
     int *frame_limit_p = &frame_ranges[strip.channel];
     if (strip.flag & SEQ_SELECT) {
       selected = true;
