@@ -167,7 +167,7 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
    * change must be done at once. */
   strip_meta->startofs = strip_start - strip_meta->start;
   strip_meta->startdisp = strip_start; /* Only to make files usable in older versions. */
-  strip_meta->set_endoffset(strip_meta->start + strip_meta->length(scene) - strip_end);
+  strip_meta->endoffset_set(strip_meta->start + strip_meta->length(scene) - strip_end);
   strip_meta->enddisp = strip_end; /* Only to make files usable in older versions. */
 
   strip_update_sound_bounds_recursive(scene, strip_meta);
@@ -202,7 +202,7 @@ void strip_time_effect_range_set(const Scene *scene, Strip *strip)
 
   /* Values unusable for effects, these should be always 0. */
   strip->startofs = strip->anim_startofs = strip->anim_endofs = 0;
-  strip->set_endoffset(0);
+  strip->endoffset_set(0);
   strip->start = strip->startdisp;
   strip->length_set(strip->enddisp - strip->startdisp);
 }
@@ -434,7 +434,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
 
   if (!recursed) {
     strip->startofs = strip->startofs - delta;
-    strip->set_endoffset(strip->endoffset() + delta);
+    strip->endoffset_set(strip->endoffset() + delta);
   }
 
   /* Only to make files usable in older versions. */
@@ -563,7 +563,7 @@ void Strip::left_handle_set(const Scene *scene, int timeline_frame)
     /* This strip has only 1 frame of content that is always stretched to the whole strip length.
      * Move strip start left and adjust end offset to be negative (rightwards past the 1 frame). */
     this->content_start_set(scene, timeline_frame);
-    this->set_endoffset(this->endoffset() + offset);
+    this->endoffset_set(this->endoffset() + offset);
   }
   else {
     this->startofs = offset;
@@ -584,7 +584,7 @@ void Strip::right_handle_set(const Scene *scene, int timeline_frame)
     timeline_frame = left_handle_orig_frame + 1;
   }
 
-  this->set_endoffset(this->content_end(scene) - timeline_frame);
+  this->endoffset_set(this->content_end(scene) - timeline_frame);
   this->enddisp = timeline_frame; /* Only to make files usable in older versions. */
 
   Span<Strip *> effects = seq::lookup_effects_by_strip(scene->ed, this);
@@ -641,7 +641,7 @@ void Strip::length_set(int new_len)
   this->len = new_len;
 }
 
-void Strip::set_endoffset(float new_endofs)
+void Strip::endoffset_set(float new_endofs)
 {
   if (this->type == STRIP_TYPE_SCENE) {
     this->len = this->length();

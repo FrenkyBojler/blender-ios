@@ -2756,7 +2756,7 @@ static wmOperatorStatus sequencer_offset_clear_exec(bContext *C, wmOperator * /*
 
     if (!strip->is_effect() && (strip->flag & SEQ_SELECT)) {
       strip->startofs = 0;
-      strip->set_endoffset(0);
+      strip->endoffset_set(0);
     }
   }
 
@@ -2840,7 +2840,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
         strip_new->type = STRIP_TYPE_IMAGE;
         strip_new->length_set(1);
         strip_new->flag |= SEQ_SINGLE_FRAME_CONTENT;
-        strip_new->set_endoffset(1 - step);
+        strip_new->endoffset_set(1 - step);
 
         /* New strip. */
         StripData *data_new = strip_new->data;
@@ -4466,6 +4466,7 @@ static bool sequencer_scene_frame_range_update_poll(bContext *C)
   return (ed != nullptr && ed->act_strip != nullptr && ed->act_strip->type == STRIP_TYPE_SCENE);
 }
 
+// todo(habib): deprecate
 void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot)
 {
   /* identifiers */
