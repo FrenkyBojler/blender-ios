@@ -1618,7 +1618,8 @@ void outliner_scroll_to_active(const bContext * /*C*/,
 {
   outliner_set_coordinates(region, space_outliner);
   const View2D *v2d = &region->v2d;
-  TreeElement *active_te = outliner_find_element_with_flag(&space_outliner->runtime->tree, TSE_ACTIVE);
+  TreeElement *active_te = outliner_find_element_with_flag(&space_outliner->runtime->tree,
+                                                           TSE_ACTIVE);
 
   if (active_te) {
     if (!BLI_rctf_isect_y(&v2d->cur, active_te->ys)) {
