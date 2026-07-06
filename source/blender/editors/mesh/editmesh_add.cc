@@ -515,14 +515,15 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
 
     const int side_segments = RNA_int_get(op->ptr, "rings");
     const int fill_segments = RNA_int_get(op->ptr, "fill_segments");
-    Mesh *primitive = geometry::create_cylinder_or_cone_mesh(radius,
-                                                             radius,
-                                                             RNA_float_get(op->ptr, "depth"),
-                                                             RNA_int_get(op->ptr, "vertices"),
-                                                             side_segments,
-                                                             fill_segments,
-                                                             static_cast<geometry::ConeFillType>(end_fill_type),
-                                                             attributes);
+    Mesh *primitive = geometry::create_cylinder_or_cone_mesh(
+        radius,
+        radius,
+        RNA_float_get(op->ptr, "depth"),
+        RNA_int_get(op->ptr, "vertices"),
+        side_segments,
+        fill_segments,
+        static_cast<geometry::ConeFillType>(end_fill_type),
+        attributes);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
@@ -623,14 +624,15 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
 
     const int side_segments = RNA_int_get(op->ptr, "rings");
     const int fill_segments = RNA_int_get(op->ptr, "fill_segments");
-    Mesh *primitive = geometry::create_cylinder_or_cone_mesh(RNA_float_get(op->ptr, "radius2"),
-                                                             RNA_float_get(op->ptr, "radius1"),
-                                                             RNA_float_get(op->ptr, "depth"),
-                                                             RNA_int_get(op->ptr, "vertices"),
-                                                             side_segments,
-                                                             fill_segments,
-                                                             static_cast<geometry::ConeFillType>(end_fill_type),
-                                                             attributes);
+    Mesh *primitive = geometry::create_cylinder_or_cone_mesh(
+        RNA_float_get(op->ptr, "radius2"),
+        RNA_float_get(op->ptr, "radius1"),
+        RNA_float_get(op->ptr, "depth"),
+        RNA_int_get(op->ptr, "vertices"),
+        side_segments,
+        fill_segments,
+        static_cast<geometry::ConeFillType>(end_fill_type),
+        attributes);
     geometry::transform_mesh(
         *primitive, loc, math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), scale);
 
