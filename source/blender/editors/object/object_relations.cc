@@ -738,7 +738,16 @@ static bool parent_set_with_depsgraph(ReportList *reports,
         reports, depsgraph, scene, ob, par, ARM_GROUPS_NAME, false);
   }
   else if (is_armature_parent && (ob->type == OB_MESH) && (par->type == OB_ARMATURE)) {
-    if (partype == PAR_ARMATURE_NAME) {
+    /* Vertex groups are written to `ob->data`. If that mesh is still purely linked (not
+     * itself overridden), the write can't persist, so skip it and warn instead of silently
+     * losing the groups on the next reload. See #127683. */
+    if (!BKE_id_is_editable(bmain, static_cast<const ID *>(ob->data))) {
+      BKE_reportf(reports,
+                  RPT_WARNING,
+                  "Cannot create vertex groups on '%s', the mesh data is linked",
+                  ob->id.name + 2);
+    }
+    else if (partype == PAR_ARMATURE_NAME) {
       ED_object_vgroup_calc_from_armature(
           reports, depsgraph, scene, ob, par, ARM_GROUPS_NAME, false);
     }
