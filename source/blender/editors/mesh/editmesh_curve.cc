@@ -15,7 +15,7 @@
 #include "BKE_layer.hh"
 
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 
 #include "BLT_translation.hh"
 
@@ -51,7 +51,11 @@ enum CurveRestriction {
 
 static const EnumPropertyItem prop_restriction_items[] = {
     {CURVE_RESTRICT_NONE, "NONE", 0, "None", "No restrictions on vertex movement"},
-    {CURVE_RESTRICT_EXTRUDE, "EXTRUDE", 0, "Extrude only", "Only allow extrusions (no indentations)"},
+    {CURVE_RESTRICT_EXTRUDE,
+     "EXTRUDE",
+     0,
+     "Extrude only",
+     "Only allow extrusions (no indentations)"},
     {CURVE_RESTRICT_INDENT, "INDENT", 0, "Indent only", "Only allow indentation (no extrusions)"},
     {0, nullptr},
 };
@@ -77,19 +81,19 @@ static wmOperatorStatus edbm_curve_exec(bContext *C, wmOperator *op)
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    if (!EDBM_op_callf(
-            em,
-            op,
-            "curve geom=%hvef factor=%f restriction=%i boundaries=%b regular=%b lock_x=%b lock_y=%b lock_z=%b interpolation=%i",
-            BM_ELEM_SELECT,
-            factor,
-            restriction,
-            boundaries,
-            regular,
-            lock[0],
-            lock[1],
-            lock[2],
-            interpolation))
+    if (!EDBM_op_callf(em,
+                       op,
+                       "curve geom=%hvef factor=%f restriction=%i boundaries=%b regular=%b "
+                       "lock_x=%b lock_y=%b lock_z=%b interpolation=%i",
+                       BM_ELEM_SELECT,
+                       factor,
+                       restriction,
+                       boundaries,
+                       regular,
+                       lock[0],
+                       lock[1],
+                       lock[2],
+                       interpolation))
     {
       continue;
     }
@@ -137,15 +141,29 @@ void MESH_OT_curve(wmOperatorType *ot)
 
   RNA_def_float_factor(
       ot->srna, "factor", 1.0f, 0.0f, 1.0f, "Factor", "Force of the tool", 0.0f, 1.0f);
-  RNA_def_enum(
-      ot->srna, "restriction", prop_restriction_items, CURVE_RESTRICT_NONE, "Restriction", "Restrictions on how the vertices can be moved");
-  RNA_def_boolean(
-      ot->srna, "boundaries", false, "Extend", "Limit the tool to work within the boundaries of the selected vertices");
-  RNA_def_boolean(
-      ot->srna, "regular", true, "Space Evenly", "Distribute vertices at constant distances along the curve");
+  RNA_def_enum(ot->srna,
+               "restriction",
+               prop_restriction_items,
+               CURVE_RESTRICT_NONE,
+               "Restriction",
+               "Restrictions on how the vertices can be moved");
+  RNA_def_boolean(ot->srna,
+                  "boundaries",
+                  false,
+                  "Extend",
+                  "Limit the tool to work within the boundaries of the selected vertices");
+  RNA_def_boolean(ot->srna,
+                  "regular",
+                  true,
+                  "Space Evenly",
+                  "Distribute vertices at constant distances along the curve");
   RNA_def_boolean_array(ot->srna, "lock", 3, nullptr, "Lock", "Lock editing of the axis");
-  RNA_def_enum(
-      ot->srna, "interpolation", prop_interpolation_items, CURVE_INTERP_CUBIC, "Interpolation", "Algorithm used for interpolation");
+  RNA_def_enum(ot->srna,
+               "interpolation",
+               prop_interpolation_items,
+               CURVE_INTERP_CUBIC,
+               "Interpolation",
+               "Algorithm used for interpolation");
 }
 
 }  // namespace blender

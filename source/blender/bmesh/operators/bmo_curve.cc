@@ -11,8 +11,6 @@
 
 namespace blender {
 
-void bmo_curve_exec(BMesh * /*bm*/, BMOperator * /*op*/)
-{
-}
+void bmo_curve_exec(BMesh * /*bm*/, BMOperator * /*op*/) {}
 
 }  // namespace blender
