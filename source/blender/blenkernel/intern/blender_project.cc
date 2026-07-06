@@ -180,10 +180,9 @@ bool is_valid_project_variable_name(StringRef name)
 
   /* All characters should be alphanumeric or underscore. */
   for (char c : name) {
-    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
-      /* Valid identifier character. */
-    }
-    else {
+    const bool is_valid_identifier_char = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                          (c >= '0' && c <= '9') || c == '_';
+    if (!is_valid_identifier_char) {
       return false;
     }
   }
