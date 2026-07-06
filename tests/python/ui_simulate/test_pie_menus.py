@@ -54,7 +54,8 @@ def _setup_view3d():
     area.type = "VIEW_3D"
     yield
 
-    return e, t, area
+    center = ui.get_area_center(area)
+    return e, t, area, center
 
 
 def _setup_area(area_type):
@@ -65,7 +66,8 @@ def _setup_area(area_type):
     area = ui.largest_area(window.screen)
     area.type = area_type
     yield  # Let the event loop process the area type change.
-    return e, t, window, area
+    center = ui.get_area_center(area)
+    return e, t, window, area, center
 
 
 def _setup_clip_tracking_area():
@@ -81,7 +83,8 @@ def _setup_clip_tracking_area():
     area.spaces.active.mode = "TRACKING"
     area.spaces.active.view = "CLIP"
     yield
-    return e, t, window, area
+    center = ui.get_area_center(area)
+    return e, t, window, area, center
 
 
 def _create_animation_object():
@@ -159,6 +162,8 @@ def _interpolate_to_direction(start, offset, *, steps=6):
 
 
 def _press_and_drag_to_direction(e, center, spawn_key, direction, *, steps=6):
+    # Move from the area center towards a fixed offset so the cursor
+    # lands inside the requested pie menu slice.
     yield e.cursor_position_set(*center, move=True)
     yield
     spawn_key.press()
@@ -173,12 +178,7 @@ def _press_and_drag_to_direction(e, center, spawn_key, direction, *, steps=6):
 def test_object_mode_pie_edit():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
-
-    bpy.ops.mesh.primitive_cube_add()
-    yield
-
-    center = ui.get_area_center(area)
+    e, t, area, center = yield from _setup_view3d()
     yield from _press_and_drag_to_direction(e, center, e.ctrl.tab, "E")
 
     t.assertEqual(bpy.context.active_object.mode, "EDIT")
@@ -187,12 +187,11 @@ def test_object_mode_pie_edit():
 def test_snap_pie_cursor_to_world_origin():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
+    e, t, area, center = yield from _setup_view3d()
 
     bpy.context.scene.cursor.location = (1.0, 2.0, 3.0)
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.shift.s, "SW")
 
     t.assertEqual(tuple(bpy.context.scene.cursor.location), (0.0, 0.0, 0.0))
@@ -201,12 +200,11 @@ def test_snap_pie_cursor_to_world_origin():
 def test_pivot_pie_cursor():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
+    e, t, area, center = yield from _setup_view3d()
 
     bpy.context.scene.tool_settings.transform_pivot_point = "MEDIAN_POINT"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.period, "E")
 
     t.assertEqual(bpy.context.scene.tool_settings.transform_pivot_point, "CURSOR")
@@ -215,12 +213,11 @@ def test_pivot_pie_cursor():
 def test_orientation_pie_cursor():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
+    e, t, area, center = yield from _setup_view3d()
 
     bpy.context.scene.transform_orientation_slots[0].type = "GLOBAL"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.comma, "NE")
 
     t.assertEqual(bpy.context.scene.transform_orientation_slots[0].type, "CURSOR")
@@ -229,12 +226,11 @@ def test_orientation_pie_cursor():
 def test_shading_pie_solid():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
+    e, t, area, center = yield from _setup_view3d()
 
     area.spaces.active.shading.type = "WIREFRAME"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.z, "E")
 
     t.assertEqual(area.spaces.active.shading.type, "SOLID")
@@ -243,13 +239,12 @@ def test_shading_pie_solid():
 def test_view_pie_camera():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
+    e, t, area, center = yield from _setup_view3d()
 
-    bpy.ops.object.camera_add(location=(0.0, -6.0, 0.0))
+    bpy.ops.object.camera_add(location=(0.0, -6.0, 0.0), rotation=(3.14 / 2, 0.0, 0.0),)
     bpy.context.scene.camera = bpy.context.active_object
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.accent_grave, "SW")
 
     t.assertEqual(area.spaces.active.region_3d.view_perspective, "CAMERA")
@@ -258,7 +253,7 @@ def test_view_pie_camera():
 def test_transform_gizmo_pie_show_gizmos():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
+    e, t, area, center = yield from _setup_view3d()
 
     prefs = bpy.context.window_manager.keyconfigs.active.preferences
     original_action = prefs.v3d_tilde_action
@@ -267,7 +262,6 @@ def test_transform_gizmo_pie_show_gizmos():
         area.spaces.active.show_gizmo = False
         yield
 
-        center = ui.get_area_center(area)
         yield from _press_and_drag_to_direction(e, center, e.accent_grave, "N")
 
         t.assertTrue(area.spaces.active.show_gizmo)
@@ -278,7 +272,7 @@ def test_transform_gizmo_pie_show_gizmos():
 def test_shading_ex_pie_toggle_overlays():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
+    e, t, area, center = yield from _setup_view3d()
 
     prefs = bpy.context.window_manager.keyconfigs.active.preferences
     original_use_ex_pie = prefs.use_v3d_shade_ex_pie
@@ -287,7 +281,6 @@ def test_shading_ex_pie_toggle_overlays():
         area.spaces.active.overlay.show_overlays = False
         yield
 
-        center = ui.get_area_center(area)
         yield from _press_and_drag_to_direction(e, center, e.z, "N")
 
         t.assertTrue(area.spaces.active.overlay.show_overlays)
@@ -298,12 +291,11 @@ def test_shading_ex_pie_toggle_overlays():
 def test_proportional_editing_falloff_pie_sphere():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
+    e, t, area, center = yield from _setup_view3d()
 
     bpy.context.scene.tool_settings.proportional_edit_falloff = "SMOOTH"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.shift.o, "E")
 
     t.assertEqual(bpy.context.scene.tool_settings.proportional_edit_falloff, "SPHERE")
@@ -312,12 +304,8 @@ def test_proportional_editing_falloff_pie_sphere():
 def test_sculpt_automasking_pie_topology():
     import bpy
 
-    e, t, area = yield from _setup_view3d()
+    e, t, area, center = yield from _setup_view3d()
 
-    bpy.ops.mesh.primitive_cube_add()
-    yield
-
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.ctrl.tab, "S")
     t.assertEqual(bpy.context.active_object.mode, "SCULPT")
 
@@ -329,21 +317,54 @@ def test_sculpt_automasking_pie_topology():
     t.assertTrue(bpy.context.tool_settings.sculpt.mesh_automasking_settings.use_automasking_topology)
 
 
+def test_anim_keyframe_insert_pie_location():
+    import bpy
+
+    e, t, area, center = yield from _setup_view3d()
+
+    prefs = bpy.context.window_manager.keyconfigs.active.preferences
+    original_use_pie_click_drag = prefs.use_pie_click_drag
+    prefs.use_pie_click_drag = True
+    try:
+        anim_object = _create_animation_object()
+        anim_object.location = (1.0, 2.0, 3.0)
+        bpy.context.scene.frame_set(1)
+        yield
+
+        yield from _press_and_drag_to_direction(e, center, e.i, "W")
+
+        channelbag = _action_channelbag(anim_object)
+        t.assertGreater(len(channelbag.fcurves), 0)
+        t.assertEqual(channelbag.fcurves[0].data_path, "location")
+    finally:
+        prefs.use_pie_click_drag = original_use_pie_click_drag
+
+
+def test_weight_paint_vgroup_lock_pie():
+    import bpy
+
+    e, t, area, center = yield from _setup_view3d()
+
+    obj = bpy.context.active_object
+    obj.vertex_groups.new(name="Group A")
+    obj.vertex_groups.new(name="Group B")
+    yield
+
+    yield from _press_and_drag_to_direction(e, center, e.ctrl.tab, "NW")
+    t.assertEqual(obj.mode, "WEIGHT_PAINT")
+
+    yield from _press_and_drag_to_direction(e, center, e.k, "W")
+
+    t.assertTrue(all(group.lock_weight for group in obj.vertex_groups))
+
+
 def test_graph_editor_pivot_pie_cursor():
     import bpy
 
-    e, t, window, area = yield from _setup_area("GRAPH_EDITOR")
-
-    bpy.ops.mesh.primitive_cube_add()
-    obj = bpy.context.active_object
-    obj.location = (0.0, 0.0, 0.0)
-    obj.keyframe_insert(data_path="location", frame=1)
-    yield
-
+    e, t, window, area, center = yield from _setup_area("GRAPH_EDITOR")
     area.spaces.active.pivot_point = "BOUNDING_BOX_CENTER"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.period, "E")
 
     t.assertEqual(area.spaces.active.pivot_point, "CURSOR")
@@ -352,7 +373,7 @@ def test_graph_editor_pivot_pie_cursor():
 def test_graph_editor_view_pie_view_all():
     import bpy
 
-    e, t, window, area = yield from _setup_area("GRAPH_EDITOR")
+    e, t, window, area, center = yield from _setup_area("GRAPH_EDITOR")
 
     bpy.ops.mesh.primitive_cube_add()
     obj = bpy.context.active_object
@@ -364,7 +385,6 @@ def test_graph_editor_view_pie_view_all():
 
     region = next(region for region in area.regions if region.type == "WINDOW")
     before = _view2d_rect(region)
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.accent_grave, "W")
     after = _view2d_rect(region)
 
@@ -374,7 +394,7 @@ def test_graph_editor_view_pie_view_all():
 def test_dopesheet_snap_pie_current_frame():
     import bpy
 
-    e, t, window, area = yield from _setup_area("DOPESHEET_EDITOR")
+    e, t, window, area, center = yield from _setup_area("DOPESHEET_EDITOR")
 
     obj = yield from _create_animation_object_with_keyframes()
     area.spaces.active.mode = "ACTION"
@@ -385,8 +405,6 @@ def test_dopesheet_snap_pie_current_frame():
     channelbag.fcurves[0].keyframe_points[0].select_control_point = True
     yield
 
-    region = next(region for region in area.regions if region.type == "WINDOW")
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.shift.s, "W")
 
     t.assertEqual(round(channelbag.fcurves[0].keyframe_points[0].co.x), 42)
@@ -395,7 +413,7 @@ def test_dopesheet_snap_pie_current_frame():
 def test_dopesheet_view_pie_view_all():
     import bpy
 
-    e, t, window, area = yield from _setup_area("DOPESHEET_EDITOR")
+    e, t, window, area, center = yield from _setup_area("DOPESHEET_EDITOR")
 
     obj = yield from _create_animation_object_with_keyframes()
     area.spaces.active.mode = "ACTION"
@@ -403,7 +421,6 @@ def test_dopesheet_view_pie_view_all():
 
     region = next(region for region in area.regions if region.type == "WINDOW")
     before = _view2d_rect(region)
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.accent_grave, "W")
     after = _view2d_rect(region)
 
@@ -413,7 +430,7 @@ def test_dopesheet_view_pie_view_all():
 def test_sequencer_pivot_pie_cursor():
     import bpy
 
-    e, t, window, area = yield from _setup_area("SEQUENCE_EDITOR")
+    e, t, window, area, center = yield from _setup_area("SEQUENCE_EDITOR")
 
     bpy.context.workspace.sequencer_scene = bpy.context.scene
     yield
@@ -423,7 +440,6 @@ def test_sequencer_pivot_pie_cursor():
     bpy.context.scene.tool_settings.sequencer_tool_settings.pivot_point = "CENTER"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.period, "E")
 
     t.assertEqual(bpy.context.scene.tool_settings.sequencer_tool_settings.pivot_point, "CURSOR")
@@ -432,7 +448,7 @@ def test_sequencer_pivot_pie_cursor():
 def test_nla_snap_pie_current_frame():
     import bpy
 
-    e, t, window, area = yield from _setup_area("NLA_EDITOR")
+    e, t, window, area, center = yield from _setup_area("NLA_EDITOR")
 
     nla_object, nla_strip = yield from _create_nla_object()
     bpy.context.view_layer.objects.active = nla_object
@@ -442,8 +458,6 @@ def test_nla_snap_pie_current_frame():
     nla_strip.select = True
     yield
 
-    region = next(region for region in area.regions if region.type == "WINDOW")
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.shift.s, "W")
 
     t.assertEqual(nla_strip.frame_start, 42)
@@ -452,7 +466,7 @@ def test_nla_snap_pie_current_frame():
 def test_nla_view_pie_view_all():
     import bpy
 
-    e, t, window, area = yield from _setup_area("NLA_EDITOR")
+    e, t, window, area, center = yield from _setup_area("NLA_EDITOR")
 
     nla_object, nla_strip = yield from _create_nla_object()
     nla_strip.frame_start = 100
@@ -460,7 +474,6 @@ def test_nla_view_pie_view_all():
 
     region = next(region for region in area.regions if region.type == "WINDOW")
     before = _view2d_rect(region)
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.accent_grave, "W")
     after = _view2d_rect(region)
 
@@ -470,14 +483,10 @@ def test_nla_view_pie_view_all():
 def test_image_pivot_pie_cursor():
     import bpy
 
-    e, t, window, area = yield from _setup_area("IMAGE_EDITOR")
-
-    image = bpy.data.images.new("PieMenuImage", width=128, height=128)
-    area.spaces.active.image = image
+    e, t, window, area, center = yield from _setup_area("IMAGE_EDITOR")
     area.spaces.active.pivot_point = "BOUNDING_BOX_CENTER"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.period, "E")
 
     t.assertEqual(area.spaces.active.pivot_point, "CURSOR")
@@ -486,14 +495,13 @@ def test_image_pivot_pie_cursor():
 def test_image_view_pie_view_all():
     import bpy
 
-    e, t, window, area = yield from _setup_area("IMAGE_EDITOR")
+    e, t, window, area, center = yield from _setup_area("IMAGE_EDITOR")
 
     image = bpy.data.images.new("PieMenuImageView", width=128, height=128)
     area.spaces.active.image = image
     area.spaces.active.zoom_percentage = 500.0
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.accent_grave, "W")
 
     t.assertLess(area.spaces.active.zoom_percentage, 500.0)
@@ -517,12 +525,11 @@ def test_filebrowser_view_pie_list_horizontal():
 def test_clip_pivot_pie_cursor():
     import bpy
 
-    e, t, window, area = yield from _setup_clip_tracking_area()
+    e, t, window, area, center = yield from _setup_clip_tracking_area()
 
     area.spaces.active.pivot_point = "BOUNDING_BOX_CENTER"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.period, "E")
 
     t.assertEqual(area.spaces.active.pivot_point, "CURSOR")
@@ -531,7 +538,7 @@ def test_clip_pivot_pie_cursor():
 def test_clip_marker_pie_affine():
     import bpy
 
-    e, t, window, area = yield from _setup_clip_tracking_area()
+    e, t, window, area, center = yield from _setup_clip_tracking_area()
 
     clip = area.spaces.active.clip
     track = clip.tracking.tracks.active
@@ -539,7 +546,6 @@ def test_clip_marker_pie_affine():
     track.motion_model = "Loc"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.shift.e, "E")
 
     t.assertEqual(track.motion_model, "Affine")
@@ -548,13 +554,12 @@ def test_clip_marker_pie_affine():
 def test_clip_solving_pie_tripod_solver():
     import bpy
 
-    e, t, window, area = yield from _setup_clip_tracking_area()
+    e, t, window, area, center = yield from _setup_clip_tracking_area()
 
     settings = area.spaces.active.clip.tracking.settings
     settings.use_tripod_solver = False
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.shift.s, "S")
 
     t.assertTrue(settings.use_tripod_solver)
@@ -563,56 +568,11 @@ def test_clip_solving_pie_tripod_solver():
 def test_clip_view_pie_view_all():
     import bpy
 
-    e, t, window, area = yield from _setup_clip_tracking_area()
+    e, t, window, area, center = yield from _setup_clip_tracking_area()
 
     region = next(region for region in area.regions if region.type == "WINDOW")
     before = _view2d_rect(region)
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.accent_grave, "W")
     after = _view2d_rect(region)
 
     t.assertNotEqual(before, after)
-
-
-def test_anim_keyframe_insert_pie_location():
-    import bpy
-
-    e, t, area = yield from _setup_view3d()
-
-    prefs = bpy.context.window_manager.keyconfigs.active.preferences
-    original_use_pie_click_drag = prefs.use_pie_click_drag
-    prefs.use_pie_click_drag = True
-    try:
-        anim_object = _create_animation_object()
-        anim_object.location = (1.0, 2.0, 3.0)
-        bpy.context.scene.frame_set(1)
-        yield
-
-        center = ui.get_area_center(area)
-        yield from _press_and_drag_to_direction(e, center, e.i, "W")
-
-        channelbag = _action_channelbag(anim_object)
-        t.assertGreater(len(channelbag.fcurves), 0)
-        t.assertEqual(channelbag.fcurves[0].data_path, "location")
-    finally:
-        prefs.use_pie_click_drag = original_use_pie_click_drag
-
-
-def test_weight_paint_vgroup_lock_pie():
-    import bpy
-
-    e, t, area = yield from _setup_view3d()
-
-    bpy.ops.mesh.primitive_cube_add()
-    obj = bpy.context.active_object
-    obj.vertex_groups.new(name="Group A")
-    obj.vertex_groups.new(name="Group B")
-    yield
-
-    center = ui.get_area_center(area)
-    yield from _press_and_drag_to_direction(e, center, e.ctrl.tab, "NW")
-    t.assertEqual(obj.mode, "WEIGHT_PAINT")
-
-    yield from _press_and_drag_to_direction(e, center, e.k, "W")
-
-    t.assertTrue(all(group.lock_weight for group in obj.vertex_groups))
