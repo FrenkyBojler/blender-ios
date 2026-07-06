@@ -1780,7 +1780,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
 
       for (const int tri_index : not_full_tris) {
         const float tri_weight = tri_weights[tri_index];
-        if (max_not_weight_tri_weight < tri_weight) {
+        if (max_not_weight_tri_weight <= tri_weight) {
           max_not_weight_tri_index = tri_index;
           max_not_weight_tri_weight = tri_weight;
         }
