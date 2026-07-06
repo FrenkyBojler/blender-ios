@@ -6,11 +6,14 @@
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_fullscreen_lib.glsl"
+#include "workbench_shader_shared.hh"
 
 namespace workbench::shadow::rt {
 
 struct Resources {
-  [[uniform(1)]] const ShadowPassData pass_data;
+  [[legacy_info]] ShaderCreateInfo draw_view;
+
+  [[uniform(1)]] const ShadowPassData &pass_data;
   [[sampler(2)]] const sampler2DDepth depth_tx;
   [[sampler(3)]] const sampler2D normal_tx;
   [[acceleration_structure(0)]] const accelerationStructureEXT shadow_as;
