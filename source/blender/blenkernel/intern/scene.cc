@@ -57,7 +57,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_bpath.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_collection.hh"
@@ -1615,7 +1615,7 @@ IDTypeInfo IDType_ID_SCE = {
     .main_listbase_index = INDEX_ID_SCE,
     .struct_size = sizeof(Scene),
     .name = "Scene",
-    .name_plural = "scenes",
+    .name_plural = N_("scenes"),
     .translation_context = BLT_I18NCONTEXT_ID_SCENE,
     .flags = IDTYPE_FLAGS_NEVER_UNUSED,
     .asset_type_info = nullptr,
