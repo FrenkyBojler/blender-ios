@@ -1926,18 +1926,36 @@ ScrArea *ED_screen_temp_space_open(
   return nullptr;
 }
 
+void ED_wm_animation_timers_stop(wmWindowManager *wm,
+                                 FunctionRef<bool(wmWindow &win)> should_stop_fn)
+{
+  /* Cannot use ED_window_animation_playing_no_scrub() here, because that only returns the screen,
+   * and we need the window too. */
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
+    if (!screen || !screen->animtimer) {
+      continue;
+    }
+    if (!should_stop_fn(win)) {
+      continue;
+    }
+
+    /* Stop playback by removing the timer. */
+    WM_event_timer_remove(wm, &win, screen->animtimer);
+    screen->animtimer = nullptr;
+
+    WM_event_add_notifier_ex(wm, &win, NC_SCREEN | ND_ANIMPLAY, nullptr);
+  }
+}
+
 void ED_screen_animation_timer(
     bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable)
 {
   bScreen *screen = CTX_wm_screen(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
-  bScreen *stopscreen = ED_screen_animation_playing(wm);
 
-  if (stopscreen) {
-    WM_event_timer_remove(wm, win, stopscreen->animtimer);
-    stopscreen->animtimer = nullptr;
-  }
+  ED_wm_animation_timers_stop(wm, [&](wmWindow &playing_win) { return win == &playing_win; });
 
   if (enable) {
     ScreenAnimData *sad = MEM_new_zeroed<ScreenAnimData>("ScreenAnimData");
