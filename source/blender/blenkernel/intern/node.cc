@@ -4368,61 +4368,44 @@ static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socke
   return nullptr;
 }
 
-static void *socket_value_storage(bNodeSocket &socket)
+static bool get_socket_value(bNodeSocket &socket, void *buffer)
 {
   switch (socket.type) {
     case SOCK_BOOLEAN:
-      return &socket.default_value_typed<bNodeSocketValueBoolean>()->value;
     case SOCK_INT:
-      return &socket.default_value_typed<bNodeSocketValueInt>()->value;
     case SOCK_FLOAT:
-      return &socket.default_value_typed<bNodeSocketValueFloat>()->value;
     case SOCK_VECTOR:
-      return &socket.default_value_typed<bNodeSocketValueVector>()->value;
     case SOCK_RGBA:
-      return &socket.default_value_typed<bNodeSocketValueRGBA>()->value;
     case SOCK_IMAGE:
-      return &socket.default_value_typed<bNodeSocketValueImage>()->value;
     case SOCK_TEXTURE:
-      return &socket.default_value_typed<bNodeSocketValueTexture>()->value;
     case SOCK_COLLECTION:
-      return &socket.default_value_typed<bNodeSocketValueCollection>()->value;
     case SOCK_OBJECT:
-      return &socket.default_value_typed<bNodeSocketValueObject>()->value;
     case SOCK_MATERIAL:
-      return &socket.default_value_typed<bNodeSocketValueMaterial>()->value;
     case SOCK_FONT:
-      return &socket.default_value_typed<bNodeSocketValueFont>()->value;
     case SOCK_SCENE:
-      return &socket.default_value_typed<bNodeSocketValueScene>()->value;
     case SOCK_TEXT_ID:
-      return &socket.default_value_typed<bNodeSocketValueText>()->value;
     case SOCK_MASK:
-      return &socket.default_value_typed<bNodeSocketValueMask>()->value;
     case SOCK_SOUND:
-      return &socket.default_value_typed<bNodeSocketValueSound>()->value;
     case SOCK_ROTATION:
-      return &socket.default_value_typed<bNodeSocketValueRotation>()->value_euler;
     case SOCK_MENU:
-      return &socket.default_value_typed<bNodeSocketValueMenu>()->value;
     case SOCK_INT_VECTOR:
-      return &socket.default_value_typed<bNodeSocketValueIntVector>()->value;
+      socket.typeinfo->get_base_cpp_value(socket.default_value, buffer);
+      return true;
     case SOCK_MATRIX:
       /* Matrix sockets currently have no default value. */
-      return nullptr;
+      return false;
     case SOCK_STRING:
       /* Handled separately for string copies. */
-      return nullptr;
+      return false;
     case SOCK_CUSTOM:
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
-      /* Unmovable types. */
-      break;
+      return false;
   }
 
-  return nullptr;
+  return false;
 }
 
 void node_socket_move_default_value(Main & /*bmain*/,
@@ -4469,16 +4452,9 @@ void node_socket_move_default_value(Main & /*bmain*/,
     return;
   }
 
-  void *src_value = socket_value_storage(src);
-  if (!src_value) {
+  BUFFER_FOR_CPP_TYPE_VALUE(src_type, src_value);
+  if (!get_socket_value(src, src_value)) {
     return;
-  }
-  /* Special handling for rotation because the CPPType is a quaternion but values are stored as
-   * Euler angles. */
-  math::Quaternion src_rotation_value;
-  if (src.type == SOCK_ROTATION) {
-    src_rotation_value = math::to_quaternion(math::EulerXYZ(*static_cast<float3 *>(src_value)));
-    src_value = &src_rotation_value;
   }
 
   BUFFER_FOR_CPP_TYPE_VALUE(dst_type, dst_buffer);
@@ -4500,6 +4476,16 @@ void node_socket_move_default_value(Main & /*bmain*/,
   if (dst.type == SOCK_ROTATION) {
     *static_cast<float3 *>(dst_value) = float3(
         math::to_euler(*static_cast<math::Quaternion *>(dst_buffer)).xyz());
+    return;
+  }
+  if (dst.type == SOCK_RGBA) {
+    /* Handle colors separately because of ColorGeometry4f alignment requirements. */
+    const float *dst_buffer_typed = static_cast<const float *>(dst_buffer);
+    float *dst_value_typed = static_cast<float *>(dst_value);
+    dst_value_typed[0] = dst_buffer_typed[0];
+    dst_value_typed[1] = dst_buffer_typed[1];
+    dst_value_typed[2] = dst_buffer_typed[2];
+    dst_value_typed[3] = dst_buffer_typed[3];
     return;
   }
 
