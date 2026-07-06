@@ -774,7 +774,7 @@ static bool fcurves_path_rename_fix(ID *owner_id,
       continue;
     }
     MEM_delete(fcu->rna_path);
-    fcu->rna_path = BLI_sprintfN("%s", new_path->c_str());
+    fcu->rna_path = BLI_strdup(new_path->c_str());
     is_changed = true;
 
     /* If the path changed and the FCurve is grouped, check if its group also needs renaming
@@ -816,7 +816,7 @@ static bool drivers_path_rename_fix(ID *owner_id,
           *owner_id, prefix, old_key, new_key, fcu.rna_path, verify_paths);
       if (new_path.has_value()) {
         MEM_delete(fcu.rna_path);
-        fcu.rna_path = BLI_sprintfN("%s", new_path->c_str());
+        fcu.rna_path = BLI_strdup(new_path->c_str());
         is_changed = true;
       }
     }
@@ -834,12 +834,12 @@ static bool drivers_path_rename_fix(ID *owner_id,
               *dtar->id, prefix, old_key, new_key, dtar->rna_path, verify_paths);
           if (new_path.has_value()) {
             MEM_delete(dtar->rna_path);
-            dtar->rna_path = BLI_sprintfN("%s", new_path->c_str());
+            dtar->rna_path = BLI_strdup(new_path->c_str());
             is_changed = true;
           }
         }
         /* also fix the bone-name (if applicable) */
-        if (strstr(prefix.data(), "bones")) {
+        if (prefix.find("bones") != StringRefBase::not_found) {
           if (((dtar->id) && (GS(dtar->id->name) == ID_OB) &&
                (!ref_id || (id_cast<Object *>(dtar->id))->data == ref_id)) &&
               (dtar->pchan_name[0]) && STREQ(old_name, dtar->pchan_name))
@@ -953,7 +953,7 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
   /* The fact that this function frees the `old_path` is behavior inherited from
    * `rna_path_rename_fix` before that was updated. */
   MEM_delete(old_path);
-  return BLI_sprintfN("%s", new_path->c_str());
+  return BLI_strdup(new_path->c_str());
 }
 
 void BKE_action_fix_paths_rename(ID *owner_id,
@@ -1129,7 +1129,7 @@ bool BKE_animdata_fix_paths_remove(ID *id, const char *prefix)
   return any_removed;
 }
 
-bool BKE_animdata_driver_path_remove(ID *id, const StringRef prefix)
+bool BKE_animdata_driver_path_remove(ID *id, const StringRefNull prefix)
 {
   AnimData *adt = BKE_animdata_from_id(id);
   if (!adt) {

@@ -219,7 +219,7 @@ bool BKE_animdata_fix_paths_remove(ID *id, const char *prefix);
  *
  * \return true if any driver was removed.
  */
-bool BKE_animdata_driver_path_remove(ID *id, const StringRef prefix);
+bool BKE_animdata_driver_path_remove(ID *id, const StringRefNull prefix);
 
 /**
  * Remove all drivers from the given struct.
