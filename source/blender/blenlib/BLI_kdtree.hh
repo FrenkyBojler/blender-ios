@@ -289,7 +289,7 @@ inline void kdtree_foreach_node_around(const KDTree<CoordT> &tree, const CoordT 
         }
 
         const bool coord_sign = math::sign(max_dist);
-        const bool child_sign = kdtree_is_left_child(tree *, node, child);
+        const bool child_sign = kdtree_is_left_child(*tree, node, child);
         const bool is_same_space_half = coord_sign == child_sign;
         return is_same_space_half;
       },
@@ -325,7 +325,6 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
           case 0:
             return old_dist;
           case 1: {
-            min_sq_dist = dist_sq;
             min_node_index = math::distance(&tree->nodes, &node);
             return dist_sq;
           }
@@ -340,7 +339,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
 
   if (r_nearest) {
     r_nearest->index = tree->nodes[min_node_index].index;
-    r_nearest->dist = math::sqrt(min_sq_dist);
+    r_nearest->dist = math::sqrt(detail::distance_squared(tree->nodes[min_node_index].co, co));
     r_nearest->co = tree->nodes[min_node_index].co;
   }
 
@@ -411,7 +410,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(const KDTree<CoordT> *tree,
   uint nearest_len = 0;
 
   kdtree_foreach_node_around(
-      *tree co, [&](const KDTreeNode<CoordT> &node, const ValueType old_dist) {
+      *tree, co, [&](const KDTreeNode<CoordT> &node, const ValueType old_dist) {
         const ValueType dist_sq = len_sq_fn(node.co, co);
         if (old_dist < dist_sq) {
           return old_dist;
@@ -569,11 +568,11 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
                                    Fn &&search_cb)
 {
   kdtree_foreach_node_in_range(tree, co, range, [&](const KDTreeNode<CoordT> &node) {
-    const ValueType sq_value = math::distance_squared(node.co, co);
+    const ValueType sq_value = detail::distance_squared(node.co, co);
     if (sq_value > math::square(range)) {
       return true;
     }
-    return search_cb(node.index, node.co, math::distance_squared(co, node.co));
+    return search_cb(node.index, node.co, detail::distance_squared(co, node.co));
   });
 }
 
@@ -632,7 +631,7 @@ inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
         continue;
       }
 
-      const ValueType sq_value = math::distance_squared(other_node.co, co);
+      const ValueType sq_value = detail::distance_squared(other_node.co, co);
       if (sq_value > math::square(range)) {
         return true;
       }
