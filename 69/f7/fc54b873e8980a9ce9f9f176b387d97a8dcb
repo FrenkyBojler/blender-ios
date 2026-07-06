@@ -1,1 +1,2 @@
 Referenced by issue #160932, UI is vertically offset on startup until the window is resized (macOS)
+Referenced by pull request #161139, Fix #160789: Crashes due to invalid active material indices
