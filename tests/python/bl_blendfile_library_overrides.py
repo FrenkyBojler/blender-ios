@@ -128,10 +128,8 @@ class TestLibraryOverrides(TestHelper):
 
 
 class TestLibraryOverridesArmatureParent(TestHelper):
-    # 'Parent With Automatic/Envelope/Name Weights' writes vertex groups onto the target
-    # object's mesh data. If that object is a liboverride but its mesh data is still purely
-    # linked (not itself overridden), those writes can't persist, so they should be skipped
-    # (with a warning) instead of silently created and then lost on the next reload. See #127683.
+    # Armature-parent with auto weights, mesh data still linked (not overridden). Vgroups
+    # should be skipped, not silently lost on reload. #127683.
 
     MESH_NAME = "LibParentMesh"
     ARMATURE_NAME = "LibParentArmature"
@@ -155,8 +153,7 @@ class TestLibraryOverridesArmatureParent(TestHelper):
             TestLibraryOverridesArmatureParent.ARMATURE_NAME, object_data=armature)
         bpy.context.collection.objects.link(arm_obj)
 
-        # Automatic/envelope/name weights generate one vertex group per bone, so the armature
-        # needs at least one bone for there to be anything for the operator to write.
+        # Need at least one bone, or there's nothing for auto-weights to generate.
         bpy.context.view_layer.objects.active = arm_obj
         bpy.ops.object.mode_set(mode='EDIT')
         bone = armature.edit_bones.new("Bone")
@@ -183,8 +180,7 @@ class TestLibraryOverridesArmatureParent(TestHelper):
         arm_local = arm_obj.override_hierarchy_create(bpy.context.scene, bpy.context.view_layer)
         bpy.context.view_layer.update()
 
-        # The object is a liboverride, but its mesh data is still purely linked, not itself
-        # overridden.
+        # Object is overridden, mesh data isn't.
         self.assertIsNotNone(obj_local.override_library)
         self.assertIsNone(obj_local.data.override_library)
 
@@ -194,10 +190,9 @@ class TestLibraryOverridesArmatureParent(TestHelper):
                 selected_objects=[obj_local, arm_local]):
             bpy.ops.object.parent_set(type='ARMATURE_AUTO', xmirror=False, keep_transform=False)
 
-        # No vertex group should be created at all, rather than created and then silently
-        # discarded on reload.
+        # Skipped entirely, not created then lost on reload.
         self.assertEqual(len(obj_local.vertex_groups), 0)
-        # Parenting itself (the armature modifier) should still be applied.
+        # Parenting itself still works.
         self.assertTrue(any(m.type == 'ARMATURE' for m in obj_local.modifiers))
 
         bpy.ops.wm.save_as_mainfile(
