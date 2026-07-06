@@ -27,9 +27,9 @@ struct Resources {
 
 [[fragment]] void frag([[frag_coord]] const float4 &frag_coord, [[resource_table]] Resources &srt)
 {
-  float2 screen_uv = frag_coord.xy / float2(textureSize(srt.depth_tx, 0).xy);
+  const float2 screen_uv = frag_coord.xy / float2(textureSize(srt.depth_tx, 0).xy);
 
-  float depth = texture(srt.depth_tx, screen_uv).r;
+  const float depth = texture(srt.depth_tx, screen_uv).r;
   if (depth == 1.0f) {
     gpu_discard_fragment();
     return;
@@ -54,8 +54,8 @@ struct Resources {
                         1000.0f);
   rayQueryProceedEXT(query);
 
-  bool is_light_occluded = rayQueryGetIntersectionTypeEXT(query, true) !=
-                           gl_RayQueryCommittedIntersectionNoneEXT;
+  const bool is_light_occluded = rayQueryGetIntersectionTypeEXT(query, true) !=
+                                 gl_RayQueryCommittedIntersectionNoneEXT;
 
   if (!is_light_occluded) {
     /* Writing the stencil means the fragment is in shadow. */
