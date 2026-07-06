@@ -155,6 +155,15 @@ class TestLibraryOverridesArmatureParent(TestHelper):
             TestLibraryOverridesArmatureParent.ARMATURE_NAME, object_data=armature)
         bpy.context.collection.objects.link(arm_obj)
 
+        # Automatic/envelope/name weights generate one vertex group per bone, so the armature
+        # needs at least one bone for there to be anything for the operator to write.
+        bpy.context.view_layer.objects.active = arm_obj
+        bpy.ops.object.mode_set(mode='EDIT')
+        bone = armature.edit_bones.new("Bone")
+        bone.head = (0.0, 0.0, 0.0)
+        bone.tail = (0.0, 0.0, 1.0)
+        bpy.ops.object.mode_set(mode='OBJECT')
+
         bpy.ops.wm.save_as_mainfile(filepath=str(self.output_path), check_existing=False, compress=False)
 
     def test_parent_set_automatic_weights_on_non_overridden_mesh_data(self):
