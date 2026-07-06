@@ -27,6 +27,7 @@ set(SRC
   editmesh_extrude_screw.cc
   editmesh_extrude_spin.cc
   editmesh_extrude_spin_gizmo.cc
+  editmesh_flatten.cc
   editmesh_inset.cc
   editmesh_intersect.cc
   editmesh_knife.cc
@@ -41,6 +42,7 @@ set(SRC
   editmesh_select.cc
   editmesh_select_similar.cc
   editmesh_set_sharpness_by_angle.cc
+  editmesh_space_edge_loops_evenly.cc
   editmesh_tools.cc
   editmesh_undo.cc
   editmesh_utils.cc

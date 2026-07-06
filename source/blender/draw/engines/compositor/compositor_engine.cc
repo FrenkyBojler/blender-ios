@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_bounds.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "DNA_layer_types.h"
 #include "DNA_node_types.h"
@@ -14,6 +14,7 @@
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
 
+#include "BKE_compositor.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -43,18 +44,35 @@ namespace blender::draw::compositor_engine {
 
 class Context : public compositor::Context {
  private:
+  const Main *main_;
   const Scene *scene_;
   /* A pointer to the info message of the compositor engine. This is a char array of size
    * GPU_INFO_SIZE. The message is cleared prior to updating or evaluating the compositor. */
   char *info_message_;
+  /* The hash of the active compute context. */
+  const ComputeContextHash active_compute_context_hash_;
+
   /* Identified if the output of the viewer was written. */
   bool viewer_was_written_ = false;
 
  public:
-  Context(compositor::StaticCacheManager &cache_manager, const Scene *scene, char *info_message)
-      : compositor::Context(cache_manager), scene_(scene), info_message_(info_message)
+  Context(compositor::StaticCacheManager &cache_manager,
+          const Main *main,
+          const Scene *scene,
+          char *info_message)
+      : compositor::Context(cache_manager),
+        main_(main),
+        scene_(scene),
+        info_message_(info_message),
+        active_compute_context_hash_(bke::compositor::compute_active_compute_context_hash(
+            *scene, *scene->compositing_node_group))
   {
     this->set_info_message("");
+  }
+
+  const Main &get_main() const override
+  {
+    return *main_;
   }
 
   const Scene &get_scene() const override
@@ -65,6 +83,11 @@ class Context : public compositor::Context {
   bool use_gpu() const override
   {
     return true;
+  }
+
+  const ComputeContextHash &get_active_compute_context_hash() const override
+  {
+    return active_compute_context_hash_;
   }
 
   /* The viewport compositor does not support viewer outputs, so treat viewers as composite
@@ -184,7 +207,7 @@ class Context : public compositor::Context {
 
     if (realization_operation) {
       Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
-      realize_input.wrap_external(viewer_result);
+      realize_input.share_data(viewer_result);
       realization_operation->map_input_to_result(&realize_input);
       realization_operation->evaluate();
 
@@ -215,7 +238,7 @@ class Context : public compositor::Context {
     if (DRW_viewport_pass_texture_exists(pass_name)) {
       gpu::Texture *pass_texture = DRW_viewport_pass_texture_get(pass_name).gpu_texture();
       compositor::Result pass = compositor::Result(*this, GPU_texture_format(pass_texture));
-      pass.wrap_external(pass_texture);
+      pass.share_data(pass_texture);
       return pass;
     }
 
@@ -224,7 +247,7 @@ class Context : public compositor::Context {
     if (STREQ(pass_name, RE_PASSNAME_COMBINED)) {
       gpu::Texture *combined_texture = DRW_context_get()->viewport_texture_list_get()->color;
       compositor::Result pass = compositor::Result(*this, GPU_texture_format(combined_texture));
-      pass.wrap_external(combined_texture);
+      pass.share_data(combined_texture);
       return pass;
     }
 
@@ -329,12 +352,9 @@ class Context : public compositor::Context {
   {
     using namespace compositor;
     const bNodeTree &node_group = *DRW_context_get()->scene->compositing_node_group;
-    NodeGroupOperation node_group_operation(*this,
-                                            node_group,
-                                            this->needed_outputs(),
-                                            nullptr,
-                                            node_group.active_viewer_key,
-                                            bke::NODE_INSTANCE_KEY_BASE);
+    const bke::DataBlockComputeContext compute_context(nullptr, this->get_scene().id);
+    NodeGroupOperation node_group_operation(
+        *this, node_group, this->needed_outputs(), compute_context);
 
     /* Set the reference count for the outputs, only the first color output is actually needed,
      * while the rest are ignored. */
@@ -417,7 +437,10 @@ class Instance : public DrawEngine {
 
   void draw(Manager & /*manager*/) final
   {
-    Context context(cache_manager_, DRW_context_get()->scene, this->info);
+    Context context(cache_manager_,
+                    DEG_get_bmain(DRW_context_get()->depsgraph),
+                    DRW_context_get()->scene,
+                    this->info);
     if (context.get_camera_region().is_empty()) {
       return;
     }

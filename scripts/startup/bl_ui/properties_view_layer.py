@@ -11,6 +11,12 @@ from rna_prop_ui import PropertyPanel
 class VIEWLAYER_UL_aov(UIList):
     @staticmethod
     def aov_icon(item):
+        """
+        :param item: AOV item to pick an icon for.
+        :type item: :class:`bpy.types.AOV`
+        :return: Icon identifier for *item*'s AOV type.
+        :rtype: str
+        """
         if not item.is_valid:
             return 'ERROR'
 
@@ -207,7 +213,7 @@ class ViewLayerAOVPanelHelper(ViewLayerButtonsPanel):
 
         aov = view_layer.active_aov
         if aov and not aov.is_valid:
-            layout.label(text="Conflicts with another render pass with the same name", icon='ERROR')
+            layout.label(text="Conflicts with another render pass with the same name", icon='STATUS_ERROR')
 
 
 class VIEWLAYER_PT_layer_passes_aov(ViewLayerAOVPanelHelper, Panel):

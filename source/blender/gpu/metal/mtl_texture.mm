@@ -7,6 +7,7 @@
  */
 
 #include "BKE_global.hh"
+
 #include "BLI_math_half.hh"
 
 #include "DNA_userdef_types.h"
@@ -609,11 +610,11 @@ void gpu::MTLTexture::update_sub(int mip,
           totalsize = input_bytes_per_pixel * max_ulul(expected_update_w, 1);
           break;
         case 2:
-          totalsize = input_bytes_per_pixel * max_ulul(expected_update_w, 1) * (size_t)extent[1];
+          totalsize = input_bytes_per_pixel * max_ulul(expected_update_w, 1) * size_t(extent[1]);
           break;
         case 3:
-          totalsize = input_bytes_per_pixel * max_ulul(expected_update_w, 1) * (size_t)extent[1] *
-                      (size_t)extent[2];
+          totalsize = input_bytes_per_pixel * max_ulul(expected_update_w, 1) * size_t(extent[1]) *
+                      size_t(extent[2]);
           break;
         default:
           BLI_assert(false);
@@ -809,7 +810,7 @@ void gpu::MTLTexture::update_sub(int mip,
           int max_array_index = ((type_ == GPU_TEXTURE_1D_ARRAY) ? extent[1] : 1);
           for (int array_index = 0; array_index < max_array_index; array_index++) {
 
-            size_t buffer_array_offset = (bytes_per_image * (size_t)array_index);
+            size_t buffer_array_offset = (bytes_per_image * size_t(array_index));
             [blit_encoder
                      copyFromBuffer:staging_buffer
                        sourceOffset:buffer_array_offset
@@ -1225,7 +1226,7 @@ void gpu::MTLTexture::ensure_mipmaps(int miplvl)
   /* Clamp level to maximum. */
   int effective_h = (type_ == GPU_TEXTURE_1D_ARRAY) ? 0 : h_;
   int effective_d = (type_ != GPU_TEXTURE_3D) ? 0 : d_;
-  int max_dimension = max_iii(w_, effective_h, effective_d);
+  int max_dimension = std::max({w_, effective_h, effective_d});
   int max_miplvl = floor(log2(max_dimension));
   miplvl = min_ii(max_miplvl, miplvl);
 
@@ -1405,7 +1406,7 @@ void gpu::MTLTexture::clear(const double4 data)
    * not texture_ (which holds the parent's Metal handle). Metal strips
    * MTLTextureUsageRenderTarget from cross-format views, so delegate the clear
    * to the parent texture which retains full usage flags. */
-  else if (resource_mode_ == MTL_TEXTURE_MODE_TEXTURE_VIEW && source_texture_) {
+  if (resource_mode_ == MTL_TEXTURE_MODE_TEXTURE_VIEW && source_texture_) {
     id<MTLTexture> clear_texture = (mip_swizzle_view_ != nil) ? mip_swizzle_view_ : texture_;
     if (!(clear_texture.usage & MTLTextureUsageRenderTarget)) {
       gpu::MTLTexture *source_texture = const_cast<gpu::MTLTexture *>(

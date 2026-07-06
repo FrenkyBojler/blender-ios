@@ -18,7 +18,7 @@
 
 #include "RNA_types.hh"
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
@@ -34,6 +34,8 @@ struct Main;
 struct ReportList;
 struct Scene;
 struct bContext;
+
+enum eID_OverrideLib_Op : short;
 
 /* Types */
 BlenderRNA &RNA_blender_rna_get();
@@ -655,7 +657,7 @@ bool RNA_property_collection_assign_int(PointerRNA *ptr,
                                         PropertyRNA *prop,
                                         int key,
                                         const PointerRNA *assign_ptr);
-bool RNA_property_collection_type_get(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *r_ptr);
+std::optional<PointerRNA> RNA_property_collection_type_get(PointerRNA *ptr, PropertyRNA *prop);
 
 /* efficient functions to set properties for arrays */
 int RNA_property_collection_raw_array(
@@ -682,6 +684,11 @@ RawPropertyType RNA_property_raw_type(PropertyRNA *prop);
  * properties match the current RNA definition.
  */
 void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
+/**
+ * Similar to #RNA_ensure_and_sync_system_properties, but also creates backing properties for data
+ * that is un-set, rather than just correcting the values of out-of-sync properties.
+ */
+void RNA_ensure_and_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
 
 /* to create ID property groups */
 void RNA_property_pointer_add(PointerRNA *ptr, PropertyRNA *prop);
@@ -692,8 +699,13 @@ void RNA_property_collection_clear(PointerRNA *ptr, PropertyRNA *prop);
 bool RNA_property_collection_move(PointerRNA *ptr, PropertyRNA *prop, int key, int pos);
 
 /* copy/reset */
-bool RNA_property_copy(
-    Main *bmain, PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, int index);
+bool RNA_property_copy(Main *bmain,
+                       PointerRNA *ptr,
+                       PointerRNA *fromptr,
+                       PropertyRNA *prop,
+                       int index,
+                       IDOverrideLibraryProperty *removed_oprop = nullptr,
+                       IDOverrideLibraryPropertyOperation *removed_opop = nullptr);
 bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index);
 bool RNA_property_assign_default(PointerRNA *ptr, PropertyRNA *prop);
 
@@ -1010,15 +1022,15 @@ enum eRNAOverrideMatchResult {
 };
 ENUM_OPERATORS(eRNAOverrideMatchResult)
 
-enum eRNAOverrideStatus {
+enum class eRNAOverrideStatus {
   /** The property is overridable. */
-  RNA_OVERRIDE_STATUS_OVERRIDABLE = 1 << 0,
+  LibOverridable = 1 << 0,
   /** The property is overridden. */
-  RNA_OVERRIDE_STATUS_OVERRIDDEN = 1 << 1,
+  LibOverridden = 1 << 1,
   /** Overriding this property is mandatory when creating an override. */
-  RNA_OVERRIDE_STATUS_MANDATORY = 1 << 2,
+  LibOverrideMandatory = 1 << 2,
   /** The override status of this property is locked. */
-  RNA_OVERRIDE_STATUS_LOCKED = 1 << 3,
+  LibOverrideLocked = 1 << 3,
 };
 ENUM_OPERATORS(eRNAOverrideStatus)
 
@@ -1092,14 +1104,15 @@ IDOverrideLibraryProperty *RNA_property_override_property_get(Main *bmain,
 
 IDOverrideLibraryPropertyOperation *RNA_property_override_property_operation_find(
     Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index, bool strict, bool *r_strict);
-IDOverrideLibraryPropertyOperation *RNA_property_override_property_operation_get(Main *bmain,
-                                                                                 PointerRNA *ptr,
-                                                                                 PropertyRNA *prop,
-                                                                                 short operation,
-                                                                                 int index,
-                                                                                 bool strict,
-                                                                                 bool *r_strict,
-                                                                                 bool *r_created);
+IDOverrideLibraryPropertyOperation *RNA_property_override_property_operation_get(
+    Main *bmain,
+    PointerRNA *ptr,
+    PropertyRNA *prop,
+    eID_OverrideLib_Op operation,
+    int index,
+    bool strict,
+    bool *r_strict,
+    bool *r_created);
 
 eRNAOverrideStatus RNA_property_override_library_status(Main *bmain,
                                                         PointerRNA *ptr,
