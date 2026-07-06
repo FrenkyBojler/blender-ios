@@ -175,15 +175,16 @@ TEST(math_geom, DistSquaredToProjectedAabb_LooseEdgeBehindCamera)
   rotate_m4(viewmat, 'X', -0.65f);
 
   /* Perspective projection. */
+  const float near_clip = 0.1f;
   float winmat[4][4];
-  perspective_m4(winmat, -0.8f, 0.8f, -0.45f, 0.45f, 0.1f, 1000.0f);
+  perspective_m4(winmat, -0.8f, 0.8f, -0.45f, 0.45f, near_clip, 1000.0f);
 
   /* Full world-to-screen matrix passed to snap boundbox culling. */
   float persmat[4][4];
   mul_m4_m4m4(persmat, winmat, viewmat);
 
   const float dist_sq = dist_squared_to_projected_aabb_simple(
-      persmat, winsize, mval, bbmin, bbmax);
+      persmat, winsize, mval, near_clip, bbmin, bbmax);
 
   /* The selected AABB edge may not be safe to project while other corners remain visible;
    * returning a conservative distance avoids a false snap rejection. */
@@ -199,9 +200,13 @@ TEST(math_geom, DistSquaredToProjectedAabb_PrecalcClipNear)
   const float winsize[2] = {1920.0f, 1080.0f};
   const float mval[2] = {960.0f, 540.0f};
 
-  /* Keep the view matrix simple so the near clip distance is easy to check. */
+  /* Use a non-identity object matrix because real snapping passes `winmat * viewmat * obmat`. */
   float viewmat[4][4];
   unit_m4(viewmat);
+
+  float obmat[4][4];
+  unit_m4(obmat);
+  translate_m4(obmat, 0.0f, 0.0f, -2.0f);
 
   /* Build a perspective frustum with near plane at 0.1 and far plane at 1000. */
   const float near_clip = 0.1f;
@@ -209,12 +214,15 @@ TEST(math_geom, DistSquaredToProjectedAabb_PrecalcClipNear)
   perspective_m4(winmat, -0.8f, 0.8f, -0.45f, 0.45f, near_clip, 1000.0f);
 
   float persmat[4][4];
-  mul_m4_m4m4(persmat, winmat, viewmat);
+  float persviewmat[4][4];
+  mul_m4_m4m4(persviewmat, winmat, viewmat);
+  mul_m4_m4m4(persmat, persviewmat, obmat);
 
   DistProjectedAABBPrecalc precalc;
-  dist_squared_to_projected_aabb_precalc(&precalc, persmat, winsize, mval);
+  dist_squared_to_projected_aabb_precalc(&precalc, persmat, winsize, mval, near_clip);
 
   EXPECT_NEAR(precalc.clip_near, near_clip, 1e-5f);
+  EXPECT_GT(fabsf((persmat[3][2] / (persmat[2][2] - 1.0f)) - near_clip), 1e-3f);
 
   /* Orthographic-like matrix: avoid storing a derived perspective near clip. */
   float ortho_winmat[4][4];
@@ -222,7 +230,7 @@ TEST(math_geom, DistSquaredToProjectedAabb_PrecalcClipNear)
   ortho_winmat[0][0] = 1.0f / 960.0f;
   ortho_winmat[1][1] = 1.0f / 540.0f;
   mul_m4_m4m4(persmat, ortho_winmat, viewmat);
-  dist_squared_to_projected_aabb_precalc(&precalc, persmat, winsize, mval);
+  dist_squared_to_projected_aabb_precalc(&precalc, persmat, winsize, mval, 0.0f);
   EXPECT_EQ(precalc.clip_near, 0.0f);
 }
 }  // namespace blender

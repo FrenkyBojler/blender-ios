@@ -2317,6 +2317,7 @@ int BLI_bvhtree_find_nearest_projected(const BVHTree *tree,
                                        float projmat[4][4],
                                        float winsize[2],
                                        float mval[2],
+                                       float clip_near,
                                        float (*clip_plane)[4],
                                        int clip_plane_len,
                                        BVHTreeNearest *nearest,
@@ -2328,7 +2329,7 @@ int BLI_bvhtree_find_nearest_projected(const BVHTree *tree,
     BVHNearestProjectedData *data = static_cast<BVHNearestProjectedData *>(
         alloca(sizeof(*data) + (sizeof(*clip_plane) * size_t(max_ii(1, clip_plane_len)))));
 
-    dist_squared_to_projected_aabb_precalc(&data->precalc, projmat, winsize, mval);
+    dist_squared_to_projected_aabb_precalc(&data->precalc, projmat, winsize, mval, clip_near);
 
     data->callback = callback;
     data->userdata = userdata;

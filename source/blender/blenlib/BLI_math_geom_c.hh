@@ -293,7 +293,8 @@ struct DistProjectedAABBPrecalc {
 void dist_squared_to_projected_aabb_precalc(struct DistProjectedAABBPrecalc *precalc,
                                             const float projmat[4][4],
                                             const float winsize[2],
-                                            const float mval[2]);
+                                            const float mval[2],
+                                            float clip_near);
 /**
  * Returns the distance from a 2D coordinate to a bound-box (projected).
  */
@@ -304,6 +305,7 @@ float dist_squared_to_projected_aabb(struct DistProjectedAABBPrecalc *data,
 float dist_squared_to_projected_aabb_simple(const float projmat[4][4],
                                             const float winsize[2],
                                             const float mval[2],
+                                            float clip_near,
                                             const float bbmin[3],
                                             const float bbmax[3]);
 

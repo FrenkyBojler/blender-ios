@@ -824,7 +824,8 @@ float dist_squared_ray_to_aabb_v3_simple(const float ray_origin[3],
 void dist_squared_to_projected_aabb_precalc(DistProjectedAABBPrecalc *precalc,
                                             const float projmat[4][4],
                                             const float winsize[2],
-                                            const float mval[2])
+                                            const float mval[2],
+                                            const float clip_near)
 {
   float win_half[2], relative_mval[2], px[4], py[4];
 
@@ -872,10 +873,7 @@ void dist_squared_to_projected_aabb_precalc(DistProjectedAABBPrecalc *precalc,
                                   FLT_MAX;
   }
 
-  const float clip_near_denominator = precalc->pmat[2][2] - 1.0f;
-  precalc->clip_near = (clip_near_denominator != 0.0f) ?
-                           (precalc->pmat[3][2] / clip_near_denominator) :
-                           0.0f;
+  precalc->clip_near = clip_near;
 }
 
 float dist_squared_to_projected_aabb(DistProjectedAABBPrecalc *data,
@@ -1031,11 +1029,12 @@ float dist_squared_to_projected_aabb(DistProjectedAABBPrecalc *data,
 float dist_squared_to_projected_aabb_simple(const float projmat[4][4],
                                             const float winsize[2],
                                             const float mval[2],
+                                            const float clip_near,
                                             const float bbmin[3],
                                             const float bbmax[3])
 {
   DistProjectedAABBPrecalc data;
-  dist_squared_to_projected_aabb_precalc(&data, projmat, winsize, mval);
+  dist_squared_to_projected_aabb_precalc(&data, projmat, winsize, mval, clip_near);
 
   bool dummy[3] = {true, true, true};
   return dist_squared_to_projected_aabb(&data, bbmin, bbmax, dummy);
