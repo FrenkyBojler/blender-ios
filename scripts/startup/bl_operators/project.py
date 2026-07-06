@@ -244,11 +244,12 @@ def save_project(project, report=None):
     config = ProjectConfig.new_from_real(project)
     config_dict = converter.unstructure(config, ProjectConfig)
 
-    # Write the config TOML file.
+    # Serialize and write the config TOML file.
+    config_toml = tomli_w.dumps(config_dict)
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
         with config_path.open(mode='wb') as f:
-            tomli_w.dump(config_dict, f)
+            f.write(config_toml)
     except PermissionError:
         if report:
             report({'ERROR'}, rpt_("Cannot write to '{:s}' due to file-system permissions.").format(PROJECT_CONFIG))
