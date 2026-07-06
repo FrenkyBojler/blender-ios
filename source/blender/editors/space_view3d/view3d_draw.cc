@@ -29,6 +29,7 @@
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
@@ -767,6 +768,7 @@ static void view3d_grid_steps_ex(const Scene *scene,
     }
   }
   else {
+    len = STEPS_LEN;
     if (rv3d->view != RV3D_VIEW_USER) {
       /* Allow 3 more subdivisions. */
       grid_scale /= powf(v3d->gridsubdiv, 3);
@@ -1671,7 +1673,7 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
 
   DRW_cache_free_old_subdiv();
   DRW_cache_free_old_batches(bmain);
-  BKE_image_free_old_gputextures(bmain);
+  BKE_image_free_old_buffers(bmain);
 
   /* No depth test for drawing action zones afterwards. */
   GPU_depth_test(GPU_DEPTH_NONE);
@@ -1780,7 +1782,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   {
     /* Free images which can have changed on frame-change.
      * WARNING(@ideasman42): can be slow so only free animated images. */
-    BKE_image_free_anim_gputextures(G.main);
+    BKE_image_free_anim_gpu_texture_caches(G.main);
   }
 
   GPU_matrix_push_projection();

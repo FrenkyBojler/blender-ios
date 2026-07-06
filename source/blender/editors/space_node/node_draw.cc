@@ -427,13 +427,13 @@ const char *node_socket_get_description(const bNodeSocket *socket)
 {
   if (socket->runtime->declaration == nullptr) {
     if (socket->description[0]) {
-      return socket->description;
+      return TIP_(socket->description);
     }
     return nullptr;
   }
   const nodes::SocketDeclaration &socket_decl = *socket->runtime->declaration;
   if (!socket_decl.description.empty()) {
-    return socket_decl.description.c_str();
+    return TIP_(socket_decl.description.c_str());
   }
   return nullptr;
 }
@@ -2018,6 +2018,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, ui::Block &blo
         0.0f,
         0.0f,
         panel_decl.description.c_str());
+    button_flag_disable(toggle_action_but, ui::BUT_UNDO);
     button_func_pushed_state_set(toggle_action_but, [&panel_state](const ui::Button &) {
       return panel_state.is_collapsed();
     });
@@ -2974,6 +2975,8 @@ static void node_draw_basis(const bContext &C,
                                    0,
                                    0,
                                    "");
+    /* The operator already adds an undo step, so no need for the button to also add one. */
+    button_flag_disable(but, ui::BUT_UNDO);
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
@@ -3097,6 +3100,8 @@ static void node_draw_basis(const bContext &C,
                                    0.0f,
                                    "");
 
+    /* The operator already adds an undo step, so no need for the button to also add one. */
+    button_flag_disable(but, ui::BUT_UNDO);
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
@@ -3293,6 +3298,8 @@ static void node_draw_collapsed(const bContext &C,
                                    0.0f,
                                    "");
 
+    /* The operator already adds an undo step, so no need for the button to also add one. */
+    button_flag_disable(but, ui::BUT_UNDO);
     button_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),

@@ -582,6 +582,7 @@ class SEQUENCER_MT_select(Menu):
             col.operator("sequencer.select_less", text="Less")
             col.separator()
 
+        col.operator_menu_enum("sequencer.select_by_type", "type", text="Select All by Type")
         col.operator_menu_enum("sequencer.select_grouped", "type", text="Select Grouped")
         col.enabled = not is_retiming
         if has_sequencer:
@@ -1203,6 +1204,7 @@ class SEQUENCER_MT_strip(Menu):
         if strip and strip.type == 'SCENE':
             layout.operator("sequencer.scene_frame_range_update")
             layout.operator("sequencer.delete", text="Delete Strip & Data").delete_data = True
+        layout.operator("sequencer.ripple_delete", text="Ripple Delete")
         layout.operator("sequencer.delete", text="Delete", icon='X')
 
 
@@ -1395,9 +1397,10 @@ class SEQUENCER_MT_context_menu(Menu):
 
         if has_selection:
             layout.separator()
-            layout.operator("sequencer.delete", text="Delete", icon='X')
+            layout.operator("sequencer.ripple_delete", text="Ripple Delete")
             if has_active and has_active.type == 'SCENE':
                 layout.operator("sequencer.delete", text="Delete Strip & Data").delete_data = True
+            layout.operator("sequencer.delete", text="Delete", icon='X')
 
     def draw_retime(self, context):
         layout = self.layout

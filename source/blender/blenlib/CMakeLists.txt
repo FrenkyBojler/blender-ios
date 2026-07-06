@@ -340,6 +340,7 @@ set(SRC
   BLI_mutex.hh
   BLI_noise_c.hh
   BLI_noise.hh
+  BLI_normalized_int_types.hh
   BLI_offset_indices.hh
   BLI_offset_span.hh
   BLI_ordered_edge.hh
@@ -423,6 +424,7 @@ set(LIB
   PRIVATE bf::extern::xxhash
   bf_intern_eigen
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::clog
   PRIVATE bf::extern::wcwidth
   PRIVATE bf::intern::atomic
   PUBLIC bf::intern::profile
@@ -542,7 +544,6 @@ if(WITH_GTESTS)
     tests/BLI_index_ranges_builder_test.cc
     tests/BLI_inplace_priority_queue_test.cc
     tests/BLI_kdopbvh_test.cc
-    tests/BLI_kdtree_test.cc
     tests/BLI_length_parameterize_test.cc
     tests/BLI_linear_allocator_chunked_list_test.cc
     tests/BLI_linear_allocator_test.cc
@@ -572,6 +573,7 @@ if(WITH_GTESTS)
     tests/BLI_mesh_boolean_test.cc
     tests/BLI_mesh_intersect_test.cc
     tests/BLI_multi_value_map_test.cc
+    tests/BLI_normalized_int_test.cc
     tests/BLI_offset_indices_test.cc
     tests/BLI_path_utils_test.cc
     tests/BLI_polyfill_2d_test.cc
