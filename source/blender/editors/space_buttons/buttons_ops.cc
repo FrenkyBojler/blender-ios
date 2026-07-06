@@ -124,12 +124,17 @@ static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
 
   if (sbuts->flag & SB_PIN_CONTEXT && ELEM(sbuts->mainb, BCONTEXT_BONE_CONSTRAINT, BCONTEXT_BONE))
   {
-    PointerRNA ptr = CTX_data_pointer_get_type(C, "pose_bone", RNA_PoseBone);
-    if (!ptr.data) {
-      ptr = CTX_data_pointer_get_type(C, "edit_bone", RNA_EditBone);
+    PointerRNA ptr = {};
+    if (sbuts->mainb == BCONTEXT_BONE_CONSTRAINT) {
+      ptr = CTX_data_pointer_get_type(C, "pose_bone", RNA_PoseBone);
     }
-    if (!ptr.data) {
-      ptr = CTX_data_pointer_get_type(C, "bone", RNA_Bone);
+    else if (sbuts->mainb == BCONTEXT_BONE) {
+      if (CTX_data_mode_enum(C) == CTX_MODE_EDIT_ARMATURE) {
+        ptr = CTX_data_pointer_get_type(C, "edit_bone", RNA_EditBone);
+      }
+      else {
+        ptr = CTX_data_pointer_get_type(C, "bone", RNA_Bone);
+      }
     }
 
     if (ptr.data) {
