@@ -469,6 +469,12 @@ class MTLCommandBufferManager {
   id<MTLCommandBuffer> last_submitted_command_buffer_ = nil;
   volatile std::atomic<int> num_active_cmd_bufs = 0;
 
+  /* Safe free lists that must be kept alive until this command buffer completes on the GPU. A
+   * reference is taken on the current list when the command buffer begins, whenever a buffer is
+   * freed during encoding, and at commit; all are released in the completion handler. This keeps
+   * buffers freed during encoding out of the pool until the GPU is done with them. */
+  Vector<MTLSafeFreeList *> cmd_referenced_free_lists_;
+
   /* Active MTLCommandEncoders. */
   enum {
     MTL_NO_COMMAND_ENCODER = 0,
@@ -588,6 +594,10 @@ class MTLCommandBufferManager {
 
   /* Debug group management. To be called before any low-level `pushDebugGroup`. */
   void unfold_pending_debug_groups();
+
+  /* Take a reference to `list` on behalf of the command buffer currently being encoded. No-op if
+   * no command buffer is being encoded, or if `list` is already the most recently referenced. */
+  void reference_free_list_for_active_cmd(MTLSafeFreeList *list);
 
  private:
   /* Begin new command buffer. */

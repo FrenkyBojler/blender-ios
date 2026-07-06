@@ -245,6 +245,15 @@ bool MTLBufferPool::free_buffer(gpu::MTLBuffer *buffer)
 
     /* Place buffer in safe_free_pool before returning to MemoryManager buffer pools. */
     BLI_assert(current_pool);
+
+    /* Keep this safe free list alive for the command buffer currently being encoded on this
+     * thread (if any), so the freed buffer is not recycled while that command buffer may still
+     * reference it on the GPU. */
+    MTLContext *ctx = MTLContext::get();
+    if (ctx) {
+      ctx->main_command_buffer.reference_free_list_for_active_cmd(current_pool);
+    }
+
     current_pool->insert_buffer(buffer);
     buffer->flag_in_use(false);
 

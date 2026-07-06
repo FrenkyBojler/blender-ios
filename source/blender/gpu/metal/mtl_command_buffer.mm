@@ -40,6 +40,22 @@ void MTLCommandBufferManager::register_encoder_counters()
   empty_ = false;
 }
 
+void MTLCommandBufferManager::reference_free_list_for_active_cmd(MTLSafeFreeList *list)
+{
+  BLI_assert(list);
+  /* Only associate safe free lists while a command buffer is being encoded. */
+  if (active_command_buffer_ == nil) {
+    return;
+  }
+  /* Safe free lists rotate strictly forward, so checking the most recent reference is enough to
+   * avoid duplicates. */
+  if (!cmd_referenced_free_lists_.is_empty() && cmd_referenced_free_lists_.last() == list) {
+    return;
+  }
+  list->increment_reference();
+  cmd_referenced_free_lists_.append(list);
+}
+
 id<MTLCommandBuffer> MTLCommandBufferManager::ensure_begin()
 {
   if (active_command_buffer_ == nil) {
@@ -73,6 +89,11 @@ id<MTLCommandBuffer> MTLCommandBufferManager::ensure_begin()
 
     [active_command_buffer_ retain];
     context_.main_command_buffer.inc_active_command_buffer_count();
+
+    /* Reference the safe free list current at encode-begin so buffers freed during encoding stay
+     * alive until this command buffer completes. */
+    this->reference_free_list_for_active_cmd(
+        MTLContext::get_global_memory_manager()->get_current_safe_list());
 
     /* Ensure we begin new Scratch Buffer if we are on a new frame. */
     MTLScratchBufferManager &mem = context_.memory_manager;
@@ -114,22 +135,24 @@ bool MTLCommandBufferManager::submit(bool wait)
 
   /*** Submit Command Buffer. ***/
   /* Command buffer lifetime tracking. */
-  /* Increment current MTLSafeFreeList reference counter to flag MTLBuffers freed within
-   * the current command buffer lifetime as used.
-   * This ensures that in-use resources are not prematurely de-referenced and returned to the
-   * available buffer pool while they are in-use by the GPU. */
-  MTLSafeFreeList *cmd_free_buffer_list =
-      MTLContext::get_global_memory_manager()->get_current_safe_list();
-  BLI_assert(cmd_free_buffer_list);
-  cmd_free_buffer_list->increment_reference();
+  /* Reference the safe free list current at commit, then release every list referenced during this
+   * command buffer's lifetime once the GPU has finished. This ensures buffers freed at any point
+   * during the command buffer's lifetime are not returned to the pool while still in use. */
+  this->reference_free_list_for_active_cmd(
+      MTLContext::get_global_memory_manager()->get_current_safe_list());
+  Vector<MTLSafeFreeList *> cmd_free_buffer_lists = std::move(cmd_referenced_free_lists_);
+  cmd_referenced_free_lists_.clear();
+  BLI_assert(!cmd_free_buffer_lists.is_empty());
 
   id<MTLCommandBuffer> cmd_buffer_ref = active_command_buffer_;
   [cmd_buffer_ref retain];
 
   [cmd_buffer_ref addCompletedHandler:^(id<MTLCommandBuffer> /*cb*/) {
-    /* Upon command buffer completion, decrement MTLSafeFreeList reference count
-     * to allow buffers no longer in use by this CommandBuffer to be freed. */
-    cmd_free_buffer_list->decrement_reference();
+    /* Release the safe free lists referenced by this command buffer, allowing their buffers to be
+     * returned to the memory pool now the GPU has finished with them. */
+    for (MTLSafeFreeList *list : cmd_free_buffer_lists) {
+      list->decrement_reference();
+    }
 
     /* Release command buffer after completion callback handled. */
     [cmd_buffer_ref release];
