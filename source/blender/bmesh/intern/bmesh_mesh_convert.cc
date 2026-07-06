@@ -1654,9 +1654,8 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   const std::optional<StringRef> name_ref = BKE_attributes_active_name_get(owner);
   const std::string active_attribute_name = name_ref.value_or("");
 
-  /* When a new Mesh has just been created by BKE_id_new(_nomain)() it is initialized
-   * with zeros. So then mesh->attributes_active_index == 0, which can lead to a wrong
-   * result as soons as attributes are created. So in that case override it with -1
+  /* Override (wrong) DNA default of 0 for attributes_active_index. See comments on the
+   * member declaration in Mesh .
    */
   if (!name_ref) {
     BLI_assert(mesh->attributes_active_index == 0 || mesh->attributes_active_index == -1);
