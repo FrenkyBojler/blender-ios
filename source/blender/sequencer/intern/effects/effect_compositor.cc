@@ -252,7 +252,7 @@ void compositor_effect_nodes_update_interface(Scene &sequencer_scene, Strip &str
   }
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &sequencer_scene.id, RNA_SequencerCompositorEffectProperties, comp);
-  RNA_sync_system_properties(properties_ptr, *comp->system_properties);
+  RNA_ensure_and_sync_system_properties(properties_ptr, *comp->system_properties);
 
   DEG_id_tag_update(&sequencer_scene.id, ID_RECALC_SEQUENCER_STRIPS);
 }
