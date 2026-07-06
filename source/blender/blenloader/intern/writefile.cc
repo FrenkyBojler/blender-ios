@@ -105,6 +105,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.hh"
+#include "BLI_task_c.hh"
 #include "BLI_threads.hh"
 #include "BLI_time.hh"
 
@@ -229,12 +230,9 @@ class ZstdWriteWrap : public WriteWrap {
 
   WriteWrap &base_wrap;
 
-  int num_workers = 0;
-  pthread_t *workers = nullptr;
+  TaskPool *pool = nullptr;
 
-  ListBaseT<ZstdWriteBlockTask> work_queue = {};
   int num_pending = 0;
-  bool stop = false;
 
   ThreadMutex mutex = {};
   ThreadCondition condition = {};
@@ -253,69 +251,51 @@ class ZstdWriteWrap : public WriteWrap {
   bool write(const void *buf, size_t buf_len) override;
 
  private:
-  void worker_loop();
-  static void *worker_thread_func(void *userdata);
+  static void compress_task_run(TaskPool *pool, void *taskdata);
   void write_u32_le(uint32_t val);
   void write_seekable_frames();
 };
 
 struct ZstdWriteWrap::ZstdWriteBlockTask {
-  ZstdWriteBlockTask *next, *prev;
+  ZstdWriteWrap *ww;
   void *data;
   size_t size;
   int frame_number;
 };
 
-void *ZstdWriteWrap::worker_thread_func(void *userdata)
+void ZstdWriteWrap::compress_task_run(TaskPool * /*pool*/, void *taskdata)
 {
-  static_cast<ZstdWriteWrap *>(userdata)->worker_loop();
-  return nullptr;
-}
+  ZstdWriteBlockTask *task = static_cast<ZstdWriteBlockTask *>(taskdata);
+  ZstdWriteWrap *ww = task->ww;
 
-void ZstdWriteWrap::worker_loop()
-{
-  BLI_mutex_lock(&mutex);
-  while (true) {
-    while (work_queue.is_empty() && !stop) {
-      BLI_condition_wait(&condition, &mutex);
-    }
-    if (work_queue.is_empty()) {
-      break;
-    }
+  size_t out_buf_len = ZSTD_compressBound(task->size);
+  void *out_buf = MEM_new_uninitialized(out_buf_len, "Zstd out buffer");
+  size_t out_size = ZSTD_compress(
+      out_buf, out_buf_len, task->data, task->size, ZSTD_COMPRESSION_LEVEL);
+  MEM_delete_void(task->data);
 
-    ZstdWriteBlockTask *task = static_cast<ZstdWriteBlockTask *>(work_queue.first);
-    BLI_remlink(&work_queue, task);
-    BLI_mutex_unlock(&mutex);
-
-    size_t out_buf_len = ZSTD_compressBound(task->size);
-    void *out_buf = MEM_new_uninitialized(out_buf_len, "Zstd out buffer");
-    size_t out_size = ZSTD_compress(
-        out_buf, out_buf_len, task->data, task->size, ZSTD_COMPRESSION_LEVEL);
-    MEM_delete_void(task->data);
-
-    BLI_mutex_lock(&mutex);
-    while (next_frame != task->frame_number) {
-      BLI_condition_wait(&condition, &mutex);
-    }
-    if (ZSTD_isError(out_size)) {
-      write_error = true;
-    }
-    else if (base_wrap.write(out_buf, out_size)) {
-      ZstdFrame *frameinfo = MEM_new_uninitialized<ZstdFrame>("zstd frameinfo");
-      frameinfo->uncompressed_size = task->size;
-      frameinfo->compressed_size = out_size;
-      BLI_addtail(&frames, frameinfo);
-    }
-    else {
-      write_error = true;
-    }
-    next_frame++;
-    num_pending--;
-    MEM_delete(task);
-    MEM_delete_void(out_buf);
-    BLI_condition_notify_all(&condition);
+  BLI_mutex_lock(&ww->mutex);
+  while (ww->next_frame != task->frame_number) {
+    BLI_condition_wait(&ww->condition, &ww->mutex);
   }
-  BLI_mutex_unlock(&mutex);
+  if (ZSTD_isError(out_size)) {
+    ww->write_error = true;
+  }
+  else if (ww->base_wrap.write(out_buf, out_size)) {
+    ZstdFrame *frameinfo = MEM_new_uninitialized<ZstdFrame>("zstd frameinfo");
+    frameinfo->uncompressed_size = task->size;
+    frameinfo->compressed_size = out_size;
+    BLI_addtail(&ww->frames, frameinfo);
+  }
+  else {
+    ww->write_error = true;
+  }
+  ww->next_frame++;
+  ww->num_pending--;
+  MEM_delete(task);
+  MEM_delete_void(out_buf);
+  BLI_condition_notify_all(&ww->condition);
+  BLI_mutex_unlock(&ww->mutex);
 }
 
 bool ZstdWriteWrap::open(const char *filepath)
@@ -324,14 +304,9 @@ bool ZstdWriteWrap::open(const char *filepath)
     return false;
   }
 
-  /* Leave one thread open for the main writing logic, unless we only have one HW thread. */
-  num_workers = max_ii(1, BLI_system_thread_count() - 1);
   BLI_mutex_init(&mutex);
   BLI_condition_init(&condition);
-  workers = MEM_new_array_uninitialized<pthread_t>(num_workers, "zstd workers");
-  for (int i = 0; i < num_workers; i++) {
-    pthread_create(&workers[i], nullptr, worker_thread_func, this);
-  }
+  pool = BLI_task_pool_create_background(nullptr, TASK_PRIORITY_HIGH);
 
   return true;
 }
@@ -379,16 +354,9 @@ void ZstdWriteWrap::write_seekable_frames()
 
 bool ZstdWriteWrap::close()
 {
-  BLI_mutex_lock(&mutex);
-  stop = true;
-  BLI_condition_notify_all(&condition);
-  BLI_mutex_unlock(&mutex);
-
-  for (int i = 0; i < num_workers; i++) {
-    pthread_join(workers[i], nullptr);
-  }
-  MEM_delete(workers);
-  workers = nullptr;
+  BLI_task_pool_work_and_wait(pool);
+  BLI_task_pool_free(pool);
+  pool = nullptr;
 
   BLI_mutex_end(&mutex);
   BLI_condition_end(&condition);
@@ -406,20 +374,20 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
   }
 
   ZstdWriteBlockTask *task = MEM_new_uninitialized<ZstdWriteBlockTask>(__func__);
+  task->ww = this;
   task->data = MEM_new_uninitialized(buf_len, __func__);
   memcpy(task->data, buf, buf_len);
   task->size = buf_len;
   task->frame_number = num_frames++;
 
   BLI_mutex_lock(&mutex);
-  while (num_pending >= num_workers) {
+  while (num_pending >= BLI_task_scheduler_num_threads()) {
     BLI_condition_wait(&condition, &mutex);
   }
   num_pending++;
-  BLI_addtail(&work_queue, task);
-  BLI_condition_notify_all(&condition);
   BLI_mutex_unlock(&mutex);
 
+  BLI_task_pool_push(pool, compress_task_run, task, false, nullptr);
   return true;
 }
 
