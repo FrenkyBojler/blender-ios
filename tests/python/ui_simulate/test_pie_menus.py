@@ -510,13 +510,12 @@ def test_image_view_pie_view_all():
 def test_filebrowser_view_pie_list_horizontal():
     import bpy
 
-    e, t, window, area = yield from _setup_area("FILE_BROWSER")
+    e, t, window, area, center = yield from _setup_area("FILE_BROWSER")
 
     params = area.spaces.active.params
     params.display_type = "LIST_VERTICAL"
     yield
 
-    center = ui.get_area_center(area)
     yield from _press_and_drag_to_direction(e, center, e.accent_grave, "E")
 
     t.assertEqual(params.display_type, "LIST_HORIZONTAL")
