@@ -1392,23 +1392,22 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
 
       const Layer &layer = *grease_pencil.layers()[info.layer_index];
       const float4x4 layer_to_world = layer.to_world_space(object);
-      const bke::CurvesGeometry &strokes = info.drawing.strokes();
-      const Span<float3> evaluated_positions = strokes.evaluated_positions();
-      const OffsetIndices<int> eval_points_by_curve = strokes.evaluated_points_by_curve();
+      const bke::CurvesGeometry &curves = info.drawing.strokes();
+      const Span<float3> evaluated_positions = curves.evaluated_positions();
+      const OffsetIndices<int> eval_points_by_curve = curves.evaluated_points_by_curve();
       const bool only_boundary_strokes = boundary_layers[info.layer_index];
       const VArray<float> radii = info.drawing.radii();
       const VArray<float> opacities = info.drawing.opacities();
 
-      Array<float> opacities_array(strokes.points_num());
+      Array<float> opacities_array(curves.points_num());
       array_utils::copy(opacities, opacities_array.as_mutable_span());
-      strokes.ensure_can_interpolate_to_evaluated();
+      curves.ensure_can_interpolate_to_evaluated();
 
       Array<float> eval_opacities(eval_points_by_curve.total_size());
-      strokes.interpolate_to_evaluated(opacities_array.as_span(),
-                                       eval_opacities.as_mutable_span());
+      curves.interpolate_to_evaluated(opacities_array.as_span(), eval_opacities.as_mutable_span());
 
-      const bke::AttributeAccessor attributes = strokes.attributes();
-      const VArray<bool> cyclic = strokes.cyclic();
+      const bke::AttributeAccessor attributes = curves.attributes();
+      const VArray<bool> cyclic = curves.cyclic();
       const VArray<int> materials = *attributes.lookup_or_default<int>(
           attr_material_index, bke::AttrDomain::Curve, 0);
       const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
