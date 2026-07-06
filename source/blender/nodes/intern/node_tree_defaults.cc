@@ -142,7 +142,6 @@ void node_tree_composit_default_init(const bContext *C, bNodeTree *ntree)
   in->location[0] = -150.0f - in->width;
   in->location[1] = 100.0f;
   bke::node_set_active(*ntree, *in);
-  in->flag &= ~NODE_PREVIEW;
 
   bke::node_add_link(*ntree,
                      *in,
