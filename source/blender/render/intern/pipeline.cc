@@ -1270,7 +1270,6 @@ static void do_render_compositor(Render *re)
         }
 
         compositor::NodeGroupOutputTypes needed_outputs =
-            compositor::NodeGroupOutputTypes::GroupOutputNode |
             compositor::NodeGroupOutputTypes::FileOutputNode;
         if (!G.background) {
           needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode |
