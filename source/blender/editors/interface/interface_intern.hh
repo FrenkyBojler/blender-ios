@@ -1030,6 +1030,12 @@ struct PopupBlockHandle {
   void (*cancel_func)(bContext *C, void *arg) = nullptr;
   void *popup_arg = nullptr;
 
+  /**
+   * The StructRNA type that owns this popup, this popup should be removed if this type gets
+   * unregistered.
+   */
+  StructRNA *srna_owner = nullptr;
+
   /** Store data for refreshing popups. */
   PopupBlockCreate popup_create_vars;
   /**
@@ -1170,8 +1176,25 @@ PopupBlockHandle *popup_block_create(bContext *C,
                                      void *arg,
                                      FreeArgFunc arg_free,
                                      bool can_refresh);
-PopupBlockHandle *popup_menu_create(
-    bContext *C, ARegion *butregion, Button *but, MenuCreateFunc menu_func, void *arg);
+/**
+ * \param can_refresh: Allow menus to re-run their layout definitions using
+ *    `ED_region_tag_refresh_ui()`. This can be used to update the grayed out state of items or the
+ *    icon for example, but doesn't have many use-cases.
+ *
+ *    Changes that mess with user input or make popups jump around under the cursor should be
+ *    avoided. For example, avoid:
+ *    - Adding/removing menu items.
+ *    - Changing menu item names.
+ *    - Changes that interfere with keyboard navigation.
+ *
+ *    Note that this property is inherited to submenus.
+ */
+PopupBlockHandle *popup_menu_create(bContext *C,
+                                    ARegion *butregion,
+                                    Button *but,
+                                    MenuCreateFunc menu_func,
+                                    void *arg,
+                                    bool can_refresh);
 
 /* `interface_region_popover.cc` */
 

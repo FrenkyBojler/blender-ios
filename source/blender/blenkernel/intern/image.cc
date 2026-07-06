@@ -526,7 +526,7 @@ IDTypeInfo IDType_ID_IM = {
     .main_listbase_index = INDEX_ID_IM,
     .struct_size = sizeof(Image),
     .name = "Image",
-    .name_plural = "images",
+    .name_plural = N_("images"),
     .translation_context = BLT_I18NCONTEXT_ID_IMAGE,
     .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
@@ -1596,7 +1596,7 @@ static bool image_memorypack_imbuf_for_autosave(
   imapf->tile_number = tile_number;
   BLI_addtail(&ima->autosave_packedfiles, imapf);
 
-  /* We should not clear the dirty flag when autosaving */
+  /* We should not clear the dirty flag when auto-saving. */
 
   return true;
 }

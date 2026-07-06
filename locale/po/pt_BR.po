@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2026-06-22 07:24+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
 "PO-Revision-Date: 2026-04-13 10:12+0000\n"
 "Last-Translator: Gilberto Rodrigues <gilbertorodrigues@outlook.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -21188,66 +21188,6 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Local View"
-msgstr "Visão local"
-
-
-msgid "Viewpoint"
-msgstr "Ponto de visualização"
-
-
-msgid "Navigation"
-msgstr "Navegação"
-
-
-msgid "Align View"
-msgstr "Alinhar visualização"
-
-
-msgid "Align View to Active"
-msgstr "Alinhar vista para o ativo"
-
-
-msgid "View Regions"
-msgstr "Visualizar Regiões"
-
-
-msgid "Select More/Less"
-msgstr "Selecionar mais ou menos"
-
-
-msgid "Select Similar"
-msgstr "Selecionar por similaridades"
-
-
-msgid "Select All by Trait"
-msgstr "Selecionar todos por características..."
-
-
-msgid "Select Linked"
-msgstr "Selecionar vinculados(as)"
-
-
-msgid "Select Loops"
-msgstr "Selecionar anéis"
-
-
-msgid "Math"
-msgstr "Matemática"
-
-
-msgid "Metaball"
-msgstr "Meta-esfera"
-
-
-msgid "Light"
-msgstr "Luz"
-
-
-msgid "Light Probe"
-msgstr "Sonda de Luz"
-
-
 msgid "Add Image"
 msgstr "Adicionar Imagem"
 
@@ -21288,16 +21228,12 @@ msgid "Convert"
 msgstr "Converter"
 
 
-msgid "Instances"
-msgstr "Instâncias"
-
-
 msgid "Hooks"
 msgstr "Ganchos"
 
 
-msgid "Import"
-msgstr "Importar"
+msgid "Math"
+msgstr "Matemática"
 
 
 msgid "Random Mask"
@@ -21314,10 +21250,6 @@ msgstr "Entre as continuidades"
 
 msgid "Propagate"
 msgstr "Propagar"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Names"
@@ -21344,24 +21276,32 @@ msgid "Face Data"
 msgstr "Dados das faces"
 
 
+msgid "Instances"
+msgstr "Instâncias"
+
+
 msgid "Merge"
 msgstr "Fundir"
+
+
+msgid "Import"
+msgstr "Importar"
 
 
 msgid "Special Characters"
 msgstr "Caracteres especiais"
 
 
+msgid "Metaball"
+msgstr "Meta-esfera"
+
+
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Bone Roll"
 msgstr "Rolagem dos ossos"
-
-
-msgid "Linked"
-msgstr "Vinculando"
-
-
-msgid "Layout"
-msgstr "Organizar"
 
 
 msgid "Pivot Point"
@@ -21376,6 +21316,66 @@ msgid "Proportional Editing Falloff"
 msgstr "Tipo de decaimento para edição proporcional"
 
 
+msgid "Mirror"
+msgstr "Espelhar"
+
+
+msgid "UV Mapping"
+msgstr "Mapeamento UV"
+
+
+msgid "Local View"
+msgstr "Visão local"
+
+
+msgid "Viewpoint"
+msgstr "Ponto de visualização"
+
+
+msgid "Linked"
+msgstr "Vinculando"
+
+
+msgid "Navigation"
+msgstr "Navegação"
+
+
+msgid "Layout"
+msgstr "Organizar"
+
+
+msgid "Align View"
+msgstr "Alinhar visualização"
+
+
+msgid "Align View to Active"
+msgstr "Alinhar vista para o ativo"
+
+
+msgid "View Regions"
+msgstr "Visualizar Regiões"
+
+
+msgid "Select More/Less"
+msgstr "Selecionar mais ou menos"
+
+
+msgid "Select Similar"
+msgstr "Selecionar por similaridades"
+
+
+msgid "Select All by Trait"
+msgstr "Selecionar todos por características..."
+
+
+msgid "Select Linked"
+msgstr "Selecionar vinculados(as)"
+
+
+msgid "Select Loops"
+msgstr "Selecionar anéis"
+
+
 msgid "Keying"
 msgstr "Inserção de chaves"
 
@@ -21384,12 +21384,12 @@ msgid "Tracking"
 msgstr "Rastreamento"
 
 
-msgid "Mirror"
-msgstr "Espelhar"
+msgid "Light"
+msgstr "Luz"
 
 
-msgid "UV Mapping"
-msgstr "Mapeamento UV"
+msgid "Light Probe"
+msgstr "Sonda de Luz"
 
 
 msgid "Basic"
@@ -47979,6 +47979,14 @@ msgid "Active Palette Color"
 msgstr "Cor ativa da paleta"
 
 
+msgid "Render Pass"
+msgstr "Passo de renderização"
+
+
+msgid "Motion Tracking"
+msgstr "Captura de movimentos"
+
+
 msgid "Transform Orientations"
 msgstr "Orientações de transformação"
 
@@ -47989,14 +47997,6 @@ msgstr "Exibição Quadrante"
 
 msgid "Stereoscopy"
 msgstr "Estereoscopia"
-
-
-msgid "Render Pass"
-msgstr "Passo de renderização"
-
-
-msgid "Motion Tracking"
-msgstr "Captura de movimentos"
 
 
 msgid "Bone Constraints"
@@ -64379,10 +64379,6 @@ msgid "No Rigid Body World to add Rigid Body Constraint to"
 msgstr "Sem ambiente (mundo) de \"Corpo rígido\" definido para adicionar uma restrição do tipo \"Corpo rígido\"."
 
 
-msgid "Object has no Rigid Body Constraint to remove"
-msgstr "Objeto não possui restrição do tipo \"Corpo rígido\" para remover."
-
-
 msgid "Object '%s' already has a Rigid Body Constraint"
 msgstr "Objeto '%s' já possui uma restrição do tipo \"Corpo rígido\"."
 
@@ -66963,6 +66959,10 @@ msgid "Strings"
 msgstr "Fios"
 
 
+msgid "Top Right"
+msgstr "Topo à Direita"
+
+
 msgid "Text Box Width"
 msgstr "Largura da caixa de texto"
 
@@ -66973,10 +66973,6 @@ msgstr "Altura da caixa de texto"
 
 msgid "Edge Crease"
 msgstr "Vincos de arestas"
-
-
-msgid "Top Right"
-msgstr "Topo à Direita"
 
 
 msgid "Rotate islands for best fit"

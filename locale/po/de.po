@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 07:24+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -9284,10 +9284,6 @@ msgid "sin(x) / x"
 msgstr "sin(x) / x"
 
 
-msgid "Phase Multiple"
-msgstr "Phasenmultiplikator"
-
-
 msgid "Phase Offset"
 msgstr "Phasen Versatz"
 
@@ -9966,6 +9962,10 @@ msgstr "Rückwärts sortieren"
 
 msgid "Asset Select Parameters"
 msgstr "Asset Auswahl-Parameter"
+
+
+msgid "Unassigned"
+msgstr "Unbestimmt"
 
 
 msgid "Float2 Attribute Value"
@@ -11156,6 +11156,10 @@ msgstr "Fußzeile"
 
 msgid "XR"
 msgstr "XR"
+
+
+msgid "Scrubbing"
+msgstr "Schruppen"
 
 
 msgid "Gizmos"
@@ -18683,70 +18687,6 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
-msgid "Local View"
-msgstr "Lokale Ansicht"
-
-
-msgid "Viewpoint"
-msgstr "Ansicht"
-
-
-msgid "Navigation"
-msgstr "Navigation"
-
-
-msgid "Align View"
-msgstr "Ansicht ausrichten"
-
-
-msgid "Align View to Active"
-msgstr "Ansicht auf Aktiv ausrichten"
-
-
-msgid "View Regions"
-msgstr "Vierfenster Ansicht"
-
-
-msgid "Select More/Less"
-msgstr "Mehr/weniger anzeigen"
-
-
-msgid "Select Similar"
-msgstr "Ähnliche auswählen"
-
-
-msgid "Select All by Trait"
-msgstr "Alles nach Merkmal auswählen"
-
-
-msgid "Select Linked"
-msgstr "Verknüpfte auswählen"
-
-
-msgid "Select Loops"
-msgstr "Schleifen auswählen"
-
-
-msgid "Assign Material"
-msgstr "Material zuweisen"
-
-
-msgid "Math"
-msgstr "Mathematisch"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Light"
-msgstr "Licht"
-
-
-msgid "Light Probe"
-msgstr "Lichtsonde"
-
-
 msgid "Add Image"
 msgstr "Bild hinzufügen"
 
@@ -18755,24 +18695,8 @@ msgid "Relations"
 msgstr "Beziehungen"
 
 
-msgid "Read"
-msgstr "Lesen"
-
-
-msgid "Sample"
-msgstr "Beispiel"
-
-
-msgid "Write"
-msgstr "Schreiben"
-
-
 msgid "Rigid Body"
 msgstr "Rigid Body"
-
-
-msgid "Primitives"
-msgstr "Grundkörper"
 
 
 msgid "Apply"
@@ -18807,10 +18731,6 @@ msgid "Convert"
 msgstr "Konvertieren"
 
 
-msgid "Instances"
-msgstr "Instanzen"
-
-
 msgid "Hooks"
 msgstr "Haken"
 
@@ -18819,8 +18739,8 @@ msgid "Vertex Group Locks"
 msgstr "Punktgruppen sperren"
 
 
-msgid "Import"
-msgstr "Importieren"
+msgid "Math"
+msgstr "Mathematisch"
 
 
 msgid "Random Mask"
@@ -18835,12 +18755,20 @@ msgid "In-Betweens"
 msgstr "Dazwischen"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Names"
 msgstr "Namen"
+
+
+msgid "Read"
+msgstr "Lesen"
+
+
+msgid "Sample"
+msgstr "Beispiel"
+
+
+msgid "Write"
+msgstr "Schreiben"
 
 
 msgid "Toggle Bone Options"
@@ -18849,6 +18777,10 @@ msgstr "Knochen-Optionen umschalten"
 
 msgid "Enable Bone Options"
 msgstr "Knochen-Optionen einschalten"
+
+
+msgid "Primitives"
+msgstr "Grundkörper"
 
 
 msgid "Disable Bone Options"
@@ -18863,8 +18795,16 @@ msgid "Face Data"
 msgstr "Flächendaten"
 
 
+msgid "Instances"
+msgstr "Instanzen"
+
+
 msgid "Merge"
 msgstr "Zusammenführen"
+
+
+msgid "Import"
+msgstr "Importieren"
 
 
 msgid "Special Characters"
@@ -18875,12 +18815,12 @@ msgid "Kerning"
 msgstr "Kerning"
 
 
-msgid "Linked"
-msgstr "Verknüpft"
+msgid "Metaball"
+msgstr "Metaball"
 
 
-msgid "Layout"
-msgstr "Layout"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Pivot Point"
@@ -18899,6 +18839,62 @@ msgid "Mask Edit"
 msgstr "Maskenbearbeitung"
 
 
+msgid "Mirror"
+msgstr "Spiegeln"
+
+
+msgid "Local View"
+msgstr "Lokale Ansicht"
+
+
+msgid "Viewpoint"
+msgstr "Ansicht"
+
+
+msgid "Linked"
+msgstr "Verknüpft"
+
+
+msgid "Navigation"
+msgstr "Navigation"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Align View"
+msgstr "Ansicht ausrichten"
+
+
+msgid "Align View to Active"
+msgstr "Ansicht auf Aktiv ausrichten"
+
+
+msgid "View Regions"
+msgstr "Vierfenster Ansicht"
+
+
+msgid "Select More/Less"
+msgstr "Mehr/weniger anzeigen"
+
+
+msgid "Select Similar"
+msgstr "Ähnliche auswählen"
+
+
+msgid "Select All by Trait"
+msgstr "Alles nach Merkmal auswählen"
+
+
+msgid "Select Linked"
+msgstr "Verknüpfte auswählen"
+
+
+msgid "Select Loops"
+msgstr "Schleifen auswählen"
+
+
 msgid "Keying"
 msgstr "Schlüsselbilder"
 
@@ -18907,8 +18903,16 @@ msgid "Tracking"
 msgstr "Verfolgen"
 
 
-msgid "Mirror"
-msgstr "Spiegeln"
+msgid "Assign Material"
+msgstr "Material zuweisen"
+
+
+msgid "Light"
+msgstr "Licht"
+
+
+msgid "Light Probe"
+msgstr "Lichtsonde"
 
 
 msgid "Assets"
@@ -38732,42 +38736,6 @@ msgid "Active Palette Color"
 msgstr "Aktive Farbpalette"
 
 
-msgid "Measurement"
-msgstr "Messung"
-
-
-msgid "Curve Edit Mode"
-msgstr "Kurven-Bearbeitungsmodus"
-
-
-msgid "Transform Orientations"
-msgstr "Transformationsausrichtung"
-
-
-msgid "Drawing Plane"
-msgstr "Malfläche"
-
-
-msgid "Guides"
-msgstr "Hilfslinien"
-
-
-msgid "Quad View"
-msgstr "Vierfenster-Ansicht"
-
-
-msgid "Onion Skin"
-msgstr "Zwiebelhaut"
-
-
-msgid "Stereoscopy"
-msgstr "Stereoskopie"
-
-
-msgid "Auto-Masking"
-msgstr "Automatisches Maskieren"
-
-
 msgid "VR"
 msgstr "VR"
 
@@ -38804,12 +38772,48 @@ msgid "Overlays"
 msgstr "Überlagerungen"
 
 
+msgid "Guides"
+msgstr "Hilfslinien"
+
+
 msgid "Motion Tracking"
 msgstr "Bewegungsverfolgung"
 
 
 msgid "Mesh Edit Mode"
 msgstr "Maschenbearbeitungsmodus"
+
+
+msgid "Measurement"
+msgstr "Messung"
+
+
+msgid "Curve Edit Mode"
+msgstr "Kurven-Bearbeitungsmodus"
+
+
+msgid "Transform Orientations"
+msgstr "Transformationsausrichtung"
+
+
+msgid "Drawing Plane"
+msgstr "Malfläche"
+
+
+msgid "Quad View"
+msgstr "Vierfenster-Ansicht"
+
+
+msgid "Onion Skin"
+msgstr "Zwiebelhaut"
+
+
+msgid "Stereoscopy"
+msgstr "Stereoskopie"
+
+
+msgid "Auto-Masking"
+msgstr "Automatisches Maskieren"
 
 
 msgid "Chain Scaling"
@@ -51470,10 +51474,6 @@ msgid "Duplicate Marker to Scene"
 msgstr "Marker der Szene duplizieren"
 
 
-msgid "Scrubbing"
-msgstr "Schruppen"
-
-
 msgid "Limit to Frame Range"
 msgstr "Limit für Einzelbildbereich"
 
@@ -54811,10 +54811,6 @@ msgid "No mesh data to join"
 msgstr "Keine Maschendaten zum verknüpfen"
 
 
-msgid "Unassigned"
-msgstr "Unbestimmt"
-
-
 msgid "SoundTrack"
 msgstr "Soundtrack"
 
@@ -57331,6 +57327,10 @@ msgid "Strings"
 msgstr "Strings"
 
 
+msgid "Top Right"
+msgstr "Oben rechts"
+
+
 msgid "Text Box Width"
 msgstr "Textboxbreite"
 
@@ -57349,10 +57349,6 @@ msgstr "Rest"
 
 msgid "Edge Crease"
 msgstr "Kantenfalte"
-
-
-msgid "Top Right"
-msgstr "Oben rechts"
 
 
 msgid "No named attributes used"

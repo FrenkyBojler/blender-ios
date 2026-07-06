@@ -561,6 +561,12 @@ bool ED_operator_object_active(bContext *C)
   return ((ob != nullptr) && !ed_object_hidden(ob));
 }
 
+bool ED_operator_object_active_objectmode(bContext *C)
+{
+  Object *ob = ed::object::context_active_object(C);
+  return ((ob != nullptr) && !ed_object_hidden(ob) && (ob->mode == OB_MODE_OBJECT));
+}
+
 bool ED_operator_object_active_editable_ex(bContext *C, const Object *ob)
 {
   if (ob == nullptr) {
@@ -3498,8 +3504,10 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           }
         }
         BLI_assert(rmd->region->sizex <= rmd->maxsize);
-
-        if (size_no_snap < UI_UNIT_X / aspect_x) {
+        const int collapse_size = BKE_regiontype_uses_category_tabs(rmd->region->runtime->type) ?
+                                      (UI_PANEL_CATEGORY_MIN_WIDTH / aspect_x) * 0.75f :
+                                      UI_UNIT_X / aspect_x;
+        if (size_no_snap < collapse_size) {
           rmd->region->sizex = rmd->origval;
           if (!(rmd->region->flag & RGN_FLAG_HIDDEN)) {
             region_scale_toggle_hidden(C, rmd);

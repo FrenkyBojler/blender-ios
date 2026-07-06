@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 07:24+0000\n"
-"PO-Revision-Date: 2026-06-20 09:37+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
+"PO-Revision-Date: 2026-07-03 18:12+0000\n"
 "Last-Translator: Alexandr Fatih <radix83@rambler.ru>\n"
 "Language-Team: Russian <https://translate.blender.org/projects/blender-ui/ui/ru/>\n"
 "Language: ru\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
-"X-Generator: Weblate 5.16.2"
+"X-Generator: Weblate 2026.6.1"
 
 
 msgid "Shader AOV"
@@ -14358,10 +14358,6 @@ msgid "sin(x) / x"
 msgstr "sin(x) / x"
 
 
-msgid "Phase Multiple"
-msgstr "Множитель фазы"
-
-
 msgid "Scale factor determining the 'speed' of the function"
 msgstr "Коэффициент масштабирования, определяющий «скорость» функции"
 
@@ -15633,6 +15629,34 @@ msgstr "Только локальные"
 
 msgid "Show only assets that are available on disk already (no internet access needed)"
 msgstr "Отображать только те ассеты, которые уже находятся на диске (доступ к интернету не требуется)"
+
+
+msgid "Catalog Visibility"
+msgstr "Видимость каталогов"
+
+
+msgid "Which assets to show based on catalog filter"
+msgstr "Какие ассеты показывать на основе фильтра каталогов"
+
+
+msgid "Show assets from all catalogs"
+msgstr "Показывать ассеты из всех каталогов"
+
+
+msgid "Catalog"
+msgstr "Каталог"
+
+
+msgid "Show assets from the active catalog only"
+msgstr "Показывать только ассеты из активного каталога"
+
+
+msgid "Unassigned"
+msgstr "Неназначенные"
+
+
+msgid "Show assets not assigned to any catalog"
+msgstr "Показывать ассеты, не назначенные ни к одному каталогу"
 
 
 msgid "The UUID of the catalog shown in the browser"
@@ -18419,6 +18443,10 @@ msgstr "Панель инструментов"
 
 msgid "XR"
 msgstr "XR"
+
+
+msgid "Scrubbing"
+msgstr "Звук в перемотке"
 
 
 msgid "The space where the panel is going to be used in"
@@ -24492,7 +24520,7 @@ msgstr "Тип интерполяции по U"
 
 
 msgid "Catmull-Rom"
-msgstr "Катмулл-Ром"
+msgstr "Кэтмулл-Ром"
 
 
 msgid "BSpline"
@@ -35566,6 +35594,10 @@ msgid "Do not follow drawing path or object rotation and keeps aligned with view
 msgstr "Не следовать за рисуемой линии или поворотом объекта, а ориентировать всегда относительно вьюпорта"
 
 
+msgid "Additional rotation applied to dots and square texture of strokes"
+msgstr "Дополнительное вращение, применяемое к точкам и прямоугольным текстурам штрихов"
+
+
 msgid "Fill Color"
 msgstr "Цвет заливки"
 
@@ -35888,78 +35920,6 @@ msgid "Editor menu containing buttons"
 msgstr "Меню редактора, содержащее кнопки"
 
 
-msgid "Local View"
-msgstr "Локальный вид"
-
-
-msgid "Viewpoint"
-msgstr "Точка обзора"
-
-
-msgid "Navigation"
-msgstr "Навигация"
-
-
-msgid "Align View"
-msgstr "Выровнять вид"
-
-
-msgid "Render Preview"
-msgstr "Превью рендера"
-
-
-msgid "Align View to Active"
-msgstr "Выровнять вид по активному"
-
-
-msgid "View Regions"
-msgstr "Области обзора"
-
-
-msgid "Select More/Less"
-msgstr "Выделить больше/меньше"
-
-
-msgid "Select Similar"
-msgstr "Выделить по схожести"
-
-
-msgid "Select All by Trait"
-msgstr "Выделить всё по признаку"
-
-
-msgid "Select Linked"
-msgstr "Выделить связанные"
-
-
-msgid "Select Loops"
-msgstr "Выделить петли"
-
-
-msgid "Assign Material"
-msgstr "Назначить материал"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Utilities"
-msgstr "Утилиты"
-
-
-msgid "Metaball"
-msgstr "Метасфера"
-
-
-msgid "Light"
-msgstr "Свет"
-
-
-msgid "Light Probe"
-msgstr "Зонд освещения"
-
-
 msgid "Add Image"
 msgstr "Добавить изображение"
 
@@ -35968,24 +35928,12 @@ msgid "Relations"
 msgstr "Отношения"
 
 
-msgid "Read"
-msgstr "Прочитать"
-
-
-msgid "Sample"
-msgstr "Сэмплировать"
-
-
-msgid "Write"
-msgstr "Записать"
-
-
 msgid "Rigid Body"
 msgstr "Твёрдое тело"
 
 
-msgid "Primitives"
-msgstr "Примитивы"
+msgid "Render Preview"
+msgstr "Превью рендера"
 
 
 msgid "Apply"
@@ -36020,16 +35968,8 @@ msgid "Convert"
 msgstr "Конвертировать"
 
 
-msgid "Gizmo"
-msgstr "Гизмо"
-
-
 msgid "Link/Transfer Data"
 msgstr "Связать/передать данные"
-
-
-msgid "Instances"
-msgstr "Экземпляры"
 
 
 msgid "Hooks"
@@ -36040,12 +35980,16 @@ msgid "Vertex Group Locks"
 msgstr "Блокировки групп вершин"
 
 
-msgid "Import"
-msgstr "Импортировать"
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Trim/Add"
 msgstr "Обрезать/Добавить"
+
+
+msgid "Utilities"
+msgstr "Утилиты"
 
 
 msgid "Add Primitive"
@@ -36064,10 +36008,6 @@ msgid "Random Mask"
 msgstr "Случайная маска"
 
 
-msgid "Deprecated"
-msgstr "Устаревшие"
-
-
 msgid "Clear Transform"
 msgstr "Очистить трансформацию"
 
@@ -36080,10 +36020,6 @@ msgid "Propagate"
 msgstr "Распространение"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Bone Collections"
 msgstr "Коллекции костей"
 
@@ -36092,12 +36028,28 @@ msgid "Names"
 msgstr "Названия"
 
 
+msgid "Read"
+msgstr "Прочитать"
+
+
+msgid "Sample"
+msgstr "Сэмплировать"
+
+
+msgid "Write"
+msgstr "Записать"
+
+
 msgid "Toggle Bone Options"
 msgstr "Переключить опции костей"
 
 
 msgid "Enable Bone Options"
 msgstr "Включить параметры костей"
+
+
+msgid "Primitives"
+msgstr "Примитивы"
 
 
 msgid "Disable Bone Options"
@@ -36120,8 +36072,20 @@ msgid "Set Face Strength"
 msgstr "Установить твёрдость грани"
 
 
+msgid "Gizmo"
+msgstr "Гизмо"
+
+
+msgid "Instances"
+msgstr "Экземпляры"
+
+
 msgid "Merge"
 msgstr "Объединить"
+
+
+msgid "Import"
+msgstr "Импортировать"
 
 
 msgid "Special Characters"
@@ -36132,16 +36096,20 @@ msgid "Kerning"
 msgstr "Кернинг"
 
 
+msgid "Deprecated"
+msgstr "Устаревшие"
+
+
+msgid "Metaball"
+msgstr "Метасфера"
+
+
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Bone Roll"
 msgstr "Крен кости"
-
-
-msgid "Linked"
-msgstr "Связанные"
-
-
-msgid "Layout"
-msgstr "Разметка"
 
 
 msgid "Pivot Point"
@@ -36160,16 +36128,76 @@ msgid "Mask Edit"
 msgstr "Редактировать маску"
 
 
-msgid "Adjust"
-msgstr "Коррекция"
-
-
 msgid "Automasking"
 msgstr "Автомаски́рование"
 
 
 msgid "Face Sets Edit"
 msgstr "Редактировать наборы граней"
+
+
+msgid "Mirror"
+msgstr "Зеркало"
+
+
+msgid "UV Mapping"
+msgstr "UV-Разметка"
+
+
+msgid "Local View"
+msgstr "Локальный вид"
+
+
+msgid "Viewpoint"
+msgstr "Точка обзора"
+
+
+msgid "Linked"
+msgstr "Связанные"
+
+
+msgid "Navigation"
+msgstr "Навигация"
+
+
+msgid "Layout"
+msgstr "Разметка"
+
+
+msgid "Align View"
+msgstr "Выровнять вид"
+
+
+msgid "Align View to Active"
+msgstr "Выровнять вид по активному"
+
+
+msgid "View Regions"
+msgstr "Области обзора"
+
+
+msgid "Select More/Less"
+msgstr "Выделить больше/меньше"
+
+
+msgid "Select Similar"
+msgstr "Выделить по схожести"
+
+
+msgid "Select All by Trait"
+msgstr "Выделить всё по признаку"
+
+
+msgid "Select Linked"
+msgstr "Выделить связанные"
+
+
+msgid "Select Loops"
+msgstr "Выделить петли"
+
+
+msgid "Adjust"
+msgstr "Коррекция"
 
 
 msgid "Keying"
@@ -36180,16 +36208,20 @@ msgid "Tracking"
 msgstr "Трекинг"
 
 
+msgid "Assign Material"
+msgstr "Назначить материал"
+
+
 msgid "Creative"
 msgstr "Художественные"
 
 
-msgid "Mirror"
-msgstr "Зеркало"
+msgid "Light"
+msgstr "Свет"
 
 
-msgid "UV Mapping"
-msgstr "UV-Разметка"
+msgid "Light Probe"
+msgstr "Зонд освещения"
 
 
 msgid "Keyframe Insert Pie"
@@ -36214,10 +36246,6 @@ msgstr "Добавить -> Арматура -> Мета-Риги Rigify."
 
 msgid "Rigify Meta-Rigs"
 msgstr "Мета-Риги Rigify"
-
-
-msgid "Catalog"
-msgstr "Каталог"
 
 
 msgid "Assets"
@@ -41383,7 +41411,7 @@ msgstr "Тип алгоритма подразделения"
 
 
 msgid "Catmull-Clark"
-msgstr "Катмулл-Кларк"
+msgstr "Кэтмулл-Кларк"
 
 
 msgid "Grease Pencil Texture Modifier"
@@ -43341,7 +43369,7 @@ msgstr "Пропустить отображение внутренних под�
 
 
 msgid "Create a smooth curved surface using the Catmull-Clark subdivision scheme"
-msgstr "Создать гладкую изогнутую поверхность, используя схему подразделения Катмулла-Кларка"
+msgstr "Создать гладкую изогнутую поверхность, используя схему подразделения Кэтмулла-Кларка"
 
 
 msgid "Subdivide faces without changing shape"
@@ -47684,9 +47712,17 @@ msgid "Divide Floor"
 msgstr "Разделить и округлить вниз"
 
 
+msgid "Divide and floor to the largest integer smaller than or equal to the result"
+msgstr "Разделить и округлить вниз до наибольшего целого числа, меньшего или равного результату"
+
+
 msgctxt "NodeTree"
 msgid "Divide Ceiling"
 msgstr "Разделить и округлить вверх"
+
+
+msgid "Divide and ceil to the smallest integer greater than or equal to the result"
+msgstr "Разделить и округлить вверх до наименьшего целого числа, большего или равного результату"
 
 
 msgctxt "NodeTree"
@@ -50503,7 +50539,7 @@ msgstr "Разделить грани меша на более мелкие, н�
 
 
 msgid "Divide mesh faces to form a smooth surface, using the Catmull-Clark subdivision method"
-msgstr "Разделить грани меша, чтобы сформировать гладкую поверхность, используя метод подразделения Катмулла-Кларка"
+msgstr "Разделить грани меша, чтобы сформировать гладкую поверхность, используя метод подразделения Кэтмулла-Кларка"
 
 
 msgid "Switch between two inputs"
@@ -58113,7 +58149,7 @@ msgstr "Выделить точки ключевого кадра с помощ�
 
 
 msgid "Select all keyframes on the specified frame(s)"
-msgstr "Выделить все ключевые кадры на заданном интервале кадров"
+msgstr "Выделить все ключевые кадры на определённом кадре(-ах)"
 
 
 msgid "On Selected Keyframes"
@@ -58455,7 +58491,7 @@ msgstr "Свернуть каналы"
 
 
 msgid "Collapse (close) all selected expandable animation channels"
-msgstr "Свернуть все выделенные расширяемые каналы анимации"
+msgstr "Свернуть все выделенные разворачиваемые каналы анимации"
 
 
 msgid "Collapse all channels (not just selected ones)"
@@ -58490,7 +58526,7 @@ msgstr "Развернуть каналы"
 
 
 msgid "Expand (open) all selected expandable animation channels"
-msgstr "Развернуть все выделенные расширяемые каналы анимации"
+msgstr "Развернуть все выделенные разворачиваемые каналы анимации"
 
 
 msgid "Expand all channels (not just selected ones)"
@@ -59778,6 +59814,15 @@ msgstr "−X на +X"
 
 msgid "+X to -X"
 msgstr "+X на −X"
+
+
+msgctxt "Operator"
+msgid "Download Asset"
+msgstr "Загрузить ассет"
+
+
+msgid "Make the asset available without internet access"
+msgstr "Сделать ассет доступным без подключения к интернету"
 
 
 msgid "Asset Library Identifier"
@@ -66584,7 +66629,7 @@ msgstr "Отобразить ранее скрытые кривые в реда�
 
 msgctxt "Operator"
 msgid "Samples to Keys"
-msgstr "Сэмплы в лючи"
+msgstr "Сэмплы в ключи"
 
 
 msgid "Convert selected channels from samples to keyframes"
@@ -66759,7 +66804,7 @@ msgstr "Запекает звуковую волну в сэмплы на выд
 
 
 msgid "Attack Time"
-msgstr "Время атаки"
+msgstr "Время нарастания"
 
 
 msgid "Value for the envelope calculation that tells how fast the envelope can rise (the lower the value the steeper it can rise)"
@@ -66783,7 +66828,7 @@ msgstr "Частота среза высокочастотного фильтр�
 
 
 msgid "Release Time"
-msgstr "Время отпускания"
+msgstr "Время спада"
 
 
 msgid "Value for the envelope calculation that tells how fast the envelope can fall (the lower the value the steeper it can fall)"
@@ -70762,10 +70807,6 @@ msgid "Radius of the circle"
 msgstr "Радиус окружности"
 
 
-msgid "Force of the tool"
-msgstr "Сила воздействия инструмента"
-
-
 msgid "Method used for fitting a circle to the vertices"
 msgstr "Метод, используемый для подгонки вершин к форме окружности"
 
@@ -71498,10 +71539,6 @@ msgstr "В плоскость"
 
 msgid "Flatten vertices on a best-fitting plane"
 msgstr "Расположить вершины на одной плоскости"
-
-
-msgid "Spacing effect factor"
-msgstr "Коэффициент эффекта интервала"
 
 
 msgid "Plane on which vertices are flattened"
@@ -73263,6 +73300,10 @@ msgstr "Распределить петли рёбер равномерно"
 
 msgid "Space the vertices in a regular distribution on the loop"
 msgstr "Равномерно распределить вершины по петле рёбер"
+
+
+msgid "Spacing effect factor"
+msgstr "Коэффициент эффекта интервала"
 
 
 msgid "Algorithm used for interpolation"
@@ -77397,7 +77438,7 @@ msgstr "Как будет подразделён меш для создания 
 
 
 msgid "Create a new level using Catmull-Clark subdivisions"
-msgstr "Создать новый уровень, используя подразделения Катмулла-Кларка"
+msgstr "Создать новый уровень, используя подразделения Кэтмулла-Кларка"
 
 
 msgid "Create a new level using simple subdivisions"
@@ -79816,6 +79857,11 @@ msgstr "Создать локальное переопределение выд�
 
 msgid "Reset"
 msgstr "Сбросить"
+
+
+msgctxt "Operator"
+msgid "Outliner Library Override Property Remove"
+msgstr "Удалить свойство переопределения библиотеки аутлайнера"
 
 
 msgid "Remove the selected library override properties, and reset the relevant data to the linked reference values"
@@ -83139,6 +83185,15 @@ msgstr "Отменить анимацию, вернуться к исходно�
 
 msgid "Restore the frame when animation was initialized"
 msgstr "Восстановить кадр, с которого начиналась анимация"
+
+
+msgctxt "Operator"
+msgid "Pause Animation"
+msgstr "Приостановить анимацию"
+
+
+msgid "Pause animation, stopping at the current frame"
+msgstr "Пауза анимации, с остановкой на текущем кадре"
 
 
 msgctxt "Operator"
@@ -91081,7 +91136,7 @@ msgstr "Развернуть цикл в обратную сторону"
 
 
 msgid "Wrap"
-msgstr "Обёртка"
+msgstr "Переносить"
 
 
 msgid "Wrap back to the first/last values"
@@ -94237,7 +94292,7 @@ msgstr "Ограничить"
 
 
 msgid "Restrict painting to vertices in the group"
-msgstr "Ограничение рисование только на вершины в группе"
+msgstr "Ограничение рисования только на вершинах в группе"
 
 
 msgid "Properties of paint mode"
@@ -94270,74 +94325,6 @@ msgstr "Активный цвет палитры"
 
 msgid "Panel containing UI elements"
 msgstr "Панель содержит элементы интерфейса"
-
-
-msgid "Measurement"
-msgstr "Измерение"
-
-
-msgid "Curve Edit Mode"
-msgstr "Режим редактирования кривой"
-
-
-msgid "Curves Edit Mode"
-msgstr "Режим редактирования кривых"
-
-
-msgid "Transform Orientations"
-msgstr "Ориентации трансформации"
-
-
-msgid "Stroke Placement"
-msgstr "Расположение штрихов"
-
-
-msgid "Drawing Plane"
-msgstr "Плоскость рисования"
-
-
-msgid "Guides"
-msgstr "Направляющие"
-
-
-msgid "Grease Pencil Options"
-msgstr "Опции Grease Pencil"
-
-
-msgid "Quad View"
-msgstr "4-х Видовой просмотр"
-
-
-msgid "Onion Skin"
-msgstr "Калькирование"
-
-
-msgid "Stereoscopy"
-msgstr "Стереоскопия"
-
-
-msgid "Multi Frame"
-msgstr "Мультикадр"
-
-
-msgid "Auto-Masking"
-msgstr "Авто-маски́рование"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Скульптинг кривых - Параметры добавления кривых"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Скульптинг кривых - Параметр спада"
-
-
-msgid "Curves Grow/Shrink Scaling"
-msgstr "Масштабирование кривых: увеличить/уменьшить"
-
-
-msgid "Viewport Debug"
-msgstr "Отладка вьюпорта"
 
 
 msgid "VR"
@@ -94400,6 +94387,10 @@ msgid "Overlays"
 msgstr "Наложения"
 
 
+msgid "Guides"
+msgstr "Направляющие"
+
+
 msgid "Viewer Node"
 msgstr "Нода предпросмотра"
 
@@ -94410,6 +94401,70 @@ msgstr "Отслеживание движения"
 
 msgid "Mesh Edit Mode"
 msgstr "Режим редактирования меша"
+
+
+msgid "Measurement"
+msgstr "Измерение"
+
+
+msgid "Curve Edit Mode"
+msgstr "Режим редактирования кривой"
+
+
+msgid "Curves Edit Mode"
+msgstr "Режим редактирования кривых"
+
+
+msgid "Transform Orientations"
+msgstr "Ориентации трансформации"
+
+
+msgid "Stroke Placement"
+msgstr "Расположение штрихов"
+
+
+msgid "Drawing Plane"
+msgstr "Плоскость рисования"
+
+
+msgid "Grease Pencil Options"
+msgstr "Опции Grease Pencil"
+
+
+msgid "Quad View"
+msgstr "4-х Видовой просмотр"
+
+
+msgid "Onion Skin"
+msgstr "Калькирование"
+
+
+msgid "Stereoscopy"
+msgstr "Стереоскопия"
+
+
+msgid "Multi Frame"
+msgstr "Мультикадр"
+
+
+msgid "Auto-Masking"
+msgstr "Авто-маски́рование"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Скульптинг кривых - Параметры добавления кривых"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Скульптинг кривых - Параметр спада"
+
+
+msgid "Curves Grow/Shrink Scaling"
+msgstr "Масштабирование кривых: увеличить/уменьшить"
+
+
+msgid "Viewport Debug"
+msgstr "Отладка вьюпорта"
 
 
 msgid "Import Settings"
@@ -95760,6 +95815,11 @@ msgstr "Выдвигать"
 msgctxt "Operator"
 msgid "Roll"
 msgstr "Крен"
+
+
+msgctxt "Operator"
+msgid "B-Bone Size"
+msgstr "Размер B-кости"
 
 
 msgctxt "Operator"
@@ -99752,12 +99812,12 @@ msgid "Catalan - Català"
 msgstr "Каталонский - Català"
 
 
+msgid "Locale code: ca_AD. Translation progress: 100%"
+msgstr "Код локали: ca_AD. Прогресс перевода: 100%"
+
+
 msgid "Chinese (Simplified) - 简体中文"
 msgstr "Китайский (упрощённый) - 简体中文"
-
-
-msgid "Locale code: zh_HANS. Translation progress: 99%"
-msgstr "Код локали: zh_HANS. Прогресс перевода: 99%"
 
 
 msgid "Chinese (Traditional) - 繁體中文"
@@ -99804,6 +99864,10 @@ msgid "English (UK)"
 msgstr "Английский (Великобритания) - English (UK)"
 
 
+msgid "Locale code: en_GB. Translation progress: 95%"
+msgstr "Код локали: en_GB. Прогресс перевода: 95%"
+
+
 msgid "English (US)"
 msgstr "Английский (США) - English (US)"
 
@@ -99832,12 +99896,12 @@ msgid "French - Français"
 msgstr "Французский - Français"
 
 
-msgid "Locale code: fr_FR. Translation progress: 98%"
-msgstr "Код локали: fr_FR. Прогресс перевода: 98%"
-
-
 msgid "Georgian - ქართული"
 msgstr "Грузинский - ქართული"
+
+
+msgid "Locale code: ka. Translation progress: 100%"
+msgstr "Код локали: ka. Прогресс перевода: 100%"
 
 
 msgid "German - Deutsch"
@@ -99900,10 +99964,6 @@ msgid "Japanese - 日本語"
 msgstr "Японский - 日本語"
 
 
-msgid "Locale code: ja_JP. Translation progress: 98%"
-msgstr "Код локали: ja_JP. Прогресс перевода: 98%"
-
-
 msgid "Korean - 한국어"
 msgstr "Корейский - 한국어"
 
@@ -99956,6 +100016,10 @@ msgid "Polish - Polski"
 msgstr "Польский - Polski"
 
 
+msgid "Locale code: pl_PL. Translation progress: 100%"
+msgstr "Код локали: pl_PL. Прогресс перевода: 100%"
+
+
 msgid "Portuguese (Brazil) - Português brasileiro"
 msgstr "Португальский (Бразилия) - Português Brasileiro"
 
@@ -99984,6 +100048,10 @@ msgid "Russian - Русский"
 msgstr "Русский - Русский"
 
 
+msgid "Locale code: ru_RU. Translation progress: 100%"
+msgstr "Код локали: ru_RU. Прогресс перевода: 100%"
+
+
 msgid "Serbian (Cyrillic) - Српски"
 msgstr "Сербский (кириллица) - Српски"
 
@@ -100004,6 +100072,10 @@ msgid "Slovak - Slovenčina"
 msgstr "Словацкий - Slovenčina"
 
 
+msgid "Locale code: sk_SK. Translation progress: 100%"
+msgstr "Код локали: sk_SK. Прогресс перевода: 100%"
+
+
 msgid "Slovenian - Slovenščina"
 msgstr "Словенский - Slovenščina"
 
@@ -100016,16 +100088,12 @@ msgid "Spanish - Español"
 msgstr "Испанский - Español"
 
 
-msgid "Locale code: es. Translation progress: 99%"
-msgstr "Код локали: es. Прогресс перевода: 99%"
+msgid "Locale code: es. Translation progress: 100%"
+msgstr "Код локали: es. Прогресс перевода: 100%"
 
 
 msgid "Swahili - Kiswahili"
 msgstr "Суахили - Kiswahili"
-
-
-msgid "Locale code: sw. Translation progress: 70%"
-msgstr "Код локали: sw. Прогресс перевода: 70%"
 
 
 msgid "Swedish - Svenska"
@@ -100078,10 +100146,6 @@ msgstr "Код локали: ur. Прогресс перевода: 83%"
 
 msgid "Vietnamese - Tiếng Việt"
 msgstr "Вьетнамский - Tiếng Việt"
-
-
-msgid "Locale code: vi_VN. Translation progress: 97%"
-msgstr "Код локали: vi_VN. Прогресс перевода: 97%"
 
 
 msgid "Reference Sphere Size"
@@ -108793,7 +108857,7 @@ msgstr "Отображать экстраполяцию"
 
 
 msgid "Show Handles"
-msgstr "Отображать маркеры"
+msgstr "Отображать ручки"
 
 
 msgid "Show handles of Bézier control points"
@@ -120068,6 +120132,16 @@ msgstr "Инструмент 3D-вида: Редактировать армат�
 
 
 msgctxt "WindowManager"
+msgid "3D View Tool: Edit Armature, B-Bone Size"
+msgstr "Инструмент 3D-вида: Редактировать арматуру, Размер B-кости"
+
+
+msgctxt "WindowManager"
+msgid "3D View Tool: Edit Armature, B-Bone Size (fallback)"
+msgstr "Инструмент 3D-вида: Редактировать арматуру, Размер B-кости (доп. вариант)"
+
+
+msgctxt "WindowManager"
 msgid "3D View Tool: Edit Armature, Bone Envelope"
 msgstr "Инструмент 3D-вида: Редактировать арматуру, Оболочка кости"
 
@@ -125495,6 +125569,10 @@ msgid "Liquid Domain"
 msgstr "Домен для жидкости"
 
 
+msgid "No active mesh object."
+msgstr "Нет активного меш-объекта."
+
+
 msgid "Select at least one mesh object"
 msgstr "Выделить хотя бы один меш-объект"
 
@@ -126234,6 +126312,10 @@ msgstr "OpenVDB (.vdb)"
 
 msgid "For Each Element"
 msgstr "Для каждого элемента"
+
+
+msgid "Typed Bundle"
+msgstr "Типизированная связка"
 
 
 msgid "Calculation Range"
@@ -127163,7 +127245,7 @@ msgstr "Скопировать все материалы на выделение
 
 
 msgid "Flip Colors"
-msgstr "Перевернуть цвета"
+msgstr "Инвертировать цвета"
 
 
 msgid "Clip Image"
@@ -128856,7 +128938,7 @@ msgstr "Меньше"
 
 msgctxt "Operator"
 msgid "Columns on Selected Keys"
-msgstr "Колонки на выделенных ключах"
+msgstr "Столбцы на выделенных ключах"
 
 
 msgctxt "Operator"
@@ -128866,7 +128948,7 @@ msgstr "Столбец на текущем кадре"
 
 msgctxt "Operator"
 msgid "Columns on Selected Markers"
-msgstr "Колонки на выделенных маркерах"
+msgstr "Столбцы на выделенных маркерах"
 
 
 msgctxt "Operator"
@@ -129104,7 +129186,7 @@ msgstr "Переключить тип экспозиционного листа"
 
 msgctxt "Operator"
 msgid "Box Select (Include Handles)"
-msgstr "Выделение рамкой (включая рукоятки)"
+msgstr "Выделение рамкой (включая ручки)"
 
 
 msgctxt "Operator"
@@ -130561,10 +130643,6 @@ msgid "Duplicate Marker to Scene"
 msgstr "Дублировать маркеры в сцену"
 
 
-msgid "Scrubbing"
-msgstr "Звук в перемотке"
-
-
 msgid "Limit to Frame Range"
 msgstr "Ограничить до диапазона кадров"
 
@@ -130616,6 +130694,11 @@ msgstr "Невозможно найти группу панели инструм
 
 msgid "Taper Start"
 msgstr "Сужение - Начало"
+
+
+msgctxt "Curve"
+msgid "End"
+msgstr "Конец"
 
 
 msgid "Style Start"
@@ -131001,6 +131084,11 @@ msgstr "Переводить"
 
 msgid "New Data"
 msgstr "Новые данные"
+
+
+msgctxt "Preferences"
+msgid "Time"
+msgstr "Время"
 
 
 msgid "Numeric Input Arrows"
@@ -134075,6 +134163,10 @@ msgid "User Library"
 msgstr "Библиотека пользователя"
 
 
+msgid "actions"
+msgstr "действия"
+
+
 msgid "Attempt to set action on non-animatable ID"
 msgstr "Попытка задать действие для неанимируемого ID"
 
@@ -134139,16 +134231,16 @@ msgid "The attribute name must not be empty"
 msgstr "Имя атрибута не должно быть пустым"
 
 
-msgid "Attribute is required and cannot be removed"
-msgstr "Атрибут является обязательным и не может быть удалён"
-
-
 msgid "Domain unsupported for \"%s\" attribute"
 msgstr "Домен не поддерживается для атрибута \"%s\""
 
 
 msgid "Type unsupported for \"%s\" attribute"
 msgstr "Тип не поддерживается для атрибута \"%s\""
+
+
+msgid "Attribute '%s' is required and cannot be removed"
+msgstr "Атрибут \"%s\" является обязательным и не может быть удалён"
 
 
 msgid "This attribute cannot be accessed in a procedural context"
@@ -134578,6 +134670,10 @@ msgid "Slot %d"
 msgstr "Слот %d"
 
 
+msgid "images"
+msgstr "изображения"
+
+
 msgid "Cannot pack multiview images from raw data currently..."
 msgstr "На данный момент невозможно упаковать изображения нескольких видов из сырых данных…"
 
@@ -135001,6 +135097,10 @@ msgstr "LIB: объект не найден в сцене: \"%s\""
 
 msgid "RenderView"
 msgstr "Вид рендера"
+
+
+msgid "scenes"
+msgstr "сцены"
 
 
 msgid "screens"
@@ -136993,6 +137093,14 @@ msgid "Screenshot cannot be smaller than %i pixels on a side"
 msgstr "Снимок экрана не может быть меньше %i пикселей на какой-либо стороне"
 
 
+msgid "Asset could not be found (relative identifier: '%s')"
+msgstr "Ассет не найден (относительный идентификатор: \"%s\")"
+
+
+msgid "Asset '%s' doesn't need downloading"
+msgstr "Ассет \"%s\" скачивать не требуется"
+
+
 msgid "This is not a remote library"
 msgstr "Это не удалённая библиотека"
 
@@ -137063,6 +137171,14 @@ msgstr "Отобразить полку ассетов во всплывающе
 
 msgid "Unable to load %s from %s"
 msgstr "Невозможно загрузить %s из %s"
+
+
+msgid ""
+"This asset was previously downloaded, but it is outdated or inconsistent.\n"
+"Downloading it again is recommended."
+msgstr ""
+"Данный ассет уже был загружен ранее, но он устарел или содержит несоответствия.\n"
+"Рекомендуется загрузить его заново."
 
 
 msgid "Asset Library: Current File"
@@ -139768,10 +139884,6 @@ msgid "Loading Asset Libraries"
 msgstr "Загрузка библиотек ассетов"
 
 
-msgid "Unassigned"
-msgstr "Неназначенные"
-
-
 msgid ""
 "Modifier node group assets not assigned to a catalog.\n"
 "Catalogs can be assigned in the Asset Browser"
@@ -140545,6 +140657,14 @@ msgid "Could not find hook modifier"
 msgstr "Не удалось найти модификатор крюка"
 
 
+msgid "Cannot link to light linking collection '%s' that is used by scene '%s'"
+msgstr "Невозможно связать коллекцию привязки света \"%s\", которая используется сценой \"%s\""
+
+
+msgid "Cannot unlink from light linking collection '%s' that is used by scene '%s'"
+msgstr "Невозможно отсоединить из коллекции привязки света \"%s\", которая используется сценой \"%s\""
+
+
 msgid "Unable to execute '%s', error changing modes"
 msgstr "Не удалось выполнить \"%s\", ошибка смены режимов"
 
@@ -141294,6 +141414,18 @@ msgid "Object must be in object mode"
 msgstr "Объект должен находиться в объектном режиме"
 
 
+msgid "No Fluid modifier found"
+msgstr "Модификатор жидкости не найден"
+
+
+msgid "Invalid domain"
+msgstr "Неверный домен"
+
+
+msgid "Pending bake jobs found"
+msgstr "Обнаружены незавершённые задачи по запеканию"
+
+
 msgid "Bake free failed: no Fluid modifier found"
 msgstr "Очистка запекания не удалась: модификатор жидкости не найден"
 
@@ -141352,10 +141484,6 @@ msgstr "Запекание кэша точек..."
 
 msgid "No Rigid Body World to add Rigid Body Constraint to"
 msgstr "Нет среды твёрдых тел, в который необходимо добавить ограничитель твёрдых тел"
-
-
-msgid "Object has no Rigid Body Constraint to remove"
-msgstr "У объекта нет ограничителя твёрдых тел для удаления"
 
 
 msgid "Object '%s' already has a Rigid Body Constraint"
@@ -141610,18 +141738,6 @@ msgid "Rendering..."
 msgstr "Рендеринг..."
 
 
-msgid "Render output disabled in Output properties"
-msgstr "В свойствах вывода отключена опция вывода рендера"
-
-
-msgid "Render output and compositing disabled in Output properties"
-msgstr "В свойствах вывода отключена опция вывода рендера и компо́зитинга"
-
-
-msgid "Render output disabled in Output properties and no active compositing File Output nodes"
-msgstr "В свойствах вывода отключена опция вывода рендера, а также в компо́зитинге нет активных нод \"Вывод в файл (file output)\""
-
-
 msgid "No sequencer scene with video strips to render"
 msgstr "Нет сцен секвенсора с дорожками видео для рендеринга"
 
@@ -141652,6 +141768,10 @@ msgstr "Невозможно использовать рендер OpenGL в ф�
 
 msgid "Scene has no camera"
 msgstr "Нет камеры в сцене"
+
+
+msgid "Render output disabled in Output properties"
+msgstr "В свойствах вывода отключена опция вывода рендера"
 
 
 msgid "Failed to create OpenGL off-screen buffer, %s"
@@ -141688,6 +141808,10 @@ msgstr "Сцены без камеры не поддерживают предв�
 
 msgid "Brushes do not support automatic previews"
 msgstr "Кисти не поддерживают автоматический предварительный просмотр"
+
+
+msgid "Screens do not support automatic previews"
+msgstr "Экраны не поддерживают автоматический предварительный просмотр"
 
 
 msgid "Data-block type does not support automatic previews"
@@ -142290,10 +142414,6 @@ msgstr "Активная группа заблокирована, операци
 
 msgid "Fill tool needs active material"
 msgstr "Инструменту заливки требуется активный материал"
-
-
-msgid "Unable to fill unclosed areas"
-msgstr "Невозможно произвести заливку незамкнутых областей"
 
 
 msgid "GPencil Interpolation: "
@@ -143823,6 +143943,10 @@ msgstr "Вершин:%s | Граней:%s | Треуг.:%s"
 
 msgid " | Objects:%s/%s"
 msgstr " | Объектов:%s/%s"
+
+
+msgid "Duration: {} (Frame {}/{})"
+msgstr "Продолжительность: {} (Кадр {}/{})"
 
 
 msgid "Memory: %s"
@@ -148065,6 +148189,10 @@ msgid "Attribute per point/vertex"
 msgstr "Атрибут на точку/вершину"
 
 
+msgid "Attribute is required and cannot be removed"
+msgstr "Атрибут является обязательным и не может быть удалён"
+
+
 msgid "Smooth the surface"
 msgstr "Сгладить поверхность"
 
@@ -148675,10 +148803,6 @@ msgstr "Количество пользовательских нормалей �
 
 msgid "Metaball '%s' does not contain spline given"
 msgstr "Метасфера \"%s\" не содержит заданный сплайн"
-
-
-msgid "{}::{}::{}"
-msgstr "{}::{}::{}"
 
 
 msgid "Modify"
@@ -149837,8 +149961,8 @@ msgid "Topology Mapping"
 msgstr "Сопоставление топологии"
 
 
-msgid "Face Count: %s"
-msgstr "Количество граней: %s"
+msgid "Face Count: {}"
+msgstr "Количество граней: {}"
 
 
 msgid "Modifier requires more than 3 input faces"
@@ -150650,20 +150774,52 @@ msgid "An image of the given size and constant color"
 msgstr "Однотонное изображение заданного размера"
 
 
+msgid "Applies a box blur filter"
+msgstr "Применяет фильтр прямоугольного размытия"
+
+
 msgid "Tent"
 msgstr "Тент"
+
+
+msgid "Applies a triangle blur filter"
+msgstr "Применяет фильтр треугольного размытия"
+
+
+msgid "Applies a quadratic blur filter"
+msgstr "Применяет квадратичный фильтр размытия"
+
+
+msgid "Applies a cubic blur filter"
+msgstr "Применяет кубический фильтр размытия"
+
+
+msgid "Applies a Gaussian blur"
+msgstr "Применяет размытие по Гауссу"
 
 
 msgid "Fast Gaussian"
 msgstr "Быстрый Гауссовский"
 
 
+msgid "Applies a recursive Gaussian blur that can be faster and more accurate in some cases, but less accurate in other cases"
+msgstr "Применяет рекурсивное размытие по Гауссу, которое в одних случаях может быть быстрее и точнее, а в других — уступать в качестве"
+
+
 msgid "Catrom"
 msgstr "Catrom"
 
 
+msgid "Applies a cubic Catmull-Rom filter"
+msgstr "Применяет кубический фильтр Кэтмулла-Рома"
+
+
 msgid "Mitch"
 msgstr "Mitch"
+
+
+msgid "Applies a cubic Mitchell-Netravali filter"
+msgstr "Применяет кубический фильтр Митчелла-Нетравали"
 
 
 msgid "Extend Bounds"
@@ -150728,6 +150884,14 @@ msgstr "Цветовое пространство YUV (Y - яркость, U V -
 
 msgid "YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space"
 msgstr "Цветовое пространство YCbCr (Y - яркость, Cb - разностная цветность синего, Cr - разностная цветность красного)"
+
+
+msgid "Limit by single channel"
+msgstr "Ограничить по отдельному каналу"
+
+
+msgid "Limit by maximum of other channels"
+msgstr "Ограничить максимальным значением других каналов"
 
 
 msgid "YUV Key Channel"
@@ -151817,6 +151981,10 @@ msgid "Invert stabilization to reintroduce motion to the image"
 msgstr "Инвертировать стабилизацию для восстановления движения изображения"
 
 
+msgid "Align text to the center"
+msgstr "Выравнивать текст по центру"
+
+
 msgid "The image containing the paragraph of text"
 msgstr "Изображение, содержащее абзац текста"
 
@@ -152039,6 +152207,22 @@ msgid "B"
 msgstr "B"
 
 
+msgid "From Start"
+msgstr "От начала"
+
+
+msgid "Find the first occurrence of the string"
+msgstr "Найти первое вхождение строки"
+
+
+msgid "From End"
+msgstr "От конца"
+
+
+msgid "Find the last occurrence of the string"
+msgstr "Найти последнее вхождение строки"
+
+
 msgid "First Found"
 msgstr "Первое совпадение"
 
@@ -152199,6 +152383,22 @@ msgstr "Вместо этого используйте ноду \"Поверну
 
 msgid "Rotate By"
 msgstr "Повернуть на"
+
+
+msgid "Uppercase"
+msgstr "В верхний регистр"
+
+
+msgid "Convert all characters to uppercase"
+msgstr "Сделать все буквы заглавными"
+
+
+msgid "Lowercase"
+msgstr "В нижний регистр"
+
+
+msgid "Convert all characters to lowercase"
+msgstr "Сделать все буквы строчными"
 
 
 msgid "Separator"
@@ -153526,12 +153726,20 @@ msgid "Volume to take a named grid out of"
 msgstr "Объём, из которого извлекается именованная сетка"
 
 
-msgid "Pattern Mode"
-msgstr "Режим шаблона"
-
-
 msgid "Bundle Type"
 msgstr "Тип связки"
+
+
+msgid "Find paths to bundles of a specific type"
+msgstr "Найти пути к связкам определённого типа"
+
+
+msgid "Find paths to values of a specific data type"
+msgstr "Найти пути к значениям определённого типа данных"
+
+
+msgid "Pattern Mode"
+msgstr "Режим шаблона"
 
 
 msgid "If true, the gizmo is displayed in screen space. Otherwise it's in object space"
@@ -153676,6 +153884,30 @@ msgstr "Максимальный индекс габаритного конте�
 
 msgid "Maximum Z index of the clipping bounding box"
 msgstr "Максимальный индекс габаритного контейнера отсечения по оси Z"
+
+
+msgid "6-connectivity: affect voxels connected by faces only"
+msgstr "6-связность: воздействие только на воксели, соединённые гранями"
+
+
+msgid "18-connectivity: affect voxels connected by faces or edges only"
+msgstr "18-связность: воздействие только на воксели, соединённые гранями или рёбрами"
+
+
+msgid "26-connectivity: affect voxels connected by faces, edges, or vertices"
+msgstr "26-связность: воздействие на воксели, соединённые гранями, рёбрами или вершинами"
+
+
+msgid "Ignore active tiles; they are neither dilated/eroded nor contribute to the operation"
+msgstr "Игнорировать активные тайлы: они не расширяются, не размываются и не участвуют в операции"
+
+
+msgid "Voxelize active tiles, apply operation, and leave in voxelized state"
+msgstr "Вокселизировать активные тайлы, применить операцию и оставить в вокселизированном состоянии"
+
+
+msgid "Keep tiles unchanged when possible, only voxelizing if necessary. More memory efficient"
+msgstr "По возможности оставлять тайлы без изменений, переводя в воксели только при необходимости. Экономичнее по памяти"
 
 
 msgid "Connectivity"
@@ -154245,6 +154477,14 @@ msgid "ID of group of the points to merge"
 msgstr "Идентификатор группы точек, подлежащих слиянию"
 
 
+msgid "Bevel affects vertices"
+msgstr "Применить фаску к вершинам"
+
+
+msgid "Bevel affects edges"
+msgstr "Применить фаску к рёбрам"
+
+
 msgid "Affect Kind"
 msgstr "Режим фаски"
 
@@ -154317,8 +154557,8 @@ msgid "Per corner specification of 'spread' for arc miters"
 msgstr "Настройка распределения для дугообразных угловых соединений"
 
 
-msgid "How many pieces is an edge beveled into, or, for vertex bevels, the how many segments on the arcs between the edges."
-msgstr "Определяет количество сегментов, получаемых при фаске рёбер, или количество сегментов на дугах между рёбрами для фаски вершин."
+msgid "Superellipse shape parameter, used when there is no Profile, and also used for Arc and Patch miters"
+msgstr "Параметр формы суперэллипса, используемый при отсутствии профиля, а также для угловых соединений \"Дуга (arc)\" и \"Заплатка (patch)\""
 
 
 msgid "If present, the first curve will be sampled to give a custom profile on edges. The curve should be in the XY plane, going from (0,1,0) to (1,0,0)"
@@ -154335,6 +154575,10 @@ msgstr "Определяет выводимые грани, которые об�
 
 msgid "Identifies output edges that are on the outsides of new mesh parts for edges"
 msgstr "Определяет выводимые рёбра, которые образуются на внешних краях новых частей меша для рёбер"
+
+
+msgid "Identifies output edges that are in the middle of new mesh parts of edges and continued through vertices (round down if odd number of segments)"
+msgstr "Определяет выводимые рёбра, которые образуются посередине новых частей меша для рёбер, и проходят через вершины (округляется в меньшую сторону, если количество сегментов будет нечётным)"
 
 
 msgid "Selections"
@@ -154984,6 +155228,14 @@ msgid "Attribute not found"
 msgstr "Атрибут не найден"
 
 
+msgid "Rename a single attribute with the provided attribute name"
+msgstr "Переименовать отдельный атрибут, задав для него новое имя"
+
+
+msgid "Rename all attributes with the provided prefix"
+msgstr "Переименовать все атрибуты по заданному префиксу"
+
+
 msgid "Repeat Items"
 msgstr "Элементы для повторения"
 
@@ -155047,6 +155299,14 @@ msgstr "Меш, на котором следует производить пои
 
 msgid "Splits the faces of the input mesh into groups which can be sampled individually"
 msgstr "Разделяет грани входного меша на группы, которые можно сэмплировать по отдельности"
+
+
+msgid "Rectangular"
+msgstr "Прямоугольник"
+
+
+msgid "Equivalent to having no window function"
+msgstr "Равносильно тому, что оконная функция не применяется"
 
 
 msgid "FFT Size"
@@ -155426,6 +155686,82 @@ msgid "Font not specified"
 msgstr "Шрифт не указан"
 
 
+msgid "Let the text use more space than the specified height"
+msgstr "Разрешить распределение текста за заданную высоту"
+
+
+msgid "Scale To Fit"
+msgstr "Масштабировать до вмещения"
+
+
+msgid "Scale the text size to fit inside the width and height"
+msgstr "Изменить размер текста так, чтобы он поместился в пределах ширины и высоты"
+
+
+msgid "Only output curves that fit within the width and height. Output the remainder to the \"Remainder\" output."
+msgstr "Выводить только те кривые, которые помещаются в заданные ширину и высоту. Оставшуюся часть текста выводить через сокет \"Остаток (remainder)\"."
+
+
+msgid "Align text to the left and the right"
+msgstr "Выравнивать текст по обоим краям"
+
+
+msgid "Align text to the left and the right, with equal character spacing"
+msgstr "Выравнивать текст по обоим краям с равным межсимвольным интервалом"
+
+
+msgid "Set the pivot point for each character at its midpoint"
+msgstr "Установить центр трансформации для каждого символа в его середине"
+
+
+msgid "Top Left"
+msgstr "Сверху слева"
+
+
+msgid "Set the pivot point for each character at its top left"
+msgstr "Установить центр трансформации для каждого символа в их левом верхнем углу"
+
+
+msgid "Top Center"
+msgstr "Сверху по центру"
+
+
+msgid "Set the pivot point for each character at its top center"
+msgstr "Установить центр трансформации для каждого символа сверху по центру"
+
+
+msgid "Top Right"
+msgstr "Сверху справа"
+
+
+msgid "Set the pivot point for each character at its top right"
+msgstr "Установить центр трансформации для каждого символа в их правом верхнем углу"
+
+
+msgid "Bottom Left"
+msgstr "Снизу слева"
+
+
+msgid "Set the pivot point for each character at its bottom left"
+msgstr "Установить центр трансформации для каждого символа в их левом нижнем углу"
+
+
+msgid "Bottom Center"
+msgstr "Cнизу по центру"
+
+
+msgid "Set the pivot point for each character at its bottom center"
+msgstr "Установить центр трансформации для каждого символа снизу по центру"
+
+
+msgid "Bottom Right"
+msgstr "Снизу справа"
+
+
+msgid "Set the pivot point for each character at its bottom right"
+msgstr "Установить центр трансформации для каждого символа в их правом нижнем углу"
+
+
 msgid "Align Y"
 msgstr "Выровнять по Y"
 
@@ -155449,6 +155785,10 @@ msgstr "Остаток"
 msgctxt "Text"
 msgid "Word"
 msgstr "Слово"
+
+
+msgid "Point around which to rotate each character instance"
+msgstr "Точка, вокруг которой будет вращаться каждый экземпляр символа"
 
 
 msgid "Subdivision result mesh is too large for uniform subdivision"
@@ -155637,14 +155977,6 @@ msgstr "Точная форма"
 
 msgid "Use exact geometry for most efficient packing (slowest)"
 msgstr "Использовать точную геометрию для наиболее эффективной упаковки (самый медленный)"
-
-
-msgid "Bottom Left"
-msgstr "Снизу слева"
-
-
-msgid "Top Right"
-msgstr "Сверху справа"
 
 
 msgid "Faces to consider when packing islands"
@@ -156315,7 +156647,7 @@ msgstr "Поворачивает направление анизотропии, 
 
 
 msgid "Thin Wall"
-msgstr "Тонкостенный объект"
+msgstr "Тонкая стенка"
 
 
 msgid "Diffuse Roughness"
@@ -157269,6 +157601,14 @@ msgid "Cannot render, no camera"
 msgstr "Рендеринг невозможен, т. к. нет камеры"
 
 
+msgid "Render output and compositing disabled in Output properties"
+msgstr "В свойствах вывода отключена опция вывода рендера и компо́зитинга"
+
+
+msgid "Render output disabled in Output properties and no active compositing File Output nodes"
+msgstr "В свойствах вывода отключена опция вывода рендера, а также в компо́зитинге нет активных нод \"Вывод в файл (file output)\""
+
+
 msgid "No border area selected"
 msgstr "Не выбрана граничная область"
 
@@ -157599,8 +157939,8 @@ msgid "Images are not automatically saved with the file"
 msgstr "Изображения не сохраняются автоматически вместе с файлом"
 
 
-msgid "Save %u modified image(s)"
-msgstr "Сохранить %u изменённых изображений"
+msgid "Save {} modified image(s)"
+msgstr "Сохранить {} изменённых изображений"
 
 
 msgid "For security reasons, automatic execution of Python scripts in this file was disabled:"
@@ -159187,6 +159527,10 @@ msgstr ""
 "Для использования с текстурами, привязанными к сцене."
 
 
+msgid "Utility"
+msgstr "Утилита"
+
+
 msgid ""
 "2.2 gamma-encoded Rec.709 with illuminant D65 white point.\n"
 "For use with scene-referred textures."
@@ -159287,10 +159631,6 @@ msgid "Pixel Art"
 msgstr "Пиксель-арт"
 
 
-msgid "Utility"
-msgstr "Утилита"
-
-
 msgid "3D to Screen Space"
 msgstr "3D в пространство экрана"
 
@@ -159331,12 +159671,20 @@ msgid "Direction of the aberration effect"
 msgstr "Направление эффекта аберрации"
 
 
+msgid "The position the transformations pivot around, in normalized coordinates. 0 means the lower left corner and 1 means the upper right corner of the image."
+msgstr "Положение, которое является центром трансформации. Определяется в нормализованных координатах, поэтому \"0\" означает нижний левый угол, а \"1\" - верхний правый угол изображения."
+
+
 msgid "The intensity of the aberration effect"
 msgstr "Интенсивность эффекта аберрации"
 
 
 msgid "Scale the image such that it fits entirely in the frame, leaving no empty spaces at the corners"
 msgstr "Масштабирует изображение таким образом, чтобы оно полностью помещалось в кадр, не оставляя пустых мест по углам"
+
+
+msgid "The number of samples used to compute the blur. The more samples the smoother the result, at the expense of more compute time. The actual number of samples is two to the power of this input, so it increases exponentially."
+msgstr "Количество сэмплов, используемых для вычисления размытия. Чем больше сэмплов, тем более гладким будет результат, но за счёт увеличения времени вычислений. Фактическое количество сэмплов равно двум в степени этого \"ввода\", поэтому оно увеличивается экспоненциально."
 
 
 msgid "Different styles of aberrations"
@@ -159399,8 +159747,16 @@ msgid "Simulates the noise and behavior of analog film"
 msgstr "Имитирует шум и поведение аналоговой киноплёнки"
 
 
+msgid "Acutance"
+msgstr "Резкость"
+
+
 msgid "Sharpens large details and adds a halo around objects"
 msgstr "Повышает резкость крупных деталей и создаёт ореол вокруг объектов"
+
+
+msgid "Should the noise change frame to frame"
+msgstr "Должен ли шум меняться от кадра к кадру"
 
 
 msgid "Coarseness"
@@ -159435,16 +159791,96 @@ msgid "Patchiness"
 msgstr "Неравномерность"
 
 
+msgid "Smoothness of the film substrate. High values contribute to a stroboscope effect when animating."
+msgstr "Однородность плёночной основы (эмульсии). Высокие значения способствуют стробоскопическому эффекту при анимации."
+
+
 msgid "Noise colorfulness"
 msgstr "Цветность шума"
+
+
+msgid "Halation-style softening: edges \"bleed\" and become smoother, adds bloom and noise that is somewhat pattern-aware"
+msgstr "Смягчение в стиле \"Гало\": края размываются и становятся более гладкими, добавляется свечение и шум, который в некоторой степени учитывает структуру изображения"
+
+
+msgid "Texture Scale"
+msgstr "Масштаб текстуры"
+
+
+msgid "16 mm"
+msgstr "16 мм"
+
+
+msgid "16 mm Broadcast"
+msgstr "16-мм Телевещание"
+
+
+msgid "Very average film, slightly harsh but good contrast"
+msgstr "Плёнка с базовыми характеристиками: немного резковата, но с отличным контрастом"
+
+
+msgid "16 mm Indie Cinema"
+msgstr "16-мм Инди-кино"
+
+
+msgid "Overall soft, but with dense, punchy grain, textured midtones"
+msgstr "Общая мягкость изображения с плотным, выразительным зерном и проработанными полутонами"
+
+
+msgid "35 mm"
+msgstr "35 мм"
+
+
+msgid "35 mm Portra 400"
+msgstr "35-мм Portra 400"
 
 
 msgid "Fine, pleasing grain for softer skin"
 msgstr "Мелкое, приятное зерно для придания мягкости коже"
 
 
+msgid "70 mm"
+msgstr "70 мм"
+
+
+msgid "70 mm Cinema"
+msgstr "70-мм Кино"
+
+
+msgid "Very fine, clean grain. For UHD or IMAX"
+msgstr "Очень мелкое и чистое зерно для UHD или IMAX"
+
+
+msgid "8 mm"
+msgstr "8 мм"
+
+
+msgid "8 mm Caffenol"
+msgstr "8-мм Кофенол"
+
+
+msgid "DIY-developed film, very grainy, high contrast and uneven."
+msgstr "Эффект плёнки ручной проявки: плотное зерно, высокий контраст и неровная текстура."
+
+
+msgid "8 mm Home Movie"
+msgstr "8-мм Домашнее кино"
+
+
+msgid "Heavy luminance grain with reduced sharpness and contrast."
+msgstr "Тяжелое яркостное зерно с меньшей резкостью и контрастом."
+
+
 msgid "Cinematic Gritty"
 msgstr "Кинематографическая зернистость"
+
+
+msgid "Cinematic Soft"
+msgstr "Кинематографическая мягкость"
+
+
+msgid "User-defined settings. Be careful."
+msgstr "Пользовательские настройки. Будьте осторожны."
 
 
 msgid "Custom Style"
@@ -159463,12 +159899,28 @@ msgid "Studio Broadcast"
 msgstr "Студийное телевещание"
 
 
+msgid "Super 35 mm"
+msgstr "Супер 35-мм"
+
+
+msgid "Balanced grain typical of modern films (2K)"
+msgstr "Сбалансированная зернистость, характерная для современных плёнок (2K)"
+
+
+msgid "Super 8 mm"
+msgstr "Супер 8-мм"
+
+
 msgid "Large, dancing grain with strong structure"
 msgstr "Крупное, \"танцующее\" зерно с выраженной структурой"
 
 
 msgid "Xpro Sharp"
 msgstr "Кросс-процесс: Резкость"
+
+
+msgid "Xpro or cross-processing is the deliberate processing of the film in chemical solution intended for a different type of film"
+msgstr "Кросс-процесс (или X-Pro) — это намеренная проявка фотоплёнки в химических растворах, предназначенных для другого типа плёнки"
 
 
 msgid "Project with Depth"
@@ -159491,8 +159943,16 @@ msgid "Cycle Length"
 msgstr "Продолжительность цикла"
 
 
+msgid "Number of frames to cycle through. Not affected by Speed."
+msgstr "Количество кадров для цикла. Не зависит от скорости."
+
+
 msgid "Restart from start frame when Cycle Length is reached"
 msgstr "Заново начинать воспроизведение по истечению 'продолжительности цикла'"
+
+
+msgid "Offset to add to the current scene frame. Can also be negative."
+msgstr "Смещение, добавляемое к текущему кадру сцены. Может также быть и отрицательным."
 
 
 msgid "Multiply the current scene frame by this factor"
@@ -159555,8 +160015,16 @@ msgid "Separate Cylindrical"
 msgstr "Разложить на цилиндрические компоненты"
 
 
+msgid "Decompose a vector into its cylindrical components."
+msgstr "Разложить вектор на компоненты цилиндрической системы координат."
+
+
 msgid "Separate Spherical"
 msgstr "Разложить на сферические компоненты"
+
+
+msgid "Decompose a vector into its spherical components."
+msgstr "Разложить вектор на компоненты сферической системы координат."
 
 
 msgid "Applies a brown tint to mimic vintage photo tones."
@@ -159663,6 +160131,10 @@ msgid "Darkens edges."
 msgstr "Затемняет края."
 
 
+msgid "Rotation of the area to be darkened"
+msgstr "Поворот области, подлежащей затемнению"
+
+
 msgid "Corner Roundness"
 msgstr "Скругление углов"
 
@@ -159691,12 +160163,16 @@ msgid "Cloth Dynamics (Experimental)"
 msgstr "Динамика ткани (экспериментальная)"
 
 
+msgid "Simulate dynamic cloth behavior on mesh geometry"
+msgstr "Симуляция динамического поведения ткани на геометрии меша"
+
+
 msgid "Bendiness"
 msgstr "Гибкость"
 
 
 msgid "Higher values increase how much the cloth bends."
-msgstr "Бо́льшие значения увеличивают то, насколько сильно ткань способна изгибаться."
+msgstr "Более высокие значения увеличивают то, насколько сильно ткань способна изгибаться."
 
 
 msgid "Cloth Tags"
@@ -159751,6 +160227,10 @@ msgid "Extra Sim Attributes"
 msgstr "Дополнительные атрибуты симуляции"
 
 
+msgid "Comma-separated list of custom attributes which should be persisted between simulation steps."
+msgstr "Список пользовательских атрибутов через запятую, которые должны сохраняться между шагами симуляции."
+
+
 msgid "Friction coefficient for each vertex."
 msgstr "Коэффициент трения для каждой вершины."
 
@@ -159783,8 +160263,16 @@ msgid "Mass assigned to each vertex in the solver."
 msgstr "Масса, назначенная каждой вершине в решателе."
 
 
+msgid "How strong each vertex is pinned to its input position."
+msgstr "Сила закрепления каждой вершины к её исходному положению."
+
+
 msgid "Residual Error"
 msgstr "Остаточная погрешность"
+
+
+msgid "Average relative constraint error. 1 is good, higher is worse."
+msgstr "Средняя относительная погрешность ограничений. \"1\" — отлично, больше — хуже."
 
 
 msgid "Custom simulation space (by default, simulation space is world space)."
@@ -159797,6 +160285,10 @@ msgstr "Настройки, влияющие на скорость и качес
 
 msgid "Stretchiness"
 msgstr "Эластичность"
+
+
+msgid "Higher values make the cloth more elastic."
+msgstr "Более высокие значения делают ткань более эластичной."
 
 
 msgid "Settings for structural constraints like bendiness and stretchiness."
@@ -159839,12 +160331,24 @@ msgid "Tearing Threshold"
 msgstr "Порог разрыва"
 
 
+msgid "The higher the value, the stronger the stress required to tear an edge."
+msgstr "Чем выше значение, тем большее натяжение потребуется для разрыва ребра."
+
+
 msgid "Tearing Voronoi Scale"
 msgstr "Разрыв - Масштаб ячеек Вороного"
 
 
+msgid "Scale of Voronoi patches whose boundaries can tear."
+msgstr "Масштаб ячеек Вороного, границы которых могут разрываться."
+
+
 msgid "Collider"
 msgstr "Объект столкновения"
+
+
+msgid "Set up a mesh as an external colliider"
+msgstr "Задать меш в качестве стороннего объекта для просчёта столкновений"
 
 
 msgid "If true, the simulated geometry should stay within the mesh instead of it being pushed out of it."
@@ -159915,6 +160419,10 @@ msgid "ID of each curve"
 msgstr "Идентификатор каждой кривой"
 
 
+msgid "Index of each curve"
+msgstr "Индекс каждой кривой"
+
+
 msgid "Direction from root to tip of each curve"
 msgstr "Направление от корня до кончика каждой кривой"
 
@@ -159979,16 +160487,32 @@ msgid "Curve Segment"
 msgstr "Сегмент кривой"
 
 
+msgid "Reads information about each point's previous curve segment"
+msgstr "Считывает информацию о предыдущем сегменте кривой каждой точки"
+
+
 msgid "Neighbor Index"
 msgstr "Индекс соседа"
+
+
+msgid "Index of the previous neighboring point on the segment"
+msgstr "Индекс предыдущей соседней точки на сегменте"
 
 
 msgid "Segment Direction"
 msgstr "Направление сегмента"
 
 
+msgid "Direction from the previous neighboring point on the segment"
+msgstr "Направление от предыдущей соседней точки на сегменте"
+
+
 msgid "Segment Length"
 msgstr "Длина сегмента"
+
+
+msgid "Distance to the previous point on the curve"
+msgstr "Расстояние до предыдущей точки на кривой"
 
 
 msgid "Curve Tip"
@@ -160033,6 +160557,10 @@ msgstr "Логическое выделение конечных точек кр
 
 msgid "Custom Effector"
 msgstr "Пользовательский эффектор"
+
+
+msgid "Create a custom effect on geometry during simulation"
+msgstr "Создать пользовательский эффект на геометрии во время симуляции"
 
 
 msgid "A bundle containing all information about this effector."
@@ -160087,12 +160615,24 @@ msgid "A geometry effector evaluates a closure on each geometry individually, wh
 msgstr "Эффектор геометрии вычисляет функцию замыкания для каждой геометрии по отдельности, принимая во внимание заданный фильтр."
 
 
+msgid "Post-Solve"
+msgstr "После расчёта"
+
+
 msgid "Evaluate the effector after the solver ran."
 msgstr "Вычислять эффектор после запуска решателя."
 
 
+msgid "Pre-Simulation"
+msgstr "Перед симуляцией"
+
+
 msgid "Evaluate the effector on the geometry before it is simulated."
 msgstr "Вычислять эффектор на геометрии до этапа симуляции."
+
+
+msgid "Pre-Solve"
+msgstr "Перед расчётом"
 
 
 msgid "Evaluate the effector before the actual solver runs."
@@ -160105,6 +160645,10 @@ msgstr "Эффектор мира вычисляет функцию замыка
 
 msgid "Custom Force"
 msgstr "Пользовательская сила"
+
+
+msgid "Apply a custom force to simulated geometry"
+msgstr "Применить пользовательскую силу к симулируемой геометрии"
 
 
 msgid "The closure computing the force at each point of the input geometry."
@@ -160173,6 +160717,10 @@ msgstr "Создать силу путём предоставления поля
 
 msgid "Returns the length of an edge"
 msgstr "Возвращает длину ребра"
+
+
+msgid "Simulate dynamic hair behavior on curve geometry"
+msgstr "Симуляция динамического поведения волос на геометрии кривых"
 
 
 msgid "Simulation stability increases with more angular damping."
@@ -160263,6 +160811,10 @@ msgid "Root Bendiness"
 msgstr "Гибкость корней"
 
 
+msgid "Higher values allow the root points (which are attached to the surface) to rotate more."
+msgstr "Более высокие значения позволяют корневым точкам (прикреплённым к поверхности) свободнее вращаться."
+
+
 msgid "Solver settings affecting speed and quality."
 msgstr "Настройки решателя, влияющие на скорость и качество."
 
@@ -160313,6 +160865,14 @@ msgstr "Симулировать физику с учётом текущей д�
 
 msgid "Set Effector"
 msgstr "Установить эффектор"
+
+
+msgid "Attach an effector to a geometry"
+msgstr "Прикрепить эффектор к геометрии"
+
+
+msgid "The actual bundle containing one or multiple effectors."
+msgstr "Фактическая связка, содержащая один или несколько эффекторов."
 
 
 msgid "Name of the effector in the geometry bundle."
@@ -160397,6 +160957,10 @@ msgstr "Локальное вращение"
 
 msgid "Local rotation of the instances to tune the rotation alignment"
 msgstr "Локальное вращение экземпляров для точной настройки выравнивания вращения"
+
+
+msgid "Merge overlapping points by their distance. (Realize Instances must be enabled)."
+msgstr "Объединять перекрывающиеся точки по расстоянию. (Необходимо включить функцию \"Реализовать экземпляры (realize instances)\")."
 
 
 msgid "Distance below which points will be merged"
@@ -160679,6 +161243,10 @@ msgid "Profile Resolution"
 msgstr "Разрешение профиля"
 
 
+msgid "Number of points on the profile circle. Also defines the round cap resolution."
+msgstr "Количество точек на окружности профиля. Также определяет разрешение для колпачков круглого типа."
+
+
 msgid "Resample"
 msgstr "Ресэмплинг"
 
@@ -160743,8 +161311,16 @@ msgid "UV Map Parameter U"
 msgstr "UV-Карта - Параметр U"
 
 
+msgid "Method to generate the map's X coordinate along the main curve"
+msgstr "Метод генерации 'координаты X' развёртки вдоль основной кривой"
+
+
 msgid "UV Map Parameter V"
 msgstr "UV-Карта - Параметр V"
+
+
+msgid "Method to generate the map's Y coordinate along the profile curve"
+msgstr "Метод генерации 'координаты Y' развёртки вдоль основной кривой"
 
 
 msgid "No curve data in input"
@@ -160785,6 +161361,10 @@ msgstr "Итеративно смещать геометрию на опреде
 
 msgid "Distance of the displacement offset in normal direction"
 msgstr "Расстояние сдвига смещения по направлению нормалей"
+
+
+msgid "Input method for how to generate the displacement vector"
+msgstr "Метод ввода для генерации вектора смещения"
 
 
 msgid "Offset Vector"
@@ -160847,6 +161427,10 @@ msgid "Take reference geometry as input"
 msgstr "Позволяет использовать указанную геометрию в качестве входных данных"
 
 
+msgid "Input the geometry as an instance. (Further processing might require non-instance geometry)."
+msgstr "Ввести геометрию в качестве экземпляра. (Для дальнейшей обработки может потребоваться геометрия, не являющаяся экземпляром)."
+
+
 msgid "Collection to use as the input geometry"
 msgstr "Коллекция, которую следует использовать в качестве входной геометрии"
 
@@ -160863,12 +161447,20 @@ msgid "Transform the input relative to the main geometry"
 msgstr "Преобразовывать входные данные относительно основной геометрии"
 
 
+msgid "Replace the original input geometry with the selected input geometry"
+msgstr "Заменить исходную геометрию ввода выбранной геометрией ввода"
+
+
 msgid "Instance on Elements"
 msgstr "Экземпляр на элементы"
 
 
 msgid "Create copies of referenced geometry on geometry elements"
 msgstr "Создать копии эталонной геометрии на геометрических элементах"
+
+
+msgid "Rotate instances based on the shape of the input geometry"
+msgstr "Вращать экземпляры в соответствии с формой входящей геометрии"
 
 
 msgid "Instance geometry collection"
@@ -160901,6 +161493,10 @@ msgstr "Переместить экземпляры к центру грани"
 
 msgid "Corner Offset Method"
 msgstr "Метод углового смещения"
+
+
+msgid "Method to define the direction of the offset along the corner"
+msgstr "Метод определения направления смещения вдоль угла"
 
 
 msgid "Even Edge Distance"
@@ -160943,8 +161539,20 @@ msgid "Keep Surface"
 msgstr "Сохранять поверхность"
 
 
+msgid "Keep the original input geometry and join it with the instance geometry"
+msgstr "Сохранить исходную поступающую геометрию и объединить её с геометрией экземпляров"
+
+
+msgid "Specify which elements to use for instancing. (Floating point values result in a random selection.)"
+msgstr "Определить элементы, на которых следует создавать экземпляры. (Значения с плавающей запятой приводят к случайному выбору.)"
+
+
 msgid "Instance geometry object"
 msgstr "Объект-экземпляр геометрии"
+
+
+msgid "Choose child instances for each element instead of instancing the entire geometry"
+msgstr "Выбирать дочерние экземпляры для каждого элемента вместо инстанцирования всей геометрии"
 
 
 msgid "Reset Transform"
@@ -160963,6 +161571,10 @@ msgid "Scale by Face Area"
 msgstr "Масштабировать по площади грани"
 
 
+msgid "Scale the instances based on the face area of the input geometry"
+msgstr "Масштабировать экземпляры в зависимости от площади грани исходной геометрии"
+
+
 msgid "Scale by Face Area Multiplier"
 msgstr "Множитель масштабирования по площади грани"
 
@@ -160971,8 +161583,16 @@ msgid "Multiply the instance scale with a factor to calibrate the considered fac
 msgstr "Умножать масштаб экземпляра на коэффициент, чтобы произвести калибровку по рассматриваемой площадь грани"
 
 
+msgid "Distance to offset each instance along the normal of the input geometry"
+msgstr "Расстояние смещения каждого экземпляра по нормалям исходной геометрии"
+
+
 msgid "Configuration regarding the transformation of each instance"
 msgstr "Настройка трансформации для каждого экземпляра"
+
+
+msgid "Pick Instance is on, but there are no instances to pick from. Falling back to using input as instance."
+msgstr "Опция \"Выбрать экземпляр (pick instance) включена, но нет экземпляров для выбора. В качестве экземпляра будет использован ввод на входе."
 
 
 msgid "Corner Center"
@@ -161019,8 +161639,16 @@ msgid "Is UV Split"
 msgstr "Является разделителем UV"
 
 
+msgid "Returns a selection of edges that make up a seam in the provided UV data. A seam is defined as a discontinuity of the data between connected face corners."
+msgstr "Возвращает выделение рёбер, образующих шов в предоставленных UV-данных. Шов определяется в качестве разрыва данных между соединёнными углами граней."
+
+
 msgid "Selection of edges that signify a discontinuity of the input vectors"
 msgstr "Выделение рёбер, которые обозначают разрыв входных векторов"
+
+
+msgid "Vectors to compare between connected face corners of an edge for differences. (Supports 3D vectors.)"
+msgstr "Векторы для сравнения различий между соединёнными углами граней ребра. (Поддерживает 3D-векторы.)"
 
 
 msgid "Normal Selection"
@@ -161033,6 +161661,10 @@ msgstr "Произвести выделение по нормали"
 
 msgid "Target direction to compare the normal to"
 msgstr "Целевое направление по которому следует сравнивать направление нормали"
+
+
+msgid "Selection of elements with normals matching a target direction. (The normal is evaluated on the same domain as this selection output.)"
+msgstr "Выделение элементов у которых нормали, соответствуют целевому направлению. (Нормаль оценивается в том же домене, что и выводимое выделение.)"
 
 
 msgid "Maximum angle between normal and target to include in the selection"
@@ -161179,6 +161811,10 @@ msgid "Configuration of the scattered instances"
 msgstr "Конфигурация распределяемых экземпляров"
 
 
+msgid "Keep the original input geometry and join it with the scattered geometry"
+msgstr "Сохранить исходную поступающую геометрию и объединить её с распределяемой геометрией"
+
+
 msgid "Additional masking applied after the initial scattering of instances"
 msgstr "Дополнительное маски́рование, применяемое после первоначального распределения экземпляров"
 
@@ -161217,6 +161853,10 @@ msgstr "Масштаб экземпляров по каждой из локал�
 
 msgid "Scatter on Instances"
 msgstr "Распределить на экземплярах"
+
+
+msgid "Use instances contained in the input geometry as base for scattering"
+msgstr "Использовать экземпляры, содержащиеся во входящей геометрии, в качестве основы для распределения"
 
 
 msgid "Which faces to scatter on"
@@ -161301,6 +161941,10 @@ msgstr "Центр группы"
 
 msgid "Intermediate Axis"
 msgstr "Промежуточная ось"
+
+
+msgid "Axis completing a right-handed orthogonal basis with the longest and shortest axis"
+msgstr "Ось, дополняющая правостороннюю систему координат (базис) самой длинной и самой короткой осями"
 
 
 msgid "Longest Axis"
@@ -161456,7 +162100,11 @@ msgstr "Информация о прикреплении"
 
 
 msgid "Reads attachment information regarding a surface mesh"
-msgstr "Считывает информацию о прикреплении, касающуюся поверхностной меша"
+msgstr "Считывает информацию о прикреплении, касающуюся поверхности меша"
+
+
+msgid "Attachment Is Valid"
+msgstr "Прикрепление действительно"
 
 
 msgid "Whether the stored attachment UV coordinate is valid"
@@ -161607,6 +162255,10 @@ msgid "Guide index map that was used for the operation"
 msgstr "Карта индекса направляющей, которая использовалась для операции"
 
 
+msgid "Guide index map to use. This input has priority."
+msgstr "Карта индекса направляющей, которая будет использоваться. Этот ввод имеет приоритет."
+
+
 msgid "Guide Map"
 msgstr "Карта направляющих"
 
@@ -161725,6 +162377,10 @@ msgstr "Пороговое расстояние для спада вокруг �
 
 msgid "Random seed for the operation"
 msgstr "Случайное вариативное значение для операции"
+
+
+msgid "Shape of the influence along curves (0 = constant, 0.5 = linear)"
+msgstr "Форма влияния вдоль кривых (\"0\"=постоянно, \"0.5\"=линейно)"
 
 
 msgid "Tip Spread"
@@ -161919,6 +162575,10 @@ msgid "Attach to Surface"
 msgstr "Прикрепить к поверхности"
 
 
+msgid "Attach the generated hair curves to the surface geometry for dynamics"
+msgstr "Прикрепить сгенерированные кривые волос к геометрии поверхности для симуляции динамики волос"
+
+
 msgid "Amount of control points of the generated hair curves"
 msgstr "Количество контрольных точек сгенерированных кривых волос"
 
@@ -162005,6 +162665,10 @@ msgstr "Масштаб текстуры шума вдоль каждой кри�
 
 msgid "Seed value for randomization"
 msgstr "Вариативное значение для рандомизации"
+
+
+msgid "Shape of amount along each curve (0 = constant, 0.5 = linear)"
+msgstr "Форма количества вдоль каждой кривой (\"0\"=постоянно, \"0.5\"=линейно)"
 
 
 msgid "Interpolates existing guide curves on a surface mesh"
@@ -162097,6 +162761,10 @@ msgstr "Закрутить кривые волос"
 
 msgid "Rolls up hair curves starting from their tips"
 msgstr "Закручивает волосы, начиная с кончиков"
+
+
+msgid "Factor to blend the overall effect"
+msgstr "Коэффициент для смешивания общего эффекта"
 
 
 msgid "Amount of randomization of the direction of the roll"

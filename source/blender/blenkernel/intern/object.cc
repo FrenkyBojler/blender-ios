@@ -1075,6 +1075,8 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   if (ob->lightprobe_cache) {
     BKE_lightprobe_cache_blend_read(reader, ob->lightprobe_cache);
   }
+
+  BKE_object_material_active_index_sanitize(ob);
 }
 
 static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
@@ -4041,6 +4043,15 @@ void BKE_object_foreach_display_point(Object *ob,
       }
     }
   }
+  else if (ob->type == OB_POINTCLOUD) {
+    PointCloud &pointcloud = *id_cast<PointCloud *>(ob->data);
+    const Span<float3> positions = pointcloud.positions();
+    threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
+      for (const int i : range) {
+        func_cb(math::transform_point(float4x4(obmat), positions[i]), user_data);
+      }
+    });
+  }
 }
 
 void BKE_scene_foreach_display_point(Depsgraph *depsgraph,
@@ -4165,16 +4176,16 @@ void BKE_object_protected_scale_set(Object *ob, const float scale[3])
 
 void BKE_object_protected_rotation_quaternion_set(Object *ob, const float quat[4])
 {
-  if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
     ob->quat[0] = quat[0];
   }
-  if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
     ob->quat[1] = quat[1];
   }
-  if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
     ob->quat[2] = quat[2];
   }
-  if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
     ob->quat[3] = quat[3];
   }
 }
