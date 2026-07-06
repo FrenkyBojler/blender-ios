@@ -1489,7 +1489,7 @@ static meshintersect::CDT_input<double> get_input_from_drawings(
               drawing_input_edges[drawing_i].append(
                   order_edge(std::pair<int, int>(point_offset, point_offset_next)));
             }
-            point_offset += 1;
+            point_offset++;
           }
         }
       });
