@@ -226,9 +226,9 @@ void node_bsdf_principled(float4 base_color,
 
       ClosureRefraction refraction_data;
       refraction_data.N = N;
-      refraction_data.roughness = roughness * (weight * transmission_weight);
+      refraction_data.roughness = roughness;
       refraction_data.ior = ior;
-      refraction_data.color = transmittance * coat_tint.rgb;
+      refraction_data.color = transmittance * coat_tint.rgb * (weight * transmission_weight);
       closure_eval(refraction_data);
     }
 
