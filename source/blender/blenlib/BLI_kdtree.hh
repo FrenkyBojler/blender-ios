@@ -251,7 +251,7 @@ template<typename CoordT, typename Func, typename ChildFunc>
 inline void kdtree_foreach_node(const KDTree<CoordT> &tree, Func &&func, ChildFunc &&visite_child)
 {
   kdtree_foreach_node(
-      tree, func, visite_child, [](const KDTreeNode<CoordT> & /*node*/) { return true; });
+      tree, func, visite_child, [](const KDTreeNode<CoordT> & /*node*/) { return false; });
 }
 
 template<typename CoordT>
@@ -316,7 +316,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
 
   kdtree_foreach_node_around(
       *tree, co, [&](const KDTreeNode<CoordT> &node, const ValueType &old_dist) {
-        const auto dist_sq = detail::distance_squared(node.co, co);
+        const ValueType dist_sq = detail::distance_squared(node.co, co);
         if (old_dist <= dist_sq) {
           return old_dist;
         }
@@ -412,7 +412,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(const KDTree<CoordT> *tree,
 
   kdtree_foreach_node_around(
       *tree co, [&](const KDTreeNode<CoordT> &node, const ValueType old_dist) {
-        const auto dist_sq = len_sq_fn(node.co, co);
+        const ValueType dist_sq = len_sq_fn(node.co, co);
         if (old_dist < dist_sq) {
           return old_dist;
         }
