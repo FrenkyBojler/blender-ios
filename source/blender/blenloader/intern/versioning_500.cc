@@ -1312,9 +1312,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 
 /* Equivalent to do_version_convert_to_generic_nodes but performed after linking for handing things
  * like animation or node construction. */
-static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
-                                                              bNodeTree *node_tree,
-                                                              ID *id)
+static void do_version_convert_to_generic_nodes_after_linking(Main *bmain, bNodeTree *node_tree)
 {
   DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
   for (bNode &node : node_tree->nodes.items_mutable()) {
@@ -2758,7 +2756,7 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 27)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
-        do_version_convert_to_generic_nodes_after_linking(bmain, ntree, id);
+        do_version_convert_to_generic_nodes_after_linking(bmain, ntree);
       }
     }
     FOREACH_NODETREE_END;
