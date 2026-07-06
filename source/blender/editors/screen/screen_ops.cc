@@ -6435,6 +6435,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   Main *bmain = CTX_data_main(C);
   ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
   Scene *scene = sad->scene;
+  /* sad->view_layer may have been deleted after playback started. */
   ViewLayer *view_layer = sad->view_layer;
   Depsgraph *depsgraph = BKE_scene_has_view_layer(scene, view_layer) ?
                              BKE_scene_get_depsgraph(scene, view_layer) :
@@ -6566,7 +6567,9 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
         }
         else {
           sad->flag &= ~ANIMPLAY_FLAG_REVERSE;
-          BKE_sound_play_scene(scene_eval);
+          if (scene_eval != nullptr) {
+            BKE_sound_play_scene(scene_eval);
+          }
           scene->r.cfra = start_frame + 1;
         }
         CLAMP(scene->r.cfra, start_frame, end_frame);
@@ -6784,19 +6787,22 @@ static void stop_playback(bContext *C)
   ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
   Scene *scene = sad->scene;
 
+  /* sad->view_layer may have been deleted after playback started. */
   ViewLayer *view_layer = sad->view_layer;
   Depsgraph *depsgraph = BKE_scene_has_view_layer(scene, view_layer) ?
                              BKE_scene_get_depsgraph(scene, view_layer) :
                              nullptr;
 
-  if (depsgraph != nullptr) {
-    BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-  }
-  Scene *scene_eval = (depsgraph != nullptr) ? DEG_get_evaluated_scene(depsgraph) : nullptr;
-
   /* Only stop sound playback, when playing forward, since there is no sound for reverse
    * playback. */
   if ((sad->flag & ANIMPLAY_FLAG_REVERSE) == 0) {
+    Scene *scene_eval = nullptr;
+    if (depsgraph != nullptr) {
+      BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
+      scene_eval = DEG_get_evaluated_scene(depsgraph);
+    }
+
+    /* Even without `scene_eval`, the audio device should be released. */
     BKE_sound_stop_scene(scene_eval);
   }
 

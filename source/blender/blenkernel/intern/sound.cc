@@ -1091,9 +1091,7 @@ static void sound_start_play_scene(Scene *scene)
 
 void BKE_sound_play_scene(Scene *scene)
 {
-  if (scene == nullptr) {
-    return;
-  }
+  BLI_assert(scene);
   std::lock_guard lock(g_state.sound_device_mutex);
   sound_device_use_begin();
   sound_verify_evaluated_id(&scene->id);
