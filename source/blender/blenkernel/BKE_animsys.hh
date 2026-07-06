@@ -133,7 +133,7 @@ void BKE_keyingsets_blend_read_data(BlendDataReader *reader, ListBaseT<KeyingSet
  */
 char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
                                       char *old_path,
-                                      const StringRef prefix,
+                                      StringRef prefix,
                                       const char *oldName,
                                       const char *newName,
                                       int oldSubscript,
@@ -152,7 +152,7 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
 void BKE_action_fix_paths_rename(ID *owner_id,
                                  bAction *act,
                                  int32_t /*slot_handle_t*/ slot_handle,
-                                 const StringRef prefix,
+                                 StringRef prefix,
                                  const char *oldName,
                                  const char *newName,
                                  int oldSubscript,
@@ -219,7 +219,7 @@ bool BKE_animdata_fix_paths_remove(ID *id, const char *prefix);
  *
  * \return true if any driver was removed.
  */
-bool BKE_animdata_driver_path_remove(ID *id, const StringRefNull prefix);
+bool BKE_animdata_driver_path_remove(ID *id, StringRefNull prefix);
 
 /**
  * Remove all drivers from the given struct.
