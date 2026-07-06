@@ -2865,7 +2865,7 @@ static void calc_local_from_screen(const ViewContext &vc,
 
 static void calc_brush_local_mat(const float rotation,
                                  const Object &ob,
-                                 float3 sculpt_normal,
+                                 const float3 &sculpt_normal,
                                  float local_mat[4][4],
                                  float local_mat_inv[4][4])
 {
@@ -3411,12 +3411,13 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
       return {IndexMask(), std::nullopt, std::nullopt};
     }
 
-    float4x4 mat, mat_inv;
+    float4x4 local_mat;
+    float4x4 local_mat_inv;
     const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
-    calc_brush_local_mat(mask_tex->rot, ob, sculpt_normal, mat.ptr(), mat_inv.ptr());
+    calc_brush_local_mat(mask_tex->rot, ob, sculpt_normal, local_mat.ptr(), local_mat_inv.ptr());
 
-    return {pbvh_gather_generic_cube(ob, brush, mat, use_original, memory),
-            std::nullopt,
+    return {pbvh_gather_generic_cube(ob, brush, local_mat, use_original, memory),
+            sculpt_normal,
             std::nullopt};
   }
 
