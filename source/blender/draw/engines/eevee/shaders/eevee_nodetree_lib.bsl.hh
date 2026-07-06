@@ -70,7 +70,6 @@ ViewMatrices view_matrices_get()
 }
 
 #define closure_base_copy(cl, in_cl) \
-  cl.weight = in_cl.weight; \
   cl.color = in_cl.color; \
   cl.N = in_cl.N; \
   cl.type = closure_type_get(in_cl);
@@ -82,10 +81,10 @@ Closure closure_eval(ClosureDiffuse diffuse)
   closure_base_copy(cl, diffuse);
 #if (CLOSURE_BIN_COUNT > 1) && defined(MAT_TRANSLUCENT) && !defined(MAT_CLEARCOAT)
   /* Use second slot so we can have diffuse + translucent without noise. */
-  closure_select(g_closure_bins[1], g_closure_rand[1], cl);
+  closure_select(g_closure_bins[1], cl);
 #else
   /* Either is single closure or use same bin as transmission bin. */
-  closure_select(g_closure_bins[0], g_closure_rand[0], cl);
+  closure_select(g_closure_bins[0], cl);
 #endif
   return Closure(0);
 }
@@ -96,7 +95,7 @@ Closure closure_eval(ClosureSubsurface diffuse)
   closure_base_copy(cl, diffuse);
   cl.data.rgb = diffuse.sss_radius;
   /* Transmission Closures are always in first bin. */
-  closure_select(g_closure_bins[0], g_closure_rand[0], cl);
+  closure_select(g_closure_bins[0], cl);
   return Closure(0);
 }
 
@@ -105,7 +104,7 @@ Closure closure_eval(ClosureTranslucent translucent)
   ClosureUndetermined cl;
   closure_base_copy(cl, translucent);
   /* Transmission Closures are always in first bin. */
-  closure_select(g_closure_bins[0], g_closure_rand[0], cl);
+  closure_select(g_closure_bins[0], cl);
   return Closure(0);
 }
 
@@ -119,10 +118,10 @@ Closure closure_eval(ClosureTranslucent translucent)
 bool g_closure_reflection_bin = true;
 #define CHOOSE_MIN_WEIGHT_CLOSURE_BIN(a, b) \
   if (g_closure_reflection_bin) { \
-    closure_select(g_closure_bins[b], g_closure_rand[b], cl); \
+    closure_select(g_closure_bins[b], cl); \
   } \
   else { \
-    closure_select(g_closure_bins[a], g_closure_rand[a], cl); \
+    closure_select(g_closure_bins[a], cl); \
   } \
   g_closure_reflection_bin = !g_closure_reflection_bin;
 
@@ -145,13 +144,13 @@ Closure closure_eval(ClosureReflection reflection)
 #else
 #  if CLOSURE_BIN_COUNT == 1
   /* Only one reflection closure is present in the whole tree. */
-  closure_select(g_closure_bins[0], g_closure_rand[0], cl);
+  closure_select(g_closure_bins[0], cl);
 #  elif CLOSURE_BIN_COUNT == 2
   /* Only one reflection and one other closure. */
-  closure_select(g_closure_bins[1], g_closure_rand[1], cl);
+  closure_select(g_closure_bins[1], cl);
 #  elif CLOSURE_BIN_COUNT == 3
   /* Only one reflection and two other closures. */
-  closure_select(g_closure_bins[2], g_closure_rand[2], cl);
+  closure_select(g_closure_bins[2], cl);
 #  endif
 #endif
 
@@ -167,7 +166,7 @@ Closure closure_eval(ClosureRefraction refraction)
   cl.data.r = refraction.roughness;
   cl.data.g = refraction.ior;
   /* Transmission Closures are always in first bin. */
-  closure_select(g_closure_bins[0], g_closure_rand[0], cl);
+  closure_select(g_closure_bins[0], cl);
   return Closure(0);
 }
 
@@ -177,7 +176,7 @@ Closure closure_eval(ClosureThinRefraction refraction)
   closure_base_copy(cl, refraction);
   cl.data.r = refraction.roughness;
   /* Transmission Closures are always in first bin. */
-  closure_select(g_closure_bins[0], g_closure_rand[0], cl);
+  closure_select(g_closure_bins[0], cl);
   return Closure(0);
 }
 
