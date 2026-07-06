@@ -163,8 +163,7 @@ template<typename VecT> VecT normalize_fallback(VecT vector, VecT fallback)
   float length_squared = dot(vector, vector);
   constexpr float threshold = 1e-35f;
   if (length_squared > threshold) {
-    float length = sqrt(length_squared);
-    return vector / length;
+    return vector / inversesqrt(length_squared);
   }
   /* Either the vector is small or one of its values contained `nan`. */
   return fallback;
