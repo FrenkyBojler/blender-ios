@@ -182,27 +182,27 @@ Closure closure_eval(ClosureThinRefraction refraction)
 
 Closure closure_eval(ClosureEmission emission)
 {
-  g_emission += emission.emission * emission.weight;
+  g_emission += emission.emission;
   return Closure(0);
 }
 
 Closure closure_eval(ClosureTransparency transparency)
 {
-  g_transmittance += transparency.transmittance * transparency.weight;
-  g_holdout += transparency.holdout * transparency.weight;
+  g_transmittance += transparency.transmittance;
+  g_holdout += transparency.holdout;
   return Closure(0);
 }
 
 Closure closure_eval(ClosureVolumeScatter volume_scatter)
 {
-  g_volume_scattering += volume_scatter.scattering * volume_scatter.weight;
-  g_volume_anisotropy += volume_scatter.anisotropy * volume_scatter.weight;
+  g_volume_scattering += volume_scatter.scattering;
+  g_volume_anisotropy += volume_scatter.anisotropy;
   return Closure(0);
 }
 
 Closure closure_eval(ClosureVolumeAbsorption volume_absorption)
 {
-  g_volume_absorption += volume_absorption.absorption * volume_absorption.weight;
+  g_volume_absorption += volume_absorption.absorption;
   return Closure(0);
 }
 

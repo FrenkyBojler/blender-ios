@@ -124,7 +124,7 @@ void forward_lighting_eval(const ViewMatrices view,
     for (uint i = 0u; i < 3; i++) [[unroll]] {
       if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
         ClosureUndetermined cl = g_closure_get(uchar(i)).data;
-        average_N += cl.N * cl.weight;
+        average_N += cl.N * cl.weight();
       }
     }
     average_N = safe_normalize(average_N);
@@ -162,7 +162,7 @@ void forward_lighting_eval(const ViewMatrices view,
   for (uint i = 0u; i < 3; i++) [[unroll]] {
     if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
       ClosureUndetermined cl = g_closure_get_resolved(uchar(i), 1.0f);
-      if (cl.weight > CLOSURE_WEIGHT_CUTOFF) {
+      if (cl.weight() > CLOSURE_WEIGHT_CUTOFF) {
         float3 direct_light = ctx.stack.cl[i].light_shadowed;
         float3 indirect_light = lightprobes.eval(samp, cl, g_data.P, V, thickness);
 

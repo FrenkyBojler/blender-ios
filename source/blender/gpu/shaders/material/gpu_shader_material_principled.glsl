@@ -113,8 +113,7 @@ void node_bsdf_principled(float4 base_color,
   /* Transparency component. */
   if (true) {
     ClosureTransparency transparency_data;
-    transparency_data.weight = weight;
-    transparency_data.transmittance = float3(1.0f - alpha);
+    transparency_data.transmittance = float3((1.0f - alpha) * weight);
     transparency_data.holdout = 0.0f;
     closure_eval(transparency_data);
 
@@ -149,8 +148,7 @@ void node_bsdf_principled(float4 base_color,
     ClosureReflection coat_data;
     coat_data.N = CN;
     coat_data.roughness = coat_roughness;
-    coat_data.color = float3(1.0f);
-    coat_data.weight = weight * coat_weight * reflectance;
+    coat_data.color = float3(weight * coat_weight * reflectance);
     closure_eval(coat_data);
 
     /* Attenuate lower layers */
@@ -174,8 +172,7 @@ void node_bsdf_principled(float4 base_color,
    */
   if (true) {
     ClosureEmission emission_data;
-    emission_data.weight = weight;
-    emission_data.emission = coat_tint.rgb * emission.rgb * emission_strength;
+    emission_data.emission = coat_tint.rgb * emission.rgb * (emission_strength * weight);
     closure_eval(emission_data);
   }
 
@@ -211,8 +208,7 @@ void node_bsdf_principled(float4 base_color,
 
       /* Transmission. */
       ClosureThinRefraction refraction_data;
-      refraction_data.color = transmittance * coat_tint.rgb;
-      refraction_data.weight = weight * transmission_weight;
+      refraction_data.color = transmittance * coat_tint.rgb * (weight * transmission_weight);
       refraction_data.N = N;
       refraction_data.roughness = thin_glass_transmission_roughness(roughness, ior);
       closure_eval(refraction_data);
@@ -230,9 +226,8 @@ void node_bsdf_principled(float4 base_color,
 
       ClosureRefraction refraction_data;
       refraction_data.N = N;
-      refraction_data.roughness = roughness;
+      refraction_data.roughness = roughness * (weight * transmission_weight);
       refraction_data.ior = ior;
-      refraction_data.weight = weight * transmission_weight;
       refraction_data.color = transmittance * coat_tint.rgb;
       closure_eval(refraction_data);
     }
@@ -267,8 +262,6 @@ void node_bsdf_principled(float4 base_color,
     reflection_data.N = N;
     reflection_data.roughness = roughness;
     reflection_data.color = (reflection_color + weight * reflectance) * coat_tint.rgb;
-    /* `weight` is already applied in `color`. */
-    reflection_data.weight = 1.0f;
     closure_eval(reflection_data);
 
     /* Attenuate lower layers */
@@ -284,11 +277,10 @@ void node_bsdf_principled(float4 base_color,
       diffuse_weight = subsurface_weight * weight *
                        saturate(0.5f * (1.0f - subsurface_anisotropy));
 
+      float weight = subsurface_weight * weight * saturate(0.5f * (1.0f + subsurface_anisotropy));
       /* Forward scattering is approximated by translucent. */
       ClosureTranslucent translucent_data;
-      translucent_data.weight = subsurface_weight * weight *
-                                saturate(0.5f * (1.0f + subsurface_anisotropy));
-      translucent_data.color = base_color.rgb * coat_tint.rgb;
+      translucent_data.color = base_color.rgb * coat_tint.rgb * weight;
       translucent_data.N = N;
       closure_eval(translucent_data);
     }
@@ -304,8 +296,6 @@ void node_bsdf_principled(float4 base_color,
       sss_data.color = (subsurface_weight * weight) * clamped_base_color.rgb * coat_tint.rgb;
       /* Add energy of the sheen layer until we have proper sheen BSDF. */
       sss_data.color += sheen_data_color;
-      /* `weight` is already applied in `color`. */
-      sss_data.weight = 1.0f;
       closure_eval(sss_data);
     }
 #endif
@@ -322,8 +312,6 @@ void node_bsdf_principled(float4 base_color,
     diffuse_data.color = (diffuse_weight + weight) * base_color.rgb * coat_tint.rgb;
     /* Add energy of the sheen layer until we have proper sheen BSDF. */
     diffuse_data.color += sheen_data_color;
-    /* `weight` is already applied in `color`. */
-    diffuse_data.weight = 1.0f;
     closure_eval(diffuse_data);
   }
 #endif

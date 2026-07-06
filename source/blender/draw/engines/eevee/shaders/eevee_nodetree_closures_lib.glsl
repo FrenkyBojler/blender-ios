@@ -100,7 +100,7 @@ ClosureUndetermined g_closure_get_resolved(uchar i, float additional_weight)
 {
   Reservoir<ClosureUndetermined> r = g_closure_get(i);
   ClosureUndetermined cl = r.data;
-  cl.color *= cl.weight * r.get_final_weight() * additional_weight;
+  cl.color *= r.get_final_weight() * additional_weight;
   return cl;
 }
 
@@ -139,9 +139,7 @@ ClosureType closure_type_get(ClosureThinRefraction /*cl*/)
  */
 void closure_select(Reservoir<ClosureUndetermined> &reservoir, ClosureUndetermined candidate)
 {
-  candidate.color *= candidate.weight;
-  float candidate_weight = average(abs(candidate.color));
-  reservoir.add(candidate, candidate_weight);
+  reservoir.add(candidate, candidate.weight());
 }
 
 void closure_weights_reset(float closure_rand)
