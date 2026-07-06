@@ -39,9 +39,10 @@ class BoneCollectionTreeView : public AbstractTreeView {
 
  public:
   /**
-   * `armature_object` can be a nullptr in edit mode.
+   * `armature_object` can be a nullptr when the armature is pinned and the active object is not
+   * the one using it as data.
    */
-  explicit BoneCollectionTreeView(bArmature &armature, Object *armature_object);
+  BoneCollectionTreeView(bArmature &armature, Object *armature_object);
   void build_tree() override;
 
   bool listen(const wmNotifier &notifier) const override;
