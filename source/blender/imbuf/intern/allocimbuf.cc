@@ -84,7 +84,8 @@ float *ImBuf::float_data_for_write()
   }
   else {
     const size_t size = size_t(this->x) * size_t(this->y) * this->channels;
-    float *new_data = MEM_new_array_uninitialized<float>(size, __func__);
+    float *new_data = MEM_new_array_uninitialized_aligned<float>(
+        size, IMBUF_FLOAT_ALIGNMENT, __func__);
     std::copy_n(this->float_buffer.data, size, new_data);
     this->float_buffer.data = new_data;
     this->float_buffer.sharing_info = ImplicitSharingPtr<>(
