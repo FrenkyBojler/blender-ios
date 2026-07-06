@@ -248,7 +248,7 @@ def save_project(project, report=None):
     config_toml = tomli_w.dumps(config_dict)
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
-        with config_path.open(mode='wb') as f:
+        with config_path.open(mode='wt') as f:
             f.write(config_toml)
     except PermissionError:
         if report:
