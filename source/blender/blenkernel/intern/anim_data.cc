@@ -1152,7 +1152,7 @@ static std::optional<std::string> rna_path_rename_fix(ID &owner_id,
 
   /* Add the part of the string that goes up to the start of the prefix. */
   if (prefix_offset > 0) {
-    modified_path.append(old_path, prefix_offset);
+    modified_path.append(old_path.substr(0, prefix_offset));
   }
 
   modified_path.append(prefix);
