@@ -127,6 +127,80 @@ class TestLibraryOverrides(TestHelper):
         self.assertEqual(override_operation.subitem_local_index, -1)
 
 
+class TestLibraryOverridesArmatureParent(TestHelper):
+    # 'Parent With Automatic/Envelope/Name Weights' writes vertex groups onto the target
+    # object's mesh data. If that object is a liboverride but its mesh data is still purely
+    # linked (not itself overridden), those writes can't persist, so they should be skipped
+    # (with a warning) instead of silently created and then lost on the next reload. See #127683.
+
+    MESH_NAME = "LibParentMesh"
+    ARMATURE_NAME = "LibParentArmature"
+
+    def __init__(self, args):
+        super().__init__(args)
+
+        output_dir = pathlib.Path(self.args.output_dir)
+        self.ensure_path(str(output_dir))
+        self.output_path = output_dir / "blendlib_overrides_armature_parent.blend"
+        self.test_output_path = output_dir / "blendlib_overrides_armature_parent_test.blend"
+
+        bpy.ops.wm.read_homefile(use_empty=True, use_factory_startup=True)
+        mesh = bpy.data.meshes.new(TestLibraryOverridesArmatureParent.MESH_NAME)
+        mesh.from_pydata([(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)], [], [(0, 1, 2)])
+        obj = bpy.data.objects.new(TestLibraryOverridesArmatureParent.MESH_NAME, object_data=mesh)
+        bpy.context.collection.objects.link(obj)
+
+        armature = bpy.data.armatures.new(TestLibraryOverridesArmatureParent.ARMATURE_NAME)
+        arm_obj = bpy.data.objects.new(
+            TestLibraryOverridesArmatureParent.ARMATURE_NAME, object_data=armature)
+        bpy.context.collection.objects.link(arm_obj)
+
+        bpy.ops.wm.save_as_mainfile(filepath=str(self.output_path), check_existing=False, compress=False)
+
+    def test_parent_set_automatic_weights_on_non_overridden_mesh_data(self):
+        bpy.ops.wm.read_homefile(use_empty=True, use_factory_startup=True)
+        bpy.data.orphans_purge()
+
+        link_dir = self.output_path / "Object"
+        bpy.ops.wm.link(
+            directory=str(link_dir), filename=TestLibraryOverridesArmatureParent.MESH_NAME)
+        bpy.ops.wm.link(
+            directory=str(link_dir), filename=TestLibraryOverridesArmatureParent.ARMATURE_NAME)
+
+        obj = bpy.data.objects[TestLibraryOverridesArmatureParent.MESH_NAME]
+        arm_obj = bpy.data.objects[TestLibraryOverridesArmatureParent.ARMATURE_NAME]
+
+        obj_local = obj.override_hierarchy_create(bpy.context.scene, bpy.context.view_layer)
+        arm_local = arm_obj.override_hierarchy_create(bpy.context.scene, bpy.context.view_layer)
+        bpy.context.view_layer.update()
+
+        # The object is a liboverride, but its mesh data is still purely linked, not itself
+        # overridden.
+        self.assertIsNotNone(obj_local.override_library)
+        self.assertIsNone(obj_local.data.override_library)
+
+        with bpy.context.temp_override(
+                active_object=arm_local,
+                selected_editable_objects=[obj_local, arm_local],
+                selected_objects=[obj_local, arm_local]):
+            bpy.ops.object.parent_set(type='ARMATURE_AUTO', xmirror=False, keep_transform=False)
+
+        # No vertex group should be created at all, rather than created and then silently
+        # discarded on reload.
+        self.assertEqual(len(obj_local.vertex_groups), 0)
+        # Parenting itself (the armature modifier) should still be applied.
+        self.assertTrue(any(m.type == 'ARMATURE' for m in obj_local.modifiers))
+
+        bpy.ops.wm.save_as_mainfile(
+            filepath=str(self.test_output_path), check_existing=False, compress=False)
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.test_output_path))
+        obj_reloaded = bpy.data.objects[TestLibraryOverridesArmatureParent.MESH_NAME]
+        self.assertIsNotNone(obj_reloaded.override_library)
+        self.assertEqual(len(obj_reloaded.vertex_groups), 0)
+        self.assertTrue(any(m.type == 'ARMATURE' for m in obj_reloaded.modifiers))
+
+
 class TestLibraryOverridesComplex(TestHelper):
     # Test resync, recursive resync, overrides of overrides, ID names collision handling, and multiple overrides.
 
@@ -906,6 +980,7 @@ class TestLibraryOverridesFromProxies(TestHelper):
 
 TESTS = (
     TestLibraryOverrides,
+    TestLibraryOverridesArmatureParent,
     TestLibraryOverridesComplex,
     TestLibraryOverridesFromProxies,
 )
