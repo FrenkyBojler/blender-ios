@@ -1,0 +1,63 @@
+/* SPDX-FileCopyrightText: 2022-2023 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
+
+#include "draw_view_lib.glsl"
+#include "gpu_shader_fullscreen_lib.glsl"
+
+namespace workbench::shadow::rt {
+
+struct Resources {
+  [[uniform(1)]] const ShadowPassData pass_data;
+  [[sampler(2)]] const sampler2DDepth depth_tx;
+  [[sampler(3)]] const sampler2D normal_tx;
+  [[acceleration_structure(0)]] const accelerationStructureEXT shadow_as;
+};
+
+[[vertex]] void vert([[vertex_id]] const int &vert_id, [[position]] float4 &out_pos)
+{
+  fullscreen_vertex(vert_id, out_pos);
+}
+
+[[fragment]] void frag([[frag_coord]] const float4 &frag_coord, [[resource_table]] Resources &srt)
+{
+  float2 screen_uv = frag_coord.xy / float2(textureSize(srt.depth_tx, 0).xy);
+
+  float depth = texture(srt.depth_tx, screen_uv).r;
+  if (depth == 1.0f) {
+    gpu_discard_fragment();
+    return;
+  }
+
+  if (dot(texture(srt.normal_tx, screen_uv).xyz, srt.pass_data.light_direction_ws) >= 0.0f) {
+    /* We already know the fragment is in shadow. No need to query. */
+    return;
+  }
+
+  const float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
+  rayQueryEXT query;
+  rayQueryInitializeEXT(query,
+                        srt.shadow_as,
+                        gl_RayFlagsTerminateOnFirstHitEXT,
+                        0xFF,
+                        P,
+                        0.01f,
+                        -srt.pass_data.light_direction_ws,
+                        1000.0f);
+  rayQueryProceedEXT(query);
+
+  bool is_light_occluded = rayQueryGetIntersectionTypeEXT(query, true) !=
+                           gl_RayQueryCommittedIntersectionNoneEXT;
+
+  if (!is_light_occluded) {
+    /* Writing the stencil means the fragment is in shadow. */
+    gpu_discard_fragment();
+    return;
+  }
+}
+
+PipelineGraphic raytrace(vert, frag);
+
+}  // namespace workbench::shadow::rt

@@ -107,7 +107,7 @@ class ShaderCache {
   StaticShader smaa_resolve = {"workbench_smaa_stage_2"};
   StaticShader overlay_depth = {"workbench_overlay_depth"};
 
-  StaticShader shadow_raytrace = {"workbench_shadow_raytrace"};
+  StaticShader shadow_raytrace = {"workbench_shadow_rt_raytrace"};
 };
 
 struct Material {
