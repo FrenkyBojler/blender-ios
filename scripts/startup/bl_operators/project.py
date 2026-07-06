@@ -73,7 +73,7 @@ class ProjectVariable:
         variable = variables.new(name=self.name, type=self.type.value)
         variable.value = self.value
         if self.subtype is not None and self.type == VariableType.STRING:
-            variable.subtype = self.subtype
+            variable.subtype = self.subtype.value
         variable.description = self.description
 
     def __post_init__(self):
