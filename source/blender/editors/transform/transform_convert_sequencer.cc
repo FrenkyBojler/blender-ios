@@ -511,7 +511,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
     /* If both handles are selected, there must be enough underlying content to clamp holds. */
     bool can_clamp_holds = !(left_sel && right_sel) ||
-                           (strip->len >= strip->right_handle(scene) - strip->left_handle());
+                           (strip->length() >= strip->right_handle(scene) - strip->left_handle());
     can_clamp_holds &= !seq::transform_single_image_check(strip);
 
     /* A handle is selected. Update x-axis clamping data. */

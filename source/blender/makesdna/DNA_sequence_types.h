@@ -545,6 +545,13 @@ struct Strip {
    */
   float media_fps(Scene *scene);
 
+  // Todo(habib): docu
+  int length() const;
+  float endoffset() const;
+
+  void length_set(int new_len);
+  void set_endoffset(float new_endofs);
+
 #endif
 };
 
