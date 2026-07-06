@@ -530,10 +530,6 @@ class OUTLINER_PT_options_filter(Panel):
         sub = col.column(align=True)
         sub.active = space.use_filter_object
 
-        row = sub.row()
-        row.label(icon='BLANK1')
-        row.prop(space, "use_filter_children", text="Object Children")
-
         if bpy.data.meshes:
             row = sub.row()
             row.label(icon='MESH_DATA')
@@ -572,6 +568,10 @@ class OUTLINER_PT_options_filter(Panel):
             row = sub.row()
             row.label(icon='BLANK1')
             row.prop(space, "use_filter_object_others", text="Others")
+
+        row = sub.row()
+        row.label(icon='BLANK1')
+        row.prop(space, "use_filter_children", text="Object Children")
 
 
 class OUTLINER_PT_options_object_data(Panel):
