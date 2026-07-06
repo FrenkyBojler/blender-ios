@@ -1233,7 +1233,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   }
 
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
-  /* Force the curves to not be cyclical. */
+  /* Consider all curves to be non-cyclical when trimming curve ends. */
   const VArray<bool> is_cyclic = VArray<bool>::from_single(false, src_points_by_curve.size());
 
   Array<Bounds<float2>> screen_space_bbox(src.curves_num());
