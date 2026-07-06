@@ -3322,16 +3322,17 @@ template<typename T> void square_o_test()
 
 template<typename T> void intersection_simple_edge_ids_test()
 {
-  const char *spec = R"(4 2 0"
-      "0.0 0.0"
-      "2.0 2.0"
-      "0.0 2.0"
-      "2.0 0.0"
-      "0 1"
-      "2 3)";
+  const char *spec = R"(4 2 0
+  0.0 0.0
+  2.0 2.0
+  0.0 2.0
+  2.0 0.0
+  0 1
+  2 3
+  )";
   CDT_input<T> input = fill_input_from_string<T>(spec);
   input.need_ids = true;
-  CDT_result<T> result = delaunay_2d_calc(input, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
+  CDT_result<T> result = delaunay_2d_calc(input, CDT_CONSTRAINTS);
   EXPECT_EQ(result.intersected_edges_orig.size(), 5);
   EXPECT_TRUE(output_vert_is_intersection_and_has_edge_input_ids<T>(result, 4, 0, 1));
   if (DO_DRAW) {
