@@ -61,30 +61,6 @@ struct TransDataSeq {
   int opposite_handle;
 };
 
-/**
- * Sequencer transform customdata (stored in #TransCustomDataContainer).
- */
-struct TransSeq {
-  TransDataSeq *tdseq;
-  /* Maximum delta allowed along x and y before clamping selected strips/handles. Always active. */
-  rcti hard_clamp;
-  /* Maximum delta before clamping handles to the bounds of underlying content. May be disabled. */
-  int content_clamp_min, content_clamp_max;
-
-  /* Maximum x-axis delta allowed for transitions when symmetric handle mode is enabled.*/
-  int symmetric_hard_clamp_min, symmetric_hard_clamp_max;
-  /* Maximum x-axis delta before clamping transitions to the bounds of underlying content when
-   * symmetric handle mode is enabled. May be disabled. */
-  int symmetric_content_clamp_min, symmetric_content_clamp_max;
-
-  /* Initial rect of the view2d, used for computing offset during edge panning. */
-  rctf initial_v2d_cur;
-  ui::View2DEdgePanData edge_pan;
-
-  /* Strips that aren't selected, but their position entirely depends on transformed strips. */
-  VectorSet<Strip *> time_dependent_strips;
-};
-
 }  // namespace
 
 /* -------------------------------------------------------------------- */
@@ -281,7 +257,7 @@ static void free_transform_custom_data(TransCustomData *custom_data)
 {
   if ((custom_data->data != nullptr) && custom_data->use_free) {
     TransSeq *ts = static_cast<TransSeq *>(custom_data->data);
-    MEM_delete(ts->tdseq);
+    MEM_delete(static_cast<TransDataSeq *>(ts->tdseq));
     MEM_delete(ts);
     custom_data->data = nullptr;
   }
@@ -608,7 +584,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   TransSeq *ts = static_cast<TransSeq *>(TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data);
   const Editing *ed = seq::editing_get(scene);
 
-  /* Prevent snaps and change in `values` past `offset_clamp` for all selected strips. */
+  /* Prevent snaps and change in `values` past `hard_clamp` for all selected strips. */
   BLI_rcti_init(&ts->hard_clamp, INT_MIN, INT_MAX, -seq::MAX_CHANNELS, seq::MAX_CHANNELS);
 
   // TODO: this could be merged into the lower loop, right?
