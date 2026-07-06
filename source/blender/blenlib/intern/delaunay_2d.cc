@@ -2140,9 +2140,7 @@ void add_edge_constraint(
           cd->in, cd->lambda, cdt_state->edge_winding_map, cdt_state->polygon_boundary_count_map);
       cd->vert = edge->symedges[0].vert;
 
-      /*
-       * Keep track of original edges for the intersection point.
-       */
+      /* Keep track of original edges for the intersection point. */
       if (cdt_state->need_ids) {
         uint32_t edge1_id = -1;
         if (!cd->in->edge->input_ids.is_empty()) {
