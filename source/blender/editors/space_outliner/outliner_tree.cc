@@ -1009,7 +1009,9 @@ static bool outliner_element_visible_get(const Main &bmain,
   else if ((te->idcode == ID_KE) && (exclude_filter & SO_FILTER_NO_OB_SHAPE_KEYS)) {
     return false;
   }
-  else if ((TREESTORE(te)->type == TSE_BONE_COLLECTION_BASE) && (exclude_filter & SO_FILTER_NO_ARMATURE_BONE_COLLECTION)) {
+  else if ((TREESTORE(te)->type == TSE_BONE_COLLECTION_BASE) &&
+           (exclude_filter & SO_FILTER_NO_ARMATURE_BONE_COLLECTION))
+  {
     return false;
   }
   else if ((te->parent != nullptr) && (TREESTORE(te->parent)->type == TSE_SOME_ID) &&
@@ -1039,7 +1041,9 @@ static bool outliner_element_visible_get(const Main &bmain,
     else if ((type == TSE_DEFGROUP_BASE) && (exclude_filter & SO_FILTER_NO_OB_DEFGROUP)) {
       return false;
     }
-    else if ((type == TSE_GPENCIL_EFFECT_BASE) && (exclude_filter & SO_FILTER_NO_GREASE_PENCIL_EFFECTS)) {
+    else if ((type == TSE_GPENCIL_EFFECT_BASE) &&
+             (exclude_filter & SO_FILTER_NO_GREASE_PENCIL_EFFECTS))
+    {
       return false;
     }
   }

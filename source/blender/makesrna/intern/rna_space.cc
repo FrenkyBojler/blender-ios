@@ -4712,12 +4712,14 @@ static void rna_def_space_outliner(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   prop = RNA_def_property(srna, "use_filter_bone_collections", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "filter", SO_FILTER_NO_ARMATURE_BONE_COLLECTION);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "filter", SO_FILTER_NO_ARMATURE_BONE_COLLECTION);
   RNA_def_property_ui_text(prop, "Show Bone Collections", "Show armature bone collections");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   prop = RNA_def_property(srna, "use_filter_grease_pencil_effects", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "filter", SO_FILTER_NO_GREASE_PENCIL_EFFECTS);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "filter", SO_FILTER_NO_GREASE_PENCIL_EFFECTS);
   RNA_def_property_ui_text(prop, "Show Grease Pencil Effects", "Show grease pencil effects");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 }
