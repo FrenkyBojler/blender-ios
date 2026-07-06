@@ -205,8 +205,8 @@ class VKDescriptorSetTracker {
   /**
    * Add resources of the descriptor set to the resource access info.
    */
-  static void update_resource_access_info(VKContext &context,
-                                          render_graph::VKResourceAccessInfo &resource_access_info);
+  static void update_resource_access_info(
+      VKContext &context, render_graph::VKResourceAccessInfo &resource_access_info);
   static void update_resource_access_info_binding(const VKStateManager &state_manager,
                                                   const VKResourceBinding &resource_binding,
                                                   render_graph::VKResourceAccessInfo &access_info);

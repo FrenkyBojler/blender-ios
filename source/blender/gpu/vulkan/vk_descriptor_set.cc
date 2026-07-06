@@ -58,7 +58,8 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
     cached_access_info_images_.extend(access_info.images);
   }
 
-  if (shader.push_constants.layout_get().storage_type_get() == VKPushConstants::StorageType::BUFFER &&
+  if (shader.push_constants.layout_get().storage_type_get() ==
+          VKPushConstants::StorageType::BUFFER &&
       push_constants_buffer.buffer != VK_NULL_HANDLE)
   {
     access_info.buffers.append({push_constants_buffer.buffer, VK_ACCESS_UNIFORM_READ_BIT});
