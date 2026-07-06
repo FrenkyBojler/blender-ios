@@ -14,7 +14,7 @@
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-namespace eevee::lut {
+namespace eevee {
 
 namespace detail {
 
@@ -124,6 +124,7 @@ struct LTCData {
 
     LTCData ltc_data;
     ltc_data.Minv = Minv;
+    /* LTC attenuation linearly disappears from roughness 0.15 to 0.375.  */
     ltc_data.attenuation_factor = saturate((roughness - 0.15f) * 2.5f);
     ltc_data.integral_type = LTCIntegralType::ClippedDiffuseSphere;
     return ltc_data;
@@ -146,4 +147,4 @@ struct LTCData {
   }
 };
 
-}  // namespace eevee::lut
+}  // namespace eevee

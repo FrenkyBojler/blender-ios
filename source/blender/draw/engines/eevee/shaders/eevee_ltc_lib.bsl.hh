@@ -229,7 +229,7 @@ float attenuate_disk(float3x3 Minv, float3 L, float3 verts[4])
 /**
  * Evaluate contribution of rectangle light.
  */
-float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 L, lut::LTCData ltc_data)
+float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 L, LTCData ltc_data)
 {
   /* Init quad, transformed into LTC space. */
   float3 V0 = normalize(ltc_data.Minv * corners[0]);
@@ -270,10 +270,7 @@ float evaluate_quad(sampler2DArray util_tx, float3 corners[4], float3 L, lut::LT
  *
  * disk_points are WS vectors from the shading point to the disk "bounding domain".
  */
-float evaluate_disk(sampler2DArray util_tx,
-                    float3 Lv,
-                    lut::LTCData ltc_data,
-                    float3 disk_points[4])
+float evaluate_disk(sampler2DArray util_tx, float3 Lv, LTCData ltc_data, float3 disk_points[4])
 {
   /* Intermediate step: init ellipse. */
   float3 C = 0.5f * (disk_points[0] + disk_points[2]);

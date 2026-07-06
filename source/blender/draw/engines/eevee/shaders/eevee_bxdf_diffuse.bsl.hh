@@ -56,7 +56,7 @@ LightProbeRay bxdf_diffuse_lightprobe(float3 N)
 ClosureLight bxdf_diffuse_light(ClosureUndetermined cl, float3 V)
 {
   ClosureLight light;
-  eevee::lut::LTCData::identity(cl.N, V).pack_to(light);
+  eevee::LTCData::identity(cl.N, V).pack_to(light);
   light.N = cl.N;
   light.type = LIGHT_DIFFUSE;
   return light;
@@ -78,7 +78,7 @@ ClosureLight bxdf_diffuse_light(ClosureUndetermined cl, float3 V)
  */
 BsdfSample bxdf_translucent_sample(float3 rand, Thickness thickness)
 {
-  if (thickness.mode() == ThicknessMode::Sphere) {
+  if (thickness.mode() == ThicknessMode::Sphere && thickness.value() != 0.0f) {
     /* Two transmission events inside a sphere is a uniform sphere distribution. */
     float cos_theta = rand.x * 2.0f - 1.0f;
     BsdfSample samp;
@@ -95,7 +95,7 @@ BsdfSample bxdf_translucent_sample(float3 rand, Thickness thickness)
 
 BsdfEval bxdf_translucent_eval(float3 N, float3 L, Thickness thickness)
 {
-  if (thickness.mode() == ThicknessMode::Sphere) {
+  if (thickness.mode() == ThicknessMode::Sphere && thickness.value() != 0.0f) {
     /* Two transmission events inside a sphere is a uniform sphere distribution. */
     BsdfEval eval;
     eval.throughput = eval.pdf = 0.25f * M_1_PI;
@@ -140,13 +140,15 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness 
    * For slab model, the approximation has little to no impact on the lighting in practice,
    * only focusing the light a tiny bit. Using the flipped normal is good enough approximation.
    */
+  const bool sphere_with_thickness = thickness.mode() == ThicknessMode::Sphere &&
+                                     thickness.value() != 0.0f;
 
   ClosureLight light;
   light.N = -cl.N;
-  light.type = (thickness.value() != 0.0f) ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
+  light.type = sphere_with_thickness ? LIGHT_TRANSLUCENT_WITH_THICKNESS : LIGHT_DIFFUSE;
 
-  eevee::lut::LTCData ltc_data = eevee::lut::LTCData::identity(light.N, V);
-  if (thickness.value() != 0.0f) {
+  eevee::LTCData ltc_data = eevee::LTCData::identity(light.N, V);
+  if (sphere_with_thickness) {
     ltc_data.integral_type = LTCIntegralType::UnclippedDiffuseSphere;
   }
   ltc_data.pack_to(light);

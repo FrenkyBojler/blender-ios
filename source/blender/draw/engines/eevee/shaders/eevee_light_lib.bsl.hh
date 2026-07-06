@@ -258,7 +258,7 @@ LightVertices light_shape_corners(LightData light, LightVector lv)
 
 float light_ltc(sampler2DArray utility_tx,
                 LightData light,
-                eevee::lut::LTCData ltc_data,
+                eevee::LTCData ltc_data,
                 LightVector lv,
                 LightVertices vertices)
 {

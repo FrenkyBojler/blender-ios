@@ -422,7 +422,7 @@ ClosureLight bxdf_ggx_light_reflection([[resource_table]] const UtilityTexture &
   light.N = cl.N;
   light.type = LIGHT_SPECULAR;
 
-  eevee::lut::LTCData ltc_data = eevee::lut::LTCData::sample_utility_tx(
+  eevee::LTCData ltc_data = eevee::LTCData::sample_utility_tx(
       util_tx, light.N, V, cos_theta, cl.roughness);
   ltc_data.pack_to(light);
 
@@ -455,7 +455,7 @@ ClosureLight bxdf_ggx_light_transmission([[resource_table]] const UtilityTexture
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
 
-  eevee::lut::LTCData ltc_data = eevee::lut::LTCData::sample_utility_tx(
+  eevee::LTCData ltc_data = eevee::LTCData::sample_utility_tx(
       util_tx, light.N, V, cos_theta, perceptual_roughness);
   ltc_data.pack_to(light);
 
@@ -471,7 +471,7 @@ ClosureLight bxdf_ggx_light_thin_glass_transmission(
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
 
-  eevee::lut::LTCData ltc_data = eevee::lut::LTCData::sample_utility_tx(
+  eevee::LTCData ltc_data = eevee::LTCData::sample_utility_tx(
       util_tx, light.N, V, cos_theta, cl.roughness);
   ltc_data.pack_to(light);
 

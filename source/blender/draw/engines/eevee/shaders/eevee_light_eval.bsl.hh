@@ -82,7 +82,7 @@ void eval_single_closure(sampler2DArray util_tx,
     return;
   }
 
-  lut::LTCData ltc_data = lut::LTCData::unpack_from(cl);
+  LTCData ltc_data = LTCData::unpack_from(cl);
   float ltc_result = light_ltc(util_tx, light, ltc_data, lv, vertices);
 
   float3 out_radiance = light.color * ltc_result;

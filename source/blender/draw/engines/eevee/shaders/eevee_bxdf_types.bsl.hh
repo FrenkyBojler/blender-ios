@@ -22,7 +22,6 @@ struct BsdfEval {
   float weight;
 };
 
-/* TODO: rename UnclippedDiffuseSphere as it is not correct  */
 enum class LTCIntegralType : uchar { ClippedDiffuseSphere = 0u, UnclippedDiffuseSphere = 1u };
 
 struct ClosureLight {
