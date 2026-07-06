@@ -1731,7 +1731,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
   }
 
   /* Check if a fill region created by the hint touches the boundary. */
-  auto does_hint_touch_boundary = [&](const int hint_index) {
+  auto is_hint_connected_to_boundary = [&](const int hint_index) {
     for (const int tri_index : result.face.index_range()) {
       if (tri_hint_index[tri_index] != hint_index) {
         continue;
@@ -1800,7 +1800,7 @@ std::optional<bke::CurvesGeometry> delaunay_fill_strokes(
     index_to_fill = tri_hint_index[first_tri_index];
 
     /* Add the mouse if the fill would touch the boundary. */
-    if (!invert && does_hint_touch_boundary(index_to_fill)) {
+    if (!invert && is_hint_connected_to_boundary(index_to_fill)) {
       add_weights_for_tri(tri_adjacency.as_span(),
                           tri_edges.as_span(),
                           edge_weights.as_span(),
