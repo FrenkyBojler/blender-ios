@@ -283,7 +283,6 @@ struct DistProjectedAABBPrecalc {
   float ray_inv_dir[3];
   float pmat[4][4];
   float mval[2];
-  /** Near clip distance stored in projected `w` space for perspective projection. */
   float clip_near;
 };
 /**
