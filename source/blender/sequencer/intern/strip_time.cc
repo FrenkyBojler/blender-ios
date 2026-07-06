@@ -618,6 +618,9 @@ bool Strip::intersects_frame(const Scene *scene, const int timeline_frame) const
 
 int Strip::length() const
 {
+  if (this->scene && this->type == STRIP_TYPE_SCENE) {
+    return this->scene->r.efra - this->scene->r.sfra + 1;
+  }
   return this->len;
 }
 
