@@ -1312,6 +1312,11 @@ std::string BKE_animdata_string_escape_for_rename(const StringRefNull string)
   return fmt::format("[\"{}\"]", old_name_esc);
 }
 
+std::string BKE_animdata_number_to_rna_element(const int number)
+{
+  return fmt::format("[%d]", number);
+}
+
 /* Remove FCurves with Prefix  -------------------------------------- */
 
 /** Remove F-Curves from the listbase when their RNA path starts with `prefix`. */

@@ -198,12 +198,6 @@ void BKE_animdata_fix_paths_rename_all_ex(Main *bmain,
                                           bool verify_paths,
                                           bool infix_is_name);
 
-/** See #BKE_animdata_fix_paths_rename_all_ex */
-void BKE_animdata_fix_paths_rename_all(ID *ref_id,
-                                       const char *prefix,
-                                       const char *oldName,
-                                       const char *newName);
-
 using DriverMap = Map<ID *, Vector<DriverTarget *>>;
 /**
  * Build a map from an ID to all the `DriverTarget`s where it is being used.
@@ -234,6 +228,7 @@ void BKE_animdata_fix_paths(ID &id,
  * TODO replace with internal function once available.
  */
 std::string BKE_animdata_string_escape_for_rename(const StringRefNull string);
+std::string BKE_animdata_number_to_rna_element(const int number);
 
 /**
  * Remove any animation data (F-Curves from Actions, and drivers) that have an

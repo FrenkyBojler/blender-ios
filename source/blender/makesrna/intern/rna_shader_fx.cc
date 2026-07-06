@@ -145,10 +145,15 @@ static void rna_ShaderFx_name_set(PointerRNA *ptr, const char *value)
   if (ptr->owner_id) {
     Object *ob = id_cast<Object *>(ptr->owner_id);
     BKE_shaderfx_unique_name(&ob->shader_fx, gmd);
-  }
 
-  /* fix all the animation data which may link to this */
-  BKE_animdata_fix_paths_rename_all(nullptr, "shader_effects", oldname, gmd->name);
+    /* Fix all the animation data which may link to this. */
+    DriverMap driver_map = BKE_animdata_build_driver_target_map();
+    BKE_animdata_fix_paths(ob->id,
+                           "shader_effects",
+                           BKE_animdata_string_escape_for_rename(oldname),
+                           BKE_animdata_string_escape_for_rename(gmd->name),
+                           driver_map);
+  }
 }
 
 static std::optional<std::string> rna_ShaderFx_path(const PointerRNA *ptr)

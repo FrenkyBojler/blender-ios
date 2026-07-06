@@ -371,7 +371,12 @@ void BKE_mask_layer_rename(Mask *mask,
   BKE_mask_layer_unique_name(mask, masklay);
 
   /* now fix animation paths */
-  BKE_animdata_fix_paths_rename_all(&mask->id, "layers", oldname, masklay->name);
+  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  BKE_animdata_fix_paths(mask->id,
+                         "layers",
+                         BKE_animdata_string_escape_for_rename(oldname),
+                         BKE_animdata_string_escape_for_rename(masklay->name),
+                         driver_map);
 }
 
 MaskLayer *BKE_mask_layer_copy(const MaskLayer *masklay)

@@ -134,23 +134,6 @@ void BKE_animdata_main_cb(Main *bmain, const FunctionRef<void(ID *, AnimData *)>
   ANIMDATA_IDS_CB(bmain->volumes.first);
 }
 
-void BKE_animdata_fix_paths_rename_all(ID *ref_id,
-                                       const char *prefix,
-                                       const char *oldName,
-                                       const char *newName)
-{
-  Main *bmain = G.main; /* XXX UGLY! */
-  BKE_animdata_fix_paths_rename_all_ex(bmain,
-                                       ref_id,
-                                       prefix,
-                                       oldName,
-                                       newName,
-                                       0,
-                                       0,
-                                       /*verify_paths=*/true,
-                                       /*infix_is_name=*/true);
-}
-
 void BKE_animdata_fix_paths_rename_all_ex(Main *bmain,
                                           ID *ref_id,
                                           const char *prefix,

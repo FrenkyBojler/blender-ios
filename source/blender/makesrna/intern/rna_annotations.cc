@@ -171,7 +171,14 @@ static void rna_annotation_layer_info_set(PointerRNA *ptr, const char *value)
       &gpd->layers, gpl, DATA_("GP_Layer"), '.', offsetof(bGPDlayer, info), sizeof(gpl->info));
 
   /* now fix animation paths */
-  BKE_animdata_fix_paths_rename_all(&gpd->id, "layers", oldname, gpl->info);
+  if (ptr->owner_id) {
+    DriverMap driver_map = BKE_animdata_build_driver_target_map();
+    BKE_animdata_fix_paths(*ptr->owner_id,
+                           "layers",
+                           BKE_animdata_string_escape_for_rename(oldname),
+                           BKE_animdata_string_escape_for_rename(gpl->info),
+                           driver_map);
+  }
 
   /* Fix mask layers. */
   for (bGPDlayer &gpl_ : gpd->layers) {

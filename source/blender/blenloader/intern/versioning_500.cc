@@ -1316,6 +1316,7 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
                                                               bNodeTree *node_tree,
                                                               ID *id)
 {
+  DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
   for (bNode &node : node_tree->nodes.items_mutable()) {
     char escaped_node_name[sizeof(node.name) * 2 + 1];
     BLI_str_escape(escaped_node_name, node.name, sizeof(escaped_node_name));
@@ -1327,15 +1328,11 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
       case SH_NODE_CURVE_VEC: {
         /* The node gained a new Factor input as a first socket, so the vector socket moved to be
          * the second socket and we need to transfer its animation as well. */
-        BKE_animdata_fix_paths_rename_all_ex(bmain,
-                                             id,
-                                             rna_path_prefix.c_str(),
-                                             nullptr,
-                                             nullptr,
-                                             0,
-                                             1,
-                                             /*verify_paths=*/false,
-                                             /*infix_is_name=*/true);
+        BKE_animdata_fix_paths(node_tree->id,
+                               rna_path_prefix,
+                               BKE_animdata_number_to_rna_element(0),
+                               BKE_animdata_number_to_rna_element(1),
+                               driver_map);
         break;
       }
       /* Notice that we use the shader type because the node is already converted in versioning
@@ -1343,24 +1340,16 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
       case SH_NODE_MIX: {
         /* The node gained multiple new sockets after the factor socket, so the second and third
          * sockets moved to be the 7th and 8th sockets. */
-        BKE_animdata_fix_paths_rename_all_ex(bmain,
-                                             id,
-                                             rna_path_prefix.c_str(),
-                                             nullptr,
-                                             nullptr,
-                                             1,
-                                             6,
-                                             /*verify_paths=*/false,
-                                             /*infix_is_name=*/true);
-        BKE_animdata_fix_paths_rename_all_ex(bmain,
-                                             id,
-                                             rna_path_prefix.c_str(),
-                                             nullptr,
-                                             nullptr,
-                                             2,
-                                             7,
-                                             /*verify_paths=*/false,
-                                             /*infix_is_name=*/true);
+        BKE_animdata_fix_paths(node_tree->id,
+                               rna_path_prefix,
+                               BKE_animdata_number_to_rna_element(1),
+                               BKE_animdata_number_to_rna_element(6),
+                               driver_map);
+        BKE_animdata_fix_paths(node_tree->id,
+                               rna_path_prefix,
+                               BKE_animdata_number_to_rna_element(2),
+                               BKE_animdata_number_to_rna_element(7),
+                               driver_map);
         break;
       }
       default:

@@ -2716,7 +2716,12 @@ static void rna_Node_name_set(PointerRNA *ptr, const char *value)
   bke::node_unique_name(*ntree, *node);
 
   /* fix all the animation data which may link to this */
-  BKE_animdata_fix_paths_rename_all(nullptr, "nodes", oldname, node->name);
+  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  BKE_animdata_fix_paths(ntree->id,
+                         "nodes",
+                         BKE_animdata_string_escape_for_rename(oldname),
+                         BKE_animdata_string_escape_for_rename(node->name),
+                         driver_map);
 }
 
 static int rna_Node_color_tag_get(PointerRNA *ptr)
