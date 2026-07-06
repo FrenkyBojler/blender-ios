@@ -279,7 +279,15 @@ def main():
                                            {'offset': 0.2, 'segments': 3, 'miter_outer': 'ARC'}, 'EDGE',
                                            {4, 7, 39, 27, 30, 31}, )]),
         SpecMeshTest('Spike_test', 'Spike_test', 'Spike_result_1',
-                     [OperatorSpecEditMode('bevel', {'offset': 0.2, 'segments': 3}, 'EDGE', {1, 7})])
+                     [OperatorSpecEditMode('bevel', {'offset': 0.2, 'segments': 3}, 'EDGE', {1, 7})]),
+        # With an odd number of segments, the material of the center face strip must be
+        # chosen consistently along a material boundary (see #142279).
+        SpecMeshTest('Matboundary_test_1', 'Matboundary_test', 'Matboundary_result_1',
+                     [OperatorSpecEditMode('bevel', {'offset': 0.05, 'segments': 1}, 'EDGE',
+                                           set(range(432)))]),
+        SpecMeshTest('Matboundary_test_2', 'Matboundary_test', 'Matboundary_result_2',
+                     [OperatorSpecEditMode('bevel', {'offset': 0.05, 'segments': 3}, 'EDGE',
+                                           set(range(432)))]),
 
     ]
     operator_test = RunTest(tests)
