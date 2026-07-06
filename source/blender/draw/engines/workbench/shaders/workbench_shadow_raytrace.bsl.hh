@@ -6,6 +6,7 @@
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_fullscreen_lib.glsl"
+#include "workbench_common.bsl.hh"
 #include "workbench_shader_shared.hh"
 
 namespace workbench::shadow::rt {
@@ -34,7 +35,9 @@ struct Resources {
     return;
   }
 
-  if (dot(texture(srt.normal_tx, screen_uv).xyz, srt.pass_data.light_direction_ws) >= 0.0f) {
+  const float3 N = drw_normal_view_to_world(
+      workbench::normal_decode(texture(srt.normal_tx, screen_uv)));
+  if (dot(N, srt.pass_data.light_direction_ws) >= 0.0f) {
     /* We already know the fragment is in shadow. No need to query. */
     return;
   }
