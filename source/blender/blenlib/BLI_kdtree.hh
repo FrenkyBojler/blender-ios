@@ -522,12 +522,14 @@ inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
   uint nearest_len_capacity = 0;
 
   kdtree_foreach_node_in_range(*tree, co, range, [&](const KDTreeNode<CoordT> &node) {
-    detail::nearest_add_in_range<CoordT>(&nearest,
-                                         nearest_len++,
-                                         &nearest_len_capacity,
-                                         node.index,
-                                         len_sq_fn(node.co, co),
-                                         node.co);
+    const ValueType sq_value = len_sq_fn(node.co, co);
+    if (sq_value > math::square(range)) {
+      return true;
+    }
+
+    detail::nearest_add_in_range<CoordT>(
+        &nearest, nearest_len++, &nearest_len_capacity, node.index, sq_value, node.co);
+    return true;
   });
 
   if (nearest_len) {
@@ -567,6 +569,10 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
                                    Fn &&search_cb)
 {
   kdtree_foreach_node_in_range(tree, co, range, [&](const KDTreeNode<CoordT> &node) {
+    const ValueType sq_value = math::distance_squared(node.co, co);
+    if (sq_value > math::square(range)) {
+      return true;
+    }
     return search_cb(node.index, node.co, math::distance_squared(co, node.co));
   });
 }
@@ -585,53 +591,6 @@ template<typename CoordT> static Vector<int> kdtree_order(const KDTree<CoordT> *
     order[nodes[i].index] = int(i);
   }
   return order;
-}
-
-/* -------------------------------------------------------------------- */
-/** \name kdtree_calc_duplicates_fast
- * \{ */
-
-template<typename CoordT> struct DeDuplicateParams {
-  /* Static */
-  const KDTreeNode<CoordT> *nodes;
-  typename KDTree<CoordT>::ValueType range;
-  typename KDTree<CoordT>::ValueType range_sq;
-  int *duplicates;
-  int *duplicates_found;
-
-  /* Per Search */
-  CoordT search_co;
-  int search;
-};
-
-template<typename CoordT>
-static void deduplicate_recursive(const DeDuplicateParams<CoordT> *p, uint i)
-{
-  const KDTreeNode<CoordT> *node = &p->nodes[i];
-  if (axis_get(p->search_co, node->d) + p->range <= axis_get(node->co, node->d)) {
-    if (node->left != detail::kd_node_unset) {
-      deduplicate_recursive(p, node->left);
-    }
-  }
-  else if (axis_get(p->search_co, node->d) - p->range >= axis_get(node->co, node->d)) {
-    if (node->right != detail::kd_node_unset) {
-      deduplicate_recursive(p, node->right);
-    }
-  }
-  else {
-    if ((p->search != node->index) && (p->duplicates[node->index] == -1)) {
-      if (distance_squared(node->co, p->search_co) <= p->range_sq) {
-        p->duplicates[node->index] = int(p->search);
-        *p->duplicates_found += 1;
-      }
-    }
-    if (node->left != detail::kd_node_unset) {
-      deduplicate_recursive(p, node->left);
-    }
-    if (node->right != detail::kd_node_unset) {
-      deduplicate_recursive(p, node->right);
-    }
-  }
 }
 
 }  // namespace detail
@@ -661,49 +620,55 @@ inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
                                        int *duplicates)
 {
   PRF_scope(ProfileCategory::Default);
-  int found = 0;
 
-  detail::DeDuplicateParams<CoordT> p = {};
-  p.nodes = tree->nodes;
-  p.range = range;
-  p.range_sq = square_f(range);
-  p.duplicates = duplicates;
-  p.duplicates_found = &found;
+  const auto mark_nodes_around = [&](const KDTreeNode<CoordT> &node, const int value) {
+    int found = 0;
+    kdtree_foreach_node_in_range(tree, node.co, range, [&](const KDTreeNode<CoordT> &other_node) {
+      if (&other_node == &node) {
+        return true;
+      }
+
+      const ValueType sq_value = math::distance_squared(other_node.co, co);
+      if (sq_value > math::square(range)) {
+        return true;
+      }
+
+      duplicates[other_node.index] = value;
+      found++;
+      return true;
+    });
+    return found;
+  };
+
+  int found = 0;
+  const auto deduplicate_nodes = [&](const KDTreeNode<CoordT> &node) {
+    const int index = node.index;
+    if (!ELEM(duplicates[index], -1, index)) {
+      continue;
+    }
+
+    const int found_nodes_num = mark_nodes_around(node, index);
+    found += found_nodes_num;
+    if (found_nodes_num == 0) {
+      continue;
+    }
+
+    /* Prevent chains of doubles. */
+    duplicates[index] = index;
+  };
 
   if (use_index_order) {
     Vector<int> order = detail::kdtree_order<CoordT>(tree);
     for (int i = 0; i < tree->max_node_index + 1; i++) {
       const int node_index = order[i];
-      if (node_index == -1) {
-        continue;
-      }
-      const int index = i;
-      if (ELEM(duplicates[index], -1, index)) {
-        p.search = index;
-        p.search_co = tree->nodes[node_index].co;
-        int found_prev = found;
-        detail::deduplicate_recursive<CoordT>(&p, tree->root);
-        if (found != found_prev) {
-          /* Prevent chains of doubles. */
-          duplicates[index] = index;
-        }
+      if (node_index != -1) {
+        deduplicate_nodes(tree->nodes[node_index]);
       }
     }
   }
   else {
     for (uint i = 0; i < tree->nodes_len; i++) {
-      const uint node_index = i;
-      const int index = p.nodes[node_index].index;
-      if (ELEM(duplicates[index], -1, index)) {
-        p.search = index;
-        p.search_co = tree->nodes[node_index].co;
-        int found_prev = found;
-        detail::deduplicate_recursive<CoordT>(&p, tree->root);
-        if (found != found_prev) {
-          /* Prevent chains of doubles. */
-          duplicates[index] = index;
-        }
-      }
+      deduplicate_nodes(tree->nodes[i]);
     }
   }
   return found;
