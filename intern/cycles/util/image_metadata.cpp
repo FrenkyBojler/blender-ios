@@ -281,9 +281,9 @@ void ImageMetaData::detect_tiles(ImageInput &input,
   else {
     tile_need_conform = false;
 
-    /* For tx files, use the color space hint to determine if this was encoded
-     * as scene linear, scene linear + sRGB or data. */
-    if (!colorspace_file_hint.empty()) {
+    /* Preserve the source colorspace assigned by Blender (e.g. Non-Color).
+     * Only use the tx colorspace hint when no source colorspace is known. */
+    if (colorspace.empty() && !colorspace_file_hint.empty()) {
       colorspace = ustring(colorspace_file_hint);
     }
   }
