@@ -1935,11 +1935,8 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   corner_single_checker.optimize_storage();
 
   if (!attributes_active_name.empty()) {
-    /* Because of various reasons attributes_active_index can be 0 while it should logically be -1
-     * one reason is that the DNA default is 0, another reason is converted older files or meshes
-     * converted from other objects (that also have a default of 0 for their index).
-     * Fixing would require quite extensive changes. Since the plan is to store the active
-     * attribute eventually it's better to just catch it  for now and fix that properly then. */
+    /* Invalid active attributes can happen because of wrong DNA default, see comment
+     * on the Mesh.attributes_active_index member declaration. */
     if (bke::allow_procedural_attribute_access(attributes_active_name)) {
       BKE_attributes_active_set(owner, attributes_active_name);
     }
@@ -1963,9 +1960,9 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   /* Must be an empty mesh. */
   BLI_assert(mesh.verts_num == 0);
 
-  /* new Mesh is created with this at 0, but if the conversion from BMesh potentially adds
+  /* New Mesh is created with this at 0, but if the conversion from BMesh potentially adds
    * some attributes we should make sure it is at -1 or it might point to an invalid internal
-   * attribute */
+   * attribute. */
   mesh.attributes_active_index = -1;
 
   /* Just in case, clear the derived geometry caches from the input mesh. */
