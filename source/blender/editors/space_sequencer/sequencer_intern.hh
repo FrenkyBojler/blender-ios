@@ -193,6 +193,7 @@ bool sequencer_editing_initialized_and_active(bContext *C);
 /* UNUSED */
 // bool sequencer_strip_poll( bContext *C);
 bool sequencer_strip_editable_poll(bContext *C);
+bool sequencer_strip_editable_and_selected_poll(bContext *C);
 bool sequencer_strip_has_path_poll(bContext *C);
 bool sequencer_view_has_preview_poll(bContext *C);
 bool sequencer_view_preview_only_poll(const bContext *C);
