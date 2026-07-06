@@ -620,9 +620,13 @@ class OUTLINER_PT_options_object_data(Panel):
         row.separator()
         row.prop(space, "use_filter_object_modifiers", text="Modifiers")
         row = panel_column.row(align=True)
-        row.label(icon='MATERIAL_DATA')
+        row.label(icon='GROUP_BONE')
         row.separator()
-        row.prop(space, "use_filter_object_materials", text="Materials")
+        row.prop(space, "use_filter_bone_collections", text="Bone Collections")
+        row = panel_column.row(align=True)
+        row.label(icon='SHADERFX')
+        row.separator()
+        row.prop(space, "use_filter_grease_pencil_effects", text="Grease Pencil Effects")
 
 
 classes = (

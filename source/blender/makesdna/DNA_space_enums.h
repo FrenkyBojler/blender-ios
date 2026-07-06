@@ -194,6 +194,8 @@ enum eSpaceOutliner_Filter : int {
   SO_FILTER_NO_OB_MATERIAL = (1 << 25),
   SO_FILTER_NO_OB_DEFGROUP = (1 << 26),
   SO_FILTER_NO_OB_MODIFIERS = (1 << 27),
+  SO_FILTER_NO_ARMATURE_BONE_COLLECTION = (1 << 28),
+  SO_FILTER_NO_GREASE_PENCIL_EFFECTS = (1 << 29),
 };
 ENUM_OPERATORS(eSpaceOutliner_Filter)
 
