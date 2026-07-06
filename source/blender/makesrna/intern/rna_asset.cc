@@ -854,8 +854,14 @@ static void rna_def_asset_library(BlenderRNA *brna)
 
   func = RNA_def_function(srna, "online_assets_url", "rna_AssetLibrary_online_assets_url");
   RNA_def_function_flag(func, FUNC_NO_SELF);
-  parm = RNA_def_string(
-      func, "url", nullptr, 4096, "URL", "Remote location of the Online Essentials library");
+  parm = RNA_def_string(func,
+                        "url",
+                        nullptr,
+                        /* There is no official maximum length for URLs. Most guidelines say to
+                         * keep them under 2000 characters, so PATH_MAX=4096 should be enough. */
+                        PATH_MAX,
+                        "URL",
+                        "Remote location of the Online Essentials library");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(
