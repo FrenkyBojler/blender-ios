@@ -362,7 +362,7 @@ void ED_screen_animation_timer_update(bScreen *screen, int redraws);
  * returns true.
  */
 void ED_wm_animation_timers_stop(wmWindowManager *wm,
-                                 FunctionRef<bool(wmWindow &win)> should_stop_fn);
+                                 FunctionRef<bool(const wmWindow &win)> should_stop_fn);
 
 void ED_screen_restore_temp_type(bContext *C, ScrArea *area);
 ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type);

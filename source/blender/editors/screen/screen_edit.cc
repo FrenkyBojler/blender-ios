@@ -1927,7 +1927,7 @@ ScrArea *ED_screen_temp_space_open(
 }
 
 void ED_wm_animation_timers_stop(wmWindowManager *wm,
-                                 FunctionRef<bool(wmWindow &win)> should_stop_fn)
+                                 FunctionRef<bool(const wmWindow &win)> should_stop_fn)
 {
   /* Cannot use ED_window_animation_playing_no_scrub() here, because that only returns the screen,
    * and we need the window too. */
@@ -1955,7 +1955,8 @@ void ED_screen_animation_timer(
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
 
-  ED_wm_animation_timers_stop(wm, [&](wmWindow &playing_win) { return win == &playing_win; });
+  ED_wm_animation_timers_stop(wm,
+                              [&](const wmWindow &playing_win) { return win == &playing_win; });
 
   if (enable) {
     ScreenAnimData *sad = MEM_new_zeroed<ScreenAnimData>("ScreenAnimData");
