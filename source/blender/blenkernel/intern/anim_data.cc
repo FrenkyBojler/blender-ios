@@ -1181,7 +1181,7 @@ static bool driver_target_path_fix(ID &owner_id,
   for (DriverTarget *target : *target_uses) {
     std::optional<std::string> fixed_path = rna_path_rename_fix(
         owner_id, prefix, old_infix, new_infix, target->rna_path);
-    if (fixed_path.has_value()) {
+    if (!fixed_path.has_value()) {
       continue;
     }
     MEM_delete(target->rna_path);

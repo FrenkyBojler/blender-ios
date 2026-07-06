@@ -168,7 +168,6 @@ void ED_armature_bone_rename(Main *bmain,
                              const char *oldnamep,
                              const char *newnamep)
 {
-
   /* If old and new name match we don't need to do anything. */
   if (STREQLEN(oldnamep, newnamep, MAXBONENAME)) {
     return;
