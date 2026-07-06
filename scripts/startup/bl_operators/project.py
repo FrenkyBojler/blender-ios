@@ -50,8 +50,8 @@ class ProjectVariable:
     name: str
     type: VariableType
     value: int | str | float
-    description: str
     subtype: VariableSubtype | None = None
+    description: str = ""
 
     @staticmethod
     def new_from_real(project_variable):
@@ -124,9 +124,13 @@ class ProjectConfig:
     @staticmethod
     def new_from_real(project):
         """Create a ProjectConfig object from an existing real project."""
+        variables = None
+        if len(project.variables) > 0:
+            variables = [ProjectVariable.new_from_real(var) for var in project.variables]
+
         return ProjectConfig(
             name=project.name,
-            variables=[ProjectVariable.new_from_real(var) for var in project.variables],
+            variables=variables,
         )
 
     def populate_real(self, project):
@@ -240,7 +244,7 @@ def save_project(project, report=None):
         raise ProjectSaveException
 
     # Create a project config dict from the current project.
-    converter = cattrs.Converter()
+    converter = cattrs.Converter(omit_if_default=True)
     config = ProjectConfig.new_from_real(project)
     config_dict = converter.unstructure(config, ProjectConfig)
 
