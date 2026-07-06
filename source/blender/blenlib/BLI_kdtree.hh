@@ -628,6 +628,10 @@ inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
         return true;
       }
 
+      if (duplicates[other_node.index] == -1) {
+        continue;
+      }
+
       const ValueType sq_value = math::distance_squared(other_node.co, co);
       if (sq_value > math::square(range)) {
         return true;
