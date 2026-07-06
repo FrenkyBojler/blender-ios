@@ -89,7 +89,7 @@ static int metastrip_start_get(Strip *strip_meta)
 
 static int metastrip_end_get(Strip *strip_meta)
 {
-  return strip_meta->start + strip_meta->length() - strip_meta->endofs;
+  return strip_meta->start + strip_meta->length() - strip_meta->endoffset();
 }
 
 static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
@@ -109,12 +109,12 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
     else if (ELEM(strip.type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE)) {
       if (strip.runtime->scene_sound) {
         int startofs = strip.startofs;
-        int endofs = strip.endofs;
+        int endofs = strip.endoffset();
         if (strip.startofs + strip.start < start) {
           startofs = start - strip.start;
         }
 
-        if (strip.start + strip.length() - strip.endofs > end) {
+        if (strip.start + strip.length() - strip.endoffset() > end) {
           endofs = strip.start + strip.length() - end;
         }
 
@@ -167,7 +167,7 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
    * change must be done at once. */
   strip_meta->startofs = strip_start - strip_meta->start;
   strip_meta->startdisp = strip_start; /* Only to make files usable in older versions. */
-  strip_meta->endofs = strip_meta->start + strip_meta->length(scene) - strip_end;
+  strip_meta->set_endoffset(strip_meta->start + strip_meta->length(scene) - strip_end);
   strip_meta->enddisp = strip_end; /* Only to make files usable in older versions. */
 
   strip_update_sound_bounds_recursive(scene, strip_meta);
@@ -201,7 +201,8 @@ void strip_time_effect_range_set(const Scene *scene, Strip *strip)
   }
 
   /* Values unusable for effects, these should be always 0. */
-  strip->startofs = strip->endofs = strip->anim_startofs = strip->anim_endofs = 0;
+  strip->startofs = strip->anim_startofs = strip->anim_endofs = 0;
+  strip->set_endoffset(0);
   strip->start = strip->startdisp;
   strip->length_set(strip->enddisp - strip->startdisp);
 }
@@ -433,7 +434,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
 
   if (!recursed) {
     strip->startofs = strip->startofs - delta;
-    strip->endofs = strip->endofs + delta;
+    strip->set_endoffset(strip->endoffset() + delta);
   }
 
   /* Only to make files usable in older versions. */
@@ -545,7 +546,7 @@ int Strip::right_handle(const Scene *scene) const
     return this->enddisp;
   }
 
-  return this->content_end(scene) - this->endofs;
+  return this->content_end(scene) - this->endoffset();
 }
 
 void Strip::left_handle_set(const Scene *scene, int timeline_frame)
@@ -562,7 +563,7 @@ void Strip::left_handle_set(const Scene *scene, int timeline_frame)
     /* This strip has only 1 frame of content that is always stretched to the whole strip length.
      * Move strip start left and adjust end offset to be negative (rightwards past the 1 frame). */
     this->content_start_set(scene, timeline_frame);
-    this->endofs += offset;
+    this->set_endoffset(this->endoffset() + offset);
   }
   else {
     this->startofs = offset;
@@ -583,7 +584,7 @@ void Strip::right_handle_set(const Scene *scene, int timeline_frame)
     timeline_frame = left_handle_orig_frame + 1;
   }
 
-  this->endofs = this->content_end(scene) - timeline_frame;
+  this->set_endoffset(this->content_end(scene) - timeline_frame);
   this->enddisp = timeline_frame; /* Only to make files usable in older versions. */
 
   Span<Strip *> effects = seq::lookup_effects_by_strip(scene->ed, this);
@@ -626,16 +627,25 @@ int Strip::length() const
 
 float Strip::endoffset() const
 {
+  if (this->type == STRIP_TYPE_SCENE) {
+    return this->length() - (this->len - this->endofs);
+  }
   return this->endofs;
 }
 
 void Strip::length_set(int new_len)
 {
+  if (this->type == STRIP_TYPE_SCENE) {
+    this->endofs = this->len - this->endofs;
+  }
   this->len = new_len;
 }
 
 void Strip::set_endoffset(float new_endofs)
 {
+  if (this->type == STRIP_TYPE_SCENE) {
+    this->len = this->length();
+  }
   this->endofs = new_endofs;
 }
 

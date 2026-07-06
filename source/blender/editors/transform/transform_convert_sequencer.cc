@@ -505,7 +505,9 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
     bool right_sel = (strip->flag & SEQ_RIGHTSEL);
 
     /* If any strips start out with hold offsets visible, disable handle clamping on init. */
-    if ((strip->startofs < 0 || strip->endofs < 0) && !seq::transform_single_image_check(strip)) {
+    if ((strip->startofs < 0 || strip->endoffset() < 0) &&
+        !seq::transform_single_image_check(strip))
+    {
       t->modifiers &= ~MOD_STRIP_CLAMP_HOLDS;
     }
 
@@ -537,7 +539,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
         if (can_clamp_holds) {
           /* Ensure that the right handle's frame is less than or equal to the content end. */
-          ts->hold_clamp_max = min_ii(ts->hold_clamp_max, strip->endofs);
+          ts->hold_clamp_max = min_ii(ts->hold_clamp_max, strip->endoffset());
         }
       }
     }

@@ -931,7 +931,7 @@ static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent
     strip->runtime->flag |= seq::StripRuntimeFlag::ShowOffsets;
 
     /* If any strips start out with hold offsets visible, disable clamping on initialization. */
-    if (strip->startofs < 0 || strip->endofs < 0) {
+    if (strip->startofs < 0 || strip->endoffset() < 0) {
       data->clamp = false;
     }
     /* If any strips do not have enough underlying content to
@@ -2755,7 +2755,8 @@ static wmOperatorStatus sequencer_offset_clear_exec(bContext *C, wmOperator * /*
     }
 
     if (!strip->is_effect() && (strip->flag & SEQ_SELECT)) {
-      strip->startofs = strip->endofs = 0;
+      strip->startofs = 0;
+      strip->set_endoffset(0);
     }
   }
 
@@ -2839,7 +2840,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
         strip_new->type = STRIP_TYPE_IMAGE;
         strip_new->length_set(1);
         strip_new->flag |= SEQ_SINGLE_FRAME_CONTENT;
-        strip_new->endofs = 1 - step;
+        strip_new->set_endoffset(1 - step);
 
         /* New strip. */
         StripData *data_new = strip_new->data;

@@ -86,7 +86,9 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
   std::swap(strip_a->next, strip_b->next);
   std::swap(strip_a->start, strip_b->start);
   std::swap(strip_a->startofs, strip_b->startofs);
-  std::swap(strip_a->endofs, strip_b->endofs);
+  const float tmp_offset = strip_a->endoffset();
+  strip_a->set_endoffset(strip_b->endoffset());
+  strip_b->set_endoffset(tmp_offset);
   std::swap(strip_a->channel, strip_b->channel);
   strip_time_effect_range_set(scene, strip_a);
   strip_time_effect_range_set(scene, strip_b);
@@ -276,7 +278,7 @@ static void seq_split_set_right_hold_offset(Main *bmain,
   }
   /* Adjust within range of strip contents. */
   else if ((timeline_frame >= content_start) && (timeline_frame <= content_end)) {
-    strip->endofs = 0;
+    strip->set_endoffset(0);
     const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
     const float speed_factor = strip->media_playback_rate_factor(scene_fps);
     strip->anim_endofs += round_fl_to_int((content_end - timeline_frame) * speed_factor);
@@ -307,7 +309,7 @@ static void seq_split_set_left_hold_offset(Main *bmain,
   else if (timeline_frame > content_end) {
     const float offset = timeline_frame - content_end + 1;
     strip->start += offset;
-    strip->endofs += offset;
+    strip->set_endoffset(strip->endoffset() + offset);
   }
 
   /* Needed only to set `strip->len`. */

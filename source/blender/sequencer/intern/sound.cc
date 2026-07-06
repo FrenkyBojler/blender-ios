@@ -79,7 +79,7 @@ static bool sequencer_refresh_sound_length_recursive(Main *bmain,
       fac = float(strip.length()) / float(old);
       old = strip.startofs;
       strip.startofs *= fac;
-      strip.endofs *= fac;
+      strip.endofs = strip.endoffset() * fac;
       strip.start += (old -
                       strip.startofs); /* So that visual/"real" start frame does not change! */
 
