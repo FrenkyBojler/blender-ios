@@ -49,13 +49,19 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
     access_info.images.extend(cached_access_info_images_);
   }
   else {
-    update_resource_access_info(context, access_info, push_constants_buffer);
+    update_resource_access_info(context, access_info);
     cached_access_info_generation_ = state_manager.bindings_generation;
     cached_access_info_shader_interface_ = &shader_interface;
     cached_access_info_buffers_.clear();
     cached_access_info_images_.clear();
     cached_access_info_buffers_.extend(access_info.buffers);
     cached_access_info_images_.extend(access_info.images);
+  }
+
+  if (shader.push_constants.layout_get().storage_type_get() == VKPushConstants::StorageType::BUFFER &&
+      push_constants_buffer.buffer != VK_NULL_HANDLE)
+  {
+    access_info.buffers.append({push_constants_buffer.buffer, VK_ACCESS_UNIFORM_READ_BIT});
   }
 
   /* Can we reuse previous descriptor set. */
@@ -307,9 +313,7 @@ void VKDescriptorSetTracker::update_resource_access_info_binding(
 }
 
 void VKDescriptorSetTracker::update_resource_access_info(
-    VKContext &context,
-    render_graph::VKResourceAccessInfo &access_info,
-    const VKBufferWithOffset &push_constants_buffer)
+    VKContext &context, render_graph::VKResourceAccessInfo &access_info)
 {
   VKShader &shader = *unwrap(context.shader);
   VKStateManager &state_manager = context.state_manager_get();
@@ -320,14 +324,6 @@ void VKDescriptorSetTracker::update_resource_access_info(
       continue;
     }
     update_resource_access_info_binding(state_manager, resource_binding, access_info);
-  }
-
-  /* Bind uniform push constants to descriptor set. */
-  if (shader.push_constants.layout_get().storage_type_get() ==
-          VKPushConstants::StorageType::BUFFER &&
-      push_constants_buffer.buffer != VK_NULL_HANDLE)
-  {
-    access_info.buffers.append({push_constants_buffer.buffer, VK_ACCESS_UNIFORM_READ_BIT});
   }
 }
 
