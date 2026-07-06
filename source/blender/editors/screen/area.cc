@@ -765,9 +765,9 @@ void ED_area_tag_region_size_update(ScrArea *area, ARegion *changed_region)
   }
 }
 
-void ED_area_tag_region_hud_size_update(ScrArea *area,
-                                        ARegion *changed_region,
-                                        const bool set_padding)
+void ED_area_hud_region_set_padding_flag(ScrArea *area,
+                                         ARegion *changed_region,
+                                         const bool set_padding)
 {
   ARegion *hud_region = BKE_area_find_region_type(area, RGN_TYPE_HUD);
   if (hud_region == nullptr) {

@@ -482,7 +482,7 @@ wmOperatorStatus ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEve
 
   WM_event_add_modal_handler(C, op);
 
-  ED_area_tag_region_hud_size_update(area, region, true);
+  ED_area_hud_region_set_padding_flag(area, region, true);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -498,7 +498,7 @@ wmOperatorStatus ED_imbuf_sample_modal(bContext *C, wmOperator *op, const wmEven
 
         if (SpaceImage *sima = CTX_wm_space_image(C)) {
           if (!ED_space_image_show_cache(sima)) {
-            ED_area_tag_region_hud_size_update(area, region);
+            ED_area_hud_region_set_padding_flag(area, region);
           }
         }
         ED_imbuf_sample_exit(C, op);

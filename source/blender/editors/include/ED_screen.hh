@@ -243,13 +243,13 @@ void ED_area_tag_redraw(ScrArea *area);
 void ED_area_tag_redraw_no_rebuild(ScrArea *area);
 void ED_area_tag_redraw_regiontype(ScrArea *area, int regiontype);
 void ED_area_tag_refresh(ScrArea *area);
+void ED_area_hud_region_set_padding_flag(ScrArea *area,
+                                         ARegion *changed_region,
+                                         const bool set_padding = false);
 /**
  * For regions that change the region size in their #ARegionType.layout() callback: Mark the area
  * as having a changed region size, requiring refitting of regions within the area.
  */
-void ED_area_tag_region_hud_size_update(ScrArea *area,
-                                        ARegion *changed_region,
-                                        const bool set_padding = false);
 void ED_area_tag_region_size_update(ScrArea *area, ARegion *changed_region);
 /**
  * Only exported for WM.

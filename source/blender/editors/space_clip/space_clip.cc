@@ -790,7 +790,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
     WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
   }
 
-  ED_area_tag_region_hud_size_update(area, region, true);
+  ED_area_hud_region_set_padding_flag(area, region, true);
 }
 
 static void clip_main_region_listener(const wmRegionListenerParams *params)

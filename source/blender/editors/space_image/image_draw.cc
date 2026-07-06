@@ -495,11 +495,11 @@ void draw_image_cache(const bContext *C, ARegion *region)
   Mask *mask = nullptr;
 
   if (!ED_space_image_show_cache(sima)) {
-    ED_area_tag_region_hud_size_update(area, region, false);
+    ED_area_hud_region_set_padding_flag(area, region, false);
     return;
   }
 
-  ED_area_tag_region_hud_size_update(area, region, true);
+  ED_area_hud_region_set_padding_flag(area, region, true);
   if (sima->mode == SI_MODE_MASK) {
     mask = ED_space_image_get_mask(sima);
   }
