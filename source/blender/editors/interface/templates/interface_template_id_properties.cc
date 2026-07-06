@@ -283,7 +283,7 @@ void template_tree(ui::Layout *layout, bContext *C, PointerRNA *dataptr, const c
 }
 
 /* Callback to reset object pointer when ID data type is changed. */
-void idproperty_id_type_set_fn(bContext * /*C*/, void *but_arg1, void * /*arg2*/)
+static void idproperty_id_type_set_fn(bContext * /*C*/, void *but_arg1, void * /*arg2*/)
 {
   const IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
 
@@ -293,7 +293,7 @@ void idproperty_id_type_set_fn(bContext * /*C*/, void *but_arg1, void * /*arg2*/
 }
 
 /* Callback to convert property to python type when type changed to unsupported. */
-void idproperty_python_prop_add_fn(bContext * /*C*/, void *but_arg1, void * /*arg2*/)
+static void idproperty_python_prop_add_fn(bContext * /*C*/, void *but_arg1, void * /*arg2*/)
 {
   IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
   IDProperty *active_prop = static_cast<IDProperty *>(

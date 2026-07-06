@@ -2439,9 +2439,9 @@ void IDP_TryConvertProperty(IDProperty *src,
       }
       case IDP_UI_DATA_TYPE_STRING: {
         if (const char *str = IDP_string_get(src)) {
-          double value = 0.0f;
-          fast_float::from_chars(str, str + strlen(str), value);
-          val.append(value);
+          double stod = 0.0f;
+          fast_float::from_chars(str, str + strlen(str), stod);
+          val.append(stod);
           return val;
         }
         break;
