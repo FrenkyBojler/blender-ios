@@ -309,8 +309,7 @@ void EDBM_mesh_make_from_mesh(Object *ob,
   const int shapenr = object_shapenr_basis_index_ensured(ob);
 
   AttributeOwner owner = AttributeOwner::from_id(const_cast<ID *>(&mesh->id));
-  const std::optional<StringRef> name_ref = BKE_attributes_active_name_get(owner);
-  const std::string active_attribute_name = name_ref.value_or("");
+  const std::string attributes_active_name = BKE_attributes_active_name_get(owner).value_or("");
 
   BMesh *bm = BKE_mesh_to_bmesh(src_mesh, shapenr, add_key_index, &create_params);
 
@@ -331,14 +330,11 @@ void EDBM_mesh_make_from_mesh(Object *ob,
   /* we need to flush selection because the mode may have changed from when last in editmode */
   EDBM_selectmode_flush(mesh->runtime->edit_mesh.get());
 
-  if (!active_attribute_name.empty()) {
-    /* Because of various reasons attributes_active_index can be 0 while it should logically be -1
-     * one reason is that the DNA default is 0, another reason is converted older files or meshes
-     * converted from other objects (that also have a default of 0 for their index).
-     * Fixing would require quite extensive changes. Since the plan is to store the active
-     * attribute evenutually it's better to just catch it  for now and fix that properly then. */
-    if (bke::allow_procedural_attribute_access(active_attribute_name)) {
-      BKE_attributes_active_set(owner, active_attribute_name);
+  if (!attributes_active_name.empty()) {
+    /* Invalid active attributes can happen because of wrong DNA default, see comment
+     * on the Mesh.attributes_active_index member declaration. */
+    if (bke::allow_procedural_attribute_access(attributes_active_name)) {
+      BKE_attributes_active_set(owner, attributes_active_name);
     }
     else {
       mesh->attributes_active_index = -1;

@@ -1651,8 +1651,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
 {
   const int old_verts_num = mesh->verts_num;
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  const std::optional<StringRef> name_ref = BKE_attributes_active_name_get(owner);
-  const std::string active_attribute_name = name_ref.value_or("");
+  const std::string attributes_active_name = BKE_attributes_active_name_get(owner).value_or("");
 
   /* Override (wrong) DNA default of 0 for attributes_active_index. See comments on the
    * member declaration in Mesh .
@@ -1935,14 +1934,14 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   face_single_checker.optimize_storage();
   corner_single_checker.optimize_storage();
 
-  if (!active_attribute_name.empty()) {
+  if (!attributes_active_name.empty()) {
     /* Because of various reasons attributes_active_index can be 0 while it should logically be -1
      * one reason is that the DNA default is 0, another reason is converted older files or meshes
      * converted from other objects (that also have a default of 0 for their index).
      * Fixing would require quite extensive changes. Since the plan is to store the active
-     * attribute evenutually it's better to just catch it  for now and fix that properly then. */
-    if (bke::allow_procedural_attribute_access(active_attribute_name)) {
-      BKE_attributes_active_set(owner, active_attribute_name);
+     * attribute eventually it's better to just catch it  for now and fix that properly then. */
+    if (bke::allow_procedural_attribute_access(attributes_active_name)) {
+      BKE_attributes_active_set(owner, attributes_active_name);
     }
     else {
       mesh->attributes_active_index = -1;
