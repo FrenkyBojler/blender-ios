@@ -31,9 +31,9 @@ set UNATTENDED=0
 set BRANCH=main
 set REPO=blender/blender
 
-REM Usage examples: vmprep.cmd 
-REM                 vmprep.cmd unattended repo myuser/blender my-branch
-REM                 vmprep.cmd repo blender/blender blender-v5.2-release
+REM Usage examples: windows_setup.cmd 
+REM                 windows_setup.cmd unattended repo myuser/blender my-branch
+REM                 windows_setup.cmd repo blender/blender blender-v5.2-release
 :parse_args
 if "%1"=="unattended" (set UNATTENDED=1& shift & goto :parse_args)
 if "%1"=="repo" (set REPO=%2& shift & shift & goto :parse_args)
@@ -67,7 +67,7 @@ echo ** - C:\blendergit\blender - This is the blender source repository
 echo ** - C:\db                 - This is the build directory
 echo **
 echo ** The following scripts will be downloaded into C:\db
-echo ** - vmbuild.cmd           - Script to initialize build
+echo ** - build.cmd             - Script to initialize build
 echo ** - nuke.cmd              - Nuke scripts for rebuilding libraries
 echo **
 set /p CONFIRM=** Enter DANGER to continue: 
@@ -186,5 +186,5 @@ echo Done
 echo **********************************************************************
 echo ** Run "call %VCVARS_PATH%" or
 echo ** Open "%ARCH% Native Tools Command Prompt for VS %VSBT_YEAR%"
-echo ** Then run "cd C:\db && vmbuild.cmd" to start a build.
+echo ** Then run "cd C:\db && build.cmd" to start a build.
 echo **********************************************************************

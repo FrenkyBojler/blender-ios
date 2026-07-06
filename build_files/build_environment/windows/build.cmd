@@ -3,9 +3,9 @@ setlocal enabledelayedexpansion
 
 REM ###########################################################################
 REM #
-REM # This script assumes the machine has been prepared with the vmprep.cmd
+REM # This script assumes the machine has been prepared with the windows_setup.cmd
 REM # script and will build the dependencies in the c:\db folder
-REM # This script is also downloaded by vmprep.cmd into the right directory
+REM # This script is also downloaded by windows_setup.cmd into the right directory
 REM #
 REM ###########################################################################
 
@@ -24,8 +24,8 @@ set TMPDIR=c:\t\
 set PERL=c:\db\build\downloads\perl\perl\bin\perl.exe
 set path=%path%;c:\db\build\downloads\perl\perl\bin\
 
-REM Usage: vmbuild.cmd
-REM        vmbuild.cmd nodebug
+REM Usage: build.cmd
+REM        build.cmd nodebug
 if /i "%1"=="nodebug" set NODEBUG=1
 
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format o"') do set START=%%i

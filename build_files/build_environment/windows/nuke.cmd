@@ -1,7 +1,7 @@
 @echo off
 REM This is a helper script to easily force a rebuild of a single dependency
 REM calling nuke depname in c:\db will remove all build artifacts of the 
-REM dependency and the next time you call vmbuild the dep will be build from 
+REM dependency and the next time you call build the dep will be build from 
 REM scratch. 
 if "%1"=="" goto EOF:
 set ROOT=%~dp0\build\
