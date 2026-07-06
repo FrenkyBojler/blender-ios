@@ -3416,9 +3416,11 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
     const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
     calc_brush_local_mat(mask_tex->rot, ob, sculpt_normal, local_mat.ptr(), local_mat_inv.ptr());
 
+    /* Return only the plane normal for cube-shaped brushes. The plane center is only needed by
+     * planar brushes like Clay Strips and Plane. */
     return {pbvh_gather_generic_cube(ob, brush, local_mat, use_original, memory),
-            sculpt_normal,
-            std::nullopt};
+            std::nullopt,
+            sculpt_normal};
   }
 
   return {pbvh_gather_generic(ob, brush, use_original, radius_scale, memory),
