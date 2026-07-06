@@ -248,8 +248,20 @@ def save_project(project, report=None):
     config = ProjectConfig.new_from_real(project)
     config_dict = converter.unstructure(config, ProjectConfig)
 
-    # Serialize and write the config TOML file.
-    config_toml = tomli_w.dumps(config_dict)
+    # Serialize the config to TOML.
+    #
+    # We set the max line length to something long so that TOML items are always serialized consistently. E.g. without
+    # that, project variables might *sometimes* be written in the more verbose TOML syntax, which is annoying if someone
+    # wants to view a diff of their config, etc.
+    max_len_backup = tomli_w._writer.MAX_LINE_LENGTH
+    try:
+        tomli_w._writer.MAX_LINE_LENGTH = 1000
+        config_toml = tomli_w.dumps(config_dict)
+    finally:
+        # Restore the length, for any other users of tomli_w.
+        tomli_w._writer.MAX_LINE_LENGTH = max_len_backup
+
+    # Write the config TOML file.
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
         with config_path.open(mode='wt') as f:
