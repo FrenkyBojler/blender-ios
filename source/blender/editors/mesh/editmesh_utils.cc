@@ -332,7 +332,7 @@ void EDBM_mesh_make_from_mesh(Object *ob,
 
   if (!attributes_active_name.empty()) {
     /* Invalid active attributes can happen because of wrong DNA default, see comment
-     * on the Mesh.attributes_active_index member declaration. */
+     * on the Mesh.attributes_active_index declaration. */
     if (bke::allow_procedural_attribute_access(attributes_active_name)) {
       BKE_attributes_active_set(owner, attributes_active_name);
     }
@@ -341,7 +341,8 @@ void EDBM_mesh_make_from_mesh(Object *ob,
     }
   }
   else {
-    /* 0 can happen for newly crated meshes */
+    /* 0 can happen for newly created meshes. See comment on Mesh.attributes_active_index
+     * declaration. */
     BLI_assert(mesh->attributes_active_index == -1 || mesh->attributes_active_index == 0);
   }
 }

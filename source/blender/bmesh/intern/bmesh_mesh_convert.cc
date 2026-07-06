@@ -1654,8 +1654,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   const std::string attributes_active_name = BKE_attributes_active_name_get(owner).value_or("");
 
   /* Override (wrong) DNA default of 0 for attributes_active_index. See comments on the
-   * member declaration in Mesh .
-   */
+   * Mesh.attributes_active_index declaration. */
   if (!name_ref) {
     BLI_assert(mesh->attributes_active_index == 0 || mesh->attributes_active_index == -1);
     mesh->attributes_active_index = -1;
@@ -1936,7 +1935,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
 
   if (!attributes_active_name.empty()) {
     /* Invalid active attributes can happen because of wrong DNA default, see comment
-     * on the Mesh.attributes_active_index member declaration. */
+     * on the Mesh.attributes_active_index declaration. */
     if (bke::allow_procedural_attribute_access(attributes_active_name)) {
       BKE_attributes_active_set(owner, attributes_active_name);
     }

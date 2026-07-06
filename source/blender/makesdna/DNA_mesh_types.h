@@ -202,7 +202,7 @@ struct Mesh {
    * generic type attributes from vertex, edge, face, and corner custom data.
    *
    * Set to -1 when none is active.
-   * Martijn(baardaap):
+   * (Martijn Versteegh:)
    * This default should actually be -1, and setting this to 0 can lead to internal attributes
    * being active. However changing would need quite some research into where this index is used
    * and on top of that other object types also use this same index , also set to 0.
