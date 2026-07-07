@@ -45,6 +45,11 @@ class ListingDownloaderTest(unittest.TestCase):
         self._test_sanitize_asset_page_with_specific_bad_path(
             r"//NAS/share/temp/kubus.blend", "NAS/share/temp/kubus.blend")
         self.assertTrue(self.json_path.exists(), "JSON file should have been rewritten")
+        self._test_sanitize_asset_page_with_specific_bad_path(
+            r"//localhost\C$\Windows\System32\kubus.blend", "Windows/System32/kubus.blend")
+        self._test_sanitize_asset_page_with_specific_bad_path(
+            r"//localhost/C$/Windows/System32/kubus.blend", "localhost/C$/Windows/System32/kubus.blend")
+        self.assertTrue(self.json_path.exists(), "JSON file should have been rewritten")
 
         # Relative path that attempts to break out of the asset library.
         self._test_sanitize_asset_page_with_specific_bad_path(
