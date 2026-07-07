@@ -2459,6 +2459,9 @@ void IDP_TryConvertProperty(IDProperty *src,
   if (src->type == IDP_ID) {
     src->data.pointer = nullptr;
   }
+  else if (src_type == IDP_UI_DATA_TYPE_UNSUPPORTED) {
+    IDP_ClearProperty(src);
+  }
   else {
     MEM_SAFE_DELETE_VOID(src->data.pointer);
   }
