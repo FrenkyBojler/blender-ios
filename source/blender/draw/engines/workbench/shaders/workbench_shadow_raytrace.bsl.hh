@@ -27,7 +27,8 @@ struct Resources {
 
 [[fragment]] void frag([[frag_coord]] const float4 &frag_coord, [[resource_table]] Resources &srt)
 {
-  const float2 screen_uv = frag_coord.xy / float2(textureSize(srt.depth_tx, 0).xy);
+  const float2 resolution = float2(textureSize(srt.depth_tx, 0).xy);
+  const float2 screen_uv = frag_coord.xy / resolution;
 
   const float depth = texture(srt.depth_tx, screen_uv).r;
   if (depth == 1.0f) {
@@ -42,14 +43,24 @@ struct Resources {
     return;
   }
 
-  const float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
+  /* Offset depth to compensate for depth buffer precission. */
+  float3 P = drw_point_screen_to_world(
+      float3(screen_uv, intBitsToFloat(floatBitsToInt(depth) - 2)));
+
+  const float pixel_size =
+      drw_point_screen_to_view(float3(screen_uv + float2(1.0f / resolution.x), depth)).x -
+      drw_point_screen_to_view(float3(screen_uv, depth)).x;
+
+  /* Offset by pixel sife to compensate for floating point precission. */
+  P += N * pixel_size;
+
   rayQueryEXT query;
   rayQueryInitializeEXT(query,
                         srt.shadow_as,
                         gl_RayFlagsTerminateOnFirstHitEXT,
                         0xFF,
                         P,
-                        0.01f,
+                        0.0f,
                         -srt.pass_data.light_direction_ws,
                         1000.0f);
   rayQueryProceedEXT(query);
