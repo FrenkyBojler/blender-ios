@@ -838,7 +838,8 @@ template<typename T> void even_odd_nested_holes_deep_test()
   16 17 18 19
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
   CDT_result<T> out = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
 
   /* Three filled bands: outermost ring (8 tris), middle filled ring (8 tris),
@@ -915,7 +916,8 @@ template<typename T> void even_odd_boundary_disagreement_test()
   4 5 6 7
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
   CDT_result<T> out = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
 
   /* All 8 input verts survive. Total Delaunay triangles with `H = 6` hull verts (the four
@@ -964,11 +966,13 @@ template<typename T> void even_odd_coincident_polygons_need_ids_stable_test()
   4 5 6 7
   )";
 
-  CDT_input<T> in_with_ids = fill_input_from_string<T>(spec);
+  InputStorage<T> store_with_ids;
+  CDT_input<T> in_with_ids = fill_input_from_string<T>(spec, store_with_ids);
   in_with_ids.need_ids = true;
   CDT_result<T> out_with_ids = delaunay_2d_calc(in_with_ids, CDT_INSIDE_WITH_HOLES);
 
-  CDT_input<T> in_no_ids = fill_input_from_string<T>(spec);
+  InputStorage<T> store_no_ids;
+  CDT_input<T> in_no_ids = fill_input_from_string<T>(spec, store_no_ids);
   in_no_ids.need_ids = false;
   CDT_result<T> out_no_ids = delaunay_2d_calc(in_no_ids, CDT_INSIDE_WITH_HOLES);
 
@@ -1024,7 +1028,8 @@ template<typename T> void even_odd_self_doubled_polygon_with_hole_test()
   0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
   in.need_ids = true;
 
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
@@ -1050,7 +1055,8 @@ template<typename T> void disjoint_polys_in_large_hull_test()
   3 4 5
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   EXPECT_EQ(out.vert.size(), 6);
@@ -1101,7 +1107,8 @@ template<typename T> void nonzero_winding_test()
   4 5 6 7
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   /* Even-odd: the overlap region (0.5,0.5)-(1,1) is a hole. */
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
@@ -1125,10 +1132,12 @@ template<typename T> void nonzero_winding_test()
 
   /* Verify non-zero rule is winding-independent: flipping all face windings
    * should produce identical results since we only check if winding == 0. */
-  CDT_input<T> in_flipped = in;
-  for (Vector<int> &face : in_flipped.face) {
-    std::reverse(face.begin(), face.end());
+  Vector<int> indices_flipped = store.face_vert_indices;
+  for (const int i : in.face_offsets.index_range()) {
+    std::ranges::reverse(indices_flipped.as_mutable_span().slice(in.face_offsets[i]));
   }
+  CDT_input<T> in_flipped = in;
+  in_flipped.face_vert_indices = indices_flipped;
   CDT_result<T> out_flipped = delaunay_2d_calc(in_flipped, CDT_INSIDE_WITH_HOLES_NONZERO);
   EXPECT_EQ(out_flipped.vert.size(), out_nonzero.vert.size());
   EXPECT_EQ(out_flipped.face.size(), out_nonzero.face.size());
@@ -1153,7 +1162,8 @@ template<typename T> void nonzero_winding_nested_test()
   4 5 6 7
   )";
 
-  CDT_input<T> in_hole = fill_input_from_string<T>(spec_hole);
+  InputStorage<T> spec, store_hole;
+  CDT_input<T> in_hole = fill_input_from_string<T>(spec_hole, store_hole);
 
   /* Even-odd: inner square is a hole (2 crossings = outside). */
   CDT_result<T> out_evenodd_hole = delaunay_2d_calc(in_hole, CDT_INSIDE_WITH_HOLES);
@@ -1193,7 +1203,8 @@ template<typename T> void nonzero_winding_nested_test()
   4 5 6 7
   )";
 
-  CDT_input<T> in_filled = fill_input_from_string<T>(spec_filled);
+  InputStorage<T> store_filled;
+  CDT_input<T> in_filled = fill_input_from_string<T>(spec_filled, store_filled);
 
   /* Even-odd: inner square is still a hole (2 crossings = outside). */
   CDT_result<T> out_evenodd_filled = delaunay_2d_calc(in_filled, CDT_INSIDE_WITH_HOLES);
@@ -1285,7 +1296,8 @@ template<typename T> void nonzero_winding_nested_union_test()
   12 13 14 15
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   /* Even-odd: inner overlap has 4 crossings (outer, hole, inner1, inner2) = outside. */
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
@@ -1365,7 +1377,8 @@ template<typename T> void nonzero_winding_multi_face_edge_test()
   0 1 6 7
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -1473,7 +1486,8 @@ template<typename T> void nonzero_winding_multi_face_edge_mixed_test()
   0 1 6 7
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -1595,7 +1609,8 @@ template<typename T> void nonzero_winding_cancel_to_zero_test()
   9 8 1 0
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -1678,7 +1693,8 @@ template<typename T> void nonzero_winding_high_count_test()
   0 1 12 13
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -1750,7 +1766,8 @@ template<typename T> void nonzero_winding_fan_test()
   0 4 1
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -1813,7 +1830,8 @@ template<typename T> void nonzero_winding_edge_split_test()
   4 5 6 7
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -1879,7 +1897,8 @@ template<typename T> void nonzero_winding_self_intersect_test()
   0 1 2 3
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -2001,7 +2020,8 @@ template<typename T> void nonzero_winding_deep_nest_test()
   16 17 18 19
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -2072,7 +2092,8 @@ template<typename T> void nonzero_winding_shared_subsegment_test()
   8 9 10 11
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -2151,7 +2172,8 @@ template<typename T> void nonzero_winding_island_in_hole_test()
   8 9 10 11
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -2223,7 +2245,8 @@ template<typename T> void nonzero_winding_coincident_verts_test()
   3 4 5
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -2303,7 +2326,8 @@ template<typename T> void nonzero_winding_many_crossings_test()
   16 17 18 19
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -2377,7 +2401,8 @@ template<typename T> void nonzero_winding_negative_only_test()
   7 6 1 0
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -2441,7 +2466,8 @@ template<typename T> void nonzero_winding_tjunction_test()
   4 5 6 7
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -2514,7 +2540,8 @@ template<typename T> void nonzero_winding_exact_shared_edge_test()
   0 1 3
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   if (DO_DRAW) {
@@ -2570,7 +2597,8 @@ template<typename T> void nonzero_winding_concave_outer_test()
   0 1 2 3 4 5
   )";
 
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO);
@@ -3283,8 +3311,8 @@ template<typename T> void shared_split_boundary_test()
   0 1 2 3 4
   1 5 6 3 2
   )";
-
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
 
   CDT_result<T> out_evenodd = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES);
   CDT_result<T> out_nonzero = delaunay_2d_calc(in, CDT_INSIDE_WITH_HOLES_NONZERO);
@@ -3343,7 +3371,8 @@ template<typename T> void intersection_simple_edge_ids_test()
   0 1
   2 3
   )";
-  CDT_input<T> input = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> input = fill_input_from_string<T>(spec, store);
   input.need_ids = true;
   CDT_result<T> result = delaunay_2d_calc(input, CDT_CONSTRAINTS);
   EXPECT_EQ(result.intersected_edges_orig.size(), 5);
@@ -3367,7 +3396,8 @@ template<typename T> void intersection_squares_edge_ids_test()
   0 1 2 3
   4 5 6 7
   )";
-  CDT_input<T> input = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> input = fill_input_from_string<T>(spec, store);
   input.need_ids = true;
   CDT_result<T> result = delaunay_2d_calc(input, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   EXPECT_EQ(result.intersected_edges_orig.size(), 10);
