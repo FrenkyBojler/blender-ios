@@ -149,7 +149,7 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness 
 
   eevee::LTCData ltc_data = eevee::LTCData::identity(light.N, V);
   if (sphere_with_thickness) {
-    ltc_data.integral_type = LTCIntegralType::UnclippedDiffuseSphere;
+    ltc_data.form_factor_type = LTCFormfactorType::TwosidedCosineSphere;
   }
   ltc_data.pack_to(light);
 

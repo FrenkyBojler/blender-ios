@@ -22,7 +22,13 @@ struct BsdfEval {
   float weight;
 };
 
-enum class LTCIntegralType : uchar { ClippedDiffuseSphere = 0u, UnclippedDiffuseSphere = 1u };
+/* Approximation types for integrating a polygon/ellipse light. */
+enum class LTCFormfactorType : uchar {
+  /* Irradiance of a horizon-clipped sphere on a single-sided surface. */
+  OnesidedCosineSphereClipped = 0u,
+  /* Irradiance of an unclipped sphere on a two-sided surface. */
+  TwosidedCosineSphere = 1u,
+};
 
 struct ClosureLight {
   /* Shading normal. */
@@ -32,7 +38,7 @@ struct ClosureLight {
   /* Output both shadowed and unshadowed for shadow denoising. */
   packed_float3 light_shadowed;
   packed_float3 light_unshadowed;
-  /* LTC evaluation data. */
+  /* Packed LTC matrix and attenuation data. */
   uint ltc_data_packed[5]; /* WATCHME: how does this pack on metal? */
 };
 

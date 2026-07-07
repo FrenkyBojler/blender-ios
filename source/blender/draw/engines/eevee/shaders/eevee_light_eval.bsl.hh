@@ -73,7 +73,6 @@ void eval_single_closure(sampler2DArray util_tx,
                          LightVector lv,
                          LightVertices vertices,
                          ClosureLight &cl,
-                         float3 V,
                          float attenuation,
                          float shadow)
 {
@@ -176,13 +175,13 @@ template<bool is_transmission> struct EvalCtx {
       if (is_transmission) [[static_branch]] {
         if (srt.light_closure_eval_count_transmit > i) [[static_branch]] {
           eval_single_closure(
-              util_tx, light, lv, light_shape_vertices, stack.cl[i], V, attenuation, shadow);
+              util_tx, light, lv, light_shape_vertices, stack.cl[i], attenuation, shadow);
         }
       }
       else {
         if (srt.light_closure_eval_count_reflect > i) [[static_branch]] {
           eval_single_closure(
-              util_tx, light, lv, light_shape_vertices, stack.cl[i], V, attenuation, shadow);
+              util_tx, light, lv, light_shape_vertices, stack.cl[i], attenuation, shadow);
         }
       }
     }

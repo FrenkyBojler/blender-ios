@@ -18,11 +18,17 @@ namespace eevee {
 
 namespace detail {
 
+/**
+ * Given BxDF parameters, return UV coordinates for sampling of the isotropic LTC LUT.
+ */
 float2 get_isotropic_coords(float cos_theta, float roughness)
 {
   return float2(roughness, sqrt(saturate(1.0f - cos_theta)));
 }
 
+/**
+ * Given 4 isotropic LTC LUT values, unpack a 3x3 matrix normalized by its central component.
+ */
 float3x3 unpack_isotropic_matrix(float4 v)
 {
   return float3x3(float3(v.x, 0, v.y), float3(0, 1, 0), float3(v.z, 0, v.w));
@@ -47,9 +53,9 @@ float3x3 tangent_basis(float3 N, float3 I)
 }  // namespace detail
 
 /**
- * Output from the isotropic GGX LTC LUT, for cos_theta and alpha parameters.
- *
- * The data is evaluated in `eevee_ltc_lib.bsl.hh`.
+ * Unpacked output and secondary data from the isotropic GGX LTC LUT.
+ * This data is evaluated in `eevee_ltc_lib.bsl.hh`, and stored in a
+ * packed format in ClosureLight in between area light evaluations.
  */
 struct LTCData {
   /* LTC inverse matrix. */
@@ -59,48 +65,8 @@ struct LTCData {
   float attenuation_factor;
 
   /* Type of integral lookup applied for form factor clipping.
-   * Hacky 8b value for now, but we can expand on it later. */
-  LTCIntegralType integral_type;
-
-  /**
-   * Pack LTC matrix inverse and associated data to uint[5] in ClosureLight.
-   */
-  static LTCData unpack_from(ClosureLight cl)
-  {
-    LTCData ltc_data;
-
-    ltc_data.Minv[0].xy = unpackHalf2x16(cl.ltc_data_packed[0]);
-    ltc_data.Minv[1].xy = unpackHalf2x16(cl.ltc_data_packed[1]);
-    ltc_data.Minv[2].xy = unpackHalf2x16(cl.ltc_data_packed[2]);
-    float2 v3 = unpackHalf2x16(cl.ltc_data_packed[3]);
-    float2 v4 = unpackHalf2x16(cl.ltc_data_packed[4]);
-    ltc_data.Minv[0].z = v3.x;
-    ltc_data.Minv[1].z = v3.y;
-    ltc_data.Minv[2].z = v4.y;
-
-    /* Unpack associated values in last 16 bits of ltc_data_packed[4]. */
-    ltc_data.attenuation_factor = float(0xFFu & cl.ltc_data_packed[4]) / 255.0f;
-    ltc_data.integral_type = LTCIntegralType(0xFFu & (cl.ltc_data_packed[4] >> 8u));
-
-    return ltc_data;
-  }
-
-  /**
-   * Unpack LTC matrix inverse and associated data from uint[5] in ClosureLight.
-   */
-  void pack_to(ClosureLight &cl) const
-  {
-    /* Pack matrix values as 9 x fp16. */
-    cl.ltc_data_packed[0] = packHalf2x16(Minv[0].xy);
-    cl.ltc_data_packed[1] = packHalf2x16(Minv[1].xy);
-    cl.ltc_data_packed[2] = packHalf2x16(Minv[2].xy);
-    cl.ltc_data_packed[3] = packHalf2x16(float2(Minv[0].z, Minv[1].z));
-    cl.ltc_data_packed[4] = packHalf2x16(float2(0.0f, Minv[2].z));
-
-    /* Pack associated values in last 16 bits of ltc_data_packed[4]. */
-    cl.ltc_data_packed[4] |= (0xFFu & uint(attenuation_factor * 255.0f));
-    cl.ltc_data_packed[4] |= ((0xFFu & uint(integral_type)) << 8u);
-  }
+   * Hacky 8b value for now, but we can expand it later. */
+  LTCFormfactorType form_factor_type;
 
   /**
    * Sample a packed ltc matrix from the LUT.
@@ -126,7 +92,7 @@ struct LTCData {
     ltc_data.Minv = Minv;
     /* LTC attenuation linearly disappears from roughness 0.15 to 0.375.  */
     ltc_data.attenuation_factor = saturate((roughness - 0.15f) * 2.5f);
-    ltc_data.integral_type = LTCIntegralType::ClippedDiffuseSphere;
+    ltc_data.form_factor_type = LTCFormfactorType::OnesidedCosineSphereClipped;
     return ltc_data;
   }
 
@@ -142,8 +108,48 @@ struct LTCData {
     LTCData ltc_data;
     ltc_data.Minv = Minv;
     ltc_data.attenuation_factor = 0.0;
-    ltc_data.integral_type = LTCIntegralType::ClippedDiffuseSphere;
+    ltc_data.form_factor_type = LTCFormfactorType::OnesidedCosineSphereClipped;
     return ltc_data;
+  }
+
+  /**
+   * Pack LTC matrix inverse and associated data to uint[5] in ClosureLight.
+   */
+  static LTCData unpack_from(ClosureLight cl)
+  {
+    LTCData ltc_data;
+
+    ltc_data.Minv[0].xy = unpackHalf2x16(cl.ltc_data_packed[0]);
+    ltc_data.Minv[1].xy = unpackHalf2x16(cl.ltc_data_packed[1]);
+    ltc_data.Minv[2].xy = unpackHalf2x16(cl.ltc_data_packed[2]);
+    float2 v3 = unpackHalf2x16(cl.ltc_data_packed[3]);
+    float2 v4 = unpackHalf2x16(cl.ltc_data_packed[4]);
+    ltc_data.Minv[0].z = v3.x;
+    ltc_data.Minv[1].z = v3.y;
+    ltc_data.Minv[2].z = v4.y;
+
+    /* Unpack associated values in last 16 bits of ltc_data_packed[4]. */
+    ltc_data.attenuation_factor = float(0xFFu & cl.ltc_data_packed[4]) / 255.0f;
+    ltc_data.form_factor_type = LTCFormfactorType(0xFFu & (cl.ltc_data_packed[4] >> 8u));
+
+    return ltc_data;
+  }
+
+  /**
+   * Unpack LTC matrix inverse and associated data from uint[5] in ClosureLight.
+   */
+  void pack_to(ClosureLight &cl) const
+  {
+    /* Pack matrix values as 9 x fp16. */
+    cl.ltc_data_packed[0] = packHalf2x16(Minv[0].xy);
+    cl.ltc_data_packed[1] = packHalf2x16(Minv[1].xy);
+    cl.ltc_data_packed[2] = packHalf2x16(Minv[2].xy);
+    cl.ltc_data_packed[3] = packHalf2x16(float2(Minv[0].z, Minv[1].z));
+    cl.ltc_data_packed[4] = packHalf2x16(float2(0.0f, Minv[2].z));
+
+    /* Pack associated values in last 16 bits of ltc_data_packed[4]. */
+    cl.ltc_data_packed[4] |= (0xFFu & uint(attenuation_factor * 255.0f));
+    cl.ltc_data_packed[4] |= ((0xFFu & uint(form_factor_type)) << 8u);
   }
 };
 
