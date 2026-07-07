@@ -1648,25 +1648,18 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
   seq::modifier_unique_name(strip, smd);
 
   /* fix all the animation data which may link to this */
-  adt = BKE_animdata_from_id(&scene->id);
-  if (adt) {
-    char rna_path_prefix[1024];
+  char rna_path_prefix[1024];
+  char strip_name_esc[(sizeof(strip->name) - 2) * 2];
+  BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
 
-    char strip_name_esc[(sizeof(strip->name) - 2) * 2];
-    BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
-
-    SNPRINTF(rna_path_prefix, "sequence_editor.strips_all[\"%s\"].modifiers", strip_name_esc);
-    BKE_animdata_fix_paths_rename(&scene->id,
-                                  adt,
-                                  nullptr,
-                                  rna_path_prefix,
-                                  oldname,
-                                  smd->name,
-                                  0,
-                                  0,
-                                  /*verify_paths=*/true,
-                                  /*infix_is_name=*/true);
-  }
+  SNPRINTF(rna_path_prefix, "sequence_editor.strips_all[\"%s\"].modifiers", strip_name_esc);
+  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  BKE_animdata_fix_paths(scene->id,
+                         rna_path_prefix,
+                         RNA_path_name_to_infix(oldname),
+                         RNA_path_name_to_infix(smd->name),
+                         /* verify_paths= */ true,
+                         driver_map);
 }
 
 static void rna_StripModifier_is_active_set(PointerRNA *ptr, bool value)

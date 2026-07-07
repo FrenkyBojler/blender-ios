@@ -79,6 +79,7 @@
 #endif
 
 #include "RNA_access.hh"
+#include "RNA_path.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -2652,8 +2653,8 @@ void SCENE_OT_freestyle_stroke_material_create(wmOperatorType *ot)
 static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
 {
   ID *id = CTX_data_pointer_get_type(C, "texture_slot", RNA_TextureSlot).owner_id;
-
   if (id) {
+    DriverMap driver_map = BKE_animdata_build_driver_target_map(*CTX_data_main(C));
     MTex **mtex_ar, *mtexswap;
     short act;
     int type = RNA_enum_get(op->ptr, "type");
@@ -2667,36 +2668,24 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
         mtex_ar[act] = mtex_ar[act - 1];
         mtex_ar[act - 1] = mtexswap;
 
-        BKE_animdata_fix_paths_rename(id,
-                                      adt,
-                                      nullptr,
-                                      "texture_slots",
-                                      nullptr,
-                                      nullptr,
-                                      act - 1,
-                                      -1,
-                                      /*verify_paths=*/false,
-                                      /*infix_is_name=*/true);
-        BKE_animdata_fix_paths_rename(id,
-                                      adt,
-                                      nullptr,
-                                      "texture_slots",
-                                      nullptr,
-                                      nullptr,
-                                      act,
-                                      act - 1,
-                                      /*verify_paths=*/false,
-                                      /*infix_is_name=*/true);
-        BKE_animdata_fix_paths_rename(id,
-                                      adt,
-                                      nullptr,
-                                      "texture_slots",
-                                      nullptr,
-                                      nullptr,
-                                      -1,
-                                      act,
-                                      /*verify_paths=*/false,
-                                      /*infix_is_name=*/true);
+        BKE_animdata_fix_paths(*id,
+                               "texture_slots",
+                               RNA_path_number_to_infix(act - 1),
+                               RNA_path_number_to_infix(-1),
+                               false,
+                               driver_map);
+        BKE_animdata_fix_paths(*id,
+                               "texture_slots",
+                               RNA_path_number_to_infix(act),
+                               RNA_path_number_to_infix(act - 1),
+                               false,
+                               driver_map);
+        BKE_animdata_fix_paths(*id,
+                               "texture_slots",
+                               RNA_path_number_to_infix(-1),
+                               RNA_path_number_to_infix(act),
+                               false,
+                               driver_map);
 
         set_active_mtex(id, act - 1);
       }
@@ -2707,36 +2696,24 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
         mtex_ar[act] = mtex_ar[act + 1];
         mtex_ar[act + 1] = mtexswap;
 
-        BKE_animdata_fix_paths_rename(id,
-                                      adt,
-                                      nullptr,
-                                      "texture_slots",
-                                      nullptr,
-                                      nullptr,
-                                      act + 1,
-                                      -1,
-                                      /*verify_paths=*/false,
-                                      /*infix_is_name=*/true);
-        BKE_animdata_fix_paths_rename(id,
-                                      adt,
-                                      nullptr,
-                                      "texture_slots",
-                                      nullptr,
-                                      nullptr,
-                                      act,
-                                      act + 1,
-                                      /*verify_paths=*/false,
-                                      /*infix_is_name=*/true);
-        BKE_animdata_fix_paths_rename(id,
-                                      adt,
-                                      nullptr,
-                                      "texture_slots",
-                                      nullptr,
-                                      nullptr,
-                                      -1,
-                                      act,
-                                      /*verify_paths=*/false,
-                                      /*infix_is_name=*/true);
+        BKE_animdata_fix_paths(*id,
+                               "texture_slots",
+                               RNA_path_number_to_infix(act + 1),
+                               RNA_path_number_to_infix(-1),
+                               false,
+                               driver_map);
+        BKE_animdata_fix_paths(*id,
+                               "texture_slots",
+                               RNA_path_number_to_infix(act),
+                               RNA_path_number_to_infix(act + 1),
+                               false,
+                               driver_map);
+        BKE_animdata_fix_paths(*id,
+                               "texture_slots",
+                               RNA_path_number_to_infix(-1),
+                               RNA_path_number_to_infix(act),
+                               false,
+                               driver_map);
 
         set_active_mtex(id, act + 1);
       }

@@ -17,6 +17,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "RNA_path.hh"
+
 #include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
@@ -502,16 +504,13 @@ void ensure_unique_name(Strip *strip, Scene *scene)
 
   STRNCPY_UTF8(name, strip->name + 2);
   strip_unique_name_set(scene, &scene->ed->seqbase, strip);
-  BKE_animdata_fix_paths_rename(&scene->id,
-                                scene->adt,
-                                nullptr,
-                                "sequence_editor.strips_all",
-                                name,
-                                strip->name + 2,
-                                0,
-                                0,
-                                /*verify_paths=*/false,
-                                /*infix_is_name=*/true);
+  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  BKE_animdata_fix_paths(scene->id,
+                         "sequence_editor.strips_all",
+                         RNA_path_name_to_infix(name),
+                         RNA_path_name_to_infix(strip->name + 2),
+                         false,
+                         driver_map);
 
   if (strip->type == STRIP_TYPE_META) {
     for (Strip &strip_child : strip->seqbase) {
