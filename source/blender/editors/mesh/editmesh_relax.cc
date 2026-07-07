@@ -82,7 +82,7 @@ static void edbm_relax_ui(bContext * /*C*/, wmOperator *op)
 
 void MESH_OT_relax_edge_loops(wmOperatorType *ot)
 {
-  ot->name = "Relax";
+  ot->name = "Relax Edge Loops";
   ot->description = "Relax the loop, so it is smoother";
   ot->idname = "MESH_OT_relax_edge_loops";
 
