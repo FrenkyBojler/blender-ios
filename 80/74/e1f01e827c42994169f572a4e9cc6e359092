@@ -1,0 +1,1 @@
+Referenced by pull request #161176, Fix: Grid view scroll reads uninitialized rect when button not built
