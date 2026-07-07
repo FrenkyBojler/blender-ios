@@ -50,6 +50,10 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
     if (em->bm->totedgesel == 0) {
       continue;
     }
+    if (em->bm->totfacesel > 0) {
+      BKE_report(op->reports, RPT_WARNING, "Operator requires separate edge loops");
+      continue;
+    }
 
     if (!EDBM_op_callf(em,
                        op,
