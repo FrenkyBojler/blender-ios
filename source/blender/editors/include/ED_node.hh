@@ -109,7 +109,7 @@ struct ObjectAndModifier {
   const NodesModifierData *nmd = nullptr;
 };
 /**
- * Finds the context-modifier for the node editor.
+ * Finds the geometry nodes context-modifier for the node editor.
  */
 std::optional<ObjectAndModifier> get_geometry_nodes_modifier_for_node_editor(
     const SpaceNode &snode);

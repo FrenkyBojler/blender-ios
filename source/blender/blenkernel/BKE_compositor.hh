@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "BLI_compute_context.hh"
 #include "BLI_index_range.hh"
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
@@ -160,6 +161,13 @@ bool is_viewport_compositor_used(const bContext &context);
 void add_depsgraph_relations(Scene &scene,
                              const bNodeTree &node_group,
                              DepsNodeHandle *compositor_output_depsgraph_node);
+
+/* Computes the hash of the compositor active compute context. The active compute context is the
+ * context that the user last interacted with, see root_node_group.active_viewer_key for more
+ * information. */
+ComputeContextHash compute_active_compute_context_hash(const Scene &scene);
+ComputeContextHash compute_active_compute_context_hash(const Scene &scene,
+                                                       const bNodeTree &root_node_group);
 
 }  // namespace bke::compositor
 }  // namespace blender

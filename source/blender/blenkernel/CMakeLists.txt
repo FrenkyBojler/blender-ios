@@ -321,7 +321,7 @@ set(SRC
   BKE_anim_data.hh
   BKE_anim_path.h
   BKE_anim_visualization.h
-  BKE_animsys.h
+  BKE_animsys.hh
   BKE_anonymous_attribute_id.hh
   BKE_anonymous_attribute_make.hh
   BKE_appdir.hh
@@ -778,6 +778,7 @@ if(WITH_GTESTS)
     intern/lib_query_test.cc
     intern/lib_remap_test.cc
     intern/main_test.cc
+    intern/main_namemap_test.cc
     intern/nla_test.cc
     intern/node_socket_value_iter_test.cc
     intern/path_templates_test.cc

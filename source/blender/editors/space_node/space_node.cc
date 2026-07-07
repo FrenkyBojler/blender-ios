@@ -536,7 +536,8 @@ static const ComputeContext *get_node_editor_root_compute_context(
         }
         const bke::DataBlockComputeContext &object_context = compute_context_cache.for_data_block(
             nullptr, object_and_modifier->object->id);
-        return &compute_context_cache.for_modifier(&object_context, *object_and_modifier->nmd);
+        return &compute_context_cache.for_geometry_nodes_modifier(&object_context,
+                                                                  *object_and_modifier->nmd);
       }
       case SNODE_GEOMETRY_TOOL: {
         return &compute_context_cache.for_operator(nullptr);
@@ -554,7 +555,8 @@ static const ComputeContext *get_node_editor_root_compute_context(
         }
         const bke::DataBlockComputeContext &scene_context = compute_context_cache.for_data_block(
             nullptr, scene_and_modifier->scene->id);
-        return &compute_context_cache.for_modifier(&scene_context, *scene_and_modifier->modifier);
+        return &compute_context_cache.for_scene_compositor_modifier(&scene_context,
+                                                                    *scene_and_modifier->modifier);
       }
       case SNODE_COMPOSITOR_SEQUENCER: {
         return nullptr;
@@ -873,6 +875,8 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
             node_area_tag_tree_recalc(snode, area);
           }
         }
+
+        ED_area_tag_redraw(area);
       }
       break;
 

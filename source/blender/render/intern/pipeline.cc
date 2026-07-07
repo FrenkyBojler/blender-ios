@@ -42,7 +42,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h" /* <------ should this be here?, needed for sequencer update */
+#include "BKE_animsys.hh" /* <------ should this be here?, needed for sequencer update */
 #include "BKE_callbacks.hh"
 #include "BKE_camera.h"
 #include "BKE_colortools.hh"
@@ -1108,9 +1108,12 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
   RE_display_free(resc);
 }
 
-/* Get the scene referenced by the given node if the node uses its render. Returns nullptr
- * otherwise. */
-static Scene *get_scene_referenced_by_node(const bNode *node)
+/* Get the scene referenced by the given node if the node uses its render. The main pipeline scene
+ * is given. If the node is in the first enabled compositor modifier, is_first_modifier will be
+ * true. Returns nullptr if no scene render is referenced by the node. */
+static Scene *get_scene_referenced_by_node(const bNode *node,
+                                           Scene *pipeline_scene,
+                                           const bool is_first_enabled_modifier)
 {
   if (node->is_muted()) {
     return nullptr;
@@ -1125,29 +1128,37 @@ static Scene *get_scene_referenced_by_node(const bNode *node)
     return reinterpret_cast<Scene *>(node->id);
   }
 
+  /* The Group Input node gives the combined pass if it is in the first enabled modifier. */
+  if (is_first_enabled_modifier && node->type_legacy == NODE_GROUP_INPUT) {
+    return pipeline_scene;
+  }
+
   return nullptr;
 }
 
 /* Returns true if the given scene needs a render, either because it doesn't use the compositor
  * pipeline and thus needs a simple render, or that its compositor node tree requires the scene to
  * be rendered. */
-static bool compositor_needs_render(const Scene &scene)
+static bool compositor_needs_render(Scene &scene)
 {
   if ((scene.r.scemode & R_DOCOMP) == 0) {
     return true;
   }
 
+  bool is_first_enabled_modifier = true;
   for (SceneCompositorModifier &modifier : scene.compositor_modifiers) {
     if (!bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Render)) {
       continue;
     }
 
     for (const bNode *node : modifier.node_group->all_nodes()) {
-      Scene *node_scene = get_scene_referenced_by_node(node);
+      Scene *node_scene = get_scene_referenced_by_node(node, &scene, is_first_enabled_modifier);
       if (node_scene && node_scene == &scene) {
         return true;
       }
     }
+
+    is_first_enabled_modifier = false;
   }
 
   return false;
@@ -1240,13 +1251,14 @@ static void do_render_compositor_scenes(Render *re)
   /* For each node that requires a scene we do a full render. Results are stored in a way
    * compositor will find it. */
   Set<Scene *> scenes_rendered;
+  bool is_first_enabled_modifier = true;
   for (SceneCompositorModifier &modifier : re->scene->compositor_modifiers) {
     if (!bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Render)) {
       continue;
     }
 
     for (bNode *node : modifier.node_group->all_nodes()) {
-      Scene *node_scene = get_scene_referenced_by_node(node);
+      Scene *node_scene = get_scene_referenced_by_node(node, re->scene, is_first_enabled_modifier);
       if (!node_scene) {
         continue;
       }
@@ -1271,6 +1283,8 @@ static void do_render_compositor_scenes(Render *re)
         node->typeinfo->updatefunc(modifier.node_group, node);
       }
     }
+
+    is_first_enabled_modifier = false;
   }
 
   /* If another scene was rendered, switch back to the current scene. */
@@ -1339,7 +1353,6 @@ static void do_render_compositor(Render *re)
         }
 
         compositor::NodeGroupOutputTypes needed_outputs =
-            compositor::NodeGroupOutputTypes::GroupOutputNode |
             compositor::NodeGroupOutputTypes::FileOutputNode;
         if (!G.background) {
           needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode |

@@ -23,7 +23,7 @@
 #include "BLI_utildefines.hh"
 
 #include "BKE_action.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_compositor.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_idprop.hh"

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 07:24+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
 "PO-Revision-Date: 2026-03-19 12:41+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -4937,42 +4937,6 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Local View"
-msgstr "มุมมองท้องถิ่น"
-
-
-msgid "Viewpoint"
-msgstr "จุดของมุมมอง"
-
-
-msgid "Navigation"
-msgstr "การนำทาง"
-
-
-msgid "Align View"
-msgstr "จัดมุมมอง"
-
-
-msgid "Align View to Active"
-msgstr "จัดมุมมองไปยังที่วัตถุใช้งาน"
-
-
-msgid "View Regions"
-msgstr "ขอบเขตมุมมอง"
-
-
-msgid "Math"
-msgstr "คณิตศาสตร์"
-
-
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
-msgid "Light"
-msgstr "แสง"
-
-
 msgid "Add Image"
 msgstr "เพิ่มภาพ"
 
@@ -4989,12 +4953,8 @@ msgid "Hooks"
 msgstr "ตะขอ"
 
 
-msgid "Import"
-msgstr "นำเข้า"
-
-
-msgid "UV"
-msgstr "UV"
+msgid "Math"
+msgstr "คณิตศาสตร์"
 
 
 msgid "Names"
@@ -5009,8 +4969,16 @@ msgid "Merge"
 msgstr "ผสาน"
 
 
-msgid "Layout"
-msgstr "เค้าโครง"
+msgid "Import"
+msgstr "นำเข้า"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Pivot Point"
@@ -5029,12 +4997,44 @@ msgid "Mask Edit"
 msgstr "การแก้ไขหน้ากาก"
 
 
+msgid "Mirror"
+msgstr "กระจกสะท้อน"
+
+
+msgid "Local View"
+msgstr "มุมมองท้องถิ่น"
+
+
+msgid "Viewpoint"
+msgstr "จุดของมุมมอง"
+
+
+msgid "Navigation"
+msgstr "การนำทาง"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
+
+
+msgid "Align View"
+msgstr "จัดมุมมอง"
+
+
+msgid "Align View to Active"
+msgstr "จัดมุมมองไปยังที่วัตถุใช้งาน"
+
+
+msgid "View Regions"
+msgstr "ขอบเขตมุมมอง"
+
+
 msgid "Keying"
 msgstr "คีย์"
 
 
-msgid "Mirror"
-msgstr "กระจกสะท้อน"
+msgid "Light"
+msgstr "แสง"
 
 
 msgid "Zoom"

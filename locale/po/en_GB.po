@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 07:24+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
 "PO-Revision-Date: 2026-02-16 18:12+0000\n"
 "Last-Translator: Deniz Jones <sdfoakes@gmail.com>\n"
 "Language-Team: English (United Kingdom) <https://translate.blender.org/projects/blender-ui/ui/en_GB/>\n"
@@ -13788,10 +13788,6 @@ msgid "sin(x) / x"
 msgstr "sin(x) / x"
 
 
-msgid "Phase Multiple"
-msgstr "Phase Multiple"
-
-
 msgid "Scale factor determining the 'speed' of the function"
 msgstr "Scale factor determining the 'speed' of the function"
 
@@ -15027,6 +15023,14 @@ msgstr "Asset Select Parameters"
 
 msgid "Settings for the file selection in Asset Browser mode"
 msgstr "Settings for the file selection in Asset Browser mode"
+
+
+msgid "Catalog"
+msgstr "Catalog"
+
+
+msgid "Unassigned"
+msgstr "Unassigned"
 
 
 msgid "The UUID of the catalog shown in the browser"
@@ -17765,6 +17769,10 @@ msgstr "Tool Header"
 
 msgid "XR"
 msgstr "XR"
+
+
+msgid "Scrubbing"
+msgstr "Scrubbing"
 
 
 msgid "The space where the panel is going to be used in"
@@ -34938,78 +34946,6 @@ msgid "Editor menu containing buttons"
 msgstr "Editor menu containing buttons"
 
 
-msgid "Local View"
-msgstr "Local View"
-
-
-msgid "Viewpoint"
-msgstr "Viewpoint"
-
-
-msgid "Navigation"
-msgstr "Navigation"
-
-
-msgid "Align View"
-msgstr "Align View"
-
-
-msgid "Render Preview"
-msgstr "Render Preview"
-
-
-msgid "Align View to Active"
-msgstr "Align View to Active"
-
-
-msgid "View Regions"
-msgstr "View Regions"
-
-
-msgid "Select More/Less"
-msgstr "Select More/Less"
-
-
-msgid "Select Similar"
-msgstr "Select Similar"
-
-
-msgid "Select All by Trait"
-msgstr "Select All by Trait"
-
-
-msgid "Select Linked"
-msgstr "Select Linked"
-
-
-msgid "Select Loops"
-msgstr "Select Loops"
-
-
-msgid "Assign Material"
-msgstr "Assign Material"
-
-
-msgid "Math"
-msgstr "Maths"
-
-
-msgid "Utilities"
-msgstr "Utilities"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Light"
-msgstr "Light"
-
-
-msgid "Light Probe"
-msgstr "Light Probe"
-
-
 msgid "Add Image"
 msgstr "Add Image"
 
@@ -35018,24 +34954,12 @@ msgid "Relations"
 msgstr "Relations"
 
 
-msgid "Read"
-msgstr "Read"
-
-
-msgid "Sample"
-msgstr "Sample"
-
-
-msgid "Write"
-msgstr "Write"
-
-
 msgid "Rigid Body"
 msgstr "Rigid Body"
 
 
-msgid "Primitives"
-msgstr "Primitives"
+msgid "Render Preview"
+msgstr "Render Preview"
 
 
 msgid "Apply"
@@ -35070,16 +34994,8 @@ msgid "Convert"
 msgstr "Convert"
 
 
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
 msgid "Link/Transfer Data"
 msgstr "Link/Transfer Data"
-
-
-msgid "Instances"
-msgstr "Instances"
 
 
 msgid "Hooks"
@@ -35090,12 +35006,16 @@ msgid "Vertex Group Locks"
 msgstr "Vertex Group Locks"
 
 
-msgid "Import"
-msgstr "Import"
+msgid "Math"
+msgstr "Maths"
 
 
 msgid "Trim/Add"
 msgstr "Trim/Add"
+
+
+msgid "Utilities"
+msgstr "Utilities"
 
 
 msgid "Sculpt Set Pivot"
@@ -35110,10 +35030,6 @@ msgid "Random Mask"
 msgstr "Random Mask"
 
 
-msgid "Deprecated"
-msgstr "Deprecated"
-
-
 msgid "Clear Transform"
 msgstr "Clear Transform"
 
@@ -35126,10 +35042,6 @@ msgid "Propagate"
 msgstr "Propagate"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Bone Collections"
 msgstr "Bone Collections"
 
@@ -35138,12 +35050,28 @@ msgid "Names"
 msgstr "Names"
 
 
+msgid "Read"
+msgstr "Read"
+
+
+msgid "Sample"
+msgstr "Sample"
+
+
+msgid "Write"
+msgstr "Write"
+
+
 msgid "Toggle Bone Options"
 msgstr "Toggle Bone Options"
 
 
 msgid "Enable Bone Options"
 msgstr "Enable Bone Options"
+
+
+msgid "Primitives"
+msgstr "Primitives"
 
 
 msgid "Disable Bone Options"
@@ -35166,8 +35094,20 @@ msgid "Set Face Strength"
 msgstr "Set Face Strength"
 
 
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Instances"
+
+
 msgid "Merge"
 msgstr "Merge"
+
+
+msgid "Import"
+msgstr "Import"
 
 
 msgid "Special Characters"
@@ -35178,16 +35118,20 @@ msgid "Kerning"
 msgstr "Kerning"
 
 
+msgid "Deprecated"
+msgstr "Deprecated"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Bone Roll"
 msgstr "Bone Roll"
-
-
-msgid "Linked"
-msgstr "Linked"
-
-
-msgid "Layout"
-msgstr "Layout"
 
 
 msgid "Pivot Point"
@@ -35206,16 +35150,76 @@ msgid "Mask Edit"
 msgstr "Mask Edit"
 
 
-msgid "Adjust"
-msgstr "Adjust"
-
-
 msgid "Automasking"
 msgstr "Automasking"
 
 
 msgid "Face Sets Edit"
 msgstr "Face Sets Edit"
+
+
+msgid "Mirror"
+msgstr "Mirror"
+
+
+msgid "UV Mapping"
+msgstr "UV Mapping"
+
+
+msgid "Local View"
+msgstr "Local View"
+
+
+msgid "Viewpoint"
+msgstr "Viewpoint"
+
+
+msgid "Linked"
+msgstr "Linked"
+
+
+msgid "Navigation"
+msgstr "Navigation"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Align View"
+msgstr "Align View"
+
+
+msgid "Align View to Active"
+msgstr "Align View to Active"
+
+
+msgid "View Regions"
+msgstr "View Regions"
+
+
+msgid "Select More/Less"
+msgstr "Select More/Less"
+
+
+msgid "Select Similar"
+msgstr "Select Similar"
+
+
+msgid "Select All by Trait"
+msgstr "Select All by Trait"
+
+
+msgid "Select Linked"
+msgstr "Select Linked"
+
+
+msgid "Select Loops"
+msgstr "Select Loops"
+
+
+msgid "Adjust"
+msgstr "Adjust"
 
 
 msgid "Keying"
@@ -35226,16 +35230,20 @@ msgid "Tracking"
 msgstr "Tracking"
 
 
+msgid "Assign Material"
+msgstr "Assign Material"
+
+
 msgid "Creative"
 msgstr "Creative"
 
 
-msgid "Mirror"
-msgstr "Mirror"
+msgid "Light"
+msgstr "Light"
 
 
-msgid "UV Mapping"
-msgstr "UV Mapping"
+msgid "Light Probe"
+msgstr "Light Probe"
 
 
 msgid "Keyframe Insert Pie"
@@ -35260,10 +35268,6 @@ msgstr "Add -> Armature -> Rigify Meta-Rigs."
 
 msgid "Rigify Meta-Rigs"
 msgstr "Rigify Meta-Rigs"
-
-
-msgid "Catalog"
-msgstr "Catalog"
 
 
 msgid "Assets"
@@ -91289,74 +91293,6 @@ msgid "Panel containing UI elements"
 msgstr "Panel containing UI elements"
 
 
-msgid "Measurement"
-msgstr "Measurement"
-
-
-msgid "Curve Edit Mode"
-msgstr "Curve Edit Mode"
-
-
-msgid "Curves Edit Mode"
-msgstr "Curves Edit Mode"
-
-
-msgid "Transform Orientations"
-msgstr "Transform Orientations"
-
-
-msgid "Stroke Placement"
-msgstr "Stroke Placement"
-
-
-msgid "Drawing Plane"
-msgstr "Drawing Plane"
-
-
-msgid "Guides"
-msgstr "Guides"
-
-
-msgid "Grease Pencil Options"
-msgstr "Grease Pencil Options"
-
-
-msgid "Quad View"
-msgstr "Quad View"
-
-
-msgid "Onion Skin"
-msgstr "Onion Skin"
-
-
-msgid "Stereoscopy"
-msgstr "Stereoscopy"
-
-
-msgid "Multi Frame"
-msgstr "Multi Frame"
-
-
-msgid "Auto-Masking"
-msgstr "Auto-Masking"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Curves Sculpt Add Curve Options"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Curves Sculpt Parameter Falloff"
-
-
-msgid "Curves Grow/Shrink Scaling"
-msgstr "Curves Grow/Shrink Scaling"
-
-
-msgid "Viewport Debug"
-msgstr "Viewport Debug"
-
-
 msgid "VR"
 msgstr "VR"
 
@@ -91417,6 +91353,10 @@ msgid "Overlays"
 msgstr "Overlays"
 
 
+msgid "Guides"
+msgstr "Guides"
+
+
 msgid "Viewer Node"
 msgstr "Viewer Node"
 
@@ -91427,6 +91367,70 @@ msgstr "Motion Tracking"
 
 msgid "Mesh Edit Mode"
 msgstr "Mesh Edit Mode"
+
+
+msgid "Measurement"
+msgstr "Measurement"
+
+
+msgid "Curve Edit Mode"
+msgstr "Curve Edit Mode"
+
+
+msgid "Curves Edit Mode"
+msgstr "Curves Edit Mode"
+
+
+msgid "Transform Orientations"
+msgstr "Transform Orientations"
+
+
+msgid "Stroke Placement"
+msgstr "Stroke Placement"
+
+
+msgid "Drawing Plane"
+msgstr "Drawing Plane"
+
+
+msgid "Grease Pencil Options"
+msgstr "Grease Pencil Options"
+
+
+msgid "Quad View"
+msgstr "Quad View"
+
+
+msgid "Onion Skin"
+msgstr "Onion Skin"
+
+
+msgid "Stereoscopy"
+msgstr "Stereoscopy"
+
+
+msgid "Multi Frame"
+msgstr "Multi Frame"
+
+
+msgid "Auto-Masking"
+msgstr "Auto-Masking"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Curves Sculpt Add Curve Options"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Curves Sculpt Parameter Falloff"
+
+
+msgid "Curves Grow/Shrink Scaling"
+msgstr "Curves Grow/Shrink Scaling"
+
+
+msgid "Viewport Debug"
+msgstr "Viewport Debug"
 
 
 msgid "Import Settings"
@@ -126115,10 +126119,6 @@ msgid "Duplicate Marker to Scene"
 msgstr "Duplicate Marker to Scene"
 
 
-msgid "Scrubbing"
-msgstr "Scrubbing"
-
-
 msgid "Limit to Frame Range"
 msgstr "Limit to Frame Range"
 
@@ -129525,10 +129525,6 @@ msgstr "Attribute domain not supported by this geometry type"
 
 msgid "The attribute name must not be empty"
 msgstr "The attribute name must not be empty"
-
-
-msgid "Attribute is required and cannot be removed"
-msgstr "Attribute is required and cannot be removed"
 
 
 msgid "Domain unsupported for \"%s\" attribute"
@@ -134733,10 +134729,6 @@ msgid "Loading Asset Libraries"
 msgstr "Loading Asset Libraries"
 
 
-msgid "Unassigned"
-msgstr "Unassigned"
-
-
 msgid ""
 "Modifier node group assets not assigned to a catalog.\n"
 "Catalogs can be assigned in the Asset Browser"
@@ -136259,10 +136251,6 @@ msgid "No Rigid Body World to add Rigid Body Constraint to"
 msgstr "No Rigid Body World to add Rigid Body Constraint to"
 
 
-msgid "Object has no Rigid Body Constraint to remove"
-msgstr "Object has no Rigid Body Constraint to remove"
-
-
 msgid "Object '%s' already has a Rigid Body Constraint"
 msgstr "Object '%s' already has a Rigid Body Constraint"
 
@@ -137043,10 +137031,6 @@ msgstr "Active group is locked, aborting"
 
 msgid "Fill tool needs active material"
 msgstr "Fill tool needs active material"
-
-
-msgid "Unable to fill unclosed areas"
-msgstr "Unable to fill unclosed areas"
 
 
 msgid "GPencil Interpolation: "
@@ -142518,6 +142502,10 @@ msgid "Attribute per point/vertex"
 msgstr "Attribute per point/vertex"
 
 
+msgid "Attribute is required and cannot be removed"
+msgstr "Attribute is required and cannot be removed"
+
+
 msgid "Smooth the surface"
 msgstr "Smooth the surface"
 
@@ -144236,10 +144224,6 @@ msgstr "DataTransfer"
 
 msgid "Topology Mapping"
 msgstr "Topology Mapping"
-
-
-msgid "Face Count: %s"
-msgstr "Face Count: %s"
 
 
 msgid "Modifier requires more than 3 input faces"
@@ -149451,6 +149435,14 @@ msgid "Font not specified"
 msgstr "Font not specified"
 
 
+msgid "Top Right"
+msgstr "Top Right"
+
+
+msgid "Bottom Left"
+msgstr "Bottom Left"
+
+
 msgid "Text Box Width"
 msgstr "Text Box Width"
 
@@ -149553,14 +149545,6 @@ msgstr "Exact Shape"
 
 msgid "Use exact geometry for most efficient packing (slowest)"
 msgstr "Use exact geometry for most efficient packing (slowest)"
-
-
-msgid "Bottom Left"
-msgstr "Bottom Left"
-
-
-msgid "Top Right"
-msgstr "Top Right"
 
 
 msgid "Faces to consider when packing islands"
@@ -151361,10 +151345,6 @@ msgid "unable to open the file"
 msgstr "unable to open the file"
 
 
-msgid "Save %u modified image(s)"
-msgstr "Save %u modified image(s)"
-
-
 msgid "For security reasons, automatic execution of Python scripts in this file was disabled:"
 msgstr "For security reasons, automatic execution of Python scripts in this file was disabled:"
 
@@ -152873,6 +152853,10 @@ msgid "Compress scene-referred values from common cameras into the ACEScg gamut"
 msgstr "Compress scene-referred values from common cameras into the ACEScg gamut"
 
 
+msgid "Utility"
+msgstr "Utility"
+
+
 msgid "blender:pq_rec2020_display_203nits"
 msgstr "blender:pq_rec2020_display_203nits"
 
@@ -152915,10 +152899,6 @@ msgstr "Mesh Weight Paint"
 
 msgid "Pixel Art"
 msgstr "Pixel Art"
-
-
-msgid "Utility"
-msgstr "Utility"
 
 
 msgid "Chromatic Aberration"
