@@ -756,7 +756,7 @@ static void template_ui_delete(bContext &C, PropertyPointerRNA &pprop, bool dele
   WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 }
 
-static void template_ui_make_local(bContext &C, PropertyPointerRNA &pprop)
+static void template_ui_make_local(bContext &C, PropertyPointerRNA &pprop, bool make_liboverride)
 {
   PointerRNA idptr = RNA_property_pointer_get(&pprop.ptr, pprop.prop);
   ID *id = static_cast<ID *>(idptr.data);
@@ -767,7 +767,7 @@ static void template_ui_make_local(bContext &C, PropertyPointerRNA &pprop)
     return;
   }
   Main *bmain = CTX_data_main(&C);
-  if (CTX_wm_window(&C)->runtime->eventstate->modifier & KM_SHIFT) {
+  if (make_liboverride) {
     template_id_liboverride_hierarchy_make(&C, bmain, pprop, &idptr, &undo_push_label);
   }
   else {
@@ -1080,7 +1080,7 @@ static void id_mark_as_asset_menu_items(const bContext &C, Layout &layout)
   layout.separator();
 }
 
-static void id_reload_lib_menu_item(const bContext &C, Layout &layout)
+static void template_id_lib_menu_item(const bContext &C, Layout &layout)
 {
   PointerRNA idptr = CTX_data_pointer_get_type(&C, "id", RNA_ID);
 
@@ -1109,12 +1109,13 @@ static void id_reload_lib_menu_item(const bContext &C, Layout &layout)
     button_disable(layout.block()->buttons_ptrs.last().get(), N_("Data-block is packet"));
   }
 
-  ID *idfrom = idptr.owner_id;
   Button *but = nullptr;
 
   PointerRNA ptr = CTX_data_pointer_get(&C, "template_id_ptr");
   std::optional<StringRefNull> prop_name = CTX_data_string_get(&C, "template_id_prop");
   PropertyRNA *prop = RNA_struct_find_property(&ptr, prop_name->c_str());
+
+  ID *idfrom = ptr.owner_id;
 
   PropertyPointerRNA pprop = PropertyPointerRNA{.ptr = ptr, .prop = prop};
 
@@ -1140,44 +1141,37 @@ static void id_reload_lib_menu_item(const bContext &C, Layout &layout)
                           nullptr,
                           TIP_("Packed library data-block, click to unpack and make local"));
     }
-    else if (id->tag & ID_TAG_INDIRECT) {
-      but = layout.button("Create Override",
-                          ICON_LIBRARY_DATA_INDIRECT,
-                          nullptr,
-                          TIP_("Indirect library data-block, cannot be made local, "
-                               "Shift + Click to create a library override hierarchy"));
-    }
-    else {
-      but = layout.button("Make local",
-                          ICON_LIBRARY_DATA_DIRECT,
-                          nullptr,
-                          TIP_("Direct linked library data-block, click to make local, "
-                               "Shift + Click to create a library override"));
-    }
 
+    but = layout.button("Create Override",
+                        ICON_LIBRARY_DATA_INDIRECT,
+                        nullptr,
+                        TIP_("Create a library override hierarchy"));
+    button_func_set(
+        but, [pprop = pprop](bContext &C) mutable { template_ui_make_local(C, pprop, true); });
     if (disabled) {
       button_flag_enable(but, BUT_DISABLED);
     }
     /* When displaying the material selector for objects, the material slot may be assigned to
      * the object data instead of the object. In that case disable the button if the object
      * data is non-editable. Otherwise the button does nothing. */
-    else if (Object *object;
-             (GS(idfrom->name) == ID_OB) && (object = id_cast<Object *>(idfrom)) &&
-             (idtype == ID_MA) &&
-             /* Trying to assign to linked/packed object data. */
-             (object->data && ID_IS_LINKED(object->data)) &&
-             /* Means material is assigned to the object data, not the object. */
-             (object->matbits && (object->matbits[math::max(object->actcol - 1, 0)] == 0)))
+    if (Object *object = GS(idfrom->name) == ID_OB ? id_cast<Object *>(idfrom) : nullptr;
+        object && (idtype == ID_MA) &&
+        /* Trying to assign to linked/packed object data. */
+        (object->data && ID_IS_LINKED(object->data)) &&
+        /* Means material is assigned to the object data, not the object. */
+        (object->matbits && (object->matbits[math::max(object->actcol - 1, 0)] == 0)))
     {
       button_disable(but,
                      N_("Material is assigned to the object data, which is linked/packed "
                         "and therefore not editable. Change to link this material slot to the "
                         "object instead, or make the object data local."));
     }
-    else {
-      button_func_set(but, [pprop = pprop](bContext &C) mutable {
-        template_ui_make_local(C, pprop);
-      });
+
+    but = layout.button("Make local", ICON_NONE, nullptr, "");
+    button_func_set(
+        but, [pprop = pprop](bContext &C) mutable { template_ui_make_local(C, pprop, false); });
+    if ((id->tag & ID_TAG_INDIRECT) || disabled) {
+      button_flag_enable(but, BUT_DISABLED);
     }
   }
   else if (ID_IS_OVERRIDE_LIBRARY(id)) {
@@ -1187,10 +1181,7 @@ static void id_reload_lib_menu_item(const bContext &C, Layout &layout)
         nullptr,
         TIP_("Library override of linked data-block, click to make fully local, "
              "Shift + Click to clear the library override and toggle if it can be edited"));
-    button_func_set(but,
-                    [pprop = pprop](bContext &C) mutable {
-                      template_ui_override(C, pprop);
-                    });
+    button_func_set(but, [pprop = pprop](bContext &C) mutable { template_ui_override(C, pprop); });
   }
 
   layout.separator();
@@ -1223,7 +1214,7 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
 
     layout.separator();
 
-    id_reload_lib_menu_item(*C, layout);
+    template_id_lib_menu_item(*C, layout);
 
     opptr = layout.op("object.material_slot_add", "Duplicate into New Slot", ICON_DUPLICATE);
     RNA_boolean_set(&opptr, "duplicate_active_material", true);
@@ -1468,8 +1459,10 @@ static void template_ID(const bContext *C,
                             "object instead, or make the object data local."));
         }
         else {
-          button_func_set(
-              but, [pprop = pprop](bContext &C) mutable { template_ui_make_local(C, pprop); });
+          button_func_set(but, [pprop = pprop](bContext &C) mutable {
+            template_ui_make_local(
+                C, pprop, CTX_wm_window(&C)->runtime->eventstate->modifier & KM_SHIFT);
+          });
         }
       }
       else if (ID_IS_OVERRIDE_LIBRARY(id)) {
