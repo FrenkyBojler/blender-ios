@@ -41,23 +41,6 @@ PIE_DIRECTION_OFFSETS = {
 }
 
 
-def _setup_view3d():
-    import bpy
-
-    bpy.ops.wm.read_homefile(use_empty=True)
-
-    bpy.ops.mesh.primitive_cube_add()
-    yield
-
-    e, t, window = ui.test_window()
-    area = ui.largest_area(window.screen)
-    area.type = "VIEW_3D"
-    yield
-
-    center = ui.get_area_center(area)
-    return e, t, area, center
-
-
 def _setup_area(area_type):
     import bpy
 
@@ -68,6 +51,15 @@ def _setup_area(area_type):
     yield  # Let the event loop process the area type change.
     center = ui.get_area_center(area)
     return e, t, window, area, center
+
+
+def _setup_view3d():
+    import bpy
+
+    e, t, window, area, center = yield from _setup_area("VIEW_3D")
+    bpy.ops.mesh.primitive_cube_add()
+    yield
+    return e, t, area, center
 
 
 def _setup_clip_tracking_area():
