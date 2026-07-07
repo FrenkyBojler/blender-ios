@@ -41,14 +41,14 @@ class VIEW3D_MT_brush_context_menu(Menu):
 
         settings = UnifiedPaintPanel.paint_settings_from_active_tool(context)
         brush = getattr(settings, "brush", None)
-        is_asset = brush.library and brush.library.is_editable
+        is_editable_asset = brush.library and brush.library.is_editable
 
         # skip if no active brush
         if not brush:
             layout.label(text="No brush selected", icon='INFO')
             return
 
-        op_text = "Duplicate Asset..." if is_asset else "Save As Asset..."
+        op_text = "Duplicate Asset..." if is_editable_asset else "Save As Asset..."
         layout.operator("brush.asset_save_as", text=op_text, icon='DUPLICATE')
 
         layout.separator()
@@ -59,7 +59,7 @@ class VIEW3D_MT_brush_context_menu(Menu):
         layout.operator("brush.asset_revert", text="Revert to Asset")
 
         layout.separator()
-        op_text = "Delete Asset" if is_asset else "Delete"
+        op_text = "Delete Asset" if is_editable_asset else "Delete"
         layout.operator("brush.asset_delete", text=op_text)
 
 
