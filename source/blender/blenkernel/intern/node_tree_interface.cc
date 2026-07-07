@@ -490,11 +490,11 @@ static void socket_data_read_data(BlendDataReader *reader, bNodeTreeInterfaceSoc
       if (pixel_type != nullptr) {
         MEM_SAFE_DELETE(socket.socket_type);
         socket.socket_type = BLI_strdupn(pixel_type->data(), pixel_type->size());
-      }
-      SocketDataType *socket_data = reinterpret_cast<SocketDataType *>(socket.socket_data);
-      if constexpr (requires { socket_data->subtype; }) {
-        if (socket_data) {
-          socket_data->subtype = PROP_PIXEL;
+        SocketDataType *socket_data = reinterpret_cast<SocketDataType *>(socket.socket_data);
+        if constexpr (requires { socket_data->subtype; }) {
+          if (socket_data) {
+            socket_data->subtype = PROP_PIXEL;
+          }
         }
       }
     }
@@ -852,6 +852,7 @@ static void pixel_subtype_forward_compat(BlendWriter *writer, bNodeTreeInterface
   /* Restore type and subtype. */
   StringRef(original_type).copy_unsafe(socket.socket_type);
   socket_set_subtype(socket, PROP_PIXEL);
+  socket.is_pixel_socket_forward_compat = false;
   MEM_SAFE_DELETE(original_type);
 }
 
