@@ -1326,7 +1326,6 @@ class VIEW3D_MT_transform_object(VIEW3D_MT_transform_base, Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_REGION_WIN'
-        # XXX: see `alignmenu()` in `edit.c` of b2.4x to get this working.
         layout.operator("transform.transform", text="Align to Transform Orientation").mode = 'ALIGN'
 
         layout.separator()
@@ -1359,21 +1358,28 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
                 layout.operator_context = 'EXEC_REGION_WIN'
                 layout.operator("transform.vertex_random", text="Randomize").offset = 0.1
                 layout.operator_context = 'INVOKE_REGION_WIN'
+            elif obj.mode == 'POSE':
+                layout.separator()
+
+                # Only show Align to Transform Orientation operator in pose mode, because in edit mode
+                # it might change the parent bone's length, or fail to align in certain cases.
+                layout.operator_context = 'EXEC_REGION_WIN'
+                layout.operator("transform.transform", text="Align to Transform Orientation").mode = 'ALIGN'
+                layout.operator_context = 'INVOKE_REGION_WIN'
 
             if obj.data.display_type == 'BBONE':
                 layout.separator()
-
                 layout.operator("transform.transform", text="Scale BBone").mode = 'BONE_SIZE'
+
             elif obj.data.display_type == 'ENVELOPE':
                 layout.separator()
-
-                layout.operator("transform.transform", text="Scale Envelope Distance").mode = 'BONE_SIZE'
+                layout.operator("transform.transform", text="Scale Envelope Distance").mode = 'BONE_ENVELOPE_DIST'
                 layout.operator("transform.transform", text="Scale Radius").mode = 'BONE_ENVELOPE'
 
         if context.edit_object and context.edit_object.type == 'ARMATURE':
             layout.separator()
 
-            layout.operator("armature.align")
+            layout.operator("armature.align", text="Align to Active Bone or Parent")
 
 
 class VIEW3D_MT_mirror(Menu):
@@ -2874,8 +2880,8 @@ class VIEW3D_MT_object(Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_REGION_WIN'
-        layout.operator("object.delete", text="Delete", icon='X').use_global = False
         layout.operator("object.delete", text="Delete Global").use_global = True
+        layout.operator("object.delete", text="Delete", icon='X').use_global = False
 
         layout.template_node_operator_asset_menu_items(catalog_path="Object")
 
@@ -4292,12 +4298,14 @@ class VIEW3D_MT_pose_slide(Menu):
 
     def draw(self, _context):
         layout = self.layout
-
+        operator_context = layout.operator_context
+        layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("pose.blend_with_rest")
         layout.operator("pose.push")
         layout.operator("pose.relax")
         layout.operator("pose.breakdown")
         layout.operator("pose.blend_to_neighbor")
+        layout.operator_context = operator_context
 
 
 class VIEW3D_MT_pose_propagate(Menu):
@@ -8345,7 +8353,7 @@ class VIEW3D_PT_active_spline(Panel):
                     if col is None:
                         layout.separator()
                         col = layout.column(align=True)
-                    col.label(text=message, icon='INFO')
+                    col.label(text=message, icon='STATUS_INFO')
                 del col
 
 

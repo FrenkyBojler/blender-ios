@@ -18,7 +18,7 @@
 
 #include "RNA_types.hh"
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_string_ref.hh"
@@ -684,6 +684,11 @@ RawPropertyType RNA_property_raw_type(PropertyRNA *prop);
  * properties match the current RNA definition.
  */
 void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
+/**
+ * Similar to #RNA_ensure_and_sync_system_properties, but also creates backing properties for data
+ * that is un-set, rather than just correcting the values of out-of-sync properties.
+ */
+void RNA_ensure_and_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
 
 /* to create ID property groups */
 void RNA_property_pointer_add(PointerRNA *ptr, PropertyRNA *prop);

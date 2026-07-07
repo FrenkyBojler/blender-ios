@@ -6,10 +6,11 @@
  * \ingroup pybmesh
  */
 
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_sort.h"
+#include "BLI_array_utils.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_sort.hh"
 #include "BLI_string_utils.hh"
 
 #include "DNA_material_types.h"
@@ -3884,7 +3885,7 @@ static PyObject *bpy_bmelemseq_sort(BPy_BMElemSeq *self, PyObject *args, PyObjec
   }
 
   /* Initialize the element index array */
-  range_vn_i(elem_idx, n_elem, 0);
+  array_utils::fill_index_range<int>({elem_idx, n_elem});
 
   /* Sort the index array according to the order of the 'keys' array */
   if (do_reverse) {

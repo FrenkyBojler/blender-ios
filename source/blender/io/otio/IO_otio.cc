@@ -9,7 +9,7 @@
 #include "BKE_context.hh"
 
 #include "BLI_listbase_iterator.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 
 #include "CLG_log.h"
 #include "DNA_listBase.h"

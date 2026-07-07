@@ -9,11 +9,11 @@
 #include "AS_asset_representation.hh"
 
 #include "BKE_node_socket_value.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_stack.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "DNA_ID.h"
 #include "DNA_gpencil_legacy_types.h"
@@ -500,7 +500,8 @@ static const ComputeContext *get_node_editor_root_compute_context(
         }
         const bke::DataBlockComputeContext &object_context = compute_context_cache.for_data_block(
             nullptr, object_and_modifier->object->id);
-        return &compute_context_cache.for_modifier(&object_context, *object_and_modifier->nmd);
+        return &compute_context_cache.for_geometry_nodes_modifier(&object_context,
+                                                                  *object_and_modifier->nmd);
       }
       case SNODE_GEOMETRY_TOOL: {
         return &compute_context_cache.for_operator(nullptr);
@@ -830,6 +831,8 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
             node_area_tag_tree_recalc(snode, area);
           }
         }
+
+        ED_area_tag_redraw(area);
       }
       break;
 
