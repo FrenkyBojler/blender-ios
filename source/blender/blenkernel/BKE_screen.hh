@@ -10,7 +10,7 @@
 #include <memory>
 #include <string>
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
@@ -26,7 +26,6 @@
 #include "BKE_context.hh"
 
 namespace blender {
-
 namespace bke::id {
 class IDRemapper;
 }
@@ -329,7 +328,7 @@ struct ARegionType {
 
   /** Hardcoded constraints, smaller than these values region is not visible. */
   int minsizex, minsizey;
-  /** When new region opens (region prefsizex/y are zero then. */
+  /** When new region opens (region prefsizex/y are zero then). */
   int prefsizex, prefsizey;
   /** Default keymaps to add. */
   int keymapflag;
@@ -356,6 +355,7 @@ struct PanelType {
   char label[BKE_ST_MAXNAME];
   /** For panel tooltip. */
   const char *description;
+  int icon;
   char translation_context[BKE_ST_MAXNAME];
   /** For buttons window. */
   char context[BKE_ST_MAXNAME];
@@ -885,6 +885,7 @@ ARegion *BKE_screen_find_region_in_space(const bScreen *screen,
  * \note used to get proper RNA paths for spaces (editors).
  */
 std::optional<std::string> BKE_screen_path_from_screen_to_space(const PointerRNA *ptr);
+std::optional<std::string> BKE_screen_path_from_screen_to_area(const PointerRNA *ptr);
 /**
  * \note Using this function is generally a last resort, you really want to be
  * using the context when you can - campbell
@@ -935,8 +936,12 @@ void BKE_screen_area_map_free(ScrAreaMap *area_map) ATTR_NONNULL();
  */
 void BKE_screen_copy_data(bScreen *screen_dst, const bScreen *screen_src);
 
+/** \return True if the edge defined by a1 and a2 is equal to the edge defined by b1 and b2. */
+bool BKE_screen_scredge_equals(const ScrVert *a1,
+                               const ScrVert *a2,
+                               const ScrVert *b1,
+                               const ScrVert *b2);
 ScrEdge *BKE_screen_find_edge(const bScreen *screen, ScrVert *v1, ScrVert *v2);
-void BKE_screen_sort_scrvert(ScrVert **v1, ScrVert **v2);
 void BKE_screen_remove_double_scrverts(bScreen *screen);
 void BKE_screen_remove_double_scredges(bScreen *screen);
 void BKE_screen_remove_unused_scredges(bScreen *screen);

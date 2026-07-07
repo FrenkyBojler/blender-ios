@@ -121,7 +121,7 @@ struct PaintStroke : NonCopyable, NonMovable {
   Brush *brush = nullptr;
   UnifiedPaintSettings *ups = nullptr;
 
-  /* TODO: These are only public so that cursor drawing code can use them. Find a better place.*/
+  /* TODO: These are only public so that cursor drawing code can use them. Find a better place. */
   float2 last_mouse_position = float2(0.0f, 0.0f);
   bool constrain_line = false;
   float2 constrained_pos = float2(0.0f, 0.0f);
@@ -159,7 +159,7 @@ struct PaintStroke : NonCopyable, NonMovable {
   int event_type_ = 0;
   /* check if stroke variables have been initialized */
   bool stroke_init_ = false;
-  /* check if input variables have been initialized (e.g. cursor position & pressure)*/
+  /** Check if input variables have been initialized (e.g. cursor position & pressure). */
   bool input_init_ = false;
   float2 initial_mouse_ = float2(0.0f, 0.0f);
   float cached_size_pressure_ = 0.0f;
@@ -197,13 +197,19 @@ struct PaintStroke : NonCopyable, NonMovable {
    */
   wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
   wmOperatorStatus exec(bContext *C, wmOperator *op);
-  /** Cancel a stroke and return to the initial state. */
-  void cancel(bContext *C, wmOperator *op);
-  /**
-   * Free internal stroke data, not a destructor due to needed parameters.
-   * TODO: This might not need to be exposed, all internal code paths should end up calling this.
+
+  /** Cancel a stroke and return to the initial state.
+   *
+   * \note Typically handled as part of modal operator actions. Consumers of this API may need
+   * to call this if returning OPERATOR_CANCELLED during the `invoke` operator callback.
    */
-  void free(bContext *C, wmOperator *op);
+  void cancel(bContext *C);
+  /** Finish a stroke, performing any necessary cleanup actions.
+   *
+   * \note Typically handled as part of modal operator actions. Consumers of this API may need
+   * to call this if returning OPERATOR_FINISHED during the `invoke` operator callback.
+   */
+  void finish(bContext *C);
 
   /* TODO: The following accessors should all be parameters passed into various callbacks */
   bool stroke_flipped() const
@@ -259,8 +265,10 @@ struct PaintStroke : NonCopyable, NonMovable {
    *
    * \param is_cancel: Some paint modes support cancelling a stroke and returning to the initial
    * state. This parameter indicates this case so that appropriate cleanup actions can be taken.
+   * \param stroke_started: Whether the stroke started. Subclasses can use this to determine if
+   * undo steps should be created. See \test_start.
    */
-  virtual void done(bool is_cancel) = 0;
+  virtual void done(bool is_cancel, bool stroke_started) = 0;
 
   /* TODO: This can probably be private, but `paint_image_ops_paint` depends on this */
   bool update(bContext *C,
@@ -273,8 +281,7 @@ struct PaintStroke : NonCopyable, NonMovable {
               bool *r_location_is_set);
 
  private:
-  void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
-
+  void done(bContext *C, bool is_cancel);
   void add_step(bContext *C, wmOperator *op, float2 mval, float pressure);
 
   void add_sample(int input_samples, float x, float y, float pressure);
@@ -685,5 +692,16 @@ void paint_init_pivot(Object *ob, Scene *scene, Paint *paint);
 
 /* paint curve defines */
 #define PAINT_CURVE_NUM_SEGMENTS 40
+
+/* palette.cc */
+
+void PALETTE_OT_new(wmOperatorType *ot);
+void PALETTE_OT_color_add(wmOperatorType *ot);
+void PALETTE_OT_color_delete(wmOperatorType *ot);
+
+void PALETTE_OT_extract_from_image(wmOperatorType *ot);
+void PALETTE_OT_sort(wmOperatorType *ot);
+void PALETTE_OT_color_move(wmOperatorType *ot);
+void PALETTE_OT_join(wmOperatorType *ot);
 
 }  // namespace blender

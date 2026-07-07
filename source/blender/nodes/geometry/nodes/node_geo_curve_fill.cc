@@ -51,7 +51,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Curves to fill. All curves are treated as cyclic and projected to the XY plane");
   b.add_input<decl::Int>("Group ID"_ustr)
-      .field_on_all()
+      .evaluated_geometry_field()
       .hide_value()
       .description(
           "An index used to group curves together. Filling is done separately for each group");
@@ -64,7 +64,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(GEO_NODE_CURVE_FILL_RULE_EVEN_ODD)
       .optional_label()
       .description("Rule used to determine which regions are inside or outside");
-  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_instance_attributes();
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geometry();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -376,7 +376,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  geo_node_type_base(&ntype, "GeometryNodeFillCurve", GEO_NODE_FILL_CURVE);
+  geo_node_type_base(&ntype, "GeometryNodeFillCurve"_ustr, GEO_NODE_FILL_CURVE);
   ntype.ui_name = "Fill Curve";
   ntype.ui_description =
       "Generate a mesh on the XY plane with faces on the inside of input curves";

@@ -190,7 +190,8 @@ static Result dilate_max_velocity_cpu(Context &context,
   if (max_tile_velocity.is_single_value()) {
     Result output = context.create_result(ResultType::Float4);
     output.allocate_single_value();
-    output.set_single_value(max_tile_velocity.get_single_value<float4>());
+    output.set_single_value(max_tile_velocity.get_single_value<float4>() *
+                            float4(float2(shutter_speed), float2(-shutter_speed)));
     return output;
   }
 
@@ -678,7 +679,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeVecBlur", CMP_NODE_VECBLUR);
+  cmp_node_type_base(&ntype, "CompositorNodeVecBlur"_ustr, CMP_NODE_VECBLUR);
   ntype.ui_name = "Vector Blur";
   ntype.ui_description = "Uses the vector speed render pass to blur the image pixels in 2D";
   ntype.enum_name_legacy = "VECBLUR";

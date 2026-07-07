@@ -664,6 +664,8 @@ struct ScopeParser {
 
   void condition(int arg_needed, ScopeType type)
   {
+    match_if(Constexpr);
+
     open_scope(curr, type);
     match('(');
 
@@ -976,6 +978,7 @@ struct ScopeParser {
           close_scope(curr, ScopeType::Subscript);
           match(']');
           return;
+        case Comma: /* For structure binding. */
         case Number:
         case Word:
         case This:
@@ -1119,7 +1122,9 @@ struct ScopeParser {
   {
     if (curr_node.type() == type) {
       IndexRange &range = parser.scope_ranges[curr_node.index_];
-      range.size = tok.index_ - range.start + 1;
+      /* On error/EOF unwind, `tok` is invalid: extend the scope to the last token. */
+      const int64_t end = tok.is_valid() ? tok.index_ : parser.size() - 1;
+      range.size = end - range.start + 1;
       curr_node = curr_node.parent();
     }
   }
@@ -1149,7 +1154,7 @@ struct ScopeParser {
   {
     if (curr != TokenType(expected) && curr != TokenType(expected2)) {
       error("Syntax Error: Expected token \"" + to_string(TokenType(expected)) + "\" or \"" +
-            to_string(TokenType(expected)) + "\" but got \"" + to_string(curr.type()) + "\"");
+            to_string(TokenType(expected2)) + "\" but got \"" + to_string(curr.type()) + "\"");
     }
     next();
   }

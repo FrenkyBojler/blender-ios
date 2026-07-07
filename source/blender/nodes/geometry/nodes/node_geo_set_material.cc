@@ -29,10 +29,13 @@ static void node_declare(NodeDeclarationBuilder &b)
                        GeometryComponent::Type::Curve,
                        GeometryComponent::Type::GreasePencil});
   b.add_output<decl::Geometry>("Geometry"_ustr)
-      .propagate_all()
+      .propagate_all_geometry()
       .align_with_previous()
       .description("Geometry to assign a material to");
-  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .evaluated_geometry_field();
   b.add_input<decl::Material>("Material"_ustr).optional_label();
 }
 
@@ -187,7 +190,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetMaterial", GEO_NODE_SET_MATERIAL);
+  geo_node_type_base(&ntype, "GeometryNodeSetMaterial"_ustr, GEO_NODE_SET_MATERIAL);
   ntype.ui_name = "Set Material";
   ntype.ui_description = "Assign a material to geometry elements";
   ntype.enum_name_legacy = "SET_MATERIAL";

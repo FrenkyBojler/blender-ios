@@ -145,8 +145,10 @@ void ErrorHandler::report(Token tok, std::string_view message)
   if (tok.is_valid()) {
     full_report += "\n";
     full_report += tok.line_str() + "\n";
-    full_report += std::string(tok.char_number(), ' ') + "^" +
-                   std::string(tok.str().size() - 1, '~');
+    if (!tok.str().empty()) {
+      full_report += std::string(tok.char_number(), ' ') + "^" +
+                     std::string(tok.str().size() - 1, '~');
+    }
   }
   err = {std::string(message), full_report};
 }
@@ -407,7 +409,7 @@ Token ParserBase::operator[](int i) const
 void ParserBase::update_string_view()
 {
   assert(this->scope_types.data() != nullptr);
-  assert(this->scope_types.size() > 0);
+  assert(!this->scope_types.empty());
   this->scope_types_str = std::string_view(reinterpret_cast<char *>(this->scope_types.data()),
                                            this->scope_types.size());
 }

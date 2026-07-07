@@ -9,9 +9,9 @@
 #include <cstdlib>
 #include <optional>
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_task.hh"
 
 #include "BKE_context.hh"
@@ -60,6 +60,7 @@ static void rmat_cache_init(RotateMatrixCache *rmc,
      * either depending on float representation (e.g. `18 * DEG2RAD(5)` vs `M_PI_2`). */
     const float epsilon = DEG2RADF(0.5f) * max_ff(1.0f, fabsf(angle) / 1000.0f);
     const float remainder = fabsf(fmodf(angle, float(M_PI_2)));
+    UNUSED_VARS_NDEBUG(epsilon, remainder);
     BLI_assert(remainder < epsilon || (float(M_PI_2) - remainder) < epsilon);
   }
   axis_angle_normalized_to_mat3_with_quadrant(rmc->mat, axis, angle, quadrant);
@@ -397,7 +398,7 @@ static void initRotation(TransInfo *t, wmOperator * /*op*/)
 
   if (transform_mode_affect_only_locations(t)) {
     WorkspaceStatus status(t->context);
-    status.item(TIP_("Transform is set to only affect location"), ICON_ERROR);
+    status.item(TIP_("Transform is set to only affect location"), ICON_STATUS_WARNING_FILLED);
     initMouseInputMode(t, &t->mouse, INPUT_ERROR_DASH);
   }
   else {
