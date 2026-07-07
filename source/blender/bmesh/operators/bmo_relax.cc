@@ -395,9 +395,7 @@ static void execute_relax_phase(
     const int v_index = phase.point_indices[i];
     const float3 current_pos(verts[v_index]->co);
     const float3 final_pos = (current_pos + sampled_positions[i]) / 2.0f;
-    verts[v_index]->co[0] = final_pos.x;
-    verts[v_index]->co[1] = final_pos.y;
-    verts[v_index]->co[2] = final_pos.z;
+    copy_v3_v3(verts[v_index]->co, final_pos);
   }
 }
 
