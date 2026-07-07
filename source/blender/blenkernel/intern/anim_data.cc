@@ -820,65 +820,6 @@ static bool fcurves_path_rename_fix(ID &owner_id,
   return is_changed;
 }
 
-/* Check RNA-Paths for a list of Drivers */
-static bool drivers_path_rename_fix(ID *owner_id,
-                                    ID *ref_id,
-                                    const StringRef prefix,
-                                    const char *old_name,
-                                    const char *new_name,
-                                    const StringRef old_infix,
-                                    const StringRef new_infix,
-                                    ListBaseT<FCurve> &curves,
-                                    const bool verify_paths)
-{
-  bool is_changed = false;
-  /* We need to check every curve - drivers are F-Curves too. */
-  for (FCurve &fcu : curves) {
-    /* firstly, handle the F-Curve's own path */
-    if (fcu.rna_path != nullptr) {
-      std::optional<std::string> new_path = rna_path_rename_fix(
-          *owner_id, prefix, old_infix, new_infix, fcu.rna_path, verify_paths);
-      if (new_path.has_value()) {
-        MEM_delete(fcu.rna_path);
-        fcu.rna_path = BLI_strdup(new_path->c_str());
-        is_changed = true;
-      }
-    }
-    if (fcu.driver == nullptr) {
-      continue;
-    }
-    ChannelDriver *driver = fcu.driver;
-    /* driver variables */
-    for (DriverVar &dvar : driver->variables) {
-      /* only change the used targets, since the others will need fixing manually anyway */
-      DRIVER_TARGETS_USED_LOOPER_BEGIN (&dvar) {
-        /* rename RNA path */
-        if (dtar->rna_path && dtar->id) {
-          std::optional<std::string> new_path = rna_path_rename_fix(
-              *dtar->id, prefix, old_infix, new_infix, dtar->rna_path, verify_paths);
-          if (new_path.has_value()) {
-            MEM_delete(dtar->rna_path);
-            dtar->rna_path = BLI_strdup(new_path->c_str());
-            is_changed = true;
-          }
-        }
-        /* also fix the bone-name (if applicable) */
-        if (prefix.find("bones") != StringRefBase::not_found) {
-          if (((dtar->id) && (GS(dtar->id->name) == ID_OB) &&
-               (!ref_id || (id_cast<Object *>(dtar->id))->data == ref_id)) &&
-              (dtar->pchan_name[0]) && STREQ(old_name, dtar->pchan_name))
-          {
-            is_changed = true;
-            STRNCPY(dtar->pchan_name, new_name);
-          }
-        }
-      }
-      DRIVER_TARGETS_LOOPER_END;
-    }
-  }
-  return is_changed;
-}
-
 static bool rename_paths_action(bAction *dna_action,
                                 const animrig::slot_handle_t slot_handle,
                                 ID &owner_id,
