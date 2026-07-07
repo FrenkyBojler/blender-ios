@@ -1635,7 +1635,6 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   Editing *ed = seq::editing_get(scene);
   Strip *strip = strip_get_by_modifier(ed, smd);
-  AnimData *adt;
   char oldname[sizeof(smd->name)];
 
   /* make a copy of the old name first */

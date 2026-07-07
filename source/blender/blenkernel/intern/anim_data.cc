@@ -1003,59 +1003,6 @@ void BKE_action_fix_paths_rename(ID *owner_id,
   DEG_id_tag_update(&act->id, ID_RECALC_ANIMATION);
 }
 
-void BKE_animdata_fix_paths_rename(ID *owner_id,
-                                   AnimData *adt,
-                                   ID *ref_id,
-                                   const char *prefix,
-                                   const char *old_infix,
-                                   const char *new_infix,
-                                   int old_subscript,
-                                   int new_subscript,
-                                   bool verify_paths,
-                                   bool infix_is_name)
-{
-  /* If no AnimData, no need to proceed. */
-  if (ELEM(nullptr, owner_id, adt)) {
-    return;
-  }
-
-  auto &&[old_key, new_key] = RNA_generate_keys_for_path_rename(old_infix ? old_infix : "",
-                                                                new_infix ? new_infix : "",
-                                                                old_subscript,
-                                                                new_subscript,
-                                                                infix_is_name);
-  bool is_self_changed = false;
-
-  /* Active action and temp action. */
-  if (adt->action != nullptr && adt->slot_handle != animrig::Slot::unassigned) {
-    rename_paths_action(
-        adt->action, adt->slot_handle, *owner_id, prefix, old_key, new_key, verify_paths);
-  }
-  if (adt->tmpact) {
-    rename_paths_action(
-        adt->tmpact, adt->tmp_slot_handle, *owner_id, prefix, old_key, new_key, verify_paths);
-  }
-  /* Drivers - Drivers are really F-Curves */
-  is_self_changed |= drivers_path_rename_fix(owner_id,
-                                             ref_id,
-                                             prefix,
-                                             old_infix,
-                                             new_infix,
-                                             old_key,
-                                             new_key,
-                                             adt->drivers,
-                                             verify_paths);
-  /* NLA Data - Animation Data for Strips */
-  for (NlaTrack &nlt : adt->nla_tracks) {
-    is_self_changed |= nlastrips_path_rename_fix(
-        *owner_id, prefix, old_key, new_key, nlt.strips, verify_paths);
-  }
-  /* Tag owner ID if it */
-  if (is_self_changed) {
-    DEG_id_tag_update(owner_id, ID_RECALC_SYNC_TO_EVAL);
-  }
-}
-
 /* Fix all targets that point to the given ID. */
 static bool driver_target_path_fix(ID &owner_id,
                                    const StringRef prefix,

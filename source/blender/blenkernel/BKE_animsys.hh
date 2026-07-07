@@ -161,47 +161,6 @@ void BKE_action_fix_paths_rename(ID *owner_id,
                                  int newSubscript,
                                  bool verify_paths);
 
-/**
- * Fix all the paths for the given ID+AnimData
- *
- * \param old_infix, new_infix: The path section immediately following the `prefix`. If
- * `infix_is_name` is true, this is processed as a name..
- *
- * \param infix_is_name: If true, old_infix and new_infix are treated as names and padded with
- * [""] so that only exact matches are made. For example, the structure we're replacing is
- * `<prefix><["><name><"]>` i.e. `pose.bones["Bone"]`.
- */
-void BKE_animdata_fix_paths_rename(ID *owner_id,
-                                   AnimData *adt,
-                                   ID *ref_id,
-                                   const char *prefix,
-                                   const char *old_infix,
-                                   const char *new_infix,
-                                   int oldSubscript,
-                                   int newSubscript,
-                                   bool verify_paths,
-                                   bool infix_is_name);
-
-/**
- * Fix all RNA-Paths throughout the database (directly access the #Global.main version).
- *
- * \param old_infix, new_infix: The path section immediately following the `prefix`. If
- * `infix_is_name` is true, this is processed as a name.
- *
- * \param infix_is_name: If true, old_infix and new_infix are treated as names and padded with
- * [""] so that only exact matches are made. For example, the structure we're replacing is
- * `<prefix><["><name><"]>` i.e. `pose.bones["Bone"]`
- */
-void BKE_animdata_fix_paths_rename_all_ex(Main *bmain,
-                                          ID *ref_id,
-                                          const char *prefix,
-                                          const char *old_infix,
-                                          const char *new_infix,
-                                          int oldSubscript,
-                                          int newSubscript,
-                                          bool verify_paths,
-                                          bool infix_is_name);
-
 using DriverMap = Map<ID *, Vector<DriverTarget *>>;
 /**
  * Build a map from an ID to all the `DriverTarget`s where it is being used.
