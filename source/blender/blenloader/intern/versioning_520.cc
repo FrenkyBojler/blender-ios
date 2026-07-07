@@ -28,7 +28,6 @@
 #include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_sys_types.hh"
-#include "BLI_timeit.hh"
 
 #include "BKE_anim_visualization.h"
 #include "BKE_animsys.hh"
@@ -472,7 +471,6 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 16)) {
-    SCOPED_TIMER("version geo nodes");
     for (Object &object : bmain->objects) {
       for (ModifierData &md : object.modifiers) {
         if (md.type == eModifierType_Nodes) {

@@ -45,7 +45,6 @@
 #include "BLI_system.hh"
 #include "BLI_threads.hh"
 #include "BLI_time.hh"
-#include "BLI_timeit.hh"
 #include "BLI_timer.hh"
 #include "BLI_utildefines.hh"
 #include BLI_SYSTEM_PID_H
@@ -3242,7 +3241,6 @@ static wmOperatorStatus wm_open_mainfile__select_file_path_exec(bContext *C, wmO
 
 static wmOperatorStatus wm_open_mainfile__open(bContext *C, wmOperator *op)
 {
-  SCOPED_TIMER("file_open");
   char filepath[FILE_MAX];
   bool success;
 
