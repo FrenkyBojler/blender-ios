@@ -29,6 +29,7 @@
 #include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
+#include "BKE_path_templates.hh"
 
 #include "RNA_access.hh"
 
@@ -1507,6 +1508,47 @@ static void text_clip_give_next_off(Button *but, const char *str, const char *st
 }
 
 /**
+ * Shorten the next template variable expression (e.g. from {project_root} to {pr}).
+ *
+ * This searches for the next template variable expression starting at
+ * `byte_position` in the passed string.
+ *
+ * If a variable expression is found, it is substituted with an abbreviated
+ * version, and the byte position just after that substituted expression is
+ * returned, which can be used as the starting position to search for a
+ * subsequent variable expression.
+ *
+ * If no variable expression is found, -1 is returned.
+ */
+static int text_shorten_next_template_var(char *str, int byte_position)
+{
+  const std::optional<bke::path_templates::ExpressionInfo> info =
+      bke::path_templates::next_template_variable_expression(str, byte_position);
+  if (!info.has_value()) {
+    return -1;
+  }
+
+  /* TODO: make this take the first letter of each word in the variable. */
+  char short_name[64];
+  short_name[0] = '{';
+  short_name[1] = info->variable_name[0];
+  short_name[2] = '}';
+  short_name[3] = '\0';
+  const int short_name_len = strlen(short_name);
+
+  if (short_name_len >= info->byte_range.size() - 2) {
+    return info->byte_range.one_after_last();
+  }
+
+  std::memcpy(str + info->byte_range.first(), short_name, short_name_len);
+  std::memmove(str + info->byte_range.first() + short_name_len,
+               str + info->byte_range.one_after_last(),
+               strlen(str) + 1 - info->byte_range.one_after_last());
+
+  return info->byte_range.first() + short_name_len;
+}
+
+/**
  * Helper.
  * This func assumes things like kerning handling have already been handled!
  * Return the length of modified (right-clipped + ellipsis) string.
@@ -1543,13 +1585,19 @@ static void text_clip_right_ex(const uiFontStyle *fstyle,
   }
 }
 
+/**
+ * \param shorten_template_variables: If true, will shorten template variables
+ * starting from the left. NOTE: this should only be set to true if the text
+ * field being clipped supports template variables!
+ */
 float text_clip_middle_ex(const uiFontStyle *fstyle,
                           char *str,
                           float okwidth,
                           const float minwidth,
                           const size_t max_len,
                           const char rpart_sep,
-                          const bool clip_right_if_tight)
+                          const bool clip_right_if_tight,
+                          const bool shorten_template_variables)
 {
   BLI_assert(str[0]);
 
@@ -1557,6 +1605,18 @@ float text_clip_middle_ex(const uiFontStyle *fstyle,
   fontstyle_set(fstyle);
 
   float strwidth = BLF_width(fstyle->uifont_id, str, max_len);
+
+  /* Shorten template variables. */
+  if (shorten_template_variables) {
+    int byte_position = 0;
+    while ((okwidth > 0.0f) && (strwidth > okwidth)) {
+      byte_position = text_shorten_next_template_var(str, byte_position);
+      strwidth = BLF_width(fstyle->uifont_id, str, max_len);
+      if (byte_position == -1) {
+        break;
+      }
+    }
+  }
 
   if ((okwidth > 0.0f) && (strwidth > okwidth)) {
     const char sep[] = BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;

@@ -245,6 +245,19 @@ class VariableMap {
   bool add_path_up_to_file(StringRef var_name, StringRefNull full_path, StringRef fallback);
 };
 
+/**
+ * Info about a template variable expression in a string.
+ */
+struct ExpressionInfo {
+  /* Byte index range (exclusive on the right) of the expression in the string.
+   * This includes the starting/ending braces of the expression. */
+  IndexRange byte_range;
+
+  /* Reference to the variable name as written in the template string. Note
+   * that this points into the template string, and does not own the value. */
+  StringRef variable_name;
+};
+
 enum class ErrorType {
   UNESCAPED_CURLY_BRACE,
   VARIABLE_SYNTAX,
@@ -258,6 +271,16 @@ struct Error {
 };
 
 bool operator==(const Error &left, const Error &right);
+
+/**
+ * Fetches the next template variable expression in the string at or after the
+ * given starting byte offset.
+ *
+ * Returns std::nullopt when it encounters invalid expression syntax or when
+ * there are no variable expressions in the string after the given offset.
+ */
+std::optional<ExpressionInfo> next_template_variable_expression(StringRef text,
+                                                                int starting_offset);
 
 }  // namespace bke::path_templates
 
