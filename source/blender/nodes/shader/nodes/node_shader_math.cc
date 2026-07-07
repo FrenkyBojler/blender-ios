@@ -187,20 +187,25 @@ static int gpu_shader_math(GPUMaterial *mat,
     return 0;
   }
 
-  static const float zero = 0.0f;
   const bNodeSocket &socket_2 = *bke::node_find_socket(*node, SOCK_IN, "Value_001"_ustr);
   const bNodeSocket &socket_3 = *bke::node_find_socket(*node, SOCK_IN, "Value_002"_ustr);
 
   GPUNodeLink *value_1 = GPU_node_get_input_link(*node, in, "Value");
-  GPUNodeLink *value_2 = socket_2.is_available() ?
-                             GPU_node_get_input_link(*node, in, "Value_001") :
-                             GPU_constant(&zero);
-  GPUNodeLink *value_3 = socket_3.is_available() ?
-                             GPU_node_get_input_link(*node, in, "Value_002") :
-                             GPU_constant(&zero);
-
   GPUNodeStack &result = GPU_node_get_output(*node, out, "Value");
-  int ret = GPU_link(mat, name, value_1, value_2, value_3, &result.link);
+
+  int ret;
+  if (socket_3.is_available()) {
+    GPUNodeLink *value_2 = GPU_node_get_input_link(*node, in, "Value_001");
+    GPUNodeLink *value_3 = GPU_node_get_input_link(*node, in, "Value_002");
+    ret = GPU_link(mat, name, value_1, value_2, value_3, &result.link);
+  }
+  else if (socket_2.is_available()) {
+    GPUNodeLink *value_2 = GPU_node_get_input_link(*node, in, "Value_001");
+    ret = GPU_link(mat, name, value_1, value_2, &result.link);
+  }
+  else {
+    ret = GPU_link(mat, name, value_1, &result.link);
+  }
 
   if (ret && node->custom2 & SHD_MATH_CLAMP) {
     float min[3] = {0.0f, 0.0f, 0.0f};
