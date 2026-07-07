@@ -1929,8 +1929,8 @@ ScrArea *ED_screen_temp_space_open(
 void ED_wm_animation_timers_stop(wmWindowManager *wm,
                                  FunctionRef<bool(const wmWindow &win)> should_stop_fn)
 {
-  /* Cannot use ED_window_animation_playing_no_scrub() here, because that only returns the screen,
-   * and we need the window too. */
+  /* Cannot use ED_window_animation_playing_no_scrub() here, because that only returns the window,
+   * and we need the screen too. */
   for (wmWindow &win : wm->windows) {
     bScreen *screen = WM_window_get_active_screen(&win);
     if (!screen || !screen->animtimer) {
