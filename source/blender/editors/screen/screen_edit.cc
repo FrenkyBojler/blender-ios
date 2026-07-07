@@ -1926,8 +1926,9 @@ ScrArea *ED_screen_temp_space_open(
   return nullptr;
 }
 
-void ED_wm_animation_timers_stop(wmWindowManager *wm,
-                                 FunctionRef<bool(const wmWindow &win)> should_stop_fn)
+void ED_wm_animation_stop(Main *bmain,
+                          wmWindowManager *wm,
+                          FunctionRef<bool(const bScreen &screen)> should_stop_fn)
 {
   /* Cannot use ED_window_animation_playing_no_scrub() here, because that only returns the window,
    * and we need the screen too. */
@@ -1936,16 +1937,22 @@ void ED_wm_animation_timers_stop(wmWindowManager *wm,
     if (!screen || !screen->animtimer) {
       continue;
     }
-    if (!should_stop_fn(win)) {
+    if (!should_stop_fn(*screen)) {
       continue;
     }
 
-    /* Stop playback by removing the timer. */
-    WM_event_timer_remove(wm, &win, screen->animtimer);
-    screen->animtimer = nullptr;
-
-    WM_event_add_notifier_ex(wm, &win, NC_SCREEN | ND_ANIMPLAY, nullptr);
+    screen_stop_playback(bmain, wm, &win, screen);
   }
+}
+
+void ED_screen_animation_timer_disable(wmWindowManager *wm, wmWindow *win)
+{
+  bScreen *stopscreen = ED_screen_animation_playing(wm);
+  if (!stopscreen) {
+    return;
+  }
+  WM_event_timer_remove(wm, win, stopscreen->animtimer);
+  stopscreen->animtimer = nullptr;
 }
 
 void ED_screen_animation_timer(
@@ -1955,8 +1962,7 @@ void ED_screen_animation_timer(
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
 
-  /* Globally stop playback. */
-  ED_wm_animation_timers_stop(wm, [&](const wmWindow & /*win*/) { return true; });
+  ED_screen_animation_timer_disable(wm, win);
 
   if (enable) {
     ScreenAnimData *sad = MEM_new_zeroed<ScreenAnimData>("ScreenAnimData");

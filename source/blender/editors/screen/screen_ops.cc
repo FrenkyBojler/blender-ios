@@ -6767,10 +6767,8 @@ bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm)
   return nullptr;
 }
 
-static void stop_playback(bContext *C)
+void screen_stop_playback(Main *bmain, wmWindowManager *wm, wmWindow *win, bScreen *screen)
 {
-  Main *bmain = CTX_data_main(C);
-  bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
   wmTimer *wt = screen->animtimer;
   ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
   Scene *scene = sad->scene;
@@ -6786,20 +6784,26 @@ static void stop_playback(bContext *C)
     BKE_sound_stop_scene(scene_eval);
   }
 
-  ED_screen_animation_timer(C, scene, view_layer, 0, 0, 0);
+  ED_screen_animation_timer_disable(wm, win);
   ED_scene_fps_average_clear(scene);
   BKE_callback_exec_id_depsgraph(bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_POST);
 
   /* Send a fake mouse-move event so that the active button (the one the mouse hovers over) is
    * updated for the change in playback buttons (Pause button disappearing, Reverse/Normal playback
    * buttons appearing). */
-  WM_event_add_mousemove(CTX_wm_window(C));
+  WM_event_add_mousemove(win);
 
   /* Triggers redraw of sequencer preview so that it does not show to fps anymore after stopping
    * playback. */
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SEQUENCER, scene);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SPREADSHEET, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_TRANSFORM, scene);
+  WM_event_add_notifier_ex(wm, win, NC_SPACE | ND_SPACE_SEQUENCER, scene);
+  WM_event_add_notifier_ex(wm, win, NC_SPACE | ND_SPACE_SPREADSHEET, scene);
+  WM_event_add_notifier_ex(wm, win, NC_SCENE | ND_TRANSFORM, scene);
+  WM_event_add_notifier_ex(wm, win, NC_SCREEN | ND_ANIMPLAY, nullptr);
+}
+
+static void stop_playback(bContext *C)
+{
+  screen_stop_playback(CTX_data_main(C), CTX_wm_manager(C), CTX_wm_window(C), CTX_wm_screen(C));
 }
 
 static wmOperatorStatus start_playback(bContext *C, int sync, int mode)

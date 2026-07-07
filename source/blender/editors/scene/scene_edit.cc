@@ -240,20 +240,16 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
   /* We need to unset node-trees before removing the layer, otherwise its index will be -1. */
   view_layer_remove_unset_nodetrees(bmain, scene, layer);
 
-  /* Return whether the given window uses the to-be-removed view layer. */
-  const auto is_using_view_layer = [&](const wmWindow &win) -> bool {
-    const bScreen *screen = WM_window_get_active_screen(&win);
-    if (!screen || !screen->animtimer) {
-      return false;
-    }
-    const ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
+  /* Return whether the given screen uses the to-be-removed view layer. */
+  const auto is_using_view_layer = [&](const bScreen &screen) -> bool {
+    const ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen.animtimer->customdata);
     return (sad && sad->scene == scene && sad->view_layer == layer);
   };
 
   /* Stop animation playback of this layer before removing it, as the ScreenAnimData struct
    * has a pointer to it. */
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  ED_wm_animation_timers_stop(wm, is_using_view_layer);
+  ED_wm_animation_stop(bmain, wm, is_using_view_layer);
 
   BLI_remlink(&scene->view_layers, layer);
   BLI_assert(scene->view_layers.is_empty() == false);

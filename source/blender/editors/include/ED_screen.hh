@@ -355,14 +355,17 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen);
  */
 void ED_screen_animation_timer(
     bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable);
-void ED_screen_animation_timer_update(bScreen *screen, int redraws);
-
 /**
- * Stop all animation timers of all windows of this window manager, but only if should_stop_fn()
- * returns true.
+ * Remove the animation timer, same as calling ED_screen_animation_timer(..., enable=0).
  */
-void ED_wm_animation_timers_stop(wmWindowManager *wm,
-                                 FunctionRef<bool(const wmWindow &win)> should_stop_fn);
+void ED_screen_animation_timer_disable(wmWindowManager *wm, wmWindow *win);
+void ED_screen_animation_timer_update(bScreen *screen, int redraws);
+/**
+ * Stop the animation in all screens, but only when should_stop_fn(screen) returns true.
+ */
+void ED_wm_animation_stop(Main *bmain,
+                          wmWindowManager *wm,
+                          FunctionRef<bool(const bScreen &screen)> should_stop_fn);
 
 void ED_screen_restore_temp_type(bContext *C, ScrArea *area);
 ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type);
