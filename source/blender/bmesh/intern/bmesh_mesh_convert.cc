@@ -1933,6 +1933,8 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   face_single_checker.optimize_storage();
   corner_single_checker.optimize_storage();
 
+  /* Conversion to edit-mesh may have modified the attribute layers.
+   * Re-resolve the active attribute by name to keep it stable. */
   if (!attributes_active_name.empty()) {
     /* Invalid active attributes can happen because of wrong DNA default, see comment
      * on the Mesh.attributes_active_index declaration. */

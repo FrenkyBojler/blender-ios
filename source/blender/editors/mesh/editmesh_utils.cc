@@ -330,6 +330,8 @@ void EDBM_mesh_make_from_mesh(Object *ob,
   /* we need to flush selection because the mode may have changed from when last in editmode */
   EDBM_selectmode_flush(mesh->runtime->edit_mesh.get());
 
+  /* Conversion to edit-mesh may have modified the attribute layers.
+   * Re-resolve the active attribute by name to keep it stable. */
   if (!attributes_active_name.empty()) {
     /* Invalid active attributes can happen because of wrong DNA default, see comment
      * on the Mesh.attributes_active_index declaration. */
@@ -344,6 +346,7 @@ void EDBM_mesh_make_from_mesh(Object *ob,
     /* 0 can happen for newly created meshes. See comment on Mesh.attributes_active_index
      * declaration. */
     BLI_assert(ELEM(mesh->attributes_active_index, 0, -1));
+    mesh->attributes_active_index = -1;
   }
 }
 
