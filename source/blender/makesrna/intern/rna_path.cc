@@ -417,9 +417,11 @@ static bool rna_path_parse(const PointerRNA *ptr,
           else {
             /* Member follows collection: resolve to collection's type pointer.
              * Don't consume the Member; leave it for the next outer iteration. */
-            if (!RNA_property_collection_type_get(&curptr, prop, &nextptr)) {
+            std::optional<PointerRNA> ptr = RNA_property_collection_type_get(&curptr, prop);
+            if (!ptr) {
               return false;
             }
+            nextptr = *ptr;
           }
 
           if (eval_pointer || item_iter != path.end()) {
