@@ -35,7 +35,6 @@ set(SRC
   intern/format_targa.cc
   intern/format_tiff.cc
   intern/imageprocess.cc
-  intern/interp.cc
   intern/metadata.cc
   intern/module.cc
   intern/readimage.cc
@@ -60,7 +59,6 @@ set(SRC
   IMB_metadata.hh
   IMB_openexr.hh
   IMB_thumbs.hh
-  intern/IMB_allocimbuf.hh
   intern/IMB_colormanagement_intern.hh
   intern/IMB_filetype.hh
   intern/IMB_filter.hh
