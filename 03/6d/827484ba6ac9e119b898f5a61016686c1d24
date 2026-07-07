@@ -1,1 +1,2 @@
 Referenced by pull request #161175, Fix: Integer division by zero in ScopedTimerAveraged nth-samples report
+Referenced by commit aac6bc40675486719e43fce8d53c6e1a6c27c68f, Fix: Integer division by zero in ScopedTimerAveraged nth-samples report
