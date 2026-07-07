@@ -145,6 +145,14 @@ void BKE_id_attributes_default_color_set(struct ID *id, std::optional<StringRef>
 
 bool BKE_id_attributes_color_find(const struct ID *id, StringRef name);
 
+/**
+ * True when \a name is used by an attribute on the geometry. For meshes in edit-mode the
+ * #BMesh custom-data layers (including built-in names) are checked, otherwise the attribute
+ * storage is checked. Vertex group names are not taken into account, even though they share
+ * a namespace with attribute names on meshes.
+ */
+bool BKE_attribute_name_is_used(const AttributeOwner &owner, StringRef name);
+
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, StringRef name);
 
 [[nodiscard]] StringRef BKE_uv_map_pin_name_get(StringRef uv_map_name, char *buffer);

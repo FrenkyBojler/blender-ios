@@ -34,6 +34,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh" /* own include */
 #include "BKE_grease_pencil.hh"
@@ -749,6 +750,17 @@ static bool defgroup_find_name_dupe(const StringRef name, bDeformGroup *dg, Obje
       if (curdef.name == name) {
         return true;
       }
+    }
+  }
+
+  /* On meshes, vertex group names share a namespace with attribute names, so a vertex group
+   * must not take the name of an existing attribute: the vertex group would shadow the
+   * attribute in name based lookups. This mirrors #BKE_attribute_calc_unique_name which
+   * treats vertex group names as used. See: #159833. */
+  if (ob->type == OB_MESH) {
+    const AttributeOwner owner = AttributeOwner::from_id(static_cast<ID *>(ob->data));
+    if (BKE_attribute_name_is_used(owner, name)) {
+      return true;
     }
   }
 

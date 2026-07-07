@@ -142,6 +142,19 @@ class TestMeshVertexGroupNameClash(MeshObjectTest):
         uv_map = self.mesh.uv_layers.new()
         self.assertFalse(uv_map.name == "UVMap")
 
+    def test_add_vertex_group(self):
+        self.mesh.attributes.new("UVMap", 'FLOAT2', 'CORNER')
+        group = self.obj.vertex_groups.new(name="UVMap")
+        self.assertFalse(group.name == "UVMap")
+        self.assertTrue("UVMap" in self.mesh.attributes)
+
+    def test_rename_vertex_group(self):
+        self.mesh.attributes.new("UVMap", 'FLOAT2', 'CORNER')
+        group = self.obj.vertex_groups.new(name="Group")
+        group.name = "UVMap"
+        self.assertFalse(group.name == "UVMap")
+        self.assertTrue("UVMap" in self.mesh.attributes)
+
 
 class TestMeshAttributeConvert(MeshObjectTest):
     def test_convert_active_color_to_generic(self):

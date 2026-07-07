@@ -348,6 +348,27 @@ bool BKE_attribute_rename(AttributeOwner &owner,
   return true;
 }
 
+bool BKE_attribute_name_is_used(const AttributeOwner &owner, const StringRef name)
+{
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    const Mesh &mesh = *owner.get_mesh();
+    if (mesh.runtime->edit_mesh) {
+      const BMesh &bm = *mesh.runtime->edit_mesh->bm;
+      for (const CustomData *data : {&bm.vdata, &bm.edata, &bm.pdata, &bm.ldata}) {
+        for (const CustomDataLayer &layer : Span(data->layers, data->totlayer)) {
+          if (CD_TYPE_AS_MASK(eCustomDataType(layer.type)) & CD_MASK_PROP_ALL) {
+            if (name == layer.name) {
+              return true;
+            }
+          }
+        }
+      }
+      return BM_attribute_stored_in_bmesh_builtin(name);
+    }
+  }
+  return owner.get_storage()->lookup(name) != nullptr;
+}
+
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const StringRef name)
 {
   const StringRef name_final = name.is_empty() ? DATA_("Attribute") : name;
@@ -357,35 +378,10 @@ std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const St
      * it's important not to allow this when requesting a unique name
      * because #MutableAttributeAccessor::add will consider the layer as "existing",
      * and not add the new attribute as expected. See: #160029. */
-    const auto is_used_vertex_group = [&](const StringRef check_name) {
-      return BKE_defgroup_name_index(&mesh.vertex_group_names, check_name) != -1;
-    };
-    if (mesh.runtime->edit_mesh) {
-      Set<StringRef, 8> names;
-      const auto add_names = [&](const CustomData &data) {
-        for (const CustomDataLayer &layer : Span(data.layers, data.totlayer)) {
-          if (CD_TYPE_AS_MASK(eCustomDataType(layer.type)) & CD_MASK_PROP_ALL) {
-            names.add(layer.name);
-          }
-        }
-      };
-      const BMesh &bm = *mesh.runtime->edit_mesh->bm;
-      add_names(bm.vdata);
-      add_names(bm.edata);
-      add_names(bm.pdata);
-      add_names(bm.ldata);
-      return BLI_uniquename_cb(
-          [&](const StringRef new_name) {
-            return names.contains(new_name) || BM_attribute_stored_in_bmesh_builtin(new_name) ||
-                   is_used_vertex_group(new_name);
-          },
-          '.',
-          name_final);
-    }
-    const bke::AttributeStorage &storage = *owner.get_storage();
     return BLI_uniquename_cb(
         [&](const StringRef check_name) {
-          return storage.lookup(check_name) != nullptr || is_used_vertex_group(check_name);
+          return BKE_attribute_name_is_used(owner, check_name) ||
+                 BKE_defgroup_name_index(&mesh.vertex_group_names, check_name) != -1;
         },
         '.',
         name_final);
