@@ -6784,7 +6784,7 @@ void screen_stop_playback(Main *bmain, wmWindowManager *wm, wmWindow *win, bScre
     BKE_sound_stop_scene(scene_eval);
   }
 
-  ED_screen_animation_timer_disable(wm, win);
+  ED_screen_animation_timer_remove(wm, win);
   ED_scene_fps_average_clear(scene);
   BKE_callback_exec_id_depsgraph(bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_POST);
 

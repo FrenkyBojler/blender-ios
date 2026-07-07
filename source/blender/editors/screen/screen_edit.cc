@@ -1945,7 +1945,7 @@ void ED_screen_animation_stop(Main *bmain,
   }
 }
 
-void ED_screen_animation_timer_disable(wmWindowManager *wm, wmWindow *win)
+void ED_screen_animation_timer_remove(wmWindowManager *wm, wmWindow *win)
 {
   bScreen *stopscreen = ED_screen_animation_playing(wm);
   if (!stopscreen) {
@@ -1962,7 +1962,7 @@ void ED_screen_animation_timer(
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
 
-  ED_screen_animation_timer_disable(wm, win);
+  ED_screen_animation_timer_remove(wm, win);
 
   if (enable) {
     ScreenAnimData *sad = MEM_new_zeroed<ScreenAnimData>("ScreenAnimData");
