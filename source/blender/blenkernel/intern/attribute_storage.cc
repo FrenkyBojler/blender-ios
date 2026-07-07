@@ -439,7 +439,7 @@ static bool read_array_data(BlendDataReader &reader,
     case int8_t(AttrType::String):
       return BLO_read_array(&reader, reinterpret_cast<MStringProperty **>(data), size);
     case int8_t(AttrType::Float4):
-      return BLO_read_array(&reader, reinterpret_cast<vec4f **>(data), size);
+      return BLO_read_array(&reader, reinterpret_cast<float **>(data), size, 4);
     default:
       *data = nullptr;
       return false;

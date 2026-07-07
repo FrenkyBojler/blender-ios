@@ -499,7 +499,8 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
     if (vec4f_struct_index > 0) {
       const SDNA_Struct *struct_info = sdna->structs[vec4f_struct_index];
       const int vec4f_type_index = struct_info->type_index;
-      sdna->types_alignment[vec4f_type_index] = alignof(float4);
+      /* Match alignment of `ColorGeometry4f`. */
+      sdna->types_alignment[vec4f_type_index] = 16;
     }
   }
 

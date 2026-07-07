@@ -128,8 +128,7 @@ void PushConstant::execute(RecordingState &state) const
       GPU_shader_uniform_int_ex(state.shader, location, comp_len, array_len, int_ref);
       break;
     case PushConstant::Type::FloatValue:
-      GPU_shader_uniform_float_ex(
-          state.shader, location, comp_len, array_len, float4_value.data());
+      GPU_shader_uniform_float_ex(state.shader, location, comp_len, array_len, float4_value);
       break;
     case PushConstant::Type::FloatReference:
       GPU_shader_uniform_float_ex(state.shader, location, comp_len, array_len, float_ref);
@@ -289,8 +288,7 @@ void Barrier::execute() const
 void Clear::execute() const
 {
   gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
-  GPU_framebuffer_clear(
-      fb, GPUFrameBufferBits(clear_channels), double4(color.data()), depth, stencil);
+  GPU_framebuffer_clear(fb, GPUFrameBufferBits(clear_channels), double4(color), depth, stencil);
 }
 
 void ClearMulti::execute() const
@@ -514,7 +512,7 @@ std::string PushConstant::serialize() const
             ss << int4_ref[i];
             break;
           case Type::FloatValue:
-            ss << float4(float4_value.data());
+            ss << float4_value;
             break;
           case Type::FloatReference:
             ss << float4_ref[i];
@@ -528,10 +526,8 @@ std::string PushConstant::serialize() const
             BLI_assert_unreachable();
             break;
           case Type::FloatValue:
-            ss << float4x4(float4((&float4_value)[0].data()),
-                           float4((&float4_value)[1].data()),
-                           float4((&float4_value)[2].data()),
-                           float4((&float4_value)[3].data()));
+            ss << float4x4(
+                (&float4_value)[0], (&float4_value)[1], (&float4_value)[2], (&float4_value)[3]);
             break;
           case Type::FloatReference:
             ss << *float4x4_ref;
@@ -679,7 +675,7 @@ std::string Clear::serialize() const
 {
   std::stringstream ss;
   if (GPUFrameBufferBits(clear_channels) & GPU_COLOR_BIT) {
-    ss << "color=" << float4(color.data());
+    ss << "color=" << color;
     if (GPUFrameBufferBits(clear_channels) & (GPU_DEPTH_BIT | GPU_STENCIL_BIT)) {
       ss << ", ";
     }
