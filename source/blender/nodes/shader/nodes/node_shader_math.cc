@@ -183,19 +183,32 @@ static int gpu_shader_math(GPUMaterial *mat,
                            GPUNodeStack *out)
 {
   const char *name = gpu_shader_get_name(node->custom1);
-  if (name != nullptr) {
-    int ret = GPU_stack_link(mat, node, name, in, out);
-
-    if (ret && node->custom2 & SHD_MATH_CLAMP) {
-      float min[3] = {0.0f, 0.0f, 0.0f};
-      float max[3] = {1.0f, 1.0f, 1.0f};
-      GPU_link(
-          mat, "clamp_value", out[0].link, GPU_constant(min), GPU_constant(max), &out[0].link);
-    }
-    return ret;
+  if (name == nullptr) {
+    return 0;
   }
 
-  return 0;
+  static const float zero = 0.0f;
+  const bNodeSocket &socket_2 = *bke::node_find_socket(*node, SOCK_IN, "Value_001"_ustr);
+  const bNodeSocket &socket_3 = *bke::node_find_socket(*node, SOCK_IN, "Value_002"_ustr);
+
+  GPUNodeLink *value_1 = GPU_node_get_input_link(*node, in, "Value");
+  GPUNodeLink *value_2 = socket_2.is_available() ?
+                             GPU_node_get_input_link(*node, in, "Value_001") :
+                             GPU_constant(&zero);
+  GPUNodeLink *value_3 = socket_3.is_available() ?
+                             GPU_node_get_input_link(*node, in, "Value_002") :
+                             GPU_constant(&zero);
+
+  GPUNodeStack &result = GPU_node_get_output(*node, out, "Value");
+  int ret = GPU_link(mat, name, value_1, value_2, value_3, &result.link);
+
+  if (ret && node->custom2 & SHD_MATH_CLAMP) {
+    float min[3] = {0.0f, 0.0f, 0.0f};
+    float max[3] = {1.0f, 1.0f, 1.0f};
+    GPU_link(
+        mat, "clamp_value", result.link, GPU_constant(min), GPU_constant(max), &result.link);
+  }
+  return ret;
 }
 
 static void node_eval_elem(value_elem::ElemEvalParams &params)
