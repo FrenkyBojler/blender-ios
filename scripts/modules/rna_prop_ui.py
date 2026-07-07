@@ -188,13 +188,13 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         return
 
     idprop_group = rna_item.id_properties_ensure()
-    active_prop = items[idprop_group.active_index]
+    key, value = items[idprop_group.active_index]
 
     props = col.operator("wm.properties_remove", text="", icon='REMOVE')
     props.data_path = context_member
-    props.property_name = active_prop[0]
+    props.property_name = key
 
-    draw_property(layout, active_prop[0], active_prop[1], rna_properties, rna_item, context_member)
+    draw_property(layout, key, value, rna_properties, rna_item, context_member)
 
     try:
         # id_properties_ui throws error for unsupported/python types.
