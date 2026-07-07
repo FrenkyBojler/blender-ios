@@ -17,15 +17,18 @@ set(SRC
   IO_otio.cc
   exporter/otio_export_strip.cc
   exporter/otio_export.cc
+  importer/otio_import.cc
 
   IO_otio.hh
   exporter/otio_export_strip.hh
   exporter/otio_export.hh
+  importer/otio_import.hh
 )
 
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
   PRIVATE bf::gpu
   PRIVATE bf::intern::clog

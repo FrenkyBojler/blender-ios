@@ -21,7 +21,9 @@
 
 #  include "BLI_listbase.hh"
 #  include "BLI_path_utils.hh"
+#  include "BLI_string.hh"
 #  include "BLI_string_utf8.hh"
+#  include "BLI_vector.hh"
 
 #  include "BLT_translation.hh"
 
@@ -240,12 +242,60 @@ void WM_OT_otio_export(wmOperatorType *ot)
                "Method to Use to Export Non-Sequenced Image Sequences");
 }
 
+static wmOperatorStatus wm_otio_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return ed::io::filesel_drop_import_invoke(C, op, event);
+}
+
+static wmOperatorStatus wm_otio_import_exec(bContext *C, wmOperator *op)
+{
+  const auto paths = ed::io::paths_from_operator_properties(op->ptr);
+
+  if (paths.is_empty()) {
+    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    return OPERATOR_CANCELLED;
+  }
+
+  for (const auto &path : paths) {
+    char filepath[FILE_MAX];
+    STRNCPY(filepath, path.c_str());
+    OTIO_import(C, filepath, op->reports);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+void WM_OT_otio_import(wmOperatorType *ot)
+{
+  ot->name = "Import OTIO";
+  ot->description = "Import OpenTimelineIO Timeline into Sequencer Scene";
+  ot->idname = "WM_OT_otio_import";
+
+  ot->invoke = wm_otio_import_invoke;
+  ot->exec = wm_otio_import_exec;
+  ot->poll = WM_operator_winactive;
+  ot->flag = OPTYPE_UNDO | OPTYPE_PRESET;
+
+  WM_operator_properties_filesel(ot,
+                                 FILE_TYPE_FOLDER | FILE_TYPE_OTIO,
+                                 FILE_BLENDER,
+                                 FILE_OPENFILE,
+                                 WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_SHOW_PROPS |
+                                     WM_FILESEL_DIRECTORY | WM_FILESEL_FILES,
+                                 FILE_DEFAULTDISPLAY,
+                                 FILE_SORT_DEFAULT);
+
+  PropertyRNA *prop = RNA_def_string(ot->srna, "filter_glob", "*.otio", 0, "", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+}
+
 namespace ed::io {
 void otio_file_handler_add()
 {
   auto fh = std::make_unique<bke::FileHandlerType>();
   STRNCPY_UTF8(fh->idname, "IO_FH_otio");
   STRNCPY_UTF8(fh->export_operator, "WM_OT_otio_export");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_otio_import");
   STRNCPY_UTF8(fh->label, "OpenTimelineIO");
   STRNCPY_UTF8(fh->file_extensions_str, ".otio");
   fh->poll_drop = poll_file_object_drop;

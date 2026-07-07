@@ -63,6 +63,7 @@ struct ExportJobData {
 static CLG_LogRef LOG = {"io.otio"};
 
 void OTIO_export(const bContext *C, const char *filepath, const OTIOExportParams *export_params);
+void OTIO_import(const bContext *C, const char *filepath, ReportList *reports);
 
 bool OTIO_validate_timeline_blender(ReportList *reports, const Scene *scene);
 

@@ -387,6 +387,9 @@ class TOPBAR_MT_file_import(Menu):
         if bpy.app.build_options.io_fbx:
             self.layout.operator("wm.fbx_import", text="FBX (.fbx)")
 
+        if bpy.app.build_options.otio:
+            self.layout.operator("wm.otio_import", text="OpenTimelineIO (.otio)")
+
 
 class TOPBAR_MT_file_export(Menu):
     bl_idname = "TOPBAR_MT_file_export"
