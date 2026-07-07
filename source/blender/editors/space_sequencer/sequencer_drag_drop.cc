@@ -11,11 +11,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 
-#include "BLI_math_base.h"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
@@ -236,7 +236,7 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
   /* Check if there is a strip that would intersect with the new strip(s). */
   coords->is_intersecting = false;
   Strip dummy_strip{};
-  seq::strip_channel_set(&dummy_strip, coords->channel);
+  dummy_strip.channel_set(coords->channel);
   dummy_strip.start = coords->start_frame;
   dummy_strip.len = coords->strip_length;
   dummy_strip.speed_factor = 1.0f;
@@ -247,7 +247,7 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
   for (int i = 0; i < coords->num_channels && !coords->is_intersecting; i++) {
     coords->is_intersecting = seq::transform_test_overlap(
         scene, ed->current_strips(), &dummy_strip);
-    seq::strip_channel_set(&dummy_strip, dummy_strip.channel + 1);
+    dummy_strip.channel_set(dummy_strip.channel + 1);
   }
 
   return strip_len;

@@ -145,6 +145,12 @@ void ImageMetaData::finalize(const ImageAlphaType alpha_type)
     }
   }
 
+  /* For Blender tx files, match colorspace used by maketx to generate the file.
+   * THis is needed because TIFF files can not store arbitrary colorspace metadata. */
+  if (!tile_need_conform) {
+    colorspace = make_tx_get_file_colorspace(*this);
+  }
+
   ignore_alpha = alpha_type == IMAGE_ALPHA_IGNORE;
   is_channel_packed = alpha_type == IMAGE_ALPHA_CHANNEL_PACKED;
 

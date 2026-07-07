@@ -14,10 +14,12 @@
 
 #include "DNA_screen_types.h"
 
-#include "BLI_fileops.h"
+#include "AS_asset_representation.hh"
+
+#include "BLI_fileops.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -26,6 +28,7 @@
 #include "BKE_screen.hh"
 
 #include "ED_asset.hh"
+#include "ED_asset_menu_utils.hh"
 #include "ED_buttons.hh"
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
@@ -397,7 +400,7 @@ static bUserMenuItem *but_user_menu_find(bContext *C, Button *but, bUserMenu *um
     /* NOTE(@ideasman42): It's highly unlikely this ever occurs since the path must be resolved
      * for this to be added in the first place, there might be some cases where manually
      * constructed RNA paths don't resolve and in this case a crash should be avoided. */
-    if (UNLIKELY(!member_id_data_path.has_value())) {
+    if (!member_id_data_path.has_value()) [[unlikely]] {
       /* Assert because this should never happen for typical usage. */
       BLI_assert_unreachable();
       return nullptr;
@@ -1029,6 +1032,14 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     }
   }
 
+  /* Download online assets. */
+  if (but->optype && but->opptr && ed::asset::operator_asset_reference_props_is_set(*but->opptr)) {
+    const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+    if (asset && asset->is_online_only()) {
+      layout.op("ASSET_OT_assets_download", {}, ICON_DOWNLOAD);
+    }
+  }
+
   {
     const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
     ButtonViewItem *view_item_but = (but->type == ButtonType::ViewItem) ?
@@ -1375,7 +1386,8 @@ void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
   }
 
   PointerRNA prefs_ptr = RNA_pointer_create_discrete(nullptr, RNA_PreferencesSystem, &U);
-  layout.prop(&prefs_ptr, "show_panel_tabs_compact", UI_ITEM_NONE, "Compact Tabs", ICON_NONE);
+  layout.prop(
+      &prefs_ptr, "show_panel_tabs_compact", UI_ITEM_NONE, IFACE_("Compact Tabs"), ICON_NONE);
 
   popup_menu_end(C, pup);
 }

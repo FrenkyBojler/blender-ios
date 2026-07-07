@@ -15,17 +15,18 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_bitmap.h"
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
-#include "BLI_math_color_blend.h"
-#include "BLI_stack.h"
-#include "BLI_task.h"
+#include "BLI_bitmap.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_color_blend.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_stack_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BKE_brush.hh"
 #include "BKE_colorband.hh"
 #include "BKE_context.hh"
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_report.hh"
@@ -524,8 +525,8 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
   float *ibuf_float_data = ibuf->float_data_for_write();
   uchar *texibuf_byte_data = texibuf->byte_data_for_write();
   float *texibuf_float_data = texibuf->float_data_for_write();
-  const uchar *oldtexibuf_byte_data = oldtexibuf->byte_data();
-  const float *oldtexibuf_float_data = oldtexibuf->float_data();
+  const uchar *oldtexibuf_byte_data = (oldtexibuf) ? oldtexibuf->byte_data() : nullptr;
+  const float *oldtexibuf_float_data = (oldtexibuf) ? oldtexibuf->float_data() : nullptr;
   for (y = origy; y < h; y++) {
     for (x = origx; x < w; x++) {
       /* sample texture and multiply with brush color */
@@ -1258,13 +1259,15 @@ static void paint_2d_do_making_brush(ImagePaintState *s,
       int origx = region->destx - tx * ED_IMAGE_UNDO_TILE_SIZE;
       int origy = region->desty - ty * ED_IMAGE_UNDO_TILE_SIZE;
 
-      const ImBuf *data = ED_image_paint_tile_find(
-          undo_tiles, s->image, tile->canvas, &tile->iuser, tx, ty, &mask, false);
-      if (tile->canvas->float_data()) {
-        tmpbuf.float_buffer = data->float_buffer;
-      }
-      else {
-        tmpbuf.byte_buffer = data->byte_buffer;
+      if (const ImBuf *data = ED_image_paint_tile_find(
+              undo_tiles, s->image, tile->canvas, &tile->iuser, tx, ty, &mask, false))
+      {
+        if (tile->canvas->float_data()) {
+          tmpbuf.float_buffer = data->float_buffer;
+        }
+        else {
+          tmpbuf.byte_buffer = data->byte_buffer;
+        }
       }
 
       IMB_rectblend(tile->canvas,
@@ -1730,7 +1733,7 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
 
   if (final) {
     if (s->image && !(s->sima && s->sima->lock)) {
-      BKE_image_free_gputextures(s->image);
+      BKE_image_partial_update_mark_full_update(s->image);
     }
 
     /* compositor listener deals with updating */

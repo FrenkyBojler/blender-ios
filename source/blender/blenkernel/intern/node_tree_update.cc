@@ -4,15 +4,15 @@
 
 #include <fmt/format.h>
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_noise.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8_symbols.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8_symbols.hh"
 #include "BLI_vector_set.hh"
 
 #include "DNA_anim_types.h"
@@ -56,6 +56,8 @@
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
 #include "SEQ_sequencer.hh"
+
+#include "PRF_profile.hh"
 
 namespace blender {
 
@@ -388,6 +390,7 @@ class NodeTreeMainUpdater {
     if (root_ntrees.is_empty()) {
       return;
     }
+    PRF_scope_with_name("NodeTreeMainUpdater::update_rooted", ProfileCategory::Core);
 
     bool is_single_tree_update = false;
 
@@ -569,6 +572,7 @@ class NodeTreeMainUpdater {
 
   TreeUpdateResult update_tree(bNodeTree &ntree)
   {
+    PRF_scope_with_name("NodeTreeMainUpdater::update_tree", ProfileCategory::Core);
     TreeUpdateResult result;
 
     ntree.runtime->link_errors.clear();
@@ -1450,14 +1454,6 @@ class NodeTreeMainUpdater {
 
   void update_link_validation(bNodeTree &ntree)
   {
-    /* Tests if enum references are undefined. */
-    const auto is_invalid_enum_ref = [](const bNodeSocket &socket) -> bool {
-      if (socket.type == SOCK_MENU) {
-        return socket.default_value_typed<bNodeSocketValueMenu>()->enum_items == nullptr;
-      }
-      return false;
-    };
-
     const bNodeTreeZones *fallback_zones = nullptr;
     if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_SHADER) && !ntree.zones() &&
         ntree.runtime->last_valid_zones)
@@ -1471,12 +1467,18 @@ class NodeTreeMainUpdater {
         link.flag &= ~NODE_LINK_VALID;
         continue;
       }
-      if (is_invalid_enum_ref(*link.fromsock) || is_invalid_enum_ref(*link.tosock)) {
-        link.flag &= ~NODE_LINK_VALID;
-        ntree.runtime->link_errors.add(
-            NodeLinkKey{link},
-            NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
-        continue;
+      if (link.fromsock->type == SOCK_MENU && link.tosock->type == SOCK_MENU) {
+        const bNodeSocketValueMenu *from_value =
+            link.fromsock->default_value_typed<bNodeSocketValueMenu>();
+        const bNodeSocketValueMenu *to_value =
+            link.tosock->default_value_typed<bNodeSocketValueMenu>();
+        if (from_value->has_conflict() || to_value->has_conflict()) {
+          link.flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors.add(
+              NodeLinkKey{link},
+              NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
+          continue;
+        }
       }
       const bNode &from_node = *link.fromnode;
       const bNode &to_node = *link.tonode;

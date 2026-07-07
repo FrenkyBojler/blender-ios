@@ -26,26 +26,25 @@
 #include "IMB_filter.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
-#include "IMB_metadata.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_color.hh"
 #include "BLI_colorspace.hh"
 #include "BLI_fileops.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_color.hh"
+#include "BLI_math_color_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_task.hh"
-#include "BLI_threads.h"
+#include "BLI_threads.hh"
 #include "BLI_vector_set.hh"
 
 #include "BKE_appdir.hh"
@@ -532,6 +531,9 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
   const ColorSpace *colorspace = g_config()->get_color_space(from_colorspace);
 
   if (colorspace && colorspace->is_data()) {
+    if (ibuf->float_data()) {
+      ibuf->float_buffer.colorspace = colorspace;
+    }
     return;
   }
 
@@ -551,6 +553,9 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
       }
     }
 
+    /* Clear colorspace to indicate it's scene linear. */
+    ibuf->float_buffer.colorspace = nullptr;
+
     if (from_colorspace[0] == '\0') {
       return;
     }
@@ -568,7 +573,6 @@ void colormanage_imbuf_make_linear(ImBuf *ibuf,
                                        ibuf->channels,
                                        &cm_processor,
                                        predivide);
-    ibuf->float_buffer.colorspace = nullptr;
   }
 }
 
@@ -980,6 +984,11 @@ bool IMB_colormanagement_space_is_scene_linear(const ColorSpace *colorspace)
 bool IMB_colormanagement_space_is_srgb(const ColorSpace *colorspace)
 {
   return (colorspace && colorspace->is_srgb());
+}
+
+bool IMB_colormanagement_space_is_scene_linear_srgb(const ColorSpace *colorspace)
+{
+  return IMB_colormanagement_space_is_srgb(colorspace) && colorspace::scene_linear_is_rec709;
 }
 
 bool IMB_colormanagement_space_name_is_data(const char *name)
@@ -1997,11 +2006,11 @@ void IMB_colormanagement_imbuf_to_byte_texture(uchar *out_buffer,
                                                const ImBuf *ibuf,
                                                const bool store_premultiplied)
 {
-  /* Byte buffer storage, only for sRGB, scene linear and data texture since other
-   * color space conversions can't be done on the GPU. */
+  /* Byte buffer storage, only for scene linear + sRGB, scene linear and data texture
+   * since other color space conversions can't currently be done on the GPU. */
   BLI_assert(ibuf->byte_data());
   BLI_assert(ibuf->float_data() == nullptr);
-  BLI_assert(IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace) ||
+  BLI_assert(IMB_colormanagement_space_is_scene_linear_srgb(ibuf->byte_buffer.colorspace) ||
              IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace) ||
              IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace));
 
@@ -2228,9 +2237,7 @@ static ImBuf *imbuf_ensure_editable(ImBuf *ibuf, ImBuf *colormanaged_ibuf, bool 
 
   if (allocate_result) {
     /* Copy full image buffer. */
-    colormanaged_ibuf = IMB_dupImBuf(ibuf);
-    IMB_metadata_copy(colormanaged_ibuf, ibuf);
-    return colormanaged_ibuf;
+    return IMB_dupImBuf(ibuf);
   }
 
   return ibuf;

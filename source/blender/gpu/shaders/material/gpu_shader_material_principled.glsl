@@ -77,6 +77,7 @@ void node_bsdf_principled(float4 base_color,
                           float thin_film_thickness,
                           float thin_film_ior,
                           const float do_multiscatter,
+                          const float subsurface_random_walk_radius_scale,
                           Closure &result)
 {
   /* Match cycles. */
@@ -104,8 +105,8 @@ void node_bsdf_principled(float4 base_color,
   base_color = max(base_color, float4(0.0f));
   float4 clamped_base_color = min(base_color, float4(1.0f));
 
-  N = safe_normalize(N);
-  CN = safe_normalize(CN);
+  N = normalize_fallback(N, g_data.N);
+  CN = normalize_fallback(CN, g_data.N);
   float3 V = coordinate_incoming(g_data.P);
   float NV = dot(N, V);
 
@@ -126,10 +127,11 @@ void node_bsdf_principled(float4 base_color,
     float sheen_NV = NV;
 #ifdef MAT_CLEARCOAT
     if (coat_weight > 0.0f) {
-      float3 sheen_N = safe_normalize(mix(N, CN, saturate(coat_weight)));
+      float3 sheen_N = normalize(mix(N, CN, saturate(coat_weight)));
       sheen_NV = dot(sheen_N, V);
     }
 #endif
+    sheen_NV = saturate(sheen_NV);
 
     /* TODO: Maybe sheen_weight should be specular. */
     float3 sheen_color = sheen_weight * sheen_tint.rgb *
@@ -295,7 +297,9 @@ void node_bsdf_principled(float4 base_color,
     else {
       ClosureSubsurface sss_data;
       sss_data.N = N;
-      sss_data.sss_radius = max(subsurface_radius * subsurface_scale, float3(0.0f));
+      sss_data.sss_radius = max(subsurface_radius * subsurface_scale *
+                                    subsurface_random_walk_radius_scale,
+                                float3(0.0f));
       /* Subsurface Scattering materials behave unpredictably with values greater than 1.0 in
        * Cycles. So it's clamped there and we clamp here for consistency with Cycles. */
       sss_data.color = (subsurface_weight * weight) * clamped_base_color.rgb * coat_tint.rgb;
