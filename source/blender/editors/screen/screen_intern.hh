@@ -258,6 +258,9 @@ extern "C" const char *screen_context_dir[]; /* doc access */
 
 /* `screen_ops.cc` */
 
+/**
+ * Stop animation playback in the given screen.
+ */
 void screen_stop_playback(Main *bmain, wmWindowManager *wm, wmWindow *win, bScreen *screen);
 
 /* `screendump.cc` */

@@ -361,7 +361,7 @@ void ED_screen_animation_timer(
 void ED_screen_animation_timer_disable(wmWindowManager *wm, wmWindow *win);
 void ED_screen_animation_timer_update(bScreen *screen, int redraws);
 /**
- * Stop the animation in all screens, but only when should_stop_fn(screen) returns true.
+ * Stop the animation in all screens where should_stop_fn(screen) returns true.
  */
 void ED_wm_animation_stop(Main *bmain,
                           wmWindowManager *wm,
