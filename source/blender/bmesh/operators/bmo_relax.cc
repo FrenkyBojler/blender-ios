@@ -8,8 +8,8 @@
  * Relaxes vertices along edge loops so they are smoother.
  */
 
-#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BLI_array_utils.hh"
 #include "BLI_length_parameterize.hh"
@@ -24,6 +24,17 @@
 namespace blender {
 
 /**
+ * Defines which vertices stay still to define the shape
+ * and which vertices are actively being relaxed.
+ */
+struct RelaxPhase {
+  /** Indices of vertices used as static anchors for the spline. */
+  Vector<int> knot_indices;
+  /** Indices of vertices whose positions are being updated. */
+  Vector<int> point_indices;
+};
+
+/**
  * A chain of vertices collected from a walk along connected edges.
  */
 struct RelaxChainData {
@@ -31,6 +42,8 @@ struct RelaxChainData {
   Vector<BMVert *> verts;
   /** True if the path forms a closed chain. */
   bool is_closed = false;
+  /** Cached relax phases. */
+  Vector<RelaxPhase> phases;
 };
 
 /**
@@ -47,17 +60,6 @@ struct SplineCoeffs {
   float d;
   /** Parameter value at the start of the segment. */
   float x;
-};
-
-/**
- * Defines which vertices stay still to define the shape
- * and which vertices are actively being relaxed.
- */
-struct RelaxPhase {
-  /** Indices of vertices used as static anchors for the spline. */
-  Vector<int> knot_indices;
-  /** Indices of vertices whose positions are being updated. */
-  Vector<int> point_indices;
 };
 
 /** Epsilon to prevent zero division. */
@@ -412,13 +414,15 @@ void bmo_relax_edge_loops_exec(BMesh *bm, BMOperator *op)
   Vector<RelaxChainData> chains;
   get_relax_input_chains(bm, chains);
 
+  for (RelaxChainData &chain : chains) {
+    build_relax_phases(chain.verts.size(), chain.is_closed, chain.phases);
+  }
+
   for (const int it : IndexRange(iterations)) {
     UNUSED_VARS(it);
 
     for (RelaxChainData &chain : chains) {
-      Vector<RelaxPhase> phases;
-      build_relax_phases(chain.verts.size(), chain.is_closed, phases);
-      for (const RelaxPhase &phase : phases) {
+      for (const RelaxPhase &phase : chain.phases) {
         execute_relax_phase(chain.verts, phase, chain.is_closed, interpolation, even_spacing);
       }
     }
