@@ -1199,8 +1199,8 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
   if (RNA_pointer_is_null(&ptr) || !RNA_struct_is_a(type, RNA_Material)) {
     return;
   }
-  if (const PointerRNA *idptr_ptr = layout.context_ptr_get("id", RNA_Material)) {
-    PointerRNA idptr = *idptr_ptr;
+  if (PointerRNA idptr = CTX_data_pointer_get_type(C, "id", RNA_ID); !RNA_pointer_is_null(&idptr))
+  {
     id_mark_as_asset_menu_items(*C, layout);
 
     layout.prop(&idptr, "use_fake_user", UI_ITEM_NONE, "Fake User", ICON_NONE);
@@ -1236,13 +1236,13 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
     but = uiDefIconTextBut(block,
                            ButtonType::But,
                            ICON_BLANK1,
-                           "Unlink (All Users)",
+                           "Unlink All Users",
                            0,
                            0,
                            UI_UNIT_X,
                            UI_UNIT_Y,
                            nullptr,
-                           TIP_("Unlink (All Users)"));
+                           TIP_("Unlink All Users"));
 
     button_func_set(but,
                     [pprop = pprop](bContext &C) mutable { template_ui_delete(C, pprop, true); });
@@ -1257,7 +1257,7 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
     //                  UI_UNIT_X,
     //                  UI_UNIT_Y,
     //                  nullptr,
-    //                  TIP_("Unlink data-block"));
+    //                  TIP_("Browse Assets..."));
     layout.separator();
 
     layout.op("wm.link", "Link...", ICON_LINKED);
