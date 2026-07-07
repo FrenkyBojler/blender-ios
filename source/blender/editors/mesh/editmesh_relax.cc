@@ -110,7 +110,7 @@ void MESH_OT_relax_edge_loops(wmOperatorType *ot)
   RNA_def_boolean(ot->srna,
                   "even_spacing",
                   true,
-                  "Space evenly",
+                  "Space Evenly",
                   "Distribute vertices at constant distances along the loop");
 }
 
