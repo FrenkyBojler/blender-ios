@@ -1,1 +1,2 @@
 Referenced by pull request #161141, Fix: GPU: Shader Tool: scope range left stale on parse error
+Referenced by commit 28e78f8a5cbbebce387c8fd4f649e97ff4464d26, Fix: GPU: Shader Tool: scope range left stale on parse error
