@@ -627,7 +627,8 @@ static void waveform_draw_one(const float *waveform, int waveform_num, const flo
 
 struct WaveformColorVertex {
   float2 pos;
-  float4 color;
+  /* Use float[4] to avoid alignment requirement of float4. */
+  float color[4];
 };
 static_assert(sizeof(WaveformColorVertex) == 24);
 
@@ -647,7 +648,7 @@ static void waveform_draw_rgb(const float *waveform,
   for (int i = 0; i < waveform_num; i++) {
     memcpy(reinterpret_cast<void *>(&data->pos), waveform, sizeof(data->pos));
     memcpy(reinterpret_cast<void *>(&data->color), col, sizeof(float) * 3);
-    data->color.w = alpha;
+    data->color[3] = alpha;
     waveform += 2;
     col += 3;
     data++;

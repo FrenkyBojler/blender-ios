@@ -671,7 +671,9 @@ inline void PassBase<T>::clear(GPUFrameBufferBits planes,
                                float depth,
                                uint8_t stencil)
 {
-  create_command(command::Type::Clear).clear = {uint8_t(planes), stencil, depth, color};
+  std::array<float, 4> color_array;
+  std::copy_n(&color.x, 4, color_array.data());
+  create_command(command::Type::Clear).clear = {uint8_t(planes), stencil, depth, color_array};
 }
 
 template<class T> inline void PassBase<T>::clear_multi(Span<double4> colors)

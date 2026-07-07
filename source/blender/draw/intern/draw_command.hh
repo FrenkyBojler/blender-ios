@@ -261,7 +261,7 @@ struct PushConstant {
     float float1_value;
     float2 float2_value;
     float3 float3_value;
-    float4 float4_value;
+    std::array<float, 4> float4_value;
     const int *int_ref;
     const int2 *int2_ref;
     const int3 *int3_ref;
@@ -282,7 +282,10 @@ struct PushConstant {
   PushConstant(int loc, const float3 &val)
       : location(loc), array_len(1), comp_len(3), type(Type::FloatValue), float3_value(val) {};
   PushConstant(int loc, const float4 &val)
-      : location(loc), array_len(1), comp_len(4), type(Type::FloatValue), float4_value(val) {};
+      : location(loc), array_len(1), comp_len(4), type(Type::FloatValue)
+  {
+    std::copy_n(&val.x, 4, float4_value.data());
+  };
 
   PushConstant(int loc, const int &val)
       : location(loc), array_len(1), comp_len(1), type(Type::IntValue), int1_value(val) {};
@@ -462,7 +465,7 @@ struct Clear {
   uint8_t clear_channels; /* #GPUFrameBufferBits. But want to save some bits. */
   uint8_t stencil;
   float depth;
-  float4 color;
+  std::array<float, 4> color;
 
   void execute() const;
   std::string serialize() const;

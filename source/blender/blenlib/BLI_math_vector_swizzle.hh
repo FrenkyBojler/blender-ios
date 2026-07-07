@@ -92,7 +92,7 @@ template<typename T, int Size, int x, int y, int z = y, int w = z> struct VecSwi
   [[nodiscard]] VecT operator()() const
   {
     /* Can only do this when VecT has been instantiated. */
-    BLI_STATIC_ASSERT(alignof(VecT) <= alignof(T) || effective_len == 4,
+    BLI_STATIC_ASSERT(alignof(VecT) <= alignof(T) || min_comp == 0,
                       "VecSwizzleReadOnly is not compatible with aligned type for now.");
     BLI_STATIC_ASSERT(std::is_trivial_v<VecT>, "Can only swizzle trivial vectors.");
     BLI_STATIC_ASSERT(Size >= 2 && Size <= 4, "Only small vector supports swizzles");
