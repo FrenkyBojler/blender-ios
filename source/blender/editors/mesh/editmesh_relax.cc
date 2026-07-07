@@ -47,6 +47,9 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    if (em->bm->totedgesel == 0) {
+      continue;
+    }
 
     if (!EDBM_op_callf(em,
                        op,
