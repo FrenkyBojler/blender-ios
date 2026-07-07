@@ -219,8 +219,7 @@ static void free_compositor_effect(Strip *strip, const bool /*do_id_user*/)
 static void copy_compositor_effect(Strip *dst, const Strip *src, const int flag)
 {
   CompositorEffectVars *dst_data = MEM_new<CompositorEffectVars>(__func__);
-  const CompositorEffectVars *src_data = static_cast<const CompositorEffectVars *>(
-      src->effectdata);
+  const auto *src_data = static_cast<const CompositorEffectVars *>(src->effectdata);
   *dst_data = *src_data;
   dst_data->system_properties = nullptr;
   if (src_data->system_properties != nullptr) {

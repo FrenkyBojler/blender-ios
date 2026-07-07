@@ -85,8 +85,7 @@ static const Strip *find_effect_strip_from_system_property(const PointerRNA *ptr
     if (strip->type != STRIP_TYPE_COMPOSITOR || strip->effectdata == nullptr) {
       continue;
     }
-    const CompositorEffectVars *comp = static_cast<const CompositorEffectVars *>(
-        strip->effectdata);
+    const auto *comp = static_cast<const CompositorEffectVars *>(strip->effectdata);
     bool found = false;
     IDP_foreach_property(comp->system_properties, 0, [&](IDProperty *id_prop) {
       if (id_prop == ptr->data) {

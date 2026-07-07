@@ -330,7 +330,7 @@ void draw_compositor_nodes_effect_ui(const bContext &C, PointerRNA *strip_ptr, u
   if (strip.type != STRIP_TYPE_COMPOSITOR || strip.effectdata == nullptr) {
     return;
   }
-  const CompositorEffectVars *comp = static_cast<const CompositorEffectVars *>(strip.effectdata);
+  const auto *comp = static_cast<const CompositorEffectVars *>(strip.effectdata);
   if (comp->node_group == nullptr || ID_MISSING(comp->node_group)) {
     return;
   }

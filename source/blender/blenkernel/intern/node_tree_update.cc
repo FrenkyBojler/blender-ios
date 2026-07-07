@@ -321,8 +321,7 @@ struct NodeTreeRelations {
       for (Strip *strip : seq::query_all_strips_recursive(&ed->seqbase)) {
         /* Compositor effects. */
         if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata != nullptr) {
-          const CompositorEffectVars *comp = static_cast<const CompositorEffectVars *>(
-              strip->effectdata);
+          const auto *comp = static_cast<const CompositorEffectVars *>(strip->effectdata);
           if (comp->node_group != nullptr && !ID_MISSING(comp->node_group)) {
             strip_effect_users_->add(comp->node_group, {&scene, strip});
           }
