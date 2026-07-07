@@ -460,8 +460,8 @@ void version_node_socket_index_animdata(Main *bmain,
         const int new_index = input_index + socket_index_offset;
         BKE_animdata_fix_paths(*owner_id,
                                rna_path_prefix,
-                               BKE_animdata_number_to_rna_element(input_index),
-                               BKE_animdata_number_to_rna_element(new_index),
+                               BKE_animdata_number_to_infix(input_index),
+                               BKE_animdata_number_to_infix(new_index),
                                false,
                                driver_map);
         MEM_delete(rna_path_prefix);

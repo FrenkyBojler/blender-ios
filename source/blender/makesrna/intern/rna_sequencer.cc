@@ -989,8 +989,8 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(scene->id,
                          "sequence_editor.strips_all",
-                         BKE_animdata_string_escape_for_rename(oldname),
-                         BKE_animdata_string_escape_for_rename(strip->name + 2),
+                         BKE_animdata_name_to_infix(oldname),
+                         BKE_animdata_name_to_infix(strip->name + 2),
                          true,
                          driver_map);
 }

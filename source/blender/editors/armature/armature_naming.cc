@@ -217,8 +217,8 @@ void ED_armature_bone_rename(Main *bmain,
   /* force evaluation copy to update database */
   DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
   DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
-  std::string old_name_esc = BKE_animdata_string_escape_for_rename(oldname);
-  std::string new_name_esc = BKE_animdata_string_escape_for_rename(newname);
+  std::string old_name_esc = BKE_animdata_name_to_infix(oldname);
+  std::string new_name_esc = BKE_animdata_name_to_infix(newname);
 
   Object *ob;
   /* Find all uses of the bone name in Main. Bones are usually referred to by name which is why we

@@ -1930,8 +1930,8 @@ void BKE_keyblock_rename(Key *key, KeyBlock *kb, const char *newname)
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(key->id,
                          "key_blocks",
-                         BKE_animdata_string_escape_for_rename(oldname),
-                         BKE_animdata_string_escape_for_rename(kb->name),
+                         BKE_animdata_name_to_infix(oldname),
+                         BKE_animdata_name_to_infix(kb->name),
                          true,
                          driver_map);
 }

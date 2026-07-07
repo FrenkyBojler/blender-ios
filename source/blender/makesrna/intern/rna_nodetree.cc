@@ -2719,8 +2719,8 @@ static void rna_Node_name_set(PointerRNA *ptr, const char *value)
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(ntree->id,
                          "nodes",
-                         BKE_animdata_string_escape_for_rename(oldname),
-                         BKE_animdata_string_escape_for_rename(node->name),
+                         BKE_animdata_name_to_infix(oldname),
+                         BKE_animdata_name_to_infix(node->name),
                          true,
                          driver_map);
 }

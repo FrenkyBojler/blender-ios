@@ -374,8 +374,8 @@ void BKE_mask_layer_rename(Mask *mask,
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(mask->id,
                          "layers",
-                         BKE_animdata_string_escape_for_rename(oldname),
-                         BKE_animdata_string_escape_for_rename(masklay->name),
+                         BKE_animdata_name_to_infix(oldname),
+                         BKE_animdata_name_to_infix(masklay->name),
                          true,
                          driver_map);
 }

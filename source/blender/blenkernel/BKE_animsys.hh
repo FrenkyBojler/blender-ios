@@ -232,10 +232,13 @@ void BKE_animdata_fix_paths(ID &id,
                             const DriverMap &driver_map);
 
 /**
- * TODO replace with internal function once available.
+ * Escapes the given string and formats it to be within square brackets and quotation marks.
  */
-std::string BKE_animdata_string_escape_for_rename(const StringRefNull string);
-std::string BKE_animdata_number_to_rna_element(const int number);
+std::string BKE_animdata_name_to_infix(const StringRefNull string);
+/**
+ * Turns the number into a string surrounded by square brackets.
+ */
+std::string BKE_animdata_number_to_infix(const int number);
 
 /**
  * Remove any animation data (F-Curves from Actions, and drivers) that have an

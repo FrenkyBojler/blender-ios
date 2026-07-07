@@ -1328,8 +1328,8 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain, bNode
          * the second socket and we need to transfer its animation as well. */
         BKE_animdata_fix_paths(node_tree->id,
                                rna_path_prefix,
-                               BKE_animdata_number_to_rna_element(0),
-                               BKE_animdata_number_to_rna_element(1),
+                               BKE_animdata_number_to_infix(0),
+                               BKE_animdata_number_to_infix(1),
                                false,
                                driver_map);
         break;
@@ -1341,14 +1341,14 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain, bNode
          * sockets moved to be the 7th and 8th sockets. */
         BKE_animdata_fix_paths(node_tree->id,
                                rna_path_prefix,
-                               BKE_animdata_number_to_rna_element(1),
-                               BKE_animdata_number_to_rna_element(6),
+                               BKE_animdata_number_to_infix(1),
+                               BKE_animdata_number_to_infix(6),
                                false,
                                driver_map);
         BKE_animdata_fix_paths(node_tree->id,
                                rna_path_prefix,
-                               BKE_animdata_number_to_rna_element(2),
-                               BKE_animdata_number_to_rna_element(7),
+                               BKE_animdata_number_to_infix(2),
+                               BKE_animdata_number_to_infix(7),
                                false,
                                driver_map);
         break;

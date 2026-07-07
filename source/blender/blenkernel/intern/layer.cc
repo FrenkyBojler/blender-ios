@@ -593,8 +593,8 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
   DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
   BKE_animdata_fix_paths(scene->id,
                          "view_layers",
-                         BKE_animdata_string_escape_for_rename(oldname),
-                         BKE_animdata_string_escape_for_rename(view_layer->name),
+                         BKE_animdata_name_to_infix(oldname),
+                         BKE_animdata_name_to_infix(view_layer->name),
                          true,
                          driver_map);
 

@@ -753,6 +753,20 @@ static std::optional<std::string> rna_path_rename_fix(ID &owner_id,
   return modified_path;
 }
 
+/**
+ * Inverse of BKE_animdata_name_to_infix.
+ */
+static std::string infix_to_name(const StringRef infix)
+{
+  /* An empty name infix would be `[""]` so for characters. */
+  BLI_assert(infix.size() >= 4);
+  std::string unescaped;
+  unescaped.resize(infix.size() - 4);
+  size_t string_size = BLI_str_unescape(unescaped.data(), infix.data() + 2, infix.size() - 4);
+  unescaped.resize(string_size);
+  return unescaped;
+}
+
 /* Check RNA-Paths for a list of F-Curves */
 static bool fcurves_path_rename_fix(ID &owner_id,
                                     const StringRef prefix,
@@ -797,7 +811,8 @@ static bool fcurves_path_rename_fix(ID &owner_id,
       /* Only update the name if the action group name was contained in the old infix. Since groups
        * can be renamed by the user we shouldn't override that data. */
       bPoseChannel *pchan = static_cast<bPoseChannel *>(resolved_ptr.data);
-      if (old_infix.find(agrp->name) != StringRefBase::not_found) {
+      std::string old_name = infix_to_name(old_infix);
+      if (old_name == StringRefNull(agrp->name)) {
         STRNCPY_UTF8(agrp->name, pchan->name);
       }
     }
@@ -1056,14 +1071,31 @@ static bool driver_target_path_fix(ID &owner_id,
 
   bool is_changed = false;
   for (DriverTarget *target : *target_uses) {
-    std::optional<std::string> fixed_path = rna_path_rename_fix(
-        owner_id, prefix, old_infix, new_infix, target->rna_path, verify_paths);
-    if (!fixed_path.has_value()) {
-      continue;
+    BLI_assert_msg(target->id == &owner_id,
+                   "Driver Map should only contain targets with the given ID.");
+    if (target->rna_path) {
+      /* This cannot verify paths because driver paths are not always valid rna paths. They can end
+       * in e.g. ".location[0]" while "location" + array index integer would be correct. */
+      std::optional<std::string> fixed_path = rna_path_rename_fix(
+          owner_id, prefix, old_infix, new_infix, target->rna_path, false);
+      if (fixed_path.has_value()) {
+        MEM_delete(target->rna_path);
+        target->rna_path = BLI_strdup(fixed_path->c_str());
+        is_changed = true;
+      }
     }
-    MEM_delete(target->rna_path);
-    target->rna_path = BLI_sprintfN("%s", fixed_path->c_str());
-    is_changed = true;
+
+    if (GS(owner_id.name) == ID_OB && target->pchan_name[0]) {
+      /* If the target is a bone we can assume that the infix will be surrounded with square
+       * brackets and escaped. */
+      BLI_assert(old_infix.size() >= 4);
+      const std::string old_bone_name = infix_to_name(old_infix);
+      if (old_bone_name == StringRef(target->pchan_name)) {
+        const std::string new_bone_name = infix_to_name(new_infix);
+        BLI_strncpy(target->pchan_name, new_bone_name.data(), new_bone_name.size() + 1);
+        is_changed = true;
+      }
+    }
   }
 
   return is_changed;
@@ -1144,13 +1176,13 @@ static std::string str_escape(StringRefNull str)
   return result;
 }
 
-std::string BKE_animdata_string_escape_for_rename(const StringRefNull string)
+std::string BKE_animdata_name_to_infix(const StringRefNull string)
 {
   std::string old_name_esc = str_escape(string);
   return fmt::format("[\"{}\"]", old_name_esc);
 }
 
-std::string BKE_animdata_number_to_rna_element(const int number)
+std::string BKE_animdata_number_to_infix(const int number)
 {
   return fmt::format("[%d]", number);
 }
