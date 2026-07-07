@@ -216,28 +216,28 @@ static RelaxChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
   visited_verts.add(start_edge->v2);
   r_visited.add(start_edge);
 
-  auto walk_fn = [&](BMVert *curr_v, Vector<BMVert *> &list) {
+  auto walk_fn = [&](BMVert *v_curr, Vector<BMVert *> &list) {
     while (true) {
-      BMEdge *next_e = nullptr;
+      BMEdge *e_next = nullptr;
       BMIter eiter;
       BMEdge *e_candidate;
-      BM_ITER_ELEM (e_candidate, &eiter, curr_v, BM_EDGES_OF_VERT) {
+      BM_ITER_ELEM (e_candidate, &eiter, v_curr, BM_EDGES_OF_VERT) {
         if (!r_visited.contains(e_candidate) && BM_elem_flag_test(e_candidate, BM_ELEM_TAG)) {
-          next_e = e_candidate;
+          e_next = e_candidate;
           break;
         }
       }
-      if (!next_e) {
+      if (!e_next) {
         break;
       }
-      BMVert *next_v = BM_edge_other_vert(next_e, curr_v);
-      if (visited_verts.contains(next_v)) {
+      BMVert *v_next = BM_edge_other_vert(e_next, v_curr);
+      if (visited_verts.contains(v_next)) {
         break;
       }
-      curr_v = next_v;
-      visited_verts.add(curr_v);
-      list.append(curr_v);
-      r_visited.add(next_e);
+      v_curr = v_next;
+      visited_verts.add(v_curr);
+      list.append(v_curr);
+      r_visited.add(e_next);
     }
   };
 
