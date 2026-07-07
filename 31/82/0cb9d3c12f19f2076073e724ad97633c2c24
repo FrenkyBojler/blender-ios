@@ -1,3 +1,4 @@
 Referenced by commit 3c1fa520179047660267d227aae80ac795efb745, Revert "Fix #160212: 5.2 files with nodes with pixel subtype interface crash in 5.1"
 Referenced by pull request #161079, Fix #160212: 5.2 files with nodes with pixel subtype interface crash in 5.1
 Referenced by issue #137983, Release note tools: List of bug fixes per release override
+Referenced by commit 5996118447b28a6880b09a73d6090e94a5b66a42, Fix #160212: 5.2 files with nodes with pixel subtype interface crash in 5.1
