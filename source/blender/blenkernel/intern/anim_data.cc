@@ -796,7 +796,7 @@ static bool fcurves_path_rename_fix(ID *owner_id,
       /* Only update the name if the action group name matches the bone name. Since groups
        * can be renamed by the user we shouldn't override that data. */
       bPoseChannel *pchan = static_cast<bPoseChannel *>(resolved_ptr.data);
-      if (StringRef(pchan->name) == StringRef(agrp->name) != StringRefBase::not_found) {
+      if (StringRef(pchan->name) == StringRef(agrp->name)) {
         STRNCPY_UTF8(agrp->name, pchan->name);
       }
     }
