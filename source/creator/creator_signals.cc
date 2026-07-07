@@ -157,10 +157,17 @@ static void sig_cleanup_and_terminate(int signum)
 #  if !defined(WIN32)
 static void sig_handle_crash_fn(int signum)
 {
-  char filepath_crashlog[FILE_MAX];
-  BKE_blender_globals_crash_path_get(filepath_crashlog);
-  crashlog_file_generate(filepath_crashlog, nullptr);
-  sig_cleanup_and_terminate(signum);
+  auto crash_func = [&]() {
+    char filepath_crashlog[FILE_MAX];
+    BKE_blender_globals_crash_path_get(filepath_crashlog);
+    crashlog_file_generate(filepath_crashlog, nullptr);
+    sig_cleanup_and_terminate(signum);
+  };
+
+  /* The use of `std::call_once` ensures that the crash handling function is only executed once,
+   * even if multiple crashes occur simultaneously. */
+  static std::once_flag crash_func_once;
+  std::call_once(crash_func_once, crash_func);
 }
 #  else
 extern LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
@@ -204,6 +211,8 @@ extern LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
       }
     };
 
+    /* The use of `std::call_once` ensures that the crash handling function is only executed once,
+     * even if multiple crashes occur simultaneously. */
     static std::once_flag crash_func_once;
     std::call_once(crash_func_once, crash_func);
 
