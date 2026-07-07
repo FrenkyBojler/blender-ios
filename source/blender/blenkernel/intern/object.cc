@@ -4035,6 +4035,16 @@ void BKE_object_foreach_display_point(Object *ob,
       }
     });
   }
+  else if (ob->type == OB_CURVES) {
+    Curves &curves_id = *id_cast<Curves *>(ob->data);
+    const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    const Span<float3> positions = curves.evaluated_positions();
+    threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
+      for (const int i : range) {
+        func_cb(math::transform_point(float4x4(obmat), positions[i]), user_data);
+      }
+    });
+  }
 }
 
 void BKE_scene_foreach_display_point(Depsgraph *depsgraph,
