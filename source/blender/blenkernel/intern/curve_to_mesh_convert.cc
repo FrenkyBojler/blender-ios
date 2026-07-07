@@ -210,7 +210,7 @@ static float4x4 build_point_matrix_miter_scale(const float3 &location_prev,
     return build_point_matrix(location, tangent, normal);
   }
   const float cos_turn = math::dot(dir_in, dir_out);
-  if (cos_turn >= 1.0f) {
+  if (cos_turn >= 1.0f || cos_turn == -1.0f) {
     return build_point_matrix(location, tangent, normal);
   }
   float4x4 matrix = build_point_matrix(location, tangent, normal);
