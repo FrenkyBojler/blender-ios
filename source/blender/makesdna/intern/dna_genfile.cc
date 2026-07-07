@@ -492,6 +492,16 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
       sdna->types_alignment[mat4x4f_type_index] = alignof(float4x4);
     }
   }
+  {
+    uint dummy_index = 0;
+    const int vec4f_struct_index = DNA_struct_find_index_without_alias_ex(
+        sdna, "vec4f", &dummy_index);
+    if (vec4f_struct_index > 0) {
+      const SDNA_Struct *struct_info = sdna->structs[vec4f_struct_index];
+      const int vec4f_type_index = struct_info->type_index;
+      sdna->types_alignment[vec4f_type_index] = alignof(float4);
+    }
+  }
 
   return true;
 }

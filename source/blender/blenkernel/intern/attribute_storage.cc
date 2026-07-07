@@ -433,13 +433,13 @@ static bool read_array_data(BlendDataReader &reader,
     case int8_t(AttrType::ColorByte):
       return BLO_read_array(&reader, reinterpret_cast<uint8_t **>(data), size, 4);
     case int8_t(AttrType::ColorFloat):
-      return BLO_read_array(&reader, reinterpret_cast<float **>(data), size, 4);
+      return BLO_read_array(&reader, reinterpret_cast<vec4f **>(data), size);
     case int8_t(AttrType::Quaternion):
       return BLO_read_array(&reader, reinterpret_cast<float **>(data), size, 4);
     case int8_t(AttrType::String):
       return BLO_read_array(&reader, reinterpret_cast<MStringProperty **>(data), size);
     case int8_t(AttrType::Float4):
-      return BLO_read_array(&reader, reinterpret_cast<float **>(data), size, 4);
+      return BLO_read_array(&reader, reinterpret_cast<vec4f **>(data), size);
     default:
       *data = nullptr;
       return false;

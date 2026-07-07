@@ -126,7 +126,8 @@ template<typename T> struct vec_struct_base<T, 3, true> {
   };
 };
 
-template<typename T> struct vec_struct_base<T, 4, true> {
+template<typename T>
+struct alignas(std::is_same_v<T, float> ? 16 : alignof(T)) vec_struct_base<T, 4, true> {
   union {
 #ifndef NDEBUG
     /* Useful for debugging. */

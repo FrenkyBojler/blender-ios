@@ -1930,7 +1930,7 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
     /* 47: CD_PROP_COLOR */
     {
         .size = sizeof(MPropCol),
-        .alignment = alignof(MPropCol),
+        .alignment = alignof(ColorGeometry4f),
         .structname = "MPropCol",
         .structnum = 1,
         .defaultname = N_("Color"),
