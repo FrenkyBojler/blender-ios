@@ -251,7 +251,7 @@ static BMOpDefine bmo_relax_edge_loops_def = {
         /* Number of relaxation passes. */
         {"iterations", BMO_OP_SLOT_INT},
         /* Distribute vertices at constant distances along the loop. */
-        {"regular", BMO_OP_SLOT_BOOL},
+        {"even_spacing", BMO_OP_SLOT_BOOL},
     },
     /*slot_types_out*/
     {{{'\0'}}},

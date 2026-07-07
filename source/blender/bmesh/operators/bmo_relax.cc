@@ -405,7 +405,7 @@ void bmo_relax_edge_loops_exec(BMesh *bm, BMOperator *op)
 {
   const int iterations = BMO_slot_int_get(op->slots_in, "iterations");
   const int interpolation = BMO_slot_int_get(op->slots_in, "interpolation");
-  const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
+  const bool even_spacing = BMO_slot_bool_get(op->slots_in, "even_spacing");
 
   BM_mesh_elem_hflag_disable_all(bm, BM_EDGE, BM_ELEM_TAG, false);
   BMO_slot_buffer_hflag_enable(bm, op->slots_in, "geom", BM_EDGE, BM_ELEM_TAG, false);
@@ -420,7 +420,7 @@ void bmo_relax_edge_loops_exec(BMesh *bm, BMOperator *op)
       Vector<RelaxPhase> phases;
       build_relax_phases(chain.verts.size(), chain.is_closed, phases);
       for (const RelaxPhase &phase : phases) {
-        execute_relax_phase(chain.verts, phase, chain.is_closed, interpolation, regular);
+        execute_relax_phase(chain.verts, phase, chain.is_closed, interpolation, even_spacing);
       }
     }
   }

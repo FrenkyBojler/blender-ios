@@ -44,7 +44,7 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
 
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
   const int iterations = RNA_int_get(op->ptr, "iterations");
-  const bool regular = RNA_boolean_get(op->ptr, "regular");
+  const bool even_spacing = RNA_boolean_get(op->ptr, "even_spacing");
   bool changed = false;
 
   for (Object *obedit : objects) {
@@ -52,11 +52,11 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
 
     if (!EDBM_op_callf(em,
                        op,
-                       "relax_edge_loops geom=%he interpolation=%i iterations=%i regular=%b",
+                       "relax_edge_loops geom=%he interpolation=%i iterations=%i even_spacing=%b",
                        BM_ELEM_SELECT,
                        interpolation,
                        iterations,
-                       regular))
+                       even_spacing))
     {
       continue;
     }
@@ -76,7 +76,7 @@ static void edbm_relax_ui(bContext * /*C*/, wmOperator *op)
   ui::Layout &layout = *op->layout;
   layout.use_property_split_set(true);
   layout.prop(op->ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "regular", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "even_spacing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
@@ -108,7 +108,7 @@ void MESH_OT_relax_edge_loops(wmOperatorType *ot)
               1,
               25);
   RNA_def_boolean(ot->srna,
-                  "regular",
+                  "even_spacing",
                   true,
                   "Space evenly",
                   "Distribute vertices at constant distances along the loop");
