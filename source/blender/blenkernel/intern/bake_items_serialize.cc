@@ -790,8 +790,8 @@ static void load_texspace(const DictionaryValue *io_mesh, Mesh *mesh)
 {
 
   const auto reset_texspace_default = [](Mesh *mesh) {
-    memset(mesh->texspace_location, 0, sizeof(mesh->texspace_location));
-    memset(mesh->texspace_size, 0, sizeof(mesh->texspace_size));
+    std::ranges::fill(mesh->texspace_location, 0.0f);
+    std::ranges::fill(mesh->texspace_size, 1.0f);
   };
 
   const auto fill_texspace_values = [](const io::serialize::ArrayValue *io_array,
