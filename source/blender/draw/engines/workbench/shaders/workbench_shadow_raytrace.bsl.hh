@@ -47,9 +47,8 @@ struct Resources {
   float3 P = drw_point_screen_to_world(
       float3(screen_uv, intBitsToFloat(floatBitsToInt(depth) - 2)));
 
-  const float pixel_size =
-      drw_point_screen_to_view(float3(screen_uv + float2(1.0f / resolution.x), depth)).x -
-      drw_point_screen_to_view(float3(screen_uv, depth)).x;
+  const float pixel_size = srt.pass_data.pixel_size *
+                           (drw_view_is_perspective() ? drw_view_z_distance(P) : 1.0f);
 
   /* Offset by pixel sife to compensate for floating point precission. */
   P += N * pixel_size;

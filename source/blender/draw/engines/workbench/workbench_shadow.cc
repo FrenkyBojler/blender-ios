@@ -470,6 +470,7 @@ void ShadowPass::draw(Manager &manager,
                       SceneResources &resources,
                       gpu::Texture &depth_stencil_tx,
                       gpu::Texture &normal_tx,
+                      int2 resolution,
                       bool force_fail_method)
 {
   if (!enabled_) {
@@ -478,6 +479,8 @@ void ShadowPass::draw(Manager &manager,
 
   if (use_raytracing_) {
     gbuffer_normal_ref = &normal_tx;
+    pass_data_.pixel_size = view.screen_pixel_radius(resolution);
+    pass_data_.push_update();
     fb_.ensure(GPU_ATTACHMENT_TEXTURE(&depth_stencil_tx));
     fb_.bind();
     manager.submit(raytrace_ps_, view);

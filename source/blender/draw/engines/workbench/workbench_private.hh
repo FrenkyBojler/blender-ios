@@ -461,6 +461,7 @@ class ShadowPass {
             SceneResources &resources,
             gpu::Texture &depth_stencil_tx,
             gpu::Texture &normal_tx,
+            int2 resolution,
             /* Needed when there are opaque "In Front" objects in the scene */
             bool force_fail_method);
 
