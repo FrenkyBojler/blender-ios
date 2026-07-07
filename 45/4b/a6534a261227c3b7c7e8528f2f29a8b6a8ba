@@ -2,3 +2,4 @@ Referenced by pull request #156959, Fix: Sequencer can use potentially wrong col
 Referenced by issue #157067, Regression: VSE: Working Color Space ignores settings
 Referenced by pull request #161032, Fix #161018: Crash using Stencil mapping in Texture Paint
 Referenced by pull request #161122, Fix: Image: Don't request ImBuf 'for_write' buffers during save
+Referenced by commit 2ed366bd80e0f25824af6c7ef9b5230947624412, Fix #161018: Crash using Stencil mapping in Texture Paint
