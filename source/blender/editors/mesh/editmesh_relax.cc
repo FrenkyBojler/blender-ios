@@ -9,8 +9,6 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
-#include "BLI_listbase.hh"
-#include "BLT_translation.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -71,15 +69,6 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static void edbm_relax_ui(bContext * /*C*/, wmOperator *op)
-{
-  ui::Layout &layout = *op->layout;
-  layout.use_property_split_set(true);
-  layout.prop(op->ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "even_spacing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-}
-
 void MESH_OT_relax_edge_loops(wmOperatorType *ot)
 {
   ot->name = "Relax Edge Loops";
@@ -88,16 +77,8 @@ void MESH_OT_relax_edge_loops(wmOperatorType *ot)
 
   ot->exec = edbm_relax_edge_loops_exec;
   ot->poll = ED_operator_editmesh;
-  ot->ui = edbm_relax_ui;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-  RNA_def_enum(ot->srna,
-               "interpolation",
-               prop_interpolation_items,
-               0,
-               "Interpolation",
-               "Algorithm used for interpolation");
   RNA_def_int(ot->srna,
               "iterations",
               1,
@@ -112,6 +93,12 @@ void MESH_OT_relax_edge_loops(wmOperatorType *ot)
                   true,
                   "Space Evenly",
                   "Distribute vertices at constant distances along the loop");
+  RNA_def_enum(ot->srna,
+               "interpolation",
+               prop_interpolation_items,
+               0,
+               "Interpolation",
+               "Algorithm used for interpolation");
 }
 
 }  // namespace blender
