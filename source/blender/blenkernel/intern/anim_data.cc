@@ -26,6 +26,7 @@
 #include "BKE_report.hh"
 
 #include "DNA_ID.h"
+#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
@@ -793,10 +794,10 @@ static bool fcurves_path_rename_fix(ID *owner_id,
      * For pose bones, the group is named after it, hence it also needs a name update. */
     bActionGroup *agrp = fcu->grp;
     if (agrp && resolved_ptr.type == RNA_PoseBone) {
-      /* Only update the name if the action group name matches the bone name. Since groups
+      /* Only update the name if the action group name was contained in the old infix. Since groups
        * can be renamed by the user we shouldn't override that data. */
       bPoseChannel *pchan = static_cast<bPoseChannel *>(resolved_ptr.data);
-      if (StringRef(pchan->name) == StringRef(agrp->name)) {
+      if (old_infix.find(agrp->name) != StringRefBase::not_found) {
         STRNCPY_UTF8(agrp->name, pchan->name);
       }
     }
@@ -894,8 +895,8 @@ static bool rename_paths_action(bAction *dna_action,
 /* Fix all RNA-Paths for Actions linked to NLA Strips */
 static bool nlastrips_path_rename_fix(ID *owner_id,
                                       const StringRef prefix,
-                                      const StringRef old_key,
-                                      const StringRef new_key,
+                                      const StringRef old_infix,
+                                      const StringRef new_infix,
                                       ListBaseT<NlaStrip> &strips,
                                       const bool verify_paths)
 {
@@ -904,14 +905,19 @@ static bool nlastrips_path_rename_fix(ID *owner_id,
   for (NlaStrip &strip : strips) {
     /* fix strip's action */
     if (strip.act != nullptr) {
-      const bool is_changed_action = rename_paths_action(
-          strip.act, strip.action_slot_handle, owner_id, prefix, old_key, new_key, verify_paths);
+      const bool is_changed_action = rename_paths_action(strip.act,
+                                                         strip.action_slot_handle,
+                                                         owner_id,
+                                                         prefix,
+                                                         old_infix,
+                                                         new_infix,
+                                                         verify_paths);
       is_changed |= is_changed_action;
     }
     /* Ignore own F-Curves, since those are local. */
     /* Check sub-strips (if meta-strips). */
     is_changed |= nlastrips_path_rename_fix(
-        owner_id, prefix, old_key, new_key, strip.strips, verify_paths);
+        owner_id, prefix, old_infix, new_infix, strip.strips, verify_paths);
   }
   return is_changed;
 }
