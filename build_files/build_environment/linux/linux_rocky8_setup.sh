@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: 2022-2023 Blender Authors
+# SPDX-FileCopyrightText: 2022-2026 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -37,20 +37,38 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+if [ ! -f /etc/os-release ]; then
+  echo "Cannot detect OS. /etc/os-release missing."
+  exit 1
+fi
+
+. /etc/os-release
+
+case "$ID" in
+  rocky|rhel|almalinux) ;;
+  *)
+    echo "Unsupported OS: $ID. Script need Rocky/RHEL/Alma 8."
+    exit 1
+    ;;
+esac
+
+if [ "${VERSION_ID%%.*}" != "8" ]; then
+  echo "Unsupported version: $VERSION_ID. Script need major version 8."
+  exit 1
+fi
+
 ARCH=$(uname -i)
 
 if [[ "${ASSUME_YES}" != "1" ]]; then
   cat <<EOF
 ######################### WARNING ##########################
-This script will install software on your system:
-  - PowerTools/EPEL repos
-  - gcc-toolset-14 (set as default via profile.d)
-  - CUDA 12.8 (version locked)
-  - ROCm 7.2.1 (non-aarch64 only)
-  - Many dnf packages for Blender dependencies
+This script will install repositories and packages for
+building Blender library dependencies, including:
+  - GCC 14
+  - CUDA 12.8
 EOF
-  if [[ "${SKIP_BLENDER_PACKAGES}" != "1" ]]; then
-    echo "  - Packages to build Blender (e.g. X11/Wayland)"
+  if [ "$ARCH" = "x86_64" ]; then
+    echo "  - ROCm 7.2.1"
   fi
   cat <<EOF
 ############################################################
@@ -89,7 +107,7 @@ enable_repos() {
 
 # GCC toolset
 install_gcc() {
-  echo "[gcc]:   Installing gcc-toolset-14"
+  echo "[gcc]:   Installing GCC 14"
 
   # Install all the packages needed for a new tool-chain.
   #
@@ -101,21 +119,19 @@ install_gcc() {
   # Currently this is defined by the VFX platform (CY2026), see: https://vfxplatform.com
   dnf -y install gcc-toolset-14
 
-  # Set gcc-toolset-14 as default shell env, so nvcc/other tools building
+  # Set GCC 14 as default shell env, so nvcc/other tools building
   # against it don't need to be invoked with `scl enable` manually.
-  echo "[gcc]:   Enabling gcc-toolset-14 by default via /etc/profile.d"
+  echo "[gcc]:   Enabling GCC 14 by default via /etc/profile.d"
   tee /etc/profile.d/enablegcc14.sh > /dev/null <<'PROFEOF'
 #!/bin/bash
-set +u
 source scl_source enable gcc-toolset-14
-set -u
 PROFEOF
   chmod +x /etc/profile.d/enablegcc14.sh
   set +u
   source /etc/profile.d/enablegcc14.sh
   set -u
 
-  echo "[gcc]:   gcc-toolset-14 installed"
+  echo "[gcc]:   GCC 14 installed"
 }
 
 # CUDA
