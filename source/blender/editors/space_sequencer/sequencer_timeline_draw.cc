@@ -1002,7 +1002,7 @@ static void draw_strip_icons(const TimelineDrawContext &ctx,
         draw_icon_centered(ctx, rect, ICON_LIBRARY_DATA_BROKEN, col);
       }
       if (missing_media) {
-        draw_icon_centered(ctx, rect, ICON_STATUS_ERROR, col);
+        draw_icon_centered(ctx, rect, ICON_STATUS_ERROR_FILLED, col);
       }
     }
   }
