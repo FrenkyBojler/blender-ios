@@ -22,11 +22,11 @@ struct BsdfEval {
   float weight;
 };
 
-/* Approximation types for integrating a polygon/ellipse light. */
+/* Approximation types for computing the irradiance (form factor) of polygon/ellipse lights. */
 enum class LTCFormfactorType : uchar {
-  /* Irradiance of a horizon-clipped sphere on a single-sided surface. */
+  /* Irradiance of a horizon-clipped sphere affecting a single-sided surface. */
   OnesidedCosineSphereClipped = 0u,
-  /* Irradiance of an unclipped sphere on a two-sided surface. */
+  /* Irradiance of an unclipped sphere affecting a two-sided surface. */
   TwosidedCosineSphere = 1u,
 };
 

@@ -24,7 +24,7 @@ namespace eevee::ltc {
 
 namespace detail {
 
-/* Diffuse *clipped* sphere integral. This is a multiplier divided by form_factor. */
+/* Diffuse *clipped* sphere integral. This is a multiplier, with form_factor divided out. */
 float diffuse_sphere_integral(sampler2DArray util_tx, float avg_dir_z, float form_factor)
 {
 #if 1
@@ -231,14 +231,14 @@ float attenuate_disk(float3x3 Minv, float3 L, float3 verts[4])
  */
 float evaluate_quad(sampler2DArray util_tx, float3 corners[4], LTCData ltc_data)
 {
-  /* Transform the quad into LTC space. */
+  /* Transform the quad corners into LTC space, and project on to sphere. */
   float3 V[4] = {normalize(ltc_data.Minv * corners[0]),
                  normalize(ltc_data.Minv * corners[1]),
                  normalize(ltc_data.Minv * corners[2]),
                  normalize(ltc_data.Minv * corners[3])};
 
-  /* Approximation using a sphere having the same irradiance as the unclipped quad.
-   * Finding a clipped sphere diffuse integral is easier than horizon-clipping the quad. */
+  /* Approximation using a sphere contributing the same irradiance as the unclipped quad.
+   * Finding a clipped sphere's irradiance is easier than horizon-clipping the quad. */
   float3 avg_dir;
   avg_dir = detail::edge_integral_vec(V[0], V[1]);
   avg_dir += detail::edge_integral_vec(V[1], V[2]);
