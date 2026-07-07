@@ -1,7 +1,7 @@
 name: Python API Documentation
 about: File a bug report for the python API documentation
 labels:
-  - "Type/Report"
+  - "Type/Bug"
   - "Status/Needs Triage"
   - "Priority/Normal"
 body:
@@ -36,4 +36,4 @@ body:
       value: |
                 ### Help the developers
 
-                Bug fixing is important, the developers will handle reports swiftly. For that reason, carefully provide exact steps and a **small and simple Python scipt** if neccesarry to reproduce the problem. You do your half of the work, then we do our half!
+                Bug fixing is important, the developers will handle reports swiftly. For that reason, carefully provide exact steps and a **small and simple Python script** if necessary to reproduce the problem. You do your half of the work, then we do our half!

@@ -6,33 +6,35 @@
  * \ingroup edmesh
  */
 
+#include <fmt/format.h>
+
 #include "MEM_guardedalloc.h"
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_global.h"
-#include "BKE_layer.h"
+#include "BKE_global.hh"
+#include "BKE_layer.hh"
+#include "BKE_screen.hh"
 #include "BKE_unit.hh"
-
-#include "DNA_curveprofile_types.h"
-#include "DNA_mesh_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_mesh.hh"
@@ -43,7 +45,9 @@
 #include "ED_util.hh"
 #include "ED_view3d.hh"
 
-#include "mesh_intern.h" /* own include */
+#include "mesh_intern.hh" /* own include */
+
+namespace blender {
 
 #define MVAL_PIXEL_MARGIN 5.0f
 
@@ -60,6 +64,8 @@
 
 static const char *value_rna_name[NUM_VALUE_KINDS] = {
     "offset", "offset_pct", "profile", "segments"};
+static const float value_snap_increments[NUM_VALUE_KINDS] = {0.1f, 5.0f, 0.0f, 0.0f};
+static const float value_increments_precision_factors[NUM_VALUE_KINDS] = {0.1f, 0.2f, 0.0f, 0.0f};
 static const float value_clamp_min[NUM_VALUE_KINDS] = {0.0f, 0.0f, PROFILE_HARD_MIN, 1.0f};
 static const float value_clamp_max[NUM_VALUE_KINDS] = {1e6, 100.0f, 1.0f, SEGMENTS_HARD_MAX};
 static const float value_start[NUM_VALUE_KINDS] = {0.0f, 0.0f, 0.5f, 1.0f};
@@ -80,8 +86,9 @@ struct BevelData {
   float max_obj_scale;
   bool is_modal;
 
-  BevelObjectStore *ob_store;
-  uint ob_store_len;
+  bool use_snap;
+  bool use_precision;
+  Vector<BevelObjectStore> ob_store;
 
   /* modal only */
   int launch_event;
@@ -91,6 +98,9 @@ struct BevelData {
   float segments;   /* Segments as float so smooth mouse pan works in small increments */
 
   CurveProfile *custom_profile;
+
+  bool use_automerge;
+  double automerge_threshold;
 };
 
 enum {
@@ -111,6 +121,10 @@ enum {
   BEV_MODAL_INNER_MITER_CHANGE,
   BEV_MODAL_PROFILE_TYPE_CHANGE,
   BEV_MODAL_VERTEX_MESH_CHANGE,
+  BEV_MODAL_SNAP_ON,
+  BEV_MODAL_SNAP_OFF,
+  BEV_MODAL_PRECISION_ON,
+  BEV_MODAL_PRECISION_OFF
 };
 
 static float get_bevel_offset(wmOperator *op)
@@ -123,29 +137,24 @@ static float get_bevel_offset(wmOperator *op)
 
 static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
 {
-  char status_text[UI_MAX_DRAW_STR];
-  char buf[UI_MAX_DRAW_STR];
-  char *p = buf;
-  int available_len = sizeof(buf);
   Scene *sce = CTX_data_scene(C);
-
-#define WM_MODALKEY(_id) \
-  WM_modalkeymap_operator_items_to_string_buf( \
-      op->type, (_id), true, UI_MAX_SHORTCUT_STR, &available_len, &p)
+  BevelData *opdata = static_cast<BevelData *>(op->customdata);
 
   char offset_str[NUM_STR_REP_LEN];
   if (RNA_enum_get(op->ptr, "offset_type") == BEVEL_AMT_PERCENT) {
-    SNPRINTF(offset_str, "%.1f%%", RNA_float_get(op->ptr, "offset_pct"));
+    SNPRINTF_UTF8(offset_str, "%.1f%%", RNA_float_get(op->ptr, "offset_pct"));
   }
   else {
     double offset_val = double(RNA_float_get(op->ptr, "offset"));
-    BKE_unit_value_as_string(offset_str,
-                             NUM_STR_REP_LEN,
-                             offset_val * sce->unit.scale_length,
-                             3,
-                             B_UNIT_LENGTH,
-                             &sce->unit,
-                             true);
+    const int precision = opdata->shift_value[opdata->value_mode] == -1.0f ? 4 : 7;
+    BKE_unit_value_as_string_scaled(offset_str,
+                                    NUM_STR_REP_LEN,
+                                    offset_val,
+                                    precision * -1,
+                                    B_UNIT_LENGTH,
+                                    sce->unit,
+                                    true,
+                                    true);
   }
 
   PropertyRNA *prop;
@@ -153,6 +162,21 @@ static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
   prop = RNA_struct_find_property(op->ptr, "offset_type");
   RNA_property_enum_name_gettexted(
       C, op->ptr, prop, RNA_property_enum_get(op->ptr, prop), &mode_str);
+
+  /* Shown in area header. */
+
+  const std::string header_status = fmt::format("{}: {}, {}: {}, {}: {}",
+                                                mode_str,
+                                                offset_str,
+                                                IFACE_("Segments"),
+                                                RNA_int_get(op->ptr, "segments"),
+                                                IFACE_("Profile Shape"),
+                                                RNA_float_get(op->ptr, "profile"));
+
+  ED_area_status_text(CTX_wm_area(C), header_status.c_str());
+
+  /* Shown on Status Bar. */
+
   prop = RNA_struct_find_property(op->ptr, "profile_type");
   RNA_property_enum_name_gettexted(
       C, op->ptr, prop, RNA_property_enum_get(op->ptr, prop), &profile_type_str);
@@ -169,58 +193,61 @@ static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
   RNA_property_enum_name_gettexted(
       C, op->ptr, prop, RNA_property_enum_get(op->ptr, prop), &affect_str);
 
-  SNPRINTF(status_text,
-           RPT_("%s: Confirm, "
-                "%s: Cancel, "
-                "%s: Width Type (%s), "
-                "%s: Width (%s), "
-                "%s: Segments (%d), "
-                "%s: Profile (%.3f), "
-                "%s: Clamp Overlap (%s), "
-                "%s: Affect (%s), "
-                "%s: Outer Miter (%s), "
-                "%s: Inner Miter (%s), "
-                "%s: Harden Normals (%s), "
-                "%s: Mark Seam (%s), "
-                "%s: Mark Sharp (%s), "
-                "%s: Profile Type (%s), "
-                "%s: Intersection (%s)"),
-           WM_MODALKEY(BEV_MODAL_CONFIRM),
-           WM_MODALKEY(BEV_MODAL_CANCEL),
-           WM_MODALKEY(BEV_MODAL_OFFSET_MODE_CHANGE),
-           mode_str,
-           WM_MODALKEY(BEV_MODAL_VALUE_OFFSET),
-           offset_str,
-           WM_MODALKEY(BEV_MODAL_VALUE_SEGMENTS),
-           RNA_int_get(op->ptr, "segments"),
-           WM_MODALKEY(BEV_MODAL_VALUE_PROFILE),
-           RNA_float_get(op->ptr, "profile"),
-           WM_MODALKEY(BEV_MODAL_CLAMP_OVERLAP_TOGGLE),
-           WM_bool_as_string(RNA_boolean_get(op->ptr, "clamp_overlap")),
-           WM_MODALKEY(BEV_MODAL_AFFECT_CHANGE),
-           affect_str,
-           WM_MODALKEY(BEV_MODAL_OUTER_MITER_CHANGE),
-           omiter_str,
-           WM_MODALKEY(BEV_MODAL_INNER_MITER_CHANGE),
-           imiter_str,
-           WM_MODALKEY(BEV_MODAL_HARDEN_NORMALS_TOGGLE),
-           WM_bool_as_string(RNA_boolean_get(op->ptr, "harden_normals")),
-           WM_MODALKEY(BEV_MODAL_MARK_SEAM_TOGGLE),
-           WM_bool_as_string(RNA_boolean_get(op->ptr, "mark_seam")),
-           WM_MODALKEY(BEV_MODAL_MARK_SHARP_TOGGLE),
-           WM_bool_as_string(RNA_boolean_get(op->ptr, "mark_sharp")),
-           WM_MODALKEY(BEV_MODAL_PROFILE_TYPE_CHANGE),
-           profile_type_str,
-           WM_MODALKEY(BEV_MODAL_VERTEX_MESH_CHANGE),
-           vmesh_str);
+  WorkspaceStatus status(C);
+  status.opmodal(IFACE_("Confirm"), op->type, BEV_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op->type, BEV_MODAL_CANCEL);
+  status.opmodal(
+      IFACE_("Precision mode"), op->type, BEV_MODAL_PRECISION_ON, opdata->use_precision);
+  status.opmodal(IFACE_("Snap"), op->type, BEV_MODAL_SNAP_ON, opdata->use_snap);
+  status.opmodal(IFACE_("Width Type"), op->type, BEV_MODAL_OFFSET_MODE_CHANGE);
 
-#undef WM_MODALKEY
+  status.opmodal(
+      IFACE_("Width"), op->type, BEV_MODAL_VALUE_OFFSET, opdata->value_mode == OFFSET_VALUE);
+  status.opmodal(IFACE_("Segments"),
+                 op->type,
+                 BEV_MODAL_VALUE_SEGMENTS,
+                 opdata->value_mode == SEGMENTS_VALUE);
+  status.opmodal(IFACE_("Profile Shape"),
+                 op->type,
+                 BEV_MODAL_VALUE_PROFILE,
+                 opdata->value_mode == PROFILE_VALUE);
 
-  ED_workspace_status_text(C, status_text);
+  status.opmodal(IFACE_("Clamp"),
+                 op->type,
+                 BEV_MODAL_CLAMP_OVERLAP_TOGGLE,
+                 RNA_boolean_get(op->ptr, "clamp_overlap"));
+  status.opmodal(IFACE_("Harden"),
+                 op->type,
+                 BEV_MODAL_HARDEN_NORMALS_TOGGLE,
+                 RNA_boolean_get(op->ptr, "harden_normals"));
+  status.opmodal(
+      IFACE_("Seam"), op->type, BEV_MODAL_MARK_SEAM_TOGGLE, RNA_boolean_get(op->ptr, "mark_seam"));
+  status.opmodal(IFACE_("Sharp"),
+                 op->type,
+                 BEV_MODAL_MARK_SHARP_TOGGLE,
+                 RNA_boolean_get(op->ptr, "mark_sharp"));
+
+  std::string desc;
+
+  desc = fmt::format("{} ({}) ", IFACE_("Affect"), affect_str);
+  status.opmodal(desc, op->type, BEV_MODAL_AFFECT_CHANGE);
+
+  desc = fmt::format("{} ({}) ", IFACE_("Outer"), omiter_str);
+  status.opmodal(desc, op->type, BEV_MODAL_OUTER_MITER_CHANGE);
+
+  desc = fmt::format("{} ({}) ", IFACE_("Inner"), imiter_str);
+  status.opmodal(desc, op->type, BEV_MODAL_INNER_MITER_CHANGE);
+
+  desc = fmt::format("{} ({}) ", IFACE_("Profile Type"), profile_type_str);
+  status.opmodal(desc, op->type, BEV_MODAL_PROFILE_TYPE_CHANGE);
+
+  desc = fmt::format("{} ({}) ", IFACE_("Intersection"), vmesh_str);
+  status.opmodal(desc, op->type, BEV_MODAL_VERTEX_MESH_CHANGE);
 }
 
 static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
@@ -231,32 +258,27 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
     RNA_float_set(op->ptr, "offset_pct", 0.0f);
   }
 
-  op->customdata = MEM_mallocN(sizeof(BevelData), "beveldata_mesh_operator");
+  op->customdata = MEM_new<BevelData>(__func__);
   BevelData *opdata = static_cast<BevelData *>(op->customdata);
-  uint objects_used_len = 0;
   opdata->max_obj_scale = FLT_MIN;
 
   /* Put the Curve Profile from the toolsettings into the opdata struct */
   opdata->custom_profile = ts->custom_bevel_profile_preset;
 
+  opdata->use_automerge = scene->toolsettings->automerge & AUTO_MERGE;
+  opdata->automerge_threshold = scene->toolsettings->doublimit;
+
   {
-    uint ob_store_len = 0;
-    Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, v3d, &ob_store_len);
-    opdata->ob_store = static_cast<BevelObjectStore *>(
-        MEM_malloc_arrayN(ob_store_len, sizeof(*opdata->ob_store), __func__));
-    for (uint ob_index = 0; ob_index < ob_store_len; ob_index++) {
-      Object *obedit = objects[ob_index];
-      float scale = mat4_to_scale(obedit->object_to_world);
+    const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+        *bmain, scene, view_layer, v3d);
+    for (Object *obedit : objects) {
+      float scale = mat4_to_scale(obedit->object_to_world().ptr());
       opdata->max_obj_scale = max_ff(opdata->max_obj_scale, scale);
       BMEditMesh *em = BKE_editmesh_from_object(obedit);
       if (em->bm->totvertsel > 0) {
-        opdata->ob_store[objects_used_len].ob = obedit;
-        objects_used_len++;
+        opdata->ob_store.append(BevelObjectStore{obedit, {}});
       }
     }
-    MEM_freeN(objects);
-    opdata->ob_store_len = objects_used_len;
   }
 
   opdata->is_modal = is_modal;
@@ -288,13 +310,15 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
   if (is_modal) {
     ARegion *region = CTX_wm_region(C);
 
-    for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
-      Object *obedit = opdata->ob_store[ob_index].ob;
+    for (BevelObjectStore &ob_store : opdata->ob_store) {
+      Object *obedit = ob_store.ob;
       BMEditMesh *em = BKE_editmesh_from_object(obedit);
-      opdata->ob_store[ob_index].mesh_backup = EDBM_redo_state_store(em);
+      ob_store.mesh_backup = EDBM_redo_state_store(em);
     }
-    opdata->draw_handle_pixel = ED_region_draw_cb_activate(
-        region->type, ED_region_draw_mouse_line_cb, opdata->mcenter, REGION_DRAW_POST_PIXEL);
+    opdata->draw_handle_pixel = ED_region_draw_cb_activate(region->runtime->type,
+                                                           ED_region_draw_mouse_line_cb,
+                                                           opdata->mcenter,
+                                                           REGION_DRAW_POST_PIXEL);
     G.moving = G_TRANSFORM_EDIT;
   }
 
@@ -305,7 +329,7 @@ static bool edbm_bevel_calc(wmOperator *op)
 {
   BevelData *opdata = static_cast<BevelData *>(op->customdata);
   BMOperator bmop;
-  bool changed = false;
+  bool changed_multi = false;
 
   const float offset = get_bevel_offset(op);
   const int offset_type = RNA_enum_get(op->ptr, "offset_type");
@@ -325,16 +349,16 @@ static bool edbm_bevel_calc(wmOperator *op)
   const float spread = RNA_float_get(op->ptr, "spread");
   const int vmesh_method = RNA_enum_get(op->ptr, "vmesh_method");
 
-  for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
-    Object *obedit = opdata->ob_store[ob_index].ob;
+  for (BevelObjectStore &ob_store : opdata->ob_store) {
+    Object *obedit = ob_store.ob;
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
     /* revert to original mesh */
     if (opdata->is_modal) {
-      EDBM_redo_state_restore(&opdata->ob_store[ob_index].mesh_backup, em, false);
+      EDBM_redo_state_restore(&ob_store.mesh_backup, em, false);
     }
 
-    const int material = CLAMPIS(material_init, -1, obedit->totcol - 1);
+    const int material = std::clamp(material_init, -1, obedit->totcol - 1);
 
     EDBM_op_init(em,
                  &bmop,
@@ -372,21 +396,40 @@ static bool edbm_bevel_calc(wmOperator *op)
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       BMO_slot_buffer_hflag_enable(
           em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+      if (affect == BEVEL_AFFECT_VERTICES) {
+        BMO_slot_buffer_hflag_enable(
+            em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
+        BMO_slot_buffer_hflag_enable(
+            em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
+
+        if ((em->bm->selectmode & SCE_SELECT_VERTEX) == 0) {
+          BM_mesh_select_mode_flush_ex(
+              em->bm, SCE_SELECT_VERTEX, BMSelectFlushFlag::RecalcLenEdge);
+        }
+      }
     }
+
+    bool changed = false;
+
+    if (opdata->use_automerge) {
+      changed |= EDBM_automerge_connected(
+          obedit, false, BM_ELEM_SELECT, opdata->automerge_threshold);
+    }
+
+    changed |= EDBM_op_finish(em, &bmop, op, true);
 
     /* no need to de-select existing geometry */
-    if (!EDBM_op_finish(em, &bmop, op, true)) {
-      continue;
+    if (changed) {
+      EDBMUpdate_Params params{};
+      params.calc_looptris = true;
+      params.calc_normals = true;
+      params.is_destructive = true;
+      EDBM_update(id_cast<Mesh *>(obedit->data), &params);
     }
 
-    EDBMUpdate_Params params{};
-    params.calc_looptris = true;
-    params.calc_normals = true;
-    params.is_destructive = true;
-    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
-    changed = true;
+    changed_multi |= changed;
   }
-  return changed;
+  return changed_multi;
 }
 
 static void edbm_bevel_exit(bContext *C, wmOperator *op)
@@ -398,25 +441,24 @@ static void edbm_bevel_exit(bContext *C, wmOperator *op)
     ED_area_status_text(area, nullptr);
   }
 
-  for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
-    Object *obedit = opdata->ob_store[ob_index].ob;
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  for (BevelObjectStore &ob_store : opdata->ob_store) {
+    BMEditMesh *em = BKE_editmesh_from_object(ob_store.ob);
     /* Without this, faces surrounded by selected edges/verts will be unselected. */
     if ((em->selectmode & SCE_SELECT_FACE) == 0) {
       EDBM_selectmode_flush(em);
     }
+    EDBM_uvselect_clear(em);
   }
 
   if (opdata->is_modal) {
     ARegion *region = CTX_wm_region(C);
-    for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
-      EDBM_redo_state_free(&opdata->ob_store[ob_index].mesh_backup);
+    for (BevelObjectStore &ob_store : opdata->ob_store) {
+      EDBM_redo_state_free(&ob_store.mesh_backup);
     }
-    ED_region_draw_cb_exit(region->type, opdata->draw_handle_pixel);
+    ED_region_draw_cb_exit(region->runtime->type, opdata->draw_handle_pixel);
     G.moving = 0;
   }
-  MEM_SAFE_FREE(opdata->ob_store);
-  MEM_SAFE_FREE(op->customdata);
+  MEM_delete(opdata);
   op->customdata = nullptr;
 }
 
@@ -424,16 +466,16 @@ static void edbm_bevel_cancel(bContext *C, wmOperator *op)
 {
   BevelData *opdata = static_cast<BevelData *>(op->customdata);
   if (opdata->is_modal) {
-    for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
-      Object *obedit = opdata->ob_store[ob_index].ob;
+    for (BevelObjectStore &ob_store : opdata->ob_store) {
+      Object *obedit = ob_store.ob;
       BMEditMesh *em = BKE_editmesh_from_object(obedit);
-      EDBM_redo_state_restore_and_free(&opdata->ob_store[ob_index].mesh_backup, em, true);
+      EDBM_redo_state_restore_and_free(&ob_store.mesh_backup, em, true);
 
       EDBMUpdate_Params params{};
       params.calc_looptris = false;
       params.calc_normals = true;
       params.is_destructive = true;
-      EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+      EDBM_update(id_cast<Mesh *>(obedit->data), &params);
     }
   }
 
@@ -444,7 +486,7 @@ static void edbm_bevel_cancel(bContext *C, wmOperator *op)
 }
 
 /* bevel! yay!! */
-static int edbm_bevel_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_bevel_exec(bContext *C, wmOperator *op)
 {
   if (!edbm_bevel_init(C, op, false)) {
     return OPERATOR_CANCELLED;
@@ -484,7 +526,7 @@ static void edbm_bevel_calc_initial_length(wmOperator *op, const wmEvent *event,
   opdata->initial_length[opdata->value_mode] = len;
 }
 
-static int edbm_bevel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_bevel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -498,7 +540,9 @@ static int edbm_bevel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   /* initialize mouse values */
   float center_3d[3];
-  if (!calculateTransformCenter(C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter)) {
+  if (!ed::transform::calculateTransformCenter(
+          C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
+  {
     /* in this case the tool will likely do nothing,
      * ideally this will never happen and should be checked for above */
     opdata->mcenter[0] = opdata->mcenter[1] = 0;
@@ -541,7 +585,7 @@ static void edbm_bevel_mouse_set_value(wmOperator *op, const wmEvent *event)
   value = value_start[vmode] + value * opdata->scale[vmode];
 
   /* Fake shift-transform... */
-  if (event->modifier & KM_SHIFT) {
+  if (opdata->use_precision) {
     if (opdata->shift_value[vmode] < 0.0f) {
       opdata->shift_value[vmode] = (vmode == SEGMENTS_VALUE) ?
                                        opdata->segments :
@@ -551,6 +595,16 @@ static void edbm_bevel_mouse_set_value(wmOperator *op, const wmEvent *event)
   }
   else if (opdata->shift_value[vmode] >= 0.0f) {
     opdata->shift_value[vmode] = -1.0f;
+  }
+
+  if (opdata->use_snap) {
+    const float increment_factor = opdata->use_precision ?
+                                       (value_snap_increments[vmode] *
+                                        value_increments_precision_factors[vmode]) :
+                                       value_snap_increments[vmode];
+    if (increment_factor != 0.0f) {
+      value = increment_factor * roundf(value / increment_factor);
+    }
   }
 
   /* Clamp according to value mode, and store value back. */
@@ -638,6 +692,10 @@ wmKeyMap *bevel_modal_keymap(wmKeyConfig *keyconf)
        0,
        "Change Intersection Method",
        "Cycle through intersection methods"},
+      {BEV_MODAL_SNAP_ON, "SNAP_ON", 0, "Snap", ""},
+      {BEV_MODAL_SNAP_OFF, "SNAP_OFF", 0, "Snap (OFF)", ""},
+      {BEV_MODAL_PRECISION_ON, "PRECISION_ON", 0, "Precision", ""},
+      {BEV_MODAL_PRECISION_OFF, "PRECISION_OFF", 0, "Precision (OFF)", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -655,7 +713,7 @@ wmKeyMap *bevel_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   BevelData *opdata = static_cast<BevelData *>(op->customdata);
   const bool has_numinput = hasNumInput(&opdata->num_input[opdata->value_mode]);
@@ -873,6 +931,34 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
         handled = true;
         break;
       }
+      case BEV_MODAL_PRECISION_ON: {
+        opdata->use_precision = true;
+        edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_update_status_text(C, op);
+        handled = true;
+        break;
+      }
+      case BEV_MODAL_PRECISION_OFF: {
+        opdata->use_precision = false;
+        edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_update_status_text(C, op);
+        handled = true;
+        break;
+      }
+      case BEV_MODAL_SNAP_ON: {
+        opdata->use_snap = true;
+        edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_update_status_text(C, op);
+        handled = true;
+        break;
+      }
+      case BEV_MODAL_SNAP_OFF: {
+        opdata->use_snap = false;
+        edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_update_status_text(C, op);
+        handled = true;
+        break;
+      }
     }
   }
 
@@ -891,79 +977,78 @@ static int edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 static void edbm_bevel_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
-  uiLayout *col, *row;
+  ui::Layout &layout = *op->layout;
 
   int profile_type = RNA_enum_get(op->ptr, "profile_type");
   int offset_type = RNA_enum_get(op->ptr, "offset_type");
   bool affect_type = RNA_enum_get(op->ptr, "affect");
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  row = uiLayoutRow(layout, false);
-  uiItemR(row, op->ptr, "affect", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  ui::Layout *row = &layout.row(false);
+  row->prop(op->ptr, "affect", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiItemS(layout);
+  layout.separator();
 
-  uiItemR(layout, op->ptr, "offset_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(op->ptr, "offset_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (offset_type == BEVEL_AMT_PERCENT) {
-    uiItemR(layout, op->ptr, "offset_pct", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(op->ptr, "offset_pct", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    uiItemR(layout, op->ptr, "offset", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  uiItemR(layout, op->ptr, "segments", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(op->ptr, "segments", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (ELEM(profile_type, BEVEL_PROFILE_SUPERELLIPSE, BEVEL_PROFILE_CUSTOM)) {
-    uiItemR(layout,
-            op->ptr,
-            "profile",
-            UI_ITEM_R_SLIDER,
-            (profile_type == BEVEL_PROFILE_SUPERELLIPSE) ? IFACE_("Shape") : IFACE_("Miter Shape"),
-            ICON_NONE);
+    layout.prop(op->ptr,
+                "profile",
+                ui::ITEM_R_SLIDER,
+                (profile_type == BEVEL_PROFILE_SUPERELLIPSE) ? IFACE_("Profile Shape") :
+                                                               IFACE_("Miter Profile Shape"),
+                ICON_NONE);
   }
-  uiItemR(layout, op->ptr, "material", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(op->ptr, "material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, op->ptr, "harden_normals", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "clamp_overlap", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, op->ptr, "loop_slide", UI_ITEM_NONE, nullptr, ICON_NONE);
+  ui::Layout *col = &layout.column(true);
+  col->prop(op->ptr, "harden_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(op->ptr, "clamp_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(op->ptr, "loop_slide", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumnWithHeading(layout, true, IFACE_("Mark"));
-  uiLayoutSetActive(col, affect_type == BEVEL_AFFECT_EDGES);
-  uiItemR(col, op->ptr, "mark_seam", UI_ITEM_NONE, IFACE_("Seams"), ICON_NONE);
-  uiItemR(col, op->ptr, "mark_sharp", UI_ITEM_NONE, IFACE_("Sharp"), ICON_NONE);
+  col = &layout.column(true, IFACE_("Mark"));
+  col->active_set(affect_type == BEVEL_AFFECT_EDGES);
+  col->prop(op->ptr, "mark_seam", UI_ITEM_NONE, IFACE_("Seams"), ICON_NONE);
+  col->prop(op->ptr, "mark_sharp", UI_ITEM_NONE, IFACE_("Sharp"), ICON_NONE);
 
-  uiItemS(layout);
+  layout.separator();
 
-  col = uiLayoutColumn(layout, false);
-  uiLayoutSetActive(col, affect_type == BEVEL_AFFECT_EDGES);
-  uiItemR(col, op->ptr, "miter_outer", UI_ITEM_NONE, IFACE_("Miter Outer"), ICON_NONE);
-  uiItemR(col, op->ptr, "miter_inner", UI_ITEM_NONE, IFACE_("Inner"), ICON_NONE);
+  col = &layout.column(false);
+  col->active_set(affect_type == BEVEL_AFFECT_EDGES);
+  col->prop(op->ptr, "miter_outer", UI_ITEM_NONE, IFACE_("Miter Outer"), ICON_NONE);
+  col->prop(op->ptr, "miter_inner", UI_ITEM_NONE, IFACE_("Inner"), ICON_NONE);
   if (RNA_enum_get(op->ptr, "miter_inner") == BEVEL_MITER_ARC) {
-    uiItemR(col, op->ptr, "spread", UI_ITEM_NONE, nullptr, ICON_NONE);
+    col->prop(op->ptr, "spread", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  uiItemS(layout);
+  layout.separator();
 
-  col = uiLayoutColumn(layout, false);
-  uiLayoutSetActive(col, affect_type == BEVEL_AFFECT_EDGES);
-  uiItemR(col, op->ptr, "vmesh_method", UI_ITEM_NONE, IFACE_("Intersection Type"), ICON_NONE);
+  col = &layout.column(false);
+  col->active_set(affect_type == BEVEL_AFFECT_EDGES);
+  col->prop(op->ptr, "vmesh_method", UI_ITEM_NONE, IFACE_("Intersection Type"), ICON_NONE);
 
-  uiItemR(layout, op->ptr, "face_strength_mode", UI_ITEM_NONE, IFACE_("Face Strength"), ICON_NONE);
+  layout.prop(op->ptr, "face_strength_mode", UI_ITEM_NONE, IFACE_("Face Strength"), ICON_NONE);
 
-  uiItemS(layout);
+  layout.separator();
 
-  row = uiLayoutRow(layout, false);
-  uiItemR(row, op->ptr, "profile_type", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
+  row = &layout.row(false);
+  row->prop(op->ptr, "profile_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   if (profile_type == BEVEL_PROFILE_CUSTOM) {
     /* Get an RNA pointer to ToolSettings to give to the curve profile template code. */
     Scene *scene = CTX_data_scene(C);
-    PointerRNA toolsettings_ptr = RNA_pointer_create(
-        &scene->id, &RNA_ToolSettings, scene->toolsettings);
-    uiTemplateCurveProfile(layout, &toolsettings_ptr, "custom_bevel_profile_preset");
+    PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(
+        &scene->id, RNA_ToolSettings, scene->toolsettings);
+    template_curve_profile(&layout, &toolsettings_ptr, "custom_bevel_profile_preset");
   }
 }
 
@@ -1027,7 +1112,7 @@ void MESH_OT_bevel(wmOperatorType *ot)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem vmesh_method_items[] = {
+  static const EnumPropertyItem vmesh_method_items[] = {
       {BEVEL_VMESH_ADJ, "ADJ", 0, "Grid Fill", "Default patterned fill"},
       {BEVEL_VMESH_CUTOFF,
        "CUTOFF",
@@ -1048,7 +1133,7 @@ void MESH_OT_bevel(wmOperatorType *ot)
   ot->description = "Cut into selected items at an angle to create bevel or chamfer";
   ot->idname = "MESH_OT_bevel";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_bevel_exec;
   ot->invoke = edbm_bevel_invoke;
   ot->modal = edbm_bevel_modal;
@@ -1118,9 +1203,10 @@ void MESH_OT_bevel(wmOperatorType *ot)
   RNA_def_boolean(
       ot->srna, "loop_slide", true, "Loop Slide", "Prefer sliding along edges to even widths");
 
-  RNA_def_boolean(ot->srna, "mark_seam", false, "Mark Seams", "Mark Seams along beveled edges");
-
-  RNA_def_boolean(ot->srna, "mark_sharp", false, "Mark Sharp", "Mark beveled edges as sharp");
+  RNA_def_boolean(
+      ot->srna, "mark_seam", false, "Mark Seams", "Preserve seams along beveled edges");
+  RNA_def_boolean(
+      ot->srna, "mark_sharp", false, "Mark Sharp", "Preserve sharp edges along beveled edges");
 
   RNA_def_int(ot->srna,
               "material",
@@ -1179,3 +1265,5 @@ void MESH_OT_bevel(wmOperatorType *ot)
   prop = RNA_def_boolean(ot->srna, "release_confirm", false, "Confirm on Release", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
+
+}  // namespace blender

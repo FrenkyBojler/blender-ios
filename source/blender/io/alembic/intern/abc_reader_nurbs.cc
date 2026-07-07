@@ -8,7 +8,6 @@
 
 #include "abc_reader_nurbs.h"
 #include "abc_axis_conversion.h"
-#include "abc_reader_transform.h"
 #include "abc_util.h"
 
 #include "MEM_guardedalloc.h"
@@ -16,13 +15,16 @@
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_curve.hh"
 #include "BKE_object.hh"
+
+#include "CLG_log.h"
+
+namespace blender {
 
 using Alembic::AbcGeom::FloatArraySamplePtr;
 using Alembic::AbcGeom::kWrapExisting;
@@ -34,13 +36,13 @@ using Alembic::AbcGeom::INuPatch;
 using Alembic::AbcGeom::INuPatchSchema;
 using Alembic::AbcGeom::IObject;
 
-namespace blender::io::alembic {
+namespace io::alembic {
 
-AbcNurbsReader::AbcNurbsReader(const IObject &object, ImportSettings &settings)
-    : AbcObjectReader(object, settings)
+static CLG_LogRef LOG = {"io.alembic"};
+
+AbcNurbsReader::AbcNurbsReader(const AbcReaderConstructorArgs &args) : AbcObjectReader(args)
 {
   getNurbsPatches(m_iobject);
-  get_min_max_time(m_iobject, m_schemas[0].first, m_min_time, m_max_time);
 }
 
 bool AbcNurbsReader::valid() const
@@ -64,17 +66,17 @@ bool AbcNurbsReader::valid() const
 bool AbcNurbsReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::v12::ObjectHeader &alembic_header,
     const Object *const ob,
-    const char **err_str) const
+    const char **r_err_str) const
 {
   if (!Alembic::AbcGeom::INuPatch::matches(alembic_header)) {
-    *err_str = RPT_(
+    *r_err_str = RPT_(
         "Object type mismatch, Alembic object path pointed to NURBS when importing, but not any "
         "more");
     return false;
   }
 
   if (ob->type != OB_CURVES_LEGACY) {
-    *err_str = RPT_("Object type mismatch, Alembic object path points to NURBS");
+    *r_err_str = RPT_("Object type mismatch, Alembic object path points to NURBS");
     return false;
   }
 
@@ -89,7 +91,7 @@ static bool set_knots(const FloatArraySamplePtr &knots, float *&nu_knots)
 
   /* Skip first and last knots, as they are used for padding. */
   const size_t num_knots = knots->size() - 2;
-  nu_knots = static_cast<float *>(MEM_callocN(num_knots * sizeof(float), "abc_setsplineknotsu"));
+  nu_knots = MEM_new_array_zeroed<float>(num_knots, "abc_setsplineknotsu");
 
   for (size_t i = 0; i < num_knots; i++) {
     nu_knots[i] = (*knots)[i + 1];
@@ -100,13 +102,13 @@ static bool set_knots(const FloatArraySamplePtr &knots, float *&nu_knots)
 
 void AbcNurbsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelector &sample_sel)
 {
-  Curve *cu = static_cast<Curve *>(BKE_curve_add(bmain, m_data_name.c_str(), OB_SURF));
+  Curve *cu = BKE_curve_add(bmain, m_data_name.c_str(), OB_SURF);
   cu->actvert = CU_ACT_NONE;
 
   std::vector<std::pair<INuPatchSchema, IObject>>::iterator it;
 
   for (it = m_schemas.begin(); it != m_schemas.end(); ++it) {
-    Nurb *nu = static_cast<Nurb *>(MEM_callocN(sizeof(Nurb), "abc_getnurb"));
+    Nurb *nu = MEM_new<Nurb>("abc_getnurb");
     nu->flag = CU_SMOOTH;
     nu->type = CU_NURBS;
     nu->resolu = cu->resolu;
@@ -118,11 +120,12 @@ void AbcNurbsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSele
       smp = schema.getValue(sample_sel);
     }
     catch (Alembic::Util::Exception &ex) {
-      printf("Alembic: error reading nurbs sample for '%s/%s' at time %f: %s\n",
-             m_iobject.getFullName().c_str(),
-             schema.getName().c_str(),
-             sample_sel.getRequestedTime(),
-             ex.what());
+      CLOG_WARN(&LOG,
+                "Error reading nurbs sample for '%s/%s' at time %f: %s",
+                m_iobject.getFullName().c_str(),
+                schema.getName().c_str(),
+                sample_sel.getRequestedTime(),
+                ex.what());
       return;
     }
 
@@ -137,16 +140,17 @@ void AbcNurbsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSele
     const FloatArraySamplePtr weights = smp.getPositionWeights();
 
     const size_t num_points = positions->size();
+    const bool has_weights = weights && weights->size() >= num_points;
 
-    nu->bp = static_cast<BPoint *>(MEM_callocN(num_points * sizeof(BPoint), "abc_setsplinetype"));
+    nu->bp = MEM_new_array_zeroed<BPoint>(num_points, "abc_setsplinetype");
 
     BPoint *bp = nu->bp;
     float posw_in = 1.0f;
 
-    for (int i = 0; i < num_points; i++, bp++) {
+    for (size_t i = 0; i < num_points; i++, bp++) {
       const Imath::V3f &pos_in = (*positions)[i];
 
-      if (weights) {
+      if (has_weights) {
         posw_in = (*weights)[i];
       }
 
@@ -191,7 +195,7 @@ void AbcNurbsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSele
   }
 
   m_object = BKE_object_add_only_object(bmain, OB_SURF, m_object_name.c_str());
-  m_object->data = cu;
+  m_object->data = id_cast<ID *>(cu);
 }
 
 void AbcNurbsReader::getNurbsPatches(const IObject &obj)
@@ -233,4 +237,5 @@ void AbcNurbsReader::getNurbsPatches(const IObject &obj)
   }
 }
 
-}  // namespace blender::io::alembic
+}  // namespace io::alembic
+}  // namespace blender

@@ -8,10 +8,6 @@
 
 #include "intern/node/deg_node_operation.hh"
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_utildefines.h"
-
 #include "intern/depsgraph.hh"
 #include "intern/node/deg_node_component.hh"
 #include "intern/node/deg_node_factory.hh"
@@ -47,6 +43,8 @@ const char *operationCodeAsString(OperationCode opcode)
       return "ANIMATION_EXIT";
     case OperationCode::DRIVER:
       return "DRIVER";
+    case OperationCode::DRIVER_UNSHARE:
+      return "DRIVER_UNSHARE";
     /* Scene related. */
     case OperationCode::SCENE_EVAL:
       return "SCENE_EVAL";
@@ -131,6 +129,8 @@ const char *operationCodeAsString(OperationCode opcode)
       return "BONE_DONE";
     case OperationCode::BONE_SEGMENTS:
       return "BONE_SEGMENTS";
+    case OperationCode::BONE_VISIBILITY:
+      return "BONE_VISIBILITY";
     /* Particle System. */
     case OperationCode::PARTICLE_SYSTEM_INIT:
       return "PARTICLE_SYSTEM_INIT";
@@ -162,12 +162,14 @@ const char *operationCodeAsString(OperationCode opcode)
     /* Collections. */
     case OperationCode::VIEW_LAYER_EVAL:
       return "VIEW_LAYER_EVAL";
-    /* Copy on write. */
-    case OperationCode::COPY_ON_WRITE:
-      return "COPY_ON_WRITE";
+    /* Copy on eval. */
+    case OperationCode::COPY_ON_EVAL:
+      return "COPY_ON_EVAL";
     /* Shading. */
     case OperationCode::SHADING:
       return "SHADING";
+    case OperationCode::SHADING_DONE:
+      return "SHADING_DONE";
     case OperationCode::MATERIAL_UPDATE:
       return "MATERIAL_UPDATE";
     case OperationCode::LIGHT_UPDATE:
@@ -197,9 +199,15 @@ const char *operationCodeAsString(OperationCode opcode)
     /* Sequencer. */
     case OperationCode::SEQUENCES_EVAL:
       return "SEQUENCES_EVAL";
-    /* instancing/duplication. */
-    case OperationCode::DUPLI:
-      return "DUPLI";
+    case OperationCode::COMPOSITOR_EVAL:
+      return "COMPOSITOR_EVAL";
+    /* instancing. */
+    case OperationCode::INSTANCER:
+      return "INSTANCER";
+    case OperationCode::INSTANCE:
+      return "INSTANCE";
+    case OperationCode::INSTANCE_GEOMETRY:
+      return "INSTANCE_GEOMETRY";
   }
   BLI_assert_msg(0, "Unhandled operation code, should never happen.");
   return "UNKNOWN";
@@ -207,14 +215,14 @@ const char *operationCodeAsString(OperationCode opcode)
 
 OperationNode::OperationNode() : name_tag(-1), flag(0) {}
 
-string OperationNode::identifier() const
+std::string OperationNode::identifier() const
 {
-  return string(operationCodeAsString(opcode)) + "(" + name + ")";
+  return std::string(operationCodeAsString(opcode)) + "(" + name + ")";
 }
 
-string OperationNode::full_identifier() const
+std::string OperationNode::full_identifier() const
 {
-  string owner_str = owner->owner->name;
+  std::string owner_str = owner->owner->name;
   if (owner->type == NodeType::BONE || !owner->name.empty()) {
     owner_str += "/" + owner->name;
   }

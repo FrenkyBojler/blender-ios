@@ -20,23 +20,36 @@ set(WEBP_EXTRA_ARGS
 if(WIN32)
   set(WEBP_BUILD_DIR ${BUILD_MODE}/)
 else()
-  set(WEBP_BUILD_DIR)
+  set(WEBP_BUILD_DIR "")
 endif()
 
 ExternalProject_Add(external_webp
   URL file://${PACKAGE_DIR}/${WEBP_FILE}
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${WEBP_HASH_TYPE}=${WEBP_HASH}
+  CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/webp
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/webp -Wno-dev ${DEFAULT_CMAKE_FLAGS} ${WEBP_EXTRA_ARGS}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/webp
+    -Wno-dev
+    ${DEFAULT_CMAKE_FLAGS}
+    ${WEBP_EXTRA_ARGS}
+
   INSTALL_DIR ${LIBDIR}/webp
 )
 
 if(WIN32)
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_webp after_install
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/webp ${HARVEST_TARGET}/webp
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/webp
+        ${HARVEST_TARGET}/webp
+
       DEPENDEES install
     )
   endif()
+else()
+  harvest(external_webp webp/lib webp/lib "*.a")
+  harvest(external_webp webp/include webp/include "*.h")
 endif()

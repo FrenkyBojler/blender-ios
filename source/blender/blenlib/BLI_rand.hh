@@ -10,7 +10,6 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-#include "BLI_utildefines.h"
 
 namespace blender {
 
@@ -23,6 +22,12 @@ class RandomNumberGenerator {
   {
     this->seed(seed);
   }
+
+  /**
+   * Creates a random number generator with a somewhat random seed. This can be used when
+   * determinism is not necessary or not desired.
+   */
+  static RandomNumberGenerator from_random_seed();
 
   /**
    * Set the seed for future random numbers.
@@ -50,6 +55,11 @@ class RandomNumberGenerator {
     return int32_t(x_ >> 17);
   }
 
+  uint64_t get_uint64()
+  {
+    return (uint64_t(this->get_uint32()) << 32) | this->get_uint32();
+  }
+
   /**
    * \return Random value (0..N), but never N.
    */
@@ -72,7 +82,7 @@ class RandomNumberGenerator {
    */
   float get_float()
   {
-    return (float)this->get_int32() / 0x80000000;
+    return float(this->get_int32()) / 0x80000000;
   }
 
   template<typename T> void shuffle(MutableSpan<T> values)

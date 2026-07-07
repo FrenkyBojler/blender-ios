@@ -8,10 +8,15 @@
 
 #pragma once
 
+#include <string>
+
+#include "BLI_vector.hh"
+
 #include "DNA_uuid_types.h"
 
+namespace blender {
+
 struct ARegion;
-struct AssetLibrary;
 struct FileAssetSelectParams;
 struct FileDirEntry;
 struct FileSelectParams;
@@ -22,12 +27,19 @@ struct ScrArea;
 struct SpaceFile;
 struct bContext;
 struct bScreen;
-struct uiBlock;
+namespace ui {
+struct Block;
+}
 struct wmOperator;
 struct wmWindow;
 struct wmWindowManager;
 struct View2D;
 struct rcti;
+namespace asset_system {
+class AssetLibrary;
+}
+
+enum eFileSortType : short;
 
 #define FILE_LAYOUT_HOR 1
 #define FILE_LAYOUT_VER 2
@@ -46,40 +58,51 @@ struct FileAttributeColumn {
   const char *name;
 
   float width;
-  /* The sort type to use when sorting by this column. */
-  int sort_type; /* eFileSortType */
+  /** The sort type to use when sorting by this column. */
+  eFileSortType sort_type;
 
-  /* Alignment of column texts, header text is always left aligned */
+  /** Alignment of column texts, header text is always left aligned */
   int text_align; /* eFontStyle_Align */
 };
 
 struct FileLayout {
-  /* view settings - XXX: move into own struct. */
+  /* view settings - XXX: move into its own struct. */
   int offset_top;
-  /* Height of the header for the different FileAttributeColumn's. */
+  /** Height of the header for the different FileAttributeColumn's. */
   int attribute_column_header_h;
   int prv_w;
   int prv_h;
+  /** Extra padding to add above any files. Used for horizontal and column list views. */
+  int list_padding_top;
+  /** Width to draw the file's "tile" (matches the highlight background) with. `tile_border_x` will
+   * be added before and after it as padding around the tile. */
   int tile_w;
+  /** Height to draw the file's "tile" (matches the highlight background) with. `tile_border_y`
+   * will be added above and below it as padding around the tile. */
   int tile_h;
   int tile_border_x;
   int tile_border_y;
   int prv_border_x;
   int prv_border_y;
   int rows;
-  /* Those are the major layout columns the files are distributed across, not to be confused with
-   * 'attribute_columns' array below. */
+  /**
+   * Those are the major layout columns the files are distributed across,
+   * not to be confused with `attribute_columns` array below.
+   */
   int flow_columns;
   int width;
   int height;
   int flag;
   int dirty;
-  int textheight;
-  /* The columns for each item (name, modification date/time, size). Not to be confused with the
-   * 'flow_columns' above. */
+  int text_line_height;
+  int text_lines_count;
+  /**
+   * The columns for each item (name, modification date/time, size).
+   * Not to be confused with the `flow_columns` above.
+   */
   FileAttributeColumn attribute_columns[ATTRIBUTE_COLUMN_MAX];
 
-  /* When we change display size, we may have to update static strings like size of files... */
+  /** When we change display size, we may have to update static strings like size of files. */
   short curr_size;
 };
 
@@ -104,13 +127,8 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile);
 /**
  * Update the user-preference data for the file space. In fact, this also contains some
  * non-FileSelectParams data, but we can safely ignore this.
- *
- * \param temp_win_size: If the browser was opened in a temporary window,
- * pass its size here so we can store that in the preferences. Otherwise NULL.
  */
-void ED_fileselect_params_to_userdef(SpaceFile *sfile,
-                                     const int temp_win_size[2],
-                                     bool is_maximized);
+void ED_fileselect_params_to_userdef(SpaceFile *sfile);
 
 void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region);
 
@@ -135,12 +153,13 @@ void ED_fileselect_layout_tilepos(const FileLayout *layout, int tile, int *x, in
 void ED_operatormacros_file();
 
 void ED_fileselect_clear(wmWindowManager *wm, SpaceFile *sfile);
+void ED_fileselect_clear_main_assets(wmWindowManager *wm, SpaceFile *sfile);
 
 void ED_fileselect_exit(wmWindowManager *wm, SpaceFile *sfile);
 
 bool ED_fileselect_is_file_browser(const SpaceFile *sfile);
 bool ED_fileselect_is_asset_browser(const SpaceFile *sfile);
-AssetLibrary *ED_fileselect_active_asset_library_get(const SpaceFile *sfile);
+asset_system::AssetLibrary *ED_fileselect_active_asset_library_get(const SpaceFile *sfile);
 ID *ED_fileselect_active_asset_get(const SpaceFile *sfile);
 
 void ED_fileselect_activate_asset_catalog(const SpaceFile *sfile, bUUID catalog_id);
@@ -188,6 +207,8 @@ ScrArea *ED_fileselect_handler_area_find_any_with_op(const wmWindow *win);
  */
 void ED_fileselect_ensure_default_filepath(bContext *C, wmOperator *op, const char *extension);
 
+Vector<std::string> ED_fileselect_selected_files_full_paths(const SpaceFile *sfile);
+
 /* TODO: Maybe we should move this to BLI?
  * On the other hand, it's using defines from space-file area, so not sure... */
 int ED_path_extension_type(const char *path);
@@ -204,9 +225,9 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area);
 void ED_file_change_dir(bContext *C);
 
 void ED_file_path_button(bScreen *screen,
-                         const SpaceFile *sfile,
+                         SpaceFile *sfile,
                          FileSelectParams *params,
-                         uiBlock *block);
+                         ui::Block *block);
 
 /* File menu stuff */
 
@@ -215,9 +236,8 @@ struct FSMenuEntry {
   FSMenuEntry *next;
 
   char *path;
-  char name[256]; /* FILE_MAXFILE */
+  char name[/*FILE_MAXFILE*/ 256];
   short save;
-  short valid;
   int icon;
 };
 
@@ -226,7 +246,7 @@ enum FSMenuCategory {
   FS_CATEGORY_SYSTEM_BOOKMARKS,
   FS_CATEGORY_BOOKMARKS,
   FS_CATEGORY_RECENT,
-  /* For internal use, a list of known paths that are used to match paths to icons and names. */
+  /** For internal use, a list of known paths that are used to match paths to icons and names. */
   FS_CATEGORY_OTHER,
 };
 
@@ -237,8 +257,6 @@ enum FSMenuInsert {
   FS_INSERT_FIRST = (1 << 2),
   /** just append to preserve delivered order */
   FS_INSERT_LAST = (1 << 3),
-  /** Do not validate the link when inserted. */
-  FS_INSERT_NO_VALIDATE = (1 << 4),
 };
 
 FSMenu *ED_fsmenu_get();
@@ -257,3 +275,5 @@ void ED_fsmenu_entry_set_name(FSMenuEntry *fsentry, const char *name);
 
 int ED_fsmenu_entry_get_icon(FSMenuEntry *fsentry);
 void ED_fsmenu_entry_set_icon(FSMenuEntry *fsentry, int icon);
+
+}  // namespace blender

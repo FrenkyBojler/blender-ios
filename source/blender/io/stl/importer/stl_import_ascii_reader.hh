@@ -8,11 +8,9 @@
 
 #pragma once
 
-#include <cstdio>
+namespace blender {
 
-#include "BKE_mesh.h"
-
-#include "stl_import.hh"
+struct Mesh;
 
 /**
  * ASCII STL spec:
@@ -30,8 +28,9 @@
  * </pre>
  */
 
-namespace blender::io::stl {
+namespace io::stl {
 
 Mesh *read_stl_ascii(const char *filepath, bool use_custom_normals);
 
-}  // namespace blender::io::stl
+}  // namespace io::stl
+}  // namespace blender

@@ -8,11 +8,7 @@
 
 #include "BPy_EqualToTimeStampUP1D.h"
 
-#include "BLI_sys_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_sys_types.hh"
 
 using namespace Freestyle;
 
@@ -20,14 +16,16 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char EqualToTimeStampUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    EqualToTimeStampUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`EqualToTimeStampUP1D`\n"
     "\n"
     ".. method:: __init__(ts)\n"
     "\n"
     "   Builds a EqualToTimeStampUP1D object.\n"
     "\n"
-    "   :arg ts: A time stamp value.\n"
+    "   :param ts: A time stamp value.\n"
     "   :type ts: int\n"
     "\n"
     ".. method:: __call__(inter)\n"
@@ -35,11 +33,10 @@ static char EqualToTimeStampUP1D___doc__[] =
     "   Returns true if the Interface1D's time stamp is equal to a certain\n"
     "   user-defined value.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if the time stamp is equal to a user-defined value.\n"
-    "   :rtype: bool\n";
-
+    "   :rtype: bool\n");
 static int EqualToTimeStampUP1D___init__(BPy_EqualToTimeStampUP1D *self,
                                          PyObject *args,
                                          PyObject *kwds)
@@ -98,7 +95,3 @@ PyTypeObject EqualToTimeStampUP1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

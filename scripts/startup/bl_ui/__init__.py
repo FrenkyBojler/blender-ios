@@ -11,6 +11,7 @@ if "bpy" in locals():
     del reload
 
 _modules = [
+    "anim",
     "asset_shelf",
     "node_add_menu",
     "node_add_menu_compositor",
@@ -25,7 +26,6 @@ _modules = [
     "properties_data_curve",
     "properties_data_curves",
     "properties_data_empty",
-    "properties_data_gpencil",
     "properties_data_grease_pencil",
     "properties_data_light",
     "properties_data_lattice",
@@ -60,6 +60,8 @@ _modules = [
     "properties_texture",
     "properties_world",
     "properties_collection",
+    "properties_strip",
+    "properties_strip_modifier",
     "generic_ui_list",
 
     # Generic Space Modules
@@ -78,6 +80,7 @@ _modules = [
     "space_nla",
     "space_node",
     "space_outliner",
+    "space_project",
     "space_properties",
     "space_sequencer",
     "space_spreadsheet",
@@ -87,6 +90,7 @@ _modules = [
     "space_topbar",
     "space_userpref",
     "space_view3d",
+    "space_view3d_sidebar",
     "space_view3d_toolbar",
 
     # XXX, keep last so panels show after all other tool options.
@@ -104,13 +108,23 @@ _modules_loaded = [_namespace[name] for name in _modules]
 del _namespace
 
 
+# Bypass the caching mechanism in the "Format" panel to make sure it is properly translated on language update.
+@bpy.app.handlers.persistent
+def translation_update(_):
+    from .properties_output import RENDER_PT_format
+    RENDER_PT_format._frame_rate_args_prev = None
+
+
 def register():
     from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)
     for mod in _modules_loaded:
         for cls in mod.classes:
             register_class(cls)
 
     space_filebrowser.register_props()
+    properties_paint_common.register()
 
     from bpy.props import (
         EnumProperty,
@@ -132,8 +146,8 @@ def register():
         items_unique = set()
 
         for mod in addon_utils.modules(refresh=False):
-            info = addon_utils.module_bl_info(mod)
-            items_unique.add(info["category"])
+            bl_info = addon_utils.module_bl_info(mod)
+            items_unique.add(bl_info["category"])
 
         items.extend([(cat, cat, "") for cat in sorted(items_unique)])
         return items
@@ -166,15 +180,28 @@ def register():
     )
     del items
 
+    bpy.app.handlers.translation_update_post.append(translation_update)
+
     # done...
 
 
 def unregister():
     from bpy.utils import unregister_class
+
+    properties_paint_common.unregister()
+
     for mod in reversed(_modules_loaded):
         for cls in reversed(mod.classes):
             if cls.is_registered:
                 unregister_class(cls)
+    for cls in reversed(classes):
+        if cls.is_registered:
+            unregister_class(cls)
+
+    try:
+        bpy.app.handlers.translation_update_post.remove(translation_update)
+    except ValueError:
+        pass
 
 # Define a default UIList, when a list does not need any custom drawing...
 # Keep in sync with its #defined name in UI_interface.hh
@@ -186,11 +213,21 @@ class UI_UL_list(bpy.types.UIList):
     def filter_items_by_name(pattern, bitflag, items, propname="name", flags=None, reverse=False):
         """
         Set FILTER_ITEM for items which name matches filter_name one (case-insensitive).
-        pattern is the filtering pattern.
-        propname is the name of the string property to use for filtering.
-        flags must be a list of integers the same length as items, or None!
-        return a list of flags (based on given flags if not None),
-        or an empty list if no flags were given and no filtering has been done.
+
+        :param pattern: Filtering pattern (shell-style glob, case-insensitive).
+        :type pattern: str
+        :param bitflag: Bit to set on matching items.
+        :type bitflag: int
+        :param items: Collection to filter.
+        :type items: Sequence[Any]
+        :param propname: Name of the string property on each item to match against.
+        :type propname: str
+        :param flags: Existing flag list to update; one int per item. ``None`` allocates a new list.
+        :type flags: Sequence[int] | None
+        :param reverse: Invert the match (set the bit on non-matching items).
+        :type reverse: bool
+        :return: Updated flags list, or an empty list when no filtering was needed.
+        :rtype: list[int]
         """
         import fnmatch
         import re
@@ -202,7 +239,7 @@ class UI_UL_list(bpy.types.UIList):
             flags = [0] * len(items)
 
         # Implicitly add heading/trailing wildcards.
-        pattern_regex = re.compile(fnmatch.translate("*" + pattern + "*"))
+        pattern_regex = re.compile(fnmatch.translate("*" + pattern + "*"), re.IGNORECASE)
 
         for i, item in enumerate(items):
             name = getattr(item, propname, None)
@@ -214,10 +251,16 @@ class UI_UL_list(bpy.types.UIList):
     @staticmethod
     def sort_items_helper(sort_data, key, reverse=False):
         """
-        Common sorting utility. Returns a neworder list mapping org_idx -> new_idx.
-        sort_data must be an (unordered) list of tuples [(org_idx, ...), (org_idx, ...), ...].
-        key must be the same kind of callable you would use for sorted() builtin function.
-        reverse will reverse the sorting!
+        Common sorting utility. Returns a neworder list mapping org_index -> new_index.
+
+        :param sort_data: Unordered list of tuples ``[(org_index, ...), ...]`` to sort in place.
+        :type sort_data: list[tuple[int, Any, ...]]
+        :param key: Sort key callable, same as for the ``sorted`` builtin.
+        :type key: Callable[[tuple[int, Any, ...]], Any]
+        :param reverse: Reverse the sort order.
+        :type reverse: bool
+        :return: A list mapping original index to new index.
+        :rtype: list[int]
         """
         sort_data.sort(key=key, reverse=reverse)
         neworder = [None] * len(sort_data)
@@ -229,15 +272,16 @@ class UI_UL_list(bpy.types.UIList):
     def sort_items_by_name(cls, items, propname="name"):
         """
         Re-order items using their names (case-insensitive).
-        propname is the name of the string property to use for sorting.
-        return a list mapping org_idx -> new_idx,
-               or an empty list if no sorting has been done.
+
+        :param items: Collection to sort.
+        :type items: Sequence[Any]
+        :param propname: Name of the string property on each item to sort by.
+        :type propname: str
+        :return: A list mapping original index to new index, or an empty list when no sorting was needed.
+        :rtype: list[int]
         """
         _sort = [(idx, getattr(it, propname, "")) for idx, it in enumerate(items)]
         return cls.sort_items_helper(_sort, lambda e: e[1].lower())
-
-
-bpy.utils.register_class(UI_UL_list)
 
 
 class UI_MT_list_item_context_menu(bpy.types.Menu):
@@ -250,13 +294,10 @@ class UI_MT_list_item_context_menu(bpy.types.Menu):
     bl_label = "List Item"
     bl_idname = "UI_MT_list_item_context_menu"
 
-    def draw(self, context):
+    def draw(self, _context):
         # Dummy function. This type is just for scripts to append their own
         # context menu items.
         pass
-
-
-bpy.utils.register_class(UI_MT_list_item_context_menu)
 
 
 class UI_MT_button_context_menu(bpy.types.Menu):
@@ -269,11 +310,15 @@ class UI_MT_button_context_menu(bpy.types.Menu):
     bl_label = "List Item"
     bl_idname = "UI_MT_button_context_menu"
 
-    def draw(self, context):
+    def draw(self, _context):
         # Draw menu entries created with the legacy `WM_MT_button_context` class.
         # This is deprecated, and support will be removed in a future release.
         if hasattr(bpy.types, "WM_MT_button_context"):
             self.layout.menu_contents("WM_MT_button_context")
 
 
-bpy.utils.register_class(UI_MT_button_context_menu)
+classes = (
+    UI_UL_list,
+    UI_MT_list_item_context_menu,
+    UI_MT_button_context_menu,
+)

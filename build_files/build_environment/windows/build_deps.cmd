@@ -9,16 +9,23 @@ if NOT "%1" == "" (
   )
 	if "%1" == "2019" (
     echo "Building for VS2019"
-    set VSVER=15.0
-    set VSVER_SHORT=15
-    set BuildDir=VS15
+    set VSVER=16.0
+    set VSVER_SHORT=16
+    set BuildDir=VS16
+    goto par2
+  )
+	if "%1" == "2022" (
+    echo "Building for VS2022"
+    set VSVER=17.0
+    set VSVER_SHORT=17
+    set BuildDir=VS17
     goto par2
   )
   
 )
 :usage
 
-Echo Usage build_deps 2017/2019 x64
+Echo Usage build_deps 2017/2019/2022 x64/arm64
 goto exit
 :par2
 if NOT "%2" == "" (
@@ -26,13 +33,30 @@ if NOT "%2" == "" (
     echo "Building for x64"
     set HARVESTROOT=Win64_vc
     set ARCH=64
+		if "%1" == "2022" (
+			set CMAKE_BUILDER=Visual Studio 17 2022
+			set CMAKE_BUILD_ARCH=-A x64 -Thost=x64
+		)
 		if "%1" == "2019" (
 			set CMAKE_BUILDER=Visual Studio 16 2019
-			set CMAKE_BUILD_ARCH=-A x64
+			set CMAKE_BUILD_ARCH=-A x64 -Thost=x64
 		)
 		if "%1" == "2017" (
 			set CMAKE_BUILDER=Visual Studio 15 2017 Win64
-            set CMAKE_BUILD_ARCH=
+            set CMAKE_BUILD_ARCH=-Thost=x64
+		)
+    goto start
+  )
+	if "%2" == "arm64" (
+    echo "Building for arm64"
+    set HARVESTROOT=WinArm64_vc
+    set ARCH=64
+		if "%1" == "2022" (
+			set CMAKE_BUILDER=Visual Studio 17 2022
+			set CMAKE_BUILD_ARCH=-A arm64
+		) else (
+			echo ARM64 can only be used in combination with VS2022
+			goto exit
 		)
     goto start
   )
@@ -105,15 +129,14 @@ if %ERRORLEVEL% NEQ 0 (
 set StatusFile=%BUILD_DIR%\%1_%2.log
 set original_path=%path%
 set oiio_paths=%Staging%\%BuildDir%%ARCH%R\Release\openimageio\bin
-set boost_paths=%Staging%\%BuildDir%%ARCH%R\Release\boost\lib
 set openexr_paths=%Staging%\%BuildDir%%ARCH%R\Release\openexr\bin
 set imath_paths=%Staging%\%BuildDir%%ARCH%R\Release\imath\bin
 set tbb_paths=%Staging%\%BuildDir%%ARCH%R\Release\tbb\bin
-set path=%BUILD_DIR%\downloads\mingw\mingw64\msys\1.0\bin\;%BUILD_DIR%\downloads\nasm-2.12.01\;%original_path%;%boost_paths%;%oiio_paths%;%openexr_paths%;%imath_paths%;%tbb_paths%
+set path=%BUILD_DIR%\downloads\mingw\mingw64\msys\1.0\bin\;%BUILD_DIR%\downloads\nasm-2.12.01\;%original_path%;%oiio_paths%;%openexr_paths%;%imath_paths%;%tbb_paths%
 mkdir %STAGING%\%BuildDir%%ARCH%R
 cd %Staging%\%BuildDir%%ARCH%R
 echo %DATE% %TIME% : Start > %StatusFile%
-cmake -G "%CMAKE_BUILDER%" %CMAKE_BUILD_ARCH% -Thost=x64  %SOURCE_DIR% -DPACKAGE_DIR=%BUILD_DIR%/packages -DDOWNLOAD_DIR=%BUILD_DIR%/downloads -DBUILD_MODE=Release -DHARVEST_TARGET=%HARVEST_DIR%/%HARVESTROOT%%VSVER_SHORT%/
+cmake -G "%CMAKE_BUILDER%" %CMAKE_BUILD_ARCH%  %SOURCE_DIR% -DPACKAGE_DIR=%BUILD_DIR%/packages -DDOWNLOAD_DIR=%BUILD_DIR%/downloads -DBUILD_MODE=Release -DHARVEST_TARGET=%HARVEST_DIR%/%HARVESTROOT%%VSVER_SHORT%/
 echo %DATE% %TIME% : Release Configuration done >> %StatusFile%
 if "%dobuild%" == "1" (
 	msbuild -maxcpucount:1 "BlenderDependencies.sln" /p:Configuration=Release /fl /flp:logfile=BlenderDeps.log;Verbosity=minimal  /verbosity:minimal
@@ -126,12 +149,11 @@ cd %BUILD_DIR%
 mkdir %STAGING%\%BuildDir%%ARCH%D
 cd %Staging%\%BuildDir%%ARCH%D
 set oiio_paths=%Staging%\%BuildDir%%ARCH%D\Debug\openimageio\bin
-set boost_paths=%Staging%\%BuildDir%%ARCH%D\Debug\boost\lib
 set openexr_paths=%Staging%\%BuildDir%%ARCH%D\Debug\openexr\bin
 set imath_paths=%Staging%\%BuildDir%%ARCH%D\Debug\imath\bin
 set tbb_paths=%Staging%\%BuildDir%%ARCH%D\Debug\tbb\bin
-set path=%BUILD_DIR%\downloads\mingw\mingw64\msys\1.0\bin\;%BUILD_DIR%\downloads\nasm-2.12.01\;%original_path%;%boost_paths%;%oiio_paths%;%openexr_paths%;%imath_paths%;%tbb_paths%
-cmake -G "%CMAKE_BUILDER%" %CMAKE_BUILD_ARCH% -Thost=x64 %SOURCE_DIR% -DPACKAGE_DIR=%BUILD_DIR%/packages -DDOWNLOAD_DIR=%BUILD_DIR%/downloads -DCMAKE_BUILD_TYPE=Debug -DBUILD_MODE=Debug -DHARVEST_TARGET=%HARVEST_DIR%/%HARVESTROOT%%VSVER_SHORT%/  %CMAKE_DEBUG_OPTIONS%
+set path=%BUILD_DIR%\downloads\mingw\mingw64\msys\1.0\bin\;%BUILD_DIR%\downloads\nasm-2.12.01\;%original_path%;%oiio_paths%;%openexr_paths%;%imath_paths%;%tbb_paths%
+cmake -G "%CMAKE_BUILDER%" %CMAKE_BUILD_ARCH% %SOURCE_DIR% -DPACKAGE_DIR=%BUILD_DIR%/packages -DDOWNLOAD_DIR=%BUILD_DIR%/downloads -DCMAKE_BUILD_TYPE=Debug -DBUILD_MODE=Debug -DHARVEST_TARGET=%HARVEST_DIR%/%HARVESTROOT%%VSVER_SHORT%/  %CMAKE_DEBUG_OPTIONS%
 echo %DATE% %TIME% : Debug Configuration done >> %StatusFile%
 if "%dobuild%" == "1" (
 	msbuild -maxcpucount:1 "BlenderDependencies.sln" /p:Configuration=Debug /verbosity:n /fl /flp:logfile=BlenderDeps.log;;Verbosity=normal

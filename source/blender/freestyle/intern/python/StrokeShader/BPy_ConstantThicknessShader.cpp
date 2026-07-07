@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ConstantThicknessShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ConstantThicknessShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`ConstantThicknessShader`\n"
     "\n"
     "[Thickness shader]\n"
@@ -29,16 +27,15 @@ static char ConstantThicknessShader___doc__[] =
     "\n"
     "   Builds a ConstantThicknessShader object.\n"
     "\n"
-    "   :arg thickness: The thickness that must be assigned to the stroke.\n"
+    "   :param thickness: The thickness that must be assigned to the stroke.\n"
     "   :type thickness: float\n"
     "\n"
     ".. method:: shade(stroke)\n"
     "\n"
     "   Assigns an absolute constant thickness to every vertex of the Stroke.\n"
     "\n"
-    "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :param stroke: A Stroke object.\n"
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int ConstantThicknessShader___init__(BPy_ConstantThicknessShader *self,
                                             PyObject *args,
                                             PyObject *kwds)
@@ -97,7 +94,3 @@ PyTypeObject ConstantThicknessShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

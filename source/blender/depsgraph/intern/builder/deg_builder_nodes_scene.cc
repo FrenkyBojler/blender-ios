@@ -10,6 +10,8 @@
 
 #include "DNA_scene_types.h"
 
+#include "BLI_listbase.hh"
+
 namespace blender::deg {
 
 void DepsgraphNodeBuilder::build_scene_render(Scene *scene, ViewLayer *view_layer)
@@ -39,47 +41,47 @@ void DepsgraphNodeBuilder::build_scene_camera(Scene *scene)
   if (scene->camera != nullptr) {
     build_object(-1, scene->camera, DEG_ID_LINKED_INDIRECTLY, true);
   }
-  LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
-    if (!ELEM(marker->camera, nullptr, scene->camera)) {
-      build_object(-1, marker->camera, DEG_ID_LINKED_INDIRECTLY, true);
+  for (TimeMarker &marker : scene->markers) {
+    if (!ELEM(marker.camera, nullptr, scene->camera)) {
+      build_object(-1, marker.camera, DEG_ID_LINKED_INDIRECTLY, true);
     }
   }
 }
 
 void DepsgraphNodeBuilder::build_scene_parameters(Scene *scene)
 {
-  if (built_map_.checkIsBuiltAndTag(scene, BuilderMap::TAG_PARAMETERS)) {
+  if (built_map_.check_is_built_and_tag(scene, BuilderMap::TAG_PARAMETERS)) {
     return;
   }
   build_parameters(&scene->id);
   build_idproperties(scene->id.properties);
-  add_operation_node(&scene->id, NodeType::PARAMETERS, OperationCode::SCENE_EVAL);
-  /* NOTE: This is a bit overkill and can potentially pull a bit too much into the graph, but:
-   *
-   * - We definitely need an ID node for the scene's compositor, otherwise re-mapping will no
-   *   happen correct and we will risk remapping pointers in the main database.
-   * - Alternatively, we should discard compositor tree, but this might cause other headache like
-   *   drivers which are coming from the tree.
-   *
-   * Would be nice to find some reliable way of ignoring compositor here, but it's already pulled
-   * in when building scene from view layer, so this particular case does not make things
-   * marginally worse. */
-  build_scene_compositor(scene);
+  build_idproperties(scene->id.system_properties);
 
-  LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
-    build_idproperties(marker->prop);
+  add_operation_node(&scene->id, NodeType::SCENE, OperationCode::SCENE_EVAL);
+
+  for (TimeMarker &marker : scene->markers) {
+    build_idproperties(marker.prop);
   }
 }
 
 void DepsgraphNodeBuilder::build_scene_compositor(Scene *scene)
 {
-  if (built_map_.checkIsBuiltAndTag(scene, BuilderMap::TAG_SCENE_COMPOSITOR)) {
+  if (built_map_.check_is_built_and_tag(scene, BuilderMap::TAG_SCENE_COMPOSITOR)) {
     return;
   }
-  if (scene->nodetree == nullptr) {
+  if (scene->compositing_node_group == nullptr) {
     return;
   }
-  build_nodetree(scene->nodetree);
+
+  add_operation_node(&scene->id,
+                     NodeType::COMPOSITOR,
+                     OperationCode::COMPOSITOR_EVAL,
+                     [](blender::Depsgraph * /*depsgraph*/) {
+                       /* Empty evaluate function, but needed to make sure the operation is not
+                        * considered a no-op. */
+                     });
+
+  build_nodetree(scene->compositing_node_group);
 }
 
 }  // namespace blender::deg

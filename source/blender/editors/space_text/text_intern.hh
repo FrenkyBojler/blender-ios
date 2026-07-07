@@ -10,7 +10,9 @@
 
 #include "DNA_vec_types.h"
 
-/* internal exports only */
+namespace blender {
+
+/* Internal exports only. */
 
 struct ARegion;
 struct ScrArea;
@@ -19,10 +21,6 @@ struct Text;
 struct TextLine;
 struct bContext;
 struct wmOperatorType;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* `text_draw.cc` */
 
@@ -51,14 +49,14 @@ void space_text_update_cursor_moved(bContext *C);
   ((st)->showlinenrs ? TXT_NUMCOL_WIDTH(st) : 0) + (TXT_BODY_LPAD * (st)->runtime->cwidth_px)
 
 #define TXT_SCROLL_WIDTH U.widget_unit
-#define TXT_SCROLL_SPACE ((int)(0.1f * U.widget_unit))
+#define TXT_SCROLL_SPACE int(0.1f * U.widget_unit)
 
 /* Space between lines, in relation to letter height. */
 #define TXT_LINE_VPAD 0.3f
 /* Space between lines. */
-#define TXT_LINE_SPACING(st) ((int)(TXT_LINE_VPAD * st->runtime->lheight_px))
+#define TXT_LINE_SPACING(st) int(TXT_LINE_VPAD * st->runtime->lheight_px)
 /* Total height of each line. */
-#define TXT_LINE_HEIGHT(st) ((int)((1.0f + TXT_LINE_VPAD) * st->runtime->lheight_px))
+#define TXT_LINE_HEIGHT(st) int((1.0f + TXT_LINE_VPAD) * st->runtime->lheight_px)
 
 #define SUGG_LIST_SIZE 7
 #define SUGG_LIST_WIDTH 20
@@ -95,8 +93,8 @@ void text_pop_suggest_list();
 int space_text_get_visible_lines(const SpaceText *st, const ARegion *region, const char *str);
 int space_text_get_span_wrap(const SpaceText *st,
                              const ARegion *region,
-                             TextLine *from,
-                             TextLine *to);
+                             const TextLine *from,
+                             const TextLine *to);
 int space_text_get_total_lines(SpaceText *st, const ARegion *region);
 
 /* `text_ops.cc` */
@@ -125,7 +123,6 @@ void TEXT_OT_save(wmOperatorType *ot);
 void TEXT_OT_save_as(wmOperatorType *ot);
 void TEXT_OT_make_internal(wmOperatorType *ot);
 void TEXT_OT_run_script(wmOperatorType *ot);
-void TEXT_OT_refresh_pyconstraints(wmOperatorType *ot);
 
 void TEXT_OT_paste(wmOperatorType *ot);
 void TEXT_OT_copy(wmOperatorType *ot);
@@ -159,14 +156,14 @@ void TEXT_OT_selection_set(wmOperatorType *ot);
 void TEXT_OT_cursor_set(wmOperatorType *ot);
 void TEXT_OT_line_number(wmOperatorType *ot);
 
-/* find = find indicated text */
+/* The term: `find` means: find indicated text. */
 void TEXT_OT_find(wmOperatorType *ot);
 void TEXT_OT_find_set_selected(wmOperatorType *ot);
 void TEXT_OT_replace(wmOperatorType *ot);
 void TEXT_OT_replace_set_selected(wmOperatorType *ot);
 void TEXT_OT_jump_to_file_at_point(wmOperatorType *ot);
 
-/* text_find = open properties, activate search button */
+/* The term `text_find` means: open properties, activate search button. */
 void TEXT_OT_start_find(wmOperatorType *ot);
 
 void TEXT_OT_to_3d_object(wmOperatorType *ot);
@@ -175,19 +172,17 @@ void TEXT_OT_resolve_conflict(wmOperatorType *ot);
 
 bool text_space_edit_poll(bContext *C);
 
+void TEXT_OT_update_shader(wmOperatorType *ot);
+
 /* `text_autocomplete.cc` */
 
 void TEXT_OT_autocomplete(wmOperatorType *ot);
 
 /* `space_text.cc` */
 
-extern const char *text_context_dir[]; /* doc access */
+extern "C" const char *text_context_dir[]; /* Doc access. */
 
-#ifdef __cplusplus
-}
-#endif
-
-namespace blender::ed::text {
+namespace ed::text {
 struct SpaceText_Runtime {
 
   /** Actual line height, scaled by DPI. */
@@ -219,4 +214,5 @@ struct SpaceText_Runtime {
   /** Cache for faster drawing. */
   void *drawcache = nullptr;
 };
-}  // namespace blender::ed::text
+}  // namespace ed::text
+}  // namespace blender

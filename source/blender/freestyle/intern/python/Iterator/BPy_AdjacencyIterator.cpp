@@ -11,10 +11,6 @@
 #include "../BPy_Convert.h"
 #include "../Interface0D/BPy_ViewVertex.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -22,6 +18,7 @@ using namespace Freestyle;
 //------------------------INSTANCE METHODS ----------------------------------
 
 PyDoc_STRVAR(
+    /* Wrap. */
     AdjacencyIterator_doc,
     "Class hierarchy: :class:`Iterator` > :class:`AdjacencyIterator`\n"
     "\n"
@@ -30,24 +27,27 @@ PyDoc_STRVAR(
     "decrement() methods of a :class:`ChainingIterator` and passed to the\n"
     "traverse() method of the ChainingIterator.\n"
     "\n"
-    ".. method:: __init__()\n"
-    "            __init__(brother)\n"
-    "            __init__(vertex, restrict_to_selection=True, restrict_to_unvisited=True)\n"
+    ".. method:: __init__(*args, **kwargs)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(brother)``\n"
+    "   - ``__init__(vertex, restrict_to_selection=True, restrict_to_unvisited=True)``\n"
     "\n"
     "   Builds an :class:`AdjacencyIterator` using the default constructor,\n"
     "   copy constructor or the overloaded constructor.\n"
     "\n"
-    "   :arg brother: An AdjacencyIterator object.\n"
+    "   :param brother: An AdjacencyIterator object.\n"
     "   :type brother: :class:`AdjacencyIterator`\n"
-    "   :arg vertex: The vertex which is the next crossing.\n"
+    "   :param vertex: The vertex which is the next crossing.\n"
     "   :type vertex: :class:`ViewVertex`\n"
-    "   :arg restrict_to_selection: Indicates whether to force the chaining\n"
+    "   :param restrict_to_selection: Indicates whether to force the chaining\n"
     "      to stay within the set of selected ViewEdges or not.\n"
     "   :type restrict_to_selection: bool\n"
-    "   :arg restrict_to_unvisited: Indicates whether a ViewEdge that has\n"
+    "   :param restrict_to_unvisited: Indicates whether a ViewEdge that has\n"
     "      already been chained must be ignored ot not.\n"
-    "   :type restrict_to_unvisited: bool");
-
+    "   :type restrict_to_unvisited: bool\n");
 static int AdjacencyIterator_init(BPy_AdjacencyIterator *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -123,11 +123,12 @@ static PyObject *AdjacencyIterator_iternext(BPy_AdjacencyIterator *self)
 
 /*----------------------AdjacencyIterator get/setters ----------------------------*/
 
-PyDoc_STRVAR(AdjacencyIterator_object_doc,
-             "The ViewEdge object currently pointed to by this iterator.\n"
-             "\n"
-             ":type: :class:`ViewEdge`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    AdjacencyIterator_object_doc,
+    "The ViewEdge object currently pointed to by this iterator.\n"
+    "\n"
+    ":type: :class:`ViewEdge`\n");
 static PyObject *AdjacencyIterator_object_get(BPy_AdjacencyIterator *self, void * /*closure*/)
 {
   if (self->a_it->isEnd()) {
@@ -141,12 +142,13 @@ static PyObject *AdjacencyIterator_object_get(BPy_AdjacencyIterator *self, void 
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(AdjacencyIterator_is_incoming_doc,
-             "True if the current ViewEdge is coming towards the iteration vertex, and\n"
-             "False otherwise.\n"
-             "\n"
-             ":type: bool");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    AdjacencyIterator_is_incoming_doc,
+    "True if the current ViewEdge is coming towards the iteration vertex, and\n"
+    "False otherwise.\n"
+    "\n"
+    ":type: bool\n");
 static PyObject *AdjacencyIterator_is_incoming_get(BPy_AdjacencyIterator *self, void * /*closure*/)
 {
   if (self->a_it->isEnd()) {
@@ -214,7 +216,3 @@ PyTypeObject AdjacencyIterator_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

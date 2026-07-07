@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char IncreasingThicknessShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    IncreasingThicknessShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`IncreasingThicknessShader`\n"
     "\n"
     "[Thickness shader]\n"
@@ -29,9 +27,9 @@ static char IncreasingThicknessShader___doc__[] =
     "\n"
     "   Builds an IncreasingThicknessShader object.\n"
     "\n"
-    "   :arg thickness_A: The first thickness value.\n"
+    "   :param thickness_A: The first thickness value.\n"
     "   :type thickness_A: float\n"
-    "   :arg thickness_B: The second thickness value.\n"
+    "   :param thickness_B: The second thickness value.\n"
     "   :type thickness_B: float\n"
     "\n"
     ".. method:: shade(stroke)\n"
@@ -42,9 +40,8 @@ static char IncreasingThicknessShader___doc__[] =
     "   this midpoint vertex and the last vertex. The thickness is\n"
     "   linearly interpolated from A to B.\n"
     "\n"
-    "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :param stroke: A Stroke object.\n"
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int IncreasingThicknessShader___init__(BPy_IncreasingThicknessShader *self,
                                               PyObject *args,
                                               PyObject *kwds)
@@ -103,7 +100,3 @@ PyTypeObject IncreasingThicknessShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

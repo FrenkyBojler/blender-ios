@@ -10,17 +10,15 @@
 
 #include "../../../view_map/Functions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char MaterialF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    MaterialF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DMaterial` > :class:`MaterialF0D`\n"
     "\n"
@@ -42,12 +40,11 @@ static char MaterialF0D___doc__[] =
     "   willing to deal with this cases in a specific way should implement its\n"
     "   own getMaterial functor.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The material of the object evaluated at the pointed\n"
     "      Interface0D.\n"
-    "   :rtype: :class:`freestyle.types.Material`\n";
-
+    "   :rtype: :class:`freestyle.types.Material`\n");
 static int MaterialF0D___init__(BPy_MaterialF0D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -104,7 +101,3 @@ PyTypeObject MaterialF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

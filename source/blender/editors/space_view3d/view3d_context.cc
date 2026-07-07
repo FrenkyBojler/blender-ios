@@ -11,16 +11,14 @@
 #include "DNA_space_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_screen.hh"
-
-#include "BLI_listbase.h"
 
 #include "ED_view3d.hh"
 
-#include "RNA_types.hh"
+#include "view3d_intern.hh"
 
-#include "view3d_intern.h"
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name View3D Context Callback
@@ -34,7 +32,7 @@ const char *view3d_context_dir[] = {
 
 int view3d_context(const bContext *C, const char *member, bContextDataResult *result)
 {
-  /* fallback to the scene layer,
+  /* fall back to the scene layer,
    * allows duplicate and other object operators to run outside the 3d view */
 
   if (CTX_data_dir(member)) {
@@ -55,9 +53,10 @@ int view3d_context(const bContext *C, const char *member, bContextDataResult *re
      * without showing the object.
      *
      * See #85532 for alternatives that were considered. */
+    const Main *bmain = CTX_data_main(C);
     const Scene *scene = CTX_data_scene(C);
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     Base *base = BKE_view_layer_active_base_get(view_layer);
     if (base) {
       Object *ob = base->object;
@@ -72,14 +71,13 @@ int view3d_context(const bContext *C, const char *member, bContextDataResult *re
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "selected_ids")) {
-    ListBase selected_objects;
+    Vector<PointerRNA> selected_objects;
     CTX_data_selected_objects(C, &selected_objects);
-    LISTBASE_FOREACH (CollectionPointerLink *, object_ptr_link, &selected_objects) {
-      ID *selected_id = object_ptr_link->ptr.owner_id;
+    for (const PointerRNA &ptr : selected_objects) {
+      ID *selected_id = ptr.owner_id;
       CTX_data_id_list_add(result, selected_id);
     }
-    BLI_freelistN(&selected_objects);
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
 
@@ -117,7 +115,7 @@ bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_regi
 
   if (area && area->spacetype == SPACE_VIEW3D) {
     ARegion *region = CTX_wm_region(C);
-    View3D *v3d = (View3D *)area->spacedata.first;
+    View3D *v3d = static_cast<View3D *>(area->spacedata.first);
 
     if (region) {
       RegionView3D *rv3d;
@@ -141,3 +139,5 @@ bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_regi
 }
 
 /** \} */
+
+}  // namespace blender

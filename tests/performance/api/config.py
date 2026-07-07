@@ -7,8 +7,8 @@ import json
 import pathlib
 
 from dataclasses import dataclass, field
-from typing import Dict, List
 
+from .common import normalize_device_id
 from .test import TestCollection
 
 
@@ -25,18 +25,23 @@ class TestEntry:
     category: str = ''
     revision: str = ''
     git_hash: str = ''
-    environment: Dict = field(default_factory=dict)
+    environment: dict = field(default_factory=dict)
     executable: str = ''
     date: int = 0
     device_type: str = 'CPU'
     device_id: str = 'CPU'
     device_name: str = 'Unknown CPU'
+    device_cpu: str = ''
     status: str = 'queued'
+    # Short, single-line error.
     error_msg: str = ''
-    output: Dict = field(default_factory=dict)
+    # More detailed error info, potentially multi-lines.
+    exception_msg: str = ''
+    output: dict = field(default_factory=dict)
+    output_all_runs: dict = field(default_factory=dict)
     benchmark_type: str = 'comparison'
 
-    def to_json(self) -> Dict:
+    def to_json(self) -> dict:
         json_dict = {}
         for field in self.__dataclass_fields__:
             json_dict[field] = getattr(self, field)
@@ -47,14 +52,20 @@ class TestEntry:
             if field in json_dict:
                 setattr(self, field, json_dict[field])
 
+    def migrate(self):
+        if self.output:
+            missing_keys = self.output.keys() - self.output_all_runs.keys()
+            for key in missing_keys:
+                self.output_all_runs[key] = [self.output[key]]
+
 
 class TestQueue:
     """Queue of tests to be run or inspected. Matches JSON file on disk."""
 
     def __init__(self, filepath: pathlib.Path):
         self.filepath = filepath
-        self.has_multiple_revisions_to_build = False
         self.has_multiple_categories = False
+        self.has_multiple_devices = False
         self.entries = []
 
         if self.filepath.is_file():
@@ -64,9 +75,10 @@ class TestQueue:
             for json_entry in json_entries:
                 entry = TestEntry()
                 entry.from_json(json_entry)
+                entry.migrate()
                 self.entries.append(entry)
 
-    def rows(self, use_revision_columns: bool) -> List:
+    def rows(self, use_revision_columns: bool) -> list:
         # Generate rows of entries for printing and running.
         entries = sorted(
             self.entries,
@@ -85,7 +97,7 @@ class TestQueue:
             rows = {}
 
             for entry in entries:
-                key = (entry.device_id, entry.category, entry.test)
+                key = (normalize_device_id(entry.device_id), entry.category, entry.test)
                 if key in rows:
                     rows[key].append(entry)
                 else:
@@ -93,12 +105,15 @@ class TestQueue:
 
             return [value for _, value in sorted(rows.items())]
 
-    def find(self, revision: str, test: str, category: str, device_id: str) -> Dict:
+    def find(self, revision: str, test: str, category: str, device_id: str) -> dict:
+        sanitized = normalize_device_id(device_id)
         for entry in self.entries:
-            if entry.revision == revision and \
-               entry.test == test and \
-               entry.category == category and \
-               entry.device_id == device_id:
+            if (
+                entry.revision == revision and
+                entry.test == test and
+                entry.category == category and
+                normalize_device_id(entry.device_id) == sanitized
+            ):
                 return entry
 
         return None
@@ -117,11 +132,13 @@ class TestConfig:
         self.name = name
         self.base_dir = env.base_dir / name
         self.logs_dir = self.base_dir / 'logs'
+        self.builds_dir = self.base_dir / 'builds'
 
         config = TestConfig._read_config_module(self.base_dir)
         self.tests = TestCollection(env,
                                     getattr(config, 'tests', ['*']),
-                                    getattr(config, 'categories', ['*']))
+                                    getattr(config, 'categories', ['*']),
+                                    getattr(config, 'background', False))
         self.revisions = getattr(config, 'revisions', {})
         self.builds = getattr(config, 'builds', {})
         self.queue = TestQueue(self.base_dir / 'results.json')
@@ -132,7 +149,7 @@ class TestConfig:
 
         self._update_queue(env)
 
-    def revision_names(self) -> List:
+    def revision_names(self) -> list:
         return sorted(list(self.revisions.keys()) + list(self.builds.keys()))
 
     def device_name(self, device_id: str) -> str:
@@ -143,15 +160,18 @@ class TestConfig:
         return "Unknown"
 
     @staticmethod
-    def write_default_config(env, config_dir: pathlib.Path) -> None:
+    def write_default_config(env, config_dir: pathlib.Path, build_dir: str) -> None:
         config_dir.mkdir(parents=True, exist_ok=True)
 
         default_config = """devices = ['CPU']\n"""
         default_config += """tests = ['*']\n"""
         default_config += """categories = ['*']\n"""
         default_config += """builds = {\n"""
-        default_config += """    'main': '/home/user/blender-git/build/bin/blender',"""
-        default_config += """    '2.93': '/home/user/blender-2.93/blender',"""
+        if build_dir:
+            default_config += """    'main': '{}',""".format(build_dir)
+        else:
+            default_config += """    'main': '/home/user/blender-git/build/bin/blender',"""
+            default_config += """    '2.93': '/home/user/blender-2.93/blender',"""
         default_config += """}\n"""
         default_config += """revisions = {\n"""
         default_config += """}\n"""
@@ -161,7 +181,7 @@ class TestConfig:
             f.write(default_config)
 
     @staticmethod
-    def read_blender_executables(env, name) -> List:
+    def read_blender_executables(env, name) -> list:
         config = TestConfig._read_config_module(env.base_dir / name)
         builds = getattr(config, 'builds', {})
         executables = []
@@ -181,7 +201,7 @@ class TestConfig:
         spec.loader.exec_module(mod)
         return mod
 
-    def _update_devices(self, env, device_filters: List) -> None:
+    def _update_devices(self, env, device_filters: list) -> None:
         # Find devices matching the filters.
         need_gpus = device_filters != ['CPU']
         machine = env.get_machine(need_gpus)
@@ -189,7 +209,8 @@ class TestConfig:
         self.devices = []
         for device in machine.devices:
             for device_filter in device_filters:
-                if fnmatch.fnmatch(device.id, device_filter):
+                if fnmatch.fnmatch(device.id, device_filter) or \
+                   fnmatch.fnmatch(normalize_device_id(device.id), normalize_device_id(device_filter)):
                     self.devices.append(device)
                     break
 
@@ -206,20 +227,13 @@ class TestConfig:
             date = env.git_hash_date(git_hash)
             entries += self._get_entries(revision_name, git_hash, '', environment, date)
 
-        # Optimization to avoid rebuilds.
-        revisions_to_build = set()
-        for entry in entries:
-            if entry.status in {'queued', 'outdated'}:
-                revisions_to_build.add(entry.git_hash)
-        self.queue.has_multiple_revisions_to_build = len(revisions_to_build) > 1
-
         # Get entries for revisions based on existing builds.
         for revision_name, executable in self.builds.items():
             executable, environment = self._split_environment_variables(executable)
             executable_path = env._blender_executable_from_path(pathlib.Path(executable))
             if not executable_path:
                 import sys
-                sys.stderr.write(f'Error: build {executable} not found\n')
+                sys.stderr.write(f'Error: no valid build found at {executable}\n')
                 sys.exit(1)
 
             env.set_blender_executable(executable_path)
@@ -231,9 +245,12 @@ class TestConfig:
 
         # Detect number of categories for more compact printing.
         categories = set()
+        devices = set()
         for entry in entries:
             categories.add(entry.category)
+            devices.add(entry.device_id)
         self.queue.has_multiple_categories = len(categories) > 1
+        self.queue.has_multiple_devices = len(devices) > 1
 
         # Replace actual entries.
         self.queue.entries = entries
@@ -249,7 +266,17 @@ class TestConfig:
             test_name = test.name()
             test_category = test.category()
 
-            for device in self.devices:
+            # Filter devices that are supported by this test. Add a default CPU when
+            # no devices are supported for backwards compatibility
+            supported_device_types = ['CPU']
+            if test.use_device():
+                supported_device_types = test.supported_device_types()
+
+            devices = filter(lambda device: device.type in test.supported_device_types(), self.devices)
+            if not devices:
+                devices = filter(lambda device: device.type == 'CPU', self.devices)
+
+            for device in devices:
                 entry = self.queue.find(revision_name, test_name, test_category, device.id)
                 if entry:
                     # Test if revision hash or executable changed.
@@ -264,6 +291,9 @@ class TestConfig:
                         entry.executable = executable
                         entry.benchmark_type = self.benchmark_type
                         entry.date = date
+                        entry.device_name = device.name
+                        if device.cpu:
+                            entry.device_cpu = device.cpu
                         if entry.status in {'done', 'failed'}:
                             entry.status = 'outdated'
                 else:
@@ -279,6 +309,7 @@ class TestConfig:
                         device_type=device.type,
                         device_id=device.id,
                         device_name=device.name,
+                        device_cpu=device.cpu,
                         benchmark_type=self.benchmark_type)
                 entries.append(entry)
 

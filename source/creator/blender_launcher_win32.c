@@ -2,18 +2,22 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#ifdef WIN32_LEAN_AND_MEAN
+#  undef WIN32_LEAN_AND_MEAN
+#endif
 #include <Windows.h>
 #include <strsafe.h>
 
 #include <PathCch.h>
 #include <tlhelp32.h>
 
-BOOL LaunchedFromSteam()
+static BOOL LaunchedFromSteam(void)
 {
   HANDLE hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   BOOL isSteam = FALSE;
-  if (!hSnapShot)
+  if (!hSnapShot) {
     return (FALSE);
+  }
 
   PROCESSENTRY32 process_entry;
   process_entry.dwSize = sizeof(PROCESSENTRY32);
@@ -69,14 +73,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
   siStartInfo.wShowWindow = SW_HIDE;
   siStartInfo.dwFlags = STARTF_USESHOWWINDOW;
 
-  /* Get the path to the currently running executable (blender-launcher.exe) */
+  /* Get the path to the currently running executable (`blender-launcher.exe`). */
 
   DWORD nSize = GetModuleFileName(NULL, path, MAX_PATH);
   if (!nSize) {
     return -1;
   }
 
-  /* GetModuleFileName returns the number of characters written, but GetLastError needs to be
+  /* #GetModuleFileName returns the number of characters written, but GetLastError needs to be
    * called to see if it ran out of space or not. However where would we be without exceptions
    * to the rule: "If the buffer is too small to hold the module name, the function returns nSize.
    * The last error code remains ERROR_SUCCESS." - source: MSDN. */
@@ -95,10 +99,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     return -1;
   }
 
-  int required_size_chars = lstrlenW(path) +     /* Module name */
-                            3 +                  /* 2 quotes + Space */
-                            lstrlenW(pCmdLine) + /* Original command line */
-                            1;                   /* Zero terminator */
+  int required_size_chars = lstrlenW(path) +     /* Module name. */
+                            3 +                  /* 2 quotes + Space. */
+                            lstrlenW(pCmdLine) + /* Original command line. */
+                            1;                   /* Zero terminator. */
   size_t required_size_bytes = required_size_chars * sizeof(wchar_t);
   wchar_t *buffer = (wchar_t *)malloc(required_size_bytes);
   if (!buffer) {

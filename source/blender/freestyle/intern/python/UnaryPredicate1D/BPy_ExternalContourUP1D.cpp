@@ -8,17 +8,15 @@
 
 #include "BPy_ExternalContourUP1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ExternalContourUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ExternalContourUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`ExternalContourUP1D`\n"
     "\n"
     ".. method:: __call__(inter)\n"
@@ -27,12 +25,11 @@ static char ExternalContourUP1D___doc__[] =
     "   An Interface1D is an external contour if it is bordered by no shape on\n"
     "   one of its sides.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if the Interface1D is an external contour, false\n"
     "      otherwise.\n"
-    "   :rtype: bool\n";
-
+    "   :rtype: bool\n");
 static int ExternalContourUP1D___init__(BPy_ExternalContourUP1D *self,
                                         PyObject *args,
                                         PyObject *kwds)
@@ -90,7 +87,3 @@ PyTypeObject ExternalContourUP1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

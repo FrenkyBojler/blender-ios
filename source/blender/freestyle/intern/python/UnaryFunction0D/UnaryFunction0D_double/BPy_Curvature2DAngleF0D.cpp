@@ -10,17 +10,15 @@
 
 #include "../../../view_map/Functions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char Curvature2DAngleF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    Curvature2DAngleF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DDouble` > :class:`Curvature2DAngleF0D`\n"
     "\n"
@@ -35,12 +33,11 @@ static char Curvature2DAngleF0D___doc__[] =
     "   the Interface0DIterator belongs. The 2D curvature is evaluated at the\n"
     "   Interface0D.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The 2D curvature of the 1D element evaluated at the\n"
     "      pointed Interface0D.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int Curvature2DAngleF0D___init__(BPy_Curvature2DAngleF0D *self,
                                         PyObject *args,
                                         PyObject *kwds)
@@ -99,7 +96,3 @@ PyTypeObject Curvature2DAngleF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

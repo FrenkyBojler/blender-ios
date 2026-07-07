@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ThicknessNoiseShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ThicknessNoiseShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`ThicknessNoiseShader`\n"
     "\n"
     "[Thickness shader]\n"
@@ -29,18 +27,17 @@ static char ThicknessNoiseShader___doc__[] =
     "\n"
     "   Builds a ThicknessNoiseShader object.\n"
     "\n"
-    "   :arg amplitude: The amplitude of the noise signal.\n"
+    "   :param amplitude: The amplitude of the noise signal.\n"
     "   :type amplitude: float\n"
-    "   :arg period: The period of the noise signal.\n"
+    "   :param period: The period of the noise signal.\n"
     "   :type period: float\n"
     "\n"
     ".. method:: shade(stroke)\n"
     "\n"
     "   Adds some noise to the stroke thickness.\n"
     "\n"
-    "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :param stroke: A Stroke object.\n"
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int ThicknessNoiseShader___init__(BPy_ThicknessNoiseShader *self,
                                          PyObject *args,
                                          PyObject *kwds)
@@ -99,7 +96,3 @@ PyTypeObject ThicknessNoiseShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

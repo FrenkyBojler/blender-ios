@@ -11,37 +11,38 @@
 #include "../BPy_Convert.h"
 #include "BPy_Interface0DIterator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-PyDoc_STRVAR(CurvePointIterator_doc,
-             "Class hierarchy: :class:`Iterator` > :class:`CurvePointIterator`\n"
-             "\n"
-             "Class representing an iterator on a curve. Allows an iterating\n"
-             "outside initial vertices. A CurvePoint is instantiated and returned\n"
-             "through the .object attribute.\n"
-             "\n"
-             ".. method:: __init__()\n"
-             "            __init__(brother)\n"
-             "            __init__(step=0.0)\n"
-             "\n"
-             "   Builds a CurvePointIterator object using either the default constructor,\n"
-             "   copy constructor, or the overloaded constructor.\n"
-             "\n"
-             "   :arg brother: A CurvePointIterator object.\n"
-             "   :type brother: :class:`CurvePointIterator`\n"
-             "   :arg step: A resampling resolution with which the curve is resampled.\n"
-             "      If zero, no resampling is done (i.e., the iterator iterates over\n"
-             "      initial vertices).\n"
-             "   :type step: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    CurvePointIterator_doc,
+    "Class hierarchy: :class:`Iterator` > :class:`CurvePointIterator`\n"
+    "\n"
+    "Class representing an iterator on a curve. Allows an iterating\n"
+    "outside initial vertices. A CurvePoint is instantiated and returned\n"
+    "through the .object attribute.\n"
+    "\n"
+    ".. method:: __init__(*args, **kwargs)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(brother)``\n"
+    "   - ``__init__(step=0.0)``\n"
+    "\n"
+    "   Builds a CurvePointIterator object using either the default constructor,\n"
+    "   copy constructor, or the overloaded constructor.\n"
+    "\n"
+    "   :param brother: A CurvePointIterator object.\n"
+    "   :type brother: :class:`CurvePointIterator`\n"
+    "   :param step: A resampling resolution with which the curve is resampled.\n"
+    "      If zero, no resampling is done (i.e., the iterator iterates over\n"
+    "      initial vertices).\n"
+    "   :type step: float\n");
 static int CurvePointIterator_init(BPy_CurvePointIterator *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -75,11 +76,12 @@ static int CurvePointIterator_init(BPy_CurvePointIterator *self, PyObject *args,
 
 /*----------------------CurvePointIterator get/setters ----------------------------*/
 
-PyDoc_STRVAR(CurvePointIterator_object_doc,
-             "The CurvePoint object currently pointed by this iterator.\n"
-             "\n"
-             ":type: :class:`CurvePoint`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    CurvePointIterator_object_doc,
+    "The CurvePoint object currently pointed by this iterator.\n"
+    "\n"
+    ":type: :class:`CurvePoint`\n");
 static PyObject *CurvePointIterator_object_get(BPy_CurvePointIterator *self, void * /*closure*/)
 {
   if (self->cp_it->isEnd()) {
@@ -89,21 +91,23 @@ static PyObject *CurvePointIterator_object_get(BPy_CurvePointIterator *self, voi
   return BPy_CurvePoint_from_CurvePoint(self->cp_it->operator*());
 }
 
-PyDoc_STRVAR(CurvePointIterator_t_doc,
-             "The curvilinear abscissa of the current point.\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    CurvePointIterator_t_doc,
+    "The curvilinear abscissa of the current point.\n"
+    "\n"
+    ":type: float\n");
 static PyObject *CurvePointIterator_t_get(BPy_CurvePointIterator *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->cp_it->t());
 }
 
-PyDoc_STRVAR(CurvePointIterator_u_doc,
-             "The point parameter at the current point in the stroke (0 <= u <= 1).\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    CurvePointIterator_u_doc,
+    "The point parameter at the current point in the stroke (0 <= u <= 1).\n"
+    "\n"
+    ":type: float\n");
 static PyObject *CurvePointIterator_u_get(BPy_CurvePointIterator *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->cp_it->u());
@@ -164,7 +168,3 @@ PyTypeObject CurvePointIterator_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

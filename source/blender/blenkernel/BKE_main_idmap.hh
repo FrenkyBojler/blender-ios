@@ -17,15 +17,19 @@
  * - `BKE_main_idmap_` Should be used for functions in that file.
  */
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
+#include "BLI_sys_types.hh"
 
+namespace blender {
+
+struct Library;
 struct ID;
 struct IDNameLib_Map;
 struct Main;
 
 enum {
   MAIN_IDMAP_TYPE_NAME = 1 << 0,
-  MAIN_IDMAP_TYPE_UUID = 1 << 1,
+  MAIN_IDMAP_TYPE_UID = 1 << 1,
 };
 
 /**
@@ -43,10 +47,11 @@ IDNameLib_Map *BKE_main_idmap_create(Main *bmain,
                                      bool create_valid_ids_set,
                                      Main *old_bmain,
                                      int idmap_types) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1);
+void BKE_main_idmap_clear(IDNameLib_Map &id_map);
 void BKE_main_idmap_destroy(IDNameLib_Map *id_map) ATTR_NONNULL();
 
 void BKE_main_idmap_insert_id(IDNameLib_Map *id_map, ID *id) ATTR_NONNULL();
-void BKE_main_idmap_remove_id(IDNameLib_Map *id_map, ID *id) ATTR_NONNULL();
+void BKE_main_idmap_remove_id(IDNameLib_Map *id_map, const ID *id) ATTR_NONNULL();
 
 Main *BKE_main_idmap_main_get(IDNameLib_Map *id_map) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
@@ -57,5 +62,7 @@ ID *BKE_main_idmap_lookup_name(IDNameLib_Map *id_map,
 ID *BKE_main_idmap_lookup_id(IDNameLib_Map *id_map, const ID *id) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1, 2);
 
-ID *BKE_main_idmap_lookup_uuid(IDNameLib_Map *id_map, uint session_uuid) ATTR_WARN_UNUSED_RESULT
+ID *BKE_main_idmap_lookup_uid(IDNameLib_Map *id_map, uint session_uid) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL(1);
+
+}  // namespace blender

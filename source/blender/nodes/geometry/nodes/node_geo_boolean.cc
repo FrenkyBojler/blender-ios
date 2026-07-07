@@ -4,16 +4,17 @@
 
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
-#include "BKE_mesh_boolean_convert.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "GEO_join_geometries.hh"
+#include "GEO_mesh_boolean.hh"
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -22,52 +23,79 @@ namespace blender::nodes::node_geo_boolean_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh 1").only_realized_data().supported_type(
-      GeometryComponent::Type::Mesh);
-  b.add_input<decl::Geometry>("Mesh 2")
-      .supported_type(GeometryComponent::Type::Mesh)
-      .multi_input();
-  b.add_input<decl::Bool>("Self Intersection");
-  b.add_input<decl::Bool>("Hole Tolerant");
-  b.add_output<decl::Geometry>("Mesh").propagate_all();
-  b.add_output<decl::Bool>("Intersecting Edges").field_on_all();
-}
+  const bNode *node = b.node_or_null();
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
-}
+  auto &first_geometry = b.add_input<decl::Geometry>("Mesh 1"_ustr)
+                             .only_realized_data()
+                             .supported_type(GeometryComponent::Type::Mesh)
+                             .description("Base mesh to subtract geometry from");
 
-struct AttributeOutputs {
-  AnonymousAttributeIDPtr intersecting_edges_id;
-};
+  if (node != nullptr) {
+    switch (geometry::boolean::Operation(node->custom1)) {
+      case geometry::boolean::Operation::Intersect:
+      case geometry::boolean::Operation::Union:
+        b.add_input<decl::Geometry>("Mesh"_ustr, "Mesh 2"_ustr)
+            .supported_type(GeometryComponent::Type::Mesh)
+            .multi_input()
+            .description("Meshes to union or intersect");
+        break;
+      case geometry::boolean::Operation::Difference:
+        b.add_input<decl::Geometry>("Mesh 2"_ustr)
+            .supported_type(GeometryComponent::Type::Mesh)
+            .multi_input()
+            .description("Mesh that is subtracted from the first mesh");
+        break;
+    }
+  }
 
-static void node_update(bNodeTree *ntree, bNode *node)
-{
-  GeometryNodeBooleanOperation operation = (GeometryNodeBooleanOperation)node->custom1;
+  auto make_mesh_arr = [](bNode &node) {
+    node.custom2 = int16_t(geometry::boolean::Solver::MeshArr);
+  };
+  auto &self_intersect =
+      b.add_input<decl::Bool>("Self Intersection"_ustr).make_available(make_mesh_arr);
+  auto &hole_tolerant =
+      b.add_input<decl::Bool>("Hole Tolerant"_ustr).make_available(make_mesh_arr);
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geometry();
+  auto &output_edges = b.add_output<decl::Bool>("Intersecting Edges"_ustr)
+                           .anonymous_attribute_output()
+                           .make_available(make_mesh_arr);
 
-  bNodeSocket *geometry_1_socket = static_cast<bNodeSocket *>(node->inputs.first);
-  bNodeSocket *geometry_2_socket = geometry_1_socket->next;
+  if (node != nullptr) {
+    const auto operation = geometry::boolean::Operation(node->custom1);
+    const auto solver = geometry::boolean::Solver(node->custom2);
 
-  switch (operation) {
-    case GEO_NODE_BOOLEAN_INTERSECT:
-    case GEO_NODE_BOOLEAN_UNION:
-      bke::nodeSetSocketAvailability(ntree, geometry_1_socket, false);
-      node_sock_label(geometry_2_socket, "Mesh");
-      break;
-    case GEO_NODE_BOOLEAN_DIFFERENCE:
-      bke::nodeSetSocketAvailability(ntree, geometry_1_socket, true);
-      node_sock_label(geometry_2_socket, "Mesh 2");
-      break;
+    output_edges.available(
+        ELEM(solver, geometry::boolean::Solver::MeshArr, geometry::boolean::Solver::Manifold));
+    self_intersect.available(solver == geometry::boolean::Solver::MeshArr);
+    hole_tolerant.available(solver == geometry::boolean::Solver::MeshArr);
+
+    switch (operation) {
+      case geometry::boolean::Operation::Intersect:
+      case geometry::boolean::Operation::Union:
+        first_geometry.available(false);
+        break;
+      case geometry::boolean::Operation::Difference:
+        break;
+    }
   }
 }
 
-static void node_init(bNodeTree * /*tree*/, bNode *node)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  node->custom1 = GEO_NODE_BOOLEAN_DIFFERENCE;
+  layout.prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "solver", UI_ITEM_NONE, "", ICON_NONE);
 }
 
-#ifdef WITH_GMP
+struct AttributeOutputs {
+  std::optional<std::string> intersecting_edges_id;
+};
+
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  node->custom1 = int16_t(geometry::boolean::Operation::Difference);
+  node->custom2 = int16_t(geometry::boolean::Solver::Float);
+}
+
 static Array<short> calc_mesh_material_map(const Mesh &mesh, VectorSet<Material *> &all_materials)
 {
   Array<short> map(mesh.totcol);
@@ -77,14 +105,17 @@ static Array<short> calc_mesh_material_map(const Mesh &mesh, VectorSet<Material 
   }
   return map;
 }
-#endif /* WITH_GMP */
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-#ifdef WITH_GMP
-  GeometryNodeBooleanOperation operation = (GeometryNodeBooleanOperation)params.node().custom1;
-  const bool use_self = params.get_input<bool>("Self Intersection");
-  const bool hole_tolerant = params.get_input<bool>("Hole Tolerant");
+  geometry::boolean::Operation operation = geometry::boolean::Operation(params.node().custom1);
+  geometry::boolean::Solver solver = geometry::boolean::Solver(params.node().custom2);
+  bool use_self = false;
+  bool hole_tolerant = false;
+  if (solver == geometry::boolean::Solver::MeshArr) {
+    use_self = params.extract_input<bool>("Self Intersection"_ustr);
+    hole_tolerant = params.extract_input<bool>("Hole Tolerant"_ustr);
+  }
 
   Vector<const Mesh *> meshes;
   Vector<float4x4> transforms;
@@ -92,8 +123,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<Array<short>> material_remaps;
 
   GeometrySet set_a;
-  if (operation == GEO_NODE_BOOLEAN_DIFFERENCE) {
-    set_a = params.extract_input<GeometrySet>("Mesh 1");
+  if (operation == geometry::boolean::Operation::Difference) {
+    set_a = params.extract_input<GeometrySet>("Mesh 1"_ustr);
     /* Note that it technically wouldn't be necessary to realize the instances for the first
      * geometry input, but the boolean code expects the first shape for the difference operation
      * to be a single mesh. */
@@ -111,9 +142,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  Vector<GeometrySet> geometry_sets = params.extract_input<Vector<GeometrySet>>("Mesh 2");
+  GeoNodesMultiInput<GeometrySet> geometry_sets =
+      params.extract_input<GeoNodesMultiInput<GeometrySet>>("Mesh 2"_ustr);
 
-  for (const GeometrySet &geometry : geometry_sets) {
+  for (const GeometrySet &geometry : geometry_sets.values) {
     if (const Mesh *mesh = geometry.get_mesh()) {
       meshes.append(mesh);
       transforms.append(float4x4::identity());
@@ -152,28 +184,62 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
+  if (ELEM(solver, geometry::boolean::Solver::MeshArr, geometry::boolean::Solver::Manifold)) {
+    /* These solvers remap materials using realize_instances. */
+    material_remaps.resize(0);
+  }
+
   AttributeOutputs attribute_outputs;
-  attribute_outputs.intersecting_edges_id = params.get_output_anonymous_attribute_id_if_needed(
-      "Intersecting Edges");
+  if (ELEM(solver, geometry::boolean::Solver::MeshArr, geometry::boolean::Solver::Manifold)) {
+    attribute_outputs.intersecting_edges_id = params.get_output_anonymous_attribute_id_if_needed(
+        "Intersecting Edges"_ustr);
+  }
 
   Vector<int> intersecting_edges;
-  Mesh *result = blender::meshintersect::direct_mesh_boolean(
+  geometry::boolean::BooleanOpParameters op_params;
+  op_params.boolean_mode = operation;
+  op_params.no_self_intersections = !use_self;
+  op_params.watertight = !hole_tolerant;
+  op_params.no_nested_components = true; /* TODO: make this configurable. */
+  geometry::boolean::BooleanError error;
+  Mesh *result = geometry::boolean::mesh_boolean(
       meshes,
       transforms,
-      float4x4::identity(),
       material_remaps,
-      use_self,
-      hole_tolerant,
-      operation,
-      attribute_outputs.intersecting_edges_id ? &intersecting_edges : nullptr);
+      op_params,
+      solver,
+      attribute_outputs.intersecting_edges_id ? &intersecting_edges : nullptr,
+      &error);
+  if (error.type == geometry::boolean::BooleanErrorType::NonManifold) {
+    if (!error.non_manifold_mesh_indices.is_empty()) {
+      for (const auto index : error.non_manifold_mesh_indices) {
+        params.error_message_add(
+            NodeWarningType::Error,
+            fmt::format(fmt::runtime(TIP_("Input {} was not manifold")), index));
+      }
+    }
+    else {
+      params.error_message_add(NodeWarningType::Error, TIP_("An input was not manifold"));
+    }
+  }
+  else if (error.type == geometry::boolean::BooleanErrorType::ResultTooBig) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Boolean result is too big for solver to handle"));
+  }
+  else if (error.type == geometry::boolean::BooleanErrorType::SolverNotAvailable) {
+    params.error_message_add(NodeWarningType::Error,
+                             TIP_("Boolean solver not available (compiled without it)"));
+  }
+  else if (error.type == geometry::boolean::BooleanErrorType::UnknownError) {
+    params.error_message_add(NodeWarningType::Error, TIP_("Unknown Boolean error"));
+  }
   if (!result) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  MEM_SAFE_FREE(result->mat);
-  result->mat = static_cast<Material **>(
-      MEM_malloc_arrayN(materials.size(), sizeof(Material *), __func__));
+  MEM_SAFE_DELETE(result->mat);
+  result->mat = MEM_new_array_uninitialized<Material *>(size_t(materials.size()), __func__);
   result->totcol = materials.size();
   MutableSpan(result->mat, result->totcol).copy_from(materials);
 
@@ -181,7 +247,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (attribute_outputs.intersecting_edges_id) {
     MutableAttributeAccessor attributes = result->attributes_for_write();
     SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_only_span<bool>(
-        attribute_outputs.intersecting_edges_id.get(), AttrDomain::Edge);
+        *attribute_outputs.intersecting_edges_id, AttrDomain::Edge);
 
     selection.span.fill(false);
     for (const int i : intersecting_edges) {
@@ -189,31 +255,60 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     selection.finish();
   }
-
   geometry::debug_randomize_mesh_order(result);
 
-  params.set_output("Mesh", GeometrySet::from_mesh(result));
-#else
-  params.error_message_add(NodeWarningType::Error,
-                           TIP_("Disabled, Blender was compiled without GMP"));
-  params.set_default_remaining_outputs();
-#endif
+  Vector<GeometrySet> all_geometries;
+  all_geometries.append(set_a);
+  all_geometries.extend(geometry_sets.values);
+
+  const std::array types_to_join = {GeometryComponent::Type::Edit};
+  GeometrySet result_geometry = geometry::join_geometries(
+      all_geometries, {}, std::make_optional(types_to_join));
+  result_geometry.replace_mesh(result);
+  result_geometry.set_name(set_a.name());
+  for (const GeometrySet &geometry : all_geometries) {
+    result_geometry.merge_bundle_from(geometry);
+  }
+
+  params.set_output("Mesh"_ustr, std::move(result_geometry));
 }
 
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem rna_node_geometry_boolean_method_items[] = {
-      {GEO_NODE_BOOLEAN_INTERSECT,
+      {int(geometry::boolean::Operation::Intersect),
        "INTERSECT",
        0,
        "Intersect",
        "Keep the part of the mesh that is common between all operands"},
-      {GEO_NODE_BOOLEAN_UNION, "UNION", 0, "Union", "Combine meshes in an additive way"},
-      {GEO_NODE_BOOLEAN_DIFFERENCE,
+      {int(geometry::boolean::Operation::Union),
+       "UNION",
+       0,
+       "Union",
+       "Combine meshes in an additive way"},
+      {int(geometry::boolean::Operation::Difference),
        "DIFFERENCE",
        0,
        "Difference",
        "Combine meshes in a subtractive way"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem rna_geometry_boolean_solver_items[] = {
+      {int(geometry::boolean::Solver::MeshArr),
+       "EXACT",
+       0,
+       "Exact",
+       "Slower solver with the best results for coplanar faces"},
+      {int(geometry::boolean::Solver::Float),
+       "FLOAT",
+       0,
+       "Float",
+       "Simple solver with good performance, without support for overlapping geometry"},
+      {int(geometry::boolean::Solver::Manifold),
+       "MANIFOLD",
+       0,
+       "Manifold",
+       "Fastest solver that works only on manifold meshes but gives better results"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -223,20 +318,30 @@ static void node_rna(StructRNA *srna)
                     "",
                     rna_node_geometry_boolean_method_items,
                     NOD_inline_enum_accessors(custom1),
-                    GEO_NODE_BOOLEAN_INTERSECT);
+                    int(geometry::boolean::Operation::Intersect));
+
+  RNA_def_node_enum(srna,
+                    "solver",
+                    "Solver",
+                    "",
+                    rna_geometry_boolean_solver_items,
+                    NOD_inline_enum_accessors(custom2),
+                    int(geometry::boolean::Solver::Float));
 }
 
 static void node_register()
 {
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_MESH_BOOLEAN, "Mesh Boolean", NODE_CLASS_GEOMETRY);
+  static bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeMeshBoolean"_ustr, GEO_NODE_MESH_BOOLEAN);
+  ntype.ui_name = "Mesh Boolean";
+  ntype.ui_description = "Cut, subtract, or join multiple mesh inputs";
+  ntype.enum_name_legacy = "MESH_BOOLEAN";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
-  ntype.updatefunc = node_update;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

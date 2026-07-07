@@ -2,12 +2,19 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_idtype.h"
+#include "BKE_armature.hh"
+#include "BKE_global.hh"
+#include "BKE_gtest_base.hh"
+#include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "ANIM_bone_collections.hh"
 #include "intern/bone_collections_internal.hh"
@@ -16,19 +23,21 @@
 
 namespace blender::animrig::tests {
 
-TEST(ANIM_bone_collections, bonecoll_new_free)
+class AnimBoneCollectionTest : public bke::BlenderGTestBase {};
+
+TEST_F(AnimBoneCollectionTest, bonecoll_new_free)
 {
   BoneCollection *bcoll = ANIM_bonecoll_new("some name");
   EXPECT_NE(nullptr, bcoll);
   EXPECT_EQ("some name", std::string(bcoll->name));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bcoll->bones));
+  EXPECT_TRUE(bcoll->bones.is_empty());
   EXPECT_EQ(BONE_COLLECTION_VISIBLE | BONE_COLLECTION_SELECTABLE |
                 BONE_COLLECTION_ANCESTORS_VISIBLE,
             bcoll->flags);
   ANIM_bonecoll_free(bcoll);
 }
 
-TEST(ANIM_bone_collections, bonecoll_default_name)
+TEST_F(AnimBoneCollectionTest, bonecoll_default_name)
 {
   {
     BoneCollection *bcoll = ANIM_bonecoll_new("");
@@ -43,18 +52,16 @@ TEST(ANIM_bone_collections, bonecoll_default_name)
   }
 }
 
-class ANIM_armature_bone_collections : public testing::Test {
+class ArmatureBoneCollections : public bke::BlenderGTestBase {
  protected:
-  bArmature arm;
-  Bone bone1, bone2, bone3;
+  bArmature arm = {};
+  Bone bone1 = {}, bone2 = {}, bone3 = {};
+  Main *bmain;
 
   void SetUp() override
   {
-    memset(&arm, 0, sizeof(arm));
-    memset(&bone1, 0, sizeof(Bone));
-    memset(&bone2, 0, sizeof(Bone));
-    memset(&bone3, 0, sizeof(Bone));
-
+    bmain = BKE_main_new();
+    G_MAIN = bmain;
     STRNCPY(arm.id.name, "ARArmature");
     STRNCPY(bone1.name, "bone1");
     STRNCPY(bone2.name, "bone2");
@@ -64,6 +71,7 @@ class ANIM_armature_bone_collections : public testing::Test {
     BLI_addtail(&arm.bonebase, &bone2);    /* bone2 is root bone. */
     BLI_addtail(&bone2.childbase, &bone3); /* bone3 has bone2 as parent. */
 
+    arm.runtime = MEM_new<bke::bArmature_Runtime>(__func__);
     BKE_armature_bone_hash_make(&arm);
   }
 
@@ -71,14 +79,16 @@ class ANIM_armature_bone_collections : public testing::Test {
   {
     /* Avoid freeing the bones, as they are part of this struct and not owned by
      * the armature. */
-    BLI_listbase_clear(&arm.bonebase);
+    arm.bonebase.clear_no_delete();
 
-    BKE_idtype_init();
     BKE_libblock_free_datablock(&arm.id, 0);
+
+    BKE_main_free(bmain);
+    G_MAIN = nullptr;
   }
 };
 
-TEST_F(ANIM_armature_bone_collections, armature_owned_collections)
+TEST_F(ArmatureBoneCollections, armature_owned_collections)
 {
   BoneCollection *bcoll1 = ANIM_armature_bonecoll_new(&arm, "collection");
   BoneCollection *bcoll2 = ANIM_armature_bonecoll_new(&arm, "collection");
@@ -90,7 +100,7 @@ TEST_F(ANIM_armature_bone_collections, armature_owned_collections)
   ANIM_armature_bonecoll_remove(&arm, bcoll2);
 }
 
-TEST_F(ANIM_armature_bone_collections, collection_hierarchy_creation)
+TEST_F(ArmatureBoneCollections, collection_hierarchy_creation)
 {
   /* Implicit root: */
   BoneCollection *bcoll_root_0 = ANIM_armature_bonecoll_new(&arm, "wortel");
@@ -146,7 +156,7 @@ TEST_F(ANIM_armature_bone_collections, collection_hierarchy_creation)
   /* TODO: test with deeper hierarchy. */
 }
 
-TEST_F(ANIM_armature_bone_collections, collection_hierarchy_removal)
+TEST_F(ArmatureBoneCollections, collection_hierarchy_removal)
 {
   /* Set up a small hierarchy. */
   BoneCollection *bcoll_root_0 = ANIM_armature_bonecoll_new(&arm, "root_0");
@@ -240,8 +250,7 @@ TEST_F(ANIM_armature_bone_collections, collection_hierarchy_removal)
   EXPECT_EQ(0, arm.collection_array[2]->child_count);
 }
 
-TEST_F(ANIM_armature_bone_collections,
-       collection_hierarchy_removal__more_complex_remove_inner_child)
+TEST_F(ArmatureBoneCollections, collection_hierarchy_removal__more_complex_remove_inner_child)
 {
   /* Set up a slightly bigger hierarchy. Contrary to the other tests these are
    * actually declared in array order. */
@@ -339,7 +348,7 @@ TEST_F(ANIM_armature_bone_collections,
   EXPECT_EQ(0, arm.collection_array[5]->child_count);
 }
 
-TEST_F(ANIM_armature_bone_collections, collection_hierarchy_removal__more_complex_remove_root)
+TEST_F(ArmatureBoneCollections, collection_hierarchy_removal__more_complex_remove_root)
 {
   /* Set up a slightly bigger hierarchy. Contrary to the other tests these are
    * actually declared in array order. */
@@ -411,7 +420,7 @@ TEST_F(ANIM_armature_bone_collections, collection_hierarchy_removal__more_comple
   EXPECT_EQ(0, arm.collection_array[6]->child_count);
 }
 
-TEST_F(ANIM_armature_bone_collections, find_parent_index)
+TEST_F(ArmatureBoneCollections, find_parent_index)
 {
   /* Set up a small hierarchy. */
   BoneCollection *bcoll_root_0 = ANIM_armature_bonecoll_new(&arm, "root_0");
@@ -455,7 +464,7 @@ TEST_F(ANIM_armature_bone_collections, find_parent_index)
   EXPECT_EQ(2, armature_bonecoll_find_parent_index(&arm, 5));
 }
 
-TEST_F(ANIM_armature_bone_collections, collection_hierarchy_visibility)
+TEST_F(ArmatureBoneCollections, collection_hierarchy_visibility)
 {
   /* Set up a small hierarchy. */
   BoneCollection *bcoll_root0 = ANIM_armature_bonecoll_new(&arm, "root0");
@@ -520,14 +529,14 @@ TEST_F(ANIM_armature_bone_collections, collection_hierarchy_visibility)
   EXPECT_FALSE(bcoll_r0_child2->flags & BONE_COLLECTION_ANCESTORS_VISIBLE);
 }
 
-TEST_F(ANIM_armature_bone_collections, bones_assign_unassign)
+TEST_F(ArmatureBoneCollections, bones_assign_unassign)
 {
   BoneCollection *bcoll = ANIM_armature_bonecoll_new(&arm, "collection");
 
   ANIM_armature_bonecoll_assign(bcoll, &bone1);
   ANIM_armature_bonecoll_assign(bcoll, &bone2);
 
-  ASSERT_EQ(2, BLI_listbase_count(&bcoll->bones)) << "expecting two bones in collection";
+  ASSERT_EQ(2, bcoll->bones.count()) << "expecting two bones in collection";
   EXPECT_EQ(&bone1, static_cast<BoneCollectionMember *>(BLI_findlink(&bcoll->bones, 0))->bone);
   EXPECT_EQ(&bone2, static_cast<BoneCollectionMember *>(BLI_findlink(&bcoll->bones, 1))->bone);
 
@@ -539,15 +548,15 @@ TEST_F(ANIM_armature_bone_collections, bones_assign_unassign)
   ANIM_armature_bonecoll_unassign(bcoll, &bone1);
   ANIM_armature_bonecoll_unassign(bcoll, &bone2);
 
-  EXPECT_EQ(0, BLI_listbase_count(&bone1.runtime.collections))
+  EXPECT_EQ(0, bone1.runtime.collections.count())
       << "expecting back-references in bone1 runtime data to be cleared when unassigned";
-  EXPECT_EQ(0, BLI_listbase_count(&bone2.runtime.collections))
+  EXPECT_EQ(0, bone2.runtime.collections.count())
       << "expecting back-references in bone2 runtime data to be cleared when unassigned";
 
   ANIM_armature_bonecoll_remove(&arm, bcoll);
 }
 
-TEST_F(ANIM_armature_bone_collections, bones_assign_remove)
+TEST_F(ArmatureBoneCollections, bones_assign_remove)
 {
   BoneCollection *bcoll = ANIM_armature_bonecoll_new(&arm, "collection");
 
@@ -555,70 +564,70 @@ TEST_F(ANIM_armature_bone_collections, bones_assign_remove)
   ANIM_armature_bonecoll_assign(bcoll, &bone2);
   ANIM_armature_bonecoll_remove(&arm, bcoll);
 
-  EXPECT_EQ(0, BLI_listbase_count(&bone1.runtime.collections))
+  EXPECT_EQ(0, bone1.runtime.collections.count())
       << "expecting back-references in bone1 runtime data to be cleared when the collection is "
          "removed";
-  EXPECT_EQ(0, BLI_listbase_count(&bone2.runtime.collections))
+  EXPECT_EQ(0, bone2.runtime.collections.count())
       << "expecting back-references in bone2 runtime data to be cleared when the collection is "
          "removed";
 }
 
-TEST_F(ANIM_armature_bone_collections, active_set_clear_by_pointer)
+TEST_F(ArmatureBoneCollections, active_set_clear_by_pointer)
 {
   BoneCollection *bcoll1 = ANIM_armature_bonecoll_new(&arm, "Bones 1");
   BoneCollection *bcoll2 = ANIM_armature_bonecoll_new(&arm, "Bones 2");
   BoneCollection *bcoll3 = ANIM_bonecoll_new("Alien Bones");
 
   ANIM_armature_bonecoll_active_set(&arm, bcoll1);
-  EXPECT_EQ(0, arm.runtime.active_collection_index);
-  EXPECT_EQ(bcoll1, arm.runtime.active_collection);
+  EXPECT_EQ(0, arm.runtime->active_collection_index);
+  EXPECT_EQ(bcoll1, arm.runtime->active_collection);
   EXPECT_STREQ(bcoll1->name, arm.active_collection_name);
 
   ANIM_armature_bonecoll_active_set(&arm, nullptr);
-  EXPECT_EQ(-1, arm.runtime.active_collection_index);
-  EXPECT_EQ(nullptr, arm.runtime.active_collection);
+  EXPECT_EQ(-1, arm.runtime->active_collection_index);
+  EXPECT_EQ(nullptr, arm.runtime->active_collection);
   EXPECT_STREQ("", arm.active_collection_name);
 
   ANIM_armature_bonecoll_active_set(&arm, bcoll2);
-  EXPECT_EQ(1, arm.runtime.active_collection_index);
-  EXPECT_EQ(bcoll2, arm.runtime.active_collection);
+  EXPECT_EQ(1, arm.runtime->active_collection_index);
+  EXPECT_EQ(bcoll2, arm.runtime->active_collection);
   EXPECT_STREQ(bcoll2->name, arm.active_collection_name);
 
   ANIM_armature_bonecoll_active_set(&arm, bcoll3);
-  EXPECT_EQ(-1, arm.runtime.active_collection_index);
-  EXPECT_EQ(nullptr, arm.runtime.active_collection);
+  EXPECT_EQ(-1, arm.runtime->active_collection_index);
+  EXPECT_EQ(nullptr, arm.runtime->active_collection);
   EXPECT_STREQ("", arm.active_collection_name);
 
   ANIM_bonecoll_free(bcoll3);
 }
 
-TEST_F(ANIM_armature_bone_collections, active_set_clear_by_index)
+TEST_F(ArmatureBoneCollections, active_set_clear_by_index)
 {
   BoneCollection *bcoll1 = ANIM_armature_bonecoll_new(&arm, "Bones 1");
   BoneCollection *bcoll2 = ANIM_armature_bonecoll_new(&arm, "Bones 2");
 
   ANIM_armature_bonecoll_active_index_set(&arm, 0);
-  EXPECT_EQ(0, arm.runtime.active_collection_index);
-  EXPECT_EQ(bcoll1, arm.runtime.active_collection);
+  EXPECT_EQ(0, arm.runtime->active_collection_index);
+  EXPECT_EQ(bcoll1, arm.runtime->active_collection);
   EXPECT_STREQ(bcoll1->name, arm.active_collection_name);
 
   ANIM_armature_bonecoll_active_index_set(&arm, -1);
-  EXPECT_EQ(-1, arm.runtime.active_collection_index);
-  EXPECT_EQ(nullptr, arm.runtime.active_collection);
+  EXPECT_EQ(-1, arm.runtime->active_collection_index);
+  EXPECT_EQ(nullptr, arm.runtime->active_collection);
   EXPECT_STREQ("", arm.active_collection_name);
 
   ANIM_armature_bonecoll_active_index_set(&arm, 1);
-  EXPECT_EQ(1, arm.runtime.active_collection_index);
-  EXPECT_EQ(bcoll2, arm.runtime.active_collection);
+  EXPECT_EQ(1, arm.runtime->active_collection_index);
+  EXPECT_EQ(bcoll2, arm.runtime->active_collection);
   EXPECT_STREQ(bcoll2->name, arm.active_collection_name);
 
   ANIM_armature_bonecoll_active_index_set(&arm, 47);
-  EXPECT_EQ(-1, arm.runtime.active_collection_index);
-  EXPECT_EQ(nullptr, arm.runtime.active_collection);
+  EXPECT_EQ(-1, arm.runtime->active_collection_index);
+  EXPECT_EQ(nullptr, arm.runtime->active_collection);
   EXPECT_STREQ("", arm.active_collection_name);
 }
 
-TEST_F(ANIM_armature_bone_collections, bcoll_is_editable)
+TEST_F(ArmatureBoneCollections, bcoll_is_editable)
 {
   BoneCollection *bcoll1 = ANIM_armature_bonecoll_new(&arm, "Bones 1");
   BoneCollection *bcoll2 = ANIM_armature_bonecoll_new(&arm, "Bones 2");
@@ -652,7 +661,7 @@ TEST_F(ANIM_armature_bone_collections, bcoll_is_editable)
       << "Expecting local bone collection on local armature override to be editable";
 }
 
-TEST_F(ANIM_armature_bone_collections, bcoll_move_to_index__roots)
+TEST_F(ArmatureBoneCollections, bcoll_move_to_index__roots)
 {
   BoneCollection *bcoll1 = ANIM_armature_bonecoll_new(&arm, "collection");
   BoneCollection *bcoll2 = ANIM_armature_bonecoll_new(&arm, "collection");
@@ -687,7 +696,7 @@ TEST_F(ANIM_armature_bone_collections, bcoll_move_to_index__roots)
   EXPECT_EQ(arm.collection_array[3], bcoll1);
 }
 
-TEST_F(ANIM_armature_bone_collections, bcoll_move_to_index__siblings)
+TEST_F(ArmatureBoneCollections, bcoll_move_to_index__siblings)
 {
   BoneCollection *root = ANIM_armature_bonecoll_new(&arm, "root");
   BoneCollection *child0 = ANIM_armature_bonecoll_new(&arm, "child0", 0);
@@ -738,7 +747,7 @@ TEST_F(ANIM_armature_bone_collections, bcoll_move_to_index__siblings)
   EXPECT_STREQ(child1_0->name, arm.collection_array[4]->name);
 }
 
-TEST_F(ANIM_armature_bone_collections, bcoll_move_to_parent)
+TEST_F(ArmatureBoneCollections, bcoll_move_to_parent)
 {
   /* Set up a small hierarchy. */
   BoneCollection *bcoll_root_0 = ANIM_armature_bonecoll_new(&arm, "root_0");
@@ -877,7 +886,7 @@ TEST_F(ANIM_armature_bone_collections, bcoll_move_to_parent)
   EXPECT_EQ(0, arm.collection_array[5]->child_count);
 }
 
-TEST_F(ANIM_armature_bone_collections, bcoll_move_to_parent__root_unroot)
+TEST_F(ArmatureBoneCollections, bcoll_move_to_parent__root_unroot)
 {
   /* Set up a small hierarchy. */
   BoneCollection *bcoll_root_0 = ANIM_armature_bonecoll_new(&arm, "root_0");
@@ -917,7 +926,7 @@ TEST_F(ANIM_armature_bone_collections, bcoll_move_to_parent__root_unroot)
   ASSERT_EQ(6, arm.collection_array_num);
   EXPECT_STREQ(bcoll_root_0->name, arm.collection_array[0]->name);
   EXPECT_STREQ(bcoll_root_1->name, arm.collection_array[1]->name);
-  EXPECT_STREQ(bcoll_r0_child1->name, arm.collection_array[2]->name);  // Became a root.
+  EXPECT_STREQ(bcoll_r0_child1->name, arm.collection_array[2]->name); /* Became a root. */
   EXPECT_STREQ(bcoll_r0_child0->name, arm.collection_array[3]->name);
   EXPECT_STREQ(bcoll_r0_child2->name, arm.collection_array[4]->name);
   EXPECT_STREQ(bcoll_r1_child0->name, arm.collection_array[5]->name);
@@ -942,10 +951,10 @@ TEST_F(ANIM_armature_bone_collections, bcoll_move_to_parent__root_unroot)
   ASSERT_EQ(2, arm.collection_root_count);
   ASSERT_EQ(6, arm.collection_array_num);
   EXPECT_STREQ(bcoll_root_0->name, arm.collection_array[0]->name);
-  EXPECT_STREQ(bcoll_r0_child1->name, arm.collection_array[1]->name);  // Actually a root.
+  EXPECT_STREQ(bcoll_r0_child1->name, arm.collection_array[1]->name); /* Actually a root. */
   EXPECT_STREQ(bcoll_r0_child0->name, arm.collection_array[2]->name);
   EXPECT_STREQ(bcoll_r0_child2->name, arm.collection_array[3]->name);
-  EXPECT_STREQ(bcoll_root_1->name, arm.collection_array[4]->name);  // Became a child.
+  EXPECT_STREQ(bcoll_root_1->name, arm.collection_array[4]->name); /* Became a child. */
   EXPECT_STREQ(bcoll_r1_child0->name, arm.collection_array[5]->name);
 
   EXPECT_EQ(2, arm.collection_array[0]->child_index);
@@ -962,19 +971,19 @@ TEST_F(ANIM_armature_bone_collections, bcoll_move_to_parent__root_unroot)
   EXPECT_EQ(1, arm.collection_array[4]->child_count);
   EXPECT_EQ(0, arm.collection_array[5]->child_count);
 
-  // TODO: test with circular parenthood.
+  /* TODO: test with circular parenthood. */
 }
 
-TEST_F(ANIM_armature_bone_collections, bcoll_move_to_parent__within_siblings)
+TEST_F(ArmatureBoneCollections, bcoll_move_to_parent__within_siblings)
 {
   /* Set up a small hierarchy. */
-  auto bcoll_root_0 = ANIM_armature_bonecoll_new(&arm, "root_0");
-  auto bcoll_root_1 = ANIM_armature_bonecoll_new(&arm, "root_1");
-  auto bcoll_r1_child0 = ANIM_armature_bonecoll_new(&arm, "r1_child0", 1);
-  auto bcoll_r0_child0 = ANIM_armature_bonecoll_new(&arm, "r0_child0", 0);
-  auto bcoll_r0_child1 = ANIM_armature_bonecoll_new(&arm, "r0_child1", 0);
-  auto bcoll_r0_child2 = ANIM_armature_bonecoll_new(&arm, "r0_child2", 0);
-  auto bcoll_r0_child3 = ANIM_armature_bonecoll_new(&arm, "r0_child3", 0);
+  auto *bcoll_root_0 = ANIM_armature_bonecoll_new(&arm, "root_0");
+  auto *bcoll_root_1 = ANIM_armature_bonecoll_new(&arm, "root_1");
+  auto *bcoll_r1_child0 = ANIM_armature_bonecoll_new(&arm, "r1_child0", 1);
+  auto *bcoll_r0_child0 = ANIM_armature_bonecoll_new(&arm, "r0_child0", 0);
+  auto *bcoll_r0_child1 = ANIM_armature_bonecoll_new(&arm, "r0_child1", 0);
+  auto *bcoll_r0_child2 = ANIM_armature_bonecoll_new(&arm, "r0_child2", 0);
+  auto *bcoll_r0_child3 = ANIM_armature_bonecoll_new(&arm, "r0_child3", 0);
 
   ASSERT_EQ(2, arm.collection_root_count);
   ASSERT_EQ(7, arm.collection_array_num);
@@ -1182,7 +1191,7 @@ TEST_F(ANIM_armature_bone_collections, bcoll_move_to_parent__within_siblings)
   EXPECT_EQ(0, arm.collection_array[5]->child_count);
   EXPECT_EQ(0, arm.collection_array[6]->child_count);
 
-  /* Move r0_child1 to become the 3nd child of root_0. */
+  /* Move r0_child1 to become the 3rd child of root_0. */
   EXPECT_EQ(5,
             armature_bonecoll_move_to_parent(&arm,
                                              2, /* From index. */
@@ -1218,7 +1227,7 @@ TEST_F(ANIM_armature_bone_collections, bcoll_move_to_parent__within_siblings)
   EXPECT_EQ(0, arm.collection_array[6]->child_count);
 }
 
-TEST_F(ANIM_armature_bone_collections, internal__bonecolls_rotate_block)
+TEST_F(ArmatureBoneCollections, internal__bonecolls_rotate_block)
 {
   /* Set up a small hierarchy. */
   BoneCollection *bcoll_root_0 = ANIM_armature_bonecoll_new(&arm, "root_0");
@@ -1283,20 +1292,20 @@ TEST_F(ANIM_armature_bone_collections, internal__bonecolls_rotate_block)
   EXPECT_EQ(0, arm.collection_array[5]->child_index);
 }
 
-class ANIM_armature_bone_collections_testlist : public testing::Test {
+class ArmatureBoneCollectionsTestList : public bke::BlenderGTestBase {
  protected:
-  bArmature arm;
+  bArmature arm = {};
 
-  BoneCollection *root;
-  BoneCollection *child0;
-  BoneCollection *child1;
-  BoneCollection *child2;
-  BoneCollection *child1_0;
+  BoneCollection *root = nullptr;
+  BoneCollection *child0 = nullptr;
+  BoneCollection *child1 = nullptr;
+  BoneCollection *child2 = nullptr;
+  BoneCollection *child1_0 = nullptr;
 
   void SetUp() override
   {
-    memset(&arm, 0, sizeof(arm));
     STRNCPY(arm.id.name, "ARArmature");
+    arm.runtime = MEM_new<bke::bArmature_Runtime>(__func__);
 
     root = ANIM_armature_bonecoll_new(&arm, "root");
     child0 = ANIM_armature_bonecoll_new(&arm, "child0", 0);
@@ -1313,7 +1322,6 @@ class ANIM_armature_bone_collections_testlist : public testing::Test {
 
   void TearDown() override
   {
-    BKE_idtype_init();
     BKE_libblock_free_datablock(&arm.id, 0);
   }
 
@@ -1321,7 +1329,7 @@ class ANIM_armature_bone_collections_testlist : public testing::Test {
   {
     std::vector<std::string> actual_names;
     for (const BoneCollection *bcoll : arm.collections_span()) {
-      actual_names.push_back(bcoll->name);
+      actual_names.emplace_back(bcoll->name);
     }
 
     if (expect_names == actual_names) {
@@ -1352,99 +1360,95 @@ class ANIM_armature_bone_collections_testlist : public testing::Test {
   }
 };
 
-TEST_F(ANIM_armature_bone_collections_testlist, move_before_after_index__before_first_sibling)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__before_first_sibling)
 {
   /* Set the active index to be one of the affected bone collections. */
   ANIM_armature_bonecoll_active_name_set(&arm, "child2");
-  ASSERT_EQ(3, arm.runtime.active_collection_index);
+  ASSERT_EQ(3, arm.runtime->active_collection_index);
 
   EXPECT_EQ(1, ANIM_armature_bonecoll_move_before_after_index(&arm, 3, 1, MoveLocation::Before));
   EXPECT_TRUE(expect_bcolls({"root", "child2", "child0", "child1", "child1_0"}));
   EXPECT_EQ(0, armature_bonecoll_find_parent_index(&arm, 1));
 
   /* The three indicators of the active collection should still be in sync. */
-  EXPECT_EQ(1, arm.runtime.active_collection_index);
-  EXPECT_EQ(child2, arm.runtime.active_collection);
+  EXPECT_EQ(1, arm.runtime->active_collection_index);
+  EXPECT_EQ(child2, arm.runtime->active_collection);
   EXPECT_STREQ("child2", arm.active_collection_name);
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist, move_before_after_index__after_first_sibling)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__after_first_sibling)
 {
   EXPECT_EQ(2, ANIM_armature_bonecoll_move_before_after_index(&arm, 3, 1, MoveLocation::After));
   EXPECT_TRUE(expect_bcolls({"root", "child0", "child2", "child1", "child1_0"}));
   EXPECT_EQ(0, armature_bonecoll_find_parent_index(&arm, 2));
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist, move_before_after_index__before_last_sibling)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__before_last_sibling)
 {
   /* Set the active index to be one of the affected bone collections. */
   ANIM_armature_bonecoll_active_name_set(&arm, "child1");
-  ASSERT_EQ(2, arm.runtime.active_collection_index);
+  ASSERT_EQ(2, arm.runtime->active_collection_index);
 
   EXPECT_EQ(2, ANIM_armature_bonecoll_move_before_after_index(&arm, 1, 3, MoveLocation::Before));
   EXPECT_TRUE(expect_bcolls({"root", "child1", "child0", "child2", "child1_0"}));
   EXPECT_EQ(0, armature_bonecoll_find_parent_index(&arm, 2));
 
   /* The three indicators of the active collection should still be in sync. */
-  EXPECT_EQ(1, arm.runtime.active_collection_index);
-  EXPECT_EQ(child1, arm.runtime.active_collection);
+  EXPECT_EQ(1, arm.runtime->active_collection_index);
+  EXPECT_EQ(child1, arm.runtime->active_collection);
   EXPECT_STREQ("child1", arm.active_collection_name);
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist, move_before_after_index__after_last_sibling)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__after_last_sibling)
 {
   EXPECT_EQ(3, ANIM_armature_bonecoll_move_before_after_index(&arm, 1, 3, MoveLocation::After));
   EXPECT_TRUE(expect_bcolls({"root", "child1", "child2", "child0", "child1_0"}));
   EXPECT_EQ(0, armature_bonecoll_find_parent_index(&arm, 3));
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist,
-       move_before_after_index__other_parent_before__move_left)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__other_parent_before__move_left)
 {
   EXPECT_EQ(1, ANIM_armature_bonecoll_move_before_after_index(&arm, 4, 1, MoveLocation::Before));
   EXPECT_TRUE(expect_bcolls({"root", "child1_0", "child0", "child1", "child2"}));
   EXPECT_EQ(0, armature_bonecoll_find_parent_index(&arm, 1));
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist,
-       move_before_after_index__other_parent_after__move_left)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__other_parent_after__move_left)
 {
   EXPECT_EQ(2, ANIM_armature_bonecoll_move_before_after_index(&arm, 4, 1, MoveLocation::After));
   EXPECT_TRUE(expect_bcolls({"root", "child0", "child1_0", "child1", "child2"}));
   EXPECT_EQ(0, armature_bonecoll_find_parent_index(&arm, 2));
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist,
-       move_before_after_index__other_parent_before__move_right)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__other_parent_before__move_right)
 {
   EXPECT_EQ(3, ANIM_armature_bonecoll_move_before_after_index(&arm, 1, 4, MoveLocation::Before));
   EXPECT_TRUE(expect_bcolls({"root", "child1", "child2", "child0", "child1_0"}));
   EXPECT_EQ(1, armature_bonecoll_find_parent_index(&arm, 3));
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist,
-       move_before_after_index__other_parent_after__move_right)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__other_parent_after__move_right)
 {
   EXPECT_EQ(4, ANIM_armature_bonecoll_move_before_after_index(&arm, 1, 4, MoveLocation::After));
   EXPECT_TRUE(expect_bcolls({"root", "child1", "child2", "child1_0", "child0"}));
   EXPECT_EQ(1, armature_bonecoll_find_parent_index(&arm, 4));
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist, move_before_after_index__to_root__before)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__to_root__before)
 {
   EXPECT_EQ(0, ANIM_armature_bonecoll_move_before_after_index(&arm, 4, 0, MoveLocation::Before));
   EXPECT_TRUE(expect_bcolls({"child1_0", "root", "child0", "child1", "child2"}));
   EXPECT_EQ(-1, armature_bonecoll_find_parent_index(&arm, 0));
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist, move_before_after_index__to_root__after)
+TEST_F(ArmatureBoneCollectionsTestList, move_before_after_index__to_root__after)
 {
   EXPECT_EQ(1, ANIM_armature_bonecoll_move_before_after_index(&arm, 4, 0, MoveLocation::After));
   EXPECT_TRUE(expect_bcolls({"root", "child1_0", "child0", "child1", "child2"}));
   EXPECT_EQ(-1, armature_bonecoll_find_parent_index(&arm, 1));
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist, child_number_set__roots)
+TEST_F(ArmatureBoneCollectionsTestList, child_number_set__roots)
 {
   /* Test with only one root. */
   EXPECT_EQ(0, armature_bonecoll_child_number_set(&arm, root, 0));
@@ -1474,7 +1478,7 @@ TEST_F(ANIM_armature_bone_collections_testlist, child_number_set__roots)
   EXPECT_TRUE(expect_bcolls({"root1", "root2", "root", "child0", "child1", "child2", "child1_0"}));
 }
 
-TEST_F(ANIM_armature_bone_collections_testlist, child_number_set__siblings)
+TEST_F(ArmatureBoneCollectionsTestList, child_number_set__siblings)
 {
   /* Move child0 to itself. */
   EXPECT_EQ(1, armature_bonecoll_child_number_set(&arm, child0, 0));
@@ -1497,25 +1501,53 @@ TEST_F(ANIM_armature_bone_collections_testlist, child_number_set__siblings)
   EXPECT_TRUE(expect_bcolls({"root", "child1", "child2", "child0", "child1_0"}));
 }
 
-class ANIM_armature_bone_collections_liboverrides
-    : public ANIM_armature_bone_collections_testlist {
- protected:
-  bArmature dst_arm;
+TEST_F(ArmatureBoneCollectionsTestList, bone_collection_solo)
+{
+  EXPECT_FALSE(arm.flag & ARM_BCOLL_SOLO_ACTIVE) << "By default no solo'ing should be active";
 
-  BoneCollection *dst_root;
-  BoneCollection *dst_child0;
-  BoneCollection *dst_child1;
-  BoneCollection *dst_child2;
-  BoneCollection *dst_child1_0;
+  /* Enable solo. */
+  EXPECT_FALSE(child1->flags & BONE_COLLECTION_SOLO);
+  ANIM_armature_bonecoll_solo_set(&arm, child1, true);
+  EXPECT_TRUE(child1->flags & BONE_COLLECTION_SOLO);
+  EXPECT_TRUE(arm.flag & ARM_BCOLL_SOLO_ACTIVE);
+
+  /* Enable solo on another bone collection. */
+  EXPECT_FALSE(child1_0->flags & BONE_COLLECTION_SOLO);
+  ANIM_armature_bonecoll_solo_set(&arm, child1_0, true);
+  EXPECT_TRUE(child1_0->flags & BONE_COLLECTION_SOLO);
+  EXPECT_TRUE(arm.flag & ARM_BCOLL_SOLO_ACTIVE);
+
+  /* Disable the first solo flag. */
+  EXPECT_TRUE(child1->flags & BONE_COLLECTION_SOLO);
+  ANIM_armature_bonecoll_solo_set(&arm, child1, false);
+  EXPECT_FALSE(child1->flags & BONE_COLLECTION_SOLO);
+  EXPECT_TRUE(arm.flag & ARM_BCOLL_SOLO_ACTIVE);
+
+  /* Disable the second solo flag. This should also disable the ARM_BCOLL_SOLO_ACTIVE flag. */
+  EXPECT_TRUE(child1_0->flags & BONE_COLLECTION_SOLO);
+  ANIM_armature_bonecoll_solo_set(&arm, child1_0, false);
+  EXPECT_FALSE(child1_0->flags & BONE_COLLECTION_SOLO);
+  EXPECT_FALSE(arm.flag & ARM_BCOLL_SOLO_ACTIVE);
+}
+
+class ArmatureBoneCollectionsLiboverrides : public ArmatureBoneCollectionsTestList {
+ protected:
+  bArmature dst_arm = {};
+
+  BoneCollection *dst_root = nullptr;
+  BoneCollection *dst_child0 = nullptr;
+  BoneCollection *dst_child1 = nullptr;
+  BoneCollection *dst_child2 = nullptr;
+  BoneCollection *dst_child1_0 = nullptr;
 
   void SetUp() override
   {
-    ANIM_armature_bone_collections_testlist::SetUp();
+    ArmatureBoneCollectionsTestList::SetUp();
 
     /* TODO: make this clone `arm` into `dst_arm`, instead of assuming the below
      * code is still in sync with the super-class. */
-    memset(&dst_arm, 0, sizeof(dst_arm));
     STRNCPY(dst_arm.id.name, "ARArmatureDST");
+    dst_arm.runtime = MEM_new<bke::bArmature_Runtime>(__func__);
 
     dst_root = ANIM_armature_bonecoll_new(&dst_arm, "root");
     dst_child0 = ANIM_armature_bonecoll_new(&dst_arm, "child0", 0);
@@ -1535,12 +1567,12 @@ class ANIM_armature_bone_collections_liboverrides
 
   void TearDown() override
   {
-    ANIM_armature_bone_collections_testlist::TearDown();
+    ArmatureBoneCollectionsTestList::TearDown();
     BKE_libblock_free_datablock(&dst_arm.id, 0);
   }
 };
 
-TEST_F(ANIM_armature_bone_collections_liboverrides, bcoll_insert_copy_after)
+TEST_F(ArmatureBoneCollectionsLiboverrides, bcoll_insert_copy_after)
 {
   /* Mimic that a new root, two children, and two grandchildren were added via library overrides.
    * These were saved in `arm`, and now need to be copied into `dst_arm`. */

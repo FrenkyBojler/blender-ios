@@ -3,27 +3,30 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "testing/testing.h"
 
+#include "BLI_rect.hh"
+
 #include "CLG_log.h"
 
-#include "BKE_appdir.h"
-#include "BKE_global.h"
-#include "BKE_idtype.h"
-#include "BKE_image.h"
+#include "GHOST_ISystemPaths.hh"
+
+#include "BKE_appdir.hh"
+#include "BKE_global.hh"
+#include "BKE_gtest_base.hh"
+#include "BKE_idtype.hh"
+#include "BKE_image.hh"
 #include "BKE_image_partial_update.hh"
 #include "BKE_main.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_moviecache.h"
+#include "IMB_cache.hh"
+#include "IMB_imbuf.hh"
 
 #include "DNA_image_types.h"
-
-#include "MEM_guardedalloc.h"
 
 namespace blender::bke::image::partial_update {
 
 constexpr float black_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-class ImagePartialUpdateTest : public testing::Test {
+class ImagePartialUpdateTest : public BlenderGTestBase {
  protected:
   Main *bmain;
   Main *prev_bmain;
@@ -52,11 +55,6 @@ class ImagePartialUpdateTest : public testing::Test {
  protected:
   void SetUp() override
   {
-    CLG_init();
-    BKE_idtype_init();
-    BKE_appdir_init();
-    IMB_init();
-
     bmain = BKE_main_new();
     /* Required by usage of #ID_BLEND_PATH_FROM_GLOBAL in #add_ibuf_for_tile. */
     prev_bmain = G_MAIN;
@@ -77,11 +75,6 @@ class ImagePartialUpdateTest : public testing::Test {
     /* Restore original main in G_MAIN. */
     G_MAIN = prev_bmain;
     BKE_main_free(bmain);
-
-    IMB_moviecache_destruct();
-    IMB_exit();
-    BKE_appdir_exit();
-    CLG_exit();
   }
 };
 

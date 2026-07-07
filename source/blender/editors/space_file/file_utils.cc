@@ -6,20 +6,19 @@
  * \ingroup spfile
  */
 
-#include "BLI_fileops.h"
-#include "BLI_path_util.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_path_utils.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
 
 #include "BKE_blendfile.hh"
-#include "BKE_context.hh"
+
+#include "DNA_screen_types.h"
 
 #include "ED_fileselect.hh"
-#include "ED_screen.hh"
-
-#include "WM_types.hh"
 
 #include "file_intern.hh"
+
+namespace blender {
 
 void file_tile_boundbox(const ARegion *region, FileLayout *layout, const int file, rcti *r_bounds)
 {
@@ -34,10 +33,12 @@ void file_tile_boundbox(const ARegion *region, FileLayout *layout, const int fil
                 ymax);
 }
 
-void file_path_to_ui_path(const char *path, char *r_path, int max_size)
+void file_path_to_ui_path(const char *path, char *r_path, int r_path_maxncpy)
 {
-  char tmp_path[PATH_MAX];
+  char tmp_path[FILE_MAX_LIBEXTRA];
   STRNCPY(tmp_path, path);
   BLI_path_slash_rstrip(tmp_path);
-  BLI_strncpy(r_path, BKE_blendfile_extension_check(tmp_path) ? tmp_path : path, max_size);
+  BLI_strncpy(r_path, BKE_blendfile_extension_check(tmp_path) ? tmp_path : path, r_path_maxncpy);
 }
+
+}  // namespace blender

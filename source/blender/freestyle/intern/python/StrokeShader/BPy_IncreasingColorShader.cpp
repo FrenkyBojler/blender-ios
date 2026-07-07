@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char IncreasingColorShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    IncreasingColorShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`IncreasingColorShader`\n"
     "\n"
     "[Color shader]\n"
@@ -30,21 +28,21 @@ static char IncreasingColorShader___doc__[] =
     "\n"
     "   Builds an IncreasingColorShader object.\n"
     "\n"
-    "   :arg red_min: The first color red component.\n"
+    "   :param red_min: The first color red component.\n"
     "   :type red_min: float\n"
-    "   :arg green_min: The first color green component.\n"
+    "   :param green_min: The first color green component.\n"
     "   :type green_min: float\n"
-    "   :arg blue_min: The first color blue component.\n"
+    "   :param blue_min: The first color blue component.\n"
     "   :type blue_min: float\n"
-    "   :arg alpha_min: The first color alpha value.\n"
+    "   :param alpha_min: The first color alpha value.\n"
     "   :type alpha_min: float\n"
-    "   :arg red_max: The second color red component.\n"
+    "   :param red_max: The second color red component.\n"
     "   :type red_max: float\n"
-    "   :arg green_max: The second color green component.\n"
+    "   :param green_max: The second color green component.\n"
     "   :type green_max: float\n"
-    "   :arg blue_max: The second color blue component.\n"
+    "   :param blue_max: The second color blue component.\n"
     "   :type blue_max: float\n"
-    "   :arg alpha_max: The second color alpha value.\n"
+    "   :param alpha_max: The second color alpha value.\n"
     "   :type alpha_max: float\n"
     "\n"
     ".. method:: shade(stroke)\n"
@@ -53,9 +51,8 @@ static char IncreasingColorShader___doc__[] =
     "   colors A and B. The stroke color will change linearly from A to B\n"
     "   between the first and the last vertex.\n"
     "\n"
-    "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :param stroke: A Stroke object.\n"
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int IncreasingColorShader___init__(BPy_IncreasingColorShader *self,
                                           PyObject *args,
                                           PyObject *kwds)
@@ -126,7 +123,3 @@ PyTypeObject IncreasingColorShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

@@ -19,16 +19,16 @@ endfunction()
 #
 # \param envvars_list: A list of extra environment variables to define for that test.
 #                      Note that this does no check for (re-)definition of a same variable.
-function(blender_test_set_envvars testname envvars_list)
+function(blender_test_set_envvars testname envvar_list)
   if(PLATFORM_ENV_INSTALL)
     list(APPEND envvar_list "${PLATFORM_ENV_INSTALL}")
   endif()
 
-  if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
+  if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
     if(WITH_COMPILER_ASAN)
       set(_lsan_options "LSAN_OPTIONS=print_suppressions=false:suppressions=${CMAKE_SOURCE_DIR}/tools/config/analysis/lsan.supp")
-      # FIXME That `allocator_may_return_null=true` ASAN option is only needed for the `guardedalloc` test,
-      #       would be nice to allow tests definition to pass extra envvars better.
+      # FIXME: That `allocator_may_return_null=true` ASAN option is only needed for the
+      # `guardedalloc` test, would be nice to allow tests definition to pass extra envvars better.
       set(_asan_options "ASAN_OPTIONS=allocator_may_return_null=true")
       if(DEFINED ENV{LSAN_OPTIONS})
         set(_lsan_options "${_lsan_options}:$ENV{LSAN_OPTIONS}")
@@ -39,14 +39,16 @@ function(blender_test_set_envvars testname envvars_list)
       list(APPEND envvar_list "${_lsan_options}" "${_asan_options}")
     endif()
   endif()
-
+  if(WITH_COMPILER_CODE_COVERAGE AND CMAKE_C_COMPILER_ID MATCHES "Clang")
+    list(APPEND envvar_list "LLVM_PROFILE_FILE=${COMPILER_CODE_COVERAGE_DATA_DIR}/raw/blender_%p.profraw")
+  endif()
   # Can only be called once per test to define its custom environment variables.
   set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${envvar_list}")
 endfunction()
 
-macro(blender_src_gtest_ex)
+function(blender_src_gtest_ex)
   if(WITH_GTESTS)
-    set(options)
+    set(options "")
     set(oneValueArgs NAME)
     set(multiValueArgs SRC EXTRA_LIBS COMMAND_ARGS)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -63,13 +65,11 @@ macro(blender_src_gtest_ex)
       ${CMAKE_SOURCE_DIR}/tests/gtests
     )
     set(TEST_INC_SYS
-      ${GLOG_INCLUDE_DIRS}
-      ${GFLAGS_INCLUDE_DIRS}
       ${CMAKE_SOURCE_DIR}/extern/gtest/include
       ${CMAKE_SOURCE_DIR}/extern/gmock/include
     )
     unset(_current_include_directories)
-    if(WIN32)
+    if(WIN32 AND NOT WITH_WINDOWS_EXTERNAL_MANIFEST)
       set(MANIFEST "${CMAKE_BINARY_DIR}/tests.exe.manifest")
     else()
       set(MANIFEST "")
@@ -77,8 +77,6 @@ macro(blender_src_gtest_ex)
 
     add_executable(${TARGET_NAME} ${ARG_SRC} ${MANIFEST})
     setup_platform_linker_flags(${TARGET_NAME})
-    target_compile_definitions(${TARGET_NAME} PRIVATE ${GFLAGS_DEFINES})
-    target_compile_definitions(${TARGET_NAME} PRIVATE ${GLOG_DEFINES})
     target_include_directories(${TARGET_NAME} PUBLIC "${TEST_INC}")
     target_include_directories(${TARGET_NAME} SYSTEM PUBLIC "${TEST_INC_SYS}")
     blender_link_libraries(${TARGET_NAME} "${ARG_EXTRA_LIBS};${PLATFORM_LINKLIBS}")
@@ -98,23 +96,14 @@ macro(blender_src_gtest_ex)
                           extern_gtest
                           extern_gmock
                           # Needed for GLOG.
-                          ${GLOG_LIBRARIES}
-                          ${GFLAGS_LIBRARIES})
+                          bf::dependencies::glog
+                          bf::dependencies::gflags
+                          bf::dependencies::pthreads
+                          bf::dependencies::optional::tbb
+                          bf::dependencies::optional::gmp)
 
-    if(DEFINED PTHREADS_LIBRARIES) # Needed for GLOG.
-      target_link_libraries(${TARGET_NAME} PRIVATE ${PTHREADS_LIBRARIES})
-    endif()
-    if(WITH_OPENMP AND WITH_OPENMP_STATIC)
-      target_link_libraries(${TARGET_NAME} PRIVATE ${OpenMP_LIBRARIES})
-    endif()
     if(UNIX AND NOT APPLE)
       target_link_libraries(${TARGET_NAME} PRIVATE bf_intern_libc_compat)
-    endif()
-    if(WITH_TBB)
-      target_link_libraries(${TARGET_NAME} PRIVATE ${TBB_LIBRARIES})
-    endif()
-    if(WITH_GMP)
-      target_link_libraries(${TARGET_NAME} PRIVATE ${GMP_LIBRARIES})
     endif()
 
     get_blender_test_install_dir(TEST_INSTALL_DIR)
@@ -124,17 +113,22 @@ macro(blender_src_gtest_ex)
                           RUNTIME_OUTPUT_DIRECTORY_DEBUG   "${TESTS_OUTPUT_DIR}")
     if(WIN32)
       set_target_properties(${TARGET_NAME} PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
+
+      if(WITH_WINDOWS_EXTERNAL_MANIFEST)
+        add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/tests.exe.manifest ${TESTS_OUTPUT_DIR}/${TARGET_NAME}.exe.manifest
+        )
+      endif()
     endif()
-    unset(MANIFEST)
-    unset(TEST_INC)
-    unset(TEST_INC_SYS)
-    unset(TARGET_NAME)
   endif()
-endmacro()
+endfunction()
 
 function(blender_add_ctests)
   if(ARGC LESS 1)
     message(FATAL_ERROR "No arguments supplied to blender_add_ctests()")
+  endif()
+  if(NOT EXISTS "${CMAKE_SOURCE_DIR}/tests/files/render")
+    return()
   endif()
 
   # Parse the arguments
@@ -163,14 +157,14 @@ function(blender_add_ctests)
       TEST_PREFIX ${ARGS_SUITE_NAME}
       WORKING_DIRECTORY "${TEST_INSTALL_DIR}"
       EXTRA_ARGS
-        --test-assets-dir "${CMAKE_SOURCE_DIR}/../lib/tests"
+        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/files"
         --test-release-dir "${_test_release_dir}"
     )
   else()
     add_test(
       NAME ${ARGS_SUITE_NAME}
       COMMAND ${ARGS_TARGET}
-        --test-assets-dir "${CMAKE_SOURCE_DIR}/../lib/tests"
+        --test-assets-dir "${CMAKE_SOURCE_DIR}/tests/files"
         --test-release-dir "${_test_release_dir}"
       WORKING_DIRECTORY ${TEST_INSTALL_DIR}
     )
@@ -189,7 +183,7 @@ endfunction()
 # blender_add_test_suite_executable.
 #
 # The function accepts an optional argument which denotes list of sources which
-# is to be compiled-in with the suite sources for each fo the suites when the
+# is to be compiled-in with the suite sources for each of the suites when the
 # WITH_TESTS_SINGLE_BINARY configuration is set to OFF.
 function(blender_add_test_suite_lib
   name
@@ -199,12 +193,12 @@ function(blender_add_test_suite_lib
   library_deps
   )
 
-  # Sources which are common for all suits and do not need to yield their own
+  # Sources which are common for all suites and do not need to yield their own
   # test suite binaries when WITH_TESTS_SINGLE_BINARY is OFF.
   set(common_sources ${ARGN})
 
   if(WITH_TESTS_SINGLE_BINARY)
-    add_cc_flags_custom_test(${name}_tests PARENT_SCOPE)
+    add_c_and_cxx_flags_custom_test(${name}_tests PARENT_SCOPE)
 
     # Otherwise external projects will produce warnings that we cannot fix.
     remove_strict_flags()
@@ -215,14 +209,16 @@ function(blender_add_test_suite_lib
       ${CMAKE_SOURCE_DIR}/tests/gtests
     )
     list(APPEND includes_sys
-      ${GLOG_INCLUDE_DIRS}
-      ${GFLAGS_INCLUDE_DIRS}
       ${CMAKE_SOURCE_DIR}/extern/gtest/include
       ${CMAKE_SOURCE_DIR}/extern/gmock/include
     )
+    list(APPEND library_deps
+      bf::dependencies::gflags
+      bf::dependencies::glog
+    )
 
     blender_add_lib__impl(${name}_tests
-        "${sources};${common_sources}" "${includes}" "${includes_sys}" "${library_deps}")
+      "${sources};${common_sources}" "${includes}" "${includes_sys}" "${library_deps}")
 
     target_compile_definitions(${name}_tests PRIVATE ${GFLAGS_DEFINES})
     target_compile_definitions(${name}_tests PRIVATE ${GLOG_DEFINES})
@@ -257,12 +253,12 @@ function(blender_add_test_executable_impl
   )
 
   set(oneValueArgs ADD_CTESTS DISCOVER_TESTS)
-  set(multiValueArgs)
+  set(multiValueArgs "")
   cmake_parse_arguments(ARGS "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   unset(oneValueArgs)
   unset(multiValueArgs)
 
-  add_cc_flags_custom_test(${name} PARENT_SCOPE)
+  add_c_and_cxx_flags_custom_test(${name} PARENT_SCOPE)
 
   ## Otherwise external projects will produce warnings that we cannot fix.
   remove_strict_flags()
@@ -284,6 +280,7 @@ function(blender_add_test_executable_impl
 
   blender_target_include_dirs(${name}_test ${includes})
   blender_target_include_dirs_sys(${name}_test ${includes_sys})
+  blender_source_group("${name}_test" "${sources}")
 endfunction()
 
 # Add tests for a Blender library, to be called in tandem with blender_add_lib().
@@ -300,7 +297,7 @@ endfunction()
 # very large executable, blender_add_test_suite_lib() should be used instead.
 #
 # The function accepts an optional argument which denotes list of sources which
-# is to be compiled-in with the suit sources for each fo the suites when the
+# is to be compiled-in with the suite sources for each of the suites when the
 # WITH_TESTS_SINGLE_BINARY configuration is set to OFF.
 function(blender_add_test_suite_executable
   name
@@ -310,8 +307,8 @@ function(blender_add_test_suite_executable
   library_deps
   )
 
-  # Sources which are common for all suits and do not need to yield their own
-  # test suit binaries when WITH_TESTS_SINGLE_BINARY is OFF.
+  # Sources which are common for all suites and do not need to yield their own
+  # test suite binaries when WITH_TESTS_SINGLE_BINARY is OFF.
   set(common_sources ${ARGN})
 
   if(WITH_TESTS_SINGLE_BINARY)
@@ -323,7 +320,7 @@ function(blender_add_test_suite_executable
       "${library_deps}"
       ADD_CTESTS TRUE
       DISCOVER_TESTS TRUE
-     )
+    )
   else()
     foreach(source ${sources})
       get_filename_component(_source_ext ${source} LAST_EXT)
@@ -344,21 +341,25 @@ function(blender_add_test_suite_executable
           "${library_deps}"
           ADD_CTESTS TRUE
           DISCOVER_TESTS FALSE
-         )
+        )
 
-         # Work-around run-time dynamic loader error
-         #   symbol not found in flat namespace '_PyBaseObject_Type'
-         #
-         # Some tests are testing modules which are linked against Python, while some of unit
-         # tests might not use code path which uses Python functionality. In this case linker
-         # will optimize out all symbols from Python since it decides they are not used. This
-         # somehow conflicts with other libraries which are linked against the test binary and
-         # perform search of _PyBaseObject_Type on startup.
-         #
-         # Work-around by telling the linker that the python libraries should not be stripped.
-         if(APPLE)
-           target_link_libraries("${_test_name}_test" PRIVATE "-Wl,-force_load,${PYTHON_LIBRARIES}")
-         endif()
+        # Work-around run-time dynamic loader error
+        #   symbol not found in flat namespace '_PyBaseObject_Type'
+        #
+        # Some tests are testing modules which are linked against Python, while some of unit
+        # tests might not use code path which uses Python functionality. In this case linker
+        # will optimize out all symbols from Python since it decides they are not used. This
+        # somehow conflicts with other libraries which are linked against the test binary and
+        # perform search of _PyBaseObject_Type on startup.
+        #
+        # Work-around by telling the linker that the python libraries should not be stripped.
+        if(APPLE AND NOT WITH_PYTHON_MODULE)
+          target_link_libraries("${_test_name}_test" PRIVATE "-Wl,-force_load,${PYTHON_LIBRARIES}")
+        endif()
+
+        if(WITH_BUILDINFO)
+          target_link_libraries("${_test_name}_test" PRIVATE buildinfoobj)
+        endif()
       endif()
     endforeach()
   endif()

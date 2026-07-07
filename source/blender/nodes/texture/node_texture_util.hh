@@ -8,27 +8,26 @@
 
 #pragma once
 
+#include <optional>
+
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"  // IWYU pragma: export
 
-#include "node_texture_register.hh"
+#include "node_texture_register.hh"  // IWYU pragma: export
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"  // IWYU pragma: export
 
 #include "RE_texture.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 struct bNodeThreadStack;
 
 struct TexCallData {
   TexResult *target;
-  /* all float[3] */
+  /* float[3] */
   const float *co;
-  float *dxt, *dyt;
 
-  int osatex;
   bool do_preview;
   bool do_manage;
   short thread;
@@ -40,10 +39,8 @@ struct TexCallData {
 
 struct TexParams {
   const float *co;
-  float *dxt, *dyt;
   const float *previewco;
   int cfra;
-  int osatex;
 
   /* optional. we don't really want these here, but image
    * textures need to do mapping & color correction */
@@ -56,15 +53,16 @@ struct TexDelegate {
   TexCallData *cdata;
   TexFn fn;
   bNode *node;
-  bNodePreview *preview;
   bNodeStack *in[MAX_SOCKET];
   int type;
 };
 
-bool tex_node_poll_default(const bNodeType *ntype,
+bool tex_node_poll_default(const bke::bNodeType *ntype,
                            const bNodeTree *ntree,
                            const char **r_disabled_hint);
-void tex_node_type_base(bNodeType *ntype, int type, const char *name, short nclass);
+void tex_node_type_base(bke::bNodeType *ntype,
+                        UString idname,
+                        std::optional<int16_t> legacy_type = std::nullopt);
 
 void tex_input_rgba(float *out, bNodeStack *in, TexParams *params, short thread);
 void tex_input_vec(float *out, bNodeStack *in, TexParams *params, short thread);
@@ -91,6 +89,4 @@ bNodeTreeExec *ntreeTexBeginExecTree_internal(bNodeExecContext *context,
                                               bNodeInstanceKey parent_key);
 void ntreeTexEndExecTree_internal(bNodeTreeExec *exec);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

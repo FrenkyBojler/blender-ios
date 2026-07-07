@@ -8,57 +8,50 @@
 
 #include <cstddef>
 
-#include "MEM_guardedalloc.h"
+#include "BLI_task_c.hh"
 
-#include "BLI_task.h"
-#include "BLI_utildefines.h"
+#include "BLT_translation.hh"
 
-#include "BLT_translation.h"
-
-#include "DNA_collection_types.h"
 #include "DNA_fluid_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_fluid.h"
-#include "BKE_layer.h"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
-
-#include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
+
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_physics.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
+
+namespace blender {
 
 static void init_data(ModifierData *md)
 {
-  FluidModifierData *fmd = (FluidModifierData *)md;
+  FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
 
   fmd->domain = nullptr;
   fmd->flow = nullptr;
   fmd->effector = nullptr;
-  fmd->type = 0;
+  fmd->type = FluidModifierType{};
   fmd->time = -1;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
-  const FluidModifierData *fmd = (const FluidModifierData *)md;
-  FluidModifierData *tfmd = (FluidModifierData *)target;
+  const FluidModifierData *fmd = reinterpret_cast<const FluidModifierData *>(md);
+  FluidModifierData *tfmd = reinterpret_cast<FluidModifierData *>(target);
 
   BKE_fluid_modifier_free(tfmd);
   BKE_fluid_modifier_copy(fmd, tfmd, flag);
@@ -66,14 +59,14 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 
 static void free_data(ModifierData *md)
 {
-  FluidModifierData *fmd = (FluidModifierData *)md;
+  FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
 
   BKE_fluid_modifier_free(fmd);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  FluidModifierData *fmd = (FluidModifierData *)md;
+  FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
 
   if (fmd && (fmd->type & MOD_FLUID_TYPE_FLOW) && fmd->flow) {
     if (fmd->flow->source == FLUID_FLOW_SOURCE_MESH) {
@@ -130,7 +123,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
    * because Mantaflow uses TBB to parallel its own computation which without isolation will start
    * stealing tasks from dependency graph. Stealing tasks from the dependency graph might cause
    * a recursive lock when Python drivers are used (because Mantaflow is interfaced via Python as
-   * well. */
+   * well). */
   FluidIsolationData isolation_data;
   isolation_data.depsgraph = ctx->depsgraph;
   isolation_data.object = ctx->object;
@@ -149,19 +142,19 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
 
 static bool is_flow_cb(Object * /*ob*/, ModifierData *md)
 {
-  FluidModifierData *fmd = (FluidModifierData *)md;
+  FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
   return (fmd->type & MOD_FLUID_TYPE_FLOW) && fmd->flow;
 }
 
 static bool is_coll_cb(Object * /*ob*/, ModifierData *md)
 {
-  FluidModifierData *fmd = (FluidModifierData *)md;
+  FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
   return (fmd->type & MOD_FLUID_TYPE_EFFEC) && fmd->effector;
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  FluidModifierData *fmd = (FluidModifierData *)md;
+  FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
 
   if (fmd && (fmd->type & MOD_FLUID_TYPE_DOMAIN) && fmd->domain) {
     DEG_add_collision_relations(ctx->node,
@@ -194,36 +187,51 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  FluidModifierData *fmd = (FluidModifierData *)md;
+  FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
 
   if (fmd->type == MOD_FLUID_TYPE_DOMAIN && fmd->domain) {
-    walk(user_data, ob, (ID **)&fmd->domain->effector_group, IDWALK_CB_NOP);
-    walk(user_data, ob, (ID **)&fmd->domain->fluid_group, IDWALK_CB_NOP);
-    walk(user_data, ob, (ID **)&fmd->domain->force_group, IDWALK_CB_NOP);
+    walk(user_data, ob, reinterpret_cast<ID **>(&fmd->domain->effector_group), IDWALK_CB_NOP);
+    walk(user_data, ob, reinterpret_cast<ID **>(&fmd->domain->fluid_group), IDWALK_CB_NOP);
+    walk(user_data, ob, reinterpret_cast<ID **>(&fmd->domain->force_group), IDWALK_CB_NOP);
 
     if (fmd->domain->guide_parent) {
-      walk(user_data, ob, (ID **)&fmd->domain->guide_parent, IDWALK_CB_NOP);
+      walk(user_data, ob, reinterpret_cast<ID **>(&fmd->domain->guide_parent), IDWALK_CB_NOP);
     }
 
     if (fmd->domain->effector_weights) {
-      walk(user_data, ob, (ID **)&fmd->domain->effector_weights->group, IDWALK_CB_USER);
+      walk(user_data,
+           ob,
+           reinterpret_cast<ID **>(&fmd->domain->effector_weights->group),
+           IDWALK_CB_USER);
     }
   }
 
   if (fmd->type == MOD_FLUID_TYPE_FLOW && fmd->flow) {
-    walk(user_data, ob, (ID **)&fmd->flow->noise_texture, IDWALK_CB_USER);
+    walk(user_data, ob, reinterpret_cast<ID **>(&fmd->flow->noise_texture), IDWALK_CB_USER);
+  }
+}
+
+static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
+{
+  FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
+
+  if (fmd->type == MOD_FLUID_TYPE_FLOW && fmd->flow) {
+    PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, RNA_FluidFlowSettings, fmd->flow);
+    PropertyRNA *prop = RNA_struct_find_property(&ptr, "noise_texture");
+
+    walk(user_data, ob, md, &ptr, prop);
   }
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -258,9 +266,13 @@ ModifierTypeInfo modifierType_Fluid = {
     /*depends_on_time*/ depends_on_time,
     /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
-    /*foreach_tex_link*/ nullptr,
+    /*foreach_tex_link*/ foreach_tex_link,
     /*free_runtime_data*/ nullptr,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

@@ -6,16 +6,17 @@
  * \ingroup edmesh
  */
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_layer.h"
-#include "BKE_report.h"
+#include "BKE_layer.hh"
+#include "BKE_report.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -26,9 +27,9 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "MEM_guardedalloc.h"
+#include "mesh_intern.hh" /* own include */
 
-#include "mesh_intern.h" /* own include */
+namespace blender {
 
 #define USE_GIZMO
 
@@ -36,8 +37,9 @@
 /** \name Spin Operator
  * \{ */
 
-static int edbm_spin_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   float cent[3], axis[3];
@@ -57,12 +59,10 @@ static int edbm_spin_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *obedit = objects[ob_index];
+  for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
     BMOperator spinop;
@@ -79,7 +79,7 @@ static int edbm_spin_exec(bContext *C, wmOperator *op)
                       d,
                       steps,
                       -angle,
-                      obedit->object_to_world,
+                      obedit->object_to_world().ptr(),
                       use_normal_flip,
                       dupli,
                       use_auto_merge))
@@ -100,16 +100,14 @@ static int edbm_spin_exec(bContext *C, wmOperator *op)
     params.calc_looptris = true;
     params.calc_normals = false;
     params.is_destructive = true;
-    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+    EDBM_update(id_cast<Mesh *>(obedit->data), &params);
   }
-
-  MEM_freeN(objects);
 
   return OPERATOR_FINISHED;
 }
 
 /* get center and axis, in global coords */
-static int edbm_spin_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus edbm_spin_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -135,7 +133,7 @@ static int edbm_spin_invoke(bContext *C, wmOperator *op, const wmEvent * /*event
   }
 #endif
 
-  int ret = edbm_spin_exec(C, op);
+  wmOperatorStatus ret = edbm_spin_exec(C, op);
 
 #ifdef USE_GIZMO
   if (ret & OPERATOR_FINISHED) {
@@ -178,7 +176,7 @@ void MESH_OT_spin(wmOperatorType *ot)
       "Extrude selected vertices in a circle around the cursor in indicated viewport";
   ot->idname = "MESH_OT_spin";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_spin_invoke;
   ot->exec = edbm_spin_exec;
   ot->poll = ED_operator_editmesh;
@@ -230,3 +228,5 @@ void MESH_OT_spin(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

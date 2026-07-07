@@ -6,13 +6,15 @@
  * \ingroup ply
  */
 
-#include "BKE_layer.h"
-
-#include "DNA_collection_types.h"
-#include "DNA_scene_types.h"
-
 #include "BKE_context.hh"
-#include "BLI_memory_utils.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
+
+#include "DEG_depsgraph_query.hh"
+
+#include "ED_util.hh"
+
 #include "IO_ply.hh"
 
 #include "ply_data.hh"
@@ -23,30 +25,78 @@
 #include "ply_file_buffer_ascii.hh"
 #include "ply_file_buffer_binary.hh"
 
-namespace blender::io::ply {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.ply"};
+
+namespace io::ply {
 
 void exporter_main(bContext *C, const PLYExportParams &export_params)
 {
-  std::unique_ptr<blender::io::ply::PlyData> plyData = std::make_unique<PlyData>();
-  load_plydata(*plyData, CTX_data_ensure_evaluated_depsgraph(C), export_params);
+  std::unique_ptr<io::ply::PlyData> plyData = std::make_unique<PlyData>();
+
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  ED_editors_flush_edits(bmain);
+
+  Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
+
+  if (export_params.collection[0]) {
+    Collection *collection = reinterpret_cast<Collection *>(
+        BKE_libblock_find_name(bmain, ID_GR, export_params.collection));
+    if (!collection) {
+      BKE_reportf(export_params.reports,
+                  RPT_ERROR,
+                  "PLY Export: Unable to find collection '%s'",
+                  export_params.collection);
+
+      DEG_graph_free(depsgraph);
+      return;
+    }
+
+    DEG_graph_build_from_collection(depsgraph, collection);
+  }
+  else {
+    DEG_graph_build_from_view_layer(depsgraph);
+  }
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
+  load_plydata(*plyData, depsgraph, export_params);
+
+  DEG_graph_free(depsgraph);
 
   std::unique_ptr<FileBuffer> buffer;
 
-  if (export_params.ascii_format) {
-    buffer = std::make_unique<FileBufferAscii>(export_params.filepath);
+  try {
+    if (export_params.ascii_format) {
+      buffer = std::make_unique<FileBufferAscii>(export_params.filepath);
+    }
+    else {
+      buffer = std::make_unique<FileBufferBinary>(export_params.filepath);
+    }
   }
-  else {
-    buffer = std::make_unique<FileBufferBinary>(export_params.filepath);
+  catch (const std::system_error &ex) {
+    CLOG_ERROR(&LOG, "[%s] %s", ex.code().category().name(), ex.what());
+    BKE_reportf(export_params.reports,
+                RPT_ERROR,
+                "PLY Export: Cannot open file '%s'",
+                export_params.filepath);
+    return;
   }
 
-  write_header(*buffer.get(), *plyData.get(), export_params);
+  write_header(*buffer, *plyData, export_params);
 
-  write_vertices(*buffer.get(), *plyData.get());
+  write_vertices(*buffer, *plyData);
 
-  write_faces(*buffer.get(), *plyData.get());
+  write_faces(*buffer, *plyData);
 
-  write_edges(*buffer.get(), *plyData.get());
+  write_edges(*buffer, *plyData);
 
   buffer->close_file();
 }
-}  // namespace blender::io::ply
+}  // namespace io::ply
+}  // namespace blender

@@ -10,17 +10,15 @@
 
 #include "../../../stroke/AdvancedFunctions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ReadCompleteViewMapPixelF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ReadCompleteViewMapPixelF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DFloat` > :class:`ReadCompleteViewMapPixelF0D`\n"
     "\n"
@@ -28,7 +26,7 @@ static char ReadCompleteViewMapPixelF0D___doc__[] =
     "\n"
     "   Builds a ReadCompleteViewMapPixelF0D object.\n"
     "\n"
-    "   :arg level: The level of the pyramid from which the pixel must be\n"
+    "   :param level: The level of the pyramid from which the pixel must be\n"
     "      read.\n"
     "   :type level: int\n"
     "\n"
@@ -36,11 +34,10 @@ static char ReadCompleteViewMapPixelF0D___doc__[] =
     "\n"
     "   Reads a pixel in one of the level of the complete viewmap.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: A pixel in one of the level of the complete viewmap.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int ReadCompleteViewMapPixelF0D___init__(BPy_ReadCompleteViewMapPixelF0D *self,
                                                 PyObject *args,
                                                 PyObject *kwds)
@@ -100,7 +97,3 @@ PyTypeObject ReadCompleteViewMapPixelF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

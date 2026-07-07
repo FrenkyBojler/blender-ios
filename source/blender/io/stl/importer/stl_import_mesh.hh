@@ -11,13 +11,15 @@
 #include <cstdint>
 
 #include "BLI_math_vector_types.hh"
-#include "BLI_set.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
+#include "stl_data.hh"
 
-#include "DNA_mesh_types.h"
+namespace blender {
 
-namespace blender::io::stl {
+struct Mesh;
+
+namespace io::stl {
 class Triangle {
  public:
   int v1, v2, v3;
@@ -62,12 +64,10 @@ class STLMeshHelper {
   /* Creates a new triangle from specified vertex locations,
    * duplicate vertices and triangles are merged.
    */
-  bool add_triangle(const float3 &a, const float3 &b, const float3 &c);
-  void add_triangle(const float3 &a,
-                    const float3 &b,
-                    const float3 &c,
-                    const float3 &custom_normal);
+  bool add_triangle(const PackedTriangle &data);
+
   Mesh *to_mesh();
 };
 
-}  // namespace blender::io::stl
+}  // namespace io::stl
+}  // namespace blender

@@ -6,20 +6,21 @@
  * \ingroup spview3d
  */
 
-#include "BLI_blenlib.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_camera.h"
 #include "BKE_context.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 
 #include "DNA_camera_types.h"
 #include "DNA_object_types.h"
 
-#include "ED_armature.hh"
 #include "ED_gizmo_library.hh"
 #include "ED_screen.hh"
 
@@ -29,13 +30,14 @@
 
 #include "RNA_access.hh"
 
-#include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
 
 #include "DEG_depsgraph.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Camera Gizmos
@@ -59,14 +61,15 @@ static bool WIDGETGROUP_camera_poll(const bContext *C, wmGizmoGroupType * /*gzgt
     return false;
   }
 
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
     Object *ob = base->object;
     if (ob->type == OB_CAMERA) {
-      Camera *camera = static_cast<Camera *>(ob->data);
+      const Camera *camera = id_cast<Camera *>(ob->data);
       /* TODO: support overrides. */
       if (BKE_id_is_editable(CTX_data_main(C), &camera->id)) {
         return true;
@@ -78,19 +81,21 @@ static bool WIDGETGROUP_camera_poll(const bContext *C, wmGizmoGroupType * /*gzgt
 
 static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
+  const float4x4 &ob_mat = ob->object_to_world();
   float dir[3];
 
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
+  const wmGizmoType *gzt_cage2d = WM_gizmotype_find("GIZMO_GT_cage_2d", true);
 
-  CameraWidgetGroup *cagzgroup = static_cast<CameraWidgetGroup *>(
-      MEM_callocN(sizeof(CameraWidgetGroup), __func__));
+  CameraWidgetGroup *cagzgroup = MEM_new_zeroed<CameraWidgetGroup>(__func__);
   gzgroup->customdata = cagzgroup;
 
-  negate_v3_v3(dir, ob->object_to_world[2]);
+  negate_v3_v3(dir, ob_mat.ptr()[2]);
 
   /* dof distance */
   {
@@ -99,8 +104,8 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CROSS);
     WM_gizmo_set_flag(gz, WM_GIZMO_DRAW_HOVER | WM_GIZMO_DRAW_NO_SCALE, true);
 
-    UI_GetThemeColor3fv(TH_GIZMO_A, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    ui::theme::get_color_3fv(TH_GIZMO_A, gz->color);
+    ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
   }
 
   /* focal length
@@ -112,17 +117,80 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
     RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CONE);
     RNA_enum_set(gz->ptr, "transform", ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED);
 
-    UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
-    gz = cagzgroup->ortho_scale = WM_gizmo_new_ptr(gzt_arrow, gzgroup, nullptr);
+    gz = cagzgroup->ortho_scale = WM_gizmo_new_ptr(gzt_cage2d, gzgroup, nullptr);
     gz->flag |= WM_GIZMO_DRAW_NO_SCALE;
-    RNA_enum_set(gz->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_CONE);
-    RNA_enum_set(gz->ptr, "transform", ED_GIZMO_ARROW_XFORM_FLAG_CONSTRAINED);
+    RNA_enum_set(gz->ptr,
+                 "transform",
+                 ED_GIZMO_CAGE_XFORM_FLAG_SCALE | ED_GIZMO_CAGE_XFORM_FLAG_SCALE_UNIFORM);
 
-    UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-    UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+    ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+    ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
   }
+
+  /* All gizmos must perform undo. */
+  for (wmGizmo &gz : gzgroup->gizmos) {
+    WM_gizmo_set_flag(&gz, WM_GIZMO_NEEDS_UNDO, true);
+  }
+}
+
+static void gizmo_orthoscale_prop_matrix_get(const wmGizmo * /*gz*/,
+                                             wmGizmoProperty *gz_prop,
+                                             void *value_p)
+{
+  BLI_assert(gz_prop->type->array_length == 16);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
+
+  const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
+  const Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
+
+  const Object *ob = static_cast<const Object *>(BKE_view_layer_active_object_get(view_layer));
+  Camera *camera = id_cast<Camera *>(ob->data);
+
+  float gizmo_scale = camera->ortho_scale;
+  unit_m4(matrix);
+  matrix[0][0] = gizmo_scale;
+  matrix[1][1] = gizmo_scale;
+
+  /* This needs to be included, because we overwrite the whole matrix.
+   * We could investigate if the offset matrix could be added *afterwards*,
+   * then this wouldn't be needed. */
+  const float4x4 &ob_mat = ob->object_to_world();
+  const float matrix_sign = is_negative_m4(ob_mat.ptr()) ? -1.0f : 1.0f;
+
+  matrix[3][0] = camera->shiftx * gizmo_scale * -matrix_sign;
+  matrix[3][1] = camera->shifty * gizmo_scale;
+}
+
+static void gizmo_orthoscale_prop_matrix_set(const wmGizmo * /*gz*/,
+                                             wmGizmoProperty *gz_prop,
+                                             const void *value_p)
+{
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
+  BLI_assert(gz_prop->type->array_length == 16);
+
+  const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
+  const Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
+
+  const Object *ob = static_cast<const Object *>(BKE_view_layer_active_object_get(view_layer));
+  Camera *camera = id_cast<Camera *>(ob->data);
+
+  PointerRNA camera_ptr = RNA_pointer_create_discrete(&camera->id, RNA_Camera, camera);
+  PropertyRNA *ortho_scale_prop = RNA_struct_find_property(&camera_ptr, "ortho_scale");
+
+  float ortho_scale = len_v3(matrix[0]);
+  RNA_property_float_set(&camera_ptr, ortho_scale_prop, ortho_scale);
+
+  DEG_id_tag_update(&camera->id, ID_RECALC_PARAMETERS);
+  RNA_property_update_main(CTX_data_main(C), scene, &camera_ptr, ortho_scale_prop);
 }
 
 static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
@@ -133,25 +201,38 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
   CameraWidgetGroup *cagzgroup = static_cast<CameraWidgetGroup *>(gzgroup->customdata);
   View3D *v3d = CTX_wm_view3d(C);
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Camera *ca = static_cast<Camera *>(ob->data);
+  Camera *ca = id_cast<Camera *>(ob->data);
+  const float4x4 &ob_mat = ob->object_to_world();
   float dir[3];
 
-  PointerRNA camera_ptr = RNA_pointer_create(&ca->id, &RNA_Camera, ca);
+  PointerRNA camera_ptr = RNA_pointer_create_discrete(&ca->id, RNA_Camera, ca);
 
-  negate_v3_v3(dir, ob->object_to_world[2]);
+  const bool is_modal = WM_gizmo_group_is_modal(gzgroup);
+
+  negate_v3_v3(dir, ob_mat.ptr()[2]);
 
   if ((ca->flag & CAM_SHOWLIMITS) && (v3d->gizmo_show_camera & V3D_GIZMO_SHOW_CAMERA_DOF_DIST)) {
-    WM_gizmo_set_matrix_location(cagzgroup->dop_dist, ob->object_to_world[3]);
-    WM_gizmo_set_matrix_rotation_from_yz_axis(cagzgroup->dop_dist, ob->object_to_world[1], dir);
-    WM_gizmo_set_scale(cagzgroup->dop_dist, ca->drawsize);
+    WM_gizmo_set_matrix_location(cagzgroup->dop_dist, ob_mat.location());
+    WM_gizmo_set_matrix_rotation_from_yz_axis(cagzgroup->dop_dist, ob_mat.ptr()[1], dir);
+
+    /* TODO: investigate why this doesn't work. */
+    if (false) {
+      WM_gizmo_set_scale(cagzgroup->dop_dist, ca->drawsize);
+    }
+    else {
+      mul_v3_fl(cagzgroup->dop_dist->matrix_basis[0], ca->drawsize);
+      mul_v3_fl(cagzgroup->dop_dist->matrix_basis[1], ca->drawsize);
+    }
     WM_gizmo_set_flag(cagzgroup->dop_dist, WM_GIZMO_HIDDEN, false);
 
     /* Need to set property here for undo. TODO: would prefer to do this in _init. */
-    PointerRNA camera_dof_ptr = RNA_pointer_create(&ca->id, &RNA_CameraDOFSettings, &ca->dof);
+    PointerRNA camera_dof_ptr = RNA_pointer_create_discrete(
+        &ca->id, RNA_CameraDOFSettings, &ca->dof);
     WM_gizmo_target_property_def_rna(
         cagzgroup->dop_dist, "offset", &camera_dof_ptr, "focus_distance", -1);
   }
@@ -167,8 +248,9 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   /* Important to use camera value, not calculated fit since 'AUTO' uses width always. */
   const float sensor_size = BKE_camera_sensor_size(ca->sensor_fit, ca->sensor_x, ca->sensor_y);
   wmGizmo *widget = is_ortho ? cagzgroup->ortho_scale : cagzgroup->focal_len;
-  float scale_matrix;
-  if (true) {
+  /* Only for perspective cameras (orthographic cameras are not scaled). */
+  float scale_matrix = 1.0f;
+  {
     float offset[3];
     float aspect[2];
 
@@ -186,55 +268,93 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     aspect[1] = (sensor_fit == CAMERA_SENSOR_FIT_HOR) ? aspy / aspx : 1.0f;
 
     unit_m4(widget->matrix_basis);
-    WM_gizmo_set_matrix_location(widget, ob->object_to_world[3]);
-    WM_gizmo_set_matrix_rotation_from_yz_axis(widget, ob->object_to_world[1], dir);
 
+    blender::float3 gizmo_location;
     if (is_ortho) {
-      scale_matrix = ca->ortho_scale * 0.5f;
+      float zscale_or_one = ob->scale[2] == 0.0f ? 1.0f : fabsf(ob->scale[2]);
+      blender::float3 local_gizmo_location = blender::float3{
+          0.0f, 0.0f, -1.0f * ca->drawsize / zscale_or_one};
+      gizmo_location = blender::math::transform_point(ob_mat, local_gizmo_location);
     }
     else {
+      gizmo_location = ob_mat.location();
+    }
+    WM_gizmo_set_matrix_location(widget, gizmo_location);
+
+    const float *gizmo_y_axis = ob_mat.ptr()[1];
+    WM_gizmo_set_matrix_rotation_from_yz_axis(widget, gizmo_y_axis, dir);
+
+    if (is_ortho) {
+      RNA_float_set_array(widget->ptr, "dimensions", aspect);
+
+      /* Set the pivot for scaling. Handles the case where the lens shifting is not zero and the
+       * gizmo should scale around the lens center instead of the gizmo center. */
+      const float pivot[2] = {ca->shiftx, -ca->shifty};
+      RNA_float_set_array(widget->ptr, "pivot", pivot);
+
+      mul_v2_fl(offset, ca->ortho_scale * 0.5f);
+      WM_gizmo_set_matrix_offset_location(widget, offset);
+    }
+    else {
+      RNA_float_set_array(widget->ptr, "aspect", aspect);
+      WM_gizmo_set_matrix_offset_location(widget, offset);
+
       const float ob_scale_inv[3] = {
-          1.0f / len_v3(ob->object_to_world[0]),
-          1.0f / len_v3(ob->object_to_world[1]),
-          1.0f / len_v3(ob->object_to_world[2]),
+          1.0f / len_v3(ob_mat.ptr()[0]),
+          1.0f / len_v3(ob_mat.ptr()[1]),
+          1.0f / len_v3(ob_mat.ptr()[2]),
       };
       const float ob_scale_uniform_inv = (ob_scale_inv[0] + ob_scale_inv[1] + ob_scale_inv[2]) /
                                          3.0f;
       scale_matrix = (ca->drawsize * 0.5f) / ob_scale_uniform_inv;
+      mul_v3_fl(widget->matrix_basis[0], scale_matrix);
+      mul_v3_fl(widget->matrix_basis[1], scale_matrix);
     }
-    mul_v3_fl(widget->matrix_basis[0], scale_matrix);
-    mul_v3_fl(widget->matrix_basis[1], scale_matrix);
-
-    RNA_float_set_array(widget->ptr, "aspect", aspect);
-
-    WM_gizmo_set_matrix_offset_location(widget, offset);
   }
 
-  /* define & update properties */
-  {
-    const char *propname = is_ortho ? "ortho_scale" : "lens";
-    PropertyRNA *prop = RNA_struct_find_property(&camera_ptr, propname);
-    const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(widget->type,
-                                                                                "offset");
+  /* Define & update properties.
+   *
+   * Check modal to prevent feedback loop for orthographic cameras,
+   * where the range is based on the scale, see: #141667. */
+  if (!is_modal) {
+    if (is_ortho) {
+      PropertyRNA *ortho_scale_prop = RNA_struct_find_property(&camera_ptr, "ortho_scale");
+      const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(widget->type,
+                                                                                  "matrix");
 
-    WM_gizmo_target_property_clear_rna_ptr(widget, gz_prop_type);
+      wmGizmoPropertyFnParams params{};
+      params.value_get_fn = gizmo_orthoscale_prop_matrix_get;
+      params.value_set_fn = gizmo_orthoscale_prop_matrix_set;
+      params.range_get_fn = nullptr;
+      params.user_data = (void *)C;
+      // params.user_data = ob;
 
-    float min, max, range;
-    float step, precision;
+      WM_gizmo_target_property_def_func(widget, "matrix", &params);
+      WM_gizmo_target_property_def_rna_ptr(
+          widget, gz_prop_type, &camera_ptr, ortho_scale_prop, -1);
+    }
+    else {
+      PropertyRNA *prop = RNA_struct_find_property(&camera_ptr, "lens");
+      const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(widget->type,
+                                                                                  "offset");
 
-    /* get property range */
-    RNA_property_float_ui_range(&camera_ptr, prop, &min, &max, &step, &precision);
-    range = max - min;
+      WM_gizmo_target_property_clear_rna_ptr(widget, gz_prop_type);
 
-    ED_gizmo_arrow3d_set_range_fac(
-        widget,
-        is_ortho ?
-            ((range / ca->ortho_scale) * ca->drawsize) :
-            (scale_matrix * range /
-             /* Half sensor, intentionally use sensor from camera and not calculated above. */
-             (0.5f * sensor_size)));
+      float min, max, range;
+      float step, precision;
 
-    WM_gizmo_target_property_def_rna_ptr(widget, gz_prop_type, &camera_ptr, prop, -1);
+      /* get property range */
+      RNA_property_float_ui_range(&camera_ptr, prop, &min, &max, &step, &precision);
+      range = max - min;
+
+      ED_gizmo_arrow3d_set_range_fac(
+          widget,
+          scale_matrix * range /
+              /* Half sensor, intentionally use sensor from camera and not calculated above. */
+              (0.5f * sensor_size));
+
+      WM_gizmo_target_property_def_rna_ptr(widget, gz_prop_type, &camera_ptr, prop, -1);
+    }
   }
 
   /* This could be handled more elegantly (split into two gizmo groups). */
@@ -249,11 +369,12 @@ static void WIDGETGROUP_camera_message_subscribe(const bContext *C,
                                                  wmMsgBus *mbus)
 {
   ARegion *region = CTX_wm_region(C);
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Camera *ca = static_cast<Camera *>(ob->data);
+  Camera *ca = id_cast<Camera *>(ob->data);
 
   wmMsgSubscribeValue msg_sub_value_gz_tag_refresh{};
   msg_sub_value_gz_tag_refresh.owner = region;
@@ -331,7 +452,7 @@ static void gizmo_render_border_prop_matrix_get(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 void *value_p)
 {
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -348,7 +469,7 @@ static void gizmo_render_border_prop_matrix_set(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
       gz_prop->custom_func.user_data);
   rctf *border = viewgroup->state.edit_border;
@@ -364,12 +485,13 @@ static void gizmo_render_border_prop_matrix_set(const wmGizmo * /*gz*/,
   BLI_rctf_isect(&rect, border, border);
 
   if (viewgroup->is_camera) {
-    DEG_id_tag_update(&viewgroup->scene->id, ID_RECALC_COPY_ON_WRITE);
+    DEG_id_tag_update(&viewgroup->scene->id, ID_RECALC_SYNC_TO_EVAL);
   }
 }
 
 static bool WIDGETGROUP_camera_view_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
   /* This is just so the border isn't always in the way,
@@ -377,7 +499,7 @@ static bool WIDGETGROUP_camera_view_poll(const bContext *C, wmGizmoGroupType * /
    * We could change the rules for when to show. */
   {
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     if (scene->camera != BKE_view_layer_active_object_get(view_layer)) {
       return false;
     }
@@ -406,8 +528,7 @@ static bool WIDGETGROUP_camera_view_poll(const bContext *C, wmGizmoGroupType * /
 
 static void WIDGETGROUP_camera_view_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
-  CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
-      MEM_mallocN(sizeof(CameraViewWidgetGroup), __func__));
+  CameraViewWidgetGroup *viewgroup = MEM_new<CameraViewWidgetGroup>(__func__);
 
   viewgroup->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
 
@@ -420,6 +541,8 @@ static void WIDGETGROUP_camera_view_setup(const bContext * /*C*/, wmGizmoGroup *
   WM_gizmo_set_scale(viewgroup->border, 10.0f / 0.15f);
 
   gzgroup->customdata = viewgroup;
+
+  /* NOTE: #WM_GIZMO_NEEDS_UNDO is set on refresh and depends on modifying a camera object. */
 }
 
 static void WIDGETGROUP_camera_view_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
@@ -434,7 +557,7 @@ static void WIDGETGROUP_camera_view_draw_prepare(const bContext *C, wmGizmoGroup
     Scene *scene = CTX_data_scene(C);
     View3D *v3d = CTX_wm_view3d(C);
     ED_view3d_calc_camera_border(
-        scene, depsgraph, region, v3d, rv3d, &viewgroup->state.view_border, false);
+        scene, depsgraph, region, v3d, rv3d, false, &viewgroup->state.view_border);
   }
   else {
     rctf rect{};
@@ -487,6 +610,8 @@ static void WIDGETGROUP_camera_view_refresh(const bContext *C, wmGizmoGroup *gzg
     params.range_get_fn = nullptr;
     params.user_data = viewgroup;
     WM_gizmo_target_property_def_func(gz, "matrix", &params);
+
+    WM_gizmo_set_flag(gz, WM_GIZMO_NEEDS_UNDO, viewgroup->is_camera);
   }
 }
 
@@ -504,3 +629,5 @@ void VIEW3D_GGT_camera_view(wmGizmoGroupType *gzgt)
 }
 
 /** \} */
+
+}  // namespace blender

@@ -9,19 +9,16 @@
 #include <cstdlib>
 
 #include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
-
-#include "BLI_utildefines.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_types.hh"
+
+namespace blender {
 
 /* Which part of bone(s) get baked */
 /* TODO: icons? */
@@ -64,16 +61,22 @@ const EnumPropertyItem rna_enum_motionpath_range_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
+
+#  include "DNA_userdef_types.h"
+
+namespace blender {
 
 static PointerRNA rna_AnimViz_motion_paths_get(PointerRNA *ptr)
 {
-  return rna_pointer_inherit_refine(ptr, &RNA_AnimVizMotionPaths, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_AnimVizMotionPaths, ptr->data);
 }
 
 static void rna_AnimViz_path_start_frame_set(PointerRNA *ptr, int value)
 {
-  bAnimVizSettings *data = (bAnimVizSettings *)ptr->data;
+  bAnimVizSettings *data = static_cast<bAnimVizSettings *>(ptr->data);
 
   /* XXX: Watch it! Path Start > MAXFRAME/2 could be a problem. */
   data->path_sf = value;
@@ -84,7 +87,7 @@ static void rna_AnimViz_path_start_frame_set(PointerRNA *ptr, int value)
 
 static void rna_AnimViz_path_end_frame_set(PointerRNA *ptr, int value)
 {
-  bAnimVizSettings *data = (bAnimVizSettings *)ptr->data;
+  bAnimVizSettings *data = static_cast<bAnimVizSettings *>(ptr->data);
 
   data->path_ef = value;
   CLAMP_MAX(data->path_sf, data->path_ef - 1);
@@ -94,7 +97,11 @@ static void rna_AnimViz_path_end_frame_set(PointerRNA *ptr, int value)
   }
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void rna_def_motionpath_common(StructRNA *srna)
 {
@@ -157,7 +164,15 @@ static void rna_def_animviz_motion_path(BlenderRNA *brna)
   /* Custom Color */
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Color", "Custom color for motion path");
+  RNA_def_property_ui_text(
+      prop, "Color Pre", "Custom color for motion path before the current frame");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+
+  prop = RNA_def_property(srna, "color_post", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(
+      prop, "Color Post", "Custom color for motion path after the current frame");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
@@ -274,7 +289,7 @@ static void rna_def_animviz_paths(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Start Frame",
                            "Starting frame of range of paths to display/calculate "
-                           "(not for 'Around Current Frame' Onion-skinning method)");
+                           "(not for 'Around Frame' Onion-skinning method)");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
 
   prop = RNA_def_property(srna, "frame_end", PROP_INT, PROP_TIME);
@@ -283,7 +298,7 @@ static void rna_def_animviz_paths(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "End Frame",
                            "End frame of range of paths to display/calculate "
-                           "(not for 'Around Current Frame' Onion-skinning method)");
+                           "(not for 'Around Frame' Onion-skinning method)");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
 
   /* Around Current Ranges */
@@ -293,7 +308,7 @@ static void rna_def_animviz_paths(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Before Current",
                            "Number of frames to show before the current frame "
-                           "(only for 'Around Current Frame' Onion-skinning method)");
+                           "(only for 'Around Frame' Onion-skinning method)");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
 
   prop = RNA_def_property(srna, "frame_after", PROP_INT, PROP_TIME);
@@ -302,7 +317,7 @@ static void rna_def_animviz_paths(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "After Current",
                            "Number of frames to show after the current frame "
-                           "(only for 'Around Current Frame' Onion-skinning method)");
+                           "(only for 'Around Frame' Onion-skinning method)");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
 
   /* Readonly Property - Do any motion paths exist/need updating? (Mainly for bone paths) */
@@ -312,6 +327,16 @@ static void rna_def_animviz_paths(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop, "Has Motion Paths", "Are there any bone paths that will need updating (read-only)");
+
+  /* If enabled, bakes the motion paths into camera space. */
+  prop = RNA_def_property(srna, "use_camera_space_bake", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "path_bakeflag", MOTIONPATH_BAKE_CAMERA_SPACE);
+  RNA_def_property_ui_text(
+      prop,
+      "Bake to active Camera",
+      "Motion path points will be baked into the camera space of the active camera. This means "
+      "they will only look right when looking through that camera. Switching cameras using "
+      "markers is not supported.");
 
   RNA_define_lib_overridable(false);
 }
@@ -358,5 +383,7 @@ void RNA_def_animviz(BlenderRNA *brna)
   rna_def_animviz_motion_path(brna);
   rna_def_animviz_motionpath_vert(brna);
 }
+
+}  // namespace blender
 
 #endif

@@ -16,7 +16,7 @@ MAX_DISPLAY_ROWS = 8
 
 
 def rna_idprop_quote_path(prop):
-    return "[\"%s\"]" % bpy.utils.escape_identifier(prop)
+    return "[\"{:s}\"]".format(bpy.utils.escape_identifier(prop))
 
 
 def rna_idprop_ui_prop_update(item, prop):
@@ -69,7 +69,13 @@ def rna_idprop_value_item_type(value):
 
 
 def rna_idprop_ui_prop_default_set(item, prop, value):
-    ui_data = item.id_properties_ui(prop)
+    # NOTE: the internal check to know if a property supports UI is not exposed.
+    # Use an exception here and assert this isn't catching unrelated errors.
+    try:
+        ui_data = item.id_properties_ui(prop)
+    except TypeError as ex:
+        assert ex.args and ("does not support UI data" in ex.args[0])
+        return
     ui_data.update(default=value)
 
 
@@ -83,6 +89,7 @@ def rna_idprop_ui_create(
         step=None,
         precision=None,
         id_type='OBJECT',
+        items=None,
 ):
     """Create and initialize a custom property with limits, defaults and other settings."""
 
@@ -129,16 +136,24 @@ def rna_idprop_ui_create(
         if step is None:
             step = 1
 
-        ui_data.update(
-            subtype=subtype,
-            min=min,
-            max=max,
-            soft_min=soft_min,
-            soft_max=soft_max,
-            step=step,
-            description=description,
-            default=default,
-        )
+        if items is None:
+            ui_data.update(
+                subtype=subtype,
+                min=min,
+                max=max,
+                soft_min=soft_min,
+                soft_max=soft_max,
+                step=step,
+                description=description,
+                default=default,
+            )
+        else:
+            ui_data.update(
+                subtype=subtype,
+                description=description,
+                default=default,
+                items=items,
+            )
     else:
         raise TypeError("Unexpected value type")
 
@@ -212,7 +227,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         else:
             value_column.prop(rna_item, rna_idprop_quote_path(key), text="")
 
-        operator_row = value_row.row()
+        operator_row = value_row.row(align=True)
         operator_row.alignment = 'RIGHT'
 
         # Do not allow editing of overridden properties (we cannot use a poll function
@@ -232,9 +247,6 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
                 props = operator_row.operator("wm.properties_remove", text="", icon='X', emboss=False)
                 props.data_path = context_member
                 props.property_name = key
-        else:
-            # Add some spacing, so the right side of the buttons line up with layouts with decorators.
-            operator_row.label(text="", icon='BLANK1')
 
 
 class PropertyPanel:
@@ -256,7 +268,7 @@ class PropertyPanel:
         rna_item, context_member = rna_idprop_context_value(context, self._context_path, self._property_type)
         tot = len(rna_item.keys())
         if tot:
-            self.layout().label(text="%d:" % tot)
+            self.layout().label(text="{:d}:".format(tot))
     """
 
     def draw(self, context):

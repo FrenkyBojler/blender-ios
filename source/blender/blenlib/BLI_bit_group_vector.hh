@@ -2,11 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #pragma once
 
+#include "BLI_bit_span_ops.hh"
 #include "BLI_bit_vector.hh"
 
-namespace blender::bits {
+namespace blender {
+
+namespace bits {
 
 /**
  * A #BitGroupVector is a compact data structure that allows storing an arbitrary but fixed number
@@ -40,7 +47,12 @@ class BitGroupVector {
   }
 
  public:
-  BitGroupVector() = default;
+  BitGroupVector(Allocator allocator = {}) noexcept : data_(allocator) {}
+
+  BitGroupVector(NoExceptConstructor, Allocator allocator = {}) noexcept
+      : BitGroupVector(allocator)
+  {
+  }
 
   BitGroupVector(const int64_t size_in_groups,
                  const int64_t group_size,
@@ -54,9 +66,34 @@ class BitGroupVector {
     BLI_assert(size_in_groups >= 0);
   }
 
+  BitGroupVector(const BitGroupVector &other)
+      : group_size_(other.group_size_),
+        aligned_group_size_(other.aligned_group_size_),
+        data_(other.data_)
+  {
+  }
+
+  BitGroupVector(BitGroupVector &&other)
+      : group_size_(other.group_size_),
+        aligned_group_size_(other.aligned_group_size_),
+        data_(std::move(other.data_))
+  {
+  }
+
+  BitGroupVector &operator=(const BitGroupVector &other)
+  {
+    return copy_assign_container(*this, other);
+  }
+
+  BitGroupVector &operator=(BitGroupVector &&other)
+  {
+    return move_assign_container(*this, std::move(other));
+  }
+
   /** Get all the bits at an index. */
   BoundedBitSpan operator[](const int64_t i) const
   {
+    BLI_assert(this->index_range().contains(i));
     const int64_t offset = aligned_group_size_ * i;
     return {data_.data() + (offset >> BitToIntIndexShift),
             IndexRange(offset & BitIndexMask, group_size_)};
@@ -65,6 +102,7 @@ class BitGroupVector {
   /** Get all the bits at an index. */
   MutableBoundedBitSpan operator[](const int64_t i)
   {
+    BLI_assert(this->index_range().contains(i));
     const int64_t offset = aligned_group_size_ * i;
     return {data_.data() + (offset >> BitToIntIndexShift),
             IndexRange(offset & BitIndexMask, group_size_)};
@@ -105,10 +143,24 @@ class BitGroupVector {
   {
     return data_;
   }
+
+  /**
+   * Updates each group by computing the bitwise-and with the given bits.
+   */
+  void foreach_and(const BoundedBitSpan bits)
+  {
+    /* This can still be optimized due to the additional knowledge we have how consecutive groups
+     * are laid out in memory. It is possible to updated multiple small groups at once. */
+    BLI_assert(bits.size() == group_size_);
+    for (const int64_t i : this->index_range()) {
+      MutableBoundedBitSpan group = (*this)[i];
+      group &= bits;
+    }
+  }
 };
 
-}  // namespace blender::bits
+}  // namespace bits
 
-namespace blender {
 using bits::BitGroupVector;
-}
+
+}  // namespace blender

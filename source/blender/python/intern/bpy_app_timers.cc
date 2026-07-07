@@ -6,23 +6,23 @@
  * \ingroup pythonintern
  */
 
-#include "BLI_timer.h"
-#include "BLI_utildefines.h"
-#include "PIL_time.h"
+#include "BLI_timer.hh"
+
 #include <Python.h>
 
-#include "BPY_extern.h"
-#include "bpy_app_timers.h"
+#include <algorithm>
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "bpy_app_timers.hh"
+
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
+
+namespace blender {
 
 static double handle_returned_value(PyObject *function, PyObject *ret)
 {
   if (ret == nullptr) {
     PyErr_PrintEx(0);
-    PyErr_Clear();
     return -1;
   }
 
@@ -39,19 +39,16 @@ static double handle_returned_value(PyObject *function, PyObject *ret)
     return -1;
   }
 
-  if (value < 0.0) {
-    value = 0.0;
-  }
+  value = std::max(value, 0.0);
 
   return value;
 }
 
 static double py_timer_execute(uintptr_t /*uuid*/, void *user_data)
 {
-  PyObject *function = static_cast<PyObject *>(user_data);
+  PyGILState_STATE gilstate = PyGILState_Ensure();
 
-  PyGILState_STATE gilstate;
-  gilstate = PyGILState_Ensure();
+  PyObject *function = static_cast<PyObject *>(user_data);
 
   PyObject *py_ret = PyObject_CallObject(function, nullptr);
   const double ret = handle_returned_value(function, py_ret);
@@ -63,19 +60,18 @@ static double py_timer_execute(uintptr_t /*uuid*/, void *user_data)
 
 static void py_timer_free(uintptr_t /*uuid*/, void *user_data)
 {
+  PyGILState_STATE gilstate = PyGILState_Ensure();
+
   PyObject *function = static_cast<PyObject *>(user_data);
-
-  PyGILState_STATE gilstate;
-  gilstate = PyGILState_Ensure();
-
   Py_DECREF(function);
 
   PyGILState_Release(gilstate);
 }
 
 PyDoc_STRVAR(
+    /* Wrap. */
     bpy_app_timers_register_doc,
-    ".. function:: register(function, first_interval=0, persistent=False)\n"
+    ".. function:: register(function, *, first_interval=0, persistent=False)\n"
     "\n"
     "   Add a new function that will be called after the specified amount of seconds.\n"
     "   The function gets no arguments and is expected to return either None or a float.\n"
@@ -83,11 +79,11 @@ PyDoc_STRVAR(
     "   A returned number specifies the delay until the function is called again.\n"
     "   ``functools.partial`` can be used to assign some parameters.\n"
     "\n"
-    "   :arg function: The function that should called.\n"
-    "   :type function: Callable[[], Union[float, None]]\n"
-    "   :arg first_interval: Seconds until the callback should be called the first time.\n"
+    "   :param function: The function that should called.\n"
+    "   :type function: Callable[[], float | None]\n"
+    "   :param first_interval: Seconds until the callback should be called the first time.\n"
     "   :type first_interval: float\n"
-    "   :arg persistent: Don't remove timer when a new file is loaded.\n"
+    "   :param persistent: Don't remove timer when a new file is loaded.\n"
     "   :type persistent: bool\n");
 static PyObject *bpy_app_timers_register(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -97,7 +93,6 @@ static PyObject *bpy_app_timers_register(PyObject * /*self*/, PyObject *args, Py
 
   static const char *_keywords[] = {"function", "first_interval", "persistent", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O"  /* `function` */
       "|$" /* Optional keyword only arguments. */
       "d"  /* `first_interval` */
@@ -123,57 +118,73 @@ static PyObject *bpy_app_timers_register(PyObject * /*self*/, PyObject *args, Py
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(bpy_app_timers_unregister_doc,
-             ".. function:: unregister(function)\n"
-             "\n"
-             "   Unregister timer.\n"
-             "\n"
-             "   :arg function: Function to unregister.\n"
-             "   :type function: function\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_timers_unregister_doc,
+    ".. function:: unregister(function)\n"
+    "\n"
+    "   Unregister timer.\n"
+    "\n"
+    "   :param function: Function to unregister.\n"
+    "   :type function: Callable[[], float | None]\n");
 static PyObject *bpy_app_timers_unregister(PyObject * /*self*/, PyObject *function)
 {
   if (!BLI_timer_unregister(intptr_t(function))) {
-    PyErr_SetString(PyExc_ValueError, "Error: function is not registered");
+    PyErr_SetString(PyExc_ValueError, "function is not registered");
     return nullptr;
   }
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(bpy_app_timers_is_registered_doc,
-             ".. function:: is_registered(function)\n"
-             "\n"
-             "   Check if this function is registered as a timer.\n"
-             "\n"
-             "   :arg function: Function to check.\n"
-             "   :type function: int\n"
-             "   :return: True when this function is registered, otherwise False.\n"
-             "   :rtype: bool\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_timers_is_registered_doc,
+    ".. function:: is_registered(function)\n"
+    "\n"
+    "   Check if this function is registered as a timer.\n"
+    "\n"
+    "   :param function: Function to check.\n"
+    "   :type function: Callable[[], float | None]\n"
+    "   :return: True when this function is registered, otherwise False.\n"
+    "   :rtype: bool\n");
 static PyObject *bpy_app_timers_is_registered(PyObject * /*self*/, PyObject *function)
 {
   const bool ret = BLI_timer_is_registered(intptr_t(function));
   return PyBool_FromLong(ret);
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef M_AppTimers_methods[] = {
     {"register",
-     (PyCFunction)bpy_app_timers_register,
+     reinterpret_cast<PyCFunction>(bpy_app_timers_register),
      METH_VARARGS | METH_KEYWORDS,
      bpy_app_timers_register_doc},
-    {"unregister", (PyCFunction)bpy_app_timers_unregister, METH_O, bpy_app_timers_unregister_doc},
+    {"unregister",
+     static_cast<PyCFunction>(bpy_app_timers_unregister),
+     METH_O,
+     bpy_app_timers_unregister_doc},
     {"is_registered",
-     (PyCFunction)bpy_app_timers_is_registered,
+     static_cast<PyCFunction>(bpy_app_timers_is_registered),
      METH_O,
      bpy_app_timers_is_registered_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyModuleDef M_AppTimers_module_def = {
@@ -192,6 +203,8 @@ PyObject *BPY_app_timers_module()
 {
   PyObject *sys_modules = PyImport_GetModuleDict();
   PyObject *mod = PyModule_Create(&M_AppTimers_module_def);
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(mod), mod);
+  PyC_Module_AddToSysModules(sys_modules, mod);
   return mod;
 }
+
+}  // namespace blender

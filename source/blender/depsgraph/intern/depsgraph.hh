@@ -5,35 +5,40 @@
 /** \file
  * \ingroup depsgraph
  *
- * Datatypes for internal use in the Depsgraph
+ * Data-types for internal use in the Depsgraph
  *
- * All of these datatypes are only really used within the "core" depsgraph.
+ * All of these data-types are only really used within the "core" depsgraph.
  * In particular, node types declared here form the structure of operations
  * in the graph.
  */
 
 #pragma once
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <functional>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_ID.h" /* for ID_Type and INDEX_ID_MAX */
 
-#include "BLI_threads.h" /* for SpinLock */
+#include "BLI_linear_allocator.hh"
+#include "BLI_mutex.hh"
+#include "BLI_set.hh"
+#include "BLI_threads.hh" /* for SpinLock */
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_physics.hh"
 
 #include "intern/debug/deg_debug.h"
 #include "intern/depsgraph_light_linking.hh"
-#include "intern/depsgraph_type.hh"
+
+namespace blender {
 
 struct ID;
 struct Scene;
 struct ViewLayer;
 
-namespace blender::deg {
+namespace deg {
 
 struct IDNode;
 struct Node;
@@ -73,10 +78,16 @@ struct Depsgraph {
 
   /* Copy-on-Write Functionality ........ */
 
-  /* For given original ID get ID which is created by CoW system. */
+  /* For given original ID get ID which is created by copy-on-evaluation system. */
   ID *get_cow_id(const ID *id_orig) const;
 
   /* Core Graph Functionality ........... */
+
+  /**
+   * Used to decrease the cost of allocating many small structs when building the graph. This is a
+   * viable strategy because the graph is rebuilt from scratch rather than changed in-place.
+   */
+  LinearAllocator<> build_allocator;
 
   /* <ID : IDNode> mapping from ID blocks to nodes representing these
    * blocks, used for quick lookups. */
@@ -106,6 +117,8 @@ struct Depsgraph {
 
   /* Indicates which ID types were updated. */
   char id_type_updated[INDEX_ID_MAX];
+  /* Accumulate id type updates from multiple update passes. */
+  char id_type_updated_backup[INDEX_ID_MAX];
 
   /* Indicates type of IDs present in the depsgraph. */
   char id_type_exist[INDEX_ID_MAX];
@@ -167,14 +180,27 @@ struct Depsgraph {
 
   /* Cached list of colliders/effectors for collections and the scene
    * created along with relations, for fast lookup during evaluation. */
-  Map<const ID *, ListBase *> *physics_relations[DEG_PHYSICS_RELATIONS_NUM];
+  Map<const ID *, ListBaseT<EffectorRelation> *> *physics_relations_effector;
+  Map<const ID *, ListBaseT<CollisionRelation> *>
+      *physics_relations_collision[DEG_PHYSICS_COLLISION_NUM];
 
   light_linking::Cache light_linking_cache;
 
   /* The number of times this graph has been evaluated. */
   uint64_t update_count;
 
+  /* If this mode does not allow writing back to original data any callbacks will be discarded. */
+  DepsgraphEvaluateSyncWriteback sync_writeback;
+  /**
+   * Stores functions that can be called after depsgraph evaluation to writeback some changes to
+   * original data. Also see `DEG_depsgraph_writeback_sync.hh`.
+   */
+  Vector<std::function<void()>> sync_writeback_callbacks;
+  /** Needs to be locked when adding a writeback callback during evaluation. */
+  Mutex sync_writeback_callbacks_mutex;
+
   MEM_CXX_CLASS_ALLOC_FUNCS("Depsgraph");
 };
 
-}  // namespace blender::deg
+}  // namespace deg
+}  // namespace blender

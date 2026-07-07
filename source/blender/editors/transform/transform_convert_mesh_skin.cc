@@ -11,23 +11,18 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
-#include "BKE_crazyspace.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_modifier.hh"
-#include "BKE_scene.h"
-
-#include "ED_mesh.hh"
-
-#include "DEG_depsgraph_query.hh"
 
 #include "transform.hh"
 #include "transform_orientations.hh"
 
 #include "transform_convert.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Edit Mesh #CD_MVERT_SKIN Transform Creation
@@ -74,7 +69,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
   BLI_assert(t->mode == TFM_SKIN_RESIZE);
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
-    Mesh *mesh = static_cast<Mesh *>(tc->obedit->data);
+    Mesh *mesh = id_cast<Mesh *>(tc->obedit->data);
     BMesh *bm = em->bm;
     BMVert *eve;
     BMIter iter;
@@ -134,9 +129,9 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
           em, calc_single_islands, calc_island_center, calc_island_axismtx, &island_data);
     }
 
-    copy_m3_m4(mtx, tc->obedit->object_to_world);
-    /* we use a pseudo-inverse so that when one of the axes is scaled to 0,
-     * matrix inversion still works and we can still moving along the other */
+    copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
+    /* We use a pseudo-inverse so that when one of the axes is scaled to 0,
+     * matrix inversion still works and we can still moving along the other. */
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
     /* Original index of our connected vertex when connected distances are calculated.
@@ -144,9 +139,9 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
     int *dists_index = nullptr;
     float *dists = nullptr;
     if (prop_mode & T_PROP_CONNECTED) {
-      dists = static_cast<float *>(MEM_mallocN(bm->totvert * sizeof(float), __func__));
+      dists = MEM_new_array_uninitialized<float>(bm->totvert, __func__);
       if (is_island_center) {
-        dists_index = static_cast<int *>(MEM_mallocN(bm->totvert * sizeof(int), __func__));
+        dists_index = MEM_new_array_uninitialized<int>(bm->totvert, __func__);
       }
       transform_convert_mesh_connectivity_distance(em->bm, mtx, dists, dists_index);
     }
@@ -162,8 +157,8 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
 
       if (mirror_data.vert_map) {
         tc->data_mirror_len = mirror_data.mirror_elem_len;
-        tc->data_mirror = static_cast<TransDataMirror *>(
-            MEM_callocN(mirror_data.mirror_elem_len * sizeof(*tc->data_mirror), __func__));
+        tc->data_mirror = MEM_new_array_zeroed<TransDataMirror>(mirror_data.mirror_elem_len,
+                                                                __func__);
 
         BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, a) {
           if (prop_mode || BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
@@ -175,14 +170,13 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
       }
     }
 
-    /* Detect CrazySpace [tm]. */
+    /* Detect CrazySpace [TM]. */
     transform_convert_mesh_crazyspace_detect(t, tc, em, &crazyspace_data);
 
     /* Create TransData. */
     BLI_assert(data_len >= 1);
     tc->data_len = data_len;
-    tc->data = static_cast<TransData *>(
-        MEM_callocN(data_len * sizeof(TransData), "TransObData(Mesh EditMode)"));
+    tc->data = MEM_new_array_zeroed<TransData>(data_len, "TransObData(Mesh EditMode)");
 
     TransData *td = tc->data;
     TransDataMirror *td_mirror = tc->data_mirror;
@@ -199,7 +193,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
 
       if (mirror_data.vert_map && mirror_data.vert_map[a].index != -1) {
         mesh_skin_transdata_create(
-            (TransDataBasic *)td_mirror, em, eve, &island_data, island_index);
+            static_cast<TransDataBasic *>(td_mirror), em, eve, &island_data, island_index);
 
         int elem_index = mirror_data.vert_map[a].index;
         BMVert *v_src = BM_vert_at_index(bm, elem_index);
@@ -211,13 +205,14 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
         td_mirror++;
       }
       else if (prop_mode || BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-        mesh_skin_transdata_create((TransDataBasic *)td, em, eve, &island_data, island_index);
+        mesh_skin_transdata_create(
+            static_cast<TransDataBasic *>(td), em, eve, &island_data, island_index);
 
         if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
           createSpaceNormal(td->axismtx, eve->no);
         }
         else {
-          /* Setting normals */
+          /* Setting normals. */
           copy_v3_v3(td->axismtx[2], eve->no);
           td->axismtx[0][0] = td->axismtx[0][1] = td->axismtx[0][2] = td->axismtx[1][0] =
               td->axismtx[1][1] = td->axismtx[1][2] = 0.0f;
@@ -232,7 +227,7 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
           }
         }
 
-        /* CrazySpace */
+        /* CrazySpace. */
         transform_convert_mesh_crazyspace_transdata_set(
             mtx,
             smtx,
@@ -250,10 +245,10 @@ static void createTransMeshSkin(bContext * /*C*/, TransInfo *t)
     transform_convert_mesh_mirrordata_free(&mirror_data);
     transform_convert_mesh_crazyspace_free(&crazyspace_data);
     if (dists) {
-      MEM_freeN(dists);
+      MEM_delete(dists);
     }
     if (dists_index) {
-      MEM_freeN(dists_index);
+      MEM_delete(dists_index);
     }
   }
 }
@@ -279,7 +274,7 @@ static void mesh_skin_apply_to_mirror(TransInfo *t)
 static void recalcData_mesh_skin(TransInfo *t)
 {
   bool is_canceling = t->state == TRANS_CANCEL;
-  /* mirror modifier clipping? */
+  /* Mirror modifier clipping? */
   if (!is_canceling) {
     if (!(t->flag & T_NO_MIRROR)) {
       mesh_skin_apply_to_mirror(t);
@@ -287,7 +282,7 @@ static void recalcData_mesh_skin(TransInfo *t)
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    DEG_id_tag_update(static_cast<ID *>(tc->obedit->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(tc->obedit->data, ID_RECALC_GEOMETRY);
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
     BKE_editmesh_looptris_and_normals_calc(em);
   }
@@ -301,3 +296,5 @@ TransConvertTypeInfo TransConvertType_MeshSkin = {
     /*recalc_data*/ recalcData_mesh_skin,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

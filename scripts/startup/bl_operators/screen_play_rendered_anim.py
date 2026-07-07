@@ -12,36 +12,86 @@ from bpy.app.translations import pgettext_rpt as rpt_
 def guess_player_path(preset):
     import sys
 
+    found_version = (0, 0, 0)
+
     if preset == 'INTERNAL':
-        return bpy.app.binary_path
+        return bpy.app.binary_path, found_version
 
     elif preset == 'DJV':
         player_path = "djv"
-        if sys.platform == "darwin":
+        if sys.platform == "linux":
+            found_version = (3, 4, 0)  # Assume it is at least 3.4.0
+        elif sys.platform == "darwin":
             import os
-            test_path = "/Applications/DJV2.app/Contents/Resources/bin/djv"
-            if os.path.exists(test_path):
-                player_path = test_path
+            djv3_path = "/Applications/DJV.app/Contents/MacOS/DJV"
+            djv2_path = "/Applications/DJV2.app/Contents/Resources/bin/djv"
+            if os.path.exists(djv3_path):
+                player_path = djv3_path
+                found_version = (3, 4, 0)  # Assume it is at least 3.4.0
+            elif os.path.exists(djv2_path):
+                player_path = djv2_path
+                found_version = (2, 0, 0)
         elif sys.platform == "win32":
             import winreg
 
-            # NOTE: This can be removed if/when DJV adds their executable to the PATH.
-            # See issue 449 on their GITHUB project page.
-            reg_path = r"SOFTWARE\Classes\djv\shell\open\command"
             reg_value = None
             try:
-                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path, 0, winreg.KEY_READ) as regkey:
-                    reg_value = winreg.QueryValue(regkey, None)
+                def extract_version(key_name):
+                    """Given a key_name like "key name 3.3.4" extract version as (3, 3, 4)"""
+                    version = None
+                    parts = key_name.rsplit(" ", 1)
+                    if len(parts) == 2:
+                        try:
+                            version = tuple(int(x) for x in parts[1].split("."))
+                        except ValueError:
+                            pass
+                    return version
+
+                # Enumerate versioned subkeys (e.g. "DJV 3.3.4", "DJV 3.4.0", etc.) and
+                # pick the key with the greatest version.
+                reg_base = r"SOFTWARE\WOW6432Node\Grizzly Peak 3D"
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_base, 0, winreg.KEY_READ) as base_key:
+                    best_version = None
+                    best_subkey = None
+                    index = 0
+                    while True:
+                        try:
+                            subkey_name = winreg.EnumKey(base_key, index)
+                        except OSError:
+                            break
+                        index += 1
+
+                        if (version := extract_version(subkey_name)) is not None:
+                            if best_version is None or version > best_version:
+                                best_subkey = subkey_name
+                                best_version = version
+                                found_version = version
+
+                    if best_subkey is not None:
+                        reg_path = reg_base + "\\" + best_subkey
+                        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path, 0, winreg.KEY_READ) as regkey:
+                            reg_value = winreg.QueryValue(regkey, None)
             except OSError:
                 pass
 
+            # Fallback to djv2 if we didn't find anything
+            if not reg_value:
+                try:
+                    reg_path = r"SOFTWARE\Classes\djv\shell\open\command"
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path, 0, winreg.KEY_READ) as regkey:
+                        reg_value = winreg.QueryValue(regkey, None)
+                        found_version = (2, 0, 0)
+                except OSError:
+                    pass
+
             if reg_value:
-                # Remove trailing command line arguments from the path. The
-                # registry value looks like: `<full path>\djv.exe "%1"`.
-                binary = "djv.exe"
-                index = reg_value.find(binary)
-                if index > 0:
-                    player_path = reg_value[:index + len(binary)]
+                if found_version > (2, 0, 0):
+                    player_path = reg_value.strip() + "\\bin\\djv.exe"
+                else:
+                    binary = "djv.exe"
+                    index = reg_value.find(binary)
+                    if index > 0:
+                        player_path = reg_value[:index + len(binary)]
 
     elif preset == 'FRAMECYCLER':
         player_path = "framecycler"
@@ -55,7 +105,7 @@ def guess_player_path(preset):
     else:
         player_path = ""
 
-    return player_path
+    return player_path, found_version
 
 
 class PlayRenderedAnim(Operator):
@@ -104,11 +154,13 @@ class PlayRenderedAnim(Operator):
         else:
             view_suffix = ""
 
+        found_version = (0, 0, 0)
+
         # try and guess a command line if it doesn't exist
         if preset == 'CUSTOM':
             player_path = prefs.filepaths.animation_player
         else:
-            player_path = guess_player_path(preset)
+            player_path, found_version = guess_player_path(preset)
 
         if is_movie is False and preset in {'FRAMECYCLER', 'RV', 'MPLAYER'}:
             file = PlayRenderedAnim._frame_path_with_number_char(rd, "#", view=view_suffix)
@@ -119,7 +171,7 @@ class PlayRenderedAnim(Operator):
             file = rd.frame_path(frame=scene.frame_start, preview=scene.use_preview_range, view=view_suffix)
             file = bpy.path.abspath(file)  # expand '//'
             if not os.path.exists(file):
-                err_msg = rpt_("File %r not found") % file
+                err_msg = rpt_("File {!r} not found").format(file)
                 self.report({'WARNING'}, err_msg)
                 path_valid = False
 
@@ -127,10 +179,11 @@ class PlayRenderedAnim(Operator):
             if scene.use_preview_range and not path_valid:
                 file = rd.frame_path(frame=scene.frame_start, preview=False, view=view_suffix)
                 file = bpy.path.abspath(file)  # expand '//'
-                err_msg = rpt_("File %r not found") % file
+                err_msg = rpt_("File {!r} not found").format(file)
                 if not os.path.exists(file):
                     self.report({'WARNING'}, err_msg)
 
+        remove_OCIO_env = False
         cmd = [player_path]
         # extra options, fps controls etc.
         if scene.use_preview_range:
@@ -140,6 +193,15 @@ class PlayRenderedAnim(Operator):
             frame_start = scene.frame_start
             frame_end = scene.frame_end
         if preset == 'INTERNAL':
+            # Use the current GPU backend for the player.
+            import gpu
+            gpu_backend = gpu.platform.backend_type_get()
+            if gpu_backend not in {'NONE', 'UNKNOWN'}:
+                cmd.extend([
+                    "--gpu-backend", gpu_backend.lower(),
+                ])
+            del gpu, gpu_backend
+
             opts = [
                 "-a",
                 "-f", str(rd.fps), str(rd.fps_base),
@@ -151,23 +213,39 @@ class PlayRenderedAnim(Operator):
             ]
             cmd.extend(opts)
         elif preset == 'DJV':
-            opts = [
-                file,
-                "-speed", str(fps_final),
-                "-in_out", str(frame_start), str(frame_end),
-                "-frame", str(scene.frame_current),
-                "-time_units", "Frames",
-            ]
+            if found_version >= (3, 4, 0):
+                opts = [
+                    file,
+                    "-speed", str(fps_final),
+                    "-in", str(frame_start),
+                    "-out", str(frame_end),
+                    "-seek", str(scene.frame_current),
+                    "-timeUnits", "Frames",
+                ]
+            elif found_version >= (3, 0, 0):
+                opts = [
+                    file,
+                    "-speed", str(fps_final),
+                ]
+            else:
+                remove_OCIO_env = True
+                opts = [
+                    file,
+                    "-speed", str(fps_final),
+                    "-in_out", str(frame_start), str(frame_end),
+                    "-frame", str(scene.frame_current),
+                    "-time_units", "Frames",
+                ]
             cmd.extend(opts)
         elif preset == 'FRAMECYCLER':
-            opts = [file, "%d-%d" % (scene.frame_start, scene.frame_end)]
+            opts = [file, "{:d}-{:d}".format(scene.frame_start, scene.frame_end)]
             cmd.extend(opts)
         elif preset == 'RV':
             opts = ["-fps", str(rd.fps), "-play"]
             if scene.use_preview_range:
                 opts += [
-                    "%s" % file.replace("#", "", file.count('#') - 1),
-                    "%d-%d" % (frame_start, frame_end),
+                    file.replace("#", "", file.count('#') - 1),
+                    "{:d}-{:d}".format(frame_start, frame_end),
                 ]
             else:
                 opts.append(file)
@@ -181,7 +259,7 @@ class PlayRenderedAnim(Operator):
                 opts += [
                     ("mf://" + file.replace("#", "?")),
                     "-mf",
-                    "fps=%.4f" % fps_final,
+                    "fps={:.4f}".format(fps_final),
                 ]
 
             opts += ["-loop", "0", "-really-quiet", "-fs"]
@@ -193,9 +271,12 @@ class PlayRenderedAnim(Operator):
         print("Executing command:\n ", " ".join(quote(c) for c in cmd))
 
         try:
-            subprocess.Popen(cmd)
-        except BaseException as ex:
-            err_msg = rpt_("Couldn't run external animation player with command %r\n%s") % (cmd, ex)
+            env_copy = os.environ.copy()
+            if remove_OCIO_env:
+                env_copy.pop("OCIO", None)
+            subprocess.Popen(cmd, env=env_copy)
+        except Exception as ex:
+            err_msg = rpt_("Couldn't run external animation player with command {!r}\n{:s}").format(cmd, str(ex))
             self.report(
                 {'ERROR'},
                 err_msg,

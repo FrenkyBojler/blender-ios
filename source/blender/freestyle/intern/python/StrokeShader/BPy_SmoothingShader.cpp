@@ -10,43 +10,41 @@
 
 #include "../../stroke/AdvancedStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char SmoothingShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    SmoothingShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`SmoothingShader`\n"
     "\n"
     "[Geometry shader]\n"
     "\n"
-    ".. method:: __init__(num_iterations=100, factor_point=0.1, \\\n"
-    "      factor_curvature=0.0, factor_curvature_difference=0.2, \\\n"
-    "      aniso_point=0.0, aniso_normal=0.0, aniso_curvature=0.0, \\\n"
-    "      carricature_factor=1.0)\n"
+    ".. method:: __init__(num_iterations=100, factor_point=0.1, "
+    "factor_curvature=0.0, factor_curvature_difference=0.2, "
+    "aniso_point=0.0, aniso_normal=0.0, aniso_curvature=0.0, "
+    "carricature_factor=1.0)\n"
     "\n"
     "   Builds a SmoothingShader object.\n"
     "\n"
-    "   :arg num_iterations: The number of iterations.\n"
+    "   :param num_iterations: The number of iterations.\n"
     "   :type num_iterations: int\n"
-    "   :arg factor_point: 0.1\n"
+    "   :param factor_point: 0.1\n"
     "   :type factor_point: float\n"
-    "   :arg factor_curvature: 0.0\n"
+    "   :param factor_curvature: 0.0\n"
     "   :type factor_curvature: float\n"
-    "   :arg factor_curvature_difference: 0.2\n"
+    "   :param factor_curvature_difference: 0.2\n"
     "   :type factor_curvature_difference: float\n"
-    "   :arg aniso_point: 0.0\n"
+    "   :param aniso_point: 0.0\n"
     "   :type aniso_point: float\n"
-    "   :arg aniso_normal: 0.0\n"
+    "   :param aniso_normal: 0.0\n"
     "   :type aniso_normal: float\n"
-    "   :arg aniso_curvature: 0.0\n"
+    "   :param aniso_curvature: 0.0\n"
     "   :type aniso_curvature: float\n"
-    "   :arg carricature_factor: 1.0\n"
+    "   :param carricature_factor: 1.0\n"
     "   :type carricature_factor: float\n"
     "\n"
     ".. method:: shade(stroke)\n"
@@ -56,9 +54,8 @@ static char SmoothingShader___doc__[] =
     "   constant curvature. The diffusion method we use is anisotropic to\n"
     "   prevent the diffusion across corners.\n"
     "\n"
-    "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :param stroke: A Stroke object.\n"
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int SmoothingShader___init__(BPy_SmoothingShader *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {
@@ -128,7 +125,3 @@ PyTypeObject SmoothingShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

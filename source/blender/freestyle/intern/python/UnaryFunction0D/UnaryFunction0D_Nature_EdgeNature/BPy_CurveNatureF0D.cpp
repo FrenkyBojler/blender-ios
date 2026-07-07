@@ -10,17 +10,15 @@
 
 #include "../../../view_map/Functions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char CurveNatureF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    CurveNatureF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DEdgeNature` > :class:`CurveNatureF0D`\n"
     "\n"
@@ -33,12 +31,11 @@ static char CurveNatureF0D___doc__[] =
     "   Returns the :class:`freestyle.types.Nature` of the 1D element the\n"
     "   Interface0D pointed by the Interface0DIterator belongs to.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The nature of the 1D element to which the pointed Interface0D\n"
     "      belongs.\n"
-    "   :rtype: :class:`freestyle.types.Nature`\n";
-
+    "   :rtype: :class:`freestyle.types.Nature`\n");
 static int CurveNatureF0D___init__(BPy_CurveNatureF0D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -95,7 +92,3 @@ PyTypeObject CurveNatureF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

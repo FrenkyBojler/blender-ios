@@ -14,13 +14,12 @@
 
 #include "IO_wavefront_obj.hh"
 #include "obj_export_io.hh"
+#include "obj_export_mesh.hh"
 #include "obj_export_mtl.hh"
-
-#include <iostream>
 
 namespace blender::io::obj {
 
-class OBJCurve;
+class IOBJCurve;
 class OBJMesh;
 /**
  * Total vertices/ UV vertices/ normals of previous Objects
@@ -33,7 +32,7 @@ struct IndexOffsets {
 };
 
 /**
- * Responsible for writing a .OBJ file.
+ * Responsible for writing a `.OBJ` file.
  */
 class OBJWriter : NonMovable, NonCopyable {
  private:
@@ -42,21 +41,8 @@ class OBJWriter : NonMovable, NonCopyable {
   FILE *outfile_;
 
  public:
-  OBJWriter(const char *filepath, const OBJExportParams &export_params) noexcept(false)
-      : export_params_(export_params), outfile_path_(filepath), outfile_(nullptr)
-  {
-    outfile_ = BLI_fopen(filepath, "wb");
-    if (!outfile_) {
-      throw std::system_error(errno, std::system_category(), "Cannot open file " + outfile_path_);
-    }
-  }
-  ~OBJWriter()
-  {
-    if (outfile_ && std::fclose(outfile_)) {
-      std::cerr << "Error: could not close the file '" << outfile_path_
-                << "' properly, it may be corrupted." << std::endl;
-    }
-  }
+  OBJWriter(const char *filepath, const OBJExportParams &export_params) noexcept(false);
+  ~OBJWriter();
 
   FILE *get_outfile() const
   {
@@ -70,9 +56,9 @@ class OBJWriter : NonMovable, NonCopyable {
    */
   void write_object_name(FormatHandler &fh, const OBJMesh &obj_mesh_data) const;
   /**
-   * Write file name of Material Library in .OBJ file.
+   * Write file name of Material Library in `.OBJ` file.
    */
-  void write_mtllib_name(const StringRefNull mtl_filepath) const;
+  void write_mtllib_name(StringRefNull mtl_filepath) const;
   /**
    * Write vertex coordinates for all vertices as "v x y z" or "v x y z r g b".
    */
@@ -81,22 +67,22 @@ class OBJWriter : NonMovable, NonCopyable {
                            bool write_colors) const;
   /**
    * Write UV vertex coordinates for all vertices as `vt u v`.
-   * \note UV indices are stored here, but written with polygons later.
+   * \note UV indices are stored here, but written with faces later.
    */
   void write_uv_coords(FormatHandler &fh, OBJMesh &obj_mesh_data) const;
   /**
-   * Write loop normals for smooth-shaded polygons, and polygon normals otherwise, as "vn x y z".
-   * \note Normal indices ares stored here, but written with polygons later.
+   * Write corner normals for smooth-shaded faces, and face normals otherwise, as "vn x y z".
+   * \note Normal indices ares stored here, but written with faces later.
    */
-  void write_poly_normals(FormatHandler &fh, OBJMesh &obj_mesh_data);
+  void write_normals(FormatHandler &fh, OBJMesh &obj_mesh_data);
   /**
-   * Write polygon elements with at least vertex indices, and conditionally with UV vertex
-   * indices and polygon normal indices. Also write groups: smooth, vertex, material.
+   * Write face elements with at least vertex indices, and conditionally with UV vertex
+   * indices and face normal indices. Also write groups: smooth, vertex, material.
    * The matname_fn turns a 0-indexed material slot number in an Object into the
-   * name used in the .obj file.
+   * name used in the `.obj` file.
    * \note UV indices were stored while writing UV vertices.
    */
-  void write_poly_elements(FormatHandler &fh,
+  void write_face_elements(FormatHandler &fh,
                            const IndexOffsets &offsets,
                            const OBJMesh &obj_mesh_data,
                            FunctionRef<const char *(int)> matname_fn);
@@ -107,9 +93,9 @@ class OBJWriter : NonMovable, NonCopyable {
                            const IndexOffsets &offsets,
                            const OBJMesh &obj_mesh_data) const;
   /**
-   * Write a NURBS curve to the .OBJ file in parameter form.
+   * Write a NURBS curve to the `.OBJ` file in parameter form.
    */
-  void write_nurbs_curve(FormatHandler &fh, const OBJCurve &obj_nurbs_data) const;
+  void write_nurbs_curve(FormatHandler &fh, const IOBJCurve &obj_nurbs_data) const;
 
  private:
   using func_vert_uv_normal_indices = void (OBJWriter::*)(FormatHandler &fh,
@@ -119,12 +105,12 @@ class OBJWriter : NonMovable, NonCopyable {
                                                           Span<int> normal_indices,
                                                           bool flip) const;
   /**
-   * \return Writer function with appropriate polygon-element syntax.
+   * \return Writer function with appropriate face-element syntax.
    */
-  func_vert_uv_normal_indices get_poly_element_writer(int total_uv_vertices) const;
+  func_vert_uv_normal_indices get_face_element_writer(int total_uv_vertices) const;
 
   /**
-   * Write one line of polygon indices as "f v1/vt1/vn1 v2/vt2/vn2 ...".
+   * Write one line of face indices as "f v1/vt1/vn1 v2/vt2/vn2 ...".
    */
   void write_vert_uv_normal_indices(FormatHandler &fh,
                                     const IndexOffsets &offsets,
@@ -133,7 +119,7 @@ class OBJWriter : NonMovable, NonCopyable {
                                     Span<int> normal_indices,
                                     bool flip) const;
   /**
-   * Write one line of polygon indices as "f v1//vn1 v2//vn2 ...".
+   * Write one line of face indices as "f v1//vn1 v2//vn2 ...".
    */
   void write_vert_normal_indices(FormatHandler &fh,
                                  const IndexOffsets &offsets,
@@ -142,7 +128,7 @@ class OBJWriter : NonMovable, NonCopyable {
                                  Span<int> normal_indices,
                                  bool flip) const;
   /**
-   * Write one line of polygon indices as "f v1/vt1 v2/vt2 ...".
+   * Write one line of face indices as "f v1/vt1 v2/vt2 ...".
    */
   void write_vert_uv_indices(FormatHandler &fh,
                              const IndexOffsets &offsets,
@@ -151,7 +137,7 @@ class OBJWriter : NonMovable, NonCopyable {
                              Span<int> /*normal_indices*/,
                              bool flip) const;
   /**
-   * Write one line of polygon indices as "f v1 v2 ...".
+   * Write one line of face indices as "f v1 v2 ...".
    */
   void write_vert_indices(FormatHandler &fh,
                           const IndexOffsets &offsets,
@@ -162,12 +148,12 @@ class OBJWriter : NonMovable, NonCopyable {
 };
 
 /**
- * Responsible for writing a .MTL file.
+ * Responsible for writing a `.MTL` file.
  */
 class MTLWriter : NonMovable, NonCopyable {
  private:
   FormatHandler fmt_handler_;
-  FILE *outfile_;
+  FILE *outfile_ = nullptr;
   std::string mtl_filepath_;
   Vector<MTLMaterial> mtlmaterials_;
   /* Map from a Material* to an index into mtlmaterials_. */
@@ -175,9 +161,9 @@ class MTLWriter : NonMovable, NonCopyable {
 
  public:
   /*
-   * Create the .MTL file.
+   * Create the `.MTL` file.
    */
-  MTLWriter(const char *obj_filepath) noexcept(false);
+  MTLWriter(const char *obj_filepath, bool write_file) noexcept(false);
   ~MTLWriter();
 
   void write_header(const char *blen_filepath);

@@ -9,18 +9,20 @@
 #include "abc_writer_camera.h"
 #include "abc_hierarchy_iterator.h"
 
-#include "BKE_camera.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 
-#include "BLI_assert.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "DNA_camera_types.h"
 #include "DNA_scene_types.h"
 
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.alembic"};
 
-namespace blender::io::alembic {
+namespace io::alembic {
 
 using Alembic::AbcGeom::CameraSample;
 using Alembic::AbcGeom::OCamera;
@@ -30,13 +32,13 @@ ABCCameraWriter::ABCCameraWriter(const ABCWriterConstructorArgs &args) : ABCAbst
 
 bool ABCCameraWriter::is_supported(const HierarchyContext *context) const
 {
-  Camera *camera = static_cast<Camera *>(context->object->data);
+  const Camera *camera = id_cast<const Camera *>(context->object->data);
   return camera->type == CAM_PERSP;
 }
 
 void ABCCameraWriter::create_alembic_objects(const HierarchyContext * /*context*/)
 {
-  CLOG_INFO(&LOG, 2, "exporting %s", args_.abc_path.c_str());
+  CLOG_DEBUG(&LOG, "exporting %s", args_.abc_path.c_str());
   abc_camera_ = OCamera(args_.abc_parent, args_.abc_name, timesample_index_);
   abc_camera_schema_ = abc_camera_.getSchema();
 
@@ -69,7 +71,7 @@ Alembic::Abc::OCompoundProperty ABCCameraWriter::abc_prop_for_custom_props()
 
 void ABCCameraWriter::do_write(HierarchyContext &context)
 {
-  Camera *cam = static_cast<Camera *>(context.object->data);
+  const Camera *cam = id_cast<const Camera *>(context.object->data);
 
   abc_stereo_distance_.set(cam->stereo.convergence_distance);
   abc_eye_separation_.set(cam->stereo.interocular_distance);
@@ -105,4 +107,5 @@ void ABCCameraWriter::do_write(HierarchyContext &context)
   abc_camera_schema_.set(camera_sample);
 }
 
-}  // namespace blender::io::alembic
+}  // namespace io::alembic
+}  // namespace blender

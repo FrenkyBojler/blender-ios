@@ -11,27 +11,24 @@
 
 #include "DNA_object_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_object.hh"
 
+namespace blender {
+
 using Alembic::Abc::ISampleSelector;
 
-namespace blender::io::alembic {
+namespace io::alembic {
 
-AbcEmptyReader::AbcEmptyReader(const Alembic::Abc::IObject &object, ImportSettings &settings)
-    : AbcObjectReader(object, settings)
+AbcEmptyReader::AbcEmptyReader(const AbcReaderConstructorArgs &args) : AbcObjectReader(args)
 {
   /* Empties have no data. It makes the import of Alembic files easier to
    * understand when we name the empty after its name in Alembic. */
-  m_object_name = object.getName();
+  m_object_name = m_iobject.getName();
 
-  Alembic::AbcGeom::IXform xform(object, Alembic::AbcGeom::kWrapExisting);
+  Alembic::AbcGeom::IXform xform(m_iobject, Alembic::AbcGeom::kWrapExisting);
   m_schema = xform.getSchema();
-
-  get_min_max_time(m_iobject, m_schema, m_min_time, m_max_time);
 }
 
 bool AbcEmptyReader::valid() const
@@ -42,17 +39,17 @@ bool AbcEmptyReader::valid() const
 bool AbcEmptyReader::accepts_object_type(
     const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
     const Object *const ob,
-    const char **err_str) const
+    const char **r_err_str) const
 {
   if (!Alembic::AbcGeom::IXform::matches(alembic_header)) {
-    *err_str = RPT_(
+    *r_err_str = RPT_(
         "Object type mismatch, Alembic object path pointed to XForm when importing, but not any "
         "more");
     return false;
   }
 
   if (ob->type != OB_EMPTY) {
-    *err_str = RPT_("Object type mismatch, Alembic object path points to XForm");
+    *r_err_str = RPT_("Object type mismatch, Alembic object path points to XForm");
     return false;
   }
 
@@ -65,4 +62,5 @@ void AbcEmptyReader::readObjectData(Main *bmain, const ISampleSelector & /*sampl
   m_object->data = nullptr;
 }
 
-}  // namespace blender::io::alembic
+}  // namespace io::alembic
+}  // namespace blender

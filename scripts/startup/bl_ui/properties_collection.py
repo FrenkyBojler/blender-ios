@@ -24,14 +24,12 @@ class CollectionButtonsPanel:
 def lineart_make_line_type_entry(col, line_type, text_disp, expand, search_from):
     col.prop(line_type, "use", text=text_disp)
     if line_type.use and expand:
-        col.prop_search(line_type, "layer", search_from,
-                        "layers", icon='GREASEPENCIL')
-        col.prop_search(line_type, "material", search_from,
-                        "materials", icon='SHADING_TEXTURE')
+        col.prop_search(line_type, "layer", search_from, "layers", icon='GREASEPENCIL')
+        col.prop_search(line_type, "material", search_from, "materials", icon='SHADING_TEXTURE')
 
 
 class COLLECTION_PT_collection_flags(CollectionButtonsPanel, Panel):
-    bl_label = "Restrictions"
+    bl_label = "Visibility"
 
     def draw(self, context):
         layout = self.layout
@@ -39,16 +37,53 @@ class COLLECTION_PT_collection_flags(CollectionButtonsPanel, Panel):
         layout.use_property_decorate = False
 
         collection = context.collection
+
+        layout.prop(collection, "hide_select", text="Selectable", toggle=False, invert_checkbox=True)
+
+        col = layout.column(heading="Show In", align=True)
+        col.prop(collection, "hide_render", text="Renders", toggle=False, invert_checkbox=True)
+
+
+class COLLECTION_PT_viewlayer_flags(CollectionButtonsPanel, Panel):
+    bl_label = "View Layer"
+    bl_parent_id = "COLLECTION_PT_collection_flags"
+
+    def draw(self, context):
         vl = context.view_layer
         vlc = vl.active_layer_collection
 
-        col = layout.column(align=True)
-        col.prop(collection, "hide_select", text="Selectable", toggle=False, invert_checkbox=True)
-        col.prop(collection, "hide_render", toggle=False)
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
         col = layout.column(align=True)
+        col.prop(vlc, "exclude", text="Include", toggle=False, invert_checkbox=True)
         col.prop(vlc, "holdout", toggle=False)
         col.prop(vlc, "indirect_only", toggle=False)
+
+
+class COLLECTION_PT_importer(CollectionButtonsPanel, Panel):
+    bl_label = "Importer"
+
+    @classmethod
+    def poll(cls, context):
+        prefs = context.preferences
+        return prefs.experimental.use_collection_importer
+
+    def draw(self, context):
+        del context
+        layout = self.layout
+
+        layout.template_collection_importer()
+
+
+class COLLECTION_PT_exporters(CollectionButtonsPanel, Panel):
+    bl_label = "Exporters"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.template_collection_exporters()
 
 
 class COLLECTION_MT_context_menu_instance_offset(Menu):
@@ -113,9 +148,12 @@ class COLLECTION_PT_collection_custom_props(CollectionButtonsPanel, PropertyPane
 classes = (
     COLLECTION_MT_context_menu_instance_offset,
     COLLECTION_PT_collection_flags,
+    COLLECTION_PT_viewlayer_flags,
     COLLECTION_PT_instancing,
     COLLECTION_PT_lineart_collection,
     COLLECTION_PT_collection_custom_props,
+    COLLECTION_PT_importer,
+    COLLECTION_PT_exporters,
 )
 
 if __name__ == "__main__":  # only for live edit.

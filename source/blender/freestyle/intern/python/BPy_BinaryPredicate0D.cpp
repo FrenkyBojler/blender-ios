@@ -11,10 +11,6 @@
 #include "BPy_Convert.h"
 #include "BPy_Interface0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -29,15 +25,16 @@ int BinaryPredicate0D_Init(PyObject *module)
   if (PyType_Ready(&BinaryPredicate0D_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&BinaryPredicate0D_Type);
-  PyModule_AddObject(module, "BinaryPredicate0D", (PyObject *)&BinaryPredicate0D_Type);
+  PyModule_AddObjectRef(module, "BinaryPredicate0D", (PyObject *)&BinaryPredicate0D_Type);
 
   return 0;
 }
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char BinaryPredicate0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    BinaryPredicate0D___doc__,
     "Base class for binary predicates working on :class:`Interface0D`\n"
     "objects. A BinaryPredicate0D is typically an ordering relation\n"
     "between two Interface0D objects. The predicate evaluates a relation\n"
@@ -53,13 +50,12 @@ static char BinaryPredicate0D___doc__[] =
     "   Must be overload by inherited classes. It evaluates a relation\n"
     "   between two Interface0D objects.\n"
     "\n"
-    "   :arg inter1: The first Interface0D object.\n"
+    "   :param inter1: The first Interface0D object.\n"
     "   :type inter1: :class:`Interface0D`\n"
-    "   :arg inter2: The second Interface0D object.\n"
+    "   :param inter2: The second Interface0D object.\n"
     "   :type inter2: :class:`Interface0D`\n"
     "   :return: True or false.\n"
-    "   :rtype: bool\n";
-
+    "   :rtype: bool\n");
 static int BinaryPredicate0D___init__(BPy_BinaryPredicate0D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -112,11 +108,12 @@ static PyObject *BinaryPredicate0D___call__(BPy_BinaryPredicate0D *self,
 
 /*----------------------BinaryPredicate0D get/setters ----------------------------*/
 
-PyDoc_STRVAR(BinaryPredicate0D_name_doc,
-             "The name of the binary 0D predicate.\n"
-             "\n"
-             ":type: str");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    BinaryPredicate0D_name_doc,
+    "The name of the binary 0D predicate.\n"
+    "\n"
+    ":type: str\n");
 static PyObject *BinaryPredicate0D_name_get(BPy_BinaryPredicate0D *self, void * /*closure*/)
 {
   return PyUnicode_FromString(Py_TYPE(self)->tp_name);
@@ -175,7 +172,3 @@ PyTypeObject BinaryPredicate0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

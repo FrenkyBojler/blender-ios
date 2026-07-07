@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,59 +8,55 @@
 
 #pragma once
 
-#include "DRW_render.hh"
+#include "GPU_shader.hh"
 
-namespace blender::draw::greasepencil {
+namespace blender::draw::gpencil {
 
-enum eShaderType {
-  /* SMAA anti-aliasing. */
-  ANTIALIASING_EDGE_DETECT = 0,
-  ANTIALIASING_BLEND_WEIGHT,
-  ANTIALIASING_RESOLVE,
-  /* GPencil Object rendering */
-  GREASE_PENCIL,
-  /* All layer blend types in one shader! */
-  LAYER_BLEND,
-  /* Merge the final object depth to the depth buffer. */
-  DEPTH_MERGE,
-  /* Invert the content of the mask buffer. */
-  MASK_INVERT,
-  /* Final Compositing over rendered background. */
-  FX_COMPOSITE,
-  /* Effects. */
-  FX_COLORIZE,
-  FX_BLUR,
-  FX_GLOW,
-  FX_PIXEL,
-  FX_RIM,
-  FX_SHADOW,
-  FX_TRANSFORM,
+using StaticShader = gpu::StaticShader;
 
-  MAX_SHADER_TYPE,
-};
-
-/**
- * Shader module. shared between instances.
- */
-class ShaderModule {
+class ShaderCache {
  private:
-  std::array<GPUShader *, MAX_SHADER_TYPE> shaders_;
-
-  /** Shared shader module across all engine instances. */
-  static ShaderModule *g_shader_module;
+  static gpu::StaticShaderCache<ShaderCache> &get_static_cache()
+  {
+    static gpu::StaticShaderCache<ShaderCache> static_cache;
+    return static_cache;
+  }
 
  public:
-  ShaderModule();
-  ~ShaderModule();
+  static ShaderCache &get()
+  {
+    return get_static_cache().get();
+  }
+  static void release()
+  {
+    get_static_cache().release();
+  }
 
-  GPUShader *static_shader_get(eShaderType shader_type);
-
-  /** Only to be used by Instance constructor. */
-  static ShaderModule *module_get();
-  static void module_free();
-
- private:
-  const char *static_shader_create_info_name_get(eShaderType shader_type);
+  /* SMAA antialiasing */
+  StaticShader antialiasing[3] = {{"gpencil_antialiasing_stage_0"},
+                                  {"gpencil_antialiasing_stage_1"},
+                                  {"gpencil_antialiasing_stage_2"}};
+  /* Accumulation antialiasing */
+  StaticShader accumulation = {"gpencil_antialiasing_accumulation"};
+  /* GPencil Object rendering */
+  StaticShader geometry = {"gpencil_geometry"};
+  /* All layer blend types in one shader! */
+  StaticShader layer_blend = {"gpencil_layer_blend"};
+  /* Merge the final object depth to the depth buffer. */
+  StaticShader depth_merge = {"gpencil_depth_merge"};
+  /* Merge the final object depth to the depth pass. */
+  StaticShader depth_pass_merge = {"gpencil_depth_pass_merge"};
+  /* Invert the content of the mask buffer. */
+  StaticShader mask_invert = {"gpencil_mask_invert"};
+  /* Effects. */
+  StaticShader fx_composite = {"gpencil_fx_composite"};
+  StaticShader fx_colorize = {"gpencil_fx_colorize"};
+  StaticShader fx_blur = {"gpencil_fx_blur"};
+  StaticShader fx_glow = {"gpencil_fx_glow"};
+  StaticShader fx_pixelize = {"gpencil_fx_pixelize"};
+  StaticShader fx_rim = {"gpencil_fx_rim"};
+  StaticShader fx_shadow = {"gpencil_fx_shadow"};
+  StaticShader fx_transform = {"gpencil_fx_transform"};
 };
 
-}  // namespace blender::draw::greasepencil
+}  // namespace blender::draw::gpencil

@@ -12,40 +12,41 @@
 #include "../Interface1D/BPy_Stroke.h"
 #include "BPy_Interface0DIterator.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-PyDoc_STRVAR(StrokeVertexIterator_doc,
-             "Class hierarchy: :class:`Iterator` > :class:`StrokeVertexIterator`\n"
-             "\n"
-             "Class defining an iterator designed to iterate over the\n"
-             ":class:`StrokeVertex` of a :class:`Stroke`. An instance of a\n"
-             "StrokeVertexIterator can be obtained from a Stroke by calling\n"
-             "iter(), stroke_vertices_begin() or stroke_vertices_begin(). It is iterating\n"
-             "over the same vertices as an :class:`Interface0DIterator`. The difference\n"
-             "resides in the object access: an Interface0DIterator only allows\n"
-             "access to an Interface0D while one might need to access the\n"
-             "specialized StrokeVertex type. In this case, one should use a\n"
-             "StrokeVertexIterator. To call functions of the UnaryFuntion0D type,\n"
-             "a StrokeVertexIterator can be converted to an Interface0DIterator by\n"
-             "by calling Interface0DIterator(it).\n"
-             "\n"
-             ".. method:: __init__()\n"
-             "            __init__(brother)\n"
-             "\n"
-             "   Creates a :class:`StrokeVertexIterator` using either the\n"
-             "   default constructor or the copy constructor.\n"
-             "\n"
-             "   :arg brother: A StrokeVertexIterator object.\n"
-             "   :type brother: :class:`StrokeVertexIterator`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertexIterator_doc,
+    "Class hierarchy: :class:`Iterator` > :class:`StrokeVertexIterator`\n"
+    "\n"
+    "Class defining an iterator designed to iterate over the\n"
+    ":class:`StrokeVertex` of a :class:`Stroke`. An instance of a\n"
+    "StrokeVertexIterator can be obtained from a Stroke by calling\n"
+    "iter(), stroke_vertices_begin() or stroke_vertices_begin(). It is iterating\n"
+    "over the same vertices as an :class:`Interface0DIterator`. The difference\n"
+    "resides in the object access: an Interface0DIterator only allows\n"
+    "access to an Interface0D while one might need to access the\n"
+    "specialized StrokeVertex type. In this case, one should use a\n"
+    "StrokeVertexIterator. To call functions of the UnaryFuntion0D type,\n"
+    "a StrokeVertexIterator can be converted to an Interface0DIterator by\n"
+    "by calling Interface0DIterator(it).\n"
+    "\n"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(brother)``\n"
+    "\n"
+    "   Creates a :class:`StrokeVertexIterator` using either the\n"
+    "   default constructor or the copy constructor.\n"
+    "\n"
+    "   :param brother: A StrokeVertexIterator object.\n"
+    "   :type brother: :class:`StrokeVertexIterator`\n");
 static int StrokeVertexIterator_init(BPy_StrokeVertexIterator *self,
                                      PyObject *args,
                                      PyObject *kwds)
@@ -134,14 +135,15 @@ static PyObject *StrokeVertexIterator_iternext(BPy_StrokeVertexIterator *self)
 
 /*----------------------StrokeVertexIterator methods ----------------------------*/
 
-PyDoc_STRVAR(StrokeVertexIterator_incremented_doc,
-             ".. method:: incremented()\n"
-             "\n"
-             "   Returns a copy of an incremented StrokeVertexIterator.\n"
-             "\n"
-             "   :return: A StrokeVertexIterator pointing the next StrokeVertex.\n"
-             "   :rtype: :class:`StrokeVertexIterator`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertexIterator_incremented_doc,
+    ".. method:: incremented()\n"
+    "\n"
+    "   Returns a copy of an incremented StrokeVertexIterator.\n"
+    "\n"
+    "   :return: A StrokeVertexIterator pointing the next StrokeVertex.\n"
+    "   :rtype: :class:`StrokeVertexIterator`\n");
 static PyObject *StrokeVertexIterator_incremented(BPy_StrokeVertexIterator *self)
 {
   if (self->sv_it->isEnd()) {
@@ -153,14 +155,15 @@ static PyObject *StrokeVertexIterator_incremented(BPy_StrokeVertexIterator *self
   return BPy_StrokeVertexIterator_from_StrokeVertexIterator(copy, self->reversed);
 }
 
-PyDoc_STRVAR(StrokeVertexIterator_decremented_doc,
-             ".. method:: decremented()\n"
-             "\n"
-             "   Returns a copy of a decremented StrokeVertexIterator.\n"
-             "\n"
-             "   :return: A StrokeVertexIterator pointing the previous StrokeVertex.\n"
-             "   :rtype: :class:`StrokeVertexIterator`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertexIterator_decremented_doc,
+    ".. method:: decremented()\n"
+    "\n"
+    "   Returns a copy of a decremented StrokeVertexIterator.\n"
+    "\n"
+    "   :return: A StrokeVertexIterator pointing the previous StrokeVertex.\n"
+    "   :rtype: :class:`StrokeVertexIterator`\n");
 static PyObject *StrokeVertexIterator_decremented(BPy_StrokeVertexIterator *self)
 {
   if (self->sv_it->isBegin()) {
@@ -172,19 +175,30 @@ static PyObject *StrokeVertexIterator_decremented(BPy_StrokeVertexIterator *self
   return BPy_StrokeVertexIterator_from_StrokeVertexIterator(copy, self->reversed);
 }
 
-PyDoc_STRVAR(StrokeVertexIterator_reversed_doc,
-             ".. method:: reversed()\n"
-             "\n"
-             "   Returns a StrokeVertexIterator that traverses stroke vertices in the\n"
-             "   reversed order.\n"
-             "\n"
-             "   :return: A StrokeVertexIterator traversing stroke vertices backward.\n"
-             "   :rtype: :class:`StrokeVertexIterator`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertexIterator_reversed_doc,
+    ".. method:: reversed()\n"
+    "\n"
+    "   Returns a StrokeVertexIterator that traverses stroke vertices in the\n"
+    "   reversed order.\n"
+    "\n"
+    "   :return: A StrokeVertexIterator traversing stroke vertices backward.\n"
+    "   :rtype: :class:`StrokeVertexIterator`\n");
 static PyObject *StrokeVertexIterator_reversed(BPy_StrokeVertexIterator *self)
 {
   return BPy_StrokeVertexIterator_from_StrokeVertexIterator(*self->sv_it, !self->reversed);
 }
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
 
 static PyMethodDef BPy_StrokeVertexIterator_methods[] = {
     {"incremented",
@@ -202,13 +216,22 @@ static PyMethodDef BPy_StrokeVertexIterator_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
+
 /*----------------------StrokeVertexIterator get/setters ----------------------------*/
 
-PyDoc_STRVAR(StrokeVertexIterator_object_doc,
-             "The StrokeVertex object currently pointed to by this iterator.\n"
-             "\n"
-             ":type: :class:`StrokeVertex`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertexIterator_object_doc,
+    "The StrokeVertex object currently pointed to by this iterator.\n"
+    "\n"
+    ":type: :class:`StrokeVertex`\n");
 static PyObject *StrokeVertexIterator_object_get(BPy_StrokeVertexIterator *self,
                                                  void * /*closure*/)
 {
@@ -223,36 +246,49 @@ static PyObject *StrokeVertexIterator_object_get(BPy_StrokeVertexIterator *self,
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(StrokeVertexIterator_t_doc,
-             "The curvilinear abscissa of the current point.\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertexIterator_t_doc,
+    "The curvilinear abscissa of the current point.\n"
+    "\n"
+    ":type: float\n");
 static PyObject *StrokeVertexIterator_t_get(BPy_StrokeVertexIterator *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv_it->t());
 }
 
-PyDoc_STRVAR(StrokeVertexIterator_u_doc,
-             "The point parameter at the current point in the stroke (0 <= u <= 1).\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertexIterator_u_doc,
+    "The point parameter at the current point in the stroke (0 <= u <= 1).\n"
+    "\n"
+    ":type: float\n");
 static PyObject *StrokeVertexIterator_u_get(BPy_StrokeVertexIterator *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv_it->u());
 }
 
-PyDoc_STRVAR(StrokeVertexIterator_at_last_doc,
-             "True if the iterator points to the last valid element.\n"
-             "For its counterpart (pointing to the first valid element), use it.is_begin.\n"
-             "\n"
-             ":type: bool");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertexIterator_at_last_doc,
+    "True if the iterator points to the last valid element.\n"
+    "For its counterpart (pointing to the first valid element), use it.is_begin.\n"
+    "\n"
+    ":type: bool\n");
 static PyObject *StrokeVertexIterator_at_last_get(BPy_StrokeVertexIterator *self)
 {
   return PyBool_from_bool(self->sv_it->atLast());
 }
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
 
 static PyGetSetDef BPy_StrokeVertexIterator_getseters[] = {
     {"object",
@@ -277,6 +313,14 @@ static PyGetSetDef BPy_StrokeVertexIterator_getseters[] = {
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
 
 /*-----------------------BPy_StrokeVertexIterator type definition ------------------------------*/
 
@@ -322,7 +366,3 @@ PyTypeObject StrokeVertexIterator_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

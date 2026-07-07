@@ -9,8 +9,8 @@
 #pragma once
 
 #include "GHOST_Event.hh"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 /**
  * Drag & drop event
@@ -18,16 +18,16 @@
  * The dragging sequence is performed in four phases:
  *
  * - Start sequence (GHOST_kEventDraggingEntered) that tells
- *   a drag'n'drop operation has started.
+ *   a drag & drop operation has started.
  *   Already gives the object data type, and the entering mouse location
  *
  * - Update mouse position (GHOST_kEventDraggingUpdated) sent upon each mouse move until the
- *   drag'n'drop operation stops, to give the updated mouse position.
+ *   drag & drop operation stops, to give the updated mouse position.
  *   Useful to highlight a potential destination, and update the status
- *   (through GHOST_setAcceptDragOperation) telling if the object can be dropped at the current
- *   cursor position.
+ *   (through GHOST_IWindow::setAcceptDragOperation) telling if the object can be dropped at the
+ *   current cursor position.
  *
- * - Abort drag'n'drop sequence (GHOST_kEventDraggingExited)
+ * - Abort drag & drop sequence (#GHOST_kEventDraggingExited)
  *   sent when the user moved the mouse outside the window.
  *
  * - Send the dropped data (GHOST_kEventDraggingDropDone)
@@ -39,8 +39,8 @@
  * Note that the mouse positions are given in Blender coordinates (y=0 at bottom)
  *
  * Currently supported object types:
- * - UTF-8 string.
- * - array of strings representing filenames (GHOST_TStringArray).
+ * - UTF8 string.
+ * - array of strings representing filenames (#GHOST_TStringArray).
  * - bitmap #ImBuf.
  */
 class GHOST_EventDragnDrop : public GHOST_Event {
@@ -64,26 +64,26 @@ class GHOST_EventDragnDrop : public GHOST_Event {
                        GHOST_TDragnDropDataPtr data)
       : GHOST_Event(time, type, window)
   {
-    m_dragnDropEventData.x = x;
-    m_dragnDropEventData.y = y;
-    m_dragnDropEventData.dataType = dataType;
-    m_dragnDropEventData.data = data;
-    m_data = &m_dragnDropEventData;
+    dragn_drop_event_data_.x = x;
+    dragn_drop_event_data_.y = y;
+    dragn_drop_event_data_.dataType = dataType;
+    dragn_drop_event_data_.data = data;
+    data_ = &dragn_drop_event_data_;
   }
 
-  ~GHOST_EventDragnDrop()
+  ~GHOST_EventDragnDrop() override
   {
     /* Free the dropped object data. */
-    if (m_dragnDropEventData.data == nullptr) {
+    if (dragn_drop_event_data_.data == nullptr) {
       return;
     }
 
-    switch (m_dragnDropEventData.dataType) {
+    switch (dragn_drop_event_data_.dataType) {
       case GHOST_kDragnDropTypeBitmap:
-        IMB_freeImBuf((ImBuf *)m_dragnDropEventData.data);
+        blender::IMB_freeImBuf((blender::ImBuf *)dragn_drop_event_data_.data);
         break;
       case GHOST_kDragnDropTypeFilenames: {
-        GHOST_TStringArray *strArray = (GHOST_TStringArray *)m_dragnDropEventData.data;
+        GHOST_TStringArray *strArray = (GHOST_TStringArray *)dragn_drop_event_data_.data;
         int i;
 
         for (i = 0; i < strArray->count; i++) {
@@ -95,7 +95,7 @@ class GHOST_EventDragnDrop : public GHOST_Event {
         break;
       }
       case GHOST_kDragnDropTypeString:
-        free(m_dragnDropEventData.data);
+        free(dragn_drop_event_data_.data);
         break;
 
       default:
@@ -105,5 +105,5 @@ class GHOST_EventDragnDrop : public GHOST_Event {
 
  protected:
   /** The x,y-coordinates of the cursor position. */
-  GHOST_TEventDragnDropData m_dragnDropEventData;
+  GHOST_TEventDragnDropData dragn_drop_event_data_;
 };

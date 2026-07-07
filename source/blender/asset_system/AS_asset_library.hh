@@ -8,28 +8,33 @@
 
 #pragma once
 
-#include <functional>
 #include <memory>
+#include <mutex>
+#include <optional>
 
 #include "AS_asset_catalog.hh"
+#include "AS_asset_representation.hh" /* For URLWithHash. */
 
 #include "DNA_asset_types.h"
 
+#include "BLI_mutex.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
-#include "BKE_callbacks.h"
+#include "BKE_callbacks.hh"
 
-struct AssetLibrary;
-struct IDRemapper;
+namespace blender {
+
 struct Main;
 
-namespace blender::asset_system {
+namespace bke::id {
+class IDRemapper;
+}
 
-class AssetIdentifier;
+namespace asset_system {
+
 class AssetRepresentation;
-class AssetStorage;
 
 /**
  * AssetLibrary provides access to an asset library's data.
@@ -39,8 +44,10 @@ class AssetStorage;
  */
 class AssetLibrary {
   eAssetLibraryType library_type_;
+  /** See #is_read_only(). */
+  bool is_read_only_ = true;
   /**
-   * The name this asset library will be displayed in the UI as. Will also be used as a weak way
+   * The name this asset library will be displayed as in the UI. Will also be used as a weak way
    * to identify an asset library (e.g. by #AssetWeakReference).
    */
   std::string name_;
@@ -51,12 +58,12 @@ class AssetLibrary {
   std::shared_ptr<std::string> root_path_;
 
   /**
-   * Storage for assets (better said their representations) that are considered to be part of this
-   * library. Assets are not automatically loaded into this when loading an asset library. Assets
-   * have to be loaded externally and added to this storage via #add_external_asset() or
-   * #add_local_id_asset(). So this really is arbitrary storage as far as #AssetLibrary is
-   * concerned (allowing the API user to manage partial library storage and partial loading, so
-   * only relevant parts of a library are kept in memory).
+   * AssetStorage for assets (better said their representations) that are considered to be part of
+   * this library. Assets are not automatically loaded into this when loading an asset library.
+   * Assets have to be loaded externally and added to this storage via
+   * #add_external_on_disk_asset() or #add_local_id_asset(). So this really is arbitrary storage as
+   * far as #AssetLibrary is concerned (allowing the API user to manage partial library storage and
+   * partial loading, so only relevant parts of a library are kept in memory).
    *
    * For now, multiple parts of Blender just keep adding their own assets to this storage. E.g.
    * multiple asset browsers might load multiple representations for the same asset into this.
@@ -64,54 +71,121 @@ class AssetLibrary {
    * already in memory and which not. Neither do we keep track of how many parts of Blender are
    * using an asset or an asset library, which is needed to know when assets can be freed.
    */
-  std::unique_ptr<AssetStorage> asset_storage_;
+  struct AssetStorage {
+    /* Uses shared pointers so the UI can acquire weak pointers. It can then ensure pointers are
+     * not dangling before accessing. */
 
-  std::function<void(AssetLibrary &self)> on_refresh_;
+    Set<std::shared_ptr<AssetRepresentation>> external_assets;
+    Mutex external_assets_mutex;
+    /* Store local ID assets separately for efficient lookups.
+     * TODO(Julian): A [ID *, asset] or even [ID.session_uid, asset] map would be preferable for
+     * faster lookups. Not possible until each asset is only represented once in the storage. */
+    Set<std::shared_ptr<AssetRepresentation>> local_id_assets;
+    Mutex local_id_assets_mutex;
+  };
+  AssetStorage asset_storage_;
 
-  std::optional<eAssetImportMethod> import_method_;
+ protected:
+  /* Changing this pointer should be protected using #catalog_service_mutex_. Note that changes
+   * within the catalog service may still happen without the mutex being locked. They should be
+   * protected separately.
+   *
+   * This is a #shared_ptr (rather than #unique_ptr) so that readers can keep the service alive
+   * while using it, even if another thread replaces #catalog_service_ in the meantime (which frees
+   * the previously referenced service). See #catalog_service_ptr(). */
+  std::shared_ptr<AssetCatalogService> catalog_service_;
+  mutable std::recursive_mutex catalog_service_mutex_;
+
   /** Assets owned by this library may be imported with a different method than set in
    * #import_method_ above, it's just a default. */
   bool may_override_import_method_ = false;
 
-  bool use_relative_path_ = true;
-
   bCallbackFuncStore on_save_callback_store_{};
 
  public:
-  /* Controlled by #ED_asset_catalogs_set_save_catalogs_when_file_is_saved,
+  /* Controlled by #ed::asset::catalogs_set_save_catalogs_when_file_is_saved,
    * for managing the "Save Catalog Changes" in the quit-confirmation dialog box. */
   static bool save_catalogs_when_file_is_saved;
-
-  std::unique_ptr<AssetCatalogService> catalog_service;
 
   friend class AssetLibraryService;
   friend class AssetRepresentation;
 
- public:
   /**
+   * \param is_read_only: If true, the user should not be able to edit assets or asset catalogs
+   *                      from this library. See #is_read_only().
    * \param name: The name this asset library will be displayed in the UI as. Will also be used as
    *              a weak way to identify an asset library (e.g. by #AssetWeakReference). Make sure
    *              this is set for any custom (not builtin) asset library. That is,
    *              #ASSET_LIBRARY_CUSTOM ones.
    * \param root_path: If this is an asset library on disk, the top-level directory path.
    */
-  AssetLibrary(eAssetLibraryType library_type, StringRef name = "", StringRef root_path = "");
-  ~AssetLibrary();
+  AssetLibrary(eAssetLibraryType library_type,
+               bool is_read_only,
+               StringRef name = "",
+               StringRef root_path = "");
+  virtual ~AssetLibrary();
 
   /**
-   * Execute \a fn for every asset library that is loaded. The asset library is passed to the
-   * \a fn call.
+   * Execute \a fn for every asset library that is loaded and enabled. The asset library is passed
+   * to the \a fn call.
    *
-   * \param skip_all_library: When true, the \a fn will also be executed for the "All" asset
-   *                          library. This is just a combination of the other ones, so usually
-   *                          iterating over it is redundant.
+   * \note Libraries may note be freed during the iteration.
+   *
+   * \param include_all_library: When true, \a fn will also be executed for the "All" asset
+   *   library. This is just a combination of the other ones, so usually iterating over it is
+   *   redundant.
    */
   static void foreach_loaded(FunctionRef<void(AssetLibrary &)> fn, bool include_all_library);
 
-  void load_catalogs();
+  /**
+   * (Re-)download the remote listing for this library.
+   *
+   * This only has an effect for asset libraries that are themselves a remote library, or contain
+   * one (such as the "Essentials" library if it includes online essentials, or the "All" if there
+   * are any remote libraries included).
+   *
+   * The "Allow Online Access" option will be enforced internally, but probably some check to give
+   * a user message should be done at a higher level.
+   */
+  virtual void force_remote_listing_download() const;
 
-  /** Load catalogs that have changed on disk. */
-  void refresh();
+  /**
+   * Get the #AssetLibraryReference referencing this library. This can fail for custom libraries,
+   * which have too look up their #bUserAssetLibrary. It will not return a value for values that
+   * were loaded directly through a path.
+   */
+  virtual std::optional<AssetLibraryReference> library_reference() const = 0;
+
+  /**
+   * Get the import method that should be used for assets in this library.
+   *
+   * \return The import method or no value if the library doesn't support importing. For example
+   *   because the library is the "Current File" library or the library was removed from the
+   *   Preferences.
+   */
+  virtual std::optional<eAssetImportMethod> import_method() const = 0;
+
+  virtual bool use_relative_paths() const;
+
+  /**
+   * Return the URL of the remote asset library, or #std::nullopt if this is not a remote library.
+   *
+   * Note: don't use this as a way to distinguish remote vs. local libraries. Either query the
+   * asset itself, or use #is_or_contains_remote_libraries(). The Essentials and All libraries may
+   * contain a mixture of remote and local assets.
+   */
+  virtual std::optional<StringRefNull> remote_url() const;
+
+  AssetCatalogService &catalog_service() const;
+
+  /**
+   * Get shared ownership of the catalog service. Unlike #catalog_service(), this keeps the service
+   * alive for as long as the returned pointer is held, even if another thread replaces the
+   * library's catalog service in the meantime (e.g. a background catalog reload job). Use this
+   * instead of #catalog_service() when accessing the service from a thread that may run
+   * concurrently with such a replacement (e.g. the drawing/main thread while an asset read job is
+   * running). */
+  std::shared_ptr<AssetCatalogService> catalog_service_ptr() const;
 
   /**
    * Create a representation of an asset to be considered part of this library. Once the
@@ -122,18 +196,30 @@ class AssetLibrary {
    * \param relative_asset_path: The path of the asset relative to the asset library root. With
    *                             this the asset must be uniquely identifiable within the asset
    *                             library.
+   * \return A weak pointer to the new asset representation. The caller needs to keep some
+   *         reference stored to be able to call #remove_asset(). This would be dangling once the
+   *         asset library is destructed, so a weak pointer should be used to reference it.
    */
-  AssetRepresentation &add_external_asset(StringRef relative_asset_path,
-                                          StringRef name,
-                                          int id_type,
-                                          std::unique_ptr<AssetMetaData> metadata);
-  /** See #AssetLibrary::add_external_asset(). */
-  AssetRepresentation &add_local_id_asset(StringRef relative_asset_path, ID &id);
+  std::weak_ptr<AssetRepresentation> add_external_on_disk_asset(
+      StringRef relative_asset_path,
+      StringRef name,
+      int id_type,
+      std::unique_ptr<AssetMetaData> metadata);
+  /** See #AssetLibrary::add_external_on_disk_asset(). Use this for assets that are not available
+   * on disk, and part of an online asset library. */
+  std::weak_ptr<AssetRepresentation> add_external_online_asset(
+      StringRef relative_asset_path,
+      StringRef name,
+      int id_type,
+      std::unique_ptr<AssetMetaData> metadata,
+      OnlineAssetInfo online_info);
+  /** See #AssetLibrary::add_external_on_disk_asset(). */
+  std::weak_ptr<AssetRepresentation> add_local_id_asset(ID &id);
   /**
-   * Remove an asset from the library that was added using #add_external_asset() or
+   * Remove an asset from the library that was added using #add_external_on_disk_asset() or
    * #add_local_id_asset(). Can usually be expected to be constant time complexity (worst case may
    * differ).
-   * \note This is save to call if \a asset is freed (dangling reference), will not perform any
+   * \note This is safe to call if \a asset is freed (dangling reference), will not perform any
    *       change then.
    * \return True on success, false if the asset couldn't be found inside the library (also the
    *         case when the reference is dangling).
@@ -145,7 +231,7 @@ class AssetLibrary {
    * mapped to null (typically when an ID gets removed), the asset is removed, because we don't
    * support such empty/null assets.
    */
-  void remap_ids_and_remove_invalid(const IDRemapper &mappings);
+  void remap_ids_and_remove_invalid(const bke::id::IDRemapper &mappings);
 
   /**
    * Update `catalog_simple_name` by looking up the asset's catalog by its ID.
@@ -156,29 +242,57 @@ class AssetLibrary {
    */
   void refresh_catalog_simplename(AssetMetaData *asset_data);
 
+  void load_or_reload_catalogs();
+
   void on_blend_save_handler_register();
   void on_blend_save_handler_unregister();
 
   void on_blend_save_post(Main *bmain, PointerRNA **pointers, int num_pointers);
-
-  /**
-   * Create an asset identifier from the root path of this asset library and the given relative
-   * asset path (relative to the asset library root directory).
-   */
-  AssetIdentifier asset_identifier_from_library(StringRef relative_asset_path);
 
   std::string resolve_asset_weak_reference_to_full_path(const AssetWeakReference &asset_reference);
 
   eAssetLibraryType library_type() const;
   StringRefNull name() const;
   StringRefNull root_path() const;
+  /**
+   * Check if this is a read-only library, meaning the user shouldn't be able to do edits to
+   * assets and asset catalogs from this library.
+   *
+   * \note This isn't enforced by the asset system - the UI or other editing code has to respect
+   * this flag. Also see #AssetCatalogService::is_read_only().
+   *
+   * Of course it's possible to modify the .blend files containing the assets manually; and
+   * similarly, to open a .blend file in the library directory to edit asset catalogs. This
+   * function only speaks for editing directly *via this library*.
+   */
+  bool is_read_only() const;
+
+ protected:
+  /** Load catalogs that have changed on disk. */
+  virtual void refresh_catalogs();
 };
 
+/** Get all asset library references which are enabled and for which the directory exists. */
 Vector<AssetLibraryReference> all_valid_asset_library_refs();
 
 AssetLibraryReference all_library_reference();
+AssetLibraryReference essentials_library_reference();
+AssetLibraryReference current_file_library_reference();
+AssetLibraryReference online_essentials_library_reference();
 
-}  // namespace blender::asset_system
+void all_library_tag_catalogs_dirty();
+void all_library_reload_catalogs_if_dirty();
+
+/**
+ * Return whether this is a remote asset library, or contains remote assets.
+ *
+ * The All and Essentials libraries can have a mixture of local & remote assets.
+ */
+bool is_or_contains_remote_libraries(const AssetLibraryReference &reference);
+
+bool contains_assets_from_remote_url(const AssetLibrary &library, StringRef remote_url);
+
+}  // namespace asset_system
 
 /**
  * Load the data for an asset library, but not the asset representations themselves (loading these
@@ -191,8 +305,8 @@ AssetLibraryReference all_library_reference();
  * \warning Catalogs are reloaded, invalidating catalog pointers. Do not store catalog pointers,
  *          store CatalogIDs instead and lookup the catalog where needed.
  */
-blender::asset_system::AssetLibrary *AS_asset_library_load(
-    const Main *bmain, const AssetLibraryReference &library_reference);
+asset_system::AssetLibrary *AS_asset_library_load(const Main *bmain,
+                                                  const AssetLibraryReference &library_reference);
 
 std::string AS_asset_library_root_path_from_library_ref(
     const AssetLibraryReference &library_reference);
@@ -211,14 +325,10 @@ std::string AS_asset_library_root_path_from_library_ref(
  * * If \a input_path is empty or doesn't have a parent path (e.g. because a .blend wasn't saved
  *   yet), there is no suitable path. The caller has to decide how to handle this case.
  *
- * \param r_library_path: The returned asset library path with a trailing slash, or an empty string
- *                        if no suitable path is found. Assumed to be a buffer of at least
- *                        #FILE_MAXDIR bytes.
- *
- * \return True if the function could find a valid, that is, a non-empty path to return in \a
- *         r_library_path.
+ * \return The returned asset library path with a trailing slash,
+ * or an empty string if no suitable path is found.
  */
-std::string AS_asset_library_find_suitable_root_path_from_path(blender::StringRefNull input_path);
+std::string AS_asset_library_find_suitable_root_path_from_path(StringRefNull input_path);
 
 /**
  * Uses the current location on disk of the file represented by \a bmain as input to
@@ -231,7 +341,61 @@ std::string AS_asset_library_find_suitable_root_path_from_path(blender::StringRe
  */
 std::string AS_asset_library_find_suitable_root_path_from_main(const Main *bmain);
 
-blender::asset_system::AssetCatalogService *AS_asset_library_get_catalog_service(
-    const ::AssetLibrary *library);
-blender::asset_system::AssetCatalogTree *AS_asset_library_get_catalog_tree(
-    const ::AssetLibrary *library);
+/**
+ * Force clearing of all asset library data. After calling this, new asset libraries can be loaded
+ * just as usual using #AS_asset_library_load(), no init or other setup is needed.
+ *
+ * Does not need to be called on exit, this is handled internally.
+ */
+void AS_asset_libraries_exit();
+
+/**
+ * Return the #AssetLibrary rooted at the given directory path.
+ *
+ * Will return the same pointer for repeated calls, until another blend file is loaded.
+ *
+ * To get the in-memory-only "current file" asset library, pass an empty path.
+ */
+asset_system::AssetLibrary *AS_asset_library_load_from_directory(const char *name,
+                                                                 const char *library_dirpath);
+
+/** Return whether any loaded AssetLibrary has unsaved changes to its catalogs. */
+bool AS_asset_library_has_any_unsaved_catalogs();
+
+/**
+ * An asset library can include local IDs (IDs in the current file). Their pointers need to be
+ * remapped on change (or assets removed as IDs gets removed).
+ */
+void AS_asset_library_remap_ids(const bke::id::IDRemapper &mappings);
+
+/**
+ * Attempt to resolve a full path to an asset based on the currently available (not necessary
+ * loaded) asset libraries, and split it into it's directory, ID group and ID name components. The
+ * path is not guaranteed to exist on disk. On failure to resolve the reference, return arguments
+ * will point to null.
+ *
+ * \note Only works for asset libraries on disk and the "Current File" one (others can't be
+ *       resolved).
+ *
+ * \param r_path_buffer: Buffer to hold the result in on success. Will be the full path with null
+ *                       terminators instead of slashes separating the directory, group and name
+ *                       components. Must be at least #FILE_MAX_LIBEXTRA long.
+ * \param r_dir: Returns the .blend file path with native slashes on success. Optional (passing
+ *               null is allowed). For the "Current File" library this will be empty.
+ * \param r_group: Returns the ID group such as "Object", "Material" or "Brush". Optional (passing
+ *                 null is allowed).
+ * \param r_name: Returns the ID name on success. Optional (passing null is allowed).
+ */
+void AS_asset_full_path_explode_from_weak_ref(const AssetWeakReference *asset_reference,
+                                              char r_path_buffer[/*FILE_MAX_LIBEXTRA*/ 1282],
+                                              char **r_dir,
+                                              char **r_group,
+                                              char **r_name);
+
+/**
+ * Updates the default import method for asset libraries based on
+ * #U.experimental.no_data_block_packing.
+ */
+void AS_asset_library_import_method_ensure_valid(Main &bmain);
+
+}  // namespace blender

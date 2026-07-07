@@ -8,9 +8,10 @@
 
 #include <memory>
 
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_path_utils.hh"
+#include "BLI_string.hh"
 
-#include "AS_asset_identifier.hh"
 #include "AS_asset_library.hh"
 
 #include "BKE_asset.hh"
@@ -21,12 +22,16 @@
 
 #include "MEM_guardedalloc.h"
 
-using namespace blender;
+namespace blender {
 
 /* #AssetWeakReference -------------------------------------------- */
 
-AssetWeakReference::AssetWeakReference()
-    : asset_library_type(0), asset_library_identifier(nullptr), relative_asset_identifier(nullptr)
+AssetWeakReference::AssetWeakReference() = default;
+
+AssetWeakReference::AssetWeakReference(const AssetWeakReference &other)
+    : asset_library_type(other.asset_library_type),
+      asset_library_identifier(BLI_strdup_null(other.asset_library_identifier)),
+      relative_asset_identifier(BLI_strdup_null(other.relative_asset_identifier))
 {
 }
 
@@ -35,7 +40,7 @@ AssetWeakReference::AssetWeakReference(AssetWeakReference &&other)
       asset_library_identifier(other.asset_library_identifier),
       relative_asset_identifier(other.relative_asset_identifier)
 {
-  other.asset_library_type = 0; /* Not a valid type. */
+  other.asset_library_type = eAssetLibraryType{}; /* Not a valid type. */
   other.asset_library_identifier = nullptr;
   other.relative_asset_identifier = nullptr;
 }
@@ -46,54 +51,136 @@ AssetWeakReference::~AssetWeakReference()
   MEM_delete(relative_asset_identifier);
 }
 
-void BKE_asset_weak_reference_free(AssetWeakReference **weak_ref)
+AssetWeakReference &AssetWeakReference::operator=(const AssetWeakReference &other)
 {
-  MEM_delete(*weak_ref);
-  *weak_ref = nullptr;
+  if (this == &other) {
+    return *this;
+  }
+  std::destroy_at(this);
+  new (this) AssetWeakReference(other);
+  return *this;
 }
 
-AssetWeakReference *BKE_asset_weak_reference_copy(AssetWeakReference *weak_ref)
+AssetWeakReference &AssetWeakReference::operator=(AssetWeakReference &&other)
 {
-  if (weak_ref == nullptr) {
-    return nullptr;
+  if (this == &other) {
+    return *this;
+  }
+  std::destroy_at(this);
+  new (this) AssetWeakReference(std::move(other));
+  return *this;
+}
+
+bool operator==(const AssetWeakReference &a, const AssetWeakReference &b)
+{
+  if (a.asset_library_type != b.asset_library_type) {
+    return false;
   }
 
-  AssetWeakReference *weak_ref_copy = MEM_new<AssetWeakReference>(__func__);
-  weak_ref_copy->asset_library_type = weak_ref->asset_library_type;
-  weak_ref_copy->asset_library_identifier = BLI_strdup(weak_ref->asset_library_identifier);
-  weak_ref_copy->relative_asset_identifier = BLI_strdup(weak_ref->relative_asset_identifier);
-
-  return weak_ref_copy;
+  if (a.asset_library_type == ASSET_LIBRARY_CUSTOM) {
+    const char *a_lib_idenfifier = a.asset_library_identifier ? a.asset_library_identifier : "";
+    const char *b_lib_idenfifier = b.asset_library_identifier ? b.asset_library_identifier : "";
+    if (BLI_path_cmp_normalized(a_lib_idenfifier, b_lib_idenfifier) != 0) {
+      return false;
+    }
+  }
+  const char *a_asset_idenfifier = a.relative_asset_identifier ? a.relative_asset_identifier : "";
+  const char *b_asset_idenfifier = b.relative_asset_identifier ? b.relative_asset_identifier : "";
+  if (BLI_path_cmp_normalized(a_asset_idenfifier, b_asset_idenfifier) != 0) {
+    return false;
+  }
+  return true;
 }
 
-AssetWeakReference *AssetWeakReference::make_reference(
-    const asset_system::AssetLibrary &library,
-    const asset_system::AssetIdentifier &asset_identifier)
+AssetWeakReference AssetWeakReference::make_reference(const asset_system::AssetLibrary &library,
+                                                      const StringRef library_relative_identifier)
 {
-  AssetWeakReference *weak_ref = MEM_new<AssetWeakReference>(__func__);
+  AssetWeakReference weak_ref{};
 
-  weak_ref->asset_library_type = library.library_type();
+  BLI_assert_msg(
+      !(library.library_type() == ASSET_LIBRARY_CUSTOM && library.name().is_empty()),
+      "Custom asset libraries should have a name set, otherwise weak references will not work");
+
+  weak_ref.asset_library_type = library.library_type();
   StringRefNull name = library.name();
   if (!name.is_empty()) {
-    weak_ref->asset_library_identifier = BLI_strdupn(name.c_str(), name.size());
+    weak_ref.asset_library_identifier = BLI_strdupn(name.c_str(), name.size());
   }
 
-  StringRefNull relative_identifier = asset_identifier.library_relative_identifier();
-  weak_ref->relative_asset_identifier = BLI_strdupn(relative_identifier.c_str(),
-                                                    relative_identifier.size());
+  weak_ref.relative_asset_identifier = BLI_strdupn(library_relative_identifier.data(),
+                                                   library_relative_identifier.size());
 
   return weak_ref;
 }
 
 void BKE_asset_weak_reference_write(BlendWriter *writer, const AssetWeakReference *weak_ref)
 {
-  BLO_write_struct(writer, AssetWeakReference, weak_ref);
-  BLO_write_string(writer, weak_ref->asset_library_identifier);
-  BLO_write_string(writer, weak_ref->relative_asset_identifier);
+  writer->write_struct(weak_ref);
+  writer->write_string(weak_ref->asset_library_identifier);
+  writer->write_string(weak_ref->relative_asset_identifier);
 }
 
 void BKE_asset_weak_reference_read(BlendDataReader *reader, AssetWeakReference *weak_ref)
 {
-  BLO_read_data_address(reader, &weak_ref->asset_library_identifier);
-  BLO_read_data_address(reader, &weak_ref->relative_asset_identifier);
+  BLO_read_string(reader, &weak_ref->asset_library_identifier);
+  BLO_read_string(reader, &weak_ref->relative_asset_identifier);
 }
+
+void BKE_asset_catalog_path_list_free(ListBaseT<AssetCatalogPathLink> &catalog_path_list)
+{
+  for (AssetCatalogPathLink &catalog_path : catalog_path_list.items_mutable()) {
+    MEM_delete(catalog_path.path);
+    BLI_freelinkN(&catalog_path_list, &catalog_path);
+  }
+  BLI_assert(catalog_path_list.is_empty());
+}
+
+ListBaseT<AssetCatalogPathLink> BKE_asset_catalog_path_list_duplicate(
+    const ListBaseT<AssetCatalogPathLink> &catalog_path_list)
+{
+  ListBaseT<AssetCatalogPathLink> duplicated_list = {nullptr};
+
+  for (AssetCatalogPathLink &catalog_path : catalog_path_list) {
+    AssetCatalogPathLink *copied_path = MEM_new<AssetCatalogPathLink>(__func__);
+    copied_path->path = BLI_strdup(catalog_path.path);
+
+    BLI_addtail(&duplicated_list, copied_path);
+  }
+
+  return duplicated_list;
+}
+
+void BKE_asset_catalog_path_list_blend_write(
+    BlendWriter *writer, const ListBaseT<AssetCatalogPathLink> &catalog_path_list)
+{
+  for (const AssetCatalogPathLink &catalog_path : catalog_path_list) {
+    writer->write_struct(&catalog_path);
+    writer->write_string(catalog_path.path);
+  }
+}
+
+void BKE_asset_catalog_path_list_blend_read_data(
+    BlendDataReader *reader, ListBaseT<AssetCatalogPathLink> &catalog_path_list)
+{
+  BLO_read_struct_list(reader, AssetCatalogPathLink, &catalog_path_list);
+  for (AssetCatalogPathLink &catalog_path : catalog_path_list) {
+    BLO_read_string(reader, &catalog_path.path);
+  }
+}
+
+bool BKE_asset_catalog_path_list_has_path(const ListBaseT<AssetCatalogPathLink> &catalog_path_list,
+                                          const char *catalog_path)
+{
+  return BLI_findstring_ptr(
+             &catalog_path_list, catalog_path, offsetof(AssetCatalogPathLink, path)) != nullptr;
+}
+
+void BKE_asset_catalog_path_list_add_path(ListBaseT<AssetCatalogPathLink> &catalog_path_list,
+                                          const char *catalog_path)
+{
+  AssetCatalogPathLink *new_path = MEM_new<AssetCatalogPathLink>(__func__);
+  new_path->path = BLI_strdup(catalog_path);
+  BLI_addtail(&catalog_path_list, new_path);
+}
+
+}  // namespace blender

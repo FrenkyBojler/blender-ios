@@ -8,17 +8,15 @@
 
 #include "BPy_WithinImageBoundaryUP1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char WithinImageBoundaryUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    WithinImageBoundaryUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > "
     ":class:`WithinImageBoundaryUP1D`\n"
     "\n"
@@ -26,19 +24,22 @@ static char WithinImageBoundaryUP1D___doc__[] =
     "\n"
     "   Builds an WithinImageBoundaryUP1D object.\n"
     "\n"
-    "   :arg xmin: X lower bound of the image boundary.\n"
+    "   :param xmin: X lower bound of the image boundary.\n"
     "   :type xmin: float\n"
-    "   :arg ymin: Y lower bound of the image boundary.\n"
+    "   :param ymin: Y lower bound of the image boundary.\n"
     "   :type ymin: float\n"
-    "   :arg xmax: X upper bound of the image boundary.\n"
+    "   :param xmax: X upper bound of the image boundary.\n"
     "   :type xmax: float\n"
-    "   :arg ymax: Y upper bound of the image boundary.\n"
+    "   :param ymax: Y upper bound of the image boundary.\n"
     "   :type ymax: float\n"
     "\n"
     ".. method:: __call__(inter)\n"
     "\n"
-    "   Returns true if the Interface1D intersects with image boundary.\n";
-
+    "   Returns true if the Interface1D intersects with image boundary.\n"
+    "\n"
+    "   :param inter: The Interface1D to test.\n"
+    "   :type inter: :class:`freestyle.types.Interface1D`\n"
+    "   :rtype: bool\n");
 static int WithinImageBoundaryUP1D___init__(BPy_WithinImageBoundaryUP1D *self,
                                             PyObject *args,
                                             PyObject *kwds)
@@ -99,7 +100,3 @@ PyTypeObject WithinImageBoundaryUP1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

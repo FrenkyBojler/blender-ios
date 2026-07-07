@@ -4,20 +4,22 @@
 
 #pragma once
 
-#include <memory>
-
 /* Include our own math header first to avoid warnings about M_PI
  * redefinition between OpenImageIO and Windows headers. */
-#include "BLI_math_base.h"
-#include "BLI_sys_types.h"
+#include "BLI_math_base_c.hh"  // IWYU pragma: keep
+#include "BLI_sys_types.hh"
 
 #include <OpenImageIO/filesystem.h>
 #include <OpenImageIO/imageio.h>
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
-namespace blender::imbuf {
+namespace blender {
+
+struct ImFileColorSpace;
+
+namespace imbuf {
 
 /**
  * Parameters and settings used while reading image formats.
@@ -27,16 +29,13 @@ struct ReadContext {
   const size_t mem_size;
   const char *file_format;
   const eImbFileType file_type;
-  const int flags;
-
-  /** Override the automatic color-role choice with the value specified here. */
-  int use_colorspace_role = -1;
+  const ImBufFlags flags;
 
   /** Allocate and use all #ImBuf image planes even if the image has fewer. */
   bool use_all_planes = false;
 
   /** Use the `colorspace` provided in the image metadata when available. */
-  bool use_embedded_colorspace = false;
+  bool use_metadata_colorspace = false;
 };
 
 /**
@@ -45,7 +44,7 @@ struct ReadContext {
 struct WriteContext {
   const char *file_format;
   ImBuf *ibuf;
-  int flags;
+  ImBufFlags flags;
 
   uchar *mem_start;
   OIIO::stride_t mem_xstride;
@@ -61,7 +60,7 @@ bool imb_oiio_check(const uchar *mem, size_t mem_size, const char *file_format);
 /**
  * The primary method for reading data into an #ImBuf.
  *
- * During the `IB_test` phase of loading, the `colorspace` parameter will be populated
+ * During the `ImBufFlags::Test` phase of loading, the `colorspace` parameter will be populated
  * with the appropriate `colorspace` name.
  *
  * Upon return, the `r_newspec` parameter will contain image format information
@@ -69,18 +68,24 @@ bool imb_oiio_check(const uchar *mem, size_t mem_size, const char *file_format);
  */
 ImBuf *imb_oiio_read(const ReadContext &ctx,
                      const OIIO::ImageSpec &config,
-                     char colorspace[IM_MAX_SPACE],
+                     ImFileColorSpace &r_colorspace,
                      OIIO::ImageSpec &r_newspec);
 
 /**
- * The primary method for writing data from an #ImBuf to either a physical or in-memory
- * destination.
+ * The primary method for writing data from an #ImBuf to a file.
  *
  * The `file_spec` parameter will typically come from #imb_create_write_spec.
  */
 bool imb_oiio_write(const WriteContext &ctx,
                     const char *filepath,
                     const OIIO::ImageSpec &file_spec);
+
+/**
+ * The primary method for writing data from an #ImBuf to an in-memory buffer.
+ *
+ * The `file_spec` parameter will typically come from #imb_create_write_spec.
+ */
+Vector<uint8_t> imb_oiio_write_buffer(const WriteContext &ctx, const OIIO::ImageSpec &file_spec);
 
 /**
  * Create a #WriteContext based on the provided #ImBuf and format information.
@@ -91,7 +96,7 @@ bool imb_oiio_write(const WriteContext &ctx,
  */
 WriteContext imb_create_write_context(const char *file_format,
                                       ImBuf *ibuf,
-                                      int flags,
+                                      ImBufFlags flags,
                                       bool prefer_float = true);
 
 /**
@@ -105,4 +110,5 @@ OIIO::ImageSpec imb_create_write_spec(const WriteContext &ctx,
                                       int file_channels,
                                       OIIO::TypeDesc data_format);
 
-}  // namespace blender::imbuf
+}  // namespace imbuf
+}  // namespace blender

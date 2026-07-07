@@ -11,10 +11,12 @@
 
 #include "GEO_reverse_uv_sampler.hh"
 
-struct Mesh;
-struct KDTree_3d;
+namespace blender {
 
-namespace blender::geometry {
+struct Mesh;
+template<typename CoordT> struct KDTree;
+
+namespace geometry {
 
 struct AddCurvesOnMeshInputs {
   /** UV Coordinates at which the new curves should be added. */
@@ -22,10 +24,12 @@ struct AddCurvesOnMeshInputs {
 
   /** Determines shape of new curves. */
   bool interpolate_length = false;
+  bool interpolate_radius = false;
   bool interpolate_shape = false;
   bool interpolate_point_count = false;
   bool interpolate_resolution = false;
   float fallback_curve_length = 0.0f;
+  float fallback_curve_radius = 0.0f;
   int fallback_point_count = 0;
 
   /** Information about the surface that the new curves are attached to. */
@@ -40,7 +44,7 @@ struct AddCurvesOnMeshInputs {
    * KD-Tree that contains the root points of existing curves. This is only necessary when
    * interpolation is used.
    */
-  KDTree_3d *old_roots_kdtree = nullptr;
+  KDTree<float3> *old_roots_kdtree = nullptr;
 
   bool r_uv_error = false;
 };
@@ -61,4 +65,5 @@ float3 compute_surface_point_normal(const int3 &tri,
                                     const float3 &bary_coord,
                                     Span<float3> corner_normals);
 
-}  // namespace blender::geometry
+}  // namespace geometry
+}  // namespace blender

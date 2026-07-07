@@ -8,6 +8,10 @@
 
 #pragma once
 
+namespace blender {
+
+struct ReportList;
+struct Scene;
 struct ScrArea;
 struct bContext;
 struct wmOperatorType;
@@ -22,6 +26,7 @@ void OBJECT_OT_material_slot_deselect(wmOperatorType *ot);
 void OBJECT_OT_material_slot_copy(wmOperatorType *ot);
 void OBJECT_OT_material_slot_move(wmOperatorType *ot);
 void OBJECT_OT_material_slot_remove_unused(wmOperatorType *ot);
+void OBJECT_OT_material_slot_remove_all(wmOperatorType *ot);
 
 void MATERIAL_OT_new(wmOperatorType *ot);
 void TEXTURE_OT_new(wmOperatorType *ot);
@@ -38,9 +43,6 @@ void SCENE_OT_view_layer_add_lightgroup(wmOperatorType *ot);
 void SCENE_OT_view_layer_remove_lightgroup(wmOperatorType *ot);
 void SCENE_OT_view_layer_add_used_lightgroups(wmOperatorType *ot);
 void SCENE_OT_view_layer_remove_unused_lightgroups(wmOperatorType *ot);
-
-void SCENE_OT_light_cache_bake(wmOperatorType *ot);
-void SCENE_OT_light_cache_free(wmOperatorType *ot);
 
 void OBJECT_OT_lightprobe_cache_bake(wmOperatorType *ot);
 void OBJECT_OT_lightprobe_cache_free(wmOperatorType *ot);
@@ -72,7 +74,18 @@ void TEXTURE_OT_slot_copy(wmOperatorType *ot);
 void TEXTURE_OT_slot_paste(wmOperatorType *ot);
 void TEXTURE_OT_slot_move(wmOperatorType *ot);
 
+/* `render_texture_cache.cc` */
+
+void RENDER_OT_generate_texture_cache(wmOperatorType *ot);
+void RENDER_OT_clear_texture_cache(wmOperatorType *ot);
+
 /* `render_internal.cc` */
+
+/* Base class for all WM_JOB_TYPE_RENDER jobs. */
+struct RenderJobBase {
+  Scene *scene = nullptr;
+  Scene *current_scene = nullptr;
+};
 
 /**
  * Contextual render, using current scene, view3d?
@@ -93,3 +106,5 @@ void RENDER_OT_view_cancel(wmOperatorType *ot);
 /* `render_opengl.cc` */
 
 void RENDER_OT_opengl(wmOperatorType *ot);
+
+}  // namespace blender

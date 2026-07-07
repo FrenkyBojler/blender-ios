@@ -8,16 +8,11 @@ set(INC
   importer
   intern
   ../common
-  ../../blenkernel
-  ../../bmesh
-  ../../geometry
+  ../../editors/include
   ../../makesrna
-  ../../windowmanager
 )
 
 set(INC_SYS
-  ../../../../extern/fast_float
-  ../../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -51,13 +46,17 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::geometry
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
-  extern_fmtlib
+  PRIVATE bf::extern::fast_float
+  PRIVATE bf::windowmanager
 )
 
 blender_add_lib(bf_io_ply "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

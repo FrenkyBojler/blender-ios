@@ -11,16 +11,17 @@
 
 #include <Python.h>
 
-#include "GPU_index_buffer.h"
+#include "GPU_index_buffer.hh"
 
 #include "MEM_guardedalloc.h"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_compat.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
-#include "gpu_py.h"
-#include "gpu_py_element.h" /* own include */
+#include "gpu_py.hh"
+#include "gpu_py_element.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name IndexBuf Type
@@ -28,6 +29,8 @@
 
 static PyObject *pygpu_IndexBuf__tp_new(PyTypeObject * /*type*/, PyObject *args, PyObject *kwds)
 {
+  BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
   const char *error_prefix = "IndexBuf.__new__";
   bool ok = true;
 
@@ -40,9 +43,9 @@ static PyObject *pygpu_IndexBuf__tp_new(PyTypeObject * /*type*/, PyObject *args,
 
   static const char *_keywords[] = {"type", "seq", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
-      "$O" /* `type` */
-      "&O" /* `seq` */
+      "$"  /* Keyword only arguments. */
+      "O&" /* `type` */
+      "O"  /* `seq` */
       ":IndexBuf.__new__",
       _keywords,
       nullptr,
@@ -55,9 +58,9 @@ static PyObject *pygpu_IndexBuf__tp_new(PyTypeObject * /*type*/, PyObject *args,
 
   verts_per_prim = GPU_indexbuf_primitive_len(GPUPrimType(prim_type.value_found));
   if (verts_per_prim == -1) {
-    PyErr_Format(PyExc_ValueError,
-                 "The argument 'type' must be "
-                 "'POINTS', 'LINES', 'TRIS' or 'LINES_ADJ'");
+    PyErr_SetString(PyExc_ValueError,
+                    "The argument 'type' must be "
+                    "'POINTS', 'LINES', 'TRIS', 'LINES_ADJ' or 'TRIS_ADJ'");
     return nullptr;
   }
 
@@ -78,7 +81,7 @@ static PyObject *pygpu_IndexBuf__tp_new(PyTypeObject * /*type*/, PyObject *args,
     if (pybuffer.itemsize != 4 ||
         PyC_StructFmt_type_is_float_any(PyC_StructFmt_type_from_str(pybuffer.format)))
     {
-      PyErr_Format(PyExc_ValueError, "Each index must be an 4-bytes integer value");
+      PyErr_SetString(PyExc_ValueError, "Each index must be an 4-bytes integer value");
       PyBuffer_Release(&pybuffer);
       return nullptr;
     }
@@ -162,7 +165,7 @@ static PyObject *pygpu_IndexBuf__tp_new(PyTypeObject * /*type*/, PyObject *args,
   }
 
   if (ok == false) {
-    MEM_freeN(builder.data);
+    MEM_delete(builder.data);
     return nullptr;
   }
 
@@ -175,24 +178,27 @@ static void pygpu_IndexBuf__tp_dealloc(BPyGPUIndexBuf *self)
   Py_TYPE(self)->tp_free(self);
 }
 
-PyDoc_STRVAR(pygpu_IndexBuf__tp_doc,
-             ".. class:: GPUIndexBuf(type, seq)\n"
-             "\n"
-             "   Contains an index buffer.\n"
-             "\n"
-             "   :arg type: The primitive type this index buffer is composed of.\n"
-             "      Possible values are `POINTS`, `LINES`, `TRIS` and `LINE_STRIP_ADJ`.\n"
-             "   :type type: str\n"
-             "   :arg seq: Indices this index buffer will contain.\n"
-             "      Whether a 1D or 2D sequence is required depends on the type.\n"
-             "      Optionally the sequence can support the buffer protocol.\n"
-             "   :type seq: 1D or 2D sequence\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_IndexBuf__tp_doc,
+    ".. class:: GPUIndexBuf\n"
+    "\n"
+    "   Contains an index buffer.\n"
+    "\n"
+    "   .. method:: __init__(type, seq)\n"
+    "\n"
+    "      :param type: The primitive type this index buffer is composed of.\n"
+    "      :type type: Literal['POINTS', 'LINES', 'TRIS', 'LINES_ADJ', 'TRIS_ADJ']\n"
+    "      :param seq: Indices this index buffer will contain.\n"
+    "         Whether a 1D or 2D sequence is required depends on the type.\n"
+    "         Optionally the sequence can support the buffer protocol.\n"
+    "      :type seq: Buffer | Sequence[int] | Sequence[Sequence[int]]\n");
 PyTypeObject BPyGPUIndexBuf_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GPUIndexBuf",
     /*tp_basicsize*/ sizeof(BPyGPUIndexBuf),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)pygpu_IndexBuf__tp_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(pygpu_IndexBuf__tp_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -245,14 +251,16 @@ PyTypeObject BPyGPUIndexBuf_Type = {
 /** \name Public API
  * \{ */
 
-PyObject *BPyGPUIndexBuf_CreatePyObject(GPUIndexBuf *elem)
+PyObject *BPyGPUIndexBuf_CreatePyObject(gpu::IndexBuf *elem)
 {
   BPyGPUIndexBuf *self;
 
   self = PyObject_New(BPyGPUIndexBuf, &BPyGPUIndexBuf_Type);
   self->elem = elem;
 
-  return (PyObject *)self;
+  return reinterpret_cast<PyObject *>(self);
 }
 
 /** \} */
+
+}  // namespace blender

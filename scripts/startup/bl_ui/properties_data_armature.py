@@ -5,6 +5,7 @@
 import bpy
 from bpy.types import Panel, Menu, UIList
 from rna_prop_ui import PropertyPanel
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 from bl_ui.properties_animviz import (
     MotionPathButtonsPanel,
@@ -87,20 +88,13 @@ class DATA_UL_bone_collections(UIList):
         active_bone = armature.edit_bones.active or armature.bones.active
         has_active_bone = active_bone and bcoll.name in active_bone.collections
 
-        layout.prop(bcoll, "name", text="", emboss=False,
-                    icon='DOT' if has_active_bone else 'BLANK1')
+        layout.prop(bcoll, "name", text="", emboss=False, icon='DOT' if has_active_bone else 'BLANK1')
 
         if armature.override_library:
             icon = 'LIBRARY_DATA_OVERRIDE' if bcoll.is_local_override else 'BLANK1'
-            layout.prop(
-                bcoll,
-                "is_local_override",
-                text="",
-                emboss=False,
-                icon=icon)
+            layout.prop(bcoll, "is_local_override", text="", emboss=False, icon=icon)
 
-        layout.prop(bcoll, "is_visible", text="", emboss=False,
-                    icon='HIDE_OFF' if bcoll.is_visible else 'HIDE_ON')
+        layout.prop(bcoll, "is_visible", text="", emboss=False, icon='HIDE_OFF' if bcoll.is_visible else 'HIDE_ON')
 
 
 class DATA_PT_bone_collections(ArmatureButtonsPanel, Panel):
@@ -118,23 +112,26 @@ class DATA_PT_bone_collections(ArmatureButtonsPanel, Panel):
         col = row.column(align=True)
         col.operator("armature.collection_add", icon='ADD', text="")
         col.operator("armature.collection_remove", icon='REMOVE', text="")
+
+        col.separator()
+
+        col.menu("ARMATURE_MT_collection_context_menu", icon='DOWNARROW_HLT', text="")
+
         if active_bcoll:
             col.separator()
             col.operator("armature.collection_move", icon='TRIA_UP', text="").direction = 'UP'
             col.operator("armature.collection_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
-            col.separator()
 
-        col.menu("ARMATURE_MT_collection_context_menu", icon='DOWNARROW_HLT', text="")
+        if context.mode in {'POSE', 'EDIT_ARMATURE', 'PAINT_WEIGHT'}:
+            row = layout.row()
 
-        row = layout.row()
+            sub = row.row(align=True)
+            sub.operator("armature.collection_assign", text="Assign")
+            sub.operator("armature.collection_unassign", text="Remove")
 
-        sub = row.row(align=True)
-        sub.operator("armature.collection_assign", text="Assign")
-        sub.operator("armature.collection_unassign", text="Remove")
-
-        sub = row.row(align=True)
-        sub.operator("armature.collection_select", text="Select")
-        sub.operator("armature.collection_deselect", text="Deselect")
+            sub = row.row(align=True)
+            sub.operator("armature.collection_select", text="Select")
+            sub.operator("armature.collection_deselect", text="Deselect")
 
 
 class ARMATURE_MT_collection_context_menu(Menu):
@@ -143,12 +140,10 @@ class ARMATURE_MT_collection_context_menu(Menu):
     def draw(self, context):
         layout = self.layout
 
-        arm = context.armature
-        active_bcoll = arm.collections.active
-
-        props = layout.operator("armature.collection_solo_visibility")
-        props.name = active_bcoll.name if active_bcoll else ""
         layout.operator("armature.collection_show_all")
+        layout.operator("armature.collection_unsolo_all")
+        layout.separator()
+        layout.operator("armature.collection_remove_unused", text="Remove Unused")
 
 
 class ARMATURE_MT_collection_tree_context_menu(Menu):
@@ -165,16 +160,14 @@ class ARMATURE_MT_collection_tree_context_menu(Menu):
         # editable or not. That means this menu has to do the disabling for it.
         sub = layout.column()
         sub.enabled = not active_bcoll_is_locked
-        props = sub.operator(
-            "armature.collection_add", text="Add Child Collection"
-        )
-        props.parent_index = arm.collections.active_index
+        sub.operator("armature.collection_add", text="Add Bone Collection")
         sub.operator("armature.collection_remove")
+        sub.operator("armature.collection_remove_unused", text="Remove Unused Collections")
 
         layout.separator()
 
-        layout.operator("armature.collection_solo_visibility")
         layout.operator("armature.collection_show_all")
+        layout.operator("armature.collection_unsolo_all")
 
         layout.separator()
 
@@ -190,6 +183,9 @@ class ARMATURE_MT_collection_tree_context_menu(Menu):
 
         layout.operator("armature.collection_select", text="Select Bones")
         layout.operator("armature.collection_deselect", text="Deselect Bones")
+
+        layout.separator()
+        layout.operator("UI_OT_view_item_rename", text="Rename")
 
 
 class DATA_PT_iksolver_itasc(ArmatureButtonsPanel, Panel):
@@ -286,14 +282,16 @@ class DATA_PT_motion_paths_display(MotionPathButtonsPanel_display, Panel):
         self.draw_settings(context, avs, mpath, bones=True)
 
 
+class DATA_PT_armature_animation(ArmatureButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
+    _animated_id_context_property = "armature"
+
+
 class DATA_PT_custom_props_arm(ArmatureButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
     _context_path = "object.data"
     _property_type = bpy.types.Armature
 
 
 class DATA_PT_custom_props_bcoll(ArmatureButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
     _context_path = "armature.collections.active"
     _property_type = bpy.types.BoneCollection
     bl_parent_id = "DATA_PT_bone_collections"
@@ -313,6 +311,107 @@ class DATA_PT_custom_props_bcoll(ArmatureButtonsPanel, PropertyPanel, Panel):
         return arm.collections.active
 
 
+# Bone Selection Sets.
+
+class POSE_MT_selection_sets_context_menu(Menu):
+    bl_label = "Selection Sets Specials"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("pose.selection_set_delete_all", icon='X')
+        layout.operator("pose.selection_set_remove_bones", icon='X')
+        layout.operator("pose.selection_set_copy", icon='COPYDOWN')
+        layout.operator("pose.selection_set_paste", icon='PASTEDOWN')
+
+
+class POSE_PT_selection_sets(Panel):
+    bl_label = "Selection Sets"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "data"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return (
+            (ob is not None) and
+            (ob.type == 'ARMATURE') and
+            (ob.pose is not None)
+        )
+
+    def draw(self, context):
+        layout = self.layout
+
+        arm = context.object
+
+        row = layout.row()
+        row.enabled = (context.mode == 'POSE')
+
+        # UI list
+        rows = 4 if len(arm.selection_sets) > 0 else 1
+        row.template_list(
+            "POSE_UL_selection_set", "",  # type and unique id
+            arm, "selection_sets",  # pointer to the CollectionProperty
+            arm, "active_selection_set",  # pointer to the active identifier
+            rows=rows
+        )
+
+        # add/remove/specials UI list Menu
+        col = row.column(align=True)
+        col.operator("pose.selection_set_add", icon='ADD', text="")
+        col.operator("pose.selection_set_remove", icon='REMOVE', text="")
+        col.menu("POSE_MT_selection_sets_context_menu", icon='DOWNARROW_HLT', text="")
+
+        # move up/down arrows
+        if len(arm.selection_sets) > 0:
+            col.separator()
+            col.operator("pose.selection_set_move", icon='TRIA_UP', text="").direction = 'UP'
+            col.operator("pose.selection_set_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
+
+        # buttons
+        row = layout.row()
+
+        sub = row.row(align=True)
+        sub.operator("pose.selection_set_assign", text="Assign")
+        sub.operator("pose.selection_set_unassign", text="Remove")
+
+        sub = row.row(align=True)
+        sub.operator("pose.selection_set_select", text="Select").selection_set_index = -1
+        sub.operator("pose.selection_set_deselect", text="Deselect")
+
+
+class POSE_UL_selection_set(UIList):
+    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
+        row = layout.row()
+        row.prop(item, "name", text="", emboss=False)
+        row.prop(item, "is_selected", text="")
+
+
+class POSE_MT_selection_set_create(Menu):
+    bl_label = "Choose Selection Set"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator("pose.selection_set_add_and_assign", text="New Selection Set")
+
+
+class POSE_MT_selection_sets_select(Menu):
+    bl_label = "Select Selection Set"
+
+    @classmethod
+    def poll(cls, context):
+        return bpy.types.POSE_OT_selection_set_select.poll(context)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator_context = 'EXEC_DEFAULT'
+        for idx, sel_set in enumerate(context.object.selection_sets):
+            props = layout.operator("pose.selection_set_select", text=sel_set.name)
+            props.selection_set_index = idx
+
+
 classes = (
     DATA_PT_context_arm,
     DATA_PT_pose,
@@ -324,8 +423,14 @@ classes = (
     DATA_PT_motion_paths_display,
     DATA_PT_display,
     DATA_PT_iksolver_itasc,
+    DATA_PT_armature_animation,
     DATA_PT_custom_props_arm,
     DATA_PT_custom_props_bcoll,
+    POSE_MT_selection_set_create,
+    POSE_MT_selection_sets_context_menu,
+    POSE_MT_selection_sets_select,
+    POSE_PT_selection_sets,
+    POSE_UL_selection_set,
 )
 
 if __name__ == "__main__":  # only for live edit.

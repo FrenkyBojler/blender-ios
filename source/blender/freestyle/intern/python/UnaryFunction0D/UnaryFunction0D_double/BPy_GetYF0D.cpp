@@ -10,17 +10,15 @@
 
 #include "../../../view_map/Functions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetYF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetYF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DDouble` > :class:`GetYF0D`\n"
     "\n"
@@ -33,11 +31,10 @@ static char GetYF0D___doc__[] =
     "   Returns the Y 3D coordinate of the :class:`freestyle.types.Interface0D` pointed by\n"
     "   the Interface0DIterator.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The Y 3D coordinate of the pointed Interface0D.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int GetYF0D___init__(BPy_GetYF0D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -94,7 +91,3 @@ PyTypeObject GetYF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

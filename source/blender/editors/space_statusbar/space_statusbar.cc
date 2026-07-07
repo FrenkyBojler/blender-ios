@@ -6,12 +6,13 @@
  * \ingroup spstatusbar
  */
 
-#include <cstdio>
 #include <cstring>
 
+#include "DNA_space_types.h"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -19,15 +20,14 @@
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
-#include "RNA_access.hh"
-
 #include "UI_interface.hh"
 
 #include "BLO_read_write.hh"
 
-#include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
+
+namespace blender {
 
 /* ******************** default callbacks for statusbar space ******************** */
 
@@ -36,16 +36,16 @@ static SpaceLink *statusbar_create(const ScrArea * /*area*/, const Scene * /*sce
   ARegion *region;
   SpaceStatusBar *sstatusbar;
 
-  sstatusbar = static_cast<SpaceStatusBar *>(MEM_callocN(sizeof(*sstatusbar), "init statusbar"));
+  sstatusbar = MEM_new<SpaceStatusBar>("init statusbar");
   sstatusbar->spacetype = SPACE_STATUSBAR;
 
   /* header region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(*region), "header for statusbar"));
+  region = BKE_area_region_new();
   BLI_addtail(&sstatusbar->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = RGN_ALIGN_NONE;
 
-  return (SpaceLink *)sstatusbar;
+  return reinterpret_cast<SpaceLink *>(sstatusbar);
 }
 
 /* Doesn't free the space-link itself. */
@@ -56,11 +56,11 @@ static void statusbar_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *statusbar_duplicate(SpaceLink *sl)
 {
-  SpaceStatusBar *sstatusbarn = static_cast<SpaceStatusBar *>(MEM_dupallocN(sl));
+  SpaceStatusBar *sstatusbarn = MEM_dupalloc(reinterpret_cast<SpaceStatusBar *>(sl));
 
   /* clear or remove stuff from old */
 
-  return (SpaceLink *)sstatusbarn;
+  return reinterpret_cast<SpaceLink *>(sstatusbarn);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -127,16 +127,16 @@ static void statusbar_header_region_message_subscribe(const wmRegionMessageSubsc
 
 static void statusbar_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceStatusBar, sl);
+  writer->write_struct_cast<SpaceStatusBar>(sl);
 }
 
 void ED_spacetype_statusbar()
 {
-  SpaceType *st = static_cast<SpaceType *>(MEM_callocN(sizeof(*st), "spacetype statusbar"));
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_STATUSBAR;
-  STRNCPY(st->name, "Status Bar");
+  STRNCPY_UTF8(st->name, "Status Bar");
 
   st->create = statusbar_create;
   st->free = statusbar_free;
@@ -147,7 +147,7 @@ void ED_spacetype_statusbar()
   st->blend_write = statusbar_space_blend_write;
 
   /* regions: header window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(*art), "spacetype statusbar header region"));
+  art = MEM_new_zeroed<ARegionType>("spacetype statusbar header region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = 0.8f * HEADERY;
   art->prefsizex = UI_UNIT_X * 5; /* Mainly to avoid glitches */
@@ -159,5 +159,7 @@ void ED_spacetype_statusbar()
   art->message_subscribe = statusbar_header_region_message_subscribe;
   BLI_addhead(&st->regiontypes, art);
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }
+
+}  // namespace blender

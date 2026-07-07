@@ -13,10 +13,6 @@
 #include "../../BPy_StrokeAttribute.h"
 #include "../../Interface0D/BPy_SVertex.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -24,40 +20,44 @@ using namespace Freestyle;
 //------------------------INSTANCE METHODS ----------------------------------
 
 PyDoc_STRVAR(
+    /* Wrap. */
     StrokeVertex_doc,
     "Class hierarchy: :class:`Interface0D` > :class:`CurvePoint` > :class:`StrokeVertex`\n"
     "\n"
     "Class to define a stroke vertex.\n"
     "\n"
-    ".. method:: __init__()\n"
-    "            __init__(brother)\n"
-    "            __init__(first_vertex, second_vertex, t3d)\n"
-    "            __init__(point)\n"
-    "            __init__(svertex)\n"
-    "            __init__(svertex, attribute)\n"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(brother)``\n"
+    "   - ``__init__(first_vertex, second_vertex, t3d)``\n"
+    "   - ``__init__(point)``\n"
+    "   - ``__init__(svertex)``\n"
+    "   - ``__init__(svertex, attribute)``\n"
     "\n"
     "   Builds a :class:`StrokeVertex` using the default constructor,\n"
     "   copy constructor, from 2 :class:`StrokeVertex` and an interpolation parameter,\n"
     "   from a CurvePoint, from a SVertex, or a :class:`SVertex`"
     "   and a :class:`StrokeAttribute` object.\n"
     "\n"
-    "   :arg brother: A StrokeVertex object.\n"
+    "   :param brother: A StrokeVertex object.\n"
     "   :type brother: :class:`StrokeVertex`\n"
-    "   :arg first_vertex: The first StrokeVertex.\n"
+    "   :param first_vertex: The first StrokeVertex.\n"
     "   :type first_vertex: :class:`StrokeVertex`\n"
-    "   :arg second_vertex: The second StrokeVertex.\n"
+    "   :param second_vertex: The second StrokeVertex.\n"
     "   :type second_vertex: :class:`StrokeVertex`\n"
-    "   :arg t3d: An interpolation parameter.\n"
+    "   :param t3d: An interpolation parameter.\n"
     "   :type t3d: float\n"
-    "   :arg point: A CurvePoint object.\n"
+    "   :param point: A CurvePoint object.\n"
     "   :type point: :class:`CurvePoint`\n"
-    "   :arg svertex: An SVertex object.\n"
+    "   :param svertex: An SVertex object.\n"
     "   :type svertex: :class:`SVertex`\n"
-    "   :arg svertex: An SVertex object.\n"
+    "   :param svertex: An SVertex object.\n"
     "   :type svertex: :class:`SVertex`\n"
-    "   :arg attribute: A StrokeAttribute object.\n"
-    "   :type attribute: :class:`StrokeAttribute`");
-
+    "   :param attribute: A StrokeAttribute object.\n"
+    "   :type attribute: :class:`StrokeAttribute`\n");
 static int StrokeVertex_init(BPy_StrokeVertex *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -147,7 +147,7 @@ static int StrokeVertex_init(BPy_StrokeVertex *self, PyObject *args, PyObject *k
 
 /*----------------------mathutils callbacks ----------------------------*/
 
-static int StrokeVertex_mathutils_check(BaseMathObject *bmo)
+static int StrokeVertex_mathutils_check(blender::BaseMathObject *bmo)
 {
   if (!BPy_StrokeVertex_Check(bmo->cb_user)) {
     return -1;
@@ -155,7 +155,7 @@ static int StrokeVertex_mathutils_check(BaseMathObject *bmo)
   return 0;
 }
 
-static int StrokeVertex_mathutils_get(BaseMathObject *bmo, int /*subtype*/)
+static int StrokeVertex_mathutils_get(blender::BaseMathObject *bmo, int /*subtype*/)
 {
   BPy_StrokeVertex *self = (BPy_StrokeVertex *)bmo->cb_user;
   bmo->data[0] = float(self->sv->x());
@@ -163,7 +163,7 @@ static int StrokeVertex_mathutils_get(BaseMathObject *bmo, int /*subtype*/)
   return 0;
 }
 
-static int StrokeVertex_mathutils_set(BaseMathObject *bmo, int /*subtype*/)
+static int StrokeVertex_mathutils_set(blender::BaseMathObject *bmo, int /*subtype*/)
 {
   BPy_StrokeVertex *self = (BPy_StrokeVertex *)bmo->cb_user;
   self->sv->setX((real)bmo->data[0]);
@@ -171,7 +171,9 @@ static int StrokeVertex_mathutils_set(BaseMathObject *bmo, int /*subtype*/)
   return 0;
 }
 
-static int StrokeVertex_mathutils_get_index(BaseMathObject *bmo, int /*subtype*/, int index)
+static int StrokeVertex_mathutils_get_index(blender::BaseMathObject *bmo,
+                                            int /*subtype*/,
+                                            int index)
 {
   BPy_StrokeVertex *self = (BPy_StrokeVertex *)bmo->cb_user;
   switch (index) {
@@ -187,7 +189,9 @@ static int StrokeVertex_mathutils_get_index(BaseMathObject *bmo, int /*subtype*/
   return 0;
 }
 
-static int StrokeVertex_mathutils_set_index(BaseMathObject *bmo, int /*subtype*/, int index)
+static int StrokeVertex_mathutils_set_index(blender::BaseMathObject *bmo,
+                                            int /*subtype*/,
+                                            int index)
 {
   BPy_StrokeVertex *self = (BPy_StrokeVertex *)bmo->cb_user;
   switch (index) {
@@ -203,7 +207,7 @@ static int StrokeVertex_mathutils_set_index(BaseMathObject *bmo, int /*subtype*/
   return 0;
 }
 
-static Mathutils_Callback StrokeVertex_mathutils_cb = {
+static blender::Mathutils_Callback StrokeVertex_mathutils_cb = {
     StrokeVertex_mathutils_check,
     StrokeVertex_mathutils_get,
     StrokeVertex_mathutils_set,
@@ -220,11 +224,12 @@ void StrokeVertex_mathutils_register_callback()
 
 /*----------------------StrokeVertex get/setters ----------------------------*/
 
-PyDoc_STRVAR(StrokeVertex_attribute_doc,
-             "StrokeAttribute for this StrokeVertex.\n"
-             "\n"
-             ":type: :class:`StrokeAttribute`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_attribute_doc,
+    "StrokeAttribute for this StrokeVertex.\n"
+    "\n"
+    ":type: :class:`StrokeAttribute`\n");
 static PyObject *StrokeVertex_attribute_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
   return BPy_StrokeAttribute_from_StrokeAttribute(self->sv->attribute());
@@ -240,11 +245,12 @@ static int StrokeVertex_attribute_set(BPy_StrokeVertex *self, PyObject *value, v
   return 0;
 }
 
-PyDoc_STRVAR(StrokeVertex_curvilinear_abscissa_doc,
-             "Curvilinear abscissa of this StrokeVertex in the Stroke.\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_curvilinear_abscissa_doc,
+    "Curvilinear abscissa of this StrokeVertex in the Stroke.\n"
+    "\n"
+    ":type: float\n");
 static PyObject *StrokeVertex_curvilinear_abscissa_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv->curvilinearAbscissa());
@@ -264,20 +270,23 @@ static int StrokeVertex_curvilinear_abscissa_set(BPy_StrokeVertex *self,
   return 0;
 }
 
-PyDoc_STRVAR(StrokeVertex_point_doc,
-             "2D point coordinates.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_point_doc,
+    "2D point coordinates.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`\n");
 static PyObject *StrokeVertex_point_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
-  return Vector_CreatePyObject_cb((PyObject *)self, 2, StrokeVertex_mathutils_cb_index, 0);
+  return blender::Vector_CreatePyObject_cb(
+      (PyObject *)self, 2, StrokeVertex_mathutils_cb_index, 0);
 }
 
 static int StrokeVertex_point_set(BPy_StrokeVertex *self, PyObject *value, void * /*closure*/)
 {
   float v[2];
-  if (mathutils_array_parse(v, 2, 2, value, "value must be a 2-dimensional vector") == -1) {
+  if (blender::mathutils_array_parse(v, 2, 2, value, "value must be a 2-dimensional vector") == -1)
+  {
     return -1;
   }
   self->sv->setX(v[0]);
@@ -285,12 +294,13 @@ static int StrokeVertex_point_set(BPy_StrokeVertex *self, PyObject *value, void 
   return 0;
 }
 
-PyDoc_STRVAR(StrokeVertex_stroke_length_doc,
-             "Stroke length (it is only a value retained by the StrokeVertex,\n"
-             "and it won't change the real stroke length).\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_stroke_length_doc,
+    "Stroke length (it is only a value retained by the StrokeVertex,\n"
+    "and it won't change the real stroke length).\n"
+    "\n"
+    ":type: float\n");
 static PyObject *StrokeVertex_stroke_length_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv->strokeLength());
@@ -310,11 +320,12 @@ static int StrokeVertex_stroke_length_set(BPy_StrokeVertex *self,
   return 0;
 }
 
-PyDoc_STRVAR(StrokeVertex_u_doc,
-             "Curvilinear abscissa of this StrokeVertex in the Stroke.\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    StrokeVertex_u_doc,
+    "Curvilinear abscissa of this StrokeVertex in the Stroke.\n"
+    "\n"
+    ":type: float\n");
 static PyObject *StrokeVertex_u_get(BPy_StrokeVertex *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv->u());
@@ -389,7 +400,3 @@ PyTypeObject StrokeVertex_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

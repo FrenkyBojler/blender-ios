@@ -10,11 +10,7 @@
 
 #include "../../../stroke/AdvancedFunctions0D.h"
 
-#include "BLI_sys_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_sys_types.hh"
 
 using namespace Freestyle;
 
@@ -22,7 +18,9 @@ using namespace Freestyle;
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ReadSteerableViewMapPixelF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ReadSteerableViewMapPixelF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DFloat` > :class:`ReadSteerableViewMapPixelF0D`\n"
     "\n"
@@ -30,10 +28,10 @@ static char ReadSteerableViewMapPixelF0D___doc__[] =
     "\n"
     "   Builds a ReadSteerableViewMapPixelF0D object.\n"
     "\n"
-    "   :arg orientation: The integer belonging to [0, 4] indicating the\n"
+    "   :param orientation: The integer belonging to [0, 4] indicating the\n"
     "      orientation (E, NE, N, NW) we are interested in.\n"
     "   :type orientation: int\n"
-    "   :arg level: The level of the pyramid from which the pixel must be\n"
+    "   :param level: The level of the pyramid from which the pixel must be\n"
     "      read.\n"
     "   :type level: int\n"
     "\n"
@@ -41,11 +39,10 @@ static char ReadSteerableViewMapPixelF0D___doc__[] =
     "\n"
     "   Reads a pixel in one of the level of one of the steerable viewmaps.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: A pixel in one of the level of one of the steerable viewmaps.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int ReadSteerableViewMapPixelF0D___init__(BPy_ReadSteerableViewMapPixelF0D *self,
                                                  PyObject *args,
                                                  PyObject *kwds)
@@ -106,7 +103,3 @@ PyTypeObject ReadSteerableViewMapPixelF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

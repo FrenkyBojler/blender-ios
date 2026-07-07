@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <utility>
 
@@ -16,12 +18,19 @@
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 
-#include <memory>
+#include "essentials_library.hh"
+
+namespace blender {
 
 struct AssetLibraryReference;
 struct bUserAssetLibrary;
 
-namespace blender::asset_system {
+namespace asset_system {
+
+class AllAssetLibrary;
+class OnDiskAssetLibrary;
+class PreferencesRemoteAssetLibrary;
+class RuntimeAssetLibrary;
 
 /**
  * Global singleton-ish that provides access to individual #AssetLibrary instances.
@@ -39,20 +48,31 @@ namespace blender::asset_system {
 class AssetLibraryService {
   static std::unique_ptr<AssetLibraryService> instance_;
 
-  /** Identify libraries with the library type, and the absolute path of the library's root path
+  /**
+   * Identify libraries with the library type, and the absolute path of the library's root path
    * (normalize with #normalize_directory_path()!). The type is relevant since the current file
-   * library may point to the same path as a custom library. */
+   * library may point to the same path as a custom library.
+   */
   using OnDiskLibraryIdentifier = std::pair<eAssetLibraryType, std::string>;
-  /* Mapping of a (type, root path) pair to the AssetLibrary instance. */
-  Map<OnDiskLibraryIdentifier, std::unique_ptr<AssetLibrary>> on_disk_libraries_;
-  /** Library without a known path, i.e. the "Current File" library if the file isn't saved yet. If
+  /** Mapping of a (type, root path) pair to the AssetLibrary instance.
+   * Always protect access with #on_disk_libraries_mutex_ below. */
+  Map<OnDiskLibraryIdentifier, std::unique_ptr<OnDiskAssetLibrary>> on_disk_libraries_;
+  mutable std::recursive_mutex on_disk_libraries_mutex_;
+  using URLLibraryIdentifier = std::string;
+  /** Always protect access with #remote_libraries_mutex_ below. */
+  Map<URLLibraryIdentifier, std::unique_ptr<PreferencesRemoteAssetLibrary>> remote_libraries_;
+  mutable std::recursive_mutex remote_libraries_mutex_;
+  /**
+   * Library without a known path, i.e. the "Current File" library if the file isn't saved yet. If
    * the file was saved, a valid path for the library can be determined and #on_disk_libraries_
-   * above should be used. */
-  std::unique_ptr<AssetLibrary> current_file_library_;
+   * above should be used.
+   */
+  std::unique_ptr<RuntimeAssetLibrary> current_file_library_;
   /** The "all" asset library, merging all other libraries into one. */
-  std::unique_ptr<AssetLibrary> all_library_;
+  std::unique_ptr<AllAssetLibrary> all_library_;
+  std::unique_ptr<OnlineEssentialsLibrary> online_essentials_library_;
 
-  /* Handlers for managing the life cycle of the AssetLibraryService instance. */
+  /** Handlers for managing the life cycle of the AssetLibraryService instance. */
   bCallbackFuncStore on_load_callback_store_;
   static bool atexit_handler_registered_;
 
@@ -71,12 +91,32 @@ class AssetLibraryService {
       const AssetLibraryReference &library_reference);
   static bUserAssetLibrary *find_custom_preferences_asset_library_from_asset_weak_ref(
       const AssetWeakReference &asset_reference);
+  /**
+   * Turn the runtime current file library into an on-disk current file library, preserving
+   * catalog data like undo/redo history, deleted catalog info, catalog saving state, etc.
+   * Note that this creates a new on-disk asset library and destroys the runtime one.
+   *
+   * Call when the `.blend` file is saved to disk.
+   *
+   * \return the new on-disk current file asset library (null in case of failure to find a path to
+   * store the library in, based on the #Main.filepath from \a main).
+   */
+  static AssetLibrary *move_runtime_current_file_into_on_disk_library(const Main &bmain);
 
   AssetLibrary *get_asset_library(const Main *bmain,
                                   const AssetLibraryReference &library_reference);
 
-  /** Get an asset library of type #ASSET_LIBRARY_CUSTOM. */
+  /**
+   * Get an asset library of type #ASSET_LIBRARY_CUSTOM from a directory path. Use
+   * #get_asset_library_on_disk_custom_preferences() for asset libraries registered in the
+   * Preferences.
+   */
   AssetLibrary *get_asset_library_on_disk_custom(StringRef name, StringRefNull root_path);
+  /**
+   * Get an asset library of type #ASSET_LIBRARY_CUSTOM from an asset library definition in the
+   * Preferences.
+   */
+  AssetLibrary *get_asset_library_on_disk_custom_preferences(bUserAssetLibrary *custom_library);
   /** Get a builtin (not user defined) asset library. I.e. a library that is **not** of type
    * #ASSET_LIBRARY_CUSTOM. */
   AssetLibrary *get_asset_library_on_disk_builtin(eAssetLibraryType type, StringRefNull root_path);
@@ -84,7 +124,13 @@ class AssetLibraryService {
   AssetLibrary *get_asset_library_current_file();
   /** Get the "All" asset library, which loads all others and merges them into one. */
   AssetLibrary *get_asset_library_all(const Main *bmain);
-  void rebuild_all_library();
+  /**
+   * Tag the "All" asset library as needing to reload catalogs. This should be called when catalog
+   * data of other asset libraries changes. Note that changes to the catalog definition file on
+   * disk don't ever affect this "dirty" flag. It only reflects changes from this Blender session.
+   */
+  void tag_all_library_catalogs_dirty();
+  void reload_all_library_catalogs_if_dirty();
 
   /**
    * Return the start position of the last blend-file extension in given path,
@@ -142,14 +188,24 @@ class AssetLibraryService {
   /** Allocate a new instance of the service and assign it to `instance_`. */
   static void allocate_service_instance();
 
+  OnDiskAssetLibrary *lookup_on_disk_library(eAssetLibraryType type, StringRefNull root_path);
+
   AssetLibrary *find_loaded_on_disk_asset_library_from_name(StringRef name) const;
 
+  AssetLibrary *get_online_essentials_asset_library();
+  AssetLibrary *get_preferences_remote_asset_library(const bUserAssetLibrary &custom_library);
   /**
    * Get the given asset library. Opens it (i.e. creates a new AssetLibrary instance) if necessary.
+   *
+   * \param root_path: The top level directory.
+   * \param preferences_library: The definition of the library from the Preferences. Set this to
+   * null if the library is not registered in the Preferences (but non-null if it is!).
    */
   AssetLibrary *get_asset_library_on_disk(eAssetLibraryType library_type,
                                           StringRef name,
-                                          StringRefNull top_level_directory);
+                                          StringRefNull root_path,
+                                          bool load_catalogs = true,
+                                          bUserAssetLibrary *preferences_library = nullptr);
   /**
    * Ensure the AssetLibraryService instance is destroyed before a new blend file is loaded.
    * This makes memory management simple, and ensures a fresh start for every blend file. */
@@ -157,4 +213,6 @@ class AssetLibraryService {
   void app_handler_unregister();
 };
 
-}  // namespace blender::asset_system
+}  // namespace asset_system
+
+}  // namespace blender

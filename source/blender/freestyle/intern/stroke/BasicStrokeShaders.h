@@ -17,10 +17,10 @@
 #include "../geometry/Bezier.h"
 #include "../geometry/Geom.h"
 
-extern "C" {
+namespace blender {
 struct MTex;
 struct bNodeTree;
-}
+}  // namespace blender
 
 using namespace std;
 
@@ -68,7 +68,7 @@ class ConstantThicknessShader : public StrokeShader {
 /* [ Thickness Shader ].
  *  Assigns an absolute constant external thickness to every vertices of the Stroke. The external
  * thickness of a point is its thickness from the point to the strip border in the direction
- * pointing outside the object the Stroke delimitates.
+ * pointing outside the object the Stroke delimiters.
  */
 class ConstantExternThicknessShader : public StrokeShader {
  public:
@@ -127,7 +127,7 @@ class IncreasingThicknessShader : public StrokeShader {
 };
 
 /** [ Thickness shader ].
- *  Same as previous but here we allow the user to control the ratio thickness/length so that  we
+ * Same as previous but here we allow the user to control the ratio thickness/length so that we
  * don't get fat short lines
  */
 class ConstrainedIncreasingThicknessShader : public StrokeShader {
@@ -573,15 +573,15 @@ class TipRemoverShader : public StrokeShader {
  */
 class BlenderTextureShader : public StrokeShader {
  private:
-  MTex *_mtex;
-  bNodeTree *_nodeTree;
+  blender::MTex *_mtex;
+  blender::bNodeTree *_nodeTree;
 
  public:
   /** Builds the shader.
    *  \param mtex:
    *    The blender texture to use.
    */
-  BlenderTextureShader(MTex *mtex)
+  BlenderTextureShader(blender::MTex *mtex)
   {
     _mtex = mtex;
     _nodeTree = nullptr;
@@ -591,7 +591,7 @@ class BlenderTextureShader : public StrokeShader {
    *  \param nodetree:
    *    A node tree (of new shading nodes) to define textures.
    */
-  BlenderTextureShader(bNodeTree *nodetree)
+  BlenderTextureShader(blender::bNodeTree *nodetree)
   {
     _nodeTree = nodetree;
     _mtex = nullptr;
@@ -617,7 +617,7 @@ class StrokeTextureStepShader : public StrokeShader {
 
  public:
   /** Builds the shader.
-   *  \param id:
+   *  \param step:
    *    The number of the preset to use.
    */
   StrokeTextureStepShader(float step)

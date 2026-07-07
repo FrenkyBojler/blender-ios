@@ -59,12 +59,30 @@ PyObject *PyBool_from_bool(bool b)
   return PyBool_FromLong(b ? 1 : 0);
 }
 
+PyObject *PyLong_subtype_new(PyTypeObject *ty, long value)
+{
+  BLI_assert(ty->tp_basicsize == sizeof(PyLongObject));
+  PyLongObject *result = PyObject_NewVar(PyLongObject, ty, 1);
+  PyLongObject *value_py = (PyLongObject *)PyLong_FromLong(value);
+  memcpy(&result->long_value, &value_py->long_value, sizeof(result->long_value));
+  Py_DECREF(value_py);
+  return (PyObject *)result;
+}
+
+void PyLong_subtype_add_to_dict(PyObject *dict, PyTypeObject *ty, const char *attr, long value)
+{
+  PyObject *result = PyLong_subtype_new(ty, value);
+  PyDict_SetItemString(dict, attr, result);
+  /* Owned by the dictionary. */
+  Py_DECREF(result);
+}
+
 PyObject *Vector_from_Vec2f(Vec2f &vec)
 {
   float vec_data[2];  // because vec->_coord is protected
   vec_data[0] = vec.x();
   vec_data[1] = vec.y();
-  return Vector_CreatePyObject(vec_data, 2, nullptr);
+  return blender::Vector_CreatePyObject(vec_data, 2, nullptr);
 }
 
 PyObject *Vector_from_Vec3f(Vec3f &vec)
@@ -73,7 +91,7 @@ PyObject *Vector_from_Vec3f(Vec3f &vec)
   vec_data[0] = vec.x();
   vec_data[1] = vec.y();
   vec_data[2] = vec.z();
-  return Vector_CreatePyObject(vec_data, 3, nullptr);
+  return blender::Vector_CreatePyObject(vec_data, 3, nullptr);
 }
 
 PyObject *Vector_from_Vec3r(Vec3r &vec)
@@ -82,7 +100,7 @@ PyObject *Vector_from_Vec3r(Vec3r &vec)
   vec_data[0] = vec.x();
   vec_data[1] = vec.y();
   vec_data[2] = vec.z();
-  return Vector_CreatePyObject(vec_data, 3, nullptr);
+  return blender::Vector_CreatePyObject(vec_data, 3, nullptr);
 }
 
 PyObject *BPy_Id_from_Id(Id &id)
@@ -567,10 +585,11 @@ bool Vec3r_ptr_from_PyObject(PyObject *obj, Vec3r &vec)
 
 bool Vec2f_ptr_from_Vector(PyObject *obj, Vec2f &vec)
 {
+  using namespace blender;
   if (!VectorObject_Check(obj) || ((VectorObject *)obj)->vec_num != 2) {
     return false;
   }
-  if (BaseMath_ReadCallback((BaseMathObject *)obj) == -1) {
+  if (BaseMath_ReadCallback((blender::BaseMathObject *)obj) == -1) {
     return false;
   }
   vec[0] = ((VectorObject *)obj)->vec[0];
@@ -580,10 +599,11 @@ bool Vec2f_ptr_from_Vector(PyObject *obj, Vec2f &vec)
 
 bool Vec3f_ptr_from_Vector(PyObject *obj, Vec3f &vec)
 {
+  using namespace blender;
   if (!VectorObject_Check(obj) || ((VectorObject *)obj)->vec_num != 3) {
     return false;
   }
-  if (BaseMath_ReadCallback((BaseMathObject *)obj) == -1) {
+  if (BaseMath_ReadCallback((blender::BaseMathObject *)obj) == -1) {
     return false;
   }
   vec[0] = ((VectorObject *)obj)->vec[0];
@@ -594,10 +614,11 @@ bool Vec3f_ptr_from_Vector(PyObject *obj, Vec3f &vec)
 
 bool Vec3r_ptr_from_Vector(PyObject *obj, Vec3r &vec)
 {
+  using namespace blender;
   if (!VectorObject_Check(obj) || ((VectorObject *)obj)->vec_num != 3) {
     return false;
   }
-  if (BaseMath_ReadCallback((BaseMathObject *)obj) == -1) {
+  if (BaseMath_ReadCallback((blender::BaseMathObject *)obj) == -1) {
     return false;
   }
   vec[0] = ((VectorObject *)obj)->vec[0];
@@ -608,10 +629,11 @@ bool Vec3r_ptr_from_Vector(PyObject *obj, Vec3r &vec)
 
 bool Vec3f_ptr_from_Color(PyObject *obj, Vec3f &vec)
 {
+  using namespace blender;
   if (!ColorObject_Check(obj)) {
     return false;
   }
-  if (BaseMath_ReadCallback((BaseMathObject *)obj) == -1) {
+  if (BaseMath_ReadCallback((blender::BaseMathObject *)obj) == -1) {
     return false;
   }
   vec[0] = ((ColorObject *)obj)->col[0];
@@ -622,10 +644,11 @@ bool Vec3f_ptr_from_Color(PyObject *obj, Vec3f &vec)
 
 bool Vec3r_ptr_from_Color(PyObject *obj, Vec3r &vec)
 {
+  using namespace blender;
   if (!ColorObject_Check(obj)) {
     return false;
   }
-  if (BaseMath_ReadCallback((BaseMathObject *)obj) == -1) {
+  if (BaseMath_ReadCallback((blender::BaseMathObject *)obj) == -1) {
     return false;
   }
   vec[0] = ((ColorObject *)obj)->col[0];
@@ -756,8 +779,9 @@ bool Vec3r_ptr_from_PyTuple(PyObject *obj, Vec3r &vec)
 
 bool float_array_from_PyObject(PyObject *obj, float *v, int n)
 {
+  using namespace blender;
   if (VectorObject_Check(obj) && ((VectorObject *)obj)->vec_num == n) {
-    if (BaseMath_ReadCallback((BaseMathObject *)obj) == -1) {
+    if (BaseMath_ReadCallback((blender::BaseMathObject *)obj) == -1) {
       return false;
     }
     for (int i = 0; i < n; i++) {
@@ -766,7 +790,7 @@ bool float_array_from_PyObject(PyObject *obj, float *v, int n)
     return true;
   }
   if (ColorObject_Check(obj) && n == 3) {
-    if (BaseMath_ReadCallback((BaseMathObject *)obj) == -1) {
+    if (BaseMath_ReadCallback((blender::BaseMathObject *)obj) == -1) {
       return false;
     }
     for (int i = 0; i < n; i++) {
@@ -785,17 +809,17 @@ bool float_array_from_PyObject(PyObject *obj, float *v, int n)
 
 int convert_v4(PyObject *obj, void *v)
 {
-  return mathutils_array_parse((float *)v, 4, 4, obj, "Error parsing 4D vector");
+  return blender::mathutils_array_parse((float *)v, 4, 4, obj, "Error parsing 4D vector");
 }
 
 int convert_v3(PyObject *obj, void *v)
 {
-  return mathutils_array_parse((float *)v, 3, 3, obj, "Error parsing 3D vector");
+  return blender::mathutils_array_parse((float *)v, 3, 3, obj, "Error parsing 3D vector");
 }
 
 int convert_v2(PyObject *obj, void *v)
 {
-  return mathutils_array_parse((float *)v, 2, 2, obj, "Error parsing 2D vector");
+  return blender::mathutils_array_parse((float *)v, 2, 2, obj, "Error parsing 2D vector");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////

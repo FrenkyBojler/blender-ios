@@ -10,15 +10,13 @@
 #include <string>
 #include <string_view>
 
-#include "DNA_anim_types.h"
 #include "DNA_listBase.h"
 #include "DNA_space_types.h"
 
 #include "UI_resources.hh"
 
-#include "BLT_translation.h"
-
 #include "tree_display.hh"
+#include "tree_element_action_slot.hh"
 #include "tree_element_anim_data.hh"
 #include "tree_element_bone.hh"
 #include "tree_element_bone_collection.hh"
@@ -33,6 +31,7 @@
 #include "tree_element_id.hh"
 #include "tree_element_label.hh"
 #include "tree_element_layer_collection.hh"
+#include "tree_element_linked_node_tree.hh"
 #include "tree_element_linked_object.hh"
 #include "tree_element_modifier.hh"
 #include "tree_element_nla.hh"
@@ -42,6 +41,7 @@
 #include "tree_element_rna.hh"
 #include "tree_element_scene_objects.hh"
 #include "tree_element_seq.hh"
+#include "tree_element_shapekey.hh"
 #include "tree_element_view_collection.hh"
 #include "tree_element_view_layer.hh"
 
@@ -128,15 +128,14 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
     case TSE_RNA_ARRAY_ELEM:
       return std::make_unique<TreeElementRNAArrayElement>(
           legacy_te, *static_cast<PointerRNA *>(create_data), legacy_te.index);
-    case TSE_SEQUENCE:
-      return std::make_unique<TreeElementSequence>(legacy_te,
-                                                   *static_cast<Sequence *>(create_data));
-    case TSE_SEQ_STRIP:
-      return std::make_unique<TreeElementSequenceStrip>(legacy_te,
-                                                        *static_cast<Strip *>(create_data));
-    case TSE_SEQUENCE_DUP:
-      return std::make_unique<TreeElementSequenceStripDuplicate>(
-          legacy_te, *static_cast<Sequence *>(create_data));
+    case TSE_STRIP:
+      return std::make_unique<TreeElementStrip>(legacy_te, *static_cast<Strip *>(create_data));
+    case TSE_STRIP_DATA:
+      return std::make_unique<TreeElementStripData>(legacy_te,
+                                                    *static_cast<StripData *>(create_data));
+    case TSE_STRIP_DUP:
+      return std::make_unique<TreeElementStripDuplicate>(legacy_te,
+                                                         *static_cast<Strip *>(create_data));
     case TSE_BONE:
       return std::make_unique<TreeElementBone>(
           legacy_te, *owner_id, *static_cast<Bone *>(create_data));
@@ -184,6 +183,8 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
           legacy_te,
           *reinterpret_cast<Object *>(owner_id),
           *static_cast<ModifierDataStoreElem *>(create_data));
+    case TSE_LINKED_NODE_TREE:
+      return std::make_unique<TreeElementLinkedNodeTree>(legacy_te, *owner_id);
     case TSE_LINKED_OB:
       return std::make_unique<TreeElementLinkedObject>(legacy_te, *owner_id);
     case TSE_VIEW_COLLECTION_BASE:
@@ -201,7 +202,15 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
           legacy_te,
           *reinterpret_cast<bArmature *>(owner_id),
           *static_cast<BoneCollection *>(create_data));
-
+    case TSE_ACTION_SLOT:
+      return std::make_unique<TreeElementActionSlot>(
+          legacy_te, *reinterpret_cast<animrig::Slot *>(create_data));
+    case TSE_SHAPE_KEY_BLOCK:
+      return std::make_unique<TreeElementShapeKey>(legacy_te,
+                                                   *static_cast<KeyBlock *>(create_data));
+    case TSE_SHAPE_KEY_BASE:
+      return std::make_unique<TreeElementShapeKeyBase>(legacy_te,
+                                                       *reinterpret_cast<Key *>(owner_id));
     default:
       break;
   }
@@ -237,7 +246,7 @@ void AbstractTreeElement::uncollapse_by_default(TreeElement *legacy_te)
   }
 }
 
-TreeElement *AbstractTreeElement::add_element(ListBase *lb,
+TreeElement *AbstractTreeElement::add_element(ListBaseT<TreeElement> *lb,
                                               ID *owner_id,
                                               void *create_data,
                                               TreeElement *parent,
@@ -248,7 +257,7 @@ TreeElement *AbstractTreeElement::add_element(ListBase *lb,
   if (!display_) {
     BLI_assert_msg(false,
                    "Element not registered properly through AbstractTreeDisplay::add_element(), "
-                   "can't expand the tree further");
+                   "cannot expand the tree further");
     return nullptr;
   }
 

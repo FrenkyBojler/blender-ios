@@ -15,7 +15,7 @@
 #        Jeroen Bakker
 #
 #    Version:
-#        v0.1 (12-05-2009) - migration of original source code to python.
+#        v0.1 (12-05-2009) - migration of original source code to Python.
 #           Added code to support blender 2.5 branch
 #        v0.2 (25-05-2009) - integrated with BlendFileReader.py
 #
@@ -40,7 +40,6 @@
 #
 ######################################################
 
-import struct
 import sys
 from string import Template     # strings completion
 
@@ -230,7 +229,7 @@ class DNACatalogHTML:
 
         return structure_field
 
-    def indent(self, input, dent, startswith=''):
+    def indent(self, input, dent):
         output = ''
         if dent < 0:
             for line in input.split('\n'):
@@ -262,8 +261,8 @@ class DNACatalogHTML:
 
     def WriteToCSS(self, handle):
         '''
-        Write the Cascading stylesheet template to the handle
-        It is expected that the handle is a Filehandle
+        Write the Cascading style-sheet template to the handle
+        It is expected that the handle is a File-handle.
         '''
         css = """
             @CHARSET "ISO-8859-1";
@@ -363,15 +362,15 @@ class DNACatalogHTML:
 
 
 def usage():
-    print("\nUsage: \n\tblender2.5 --background -noaudio --python BlendFileDnaExporter_25.py [-- [options]]")
+    print("\nUsage: \n\tblender2.5 --background --python BlendFileDnaExporter_25.py [-- [options]]")
     print("Options:")
     print("\t--dna-keep-blend:      doesn't delete the produced blend file DNA export to html")
     print("\t--dna-debug:           sets the logging level to DEBUG (lots of additional info)")
     print("\t--dna-versioned        saves version information in the html and blend filenames")
     print("\t--dna-overwrite-css    overwrite dna.css, useful when modifying css in the script")
     print("Examples:")
-    print("\tdefault:       % blender2.5 --background -noaudio --python BlendFileDnaExporter_25.py")
-    print("\twith options:  % blender2.5 --background -noaudio --python BlendFileDnaExporter_25.py -- --dna-keep-blend --dna-debug\n")
+    print("\tdefault:       % blender2.5 --background --python BlendFileDnaExporter_25.py")
+    print("\twith options:  % blender2.5 --background --python BlendFileDnaExporter_25.py -- --dna-keep-blend --dna-debug\n")
 
 
 ######################################################
@@ -403,7 +402,7 @@ def main():
             log.info("   saving to: " + Path_Blend)
             try:
                 bpy.ops.wm.save_as_mainfile(filepath=Path_Blend, copy=True, compress=False)
-            except:
+            except Exception:
                 log.error("Filename {0} does not exist and can't be created... quitting".format(Path_Blend))
                 return
         else:
@@ -426,7 +425,7 @@ def main():
 
         # deleting or not?
         if '--dna-keep-blend' in sys.argv:
-            # keep the blend, useful for studying hexdumps
+            # Keep the blend, useful for studying HEX-dumps.
             log.info("5: closing blend file:")
             log.info("   {0}".format(Path_Blend))
         else:
@@ -436,7 +435,7 @@ def main():
             os.remove(Path_Blend)
 
         # export dna to xhtml
-        log.info("6: export sdna to xhtml file: %r" % Path_HTML)
+        log.info("6: export sdna to xhtml file: {!r}".format(Path_HTML))
         handleHTML = open(Path_HTML, "w")
         catalog.WriteToHTML(handleHTML)
         handleHTML.close()

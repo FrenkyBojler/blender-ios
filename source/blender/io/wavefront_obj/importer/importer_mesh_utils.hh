@@ -13,24 +13,25 @@
 #include "BLI_vector.hh"
 #include <string>
 
+namespace blender {
+
 struct Object;
 struct OBJImportParams;
 
-namespace blender::io::obj {
+namespace io::obj {
 
 /**
- * Given an invalid polygon (with holes or duplicated vertex indices),
- * turn it into possibly multiple polygons that are valid.
+ * Given an invalid face (with holes or duplicated vertex indices),
+ * turn it into possibly multiple faces that are valid.
  *
- * \param vertex_coords: Polygon's vertex coordinate list.
- * \param face_vertex_indices: A polygon's indices that index into the given vertex coordinate
+ * \param vert_positions: Polygon's vertex coordinate list.
+ * \param face_verts: A face's indices that index into the given vertex coordinate
  * list.
  *
- * \return List of polygons with each element containing indices of one polygon. The indices
- * are into face_vertex_indices array.
+ * \return List of faces with each element containing indices of one face. The indices
+ * are into face_vert_indices array.
  */
-Vector<Vector<int>> fixup_invalid_polygon(Span<float3> vertex_coords,
-                                          Span<int> face_vertex_indices);
+Vector<Vector<int>> fixup_invalid_face(Span<float3> vert_positions, Span<int> face_verts);
 
 /**
  * Apply axes transform to the Object, and clamp object dimensions to the specified value.
@@ -39,4 +40,5 @@ void transform_object(Object *object, const OBJImportParams &import_params);
 
 std::string get_geometry_name(const std::string &full_name, char separator);
 
-}  // namespace blender::io::obj
+}  // namespace io::obj
+}  // namespace blender

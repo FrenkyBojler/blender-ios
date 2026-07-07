@@ -8,28 +8,25 @@
 
 #include "BPy_FalseUP1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char FalseUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    FalseUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`FalseUP1D`\n"
     "\n"
     ".. method:: __call__(inter)\n"
     "\n"
     "   Always returns false.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: False.\n"
-    "   :rtype: bool\n";
-
+    "   :rtype: bool\n");
 static int FalseUP1D___init__(BPy_FalseUP1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -85,7 +82,3 @@ PyTypeObject FalseUP1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

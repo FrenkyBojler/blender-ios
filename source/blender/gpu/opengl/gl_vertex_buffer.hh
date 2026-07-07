@@ -10,23 +10,21 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
-#include "gpu_vertex_buffer_private.hh"
+#include "GPU_vertex_buffer.hh"
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 class GLVertBuf : public VertBuf {
   friend class GLTexture;    /* For buffer texture. */
-  friend class GLShader;     /* For transform feedback. */
   friend class GLStorageBuf; /* For sub copy. */
 
  private:
   /** OpenGL buffer handle. Init on first upload. Immutable after that. */
   GLuint vbo_id_ = 0;
   /** Texture used if the buffer is bound as buffer texture. Init on first use. */
-  ::GPUTexture *buffer_texture_ = nullptr;
+  gpu::Texture *buffer_texture_ = nullptr;
   /** Defines whether the buffer handle is wrapped by this GLVertBuf, i.e. we do not own it and
    * should not free it. */
   bool is_wrapper_ = false;
@@ -47,7 +45,6 @@ class GLVertBuf : public VertBuf {
   void resize_data() override;
   void release_data() override;
   void upload_data() override;
-  void duplicate_data(VertBuf *dst) override;
   void bind_as_ssbo(uint binding) override;
   void bind_as_texture(uint binding) override;
 
@@ -98,5 +95,4 @@ static inline GLenum to_gl(GPUVertCompType type)
   }
 }
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

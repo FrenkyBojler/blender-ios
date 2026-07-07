@@ -6,11 +6,7 @@
  * \ingroup edcurve
  */
 
-#include <cmath>
 #include <cstdlib>
-
-#include "DNA_curve_types.h"
-#include "DNA_scene_types.h"
 
 #include "RNA_access.hh"
 
@@ -20,7 +16,9 @@
 #include "ED_curve.hh"
 #include "ED_screen.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
+
+namespace blender {
 
 /************************* registration ****************************/
 
@@ -40,6 +38,7 @@ void ED_operatortypes_curve()
   WM_operatortype_append(FONT_OT_text_cut);
   WM_operatortype_append(FONT_OT_text_paste);
   WM_operatortype_append(FONT_OT_text_paste_from_file);
+  WM_operatortype_append(FONT_OT_text_insert_unicode);
 
   WM_operatortype_append(FONT_OT_selection_set);
   WM_operatortype_append(FONT_OT_select_word);
@@ -158,3 +157,5 @@ void ED_keymap_curve(wmKeyConfig *keyconf)
 
   curve_pen_modal_keymap(keyconf);
 }
+
+}  // namespace blender

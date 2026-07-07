@@ -10,18 +10,16 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_userdef_types.h"
 
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_lattice.hh"
 
-#include "GPU_batch.h"
+#include "GPU_batch.hh"
 
 #include "draw_cache_impl.hh" /* own include */
 
@@ -116,8 +114,7 @@ enum {
 
 static LatticeRenderData *lattice_render_data_create(Lattice *lt, const int types)
 {
-  LatticeRenderData *rdata = static_cast<LatticeRenderData *>(
-      MEM_callocN(sizeof(*rdata), __func__));
+  LatticeRenderData *rdata = MEM_new_zeroed<LatticeRenderData>(__func__);
   rdata->types = types;
 
   if (lt->editlatt) {
@@ -166,10 +163,10 @@ static void lattice_render_data_free(LatticeRenderData *rdata)
 {
 #if 0
   if (rdata->loose_verts) {
-    MEM_freeN(rdata->loose_verts);
+    MEM_delete(rdata->loose_verts);
   }
 #endif
-  MEM_freeN(rdata);
+  MEM_delete(rdata);
 }
 
 static int lattice_render_data_verts_len_get(const LatticeRenderData *rdata)
@@ -192,16 +189,16 @@ static const BPoint *lattice_render_data_vert_bpoint(const LatticeRenderData *rd
 }
 
 /* ---------------------------------------------------------------------- */
-/* Lattice GPUBatch Cache */
+/* Lattice gpu::Batch Cache */
 
 struct LatticeBatchCache {
-  GPUVertBuf *pos;
-  GPUIndexBuf *edges;
+  gpu::VertBuf *pos;
+  gpu::IndexBuf *edges;
 
-  GPUBatch *all_verts;
-  GPUBatch *all_edges;
+  gpu::Batch *all_verts;
+  gpu::Batch *all_edges;
 
-  GPUBatch *overlay_verts;
+  gpu::Batch *overlay_verts;
 
   /* settings to determine if cache is invalid */
   bool is_dirty;
@@ -214,11 +211,11 @@ struct LatticeBatchCache {
   bool is_editmode;
 };
 
-/* GPUBatch cache management. */
+/* gpu::Batch cache management. */
 
 static bool lattice_batch_cache_valid(Lattice *lt)
 {
-  LatticeBatchCache *cache = static_cast<LatticeBatchCache *>(lt->batch_cache);
+  LatticeBatchCache *cache = lt->batch_cache;
 
   if (cache == nullptr) {
     return false;
@@ -244,11 +241,10 @@ static bool lattice_batch_cache_valid(Lattice *lt)
 
 static void lattice_batch_cache_init(Lattice *lt)
 {
-  LatticeBatchCache *cache = static_cast<LatticeBatchCache *>(lt->batch_cache);
+  LatticeBatchCache *cache = lt->batch_cache;
 
   if (!cache) {
-    cache = static_cast<LatticeBatchCache *>(
-        lt->batch_cache = MEM_callocN(sizeof(*cache), __func__));
+    lt->batch_cache = cache = MEM_new_zeroed<LatticeBatchCache>(__func__);
   }
   else {
     memset(cache, 0, sizeof(*cache));
@@ -274,12 +270,12 @@ void DRW_lattice_batch_cache_validate(Lattice *lt)
 
 static LatticeBatchCache *lattice_batch_cache_get(Lattice *lt)
 {
-  return static_cast<LatticeBatchCache *>(lt->batch_cache);
+  return lt->batch_cache;
 }
 
 void DRW_lattice_batch_cache_dirty_tag(Lattice *lt, int mode)
 {
-  LatticeBatchCache *cache = static_cast<LatticeBatchCache *>(lt->batch_cache);
+  LatticeBatchCache *cache = lt->batch_cache;
   if (cache == nullptr) {
     return;
   }
@@ -298,7 +294,7 @@ void DRW_lattice_batch_cache_dirty_tag(Lattice *lt, int mode)
 
 static void lattice_batch_cache_clear(Lattice *lt)
 {
-  LatticeBatchCache *cache = static_cast<LatticeBatchCache *>(lt->batch_cache);
+  LatticeBatchCache *cache = lt->batch_cache;
   if (!cache) {
     return;
   }
@@ -314,14 +310,14 @@ static void lattice_batch_cache_clear(Lattice *lt)
 void DRW_lattice_batch_cache_free(Lattice *lt)
 {
   lattice_batch_cache_clear(lt);
-  MEM_SAFE_FREE(lt->batch_cache);
+  MEM_SAFE_DELETE(lt->batch_cache);
 }
 
-/* GPUBatch cache usage. */
-static GPUVertBuf *lattice_batch_cache_get_pos(LatticeRenderData *rdata,
-                                               LatticeBatchCache *cache,
-                                               bool use_weight,
-                                               const int actdef)
+/* gpu::Batch cache usage. */
+static gpu::VertBuf *lattice_batch_cache_get_pos(LatticeRenderData *rdata,
+                                                 LatticeBatchCache *cache,
+                                                 bool use_weight,
+                                                 const int actdef)
 {
   BLI_assert(rdata->types & LR_DATATYPE_VERT);
 
@@ -331,15 +327,15 @@ static GPUVertBuf *lattice_batch_cache_get_pos(LatticeRenderData *rdata,
       uint pos, col;
     } attr_id;
 
-    attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    attr_id.pos = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
     if (use_weight) {
-      attr_id.col = GPU_vertformat_attr_add(&format, "weight", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+      attr_id.col = GPU_vertformat_attr_add(&format, "weight", gpu::VertAttrType::SFLOAT_32);
     }
 
     const int vert_len = lattice_render_data_verts_len_get(rdata);
 
-    cache->pos = GPU_vertbuf_create_with_format(&format);
-    GPU_vertbuf_data_alloc(cache->pos, vert_len);
+    cache->pos = GPU_vertbuf_create_with_format(format);
+    GPU_vertbuf_data_alloc(*cache->pos, vert_len);
     for (int i = 0; i < vert_len; i++) {
       const BPoint *bp = lattice_render_data_vert_bpoint(rdata, i);
       GPU_vertbuf_attr_set(cache->pos, attr_id.pos, i, bp->vec);
@@ -356,18 +352,23 @@ static GPUVertBuf *lattice_batch_cache_get_pos(LatticeRenderData *rdata,
   return cache->pos;
 }
 
-static GPUIndexBuf *lattice_batch_cache_get_edges(LatticeRenderData *rdata,
-                                                  LatticeBatchCache *cache)
+static gpu::IndexBuf *lattice_batch_cache_get_edges(LatticeRenderData *rdata,
+                                                    LatticeBatchCache *cache)
 {
   BLI_assert(rdata->types & (LR_DATATYPE_VERT | LR_DATATYPE_EDGE));
 
   if (cache->edges == nullptr) {
     const int vert_len = lattice_render_data_verts_len_get(rdata);
     const int edge_len = lattice_render_data_edges_len_get(rdata);
-    int edge_len_real = 0;
 
-    GPUIndexBufBuilder elb;
-    GPU_indexbuf_init(&elb, GPU_PRIM_LINES, edge_len, vert_len);
+    GPUIndexBufBuilder builder;
+    GPU_indexbuf_init(&builder, GPU_PRIM_LINES, edge_len, vert_len);
+    MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
+    /* The buffer is allocated with **all** edges (see #lattice_render_edges_len_get()), but with
+     * the LT_OUTSIDE flag not all are drawn. So fill those gaps with zeros to hide redundant
+     * edges. */
+    data.fill(uint2(0));
+    int line_index = 0;
 
 #define LATT_INDEX(u, v, w) ((((w) * rdata->dims.v_len + (v)) * rdata->dims.u_len) + (u))
 
@@ -379,19 +380,13 @@ static GPUIndexBuf *lattice_batch_cache_get_edges(LatticeRenderData *rdata,
           int uxt = ELEM(u, 0, rdata->dims.u_len - 1);
 
           if (w && ((uxt || vxt) || !rdata->show_only_outside)) {
-            GPU_indexbuf_add_line_verts(&elb, LATT_INDEX(u, v, w - 1), LATT_INDEX(u, v, w));
-            BLI_assert(edge_len_real <= edge_len);
-            edge_len_real++;
+            data[line_index++] = uint2(LATT_INDEX(u, v, w - 1), LATT_INDEX(u, v, w));
           }
           if (v && ((uxt || wxt) || !rdata->show_only_outside)) {
-            GPU_indexbuf_add_line_verts(&elb, LATT_INDEX(u, v - 1, w), LATT_INDEX(u, v, w));
-            BLI_assert(edge_len_real <= edge_len);
-            edge_len_real++;
+            data[line_index++] = uint2(LATT_INDEX(u, v - 1, w), LATT_INDEX(u, v, w));
           }
           if (u && ((vxt || wxt) || !rdata->show_only_outside)) {
-            GPU_indexbuf_add_line_verts(&elb, LATT_INDEX(u - 1, v, w), LATT_INDEX(u, v, w));
-            BLI_assert(edge_len_real <= edge_len);
-            edge_len_real++;
+            data[line_index++] = uint2(LATT_INDEX(u - 1, v, w), LATT_INDEX(u, v, w));
           }
         }
       }
@@ -400,14 +395,13 @@ static GPUIndexBuf *lattice_batch_cache_get_edges(LatticeRenderData *rdata,
 #undef LATT_INDEX
 
     if (rdata->show_only_outside) {
-      BLI_assert(edge_len_real <= edge_len);
+      BLI_assert(line_index <= edge_len);
     }
     else {
-      BLI_assert(edge_len_real == edge_len);
+      BLI_assert(line_index == edge_len);
     }
-    UNUSED_VARS_NDEBUG(edge_len_real);
 
-    cache->edges = GPU_indexbuf_build(&elb);
+    cache->edges = GPU_indexbuf_build_ex(&builder, 0, vert_len, false);
   }
 
   return cache->edges;
@@ -422,24 +416,24 @@ static void lattice_batch_cache_create_overlay_batches(Lattice *lt)
   LatticeRenderData *rdata = lattice_render_data_create(lt, options);
 
   if (cache->overlay_verts == nullptr) {
-    static GPUVertFormat format = {0};
     static struct {
       uint pos, data;
     } attr_id;
-    if (format.attr_len == 0) {
-      /* initialize vertex format */
-      attr_id.pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-      attr_id.data = GPU_vertformat_attr_add(&format, "data", GPU_COMP_U8, 1, GPU_FETCH_INT);
-    }
+    static const GPUVertFormat format = [&]() {
+      GPUVertFormat format{};
+      attr_id.pos = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+      attr_id.data = GPU_vertformat_attr_add(&format, "data", gpu::VertAttrType::UINT_32);
+      return format;
+    }();
 
     const int vert_len = lattice_render_data_verts_len_get(rdata);
 
-    GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-    GPU_vertbuf_data_alloc(vbo, vert_len);
+    gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+    GPU_vertbuf_data_alloc(*vbo, vert_len);
     for (int i = 0; i < vert_len; i++) {
       const BPoint *bp = lattice_render_data_vert_bpoint(rdata, i);
 
-      char vflag = 0;
+      uint32_t vflag = 0;
       if (bp->f1 & SELECT) {
         if (i == rdata->actbp) {
           vflag |= VFLAG_VERT_ACTIVE;
@@ -459,7 +453,7 @@ static void lattice_batch_cache_create_overlay_batches(Lattice *lt)
   lattice_render_data_free(rdata);
 }
 
-GPUBatch *DRW_lattice_batch_cache_get_all_edges(Lattice *lt, bool use_weight, const int actdef)
+gpu::Batch *DRW_lattice_batch_cache_get_all_edges(Lattice *lt, bool use_weight, const int actdef)
 {
   LatticeBatchCache *cache = lattice_batch_cache_get(lt);
 
@@ -478,7 +472,7 @@ GPUBatch *DRW_lattice_batch_cache_get_all_edges(Lattice *lt, bool use_weight, co
   return cache->all_edges;
 }
 
-GPUBatch *DRW_lattice_batch_cache_get_all_verts(Lattice *lt)
+gpu::Batch *DRW_lattice_batch_cache_get_all_verts(Lattice *lt)
 {
   LatticeBatchCache *cache = lattice_batch_cache_get(lt);
 
@@ -494,7 +488,7 @@ GPUBatch *DRW_lattice_batch_cache_get_all_verts(Lattice *lt)
   return cache->all_verts;
 }
 
-GPUBatch *DRW_lattice_batch_cache_get_edit_verts(Lattice *lt)
+gpu::Batch *DRW_lattice_batch_cache_get_edit_verts(Lattice *lt)
 {
   LatticeBatchCache *cache = lattice_batch_cache_get(lt);
 

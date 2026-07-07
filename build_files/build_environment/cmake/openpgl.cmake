@@ -12,6 +12,18 @@ set(OPENPGL_EXTRA_ARGS
   -DCMAKE_DEBUG_POSTFIX=_d
 )
 
+if(BLENDER_PLATFORM_WINDOWS_ARM)
+  set(OPENPGL_LLVM_INSTALL_PATH ${LIBDIR}/llvm)
+  set(OPENPGL_EXTRA_ARGS
+    ${OPENPGL_EXTRA_ARGS}
+    -DCMAKE_CXX_COMPILER=${OPENPGL_LLVM_INSTALL_PATH}/bin/clang-cl.exe
+    -DCMAKE_C_COMPILER=${OPENPGL_LLVM_INSTALL_PATH}/bin/clang-cl.exe
+    -DCMAKE_C_FLAGS_INIT="--target=arm64-pc-windows-msvc"
+    -DCMAKE_CXX_FLAGS_INIT="--target=arm64-pc-windows-msvc"
+    -DCMAKE_SHARED_LINKER_FLAGS=-L"${LIBDIR}/../../VS1564R/Release/llvm/lib"
+  )
+endif()
+
 if(TBB_STATIC_LIBRARY)
   set(OPENPGL_EXTRA_ARGS
     ${OPENPGL_EXTRA_ARGS}
@@ -24,7 +36,13 @@ ExternalProject_Add(external_openpgl
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${OPENPGL_HASH_TYPE}=${OPENPGL_HASH}
   PREFIX ${BUILD_DIR}/openpgl
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openpgl ${DEFAULT_CMAKE_FLAGS} ${OPENPGL_EXTRA_ARGS}
+  CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openpgl
+    ${DEFAULT_CMAKE_FLAGS}
+    ${OPENPGL_EXTRA_ARGS}
+
   INSTALL_DIR ${LIBDIR}/openpgl
 )
 
@@ -36,14 +54,26 @@ add_dependencies(
 if(WIN32)
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_openpgl after_install
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/openpgl ${HARVEST_TARGET}/openpgl
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/openpgl
+        ${HARVEST_TARGET}/openpgl
+
       DEPENDEES install
     )
   else()
-  ExternalProject_Add_Step(external_openpgl after_install
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/openpgl/lib/openpgl_d.lib ${HARVEST_TARGET}/openpgl/lib/openpgl_d.lib
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/openpgl/lib/cmake/openpgl-${OPENPGL_SHORT_VERSION}/openpgl_Exports-debug.cmake ${HARVEST_TARGET}/openpgl/lib/cmake/openpgl-${OPENPGL_SHORT_VERSION}/openpgl_Exports-debug.cmake
+    ExternalProject_Add_Step(external_openpgl after_install
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/openpgl/lib/openpgl_d.lib
+        ${HARVEST_TARGET}/openpgl/lib/openpgl_d.lib
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/openpgl/lib/cmake/openpgl-${OPENPGL_SHORT_VERSION}/openpgl_Exports-debug.cmake
+        ${HARVEST_TARGET}/openpgl/lib/cmake/openpgl-${OPENPGL_SHORT_VERSION}/openpgl_Exports-debug.cmake
+
       DEPENDEES install
     )
   endif()
+else()
+  harvest(external_openpgl openpgl/include openpgl/include "*.h")
+  harvest(external_openpgl openpgl/lib openpgl/lib "*.a")
+  harvest(external_openpgl openpgl/lib/cmake/openpgl-${OPENPGL_SHORT_VERSION} openpgl/lib/cmake/openpgl "*.cmake")
 endif()

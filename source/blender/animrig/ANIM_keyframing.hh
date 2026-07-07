@@ -10,78 +10,201 @@
 
 #pragma once
 
-#include <string>
+#include <array>
 
-#include "BLI_vector.hh"
+#include "BLI_string_ref.hh"
+
 #include "DNA_anim_types.h"
-#include "ED_transform.hh"
+#include "DNA_userdef_types.h"
+
+#include "BKE_report.hh"
+
+#include "RNA_path.hh"
 #include "RNA_types.hh"
 
+namespace blender {
+
 struct ID;
-struct ListBase;
 struct Main;
 struct Scene;
-struct ViewLayer;
 
 struct AnimationEvalContext;
 struct NlaKeyframingContext;
 
-namespace blender::animrig {
+namespace animrig {
+
+/**
+ * Represents a single success/failure in the keyframing process.
+ *
+ * What is considered "single" depends on the level at which the failure
+ * happens. For example, it can be at the level of a single key on a single
+ * fcurve, all the way up to the level of an entire ID not being animatable.
+ * Both are considered "single" events.
+ */
+enum class SingleKeyingResult {
+  SUCCESS = 0,
+  /* TODO: remove `UNKNOWN_FAILURE` and replace all usages with proper, specific
+   * cases. This is needed right now as a stop-gap while progressively moving
+   * the keyframing code over to propagate errors properly. */
+  UNKNOWN_FAILURE,
+  CANNOT_CREATE_FCURVE,
+  FCURVE_NOT_KEYFRAMEABLE,
+  NO_KEY_NEEDED,
+  UNABLE_TO_INSERT_TO_NLA_STACK,
+  ID_NOT_EDITABLE,
+  ID_NOT_ANIMATABLE,
+  NO_VALID_LAYER,
+  NO_VALID_STRIP,
+  NO_VALID_SLOT,
+  CANNOT_RESOLVE_PATH,
+  /* Make sure to always keep this at the end of the enum. */
+  _KEYING_RESULT_MAX,
+};
+
+/**
+ * Add a message into the ReportList depending on which SingleKeyingResult is passed.
+ * This should only be used when a single keyframe is being added per user action. Otherwise use
+ * CombinedKeyingResult to avoid spamming the user with messages.
+ */
+void generate_single_keying_result_report(const SingleKeyingResult result, ReportList *reports);
+
+/**
+ * Class for tracking the result of inserting keyframes. Tracks how often each of
+ * `SingleKeyingResult` has happened.
+ * */
+class CombinedKeyingResult {
+ private:
+  /* The index to the array maps a `SingleKeyingResult` to the number of times this result has
+   * occurred. */
+  std::array<int, size_t(SingleKeyingResult::_KEYING_RESULT_MAX)> result_counter;
+
+ public:
+  CombinedKeyingResult();
+
+  /**
+   * Increase the count of the given `SingleKeyingResult` by `count`.
+   */
+  void add(SingleKeyingResult result, int count = 1);
+
+  /* Add values of the given result to this result. */
+  void merge(const CombinedKeyingResult &other);
+
+  int get_count(const SingleKeyingResult result) const;
+
+  bool has_errors() const;
+
+  void generate_reports(ReportList *reports, eReportType report_level = RPT_ERROR);
+};
+
+/**
+ * Return the default channel group name for the given RNA pointer and property
+ * path, or none if it has no default.
+ *
+ * For example, for object location/rotation/scale this returns the standard
+ * "Object Transforms" channel group name.
+ */
+std::optional<StringRefNull> default_channel_group_for_path(const PointerRNA *animated_struct,
+                                                            StringRef prop_rna_path);
+
+/* -------------------------------------------------------------------- */
+
+/**
+ * Return whether key insertion functions are allowed to create new fcurves,
+ * according to the given flags.
+ *
+ * Specifically, both `INSERTKEY_REPLACE` and `INSERTKEY_AVAILABLE` prohibit the
+ * creation of new F-Curves.
+ */
+bool key_insertion_may_create_fcurve(eInsertKeyFlags insert_key_flags);
 
 /* -------------------------------------------------------------------- */
 /** \name Key-Framing Management
  * \{ */
 
-/* Set the FCurve flag based on the property type of `prop`. */
-void update_autoflags_fcurve_direct(FCurve *fcu, PropertyRNA *prop);
+/** Ensure FCurve flags are correct for the property type it animates. */
+void update_autoflags_fcurve_direct(FCurve *fcu, PropertyType prop_type);
 
 /**
- * \brief Main Insert Key-framing API call.
- *
- * Use this to create any necessary animation data, and then insert a keyframe
- * using the current value being keyframed, in the relevant place.
- *
- * \param flag: Used for special settings that alter the behavior of the keyframe insertion.
- * These include the 'visual' key-framing modes, quick refresh, and extra keyframe filtering.
- *
- * \param array_index: The index to key or -1 keys all array indices.
- * \return The number of key-frames inserted.
+ * Return all values of the given PropertyRNA.
+ * In case the property is an array, the length of the vector is the same as the length of the
+ * array. Otherwise the vector has just 1 element.
+ * All property types are cast to float.
  */
-int insert_keyframe(Main *bmain,
-                    ReportList *reports,
-                    ID *id,
-                    bAction *act,
-                    const char group[],
-                    const char rna_path[],
-                    int array_index,
-                    const AnimationEvalContext *anim_eval_context,
-                    eBezTriple_KeyframeType keytype,
-                    eInsertKeyFlags flag);
+Vector<float> get_property_values(PointerRNA *ptr, PropertyRNA *prop, bool visual_key);
+
+/**
+ * \brief Main key-frame insertion API.
+ *
+ * Insert keys for `struct_pointer`, for all paths in `rna_paths`. Any necessary
+ * animation data (AnimData, Action, ...) is created if it doesn't already
+ * exist.
+ *
+ * Note that this function was created as part of an ongoing refactor by merging
+ * two other functions that were *almost* identical to each other. There are
+ * still things left over from that which can and should be improved (such as
+ * the partially redundant `scene_frame` and `anim_eval_context`parameters).
+ * Additionally, it's a bit of a mega-function now, and can probably be stripped
+ * down to a clearer core functionality.
+ *
+ * \param struct_pointer: RNA pointer to the struct to be keyed. This is often
+ * an ID, but not necessarily. For example, pose bones are also common. Note
+ * that if you have an `ID` and want to pass it here for keying, you can create
+ * the `PointerRNA` for it with `RNA_id_pointer_create()`.
+ *
+ * \param channel_group: the channel group to put any newly created fcurves
+ * under. If not given, the standard groups are used.
+ *
+ * \param rna_paths: the RNA paths to key. These paths are relative to
+ * `struct_pointer`. Note that for paths to array properties, if the array index
+ * is specified then only that element is keyed, but if the index is not
+ * specified then *all* array elements are keyed.
+ *
+ * \param scene_frame: the frame to insert the keys at. This is in scene time,
+ * not NLA mapped (NLA mapping is already handled internally by this function).
+ * If not given, the evaluation time from `anim_eval_context` is used instead.
+ *
+ * \returns A summary of the successful and failed keyframe insertions, with
+ * reasons for the failures.
+ */
+CombinedKeyingResult insert_keyframes(Main *bmain,
+                                      PointerRNA *struct_pointer,
+                                      std::optional<StringRefNull> channel_group,
+                                      const Span<RNAPath> rna_paths,
+                                      std::optional<float> scene_frame,
+                                      const AnimationEvalContext &anim_eval_context,
+                                      eBezTriple_KeyframeType key_type,
+                                      eInsertKeyFlags insert_key_flags);
 
 /**
  * \brief Secondary Insert Key-framing API call.
  *
- * Use this when validation of necessary animation data is not necessary,
- * since an RNA-pointer to the necessary data being keyframed,
- * and a pointer to the F-Curve to use have both been provided.
+ * Retrieves the value of the PropertyRNA and sets a key at `fcurve_frame`. If the property is an
+ * array, the FCurve's array_index is used to find the element's value.
  *
- * This function can't keyframe quaternion channels on some NLA strip types.
+ * \warning This bypasses all animation layer and strip logic. Use with caution. If unsure, use
+ * `insert_keyframes` instead.
+ *
+ * \param fcurve_frame: The frame at which to insert the keyframe. No time remapping is done on the
+ * frame.
  *
  * \param keytype: The "keyframe type" (eBezTriple_KeyframeType), as shown in the Dope Sheet.
  *
  * \param flag: Used for special settings that alter the behavior of the keyframe insertion.
  * These include the 'visual' key-framing modes, quick refresh,
  * and extra keyframe filtering.
+ *
+ * \note this function no longer deals with the NLA. For NLA support use
+ * animrig::nla::insert_keyframe_direct Other high level keyframing functions still work with the
+ * NLA. See `insert_keyframes`.
+ *
  * \return Success.
  */
-bool insert_keyframe_direct(ReportList *reports,
-                            PointerRNA ptr,
-                            PropertyRNA *prop,
-                            FCurve *fcu,
-                            const AnimationEvalContext *anim_eval_context,
-                            eBezTriple_KeyframeType keytype,
-                            NlaKeyframingContext *nla,
-                            eInsertKeyFlags flag);
+SingleKeyingResult insert_keyframe_direct(PointerRNA &ptr,
+                                          PropertyRNA &prop,
+                                          FCurve &fcu,
+                                          float fcurve_frame,
+                                          eBezTriple_KeyframeType keytype,
+                                          eInsertKeyFlags flag);
 
 /**
  * \brief Main Delete Key-Framing API call.
@@ -90,31 +213,32 @@ bool insert_keyframe_direct(ReportList *reports,
  * Will perform checks just in case.
  * \return The number of key-frames deleted.
  */
-int delete_keyframe(Main *bmain,
-                    ReportList *reports,
-                    ID *id,
-                    bAction *act,
-                    const char rna_path[],
-                    int array_index,
-                    float cfra);
+int delete_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna_path, float cfra);
 
 /**
  * Main Keyframing API call:
  * Use this when validation of necessary animation data isn't necessary as it
  * already exists. It will clear the current buttons fcurve(s).
  *
- * The flag argument is used for special settings that alter the behavior of
- * the keyframe deletion. These include the quick refresh options.
- *
  * \return The number of f-curves removed.
  */
-int clear_keyframe(Main *bmain,
-                   ReportList *reports,
-                   ID *id,
-                   bAction *act,
-                   const char rna_path[],
-                   int array_index,
-                   eInsertKeyFlags /*flag*/);
+int clear_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna_path);
+
+/** Check if a flag is set for keyframing (per scene takes precedence). */
+bool is_keying_flag(const Scene *scene, eKeying_Flag flag);
+
+/**
+ * Checks whether a keyframe exists for the given ID-block one the given frame.
+ *
+ * \param frame: The frame on which to check for a keyframe. This uses a threshold so the float
+ * doesn't need to match exactly.
+ */
+bool id_frame_has_keyframe(ID *id, float frame);
+
+/**
+ * Get the settings for key-framing from the given scene.
+ */
+eInsertKeyFlags get_keyframing_flags(Scene *scene);
 
 /** \} */
 
@@ -134,9 +258,6 @@ bool is_autokey_on(const Scene *scene);
 /** Check the mode for auto-keyframing (per scene takes precedence). */
 bool is_autokey_mode(const Scene *scene, eAutokey_Mode mode);
 
-/** Check if a flag is set for auto-key-framing (per scene takes precedence). */
-bool is_autokey_flag(const Scene *scene, eKeyInsert_Flag flag);
-
 /**
  * Auto-keyframing feature - checks for whether anything should be done for the current frame.
  */
@@ -147,7 +268,7 @@ bool autokeyframe_cfra_can_key(const Scene *scene, ID *id);
  *
  * \param rna_paths: Only inserts keys on those RNA paths.
  */
-void autokeyframe_object(bContext *C, Scene *scene, Object *ob, Span<std::string> rna_paths);
+void autokeyframe_object(bContext *C, const Scene *scene, Object *ob, Span<RNAPath> rna_paths);
 /**
  * Auto-keyframing feature - for objects
  *
@@ -159,8 +280,8 @@ bool autokeyframe_pchan(bContext *C, Scene *scene, Object *ob, bPoseChannel *pch
 /**
  * Auto-keyframing feature - for poses/pose-channels
  *
- * \param targetless_ik: Has targetless ik been done on any channels?
  * \param rna_paths: Only inserts keys on those RNA paths.
+ * \param targetless_ik: Has targetless ik been done on any channels?
  *
  * \note Context may not always be available,
  * so must check before using it as it's a luxury for a few cases.
@@ -169,7 +290,7 @@ void autokeyframe_pose_channel(bContext *C,
                                Scene *scene,
                                Object *ob,
                                bPoseChannel *pose_channel,
-                               Span<std::string> rna_paths,
+                               Span<RNAPath> rna_paths,
                                short targetless_ik);
 /**
  * Use for auto-key-framing.
@@ -187,33 +308,5 @@ bool autokeyframe_property(bContext *C,
 
 /** \} */
 
-/**
- * Insert keys for the given rna_path in the given action. The length of the values Span is
- * expected to be the size of the property array.
- * \param frame: is expected to be in the local time of the action, meaning it has to be NLA mapped
- * already.
- * \returns The number of keys inserted.
- */
-int insert_key_action(Main *bmain,
-                      bAction *action,
-                      PointerRNA *ptr,
-                      const std::string &rna_path,
-                      float frame,
-                      Span<float> values,
-                      eInsertKeyFlags insert_key_flag,
-                      eBezTriple_KeyframeType key_type);
-
-/**
- * Insert keys to the ID of the given PointerRNA for the given RNA paths. Tries to create an
- * action if none exists yet.
- * \param scene_frame: is expected to be not NLA mapped as that happens within the function.
- */
-void insert_key_rna(PointerRNA *rna_pointer,
-                    const blender::Span<std::string> rna_paths,
-                    float scene_frame,
-                    eInsertKeyFlags insert_key_flags,
-                    eBezTriple_KeyframeType key_type,
-                    Main *bmain,
-                    ReportList *reports);
-
-}  // namespace blender::animrig
+}  // namespace animrig
+}  // namespace blender

@@ -2,13 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_array_utils.hh"
+#include <algorithm>
+
 #include "BLI_task.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -17,13 +18,17 @@ namespace blender::nodes::node_geo_dual_mesh_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
-  b.add_input<decl::Bool>("Keep Boundaries")
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Geometry>("Mesh"_ustr)
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh to compute the dual of");
+  b.add_output<decl::Geometry>("Dual Mesh"_ustr).propagate_all_geometry().align_with_previous();
+  b.add_input<decl::Bool>("Keep Boundaries"_ustr)
       .default_value(false)
       .description(
           "Keep non-manifold boundaries of the input mesh in place by avoiding the dual "
           "transformation there");
-  b.add_output<decl::Geometry>("Dual Mesh").propagate_all();
 }
 
 enum class EdgeType : int8_t {
@@ -70,44 +75,6 @@ static VertexType get_vertex_type_with_added_neighbor(VertexType old_type)
   return VertexType::Loose;
 }
 
-/* Copy only where vertex_types is 'normal'. If keep boundaries is selected, also copy from
- * boundary vertices. */
-template<typename T>
-static void copy_data_based_on_vertex_types(Span<T> data,
-                                            MutableSpan<T> r_data,
-                                            const Span<VertexType> vertex_types,
-                                            const bool keep_boundaries)
-{
-  if (keep_boundaries) {
-    int out_i = 0;
-    for (const int i : data.index_range()) {
-      if (ELEM(vertex_types[i], VertexType::Normal, VertexType::Boundary)) {
-        r_data[out_i] = data[i];
-        out_i++;
-      }
-    }
-  }
-  else {
-    int out_i = 0;
-    for (const int i : data.index_range()) {
-      if (vertex_types[i] == VertexType::Normal) {
-        r_data[out_i] = data[i];
-        out_i++;
-      }
-    }
-  }
-}
-
-template<typename T>
-static void copy_data_based_on_pairs(Span<T> data,
-                                     MutableSpan<T> r_data,
-                                     const Span<std::pair<int, int>> new_to_old_map)
-{
-  for (const std::pair<int, int> &pair : new_to_old_map) {
-    r_data[pair.first] = data[pair.second];
-  }
-}
-
 /**
  * Transfers the attributes from the original mesh to the new mesh using the following logic:
  * - If the attribute was on the face domain it is now on the point domain, and this is true
@@ -133,24 +100,70 @@ static void transfer_attributes(
     const Span<int> new_to_old_edges_map,
     const Span<int> new_to_old_face_corners_map,
     const Span<std::pair<int, int>> boundary_vertex_to_relevant_face_map,
-    const AnonymousAttributePropagationInfo &propagation_info,
+    const AttributeFilter &attribute_filter,
     const AttributeAccessor src_attributes,
     MutableAttributeAccessor dst_attributes)
 {
   /* Retrieve all attributes except for position which is handled manually.
    * Remove anonymous attributes that don't need to be propagated. */
-  Set<AttributeIDRef> attribute_ids = src_attributes.all_ids();
-  attribute_ids.remove("position");
-  attribute_ids.remove(".edge_verts");
-  attribute_ids.remove(".corner_vert");
-  attribute_ids.remove(".corner_edge");
-  attribute_ids.remove("sharp_face");
-  attribute_ids.remove_if([&](const AttributeIDRef &id) {
-    return id.is_anonymous() && !propagation_info.propagate(id.anonymous_id());
-  });
+  Set<StringRefNull> names = src_attributes.all_names();
+  names.remove("position");
+  names.remove(".edge_verts");
+  names.remove(".corner_vert");
+  names.remove(".corner_edge");
+  names.remove("sharp_face");
+  names.remove_if([&](const StringRef name) { return attribute_filter.allow_skip(name); });
 
-  for (const AttributeIDRef &id : attribute_ids) {
-    GAttributeReader src = src_attributes.lookup(id);
+  Array<int> new_face_to_old_vert;
+  const auto ensure_vert_map = [&]() {
+    if (!new_face_to_old_vert.is_empty()) {
+      return;
+    }
+    const int src_size = src_attributes.domain_size(bke::AttrDomain::Point);
+    const int dst_size = dst_attributes.domain_size(bke::AttrDomain::Face);
+    new_face_to_old_vert.reinitialize(dst_size);
+    if (keep_boundaries) {
+      int out_i = 0;
+      for (const int i : IndexRange(src_size)) {
+        if (ELEM(vertex_types[i], VertexType::Normal, VertexType::Boundary)) {
+          new_face_to_old_vert[out_i] = i;
+          out_i++;
+        }
+      }
+    }
+    else {
+      int out_i = 0;
+      for (const int i : IndexRange(src_size)) {
+        if (vertex_types[i] == VertexType::Normal) {
+          new_face_to_old_vert[out_i] = i;
+          out_i++;
+        }
+      }
+    }
+  };
+
+  IndexMaskMemory memory;
+  IndexMask boundary_vert_mask;
+  Array<int> boundary_vert_src_face;
+  const auto ensure_face_map = [&]() {
+    if (!boundary_vert_src_face.is_empty()) {
+      return;
+    }
+    Array<int> boundary_verts(boundary_vertex_to_relevant_face_map.size());
+    for (const int i : boundary_vertex_to_relevant_face_map.index_range()) {
+      boundary_verts[i] = boundary_vertex_to_relevant_face_map[i].first;
+    }
+    boundary_vert_mask = IndexMask::from_indices(boundary_verts.as_span(), memory);
+    boundary_vert_src_face.reinitialize(boundary_vert_mask.min_array_size());
+    boundary_vert_mask.foreach_index(
+        [&](const int i, const int pos) {
+          boundary_vert_src_face[i] = boundary_vertex_to_relevant_face_map[pos].second;
+        },
+        exec_mode::grain_size(8196));
+  };
+
+  for (const StringRef name : names) {
+    GAttributeReader src = src_attributes.lookup(name);
 
     AttrDomain out_domain;
     if (src.domain == AttrDomain::Face) {
@@ -163,36 +176,38 @@ static void transfer_attributes(
       /* Edges and Face Corners. */
       out_domain = src.domain;
     }
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(src.varray.type());
+
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(src.varray.type());
+    const CommonVArrayInfo info = src.varray.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const GPointer value(src.varray.type(), info.data);
+      if (dst_attributes.add(name, out_domain, data_type, bke::AttributeInitValue(value))) {
+        continue;
+      }
+    }
+
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
-        id, out_domain, data_type);
+        name, out_domain, data_type);
     if (!dst) {
       continue;
     }
 
     switch (src.domain) {
-      case AttrDomain::Point: {
-        const GVArraySpan src_span(*src);
-        bke::attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-          using T = decltype(dummy);
-          copy_data_based_on_vertex_types(
-              src_span.typed<T>(), dst.span.typed<T>(), vertex_types, keep_boundaries);
-        });
+      case AttrDomain::Point:
+        ensure_vert_map();
+        bke::attribute_math::gather(*src, new_face_to_old_vert, dst.span);
         break;
-      }
       case AttrDomain::Edge:
         bke::attribute_math::gather(*src, new_to_old_edges_map, dst.span);
         break;
       case AttrDomain::Face: {
         const GVArraySpan src_span(*src);
         dst.span.take_front(src_span.size()).copy_from(src_span);
-        bke::attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-          using T = decltype(dummy);
-          if (keep_boundaries) {
-            copy_data_based_on_pairs(
-                src_span.typed<T>(), dst.span.typed<T>(), boundary_vertex_to_relevant_face_map);
-          }
-        });
+        if (keep_boundaries) {
+          ensure_face_map();
+          bke::attribute_math::gather(
+              src.varray, boundary_vert_src_face, boundary_vert_mask, dst.span);
+        }
         break;
       }
       case AttrDomain::Corner:
@@ -334,7 +349,7 @@ static bool sort_vertex_faces(const Span<int2> edges,
   }
 
   /* For each face store the two corners whose edge contains the vertex. */
-  Array<std::pair<int, int>> face_vertex_corners(connected_faces.size());
+  Array<std::pair<int, int>, 16> face_vertex_corners(connected_faces.size());
   for (const int i : connected_faces.index_range()) {
     bool first_edge_done = false;
     for (const int corner : faces[connected_faces[i]]) {
@@ -522,12 +537,12 @@ static void add_edge(const int old_edge_i,
                      const int v2,
                      Vector<int> &new_to_old_edges_map,
                      Vector<int2> &new_edges,
-                     Vector<int> &loop_edges)
+                     Vector<int> &corner_edges)
 {
   const int new_edge_i = new_edges.size();
   new_to_old_edges_map.append(old_edge_i);
   new_edges.append({v1, v2});
-  loop_edges.append(new_edge_i);
+  corner_edges.append(new_edge_i);
 }
 
 /* Returns true if the vertex is connected only to the two faces and is not on the boundary. */
@@ -615,7 +630,7 @@ static void dissolve_redundant_verts(const Span<int2> edges,
  */
 static Mesh *calc_dual_mesh(const Mesh &src_mesh,
                             const bool keep_boundaries,
-                            const AnonymousAttributePropagationInfo &propagation_info)
+                            const AttributeFilter &attribute_filter)
 {
   const Span<float3> src_positions = src_mesh.vert_positions();
   const Span<int2> src_edges = src_mesh.edges();
@@ -642,12 +657,12 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
         /* Bad vertex that we can't work with. */
         continue;
       }
-      MutableSpan<int> loop_indices = vert_to_face_indices.as_mutable_span().slice(
+      MutableSpan<int> corner_indices = vert_to_face_indices.as_mutable_span().slice(
           vert_to_face_offsets[i]);
-      Array<int> sorted_corners(loop_indices.size());
+      Array<int> sorted_corners(corner_indices.size());
       bool vertex_ok = true;
       if (vertex_types[i] == VertexType::Normal) {
-        Array<int> shared_edges(loop_indices.size());
+        Array<int> shared_edges(corner_indices.size());
         vertex_ok = sort_vertex_faces(src_edges,
                                       src_faces,
                                       src_corner_verts,
@@ -655,13 +670,13 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
                                       i,
                                       false,
                                       edge_types,
-                                      loop_indices,
+                                      corner_indices,
                                       shared_edges,
                                       sorted_corners);
         vertex_shared_edges[i] = std::move(shared_edges);
       }
       else {
-        Array<int> shared_edges(loop_indices.size() - 1);
+        Array<int> shared_edges(corner_indices.size() - 1);
         vertex_ok = sort_vertex_faces(src_edges,
                                       src_faces,
                                       src_corner_verts,
@@ -669,7 +684,7 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
                                       i,
                                       true,
                                       edge_types,
-                                      loop_indices,
+                                      corner_indices,
                                       shared_edges,
                                       sorted_corners);
         vertex_shared_edges[i] = std::move(shared_edges);
@@ -707,9 +722,9 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
     }
   }
 
-  Vector<int> loop_lengths;
-  Vector<int> loops;
-  Vector<int> loop_edges;
+  Vector<int> face_sizes;
+  Vector<int> corner_verts;
+  Vector<int> corner_edges;
   Vector<int2> new_edges;
   /* These are used to transfer attributes. */
   Vector<int> new_to_old_face_corners_map;
@@ -743,11 +758,11 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
       continue;
     }
 
-    Vector<int> loop_indices = vert_to_face_map[i];
+    Vector<int> corner_indices = vert_to_face_map[i];
     Span<int> shared_edges = vertex_shared_edges[i];
     Span<int> sorted_corners = vertex_corners[i];
     if (vertex_types[i] == VertexType::Normal) {
-      if (loop_indices.size() <= 2) {
+      if (corner_indices.size() <= 2) {
         /* We can't make a face from 2 vertices. */
         continue;
       }
@@ -759,9 +774,9 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
           /* This edge has not been created yet. */
           new_to_old_edges_map.append(old_edge_i);
           old_to_new_edges_map[old_edge_i] = new_edges.size();
-          new_edges.append({loop_indices[i], loop_indices[(i + 1) % loop_indices.size()]});
+          new_edges.append({corner_indices[i], corner_indices[(i + 1) % corner_indices.size()]});
         }
-        loop_edges.append(old_to_new_edges_map[old_edge_i]);
+        corner_edges.append(old_to_new_edges_map[old_edge_i]);
       }
 
       new_to_old_face_corners_map.extend(sorted_corners);
@@ -770,7 +785,7 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
       /**
        * The code handles boundary vertices like the vertex marked "V" in the diagram below.
        * The first thing that happens is ordering the faces f1,f2 and f3 (stored in
-       * loop_indices), together with their shared edges e3 and e4 (which get stored in
+       * corner_indices), together with their shared edges e3 and e4 (which get stored in
        * shared_edges). The ordering could end up being clockwise or counterclockwise, for this
        * we'll assume that the ordering f1->f2->f3 is chosen. After that we add the edges in
        * between the faces, in this case the edges f1--f2, and f2--f3. Now we need to merge
@@ -798,9 +813,9 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
           /* This edge has not been created yet. */
           new_to_old_edges_map.append(old_edge_i);
           old_to_new_edges_map[old_edge_i] = new_edges.size();
-          new_edges.append({loop_indices[i], loop_indices[i + 1]});
+          new_edges.append({corner_indices[i], corner_indices[i + 1]});
         }
-        loop_edges.append(old_to_new_edges_map[old_edge_i]);
+        corner_edges.append(old_to_new_edges_map[old_edge_i]);
       }
 
       new_to_old_face_corners_map.extend(sorted_corners);
@@ -810,22 +825,22 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
       /* Get the boundary edges. */
       int edge1;
       int edge2;
-      if (loop_indices.size() >= 2) {
+      if (corner_indices.size() >= 2) {
         /* The first boundary edge is at the end of the chain of faces. */
         boundary_edge_on_face(src_edges,
-                              src_corner_edges.slice(src_faces[loop_indices.last()]),
+                              src_corner_edges.slice(src_faces[corner_indices.last()]),
                               i,
                               edge_types,
                               edge1);
         boundary_edge_on_face(src_edges,
-                              src_corner_edges.slice(src_faces[loop_indices.first()]),
+                              src_corner_edges.slice(src_faces[corner_indices.first()]),
                               i,
                               edge_types,
                               edge2);
       }
       else {
         /* If there is only one face both edges are in that face. */
-        boundary_edges_on_face(src_faces[loop_indices[0]],
+        boundary_edges_on_face(src_faces[corner_indices[0]],
                                src_edges,
                                src_corner_verts,
                                src_corner_edges,
@@ -835,66 +850,71 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
                                edge2);
       }
 
-      const int last_face_center = loop_indices.last();
-      loop_indices.append(boundary_edge_midpoint_index[edge1]);
+      const int last_face_center = corner_indices.last();
+      corner_indices.append(boundary_edge_midpoint_index[edge1]);
       new_to_old_face_corners_map.append(sorted_corners.last());
-      const int first_midpoint = loop_indices.last();
+      const int first_midpoint = corner_indices.last();
       if (old_to_new_edges_map[edge1] == -1) {
-        add_edge(
-            edge1, last_face_center, first_midpoint, new_to_old_edges_map, new_edges, loop_edges);
+        add_edge(edge1,
+                 last_face_center,
+                 first_midpoint,
+                 new_to_old_edges_map,
+                 new_edges,
+                 corner_edges);
         old_to_new_edges_map[edge1] = new_edges.size() - 1;
         boundary_vertex_to_relevant_face_map.append(std::pair(first_midpoint, last_face_center));
       }
       else {
-        loop_edges.append(old_to_new_edges_map[edge1]);
+        corner_edges.append(old_to_new_edges_map[edge1]);
       }
-      loop_indices.append(vert_positions.size());
+      corner_indices.append(vert_positions.size());
       /* This is sort of arbitrary, but interpolating would be a lot harder to do. */
       new_to_old_face_corners_map.append(sorted_corners.first());
       boundary_vertex_to_relevant_face_map.append(
-          std::pair(loop_indices.last(), last_face_center));
+          std::pair(corner_indices.last(), last_face_center));
       vert_positions.append(src_positions[i]);
-      const int boundary_vertex = loop_indices.last();
+      const int boundary_vertex = corner_indices.last();
       add_edge(
-          edge1, first_midpoint, boundary_vertex, new_to_old_edges_map, new_edges, loop_edges);
+          edge1, first_midpoint, boundary_vertex, new_to_old_edges_map, new_edges, corner_edges);
 
-      loop_indices.append(boundary_edge_midpoint_index[edge2]);
+      corner_indices.append(boundary_edge_midpoint_index[edge2]);
       new_to_old_face_corners_map.append(sorted_corners.first());
-      const int second_midpoint = loop_indices.last();
+      const int second_midpoint = corner_indices.last();
       add_edge(
-          edge2, boundary_vertex, second_midpoint, new_to_old_edges_map, new_edges, loop_edges);
+          edge2, boundary_vertex, second_midpoint, new_to_old_edges_map, new_edges, corner_edges);
 
       if (old_to_new_edges_map[edge2] == -1) {
-        const int first_face_center = loop_indices.first();
+        const int first_face_center = corner_indices.first();
         add_edge(edge2,
                  second_midpoint,
                  first_face_center,
                  new_to_old_edges_map,
                  new_edges,
-                 loop_edges);
+                 corner_edges);
         old_to_new_edges_map[edge2] = new_edges.size() - 1;
         boundary_vertex_to_relevant_face_map.append(std::pair(second_midpoint, first_face_center));
       }
       else {
-        loop_edges.append(old_to_new_edges_map[edge2]);
+        corner_edges.append(old_to_new_edges_map[edge2]);
       }
     }
 
-    loop_lengths.append(loop_indices.size());
-    for (const int j : loop_indices) {
-      loops.append(j);
-    }
+    face_sizes.append(corner_indices.size());
+    corner_verts.extend(corner_indices);
   }
   Mesh *mesh_out = BKE_mesh_new_nomain(
-      vert_positions.size(), new_edges.size(), loop_lengths.size(), loops.size());
+      vert_positions.size(), new_edges.size(), face_sizes.size(), corner_verts.size());
   bke::mesh_smooth_set(*mesh_out, false);
+
+  std::ranges::sort(boundary_vertex_to_relevant_face_map,
+                    [](const auto &a, const auto &b) { return a.first < b.first; });
 
   transfer_attributes(vertex_types,
                       keep_boundaries,
                       new_to_old_edges_map,
                       new_to_old_face_corners_map,
                       boundary_vertex_to_relevant_face_map,
-                      propagation_info,
+                      attribute_filter,
                       src_mesh.attributes(),
                       mesh_out->attributes_for_write());
 
@@ -903,37 +923,41 @@ static Mesh *calc_dual_mesh(const Mesh &src_mesh,
 
   if (mesh_out->faces_num > 0) {
     MutableSpan<int> dst_face_offsets = mesh_out->face_offsets_for_write();
-    dst_face_offsets.drop_back(1).copy_from(loop_lengths);
+    dst_face_offsets.drop_back(1).copy_from(face_sizes);
     offset_indices::accumulate_counts_to_offsets(dst_face_offsets);
   }
-  mesh_out->corner_verts_for_write().copy_from(loops);
-  mesh_out->corner_edges_for_write().copy_from(loop_edges);
+  mesh_out->corner_verts_for_write().copy_from(corner_verts);
+  mesh_out->corner_edges_for_write().copy_from(corner_edges);
 
   return mesh_out;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
-  const bool keep_boundaries = params.extract_input<bool>("Keep Boundaries");
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh"_ustr);
+  const bool keep_boundaries = params.extract_input<bool>("Keep Boundaries"_ustr);
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const Mesh *mesh = geometry_set.get_mesh()) {
       Mesh *new_mesh = calc_dual_mesh(
-          *mesh, keep_boundaries, params.get_output_propagation_info("Dual Mesh"));
+          *mesh, keep_boundaries, params.get_attribute_filter("Dual Mesh"_ustr));
       geometry::debug_randomize_mesh_order(new_mesh);
       geometry_set.replace_mesh(new_mesh);
     }
   });
-  params.set_output("Dual Mesh", std::move(geometry_set));
+  params.set_output("Dual Mesh"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
 {
-  static bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_DUAL_MESH, "Dual Mesh", NODE_CLASS_GEOMETRY);
+  static bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeDualMesh"_ustr, GEO_NODE_DUAL_MESH);
+  ntype.ui_name = "Dual Mesh";
+  ntype.ui_description = "Convert Faces into vertices and vertices into faces";
+  ntype.enum_name_legacy = "DUAL_MESH";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

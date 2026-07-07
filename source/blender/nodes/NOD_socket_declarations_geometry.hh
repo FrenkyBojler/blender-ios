@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include "BLI_vector.hh"
+
 #include "BKE_geometry_set.hh"
 
-#include "NOD_socket_declarations.hh"
+#include "NOD_node_declaration.hh"
 
 namespace blender::nodes::decl {
 
@@ -21,6 +23,8 @@ class Geometry : public SocketDeclaration {
   friend GeometryBuilder;
 
  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_GEOMETRY;
+
   using Builder = GeometryBuilder;
 
   bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;

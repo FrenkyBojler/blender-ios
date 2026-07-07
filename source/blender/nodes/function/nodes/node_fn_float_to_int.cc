@@ -4,29 +4,28 @@
 
 #include <cmath>
 
-#include "BLI_noise.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_float_to_int_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Float>("Float");
-  b.add_output<decl::Int>("Integer");
+  b.add_input<decl::Float>("Float"_ustr);
+  b.add_output<decl::Int>("Integer"_ustr);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "rounding_mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "rounding_mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_label(const bNodeTree * /*tree*/,
@@ -37,9 +36,9 @@ static void node_label(const bNodeTree * /*tree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_float_to_int_items, node->custom1, &name);
   if (!enum_label) {
-    name = "Unknown";
+    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
   }
-  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
@@ -75,16 +74,54 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
+static const char *gpu_shader_get_name(const FloatToIntRoundingMode rounding_mode)
+{
+  switch (rounding_mode) {
+    case FN_NODE_FLOAT_TO_INT_ROUND:
+      return "float_to_int_round";
+    case FN_NODE_FLOAT_TO_INT_FLOOR:
+      return "float_to_int_floor";
+    case FN_NODE_FLOAT_TO_INT_CEIL:
+      return "float_to_int_ceil";
+    case FN_NODE_FLOAT_TO_INT_TRUNCATE:
+      return "float_to_int_truncate";
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
+{
+  const char *name = gpu_shader_get_name(FloatToIntRoundingMode(node->custom1));
+
+  if (name == nullptr) {
+    return 0;
+  }
+
+  return GPU_stack_link(mat, node, name, in, out);
+}
+
 static void node_register()
 {
-  static bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_FLOAT_TO_INT, "Float to Integer", NODE_CLASS_CONVERTER);
+  fn_cmp_node_type_base(&ntype, "FunctionNodeFloatToInt"_ustr, FN_NODE_FLOAT_TO_INT);
+  ntype.ui_name = "Float to Integer";
+  ntype.ui_description =
+      "Convert the given floating-point number to an integer, with a choice of methods";
+  ntype.enum_name_legacy = "FLOAT_TO_INT";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
   ntype.build_multi_function = node_build_multi_function;
+  ntype.gpu_fn = node_gpu_material;
   ntype.draw_buttons = node_layout;
-  nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

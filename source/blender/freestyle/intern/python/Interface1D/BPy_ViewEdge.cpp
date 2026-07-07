@@ -16,10 +16,6 @@
 #include "../Interface1D/BPy_FEdge.h"
 #include "../Interface1D/BPy_ViewEdge.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -27,6 +23,7 @@ using namespace Freestyle;
 /*----------------------ViewEdge methods ----------------------------*/
 
 PyDoc_STRVAR(
+    /* Wrap. */
     ViewEdge_doc,
     "Class hierarchy: :class:`Interface1D` > :class:`ViewEdge`\n"
     "\n"
@@ -34,14 +31,17 @@ PyDoc_STRVAR(
     "it connects two :class:`ViewVertex` objects. It is made by connecting\n"
     "a set of FEdges.\n"
     "\n"
-    ".. method:: __init__()\n"
-    "            __init__(brother)\n"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(brother)``\n"
     "\n"
     "   Builds a :class:`ViewEdge` using the default constructor or the copy constructor.\n"
     "\n"
-    "   :arg brother: A ViewEdge object.\n"
-    "   :type brother: :class:`ViewEdge`");
-
+    "   :param brother: A ViewEdge object.\n"
+    "   :type brother: :class:`ViewEdge`\n");
 static int ViewEdge_init(BPy_ViewEdge *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"brother", nullptr};
@@ -61,16 +61,27 @@ static int ViewEdge_init(BPy_ViewEdge *self, PyObject *args, PyObject *kwds)
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_update_fedges_doc,
-             ".. method:: update_fedges()\n"
-             "\n"
-             "   Sets Viewedge to this for all embedded fedges.\n");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_update_fedges_doc,
+    ".. method:: update_fedges()\n"
+    "\n"
+    "   Sets Viewedge to this for all embedded fedges.\n");
 static PyObject *ViewEdge_update_fedges(BPy_ViewEdge *self)
 {
   self->ve->UpdateFEdges();
   Py_RETURN_NONE;
 }
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
 
 static PyMethodDef BPy_ViewEdge_methods[] = {
     {"update_fedges",
@@ -80,13 +91,22 @@ static PyMethodDef BPy_ViewEdge_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
+
 /*----------------------ViewEdge get/setters ----------------------------*/
 
-PyDoc_STRVAR(ViewEdge_first_viewvertex_doc,
-             "The first ViewVertex.\n"
-             "\n"
-             ":type: :class:`ViewVertex`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_first_viewvertex_doc,
+    "The first ViewVertex.\n"
+    "\n"
+    ":type: :class:`ViewVertex`\n");
 static PyObject *ViewEdge_first_viewvertex_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   ViewVertex *v = self->ve->A();
@@ -105,11 +125,12 @@ static int ViewEdge_first_viewvertex_set(BPy_ViewEdge *self, PyObject *value, vo
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_last_viewvertex_doc,
-             "The second ViewVertex.\n"
-             "\n"
-             ":type: :class:`ViewVertex`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_last_viewvertex_doc,
+    "The second ViewVertex.\n"
+    "\n"
+    ":type: :class:`ViewVertex`\n");
 static PyObject *ViewEdge_last_viewvertex_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   ViewVertex *v = self->ve->B();
@@ -128,11 +149,12 @@ static int ViewEdge_last_viewvertex_set(BPy_ViewEdge *self, PyObject *value, voi
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_first_fedge_doc,
-             "The first FEdge that constitutes this ViewEdge.\n"
-             "\n"
-             ":type: :class:`FEdge`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_first_fedge_doc,
+    "The first FEdge that constitutes this ViewEdge.\n"
+    "\n"
+    ":type: :class:`FEdge`\n");
 static PyObject *ViewEdge_first_fedge_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   FEdge *fe = self->ve->fedgeA();
@@ -151,11 +173,12 @@ static int ViewEdge_first_fedge_set(BPy_ViewEdge *self, PyObject *value, void * 
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_last_fedge_doc,
-             "The last FEdge that constitutes this ViewEdge.\n"
-             "\n"
-             ":type: :class:`FEdge`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_last_fedge_doc,
+    "The last FEdge that constitutes this ViewEdge.\n"
+    "\n"
+    ":type: :class:`FEdge`\n");
 static PyObject *ViewEdge_last_fedge_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   FEdge *fe = self->ve->fedgeB();
@@ -174,11 +197,12 @@ static int ViewEdge_last_fedge_set(BPy_ViewEdge *self, PyObject *value, void * /
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_viewshape_doc,
-             "The ViewShape to which this ViewEdge belongs to.\n"
-             "\n"
-             ":type: :class:`ViewShape`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_viewshape_doc,
+    "The ViewShape to which this ViewEdge belongs to.\n"
+    "\n"
+    ":type: :class:`ViewShape`\n");
 static PyObject *ViewEdge_viewshape_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   ViewShape *vs = self->ve->viewShape();
@@ -197,12 +221,13 @@ static int ViewEdge_viewshape_set(BPy_ViewEdge *self, PyObject *value, void * /*
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_occludee_doc,
-             "The shape that is occluded by the ViewShape to which this ViewEdge\n"
-             "belongs to. If no object is occluded, this property is set to None.\n"
-             "\n"
-             ":type: :class:`ViewShape`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_occludee_doc,
+    "The shape that is occluded by the ViewShape to which this ViewEdge\n"
+    "belongs to. If no object is occluded, this property is set to None.\n"
+    "\n"
+    ":type: :class:`ViewShape`\n");
 static PyObject *ViewEdge_occludee_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   ViewShape *vs = self->ve->aShape();
@@ -221,21 +246,23 @@ static int ViewEdge_occludee_set(BPy_ViewEdge *self, PyObject *value, void * /*c
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_is_closed_doc,
-             "True if this ViewEdge forms a closed loop.\n"
-             "\n"
-             ":type: bool");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_is_closed_doc,
+    "True if this ViewEdge forms a closed loop.\n"
+    "\n"
+    ":type: bool\n");
 static PyObject *ViewEdge_is_closed_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   return PyBool_from_bool(self->ve->isClosed());
 }
 
-PyDoc_STRVAR(ViewEdge_id_doc,
-             "The Id of this ViewEdge.\n"
-             "\n"
-             ":type: :class:`Id`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_id_doc,
+    "The Id of this ViewEdge.\n"
+    "\n"
+    ":type: :class:`Id`\n");
 static PyObject *ViewEdge_id_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   Id id(self->ve->getId());
@@ -252,11 +279,12 @@ static int ViewEdge_id_set(BPy_ViewEdge *self, PyObject *value, void * /*closure
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_nature_doc,
-             "The nature of this ViewEdge.\n"
-             "\n"
-             ":type: :class:`Nature`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_nature_doc,
+    "The nature of this ViewEdge.\n"
+    "\n"
+    ":type: :class:`Nature`\n");
 static PyObject *ViewEdge_nature_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   return BPy_Nature_from_Nature(self->ve->getNature());
@@ -272,11 +300,12 @@ static int ViewEdge_nature_set(BPy_ViewEdge *self, PyObject *value, void * /*clo
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_qi_doc,
-             "The quantitative invisibility.\n"
-             "\n"
-             ":type: int");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_qi_doc,
+    "The quantitative invisibility.\n"
+    "\n"
+    ":type: int\n");
 static PyObject *ViewEdge_qi_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->ve->qi());
@@ -293,11 +322,12 @@ static int ViewEdge_qi_set(BPy_ViewEdge *self, PyObject *value, void * /*closure
   return 0;
 }
 
-PyDoc_STRVAR(ViewEdge_chaining_time_stamp_doc,
-             "The time stamp of this ViewEdge.\n"
-             "\n"
-             ":type: int");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewEdge_chaining_time_stamp_doc,
+    "The time stamp of this ViewEdge.\n"
+    "\n"
+    ":type: int\n");
 static PyObject *ViewEdge_chaining_time_stamp_get(BPy_ViewEdge *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->ve->getChainingTimeStamp());
@@ -411,7 +441,3 @@ PyTypeObject ViewEdge_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

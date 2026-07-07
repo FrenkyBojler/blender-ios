@@ -16,7 +16,8 @@ from bpy.props import (
 )
 from bpy.app.translations import (
     contexts as i18n_contexts,
-    pgettext_rpt as rpt_
+    pgettext_n as n_,
+    pgettext_rpt as rpt_,
 )
 
 from math import pi
@@ -30,17 +31,6 @@ enum_devices = (
     ('CPU', "CPU", "Use CPU for rendering"),
     ('GPU', "GPU Compute",
         "Use GPU compute device for rendering, configured in the system tab in the user preferences"),
-)
-
-enum_feature_set = (
-    ('SUPPORTED',
-     "Supported",
-     "Only use finished and supported features"),
-    ('EXPERIMENTAL',
-     "Experimental",
-     "Use experimental and incomplete features that might be broken or change in the future",
-     'ERROR',
-     1),
 )
 
 enum_bvh_layouts = (
@@ -60,8 +50,15 @@ enum_filter_types = (
 )
 
 enum_curve_shape = (
-    ('RIBBONS', "Rounded Ribbons", "Render curves as flat ribbons with rounded normals, for fast rendering"),
-    ('THICK', "3D Curves", "Render curves as circular 3D geometry, for accurate results when viewing closely"),
+    ('RIBBONS',
+     "Rounded Ribbons",
+     "Render curves as flat ribbons with rounded normals, for fast rendering"),
+    ('THICK',
+     "3D Curves",
+     "Render curves as circular 3D geometry, for accurate results when viewing closely"),
+    ('THICK_LINEAR',
+     "Linear 3D Curves",
+     "Render curves as circular 3D geometry, with linear interpolation between control points, for fast rendering"),
 )
 
 enum_use_layer_samples = (
@@ -70,10 +67,56 @@ enum_use_layer_samples = (
     ('IGNORE', "Ignore", "Ignore per render layer number of samples"),
 )
 
-enum_sampling_pattern = (
-    ('SOBOL_BURLEY', "Sobol-Burley", "Use on-the-fly computed Owen-scrambled Sobol for random sampling", 0),
-    ('TABULATED_SOBOL', "Tabulated Sobol", "Use pre-computed tables of Owen-scrambled Sobol for random sampling", 1),
-)
+
+def enum_sampling_pattern(self, context):
+    prefs = context.preferences
+    use_debug = prefs.experimental.use_cycles_debug and prefs.view.show_developer_ui
+
+    items = [
+        ('AUTOMATIC',
+         n_("Automatic"),
+         n_("Use a blue-noise sampling pattern, which optimizes the frequency distribution of noise, for random sampling. For viewport rendering, optimize first sample quality for interactive preview"),
+         5)]
+
+    debug_items = [
+        ('SOBOL_BURLEY',
+         n_("Sobol-Burley"),
+         n_("Use on-the-fly computed Owen-scrambled Sobol for random sampling"),
+         0),
+        ('TABULATED_SOBOL',
+         n_("Tabulated Sobol"),
+         n_("Use pre-computed tables of Owen-scrambled Sobol for random sampling"),
+         1),
+        ('BLUE_NOISE',
+         n_("Blue-Noise (pure)"),
+         n_("Use a blue-noise pattern, which optimizes the frequency distribution of noise, for random sampling"),
+         2),
+        ('BLUE_NOISE_FIRST',
+         n_("Blue-Noise (first)"),
+         n_("Use a blue-noise pattern for the first sample, then use Tabulated Sobol for the remaining samples, for random sampling"),
+         3),
+        ('BLUE_NOISE_ROUND',
+         n_("Blue-Noise (round)"),
+         n_("Use a blue-noise sequence with a length rounded up to the next power of 2, for random sampling"),
+         4),
+    ]
+
+    non_debug_items = [
+        ('TABULATED_SOBOL',
+         n_("Classic"),
+         n_("Use pre-computed tables of Owen-scrambled Sobol for random sampling"),
+         1),
+        ('BLUE_NOISE',
+         n_("Blue-Noise"),
+         n_("Use a blue-noise pattern, which optimizes the frequency distribution of noise, for random sampling"),
+         2),
+    ]
+
+    if use_debug:
+        return items + debug_items
+    else:
+        return items + non_debug_items
+
 
 enum_emission_sampling = (
     ('NONE',
@@ -118,7 +161,7 @@ enum_volume_interpolation = (
 enum_world_mis = (
     ('NONE',
      "None",
-     "Don't sample the background, faster but might cause noise for non-solid backgrounds"),
+     "Do not sample the background, faster but might cause noise for non-solid backgrounds"),
     ('AUTOMATIC',
      "Auto",
      "Automatically try to determine the best setting"),
@@ -145,6 +188,7 @@ enum_texture_limit = (
     ('4096', "4096", "Limit texture size to 4096 pixels", 6),
     ('8192', "8192", "Limit texture size to 8192 pixels", 7),
 )
+
 
 enum_fast_gi_method = (
     ('REPLACE', "Replace", "Replace global illumination with ambient occlusion after a specified number of bounces"),
@@ -187,8 +231,19 @@ enum_view3d_shading_render_pass = (
     ('UV', "UV", "Show the UV render pass"),
     ('MIST', "Mist", "Show the Mist render pass"),
     ('DENOISING_ALBEDO', "Denoising Albedo", "Albedo pass used by denoiser"),
+    ('DENOISING_SPECULAR_ALBEDO', "Denoising Specular Albedo", "Specular albedo pass used by denoiser"),
     ('DENOISING_NORMAL', "Denoising Normal", "Normal pass used by denoiser"),
+    ('DENOISING_ROUGHNESS', "Denoising Roughness", "Roughness pass used by denoiser"),
+    ('DENOISING_BACKWARD_MOTION', "Denoising Backward Motion", "Backward motion pass used by denoiser"),
     ('SAMPLE_COUNT', "Sample Count", "Per-pixel number of samples"),
+)
+
+enum_view3d_debug_render_pass = (
+    ('MOTION', "Vector", "Show motion vectors"),
+
+    ('VOLUME_SCATTER', "Volume Scatter", "Show the contribution of scattered ray in volume"),
+    ('VOLUME_TRANSMIT', "Volume Transmit", "Show the contribution of transmitted ray in volume"),
+    ('VOLUME_MAJORANT', "Volume Majorant", "Show the majorant transmittance of the volume")
 )
 
 enum_guiding_distribution = (
@@ -217,13 +272,14 @@ def enum_openimagedenoise_denoiser(self, context):
     import _cycles
     if _cycles.with_openimagedenoise:
         return [('OPENIMAGEDENOISE', "OpenImageDenoise",
-                 "Use Intel OpenImageDenoise AI denoiser", 4)]
+                 n_("Use Intel OpenImageDenoise AI denoiser"), 4)]
     return []
 
 
 def enum_optix_denoiser(self, context):
     if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPTIX')):
-        return [('OPTIX', "OptiX", "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs", 2)]
+        return [('OPTIX', "OptiX", n_(
+            "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs when configured in the system tab in the user preferences"), 2)]
     return []
 
 
@@ -235,11 +291,11 @@ def enum_preview_denoiser(self, context):
         items = [
             ('AUTO',
              "Automatic",
-             ("Use the fastest available denoiser for viewport rendering "
-              "(OptiX if available, OpenImageDenoise otherwise)"),
+             n_("Use GPU accelerated denoising if supported, for the best performance. "
+                "Prefer OpenImageDenoise over OptiX"),
              0)]
     else:
-        items = [('AUTO', "None", "Blender was compiled without a viewport denoiser", 0)]
+        items = [('AUTO', "None", n_("Blender was compiled without a viewport denoiser"), 0)]
 
     items += optix_items
     items += oidn_items
@@ -254,7 +310,7 @@ def enum_denoiser(self, context):
 
 
 enum_denoising_input_passes = (
-    ('RGB', "None", "Don't use utility passes for denoising", 1),
+    ('RGB', "None", "Do not use utility passes for denoising", 1),
     ('RGB_ALBEDO', "Albedo", "Use albedo pass for denoising", 2),
     ('RGB_ALBEDO_NORMAL', "Albedo and Normal", "Use albedo and normal passes for denoising", 3),
 )
@@ -271,6 +327,21 @@ enum_denoising_prefilter = (
     ('ACCURATE',
      "Accurate",
      "Prefilter noisy guiding passes before denoising color. Improves quality when guiding passes are noisy using extra processing time",
+     3),
+)
+
+enum_denoising_quality = (
+    ('HIGH',
+     "High",
+     "High quality",
+     1),
+    ('BALANCED',
+     "Balanced",
+     "Balanced between performance and quality",
+     2),
+    ('FAST',
+     "Fast",
+     "High performance",
      3),
 )
 
@@ -300,20 +371,25 @@ def update_render_engine(self, context):
     scene.update_render_engine()
 
 
+def update_world(self, context):
+    # Force a depsgraph update, because add-on properties don't.
+    # (at least not from the UI, see #138071)
+    context.scene.world.update_tag()
+
+
+def update_pause(self, context):
+    context.area.tag_redraw()
+
+
 class CyclesRenderSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     device: EnumProperty(
         name="Device",
         description="Device to use for rendering",
         items=enum_devices,
         default='CPU',
-    )
-    feature_set: EnumProperty(
-        name="Feature Set",
-        description="Feature set to use for rendering",
-        items=enum_feature_set,
-        default='SUPPORTED',
-        update=update_render_engine,
+        update=update_render_passes,
     )
     shading_system: BoolProperty(
         name="Open Shading Language",
@@ -324,6 +400,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="Pause Preview",
         description="Pause all viewport preview renders",
         default=False,
+        update=update_pause,
     )
 
     use_denoising: BoolProperty(
@@ -342,15 +419,26 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
     denoising_prefilter: EnumProperty(
         name="Denoising Prefilter",
-        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoiser",
+        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoise",
         items=enum_denoising_prefilter,
         default='ACCURATE',
+    )
+    denoising_quality: EnumProperty(
+        name="Denoising Quality",
+        description="Overall denoising quality when using OpenImageDenoise",
+        items=enum_denoising_quality,
+        default='HIGH',
     )
     denoising_input_passes: EnumProperty(
         name="Denoising Input Passes",
         description="Passes used by the denoiser to distinguish noise from shader and geometry detail",
         items=enum_denoising_input_passes,
         default='RGB_ALBEDO_NORMAL',
+    )
+    denoising_use_gpu: BoolProperty(
+        name="Denoise on GPU",
+        description="Perform denoising on GPU devices configured in the system tab in the user preferences. This is significantly faster than on CPU, but requires additional GPU memory. When large scenes need more GPU memory, this option can be disabled",
+        default=False,
     )
 
     use_preview_denoising: BoolProperty(
@@ -366,9 +454,15 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
     preview_denoising_prefilter: EnumProperty(
         name="Viewport Denoising Prefilter",
-        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoiser",
+        description="Prefilter noisy guiding (albedo and normal) passes to improve denoising quality when using OpenImageDenoise",
         items=enum_denoising_prefilter,
         default='FAST',
+    )
+    preview_denoising_quality: EnumProperty(
+        name="Viewport Denoising Quality",
+        description="Overall denoising quality when using OpenImageDenoise",
+        items=enum_denoising_quality,
+        default='BALANCED',
     )
     preview_denoising_input_passes: EnumProperty(
         name="Viewport Denoising Input Passes",
@@ -381,6 +475,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         description="Sample to start denoising the preview at",
         min=0, max=(1 << 24),
         default=1,
+    )
+    preview_denoising_use_gpu: BoolProperty(
+        name="Denoise Preview on GPU",
+        description="Perform denoising on GPU devices configured in the system tab in the user preferences. This is significantly faster than on CPU, but requires additional GPU memory. When large scenes need more GPU memory, this option can be disabled",
+        default=True,
     )
 
     samples: IntProperty(
@@ -398,11 +497,24 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default=1024,
     )
 
+    use_sample_subset: BoolProperty(
+        name="Use Sample Subset",
+        description="Render a subset of the specified max samples. Typically used for distributed rendering across multiple devices",
+        default=False,
+    )
+
     sample_offset: IntProperty(
-        name="Sample Offset",
-        description="Number of samples to skip when starting render",
+        name="Sample Subset Offset",
+        description="0-based index of sample to start rendering from",
         min=0, max=(1 << 24),
         default=0,
+    )
+
+    sample_subset_length: IntProperty(
+        name="Sample Subset Length",
+        description="The number of samples to render in this subset",
+        min=1, max=(1 << 24),
+        default=2048,
     )
 
     time_limit: FloatProperty(
@@ -419,7 +531,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="Sampling Pattern",
         description="Random sampling pattern used by the integrator",
         items=enum_sampling_pattern,
-        default='TABULATED_SOBOL',
+        default=5,
     )
 
     scrambling_distance: FloatProperty(
@@ -555,6 +667,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         "learns the light distribution of the scene and guides path into directions "
         "with high direct and indirect light contributions",
         default=False,
+        update=update_render_passes,
     )
 
     use_deterministic_guiding: BoolProperty(
@@ -681,7 +794,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default=1.0,
         min=0.01, max=100.0, soft_min=0.1, soft_max=10.0, precision=2
     )
-
     volume_preview_step_rate: FloatProperty(
         name="Step Rate",
         description="Globally adjust detail for volume rendering, on top of automatically estimated step size. "
@@ -689,7 +801,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default=1.0,
         min=0.01, max=100.0, soft_min=0.1, soft_max=10.0, precision=2
     )
-
     volume_max_steps: IntProperty(
         name="Max Steps",
         description="Maximum number of steps through the volume before giving up, "
@@ -698,24 +809,29 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         min=2, max=65536
     )
 
+    volume_biased: BoolProperty(
+        name="Biased",
+        description="Default volume rendering uses null scattering, which is unbiased and has less artifacts, "
+        "but could be noisier. Biased option uses ray marching, with controls for steps size and max steps",
+        default=False,
+    )
+
     dicing_rate: FloatProperty(
         name="Dicing Rate",
-        description="Size of a micropolygon in pixels",
+        description="Multiplier for per object adaptive subdivision size",
         min=0.1, max=1000.0, soft_min=0.5,
         default=1.0,
-        subtype='PIXEL'
     )
     preview_dicing_rate: FloatProperty(
         name="Viewport Dicing Rate",
-        description="Size of a micropolygon in pixels during preview render",
+        description="Multiplier for per object adaptive subdivision size in the viewport",
         min=0.1, max=1000.0, soft_min=0.5,
         default=8.0,
-        subtype='PIXEL'
     )
 
     max_subdivisions: IntProperty(
         name="Max Subdivisions",
-        description="Stop subdividing when this level is reached even if the dice rate would produce finer tessellation",
+        description="Stop subdividing when this level is reached even if the dicing rate would produce finer tessellation",
         min=0,
         max=16,
         default=12,
@@ -741,7 +857,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     film_exposure: FloatProperty(
         name="Exposure",
         description="Image brightness scale",
-        min=0.0, max=10.0,
+        min=0.0, soft_max=2**10, max=2**32,
         default=1.0,
     )
     film_transparent_glass: BoolProperty(
@@ -769,6 +885,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         min=0.01, max=10.0,
         default=1.5,
         subtype='PIXEL'
+    )
+
+    use_pixel_jitter: BoolProperty(
+        name="Use Pixel Jitter",
+        default=False,
     )
 
     seed: IntProperty(
@@ -842,7 +963,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
             ('NORMAL', "Normal", "", 3),
             ('UV', "UV", "", 4),
             ('ROUGHNESS', "Roughness", "", 5),
-            ('EMIT', "Emit", "", 6),
+            ('EMIT', "Emission", "", 6),
             ('ENVIRONMENT', "Environment", "", 7),
             ('DIFFUSE', "Diffuse", "", 8),
             ('GLOSSY', "Glossy", "", 9),
@@ -878,17 +999,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         unit='LENGTH'
     )
 
-    motion_blur_position: EnumProperty(
-        name="Motion Blur Position",
-        default='CENTER',
-        description="Offset for the shutter's time interval, allows to change the motion blur trails",
-        items=(
-            ('START', "Start on Frame", "The shutter opens at the current frame"),
-            ('CENTER', "Center on Frame", "The shutter is open during the current frame"),
-            ('END', "End on Frame", "The shutter closes at the current frame"),
-        ),
-    )
-
     rolling_shutter_type: EnumProperty(
         name="Shutter Type",
         default='NONE',
@@ -908,18 +1018,34 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         subtype='FACTOR',
     )
 
+    texture_resolution: FloatProperty(
+        name="Viewport Texture Resolution",
+        default=1.0,
+        description="Scale factor for texture resolution used by viewport rendering",
+        min=0.00001, max=1.0,
+        subtype='FACTOR',
+    )
+
+    texture_resolution_render: FloatProperty(
+        name="Render Texture Resolution",
+        default=1.0,
+        description="Scale factor for texture resolution used by final rendering",
+        min=0.00001, max=1.0,
+        subtype='FACTOR',
+    )
+
     texture_limit: EnumProperty(
         name="Viewport Texture Limit",
         default='OFF',
         description="Limit texture size used by viewport rendering",
-        items=enum_texture_limit
+        items=enum_texture_limit,
     )
 
     texture_limit_render: EnumProperty(
         name="Render Texture Limit",
         default='OFF',
         description="Limit texture size used by final rendering",
-        items=enum_texture_limit
+        items=enum_texture_limit,
     )
 
     use_fast_gi: BoolProperty(
@@ -951,15 +1077,16 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     )
 
     use_auto_tile: BoolProperty(
-        name="Use Tiling",
-        description="Render high resolution images in tiles to reduce memory usage, using the specified tile size. Tiles are cached to disk while rendering to save memory",
+        name="Auto Tile",
+        description="Deprecated, tiling is always enabled",
         default=True,
     )
     tile_size: IntProperty(
         name="Tile Size",
         default=2048,
-        description="",
-        min=8, max=8192,
+        description="Render high resolution images in tiles of this size, to reduce memory usage. Tiles are cached to disk while rendering to save memory",
+        min=8,
+        max=8192,
     )
 
     # Various fine-tuning debug flags
@@ -970,20 +1097,45 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         return _cycles.debug_flags_update(scene)
 
     debug_use_cpu_avx2: BoolProperty(name="AVX2", default=True)
-    debug_use_cpu_sse41: BoolProperty(name="SSE41", default=True)
-    debug_use_cpu_sse2: BoolProperty(name="SSE2", default=True)
+    debug_use_cpu_sse42: BoolProperty(name="SSE42", default=True)
     debug_bvh_layout: EnumProperty(
         name="BVH Layout",
         items=enum_bvh_layouts,
         default='EMBREE',
     )
 
-    debug_use_cuda_adaptive_compile: BoolProperty(name="Adaptive Compile", default=False)
+    adaptive_compile_description = "Compile the Cycles GPU kernel with only the feature set required for the current scene"
+
+    debug_use_cuda_adaptive_compile: BoolProperty(
+        name="Adaptive Compile",
+        description=adaptive_compile_description,
+        default=False)
 
     debug_use_optix_debug: BoolProperty(
         name="OptiX Module Debug",
         description="Load OptiX module in debug mode: lower logging verbosity level, enable validations, and lower optimization level",
         default=False)
+
+    debug_use_hip_adaptive_compile: BoolProperty(
+        name="Adaptive Compile",
+        description=adaptive_compile_description,
+        default=False)
+
+    debug_use_metal_adaptive_compile: BoolProperty(
+        name="Adaptive Compile",
+        description=adaptive_compile_description,
+        default=False)
+
+    debug_use_texture_cache_eviction: BoolProperty(
+        name="Cache Eviction",
+        description="Evict unused tiles from the texture cache to free up memory",
+        default=True)
+
+    debug_texture_cache_preserve_unused: IntProperty(
+        name="Preserve Unused MB",
+        description="Preserve unused texture cache data, up to this amount of memory",
+        min=0,
+        default=0)
 
     @classmethod
     def register(cls):
@@ -998,7 +1150,24 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         del bpy.types.Scene.cycles
 
 
+class CyclesCustomCameraSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
+
+    @classmethod
+    def register(cls):
+        bpy.types.Camera.cycles_custom = PointerProperty(
+            name="Cycles Custom Camera Settings",
+            description="Parameters for custom (OSL-based) cameras",
+            type=cls,
+        )
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.Camera.cycles_custom
+
+
 class CyclesMaterialSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     emission_sampling: EnumProperty(
         name="Emission Sampling",
@@ -1012,12 +1181,6 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
         name="Bump Map Correction",
         description="Apply corrections to solve shadow terminator artifacts caused by bump mapping",
         default=True,
-    )
-    homogeneous_volume: BoolProperty(
-        name="Homogeneous Volume",
-        description="When using volume rendering, assume volume has the same density everywhere "
-        "(not using any textures), for faster rendering",
-        default=False,
     )
     volume_sampling: EnumProperty(
         name="Volume Sampling",
@@ -1055,12 +1218,8 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
 
 
 class CyclesLightSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
-    cast_shadow: BoolProperty(
-        name="Cast Shadow",
-        description="Light casts shadows",
-        default=True,
-    )
     max_bounces: IntProperty(
         name="Max Bounces",
         description="Maximum number of bounces the light will contribute to the render",
@@ -1100,6 +1259,7 @@ class CyclesLightSettings(bpy.types.PropertyGroup):
 
 
 class CyclesWorldSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     is_caustics_light: BoolProperty(
         name="Shadow Caustics",
@@ -1126,12 +1286,6 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
         min=0, max=1024,
         default=1024,
     )
-    homogeneous_volume: BoolProperty(
-        name="Homogeneous Volume",
-        description="When using volume rendering, assume volume has the same density everywhere "
-        "(not using any textures), for faster rendering",
-        default=False,
-    )
     volume_sampling: EnumProperty(
         name="Volume Sampling",
         description="Sampling method to use for volumes",
@@ -1151,6 +1305,11 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
         default=1.0,
         min=0.0000001, max=100000.0, soft_min=0.1, soft_max=100.0, precision=4
     )
+    use_shadows: BoolProperty(
+        name="Shadows",
+        description="Enable shadow casting from the world",
+        default=True,
+    )
 
     @classmethod
     def register(cls):
@@ -1166,36 +1325,43 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
 
 
 class CyclesVisibilitySettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     camera: BoolProperty(
         name="Camera",
-        description="Object visibility for camera rays",
+        description="World visibility for camera rays",
         default=True,
+        update=update_world,
     )
     diffuse: BoolProperty(
         name="Diffuse",
-        description="Object visibility for diffuse reflection rays",
+        description="World visibility for diffuse reflection rays",
         default=True,
+        update=update_world,
     )
     glossy: BoolProperty(
         name="Glossy",
-        description="Object visibility for glossy reflection rays",
+        description="World visibility for glossy reflection rays",
         default=True,
+        update=update_world,
     )
     transmission: BoolProperty(
         name="Transmission",
-        description="Object visibility for transmission rays",
+        description="World visibility for transmission rays",
         default=True,
+        update=update_world,
     )
     shadow: BoolProperty(
         name="Shadow",
-        description="Object visibility for shadow rays",
+        description="World visibility for shadow rays",
         default=True,
+        update=update_world,
     )
     scatter: BoolProperty(
         name="Volume Scatter",
-        description="Object visibility for volume scatter rays",
+        description="World visibility for volume scatter rays",
         default=True,
+        update=update_world,
     )
 
     @classmethod
@@ -1212,6 +1378,8 @@ class CyclesVisibilitySettings(bpy.types.PropertyGroup):
 
 
 class CyclesMeshSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
+
     @classmethod
     def register(cls):
         bpy.types.Mesh.cycles = PointerProperty(
@@ -1238,6 +1406,7 @@ class CyclesMeshSettings(bpy.types.PropertyGroup):
 
 
 class CyclesObjectSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     use_motion_blur: BoolProperty(
         name="Use Motion Blur",
@@ -1269,19 +1438,6 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
         name="Use Distance Cull",
         description="Allow this object and its duplicators to be culled by distance from camera",
         default=False,
-    )
-
-    use_adaptive_subdivision: BoolProperty(
-        name="Use Adaptive Subdivision",
-        description="Use adaptive render time subdivision",
-        default=False,
-    )
-
-    dicing_rate: FloatProperty(
-        name="Dicing Scale",
-        description="Multiplier for scene dicing rate (located in the Subdivision panel)",
-        min=0.1, max=1000.0, soft_min=0.5,
-        default=1.0,
     )
 
     shadow_terminator_offset: FloatProperty(
@@ -1336,6 +1492,7 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
 
 
 class CyclesCurveRenderSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     shape: EnumProperty(
         name="Shape",
@@ -1364,10 +1521,17 @@ class CyclesCurveRenderSettings(bpy.types.PropertyGroup):
 
 
 class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
 
     pass_debug_sample_count: BoolProperty(
         name="Debug Sample Count",
-        description="Number of samples/camera rays per pixel",
+        description="Number of samples per pixel taken, divided by the maximum number of samples. To analyze adaptive sampling",
+        default=False,
+        update=update_render_passes,
+    )
+    pass_render_time: BoolProperty(
+        name="Render Time",
+        description="Reports time per pixel in milliseconds. Supported only on CPU render devices",
         default=False,
         update=update_render_passes,
     )
@@ -1380,6 +1544,24 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
     use_pass_volume_indirect: BoolProperty(
         name="Volume Indirect",
         description="Deliver indirect volumetric scattering pass",
+        default=False,
+        update=update_render_passes,
+    )
+    use_pass_volume_scatter: BoolProperty(
+        name="Volume Scatter",
+        description="Contribution of paths that scattered in the volume at the primary ray",
+        default=False,
+        update=update_render_passes,
+    )
+    use_pass_volume_transmit: BoolProperty(
+        name="Volume Transmit",
+        description="Contribution of paths that transmitted through the volume at the primary ray",
+        default=False,
+        update=update_render_passes,
+    )
+    use_pass_volume_majorant: BoolProperty(
+        name="Volume Majorant",
+        description="Majorant transmittance of the volume",
         default=False,
         update=update_render_passes,
     )
@@ -1403,6 +1585,18 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
         default=False,
         update=update_render_passes,
     )
+    denoising_pass_follow_reflections: BoolProperty(
+        name="Denoising Pass Reflections",
+        description="Follow reflections for the denoising feature passes",
+        default=True,
+        update=update_render_passes,
+    )
+    denoising_pass_use_albedo_roughness_weighting: BoolProperty(
+        name="Denoising Pass Albedo Roughness Weighting",
+        description="Use roughness-based weighting of the albedo for the denoising feature passes",
+        default=True,
+        update=update_render_passes,
+    )
 
     @classmethod
     def register(cls):
@@ -1418,36 +1612,50 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
 
 
 class CyclesDeviceSettings(bpy.types.PropertyGroup):
-    id: StringProperty(name="ID")
-    name: StringProperty(name="Name")
-    use: BoolProperty(name="Use", default=True)
+    # Runtime properties
+    __slots__ = ("is_optimized", "meets_driver_requirement")
+
+    # Properties saved in preferences
+    id: StringProperty(name="ID", description="Unique identifier of the device")
+    name: StringProperty(name="Name", description="Name of the device")
+    use: BoolProperty(name="Use", description="Use device for rendering", default=True)
     type: EnumProperty(name="Type", items=enum_device_type, default='CUDA')
 
 
 class CyclesPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
+    @staticmethod
+    def default_device():
+        import platform
+        # Default to selecting the Metal compute device on Apple Silicon GPUs
+        # (drivers are tightly integrated with macOS so pose no stability risk)
+        if (platform.system() == 'Darwin') and (platform.machine() == 'arm64'):
+            return 5
+        return 0
+
     def get_device_types(self, context):
         import _cycles
         has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
 
-        list = [('NONE', "None", "Don't use compute device", 0)]
+        list = [('NONE', "None", n_("Do not use compute device"), 0)]
         if has_cuda:
-            list.append(('CUDA', "CUDA", "Use CUDA for GPU acceleration", 1))
+            list.append(('CUDA', "CUDA", n_("Use CUDA for GPU acceleration"), 1))
         if has_optix:
-            list.append(('OPTIX', "OptiX", "Use OptiX for GPU acceleration", 3))
+            list.append(('OPTIX', "OptiX", n_("Use OptiX for GPU acceleration"), 3))
         if has_hip:
-            list.append(('HIP', "HIP", "Use HIP for GPU acceleration", 4))
+            list.append(('HIP', "HIP", n_("Use HIP for GPU acceleration"), 4))
         if has_metal:
-            list.append(('METAL', "Metal", "Use Metal for GPU acceleration", 5))
+            list.append(('METAL', "Metal", n_("Use Metal for GPU acceleration"), 5))
         if has_oneapi:
-            list.append(('ONEAPI', "oneAPI", "Use oneAPI for GPU acceleration", 6))
+            list.append(('ONEAPI', "oneAPI", n_("Use oneAPI for GPU acceleration"), 6))
 
         return list
 
     compute_device_type: EnumProperty(
         name="Compute Device Type",
         description="Device to use for computation (rendering with Cycles)",
+        default=CyclesPreferences.default_device(),
         items=CyclesPreferences.get_device_types,
     )
 
@@ -1472,10 +1680,9 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     )
 
     use_hiprt: BoolProperty(
-        name="HIP RT (Experimental)",
-        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. "
-                    "This feature is experimental and some scenes may render incorrectly",
-        default=False,
+        name="HIP RT",
+        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above",
+        default=True,
     )
 
     use_oneapirt: BoolProperty(
@@ -1496,6 +1703,17 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             ('FULL', "Full", "Optimize all kernels. Fastest rendering, may result in extra background CPU usage"),
         ),
     )
+
+    # Be careful when deciding when to call this function,
+    # as Blender can crash with `_cycles.available_devices()` on some drivers.
+    def get_device_list(self, compute_device_type):
+        import _cycles
+        device_list = _cycles.available_devices(compute_device_type)
+        # Make sure device entries are up to date and not referenced before
+        # we know we won't add new devices. This way we guarantee to not
+        # hold pointers to a resized array.
+        self.update_device_entries(device_list)
+        return device_list
 
     def find_existing_device_entry(self, device):
         for device_entry in self.devices:
@@ -1520,20 +1738,20 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 # Update name in case it changed
                 entry.name = device[0]
 
-    # Gets all devices types for a compute device type.
-    def get_devices_for_type(self, compute_device_type):
-        import _cycles
+    # Gets all devices types to display in the preferences for a compute device type.
+    # This includes the CPU device.
+    def get_devices_for_type(self, compute_device_type, device_list=None):
         # Layout of the device tuples: (Name, Type, Persistent ID)
-        device_list = _cycles.available_devices(compute_device_type)
-        # Make sure device entries are up to date and not referenced before
-        # we know we don't add new devices. This way we guarantee to not
-        # hold pointers to a resized array.
-        self.update_device_entries(device_list)
+        if device_list is None:
+            device_list = self.get_device_list(compute_device_type)
+
         # Sort entries into lists
         devices = []
         cpu_devices = []
         for device in device_list:
             entry = self.find_existing_device_entry(device)
+            entry.is_optimized = device[7]
+            entry.meets_driver_requirement = device[8]
             if entry.type == compute_device_type:
                 devices.append(entry)
             elif entry.type == 'CPU':
@@ -1544,13 +1762,15 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         return devices
 
     # Refresh device list. This does not happen automatically on Blender
-    # startup due to unstable OpenCL implementations that can cause crashes.
+    # startup due to unstable drivers that can cause crashes.
     def refresh_devices(self):
-        import _cycles
         # Ensure `self.devices` is not re-allocated when the second call to
         # get_devices_for_type is made, freeing items from the first list.
         for device_type in ('CUDA', 'OPTIX', 'HIP', 'METAL', 'ONEAPI'):
-            self.update_device_entries(_cycles.available_devices(device_type))
+            # Query the device list to trigger all required updates.
+            # Note that even though the device list is unused,
+            # the function has side-effects with internal state updates.
+            _device_list = self.get_device_list(device_type)
 
     # Deprecated: use refresh_devices instead.
     def get_devices(self, compute_device_type=''):
@@ -1563,36 +1783,96 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         return self.compute_device_type
 
     def get_num_gpu_devices(self):
-        import _cycles
         compute_device_type = self.get_compute_device_type()
-        device_list = _cycles.available_devices(compute_device_type)
+
         num = 0
-        for device in device_list:
-            if device[1] != compute_device_type:
-                continue
-            for dev in self.devices:
-                if dev.use and dev.id == device[2]:
-                    num += 1
+        if compute_device_type != 'NONE':
+            for device in self.get_device_list(compute_device_type):
+                if device[1] != compute_device_type:
+                    continue
+
+                # Skip devices that do not meet the driver requirement.
+                if not device[8]:
+                    continue
+
+                for dev in self.devices:
+                    if dev.use and dev.id == device[2]:
+                        num += 1
         return num
 
     def has_multi_device(self):
-        import _cycles
         compute_device_type = self.get_compute_device_type()
-        device_list = _cycles.available_devices(compute_device_type)
-        for device in device_list:
-            if device[1] == compute_device_type:
-                continue
-            for dev in self.devices:
-                if dev.use and dev.id == device[2]:
-                    return True
+        if compute_device_type != 'NONE':
+            for device in self.get_device_list(compute_device_type):
+                if device[1] == compute_device_type:
+                    continue
+
+                # Skip devices that do not meet the driver requirement.
+                if not device[8]:
+                    continue
+
+                for dev in self.devices:
+                    if dev.use and dev.id == device[2]:
+                        return True
 
         return False
 
     def has_active_device(self):
         return self.get_num_gpu_devices() > 0
 
-    def _draw_devices(self, layout, device_type, devices):
+    def has_oidn_gpu_devices(self):
+        compute_device_type = self.get_compute_device_type()
+
+        # We need non-CPU devices, used for rendering and supporting OIDN GPU denoising
+        if compute_device_type != 'NONE':
+            for device in self.get_device_list(compute_device_type):
+                device_type = device[1]
+                if device_type == 'CPU':
+                    continue
+
+                # Skip devices that do not meet the driver requirement.
+                if not device[8]:
+                    continue
+
+                has_device_oidn_support = device[5]
+                if has_device_oidn_support and self.find_existing_device_entry(device).use:
+                    return True
+
+        return False
+
+    def has_optixdenoiser_gpu_devices(self):
+        compute_device_type = self.get_compute_device_type()
+
+        if compute_device_type == 'OPTIX':
+            # We need any OptiX devices, used for rendering
+            for device in self.get_device_list(compute_device_type):
+                device_type = device[1]
+                if device_type == 'CPU':
+                    continue
+
+                # Skip devices that do not meet the driver requirement.
+                if not device[8]:
+                    continue
+
+                has_device_optixdenoiser_support = device[6]
+                if has_device_optixdenoiser_support and self.find_existing_device_entry(device).use:
+                    return True
+
+        return False
+
+    @staticmethod
+    def _format_device_name(name):
+        import unicodedata
+        return name.replace('(TM)', unicodedata.lookup('TRADE MARK SIGN')) \
+                   .replace('(tm)', unicodedata.lookup('TRADE MARK SIGN')) \
+                   .replace('(R)', unicodedata.lookup('REGISTERED SIGN')) \
+                   .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN'))
+
+    def _draw_devices(self, layout, device_type, device_list):
         box = layout.box()
+
+        # Get preference devices, including CPU.
+        devices = self.get_devices_for_type(device_type, device_list)
 
         found_device = False
         for device in devices:
@@ -1600,77 +1880,141 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 found_device = True
                 break
 
+        optix_minimum_driver_version = "535"
+        hip_minimum_adrenalin_driver_version = "24.9.1"
+        hip_minimum_pro_driver_version = "24.Q4"
+        hip_minimum_linux_driver_version = "24.30"
+        hip_rocm_minimum_version = "6.3"
+        oneapi_minimum_windows_driver_version = "XX.X.101.8306"
+        oneapi_minimum_linux_driver_version = "XX.XX.37435.3"
+
         if not found_device:
             col = box.column(align=True)
-            col.label(text=rpt_("No compatible GPUs found for Cycles"), icon='INFO', translate=False)
+            col.label(text=rpt_("No compatible GPUs found for Cycles"), icon='STATUS_INFO', translate=False)
 
             if device_type == 'CUDA':
-                compute_capability = "3.0"
+                compute_capability = "5.0"
                 col.label(text=rpt_("Requires NVIDIA GPU with compute capability %s") % compute_capability,
                           icon='BLANK1', translate=False)
             elif device_type == 'OPTIX':
                 compute_capability = "5.0"
-                driver_version = "470"
                 col.label(text=rpt_("Requires NVIDIA GPU with compute capability %s") % compute_capability,
                           icon='BLANK1', translate=False)
-                col.label(text=rpt_("and NVIDIA driver version %s or newer") % driver_version,
+                col.label(text=rpt_("and NVIDIA driver version %s or newer") % optix_minimum_driver_version,
                           icon='BLANK1', translate=False)
             elif device_type == 'HIP':
                 import sys
                 if sys.platform[:3] == "win":
-                    driver_version = "21.Q4"
                     col.label(
-                        text=rpt_("Requires AMD GPU with Vega or RDNA architecture"),
+                        text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
-                    col.label(text=rpt_("and AMD Radeon Pro %s driver or newer") % driver_version,
-                              icon='BLANK1', translate=False)
+                    col.label(text=rpt_("and AMD Adrenalin driver %s or newer") %
+                              hip_minimum_adrenalin_driver_version, icon='BLANK1', translate=False)
+                    col.label(text=rpt_("or AMD Radeon Pro %s driver or newer") %
+                              hip_minimum_pro_driver_version, icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    driver_version = "22.10"
                     col.label(
-                        text=rpt_("Requires AMD GPU with Vega or RDNA architecture"),
+                        text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
-                    col.label(text=rpt_("and AMD driver version %s or newer") % driver_version, icon='BLANK1',
-                              translate=False)
+                    col.label(
+                        text=rpt_("and ROCm HIP Runtime %s or newer") %
+                        hip_rocm_minimum_version, icon='BLANK1', translate=False)
+                    col.label(text=rpt_("or AMD driver version %s or newer") %
+                              hip_minimum_linux_driver_version, icon='BLANK1', translate=False)
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
-                    driver_version = "XX.X.101.4824"
-                    col.label(text=rpt_("Requires Intel GPU with Xe-HPG architecture"), icon='BLANK1', translate=False)
-                    col.label(text=rpt_("and Windows driver version %s or newer") % driver_version,
-                              icon='BLANK1', translate=False)
-                elif sys.platform.startswith("linux"):
-                    driver_version = "XX.XX.25812.14"
+                    # NOTE(@sirgienko)
+                    # We need NEO driver version 35716 or higher, see oneapi/device_impl.cpp for more details.
+                    # The minimal version for Intel® Arc™ GPUs is driver 101.8331
+                    # The minimal version for Intel® Arc™ Pro GPUs is driver 101.8306
+                    # The previous driver version for Intel® Arc™ GPUs, before 101.8331, was driver 101.8250
+                    # and no intermediate versions were publicly available between 8250 and 8331 for Intel® Arc™ GPUs.
+                    # As a result, we can safely recommend users to use driver version 8306 or higher, without needing
+                    # to distinguish between Intel® Arc™ and Intel® Arc™ Pro users.
                     col.label(
-                        text=rpt_("Requires Intel GPU with Xe-HPG architecture and"),
+                        text=self._format_device_name(
+                            rpt_("Requires Intel(R) Arc(TM) GPUs or newer Intel(R) Graphics")),
+                        icon='BLANK1',
+                        translate=False)
+                    col.label(text=rpt_("with Windows driver version %s or newer") %
+                              oneapi_minimum_windows_driver_version, icon='BLANK1', translate=False)
+                elif sys.platform.startswith("linux"):
+                    col.label(
+                        text=self._format_device_name(
+                            rpt_("Requires Intel(R) Arc(TM) GPUs or newer Intel(R) Graphics")),
                         icon='BLANK1',
                         translate=False)
                     col.label(
                         text=rpt_("  - intel-level-zero-gpu or intel-compute-runtime version"),
                         icon='BLANK1',
                         translate=False)
-                    col.label(text=rpt_("    %s or newer") % driver_version, icon='BLANK1', translate=False)
+                    col.label(
+                        text=rpt_("    %s or newer") %
+                        oneapi_minimum_linux_driver_version,
+                        icon='BLANK1',
+                        translate=False)
                     col.label(text=rpt_("  - oneAPI Level-Zero Loader"), icon='BLANK1', translate=False)
             elif device_type == 'METAL':
-                silicon_mac_version = "12.2"
-                amd_mac_version = "12.3"
-                col.label(text=rpt_("Requires Apple Silicon with macOS %s or newer") % silicon_mac_version,
+                mac_version = "12.2"
+                col.label(text=rpt_("Requires Apple Silicon with macOS %s or newer") % mac_version,
                           icon='BLANK1', translate=False)
-                col.label(text=rpt_("or AMD with macOS %s or newer") % amd_mac_version, icon='BLANK1',
-                          translate=False)
             return
 
+        has_usable_gpu_device = False
         for device in devices:
-            import unicodedata
-            box.prop(
-                device, "use", text=device.name
-                .replace('(TM)', unicodedata.lookup('TRADE MARK SIGN'))
-                .replace('(tm)', unicodedata.lookup('TRADE MARK SIGN'))
-                .replace('(R)', unicodedata.lookup('REGISTERED SIGN'))
-                .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN')),
-                translate=False
-            )
+            name = self._format_device_name(device.name)
+            if not device.is_optimized:
+                name += rpt_(" (Unoptimized Performance)")
+
+            col = box.column()
+            row = col.row()
+
+            if not device.meets_driver_requirement:
+                import sys
+                row.active = False
+                name += rpt_(" (Disabled)")
+                row.prop(device, "use", text=name, translate=False)
+
+                details = ""
+                if device.type == 'OPTIX':
+                    details = rpt_("Requires NVIDIA driver version %s or newer") % optix_minimum_driver_version
+                elif device.type == 'HIP':
+                    if sys.platform[:3] == "win":
+                        details = rpt_("Requires AMD Adrenalin driver %s or newer, or AMD Radeon Pro %s driver or newer") % (
+                            hip_minimum_adrenalin_driver_version, hip_minimum_pro_driver_version)
+                    elif sys.platform.startswith("linux"):
+                        details = rpt_("Requires ROCm HIP Runtime %s or newer, or AMD driver version %s or newer") % (
+                            hip_rocm_minimum_version, hip_minimum_linux_driver_version)
+                elif device.type == 'ONEAPI':
+                    if sys.platform.startswith("win"):
+                        details = rpt_(
+                            "Requires Windows driver version %s or newer") % oneapi_minimum_windows_driver_version
+                    elif sys.platform.startswith("linux"):
+                        details = rpt_(
+                            "Requires intel-level-zero-gpu or intel-compute-runtime version %s or newer") % oneapi_minimum_linux_driver_version
+
+                if not details:
+                    details = rpt_("Driver upgrade required")
+
+                sub = col.row()
+                sub.active = False
+                sub.label(icon='BLANK1', text=details, translate=False)
+            else:
+                if device.type != 'CPU':
+                    if device.use:
+                        has_usable_gpu_device = True
+                else:
+                    # CPU is always listed last (by convention in get_devices()),
+                    # see get_devices_for_type implementation.
+                    # Grey it out if no GPU device is enabled, because CPU here
+                    # is meant as a supplement to GPU rendering. For CPU-only
+                    # rendering, select the "None" compute device type instead.
+                    if not has_usable_gpu_device:
+                        row.active = False
+                row.prop(device, "use", text=name, translate=False)
 
     def draw_impl(self, layout, context):
         row = layout.row()
@@ -1680,51 +2024,64 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         if compute_device_type == 'NONE':
             return
         row = layout.row()
-        devices = self.get_devices_for_type(compute_device_type)
+        devices = self.get_device_list(compute_device_type)
         self._draw_devices(row, compute_device_type, devices)
 
         import _cycles
-        has_peer_memory = 0
-        has_rt_api_support = False
-        for device in _cycles.available_devices(compute_device_type):
-            if device[3] and self.find_existing_device_entry(device).use:
-                has_peer_memory += 1
-            if device[4] and self.find_existing_device_entry(device).use:
-                has_rt_api_support = True
+        has_peer_memory = False
+        has_enabled_hardware_rt = False
+        has_disabled_hardware_rt = False
+        for device in devices:
+            if not self.find_existing_device_entry(device).use:
+                continue
+            if device[1] != compute_device_type:
+                continue
 
-        if has_peer_memory > 1:
+            # device[8] == DeviceInfo.meets_driver_requirement
+            # For more details see available_devices_func function in python.cpp
+            if not device[8]:
+                # Devices that do not meet the driver requirement are not used;
+                # skip them.
+                continue
+
+            # device[3] == DeviceInfo.has_peer_memory
+            if device[3]:
+                has_peer_memory = True
+
+            # device[4] == DeviceInfo.use_hardware_raytracing
+            if device[4]:
+                has_enabled_hardware_rt = True
+            else:
+                has_disabled_hardware_rt = True
+
+        # Any device without RT support will disable it for all.
+        has_hardware_rt = has_enabled_hardware_rt and not has_disabled_hardware_rt
+
+        if has_peer_memory:
             row = layout.row()
             row.use_property_split = True
             row.prop(self, "peer_memory")
 
         if compute_device_type == 'METAL':
             import platform
-            import re
-            is_navi_2 = False
-            for device in devices:
-                if re.search(r"((RX)|(Pro)|(PRO))\s+W?6\d00X", device.name):
-                    is_navi_2 = True
-                    break
 
-            # MetalRT only works on Apple Silicon and Navi2.
-            is_arm64 = platform.machine() == 'arm64'
-            if is_arm64 or (is_navi_2 and has_rt_api_support):
+            # MetalRT only works on Apple Silicon.
+            if (platform.machine() == 'arm64'):
                 col = layout.column()
                 col.use_property_split = True
-                # Kernel specialization is only supported on Apple Silicon
-                if is_arm64:
-                    col.prop(self, "kernel_optimization_level")
-                if has_rt_api_support:
-                    col.prop(self, "metalrt")
+                col.prop(self, "kernel_optimization_level")
+                row = col.row()
+                row.active = has_hardware_rt
+                row.prop(self, "metalrt")
 
         if compute_device_type == 'HIP':
-            has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
             row = layout.row()
-            row.enabled = has_hiprt
+            row.active = has_hardware_rt
             row.prop(self, "use_hiprt")
 
         elif compute_device_type == 'ONEAPI' and _cycles.with_embree_gpu:
             row = layout.row()
+            row.active = has_hardware_rt
             row.prop(self, "use_oneapirt")
 
     def draw(self, context):
@@ -1732,10 +2089,16 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
 
 class CyclesView3DShadingSettings(bpy.types.PropertyGroup):
+    __slots__ = ()
+
+    prefs = bpy.context.preferences
+    use_debug = prefs.experimental.use_cycles_debug and prefs.view.show_developer_ui
+
     render_pass: EnumProperty(
         name="Render Pass",
         description="Render pass to show in the 3D Viewport",
-        items=enum_view3d_shading_render_pass,
+        items=enum_view3d_shading_render_pass +
+        enum_view3d_debug_render_pass if use_debug else enum_view3d_shading_render_pass,
         default='COMBINED',
     )
     show_active_pixels: BoolProperty(
@@ -1746,6 +2109,7 @@ class CyclesView3DShadingSettings(bpy.types.PropertyGroup):
 
 def register():
     bpy.utils.register_class(CyclesRenderSettings)
+    bpy.utils.register_class(CyclesCustomCameraSettings)
     bpy.utils.register_class(CyclesMaterialSettings)
     bpy.utils.register_class(CyclesLightSettings)
     bpy.utils.register_class(CyclesWorldSettings)
@@ -1766,6 +2130,7 @@ def register():
 
 def unregister():
     bpy.utils.unregister_class(CyclesRenderSettings)
+    bpy.utils.unregister_class(CyclesCustomCameraSettings)
     bpy.utils.unregister_class(CyclesMaterialSettings)
     bpy.utils.unregister_class(CyclesLightSettings)
     bpy.utils.unregister_class(CyclesWorldSettings)

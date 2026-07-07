@@ -10,34 +10,31 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_gpencil_legacy_types.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_string_utils.hh"
+#include "BLI_task.hh"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-#include "BLI_task.h"
-
-#include "BKE_context.hh"
-#include "BKE_image.h"
-#include "BKE_report.h"
+#include "BKE_image.hh"
+#include "BKE_report.hh"
 #include "BKE_unit.hh"
 
-#include "ED_node.hh"
 #include "ED_screen.hh"
 
-#include "WM_api.hh"
+#include "BLT_translation.hh"
 
-#include "UI_interface.hh"
-
-#include "BLT_translation.h"
+#include "UI_interface_types.hh"
+#include "UI_view2d.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Translate) Custom Data
@@ -59,6 +56,8 @@ struct TranslateCustomData {
   struct {
     enum eTranslateRotateMode rotate_mode;
   } prev;
+
+  float3 snap_target_grid;
 };
 
 /** \} */
@@ -67,20 +66,10 @@ struct TranslateCustomData {
 /** \name Transform (Translation) Element
  * \{ */
 
-/**
- * \note Small arrays / data-structures should be stored copied for faster memory access.
- */
-struct TransDataArgs_Translate {
-  const TransInfo *t;
-  const TransDataContainer *tc;
-  float3 snap_source_local;
-  float3 vec;
-  enum eTranslateRotateMode rotate_mode;
-};
-
 static void transdata_elem_translate(const TransInfo *t,
                                      const TransDataContainer *tc,
                                      TransData *td,
+                                     TransDataExtension *td_ext,
                                      const float3 &snap_source_local,
                                      const float3 &vec,
                                      enum eTranslateRotateMode rotate_mode)
@@ -117,7 +106,7 @@ static void transdata_elem_translate(const TransInfo *t,
       rotation_between_vecs_to_mat3(mat, original_normal, t->tsnap.snapNormal);
     }
 
-    ElementRotation_ex(t, tc, td, mat, snap_source_local);
+    ElementRotation_ex(t, tc, td, td_ext, mat, snap_source_local);
 
     if (td->loc) {
       use_rotate_offset = true;
@@ -142,9 +131,9 @@ static void transdata_elem_translate(const TransInfo *t,
 
   if (t->options & CTX_GPENCIL_STROKES) {
     /* Grease pencil multi-frame falloff. */
-    bGPDstroke *gps = (bGPDstroke *)td->extra;
-    if (gps != nullptr) {
-      mul_v3_fl(tvec, td->factor * gps->runtime.multi_frame_falloff);
+    float *gp_falloff = static_cast<float *>(td->extra);
+    if (gp_falloff != nullptr) {
+      mul_v3_fl(tvec, td->factor * *gp_falloff);
     }
     else {
       mul_v3_fl(tvec, td->factor);
@@ -164,19 +153,6 @@ static void transdata_elem_translate(const TransInfo *t,
   constraintTransLim(t, tc, td);
 }
 
-static void transdata_elem_translate_fn(void *__restrict iter_data_v,
-                                        const int iter,
-                                        const TaskParallelTLS *__restrict /*tls*/)
-{
-  TransDataArgs_Translate *data = static_cast<TransDataArgs_Translate *>(iter_data_v);
-  TransData *td = &data->tc->data[iter];
-  if (td->flag & TD_SKIP) {
-    return;
-  }
-  transdata_elem_translate(
-      data->t, data->tc, td, data->snap_source_local, data->vec, data->rotate_mode);
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -186,16 +162,12 @@ static void transdata_elem_translate_fn(void *__restrict iter_data_v,
 static void translate_dist_to_str(char *r_str,
                                   const int r_str_maxncpy,
                                   const float val,
-                                  const UnitSettings *unit)
+                                  const UnitSettings &unit,
+                                  const bool high_precision)
 {
-  if (unit) {
-    BKE_unit_value_as_string(
-        r_str, r_str_maxncpy, val * unit->scale_length, 4, B_UNIT_LENGTH, unit, false);
-  }
-  else {
-    /* Check range to prevent string buffer overflow. */
-    BLI_snprintf(r_str, r_str_maxncpy, IN_RANGE_INCL(val, -1e10f, 1e10f) ? "%.4f" : "%.4e", val);
-  }
+  const int precision = high_precision ? 6 : 4;
+  BKE_unit_value_as_string_scaled(
+      r_str, r_str_maxncpy, val, precision * -1, B_UNIT_LENGTH, unit, false, true);
 }
 
 static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_DRAW_STR])
@@ -205,13 +177,13 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
   char dist_str[NUM_STR_REP_LEN];
   float dist;
 
-  UnitSettings *unit = nullptr;
-  if (!(t->flag & T_2D_EDIT)) {
-    unit = &t->scene->unit;
+  UnitSettings unit = t->scene->unit;
+  if ((t->flag & T_2D_EDIT)) {
+    unit.system = USER_UNIT_NONE;
   }
 
   if (hasNumInput(&t->num)) {
-    outputNumInput(&(t->num), dvec_str[0], &t->scene->unit);
+    outputNumInput(&(t->num), dvec_str[0], t->scene->unit);
     dist = len_v3(t->num.val);
   }
   else {
@@ -226,6 +198,10 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
       float val = ival + dvec[0];
       snapFrameTransform(t, autosnap, ival, val, &val);
       dvec[0] = val - ival;
+    }
+
+    if (t->flag & T_2D_EDIT) {
+      applyAspectRatio(t, dvec);
     }
 
     if (t->con.mode & CON_APPLY) {
@@ -244,96 +220,98 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
       }
     }
 
-    if (t->flag & T_2D_EDIT) {
-      applyAspectRatio(t, dvec);
-    }
-
     dist = len_v3(dvec);
 
     for (int i = 0; i < 3; i++) {
-      translate_dist_to_str(dvec_str[i], sizeof(dvec_str[i]), dvec[i], unit);
+      char temp_vec_str[NUM_STR_REP_LEN];
+
+      translate_dist_to_str(
+          temp_vec_str, sizeof(temp_vec_str), dvec[i], unit, t->modifiers & MOD_PRECISION);
+      STRNCPY_UTF8(dvec_str[i], BLI_string_pad_number_sign(temp_vec_str).c_str());
     }
   }
 
-  translate_dist_to_str(dist_str, sizeof(dist_str), dist, unit);
+  translate_dist_to_str(dist_str, sizeof(dist_str), dist, unit, t->modifiers & MOD_PRECISION);
 
   if (t->flag & T_PROP_EDIT_ALL) {
     char prop_str[NUM_STR_REP_LEN];
-    translate_dist_to_str(prop_str, sizeof(prop_str), t->prop_size, unit);
+    translate_dist_to_str(
+        prop_str, sizeof(prop_str), t->prop_size, unit, t->modifiers & MOD_PRECISION);
 
-    ofs += BLI_snprintf_rlen(str + ofs,
-                             UI_MAX_DRAW_STR - ofs,
-                             "%s %s: %s   ",
-                             RPT_("Proportional Size"),
-                             t->proptext,
-                             prop_str);
+    ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                  UI_MAX_DRAW_STR - ofs,
+                                  "%s %s: %s   ",
+                                  IFACE_("Proportional Size"),
+                                  t->proptext,
+                                  prop_str);
   }
 
   if (t->flag & T_AUTOIK) {
     short chainlen = t->settings->autoik_chainlen;
     if (chainlen) {
-      ofs += BLI_snprintf_rlen(
-          str + ofs, UI_MAX_DRAW_STR - ofs, RPT_("Auto IK Length: %d"), chainlen);
-      ofs += BLI_strncpy_rlen(str + ofs, "   ", UI_MAX_DRAW_STR - ofs);
+      ofs += BLI_snprintf_utf8_rlen(
+          str + ofs, UI_MAX_DRAW_STR - ofs, IFACE_("Auto IK Length: %d"), chainlen);
+      ofs += BLI_strncpy_utf8_rlen(str + ofs, "   ", UI_MAX_DRAW_STR - ofs);
     }
   }
 
   if (t->con.mode & CON_APPLY) {
     switch (t->num.idx_max) {
       case 0:
-        ofs += BLI_snprintf_rlen(
+        ofs += BLI_snprintf_utf8_rlen(
             str + ofs, UI_MAX_DRAW_STR - ofs, "D: %s (%s)%s", dvec_str[0], dist_str, t->con.text);
         break;
       case 1:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 UI_MAX_DRAW_STR - ofs,
-                                 "D: %s   D: %s (%s)%s",
-                                 dvec_str[0],
-                                 dvec_str[1],
-                                 dist_str,
-                                 t->con.text);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      UI_MAX_DRAW_STR - ofs,
+                                      "D: %s   D: %s (%s)%s",
+                                      dvec_str[0],
+                                      dvec_str[1],
+                                      dist_str,
+                                      t->con.text);
         break;
       case 2:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 UI_MAX_DRAW_STR - ofs,
-                                 "D: %s   D: %s   D: %s (%s)%s",
-                                 dvec_str[0],
-                                 dvec_str[1],
-                                 dvec_str[2],
-                                 dist_str,
-                                 t->con.text);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      UI_MAX_DRAW_STR - ofs,
+                                      "D: %s   D: %s   D: %s (%s)%s",
+                                      dvec_str[0],
+                                      dvec_str[1],
+                                      dvec_str[2],
+                                      dist_str,
+                                      t->con.text);
         break;
     }
   }
   else {
     if (t->spacetype == SPACE_NODE) {
-      SpaceNode *snode = (SpaceNode *)t->area->spacedata.first;
+      SpaceNode *snode = static_cast<SpaceNode *>(t->area->spacedata.first);
       if (U.uiflag & USER_NODE_AUTO_OFFSET) {
         const char *str_dir = (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT) ?
-                                  RPT_("right") :
-                                  RPT_("left");
-        ofs += BLI_snprintf_rlen(str, UI_MAX_DRAW_STR, RPT_("Auto-offset direction: %s"), str_dir);
+                                  IFACE_("right") :
+                                  IFACE_("left");
+        ofs += BLI_snprintf_utf8_rlen(
+            str, UI_MAX_DRAW_STR, IFACE_("Auto-offset direction: %s"), str_dir);
       }
     }
     else {
       if (t->flag & T_2D_EDIT) {
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 UI_MAX_DRAW_STR - ofs,
-                                 "Dx: %s   Dy: %s (%s)%s",
-                                 dvec_str[0],
-                                 dvec_str[1],
-                                 dist_str,
-                                 t->con.text);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      UI_MAX_DRAW_STR - ofs,
+                                      "Dx: %s   Dy: %s (%s)%s",
+                                      dvec_str[0],
+                                      dvec_str[1],
+                                      dist_str,
+                                      t->con.text);
       }
       else {
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 UI_MAX_DRAW_STR - ofs,
-                                 "Dx: %s   Dy: %s   Dz: %s (%s)%s",
-                                 dvec_str[0],
-                                 dvec_str[1],
-                                 dvec_str[2],
-                                 dist_str,
-                                 t->con.text);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      UI_MAX_DRAW_STR - ofs,
+                                      "Dx: %s   Dy: %s   Dz: %s (%s)%s",
+                                      dvec_str[0],
+                                      dvec_str[1],
+                                      dvec_str[2],
+                                      dist_str,
+                                      t->con.text);
       }
     }
   }
@@ -345,115 +323,18 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
 /** \name Transform (Translation) Snapping
  * \{ */
 
-static void translate_snap_target_grid_ensure(TransInfo *t)
-{
-  /* Only need to calculate once. */
-  if ((t->tsnap.status & SNAP_TARGET_GRID_FOUND) == 0) {
-    if (t->data_type == &TransConvertType_Cursor3D) {
-      /* Use a fallback when transforming the cursor.
-       * In this case the center is _not_ derived from the cursor which is being transformed. */
-      copy_v3_v3(t->tsnap.snap_target_grid, TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->data->iloc);
-    }
-    else if (t->around == V3D_AROUND_CURSOR) {
-      /* Use a fallback for cursor selection,
-       * this isn't useful as a global center for absolute grid snapping
-       * since its not based on the position of the selection. */
-      tranform_snap_target_median_calc(t, t->tsnap.snap_target_grid);
-    }
-    else {
-      copy_v3_v3(t->tsnap.snap_target_grid, t->center_global);
-    }
-    t->tsnap.status |= SNAP_TARGET_GRID_FOUND;
-  }
-}
-
-static void translate_snap_grid_apply(TransInfo *t,
-                                      const int max_index,
-                                      const float grid_dist[3],
-                                      const float loc[3],
-                                      float r_out[3])
-{
-  BLI_assert(max_index <= 2);
-  translate_snap_target_grid_ensure(t);
-  const float *center_global = t->tsnap.snap_target_grid;
-  const float *asp = t->aspect;
-
-  float in[3];
-  if (t->con.mode & CON_APPLY) {
-    /* We need to clear the previous Snap to Grid result,
-     * otherwise #t->con.applyVec will have no effect. */
-    t->tsnap.target_type = SCE_SNAP_TO_NONE;
-    t->con.applyVec(t, nullptr, nullptr, loc, in);
-  }
-  else {
-    copy_v3_v3(in, loc);
-  }
-
-  for (int i = 0; i <= max_index; i++) {
-    const float iter_fac = grid_dist[i] * asp[i];
-    r_out[i] = iter_fac * roundf((in[i] + center_global[i]) / iter_fac) - center_global[i];
-  }
-
-  if ((t->con.mode & CON_APPLY) &&
-      (t->spacemtx[0][0] != 1.0f || t->spacemtx[1][1] != 1.0f || t->spacemtx[2][2] != 1.0f))
-  {
-    /* The space matrix is not identity, we need to constrain the result again. */
-    t->con.applyVec(t, nullptr, nullptr, r_out, r_out);
-  }
-}
-
-static bool translate_snap_grid(TransInfo *t, float *val)
-{
-  if (!transform_snap_is_active(t)) {
-    return false;
-  }
-
-  if (!(t->tsnap.mode & SCE_SNAP_TO_GRID) || validSnap(t)) {
-    /* Don't do grid snapping if there is a valid snap point. */
-    return false;
-  }
-
-  /* Don't do grid snapping if not in 3D viewport or UV editor */
-  if (!ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE)) {
-    return false;
-  }
-
-  if (t->mode != TFM_TRANSLATION) {
-    return false;
-  }
-
-  float grid_dist[3];
-  copy_v3_v3(grid_dist, t->snap_spatial);
-  if (t->modifiers & MOD_PRECISION) {
-    mul_v3_fl(grid_dist, t->snap_spatial_precision);
-  }
-
-  /* Early bailing out if no need to snap */
-  if (is_zero_v3(grid_dist)) {
-    return false;
-  }
-
-  translate_snap_grid_apply(t, t->idx_max, grid_dist, val, val);
-  t->tsnap.target_type = SCE_SNAP_TO_GRID;
-  return true;
-}
-
 static void ApplySnapTranslation(TransInfo *t, float vec[3])
 {
   float point[3];
   getSnapPoint(t, point);
 
-  if (t->spacetype == SPACE_NODE) {
-    char border = t->tsnap.snapNodeBorder;
-    if (border & (NODE_LEFT | NODE_RIGHT)) {
-      vec[0] = point[0] - t->tsnap.snap_source[0];
+  if (t->spacetype == SPACE_SEQ) {
+    if (t->region->regiontype == RGN_TYPE_PREVIEW) {
+      snap_sequencer_image_apply_translate(t, vec);
     }
-    if (border & (NODE_BOTTOM | NODE_TOP)) {
-      vec[1] = point[1] - t->tsnap.snap_source[1];
+    else {
+      snap_sequencer_apply_seqslide(t, vec);
     }
-  }
-  else if (t->spacetype == SPACE_SEQ) {
-    transform_snap_sequencer_apply_translate(t, vec);
   }
   else {
     if (t->spacetype == SPACE_VIEW3D) {
@@ -461,13 +342,56 @@ static void ApplySnapTranslation(TransInfo *t, float vec[3])
         if (ED_view3d_project_float_global(t->region, point, point, V3D_PROJ_TEST_NOP) !=
             V3D_PROJ_RET_OK)
         {
-          zero_v3(point); /* no good answer here... */
+          zero_v3(point); /* No good answer here... */
         }
       }
     }
 
     sub_v3_v3v3(vec, point, t->tsnap.snap_source);
   }
+}
+static void translate_snap_increment_init(const TransInfo *t)
+{
+  if (!(t->tsnap.flag & SCE_SNAP_ABS_GRID)) {
+    return;
+  }
+
+  TranslateCustomData *custom_data = static_cast<TranslateCustomData *>(t->custom.mode.data);
+  if (t->data_type == &TransConvertType_Cursor3D) {
+    /* Use a fallback when transforming the cursor.
+     * In this case the center is _not_ derived from the cursor which is being transformed. */
+    custom_data->snap_target_grid = TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->data->iloc;
+  }
+  else if (t->around == V3D_AROUND_CURSOR) {
+    /* Use a fallback for cursor selection,
+     * this isn't useful as a global center for absolute grid snapping
+     * since its not based on the position of the selection. */
+    tranform_snap_target_median_calc(t, custom_data->snap_target_grid);
+  }
+  else {
+    custom_data->snap_target_grid = t->center_global;
+  }
+}
+
+static bool translate_snap_increment(const TransInfo *t, float *r_val)
+{
+  if (!transform_snap_increment_ex(t, (t->con.mode & CON_APPLY) != 0, r_val)) {
+    return false;
+  }
+
+  if (t->tsnap.flag & SCE_SNAP_ABS_GRID) {
+    TranslateCustomData *custom_data = static_cast<TranslateCustomData *>(t->custom.mode.data);
+
+    float3 absolute_grid_snap_offset = custom_data->snap_target_grid;
+    transform_snap_increment_ex(t, (t->con.mode & CON_APPLY) != 0, absolute_grid_snap_offset);
+    absolute_grid_snap_offset -= custom_data->snap_target_grid;
+    add_v3_v3(r_val, absolute_grid_snap_offset);
+
+    if (t->con.mode & CON_APPLY) {
+      t->con.applyVec(t, nullptr, nullptr, r_val, r_val);
+    }
+  }
+  return true;
 }
 
 /** \} */
@@ -504,36 +428,25 @@ static void applyTranslationValue(TransInfo *t, const float vec[3])
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    float3 snap_source_local;
+    float3 snap_source_local(0);
     if (rotate_mode != TRANSLATE_ROTATE_OFF) {
       snap_source_local = t->tsnap.snap_source;
       if (tc->use_local_mat) {
-        /* The pivot has to be in local-space (see #49494) */
+        /* The pivot has to be in local-space (see #49494). */
         snap_source_local = math::transform_point(float4x4(tc->imat), snap_source_local);
       }
     }
 
-    if (tc->data_len < TRANSDATA_THREAD_LIMIT) {
-      TransData *td = tc->data;
-      for (int i = 0; i < tc->data_len; i++, td++) {
+    threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        TransData *td = &tc->data[i];
+        TransDataExtension *td_ext = tc->data_ext ? &tc->data_ext[i] : nullptr;
         if (td->flag & TD_SKIP) {
           continue;
         }
-        transdata_elem_translate(t, tc, td, snap_source_local, vec, rotate_mode);
+        transdata_elem_translate(t, tc, td, td_ext, snap_source_local, vec, rotate_mode);
       }
-    }
-    else {
-      TransDataArgs_Translate data{};
-      data.t = t;
-      data.tc = tc;
-      data.snap_source_local = snap_source_local;
-      data.vec = vec;
-      data.rotate_mode = rotate_mode;
-
-      TaskParallelSettings settings;
-      BLI_parallel_range_settings_defaults(&settings);
-      BLI_task_parallel_range(0, tc->data_len, &data, transdata_elem_translate_fn, &settings);
-    }
+    });
   }
 
   custom_data->prev.rotate_mode = rotate_mode;
@@ -617,7 +530,6 @@ static void applyTranslation(TransInfo *t)
     }
 
     transform_snap_mixed_apply(t, global_dir);
-    translate_snap_grid(t, global_dir);
 
     if (t->con.mode & CON_APPLY) {
       float in[3];
@@ -627,9 +539,7 @@ static void applyTranslation(TransInfo *t)
 
     float incr_dir[3];
     copy_v3_v3(incr_dir, global_dir);
-    if (!(transform_snap_is_active(t) && validSnap(t)) &&
-        transform_snap_increment_ex(t, (t->con.mode & CON_APPLY) != 0, incr_dir))
-    {
+    if (!(transform_snap_is_active(t) && validSnap(t)) && translate_snap_increment(t, incr_dir)) {
 
       /* Test for mixed snap with grid. */
       float snap_dist_sq = FLT_MAX;
@@ -644,7 +554,7 @@ static void applyTranslation(TransInfo *t)
 
   applyTranslationValue(t, global_dir);
 
-  /* evil hack - redo translation if clipping needed */
+  /* Evil hack - redo translation if clipping needed. */
   if (t->flag & T_CLIP_UV && clip_uv_transform_translation(t, global_dir)) {
     applyTranslationValue(t, global_dir);
 
@@ -672,7 +582,7 @@ static void applyTranslationMatrix(TransInfo *t, float mat_xform[4][4])
 static void initTranslation(TransInfo *t, wmOperator * /*op*/)
 {
   if (t->spacetype == SPACE_ACTION) {
-    /* this space uses time translate */
+    /* This space uses time translate. */
     BKE_report(t->reports,
                RPT_ERROR,
                "Use 'Time_Translate' transform mode instead of 'Translation' mode "
@@ -687,10 +597,22 @@ static void initTranslation(TransInfo *t, wmOperator * /*op*/)
   t->num.flag = 0;
   t->num.idx_max = t->idx_max;
 
-  t->snap[0] = t->snap_spatial[0];
-  t->snap[1] = t->snap_spatial[0] * t->snap_spatial_precision;
+  float3 aspect = t->aspect;
+  /* Custom aspect for fcurve. */
+  if ((t->spacetype == SPACE_GRAPH) && (t->region != nullptr)) {
+    View2D *v2d = &t->region->v2d;
+    Scene *scene = t->scene;
+    SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(t->area->spacedata.first);
+    const bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) &&
+                                 (sipo->flag & SIPO_DRAWTIME);
+    aspect[0] = ui::view2d_grid_resolution_x(v2d, scene, display_seconds);
+    aspect[1] = ui::view2d_grid_resolution_y__values(v2d, 10);
+  }
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  t->increment = t->snap_spatial * aspect;
+  t->increment_precision = t->snap_spatial_precision;
+
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   if (t->spacetype == SPACE_VIEW3D) {
     /* Handling units makes only sense in 3Dview... See #38877. */
@@ -708,11 +630,12 @@ static void initTranslation(TransInfo *t, wmOperator * /*op*/)
   transform_mode_default_modal_orientation_set(
       t, (t->options & CTX_CAMERA) ? V3D_ORIENT_VIEW : V3D_ORIENT_GLOBAL);
 
-  TranslateCustomData *custom_data = static_cast<TranslateCustomData *>(
-      MEM_callocN(sizeof(*custom_data), __func__));
+  TranslateCustomData *custom_data = MEM_new_zeroed<TranslateCustomData>(__func__);
   custom_data->prev.rotate_mode = TRANSLATE_ROTATE_OFF;
   t->custom.mode.data = custom_data;
   t->custom.mode.use_free = true;
+
+  translate_snap_increment_init(t);
 }
 
 /** \} */
@@ -727,3 +650,5 @@ TransModeInfo TransMode_translate = {
     /*snap_apply_fn*/ ApplySnapTranslation,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

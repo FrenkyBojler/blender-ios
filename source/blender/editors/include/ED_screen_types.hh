@@ -8,9 +8,13 @@
 
 #pragma once
 
-#include "BLI_rect.h"
+#include "DNA_vec_types.h"
+
+namespace blender {
 
 struct ARegion;
+struct Scene;
+struct ViewLayer;
 
 /* ----------------------------------------------------- */
 
@@ -18,13 +22,26 @@ struct ARegion;
  * For animation playback operator, stored in #bScreen.animtimer.customdata.
  */
 struct ScreenAnimData {
-  ARegion *region; /* do not read from this, only for comparing if region exists */
+  /** Do not read from this, only for comparing if region exists. */
+  ARegion *region;
+
+  /* The Scene and the View Layer that the animation timer is playing. */
+  Scene *scene;
+  ViewLayer *view_layer;
+  /* For sequencer scenes, account for scene syncing during playback. */
+  bool do_scene_syncing;
+
   short redraws;
-  short flag;                 /* flags for playback */
-  int sfra;                   /* frame that playback was started from */
-  int nextfra;                /* next frame to go to (when ANIMPLAY_FLAG_USE_NEXT_FRAME is set) */
-  double lagging_frame_count; /* used for frame dropping */
-  bool from_anim_edit;        /* playback was invoked from animation editor */
+  /** Flags for playback */
+  short flag;
+  /** Frame that playback was started from */
+  int sfra;
+  /** Next frame to go to (when ANIMPLAY_FLAG_USE_NEXT_FRAME is set) */
+  int nextfra;
+  /** Used for frame dropping */
+  double lagging_frame_count;
+  /** Playback was invoked from animation editor */
+  bool from_anim_edit;
 };
 
 /** #ScreenAnimData.flag */
@@ -43,7 +60,7 @@ enum {
 
 /* ----------------------------------------------------- */
 
-/* Enum for Action Zone Edges. Which edge of area is action zone. */
+/** Enum for Action Zone Edges. Which edge of area is action zone. */
 enum AZEdge {
   /** Region located on the left, _right_ edge is action zone.
    * Region minimized to the top left */
@@ -64,22 +81,22 @@ enum AZScrollDirection {
   AZ_SCROLL_HOR,
 };
 
-/* for editing areas/regions */
+/** For editing areas/regions. */
 struct AZone {
   AZone *next, *prev;
   ARegion *region;
   int type;
 
   union {
-    /* region-azone, which of the edges (only for AZONE_REGION) */
+    /** Region-AZone, which of the edges (only for #AZONE_REGION). */
     AZEdge edge;
     AZScrollDirection direction;
   };
-  /* for draw */
+  /** For drawing. */
   short x1, y1, x2, y2;
-  /* for clip */
+  /** For clip. */
   rcti rect;
-  /* for fade in/out */
+  /** For fade in/out. */
   float alpha;
 };
 
@@ -99,6 +116,10 @@ enum {
    */
   AZONE_REGION,
   /**
+   * Widget at the very center of the 3D Viewport Quad View for resizing.
+   */
+  AZONE_REGION_QUAD,
+  /**
    * Used when in editor full-screen draw a corner to return to normal mode.
    */
   AZONE_FULLSCREEN,
@@ -108,3 +129,5 @@ enum {
    */
   AZONE_REGION_SCROLL,
 };
+
+}  // namespace blender

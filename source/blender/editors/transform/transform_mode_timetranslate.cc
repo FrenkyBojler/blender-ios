@@ -8,26 +8,25 @@
 
 #include <cstdlib>
 
-#include "DNA_anim_types.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
 
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-
-#include "BKE_context.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_types.hh"
 #include "UI_view2d.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Animation Translation)
@@ -38,9 +37,9 @@ static void headerTimeTranslate(TransInfo *t, char str[UI_MAX_DRAW_STR])
   char tvec[NUM_STR_REP_LEN * 3];
   int ofs = 0;
 
-  /* if numeric input is active, use results from that, otherwise apply snapping to result */
+  /* If numeric input is active, use results from that, otherwise apply snapping to result. */
   if (hasNumInput(&t->num)) {
-    outputNumInput(&(t->num), tvec, &t->scene->unit);
+    outputNumInput(&(t->num), tvec, t->scene->unit);
   }
   else {
     eSnapMode snap_mode = t->tsnap.mode;
@@ -53,26 +52,26 @@ static void headerTimeTranslate(TransInfo *t, char str[UI_MAX_DRAW_STR])
     if (snap_mode == SCE_SNAP_TO_SECOND) {
       /* Convert to seconds. */
       const Scene *scene = t->scene;
-      delta_x /= FPS;
-      val /= FPS;
+      delta_x /= scene->frames_per_second();
+      val /= scene->frames_per_second();
     }
 
     if (snap_mode == SCE_SNAP_TO_FRAME) {
-      BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.2f (%.4f)", delta_x, val);
+      BLI_snprintf_utf8(&tvec[0], NUM_STR_REP_LEN, "%.2f (%.4f)", delta_x, val);
     }
     else if (snap_mode == SCE_SNAP_TO_SECOND) {
-      BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.2f sec (%.4f)", delta_x, val);
+      BLI_snprintf_utf8(&tvec[0], NUM_STR_REP_LEN, "%.2f sec (%.4f)", delta_x, val);
     }
     else {
-      BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", delta_x);
+      BLI_snprintf_utf8(&tvec[0], NUM_STR_REP_LEN, "%.4f", delta_x);
     }
   }
 
-  ofs += BLI_snprintf_rlen(str, UI_MAX_DRAW_STR, RPT_("DeltaX: %s"), &tvec[0]);
+  ofs += BLI_snprintf_utf8_rlen(str, UI_MAX_DRAW_STR, IFACE_("DeltaX: %s"), &tvec[0]);
 
   if (t->flag & T_PROP_EDIT_ALL) {
-    ofs += BLI_snprintf_rlen(
-        str + ofs, UI_MAX_DRAW_STR - ofs, RPT_(" Proportional size: %.2f"), t->prop_size);
+    ofs += BLI_snprintf_utf8_rlen(
+        str + ofs, UI_MAX_DRAW_STR - ofs, IFACE_(" Proportional size: %.2f"), t->prop_size);
   }
 }
 
@@ -99,20 +98,20 @@ static void applyTimeTranslateValue(TransInfo *t, const float deltax)
 
 static void applyTimeTranslate(TransInfo *t)
 {
-  View2D *v2d = (View2D *)t->view;
+  View2D *v2d = static_cast<View2D *>(t->view);
   char str[UI_MAX_DRAW_STR];
 
-  /* calculate translation amount from mouse movement - in 'time-grid space' */
+  /* Calculate translation amount from mouse movement - in 'time-grid space'. */
   if (t->flag & T_MODAL) {
     float cval[2], sval[2];
-    UI_view2d_region_to_view(v2d, t->mval[0], t->mval[0], &cval[0], &cval[1]);
-    UI_view2d_region_to_view(v2d, t->mouse.imval[0], t->mouse.imval[0], &sval[0], &sval[1]);
+    ui::view2d_region_to_view(v2d, t->mval[0], t->mval[0], &cval[0], &cval[1]);
+    ui::view2d_region_to_view(v2d, t->mouse.imval[0], t->mouse.imval[0], &sval[0], &sval[1]);
 
-    /* we only need to calculate effect for time (applyTimeTranslate only needs that) */
+    /* We only need to calculate effect for time (#applyTimeTranslate only needs that). */
     t->values[0] = cval[0] - sval[0];
   }
 
-  /* handle numeric-input stuff */
+  /* Handle numeric-input stuff. */
   t->vec[0] = t->values[0];
   applyNumInput(&t->num, &t->vec[0]);
   t->values_final[0] = t->vec[0];
@@ -127,7 +126,7 @@ static void applyTimeTranslate(TransInfo *t)
 
 static void initTimeTranslate(TransInfo *t, wmOperator * /*op*/)
 {
-  /* this tool is only really available in the Action Editor... */
+  /* This tool is only really available in the Action Editor. */
   if (!ELEM(t->spacetype, SPACE_ACTION, SPACE_SEQ)) {
     t->state = TRANS_CANCEL;
   }
@@ -140,9 +139,10 @@ static void initTimeTranslate(TransInfo *t, wmOperator * /*op*/)
   t->num.idx_max = t->idx_max;
 
   /* Initialize snap like for everything else. */
-  t->snap[0] = t->snap[1] = 1.0f;
+  t->increment[0] = 1.0f;
+  t->increment_precision = 1.0f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   /* No time unit supporting frames currently. */
   t->num.unit_type[0] = B_UNIT_NONE;
@@ -160,3 +160,5 @@ TransModeInfo TransMode_timetranslate = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

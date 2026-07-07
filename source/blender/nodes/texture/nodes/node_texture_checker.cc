@@ -6,17 +6,18 @@
  * \ingroup texnodes
  */
 
-#include "NOD_texture.h"
 #include "node_texture_util.hh"
 #include <cmath>
 
-static bNodeSocketTemplate inputs[] = {
+namespace blender {
+
+static bke::bNodeSocketTemplate inputs[] = {
     {SOCK_RGBA, N_("Color1"), 1.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_RGBA, N_("Color2"), 1.0f, 1.0f, 1.0f, 1.0f},
     {SOCK_FLOAT, N_("Size"), 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 100.0f, PROP_UNSIGNED},
     {-1, ""},
 };
-static bNodeSocketTemplate outputs[] = {
+static bke::bNodeSocketTemplate outputs[] = {
     {SOCK_RGBA, N_("Color")},
     {-1, ""},
 };
@@ -53,12 +54,17 @@ static void exec(void *data,
 
 void register_node_type_tex_checker()
 {
-  static bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_CHECKER, "Checker", NODE_CLASS_PATTERN);
-  blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
+  tex_node_type_base(&ntype, "TextureNodeChecker"_ustr, TEX_NODE_CHECKER);
+  ntype.ui_name = "Checker";
+  ntype.enum_name_legacy = "CHECKER";
+  ntype.nclass = NODE_CLASS_PATTERN;
+  bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
   ntype.flag |= NODE_PREVIEW;
 
-  nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

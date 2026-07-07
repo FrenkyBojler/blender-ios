@@ -9,26 +9,19 @@
 #include <cstdlib>
 
 #include "DNA_image_types.h"
-#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_utildefines.h"
+#include "BLT_translation.hh"
 
-#include "BKE_image.h"
-#include "BKE_image_format.h"
-#include "BKE_node_tree_update.hh"
-
-#include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_build.hh"
-
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+
+namespace blender {
 
 const EnumPropertyItem rna_enum_image_generated_type_items[] = {
     {IMA_GENTYPE_BLANK, "BLANK", 0, "Blank", "Generate a blank image"},
@@ -51,41 +44,71 @@ static const EnumPropertyItem image_source_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
-#  include "BLI_math_base.h"
-#  include "BLI_math_vector.h"
+#  include <algorithm>
+#  include <fmt/format.h>
 
-#  include "BKE_global.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_math_base_c.hh"
+#  include "BLI_math_vector_c.hh"
 
-#  include "GPU_texture.h"
+#  include "BKE_global.hh"
+#  include "BKE_image.hh"
+#  include "BKE_image_format.hh"
+#  include "BKE_image_gpu.hh"
+#  include "BKE_lib_id.hh"
+#  include "BKE_main.hh"
+#  include "BKE_main_invariants.hh"
+#  include "BKE_node_tree_update.hh"
+#  include "BKE_screen.hh"
 
-#  include "IMB_imbuf.h"
-#  include "IMB_imbuf_types.h"
+#  include "GPU_texture.hh"
 
+#  include "IMB_imbuf.hh"
+#  include "IMB_imbuf_types.hh"
+
+#  include "MOV_read.hh"
+
+#  include "ED_image.hh"
 #  include "ED_node.hh"
+
+#  include "DNA_space_types.h"
+
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
+
+namespace blender {
+
+bool rna_Image_no_renderresult_or_viewer_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  Image *image = id_cast<Image *>(value.owner_id);
+  return image->type != IMA_TYPE_R_RESULT && image->type != IMA_TYPE_COMPOSITE;
+}
 
 static bool rna_Image_is_stereo_3d_get(PointerRNA *ptr)
 {
-  return BKE_image_is_stereo((Image *)ptr->data);
+  return BKE_image_is_stereo(static_cast<Image *>(ptr->data));
 }
 
 static bool rna_Image_is_multiview_get(PointerRNA *ptr)
 {
-  return BKE_image_is_multiview((Image *)ptr->data);
+  return BKE_image_is_multiview(static_cast<Image *>(ptr->data));
 }
 
 static bool rna_Image_dirty_get(PointerRNA *ptr)
 {
-  return BKE_image_is_dirty((Image *)ptr->data);
+  return BKE_image_is_dirty(static_cast<Image *>(ptr->data));
 }
 
 static void rna_Image_source_set(PointerRNA *ptr, int value)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
 
   if (value != ima->source) {
-    ima->source = value;
+    ima->source = eImageSource(value);
     BLI_assert(BKE_id_is_in_global_main(&ima->id));
     BKE_image_signal(G_MAIN, ima, nullptr, IMA_SIGNAL_SRC_CHANGE);
     if (ima->source == IMA_SRC_TILED) {
@@ -93,72 +116,72 @@ static void rna_Image_source_set(PointerRNA *ptr, int value)
     }
 
     DEG_id_tag_update(&ima->id, 0);
-    DEG_id_tag_update(&ima->id, ID_RECALC_EDITORS);
+    DEG_id_tag_update(&ima->id, ID_RECALC_EDITORS | ID_RECALC_SOURCE);
     DEG_relations_tag_update(G_MAIN);
   }
 }
 
 static void rna_Image_reload_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
   BKE_image_signal(bmain, ima, nullptr, IMA_SIGNAL_RELOAD);
   WM_main_add_notifier(NC_IMAGE | NA_EDITED, &ima->id);
   DEG_id_tag_update(&ima->id, 0);
-  DEG_id_tag_update(&ima->id, ID_RECALC_EDITORS);
+  DEG_id_tag_update(&ima->id, ID_RECALC_EDITORS | ID_RECALC_SOURCE);
 }
 
 static int rna_Image_generated_type_get(PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->data;
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
   return base_tile->gen_type;
 }
 
 static void rna_Image_generated_type_set(PointerRNA *ptr, int value)
 {
-  Image *ima = (Image *)ptr->data;
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
-  base_tile->gen_type = value;
+  base_tile->gen_type = eImageGenType(value);
 }
 
 static int rna_Image_generated_width_get(PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->data;
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
   return base_tile->gen_x;
 }
 
 static void rna_Image_generated_width_set(PointerRNA *ptr, int value)
 {
-  Image *ima = (Image *)ptr->data;
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
-  base_tile->gen_x = CLAMPIS(value, 1, 65536);
+  base_tile->gen_x = std::clamp(value, 1, 65536);
 }
 
 static int rna_Image_generated_height_get(PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->data;
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
   return base_tile->gen_y;
 }
 
 static void rna_Image_generated_height_set(PointerRNA *ptr, int value)
 {
-  Image *ima = (Image *)ptr->data;
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
-  base_tile->gen_y = CLAMPIS(value, 1, 65536);
+  base_tile->gen_y = std::clamp(value, 1, 65536);
 }
 
 static bool rna_Image_generated_float_get(PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->data;
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
   return (base_tile->gen_flag & IMA_GEN_FLOAT) != 0;
 }
 
 static void rna_Image_generated_float_set(PointerRNA *ptr, bool value)
 {
-  Image *ima = (Image *)ptr->data;
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
   if (value) {
     base_tile->gen_flag |= IMA_GEN_FLOAT;
@@ -170,30 +193,31 @@ static void rna_Image_generated_float_set(PointerRNA *ptr, bool value)
 
 void rna_Image_generated_color_get(PointerRNA *ptr, float values[4])
 {
-  Image *ima = (Image *)(ptr->data);
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
   copy_v4_v4(values, base_tile->gen_color);
 }
 
 void rna_Image_generated_color_set(PointerRNA *ptr, const float values[4])
 {
-  Image *ima = (Image *)(ptr->data);
+  Image *ima = static_cast<Image *>(ptr->data);
   ImageTile *base_tile = BKE_image_get_tile(ima, 0);
   for (uint i = 0; i < 4; i++) {
-    base_tile->gen_color[i] = CLAMPIS(values[i], 0.0f, FLT_MAX);
+    base_tile->gen_color[i] = std::clamp(values[i], 0.0f, FLT_MAX);
   }
 }
 
 static void rna_Image_generated_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
   BKE_image_signal(bmain, ima, nullptr, IMA_SIGNAL_FREE);
   BKE_image_partial_update_mark_full_update(ima);
+  DEG_id_tag_update(&ima->id, ID_RECALC_EDITORS | ID_RECALC_SOURCE);
 }
 
 static void rna_Image_colormanage_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
   BKE_image_signal(bmain, ima, nullptr, IMA_SIGNAL_COLORMANAGE);
   DEG_id_tag_update(&ima->id, 0);
   DEG_id_tag_update(&ima->id, ID_RECALC_EDITORS | ID_RECALC_SOURCE);
@@ -203,7 +227,7 @@ static void rna_Image_colormanage_update(Main *bmain, Scene * /*scene*/, Pointer
 
 static void rna_Image_alpha_mode_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
   /* When operating on a generated image, avoid re-generating when changing the alpha-mode
    * as it doesn't impact generated images, causing them to reload pixel data, see #82785. */
   if (ima->source == IMA_SRC_GENERATED) {
@@ -214,7 +238,7 @@ static void rna_Image_alpha_mode_update(Main *bmain, Scene *scene, PointerRNA *p
 
 static void rna_Image_views_format_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
   ImBuf *ibuf;
   void *lock;
 
@@ -228,6 +252,7 @@ static void rna_Image_views_format_update(Main *bmain, Scene *scene, PointerRNA 
 
   BKE_image_release_ibuf(ima, ibuf, lock);
   BKE_image_partial_update_mark_full_update(ima);
+  DEG_id_tag_update(&ima->id, ID_RECALC_EDITORS | ID_RECALC_SOURCE);
 }
 
 static void rna_ImageUser_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -242,8 +267,8 @@ static void rna_ImageUser_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   if (id) {
     if (GS(id->name) == ID_NT) {
       /* Special update for node-trees. */
-      BKE_ntree_update_tag_image_user_changed((bNodeTree *)id, iuser);
-      ED_node_tree_propagate_change(nullptr, bmain, nullptr);
+      BKE_ntree_update_tag_image_user_changed(id_cast<bNodeTree *>(id), iuser);
+      BKE_main_ensure_invariants(*bmain);
     }
     else {
       /* Update material or texture for render preview. */
@@ -259,34 +284,46 @@ static void rna_ImageUser_relations_update(Main *bmain, Scene *scene, PointerRNA
   DEG_relations_tag_update(bmain);
 }
 
-static char *rna_ImageUser_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_ImageUser_path(const PointerRNA *ptr)
 {
   if (ptr->owner_id) {
-    // ImageUser *iuser = ptr->data;
-
     switch (GS(ptr->owner_id->name)) {
       case ID_OB:
       case ID_TE:
-        return BLI_strdup("image_user");
+        return "image_user";
       case ID_NT:
         return rna_Node_ImageUser_path(ptr);
       case ID_CA:
         return rna_CameraBackgroundImage_image_or_movieclip_user_path(ptr);
+      case ID_SCR: {
+        const bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
+        const ImageUser *iuser = static_cast<ImageUser *>(ptr->data);
+
+        for (const auto [area_index, area] : screen->areabase.enumerate()) {
+          for (const auto [space_index, sl] : area.spacedata.enumerate()) {
+            if (sl.spacetype == SPACE_IMAGE) {
+              const SpaceImage *sima = reinterpret_cast<const SpaceImage *>(&sl);
+              if (&sima->iuser == iuser) {
+                return fmt::format("areas[{}].spaces[{}].image_user", area_index, space_index);
+              }
+            }
+          }
+        }
+        return " ... image_user";
+      }
       default:
         break;
     }
   }
 
-  return BLI_strdup("");
+  return "";
 }
 
 static void rna_Image_gpu_texture_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
 
-  if (!G.background) {
-    BKE_image_free_gputextures(ima);
-  }
+  BKE_image_free_gpu_texture_caches(ima);
 
   WM_main_add_notifier(NC_IMAGE | ND_DISPLAY, &ima->id);
 }
@@ -296,7 +333,7 @@ static const EnumPropertyItem *rna_Image_source_itemf(bContext * /*C*/,
                                                       PropertyRNA * /*prop*/,
                                                       bool *r_free)
 {
-  Image *ima = (Image *)ptr->data;
+  Image *ima = static_cast<Image *>(ptr->data);
   EnumPropertyItem *item = nullptr;
   int totitem = 0;
 
@@ -319,7 +356,7 @@ static const EnumPropertyItem *rna_Image_source_itemf(bContext * /*C*/,
 
 static int rna_Image_file_format_get(PointerRNA *ptr)
 {
-  Image *image = (Image *)ptr->data;
+  Image *image = static_cast<Image *>(ptr->data);
   ImBuf *ibuf = BKE_image_acquire_ibuf(image, nullptr, nullptr);
   int imtype = BKE_ftype_to_imtype(ibuf ? ibuf->ftype : IMB_FTYPE_NONE,
                                    ibuf ? &ibuf->foptions : nullptr);
@@ -331,18 +368,18 @@ static int rna_Image_file_format_get(PointerRNA *ptr)
 
 static void rna_Image_file_format_set(PointerRNA *ptr, int value)
 {
-  Image *image = (Image *)ptr->data;
+  Image *image = static_cast<Image *>(ptr->data);
   if (BKE_imtype_is_movie(value) == 0) { /* should be able to throw an error here */
     ImbFormatOptions options;
-    int ftype = BKE_imtype_to_ftype(value, &options);
+    eImbFileType ftype = BKE_imtype_to_ftype(value, &options);
     BKE_image_file_format_set(image, ftype, &options);
   }
 }
 
 static void rna_UDIMTile_size_get(PointerRNA *ptr, int *values)
 {
-  ImageTile *tile = (ImageTile *)ptr->data;
-  Image *image = (Image *)ptr->owner_id;
+  ImageTile *tile = static_cast<ImageTile *>(ptr->data);
+  Image *image = id_cast<Image *>(ptr->owner_id);
 
   ImageUser image_user;
   BKE_imageuser_default(&image_user);
@@ -364,8 +401,8 @@ static void rna_UDIMTile_size_get(PointerRNA *ptr, int *values)
 
 static int rna_UDIMTile_channels_get(PointerRNA *ptr)
 {
-  ImageTile *tile = (ImageTile *)ptr->data;
-  Image *image = (Image *)ptr->owner_id;
+  ImageTile *tile = static_cast<ImageTile *>(ptr->data);
+  Image *image = id_cast<Image *>(ptr->owner_id);
 
   ImageUser image_user;
   BKE_imageuser_default(&image_user);
@@ -386,8 +423,8 @@ static int rna_UDIMTile_channels_get(PointerRNA *ptr)
 
 static void rna_UDIMTile_label_get(PointerRNA *ptr, char *value)
 {
-  const ImageTile *tile = (ImageTile *)ptr->data;
-  const Image *image = (Image *)ptr->owner_id;
+  const ImageTile *tile = static_cast<ImageTile *>(ptr->data);
+  const Image *image = id_cast<Image *>(ptr->owner_id);
 
   /* Pass in a fixed size buffer as the value may be allocated based on the callbacks length. */
   char value_buf[sizeof(tile->label)];
@@ -397,8 +434,8 @@ static void rna_UDIMTile_label_get(PointerRNA *ptr, char *value)
 
 static int rna_UDIMTile_label_length(PointerRNA *ptr)
 {
-  const ImageTile *tile = (ImageTile *)ptr->data;
-  const Image *image = (Image *)ptr->owner_id;
+  const ImageTile *tile = static_cast<ImageTile *>(ptr->data);
+  const Image *image = id_cast<Image *>(ptr->owner_id);
 
   char label[sizeof(tile->label)];
   return BKE_image_get_tile_label(image, tile, label, sizeof(label));
@@ -406,8 +443,8 @@ static int rna_UDIMTile_label_length(PointerRNA *ptr)
 
 static void rna_UDIMTile_tile_number_set(PointerRNA *ptr, int value)
 {
-  ImageTile *tile = (ImageTile *)ptr->data;
-  Image *image = (Image *)ptr->owner_id;
+  ImageTile *tile = static_cast<ImageTile *>(ptr->data);
+  Image *image = id_cast<Image *>(ptr->owner_id);
 
   /* Check that no other tile already has that number. */
   ImageTile *cur_tile = BKE_image_get_tile(image, value);
@@ -418,8 +455,8 @@ static void rna_UDIMTile_tile_number_set(PointerRNA *ptr, int value)
 
 static void rna_UDIMTile_generated_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->owner_id;
-  ImageTile *tile = (ImageTile *)ptr->data;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
+  ImageTile *tile = static_cast<ImageTile *>(ptr->data);
 
   /* If the tile is still marked as generated, then update the tile as requested. */
   if ((tile->gen_flag & IMA_GEN_TILE) != 0) {
@@ -430,14 +467,14 @@ static void rna_UDIMTile_generated_update(Main * /*bmain*/, Scene * /*scene*/, P
 
 static int rna_Image_active_tile_index_get(PointerRNA *ptr)
 {
-  Image *image = (Image *)ptr->data;
+  Image *image = static_cast<Image *>(ptr->data);
   return image->active_tile_index;
 }
 
 static void rna_Image_active_tile_index_set(PointerRNA *ptr, int value)
 {
-  Image *image = (Image *)ptr->data;
-  int num_tiles = BLI_listbase_count(&image->tiles);
+  Image *image = static_cast<Image *>(ptr->data);
+  int num_tiles = image->tiles.count();
 
   image->active_tile_index = min_ii(value, num_tiles - 1);
 }
@@ -445,8 +482,8 @@ static void rna_Image_active_tile_index_set(PointerRNA *ptr, int value)
 static void rna_Image_active_tile_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
 {
-  Image *image = (Image *)ptr->data;
-  int num_tiles = BLI_listbase_count(&image->tiles);
+  Image *image = static_cast<Image *>(ptr->data);
+  int num_tiles = image->tiles.count();
 
   *min = 0;
   *max = max_ii(0, num_tiles - 1);
@@ -454,17 +491,17 @@ static void rna_Image_active_tile_index_range(
 
 static PointerRNA rna_Image_active_tile_get(PointerRNA *ptr)
 {
-  Image *image = (Image *)ptr->data;
+  Image *image = static_cast<Image *>(ptr->data);
   ImageTile *tile = static_cast<ImageTile *>(
       BLI_findlink(&image->tiles, image->active_tile_index));
 
-  return rna_pointer_inherit_refine(ptr, &RNA_UDIMTile, tile);
+  return RNA_pointer_create_with_parent(*ptr, RNA_UDIMTile, tile);
 }
 
 static void rna_Image_active_tile_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
 {
-  Image *image = (Image *)ptr->data;
-  ImageTile *tile = (ImageTile *)value.data;
+  Image *image = static_cast<Image *>(ptr->data);
+  ImageTile *tile = static_cast<ImageTile *>(value.data);
   const int index = BLI_findindex(&image->tiles, tile);
   if (index != -1) {
     image->active_tile_index = index;
@@ -473,14 +510,14 @@ static void rna_Image_active_tile_set(PointerRNA *ptr, PointerRNA value, ReportL
 
 static bool rna_Image_has_data_get(PointerRNA *ptr)
 {
-  Image *image = (Image *)ptr->data;
+  Image *image = static_cast<Image *>(ptr->data);
 
   return BKE_image_has_loaded_ibuf(image);
 }
 
 static void rna_Image_size_get(PointerRNA *ptr, int *values)
 {
-  Image *im = (Image *)ptr->data;
+  Image *im = static_cast<Image *>(ptr->data);
   ImBuf *ibuf;
   void *lock;
 
@@ -499,7 +536,7 @@ static void rna_Image_size_get(PointerRNA *ptr, int *values)
 
 static void rna_Image_resolution_get(PointerRNA *ptr, float *values)
 {
-  Image *im = (Image *)ptr->data;
+  Image *im = static_cast<Image *>(ptr->data);
   ImBuf *ibuf;
   void *lock;
 
@@ -518,7 +555,7 @@ static void rna_Image_resolution_get(PointerRNA *ptr, float *values)
 
 static void rna_Image_resolution_set(PointerRNA *ptr, const float *values)
 {
-  Image *im = (Image *)ptr->data;
+  Image *im = static_cast<Image *>(ptr->data);
   ImBuf *ibuf;
   void *lock;
 
@@ -531,40 +568,31 @@ static void rna_Image_resolution_set(PointerRNA *ptr, const float *values)
   BKE_image_release_ibuf(im, ibuf, lock);
 }
 
-static int rna_Image_bindcode_get(PointerRNA *ptr)
-{
-  Image *ima = (Image *)ptr->data;
-  GPUTexture *tex = ima->gputexture[TEXTARGET_2D][0];
-  return (tex) ? GPU_texture_opengl_bindcode(tex) : 0;
-}
-
 static int rna_Image_depth_get(PointerRNA *ptr)
 {
-  Image *im = (Image *)ptr->data;
-  ImBuf *ibuf;
+  Image *im = static_cast<Image *>(ptr->data);
   void *lock;
-  int planes;
+  ImBuf *ibuf = BKE_image_acquire_ibuf(im, nullptr, &lock);
 
-  ibuf = BKE_image_acquire_ibuf(im, nullptr, &lock);
-
+  int depth = 0;
   if (!ibuf) {
-    planes = 0;
+    depth = 0;
   }
-  else if (ibuf->float_buffer.data) {
-    planes = ibuf->planes * 4;
+  else if (ibuf->float_data()) {
+    depth = ibuf->color_mode_channels_get() * 8 * 4;
   }
   else {
-    planes = ibuf->planes;
+    depth = ibuf->color_mode_channels_get() * 8;
   }
 
   BKE_image_release_ibuf(im, ibuf, lock);
 
-  return planes;
+  return depth;
 }
 
 static int rna_Image_frame_duration_get(PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
   int duration = 1;
 
   if (!BKE_image_has_anim(ima)) {
@@ -575,9 +603,9 @@ static int rna_Image_frame_duration_get(PointerRNA *ptr)
   }
 
   if (BKE_image_has_anim(ima)) {
-    anim *anim = ((ImageAnim *)ima->anims.first)->anim;
+    MovieReader *anim = (static_cast<ImageAnim *>(ima->anims.first))->anim;
     if (anim) {
-      duration = IMB_anim_get_duration(anim, IMB_TC_RECORD_RUN);
+      duration = MOV_get_duration_frames(anim);
     }
   }
 
@@ -586,14 +614,14 @@ static int rna_Image_frame_duration_get(PointerRNA *ptr)
 
 static int rna_Image_pixels_get_length(const PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
   ImBuf *ibuf;
   void *lock;
 
   ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
   if (ibuf) {
-    length[0] = ibuf->x * ibuf->y * ibuf->channels;
+    length[0] = IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
   }
   else {
     length[0] = 0;
@@ -606,22 +634,22 @@ static int rna_Image_pixels_get_length(const PointerRNA *ptr, int length[RNA_MAX
 
 static void rna_Image_pixels_get(PointerRNA *ptr, float *values)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
   ImBuf *ibuf;
   void *lock;
-  int i, size;
 
   ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
   if (ibuf) {
-    size = ibuf->x * ibuf->y * ibuf->channels;
+    const size_t size = IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
 
-    if (ibuf->float_buffer.data) {
-      memcpy(values, ibuf->float_buffer.data, sizeof(float) * size);
+    if (ibuf->float_data()) {
+      memcpy(values, ibuf->float_data(), sizeof(float) * size);
     }
     else {
-      for (i = 0; i < size; i++) {
-        values[i] = ibuf->byte_buffer.data[i] * (1.0f / 255.0f);
+      const uchar *byte_data = ibuf->byte_data();
+      for (size_t i = 0; i < size; i++) {
+        values[i] = byte_data[i] * (1.0f / 255.0f);
       }
     }
   }
@@ -631,33 +659,31 @@ static void rna_Image_pixels_get(PointerRNA *ptr, float *values)
 
 static void rna_Image_pixels_set(PointerRNA *ptr, const float *values)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
   ImBuf *ibuf;
   void *lock;
-  int i, size;
 
   ibuf = BKE_image_acquire_ibuf(ima, nullptr, &lock);
 
   if (ibuf) {
-    size = ibuf->x * ibuf->y * ibuf->channels;
+    const size_t size = IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
 
-    if (ibuf->float_buffer.data) {
-      memcpy(ibuf->float_buffer.data, values, sizeof(float) * size);
+    if (float *float_data = ibuf->float_data_for_write()) {
+      memcpy(float_data, values, sizeof(float) * size);
     }
     else {
-      for (i = 0; i < size; i++) {
-        ibuf->byte_buffer.data[i] = unit_float_to_uchar_clamp(values[i]);
+      uchar *byte_data = ibuf->byte_data_for_write();
+      for (size_t i = 0; i < size; i++) {
+        byte_data[i] = unit_float_to_uchar_clamp(values[i]);
       }
     }
 
     /* NOTE: Do update from the set() because typically pixels.foreach_set() is used to update
      * the values, and it does not invoke the update(). */
 
-    ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID | IB_MIPMAP_INVALID;
+    ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
+    IMB_free_gpu_textures(ibuf);
     BKE_image_mark_dirty(ima, ibuf);
-    if (!G.background) {
-      BKE_image_free_gputextures(ima);
-    }
 
     BKE_image_partial_update_mark_full_update(ima);
     WM_main_add_notifier(NC_IMAGE | ND_DISPLAY, &ima->id);
@@ -668,7 +694,7 @@ static void rna_Image_pixels_set(PointerRNA *ptr, const float *values)
 
 static int rna_Image_channels_get(PointerRNA *ptr)
 {
-  Image *im = (Image *)ptr->data;
+  Image *im = static_cast<Image *>(ptr->data);
   ImBuf *ibuf;
   void *lock;
   int channels = 0;
@@ -685,14 +711,14 @@ static int rna_Image_channels_get(PointerRNA *ptr)
 
 static bool rna_Image_is_float_get(PointerRNA *ptr)
 {
-  Image *im = (Image *)ptr->data;
+  Image *im = static_cast<Image *>(ptr->data);
   ImBuf *ibuf;
   void *lock;
   bool is_float = false;
 
   ibuf = BKE_image_acquire_ibuf(im, nullptr, &lock);
   if (ibuf) {
-    is_float = ibuf->float_buffer.data != nullptr;
+    is_float = ibuf->float_data() != nullptr;
   }
 
   BKE_image_release_ibuf(im, ibuf, lock);
@@ -702,20 +728,18 @@ static bool rna_Image_is_float_get(PointerRNA *ptr)
 
 static PointerRNA rna_Image_packed_file_get(PointerRNA *ptr)
 {
-  Image *ima = (Image *)ptr->owner_id;
+  Image *ima = id_cast<Image *>(ptr->owner_id);
 
   if (BKE_image_has_packedfile(ima)) {
     ImagePackedFile *imapf = static_cast<ImagePackedFile *>(ima->packedfiles.first);
-    return rna_pointer_inherit_refine(ptr, &RNA_PackedFile, imapf->packedfile);
+    return RNA_pointer_create_with_parent(*ptr, RNA_PackedFile, imapf->packedfile);
   }
-  else {
-    return PointerRNA_NULL;
-  }
+  return PointerRNA_NULL;
 }
 
 static void rna_RenderSlot_clear(ID *id, RenderSlot *slot, ImageUser *iuser)
 {
-  Image *image = (Image *)id;
+  Image *image = id_cast<Image *>(id);
   int index = BLI_findindex(&image->renderslots, slot);
   BKE_image_clear_renderslot(image, iuser, index);
 
@@ -724,19 +748,19 @@ static void rna_RenderSlot_clear(ID *id, RenderSlot *slot, ImageUser *iuser)
 
 static PointerRNA rna_render_slots_active_get(PointerRNA *ptr)
 {
-  Image *image = (Image *)ptr->owner_id;
+  Image *image = id_cast<Image *>(ptr->owner_id);
   RenderSlot *render_slot = BKE_image_get_renderslot(image, image->render_slot);
 
-  return rna_pointer_inherit_refine(ptr, &RNA_RenderSlot, render_slot);
+  return RNA_pointer_create_with_parent(*ptr, RNA_RenderSlot, render_slot);
 }
 
 static void rna_render_slots_active_set(PointerRNA *ptr,
                                         PointerRNA value,
                                         ReportList * /*reports*/)
 {
-  Image *image = (Image *)ptr->owner_id;
+  Image *image = id_cast<Image *>(ptr->owner_id);
   if (value.owner_id == &image->id) {
-    RenderSlot *slot = (RenderSlot *)value.data;
+    RenderSlot *slot = static_cast<RenderSlot *>(value.data);
     int index = BLI_findindex(&image->renderslots, slot);
     if (index != -1) {
       image->render_slot = index;
@@ -747,14 +771,14 @@ static void rna_render_slots_active_set(PointerRNA *ptr,
 
 static int rna_render_slots_active_index_get(PointerRNA *ptr)
 {
-  Image *image = (Image *)ptr->owner_id;
+  Image *image = id_cast<Image *>(ptr->owner_id);
   return image->render_slot;
 }
 
 static void rna_render_slots_active_index_set(PointerRNA *ptr, int value)
 {
-  Image *image = (Image *)ptr->owner_id;
-  int num_slots = BLI_listbase_count(&image->renderslots);
+  Image *image = id_cast<Image *>(ptr->owner_id);
+  int num_slots = image->renderslots.count();
   image->render_slot = value;
   BKE_image_partial_update_mark_full_update(image);
   CLAMP(image->render_slot, 0, num_slots - 1);
@@ -763,9 +787,9 @@ static void rna_render_slots_active_index_set(PointerRNA *ptr, int value)
 static void rna_render_slots_active_index_range(
     PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
 {
-  Image *image = (Image *)ptr->owner_id;
+  Image *image = id_cast<Image *>(ptr->owner_id);
   *min = 0;
-  *max = max_ii(0, BLI_listbase_count(&image->renderslots) - 1);
+  *max = max_ii(0, image->renderslots.count() - 1);
 }
 
 static ImageTile *rna_UDIMTile_new(Image *image, int tile_number, const char *label)
@@ -779,13 +803,17 @@ static ImageTile *rna_UDIMTile_new(Image *image, int tile_number, const char *la
 
 static void rna_UDIMTile_remove(Image *image, PointerRNA *ptr)
 {
-  ImageTile *tile = (ImageTile *)ptr->data;
+  ImageTile *tile = static_cast<ImageTile *>(ptr->data);
   BKE_image_remove_tile(image, tile);
 
   WM_main_add_notifier(NC_IMAGE | ND_DRAW, nullptr);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_imageuser(BlenderRNA *brna)
 {
@@ -882,6 +910,7 @@ static void rna_def_image_packed_files(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "filepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_struct_name_property(srna, prop);
 
   prop = RNA_def_property(srna, "view", PROP_INT, PROP_NONE);
@@ -983,7 +1012,7 @@ static void rna_def_udim_tile(BlenderRNA *brna)
       0,
       0,
       "Size",
-      "Width and height of the tile buffer in pixels, zero when image data can't be loaded",
+      "Width and height of the tile buffer in pixels, zero when image data cannot be loaded",
       0,
       0);
   RNA_def_property_subtype(prop, PROP_PIXEL);
@@ -1024,6 +1053,11 @@ static void rna_def_udim_tile(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Float Buffer", "Generate floating-point buffer");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_UDIMTile_generated_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "is_generated_tile", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gen_flag", IMA_GEN_TILE);
+  RNA_def_property_ui_text(prop, "Is Generated Tile", "Is this image tile generated");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "generated_color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "gen_color");
@@ -1103,19 +1137,19 @@ static void rna_def_image(BlenderRNA *brna)
        "Straight",
        "Store RGB and alpha channels separately with alpha acting as a mask, also known as "
        "unassociated alpha. Commonly used by image editing applications and file formats like "
-       "PNG"},
+       "PNG."},
       {IMA_ALPHA_PREMUL,
        "PREMUL",
        0,
        "Premultiplied",
        "Store RGB channels with alpha multiplied in, also known as associated alpha. The natural "
-       "format for renders and used by file formats like OpenEXR"},
+       "format for renders and used by file formats like OpenEXR."},
       {IMA_ALPHA_CHANNEL_PACKED,
        "CHANNEL_PACKED",
        0,
        "Channel Packed",
        "Different images are packed in the RGB and alpha channels, and they should not "
-       "affect each other. Channel packing is commonly used by game engines to save memory"},
+       "affect each other. Channel packing is commonly used by game engines to save memory."},
       {IMA_ALPHA_IGNORE,
        "NONE",
        0,
@@ -1132,22 +1166,25 @@ static void rna_def_image(BlenderRNA *brna)
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_string_sdna(prop, nullptr, "filepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "File Name", "Image/Movie file name");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_reload_update");
 
   /* eek. this is horrible but needed so we can save to a new name without blanking the data :( */
   prop = RNA_def_property(srna, "filepath_raw", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "filepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "File Name", "Image/Movie file name (without data refreshing)");
 
   prop = RNA_def_property(srna, "file_format", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_image_type_items);
+  RNA_def_property_enum_items(prop, rna_enum_image_type_all_items);
   RNA_def_property_enum_funcs(
       prop, "rna_Image_file_format_get", "rna_Image_file_format_set", nullptr);
   RNA_def_property_ui_text(prop, "File Format", "Format used for re-saving this file");
 
   prop = RNA_def_property(srna, "source", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, image_source_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_IMAGE);
   RNA_def_property_enum_funcs(prop, nullptr, "rna_Image_source_set", "rna_Image_source_itemf");
   RNA_def_property_ui_text(prop, "Source", "Where the image comes from");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, nullptr);
@@ -1266,12 +1303,6 @@ static void rna_def_image(BlenderRNA *brna)
       prop, "Display Aspect", "Display Aspect for this image, does not affect rendering");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, nullptr);
 
-  prop = RNA_def_property(srna, "bindcode", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_funcs(prop, "rna_Image_bindcode_get", nullptr, nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Bindcode", "OpenGL bindcode");
-  RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, nullptr);
-
   prop = RNA_def_property(srna, "render_slots", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "RenderSlot");
   RNA_def_property_collection_sdna(prop, nullptr, "renderslots", nullptr);
@@ -1302,7 +1333,7 @@ static void rna_def_image(BlenderRNA *brna)
       0,
       0,
       "Size",
-      "Width and height of the image buffer in pixels, zero when image data can't be loaded",
+      "Width and height of the image buffer in pixels, zero when image data cannot be loaded",
       0,
       0);
   RNA_def_property_subtype(prop, PROP_PIXEL);
@@ -1369,7 +1400,8 @@ static void rna_def_image(BlenderRNA *brna)
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", IMA_HIGH_BITDEPTH);
   RNA_def_property_ui_text(prop,
                            "Half Float Precision",
-                           "Use 16 bits per channel to lower the memory usage during rendering");
+                           "Use 16 bits per channel to lower the memory usage during rendering."
+                           "\nNote: Not supported by Cycles");
   RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_gpu_texture_update");
 
   prop = RNA_def_property(srna, "seam_margin", PROP_INT, PROP_NONE);
@@ -1377,7 +1409,7 @@ static void rna_def_image(BlenderRNA *brna)
       prop,
       "Seam Margin",
       "Margin to take into account when fixing UV seams during painting. Higher "
-      "number would improve seam-fixes for mipmaps, but decreases performance");
+      "number would improve seam-fixes for mipmaps, but decreases performance.");
   RNA_def_property_ui_range(prop, 1, 100, 1, 1);
 
   /* multiview */
@@ -1405,5 +1437,7 @@ void RNA_def_image(BlenderRNA *brna)
   rna_def_imageuser(brna);
   rna_def_image_packed_files(brna);
 }
+
+}  // namespace blender
 
 #endif

@@ -9,16 +9,14 @@
 #include "abc_writer_mball.h"
 #include "abc_hierarchy_iterator.h"
 
-#include "BLI_assert.h"
-
-#include "BKE_displist.h"
 #include "BKE_lib_id.hh"
-#include "BKE_mball.h"
+#include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "DNA_mesh_types.h"
-#include "DNA_meta_types.h"
 
 namespace blender::io::alembic {
 
@@ -37,14 +35,14 @@ bool ABCMetaballWriter::is_supported(const HierarchyContext *context) const
 
 bool ABCMetaballWriter::check_is_animated(const HierarchyContext & /*context*/) const
 {
-  /* We assume that metaballs are always animated, as the current object may
+  /* We assume that meta-balls are always animated, as the current object may
    * not be animated but another ball in the same group may be. */
   return true;
 }
 
 bool ABCMetaballWriter::export_as_subdivision_surface(Object * /*ob_eval*/) const
 {
-  /* Metaballs should be exported to subdivision surfaces, if the export options allow. */
+  /* Meta-balls should be exported to subdivision surfaces, if the export options allow. */
   return true;
 }
 
@@ -57,7 +55,7 @@ Mesh *ABCMetaballWriter::get_export_mesh(Object *object_eval, bool &r_needsfree)
     return mesh_eval;
   }
   r_needsfree = true;
-  return BKE_mesh_new_from_object(args_.depsgraph, object_eval, false, false);
+  return BKE_mesh_new_from_object(args_.depsgraph, object_eval, false, false, true);
 }
 
 void ABCMetaballWriter::free_export_mesh(Mesh *mesh)
@@ -67,7 +65,7 @@ void ABCMetaballWriter::free_export_mesh(Mesh *mesh)
 
 bool ABCMetaballWriter::is_basis_ball(Scene *scene, Object *ob) const
 {
-  Object *basis_ob = BKE_mball_basis_find(scene, ob);
+  Object *basis_ob = BKE_mball_basis_find(*DEG_get_bmain(args_.depsgraph), scene, ob);
   return ob == basis_ob;
 }
 

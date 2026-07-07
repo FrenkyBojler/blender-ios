@@ -14,12 +14,17 @@ _modules = [
     "add_mesh_torus",
     "anim",
     "assets",
+    "bone_selection_sets",
     "clip",
+    "connect_to_output",
     "console",
     "constraint",
+    "copy_global_transform",
     "file",
     "geometry_nodes",
+    "grease_pencil",
     "image",
+    "image_as_planes",
     "mesh",
     "node",
     "object",
@@ -27,6 +32,8 @@ _modules = [
     "object_quick_effects",
     "object_randomize_transform",
     "presets",
+    "project",
+    "render",
     "rigidbody",
     "screen_play_rendered_anim",
     "sequencer",
@@ -37,6 +44,7 @@ _modules = [
     "uvcalc_transform",
     "vertexpaint_dirt",
     "view3d",
+    "world",
     "wm",
 ]
 
@@ -53,13 +61,31 @@ del _namespace
 
 def register():
     from bpy.utils import register_class
+    from . import (
+        bone_selection_sets,
+        copy_global_transform,
+    )
+
     for mod in _modules_loaded:
         for cls in mod.classes:
             register_class(cls)
 
+    bone_selection_sets.register()
+    copy_global_transform.register()
+    project.register()
+
 
 def unregister():
     from bpy.utils import unregister_class
+    from . import (
+        bone_selection_sets,
+        copy_global_transform,
+    )
+
+    bone_selection_sets.unregister()
+    copy_global_transform.unregister()
+    project.unregister()
+
     for mod in reversed(_modules_loaded):
         for cls in reversed(mod.classes):
             if cls.is_registered:

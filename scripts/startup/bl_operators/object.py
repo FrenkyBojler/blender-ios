@@ -10,7 +10,10 @@ from bpy.props import (
     IntProperty,
     StringProperty,
 )
-from bpy.app.translations import pgettext_rpt as rpt_
+from bpy.app.translations import (
+    pgettext_rpt as rpt_,
+    contexts as i18n_contexts,
+)
 
 
 class SelectPattern(Operator):
@@ -22,9 +25,10 @@ class SelectPattern(Operator):
 
     pattern: StringProperty(
         name="Pattern",
+        translation_context=i18n_contexts.id_text,
         description="Name filter using '*', '?' and "
         "'[abc]' unix style wildcards",
-        maxlen=64,
+        maxlen=256,
         default="*",
     )
     case_sensitive: BoolProperty(
@@ -45,13 +49,15 @@ class SelectPattern(Operator):
         if self.case_sensitive:
             pattern_match = fnmatch.fnmatchcase
         else:
-            pattern_match = (lambda a, b:
-                             fnmatch.fnmatchcase(a.upper(), b.upper()))
+            pattern_match = (
+                lambda a, b:
+                fnmatch.fnmatchcase(a.upper(), b.upper())
+            )
         is_ebone = False
         is_pbone = False
         obj = context.object
         if obj and obj.mode == 'POSE':
-            items = obj.data.bones
+            items = obj.pose.bones
             if not self.extend:
                 bpy.ops.pose.select_all(action='DESELECT')
             is_pbone = True
@@ -223,22 +229,56 @@ class SubdivisionSet(Operator):
     )
     relative: BoolProperty(
         name="Relative",
-        description=("Apply the subdivision surface level as an offset "
-                     "relative to the current level"),
+        description="Apply the subdivision surface level as an offset relative to the current level",
         default=False,
     )
-
-    @classmethod
-    def poll(cls, context):
-        obs = context.selected_editable_objects
-        return (obs is not None)
+    ensure_modifier: BoolProperty(
+        name="Ensure Modifier",
+        description="Create the corresponding modifier if it does not exist",
+        default=True,
+        options={'HIDDEN'}
+    )
 
     def execute(self, context):
         level = self.level
         relative = self.relative
+        ensure_modifier = self.ensure_modifier
+
+        active_object = context.active_object
+
+        # For paint modes, defer to the active object, not the selected objects.
+        if active_object and active_object.mode in {'SCULPT', 'VERTEX_PAINT', 'WEIGHT_PAINT', 'TEXTURE_PAINT'}:
+            objs = [active_object]
+        else:
+            objs = context.selected_editable_objects
+
+        if not objs:
+            # Note that this will never be true for the paint cases, hence the following report only mentions
+            # the selected & editable objects.
+            self.report({'WARNING'}, "No selected editable objects to operate on")
+            return {'CANCELLED'}
 
         if relative and level == 0:
             return {'CANCELLED'}  # nothing to do
+
+        if not ensure_modifier:
+            any_object_has_relevant_modifier = False
+            for obj in objs:
+                if obj.mode == 'SCULPT':
+                    any_object_has_relevant_modifier |= any(mod.type == 'MULTIRES' for mod in obj.modifiers)
+                elif obj.mode == 'OBJECT':
+                    any_object_has_relevant_modifier |= any(mod.type == 'SUBSURF' for mod in obj.modifiers)
+                if any_object_has_relevant_modifier:
+                    break
+
+            if not any_object_has_relevant_modifier:
+                mod_name = ""
+                if obj.mode == 'SCULPT':
+                    mod_name = "Multiresolution"
+                else:
+                    mod_name = "Subdivision Surface"
+                self.report({'WARNING'}, rpt_("No {:s} modifiers found").format(mod_name))
+                return {'CANCELLED'}
 
         if not relative and level < 0:
             self.level = level = 0
@@ -278,20 +318,20 @@ class SubdivisionSet(Operator):
                     return
 
             # add a new modifier
-            try:
-                if obj.mode == 'SCULPT':
-                    mod = obj.modifiers.new("Multires", 'MULTIRES')
-                    if level > 0:
-                        for _ in range(level):
-                            bpy.ops.object.multires_subdivide(modifier="Multires")
-                else:
-                    mod = obj.modifiers.new("Subdivision", 'SUBSURF')
-                    mod.levels = level
-            except BaseException:
-                self.report({'WARNING'},
-                            "Modifiers cannot be added to object: " + obj.name)
+            if ensure_modifier:
+                try:
+                    if obj.mode == 'SCULPT':
+                        mod = obj.modifiers.new("Multires", 'MULTIRES')
+                        if level > 0:
+                            for _ in range(level):
+                                bpy.ops.object.multires_subdivide(modifier="Multires")
+                    else:
+                        mod = obj.modifiers.new("Subdivision", 'SUBSURF')
+                        mod.levels = level
+                except Exception:
+                    self.report({'WARNING'}, rpt_("Modifiers cannot be added to object: {:s}").format(obj.name))
 
-        for obj in context.selected_editable_objects:
+        for obj in objs:
             set_object_subd(obj)
 
         return {'FINISHED'}
@@ -325,8 +365,7 @@ class ShapeTransfer(Operator):
     )
     use_clamp: BoolProperty(
         name="Clamp Offset",
-        description=("Clamp the transformation to the distance each "
-                     "vertex moves in the original shape"),
+        description="Clamp the transformation to the distance each vertex moves in the original shape",
         default=False,
     )
 
@@ -344,6 +383,7 @@ class ShapeTransfer(Operator):
             if len(me.shape_keys.key_blocks) == 1:
                 key.name = "Basis"
                 key = ob.shape_key_add(from_mix=False)  # we need a rest
+            key.value = 0.0
             key.name = name
             ob.active_shape_key_index = len(me.shape_keys.key_blocks) - 1
             ob.show_only_shape_key = True
@@ -366,13 +406,17 @@ class ShapeTransfer(Operator):
 
         for ob_other in objects:
             if ob_other.type != 'MESH':
-                self.report({'WARNING'},
-                            rpt_("Skipping '%s', not a mesh") % ob_other.name)
+                self.report(
+                    {'WARNING'},
+                    rpt_("Skipping '{:s}', not a mesh").format(ob_other.name),
+                )
                 continue
             me_other = ob_other.data
             if len(me_other.vertices) != len(me.vertices):
-                self.report({'WARNING'},
-                            rpt_("Skipping '%s', vertex count differs") % ob_other.name)
+                self.report(
+                    {'WARNING'},
+                    rpt_("Skipping '{:s}', vertex count differs").format(ob_other.name),
+                )
                 continue
 
             target_normals = me_nos(me_other.vertices)
@@ -391,8 +435,10 @@ class ShapeTransfer(Operator):
             # Method 1, edge
             if mode == 'OFFSET':
                 for i, vert_cos in enumerate(median_coords):
-                    vert_cos.append(target_coords[i] +
-                                    (orig_shape_coords[i] - orig_coords[i]))
+                    vert_cos.append(
+                        target_coords[i] +
+                        (orig_shape_coords[i] - orig_coords[i])
+                    )
 
             elif mode == 'RELATIVE_FACE':
                 for poly in me.polygons:
@@ -400,14 +446,15 @@ class ShapeTransfer(Operator):
                     v_before = idxs[-2]
                     v = idxs[-1]
                     for v_after in idxs:
-                        pt = barycentric_transform(orig_shape_coords[v],
-                                                   orig_coords[v_before],
-                                                   orig_coords[v],
-                                                   orig_coords[v_after],
-                                                   target_coords[v_before],
-                                                   target_coords[v],
-                                                   target_coords[v_after],
-                                                   )
+                        pt = barycentric_transform(
+                            orig_shape_coords[v],
+                            orig_coords[v_before],
+                            orig_coords[v],
+                            orig_coords[v_after],
+                            target_coords[v_before],
+                            target_coords[v],
+                            target_coords[v_after],
+                        )
                         median_coords[v].append(pt)
                         v_before = v
                         v = v_after
@@ -426,14 +473,18 @@ class ShapeTransfer(Operator):
                     n1loc_to = v1_to + target_normals[i1] * edlen_to
                     n2loc_to = v2_to + target_normals[i2] * edlen_to
 
-                    pt = barycentric_transform(orig_shape_coords[i1],
-                                               v2, v1, n1loc,
-                                               v2_to, v1_to, n1loc_to)
+                    pt = barycentric_transform(
+                        orig_shape_coords[i1],
+                        v2, v1, n1loc,
+                        v2_to, v1_to, n1loc_to,
+                    )
                     median_coords[i1].append(pt)
 
-                    pt = barycentric_transform(orig_shape_coords[i2],
-                                               v1, v2, n2loc,
-                                               v1_to, v2_to, n2loc_to)
+                    pt = barycentric_transform(
+                        orig_shape_coords[i2],
+                        v1, v2, n2loc,
+                        v1_to, v2_to, n2loc_to,
+                    )
                     median_coords[i2].append(pt)
 
             # apply the offsets to the new shape
@@ -447,8 +498,7 @@ class ShapeTransfer(Operator):
                     if use_clamp:
                         # clamp to the same movement as the original
                         # breaks copy between different scaled meshes.
-                        len_from = (orig_shape_coords[i] -
-                                    orig_coords[i]).length
+                        len_from = (orig_shape_coords[i] - orig_coords[i]).length
                         ofs = co - target_coords[i]
                         ofs.length = len_from
                         co = target_coords[i] + ofs
@@ -460,7 +510,7 @@ class ShapeTransfer(Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return (obj and obj.mode != 'EDIT')
+        return (obj and obj.type == 'MESH' and obj.mode != 'EDIT')
 
     def execute(self, context):
         ob_act = context.active_object
@@ -469,17 +519,14 @@ class ShapeTransfer(Operator):
             if ob != ob_act
         ]
 
-        if 1:  # swap from/to, means we can't copy to many at once.
-            if len(objects) != 1:
-                self.report({'ERROR'},
-                            ("Expected one other selected "
-                             "mesh object to copy from"))
+        if len(objects) != 1:
+            self.report({'ERROR'}, "Expected one other selected mesh object to copy from")
+            return {'CANCELLED'}
 
-                return {'CANCELLED'}
-            ob_act, objects = objects[0], [ob_act]
+        ob_act, objects = objects[0], [ob_act]
 
-        if ob_act.type != 'MESH':
-            self.report({'ERROR'}, "Other object is not a mesh")
+        if ob_act.type != 'MESH' or objects[0].type != 'MESH':
+            self.report({'ERROR'}, "Both objects must be meshes")
             return {'CANCELLED'}
 
         if ob_act.active_shape_key is None:
@@ -510,14 +557,15 @@ class JoinUVs(Operator):
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
         if not mesh.uv_layers:
-            self.report({'WARNING'},
-                        rpt_("Object: %s, Mesh: '%s' has no UVs")
-                        % (obj.name, mesh.name))
+            self.report(
+                {'WARNING'},
+                rpt_("Object: {:s}, Mesh: '{:s}' has no UVs").format(obj.name, mesh.name),
+            )
         else:
             nbr_loops = len(mesh.loops)
 
             # seems to be the fastest way to create an array
-            uv_array = array.array('f', [0.0] * 2) * nbr_loops
+            uv_array = array.array("f", [0.0] * 2) * nbr_loops
             mesh.uv_layers.active.data.foreach_get("uv", uv_array)
 
             objects = context.selected_editable_objects[:]
@@ -527,42 +575,47 @@ class JoinUVs(Operator):
                     obj_other.data.tag = False
 
             for obj_other in objects:
-                if obj_other != obj and obj_other.type == 'MESH':
-                    mesh_other = obj_other.data
-                    if mesh_other != mesh:
-                        if mesh_other.tag is False:
-                            mesh_other.tag = True
+                if not (obj_other != obj and obj_other.type == 'MESH'):
+                    continue
+                mesh_other = obj_other.data
+                if mesh_other == mesh:
+                    continue
+                if mesh_other.tag is True:
+                    continue
 
-                            if len(mesh_other.loops) != nbr_loops:
-                                self.report({'WARNING'},
-                                            rpt_("Object: %s, Mesh: "
-                                                 "'%s' has %d loops (for %d faces),"
-                                                 " expected %d\n")
-                                            % (obj_other.name,
-                                               mesh_other.name,
-                                               len(mesh_other.loops),
-                                               len(mesh_other.polygons),
-                                               nbr_loops,
-                                               ),
-                                            )
-                            else:
-                                uv_other = mesh_other.uv_layers.active
-                                if not uv_other:
-                                    mesh_other.uv_layers.new()
-                                    uv_other = mesh_other.uv_layers.active
-                                    if not uv_other:
-                                        self.report({'ERROR'},
-                                                    rpt_("Could not add "
-                                                         "a new UV map to object "
-                                                         "'%s' (Mesh '%s')\n")
-                                                    % (obj_other.name,
-                                                       mesh_other.name,
-                                                       ),
-                                                    )
+                mesh_other.tag = True
+                if len(mesh_other.loops) != nbr_loops:
+                    self.report(
+                        {'WARNING'},
+                        rpt_(
+                            "Object: {:s}, Mesh: '{:s}' has {:d} loops (for {:d} faces), expected {:d}"
+                        ).format(
+                            obj_other.name,
+                            mesh_other.name,
+                            len(mesh_other.loops),
+                            len(mesh_other.polygons),
+                            nbr_loops,
+                        ),
+                    )
+                else:
+                    uv_other = mesh_other.uv_layers.active
+                    if not uv_other:
+                        mesh_other.uv_layers.new()
+                        uv_other = mesh_other.uv_layers.active
+                        if not uv_other:
+                            self.report(
+                                {'ERROR'},
+                                rpt_(
+                                    "Could not add a new UV map to object '{:s}' (Mesh '{:s}')"
+                                ).format(
+                                    obj_other.name,
+                                    mesh_other.name,
+                                ),
+                            )
 
-                                # finally do the copy
-                                uv_other.data.foreach_set("uv", uv_array)
-                                mesh_other.update()
+                    # finally do the copy
+                    uv_other.data.foreach_set("uv", uv_array)
+                    mesh_other.update()
 
         if is_editmode:
             bpy.ops.object.mode_set(mode='EDIT', toggle=False)
@@ -585,11 +638,12 @@ class MakeDupliFace(Operator):
 
         SCALE_FAC = 0.01
         offset = 0.5 * SCALE_FAC
-        base_tri = (Vector((-offset, -offset, 0.0)),
-                    Vector((+offset, -offset, 0.0)),
-                    Vector((+offset, +offset, 0.0)),
-                    Vector((-offset, +offset, 0.0)),
-                    )
+        base_tri = (
+            Vector((-offset, -offset, 0.0)),
+            Vector((+offset, -offset, 0.0)),
+            Vector((+offset, +offset, 0.0)),
+            Vector((-offset, +offset, 0.0)),
+        )
 
         def matrix_to_quad(matrix):
             # scale = matrix.median_scale
@@ -718,11 +772,15 @@ class TransformsToDeltas(Operator):
 
     @classmethod
     def poll(cls, context):
-        obs = context.selected_editable_objects
-        return (obs is not None)
+        return context.scene.is_editable
 
     def execute(self, context):
-        for obj in context.selected_editable_objects:
+        objects = context.selected_editable_objects
+        if not objects:
+            self.report({'WARNING'}, "No selected editable objects to operate on")
+            return {'CANCELLED'}
+
+        for obj in objects:
             if self.mode in {'ALL', 'LOC'}:
                 self.transfer_location(obj)
 
@@ -776,10 +834,11 @@ class TransformsToDeltasAnim(Operator):
 
     @classmethod
     def poll(cls, context):
-        obs = context.selected_editable_objects
-        return (obs is not None)
+        return context.scene.is_editable
 
     def execute(self, context):
+        from bpy_extras import anim_utils
+
         # map from standard transform paths to "new" transform paths
         STANDARD_TO_DELTA_PATHS = {
             "location": "delta_location",
@@ -790,19 +849,28 @@ class TransformsToDeltasAnim(Operator):
         }
         DELTA_PATHS = STANDARD_TO_DELTA_PATHS.values()
 
+        objects = context.selected_editable_objects
+        if not objects:
+            self.report({'WARNING'}, "No selected editable objects to operate on")
+            return {'CANCELLED'}
+
         # try to apply on each selected object
-        for obj in context.selected_editable_objects:
+        for obj in objects:
             adt = obj.animation_data
             if (adt is None) or (adt.action is None):
-                self.report({'WARNING'},
-                            rpt_("No animation data to convert on object: %r")
-                            % obj.name)
+                self.report(
+                    {'WARNING'},
+                    rpt_("No animation data to convert on object: {!r}").format(obj.name),
+                )
                 continue
 
             # first pass over F-Curves: ensure that we don't have conflicting
             # transforms already (e.g. if this was applied already) #29110.
             existingFCurves = {}
-            for fcu in adt.action.fcurves:
+            channelbag = anim_utils.action_get_channelbag_for_slot(adt.action, adt.action_slot)
+            if not channelbag:
+                continue
+            for fcu in channelbag.fcurves:
                 # get "delta" path - i.e. the final paths which may clash
                 path = fcu.data_path
                 if path in STANDARD_TO_DELTA_PATHS:
@@ -821,10 +889,12 @@ class TransformsToDeltasAnim(Operator):
                     # ensure that this index hasn't occurred before
                     if fcu.array_index in existingFCurves[dpath]:
                         # conflict
-                        self.report({'ERROR'},
-                                    rpt_("Object '%r' already has '%r' F-Curve(s). "
-                                         "Remove these before trying again") %
-                                    (obj.name, dpath))
+                        self.report(
+                            {'ERROR'},
+                            rpt_(
+                                "Object {!r} already has {!r} F-Curve(s). "
+                                "Remove these before trying again"
+                            ).format(obj.name, dpath))
                         return {'CANCELLED'}
                     else:
                         # no conflict here
@@ -833,24 +903,23 @@ class TransformsToDeltasAnim(Operator):
                     # no conflict yet
                     existingFCurves[dpath] = [fcu.array_index]
 
-            # if F-Curve uses standard transform path
-            # just append "delta_" to this path
-            for fcu in adt.action.fcurves:
-                if fcu.data_path == "location":
-                    fcu.data_path = "delta_location"
-                    obj.location.zero()
-                elif fcu.data_path == "rotation_euler":
-                    fcu.data_path = "delta_rotation_euler"
-                    obj.rotation_euler.zero()
-                elif fcu.data_path == "rotation_quaternion":
-                    fcu.data_path = "delta_rotation_quaternion"
-                    obj.rotation_quaternion.identity()
-                # XXX: currently not implemented
-                # ~ elif fcu.data_path == "rotation_axis_angle":
-                # ~    fcu.data_path = "delta_rotation_axis_angle"
-                elif fcu.data_path == "scale":
-                    fcu.data_path = "delta_scale"
-                    obj.scale = 1.0, 1.0, 1.0
+            # Move the 'standard' to the 'delta' data paths.
+            for fcu in channelbag.fcurves:
+                standard_path = fcu.data_path
+                array_index = fcu.array_index
+                try:
+                    delta_path = STANDARD_TO_DELTA_PATHS[standard_path]
+                except KeyError:
+                    # Not a standard transform path.
+                    continue
+
+                # Just change the F-Curve's data path. The array index should remain the same.
+                fcu.data_path = delta_path
+
+                # Reset the now-no-longer-animated property to its default value.
+                default_array = obj.bl_rna.properties[standard_path].default_array
+                property_array = getattr(obj, standard_path)
+                property_array[array_index] = default_array[array_index]
 
         # hack: force animsys flush by changing frame, so that deltas get run
         context.scene.frame_set(context.scene.frame_current)
@@ -904,81 +973,6 @@ class DupliOffsetFromObject(Operator):
         return {'FINISHED'}
 
 
-class LoadImageAsEmpty:
-    bl_options = {'REGISTER', 'UNDO'}
-
-    filepath: StringProperty(
-        subtype='FILE_PATH'
-    )
-
-    filter_image: BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
-    filter_movie: BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
-    filter_folder: BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
-
-    view_align: BoolProperty(
-        name="Align to View",
-        default=True,
-    )
-
-    @classmethod
-    def poll(cls, context):
-        return context.mode == 'OBJECT'
-
-    def invoke(self, context, _event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-
-    def execute(self, context):
-        scene = context.scene
-        cursor = scene.cursor.location
-
-        try:
-            image = bpy.data.images.load(self.filepath, check_existing=True)
-        except RuntimeError as ex:
-            self.report({'ERROR'}, str(ex))
-            return {'CANCELLED'}
-
-        bpy.ops.object.empty_add(
-            'INVOKE_REGION_WIN',
-            type='IMAGE',
-            location=cursor,
-            align=('VIEW' if self.view_align else 'WORLD'),
-        )
-
-        view_layer = context.view_layer
-        obj = view_layer.objects.active
-        obj.data = image
-        obj.empty_display_size = 5.0
-        self.set_settings(context, obj)
-        return {'FINISHED'}
-
-    def set_settings(self, context, obj):
-        pass
-
-
-class LoadBackgroundImage(LoadImageAsEmpty, Operator):
-    """Add a reference image into the background behind objects"""
-    bl_idname = "object.load_background_image"
-    bl_label = "Load Background Image"
-
-    def set_settings(self, context, obj):
-        obj.empty_image_depth = 'BACK'
-        obj.empty_image_side = 'FRONT'
-
-        if context.space_data.type == 'VIEW_3D':
-            if not context.space_data.region_3d.is_perspective:
-                obj.show_empty_image_perspective = False
-
-
-class LoadReferenceImage(LoadImageAsEmpty, Operator):
-    """Add a reference image into the scene between objects"""
-    bl_idname = "object.load_reference_image"
-    bl_label = "Load Reference Image"
-
-    def set_settings(self, context, obj):
-        pass
-
-
 class OBJECT_OT_assign_property_defaults(Operator):
     """Assign the current values of custom properties as their defaults, """ \
         """for use as part of the rest pose state in NLA track mixing"""
@@ -992,7 +986,7 @@ class OBJECT_OT_assign_property_defaults(Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return obj is not None and obj.library is None and obj.mode in {'POSE', 'OBJECT'}
+        return obj is not None and obj.is_editable and obj.mode in {'POSE', 'OBJECT'}
 
     @staticmethod
     def assign_defaults(obj):
@@ -1013,7 +1007,7 @@ class OBJECT_OT_assign_property_defaults(Operator):
             for pbone in obj.pose.bones:
                 self.assign_defaults(pbone)
 
-        if self.process_data and obj.data and obj.data.library is None:
+        if self.process_data and obj.data and obj.data.is_editable:
             self.assign_defaults(obj.data)
 
             if self.process_bones and isinstance(obj.data, bpy.types.Armature):
@@ -1030,8 +1024,6 @@ classes = (
     DupliOffsetFromObject,
     IsolateTypeRender,
     JoinUVs,
-    LoadBackgroundImage,
-    LoadReferenceImage,
     MakeDupliFace,
     SelectCamera,
     SelectHierarchy,

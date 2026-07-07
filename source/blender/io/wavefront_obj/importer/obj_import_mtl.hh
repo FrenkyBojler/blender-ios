@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include "DNA_node_types.h"
+namespace blender {
 
+struct bNodeTree;
 struct Main;
 struct Material;
 
-namespace blender::io::obj {
+namespace io::obj {
 
 struct MTLMaterial;
 
@@ -18,4 +19,5 @@ bNodeTree *create_mtl_node_tree(Main *bmain,
                                 Material *mat,
                                 bool relative_paths);
 
-}  // namespace blender::io::obj
+}  // namespace io::obj
+}  // namespace blender

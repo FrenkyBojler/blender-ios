@@ -7,52 +7,51 @@
  */
 
 #include "DNA_camera_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BLI_sys_types.h" /* int64_t */
-
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_math_vector.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_camera.h"
 #include "BKE_screen.hh"
 
-#include "GPU_matrix.h"
+#include "GPU_matrix.hh"
 
 #include "ED_view3d.hh" /* own include */
+
+namespace blender {
 
 #define BL_ZERO_CLIP 0.001
 
 /* Non Clipping Projection Functions
  * ********************************* */
 
-blender::float2 ED_view3d_project_float_v2_m4(const ARegion *region,
-                                              const float co[3],
-                                              const blender::float4x4 &mat)
+float2 ED_view3d_project_float_v2_m4(const ARegion *region, const float co[3], const float4x4 &mat)
 {
   float vec4[4];
 
   copy_v3_v3(vec4, co);
   vec4[3] = 1.0;
-  // r_co[0] = IS_CLIPPED; /* Always overwritten. */
+  // co_region[0] = IS_CLIPPED; /* Always overwritten. */
 
   mul_m4_v4(mat.ptr(), vec4);
 
-  blender::float2 r_co;
+  float2 co_region;
   if (vec4[3] > FLT_EPSILON) {
-    r_co[0] = float(region->winx / 2.0f) + (region->winx / 2.0f) * vec4[0] / vec4[3];
-    r_co[1] = float(region->winy / 2.0f) + (region->winy / 2.0f) * vec4[1] / vec4[3];
+    co_region[0] = float(region->winx / 2.0f) + (region->winx / 2.0f) * vec4[0] / vec4[3];
+    co_region[1] = float(region->winy / 2.0f) + (region->winy / 2.0f) * vec4[1] / vec4[3];
   }
   else {
-    zero_v2(r_co);
+    zero_v2(co_region);
   }
-  return r_co;
+  return co_region;
 }
 
 void ED_view3d_project_float_v3_m4(const ARegion *region,
@@ -84,7 +83,7 @@ void ED_view3d_project_float_v3_m4(const ARegion *region,
 eV3DProjStatus ED_view3d_project_base(const ARegion *region, Base *base, float r_co[2])
 {
   eV3DProjStatus ret = ED_view3d_project_float_global(
-      region, base->object->object_to_world[3], r_co, V3D_PROJ_TEST_CLIP_DEFAULT);
+      region, base->object->object_to_world().location(), r_co, V3D_PROJ_TEST_CLIP_DEFAULT);
 
   /* Prevent uninitialized values when projection fails,
    * although the callers should check the return value. */
@@ -318,7 +317,7 @@ float ED_view3d_calc_zfac(const RegionView3D *rv3d, const float co[3])
 float ED_view3d_calc_depth_for_comparison(const RegionView3D *rv3d, const float co[3])
 {
   if (rv3d->is_persp) {
-    return ED_view3d_calc_zfac(rv3d, co);
+    return mul_project_m4_v3_zfac(rv3d->persmat, co);
   }
   return -dot_v3v3(rv3d->viewinv[2], co);
 }
@@ -350,7 +349,7 @@ static void view3d_win_to_ray_segment(const Depsgraph *depsgraph,
     start_offset = -end_offset;
   }
   else {
-    ED_view3d_clip_range_get(depsgraph, v3d, rv3d, &start_offset, &end_offset, false);
+    ED_view3d_clip_range_get(depsgraph, v3d, rv3d, false, &start_offset, &end_offset);
   }
 
   if (r_ray_start) {
@@ -422,7 +421,7 @@ void ED_view3d_win_to_ray(const ARegion *region,
   ED_view3d_win_to_vector(region, mval, r_ray_normal);
 }
 
-void ED_view3d_global_to_vector(const RegionView3D *rv3d, const float coord[3], float vec[3])
+void ED_view3d_global_to_vector(const RegionView3D *rv3d, const float coord[3], float r_out[3])
 {
   if (rv3d->is_persp) {
     float p1[4], p2[4];
@@ -437,12 +436,12 @@ void ED_view3d_global_to_vector(const RegionView3D *rv3d, const float coord[3], 
 
     mul_m4_v4(rv3d->viewinv, p2);
 
-    sub_v3_v3v3(vec, p1, p2);
+    sub_v3_v3v3(r_out, p1, p2);
   }
   else {
-    copy_v3_v3(vec, rv3d->viewinv[2]);
+    copy_v3_v3(r_out, rv3d->viewinv[2]);
   }
-  normalize_v3(vec);
+  normalize_v3(r_out);
 }
 
 /* very similar to ED_view3d_win_to_3d() but has no advantage, de-duplicating */
@@ -493,17 +492,14 @@ void ED_view3d_win_to_3d(const View3D *v3d,
   float lambda;
 
   if (rv3d->is_persp) {
-    float plane[4];
-
     copy_v3_v3(ray_origin, rv3d->viewinv[3]);
     ED_view3d_win_to_vector(region, mval, ray_direction);
 
     /* NOTE: we could use #isect_line_plane_v3()
      * however we want the intersection to be in front of the view no matter what,
      * so apply the unsigned factor instead. */
-    plane_from_point_normal_v3(plane, depth_pt, rv3d->viewinv[2]);
+    isect_ray_plane_v3_factor(ray_origin, ray_direction, depth_pt, rv3d->viewinv[2], &lambda);
 
-    isect_ray_plane_v3(ray_origin, ray_direction, plane, &lambda, false);
     lambda = fabsf(lambda);
   }
   else {
@@ -512,7 +508,7 @@ void ED_view3d_win_to_3d(const View3D *v3d,
 
     if (rv3d->persp == RV3D_CAMOB) {
       /* ortho camera needs offset applied */
-      const Camera *cam = static_cast<const Camera *>(v3d->camera->data);
+      const Camera *cam = id_cast<const Camera *>(v3d->camera->data);
       const int sensor_fit = BKE_camera_sensor_fit(cam->sensor_fit, region->winx, region->winy);
       const float zoomfac = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom) * 4.0f;
       const float aspx = region->winx / float(region->winy);
@@ -528,6 +524,59 @@ void ED_view3d_win_to_3d(const View3D *v3d,
     ray_origin[0] = (rv3d->persinv[0][0] * dx) + (rv3d->persinv[1][0] * dy) + rv3d->viewinv[3][0];
     ray_origin[1] = (rv3d->persinv[0][1] * dx) + (rv3d->persinv[1][1] * dy) + rv3d->viewinv[3][1];
     ray_origin[2] = (rv3d->persinv[0][2] * dx) + (rv3d->persinv[1][2] * dy) + rv3d->viewinv[3][2];
+
+    copy_v3_v3(ray_direction, rv3d->viewinv[2]);
+    lambda = ray_point_factor_v3(depth_pt, ray_origin, ray_direction);
+  }
+
+  madd_v3_v3v3fl(r_out, ray_origin, ray_direction, lambda);
+}
+
+void ED_view3d_win_to_3d_with_shift(const View3D *v3d,
+                                    const ARegion *region,
+                                    const float depth_pt[3],
+                                    const float mval[2],
+                                    float r_out[3])
+{
+  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+
+  float ray_origin[3];
+  float ray_direction[3];
+  float lambda;
+
+  if (rv3d->is_persp) {
+    copy_v3_v3(ray_origin, rv3d->viewinv[3]);
+    ED_view3d_win_to_vector(region, mval, ray_direction);
+
+    /* NOTE: we could use #isect_line_plane_v3()
+     * however we want the intersection to be in front of the view no matter what,
+     * so apply the unsigned factor instead. */
+    isect_ray_plane_v3_factor(ray_origin, ray_direction, depth_pt, rv3d->viewinv[2], &lambda);
+
+    lambda = fabsf(lambda);
+  }
+  else {
+    float dx = (2.0f * mval[0] / float(region->winx)) - 1.0f;
+    float dy = (2.0f * mval[1] / float(region->winy)) - 1.0f;
+
+    if (rv3d->persp == RV3D_CAMOB) {
+      /* ortho camera needs offset applied */
+      const Camera *cam = id_cast<const Camera *>(v3d->camera->data);
+      const int sensor_fit = BKE_camera_sensor_fit(cam->sensor_fit, region->winx, region->winy);
+      const float zoomfac = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom) * 4.0f;
+      const float aspx = region->winx / float(region->winy);
+      const float aspy = region->winy / float(region->winx);
+      const float shiftx = cam->shiftx * 0.5f *
+                           (sensor_fit == CAMERA_SENSOR_FIT_HOR ? 1.0f : aspy);
+      const float shifty = cam->shifty * 0.5f *
+                           (sensor_fit == CAMERA_SENSOR_FIT_HOR ? aspx : 1.0f);
+
+      dx += (rv3d->camdx + shiftx) * zoomfac;
+      dy += (rv3d->camdy + shifty) * zoomfac;
+    }
+    ray_origin[0] = (rv3d->persinv[0][0] * dx) + (rv3d->persinv[1][0] * dy) + rv3d->persinv[3][0];
+    ray_origin[1] = (rv3d->persinv[0][1] * dx) + (rv3d->persinv[1][1] * dy) + rv3d->persinv[3][1];
+    ray_origin[2] = (rv3d->persinv[0][2] * dx) + (rv3d->persinv[1][2] * dy) + rv3d->persinv[3][2];
 
     copy_v3_v3(ray_direction, rv3d->viewinv[2]);
     lambda = ray_point_factor_v3(depth_pt, ray_origin, ray_direction);
@@ -623,10 +672,8 @@ bool ED_view3d_win_to_3d_on_plane_with_fallback(const ARegion *region,
   return true;
 }
 
-void ED_view3d_win_to_delta(const ARegion *region,
-                            const float xy_delta[2],
-                            const float zfac,
-                            float r_out[3])
+void ED_view3d_win_to_delta(
+    const ARegion *region, const float xy_delta[2], const float zfac, float r_out[3], bool precise)
 {
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   float dx, dy;
@@ -634,9 +681,20 @@ void ED_view3d_win_to_delta(const ARegion *region,
   dx = 2.0f * xy_delta[0] * zfac / region->winx;
   dy = 2.0f * xy_delta[1] * zfac / region->winy;
 
-  r_out[0] = (rv3d->persinv[0][0] * dx + rv3d->persinv[1][0] * dy);
-  r_out[1] = (rv3d->persinv[0][1] * dx + rv3d->persinv[1][1] * dy);
-  r_out[2] = (rv3d->persinv[0][2] * dx + rv3d->persinv[1][2] * dy);
+  if (precise) {
+    /* Fix for operators that needs more precision. (see #103499) */
+    float wininv[4][4];
+    invert_m4_m4(wininv, rv3d->winmat);
+    r_out[0] = (wininv[0][0] * dx + wininv[1][0] * dy);
+    r_out[1] = (wininv[0][1] * dx + wininv[1][1] * dy);
+    r_out[2] = (wininv[0][2] * dx + wininv[1][2] * dy);
+    mul_mat3_m4_v3(rv3d->viewinv, r_out);
+  }
+  else {
+    r_out[0] = (rv3d->persinv[0][0] * dx + rv3d->persinv[1][0] * dy);
+    r_out[1] = (rv3d->persinv[0][1] * dx + rv3d->persinv[1][1] * dy);
+    r_out[2] = (rv3d->persinv[0][2] * dx + rv3d->persinv[1][2] * dy);
+  }
 }
 
 void ED_view3d_win_to_origin(const ARegion *region, const float mval[2], float r_out[3])
@@ -690,7 +748,8 @@ bool ED_view3d_win_to_segment_clipped(const Depsgraph *depsgraph,
 
   /* bounds clipping */
   if (do_clip_planes) {
-    return ED_view3d_clip_segment((RegionView3D *)region->regiondata, r_ray_start, r_ray_end);
+    return ED_view3d_clip_segment(
+        static_cast<RegionView3D *>(region->regiondata), r_ray_start, r_ray_end);
   }
 
   return true;
@@ -700,24 +759,19 @@ bool ED_view3d_win_to_segment_clipped(const Depsgraph *depsgraph,
 /** \name Utility functions for projection
  * \{ */
 
-blender::float4x4 ED_view3d_ob_project_mat_get(const RegionView3D *rv3d, const Object *ob)
+float4x4 ED_view3d_ob_project_mat_get(const RegionView3D *rv3d, const Object *ob)
 {
   float vmat[4][4];
-  blender::float4x4 r_pmat;
+  float4x4 pmat;
 
-  mul_m4_m4m4(vmat, rv3d->viewmat, ob->object_to_world);
-  mul_m4_m4m4(r_pmat.ptr(), rv3d->winmat, vmat);
-  return r_pmat;
+  mul_m4_m4m4(vmat, rv3d->viewmat, ob->object_to_world().ptr());
+  mul_m4_m4m4(pmat.ptr(), rv3d->winmat, vmat);
+  return pmat;
 }
 
-void ED_view3d_ob_project_mat_get_from_obmat(const RegionView3D *rv3d,
-                                             const float obmat[4][4],
-                                             float r_pmat[4][4])
+float4x4 ED_view3d_ob_project_mat_get_from_obmat(const RegionView3D *rv3d, const float4x4 &obmat)
 {
-  float vmat[4][4];
-
-  mul_m4_m4m4(vmat, rv3d->viewmat, obmat);
-  mul_m4_m4m4(r_pmat, rv3d->winmat, vmat);
+  return float4x4_view(rv3d->winmat) * float4x4_view(rv3d->viewmat) * obmat;
 }
 
 void ED_view3d_project_v3(const ARegion *region, const float world[3], float r_region_co[3])
@@ -747,3 +801,5 @@ bool ED_view3d_unproject_v3(
 }
 
 /** \} */
+
+}  // namespace blender

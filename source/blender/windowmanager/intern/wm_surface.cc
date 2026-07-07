@@ -6,36 +6,52 @@
  * \ingroup wm
  */
 
-#include "BKE_context.hh"
+#include "BLI_listbase.hh"
+#ifndef NDEBUG
+#  include "BLI_threads.hh"
+#endif
 
-#include "BLF_api.h"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_threads.h"
-
-#include "GHOST_C-api.h"
-
-#include "GPU_batch_presets.h"
-#include "GPU_context.h"
-#include "GPU_framebuffer.h"
-#include "GPU_immediate.h"
+#include "GPU_context.hh"
+#include "GPU_framebuffer.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-#include "wm.hh"
 
 #include "wm_surface.hh"
 
-static ListBase global_surface_list = {nullptr, nullptr};
+namespace blender {
+
+static ListBaseT<wmSurface> global_surface_list = {nullptr, nullptr};
 static wmSurface *g_drawable = nullptr;
+
+static void wm_surface_constant_dpi_set_userpref()
+{
+  /* Ensure WM surfaces are always drawn at the same base constant pixel size. No matter the host
+   * operating system, monitor, or parent Blender window.
+   * NOTE: This function is analogous to #WM_window_dpi_set_userdef. Changes made in this
+   *       function might need to be reproduced here. */
+
+  U.dpi = 72.0f;
+
+  U.pixelsize = 1.0f;
+  U.virtual_pixel = VIRTUAL_PIXEL_NATIVE;
+
+  U.scale_factor = 1.0f;
+  U.inv_scale_factor = 1.0f;
+
+  U.widget_unit = int(roundf(18.0f * U.scale_factor)) + (2 * U.pixelsize);
+}
 
 void wm_surfaces_iter(bContext *C, void (*cb)(bContext *C, wmSurface *))
 {
   /* Mutable iterator in case a surface is freed. */
-  LISTBASE_FOREACH_MUTABLE (wmSurface *, surf, &global_surface_list) {
-    cb(C, surf);
+  for (wmSurface &surf : global_surface_list.items_mutable()) {
+    cb(C, &surf);
   }
 }
 
@@ -87,6 +103,7 @@ void wm_surface_make_drawable(wmSurface *surface)
   if (surface != g_drawable) {
     wm_surface_clear_drawable();
     wm_surface_set_drawable(surface, true);
+    wm_surface_constant_dpi_set_userpref();
   }
 }
 
@@ -113,14 +130,16 @@ void wm_surface_remove(wmSurface *surface)
   wm_surface_make_drawable(surface);
   surface->free_data(surface);
   wm_surface_clear_drawable();
-  MEM_freeN(surface);
+  MEM_delete(surface);
 }
 
 void wm_surfaces_free()
 {
-  LISTBASE_FOREACH_MUTABLE (wmSurface *, surf, &global_surface_list) {
-    wm_surface_remove(surf);
+  for (wmSurface &surf : global_surface_list.items_mutable()) {
+    wm_surface_remove(&surf);
   }
 
-  BLI_assert(BLI_listbase_is_empty(&global_surface_list));
+  BLI_assert(global_surface_list.is_empty());
 }
+
+}  // namespace blender

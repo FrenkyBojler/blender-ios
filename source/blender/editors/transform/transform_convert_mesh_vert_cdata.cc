@@ -6,8 +6,8 @@
  * \ingroup edtransform
  */
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
@@ -18,6 +18,8 @@
 #include "transform_orientations.hh"
 
 #include "transform_convert.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Edit Mesh Bevel Weight and Crease Transform Creation
@@ -122,9 +124,9 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
           em, calc_single_islands, calc_island_center, calc_island_axismtx, &island_data);
     }
 
-    copy_m3_m4(mtx, tc->obedit->object_to_world);
-    /* we use a pseudo-inverse so that when one of the axes is scaled to 0,
-     * matrix inversion still works and we can still moving along the other */
+    copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
+    /* We use a pseudo-inverse so that when one of the axes is scaled to 0,
+     * matrix inversion still works and we can still moving along the other. */
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
     /* Original index of our connected vertex when connected distances are calculated.
@@ -132,9 +134,9 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
     int *dists_index = nullptr;
     float *dists = nullptr;
     if (prop_mode & T_PROP_CONNECTED) {
-      dists = static_cast<float *>(MEM_mallocN(bm->totvert * sizeof(float), __func__));
+      dists = MEM_new_array_uninitialized<float>(bm->totvert, __func__);
       if (is_island_center) {
-        dists_index = static_cast<int *>(MEM_mallocN(bm->totvert * sizeof(int), __func__));
+        dists_index = MEM_new_array_uninitialized<int>(bm->totvert, __func__);
       }
       transform_convert_mesh_connectivity_distance(em->bm, mtx, dists, dists_index);
     }
@@ -145,8 +147,7 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
     /* Create TransData. */
     BLI_assert(data_len >= 1);
     tc->data_len = data_len;
-    tc->data = static_cast<TransData *>(
-        MEM_callocN(data_len * sizeof(TransData), "TransObData(Mesh EditMode)"));
+    tc->data = MEM_new_array_zeroed<TransData>(data_len, "TransObData(Mesh EditMode)");
 
     TransData *td = tc->data;
     BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, a) {
@@ -162,13 +163,14 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
 
       float *weight = static_cast<float *>(BM_ELEM_CD_GET_VOID_P(eve, cd_offset));
       if (prop_mode || BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-        mesh_cdata_transdata_create((TransDataBasic *)td, eve, weight, &island_data, island_index);
+        mesh_cdata_transdata_create(
+            static_cast<TransDataBasic *>(td), eve, weight, &island_data, island_index);
 
         if (t->around == V3D_AROUND_LOCAL_ORIGINS) {
           createSpaceNormal(td->axismtx, eve->no);
         }
         else {
-          /* Setting normals */
+          /* Setting normals. */
           copy_v3_v3(td->axismtx[2], eve->no);
           td->axismtx[0][0] = td->axismtx[0][1] = td->axismtx[0][2] = td->axismtx[1][0] =
               td->axismtx[1][1] = td->axismtx[1][2] = 0.0f;
@@ -183,7 +185,7 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
           }
         }
 
-        /* CrazySpace */
+        /* CrazySpace. */
         transform_convert_mesh_crazyspace_transdata_set(
             mtx,
             smtx,
@@ -200,10 +202,10 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
     transform_convert_mesh_islanddata_free(&island_data);
     transform_convert_mesh_crazyspace_free(&crazyspace_data);
     if (dists) {
-      MEM_freeN(dists);
+      MEM_delete(dists);
     }
     if (dists_index) {
-      MEM_freeN(dists_index);
+      MEM_delete(dists_index);
     }
   }
 }
@@ -216,7 +218,7 @@ static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
 static void recalcData_mesh_cdata(TransInfo *t)
 {
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    DEG_id_tag_update(static_cast<ID *>(tc->obedit->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(tc->obedit->data, ID_RECALC_GEOMETRY);
   }
 }
 
@@ -228,3 +230,5 @@ TransConvertTypeInfo TransConvertType_MeshVertCData = {
     /*recalc_data*/ recalcData_mesh_cdata,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

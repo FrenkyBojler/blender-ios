@@ -5,27 +5,12 @@
 /** \file
  * \ingroup GHOST
  *
- * Utility defines (avoid depending on `BLI_utildefines.h`).
+ * Utility defines (avoid depending on `BLI_utildefines.hh`).
  */
 
 #pragma once
 
 #include "GHOST_utildefines_variadic.hh"
-
-/* -------------------------------------------------------------------- */
-/** \name Branch Prediction Macros
- * \{ */
-
-/* hints for branch prediction, only use in code that runs a _lot_ where */
-#ifdef __GNUC__
-#  define LIKELY(x) __builtin_expect(!!(x), 1)
-#  define UNLIKELY(x) __builtin_expect(!!(x), 0)
-#else
-#  define LIKELY(x) (x)
-#  define UNLIKELY(x) (x)
-#endif
-
-/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Array Unpacking Macros
@@ -101,113 +86,6 @@
 
 /* reusable ELEM macro */
 #define ELEM(...) VA_NARGS_CALL_OVERLOAD(_VA_ELEM, __VA_ARGS__)
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Clamp Macros
- * \{ */
-
-#define CLAMPIS(a, b, c) ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
-
-#define CLAMP(a, b, c) \
-  { \
-    if ((a) < (b)) { \
-      (a) = (b); \
-    } \
-    else if ((a) > (c)) { \
-      (a) = (c); \
-    } \
-  } \
-  (void)0
-
-#define CLAMP_MAX(a, c) \
-  { \
-    if ((a) > (c)) { \
-      (a) = (c); \
-    } \
-  } \
-  (void)0
-
-#define CLAMP_MIN(a, b) \
-  { \
-    if ((a) < (b)) { \
-      (a) = (b); \
-    } \
-  } \
-  (void)0
-
-#define CLAMP2(vec, b, c) \
-  { \
-    CLAMP((vec)[0], b, c); \
-    CLAMP((vec)[1], b, c); \
-  } \
-  (void)0
-
-#define CLAMP2_MIN(vec, b) \
-  { \
-    CLAMP_MIN((vec)[0], b); \
-    CLAMP_MIN((vec)[1], b); \
-  } \
-  (void)0
-
-#define CLAMP2_MAX(vec, b) \
-  { \
-    CLAMP_MAX((vec)[0], b); \
-    CLAMP_MAX((vec)[1], b); \
-  } \
-  (void)0
-
-#define CLAMP3(vec, b, c) \
-  { \
-    CLAMP((vec)[0], b, c); \
-    CLAMP((vec)[1], b, c); \
-    CLAMP((vec)[2], b, c); \
-  } \
-  (void)0
-
-#define CLAMP3_MIN(vec, b) \
-  { \
-    CLAMP_MIN((vec)[0], b); \
-    CLAMP_MIN((vec)[1], b); \
-    CLAMP_MIN((vec)[2], b); \
-  } \
-  (void)0
-
-#define CLAMP3_MAX(vec, b) \
-  { \
-    CLAMP_MAX((vec)[0], b); \
-    CLAMP_MAX((vec)[1], b); \
-    CLAMP_MAX((vec)[2], b); \
-  } \
-  (void)0
-
-#define CLAMP4(vec, b, c) \
-  { \
-    CLAMP((vec)[0], b, c); \
-    CLAMP((vec)[1], b, c); \
-    CLAMP((vec)[2], b, c); \
-    CLAMP((vec)[3], b, c); \
-  } \
-  (void)0
-
-#define CLAMP4_MIN(vec, b) \
-  { \
-    CLAMP_MIN((vec)[0], b); \
-    CLAMP_MIN((vec)[1], b); \
-    CLAMP_MIN((vec)[2], b); \
-    CLAMP_MIN((vec)[3], b); \
-  } \
-  (void)0
-
-#define CLAMP4_MAX(vec, b) \
-  { \
-    CLAMP_MAX((vec)[0], b); \
-    CLAMP_MAX((vec)[1], b); \
-    CLAMP_MAX((vec)[2], b); \
-    CLAMP_MAX((vec)[3], b); \
-  } \
-  (void)0
 
 /** \} */
 

@@ -2,20 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
+#include "BLI_string_utf8.hh"
 
-#include "RNA_access.hh"
-
-#include "BLI_string.h"
-
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "IMB_colormanagement.h"
+#include "IMB_colormanagement.hh"
 
-#include "GPU_shader.h"
+#include "GPU_shader.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_ocio_color_space_conversion_shader.hh"
@@ -27,40 +21,40 @@ namespace blender::nodes::node_composite_convert_color_space_cc {
 
 NODE_STORAGE_FUNCS(NodeConvertColorSpace)
 
-static void CMP_NODE_CONVERT_COLOR_SPACE_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
+      .structure_type(StructureType::Dynamic);
+
+  b.add_output<decl::Color>("Image"_ustr).structure_type(StructureType::Dynamic);
 }
 
-static void node_composit_init_convert_colorspace(bNodeTree * /*ntree*/, bNode *node)
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeConvertColorSpace *ncs = static_cast<NodeConvertColorSpace *>(
-      MEM_callocN(sizeof(NodeConvertColorSpace), "node colorspace"));
-  const char *first_colorspace = IMB_colormanagement_role_colorspace_name_get(
-      COLOR_ROLE_SCENE_LINEAR);
-  if (first_colorspace && first_colorspace[0]) {
-    STRNCPY(ncs->from_color_space, first_colorspace);
-    STRNCPY(ncs->to_color_space, first_colorspace);
-  }
-  else {
-    ncs->from_color_space[0] = 0;
-    ncs->to_color_space[0] = 0;
-  }
+  NodeConvertColorSpace *ncs = MEM_new<NodeConvertColorSpace>("node colorspace");
+  STRNCPY_UTF8(ncs->from_color_space, "scene_linear");
+  STRNCPY_UTF8(ncs->to_color_space, "scene_linear");
   node->storage = ncs;
 }
 
-static void node_composit_buts_convert_colorspace(uiLayout *layout,
-                                                  bContext * /*C*/,
-                                                  PointerRNA *ptr)
+static void node_draw_buttons(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "from_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "to_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
+  layout.prop_with_menu(ptr,
+                        "from_color_space",
+                        ui::ITEM_R_SPLIT_EMPTY_NAME,
+                        std::nullopt,
+                        ICON_NONE,
+                        "UI_MT_color_space_select");
+  layout.prop_with_menu(ptr,
+                        "to_color_space",
+                        ui::ITEM_R_SPLIT_EMPTY_NAME,
+                        std::nullopt,
+                        ICON_NONE,
+                        "UI_MT_color_space_select");
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class ConvertColorSpaceOperation : public NodeOperation {
  public:
@@ -68,10 +62,10 @@ class ConvertColorSpaceOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input_image = get_input("Image");
-    Result &output_image = get_result("Image");
-    if (is_identity()) {
-      input_image.pass_through(output_image);
+    const Result &input_image = this->get_input("Image");
+    if (this->is_identity()) {
+      Result &output_image = this->get_result("Image");
+      output_image.share_data(input_image);
       return;
     }
 
@@ -79,22 +73,35 @@ class ConvertColorSpaceOperation : public NodeOperation {
       execute_single();
       return;
     }
+    if (this->context().use_gpu()) {
+      execute_gpu();
+    }
+    else {
+      execute_cpu();
+    }
+  }
 
-    const char *source = node_storage(bnode()).from_color_space;
-    const char *target = node_storage(bnode()).to_color_space;
+  void execute_gpu()
+  {
+    const char *source = node_storage(node()).from_color_space;
+    const char *target = node_storage(node()).to_color_space;
 
     OCIOColorSpaceConversionShader &ocio_shader =
         context().cache_manager().ocio_color_space_conversion_shaders.get(
             context(), source, target);
 
-    GPUShader *shader = ocio_shader.bind_shader_and_resources();
+    gpu::Shader *shader = ocio_shader.bind_shader_and_resources();
 
     /* A null shader indicates that the conversion shader is just a stub implementation since OCIO
      * is disabled at compile time, so pass the input through in that case. */
+    const Result &input_image = this->get_input("Image");
+    Result &output_image = this->get_result("Image");
     if (!shader) {
-      input_image.pass_through(output_image);
+      output_image.share_data(input_image);
       return;
     }
+
+    GPU_shader_uniform_1b(shader, "premultiply_output", false);
 
     input_image.bind_as_texture(shader, ocio_shader.input_sampler_name());
 
@@ -102,35 +109,58 @@ class ConvertColorSpaceOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, ocio_shader.output_image_name());
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_image.unbind_as_texture();
     output_image.unbind_as_image();
     ocio_shader.unbind_shader_and_resources();
   }
 
-  void execute_single()
+  void execute_cpu()
   {
-    const char *source = node_storage(bnode()).from_color_space;
-    const char *target = node_storage(bnode()).to_color_space;
-    ColormanageProcessor *color_processor = IMB_colormanagement_colorspace_processor_new(source,
-                                                                                         target);
+    const char *source = node_storage(node()).from_color_space;
+    const char *target = node_storage(node()).to_color_space;
+    ColormanageProcessor color_processor = ColormanageProcessor::colorspace_processor_new(source,
+                                                                                          target);
 
     Result &input_image = get_input("Image");
-    float4 color = input_image.get_color_value();
 
-    IMB_colormanagement_processor_apply_pixel(color_processor, color, 3);
-    IMB_colormanagement_processor_free(color_processor);
+    const Domain domain = compute_domain();
+    Result &output_image = get_result("Image");
+    output_image.allocate_texture(domain);
+
+    parallel_for(domain.data_size, [&](const int2 texel) {
+      output_image.store_pixel(texel, input_image.load_pixel<Color>(texel));
+    });
+
+    color_processor.apply(static_cast<float *>(output_image.cpu_data_for_write().data()),
+                          domain.data_size.x,
+                          domain.data_size.y,
+                          input_image.channels_count(),
+                          false);
+  }
+
+  void execute_single()
+  {
+    const char *source = node_storage(node()).from_color_space;
+    const char *target = node_storage(node()).to_color_space;
+    ColormanageProcessor color_processor = ColormanageProcessor::colorspace_processor_new(source,
+                                                                                          target);
+
+    Result &input_image = get_input("Image");
+    Color color = input_image.get_single_value<Color>();
+
+    color_processor.apply_pixel(color, 3);
 
     Result &output_image = get_result("Image");
     output_image.allocate_single_value();
-    output_image.set_color_value(color);
+    output_image.set_single_value(color);
   }
 
   bool is_identity()
   {
-    const char *source = node_storage(bnode()).from_color_space;
-    const char *target = node_storage(bnode()).to_color_space;
+    const char *source = node_storage(node()).from_color_space;
+    const char *target = node_storage(node()).to_color_space;
 
     if (STREQ(source, target)) {
       return true;
@@ -145,27 +175,31 @@ class ConvertColorSpaceOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new ConvertColorSpaceOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_convert_color_space_cc
-
-void register_node_type_cmp_convert_color_space()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_convert_color_space_cc;
-  static bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  cmp_node_type_base(
-      &ntype, CMP_NODE_CONVERT_COLOR_SPACE, "Convert Colorspace", NODE_CLASS_CONVERTER);
-  ntype.declare = file_ns::CMP_NODE_CONVERT_COLOR_SPACE_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_convert_colorspace;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::MIDDLE);
-  ntype.initfunc = file_ns::node_composit_init_convert_colorspace;
-  node_type_storage(
-      &ntype, "NodeConvertColorSpace", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  cmp_node_type_base(&ntype, "CompositorNodeConvertColorSpace"_ustr, CMP_NODE_CONVERT_COLOR_SPACE);
+  ntype.ui_name = "Convert Colorspace";
+  ntype.ui_description = "Convert between color spaces";
+  ntype.enum_name_legacy = "CONVERT_COLORSPACE";
+  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.declare = node_declare;
+  ntype.draw_buttons = node_draw_buttons;
+  ntype.default_width = bke::NodeWidth::_160;
+  ntype.initfunc = node_init;
+  bke::node_type_storage(
+      ntype, "NodeConvertColorSpace", node_free_standard_storage, node_copy_standard_storage);
+  ntype.get_compositor_operation = get_compositor_operation;
+  ntype.default_width = bke::NodeWidth::_160;
 
-  nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_convert_color_space_cc

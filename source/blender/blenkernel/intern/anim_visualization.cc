@@ -8,18 +8,18 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_anim_visualization.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
-#include "GPU_batch.h"
+#include "GPU_batch.hh"
 
 #include "BLO_read_write.hh"
+
+namespace blender {
 
 /* ******************************************************************** */
 /* Animation Visualization */
@@ -37,7 +37,7 @@ void animviz_settings_init(bAnimVizSettings *avs)
   avs->path_sf = 1;   /* XXX: Take from scene instead? */
   avs->path_ef = 250; /* XXX: Take from scene instead? */
 
-  avs->path_viewflag = (MOTIONPATH_VIEW_KFRAS | MOTIONPATH_VIEW_KFNOS);
+  avs->path_viewflag = MOTIONPATH_VIEW_KFRAS | MOTIONPATH_VIEW_KFNOS;
 
   avs->path_step = 1;
 
@@ -55,7 +55,7 @@ void animviz_free_motionpath_cache(bMotionPath *mpath)
 
   /* free the path if necessary */
   if (mpath->points) {
-    MEM_freeN(mpath->points);
+    MEM_delete(mpath->points);
   }
 
   GPU_VERTBUF_DISCARD_SAFE(mpath->points_vbo);
@@ -78,7 +78,7 @@ void animviz_free_motionpath(bMotionPath *mpath)
   animviz_free_motionpath_cache(mpath);
 
   /* now the instance itself */
-  MEM_freeN(mpath);
+  MEM_delete(mpath);
 }
 
 /* ------------------- */
@@ -91,8 +91,8 @@ bMotionPath *animviz_copy_motionpath(const bMotionPath *mpath_src)
     return nullptr;
   }
 
-  mpath_dst = static_cast<bMotionPath *>(MEM_dupallocN(mpath_src));
-  mpath_dst->points = static_cast<bMotionPathVert *>(MEM_dupallocN(mpath_src->points));
+  mpath_dst = MEM_dupalloc(mpath_src);
+  mpath_dst->points = MEM_dupalloc(mpath_src->points);
 
   /* should get recreated on draw... */
   mpath_dst->points_vbo = nullptr;
@@ -119,7 +119,7 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
 
   /* get destination data */
   if (pchan) {
-    /* paths for posechannel - assume that posechannel belongs to the object */
+    /* Paths for pose-channel - assume that pose-channel belongs to the object. */
     avs = &ob->pose->avs;
     dst = &pchan->mpath;
   }
@@ -141,39 +141,41 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
     return nullptr;
   }
 
-  /* if there is already a motionpath, just return that,
-   * provided its settings are ok (saves extra free+alloc)
-   */
-  if (*dst != nullptr) {
-    int expected_length = avs->path_ef - avs->path_sf;
+  /* Adding 1 because the avs range is inclusive on both ends. */
+  const int expected_length = (avs->path_ef - avs->path_sf) + 1;
+  BLI_assert(expected_length > 1); /* Because the `if` above. */
 
+  /* If there is already a motionpath, just return that, provided its settings
+   * are ok (saves extra free+alloc). */
+  if (*dst != nullptr) {
     mpath = *dst;
 
-    /* Path is "valid" if length is valid,
-     * but must also be of the same length as is being requested. */
-    if ((mpath->start_frame != mpath->end_frame) && (mpath->length > 0)) {
-      /* outer check ensures that we have some curve data for this path */
-      if (mpath->length == expected_length) {
-        mpath->start_frame = avs->path_sf;
-        mpath->end_frame = avs->path_ef;
-        /* return/use this as it is already valid length */
-        return mpath;
-      }
-      /* clear the existing path (as the range has changed), and reallocate below */
-      animviz_free_motionpath_cache(mpath);
+    if (avs->path_bakeflag & MOTIONPATH_BAKE_CAMERA_SPACE) {
+      mpath->flag |= MOTIONPATH_FLAG_BAKE_CAMERA;
     }
+    else {
+      mpath->flag &= ~MOTIONPATH_FLAG_BAKE_CAMERA;
+    }
+
+    /* Only reuse a path if it was already a valid path, and of the expected length. */
+    if (mpath->start_frame != mpath->end_frame && mpath->length == expected_length) {
+      mpath->start_frame = avs->path_sf;
+      mpath->end_frame = avs->path_ef + 1;
+      return mpath;
+    }
+
+    /* Clear the existing cache, to allocate a new one below. */
+    animviz_free_motionpath_cache(mpath);
   }
   else {
-    /* create a new motionpath, and assign it */
-    mpath = static_cast<bMotionPath *>(MEM_callocN(sizeof(bMotionPath), "bMotionPath"));
+    mpath = MEM_new<bMotionPath>("bMotionPath");
     *dst = mpath;
   }
 
-  /* set settings from the viz settings */
+  /* Copy mpath settings from the viz settings. */
   mpath->start_frame = avs->path_sf;
-  mpath->end_frame = avs->path_ef;
-
-  mpath->length = mpath->end_frame - mpath->start_frame;
+  mpath->end_frame = avs->path_ef + 1;
+  mpath->length = expected_length;
 
   if (avs->path_bakeflag & MOTIONPATH_BAKE_HEADS) {
     mpath->flag |= MOTIONPATH_FLAG_BHEAD;
@@ -182,22 +184,31 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
     mpath->flag &= ~MOTIONPATH_FLAG_BHEAD;
   }
 
-  /* set default custom values */
-  mpath->color[0] = 1.0; /* Red */
+  if (avs->path_bakeflag & MOTIONPATH_BAKE_CAMERA_SPACE) {
+    mpath->flag |= MOTIONPATH_FLAG_BAKE_CAMERA;
+  }
+  else {
+    mpath->flag &= ~MOTIONPATH_FLAG_BAKE_CAMERA;
+  }
+
+  /* Set default custom values (RGB). */
+  mpath->color[0] = 1.0;
   mpath->color[1] = 0.0;
   mpath->color[2] = 0.0;
 
+  mpath->color_post[0] = 0.1;
+  mpath->color_post[1] = 1.0;
+  mpath->color_post[2] = 0.1;
+
   mpath->line_thickness = 2;
-  mpath->flag |= MOTIONPATH_FLAG_LINES; /* draw lines by default */
+  mpath->flag |= MOTIONPATH_FLAG_LINES;
 
-  /* allocate a cache */
-  mpath->points = static_cast<bMotionPathVert *>(
-      MEM_callocN(sizeof(bMotionPathVert) * mpath->length, "bMotionPathVerts"));
+  /* Allocate a cache. */
+  mpath->points = MEM_new_array<bMotionPathVert>(mpath->length, "bMotionPathVerts");
 
-  /* tag viz settings as currently having some path(s) which use it */
+  /* Tag viz settings as currently having some path(s) which use it. */
   avs->path_bakeflag |= MOTIONPATH_BAKE_HAS_PATHS;
 
-  /* return it */
   return mpath;
 }
 
@@ -209,10 +220,10 @@ void animviz_motionpath_blend_write(BlendWriter *writer, bMotionPath *mpath)
   }
 
   /* firstly, just write the motionpath struct */
-  BLO_write_struct(writer, bMotionPath, mpath);
+  writer->write_struct(mpath);
 
   /* now write the array of data */
-  BLO_write_struct_array(writer, bMotionPathVert, mpath->length, mpath->points);
+  writer->write_struct_array(mpath->length, mpath->points);
 }
 
 void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mpath)
@@ -223,9 +234,11 @@ void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mp
   }
 
   /* relink points cache */
-  BLO_read_data_address(reader, &mpath->points);
+  BLO_read_array_and_validate_size(reader, &mpath->points, &mpath->length);
 
   mpath->points_vbo = nullptr;
   mpath->batch_line = nullptr;
   mpath->batch_points = nullptr;
 }
+
+}  // namespace blender

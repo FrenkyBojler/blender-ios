@@ -10,10 +10,15 @@
 
 #include <atomic>
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_utility_mixins.hh"
 
+#include "MEM_guardedalloc.h"
+
 namespace blender {
+
+class ImplicitSharingInfo;
+using ImplicitSharingInfoHandle = ImplicitSharingInfo;
 
 /**
  * #ImplicitSharingInfo is the core data structure for implicit sharing in Blender. Implicit
@@ -82,7 +87,7 @@ class ImplicitSharingInfo : NonCopyable, NonMovable {
     return strong_users_.load(std::memory_order_acquire) == 0;
   }
 
-  /** Call when a the data has a new additional owner. */
+  /** Call when the data has a new additional owner. */
   void add_user() const
   {
     BLI_assert(!this->is_expired());
@@ -123,6 +128,11 @@ class ImplicitSharingInfo : NonCopyable, NonMovable {
   int64_t version() const
   {
     return version_.load(std::memory_order_acquire);
+  }
+
+  int strong_users() const
+  {
+    return strong_users_.load(std::memory_order_acquire);
   }
 
   /**
@@ -195,6 +205,28 @@ class ImplicitSharingMixin : public ImplicitSharingInfo {
 };
 
 /**
+ * Utility for creating an allocated shared resource, to be used like:
+ * `new ImplicitSharedValue<T>(args);`
+ */
+template<typename T> class ImplicitSharedValue : public ImplicitSharingInfo {
+ public:
+  T data;
+
+  template<typename... Args>
+  ImplicitSharedValue(Args &&...args) : data(std::forward<Args>(args)...)
+  {
+  }
+
+  MEM_CXX_CLASS_ALLOC_FUNCS("ImplicitSharedValue");
+
+ private:
+  void delete_self_with_data() override
+  {
+    delete this;
+  }
+};
+
+/**
  * Utility that contains sharing information and the data that is shared.
  */
 struct ImplicitSharingInfoAndData {
@@ -251,7 +283,7 @@ template<typename T> void free_shared_data(T **data, const ImplicitSharingInfo *
 
 /**
  * Create an implicit sharing object that takes ownership of the data, allowing it to be shared.
- * When it is no longer used, the data is freed with #MEM_freeN, so it must be a trivial type.
+ * When it is no longer used, the data is freed with #MEM_delete, so it must be a trivial type.
  */
 const ImplicitSharingInfo *info_for_mem_free(void *data);
 

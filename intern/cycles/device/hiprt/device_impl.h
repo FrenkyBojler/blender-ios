@@ -11,13 +11,7 @@
 #  include "device/hip/queue.h"
 #  include "device/hiprt/queue.h"
 
-#  ifdef WITH_HIP_DYNLOAD
-#    include "hiprtew.h"
-#  else
-#    include <hiprt/hiprt_types.h>
-#  endif
-
-#  include "kernel/device/hiprt/globals.h"
+#  include <hiprt/hiprt_types.h>
 
 CCL_NAMESPACE_BEGIN
 
@@ -31,29 +25,31 @@ class BVHHIPRT;
 class HIPRTDevice : public HIPDevice {
 
  public:
-  virtual BVHLayoutMask get_bvh_layout_mask(const uint kernel_features) const override;
+  static bool is_supported();
 
-  HIPRTDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler);
+  BVHLayoutMask get_bvh_layout_mask(const uint kernel_features) const override;
 
-  virtual ~HIPRTDevice();
-  virtual unique_ptr<DeviceQueue> gpu_queue_create() override;
-  string compile_kernel_get_common_cflags(const uint kernel_features) override;
-  virtual string compile_kernel(const uint kernel_features,
-                                const char *name,
-                                const char *base = "hiprt") override;
+  HIPRTDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless);
 
-  virtual bool load_kernels(const uint kernel_features) override;
+  ~HIPRTDevice() override;
+  unique_ptr<DeviceQueue> gpu_queue_create() override;
+  string compile_kernel_get_common_cflags(const uint kernel_features);
+  string compile_kernel(const uint kernel_features, const char *name, const char *base = "hiprt");
 
-  virtual void const_copy_to(const char *name, void *host, size_t size) override;
+  bool load_kernels(const uint kernel_features) override;
 
-  virtual void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
+  void const_copy_to(const char *name, void *host, const size_t size) override;
+
+  void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
+
+  void release_bvh(BVH *bvh) override;
 
   hiprtContext get_hiprt_context()
   {
     return hiprt_context;
   }
 
-  device_vector<int> global_stack_buffer;
+  hiprtGlobalStackBuffer global_stack_buffer;
 
  protected:
   enum Filter_Function { Closest = 0, Shadows, Local, Volume, Max_Intersect_Filter_Function };
@@ -63,18 +59,35 @@ class HIPRTDevice : public HIPDevice {
   hiprtGeometryBuildInput prepare_curve_blas(BVHHIPRT *bvh, Hair *hair);
   hiprtGeometryBuildInput prepare_point_blas(BVHHIPRT *bvh, PointCloud *pointcloud);
   void build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions options);
+  hiprtBuildFlags select_blas_build_flags(BVHHIPRT *bvh,
+                                          Geometry *geom,
+                                          const hiprtGeometryBuildInput &geom_input);
   hiprtScene build_tlas(BVHHIPRT *bvh,
-                        vector<Object *> objects,
+                        const vector<Object *> &objects,
                         hiprtBuildOptions options,
                         bool refit);
+  void free_bvh_memory_delayed();
 
   hiprtContext hiprt_context;
+  hipModule_t hiprt_module_;
+
   hiprtScene scene;
   hiprtFuncTable functions_table;
 
   thread_mutex hiprt_mutex;
   size_t scratch_buffer_size;
   device_vector<char> scratch_buffer;
+
+  /* This vector tracks the hiprt_geom members of BVHRT so that device memory
+   * can be managed/released in HIPRTDevice.
+   * Even if synchronization occurs before memory release, a GPU job may still
+   * launch between synchronization and release, potentially causing the GPU
+   * to access unmapped memory. */
+  vector<hiprtGeometry> stale_bvh;
+
+  /* Is this scene using motion blur? Note there might exist motion data even if
+   * motion blur is disabled, for render passes. */
+  bool use_motion_blur = false;
 
   /* The following vectors are to transfer scene information available on the host to the GPU
    * visibility, instance_transform_matrix, transform_headers, and hiprt_blas_ptr are passed to
@@ -111,7 +124,7 @@ class HIPRTDevice : public HIPDevice {
    * blas_ptr has all the valid pointers and null pointers and blas for any geometry can be
    * directly retrieved from this array (used in subsurface scattering). */
   device_vector<int> user_instance_id;
-  device_vector<uint64_t> hiprt_blas_ptr;
+  device_vector<hiprtInstance> hiprt_blas_ptr;
   device_vector<uint64_t> blas_ptr;
 
   /* custom_prim_info stores custom information for custom primitives for all the primitives in a

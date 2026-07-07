@@ -11,33 +11,42 @@
 #include <iomanip>
 #include <optional>
 
-#include "ED_asset_indexer.h"
+#include "ED_asset_indexer.hh"
+#include "asset_index.hh"
 
+#include "DNA_ID.h"
 #include "DNA_asset_types.h"
-#include "DNA_userdef_types.h"
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_hash.hh"
-#include "BLI_linklist.h"
-#include "BLI_path_util.h"
+#include "BLI_linklist.hh"
+#include "BLI_listbase.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_serialize.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_uuid.h"
+#include "BLI_string_utf8.hh"
 
 #include "AS_asset_catalog.hh"
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_asset.hh"
 #include "BKE_idprop.hh"
+#include "BKE_preferences.h"
+
+/* For converting enum values to/from identifiers. */
+#include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 
 #include "CLG_log.h"
 
 #include <sstream>
 
-static CLG_LogRef LOG = {"ed.asset"};
+namespace blender {
 
-namespace blender::ed::asset::index {
+static CLG_LogRef LOG = {"asset.index"};
+
+namespace ed::asset::index {
 
 using namespace blender::asset_system;
 using namespace blender::io::serialize;
@@ -64,13 +73,15 @@ using namespace blender::bke::idprop;
  *     "copyright": "<copyright>",
  *     "license": "<license>",
  *     "tags": ["<tag>"],
+ *     "preferred_import_method": eAssetImportMethod,
  *     "properties": [..]
  *   }]
  * }
  * \endcode
  *
  * NOTE: entries, author, description, copyright, license, tags and properties are optional
- * attributes.
+ * attributes. If preferred_import_method is set, the #ASSETDATA_USE_OWN_IMPORT_METHOD flag will be
+ * set on the asset metadata. Otherwise, it will not be set.
  *
  * NOTE: File browser uses name and idcode separate. Inside the index they are joined together like
  * #ID.name.
@@ -87,6 +98,7 @@ constexpr StringRef ATTRIBUTE_ENTRIES_COPYRIGHT("copyright");
 constexpr StringRef ATTRIBUTE_ENTRIES_LICENSE("license");
 constexpr StringRef ATTRIBUTE_ENTRIES_TAGS("tags");
 constexpr StringRef ATTRIBUTE_ENTRIES_PROPERTIES("properties");
+constexpr StringRef ATTRIBUTE_ENTRIES_PREFERRED_IMPORT_METHOD("preferred_import_method");
 
 /** Abstract class for #BlendFile and #AssetIndexFile. */
 class AbstractFile {
@@ -97,12 +109,12 @@ class AbstractFile {
 
   bool exists() const
   {
-    return BLI_exists(get_file_path());
+    return BLI_exists(this->get_file_path());
   }
 
   size_t get_file_size() const
   {
-    return BLI_file_size(get_file_path());
+    return BLI_file_size(this->get_file_path());
   }
 };
 
@@ -124,7 +136,7 @@ class BlendFile : public AbstractFile {
   std::string get_filename() const
   {
     char filename[FILE_MAX];
-    BLI_path_split_file_part(get_file_path(), filename, sizeof(filename));
+    BLI_path_split_file_part(this->get_file_path(), filename, sizeof(filename));
     return std::string(filename);
   }
 
@@ -135,233 +147,71 @@ class BlendFile : public AbstractFile {
 };
 
 /**
- * \brief Single entry inside a #AssetIndexFile for reading.
+ * \brief add id + name to the attributes.
+ *
+ * NOTE: id and name are encoded like #ID.name
  */
-struct AssetEntryReader {
- private:
-  /**
-   * \brief Lookup table containing the elements of the entry.
-   */
-  DictionaryValue::Lookup lookup;
+static void add_id_name(DictionaryValue &result, const short idcode, const StringRefNull name)
+{
+  char idcode_prefix[2];
+  /* Similar to `BKE_libblock_alloc`. */
+  *(reinterpret_cast<short *>(idcode_prefix)) = idcode;
+  std::string name_with_idcode = std::string(idcode_prefix, sizeof(idcode_prefix)) + name;
 
-  StringRefNull get_name_with_idcode() const
-  {
-    return lookup.lookup(ATTRIBUTE_ENTRIES_NAME)->as_string_value()->value();
-  }
+  result.append_str(ATTRIBUTE_ENTRIES_NAME, name_with_idcode);
+}
 
- public:
-  AssetEntryReader(const DictionaryValue &entry) : lookup(entry.create_lookup()) {}
-
-  ID_Type get_idcode() const
-  {
-    const StringRefNull name_with_idcode = get_name_with_idcode();
-    return GS(name_with_idcode.c_str());
-  }
-
-  StringRef get_name() const
-  {
-    const StringRefNull name_with_idcode = get_name_with_idcode();
-    return name_with_idcode.substr(2);
-  }
-
-  bool has_description() const
-  {
-    return lookup.contains(ATTRIBUTE_ENTRIES_DESCRIPTION);
-  }
-
-  StringRefNull get_description() const
-  {
-    return lookup.lookup(ATTRIBUTE_ENTRIES_DESCRIPTION)->as_string_value()->value();
-  }
-
-  bool has_author() const
-  {
-    return lookup.contains(ATTRIBUTE_ENTRIES_AUTHOR);
-  }
-
-  StringRefNull get_author() const
-  {
-    return lookup.lookup(ATTRIBUTE_ENTRIES_AUTHOR)->as_string_value()->value();
-  }
-
-  bool has_copyright() const
-  {
-    return lookup.contains(ATTRIBUTE_ENTRIES_COPYRIGHT);
-  }
-
-  StringRefNull get_copyright() const
-  {
-    return lookup.lookup(ATTRIBUTE_ENTRIES_COPYRIGHT)->as_string_value()->value();
-  }
-
-  bool has_license() const
-  {
-    return lookup.contains(ATTRIBUTE_ENTRIES_LICENSE);
-  }
-
-  StringRefNull get_license() const
-  {
-    return lookup.lookup(ATTRIBUTE_ENTRIES_LICENSE)->as_string_value()->value();
-  }
-
-  StringRefNull get_catalog_name() const
-  {
-    return lookup.lookup(ATTRIBUTE_ENTRIES_CATALOG_NAME)->as_string_value()->value();
-  }
-
-  CatalogID get_catalog_id() const
-  {
-    const std::string &catalog_id =
-        lookup.lookup(ATTRIBUTE_ENTRIES_CATALOG_ID)->as_string_value()->value();
-    CatalogID catalog_uuid(catalog_id);
-    return catalog_uuid;
-  }
-
-  void add_tags_to_meta_data(AssetMetaData *asset_data) const
-  {
-    const DictionaryValue::LookupValue *value_ptr = lookup.lookup_ptr(ATTRIBUTE_ENTRIES_TAGS);
-    if (value_ptr == nullptr) {
-      return;
-    }
-
-    const ArrayValue *array_value = (*value_ptr)->as_array_value();
-    const ArrayValue::Items &elements = array_value->elements();
-    for (const ArrayValue::Item &item : elements) {
-      const StringRefNull tag_name = item->as_string_value()->value();
-      BKE_asset_metadata_tag_add(asset_data, tag_name.c_str());
-    }
-  }
-
-  void add_properties_to_meta_data(AssetMetaData *asset_data) const
-  {
-    BLI_assert(asset_data->properties == nullptr);
-    const DictionaryValue::LookupValue *value_ptr = lookup.lookup_ptr(
-        ATTRIBUTE_ENTRIES_PROPERTIES);
-    if (value_ptr == nullptr) {
-      return;
-    }
-
-    const Value &value = *(value_ptr->get());
-    IDProperty *properties = convert_from_serialize_value(value);
-    asset_data->properties = properties;
-  }
-};
-
-struct AssetEntryWriter {
- private:
-  DictionaryValue::Items &attributes;
-
- public:
-  AssetEntryWriter(DictionaryValue &entry) : attributes(entry.elements()) {}
-
-  /**
-   * \brief add id + name to the attributes.
-   *
-   * NOTE: id and name are encoded like #ID.name
-   */
-  void add_id_name(const short idcode, const StringRefNull name)
-  {
-    char idcode_prefix[2];
-    /* Similar to `BKE_libblock_alloc`. */
-    *((short *)idcode_prefix) = idcode;
-    std::string name_with_idcode = std::string(idcode_prefix, sizeof(idcode_prefix)) + name;
-
-    attributes.append_as(std::pair(ATTRIBUTE_ENTRIES_NAME, new StringValue(name_with_idcode)));
-  }
-
-  void add_catalog_id(const CatalogID &catalog_id)
-  {
-    char catalog_id_str[UUID_STRING_SIZE];
-    BLI_uuid_format(catalog_id_str, catalog_id);
-    attributes.append_as(std::pair(ATTRIBUTE_ENTRIES_CATALOG_ID, new StringValue(catalog_id_str)));
-  }
-
-  void add_catalog_name(const StringRefNull catalog_name)
-  {
-    attributes.append_as(std::pair(ATTRIBUTE_ENTRIES_CATALOG_NAME, new StringValue(catalog_name)));
-  }
-
-  void add_description(const StringRefNull description)
-  {
-    attributes.append_as(std::pair(ATTRIBUTE_ENTRIES_DESCRIPTION, new StringValue(description)));
-  }
-
-  void add_author(const StringRefNull author)
-  {
-    attributes.append_as(std::pair(ATTRIBUTE_ENTRIES_AUTHOR, new StringValue(author)));
-  }
-
-  void add_copyright(const StringRefNull copyright)
-  {
-    attributes.append_as(std::pair(ATTRIBUTE_ENTRIES_COPYRIGHT, new StringValue(copyright)));
-  }
-
-  void add_license(const StringRefNull license)
-  {
-    attributes.append_as(std::pair(ATTRIBUTE_ENTRIES_LICENSE, new StringValue(license)));
-  }
-
-  void add_tags(const ListBase /* AssetTag */ *asset_tags)
-  {
-    ArrayValue *tags = new ArrayValue();
-    attributes.append_as(std::pair(ATTRIBUTE_ENTRIES_TAGS, tags));
-    ArrayValue::Items &tag_items = tags->elements();
-
-    LISTBASE_FOREACH (AssetTag *, tag, asset_tags) {
-      tag_items.append_as(new StringValue(tag->name));
-    }
-  }
-
-  void add_properties(const IDProperty *properties)
-  {
-    std::unique_ptr<Value> value = convert_to_serialize_values(properties);
-    if (value == nullptr) {
-      return;
-    }
-    attributes.append_as(std::pair(ATTRIBUTE_ENTRIES_PROPERTIES, value.release()));
-  }
-};
-
-static void init_value_from_file_indexer_entry(AssetEntryWriter &result,
+static void init_value_from_file_indexer_entry(DictionaryValue &result,
                                                const FileIndexerEntry *indexer_entry)
 {
   const BLODataBlockInfo &datablock_info = indexer_entry->datablock_info;
 
-  result.add_id_name(indexer_entry->idcode, datablock_info.name);
+  add_id_name(result, indexer_entry->idcode, datablock_info.name);
 
   const AssetMetaData &asset_data = *datablock_info.asset_data;
-  result.add_catalog_id(asset_data.catalog_id);
-  result.add_catalog_name(asset_data.catalog_simple_name);
+  result.append_str(ATTRIBUTE_ENTRIES_CATALOG_ID, CatalogID(asset_data.catalog_id).str());
+  result.append_str(ATTRIBUTE_ENTRIES_CATALOG_NAME, asset_data.catalog_simple_name);
 
-  if (asset_data.description != nullptr) {
-    result.add_description(asset_data.description);
+  if (const char *description = asset_data.description) {
+    result.append_str(ATTRIBUTE_ENTRIES_DESCRIPTION, description);
   }
-  if (asset_data.author != nullptr) {
-    result.add_author(asset_data.author);
+  if (const char *author = asset_data.author) {
+    result.append_str(ATTRIBUTE_ENTRIES_AUTHOR, author);
   }
-  if (asset_data.copyright != nullptr) {
-    result.add_copyright(asset_data.copyright);
+  if (const char *copyright = asset_data.copyright) {
+    result.append_str(ATTRIBUTE_ENTRIES_COPYRIGHT, copyright);
   }
-  if (asset_data.license != nullptr) {
-    result.add_license(asset_data.license);
-  }
-
-  if (!BLI_listbase_is_empty(&asset_data.tags)) {
-    result.add_tags(&asset_data.tags);
+  if (const char *license = asset_data.license) {
+    result.append_str(ATTRIBUTE_ENTRIES_LICENSE, license);
   }
 
-  if (asset_data.properties != nullptr) {
-    result.add_properties(asset_data.properties);
+  if (!asset_data.tags.is_empty()) {
+    ArrayValue &tags = *result.append_array(ATTRIBUTE_ENTRIES_TAGS);
+    for (AssetTag &tag : asset_data.tags) {
+      tags.append_str(tag.name);
+    }
   }
 
-  /* TODO: asset_data.IDProperties */
+  if (asset_data.flag & ASSETDATA_USE_OWN_IMPORT_METHOD) {
+    const char *identifier = nullptr;
+    RNA_enum_identifier(
+        rna_enum_asset_import_method_items, asset_data.preferred_import_method, &identifier);
+    if (identifier) {
+      result.append_str(ATTRIBUTE_ENTRIES_PREFERRED_IMPORT_METHOD, identifier);
+    }
+  }
+
+  if (const IDProperty *properties = asset_data.properties) {
+    if (std::unique_ptr<Value> value = convert_to_serialize_values(properties)) {
+      result.append(ATTRIBUTE_ENTRIES_PROPERTIES, std::move(value));
+    }
+  }
 }
 
 static void init_value_from_file_indexer_entries(DictionaryValue &result,
                                                  const FileIndexerEntries &indexer_entries)
 {
-  ArrayValue *entries = new ArrayValue();
-  ArrayValue::Items &items = entries->elements();
+  auto entries = std::make_shared<ArrayValue>();
 
   for (LinkNode *ln = indexer_entries.entries; ln; ln = ln->next) {
     const FileIndexerEntry *indexer_entry = static_cast<const FileIndexerEntry *>(ln->link);
@@ -370,92 +220,114 @@ static void init_value_from_file_indexer_entries(DictionaryValue &result,
     if (indexer_entry->datablock_info.asset_data == nullptr) {
       continue;
     }
-    DictionaryValue *entry_value = new DictionaryValue();
-    AssetEntryWriter entry(*entry_value);
-    init_value_from_file_indexer_entry(entry, indexer_entry);
-    items.append_as(entry_value);
+    init_value_from_file_indexer_entry(*entries->append_dict(), indexer_entry);
   }
 
   /* When no entries to index, we should not store the entries attribute as this would make the
    * size bigger than the #MIN_FILE_SIZE_WITH_ENTRIES. */
-  if (items.is_empty()) {
-    delete entries;
+  if (entries->elements().is_empty()) {
     return;
   }
 
-  DictionaryValue::Items &attributes = result.elements();
-  attributes.append_as(std::pair(ATTRIBUTE_ENTRIES, entries));
+  result.append(ATTRIBUTE_ENTRIES, entries);
+}
+
+AssetMetaData *asset_metadata_from_dictionary(const DictionaryValue &entry)
+{
+  AssetMetaData *asset_data = BKE_asset_metadata_create();
+
+  if (const std::optional<StringRef> value = entry.lookup_str(ATTRIBUTE_ENTRIES_DESCRIPTION)) {
+    asset_data->description = BLI_strdupn(value->data(), value->size());
+  }
+  if (const std::optional<StringRef> value = entry.lookup_str(ATTRIBUTE_ENTRIES_AUTHOR)) {
+    asset_data->author = BLI_strdupn(value->data(), value->size());
+  }
+  if (const std::optional<StringRef> value = entry.lookup_str(ATTRIBUTE_ENTRIES_COPYRIGHT)) {
+    asset_data->copyright = BLI_strdupn(value->data(), value->size());
+  }
+  if (const std::optional<StringRef> value = entry.lookup_str(ATTRIBUTE_ENTRIES_LICENSE)) {
+    asset_data->license = BLI_strdupn(value->data(), value->size());
+  }
+
+  if (const std::optional<StringRefNull> catalog_name = entry.lookup_str(
+          ATTRIBUTE_ENTRIES_CATALOG_NAME))
+  {
+    STRNCPY_UTF8(asset_data->catalog_simple_name, catalog_name->c_str());
+  }
+
+  if (const std::optional<StringRefNull> catalog_id = entry.lookup_str(
+          ATTRIBUTE_ENTRIES_CATALOG_ID))
+  {
+    asset_data->catalog_id = CatalogID(*catalog_id);
+  }
+
+  if (const ArrayValue *array_value = entry.lookup_array(ATTRIBUTE_ENTRIES_TAGS)) {
+    for (const std::shared_ptr<Value> &item : array_value->elements()) {
+      BKE_asset_metadata_tag_add(asset_data, item->as_string_value()->value().c_str());
+    }
+  }
+
+  if (const std::optional<StringRefNull> import_method_identifier = entry.lookup_str(
+          ATTRIBUTE_ENTRIES_PREFERRED_IMPORT_METHOD))
+  {
+    int preferred_import_method = 0;
+    if (RNA_enum_value_from_identifier(rna_enum_asset_import_method_items,
+                                       import_method_identifier->c_str(),
+                                       &preferred_import_method))
+    {
+      asset_data->preferred_import_method = eAssetImportMethod(preferred_import_method);
+      asset_data->flag |= ASSETDATA_USE_OWN_IMPORT_METHOD;
+    }
+  }
+
+  if (const std::shared_ptr<Value> *value = entry.lookup(ATTRIBUTE_ENTRIES_PROPERTIES)) {
+    IDProperty *properties = convert_from_serialize_value(**value);
+
+    /* The top level property must be a group, further asset metadata property lookups assume
+     * that. This is also the only way to support more than a single property. */
+    if (properties && (properties->next || properties->type != IDP_GROUP)) {
+      asset_data->properties = bke::idprop::create_group("AssetMetaData.properties").release();
+      for (IDProperty *property = properties; property != nullptr;) {
+        /* Save next before IDP_AddToGroup (via BLI_addtail) overwrites property->next. */
+        IDProperty *next = property->next;
+        IDP_AddToGroup(asset_data->properties, property);
+        property = next;
+      }
+    }
+    else {
+      asset_data->properties = properties;
+    }
+  }
+
+  return asset_data;
 }
 
 static void init_indexer_entry_from_value(FileIndexerEntry &indexer_entry,
-                                          const AssetEntryReader &entry)
+                                          const DictionaryValue &entry)
 {
-  indexer_entry.idcode = entry.get_idcode();
+  const StringRef idcode_name = *entry.lookup_str(ATTRIBUTE_ENTRIES_NAME);
 
-  const std::string name = entry.get_name();
-  STRNCPY(indexer_entry.datablock_info.name, name.c_str());
+  indexer_entry.idcode = GS(idcode_name.data());
 
-  AssetMetaData *asset_data = BKE_asset_metadata_create();
-  indexer_entry.datablock_info.asset_data = asset_data;
+  idcode_name.substr(2).copy_utf8_truncated(indexer_entry.datablock_info.name);
+
+  indexer_entry.datablock_info.asset_data = asset_metadata_from_dictionary(entry);
   indexer_entry.datablock_info.free_asset_data = true;
-
-  if (entry.has_description()) {
-    const StringRefNull description = entry.get_description();
-    const size_t c_str_size = description.size() + 1;
-    char *description_c_str = static_cast<char *>(MEM_mallocN(c_str_size, __func__));
-    memcpy(description_c_str, description.c_str(), c_str_size);
-    asset_data->description = description_c_str;
-  }
-  if (entry.has_author()) {
-    const StringRefNull author = entry.get_author();
-    const size_t c_str_size = author.size() + 1;
-    char *author_c_str = static_cast<char *>(MEM_mallocN(c_str_size, __func__));
-    memcpy(author_c_str, author.c_str(), c_str_size);
-    asset_data->author = author_c_str;
-  }
-  if (entry.has_copyright()) {
-    const StringRefNull copyright = entry.get_copyright();
-    const size_t c_str_size = copyright.size() + 1;
-    char *copyright_c_str = static_cast<char *>(MEM_mallocN(c_str_size, __func__));
-    memcpy(copyright_c_str, copyright.c_str(), c_str_size);
-    asset_data->copyright = copyright_c_str;
-  }
-  if (entry.has_license()) {
-    const StringRefNull license = entry.get_license();
-    const size_t c_str_size = license.size() + 1;
-    char *license_c_str = static_cast<char *>(MEM_mallocN(c_str_size, __func__));
-    memcpy(license_c_str, license.c_str(), c_str_size);
-    asset_data->license = license_c_str;
-  }
-
-  const StringRefNull catalog_name = entry.get_catalog_name();
-  STRNCPY(asset_data->catalog_simple_name, catalog_name.c_str());
-
-  asset_data->catalog_id = entry.get_catalog_id();
-
-  entry.add_tags_to_meta_data(asset_data);
-  entry.add_properties_to_meta_data(asset_data);
 }
 
 static int init_indexer_entries_from_value(FileIndexerEntries &indexer_entries,
                                            const DictionaryValue &value)
 {
-  const DictionaryValue::Lookup attributes = value.create_lookup();
-  const DictionaryValue::LookupValue *entries_value = attributes.lookup_ptr(ATTRIBUTE_ENTRIES);
-  BLI_assert(entries_value != nullptr);
-
-  if (entries_value == nullptr) {
+  const ArrayValue *entries = value.lookup_array(ATTRIBUTE_ENTRIES);
+  BLI_assert(entries != nullptr);
+  if (entries == nullptr) {
     return 0;
   }
 
   int num_entries_read = 0;
-  const ArrayValue::Items elements = (*entries_value)->as_array_value()->elements();
-  for (ArrayValue::Item element : elements) {
-    const AssetEntryReader asset_entry(*element->as_dictionary_value());
-
-    FileIndexerEntry *entry = static_cast<FileIndexerEntry *>(
-        MEM_callocN(sizeof(FileIndexerEntry), __func__));
-    init_indexer_entry_from_value(*entry, asset_entry);
+  for (const std::shared_ptr<Value> &element : entries->elements()) {
+    FileIndexerEntry *entry = MEM_new<FileIndexerEntry>(__func__);
+    init_indexer_entry_from_value(*entry, *element->as_dictionary_value());
 
     BLI_linklist_prepend(&indexer_entries.entries, entry);
     num_entries_read += 1;
@@ -495,21 +367,19 @@ struct AssetLibraryIndex {
 
   std::string library_path;
 
- public:
   AssetLibraryIndex(const StringRef library_path) : library_path(library_path)
   {
-    init_indices_base_path();
+    this->init_indices_base_path();
   }
 
   uint64_t hash() const
   {
-    DefaultHash<StringRefNull> hasher;
-    return hasher(get_library_file_path());
+    return get_default_hash(this->library_path);
   }
 
   StringRefNull get_library_file_path() const
   {
-    return library_path;
+    return this->library_path;
   }
 
   /**
@@ -528,7 +398,7 @@ struct AssetLibraryIndex {
     ss << std::setfill('0') << std::setw(16) << std::hex << hash() << SEP_STR;
     BLI_path_append(index_path, sizeof(index_path), ss.str().c_str());
 
-    indices_base_path = std::string(index_path);
+    this->indices_base_path = std::string(index_path);
   }
 
   /**
@@ -539,7 +409,7 @@ struct AssetLibraryIndex {
   std::string index_file_path(const BlendFile &asset_file) const
   {
     std::stringstream ss;
-    ss << indices_base_path;
+    ss << this->indices_base_path;
     ss << std::setfill('0') << std::setw(16) << std::hex << asset_file.hash() << "_"
        << asset_file.get_filename() << ".index.json";
     return ss.str();
@@ -551,7 +421,7 @@ struct AssetLibraryIndex {
    */
   void collect_preexisting_file_indices()
   {
-    const char *index_path = indices_base_path.c_str();
+    const char *index_path = this->indices_base_path.c_str();
     if (!BLI_is_dir(index_path)) {
       return;
     }
@@ -560,7 +430,7 @@ struct AssetLibraryIndex {
     for (int i = 0; i < dir_entries_num; i++) {
       direntry *entry = &dir_entries[i];
       if (BLI_str_endswith(entry->relname, ".index.json")) {
-        preexisting_file_indices.add_as(std::string(entry->path));
+        this->preexisting_file_indices.add_as(std::string(entry->path));
       }
     }
 
@@ -569,7 +439,7 @@ struct AssetLibraryIndex {
 
   void mark_as_used(const std::string &filename)
   {
-    PreexistingFileIndexInfo *preexisting = preexisting_file_indices.lookup_ptr(filename);
+    PreexistingFileIndexInfo *preexisting = this->preexisting_file_indices.lookup_ptr(filename);
     if (preexisting) {
       preexisting->is_used = true;
     }
@@ -583,7 +453,7 @@ struct AssetLibraryIndex {
   bool delete_file_index(const std::string &filename)
   {
     if (BLI_delete(filename.c_str(), false, false) == 0) {
-      preexisting_file_indices.remove(filename);
+      this->preexisting_file_indices.remove(filename);
       return true;
     }
     return false;
@@ -602,13 +472,13 @@ struct AssetLibraryIndex {
 
     Set<StringRef> files_to_remove;
 
-    for (auto preexisting_index : preexisting_file_indices.items()) {
+    for (auto preexisting_index : this->preexisting_file_indices.items()) {
       if (preexisting_index.value.is_used) {
         continue;
       }
 
       const std::string &file_path = preexisting_index.key;
-      CLOG_INFO(&LOG, 2, "Remove unused index file [%s].", file_path.c_str());
+      CLOG_DEBUG(&LOG, "Remove unused index file \"%s\".", file_path.c_str());
       files_to_remove.add(preexisting_index.key);
     }
 
@@ -648,7 +518,7 @@ struct AssetIndex {
   const int UNKNOWN_VERSION = -1;
 
   /**
-   * `blender::io::serialize::Value` representing the contents of an index file.
+   * `io::serialize::Value` representing the contents of an index file.
    *
    * Value is used over #DictionaryValue as the contents of the index could be corrupted and
    * doesn't represent an object. In case corrupted files are detected the `get_version` would
@@ -666,7 +536,7 @@ struct AssetIndex {
     root->append_int(ATTRIBUTE_VERSION, CURRENT_VERSION);
     init_value_from_file_indexer_entries(*root, indexer_entries);
 
-    contents = std::move(root);
+    this->contents = std::move(root);
   }
 
   /**
@@ -677,16 +547,12 @@ struct AssetIndex {
 
   int get_version() const
   {
-    const DictionaryValue *root = contents->as_dictionary_value();
+    const DictionaryValue *root = this->contents->as_dictionary_value();
     if (root == nullptr) {
       return UNKNOWN_VERSION;
     }
-    const DictionaryValue::Lookup attributes = root->create_lookup();
-    const DictionaryValue::LookupValue *version_value = attributes.lookup_ptr(ATTRIBUTE_VERSION);
-    if (version_value == nullptr) {
-      return UNKNOWN_VERSION;
-    }
-    return (*version_value)->as_int_value()->value();
+    const std::optional<int64_t> version_value = root->lookup_int(ATTRIBUTE_VERSION);
+    return version_value.value_or(UNKNOWN_VERSION);
   }
 
   bool is_latest_version() const
@@ -701,7 +567,7 @@ struct AssetIndex {
    */
   int extract_into(FileIndexerEntries &indexer_entries) const
   {
-    const DictionaryValue *root = contents->as_dictionary_value();
+    const DictionaryValue *root = this->contents->as_dictionary_value();
     const int num_entries_read = init_indexer_entries_from_value(indexer_entries, *root);
     return num_entries_read;
   }
@@ -729,7 +595,7 @@ class AssetIndexFile : public AbstractFile {
 
   void mark_as_used()
   {
-    library_index.mark_as_used(filename);
+    this->library_index.mark_as_used(this->filename);
   }
 
   const char *get_file_path() const override
@@ -740,9 +606,9 @@ class AssetIndexFile : public AbstractFile {
   /**
    * Returns whether the index file is older than the given asset file.
    */
-  bool is_older_than(BlendFile &asset_file) const
+  bool is_older_than(const BlendFile &asset_file) const
   {
-    return BLI_file_older(get_file_path(), asset_file.get_file_path());
+    return BLI_file_older(this->get_file_path(), asset_file.get_file_path());
   }
 
   /**
@@ -758,28 +624,32 @@ class AssetIndexFile : public AbstractFile {
   {
     JsonFormatter formatter;
     std::ifstream is;
-    is.open(filename);
+    is.open(this->filename);
+    BLI_SCOPED_DEFER([&]() { is.close(); });
+
     std::unique_ptr<Value> read_data = formatter.deserialize(is);
-    is.close();
+    if (!read_data) {
+      return nullptr;
+    }
 
     return std::make_unique<AssetIndex>(read_data);
   }
 
   bool ensure_parent_path_exists() const
   {
-    return BLI_file_ensure_parent_dir_exists(get_file_path());
+    return BLI_file_ensure_parent_dir_exists(this->get_file_path());
   }
 
   void write_contents(AssetIndex &content)
   {
     JsonFormatter formatter;
     if (!ensure_parent_path_exists()) {
-      CLOG_ERROR(&LOG, "Index not created: couldn't create folder [%s].", get_file_path());
+      CLOG_ERROR(&LOG, "Index not created: couldn't create folder \"%s\".", this->get_file_path());
       return;
     }
 
     std::ofstream os;
-    os.open(filename, std::ios::out | std::ios::trunc);
+    os.open(this->filename, std::ios::out | std::ios::trunc);
     formatter.serialize(os, *content.contents);
     os.close();
   }
@@ -791,43 +661,42 @@ int AssetLibraryIndex::remove_broken_index_files()
 {
   Set<StringRef> files_to_remove;
 
-  preexisting_file_indices.foreach_item(
-      [&](const std::string &index_path, const PreexistingFileIndexInfo &) {
-        AssetIndexFile index_file(*this, index_path);
+  for (const std::string &index_path : this->preexisting_file_indices.keys()) {
+    AssetIndexFile index_file(*this, index_path);
 
-        /* Bug was causing empty index files, so non-empty ones can be skipped. */
-        if (index_file.constains_entries()) {
-          return;
-        }
+    /* Bug was causing empty index files, so non-empty ones can be skipped. */
+    if (index_file.constains_entries()) {
+      continue;
+    }
 
-        /* Use the file modification time stamp to attempt to remove empty index files from a
-         * certain period (when the bug was in there). Starting from a day before the bug was
-         * introduced until a day after the fix should be enough to mitigate possible local time
-         * zone issues. */
+    /* Use the file modification time stamp to attempt to remove empty index files from a
+     * certain period (when the bug was in there). Starting from a day before the bug was
+     * introduced until a day after the fix should be enough to mitigate possible local time
+     * zone issues. */
 
-        std::tm tm_from{};
-        tm_from.tm_year = 2022 - 1900; /* 2022 */
-        tm_from.tm_mon = 11 - 1;       /* November */
-        tm_from.tm_mday = 8;           /* Day before bug was introduced. */
-        std::tm tm_to{};
-        tm_from.tm_year = 2022 - 1900; /* 2022 */
-        tm_from.tm_mon = 12 - 1;       /* December */
-        tm_from.tm_mday = 3;           /* Day after fix. */
-        std::time_t timestamp_from = std::mktime(&tm_from);
-        std::time_t timestamp_to = std::mktime(&tm_to);
-        BLI_stat_t stat = {};
-        if (BLI_stat(index_file.get_file_path(), &stat) == -1) {
-          return;
-        }
-        if (IN_RANGE(stat.st_mtime, timestamp_from, timestamp_to)) {
-          CLOG_INFO(&LOG, 2, "Remove potentially broken index file [%s].", index_path.c_str());
-          files_to_remove.add(index_path);
-        }
-      });
+    std::tm tm_from{};
+    tm_from.tm_year = 2022 - 1900; /* 2022 */
+    tm_from.tm_mon = 11 - 1;       /* November */
+    tm_from.tm_mday = 8;           /* Day before bug was introduced. */
+    std::tm tm_to{};
+    tm_from.tm_year = 2022 - 1900; /* 2022 */
+    tm_from.tm_mon = 12 - 1;       /* December */
+    tm_from.tm_mday = 3;           /* Day after fix. */
+    std::time_t timestamp_from = std::mktime(&tm_from);
+    std::time_t timestamp_to = std::mktime(&tm_to);
+    BLI_stat_t stat = {};
+    if (BLI_stat(index_file.get_file_path(), &stat) == -1) {
+      continue;
+    }
+    if (IN_RANGE(stat.st_mtime, timestamp_from, timestamp_to)) {
+      CLOG_DEBUG(&LOG, "Remove potentially broken index file \"%s\".", index_path.c_str());
+      files_to_remove.add(index_path);
+    }
+  }
 
   int num_files_deleted = 0;
-  for (StringRef files_to_remove : files_to_remove) {
-    if (delete_file_index(files_to_remove)) {
+  for (StringRef filepath : files_to_remove) {
+    if (delete_file_index(filepath)) {
       num_files_deleted++;
     }
   }
@@ -855,38 +724,42 @@ static eFileIndexerResult read_index(const char *filename,
   asset_index_file.mark_as_used();
 
   if (asset_index_file.is_older_than(asset_file)) {
-    CLOG_INFO(
+    CLOG_DEBUG(
         &LOG,
-        3,
-        "Asset index file [%s] needs to be refreshed as it is older than the asset file [%s].",
+        "Asset index file \"%s\" needs to be refreshed as it is older than the asset file \"%s\".",
         asset_index_file.filename.c_str(),
         filename);
     return FILE_INDEXER_NEEDS_UPDATE;
   }
 
   if (!asset_index_file.constains_entries()) {
-    CLOG_INFO(&LOG,
-              3,
-              "Asset file index is to small to contain any entries. [%s]",
-              asset_index_file.filename.c_str());
+    CLOG_DEBUG(&LOG,
+               "Asset file index is to small to contain any entries. \"%s\"",
+               asset_index_file.filename.c_str());
     *r_read_entries_len = 0;
     return FILE_INDEXER_ENTRIES_LOADED;
   }
 
   std::unique_ptr<AssetIndex> contents = asset_index_file.read_contents();
-  if (!contents->is_latest_version()) {
-    CLOG_INFO(&LOG,
-              3,
-              "Asset file index is ignored; expected version %d but file is version %d [%s].",
-              AssetIndex::CURRENT_VERSION,
-              contents->get_version(),
-              asset_index_file.filename.c_str());
+  if (!contents) {
+    CLOG_DEBUG(&LOG, "Asset file index is ignored; failed to read contents.");
     return FILE_INDEXER_NEEDS_UPDATE;
   }
 
-  const int read_entries_len = contents->extract_into(*entries);
-  CLOG_INFO(&LOG, 1, "Read %d entries from asset index for [%s].", read_entries_len, filename);
-  *r_read_entries_len = read_entries_len;
+  if (!contents->is_latest_version()) {
+    CLOG_DEBUG(&LOG,
+               "Asset file index is ignored; expected version %d but file is version %d \"%s\".",
+               AssetIndex::CURRENT_VERSION,
+               contents->get_version(),
+               asset_index_file.filename.c_str());
+    return FILE_INDEXER_NEEDS_UPDATE;
+  }
+
+  if (entries) {
+    const int read_entries_len = contents->extract_into(*entries);
+    CLOG_INFO(&LOG, "Read %d entries for \"%s\".", read_entries_len, filename);
+    *r_read_entries_len = read_entries_len;
+  }
 
   return FILE_INDEXER_ENTRIES_LOADED;
 }
@@ -897,8 +770,7 @@ static void update_index(const char *filename, FileIndexerEntries *entries, void
   BlendFile asset_file(filename);
   AssetIndexFile asset_index_file(library_index, asset_file);
   CLOG_INFO(&LOG,
-            1,
-            "Update asset index for [%s] store index in [%s].",
+            "Update for \"%s\" store index in \"%s\".",
             asset_file.get_file_path(),
             asset_index_file.get_file_path());
 
@@ -917,7 +789,7 @@ static void *init_user_data(const char *root_directory, size_t root_directory_ma
 
 static void free_user_data(void *user_data)
 {
-  MEM_delete((AssetLibraryIndex *)user_data);
+  MEM_delete(static_cast<AssetLibraryIndex *>(user_data));
 }
 
 static void filelist_finished(void *user_data)
@@ -925,7 +797,7 @@ static void filelist_finished(void *user_data)
   AssetLibraryIndex &library_index = *static_cast<AssetLibraryIndex *>(user_data);
   const int num_indices_removed = library_index.remove_unused_index_files();
   if (num_indices_removed > 0) {
-    CLOG_INFO(&LOG, 1, "Removed %d unused indices.", num_indices_removed);
+    CLOG_INFO(&LOG, "Removed %d unused indices.", num_indices_removed);
   }
 }
 
@@ -940,8 +812,7 @@ constexpr FileIndexerType asset_indexer()
   return indexer;
 }
 
-}  // namespace blender::ed::asset::index
+const FileIndexerType file_indexer_asset = asset_indexer();
 
-extern "C" {
-const FileIndexerType file_indexer_asset = blender::ed::asset::index::asset_indexer();
-}
+}  // namespace ed::asset::index
+}  // namespace blender

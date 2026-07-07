@@ -4,19 +4,8 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../draw
-  ../../gpu
-  ../../imbuf
   ../../makesrna
-  ../../nodes
-  ../../render
-  ../../sequencer
-  ../../windowmanager
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -29,6 +18,7 @@ set(SRC
   render_ops.cc
   render_preview.cc
   render_shading.cc
+  render_texture_cache.cc
   render_update.cc
   render_view.cc
 
@@ -36,11 +26,24 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
-  bf_draw
+  PRIVATE bf::draw
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::imbuf::movie
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::animrig
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::sequencer
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_HEADLESS)
@@ -59,19 +62,12 @@ if(WITH_FREESTYLE)
   add_definitions(-DWITH_FREESTYLE)
 endif()
 
-if(WITH_TBB)
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-  add_definitions(-DWITH_TBB)
-  if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
-    add_definitions(-DNOMINMAX)
-  endif()
+if(WITH_CYCLES)
+  add_definitions(-DWITH_CYCLES)
+  list(APPEND INC ../../../../intern/cycles/blender)
 endif()
 
 blender_add_lib(bf_editor_render "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_render bf_rna)

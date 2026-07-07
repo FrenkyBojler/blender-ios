@@ -11,34 +11,35 @@
 #include "../BPy_Convert.h"
 #include "../BPy_Interface1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-PyDoc_STRVAR(Interface0DIterator_doc,
-             "Class hierarchy: :class:`Iterator` > :class:`Interface0DIterator`\n"
-             "\n"
-             "Class defining an iterator over Interface0D elements. An instance of\n"
-             "this iterator is always obtained from a 1D element.\n"
-             "\n"
-             ".. method:: __init__(brother)\n"
-             "            __init__(it)\n"
-             "\n"
-             "   Construct a nested Interface0DIterator using either the copy constructor\n"
-             "   or the constructor that takes an he argument of a Function0D.\n"
-             "\n"
-             "   :arg brother: An Interface0DIterator object.\n"
-             "   :type brother: :class:`Interface0DIterator`\n"
-             "   :arg it: An iterator object to be nested.\n"
-             "   :type it: :class:`SVertexIterator`, :class:`CurvePointIterator`, or\n"
-             "      :class:`StrokeVertexIterator`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    Interface0DIterator_doc,
+    "Class hierarchy: :class:`Iterator` > :class:`Interface0DIterator`\n"
+    "\n"
+    "Class defining an iterator over Interface0D elements. An instance of\n"
+    "this iterator is always obtained from a 1D element.\n"
+    "\n"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__(brother)``\n"
+    "   - ``__init__(it)``\n"
+    "\n"
+    "   Construct a nested Interface0DIterator using either the copy constructor\n"
+    "   or the constructor that takes an argument of a Function0D.\n"
+    "\n"
+    "   :param brother: An Interface0DIterator object.\n"
+    "   :type brother: :class:`Interface0DIterator`\n"
+    "   :param it: An iterator object to be nested.\n"
+    "   :type it: :class:`SVertexIterator` | :class:`CurvePointIterator` | "
+    ":class:`StrokeVertexIterator`\n");
 static int convert_nested_it(PyObject *obj, void *v)
 {
   if (!obj || !BPy_Iterator_Check(obj)) {
@@ -130,14 +131,16 @@ static PyObject *Interface0DIterator_iternext(BPy_Interface0DIterator *self)
 
 /*----------------------Interface0DIterator get/setters ----------------------------*/
 
-PyDoc_STRVAR(Interface0DIterator_object_doc,
-             "The 0D object currently pointed to by this iterator. Note that the object\n"
-             "may be an instance of an Interface0D subclass. For example if the iterator\n"
-             "has been created from the `vertices_begin()` method of the :class:`Stroke`\n"
-             "class, the .object property refers to a :class:`StrokeVertex` object.\n"
-             "\n"
-             ":type: :class:`Interface0D` or one of its subclasses.");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    Interface0DIterator_object_doc,
+    "The 0D object currently pointed to by this iterator. The object may be an\n"
+    "instance of :class:`Interface0D` or one of its subclasses. For example if\n"
+    "the iterator has been created from the `vertices_begin()` method of the\n"
+    ":class:`Stroke` class, the .object property refers to a :class:`StrokeVertex`\n"
+    "object.\n"
+    "\n"
+    ":type: :class:`Interface0D`\n");
 static PyObject *Interface0DIterator_object_get(BPy_Interface0DIterator *self, void * /*closure*/)
 {
   if (self->if0D_it->isEnd()) {
@@ -147,32 +150,35 @@ static PyObject *Interface0DIterator_object_get(BPy_Interface0DIterator *self, v
   return Any_BPy_Interface0D_from_Interface0D(self->if0D_it->operator*());
 }
 
-PyDoc_STRVAR(Interface0DIterator_t_doc,
-             "The curvilinear abscissa of the current point.\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    Interface0DIterator_t_doc,
+    "The curvilinear abscissa of the current point.\n"
+    "\n"
+    ":type: float\n");
 static PyObject *Interface0DIterator_t_get(BPy_Interface0DIterator *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->if0D_it->t());
 }
 
-PyDoc_STRVAR(Interface0DIterator_u_doc,
-             "The point parameter at the current point in the 1D element (0 <= u <= 1).\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    Interface0DIterator_u_doc,
+    "The point parameter at the current point in the 1D element (0 <= u <= 1).\n"
+    "\n"
+    ":type: float\n");
 static PyObject *Interface0DIterator_u_get(BPy_Interface0DIterator *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->if0D_it->u());
 }
 
-PyDoc_STRVAR(Interface0DIterator_at_last_doc,
-             "True if the iterator points to the last valid element.\n"
-             "For its counterpart (pointing to the first valid element), use it.is_begin.\n"
-             "\n"
-             ":type: bool");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    Interface0DIterator_at_last_doc,
+    "True if the iterator points to the last valid element.\n"
+    "For its counterpart (pointing to the first valid element), use it.is_begin.\n"
+    "\n"
+    ":type: bool\n");
 static PyObject *Interface0DIterator_at_last_get(BPy_Interface0DIterator *self, void * /*closure*/)
 {
   return PyBool_from_bool(self->if0D_it->atLast());
@@ -238,7 +244,3 @@ PyTypeObject Interface0DIterator_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

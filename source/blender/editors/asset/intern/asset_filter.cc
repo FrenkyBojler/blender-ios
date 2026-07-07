@@ -8,10 +8,9 @@
 
 #include "AS_asset_representation.hh"
 
-#include "BKE_asset.hh"
-#include "BKE_idtype.h"
+#include "BKE_idtype.hh"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 
 #include "DNA_asset_types.h"
 
@@ -19,15 +18,12 @@
 #include "AS_asset_library.hh"
 
 #include "ED_asset_filter.hh"
-#include "ED_asset_handle.h"
-#include "ED_asset_library.h"
-#include "ED_asset_list.h"
 #include "ED_asset_list.hh"
 
-using namespace blender;
+namespace blender::ed::asset {
 
-bool ED_asset_filter_matches_asset(const AssetFilterSettings *filter,
-                                   const asset_system::AssetRepresentation &asset)
+bool filter_matches_asset(const AssetFilterSettings *filter,
+                          const asset_system::AssetRepresentation &asset)
 {
   ID_Type asset_type = asset.get_id_type();
   uint64_t asset_id_filter = BKE_idtype_idcode_to_idfilter(asset_type);
@@ -36,11 +32,11 @@ bool ED_asset_filter_matches_asset(const AssetFilterSettings *filter,
     return false;
   }
   /* Not very efficient (O(n^2)), could be improved quite a bit. */
-  LISTBASE_FOREACH (const AssetTag *, filter_tag, &filter->tags) {
+  for (const AssetTag &filter_tag : filter->tags) {
     AssetMetaData &asset_data = asset.get_metadata();
 
-    AssetTag *matched_tag = (AssetTag *)BLI_findstring(
-        &asset_data.tags, filter_tag->name, offsetof(AssetTag, name));
+    AssetTag *matched_tag = static_cast<AssetTag *>(
+        BLI_findstring(&asset_data.tags, filter_tag.name, offsetof(AssetTag, name)));
     if (matched_tag == nullptr) {
       return false;
     }
@@ -50,18 +46,15 @@ bool ED_asset_filter_matches_asset(const AssetFilterSettings *filter,
   return true;
 }
 
-namespace blender::ed::asset {
-
 asset_system::AssetCatalogTree build_filtered_catalog_tree(
     const asset_system::AssetLibrary &library,
     const AssetLibraryReference &library_ref,
-    const blender::FunctionRef<bool(const asset_system::AssetRepresentation &)>
-        is_asset_visible_fn)
+    const FunctionRef<bool(const asset_system::AssetRepresentation &)> is_asset_visible_fn)
 {
   Set<StringRef> known_paths;
 
   /* Collect paths containing assets. */
-  ED_assetlist_iterate(library_ref, [&](asset_system::AssetRepresentation &asset) {
+  list::iterate(library_ref, [&](asset_system::AssetRepresentation &asset) {
     if (!is_asset_visible_fn(asset)) {
       return true;
     }
@@ -71,7 +64,7 @@ asset_system::AssetCatalogTree build_filtered_catalog_tree(
       return true;
     }
 
-    const asset_system::AssetCatalog *catalog = library.catalog_service->find_catalog(
+    const asset_system::AssetCatalog *catalog = library.catalog_service().find_catalog(
         meta_data.catalog_id);
     if (catalog == nullptr) {
       return true;
@@ -82,13 +75,14 @@ asset_system::AssetCatalogTree build_filtered_catalog_tree(
 
   /* Build catalog tree. */
   asset_system::AssetCatalogTree filtered_tree;
-  asset_system::AssetCatalogTree &full_tree = *library.catalog_service->get_catalog_tree();
-  full_tree.foreach_item([&](asset_system::AssetCatalogTreeItem &item) {
+  const std::shared_ptr<const asset_system::AssetCatalogTree> full_tree =
+      library.catalog_service().catalog_tree();
+  full_tree->foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
     if (!known_paths.contains(item.catalog_path().str())) {
       return;
     }
 
-    asset_system::AssetCatalog *catalog = library.catalog_service->find_catalog(
+    asset_system::AssetCatalog *catalog = library.catalog_service().find_catalog(
         item.get_catalog_id());
     if (catalog == nullptr) {
       return;
@@ -99,24 +93,39 @@ asset_system::AssetCatalogTree build_filtered_catalog_tree(
   return filtered_tree;
 }
 
+static asset_system::AssetCatalogPath catalog_path_skipped_prefix(
+    const asset_system::AssetCatalogPath &full_path, const std::optional<StringRef> skip_prefix)
+{
+  const bool has_skip_prefix = skip_prefix && full_path.str().starts_with(*skip_prefix) &&
+                               full_path.str()[skip_prefix->size()] ==
+                                   asset_system::AssetCatalogPath::SEPARATOR;
+
+  return has_skip_prefix ? StringRef(full_path.str()).drop_prefix(skip_prefix->size() + 1) :
+                           full_path;
+}
+
 AssetItemTree build_filtered_all_catalog_tree(
     const AssetLibraryReference &library_ref,
     const bContext &C,
     const AssetFilterSettings &filter_settings,
-    const FunctionRef<bool(const AssetMetaData &)> meta_data_filter)
+    const FunctionRef<bool(const AssetMetaData &)> meta_data_filter,
+    const std::optional<StringRef> skip_prefix)
 {
   MultiValueMap<asset_system::AssetCatalogPath, asset_system::AssetRepresentation *>
       assets_per_path;
   Vector<asset_system::AssetRepresentation *> unassigned_assets;
 
-  ED_assetlist_storage_fetch(&library_ref, &C);
-  asset_system::AssetLibrary *library = ED_assetlist_library_get_once_available(library_ref);
+  list::storage_fetch(&library_ref, &C);
+  asset_system::AssetLibrary *library = list::library_get_once_available(library_ref);
   if (!library) {
     return {};
   }
 
-  ED_assetlist_iterate(library_ref, [&](asset_system::AssetRepresentation &asset) {
-    if (!ED_asset_filter_matches_asset(&filter_settings, asset)) {
+  const bool loading_finished = list::is_loaded(&library_ref);
+  const bool dirty = !loading_finished;
+
+  list::iterate(library_ref, [&](asset_system::AssetRepresentation &asset) {
+    if (!filter_matches_asset(&filter_settings, asset)) {
       return true;
     }
     const AssetMetaData &meta_data = asset.get_metadata();
@@ -129,7 +138,7 @@ AssetItemTree build_filtered_all_catalog_tree(
       return true;
     }
 
-    const asset_system::AssetCatalog *catalog = library->catalog_service->find_catalog(
+    const asset_system::AssetCatalog *catalog = library->catalog_service().find_catalog(
         meta_data.catalog_id);
     if (catalog == nullptr) {
       /* Also include assets with catalogs we're unable to find (e.g. the catalog was deleted) in
@@ -137,27 +146,45 @@ AssetItemTree build_filtered_all_catalog_tree(
       unassigned_assets.append(&asset);
       return true;
     }
-    assets_per_path.add(catalog->path, &asset);
+
+    const asset_system::AssetCatalogPath catalog_path = catalog_path_skipped_prefix(catalog->path,
+                                                                                    skip_prefix);
+
+    if (catalog_path.str().empty() ||
+        catalog_path.str() == std::string{asset_system::AssetCatalogPath::SEPARATOR})
+    {
+      /* Also include assets with an empty catalog path in the "Unassigned" list. Mostly relevant
+       * when assets are directly placed under the skipped prefix path. */
+      unassigned_assets.append(&asset);
+      return true;
+    }
+
+    assets_per_path.add(catalog_path, &asset);
     return true;
   });
 
   asset_system::AssetCatalogTree catalogs_with_node_assets;
-  asset_system::AssetCatalogTree &catalog_tree = *library->catalog_service->get_catalog_tree();
-  catalog_tree.foreach_item([&](asset_system::AssetCatalogTreeItem &item) {
-    if (assets_per_path.lookup(item.catalog_path()).is_empty()) {
+  const std::shared_ptr<const asset_system::AssetCatalogTree> catalog_tree =
+      library->catalog_service().catalog_tree();
+  catalog_tree->foreach_item([&](const asset_system::AssetCatalogTreeItem &item) {
+    const asset_system::AssetCatalogPath catalog_path = catalog_path_skipped_prefix(
+        item.catalog_path(), skip_prefix);
+
+    if (assets_per_path.lookup(catalog_path).is_empty()) {
       return;
     }
-    asset_system::AssetCatalog *catalog = library->catalog_service->find_catalog(
+    asset_system::AssetCatalog *catalog = library->catalog_service().find_catalog(
         item.get_catalog_id());
     if (catalog == nullptr) {
       return;
     }
-    catalogs_with_node_assets.insert_item(*catalog);
+    catalogs_with_node_assets.insert_item(*catalog, skip_prefix);
   });
 
   return {std::move(catalogs_with_node_assets),
           std::move(assets_per_path),
-          std::move(unassigned_assets)};
+          std::move(unassigned_assets),
+          dirty};
 }
 
 }  // namespace blender::ed::asset

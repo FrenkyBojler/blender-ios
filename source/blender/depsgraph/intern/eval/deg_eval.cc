@@ -8,19 +8,19 @@
  * Evaluation engine entry-points for Depsgraph Engine.
  */
 
+#include <atomic>
+#include <cstdint>
+
 #include "intern/eval/deg_eval.h"
 
-#include "PIL_time.h"
-
-#include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
-#include "BLI_gsqueue.h"
-#include "BLI_task.h"
-#include "BLI_utildefines.h"
+#include "BLI_gsqueue.hh"
+#include "BLI_task_c.hh"
+#include "BLI_time.hh"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
-#include "DNA_node_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -28,7 +28,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
 #include "atomic_ops.h"
@@ -44,7 +44,6 @@
 #include "intern/node/deg_node_component.hh"
 #include "intern/node/deg_node_id.hh"
 #include "intern/node/deg_node_operation.hh"
-#include "intern/node/deg_node_time.hh"
 
 namespace blender::deg {
 
@@ -60,10 +59,10 @@ void schedule_children(DepsgraphEvalState *state,
 
 /* Denotes which part of dependency graph is being evaluated. */
 enum class EvaluationStage {
-  /* Stage 1: Only  Copy-on-Write operations are to be evaluated, prior to anything else.
+  /* Stage 1: Only Copy-on-Write operations are to be evaluated, prior to anything else.
    * This allows other operations to access its dependencies when there is a dependency cycle
    * involved. */
-  COPY_ON_WRITE,
+  COPY_ON_EVAL,
 
   /* Evaluate actual ID nodes visibility based on the current state of animation and drivers. */
   DYNAMIC_VISIBILITY,
@@ -88,15 +87,15 @@ struct DepsgraphEvalState {
 
 void evaluate_node(const DepsgraphEvalState *state, OperationNode *operation_node)
 {
-  ::Depsgraph *depsgraph = reinterpret_cast<::Depsgraph *>(state->graph);
+  blender::Depsgraph *depsgraph = reinterpret_cast<blender::Depsgraph *>(state->graph);
 
   /* Sanity checks. */
   BLI_assert_msg(!operation_node->is_noop(), "NOOP nodes should not actually be scheduled");
   /* Perform operation. */
   if (state->do_stats) {
-    const double start_time = PIL_check_seconds_timer();
+    const double start_time = BLI_time_now_seconds();
     operation_node->evaluate(depsgraph);
-    operation_node->stats.current_time += PIL_check_seconds_timer() - start_time;
+    operation_node->stats.current_time += BLI_time_now_seconds() - start_time;
   }
   else {
     operation_node->evaluate(depsgraph);
@@ -112,7 +111,7 @@ void evaluate_node(const DepsgraphEvalState *state, OperationNode *operation_nod
 void deg_task_run_func(TaskPool *pool, void *taskdata)
 {
   void *userdata_v = BLI_task_pool_user_data(pool);
-  DepsgraphEvalState *state = (DepsgraphEvalState *)userdata_v;
+  DepsgraphEvalState *state = static_cast<DepsgraphEvalState *>(userdata_v);
 
   /* Evaluate node. */
   OperationNode *operation_node = reinterpret_cast<OperationNode *>(taskdata);
@@ -127,9 +126,9 @@ void deg_task_run_func(TaskPool *pool, void *taskdata)
 bool check_operation_node_visible(const DepsgraphEvalState *state, OperationNode *op_node)
 {
   const ComponentNode *comp_node = op_node->owner;
-  /* Special case for copy on write component: it is to be always evaluated, to keep copied
+  /* Special case for copy-on-eval component: it is to be always evaluated, to keep copied
    * "database" in a consistent state. */
-  if (comp_node->type == NodeType::COPY_ON_WRITE) {
+  if (comp_node->type == NodeType::COPY_ON_EVAL) {
     return true;
   }
 
@@ -157,7 +156,7 @@ void calculate_pending_parents_for_node(const DepsgraphEvalState *state, Operati
   }
   for (Relation *rel : node->inlinks) {
     if (rel->from->type == NodeType::OPERATION && (rel->flag & RELATION_FLAG_CYCLIC) == 0) {
-      OperationNode *from = (OperationNode *)rel->from;
+      OperationNode *from = static_cast<OperationNode *>(rel->from);
       /* TODO(sergey): This is how old layer system was checking for the
        * calculation, but how is it possible that visible object depends
        * on an invisible? This is something what is prohibited after
@@ -201,6 +200,8 @@ bool is_metaball_object_operation(const OperationNode *operation_node)
 {
   const ComponentNode *component_node = operation_node->owner;
   const IDNode *id_node = component_node->owner;
+  /* This runs after the COPY_ON_EVAL stage which creates id_cow. */
+  BLI_assert(id_node->id_cow);
   if (GS(id_node->id_cow->name) != ID_OB) {
     return false;
   }
@@ -208,19 +209,54 @@ bool is_metaball_object_operation(const OperationNode *operation_node)
   return object->type == OB_MBALL;
 }
 
+/* Simulation modifiers with sub-frames (fluid domain, dynamic paint canvas) perform direct updates
+ * of other objects, which can cause race conditions over certain data (#115636). Unless and until
+ * sub-steps are fully supported in depsgraph evaluation such objects must use single-threaded
+ * evaluation. */
+bool is_modifier_subframe_operation(const OperationNode *operation_node)
+{
+  const ComponentNode *component_node = operation_node->owner;
+  const IDNode *id_node = component_node->owner;
+  /* This runs after the COPY_ON_EVAL stage which creates id_cow. */
+  BLI_assert(id_node->id_cow);
+  if (GS(id_node->id_cow->name) != ID_OB) {
+    return false;
+  }
+  const Object *object = reinterpret_cast<const Object *>(id_node->id_cow);
+  for (const ModifierData &md : object->modifiers) {
+    if (md.type == eModifierType_Fluid) {
+      const auto &fmd = reinterpret_cast<const FluidModifierData &>(md);
+      if (fmd.type == MOD_FLUID_TYPE_DOMAIN) {
+        return true;
+      }
+    }
+    if (md.type == eModifierType_DynamicPaint) {
+      const auto &dmd = reinterpret_cast<const DynamicPaintModifierData &>(md);
+      if (dmd.type == MOD_DYNAMICPAINT_TYPE_CANVAS) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool need_evaluate_operation_at_stage(DepsgraphEvalState *state,
                                       const OperationNode *operation_node)
 {
   const ComponentNode *component_node = operation_node->owner;
   switch (state->stage) {
-    case EvaluationStage::COPY_ON_WRITE:
-      return (component_node->type == NodeType::COPY_ON_WRITE);
+    case EvaluationStage::COPY_ON_EVAL:
+      return (component_node->type == NodeType::COPY_ON_EVAL);
 
     case EvaluationStage::DYNAMIC_VISIBILITY:
       return operation_node->flag & OperationFlag::DEPSOP_FLAG_AFFECTS_VISIBILITY;
 
     case EvaluationStage::THREADED_EVALUATION:
       if (is_metaball_object_operation(operation_node)) {
+        state->need_single_thread_pass = true;
+        return false;
+      }
+      if (is_modifier_subframe_operation(operation_node)) {
         state->need_single_thread_pass = true;
         return false;
       }
@@ -262,12 +298,13 @@ void schedule_node(DepsgraphEvalState *state,
   if (node->num_links_pending != 0) {
     return;
   }
-  /* During the COW stage only schedule COW nodes. */
+  /* During the copy-on-eval stage only schedule copy-on-eval nodes. */
   if (!need_evaluate_operation_at_stage(state, node)) {
     return;
   }
   /* Actually schedule the node. */
-  bool is_scheduled = atomic_fetch_and_or_uint8((uint8_t *)&node->scheduled, uint8_t(true));
+  bool is_scheduled = atomic_fetch_and_or_uint8(reinterpret_cast<uint8_t *>(&node->scheduled),
+                                                uint8_t(true));
   if (!is_scheduled) {
     if (node->is_noop()) {
       /* Clear flags to avoid affecting subsequent update propagation.
@@ -297,7 +334,7 @@ void schedule_children(DepsgraphEvalState *state,
                        const FunctionRef<void(OperationNode *node)> schedule_fn)
 {
   for (Relation *rel : node->outlinks) {
-    OperationNode *child = (OperationNode *)rel->to;
+    OperationNode *child = static_cast<OperationNode *>(rel->to);
     BLI_assert(child->type == NodeType::OPERATION);
     if (child->scheduled) {
       /* Happens when having cyclic dependencies. */
@@ -354,19 +391,19 @@ void evaluate_graph_single_threaded_if_needed(DepsgraphEvalState *state)
 
 void depsgraph_ensure_view_layer(Depsgraph *graph)
 {
-  /* We update copy-on-write scene in the following cases:
+  /* We update evaluated scene in the following cases:
    * - It was not expanded yet.
-   * - It was tagged for update of CoW component.
+   * - It was tagged for update of evaluated component.
    * This allows us to have proper view layer pointer. */
   Scene *scene_cow = graph->scene_cow;
-  if (deg_copy_on_write_is_expanded(&scene_cow->id) &&
-      (scene_cow->id.recalc & ID_RECALC_COPY_ON_WRITE) == 0)
+  if (deg_eval_copy_is_expanded(&scene_cow->id) &&
+      (scene_cow->id.recalc & ID_RECALC_SYNC_TO_EVAL) == 0)
   {
     return;
   }
 
   const IDNode *scene_id_node = graph->find_id_node(&graph->scene->id);
-  deg_update_copy_on_write_datablock(graph, scene_id_node);
+  deg_update_eval_copy_datablock(graph, scene_id_node);
 }
 
 TaskPool *deg_evaluate_task_pool_create(DepsgraphEvalState *state)
@@ -387,7 +424,16 @@ void deg_evaluate_on_refresh(Depsgraph *graph)
     return;
   }
 
-  graph->update_count++;
+  /* The update counts can be used to check if the Depsgraph was changed since the last time it was
+   * cached by comparing its current update count with the one stored at the moment the Depsgraph
+   * data were cached.
+   *
+   * A global atomic is used as opposed to incrementing the update count per Depsgraph to protect
+   * against the case where the Depsgraph is being recreated for each update and used to feed the
+   * same running engine instances. This can happen when using a brute force update pattern (see
+   * #135635). */
+  static std::atomic<uint64_t> global_update_count = 0;
+  graph->update_count = global_update_count.fetch_add(1) + 1;
 
   graph->debug.begin_graph_evaluation();
 
@@ -409,9 +455,9 @@ void deg_evaluate_on_refresh(Depsgraph *graph)
 
   /* Evaluation happens in several incremental steps:
    *
-   * - Start with the copy-on-write operations which never form dependency cycles. This will ensure
-   *   that if a dependency graph has a cycle evaluation functions will always "see" valid expanded
-   *   datablock. It might not be evaluated yet, but at least the datablock will be valid.
+   * - Start with the copy-on-evaluation operations which never form dependency cycles. This will
+   *   ensure that if a dependency graph has a cycle evaluation functions will always "see" valid
+   *   expanded datablock. It might not be evaluated yet, but at least the datablock will be valid.
    *
    * - If there is potentially dynamically changing visibility in the graph update the actual
    *   nodes visibilities, so that actual heavy data evaluation can benefit from knowledge that
@@ -426,7 +472,7 @@ void deg_evaluate_on_refresh(Depsgraph *graph)
 
   TaskPool *task_pool = deg_evaluate_task_pool_create(&state);
 
-  evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::COPY_ON_WRITE);
+  evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::COPY_ON_EVAL);
 
   if (graph->has_animated_visibility || graph->need_update_nodes_visibility) {
     /* Update pending parents including only the ones which are affecting operations which are

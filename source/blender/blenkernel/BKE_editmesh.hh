@@ -12,8 +12,14 @@
  * only concerned with low level operations on the #BMEditMesh structure.
  */
 
-#include "DNA_customdata_types.h"
+#include <array>
+
+#include "BLI_array.hh"
+#include "BLI_math_vector_types.hh"
+
 #include "bmesh.hh"
+
+namespace blender {
 
 struct BMLoop;
 struct BMPartialUpdate;
@@ -31,32 +37,27 @@ struct Scene;
  * and various data that doesn't belong in the #BMesh struct itself
  * (mostly related to mesh evaluation).
  *
- * The entire modifier system works with this structure, and not #BMesh.
- * #Mesh.edit_bmesh stores a pointer to this structure. */
+ * #Mesh.runtime.edit_mesh stores a pointer to this structure.
+ */
 struct BMEditMesh {
+  /* Always owned by an original mesh in edit mode. */
   BMesh *bm;
 
   /**
    * Face triangulation (tessellation) is stored as triplets of three loops,
    * which each define a triangle.
    *
-   * \see #MLoopTri as the documentation gives useful hints that apply to this data too.
+   * \see #Mesh::corner_tris() as the documentation gives useful hints that apply to this data too.
    */
-  BMLoop *(*looptris)[3];
-  int tottri;
+  Array<std::array<BMLoop *, 3>> looptris;
 
   /** Selection mode (#SCE_SELECT_VERTEX, #SCE_SELECT_EDGE & #SCE_SELECT_FACE). */
   short selectmode;
-  /** The active material (assigned to newly created faces). */
+  /** The active material (zero-based, assigned to newly created faces). */
   short mat_nr;
 
   /** Temp variables for x-mirror editing (-1 when the layer does not exist). */
   int mirror_cdlayer;
-
-  /**
-   * Enable for evaluated copies, causes the edit-mesh to free the memory, not its contents.
-   */
-  char is_shallow_copy;
 
   /**
    * ID data is older than edit-mode data.
@@ -91,22 +92,37 @@ BMEditMesh *BKE_editmesh_copy(BMEditMesh *em);
  * \brief Return the #BMEditMesh for a given object
  *
  * \note this function assumes this is a mesh object,
- * don't add NULL data check here. caller must do that
+ * don't add NULL data check here. caller must do that.
+ *
+ * \note Even in edit-mode, evaluated objects may return null since the
+ * evaluated mesh may have had its edit-mesh cleared.
+ *
+ * In this case the caller must either:
+ * - Use the original mesh to guarantee #BMEditMesh is returned.
+ * - Null check the result if we want to respect the evaluated result, see: #154739.
  */
 BMEditMesh *BKE_editmesh_from_object(Object *ob);
+
 /**
- * \note Does not free the #BMEditMesh  itself.
+ * Return whether the evaluated mesh is a "descendant" of the original mesh: whether it is a
+ * version of the original mesh propagated during evaluation. This will be false if the mesh was
+ * taken from an different object during evaluation, with the object info node for example.
+ */
+bool BKE_editmesh_eval_orig_map_available(const Mesh &mesh_eval, const Mesh *mesh_orig);
+
+/**
+ * \note Does not free the #BMEditMesh itself.
  */
 void BKE_editmesh_free_data(BMEditMesh *em);
 
-float (*BKE_editmesh_vert_coords_alloc(
-    Depsgraph *depsgraph, BMEditMesh *em, Scene *scene, Object *ob, int *r_vert_len))[3];
-float (*BKE_editmesh_vert_coords_alloc_orco(BMEditMesh *em, int *r_vert_len))[3];
-const float (*BKE_editmesh_vert_coords_when_deformed(Depsgraph *depsgraph,
-                                                     BMEditMesh *em,
-                                                     Scene *scene,
-                                                     Object *obedit,
-                                                     int *r_vert_len,
-                                                     bool *r_is_alloc))[3];
+Array<float3> BKE_editmesh_vert_coords_alloc(Depsgraph *depsgraph,
+                                             BMEditMesh *em,
+                                             Scene *scene,
+                                             Object *ob);
+Array<float3> BKE_editmesh_vert_coords_alloc_orco(BMEditMesh *em);
+Span<float3> BKE_editmesh_vert_coords_when_deformed(
+    Depsgraph *depsgraph, BMEditMesh *em, Scene *scene, Object *obedit, Array<float3> &r_alloc);
 
 void BKE_editmesh_lnorspace_update(BMEditMesh *em);
+
+}  // namespace blender

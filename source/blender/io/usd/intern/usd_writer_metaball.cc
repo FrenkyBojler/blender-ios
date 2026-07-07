@@ -1,23 +1,17 @@
 /* SPDX-FileCopyrightText: 2020 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
-#include "usd_writer_metaball.h"
-#include "usd_hierarchy_iterator.h"
+#include "usd_writer_metaball.hh"
+#include "usd_exporter_context.hh"
 
-#include <pxr/usd/usdGeom/mesh.h>
-#include <pxr/usd/usdShade/material.h>
-#include <pxr/usd/usdShade/materialBindingAPI.h>
-
-#include "BLI_assert.h"
-
-#include "BKE_displist.h"
 #include "BKE_lib_id.hh"
-#include "BKE_mball.h"
+#include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "DNA_mesh_types.h"
-#include "DNA_meta_types.h"
 
 namespace blender::io::usd {
 
@@ -31,7 +25,7 @@ bool USDMetaballWriter::is_supported(const HierarchyContext *context) const
 
 bool USDMetaballWriter::check_is_animated(const HierarchyContext & /*context*/) const
 {
-  /* We assume that metaballs are always animated, as the current object may
+  /* We assume that meta-balls are always animated, as the current object may
    * not be animated but another ball in the same group may be. */
   return true;
 }
@@ -45,7 +39,7 @@ Mesh *USDMetaballWriter::get_export_mesh(Object *object_eval, bool &r_needsfree)
     return mesh_eval;
   }
   r_needsfree = true;
-  return BKE_mesh_new_from_object(usd_export_context_.depsgraph, object_eval, false, false);
+  return BKE_mesh_new_from_object(usd_export_context_.depsgraph, object_eval, false, false, true);
 }
 
 void USDMetaballWriter::free_export_mesh(Mesh *mesh)
@@ -55,7 +49,7 @@ void USDMetaballWriter::free_export_mesh(Mesh *mesh)
 
 bool USDMetaballWriter::is_basis_ball(Scene *scene, Object *ob) const
 {
-  Object *basis_ob = BKE_mball_basis_find(scene, ob);
+  const Object *basis_ob = BKE_mball_basis_find(*usd_export_context_.bmain, scene, ob);
   return ob == basis_ob;
 }
 

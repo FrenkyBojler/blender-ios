@@ -9,9 +9,16 @@
  * This file contains access functions for the Mesh.runtime struct.
  */
 
+#include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
+
+namespace blender {
+
+struct BMEditMesh;
 struct CustomData_MeshMasks;
 struct Depsgraph;
 struct KeyBlock;
+struct ModifierData;
 struct Mesh;
 struct Object;
 struct Scene;
@@ -28,8 +35,6 @@ void BKE_mesh_runtime_ensure_edit_data(Mesh *mesh);
  *
  * For "smaller" changes to meshes like updating positions, consider calling a more specific update
  * function like #Mesh::tag_positions_changed().
- *
- * Also note that some derived caches like #CD_TANGENT are stored directly in #CustomData.
  */
 void BKE_mesh_runtime_clear_geometry(Mesh *mesh);
 
@@ -41,15 +46,29 @@ void BKE_mesh_runtime_clear_geometry(Mesh *mesh);
  */
 void BKE_mesh_runtime_clear_cache(Mesh *mesh);
 
-/* NOTE: the functions below are defined in DerivedMesh.cc, and are intended to be moved
- * to a more suitable location when that file is removed.
- * They should also be renamed to use conventions from BKE, not old DerivedMesh.cc.
- * For now keep the names similar to avoid confusion. */
+namespace bke {
 
-Mesh *mesh_get_eval_deform(Depsgraph *depsgraph,
-                           const Scene *scene,
-                           Object *ob,
-                           const CustomData_MeshMasks *dataMask);
+void mesh_get_mapped_verts_coords(const Mesh *mesh_eval, MutableSpan<float3> r_cos);
+
+const Mesh *editbmesh_get_eval_cage(Depsgraph *depsgraph,
+                                    const Scene *scene,
+                                    Object *obedit,
+                                    BMEditMesh *em,
+                                    const CustomData_MeshMasks *dataMask);
+const Mesh *editbmesh_get_eval_cage_from_orig(Depsgraph *depsgraph,
+                                              const Scene *scene,
+                                              Object *obedit,
+                                              const CustomData_MeshMasks *dataMask);
+
+bool editbmesh_modifier_is_enabled(const Scene *scene,
+                                   const Object *ob,
+                                   ModifierData *md,
+                                   bool has_prev_mesh);
+
+const Mesh *mesh_get_eval_deform(Depsgraph *depsgraph,
+                                 const Scene *scene,
+                                 Object *ob,
+                                 const CustomData_MeshMasks *dataMask);
 
 Mesh *mesh_create_eval_final(Depsgraph *depsgraph,
                              const Scene *scene,
@@ -65,8 +84,5 @@ Mesh *mesh_create_eval_no_deform_render(Depsgraph *depsgraph,
                                         Object *ob,
                                         const CustomData_MeshMasks *dataMask);
 
-void BKE_mesh_runtime_eval_to_meshkey(Mesh *me_deformed, Mesh *mesh, KeyBlock *kb);
-
-#ifndef NDEBUG
-bool BKE_mesh_runtime_is_valid(Mesh *me_eval);
-#endif /* !NDEBUG */
+}  // namespace bke
+}  // namespace blender

@@ -6,31 +6,45 @@
  * \ingroup stl
  */
 
-#include <algorithm>
 #include <memory>
-#include <string>
 
-#include "BKE_mesh.hh"
-#include "BKE_object.hh"
+#include "BKE_context.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_mesh_wrapper.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
-#include "BLI_string.h"
+#include "BLI_string.hh"
+#include "BLI_string_utils.hh"
 
 #include "DEG_depsgraph_query.hh"
 
+#include "DNA_layer_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "ED_util.hh"
+
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "IO_mesh_utils.hh"
 #include "IO_stl.hh"
 
+#include "stl_data.hh"
 #include "stl_export.hh"
 #include "stl_export_writer.hh"
 
-namespace blender::io::stl {
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.stl"};
+
+namespace io::stl {
 
 void export_frame(Depsgraph *depsgraph,
                   float scene_unit_scale,
@@ -40,7 +54,17 @@ void export_frame(Depsgraph *depsgraph,
 
   /* If not exporting in batch, create single writer for all objects. */
   if (!export_params.use_batch) {
-    writer = std::make_unique<FileWriter>(export_params.filepath, export_params.ascii_format);
+    try {
+      writer = std::make_unique<FileWriter>(export_params.filepath, export_params.ascii_format);
+    }
+    catch (const std::runtime_error &ex) {
+      CLOG_ERROR(&LOG, "Error: %s", ex.what());
+      BKE_reportf(export_params.reports,
+                  RPT_ERROR,
+                  "STL Export: Cannot open file '%s'",
+                  export_params.filepath);
+      return;
+    }
   }
 
   DEGObjectIterSettings deg_iter_settings{};
@@ -61,21 +85,48 @@ void export_frame(Depsgraph *depsgraph,
     /* If exporting in batch, create writer for each iteration over objects. */
     if (export_params.use_batch) {
       /* Get object name by skipping initial "OB" prefix. */
-      std::string object_name = (object->id.name + 2);
+      char object_name[sizeof(object->id.name) - 2];
+      STRNCPY(object_name, object->id.name + 2);
+      BLI_path_make_safe_filename(object_name);
       /* Replace spaces with underscores. */
-      std::replace(object_name.begin(), object_name.end(), ' ', '_');
+      BLI_string_replace_char(object_name, ' ', '_');
 
       /* Include object name in the exported file name. */
-      std::string suffix = object_name + ".stl";
       char filepath[FILE_MAX];
       STRNCPY(filepath, export_params.filepath);
-      BLI_path_extension_replace(filepath, FILE_MAX, suffix.c_str());
-      writer = std::make_unique<FileWriter>(export_params.filepath, export_params.ascii_format);
+      /* When basename is just ".stl", regular path functions would
+       * treat it as a hidden file called ".stl". Remove the extension
+       * before trying to add a suffix. */
+      const char *basename = BLI_path_basename(filepath);
+      if (basename != nullptr && BLI_strcasecmp(basename, ".stl") == 0) {
+        *const_cast<char *>(basename) = '\0';
+      }
+
+      BLI_path_suffix(filepath, FILE_MAX, object_name, "");
+      /* Make sure we have `.stl` extension (case insensitive). */
+      if (!BLI_path_extension_check(filepath, ".stl")) {
+        BLI_path_extension_ensure(filepath, FILE_MAX, ".stl");
+      }
+
+      try {
+        writer = std::make_unique<FileWriter>(filepath, export_params.ascii_format);
+      }
+      catch (const std::runtime_error &ex) {
+        CLOG_ERROR(&LOG, "Error: %s", ex.what());
+        BKE_reportf(
+            export_params.reports, RPT_ERROR, "STL Export: Cannot open file '%s'", filepath);
+        return;
+      }
     }
 
-    Object *obj_eval = DEG_get_evaluated_object(depsgraph, object);
-    Mesh *mesh = export_params.apply_modifiers ? BKE_object_get_evaluated_mesh(obj_eval) :
-                                                 BKE_object_get_pre_modified_mesh(obj_eval);
+    Object *obj_eval = DEG_get_evaluated(depsgraph, object);
+
+    MeshCoerceForExport coerce;
+    const Mesh *mesh = mesh_coerce_for_export_setup(
+        coerce, depsgraph, obj_eval, export_params.apply_modifiers);
+
+    /* Ensure data exists if currently in edit mode. */
+    BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(mesh));
 
     /* Calculate transform. */
     float global_scale = export_params.global_scale * scene_unit_scale;
@@ -85,38 +136,72 @@ void export_frame(Depsgraph *depsgraph,
     /* +Y-forward and +Z-up are the default Blender axis settings. */
     mat3_from_axis_conversion(
         export_params.forward_axis, export_params.up_axis, IO_AXIS_Y, IO_AXIS_Z, axes_transform);
-    mul_m4_m3m4(xform, axes_transform, obj_eval->object_to_world);
+    mul_m4_m3m4(xform, axes_transform, obj_eval->object_to_world().ptr());
     /* mul_m4_m3m4 does not transform last row of obmat, i.e. location data. */
-    mul_v3_m3v3(xform[3], axes_transform, obj_eval->object_to_world[3]);
-    xform[3][3] = obj_eval->object_to_world[3][3];
+    mul_v3_m3v3(xform[3], axes_transform, obj_eval->object_to_world().location());
+    xform[3][3] = obj_eval->object_to_world()[3][3];
+
+    const bool mirrored = is_negative_m4(xform);
 
     /* Write triangles. */
     const Span<float3> positions = mesh->vert_positions();
-    const blender::Span<int> corner_verts = mesh->corner_verts();
+    const Span<int> corner_verts = mesh->corner_verts();
     for (const int3 &tri : mesh->corner_tris()) {
-      Triangle t;
+      PackedTriangle data{};
       for (int i = 0; i < 3; i++) {
-        float3 pos = positions[corner_verts[tri[i]]];
+        /* Reverse face order for mirrored objects. */
+        int idx = mirrored ? 2 - i : i;
+        float3 pos = positions[corner_verts[tri[idx]]];
         mul_m4_v3(xform, pos);
         pos *= global_scale;
-        t.vertices[i] = pos;
+        data.vertices[i] = pos;
       }
-      t.normal = math::normal_tri(t.vertices[0], t.vertices[1], t.vertices[2]);
-      writer->write_triangle(t);
+      data.normal = math::normal_tri(data.vertices[0], data.vertices[1], data.vertices[2]);
+      writer->write_triangle(data);
     }
   }
   DEG_OBJECT_ITER_END;
 }
 
-void exporter_main(bContext *C, const STLExportParams &export_params)
+void exporter_main(const bContext *C, const STLExportParams &export_params)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
+  ED_editors_flush_edits(bmain);
+
+  Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, export_params.evaluation_mode);
+
+  if (export_params.collection[0]) {
+    Collection *collection = reinterpret_cast<Collection *>(
+        BKE_libblock_find_name(bmain, ID_GR, export_params.collection));
+    if (!collection) {
+      BKE_reportf(export_params.reports,
+                  RPT_ERROR,
+                  "STL Export: Unable to find collection '%s'",
+                  export_params.collection);
+
+      DEG_graph_free(depsgraph);
+      return;
+    }
+
+    DEG_graph_build_from_collection(depsgraph, collection);
+  }
+  else {
+    DEG_graph_build_from_view_layer(depsgraph);
+  }
+  BKE_scene_graph_update_tagged(depsgraph, bmain);
+
   float scene_unit_scale = 1.0f;
   if ((scene->unit.system != USER_UNIT_NONE) && export_params.use_scene_unit) {
     scene_unit_scale = scene->unit.scale_length;
   }
+
   export_frame(depsgraph, scene_unit_scale, export_params);
+
+  DEG_graph_free(depsgraph);
 }
 
-}  // namespace blender::io::stl
+}  // namespace io::stl
+}  // namespace blender

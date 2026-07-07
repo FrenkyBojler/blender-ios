@@ -60,25 +60,31 @@ bool AssetCatalogTreeItem::has_children() const
   return !children_.empty();
 }
 
-void AssetCatalogTreeItem::foreach_item_recursive(AssetCatalogTreeItem::ChildMap &children,
+void AssetCatalogTreeItem::foreach_item_recursive(const AssetCatalogTreeItem::ChildMap &children,
                                                   const ItemIterFn callback)
 {
-  for (auto &[key, item] : children) {
+  for (const auto &[key, item] : children) {
     callback(item);
     foreach_item_recursive(item.children_, callback);
   }
 }
 
-void AssetCatalogTreeItem::foreach_child(const ItemIterFn callback)
+void AssetCatalogTreeItem::foreach_child(const ItemIterFn callback) const
 {
-  for (auto &[key, item] : children_) {
+  for (const auto &[key, item] : children_) {
     callback(item);
   }
 }
 
+void AssetCatalogTreeItem::foreach_item(const ItemIterFn callback) const
+{
+  AssetCatalogTreeItem::foreach_item_recursive(children_, callback);
+}
+
 /* ---------------------------------------------------------------------- */
 
-void AssetCatalogTree::insert_item(const AssetCatalog &catalog)
+void AssetCatalogTree::insert_item(const AssetCatalog &catalog,
+                                   const std::optional<StringRef> skip_prefix)
 {
   const AssetCatalogTreeItem *parent = nullptr;
   /* The children for the currently iterated component, where the following component should be
@@ -90,7 +96,18 @@ void AssetCatalogTree::insert_item(const AssetCatalog &catalog)
 
   const CatalogID nil_id{};
 
+  std::optional<StringRef> skip_prefix_tmp = skip_prefix;
+
   catalog.path.iterate_components([&](StringRef component_name, const bool is_last_component) {
+    if (skip_prefix_tmp && skip_prefix_tmp->startswith(component_name)) {
+      if (skip_prefix_tmp->size() == component_name.size() ||
+          (*skip_prefix)[component_name.size()] == AssetCatalogPath::SEPARATOR)
+      {
+        skip_prefix_tmp = skip_prefix_tmp->drop_prefix(component_name.size() + 1);
+        return;
+      }
+    }
+
     /* Insert new tree element - if no matching one is there yet! */
     auto [key_and_item, was_inserted] = current_item_children->emplace(
         component_name,
@@ -115,14 +132,14 @@ void AssetCatalogTree::insert_item(const AssetCatalog &catalog)
   });
 }
 
-void AssetCatalogTree::foreach_item(AssetCatalogTreeItem::ItemIterFn callback)
+void AssetCatalogTree::foreach_item(AssetCatalogTreeItem::ItemIterFn callback) const
 {
   AssetCatalogTreeItem::foreach_item_recursive(root_items_, callback);
 }
 
-void AssetCatalogTree::foreach_root_item(const ItemIterFn callback)
+void AssetCatalogTree::foreach_root_item(const ItemIterFn callback) const
 {
-  for (auto &[key, item] : root_items_) {
+  for (const auto &[key, item] : root_items_) {
     callback(item);
   }
 }
@@ -132,10 +149,10 @@ bool AssetCatalogTree::is_empty() const
   return root_items_.empty();
 }
 
-AssetCatalogTreeItem *AssetCatalogTree::find_item(const AssetCatalogPath &path)
+const AssetCatalogTreeItem *AssetCatalogTree::find_item(const AssetCatalogPath &path) const
 {
-  AssetCatalogTreeItem *result = nullptr;
-  this->foreach_item([&](AssetCatalogTreeItem &item) {
+  const AssetCatalogTreeItem *result = nullptr;
+  this->foreach_item([&](const AssetCatalogTreeItem &item) {
     if (result) {
       /* There is no way to stop iteration. */
       return;
@@ -147,10 +164,10 @@ AssetCatalogTreeItem *AssetCatalogTree::find_item(const AssetCatalogPath &path)
   return result;
 }
 
-AssetCatalogTreeItem *AssetCatalogTree::find_root_item(const AssetCatalogPath &path)
+const AssetCatalogTreeItem *AssetCatalogTree::find_root_item(const AssetCatalogPath &path) const
 {
-  AssetCatalogTreeItem *result = nullptr;
-  this->foreach_root_item([&](AssetCatalogTreeItem &item) {
+  const AssetCatalogTreeItem *result = nullptr;
+  this->foreach_root_item([&](const AssetCatalogTreeItem &item) {
     if (result) {
       /* There is no way to stop iteration. */
       return;

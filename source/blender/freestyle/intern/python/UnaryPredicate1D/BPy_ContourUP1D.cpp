@@ -8,17 +8,15 @@
 
 #include "BPy_ContourUP1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ContourUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ContourUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`ContourUP1D`\n"
     "\n"
     ".. method:: __call__(inter)\n"
@@ -26,11 +24,10 @@ static char ContourUP1D___doc__[] =
     "   Returns true if the Interface1D is a contour. An Interface1D is a\n"
     "   contour if it is bordered by a different shape on each of its sides.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if the Interface1D is a contour, false otherwise.\n"
-    "   :rtype: bool\n";
-
+    "   :rtype: bool\n");
 static int ContourUP1D___init__(BPy_ContourUP1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -86,7 +83,3 @@ PyTypeObject ContourUP1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

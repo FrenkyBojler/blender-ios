@@ -9,31 +9,39 @@
 
 #include "BLI_span.hh"
 
-#include "abc_customdata.h"
 #include "abc_reader_object.h"
+
+#include <Alembic/AbcGeom/IPolyMesh.h>
+#include <Alembic/AbcGeom/ISubD.h>
+
+namespace blender {
 
 struct Mesh;
 
-namespace blender::io::alembic {
+namespace io::alembic {
 
 class AbcMeshReader final : public AbcObjectReader {
   Alembic::AbcGeom::IPolyMeshSchema m_schema;
 
  public:
-  AbcMeshReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
+  AbcMeshReader(const AbcReaderConstructorArgs &args);
 
   bool valid() const override;
   bool accepts_object_type(const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
                            const Object *const ob,
-                           const char **err_str) const override;
+                           const char **r_err_str) const override;
   void readObjectData(Main *bmain, const Alembic::Abc::ISampleSelector &sample_sel) override;
 
   struct Mesh *read_mesh(struct Mesh *existing_mesh,
                          const Alembic::Abc::ISampleSelector &sample_sel,
-                         int read_flag,
-                         const char *velocity_name,
-                         float velocity_scale,
-                         const char **err_str) override;
+                         const AbcReadGeometryParams &read_params,
+                         const char **r_err_str);
+
+  void read_geometry(bke::GeometrySet &geometry_set,
+                     const Alembic::Abc::ISampleSelector &sample_sel,
+                     const AbcReadGeometryParams &read_params,
+                     const char **r_err_str) override;
+
   bool topology_changed(const Mesh *existing_mesh,
                         const Alembic::Abc::ISampleSelector &sample_sel) override;
 
@@ -51,25 +59,34 @@ class AbcSubDReader final : public AbcObjectReader {
   Alembic::AbcGeom::ISubDSchema m_schema;
 
  public:
-  AbcSubDReader(const Alembic::Abc::IObject &object, ImportSettings &settings);
+  AbcSubDReader(const AbcReaderConstructorArgs &args);
 
   bool valid() const override;
   bool accepts_object_type(const Alembic::AbcCoreAbstract::ObjectHeader &alembic_header,
                            const Object *const ob,
-                           const char **err_str) const override;
+                           const char **r_err_str) const override;
   void readObjectData(Main *bmain, const Alembic::Abc::ISampleSelector &sample_sel) override;
+
+  void read_geometry(bke::GeometrySet &geometry_set,
+                     const Alembic::Abc::ISampleSelector &sample_sel,
+                     const AbcReadGeometryParams &read_params,
+                     const char **r_err_str) override;
+
+  bool topology_changed(const Mesh *existing_mesh,
+                        const Alembic::Abc::ISampleSelector &sample_sel) override;
+
+ private:
   struct Mesh *read_mesh(struct Mesh *existing_mesh,
                          const Alembic::Abc::ISampleSelector &sample_sel,
-                         int read_flag,
-                         const char *velocity_name,
-                         float velocity_scale,
-                         const char **err_str) override;
+                         const AbcReadGeometryParams &read_params,
+                         const char **r_err_str);
+
+  void add_subdiv_modifier();
 };
 
 void read_mverts(Mesh &mesh,
                  const Alembic::AbcGeom::P3fArraySamplePtr positions,
                  const Alembic::AbcGeom::N3fArraySamplePtr normals);
 
-CDStreamConfig get_config(struct Mesh *mesh);
-
-}  // namespace blender::io::alembic
+}  // namespace io::alembic
+}  // namespace blender

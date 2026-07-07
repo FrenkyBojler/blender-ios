@@ -9,8 +9,8 @@
  * image that are changed. These areas are organized in chunks. Changes that happen over time are
  * organized in changesets.
  *
- * A common use case is to update #GPUTexture for drawing where only that part is uploaded that
- * only changed.
+ * A common use case is to update #gpu::Texture for drawing where only that part is
+ * uploaded that only changed.
  *
  * Usage:
  *
@@ -49,18 +49,21 @@
 
 #include <optional>
 
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_image_partial_update.hh"
 
 #include "DNA_image_types.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf_types.hh"
 
-#include "BLI_listbase.h"
+#include "BLI_bit_vector.hh"
+#include "BLI_listbase.hh"
+#include "BLI_rect.hh"
 #include "BLI_vector.hh"
 
-namespace blender::bke::image::partial_update {
+namespace blender {
+
+namespace bke::image::partial_update {
 
 /** \brief Size of chunks to track changes. */
 constexpr int CHUNK_SIZE = 256;
@@ -80,7 +83,7 @@ constexpr int MAX_HISTORY_LEN = 4;
 /**
  * \brief get the chunk number for the give pixel coordinate.
  *
- * As chunks are squares the this member can be used for both x and y axis.
+ * As chunks are squares this member can be used for both x and y axis.
  */
 static int chunk_number_for_pixel(int pixel_offset)
 {
@@ -162,7 +165,7 @@ struct PartialUpdateUserImpl {
 struct TileChangeset {
  private:
   /** \brief Dirty flag for each chunk. */
-  std::vector<bool> chunk_dirty_flags_;
+  BitVector<> chunk_dirty_flags_;
   /** \brief are there dirty/ */
   bool has_dirty_chunks_ = false;
 
@@ -239,7 +242,7 @@ struct TileChangeset {
     for (int chunk_y = start_y_chunk; chunk_y <= end_y_chunk; chunk_y++) {
       for (int chunk_x = start_x_chunk; chunk_x <= end_x_chunk; chunk_x++) {
         int chunk_index = chunk_y * chunk_x_len + chunk_x;
-        chunk_dirty_flags_[chunk_index] = true;
+        chunk_dirty_flags_[chunk_index].set();
       }
     }
     has_dirty_chunks_ = true;
@@ -264,7 +267,7 @@ struct TileChangeset {
       return;
     }
     for (int index = 0; index < min_ii(chunk_len, previous_chunk_len); index++) {
-      chunk_dirty_flags_[index] = false;
+      chunk_dirty_flags_[index].reset();
     }
     has_dirty_chunks_ = false;
   }
@@ -277,8 +280,8 @@ struct TileChangeset {
     const int chunk_len = chunk_x_len * chunk_y_len;
 
     for (int chunk_index = 0; chunk_index < chunk_len; chunk_index++) {
-      chunk_dirty_flags_[chunk_index] = chunk_dirty_flags_[chunk_index] ||
-                                        other.chunk_dirty_flags_[chunk_index];
+      chunk_dirty_flags_[chunk_index].set(chunk_dirty_flags_[chunk_index] ||
+                                          other.chunk_dirty_flags_[chunk_index]);
     }
     has_dirty_chunks_ |= other.has_dirty_chunks_;
   }
@@ -458,12 +461,12 @@ struct PartialUpdateRegisterImpl {
 
 static PartialUpdateRegister *image_partial_update_register_ensure(Image *image)
 {
-  if (image->runtime.partial_update_register == nullptr) {
+  if (image->runtime->partial_update_register == nullptr) {
     PartialUpdateRegisterImpl *partial_update_register = MEM_new<PartialUpdateRegisterImpl>(
         __func__);
-    image->runtime.partial_update_register = wrap(partial_update_register);
+    image->runtime->partial_update_register = wrap(partial_update_register);
   }
-  return image->runtime.partial_update_register;
+  return image->runtime->partial_update_register;
 }
 
 ePartialUpdateCollectResult BKE_image_partial_update_collect_changes(Image *image,
@@ -490,9 +493,9 @@ ePartialUpdateCollectResult BKE_image_partial_update_collect_changes(Image *imag
   }
 
   /* Collect changed tiles. */
-  LISTBASE_FOREACH (ImageTile *, tile, &image->tiles) {
+  for (ImageTile &tile : image->tiles) {
     std::optional<TileChangeset> changed_chunks = partial_updater->changed_tile_chunks_since(
-        tile, user_impl->last_changeset_id);
+        &tile, user_impl->last_changeset_id);
     /* Check if chunks of this tile are dirty. */
     if (!changed_chunks.has_value()) {
       continue;
@@ -509,7 +512,7 @@ ePartialUpdateCollectResult BKE_image_partial_update_collect_changes(Image *imag
         }
 
         PartialUpdateRegion region;
-        region.tile_number = tile->tile_number;
+        region.tile_number = tile.tile_number;
         BLI_rcti_init(&region.region,
                       chunk_x * CHUNK_SIZE,
                       (chunk_x + 1) * CHUNK_SIZE,
@@ -536,15 +539,14 @@ ePartialUpdateIterResult BKE_image_partial_update_get_next_change(PartialUpdateU
   return ePartialUpdateIterResult::ChangeAvailable;
 }
 
-}  // namespace blender::bke::image::partial_update
-
-extern "C" {
+}  // namespace bke::image::partial_update
 
 using namespace blender::bke::image::partial_update;
 
-/* TODO(@jbakker): cleanup parameter. */
 PartialUpdateUser *BKE_image_partial_update_create(const Image *image)
 {
+  /* TODO(@jbakker): cleanup parameter. */
+
   PartialUpdateUserImpl *user_impl = MEM_new<PartialUpdateUserImpl>(__func__);
 
 #ifdef NDEBUG
@@ -567,11 +569,11 @@ void BKE_image_partial_update_free(PartialUpdateUser *user)
 void BKE_image_partial_update_register_free(Image *image)
 {
   PartialUpdateRegisterImpl *partial_update_register = unwrap(
-      image->runtime.partial_update_register);
+      image->runtime->partial_update_register);
   if (partial_update_register) {
     MEM_delete<PartialUpdateRegisterImpl>(partial_update_register);
   }
-  image->runtime.partial_update_register = nullptr;
+  image->runtime->partial_update_register = nullptr;
 }
 
 void BKE_image_partial_update_mark_region(Image *image,
@@ -589,4 +591,5 @@ void BKE_image_partial_update_mark_full_update(Image *image)
   PartialUpdateRegisterImpl *partial_updater = unwrap(image_partial_update_register_ensure(image));
   partial_updater->mark_full_update();
 }
-}
+
+}  // namespace blender

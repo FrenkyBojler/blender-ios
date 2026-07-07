@@ -6,15 +6,14 @@
  * \ingroup spoutliner
  */
 
-#include "BKE_collection.h"
 #include "BKE_lib_override.hh"
 
 #include "BLI_function_ref.hh"
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_map.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_space_types.h"
 
@@ -76,7 +75,7 @@ TreeElementOverridesBase::TreeElementOverridesBase(TreeElement &legacy_te, ID &i
 
 StringRefNull TreeElementOverridesBase::get_warning() const
 {
-  if (id.flag & LIB_LIB_OVERRIDE_RESYNC_LEFTOVER) {
+  if (id.flag & ID_FLAG_LIB_OVERRIDE_RESYNC_LEFTOVER) {
     return RPT_("This override data-block is not needed anymore, but was detected as user-edited");
   }
 
@@ -193,6 +192,13 @@ StringRefNull TreeElementOverridesProperty::get_warning() const
   return {};
 }
 
+IDOverrideLibraryProperty *TreeElementOverridesProperty::get_override_property_from_id(
+    ID &id) const
+{
+  BLI_assert(ID_IS_OVERRIDE_LIBRARY_REAL(&id));
+  return BKE_lib_override_library_property_find(id.override_library, this->rna_path.c_str());
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -232,7 +238,10 @@ TreeElementOverridesPropertyOperation::TreeElementOverridesPropertyOperation(
 
 StringRefNull TreeElementOverridesPropertyOperation::get_override_operation_label() const
 {
-  switch (operation_->operation) {
+  if (operation_->label) {
+    return operation_->label;
+  }
+  switch (eID_OverrideLib_Op(operation_->operation)) {
     case LIBOVERRIDE_OP_INSERT_AFTER:
     case LIBOVERRIDE_OP_INSERT_BEFORE:
       return RPT_("Added through override");
@@ -249,10 +258,18 @@ StringRefNull TreeElementOverridesPropertyOperation::get_override_operation_labe
       return RPT_("Subtractive override");
     case LIBOVERRIDE_OP_MULTIPLY:
       return RPT_("Multiplicative override");
-    default:
-      BLI_assert_unreachable();
-      return {};
+    case LIBOVERRIDE_OP_CUSTOM:
+      return RPT_("Custom override");
   }
+  return RPT_("Unknown override");
+}
+
+StringRefNull TreeElementOverridesPropertyOperation::get_override_operation_tooltip() const
+{
+  if (operation_->tooltip) {
+    return operation_->tooltip;
+  }
+  return {};
 }
 
 std::optional<BIFIconID> TreeElementOverridesPropertyOperation::get_icon() const
@@ -262,6 +279,24 @@ std::optional<BIFIconID> TreeElementOverridesPropertyOperation::get_icon() const
   }
 
   return {};
+}
+
+short TreeElementOverridesPropertyOperation::get_operation_type() const
+{
+  return operation_->operation;
+}
+
+IDOverrideLibraryPropertyOperation *TreeElementOverridesPropertyOperation::
+    get_override_operation_from_id(ID &id, IDOverrideLibraryProperty &override_property) const
+{
+  BLI_assert(ID_IS_OVERRIDE_LIBRARY_REAL(&id));
+  UNUSED_VARS_NDEBUG(id);
+  for (IDOverrideLibraryPropertyOperation &opop : override_property.operations) {
+    if (*operation_ == opop) {
+      return &opop;
+    }
+  }
+  return nullptr;
 }
 
 std::optional<PointerRNA> TreeElementOverridesPropertyOperation::get_collection_ptr() const
@@ -314,36 +349,40 @@ void OverrideRNAPathTreeBuilder::build_path(TreeElement &parent,
 {
   PointerRNA idpoin = RNA_id_pointer_create(&override_data.id);
 
-  ListBase path_elems = {nullptr};
+  Vector<PropertyElemRNA> path_elems;
   if (!RNA_path_resolve_elements(&idpoin, override_data.override_property.rna_path, &path_elems)) {
     return;
   }
 
   const char *elem_path = nullptr;
   TreeElement *te_to_expand = &parent;
+  char name_buf[128], *name;
 
-  LISTBASE_FOREACH (PropertyElemRNA *, elem, &path_elems) {
-    if (!elem->next) {
-      /* The last element is added as #TSE_LIBRARY_OVERRIDE below. */
-      break;
-    }
+  /* The last element is added as #TSE_LIBRARY_OVERRIDE below. */
+  for (const int i : path_elems.index_range().drop_back(1)) {
+    PropertyElemRNA &elem = path_elems[i];
+    PropertyElemRNA &next_elem = path_elems[i + 1];
     const char *previous_path = elem_path;
-    const char *new_path = RNA_path_append(previous_path, &elem->ptr, elem->prop, -1, nullptr);
+    const char *new_path = RNA_path_append(previous_path, &elem.ptr, elem.prop, -1, nullptr);
 
     te_to_expand = &ensure_label_element_for_prop(
-        *te_to_expand, new_path, elem->ptr, *elem->prop, index);
+        *te_to_expand, new_path, elem.ptr, *elem.prop, index);
 
     /* Above the collection property was added (e.g. "Modifiers"), to get the actual collection
      * item the path refers to, we have to peek at the following path element and add a tree
      * element for its pointer (e.g. "My Subdiv Modifier"). */
-    if (RNA_property_type(elem->prop) == PROP_COLLECTION) {
+    if (RNA_property_type(elem.prop) == PROP_COLLECTION) {
       const int coll_item_idx = RNA_property_collection_lookup_index(
-          &elem->ptr, elem->prop, &elem->next->ptr);
+          &elem.ptr, elem.prop, &next_elem.ptr);
+      name = RNA_struct_name_get_alloc(&next_elem.ptr, name_buf, sizeof(name_buf), nullptr);
       const char *coll_item_path = RNA_path_append(
-          previous_path, &elem->ptr, elem->prop, coll_item_idx, nullptr);
+          previous_path, &elem.ptr, elem.prop, coll_item_idx, name);
+      if (name && (name != name_buf)) {
+        MEM_delete(name);
+      }
 
       te_to_expand = &ensure_label_element_for_ptr(
-          *te_to_expand, coll_item_path, elem->next->ptr, index);
+          *te_to_expand, coll_item_path, next_elem.ptr, index);
 
       MEM_delete(new_path);
       new_path = coll_item_path;
@@ -354,7 +393,6 @@ void OverrideRNAPathTreeBuilder::build_path(TreeElement &parent,
       elem_path = new_path;
     }
   }
-  BLI_freelistN(&path_elems);
 
   /* Special case: Overriding collections, e.g. adding or removing items. In this case we add
    * elements for all collection items to show full context, and indicate which ones were
@@ -398,12 +436,17 @@ void OverrideRNAPathTreeBuilder::ensure_entire_collection(
 
   TreeElement *previous_te = nullptr;
   int item_idx = 0;
+  char name_buf[128], *name;
   RNA_PROP_BEGIN (&override_data.override_rna_ptr, itemptr, &override_data.override_rna_prop) {
+    name = RNA_struct_name_get_alloc(&itemptr, name_buf, sizeof(name_buf), nullptr);
     const char *coll_item_path = RNA_path_append(coll_prop_path,
                                                  &override_data.override_rna_ptr,
                                                  &override_data.override_rna_prop,
                                                  item_idx,
-                                                 nullptr);
+                                                 name);
+    if (name && (name != name_buf)) {
+      MEM_delete(name);
+    }
     IDOverrideLibraryPropertyOperation *item_operation =
         BKE_lib_override_library_property_operation_find(&override_data.override_property,
                                                          nullptr,
@@ -442,12 +485,15 @@ void OverrideRNAPathTreeBuilder::ensure_entire_collection(
                                                     index++);
     }
     else {
-      current_te = &ensure_label_element_for_ptr(te_to_expand, coll_item_path, itemptr, index);
+      /* NOTE: Do not generate entries for collection items which are not affected by liboverride,
+       * this is more disturbing than useful. */
     }
 
     MEM_delete(coll_item_path);
     item_idx++;
-    previous_te = current_te;
+    if (current_te) {
+      previous_te = current_te;
+    }
   }
   RNA_PROP_END;
 }

@@ -2,20 +2,21 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd_skel_root_utils.h"
+#include "usd_skel_root_utils.hh"
 
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
 #include <pxr/usd/usdSkel/root.h>
 
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "WM_types.hh"
 
-#include <iostream>
-
 #include "CLG_log.h"
+
+namespace blender {
+
 static CLG_LogRef LOG = {"io.usd"};
 
 /* Utility: return the common Xform ancestor of the given prims. Is no such ancestor can
@@ -49,7 +50,7 @@ static pxr::UsdGeomXform get_xform_ancestor(const pxr::UsdPrim &prim1, const pxr
   return pxr::UsdGeomXform();
 }
 
-namespace blender::io::usd {
+namespace io::usd {
 
 void create_skel_roots(pxr::UsdStageRefPtr stage, const USDExportParams &params)
 {
@@ -105,8 +106,8 @@ void create_skel_roots(pxr::UsdStageRefPtr stage, const USDExportParams &params)
 
     if (pxr::UsdGeomXform xf = get_xform_ancestor(prim, skel.GetPrim())) {
       /* We found a common Xform ancestor, so we set its type to UsdSkelRoot. */
-      CLOG_INFO(
-          &LOG, 4, "Converting Xform prim %s to a SkelRoot", prim.GetPath().GetAsString().c_str());
+      CLOG_DEBUG(
+          &LOG, "Converting Xform prim %s to a SkelRoot", prim.GetPath().GetAsString().c_str());
 
       pxr::UsdSkelRoot::Define(stage, xf.GetPath());
       converted_to_usdskel = true;
@@ -140,4 +141,5 @@ void create_skel_roots(pxr::UsdStageRefPtr stage, const USDExportParams &params)
   }
 }
 
-}  // namespace blender::io::usd
+}  // namespace io::usd
+}  // namespace blender

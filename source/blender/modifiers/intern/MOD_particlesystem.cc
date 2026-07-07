@@ -9,48 +9,42 @@
 #include <cstddef>
 #include <cstring>
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_modifier.hh"
 #include "BKE_particle.h"
-#include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "BLO_read_write.hh"
 
 #include "MOD_ui_common.hh"
-#include "MOD_util.hh"
+
+namespace blender {
 
 static void init_data(ModifierData *md)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(psmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(psmd, DNA_struct_default_get(ParticleSystemModifierData), modifier);
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(psmd, modifier);
 }
 static void free_data(ModifierData *md)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
 
   if (psmd->mesh_final) {
     BKE_id_free(nullptr, psmd->mesh_final);
@@ -62,7 +56,7 @@ static void free_data(ModifierData *md)
   }
   psmd->totdmvert = psmd->totdmedge = psmd->totdmface = 0;
 
-  /* ED_object_modifier_remove may have freed this first before calling
+  /* ed::object::modifier_remove may have freed this first before calling
    * BKE_modifier_free (which calls this function) */
   if (psmd->psys) {
     psmd->psys->flag |= PSYS_DELETE;
@@ -74,7 +68,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 #if 0
   const ParticleSystemModifierData *psmd = (const ParticleSystemModifierData *)md;
 #endif
-  ParticleSystemModifierData *tpsmd = (ParticleSystemModifierData *)target;
+  ParticleSystemModifierData *tpsmd = reinterpret_cast<ParticleSystemModifierData *>(target);
 
   BKE_modifier_copydata_generic(md, target, flag);
 
@@ -90,7 +84,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
 
   psys_emitter_customdata_mask(psmd->psys, r_cddata_masks);
 }
@@ -99,9 +93,9 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         blender::MutableSpan<blender::float3> positions)
+                         MutableSpan<float3> positions)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
   ParticleSystem *psys = nullptr;
 
   if (ctx->object->particlesystem.first) {
@@ -146,7 +140,7 @@ static void deform_verts(ModifierData *md,
   }
 
   /* make new mesh */
-  psmd->mesh_final = BKE_mesh_copy_for_eval(mesh);
+  psmd->mesh_final = BKE_mesh_copy_for_eval(*mesh);
   psmd->mesh_final->vert_positions_for_write().copy_from(positions);
   psmd->mesh_final->tag_positions_changed();
 
@@ -167,7 +161,7 @@ static void deform_verts(ModifierData *md,
       }
       else {
         /* Otherwise get regular mesh. */
-        mesh_original = static_cast<Mesh *>(ctx->object->data);
+        mesh_original = id_cast<Mesh *>(ctx->object->data);
       }
     }
     else {
@@ -178,7 +172,7 @@ static void deform_verts(ModifierData *md,
       /* Make a persistent copy of the mesh. We don't actually need
        * all this data, just some topology for remapping. Could be
        * optimized once. */
-      psmd->mesh_original = BKE_mesh_copy_for_eval(mesh_original);
+      psmd->mesh_original = BKE_mesh_copy_for_eval(*mesh_original);
     }
 
     BKE_mesh_tessface_ensure(psmd->mesh_original);
@@ -207,43 +201,42 @@ static void deform_verts(ModifierData *md,
   }
 
   if (DEG_is_active(ctx->depsgraph)) {
-    Object *object_orig = DEG_get_original_object(ctx->object);
+    Object *object_orig = DEG_get_original(ctx->object);
     ModifierData *md_orig = BKE_modifiers_findby_name(object_orig, psmd->modifier.name);
     BLI_assert(md_orig != nullptr);
-    ParticleSystemModifierData *psmd_orig = (ParticleSystemModifierData *)md_orig;
+    ParticleSystemModifierData *psmd_orig = reinterpret_cast<ParticleSystemModifierData *>(
+        md_orig);
     psmd_orig->flag = psmd->flag;
   }
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   Object *ob = static_cast<Object *>(ob_ptr.data);
-  ModifierData *md = (ModifierData *)ptr->data;
-  ParticleSystem *psys = ((ParticleSystemModifierData *)md)->psys;
+  ModifierData *md = static_cast<ModifierData *>(ptr->data);
+  ParticleSystem *psys = (reinterpret_cast<ParticleSystemModifierData *>(md))->psys;
 
-  uiItemL(layout, RPT_("Settings are in the particle tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Particles tab"), ICON_NONE);
 
   if (!(ob->mode & OB_MODE_PARTICLE_EDIT)) {
     if (ELEM(psys->part->ren_as, PART_DRAW_GR, PART_DRAW_OB)) {
-      uiItemO(layout,
-              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Instances Real"),
-              ICON_NONE,
-              "OBJECT_OT_duplicates_make_real");
+      layout.op("OBJECT_OT_duplicates_make_real",
+                CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Instances Real"),
+                ICON_NONE);
     }
     else if (psys->part->ren_as == PART_DRAW_PATH) {
-      uiItemO(layout,
-              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Convert to Mesh"),
-              ICON_NONE,
-              "OBJECT_OT_modifier_convert");
+      layout.op("OBJECT_OT_modifier_convert",
+                CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Convert to Mesh"),
+                ICON_NONE);
     }
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -253,12 +246,12 @@ static void panel_register(ARegionType *region_type)
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
 
   psmd->mesh_final = nullptr;
   psmd->mesh_original = nullptr;
   /* This is written as part of ob->particlesystem. */
-  BLO_read_data_address(reader, &psmd->psys);
+  BLO_read_struct(reader, ParticleSystem, &psmd->psys);
   psmd->flag &= ~eParticleSystemFlag_psys_updated;
   psmd->flag |= eParticleSystemFlag_file_loaded;
 }
@@ -296,4 +289,8 @@ ModifierTypeInfo modifierType_ParticleSystem = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

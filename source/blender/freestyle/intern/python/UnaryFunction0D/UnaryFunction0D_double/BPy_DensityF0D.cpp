@@ -10,17 +10,15 @@
 
 #include "../../../stroke/AdvancedFunctions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char DensityF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    DensityF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DDouble` > :class:`DensityF0D`\n"
     "\n"
@@ -28,7 +26,7 @@ static char DensityF0D___doc__[] =
     "\n"
     "   Builds a DensityF0D object.\n"
     "\n"
-    "   :arg sigma: The gaussian sigma value indicating the X value for\n"
+    "   :param sigma: The gaussian sigma value indicating the X value for\n"
     "      which the gaussian function is 0.5. It leads to the window size\n"
     "      value (the larger, the smoother).\n"
     "   :type sigma: float\n"
@@ -41,12 +39,11 @@ static char DensityF0D___doc__[] =
     "   window around the evaluation point and integrating these values using\n"
     "   a gaussian.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The density of the image evaluated at the pointed\n"
     "      Interface0D.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int DensityF0D___init__(BPy_DensityF0D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"sigma", nullptr};
@@ -104,7 +101,3 @@ PyTypeObject DensityF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

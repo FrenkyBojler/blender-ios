@@ -6,15 +6,18 @@
  * \ingroup texnodes
  */
 
+#include <algorithm>
+
 #include "BKE_colortools.hh"
-#include "NOD_texture.h"
 #include "node_texture_util.hh"
 #include "node_util.hh"
+
+namespace blender {
 
 /* **************** CURVE Time  ******************** */
 
 /* custom1 = start-frame, custom2 = end-frame. */
-static bNodeSocketTemplate time_outputs[] = {{SOCK_FLOAT, N_("Value")}, {-1, ""}};
+static bke::bNodeSocketTemplate time_outputs[] = {{SOCK_FLOAT, N_("Value")}, {-1, ""}};
 
 static void time_colorfn(
     float *out, TexParams *p, bNode *node, bNodeStack ** /*in*/, short /*thread*/)
@@ -29,7 +32,7 @@ static void time_colorfn(
   CurveMapping *mapping = static_cast<CurveMapping *>(node->storage);
   BKE_curvemapping_init(mapping);
   fac = BKE_curvemapping_evaluateF(mapping, 0, fac);
-  out[0] = CLAMPIS(fac, 0.0f, 1.0f);
+  out[0] = std::clamp(fac, 0.0f, 1.0f);
 }
 
 static void time_exec(void *data,
@@ -51,26 +54,29 @@ static void time_init(bNodeTree * /*ntree*/, bNode *node)
 
 void register_node_type_tex_curve_time()
 {
-  static bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_CURVE_TIME, "Time", NODE_CLASS_INPUT);
-  blender::bke::node_type_socket_templates(&ntype, nullptr, time_outputs);
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
+  tex_node_type_base(&ntype, "TextureNodeCurveTime"_ustr, TEX_NODE_CURVE_TIME);
+  ntype.ui_name = "Time";
+  ntype.enum_name_legacy = "CURVE_TIME";
+  ntype.nclass = NODE_CLASS_INPUT;
+  bke::node_type_socket_templates(&ntype, nullptr, time_outputs);
+  ntype.default_width = bke::NodeWidth::_240;
   ntype.initfunc = time_init;
-  node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
+  bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.init_exec_fn = node_initexec_curves;
   ntype.exec_fn = time_exec;
 
-  nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
 
 /* **************** CURVE RGB  ******************** */
-static bNodeSocketTemplate rgb_inputs[] = {
+static bke::bNodeSocketTemplate rgb_inputs[] = {
     {SOCK_RGBA, N_("Color"), 0.0f, 0.0f, 0.0f, 1.0f},
     {-1, ""},
 };
 
-static bNodeSocketTemplate rgb_outputs[] = {
+static bke::bNodeSocketTemplate rgb_outputs[] = {
     {SOCK_RGBA, N_("Color")},
     {-1, ""},
 };
@@ -101,15 +107,20 @@ static void rgb_init(bNodeTree * /*ntree*/, bNode *node)
 
 void register_node_type_tex_curve_rgb()
 {
-  static bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_CURVE_RGB, "RGB Curves", NODE_CLASS_OP_COLOR);
-  blender::bke::node_type_socket_templates(&ntype, rgb_inputs, rgb_outputs);
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
+  tex_node_type_base(&ntype, "TextureNodeCurveRGB"_ustr, TEX_NODE_CURVE_RGB);
+  ntype.ui_name = "RGB Curves";
+  ntype.enum_name_legacy = "CURVE_RGB";
+  ntype.nclass = NODE_CLASS_OP_COLOR;
+  bke::node_type_socket_templates(&ntype, rgb_inputs, rgb_outputs);
+  ntype.default_width = bke::NodeWidth::_240;
   ntype.initfunc = rgb_init;
-  node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
+  bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
   ntype.init_exec_fn = node_initexec_curves;
   ntype.exec_fn = rgb_exec;
 
-  nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

@@ -5,9 +5,12 @@
 /** \file
  * \ingroup gpu
  */
-#include "mtl_vertex_buffer.hh"
+
+#include "GPU_vertex_format.hh"
+
 #include "mtl_debug.hh"
 #include "mtl_storage_buffer.hh"
+#include "mtl_vertex_buffer.hh"
 
 namespace blender::gpu {
 
@@ -21,22 +24,22 @@ MTLVertBuf::~MTLVertBuf()
 void MTLVertBuf::acquire_data()
 {
   /* Discard previous data, if any. */
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_DELETE(data_);
   if (usage_ == GPU_USAGE_DEVICE_ONLY) {
-    data = nullptr;
+    data_ = nullptr;
   }
   else {
-    data = (uchar *)MEM_mallocN(sizeof(uchar) * this->size_alloc_get(), __func__);
+    data_ = MEM_new_array_uninitialized<uchar>(this->size_alloc_get(), __func__);
   }
 }
 
 void MTLVertBuf::resize_data()
 {
   if (usage_ == GPU_USAGE_DEVICE_ONLY) {
-    data = nullptr;
+    data_ = nullptr;
   }
   else {
-    data = (uchar *)MEM_reallocN(data, sizeof(uchar) * this->size_alloc_get());
+    data_ = (uchar *)MEM_realloc_uninitialized(data_, sizeof(uchar) * this->size_alloc_get());
   }
 }
 
@@ -50,69 +53,11 @@ void MTLVertBuf::release_data()
 
   GPU_TEXTURE_FREE_SAFE(buffer_texture_);
 
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_DELETE(data_);
 
   if (ssbo_wrapper_) {
     delete ssbo_wrapper_;
     ssbo_wrapper_ = nullptr;
-  }
-}
-
-void MTLVertBuf::duplicate_data(VertBuf *dst_)
-{
-  BLI_assert(MTLContext::get() != NULL);
-  MTLVertBuf *src = this;
-  MTLVertBuf *dst = static_cast<MTLVertBuf *>(dst_);
-
-  /* Ensure buffer has been initialized. */
-  src->bind();
-
-  if (src->vbo_) {
-
-    /* Fetch active context. */
-    MTLContext *ctx = MTLContext::get();
-    BLI_assert(ctx);
-
-    /* Ensure destination does not have an active VBO. */
-    BLI_assert(dst->vbo_ == nullptr);
-
-    /* Allocate VBO for destination vertbuf. */
-    uint64_t length = src->vbo_->get_size();
-    dst->vbo_ = MTLContext::get_global_memory_manager()->allocate(
-        length, (dst->get_usage_type() != GPU_USAGE_DEVICE_ONLY));
-    dst->alloc_size_ = length;
-
-    /* Fetch Metal buffer handles. */
-    id<MTLBuffer> src_buffer = src->vbo_->get_metal_buffer();
-    id<MTLBuffer> dest_buffer = dst->vbo_->get_metal_buffer();
-
-    /* Use blit encoder to copy data to duplicate buffer allocation. */
-    id<MTLBlitCommandEncoder> enc = ctx->main_command_buffer.ensure_begin_blit_encoder();
-    if (G.debug & G_DEBUG_GPU) {
-      [enc insertDebugSignpost:@"VertexBufferDuplicate"];
-    }
-    [enc copyFromBuffer:src_buffer
-             sourceOffset:0
-                 toBuffer:dest_buffer
-        destinationOffset:0
-                     size:length];
-
-    /* Flush results back to host buffer, if one exists. */
-    if (dest_buffer.storageMode == MTLStorageModeManaged) {
-      [enc synchronizeResource:dest_buffer];
-    }
-
-    if (G.debug & G_DEBUG_GPU) {
-      [enc insertDebugSignpost:@"VertexBufferDuplicateEnd"];
-    }
-
-    /* Mark as in-use, as contents are updated via GPU command. */
-    src->flag_used();
-  }
-
-  /* Copy raw CPU data. */
-  if (data != nullptr) {
-    dst->data = (uchar *)MEM_dupallocN(src->data);
   }
 }
 
@@ -130,7 +75,7 @@ void MTLVertBuf::bind()
   uint64_t required_size = max_ulul(required_size_raw, 128);
 
   if (required_size_raw == 0) {
-    MTL_LOG_INFO("Vertex buffer required_size = 0");
+    MTL_LOG_DEBUG("Vertex buffer required_size = 0");
   }
 
   /* If the vertex buffer has already been allocated, but new data is ready,
@@ -144,7 +89,7 @@ void MTLVertBuf::bind()
    * NOTE: If a buffer is re-sized, but no new data is provided, the previous
    * contents are copied into the newly allocated buffer. */
   bool requires_reallocation = (vbo_ != nullptr) && (alloc_size_ != required_size);
-  bool new_data_ready = (this->flag & GPU_VERTBUF_DATA_DIRTY) && this->data;
+  bool new_data_ready = (this->flag & GPU_VERTBUF_DATA_DIRTY) && this->data_;
 
   gpu::MTLBuffer *prev_vbo = nullptr;
   GPUVertBufStatus prev_flag = this->flag;
@@ -170,7 +115,12 @@ void MTLVertBuf::bind()
   if (vbo_ == nullptr) {
     vbo_ = MTLContext::get_global_memory_manager()->allocate(
         required_size, (this->get_usage_type() != GPU_USAGE_DEVICE_ONLY));
-    vbo_->set_label(@"Vertex Buffer");
+#ifndef NDEBUG
+    static std::atomic<int> global_counter = 0;
+    int index = global_counter.fetch_add(1);
+    vbo_->set_label([NSString stringWithFormat:@"VBO %i", index]);
+#endif
+
     BLI_assert(vbo_ != nullptr);
     BLI_assert(vbo_->get_metal_buffer() != nil);
 
@@ -191,13 +141,13 @@ void MTLVertBuf::bind()
 
       /* Fetch mapped buffer host ptr and upload data. */
       void *dst_data = vbo_->get_host_ptr();
-      memcpy((uint8_t *)dst_data, this->data, required_size_raw);
+      memcpy((uint8_t *)dst_data, this->data_, required_size_raw);
       vbo_->flush_range(0, required_size_raw);
     }
 
     /* If static usage, free host-side data. */
     if (usage_ == GPU_USAGE_STATIC) {
-      MEM_SAFE_FREE(data);
+      MEM_SAFE_DELETE(data_);
     }
 
     /* Flag data as having been uploaded. */
@@ -237,7 +187,7 @@ void MTLVertBuf::bind()
 
       /* For VBOs flagged as static, release host data as it will no longer be needed. */
       if (usage_ == GPU_USAGE_STATIC) {
-        MEM_SAFE_FREE(data);
+        MEM_SAFE_DELETE(data_);
       }
 
       /* Flag data as uploaded. */
@@ -261,7 +211,7 @@ void MTLVertBuf::bind()
 void MTLVertBuf::update_sub(uint start, uint len, const void *data)
 {
   /* Fetch and verify active context. */
-  MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *ctx = MTLContext::get();
   BLI_assert(ctx);
   BLI_assert(ctx->device);
 
@@ -271,10 +221,12 @@ void MTLVertBuf::update_sub(uint start, uint len, const void *data)
 
   /* Create temporary scratch buffer allocation for sub-range of data. */
   MTLTemporaryBuffer scratch_allocation =
-      ctx->get_scratchbuffer_manager().scratch_buffer_allocate_range_aligned(len, 256);
+      ctx->get_scratch_buffer_manager().scratch_buffer_allocate_range_aligned(len, 256);
   memcpy(scratch_allocation.data, data, len);
-  [scratch_allocation.metal_buffer
-      didModifyRange:NSMakeRange(scratch_allocation.buffer_offset, len)];
+  if ([scratch_allocation.metal_buffer storageMode] == MTLStorageModeManaged) {
+    [scratch_allocation.metal_buffer
+        didModifyRange:NSMakeRange(scratch_allocation.buffer_offset, len)];
+  }
   id<MTLBuffer> data_buffer = scratch_allocation.metal_buffer;
   uint64_t data_buffer_offset = scratch_allocation.buffer_offset;
 
@@ -307,7 +259,7 @@ void MTLVertBuf::bind_as_ssbo(uint binding)
 
   /* Create MTLStorageBuffer to wrap this resource and use conventional binding. */
   if (ssbo_wrapper_ == nullptr) {
-    ssbo_wrapper_ = new MTLStorageBuf(this, alloc_size_);
+    ssbo_wrapper_ = new MTLStorageBuf(this, ceil_to_multiple_u(alloc_size_, 16));
   }
   ssbo_wrapper_->bind(binding);
 }
@@ -321,8 +273,7 @@ void MTLVertBuf::bind_as_texture(uint binding)
   /* If vertex buffer updated, release existing texture and re-create. */
   id<MTLBuffer> buf = this->get_metal_buffer();
   if (buffer_texture_ != nullptr) {
-    gpu::MTLTexture *mtl_buffer_tex = static_cast<gpu::MTLTexture *>(
-        unwrap(this->buffer_texture_));
+    gpu::MTLTexture *mtl_buffer_tex = static_cast<gpu::MTLTexture *>(this->buffer_texture_);
     id<MTLBuffer> tex_buf = mtl_buffer_tex->get_vertex_buffer();
     if (tex_buf != buf) {
       GPU_TEXTURE_FREE_SAFE(buffer_texture_);
@@ -332,7 +283,7 @@ void MTLVertBuf::bind_as_texture(uint binding)
 
   /* Create texture from vertex buffer. */
   if (buffer_texture_ == nullptr) {
-    buffer_texture_ = GPU_texture_create_from_vertbuf("vertbuf_as_texture", wrap(this));
+    buffer_texture_ = GPU_texture_create_from_vertbuf("vertbuf_as_texture", this);
   }
 
   /* Verify successful creation and bind. */
@@ -416,6 +367,102 @@ void MTLVertBuf::wrap_handle(uint64_t handle)
 void MTLVertBuf::flag_used()
 {
   contents_in_flight_ = true;
+}
+
+MTLVertexFormat gpu_vertex_format_to_metal(VertAttrType vert_format)
+{
+#define CASE(a, b, c, blender_enum, d, e, mtl_vertex_enum, g, h) \
+  case VertAttrType::blender_enum: \
+    return MTLVertexFormat##mtl_vertex_enum;
+
+#define CASE_DEPRECATED(a, b, c, blender_enum, d, e, mtl_vertex_enum, g, h) \
+  case VertAttrType::blender_enum##_DEPRECATED: \
+    break;
+
+  switch (vert_format) {
+    GPU_VERTEX_FORMAT_EXPAND(CASE)
+    GPU_VERTEX_DEPRECATED_FORMAT_EXPAND(CASE_DEPRECATED)
+    case VertAttrType::Invalid:
+      break;
+  }
+#undef CASE
+#undef CASE_DEPRECATED
+  BLI_assert_msg(false, "Unrecognised GPU vertex format!\n");
+  return MTLVertexFormatInvalid;
+}
+
+MTLVertexFormat gpu_type_to_metal_vertex_format(const shader::Type type)
+{
+  using namespace shader;
+  switch (type) {
+    case Type::float_t:
+      return MTLVertexFormatFloat;
+    case Type::float2_t:
+      return MTLVertexFormatFloat2;
+    case Type::float3_t:
+      return MTLVertexFormatFloat3;
+    case Type::float4_t:
+      return MTLVertexFormatFloat4;
+    case Type::float3x3_t:
+      return MTLVertexFormatInvalid;
+    case Type::float4x4_t:
+      return MTLVertexFormatInvalid;
+    case Type::float3_10_10_10_2_t:
+      return MTLVertexFormatInvalid;
+    case Type::uchar_t:
+      return MTLVertexFormatUChar;
+    case Type::uchar2_t:
+      return MTLVertexFormatUChar2;
+    case Type::uchar3_t:
+      return MTLVertexFormatUChar3;
+    case Type::uchar4_t:
+      return MTLVertexFormatUChar4;
+    case Type::char_t:
+      return MTLVertexFormatChar;
+    case Type::char2_t:
+      return MTLVertexFormatChar2;
+    case Type::char3_t:
+      return MTLVertexFormatChar3;
+    case Type::char4_t:
+      return MTLVertexFormatChar4;
+    case Type::int_t:
+      return MTLVertexFormatInt;
+    case Type::int2_t:
+      return MTLVertexFormatInt2;
+    case Type::int3_t:
+      return MTLVertexFormatInt3;
+    case Type::int4_t:
+      return MTLVertexFormatInt4;
+    case Type::uint_t:
+      return MTLVertexFormatUInt;
+    case Type::uint2_t:
+      return MTLVertexFormatUInt2;
+    case Type::uint3_t:
+      return MTLVertexFormatUInt3;
+    case Type::uint4_t:
+      return MTLVertexFormatUInt4;
+    case Type::ushort_t:
+      return MTLVertexFormatUShort;
+    case Type::ushort2_t:
+      return MTLVertexFormatUShort2;
+    case Type::ushort3_t:
+      return MTLVertexFormatUShort3;
+    case Type::ushort4_t:
+      return MTLVertexFormatUShort4;
+    case Type::short_t:
+      return MTLVertexFormatShort;
+    case Type::short2_t:
+      return MTLVertexFormatShort2;
+    case Type::short3_t:
+      return MTLVertexFormatShort3;
+    case Type::short4_t:
+      return MTLVertexFormatShort4;
+    case Type::bool_t:
+      return MTLVertexFormatInvalid;
+    default:
+      BLI_assert(0);
+      return MTLVertexFormatInvalid;
+  }
 }
 
 }  // namespace blender::gpu

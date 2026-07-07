@@ -28,9 +28,14 @@ class BVHMetal : public BVH {
   API_AVAILABLE(macos(11.0))
   vector<id<MTLAccelerationStructure>> unique_blas_array;
 
+  Device *device = nullptr;
+
   bool motion_blur = false;
 
-  Stats &stats;
+  /* Per-component Motion Interpolation in macOS 15. */
+  bool use_pcmi = false;
+
+  bool extended_limits = false;
 
   bool build(Progress &progress, id<MTLDevice> device, id<MTLCommandQueue> queue, bool refit);
 
@@ -38,7 +43,7 @@ class BVHMetal : public BVH {
            const vector<Geometry *> &geometry,
            const vector<Object *> &objects,
            Device *device);
-  virtual ~BVHMetal();
+  ~BVHMetal() override;
 
   bool build_BLAS(Progress &progress, id<MTLDevice> device, id<MTLCommandQueue> queue, bool refit);
   bool build_BLAS_mesh(Progress &progress,
@@ -57,6 +62,9 @@ class BVHMetal : public BVH {
                              Geometry *const geom,
                              bool refit);
   bool build_TLAS(Progress &progress, id<MTLDevice> device, id<MTLCommandQueue> queue, bool refit);
+
+  API_AVAILABLE(macos(11.0))
+  void set_accel_struct(id<MTLAccelerationStructure> new_accel_struct);
 };
 
 CCL_NAMESPACE_END

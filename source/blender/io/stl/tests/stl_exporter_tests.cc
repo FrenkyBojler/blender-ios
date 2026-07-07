@@ -4,15 +4,14 @@
 
 #include "tests/blendfile_loading_base_test.h"
 
-#include "BKE_appdir.h"
-#include "BKE_main.hh"
+#include "BKE_appdir.hh"
 
-#include "BLI_fileops.h"
-#include "BLI_string.h"
-
-#include "BLO_readfile.h"
+#include "BLI_fileops.hh"
+#include "BLI_string.hh"
 
 #include "DEG_depsgraph.hh"
+
+#include "MEM_guardedalloc.h"
 
 #include "IO_stl.hh"
 #include "stl_export.hh"
@@ -26,15 +25,15 @@ static std::string read_temp_file_in_string(const std::string &file_path)
 {
   std::string res;
   size_t buffer_len;
-  void *buffer = BLI_file_read_text_as_mem(file_path.c_str(), 0, &buffer_len);
+  char *buffer = BLI_file_read_text_as_mem(file_path.c_str(), 0, &buffer_len);
   if (buffer != nullptr) {
-    res.assign((const char *)buffer, buffer_len);
-    MEM_freeN(buffer);
+    res.assign(buffer, buffer_len);
+    MEM_delete(buffer);
   }
   return res;
 }
 
-class stl_export_test : public BlendfileLoadingBaseTest {
+class STLExportTest : public BlendfileLoadingBaseTest {
  public:
   bool load_file_and_depsgraph(const std::string &filepath)
   {
@@ -46,19 +45,14 @@ class stl_export_test : public BlendfileLoadingBaseTest {
   }
 
  protected:
-  stl_export_test()
+  STLExportTest()
   {
-    _params = {};
-    _params.forward_axis = IO_AXIS_Y;
-    _params.up_axis = IO_AXIS_Z;
-    _params.global_scale = 1.0f;
-    _params.apply_modifiers = true;
     _params.ascii_format = true;
   }
   void SetUp() override
   {
     BlendfileLoadingBaseTest::SetUp();
-    BKE_tempdir_init("");
+    BKE_tempdir_init(nullptr);
   }
 
   void TearDown() override
@@ -76,8 +70,7 @@ class stl_export_test : public BlendfileLoadingBaseTest {
    * Export the given blend file with the given parameters and
    * test to see if it matches a golden file (ignoring any difference in Blender version number).
    * \param blendfile: input, relative to "tests" directory.
-   * \param golden_obj: expected output, relative to "tests" directory.
-   * \param params: the parameters to be used for export.
+   * \param golden_stl: expected output, relative to "tests" directory.
    */
   void compare_to_golden(const std::string &blendfile, const std::string &golden_stl)
   {
@@ -87,7 +80,7 @@ class stl_export_test : public BlendfileLoadingBaseTest {
 
     std::string out_file_path = get_temp_filename(BLI_path_basename(golden_stl.c_str()));
     STRNCPY(_params.filepath, out_file_path.c_str());
-    std::string golden_file_path = blender::tests::flags_test_asset_dir() + SEP_STR + golden_stl;
+    std::string golden_file_path = tests::flags_test_asset_dir() + SEP_STR + golden_stl;
     export_frame(depsgraph, 1.0f, _params);
     std::string output_str = read_temp_file_in_string(out_file_path);
 
@@ -105,25 +98,25 @@ class stl_export_test : public BlendfileLoadingBaseTest {
   STLExportParams _params;
 };
 
-TEST_F(stl_export_test, all_tris)
+TEST_F(STLExportTest, all_tris)
 {
   compare_to_golden("io_tests" SEP_STR "blend_geometry" SEP_STR "all_tris.blend",
                     "io_tests" SEP_STR "stl" SEP_STR "all_tris.stl");
 }
 
-TEST_F(stl_export_test, all_quads)
+TEST_F(STLExportTest, all_quads)
 {
   compare_to_golden("io_tests" SEP_STR "blend_geometry" SEP_STR "all_quads.blend",
                     "io_tests" SEP_STR "stl" SEP_STR "all_quads.stl");
 }
 
-TEST_F(stl_export_test, non_uniform_scale)
+TEST_F(STLExportTest, non_uniform_scale)
 {
   compare_to_golden("io_tests" SEP_STR "blend_geometry" SEP_STR "non_uniform_scale.blend",
                     "io_tests" SEP_STR "stl" SEP_STR "non_uniform_scale.stl");
 }
 
-TEST_F(stl_export_test, cubes_positioned)
+TEST_F(STLExportTest, cubes_positioned)
 {
   compare_to_golden("io_tests" SEP_STR "blend_geometry" SEP_STR "cubes_positioned.blend",
                     "io_tests" SEP_STR "stl" SEP_STR "cubes_positioned.stl");

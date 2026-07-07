@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include "kernel/closure/alloc.h"
 #include "kernel/closure/bsdf.h"
-#include "kernel/closure/bsdf_util.h"
 #include "kernel/closure/emissive.h"
 
+#include "kernel/film/light_passes.h"
+
 #include "kernel/integrator/guiding.h"
+#include "kernel/integrator/state_util.h"
 
 #ifdef __SVM__
 #  include "kernel/svm/svm.h"
@@ -24,15 +25,15 @@ CCL_NAMESPACE_BEGIN
 
 /* Guiding */
 
-#ifdef __PATH_GUIDING__
+#if defined(__PATH_GUIDING__)
 
 ccl_device float surface_shader_average_sample_weight_squared_roughness(
-    ccl_private const ShaderData *sd)
+    const ccl_private ShaderData *sd)
 {
   float avg_squared_roughness = 0.0f;
   float sum_sample_weight = 0.0f;
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
 
     if (!CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
       continue;
@@ -50,11 +51,11 @@ ccl_device float surface_shader_average_sample_weight_squared_roughness(
 ccl_device_inline void surface_shader_prepare_guiding(KernelGlobals kg,
                                                       IntegratorState state,
                                                       ccl_private ShaderData *sd,
-                                                      ccl_private const RNGState *rng_state)
+                                                      const ccl_private RNGState *rng_state)
 {
   /* Have any BSDF to guide? */
   if (!(kernel_data.integrator.use_surface_guiding && (sd->flag & SD_BSDF_HAS_EVAL))) {
-    state->guiding.use_surface_guiding = false;
+    INTEGRATOR_STATE_WRITE(state, guiding, use_surface_guiding) = false;
     return;
   }
 
@@ -104,40 +105,44 @@ ccl_device_inline void surface_shader_prepare_guiding(KernelGlobals kg,
   if (!fully_opaque || avg_roughness < guiding_roughness_threshold ||
       ((guiding_directional_sampling_type == GUIDING_DIRECTIONAL_SAMPLING_TYPE_PRODUCT_MIS) &&
        (diffuse_sampling_fraction <= 0.0f)) ||
-      !guiding_bsdf_init(kg, state, sd->P, sd->N, rand_bsdf_guiding))
+      !guiding_bsdf_init(kg, sd->P, sd->N, rand_bsdf_guiding))
   {
-    state->guiding.use_surface_guiding = false;
-    state->guiding.surface_guiding_sampling_prob = 0.0f;
+    INTEGRATOR_STATE_WRITE(state, guiding, use_surface_guiding) = false;
+    INTEGRATOR_STATE_WRITE(state, guiding, surface_guiding_sampling_prob) = 0.f;
     return;
   }
 
-  state->guiding.use_surface_guiding = true;
+  INTEGRATOR_STATE_WRITE(state, guiding, use_surface_guiding) = true;
   if (kernel_data.integrator.guiding_directional_sampling_type ==
       GUIDING_DIRECTIONAL_SAMPLING_TYPE_PRODUCT_MIS)
   {
-    state->guiding.surface_guiding_sampling_prob = surface_guiding_probability *
-                                                   diffuse_sampling_fraction;
+    INTEGRATOR_STATE_WRITE(
+        state, guiding, surface_guiding_sampling_prob) = surface_guiding_probability *
+                                                         diffuse_sampling_fraction;
   }
   else if (kernel_data.integrator.guiding_directional_sampling_type ==
            GUIDING_DIRECTIONAL_SAMPLING_TYPE_RIS)
   {
-    state->guiding.surface_guiding_sampling_prob = surface_guiding_probability;
+    INTEGRATOR_STATE_WRITE(
+        state, guiding, surface_guiding_sampling_prob) = surface_guiding_probability;
   }
   else {  // GUIDING_DIRECTIONAL_SAMPLING_TYPE_ROUGHNESS
-    state->guiding.surface_guiding_sampling_prob = surface_guiding_probability * avg_roughness;
+    INTEGRATOR_STATE_WRITE(
+        state, guiding, surface_guiding_sampling_prob) = surface_guiding_probability *
+                                                         avg_roughness;
   }
-  state->guiding.bssrdf_sampling_prob = bssrdf_sampling_fraction;
-  state->guiding.sample_surface_guiding_rand = rand_bsdf_guiding;
+  INTEGRATOR_STATE_WRITE(state, guiding, bssrdf_sampling_prob) = bssrdf_sampling_fraction;
+  INTEGRATOR_STATE_WRITE(state, guiding, sample_surface_guiding_rand) = rand_bsdf_guiding;
 
-  kernel_assert(state->guiding.surface_guiding_sampling_prob > 0.0f &&
-                state->guiding.surface_guiding_sampling_prob <= 1.0f);
+  kernel_assert(INTEGRATOR_STATE(state, guiding, surface_guiding_sampling_prob) > 0.0f &&
+                INTEGRATOR_STATE(state, guiding, surface_guiding_sampling_prob) <= 1.0f);
 }
 #endif
 
 ccl_device_inline void surface_shader_prepare_closures(KernelGlobals kg,
                                                        ConstIntegratorState state,
                                                        ccl_private ShaderData *sd,
-                                                       const uint32_t path_flag)
+                                                       const PathRayVisibility path_visibility)
 {
   /* Filter out closures. */
   if (kernel_data.integrator.filter_closures) {
@@ -146,7 +151,7 @@ ccl_device_inline void surface_shader_prepare_closures(KernelGlobals kg,
       sd->closure_emission_background = zero_spectrum();
     }
 
-    if (path_flag & PATH_RAY_CAMERA) {
+    if (path_visibility & PATH_RAY_VISIBILITY_CAMERA) {
       if (filter_closures & FILTER_CLOSURE_DIRECT_LIGHT) {
         sd->flag &= ~SD_BSDF_HAS_EVAL;
       }
@@ -187,22 +192,22 @@ ccl_device_inline void surface_shader_prepare_closures(KernelGlobals kg,
 #endif
   )
   {
-    float blur_pdf = kernel_data.integrator.filter_glossy *
-                     INTEGRATOR_STATE(state, path, min_ray_pdf);
+    const float blur_pdf = kernel_data.integrator.filter_glossy *
+                           INTEGRATOR_STATE(state, path, min_ray_pdf);
 
     if (blur_pdf < 1.0f) {
-      float blur_roughness = sqrtf(1.0f - blur_pdf) * 0.5f;
+      const float blur_roughness = sqrtf(1.0f - blur_pdf) * 0.5f;
 
       for (int i = 0; i < sd->num_closure; i++) {
         ccl_private ShaderClosure *sc = &sd->closure[i];
         if (CLOSURE_IS_BSDF(sc->type)) {
-          bsdf_blur(kg, sc, blur_roughness);
+          bsdf_blur(sc, blur_roughness);
         }
       }
 
       /* NOTE: this is a sufficient condition. If `blur_roughness < THRESH < original_roughness`
        * then the flag was already set. */
-      if (sqr(blur_roughness) > BSDF_ROUGHNESS_SQ_THRESH) {
+      if (!roughness_is_almost_specular(blur_roughness, blur_roughness)) {
         sd->flag |= SD_BSDF_HAS_EVAL;
       }
     }
@@ -212,7 +217,7 @@ ccl_device_inline void surface_shader_prepare_closures(KernelGlobals kg,
 /* BSDF */
 #ifdef WITH_CYCLES_DEBUG
 ccl_device_inline void surface_shader_validate_bsdf_sample(const KernelGlobals kg,
-                                                           const ShaderClosure *sc,
+                                                           const ccl_private ShaderClosure *sc,
                                                            const float3 wo,
                                                            const int org_label,
                                                            const float2 org_roughness,
@@ -221,17 +226,19 @@ ccl_device_inline void surface_shader_validate_bsdf_sample(const KernelGlobals k
   /* Validate the #bsdf_label and #bsdf_roughness_eta functions
    * by estimating the values after a BSDF sample. */
   kernel_assert(org_label == bsdf_label(kg, sc, wo));
+  (void)kg;
 
   float2 comp_roughness;
   float comp_eta;
-  bsdf_roughness_eta(kg, sc, wo, &comp_roughness, &comp_eta);
+  bsdf_roughness_eta(sc, wo, &comp_roughness, &comp_eta);
   kernel_assert(org_eta == comp_eta);
   kernel_assert(org_roughness.x == comp_roughness.x);
   kernel_assert(org_roughness.y == comp_roughness.y);
 }
 #endif
 
-ccl_device_forceinline bool _surface_shader_exclude(ClosureType type, uint light_shader_flags)
+ccl_device_forceinline bool _surface_shader_exclude(ClosureType type,
+                                                    const uint light_shader_flags)
 {
   if (!(light_shader_flags & SHADER_EXCLUDE_ANY)) {
     return false;
@@ -264,35 +271,46 @@ ccl_device_forceinline bool _surface_shader_exclude(ClosureType type, uint light
 ccl_device_inline float _surface_shader_bsdf_eval_mis(KernelGlobals kg,
                                                       ccl_private ShaderData *sd,
                                                       const float3 wo,
-                                                      ccl_private const ShaderClosure *skip_sc,
+                                                      const ccl_private ShaderClosure *skip_sc,
                                                       ccl_private BsdfEval *result_eval,
                                                       float sum_pdf,
                                                       float sum_sample_weight,
-                                                      const uint light_shader_flags)
+                                                      const uint light_shader_flags,
+                                                      float sum_pdf_roughness_squared,
+                                                      ccl_private float &r_avg_roughness_squared)
 {
   /* This is the veach one-sample model with balance heuristic,
    * some PDF factors drop out when using balance heuristic weighting. */
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
 
     if (sc == skip_sc) {
       continue;
     }
 
     if (CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
-      if (CLOSURE_IS_BSDF(sc->type) && !_surface_shader_exclude(sc->type, light_shader_flags)) {
+      if (CLOSURE_IS_BSDF(sc->type)) {
         float bsdf_pdf = 0.0f;
-        Spectrum eval = bsdf_eval(kg, sd, sc, wo, &bsdf_pdf);
+        const Spectrum eval = bsdf_eval(kg, sd, sc, wo, &bsdf_pdf);
 
         if (bsdf_pdf != 0.0f) {
-          bsdf_eval_accum(result_eval, sc, wo, eval * sc->weight);
-          sum_pdf += bsdf_pdf * sc->sample_weight;
+          if (!_surface_shader_exclude(sc->type, light_shader_flags)) {
+            bsdf_eval_accum(result_eval, sc, wo, eval * sc->weight);
+          }
+
+          const float weight = bsdf_pdf * sc->sample_weight;
+          sum_pdf += weight;
+
+          /* See #bsdf_widen_dD for the motivation for this weighted average roughness. */
+          sum_pdf_roughness_squared += weight * bsdf_get_specular_roughness_squared(sc);
         }
       }
 
       sum_sample_weight += sc->sample_weight;
     }
   }
+
+  r_avg_roughness_squared = (sum_pdf > 0.0f) ? sum_pdf_roughness_squared / sum_pdf : 0.0f;
 
   return (sum_sample_weight > 0.0f) ? sum_pdf / sum_sample_weight : 0.0f;
 }
@@ -302,26 +320,35 @@ ccl_device_inline float surface_shader_bsdf_eval_pdfs(const KernelGlobals kg,
                                                       const float3 wo,
                                                       ccl_private BsdfEval *result_eval,
                                                       ccl_private float *pdfs,
-                                                      const uint light_shader_flags)
+                                                      const uint light_shader_flags,
+                                                      ccl_private float &r_avg_roughness_squared)
 {
   /* This is the veach one-sample model with balance heuristic, some pdf
    * factors drop out when using balance heuristic weighting. */
   float sum_pdf = 0.0f;
   float sum_sample_weight = 0.0f;
+  float sum_pdf_roughness_squared = 0.0f;
   bsdf_eval_init(result_eval, zero_spectrum());
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
 
     if (CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
-      if (CLOSURE_IS_BSDF(sc->type) && !_surface_shader_exclude(sc->type, light_shader_flags)) {
+      if (CLOSURE_IS_BSDF(sc->type)) {
         float bsdf_pdf = 0.0f;
-        Spectrum eval = bsdf_eval(kg, sd, sc, wo, &bsdf_pdf);
+        const Spectrum eval = bsdf_eval(kg, sd, sc, wo, &bsdf_pdf);
         kernel_assert(bsdf_pdf >= 0.0f);
         if (bsdf_pdf != 0.0f) {
-          bsdf_eval_accum(result_eval, sc, wo, eval * sc->weight);
-          sum_pdf += bsdf_pdf * sc->sample_weight;
-          kernel_assert(bsdf_pdf * sc->sample_weight >= 0.0f);
-          pdfs[i] = bsdf_pdf * sc->sample_weight;
+          if (!_surface_shader_exclude(sc->type, light_shader_flags)) {
+            bsdf_eval_accum(result_eval, sc, wo, eval * sc->weight);
+          }
+
+          const float weight = bsdf_pdf * sc->sample_weight;
+          sum_pdf += weight;
+          kernel_assert(weight >= 0.0f);
+          pdfs[i] = weight;
+
+          /* See #bsdf_widen_dD for the motivation for this weighted average roughness. */
+          sum_pdf_roughness_squared += weight * bsdf_get_specular_roughness_squared(sc);
         }
         else {
           pdfs[i] = 0.0f;
@@ -343,6 +370,8 @@ ccl_device_inline float surface_shader_bsdf_eval_pdfs(const KernelGlobals kg,
     }
   }
 
+  r_avg_roughness_squared = (sum_pdf > 0.0f) ? sum_pdf_roughness_squared / sum_pdf : 0.0f;
+
   return (sum_sample_weight > 0.0f) ? sum_pdf / sum_sample_weight : 0.0f;
 }
 
@@ -353,31 +382,49 @@ ccl_device_inline
 #endif
     float
     surface_shader_bsdf_eval(KernelGlobals kg,
-                             IntegratorState state,
+                             ccl_attr_maybe_unused IntegratorState state,
                              ccl_private ShaderData *sd,
                              const float3 wo,
                              ccl_private BsdfEval *bsdf_eval,
-                             const uint light_shader_flags)
+                             const uint light_shader_flags,
+                             ccl_private float &r_avg_roughness_squared)
 {
   bsdf_eval_init(bsdf_eval, zero_spectrum());
 
-  float pdf = _surface_shader_bsdf_eval_mis(
-      kg, sd, wo, NULL, bsdf_eval, 0.0f, 0.0f, light_shader_flags);
+  float pdf = _surface_shader_bsdf_eval_mis(kg,
+                                            sd,
+                                            wo,
+                                            nullptr,
+                                            bsdf_eval,
+                                            0.0f,
+                                            0.0f,
+                                            light_shader_flags,
+                                            0.0f,
+                                            r_avg_roughness_squared);
+
+  /* If the light does not use MIS, then it is only sampled via NEE, so the probability of hitting
+   * the light using BSDF sampling is zero. */
+  if (!(light_shader_flags & SHADER_USE_MIS)) {
+    pdf = 0.0f;
+  }
 
 #if defined(__PATH_GUIDING__) && PATH_GUIDING_LEVEL >= 4
-  if (pdf > 0.0f && state->guiding.use_surface_guiding) {
-    const float guiding_sampling_prob = state->guiding.surface_guiding_sampling_prob;
-    const float bssrdf_sampling_prob = state->guiding.bssrdf_sampling_prob;
-    const float guide_pdf = guiding_bsdf_pdf(kg, state, wo);
+  if ((kernel_data.kernel_features & KERNEL_FEATURE_PATH_GUIDING)) {
+    if (pdf > 0.0f && INTEGRATOR_STATE(state, guiding, use_surface_guiding)) {
+      const float guiding_sampling_prob = INTEGRATOR_STATE(
+          state, guiding, surface_guiding_sampling_prob);
+      const float bssrdf_sampling_prob = INTEGRATOR_STATE(state, guiding, bssrdf_sampling_prob);
+      const float guide_pdf = guiding_bsdf_pdf(kg, wo);
 
-    if (kernel_data.integrator.guiding_directional_sampling_type ==
-        GUIDING_DIRECTIONAL_SAMPLING_TYPE_RIS)
-    {
-      pdf = (0.5f * guide_pdf * (1.0f - bssrdf_sampling_prob)) + 0.5f * pdf;
-    }
-    else {
-      pdf = (guiding_sampling_prob * guide_pdf * (1.0f - bssrdf_sampling_prob)) +
-            (1.0f - guiding_sampling_prob) * pdf;
+      if (kernel_data.integrator.guiding_directional_sampling_type ==
+          GUIDING_DIRECTIONAL_SAMPLING_TYPE_RIS)
+      {
+        pdf = (0.5f * guide_pdf * (1.0f - bssrdf_sampling_prob)) + 0.5f * pdf;
+      }
+      else {
+        pdf = (guiding_sampling_prob * guide_pdf * (1.0f - bssrdf_sampling_prob)) +
+              (1.0f - guiding_sampling_prob) * pdf;
+      }
     }
   }
 #endif
@@ -386,8 +433,8 @@ ccl_device_inline
 }
 
 /* Randomly sample a BSSRDF or BSDF proportional to ShaderClosure.sample_weight. */
-ccl_device_inline ccl_private const ShaderClosure *surface_shader_bsdf_bssrdf_pick(
-    ccl_private const ShaderData *ccl_restrict sd, ccl_private float3 *rand_bsdf)
+const ccl_device_inline ccl_private ShaderClosure *surface_shader_bsdf_bssrdf_pick(
+    const ccl_private ShaderData *ccl_restrict sd, ccl_private float3 *rand_bsdf)
 {
   int sampled = 0;
 
@@ -396,21 +443,21 @@ ccl_device_inline ccl_private const ShaderClosure *surface_shader_bsdf_bssrdf_pi
     float sum = 0.0f;
 
     for (int i = 0; i < sd->num_closure; i++) {
-      ccl_private const ShaderClosure *sc = &sd->closure[i];
+      const ccl_private ShaderClosure *sc = &sd->closure[i];
 
       if (CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
         sum += sc->sample_weight;
       }
     }
 
-    float r = (*rand_bsdf).z * sum;
+    const float r = (*rand_bsdf).z * sum;
     float partial_sum = 0.0f;
 
     for (int i = 0; i < sd->num_closure; i++) {
-      ccl_private const ShaderClosure *sc = &sd->closure[i];
+      const ccl_private ShaderClosure *sc = &sd->closure[i];
 
       if (CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
-        float next_sum = partial_sum + sc->sample_weight;
+        const float next_sum = partial_sum + sc->sample_weight;
 
         if (r < next_sum) {
           sampled = i;
@@ -430,15 +477,15 @@ ccl_device_inline ccl_private const ShaderClosure *surface_shader_bsdf_bssrdf_pi
 
 /* Return weight for picked BSSRDF. */
 ccl_device_inline Spectrum
-surface_shader_bssrdf_sample_weight(ccl_private const ShaderData *ccl_restrict sd,
-                                    ccl_private const ShaderClosure *ccl_restrict bssrdf_sc)
+surface_shader_bssrdf_sample_weight(const ccl_private ShaderData *ccl_restrict sd,
+                                    const ccl_private ShaderClosure *ccl_restrict bssrdf_sc)
 {
   Spectrum weight = bssrdf_sc->weight;
 
   if (sd->num_closure > 1) {
     float sum = 0.0f;
     for (int i = 0; i < sd->num_closure; i++) {
-      ccl_private const ShaderClosure *sc = &sd->closure[i];
+      const ccl_private ShaderClosure *sc = &sd->closure[i];
 
       if (CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
         sum += sc->sample_weight;
@@ -450,32 +497,37 @@ surface_shader_bssrdf_sample_weight(ccl_private const ShaderData *ccl_restrict s
   return weight;
 }
 
-#ifdef __PATH_GUIDING__
+#if defined(__PATH_GUIDING__)
 /* Sample direction for picked BSDF, and return evaluation and pdf for all
  * BSDFs combined using MIS. */
 
-ccl_device int surface_shader_bsdf_guided_sample_closure_mis(KernelGlobals kg,
-                                                             IntegratorState state,
-                                                             ccl_private ShaderData *sd,
-                                                             ccl_private const ShaderClosure *sc,
-                                                             const float3 rand_bsdf,
-                                                             ccl_private BsdfEval *bsdf_eval,
-                                                             ccl_private float3 *wo,
-                                                             ccl_private float *bsdf_pdf,
-                                                             ccl_private float *unguided_bsdf_pdf,
-                                                             ccl_private float2 *sampled_roughness,
-                                                             ccl_private float *eta)
+ccl_device int surface_shader_bsdf_guided_sample_closure_mis(
+    KernelGlobals kg,
+    IntegratorState state,
+    ccl_private ShaderData *sd,
+    const ccl_private ShaderClosure *sc,
+    const float3 rand_bsdf,
+    ccl_private BsdfEval *bsdf_eval,
+    ccl_private float3 *wo,
+    ccl_private float *bsdf_pdf,
+    ccl_private float *unguided_bsdf_pdf,
+    ccl_private float2 *sampled_roughness,
+    ccl_private float *eta,
+    ccl_private float &r_avg_roughness_squared)
 {
   /* BSSRDF should already have been handled elsewhere. */
   kernel_assert(CLOSURE_IS_BSDF(sc->type));
 
-  const bool use_surface_guiding = state->guiding.use_surface_guiding;
-  const float guiding_sampling_prob = state->guiding.surface_guiding_sampling_prob;
-  const float bssrdf_sampling_prob = state->guiding.bssrdf_sampling_prob;
+  r_avg_roughness_squared = 0.0f;
+
+  const bool use_surface_guiding = INTEGRATOR_STATE(state, guiding, use_surface_guiding);
+  const float guiding_sampling_prob = INTEGRATOR_STATE(
+      state, guiding, surface_guiding_sampling_prob);
+  const float bssrdf_sampling_prob = INTEGRATOR_STATE(state, guiding, bssrdf_sampling_prob);
 
   /* Decide between sampling guiding distribution and BSDF. */
   bool sample_guiding = false;
-  float rand_bsdf_guiding = state->guiding.sample_surface_guiding_rand;
+  float rand_bsdf_guiding = INTEGRATOR_STATE(state, guiding, sample_surface_guiding_rand);
 
   if (use_surface_guiding && rand_bsdf_guiding < guiding_sampling_prob) {
     sample_guiding = true;
@@ -496,14 +548,14 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_mis(KernelGlobals kg,
 
   if (sample_guiding) {
     /* Sample guiding distribution. */
-    guide_pdf = guiding_bsdf_sample(kg, state, float3_to_float2(rand_bsdf), wo);
+    guide_pdf = guiding_bsdf_sample(kg, make_float2(rand_bsdf), wo);
     *bsdf_pdf = 0.0f;
 
     if (guide_pdf != 0.0f) {
       float unguided_bsdf_pdfs[MAX_CLOSURE];
 
       *unguided_bsdf_pdf = surface_shader_bsdf_eval_pdfs(
-          kg, sd, *wo, bsdf_eval, unguided_bsdf_pdfs, 0);
+          kg, sd, *wo, bsdf_eval, unguided_bsdf_pdfs, 0, r_avg_roughness_squared);
       *bsdf_pdf = (guiding_sampling_prob * guide_pdf * (1.0f - bssrdf_sampling_prob)) +
                   ((1.0f - guiding_sampling_prob) * (*unguided_bsdf_pdf));
       float sum_pdfs = 0.0f;
@@ -540,16 +592,8 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_mis(KernelGlobals kg,
   else {
     /* Sample BSDF. */
     *bsdf_pdf = 0.0f;
-    label = bsdf_sample(kg,
-                        sd,
-                        sc,
-                        INTEGRATOR_STATE(state, path, flag),
-                        rand_bsdf,
-                        &eval,
-                        wo,
-                        unguided_bsdf_pdf,
-                        sampled_roughness,
-                        eta);
+    label = bsdf_sample(
+        kg, sd, sc, rand_bsdf, &eval, wo, unguided_bsdf_pdf, sampled_roughness, eta);
 #  ifdef WITH_CYCLES_DEBUG
     /* Code path to validate the estimation of the label, sampled roughness and eta. This should be
      * activated from time to time when the BSDFs change to check if everything is still working
@@ -564,16 +608,29 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_mis(KernelGlobals kg,
 
       kernel_assert(reduce_min(bsdf_eval_sum(bsdf_eval)) >= 0.0f);
 
+      const float roughness_squared = bsdf_get_specular_roughness_squared(sc);
       if (sd->num_closure > 1) {
-        float sweight = sc->sample_weight;
-        *unguided_bsdf_pdf = _surface_shader_bsdf_eval_mis(
-            kg, sd, *wo, sc, bsdf_eval, (*unguided_bsdf_pdf) * sweight, sweight, 0);
+        const float sweight = sc->sample_weight;
+        const float weight = (*unguided_bsdf_pdf) * sweight;
+        *unguided_bsdf_pdf = _surface_shader_bsdf_eval_mis(kg,
+                                                           sd,
+                                                           *wo,
+                                                           sc,
+                                                           bsdf_eval,
+                                                           weight,
+                                                           sweight,
+                                                           0,
+                                                           weight * roughness_squared,
+                                                           r_avg_roughness_squared);
         kernel_assert(reduce_min(bsdf_eval_sum(bsdf_eval)) >= 0.0f);
+      }
+      else {
+        r_avg_roughness_squared = roughness_squared;
       }
       *bsdf_pdf = *unguided_bsdf_pdf;
 
       if (use_surface_guiding) {
-        guide_pdf = guiding_bsdf_pdf(kg, state, *wo);
+        guide_pdf = guiding_bsdf_pdf(kg, *wo);
         *bsdf_pdf *= 1.0f - guiding_sampling_prob;
         *bsdf_pdf += guiding_sampling_prob * guide_pdf * (1.0f - bssrdf_sampling_prob);
       }
@@ -585,29 +642,34 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_mis(KernelGlobals kg,
   return label;
 }
 
-ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
-                                                             IntegratorState state,
-                                                             ccl_private ShaderData *sd,
-                                                             ccl_private const ShaderClosure *sc,
-                                                             const float3 rand_bsdf,
-                                                             ccl_private const RNGState *rng_state,
-                                                             ccl_private BsdfEval *bsdf_eval,
-                                                             ccl_private float3 *wo,
-                                                             ccl_private float *bsdf_pdf,
-                                                             ccl_private float *mis_pdf,
-                                                             ccl_private float *unguided_bsdf_pdf,
-                                                             ccl_private float2 *sampled_roughness,
-                                                             ccl_private float *eta)
+ccl_device int surface_shader_bsdf_guided_sample_closure_ris(
+    KernelGlobals kg,
+    IntegratorState state,
+    ccl_private ShaderData *sd,
+    const ccl_private ShaderClosure *sc,
+    const float3 rand_bsdf,
+    const ccl_private RNGState *rng_state,
+    ccl_private BsdfEval *bsdf_eval,
+    ccl_private float3 *wo,
+    ccl_private float *bsdf_pdf,
+    ccl_private float *mis_pdf,
+    ccl_private float *unguided_bsdf_pdf,
+    ccl_private float2 *sampled_roughness,
+    ccl_private float *eta,
+    ccl_private float &r_avg_roughness_squared)
 {
   /* BSSRDF should already have been handled elsewhere. */
   kernel_assert(CLOSURE_IS_BSDF(sc->type));
 
-  const bool use_surface_guiding = state->guiding.use_surface_guiding;
-  const float guiding_sampling_prob = state->guiding.surface_guiding_sampling_prob;
-  const float bssrdf_sampling_prob = state->guiding.bssrdf_sampling_prob;
+  r_avg_roughness_squared = 0.0f;
+
+  const bool use_surface_guiding = INTEGRATOR_STATE(state, guiding, use_surface_guiding);
+  const float guiding_sampling_prob = INTEGRATOR_STATE(
+      state, guiding, surface_guiding_sampling_prob);
+  const float bssrdf_sampling_prob = INTEGRATOR_STATE(state, guiding, bssrdf_sampling_prob);
 
   /* Decide between sampling guiding distribution and BSDF. */
-  float rand_bsdf_guiding = state->guiding.sample_surface_guiding_rand;
+  const float rand_bsdf_guiding = INTEGRATOR_STATE(state, guiding, sample_surface_guiding_rand);
 
   /* Initialize to zero. */
   int label = LABEL_NONE;
@@ -623,6 +685,9 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
     // selected RIS candidate
     int ris_idx = 0;
 
+    // directional roughness for each of the two RIS candidates
+    float ris_avg_roughness_squared[2] = {0.0f, 0.0f};
+
     // meta data for the two RIS candidates
     GuidingRISSample ris_samples[2];
     ris_samples[0].rand = rand_bsdf;
@@ -634,7 +699,6 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
     ris_samples[0].label = bsdf_sample(kg,
                                        sd,
                                        sc,
-                                       INTEGRATOR_STATE(state, path, flag),
                                        ris_samples[0].rand,
                                        &ris_samples[0].eval,
                                        &ris_samples[0].wo,
@@ -645,24 +709,30 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
     bsdf_eval_init(
         &ris_samples[0].bsdf_eval, sc, ris_samples[0].wo, ris_samples[0].eval * sc->weight);
     if (ris_samples[0].bsdf_pdf > 0.0f) {
+      const float roughness_squared = bsdf_get_specular_roughness_squared(sc);
       if (sd->num_closure > 1) {
-        float sweight = sc->sample_weight;
+        const float sweight = sc->sample_weight;
+        const float weight = ris_samples[0].bsdf_pdf * sweight;
         ris_samples[0].bsdf_pdf = _surface_shader_bsdf_eval_mis(kg,
                                                                 sd,
                                                                 ris_samples[0].wo,
                                                                 sc,
                                                                 &ris_samples[0].bsdf_eval,
-                                                                (ris_samples[0].bsdf_pdf) *
-                                                                    sweight,
+                                                                weight,
                                                                 sweight,
-                                                                0);
+                                                                0,
+                                                                weight * roughness_squared,
+                                                                ris_avg_roughness_squared[0]);
         kernel_assert(reduce_min(bsdf_eval_sum(&ris_samples[0].bsdf_eval)) >= 0.0f);
       }
+      else {
+        ris_avg_roughness_squared[0] = roughness_squared;
+      }
       ris_samples[0].avg_bsdf_eval = average(ris_samples[0].bsdf_eval.sum);
-      ris_samples[0].guide_pdf = guiding_bsdf_pdf(kg, state, ris_samples[0].wo);
+      ris_samples[0].guide_pdf = guiding_bsdf_pdf(kg, ris_samples[0].wo);
       ris_samples[0].guide_pdf *= (1.0f - bssrdf_sampling_prob);
       ris_samples[0].incoming_radiance_pdf = guiding_surface_incoming_radiance_pdf(
-          kg, state, ris_samples[0].wo);
+          kg, ris_samples[0].wo);
       ris_samples[0].bsdf_pdf = max(0.0f, ris_samples[0].bsdf_pdf);
     }
 
@@ -672,12 +742,17 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
     float unguided_bsdf_pdfs[MAX_CLOSURE];
     bsdf_eval_init(&ris_samples[1].bsdf_eval, eval);
     ris_samples[1].guide_pdf = guiding_bsdf_sample(
-        kg, state, float3_to_float2(ris_samples[1].rand), &ris_samples[1].wo);
+        kg, make_float2(ris_samples[1].rand), &ris_samples[1].wo);
     ris_samples[1].guide_pdf *= (1.0f - bssrdf_sampling_prob);
     ris_samples[1].incoming_radiance_pdf = guiding_surface_incoming_radiance_pdf(
-        kg, state, ris_samples[1].wo);
-    ris_samples[1].bsdf_pdf = surface_shader_bsdf_eval_pdfs(
-        kg, sd, ris_samples[1].wo, &ris_samples[1].bsdf_eval, unguided_bsdf_pdfs, 0);
+        kg, ris_samples[1].wo);
+    ris_samples[1].bsdf_pdf = surface_shader_bsdf_eval_pdfs(kg,
+                                                            sd,
+                                                            ris_samples[1].wo,
+                                                            &ris_samples[1].bsdf_eval,
+                                                            unguided_bsdf_pdfs,
+                                                            0,
+                                                            ris_avg_roughness_squared[1]);
     ris_samples[1].label = ris_samples[0].label;
     ris_samples[1].avg_bsdf_eval = average(ris_samples[1].bsdf_eval.sum);
     ris_samples[1].bsdf_pdf = max(0.0f, ris_samples[1].bsdf_pdf);
@@ -710,7 +785,7 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
       return label;
     }
 
-    float rand_ris_select = rand_bsdf_guiding * sum_ris_weights;
+    const float rand_ris_select = rand_bsdf_guiding * sum_ris_weights;
 
     float sum_ris = 0.0f;
     for (int i = 0; i < 2; i++) {
@@ -738,6 +813,7 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
     *sampled_roughness = ris_samples[ris_idx].sampled_roughness;
     *eta = ris_samples[ris_idx].eta;
     *bsdf_eval = ris_samples[ris_idx].bsdf_eval;
+    r_avg_roughness_squared = ris_avg_roughness_squared[ris_idx];
 
     kernel_assert(isfinite_safe(guide_pdf));
     kernel_assert(isfinite_safe(*bsdf_pdf));
@@ -755,7 +831,7 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
     /// select label sampled_roughness and eta
     if (ris_idx == 1 && ris_samples[1].bsdf_pdf > 0.0f) {
 
-      float rnd = path_state_rng_1D(kg, rng_state, PRNG_SURFACE_RIS_GUIDING_1);
+      const float rnd = path_state_rng_1D(kg, rng_state, PRNG_SURFACE_RIS_GUIDING_1);
 
       float sum_pdfs = 0.0f;
       int idx = -1;
@@ -773,7 +849,7 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
       idx = (rnd > sum_pdfs) ? sd->num_closure - 1 : idx;
 
       label = bsdf_label(kg, &sd->closure[idx], *wo);
-      bsdf_roughness_eta(kg, &sd->closure[idx], *wo, sampled_roughness, eta);
+      bsdf_roughness_eta(&sd->closure[idx], *wo, sampled_roughness, eta);
     }
 
     kernel_assert(isfinite_safe(*bsdf_pdf));
@@ -783,16 +859,8 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
   else {
     /* Sample BSDF. */
     *bsdf_pdf = 0.0f;
-    label = bsdf_sample(kg,
-                        sd,
-                        sc,
-                        INTEGRATOR_STATE(state, path, flag),
-                        rand_bsdf,
-                        &eval,
-                        wo,
-                        unguided_bsdf_pdf,
-                        sampled_roughness,
-                        eta);
+    label = bsdf_sample(
+        kg, sd, sc, rand_bsdf, &eval, wo, unguided_bsdf_pdf, sampled_roughness, eta);
 #  ifdef WITH_CYCLES_DEBUG
     // Code path to validate the estimation of the label, sampled roughness and eta
     // This should be activated from time to time when the BSDFs change to check if everything
@@ -807,11 +875,24 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
 
       kernel_assert(reduce_min(bsdf_eval_sum(bsdf_eval)) >= 0.0f);
 
+      const float roughness_squared = bsdf_get_specular_roughness_squared(sc);
       if (sd->num_closure > 1) {
-        float sweight = sc->sample_weight;
-        *unguided_bsdf_pdf = _surface_shader_bsdf_eval_mis(
-            kg, sd, *wo, sc, bsdf_eval, (*unguided_bsdf_pdf) * sweight, sweight, 0);
+        const float sweight = sc->sample_weight;
+        const float weight = (*unguided_bsdf_pdf) * sweight;
+        *unguided_bsdf_pdf = _surface_shader_bsdf_eval_mis(kg,
+                                                           sd,
+                                                           *wo,
+                                                           sc,
+                                                           bsdf_eval,
+                                                           weight,
+                                                           sweight,
+                                                           0,
+                                                           weight * roughness_squared,
+                                                           r_avg_roughness_squared);
         kernel_assert(reduce_min(bsdf_eval_sum(bsdf_eval)) >= 0.0f);
+      }
+      else {
+        r_avg_roughness_squared = roughness_squared;
       }
       *bsdf_pdf = *unguided_bsdf_pdf;
       *mis_pdf = *bsdf_pdf;
@@ -823,21 +904,24 @@ ccl_device int surface_shader_bsdf_guided_sample_closure_ris(KernelGlobals kg,
   return label;
 }
 
-ccl_device int surface_shader_bsdf_guided_sample_closure(KernelGlobals kg,
-                                                         IntegratorState state,
-                                                         ccl_private ShaderData *sd,
-                                                         ccl_private const ShaderClosure *sc,
-                                                         const float3 rand_bsdf,
-                                                         ccl_private BsdfEval *bsdf_eval,
-                                                         ccl_private float3 *wo,
-                                                         ccl_private float *bsdf_pdf,
-                                                         ccl_private float *mis_pdf,
-                                                         ccl_private float *unguided_bsdf_pdf,
-                                                         ccl_private float2 *sampled_roughness,
-                                                         ccl_private float *eta,
-                                                         ccl_private const RNGState *rng_state)
+ccl_device int surface_shader_bsdf_guided_sample_closure(
+    KernelGlobals kg,
+    IntegratorState state,
+    ccl_private ShaderData *sd,
+    const ccl_private ShaderClosure *sc,
+    const float3 rand_bsdf,
+    ccl_private BsdfEval *bsdf_eval,
+    ccl_private float3 *wo,
+    ccl_private float *bsdf_pdf,
+    ccl_private float *mis_pdf,
+    ccl_private float *unguided_bsdf_pdf,
+    ccl_private float2 *sampled_roughness,
+    ccl_private float *eta,
+    const ccl_private RNGState *rng_state,
+    ccl_private float &r_avg_roughness_squared)
 {
   int label = LABEL_NONE;
+  r_avg_roughness_squared = 0.0f;
   if (kernel_data.integrator.guiding_directional_sampling_type ==
           GUIDING_DIRECTIONAL_SAMPLING_TYPE_PRODUCT_MIS ||
       kernel_data.integrator.guiding_directional_sampling_type ==
@@ -853,7 +937,8 @@ ccl_device int surface_shader_bsdf_guided_sample_closure(KernelGlobals kg,
                                                           bsdf_pdf,
                                                           unguided_bsdf_pdf,
                                                           sampled_roughness,
-                                                          eta);
+                                                          eta,
+                                                          r_avg_roughness_squared);
     *mis_pdf = (*unguided_bsdf_pdf > 0.0f) ? *bsdf_pdf : 0.0f;
   }
   else if (kernel_data.integrator.guiding_directional_sampling_type ==
@@ -871,7 +956,8 @@ ccl_device int surface_shader_bsdf_guided_sample_closure(KernelGlobals kg,
                                                           mis_pdf,
                                                           unguided_bsdf_pdf,
                                                           sampled_roughness,
-                                                          eta);
+                                                          eta,
+                                                          r_avg_roughness_squared);
   }
   if (!(*unguided_bsdf_pdf > 0.0f)) {
     *bsdf_pdf = 0.0f;
@@ -886,14 +972,14 @@ ccl_device int surface_shader_bsdf_guided_sample_closure(KernelGlobals kg,
  * BSDFs combined using MIS. */
 ccl_device int surface_shader_bsdf_sample_closure(KernelGlobals kg,
                                                   ccl_private ShaderData *sd,
-                                                  ccl_private const ShaderClosure *sc,
-                                                  const int path_flag,
+                                                  const ccl_private ShaderClosure *sc,
                                                   const float3 rand_bsdf,
                                                   ccl_private BsdfEval *bsdf_eval,
                                                   ccl_private float3 *wo,
                                                   ccl_private float *pdf,
                                                   ccl_private float2 *sampled_roughness,
-                                                  ccl_private float *eta)
+                                                  ccl_private float *eta,
+                                                  ccl_private float &r_avg_roughness_squared)
 {
   /* BSSRDF should already have been handled elsewhere. */
   kernel_assert(CLOSURE_IS_BSDF(sc->type));
@@ -902,129 +988,133 @@ ccl_device int surface_shader_bsdf_sample_closure(KernelGlobals kg,
   Spectrum eval = zero_spectrum();
 
   *pdf = 0.0f;
-  label = bsdf_sample(kg, sd, sc, path_flag, rand_bsdf, &eval, wo, pdf, sampled_roughness, eta);
+  label = bsdf_sample(kg, sd, sc, rand_bsdf, &eval, wo, pdf, sampled_roughness, eta);
 
   if (*pdf != 0.0f) {
     bsdf_eval_init(bsdf_eval, sc, *wo, eval * sc->weight);
 
+    const float sweight = sc->sample_weight;
+    const float roughness_squared = bsdf_get_specular_roughness_squared(sc);
+
     if (sd->num_closure > 1) {
-      float sweight = sc->sample_weight;
-      *pdf = _surface_shader_bsdf_eval_mis(kg, sd, *wo, sc, bsdf_eval, *pdf * sweight, sweight, 0);
+      const float weight = *pdf * sweight;
+      *pdf = _surface_shader_bsdf_eval_mis(kg,
+                                           sd,
+                                           *wo,
+                                           sc,
+                                           bsdf_eval,
+                                           weight,
+                                           sweight,
+                                           0,
+                                           weight * roughness_squared,
+                                           r_avg_roughness_squared);
+    }
+    else {
+      r_avg_roughness_squared = roughness_squared;
     }
   }
   else {
     bsdf_eval_init(bsdf_eval, zero_spectrum());
+    r_avg_roughness_squared = 0.0f;
   }
 
   return label;
 }
 
-ccl_device float surface_shader_average_roughness(ccl_private const ShaderData *sd)
+ccl_device float surface_shader_average_roughness(const ccl_private ShaderData *sd)
 {
   float roughness = 0.0f;
   float sum_weight = 0.0f;
 
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
 
     if (CLOSURE_IS_BSDF(sc->type)) {
-      /* sqrt once to undo the squaring from multiplying roughness on the
+      /* `sqrt()` once to undo the squaring from multiplying roughness on the
        * two axes, and once for the squared roughness convention. */
-      float weight = fabsf(average(sc->weight));
-      roughness += weight * sqrtf(safe_sqrtf(bsdf_get_roughness_squared(sc)));
-      sum_weight += weight;
+      const float value = bsdf_get_roughness_pass_squared(sc);
+      if (value >= 0.0f) {
+        const float weight = fabsf(average(sc->weight));
+        roughness += weight * sqrtf(sqrtf(value));
+        sum_weight += weight;
+      }
     }
   }
 
-  return (sum_weight > 0.0f) ? roughness / sum_weight : 0.0f;
+  return (sum_weight > 0.0f) ? roughness / sum_weight : 1.0f;
 }
 
-ccl_device Spectrum surface_shader_transparency(KernelGlobals kg, ccl_private const ShaderData *sd)
+ccl_device Spectrum surface_shader_transparency(const ccl_private ShaderData *sd)
 {
   if (sd->flag & SD_HAS_ONLY_VOLUME) {
     return one_spectrum();
   }
-  else if (sd->flag & SD_TRANSPARENT) {
+  if (sd->flag & (SD_TRANSPARENT | SD_RAY_PORTAL)) {
     return sd->closure_transparent_extinction;
   }
-  else {
-    return zero_spectrum();
-  }
+  return zero_spectrum();
 }
 
-ccl_device void surface_shader_disable_transparency(KernelGlobals kg, ccl_private ShaderData *sd)
+ccl_device Spectrum surface_shader_alpha(const ccl_private ShaderData *sd)
 {
-  if (sd->flag & SD_TRANSPARENT) {
-    for (int i = 0; i < sd->num_closure; i++) {
-      ccl_private ShaderClosure *sc = &sd->closure[i];
-
-      if (sc->type == CLOSURE_BSDF_TRANSPARENT_ID) {
-        sc->sample_weight = 0.0f;
-        sc->weight = zero_spectrum();
-      }
-    }
-
-    sd->flag &= ~SD_TRANSPARENT;
-  }
-}
-
-ccl_device Spectrum surface_shader_alpha(KernelGlobals kg, ccl_private const ShaderData *sd)
-{
-  Spectrum alpha = one_spectrum() - surface_shader_transparency(kg, sd);
+  Spectrum alpha = one_spectrum() - surface_shader_transparency(sd);
 
   alpha = saturate(alpha);
 
   return alpha;
 }
 
-ccl_device Spectrum surface_shader_diffuse(KernelGlobals kg, ccl_private const ShaderData *sd)
+ccl_device Spectrum surface_shader_diffuse(KernelGlobals kg, const ccl_private ShaderData *sd)
 {
   Spectrum eval = zero_spectrum();
 
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
 
-    if (CLOSURE_IS_BSDF_DIFFUSE(sc->type) || CLOSURE_IS_BSSRDF(sc->type))
+    if (CLOSURE_IS_BSDF_DIFFUSE(sc->type) || CLOSURE_IS_BSSRDF(sc->type)) {
       eval += bsdf_albedo(kg, sd, sc, true, true);
+    }
   }
 
   return eval;
 }
 
-ccl_device Spectrum surface_shader_glossy(KernelGlobals kg, ccl_private const ShaderData *sd)
+ccl_device Spectrum surface_shader_glossy(KernelGlobals kg, const ccl_private ShaderData *sd)
 {
   Spectrum eval = zero_spectrum();
 
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
 
-    if (CLOSURE_IS_BSDF_GLOSSY(sc->type) || CLOSURE_IS_GLASS(sc->type))
+    if (CLOSURE_IS_BSDF_GLOSSY(sc->type) || CLOSURE_IS_GLASS(sc->type)) {
       eval += bsdf_albedo(kg, sd, sc, true, false);
+    }
   }
 
   return eval;
 }
 
-ccl_device Spectrum surface_shader_transmission(KernelGlobals kg, ccl_private const ShaderData *sd)
+ccl_device Spectrum surface_shader_transmission(KernelGlobals kg, const ccl_private ShaderData *sd)
 {
   Spectrum eval = zero_spectrum();
 
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
 
-    if (CLOSURE_IS_BSDF_TRANSMISSION(sc->type) || CLOSURE_IS_GLASS(sc->type))
+    if (CLOSURE_IS_BSDF_TRANSMISSION(sc->type) || CLOSURE_IS_GLASS(sc->type)) {
       eval += bsdf_albedo(kg, sd, sc, false, true);
+    }
   }
 
   return eval;
 }
 
-ccl_device float3 surface_shader_average_normal(KernelGlobals kg, ccl_private const ShaderData *sd)
+ccl_device float3 surface_shader_average_normal(const ccl_private ShaderData *sd)
 {
   float3 N = zero_float3();
 
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
     if (CLOSURE_IS_BSDF_OR_BSSRDF(sc->type)) {
       N += sc->N * fabsf(average(sc->weight));
     }
@@ -1033,8 +1123,7 @@ ccl_device float3 surface_shader_average_normal(KernelGlobals kg, ccl_private co
   return (is_zero(N)) ? sd->N : normalize(N);
 }
 
-ccl_device Spectrum surface_shader_ao(KernelGlobals kg,
-                                      ccl_private const ShaderData *sd,
+ccl_device Spectrum surface_shader_ao(const ccl_private ShaderData *sd,
                                       const float ao_factor,
                                       ccl_private float3 *N_)
 {
@@ -1042,10 +1131,10 @@ ccl_device Spectrum surface_shader_ao(KernelGlobals kg,
   float3 N = zero_float3();
 
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
 
     if (CLOSURE_IS_BSDF_DIFFUSE(sc->type)) {
-      ccl_private const DiffuseBsdf *bsdf = (ccl_private const DiffuseBsdf *)sc;
+      const ccl_private DiffuseBsdf *bsdf = (const ccl_private DiffuseBsdf *)sc;
       eval += sc->weight * ao_factor;
       N += bsdf->N * fabsf(average(sc->weight));
     }
@@ -1056,16 +1145,16 @@ ccl_device Spectrum surface_shader_ao(KernelGlobals kg,
 }
 
 #ifdef __SUBSURFACE__
-ccl_device float3 surface_shader_bssrdf_normal(ccl_private const ShaderData *sd)
+ccl_device float3 surface_shader_bssrdf_normal(const ccl_private ShaderData *sd)
 {
   float3 N = zero_float3();
 
   for (int i = 0; i < sd->num_closure; i++) {
-    ccl_private const ShaderClosure *sc = &sd->closure[i];
+    const ccl_private ShaderClosure *sc = &sd->closure[i];
 
     if (CLOSURE_IS_BSSRDF(sc->type)) {
-      ccl_private const Bssrdf *bssrdf = (ccl_private const Bssrdf *)sc;
-      float avg_weight = fabsf(average(sc->weight));
+      const ccl_private Bssrdf *bssrdf = (const ccl_private Bssrdf *)sc;
+      const float avg_weight = fabsf(average(sc->weight));
 
       N += bssrdf->N * avg_weight;
     }
@@ -1078,11 +1167,11 @@ ccl_device float3 surface_shader_bssrdf_normal(ccl_private const ShaderData *sd)
 /* Constant emission optimization */
 
 ccl_device bool surface_shader_constant_emission(KernelGlobals kg,
-                                                 int shader,
+                                                 const int shader,
                                                  ccl_private Spectrum *eval)
 {
-  int shader_index = shader & SHADER_MASK;
-  int shader_flag = kernel_data_fetch(shaders, shader_index).flags;
+  const int shader_index = shader & SHADER_MASK;
+  const int shader_flag = kernel_data_fetch(shaders, shader_index).flags;
 
   if (shader_flag & SD_HAS_CONSTANT_EMISSION) {
     const float3 emission_rgb = make_float3(
@@ -1099,31 +1188,27 @@ ccl_device bool surface_shader_constant_emission(KernelGlobals kg,
 
 /* Background */
 
-ccl_device Spectrum surface_shader_background(ccl_private const ShaderData *sd)
+ccl_device Spectrum surface_shader_background(const ccl_private ShaderData *sd)
 {
   if (sd->flag & SD_EMISSION) {
     return sd->closure_emission_background;
   }
-  else {
-    return zero_spectrum();
-  }
+  return zero_spectrum();
 }
 
 /* Emission */
 
-ccl_device Spectrum surface_shader_emission(ccl_private const ShaderData *sd)
+ccl_device Spectrum surface_shader_emission(const ccl_private ShaderData *sd)
 {
   if (sd->flag & SD_EMISSION) {
     return emissive_simple_eval(sd->Ng, sd->wi) * sd->closure_emission_background;
   }
-  else {
-    return zero_spectrum();
-  }
+  return zero_spectrum();
 }
 
 /* Holdout */
 
-ccl_device Spectrum surface_shader_apply_holdout(KernelGlobals kg, ccl_private ShaderData *sd)
+ccl_device Spectrum surface_shader_apply_holdout(ccl_private ShaderData *sd)
 {
   Spectrum weight = zero_spectrum();
 
@@ -1148,7 +1233,7 @@ ccl_device Spectrum surface_shader_apply_holdout(KernelGlobals kg, ccl_private S
   }
   else {
     for (int i = 0; i < sd->num_closure; i++) {
-      ccl_private const ShaderClosure *sc = &sd->closure[i];
+      const ccl_private ShaderClosure *sc = &sd->closure[i];
       if (CLOSURE_IS_HOLDOUT(sc->type)) {
         weight += sc->weight;
       }
@@ -1165,14 +1250,20 @@ ccl_device void surface_shader_eval(KernelGlobals kg,
                                     ConstIntegratorGenericState state,
                                     ccl_private ShaderData *ccl_restrict sd,
                                     ccl_global float *ccl_restrict buffer,
-                                    uint32_t path_flag,
+                                    const PathRayVisibility path_visibility,
+                                    const uint32_t path_flag,
                                     bool use_caustics_storage = false)
 {
+  /* Initialize additional RNG for BSDFs and image textures. */
+  sd->lcg_state = integrator_state_lcg_init(state, 0xb4bc3953);
+
   /* If path is being terminated, we are tracing a shadow ray or evaluating
    * emission, then we don't need to store closures. The emission and shadow
    * shader data also do not have a closure array to save GPU memory. */
   int max_closures;
-  if (path_flag & (PATH_RAY_TERMINATE | PATH_RAY_SHADOW | PATH_RAY_EMISSION)) {
+  if ((path_visibility & PATH_RAY_VISIBILITY_SHADOW) ||
+      (path_flag & (PATH_RAY_TERMINATE | PATH_RAY_EMISSION)))
+  {
     max_closures = 0;
   }
   else {
@@ -1181,28 +1272,25 @@ ccl_device void surface_shader_eval(KernelGlobals kg,
 
   sd->num_closure = 0;
   sd->num_closure_left = max_closures;
+  sd->closure_transparent_extinction = zero_spectrum();
 
 #ifdef __OSL__
-  if (kernel_data.kernel_features & KERNEL_FEATURE_OSL) {
-    osl_eval_nodes<SHADER_TYPE_SURFACE>(kg, state, sd, path_flag);
+  if (kernel_data.kernel_features & KERNEL_FEATURE_OSL_SHADING) {
+    osl_eval_nodes<SHADER_TYPE_SURFACE>(kg, state, sd, path_visibility, path_flag);
   }
   else
 #endif
   {
 #ifdef __SVM__
-    svm_eval_nodes<node_feature_mask, SHADER_TYPE_SURFACE>(kg, state, sd, buffer, path_flag);
+    svm_eval_nodes<node_feature_mask, SHADER_TYPE_SURFACE>(
+        kg, state, sd, buffer, path_visibility, path_flag);
 #else
     if (sd->object == OBJECT_NONE) {
       sd->closure_emission_background = make_spectrum(0.8f);
       sd->flag |= SD_EMISSION;
     }
     else {
-      ccl_private DiffuseBsdf *bsdf = (ccl_private DiffuseBsdf *)bsdf_alloc(
-          sd, sizeof(DiffuseBsdf), make_spectrum(0.8f));
-      if (bsdf != NULL) {
-        bsdf->N = sd->N;
-        sd->flag |= bsdf_diffuse_setup(bsdf);
-      }
+      bsdf_diffuse_setup(sd, sd->N, make_spectrum(0.8f));
     }
 #endif
   }

@@ -9,43 +9,39 @@
 #include <cstdlib> /* abort */
 #include <cstring> /* strstr */
 #include <cwctype>
+#include <optional>
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
-#include "BLI_path_util.h"
-#include "BLI_string.h"
-#include "BLI_string_cursor_utf8.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
+#include "BLI_path_utils.hh"
+#include "BLI_string.hh"
+#include "BLI_string_cursor_utf8.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_constraint_types.h"
-#include "DNA_material_types.h"
-#include "DNA_node_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 #include "DNA_text_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BKE_bpath.h"
-#include "BKE_idtype.h"
+#include "BKE_bpath.hh"
+#include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
-#include "BKE_node.h"
 #include "BKE_text.h"
 
 #include "BLO_read_write.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Prototypes
@@ -67,9 +63,9 @@ static TextLine *txt_line_malloc() ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 
 static void text_init_data(ID *id)
 {
-  Text *text = (Text *)id;
+  Text *text = id_cast<Text *>(id);
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(text, id));
+  INIT_DEFAULT_STRUCT_AFTER(text, id);
 
   text->filepath = nullptr;
 
@@ -78,10 +74,10 @@ static void text_init_data(ID *id)
     text->flags |= TXT_TABSTOSPACES;
   }
 
-  BLI_listbase_clear(&text->lines);
+  text->lines.clear_no_delete();
 
   TextLine *tmp = txt_line_malloc();
-  tmp->line = (char *)MEM_mallocN(1, "textline_string");
+  tmp->line = MEM_new_array_uninitialized<char>(1, "textline_string");
   tmp->format = nullptr;
 
   tmp->line[0] = 0;
@@ -108,10 +104,14 @@ static void text_init_data(ID *id)
  *
  * \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more).
  */
-static void text_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int /*flag*/)
+static void text_copy_data(Main * /*bmain*/,
+                           std::optional<Library *> /*owner_library*/,
+                           ID *id_dst,
+                           const ID *id_src,
+                           const int /*flag*/)
 {
-  Text *text_dst = (Text *)id_dst;
-  const Text *text_src = (Text *)id_src;
+  Text *text_dst = id_cast<Text *>(id_dst);
+  const Text *text_src = id_cast<Text *>(const_cast<ID *>(id_src));
 
   /* File name can be nullptr. */
   if (text_src->filepath) {
@@ -120,16 +120,16 @@ static void text_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const
 
   text_dst->flags |= TXT_ISDIRTY;
 
-  BLI_listbase_clear(&text_dst->lines);
+  text_dst->lines.clear_no_delete();
   text_dst->curl = text_dst->sell = nullptr;
   text_dst->compiled = nullptr;
 
   /* Walk down, reconstructing. */
-  LISTBASE_FOREACH (TextLine *, line_src, &text_src->lines) {
+  for (TextLine &line_src : text_src->lines) {
     TextLine *line_dst = txt_line_malloc();
 
-    line_dst->line = BLI_strdupn(line_src->line, line_src->len);
-    line_dst->len = line_src->len;
+    line_dst->line = BLI_strdupn(line_src.line, line_src.len);
+    line_dst->len = line_src.len;
     line_dst->format = nullptr;
 
     BLI_addtail(&text_dst->lines, line_dst);
@@ -143,11 +143,11 @@ static void text_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const
 static void text_free_data(ID *id)
 {
   /* No animation-data here. */
-  Text *text = (Text *)id;
+  Text *text = id_cast<Text *>(id);
 
   BKE_text_free_lines(text);
 
-  MEM_SAFE_FREE(text->filepath);
+  MEM_SAFE_DELETE(text->filepath);
 #ifdef WITH_PYTHON
   BPY_text_free_code(text);
 #endif
@@ -155,16 +155,16 @@ static void text_free_data(ID *id)
 
 static void text_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
-  Text *text = (Text *)id;
+  Text *text = id_cast<Text *>(id);
 
-  if (text->filepath != nullptr) {
+  if (text->filepath != nullptr && text->filepath[0] != '\0') {
     BKE_bpath_foreach_path_allocated_process(bpath_data, &text->filepath);
   }
 }
 
 static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  Text *text = (Text *)id;
+  Text *text = id_cast<Text *>(id);
 
   /* NOTE: we are clearing local temp data here, *not* the flag in the actual 'real' ID. */
   if ((text->flags & TXT_ISMEM) && (text->flags & TXT_ISEXT)) {
@@ -175,29 +175,29 @@ static void text_blend_write(BlendWriter *writer, ID *id, const void *id_address
   text->compiled = nullptr;
 
   /* write LibData */
-  BLO_write_id_struct(writer, Text, id_address, &text->id);
+  writer->write_id_struct(id_address, text);
   BKE_id_blend_write(writer, &text->id);
 
   if (text->filepath) {
-    BLO_write_string(writer, text->filepath);
+    writer->write_string(text->filepath);
   }
 
   if (!(text->flags & TXT_ISEXT)) {
     /* Now write the text data, in two steps for optimization in the read-function. */
-    LISTBASE_FOREACH (TextLine *, tmp, &text->lines) {
-      BLO_write_struct(writer, TextLine, tmp);
+    for (TextLine &tmp : text->lines) {
+      writer->write_struct(&tmp);
     }
 
-    LISTBASE_FOREACH (TextLine *, tmp, &text->lines) {
-      BLO_write_raw(writer, tmp->len + 1, tmp->line);
+    for (TextLine &tmp : text->lines) {
+      writer->write_string(tmp.line);
     }
   }
 }
 
 static void text_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  Text *text = (Text *)id;
-  BLO_read_data_address(reader, &text->filepath);
+  Text *text = id_cast<Text *>(id);
+  BLO_read_string(reader, &text->filepath);
 
   text->compiled = nullptr;
 
@@ -208,18 +208,19 @@ static void text_blend_read_data(BlendDataReader *reader, ID *id)
 /* else { */
 #endif
 
-  BLO_read_list(reader, &text->lines);
+  BLO_read_struct_list(reader, TextLine, &text->lines);
 
-  BLO_read_data_address(reader, &text->curl);
-  BLO_read_data_address(reader, &text->sell);
+  BLO_read_struct(reader, TextLine, &text->curl);
+  BLO_read_struct(reader, TextLine, &text->sell);
 
-  LISTBASE_FOREACH (TextLine *, ln, &text->lines) {
-    BLO_read_data_address(reader, &ln->line);
-    ln->format = nullptr;
+  for (TextLine &ln : text->lines) {
+    BLO_read_string(reader, &ln.line);
+    ln.format = nullptr;
 
-    if (ln->len != int(strlen(ln->line))) {
+    const int actual_len = ln.line ? int(strlen(ln.line)) : 0;
+    if (ln.len != actual_len) {
       printf("Error loading text, line lengths differ\n");
-      ln->len = strlen(ln->line);
+      ln.len = actual_len;
     }
   }
 
@@ -227,32 +228,34 @@ static void text_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_TXT = {
-    /*id_code*/ ID_TXT,
-    /*id_filter*/ FILTER_ID_TXT,
-    /*main_listbase_index*/ INDEX_ID_TXT,
-    /*struct_size*/ sizeof(Text),
-    /*name*/ "Text",
-    /*name_plural*/ N_("texts"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_TEXT,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = Text::id_type,
+    .id_filter = FILTER_ID_TXT,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_TXT,
+    .struct_size = sizeof(Text),
+    .name = "Text",
+    .name_plural = N_("texts"),
+    .translation_context = BLT_I18NCONTEXT_ID_TEXT,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ text_init_data,
-    /*copy_data*/ text_copy_data,
-    /*free_data*/ text_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ text_foreach_path,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = text_init_data,
+    .copy_data = text_copy_data,
+    .free_data = text_free_data,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = text_foreach_path,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ text_blend_write,
-    /*blend_read_data*/ text_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = text_blend_write,
+    .blend_read_data = text_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /** \} */
@@ -266,14 +269,14 @@ void BKE_text_free_lines(Text *text)
   for (TextLine *tmp = static_cast<TextLine *>(text->lines.first), *tmp_next; tmp; tmp = tmp_next)
   {
     tmp_next = tmp->next;
-    MEM_freeN(tmp->line);
+    MEM_delete(tmp->line);
     if (tmp->format) {
-      MEM_freeN(tmp->format);
+      MEM_delete(tmp->format);
     }
-    MEM_freeN(tmp);
+    MEM_delete(tmp);
   }
 
-  BLI_listbase_clear(&text->lines);
+  text->lines.clear_no_delete();
 
   text->curl = text->sell = nullptr;
 }
@@ -282,7 +285,7 @@ Text *BKE_text_add(Main *bmain, const char *name)
 {
   Text *ta;
 
-  ta = static_cast<Text *>(BKE_id_new(bmain, ID_TXT, name));
+  ta = BKE_id_new<Text>(bmain, name);
   /* Texts have no users by default... Set the fake user flag to ensure that this text block
    * doesn't get deleted by default when cleaning up data blocks. */
   id_us_min(&ta->id);
@@ -307,7 +310,8 @@ int txt_extended_ascii_as_utf8(char **str)
   }
 
   if (added != 0) {
-    char *newstr = static_cast<char *>(MEM_mallocN(length + added + 1, "text_line"));
+    char *newstr = MEM_new_array_uninitialized<char>(size_t(length) + size_t(added) + 1,
+                                                     "text_line");
     ptrdiff_t mi = 0;
     i = 0;
 
@@ -325,7 +329,7 @@ int txt_extended_ascii_as_utf8(char **str)
       mi += bad_char + 2;
     }
     newstr[length + added] = '\0';
-    MEM_freeN(*str);
+    MEM_delete(*str);
     *str = newstr;
   }
 
@@ -357,14 +361,14 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
 {
   int i, llen, lines_count;
 
-  BLI_assert(BLI_listbase_is_empty(&text->lines));
+  BLI_assert(text->lines.is_empty());
 
   llen = 0;
   lines_count = 0;
   for (i = 0; i < len; i++) {
     if (buffer[i] == '\n') {
       TextLine *tmp = txt_line_malloc();
-      tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
+      tmp->line = MEM_new_array_uninitialized<char>(size_t(llen) + 1, "textline_string");
       tmp->format = nullptr;
 
       if (llen) {
@@ -392,7 +396,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
    *   deal with newline at end of file. (see #28087) (sergey) */
   if (llen != 0 || lines_count == 0 || buffer[len - 1] == '\n') {
     TextLine *tmp = txt_line_malloc();
-    tmp->line = (char *)MEM_mallocN(llen + 1, "textline_string");
+    tmp->line = MEM_new_array_uninitialized<char>(size_t(llen) + 1, "textline_string");
     tmp->format = nullptr;
 
     if (llen) {
@@ -414,7 +418,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
 
 bool BKE_text_reload(Text *text)
 {
-  uchar *buffer;
+  char *buffer;
   size_t buffer_len;
   char filepath_abs[FILE_MAX];
   BLI_stat_t st;
@@ -426,7 +430,7 @@ bool BKE_text_reload(Text *text)
   STRNCPY(filepath_abs, text->filepath);
   BLI_path_abs(filepath_abs, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
 
-  buffer = static_cast<uchar *>(BLI_file_read_text_as_mem(filepath_abs, 0, &buffer_len));
+  buffer = BLI_file_read_text_as_mem(filepath_abs, 0, &buffer_len);
   if (buffer == nullptr) {
     return false;
   }
@@ -443,9 +447,9 @@ bool BKE_text_reload(Text *text)
     text->mtime = 0;
   }
 
-  text_from_buf(text, buffer, buffer_len);
+  text_from_buf(text, reinterpret_cast<uchar *>(buffer), buffer_len);
 
-  MEM_freeN(buffer);
+  MEM_delete(buffer);
   return true;
 }
 
@@ -454,7 +458,7 @@ Text *BKE_text_load_ex(Main *bmain,
                        const char *relbase,
                        const bool is_internal)
 {
-  uchar *buffer;
+  char *buffer;
   size_t buffer_len;
   Text *ta;
   char filepath_abs[FILE_MAX];
@@ -463,7 +467,7 @@ Text *BKE_text_load_ex(Main *bmain,
   STRNCPY(filepath_abs, filepath);
   BLI_path_abs(filepath_abs, relbase);
 
-  buffer = static_cast<uchar *>(BLI_file_read_text_as_mem(filepath_abs, 0, &buffer_len));
+  buffer = BLI_file_read_text_as_mem(filepath_abs, 0, &buffer_len);
   if (buffer == nullptr) {
     return nullptr;
   }
@@ -472,7 +476,7 @@ Text *BKE_text_load_ex(Main *bmain,
   id_us_min(&ta->id);
   id_fake_user_set(&ta->id);
 
-  BLI_listbase_clear(&ta->lines);
+  ta->lines.clear_no_delete();
   ta->curl = ta->sell = nullptr;
 
   if ((U.flag & USER_TXT_TABSTOSPACES_DISABLE) == 0) {
@@ -481,7 +485,7 @@ Text *BKE_text_load_ex(Main *bmain,
 
   if (is_internal == false) {
     const size_t filepath_len = strlen(filepath);
-    ta->filepath = static_cast<char *>(MEM_mallocN(filepath_len + 1, "text_name"));
+    ta->filepath = MEM_new_array_uninitialized<char>(filepath_len + 1, "text_name");
     memcpy(ta->filepath, filepath, filepath_len + 1);
   }
   else {
@@ -496,9 +500,9 @@ Text *BKE_text_load_ex(Main *bmain,
     ta->mtime = 0;
   }
 
-  text_from_buf(ta, buffer, buffer_len);
+  text_from_buf(ta, reinterpret_cast<uchar *>(buffer), buffer_len);
 
-  MEM_freeN(buffer);
+  MEM_delete(buffer);
 
   return ta;
 }
@@ -590,7 +594,7 @@ void BKE_text_file_modified_ignore(Text *text)
 
 static TextLine *txt_line_malloc()
 {
-  TextLine *l = static_cast<TextLine *>(MEM_mallocN(sizeof(TextLine), "textline"));
+  TextLine *l = MEM_new<TextLine>("textline");
   /* Quiet VALGRIND warning, may avoid unintended differences with MEMFILE undo as well. */
   memset(l->_pad0, 0, sizeof(l->_pad0));
   return l;
@@ -599,10 +603,10 @@ static TextLine *txt_line_malloc()
 static void make_new_line(TextLine *line, char *newline)
 {
   if (line->line) {
-    MEM_freeN(line->line);
+    MEM_delete(line->line);
   }
   if (line->format) {
-    MEM_freeN(line->format);
+    MEM_delete(line->format);
   }
 
   line->line = newline;
@@ -613,7 +617,7 @@ static void make_new_line(TextLine *line, char *newline)
 static TextLine *txt_new_linen(const char *str, int str_len)
 {
   TextLine *tmp = txt_line_malloc();
-  tmp->line = static_cast<char *>(MEM_mallocN(str_len + 1, "textline_string"));
+  tmp->line = MEM_new_array_uninitialized<char>(size_t(str_len) + 1, "textline_string");
   tmp->format = nullptr;
 
   memcpy(tmp->line, str, str_len);
@@ -648,8 +652,8 @@ void txt_clean_text(Text *text)
     text->lines.last = text->lines.first;
   }
 
-  top = (TextLine **)&text->lines.first;
-  bot = (TextLine **)&text->lines.last;
+  top = reinterpret_cast<TextLine **>(&text->lines.first);
+  bot = reinterpret_cast<TextLine **>(&text->lines.last);
 
   while ((*top)->prev) {
     *top = (*top)->prev;
@@ -674,10 +678,10 @@ void txt_clean_text(Text *text)
   }
 }
 
-int txt_get_span(TextLine *from, TextLine *to)
+int txt_get_span(const TextLine *from, const TextLine *to)
 {
   int ret = 0;
-  TextLine *tmp = from;
+  const TextLine *tmp = from;
 
   if (!to || !from) {
     return 0;
@@ -826,7 +830,7 @@ void txt_move_down(Text *text, const bool sel)
   }
 }
 
-int txt_calc_tab_left(TextLine *tl, int ch)
+int txt_calc_tab_left(const TextLine *tl, int ch)
 {
   /* do nice left only if there are only spaces */
 
@@ -846,7 +850,7 @@ int txt_calc_tab_left(TextLine *tl, int ch)
   return tabsize;
 }
 
-int txt_calc_tab_right(TextLine *tl, int ch)
+int txt_calc_tab_right(const TextLine *tl, int ch)
 {
   if (tl->line[ch] == ' ') {
     int i;
@@ -1229,8 +1233,8 @@ static void txt_delete_sel(Text *text)
 
   txt_order_cursors(text, false);
 
-  buf = static_cast<char *>(
-      MEM_mallocN(text->curc + (text->sell->len - text->selc) + 1, "textline_string"));
+  buf = MEM_new_array_uninitialized<char>(
+      size_t(text->curc) + (size_t(text->sell->len) - size_t(text->selc)) + 1, "textline_string");
 
   memcpy(buf, text->curl->line, text->curc);
   memcpy(buf + text->curc, text->sell->line + text->selc, text->sell->len - text->selc);
@@ -1286,7 +1290,7 @@ void txt_sel_set(Text *text, int startl, int startc, int endl, int endc)
 
   /* Support negative indices. */
   if (startl < 0 || endl < 0) {
-    int end = BLI_listbase_count(&text->lines) - 1;
+    int end = text->lines.count() - 1;
     if (startl < 0) {
       startl = end + startl + 1;
     }
@@ -1345,14 +1349,14 @@ void txt_sel_set(Text *text, int startl, int startc, int endl, int endc)
 char *txt_to_buf_for_undo(Text *text, size_t *r_buf_len)
 {
   int buf_len = 0;
-  LISTBASE_FOREACH (const TextLine *, l, &text->lines) {
-    buf_len += l->len + 1;
+  for (const TextLine &l : text->lines) {
+    buf_len += l.len + 1;
   }
-  char *buf = static_cast<char *>(MEM_mallocN(buf_len, __func__));
+  char *buf = MEM_new_array_uninitialized<char>(size_t(buf_len), __func__);
   char *buf_step = buf;
-  LISTBASE_FOREACH (const TextLine *, l, &text->lines) {
-    memcpy(buf_step, l->line, l->len);
-    buf_step += l->len;
+  for (const TextLine &l : text->lines) {
+    memcpy(buf_step, l.line, l.len);
+    buf_step += l.len;
     *buf_step++ = '\n';
   }
   *r_buf_len = buf_len;
@@ -1368,7 +1372,7 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
    * Good for undo since it means in practice many operations re-use all
    * except for the modified line. */
   TextLine *l_src = static_cast<TextLine *>(text->lines.first);
-  BLI_listbase_clear(&text->lines);
+  text->lines.clear_no_delete();
   while (buf_step != buf_end && l_src) {
     /* New lines are ensured by #txt_to_buf_for_undo. */
     const char *buf_step_next = strchr(buf_step, '\n');
@@ -1377,10 +1381,10 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
     TextLine *l = l_src;
     l_src = l_src->next;
     if (l->len != len) {
-      l->line = static_cast<char *>(MEM_reallocN(l->line, len + 1));
+      l->line = static_cast<char *>(MEM_realloc_uninitialized(l->line, len + 1));
       l->len = len;
     }
-    MEM_SAFE_FREE(l->format);
+    MEM_SAFE_DELETE(l->format);
 
     memcpy(l->line, buf_step, len);
     l->line[len] = '\0';
@@ -1391,11 +1395,11 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
   /* If we have extra lines. */
   while (l_src != nullptr) {
     TextLine *l_src_next = l_src->next;
-    MEM_freeN(l_src->line);
+    MEM_delete(l_src->line);
     if (l_src->format) {
-      MEM_freeN(l_src->format);
+      MEM_delete(l_src->format);
     }
-    MEM_freeN(l_src);
+    MEM_delete(l_src);
     l_src = l_src_next;
   }
 
@@ -1405,7 +1409,7 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
     const int len = buf_step_next - buf_step;
 
     TextLine *l = txt_line_malloc();
-    l->line = static_cast<char *>(MEM_mallocN(len + 1, "textline_string"));
+    l->line = MEM_new_array_uninitialized<char>(size_t(len) + 1, "textline_string");
     l->len = len;
     l->format = nullptr;
 
@@ -1429,24 +1433,24 @@ void txt_from_buf_for_undo(Text *text, const char *buf, size_t buf_len)
 
 char *txt_to_buf(Text *text, size_t *r_buf_strlen)
 {
-  const bool has_data = !BLI_listbase_is_empty(&text->lines);
+  const bool has_data = !text->lines.is_empty();
   /* Identical to #txt_to_buf_for_undo except that the string is nil terminated. */
   size_t buf_len = 0;
-  LISTBASE_FOREACH (const TextLine *, l, &text->lines) {
-    buf_len += l->len + 1;
+  for (const TextLine &l : text->lines) {
+    buf_len += l.len + 1;
   }
   if (has_data) {
     buf_len -= 1;
   }
-  char *buf = static_cast<char *>(MEM_mallocN(buf_len + 1, __func__));
+  char *buf = MEM_new_array_uninitialized<char>(buf_len + 1, __func__);
   char *buf_step = buf;
-  LISTBASE_FOREACH (const TextLine *, l, &text->lines) {
-    memcpy(buf_step, l->line, l->len);
-    buf_step += l->len;
+  for (const TextLine &l : text->lines) {
+    memcpy(buf_step, l.line, l.len);
+    buf_step += l.len;
     *buf_step++ = '\n';
   }
   /* Remove the trailing new-line so a round-trip doesn't add a newline:
-   * Python for e.g. `text.from_string(text.as_string())`. */
+   * Python for example `text.from_string(text.as_string())`. */
   if (has_data) {
     buf_step--;
   }
@@ -1502,7 +1506,7 @@ char *txt_sel_to_buf(const Text *text, size_t *r_buf_strlen)
 
   if (linef == linel) {
     length = charl - charf;
-    buf = static_cast<char *>(MEM_mallocN(length + 1, "sel buffer"));
+    buf = MEM_new_array_uninitialized<char>(length + 1, "sel buffer");
     memcpy(buf, linef->line + charf, length);
     buf[length] = '\0';
   }
@@ -1514,7 +1518,7 @@ char *txt_sel_to_buf(const Text *text, size_t *r_buf_strlen)
       length += tmp->len + 1;
     }
 
-    buf = static_cast<char *>(MEM_mallocN(length + 1, "sel buffer"));
+    buf = MEM_new_array_uninitialized<char>(length + 1, "sel buffer");
 
     memcpy(buf, linef->line + charf, linef->len - charf);
     length = linef->len - charf;
@@ -1552,7 +1556,7 @@ void txt_insert_buf(Text *text, const char *in_buffer, int in_buffer_len)
   buffer = BLI_strdupn(in_buffer, in_buffer_len);
   in_buffer_len += txt_extended_ascii_as_utf8(&buffer);
 
-  /* Read the first line (or as close as possible */
+  /* Read the first line (or as close as possible). */
   while (buffer[i] && buffer[i] != '\n') {
     txt_add_raw_char(text, BLI_str_utf8_as_unicode_step_safe(buffer, in_buffer_len, &i));
   }
@@ -1583,7 +1587,7 @@ void txt_insert_buf(Text *text, const char *in_buffer, int in_buffer_len)
     }
   }
 
-  MEM_freeN(buffer);
+  MEM_delete(buffer);
 }
 
 /** \} */
@@ -1592,13 +1596,13 @@ void txt_insert_buf(Text *text, const char *in_buffer, int in_buffer_len)
 /** \name Find String in Text
  * \{ */
 
-int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
+bool txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
 {
   TextLine *tl, *startl;
   const char *s = nullptr;
 
   if (!text->curl || !text->sell) {
-    return 0;
+    return false;
   }
 
   txt_order_cursors(text, false);
@@ -1638,10 +1642,10 @@ int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
     int newc = int(s - tl->line);
     txt_move_to(text, newl, newc, false);
     txt_move_to(text, newl, newc + strlen(findstr), true);
-    return 1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 /** \} */
@@ -1663,18 +1667,19 @@ void txt_split_curline(Text *text)
 
   /* Make the two half strings */
 
-  left = static_cast<char *>(MEM_mallocN(text->curc + 1, "textline_string"));
+  left = MEM_new_array_uninitialized<char>(size_t(text->curc) + 1, "textline_string");
   if (text->curc) {
     memcpy(left, text->curl->line, text->curc);
   }
   left[text->curc] = 0;
 
-  right = static_cast<char *>(MEM_mallocN(text->curl->len - text->curc + 1, "textline_string"));
+  right = MEM_new_array_uninitialized<char>(size_t(text->curl->len) - size_t(text->curc) + 1,
+                                            "textline_string");
   memcpy(right, text->curl->line + text->curc, text->curl->len - text->curc + 1);
 
-  MEM_freeN(text->curl->line);
+  MEM_delete(text->curl->line);
   if (text->curl->format) {
-    MEM_freeN(text->curl->format);
+    MEM_delete(text->curl->format);
   }
 
   /* Make the new TextLine */
@@ -1707,13 +1712,13 @@ static void txt_delete_line(Text *text, TextLine *line)
   BLI_remlink(&text->lines, line);
 
   if (line->line) {
-    MEM_freeN(line->line);
+    MEM_delete(line->line);
   }
   if (line->format) {
-    MEM_freeN(line->format);
+    MEM_delete(line->format);
   }
 
-  MEM_freeN(line);
+  MEM_delete(line);
 
   txt_make_dirty(text);
   txt_clean_text(text);
@@ -1727,7 +1732,8 @@ static void txt_combine_lines(Text *text, TextLine *linea, TextLine *lineb)
     return;
   }
 
-  tmp = static_cast<char *>(MEM_mallocN(linea->len + lineb->len + 1, "textline_string"));
+  tmp = MEM_new_array_uninitialized<char>(size_t(linea->len) + size_t(lineb->len) + 1,
+                                          "textline_string");
 
   s = tmp;
   memcpy(s, linea->line, linea->len);
@@ -1895,7 +1901,8 @@ static bool txt_add_char_intern(Text *text, uint add, bool replace_tabs)
 
   add_len = BLI_str_utf8_from_unicode(add, ch, sizeof(ch));
 
-  tmp = static_cast<char *>(MEM_mallocN(text->curl->len + add_len + 1, "textline_string"));
+  tmp = MEM_new_array_uninitialized<char>(size_t(text->curl->len) + add_len + 1,
+                                          "textline_string");
 
   memcpy(tmp, text->curl->line, text->curc);
   memcpy(tmp + text->curc, ch, add_len);
@@ -1952,13 +1959,13 @@ bool txt_replace_char(Text *text, uint add)
   add_size = BLI_str_utf8_from_unicode(add, ch, sizeof(ch));
 
   if (add_size > del_size) {
-    char *tmp = static_cast<char *>(
-        MEM_mallocN(text->curl->len + add_size - del_size + 1, "textline_string"));
+    char *tmp = MEM_new_array_uninitialized<char>(
+        size_t(text->curl->len) + add_size - del_size + 1, "textline_string");
     memcpy(tmp, text->curl->line, text->curc);
     memcpy(tmp + text->curc + add_size,
            text->curl->line + text->curc + del_size,
            text->curl->len - text->curc - del_size + 1);
-    MEM_freeN(text->curl->line);
+    MEM_delete(text->curl->line);
     text->curl->line = tmp;
   }
   else if (add_size < del_size) {
@@ -2000,7 +2007,8 @@ static void txt_select_prefix(Text *text, const char *add, bool skip_blank_lines
 
     /* don't indent blank lines */
     if ((text->curl->len != 0) || (skip_blank_lines == 0)) {
-      tmp = static_cast<char *>(MEM_mallocN(text->curl->len + indentlen + 1, "textline_string"));
+      tmp = MEM_new_array_uninitialized<char>(size_t(text->curl->len) + size_t(indentlen) + 1,
+                                              "textline_string");
 
       text->curc = 0;
       if (text->curc) {
@@ -2271,8 +2279,8 @@ int txt_setcurr_tab_spaces(Text *text, int space)
 int text_check_bracket(const char ch)
 {
   int a;
-  char opens[] = "([{";
-  char close[] = ")]}";
+  const char opens[] = "([{";
+  const char close[] = ")]}";
 
   for (a = 0; a < (sizeof(opens) - 1); a++) {
     if (ch == opens[a]) {
@@ -2377,7 +2385,7 @@ bool text_check_whitespace(const char ch)
 
 int text_find_identifier_start(const char *str, int i)
 {
-  if (UNLIKELY(i <= 0)) {
+  if (i <= 0) [[unlikely]] {
     return 0;
   }
 
@@ -2391,3 +2399,5 @@ int text_find_identifier_start(const char *str, int i)
 }
 
 /** \} */
+
+}  // namespace blender

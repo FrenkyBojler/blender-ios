@@ -8,9 +8,17 @@
 
 #include "ply_file_buffer.hh"
 
-#include <iostream>
+#include "BLI_fileops.hh"
 
-namespace blender::io::ply {
+#include <system_error>
+
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.ply"};
+
+namespace io::ply {
 
 FileBuffer::FileBuffer(const char *filepath, size_t buffer_chunk_size)
     : buffer_chunk_size_(buffer_chunk_size), filepath_(filepath)
@@ -32,38 +40,37 @@ void FileBuffer::write_to_file()
 
 void FileBuffer::close_file()
 {
+  if (!outfile_) {
+    return;
+  }
   int close_status = std::fclose(outfile_);
   if (close_status == EOF) {
     return;
   }
-  if (outfile_ && close_status) {
-    std::cerr << "Error: could not close the file '" << this->filepath_
-              << "' properly, it may be corrupted." << std::endl;
+  if (close_status) {
+    CLOG_ERROR(&LOG, "Error: could not close file '%s' properly, it may be corrupted.", filepath_);
   }
 }
 
 void FileBuffer::write_header_element(StringRef name, int count)
 {
-  write_fstring("element {} {}\n", std::string_view(name), count);
+  write_fstring("element {} {}\n", name, count);
 }
 void FileBuffer::write_header_scalar_property(StringRef dataType, StringRef name)
 {
-  write_fstring("property {} {}\n", std::string_view(dataType), std::string_view(name));
+  write_fstring("property {} {}\n", dataType, name);
 }
 
 void FileBuffer::write_header_list_property(StringRef countType,
                                             StringRef dataType,
                                             StringRef name)
 {
-  write_fstring("property list {} {} {}\n",
-                std::string_view(countType),
-                std::string_view(dataType),
-                std::string_view(name));
+  write_fstring("property list {} {} {}\n", countType, dataType, name);
 }
 
 void FileBuffer::write_string(StringRef s)
 {
-  write_fstring("{}\n", std::string_view(s));
+  write_fstring("{}\n", s);
 }
 
 void FileBuffer::write_newline()
@@ -78,4 +85,5 @@ void FileBuffer::write_bytes(Span<char> bytes)
   bb.insert(bb.end(), bytes.begin(), bytes.end());
 }
 
-}  // namespace blender::io::ply
+}  // namespace io::ply
+}  // namespace blender

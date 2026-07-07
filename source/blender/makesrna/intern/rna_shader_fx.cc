@@ -11,26 +11,23 @@
 #include <cstdlib>
 
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_shader_fx_types.h"
 
-#include "MEM_guardedalloc.h"
+#include "BLI_math_rotation_c.hh"
 
-#include "BLI_math_rotation.h"
+#include "BLT_translation.hh"
 
-#include "BLT_translation.h"
+#include "BKE_animsys.hh"
 
-#include "BKE_animsys.h"
-
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+
+namespace blender {
 
 const EnumPropertyItem rna_enum_object_shaderfx_type_items[] = {
     {eShaderFxType_Blur, "FX_BLUR", ICON_SHADERFX, "Blur", "Apply Gaussian Blur to object"},
@@ -83,44 +80,54 @@ static const EnumPropertyItem rna_enum_glow_blend_modes_items[] = {
     {eGplBlendMode_Divide, "DIVIDE", 0, "Divide", ""},
     {0, nullptr, 0, nullptr, nullptr}};
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
-#  include "BKE_shader_fx.h"
+#  include <fmt/format.h>
+
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
+
+#  include "BKE_lib_id.hh"
+#  include "BKE_shader_fx.hh"
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 
+namespace blender {
+
 static StructRNA *rna_ShaderFx_refine(PointerRNA *ptr)
 {
-  ShaderFxData *md = (ShaderFxData *)ptr->data;
+  ShaderFxData *md = static_cast<ShaderFxData *>(ptr->data);
 
-  switch ((ShaderFxType)md->type) {
+  switch (ShaderFxType(md->type)) {
     case eShaderFxType_Blur:
-      return &RNA_ShaderFxBlur;
+      return RNA_ShaderFxBlur;
     case eShaderFxType_Colorize:
-      return &RNA_ShaderFxColorize;
+      return RNA_ShaderFxColorize;
     case eShaderFxType_Wave:
-      return &RNA_ShaderFxWave;
+      return RNA_ShaderFxWave;
     case eShaderFxType_Pixel:
-      return &RNA_ShaderFxPixel;
+      return RNA_ShaderFxPixel;
     case eShaderFxType_Rim:
-      return &RNA_ShaderFxRim;
+      return RNA_ShaderFxRim;
     case eShaderFxType_Shadow:
-      return &RNA_ShaderFxShadow;
+      return RNA_ShaderFxShadow;
     case eShaderFxType_Swirl:
-      return &RNA_ShaderFxSwirl;
+      return RNA_ShaderFxSwirl;
     case eShaderFxType_Flip:
-      return &RNA_ShaderFxFlip;
+      return RNA_ShaderFxFlip;
     case eShaderFxType_Glow:
-      return &RNA_ShaderFxGlow;
+      return RNA_ShaderFxGlow;
       /* Default */
     case eShaderFxType_None:
     case NUM_SHADER_FX_TYPES:
     default:
-      return &RNA_ShaderFx;
+      return RNA_ShaderFx;
   }
 
-  return &RNA_ShaderFx;
+  return RNA_ShaderFx;
 }
 
 static void rna_ShaderFx_name_set(PointerRNA *ptr, const char *value)
@@ -136,7 +143,7 @@ static void rna_ShaderFx_name_set(PointerRNA *ptr, const char *value)
 
   /* make sure the name is truly unique */
   if (ptr->owner_id) {
-    Object *ob = (Object *)ptr->owner_id;
+    Object *ob = id_cast<Object *>(ptr->owner_id);
     BKE_shaderfx_unique_name(&ob->shader_fx, gmd);
   }
 
@@ -144,13 +151,13 @@ static void rna_ShaderFx_name_set(PointerRNA *ptr, const char *value)
   BKE_animdata_fix_paths_rename_all(nullptr, "shader_effects", oldname, gmd->name);
 }
 
-static char *rna_ShaderFx_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_ShaderFx_path(const PointerRNA *ptr)
 {
   const ShaderFxData *gmd = static_cast<ShaderFxData *>(ptr->data);
   char name_esc[sizeof(gmd->name) * 2];
 
   BLI_str_escape(name_esc, gmd->name, sizeof(name_esc));
-  return BLI_sprintfN("shader_effects[\"%s\"]", name_esc);
+  return fmt::format("shader_effects[\"{}\"]", name_esc);
 }
 
 static void rna_ShaderFx_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -173,7 +180,7 @@ static void shaderfx_object_set(Object *self, Object **ob_p, int type, PointerRN
 
   if (!self || ob != self) {
     if (!ob || type == OB_EMPTY || ob->type == type) {
-      id_lib_extern((ID *)ob);
+      id_lib_extern(id_cast<ID *>(ob));
       *ob_p = ob;
     }
   }
@@ -192,7 +199,11 @@ RNA_FX_OBJECT_SET(Swirl, object, OB_EMPTY);
 
 #  undef RNA_FX_OBJECT_SET
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_shader_fx_blur(BlenderRNA *brna)
 {
@@ -280,7 +291,7 @@ static void rna_def_shader_fx_wave(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static EnumPropertyItem prop_shaderfx_wave_type_items[] = {
+  static const EnumPropertyItem prop_shaderfx_wave_type_items[] = {
       {0, "HORIZONTAL", 0, "Horizontal", ""},
       {1, "VERTICAL", 0, "Vertical", ""},
       {0, nullptr, 0, nullptr, nullptr}};
@@ -404,7 +415,7 @@ static void rna_def_shader_fx_rim(BlenderRNA *brna)
 
 static void rna_def_shader_fx_shadow(BlenderRNA *brna)
 {
-  static EnumPropertyItem prop_shaderfx_shadow_type_items[] = {
+  static const EnumPropertyItem prop_shaderfx_shadow_type_items[] = {
       {0, "HORIZONTAL", 0, "Horizontal", ""},
       {1, "VERTICAL", 0, "Vertical", ""},
       {0, nullptr, 0, nullptr, nullptr}};
@@ -657,7 +668,7 @@ void RNA_def_shader_fx(BlenderRNA *brna)
 
   /* data */
   srna = RNA_def_struct(brna, "ShaderFx", nullptr);
-  RNA_def_struct_ui_text(srna, "ShaderFx", "Effect affecting the grease pencil object");
+  RNA_def_struct_ui_text(srna, "ShaderFx", "Effect affecting the Grease Pencil object");
   RNA_def_struct_refine_func(srna, "rna_ShaderFx_refine");
   RNA_def_struct_path_func(srna, "rna_ShaderFx_path");
   RNA_def_struct_sdna(srna, "ShaderFxData");
@@ -704,7 +715,7 @@ void RNA_def_shader_fx(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "ui_expand_flag", 0);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Expanded", "Set effect expansion in the user interface");
-  RNA_def_property_ui_icon(prop, ICON_DISCLOSURE_TRI_RIGHT, 1);
+  RNA_def_property_ui_icon(prop, ICON_RIGHTARROW, 1);
 
   /* types */
   rna_def_shader_fx_blur(brna);
@@ -717,5 +728,7 @@ void RNA_def_shader_fx(BlenderRNA *brna)
   rna_def_shader_fx_swirl(brna);
   rna_def_shader_fx_flip(brna);
 }
+
+}  // namespace blender
 
 #endif

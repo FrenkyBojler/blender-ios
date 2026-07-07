@@ -8,9 +8,10 @@
 
 #pragma once
 
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 
 class GHOST_XrSession;
+struct GHOST_XrSessionBeginInfo;
 
 class GHOST_IXrContext {
  public:
@@ -21,7 +22,7 @@ class GHOST_IXrContext {
   virtual bool isSessionRunning() const = 0;
   virtual void drawSessionViews(void *draw_customdata) = 0;
 
-  /* Needed for the GHOST C api. */
+  /* Needed for the GHOST C API. */
   virtual GHOST_XrSession *getSession() = 0;
   virtual const GHOST_XrSession *getSession() const = 0;
 
@@ -30,6 +31,8 @@ class GHOST_IXrContext {
   virtual void setGraphicsContextBindFuncs(GHOST_XrGraphicsContextBindFn bind_fn,
                                            GHOST_XrGraphicsContextUnbindFn unbind_fn) = 0;
   virtual void setDrawViewFunc(GHOST_XrDrawViewFn draw_view_fn) = 0;
+  virtual void setPassthroughEnabledFunc(GHOST_XrPassthroughEnabledFn passthrough_enabled_fn) = 0;
+  virtual void setDisablePassthroughFunc(GHOST_XrDisablePassthroughFn disable_passthrough_fn) = 0;
 
   virtual bool needsUpsideDownDrawing() const = 0;
 };

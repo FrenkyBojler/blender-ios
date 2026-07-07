@@ -9,105 +9,152 @@
 #include "vk_batch.hh"
 
 #include "vk_context.hh"
+#include "vk_framebuffer.hh"
 #include "vk_index_buffer.hh"
+#include "vk_shader.hh"
 #include "vk_state_manager.hh"
 #include "vk_storage_buffer.hh"
 #include "vk_vertex_attribute_object.hh"
-#include "vk_vertex_buffer.hh"
 
 namespace blender::gpu {
 
-void VKBatch::draw_setup()
+void VKBatch::ensure_data_uploaded() const
 {
-  /* Currently the pipeline is rebuild on each draw command. Clearing the dirty flag for
-   * consistency with the internals of GPU module. */
-  flag &= ~GPU_BATCH_DIRTY;
-
-  /* Finalize graphics pipeline */
-  VKContext &context = *VKContext::get();
-  VKStateManager &state_manager = context.state_manager_get();
-  VKIndexBuffer *index_buffer = index_buffer_get();
-  const bool draw_indexed = index_buffer != nullptr;
-  state_manager.apply_state();
-  state_manager.apply_bindings();
-  /*
-   * The next statements are order dependent. VBOs and IBOs must be uploaded, before resources can
-   * be bound. Uploading device located buffers flush the graphics pipeline and already bound
-   * resources will be unbound.
-   */
-  VKVertexAttributeObject vao;
-  vao.update_bindings(context, *this);
-  vao.ensure_vbos_uploaded();
-  if (draw_indexed) {
-    index_buffer->upload_data();
-    index_buffer->bind(context);
+  for (int index : IndexRange(GPU_BATCH_VBO_MAX_LEN)) {
+    VKVertexBuffer *vertex_buffer = vertex_buffer_get(index);
+    if (vertex_buffer) {
+      vertex_buffer->upload();
+    }
   }
-  vao.bind(context);
-  context.bind_graphics_pipeline(prim_type, vao);
+  VKIndexBuffer *index_buffer = index_buffer_get();
+  if (index_buffer) {
+    index_buffer->upload_data();
+  }
 }
 
 void VKBatch::draw(int vertex_first, int vertex_count, int instance_first, int instance_count)
 {
-  draw_setup();
+  ensure_data_uploaded();
 
   VKContext &context = *VKContext::get();
-  VKCommandBuffers &command_buffers = context.command_buffers_get();
+  render_graph::VKRenderGraph &graph = context.render_graph();
+  render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
+
+  const VKVertexAttributeObject &vao = get_vertex_attribute_object(context);
+
   VKIndexBuffer *index_buffer = index_buffer_get();
   const bool draw_indexed = index_buffer != nullptr;
+
+  VKFrameBuffer &framebuffer = *context.active_framebuffer_get();
+  framebuffer.rendering_ensure(context);
+
   if (draw_indexed) {
-    command_buffers.draw_indexed(vertex_count,
-                                 instance_count,
-                                 vertex_first,
-                                 index_buffer->index_start_get(),
-                                 instance_first);
+    render_graph::VKNodeData<render_graph::VKDrawIndexedNode> node =
+        graph.alloc_node<render_graph::VKDrawIndexedNode>();
+    node.data.index_count = vertex_count;
+    node.data.instance_count = instance_count;
+    node.data.first_index = index_buffer->index_start_get() + vertex_first;
+    node.data.vertex_offset = index_buffer->index_base_get();
+    node.data.first_instance = instance_first;
+
+    node.data.index_buffer.buffer = index_buffer->resource();
+    node.data.index_buffer.index_type = index_buffer->vk_index_type();
+    vao.bind(node.data.vertex_buffers);
+    context.update_pipeline_data(framebuffer, prim_type, vao.vertex_input_key, node.data.graphics);
+
+    render_graph::VKDrawIndexedNode::CreateInfo create_info(resource_access_info);
+    node.finalize(graph, create_info);
   }
   else {
-    command_buffers.draw(vertex_first, vertex_count, instance_first, instance_count);
-  }
+    render_graph::VKNodeData<render_graph::VKDrawNode> node =
+        graph.alloc_node<render_graph::VKDrawNode>();
+    node.data.vertex_count = vertex_count;
+    node.data.instance_count = instance_count;
+    node.data.first_vertex = vertex_first;
+    node.data.first_instance = instance_first;
 
-  command_buffers.submit();
+    vao.bind(node.data.vertex_buffers);
+    context.update_pipeline_data(framebuffer, prim_type, vao.vertex_input_key, node.data.graphics);
+
+    render_graph::VKDrawNode::CreateInfo create_info(resource_access_info);
+    node.finalize(graph, create_info);
+  }
 }
 
-void VKBatch::draw_indirect(GPUStorageBuf *indirect_buf, intptr_t offset)
+void VKBatch::draw_indirect(StorageBuf *indirect_buf, intptr_t offset)
 {
   multi_draw_indirect(indirect_buf, 1, offset, 0);
 }
 
-void VKBatch::multi_draw_indirect(GPUStorageBuf *indirect_buf,
-                                  int count,
-                                  intptr_t offset,
-                                  intptr_t stride)
+void VKBatch::multi_draw_indirect(StorageBuf *indirect_buf,
+                                  const int count,
+                                  const intptr_t offset,
+                                  const intptr_t stride)
 {
-  draw_setup();
-
   VKStorageBuffer &indirect_buffer = *unwrap(unwrap(indirect_buf));
+  multi_draw_indirect(indirect_buffer, count, offset, stride);
+}
+
+void VKBatch::multi_draw_indirect(const VKStorageBuffer &indirect_buffer,
+                                  const int count,
+                                  const intptr_t offset,
+                                  const intptr_t stride)
+{
+  ensure_data_uploaded();
+
   VKContext &context = *VKContext::get();
+  render_graph::VKRenderGraph &graph = context.render_graph();
+  render_graph::VKResourceAccessInfo &resource_access_info = context.reset_and_get_access_info();
+
+  const VKVertexAttributeObject &vao = get_vertex_attribute_object(context);
+
   VKIndexBuffer *index_buffer = index_buffer_get();
   const bool draw_indexed = index_buffer != nullptr;
-  VKCommandBuffers &command_buffers = context.command_buffers_get();
+
+  VKFrameBuffer &framebuffer = *context.active_framebuffer_get();
+  framebuffer.rendering_ensure(context);
+
   if (draw_indexed) {
-    command_buffers.draw_indexed_indirect(indirect_buffer, offset, count, stride);
+    render_graph::VKNodeData<render_graph::VKDrawIndexedIndirectNode> node =
+        graph.alloc_node<render_graph::VKDrawIndexedIndirectNode>();
+    node.data.indirect_buffer = indirect_buffer.resource();
+    node.data.offset = offset;
+    node.data.draw_count = count;
+    node.data.stride = stride;
+
+    node.data.index_buffer.buffer = index_buffer->resource();
+    node.data.index_buffer.index_type = index_buffer->vk_index_type();
+    vao.bind(node.data.vertex_buffers);
+    context.update_pipeline_data(framebuffer, prim_type, vao.vertex_input_key, node.data.graphics);
+
+    render_graph::VKDrawIndexedIndirectNode::CreateInfo create_info(resource_access_info);
+    node.finalize(graph, create_info);
   }
   else {
-    command_buffers.draw_indirect(indirect_buffer, offset, count, stride);
+    render_graph::VKNodeData<render_graph::VKDrawIndirectNode> node =
+        graph.alloc_node<render_graph::VKDrawIndirectNode>();
+    node.data.indirect_buffer = indirect_buffer.resource();
+    node.data.offset = offset;
+    node.data.draw_count = count;
+    node.data.stride = stride;
+
+    vao.bind(node.data.vertex_buffers);
+    context.update_pipeline_data(framebuffer, prim_type, vao.vertex_input_key, node.data.graphics);
+
+    render_graph::VKDrawIndirectNode::CreateInfo create_info(resource_access_info);
+    node.finalize(graph, create_info);
   }
-
-  command_buffers.submit();
 }
 
-VKVertexBuffer *VKBatch::vertex_buffer_get(int index)
+const VKVertexAttributeObject &VKBatch::get_vertex_attribute_object(VKContext &context)
 {
-  return unwrap(verts_(index));
-}
-
-VKVertexBuffer *VKBatch::instance_buffer_get(int index)
-{
-  return unwrap(inst_(index));
-}
-
-VKIndexBuffer *VKBatch::index_buffer_get()
-{
-  return unwrap(unwrap(elem));
+  if (flag & GPU_BATCH_DIRTY) {
+    flag &= ~GPU_BATCH_DIRTY;
+    vao_cache_.clear();
+  }
+  VKDevice &device = VKBackend::get().device;
+  const VKShaderInterface &interface = unwrap(context.shader)->interface_get();
+  return vao_cache_.get_or_create(context, *this, interface.id, device.vertex_input_descriptions);
 }
 
 }  // namespace blender::gpu

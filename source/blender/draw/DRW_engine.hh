@@ -8,21 +8,18 @@
 
 #pragma once
 
-#include "BLI_sys_types.h" /* for bool */
+#include "BLI_string_ref.hh"
+struct DRWInstanceDataList;
+class GHOST_IContext;
 
-#include "DNA_object_enums.h"
+namespace blender {
 
 struct ARegion;
-struct DRWData;
-struct DRWInstanceDataList;
 struct Depsgraph;
-struct DrawEngineType;
-struct GHash;
+struct DRWData;
 struct GPUMaterial;
 struct GPUOffScreen;
 struct GPUVertFormat;
-struct CustomDataLayer;
-struct CustomData;
 struct GPUViewport;
 struct ID;
 struct Main;
@@ -37,188 +34,180 @@ struct ViewLayer;
 struct bContext;
 struct rcti;
 
-void DRW_engines_register(void);
-void DRW_engines_free(void);
+namespace bke {
+enum class AttrType : int16_t;
+}
 
-bool DRW_engine_render_support(struct DrawEngineType *draw_engine_type);
-void DRW_engine_register(struct DrawEngineType *draw_engine_type);
+void DRW_engines_register();
+void DRW_engines_free();
 
-void DRW_engine_external_free(struct RegionView3D *rv3d);
+void DRW_module_init();
+void DRW_module_exit();
 
-typedef struct DRWUpdateContext {
-  struct Main *bmain;
-  struct Depsgraph *depsgraph;
-  struct Scene *scene;
-  struct ViewLayer *view_layer;
-  struct ARegion *region;
-  struct View3D *v3d;
-  struct RenderEngineType *engine_type;
-} DRWUpdateContext;
-void DRW_notify_view_update(const DRWUpdateContext *update_ctx);
+void DRW_engine_external_free(RegionView3D *rv3d);
 
-typedef enum eDRWSelectStage {
+enum eDRWSelectStage {
   DRW_SELECT_PASS_PRE = 1,
   DRW_SELECT_PASS_POST,
-} eDRWSelectStage;
-typedef bool (*DRW_SelectPassFn)(eDRWSelectStage stage, void *user_data);
-typedef bool (*DRW_ObjectFilterFn)(struct Object *ob, void *user_data);
+};
+using DRW_SelectPassFn = bool (*)(eDRWSelectStage stage, void *user_data);
+using DRW_ObjectFilterFn = bool (*)(Object *ob, void *user_data);
 
 /**
  * Everything starts here.
  * This function takes care of calling all cache and rendering functions
  * for each relevant engine / mode engine.
  */
-void DRW_draw_view(const struct bContext *C);
+void DRW_draw_view(const bContext *C);
 /**
  * Draw render engine info.
  */
 void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height);
 
 /**
- * Used for both regular and off-screen drawing.
- * Need to reset DST before calling this function
+ * \param context: can be nullptr, optionally passed to the DRWContext for draw handlers/callbacks.
+ * \param viewport: can be nullptr, in this case we create one.
  */
-void DRW_draw_render_loop_ex(struct Depsgraph *depsgraph,
-                             struct RenderEngineType *engine_type,
-                             struct ARegion *region,
-                             struct View3D *v3d,
-                             struct GPUViewport *viewport,
-                             const struct bContext *evil_C);
-void DRW_draw_render_loop(struct Depsgraph *depsgraph,
-                          struct ARegion *region,
-                          struct View3D *v3d,
-                          struct GPUViewport *viewport);
-/**
- * \param viewport: can be NULL, in this case we create one.
- */
-void DRW_draw_render_loop_offscreen(struct Depsgraph *depsgraph,
-                                    struct RenderEngineType *engine_type,
-                                    struct ARegion *region,
-                                    struct View3D *v3d,
+void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
+                                    RenderEngineType *engine_type,
+                                    ARegion *region,
+                                    View3D *v3d,
+                                    bContext *context,
                                     bool is_image_render,
                                     bool draw_background,
                                     bool do_color_management,
-                                    struct GPUOffScreen *ofs,
-                                    struct GPUViewport *viewport);
-void DRW_draw_render_loop_2d_ex(struct Depsgraph *depsgraph,
-                                struct ARegion *region,
-                                struct GPUViewport *viewport,
-                                const struct bContext *evil_C);
+                                    GPUOffScreen *ofs,
+                                    GPUViewport *viewport);
 /**
- * object mode select-loop, see: #ED_view3d_draw_select_loop (legacy drawing).
+ * Object mode select-loop.
  */
-void DRW_draw_select_loop(struct Depsgraph *depsgraph,
-                          struct ARegion *region,
-                          struct View3D *v3d,
-                          bool use_obedit_skip,
+void DRW_draw_select_loop(Depsgraph *depsgraph,
+                          ARegion *region,
+                          View3D *v3d,
                           bool draw_surface,
                           bool use_nearest,
                           bool do_material_sub_selection,
-                          const struct rcti *rect,
+                          const rcti *rect,
                           DRW_SelectPassFn select_pass_fn,
                           void *select_pass_user_data,
                           DRW_ObjectFilterFn object_filter_fn,
                           void *object_filter_user_data);
 /**
- * Object mode select-loop, see: #ED_view3d_draw_depth_loop (legacy drawing).
+ * Used by auto-depth and other depth queries feature.
  */
-void DRW_draw_depth_loop(struct Depsgraph *depsgraph,
-                         struct ARegion *region,
-                         struct View3D *v3d,
-                         struct GPUViewport *viewport,
+void DRW_draw_depth_loop(Depsgraph *depsgraph,
+                         ARegion *region,
+                         View3D *v3d,
+                         GPUViewport *viewport,
                          const bool use_gpencil,
-                         const bool use_basic,
-                         const bool use_overlay);
+                         const bool use_only_selected,
+                         const bool use_only_active_object);
+
+void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d);
+
 /**
- * Clears the Depth Buffer and draws only the specified object.
+ * Query that drawing is in progress (use to prevent nested draw calls).
  */
-void DRW_draw_depth_object(struct Scene *scene,
-                           struct ARegion *region,
-                           struct View3D *v3d,
-                           struct GPUViewport *viewport,
-                           struct Object *object);
-void DRW_draw_select_id(struct Depsgraph *depsgraph, struct ARegion *region, struct View3D *v3d);
+bool DRW_draw_in_progress();
 
 /* Grease pencil render. */
 
 /**
- * Helper to check if exit object type to render.
+ * This function only does following things to check whether grease pencil drawing is needed:
+ * - Whether Grease Pencil objects are excluded in the viewport.
+ * - If any Grease Pencil typed ID exists inside the depsgraph.
+ * - If any of the objects has grease pencil geometries that are generated by geometry nodes.
  */
-bool DRW_render_check_grease_pencil(struct Depsgraph *depsgraph);
-void DRW_render_gpencil(struct RenderEngine *engine, struct Depsgraph *depsgraph);
+bool DRW_render_check_grease_pencil(Depsgraph *depsgraph, View3D *v3d = nullptr);
 
 /**
- * This is here because #GPUViewport needs it.
+ * Render grease pencil on top of other render engine output.
+ * This function creates a DRWContext.
  */
-struct DRWInstanceDataList *DRW_instance_data_list_create(void);
-void DRW_instance_data_list_free(struct DRWInstanceDataList *idatalist);
-void DRW_uniform_attrs_pool_free(struct GHash *table);
+void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph);
 
-void DRW_render_context_enable(struct Render *render);
-void DRW_render_context_disable(struct Render *render);
+void DRW_render_context_enable(Render *render);
+void DRW_render_context_disable(Render *render);
 
-void DRW_gpu_context_create(void);
-void DRW_gpu_context_destroy(void);
-void DRW_gpu_context_enable(void);
-void DRW_gpu_context_disable(void);
+void DRW_mutexes_init();
+void DRW_mutexes_exit();
+
+/* Mutex to lock the drw manager and avoid concurrent context usage.
+ * Equivalent to the old DST lock.
+ * Brought back to 4.5 due to unforeseen issues causing data races and race conditions with Images
+ * and GPUTextures. (See #141253) */
+void DRW_lock_start();
+void DRW_lock_end();
+
+/* Critical section for gpu::Shader usage. Can be removed when we have threadsafe gpu::Shader
+ * class. */
+void DRW_submission_start();
+void DRW_submission_end();
+
+void DRW_gpu_context_create();
+void DRW_gpu_context_destroy();
+/**
+ * Binds the draw GPU context to the active thread.
+ * In background mode, this will create the draw GPU context on first call.
+ */
+void DRW_gpu_context_enable();
+/**
+ * Tries to bind the draw GPU context to the active thread.
+ * Returns true on success, false if the draw GPU context does not exists.
+ */
+bool DRW_gpu_context_try_enable();
+/**
+ * Returns true if the DRW_gpu_context is enabled on the calling thread.
+ */
+bool DRW_gpu_context_is_enabled();
+void DRW_gpu_context_disable();
 
 #ifdef WITH_XR_OPENXR
 /* XXX: see comment on #DRW_system_gpu_context_get() */
-void *DRW_system_gpu_context_get(void);
-void *DRW_xr_blender_gpu_context_get(void);
-void DRW_xr_drawing_begin(void);
-void DRW_xr_drawing_end(void);
+GHOST_IContext *DRW_system_gpu_context_get();
+void *DRW_xr_blender_gpu_context_get();
+void DRW_xr_drawing_begin();
+void DRW_xr_drawing_end();
 #endif
 
-/* For garbage collection */
-void DRW_cache_free_old_batches(struct Main *bmain);
+/** For garbage collection. */
+void DRW_cache_free_old_batches(Main *bmain);
 
-namespace blender::draw {
+namespace draw {
 
-void DRW_cache_free_old_subdiv(void);
+/** Free garbage collected subdivision data. */
+void DRW_cache_free_old_subdiv();
 
-/* For the OpenGL evaluators and garbage collected subdivision data. */
-void DRW_subdiv_free(void);
+}  // namespace draw
 
-}  // namespace blender::draw
-
-/* Never use this. Only for closing blender. */
+/** Never use this. Only for closing blender. */
 void DRW_gpu_context_enable_ex(bool restore);
 void DRW_gpu_context_disable_ex(bool restore);
 
 /* Render pipeline GPU context control.
  * Enable system context first, then enable blender context,
  * then disable blender context, then disable system context. */
-void DRW_system_gpu_render_context_enable(void *re_system_gpu_context);
-void DRW_system_gpu_render_context_disable(void *re_system_gpu_context);
+
+void DRW_system_gpu_render_context_enable(GHOST_IContext *re_system_gpu_context);
+void DRW_system_gpu_render_context_disable(GHOST_IContext *re_system_gpu_context);
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context);
 void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
 
-void DRW_deferred_shader_remove(struct GPUMaterial *mat);
-void DRW_deferred_shader_optimize_remove(struct GPUMaterial *mat);
+DRWData *DRW_viewport_data_create();
+void DRW_viewport_data_free(DRWData *drw_data);
 
-/**
- * Get DrawData from the given ID-block. In order for this to work, we assume that
- * the DrawData pointer is stored in the struct in the same fashion as in #IdDdtTemplate.
- */
-struct DrawDataList *DRW_drawdatalist_from_id(struct ID *id);
-void DRW_drawdata_free(struct ID *id);
-
-struct DRWData *DRW_viewport_data_create(void);
-void DRW_viewport_data_free(struct DRWData *drw_data);
-
-bool DRW_gpu_context_release(void);
+bool DRW_gpu_context_release();
 void DRW_gpu_context_activate(bool drw_state);
 
-/**
- * We may want to move this into a more general location.
- * \note This doesn't require the draw context to be in use.
- */
-void DRW_draw_cursor_2d_ex(const struct ARegion *region, const float cursor[2]);
+namespace draw {
 
-void DRW_cdlayer_attr_aliases_add(struct GPUVertFormat *format,
+void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   const char *base_name,
-                                  int data_type,
-                                  const char *layer_name,
+                                  bke::AttrType data_type,
+                                  StringRef layer_name,
                                   bool is_active_render,
                                   bool is_active_layer);
+
+}
+
+}  // namespace blender

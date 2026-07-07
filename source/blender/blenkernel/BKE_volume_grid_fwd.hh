@@ -13,6 +13,9 @@
 #include "BKE_volume_enums.hh"
 
 #include "BLI_math_matrix_types.hh"
+#include "BLI_memory_counter_fwd.hh"
+
+namespace blender {
 
 /**
  * This header gives contains declarations for dealing with volume grids without requiring
@@ -21,7 +24,7 @@
  * These functions are available even if `WITH_OPENVDB` is false, but they may just be empty.
  */
 
-namespace blender::bke::volume_grid {
+namespace bke::volume_grid {
 
 /**
  * Wraps an OpenVDB grid and adds features like implicit sharing and lazy-loading.
@@ -45,8 +48,8 @@ template<typename T> class VolumeGrid;
 class VolumeTreeAccessToken;
 
 /**
- * Compile time check to see of a type is a #VolumeGrid. This is false for e.g. `float` or
- * `GVolumeGrid` and true for e.g. `VolumeGrid<int>` and `VolumeGrid<float>`.
+ * Compile time check to see of a type is a #VolumeGrid, e.g. false for `float` or
+ * `GVolumeGrid` and true for `VolumeGrid<int>` and `VolumeGrid<float>`.
  */
 template<typename T> static constexpr bool is_VolumeGrid_v = false;
 template<typename T> static constexpr bool is_VolumeGrid_v<VolumeGrid<T>> = true;
@@ -66,11 +69,6 @@ VolumeGridType get_type(const VolumeGridData &grid);
  * for a vector-grid it is 3 (for x, y and z).
  */
 int get_channels_num(VolumeGridType type);
-
-/**
- * Unloads the tree data if no one is using it right now and it could be reloaded later on.
- */
-void unload_tree_if_possible(const VolumeGridData &grid);
 
 /**
  * Get the transform of the grid as an affine matrix.
@@ -105,15 +103,18 @@ std::string error_message_from_load(const VolumeGridData &grid);
  */
 bool is_loaded(const VolumeGridData &grid);
 
-}  // namespace blender::bke::volume_grid
+void count_memory(const VolumeGridData &grid, MemoryCounter &memory);
+
+}  // namespace bke::volume_grid
 
 /**
- * Put the most common types directly into the `blender::bke` namespace.
+ * Put the most common types directly into the `bke` namespace.
  */
-namespace blender::bke {
+namespace bke {
 using volume_grid::GVolumeGrid;
 using volume_grid::is_VolumeGrid_v;
 using volume_grid::VolumeGrid;
 using volume_grid::VolumeGridData;
 using volume_grid::VolumeTreeAccessToken;
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

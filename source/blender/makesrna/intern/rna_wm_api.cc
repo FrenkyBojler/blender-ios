@@ -7,10 +7,7 @@
  */
 
 #include <cctype>
-#include <cstdio>
 #include <cstdlib>
-
-#include "BLI_utildefines.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -19,7 +16,10 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "UI_interface.hh"
+#include "ED_screen.hh"
+
+#include "UI_interface_icons.hh"
+#include "UI_interface_types.hh"
 
 #include "wm_cursors.hh"
 #include "wm_event_types.hh"
@@ -27,7 +27,9 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "rna_internal.h" /* own include */
+#include "rna_internal.hh" /* own include */
+
+namespace blender {
 
 /* confusing 2 enums mixed up here */
 const EnumPropertyItem rna_enum_window_cursor_items[] = {
@@ -45,7 +47,9 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
     {WM_CURSOR_PAINT, "PAINT_CROSS", 0, "Paint Cross", ""},
     {WM_CURSOR_DOT, "DOT", 0, "Dot Cursor", ""},
     {WM_CURSOR_ERASER, "ERASER", 0, "Eraser", ""},
-    {WM_CURSOR_HAND, "HAND", 0, "Hand", ""},
+    {WM_CURSOR_HAND, "HAND", 0, "Open Hand", ""},
+    {WM_CURSOR_HAND_POINT, "HAND_POINT", 0, "Pointing Hand", ""},
+    {WM_CURSOR_HAND_CLOSED, "HAND_CLOSED", 0, "Closed Hand", ""},
     {WM_CURSOR_EW_SCROLL, "SCROLL_X", 0, "Scroll-X", ""},
     {WM_CURSOR_NS_SCROLL, "SCROLL_Y", 0, "Scroll-Y", ""},
     {WM_CURSOR_NSEW_SCROLL, "SCROLL_XY", 0, "Scroll-XY", ""},
@@ -60,12 +64,32 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
+#  include "AS_remote_library.hh"
+
+#  include "DNA_userdef_types.h"
+
+#  include "ED_geometry.hh"
+#  include "ED_screen.hh"
+
+#  include "BLI_listbase.hh"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
+
 #  include "BKE_context.hh"
+#  include "BKE_global.hh"
+#  include "BKE_main.hh"
+#  include "BKE_report.hh"
 #  include "BKE_undo_system.hh"
 
+#  include "UI_interface_c.hh"
+
 #  include "WM_types.hh"
+
+namespace blender {
 
 /* Needed since RNA doesn't use `const` in function signatures. */
 static bool rna_KeyMapItem_compare(wmKeyMapItem *k1, wmKeyMapItem *k2)
@@ -75,7 +99,8 @@ static bool rna_KeyMapItem_compare(wmKeyMapItem *k1, wmKeyMapItem *k2)
 
 static void rna_KeyMapItem_to_string(wmKeyMapItem *kmi, bool compact, char *result)
 {
-  WM_keymap_item_to_string(kmi, compact, result, UI_MAX_SHORTCUT_STR);
+  BLI_strncpy(
+      result, WM_keymap_item_to_string(kmi, compact).value_or("").c_str(), UI_MAX_SHORTCUT_STR);
 }
 
 static wmKeyMap *rna_keymap_active(wmKeyMap *km, bContext *C)
@@ -110,6 +135,11 @@ static void rna_Operator_enum_search_invoke(bContext *C, wmOperator *op)
   WM_enum_search_invoke(C, op, nullptr);
 }
 
+static int rna_Operator_ui_popup(bContext *C, wmOperator *op, int width)
+{
+  return wmOperatorStatus(WM_operator_ui_popup(C, op, width));
+}
+
 static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOperator *op)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -122,10 +152,10 @@ static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOper
   return WM_event_add_modal_handler_ex(win, area, region, op) != nullptr;
 }
 
-/* XXX, need a way for python to know event types, 0x0110 is hard coded */
 static wmTimer *rna_event_timer_add(wmWindowManager *wm, float time_step, wmWindow *win)
 {
-  return WM_event_timer_add(wm, win, 0x0110, time_step);
+  /* NOTE: we need a way for Python to know event types, `TIMER` is hard coded. */
+  return WM_event_timer_add(wm, win, TIMER, time_step);
 }
 
 static void rna_event_timer_remove(wmWindowManager *wm, wmTimer *timer)
@@ -187,12 +217,12 @@ static void rna_progress_begin(wmWindowManager * /*wm*/, float min, float max)
 static void rna_progress_update(wmWindowManager *wm, float value)
 {
   if (wm_progress_state.is_valid) {
-    /* Map to cursor_time range [0,9999] */
-    wmWindow *win = wm->winactive;
+    /* Map to factor 0..1. */
+    wmWindow *win = wm->runtime->winactive;
     if (win) {
-      int val = int(10000 * (value - wm_progress_state.min) /
-                    (wm_progress_state.max - wm_progress_state.min));
-      WM_cursor_time(win, val);
+      const float progress_factor = (value - wm_progress_state.min) /
+                                    (wm_progress_state.max - wm_progress_state.min);
+      WM_cursor_progress(win, progress_factor);
     }
   }
 }
@@ -200,7 +230,7 @@ static void rna_progress_update(wmWindowManager *wm, float value)
 static void rna_progress_end(wmWindowManager *wm)
 {
   if (wm_progress_state.is_valid) {
-    wmWindow *win = wm->winactive;
+    wmWindow *win = wm->runtime->winactive;
     if (win) {
       WM_cursor_modal_restore(win);
       wm_progress_state.is_valid = false;
@@ -209,49 +239,81 @@ static void rna_progress_end(wmWindowManager *wm)
 }
 
 /* wrap these because of 'const wmEvent *' */
-static int rna_Operator_confirm(bContext *C, wmOperator *op, wmEvent *event)
+static int rna_Operator_confirm(bContext *C,
+                                wmOperator *op,
+                                wmEvent * /*event*/,
+                                const char *title,
+                                const char *message,
+                                const char *confirm_text,
+                                const int icon,
+                                const char *text_ctxt,
+                                const bool translate)
 {
-  return WM_operator_confirm(C, op, event);
+  std::optional<StringRefNull> title_str = RNA_translate_ui_text(
+      title, text_ctxt, nullptr, nullptr, translate);
+  std::optional<StringRefNull> message_str = RNA_translate_ui_text(
+      message, text_ctxt, nullptr, nullptr, translate);
+  std::optional<StringRefNull> confirm_text_str = RNA_translate_ui_text(
+      confirm_text, text_ctxt, nullptr, nullptr, translate);
+  return WM_operator_confirm_ex(C,
+                                op,
+                                title_str ? title_str->c_str() : nullptr,
+                                message_str ? message_str->c_str() : nullptr,
+                                confirm_text_str ? confirm_text_str->c_str() : nullptr,
+                                ui::AlertIcon(icon));
 }
+
 static int rna_Operator_props_popup(bContext *C, wmOperator *op, wmEvent *event)
 {
   return WM_operator_props_popup(C, op, event);
 }
 
-static int keymap_item_modifier_flag_from_args(bool any, int shift, int ctrl, int alt, int oskey)
+static int rna_Operator_props_dialog_popup(bContext *C,
+                                           wmOperator *op,
+                                           const int width,
+                                           const char *title,
+                                           const char *confirm_text,
+                                           const bool cancel_default,
+                                           const char *text_ctxt,
+                                           const bool translate)
 {
-  int modifier = 0;
+  std::optional<StringRefNull> title_str = RNA_translate_ui_text(
+      title, text_ctxt, nullptr, nullptr, translate);
+  std::optional<StringRefNull> confirm_text_str = RNA_translate_ui_text(
+      confirm_text, text_ctxt, nullptr, nullptr, translate);
+  return WM_operator_props_dialog_popup(
+      C,
+      op,
+      width,
+      title_str ? std::make_optional<std::string>(*title_str) : std::nullopt,
+      confirm_text_str ? std::make_optional<std::string>(*confirm_text_str) : std::nullopt,
+      cancel_default);
+}
+
+static int16_t keymap_item_modifier_flag_from_args(
+    bool any, int shift, int ctrl, int alt, int oskey, int hyper)
+{
+  int16_t modifier = 0;
   if (any) {
     modifier = KM_ANY;
   }
   else {
-    if (shift == KM_MOD_HELD) {
-      modifier |= KM_SHIFT;
-    }
-    else if (shift == KM_ANY) {
-      modifier |= KM_SHIFT_ANY;
-    }
+#  define MOD_VAR_ASSIGN_FLAG(mod_var, mod_flag) \
+    if (mod_var == KM_MOD_HELD) { \
+      modifier |= mod_flag; \
+    } \
+    else if (mod_var == KM_ANY) { \
+      modifier |= KMI_PARAMS_MOD_TO_ANY(mod_flag); \
+    } \
+    ((void)0)
 
-    if (ctrl == KM_MOD_HELD) {
-      modifier |= KM_CTRL;
-    }
-    else if (ctrl == KM_ANY) {
-      modifier |= KM_CTRL_ANY;
-    }
+    MOD_VAR_ASSIGN_FLAG(shift, KM_SHIFT);
+    MOD_VAR_ASSIGN_FLAG(ctrl, KM_CTRL);
+    MOD_VAR_ASSIGN_FLAG(alt, KM_ALT);
+    MOD_VAR_ASSIGN_FLAG(oskey, KM_OSKEY);
+    MOD_VAR_ASSIGN_FLAG(hyper, KM_HYPER);
 
-    if (alt == KM_MOD_HELD) {
-      modifier |= KM_ALT;
-    }
-    else if (alt == KM_ANY) {
-      modifier |= KM_ALT_ANY;
-    }
-
-    if (oskey == KM_MOD_HELD) {
-      modifier |= KM_OSKEY;
-    }
-    else if (oskey == KM_ANY) {
-      modifier |= KM_OSKEY_ANY;
-    }
+#  undef MOD_VAR_ASSIGN_FLAG
   }
   return modifier;
 }
@@ -266,6 +328,7 @@ static wmKeyMapItem *rna_KeyMap_item_new(wmKeyMap *km,
                                          int ctrl,
                                          int alt,
                                          int oskey,
+                                         int hyper,
                                          int keymodifier,
                                          int direction,
                                          bool repeat,
@@ -280,19 +343,18 @@ static wmKeyMapItem *rna_KeyMap_item_new(wmKeyMap *km,
   // wmWindowManager *wm = CTX_wm_manager(C);
   wmKeyMapItem *kmi = nullptr;
   char idname_bl[OP_MAX_TYPENAME];
-  const int modifier = keymap_item_modifier_flag_from_args(any, shift, ctrl, alt, oskey);
 
   WM_operator_bl_idname(idname_bl, idname);
 
-  KeyMapItem_Params keymap_item_params{};
-  keymap_item_params.type = type;
-  keymap_item_params.value = value;
-  keymap_item_params.modifier = modifier;
-  keymap_item_params.keymodifier = keymodifier;
-  keymap_item_params.direction = direction;
+  KeyMapItem_Params params{};
+  params.type = type;
+  params.value = value;
+  params.modifier = keymap_item_modifier_flag_from_args(any, shift, ctrl, alt, oskey, hyper);
+  params.keymodifier = keymodifier;
+  params.direction = direction;
 
   /* create keymap item */
-  kmi = WM_keymap_add_item(km, idname_bl, &keymap_item_params);
+  kmi = WM_keymap_add_item(km, idname_bl, &params);
 
   if (!repeat) {
     kmi->flag |= KMI_REPEAT_IGNORE;
@@ -317,7 +379,7 @@ static wmKeyMapItem *rna_KeyMap_item_new_from_item(wmKeyMap *km,
   // wmWindowManager *wm = CTX_wm_manager(C);
 
   if ((km->flag & KEYMAP_MODAL) == (kmi_src->idname[0] != '\0')) {
-    BKE_report(reports, RPT_ERROR, "Can not mix modal/non-modal items");
+    BKE_report(reports, RPT_ERROR, "Cannot mix modal/non-modal items");
     return nullptr;
   }
 
@@ -340,6 +402,7 @@ static wmKeyMapItem *rna_KeyMap_item_new_modal(wmKeyMap *km,
                                                int ctrl,
                                                int alt,
                                                int oskey,
+                                               int hyper,
                                                int keymodifier,
                                                int direction,
                                                bool repeat)
@@ -351,13 +414,12 @@ static wmKeyMapItem *rna_KeyMap_item_new_modal(wmKeyMap *km,
   }
 
   wmKeyMapItem *kmi = nullptr;
-  const int modifier = keymap_item_modifier_flag_from_args(any, shift, ctrl, alt, oskey);
   int propvalue = 0;
 
   KeyMapItem_Params params{};
   params.type = type;
   params.value = value;
-  params.modifier = modifier;
+  params.modifier = keymap_item_modifier_flag_from_args(any, shift, ctrl, alt, oskey, hyper);
   params.keymodifier = keymodifier;
   params.direction = direction;
 
@@ -386,14 +448,24 @@ static void rna_KeyMap_item_remove(wmKeyMap *km, ReportList *reports, PointerRNA
 {
   wmKeyMapItem *kmi = static_cast<wmKeyMapItem *>(kmi_ptr->data);
 
-  if (UNLIKELY(BLI_findindex(&km->items, kmi) == -1)) {
+  if (BLI_findindex(&km->items, kmi) == -1) [[unlikely]] {
     BKE_reportf(
         reports, RPT_ERROR, "KeyMapItem '%s' not found in KeyMap '%s'", kmi->idname, km->idname);
     return;
   }
 
   WM_keymap_remove_item(km, kmi);
-  RNA_POINTER_INVALIDATE(kmi_ptr);
+  kmi_ptr->invalidate();
+}
+
+static PointerRNA rna_KeyMap_item_find_match(
+    ID *id, wmKeyMap *km_base, ReportList *reports, wmKeyMap *km_match, wmKeyMapItem *kmi_match)
+{
+  wmKeyMapItem *kmi_base = WM_keymap_item_find_match(km_base, km_match, kmi_match, reports);
+  if (kmi_base) {
+    return RNA_pointer_create_discrete(id, RNA_KeyMapItem, kmi_base);
+  }
+  return PointerRNA_NULL;
 }
 
 static PointerRNA rna_KeyMap_item_find_from_operator(ID *id,
@@ -408,14 +480,14 @@ static PointerRNA rna_KeyMap_item_find_from_operator(ID *id,
 
   wmKeyMapItem *kmi = WM_key_event_operator_from_keymap(
       km, idname_bl, static_cast<IDProperty *>(properties->data), include_mask, exclude_mask);
-  PointerRNA kmi_ptr = RNA_pointer_create(id, &RNA_KeyMapItem, kmi);
+  PointerRNA kmi_ptr = RNA_pointer_create_discrete(id, RNA_KeyMapItem, kmi);
   return kmi_ptr;
 }
 
 static PointerRNA rna_KeyMap_item_match_event(ID *id, wmKeyMap *km, bContext *C, wmEvent *event)
 {
   wmKeyMapItem *kmi = WM_event_match_keymap_item(C, km, event);
-  PointerRNA kmi_ptr = RNA_pointer_create(id, &RNA_KeyMapItem, kmi);
+  PointerRNA kmi_ptr = RNA_pointer_create_discrete(id, RNA_KeyMapItem, kmi);
   return kmi_ptr;
 }
 
@@ -434,7 +506,7 @@ static wmKeyMap *rna_KeyMaps_new(wmKeyConfig *keyconf,
      * Currently this is only useful for add-ons to override built-in modal keymaps
      * which is not the intended use for add-on keymaps. */
     wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-    if (keyconf == wm->addonconf) {
+    if (keyconf == wm->runtime->addonconf) {
       BKE_reportf(reports, RPT_ERROR, "Modal key-maps not supported for add-on key-config");
       return nullptr;
     }
@@ -464,23 +536,27 @@ static wmKeyMap *rna_KeyMaps_find(wmKeyConfig *keyconf,
   return WM_keymap_list_find(&keyconf->keymaps, idname, spaceid, regionid);
 }
 
+static wmKeyMap *rna_KeyMaps_find_match(wmKeyConfig *keyconf, wmKeyMap *km_match)
+{
+  return WM_keymap_list_find(
+      &keyconf->keymaps, km_match->idname, km_match->spaceid, km_match->regionid);
+}
+
 static wmKeyMap *rna_KeyMaps_find_modal(wmKeyConfig * /*keyconf*/, const char *idname)
 {
-  wmOperatorType *ot = WM_operatortype_find(idname, 0);
+  wmOperatorType *ot = WM_operatortype_find(idname, false);
 
   if (!ot) {
     return nullptr;
   }
-  else {
-    return ot->modalkeymap;
-  }
+  return ot->modalkeymap;
 }
 
 static void rna_KeyMaps_remove(wmKeyConfig *keyconfig, ReportList *reports, PointerRNA *keymap_ptr)
 {
   wmKeyMap *keymap = static_cast<wmKeyMap *>(keymap_ptr->data);
 
-  if (UNLIKELY(BLI_findindex(&keyconfig->keymaps, keymap) == -1)) {
+  if (BLI_findindex(&keyconfig->keymaps, keymap) == -1) [[unlikely]] {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "KeyMap '%s' not found in KeyConfig '%s'",
@@ -490,7 +566,7 @@ static void rna_KeyMaps_remove(wmKeyConfig *keyconfig, ReportList *reports, Poin
   }
 
   WM_keymap_remove(keyconfig, keymap);
-  RNA_POINTER_INVALIDATE(keymap_ptr);
+  keymap_ptr->invalidate();
 }
 
 static void rna_KeyMaps_clear(wmKeyConfig *keyconfig)
@@ -506,12 +582,12 @@ wmKeyConfig *rna_KeyConfig_new(wmWindowManager *wm, const char *idname)
 static void rna_KeyConfig_remove(wmWindowManager *wm, ReportList *reports, PointerRNA *keyconf_ptr)
 {
   wmKeyConfig *keyconf = static_cast<wmKeyConfig *>(keyconf_ptr->data);
-  if (UNLIKELY(BLI_findindex(&wm->keyconfigs, keyconf) == -1)) {
+  if (BLI_findindex(&wm->runtime->keyconfigs, keyconf) == -1) [[unlikely]] {
     BKE_reportf(reports, RPT_ERROR, "KeyConfig '%s' cannot be removed", keyconf->idname);
     return;
   }
   WM_keyconfig_remove(wm, keyconf);
-  RNA_POINTER_INVALIDATE(keyconf_ptr);
+  keyconf_ptr->invalidate();
 }
 
 static PointerRNA rna_KeyConfig_find_item_from_operator(wmWindowManager *wm,
@@ -529,13 +605,13 @@ static PointerRNA rna_KeyConfig_find_item_from_operator(wmWindowManager *wm,
   wmKeyMap *km = nullptr;
   wmKeyMapItem *kmi = WM_key_event_operator(C,
                                             idname_bl,
-                                            wmOperatorCallContext(opcontext),
+                                            wm::OpCallContext(opcontext),
                                             static_cast<IDProperty *>(properties->data),
                                             include_mask,
                                             exclude_mask,
                                             &km);
-  *km_ptr = RNA_pointer_create(&wm->id, &RNA_KeyMap, km);
-  PointerRNA kmi_ptr = RNA_pointer_create(&wm->id, &RNA_KeyMapItem, kmi);
+  *km_ptr = RNA_pointer_create_discrete(&wm->id, RNA_KeyMap, km);
+  PointerRNA kmi_ptr = RNA_pointer_create_discrete(&wm->id, RNA_KeyMapItem, kmi);
   return kmi_ptr;
 }
 
@@ -544,57 +620,80 @@ static void rna_KeyConfig_update(wmWindowManager *wm, bool keep_properties)
   WM_keyconfig_update_ex(wm, keep_properties);
 }
 
-/* popup menu wrapper */
-static PointerRNA rna_PopMenuBegin(bContext *C, const char *title, int icon)
+/** Check the context that popup is can be used. */
+static bool rna_popup_context_ok_or_report(bContext *C, ReportList *reports)
 {
-  void *data;
+  if (CTX_wm_window(C) == nullptr) {
+    BKE_report(reports, RPT_ERROR, "context \"window\" is None");
+    return false;
+  }
+  return true;
+}
 
-  data = (void *)UI_popup_menu_begin(C, title, icon);
+/* popup menu wrapper */
+static PointerRNA rna_PopMenuBegin(bContext *C,
+                                   ReportList *reports,
+                                   const char *title,
+                                   const int icon)
+{
+  if (!rna_popup_context_ok_or_report(C, reports)) {
+    return PointerRNA_NULL;
+  }
 
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPopupMenu, data);
-  return r_ptr;
+  void *data = static_cast<void *>(ui::popup_menu_begin(C, title, icon));
+  PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, RNA_UIPopupMenu, data);
+  return ptr_result;
 }
 
 static void rna_PopMenuEnd(bContext *C, PointerRNA *handle)
 {
-  UI_popup_menu_end(C, static_cast<uiPopupMenu *>(handle->data));
+  ui::popup_menu_end(C, static_cast<ui::PopupMenu *>(handle->data));
 }
 
 /* popover wrapper */
-static PointerRNA rna_PopoverBegin(bContext *C, int ui_units_x, bool from_active_button)
+static PointerRNA rna_PopoverBegin(bContext *C,
+                                   ReportList *reports,
+                                   const int ui_units_x,
+                                   const bool from_active_button)
 {
-  void *data;
+  if (!rna_popup_context_ok_or_report(C, reports)) {
+    return PointerRNA_NULL;
+  }
 
-  data = (void *)UI_popover_begin(C, U.widget_unit * ui_units_x, from_active_button);
-
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPopover, data);
-  return r_ptr;
+  void *data = static_cast<void *>(
+      ui::popover_begin(C, U.widget_unit * ui_units_x, from_active_button));
+  PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, RNA_UIPopover, data);
+  return ptr_result;
 }
 
 static void rna_PopoverEnd(bContext *C, PointerRNA *handle, wmKeyMap *keymap)
 {
-  UI_popover_end(C, static_cast<uiPopover *>(handle->data), keymap);
+  ui::popover_end(C, static_cast<ui::Popover *>(handle->data), keymap);
 }
 
 /* pie menu wrapper */
-static PointerRNA rna_PieMenuBegin(bContext *C, const char *title, int icon, PointerRNA *event)
+static PointerRNA rna_PieMenuBegin(
+    bContext *C, ReportList *reports, const char *title, const int icon, PointerRNA *event)
 {
-  void *data;
+  if (!rna_popup_context_ok_or_report(C, reports)) {
+    return PointerRNA_NULL;
+  }
 
-  data = (void *)UI_pie_menu_begin(C, title, icon, static_cast<const wmEvent *>(event->data));
+  void *data = (void *)ui::pie_menu_begin(
+      C, title, icon, static_cast<const wmEvent *>(event->data));
 
-  PointerRNA r_ptr = RNA_pointer_create(nullptr, &RNA_UIPieMenu, data);
-  return r_ptr;
+  PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, RNA_UIPieMenu, data);
+  return ptr_result;
 }
 
 static void rna_PieMenuEnd(bContext *C, PointerRNA *handle)
 {
-  UI_pie_menu_end(C, static_cast<uiPieMenu *>(handle->data));
+  ui::pie_menu_end(C, static_cast<ui::PieMenu *>(handle->data));
 }
 
 static void rna_WindowManager_print_undo_steps(wmWindowManager *wm)
 {
-  BKE_undosys_print(wm->undo_stack);
+  BKE_undosys_print(wm->runtime->undo_stack);
 }
 
 static void rna_WindowManager_tag_script_reload()
@@ -625,7 +724,8 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
                                               bool shift,
                                               bool ctrl,
                                               bool alt,
-                                              bool oskey)
+                                              bool oskey,
+                                              bool hyper)
 {
   if ((G.f & G_FLAG_EVENT_SIMULATE) == 0) {
     BKE_report(reports, RPT_ERROR, "Not running with '--enable-event-simulate' enabled");
@@ -664,14 +764,14 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
     }
   }
 
-  wmEvent e = *win->eventstate;
-  e.type = type;
+  wmEvent e = *win->runtime->eventstate;
+  e.type = wmEventType(type);
   e.val = value;
   e.flag = eWM_EventFlag(0);
   e.xy[0] = x;
   e.xy[1] = y;
 
-  e.modifier = 0;
+  e.modifier = wmEventModifierFlag(0);
   if (shift) {
     e.modifier |= KM_SHIFT;
   }
@@ -683,6 +783,9 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
   }
   if (oskey) {
     e.modifier |= KM_OSKEY;
+  }
+  if (hyper) {
+    e.modifier |= KM_HYPER;
   }
 
   e.utf8_buf[0] = '\0';
@@ -696,7 +799,106 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
   return WM_event_add_simulate(win, &e);
 }
 
+static Scene *rna_Window_find_playing_scene(wmWindow *win, const bool scrub)
+{
+  return ED_screen_find_playing_scene(WM_window_get_active_screen(win), scrub);
+}
+
+static wmWindow *rna_Windows_find_playing(wmWindowManager *wm, const bool scrub)
+{
+  wmWindow *win = ED_window_animation_playing_no_scrub(wm);
+  if (!win) {
+    return nullptr;
+  }
+  if (scrub) {
+    bScreen *screen = WM_window_get_active_screen(win);
+    if (screen->scrubbing) {
+      return win;
+    }
+    return nullptr;
+  }
+  return win;
+}
+
+using RemoteLibraryLoadingStatus = asset_system::RemoteLibraryLoadingStatus;
+
+static void rna_asset_library_status_begin_loading(const char *library_url, float timeout)
+{
+  RemoteLibraryLoadingStatus::begin_loading(library_url, timeout);
+}
+
+static void rna_asset_library_status_ping_still_loading(const char *library_url)
+{
+  RemoteLibraryLoadingStatus::ping_still_loading(library_url);
+}
+
+static void rna_asset_library_status_ping_metafiles_in_place(const char *library_url)
+{
+  RemoteLibraryLoadingStatus::ping_metafiles_in_place(library_url);
+}
+
+static void rna_asset_library_status_ping_loaded_new_pages(const char *library_url)
+{
+  RemoteLibraryLoadingStatus::ping_new_pages(library_url);
+}
+
+static void rna_asset_library_status_ping_loaded_new_preview(bContext *C,
+                                                             const char *preview_full_path)
+{
+  RemoteLibraryLoadingStatus::ping_new_preview(*C, preview_full_path);
+}
+
+static void rna_asset_library_status_ping_asset_file_progress(const char *absolute_file_url,
+                                                              const int size_written)
+{
+  RemoteLibraryLoadingStatus::ping_asset_file_progress(absolute_file_url, size_written);
+}
+
+static void rna_asset_library_status_ping_asset_file_succeeded(bContext *C,
+                                                               const char *library_url,
+                                                               const char *absolute_file_url,
+                                                               const char *local_file_abspath)
+{
+  RemoteLibraryLoadingStatus::ping_asset_file_download_succeeded(
+      *C, library_url, absolute_file_url, local_file_abspath);
+}
+
+static void rna_asset_library_status_ping_asset_file_failed(bContext *C,
+                                                            const char *library_url,
+                                                            const char *absolute_file_url,
+                                                            const char *local_file_abspath)
+{
+  RemoteLibraryLoadingStatus::ping_asset_file_download_failed(
+      *C, library_url, absolute_file_url, local_file_abspath);
+}
+
+static void rna_asset_library_status_ping_finished_download_queue(bContext *C)
+{
+  RemoteLibraryLoadingStatus::ping_download_queue_done(*C);
+}
+
+static void rna_asset_library_status_finished_loading(const char *library_url)
+{
+  RemoteLibraryLoadingStatus::set_finished(library_url);
+}
+
+static void rna_asset_library_status_failed_loading(const char *library_url, const char *message)
+{
+  RemoteLibraryLoadingStatus::set_failure(
+      library_url,
+      message && message[0] ? std::optional<blender::StringRefNull>{message} : std::nullopt);
+}
+
+static void rna_register_node_group_operators(bContext *C)
+{
+  ed::geometry::register_node_group_operators(*C);
+}
+
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 #  define WM_GEN_INVOKE_EVENT (1 << 0)
 #  define WM_GEN_INVOKE_SIZE (1 << 1)
@@ -750,7 +952,7 @@ void RNA_api_window(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_function_ui_description(func, "Set the cursor, so the previous cursor can be restored");
 
-  RNA_def_function(srna, "cursor_modal_restore", "WM_cursor_modal_restore");
+  func = RNA_def_function(srna, "cursor_modal_restore", "WM_cursor_modal_restore");
   RNA_def_function_ui_description(
       func, "Restore the previous cursor after calling ``cursor_modal_set``");
 
@@ -771,9 +973,37 @@ void RNA_api_window(StructRNA *srna)
   RNA_def_boolean(func, "ctrl", false, "Ctrl", "");
   RNA_def_boolean(func, "alt", false, "Alt", "");
   RNA_def_boolean(func, "oskey", false, "OS Key", "");
+  RNA_def_boolean(func, "hyper", false, "Hyper", "");
   parm = RNA_def_pointer(func, "event", "Event", "Item", "Added key map item");
   RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "find_playing_scene", "rna_Window_find_playing_scene");
+  RNA_def_boolean(
+      func, "scrub", false, "Scrubbing", "Check if time in the scene is being scrubbed");
+  parm = RNA_def_pointer(func, "scene", "Scene", "Scene", "Scene that is currently playing");
+  RNA_def_function_return(func, parm);
 }
+
+void RNA_api_windows(StructRNA *srna)
+{
+  FunctionRNA *func;
+  PropertyRNA *param;
+
+  func = RNA_def_function(srna, "find_playing", "rna_Windows_find_playing");
+  RNA_def_boolean(
+      func, "scrub", false, "Scrubbing", "Check if time in the window is being scrubbed");
+  param = RNA_def_pointer(func, "window", "Window", "Window", "Window that is currently playing");
+  RNA_def_function_return(func, param);
+}
+
+const EnumPropertyItem rna_operator_popup_icon_items[] = {
+    {int(ui::AlertIcon::None), "NONE", 0, "None", ""},
+    {int(ui::AlertIcon::Warning), "WARNING", 0, "Warning", ""},
+    {int(ui::AlertIcon::Question), "QUESTION", 0, "Question", ""},
+    {int(ui::AlertIcon::Error), "ERROR", 0, "Error", ""},
+    {int(ui::AlertIcon::Info), "INFO", 0, "Info", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 void RNA_api_wm(StructRNA *srna)
 {
@@ -781,11 +1011,9 @@ void RNA_api_wm(StructRNA *srna)
   PropertyRNA *parm;
 
   func = RNA_def_function(srna, "fileselect_add", "WM_event_add_fileselect");
-  RNA_def_function_ui_description(
-      func,
-      "Opens a file selector with an operator. "
-      "The string properties 'filepath', 'filename', 'directory' and a 'files' "
-      "collection are assigned when present in the operator");
+  /* Note that a full description is located at:
+   * `doc/python_api/examples/bpy.types.WindowManager.fileselect_add.py`. */
+  RNA_def_function_ui_description(func, "Opens a file selector with an operator.");
   rna_generic_op_invoke(func, 0);
 
   func = RNA_def_function(srna, "modal_handler_add", "rna_event_modal_handler_add");
@@ -859,12 +1087,22 @@ void RNA_api_wm(StructRNA *srna)
   rna_generic_op_invoke(func, WM_GEN_INVOKE_EVENT | WM_GEN_INVOKE_RETURN);
 
   /* invoked dialog opens popup with OK button, does not auto-exec operator. */
-  func = RNA_def_function(srna, "invoke_props_dialog", "WM_operator_props_dialog_popup");
+  func = RNA_def_function(srna, "invoke_props_dialog", "rna_Operator_props_dialog_popup");
   RNA_def_function_ui_description(
       func,
       "Operator dialog (non-autoexec popup) invoke "
       "(show operator properties and only execute it on click on OK button)");
   rna_generic_op_invoke(func, WM_GEN_INVOKE_SIZE | WM_GEN_INVOKE_RETURN);
+
+  parm = RNA_def_property(func, "title", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(parm, "Title", "Optional text to show as title of the popup");
+  parm = RNA_def_property(func, "confirm_text", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(
+      parm,
+      "Confirm Text",
+      "Optional text to show instead to the default \"OK\" confirmation button text");
+  RNA_def_property(func, "cancel_default", PROP_BOOLEAN, PROP_NONE);
+  api_ui_item_common_translation(func);
 
   /* invoke enum */
   func = RNA_def_function(srna, "invoke_search_popup", "rna_Operator_enum_search_invoke");
@@ -876,7 +1114,7 @@ void RNA_api_wm(StructRNA *srna)
   rna_generic_op_invoke(func, 0);
 
   /* invoke functions, for use with python */
-  func = RNA_def_function(srna, "invoke_popup", "WM_operator_ui_popup");
+  func = RNA_def_function(srna, "invoke_popup", "rna_Operator_ui_popup");
   RNA_def_function_ui_description(func,
                                   "Operator popup invoke "
                                   "(only shows operator's properties, without executing it)");
@@ -889,9 +1127,28 @@ void RNA_api_wm(StructRNA *srna)
       "(only to let user confirm the execution, no operator properties shown)");
   rna_generic_op_invoke(func, WM_GEN_INVOKE_EVENT | WM_GEN_INVOKE_RETURN);
 
-  /* wrap UI_popup_menu_begin */
+  parm = RNA_def_property(func, "title", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(parm, "Title", "Optional text to show as title of the popup");
+
+  parm = RNA_def_property(func, "message", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(parm, "Message", "Optional first line of content text");
+
+  parm = RNA_def_property(func, "confirm_text", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(
+      parm,
+      "Confirm Text",
+      "Optional text to show instead to the default \"OK\" confirmation button text");
+
+  parm = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(parm, rna_operator_popup_icon_items);
+  RNA_def_property_enum_default(parm, int(ui::AlertIcon::None));
+  RNA_def_property_ui_text(parm, "Icon", "Optional icon displayed in the dialog");
+
+  api_ui_item_common_translation(func);
+
+  /* wrap popup_menu_begin */
   func = RNA_def_function(srna, "popmenu_begin__internal", "rna_PopMenuBegin");
-  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "title", nullptr, 0, "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
@@ -901,15 +1158,15 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  /* wrap UI_popup_menu_end */
+  /* wrap popup_menu_end */
   func = RNA_def_function(srna, "popmenu_end__internal", "rna_PopMenuEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPopupMenu", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
 
-  /* wrap UI_popover_begin */
+  /* wrap popover_begin */
   func = RNA_def_function(srna, "popover_begin__internal", "rna_PopoverBegin");
-  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   RNA_def_property(func, "ui_units_x", PROP_INT, PROP_UNSIGNED);
   /* return */
   parm = RNA_def_pointer(func, "menu", "UIPopover", "", "");
@@ -918,16 +1175,16 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_boolean(
       func, "from_active_button", false, "Use Button", "Use the active button for positioning");
 
-  /* wrap UI_popover_end */
+  /* wrap popover_end */
   func = RNA_def_function(srna, "popover_end__internal", "rna_PopoverEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPopover", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
   RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Active key map");
 
-  /* wrap uiPieMenuBegin */
+  /* wrap ui::PieMenuBegin */
   func = RNA_def_function(srna, "piemenu_begin__internal", "rna_PieMenuBegin");
-  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "title", nullptr, 0, "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
@@ -939,7 +1196,7 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  /* wrap uiPieMenuEnd */
+  /* wrap ui::PieMenuEnd */
   func = RNA_def_function(srna, "piemenu_end__internal", "rna_PieMenuEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPieMenu", "", "");
@@ -965,12 +1222,13 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_function_flag(func, FUNC_NO_SELF);
 
   parm = RNA_def_property(srna, "is_interface_locked", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(parm, nullptr, "runtime->is_interface_locked", 0);
   RNA_def_property_ui_text(
       parm,
       "Is Interface Locked",
-      "If true, the interface is currently locked by a running job and data shouldn't be modified "
-      "from application timers. Otherwise, the running job might conflict with the handler "
-      "causing unexpected results or even crashes");
+      "If true, the interface is currently locked by a running job and data should not be "
+      "modified from application timers. Otherwise, the running job might conflict with the "
+      "handler causing unexpected results or even crashes.");
   RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 }
 
@@ -999,7 +1257,7 @@ void RNA_api_operator(StructRNA *srna)
   func = RNA_def_function(srna, "poll", nullptr);
   RNA_def_function_ui_description(func, "Test if the operator can be called or not");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_REGISTER_OPTIONAL);
-  RNA_def_function_return(func, RNA_def_boolean(func, "visible", true, "", ""));
+  RNA_def_function_return(func, RNA_def_boolean(func, "visible", false, "", ""));
   parm = RNA_def_pointer(func, "context", "Context", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
@@ -1099,7 +1357,7 @@ void RNA_api_macro(StructRNA *srna)
   func = RNA_def_function(srna, "poll", nullptr);
   RNA_def_function_ui_description(func, "Test if the operator can be called or not");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_REGISTER_OPTIONAL);
-  RNA_def_function_return(func, RNA_def_boolean(func, "visible", true, "", ""));
+  RNA_def_function_return(func, RNA_def_boolean(func, "visible", false, "", ""));
   parm = RNA_def_pointer(func, "context", "Context", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
@@ -1172,6 +1430,7 @@ void RNA_api_keymapitems(StructRNA *srna)
   RNA_def_int(func, "ctrl", KM_NOTHING, KM_ANY, KM_MOD_HELD, "Ctrl", "", KM_ANY, KM_MOD_HELD);
   RNA_def_int(func, "alt", KM_NOTHING, KM_ANY, KM_MOD_HELD, "Alt", "", KM_ANY, KM_MOD_HELD);
   RNA_def_int(func, "oskey", KM_NOTHING, KM_ANY, KM_MOD_HELD, "OS Key", "", KM_ANY, KM_MOD_HELD);
+  RNA_def_int(func, "hyper", KM_NOTHING, KM_ANY, KM_MOD_HELD, "Hyper", "", KM_ANY, KM_MOD_HELD);
   RNA_def_enum(func, "key_modifier", rna_enum_event_type_items, 0, "Key Modifier", "");
   RNA_def_enum(func, "direction", rna_enum_event_direction_items, KM_ANY, "Direction", "");
   RNA_def_boolean(func, "repeat", false, "Repeat", "When set, accept key-repeat events");
@@ -1197,6 +1456,7 @@ void RNA_api_keymapitems(StructRNA *srna)
   RNA_def_int(func, "ctrl", KM_NOTHING, KM_ANY, KM_MOD_HELD, "Ctrl", "", KM_ANY, KM_MOD_HELD);
   RNA_def_int(func, "alt", KM_NOTHING, KM_ANY, KM_MOD_HELD, "Alt", "", KM_ANY, KM_MOD_HELD);
   RNA_def_int(func, "oskey", KM_NOTHING, KM_ANY, KM_MOD_HELD, "OS Key", "", KM_ANY, KM_MOD_HELD);
+  RNA_def_int(func, "hyper", KM_NOTHING, KM_ANY, KM_MOD_HELD, "Hyper", "", KM_ANY, KM_MOD_HELD);
   RNA_def_enum(func, "key_modifier", rna_enum_event_type_items, 0, "Key Modifier", "");
   RNA_def_enum(func, "direction", rna_enum_event_direction_items, KM_ANY, "Direction", "");
   RNA_def_boolean(func, "repeat", false, "Repeat", "When set, accept key-repeat events");
@@ -1239,9 +1499,24 @@ void RNA_api_keymapitems(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
+  func = RNA_def_function(srna, "find_match", "rna_KeyMap_item_find_match");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "keymap", "KeyMap", "", "The matching keymap");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "item", "KeyMapItem", "", "The matching keymap item");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func,
+                         "result",
+                         "KeyMapItem",
+                         "",
+                         "The keymap item from this keymap which matches the keymap item from the "
+                         "arguments passed in");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
+  RNA_def_function_return(func, parm);
+
   func = RNA_def_function(srna, "match_event", "rna_KeyMap_item_match_event");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_CONTEXT);
-  parm = RNA_def_pointer(func, "event", "Event", "", "");
+  parm = RNA_def_pointer(func, "event", "Event", "", "Event to match against");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_pointer(func, "item", "KeyMapItem", "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
@@ -1265,7 +1540,12 @@ void RNA_api_keymaps(StructRNA *srna)
   RNA_def_enum(func, "space_type", rna_enum_space_type_items, SPACE_EMPTY, "Space Type", "");
   RNA_def_enum(
       func, "region_type", rna_enum_region_type_items, RGN_TYPE_WINDOW, "Region Type", "");
-  RNA_def_boolean(func, "modal", false, "Modal", "Keymap for modal operators");
+  RNA_def_boolean(func,
+                  "modal",
+                  false,
+                  "Modal",
+                  "Keymap for modal operators. "
+                  "Modal keymaps are not supported for :class:`KeyConfigs.addons`.");
   RNA_def_boolean(func, "tool", false, "Tool", "Keymap for active tools");
   parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Added key map");
   RNA_def_function_return(func, parm);
@@ -1286,6 +1566,12 @@ void RNA_api_keymaps(StructRNA *srna)
   RNA_def_enum(
       func, "region_type", rna_enum_region_type_items, RGN_TYPE_WINDOW, "Region Type", "");
   parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Corresponding key map");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "find_match", "rna_KeyMaps_find_match");
+  parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "The key map for comparison");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "result", "KeyMap", "Key Map", "Corresponding key map");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "find_modal", "rna_KeyMaps_find_modal");
@@ -1343,5 +1629,226 @@ void RNA_api_keyconfigs(StructRNA *srna)
       "Keep Properties",
       "Operator properties are kept to allow the operators to be registered again in the future");
 }
+
+/* Exposes the #blender::asset_system::asset_library_status_xxx() functions in the WM API, for the
+ * lack of a better place. */
+void RNA_api_asset_library_loading_status(StructRNA *srna)
+{
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  func = RNA_def_function(
+      srna, "asset_library_status_begin_loading", "rna_asset_library_status_begin_loading");
+  RNA_def_function_ui_description(
+      func, "Inform the asset system that the asset library at the given URL is being loaded.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(func,
+                        "library_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_float(
+      func,
+      "timeout",
+      0.3,
+      0.0,
+      FLT_MAX,
+      "Timeout",
+      "Maximum time in seconds after which the asset library loading will be considered "
+      "cancelled, if no further status reporting is done (e.g. by repeated calls to "
+      "`asset_library_status_ping_still_loading()`).",
+      0.0,
+      FLT_MAX);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_still_loading",
+                          "rna_asset_library_status_ping_still_loading");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that the loading is still ongoing. "
+                                  "Call this regularly to prevent the loading status to timeout.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(func,
+                        "library_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_metafiles_in_place",
+                          "rna_asset_library_status_ping_metafiles_in_place");
+  RNA_def_function_ui_description(
+      func,
+      "Inform the asset system that the asset meta files (_asset-library-meta.json, "
+      "asset-listing.json, blender_assets.cats.txt) are in place and ready to be loaded");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(func,
+                        "library_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_loaded_new_pages",
+                          "rna_asset_library_status_ping_loaded_new_pages");
+  RNA_def_function_ui_description(func, "Inform the asset system that new content");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(func,
+                        "library_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_loaded_new_preview",
+                          "rna_asset_library_status_ping_loaded_new_preview");
+  RNA_def_function_ui_description(
+      func, "Inform the asset system that a new preview is available and ready for display");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  parm = RNA_def_string(
+      func,
+      "preview_full_path",
+      nullptr,
+      0,
+      "URL",
+      "The full path (not URL!) pointing to the the asset preview that should be available now");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_asset_file_progress",
+                          "rna_asset_library_status_ping_asset_file_progress");
+  RNA_def_function_ui_description(
+      func, "Inform the asset system about the current progress of an asset file.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(func,
+                        "absolute_file_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The absolute URL this file was downloaded from");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(
+      func,
+      "size_written",
+      0,
+      0,
+      INT_MAX,
+      "Size Written to Disk",
+      "The number of bytes written to disk after uncompressing the download data, if needed",
+      0,
+      0);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_asset_file_succeeded",
+                          "rna_asset_library_status_ping_asset_file_succeeded");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that a single asset file download has "
+                                  "finished successfully.");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  parm = RNA_def_string(func,
+                        "library_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string(func,
+                        "absolute_file_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The absolute URL this file was downloaded from");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string(func,
+                        "local_file_abspath",
+                        nullptr,
+                        0,
+                        "Local Path",
+                        "The absolute path this file was downloaded to");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_asset_file_failed",
+                          "rna_asset_library_status_ping_asset_file_failed");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that a single asset file download has "
+                                  "stopped because of some failure.");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+  parm = RNA_def_string(func,
+                        "library_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string(func,
+                        "absolute_file_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The absolute URL this file was downloaded from");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string(func,
+                        "local_file_abspath",
+                        nullptr,
+                        0,
+                        "Local Path",
+                        "The absolute path this file was supposed to be downloaded to");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_finished_download_queue",
+                          "rna_asset_library_status_ping_finished_download_queue");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that there are no more pending asset "
+                                  "file downloads for any asset library.");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+
+  func = RNA_def_function(
+      srna, "asset_library_status_finished_loading", "rna_asset_library_status_finished_loading");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that the asset library at the given "
+                                  "URL has successfully finished loading.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(func,
+                        "library_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(
+      srna, "asset_library_status_failed_loading", "rna_asset_library_status_failed_loading");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that the asset library at the given "
+                                  "URL failed loading, and should be aborted.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(func,
+                        "library_url",
+                        nullptr,
+                        0,
+                        "URL",
+                        "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_string(func, "message", nullptr, 0, "Message", "An error message to show to users");
+
+  func = RNA_def_function(
+      srna, "register_node_group_operators", "rna_register_node_group_operators");
+  RNA_def_function_ui_description(func,
+                                  "Trigger manual re-registration of node group operators. Useful "
+                                  "in background mode where this doesn't happen automatically.");
+  RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
+}
+
+}  // namespace blender
 
 #endif

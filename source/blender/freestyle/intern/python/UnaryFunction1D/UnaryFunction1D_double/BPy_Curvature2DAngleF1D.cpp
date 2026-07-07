@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char Curvature2DAngleF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    Curvature2DAngleF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`Curvature2DAngleF1D`\n"
     "\n"
@@ -30,7 +28,7 @@ static char Curvature2DAngleF1D___doc__[] =
     "\n"
     "   Builds a Curvature2DAngleF1D object.\n"
     "\n"
-    "   :arg integration_type: The integration method used to compute a single value\n"
+    "   :param integration_type: The integration method used to compute a single value\n"
     "      from a set of values.\n"
     "   :type integration_type: :class:`freestyle.types.IntegrationType`\n"
     "\n"
@@ -38,11 +36,10 @@ static char Curvature2DAngleF1D___doc__[] =
     "\n"
     "   Returns the 2D curvature as an angle for an Interface1D.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The 2D curvature as an angle.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int Curvature2DAngleF1D___init__(BPy_Curvature2DAngleF1D *self,
                                         PyObject *args,
                                         PyObject *kwds)
@@ -103,7 +100,3 @@ PyTypeObject Curvature2DAngleF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

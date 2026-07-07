@@ -12,21 +12,23 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "GHOST_Debug.hh"
 #include "GHOST_PathUtils.hh"
-#include "GHOST_Types.h"
+#include "GHOST_Types.hh"
 
 /* Based on: https://stackoverflow.com/a/2766963/432509 */
 
-using DecodeState_e = enum DecodeState_e {
+enum DecodeState_e {
   /** Searching for an ampersand to convert. */
   STATE_SEARCH = 0,
   /** Convert the two proceeding characters from hex. */
   STATE_CONVERTING
 };
 
-void GHOST_URL_decode(char *buf_dst, int buf_dst_size, const char *buf_src)
+void GHOST_URL_decode(char *buf_dst, int buf_dst_size, const char *buf_src, const int buf_src_len)
 {
-  const uint buf_src_len = strlen(buf_src);
+  GHOST_ASSERT(strnlen(buf_src, buf_src_len) == buf_src_len, "Incorrect length");
+
   DecodeState_e state = STATE_SEARCH;
   uint ascii_character;
 
@@ -85,12 +87,12 @@ void GHOST_URL_decode(char *buf_dst, int buf_dst_size, const char *buf_src)
   }
 }
 
-char *GHOST_URL_decode_alloc(const char *buf_src)
+char *GHOST_URL_decode_alloc(const char *buf_src, const int buf_src_len)
 {
   /* Assume one character of encoded URL can be expanded to 4 chars max. */
-  const size_t decoded_size_max = 4 * strlen(buf_src) + 1;
+  const size_t decoded_size_max = 4 * buf_src_len + 1;
   char *buf_dst = (char *)malloc(decoded_size_max);
-  GHOST_URL_decode(buf_dst, decoded_size_max, buf_src);
+  GHOST_URL_decode(buf_dst, decoded_size_max, buf_src, buf_src_len);
   const size_t decoded_size = strlen(buf_dst) + 1;
   if (decoded_size != decoded_size_max) {
     char *buf_dst_trim = (char *)malloc(decoded_size);

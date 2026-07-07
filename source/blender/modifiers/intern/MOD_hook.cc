@@ -6,73 +6,68 @@
  * \ingroup modifiers
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
-#include "BLI_bitmap.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_bitmap.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
+#include "DNA_color_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_colortools.hh"
-#include "BKE_context.hh"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_lib_id.hh"
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
+#include "BKE_object_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLO_read_write.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "DEG_depsgraph_query.hh"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
+namespace blender {
+
 static void init_data(ModifierData *md)
 {
-  HookModifierData *hmd = (HookModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(hmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(hmd, DNA_struct_default_get(HookModifierData), modifier);
+  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(hmd, modifier);
 
   hmd->curfalloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
-  const HookModifierData *hmd = (const HookModifierData *)md;
-  HookModifierData *thmd = (HookModifierData *)target;
+  const HookModifierData *hmd = reinterpret_cast<const HookModifierData *>(md);
+  HookModifierData *thmd = reinterpret_cast<HookModifierData *>(target);
 
   BKE_modifier_copydata_generic(md, target, flag);
 
   thmd->curfalloff = BKE_curvemapping_copy(hmd->curfalloff);
 
-  thmd->indexar = static_cast<int *>(MEM_dupallocN(hmd->indexar));
+  thmd->indexar = MEM_dupalloc(hmd->indexar);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  HookModifierData *hmd = (HookModifierData *)md;
+  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
 
   /* Ask for vertex-groups if we need them. */
   if (hmd->name[0] != '\0') {
@@ -88,30 +83,30 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 
 static void free_data(ModifierData *md)
 {
-  HookModifierData *hmd = (HookModifierData *)md;
+  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
 
   BKE_curvemapping_free(hmd->curfalloff);
 
-  MEM_SAFE_FREE(hmd->indexar);
+  MEM_SAFE_DELETE(hmd->indexar);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
-  HookModifierData *hmd = (HookModifierData *)md;
+  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
 
   return !hmd->object;
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  HookModifierData *hmd = (HookModifierData *)md;
+  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&hmd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&hmd->object), IDWALK_CB_NOP);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  HookModifierData *hmd = (HookModifierData *)md;
+  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
   if (hmd->object != nullptr) {
     if (hmd->subtarget[0]) {
       DEG_add_bone_relation(
@@ -119,12 +114,12 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     }
     DEG_add_object_relation(ctx->node, hmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
   }
-  /* We need own transformation as well. */
+  /* We need our own transformation as well. */
   DEG_add_depends_on_transform_relation(ctx->node, "Hook Modifier");
 }
 
 struct HookData_cb {
-  blender::MutableSpan<blender::float3> positions;
+  MutableSpan<float3> positions;
 
   /**
    * When anything other than -1, use deform groups.
@@ -271,8 +266,8 @@ static void deformVerts_do(HookModifierData *hmd,
                            const ModifierEvalContext * /*ctx*/,
                            Object *ob,
                            Mesh *mesh,
-                           BMEditMesh *em,
-                           blender::MutableSpan<blender::float3> positions)
+                           const BMEditMesh *em,
+                           MutableSpan<float3> positions)
 {
   Object *ob_target = hmd->object;
   bPoseChannel *pchan = BKE_pose_channel_find_name(ob_target->pose, hmd->subtarget);
@@ -337,14 +332,14 @@ static void deformVerts_do(HookModifierData *hmd,
   /* get world-space matrix of target, corrected for the space the verts are in */
   if (hmd->subtarget[0] && pchan) {
     /* bone target if there's a matching pose-channel */
-    mul_m4_m4m4(dmat, ob_target->object_to_world, pchan->pose_mat);
+    mul_m4_m4m4(dmat, ob_target->object_to_world().ptr(), pchan->pose_mat);
   }
   else {
     /* just object target */
-    copy_m4_m4(dmat, ob_target->object_to_world);
+    copy_m4_m4(dmat, ob_target->object_to_world().ptr());
   }
-  invert_m4_m4(ob->world_to_object, ob->object_to_world);
-  mul_m4_series(hd.mat, ob->world_to_object, dmat, hmd->parentinv);
+  invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+  mul_m4_series(hd.mat, ob->world_to_object().ptr(), dmat, hmd->parentinv);
   /* --- done with 'hd' init --- */
 
   /* Regarding index range checking below.
@@ -366,7 +361,7 @@ static void deformVerts_do(HookModifierData *hmd,
     {
       int verts_orig_num = positions.size();
       if (ob->type == OB_MESH) {
-        const Mesh *me_orig = static_cast<const Mesh *>(ob->data);
+        const Mesh *me_orig = id_cast<const Mesh *>(ob->data);
         verts_orig_num = me_orig->verts_num;
       }
       BLI_bitmap *indexar_used = hook_index_array_to_bitmap(hmd, verts_orig_num);
@@ -377,7 +372,7 @@ static void deformVerts_do(HookModifierData *hmd,
           hook_co_apply(&hd, i, dvert ? &dvert[i] : nullptr);
         }
       }
-      MEM_freeN(indexar_used);
+      MEM_delete(indexar_used);
     }
     else { /* missing mesh or ORIGINDEX */
       if ((em != nullptr) && (hd.defgrp_index != -1)) {
@@ -392,7 +387,7 @@ static void deformVerts_do(HookModifierData *hmd,
             hook_co_apply(&hd, i, dv);
           }
         }
-        MEM_freeN(indexar_used);
+        MEM_delete(indexar_used);
       }
       else {
         for (i = 0, index_pt = hmd->indexar; i < hmd->indexar_num; i++, index_pt++) {
@@ -427,19 +422,19 @@ static void deformVerts_do(HookModifierData *hmd,
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         blender::MutableSpan<blender::float3> positions)
+                         MutableSpan<float3> positions)
 {
-  HookModifierData *hmd = (HookModifierData *)md;
+  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
   deformVerts_do(hmd, ctx, ctx->object, mesh, nullptr, positions);
 }
 
 static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
-                            BMEditMesh *em,
+                            const BMEditMesh *em,
                             Mesh *mesh,
-                            blender::MutableSpan<blender::float3> positions)
+                            MutableSpan<float3> positions)
 {
-  HookModifierData *hmd = (HookModifierData *)md;
+  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
 
   deformVerts_do(hmd,
                  ctx,
@@ -451,62 +446,59 @@ static void deform_verts_EM(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row, *col;
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   PointerRNA hook_object_ptr = RNA_pointer_get(ptr, "object");
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  ui::Layout &col = layout.column(false);
+  col.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_pointer_is_null(&hook_object_ptr) &&
       RNA_enum_get(&hook_object_ptr, "type") == OB_ARMATURE)
   {
     PointerRNA hook_object_data_ptr = RNA_pointer_get(&hook_object_ptr, "data");
-    uiItemPointerR(
-        col, ptr, "subtarget", &hook_object_data_ptr, "bones", IFACE_("Bone"), ICON_NONE);
+    col.prop_search(ptr, "subtarget", &hook_object_data_ptr, "bones", IFACE_("Bone"), ICON_NONE);
   }
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  uiItemR(layout, ptr, "strength", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
+  layout.prop(ptr, "strength", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   if (RNA_enum_get(&ob_ptr, "mode") == OB_MODE_EDIT) {
-    row = uiLayoutRow(layout, true);
-    uiItemO(row, IFACE_("Reset"), ICON_NONE, "OBJECT_OT_hook_reset");
-    uiItemO(row, IFACE_("Recenter"), ICON_NONE, "OBJECT_OT_hook_recenter");
-    row = uiLayoutRow(layout, true);
-    uiItemO(row, IFACE_("Select"), ICON_NONE, "OBJECT_OT_hook_select");
-    uiItemO(row, IFACE_("Assign"), ICON_NONE, "OBJECT_OT_hook_assign");
+    ui::Layout *row = &layout.row(true);
+    row->op("OBJECT_OT_hook_reset", IFACE_("Reset"), ICON_NONE);
+    row->op("OBJECT_OT_hook_recenter", IFACE_("Recenter"), ICON_NONE);
+    row = &layout.row(true);
+    row->op("OBJECT_OT_hook_select", IFACE_("Select"), ICON_NONE);
+    row->op("OBJECT_OT_hook_assign", IFACE_("Assign"), ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void falloff_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row;
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
   bool use_falloff = RNA_enum_get(ptr, "falloff_type") != eWarp_Falloff_None;
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemR(layout, ptr, "falloff_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
+  layout.prop(ptr, "falloff_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
 
-  row = uiLayoutRow(layout, false);
-  uiLayoutSetActive(row, use_falloff);
-  uiItemR(row, ptr, "falloff_radius", UI_ITEM_NONE, nullptr, ICON_NONE);
+  ui::Layout &row = layout.row(false);
+  row.active_set(use_falloff);
+  row.prop(ptr, "falloff_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "use_falloff_uniform", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(ptr, "use_falloff_uniform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_enum_get(ptr, "falloff_type") == eWarp_Falloff_Curve) {
-    uiTemplateCurveMapping(layout, ptr, "falloff_curve", 0, false, false, false, false);
+    template_curve_mapping(&layout, ptr, "falloff_curve", 0, false, false, false, false, false);
   }
 }
 
@@ -519,27 +511,27 @@ static void panel_register(ARegionType *region_type)
 
 static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const ModifierData *md)
 {
-  const HookModifierData *hmd = (const HookModifierData *)md;
+  const HookModifierData *hmd = reinterpret_cast<const HookModifierData *>(md);
 
-  BLO_write_struct(writer, HookModifierData, hmd);
+  writer->write_struct(hmd);
 
   if (hmd->curfalloff) {
     BKE_curvemapping_blend_write(writer, hmd->curfalloff);
   }
 
-  BLO_write_int32_array(writer, hmd->indexar_num, hmd->indexar);
+  writer->write_int32_array(hmd->indexar_num, hmd->indexar);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
-  HookModifierData *hmd = (HookModifierData *)md;
+  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
 
-  BLO_read_data_address(reader, &hmd->curfalloff);
+  BLO_read_struct(reader, CurveMapping, &hmd->curfalloff);
   if (hmd->curfalloff) {
     BKE_curvemapping_blend_read(reader, hmd->curfalloff);
   }
 
-  BLO_read_int32_array(reader, hmd->indexar_num, &hmd->indexar);
+  BLO_read_array_and_validate_size(reader, &hmd->indexar, &hmd->indexar_num);
 }
 
 ModifierTypeInfo modifierType_Hook = {
@@ -574,4 +566,8 @@ ModifierTypeInfo modifierType_Hook = {
     /*panel_register*/ panel_register,
     /*blend_write*/ blend_write,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

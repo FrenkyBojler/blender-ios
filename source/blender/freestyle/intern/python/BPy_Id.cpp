@@ -10,10 +10,6 @@
 
 #include "BPy_Convert.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -29,29 +25,32 @@ int Id_Init(PyObject *module)
     return -1;
   }
 
-  Py_INCREF(&Id_Type);
-  PyModule_AddObject(module, "Id", (PyObject *)&Id_Type);
+  PyModule_AddObjectRef(module, "Id", (PyObject *)&Id_Type);
   return 0;
 }
 
 //------------------------INSTANCE METHODS ----------------------------------
 
 PyDoc_STRVAR(
+    /* Wrap. */
     Id_doc,
     "Class for representing an object Id.\n"
     "\n"
-    ".. method:: __init__(brother)\n"
-    "            __init__(first=0, second=0)\n"
+    ".. method:: __init__(*args, **kwargs)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__(brother)``\n"
+    "   - ``__init__(first=0, second=0)``\n"
     "\n"
     "   Build the Id from two numbers or another :class:`Id` using the copy constructor.\n"
     "\n"
-    "   :arg brother: An Id object.\n"
-    "   :type brother: :class:`Id`"
-    "   :arg first: The first number.\n"
+    "   :param brother: An Id object.\n"
+    "   :type brother: :class:`Id`\n"
+    "   :param first: The first number.\n"
     "   :type first: int\n"
-    "   :arg second: The second number.\n"
+    "   :param second: The second number.\n"
     "   :type second: int\n");
-
 static int Id_init(BPy_Id *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -107,11 +106,12 @@ static PyObject *Id_RichCompare(BPy_Id *o1, BPy_Id *o2, int opid)
 
 /*----------------------Id get/setters ----------------------------*/
 
-PyDoc_STRVAR(Id_first_doc,
-             "The first number constituting the Id.\n"
-             "\n"
-             ":type: int");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    Id_first_doc,
+    "The first number constituting the Id.\n"
+    "\n"
+    ":type: int\n");
 static PyObject *Id_first_get(BPy_Id *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->id->getFirst());
@@ -128,11 +128,12 @@ static int Id_first_set(BPy_Id *self, PyObject *value, void * /*closure*/)
   return 0;
 }
 
-PyDoc_STRVAR(Id_second_doc,
-             "The second number constituting the Id.\n"
-             "\n"
-             ":type: int");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    Id_second_doc,
+    "The second number constituting the Id.\n"
+    "\n"
+    ":type: int\n");
 static PyObject *Id_second_get(BPy_Id *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->id->getSecond());
@@ -199,7 +200,3 @@ PyTypeObject Id_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

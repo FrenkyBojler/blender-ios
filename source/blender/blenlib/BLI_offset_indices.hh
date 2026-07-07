@@ -2,31 +2,37 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #pragma once
 
 #include <algorithm>
+#include <optional>
 
-namespace blender {
-namespace index_mask {
-class IndexMask;
-}
-using index_mask::IndexMask;
-}  // namespace blender
-
+#include "BLI_array.hh"
+#include "BLI_index_mask_fwd.hh"
 #include "BLI_index_range.hh"
 #include "BLI_span.hh"
 
-namespace blender::offset_indices {
+namespace blender {
+
+namespace offset_indices {
+
+/** Utility struct that can be passed into a function to skip a check for sorted indices. */
+struct NoSortCheck {};
 
 /**
- * References an array of ascending indices. A pair of consecutive indices encode an index range.
- * Another common way to store the same kind of data is to store the start and size of every range
- * separately. Using offsets instead halves the memory consumption. The downside is that the
- * array has to be one element longer than the total number of ranges. The extra element is
- * necessary to be able to get the last index range without requiring an extra branch for the case.
+ * This class is a thin wrapper around an array of increasing indices that makes it easy to
+ * retrieve an index range at a specific index. Each index range is typically a representation of
+ * a contiguous chunk of a larger array.
  *
- * This class is a thin wrapper around such an array that makes it easy to retrieve the index range
- * at a specific index.
+ * Another common way to store many index ranges is to store the start and size of every range.
+ * Using #OffsetIndices instead requires that chunks are ordered consecutively but halves the
+ * memory consumption. Another downside is that the underlying array has to be one element longer
+ * than the total number of ranges. The extra element necessary to encode the size of the last
+ * range without requiring a branch for each range access.
  */
 template<typename T> class OffsetIndices {
  private:
@@ -41,10 +47,17 @@ template<typename T> class OffsetIndices {
     BLI_assert(offsets_.size() < 2 || std::is_sorted(offsets_.begin(), offsets_.end()));
   }
 
+  /**
+   * Same as above, but skips the debug check that indices are sorted, because that can have a
+   * high performance impact making debug builds unusable for files that would be fine otherwise.
+   * This can be used when it is known that the indices are sorted already.
+   */
+  OffsetIndices(const Span<T> offsets, NoSortCheck /*no_sort_check*/) : offsets_(offsets) {}
+
   /** Return the total number of elements in the referenced arrays. */
   T total_size() const
   {
-    return offsets_.size() > 1 ? offsets_.last() : 0;
+    return offsets_.size() > 1 ? offsets_.last() - offsets_.first() : 0;
   }
 
   /**
@@ -72,16 +85,14 @@ template<typename T> class OffsetIndices {
     BLI_assert(index < offsets_.size() - 1);
     const int64_t begin = offsets_[index];
     const int64_t end = offsets_[index + 1];
-    const int64_t size = end - begin;
-    return IndexRange(begin, size);
+    return IndexRange::from_begin_end(begin, end);
   }
 
   IndexRange operator[](const IndexRange indices) const
   {
     const int64_t begin = offsets_[indices.start()];
     const int64_t end = offsets_[indices.one_after_last()];
-    const int64_t size = end - begin;
-    return IndexRange(begin, size);
+    return IndexRange::from_begin_end(begin, end);
   }
 
   /**
@@ -106,8 +117,8 @@ template<typename T> class OffsetIndices {
  * store many grouped arrays, without requiring many small allocations, giving the general benefits
  * of using contiguous memory.
  *
- * \note If the offsets are shared between many #GroupedSpan objects, it will still
- * be more efficient to retrieve the #IndexRange only once and slice each span.
+ * \note If the offsets are shared between many #GroupedSpan objects, it will be more efficient
+ * to retrieve the #IndexRange only once and slice each span.
  */
 template<typename T> struct GroupedSpan {
   OffsetIndices<int> offsets;
@@ -146,6 +157,9 @@ template<typename T> struct GroupedSpan {
 OffsetIndices<int> accumulate_counts_to_offsets(MutableSpan<int> counts_to_offsets,
                                                 int start_offset = 0);
 
+std::optional<OffsetIndices<int>> accumulate_counts_to_offsets_with_overflow_check(
+    MutableSpan<int> counts_to_offsets, int start_offset = 0);
+
 /** Create offsets where every group has the same size. */
 void fill_constant_group_size(int size, int start_offset, MutableSpan<int> offsets);
 
@@ -154,8 +168,11 @@ void copy_group_sizes(OffsetIndices<int> offsets, const IndexMask &mask, Mutable
 
 /** Gather the number of indices in each indexed group to sizes. */
 void gather_group_sizes(OffsetIndices<int> offsets, const IndexMask &mask, MutableSpan<int> sizes);
-
 void gather_group_sizes(OffsetIndices<int> offsets, Span<int> indices, MutableSpan<int> sizes);
+
+/** Calculate the total size of all the referenced groups. */
+int sum_group_sizes(OffsetIndices<int> offsets, const IndexMask &mask);
+int sum_group_sizes(OffsetIndices<int> offsets, Span<int> indices);
 
 /** Build new offsets that contains only the groups chosen by \a selection. */
 OffsetIndices<int> gather_selected_offsets(OffsetIndices<int> src_offsets,
@@ -168,6 +185,7 @@ inline OffsetIndices<int> gather_selected_offsets(OffsetIndices<int> src_offsets
 {
   return gather_selected_offsets(src_offsets, selection, 0, dst_offsets);
 }
+
 /**
  * Create a map from indexed elements to the source indices, in other words from the larger array
  * to the smaller array.
@@ -177,11 +195,38 @@ void build_reverse_map(OffsetIndices<int> offsets, MutableSpan<int> r_map);
 /**
  * Build offsets to group the elements of \a indices pointing to the same index.
  */
-void build_reverse_offsets(Span<int> indices, MutableSpan<int> r_map);
+OffsetIndices<int> build_reverse_offsets(Span<int> indices, MutableSpan<int> offsets);
 
-}  // namespace blender::offset_indices
+/**
+ * Used as a final step for parallel creation of grouped indices, to make results deterministic as
+ * each group's indices are potentially filled from multiple threads.
+ */
+void sort_groups(OffsetIndices<int> groups, MutableSpan<int> indices);
 
-namespace blender {
+/**
+ * Where the `group_indices` argument maps elements into buckets, and the `offsets` argument
+ * describes the size of each bucket, this function fills `results` with the indices in each bucket
+ * grouped by `offsets`. The `sort` argument makes the results deterministic (i.e. the indices in
+ * each bucket are sorted), otherwise internal parallelism makes this non-deterministic.
+ */
+void reverse_indices_in_groups(Span<int> group_indices,
+                               OffsetIndices<int> offsets,
+                               MutableSpan<int> results,
+                               bool sort = true);
+
+/**
+ * With `indices` divided in a certain number of unique groups, reverse the index mapping so that
+ * the indices in each group can be index by the group index. Similar to
+ * #reverse_indices_in_groups, but also creates the offsets.
+ */
+GroupedSpan<int> build_groups_from_indices(const Span<int> indices,
+                                           const int groups_num,
+                                           Array<int> &offset_data,
+                                           Array<int> &index_data);
+
+}  // namespace offset_indices
+
 using offset_indices::GroupedSpan;
 using offset_indices::OffsetIndices;
+
 }  // namespace blender

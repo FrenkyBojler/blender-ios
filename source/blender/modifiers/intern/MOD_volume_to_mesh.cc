@@ -6,36 +6,30 @@
  * \ingroup modifiers
  */
 
-#include <vector>
-
-#include "BKE_lib_query.h"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_to_mesh.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_volume_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "BLI_math_matrix_types.hh"
-#include "BLI_math_vector.h"
 #include "BLI_span.hh"
-#include "BLI_string.h"
-#include "BLI_timeit.hh"
+#include "BLI_string.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -44,9 +38,7 @@
 #  include <openvdb/tools/VolumeToMesh.h>
 #endif
 
-using blender::float3;
-using blender::float4x4;
-using blender::Span;
+namespace blender {
 
 static void init_data(ModifierData *md)
 {
@@ -58,7 +50,7 @@ static void init_data(ModifierData *md)
   vmmd->resolution_mode = VOLUME_TO_MESH_RESOLUTION_MODE_GRID;
   vmmd->voxel_amount = 32;
   vmmd->voxel_size = 0.1f;
-  vmmd->flag = 0;
+  vmmd->flag = VolumeToMeshFlag{};
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -76,43 +68,43 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   VolumeToMeshModifierData *vmmd = reinterpret_cast<VolumeToMeshModifierData *>(md);
-  walk(user_data, ob, (ID **)&vmmd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&vmmd->object), IDWALK_CB_NOP);
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
   VolumeToMeshModifierData *vmmd = static_cast<VolumeToMeshModifierData *>(ptr->data);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
   {
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "grid_name", UI_ITEM_NONE, nullptr, ICON_NONE);
+    ui::Layout &col = layout.column(false);
+    col.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "grid_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   {
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "resolution_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+    ui::Layout &col = layout.column(false);
+    col.prop(ptr, "resolution_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (vmmd->resolution_mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT) {
-      uiItemR(col, ptr, "voxel_amount", UI_ITEM_NONE, nullptr, ICON_NONE);
+      col.prop(ptr, "voxel_amount", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
     else if (vmmd->resolution_mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE) {
-      uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, nullptr, ICON_NONE);
+      col.prop(ptr, "voxel_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
 
   {
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "adaptivity", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "use_smooth_shade", UI_ITEM_NONE, nullptr, ICON_NONE);
+    ui::Layout &col = layout.column(false);
+    col.prop(ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "adaptivity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -129,7 +121,6 @@ static Mesh *create_empty_mesh(const Mesh *input_mesh)
 
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *input_mesh)
 {
-  using namespace blender;
 #ifdef WITH_OPENVDB
   VolumeToMeshModifierData *vmmd = reinterpret_cast<VolumeToMeshModifierData *>(md);
   if (vmmd->object == nullptr) {
@@ -149,21 +140,21 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     return create_empty_mesh(input_mesh);
   }
 
-  const Volume *volume = static_cast<Volume *>(vmmd->object->data);
+  const Volume *volume = id_cast<Volume *>(vmmd->object->data);
 
   BKE_volume_load(volume, DEG_get_bmain(ctx->depsgraph));
-  const blender::bke::VolumeGridData *volume_grid = BKE_volume_grid_find(volume, vmmd->grid_name);
+  const bke::VolumeGridData *volume_grid = BKE_volume_grid_find(volume, vmmd->grid_name);
   if (volume_grid == nullptr) {
     BKE_modifier_set_error(ctx->object, md, "Cannot find '%s' grid", vmmd->grid_name);
     return create_empty_mesh(input_mesh);
   }
 
-  blender::bke::VolumeTreeAccessToken tree_token;
+  bke::VolumeTreeAccessToken tree_token;
   const openvdb::GridBase &local_grid = volume_grid->grid(tree_token);
 
   openvdb::math::Transform::Ptr transform = local_grid.transform().copy();
-  transform->postMult(openvdb::Mat4d((float *)vmmd->object->object_to_world));
-  openvdb::Mat4d imat = openvdb::Mat4d((float *)ctx->object->world_to_object);
+  transform->postMult(openvdb::Mat4d(vmmd->object->object_to_world().base_ptr()));
+  openvdb::Mat4d imat = openvdb::Mat4d(ctx->object->world_to_object().base_ptr());
   /* `imat` had floating point issues and wasn't affine. */
   imat.setCol(3, openvdb::Vec4d(0, 0, 0, 1));
   transform->postMult(imat);
@@ -229,4 +220,8 @@ ModifierTypeInfo modifierType_VolumeToMesh = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

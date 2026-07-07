@@ -8,7 +8,6 @@
  * Manage search paths for font files.
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -19,13 +18,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_vec_types.h"
+#include "BLI_fileops.hh"
+#include "BLI_string.hh"
 
-#include "BLI_fileops.h"
-#include "BLI_string.h"
+#include "blf_internal.hh"
 
-#include "BLF_api.h"
-#include "blf_internal.h"
+namespace blender {
 
 char *blf_dir_metrics_search(const char *filepath)
 {
@@ -36,7 +34,7 @@ char *blf_dir_metrics_search(const char *filepath)
   s = strrchr(mfile, '.');
   if (s) {
     if (BLI_strnlen(s, 4) < 4) {
-      MEM_freeN(mfile);
+      MEM_delete(mfile);
       return nullptr;
     }
     s++;
@@ -56,6 +54,8 @@ char *blf_dir_metrics_search(const char *filepath)
       return mfile;
     }
   }
-  MEM_freeN(mfile);
+  MEM_delete(mfile);
   return nullptr;
 }
+
+}  // namespace blender

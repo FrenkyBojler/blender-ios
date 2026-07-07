@@ -6,43 +6,16 @@
  * \ingroup spview3d
  */
 
-#include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
-
-#include "MEM_guardedalloc.h"
-
-#include "BLI_rect.h"
-
-#include "BLT_translation.h"
-
-#include "BKE_armature.hh"
-#include "BKE_context.hh"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_layer.h"
-#include "BKE_object.hh"
-#include "BKE_paint.hh"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
-#include "BKE_vfont.hh"
-
-#include "DEG_depsgraph_query.hh"
-
-#include "ED_mesh.hh"
-#include "ED_particle.hh"
-#include "ED_screen.hh"
-#include "ED_transform.hh"
-
 #include "WM_api.hh"
-#include "WM_message.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_resources.hh"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 #include "view3d_navigate.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name View Pan Operator
@@ -65,10 +38,10 @@ static const EnumPropertyItem prop_view_pan_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int viewpan_invoke_impl(bContext * /*C*/,
-                               ViewOpsData *vod,
-                               const wmEvent * /*event*/,
-                               PointerRNA *ptr)
+static wmOperatorStatus viewpan_invoke_impl(bContext * /*C*/,
+                                            ViewOpsData *vod,
+                                            const wmEvent * /*event*/,
+                                            PointerRNA *ptr)
 {
   int x = 0, y = 0;
   int pandir = RNA_enum_get(ptr, "type");
@@ -91,7 +64,7 @@ static int viewpan_invoke_impl(bContext * /*C*/,
   return OPERATOR_FINISHED;
 }
 
-static int viewpan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewpan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_pan);
 }
@@ -103,7 +76,7 @@ void VIEW3D_OT_view_pan(wmOperatorType *ot)
   ot->description = "Pan the view in a given direction";
   ot->idname = ViewOpsType_pan.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = viewpan_invoke;
   ot->poll = view3d_location_poll;
 
@@ -124,3 +97,5 @@ const ViewOpsType ViewOpsType_pan = {
     /*init_fn*/ viewpan_invoke_impl,
     /*apply_fn*/ nullptr,
 };
+
+}  // namespace blender

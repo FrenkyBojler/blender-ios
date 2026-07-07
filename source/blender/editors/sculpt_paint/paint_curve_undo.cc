@@ -11,8 +11,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
+#include "DNA_userdef_types.h"
 
-#include "BKE_context.hh"
 #include "BKE_paint.hh"
 #include "BKE_undo_system.hh"
 
@@ -24,12 +24,16 @@
 #include "paint_intern.hh"
 
 #ifndef NDEBUG
-#  include "BLI_array_utils.h" /* #BLI_array_is_zeroed */
+#  include "BLI_array_utils_c.hh" /* #BLI_array_is_zeroed */
 #endif
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Conversion
  * \{ */
+
+namespace {
 
 struct UndoCurve {
   PaintCurvePoint *points; /* points of curve */
@@ -37,25 +41,27 @@ struct UndoCurve {
   int add_index;
 };
 
+}  // namespace
+
 static void undocurve_from_paintcurve(UndoCurve *uc, const PaintCurve *pc)
 {
   BLI_assert(BLI_array_is_zeroed(uc, 1));
-  uc->points = static_cast<PaintCurvePoint *>(MEM_dupallocN(pc->points));
+  uc->points = MEM_dupalloc(pc->points);
   uc->tot_points = pc->tot_points;
   uc->add_index = pc->add_index;
 }
 
 static void undocurve_to_paintcurve(const UndoCurve *uc, PaintCurve *pc)
 {
-  MEM_SAFE_FREE(pc->points);
-  pc->points = static_cast<PaintCurvePoint *>(MEM_dupallocN(uc->points));
+  MEM_SAFE_DELETE(pc->points);
+  pc->points = MEM_dupalloc(uc->points);
   pc->tot_points = uc->tot_points;
   pc->add_index = uc->add_index;
 }
 
 static void undocurve_free_data(UndoCurve *uc)
 {
-  MEM_SAFE_FREE(uc->points);
+  MEM_SAFE_DELETE(uc->points);
 }
 
 /** \} */
@@ -77,8 +83,9 @@ static bool paintcurve_undosys_poll(bContext *C)
   if (C == nullptr || !paint_curve_poll(C)) {
     return false;
   }
-  Paint *p = BKE_paint_get_active_from_context(C);
-  return (p->brush && p->brush->paint_curve);
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  Brush *brush = BKE_paint_brush(paint);
+  return (brush && brush->paint_curve);
 }
 
 static void paintcurve_undosys_step_encode_init(bContext *C, UndoStep *us_p)
@@ -95,13 +102,14 @@ static bool paintcurve_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoSt
     return false;
   }
 
-  Paint *p = BKE_paint_get_active_from_context(C);
-  PaintCurve *pc = p ? (p->brush ? p->brush->paint_curve : nullptr) : nullptr;
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  Brush *brush = BKE_paint_brush(paint);
+  PaintCurve *pc = paint ? (brush ? brush->paint_curve : nullptr) : nullptr;
   if (pc == nullptr) {
     return false;
   }
 
-  PaintCurveUndoStep *us = (PaintCurveUndoStep *)us_p;
+  PaintCurveUndoStep *us = reinterpret_cast<PaintCurveUndoStep *>(us_p);
   BLI_assert(us->step.data_size == 0);
 
   us->pc_ref.ptr = pc;
@@ -116,13 +124,13 @@ static void paintcurve_undosys_step_decode(bContext * /*C*/,
                                            const eUndoStepDir /*dir*/,
                                            bool /*is_final*/)
 {
-  PaintCurveUndoStep *us = (PaintCurveUndoStep *)us_p;
+  PaintCurveUndoStep *us = reinterpret_cast<PaintCurveUndoStep *>(us_p);
   undocurve_to_paintcurve(&us->data, us->pc_ref.ptr);
 }
 
 static void paintcurve_undosys_step_free(UndoStep *us_p)
 {
-  PaintCurveUndoStep *us = (PaintCurveUndoStep *)us_p;
+  PaintCurveUndoStep *us = reinterpret_cast<PaintCurveUndoStep *>(us_p);
   undocurve_free_data(&us->data);
 }
 
@@ -130,13 +138,13 @@ static void paintcurve_undosys_foreach_ID_ref(UndoStep *us_p,
                                               UndoTypeForEachIDRefFn foreach_ID_ref_fn,
                                               void *user_data)
 {
-  PaintCurveUndoStep *us = (PaintCurveUndoStep *)us_p;
-  foreach_ID_ref_fn(user_data, ((UndoRefID *)&us->pc_ref));
+  PaintCurveUndoStep *us = reinterpret_cast<PaintCurveUndoStep *>(us_p);
+  foreach_ID_ref_fn(user_data, (reinterpret_cast<UndoRefID *>(&us->pc_ref)));
 }
 
 void ED_paintcurve_undosys_type(UndoType *ut)
 {
-  ut->name = "Paint Curve";
+  ut->identifier = "PAINT_CURVE";
   ut->poll = paintcurve_undosys_poll;
   ut->step_encode_init = paintcurve_undosys_step_encode_init;
   ut->step_encode = paintcurve_undosys_step_encode;
@@ -172,3 +180,5 @@ void ED_paintcurve_undo_push_end(bContext *C)
 }
 
 /** \} */
+
+}  // namespace blender

@@ -26,7 +26,6 @@ class MotionPathButtonsPanel:
         col = layout.column(align=True)
         col.prop(mps, "type")
         range_group = col.column(align=True)
-        range_group.active = mps.type == 'RANGE'
         range_group.prop(mps, "range", text="Calculation Range")
 
         if mps.type == 'CURRENT_FRAME':
@@ -34,13 +33,16 @@ class MotionPathButtonsPanel:
             col.prop(mps, "frame_before", text="Frame Range Before")
             col.prop(mps, "frame_after", text="After")
             col.prop(mps, "frame_step", text="Step")
-        elif mps.type == 'RANGE':
-            col = layout.column(align=True)
-            start_end_group = col.column(align=True)
-            start_end_group.active = mps.range == 'MANUAL'
-            start_end_group.prop(mps, "frame_start", text="Frame Range Start")
-            start_end_group.prop(mps, "frame_end", text="End")
-            col.prop(mps, "frame_step", text="Step")
+
+        col = layout.column(align=True)
+        start_end_group = col.column(align=True)
+        start_end_group.active = mps.range == 'MANUAL'
+        start_end_group.prop(mps, "frame_start", text="Frame Range Start")
+        start_end_group.prop(mps, "frame_end", text="End")
+        col.prop(mps, "frame_step", text="Step")
+
+        row = col.row()
+        row.prop(mps, "use_camera_space_bake", text="Bake to Active Camera")
 
         if bones:
             op_category = "pose"
@@ -64,7 +66,7 @@ class MotionPathButtonsPanel:
         else:
             # Calculate.
             col = layout.column(align=True)
-            col.label(text="Nothing to show yet...", icon='ERROR')
+            col.label(text="Nothing to show yet...", icon='STATUS_ERROR')
             col.operator(op_category + ".paths_calculate", text="Calculate...", icon=icon)
 
         # Update All & Clear All.
@@ -104,12 +106,11 @@ class MotionPathButtonsPanel_display:
             col = layout.column()
             col.prop(mpath, "line_thickness", text="Thickness")
 
-            split = col.split(factor=0.6)
-
-            split.prop(mpath, "use_custom_color", text="Custom Color")
-            sub = split.column()
+            col.prop(mpath, "use_custom_color", text="Custom Color")
+            sub = layout.column()
             sub.enabled = mpath.use_custom_color
-            sub.prop(mpath, "color", text="")
+            sub.prop(mpath, "color", text="Before")
+            sub.prop(mpath, "color_post", text="After")
 
 
 classes = (

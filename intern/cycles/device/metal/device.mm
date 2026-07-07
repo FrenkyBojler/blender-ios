@@ -2,10 +2,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "device/device.h"
+
 #ifdef WITH_METAL
 
 #  include "device/metal/device.h"
 #  include "device/metal/device_impl.h"
+#  include "integrator/denoiser_oidn_gpu.h"
 
 #endif
 
@@ -17,14 +20,22 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef WITH_METAL
 
-Device *device_metal_create(const DeviceInfo &info, Stats &stats, Profiler &profiler)
+unique_ptr<Device> device_metal_create(const DeviceInfo &info,
+                                       Stats &stats,
+                                       Profiler &profiler,
+                                       bool headless)
 {
-  return new MetalDevice(info, stats, profiler);
+  return make_unique<MetalDevice>(info, stats, profiler, headless);
 }
 
 bool device_metal_init()
 {
   return true;
+}
+
+void device_metal_exit()
+{
+  MetalDeviceKernels::static_deinitialize();
 }
 
 void device_metal_info(vector<DeviceInfo> &devices)
@@ -40,7 +51,7 @@ void device_metal_info(vector<DeviceInfo> &devices)
     string id = string("METAL_") + device_name;
 
     /* Hardware ID might not be unique, add device number in that case. */
-    if (unique_ids.find(id) != unique_ids.end()) {
+    if (unique_ids.contains(id)) {
       id += string_printf("_ID_%d", device_index);
     }
     unique_ids.insert(id);
@@ -55,36 +66,54 @@ void device_metal_info(vector<DeviceInfo> &devices)
     info.display_device = true;
     info.denoisers = DENOISER_NONE;
     info.id = id;
+#  if defined(WITH_OPENIMAGEDENOISE)
+#    if OIDN_VERSION >= 20300
+    if (oidnIsMetalDeviceSupported(device)) {
+#    else
+    if (OIDNDenoiserGPU::is_device_supported(info)) {
+#    endif
+      info.denoisers |= DENOISER_OPENIMAGEDENOISE;
+    }
+#  endif
 
-    MetalGPUVendor vendor = MetalInfo::get_device_vendor(device);
+    info.has_nanovdb = true;
 
-    info.has_nanovdb = vendor == METAL_GPU_APPLE;
-    info.has_light_tree = vendor != METAL_GPU_AMD;
-    info.has_mnee = vendor != METAL_GPU_AMD;
+    /* MNEE caused "Compute function exceeds available temporary registers" in macOS < 13 due to a
+     * bug in spill buffer allocation sizing. */
+    info.has_mnee_ = false;
+    if (@available(macos 13.0, *)) {
+      info.has_mnee_ = true;
+    }
 
     info.use_hardware_raytracing = false;
 
     /* MetalRT now uses features exposed in Xcode versions corresponding to macOS 14+, so don't
      * expose it in builds from older Xcode versions. */
 #  if defined(MAC_OS_VERSION_14_0)
-    if (vendor != METAL_GPU_INTEL) {
-      if (@available(macos 14.0, *)) {
-        info.use_hardware_raytracing = device.supportsRaytracing;
+    if (@available(macos 14.0, *)) {
+      info.use_hardware_raytracing = device.supportsRaytracing;
 
-        /* Use hardware raytracing for faster rendering on architectures that support it. */
-        info.use_metalrt_by_default = (MetalInfo::get_apple_gpu_architecture(device) >= APPLE_M3);
-      }
+      /* Use hardware raytracing for faster rendering on architectures that support it. */
+      info.use_metalrt_by_default = device.supportsRaytracing &&
+                                    (MetalInfo::get_apple_gpu_architecture(device) >= APPLE_M3);
     }
 #  endif
 
     devices.push_back(info);
     device_index++;
+
+    LOG_INFO << "Added device \"" << info.description << "\" with id \"" << info.id << "\".";
+
+    if (info.denoisers & DENOISER_OPENIMAGEDENOISE) {
+      LOG_INFO << "Device with id \"" << info.id << "\" supports "
+               << denoiserTypeToHumanReadable(DENOISER_OPENIMAGEDENOISE) << ".";
+    }
   }
 }
 
 string device_metal_capabilities()
 {
-  string result = "";
+  string result;
   auto allDevices = MTLCopyAllDevices();
   uint32_t num_devices = (uint32_t)allDevices.count;
   if (num_devices == 0) {
@@ -102,7 +131,9 @@ string device_metal_capabilities()
 
 #else
 
-Device *device_metal_create(const DeviceInfo &info, Stats &stats, Profiler &profiler)
+unique_ptr<Device> device_metal_create(const DeviceInfo & /*info*/,
+                                       Stats & /*stats*/,
+                                       Profiler & /*profiler*/)
 {
   return nullptr;
 }
@@ -112,7 +143,7 @@ bool device_metal_init()
   return false;
 }
 
-void device_metal_info(vector<DeviceInfo> &devices) {}
+void device_metal_info(vector<DeviceInfo> & /*devices*/) {}
 
 string device_metal_capabilities()
 {

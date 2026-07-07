@@ -16,7 +16,7 @@ but some areas are still being extended and improved.
 - Create new tools.
 - Create interactive tools.
 - Create new rendering engines that integrate with Blender.
-- Subscribe to changes to data and it's properties.
+- Subscribe to changes to data and its properties.
 - Define new settings in existing Blender data.
 - Draw in the 3D Viewport using Python.
 
@@ -30,13 +30,13 @@ but some areas are still being extended and improved.
 Before Starting
 ===============
 
-This document its intended to familiarize you with Blender Python API
+This document is intended to familiarize you with Blender Python API
 but not to fully cover each topic.
 
 A quick list of helpful things to know before starting:
 
-- Enable :ref:`Developer Extra <blender_manual:prefs-interface-dev-extras>`
-  and :ref:`Python Tooltips <blender_manual:prefs-interface-tooltips-python>`.
+- Enable :ref:`Developer Extra <blender_manual:bpy.types.PreferencesView.show_developer_ui>`
+  and :ref:`Python Tooltips <blender_manual:bpy.types.PreferencesView.show_tooltips_python>`.
 - The :ref:`Python Console <blender_manual:bpy.types.SpaceConsole>`
   is great for testing one-liners; it has autocompletion so you can inspect the API quickly.
 - Button tooltips show Python attributes and operator names (when enabled see above).
@@ -60,7 +60,7 @@ Both the *Text Editor* and *Python Console* are space types you can select from 
 Rather than manually configuring your spaces for Python development,
 you can use the *Scripting* workspace accessible from the Topbar tabs.
 
-From the text editor you can open ``.py`` files or paste then from the clipboard, then test using *Run Script*.
+From the text editor you can open ``.py`` files or paste them from the clipboard, then test using *Run Script*.
 The Python Console is typically used for typing in snippets and for testing to get immediate feedback,
 but can also have entire scripts pasted into it.
 Scripts can also run from the command line with Blender but to learn scripting in Blender this isn't essential.
@@ -161,6 +161,8 @@ Data is added and removed via methods on the collections in :mod:`bpy.data`, e.g
    >>> bpy.data.meshes.remove(mesh)
 
 
+.. _info_quickstart-custom_properties:
+
 Custom Properties
 ^^^^^^^^^^^^^^^^^
 
@@ -182,7 +184,7 @@ This data is saved with the blend-file and copied with objects, for example:
    # which can have a fallback value.
    value = bpy.data.scenes["Scene"].get("test_prop", "fallback value")
 
-   # dictionaries can be assigned as long as they only use basic types.
+   # Dictionaries can be assigned as long as they only use basic types.
    collection = bpy.data.collections.new("MyTestCollection")
    collection["MySettings"] = {"foo": 10, "bar": "spam", "baz": {}}
 
@@ -195,7 +197,16 @@ Note that these properties can only be assigned basic Python types:
 - array of ints or floats
 - dictionary (only string keys are supported, values must be basic types too)
 
+.. note::
+
+   Using dictionaries allow to nest data into other data.
+   There is a hard limit of 1024 levels to the supported nesting depth.
+   Deeper nesting will lead to error messages and loss of data.
+
 These properties are valid outside of Python. They can be animated by curves or used in driver paths.
+
+For a list of types that support custom properties see:
+:ref:`types supporting custom properties <bpy_types-custom_properties>`.
 
 
 Context
@@ -263,7 +274,7 @@ For example, calling ``bpy.ops.view3d.render_border()`` from the console raises 
 
 In this case the context must be the 3D Viewport with an active camera.
 
-To avoid using try-except clauses wherever operators are called, you can call the operators
+To avoid using try-except clauses wherever operators are called, you can call the operator's
 own ``poll()`` function to check if it can run the operator in the current context.
 
 .. code-block:: python
@@ -288,7 +299,7 @@ In Python, this is done by defining a class, which is a subclass of an existing 
 Example Operator
 ----------------
 
-.. literalinclude:: __/__/__/scripts/templates_py/operator_simple.py
+.. literalinclude:: __/__/__/scripts/templates_py/Operator/simple.py
 
 Once this script runs, ``SimpleOperator`` is registered with Blender
 and can be called from Operator Search or added to the toolbar.
@@ -320,7 +331,7 @@ Example Panel
 Panels are registered as a class, like an operator.
 Notice the extra ``bl_`` variables used to set the context they display in.
 
-.. literalinclude:: __/__/__/scripts/templates_py/ui_panel_simple.py
+.. literalinclude:: __/__/__/scripts/templates_py/UI/panel_simple.py
 
 To run the script:
 
@@ -363,10 +374,10 @@ so these are accessed as normal Python types.
 
   .. code-block:: python
 
-     # setting multiple camera overlay guides
-     bpy.context.scene.camera.data.show_guide = {'GOLDEN', 'CENTER'}
+     # Setting multiple snap targets.
+     bpy.context.scene.tool_settings.snap_elements_base = {'VERTEX', 'EDGE'}
 
-     # passing as an operator argument for report types
+     # Passing as an operator argument for report types.
      self.report({'WARNING', 'INFO'}, "Some message!")
 
 
@@ -393,14 +404,14 @@ Mathutils Types
 
 Accessible from :mod:`mathutils` are vectors, quaternions, Euler angles, matrix and color types.
 Some attributes such as :class:`bpy.types.Object.location`,
-:class:`bpy.types.PoseBone.rotation_euler` and :class:`bpy.types.Scene.cursor_location`
+:class:`bpy.types.PoseBone.rotation_euler` and :class:`bpy.types.View3DCursor.location`
 can be accessed as special math types which can be used together and manipulated in various useful ways.
 
 Example of a matrix, vector multiplication:
 
 .. code-block:: python
 
-   bpy.context.object.matrix_world @ bpy.context.object.data.verts[0].co
+   bpy.context.object.matrix_world @ bpy.context.object.data.vertices[0].co
 
 .. note::
 
@@ -411,10 +422,10 @@ Example of a matrix, vector multiplication:
 
    .. code-block:: python
 
-      # modifies the Z axis in place.
+      # Modifies the Z axis in place.
       bpy.context.object.location.z += 2.0
 
-      # location variable holds a reference to the object too.
+      # Location variable holds a reference to the object too.
       location = bpy.context.object.location
       location *= 2.0
 
@@ -447,9 +458,22 @@ Using low-level functions:
 .. code-block:: python
 
    obj = bpy.context.object
-   obj.animation_data_create()
-   obj.animation_data.action = bpy.data.actions.new(name="MyAction")
-   fcu_z = obj.animation_data.action.fcurves.new(data_path="location", index=2)
+
+   # Create the action, with a slot for the object, a layer, and a keyframe strip:
+   action = bpy.data.actions.new(name="MyAction")
+   slot = action.slots.new(obj.id_type, obj.name)
+   strip = action.layers.new("MyLayer").strips.new(type='KEYFRAME')
+
+   # Create a channelbag to hold the F-Curves for the slot:
+   channelbag = strip.channelbag(slot, ensure=True)
+
+   # Create the F-Curve with two keyframes:
+   fcu_z = channelbag.fcurves.new(data_path="location", index=2)
    fcu_z.keyframe_points.add(2)
    fcu_z.keyframe_points[0].co = 10.0, 0.0
    fcu_z.keyframe_points[1].co = 20.0, 1.0
+
+   # Assign the action and the slot to the object:
+   adt = obj.animation_data_create()
+   adt.action = action
+   adt.action_slot = slot

@@ -8,12 +8,7 @@
  * Implementation of Querying and Filtering API's
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_utildefines.h"
-
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
+#include <deque>
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -25,14 +20,14 @@
 #include "intern/node/deg_node_id.hh"
 #include "intern/node/deg_node_operation.hh"
 
-namespace deg = blender::deg;
+namespace blender {
 
 /* ************************ DEG TRAVERSAL ********************* */
 
-namespace blender::deg {
+namespace deg {
 namespace {
 
-using TraversalQueue = deque<OperationNode *>;
+using TraversalQueue = std::deque<OperationNode *>;
 
 using DEGForeachOperation = void (*)(OperationNode *, void *);
 
@@ -90,7 +85,7 @@ void deg_foreach_dependent_operation(const Depsgraph * /*graph*/,
       callback(op_node, user_data);
       /* Schedule outgoing operation nodes. */
       if (op_node->outlinks.size() == 1) {
-        OperationNode *to_node = (OperationNode *)op_node->outlinks[0]->to;
+        OperationNode *to_node = static_cast<OperationNode *>(op_node->outlinks[0]->to);
         if (!scheduled.contains(to_node) && deg_foreach_needs_visit(to_node, flags)) {
           scheduled.add_new(to_node);
           op_node = to_node;
@@ -101,7 +96,7 @@ void deg_foreach_dependent_operation(const Depsgraph * /*graph*/,
       }
       else {
         for (Relation *rel : op_node->outlinks) {
-          OperationNode *to_node = (OperationNode *)rel->to;
+          OperationNode *to_node = static_cast<OperationNode *>(rel->to);
           if (!scheduled.contains(to_node) && deg_foreach_needs_visit(to_node, flags)) {
             queue.push_front(to_node);
             scheduled.add_new(to_node);
@@ -203,7 +198,7 @@ void deg_foreach_ancestor_ID(const Depsgraph *graph, const ID *id, DEGForeachIDC
       ComponentNode *comp_node = op_node->owner;
       IDNode *id_node = comp_node->owner;
       if (!visited.contains(id_node)) {
-        /* TODO(sergey): Is it orig or CoW? */
+        /* TODO(sergey): Is it orig or evaluated? */
         callback(id_node->id_orig);
         visited.add_new(id_node);
       }
@@ -211,7 +206,7 @@ void deg_foreach_ancestor_ID(const Depsgraph *graph, const ID *id, DEGForeachIDC
       if (op_node->inlinks.size() == 1) {
         Node *from = op_node->inlinks[0]->from;
         if (from->get_class() == NodeClass::OPERATION) {
-          OperationNode *from_node = (OperationNode *)from;
+          OperationNode *from_node = static_cast<OperationNode *>(from);
           if (scheduled.add(from_node)) {
             op_node = from_node;
           }
@@ -224,7 +219,7 @@ void deg_foreach_ancestor_ID(const Depsgraph *graph, const ID *id, DEGForeachIDC
         for (Relation *rel : op_node->inlinks) {
           Node *from = rel->from;
           if (from->get_class() == NodeClass::OPERATION) {
-            OperationNode *from_node = (OperationNode *)from;
+            OperationNode *from_node = static_cast<OperationNode *>(from);
             if (scheduled.add(from_node)) {
               queue.push_front(from_node);
             }
@@ -244,13 +239,13 @@ void deg_foreach_id(const Depsgraph *depsgraph, DEGForeachIDCallback callback)
 }
 
 }  // namespace
-}  // namespace blender::deg
+}  // namespace deg
 
 void DEG_foreach_dependent_ID(const Depsgraph *depsgraph,
                               const ID *id,
                               DEGForeachIDCallback callback)
 {
-  deg::deg_foreach_dependent_ID((const deg::Depsgraph *)depsgraph, id, callback);
+  deg::deg_foreach_dependent_ID(reinterpret_cast<const deg::Depsgraph *>(depsgraph), id, callback);
 }
 
 void DEG_foreach_dependent_ID_component(const Depsgraph *depsgraph,
@@ -259,18 +254,23 @@ void DEG_foreach_dependent_ID_component(const Depsgraph *depsgraph,
                                         int flags,
                                         DEGForeachIDComponentCallback callback)
 {
-  deg::deg_foreach_dependent_ID_component(
-      (const deg::Depsgraph *)depsgraph, id, source_component_type, flags, callback);
+  deg::deg_foreach_dependent_ID_component(reinterpret_cast<const deg::Depsgraph *>(depsgraph),
+                                          id,
+                                          source_component_type,
+                                          flags,
+                                          callback);
 }
 
 void DEG_foreach_ancestor_ID(const Depsgraph *depsgraph,
                              const ID *id,
                              DEGForeachIDCallback callback)
 {
-  deg::deg_foreach_ancestor_ID((const deg::Depsgraph *)depsgraph, id, callback);
+  deg::deg_foreach_ancestor_ID(reinterpret_cast<const deg::Depsgraph *>(depsgraph), id, callback);
 }
 
 void DEG_foreach_ID(const Depsgraph *depsgraph, DEGForeachIDCallback callback)
 {
-  deg::deg_foreach_id((const deg::Depsgraph *)depsgraph, callback);
+  deg::deg_foreach_id(reinterpret_cast<const deg::Depsgraph *>(depsgraph), callback);
 }
+
+}  // namespace blender

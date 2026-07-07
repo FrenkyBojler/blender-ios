@@ -7,7 +7,6 @@
  */
 
 #include <cctype>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -16,37 +15,30 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_collection_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_light_types.h"
-#include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_workspace_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_bits.h"
-#include "BLI_math_vector.h"
-#include "BLI_rand.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rand_c.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_context.hh"
-#include "BKE_deform.h"
-#include "BKE_layer.h"
+#include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
-#include "BKE_object.hh"
-#include "BKE_paint.hh"
+#include "BKE_material.hh"
 #include "BKE_particle.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_workspace.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -61,22 +53,27 @@
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
+#include "ANIM_keyingsets.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "object_intern.h"
+#include "object_intern.hh"
+
+namespace blender::ed::object {
 
 /* -------------------------------------------------------------------- */
 /** \name Public Object Selection API
  * \{ */
 
-void ED_object_base_select(Base *base, eObjectSelect_Mode mode)
+void base_select(Base *base, eObjectSelect_Mode mode)
 {
   if (mode == BA_INVERT) {
     mode = (base->flag & BASE_SELECTED) != 0 ? BA_DESELECT : BA_SELECT;
@@ -100,48 +97,52 @@ void ED_object_base_select(Base *base, eObjectSelect_Mode mode)
   }
 }
 
-void ED_object_base_active_refresh(Main *bmain, Scene *scene, ViewLayer *view_layer)
+void base_active_refresh(Main *bmain, Scene *scene, ViewLayer *view_layer)
 {
   WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  wmMsgBus *mbus = ((wmWindowManager *)bmain->wm.first)->message_bus;
+  wmMsgBus *mbus = (static_cast<wmWindowManager *>(bmain->wm.first))->runtime->message_bus;
   if (mbus != nullptr) {
     WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
   }
 }
 
-void ED_object_base_activate(bContext *C, Base *base)
+void base_activate(bContext *C, Base *base)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   view_layer->basact = base;
-  ED_object_base_active_refresh(CTX_data_main(C), scene, view_layer);
+  base_active_refresh(CTX_data_main(C), scene, view_layer);
 }
 
-void ED_object_base_activate_with_mode_exit_if_needed(bContext *C, Base *base)
+void base_activate_with_mode_exit_if_needed(bContext *C, Base *base)
 {
+  Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   /* Currently we only need to be concerned with edit-mode. */
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit) {
     Object *ob = base->object;
     if (((ob->mode & OB_MODE_EDIT) == 0) || (obedit->type != ob->type)) {
-      Main *bmain = CTX_data_main(C);
-      ED_object_editmode_exit_multi_ex(bmain, scene, view_layer, EM_FREEDATA);
+      editmode_exit_multi_ex(bmain, scene, view_layer, EM_FREEDATA);
     }
   }
-  ED_object_base_activate(C, base);
+  base_activate(C, base);
 }
 
-bool ED_object_base_deselect_all_ex(
-    const Scene *scene, ViewLayer *view_layer, View3D *v3d, int action, bool *r_any_visible)
+bool base_deselect_all_ex(const Main &bmain,
+                          const Scene *scene,
+                          ViewLayer *view_layer,
+                          View3D *v3d,
+                          int action,
+                          bool *r_any_visible)
 {
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
-    FOREACH_VISIBLE_BASE_BEGIN (scene, view_layer, v3d, base) {
+    FOREACH_VISIBLE_BASE_BEGIN (&bmain, scene, view_layer, v3d, base) {
       if (v3d && ((v3d->object_type_exclude_select & (1 << base->object->type)) != 0)) {
         continue;
       }
@@ -155,30 +156,30 @@ bool ED_object_base_deselect_all_ex(
 
   bool any_visible = false;
   bool changed = false;
-  FOREACH_VISIBLE_BASE_BEGIN (scene, view_layer, v3d, base) {
+  FOREACH_VISIBLE_BASE_BEGIN (&bmain, scene, view_layer, v3d, base) {
     if (v3d && ((v3d->object_type_exclude_select & (1 << base->object->type)) != 0)) {
       continue;
     }
     switch (action) {
       case SEL_SELECT:
         if ((base->flag & BASE_SELECTED) == 0) {
-          ED_object_base_select(base, BA_SELECT);
+          base_select(base, BA_SELECT);
           changed = true;
         }
         break;
       case SEL_DESELECT:
         if ((base->flag & BASE_SELECTED) != 0) {
-          ED_object_base_select(base, BA_DESELECT);
+          base_select(base, BA_DESELECT);
           changed = true;
         }
         break;
       case SEL_INVERT:
         if ((base->flag & BASE_SELECTED) != 0) {
-          ED_object_base_select(base, BA_DESELECT);
+          base_select(base, BA_DESELECT);
           changed = true;
         }
         else {
-          ED_object_base_select(base, BA_SELECT);
+          base_select(base, BA_SELECT);
           changed = true;
         }
         break;
@@ -192,12 +193,10 @@ bool ED_object_base_deselect_all_ex(
   return changed;
 }
 
-bool ED_object_base_deselect_all(const Scene *scene,
-                                 ViewLayer *view_layer,
-                                 View3D *v3d,
-                                 int action)
+bool base_deselect_all(
+    const Main &bmain, const Scene *scene, ViewLayer *view_layer, View3D *v3d, int action)
 {
-  return ED_object_base_deselect_all_ex(scene, view_layer, v3d, action, nullptr);
+  return base_deselect_all_ex(bmain, scene, view_layer, v3d, action, nullptr);
 }
 
 /** \} */
@@ -217,12 +216,12 @@ static int get_base_select_priority(Base *base)
   return 1;
 }
 
-Base *ED_object_find_first_by_data_id(const Scene *scene, ViewLayer *view_layer, ID *id)
+Base *find_first_by_data_id(const Main &bmain, const Scene *scene, ViewLayer *view_layer, ID *id)
 {
   BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
 
   /* Try active object. */
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   Base *basact = BKE_view_layer_active_base_get(view_layer);
 
   if (basact && basact->object && basact->object->data == id) {
@@ -233,17 +232,17 @@ Base *ED_object_find_first_by_data_id(const Scene *scene, ViewLayer *view_layer,
   Base *base_best = nullptr;
   int priority_best = 0;
 
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    if (base->object && base->object->data == id) {
-      if (base->flag & BASE_SELECTED) {
-        return base;
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (base.object && base.object->data == id) {
+      if (base.flag & BASE_SELECTED) {
+        return &base;
       }
 
-      int priority_test = get_base_select_priority(base);
+      int priority_test = get_base_select_priority(&base);
 
       if (priority_test > priority_best) {
         priority_best = priority_test;
-        base_best = base;
+        base_best = &base;
       }
     }
   }
@@ -251,12 +250,13 @@ Base *ED_object_find_first_by_data_id(const Scene *scene, ViewLayer *view_layer,
   return base_best;
 }
 
-bool ED_object_jump_to_object(bContext *C, Object *ob, const bool /*reveal_hidden*/)
+bool jump_to_object(bContext *C, Object *ob, const bool /*reveal_hidden*/)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, ob);
 
   if (base == nullptr) {
@@ -268,42 +268,39 @@ bool ED_object_jump_to_object(bContext *C, Object *ob, const bool /*reveal_hidde
   if (BKE_view_layer_active_base_get(view_layer) != base || !(base->flag & BASE_SELECTED)) {
     /* Select if not selected. */
     if (!(base->flag & BASE_SELECTED)) {
-      ED_object_base_deselect_all(scene, view_layer, v3d, SEL_DESELECT);
+      base_deselect_all(*bmain, scene, view_layer, v3d, SEL_DESELECT);
 
       if (BASE_VISIBLE(v3d, base)) {
-        ED_object_base_select(base, BA_SELECT);
+        base_select(base, BA_SELECT);
       }
 
       WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, CTX_data_scene(C));
     }
 
     /* Make active if not active. */
-    ED_object_base_activate(C, base);
+    base_activate(C, base);
   }
 
   return true;
 }
 
-bool ED_object_jump_to_bone(bContext *C,
-                            Object *ob,
-                            const char *bone_name,
-                            const bool reveal_hidden)
+bool jump_to_bone(bContext *C, Object *ob, const char *bone_name, const bool reveal_hidden)
 {
   /* Verify it's a valid armature object. */
   if (ob == nullptr || ob->type != OB_ARMATURE) {
     return false;
   }
 
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  bArmature *arm = id_cast<bArmature *>(ob->data);
 
   /* Activate the armature object. */
-  if (!ED_object_jump_to_object(C, ob, reveal_hidden)) {
+  if (!jump_to_object(C, ob, reveal_hidden)) {
     return false;
   }
 
   /* Switch to pose mode from object mode. */
   if (!ELEM(ob->mode, OB_MODE_EDIT, OB_MODE_POSE)) {
-    ED_object_mode_set(C, OB_MODE_POSE);
+    mode_set(C, OB_MODE_POSE);
   }
 
   if (ob->mode == OB_MODE_EDIT && arm->edbo != nullptr) {
@@ -336,7 +333,7 @@ bool ED_object_jump_to_bone(bContext *C,
     if (pchan != nullptr) {
       if (reveal_hidden) {
         /* Unhide the bone. */
-        pchan->bone->flag &= ~BONE_HIDDEN_P;
+        pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
         ANIM_armature_bonecoll_show_from_pchan(arm, pchan);
       }
 
@@ -344,7 +341,7 @@ bool ED_object_jump_to_bone(bContext *C,
       ED_pose_deselect_all(ob, SEL_DESELECT, true);
       ED_pose_bone_select(ob, pchan, true, true);
 
-      arm->act_bone = pchan->bone;
+      arm->act_bone = pchan->bone_get(*ob);
 
       ED_pose_bone_select_tag_update(ob);
       return true;
@@ -382,8 +379,9 @@ static bool objects_selectable_poll(bContext *C)
 /** \name Select by Type
  * \{ */
 
-static int object_select_by_type_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_by_type_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -393,12 +391,12 @@ static int object_select_by_type_exec(bContext *C, wmOperator *op)
   extend = RNA_boolean_get(op->ptr, "extend");
 
   if (extend == 0) {
-    ED_object_base_deselect_all(scene, view_layer, v3d, SEL_DESELECT);
+    base_deselect_all(*bmain, scene, view_layer, v3d, SEL_DESELECT);
   }
 
   CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (base->object->type == obtype) {
-      ED_object_base_select(base, BA_SELECT);
+      base_select(base, BA_SELECT);
     }
   }
   CTX_DATA_END;
@@ -418,7 +416,7 @@ void OBJECT_OT_select_by_type(wmOperatorType *ot)
   ot->description = "Select all visible objects that are of a type";
   ot->idname = "OBJECT_OT_select_by_type";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_by_type_exec;
   ot->poll = objects_selectable_poll;
@@ -471,7 +469,7 @@ static bool object_select_all_by_obdata(bContext *C, void *obdata)
   CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
       if (base->object->data == obdata) {
-        ED_object_base_select(base, BA_SELECT);
+        base_select(base, BA_SELECT);
         changed = true;
       }
     }
@@ -495,7 +493,7 @@ static bool object_select_all_by_material(bContext *C, Material *mat)
         mat1 = BKE_object_material_get(ob, a);
 
         if (mat1 == mat) {
-          ED_object_base_select(base, BA_SELECT);
+          base_select(base, BA_SELECT);
           changed = true;
         }
       }
@@ -519,7 +517,7 @@ static bool object_select_all_by_instance_collection(bContext *C, Object *ob)
                                                   base->object->instance_collection :
                                                   nullptr;
       if (instance_collection == instance_collection_other) {
-        ED_object_base_select(base, BA_SELECT);
+        base_select(base, BA_SELECT);
         changed = true;
       }
     }
@@ -529,17 +527,16 @@ static bool object_select_all_by_instance_collection(bContext *C, Object *ob)
   return changed;
 }
 
-static bool object_select_all_by_particle(bContext *C, Object *ob)
+static bool object_select_all_by_particle(bContext *C, const ParticleSystem *psys_act)
 {
-  ParticleSystem *psys_act = psys_get_current(ob);
   bool changed = false;
 
   CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
       /* Loop through other particles. */
-      LISTBASE_FOREACH (ParticleSystem *, psys, &base->object->particlesystem) {
-        if (psys->part == psys_act->part) {
-          ED_object_base_select(base, BA_SELECT);
+      for (ParticleSystem &psys : base->object->particlesystem) {
+        if (psys.part == psys_act->part) {
+          base_select(base, BA_SELECT);
           changed = true;
           break;
         }
@@ -562,7 +559,7 @@ static bool object_select_all_by_library(bContext *C, Library *lib)
   CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
       if (lib == base->object->id.lib) {
-        ED_object_base_select(base, BA_SELECT);
+        base_select(base, BA_SELECT);
         changed = true;
       }
     }
@@ -578,8 +575,8 @@ static bool object_select_all_by_library_obdata(bContext *C, Library *lib)
 
   CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
-      if (base->object->data && lib == ((ID *)base->object->data)->lib) {
-        ED_object_base_select(base, BA_SELECT);
+      if (base->object->data && lib == (base->object->data)->lib) {
+        base_select(base, BA_SELECT);
         changed = true;
       }
     }
@@ -589,7 +586,7 @@ static bool object_select_all_by_library_obdata(bContext *C, Library *lib)
   return changed;
 }
 
-void ED_object_select_linked_by_id(bContext *C, ID *id)
+void select_linked_by_id(bContext *C, ID *id)
 {
   int idtype = GS(id->name);
   bool changed = false;
@@ -598,10 +595,10 @@ void ED_object_select_linked_by_id(bContext *C, ID *id)
     changed = object_select_all_by_obdata(C, id);
   }
   else if (idtype == ID_MA) {
-    changed = object_select_all_by_material(C, (Material *)id);
+    changed = object_select_all_by_material(C, id_cast<Material *>(id));
   }
   else if (idtype == ID_LI) {
-    changed = object_select_all_by_library(C, (Library *)id);
+    changed = object_select_all_by_library(C, id_cast<Library *>(id));
   }
 
   if (changed) {
@@ -611,8 +608,9 @@ void ED_object_select_linked_by_id(bContext *C, ID *id)
   }
 }
 
-static int object_select_linked_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_linked_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -623,10 +621,10 @@ static int object_select_linked_exec(bContext *C, wmOperator *op)
   extend = RNA_boolean_get(op->ptr, "extend");
 
   if (extend == 0) {
-    ED_object_base_deselect_all(scene, view_layer, v3d, SEL_DESELECT);
+    base_deselect_all(*bmain, scene, view_layer, v3d, SEL_DESELECT);
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   ob = BKE_view_layer_active_object_get(view_layer);
   if (ob == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "No active object");
@@ -664,11 +662,12 @@ static int object_select_linked_exec(bContext *C, wmOperator *op)
     changed = object_select_all_by_instance_collection(C, ob);
   }
   else if (nr == OBJECT_SELECT_LINKED_PARTICLE) {
-    if (BLI_listbase_is_empty(&ob->particlesystem)) {
+    const ParticleSystem *psys_act = psys_get_current(ob);
+    if (psys_act == nullptr) {
       return OPERATOR_CANCELLED;
     }
 
-    changed = object_select_all_by_particle(C, ob);
+    changed = object_select_all_by_particle(C, psys_act);
   }
   else if (nr == OBJECT_SELECT_LINKED_LIBRARY) {
     /* do nothing */
@@ -679,7 +678,7 @@ static int object_select_linked_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    changed = object_select_all_by_library_obdata(C, ((ID *)ob->data)->lib);
+    changed = object_select_all_by_library_obdata(C, ob->data->lib);
   }
   else {
     return OPERATOR_CANCELLED;
@@ -702,7 +701,7 @@ void OBJECT_OT_select_linked(wmOperatorType *ot)
   ot->description = "Select all visible objects that are linked";
   ot->idname = "OBJECT_OT_select_linked";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_linked_exec;
   ot->poll = objects_selectable_poll;
@@ -765,7 +764,7 @@ static bool select_grouped_children(bContext *C, Object *ob, const bool recursiv
   CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
     if (ob == base->object->parent) {
       if ((base->flag & BASE_SELECTED) == 0) {
-        ED_object_base_select(base, BA_SELECT);
+        base_select(base, BA_SELECT);
         changed = true;
       }
 
@@ -781,6 +780,7 @@ static bool select_grouped_children(bContext *C, Object *ob, const bool recursiv
 /* Makes parent active and de-selected BKE_view_layer_active_object_get. */
 static bool select_grouped_parent(bContext *C)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -792,13 +792,13 @@ static bool select_grouped_parent(bContext *C)
     return false;
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   baspar = BKE_view_layer_base_find(view_layer, basact->object->parent);
 
   /* can be nullptr if parent in other scene */
   if (baspar && BASE_SELECTABLE(v3d, baspar)) {
-    ED_object_base_select(baspar, BA_SELECT);
-    ED_object_base_activate(C, baspar);
+    base_select(baspar, BA_SELECT);
+    base_activate(C, baspar);
     changed = true;
   }
   return changed;
@@ -812,8 +812,6 @@ static bool select_grouped_collection(bContext *C, Object *ob)
   bool changed = false;
   Collection *collection, *ob_collections[COLLECTION_MENU_MAX];
   int collection_count = 0, i;
-  uiPopupMenu *pup;
-  uiLayout *layout;
 
   for (collection = static_cast<Collection *>(bmain->collections.first);
        collection && (collection_count < COLLECTION_MENU_MAX);
@@ -833,7 +831,7 @@ static bool select_grouped_collection(bContext *C, Object *ob)
     CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
       if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
         if (BKE_collection_has_object(collection, base->object)) {
-          ED_object_base_select(base, BA_SELECT);
+          base_select(base, BA_SELECT);
           changed = true;
         }
       }
@@ -843,25 +841,23 @@ static bool select_grouped_collection(bContext *C, Object *ob)
   }
 
   /* build the menu. */
-  pup = UI_popup_menu_begin(C, IFACE_("Select Collection"), ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Select Collection"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   for (i = 0; i < collection_count; i++) {
     collection = ob_collections[i];
-    uiItemStringO(layout,
-                  collection->id.name + 2,
-                  ICON_NONE,
-                  "OBJECT_OT_select_same_collection",
-                  "collection",
-                  collection->id.name + 2);
+    PointerRNA op_ptr = layout.op(
+        "OBJECT_OT_select_same_collection", collection->id.name + 2, ICON_NONE);
+    RNA_string_set(&op_ptr, "collection", collection->id.name + 2);
   }
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
   return changed; /* The operator already handle this! */
 }
 
 static bool select_grouped_object_hooks(bContext *C, Object *ob)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -870,14 +866,14 @@ static bool select_grouped_object_hooks(bContext *C, Object *ob)
   Base *base;
   HookModifierData *hmd;
 
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (md->type == eModifierType_Hook) {
-      hmd = (HookModifierData *)md;
+  for (ModifierData &md : ob->modifiers) {
+    if (md.type == eModifierType_Hook) {
+      hmd = reinterpret_cast<HookModifierData *>(&md);
       if (hmd->object) {
-        BKE_view_layer_synced_ensure(scene, view_layer);
+        BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
         base = BKE_view_layer_base_find(view_layer, hmd->object);
         if (base && ((base->flag & BASE_SELECTED) == 0) && BASE_SELECTABLE(v3d, base)) {
-          ED_object_base_select(base, BA_SELECT);
+          base_select(base, BA_SELECT);
           changed = true;
         }
       }
@@ -894,7 +890,7 @@ static bool select_grouped_siblings(bContext *C, Object *ob)
 
   CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
     if ((base->object->parent == ob->parent) && ((base->flag & BASE_SELECTED) == 0)) {
-      ED_object_base_select(base, BA_SELECT);
+      base_select(base, BA_SELECT);
       changed = true;
     }
   }
@@ -903,15 +899,15 @@ static bool select_grouped_siblings(bContext *C, Object *ob)
 }
 static bool select_grouped_lighttype(bContext *C, Object *ob)
 {
-  Light *la = static_cast<Light *>(ob->data);
+  Light *la = id_cast<Light *>(ob->data);
 
   bool changed = false;
 
   CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
     if (base->object->type == OB_LAMP) {
-      Light *la_test = static_cast<Light *>(base->object->data);
+      Light *la_test = id_cast<Light *>(base->object->data);
       if ((la->type == la_test->type) && ((base->flag & BASE_SELECTED) == 0)) {
-        ED_object_base_select(base, BA_SELECT);
+        base_select(base, BA_SELECT);
         changed = true;
       }
     }
@@ -925,7 +921,7 @@ static bool select_grouped_type(bContext *C, Object *ob)
 
   CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
     if ((base->object->type == ob->type) && ((base->flag & BASE_SELECTED) == 0)) {
-      ED_object_base_select(base, BA_SELECT);
+      base_select(base, BA_SELECT);
       changed = true;
     }
   }
@@ -939,7 +935,7 @@ static bool select_grouped_index_object(bContext *C, Object *ob)
 
   CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
     if ((base->object->index == ob->index) && ((base->flag & BASE_SELECTED) == 0)) {
-      ED_object_base_select(base, BA_SELECT);
+      base_select(base, BA_SELECT);
       changed = true;
     }
   }
@@ -955,7 +951,7 @@ static bool select_grouped_color(bContext *C, Object *ob)
     if (((base->flag & BASE_SELECTED) == 0) &&
         compare_v3v3(base->object->color, ob->color, 0.005f))
     {
-      ED_object_base_select(base, BA_SELECT);
+      base_select(base, BA_SELECT);
       changed = true;
     }
   }
@@ -965,7 +961,7 @@ static bool select_grouped_color(bContext *C, Object *ob)
 
 static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *reports)
 {
-  KeyingSet *ks = ANIM_scene_get_active_keyingset(CTX_data_scene(C));
+  KeyingSet *ks = animrig::scene_get_active_keyingset(CTX_data_scene(C));
   bool changed = false;
 
   /* firstly, validate KeyingSet */
@@ -973,7 +969,7 @@ static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *r
     BKE_report(reports, RPT_ERROR, "No active Keying Set to use");
     return false;
   }
-  if (ANIM_validate_keyingset(C, nullptr, ks) != 0) {
+  if (animrig::validate_keyingset(C, nullptr, ks) != animrig::ModifyKeyReturn::SUCCESS) {
     if (ks->paths.first == nullptr) {
       if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
         BKE_report(reports,
@@ -996,10 +992,10 @@ static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *r
     if ((base->flag & BASE_SELECTED) == 0) {
       /* This is the slow way... we could end up with > 500 items here,
        * with none matching, but end up doing this on 1000 objects. */
-      LISTBASE_FOREACH (KS_Path *, ksp, &ks->paths) {
+      for (KS_Path &ksp : ks->paths) {
         /* if id matches, select then stop looping (match found) */
-        if (ksp->id == (ID *)base->object) {
-          ED_object_base_select(base, BA_SELECT);
+        if (ksp.id == id_cast<ID *>(base->object)) {
+          base_select(base, BA_SELECT);
           changed = true;
           break;
         }
@@ -1011,8 +1007,9 @@ static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *r
   return changed;
 }
 
-static int object_select_grouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_grouped_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -1023,10 +1020,10 @@ static int object_select_grouped_exec(bContext *C, wmOperator *op)
   extend = RNA_boolean_get(op->ptr, "extend");
 
   if (extend == 0) {
-    changed = ED_object_base_deselect_all(scene, view_layer, v3d, SEL_DESELECT);
+    changed = base_deselect_all(*bmain, scene, view_layer, v3d, SEL_DESELECT);
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   ob = BKE_view_layer_active_object_get(view_layer);
   if (ob == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "No active object");
@@ -1085,6 +1082,15 @@ static int object_select_grouped_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
+static bool object_select_grouped_poll(bContext *C)
+{
+  /* Uses popup menus which won't work in background mode. */
+  if (G.background) {
+    return false;
+  }
+  return objects_selectable_poll(C);
+}
+
 void OBJECT_OT_select_grouped(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1092,10 +1098,10 @@ void OBJECT_OT_select_grouped(wmOperatorType *ot)
   ot->description = "Select all visible objects grouped by various properties";
   ot->idname = "OBJECT_OT_select_grouped";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_grouped_exec;
-  ot->poll = objects_selectable_poll;
+  ot->poll = object_select_grouped_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1115,15 +1121,16 @@ void OBJECT_OT_select_grouped(wmOperatorType *ot)
 /** \name (De)select All
  * \{ */
 
-static int object_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_all_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
   int action = RNA_enum_get(op->ptr, "action");
   bool any_visible = false;
 
-  bool changed = ED_object_base_deselect_all_ex(scene, view_layer, v3d, action, &any_visible);
+  bool changed = base_deselect_all_ex(*bmain, scene, view_layer, v3d, action, &any_visible);
 
   if (changed) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
@@ -1149,7 +1156,7 @@ void OBJECT_OT_select_all(wmOperatorType *ot)
   ot->description = "Change selection of all visible objects in scene";
   ot->idname = "OBJECT_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_all_exec;
   ot->poll = objects_selectable_poll;
 
@@ -1165,11 +1172,11 @@ void OBJECT_OT_select_all(wmOperatorType *ot)
 /** \name Select In The Same Collection
  * \{ */
 
-static int object_select_same_collection_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_same_collection_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Collection *collection;
-  char collection_name[MAX_ID_NAME];
+  char collection_name[MAX_ID_NAME - 2];
 
   /* passthrough if no objects are visible */
   if (CTX_DATA_COUNT(C, visible_bases) == 0) {
@@ -1178,7 +1185,7 @@ static int object_select_same_collection_exec(bContext *C, wmOperator *op)
 
   RNA_string_get(op->ptr, "collection", collection_name);
 
-  collection = (Collection *)BKE_libblock_find_name(bmain, ID_GR, collection_name);
+  collection = id_cast<Collection *>(BKE_libblock_find_name(bmain, ID_GR, collection_name));
 
   if (!collection) {
     return OPERATOR_PASS_THROUGH;
@@ -1187,7 +1194,7 @@ static int object_select_same_collection_exec(bContext *C, wmOperator *op)
   CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
       if (BKE_collection_has_object(collection, base->object)) {
-        ED_object_base_select(base, BA_SELECT);
+        base_select(base, BA_SELECT);
       }
     }
   }
@@ -1210,7 +1217,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
   ot->description = "Select object in the same collection";
   ot->idname = "OBJECT_OT_select_same_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_same_collection_exec;
   ot->poll = objects_selectable_poll;
 
@@ -1220,7 +1227,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
   RNA_def_string(ot->srna,
                  "collection",
                  nullptr,
-                 MAX_ID_NAME,
+                 MAX_ID_NAME - 2,
                  "Collection",
                  "Name of the collection to select");
 }
@@ -1231,7 +1238,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
 /** \name Select Mirror
  * \{ */
 
-static int object_select_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_mirror_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1246,19 +1253,19 @@ static int object_select_mirror_exec(bContext *C, wmOperator *op)
     BLI_string_flip_side_name(name_flip, primbase->object->id.name + 2, true, sizeof(name_flip));
 
     if (!STREQ(name_flip, primbase->object->id.name + 2)) {
-      Object *ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, name_flip);
+      Object *ob = id_cast<Object *>(BKE_libblock_find_name(bmain, ID_OB, name_flip));
       if (ob) {
-        BKE_view_layer_synced_ensure(scene, view_layer);
+        BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
         Base *secbase = BKE_view_layer_base_find(view_layer, ob);
 
         if (secbase) {
-          ED_object_base_select(secbase, BA_SELECT);
+          base_select(secbase, BA_SELECT);
         }
       }
     }
 
     if (extend == false) {
-      ED_object_base_select(primbase, BA_DESELECT);
+      base_select(primbase, BA_DESELECT);
     }
   }
   CTX_DATA_END;
@@ -1281,7 +1288,7 @@ void OBJECT_OT_select_mirror(wmOperatorType *ot)
       "Select the mirror objects of the selected object e.g. \"L.sword\" and \"R.sword\"";
   ot->idname = "OBJECT_OT_select_mirror";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_mirror_exec;
   ot->poll = objects_selectable_poll;
 
@@ -1303,22 +1310,23 @@ void OBJECT_OT_select_mirror(wmOperatorType *ot)
 
 static bool object_select_more_less(bContext *C, const bool select)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    Object *ob = base->object;
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    Object *ob = base.object;
     ob->flag &= ~OB_DONE;
-    ob->id.tag &= ~LIB_TAG_DOIT;
+    ob->id.tag &= ~ID_TAG_DOIT;
     /* parent may be in another scene */
     if (ob->parent) {
       ob->parent->flag &= ~OB_DONE;
-      ob->parent->id.tag &= ~LIB_TAG_DOIT;
+      ob->parent->id.tag &= ~ID_TAG_DOIT;
     }
   }
 
-  ListBase ctx_base_list;
+  Vector<PointerRNA> ctx_base_list;
   CTX_data_selectable_bases(C, &ctx_base_list);
 
   CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
@@ -1326,12 +1334,12 @@ static bool object_select_more_less(bContext *C, const bool select)
   }
   CTX_DATA_END;
 
-  LISTBASE_FOREACH (CollectionPointerLink *, ctx_base, &ctx_base_list) {
-    Object *ob = ((Base *)ctx_base->ptr.data)->object;
+  for (PointerRNA &ptr : ctx_base_list) {
+    Object *ob = (static_cast<Base *>(ptr.data))->object;
     if (ob->parent) {
       if ((ob->flag & OB_DONE) != (ob->parent->flag & OB_DONE)) {
-        ob->id.tag |= LIB_TAG_DOIT;
-        ob->parent->id.tag |= LIB_TAG_DOIT;
+        ob->id.tag |= ID_TAG_DOIT;
+        ob->parent->id.tag |= ID_TAG_DOIT;
       }
     }
   }
@@ -1340,21 +1348,19 @@ static bool object_select_more_less(bContext *C, const bool select)
   const short select_mode = select ? BA_SELECT : BA_DESELECT;
   const short select_flag = select ? BASE_SELECTED : 0;
 
-  LISTBASE_FOREACH (CollectionPointerLink *, ctx_base, &ctx_base_list) {
-    Base *base = static_cast<Base *>(ctx_base->ptr.data);
+  for (PointerRNA &ptr : ctx_base_list) {
+    Base *base = static_cast<Base *>(ptr.data);
     Object *ob = base->object;
-    if ((ob->id.tag & LIB_TAG_DOIT) && ((base->flag & BASE_SELECTED) != select_flag)) {
-      ED_object_base_select(base, eObjectSelect_Mode(select_mode));
+    if ((ob->id.tag & ID_TAG_DOIT) && ((base->flag & BASE_SELECTED) != select_flag)) {
+      base_select(base, eObjectSelect_Mode(select_mode));
       changed = true;
     }
   }
 
-  BLI_freelistN(&ctx_base_list);
-
   return changed;
 }
 
-static int object_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus object_select_more_exec(bContext *C, wmOperator * /*op*/)
 {
   bool changed = object_select_more_less(C, true);
 
@@ -1377,7 +1383,7 @@ void OBJECT_OT_select_more(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_select_more";
   ot->description = "Select connected parent/child objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_more_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1385,7 +1391,7 @@ void OBJECT_OT_select_more(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int object_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus object_select_less_exec(bContext *C, wmOperator * /*op*/)
 {
   bool changed = object_select_more_less(C, false);
 
@@ -1408,7 +1414,7 @@ void OBJECT_OT_select_less(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_select_less";
   ot->description = "Deselect objects at the boundaries of parent/child relationships";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_less_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1422,29 +1428,27 @@ void OBJECT_OT_select_less(wmOperatorType *ot)
 /** \name Select Random
  * \{ */
 
-static int object_select_random_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_random_exec(bContext *C, wmOperator *op)
 {
   const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
   const float randfac = RNA_float_get(op->ptr, "ratio");
   const int seed = WM_operator_properties_select_random_seed_increment_get(op);
 
-  ListBase ctx_data_list;
+  Vector<PointerRNA> ctx_data_list;
   CTX_data_selectable_bases(C, &ctx_data_list);
-  const int tot = BLI_listbase_count(&ctx_data_list);
   int elem_map_len = 0;
-  Base **elem_map = static_cast<Base **>(MEM_mallocN(sizeof(*elem_map) * tot, __func__));
+  Base **elem_map = MEM_new_array_uninitialized<Base *>(ctx_data_list.size(), __func__);
 
-  LISTBASE_FOREACH (CollectionPointerLink *, ctx_link, &ctx_data_list) {
-    elem_map[elem_map_len++] = static_cast<Base *>(ctx_link->ptr.data);
+  for (PointerRNA &ptr : ctx_data_list) {
+    elem_map[elem_map_len++] = static_cast<Base *>(ptr.data);
   }
-  BLI_freelistN(&ctx_data_list);
 
   BLI_array_randomize(elem_map, sizeof(*elem_map), elem_map_len, seed);
   const int count_select = elem_map_len * randfac;
   for (int i = 0; i < count_select; i++) {
-    ED_object_base_select(elem_map[i], eObjectSelect_Mode(select));
+    base_select(elem_map[i], eObjectSelect_Mode(select));
   }
-  MEM_freeN(elem_map);
+  MEM_delete(elem_map);
 
   Scene *scene = CTX_data_scene(C);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
@@ -1462,7 +1466,7 @@ void OBJECT_OT_select_random(wmOperatorType *ot)
   ot->description = "Select or deselect random visible objects";
   ot->idname = "OBJECT_OT_select_random";
 
-  /* api callbacks */
+  /* API callbacks. */
   // ot->invoke = object_select_random_invoke; /* TODO: need a number popup. */
   ot->exec = object_select_random_exec;
   ot->poll = objects_selectable_poll;
@@ -1475,3 +1479,5 @@ void OBJECT_OT_select_random(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender::ed::object

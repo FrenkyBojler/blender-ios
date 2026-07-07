@@ -3,14 +3,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
+  ../asset
   ../include
-  ../../blenkernel
-  ../../blentranslation
-  ../../gpu
+  ../space_graph
+  ../../asset_system
   ../../makesrna
-  ../../sequencer
-  ../../windowmanager
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -18,6 +16,7 @@ set(INC_SYS
 )
 
 set(SRC
+  anim_asset_ops.cc
   anim_channels_defines.cc
   anim_channels_edit.cc
   anim_deps.cc
@@ -36,36 +35,43 @@ set(SRC
   keyframing.cc
   keyingsets.cc
   time_scrub_ui.cc
+  transformable.cc
 
-  anim_intern.h
+  anim_intern.hh
+  keyframes_general_intern.hh
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::animrig
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
+  PRIVATE bf::sequencer
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_PYTHON)
   add_definitions(-DWITH_PYTHON)
 endif()
 
-if(WITH_EXPERIMENTAL_FEATURES)
-  add_definitions(-DWITH_GREASE_PENCIL_V3)
-endif()
-
 blender_add_lib(bf_editor_animation "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_animation bf_rna)
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    anim_draw_test.cc
+    anim_filter_test.cc
+    keyframes_general_test.cc
     keyframes_keylist_test.cc
+    transformable_test.cc
   )
   set(TEST_INC
   )

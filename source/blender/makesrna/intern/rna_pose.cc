@@ -12,23 +12,22 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "DNA_action_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8_symbols.h"
+#include "BLI_math_base_c.hh"
 
-#include "BLT_translation.h"
+#include "BLI_string_utf8_symbols.hh"
 
 #include "UI_resources.hh"
 
 #include "WM_types.hh"
+
+#include "ANIM_rna.hh"
+
+namespace blender {
 
 /* Bone and Group Color Sets */
 const EnumPropertyItem rna_enum_color_sets_items[] = {
@@ -57,23 +56,33 @@ const EnumPropertyItem rna_enum_color_sets_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+}  // namespace blender
+
 #ifdef RNA_RUNTIME
 
-#  include "BLI_ghash.h"
-#  include "BLI_string_utils.hh"
+#  include <algorithm>
 
-#  include "BIK_api.h"
-#  include "BKE_action.h"
-#  include "BKE_armature.hh"
+#  include <fmt/format.h>
 
-#  include "DNA_userdef_types.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_math_vector_c.hh"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
 
 #  include "MEM_guardedalloc.h"
 
+#  include "DNA_constraint_types.h"
+
+#  include "BIK_api.h"
+
+#  include "BKE_action.hh"
+#  include "BKE_armature.hh"
 #  include "BKE_constraint.h"
 #  include "BKE_context.hh"
-#  include "BKE_global.h"
-#  include "BKE_idprop.h"
+#  include "BKE_global.hh"
+#  include "BKE_lib_id.hh"
+#  include "BKE_main.hh"
+#  include "BKE_report.hh"
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
@@ -85,12 +94,20 @@ const EnumPropertyItem rna_enum_color_sets_items[] = {
 
 #  include "RNA_access.hh"
 
+namespace blender {
+
 static void rna_Pose_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  // ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK); /* XXX when to use this? */
-
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
+}
+
+static void rna_PoseBone_visibility_update(Main * /* bmain */,
+                                           Scene * /* scene */,
+                                           PointerRNA *ptr)
+{
+  DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_SELECT, ptr->owner_id);
 }
 
 static void rna_Pose_dependency_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
@@ -103,8 +120,7 @@ static void rna_Pose_dependency_update(Main *bmain, Scene * /*scene*/, PointerRN
 
 static void rna_Pose_IK_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  // ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK); /* XXX: when to use this?  */
-  Object *ob = (Object *)ptr->owner_id;
+  Object *ob = id_cast<Object *>(ptr->owner_id);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
@@ -112,18 +128,15 @@ static void rna_Pose_IK_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *
   BIK_clear_data(ob->pose);
 }
 
-static char *rna_Pose_path(const PointerRNA * /*ptr*/)
+static std::optional<std::string> rna_Pose_path(const PointerRNA * /*ptr*/)
 {
-  return BLI_strdup("pose");
+  return "pose";
 }
 
-static char *rna_PoseBone_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_PoseBone_path(const PointerRNA *ptr)
 {
   const bPoseChannel *pchan = static_cast<const bPoseChannel *>(ptr->data);
-  char name_esc[sizeof(pchan->name) * 2];
-
-  BLI_str_escape(name_esc, pchan->name, sizeof(name_esc));
-  return BLI_sprintfN("pose.bones[\"%s\"]", name_esc);
+  return animrig::get_pose_bone_rna_path(*pchan);
 }
 
 /* shared for actions groups and bone groups */
@@ -140,7 +153,7 @@ static bool rna_bone_group_poll(Object *ob, ReportList *reports)
 
 void rna_ActionGroup_colorset_set(PointerRNA *ptr, int value)
 {
-  Object *ob = (Object *)ptr->owner_id;
+  Object *ob = id_cast<Object *>(ptr->owner_id);
   if (!rna_bone_group_poll(ob, nullptr)) {
     return;
   }
@@ -152,7 +165,7 @@ void rna_ActionGroup_colorset_set(PointerRNA *ptr, int value)
     grp->customCol = value;
 
     /* sync colors stored with theme colors based on the index specified */
-    action_group_colors_sync(grp, nullptr);
+    action_group_colors_sync(grp);
   }
 }
 
@@ -169,33 +182,37 @@ static IDProperty **rna_PoseBone_idprops(PointerRNA *ptr)
   return &pchan->prop;
 }
 
+static IDProperty **rna_PoseBone_system_idprops(PointerRNA *ptr)
+{
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+  return &pchan->system_properties;
+}
+
 static void rna_Pose_ik_solver_set(PointerRNA *ptr, int value)
 {
-  bPose *pose = (bPose *)ptr->data;
+  bPose *pose = static_cast<bPose *>(ptr->data);
 
   if (pose->iksolver != value) {
     /* the solver has changed, must clean any temporary structures */
     BIK_clear_data(pose);
-    if (pose->ikparam) {
-      MEM_freeN(pose->ikparam);
-      pose->ikparam = nullptr;
-    }
-    pose->iksolver = value;
+    MEM_SAFE_DELETE(pose->ikparam);
+    pose->iksolver = ePose_IKSolverType(value);
     BKE_pose_ikparam_init(pose);
   }
 }
 
 static void rna_Pose_ik_solver_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Object *ob = (Object *)ptr->owner_id;
+  Object *ob = id_cast<Object *>(ptr->owner_id);
   bPose *pose = static_cast<bPose *>(ptr->data);
+  BLI_assert(ob->pose == pose);
 
   BKE_pose_tag_recalc(bmain, pose); /* checks & sorts pose channels */
   DEG_relations_tag_update(bmain);
 
-  BKE_pose_update_constraint_flags(pose);
+  BKE_pose_update_constraint_flags(*ob);
 
-  object_test_constraints(bmain, ob);
+  ed::object::object_test_constraints(bmain, ob);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_TRANSFORM);
 }
@@ -227,11 +244,15 @@ static void rna_PoseChannel_rotation_mode_set(PointerRNA *ptr, int value)
   bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
 
   /* use API Method for conversions... */
-  BKE_rotMode_change_values(
-      pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, short(value));
+  BKE_rotMode_change_values(pchan->quat,
+                            pchan->eul,
+                            pchan->rotAxis,
+                            &pchan->rotAngle,
+                            pchan->rotmode,
+                            eRotationModes(value));
 
   /* finally, set the new rotation type */
-  pchan->rotmode = value;
+  pchan->rotmode = eRotationModes(clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX));
 }
 
 static float rna_PoseChannel_length_get(PointerRNA *ptr)
@@ -242,17 +263,17 @@ static float rna_PoseChannel_length_get(PointerRNA *ptr)
 
 static void rna_PoseChannel_name_set(PointerRNA *ptr, const char *value)
 {
-  Object *ob = (Object *)ptr->owner_id;
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+  Object *ob = id_cast<Object *>(ptr->owner_id);
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
   char oldname[sizeof(pchan->name)], newname[sizeof(pchan->name)];
 
   /* need to be on the stack */
   STRNCPY_UTF8(newname, value);
-  STRNCPY(oldname, pchan->name);
+  STRNCPY(oldname, pchan->name); /* Allow non UTF8 encoding for the old name. */
 
   BLI_assert(BKE_id_is_in_global_main(&ob->id));
-  BLI_assert(BKE_id_is_in_global_main(static_cast<ID *>(ob->data)));
-  ED_armature_bone_rename(G_MAIN, static_cast<bArmature *>(ob->data), oldname, newname);
+  BLI_assert(BKE_id_is_in_global_main(ob->data));
+  ED_armature_bone_rename(G_MAIN, id_cast<bArmature *>(ob->data), oldname, newname);
 }
 
 /* See rna_Bone_update_renamed() */
@@ -260,8 +281,8 @@ static void rna_PoseChannel_name_update(Main * /*bmain*/, Scene * /*scene*/, Poi
 {
   ID *id = ptr->owner_id;
 
-  /* redraw view */
-  WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+  /* Redraw Outliner / Dope-sheet. */
+  WM_main_add_notifier(NC_GEOM | ND_DATA | NA_RENAME, id);
 
   /* update animation channels */
   WM_main_add_notifier(NC_ANIMATION | ND_ANIMCHAN, id);
@@ -269,81 +290,67 @@ static void rna_PoseChannel_name_update(Main * /*bmain*/, Scene * /*scene*/, Poi
 
 static PointerRNA rna_PoseChannel_bone_get(PointerRNA *ptr)
 {
-  Object *ob = (Object *)ptr->owner_id;
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+  Object *ob = id_cast<Object *>(ptr->owner_id);
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
   PointerRNA tmp_ptr = *ptr;
 
   /* Replace the id_data pointer with the Armature ID. */
-  tmp_ptr.owner_id = static_cast<ID *>(ob->data);
+  tmp_ptr.owner_id = ob->data;
 
-  return rna_pointer_inherit_refine(&tmp_ptr, &RNA_Bone, pchan->bone);
+  return RNA_pointer_create_with_parent(tmp_ptr, RNA_Bone, pchan->bone_get(*ob));
 }
 
 static bool rna_PoseChannel_has_ik_get(PointerRNA *ptr)
 {
-  Object *ob = (Object *)ptr->owner_id;
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+  Object *ob = id_cast<Object *>(ptr->owner_id);
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
 
   return BKE_pose_channel_in_IK_chain(ob, pchan);
 }
 
 static StructRNA *rna_IKParam_refine(PointerRNA *ptr)
 {
-  bIKParam *param = (bIKParam *)ptr->data;
+  bIKParam *param = static_cast<bIKParam *>(ptr->data);
 
   switch (param->iksolver) {
     case IKSOLVER_ITASC:
-      return &RNA_Itasc;
+      return RNA_Itasc;
     default:
-      return &RNA_IKParam;
+      return RNA_IKParam;
   }
 }
 
 static PointerRNA rna_Pose_ikparam_get(PointerRNA *ptr)
 {
-  bPose *pose = (bPose *)ptr->data;
-  return rna_pointer_inherit_refine(ptr, &RNA_IKParam, pose->ikparam);
+  bPose *pose = static_cast<bPose *>(ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_IKParam, pose->ikparam);
 }
 
 static StructRNA *rna_Pose_ikparam_typef(PointerRNA *ptr)
 {
-  bPose *pose = (bPose *)ptr->data;
+  bPose *pose = static_cast<bPose *>(ptr->data);
 
   switch (pose->iksolver) {
     case IKSOLVER_ITASC:
-      return &RNA_Itasc;
+      return RNA_Itasc;
     default:
-      return &RNA_IKParam;
+      return RNA_IKParam;
   }
 }
 
 static void rna_Itasc_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  Object *ob = (Object *)ptr->owner_id;
+  Object *ob = id_cast<Object *>(ptr->owner_id);
   bItasc *itasc = static_cast<bItasc *>(ptr->data);
 
   /* verify values */
-  if (itasc->precision < 0.0001f) {
-    itasc->precision = 0.0001f;
-  }
-  if (itasc->minstep < 0.001f) {
-    itasc->minstep = 0.001f;
-  }
-  if (itasc->maxstep < itasc->minstep) {
-    itasc->maxstep = itasc->minstep;
-  }
-  if (itasc->feedback < 0.01f) {
-    itasc->feedback = 0.01f;
-  }
-  if (itasc->feedback > 100.0f) {
-    itasc->feedback = 100.0f;
-  }
-  if (itasc->maxvel < 0.01f) {
-    itasc->maxvel = 0.01f;
-  }
-  if (itasc->maxvel > 100.0f) {
-    itasc->maxvel = 100.0f;
-  }
+  itasc->precision = std::max(itasc->precision, 0.0001f);
+  itasc->minstep = std::max(itasc->minstep, 0.001f);
+  itasc->maxstep = std::max(itasc->maxstep, itasc->minstep);
+  itasc->feedback = std::max(itasc->feedback, 0.01f);
+  itasc->feedback = std::min(itasc->feedback, 100.0f);
+  itasc->maxvel = std::max(itasc->maxvel, 0.01f);
+  itasc->maxvel = std::min(itasc->maxvel, 100.0f);
   BIK_update_param(ob->pose);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -351,7 +358,7 @@ static void rna_Itasc_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *pt
 
 static void rna_Itasc_update_rebuild(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Object *ob = (Object *)ptr->owner_id;
+  Object *ob = id_cast<Object *>(ptr->owner_id);
   bPose *pose = ob->pose;
 
   BKE_pose_tag_recalc(bmain, pose); /* checks & sorts pose channels */
@@ -360,17 +367,17 @@ static void rna_Itasc_update_rebuild(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 static PointerRNA rna_PoseChannel_active_constraint_get(PointerRNA *ptr)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
   bConstraint *con = BKE_constraints_active_get(&pchan->constraints);
-  return rna_pointer_inherit_refine(ptr, &RNA_Constraint, con);
+  return RNA_pointer_create_with_parent(*ptr, RNA_Constraint, con);
 }
 
 static void rna_PoseChannel_active_constraint_set(PointerRNA *ptr,
                                                   PointerRNA value,
                                                   ReportList * /*reports*/)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-  BKE_constraints_active_set(&pchan->constraints, (bConstraint *)value.data);
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+  BKE_constraints_active_set(&pchan->constraints, static_cast<bConstraint *>(value.data));
 }
 
 static bConstraint *rna_PoseChannel_constraints_new(ID *id,
@@ -378,10 +385,10 @@ static bConstraint *rna_PoseChannel_constraints_new(ID *id,
                                                     Main *main,
                                                     int type)
 {
-  Object *ob = (Object *)id;
-  bConstraint *new_con = BKE_constraint_add_for_pose(ob, pchan, nullptr, type);
+  Object *ob = id_cast<Object *>(id);
+  bConstraint *new_con = BKE_constraint_add_for_pose(ob, pchan, nullptr, eBConstraint_Types(type));
 
-  ED_object_constraint_dependency_tag_update(main, ob, new_con);
+  ed::object::constraint_dependency_tag_update(main, ob, new_con);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, id);
 
   return new_con;
@@ -392,7 +399,7 @@ static void rna_PoseChannel_constraints_remove(
 {
   bConstraint *con = static_cast<bConstraint *>(con_ptr->data);
   const bool is_ik = ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
-  Object *ob = (Object *)id;
+  Object *ob = id_cast<Object *>(id);
 
   if (BLI_findindex(&pchan->constraints, con) == -1) {
     BKE_reportf(
@@ -400,10 +407,11 @@ static void rna_PoseChannel_constraints_remove(
     return;
   }
 
-  BKE_constraint_remove(&pchan->constraints, con);
-  RNA_POINTER_INVALIDATE(con_ptr);
+  BKE_constraint_remove_ex(&pchan->constraints, ob, con);
+  con_ptr->invalidate();
 
-  ED_object_constraint_update(bmain, ob);
+  ed::object::constraint_update(bmain, ob);
+  DEG_relations_tag_update(bmain);
 
   /* XXX(@ideasman42): is this really needed? */
   BKE_constraints_active_set(&pchan->constraints, nullptr);
@@ -418,7 +426,7 @@ static void rna_PoseChannel_constraints_remove(
 static void rna_PoseChannel_constraints_move(
     ID *id, bPoseChannel *pchan, Main *bmain, ReportList *reports, int from, int to)
 {
-  Object *ob = (Object *)id;
+  Object *ob = id_cast<Object *>(id);
 
   if (from == to) {
     return;
@@ -429,7 +437,7 @@ static void rna_PoseChannel_constraints_move(
     return;
   }
 
-  ED_object_constraint_tag_update(bmain, ob, nullptr);
+  ed::object::constraint_tag_update(bmain, ob, nullptr);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT, ob);
 }
 
@@ -438,12 +446,12 @@ static bConstraint *rna_PoseChannel_constraints_copy(ID *id,
                                                      Main *bmain,
                                                      PointerRNA *con_ptr)
 {
-  Object *ob = (Object *)id;
+  Object *ob = id_cast<Object *>(id);
   bConstraint *con = static_cast<bConstraint *>(con_ptr->data);
   bConstraint *new_con = BKE_constraint_copy_for_pose(ob, pchan, con);
   new_con->flag |= CONSTRAINT_OVERRIDE_LIBRARY_LOCAL;
 
-  ED_object_constraint_dependency_tag_update(bmain, ob, new_con);
+  ed::object::constraint_dependency_tag_update(bmain, ob, new_con);
   WM_main_add_notifier(NC_OBJECT | ND_CONSTRAINT | NA_ADDED, id);
 
   return new_con;
@@ -457,11 +465,11 @@ bool rna_PoseChannel_constraints_override_apply(Main *bmain,
   PropertyRNA *prop_dst = rnaapply_ctx.prop_dst;
   IDOverrideLibraryPropertyOperation *opop = rnaapply_ctx.liboverride_operation;
 
-  BLI_assert(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER &&
-             "Unsupported RNA override operation on constraints collection");
+  BLI_assert_msg(opop->operation == LIBOVERRIDE_OP_INSERT_AFTER,
+                 "Unsupported RNA override operation on constraints collection");
 
-  bPoseChannel *pchan_dst = (bPoseChannel *)ptr_dst->data;
-  bPoseChannel *pchan_src = (bPoseChannel *)ptr_src->data;
+  bPoseChannel *pchan_dst = static_cast<bPoseChannel *>(ptr_dst->data);
+  bPoseChannel *pchan_src = static_cast<bPoseChannel *>(ptr_src->data);
 
   /* Remember that insertion operations are defined and stored in correct order, which means that
    * even if we insert several items in a row, we always insert first one, then second one, etc.
@@ -497,14 +505,14 @@ bool rna_PoseChannel_constraints_override_apply(Main *bmain,
   return true;
 }
 
-static int rna_PoseChannel_proxy_editable(PointerRNA * /*ptr*/, const char ** /*r_info*/)
+static int rna_PoseChannel_proxy_editable(const PointerRNA * /*ptr*/, const char ** /*r_info*/)
 {
 #  if 0
   Object *ob = (Object *)ptr->owner_id;
   bArmature *arm = ob->data;
   bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-
-  if (pchan->bone && (pchan->bone->layer & arm->layer_protected)) {
+  Bone *bone = pchan->bone_get(*ob);
+  if (bone && (bone->layer & arm->layer_protected)) {
     *r_info = "Can't edit property of a proxy on a protected layer";
     return 0;
   }
@@ -513,66 +521,60 @@ static int rna_PoseChannel_proxy_editable(PointerRNA * /*ptr*/, const char ** /*
   return PROP_EDITABLE;
 }
 
-static int rna_PoseChannel_location_editable(PointerRNA *ptr, int index)
+static int rna_PoseChannel_location_editable(const PointerRNA *ptr, int index)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
 
   /* only if the axis in question is locked, not editable... */
   if ((index == 0) && (pchan->protectflag & OB_LOCK_LOCX)) {
     return 0;
   }
-  else if ((index == 1) && (pchan->protectflag & OB_LOCK_LOCY)) {
+  if ((index == 1) && (pchan->protectflag & OB_LOCK_LOCY)) {
     return 0;
   }
-  else if ((index == 2) && (pchan->protectflag & OB_LOCK_LOCZ)) {
+  if ((index == 2) && (pchan->protectflag & OB_LOCK_LOCZ)) {
     return 0;
   }
-  else {
-    return PROP_EDITABLE;
-  }
+  return PROP_EDITABLE;
 }
 
-static int rna_PoseChannel_scale_editable(PointerRNA *ptr, int index)
+static int rna_PoseChannel_scale_editable(const PointerRNA *ptr, int index)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
 
   /* only if the axis in question is locked, not editable... */
   if ((index == 0) && (pchan->protectflag & OB_LOCK_SCALEX)) {
     return 0;
   }
-  else if ((index == 1) && (pchan->protectflag & OB_LOCK_SCALEY)) {
+  if ((index == 1) && (pchan->protectflag & OB_LOCK_SCALEY)) {
     return 0;
   }
-  else if ((index == 2) && (pchan->protectflag & OB_LOCK_SCALEZ)) {
+  if ((index == 2) && (pchan->protectflag & OB_LOCK_SCALEZ)) {
     return 0;
   }
-  else {
-    return PROP_EDITABLE;
-  }
+  return PROP_EDITABLE;
 }
 
-static int rna_PoseChannel_rotation_euler_editable(PointerRNA *ptr, int index)
+static int rna_PoseChannel_rotation_euler_editable(const PointerRNA *ptr, int index)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
 
   /* only if the axis in question is locked, not editable... */
   if ((index == 0) && (pchan->protectflag & OB_LOCK_ROTX)) {
     return 0;
   }
-  else if ((index == 1) && (pchan->protectflag & OB_LOCK_ROTY)) {
+  if ((index == 1) && (pchan->protectflag & OB_LOCK_ROTY)) {
     return 0;
   }
-  else if ((index == 2) && (pchan->protectflag & OB_LOCK_ROTZ)) {
+  if ((index == 2) && (pchan->protectflag & OB_LOCK_ROTZ)) {
     return 0;
   }
-  else {
-    return PROP_EDITABLE;
-  }
+  return PROP_EDITABLE;
 }
 
-static int rna_PoseChannel_rotation_4d_editable(PointerRNA *ptr, int index)
+static int rna_PoseChannel_rotation_4d_editable(const PointerRNA *ptr, int index)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
 
   /* only consider locks if locking components individually... */
   if (pchan->protectflag & OB_LOCK_ROT4D) {
@@ -580,13 +582,13 @@ static int rna_PoseChannel_rotation_4d_editable(PointerRNA *ptr, int index)
     if ((index == 0) && (pchan->protectflag & OB_LOCK_ROTW)) {
       return 0;
     }
-    else if ((index == 1) && (pchan->protectflag & OB_LOCK_ROTX)) {
+    if ((index == 1) && (pchan->protectflag & OB_LOCK_ROTX)) {
       return 0;
     }
-    else if ((index == 2) && (pchan->protectflag & OB_LOCK_ROTY)) {
+    if ((index == 2) && (pchan->protectflag & OB_LOCK_ROTY)) {
       return 0;
     }
-    else if ((index == 3) && (pchan->protectflag & OB_LOCK_ROTZ)) {
+    if ((index == 3) && (pchan->protectflag & OB_LOCK_ROTZ)) {
       return 0;
     }
   }
@@ -595,39 +597,39 @@ static int rna_PoseChannel_rotation_4d_editable(PointerRNA *ptr, int index)
 }
 
 /* not essential, but much faster than the default lookup function */
-static int rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
+static bool rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
 {
-  bPose *pose = (bPose *)ptr->data;
+  bPose *pose = static_cast<bPose *>(ptr->data);
   bPoseChannel *pchan = BKE_pose_channel_find_name(pose, key);
   if (pchan) {
-    *r_ptr = RNA_pointer_create(ptr->owner_id, &RNA_PoseBone, pchan);
+    rna_pointer_create_with_ancestors(*ptr, RNA_PoseBone, pchan, *r_ptr);
     return true;
   }
-  else {
-    return false;
-  }
+  return false;
 }
 
 static void rna_PoseChannel_matrix_basis_get(PointerRNA *ptr, float *values)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-  BKE_pchan_to_mat4(pchan, (float(*)[4])values);
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+  Object *ob = id_cast<Object *>(ptr->owner_id);
+  BKE_pchan_to_mat4({pchan, pchan->bone_get(*ob)}, reinterpret_cast<float (*)[4]>(values));
 }
 
 static void rna_PoseChannel_matrix_basis_set(PointerRNA *ptr, const float *values)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
   /* No compatibility for predictable result. */
-  BKE_pchan_apply_mat4(pchan, (const float(*)[4])values, false);
+  BKE_pchan_apply_mat4(pchan, reinterpret_cast<const float (*)[4]>(values), false);
 }
 
 static void rna_PoseChannel_matrix_set(PointerRNA *ptr, const float *values)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-  Object *ob = (Object *)ptr->owner_id;
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+  Object *ob = id_cast<Object *>(ptr->owner_id);
   float tmat[4][4];
 
-  BKE_armature_mat_pose_to_bone_ex(nullptr, ob, pchan, (const float(*)[4])values, tmat);
+  BKE_armature_mat_pose_to_bone_ex(
+      nullptr, ob, pchan, reinterpret_cast<const float (*)[4]>(values), tmat);
 
   /* No compatibility for predictable result. */
   BKE_pchan_apply_mat4(pchan, tmat, false);
@@ -651,14 +653,70 @@ static void rna_PoseChannel_custom_shape_transform_set(PointerRNA *ptr,
                                                        PointerRNA value,
                                                        ReportList * /*reports*/)
 {
-  bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-  Object *ob = (Object *)ptr->owner_id;
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+  Object *ob = id_cast<Object *>(ptr->owner_id);
 
-  pchan->custom_tx = static_cast<bPoseChannel *>(rna_PoseChannel_ensure_own_pchan(
-      ob, (Object *)value.owner_id, static_cast<bPoseChannel *>(value.data)));
+  pchan->custom_tx = rna_PoseChannel_ensure_own_pchan(
+      ob, id_cast<Object *>(value.owner_id), static_cast<bPoseChannel *>(value.data));
 }
 
+void rna_Pose_custom_shape_set(PointerRNA *ptr, PointerRNA value, struct ReportList *reports)
+{
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+  Object *custom_shape = static_cast<Object *>(value.data);
+
+  if (!custom_shape) {
+    id_us_min(reinterpret_cast<ID *>(pchan->custom));
+    pchan->custom = nullptr;
+    return;
+  }
+
+  /* This should be ensured by the RNA property type. */
+  BLI_assert(GS(custom_shape->id.name) == ID_OB);
+
+  if (custom_shape->type == OB_ARMATURE) {
+    BKE_report(reports, RPT_ERROR, "Cannot use armature object as custom bone shape");
+    return;
+  }
+
+  id_us_min(reinterpret_cast<ID *>(pchan->custom));
+  pchan->custom = custom_shape;
+  id_us_plus(reinterpret_cast<ID *>(pchan->custom));
+}
+
+bool rna_Pose_custom_shape_object_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  return (reinterpret_cast<Object *>(value.owner_id))->type != OB_ARMATURE;
+}
+
+static void rna_Pose_select_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+{
+  ID *id = ptr->owner_id;
+
+  if (!id) {
+    /* There shouldn't be a pose bone without an object. */
+    BLI_assert_unreachable();
+    return;
+  }
+  BLI_assert(GS(id->name) == ID_OB);
+  Object *ob = id_cast<Object *>(id);
+  bArmature *arm = id_cast<bArmature *>(ob->data);
+
+  if (arm->flag & ARM_HAS_VIZ_DEPS) {
+    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+  }
+
+  DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
+
+  WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+  WM_main_add_notifier(NC_ANIMATION | ND_ANIMCHAN, id);
+}
+
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void rna_def_actionbone_group_common(StructRNA *srna, int update_flag, const char *update_cb)
 {
@@ -782,6 +840,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Pose Bone", "Channel defining pose data for a bone in a Pose");
   RNA_def_struct_path_func(srna, "rna_PoseBone_path");
   RNA_def_struct_idprops_func(srna, "rna_PoseBone_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_PoseBone_system_idprops");
   RNA_def_struct_ui_icon(srna, ICON_BONE_DATA);
 
   /* Bone Constraints */
@@ -837,11 +896,9 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_IK_update");
 
   prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
-  RNA_def_property_float_sdna(prop, nullptr, "size");
   RNA_def_property_flag(prop, PROP_PROPORTIONAL);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_array_func(prop, "rna_PoseChannel_scale_editable");
-  RNA_def_property_float_array_default(prop, rna_default_scale_3d);
   RNA_def_property_ui_text(prop, "Scale", "");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_IK_update");
 
@@ -849,7 +906,6 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "quat");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_array_func(prop, "rna_PoseChannel_rotation_4d_editable");
-  RNA_def_property_float_array_default(prop, rna_default_quaternion);
   RNA_def_property_ui_text(prop, "Quaternion Rotation", "Rotation in Quaternions");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -885,7 +941,11 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   /* XXX... disabled, since proxy-locked layers are currently
    * used for ensuring proxy-syncing too */
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
-  RNA_def_property_ui_text(prop, "Rotation Mode", "");
+  RNA_def_property_ui_text(
+      prop,
+      "Rotation Mode",
+      /* This description is shared by other "rotation_mode" properties. */
+      "The kind of rotation to apply, values from other rotation modes are not used");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   /* Curved bones settings - Applied on top of rest-pose values. */
@@ -967,6 +1027,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   prop = RNA_def_property(srna, "is_in_ik_chain", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_PoseChannel_has_ik_get", nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Has IK", "Is part of an IK chain");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_IK_update");
 
@@ -1115,12 +1176,13 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Custom Object", "Object that defines custom display shape for this bone");
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, "rna_Pose_custom_shape_set", nullptr, "rna_Pose_custom_shape_object_poll");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_dependency_update");
 
   prop = RNA_def_property(srna, "custom_shape_scale_xyz", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_float_sdna(prop, nullptr, "custom_scale_xyz");
   RNA_def_property_flag(prop, PROP_PROPORTIONAL);
-  RNA_def_property_float_array_default(prop, rna_default_scale_3d);
   RNA_def_property_ui_text(prop, "Custom Shape Scale", "Adjust the size of the custom shape");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1139,12 +1201,47 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
+  prop = RNA_def_property(srna, "use_transform_at_custom_shape", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", POSE_TRANSFORM_AT_CUSTOM_TX);
+  RNA_def_property_ui_text(
+      prop,
+      "Affect Gizmo",
+      "The location and orientation of the Custom Shape Transform bone will be used for transform "
+      "gizmos and for other transform operators in the 3D Viewport. When disabled, the 3D "
+      "Viewport will still use the actual bone transform for these, even when the custom bone "
+      "shape transform is overridden.");
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
+  prop = RNA_def_property(srna, "use_transform_around_custom_shape", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", POSE_TRANSFORM_AROUND_CUSTOM_TX);
+  RNA_def_property_ui_text(
+      prop,
+      "Use As Pivot",
+      "Transform the bone as if it was a child of the Custom Shape Transform bone. This can be "
+      "useful when combining shape-key and armature deformations.");
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
   prop = RNA_def_property(srna, "use_custom_shape_bone_size", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(
       prop, nullptr, "drawflag", PCHAN_DRAW_NO_CUSTOM_BONE_SIZE);
   RNA_def_property_ui_text(
       prop, "Scale to Bone Length", "Scale the custom object by the bone length");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
+  prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_boolean_sdna(prop, nullptr, "drawflag", PCHAN_DRAW_HIDDEN);
+  RNA_def_property_ui_text(prop, "Hide", "Bone is not visible except for Edit Mode");
+  RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_PoseBone_visibility_update");
+
+  prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", POSE_SELECTED);
+  RNA_def_property_ui_text(prop, "Select", "Bone is selected in Pose Mode");
+  RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_Pose_select_update");
 
   prop = RNA_def_property(srna, "custom_shape_transform", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "custom_tx");
@@ -1159,6 +1256,15 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       prop, nullptr, "rna_PoseChannel_custom_shape_transform_set", nullptr, nullptr);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
+  prop = RNA_def_property(srna, "custom_shape_wire_width", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "custom_shape_wire_width");
+  RNA_def_property_ui_text(prop, "Wire Width", "Adjust the line thickness of custom shapes");
+  /* When changing the upper limit of the range, also adjust the WIRE_WIDTH_COMPRESSION in
+   * overlay_shader_shared.hh */
+  RNA_def_property_range(prop, 1.0f, 16.0f);
+  RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 2);
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
   prop = RNA_def_property(srna, "color", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "BoneColor");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -1166,18 +1272,18 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 
   /* transform locks */
   prop = RNA_def_property(srna, "lock_location", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "protectflag", OB_LOCK_LOCX);
-  RNA_def_property_array(prop, 3);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "protectflag", OB_LOCK_LOCX, 3);
   RNA_def_property_ui_text(prop, "Lock Location", "Lock editing of location when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "lock_rotation", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "protectflag", OB_LOCK_ROTX);
-  RNA_def_property_array(prop, 3);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "protectflag", OB_LOCK_ROTX, 3);
   RNA_def_property_ui_text(prop, "Lock Rotation", "Lock editing of rotation when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1190,6 +1296,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       "Lock Rotation (4D Angle)",
       "Lock editing of 'angle' component of four-component rotations when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1200,14 +1307,15 @@ static void rna_def_pose_channel(BlenderRNA *brna)
       prop,
       "Lock Rotations (4D)",
       "Lock editing of four component rotations by components (instead of as Eulers)");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "lock_scale", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "protectflag", OB_LOCK_SCALEX);
-  RNA_def_property_array(prop, 3);
+  RNA_def_property_boolean_bitset_array_sdna(prop, nullptr, "protectflag", OB_LOCK_SCALEX, 3);
   RNA_def_property_ui_text(prop, "Lock Scale", "Lock editing of scale when transforming");
   RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1464,5 +1572,7 @@ void RNA_def_pose(BlenderRNA *brna)
   rna_def_pose_ikparam(brna);
   rna_def_pose_itasc(brna);
 }
+
+}  // namespace blender
 
 #endif

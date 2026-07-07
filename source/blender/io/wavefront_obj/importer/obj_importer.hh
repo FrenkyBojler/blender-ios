@@ -12,14 +12,8 @@
 
 namespace blender::io::obj {
 
-/* Main import function used from within Blender. */
-void importer_main(bContext *C, const OBJImportParams &import_params);
+void importer_geometry(const OBJImportParams &import_params, Vector<bke::GeometrySet> &geometries);
 
-/* Used from tests, where full bContext does not exist. */
-void importer_main(Main *bmain,
-                   Scene *scene,
-                   ViewLayer *view_layer,
-                   const OBJImportParams &import_params,
-                   size_t read_buffer_size = 256 * 1024);
+void importer_main(bContext *C, const OBJImportParams &import_params);
 
 }  // namespace blender::io::obj

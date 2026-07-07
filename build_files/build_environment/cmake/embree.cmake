@@ -16,7 +16,6 @@ set(EMBREE_EXTRA_ARGS
   -DEMBREE_BACKFACE_CULLING=OFF
   -DEMBREE_BACKFACE_CULLING_CURVES=ON
   -DEMBREE_BACKFACE_CULLING_SPHERES=ON
-  -DEMBREE_NO_SPLASH=ON
   -DEMBREE_TASKING_SYSTEM=TBB
   -DEMBREE_TBB_ROOT=${LIBDIR}/tbb
   -DTBB_ROOT=${LIBDIR}/tbb
@@ -36,10 +35,10 @@ if(NOT BLENDER_PLATFORM_ARM)
   )
 endif()
 
-if(NOT APPLE)
+if(NOT APPLE AND NOT BLENDER_PLATFORM_ARM)
   if(WIN32)
     # Levels below -O2 don't work well for Embree+SYCL.
-    string(REGEX REPLACE "-O[A-Za-z0-9]" "" EMBREE_CLANG_CMAKE_CXX_FLAGS_DEBUG ${BLENDER_CLANG_CMAKE_C_FLAGS_DEBUG})
+    string(REGEX REPLACE "-O[A-Za-z0-9]" "" EMBREE_CLANG_CMAKE_CXX_FLAGS_DEBUG ${BLENDER_CLANG_CMAKE_CXX_FLAGS_DEBUG})
     string(APPEND EMBREE_CLANG_CMAKE_CXX_FLAGS_DEBUG " -O2")
     string(REGEX REPLACE "-O[A-Za-z0-9]" "" EMBREE_CLANG_CMAKE_C_FLAGS_DEBUG ${BLENDER_CLANG_CMAKE_C_FLAGS_DEBUG})
     string(APPEND EMBREE_CLANG_CMAKE_C_FLAGS_DEBUG " -O2")
@@ -63,6 +62,8 @@ if(NOT APPLE)
       ${EMBREE_EXTRA_ARGS}
     )
   else()
+    string(REPLACE "-DCMAKE_CXX_STANDARD=20" " " EMBREE_CMAKE_FLAGS "${EMBREE_CMAKE_FLAGS}")
+
     set(EMBREE_EXTRA_ARGS
       -DCMAKE_CXX_COMPILER=${LIBDIR}/dpcpp/bin/clang++
       -DCMAKE_C_COMPILER=${LIBDIR}/dpcpp/bin/clang
@@ -86,12 +87,21 @@ ExternalProject_Add(external_embree
   URL_HASH ${EMBREE_HASH_TYPE}=${EMBREE_HASH}
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/embree
-  PATCH_COMMAND ${PATCH_CMD} -p 1 -d ${BUILD_DIR}/embree/src/external_embree < ${PATCH_DIR}/embree.diff
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/embree ${EMBREE_CMAKE_FLAGS} ${EMBREE_EXTRA_ARGS}
+
+  PATCH_COMMAND
+    ${PATCH_CMD} -p 1 -d
+      ${BUILD_DIR}/embree/src/external_embree <
+      ${PATCH_DIR}/embree.diff
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/embree
+    ${EMBREE_CMAKE_FLAGS}
+    ${EMBREE_EXTRA_ARGS}
+
   INSTALL_DIR ${LIBDIR}/embree
 )
 
-if(NOT APPLE)
+if(NOT APPLE AND NOT BLENDER_PLATFORM_ARM)
   add_dependencies(
     external_embree
     external_tbb
@@ -107,18 +117,38 @@ endif()
 if(WIN32)
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_embree after_install
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/embree/include ${HARVEST_TARGET}/embree/include
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/embree/lib ${HARVEST_TARGET}/embree/lib
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/embree/share ${HARVEST_TARGET}/embree/share
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/embree/bin/embree4.dll ${HARVEST_TARGET}/embree/bin/embree4.dll
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/embree/include
+        ${HARVEST_TARGET}/embree/include
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/embree/lib
+        ${HARVEST_TARGET}/embree/lib
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/embree/share
+        ${HARVEST_TARGET}/embree/share
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/embree/bin/embree4.dll
+        ${HARVEST_TARGET}/embree/bin/embree4.dll
+
       DEPENDEES install
     )
   else()
     ExternalProject_Add_Step(external_embree after_install
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/embree/bin/embree4_d.dll ${HARVEST_TARGET}/embree/bin/embree4_d.dll
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/embree/lib/embree4_d.lib ${HARVEST_TARGET}/embree/lib/embree4_d.lib
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/embree/lib/embree4_sycl_d.lib ${HARVEST_TARGET}/embree/lib/embree4_sycl_d.lib
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/embree/bin/embree4_d.dll
+        ${HARVEST_TARGET}/embree/bin/embree4_d.dll
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/embree/lib/embree4_d.lib
+        ${HARVEST_TARGET}/embree/lib/embree4_d.lib
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/embree/lib/embree4_sycl_d.lib
+        ${HARVEST_TARGET}/embree/lib/embree4_sycl_d.lib
+
       DEPENDEES install
     )
   endif()
+else()
+  harvest(external_embree embree/include embree/include "*.h")
+  harvest(external_embree embree/lib embree/lib "*.a")
+  harvest_rpath_lib(external_embree embree/lib embree/lib "*${SHAREDLIBEXT}*")
 endif()

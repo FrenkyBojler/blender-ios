@@ -27,16 +27,24 @@ KERNEL_STRUCT_MEMBER(path, uint16_t, transmission_bounce, KERNEL_FEATURE_PATH_TR
 KERNEL_STRUCT_MEMBER(path, uint16_t, volume_bounce, KERNEL_FEATURE_PATH_TRACING)
 /* Current volume bounds ray bounce depth. */
 KERNEL_STRUCT_MEMBER(path, uint16_t, volume_bounds_bounce, KERNEL_FEATURE_PATH_TRACING)
+/* Current portal ray bounce depth. */
+KERNEL_STRUCT_MEMBER(path, uint16_t, portal_bounce, KERNEL_FEATURE_NODE_PORTAL)
 /* DeviceKernel bit indicating queued kernels. */
 KERNEL_STRUCT_MEMBER(path, uint16_t, queued_kernel, KERNEL_FEATURE_PATH_TRACING)
-/* Random number generator seed. */
-KERNEL_STRUCT_MEMBER(path, uint32_t, rng_hash, KERNEL_FEATURE_PATH_TRACING)
+/* Random number generator per-pixel info. */
+KERNEL_STRUCT_MEMBER(path, uint32_t, rng_pixel, KERNEL_FEATURE_PATH_TRACING)
 /* Random number dimension offset. */
 KERNEL_STRUCT_MEMBER(path, uint16_t, rng_offset, KERNEL_FEATURE_PATH_TRACING)
+/* enum PathRayVisibilityFlag, limited to bits from PATH_RAY_VISIBILITY_ALL */
+KERNEL_STRUCT_MEMBER(path, uint8_t, visibility, KERNEL_FEATURE_PATH_TRACING)
 /* enum PathRayFlag */
 KERNEL_STRUCT_MEMBER(path, uint32_t, flag, KERNEL_FEATURE_PATH_TRACING)
 /* enum PathRayMNEE */
 KERNEL_STRUCT_MEMBER(path, uint8_t, mnee, KERNEL_FEATURE_PATH_TRACING)
+/* Index of shadow state path used for storing MNEE state. */
+KERNEL_STRUCT_MEMBER(path, int, mnee_shadow_state, KERNEL_FEATURE_MNEE)
+/* Majorant volume optical depth. */
+KERNEL_STRUCT_MEMBER(path, float, optical_depth, KERNEL_FEATURE_PATH_TRACING)
 /* Multiple importance sampling
  * The PDF of BSDF sampling at the last scatter point, which is at ray distance
  * zero and distance. Note that transparency and volume attenuation increase
@@ -67,35 +75,36 @@ KERNEL_STRUCT_END(path)
 
 /************************************** Ray ***********************************/
 
-KERNEL_STRUCT_BEGIN(ray)
-KERNEL_STRUCT_MEMBER(ray, packed_float3, P, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(ray, packed_float3, D, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(ray, float, tmin, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(ray, float, tmax, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(ray, float, time, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(ray, float, dP, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(ray, float, dD, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_BEGIN_PACKED(ray, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(ray, packed_float3, P, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(ray, float, dP, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(ray, packed_float3, D, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(ray, float, dD, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(ray, float, tmin, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(ray, float, tmax, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(ray, float, time, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER(ray, float, previous_dt, KERNEL_FEATURE_LIGHT_TREE)
 KERNEL_STRUCT_END(ray)
 
 /*************************** Intersection result ******************************/
 
 /* Result from scene intersection. */
-KERNEL_STRUCT_BEGIN(isect)
-KERNEL_STRUCT_MEMBER(isect, float, t, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(isect, float, u, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(isect, float, v, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(isect, int, prim, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(isect, int, object, KERNEL_FEATURE_PATH_TRACING)
-KERNEL_STRUCT_MEMBER(isect, int, type, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_BEGIN_PACKED(isect, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(isect, float, t, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(isect, float, u, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(isect, float, v, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(isect, int, prim, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(isect, int, object, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER_PACKED(isect, int, type, KERNEL_FEATURE_PATH_TRACING)
 KERNEL_STRUCT_END(isect)
 
 /*************** Subsurface closure state for subsurface kernel ***************/
 
-KERNEL_STRUCT_BEGIN(subsurface)
-KERNEL_STRUCT_MEMBER(subsurface, PackedSpectrum, albedo, KERNEL_FEATURE_SUBSURFACE)
-KERNEL_STRUCT_MEMBER(subsurface, PackedSpectrum, radius, KERNEL_FEATURE_SUBSURFACE)
-KERNEL_STRUCT_MEMBER(subsurface, float, anisotropy, KERNEL_FEATURE_SUBSURFACE)
-KERNEL_STRUCT_MEMBER(subsurface, packed_float3, N, KERNEL_FEATURE_SUBSURFACE)
+KERNEL_STRUCT_BEGIN_PACKED(subsurface, KERNEL_FEATURE_SUBSURFACE)
+KERNEL_STRUCT_MEMBER_PACKED(subsurface, PackedSpectrum, albedo, KERNEL_FEATURE_SUBSURFACE)
+KERNEL_STRUCT_MEMBER_PACKED(subsurface, PackedSpectrum, radius, KERNEL_FEATURE_SUBSURFACE)
+KERNEL_STRUCT_MEMBER_PACKED(subsurface, float, anisotropy, KERNEL_FEATURE_SUBSURFACE)
+KERNEL_STRUCT_MEMBER_PACKED(subsurface, packed_float3, N, KERNEL_FEATURE_SUBSURFACE)
 KERNEL_STRUCT_END(subsurface)
 
 /********************************** Volume Stack ******************************/
@@ -109,7 +118,7 @@ KERNEL_STRUCT_END_ARRAY(volume_stack,
 
 /************************************ Path Guiding *****************************/
 KERNEL_STRUCT_BEGIN(guiding)
-#ifdef __PATH_GUIDING__
+#if defined(__PATH_GUIDING__)
 /* Current path segment of the random walk/path. */
 KERNEL_STRUCT_MEMBER(guiding,
                      openpgl::cpp::PathSegment *,
@@ -124,7 +133,7 @@ KERNEL_STRUCT_MEMBER(guiding, bool, use_surface_guiding, KERNEL_FEATURE_PATH_GUI
 /* Random number used for additional guiding decisions (e.g., cache query, selection to use guiding
  * or BSDF sampling) */
 KERNEL_STRUCT_MEMBER(guiding, float, sample_surface_guiding_rand, KERNEL_FEATURE_PATH_GUIDING)
-/* The probability to use surface guiding (i.e., diffuse sampling prob * guiding prob)*/
+/* The probability to use surface guiding (i.e., diffuse sampling prob * guiding prob). */
 KERNEL_STRUCT_MEMBER(guiding, float, surface_guiding_sampling_prob, KERNEL_FEATURE_PATH_GUIDING)
 /* Probability of sampling a BSSRDF closure instead of a BSDF closure. */
 KERNEL_STRUCT_MEMBER(guiding, float, bssrdf_sampling_prob, KERNEL_FEATURE_PATH_GUIDING)

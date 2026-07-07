@@ -21,14 +21,15 @@
 #include "ED_curves.hh"
 #include "ED_undo.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-static CLG_LogRef LOG = {"ed.undo.curves"};
+namespace blender {
 
-namespace blender::ed::curves::undo {
+static CLG_LogRef LOG = {"undo.curves"};
+
+namespace ed::curves {
+namespace undo {
 
 /* -------------------------------------------------------------------- */
 /** \name Implements ED Undo System
@@ -54,23 +55,21 @@ static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  uint objects_num = 0;
-  Object **objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer, &objects_num);
+  Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(*bmain, scene, view_layer);
 
   us->scene_ref.ptr = scene;
-  new (&us->objects) Array<StepObject>(objects_num);
+  new (&us->objects) Array<StepObject>(objects.size());
 
   threading::parallel_for(us->objects.index_range(), 8, [&](const IndexRange range) {
     for (const int i : range) {
       Object *ob = objects[i];
-      const Curves &curves_id = *static_cast<Curves *>(ob->data);
+      const Curves &curves_id = *id_cast<Curves *>(ob->data);
       StepObject &object = us->objects[i];
 
       object.obedit_ref.ptr = ob;
       object.geometry = curves_id.geometry.wrap();
     }
   });
-  MEM_SAFE_FREE(objects);
 
   bmain->is_memfile_undo_flush_needed = true;
 
@@ -95,7 +94,7 @@ static void step_decode(
   BLI_assert(BKE_object_is_in_editmode(us->objects.first().obedit_ref.ptr));
 
   for (const StepObject &object : us->objects) {
-    Curves &curves_id = *static_cast<Curves *>(object.obedit_ref.ptr->data);
+    Curves &curves_id = *id_cast<Curves *>(object.obedit_ref.ptr->data);
 
     /* Overwrite the curves geometry. */
     curves_id.geometry.wrap() = object.geometry;
@@ -104,7 +103,7 @@ static void step_decode(
   }
 
   ED_undo_object_set_active_or_warn(
-      scene, view_layer, us->objects.first().obedit_ref.ptr, us_p->name, &LOG);
+      *bmain, scene, view_layer, us->objects.first().obedit_ref.ptr, us_p->name, &LOG);
 
   bmain->is_memfile_undo_flush_needed = true;
 
@@ -123,29 +122,32 @@ static void foreach_ID_ref(UndoStep *us_p,
 {
   CurvesUndoStep *us = reinterpret_cast<CurvesUndoStep *>(us_p);
 
-  foreach_ID_ref_fn(user_data, ((UndoRefID *)&us->scene_ref));
+  foreach_ID_ref_fn(user_data, (reinterpret_cast<UndoRefID *>(&us->scene_ref)));
   for (const StepObject &object : us->objects) {
-    foreach_ID_ref_fn(user_data, ((UndoRefID *)&object.obedit_ref));
+    foreach_ID_ref_fn(
+        user_data,
+        (reinterpret_cast<UndoRefID *>(const_cast<UndoRefID_Object *>(&object.obedit_ref))));
   }
 }
 
 /** \} */
 
-}  // namespace blender::ed::curves::undo
+}  // namespace undo
 
-void ED_curves_undosys_type(UndoType *ut)
+void undosys_type_register(UndoType *ut)
 {
-  using namespace blender::ed;
+  ut->identifier = "EDIT_CURVES";
+  ut->poll = editable_curves_in_edit_mode_poll;
+  ut->step_encode = undo::step_encode;
+  ut->step_decode = undo::step_decode;
+  ut->step_free = undo::step_free;
 
-  ut->name = "Edit Curves";
-  ut->poll = curves::editable_curves_in_edit_mode_poll;
-  ut->step_encode = curves::undo::step_encode;
-  ut->step_decode = curves::undo::step_decode;
-  ut->step_free = curves::undo::step_free;
-
-  ut->step_foreach_ID_ref = curves::undo::foreach_ID_ref;
+  ut->step_foreach_ID_ref = undo::foreach_ID_ref;
 
   ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE;
 
-  ut->step_size = sizeof(curves::undo::CurvesUndoStep);
+  ut->step_size = sizeof(undo::CurvesUndoStep);
 }
+
+}  // namespace ed::curves
+}  // namespace blender

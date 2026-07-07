@@ -56,7 +56,7 @@ class CONSOLE_MT_view(Menu):
 
 
 class CONSOLE_MT_language(Menu):
-    bl_label = "Languages..."
+    bl_label = "Languages"
 
     def draw(self, _context):
         import sys
@@ -64,18 +64,16 @@ class CONSOLE_MT_language(Menu):
         layout = self.layout
         layout.column()
 
-        # Collect modules with `console_*.execute`.
+        # Collect modules with `_console_*.execute`.
         languages = []
         for modname, mod in sys.modules.items():
-            if modname.startswith("console_") and hasattr(mod, "execute"):
-                languages.append(modname.split("_", 1)[-1])
+            if modname.startswith("_console_") and hasattr(mod, "execute"):
+                languages.append(modname.split("_", 2)[-1])
 
         languages.sort()
 
         for language in languages:
-            layout.operator("console.language",
-                            text=language.title(),
-                            translate=False).language = language
+            layout.operator("console.language", text=language.title(), translate=False).language = language
 
 
 class CONSOLE_MT_console(Menu):
@@ -93,8 +91,8 @@ class CONSOLE_MT_console(Menu):
 
         layout.operator("console.copy_as_script", text="Copy as Script")
         layout.operator("console.copy", text="Cut").delete = True
-        layout.operator("console.copy", text="Copy")
-        layout.operator("console.paste", text="Paste")
+        layout.operator("console.copy", text="Copy", icon='COPYDOWN')
+        layout.operator("console.paste", text="Paste", icon='PASTEDOWN')
 
         layout.separator()
 
@@ -126,8 +124,8 @@ class CONSOLE_MT_context_menu(Menu):
 
         layout.operator("console.copy_as_script", text="Copy as Script")
         layout.operator("console.copy", text="Cut").delete = True
-        layout.operator("console.copy", text="Copy")
-        layout.operator("console.paste", text="Paste")
+        layout.operator("console.copy", text="Copy", icon='COPYDOWN')
+        layout.operator("console.paste", text="Paste", icon='PASTEDOWN')
 
         layout.separator()
 
@@ -142,11 +140,6 @@ class CONSOLE_MT_context_menu(Menu):
         layout.separator()
 
         layout.operator("console.autocomplete", text="Autocomplete")
-
-
-def add_scrollback(text, text_type):
-    for l in text.split("\n"):
-        bpy.ops.console.scrollback_append(text=l.expandtabs(4), type=text_type)
 
 
 classes = (

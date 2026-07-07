@@ -6,34 +6,32 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
-
-#include "BLI_utildefines.h"
-
-#include "BLT_translation.h"
-
-#include "BKE_report.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "DNA_windowmanager_types.h"
-
 #include "WM_api.hh"
 
-#include "rna_internal.h" /* own include */
+#include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
 
+#  include "BLT_translation.hh"
+
 #  include "BKE_context.hh"
+#  include "BKE_idprop.hh"
+#  include "BKE_report.hh"
+
 #  include "UI_interface.hh"
 
 #  include "ED_gizmo_library.hh"
 
+namespace blender {
+
 static void rna_gizmo_draw_preset_box(wmGizmo *gz, const float matrix[16], int select_id)
 {
-  ED_gizmo_draw_preset_box(gz, (const float(*)[4])matrix, select_id);
+  ED_gizmo_draw_preset_box(gz, reinterpret_cast<const float (*)[4]>(matrix), select_id);
 }
 
 static void rna_gizmo_draw_preset_arrow(wmGizmo *gz,
@@ -41,7 +39,7 @@ static void rna_gizmo_draw_preset_arrow(wmGizmo *gz,
                                         int axis,
                                         int select_id)
 {
-  ED_gizmo_draw_preset_arrow(gz, (const float(*)[4])matrix, axis, select_id);
+  ED_gizmo_draw_preset_arrow(gz, reinterpret_cast<const float (*)[4]>(matrix), axis, select_id);
 }
 
 static void rna_gizmo_draw_preset_circle(wmGizmo *gz,
@@ -49,7 +47,7 @@ static void rna_gizmo_draw_preset_circle(wmGizmo *gz,
                                          int axis,
                                          int select_id)
 {
-  ED_gizmo_draw_preset_circle(gz, (const float(*)[4])matrix, axis, select_id);
+  ED_gizmo_draw_preset_circle(gz, reinterpret_cast<const float (*)[4]>(matrix), axis, select_id);
 }
 
 /* -------------------------------------------------------------------- */
@@ -156,17 +154,13 @@ static PointerRNA rna_gizmo_target_set_operator(wmGizmo *gz,
     BKE_reportf(reports,
                 RPT_ERROR,
                 "%s '%s'",
-                ot ? RPT_("Unknown operator") : RPT_("Operator missing srna"),
+                ot ? RPT_("Operator missing srna") : RPT_("Unknown operator"),
                 opname);
     return PointerRNA_NULL;
   }
 
   /* For the return value to be usable, we need 'PointerRNA.data' to be set. */
-  IDProperty *properties;
-  {
-    IDPropertyTemplate val = {0};
-    properties = IDP_New(IDP_GROUP, &val, "wmGizmoProperties");
-  }
+  IDProperty *properties = bke::idprop::create_group("wmGizmoProperties").release();
 
   return *WM_gizmo_operator_set(gz, part_index, ot, properties);
 }
@@ -195,7 +189,11 @@ static bool rna_gizmo_target_is_valid(wmGizmo *gz,
 
 /** \} */
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_gizmo(StructRNA *srna)
 {
@@ -223,7 +221,7 @@ void RNA_api_gizmo(StructRNA *srna)
               -1,
               -1,
               INT_MAX,
-              "ID to use when gizmo is selectable. Use -1 when not selecting",
+              "ID to use when gizmo is selectable. Use -1 when not selecting.",
               "",
               -1,
               INT_MAX);
@@ -241,7 +239,7 @@ void RNA_api_gizmo(StructRNA *srna)
               -1,
               -1,
               INT_MAX,
-              "ID to use when gizmo is selectable. Use -1 when not selecting",
+              "ID to use when gizmo is selectable. Use -1 when not selecting.",
               "",
               -1,
               INT_MAX);
@@ -258,7 +256,7 @@ void RNA_api_gizmo(StructRNA *srna)
               -1,
               -1,
               INT_MAX,
-              "ID to use when gizmo is selectable. Use -1 when not selecting",
+              "ID to use when gizmo is selectable. Use -1 when not selecting.",
               "",
               -1,
               INT_MAX);
@@ -313,5 +311,7 @@ void RNA_api_gizmogroup(StructRNA * /*srna*/)
 {
   /* nothing yet */
 }
+
+}  // namespace blender
 
 #endif

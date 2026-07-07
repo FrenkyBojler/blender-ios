@@ -10,34 +10,45 @@
 
 #include "BLI_function_ref.hh"
 
+namespace blender {
+
 struct ARegion;
+struct ARegionType;
 struct AssetLibraryReference;
 struct AssetShelf;
+struct AssetShelfType;
 struct AssetShelfSettings;
 struct bContext;
 struct BlendDataReader;
 struct BlendWriter;
-struct uiLayout;
+struct RegionAssetShelf;
 
-namespace blender::asset_system {
+namespace asset_system {
 class AssetCatalogPath;
 }
 
-namespace blender::ed::asset::shelf {
+namespace ui {
+struct Layout;
+}  // namespace ui
 
-constexpr short DEFAULT_TILE_SIZE = 64;
+namespace ed::asset::shelf {
 
-void build_asset_view(uiLayout &layout,
+void build_asset_view(ui::Layout &layout,
                       const AssetLibraryReference &library_ref,
                       const AssetShelf &shelf,
-                      const bContext &C,
-                      ARegion &region);
+                      const bContext &C);
 
 void catalog_selector_panel_register(ARegionType *region_type);
+void popover_panel_register(ARegionType *region_type);
 
 AssetShelf *active_shelf_from_context(const bContext *C);
 
 void send_redraw_notifier(const bContext &C);
+
+AssetShelfType *ensure_shelf_has_type(AssetShelf &shelf);
+AssetShelf *create_shelf_from_type(AssetShelfType &type);
+
+void library_selector_draw(const bContext *C, ui::Layout &layout, AssetShelf &shelf);
 
 /**
  * Deep-copies \a shelf_regiondata into newly allocated memory. Must be freed using
@@ -45,31 +56,41 @@ void send_redraw_notifier(const bContext &C);
  */
 RegionAssetShelf *regiondata_duplicate(const RegionAssetShelf *shelf_regiondata);
 /** Frees the contained data and \a shelf_regiondata itself. */
-void regiondata_free(RegionAssetShelf **shelf_regiondata);
+void regiondata_free(RegionAssetShelf *shelf_regiondata);
 void regiondata_blend_write(BlendWriter *writer, const RegionAssetShelf *shelf_regiondata);
 void regiondata_blend_read_data(BlendDataReader *reader, RegionAssetShelf **shelf_regiondata);
 
-/**
- * Frees the contained data, not \a shelf_settings itself.
- */
-void settings_free(AssetShelfSettings *settings);
 void settings_blend_write(BlendWriter *writer, const AssetShelfSettings &settings);
 void settings_blend_read_data(BlendDataReader *reader, AssetShelfSettings &settings);
 
-void settings_clear_enabled_catalogs(AssetShelfSettings &settings);
+/**
+ * Important: Must be called before #AssetShelfSettings.asset_library_reference is used. It will
+ * make sure to fall back to the "All" library if the reference refers to a deleted library. An
+ * invalid reference would make loading the asset listing fail.
+ *
+ * The library reference in \a settings will be updated and returned (for convenience).
+ */
+AssetLibraryReference &settings_ensure_valid_library_ref(AssetShelfSettings &settings);
+
 void settings_set_active_catalog(AssetShelfSettings &settings,
                                  const asset_system::AssetCatalogPath &path);
 void settings_set_all_catalog_active(AssetShelfSettings &settings);
 bool settings_is_active_catalog(const AssetShelfSettings &settings,
                                 const asset_system::AssetCatalogPath &path);
 bool settings_is_all_catalog_active(const AssetShelfSettings &settings);
-bool settings_is_catalog_path_enabled(const AssetShelfSettings &settings,
+/**
+ * Clears the list of enabled catalogs in either the Preferences (if any) or the asset shelf
+ * settings (if any), depending on the #ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS flag.
+ */
+void settings_clear_enabled_catalogs(AssetShelf &shelf);
+bool settings_is_catalog_path_enabled(const AssetShelf &shelf,
                                       const asset_system::AssetCatalogPath &path);
-void settings_set_catalog_path_enabled(AssetShelfSettings &settings,
+void settings_set_catalog_path_enabled(AssetShelf &shelf,
                                        const asset_system::AssetCatalogPath &path);
 
 void settings_foreach_enabled_catalog_path(
-    const AssetShelfSettings &settings,
+    const AssetShelf &shelf,
     FunctionRef<void(const asset_system::AssetCatalogPath &catalog_path)> fn);
 
-}  // namespace blender::ed::asset::shelf
+}  // namespace ed::asset::shelf
+}  // namespace blender

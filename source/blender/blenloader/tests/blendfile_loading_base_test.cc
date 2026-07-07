@@ -5,46 +5,51 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_appdir.h"
-#include "BKE_blender.h"
-#include "BKE_callbacks.h"
+#include "BKE_appdir.hh"
+#include "BKE_blender.hh"
+#include "BKE_callbacks.hh"
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_idtype.h"
-#include "BKE_image.h"
-#include "BKE_layer.h"
+#include "BKE_cpp_types.hh"
+#include "BKE_global.hh"
+#include "BKE_idtype.hh"
+#include "BKE_image.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_mball_tessellate.h"
+#include "BKE_mball_tessellate.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 #include "BKE_vfont.hh"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
-#include "BLI_path_util.h"
-#include "BLI_threads.h"
+#include "BLI_listbase.hh"
+#include "BLI_path_utils.hh"
+#include "BLI_threads.hh"
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-#include "DNA_genfile.h" /* for DNA_sdna_current_init() */
+#include "DNA_genfile.h"
 #include "DNA_windowmanager_types.h"
 
-#include "IMB_imbuf.h"
+#include "IMB_imbuf.hh"
 
 #include "ED_datafiles.h"
 
 #include "RNA_define.hh"
 
+#include "SEQ_modifier.hh"
+
 #include "WM_api.hh"
 #include "wm.hh"
 
-#include "GHOST_Path-api.hh"
-
 #include "CLG_log.h"
+
+namespace blender {
 
 void BlendfileLoadingBaseTest::SetUpTestCase()
 {
@@ -55,19 +60,22 @@ void BlendfileLoadingBaseTest::SetUpTestCase()
   CLG_init();
   BLI_threadapi_init();
 
-  DNA_sdna_current_init();
   BKE_blender_globals_init();
 
   BKE_idtype_init();
+  BKE_cpp_types_init();
   BKE_appdir_init();
   IMB_init();
   BKE_modifier_init();
+  seq::modifiers_init();
   DEG_register_node_types();
   RNA_init();
-  BKE_node_system_init();
+  bke::node_system_init();
   BKE_callback_global_init();
   BKE_vfont_builtin_register(datatoc_bfont_pfb, datatoc_bfont_pfb_size);
   BLF_init();
+
+  BKE_blender_globals_main_replace(BKE_main_new());
 
   G.background = true;
   G.factory_startup = true;
@@ -75,16 +83,12 @@ void BlendfileLoadingBaseTest::SetUpTestCase()
   /* Allocate a dummy window manager. The real window manager will try and load Python scripts from
    * the release directory, which it won't be able to find. */
   ASSERT_EQ(G.main->wm.first, nullptr);
-  G.main->wm.first = MEM_callocN(sizeof(wmWindowManager), __func__);
+  wmWindowManager *wm = BKE_id_new<wmWindowManager>(G.main, "WMdummy");
+  wm->runtime = MEM_new<bke::WindowManagerRuntime>(__func__);
 }
 
 void BlendfileLoadingBaseTest::TearDownTestCase()
 {
-  if (G.main->wm.first != nullptr) {
-    MEM_freeN(G.main->wm.first);
-    G.main->wm.first = nullptr;
-  }
-
   /* Copied from WM_exit_ex() in wm_init_exit.cc, and cherry-picked those lines that match the
    * allocation/initialization done in SetUpTestCase(). */
   BKE_blender_free();
@@ -92,8 +96,6 @@ void BlendfileLoadingBaseTest::TearDownTestCase()
 
   BLF_exit();
   DEG_free_node_types();
-  GHOST_DisposeSystemPaths();
-  DNA_sdna_current_free();
   BLI_threadapi_exit();
 
   BKE_blender_atexit();
@@ -116,7 +118,7 @@ void BlendfileLoadingBaseTest::TearDown()
 
 bool BlendfileLoadingBaseTest::blendfile_load(const char *filepath)
 {
-  const std::string &test_assets_dir = blender::tests::flags_test_asset_dir();
+  const std::string &test_assets_dir = tests::flags_test_asset_dir();
   if (test_assets_dir.empty()) {
     return false;
   }
@@ -134,8 +136,8 @@ bool BlendfileLoadingBaseTest::blendfile_load(const char *filepath)
 
   /* Make sure that all view_layers in the file are synced. Depsgraph can make a copy of the whole
    * scene, which will fail when one view layer isn't synced. */
-  LISTBASE_FOREACH (ViewLayer *, view_layer, &bfile->curscene->view_layers) {
-    BKE_view_layer_synced_ensure(bfile->curscene, view_layer);
+  for (ViewLayer &view_layer : bfile->curscene->view_layers) {
+    BKE_view_layer_synced_ensure(*bfile->main, bfile->curscene, &view_layer);
   }
 
   return true;
@@ -167,3 +169,5 @@ void BlendfileLoadingBaseTest::depsgraph_free()
   DEG_graph_free(depsgraph);
   depsgraph = nullptr;
 }
+
+}  // namespace blender

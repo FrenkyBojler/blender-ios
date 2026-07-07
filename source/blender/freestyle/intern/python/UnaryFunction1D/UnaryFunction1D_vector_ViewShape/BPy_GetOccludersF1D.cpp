@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetOccludersF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetOccludersF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DVectorViewShape` > :class:`GetOccludersF1D`\n"
     "\n"
@@ -34,11 +32,10 @@ static char GetOccludersF1D___doc__[] =
     "\n"
     "   Returns a list of occluding shapes that cover this Interface1D.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: A list of occluding shapes that cover the Interface1D.\n"
-    "   :rtype: list of :class:`freestyle.types.ViewShape` objects\n";
-
+    "   :rtype: list[:class:`freestyle.types.ViewShape`]\n");
 static int GetOccludersF1D___init__(BPy_GetOccludersF1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -94,7 +91,3 @@ PyTypeObject GetOccludersF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

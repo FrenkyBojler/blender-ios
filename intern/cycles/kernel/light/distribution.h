@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "kernel/light/light.h"
-#include "kernel/light/triangle.h"
+#include "kernel/globals.h"
+
+#include "kernel/light/common.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -22,8 +23,8 @@ ccl_device int light_distribution_sample(KernelGlobals kg, const float rand)
   int len = kernel_data.integrator.num_distribution + 1;
 
   do {
-    int half_len = len >> 1;
-    int middle = first + half_len;
+    const int half_len = len >> 1;
+    const int middle = first + half_len;
 
     if (rand < kernel_data_fetch(light_distribution, middle).totarea) {
       len = half_len;
@@ -36,41 +37,19 @@ ccl_device int light_distribution_sample(KernelGlobals kg, const float rand)
 
   /* Clamping should not be needed but float rounding errors seem to
    * make this fail on rare occasions. */
-  int index = clamp(first - 1, 0, kernel_data.integrator.num_distribution - 1);
+  const int index = clamp(first - 1, 0, kernel_data.integrator.num_distribution - 1);
 
   return index;
 }
 
-template<bool in_volume_segment>
-ccl_device_noinline bool light_distribution_sample(KernelGlobals kg,
-                                                   const float3 rand,
-                                                   const float time,
-                                                   const float3 P,
-                                                   const float3 N,
-                                                   const int object_receiver,
-                                                   const int shader_flags,
-                                                   const int bounce,
-                                                   const uint32_t path_flag,
-                                                   ccl_private LightSample *ls)
+ccl_device bool light_distribution_sample(KernelGlobals kg,
+                                          const float rand,
+                                          ccl_private LightSample *ls)
 {
   /* Sample light index from distribution. */
-  /* The first two dimensions of the Sobol sequence have better stratification. */
-  const int index = light_distribution_sample(kg, rand.z);
-  const float pdf_selection = kernel_data.integrator.distribution_pdf_lights;
-  const float2 rand_uv = float3_to_float2(rand);
-  return light_sample<in_volume_segment>(kg,
-                                         rand_uv,
-                                         time,
-                                         P,
-                                         N,
-                                         object_receiver,
-                                         shader_flags,
-                                         bounce,
-                                         path_flag,
-                                         index,
-                                         0,
-                                         pdf_selection,
-                                         ls);
+  ls->emitter_id = light_distribution_sample(kg, rand);
+  ls->pdf_selection = kernel_data.integrator.distribution_pdf_lights;
+  return true;
 }
 
 ccl_device_inline float light_distribution_pdf_lamp(KernelGlobals kg)

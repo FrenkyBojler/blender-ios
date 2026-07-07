@@ -8,19 +8,21 @@
  * Creates a solid wireframe from connected faces.
  */
 
-#include "MEM_guardedalloc.h"
+#include <algorithm>
 
-#include "DNA_meshdata_types.h"
+#include "MEM_guardedalloc.h"
 
 #include "bmesh.hh"
 
-#include "BLI_math_geom.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_customdata.hh"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 
 #include "bmesh_wireframe.hh"
+
+namespace blender {
 
 static BMLoop *bm_edge_tag_faceloop(BMEdge *e)
 {
@@ -154,7 +156,7 @@ void BM_mesh_wireframe(BMesh *bm,
                        const int defgrp_index,
                        const bool defgrp_invert,
                        const short mat_offset,
-                       const short mat_max,
+                       const int mat_max,
                        /* for operators */
                        const bool use_tag)
 {
@@ -176,21 +178,18 @@ void BM_mesh_wireframe(BMesh *bm,
   BMIter itersub;
 
   /* filled only with boundary verts */
-  BMVert **verts_src = static_cast<BMVert **>(
-      MEM_mallocN(sizeof(BMVert *) * totvert_orig, __func__));
-  BMVert **verts_neg = static_cast<BMVert **>(
-      MEM_mallocN(sizeof(BMVert *) * totvert_orig, __func__));
-  BMVert **verts_pos = static_cast<BMVert **>(
-      MEM_mallocN(sizeof(BMVert *) * totvert_orig, __func__));
+  BMVert **verts_src = MEM_new_array_uninitialized<BMVert *>(totvert_orig, __func__);
+  BMVert **verts_neg = MEM_new_array_uninitialized<BMVert *>(totvert_orig, __func__);
+  BMVert **verts_pos = MEM_new_array_uninitialized<BMVert *>(totvert_orig, __func__);
 
   /* Will over-allocate, but makes for easy lookups by index to keep aligned. */
-  BMVert **verts_boundary = static_cast<BMVert **>(
-      use_boundary ? MEM_mallocN(sizeof(BMVert *) * totvert_orig, __func__) : nullptr);
+  BMVert **verts_boundary = use_boundary ?
+                                MEM_new_array_uninitialized<BMVert *>(totvert_orig, __func__) :
+                                nullptr;
 
-  float *verts_relfac = static_cast<float *>(
-      (use_relative_offset || (cd_dvert_offset != -1)) ?
-          MEM_mallocN(sizeof(float) * totvert_orig, __func__) :
-          nullptr);
+  float *verts_relfac = (use_relative_offset || (cd_dvert_offset != -1)) ?
+                            MEM_new_array_uninitialized<float>(totvert_orig, __func__) :
+                            nullptr;
 
   /* May over-allocate if not all faces have wire. */
   BMVert **verts_loop;
@@ -306,7 +305,7 @@ void BM_mesh_wireframe(BMesh *bm,
     BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
   }
 
-  verts_loop = static_cast<BMVert **>(MEM_mallocN(sizeof(BMVert *) * verts_loop_tot, __func__));
+  verts_loop = MEM_new_array_uninitialized<BMVert *>(verts_loop_tot, __func__);
   verts_loop_tot = 0; /* count up again */
 
   BM_ITER_MESH (f_src, &iter, bm, BM_FACES_OF_MESH) {
@@ -423,7 +422,7 @@ void BM_mesh_wireframe(BMesh *bm,
 
       f_new = BM_face_create_quad_tri(bm, v_l1, v_l2, v_neg2, v_neg1, f_src, BM_CREATE_NOP);
       if (mat_offset) {
-        f_new->mat_nr = CLAMPIS(f_new->mat_nr + mat_offset, 0, mat_max);
+        f_new->mat_nr = std::clamp(f_new->mat_nr + mat_offset, 0, mat_max);
       }
       BM_elem_flag_enable(f_new, BM_ELEM_TAG);
       l_new = BM_FACE_FIRST_LOOP(f_new);
@@ -436,7 +435,7 @@ void BM_mesh_wireframe(BMesh *bm,
       f_new = BM_face_create_quad_tri(bm, v_l2, v_l1, v_pos1, v_pos2, f_src, BM_CREATE_NOP);
 
       if (mat_offset) {
-        f_new->mat_nr = CLAMPIS(f_new->mat_nr + mat_offset, 0, mat_max);
+        f_new->mat_nr = std::clamp(f_new->mat_nr + mat_offset, 0, mat_max);
       }
       BM_elem_flag_enable(f_new, BM_ELEM_TAG);
       l_new = BM_FACE_FIRST_LOOP(f_new);
@@ -455,7 +454,7 @@ void BM_mesh_wireframe(BMesh *bm,
 
           f_new = BM_face_create_quad_tri(bm, v_b2, v_b1, v_neg1, v_neg2, f_src, BM_CREATE_NOP);
           if (mat_offset) {
-            f_new->mat_nr = CLAMPIS(f_new->mat_nr + mat_offset, 0, mat_max);
+            f_new->mat_nr = std::clamp(f_new->mat_nr + mat_offset, 0, mat_max);
           }
           BM_elem_flag_enable(f_new, BM_ELEM_TAG);
           l_new = BM_FACE_FIRST_LOOP(f_new);
@@ -467,7 +466,7 @@ void BM_mesh_wireframe(BMesh *bm,
 
           f_new = BM_face_create_quad_tri(bm, v_b1, v_b2, v_pos2, v_pos1, f_src, BM_CREATE_NOP);
           if (mat_offset) {
-            f_new->mat_nr = CLAMPIS(f_new->mat_nr + mat_offset, 0, mat_max);
+            f_new->mat_nr = std::clamp(f_new->mat_nr + mat_offset, 0, mat_max);
           }
           BM_elem_flag_enable(f_new, BM_ELEM_TAG);
           l_new = BM_FACE_FIRST_LOOP(f_new);
@@ -512,11 +511,11 @@ void BM_mesh_wireframe(BMesh *bm,
   }
 
   if (use_boundary) {
-    MEM_freeN(verts_boundary);
+    MEM_delete(verts_boundary);
   }
 
   if (verts_relfac) {
-    MEM_freeN(verts_relfac);
+    MEM_delete(verts_relfac);
   }
 
   if (use_replace) {
@@ -582,8 +581,10 @@ void BM_mesh_wireframe(BMesh *bm,
     }
   }
 
-  MEM_freeN(verts_src);
-  MEM_freeN(verts_neg);
-  MEM_freeN(verts_pos);
-  MEM_freeN(verts_loop);
+  MEM_delete(verts_src);
+  MEM_delete(verts_neg);
+  MEM_delete(verts_pos);
+  MEM_delete(verts_loop);
 }
+
+}  // namespace blender

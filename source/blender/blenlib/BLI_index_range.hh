@@ -7,13 +7,14 @@
 /** \file
  * \ingroup bli
  *
- * A `blender::IndexRange` wraps an interval of non-negative integers. It can be used to reference
+ * A `IndexRange` wraps an interval of non-negative integers. It can be used to reference
  * consecutive elements in an array. Furthermore, it can make for loops more convenient and less
  * error prone, especially when using nested loops.
  *
  * I'd argue that the second loop is more readable and less error prone than the first one. That is
  * not necessarily always the case, but often it is.
  *
+ * \code{.cc}
  *  for (int64_t i = 0; i < 10; i++) {
  *    for (int64_t j = 0; j < 20; j++) {
  *       for (int64_t k = 0; k < 30; k++) {
@@ -21,17 +22,20 @@
  *  for (int64_t i : IndexRange(10)) {
  *    for (int64_t j : IndexRange(20)) {
  *      for (int64_t k : IndexRange(30)) {
+ * \endcode
  *
- * Some containers like blender::Vector have an index_range() method. This will return the
+ * Some containers like Vector have an index_range() method. This will return the
  * IndexRange that contains all indices that can be used to access the container. This is
  * particularly useful when you want to iterate over the indices and the elements (much like
  * Python's enumerate(), just worse). Again, I think the second example here is better:
  *
+ * \code{.cc}
  *  for (int64_t i = 0; i < my_vector_with_a_long_name.size(); i++) {
  *    do_something(i, my_vector_with_a_long_name[i]);
  *
  *  for (int64_t i : my_vector_with_a_long_name.index_range()) {
  *    do_something(i, my_vector_with_a_long_name[i]);
+ * \endcode
  *
  * Ideally this could be could be even closer to Python's enumerate(). We might get that in the
  * future with newer C++ versions.
@@ -40,7 +44,8 @@
 #include <algorithm>
 #include <iosfwd>
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
+#include "BLI_random_access_iterator_mixin.hh"
 
 namespace blender {
 
@@ -54,24 +59,47 @@ class IndexRange {
  public:
   constexpr IndexRange() = default;
 
-  constexpr explicit IndexRange(int64_t size) : start_(0), size_(size)
+  constexpr explicit IndexRange(int64_t size) : size_(size)
   {
     BLI_assert(size >= 0);
   }
 
-  constexpr IndexRange(int64_t start, int64_t size) : start_(start), size_(size)
+  constexpr IndexRange(const int64_t start, const int64_t size) : start_(start), size_(size)
   {
     BLI_assert(start >= 0);
     BLI_assert(size >= 0);
   }
 
-  class Iterator {
+  constexpr static IndexRange from_begin_size(const int64_t begin, const int64_t size)
+  {
+    return IndexRange(begin, size);
+  }
+
+  constexpr static IndexRange from_begin_end(const int64_t begin, const int64_t end)
+  {
+    return IndexRange(begin, end - begin);
+  }
+
+  constexpr static IndexRange from_begin_end_inclusive(const int64_t begin, const int64_t last)
+  {
+    return IndexRange(begin, last - begin + 1);
+  }
+
+  constexpr static IndexRange from_end_size(const int64_t end, const int64_t size)
+  {
+    return IndexRange(end - size, size);
+  }
+
+  constexpr static IndexRange from_single(const int64_t index)
+  {
+    return IndexRange(index, 1);
+  }
+
+  class Iterator : public iterator::RandomAccessIteratorMixin<Iterator> {
    public:
-    using iterator_category = std::forward_iterator_tag;
     using value_type = int64_t;
     using pointer = const int64_t *;
-    using reference = const int64_t &;
-    using difference_type = std::ptrdiff_t;
+    using reference = int64_t;
 
    private:
     int64_t current_;
@@ -79,35 +107,12 @@ class IndexRange {
    public:
     constexpr explicit Iterator(int64_t current) : current_(current) {}
 
-    constexpr Iterator &operator++()
-    {
-      current_++;
-      return *this;
-    }
-
-    constexpr Iterator operator++(int)
-    {
-      Iterator copied_iterator = *this;
-      ++(*this);
-      return copied_iterator;
-    }
-
-    constexpr friend bool operator!=(const Iterator &a, const Iterator &b)
-    {
-      return a.current_ != b.current_;
-    }
-
-    constexpr friend bool operator==(const Iterator &a, const Iterator &b)
-    {
-      return a.current_ == b.current_;
-    }
-
-    constexpr friend int64_t operator-(const Iterator &a, const Iterator &b)
-    {
-      return a.current_ - b.current_;
-    }
-
     constexpr int64_t operator*() const
+    {
+      return current_;
+    }
+
+    const int64_t &iter_prop() const
     {
       return current_;
     }
@@ -164,6 +169,14 @@ class IndexRange {
   constexpr bool is_empty() const
   {
     return size_ == 0;
+  }
+
+  /**
+   * Creates a new index range with the same beginning but a different end.
+   */
+  constexpr IndexRange with_new_end(const int64_t new_end) const
+  {
+    return IndexRange::from_begin_end(start_, new_end);
   }
 
   /**
@@ -238,6 +251,23 @@ class IndexRange {
   constexpr bool contains(int64_t value) const
   {
     return value >= start_ && value < start_ + size_;
+  }
+
+  /**
+   * Returns true when all indices in the given range are also in the current range.
+   */
+  constexpr bool contains(const IndexRange range) const
+  {
+    if (range.is_empty()) {
+      return true;
+    }
+    if (range.start_ < start_) {
+      return false;
+    }
+    if (range.start_ + range.size_ > start_ + size_) {
+      return false;
+    }
+    return true;
   }
 
   /**

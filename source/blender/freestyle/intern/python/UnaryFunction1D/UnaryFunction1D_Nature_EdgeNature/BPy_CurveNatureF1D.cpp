@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char CurveNatureF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    CurveNatureF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DEdgeNature` > :class:`CurveNatureF1D`\n"
     "\n"
@@ -30,7 +28,7 @@ static char CurveNatureF1D___doc__[] =
     "\n"
     "   Builds a CurveNatureF1D object.\n"
     "\n"
-    "   :arg integration_type: The integration method used to compute a single value\n"
+    "   :param integration_type: The integration method used to compute a single value\n"
     "      from a set of values.\n"
     "   :type integration_type: :class:`freestyle.types.IntegrationType`\n"
     "\n"
@@ -44,11 +42,10 @@ static char CurveNatureF1D___doc__[] =
     "   method, such as the MEAN, might give, in this case, irrelevant\n"
     "   results.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The nature of the Interface1D.\n"
-    "   :rtype: :class:`freestyle.types.Nature`\n";
-
+    "   :rtype: :class:`freestyle.types.Nature`\n");
 static int CurveNatureF1D___init__(BPy_CurveNatureF1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"integration_type", nullptr};
@@ -108,7 +105,3 @@ PyTypeObject CurveNatureF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

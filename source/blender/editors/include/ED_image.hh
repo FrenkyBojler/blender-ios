@@ -11,6 +11,10 @@
 #include "DNA_listBase.h"
 #include "DNA_space_types.h"
 
+#include "BLI_string_ref.hh"
+
+namespace blender {
+
 struct ARegion;
 struct ImBuf;
 struct Image;
@@ -62,7 +66,13 @@ bool ED_space_image_get_position(SpaceImage *sima,
  */
 bool ED_space_image_color_sample(
     SpaceImage *sima, ARegion *region, const int mval[2], float r_col[3], bool *r_is_data);
-ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima, void **r_lock, int tile);
+/* Acquires the image buffer of the given tile of the image in the given space. See the info on the
+ * BKE_image_acquire_ibuf function for information on the lock. Also see the image_acquire_ibuf
+ * function for the ensure_host_buffer argument. */
+ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima,
+                                     void **r_lock,
+                                     int tile,
+                                     const bool ensure_host_buffer);
 /**
  * Get the #SpaceImage flag that is valid for the given ibuf.
  */
@@ -110,6 +120,7 @@ bool ED_image_slot_cycle(Image *image, int direction);
 
 bool ED_space_image_show_render(const SpaceImage *sima);
 bool ED_space_image_show_paint(const SpaceImage *sima);
+bool ED_space_image_show_mask(const SpaceImage *sima);
 bool ED_space_image_show_uvedit(const SpaceImage *sima, Object *obedit);
 
 bool ED_space_image_paint_curve(const bContext *C);
@@ -119,39 +130,48 @@ bool ED_space_image_paint_curve(const bContext *C);
  */
 bool ED_space_image_check_show_maskedit(SpaceImage *sima, Object *obedit);
 
-/* Returns true when the following conditions are met:
+/**
+ * Returns true when the following conditions are met:
  * - Current space is Image Editor.
  * - The image editor is not a UV Editor.
  * - It is set to Mask mode.
  *
- * It is not required to have mask opened for editing. */
+ * It is not required to have mask opened for editing.
+ */
 bool ED_space_image_maskedit_poll(bContext *C);
 
-/* Returns true when the following conditions are met:
+/**
+ * Returns true when the following conditions are met:
  * - Current space is Image Editor.
  * - The image editor is not a UV Editor.
  * - It is set to Mask mode.
  * - Mask has visible and editable splines.
  *
- * It is not required to have mask opened for editing. */
+ * It is not required to have mask opened for editing.
+ */
 bool ED_space_image_maskedit_visible_splines_poll(bContext *C);
 
-/* Returns true when the following conditions are met:
- * - Current space is Image Editor.
- * - The image editor is not an UV Editor.
- * - It is set to Mask mode.
- * - The space has mask opened. */
-bool ED_space_image_maskedit_mask_poll(bContext *C);
-
-/* Returns true when the following conditions are met:
+/**
+ * Returns true when the following conditions are met:
  * - Current space is Image Editor.
  * - The image editor is not an UV Editor.
  * - It is set to Mask mode.
  * - The space has mask opened.
- * - Mask has visible and editable splines. */
+ */
+bool ED_space_image_maskedit_mask_poll(bContext *C);
+
+/**
+ * Returns true when the following conditions are met:
+ * - Current space is Image Editor.
+ * - The image editor is not an UV Editor.
+ * - It is set to Mask mode.
+ * - The space has mask opened.
+ * - Mask has visible and editable splines.
+ */
 bool ED_space_image_maskedit_mask_visible_splines_poll(bContext *C);
 
 bool ED_space_image_cursor_poll(bContext *C);
+bool ED_space_image_region_cursor_poll(bContext *C);
 
 /**
  * Used by node view too.
@@ -175,29 +195,54 @@ bool ED_space_image_show_cache_and_mval_over(const SpaceImage *sima,
 bool ED_image_should_save_modified(const Main *bmain);
 int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports);
 bool ED_image_save_all_modified(const bContext *C, ReportList *reports);
+void ED_image_internal_autosave_flush(const Main *bmain);
 
 /* `image_sequence.cc` */
+
+struct ImageFrame;
 
 struct ImageFrameRange {
   ImageFrameRange *next, *prev;
 
-  /** Absolute file path of the first file in the range. */
+  /**
+   * File path of the first file in the range.
+   * May be relative to `G_MAIN->filepath` or the `root_path`
+   * passed in by #ED_image_filesel_detect_sequences.
+   */
   char filepath[FILE_MAX];
   /* Sequence parameters. */
-  int length;
+  int length; /* Does not include placeholders, stops at gaps in sequence. */
   int offset;
+  int max_framenr; /* Allows for calculating length including placeholders. */
+
   /* UDIM tiles. */
   bool udims_detected;
-  ListBase udim_tiles;
+  ListBaseT<LinkData> udim_tiles;
 
   /* Temporary data. */
-  ListBase frames;
+  ListBaseT<ImageFrame> frames;
+};
+
+struct ImageFrame {
+  ImageFrame *next, *prev;
+  int framenr;
 };
 
 /**
  * Used for both images and volume file loading.
+ *
+ * \param blendfile_path: For relative paths, the operator paths will be relative to this.
+ * \param root_path: When `op` references a relative path, #ImageFrameRange::filepath
+ * will be made relative to this path if possible, otherwise it will be made absolute.
+ * Note that `blendfile_path` may equal `root_path`, otherwise `root_path` may be set
+ * to a libraries absolute file-path.
  */
-ListBase ED_image_filesel_detect_sequences(Main *bmain, wmOperator *op, bool detect_udim);
+ListBaseT<ImageFrameRange> ED_image_filesel_detect_sequences(StringRefNull blendfile_path,
+                                                             StringRefNull root_path,
+                                                             wmOperator *op,
+                                                             bool detect_udim);
 
 bool ED_image_tools_paint_poll(bContext *C);
-void ED_paint_cursor_start(Paint *p, bool (*poll)(bContext *C));
+void ED_paint_cursor_start(Paint *paint, bool (*poll)(bContext *C));
+
+}  // namespace blender

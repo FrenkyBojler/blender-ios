@@ -11,17 +11,17 @@
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
-#include "BKE_pointcloud.hh"
-#include "BKE_type_conversions.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include <fmt/format.h>
 
-namespace blender::bke {
+namespace blender {
+
+namespace bke {
 
 MeshFieldContext::MeshFieldContext(const Mesh &mesh, const AttrDomain domain)
     : mesh_(mesh), domain_(domain)
@@ -35,6 +35,12 @@ CurvesFieldContext::CurvesFieldContext(const CurvesGeometry &curves, const AttrD
   BLI_assert(curves.attributes().domain_supported(domain));
 }
 
+CurvesFieldContext::CurvesFieldContext(const Curves &curves_id, const AttrDomain domain)
+    : CurvesFieldContext(curves_id.geometry.wrap(), domain)
+{
+  curves_id_ = &curves_id;
+}
+
 GVArray GreasePencilLayerFieldContext::get_varray_for_input(const fn::FieldInput &field_input,
                                                             const IndexMask &mask,
                                                             ResourceScope &scope) const
@@ -42,9 +48,8 @@ GVArray GreasePencilLayerFieldContext::get_varray_for_input(const fn::FieldInput
   if (const CurvesFieldInput *curves_field_input = dynamic_cast<const CurvesFieldInput *>(
           &field_input))
   {
-    if (const bke::greasepencil::Drawing *drawing =
-            bke::greasepencil::get_eval_grease_pencil_layer_drawing(this->grease_pencil(),
-                                                                    this->layer_index()))
+    if (const bke::greasepencil::Drawing *drawing = this->grease_pencil().get_eval_drawing(
+            this->grease_pencil().layer(this->layer_index())))
     {
       if (drawing->strokes().attributes().domain_supported(this->domain())) {
         const CurvesFieldContext context{drawing->strokes(), this->domain()};
@@ -61,6 +66,7 @@ GeometryFieldContext::GeometryFieldContext(const GeometryFieldContext &other,
     : geometry_(other.geometry_),
       type_(other.type_),
       domain_(domain),
+      curves_id_(other.curves_id_),
       grease_pencil_layer_index_(other.grease_pencil_layer_index_)
 {
 }
@@ -96,6 +102,7 @@ GeometryFieldContext::GeometryFieldContext(const GeometryComponent &component,
       const CurveComponent &curve_component = static_cast<const CurveComponent &>(component);
       const Curves *curves = curve_component.get();
       geometry_ = curves ? &curves->geometry.wrap() : nullptr;
+      curves_id_ = curve_component.get();
       break;
     }
     case GeometryComponent::Type::PointCloud: {
@@ -131,6 +138,13 @@ GeometryFieldContext::GeometryFieldContext(const Mesh &mesh, AttrDomain domain)
 }
 GeometryFieldContext::GeometryFieldContext(const CurvesGeometry &curves, AttrDomain domain)
     : geometry_(&curves), type_(GeometryComponent::Type::Curve), domain_(domain)
+{
+}
+GeometryFieldContext::GeometryFieldContext(const Curves &curves_id, AttrDomain domain)
+    : geometry_(&curves_id.geometry.wrap()),
+      type_(GeometryComponent::Type::Curve),
+      domain_(domain),
+      curves_id_(&curves_id)
 {
 }
 GeometryFieldContext::GeometryFieldContext(const PointCloud &points)
@@ -174,9 +188,8 @@ std::optional<AttributeAccessor> GeometryFieldContext::attributes() const
     if (domain_ == AttrDomain::Layer) {
       return grease_pencil->attributes();
     }
-    else if (const greasepencil::Drawing *drawing =
-                 greasepencil::get_eval_grease_pencil_layer_drawing(*grease_pencil,
-                                                                    grease_pencil_layer_index_))
+    if (const greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
+            grease_pencil->layer(grease_pencil_layer_index_)))
     {
       return drawing->strokes().attributes();
     }
@@ -217,8 +230,8 @@ const greasepencil::Drawing *GeometryFieldContext::grease_pencil_layer_drawing()
   {
     return nullptr;
   }
-  return greasepencil::get_eval_grease_pencil_layer_drawing(*this->grease_pencil(),
-                                                            this->grease_pencil_layer_index_);
+  return this->grease_pencil()->get_eval_drawing(
+      this->grease_pencil()->layer(this->grease_pencil_layer_index_));
 }
 const CurvesGeometry *GeometryFieldContext::curves_or_strokes() const
 {
@@ -229,6 +242,10 @@ const CurvesGeometry *GeometryFieldContext::curves_or_strokes() const
     return &drawing->strokes();
   }
   return nullptr;
+}
+const Curves *GeometryFieldContext::curves_id() const
+{
+  return curves_id_;
 }
 const Instances *GeometryFieldContext::instances() const
 {
@@ -251,6 +268,9 @@ GVArray GeometryFieldInput::get_varray_for_context(const fn::FieldContext &conte
   }
   if (const CurvesFieldContext *curve_context = dynamic_cast<const CurvesFieldContext *>(&context))
   {
+    if (const Curves *curves_id = curve_context->curves_id()) {
+      return this->get_varray_for_context({*curves_id, curve_context->domain()}, mask);
+    }
     return this->get_varray_for_context({curve_context->curves(), curve_context->domain()}, mask);
   }
   if (const PointCloudFieldContext *point_context = dynamic_cast<const PointCloudFieldContext *>(
@@ -285,6 +305,12 @@ std::optional<AttrDomain> GeometryFieldInput::preferred_domain(
   return std::nullopt;
 }
 
+NativeFieldDomain GeometryFieldInput::native_domain_info(
+    const GeometryComponent & /*component*/) const
+{
+  return NativeFieldDomain::None();
+}
+
 GVArray MeshFieldInput::get_varray_for_context(const fn::FieldContext &context,
                                                const IndexMask &mask,
                                                ResourceScope & /*scope*/) const
@@ -305,6 +331,11 @@ GVArray MeshFieldInput::get_varray_for_context(const fn::FieldContext &context,
 std::optional<AttrDomain> MeshFieldInput::preferred_domain(const Mesh & /*mesh*/) const
 {
   return std::nullopt;
+}
+
+NativeFieldDomain MeshFieldInput::native_domain_info(const Mesh & /*mesh*/) const
+{
+  return NativeFieldDomain::None();
 }
 
 GVArray CurvesFieldInput::get_varray_for_context(const fn::FieldContext &context,
@@ -373,14 +404,14 @@ GVArray InstancesFieldInput::get_varray_for_context(const fn::FieldContext &cont
 GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &context,
                                                     const IndexMask & /*mask*/) const
 {
-  const eCustomDataType data_type = cpp_type_to_custom_data_type(*type_);
+  const bke::AttrType data_type = cpp_type_to_attribute_type(*type_);
   const AttrDomain domain = context.domain();
   if (const GreasePencil *grease_pencil = context.grease_pencil()) {
     const AttributeAccessor layer_attributes = grease_pencil->attributes();
     if (domain == AttrDomain::Layer) {
       return *layer_attributes.lookup(name_, data_type);
     }
-    else if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
+    if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
       const int layer_index = context.grease_pencil_layer_index();
       const AttributeAccessor curves_attributes = *context.attributes();
       if (const GAttributeReader reader = curves_attributes.lookup(name_, domain, data_type)) {
@@ -393,13 +424,18 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
         BLI_SCOPED_DEFER([&]() { cpp_type.destruct(value); });
         reader.varray.get_to_uninitialized(layer_index, value);
         const int domain_size = curves_attributes.domain_size(domain);
-        return GVArray::ForSingle(cpp_type, domain_size, value);
+        return GVArray::from_single(cpp_type, domain_size, value);
       }
     }
+  }
+  else if (context.domain() == bke::AttrDomain::Instance && name_ == "position") {
+    /* Special case for "position" which is no longer an attribute on instances. */
+    return bke::instance_position_varray(*context.instances());
   }
   else if (auto attributes = context.attributes()) {
     return *attributes->lookup(name_, domain, data_type);
   }
+
   return {};
 }
 
@@ -412,35 +448,46 @@ GVArray AttributeExistsFieldInput::get_varray_for_context(const bke::GeometryFie
     if (context.domain() == AttrDomain::Layer) {
       const bool exists = layer_attributes.contains(name_);
       const int domain_size = layer_attributes.domain_size(AttrDomain::Layer);
-      return VArray<bool>::ForSingle(exists, domain_size);
+      return VArray<bool>::from_single(exists, domain_size);
     }
     const greasepencil::Drawing *drawing = context.grease_pencil_layer_drawing();
     const AttributeAccessor curve_attributes = drawing->strokes().attributes();
     const bool exists = layer_attributes.contains(name_) || curve_attributes.contains(name_);
     const int domain_size = curve_attributes.domain_size(domain);
-    return VArray<bool>::ForSingle(exists, domain_size);
+    return VArray<bool>::from_single(exists, domain_size);
   }
   const bool exists = context.attributes()->contains(name_);
   const int domain_size = context.attributes()->domain_size(domain);
-  return VArray<bool>::ForSingle(exists, domain_size);
+  return VArray<bool>::from_single(exists, domain_size);
+}
+
+void AttributeExistsFieldInput::hash_unique(UniqueHashBytes &hash,
+                                            fn::FieldHashDeep & /*deep_hash_cache*/) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.data.extend(Span(name_.data(), name_.size()).cast<std::byte>());
+}
+
+NativeFieldDomain AttributeExistsFieldInput::native_domain_info(
+    const GeometryComponent & /*component*/) const
+{
+  return NativeFieldDomain::Constant();
 }
 
 std::string AttributeFieldInput::socket_inspection_name() const
 {
-  return fmt::format(TIP_("\"{}\" attribute from geometry"), name_);
-}
-
-uint64_t AttributeFieldInput::hash() const
-{
-  return get_default_hash_2(name_, type_);
-}
-
-bool AttributeFieldInput::is_equal_to(const fn::FieldNode &other) const
-{
-  if (const AttributeFieldInput *other_typed = dynamic_cast<const AttributeFieldInput *>(&other)) {
-    return name_ == other_typed->name_ && type_ == other_typed->type_;
+  if (socket_inspection_name_) {
+    return *socket_inspection_name_;
   }
-  return false;
+  return fmt::format(fmt::runtime(TIP_("\"{}\" attribute from geometry")), name_);
+}
+
+void AttributeFieldInput::hash_unique(UniqueHashBytes &hash,
+                                      fn::FieldHashDeep & /*deep_hash_cache*/) const
+{
+  hash.data.extend(Span(name_.data(), name_.size()).cast<std::byte>());
+  hash.add(type_);
 }
 
 std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
@@ -455,6 +502,19 @@ std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
     return std::nullopt;
   }
   return meta_data->domain;
+}
+
+NativeFieldDomain AttributeFieldInput::native_domain_info(const GeometryComponent &component) const
+{
+  const std::optional<AttributeAccessor> attributes = component.attributes();
+  if (!attributes.has_value()) {
+    return NativeFieldDomain::Constant();
+  }
+  const std::optional<AttributeMetaData> meta_data = attributes->lookup_meta_data(name_);
+  if (!meta_data.has_value()) {
+    return NativeFieldDomain::Constant();
+  }
+  return NativeFieldDomain(NativeFieldDomain::Domain{meta_data->domain});
 }
 
 static StringRef get_random_id_attribute_name(const AttrDomain domain)
@@ -474,7 +534,7 @@ GVArray IDAttributeFieldInput::get_varray_for_context(const GeometryFieldContext
 
   const StringRef name = get_random_id_attribute_name(context.domain());
   if (auto attributes = context.attributes()) {
-    if (GVArray attribute = *attributes->lookup(name, context.domain(), CD_PROP_INT32)) {
+    if (GVArray attribute = *attributes->lookup<int>(name, context.domain())) {
       return attribute;
     }
   }
@@ -488,57 +548,18 @@ std::string IDAttributeFieldInput::socket_inspection_name() const
   return TIP_("ID / Index");
 }
 
-uint64_t IDAttributeFieldInput::hash() const
+void IDAttributeFieldInput::hash_unique(UniqueHashBytes &hash,
+                                        fn::FieldHashDeep & /*deep_hash_cache*/) const
 {
-  /* All random ID attribute inputs are the same within the same evaluation context. */
-  return 92386459827;
+  static constexpr int8_t id = 0;
+  hash.add(&id);
 }
 
-bool IDAttributeFieldInput::is_equal_to(const fn::FieldNode &other) const
+const fn::Field<int> &IDAttributeFieldInput::get_field()
 {
-  /* All random ID attribute inputs are the same within the same evaluation context. */
-  return dynamic_cast<const IDAttributeFieldInput *>(&other) != nullptr;
-}
-
-GVArray AnonymousAttributeFieldInput::get_varray_for_context(const GeometryFieldContext &context,
-                                                             const IndexMask & /*mask*/) const
-{
-  const eCustomDataType data_type = cpp_type_to_custom_data_type(*type_);
-  return *context.attributes()->lookup(*anonymous_id_, context.domain(), data_type);
-}
-
-std::string AnonymousAttributeFieldInput::socket_inspection_name() const
-{
-  return fmt::format(TIP_("\"{}\" from {}"), TIP_(debug_name_.c_str()), producer_name_);
-}
-
-uint64_t AnonymousAttributeFieldInput::hash() const
-{
-  return get_default_hash_2(anonymous_id_.get(), type_);
-}
-
-bool AnonymousAttributeFieldInput::is_equal_to(const fn::FieldNode &other) const
-{
-  if (const AnonymousAttributeFieldInput *other_typed =
-          dynamic_cast<const AnonymousAttributeFieldInput *>(&other))
-  {
-    return anonymous_id_.get() == other_typed->anonymous_id_.get() && type_ == other_typed->type_;
-  }
-  return false;
-}
-
-std::optional<AttrDomain> AnonymousAttributeFieldInput::preferred_domain(
-    const GeometryComponent &component) const
-{
-  const std::optional<AttributeAccessor> attributes = component.attributes();
-  if (!attributes.has_value()) {
-    return std::nullopt;
-  }
-  const std::optional<AttributeMetaData> meta_data = attributes->lookup_meta_data(*anonymous_id_);
-  if (!meta_data.has_value()) {
-    return std::nullopt;
-  }
-  return meta_data->domain;
+  static const fn::Field<int> field = fn::Field<int>::from_input<IDAttributeFieldInput>();
+  static const fn::Field<int> field_ref = fn::Field<int>::from_non_owning_ref(field);
+  return field_ref;
 }
 
 GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
@@ -555,38 +576,30 @@ GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
     return {};
   }
 
-  IndexMaskMemory memory;
-  const IndexMask layer_indices = grease_pencil.layer_selection_by_name(layer_name_, memory);
-  if (layer_indices.is_empty()) {
-    return {};
+  auto layer_is_selected = [selection_name = StringRef(layer_name_),
+                            &grease_pencil,
+                            size = mask.min_array_size()](const int layer_i) {
+    if (layer_i < 0 || layer_i >= grease_pencil.layers().size()) {
+      return false;
+    }
+    const Layer &layer = grease_pencil.layer(layer_i);
+    return layer.name() == selection_name;
+  };
+
+  if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
+    const int layer_i = context.grease_pencil_layer_index();
+    const bool selected = layer_is_selected(layer_i);
+    return VArray<bool>::from_single(selected, mask.min_array_size());
   }
 
-  if (domain == AttrDomain::Layer) {
-    Array<bool> selection(mask.min_array_size());
-    layer_indices.to_bools(selection);
-    return VArray<bool>::ForContainer(std::move(selection));
-  }
-
-  if (!layer_indices.contains(context.grease_pencil_layer_index())) {
-    return {};
-  }
-
-  return VArray<bool>::ForSingle(true, mask.min_array_size());
+  return VArray<bool>::from_func(mask.min_array_size(), layer_is_selected);
 }
 
-uint64_t NamedLayerSelectionFieldInput::hash() const
+void NamedLayerSelectionFieldInput::hash_unique(UniqueHashBytes &hash,
+                                                fn::FieldHashDeep & /*deep_hash_cache*/) const
 {
-  return get_default_hash_2(layer_name_, type_);
-}
-
-bool NamedLayerSelectionFieldInput::is_equal_to(const fn::FieldNode &other) const
-{
-  if (const NamedLayerSelectionFieldInput *other_named_layer =
-          dynamic_cast<const NamedLayerSelectionFieldInput *>(&other))
-  {
-    return layer_name_ == other_named_layer->layer_name_;
-  }
-  return false;
+  hash.data.extend(Span(layer_name_.data(), layer_name_.size()).cast<std::byte>());
+  hash.add(type_);
 }
 
 std::optional<AttrDomain> NamedLayerSelectionFieldInput::preferred_domain(
@@ -595,19 +608,234 @@ std::optional<AttrDomain> NamedLayerSelectionFieldInput::preferred_domain(
   return AttrDomain::Layer;
 }
 
-}  // namespace blender::bke
+EvaluateAtIndexInput::EvaluateAtIndexInput(fn::Field<int> index_field,
+                                           fn::GField value_field,
+                                           AttrDomain value_field_domain)
+    : bke::GeometryFieldInput(value_field.cpp_type(), "Evaluate at Index"),
+      index_field_(std::move(index_field)),
+      value_field_(std::move(value_field)),
+      value_field_domain_(value_field_domain)
+{
+}
+
+GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldContext &context,
+                                                     const IndexMask &mask) const
+{
+  const std::optional<AttributeAccessor> attributes = context.attributes();
+  if (!attributes) {
+    return {};
+  }
+
+  const bke::GeometryFieldContext value_context{context, value_field_domain_};
+  fn::FieldEvaluator value_evaluator{value_context, attributes->domain_size(value_field_domain_)};
+  value_evaluator.add(value_field_);
+  value_evaluator.evaluate();
+  const GVArray &values = value_evaluator.get_evaluated(0);
+
+  fn::FieldEvaluator index_evaluator{context, &mask};
+  index_evaluator.add(index_field_);
+  index_evaluator.evaluate();
+  const VArraySpan<int> indices = index_evaluator.get_evaluated<int>(0);
+
+  GArray<> dst_array(values.type(), mask.min_array_size());
+  IndexMaskMemory memory;
+  const IndexMask valid_mask = array_utils::indices_in_range(
+      mask, indices, values.index_range(), memory);
+  bke::attribute_math::gather(values, indices, valid_mask, dst_array);
+  dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
+  return GVArray::from_garray(std::move(dst_array));
+}
+
+void EvaluateAtIndexInput::hash_unique(UniqueHashBytes &hash,
+                                       fn::FieldHashDeep &deep_hash_cache) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(type_);
+  hash.add(deep_hash_cache.ensure(index_field_));
+  hash.add(deep_hash_cache.ensure(value_field_));
+  hash.add(value_field_domain_);
+}
+
+static bool component_is_available(const GeometrySet &geometry,
+                                   const GeometryComponent::Type type,
+                                   const AttrDomain domain)
+{
+  if (!geometry.has(type)) {
+    return false;
+  }
+  const GeometryComponent &component = *geometry.get_component(type);
+  return component.attribute_domain_size(domain) != 0;
+}
+
+const GeometryComponent *SampleIndexFunction::find_source_component(const GeometrySet &geometry,
+                                                                    const AttrDomain domain)
+{
+  /* Choose the other component based on a consistent order, rather than some more complicated
+   * heuristic. This is the same order visible in the spreadsheet and used in the ray-cast node. */
+  static const Array<GeometryComponent::Type> supported_types = {
+      GeometryComponent::Type::Mesh,
+      GeometryComponent::Type::PointCloud,
+      GeometryComponent::Type::Curve,
+      GeometryComponent::Type::Instance,
+      GeometryComponent::Type::GreasePencil};
+  for (const GeometryComponent::Type src_type : supported_types) {
+    if (component_is_available(geometry, src_type, domain)) {
+      return geometry.get_component(src_type);
+    }
+  }
+
+  return nullptr;
+}
+
+SampleIndexFunction::SampleIndexFunction(GeometrySet geometry,
+                                         fn::GField src_field,
+                                         const AttrDomain domain)
+    : src_geometry_(std::move(geometry)), src_field_(std::move(src_field)), domain_(domain)
+{
+  src_geometry_.ensure_owns_direct_data();
+
+  mf::SignatureBuilder builder{"Sample Index", signature_};
+  builder.single_input<int>("Index");
+  builder.single_output("Value", src_field_.cpp_type());
+  this->set_signature(&signature_);
+}
+
+void SampleIndexFunction::prepare_for_execution() const
+{
+  mutex_.ensure([&]() {
+    const GeometryComponent *component = find_source_component(src_geometry_, domain_);
+    if (component == nullptr) {
+      return;
+    }
+    const int domain_num = component->attribute_domain_size(domain_);
+    geometry_context_.emplace(GeometryFieldContext(*component, domain_));
+    evaluator_ = std::make_unique<fn::FieldEvaluator>(*geometry_context_, domain_num);
+    evaluator_->add(src_field_);
+    evaluator_->evaluate();
+    src_data_ = &evaluator_->get_evaluated(0);
+  });
+}
+
+void SampleIndexFunction::call(const IndexMask &mask,
+                               mf::Params params,
+                               mf::Context /*context*/) const
+{
+  const VArraySpan<int> indices = params.readonly_single_input<int>(0, "Index");
+  GMutableSpan dst = params.uninitialized_single_output(1, "Value");
+
+  const CPPType &type = dst.type();
+  if (src_data_ == nullptr) {
+    type.value_initialize_indices(dst.data(), mask);
+    return;
+  }
+
+  IndexMaskMemory memory;
+  const IndexMask valid_mask = array_utils::indices_in_range(
+      mask, indices, src_data_->index_range(), memory);
+  bke::attribute_math::gather(*src_data_, indices, valid_mask, dst);
+  dst.type().value_initialize_indices(dst.data(), valid_mask.complement(mask, memory));
+}
+
+void SampleIndexFunction::hash_unique(UniqueHashBytes &hash) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(find_source_component(src_geometry_, domain_));
+  hash.add(domain_);
+  fn::FieldHashDeep field_hash;
+  hash.add(field_hash.ensure(src_field_));
+}
+
+EvaluateOnDomainInput::EvaluateOnDomainInput(fn::GField field, AttrDomain domain)
+    : bke::GeometryFieldInput(field.cpp_type(), "Evaluate on Domain"),
+      src_field_(std::move(field)),
+      src_domain_(domain)
+{
+}
+
+GVArray EvaluateOnDomainInput::get_varray_for_context(const bke::GeometryFieldContext &context,
+                                                      const IndexMask & /*mask*/) const
+{
+  const AttrDomain dst_domain = context.domain();
+  const int dst_domain_size = context.attributes()->domain_size(dst_domain);
+  const CPPType &cpp_type = src_field_.cpp_type();
+
+  if (context.type() == GeometryComponent::Type::GreasePencil &&
+      (src_domain_ == AttrDomain::Layer) != (dst_domain == AttrDomain::Layer))
+  {
+    /* Evaluate field just for the current layer. */
+    if (src_domain_ == AttrDomain::Layer) {
+      const bke::GeometryFieldContext src_domain_context{context, AttrDomain::Layer};
+      const int layer_index = context.grease_pencil_layer_index();
+
+      const IndexMask single_layer_mask = IndexRange(layer_index, 1);
+      fn::FieldEvaluator value_evaluator{src_domain_context, &single_layer_mask};
+      value_evaluator.add(src_field_);
+      value_evaluator.evaluate();
+
+      const GVArray &values = value_evaluator.get_evaluated(0);
+
+      BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, value);
+      BLI_SCOPED_DEFER([&]() { cpp_type.destruct(value); });
+      values.get_to_uninitialized(layer_index, value);
+      return GVArray::from_single(cpp_type, dst_domain_size, value);
+    }
+    /* We don't adapt from curve to layer domain currently. */
+    return GVArray::from_single_default(cpp_type, dst_domain_size);
+  }
+
+  const bke::AttributeAccessor attributes = *context.attributes();
+
+  const bke::GeometryFieldContext other_domain_context{context, src_domain_};
+  const int64_t src_domain_size = attributes.domain_size(src_domain_);
+  GArray<> values(cpp_type, src_domain_size);
+  fn::FieldEvaluator value_evaluator{other_domain_context, src_domain_size};
+  value_evaluator.add_with_destination(src_field_, values.as_mutable_span());
+  value_evaluator.evaluate();
+  return attributes.adapt_domain(GVArray::from_garray(std::move(values)), src_domain_, dst_domain);
+}
+
+void EvaluateOnDomainInput::hash_unique(UniqueHashBytes &hash,
+                                        fn::FieldHashDeep &deep_hash_cache) const
+{
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(deep_hash_cache.ensure(src_field_));
+  hash.add(src_domain_);
+}
+
+void EvaluateOnDomainInput::foreach_recursive_field(FunctionRef<void(const fn::GField &)> fn) const
+{
+  fn(src_field_);
+}
+
+std::optional<AttrDomain> EvaluateOnDomainInput::preferred_domain(
+    const GeometryComponent & /*component*/) const
+{
+  return src_domain_;
+}
+
+NativeFieldDomain EvaluateOnDomainInput::native_domain_info(
+    const GeometryComponent & /*component*/) const
+{
+  return bke::NativeFieldDomain::Domain{src_domain_};
+}
+
+}  // namespace bke
 
 /* -------------------------------------------------------------------- */
 /** \name Mesh and Curve Normals Field Input
  * \{ */
 
-namespace blender::bke {
+namespace bke {
 
 GVArray NormalFieldInput::get_varray_for_context(const GeometryFieldContext &context,
                                                  const IndexMask &mask) const
 {
   if (const Mesh *mesh = context.mesh()) {
-    return mesh_normals_varray(*mesh, mask, context.domain());
+    return mesh_normals_varray(
+        *mesh, mask, context.domain(), legacy_corner_normals_, true_normals_);
   }
   if (const CurvesGeometry *curves = context.curves_or_strokes()) {
     return curve_normals_varray(*curves, context.domain());
@@ -617,33 +845,60 @@ GVArray NormalFieldInput::get_varray_for_context(const GeometryFieldContext &con
 
 std::string NormalFieldInput::socket_inspection_name() const
 {
-  return TIP_("Normal");
+  return true_normals_ ? TIP_("True Normal") : TIP_("Normal");
 }
 
-uint64_t NormalFieldInput::hash() const
+void NormalFieldInput::hash_unique(UniqueHashBytes &hash,
+                                   fn::FieldHashDeep & /*deep_hash_cache*/) const
 {
-  return 213980475983;
+  static constexpr int8_t id = 0;
+  hash.add(&id);
+  hash.add(legacy_corner_normals_);
+  hash.add(true_normals_);
 }
 
-bool NormalFieldInput::is_equal_to(const fn::FieldNode &other) const
+NativeFieldDomain NormalFieldInput::native_domain_info(const GeometryComponent &component) const
 {
-  return dynamic_cast<const NormalFieldInput *>(&other) != nullptr;
-}
-
-static std::optional<AttributeIDRef> try_get_field_direct_attribute_id(const fn::GField &any_field)
-{
-  if (const auto *field = dynamic_cast<const AttributeFieldInput *>(&any_field.node())) {
-    return field->attribute_name();
+  switch (component.type()) {
+    case GeometryComponent::Type::Mesh: {
+      if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
+        switch (mesh->normals_domain()) {
+          case MeshNormalDomain::Face:
+            return bke::NativeFieldDomain::Domain{AttrDomain::Face};
+          case MeshNormalDomain::Point:
+            return bke::NativeFieldDomain::Domain{AttrDomain::Point};
+          case MeshNormalDomain::Corner:
+            return bke::NativeFieldDomain::Domain{AttrDomain::Corner};
+        }
+      }
+      break;
+    }
+    case GeometryComponent::Type::Curve:
+      return bke::NativeFieldDomain::Domain{AttrDomain::Point};
+    default:
+      return bke::NativeFieldDomain::Constant();
   }
-  if (const auto *field = dynamic_cast<const AnonymousAttributeFieldInput *>(&any_field.node())) {
-    return *field->anonymous_id();
+  return bke::NativeFieldDomain::Constant();
+}
+
+const fn::Field<float3> &NormalFieldInput::get_field()
+{
+  static const fn::Field<float3> field = fn::Field<float3>::from_input<NormalFieldInput>();
+  static const fn::Field<float3> field_ref = fn::Field<float3>::from_non_owning_ref(field);
+  return field_ref;
+}
+
+static std::optional<StringRefNull> try_get_field_direct_attribute_id(const fn::GField &any_field)
+{
+  if (const auto *attribute_input = any_field.get_input_if<AttributeFieldInput>()) {
+    return attribute_input->attribute_name();
   }
   return {};
 }
 
 static bool attribute_kind_matches(const AttributeMetaData meta_data,
                                    const AttrDomain domain,
-                                   const eCustomDataType data_type)
+                                   const bke::AttrType data_type)
 {
   return meta_data.domain == domain && meta_data.data_type == data_type;
 }
@@ -653,11 +908,11 @@ static bool attribute_kind_matches(const AttributeMetaData meta_data,
  * and domain, use implicit sharing to avoid duplication when creating the captured attribute.
  */
 static bool try_add_shared_field_attribute(MutableAttributeAccessor attributes,
-                                           const AttributeIDRef &id_to_create,
+                                           const StringRef id_to_create,
                                            const AttrDomain domain,
                                            const fn::GField &field)
 {
-  const std::optional<AttributeIDRef> field_id = try_get_field_direct_attribute_id(field);
+  const std::optional<StringRef> field_id = try_get_field_direct_attribute_id(field);
   if (!field_id) {
     return false;
   }
@@ -665,7 +920,7 @@ static bool try_add_shared_field_attribute(MutableAttributeAccessor attributes,
   if (!meta_data) {
     return false;
   }
-  const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(field.cpp_type());
+  const bke::AttrType data_type = bke::cpp_type_to_attribute_type(field.cpp_type());
   if (!attribute_kind_matches(*meta_data, domain, data_type)) {
     /* Avoid costly domain and type interpolation, which would make sharing impossible. */
     return false;
@@ -679,92 +934,203 @@ static bool try_add_shared_field_attribute(MutableAttributeAccessor attributes,
   return attributes.add(id_to_create, domain, data_type, init);
 }
 
-bool try_capture_field_on_geometry(MutableAttributeAccessor attributes,
-                                   const fn::FieldContext &field_context,
-                                   const AttributeIDRef &attribute_id,
-                                   const AttrDomain domain,
-                                   const fn::Field<bool> &selection,
-                                   const fn::GField &field)
+static bool attribute_data_matches_varray(const GAttributeReader &attribute,
+                                          const CommonVArrayInfo &varray_info)
 {
-  const int domain_size = attributes.domain_size(domain);
-  const CPPType &type = field.cpp_type();
-  const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(type);
-
-  if (domain_size == 0) {
-    return attributes.add(attribute_id, domain, data_type, AttributeInitConstruct{});
+  if (varray_info.type != CommonVArrayInfo::Type::Span) {
+    return false;
   }
-
-  const bke::AttributeValidator validator = attributes.lookup_validator(attribute_id);
-
-  const std::optional<AttributeMetaData> meta_data = attributes.lookup_meta_data(attribute_id);
-  const bool attribute_matches = meta_data &&
-                                 attribute_kind_matches(*meta_data, domain, data_type);
-
-  /* We are writing to an attribute that exists already with the correct domain and type. */
-  if (attribute_matches) {
-    if (GSpanAttributeWriter dst_attribute = attributes.lookup_for_write_span(attribute_id)) {
-      fn::FieldEvaluator evaluator{field_context, domain_size};
-      evaluator.add(validator.validate_field_if_necessary(field));
-      evaluator.set_selection(selection);
-      evaluator.evaluate();
-
-      const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
-
-      array_utils::copy(evaluator.get_evaluated(0), selection, dst_attribute.span);
-
-      dst_attribute.finish();
-      return true;
-    }
+  const CommonVArrayInfo attribute_info = attribute.varray.common_info();
+  if (attribute_info.type != CommonVArrayInfo::Type::Span) {
+    return false;
   }
-
-  const bool selection_is_full = !selection.node().depends_on_input() &&
-                                 fn::evaluate_constant_field(selection);
-
-  if (!validator && selection_is_full) {
-    if (try_add_shared_field_attribute(attributes, attribute_id, domain, field)) {
-      return true;
-    }
-  }
-
-  /* Could avoid allocating a new buffer if:
-   * - The field does not depend on that attribute (we can't easily check for that yet). */
-  void *buffer = MEM_mallocN_aligned(type.size() * domain_size, type.alignment(), __func__);
-  if (!selection_is_full) {
-    type.value_initialize_n(buffer, domain_size);
-  }
-  fn::FieldEvaluator evaluator{field_context, domain_size};
-  evaluator.add_with_destination(validator.validate_field_if_necessary(field),
-                                 GMutableSpan{type, buffer, domain_size});
-  evaluator.set_selection(selection);
-  evaluator.evaluate();
-
-  if (attribute_matches) {
-    if (GAttributeWriter attribute = attributes.lookup_for_write(attribute_id)) {
-      attribute.varray.set_all(buffer);
-      attribute.finish();
-      type.destruct_n(buffer, domain_size);
-      MEM_freeN(buffer);
-      return true;
-    }
-  }
-
-  attributes.remove(attribute_id);
-  if (attributes.add(attribute_id, domain, data_type, bke::AttributeInitMoveArray(buffer))) {
-    return true;
-  }
-
-  /* If the name corresponds to a builtin attribute, removing the attribute might fail if
-   * it's required, and adding the attribute might fail if the domain or type is incorrect. */
-  type.destruct_n(buffer, domain_size);
-  MEM_freeN(buffer);
-  return false;
+  return varray_info.data == attribute_info.data;
 }
 
-bool try_capture_field_on_geometry(GeometryComponent &component,
-                                   const AttributeIDRef &attribute_id,
-                                   const AttrDomain domain,
-                                   const fn::Field<bool> &selection,
-                                   const fn::GField &field)
+static bool try_assign_single_value(MutableAttributeAccessor &attributes,
+                                    const StringRef name,
+                                    const GPointer value)
+{
+  return attributes.assign_data(name, AttributeInitValue(value));
+}
+
+static void initialize_new_data(MutableAttributeAccessor &attributes,
+                                const AttrDomain domain,
+                                const int domain_size,
+                                const StringRef name,
+                                const CPPType &type,
+                                const bke::AttrType data_type,
+                                void *buffer)
+{
+  /* NOTE: It's unnecessary to fill the values for elements that will be selected and also set
+   * during field evaluation. A future optimization could evaluate the selection separately and use
+   * its inverse here. */
+
+  if (attributes.is_builtin(name)) {
+    if (const GPointer value = attributes.get_builtin_default(name)) {
+      type.fill_construct_n(value.get(), buffer, domain_size);
+      return;
+    }
+  }
+  if (const GAttributeReader old_attribute = attributes.lookup(name, domain, data_type)) {
+    old_attribute.varray.materialize(buffer);
+    return;
+  }
+  type.fill_construct_n(type.default_value(), buffer, domain_size);
+}
+
+bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
+                                    const fn::FieldContext &field_context,
+                                    const Span<StringRef> names,
+                                    const AttrDomain domain,
+                                    const fn::Field<bool> &selection,
+                                    const Span<fn::GField> fields)
+{
+  BLI_assert(names.size() == fields.size());
+  const int domain_size = attributes.domain_size(domain);
+  if (domain_size == 0) {
+    bool all_added = true;
+    for (const int i : names.index_range()) {
+      const bke::AttrType data_type = bke::cpp_type_to_attribute_type(fields[i].cpp_type());
+      all_added &= attributes.add(names[i], domain, data_type, AttributeInitConstruct{});
+    }
+    return all_added;
+  }
+
+  fn::FieldEvaluator evaluator{field_context, domain_size};
+  evaluator.set_selection(selection);
+
+  const bool selection_is_full = !selection.depends_on_input() &&
+                                 fn::evaluate_constant_field(selection);
+
+  struct StoreResult {
+    int input_index;
+    int evaluator_index;
+  };
+  Vector<StoreResult> results_to_store;
+
+  ResourceScope scope;
+
+  struct AddResult {
+    int input_index;
+    struct Single {
+      void *value;
+    };
+    struct Array {
+      void *data;
+    };
+    std::variant<Single, Array> new_data;
+  };
+  Vector<AddResult> results_to_add;
+
+  bool success = true;
+
+  for (const int input_index : names.index_range()) {
+    const StringRef name = names[input_index];
+    const CPPType &type = fields[input_index].cpp_type();
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
+
+    /* Avoid adding or writing to builtin attributes with an incorrect type or domain. */
+    if (const std::optional<AttributeDomainAndType> meta_data =
+            attributes.get_builtin_domain_and_type(name))
+    {
+      if (*meta_data != AttributeDomainAndType{domain, data_type}) {
+        success = false;
+        continue;
+      }
+    }
+
+    const AttributeValidator validator = attributes.lookup_validator(name);
+    const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
+
+    /* We are writing to an attribute that exists already with the correct domain and type. */
+    if (const GAttributeReader dst = attributes.lookup(name)) {
+      if (dst.domain == domain && dst.varray.type() == field.cpp_type()) {
+        const int evaluator_index = evaluator.add(field);
+        results_to_store.append({input_index, evaluator_index});
+        continue;
+      }
+    }
+
+    if (!validator && selection_is_full) {
+      if (try_add_shared_field_attribute(attributes, name, domain, field)) {
+        continue;
+      }
+    }
+
+    if (field.depends_on_input() || !selection_is_full) {
+      /* Could avoid allocating a new buffer if:
+       * - The field does not depend on that attribute (we can't easily check for that yet). */
+      void *buffer = MEM_new_uninitialized_aligned(
+          type.size * domain_size, type.alignment, __func__);
+      if (!selection_is_full) {
+        initialize_new_data(attributes, domain, domain_size, name, type, data_type, buffer);
+      }
+
+      GMutableSpan dst(type, buffer, domain_size);
+      evaluator.add_with_destination(field, dst);
+      results_to_add.append({input_index, AddResult::Array{buffer}});
+    }
+    else {
+      void *value = scope.allocate_owned(field.cpp_type());
+      fn::evaluate_constant_field(field, value);
+      results_to_add.append({input_index, AddResult::Single{value}});
+    }
+  }
+
+  evaluator.evaluate();
+  const IndexMask &mask = evaluator.get_evaluated_selection_as_mask();
+
+  for (const StoreResult &result : results_to_store) {
+    const StringRef name = names[result.input_index];
+    const GVArray &result_data = evaluator.get_evaluated(result.evaluator_index);
+    const CommonVArrayInfo info = result_data.common_info();
+    if (selection_is_full) {
+      if (info.type == CommonVArrayInfo::Type::Single) {
+        if (try_assign_single_value(attributes, name, GPointer(result_data.type(), info.data))) {
+          continue;
+        }
+      }
+    }
+    const GAttributeReader dst = attributes.lookup(name);
+    if (!attribute_data_matches_varray(dst, info)) {
+      GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(name);
+      array_utils::copy(result_data, mask, dst_mut.span);
+      dst_mut.finish();
+    }
+  }
+
+  for (AddResult &result : results_to_add) {
+    const StringRef name = names[result.input_index];
+    attributes.remove(name);
+    const CPPType &type = fields[result.input_index].cpp_type();
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
+    if (auto *array = std::get_if<AddResult::Array>(&result.new_data)) {
+      if (!attributes.add(name, domain, data_type, AttributeInitMoveArray(array->data))) {
+        /* If the name corresponds to a builtin attribute, removing the attribute might fail if
+         * it's required, adding the attribute might fail if the domain or type is incorrect. */
+        type.destruct_n(array->data, domain_size);
+        MEM_delete_void(array->data);
+        success = false;
+      }
+    }
+    else {
+      const auto value = std::get<AddResult::Single>(result.new_data);
+      const AttributeInitValue init(GPointer(type, value.value));
+      if (!attributes.add(name, domain, data_type, init)) {
+        success = false;
+      }
+    }
+  }
+
+  return success;
+}
+
+bool try_capture_fields_on_geometry(GeometryComponent &component,
+                                    const Span<StringRef> names,
+                                    const AttrDomain domain,
+                                    const fn::Field<bool> &selection,
+                                    const Span<fn::GField> fields)
 {
   const GeometryComponent::Type component_type = component.type();
   if (component_type == GeometryComponent::Type::GreasePencil &&
@@ -779,18 +1145,17 @@ bool try_capture_field_on_geometry(GeometryComponent &component,
     bool any_success = false;
     threading::parallel_for(grease_pencil->layers().index_range(), 8, [&](const IndexRange range) {
       for (const int layer_index : range) {
-        if (greasepencil::Drawing *drawing =
-                greasepencil::get_eval_grease_pencil_layer_drawing_for_write(*grease_pencil,
-                                                                             layer_index))
+        if (greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
+                grease_pencil->layer(layer_index)))
         {
           const GeometryFieldContext field_context{*grease_pencil, domain, layer_index};
-          const bool success = try_capture_field_on_geometry(
+          const bool success = try_capture_fields_on_geometry(
               drawing->strokes_for_write().attributes_for_write(),
               field_context,
-              attribute_id,
+              names,
               domain,
               selection,
-              field);
+              fields);
           if (success & !any_success) {
             any_success = true;
           }
@@ -806,17 +1171,57 @@ bool try_capture_field_on_geometry(GeometryComponent &component,
 
   MutableAttributeAccessor attributes = *component.attributes_for_write();
   const GeometryFieldContext field_context{component, domain};
-  return try_capture_field_on_geometry(
-      attributes, field_context, attribute_id, domain, selection, field);
+  return try_capture_fields_on_geometry(
+      attributes, field_context, names, domain, selection, fields);
 }
 
-bool try_capture_field_on_geometry(GeometryComponent &component,
-                                   const AttributeIDRef &attribute_id,
-                                   const AttrDomain domain,
-                                   const fn::GField &field)
+bool try_capture_fields_on_geometry(GeometryComponent &component,
+                                    const Span<StringRef> names,
+                                    const AttrDomain domain,
+                                    const Span<fn::GField> fields)
 {
-  const fn::Field<bool> selection = fn::make_constant_field<bool>(true);
-  return try_capture_field_on_geometry(component, attribute_id, domain, selection, field);
+  const fn::Field<bool> selection = fn::Field<bool>(true);
+  return try_capture_fields_on_geometry(component, names, domain, selection, fields);
+}
+
+std::optional<AttrDomain> try_detect_native_field_domain(const GeometryComponent &component,
+                                                         const fn::GField &field)
+{
+  const fn::FieldInputsPtr &field_inputs = field.field_inputs();
+  if (!field_inputs) {
+    return std::nullopt;
+  }
+  VectorSet<AttrDomain, 8> domains;
+  for (const fn::FieldInput &field_input : field_inputs->inputs) {
+    if (const auto *input = dynamic_cast<const GeometryFieldInput *>(&field_input)) {
+      const NativeFieldDomain domain_info = input->native_domain_info(component);
+      if (std::holds_alternative<NativeFieldDomain::None>(domain_info.variant)) {
+        return std::nullopt;
+      }
+      if (const auto *value = std::get_if<NativeFieldDomain::Domain>(&domain_info.variant)) {
+        domains.add(value->domain);
+      }
+    }
+    if (component.type() == GeometryComponent::Type::Mesh) {
+      if (const Mesh *mesh = static_cast<const MeshComponent &>(component).get()) {
+        if (const auto *input = dynamic_cast<const MeshFieldInput *>(&field_input)) {
+          const NativeFieldDomain domain_info = input->native_domain_info(*mesh);
+          if (std::holds_alternative<NativeFieldDomain::None>(domain_info.variant)) {
+            return std::nullopt;
+          }
+          if (const auto *value = std::get_if<NativeFieldDomain::Domain>(&domain_info.variant)) {
+            domains.add(value->domain);
+          }
+        }
+      }
+    }
+    return std::nullopt;
+  }
+  if (domains.size() != 1) {
+    /* Any combination of domains means there is no particular native domain. */
+    return std::nullopt;
+  }
+  return domains[0];
 }
 
 std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &component,
@@ -832,7 +1237,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
   if (component_type == GeometryComponent::Type::Instance) {
     return AttrDomain::Instance;
   }
-  const std::shared_ptr<const fn::FieldInputs> &field_inputs = field.node().field_inputs();
+  const fn::FieldInputsPtr &field_inputs = field.field_inputs();
   if (!field_inputs) {
     return std::nullopt;
   }
@@ -856,7 +1261,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
     if (mesh == nullptr) {
       return std::nullopt;
     }
-    for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+    for (const fn::FieldInput &field_input : field_inputs->inputs) {
       if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
               &field_input))
       {
@@ -880,7 +1285,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
     if (curves == nullptr) {
       return std::nullopt;
     }
-    for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+    for (const fn::FieldInput &field_input : field_inputs->inputs) {
       if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
               &field_input))
       {
@@ -903,6 +1308,8 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
   return output_domain;
 }
 
-}  // namespace blender::bke
+}  // namespace bke
 
 /** \} */
+
+}  // namespace blender

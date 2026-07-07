@@ -8,15 +8,13 @@
 
 #pragma once
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
-extern struct bNodeTreeType *ntreeType_Shader;
+extern struct bke::bNodeTreeType *ntreeType_Shader;
 
-void register_node_type_sh_custom_group(bNodeType *ntype);
+void register_node_type_sh_custom_group(bke::bNodeType *ntype);
 
 struct bNodeTreeExec *ntreeShaderBeginExecTree(struct bNodeTree *ntree);
 void ntreeShaderEndExecTree(struct bNodeTreeExec *exec);
@@ -36,6 +34,4 @@ struct bNode *ntreeShaderOutputNode(struct bNodeTree *ntree, int target);
  */
 void ntreeGPUMaterialNodes(struct bNodeTree *localtree, struct GPUMaterial *mat);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

@@ -10,41 +10,31 @@
 
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_lib_query.h"
-#include "BKE_mesh_runtime.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
-#include "BKE_object.hh"
 #include "BKE_volume.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_volume_types.h"
-
-#include "DEG_depsgraph.hh"
 
 #include "GEO_mesh_to_volume.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "BLO_read_write.hh"
-
-#include "MEM_guardedalloc.h"
-
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "BLI_index_range.hh"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_span.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
+#include "RNA_types.hh"
+
+namespace blender {
 
 static void init_data(ModifierData *md)
 {
@@ -72,37 +62,37 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   MeshToVolumeModifierData *mvmd = reinterpret_cast<MeshToVolumeModifierData *>(md);
-  walk(user_data, ob, (ID **)&mvmd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&mvmd->object), IDWALK_CB_NOP);
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
   MeshToVolumeModifierData *mvmd = static_cast<MeshToVolumeModifierData *>(ptr->data);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "density", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   {
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "interior_band_width", UI_ITEM_NONE, nullptr, ICON_NONE);
+    ui::Layout &col = layout.column(false);
+    col.prop(ptr, "interior_band_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   {
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "resolution_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+    ui::Layout &col = layout.column(false);
+    col.prop(ptr, "resolution_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (mvmd->resolution_mode == MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT) {
-      uiItemR(col, ptr, "voxel_amount", UI_ITEM_NONE, nullptr, ICON_NONE);
+      col.prop(ptr, "voxel_amount", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
     else {
-      uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, nullptr, ICON_NONE);
+      col.prop(ptr, "voxel_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -115,8 +105,6 @@ static Volume *mesh_to_volume(ModifierData *md,
                               Volume *input_volume)
 {
 #ifdef WITH_OPENVDB
-  using namespace blender;
-
   MeshToVolumeModifierData *mvmd = reinterpret_cast<MeshToVolumeModifierData *>(md);
   Object *object_to_convert = mvmd->object;
 
@@ -132,8 +120,8 @@ static Volume *mesh_to_volume(ModifierData *md,
     return input_volume;
   }
 
-  const float4x4 mesh_to_own_object_space_transform = float4x4(ctx->object->world_to_object) *
-                                                      float4x4(object_to_convert->object_to_world);
+  const float4x4 mesh_to_own_object_space_transform = ctx->object->world_to_object() *
+                                                      object_to_convert->object_to_world();
   geometry::MeshToVolumeResolution resolution;
   resolution.mode = (MeshToVolumeModifierResolutionMode)mvmd->resolution_mode;
   if (resolution.mode == MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT) {
@@ -159,7 +147,7 @@ static Volume *mesh_to_volume(ModifierData *md,
   /* Create a new volume. */
   Volume *volume;
   if (input_volume == nullptr) {
-    volume = static_cast<Volume *>(BKE_id_new_nomain(ID_VO, "Volume"));
+    volume = BKE_id_new_nomain<Volume>("Volume");
   }
   else {
     volume = BKE_volume_new_for_eval(input_volume);
@@ -168,7 +156,9 @@ static Volume *mesh_to_volume(ModifierData *md,
   /* Convert mesh to grid and add to volume. */
   geometry::fog_volume_grid_add_from_mesh(volume,
                                           "density",
-                                          mesh,
+                                          mesh->vert_positions(),
+                                          mesh->corner_verts(),
+                                          mesh->corner_tris(),
                                           mesh_to_own_object_space_transform,
                                           voxel_size,
                                           mvmd->interior_band_width,
@@ -185,7 +175,7 @@ static Volume *mesh_to_volume(ModifierData *md,
 
 static void modify_geometry_set(ModifierData *md,
                                 const ModifierEvalContext *ctx,
-                                blender::bke::GeometrySet *geometry_set)
+                                bke::GeometrySet *geometry_set)
 {
   Volume *input_volume = geometry_set->get_volume_for_write();
   Volume *result_volume = mesh_to_volume(md, ctx, input_volume);
@@ -226,4 +216,8 @@ ModifierTypeInfo modifierType_MeshToVolume = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

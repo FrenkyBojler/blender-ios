@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "DNA_object_types.h"
 #include "DNA_view3d_enums.h"
 
@@ -45,9 +45,8 @@ static inline eGeometryType geometry_type_from_object(Object *ob)
 enum class ePipelineType {
   OPAQUE = 0,
   TRANSPARENT,
-  SHADOW,
 };
-static constexpr int pipeline_type_len = static_cast<int>(ePipelineType::SHADOW) + 1;
+static constexpr int pipeline_type_len = static_cast<int>(ePipelineType::TRANSPARENT) + 1;
 
 enum class eLightingType {
   FLAT = 0,

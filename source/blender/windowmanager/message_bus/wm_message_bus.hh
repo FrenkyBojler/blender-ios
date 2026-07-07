@@ -8,9 +8,15 @@
 
 #pragma once
 
-#include "RNA_prototypes.h"
+#include "BLI_string_ref.hh"
+
+#include "DNA_listBase.h"
+
+#include "RNA_prototypes.hh"
 #include "RNA_types.hh"
-#include <stdio.h>
+#include <cstdio>
+
+namespace blender {
 
 struct ID;
 struct bContext;
@@ -33,22 +39,27 @@ using wmMsgSubscribeValueUpdateIdFn =
 enum {
   WM_MSG_TYPE_RNA = 0,
   WM_MSG_TYPE_STATIC = 1,
+  /** Messages relating to some remote resources, like progress reporting for online asset
+   * downloads. */
+  WM_MSG_TYPE_REMOTE_IO = 2,
 };
-#define WM_MSG_TYPE_NUM 2
+#define WM_MSG_TYPE_NUM 3
 
 struct wmMsgTypeInfo {
   struct {
     unsigned int (*hash_fn)(const void *msg);
     bool (*cmp_fn)(const void *a, const void *b);
+
+    /* Creation, duplication and deletion callbacks. */
+    /* Not needed currently, key are always allocated by duplicating from stack data. */
+    /* void *(*key_alloc_fn)(); */
+    void *(*key_duplicate_fn)(const void *key);
     void (*key_free_fn)(void *key);
   } gset;
 
   void (*update_by_id)(wmMsgBus *mbus, ID *id_src, ID *id_dst);
   void (*remove_by_id)(wmMsgBus *mbus, const ID *id);
   void (*repr)(FILE *stream, const wmMsgSubscribeKey *msg_key);
-
-  /* sizeof(wmMsgSubscribeKey_*) */
-  uint msg_key_size;
 };
 
 struct wmMsg {
@@ -62,12 +73,12 @@ struct wmMsg {
 struct wmMsgSubscribeKey {
   /** Linked list for predictable ordering, otherwise we would depend on #GHash bucketing. */
   wmMsgSubscribeKey *next, *prev;
-  ListBase values;
-  /* Over-allocate, eg: #wmMsgSubscribeKey_RNA */
-  /* Last member will be 'wmMsg_*' */
+  ListBaseT<wmMsgSubscribeValueLink> values;
+  /* Over-allocate, eg: #wmMsgSubscribeKey_RNA. */
+  /* Last member will be `wmMsg_*`. */
 };
 
-/** One of many in #wmMsgSubscribeKey.values */
+/** One of many in #wmMsgSubscribeKey.values. */
 struct wmMsgSubscribeValue {
   wmMsgSubscribeValue *next, *prev;
 
@@ -76,19 +87,19 @@ struct wmMsgSubscribeValue {
   /** User data, can be whatever we like, free using the 'free_data' callback if it's owned. */
   void *user_data;
 
-  /** Callbacks */
+  /** Callbacks. */
   wmMsgNotifyFn notify;
   wmMsgSubscribeValueUpdateIdFn update_id;
   wmMsgSubscribeValueFreeDataFn free_data;
 
   /** Keep this subscriber if possible. */
   uint is_persistent : 1;
-  /* tag to run when handling events,
+  /* Tag to run when handling events,
    * we may want option for immediate execution. */
   uint tag : 1;
 };
 
-/** One of many in #wmMsgSubscribeKey.values */
+/** One of many in #wmMsgSubscribeKey.values. */
 struct wmMsgSubscribeValueLink {
   wmMsgSubscribeValueLink *next, *prev;
   wmMsgSubscribeValue params;
@@ -101,7 +112,7 @@ void WM_msgbus_destroy(wmMsgBus *mbus);
 
 void WM_msgbus_clear_by_owner(wmMsgBus *mbus, void *owner);
 
-void WM_msg_dump(wmMsgBus *mbus, const char *info);
+void WM_msg_dump(wmMsgBus *mbus, const char *info_str);
 void WM_msgbus_handle(wmMsgBus *mbus, bContext *C);
 
 void WM_msg_publish_with_key(wmMsgBus *mbus, wmMsgSubscribeKey *msg_key);
@@ -126,7 +137,7 @@ void WM_msg_id_remove(wmMsgBus *mbus, const ID *id);
 /* `wm_message_bus_static.cc` */
 
 enum {
-  /* generic window redraw */
+  /* Generic window redraw. */
   WM_MSG_STATICTYPE_WINDOW_DRAW = 0,
   WM_MSG_STATICTYPE_SCREEN_EDIT = 1,
   WM_MSG_STATICTYPE_FILE_READ = 2,
@@ -137,7 +148,7 @@ struct wmMsgParams_Static {
 };
 
 struct wmMsg_Static {
-  wmMsg head; /* keep first */
+  wmMsg head; /* Keep first. */
   wmMsgParams_Static params;
 };
 
@@ -152,7 +163,7 @@ wmMsgSubscribeKey_Static *WM_msg_lookup_static(wmMsgBus *mbus,
                                                const wmMsgParams_Static *msg_key_params);
 void WM_msg_publish_static_params(wmMsgBus *mbus, const wmMsgParams_Static *msg_key_params);
 void WM_msg_publish_static(wmMsgBus *mbus,
-                           /* wmMsgParams_Static (expanded) */
+                           /* #wmMsgParams_Static (expanded). */
                            int event);
 void WM_msg_subscribe_static_params(wmMsgBus *mbus,
                                     const wmMsgParams_Static *msg_key_params,
@@ -164,12 +175,45 @@ void WM_msg_subscribe_static(wmMsgBus *mbus,
                              const char *id_repr);
 
 /* -------------------------------------------------------------------------- */
+/* `wm_message_bus_remote_io.cc` */
+
+struct wmMsgParams_RemoteIO {
+  /* Owned, needs freeing with `MEM_delete_void()`. */
+  const char *remote_url;
+};
+
+struct wmMsg_RemoteIO {
+  wmMsg head; /* Keep first. */
+  wmMsgParams_RemoteIO params;
+};
+
+struct wmMsgSubscribeKey_RemoteIO {
+  wmMsgSubscribeKey head;
+  wmMsg_RemoteIO msg;
+};
+
+void WM_msgtypeinfo_init_remote_io(wmMsgTypeInfo *msgtype_info);
+
+wmMsgSubscribeKey_RemoteIO *WM_msg_lookup_remote_io(wmMsgBus *mbus,
+                                                    const wmMsgParams_RemoteIO *msg_key_params);
+void WM_msg_publish_remote_io_params(wmMsgBus *mbus, const wmMsgParams_RemoteIO *msg_key_params);
+void WM_msg_publish_remote_io(wmMsgBus *mbus, StringRef remote_url);
+void WM_msg_subscribe_remote_io_params(wmMsgBus *mbus,
+                                       const wmMsgParams_RemoteIO *msg_key_params,
+                                       const wmMsgSubscribeValue *msg_val_params,
+                                       const char *id_repr);
+void WM_msg_subscribe_remote_io(wmMsgBus *mbus,
+                                StringRef remote_url,
+                                const wmMsgSubscribeValue *msg_val_params,
+                                const char *id_repr);
+
+/* -------------------------------------------------------------------------- */
 /* `wm_message_bus_rna.cc` */
 
 struct wmMsgParams_RNA {
-  /** when #PointerRNA.data & owner_id are NULL. match against all. */
+  /** When #PointerRNA.data & owner_id are NULL. match against all. */
   PointerRNA ptr;
-  /** when NULL, match against any property. */
+  /** When NULL, match against any property. */
   const PropertyRNA *prop;
 
   /**
@@ -180,7 +224,7 @@ struct wmMsgParams_RNA {
 };
 
 struct wmMsg_RNA {
-  wmMsg head; /* keep first */
+  wmMsg head; /* Keep first. */
   wmMsgParams_RNA params;
 };
 
@@ -194,7 +238,7 @@ void WM_msgtypeinfo_init_rna(wmMsgTypeInfo *msgtype_info);
 wmMsgSubscribeKey_RNA *WM_msg_lookup_rna(wmMsgBus *mbus, const wmMsgParams_RNA *msg_key_params);
 void WM_msg_publish_rna_params(wmMsgBus *mbus, const wmMsgParams_RNA *msg_key_params);
 void WM_msg_publish_rna(wmMsgBus *mbus,
-                        /* wmMsgParams_RNA (expanded) */
+                        /* #wmMsgParams_RNA (expanded). */
                         PointerRNA *ptr,
                         PropertyRNA *prop);
 void WM_msg_subscribe_rna_params(wmMsgBus *mbus,
@@ -207,7 +251,7 @@ void WM_msg_subscribe_rna(wmMsgBus *mbus,
                           const wmMsgSubscribeValue *msg_val_params,
                           const char *id_repr);
 
-/* ID variants */
+/* ID variants. */
 void WM_msg_subscribe_ID(wmMsgBus *mbus,
                          ID *id,
                          const wmMsgSubscribeValue *msg_val_params,
@@ -216,26 +260,26 @@ void WM_msg_publish_ID(wmMsgBus *mbus, ID *id);
 
 #define WM_msg_publish_rna_prop(mbus, id_, data_, type_, prop_) \
   { \
-    wmMsgParams_RNA msg_key_params_ = {{0}}; \
-    msg_key_params_.ptr = RNA_pointer_create(id_, &RNA_##type_, data_); \
+    wmMsgParams_RNA msg_key_params_ = {{}}; \
+    msg_key_params_.ptr = RNA_pointer_create_discrete(id_, RNA_##type_, data_); \
     msg_key_params_.prop = &rna_##type_##_##prop_; \
     WM_msg_publish_rna_params(mbus, &msg_key_params_); \
   } \
   ((void)0)
 #define WM_msg_subscribe_rna_prop(mbus, id_, data_, type_, prop_, value) \
   { \
-    wmMsgParams_RNA msg_key_params_ = {{0}}; \
-    msg_key_params_.ptr = RNA_pointer_create(id_, &RNA_##type_, data_); \
+    wmMsgParams_RNA msg_key_params_ = {{}}; \
+    msg_key_params_.ptr = RNA_pointer_create_discrete(id_, RNA_##type_, data_); \
     msg_key_params_.prop = &rna_##type_##_##prop_; \
     WM_msg_subscribe_rna_params(mbus, &msg_key_params_, value, __func__); \
   } \
   ((void)0)
 
-/* Anonymous variants (for convenience) */
+/* Anonymous variants (for convenience). */
 #define WM_msg_subscribe_rna_anon_type(mbus, type_, value) \
   { \
-    PointerRNA msg_ptr_ = {0, &RNA_##type_}; \
-    wmMsgParams_RNA msg_key_params_ = {{0}}; \
+    PointerRNA msg_ptr_ = {nullptr, RNA_##type_, nullptr}; \
+    wmMsgParams_RNA msg_key_params_ = {{}}; \
     msg_key_params_.ptr = msg_ptr_; \
 \
     WM_msg_subscribe_rna_params(mbus, &msg_key_params_, value, __func__); \
@@ -243,11 +287,13 @@ void WM_msg_publish_ID(wmMsgBus *mbus, ID *id);
   ((void)0)
 #define WM_msg_subscribe_rna_anon_prop(mbus, type_, prop_, value) \
   { \
-    PointerRNA msg_ptr_ = {0, &RNA_##type_}; \
-    wmMsgParams_RNA msg_key_params_ = {{0}}; \
+    PointerRNA msg_ptr_ = {nullptr, RNA_##type_, nullptr}; \
+    wmMsgParams_RNA msg_key_params_ = {{}}; \
     msg_key_params_.ptr = msg_ptr_; \
     msg_key_params_.prop = &rna_##type_##_##prop_; \
 \
     WM_msg_subscribe_rna_params(mbus, &msg_key_params_, value, __func__); \
   } \
   ((void)0)
+
+}  // namespace blender

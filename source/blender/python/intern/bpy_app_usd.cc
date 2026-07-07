@@ -6,16 +6,20 @@
  * \ingroup pythonintern
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 #include <Python.h>
 
-#include "bpy_app_usd.h"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
-#include "../generic/py_capi_utils.h"
+#include "bpy_app_usd.hh"
+
+#include "../generic/py_capi_utils.hh"
 
 #ifdef WITH_USD
-#  include "usd.h"
+#  include "usd.hh"
 #endif
+
+namespace blender {
 
 static PyTypeObject BlenderAppUSDType;
 
@@ -27,11 +31,12 @@ static PyStructSequence_Field app_usd_info_fields[] = {
 };
 
 static PyStructSequence_Desc app_usd_info_desc = {
-    "bpy.app.usd", /* name */
+    /*name*/ "bpy.app.usd",
+    /*doc*/
     "This module contains information about the Universal Scene Description library Bender is "
-    "linked against",    /* doc */
-    app_usd_info_fields, /* fields */
-    ARRAY_SIZE(app_usd_info_fields) - 1,
+    "linked against",
+    /*fields*/ app_usd_info_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(app_usd_info_fields) - 1,
 };
 
 static PyObject *make_usd_info()
@@ -51,7 +56,7 @@ static PyObject *make_usd_info()
 #define SetObjItem(obj) PyStructSequence_SET_ITEM(usd_info, pos++, obj)
 
 #ifdef WITH_USD
-  const int curversion = USD_get_version();
+  const int curversion = io::usd::USD_get_version();
   const int major = curversion / 10000;
   const int minor = (curversion / 100) % 100;
   const int patch = curversion % 100;
@@ -65,7 +70,7 @@ static PyObject *make_usd_info()
   SetStrItem("Unknown");
 #endif
 
-  if (UNLIKELY(PyErr_Occurred())) {
+  if (PyErr_Occurred()) [[unlikely]] {
     Py_DECREF(usd_info);
     return nullptr;
   }
@@ -86,7 +91,9 @@ PyObject *BPY_app_usd_struct()
   BlenderAppUSDType.tp_init = nullptr;
   BlenderAppUSDType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppUSDType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppUSDType.tp_hash = reinterpret_cast<hashfunc>(Py_HashPointer);
 
   return ret;
 }
+
+}  // namespace blender

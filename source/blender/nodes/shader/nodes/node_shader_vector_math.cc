@@ -9,50 +9,146 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
+#include "BLI_math_vector.hh"
+
+#include "FN_multi_function_registry.hh"
+
+#include "NOD_inverse_eval_params.hh"
 #include "NOD_math_functions.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_socket_search_link.hh"
+#include "NOD_value_elem_eval.hh"
 
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-namespace blender::nodes::node_shader_vector_math_cc {
+namespace blender {
+
+namespace nodes::node_shader_vector_math_cc {
 
 static void sh_node_vector_math_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Vector").min(-10000.0f).max(10000.0f);
-  b.add_input<decl::Vector>("Vector", "Vector_001").min(-10000.0f).max(10000.0f);
-  b.add_input<decl::Vector>("Vector", "Vector_002").min(-10000.0f).max(10000.0f);
-  b.add_input<decl::Float>("Scale").default_value(1.0f).min(-10000.0f).max(10000.0f);
-  b.add_output<decl::Vector>("Vector");
-  b.add_output<decl::Float>("Value");
+  b.add_input<decl::Vector>("Vector"_ustr)
+      .min(-10000.0f)
+      .max(10000.0f)
+      .label_fn([](const bNode &node) {
+        switch (node.custom1) {
+          case NODE_VECTOR_MATH_POWER:
+            return IFACE_("Base");
+          default:
+            return IFACE_("Vector");
+        }
+      });
+  b.add_input<decl::Vector>("Vector"_ustr, "Vector_001"_ustr)
+      .min(-10000.0f)
+      .max(10000.0f)
+      .label_fn([](const bNode &node) {
+        switch (node.custom1) {
+          case NODE_VECTOR_MATH_POWER:
+            return IFACE_("Exponent");
+          case NODE_VECTOR_MATH_MULTIPLY_ADD:
+            return IFACE_("Multiplier");
+          case NODE_VECTOR_MATH_FACEFORWARD:
+            return IFACE_("Incident");
+          case NODE_VECTOR_MATH_WRAP:
+            return IFACE_("Max");
+          case NODE_VECTOR_MATH_SNAP:
+            return IFACE_("Increment");
+          default:
+            return IFACE_("Vector");
+        }
+      });
+  b.add_input<decl::Vector>("Vector"_ustr, "Vector_002"_ustr)
+      .min(-10000.0f)
+      .max(10000.0f)
+      .label_fn([](const bNode &node) {
+        switch (node.custom1) {
+          case NODE_VECTOR_MATH_MULTIPLY_ADD:
+            return IFACE_("Addend");
+          case NODE_VECTOR_MATH_FACEFORWARD:
+            return IFACE_("Reference");
+          case NODE_VECTOR_MATH_WRAP:
+            return IFACE_("Min");
+          default:
+            return IFACE_("Vector");
+        }
+      });
+  b.add_input<decl::Float>("Scale"_ustr)
+      .default_value(1.0f)
+      .min(-10000.0f)
+      .max(10000.0f)
+      .label_fn([](const bNode &node) {
+        switch (node.custom1) {
+          case NODE_VECTOR_MATH_SCALE:
+          default:
+            return IFACE_("Scale");
+          case NODE_VECTOR_MATH_REFRACT:
+            return IFACE_("IOR");
+        }
+      });
+  b.add_output<decl::Vector>("Vector"_ustr);
+  b.add_output<decl::Float>("Value"_ustr);
 }
 
-static void node_shader_buts_vect_math(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_vect_math(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "operation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "operation", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+}
+
+static void vector_math_input_defaults(bNode &node, const NodeVectorMathOperation mode)
+{
+  bNodeSocket *socket_2 = bke::node_find_socket(node, SOCK_IN, "Vector_001"_ustr);
+  BLI_assert(socket_2 != nullptr);
+  bNodeSocketValueVector *in_vector_2 = socket_2->default_value_typed<bNodeSocketValueVector>();
+
+  bNodeSocket *socket_3 = bke::node_find_socket(node, SOCK_IN, "Vector_002"_ustr);
+  BLI_assert(socket_3 != nullptr);
+  bNodeSocketValueVector *in_vector_3 = socket_3->default_value_typed<bNodeSocketValueVector>();
+
+  switch (mode) {
+    case NODE_VECTOR_MATH_MULTIPLY:
+    case NODE_VECTOR_MATH_DIVIDE:
+    case NODE_VECTOR_MATH_POWER:
+    case NODE_VECTOR_MATH_MODULO: {
+      for (int i = 0; i < in_vector_2->dimensions; i++) {
+        in_vector_2->value[i] = 1.0f;
+      }
+      break;
+    }
+    case NODE_VECTOR_MATH_MULTIPLY_ADD: {
+      BLI_assert(in_vector_2->dimensions == in_vector_3->dimensions);
+      for (int i = 0; i < in_vector_3->dimensions; i++) {
+        in_vector_2->value[i] = 1.0f;
+        in_vector_3->value[i] = 0.0f;
+      }
+      break;
+    }
+
+    default:
+      /* Use the default defined in the node declaration otherwise. */
+      break;
+  }
 }
 
 class SocketSearchOp {
  public:
-  std::string socket_name;
+  UString socket_name;
   NodeVectorMathOperation mode = NODE_VECTOR_MATH_ADD;
   void operator()(LinkSearchOpParams &params)
   {
-    bNode &node = params.add_node("ShaderNodeVectorMath");
+    bNode &node = params.add_node("ShaderNodeVectorMath"_ustr);
     node.custom1 = mode;
+    vector_math_input_defaults(node, mode);
     params.update_and_connect_available_socket(node, socket_name);
   }
 };
 
 static void sh_node_vector_math_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!params.node_tree().typeinfo->validate_link(
-          static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_VECTOR))
-  {
+  if (!params.node_tree().typeinfo->validate_link(params.other_socket().type, SOCK_VECTOR)) {
     return;
   }
 
@@ -68,12 +164,12 @@ static void sh_node_vector_math_gather_link_searches(GatherLinkSearchOpParams &p
                                                 NODE_VECTOR_MATH_DOT_PRODUCT))
       {
         params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
-                        SocketSearchOp{"Value", (NodeVectorMathOperation)item->value},
+                        SocketSearchOp{"Value"_ustr, NodeVectorMathOperation(item->value)},
                         weight);
       }
       else {
         params.add_item(CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, item->name),
-                        SocketSearchOp{"Vector", (NodeVectorMathOperation)item->value},
+                        SocketSearchOp{"Vector"_ustr, NodeVectorMathOperation(item->value)},
                         weight);
       }
     }
@@ -112,6 +208,8 @@ static const char *gpu_shader_get_name(int mode)
 
     case NODE_VECTOR_MATH_SNAP:
       return "vector_math_snap";
+    case NODE_VECTOR_MATH_ROUND:
+      return "vector_math_round";
     case NODE_VECTOR_MATH_FLOOR:
       return "vector_math_floor";
     case NODE_VECTOR_MATH_CEIL:
@@ -140,6 +238,10 @@ static const char *gpu_shader_get_name(int mode)
       return "vector_math_faceforward";
     case NODE_VECTOR_MATH_MULTIPLY_ADD:
       return "vector_math_multiply_add";
+    case NODE_VECTOR_MATH_POWER:
+      return "vector_math_power";
+    case NODE_VECTOR_MATH_SIGN:
+      return "vector_math_sign";
   }
 
   return nullptr;
@@ -161,153 +263,58 @@ static int gpu_shader_vector_math(GPUMaterial *mat,
 
 static void node_shader_update_vector_math(bNodeTree *ntree, bNode *node)
 {
-  bNodeSocket *sockB = (bNodeSocket *)BLI_findlink(&node->inputs, 1);
-  bNodeSocket *sockC = (bNodeSocket *)BLI_findlink(&node->inputs, 2);
-  bNodeSocket *sockScale = nodeFindSocket(node, SOCK_IN, "Scale");
+  bNodeSocket *sockB = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 1));
+  bNodeSocket *sockC = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 2));
+  bNodeSocket *sockScale = bke::node_find_socket(*node, SOCK_IN, "Scale"_ustr);
 
-  bNodeSocket *sockVector = nodeFindSocket(node, SOCK_OUT, "Vector");
-  bNodeSocket *sockValue = nodeFindSocket(node, SOCK_OUT, "Value");
+  bNodeSocket *sockVector = bke::node_find_socket(*node, SOCK_OUT, "Vector"_ustr);
+  bNodeSocket *sockValue = bke::node_find_socket(*node, SOCK_OUT, "Value"_ustr);
 
-  bke::nodeSetSocketAvailability(ntree,
-                                 sockB,
-                                 !ELEM(node->custom1,
-                                       NODE_VECTOR_MATH_SINE,
-                                       NODE_VECTOR_MATH_COSINE,
-                                       NODE_VECTOR_MATH_TANGENT,
-                                       NODE_VECTOR_MATH_CEIL,
-                                       NODE_VECTOR_MATH_SCALE,
-                                       NODE_VECTOR_MATH_FLOOR,
-                                       NODE_VECTOR_MATH_LENGTH,
-                                       NODE_VECTOR_MATH_ABSOLUTE,
-                                       NODE_VECTOR_MATH_FRACTION,
-                                       NODE_VECTOR_MATH_NORMALIZE));
-  bke::nodeSetSocketAvailability(ntree,
-                                 sockC,
-                                 ELEM(node->custom1,
-                                      NODE_VECTOR_MATH_WRAP,
-                                      NODE_VECTOR_MATH_FACEFORWARD,
-                                      NODE_VECTOR_MATH_MULTIPLY_ADD));
-  bke::nodeSetSocketAvailability(
-      ntree, sockScale, ELEM(node->custom1, NODE_VECTOR_MATH_SCALE, NODE_VECTOR_MATH_REFRACT));
-  bke::nodeSetSocketAvailability(ntree,
-                                 sockVector,
-                                 !ELEM(node->custom1,
-                                       NODE_VECTOR_MATH_LENGTH,
-                                       NODE_VECTOR_MATH_DISTANCE,
-                                       NODE_VECTOR_MATH_DOT_PRODUCT));
-  bke::nodeSetSocketAvailability(ntree,
-                                 sockValue,
-                                 ELEM(node->custom1,
-                                      NODE_VECTOR_MATH_LENGTH,
-                                      NODE_VECTOR_MATH_DISTANCE,
-                                      NODE_VECTOR_MATH_DOT_PRODUCT));
-
-  /* Labels */
-  node_sock_label_clear(sockB);
-  node_sock_label_clear(sockC);
-  node_sock_label_clear(sockScale);
-  switch (node->custom1) {
-    case NODE_VECTOR_MATH_MULTIPLY_ADD:
-      node_sock_label(sockB, "Multiplier");
-      node_sock_label(sockC, "Addend");
-      break;
-    case NODE_VECTOR_MATH_FACEFORWARD:
-      node_sock_label(sockB, "Incident");
-      node_sock_label(sockC, "Reference");
-      break;
-    case NODE_VECTOR_MATH_WRAP:
-      node_sock_label(sockB, "Max");
-      node_sock_label(sockC, "Min");
-      break;
-    case NODE_VECTOR_MATH_SNAP:
-      node_sock_label(sockB, "Increment");
-      break;
-    case NODE_VECTOR_MATH_REFRACT:
-      node_sock_label(sockScale, "IOR");
-      break;
-    case NODE_VECTOR_MATH_SCALE:
-      node_sock_label(sockScale, "Scale");
-      break;
-  }
+  bke::node_set_socket_availability(*ntree,
+                                    *sockB,
+                                    !ELEM(node->custom1,
+                                          NODE_VECTOR_MATH_SINE,
+                                          NODE_VECTOR_MATH_COSINE,
+                                          NODE_VECTOR_MATH_TANGENT,
+                                          NODE_VECTOR_MATH_CEIL,
+                                          NODE_VECTOR_MATH_SCALE,
+                                          NODE_VECTOR_MATH_FLOOR,
+                                          NODE_VECTOR_MATH_LENGTH,
+                                          NODE_VECTOR_MATH_ABSOLUTE,
+                                          NODE_VECTOR_MATH_FRACTION,
+                                          NODE_VECTOR_MATH_NORMALIZE,
+                                          NODE_VECTOR_MATH_SIGN,
+                                          NODE_VECTOR_MATH_ROUND));
+  bke::node_set_socket_availability(*ntree,
+                                    *sockC,
+                                    ELEM(node->custom1,
+                                         NODE_VECTOR_MATH_WRAP,
+                                         NODE_VECTOR_MATH_FACEFORWARD,
+                                         NODE_VECTOR_MATH_MULTIPLY_ADD));
+  bke::node_set_socket_availability(
+      *ntree, *sockScale, ELEM(node->custom1, NODE_VECTOR_MATH_SCALE, NODE_VECTOR_MATH_REFRACT));
+  bke::node_set_socket_availability(*ntree,
+                                    *sockVector,
+                                    !ELEM(node->custom1,
+                                          NODE_VECTOR_MATH_LENGTH,
+                                          NODE_VECTOR_MATH_DISTANCE,
+                                          NODE_VECTOR_MATH_DOT_PRODUCT));
+  bke::node_set_socket_availability(*ntree,
+                                    *sockValue,
+                                    ELEM(node->custom1,
+                                         NODE_VECTOR_MATH_LENGTH,
+                                         NODE_VECTOR_MATH_DISTANCE,
+                                         NODE_VECTOR_MATH_DOT_PRODUCT));
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &node)
 {
-  NodeVectorMathOperation operation = NodeVectorMathOperation(node.custom1);
-
-  const mf::MultiFunction *multi_fn = nullptr;
-
-  try_dispatch_float_math_fl3_fl3_to_fl3(
-      operation, [&](auto exec_preset, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI2_SO<float3, float3, float3>(
-            info.title_case_name.c_str(), function, exec_preset);
-        multi_fn = &fn;
-      });
-  if (multi_fn != nullptr) {
-    return multi_fn;
+  const NodeVectorMathOperation operation = NodeVectorMathOperation(node.custom1);
+  const FloatMathOperationInfo *info = get_float3_math_operation_info(operation);
+  if (!info) {
+    return nullptr;
   }
-
-  try_dispatch_float_math_fl3_fl3_fl3_to_fl3(
-      operation, [&](auto exec_preset, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI3_SO<float3, float3, float3, float3>(
-            info.title_case_name.c_str(), function, exec_preset);
-        multi_fn = &fn;
-      });
-  if (multi_fn != nullptr) {
-    return multi_fn;
-  }
-
-  try_dispatch_float_math_fl3_fl3_fl_to_fl3(
-      operation, [&](auto exec_preset, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI3_SO<float3, float3, float, float3>(
-            info.title_case_name.c_str(), function, exec_preset);
-        multi_fn = &fn;
-      });
-  if (multi_fn != nullptr) {
-    return multi_fn;
-  }
-
-  try_dispatch_float_math_fl3_fl3_to_fl(
-      operation, [&](auto exec_preset, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI2_SO<float3, float3, float>(
-            info.title_case_name.c_str(), function, exec_preset);
-        multi_fn = &fn;
-      });
-  if (multi_fn != nullptr) {
-    return multi_fn;
-  }
-
-  try_dispatch_float_math_fl3_fl_to_fl3(
-      operation, [&](auto exec_preset, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI2_SO<float3, float, float3>(
-            info.title_case_name.c_str(), function, exec_preset);
-        multi_fn = &fn;
-      });
-  if (multi_fn != nullptr) {
-    return multi_fn;
-  }
-
-  try_dispatch_float_math_fl3_to_fl3(
-      operation, [&](auto exec_preset, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI1_SO<float3, float3>(
-            info.title_case_name.c_str(), function, exec_preset);
-        multi_fn = &fn;
-      });
-  if (multi_fn != nullptr) {
-    return multi_fn;
-  }
-
-  try_dispatch_float_math_fl3_to_fl(
-      operation, [&](auto exec_preset, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI1_SO<float3, float>(
-            info.title_case_name.c_str(), function, exec_preset);
-        multi_fn = &fn;
-      });
-  if (multi_fn != nullptr) {
-    return multi_fn;
-  }
-
-  return nullptr;
+  return &fn::multi_function::registry::lookup(info->multi_function_name);
 }
 
 static void sh_node_vector_math_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -316,17 +323,106 @@ static void sh_node_vector_math_build_multi_function(NodeMultiFunctionBuilder &b
   builder.set_matching_fn(fn);
 }
 
+static void node_eval_elem(value_elem::ElemEvalParams &params)
+{
+  using namespace value_elem;
+  const NodeVectorMathOperation op = NodeVectorMathOperation(params.node.custom1);
+  switch (op) {
+    case NODE_VECTOR_MATH_ADD:
+    case NODE_VECTOR_MATH_SUBTRACT:
+    case NODE_VECTOR_MATH_MULTIPLY:
+    case NODE_VECTOR_MATH_DIVIDE: {
+      VectorElem output_elem;
+      output_elem.merge(params.get_input_elem<VectorElem>("Vector"_ustr));
+      output_elem.merge(params.get_input_elem<VectorElem>("Vector_001"_ustr));
+      params.set_output_elem("Vector"_ustr, output_elem);
+      break;
+    }
+    case NODE_VECTOR_MATH_SCALE: {
+      VectorElem output_elem;
+      output_elem.merge(params.get_input_elem<VectorElem>("Vector"_ustr));
+      if (params.get_input_elem<FloatElem>("Scale"_ustr)) {
+        output_elem = VectorElem::all();
+      }
+      params.set_output_elem("Vector"_ustr, output_elem);
+    }
+    default:
+      break;
+  }
+}
+
+static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
+{
+  const NodeVectorMathOperation op = NodeVectorMathOperation(params.node.custom1);
+  switch (op) {
+    case NODE_VECTOR_MATH_ADD:
+    case NODE_VECTOR_MATH_SUBTRACT:
+    case NODE_VECTOR_MATH_MULTIPLY:
+    case NODE_VECTOR_MATH_DIVIDE:
+    case NODE_VECTOR_MATH_SCALE: {
+      params.set_input_elem("Vector"_ustr,
+                            params.get_output_elem<value_elem::VectorElem>("Vector"_ustr));
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
+{
+  const NodeVectorMathOperation op = NodeVectorMathOperation(params.node.custom1);
+  const UString first_input_id = "Vector"_ustr;
+  const UString second_input_id = "Vector_001"_ustr;
+  const UString scale_input_id = "Scale"_ustr;
+  const UString output_vector_id = "Vector"_ustr;
+  switch (op) {
+    case NODE_VECTOR_MATH_ADD: {
+      params.set_input(first_input_id,
+                       params.get_output<float3>(output_vector_id) -
+                           params.get_input<float3>(second_input_id));
+      break;
+    }
+    case NODE_VECTOR_MATH_SUBTRACT: {
+      params.set_input(first_input_id,
+                       params.get_output<float3>(output_vector_id) +
+                           params.get_input<float3>(second_input_id));
+      break;
+    }
+    case NODE_VECTOR_MATH_MULTIPLY: {
+      params.set_input(first_input_id,
+                       math::safe_divide(params.get_output<float3>(output_vector_id),
+                                         params.get_input<float3>(second_input_id)));
+      break;
+    }
+    case NODE_VECTOR_MATH_DIVIDE: {
+      params.set_input(first_input_id,
+                       params.get_output<float3>(output_vector_id) *
+                           params.get_input<float3>(second_input_id));
+      break;
+    }
+    case NODE_VECTOR_MATH_SCALE: {
+      params.set_input(first_input_id,
+                       math::safe_divide(params.get_output<float3>(output_vector_id),
+                                         float3(params.get_input<float>(scale_input_id))));
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+}
+
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  CLG_LogRef *LOG_MATERIALX_SHADER = materialx::LOG_MATERIALX_SHADER;
-
-  /* TODO: finish some math operations */
   auto op = node_->custom1;
   NodeItem res = empty();
+  const NodeItem null_vec = val(MaterialX::Vector3(0.0f));
 
   /* Single operand operations */
   NodeItem x = get_input_value(0, NodeItem::Type::Vector3);
+
   switch (op) {
     case NODE_VECTOR_MATH_SINE:
       res = x.sin();
@@ -340,6 +436,9 @@ NODE_SHADER_MATERIALX_BEGIN
     case NODE_VECTOR_MATH_ABSOLUTE:
       res = x.abs();
       break;
+    case NODE_VECTOR_MATH_ROUND:
+      res = (x + val(0.5f)).floor();
+      break;
     case NODE_VECTOR_MATH_FLOOR:
       res = x.floor();
       break;
@@ -350,15 +449,19 @@ NODE_SHADER_MATERIALX_BEGIN
       res = x % val(1.0f);
       break;
     case NODE_VECTOR_MATH_LENGTH:
-      CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+      res = x.length();
       break;
-    case NODE_VECTOR_MATH_NORMALIZE:
-      CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+    case NODE_VECTOR_MATH_NORMALIZE: {
+      NodeItem length = x.length();
+      res = length.if_else(NodeItem::CompareOp::Eq, val(0.0f), null_vec, x / length);
       break;
+    }
 
     default: {
       /* 2-operand operations */
       NodeItem y = get_input_value(1, NodeItem::Type::Vector3);
+      NodeItem w = get_input_value(3, NodeItem::Type::Float);
+
       switch (op) {
         case NODE_VECTOR_MATH_ADD:
           res = x + y;
@@ -382,44 +485,65 @@ NODE_SHADER_MATERIALX_BEGIN
           res = x % y;
           break;
         case NODE_VECTOR_MATH_SNAP:
-          CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+          res = (x / y).floor() * y;
           break;
         case NODE_VECTOR_MATH_CROSS_PRODUCT:
-          CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+          res = create_node("crossproduct", NodeItem::Type::Vector3, {{"in1", x}, {"in2", y}});
           break;
         case NODE_VECTOR_MATH_DOT_PRODUCT:
-          CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+          res = x.dotproduct(y);
           break;
-        case NODE_VECTOR_MATH_PROJECT:
-          CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+        case NODE_VECTOR_MATH_PROJECT: {
+          NodeItem len_sq = y.dotproduct(y);
+          res = len_sq.if_else(
+              NodeItem::CompareOp::NotEq, val(0.0f), (x.dotproduct(y) / len_sq) * y, null_vec);
           break;
+        }
         case NODE_VECTOR_MATH_REFLECT:
-          CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+          /* TODO: use <reflect> node in MaterialX 1.38.9 */
+          res = x - val(2.0f) * y.dotproduct(x) * y;
           break;
         case NODE_VECTOR_MATH_DISTANCE:
-          CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+          res = (y - x).length();
           break;
         case NODE_VECTOR_MATH_SCALE:
-          CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+          res = x * w;
           break;
 
         default: {
           /* 3-operand operations */
           NodeItem z = get_input_value(2, NodeItem::Type::Vector3);
+
           switch (op) {
             case NODE_VECTOR_MATH_MULTIPLY_ADD:
               res = x * y + z;
               break;
-            case NODE_VECTOR_MATH_REFRACT:
-              CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+            case NODE_VECTOR_MATH_REFRACT: {
+              /* TODO: use <refract> node in MaterialX 1.38.9 */
+              NodeItem dot_yx = y.dotproduct(x);
+              NodeItem k = val(1.0f) - (w * w * (val(1.0f) - (dot_yx * dot_yx)));
+              NodeItem r = w * x - ((w * dot_yx + k.sqrt()) * y);
+              res = k.if_else(NodeItem::CompareOp::GreaterEq, val(0.0f), r, null_vec);
               break;
-            case NODE_VECTOR_MATH_FACEFORWARD:
-              CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
+            }
+            case NODE_VECTOR_MATH_FACEFORWARD: {
+              res = z.dotproduct(y).if_else(NodeItem::CompareOp::GreaterEq, val(0.0f), -x, x);
               break;
-            case NODE_VECTOR_MATH_WRAP:
-              CLOG_WARN(LOG_MATERIALX_SHADER, "Unimplemented math operation %d", op);
-              break;
+            }
+            case NODE_VECTOR_MATH_WRAP: {
+              NodeItem range = (y - z);
+              NodeItem if_branch = x - (range * ((x - z) / range).floor());
 
+              res = create_node("combine3", NodeItem::Type::Vector3);
+              std::vector<std::string> inputs = {"in1", "in2", "in3"};
+
+              for (size_t i = 0; i < inputs.size(); ++i) {
+                res.set_input(
+                    inputs[i],
+                    range[i].if_else(NodeItem::CompareOp::NotEq, val(0.0f), if_branch[i], z[i]));
+              }
+              break;
+            }
             default:
               BLI_assert_unreachable();
           }
@@ -433,15 +557,19 @@ NODE_SHADER_MATERIALX_BEGIN
 #endif
 NODE_SHADER_MATERIALX_END
 
-}  // namespace blender::nodes::node_shader_vector_math_cc
+}  // namespace nodes::node_shader_vector_math_cc
 
 void register_node_type_sh_vect_math()
 {
-  namespace file_ns = blender::nodes::node_shader_vector_math_cc;
+  namespace file_ns = nodes::node_shader_vector_math_cc;
 
-  static bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_VECTOR_MATH, "Vector Math", NODE_CLASS_OP_VECTOR);
+  common_node_type_base(&ntype, "ShaderNodeVectorMath"_ustr, SH_NODE_VECTOR_MATH);
+  ntype.ui_name = "Vector Math";
+  ntype.ui_description = "Perform vector math operation";
+  ntype.enum_name_legacy = "VECT_MATH";
+  ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = file_ns::sh_node_vector_math_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_vect_math;
   ntype.labelfunc = node_vector_math_label;
@@ -450,6 +578,11 @@ void register_node_type_sh_vect_math()
   ntype.build_multi_function = file_ns::sh_node_vector_math_build_multi_function;
   ntype.gather_link_search_ops = file_ns::sh_node_vector_math_gather_link_searches;
   ntype.materialx_fn = file_ns::node_shader_materialx;
+  ntype.eval_elem = file_ns::node_eval_elem;
+  ntype.eval_inverse_elem = file_ns::node_eval_inverse_elem;
+  ntype.eval_inverse = file_ns::node_eval_inverse;
 
-  nodeRegisterType(&ntype);
+  bke::node_register_type(ntype);
 }
+
+}  // namespace blender

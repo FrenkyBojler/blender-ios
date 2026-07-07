@@ -10,13 +10,8 @@
 
 #include "BPy_Convert.h"
 
-#include "BLI_math_vector.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "BLI_hash_mm2a.h"
+#include "BLI_hash_mm2a.hh"
+#include "BLI_math_vector_c.hh"
 
 using namespace Freestyle;
 
@@ -32,8 +27,7 @@ int FrsMaterial_Init(PyObject *module)
   if (PyType_Ready(&FrsMaterial_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&FrsMaterial_Type);
-  PyModule_AddObject(module, "Material", (PyObject *)&FrsMaterial_Type);
+  PyModule_AddObjectRef(module, "Material", (PyObject *)&FrsMaterial_Type);
 
   FrsMaterial_mathutils_register_callback();
 
@@ -43,33 +37,40 @@ int FrsMaterial_Init(PyObject *module)
 //------------------------INSTANCE METHODS ----------------------------------
 
 PyDoc_STRVAR(
+    /* Wrap. */
     FrsMaterial_doc,
     "Class defining a material.\n"
     "\n"
-    ".. method:: __init__()\n"
-    "            __init__(brother)\n"
-    "            __init__(line, diffuse, ambient, specular, emission, shininess, priority)\n"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(brother)``\n"
+    "   - ``__init__(line, diffuse, ambient, specular, emission, shininess, priority)``\n"
     "\n"
     "   Creates a :class:`FrsMaterial` using either default constructor,\n"
     "   copy constructor, or an overloaded constructor\n"
     "\n"
-    "   :arg brother: A Material object to be used as a copy constructor.\n"
+    "   :param brother: A Material object to be used as a copy constructor.\n"
     "   :type brother: :class:`Material`\n"
-    "   :arg line: The line color.\n"
-    "   :type line: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
-    "   :arg diffuse: The diffuse color.\n"
-    "   :type diffuse: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
-    "   :arg ambient: The ambient color.\n"
-    "   :type ambient: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
-    "   :arg specular: The specular color.\n"
-    "   :type specular: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
-    "   :arg emission: The emissive color.\n"
-    "   :type emission: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
-    "   :arg shininess: The shininess coefficient.\n"
+    "   :param line: The line color.\n"
+    "   :type line: :class:`mathutils.Vector` | tuple[float, float, float, float] | list[float]\n"
+    "   :param diffuse: The diffuse color.\n"
+    "   :type diffuse: \n"
+    "   :param ambient: The ambient color.\n"
+    "   :type ambient: :class:`mathutils.Vector` | tuple[float, float, float, float] | "
+    "list[float]\n"
+    "   :param specular: The specular color.\n"
+    "   :type specular: :class:`mathutils.Vector` | tuple[float, float, float, float] | "
+    "list[float]\n"
+    "   :param emission: The emissive color.\n"
+    "   :type emission: :class:`mathutils.Vector` | tuple[float, float, float, float] | "
+    "list[float]\n"
+    "   :param shininess: The shininess coefficient.\n"
     "   :type shininess: float\n"
-    "   :arg priority: The line color priority.\n"
-    "   :type priority: int");
-
+    "   :param priority: The line color priority.\n"
+    "   :type priority: int\n");
 static int FrsMaterial_init(BPy_FrsMaterial *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -141,7 +142,7 @@ static PyObject *FrsMaterial_repr(BPy_FrsMaterial *self)
 #define MATHUTILS_SUBTYPE_EMISSION 4
 #define MATHUTILS_SUBTYPE_LINE 5
 
-static int FrsMaterial_mathutils_check(BaseMathObject *bmo)
+static int FrsMaterial_mathutils_check(blender::BaseMathObject *bmo)
 {
   if (!BPy_FrsMaterial_Check(bmo->cb_user)) {
     return -1;
@@ -149,7 +150,7 @@ static int FrsMaterial_mathutils_check(BaseMathObject *bmo)
   return 0;
 }
 
-static int FrsMaterial_mathutils_get(BaseMathObject *bmo, int subtype)
+static int FrsMaterial_mathutils_get(blender::BaseMathObject *bmo, int subtype)
 {
   BPy_FrsMaterial *self = (BPy_FrsMaterial *)bmo->cb_user;
   switch (subtype) {
@@ -189,7 +190,7 @@ static int FrsMaterial_mathutils_get(BaseMathObject *bmo, int subtype)
   return 0;
 }
 
-static int FrsMaterial_mathutils_set(BaseMathObject *bmo, int subtype)
+static int FrsMaterial_mathutils_set(blender::BaseMathObject *bmo, int subtype)
 {
   BPy_FrsMaterial *self = (BPy_FrsMaterial *)bmo->cb_user;
   switch (subtype) {
@@ -214,7 +215,7 @@ static int FrsMaterial_mathutils_set(BaseMathObject *bmo, int subtype)
   return 0;
 }
 
-static int FrsMaterial_mathutils_get_index(BaseMathObject *bmo, int subtype, int index)
+static int FrsMaterial_mathutils_get_index(blender::BaseMathObject *bmo, int subtype, int index)
 {
   BPy_FrsMaterial *self = (BPy_FrsMaterial *)bmo->cb_user;
   switch (subtype) {
@@ -249,33 +250,33 @@ static int FrsMaterial_mathutils_get_index(BaseMathObject *bmo, int subtype, int
   return 0;
 }
 
-static int FrsMaterial_mathutils_set_index(BaseMathObject *bmo, int subtype, int index)
+static int FrsMaterial_mathutils_set_index(blender::BaseMathObject *bmo, int subtype, int index)
 {
   BPy_FrsMaterial *self = (BPy_FrsMaterial *)bmo->cb_user;
   float color[4];
   switch (subtype) {
     case MATHUTILS_SUBTYPE_LINE:
-      copy_v4_v4(color, self->m->line());
+      blender::copy_v4_v4(color, self->m->line());
       color[index] = bmo->data[index];
       self->m->setLine(color[0], color[1], color[2], color[3]);
       break;
     case MATHUTILS_SUBTYPE_DIFFUSE:
-      copy_v4_v4(color, self->m->diffuse());
+      blender::copy_v4_v4(color, self->m->diffuse());
       color[index] = bmo->data[index];
       self->m->setDiffuse(color[0], color[1], color[2], color[3]);
       break;
     case MATHUTILS_SUBTYPE_SPECULAR:
-      copy_v4_v4(color, self->m->specular());
+      blender::copy_v4_v4(color, self->m->specular());
       color[index] = bmo->data[index];
       self->m->setSpecular(color[0], color[1], color[2], color[3]);
       break;
     case MATHUTILS_SUBTYPE_AMBIENT:
-      copy_v4_v4(color, self->m->ambient());
+      blender::copy_v4_v4(color, self->m->ambient());
       color[index] = bmo->data[index];
       self->m->setAmbient(color[0], color[1], color[2], color[3]);
       break;
     case MATHUTILS_SUBTYPE_EMISSION:
-      copy_v4_v4(color, self->m->emission());
+      blender::copy_v4_v4(color, self->m->emission());
       color[index] = bmo->data[index];
       self->m->setEmission(color[0], color[1], color[2], color[3]);
       break;
@@ -285,7 +286,7 @@ static int FrsMaterial_mathutils_set_index(BaseMathObject *bmo, int subtype, int
   return 0;
 }
 
-static Mathutils_Callback FrsMaterial_mathutils_cb = {
+static blender::Mathutils_Callback FrsMaterial_mathutils_cb = {
     FrsMaterial_mathutils_check,
     FrsMaterial_mathutils_get,
     FrsMaterial_mathutils_set,
@@ -302,116 +303,132 @@ void FrsMaterial_mathutils_register_callback()
 
 /*----------------------FrsMaterial get/setters ----------------------------*/
 
-PyDoc_STRVAR(FrsMaterial_line_doc,
-             "RGBA components of the line color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_line_doc,
+    "RGBA components of the line color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`\n");
 static PyObject *FrsMaterial_line_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
-  return Vector_CreatePyObject_cb(
+  return blender::Vector_CreatePyObject_cb(
       (PyObject *)self, 4, FrsMaterial_mathutils_cb_index, MATHUTILS_SUBTYPE_LINE);
 }
 
 static int FrsMaterial_line_set(BPy_FrsMaterial *self, PyObject *value, void * /*closure*/)
 {
   float color[4];
-  if (mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") == -1) {
+  if (blender::mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") ==
+      -1)
+  {
     return -1;
   }
   self->m->setLine(color[0], color[1], color[2], color[3]);
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_diffuse_doc,
-             "RGBA components of the diffuse color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_diffuse_doc,
+    "RGBA components of the diffuse color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`\n");
 static PyObject *FrsMaterial_diffuse_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
-  return Vector_CreatePyObject_cb(
+  return blender::Vector_CreatePyObject_cb(
       (PyObject *)self, 4, FrsMaterial_mathutils_cb_index, MATHUTILS_SUBTYPE_DIFFUSE);
 }
 
 static int FrsMaterial_diffuse_set(BPy_FrsMaterial *self, PyObject *value, void * /*closure*/)
 {
   float color[4];
-  if (mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") == -1) {
+  if (blender::mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") ==
+      -1)
+  {
     return -1;
   }
   self->m->setDiffuse(color[0], color[1], color[2], color[3]);
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_specular_doc,
-             "RGBA components of the specular color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Vector`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_specular_doc,
+    "RGBA components of the specular color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Vector`\n");
 static PyObject *FrsMaterial_specular_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
-  return Vector_CreatePyObject_cb(
+  return blender::Vector_CreatePyObject_cb(
       (PyObject *)self, 4, FrsMaterial_mathutils_cb_index, MATHUTILS_SUBTYPE_SPECULAR);
 }
 
 static int FrsMaterial_specular_set(BPy_FrsMaterial *self, PyObject *value, void * /*closure*/)
 {
   float color[4];
-  if (mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") == -1) {
+  if (blender::mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") ==
+      -1)
+  {
     return -1;
   }
   self->m->setSpecular(color[0], color[1], color[2], color[3]);
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_ambient_doc,
-             "RGBA components of the ambient color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Color`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_ambient_doc,
+    "RGBA components of the ambient color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Color`\n");
 static PyObject *FrsMaterial_ambient_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
-  return Vector_CreatePyObject_cb(
+  return blender::Vector_CreatePyObject_cb(
       (PyObject *)self, 4, FrsMaterial_mathutils_cb_index, MATHUTILS_SUBTYPE_AMBIENT);
 }
 
 static int FrsMaterial_ambient_set(BPy_FrsMaterial *self, PyObject *value, void * /*closure*/)
 {
   float color[4];
-  if (mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") == -1) {
+  if (blender::mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") ==
+      -1)
+  {
     return -1;
   }
   self->m->setAmbient(color[0], color[1], color[2], color[3]);
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_emission_doc,
-             "RGBA components of the emissive color of the material.\n"
-             "\n"
-             ":type: :class:`mathutils.Color`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_emission_doc,
+    "RGBA components of the emissive color of the material.\n"
+    "\n"
+    ":type: :class:`mathutils.Color`\n");
 static PyObject *FrsMaterial_emission_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
-  return Vector_CreatePyObject_cb(
+  return blender::Vector_CreatePyObject_cb(
       (PyObject *)self, 4, FrsMaterial_mathutils_cb_index, MATHUTILS_SUBTYPE_EMISSION);
 }
 
 static int FrsMaterial_emission_set(BPy_FrsMaterial *self, PyObject *value, void * /*closure*/)
 {
   float color[4];
-  if (mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") == -1) {
+  if (blender::mathutils_array_parse(color, 4, 4, value, "value must be a 4-dimensional vector") ==
+      -1)
+  {
     return -1;
   }
   self->m->setEmission(color[0], color[1], color[2], color[3]);
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_shininess_doc,
-             "Shininess coefficient of the material.\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_shininess_doc,
+    "Shininess coefficient of the material.\n"
+    "\n"
+    ":type: float\n");
 static PyObject *FrsMaterial_shininess_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->m->shininess());
@@ -429,11 +446,12 @@ static int FrsMaterial_shininess_set(BPy_FrsMaterial *self, PyObject *value, voi
   return 0;
 }
 
-PyDoc_STRVAR(FrsMaterial_priority_doc,
-             "Line color priority of the material.\n"
-             "\n"
-             ":type: int");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    FrsMaterial_priority_doc,
+    "Line color priority of the material.\n"
+    "\n"
+    ":type: int\n");
 static PyObject *FrsMaterial_priority_get(BPy_FrsMaterial *self, void * /*closure*/)
 {
   return PyLong_FromLong(self->m->priority());
@@ -528,7 +546,7 @@ static PyObject *BPy_FrsMaterial_richcmpr(PyObject *objectA,
 
 static Py_hash_t FrsMaterial_hash(PyObject *self)
 {
-  return (Py_uhash_t)BLI_hash_mm2((const uchar *)self, sizeof(*self), 0);
+  return (Py_uhash_t)blender::BLI_hash_mm2((const uchar *)self, sizeof(*self), 0);
 }
 /*-----------------------BPy_FrsMaterial type definition ------------------------------*/
 
@@ -574,7 +592,3 @@ PyTypeObject FrsMaterial_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

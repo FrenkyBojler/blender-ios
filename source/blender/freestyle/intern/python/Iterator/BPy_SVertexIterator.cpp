@@ -12,10 +12,6 @@
 #include "../Interface0D/BPy_SVertex.h"
 #include "../Interface1D/BPy_FEdge.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -23,6 +19,7 @@ using namespace Freestyle;
 //------------------------INSTANCE METHODS ----------------------------------
 
 PyDoc_STRVAR(
+    /* Wrap. */
     SVertexIterator_doc,
     "Class hierarchy: :class:`Iterator` > :class:`SVertexIterator`\n"
     "\n"
@@ -30,26 +27,29 @@ PyDoc_STRVAR(
     ":class:`ViewEdge`. An instance of an SVertexIterator can be obtained\n"
     "from a ViewEdge by calling verticesBegin() or verticesEnd().\n"
     "\n"
-    ".. method:: __init__()\n"
-    "            __init__(brother)\n"
-    "            __init__(vertex, begin, previous_edge, next_edge, t)"
+    ".. method:: __init__(*args)\n"
+    "\n"
+    "   Accepted call signatures:\n"
+    "\n"
+    "   - ``__init__()``\n"
+    "   - ``__init__(brother)``\n"
+    "   - ``__init__(vertex, begin, previous_edge, next_edge, t)``\n"
     "\n"
     "   Build an SVertexIterator using either the default constructor, copy constructor,\n"
     "   or the overloaded constructor that starts iteration from an SVertex object vertex.\n"
     "\n"
-    "   :arg brother: An SVertexIterator object.\n"
+    "   :param brother: An SVertexIterator object.\n"
     "   :type brother: :class:`SVertexIterator`\n"
-    "   :arg vertex: The SVertex from which the iterator starts iteration.\n"
+    "   :param vertex: The SVertex from which the iterator starts iteration.\n"
     "   :type vertex: :class:`SVertex`\n"
-    "   :arg begin: The first SVertex of a ViewEdge.\n"
+    "   :param begin: The first SVertex of a ViewEdge.\n"
     "   :type begin: :class:`SVertex`\n"
-    "   :arg previous_edge: The previous FEdge coming to vertex.\n"
+    "   :param previous_edge: The previous FEdge coming to vertex.\n"
     "   :type previous_edge: :class:`FEdge`\n"
-    "   :arg next_edge: The next FEdge going out from vertex.\n"
+    "   :param next_edge: The next FEdge going out from vertex.\n"
     "   :type next_edge: :class:`FEdge`\n"
-    "   :arg t: The curvilinear abscissa at vertex.\n"
-    "   :type t: float");
-
+    "   :param t: The curvilinear abscissa at vertex.\n"
+    "   :type t: float\n");
 static int SVertexIterator_init(BPy_SVertexIterator *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist_1[] = {"brother", nullptr};
@@ -98,11 +98,12 @@ static int SVertexIterator_init(BPy_SVertexIterator *self, PyObject *args, PyObj
 
 /*----------------------SVertexIterator get/setters ----------------------------*/
 
-PyDoc_STRVAR(SVertexIterator_object_doc,
-             "The SVertex object currently pointed by this iterator.\n"
-             "\n"
-             ":type: :class:`SVertex`");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    SVertexIterator_object_doc,
+    "The SVertex object currently pointed by this iterator.\n"
+    "\n"
+    ":type: :class:`SVertex`\n");
 static PyObject *SVertexIterator_object_get(BPy_SVertexIterator *self, void * /*closure*/)
 {
   if (self->sv_it->isEnd()) {
@@ -116,21 +117,23 @@ static PyObject *SVertexIterator_object_get(BPy_SVertexIterator *self, void * /*
   Py_RETURN_NONE;
 }
 
-PyDoc_STRVAR(SVertexIterator_t_doc,
-             "The curvilinear abscissa of the current point.\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    SVertexIterator_t_doc,
+    "The curvilinear abscissa of the current point.\n"
+    "\n"
+    ":type: float\n");
 static PyObject *SVertexIterator_t_get(BPy_SVertexIterator *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv_it->t());
 }
 
-PyDoc_STRVAR(SVertexIterator_u_doc,
-             "The point parameter at the current point in the 1D element (0 <= u <= 1).\n"
-             "\n"
-             ":type: float");
-
+PyDoc_STRVAR(
+    /* Wrap. */
+    SVertexIterator_u_doc,
+    "The point parameter at the current point in the 1D element (0 <= u <= 1).\n"
+    "\n"
+    ":type: float\n");
 static PyObject *SVertexIterator_u_get(BPy_SVertexIterator *self, void * /*closure*/)
 {
   return PyFloat_FromDouble(self->sv_it->u());
@@ -191,7 +194,3 @@ PyTypeObject SVertexIterator_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

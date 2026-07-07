@@ -10,17 +10,15 @@
 
 #include "../../../view_map/Functions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetParameterF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetParameterF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DFloat` > :class:`GetParameterF0D`\n"
     "\n"
@@ -33,11 +31,10 @@ static char GetParameterF0D___doc__[] =
     "   Returns the parameter of the :class:`freestyle.types.Interface0D`\n"
     "   pointed by the Interface0DIterator in the context of its 1D element.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The parameter of an Interface0D.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int GetParameterF0D___init__(BPy_GetParameterF0D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -94,7 +91,3 @@ PyTypeObject GetParameterF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

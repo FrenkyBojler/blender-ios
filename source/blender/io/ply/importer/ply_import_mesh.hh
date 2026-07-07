@@ -11,7 +11,11 @@
 #include "IO_ply.hh"
 #include "ply_data.hh"
 
-namespace blender::io::ply {
+namespace blender {
+
+struct Mesh;
+
+namespace io::ply {
 
 /**
  * Converts the #PlyData data-structure to a mesh.
@@ -19,4 +23,5 @@ namespace blender::io::ply {
  */
 Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params);
 
-}  // namespace blender::io::ply
+}  // namespace io::ply
+}  // namespace blender

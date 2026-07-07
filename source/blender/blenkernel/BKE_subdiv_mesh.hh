@@ -10,12 +10,16 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_sys_types.h"
+
+namespace blender {
 
 struct Mesh;
+
+namespace bke::subdiv {
+
 struct Subdiv;
 
-struct SubdivToMeshSettings {
+struct ToMeshSettings {
   /**
    * Resolution at which regular PTEX (created for quad face) are being
    * evaluated. This defines how many vertices final mesh will have: every
@@ -23,25 +27,32 @@ struct SubdivToMeshSettings {
    * created for a corner of non-quad face) will have resolution of
    * `resolution - 1`.
    */
-  int resolution;
+  int resolution = -1;
   /** When true, only edges emitted from coarse ones will be displayed. */
-  bool use_optimal_display;
+  bool use_optimal_display = false;
 };
 
 /** Create real hi-res mesh from subdivision, all geometry is "real". */
-Mesh *BKE_subdiv_to_mesh(Subdiv *subdiv,
-                         const SubdivToMeshSettings *settings,
-                         const Mesh *coarse_mesh);
+Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh *coarse_mesh);
 
 /**
  * Interpolate a position along the `coarse_edge` at the relative `u` coordinate.
  * If `is_simple` is false, this will perform a B-Spline interpolation using the edge neighbors,
  * otherwise a linear interpolation will be done base on the edge vertices.
  */
-void BKE_subdiv_mesh_interpolate_position_on_edge(const float (*coarse_positions)[3],
-                                                  const blender::int2 *coarse_edges,
-                                                  blender::GroupedSpan<int> vert_to_edge_map,
-                                                  int coarse_edge_index,
-                                                  bool is_simple,
-                                                  float u,
-                                                  float pos_r[3]);
+float3 mesh_interpolate_position_on_edge(Span<float3> coarse_positions,
+                                         Span<int2> coarse_edges,
+                                         GroupedSpan<int> vert_to_edge_map,
+                                         int coarse_edge_index,
+                                         bool is_simple,
+                                         float u);
+
+/**
+ * Calculate positions position of the given mesh vertices at the limit surface of the mesh.
+ *
+ * The limit_positions is to be sized at exactly the number of the base mesh vertices.
+ */
+void calculate_limit_positions(Mesh *mesh, MutableSpan<float3> limit_positions);
+
+}  // namespace bke::subdiv
+}  // namespace blender

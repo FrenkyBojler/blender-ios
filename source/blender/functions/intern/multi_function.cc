@@ -5,11 +5,21 @@
 #include "FN_multi_function.hh"
 
 #include "BLI_task.hh"
-#include "BLI_threads.h"
+#include "BLI_threads.hh"
 
 namespace blender::fn::multi_function {
 
 using ExecutionHints = MultiFunction::ExecutionHints;
+
+void MultiFunction::hash_unique(UniqueHashBytes &hash) const
+{
+  hash.add(this);
+}
+
+bool MultiFunction::equals(const MultiFunction &other) const
+{
+  return this == &other;
+}
 
 ExecutionHints MultiFunction::execution_hints() const
 {
@@ -85,7 +95,7 @@ static void add_sliced_parameters(const Signature &signature,
         break;
       }
       case ParamCategory::SingleOutput: {
-        if (bool(signature.params[param_index].flag & ParamFlag::SupportsUnusedOutput)) {
+        if (flag_is_set(signature.params[param_index].flag, ParamFlag::SupportsUnusedOutput)) {
           const GMutableSpan span = full_params.uninitialized_single_output_if_required(
               param_index);
           if (span.is_empty()) {
@@ -152,11 +162,11 @@ void MultiFunction::call_auto(const IndexMask &mask, Params params, Context cont
 
         IndexMaskMemory memory;
         const int64_t offset = -input_slice_start;
-        const IndexMask offset_mask = mask.slice_and_offset(sub_range, offset, memory);
+        const IndexMask shifted_mask = mask.slice_and_shift(sub_range, offset, memory);
 
-        ParamsBuilder sliced_params{*this, &offset_mask};
+        ParamsBuilder sliced_params{*this, &shifted_mask};
         add_sliced_parameters(*signature_ref_, params, input_slice_range, sliced_params);
-        this->call(offset_mask, sliced_params, context);
+        this->call(shifted_mask, sliced_params, context);
       });
 }
 

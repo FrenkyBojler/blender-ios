@@ -10,6 +10,7 @@
  * Isolate since this needs to be called by #ImBuf code (bad level call).
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include <ft2build.h>
@@ -19,22 +20,16 @@
 #include FT_TRUETYPE_IDS_H    /* Code-point coverage constants. */
 #include FT_TRUETYPE_TABLES_H /* For TT_OS2 */
 
-#include "BLI_listbase.h"
-#include "BLI_math_bits.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_bits.hh"
+#include "BLI_utildefines.hh"
 
-#include "blf_internal.h"
-#include "blf_internal_types.h"
+#include "blf_internal_types.hh"
 
-#include "BLF_api.h"
+#include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 
-#include "BLI_strict_flags.h"
+namespace blender {
 
-/* Maximum length of text sample in char32_t, including nullptr terminator. */
+/* Maximum length of text sample in char32_t, including null terminator. */
 #define BLF_SAMPLE_LEN 5
 
 struct UnicodeSample {
@@ -88,7 +83,7 @@ static const UnicodeSample unicode_samples[] = {
     {U"\ua188\ua320\ua4bf", 3, TT_UCR_YI},
     {U"\u1900\u1901\u1902", 3, TT_UCR_LIMBU},
     {U"\u1950\u1951\u1952", 3, TT_UCR_TAI_LE},
-    {U"\u1980\u1982\u1986", 3, (FT_ULong)TT_UCR_NEW_TAI_LUE},
+    {U"\u1980\u1982\u1986", 3, FT_ULong(TT_UCR_NEW_TAI_LUE)},
     {U"\u1A00\u1A01\u1A02", 4, TT_UCR_BUGINESE},
     {U"\u2c01\u2c05\u2c0c", 4, TT_UCR_GLAGOLITIC},
     {U"\u2d31\u2d33\u2d37", 4, TT_UCR_TIFINAGH},
@@ -220,7 +215,7 @@ static const UnicodeSample unicode_samples[] = {
     {U"\u0533\u0537\u0539", 1, TT_UCR_ARMENIAN},
 };
 
-static const char32_t *blf_get_sample_text(FT_Face face)
+static const char32_t *blf_get_sample_text(const FT_Face face)
 {
   /* First check for fonts with MS Symbol character map. */
   if (face->charmap->encoding == FT_ENCODING_MS_SYMBOL) {
@@ -243,7 +238,7 @@ static const char32_t *blf_get_sample_text(FT_Face face)
   }
 
   /* TrueType table with bits to quickly test most Unicode block coverage. */
-  TT_OS2 *os2_table = (TT_OS2 *)FT_Get_Sfnt_Table(face, FT_SFNT_OS2);
+  TT_OS2 *os2_table = static_cast<TT_OS2 *>(FT_Get_Sfnt_Table(face, FT_SFNT_OS2));
   if (!os2_table) {
     return def;
   }
@@ -304,7 +299,8 @@ static const char32_t *blf_get_sample_text(FT_Face face)
   return sample;
 }
 
-bool BLF_thumb_preview(const char *filename, uchar *buf, int w, int h, int /*channels*/)
+bool BLF_thumb_preview(
+    const char *filepath, uchar *buf, const int w, const int h, const int /*channels*/)
 {
   /* Use own FT_Library and direct FreeType calls as this is called from multiple threads. */
   FT_Library ft_lib = nullptr;
@@ -313,7 +309,7 @@ bool BLF_thumb_preview(const char *filename, uchar *buf, int w, int h, int /*cha
   }
 
   FT_Face face;
-  if (FT_New_Face(ft_lib, filename, 0, &face) != FT_Err_Ok) {
+  if (FT_New_Face(ft_lib, filepath, 0, &face) != FT_Err_Ok) {
     FT_Done_FreeType(ft_lib);
     return false;
   }
@@ -363,14 +359,14 @@ bool BLF_thumb_preview(const char *filename, uchar *buf, int w, int h, int /*cha
     width += int(advance >> 16);
   }
 
-  int height = ft_pix_to_int((ft_pix)face->size->metrics.ascender -
-                             (ft_pix)face->size->metrics.descender);
+  int height = ft_pix_to_int(ft_pix(face->size->metrics.ascender) -
+                             ft_pix(face->size->metrics.descender));
   width = std::max(width, height);
 
   /* Fill up to 96% horizontally or vertically. */
-  float font_size = MIN3(float(w),
-                         (float(w) * 0.96f / float(width) * float(w)),
-                         float(h) * 0.96f / float(height) * float(h));
+  float font_size = std::min({float(w),
+                              (float(w) * 0.96f / float(width) * float(w)),
+                              float(h) * 0.96f / float(height) * float(h)});
 
   if (font_size < 1 || FT_Set_Char_Size(face, int(font_size * 64.0f), 0, 72, 72) != FT_Err_Ok) {
     /* Sizing can fail, but very rarely. */
@@ -406,7 +402,7 @@ bool BLF_thumb_preview(const char *filename, uchar *buf, int w, int h, int /*cha
       int dest_row = (h - y - 1 + int(face->glyph->bitmap_top) - top);
       if (dest_row >= 0 && dest_row < h) {
         for (int x = 0; x < int(face->glyph->bitmap.width); x++) {
-          int dest_col = (x + ft_pix_to_int((ft_pix)advance_x) + face->glyph->bitmap_left + left);
+          int dest_col = (x + ft_pix_to_int(ft_pix(advance_x)) + face->glyph->bitmap_left + left);
           if (dest_col >= 0 && dest_col < w) {
             uchar *source = &face->glyph->bitmap.buffer[y * int(face->glyph->bitmap.width) + x];
             uchar *dest = &buf[dest_row * w * 4 + (dest_col * 4 + 3)];
@@ -425,3 +421,5 @@ bool BLF_thumb_preview(const char *filename, uchar *buf, int w, int h, int /*cha
   /* Return success if we printed at least one glyph. */
   return glyph_count > 0;
 }
+
+}  // namespace blender

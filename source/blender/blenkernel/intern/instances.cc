@@ -3,13 +3,18 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
+#include "BLI_listbase.hh"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
 
-#include "BKE_attribute_math.hh"
-#include "BKE_customdata.hh"
+#include "DNA_collection_types.h"
+#include "DNA_object_types.h"
+
 #include "BKE_geometry_set.hh"
+#include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
+
+#include "attribute_storage_access.hh"
 
 namespace blender::bke {
 
@@ -17,6 +22,14 @@ InstanceReference::InstanceReference(GeometrySet geometry_set)
     : type_(Type::GeometrySet),
       geometry_set_(std::make_unique<GeometrySet>(std::move(geometry_set)))
 {
+}
+
+InstanceReference::InstanceReference(const InstanceReference &other)
+    : type_(other.type_), data_(other.data_)
+{
+  if (other.geometry_set_) {
+    geometry_set_ = std::make_unique<GeometrySet>(*other.geometry_set_);
+  }
 }
 
 void InstanceReference::ensure_owns_direct_data()
@@ -36,6 +49,105 @@ bool InstanceReference::owns_direct_data() const
   return geometry_set_->owns_direct_data();
 }
 
+void InstanceReference::count_memory(MemoryCounter &memory) const
+{
+  switch (type_) {
+    case Type::GeometrySet: {
+      geometry_set_->count_memory(memory);
+    }
+    default: {
+      break;
+    }
+  }
+}
+
+AttributeAccessor Instances::attributes() const
+{
+  return AttributeAccessor(this, instance_attribute_accessor_functions());
+}
+
+MutableAttributeAccessor Instances::attributes_for_write()
+{
+  return MutableAttributeAccessor(this, instance_attribute_accessor_functions());
+}
+
+static std::unique_ptr<bke::Instances> convert_collection_to_instances(
+    const Collection &collection)
+{
+  const int instances_num = collection.children.count() + collection.gobject.count();
+
+  auto instances = std::make_unique<bke::Instances>(instances_num);
+
+  MutableSpan<int> handles = instances->reference_handles_for_write();
+  MutableSpan<float4x4> transforms = instances->transforms_for_write();
+
+  int i = 0;
+
+  for (CollectionChild &collection_child : collection.children) {
+    float4x4 transform = float4x4::identity();
+    transform.location() += float3(collection_child.collection->instance_offset);
+    transform.location() -= float3(collection.instance_offset);
+    transforms[i] = transform;
+
+    handles[i] = instances->add_reference(*collection_child.collection);
+
+    i++;
+  }
+
+  for (CollectionObject &collection_object : collection.gobject) {
+    float4x4 transform = float4x4::identity();
+    transform.location() -= float3(collection.instance_offset);
+    transform *= (collection_object.ob)->object_to_world();
+    transforms[i] = transform;
+
+    handles[i] = instances->add_reference(*collection_object.ob);
+
+    i++;
+  }
+
+  return instances;
+}
+
+void InstanceReference::to_geometry_set(GeometrySet &r_geometry_set) const
+{
+  r_geometry_set.clear();
+  switch (type_) {
+    case Type::Object: {
+      const Object &object = this->object();
+      r_geometry_set = bke::object_get_evaluated_geometry_set(object);
+      break;
+    }
+    case Type::Collection: {
+      const Collection &collection = this->collection();
+      std::unique_ptr<bke::Instances> instances_ptr = convert_collection_to_instances(collection);
+      r_geometry_set.replace_instances(instances_ptr.release());
+      break;
+    }
+    case Type::GeometrySet: {
+      r_geometry_set = this->geometry_set();
+      break;
+    }
+    case Type::None: {
+      break;
+    }
+  }
+}
+
+StringRefNull InstanceReference::name() const
+{
+  switch (type_) {
+    case Type::Object:
+      return this->object().id.name + 2;
+    case Type::Collection:
+      return this->collection().id.name + 2;
+    case Type::GeometrySet:
+      return this->geometry_set().name();
+    case Type::None:
+      break;
+  }
+  return "";
+}
+
 bool operator==(const InstanceReference &a, const InstanceReference &b)
 {
   if (a.geometry_set_ && b.geometry_set_) {
@@ -44,34 +156,38 @@ bool operator==(const InstanceReference &a, const InstanceReference &b)
   return a.type_ == b.type_ && a.data_ == b.data_;
 }
 
-Instances::Instances()
+uint64_t InstanceReference::hash() const
 {
-  CustomData_reset(&attributes_);
+  const uint64_t geometry_hash = geometry_set_ ? geometry_set_->hash() : 0;
+  return get_default_hash(geometry_hash, type_, data_);
+}
+
+Instances::Instances() = default;
+
+Instances::Instances(const int size) : instances_num_(size)
+{
+  attributes_.resize(AttrDomain::Instance, size);
 }
 
 Instances::Instances(Instances &&other)
     : references_(std::move(other.references_)),
-      reference_handles_(std::move(other.reference_handles_)),
-      transforms_(std::move(other.transforms_)),
-      almost_unique_ids_(std::move(other.almost_unique_ids_)),
-      attributes_(other.attributes_)
+      instances_num_(other.instances_num_),
+      attributes_(std::move(other.attributes_)),
+      reference_user_counts_(std::move(other.reference_user_counts_)),
+      unique_ids_cache_(std::move(other.unique_ids_cache_))
 {
-  CustomData_reset(&other.attributes_);
 }
 
 Instances::Instances(const Instances &other)
     : references_(other.references_),
-      reference_handles_(other.reference_handles_),
-      transforms_(other.transforms_),
-      almost_unique_ids_(other.almost_unique_ids_)
+      instances_num_(other.instances_num_),
+      attributes_(other.attributes_),
+      reference_user_counts_(other.reference_user_counts_),
+      unique_ids_cache_(other.unique_ids_cache_)
 {
-  CustomData_copy(&other.attributes_, &attributes_, CD_MASK_ALL, other.instances_num());
 }
 
-Instances::~Instances()
-{
-  CustomData_free(&attributes_, this->instances_num());
-}
+Instances::~Instances() = default;
 
 Instances &Instances::operator=(const Instances &other)
 {
@@ -93,41 +209,36 @@ Instances &Instances::operator=(Instances &&other)
   return *this;
 }
 
-void Instances::resize(int capacity)
+void Instances::resize(int size)
 {
-  const int old_size = this->instances_num();
-  reference_handles_.resize(capacity);
-  transforms_.resize(capacity);
-  CustomData_realloc(&attributes_, old_size, capacity, CD_SET_DEFAULT);
-}
-
-void Instances::add_instance(const int instance_handle, const float4x4 &transform)
-{
-  BLI_assert(instance_handle >= 0);
-  BLI_assert(instance_handle < references_.size());
-  const int old_size = this->instances_num();
-  reference_handles_.append(instance_handle);
-  transforms_.append(transform);
-  CustomData_realloc(&attributes_, old_size, transforms_.size());
+  attributes_.resize(AttrDomain::Instance, size);
+  instances_num_ = size;
 }
 
 Span<int> Instances::reference_handles() const
 {
-  return reference_handles_;
+  return get_span_attribute<int>(
+             attributes_, AttrDomain::Instance, ".reference_index", instances_num_)
+      .value_or(Span<int>());
 }
 
-MutableSpan<int> Instances::reference_handles()
+MutableSpan<int> Instances::reference_handles_for_write()
 {
-  return reference_handles_;
+  return get_mutable_attribute<int>(
+      attributes_, AttrDomain::Instance, ".reference_index", instances_num_);
 }
 
-MutableSpan<float4x4> Instances::transforms()
-{
-  return transforms_;
-}
 Span<float4x4> Instances::transforms() const
 {
-  return transforms_;
+  return get_span_attribute<float4x4>(
+             attributes_, AttrDomain::Instance, "instance_transform", instances_num_)
+      .value_or(Span<float4x4>());
+}
+
+MutableSpan<float4x4> Instances::transforms_for_write()
+{
+  return get_mutable_attribute<float4x4>(
+      attributes_, AttrDomain::Instance, "instance_transform", instances_num_);
 }
 
 GeometrySet &Instances::geometry_set_from_reference(const int reference_index)
@@ -155,7 +266,21 @@ int Instances::add_reference(const InstanceReference &reference)
   if (std::optional<int> handle = this->find_reference_handle(reference)) {
     return *handle;
   }
-  return references_.append_and_get_index(reference);
+  return this->add_new_reference(reference);
+}
+
+int Instances::add_reference(InstanceReference &&reference)
+{
+  if (std::optional<int> handle = this->find_reference_handle(reference)) {
+    return *handle;
+  }
+  return this->add_new_reference(std::move(reference));
+}
+
+int Instances::add_new_reference(InstanceReference reference)
+{
+  this->tag_reference_handles_changed();
+  return references_.append_and_get_index(std::move(reference));
 }
 
 Span<InstanceReference> Instances::references() const
@@ -163,8 +288,12 @@ Span<InstanceReference> Instances::references() const
   return references_;
 }
 
-void Instances::remove(const IndexMask &mask,
-                       const AnonymousAttributePropagationInfo &propagation_info)
+MutableSpan<InstanceReference> Instances::references_for_write()
+{
+  return references_;
+}
+
+void Instances::remove(const IndexMask &mask, const AttributeFilter &attribute_filter)
 {
   const std::optional<IndexRange> masked_range = mask.to_range();
   if (masked_range.has_value() && masked_range->start() == 0) {
@@ -174,20 +303,14 @@ void Instances::remove(const IndexMask &mask,
     return;
   }
 
-  const int new_size = mask.size();
-
   Instances new_instances;
   new_instances.references_ = std::move(references_);
-  new_instances.reference_handles_.resize(new_size);
-  new_instances.transforms_.resize(new_size);
-  array_utils::gather(
-      reference_handles_.as_span(), mask, new_instances.reference_handles_.as_mutable_span());
-  array_utils::gather(transforms_.as_span(), mask, new_instances.transforms_.as_mutable_span());
+  new_instances.instances_num_ = mask.size();
 
   gather_attributes(this->attributes(),
                     AttrDomain::Instance,
-                    propagation_info,
-                    {"position"},
+                    AttrDomain::Instance,
+                    attribute_filter,
                     mask,
                     new_instances.attributes_for_write());
 
@@ -198,7 +321,7 @@ void Instances::remove(const IndexMask &mask,
 
 void Instances::remove_unused_references()
 {
-  const int tot_instances = this->instances_num();
+  const int tot_instances = instances_num_;
   const int tot_references_before = references_.size();
 
   if (tot_instances == 0) {
@@ -212,8 +335,10 @@ void Instances::remove_unused_references()
     return;
   }
 
+  const Span<int> reference_handles = this->reference_handles();
+
   Array<bool> usage_by_handle(tot_references_before, false);
-  std::mutex mutex;
+  Mutex mutex;
 
   /* Loop over all instances to see which references are used. */
   threading::parallel_for(IndexRange(tot_instances), 1000, [&](IndexRange range) {
@@ -221,7 +346,7 @@ void Instances::remove_unused_references()
     Array<bool> local_usage_by_handle(tot_references_before, false);
 
     for (const int i : range) {
-      const int handle = reference_handles_[i];
+      const int handle = reference_handles[i];
       BLI_assert(handle >= 0 && handle < tot_references_before);
       local_usage_by_handle[handle] = true;
     }
@@ -266,16 +391,19 @@ void Instances::remove_unused_references()
   }
 
   /* Update handles of instances. */
-  threading::parallel_for(IndexRange(tot_instances), 1000, [&](IndexRange range) {
-    for (const int i : range) {
-      reference_handles_[i] = handle_mapping[reference_handles_[i]];
-    }
-  });
+  {
+    const MutableSpan<int> reference_handles = this->reference_handles_for_write();
+    threading::parallel_for(IndexRange(tot_instances), 1000, [&](IndexRange range) {
+      for (const int i : range) {
+        reference_handles[i] = handle_mapping[reference_handles[i]];
+      }
+    });
+  }
 }
 
 int Instances::instances_num() const
 {
-  return transforms_.size();
+  return this->instances_num_;
 }
 
 int Instances::references_num() const
@@ -300,6 +428,14 @@ void Instances::ensure_owns_direct_data()
      * reference. */
     InstanceReference &reference = const_cast<InstanceReference &>(const_reference);
     reference.ensure_owns_direct_data();
+  }
+}
+
+void Instances::count_memory(MemoryCounter &memory) const
+{
+  attributes_.count_memory(memory);
+  for (const InstanceReference &reference : references_) {
+    reference.count_memory(memory);
   }
 }
 
@@ -343,10 +479,15 @@ static Array<int> generate_unique_instance_ids(Span<int> original_ids)
         break;
       }
       if (iteration == max_iteration) {
-        /* It seems to be very unlikely that we ever run into this case (assuming there are less
-         * than 2^30 instances). However, if that happens, it's better to use an id that is not
-         * unique than to be stuck in an infinite loop. */
-        unique_ids[instance_index] = original_id;
+        /* The likelihood of running into this case is very low even if there is a huge number of
+         * instances. For correctness, it's still good to systematically find an unused id instead
+         * of purely relying on randomness. */
+        for (const int generated_id : IndexRange(INT32_MAX)) {
+          if (used_unique_ids.add(generated_id)) {
+            unique_ids[instance_index] = generated_id;
+            break;
+          }
+        }
         break;
       }
     }
@@ -355,23 +496,58 @@ static Array<int> generate_unique_instance_ids(Span<int> original_ids)
   return unique_ids;
 }
 
-Span<int> Instances::almost_unique_ids() const
+Span<int> Instances::reference_user_counts() const
 {
-  std::lock_guard lock(almost_unique_ids_mutex_);
-  bke::AttributeReader<int> instance_ids_attribute = this->attributes().lookup<int>("id");
-  if (instance_ids_attribute) {
-    Span<int> instance_ids = instance_ids_attribute.varray.get_internal_span();
-    if (almost_unique_ids_.size() != instance_ids.size()) {
-      almost_unique_ids_ = generate_unique_instance_ids(instance_ids);
+  reference_user_counts_.ensure([&](Array<int> &r_data) {
+    const int references_num = references_.size();
+    r_data.reinitialize(references_num);
+    r_data.fill(0);
+
+    const Span<int> handles = this->reference_handles();
+    for (const int handle : handles) {
+      if (handle >= 0 && handle < references_num) {
+        r_data[handle]++;
+      }
     }
-  }
-  else {
-    almost_unique_ids_.reinitialize(this->instances_num());
-    for (const int i : almost_unique_ids_.index_range()) {
-      almost_unique_ids_[i] = i;
+  });
+  return reference_user_counts_.data();
+}
+
+Span<int> Instances::unique_ids() const
+{
+  unique_ids_cache_.ensure([&](Array<int> &r_data) {
+    const VArraySpan<int> instance_ids = *this->attributes().lookup<int>("id");
+    if (instance_ids.is_empty()) {
+      r_data.reinitialize(instances_num_);
+      array_utils::fill_index_range(r_data.as_mutable_span());
+      return;
     }
-  }
-  return almost_unique_ids_;
+    r_data = generate_unique_instance_ids(instance_ids);
+  });
+  return unique_ids_cache_.data();
+}
+
+static float3 get_transform_position(const float4x4 &transform)
+{
+  return transform.location();
+}
+
+static void set_transform_position(float4x4 &transform, const float3 position)
+{
+  transform.location() = position;
+}
+
+VArray<float3> instance_position_varray(const Instances &instances)
+{
+  return VArray<float3>::from_derived_span<float4x4, get_transform_position>(
+      instances.transforms());
+}
+
+VMutableArray<float3> instance_position_varray_for_write(Instances &instances)
+{
+  MutableSpan<float4x4> transforms = instances.transforms_for_write();
+  return VMutableArray<float3>::
+      from_derived_span<float4x4, get_transform_position, set_transform_position>(transforms);
 }
 
 }  // namespace blender::bke

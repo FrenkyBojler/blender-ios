@@ -10,17 +10,15 @@
 
 #include "../../stroke/BasicStrokeShaders.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char ConstrainedIncreasingThicknessShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ConstrainedIncreasingThicknessShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > "
     ":class:`ConstrainedIncreasingThicknessShader`\n"
     "\n"
@@ -30,11 +28,11 @@ static char ConstrainedIncreasingThicknessShader___doc__[] =
     "\n"
     "   Builds a ConstrainedIncreasingThicknessShader object.\n"
     "\n"
-    "   :arg thickness_min: The minimum thickness.\n"
+    "   :param thickness_min: The minimum thickness.\n"
     "   :type thickness_min: float\n"
-    "   :arg thickness_max: The maximum thickness.\n"
+    "   :param thickness_max: The maximum thickness.\n"
     "   :type thickness_max: float\n"
-    "   :arg ratio: The thickness/length ratio that we don't want to exceed. \n"
+    "   :param ratio: The thickness/length ratio that we don't want to exceed. \n"
     "   :type ratio: float\n"
     "\n"
     ".. method:: shade(stroke)\n"
@@ -43,9 +41,8 @@ static char ConstrainedIncreasingThicknessShader___doc__[] =
     "   the user to control the thickness/length ratio so that we don't get\n"
     "   fat short lines.\n"
     "\n"
-    "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :param stroke: A Stroke object.\n"
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int ConstrainedIncreasingThicknessShader___init__(
     BPy_ConstrainedIncreasingThicknessShader *self, PyObject *args, PyObject *kwds)
 {
@@ -103,7 +100,3 @@ PyTypeObject ConstrainedIncreasingThicknessShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

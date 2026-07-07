@@ -14,7 +14,7 @@ This allows scripts to generate their own previews, and use them as icons in UI 
 Custom Icon Example
 -------------------
 
-.. literalinclude:: __/__/__/scripts/templates_py/ui_previews_custom_icon.py
+.. literalinclude:: __/__/__/scripts/templates_py/UI/previews_custom_icon.py
 """
 
 __all__ = (
@@ -61,7 +61,7 @@ class ImagePreviewCollection(dict):
             return
 
         raise ResourceWarning(
-            "%r: left open, remove with 'bpy.utils.previews.remove()'" % self
+            "{!r}: left open, remove with 'bpy.utils.previews.remove()'".format(self)
         )
         self.close()
 
@@ -70,17 +70,17 @@ class ImagePreviewCollection(dict):
 
     def new(self, name):
         if name in self:
-            raise KeyError("key %r already exists" % name)
+            raise KeyError("key {!r} already exists".format(name))
         p = self[name] = _utils_previews.new(
             self._gen_key(name))
         return p
     new.__doc__ = _utils_previews.new.__doc__
 
-    def load(self, name, path, path_type, force_reload=False):
+    def load(self, name, filepath, file_type, force_reload=False):
         if name in self:
-            raise KeyError("key %r already exists" % name)
+            raise KeyError("key {!r} already exists".format(name))
         p = self[name] = _utils_previews.load(
-            self._gen_key(name), path, path_type, force_reload)
+            self._gen_key(name), filepath, file_type, force_reload)
         return p
     load.__doc__ = _utils_previews.load.__doc__
 
@@ -100,7 +100,7 @@ class ImagePreviewCollection(dict):
         super().__delitem__(key)
 
     def __repr__(self):
-        return "<%s id=%s[%d], %r>" % (
+        return "<{:s} id={:s}[{:d}], {!r}>".format(
             self.__class__.__name__, self._uuid, len(self), super()
         )
 
@@ -118,7 +118,7 @@ def remove(pcoll):
     """
     Remove the specified previews collection.
 
-    :arg pcoll: Preview collection to close.
+    :param pcoll: Preview collection to close.
     :type pcoll: :class:`ImagePreviewCollection`
     """
     pcoll.close()

@@ -8,28 +8,25 @@
 
 #include "BPy_TrueUP1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char TrueUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    TrueUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > :class:`TrueUP1D`\n"
     "\n"
     ".. method:: __call__(inter)\n"
     "\n"
     "   Always returns true.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True.\n"
-    "   :rtype: bool\n";
-
+    "   :rtype: bool\n");
 static int TrueUP1D___init__(BPy_TrueUP1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {nullptr};
@@ -85,7 +82,3 @@ PyTypeObject TrueUP1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

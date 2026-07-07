@@ -6,49 +6,24 @@
  * \ingroup spview3d
  */
 
-#include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
-
-#include "MEM_guardedalloc.h"
-
-#include "BLI_rect.h"
-
-#include "BLT_translation.h"
-
-#include "BKE_armature.hh"
 #include "BKE_context.hh"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_layer.h"
-#include "BKE_object.hh"
-#include "BKE_paint.hh"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
-#include "BKE_vfont.hh"
+#include "BKE_layer.hh"
 
-#include "DEG_depsgraph_query.hh"
-
-#include "ED_mesh.hh"
-#include "ED_particle.hh"
-#include "ED_screen.hh"
-#include "ED_transform.hh"
+#include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
-#include "WM_message.hh"
 
-#include "RNA_access.hh"
-#include "RNA_define.hh"
-
-#include "UI_resources.hh"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 #include "view3d_navigate.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name View Camera Operator
  * \{ */
 
-static int view_camera_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_camera_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d;
   ARegion *region;
@@ -62,11 +37,12 @@ static int view_camera_exec(bContext *C, wmOperator *op)
   ED_view3d_smooth_view_force_finish(C, v3d, region);
 
   if ((RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) == 0) {
+    const Main *bmain = CTX_data_main(C);
     ViewLayer *view_layer = CTX_data_view_layer(C);
     Scene *scene = CTX_data_scene(C);
 
     if (rv3d->persp != RV3D_CAMOB) {
-      BKE_view_layer_synced_ensure(scene, view_layer);
+      BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
       Object *ob = BKE_view_layer_active_object_get(view_layer);
 
       if (!rv3d->smooth_timer) {
@@ -94,7 +70,7 @@ static int view_camera_exec(bContext *C, wmOperator *op)
       }
 
       if (v3d->camera == nullptr) {
-        v3d->camera = BKE_view_layer_camera_find(scene, view_layer);
+        v3d->camera = BKE_view_layer_camera_find(*bmain, scene, view_layer);
       }
 
       /* couldn't find any useful camera, bail out */
@@ -105,7 +81,7 @@ static int view_camera_exec(bContext *C, wmOperator *op)
       /* important these don't get out of sync for locked scenes */
       if (v3d->scenelock && scene->camera != v3d->camera) {
         scene->camera = v3d->camera;
-        DEG_id_tag_update(&scene->id, ID_RECALC_COPY_ON_WRITE);
+        DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
       }
 
       /* finally do snazzy view zooming */
@@ -147,7 +123,7 @@ void VIEW3D_OT_view_camera(wmOperatorType *ot)
   ot->description = "Toggle the camera view";
   ot->idname = "VIEW3D_OT_view_camera";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_camera_exec;
   ot->poll = ED_operator_rv3d_user_region_poll;
 
@@ -156,3 +132,5 @@ void VIEW3D_OT_view_camera(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

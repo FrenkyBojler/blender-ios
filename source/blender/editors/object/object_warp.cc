@@ -12,9 +12,11 @@
 
 #include "BKE_context.hh"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -22,9 +24,12 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_object.hh"
 #include "ED_transverts.hh"
 
-#include "object_intern.h"
+#include "object_intern.hh"
+
+namespace blender::ed::object {
 
 static void object_warp_calc_view_matrix(float r_mat_view[4][4],
                                          float r_center_view[3],
@@ -41,7 +46,7 @@ static void object_warp_calc_view_matrix(float r_mat_view[4][4],
   mul_m4_m4m4(viewmat_roll, mat_offset, viewmat);
 
   /* apply the view and the object matrix */
-  mul_m4_m4m4(r_mat_view, viewmat_roll, obedit->object_to_world);
+  mul_m4_m4m4(r_mat_view, viewmat_roll, obedit->object_to_world().ptr());
 
   /* get the view-space cursor */
   mul_v3_m4v3(r_center_view, viewmat_roll, center);
@@ -150,12 +155,13 @@ static void object_warp_transverts(TransVertStore *tvs,
   }
 }
 
-static int object_warp_verts_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
 {
   const float warp_angle = RNA_float_get(op->ptr, "warp_angle");
   const float offset_angle = RNA_float_get(op->ptr, "offset_angle");
 
   TransVertStore tvs = {nullptr};
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *obedit = CTX_data_edit_object(C);
 
   /* typically from 'rv3d' and 3d cursor */
@@ -168,7 +174,14 @@ static int object_warp_verts_exec(bContext *C, wmOperator *op)
 
   float min, max;
 
-  ED_transverts_create_from_obedit(&tvs, obedit, TM_ALL_JOINTS | TM_SKIP_HANDLES);
+  if (shape_key_report_if_locked(obedit, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (ED_transverts_check_obedit(obedit)) {
+    const Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
+    ED_transverts_create_from_obedit(&tvs, obedit_eval, TM_ALL_JOINTS | TM_SKIP_HANDLES);
+  }
   if (tvs.transverts == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -177,7 +190,7 @@ static int object_warp_verts_exec(bContext *C, wmOperator *op)
   {
     PropertyRNA *prop_viewmat = RNA_struct_find_property(op->ptr, "viewmat");
     if (RNA_property_is_set(op->ptr, prop_viewmat)) {
-      RNA_property_float_get_array(op->ptr, prop_viewmat, (float *)viewmat);
+      RNA_property_float_get_array(op->ptr, prop_viewmat, reinterpret_cast<float *>(viewmat));
     }
     else {
       RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -189,7 +202,7 @@ static int object_warp_verts_exec(bContext *C, wmOperator *op)
         unit_m4(viewmat);
       }
 
-      RNA_property_float_set_array(op->ptr, prop_viewmat, (float *)viewmat);
+      RNA_property_float_set_array(op->ptr, prop_viewmat, reinterpret_cast<float *>(viewmat));
     }
   }
 
@@ -227,7 +240,7 @@ static int object_warp_verts_exec(bContext *C, wmOperator *op)
     }
 
     if (min > max) {
-      SWAP(float, min, max);
+      std::swap(min, max);
     }
   }
 
@@ -252,7 +265,7 @@ void TRANSFORM_OT_vertex_warp(wmOperatorType *ot)
   ot->description = "Warp vertices around the cursor";
   ot->idname = "TRANSFORM_OT_vertex_warp";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_warp_verts_exec;
   ot->poll = ED_transverts_poll;
 
@@ -294,3 +307,5 @@ void TRANSFORM_OT_vertex_warp(wmOperatorType *ot)
       ot->srna, "center", 3, nullptr, -FLT_MAX, FLT_MAX, "Center", "", -FLT_MAX, FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
+
+}  // namespace blender::ed::object

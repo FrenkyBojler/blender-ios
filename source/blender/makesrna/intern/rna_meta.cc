@@ -8,44 +8,46 @@
 
 #include <cstdlib>
 
-#include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
-
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #ifdef RNA_RUNTIME
 
+#  include <fmt/format.h>
+
 #  include "MEM_guardedalloc.h"
+
+#  include "BLI_listbase.hh"
+#  include "BLI_math_rotation_c.hh"
+#  include "BLI_math_vector_c.hh"
 
 #  include "DNA_object_types.h"
 #  include "DNA_scene_types.h"
 
 #  include "BKE_main.hh"
-#  include "BKE_mball.h"
-#  include "BKE_scene.h"
+#  include "BKE_mball.hh"
+#  include "BKE_scene.hh"
 
 #  include "DEG_depsgraph.hh"
 
 #  include "WM_api.hh"
 #  include "WM_types.hh"
 
-static int rna_Meta_texspace_editable(PointerRNA *ptr, const char ** /*r_info*/)
+namespace blender {
+
+static int rna_Meta_texspace_editable(const PointerRNA *ptr, const char ** /*r_info*/)
 {
-  MetaBall *mb = (MetaBall *)ptr->data;
+  MetaBall *mb = static_cast<MetaBall *>(ptr->data);
   return (mb->texspace_flag & MB_TEXSPACE_FLAG_AUTO) ? 0 : int(PROP_EDITABLE);
 }
 
 static void rna_Meta_texspace_location_get(PointerRNA *ptr, float *values)
 {
-  MetaBall *mb = (MetaBall *)ptr->data;
+  MetaBall *mb = static_cast<MetaBall *>(ptr->data);
 
   /* tex_space_mball() needs object.. ugh */
 
@@ -54,14 +56,14 @@ static void rna_Meta_texspace_location_get(PointerRNA *ptr, float *values)
 
 static void rna_Meta_texspace_location_set(PointerRNA *ptr, const float *values)
 {
-  MetaBall *mb = (MetaBall *)ptr->data;
+  MetaBall *mb = static_cast<MetaBall *>(ptr->data);
 
   copy_v3_v3(mb->texspace_location, values);
 }
 
 static void rna_Meta_texspace_size_get(PointerRNA *ptr, float *values)
 {
-  MetaBall *mb = (MetaBall *)ptr->data;
+  MetaBall *mb = static_cast<MetaBall *>(ptr->data);
 
   /* tex_space_mball() needs object.. ugh */
 
@@ -70,7 +72,7 @@ static void rna_Meta_texspace_size_get(PointerRNA *ptr, float *values)
 
 static void rna_Meta_texspace_size_set(PointerRNA *ptr, const float *values)
 {
-  MetaBall *mb = (MetaBall *)ptr->data;
+  MetaBall *mb = static_cast<MetaBall *>(ptr->data);
 
   copy_v3_v3(mb->texspace_size, values);
 }
@@ -79,13 +81,13 @@ static void rna_MetaBall_redraw_data(Main * /*bmain*/, Scene * /*scene*/, Pointe
 {
   ID *id = ptr->owner_id;
 
-  DEG_id_tag_update(id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
 }
 
 static void rna_MetaBall_update_data(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
-  MetaBall *mb = (MetaBall *)ptr->owner_id;
+  MetaBall *mb = id_cast<MetaBall *>(ptr->owner_id);
 
   /* NOTE: The check on the number of users allows to avoid many repetitive (slow) updates in some
    * cases, like e.g. importers. Calling `BKE_mball_properties_copy` on an obdata with no users
@@ -129,8 +131,8 @@ static void rna_MetaBall_elements_remove(MetaBall *mb, ReportList *reports, Poin
     return;
   }
 
-  MEM_freeN(ml);
-  RNA_POINTER_INVALIDATE(ml_ptr);
+  MEM_delete(ml);
+  ml_ptr->invalidate();
 
   /* cheating way for importers to avoid slow updates */
   if (mb->id.us > 0) {
@@ -141,7 +143,7 @@ static void rna_MetaBall_elements_remove(MetaBall *mb, ReportList *reports, Poin
 
 static void rna_MetaBall_elements_clear(MetaBall *mb)
 {
-  BLI_freelistN(&mb->elems);
+  mb->elems.free_no_destruct();
 
   /* cheating way for importers to avoid slow updates */
   if (mb->id.us > 0) {
@@ -152,13 +154,13 @@ static void rna_MetaBall_elements_clear(MetaBall *mb)
 
 static bool rna_Meta_is_editmode_get(PointerRNA *ptr)
 {
-  MetaBall *mb = (MetaBall *)ptr->owner_id;
+  MetaBall *mb = id_cast<MetaBall *>(ptr->owner_id);
   return (mb->editelems != nullptr);
 }
 
-static char *rna_MetaElement_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_MetaElement_path(const PointerRNA *ptr)
 {
-  const MetaBall *mb = (MetaBall *)ptr->owner_id;
+  const MetaBall *mb = id_cast<MetaBall *>(ptr->owner_id);
   const MetaElem *ml = static_cast<MetaElem *>(ptr->data);
   int index = -1;
 
@@ -169,13 +171,17 @@ static char *rna_MetaElement_path(const PointerRNA *ptr)
     index = BLI_findindex(&mb->elems, ml);
   }
   if (index == -1) {
-    return nullptr;
+    return std::nullopt;
   }
 
-  return BLI_sprintfN("elements[%d]", index);
+  return fmt::format("elements[{}]", index);
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 static void rna_def_metaelement(BlenderRNA *brna)
 {
@@ -425,5 +431,7 @@ void RNA_def_meta(BlenderRNA *brna)
   rna_def_metaelement(brna);
   rna_def_metaball(brna);
 }
+
+}  // namespace blender
 
 #endif

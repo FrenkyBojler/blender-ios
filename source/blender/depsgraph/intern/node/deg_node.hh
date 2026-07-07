@@ -8,18 +8,22 @@
 
 #pragma once
 
+#include <string>
+
 #include "MEM_guardedalloc.h"
 
 #include "intern/depsgraph_type.hh"
 
-#include "BLI_utildefines.h"
-
 #include "DEG_depsgraph_build.hh"
+
+#include "BLI_vector.hh"
+
+namespace blender {
 
 struct ID;
 struct Scene;
 
-namespace blender::deg {
+namespace deg {
 
 struct Depsgraph;
 struct OperationNode;
@@ -69,12 +73,14 @@ enum class NodeType {
   GEOMETRY,
   /* Sequencer Component (Scene Only) */
   SEQUENCER,
+  /* Compositor Component (Scene Only) */
+  COMPOSITOR,
   /* Component which contains all operations needed for layer collections
    * evaluation. */
   LAYER_COLLECTIONS,
-  /* Entry component of majority of ID nodes: prepares CoW pointers for
+  /* Entry component of majority of ID nodes: prepares evaluated pointers for
    * execution. */
-  COPY_ON_WRITE,
+  COPY_ON_EVAL,
   /* Used by all operations which are updating object when something is
    * changed in view layer. */
   OBJECT_FROM_LAYER,
@@ -86,6 +92,10 @@ enum class NodeType {
   /* Un-interesting data-block, which is a part of dependency graph, but does
    * not have very distinctive update procedure. */
   GENERIC_DATABLOCK,
+
+  /* Scene evaluation, for dependencies to other evaluation which might require accumulated custom
+   * data masks. */
+  SCENE,
 
   /* Component which is used to define visibility relation between IDs, on the ID level.
    *
@@ -124,9 +134,9 @@ enum class NodeType {
   /* Batch Cache Component.
    * TODO(dfelinto/sergey): rename to make it more generic. */
   BATCH_CACHE,
-  /* Duplication system. Used to force duplicated objects visible when
-   * when duplicator is visible. */
-  DUPLI,
+  /* Instancing system.
+   * Used to control visibility flags of dependencies. */
+  INSTANCING,
   /* Synchronization back to original datablock. */
   SYNCHRONIZATION,
   /* Node tree output component. */
@@ -171,7 +181,7 @@ struct Node {
    * have relationships between these nodes. */
   using Relations = Vector<Relation *>;
 
-  string name;        /* Identifier - mainly for debugging purposes. */
+  std::string name;   /* Identifier - mainly for debugging purposes. */
   NodeType type;      /* Structural type of node. */
   Relations inlinks;  /* Nodes which this one depends on. */
   Relations outlinks; /* Nodes which depend on this one. */
@@ -188,7 +198,7 @@ struct Node {
   virtual ~Node();
 
   /** Generic identifier for Depsgraph Nodes. */
-  virtual string identifier() const;
+  virtual std::string identifier() const;
 
   virtual void init(const ID * /*id*/, const char * /*subdata*/) {}
 
@@ -215,4 +225,5 @@ struct Node {
 
 void deg_register_base_depsnodes();
 
-}  // namespace blender::deg
+}  // namespace deg
+}  // namespace blender

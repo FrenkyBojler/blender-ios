@@ -6,8 +6,6 @@
  * \ingroup sim
  */
 
-#include "implicit.h"
-
 #ifdef IMPLICIT_SOLVER_EIGEN
 
 // #define USE_EIGEN_CORE
@@ -53,13 +51,13 @@ extern "C" {
 #  include "DNA_scene_types.h"
 #  include "DNA_texture_types.h"
 
-#  include "BLI_linklist.h"
-#  include "BLI_utildefines.h"
+#  include "BLI_linklist.hh"
+#  include "BLI_utildefines.hh"
 
 #  include "BKE_cloth.hh"
 #  include "BKE_collision.h"
 #  include "BKE_effect.h"
-#  include "BKE_global.h"
+#  include "BKE_global.hh"
 
 #  include "SIM_mass_spring.h"
 }
@@ -132,8 +130,9 @@ class fMatrix : public Eigen::Matrix3f {
   }
 };
 
-/* Extension of dense Eigen vectors,
- * providing 3-float block access for blenlib math functions
+/**
+ * Extension of dense Eigen vectors,
+ * providing 3-float block access for `blenlib` math functions
  */
 class lVector : public Eigen::VectorXf {
  public:
@@ -873,7 +872,7 @@ BLI_INLINE void dfdx_damp(float to[3][3],
   // return (I - outerprod(dir, dir)) * (-damping * -(dot(dir, vel) / Max(length, rest)));
   mul_fvectorT_fvector(to, dir, dir);
   sub_fmatrix_fmatrix(to, I, to);
-  mul_fmatrix_S(to, (-damping * -(dot_v3v3(dir, vel) / MAX2(length, rest))));
+  mul_fmatrix_S(to, (-damping * -(dot_v3v3(dir, vel) / std::max(length, rest))));
 }
 #  endif
 

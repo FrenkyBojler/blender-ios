@@ -6,52 +6,41 @@
  * \ingroup modifiers
  */
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_utildefines.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.hh"
-#include "BKE_deform.h"
-#include "BKE_editmesh.hh"
-#include "BKE_lib_id.hh"
-#include "BKE_lib_query.h"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
-#include "BKE_mesh_wrapper.hh"
+#include "BKE_deform.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
-#include "BKE_screen.hh"
+#include "BKE_object_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "DEG_depsgraph_query.hh"
+#include "RNA_prototypes.hh"
 
 #include "MOD_ui_common.hh"
 #include "MOD_util.hh"
 
+namespace blender {
+
 static void init_data(ModifierData *md)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(cmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(cmd, DNA_struct_default_get(CastModifierData), modifier);
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(cmd, modifier);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
   short flag;
 
   flag = cmd->flag & (MOD_CAST_X | MOD_CAST_Y | MOD_CAST_Z);
@@ -65,7 +54,7 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
 
   /* Ask for vertex-groups if we need them. */
   if (cmd->defgrp_name[0] != '\0') {
@@ -75,14 +64,14 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&cmd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&cmd->object), IDWALK_CB_NOP);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
   if (cmd->object != nullptr) {
     DEG_add_object_relation(ctx->node, cmd->object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
     DEG_add_depends_on_transform_relation(ctx->node, "Cast Modifier");
@@ -93,7 +82,7 @@ static void sphere_do(CastModifierData *cmd,
                       const ModifierEvalContext * /*ctx*/,
                       Object *ob,
                       Mesh *mesh,
-                      blender::MutableSpan<blender::float3> positions)
+                      MutableSpan<float3> positions)
 {
   const MDeformVert *dvert = nullptr;
   const bool invert_vgroup = (cmd->flag & MOD_CAST_INVERT_VGROUP) != 0;
@@ -124,13 +113,13 @@ static void sphere_do(CastModifierData *cmd,
    * we use its location, transformed to ob's local space. */
   if (ctrl_ob) {
     if (flag & MOD_CAST_USE_OB_TRANSFORM) {
-      invert_m4_m4(imat, ctrl_ob->object_to_world);
-      mul_m4_m4m4(mat, imat, ob->object_to_world);
+      invert_m4_m4(imat, ctrl_ob->object_to_world().ptr());
+      mul_m4_m4m4(mat, imat, ob->object_to_world().ptr());
       invert_m4_m4(imat, mat);
     }
 
-    invert_m4_m4(ob->world_to_object, ob->object_to_world);
-    mul_v3_m4v3(center, ob->world_to_object, ctrl_ob->object_to_world[3]);
+    invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+    mul_v3_m4v3(center, ob->world_to_object().ptr(), ctrl_ob->object_to_world().location());
   }
 
   /* now we check which options the user wants */
@@ -233,7 +222,7 @@ static void cuboid_do(CastModifierData *cmd,
                       const ModifierEvalContext * /*ctx*/,
                       Object *ob,
                       Mesh *mesh,
-                      blender::MutableSpan<blender::float3> positions)
+                      MutableSpan<float3> positions)
 {
   const MDeformVert *dvert = nullptr;
   int defgrp_index;
@@ -272,13 +261,13 @@ static void cuboid_do(CastModifierData *cmd,
 
   if (ctrl_ob) {
     if (flag & MOD_CAST_USE_OB_TRANSFORM) {
-      invert_m4_m4(imat, ctrl_ob->object_to_world);
-      mul_m4_m4m4(mat, imat, ob->object_to_world);
+      invert_m4_m4(imat, ctrl_ob->object_to_world().ptr());
+      mul_m4_m4m4(mat, imat, ob->object_to_world().ptr());
       invert_m4_m4(imat, mat);
     }
 
-    invert_m4_m4(ob->world_to_object, ob->object_to_world);
-    mul_v3_m4v3(center, ob->world_to_object, ctrl_ob->object_to_world[3]);
+    invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
+    mul_v3_m4v3(center, ob->world_to_object().ptr(), ctrl_ob->object_to_world().location());
   }
 
   if ((flag & MOD_CAST_SIZE_FROM_RADIUS) && has_radius) {
@@ -456,9 +445,9 @@ static void cuboid_do(CastModifierData *cmd,
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         blender::MutableSpan<blender::float3> positions)
+                         MutableSpan<float3> positions)
 {
-  CastModifierData *cmd = (CastModifierData *)md;
+  CastModifierData *cmd = reinterpret_cast<CastModifierData *>(md);
 
   if (cmd->type == MOD_CAST_TYPE_CUBOID) {
     cuboid_do(cmd, ctx, ctx->object, mesh, positions);
@@ -470,37 +459,36 @@ static void deform_verts(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row;
-  uiLayout *layout = panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  ui::Layout &layout = *panel->layout;
+  const ui::eUI_Item_Flag toggles_flag = ui::ITEM_R_TOGGLE | ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   PointerRNA cast_object_ptr = RNA_pointer_get(ptr, "object");
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  uiItemR(layout, ptr, "cast_type", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(ptr, "cast_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Axis"));
-  uiItemR(row, ptr, "use_x", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "use_y", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "use_z", toggles_flag, nullptr, ICON_NONE);
+  ui::Layout &row = layout.row(true, IFACE_("Axis"));
+  row.prop(ptr, "use_x", toggles_flag, std::nullopt, ICON_NONE);
+  row.prop(ptr, "use_y", toggles_flag, std::nullopt, ICON_NONE);
+  row.prop(ptr, "use_z", toggles_flag, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "factor", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "radius", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "size", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "use_radius_as_size", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_radius_as_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_pointer_is_null(&cast_object_ptr)) {
-    uiItemR(layout, ptr, "use_transform", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout.prop(ptr, "use_transform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -541,4 +529,8 @@ ModifierTypeInfo modifierType_Cast = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

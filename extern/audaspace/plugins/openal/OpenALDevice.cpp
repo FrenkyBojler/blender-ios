@@ -15,15 +15,20 @@
  ******************************************************************************/
 
 #include "OpenALDevice.h"
-#include "devices/DeviceManager.h"
-#include "devices/IDeviceFactory.h"
-#include "respec/ConverterReader.h"
-#include "Exception.h"
-#include "ISound.h"
+#include "OpenALReader.h"
 
 #include <chrono>
 #include <cstring>
 #include <iostream>
+
+#include "Exception.h"
+#include "ISound.h"
+
+#include "devices/DeviceManager.h"
+#include "devices/ICaptureDeviceFactory.h"
+#include "devices/IDeviceFactory.h"
+#include "generator/SilenceReader.h"
+#include "respec/ConverterReader.h"
 
 AUD_NAMESPACE_BEGIN
 
@@ -928,7 +933,7 @@ void OpenALDevice::updateStreams()
 
 					ALCint attribs[] = { ALC_FREQUENCY, (ALCint)specs.rate, 0 };
 					ALCint* attributes = attribs;
-					if(specs.rate == RATE_INVALID)
+					if(specs.rate == double(RATE_INVALID))
 						attributes = nullptr;
 
 					m_context = alcCreateContext(m_device, attributes);
@@ -1131,7 +1136,7 @@ void OpenALDevice::updateStreams()
 /**************************** IDevice Code ************************************/
 /******************************************************************************/
 
-OpenALDevice::OpenALDevice(DeviceSpecs specs, int buffersize, std::string name) :
+OpenALDevice::OpenALDevice(DeviceSpecs specs, int buffersize, const std::string &name) :
 	m_name(name), m_playing(false), m_buffersize(buffersize)
 {
 	// cannot determine how many channels or which format OpenAL uses, but
@@ -1149,7 +1154,7 @@ OpenALDevice::OpenALDevice(DeviceSpecs specs, int buffersize, std::string name) 
 	// at least try to set the frequency
 	ALCint attribs[] = { ALC_FREQUENCY, (ALCint)specs.rate, 0 };
 	ALCint* attributes = attribs;
-	if(specs.rate == RATE_INVALID)
+	if(specs.rate == double(RATE_INVALID))
 		attributes = nullptr;
 
 	m_context = alcCreateContext(m_device, attributes);
@@ -1388,9 +1393,63 @@ void OpenALDevice::setVolume(float volume)
 	alListenerf(AL_GAIN, volume);
 }
 
-ISynchronizer* OpenALDevice::getSynchronizer()
+void OpenALDevice::seekSynchronizer(double time)
 {
-	return &m_synchronizer;
+	std::lock_guard<ILockable> lock(*this);
+
+	m_synchronizerPosition = uint64_t(time * m_specs.rate);
+	if(m_silenceHandle)
+		m_silenceHandle->seek(time);
+}
+
+double OpenALDevice::getSynchronizerPosition()
+{
+	std::lock_guard<ILockable> lock(*this);
+
+	if(m_silenceHandle)
+		return m_silenceHandle->getPosition();
+
+	return m_synchronizerPosition;
+}
+
+void OpenALDevice::playSynchronizer()
+{
+	std::lock_guard<ILockable> lock(*this);
+
+	if(m_silenceHandle)
+		m_silenceHandle->resume();
+	else
+	{
+		auto reader = std::make_shared<SilenceReader>(m_specs.rate);
+		reader->seek(m_synchronizerPosition);
+		m_silenceHandle = play(reader);
+	}
+}
+
+void OpenALDevice::stopSynchronizer()
+{
+	std::lock_guard<ILockable> lock(*this);
+
+	if(m_silenceHandle)
+	{
+		m_synchronizerPosition = m_silenceHandle->getPosition();
+		m_silenceHandle->stop();
+		m_silenceHandle.reset();
+	}
+}
+
+void OpenALDevice::setSyncCallback(syncFunction function, void* data)
+{
+}
+
+int OpenALDevice::isSynchronizerPlaying()
+{
+	std::lock_guard<ILockable> lock(*this);
+
+	if(m_silenceHandle)
+		return m_silenceHandle->getStatus() == STATUS_PLAYING;
+
+	return 0;
 }
 
 /******************************************************************************/
@@ -1561,7 +1620,7 @@ private:
 	std::string m_name;
 
 public:
-	OpenALDeviceFactory(std::string name = "") :
+	OpenALDeviceFactory(const std::string &name = "") :
 		m_buffersize(AUD_DEFAULT_BUFFER_SIZE),
 		m_name(name)
 	{
@@ -1590,18 +1649,46 @@ public:
 		m_buffersize = buffersize;
 	}
 
-	virtual void setName(std::string name)
+	virtual void setName(const std::string &name)
 	{
+	}
+};
+
+class OpenALCaptureDeviceFactory : public ICaptureDeviceFactory
+{
+private:
+	std::string m_name;
+
+public:
+	OpenALCaptureDeviceFactory(const std::string& name = "") :
+		m_name(name)
+	{
+	}
+
+	virtual std::shared_ptr<IReader> openDevice(Specs specs, int buffersize)
+	{
+		return std::shared_ptr<IReader>(new OpenALReader(specs, buffersize, m_name));
+	}
+
+	virtual void setName(const std::string& name)
+	{
+		m_name = name;
 	}
 };
 
 void OpenALDevice::registerPlugin()
 {
 	auto names = OpenALDevice::getDeviceNames();
+	auto capture_names = OpenALReader::getDeviceNames();
 	DeviceManager::registerDevice("OpenAL", std::shared_ptr<IDeviceFactory>(new OpenALDeviceFactory));
-	for(std::string &name : names)
+	DeviceManager::registerCaptureDevice("OpenAL", std::shared_ptr<ICaptureDeviceFactory>(new OpenALCaptureDeviceFactory));
+	for(const std::string &name : names)
 	{
 		DeviceManager::registerDevice("OpenAL - " + name, std::shared_ptr<IDeviceFactory>(new OpenALDeviceFactory(name)));
+	}
+	for(const std::string& name : capture_names)
+	{
+		DeviceManager::registerCaptureDevice("OpenAL - " + name, std::shared_ptr<ICaptureDeviceFactory>(new OpenALCaptureDeviceFactory(name)));
 	}
 }
 

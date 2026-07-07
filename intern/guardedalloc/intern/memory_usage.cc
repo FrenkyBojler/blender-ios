@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "MEM_guardedalloc.h"
-#include "mallocn_intern.h"
+#include "mallocn_intern.hh"
 
-#include "../../source/blender/blenlib/BLI_strict_flags.h"
+#include "../../source/blender/blenlib/BLI_strict_flags.hh"
 
 namespace {
 
@@ -187,7 +187,7 @@ void memory_usage_init()
 
 void memory_usage_block_alloc(const size_t size)
 {
-  if (LIKELY(use_local_counters.load(std::memory_order_relaxed))) {
+  if (use_local_counters.load(std::memory_order_relaxed)) [[likely]] {
     Local &local = get_local_data();
     /* Increase local memory counts. This does not cause thread synchronization in the majority of
      * cases, because each thread has these counters on a separate cache line. It may only cause
@@ -211,7 +211,7 @@ void memory_usage_block_alloc(const size_t size)
 
 void memory_usage_block_free(const size_t size)
 {
-  if (LIKELY(use_local_counters)) {
+  if (use_local_counters) [[likely]] {
     /* Decrease local memory counts. See comment in #memory_usage_block_alloc for details regarding
      * thread synchronization. */
     Local &local = get_local_data();
@@ -233,7 +233,7 @@ size_t memory_usage_block_num()
 
   /* Count the number of active blocks. */
   int64_t blocks_num = global.blocks_num_outside_locals;
-  for (Local *local : global.locals) {
+  for (const Local *local : global.locals) {
     blocks_num += local->blocks_num;
   }
   return size_t(blocks_num);
@@ -246,21 +246,12 @@ size_t memory_usage_current()
 
   /* Count the memory that's currently in use. */
   int64_t mem_in_use = global.mem_in_use_outside_locals;
-  for (Local *local : global.locals) {
+  for (const Local *local : global.locals) {
     mem_in_use += local->mem_in_use;
   }
   return size_t(mem_in_use);
 }
 
-/**
- * Get the approximate peak memory usage since the last call to #memory_usage_peak_reset.
- * This is approximate, because the peak usage is not updated after every allocation (see
- * #peak_update_threshold).
- *
- * In the worst case, the peak memory usage is underestimated by
- * `peak_update_threshold * #threads`. After large allocations (larger than the threshold), the
- * peak usage is always updated so those allocations will always be taken into account.
- */
 size_t memory_usage_peak()
 {
   update_global_peak();

@@ -11,10 +11,6 @@
 #include "../BPy_Convert.h"
 #include "../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -23,7 +19,9 @@ using namespace Freestyle;
 
 // ViewMapGradientNormBP1D(int level, IntegrationType iType=MEAN, float sampling=2.0)
 
-static char ViewMapGradientNormBP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    ViewMapGradientNormBP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.BinaryPredicate1D` > "
     ":class:`ViewMapGradientNormBP1D`\n"
     "\n"
@@ -31,13 +29,13 @@ static char ViewMapGradientNormBP1D___doc__[] =
     "\n"
     "   Builds a ViewMapGradientNormBP1D object.\n"
     "\n"
-    "   :arg level: The level of the pyramid from which the pixel must be\n"
+    "   :param level: The level of the pyramid from which the pixel must be\n"
     "      read.\n"
     "   :type level: int\n"
-    "   :arg integration_type: The integration method used to compute a single value\n"
+    "   :param integration_type: The integration method used to compute a single value\n"
     "      from a set of values.\n"
     "   :type integration_type: :class:`freestyle.types.IntegrationType`\n"
-    "   :arg sampling: The resolution used to sample the chain:\n"
+    "   :param sampling: The resolution used to sample the chain:\n"
     "      GetViewMapGradientNormF0D is evaluated at each sample point and\n"
     "      the result is obtained by combining the resulting values into a\n"
     "      single one, following the method specified by integration_type.\n"
@@ -48,13 +46,12 @@ static char ViewMapGradientNormBP1D___doc__[] =
     "   Returns true if the evaluation of the Gradient norm Function is\n"
     "   higher for inter1 than for inter2.\n"
     "\n"
-    "   :arg inter1: The first Interface1D object.\n"
+    "   :param inter1: The first Interface1D object.\n"
     "   :type inter1: :class:`freestyle.types.Interface1D`\n"
-    "   :arg inter2: The second Interface1D object.\n"
+    "   :param inter2: The second Interface1D object.\n"
     "   :type inter2: :class:`freestyle.types.Interface1D`\n"
     "   :return: True or false.\n"
-    "   :rtype: bool\n";
-
+    "   :rtype: bool\n");
 static int ViewMapGradientNormBP1D___init__(BPy_ViewMapGradientNormBP1D *self,
                                             PyObject *args,
                                             PyObject *kwds)
@@ -118,7 +115,3 @@ PyTypeObject ViewMapGradientNormBP1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

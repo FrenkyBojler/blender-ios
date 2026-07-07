@@ -8,19 +8,22 @@
  * \ingroup sequencer
  */
 
+#include <cstdlib>
+
+namespace blender {
+
+struct MovieReader;
 struct Scene;
 
-/* **********************************************************************
- * `sequencer.cc`
- *
- * Sequencer editing functions
- * **********************************************************************
- */
+namespace seq {
 
-void seq_anim_add_suffix(Scene *scene, anim *anim, int view_id);
+void seq_anim_add_suffix(Scene *scene, MovieReader *anim, int view_id);
 void seq_multiview_name(
     Scene *scene, int view_id, const char *prefix, const char *ext, char *r_path, size_t r_size);
 /**
  * The number of files will vary according to the stereo format.
  */
 int seq_num_files(Scene *scene, char views_format, bool is_multiview);
+
+}  // namespace seq
+}  // namespace blender

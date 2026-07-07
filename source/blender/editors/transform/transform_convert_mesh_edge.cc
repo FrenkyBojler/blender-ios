@@ -6,20 +6,19 @@
  * \ingroup edtransform
  */
 
-#include "DNA_mesh_types.h"
-
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_mesh.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Edge (for crease) Transform Creation
@@ -62,13 +61,12 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
       tc->data_len = countsel;
     }
 
-    td = tc->data = static_cast<TransData *>(
-        MEM_callocN(tc->data_len * sizeof(TransData), "TransCrease"));
+    td = tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransCrease");
 
-    copy_m3_m4(mtx, tc->obedit->object_to_world);
+    copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
-    /* create data we need */
+    /* Create data we need. */
     if (t->mode == TFM_BWEIGHT) {
       if (!CustomData_has_layer_named(&em->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge")) {
         BM_data_layer_add_named(em->bm, &em->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
@@ -76,7 +74,7 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
       cd_edge_float_offset = CustomData_get_offset_named(
           &em->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
     }
-    else { /* if (t->mode == TFM_EDGE_CREASE) { */
+    else { /* `if (t->mode == TFM_EDGE_CREASE) {`. */
       BLI_assert(t->mode == TFM_EDGE_CREASE);
       if (!CustomData_has_layer_named(&em->bm->edata, CD_PROP_FLOAT, "crease_edge")) {
         BM_data_layer_add_named(em->bm, &em->bm->edata, CD_PROP_FLOAT, "crease_edge");
@@ -92,7 +90,7 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
           (BM_elem_flag_test(eed, BM_ELEM_SELECT) || is_prop_edit))
       {
         float *fl_ptr;
-        /* need to set center for center calculations */
+        /* Need to set center for center calculations. */
         mid_v3_v3v3(td->center, eed->v1->co, eed->v2->co);
 
         td->loc = nullptr;
@@ -105,8 +103,6 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
 
         copy_m3_m3(td->smtx, smtx);
         copy_m3_m3(td->mtx, mtx);
-
-        td->ext = nullptr;
 
         fl_ptr = static_cast<float *>(BM_ELEM_CD_GET_VOID_P(eed, cd_edge_float_offset));
         td->val = fl_ptr;
@@ -121,7 +117,7 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
 static void recalcData_mesh_edge(TransInfo *t)
 {
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    DEG_id_tag_update(static_cast<ID *>(tc->obedit->data), ID_RECALC_GEOMETRY);
+    DEG_id_tag_update(tc->obedit->data, ID_RECALC_GEOMETRY);
   }
 }
 
@@ -133,3 +129,5 @@ TransConvertTypeInfo TransConvertType_MeshEdge = {
     /*recalc_data*/ recalcData_mesh_edge,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

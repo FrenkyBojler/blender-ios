@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetSteerableViewMapDensityF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetSteerableViewMapDensityF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`GetSteerableViewMapDensityF1D`\n"
     "\n"
@@ -30,13 +28,13 @@ static char GetSteerableViewMapDensityF1D___doc__[] =
     "\n"
     "   Builds a GetSteerableViewMapDensityF1D object.\n"
     "\n"
-    "   :arg level: The level of the pyramid from which the pixel must be\n"
+    "   :param level: The level of the pyramid from which the pixel must be\n"
     "      read.\n"
     "   :type level: int\n"
-    "   :arg integration_type: The integration method used to compute a single value\n"
+    "   :param integration_type: The integration method used to compute a single value\n"
     "      from a set of values.\n"
     "   :type integration_type: :class:`freestyle.types.IntegrationType`\n"
-    "   :arg sampling: The resolution used to sample the chain: the\n"
+    "   :param sampling: The resolution used to sample the chain: the\n"
     "      corresponding 0D function is evaluated at each sample point and\n"
     "      the result is obtained by combining the resulting values into a\n"
     "      single one, following the method specified by integration_type.\n"
@@ -49,11 +47,10 @@ static char GetSteerableViewMapDensityF1D___doc__[] =
     "   proper steerable :class:`freestyle.types.ViewMap` depending on its\n"
     "   orientation.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The density of the ViewMap for a given Interface1D.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int GetSteerableViewMapDensityF1D___init__(BPy_GetSteerableViewMapDensityF1D *self,
                                                   PyObject *args,
                                                   PyObject *kwds)
@@ -117,7 +114,3 @@ PyTypeObject GetSteerableViewMapDensityF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

@@ -11,17 +11,15 @@
 #include "../../stroke/AdvancedStrokeShaders.h"
 #include "../BPy_Convert.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char SpatialNoiseShader___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    SpatialNoiseShader___doc__,
     "Class hierarchy: :class:`freestyle.types.StrokeShader` > :class:`SpatialNoiseShader`\n"
     "\n"
     "[Geometry shader]\n"
@@ -30,15 +28,15 @@ static char SpatialNoiseShader___doc__[] =
     "\n"
     "   Builds a SpatialNoiseShader object.\n"
     "\n"
-    "   :arg amount: The amplitude of the noise.\n"
+    "   :param amount: The amplitude of the noise.\n"
     "   :type amount: float\n"
-    "   :arg scale: The noise frequency.\n"
+    "   :param scale: The noise frequency.\n"
     "   :type scale: float\n"
-    "   :arg num_octaves: The number of octaves\n"
+    "   :param num_octaves: The number of octaves\n"
     "   :type num_octaves: int\n"
-    "   :arg smooth: True if you want the noise to be smooth.\n"
+    "   :param smooth: True if you want the noise to be smooth.\n"
     "   :type smooth: bool\n"
-    "   :arg pure_random: True if you don't want any coherence.\n"
+    "   :param pure_random: True if you don't want any coherence.\n"
     "   :type pure_random: bool\n"
     "\n"
     ".. method:: shade(stroke)\n"
@@ -46,9 +44,8 @@ static char SpatialNoiseShader___doc__[] =
     "   Spatial Noise stroke shader. Moves the vertices to make the stroke\n"
     "   more noisy.\n"
     "\n"
-    "   :arg stroke: A Stroke object.\n"
-    "   :type stroke: :class:`freestyle.types.Stroke`\n";
-
+    "   :param stroke: A Stroke object.\n"
+    "   :type stroke: :class:`freestyle.types.Stroke`\n");
 static int SpatialNoiseShader___init__(BPy_SpatialNoiseShader *self,
                                        PyObject *args,
                                        PyObject *kwds)
@@ -122,7 +119,3 @@ PyTypeObject SpatialNoiseShader_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

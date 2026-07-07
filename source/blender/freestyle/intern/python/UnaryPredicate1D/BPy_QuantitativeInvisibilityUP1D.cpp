@@ -8,17 +8,15 @@
 
 #include "BPy_QuantitativeInvisibilityUP1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char QuantitativeInvisibilityUP1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    QuantitativeInvisibilityUP1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryPredicate1D` > "
     ":class:`QuantitativeInvisibilityUP1D`\n"
     "\n"
@@ -26,7 +24,7 @@ static char QuantitativeInvisibilityUP1D___doc__[] =
     "\n"
     "   Builds a QuantitativeInvisibilityUP1D object.\n"
     "\n"
-    "   :arg qi: The Quantitative Invisibility you want the Interface1D to\n"
+    "   :param qi: The Quantitative Invisibility you want the Interface1D to\n"
     "      have.\n"
     "   :type qi: int\n"
     "\n"
@@ -37,12 +35,11 @@ static char QuantitativeInvisibilityUP1D___doc__[] =
     "   :class:`freestyle.functions.QuantitativeInvisibilityF1D` functor,\n"
     "   equals a certain user-defined value.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: True if Quantitative Invisibility equals a user-defined\n"
     "      value.\n"
-    "   :rtype: bool\n";
-
+    "   :rtype: bool\n");
 static int QuantitativeInvisibilityUP1D___init__(BPy_QuantitativeInvisibilityUP1D *self,
                                                  PyObject *args,
                                                  PyObject *kwds)
@@ -101,7 +98,3 @@ PyTypeObject QuantitativeInvisibilityUP1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

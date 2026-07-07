@@ -10,17 +10,15 @@
 
 #include "../../../view_map/Functions0D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetCurvilinearAbscissaF0D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetCurvilinearAbscissaF0D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction0D` > "
     ":class:`freestyle.types.UnaryFunction0DFloat` > :class:`GetCurvilinearAbscissaF0D`\n"
     "\n"
@@ -34,11 +32,10 @@ static char GetCurvilinearAbscissaF0D___doc__[] =
     "   :class:`freestyle.types.Interface0D` pointed by the\n"
     "   Interface0DIterator in the context of its 1D element.\n"
     "\n"
-    "   :arg it: An Interface0DIterator object.\n"
+    "   :param it: An Interface0DIterator object.\n"
     "   :type it: :class:`freestyle.types.Interface0DIterator`\n"
     "   :return: The curvilinear abscissa of the pointed Interface0D.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int GetCurvilinearAbscissaF0D___init__(BPy_GetCurvilinearAbscissaF0D *self,
                                               PyObject *args,
                                               PyObject *kwds)
@@ -97,7 +94,3 @@ PyTypeObject GetCurvilinearAbscissaF0D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

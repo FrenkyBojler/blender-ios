@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char LocalAverageDepthF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    LocalAverageDepthF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`LocalAverageDepthF1D`\n"
     "\n"
@@ -30,10 +28,10 @@ static char LocalAverageDepthF1D___doc__[] =
     "\n"
     "   Builds a LocalAverageDepthF1D object.\n"
     "\n"
-    "   :arg sigma: The sigma used in DensityF0D and determining the window\n"
+    "   :param sigma: The sigma used in DensityF0D and determining the window\n"
     "      size used in each density query.\n"
     "   :type sigma: float\n"
-    "   :arg integration_type: The integration method used to compute a single value\n"
+    "   :param integration_type: The integration method used to compute a single value\n"
     "      from a set of values.\n"
     "   :type integration_type: :class:`freestyle.types.IntegrationType`\n"
     "\n"
@@ -45,11 +43,10 @@ static char LocalAverageDepthF1D___doc__[] =
     "   user-defined sampling and then integrated into a single value using a\n"
     "   user-defined integration method.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The average depth evaluated for the Interface1D.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int LocalAverageDepthF1D___init__(BPy_LocalAverageDepthF1D *self,
                                          PyObject *args,
                                          PyObject *kwds)
@@ -112,7 +109,3 @@ PyTypeObject LocalAverageDepthF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

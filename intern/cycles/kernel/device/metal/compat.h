@@ -20,7 +20,7 @@
 
 using namespace metal;
 
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
 using namespace metal::raytracing;
 #endif
 
@@ -44,6 +44,7 @@ using namespace metal::raytracing;
 #define ccl_device_extern extern "C"
 #define ccl_device_noinline_cpu ccl_device
 #define ccl_device_inline_method ccl_device
+#define ccl_device_template_spec template<> ccl_device_inline
 #define ccl_global device
 #define ccl_inline_constant static constant constexpr
 #define ccl_device_constant constant
@@ -51,20 +52,24 @@ using namespace metal::raytracing;
 #define ccl_constant constant
 #define ccl_gpu_shared threadgroup
 #define ccl_private thread
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
 #  define ccl_ray_data ray_data
 #else
 #  define ccl_ray_data ccl_private
 #endif
 #define ccl_may_alias
 #define ccl_restrict __restrict
-#define ccl_loop_no_unroll
 #define ccl_align(n) alignas(n)
 #define ccl_optional_struct_init
+#define ccl_attr_maybe_unused
+// Not supported by older MacOS versions (e.g., 13.0)
+// #define ccl_attr_maybe_unused [[maybe_unused]]
 
 /* No assert supported for Metal */
 
 #define kernel_assert(cond)
+
+#define offsetof(t, d) __builtin_offsetof(t, d)
 
 #define ccl_gpu_global_id_x() metal_global_id
 #define ccl_gpu_warp_size simdgroup_size
@@ -193,31 +198,6 @@ void kernel_gpu_##name::run(thread MetalKernelContext& context, \
 
 // clang-format on
 
-/* volumetric lambda functions - use function objects for lambda-like functionality */
-#define VOLUME_READ_LAMBDA(function_call) \
-  struct FnObjectRead { \
-    KernelGlobals kg; \
-    ccl_private MetalKernelContext *context; \
-    int state; \
-\
-    VolumeStack operator()(const int i) const \
-    { \
-      return context->function_call; \
-    } \
-  } volume_read_lambda_pass{kg, this, state};
-
-#define VOLUME_WRITE_LAMBDA(function_call) \
-  struct FnObjectWrite { \
-    KernelGlobals kg; \
-    ccl_private MetalKernelContext *context; \
-    int state; \
-\
-    void operator()(const int i, VolumeStack entry) const \
-    { \
-      context->function_call; \
-    } \
-  } volume_write_lambda_pass{kg, this, state};
-
 /* make_type definitions with Metal style element initializers */
 ccl_device_forceinline float2 make_float2(const float x, const float y)
 {
@@ -252,6 +232,21 @@ ccl_device_forceinline int4 make_int4(const int x, const int y, const int z, con
   return int4(x, y, z, w);
 }
 
+ccl_device_forceinline uint2 make_uint2(const uint x, const uint y)
+{
+  return uint2(x, y);
+}
+
+ccl_device_forceinline uint3 make_uint3(const uint x, const uint y, const uint z)
+{
+  return uint3(x, y, z);
+}
+
+ccl_device_forceinline uint4 make_uint4(const uint x, const uint y, const uint z, const uint w)
+{
+  return uint4(x, y, z, w);
+}
+
 ccl_device_forceinline uchar4 make_uchar4(const uchar x,
                                           const uchar y,
                                           const uchar z,
@@ -275,6 +270,7 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #define atanf(x) atan(float(x))
 #define floorf(x) floor(float(x))
 #define ceilf(x) ceil(float(x))
+#define roundf(x) round(float(x))
 #define hypotf(x, y) hypot(float(x), float(y))
 #define atan2f(x, y) atan2(float(x), float(y))
 #define fmaxf(x, y) fmax(float(x), float(y))
@@ -284,6 +280,7 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #define coshf(x) cosh(float(x))
 #define tanhf(x) tanh(float(x))
 #define saturatef(x) saturate(float(x))
+#define ldexpf(x, y) ldexp(float(x), int(y))
 
 /* Use native functions with possibly lower precision for performance,
  * no issues found so far. */
@@ -295,11 +292,9 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #define sqrtf(x) trigmode::sqrt(float(x))
 #define logf(x) trigmode::log(float(x))
 
-#define NULL 0
-
 #define __device__
 
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
 
 #  if defined(__METALRT_MOTION__)
 #    define METALRT_TAGS instancing, instance_motion, primitive_motion
@@ -309,60 +304,66 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #    define METALRT_BLAS_TAGS
 #  endif /* __METALRT_MOTION__ */
 
+#  if defined(__METALRT_EXTENDED_LIMITS__)
+#    define METALRT_LIMITS , extended_limits
+#  else
+#    define METALRT_LIMITS
+#  endif /* __METALRT_MOTION__ */
+
 typedef acceleration_structure<METALRT_TAGS> metalrt_as_type;
-typedef intersection_function_table<triangle_data, curve_data, METALRT_TAGS, extended_limits>
+typedef intersection_function_table<triangle_data, curve_data, METALRT_TAGS METALRT_LIMITS>
     metalrt_ift_type;
-typedef metal::raytracing::intersector<triangle_data, curve_data, METALRT_TAGS, extended_limits>
+typedef metal::raytracing::intersector<triangle_data, curve_data, METALRT_TAGS METALRT_LIMITS>
     metalrt_intersector_type;
 #  if defined(__METALRT_MOTION__)
 typedef acceleration_structure<primitive_motion> metalrt_blas_as_type;
-typedef intersection_function_table<triangle_data, curve_data, primitive_motion, extended_limits>
+typedef intersection_function_table<triangle_data, curve_data, primitive_motion METALRT_LIMITS>
     metalrt_blas_ift_type;
-typedef metal::raytracing::
-    intersector<triangle_data, curve_data, primitive_motion, extended_limits>
-        metalrt_blas_intersector_type;
+typedef metal::raytracing::intersector<triangle_data, curve_data, primitive_motion METALRT_LIMITS>
+    metalrt_blas_intersector_type;
 #  else
 typedef acceleration_structure<> metalrt_blas_as_type;
-typedef intersection_function_table<triangle_data, curve_data, extended_limits>
+typedef intersection_function_table<triangle_data, curve_data METALRT_LIMITS>
     metalrt_blas_ift_type;
-typedef metal::raytracing::intersector<triangle_data, curve_data, extended_limits>
+typedef metal::raytracing::intersector<triangle_data, curve_data METALRT_LIMITS>
     metalrt_blas_intersector_type;
 #  endif
 
-#endif /* __METALRT__ */
+#endif /* __KERNEL_METALRT__ */
 
 /* texture bindings and sampler setup */
 
-struct Buffer1DParamsMetal {
-  device float *buf;
+/* TextureParamsMetal is reinterpreted as Texture2DParamsMetal. */
+struct TextureParamsMetal {
+  uint64_t tex;
 };
-
 struct Texture2DParamsMetal {
   texture2d<float, access::sample> tex;
 };
-struct Texture3DParamsMetal {
-  texture3d<float, access::sample> tex;
-};
 
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
 struct MetalRTBlasWrapper {
   metalrt_blas_as_type blas;
 };
 #endif
 
+/* Additional Metal-specific resources which aren't encoded in KernelData.
+ * IMPORTANT: If this layout changes, ANCILLARY_SLOT_COUNT and the host-side encoding must change
+ * to match. */
 struct MetalAncillaries {
-  device Texture2DParamsMetal *textures_2d;
-  device Texture3DParamsMetal *textures_3d;
-  device Buffer1DParamsMetal *buffers;
+  device TextureParamsMetal *textures;
 
-#ifdef __METALRT__
+#ifdef __KERNEL_METALRT__
   metalrt_as_type accel_struct;
+  constant MetalRTBlasWrapper *blas_accel_structs;
   metalrt_ift_type ift_default;
   metalrt_ift_type ift_shadow;
+  metalrt_ift_type ift_shadow_all;
   metalrt_ift_type ift_volume;
-  metalrt_ift_type ift_local;
-  metalrt_blas_ift_type ift_local_prim;
-  constant MetalRTBlasWrapper *blas_accel_structs;
+  metalrt_blas_ift_type ift_local;
+  metalrt_ift_type ift_local_mblur;
+  metalrt_blas_ift_type ift_local_single_hit;
+  metalrt_ift_type ift_local_single_hit_mblur;
 #endif
 };
 
@@ -383,7 +384,7 @@ enum SamplerType {
   SamplerCount
 };
 
-constant constexpr array<sampler, SamplerCount> metal_samplers = {
+constexpr constant array<sampler, SamplerCount> metal_samplers = {
     sampler(address::repeat, filter::nearest),
     sampler(address::clamp_to_edge, filter::nearest),
     sampler(address::clamp_to_zero, filter::nearest),

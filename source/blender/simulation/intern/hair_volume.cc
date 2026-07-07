@@ -8,16 +8,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
-
-#include "DNA_texture_types.h"
-
-#include "BKE_effect.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "eigen_utils.h"
 #include "implicit.h"
+
+namespace blender {
 
 /* ================ Volumetric Hair Interaction ================
  * adapted from
@@ -544,7 +541,7 @@ void SIM_hair_volume_add_segment(HairGrid *grid,
     float shift1, shift2; /* fraction of a full cell shift [0.0, 1.0) */
     int jmin, jmax, kmin, kmax;
 
-    h = CLAMPIS(float(i), start0, end0);
+    h = std::clamp(float(i), start0, end0);
 
     shift1 = start1 + (h - start0) * inc1;
     shift2 = start2 + (h - start0) * inc2;
@@ -810,11 +807,11 @@ bool SIM_hair_volume_solve_divergence(HairGrid *grid,
           grid_to_world(grid, wloc, loc);
 
           if (divergence > 0.0f) {
-            fac = CLAMPIS(divergence * target_strength, 0.0, 1.0);
+            fac = std::clamp(divergence * target_strength, 0.0, 1.0);
             interp_v3_v3v3(col, col0, colp, fac);
           }
           else {
-            fac = CLAMPIS(-divergence * target_strength, 0.0, 1.0);
+            fac = std::clamp(-divergence * target_strength, 0.0, 1.0);
             interp_v3_v3v3(col, col0, coln, fac);
           }
           if (fac > 0.05f) {
@@ -977,11 +974,11 @@ bool SIM_hair_volume_solve_divergence(HairGrid *grid,
 
             float pressure = p[u];
             if (pressure > 0.0f) {
-              fac = CLAMPIS(pressure * grid->debug1, 0.0, 1.0);
+              fac = std::clamp(pressure * grid->debug1, 0.0, 1.0);
               interp_v3_v3v3(col, col0, colp, fac);
             }
             else {
-              fac = CLAMPIS(-pressure * grid->debug1, 0.0, 1.0);
+              fac = std::clamp(-pressure * grid->debug1, 0.0, 1.0);
               interp_v3_v3v3(col, col0, coln, fac);
             }
             if (fac > 0.05f) {
@@ -999,7 +996,7 @@ bool SIM_hair_volume_solve_divergence(HairGrid *grid,
             }
 
             if (!is_margin) {
-              float d = CLAMPIS(vert->density * grid->debug2, 0.0f, 1.0f);
+              float d = std::clamp(vert->density * grid->debug2, 0.0f, 1.0f);
               float col0[3] = {0.3, 0.3, 0.3};
               float colp[3] = {0.0, 0.0, 1.0};
               float col[3];
@@ -1146,7 +1143,7 @@ HairGrid *SIM_hair_volume_create_vertex_grid(float cellsize,
   }
   size = hair_grid_size(res);
 
-  grid = MEM_cnew<HairGrid>("hair grid");
+  grid = MEM_new_zeroed<HairGrid>("hair grid");
   grid->res[0] = res[0];
   grid->res[1] = res[1];
   grid->res[2] = res[2];
@@ -1154,7 +1151,7 @@ HairGrid *SIM_hair_volume_create_vertex_grid(float cellsize,
   copy_v3_v3(grid->gmax, gmax_margin);
   grid->cellsize = cellsize;
   grid->inv_cellsize = scale;
-  grid->verts = (HairGridVert *)MEM_callocN(sizeof(HairGridVert) * size, "hair voxel data");
+  grid->verts = MEM_new_array_zeroed<HairGridVert>(size, "hair voxel data");
 
   return grid;
 }
@@ -1163,9 +1160,9 @@ void SIM_hair_volume_free_vertex_grid(HairGrid *grid)
 {
   if (grid) {
     if (grid->verts) {
-      MEM_freeN(grid->verts);
+      MEM_delete(grid->verts);
     }
-    MEM_freeN(grid);
+    MEM_delete(grid);
   }
 }
 
@@ -1194,7 +1191,7 @@ static HairGridVert *hair_volume_create_collision_grid(ClothModifierData *clmd,
   int res = hair_grid_res;
   int size = hair_grid_size(res);
   HairGridVert *collgrid;
-  ListBase *colliders;
+  ListBaseT<ColliderCache> *colliders;
   ColliderCache *col = nullptr;
   float gmin[3], gmax[3], scale[3];
   /* 2.0f is an experimental value that seems to give good results */
@@ -1205,7 +1202,7 @@ static HairGridVert *hair_volume_create_collision_grid(ClothModifierData *clmd,
   hair_volume_get_boundbox(lX, numverts, gmin, gmax);
   hair_grid_get_scale(res, gmin, gmax, scale);
 
-  collgrid = MEM_mallocN(sizeof(HairGridVert) * size, "hair collider voxel data");
+  collgrid = MEM_new_array_uninitialized<HairGridVert>(size, "hair collider voxel data");
 
   /* initialize grid */
   for (i = 0; i < size; i++) {
@@ -1261,3 +1258,5 @@ static HairGridVert *hair_volume_create_collision_grid(ClothModifierData *clmd,
   return collgrid;
 }
 #endif
+
+}  // namespace blender

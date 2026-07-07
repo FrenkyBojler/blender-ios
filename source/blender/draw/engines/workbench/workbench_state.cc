@@ -4,42 +4,119 @@
 
 #include "workbench_private.hh"
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_camera.h"
+#include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_types.hh"
-#include "BKE_modifier.hh"
-#include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_particle.h"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
+
 #include "DEG_depsgraph_query.hh"
-#include "DNA_fluid_types.h"
+
+#include "DNA_world_types.h"
+
 #include "ED_paint.hh"
 #include "ED_view3d.hh"
-#include "GPU_capabilities.h"
+
+#include "GPU_capabilities.hh"
 
 namespace blender::workbench {
 
-void SceneState::init(Object *camera_ob /*=nullptr*/)
+/* Used for update detection on the render settings. */
+static bool operator!=(const View3DShading &a, const View3DShading &b)
 {
-  bool reset_taa = reset_taa_next_sample;
+  /* Only checks the properties that are actually used by workbench. */
+  if (a.type != b.type) {
+    return true;
+  }
+  if (a.color_type != b.color_type) {
+    return true;
+  }
+  if (a.flag != b.flag) {
+    return true;
+  }
+  if (a.light != b.light) {
+    return true;
+  }
+  if (a.background_type != b.background_type) {
+    return true;
+  }
+  if (a.cavity_type != b.cavity_type) {
+    return true;
+  }
+  if (a.wire_color_type != b.wire_color_type) {
+    return true;
+  }
+  if (StringRefNull(a.studio_light) != StringRefNull(b.studio_light)) {
+    return true;
+  }
+  if (StringRefNull(a.matcap) != StringRefNull(b.matcap)) {
+    return true;
+  }
+  if (a.shadow_intensity != b.shadow_intensity) {
+    return true;
+  }
+  if (float3(a.single_color) != float3(b.single_color)) {
+    return true;
+  }
+  if (a.studiolight_rot_z != b.studiolight_rot_z) {
+    return true;
+  }
+  if (float3(a.object_outline_color) != float3(b.object_outline_color)) {
+    return true;
+  }
+  if (a.xray_alpha != b.xray_alpha) {
+    return true;
+  }
+  if (a.xray_alpha_wire != b.xray_alpha_wire) {
+    return true;
+  }
+  if (a.cavity_valley_factor != b.cavity_valley_factor) {
+    return true;
+  }
+  if (a.cavity_ridge_factor != b.cavity_ridge_factor) {
+    return true;
+  }
+  if (float3(a.background_color) != float3(b.background_color)) {
+    return true;
+  }
+  if (a.curvature_ridge_factor != b.curvature_ridge_factor) {
+    return true;
+  }
+  if (a.curvature_valley_factor != b.curvature_valley_factor) {
+    return true;
+  }
+  return false;
+}
+
+void SceneState::init(const DRWContext *context,
+                      bool scene_updated,
+                      Object *camera_ob /*=nullptr*/)
+{
+  bool reset_taa = reset_taa_next_sample || scene_updated;
   reset_taa_next_sample = false;
 
-  const DRWContextState *context = DRW_context_state_get();
   View3D *v3d = context->v3d;
   RegionView3D *rv3d = context->rv3d;
 
   scene = DEG_get_evaluated_scene(context->depsgraph);
 
-  GPUTexture *viewport_tx = DRW_viewport_texture_list_get()->color;
-  resolution = int2(GPU_texture_width(viewport_tx), GPU_texture_height(viewport_tx));
+  if (assign_if_different(resolution, int2(context->viewport_size_get()))) {
+    /* In some cases, the viewport can change resolution without a call to `workbench_view_update`.
+     * This is the case when dragging a window between two screen with different DPI settings.
+     * (See #128712) */
+    reset_taa = true;
+  }
 
   camera_object = camera_ob;
   if (camera_object == nullptr && v3d && rv3d) {
     camera_object = (rv3d->persp == RV3D_CAMOB) ? v3d->camera : nullptr;
   }
   camera = camera_object && camera_object->type == OB_CAMERA ?
-               static_cast<Camera *>(camera_object->data) :
+               &DRW_object_get_data_for_drawing<Camera>(*camera_object) :
                nullptr;
 
   object_mode = CTX_data_mode_enum_ex(context->object_edit, context->obact, context->object_mode);
@@ -87,9 +164,8 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
     /* Disable shading options that aren't supported in transparency mode. */
     shading.flag &= ~(V3D_SHADING_SHADOW | V3D_SHADING_CAVITY | V3D_SHADING_DEPTH_OF_FIELD);
   }
-  if (SHADING_XRAY_ENABLED(shading) != SHADING_XRAY_ENABLED(previous_shading) ||
-      shading.flag != previous_shading.flag)
-  {
+
+  if (shading != previous_shading) {
     reset_taa = true;
   }
 
@@ -98,7 +174,12 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
 
   background_color = float4(0.0f);
   if (is_render_mode && scene->r.alphamode != R_ALPHAPREMUL) {
-    if (World *w = scene->world) {
+    if (shading.background_type == V3D_SHADING_BACKGROUND_VIEWPORT) {
+      /* NOTE: Only there to support world color override from Sequencer Edit Scene override.
+       * (see #149656) */
+      background_color = float4(UNPACK3(shading.background_color), 1.0f);
+    }
+    else if (World *w = scene->world) {
       background_color = float4(w->horr, w->horg, w->horb, 1.0f);
     }
   }
@@ -110,16 +191,14 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
     rv3d->rflag &= ~RV3D_GPULIGHT_UPDATE;
   }
 
-  float4x4 matrix;
-  /* TODO(@pragma37): New API? */
-  DRW_view_persmat_get(nullptr, matrix.ptr(), false);
+  float4x4 matrix = View::default_get().persmat();
   if (matrix != view_projection_matrix) {
     view_projection_matrix = matrix;
     reset_taa = true;
   }
 
-  bool is_playback = DRW_state_is_playback();
-  bool is_navigating = DRW_state_is_navigating();
+  bool is_playback = context->is_playback();
+  bool is_navigating = context->is_navigating();
 
   /* Reset complete drawing when navigating or during viewport playback or when
    * leaving one of those states. In case of multires modifier the navigation
@@ -133,7 +212,7 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
   if (v3d && ELEM(v3d->shading.type, OB_RENDER, OB_MATERIAL)) {
     _samples_len = scene->display.viewport_aa;
   }
-  else if (DRW_state_is_scene_render()) {
+  else if (context->is_scene_render()) {
     _samples_len = scene->display.render_aa;
   }
   if (is_navigating || is_playback) {
@@ -149,17 +228,6 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
    * is set to a lower value. */
   if (samples_len != _samples_len) {
     samples_len = _samples_len;
-    reset_taa = true;
-  }
-
-  bool _overlays_enabled = v3d && !(v3d->flag2 & V3D_HIDE_OVERLAYS);
-  /* Depth is always required in Wireframe mode. */
-  _overlays_enabled = _overlays_enabled || shading.type < OB_SOLID;
-  /* Some overlay passes can be rendered even with overlays disabled (See #116424). */
-  _overlays_enabled = _overlays_enabled || new_clip_state & DRW_STATE_CLIP_PLANES;
-  if (assign_if_different(overlays_enabled, _overlays_enabled)) {
-    /* Reset TAA when enabling overlays, since we won't have valid sample0 depth textures.
-     * (See #113741) */
     reset_taa = true;
   }
 
@@ -183,104 +251,147 @@ void SceneState::init(Object *camera_ob /*=nullptr*/)
   draw_dof = camera && camera->dof.flag & CAM_DOF_ENABLED &&
              shading.flag & V3D_SHADING_DEPTH_OF_FIELD;
 
-  draw_object_id = draw_outline || draw_curvature;
+  draw_object_id = (draw_outline || draw_curvature);
+
+  show_paint_bvh_debug = scene->toolsettings->sculpt ?
+                             (scene->toolsettings->sculpt->paint.debug_flags &
+                              PAINT_DEBUG_SHOW_BVH_NODES) != 0 :
+                             false;
 };
 
-static const CustomData *get_loop_custom_data(const Mesh *mesh)
+static bool mesh_has_color_attribute(const Mesh &mesh)
 {
-  if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
-    BLI_assert(mesh->edit_mesh != nullptr);
-    BLI_assert(mesh->edit_mesh->bm != nullptr);
-    return &mesh->edit_mesh->bm->ldata;
+  const StringRef name = mesh.active_color_attribute ? mesh.active_color_attribute :
+                                                       mesh.default_color_attribute;
+  if (name.is_empty()) {
+    return false;
   }
-  return &mesh->corner_data;
+  if (mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
+    const BMesh &bm = *mesh.runtime->edit_mesh->bm;
+    const BMDataLayerLookup attr = BM_data_layer_lookup(bm, name);
+    return attr && bke::mesh::is_color_attribute(bke::AttributeMetaData{attr.domain, attr.type});
+  }
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  return bke::mesh::is_color_attribute(attributes.lookup_meta_data(name));
 }
 
-static const CustomData *get_vert_custom_data(const Mesh *mesh)
+static bool mesh_has_uv_map_attribute(const Mesh &mesh)
 {
-  if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
-    BLI_assert(mesh->edit_mesh != nullptr);
-    BLI_assert(mesh->edit_mesh->bm != nullptr);
-    return &mesh->edit_mesh->bm->vdata;
+  StringRef active_uv_map = mesh.active_or_default_uv_map_name();
+  if (mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) {
+    const BMesh &bm = *mesh.runtime->edit_mesh->bm;
+    const BMDataLayerLookup attr = BM_data_layer_lookup(bm, active_uv_map);
+    return attr && bke::mesh::is_uv_map(bke::AttributeMetaData{attr.domain, attr.type});
   }
-  return &mesh->vert_data;
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  return bke::mesh::is_uv_map(attributes.lookup_meta_data(active_uv_map));
 }
 
-ObjectState::ObjectState(const SceneState &scene_state, Object *ob)
+ObjectState::ObjectState(const DRWContext *draw_ctx,
+                         const SceneState &scene_state,
+                         const SceneResources &resources,
+                         Object *ob,
+                         Manager &manager)
 {
-  const DRWContextState *draw_ctx = DRW_context_state_get();
   const bool is_active = (ob == draw_ctx->obact);
 
-  image_paint_override = nullptr;
-  override_sampler_state = GPUSamplerState::default_sampler();
   sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob, draw_ctx->rv3d) &&
-                !DRW_state_is_image_render();
+                !draw_ctx->is_image_render();
   draw_shadow = scene_state.draw_shadows && (ob->dtx & OB_DRAW_NO_SHADOW_CAST) == 0 &&
                 !sculpt_pbvh && !(is_active && DRW_object_use_hide_faces(ob));
 
-  color_type = (eV3DShadingColorType)scene_state.shading.color_type;
+  color_type = eV3DShadingColorType(scene_state.shading.color_type);
 
-  bool has_color = false;
-  bool has_uv = false;
+  /* Don't perform CustomData lookup unless it's really necessary, since it's quite expensive. */
+  const auto has_color = [&]() {
+    if (ob->type != OB_MESH) {
+      return false;
+    }
+    const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
+    return mesh_has_color_attribute(mesh);
+  };
 
-  if (ob->type == OB_MESH) {
-    const Mesh *mesh = static_cast<Mesh *>(ob->data);
-    const CustomData *cd_vdata = get_vert_custom_data(mesh);
-    const CustomData *cd_ldata = get_loop_custom_data(mesh);
+  const auto has_uv = [&]() {
+    if (ob->type != OB_MESH) {
+      return false;
+    }
+    const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
+    return mesh_has_uv_map_attribute(mesh);
+  };
 
-    has_color = (CustomData_has_layer(cd_vdata, CD_PROP_COLOR) ||
-                 CustomData_has_layer(cd_vdata, CD_PROP_BYTE_COLOR) ||
-                 CustomData_has_layer(cd_ldata, CD_PROP_COLOR) ||
-                 CustomData_has_layer(cd_ldata, CD_PROP_BYTE_COLOR));
-
-    has_uv = CustomData_has_layer(cd_ldata, CD_PROP_FLOAT2);
-  }
-
-  if (color_type == V3D_SHADING_TEXTURE_COLOR && (!has_uv || ob->dt < OB_TEXTURE)) {
+  if (color_type == V3D_SHADING_TEXTURE_COLOR && (!has_uv() || ob->dt < OB_TEXTURE)) {
     color_type = V3D_SHADING_MATERIAL_COLOR;
   }
-  else if (color_type == V3D_SHADING_VERTEX_COLOR && !has_color) {
-    color_type = V3D_SHADING_OBJECT_COLOR;
+  else if (color_type == V3D_SHADING_VERTEX_COLOR && !has_color()) {
+    color_type = V3D_SHADING_MATERIAL_COLOR;
   }
 
   if (sculpt_pbvh) {
-    if (color_type == V3D_SHADING_TEXTURE_COLOR && BKE_pbvh_type(ob->sculpt->pbvh) != PBVH_FACES) {
+    if (color_type == V3D_SHADING_TEXTURE_COLOR &&
+        bke::object::pbvh_get(*ob)->type() != bke::pbvh::Type::Mesh)
+    {
       /* Force use of material color for sculpt. */
       color_type = V3D_SHADING_MATERIAL_COLOR;
     }
 
     /* Bad call C is required to access the tool system that is context aware. Cast to non-const
      * due to current API. */
-    bContext *C = (bContext *)DRW_context_state_get()->evil_C;
+    bContext *C = const_cast<bContext *>(draw_ctx->evil_C);
     if (C != nullptr) {
-      color_type = ED_paint_shading_color_override(
-          C, &scene_state.scene->toolsettings->paint_mode, ob, color_type);
+      const PaintModeSettings *paint_mode = &scene_state.scene->toolsettings->paint_mode;
+      color_type = ED_paint_shading_color_override(C, paint_mode, *ob, color_type);
+
+      /* Override object shading to show current image texture if using experimental texture paint
+       * and the canvas selector is set to image mode. */
+      const bool override_material = is_active && color_type == V3D_SHADING_TEXTURE_COLOR &&
+                                     paint_mode->canvas_source == PAINT_CANVAS_SOURCE_IMAGE;
+      if (override_material && has_uv()) {
+        show_missing_texture = true;
+        if (paint_mode->canvas_image) {
+          image_paint_override = MaterialTexture(manager, paint_mode->canvas_image);
+          image_paint_override.sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          image_paint_override.sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          /* TODO: Add an image texture interpolation variable to PaintModeSettings, similar to
+           * ImagePaintSetting's interp variable, and make the material override apply the
+           * interpolation filter to achieve feature parity with legacy texture painting mode. */
+        }
+        else {
+          image_paint_override = resources.missing_texture;
+        }
+      }
     }
   }
-  else if (ob->type == OB_MESH && !DRW_state_is_scene_render()) {
+  else if (ob->type == OB_MESH && !draw_ctx->is_scene_render()) {
     /* Force texture or vertex mode if object is in paint mode. */
     const bool is_vertpaint_mode = is_active && (scene_state.object_mode == CTX_MODE_PAINT_VERTEX);
     const bool is_texpaint_mode = is_active && (scene_state.object_mode == CTX_MODE_PAINT_TEXTURE);
-    if (is_vertpaint_mode && has_color) {
+    if (is_vertpaint_mode && has_color()) {
       color_type = V3D_SHADING_VERTEX_COLOR;
     }
-    else if (is_texpaint_mode && has_uv) {
+    else if (is_texpaint_mode && has_uv()) {
       color_type = V3D_SHADING_TEXTURE_COLOR;
+      show_missing_texture = true;
       const ImagePaintSettings *imapaint = &scene_state.scene->toolsettings->imapaint;
       if (imapaint->mode == IMAGEPAINT_MODE_IMAGE) {
-        image_paint_override = imapaint->canvas;
-        override_sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
-        override_sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
-        const bool use_linear_filter = imapaint->interp == IMAGEPAINT_INTERP_LINEAR;
-        override_sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_LINEAR,
-                                                            use_linear_filter);
+        if (imapaint->canvas) {
+          image_paint_override = MaterialTexture(manager, imapaint->canvas);
+          image_paint_override.sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          image_paint_override.sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          const bool use_linear_filter = imapaint->interp == IMAGEPAINT_INTERP_LINEAR;
+          image_paint_override.sampler_state.set_filtering_flag_from_test(
+              GPU_SAMPLER_FILTERING_LINEAR, use_linear_filter);
+        }
+        else {
+          image_paint_override = resources.missing_texture;
+        }
       }
     }
   }
 
-  use_per_material_batches = image_paint_override == nullptr && ELEM(color_type,
-                                                                     V3D_SHADING_TEXTURE_COLOR,
-                                                                     V3D_SHADING_MATERIAL_COLOR);
+  use_per_material_batches = image_paint_override.gpu.texture == nullptr &&
+                             ELEM(color_type,
+                                  V3D_SHADING_TEXTURE_COLOR,
+                                  V3D_SHADING_MATERIAL_COLOR);
 }
 
 }  // namespace blender::workbench

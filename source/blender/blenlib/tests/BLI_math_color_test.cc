@@ -4,11 +4,14 @@
 
 #include "testing/testing.h"
 
-#include "BLI_math_color.h"
+#include "BLI_math_color_blend.hh"
+#include "BLI_math_color_c.hh"
+
+namespace blender {
 
 TEST(math_color, RGBToHSVRoundtrip)
 {
-  float orig_rgb[3] = {0.1f, 0.2f, 0.3f};
+  const float orig_rgb[3] = {0.1f, 0.2f, 0.3f};
   float hsv[3], rgb[3];
   rgb_to_hsv_v(orig_rgb, hsv);
   hsv_to_rgb_v(hsv, rgb);
@@ -17,7 +20,7 @@ TEST(math_color, RGBToHSVRoundtrip)
 
 TEST(math_color, RGBToHSLRoundtrip)
 {
-  float orig_rgb[3] = {0.1f, 0.2f, 0.3f};
+  const float orig_rgb[3] = {0.1f, 0.2f, 0.3f};
   float hsl[3], rgb[3];
   rgb_to_hsl_v(orig_rgb, hsl);
   hsl_to_rgb_v(hsl, rgb);
@@ -26,7 +29,7 @@ TEST(math_color, RGBToHSLRoundtrip)
 
 TEST(math_color, RGBToYUVRoundtrip)
 {
-  float orig_rgb[3] = {0.1f, 0.2f, 0.3f};
+  const float orig_rgb[3] = {0.1f, 0.2f, 0.3f};
   float yuv[3], rgb[3];
   rgb_to_yuv(orig_rgb[0], orig_rgb[1], orig_rgb[2], &yuv[0], &yuv[1], &yuv[2], BLI_YUV_ITU_BT709);
   yuv_to_rgb(yuv[0], yuv[1], yuv[2], &rgb[0], &rgb[1], &rgb[2], BLI_YUV_ITU_BT709);
@@ -35,7 +38,7 @@ TEST(math_color, RGBToYUVRoundtrip)
 
 TEST(math_color, RGBToYCCRoundtrip)
 {
-  float orig_rgb[3] = {0.1f, 0.2f, 0.3f};
+  const float orig_rgb[3] = {0.1f, 0.2f, 0.3f};
   float ycc[3], rgb[3];
 
   rgb_to_ycc(orig_rgb[0], orig_rgb[1], orig_rgb[2], &ycc[0], &ycc[1], &ycc[2], BLI_YCC_ITU_BT601);
@@ -90,57 +93,91 @@ TEST(math_color, linearrgb_to_srgb_v3_v3)
   }
 
   {
-    /* SIMD implementation of linear->srgb for larger inputs
-     * is less accurate; use larger tolerance. */
-    const float kTolerance = 3.6e-5f;
+    const float kTolerance = 5.0e-7f;
     const float linear_color[3] = {0.71f, 0.75f, 0.78f};
     linearrgb_to_srgb_v3_v3(srgb_color, linear_color);
-    EXPECT_NEAR(0.859696f, srgb_color[0], kTolerance);
-    EXPECT_NEAR(0.880825f, srgb_color[1], kTolerance);
-    EXPECT_NEAR(0.896244f, srgb_color[2], kTolerance);
+    EXPECT_NEAR(0.859662f, srgb_color[0], kTolerance);
+    EXPECT_NEAR(0.880790f, srgb_color[1], kTolerance);
+    EXPECT_NEAR(0.896209f, srgb_color[2], kTolerance);
   }
 
   {
     /* Not a common, but possible case: values beyond 1.0 range. */
-    const float kTolerance = 2.3e-4f;
+    const float kTolerance = 1.3e-7f;
     const float linear_color[3] = {1.5f, 2.8f, 5.6f};
     linearrgb_to_srgb_v3_v3(srgb_color, linear_color);
-    EXPECT_NEAR(1.19418f, srgb_color[0], kTolerance);
-    EXPECT_NEAR(1.56520f, srgb_color[1], kTolerance);
-    EXPECT_NEAR(2.10771f, srgb_color[2], kTolerance);
+    EXPECT_NEAR(1.1942182f, srgb_color[0], kTolerance);
+    EXPECT_NEAR(1.5654286f, srgb_color[1], kTolerance);
+    EXPECT_NEAR(2.1076257f, srgb_color[2], kTolerance);
   }
 }
 
 TEST(math_color, srgb_to_linearrgb_v3_v3)
 {
+  const float kTolerance = 1.0e-12f;
   float linear_color[3];
   {
-    const float kTolerance = 1.0e-8f;
     const float srgb_color[3] = {0.0023f, 0.0024f, 0.0025f};
     srgb_to_linearrgb_v3_v3(linear_color, srgb_color);
-    EXPECT_NEAR(0.000178019f, linear_color[0], kTolerance);
-    EXPECT_NEAR(0.000185759f, linear_color[1], kTolerance);
-    EXPECT_NEAR(0.000193498f, linear_color[2], kTolerance);
+    EXPECT_NEAR(0.00017801858f, linear_color[0], kTolerance);
+    EXPECT_NEAR(0.00018575852f, linear_color[1], kTolerance);
+    EXPECT_NEAR(0.00019349845f, linear_color[2], kTolerance);
   }
 
   {
-    /* SIMD implementation of linear->srgb for larger inputs
-     * is less accurate; use larger tolerance. */
-    const float kTolerance = 1.5e-7f;
     const float srgb_color[3] = {0.71f, 0.72f, 0.73f};
     srgb_to_linearrgb_v3_v3(linear_color, srgb_color);
-    EXPECT_NEAR(0.4623615f, linear_color[0], kTolerance);
-    EXPECT_NEAR(0.4770000f, linear_color[1], kTolerance);
-    EXPECT_NEAR(0.4919052f, linear_color[2], kTolerance);
+    EXPECT_NEAR(0.46236148477f, linear_color[0], kTolerance);
+    EXPECT_NEAR(0.47699990869f, linear_color[1], kTolerance);
+    EXPECT_NEAR(0.49190518260f, linear_color[2], kTolerance);
   }
 
   {
     /* Not a common, but possible case: values beyond 1.0 range. */
-    const float kTolerance = 7.7e-6f;
     const float srgb_color[3] = {1.1f, 2.5f, 5.6f};
     srgb_to_linearrgb_v3_v3(linear_color, srgb_color);
-    EXPECT_NEAR(1.24277f, linear_color[0], kTolerance);
-    EXPECT_NEAR(8.35473f, linear_color[1], kTolerance);
-    EXPECT_NEAR(56.23833f, linear_color[2], kTolerance);
+    EXPECT_NEAR(1.24277031422f, linear_color[0], kTolerance);
+    EXPECT_NEAR(8.35472869873f, linear_color[1], kTolerance);
+    EXPECT_NEAR(56.2383270264f, linear_color[2], kTolerance);
   }
 }
+
+TEST(math_color, BlendModeConsistency_SoftLight)
+{
+  float fdst[4];
+  float fcolora[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  float fcolorb[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  float fcolorc[4] = {1.0f, 1.0f, 1.0f, 0.5f};
+  float fcolord[4] = {0.5f, 0.5f, 0.5f, 0.5f};
+  uchar bdst[4];
+  uchar bcolora[4] = {0, 0, 0, 255};
+  uchar bcolorb[4] = {255, 255, 255, 255};
+  uchar bcolorc[4] = {255, 255, 255, 128};
+  uchar bcolord[4] = {128, 128, 128, 128};
+
+  blend_color_softlight_float(fdst, fcolora, fcolorb);
+  blend_color_softlight_byte(bdst, bcolora, bcolorb);
+  EXPECT_NEAR(fdst[0] * 255.0f, bdst[0], 1.0f);
+  EXPECT_NEAR(fdst[1] * 255.0f, bdst[1], 1.0f);
+  EXPECT_NEAR(fdst[2] * 255.0f, bdst[2], 1.0f);
+
+  blend_color_softlight_float(fdst, fcolorb, fcolora);
+  blend_color_softlight_byte(bdst, bcolorb, bcolora);
+  EXPECT_NEAR(fdst[0] * 255.0f, bdst[0], 1.0f);
+  EXPECT_NEAR(fdst[1] * 255.0f, bdst[1], 1.0f);
+  EXPECT_NEAR(fdst[2] * 255.0f, bdst[2], 1.0f);
+
+  blend_color_softlight_float(fdst, fcolorc, fcolora);
+  blend_color_softlight_byte(bdst, bcolorc, bcolora);
+  EXPECT_NEAR(fdst[0] * 255.0f, bdst[0], 1.0f);
+  EXPECT_NEAR(fdst[1] * 255.0f, bdst[1], 1.0f);
+  EXPECT_NEAR(fdst[2] * 255.0f, bdst[2], 1.0f);
+
+  blend_color_softlight_float(fdst, fcolorc, fcolord);
+  blend_color_softlight_byte(bdst, bcolorc, bcolord);
+  EXPECT_NEAR(fdst[0] * 255.0f, bdst[0], 1.0f);
+  EXPECT_NEAR(fdst[1] * 255.0f, bdst[1], 1.0f);
+  EXPECT_NEAR(fdst[2] * 255.0f, bdst[2], 1.0f);
+}
+
+}  // namespace blender

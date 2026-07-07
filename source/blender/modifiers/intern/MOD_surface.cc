@@ -6,78 +6,66 @@
  * \ingroup modifiers
  */
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_utildefines.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_bvhutils.hh"
-#include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
-#include "MOD_util.hh"
-
-#include "BLO_read_write.hh"
 
 #include "MEM_guardedalloc.h"
 
+namespace blender {
+
 static void init_data(ModifierData *md)
 {
-  SurfaceModifierData *surmd = (SurfaceModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(surmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(surmd, DNA_struct_default_get(SurfaceModifierData), modifier);
+  SurfaceModifierData *surmd = reinterpret_cast<SurfaceModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(surmd, modifier);
 }
 
 static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const int flag)
 {
-  SurfaceModifierData *surmd_dst = (SurfaceModifierData *)md_dst;
+  SurfaceModifierData *surmd_dst = reinterpret_cast<SurfaceModifierData *>(md_dst);
 
   BKE_modifier_copydata_generic(md_src, md_dst, flag);
 
-  memset(&surmd_dst->runtime, 0, sizeof(surmd_dst->runtime));
+  surmd_dst->runtime = SurfaceModifierData_Runtime{};
 }
 
 static void free_data(ModifierData *md)
 {
-  SurfaceModifierData *surmd = (SurfaceModifierData *)md;
+  SurfaceModifierData *surmd = reinterpret_cast<SurfaceModifierData *>(md);
 
   if (surmd) {
-    if (surmd->runtime.bvhtree) {
-      free_bvhtree_from_mesh(surmd->runtime.bvhtree);
-      MEM_SAFE_FREE(surmd->runtime.bvhtree);
-    }
+    MEM_SAFE_DELETE(surmd->runtime.bvhtree);
 
     if (surmd->runtime.mesh) {
       BKE_id_free(nullptr, surmd->runtime.mesh);
       surmd->runtime.mesh = nullptr;
     }
 
-    MEM_SAFE_FREE(surmd->runtime.vert_positions_prev);
+    MEM_SAFE_DELETE(surmd->runtime.vert_positions_prev);
 
-    MEM_SAFE_FREE(surmd->runtime.vert_velocities);
+    MEM_SAFE_DELETE(surmd->runtime.vert_velocities);
   }
 }
 
@@ -89,24 +77,20 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         blender::MutableSpan<blender::float3> positions)
+                         MutableSpan<float3> positions)
 {
-  SurfaceModifierData *surmd = (SurfaceModifierData *)md;
+  SurfaceModifierData *surmd = reinterpret_cast<SurfaceModifierData *>(md);
   const int cfra = int(DEG_get_ctime(ctx->depsgraph));
 
   /* Free mesh and BVH cache. */
-  if (surmd->runtime.bvhtree) {
-    free_bvhtree_from_mesh(surmd->runtime.bvhtree);
-    MEM_SAFE_FREE(surmd->runtime.bvhtree);
-  }
-
+  MEM_SAFE_DELETE(surmd->runtime.bvhtree);
   if (surmd->runtime.mesh) {
     BKE_id_free(nullptr, surmd->runtime.mesh);
     surmd->runtime.mesh = nullptr;
   }
 
   if (mesh) {
-    surmd->runtime.mesh = BKE_mesh_copy_for_eval(mesh);
+    surmd->runtime.mesh = BKE_mesh_copy_for_eval(*mesh);
   }
 
   if (!ctx->object->pd) {
@@ -128,13 +112,12 @@ static void deform_verts(ModifierData *md,
         (surmd->runtime.vert_velocities == nullptr) || (cfra != surmd->runtime.cfra_prev + 1))
     {
 
-      MEM_SAFE_FREE(surmd->runtime.vert_positions_prev);
-      MEM_SAFE_FREE(surmd->runtime.vert_velocities);
+      MEM_SAFE_DELETE(surmd->runtime.vert_positions_prev);
+      MEM_SAFE_DELETE(surmd->runtime.vert_velocities);
 
-      surmd->runtime.vert_positions_prev = static_cast<float(*)[3]>(
-          MEM_calloc_arrayN(mesh_verts_num, sizeof(float[3]), __func__));
-      surmd->runtime.vert_velocities = static_cast<float(*)[3]>(
-          MEM_calloc_arrayN(mesh_verts_num, sizeof(float[3]), __func__));
+      surmd->runtime.vert_positions_prev = MEM_new_array_zeroed<float[3]>(mesh_verts_num,
+                                                                          __func__);
+      surmd->runtime.vert_velocities = MEM_new_array_zeroed<float[3]>(mesh_verts_num, __func__);
 
       surmd->runtime.verts_num = mesh_verts_num;
 
@@ -142,11 +125,10 @@ static void deform_verts(ModifierData *md,
     }
 
     /* convert to global coordinates and calculate velocity */
-    blender::MutableSpan<blender::float3> positions =
-        surmd->runtime.mesh->vert_positions_for_write();
+    MutableSpan<float3> positions = surmd->runtime.mesh->vert_positions_for_write();
     for (i = 0; i < mesh_verts_num; i++) {
       float *vec = positions[i];
-      mul_m4_v3(ctx->object->object_to_world, vec);
+      mul_m4_v3(ctx->object->object_to_world().ptr(), vec);
 
       if (init) {
         zero_v3(surmd->runtime.vert_velocities[i]);
@@ -162,31 +144,26 @@ static void deform_verts(ModifierData *md,
 
     const bool has_face = surmd->runtime.mesh->faces_num > 0;
     const bool has_edge = surmd->runtime.mesh->edges_num > 0;
-    if (has_face || has_edge) {
-      surmd->runtime.bvhtree = static_cast<BVHTreeFromMesh *>(
-          MEM_callocN(sizeof(BVHTreeFromMesh), __func__));
-
-      if (has_face) {
-        BKE_bvhtree_from_mesh_get(
-            surmd->runtime.bvhtree, surmd->runtime.mesh, BVHTREE_FROM_CORNER_TRIS, 2);
-      }
-      else if (has_edge) {
-        BKE_bvhtree_from_mesh_get(
-            surmd->runtime.bvhtree, surmd->runtime.mesh, BVHTREE_FROM_EDGES, 2);
-      }
+    if (has_face) {
+      surmd->runtime.bvhtree = MEM_new<bke::BVHTreeFromMesh>(
+          __func__, surmd->runtime.mesh->bvh_corner_tris());
+    }
+    else if (has_edge) {
+      surmd->runtime.bvhtree = MEM_new<bke::BVHTreeFromMesh>(__func__,
+                                                             surmd->runtime.mesh->bvh_edges());
     }
   }
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -196,9 +173,9 @@ static void panel_register(ARegionType *region_type)
 
 static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
 {
-  SurfaceModifierData *surmd = (SurfaceModifierData *)md;
+  SurfaceModifierData *surmd = reinterpret_cast<SurfaceModifierData *>(md);
 
-  memset(&surmd->runtime, 0, sizeof(surmd->runtime));
+  surmd->runtime = SurfaceModifierData_Runtime{};
 }
 
 ModifierTypeInfo modifierType_Surface = {
@@ -234,4 +211,8 @@ ModifierTypeInfo modifierType_Surface = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };
+
+}  // namespace blender

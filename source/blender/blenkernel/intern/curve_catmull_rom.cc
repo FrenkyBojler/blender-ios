@@ -15,7 +15,8 @@ namespace blender::bke::curves::catmull_rom {
 
 int calculate_evaluated_num(const int points_num, const bool cyclic, const int resolution)
 {
-  const int eval_num = resolution * segments_num(points_num, cyclic);
+  const int points_per_segment = std::max(1, resolution);
+  const int eval_num = points_per_segment * segments_num(points_num, cyclic);
   if (cyclic) {
     /* Make sure there is a single evaluated point for the single-point curve case. */
     return std::max(eval_num, 1);
@@ -24,15 +25,17 @@ int calculate_evaluated_num(const int points_num, const bool cyclic, const int r
   return eval_num + 1;
 }
 
-void calculate_basis(const float parameter, float4 &r_weights)
+float4 calculate_basis(const float parameter)
 {
   /* Adapted from Cycles #catmull_rom_basis_eval function. */
   const float t = parameter;
   const float s = 1.0f - parameter;
-  r_weights[0] = -t * s * s;
-  r_weights[1] = 2.0f + t * t * (3.0f * t - 5.0f);
-  r_weights[2] = 2.0f + s * s * (3.0f * s - 5.0f);
-  r_weights[3] = -s * t * t;
+  return {
+      -t * s * s,
+      2.0f + t * t * (3.0f * t - 5.0f),
+      2.0f + s * s * (3.0f * s - 5.0f),
+      -s * t * t,
+  };
 }
 
 template<typename T>
@@ -119,7 +122,8 @@ static void interpolate_to_evaluated(const Span<T> src,
       src,
       cyclic,
       [resolution](const int segment_i) -> IndexRange {
-        return {segment_i * resolution, resolution};
+        const int points_per_segment = std::max(1, resolution);
+        return {segment_i * points_per_segment, points_per_segment};
       },
       dst);
 }
@@ -145,9 +149,10 @@ void interpolate_to_evaluated(const GSpan src,
                               const int resolution,
                               GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    interpolate_to_evaluated(src.typed<T>(), cyclic, resolution, dst.typed<T>());
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
+    if constexpr (!std::is_same_v<T, std::string>) {
+      interpolate_to_evaluated(src.typed<T>(), cyclic, resolution, dst.typed<T>());
+    }
   });
 }
 
@@ -156,9 +161,10 @@ void interpolate_to_evaluated(const GSpan src,
                               const OffsetIndices<int> evaluated_offsets,
                               GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    interpolate_to_evaluated(src.typed<T>(), cyclic, evaluated_offsets, dst.typed<T>());
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
+    if constexpr (!std::is_same_v<T, std::string>) {
+      interpolate_to_evaluated(src.typed<T>(), cyclic, evaluated_offsets, dst.typed<T>());
+    }
   });
 }
 

@@ -12,29 +12,28 @@
 #  ifndef WIN32
 #    include <dirent.h>
 #  else
-#    include "BLI_winstuff.h"
+#    include "BLI_winstuff.hh"
 #  endif
 
 #  include <cerrno>
 #  include <cstring>
 
-#  include "MEM_guardedalloc.h"
-
 #  include "DNA_modifier_types.h"
 #  include "DNA_object_types.h"
 #  include "DNA_scene_types.h"
-#  include "DNA_space_types.h"
+#  include "DNA_space_enums.h"
 
 #  include "BKE_context.hh"
+#  include "BKE_file_handler.hh"
 #  include "BKE_main.hh"
-#  include "BKE_report.h"
+#  include "BKE_report.hh"
 
-#  include "BLI_path_util.h"
-#  include "BLI_string.h"
-#  include "BLI_utildefines.h"
+#  include "BLI_path_utils.hh"
+#  include "BLI_string_utf8.hh"
+#  include "BLI_utildefines.hh"
 #  include "BLI_vector.hh"
 
-#  include "BLT_translation.h"
+#  include "BLT_translation.hh"
 
 #  include "RNA_access.hh"
 #  include "RNA_define.hh"
@@ -52,10 +51,18 @@
 #  include "DEG_depsgraph.hh"
 
 #  include "io_alembic.hh"
+#  include "io_utils.hh"
 
 #  include "ABC_alembic.h"
+#  include "UI_interface_layout.hh"
 
-const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
+#  include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"io.alembic"};
+
+static const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
     {DAG_EVAL_RENDER,
      "RENDER",
      0,
@@ -69,7 +76,9 @@ const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int wm_alembic_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_alembic_export_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   if (!RNA_struct_property_is_set(op->ptr, "as_background_job")) {
     RNA_boolean_set(op->ptr, "as_background_job", true);
@@ -84,7 +93,7 @@ static int wm_alembic_export_invoke(bContext *C, wmOperator *op, const wmEvent *
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int wm_alembic_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -112,7 +121,6 @@ static int wm_alembic_export_exec(bContext *C, wmOperator *op)
   params.apply_subdiv = RNA_boolean_get(op->ptr, "apply_subdiv");
   params.curves_as_mesh = RNA_boolean_get(op->ptr, "curves_as_mesh");
   params.flatten_hierarchy = RNA_boolean_get(op->ptr, "flatten");
-  params.visible_objects_only = RNA_boolean_get(op->ptr, "visible_objects_only");
   params.face_sets = RNA_boolean_get(op->ptr, "face_sets");
   params.use_subdiv_schema = RNA_boolean_get(op->ptr, "subdiv_schema");
   params.export_hair = RNA_boolean_get(op->ptr, "export_hair");
@@ -126,6 +134,8 @@ static int wm_alembic_export_exec(bContext *C, wmOperator *op)
   params.evaluation_mode = eEvaluationMode(RNA_enum_get(op->ptr, "evaluation_mode"));
 
   params.global_scale = RNA_float_get(op->ptr, "global_scale");
+
+  RNA_string_get(op->ptr, "collection", params.collection);
 
   /* Take some defaults from the scene, if not specified explicitly. */
   Scene *scene = CTX_data_scene(C);
@@ -142,95 +152,90 @@ static int wm_alembic_export_exec(bContext *C, wmOperator *op)
   return as_background_job || ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static void ui_alembic_export_settings(uiLayout *layout, PointerRNA *imfptr)
+static void ui_alembic_export_settings(const bContext *C, ui::Layout &layout, PointerRNA *ptr)
 {
-  uiLayout *box, *row, *col, *sub;
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  if (ui::Layout *panel = layout.panel(C, "ABC_export_general", false, IFACE_("General"))) {
+    ui::Layout *col = &panel->column(false);
+    col->prop(ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  box = uiLayoutBox(layout);
-  uiItemL(box, IFACE_("Manual Transform"), ICON_NONE);
-
-  uiItemR(box, imfptr, "global_scale", UI_ITEM_NONE, nullptr, ICON_NONE);
+    col = &panel->column(false);
+    if (CTX_wm_space_file(C)) {
+      ui::Layout &sub = col->column(true, IFACE_("Include"));
+      sub.prop(ptr, "selected", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
+    }
+  }
 
   /* Scene Options */
-  box = uiLayoutBox(layout);
-  row = uiLayoutRow(box, false);
-  uiItemL(row, IFACE_("Scene Options"), ICON_SCENE_DATA);
+  if (ui::Layout *panel = layout.panel(C, "ABC_export_scene", false, IFACE_("Scene"))) {
+    ui::Layout *col = &panel->column(false);
 
-  col = uiLayoutColumn(box, false);
+    ui::Layout *sub = &col->column(true);
+    sub->prop(ptr, "start", UI_ITEM_NONE, IFACE_("Frame Start"), ICON_NONE);
+    sub->prop(ptr, "end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
 
-  sub = uiLayoutColumn(col, true);
-  uiItemR(sub, imfptr, "start", UI_ITEM_NONE, IFACE_("Frame Start"), ICON_NONE);
-  uiItemR(sub, imfptr, "end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+    sub = &col->column(true);
+    sub->prop(ptr, "xsamples", UI_ITEM_NONE, IFACE_("Samples Transform"), ICON_NONE);
+    sub->prop(ptr, "gsamples", UI_ITEM_NONE, IFACE_("Geometry"), ICON_NONE);
 
-  uiItemR(col, imfptr, "xsamples", UI_ITEM_NONE, IFACE_("Samples Transform"), ICON_NONE);
-  uiItemR(col, imfptr, "gsamples", UI_ITEM_NONE, IFACE_("Geometry"), ICON_NONE);
+    sub = &col->column(true);
+    sub->prop(ptr, "sh_open", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+    sub->prop(ptr,
+              "sh_close",
+              ui::ITEM_R_SLIDER,
+              CTX_IFACE_(BLT_I18NCONTEXT_ID_CAMERA, "Close"),
+              ICON_NONE);
 
-  sub = uiLayoutColumn(col, true);
-  uiItemR(sub, imfptr, "sh_open", UI_ITEM_R_SLIDER, nullptr, ICON_NONE);
-  uiItemR(sub, imfptr, "sh_close", UI_ITEM_R_SLIDER, IFACE_("Close"), ICON_NONE);
+    col->separator();
 
-  uiItemS(col);
+    col->prop(ptr, "use_instancing", UI_ITEM_NONE, IFACE_("Use Instancing"), ICON_NONE);
+    col->prop(
+        ptr, "export_custom_properties", UI_ITEM_NONE, IFACE_("Custom Properties"), ICON_NONE);
+    col->prop(ptr, "flatten", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(col, imfptr, "flatten", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(sub, imfptr, "use_instancing", UI_ITEM_NONE, IFACE_("Use Instancing"), ICON_NONE);
-  uiItemR(sub,
-          imfptr,
-          "export_custom_properties",
-          UI_ITEM_NONE,
-          IFACE_("Custom Properties"),
-          ICON_NONE);
-
-  sub = uiLayoutColumnWithHeading(col, true, IFACE_("Only"));
-  uiItemR(sub, imfptr, "selected", UI_ITEM_NONE, IFACE_("Selected Objects"), ICON_NONE);
-  uiItemR(sub, imfptr, "visible_objects_only", UI_ITEM_NONE, IFACE_("Visible Objects"), ICON_NONE);
-
-  col = uiLayoutColumn(box, true);
-  uiItemR(col, imfptr, "evaluation_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+    col = &panel->column(true);
+    col->prop(ptr, "evaluation_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
   /* Object Data */
-  box = uiLayoutBox(layout);
-  row = uiLayoutRow(box, false);
-  uiItemL(row, IFACE_("Object Options"), ICON_OBJECT_DATA);
+  if (ui::Layout *panel = layout.panel(C, "ABC_export_geometry", false, IFACE_("Geometry"))) {
+    ui::Layout *col = &panel->column(true);
+    col->prop(ptr, "uvs", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(box, false);
+    ui::Layout &row = col->row(false);
+    row.active_set(RNA_boolean_get(ptr, "uvs"));
+    row.prop(ptr, "packuv", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(col, imfptr, "uvs", UI_ITEM_NONE, nullptr, ICON_NONE);
-  row = uiLayoutRow(col, false);
-  uiLayoutSetActive(row, RNA_boolean_get(imfptr, "uvs"));
-  uiItemR(row, imfptr, "packuv", UI_ITEM_NONE, nullptr, ICON_NONE);
+    col->prop(ptr, "normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "vcolors", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "orcos", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "face_sets", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "curves_as_mesh", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(col, imfptr, "normals", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "vcolors", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "orcos", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "face_sets", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "curves_as_mesh", UI_ITEM_NONE, nullptr, ICON_NONE);
+    col->separator();
 
-  uiItemS(col);
+    ui::Layout *sub = &col->column(true, IFACE_("Subdivision"));
+    sub->prop(ptr, "apply_subdiv", UI_ITEM_NONE, IFACE_("Apply"), ICON_NONE);
+    sub->prop(ptr, "subdiv_schema", UI_ITEM_NONE, IFACE_("Use Schema"), ICON_NONE);
 
-  sub = uiLayoutColumnWithHeading(col, true, IFACE_("Subdivisions"));
-  uiItemR(sub, imfptr, "apply_subdiv", UI_ITEM_NONE, IFACE_("Apply"), ICON_NONE);
-  uiItemR(sub, imfptr, "subdiv_schema", UI_ITEM_NONE, IFACE_("Use Schema"), ICON_NONE);
-
-  uiItemS(col);
-
-  col = uiLayoutColumn(box, false);
-  uiItemR(col, imfptr, "triangulate", UI_ITEM_NONE, nullptr, ICON_NONE);
-  sub = uiLayoutColumn(col, false);
-  uiLayoutSetActive(sub, RNA_boolean_get(imfptr, "triangulate"));
-  uiItemR(sub, imfptr, "quad_method", UI_ITEM_NONE, IFACE_("Method Quads"), ICON_NONE);
-  uiItemR(sub, imfptr, "ngon_method", UI_ITEM_NONE, IFACE_("Polygons"), ICON_NONE);
+    col = &panel->column(false);
+    col->prop(ptr, "triangulate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    sub = &col->column(false);
+    sub->active_set(RNA_boolean_get(ptr, "triangulate"));
+    sub->prop(ptr, "quad_method", UI_ITEM_NONE, IFACE_("Method Quads"), ICON_NONE);
+    sub->prop(ptr, "ngon_method", UI_ITEM_NONE, IFACE_("Polygons"), ICON_NONE);
+  }
 
   /* Particle Data */
-  box = uiLayoutBox(layout);
-  row = uiLayoutRow(box, false);
-  uiItemL(row, IFACE_("Particle Systems"), ICON_PARTICLE_DATA);
-
-  col = uiLayoutColumn(box, true);
-  uiItemR(col, imfptr, "export_hair", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "export_particles", UI_ITEM_NONE, nullptr, ICON_NONE);
+  if (ui::Layout *panel = layout.panel(
+          C, "ABC_export_particles", false, IFACE_("Particle Systems")))
+  {
+    ui::Layout &col = panel->column(true);
+    col.prop(ptr, "export_hair", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "export_particles", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 }
 
 static void wm_alembic_export_draw(bContext *C, wmOperator *op)
@@ -245,7 +250,7 @@ static void wm_alembic_export_draw(bContext *C, wmOperator *op)
     RNA_boolean_set(op->ptr, "init_scene_frame_range", false);
   }
 
-  ui_alembic_export_settings(op->layout, op->ptr);
+  ui_alembic_export_settings(C, *op->layout, op->ptr);
 }
 
 static bool wm_alembic_export_check(bContext * /*C*/, wmOperator *op)
@@ -352,20 +357,17 @@ void WM_OT_alembic_export(wmOperatorType *ot)
       ot->srna, "selected", false, "Selected Objects Only", "Export only selected objects");
 
   RNA_def_boolean(ot->srna,
-                  "visible_objects_only",
-                  false,
-                  "Visible Objects Only",
-                  "Export only objects that are visible");
-
-  RNA_def_boolean(ot->srna,
                   "flatten",
                   false,
                   "Flatten Hierarchy",
                   "Do not preserve objects' parent/children relationship");
 
-  RNA_def_boolean(ot->srna, "uvs", true, "UVs", "Export UVs");
+  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
 
-  RNA_def_boolean(ot->srna, "packuv", true, "Pack UV Islands", "Export UVs with packed island");
+  RNA_def_boolean(ot->srna, "uvs", true, "UV Coordinates", "Export UV coordinates");
+
+  RNA_def_boolean(ot->srna, "packuv", true, "Merge UVs", "");
 
   RNA_def_boolean(ot->srna, "normals", true, "Normals", "Export normals");
 
@@ -463,7 +465,7 @@ void WM_OT_alembic_export(wmOperatorType *ot)
                "evaluation_mode",
                rna_enum_abc_export_evaluation_mode_items,
                DAG_EVAL_RENDER,
-               "Use Settings for",
+               "Settings",
                "Determines visibility of objects, modifier settings, and other areas where there "
                "are different settings for viewport and rendering");
 
@@ -504,10 +506,10 @@ static int get_sequence_len(const char *filepath, int *ofs)
 
   DIR *dir = opendir(dirpath);
   if (dir == nullptr) {
-    fprintf(stderr,
-            "Error opening directory '%s': %s\n",
-            dirpath,
-            errno ? strerror(errno) : "unknown error");
+    CLOG_ERROR(&LOG,
+               "Error opening directory '%s': %s",
+               dirpath,
+               errno ? strerror(errno) : "unknown error");
     return -1;
   }
 
@@ -515,7 +517,7 @@ static int get_sequence_len(const char *filepath, int *ofs)
   const char *basename = BLI_path_basename(filepath);
   const int len = strlen(basename) - (numdigit + strlen(ext));
 
-  blender::Vector<CacheFrame> frames;
+  Vector<CacheFrame> frames;
 
   dirent *fname;
   while ((fname = readdir(dir)) != nullptr) {
@@ -537,9 +539,8 @@ static int get_sequence_len(const char *filepath, int *ofs)
 
   closedir(dir);
 
-  std::sort(frames.begin(), frames.end(), [](const CacheFrame &a, const CacheFrame &b) {
-    return a.framenr < b.framenr;
-  });
+  std::ranges::sort(
+      frames, [](const CacheFrame &a, const CacheFrame &b) { return a.framenr < b.framenr; });
 
   if (frames.is_empty()) {
     return -1;
@@ -560,53 +561,47 @@ static int get_sequence_len(const char *filepath, int *ofs)
 
 /* ************************************************************************** */
 
-static void ui_alembic_import_settings(uiLayout *layout, PointerRNA *imfptr)
+static void ui_alembic_import_settings(const bContext *C, ui::Layout *layout, PointerRNA *ptr)
 {
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  if (ui::Layout *panel = layout->panel(C, "ABC_import_general", false, IFACE_("General"))) {
+    ui::Layout &col = panel->column(false);
+    col.prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
-  uiLayout *box = uiLayoutBox(layout);
-  uiLayout *row = uiLayoutRow(box, false);
-  uiItemL(row, IFACE_("Manual Transform"), ICON_NONE);
-
-  uiItemR(box, imfptr, "scale", UI_ITEM_NONE, nullptr, ICON_NONE);
-
-  box = uiLayoutBox(layout);
-  row = uiLayoutRow(box, false);
-  uiItemL(row, IFACE_("Options"), ICON_NONE);
-
-  uiLayout *col = uiLayoutColumn(box, false);
-  uiItemR(col, imfptr, "relative_path", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "set_frame_range", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "is_sequence", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "validate_meshes", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "always_add_cache_reader", UI_ITEM_NONE, nullptr, ICON_NONE);
+  if (ui::Layout *panel = layout->panel(C, "ABC_import_options", false, IFACE_("Options"))) {
+    ui::Layout &col = panel->column(false);
+    col.prop(ptr, "relative_path", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "set_frame_range", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "is_sequence", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "always_add_cache_reader", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 }
 
-static void wm_alembic_import_draw(bContext * /*C*/, wmOperator *op)
+static void wm_alembic_import_draw(bContext *C, wmOperator *op)
 {
-  ui_alembic_import_settings(op->layout, op->ptr);
+  ui_alembic_import_settings(C, op->layout, op->ptr);
 }
 
 /* op->invoke, opens fileselect if path property not set, otherwise executes */
-static int wm_alembic_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_alembic_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (!RNA_struct_property_is_set(op->ptr, "as_background_job")) {
     RNA_boolean_set(op->ptr, "as_background_job", true);
   }
-  return WM_operator_filesel(C, op, event);
+  return ed::io::filesel_drop_import_invoke(C, op, event);
 }
 
-static int wm_alembic_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_alembic_import_exec(bContext *C, wmOperator *op)
 {
-  if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
+  Vector<std::string> paths = ed::io::paths_from_operator_properties(op->ptr);
+  if (paths.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
-
-  char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
 
   const float scale = RNA_float_get(op->ptr, "scale");
   const bool is_sequence = RNA_boolean_get(op->ptr, "is_sequence");
@@ -615,33 +610,39 @@ static int wm_alembic_import_exec(bContext *C, wmOperator *op)
   const bool always_add_cache_reader = RNA_boolean_get(op->ptr, "always_add_cache_reader");
   const bool as_background_job = RNA_boolean_get(op->ptr, "as_background_job");
 
-  int offset = 0;
-  int sequence_len = 1;
+  int sequence_min_frame = std::numeric_limits<int>::max();
+  int sequence_max_frame = std::numeric_limits<int>::min();
 
   if (is_sequence) {
-    sequence_len = get_sequence_len(filepath, &offset);
-    if (sequence_len < 0) {
-      BKE_report(op->reports, RPT_ERROR, "Unable to determine ABC sequence length");
-      return OPERATOR_CANCELLED;
+    for (const std::string &path : paths) {
+      int offset = 0;
+      int sequence_len = get_sequence_len(path.c_str(), &offset);
+      if (sequence_len < 0) {
+        BKE_report(op->reports, RPT_ERROR, "Unable to determine ABC sequence length");
+        return OPERATOR_CANCELLED;
+      }
+      sequence_min_frame = std::min(sequence_min_frame, offset);
+      sequence_max_frame = std::max(sequence_max_frame, offset + (sequence_len - 1));
     }
   }
 
   /* Switch out of edit mode to avoid being stuck in it (#54326). */
   Object *obedit = CTX_data_edit_object(C);
   if (obedit) {
-    ED_object_mode_set(C, OB_MODE_OBJECT);
+    ed::object::mode_set(C, OB_MODE_OBJECT);
   }
 
-  AlembicImportParams params = {0};
+  AlembicImportParams params{};
+  params.paths = std::move(paths);
   params.global_scale = scale;
-  params.sequence_len = sequence_len;
-  params.sequence_offset = offset;
+  params.sequence_min_frame = sequence_min_frame;
+  params.sequence_max_frame = sequence_max_frame;
   params.is_sequence = is_sequence;
   params.set_frame_range = set_frame_range;
   params.validate_meshes = validate_meshes;
   params.always_add_cache_reader = always_add_cache_reader;
 
-  bool ok = ABC_import(C, filepath, &params, as_background_job);
+  bool ok = ABC_import(C, &params, as_background_job);
 
   return as_background_job || ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -651,7 +652,7 @@ void WM_OT_alembic_import(wmOperatorType *ot)
   ot->name = "Import Alembic";
   ot->description = "Load an Alembic archive";
   ot->idname = "WM_OT_alembic_import";
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_PRESET;
+  ot->flag = OPTYPE_UNDO | OPTYPE_PRESET;
 
   ot->invoke = wm_alembic_import_invoke;
   ot->exec = wm_alembic_import_exec;
@@ -662,7 +663,8 @@ void WM_OT_alembic_import(wmOperatorType *ot)
                                  FILE_TYPE_FOLDER | FILE_TYPE_ALEMBIC,
                                  FILE_BLENDER,
                                  FILE_OPENFILE,
-                                 WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_SHOW_PROPS,
+                                 WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_SHOW_PROPS |
+                                     WM_FILESEL_DIRECTORY | WM_FILESEL_FILES,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
 
@@ -687,11 +689,13 @@ void WM_OT_alembic_import(wmOperatorType *ot)
       "Set Frame Range",
       "If checked, update scene's start and end frame to match those of the Alembic archive");
 
-  RNA_def_boolean(ot->srna,
-                  "validate_meshes",
-                  false,
-                  "Validate Meshes",
-                  "Check imported mesh objects for invalid data (slow)");
+  RNA_def_boolean(
+      ot->srna,
+      "validate_meshes",
+      false,
+      "Validate Meshes",
+      "Ensure the data is valid "
+      "(when disabled, data may be imported which causes crashes displaying or editing)");
 
   RNA_def_boolean(ot->srna,
                   "always_add_cache_reader",
@@ -715,5 +719,20 @@ void WM_OT_alembic_import(wmOperatorType *ot)
       "This option is deprecated; EXECUTE this operator to run in the foreground, and INVOKE it "
       "to run as a background job");
 }
+
+namespace ed::io {
+void alembic_file_handler_add()
+{
+  auto fh = std::make_unique<bke::FileHandlerType>();
+  STRNCPY_UTF8(fh->idname, "IO_FH_alembic");
+  STRNCPY_UTF8(fh->import_operator, "WM_OT_alembic_import");
+  STRNCPY_UTF8(fh->export_operator, "WM_OT_alembic_export");
+  STRNCPY_UTF8(fh->label, "Alembic");
+  STRNCPY_UTF8(fh->file_extensions_str, ".abc");
+  fh->poll_drop = poll_file_object_drop;
+  bke::file_handler_add(std::move(fh));
+}
+}  // namespace ed::io
+}  // namespace blender
 
 #endif

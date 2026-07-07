@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char DensityF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    DensityF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DDouble` > :class:`DensityF1D`\n"
     "\n"
@@ -30,13 +28,13 @@ static char DensityF1D___doc__[] =
     "\n"
     "   Builds a DensityF1D object.\n"
     "\n"
-    "   :arg sigma: The sigma used in DensityF0D and determining the window size\n"
+    "   :param sigma: The sigma used in DensityF0D and determining the window size\n"
     "      used in each density query.\n"
     "   :type sigma: float\n"
-    "   :arg integration_type: The integration method used to compute a single value\n"
+    "   :param integration_type: The integration method used to compute a single value\n"
     "      from a set of values.\n"
     "   :type integration_type: :class:`freestyle.types.IntegrationType`\n"
-    "   :arg sampling: The resolution used to sample the chain: the\n"
+    "   :param sampling: The resolution used to sample the chain: the\n"
     "      corresponding 0D function is evaluated at each sample point and\n"
     "      the result is obtained by combining the resulting values into a\n"
     "      single one, following the method specified by integration_type.\n"
@@ -50,11 +48,10 @@ static char DensityF1D___doc__[] =
     "   sampling and then integrated into a single value using a user-defined\n"
     "   integration method.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The density evaluated for an Interface1D.\n"
-    "   :rtype: float\n";
-
+    "   :rtype: float\n");
 static int DensityF1D___init__(BPy_DensityF1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"sigma", "integration_type", "sampling", nullptr};
@@ -116,7 +113,3 @@ PyTypeObject DensityF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

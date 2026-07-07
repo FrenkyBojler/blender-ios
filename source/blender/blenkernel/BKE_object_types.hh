@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include <optional>
@@ -13,19 +17,24 @@
 
 #include "DNA_customdata_types.h" /* #CustomData_MeshMasks. */
 
-struct BoundBox;
-struct bGPdata;
+namespace blender {
+
 struct Curve;
 struct CurveCache;
 struct ID;
 struct Mesh;
 struct PoseBackup;
+struct SculptSession;
 
-namespace blender::bke {
+namespace bke {
 
 struct GeometrySet;
 
 struct ObjectRuntime {
+  /** Final transformation matrices with constraints & animsys applied. */
+  float4x4 object_to_world = float4x4::identity();
+  float4x4 world_to_object = float4x4::identity();
+
   /**
    * The custom data layer mask that was last used
    * to calculate data_eval and mesh_deform_eval.
@@ -50,9 +59,6 @@ struct ObjectRuntime {
    */
   char is_data_eval_owned = false;
 
-  /** Start time of the mode transfer overlay animation. */
-  double overlay_mode_transfer_start_time = 0.0f;
-
   /**
    * The bounding box of the object's evaluated geometry in the active dependency graph. The bounds
    * are copied back to the original object for the RNA API and for display in the interface.
@@ -64,7 +70,7 @@ struct ObjectRuntime {
   /**
    * Original data pointer, before object->data was changed to point
    * to data_eval.
-   * Is assigned by dependency graph's copy-on-write evaluation.
+   * Is assigned by dependency graph's copy-on-evaluation.
    */
   ID *data_orig = nullptr;
   /**
@@ -82,32 +88,11 @@ struct ObjectRuntime {
   GeometrySet *geometry_set_eval = nullptr;
 
   /**
-   * Mesh structure created during object evaluation.
-   * It has deformation only modifiers applied on it.
+   * Bitflag where each bit at an index corresponds to a `GeometryComponent::Type`. When a bit is
+   * set, the geometry type is contained within #geometry_set_eval. This includes referenced
+   * geometry in instances.
    */
-  Mesh *mesh_deform_eval = nullptr;
-
-  /**
-   * Evaluated mesh cage in edit mode.
-   *
-   * \note When the mesh's `runtime->deformed_only` is true, the meshes vertex positions
-   * and other geometry arrays will be aligned the edit-mesh. Otherwise the #CD_ORIGINDEX
-   * custom-data should be used to map the cage geometry back to the original indices, see
-   * #eModifierTypeFlag_SupportsMapping.
-   */
-  Mesh *editmesh_eval_cage = nullptr;
-
-  /**
-   * Original grease pencil bGPdata pointer, before object->data was changed to point
-   * to gpd_eval.
-   * Is assigned by dependency graph's copy-on-write evaluation.
-   */
-  bGPdata *gpd_orig = nullptr;
-  /**
-   * bGPdata structure created during object evaluation.
-   * It has all modifiers applied.
-   */
-  bGPdata *gpd_eval = nullptr;
+  uint16_t contained_geometry_types = 0;
 
   /**
    * This is a mesh representation of corresponding object.
@@ -124,10 +109,16 @@ struct ObjectRuntime {
   PoseBackup *pose_backup = nullptr;
 
   /**
+   * Value of bArmature::runtime::bones_generation_count at the moment that the
+   * bPoseChannel::runtime::bone_index values were determined.
+   */
+  uint64_t pose_bones_generation_count = 0;
+
+  /**
    * This is a curve representation of corresponding object.
    * It created when Python calls `object.to_curve()`.
    */
-  ::Curve *object_as_temp_curve = nullptr;
+  Curve *object_as_temp_curve = nullptr;
 
   /** Runtime evaluated curve-specific data, not stored in the file. */
   CurveCache *curve_cache = nullptr;
@@ -141,6 +132,11 @@ struct ObjectRuntime {
   uint64_t last_update_transform = 0;
   uint64_t last_update_geometry = 0;
   uint64_t last_update_shading = 0;
+
+  /* Runtime data used by mesh painting modes (Sculpt, Vertex, Weight). */
+  /* TODO: Rename the struct and the variable to better indicate its wider usage */
+  SculptSession *sculpt_session = nullptr;
 };
 
-}  // namespace blender::bke
+}  // namespace bke
+}  // namespace blender

@@ -8,32 +8,39 @@
 
 #pragma once
 
-#include "BLI_bitmap.h"
-#include "BLI_ghash.h"
+#include "BLI_bitmap.hh"
+#include "BLI_ghash.hh"
+
+#include "DNA_anim_types.h"
+#include "DNA_listBase.h"
+
 #include "RNA_types.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace blender {
 
 struct AnimationEvalContext;
 
 /* --------------- NLA Evaluation DataTypes ----------------------- */
 
-/* used for list of strips to accumulate at current time */
-typedef struct NlaEvalStrip {
+/** Used for list of strips to accumulate at current time. */
+struct NlaEvalStrip {
   struct NlaEvalStrip *next, *prev;
 
-  NlaTrack *track; /* Track that this strip belongs to. */
-  NlaStrip *strip; /* Strip that's being used. */
+  /** Track that this strip belongs to. */
+  NlaTrack *track;
+  /** Strip that's being used. */
+  NlaStrip *strip;
 
-  short track_index; /* The index of the track within the list. */
-  short strip_mode;  /* Which end of the strip are we looking at. */
+  /** The index of the track within the list. */
+  short track_index;
+  /** Which end of the strip are we looking at. */
+  short strip_mode;
 
-  float strip_time; /* Time at which this strip is being evaluated. */
-} NlaEvalStrip;
+  /** Time at which this strip is being evaluated. */
+  float strip_time;
+};
 
-/* NlaEvalStrip->strip_mode */
+/** #NlaEvalStrip::strip_mode. */
 enum eNlaEvalStrip_StripMode {
   /* standard evaluation */
   NES_TIME_BEFORE = -1,
@@ -48,27 +55,39 @@ enum eNlaEvalStrip_StripMode {
 struct NlaEvalChannel;
 struct NlaEvalData;
 
-/* Unique channel key for GHash. */
-typedef struct NlaEvalChannelKey {
+/** Unique channel key for GHash. */
+struct NlaEvalChannelKey {
   struct PointerRNA ptr;
   struct PropertyRNA *prop;
-} NlaEvalChannelKey;
 
-/* Bitmask of array indices touched by actions. */
-typedef struct NlaValidMask {
+  friend bool operator==(const NlaEvalChannelKey &a, const NlaEvalChannelKey &b)
+  {
+    return a.ptr.data == b.ptr.data && a.prop == b.prop;
+  }
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->ptr.data, this->prop);
+  }
+};
+
+/** Bitmask of array indices touched by actions. */
+struct NlaValidMask {
   BLI_bitmap *ptr;
   BLI_bitmap buffer[sizeof(uint64_t) / sizeof(BLI_bitmap)];
-} NlaValidMask;
+};
 
-/* Set of property values for blending. */
-typedef struct NlaEvalChannelSnapshot {
+/** Set of property values for blending. */
+struct NlaEvalChannelSnapshot {
   struct NlaEvalChannel *channel;
 
   /** For an upper snapshot channel, marks values that should be blended. */
   NlaValidMask blend_domain;
 
-  /** Only used for keyframe remapping. Any values not in the \a remap_domain will not be used
-   * for keyframe remapping. */
+  /**
+   * Only used for keyframe remapping.
+   * Any values not in the \a remap_domain will not be used for keyframe remapping.
+   */
   NlaValidMask remap_domain;
 
   int length;   /* Number of values in the property. */
@@ -76,9 +95,9 @@ typedef struct NlaEvalChannelSnapshot {
 
   float values[]; /* Item values. */
   /* Memory over-allocated to provide space for values. */
-} NlaEvalChannelSnapshot;
+};
 
-/* NlaEvalChannel->mix_mode */
+/** #NlaEvalChannel::mix_mode */
 enum eNlaEvalChannel_MixMode {
   NEC_MIX_ADD,
   NEC_MIX_MULTIPLY,
@@ -86,9 +105,11 @@ enum eNlaEvalChannel_MixMode {
   NEC_MIX_AXIS_ANGLE,
 };
 
-/* Temp channel for accumulating data from NLA for a single property.
- * Handles array properties as a unit to allow intelligent blending. */
-typedef struct NlaEvalChannel {
+/**
+ * Temp channel for accumulating data from NLA for a single property.
+ * Handles array properties as a unit to allow intelligent blending.
+ */
+struct NlaEvalChannel {
   struct NlaEvalChannel *next, *prev;
   struct NlaEvalData *owner;
 
@@ -106,24 +127,24 @@ typedef struct NlaEvalChannel {
   /* Base set of values. */
   NlaEvalChannelSnapshot base_snapshot;
   /* Memory over-allocated to provide space for base_snapshot.values. */
-} NlaEvalChannel;
+};
 
-/* Set of values for all channels. */
-typedef struct NlaEvalSnapshot {
+/** Set of values for all channels. */
+struct NlaEvalSnapshot {
   /* Snapshot this one defaults to. */
   struct NlaEvalSnapshot *base;
 
   int size;
   NlaEvalChannelSnapshot **channels;
-} NlaEvalSnapshot;
+};
 
-/* Set of all channels covered by NLA. */
-typedef struct NlaEvalData {
-  ListBase channels;
+/** Set of all channels covered by NLA. */
+struct NlaEvalData {
+  ListBaseT<NlaEvalChannel> channels;
 
   /* Mapping of paths and NlaEvalChannelKeys to channels. */
   GHash *path_hash;
-  GHash *key_hash;
+  Map<NlaEvalChannelKey, NlaEvalChannel *> *key_hash;
 
   /* Base snapshot. */
   int num_channels;
@@ -131,10 +152,10 @@ typedef struct NlaEvalData {
 
   /* Evaluation result snapshot. */
   NlaEvalSnapshot eval_snapshot;
-} NlaEvalData;
+};
 
-/* Information about the currently edited strip and ones below it for keyframing. */
-typedef struct NlaKeyframingContext {
+/** Information about the currently edited strip and ones below it for keyframing. */
+struct NlaKeyframingContext {
   struct NlaKeyframingContext *next, *prev;
 
   /* AnimData for which this context was built. */
@@ -147,10 +168,10 @@ typedef struct NlaKeyframingContext {
   NlaStrip action_track_strip;
 
   /* Strips above tweaked strip. */
-  ListBase upper_estrips;
+  ListBaseT<NlaEvalStrip> upper_estrips;
   /* Evaluated NLA stack below the tweak strip. */
   NlaEvalData lower_eval_data;
-} NlaKeyframingContext;
+};
 
 /* --------------- NLA Functions (not to be used as a proper API) ----------------------- */
 
@@ -170,8 +191,8 @@ float nlastrip_get_frame(NlaStrip *strip, float cframe, short mode);
 /**
  * Gets the strip active at the current time for a list of strips for evaluation purposes.
  */
-NlaEvalStrip *nlastrips_ctime_get_strip(ListBase *list,
-                                        ListBase *strips,
+NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
+                                        ListBaseT<NlaStrip> *strips,
                                         short index,
                                         const struct AnimationEvalContext *anim_eval_context,
                                         bool flush_to_original);
@@ -180,11 +201,12 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBase *list,
  */
 
 enum eNlaStripEvaluate_Mode {
-  /* Blend upper strip with lower stack. */
+  /** Blend upper strip with lower stack. */
   STRIP_EVAL_BLEND,
-  /* Given upper strip and blended snapshot, solve for lower stack. */
+  /** Given upper strip and blended snapshot, solve for lower stack. */
   STRIP_EVAL_BLEND_GET_INVERTED_LOWER_SNAPSHOT,
-  /* Store strip fcurve values in snapshot, properly marking blend_domain values.
+  /**
+   * Store strip fcurve values in snapshot, properly marking blend_domain values.
    *
    * Currently only used for transitions to distinguish fcurve sampled values from default or lower
    * stack values.
@@ -195,7 +217,7 @@ enum eNlaStripEvaluate_Mode {
 void nlastrip_evaluate(const int evaluation_mode,
                        PointerRNA *ptr,
                        NlaEvalData *channels,
-                       ListBase *modifiers,
+                       ListBaseT<FModifier> *modifiers,
                        NlaEvalStrip *nes,
                        NlaEvalSnapshot *snapshot,
                        const struct AnimationEvalContext *anim_eval_context,
@@ -262,7 +284,7 @@ void nlasnapshot_blend_get_inverted_lower_snapshot(NlaEvalData *eval_data,
 
 void nlasnapshot_blend_strip(PointerRNA *ptr,
                              NlaEvalData *channels,
-                             ListBase *modifiers,
+                             ListBaseT<FModifier> *modifiers,
                              NlaEvalStrip *nes,
                              NlaEvalSnapshot *snapshot,
                              const struct AnimationEvalContext *anim_eval_context,
@@ -271,18 +293,16 @@ void nlasnapshot_blend_strip(PointerRNA *ptr,
 void nlasnapshot_blend_strip_get_inverted_lower_snapshot(
     PointerRNA *ptr,
     NlaEvalData *channels,
-    ListBase *modifiers,
+    ListBaseT<FModifier> *modifiers,
     NlaEvalStrip *nes,
     NlaEvalSnapshot *snapshot,
     const struct AnimationEvalContext *anim_eval_context);
 
 void nlasnapshot_blend_strip_no_blend(PointerRNA *ptr,
                                       NlaEvalData *channels,
-                                      ListBase *modifiers,
+                                      ListBaseT<FModifier> *modifiers,
                                       NlaEvalStrip *nes,
                                       NlaEvalSnapshot *snapshot,
                                       const struct AnimationEvalContext *anim_eval_context);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace blender

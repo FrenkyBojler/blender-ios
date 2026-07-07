@@ -8,7 +8,9 @@
 
 #pragma once
 
-#include "BLO_readfile.h"
+#include "BLO_readfile.hh"
+
+namespace blender {
 
 /**
  * File indexing for the file/asset browser.
@@ -51,7 +53,7 @@ struct FileIndexerEntry {
  * Contains all entries of a blend file.
  */
 struct FileIndexerEntries {
-  LinkNode /* FileIndexerEntry */ *entries;
+  LinkNode /*FileIndexerEntry*/ *entries;
 };
 
 using FileIndexerInitUserDataFunc = void *(*)(const char *root_directory,
@@ -117,7 +119,7 @@ struct FileIndexerType {
   FileIndexerUpdateIndexFunc update_index;
 };
 
-/* file_indexer.cc */
+/* `file_indexer.cc` */
 
 /** Removes all entries inside the given `indexer_entries`. */
 void ED_file_indexer_entries_clear(FileIndexerEntries *indexer_entries);
@@ -134,3 +136,5 @@ void ED_file_indexer_entries_extend_from_datablock_infos(
     FileIndexerEntries *indexer_entries,
     LinkNode * /*BLODataBlockInfo*/ datablock_infos,
     int idcode);
+
+}  // namespace blender

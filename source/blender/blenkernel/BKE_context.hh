@@ -8,20 +8,22 @@
  * \ingroup bke
  */
 
-/* XXX temporary, until AssetHandle is designed properly and queries can return a pointer to it. */
-#include "DNA_asset_types.h"
+#include <variant>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_object_enums.h"
 #include "RNA_types.hh"
 
+namespace blender {
+
 struct ARegion;
+struct AssetLibraryReference;
+struct AssetWeakReference;
 struct Base;
-struct bGPdata;
 struct bGPDframe;
 struct bGPDlayer;
 struct bPoseChannel;
@@ -33,7 +35,6 @@ struct EditBone;
 struct ID;
 struct Image;
 struct LayerCollection;
-struct ListBase;
 struct Main;
 struct Mask;
 struct MovieClip;
@@ -56,6 +57,7 @@ struct SpaceLink;
 struct SpaceNla;
 struct SpaceNode;
 struct SpaceOutliner;
+struct SpaceProject;
 struct SpaceProperties;
 struct SpaceSeq;
 struct SpaceSpreadsheet;
@@ -72,6 +74,17 @@ struct wmMsgBus;
 struct wmWindow;
 struct wmWindowManager;
 struct WorkSpace;
+
+/**
+ * Context logging control flags.
+ */
+enum class CTX_LogFlag : uint8_t {
+  /** Enable logging of context member access. */
+  Access = (1 << 0),
+  /** Hide missing/None values from logging. */
+  HideMissing = (1 << 1),
+};
+ENUM_OPERATORS(CTX_LogFlag);
 
 /* Structs */
 
@@ -102,15 +115,15 @@ using bContextDataCallback = int /*eContextResult*/ (*)(const bContext *C,
 
 struct bContextStoreEntry {
   std::string name;
-  PointerRNA ptr;
+  std::variant<PointerRNA, std::string, int64_t> value;
 };
 
 struct bContextStore {
-  blender::Vector<bContextStoreEntry> entries;
+  Vector<bContextStoreEntry> entries;
   bool used = false;
 };
 
-namespace blender::asset_system {
+namespace asset_system {
 class AssetRepresentation;
 }
 
@@ -126,7 +139,7 @@ enum eContextObjectMode {
   CTX_MODE_EDIT_LATTICE,
   CTX_MODE_EDIT_CURVES,
   CTX_MODE_EDIT_GREASE_PENCIL,
-  CTX_MODE_EDIT_POINT_CLOUD,
+  CTX_MODE_EDIT_POINTCLOUD,
   CTX_MODE_POSE,
   CTX_MODE_SCULPT,
   CTX_MODE_PAINT_WEIGHT,
@@ -141,8 +154,11 @@ enum eContextObjectMode {
   CTX_MODE_VERTEX_GPENCIL_LEGACY,
   CTX_MODE_SCULPT_CURVES,
   CTX_MODE_PAINT_GREASE_PENCIL,
+  CTX_MODE_SCULPT_GREASE_PENCIL,
+  CTX_MODE_WEIGHT_GREASE_PENCIL,
+  CTX_MODE_VERTEX_GREASE_PENCIL,
 };
-#define CTX_MODE_NUM (CTX_MODE_PAINT_GREASE_PENCIL + 1)
+#define CTX_MODE_NUM (CTX_MODE_VERTEX_GREASE_PENCIL + 1)
 
 /* Context */
 
@@ -153,19 +169,30 @@ bContext *CTX_copy(const bContext *C);
 
 /* Stored Context */
 
-bContextStore *CTX_store_add(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
-                             blender::StringRefNull name,
+bContextStore *CTX_store_add(Vector<std::unique_ptr<bContextStore>> &contexts,
+                             StringRef name,
                              const PointerRNA *ptr);
-bContextStore *CTX_store_add_all(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
+bContextStore *CTX_store_add(Vector<std::unique_ptr<bContextStore>> &contexts,
+                             StringRef name,
+                             StringRef str);
+bContextStore *CTX_store_add(Vector<std::unique_ptr<bContextStore>> &contexts,
+                             StringRef name,
+                             int64_t value);
+bContextStore *CTX_store_add_all(Vector<std::unique_ptr<bContextStore>> &contexts,
                                  const bContextStore *context);
 const bContextStore *CTX_store_get(const bContext *C);
 void CTX_store_set(bContext *C, const bContextStore *store);
 const PointerRNA *CTX_store_ptr_lookup(const bContextStore *store,
-                                       blender::StringRefNull name,
+                                       StringRef name,
                                        const StructRNA *type = nullptr);
+std::optional<StringRefNull> CTX_store_string_lookup(const bContextStore *store, StringRef name);
+std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store, StringRef name);
 
-/* need to store if python is initialized or not */
-bool CTX_py_init_get(bContext *C);
+/* Set a temporary flag to indicate when writing via RNA is disallowed. */
+void CTX_rna_disallow_write_set_p(bContext *C, const bool *rna_disallow_writes);
+
+/** Needed to store if Python is initialized or not. */
+bool CTX_py_init_get(const bContext *C);
 void CTX_py_init_set(bContext *C, bool value);
 
 void *CTX_py_dict_get(const bContext *C);
@@ -188,7 +215,7 @@ ScrArea *CTX_wm_area(const bContext *C);
 SpaceLink *CTX_wm_space_data(const bContext *C);
 ARegion *CTX_wm_region(const bContext *C);
 void *CTX_wm_region_data(const bContext *C);
-ARegion *CTX_wm_menu(const bContext *C);
+ARegion *CTX_wm_region_popup(const bContext *C);
 wmGizmoGroup *CTX_wm_gizmo_group(const bContext *C);
 wmMsgBus *CTX_wm_message_bus(const bContext *C);
 ReportList *CTX_wm_reports(const bContext *C);
@@ -211,13 +238,14 @@ SpaceUserPref *CTX_wm_space_userpref(const bContext *C);
 SpaceClip *CTX_wm_space_clip(const bContext *C);
 SpaceTopBar *CTX_wm_space_topbar(const bContext *C);
 SpaceSpreadsheet *CTX_wm_space_spreadsheet(const bContext *C);
+SpaceProject *CTX_wm_space_project(const bContext *C);
 
 void CTX_wm_manager_set(bContext *C, wmWindowManager *wm);
 void CTX_wm_window_set(bContext *C, wmWindow *win);
 void CTX_wm_screen_set(bContext *C, bScreen *screen); /* to be removed */
 void CTX_wm_area_set(bContext *C, ScrArea *area);
 void CTX_wm_region_set(bContext *C, ARegion *region);
-void CTX_wm_menu_set(bContext *C, ARegion *menu);
+void CTX_wm_region_popup_set(bContext *C, ARegion *region_popup);
 void CTX_wm_gizmo_group_set(bContext *C, wmGizmoGroup *gzgroup);
 
 /**
@@ -234,22 +262,34 @@ struct bContextPollMsgDyn_Params {
 };
 
 const char *CTX_wm_operator_poll_msg_get(bContext *C, bool *r_free);
+
+/**
+ * Set a message to be shown when the operator is disabled in the UI.
+ *
+ * \note even though the function name does not include the word "disabled", the
+ * message is only shown when the operator (in the UI) is in fact disabled.
+ *
+ * \note even though the function name suggests this is limited to situations
+ * when the poll function returns false, this is not the case. Even when the
+ * operator is disabled because it is added to a disabled ui::Layout, this message
+ * will show.
+ */
 void CTX_wm_operator_poll_msg_set(bContext *C, const char *msg);
 void CTX_wm_operator_poll_msg_set_dynamic(bContext *C, const bContextPollMsgDyn_Params *params);
 void CTX_wm_operator_poll_msg_clear(bContext *C);
 
 /* Data Context
  *
- * - #ListBase consists of #CollectionPointerLink items and must be
- *   freed with #BLI_freelistN!
- * - The dir #ListBase consists of #LinkData items.
+ * - The dir #ListBaseT consists of #LinkData items.
  */
 
-/* data type, needed so we can tell between a NULL pointer and an empty list */
-enum {
-  CTX_DATA_TYPE_POINTER = 0,
-  CTX_DATA_TYPE_COLLECTION,
-  CTX_DATA_TYPE_PROPERTY,
+/** Data type, needed so we can tell between a NULL pointer and an empty list. */
+enum class ContextDataType : uint8_t {
+  Pointer = 0,
+  Collection,
+  Property,
+  String,
+  Int64,
 };
 
 PointerRNA CTX_data_pointer_get(const bContext *C, const char *member);
@@ -257,7 +297,7 @@ PointerRNA CTX_data_pointer_get_type(const bContext *C, const char *member, Stru
 PointerRNA CTX_data_pointer_get_type_silent(const bContext *C,
                                             const char *member,
                                             StructRNA *type);
-ListBase CTX_data_collection_get(const bContext *C, const char *member);
+Vector<PointerRNA> CTX_data_collection_get(const bContext *C, const char *member);
 
 /**
  * For each pointer in collection_pointers, remap it to point to `ptr->propname`.
@@ -266,28 +306,33 @@ ListBase CTX_data_collection_get(const bContext *C, const char *member);
  *
  *   lb = CTX_data_collection_get(C, "selected_pose_bones"); // lb contains pose bones.
  *   CTX_data_collection_remap_property(lb, "color");        // lb now contains bone colors.
- *
- * NOTE: this alters the items contained in the given listbase.
- * It does not change the listbase itself.
  */
-void CTX_data_collection_remap_property(ListBase /*CollectionPointerLink*/ collection_pointers,
+void CTX_data_collection_remap_property(MutableSpan<PointerRNA> collection_pointers,
                                         const char *propname);
+
+std::optional<StringRefNull> CTX_data_string_get(const bContext *C, const char *member);
+std::optional<int64_t> CTX_data_int_get(const bContext *C, const char *member);
 
 /**
  * \param C: Context.
  * \param use_store: Use 'C->wm.store'.
- * \param use_rna: Use Include the properties from 'RNA_Context'.
+ * \param use_rna: Use Include the properties from #RNA_Context.
  * \param use_all: Don't skip values (currently only "scene").
  */
-ListBase CTX_data_dir_get_ex(const bContext *C, bool use_store, bool use_rna, bool use_all);
-ListBase CTX_data_dir_get(const bContext *C);
+ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
+                                        bool use_store,
+                                        bool use_rna,
+                                        bool use_all);
+ListBaseT<LinkData> CTX_data_dir_get(const bContext *C);
 int /*eContextResult*/ CTX_data_get(const bContext *C,
                                     const char *member,
                                     PointerRNA *r_ptr,
-                                    ListBase *r_lb,
+                                    Vector<PointerRNA> *r_lb,
                                     PropertyRNA **r_prop,
                                     int *r_index,
-                                    short *r_type);
+                                    StringRef *r_str,
+                                    std::optional<int64_t> *r_int_value,
+                                    ContextDataType *r_type);
 
 void CTX_data_id_pointer_set(bContextDataResult *result, ID *id);
 void CTX_data_pointer_set_ptr(bContextDataResult *result, const PointerRNA *ptr);
@@ -299,7 +344,7 @@ void CTX_data_list_add(bContextDataResult *result, ID *id, StructRNA *type, void
 
 /**
  * Stores a property in a result. Make sure to also call
- * `CTX_data_type_set(result, CTX_DATA_TYPE_PROPERTY)`.
+ * `CTX_data_type_set(result, ContextDataType::Property)`.
  * \param result: The result to store the property in.
  * \param prop: The property to store.
  * \param index: The particular index in the property to store.
@@ -308,33 +353,29 @@ void CTX_data_prop_set(bContextDataResult *result, PropertyRNA *prop, int index)
 
 void CTX_data_dir_set(bContextDataResult *result, const char **dir);
 
-void CTX_data_type_set(bContextDataResult *result, short type);
-short CTX_data_type_get(bContextDataResult *result);
+void CTX_data_type_set(bContextDataResult *result, ContextDataType type);
+ContextDataType CTX_data_type_get(bContextDataResult *result);
 
 bool CTX_data_equals(const char *member, const char *str);
 bool CTX_data_dir(const char *member);
 
 #define CTX_DATA_BEGIN(C, Type, instance, member) \
   { \
-    ListBase ctx_data_list; \
-    CollectionPointerLink *ctx_link; \
+    Vector<PointerRNA> ctx_data_list; \
     CTX_data_##member(C, &ctx_data_list); \
-    for (ctx_link = (CollectionPointerLink *)ctx_data_list.first; ctx_link; \
-         ctx_link = ctx_link->next) \
-    { \
-      Type instance = (Type)ctx_link->ptr.data;
+    for (PointerRNA &ctx_link : ctx_data_list) { \
+      Type instance = (Type)ctx_link.data;
 
 #define CTX_DATA_END \
   } \
-  BLI_freelistN(&ctx_data_list); \
   } \
   (void)0
 
 #define CTX_DATA_BEGIN_WITH_ID(C, Type, instance, member, Type_id, instance_id) \
   CTX_DATA_BEGIN (C, Type, instance, member) \
-    Type_id instance_id = (Type_id)ctx_link->ptr.owner_id;
+    Type_id instance_id = (Type_id)ctx_link.owner_id;
 
-int ctx_data_list_count(const bContext *C, bool (*func)(const bContext *, ListBase *));
+int ctx_data_list_count(const bContext *C, bool (*func)(const bContext *, Vector<PointerRNA> *));
 
 #define CTX_DATA_COUNT(C, member) ctx_data_list_count(C, CTX_data_##member)
 
@@ -342,12 +383,13 @@ int ctx_data_list_count(const bContext *C, bool (*func)(const bContext *, ListBa
 
 Main *CTX_data_main(const bContext *C);
 Scene *CTX_data_scene(const bContext *C);
+Scene *CTX_data_sequencer_scene(const bContext *C);
 /**
  * This is tricky. Sometimes the user overrides the render_layer
  * but not the scene_collection. In this case what to do?
  *
  * If the scene_collection is linked to the #ViewLayer we use it.
- * Otherwise we fallback to the active one of the #ViewLayer.
+ * Otherwise we fall back to the active one of the #ViewLayer.
  */
 LayerCollection *CTX_data_layer_collection(const bContext *C);
 Collection *CTX_data_collection(const bContext *C);
@@ -361,26 +403,33 @@ enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
                                               eObjectMode object_mode);
 enum eContextObjectMode CTX_data_mode_enum(const bContext *C);
 
+/**
+ * Explicitly indicate if the UI context is allowed to be accessed for returning context data.
+ *
+ * The default is to permit and allow UI context data to be used during data retrieval.
+ */
+void CTX_data_ui_context_access_deny(bContext *C, bool deny);
+
 void CTX_data_main_set(bContext *C, Main *bmain);
 void CTX_data_scene_set(bContext *C, Scene *scene);
 
 /* Only Outliner currently! */
-bool CTX_data_selected_ids(const bContext *C, ListBase *list);
+bool CTX_data_selected_ids(const bContext *C, Vector<PointerRNA> *list);
 
-bool CTX_data_selected_editable_objects(const bContext *C, ListBase *list);
-bool CTX_data_selected_editable_bases(const bContext *C, ListBase *list);
+bool CTX_data_selected_editable_objects(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_selected_editable_bases(const bContext *C, Vector<PointerRNA> *list);
 
-bool CTX_data_editable_objects(const bContext *C, ListBase *list);
-bool CTX_data_editable_bases(const bContext *C, ListBase *list);
+bool CTX_data_editable_objects(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_editable_bases(const bContext *C, Vector<PointerRNA> *list);
 
-bool CTX_data_selected_objects(const bContext *C, ListBase *list);
-bool CTX_data_selected_bases(const bContext *C, ListBase *list);
+bool CTX_data_selected_objects(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_selected_bases(const bContext *C, Vector<PointerRNA> *list);
 
-bool CTX_data_visible_objects(const bContext *C, ListBase *list);
-bool CTX_data_visible_bases(const bContext *C, ListBase *list);
+bool CTX_data_visible_objects(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_visible_bases(const bContext *C, Vector<PointerRNA> *list);
 
-bool CTX_data_selectable_objects(const bContext *C, ListBase *list);
-bool CTX_data_selectable_bases(const bContext *C, ListBase *list);
+bool CTX_data_selectable_objects(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_selectable_bases(const bContext *C, Vector<PointerRNA> *list);
 
 Object *CTX_data_active_object(const bContext *C);
 Base *CTX_data_active_base(const bContext *C);
@@ -394,28 +443,22 @@ Mask *CTX_data_edit_mask(const bContext *C);
 
 CacheFile *CTX_data_edit_cachefile(const bContext *C);
 
-bool CTX_data_selected_nodes(const bContext *C, ListBase *list);
+bool CTX_data_selected_nodes(const bContext *C, Vector<PointerRNA> *list);
 
 EditBone *CTX_data_active_bone(const bContext *C);
-bool CTX_data_selected_bones(const bContext *C, ListBase *list);
-bool CTX_data_selected_editable_bones(const bContext *C, ListBase *list);
-bool CTX_data_visible_bones(const bContext *C, ListBase *list);
-bool CTX_data_editable_bones(const bContext *C, ListBase *list);
+bool CTX_data_selected_bones(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_selected_editable_bones(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_visible_bones(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_editable_bones(const bContext *C, Vector<PointerRNA> *list);
 
 bPoseChannel *CTX_data_active_pose_bone(const bContext *C);
-bool CTX_data_selected_pose_bones(const bContext *C, ListBase *list);
-bool CTX_data_selected_pose_bones_from_active_object(const bContext *C, ListBase *list);
-bool CTX_data_visible_pose_bones(const bContext *C, ListBase *list);
-
-bGPdata *CTX_data_gpencil_data(const bContext *C);
-bGPDlayer *CTX_data_active_gpencil_layer(const bContext *C);
-bGPDframe *CTX_data_active_gpencil_frame(const bContext *C);
-bool CTX_data_visible_gpencil_layers(const bContext *C, ListBase *list);
-bool CTX_data_editable_gpencil_layers(const bContext *C, ListBase *list);
-bool CTX_data_editable_gpencil_strokes(const bContext *C, ListBase *list);
+PointerRNA CTX_data_active_pose_bone_ptr(const bContext *C);
+bool CTX_data_selected_pose_bones(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_selected_pose_bones_from_active_object(const bContext *C, Vector<PointerRNA> *list);
+bool CTX_data_visible_pose_bones(const bContext *C, Vector<PointerRNA> *list);
 
 const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext *C);
-class blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext *C);
+class asset_system::AssetRepresentation *CTX_wm_asset(const bContext *C);
 
 bool CTX_wm_interface_locked(const bContext *C);
 
@@ -446,10 +489,38 @@ Depsgraph *CTX_data_expect_evaluated_depsgraph(const bContext *C);
  *
  * \note Will be expensive if there are relations or objects tagged for update.
  * \note If there are pending updates depsgraph hooks will be invoked.
+ * \warning In many cases, runtime data on associated objects will be destroyed & recreated.
+ * \warning Returns null pointer if #rna_write_check is true and RNA writing is disallowed. If
+ * #rna_write_check is false then RNA writes must be allowed when calling this function.
  */
-Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C);
+Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C, bool rna_write_check = false);
 
 /* Will Return NULL if depsgraph is not allocated yet.
  * Only used by handful of operators which are run on file load.
  */
 Depsgraph *CTX_data_depsgraph_on_load(const bContext *C);
+
+/**
+ * Set context member logging flags.
+ */
+void CTX_member_logging_flag_set(bContext *C, CTX_LogFlag flag);
+
+/**
+ * Get context member logging flag.
+ */
+CTX_LogFlag CTX_member_logging_flag_get(const bContext *C);
+
+/**
+ * \return true when context access should be logged.
+ */
+bool CTX_member_logging_get(const bContext *C);
+
+/**
+ * Check if writing to RNA is allowed.
+ *
+ * RNA can use this to disable writes during callbacks, such as when accessing the evaluated
+ * depsgraph (#150024).
+ */
+bool CTX_member_rna_write_check(const bContext *C);
+
+}  // namespace blender

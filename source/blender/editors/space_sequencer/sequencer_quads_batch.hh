@@ -8,11 +8,18 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
-struct GPUVertBuf;
-struct GPUIndexBuf;
-struct GPUBatch;
+namespace blender {
+
+namespace gpu {
+class Batch;
+class IndexBuf;
+class VertBuf;
+}  // namespace gpu
+
+namespace ed::vse {
+
 struct ColorVertex;
 
 /**
@@ -76,14 +83,17 @@ class SeqQuadsBatch {
   static constexpr int MAX_QUADS = 1024;
   static constexpr int MAX_LINES = 4096;
 
-  GPUVertBuf *vbo_quads = nullptr;
-  GPUIndexBuf *ibo_quads = nullptr;
-  GPUBatch *batch_quads = nullptr;
+  gpu::VertBuf *vbo_quads = nullptr;
+  gpu::IndexBuf *ibo_quads = nullptr;
+  gpu::Batch *batch_quads = nullptr;
   ColorVertex *verts_quads = nullptr;
   int quads_num = 0;
 
-  GPUVertBuf *vbo_lines = nullptr;
-  GPUBatch *batch_lines = nullptr;
+  gpu::VertBuf *vbo_lines = nullptr;
+  gpu::Batch *batch_lines = nullptr;
   ColorVertex *verts_lines = nullptr;
   int lines_num = 0;
 };
+
+}  // namespace ed::vse
+}  // namespace blender

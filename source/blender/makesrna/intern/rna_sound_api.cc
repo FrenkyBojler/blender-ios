@@ -6,35 +6,50 @@
  * \ingroup RNA
  */
 
-#include "DNA_packedFile_types.h"
-
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "BKE_packedFile.h"
+#include "BKE_packedFile.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #ifdef RNA_RUNTIME
 
+#  include "DNA_sound_types.h"
+
+#  include "BKE_library.hh"
+#  include "BKE_main.hh"
+#  include "BKE_report.hh"
+#  include "BKE_sound.hh"
+
+namespace blender {
+
 static void rna_Sound_pack(bSound *sound, Main *bmain, ReportList *reports)
 {
-  sound->packedfile = BKE_packedfile_new(
-      reports, sound->filepath, ID_BLEND_PATH(bmain, &sound->id));
+  BKE_sound_packfile_ensure(bmain, sound, reports);
 }
 
 static void rna_Sound_unpack(bSound *sound, Main *bmain, ReportList *reports, int method)
 {
   if (!sound->packedfile) {
     BKE_report(reports, RPT_ERROR, "Sound not packed");
+    return;
   }
-  else {
-    /* reports its own error on failure */
-    BKE_packedfile_unpack_sound(bmain, reports, sound, ePF_FileStatus(method));
+
+  if (!ID_IS_EDITABLE(&sound->id)) {
+    BKE_report(reports, RPT_ERROR, "Sound is not editable");
+    return;
   }
+
+  /* reports its own error on failure */
+  BKE_packedfile_unpack_sound(bmain, reports, sound, ePF_FileStatus(method));
 }
 
+}  // namespace blender
+
 #else
+
+namespace blender {
 
 void RNA_api_sound(StructRNA *srna)
 {
@@ -50,5 +65,7 @@ void RNA_api_sound(StructRNA *srna)
   RNA_def_enum(
       func, "method", rna_enum_unpack_method_items, PF_USE_LOCAL, "method", "How to unpack");
 }
+
+}  // namespace blender
 
 #endif
