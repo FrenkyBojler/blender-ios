@@ -66,7 +66,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_anim_path.h"
 #include "BKE_anim_visualization.h"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_armature.hh"
 #include "BKE_asset.hh"
 #include "BKE_bpath.hh"
@@ -1075,6 +1075,8 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   if (ob->lightprobe_cache) {
     BKE_lightprobe_cache_blend_read(reader, ob->lightprobe_cache);
   }
+
+  BKE_object_material_active_index_sanitize(ob);
 }
 
 static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
@@ -1439,7 +1441,8 @@ bool BKE_object_supports_modifiers(const Object *ob)
               OB_LATTICE,
               OB_POINTCLOUD,
               OB_VOLUME,
-              OB_GREASE_PENCIL);
+              OB_GREASE_PENCIL,
+              OB_EMPTY);
 }
 
 bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
@@ -4023,6 +4026,15 @@ void BKE_object_foreach_display_point(Object *ob,
       }
     }
   }
+  else if (ob->type == OB_POINTCLOUD) {
+    PointCloud &pointcloud = *id_cast<PointCloud *>(ob->data);
+    const Span<float3> positions = pointcloud.positions();
+    threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
+      for (const int i : range) {
+        func_cb(math::transform_point(float4x4(obmat), positions[i]), user_data);
+      }
+    });
+  }
 }
 
 void BKE_scene_foreach_display_point(Depsgraph *depsgraph,
@@ -4147,16 +4159,16 @@ void BKE_object_protected_scale_set(Object *ob, const float scale[3])
 
 void BKE_object_protected_rotation_quaternion_set(Object *ob, const float quat[4])
 {
-  if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
     ob->quat[0] = quat[0];
   }
-  if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
     ob->quat[1] = quat[1];
   }
-  if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
     ob->quat[2] = quat[2];
   }
-  if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
     ob->quat[3] = quat[3];
   }
 }
@@ -4411,9 +4423,6 @@ const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
   BLI_assert(!DEG_is_original(&object->id));
   BLI_assert(object->type == OB_MESH);
 
-  const Mesh &mesh = *id_cast<const Mesh *>(object->data);
-  BLI_assert(mesh.runtime->edit_mesh != nullptr);
-  UNUSED_VARS_NDEBUG(mesh);
   const GeometrySet *geometry_set = object->runtime->geometry_set_eval;
   if (!geometry_set) {
     return nullptr;
@@ -4426,7 +4435,8 @@ const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
   if (!edit_hints) {
     return nullptr;
   }
-  BLI_assert(edit_hints->mesh_cage->type() == bke::GeometryComponent::Type::Mesh);
+  BLI_assert(!edit_hints->mesh_cage ||
+             edit_hints->mesh_cage->type() == bke::GeometryComponent::Type::Mesh);
   const auto *mesh_component = static_cast<const MeshComponent *>(edit_hints->mesh_cage.get());
   if (!mesh_component) {
     return nullptr;
@@ -4451,7 +4461,8 @@ const Mesh *BKE_object_get_mesh_deform_eval(const Object *object)
   if (!edit_hints) {
     return nullptr;
   }
-  BLI_assert(edit_hints->mesh_deform->type() == bke::GeometryComponent::Type::Mesh);
+  BLI_assert(!edit_hints->mesh_deform ||
+             edit_hints->mesh_deform->type() == bke::GeometryComponent::Type::Mesh);
   const auto *mesh_component = static_cast<const MeshComponent *>(edit_hints->mesh_deform.get());
   if (!mesh_component) {
     return nullptr;
