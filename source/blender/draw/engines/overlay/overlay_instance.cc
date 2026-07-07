@@ -6,9 +6,15 @@
  * \ingroup overlay
  */
 
+#include "BLI_math_color_c.hh"
+
 #include "BKE_colorband.hh"
+#include "BKE_layer.hh"
+#include "BKE_material.hh"
+#include "BKE_scene.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "ED_image.hh"
 #include "ED_view3d.hh"
 
 #include "BKE_paint.hh"

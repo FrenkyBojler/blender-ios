@@ -8,29 +8,16 @@
 
 #pragma once
 
-#include "BKE_context.hh"
-#include "BKE_movieclip.hh"
-#include "BKE_object.hh"
-
 #include "BLI_function_ref.hh"
-
-#include "DNA_space_types.h"
-#include "DNA_world_types.h"
-
-#include "GPU_matrix.hh"
 
 #include "DRW_gpu_wrapper.hh"
 #include "DRW_render.hh"
 #include "UI_resources.hh"
-#include "draw_manager.hh"
 #include "draw_pass.hh"
 #include "draw_view_data.hh"
-#include "gpu_shader_create_info.hh"
 
 #include "../select/select_instance.hh"
 #include "overlay_shader_shared.hh"
-
-#include "draw_common.hh"
 
 namespace blender {
 
@@ -942,29 +929,9 @@ struct Resources : public select::SelectMap {
     return background_blend_color(theme_id);
   }
 
-  float4 background_color_get(const State &state)
-  {
-    if (state.v3d->shading.background_type == V3D_SHADING_BACKGROUND_WORLD) {
-      if (state.scene->world) {
-        return float4(float3(&state.scene->world->horr), 0.0f);
-      }
-    }
-    else if (state.v3d->shading.background_type == V3D_SHADING_BACKGROUND_VIEWPORT) {
-      return state.v3d->shading.background_color;
-    }
-    float4 color;
-    ui::theme::get_color_3fv(TH_BACK, color);
-    return color;
-  }
+  float4 background_color_get(const State &state);
 
-  void free_movieclips_textures()
-  {
-    /* Free Movie clip textures after rendering */
-    for (MovieClip *clip : bg_movie_clips) {
-      BKE_movieclip_free_gputexture(clip);
-    }
-    bg_movie_clips.clear();
-  }
+  void free_movieclips_textures();
 
   static float vertex_size_get()
   {

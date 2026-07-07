@@ -145,11 +145,43 @@ set(SRC
   engines/select/select_engine.cc
   engines/select/select_instance.cc
   engines/overlay/overlay_armature.cc
+  engines/overlay/overlay_attribute_text.cc
+  engines/overlay/overlay_attribute_viewer.cc
+  engines/overlay/overlay_background.cc
+  engines/overlay/overlay_bounds.cc
+  engines/overlay/overlay_camera.cc
+  engines/overlay/overlay_cursor.cc
+  engines/overlay/overlay_curve.cc
+  engines/overlay/overlay_empty.cc
   engines/overlay/overlay_engine.cc
+  engines/overlay/overlay_facing.cc
+  engines/overlay/overlay_fade.cc
+  engines/overlay/overlay_fluid.cc
+  engines/overlay/overlay_force_field.cc
+  engines/overlay/overlay_grease_pencil.cc
+  engines/overlay/overlay_grid.cc
   engines/overlay/overlay_instance.cc
+  engines/overlay/overlay_lattice.cc
+  engines/overlay/overlay_light.cc
+  engines/overlay/overlay_lightprobe.cc
+  engines/overlay/overlay_mesh.cc
+  engines/overlay/overlay_metaball.cc
   engines/overlay/overlay_mode_transfer.cc
+  engines/overlay/overlay_motion_path.cc
+  engines/overlay/overlay_name.cc
+  engines/overlay/overlay_origin.cc
+  engines/overlay/overlay_outline.cc
+  engines/overlay/overlay_paint.cc
+  engines/overlay/overlay_particle.cc
+  engines/overlay/overlay_pointcloud.cc
+  engines/overlay/overlay_prepass.cc
+  engines/overlay/overlay_private.cc
+  engines/overlay/overlay_relation.cc
+  engines/overlay/overlay_sculpt.cc
   engines/overlay/overlay_shader.cc
   engines/overlay/overlay_shape.cc
+  engines/overlay/overlay_text.cc
+  engines/overlay/overlay_wireframe.cc
 
   DRW_engine.hh
   DRW_pbvh.hh

@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "DNA_speaker_types.h"
-
 #include "overlay_base.hh"
 
 namespace blender::draw::overlay {
