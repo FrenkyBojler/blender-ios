@@ -343,7 +343,7 @@ void EDBM_mesh_make_from_mesh(Object *ob,
   else {
     /* 0 can happen for newly created meshes. See comment on Mesh.attributes_active_index
      * declaration. */
-    BLI_assert(mesh->attributes_active_index == -1 || mesh->attributes_active_index == 0);
+    BLI_assert(ELEM(mesh->attributes_active_index, 0, -1));
   }
 }
 
