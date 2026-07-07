@@ -233,10 +233,9 @@ static void version_bonegroups_to_bonecollections(Main *bmain)
   }
 }
 
-static void version_principled_bsdf_update_animdata(Main *bmain, ID *owner_id, bNodeTree *ntree)
+static void version_principled_bsdf_update_animdata(Main *bmain, bNodeTree *ntree)
 {
   ID *id = &ntree->id;
-  AnimData *adt = BKE_animdata_from_id(id);
   DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
 
   for (bNode &node : ntree->nodes) {
@@ -391,7 +390,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_SHADER) {
         /* Convert animdata on the Principled BSDF sockets. */
-        version_principled_bsdf_update_animdata(bmain, id, ntree);
+        version_principled_bsdf_update_animdata(bmain, ntree);
       }
     }
     FOREACH_NODETREE_END;
