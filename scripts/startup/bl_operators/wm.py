@@ -2246,7 +2246,7 @@ class WM_OT_properties_remove(Operator):
         rna_idprop_ui_prop_update(item, name)
         del item[name]
         idprop_group = item.id_properties_ensure()
-        idprop_group.idprop_active_index = max(0, idprop_group.idprop_active_index - 1)
+        idprop_group.active_index = max(0, idprop_group.active_index - 1)
         return {'FINISHED'}
 
 

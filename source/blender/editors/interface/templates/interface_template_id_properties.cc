@@ -150,7 +150,7 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
     }
 
     /* Change active index after drop. */
-    drag_data->user_properties_->idprop_active_index = BLI_findindex(&idprop_list, drag_idprop);
+    drag_data->user_properties_->active_index = BLI_findindex(&idprop_list, drag_idprop);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
     ED_undo_push(C, "Drop Active IDProperty");
     return true;
@@ -211,7 +211,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
     sub.emboss_set(emboss);
     sub.alignment_set(idprop_->type == IDP_BOOLEAN ? LayoutAlign::Right : LayoutAlign::Expand);
 
-    const std::string prop_name = "[\"" + std::string(idprop_->name) + "\"]";
+    const std::string prop_name = "[\"" + BLI_str_escape(idprop_->name) + "\"]";
 
     const bool is_array = (idprop_->type == IDP_ARRAY) || !IDP_ui_data_supported(idprop_);
     const bool is_color = idprop_->ui_data &&
@@ -231,12 +231,12 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
   std::optional<bool> should_be_active() const override
   {
-    return user_properties_->idprop_active_index == index_;
+    return user_properties_->active_index == index_;
   }
 
   void on_activate(bContext &C) override
   {
-    user_properties_->idprop_active_index = index_;
+    user_properties_->active_index = index_;
     ED_undo_push(&C, "Set Active IDProperty");
   }
 
@@ -288,7 +288,7 @@ static void idproperty_id_type_set_fn(bContext * /*C*/, void *but_arg1, void * /
   const IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
 
   IDProperty *active_prop = static_cast<IDProperty *>(
-      BLI_findlink(&user_properties->data.group, user_properties->idprop_active_index));
+      BLI_findlink(&user_properties->data.group, user_properties->active_index));
   active_prop->data.pointer = nullptr;
 }
 
@@ -297,7 +297,7 @@ static void idproperty_python_prop_add_fn(bContext * /*C*/, void *but_arg1, void
 {
   IDProperty *user_properties = static_cast<IDProperty *>(but_arg1);
   IDProperty *active_prop = static_cast<IDProperty *>(
-      BLI_findlink(&user_properties->data.group, user_properties->idprop_active_index));
+      BLI_findlink(&user_properties->data.group, user_properties->active_index));
 
   if (IDP_ui_data_supported(active_prop)) {
     return;
@@ -318,7 +318,7 @@ void draw_id_properties_value(ui::Layout *layout, PointerRNA *dataptr)
   IDProperty *user_properties = RNA_struct_idprops(dataptr, false);
 
   IDProperty *active_prop = static_cast<IDProperty *>(
-      BLI_findlink(&user_properties->data.group, user_properties->idprop_active_index));
+      BLI_findlink(&user_properties->data.group, user_properties->active_index));
 
   PointerRNA prop_ptr = RNA_pointer_create_discrete(id, RNA_IDProperty, active_prop);
   layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);

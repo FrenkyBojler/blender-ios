@@ -156,7 +156,7 @@ struct IDProperty {
   eIDPropertyFlag flag = {};
   char name[/*MAX_IDPROP_NAME*/ 64] = "";
 
-  int idprop_active_index = 0;
+  int active_index = 0;
 
   /** NOTE: alignment for 64 bits. */
   IDPropertyData data;

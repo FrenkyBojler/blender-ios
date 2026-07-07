@@ -297,7 +297,7 @@ static int BPy_IDGroup_SetName(BPy_IDProperty *self, PyObject *value, void * /*c
 
 static PyObject *BPy_IDProperty_GetActiveIndex(BPy_IDProperty *self, void * /*closure*/)
 {
-  return PyLong_FromLong(self->prop->idprop_active_index);
+  return PyLong_FromLong(self->prop->active_index);
 }
 
 static int BPy_IDProperty_SetActiveIndex(BPy_IDProperty *self, PyObject *value, void * /*closure*/)
@@ -308,7 +308,7 @@ static int BPy_IDProperty_SetActiveIndex(BPy_IDProperty *self, PyObject *value, 
     PyErr_SetString(PyExc_IndexError, "active index out of range");
     return -1;
   }
-  self->prop->idprop_active_index = index;
+  self->prop->active_index = index;
   return 0;
 }
 
@@ -325,7 +325,7 @@ static PyGetSetDef BPy_IDGroup_getseters[] = {
      reinterpret_cast<setter>(BPy_IDGroup_SetName),
      BPy_IDGroup_GetName_doc,
      nullptr},
-    {"idprop_active_index",
+    {"active_index",
      reinterpret_cast<getter>(BPy_IDProperty_GetActiveIndex),
      reinterpret_cast<setter>(BPy_IDProperty_SetActiveIndex),
      "The active index of properties inside this group.\n:type: int",

@@ -3156,14 +3156,15 @@ static void rna_def_idproperty_wrap_ptr(BlenderRNA *brna)
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
 }
 
-#  define RNA_DEF_IDPROP_UI_DATA_COMMON(srna, prop_type) \
-\
-    prop = RNA_def_property(srna, "default_value", prop_type, PROP_NONE); \
-    RNA_def_property_ui_text(prop, "Default Value", "Default value of this property"); \
-\
-    prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE); \
-    RNA_def_property_string_sdna(prop, nullptr, "base.description"); \
-    RNA_def_property_ui_text(prop, "Description", "Tooltip description for this property");
+static void rna_def_idprop_uidata_common(StructRNA *srna, PropertyType prop_type)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "default_value", prop_type, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Default Value", "Default value of this property");
+
+  prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "base.description");
+  RNA_def_property_ui_text(prop, "Description", "Tooltip description for this property");
+}
 
 static void rna_def_idproperty_ui(BlenderRNA *brna)
 {
@@ -3198,7 +3199,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "IDPropertyUIDataFloat", nullptr);
   RNA_def_struct_ui_text(srna, "float IDProperty UI", "UI data for a float ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
-  RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_FLOAT);
+  rna_def_idprop_uidata_common(srna, PROP_FLOAT);
 
   prop = RNA_def_property(srna, "min", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Min", "Minimum value");
@@ -3231,6 +3232,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   prop = RNA_def_property(srna, "precision", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "precision");
   RNA_def_property_ui_text(prop, "Precision", "Number of decimal places to display");
+  RNA_def_property_range(prop, 0, 8);
   RNA_def_property_int_default(prop, 3);
 
   prop = RNA_def_enum(srna,
@@ -3256,7 +3258,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "IDPropertyUIDataInt", nullptr);
   RNA_def_struct_ui_text(srna, "int IDProperty UI", "UI data for an int ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
-  RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT);
+  rna_def_idprop_uidata_common(srna, PROP_INT);
 
   prop = RNA_def_property(srna, "min", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop, "Min", "Minimum value");
@@ -3300,7 +3302,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "IDPropertyUIDataBool", nullptr);
   RNA_def_struct_ui_text(srna, "bool IDProperty UI", "UI data for a bool ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
-  RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_BOOLEAN);
+  rna_def_idprop_uidata_common(srna, PROP_BOOLEAN);
 
   prop = RNA_def_property(srna, "default_array", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_flag(prop, PROP_DYNAMIC);
@@ -3315,7 +3317,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "IDPropertyUIDataString", nullptr);
   RNA_def_struct_ui_text(srna, "string IDProperty UI", "UI data for a string ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
-  RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_STRING);
+  rna_def_idprop_uidata_common(srna, PROP_STRING);
 
   /* ID UI Data. */
   srna = RNA_def_struct(brna, "IDPropertyUIDataID", nullptr);

@@ -96,7 +96,7 @@ def rna_idprop_ui_create(
     # Assign the value
     item[prop] = default
     idprop_group = item.id_properties_ensure()
-    idprop_group.idprop_active_index = len(item.items()) - 1
+    idprop_group.active_index = len(item.items()) - 1
 
     rna_idprop_ui_prop_update(item, prop)
     ui_data = item.id_properties_ui(prop)
@@ -188,7 +188,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         return
 
     idprop_group = rna_item.id_properties_ensure()
-    active_prop = items[idprop_group.idprop_active_index]
+    active_prop = items[idprop_group.active_index]
 
     props = col.operator("wm.properties_remove", text="", icon='REMOVE')
     props.data_path = context_member
