@@ -9,6 +9,7 @@
 #include "BLI_listbase_iterator.hh"
 #include "BLI_span.hh"
 #include "BLI_string_utf8.hh"
+#include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
 
@@ -22,6 +23,7 @@
 #include "NOD_compositor_nodes_srna.hh"
 #include "NOD_socket_usage_inference.hh"
 
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
 #include "SEQ_modifiertypes.hh"
@@ -160,10 +162,11 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 static void draw_interface_root_panel_content(DrawGroupInputsContext &ctx,
                                               ui::Layout &layout,
                                               const bNodeTreeInterfacePanel &interface_panel,
-                                              const bool is_mask_input_used)
+                                              const int num_skipped_float_inputs,
+                                              const int num_skipped_color_inputs)
 {
-  bool found_image_input = false;
-  bool found_mask_input = false;
+  int skip_floats_left = num_skipped_float_inputs;
+  int skip_colors_left = num_skipped_color_inputs;
   for (const bNodeTreeInterfaceItem *item : interface_panel.items()) {
     switch (item->item_type) {
       case NodeTreeInterfaceItemType::Panel: {
@@ -188,13 +191,12 @@ static void draw_interface_root_panel_content(DrawGroupInputsContext &ctx,
         const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
         const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
         if (interface_socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
-          /* Don't draw the first color input. It's the strip input. */
-          if (!found_image_input && socket_type == SOCK_RGBA) {
-            found_image_input = true;
+          /* Skip the leading inputs that the strip/modifier supplies during evaluation. */
+          if (skip_floats_left > 0 && socket_type == SOCK_FLOAT) {
+            skip_floats_left--;
           }
-          /* Don't draw the second color input if the mask input is used. */
-          else if (is_mask_input_used && !found_mask_input && socket_type == SOCK_RGBA) {
-            found_mask_input = true;
+          else if (skip_colors_left > 0 && socket_type == SOCK_RGBA) {
+            skip_colors_left--;
           }
           else if (!(interface_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
             PointerRNA inputs_ptr = RNA_pointer_get(ctx.properties_ptr, "inputs");
@@ -311,7 +313,8 @@ void draw_compositor_nodes_modifier_ui(const bContext &C,
     ctx.output_usages.reinitialize(tree.interface_outputs().size());
     nodes::socket_usage_inference::infer_group_interface_inputs_usage(
         tree, *ctx.properties_ptr, ctx.input_usages, ctx.output_usages);
-    draw_interface_root_panel_content(ctx, layout, tree.tree_interface.root_panel, is_mask_used);
+    draw_interface_root_panel_content(
+        ctx, layout, tree.tree_interface.root_panel, 0, is_mask_used ? 2 : 1);
   }
 
   if (ui::Layout *mask_input_layout = layout.panel_prop(
@@ -319,6 +322,46 @@ void draw_compositor_nodes_modifier_ui(const bContext &C,
   {
     draw_mask_input_type_settings(C, *mask_input_layout, modifier_ptr);
   }
+}
+
+void draw_compositor_nodes_effect_ui(const bContext &C, PointerRNA *strip_ptr, ui::Layout &layout)
+{
+  Strip &strip = *strip_ptr->data_as<Strip>();
+  if (strip.type != STRIP_TYPE_COMPOSITOR || strip.effectdata == nullptr) {
+    return;
+  }
+  const CompositorEffectVars *comp = static_cast<const CompositorEffectVars *>(strip.effectdata);
+  if (comp->node_group == nullptr || ID_MISSING(comp->node_group)) {
+    return;
+  }
+
+  Main *bmain = CTX_data_main(&C);
+  PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(&C);
+  PointerRNA properties_ptr = RNA_pointer_get(strip_ptr, "properties");
+  if (properties_ptr.data == nullptr) {
+    return;
+  }
+
+  bNodeTree &tree = *comp->node_group;
+  tree.ensure_interface_cache();
+
+  DrawGroupInputsContext ctx{C, &tree, &properties_ptr, &bmain_ptr};
+
+  layout.use_property_split_set(true);
+
+  const int inputs_num = tree.interface_inputs().size();
+  ctx.input_usages.reinitialize(inputs_num);
+
+  Vector<bool> used, visible;
+  seq::compositor_effect_nodes_input_usages(*sequencer_scene, strip, used, visible);
+  for (const int i : IndexRange(inputs_num)) {
+    ctx.input_usages[i].is_used = i < used.size() ? used[i] : true;
+    ctx.input_usages[i].is_visible = i < visible.size() ? visible[i] : true;
+  }
+
+  draw_interface_root_panel_content(
+      ctx, layout, tree.tree_interface.root_panel, 1, strip.effect_num_inputs_get());
 }
 
 };  // namespace blender::nodes

@@ -55,120 +55,95 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
                                             const std::optional<int> dimensions)
 {
   using namespace nodes;
+
+  /* Only consider inputs explicitly set to Value type. */
+  if (CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type")) !=
+      CompositorNodesInputType::Value)
+  {
+    return;
+  }
+
   switch (socket_type) {
     case SOCK_FLOAT: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        const float value = RNA_float_get(input_props_ptr, "value");
-        result.set_single_value(value);
-      }
+      const float value = RNA_float_get(input_props_ptr, "value");
+      result.set_single_value(value);
       break;
     }
     case SOCK_VECTOR: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        switch (dimensions.value_or(3)) {
-          case 2: {
-            set_float_array<float2>(input_props_ptr, result);
-            break;
-          }
-          case 3: {
-            set_float_array<float3>(input_props_ptr, result);
-            break;
-          }
-          case 4: {
-            set_float_array<float4>(input_props_ptr, result);
-            break;
-          }
-          default:
-            BLI_assert_unreachable();
+      switch (dimensions.value_or(3)) {
+        case 2: {
+          set_float_array<float2>(input_props_ptr, result);
+          break;
         }
+        case 3: {
+          set_float_array<float3>(input_props_ptr, result);
+          break;
+        }
+        case 4: {
+          set_float_array<float4>(input_props_ptr, result);
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
       }
       break;
     }
     case SOCK_RGBA: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        ColorGeometry4f value;
-        RNA_float_get_array(input_props_ptr, "value", value);
-        result.set_single_value(value);
-      }
+      ColorGeometry4f value;
+      RNA_float_get_array(input_props_ptr, "value", value);
+      result.set_single_value(value);
       break;
     }
     case SOCK_BOOLEAN: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        const bool value = RNA_boolean_get(input_props_ptr, "value");
-        result.set_single_value(value);
-      }
+      const bool value = RNA_boolean_get(input_props_ptr, "value");
+      result.set_single_value(value);
       break;
     }
     case SOCK_INT: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        const int value = RNA_int_get(input_props_ptr, "value");
-        result.set_single_value(value);
-      }
+      const int value = RNA_int_get(input_props_ptr, "value");
+      result.set_single_value(value);
       break;
     }
     case SOCK_ROTATION: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        float3 value_euler;
-        RNA_float_get_array(input_props_ptr, "value", value_euler);
-        math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
-        result.set_single_value(value_rotation);
-      }
+      float3 value_euler;
+      RNA_float_get_array(input_props_ptr, "value", value_euler);
+      math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
+      result.set_single_value(value_rotation);
       break;
     }
     case SOCK_MENU: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        const MenuValue value = MenuValue(RNA_enum_get(input_props_ptr, "value"));
-        result.set_single_value(value);
-      }
+      const MenuValue value = MenuValue(RNA_enum_get(input_props_ptr, "value"));
+      result.set_single_value(value);
       break;
     }
     case SOCK_STRING: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        const std::string value = RNA_string_get(input_props_ptr, "value");
-        result.set_single_value(value);
-      }
+      const std::string value = RNA_string_get(input_props_ptr, "value");
+      result.set_single_value(value);
       break;
     }
     case SOCK_INT_VECTOR: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        switch (dimensions.value_or(2)) {
-          case 2: {
-            set_int_array<int2>(input_props_ptr, result);
-            break;
-          }
-          case 3: {
-            set_int_array<int3>(input_props_ptr, result);
-            break;
-          }
-          default:
-            BLI_assert_unreachable();
+      switch (dimensions.value_or(2)) {
+        case 2: {
+          set_int_array<int2>(input_props_ptr, result);
+          break;
         }
+        case 3: {
+          set_int_array<int3>(input_props_ptr, result);
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
       }
       break;
     }
     case SOCK_OBJECT: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        Object *value = RNA_pointer_get(input_props_ptr, "value").data_as<Object>();
-        result.set_single_value(value);
-      }
+      Object *value = RNA_pointer_get(input_props_ptr, "value").data_as<Object>();
+      result.set_single_value(value);
       break;
     }
     case SOCK_FONT: {
-      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
-      if (type == CompositorNodesInputType::Value) {
-        VFont *value = RNA_pointer_get(input_props_ptr, "value").data_as<VFont>();
-        result.set_single_value(value);
-      }
+      VFont *value = RNA_pointer_get(input_props_ptr, "value").data_as<VFont>();
+      result.set_single_value(value);
       break;
     }
     case SOCK_IMAGE:

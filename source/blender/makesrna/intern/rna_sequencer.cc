@@ -2092,26 +2092,6 @@ static PointerRNA rna_SequencerCompositorEffectProperties_get(PointerRNA *ptr)
   return RNA_pointer_create_discrete(ptr->owner_id, RNA_SequencerCompositorEffectProperties, comp);
 }
 
-static void rna_SequencerCompositorEffect_input_usages(
-    ID *id, Strip *strip, bool **r_used, int *r_used_num, bool **r_visible, int *r_visible_num)
-{
-  Scene *scene = reinterpret_cast<Scene *>(id);
-  Vector<bool> used, visible;
-  seq::compositor_effect_nodes_input_usages(*scene, *strip, used, visible);
-
-  *r_used_num = int(used.size());
-  *r_visible_num = int(visible.size());
-  *r_used = used.is_empty() ? nullptr : MEM_new_array_uninitialized<bool>(used.size(), __func__);
-  *r_visible = visible.is_empty() ? nullptr :
-                                    MEM_new_array_uninitialized<bool>(visible.size(), __func__);
-  for (const int i : used.index_range()) {
-    (*r_used)[i] = used[i];
-  }
-  for (const int i : visible.index_range()) {
-    (*r_visible)[i] = visible[i];
-  }
-}
-
 static int rna_ColorStrip_width_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
 {
   const Scene *scene = id_cast<Scene *>(ptr->owner_id);
@@ -3876,20 +3856,6 @@ static void rna_def_compositor_effect(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Properties", "");
   RNA_def_property_pointer_funcs(
       prop, "rna_SequencerCompositorEffectProperties_get", nullptr, nullptr, nullptr);
-
-  FunctionRNA *func = RNA_def_function(
-      srna, "evaluate_input_usages", "rna_SequencerCompositorEffect_input_usages");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
-  RNA_def_function_ui_description(
-      func,
-      "Calculate usage of each node group input, in interface order. For each input, "
-      "returns whether it currently affects the output and whether it should be visible");
-  PropertyRNA *parm = RNA_def_boolean_array(
-      func, "used", 1, nullptr, "", "Whether input affects the output");
-  RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_OUTPUT);
-  parm = RNA_def_boolean_array(
-      func, "visible", 1, nullptr, "", "Whether input should be visible in the UI");
-  RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_OUTPUT);
 }
 
 static void rna_def_solid_color(StructRNA *srna)
