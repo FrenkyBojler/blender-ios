@@ -5498,8 +5498,8 @@ class VIEW3D_MT_edit_font_delete(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("font.delete", text="Previous Character").type = 'PREVIOUS_CHARACTER'
-        layout.operator("font.delete", text="Next Character").type = 'NEXT_CHARACTER'
+        layout.operator("font.delete", text="Previous Character").type = 'PREVIOUS_OR_SELECTION'
+        layout.operator("font.delete", text="Next Character").type = 'NEXT_OR_SELECTION'
         layout.operator("font.delete", text="Previous Word").type = 'PREVIOUS_WORD'
         layout.operator("font.delete", text="Next Word").type = 'NEXT_WORD'
 
