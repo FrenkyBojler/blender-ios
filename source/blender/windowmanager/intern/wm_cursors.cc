@@ -412,7 +412,7 @@ void WM_cursor_set(wmWindow *win, int curs)
     curs = win->modalcursor;
   }
 
-  if (win->runtime == nullptr || win->runtime->is_virtual || win->runtime->ghostwin == nullptr) {
+  if (win->runtime == nullptr || win->runtime->ghostwin == nullptr) {
     win->cursor = curs;
     return;
   }
@@ -516,8 +516,7 @@ void WM_cursor_grab_enable(wmWindow *win,
                            const rcti *wrap_region,
                            const bool hide)
 {
-  if (win == nullptr || win->runtime == nullptr || win->runtime->is_virtual ||
-      win->runtime->ghostwin == nullptr)
+  if (win == nullptr || win->runtime == nullptr || win->runtime->ghostwin == nullptr)
   {
     return;
   }
@@ -577,8 +576,7 @@ void WM_cursor_grab_enable(wmWindow *win,
 
 void WM_cursor_grab_disable(wmWindow *win, const int mouse_ungrab_xy[2])
 {
-  if (win == nullptr || win->runtime == nullptr || win->runtime->is_virtual ||
-      win->runtime->ghostwin == nullptr)
+  if (win == nullptr || win->runtime == nullptr || win->runtime->ghostwin == nullptr)
   {
     return;
   }

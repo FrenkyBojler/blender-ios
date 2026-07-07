@@ -235,11 +235,6 @@ static void wm_xr_session_draw_data_populate(wmXrData *xr_data, wmXrDrawData *r_
 wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
                                                     const wmXrRuntimeData *runtime_data)
 {
-  if (runtime_data->session_win != nullptr &&
-      BLI_findindex(&wm->windows, runtime_data->session_win) != -1)
-  {
-    return runtime_data->session_win;
-  }
   /* Try to obtain the XR root window (the window the XR session was started in). */
   wmWindow *xr_win = runtime_data->session_root_win ? runtime_data->session_root_win :
                                                       CTX_wm_window(runtime_data->b_context);
@@ -463,9 +458,10 @@ bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm)
     return nullptr;
   }
 
-  /* XR session root window. Also sets the context scene. */
-  wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
+  wmWindow *xr_win = xr->runtime->session_win ? xr->runtime->session_win :
+                                                wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
   CTX_wm_window_set(xr->runtime->b_context, xr_win);
+  CTX_wm_screen_set(xr->runtime->b_context, xr->runtime->offscreen_screen);
 
   /* Unique offscreen XR area. */
   CTX_wm_area_set(xr->runtime->b_context, xr->runtime->offscreen_area);
@@ -1561,29 +1557,8 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
         if ((val != KM_NOTHING) &&
             (!modal || (is_active_modal_action && is_active_modal_subaction)))
         {
-          CLOG_ERROR(&LOG,
-                     "xr action dispatch: action_name=%s action_type=%d action_op=%s "
-                     "subaction_path=%s val=%d modal=%d active_modal_action=%d "
-                     "active_modal_subaction=%d",
-                     action->name ? action->name : "<null>",
-                     int(action->type),
-                     (action->ot && action->ot->idname) ? action->ot->idname : "<null>",
-                     action->subaction_paths[subaction_idx] ? action->subaction_paths[subaction_idx] :
-                                                              "<null>",
-                     int(val),
-                     int(modal),
-                     int(is_active_modal_action),
-                     int(is_active_modal_subaction));
           const bool consumed_by_panel = wm_xr_surface_interaction_apply_action(
               C, xr, action, action->subaction_paths[subaction_idx], val);
-          CLOG_ERROR(&LOG,
-                     "xr action dispatch: consumed_by_panel=%d action_name=%s subaction_path=%s "
-                     "val=%d",
-                     int(consumed_by_panel),
-                     action->name ? action->name : "<null>",
-                     action->subaction_paths[subaction_idx] ? action->subaction_paths[subaction_idx] :
-                                                              "<null>",
-                     int(val));
           if (consumed_by_panel) {
             continue;
           }
@@ -1671,7 +1646,8 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
     v3d->object_type_exclude_select = settings->object_type_exclude_select;
     wm_xr_surface_interaction_update(xr_context, xr);
 
-    wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
+    wmWindow *xr_win = xr->runtime->session_win ? xr->runtime->session_win :
+                                                  wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
     wm_xr_session_events_dispatch(xr, xr_context, ghost_xr_context, active_action_set, state, xr_win);
   }
 }

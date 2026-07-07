@@ -215,6 +215,7 @@ struct wmXrPanel {
   int panel_window_xy[2];
   int panel_region_xy[2];
   float panel_cursor_world[3];
+  char panel_hover_subaction_path[64];
   ListBaseT<wmXrTempRegion> temporary_regions;
   wmXrPanelPointerState panel_pointer;
 };

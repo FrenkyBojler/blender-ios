@@ -47,7 +47,7 @@ static const wmEvent *ui_window_eventstate_source_get(const wmWindow *win)
   if (win == nullptr || win->runtime == nullptr) {
     return nullptr;
   }
-  if (win->runtime->is_virtual && win->runtime->eventstate_simulate != nullptr) {
+  if (win->runtime->ghostwin == nullptr && win->runtime->eventstate_simulate != nullptr) {
     return win->runtime->eventstate_simulate;
   }
   return win->runtime->eventstate;
@@ -568,8 +568,8 @@ static void popup_block_remove(bContext *C, PopupBlockHandle *handle)
   ARegion *ctx_region = CTX_wm_region(C);
 
   wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = ctx_win;
-  bScreen *screen = CTX_wm_screen(C);
+  wmWindow *win = handle->ctx_win ? handle->ctx_win : ctx_win;
+  bScreen *screen = handle->ctx_screen ? handle->ctx_screen : CTX_wm_screen(C);
 
   /* There may actually be a different window active than the one showing the popup, so lookup real
    * one. */
@@ -955,6 +955,8 @@ PopupBlockHandle *popup_block_create(bContext *C,
   PopupBlockHandle *handle = MEM_new<PopupBlockHandle>(__func__);
 
   /* store context for operator */
+  handle->ctx_win = CTX_wm_window(C);
+  handle->ctx_screen = CTX_wm_screen(C);
   handle->ctx_area = CTX_wm_area(C);
   handle->ctx_region = CTX_wm_region(C);
   handle->can_refresh = can_refresh;

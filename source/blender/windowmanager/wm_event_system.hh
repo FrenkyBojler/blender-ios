@@ -153,6 +153,7 @@ void wm_event_free_handler(wmEventHandler *handler);
  * \note Called in main loop.
  */
 void wm_event_do_handlers(bContext *C);
+void wm_event_do_handlers_window(bContext *C, wmWindow *win);
 
 /**
  * Windows store their own event queues #wmWindow.event_queue (no #bContext here).

@@ -1057,6 +1057,8 @@ struct PopupBlockHandle {
 
   /* for operator popups */
   wmOperator *popup_op = nullptr;
+  wmWindow *ctx_win = nullptr;
+  bScreen *ctx_screen = nullptr;
   ScrArea *ctx_area = nullptr;
   ARegion *ctx_region = nullptr;
 

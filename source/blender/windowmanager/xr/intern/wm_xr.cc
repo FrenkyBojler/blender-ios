@@ -38,6 +38,7 @@
 
 #include "WM_api.hh"
 
+#include "wm_event_system.hh"
 #include "wm_window.hh"
 #include "wm_xr_intern.hh"
 
@@ -214,6 +215,9 @@ bool wm_xr_init(bContext *C)
         GHOST_XrContextDestroy(ghost_context);
         return false;
       }
+      /* XR owns this virtual window privately; don't make it participate as a normal desktop
+       * window in generic WM loops. */
+      BLI_remlink(&wm->windows, wm->xr.runtime->session_win);
 
       /* Base Main and WM pointers. */
       CTX_wm_manager_set(wm->xr.runtime->b_context, CTX_wm_manager(C));
@@ -241,7 +245,6 @@ bool wm_xr_init(bContext *C)
         }
         ED_area_offscreen_free(wm, wm->xr.runtime->session_win, wm->xr.runtime->offscreen_area);
         wm->xr.runtime->offscreen_area = nullptr;
-        BLI_remlink(&wm->windows, wm->xr.runtime->session_win);
         wm_window_free(wm->xr.runtime->b_context, wm, wm->xr.runtime->session_win);
         wm->xr.runtime->session_win = nullptr;
         CTX_free(wm->xr.runtime->b_context);
@@ -288,6 +291,7 @@ bool wm_xr_events_handle(wmWindowManager *wm)
     /* Process OpenXR action events. */
     if (WM_xr_session_is_ready(&wm->xr)) {
       wm_xr_session_actions_update(wm);
+      wm_event_do_handlers_window(wm->xr.runtime->b_context, wm->xr.runtime->session_win);
     }
 
     /* #wm_window_events_process() uses the return value to determine if it can put the main thread
@@ -358,7 +362,6 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     (*runtime)->offscreen_area = nullptr;
 
     if ((*runtime)->session_win != nullptr) {
-      BLI_remlink(&wm->windows, (*runtime)->session_win);
       wm_window_free(xr_context, wm, (*runtime)->session_win);
       (*runtime)->session_win = nullptr;
     }

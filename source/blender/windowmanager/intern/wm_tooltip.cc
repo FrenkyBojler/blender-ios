@@ -30,7 +30,7 @@ double WM_tooltip_time_closed()
 
 static const wmEvent *wm_tooltip_eventstate_source_get(const wmWindow *win)
 {
-  if (win->runtime->is_virtual && win->runtime->eventstate_simulate != nullptr) {
+  if (win->runtime->ghostwin == nullptr && win->runtime->eventstate_simulate != nullptr) {
     return win->runtime->eventstate_simulate;
   }
   return win->runtime->eventstate;

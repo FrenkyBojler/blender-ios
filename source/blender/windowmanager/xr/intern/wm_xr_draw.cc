@@ -380,8 +380,14 @@ static bool wm_xr_temp_region_cache_update(const bContext *C,
   rcti winrct_prev = region->winrct;
   const int winx_prev = region->winx;
   const int winy_prev = region->winy;
+  const int sizex_prev = region->sizex;
+  const int sizey_prev = region->sizey;
+  BLI_rcti_init(&region->winrct, 0, px_width - 1, 0, px_height - 1);
   region->winx = px_width;
   region->winy = px_height;
+  region->sizex = px_width;
+  region->sizey = px_height;
+  ED_region_update_rect(region);
   region->runtime->visible = true;
 
   if (region->runtime->type != nullptr && region->runtime->type->layout != nullptr) {
@@ -393,6 +399,9 @@ static bool wm_xr_temp_region_cache_update(const bContext *C,
     region->winrct = winrct_prev;
     region->winx = winx_prev;
     region->winy = winy_prev;
+    region->sizex = sizex_prev;
+    region->sizey = sizey_prev;
+    ED_region_update_rect(region);
     return false;
   }
 
@@ -424,6 +433,9 @@ static bool wm_xr_temp_region_cache_update(const bContext *C,
   region->winrct = winrct_prev;
   region->winx = winx_prev;
   region->winy = winy_prev;
+  region->sizex = sizex_prev;
+  region->sizey = sizey_prev;
+  ED_region_update_rect(region);
 
   temp_region->valid = true;
   temp_region->z_offset = 1.0f;
@@ -1158,6 +1170,7 @@ static void wm_xr_panel_pointer_clear(wmXrPanel *panel)
   panel->panel_hover_region = nullptr;
   panel->panel_cursor_visible = false;
   zero_v2_int(panel->panel_window_xy);
+  panel->panel_hover_subaction_path[0] = '\0';
   panel->panel_pointer.pressed = false;
   panel->panel_pointer.subaction_path[0] = '\0';
   panel->panel_pointer.action_idname[0] = '\0';
@@ -1462,20 +1475,16 @@ static void wm_xr_surface_interaction_event_add(const bContext * /*C*/,
                                                 const int xy[2])
 {
   wmEvent event{};
+  const wmEvent *eventstate = (win->runtime->ghostwin == nullptr &&
+                               win->runtime->eventstate_simulate != nullptr) ?
+                                  win->runtime->eventstate_simulate :
+                                  win->runtime->eventstate;
   wm_event_init_from_window(win, &event);
   copy_v2_v2_int(event.xy, xy);
-  copy_v2_v2_int(event.prev_xy, win->runtime->eventstate->xy);
+  copy_v2_v2_int(event.prev_xy, eventstate->xy);
   event.type = static_cast<wmEventType>(type);
   event.val = val;
 
-  XR_PANELS_TRACE("panels_ws_input: enqueue type=%d val=%d xy=(%d,%d) prev_xy=(%d,%d) win=%p",
-                  int(type),
-                  int(val),
-                  event.xy[0],
-                  event.xy[1],
-                  event.prev_xy[0],
-                  event.prev_xy[1],
-                  win);
   WM_event_add_simulate_region(win, area, region, &event);
 }
 
@@ -1865,7 +1874,7 @@ void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
 
   if (!hit_panel->panel_hovered || hit_panel->panel_hover_region != hit_region ||
       hit_panel->panel_window_xy[0] != hit_win_xy[0] || hit_panel->panel_window_xy[1] != hit_win_xy[1] ||
-      !STREQ(hit_panel->panel_pointer.subaction_path, subaction_path))
+      !STREQ(hit_panel->panel_hover_subaction_path, subaction_path))
   {
     wm_xr_panel_cache_refresh_host(C, hit_panel);
     wm_xr_surface_interaction_event_add(C,
@@ -1884,7 +1893,7 @@ void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
   hit_panel->panel_region_xy[0] = hit_win_xy[0] - hit_region->winrct.xmin;
   hit_panel->panel_region_xy[1] = hit_win_xy[1] - hit_region->winrct.ymin;
   hit_panel->panel_hovered = true;
-  BLI_strncpy(hit_panel->panel_pointer.subaction_path, subaction_path, XR_MAX_USER_PATH_LENGTH);
+  BLI_strncpy(hit_panel->panel_hover_subaction_path, subaction_path, XR_MAX_USER_PATH_LENGTH);
 }
 
 bool wm_xr_surface_interaction_apply_action(const bContext *C,
@@ -1909,21 +1918,6 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
    * for that captured action/subaction is rerouted to the panel. */
   if (event_val == KM_PRESS) {
     const bool action_is_panel_click = wm_xr_surface_action_is_panel_click_compatible(action);
-    XR_PANELS_TRACE(
-        "panels_ws_input: action press hovered=%d pressed=%d subaction_match=%d "
-        "action_name=%s action_type=%d action_op=%s panel_click=%d "
-        "host_area=%p host_region=%p host_region_type=%d offscreen_area=%p",
-        int(panel->panel_hovered),
-        int(panel->panel_pointer.pressed),
-        int(STREQ(panel->panel_pointer.subaction_path, subaction_path)),
-        action->name ? action->name : "<null>",
-        int(action->type),
-        (action->ot && action->ot->idname) ? action->ot->idname : "<null>",
-        int(action_is_panel_click),
-        panel->panel_host_area,
-        panel->panel_host_region,
-        panel->panel_host_region ? int(panel->panel_host_region->regiontype) : -1,
-        xr->runtime ? xr->runtime->offscreen_area : nullptr);
     if (panel->panel_pointer.pressed && action->ot != nullptr &&
         STREQ(panel->panel_pointer.subaction_path, subaction_path) &&
         STREQ(panel->panel_pointer.action_idname, action->ot->idname))
@@ -1969,16 +1963,6 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
     if (target_region == nullptr) {
       return false;
     }
-    XR_PANELS_TRACE(
-        "panels_ws_input: action release action_name=%s action_type=%d action_op=%s "
-        "host_area=%p host_region=%p host_region_type=%d offscreen_area=%p",
-        action->name ? action->name : "<null>",
-        int(action->type),
-        (action->ot && action->ot->idname) ? action->ot->idname : "<null>",
-        panel->panel_host_area,
-        target_region,
-        int(target_region->regiontype),
-        xr->runtime ? xr->runtime->offscreen_area : nullptr);
     wm_xr_panel_cache_refresh_host(C, panel);
     wm_xr_surface_interaction_event_add(C,
                                         panel->panel_host_win,

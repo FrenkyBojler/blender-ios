@@ -56,7 +56,7 @@ static const wmEvent *ui_window_eventstate_source_get(const wmWindow *win)
   if (win == nullptr || win->runtime == nullptr) {
     return nullptr;
   }
-  if (win->runtime->is_virtual && win->runtime->eventstate_simulate != nullptr) {
+  if (win->runtime->ghostwin == nullptr && win->runtime->eventstate_simulate != nullptr) {
     return win->runtime->eventstate_simulate;
   }
   return win->runtime->eventstate;
