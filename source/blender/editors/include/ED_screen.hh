@@ -362,10 +362,12 @@ void ED_screen_animation_timer_disable(wmWindowManager *wm, wmWindow *win);
 void ED_screen_animation_timer_update(bScreen *screen, int redraws);
 /**
  * Stop the animation in all screens where should_stop_fn(screen) returns true.
+ *
+ * The callback is only called for screens that have an animation timer.
  */
-void ED_wm_animation_stop(Main *bmain,
-                          wmWindowManager *wm,
-                          FunctionRef<bool(const bScreen &screen)> should_stop_fn);
+void ED_screen_animation_stop(Main *bmain,
+                              wmWindowManager *wm,
+                              FunctionRef<bool(const bScreen &screen)> should_stop_fn);
 
 void ED_screen_restore_temp_type(bContext *C, ScrArea *area);
 ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type);

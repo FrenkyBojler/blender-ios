@@ -1926,9 +1926,9 @@ ScrArea *ED_screen_temp_space_open(
   return nullptr;
 }
 
-void ED_wm_animation_stop(Main *bmain,
-                          wmWindowManager *wm,
-                          FunctionRef<bool(const bScreen &screen)> should_stop_fn)
+void ED_screen_animation_stop(Main *bmain,
+                              wmWindowManager *wm,
+                              FunctionRef<bool(const bScreen &screen)> should_stop_fn)
 {
   /* Cannot use ED_window_animation_playing_no_scrub() here, because that only returns the window,
    * and we need the screen too. */
