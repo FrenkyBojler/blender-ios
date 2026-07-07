@@ -205,8 +205,7 @@ static int gpu_shader_math(GPUMaterial *mat,
   if (ret && node->custom2 & SHD_MATH_CLAMP) {
     float min[3] = {0.0f, 0.0f, 0.0f};
     float max[3] = {1.0f, 1.0f, 1.0f};
-    GPU_link(
-        mat, "clamp_value", result.link, GPU_constant(min), GPU_constant(max), &result.link);
+    GPU_link(mat, "clamp_value", result.link, GPU_constant(min), GPU_constant(max), &result.link);
   }
   return ret;
 }
