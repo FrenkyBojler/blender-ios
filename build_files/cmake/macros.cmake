@@ -425,20 +425,18 @@ function(blender_link_libraries
 endfunction()
 
 function(is_c_or_cxx_source file variable)
-  get_filename_component(_ext "${file}" LAST_EXT)
+  set(result FALSE)
+  cmake_path(GET file EXTENSION LAST_ONLY _ext)
   # Files without an extension are not sources.
-  if(NOT _ext)
-    set(${variable} FALSE PARENT_SCOPE)
-    return()
+  if(_ext)
+    # Strip the leading dot.
+    string(SUBSTRING "${_ext}" 1 -1 _ext)
+    if(("${_ext}" IN_LIST CMAKE_C_SOURCE_FILE_EXTENSIONS) OR
+       ("${_ext}" IN_LIST CMAKE_CXX_SOURCE_FILE_EXTENSIONS))
+      set(result TRUE)
+    endif()
   endif()
-  # Strip the leading dot.
-  string(REGEX REPLACE "^\\." "" _ext "${_ext}")
-  if(("${_ext}" IN_LIST CMAKE_C_SOURCE_FILE_EXTENSIONS) OR
-     ("${_ext}" IN_LIST CMAKE_CXX_SOURCE_FILE_EXTENSIONS))
-    set(${variable} TRUE PARENT_SCOPE)
-  else()
-    set(${variable} FALSE PARENT_SCOPE)
-  endif()
+  set(${variable} ${result} PARENT_SCOPE)
 endfunction()
 
 function(blender_add_lib__impl
