@@ -242,7 +242,12 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
 
   /* Return whether the given window uses the to-be-removed view layer. */
   const auto is_using_view_layer = [&](const wmWindow &win) -> bool {
-    return (win.scene == scene && STREQ(win.view_layer_name, layer->name));
+    const bScreen *screen = WM_window_get_active_screen(&win);
+    if (!screen || !screen->animtimer) {
+      return false;
+    }
+    const ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
+    return (sad && sad->scene == scene && sad->view_layer == layer);
   };
 
   /* Stop animation playback of this layer before removing it, as the ScreenAnimData struct
@@ -255,7 +260,7 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
 
   /* Remove from windows. */
   for (wmWindow &win : wm->windows) {
-    if (is_using_view_layer(win)) {
+    if (win.scene == scene && STREQ(win.view_layer_name, layer->name)) {
       ViewLayer *first_layer = BKE_view_layer_default_view(scene);
       STRNCPY_UTF8(win.view_layer_name, first_layer->name);
     }

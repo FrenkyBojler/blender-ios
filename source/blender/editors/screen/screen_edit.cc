@@ -1955,8 +1955,8 @@ void ED_screen_animation_timer(
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
 
-  ED_wm_animation_timers_stop(wm,
-                              [&](const wmWindow &playing_win) { return win == &playing_win; });
+  /* Globally stop playback. */
+  ED_wm_animation_timers_stop(wm, [&](const wmWindow & /*win*/) { return true; });
 
   if (enable) {
     ScreenAnimData *sad = MEM_new_zeroed<ScreenAnimData>("ScreenAnimData");
