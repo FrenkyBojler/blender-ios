@@ -260,6 +260,7 @@ extern "C" const char *screen_context_dir[]; /* doc access */
 
 /**
  * Stop animation playback in the given screen.
+ * If there is no animation playing back in that screen, this is a no-op.
  */
 void screen_stop_playback(Main *bmain, wmWindowManager *wm, wmWindow *win, bScreen *screen);
 

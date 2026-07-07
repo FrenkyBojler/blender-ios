@@ -6769,6 +6769,11 @@ bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm)
 
 void screen_stop_playback(Main *bmain, wmWindowManager *wm, wmWindow *win, bScreen *screen)
 {
+  if (!screen || !screen->animtimer) {
+    /* Allow calls without knowing whether animation is actually running or not. */
+    return;
+  }
+
   wmTimer *wt = screen->animtimer;
   ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
   Scene *scene = sad->scene;
@@ -6803,7 +6808,9 @@ void screen_stop_playback(Main *bmain, wmWindowManager *wm, wmWindow *win, bScre
 
 static void stop_playback(bContext *C)
 {
-  screen_stop_playback(CTX_data_main(C), CTX_wm_manager(C), CTX_wm_window(C), CTX_wm_screen(C));
+  wmWindowManager *wm = CTX_wm_manager(C);
+  bScreen *stopscreen = ED_screen_animation_playing(wm);
+  screen_stop_playback(CTX_data_main(C), wm, CTX_wm_window(C), stopscreen);
 }
 
 static wmOperatorStatus start_playback(bContext *C, int sync, int mode)
