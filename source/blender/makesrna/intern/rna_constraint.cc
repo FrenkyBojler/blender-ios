@@ -446,6 +446,7 @@ static void rna_Constraint_name_set(PointerRNA *ptr, const char *value)
                          "constraints",
                          BKE_animdata_string_escape_for_rename(oldname),
                          BKE_animdata_string_escape_for_rename(con->name),
+                         true,
                          driver_map);
 }
 

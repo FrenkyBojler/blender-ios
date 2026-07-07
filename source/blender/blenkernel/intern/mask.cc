@@ -376,6 +376,7 @@ void BKE_mask_layer_rename(Mask *mask,
                          "layers",
                          BKE_animdata_string_escape_for_rename(oldname),
                          BKE_animdata_string_escape_for_rename(masklay->name),
+                         true,
                          driver_map);
 }
 

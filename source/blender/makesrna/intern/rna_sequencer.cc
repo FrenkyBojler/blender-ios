@@ -991,6 +991,7 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
                          "sequence_editor.strips_all",
                          BKE_animdata_string_escape_for_rename(oldname),
                          BKE_animdata_string_escape_for_rename(strip->name + 2),
+                         true,
                          driver_map);
 }
 

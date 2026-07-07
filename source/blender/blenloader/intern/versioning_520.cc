@@ -146,7 +146,7 @@ static void version_geometry_nodes_properties(FileData &fd,
     const std::string old_value_path = fmt::format("[\"{}\"]", identifier);
     const std::string new_value_path = fmt::format(".properties.inputs.{}.value", identifier);
     BKE_animdata_fix_paths(
-        object.id, inputs_path_prefix, old_value_path, new_value_path, driver_map);
+        object.id, inputs_path_prefix, old_value_path, new_value_path, false, driver_map);
 
     if (IDOverrideLibrary *override_library = object.id.override_library) {
       for (IDOverrideLibraryProperty &prop : override_library->properties) {

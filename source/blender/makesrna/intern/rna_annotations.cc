@@ -177,6 +177,7 @@ static void rna_annotation_layer_info_set(PointerRNA *ptr, const char *value)
                            "layers",
                            BKE_animdata_string_escape_for_rename(oldname),
                            BKE_animdata_string_escape_for_rename(gpl->info),
+                           true,
                            driver_map);
   }
 

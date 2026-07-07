@@ -595,6 +595,7 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
                          "view_layers",
                          BKE_animdata_string_escape_for_rename(oldname),
                          BKE_animdata_string_escape_for_rename(view_layer->name),
+                         true,
                          driver_map);
 
   /* WM can be missing on startup. */

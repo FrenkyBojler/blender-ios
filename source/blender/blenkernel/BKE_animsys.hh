@@ -221,11 +221,14 @@ DriverMap BKE_animdata_build_driver_target_map();
  * \param old_infix, new_infix: the full search and replace string pair. This has to be in the form
  * of the rna path and will be replaced as given. E.g. bone names should be escaped and
  * surrounded by `[""]`
+ * \param validate_paths: If true, only paths that are invalid before path replacement but resolve
+ * correctly after the change, are changed.
  */
 void BKE_animdata_fix_paths(ID &id,
                             StringRef prefix,
                             StringRef old_infix,
                             StringRef new_infix,
+                            bool validate_paths,
                             const DriverMap &driver_map);
 
 /**

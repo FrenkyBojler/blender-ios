@@ -1932,6 +1932,7 @@ void BKE_keyblock_rename(Key *key, KeyBlock *kb, const char *newname)
                          "key_blocks",
                          BKE_animdata_string_escape_for_rename(oldname),
                          BKE_animdata_string_escape_for_rename(kb->name),
+                         true,
                          driver_map);
 }
 }  // namespace blender

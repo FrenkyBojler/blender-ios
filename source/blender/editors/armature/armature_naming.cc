@@ -243,7 +243,8 @@ void ED_armature_bone_rename(Main *bmain,
             BLI_ghash_insert(gh, pchan->name, pchan);
           }
 
-          BKE_animdata_fix_paths(ob->id, "pose.bones", old_name_esc, new_name_esc, driver_map);
+          BKE_animdata_fix_paths(
+              ob->id, "pose.bones", old_name_esc, new_name_esc, true, driver_map);
         }
 
         BLI_assert(BKE_pose_channels_is_valid(ob->pose));
@@ -367,7 +368,7 @@ void ED_armature_bone_rename(Main *bmain,
    * since other ID-blocks may have drivers referring to this bone #29822.
    * This also works for edit bones since those have an rna path of "edit_bones" which is also
    * caught by the rename function. */
-  BKE_animdata_fix_paths(arm->id, "bones", old_name_esc, new_name_esc, driver_map);
+  BKE_animdata_fix_paths(arm->id, "bones", old_name_esc, new_name_esc, true, driver_map);
 
   /* correct view locking */
   {

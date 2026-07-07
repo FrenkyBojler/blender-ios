@@ -462,6 +462,7 @@ void version_node_socket_index_animdata(Main *bmain,
                                rna_path_prefix,
                                BKE_animdata_number_to_rna_element(input_index),
                                BKE_animdata_number_to_rna_element(new_index),
+                               false,
                                driver_map);
         MEM_delete(rna_path_prefix);
       }

@@ -152,6 +152,7 @@ static void rna_ShaderFx_name_set(PointerRNA *ptr, const char *value)
                            "shader_effects",
                            BKE_animdata_string_escape_for_rename(oldname),
                            BKE_animdata_string_escape_for_rename(gmd->name),
+                           true,
                            driver_map);
   }
 }

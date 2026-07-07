@@ -4373,6 +4373,7 @@ void GreasePencil::rename_node(Main &bmain,
                            "layers",
                            BKE_animdata_string_escape_for_rename(old_name),
                            BKE_animdata_string_escape_for_rename(node.name()),
+                           true,
                            driver_map);
     /* Update names in layer masks. */
     for (bke::greasepencil::Layer *layer : this->layers_for_write()) {

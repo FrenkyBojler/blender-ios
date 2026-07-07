@@ -932,6 +932,7 @@ static void rna_Modifier_name_set(PointerRNA *ptr, const char *value)
                            "modifiers",
                            BKE_animdata_string_escape_for_rename(oldname),
                            BKE_animdata_string_escape_for_rename(md->name),
+                           true,
                            driver_map);
   }
 }
@@ -2530,6 +2531,7 @@ static void rna_GreasePencilDashModifierSegment_name_set(PointerRNA *ptr, const 
                          rna_path_prefix,
                          BKE_animdata_string_escape_for_rename(oldname),
                          BKE_animdata_string_escape_for_rename(dash_segment->name),
+                         true,
                          driver_map);
 }
 
@@ -2639,6 +2641,7 @@ static void rna_GreasePencilTimeModifierSegment_name_set(PointerRNA *ptr, const 
                          rna_path_prefix,
                          BKE_animdata_string_escape_for_rename(oldname),
                          BKE_animdata_string_escape_for_rename(segment->name),
+                         true,
                          driver_map);
 }
 

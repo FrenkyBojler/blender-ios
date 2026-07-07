@@ -2721,6 +2721,7 @@ static void rna_Node_name_set(PointerRNA *ptr, const char *value)
                          "nodes",
                          BKE_animdata_string_escape_for_rename(oldname),
                          BKE_animdata_string_escape_for_rename(node->name),
+                         true,
                          driver_map);
 }
 
