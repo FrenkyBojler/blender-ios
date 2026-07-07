@@ -46,6 +46,8 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
+#include "RNA_path.hh"
+
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_debug.hh"
 #include "DEG_depsgraph_query.hh"
@@ -593,8 +595,8 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
   DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
   BKE_animdata_fix_paths(scene->id,
                          "view_layers",
-                         BKE_animdata_name_to_infix(oldname),
-                         BKE_animdata_name_to_infix(view_layer->name),
+                         RNA_path_name_to_infix(oldname),
+                         RNA_path_name_to_infix(view_layer->name),
                          true,
                          driver_map);
 

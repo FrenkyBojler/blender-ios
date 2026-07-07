@@ -24,6 +24,8 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 
+#include "RNA_path.hh"
+
 #include "ANIM_armature_iter.hh"
 #include "ANIM_bone_collections.hh"
 #include "WM_api.hh"
@@ -607,14 +609,14 @@ void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll,
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(armature->id,
                          "collections",
-                         BKE_animdata_name_to_infix(old_name),
-                         BKE_animdata_name_to_infix(bcoll->name),
+                         RNA_path_name_to_infix(old_name),
+                         RNA_path_name_to_infix(bcoll->name),
                          true,
                          driver_map);
   BKE_animdata_fix_paths(armature->id,
                          "collections_all",
-                         BKE_animdata_name_to_infix(old_name),
-                         BKE_animdata_name_to_infix(bcoll->name),
+                         RNA_path_name_to_infix(old_name),
+                         RNA_path_name_to_infix(bcoll->name),
                          true,
                          driver_map);
 }

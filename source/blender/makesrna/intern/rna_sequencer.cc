@@ -22,6 +22,7 @@
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+#include "RNA_path.hh"
 #include "RNA_types.hh"
 #include "rna_internal.hh"
 
@@ -989,8 +990,8 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(scene->id,
                          "sequence_editor.strips_all",
-                         BKE_animdata_name_to_infix(oldname),
-                         BKE_animdata_name_to_infix(strip->name + 2),
+                         RNA_path_name_to_infix(oldname),
+                         RNA_path_name_to_infix(strip->name + 2),
                          true,
                          driver_map);
 }

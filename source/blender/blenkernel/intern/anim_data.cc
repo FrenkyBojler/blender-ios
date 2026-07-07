@@ -754,7 +754,7 @@ static std::optional<std::string> rna_path_rename_fix(ID &owner_id,
 }
 
 /**
- * Inverse of BKE_animdata_name_to_infix.
+ * Inverse of RNA_path_name_to_infix.
  */
 static std::string infix_to_name(const StringRef infix)
 {
@@ -1061,7 +1061,6 @@ static bool driver_target_path_fix(ID &owner_id,
                                    const StringRef prefix,
                                    const StringRef old_infix,
                                    const StringRef new_infix,
-                                   const bool verify_paths,
                                    const DriverMap &driver_map)
 {
   const Vector<DriverTarget *> *target_uses = driver_map.lookup_ptr(&owner_id);
@@ -1137,7 +1136,7 @@ void BKE_animdata_fix_paths(ID &id,
 {
   /* We always need to fix drivers that target this ID. This is independent of this ID having
    * animation data. */
-  driver_target_path_fix(id, prefix, old_infix, new_infix, verify_paths, driver_map);
+  driver_target_path_fix(id, prefix, old_infix, new_infix, driver_map);
 
   AnimData *adt = BKE_animdata_from_id(&id);
   if (!adt) {
@@ -1164,27 +1163,6 @@ void BKE_animdata_fix_paths(ID &id,
     MEM_delete(fcurve.rna_path);
     fcurve.rna_path = BLI_strdup(fixed_path->c_str());
   }
-}
-
-static std::string str_escape(StringRefNull str)
-{
-  const size_t max_result_size = size_t(str.size()) * 2 + 1;
-  std::string result;
-  result.resize(max_result_size);
-  const size_t result_size = BLI_str_escape(result.data(), str.c_str(), max_result_size);
-  result.resize(result_size);
-  return result;
-}
-
-std::string BKE_animdata_name_to_infix(const StringRefNull string)
-{
-  std::string old_name_esc = str_escape(string);
-  return fmt::format("[\"{}\"]", old_name_esc);
-}
-
-std::string BKE_animdata_number_to_infix(const int number)
-{
-  return fmt::format("[%d]", number);
 }
 
 /* Remove FCurves with Prefix  -------------------------------------- */

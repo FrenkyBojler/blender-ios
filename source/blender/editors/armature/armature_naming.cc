@@ -40,6 +40,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_path.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -217,8 +218,8 @@ void ED_armature_bone_rename(Main *bmain,
   /* force evaluation copy to update database */
   DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
   DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
-  std::string old_name_esc = BKE_animdata_name_to_infix(oldname);
-  std::string new_name_esc = BKE_animdata_name_to_infix(newname);
+  std::string old_name_esc = RNA_path_name_to_infix(oldname);
+  std::string new_name_esc = RNA_path_name_to_infix(newname);
 
   Object *ob;
   /* Find all uses of the bone name in Main. Bones are usually referred to by name which is why we

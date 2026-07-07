@@ -30,6 +30,7 @@
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+#include "RNA_path.hh"
 
 #include "NOD_common.hh"
 
@@ -2719,8 +2720,8 @@ static void rna_Node_name_set(PointerRNA *ptr, const char *value)
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(ntree->id,
                          "nodes",
-                         BKE_animdata_name_to_infix(oldname),
-                         BKE_animdata_name_to_infix(node->name),
+                         RNA_path_name_to_infix(oldname),
+                         RNA_path_name_to_infix(node->name),
                          true,
                          driver_map);
 }

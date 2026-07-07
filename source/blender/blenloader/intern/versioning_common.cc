@@ -16,6 +16,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 
+#include "RNA_path.hh"
+
 #include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_string.hh"
@@ -460,8 +462,8 @@ void version_node_socket_index_animdata(Main *bmain,
         const int new_index = input_index + socket_index_offset;
         BKE_animdata_fix_paths(*owner_id,
                                rna_path_prefix,
-                               BKE_animdata_number_to_infix(input_index),
-                               BKE_animdata_number_to_infix(new_index),
+                               RNA_path_number_to_infix(input_index),
+                               RNA_path_number_to_infix(new_index),
                                false,
                                driver_map);
         MEM_delete(rna_path_prefix);

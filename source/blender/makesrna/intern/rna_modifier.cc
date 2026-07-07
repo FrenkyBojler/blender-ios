@@ -31,6 +31,7 @@
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+#include "RNA_path.hh"
 
 #include "rna_internal.hh"
 
@@ -930,8 +931,8 @@ static void rna_Modifier_name_set(PointerRNA *ptr, const char *value)
     DriverMap driver_map = BKE_animdata_build_driver_target_map();
     BKE_animdata_fix_paths(ob->id,
                            "modifiers",
-                           BKE_animdata_name_to_infix(oldname),
-                           BKE_animdata_name_to_infix(md->name),
+                           RNA_path_name_to_infix(oldname),
+                           RNA_path_name_to_infix(md->name),
                            true,
                            driver_map);
   }
@@ -2529,8 +2530,8 @@ static void rna_GreasePencilDashModifierSegment_name_set(PointerRNA *ptr, const 
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(*ptr->owner_id,
                          rna_path_prefix,
-                         BKE_animdata_name_to_infix(oldname),
-                         BKE_animdata_name_to_infix(dash_segment->name),
+                         RNA_path_name_to_infix(oldname),
+                         RNA_path_name_to_infix(dash_segment->name),
                          true,
                          driver_map);
 }
@@ -2639,8 +2640,8 @@ static void rna_GreasePencilTimeModifierSegment_name_set(PointerRNA *ptr, const 
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(*ptr->owner_id,
                          rna_path_prefix,
-                         BKE_animdata_name_to_infix(oldname),
-                         BKE_animdata_name_to_infix(segment->name),
+                         RNA_path_name_to_infix(oldname),
+                         RNA_path_name_to_infix(segment->name),
                          true,
                          driver_map);
 }

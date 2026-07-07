@@ -30,6 +30,8 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_object_types.h"
 
+#include "RNA_path.hh"
+
 #include "BKE_animsys.hh"
 #include "BKE_curve.hh"
 #include "BKE_idtype.hh"
@@ -374,8 +376,8 @@ void BKE_mask_layer_rename(Mask *mask,
   DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(mask->id,
                          "layers",
-                         BKE_animdata_name_to_infix(oldname),
-                         BKE_animdata_name_to_infix(masklay->name),
+                         RNA_path_name_to_infix(oldname),
+                         RNA_path_name_to_infix(masklay->name),
                          true,
                          driver_map);
 }
