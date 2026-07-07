@@ -311,10 +311,8 @@ void MEM_use_guarded_allocator(void);
 /**
  * Allocate an aligned block of memory that remains uninitialized.
  */
-[[nodiscard]] ATTR_NONNULL(4) inline void *MEM_new_array_uninitialized_aligned(size_t len,
-                                                                               size_t size,
-                                                                               size_t alignment,
-                                                                               const char *str)
+[[nodiscard]] ATTR_NONNULL(4) inline void *MEM_new_array_uninitialized_aligned(
+    const size_t len, const size_t size, const size_t alignment, const char *str)
 {
   return mem_new_array_uninitialized_aligned(len, size, alignment, str);
 }
@@ -322,9 +320,9 @@ void MEM_use_guarded_allocator(void);
 /**
  * Allocate an aligned block of memory that is initialized with zeros.
  */
-[[nodiscard]] ATTR_NONNULL(4) inline void *MEM_new_array_zeroed_aligned(size_t len,
-                                                                        size_t size,
-                                                                        size_t alignment,
+[[nodiscard]] ATTR_NONNULL(4) inline void *MEM_new_array_zeroed_aligned(const size_t len,
+                                                                        const size_t size,
+                                                                        const size_t alignment,
                                                                         const char *str)
 {
   return mem_new_array_zeroed_aligned(len, size, alignment, str);
