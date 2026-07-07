@@ -8,6 +8,7 @@
  * Relaxes vertices along edge loops so they are smoother.
  */
 
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector.hh"
 
 #include "BLI_array_utils.hh"

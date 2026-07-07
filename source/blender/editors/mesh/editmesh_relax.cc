@@ -27,8 +27,8 @@
 namespace blender {
 
 static const EnumPropertyItem prop_interpolation_items[] = {
-    {0, "CUBIC", 0, "Cubic", "Natural cubic spline, smooth results"},
-    {1, "LINEAR", 0, "Linear", "Simple and fast linear algorithm"},
+    {RELAX_EDGE_LOOPS_INTERP_CUBIC, "CUBIC", 0, "Cubic", "Natural cubic spline, smooth results"},
+    {RELAX_EDGE_LOOPS_INTERP_LINEAR, "LINEAR", 0, "Linear", "Simple and fast linear algorithm"},
     {0, nullptr},
 };
 
